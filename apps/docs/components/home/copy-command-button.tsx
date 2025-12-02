@@ -1,5 +1,6 @@
 "use client";
 
+import { cn } from "@/lib/utils";
 import { CheckIcon, CopyIcon } from "lucide-react";
 import { useState } from "react";
 
@@ -15,18 +16,26 @@ export function CopyCommandButton() {
   return (
     <button
       onClick={copyToClipboard}
-      className="group flex h-10 items-center gap-2 rounded-md border border-border/60 bg-muted/30 px-4 font-mono text-sm transition-all hover:border-border hover:bg-muted/50"
+      className="group inline-flex w-fit items-center gap-1.5 rounded-md border border-border/60 bg-muted/30 px-3 py-1.5 font-mono text-sm transition-all hover:border-border hover:bg-muted/50"
     >
       <span className="text-muted-foreground/70">$</span>
       <span>npx assistant-ui init</span>
-      <div className="ml-1 flex size-4 items-center justify-center text-muted-foreground">
-        {copied ? (
-          <CheckIcon className="size-3.5 text-green-500" />
-        ) : (
-          <CopyIcon className="size-3.5 opacity-50 transition-opacity group-hover:opacity-100" />
-        )}
+      <div className="relative ml-1 flex size-4 items-center justify-center text-muted-foreground">
+        <CheckIcon
+          className={cn(
+            "absolute size-3.5 text-green-500 transition-all duration-100",
+            copied ? "scale-100 opacity-100" : "scale-50 opacity-0",
+          )}
+        />
+        <CopyIcon
+          className={cn(
+            "absolute size-3.5 transition-all duration-100",
+            copied
+              ? "scale-50 opacity-0"
+              : "scale-100 opacity-50 group-hover:opacity-100",
+          )}
+        />
       </div>
     </button>
   );
 }
-

@@ -30,26 +30,24 @@ export default function HomePage() {
           </p>
         </div>
 
-        <div className="flex w-full max-w-md flex-col gap-3 sm:flex-row">
-          <a
+        <div className="flex w-full max-w-md flex-col items-center justify-center gap-3 sm:flex-row">
+          <Link
             className={buttonVariants({
               variant: "outline",
-              className: "flex-1",
             })}
             href="https://discord.gg/S9dwgCNEFs"
           >
             <DiscordLogoIcon className="mr-2 size-4 text-indigo-600" />
             Join our Discord
-          </a>
-          <a
+          </Link>
+          <Link
             className={buttonVariants({
               variant: "outline",
-              className: "flex-1",
             })}
             href="https://github.com/assistant-ui/assistant-ui"
           >
             <span className="mr-2">🌟</span> Star us on GitHub
-          </a>
+          </Link>
         </div>
 
         <div className="relative mx-auto max-h-[500px] w-full max-w-7xl overflow-hidden">

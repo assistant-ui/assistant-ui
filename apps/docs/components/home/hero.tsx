@@ -5,11 +5,9 @@ import { Claude } from "@/components/claude/Claude";
 import { Perplexity } from "@/components/perplexity/Perplexity";
 import { Shadcn } from "@/components/shadcn/Shadcn";
 import { Tab } from "@/components/shared/tab";
-import { Button } from "@/components/ui/button";
 import { DocsRuntimeProvider } from "@/app/(home)/DocsRuntimeProvider";
 import { StarPill } from "@/components/home/star-pill";
 import { CopyCommandButton } from "@/components/home/copy-command-button";
-import { ArrowRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -66,44 +64,43 @@ const EXAMPLE_TABS = [
 
 export function Hero() {
   return (
-    <section className="flex flex-col gap-8">
-      <div className="flex flex-col gap-6">
-        <div className="flex flex-col gap-2">
-          <StarPill />
-          <h1 className="font-medium text-2xl tracking-tight">
-            UX of ChatGPT in your own app
-          </h1>
-          <p className="text-lg text-muted-foreground leading-relaxed">
-            Open-source React toolkit for production AI chat experiences.
-          </p>
-        </div>
+    <section className="flex flex-col gap-6">
+      <StarPill />
 
-        <div className="flex flex-wrap items-center gap-3">
-          <CopyCommandButton />
-          <Button asChild className="h-10 px-5">
-            <Link href="https://cal.com/simon-farshid/assistant-ui">
-              Contact Sales
-              <ArrowRight className="ml-2 size-4" />
-            </Link>
-          </Button>
-        </div>
+      <div className="flex flex-col gap-1">
+        <h1 className="font-medium text-2xl">UX of ChatGPT in your own app</h1>
+        <p className="text-lg text-muted-foreground">
+          Open-source React toolkit for production AI chat experiences.
+        </p>
+      </div>
 
-        <div className="flex items-center gap-3 text-[13px] text-muted-foreground">
+      <div className="flex flex-col gap-4">
+        <CopyCommandButton />
+        <div className="flex flex-wrap items-center gap-x-3 text-[13px] text-muted-foreground">
           <Link
             href="/docs"
-            className="transition-colors hover:text-foreground hover:underline"
+            className="font-medium transition-colors hover:text-foreground"
           >
-            Get Started
+            Get Started →
           </Link>
           <span className="size-1 rounded-full bg-border" />
-          <span>Backed by</span>
-          <Image
-            src="/logos/yc_logo.png"
-            alt="Y Combinator"
-            height={24}
-            width={24}
-          />
-          <span>Combinator</span>
+          <Link
+            href="https://cal.com/simon-farshid/assistant-ui"
+            className="transition-colors hover:text-foreground"
+          >
+            Contact Sales
+          </Link>
+          <span className="size-1 rounded-full bg-border" />
+          <span className="inline-flex items-center gap-1.5">
+            Backed by
+            <Image
+              src="/logos/yc_logo.png"
+              alt="Y Combinator"
+              height={18}
+              width={18}
+            />
+            Combinator
+          </span>
         </div>
       </div>
 

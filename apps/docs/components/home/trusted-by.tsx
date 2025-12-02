@@ -1,58 +1,63 @@
 "use client";
 
-import { Marquee } from "@/components/magicui/marquee";
+import { cn } from "@/lib/utils";
 import { useMediaQuery } from "@/lib/useMediaQuery";
 import Image from "next/image";
+
+const LOGOS = [
+  { src: "/logos/cust/langchain.svg", alt: "Langchain", height: "h-7" },
+  {
+    src: "/logos/cust/athenaintel.png",
+    alt: "Athena Intelligence",
+    height: "h-11",
+  },
+  { src: "/logos/cust/browseruse.svg", alt: "Browseruse", height: "h-6" },
+  { src: "/logos/cust/stack.svg", alt: "Stack", height: "h-5" },
+] as const;
+
+function LogoList() {
+  return (
+    <>
+      {LOGOS.map((logo) => (
+        <Image
+          key={logo.alt}
+          src={logo.src}
+          alt={logo.alt}
+          width={100}
+          height={44}
+          className={cn(
+            "w-auto shrink-0 opacity-50 invert transition-opacity hover:opacity-100 dark:invert-0",
+            logo.height,
+          )}
+        />
+      ))}
+    </>
+  );
+}
 
 export function TrustedBy() {
   const isMobile = useMediaQuery("(max-width: 1080px)");
 
-  const logos = (
-    <div className="flex w-full items-center justify-around">
-      <Image
-        src="/logos/cust/langchain.svg"
-        alt="Langchain"
-        width={100}
-        height={28}
-        className="h-7 w-auto opacity-50 invert transition-opacity hover:opacity-100 dark:invert-0"
-      />
-      <Image
-        src="/logos/cust/athenaintel.png"
-        alt="Athena Intelligence"
-        width={100}
-        height={44}
-        className="h-11 w-auto opacity-50 invert transition-opacity hover:opacity-100 dark:invert-0"
-      />
-      <Image
-        src="/logos/cust/browseruse.svg"
-        alt="Browseruse"
-        width={100}
-        height={26}
-        className="h-6 w-auto opacity-50 invert transition-opacity hover:opacity-100 dark:invert-0"
-      />
-      <Image
-        src="/logos/cust/stack.svg"
-        alt="Stack"
-        width={100}
-        height={22}
-        className="h-5 w-auto opacity-50 invert transition-opacity hover:opacity-100 dark:invert-0"
-      />
-    </div>
-  );
-
   return (
-    <section className="flex flex-col items-center gap-2">
+    <section className="flex flex-col items-center gap-3">
       <h2 className="text-center font-medium text-3xl tracking-tight">
         Trusted by fast-growing companies
       </h2>
       {isMobile ? (
-        <div className="w-full overflow-clip">
-          <Marquee repeat={4}>
-            <div className="flex w-[1000px]">{logos}</div>
-          </Marquee>
+        <div className="flex w-full overflow-hidden [--duration:20s] [--gap:3rem]">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div
+              key={i}
+              className="flex shrink-0 animate-marquee items-center justify-around gap-[var(--gap)]"
+            >
+              <LogoList />
+            </div>
+          ))}
         </div>
       ) : (
-        logos
+        <div className="flex w-full items-center justify-around">
+          <LogoList />
+        </div>
       )}
     </section>
   );
