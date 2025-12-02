@@ -48,7 +48,7 @@
     "fumadocs-twoslash": "^3.1.10",
     "fumadocs-ui": "16.1.0",
     "geist": "^1.5.1",
-    "pdf-lib": "^1.17.1",
+    "jspdf": "^3.0.4",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.555.0",
     "mermaid": "^11.12.1",
