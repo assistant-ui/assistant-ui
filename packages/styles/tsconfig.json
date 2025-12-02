@@ -5,6 +5,5 @@
     "moduleResolution": "NodeNext",
     "lib": ["ES2023"]
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["scripts/**/*.mts"]
 }

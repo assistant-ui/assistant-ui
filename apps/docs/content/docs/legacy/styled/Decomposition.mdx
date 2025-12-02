@@ -174,17 +174,18 @@ The text input field for the user to type a new message.
 The button to send or cancel the message.
 
 ```tsx
-import { Composer, ThreadPrimitive } from "@assistant-ui/react-ui";
+import { Composer } from "@assistant-ui/react-ui";
+import { AssistantIf } from "@assistant-ui/react";
 
 const MyComposerAction: FC = () => {
   return (
     <>
-      <ThreadPrimitive.If running={false}>
+      <AssistantIf condition={({ thread }) => !thread.isRunning}>
         <Composer.Send />
-      </ThreadPrimitive.If>
-      <ThreadPrimitive.If running>
+      </AssistantIf>
+      <AssistantIf condition={({ thread }) => thread.isRunning}>
         <Composer.Cancel />
-      </ThreadPrimitive.If>
+      </AssistantIf>
     </>
   );
 };

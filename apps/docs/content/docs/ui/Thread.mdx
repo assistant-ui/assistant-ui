@@ -19,7 +19,7 @@ attachments, and conditional UI states. Fully customizable and composable.
 The Thread component is built with the following primitives:
 
 ```tsx
-import { ThreadPrimitive } from "@assistant-ui/react";
+import { ThreadPrimitive, AssistantIf } from "@assistant-ui/react";
 
 <ThreadPrimitive.Root>
   <ThreadPrimitive.Viewport>
@@ -27,14 +27,14 @@ import { ThreadPrimitive } from "@assistant-ui/react";
     <ThreadPrimitive.Messages
       components={{
         EditComposer,
-        UserMessage, 
+        UserMessage,
         AssistantMessage,
       }}
     />
     <ThreadPrimitive.ScrollToBottom />
   </ThreadPrimitive.Viewport>
   <ThreadPrimitive.Suggestion />
-  <ThreadPrimitive.If />
+  <AssistantIf condition={...} />
 </ThreadPrimitive.Root>
 ```
 
@@ -74,33 +74,33 @@ export default function Chat() {
 ### Welcome Screen
 
 ```tsx
-<ThreadPrimitive.If empty>
+<AssistantIf condition={({ thread }) => thread.isEmpty}>
   <ThreadWelcome />
-</ThreadPrimitive.If>
+</AssistantIf>
 ```
 
 ### Viewport Spacer
 
 ```tsx
-<ThreadPrimitive.If empty={false}>
+<AssistantIf condition={({ thread }) => !thread.isEmpty}>
   <div className="min-h-8 grow" />
-</ThreadPrimitive.If>
+</AssistantIf>
 ```
 
 ### Conditional Send/Cancel Button
 
 ```tsx
-<ThreadPrimitive.If running={false}>
+<AssistantIf condition={({ thread }) => !thread.isRunning}>
   <ComposerPrimitive.Send>
     Send
   </ComposerPrimitive.Send>
-</ThreadPrimitive.If>
+</AssistantIf>
 
-<ThreadPrimitive.If running>
+<AssistantIf condition={({ thread }) => thread.isRunning}>
   <ComposerPrimitive.Cancel>
     Cancel
   </ComposerPrimitive.Cancel>
-</ThreadPrimitive.If>
+</AssistantIf>
 ```
 
 ### Suggestions
@@ -359,33 +359,40 @@ Shows a suggestion to the user. When clicked, replaces the composer's value with
 
 This primitive renders a `<button>` element unless `asChild` is set.
 
-### If
+### AssistantIf
 
-Conditionally renders children based on thread state.
+Conditionally renders children based on assistant state. This is a generic component that can access thread, message, composer, and other state.
+
+```tsx
+import { AssistantIf } from "@assistant-ui/react";
+
+<AssistantIf condition={({ thread }) => thread.isEmpty}>
+  <WelcomeScreen />
+</AssistantIf>
+
+<AssistantIf condition={({ thread }) => thread.isRunning}>
+  <LoadingIndicator />
+</AssistantIf>
+
+<AssistantIf condition={({ message }) => message.role === "assistant"}>
+  <AssistantAvatar />
+</AssistantIf>
+```
 
 <ParametersTable
-  type="ThreadPrimitiveIfProps"
+  type="AssistantIfProps"
   parameters={[
     {
-      name: "empty",
-      type: "boolean | undefined",
-      description: "Render children if the thread is empty (no messages).",
-    },
-    {
-      name: "running",
-      type: "boolean | undefined",
-      description: "Render children if the thread is running (assistant is responding).",
-    },
-    {
-      name: "disabled",
-      type: "boolean | undefined",
-      description: "Render children if the thread is disabled.",
+      name: "condition",
+      type: "(state: AssistantState) => boolean",
+      required: true,
+      description: "A function that receives the assistant state and returns whether to render children.",
     },
   ]}
 />
 
 <Callout type="info">
-Multiple conditions can be combined on `ThreadPrimitive.If` - all specified conditions must match for children to render.
+The condition function receives an `AssistantState` object with access to `thread`, `message`, `composer`, `part`, and `attachment` state depending on context.
 </Callout>
 
 

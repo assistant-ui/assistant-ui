@@ -2,6 +2,7 @@
 
 import {
   ActionBarPrimitive,
+  AssistantIf,
   BranchPickerPrimitive,
   ComposerPrimitive,
   MessagePrimitive,
@@ -40,7 +41,7 @@ export const Thread: FC = () => {
       <ThreadPrimitive.Empty>
         <ThreadWelcome />
       </ThreadPrimitive.Empty>
-      <ThreadPrimitive.If empty={false}>
+      <AssistantIf condition={({ thread }) => !thread.isEmpty}>
         <ThreadPrimitive.Viewport className="flex h-full flex-col items-center overflow-y-scroll scroll-smooth bg-inherit px-4 pt-8">
           <ThreadPrimitive.Messages
             components={{
@@ -56,7 +57,7 @@ export const Thread: FC = () => {
             <Composer />
           </div>
         </ThreadPrimitive.Viewport>
-      </ThreadPrimitive.If>
+      </AssistantIf>
     </ThreadPrimitive.Root>
   );
 };
@@ -149,7 +150,7 @@ const Composer: FC = () => {
 const ComposerAction: FC = () => {
   return (
     <>
-      <ThreadPrimitive.If running={false}>
+      <AssistantIf condition={({ thread }) => !thread.isRunning}>
         <ComposerPrimitive.Send asChild>
           <TooltipIconButton
             tooltip="Send"
@@ -159,8 +160,8 @@ const ComposerAction: FC = () => {
             <ArrowUpIcon className="!size-5" />
           </TooltipIconButton>
         </ComposerPrimitive.Send>
-      </ThreadPrimitive.If>
-      <ThreadPrimitive.If running>
+      </AssistantIf>
+      <AssistantIf condition={({ thread }) => thread.isRunning}>
         <ComposerPrimitive.Cancel asChild>
           <TooltipIconButton
             tooltip="Cancel"
@@ -170,7 +171,7 @@ const ComposerAction: FC = () => {
             <CircleStopIcon />
           </TooltipIconButton>
         </ComposerPrimitive.Cancel>
-      </ThreadPrimitive.If>
+      </AssistantIf>
     </>
   );
 };
@@ -218,12 +219,12 @@ const AssistantActionBar: FC = () => {
           tooltip="Copy"
           className="text-[#808080] hover:bg-[#3a3a3a] hover:text-[#f5f5f5]"
         >
-          <MessagePrimitive.If copied>
+          <AssistantIf condition={({ message }) => message.isCopied}>
             <CheckIcon className="text-[#20b8cd]" />
-          </MessagePrimitive.If>
-          <MessagePrimitive.If copied={false}>
+          </AssistantIf>
+          <AssistantIf condition={({ message }) => !message.isCopied}>
             <CopyIcon />
-          </MessagePrimitive.If>
+          </AssistantIf>
         </TooltipIconButton>
       </ActionBarPrimitive.Copy>
       <ActionBarPrimitive.Reload asChild>

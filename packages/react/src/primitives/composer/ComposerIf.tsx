@@ -30,6 +30,9 @@ export namespace ComposerPrimitiveIf {
   export type Props = PropsWithChildren<UseComposerIfProps>;
 }
 
+/**
+ * @deprecated Use `<AssistantIf condition={({ composer }) => ...} />` instead.
+ */
 export const ComposerPrimitiveIf: FC<ComposerPrimitiveIf.Props> = ({
   children,
   ...query
