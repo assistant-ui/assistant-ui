@@ -1,5 +1,5 @@
 ---
-"@assistant-ui/styles": patch
+"@assistant-ui/styles": minor
 ---
 
 feat: update styles
