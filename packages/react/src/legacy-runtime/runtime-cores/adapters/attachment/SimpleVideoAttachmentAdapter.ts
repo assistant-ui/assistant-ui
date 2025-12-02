@@ -10,7 +10,7 @@ export class SimpleVideoAttachmentAdapter implements AttachmentAdapter {
   public async add(state: { file: File }): Promise<PendingAttachment> {
     return {
       id: state.file.name,
-      type: "document",
+      type: "video",
       name: state.file.name,
       contentType: state.file.type,
       file: state.file,

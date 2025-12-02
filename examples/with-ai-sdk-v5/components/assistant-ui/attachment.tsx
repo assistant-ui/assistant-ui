@@ -61,6 +61,8 @@ const useAttachmentSrc = () => {
       if (!content) return {};
 
       if (content.type === "image") return { src: content.image };
+      if (content.type === "audio") return { src: content.audio.data };
+      if (content.type === "video") return { src: content.data };
       if (content.type === "file") return { src: content.data };
 
       return {};
@@ -180,7 +182,7 @@ const AttachmentPreviewDialog: FC<PropsWithChildren> = ({ children }) => {
       >
         {children}
       </DialogTrigger>
-      <DialogContent className="aui-attachment-preview-dialog-content [&_svg]:text-background [&>button]:bg-foreground/60 [&>button]:hover:[&_svg]:text-destructive p-2 sm:max-w-3xl [&>button]:rounded-full [&>button]:p-1 [&>button]:opacity-100 [&>button]:ring-0!">
+      <DialogContent className="aui-attachment-preview-dialog-content [&_svg]:text-background [&>button]:bg-foreground/60 [&>button]:hover:[&_svg]:text-destructive p-2 sm:max-w-3xl [&>button]:rounded-full [&>button]:p-1 [&>button]:opacity-100 [&>button]:!ring-0">
         <DialogTitle className="aui-sr-only sr-only">
           Attachment Preview
         </DialogTitle>
@@ -282,7 +284,7 @@ const AttachmentRemove: FC = () => {
     <AttachmentPrimitive.Remove asChild>
       <TooltipIconButton
         tooltip="Remove file"
-        className="aui-attachment-tile-remove text-muted-foreground hover:[&_svg]:text-destructive absolute top-1.5 right-1.5 size-3.5 rounded-full bg-white opacity-100 shadow-sm hover:bg-white! [&_svg]:text-black"
+        className="aui-attachment-tile-remove text-muted-foreground hover:[&_svg]:text-destructive absolute top-1.5 right-1.5 size-3.5 rounded-full bg-white opacity-100 shadow-sm hover:!bg-white [&_svg]:text-black"
         side="top"
       >
         <XIcon className="aui-attachment-remove-icon size-3 dark:stroke-[2.5px]" />

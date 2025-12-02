@@ -93,6 +93,8 @@ export const ComposerPrimitiveAttachmentByIndex: FC<ComposerPrimitiveAttachmentB
       prev.components?.Image === next.components?.Image &&
       prev.components?.Document === next.components?.Document &&
       prev.components?.File === next.components?.File &&
+      prev.components?.Video === next.components?.Video &&
+      prev.components?.Audio === next.components?.Audio &&
       prev.components?.Attachment === next.components?.Attachment,
   );
 

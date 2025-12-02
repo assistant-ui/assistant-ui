@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterAll } from "vitest";
 import { SimpleAudioAttachmentAdapter } from "../../legacy-runtime/runtime-cores/adapters/attachment/SimpleAudioAttachmentAdapter";
 
 // Mock FileReader
@@ -22,6 +22,9 @@ class MockFileReader {
 vi.stubGlobal("FileReader", MockFileReader);
 
 describe("SimpleAudioAttachmentAdapter", () => {
+  afterAll(() => {
+    vi.unstubAllGlobals();
+  });
   let adapter: SimpleAudioAttachmentAdapter;
 
   beforeEach(() => {
@@ -43,7 +46,7 @@ describe("SimpleAudioAttachmentAdapter", () => {
 
       expect(result).toEqual({
         id: "test.mp3",
-        type: "document",
+        type: "audio",
         name: "test.mp3",
         contentType: "audio/mpeg",
         file,

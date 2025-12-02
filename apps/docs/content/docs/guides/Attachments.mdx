@@ -147,7 +147,7 @@ Handles audio files and converts them to data URLs for playback in the chat UI:
 ```tsx
 const audioAdapter = new SimpleAudioAttachmentAdapter();
 // Accepts: audio/* (MP3, WAV, OGG, etc.)
-// Output: { type: "audio", url: "data:audio/..." }
+// Output: Complete attachment content (audio parts for mp3/wav, file part for other formats) containing the data URL
 ```
 
 The adapter supports common audio formats including:
@@ -165,7 +165,7 @@ Handles video files and converts them to data URLs for playback in the chat UI:
 ```tsx
 const videoAdapter = new SimpleVideoAttachmentAdapter();
 // Accepts: video/* (MP4, WebM, OGG, etc.)
-// Output: { type: "video", url: "data:video/..." }
+// Output: Complete attachment whose content contains a video file part with the data URL
 ```
 
 The adapter supports common video formats including:

@@ -58,7 +58,7 @@ export const MessagePartPrimitiveFile: FC<
   if (fileType === "document") {
     return (
       <a
-        href={url}
+        href={!url.toLowerCase().startsWith("javascript:") ? url : undefined}
         target="_blank"
         rel="noopener noreferrer"
         download={name}

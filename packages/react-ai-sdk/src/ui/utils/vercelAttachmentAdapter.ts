@@ -42,12 +42,20 @@ export const vercelAttachmentAdapter: AttachmentAdapter = {
               type: "image",
               image: await getFileDataURL(attachment.file),
             }
-          : {
-              type: "file",
-              mimeType: attachment.contentType,
-              filename: attachment.name,
-              data: await getFileDataURL(attachment.file),
-            },
+          : attachment.type === "audio"
+            ? {
+                type: "audio",
+                audio: {
+                  data: await getFileDataURL(attachment.file),
+                  format: attachment.contentType.includes("mp3") || attachment.contentType.includes("mpeg") ? "mp3" : "wav",
+                },
+              }
+            : {
+                type: "file",
+                mimeType: attachment.contentType,
+                filename: attachment.name,
+                data: await getFileDataURL(attachment.file),
+              },
       ],
     };
   },
