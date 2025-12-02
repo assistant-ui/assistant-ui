@@ -57,9 +57,7 @@ class SyncStyles {
     console.log(chalk.cyan("\n📊 Sync Summary:"));
     console.log(chalk.gray(`  • Total aui-* classes: ${this.classes.size}`));
     console.log(
-      chalk.gray(
-        `  • Ignored: ${Array.from(SKIPPED_AUI_BASES).join(", ")}`,
-      ),
+      chalk.gray(`  • Ignored: ${Array.from(SKIPPED_AUI_BASES).join(", ")}`),
     );
 
     if (this.dryRun) {
@@ -82,7 +80,9 @@ class SyncStyles {
     }
 
     console.log(
-      chalk.green(`✓ Parsed ${files.length} components, found ${this.classes.size} classes\n`),
+      chalk.green(
+        `✓ Parsed ${files.length} components, found ${this.classes.size} classes\n`,
+      ),
     );
   }
 
@@ -109,17 +109,25 @@ class SyncStyles {
       }
 
       for (const str of stringLiterals) {
-        const tokens = str.trim().split(/\s+/).filter((t) => t.length > 0);
+        const tokens = str
+          .trim()
+          .split(/\s+/)
+          .filter((t) => t.length > 0);
         const auiToken = tokens.find(
           (t) => t.startsWith("aui-") && !SKIPPED_AUI_BASES.has(t),
         );
 
         if (auiToken) {
           currentAuiClass = auiToken;
-          const utilities = tokens.filter((t) => !t.startsWith("aui-")).join(" ");
+          const utilities = tokens
+            .filter((t) => !t.startsWith("aui-"))
+            .join(" ");
 
           if (!this.classes.has(currentAuiClass)) {
-            this.classes.set(currentAuiClass, { name: currentAuiClass, twStrings: [] });
+            this.classes.set(currentAuiClass, {
+              name: currentAuiClass,
+              twStrings: [],
+            });
           }
 
           if (utilities.trim()) {

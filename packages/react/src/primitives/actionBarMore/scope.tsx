@@ -6,4 +6,3 @@ export const useDropdownMenuScope: ReturnType<
 > = DropdownMenuPrimitive.createDropdownMenuScope();
 
 export type ScopedProps<P> = P & { __scopeActionBarMore?: Scope };
-
