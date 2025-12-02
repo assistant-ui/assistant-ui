@@ -62,7 +62,7 @@ const Sidebar: FC<{ collapsed?: boolean }> = ({ collapsed }) => {
         collapsed ? "w-0 overflow-hidden opacity-0" : "w-[260px] opacity-100",
       )}
     >
-      <div className="flex h-14 shrink-0 items-center border-b px-4">
+      <div className="flex h-14 shrink-0 items-center px-4">
         <Logo />
       </div>
       <div className="flex-1 overflow-y-auto p-3">
@@ -86,7 +86,7 @@ const MobileSidebar: FC = () => {
         </Button>
       </SheetTrigger>
       <SheetContent side="left" className="w-[280px] p-0">
-        <div className="flex h-14 items-center border-b px-4">
+        <div className="flex h-14 items-center px-4">
           <Logo />
         </div>
         <div className="p-3">
@@ -102,7 +102,7 @@ const Header: FC<{
   onToggleSidebar: () => void;
 }> = ({ sidebarCollapsed, onToggleSidebar }) => {
   return (
-    <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
+    <header className="flex h-14 shrink-0 items-center gap-2 px-4">
       <MobileSidebar />
       <ButtonWithTooltip
         variant="ghost"
