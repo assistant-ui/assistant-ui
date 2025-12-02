@@ -2,17 +2,20 @@
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import Link from "next/link";
-import { TESTIMONIALS } from "@/components/home/testimonials/testimonials";
-import { TestimonialContainer } from "@/components/home/testimonials/TestimonialContainer";
+import { TESTIMONIALS } from "@/components/home/testimonials/data";
+import { TestimonialContainer } from "@/components/home/testimonials/testimonials";
 import { ArrowRight } from "lucide-react";
 import { FeatureHighlights } from "@/components/home/feature-highlights";
 import { TrustedBy } from "@/components/home/trusted-by";
 import { Hero } from "@/components/home/hero";
+import { ExampleShowcase } from "@/components/home/example-showcase";
 
 export default function HomePage() {
   return (
-    <main className="container relative z-2 flex flex-col gap-24 px-4 py-12">
+    <main className="container relative z-2 flex flex-col gap-20 px-4 py-12">
       <Hero />
+
+      <ExampleShowcase />
 
       <FeatureHighlights />
 

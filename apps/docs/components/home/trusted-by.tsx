@@ -22,7 +22,7 @@ const LOGOS = [
     src: "/logos/cust/browseruse.svg",
     alt: "Browseruse",
     height: "h-6",
-    href: "https://browseruse.com?ref=assistant-ui",
+    href: "https://browser-use.com/?ref=assistant-ui",
   },
   {
     src: "/logos/cust/stack.svg",
