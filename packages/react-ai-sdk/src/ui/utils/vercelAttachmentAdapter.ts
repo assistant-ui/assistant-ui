@@ -11,6 +11,48 @@ const getFileDataURL = (file: File) =>
     reader.readAsDataURL(file);
   });
 
+const getAudioFormat = (mimeType: string): "mp3" | "wav" | "other" => {
+  if (mimeType === "audio/mpeg" || mimeType === "audio/mp3") {
+    return "mp3";
+  }
+  if (
+    mimeType === "audio/wav" ||
+    mimeType === "audio/wave" ||
+    mimeType === "audio/x-wav"
+  ) {
+    return "wav";
+  }
+  return "other";
+};
+
+const getAudioContent = async (attachment: {
+  file: File;
+  contentType: string;
+  name: string;
+}) => {
+  const dataURL = await getFileDataURL(attachment.file);
+  const format = getAudioFormat(attachment.contentType);
+
+  // For mp3/wav files, use the native audio part
+  if (format === "mp3" || format === "wav") {
+    return {
+      type: "audio" as const,
+      audio: {
+        data: dataURL,
+        format,
+      },
+    };
+  }
+
+  // For other audio formats, fall back to file part
+  return {
+    type: "file" as const,
+    filename: attachment.name,
+    data: dataURL,
+    mimeType: attachment.contentType,
+  };
+};
+
 export const vercelAttachmentAdapter: AttachmentAdapter = {
   accept:
     "image/*, video/*, audio/*, text/plain, text/html, text/markdown, text/csv, text/xml, text/json, text/css, application/pdf",
@@ -43,13 +85,7 @@ export const vercelAttachmentAdapter: AttachmentAdapter = {
               image: await getFileDataURL(attachment.file),
             }
           : attachment.type === "audio"
-            ? {
-                type: "audio",
-                audio: {
-                  data: await getFileDataURL(attachment.file),
-                  format: attachment.contentType.includes("mp3") || attachment.contentType.includes("mpeg") ? "mp3" : "wav",
-                },
-              }
+            ? await getAudioContent(attachment)
             : {
                 type: "file",
                 mimeType: attachment.contentType,
