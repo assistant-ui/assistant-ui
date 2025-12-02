@@ -17,10 +17,10 @@
     "biome:fix": "pnpm exec biome check --fix"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.3.7",
-    "@changesets/cli": "^2.29.7",
+    "@biomejs/biome": "^2.3.8",
+    "@changesets/cli": "^2.29.8",
     "turbo": "^2.6.1",
     "typescript": "^5.9.3"
   },
-  "packageManager": "pnpm@10.23.0"
+  "packageManager": "pnpm@10.24.0"
 }
