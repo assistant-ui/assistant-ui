@@ -6,14 +6,13 @@ import { TESTIMONIALS } from "@/components/testimonials/testimonials";
 import { DiscordLogoIcon } from "@radix-ui/react-icons";
 import { TestimonialContainer } from "@/components/testimonials/TestimonialContainer";
 import { ArrowRight } from "lucide-react";
-import { GlowingEffect } from "@/components/home/glowing-effect";
 import { FeatureHighlights } from "@/components/home/feature-highlights";
 import { TrustedBy } from "@/components/home/trusted-by";
 import { Hero } from "@/components/home/hero";
 
 export default function HomePage() {
   return (
-    <main className="container relative z-2 flex flex-col gap-16 px-4 py-12">
+    <main className="container relative z-2 flex flex-col gap-24 px-4 py-12">
       <Hero />
 
       <FeatureHighlights />
@@ -59,26 +58,26 @@ export default function HomePage() {
         </div>
       </section>
 
-      <div className="relative flex w-full flex-col items-center justify-between gap-4 rounded-xl border p-6 sm:flex-row sm:p-10 lg:px-16">
-        <GlowingEffect
-          spread={40}
-          glow={true}
-          enabled={true}
-          proximity={64}
-          inactiveZone={0.01}
-        />
-        <p className="text-center font-bold text-2xl sm:text-left">
-          Ship your AI assistant this week
+      <section className="flex flex-col items-center gap-6 py-16 text-center">
+        <p className="font-medium text-2xl tracking-tight">
+          Build once. Ready for production.
         </p>
-        <Button
-          asChild
-          className="w-full bg-foreground hover:bg-foreground/80 sm:w-auto"
-        >
-          <Link href="/docs/getting-started">
-            Get Started <ArrowRight className="ml-2 size-4" />
+        <div className="flex items-center gap-6">
+          <Button asChild>
+            <Link href="/docs/getting-started">
+              Get Started <ArrowRight />
+            </Link>
+          </Button>
+          <Link
+            href="https://cal.com/simon-farshid/assistant-ui"
+            className={buttonVariants({
+              variant: "outline",
+            })}
+          >
+            Contact Sales
           </Link>
-        </Button>
-      </div>
+        </div>
+      </section>
     </main>
   );
 }
