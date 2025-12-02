@@ -5,6 +5,7 @@ packages:
 
 onlyBuiltDependencies:
   - '@tailwindcss/oxide@4.1.17'
+  - core-js
   - esbuild@0.21.5
   - esbuild@0.25.12
   - esbuild@0.27.0
