@@ -262,3 +262,100 @@ This primitive renders a `<button>` element unless `asChild` is set.
     },
   ]}
 />
+
+### Export
+
+A generic export button that calls a custom export handler with the message content.
+
+This primitive renders a `<button>` element unless `asChild` is set.
+
+<ParametersTable
+  type="ActionBarPrimitiveExportProps"
+  parameters={[
+    {
+      name: "asChild",
+    },
+    {
+      name: "onExport",
+      type: "(content: string) => void | Promise<void>",
+      required: true,
+      description:
+        "A callback function that receives the message content. Use this to implement custom export logic (PDF, JSON, TXT, etc.).",
+    },
+  ]}
+/>
+
+#### Examples
+
+Export as PDF (with custom logic):
+
+```tsx
+<ActionBarPrimitive.Export
+  onExport={async (content) => {
+    const pdf = await generatePdf(content);
+    downloadFile(pdf, "message.pdf");
+  }}
+>
+  <FileIcon />
+  Export PDF
+</ActionBarPrimitive.Export>
+```
+
+Export as JSON:
+
+```tsx
+<ActionBarPrimitive.Export
+  onExport={(content) => {
+    const json = JSON.stringify({ content, timestamp: Date.now() });
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "message.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  }}
+>
+  <CodeIcon />
+  Export JSON
+</ActionBarPrimitive.Export>
+```
+
+### ExportMarkdown
+
+Exports the message content as a Markdown file download. This is a convenience wrapper around `Export` with built-in Markdown download logic.
+
+This primitive renders a `<button>` element unless `asChild` is set.
+
+<ParametersTable
+  type="ActionBarPrimitiveExportMarkdownProps"
+  parameters={[
+    {
+      name: "asChild",
+    },
+    {
+      name: "filename",
+      type: "string",
+      description:
+        "The filename for the downloaded Markdown file. Defaults to 'message-{timestamp}.md'.",
+    },
+  ]}
+/>
+
+#### Example
+
+```tsx
+<ActionBarPrimitive.ExportMarkdown>
+  <DownloadIcon />
+  Export as Markdown
+</ActionBarPrimitive.ExportMarkdown>
+```
+
+With custom filename:
+
+```tsx
+<ActionBarPrimitive.ExportMarkdown filename="chat-response.md">
+  <DownloadIcon />
+  Download
+</ActionBarPrimitive.ExportMarkdown>
+```
