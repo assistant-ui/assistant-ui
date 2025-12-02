@@ -11,7 +11,7 @@ import {
   RefreshCwIcon,
   Square,
 } from "lucide-react";
-import { jsPDF } from "jspdf";
+import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 
 import {
   ActionBarPrimitive,
@@ -237,27 +237,62 @@ const AssistantMessage: FC = () => {
 };
 
 const exportToPdf = async (content: string) => {
-  const doc = new jsPDF();
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const margin = 20;
+  const pdfDoc = await PDFDocument.create();
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const fontSize = 12;
+  const margin = 50;
+  const lineHeight = fontSize * 1.2;
+
+  const pageWidth = 595.28; // A4 width in points
+  const pageHeight = 841.89; // A4 height in points
   const maxWidth = pageWidth - margin * 2;
 
-  doc.setFontSize(12);
-  const lines = doc.splitTextToSize(content, maxWidth);
-  let y = margin;
-  const lineHeight = 7;
-  const pageHeight = doc.internal.pageSize.getHeight();
+  // Split content into lines that fit within maxWidth
+  const words = content.split(/\s+/);
+  const lines: string[] = [];
+  let currentLine = "";
+
+  for (const word of words) {
+    const testLine = currentLine ? `${currentLine} ${word}` : word;
+    const textWidth = font.widthOfTextAtSize(testLine, fontSize);
+    if (textWidth > maxWidth && currentLine) {
+      lines.push(currentLine);
+      currentLine = word;
+    } else {
+      currentLine = testLine;
+    }
+  }
+  if (currentLine) lines.push(currentLine);
+
+  // Draw text on pages
+  let page = pdfDoc.addPage([pageWidth, pageHeight]);
+  let y = pageHeight - margin;
 
   for (const line of lines) {
-    if (y + lineHeight > pageHeight - margin) {
-      doc.addPage();
-      y = margin;
+    if (y < margin + lineHeight) {
+      page = pdfDoc.addPage([pageWidth, pageHeight]);
+      y = pageHeight - margin;
     }
-    doc.text(line, margin, y);
-    y += lineHeight;
+    page.drawText(line, {
+      x: margin,
+      y,
+      size: fontSize,
+      font,
+      color: rgb(0, 0, 0),
+    });
+    y -= lineHeight;
   }
 
-  doc.save(`message-${Date.now()}.pdf`);
+  const pdfBytes = await pdfDoc.save();
+  const blob = new Blob([new Uint8Array(pdfBytes)], {
+    type: "application/pdf",
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `message-${Date.now()}.pdf`;
+  a.click();
+  URL.revokeObjectURL(url);
 };
 
 const AssistantActionBar: FC = () => {
