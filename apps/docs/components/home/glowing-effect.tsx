@@ -2,7 +2,43 @@
 
 import { memo, useCallback, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
-import { animate } from "motion/react";
+
+// Simple easing function (ease-out cubic)
+const easeOutCubic = (t: number) => 1 - (1 - t) ** 3;
+
+// Simple animation helper to replace motion's animate
+const animateValue = (
+  from: number,
+  to: number,
+  duration: number,
+  onUpdate: (value: number) => void,
+): { stop: () => void } => {
+  const startTime = performance.now();
+  let animationFrame: number;
+
+  const tick = (currentTime: number) => {
+    const elapsed = currentTime - startTime;
+    const progress = Math.min(elapsed / (duration * 1000), 1);
+    const easedProgress = easeOutCubic(progress);
+    const currentValue = from + (to - from) * easedProgress;
+
+    onUpdate(currentValue);
+
+    if (progress < 1) {
+      animationFrame = requestAnimationFrame(tick);
+    }
+  };
+
+  animationFrame = requestAnimationFrame(tick);
+
+  return {
+    stop: () => {
+      if (animationFrame) {
+        cancelAnimationFrame(animationFrame);
+      }
+    },
+  };
+};
 
 interface GlowingEffectProps {
   blur?: number;
@@ -32,7 +68,7 @@ const GlowingEffect = memo(
     const containerRef = useRef<HTMLDivElement>(null);
     const lastPosition = useRef({ x: 0, y: 0 });
     const animationFrameRef = useRef<number>(0);
-    const animationControlRef = useRef<ReturnType<typeof animate> | null>(null);
+    const animationControlRef = useRef<{ stop: () => void } | null>(null);
     const cachedRectRef = useRef<DOMRect | null>(null);
     const reducedMotionRef = useRef(false);
 
@@ -104,13 +140,14 @@ const GlowingEffect = memo(
           const newAngle = currentAngle + angleDiff;
 
           animationControlRef.current?.stop();
-          animationControlRef.current = animate(currentAngle, newAngle, {
-            duration: movementDuration,
-            ease: [0.16, 1, 0.3, 1],
-            onUpdate: (value) => {
+          animationControlRef.current = animateValue(
+            currentAngle,
+            newAngle,
+            movementDuration,
+            (value) => {
               element.style.setProperty("--start", String(value));
             },
-          });
+          );
         });
       },
       [inactiveZone, proximity, movementDuration],
@@ -173,7 +210,7 @@ const GlowingEffect = memo(
             "-inset-px pointer-events-none absolute hidden rounded-[inherit] border opacity-0 transition-opacity",
             glow && "opacity-100",
             variant === "white" && "border-white",
-            !enabled && "!block",
+            !enabled && "block!",
           )}
         />
         <div
@@ -210,9 +247,9 @@ const GlowingEffect = memo(
           className={cn(
             "pointer-events-none absolute inset-0 rounded-[inherit] opacity-100 transition-opacity",
             glow && "opacity-100",
-            blur > 0 && "blur-[var(--blur)]",
+            blur > 0 && "blur-(--blur)",
             className,
-            !enabled && "!hidden",
+            !enabled && "hidden!",
           )}
         >
           <div
@@ -224,14 +261,14 @@ const GlowingEffect = memo(
               "after:rounded-[inherit]",
               'after:content-[""]',
               "after:[border:var(--glowingeffect-border-width)_solid_transparent]",
-              "after:[background-attachment:fixed]",
+              "after:bg-fixed",
               "after:[background:var(--gradient)]",
-              "after:opacity-[var(--active)]",
+              "after:opacity-(--active)",
               "after:transition-opacity",
               "after:duration-300",
               "after:[mask-clip:padding-box,border-box]",
-              "after:[mask-composite:intersect]",
-              "after:[mask-image:linear-gradient(#0000,#0000),conic-gradient(from_calc((var(--start)-var(--spread))*1deg),#00000000_0deg,#fff,#00000000_calc(var(--spread)*2deg))]",
+              "after:mask-intersect",
+              "after:mask-[linear-gradient(#0000,#0000),conic-gradient(from_calc((var(--start)-var(--spread))*1deg),#00000000_0deg,#fff,#00000000_calc(var(--spread)*2deg))]",
             )}
           />
         </div>

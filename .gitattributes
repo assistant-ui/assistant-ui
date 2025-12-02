@@ -1,0 +1,68 @@
+# Auto-detect text files and normalize to LF
+* text=auto eol=lf
+
+#
+# Text files
+#
+
+# TypeScript/JavaScript
+*.ts      text
+*.tsx     text
+*.js      text
+*.mts     text
+*.mjs     text
+
+# Web
+*.css     text
+*.html    text
+*.svg     text
+
+# Data/Config
+*.json    text
+*.yml     text
+*.yaml    text
+*.toml    text
+
+# Markdown/Docs
+*.md      text diff=markdown
+*.mdx     text diff=markdown
+*.txt     text
+
+# Python
+*.py      text
+
+# Misc text
+*.example text
+*.spec    text
+
+# Lock files (hide from diffs)
+*.lock         text -diff linguist-generated
+pnpm-lock.yaml text -diff linguist-generated
+
+# Shell scripts (always LF)
+*.sh      text eol=lf
+
+# Dotfiles (explicit filenames)
+.gitignore      text
+.gitattributes  text
+.npmrc          text
+.env*           text
+.python-version text
+LICENSE         text
+
+#
+# Binary files (never touch line endings)
+#
+
+# Images
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+
+# Fonts
+*.ttf   binary
+*.otf   binary
+*.woff  binary
+*.woff2 binary

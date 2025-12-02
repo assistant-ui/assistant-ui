@@ -16,7 +16,7 @@ import {
   Terminal,
   Zap,
 } from "lucide-react";
-import { GlowingEffect } from "@/components/ui/glowing-effect";
+import { GlowingEffect } from "@/components/home/glowing-effect";
 import athenaintel from "./logos/cust/athenaintel.png";
 import browseruse from "./logos/cust/browseruse.svg";
 import langchain from "./logos/cust/langchain.svg";

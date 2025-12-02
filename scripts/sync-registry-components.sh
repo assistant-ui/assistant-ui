@@ -5,11 +5,12 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REGISTRY_DIR="$SCRIPT_DIR/../apps/registry/components/assistant-ui"
 EXAMPLES_DIR="$SCRIPT_DIR/../examples"
+DOCS_DIR="$SCRIPT_DIR/../apps/docs/components/assistant-ui"
 
 # Files to exclude from syncing (these often have example-specific customizations)
-EXCLUDED_FILES=("thread.tsx")
+EXCLUDED_FILES=()
 
-echo "Syncing shared components from registry to examples..."
+echo "Syncing shared components from registry to examples and docs..."
 echo "Excluded files: ${EXCLUDED_FILES[*]}"
 
 if [[ ! -d "$REGISTRY_DIR" ]]; then
@@ -30,21 +31,13 @@ done < <(find "$REGISTRY_DIR" -maxdepth 1 -type f \( -name "*.tsx" -o -name "*.t
 
 echo "Found ${#registry_files[@]} files in registry: ${registry_files[*]}"
 
-# Get examples with assistant-ui components
-examples=()
-for dir in "$EXAMPLES_DIR"/*; do
-    if [[ -d "$dir" && -d "$dir/components/assistant-ui" ]]; then
-        examples+=("$(basename "$dir")")
-    fi
-done
+# Helper function to sync files to a target directory
+sync_to_target() {
+    local target_dir="$1"
+    local target_name="$2"
 
-echo "Found ${#examples[@]} examples with assistant-ui components: ${examples[*]}"
-
-# Sync each example
-for example in "${examples[@]}"; do
     echo ""
-    echo "Checking example: $example"
-    example_dir="$EXAMPLES_DIR/$example/components/assistant-ui"
+    echo "Checking $target_name"
 
     for registry_file in "${registry_files[@]}"; do
         # Check if file is in excluded list
@@ -62,13 +55,34 @@ for example in "${examples[@]}"; do
         fi
 
         registry_path="$REGISTRY_DIR/$registry_file"
-        example_path="$example_dir/$registry_file"
+        target_path="$target_dir/$registry_file"
 
-        if [[ -f "$example_path" ]]; then
-            echo "  Copying $registry_file from registry to $example"
-            cp "$registry_path" "$example_path"
+        if [[ -f "$target_path" ]]; then
+            echo "  Copying $registry_file from registry to $target_name"
+            cp "$registry_path" "$target_path"
         fi
     done
+}
+
+# Sync to docs
+if [[ -d "$DOCS_DIR" ]]; then
+    sync_to_target "$DOCS_DIR" "docs"
+fi
+
+# Get examples with assistant-ui components
+examples=()
+for dir in "$EXAMPLES_DIR"/*; do
+    if [[ -d "$dir" && -d "$dir/components/assistant-ui" ]]; then
+        examples+=("$(basename "$dir")")
+    fi
+done
+
+echo ""
+echo "Found ${#examples[@]} examples with assistant-ui components: ${examples[*]}"
+
+# Sync each example
+for example in "${examples[@]}"; do
+    sync_to_target "$EXAMPLES_DIR/$example/components/assistant-ui" "example: $example"
 done
 
 echo ""

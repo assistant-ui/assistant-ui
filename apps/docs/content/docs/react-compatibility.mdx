@@ -4,6 +4,7 @@ description: Guide for using assistant-ui with older React versions (18, 17, 16)
 ---
 
 import { Callout } from "fumadocs-ui/components/callout";
+import { InstallCommand } from "@/components/docs/install-command";
 
 <Callout type="warning" title="Older React Versions">
   Older React versions are not continuously tested. If you encounter any issues
@@ -78,11 +79,7 @@ Since the assistant-ui uses zustand internally, which depends on `useSyncExterna
 
 1. Install the required packages:
 
-```bash
-npm install use-sync-external-store patch-package
-# or
-yarn add use-sync-external-store patch-package
-```
+<InstallCommand npm={["use-sync-external-store", "patch-package"]} />
 
 2. Add a postinstall script to your package.json:
 

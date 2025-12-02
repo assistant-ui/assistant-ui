@@ -5,6 +5,7 @@ title: "Part 3: Approval UI"
 ## Background: LangGraph implementation details
 
 import Image from "next/image";
+import { InstallCommand } from "@/components/docs/install-command";
 import approval from "./images/stockbroker-langgraph.png";
 
 <Image
@@ -127,9 +128,7 @@ Finally, we add a `TransactionConfirmationPending` component to ask for approval
 
 This requires shadcn/ui's `Card` and `Button` components. We will install them as a dependency.
 
-```sh
-npx shadcn@latest add card button
-```
+<InstallCommand shadcn={["card", "button"]} />
 
 Then create a new file under `/components/tools/purchase-stock/transaction-confirmation-pending.tsx` to define the approval UI.
 

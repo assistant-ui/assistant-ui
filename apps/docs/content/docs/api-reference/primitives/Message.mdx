@@ -259,51 +259,6 @@ Renders a single attachment at the specified index within the message.
   ]}
 />
 
-### If
-
-Renders children if a condition is met.
-
-<ParametersTable
-  type="UseMessageIfProps"
-  parameters={[
-    {
-      name: "user",
-      type: "boolean | undefined",
-      description: "Render children if the message is from the user.",
-    },
-    {
-      name: "assistant",
-      type: "boolean | undefined",
-      description: "Render children if the message is from the assistant.",
-    },
-    {
-      name: "hasBranches",
-      type: "boolean | undefined",
-      description: "Render children if the message has branches.",
-    },
-    {
-      name: "copied",
-      type: "boolean | undefined",
-      description: "Render children if the message is copied.",
-    },
-    {
-      name: "lastOrHover",
-      type: "boolean | undefined",
-      description:
-        "Render children if the message is the last or hovered over.",
-    },
-  ]}
-/>
-
-```tsx
-<Message.If user>
-  {/* rendered if message is from the user */}
-</Message.If>
-<Message.If assistant>
-  {/* rendered if message is from the assistant */}
-</Message.If>
-```
-
 ### Error
 
 Renders children only if the message has an error status.
