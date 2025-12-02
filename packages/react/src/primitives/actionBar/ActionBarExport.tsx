@@ -19,9 +19,9 @@ const useActionBarExport = ({
     );
   });
 
-  const callback = useCallback(() => {
+  const callback = useCallback(async () => {
     const content = api.message().getCopyText();
-    if (content) onExport(content);
+    if (content) await onExport(content);
   }, [api, onExport]);
 
   if (!hasExportableContent) return null;
@@ -52,4 +52,3 @@ export const ActionBarPrimitiveExport = forwardRef<
 });
 
 ActionBarPrimitiveExport.displayName = "ActionBarPrimitive.Export";
-

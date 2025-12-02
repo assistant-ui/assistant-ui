@@ -6,10 +6,12 @@ import {
   ChevronRightIcon,
   CopyIcon,
   DownloadIcon,
+  FileTextIcon,
   PencilIcon,
   RefreshCwIcon,
   Square,
 } from "lucide-react";
+import { jsPDF } from "jspdf";
 
 import {
   ActionBarPrimitive,
@@ -233,6 +235,30 @@ const AssistantMessage: FC = () => {
   );
 };
 
+const exportToPdf = async (content: string) => {
+  const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const margin = 20;
+  const maxWidth = pageWidth - margin * 2;
+
+  doc.setFontSize(12);
+  const lines = doc.splitTextToSize(content, maxWidth);
+  let y = margin;
+  const lineHeight = 7;
+  const pageHeight = doc.internal.pageSize.getHeight();
+
+  for (const line of lines) {
+    if (y + lineHeight > pageHeight - margin) {
+      doc.addPage();
+      y = margin;
+    }
+    doc.text(line, margin, y);
+    y += lineHeight;
+  }
+
+  doc.save(`message-${Date.now()}.pdf`);
+};
+
 const AssistantActionBar: FC = () => {
   return (
     <ActionBarPrimitive.Root
@@ -256,6 +282,11 @@ const AssistantActionBar: FC = () => {
           <DownloadIcon />
         </TooltipIconButton>
       </ActionBarPrimitive.ExportMarkdown>
+      <ActionBarPrimitive.Export onExport={exportToPdf} asChild>
+        <TooltipIconButton tooltip="Export as PDF">
+          <FileTextIcon />
+        </TooltipIconButton>
+      </ActionBarPrimitive.Export>
       <ActionBarPrimitive.Reload asChild>
         <TooltipIconButton tooltip="Refresh">
           <RefreshCwIcon />
