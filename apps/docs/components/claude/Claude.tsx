@@ -75,7 +75,17 @@ export const Claude: FC = () => {
             </ComposerPrimitive.Send>
           </div>
         </div>
-        <ClaudeAttachments />
+        <AssistantIf condition={(s) => s.composer.attachments.length > 0}>
+          <div className="overflow-hidden rounded-b-2xl">
+            <div className="overflow-x-auto rounded-b-2xl border-[#00000015] border-t bg-[#f5f5f0] p-3.5 dark:border-[#6c6a6040] dark:bg-[#393937]">
+              <div className="flex flex-row gap-3">
+                <ComposerPrimitive.Attachments
+                  components={{ Attachment: ClaudeAttachment }}
+                />
+              </div>
+            </div>
+          </div>
+        </AssistantIf>
       </ComposerPrimitive.Root>
     </ThreadPrimitive.Root>
   );
@@ -193,26 +203,6 @@ const useAttachmentSrc = () => {
   );
 
   return useFileSrc(file) ?? src;
-};
-
-const ClaudeAttachments: FC = () => {
-  const attachmentsCount = useAssistantState(
-    (s) => s.composer.attachments.length,
-  );
-
-  if (attachmentsCount === 0) return null;
-
-  return (
-    <div className="overflow-hidden rounded-b-2xl">
-      <div className="overflow-x-auto rounded-b-2xl border-[#00000015] border-t bg-[#f5f5f0] p-3.5 dark:border-[#6c6a6040] dark:bg-[#393937]">
-        <div className="flex flex-row gap-3">
-          <ComposerPrimitive.Attachments
-            components={{ Attachment: ClaudeAttachment }}
-          />
-        </div>
-      </div>
-    </div>
-  );
 };
 
 const ClaudeAttachment: FC = () => {
