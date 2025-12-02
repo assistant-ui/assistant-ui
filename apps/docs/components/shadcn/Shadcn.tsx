@@ -1,18 +1,17 @@
 "use client";
 
-import { MenuIcon, ShareIcon } from "lucide-react";
-import type { TooltipContentProps } from "@radix-ui/react-tooltip";
-import Image from "next/image";
-import { ComponentPropsWithRef, type FC } from "react";
-
+import { Thread } from "@/components/assistant-ui/thread";
+import { ThreadList } from "@/components/assistant-ui/thread-list";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import icon from "@/public/favicon/icon.svg";
+import type { TooltipContentProps } from "@radix-ui/react-tooltip";
+import { MenuIcon, PanelLeftIcon, ShareIcon } from "lucide-react";
+import Image from "next/image";
+import { ComponentPropsWithRef, useState, type FC } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "../ui/sheet";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { ModelPicker } from "./ModelPicker";
-import { Thread } from "@/components/assistant-ui/thread";
-import { ThreadList } from "@/components/assistant-ui/thread-list";
 
 type ButtonWithTooltipProps = ComponentPropsWithRef<typeof Button> & {
   tooltip: string;
@@ -38,53 +37,86 @@ const ButtonWithTooltip: FC<ButtonWithTooltipProps> = ({
   );
 };
 
-const TopLeft: FC = () => {
+const Logo: FC = () => {
   return (
-    <div className="flex h-full w-full items-center gap-2 px-3 font-semibold text-sm">
+    <div className="flex items-center gap-2 px-2 font-medium text-sm">
       <Image
         src={icon}
         alt="logo"
-        className="inline size-4 dark:hue-rotate-180 dark:invert"
+        className="size-5 dark:hue-rotate-180 dark:invert"
       />
-      <span>assistant-ui</span>
+      <span className="text-foreground/90">assistant-ui</span>
     </div>
   );
 };
 
-const MainLeft: FC = () => {
-  return <ThreadList />;
+const Sidebar: FC<{ collapsed?: boolean }> = ({ collapsed }) => {
+  return (
+    <aside
+      className={cn(
+        "flex h-full flex-col bg-muted/30 transition-all duration-200",
+        collapsed ? "w-0 overflow-hidden opacity-0" : "w-[260px] opacity-100",
+      )}
+    >
+      <div className="flex h-14 shrink-0 items-center border-b px-4">
+        <Logo />
+      </div>
+      <div className="flex-1 overflow-y-auto p-3">
+        <ThreadList />
+      </div>
+    </aside>
+  );
 };
 
-const LeftBarSheet: FC = () => {
+const MobileSidebar: FC = () => {
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button variant="outline" size="icon" className="shrink-0 md:hidden">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-9 shrink-0 md:hidden"
+        >
           <MenuIcon className="size-4" />
-          <span className="sr-only">Toggle navigation menu</span>
+          <span className="sr-only">Toggle menu</span>
         </Button>
       </SheetTrigger>
-      <SheetContent side="left" className="flex flex-col">
-        <div className="mt-6 flex flex-col gap-1">
-          <TopLeft />
-          <MainLeft />
+      <SheetContent side="left" className="w-[280px] p-0">
+        <div className="flex h-14 items-center border-b px-4">
+          <Logo />
+        </div>
+        <div className="p-3">
+          <ThreadList />
         </div>
       </SheetContent>
     </Sheet>
   );
 };
 
-const Header: FC = () => {
+const Header: FC<{
+  sidebarCollapsed: boolean;
+  onToggleSidebar: () => void;
+}> = ({ sidebarCollapsed, onToggleSidebar }) => {
   return (
-    <header className="flex gap-2">
-      <LeftBarSheet />
+    <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
+      <MobileSidebar />
+      <ButtonWithTooltip
+        variant="ghost"
+        size="icon"
+        tooltip={sidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
+        side="bottom"
+        onClick={onToggleSidebar}
+        className="hidden size-9 md:flex"
+      >
+        <PanelLeftIcon className="size-4" />
+      </ButtonWithTooltip>
       <ModelPicker />
       <ButtonWithTooltip
-        variant="outline"
+        variant="ghost"
         size="icon"
         tooltip="Share"
         side="bottom"
-        className="ml-auto shrink-0"
+        className="ml-auto size-9"
       >
         <ShareIcon className="size-4" />
       </ButtonWithTooltip>
@@ -92,24 +124,22 @@ const Header: FC = () => {
   );
 };
 
-export const Shadcn = () => {
-  const sideStyle = "bg-muted/40 px-3 py-2";
-  const topStyle = "border-b";
-  const leftStyle = "border-r hidden md:block";
+export const Shadcn: FC = () => {
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   return (
-    <div className="grid h-full w-full grid-flow-col grid-rows-[auto_1fr] [--primary-foreground:0_0%_98%] [--primary:0_0%_9%] md:grid-cols-[250px_1fr] dark:[--primary-foreground:0_0%_9%] dark:[--primary:0_0%_98%]">
-      <div className={cn(sideStyle, leftStyle, topStyle)}>
-        <TopLeft />
+    <div className="flex h-full w-full bg-background [--primary-foreground:0_0%_98%] [--primary:0_0%_9%] dark:[--primary-foreground:0_0%_9%] dark:[--primary:0_0%_98%]">
+      <div className="hidden md:block">
+        <Sidebar collapsed={sidebarCollapsed} />
       </div>
-      <div className={cn(sideStyle, leftStyle, "overflow-y-auto")}>
-        <MainLeft />
-      </div>
-      <div className={cn(sideStyle, topStyle)}>
-        <Header />
-      </div>
-      <div className="overflow-hidden bg-background">
-        <Thread />
+      <div className="flex flex-1 flex-col overflow-hidden">
+        <Header
+          sidebarCollapsed={sidebarCollapsed}
+          onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
+        />
+        <main className="flex-1 overflow-hidden">
+          <Thread />
+        </main>
       </div>
     </div>
   );
