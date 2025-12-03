@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { SafeContentFrame, type RenderedFrame } from "safe-content-frame";
 import type {
   SkybridgeRuntime,
@@ -75,6 +75,9 @@ export function OpenSkybridge({
   const runtimeRef = useRef(runtime);
   runtimeRef.current = runtime;
 
+  // Track content height from iframe for dynamic resizing
+  const [contentHeight, setContentHeight] = useState<number | null>(null);
+
   // Memoize state object to avoid recreating on every render
   const state = useMemo<SkybridgeState>(
     () => ({
@@ -113,6 +116,9 @@ export function OpenSkybridge({
     let connection: SkybridgeConnection | null = null;
 
     const render = async () => {
+      // Reset content height for new iframe
+      setContentHeight(null);
+
       // Hash payload to create unique origin per payload (isolates cookie stores)
       const salt = await hashPayload(payload);
 
@@ -123,7 +129,10 @@ export function OpenSkybridge({
 
       // Inject runtime code into payload
       const currentRuntime = runtimeRef.current;
-      const injectedPayload = injectRuntimeCode(payload, currentRuntime.runtimeCode);
+      const injectedPayload = injectRuntimeCode(
+        payload,
+        currentRuntime.runtimeCode,
+      );
 
       frame = await scf.renderHtml(injectedPayload, container);
       if (disposed) {
@@ -179,6 +188,9 @@ export function OpenSkybridge({
             ? fn(s)
             : Promise.reject(new Error("onSetWidgetState not provided"));
         },
+        onResize: (height) => {
+          if (!disposed) setContentHeight(height);
+        },
       });
       connectionRef.current = connection;
 
@@ -212,5 +224,18 @@ export function OpenSkybridge({
     connectionRef.current?.updateState(state);
   }, [state]);
 
-  return <div ref={containerRef} style={{ width: "100%", height: "100%" }} />;
+  // Compute effective height: content height capped at maxHeight
+  const effectiveHeight =
+    contentHeight === null
+      ? "100%"
+      : maxHeight > 0
+        ? Math.min(contentHeight, maxHeight)
+        : contentHeight;
+
+  return (
+    <div
+      ref={containerRef}
+      style={{ width: "100%", height: effectiveHeight }}
+    />
+  );
 }

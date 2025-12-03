@@ -85,4 +85,57 @@ window.addEventListener("message", (event: MessageEvent) => {
   }
 });
 
+// Height observation (deferred until DOM ready since script runs in <head>)
+let lastHeight = 0;
+const notifyHeight = () => {
+  const height = Math.ceil(document.body.getBoundingClientRect().height);
+  if (height !== lastHeight) {
+    lastHeight = height;
+    call("resize", { height });
+  }
+};
+
+const setupHeightObserver = () => {
+  // Make body shrink-wrap its content
+  const style = document.createElement("style");
+  style.textContent = "html, body { height: fit-content !important; min-height: 0 !important; }";
+  document.head.appendChild(style);
+
+  // Use ResizeObserver on body for efficient height tracking
+  const resizeObserver = new ResizeObserver(notifyHeight);
+  resizeObserver.observe(document.body);
+
+  // Poll during transitions since ResizeObserver may not fire for every frame
+  let transitionPollId: number | null = null;
+  const startTransitionPoll = () => {
+    if (transitionPollId) return;
+    const poll = () => {
+      notifyHeight();
+      transitionPollId = requestAnimationFrame(poll);
+    };
+    transitionPollId = requestAnimationFrame(poll);
+  };
+  const stopTransitionPoll = () => {
+    if (transitionPollId) {
+      cancelAnimationFrame(transitionPollId);
+      transitionPollId = null;
+    }
+  };
+
+  document.addEventListener("transitionstart", startTransitionPoll);
+  document.addEventListener("transitionend", () => {
+    stopTransitionPoll();
+    notifyHeight();
+  });
+
+  // Initial height notification
+  notifyHeight();
+};
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", setupHeightObserver);
+} else {
+  setupHeightObserver();
+}
+
 export {};

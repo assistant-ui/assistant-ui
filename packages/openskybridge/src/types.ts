@@ -47,6 +47,8 @@ export interface SkybridgeCallbacks {
     | ((args: { mode: DisplayMode }) => Promise<{ mode: DisplayMode }>)
     | undefined;
   onSetWidgetState?: ((state: Record<string, unknown>) => Promise<void>) | undefined;
+  /** Internal callback for iframe height changes */
+  onResize?: ((height: number) => void) | undefined;
 }
 
 // Connection - returned by runtime.connect()

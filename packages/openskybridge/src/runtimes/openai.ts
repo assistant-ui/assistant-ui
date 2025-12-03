@@ -48,6 +48,8 @@ export function openaiSkybridge(): SkybridgeRuntime {
             callbacks.onRequestClose?.();
           } else if (method === "openExternal") {
             callbacks.onOpenExternal?.(args as { href: string });
+          } else if (method === "resize") {
+            callbacks.onResize?.((args as { height: number }).height);
           }
         }
 

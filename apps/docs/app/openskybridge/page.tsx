@@ -53,6 +53,38 @@ const DEMO_PAYLOAD = `<!DOCTYPE html>
     }
     body.light .log { background: #f1f5f9; }
     body.dark .log { background: #0f172a; }
+
+    .accordion { margin-top: 12px; }
+    .accordion-header {
+      padding: 12px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 500;
+    }
+    body.light .accordion-header { background: #e2e8f0; }
+    body.dark .accordion-header { background: #334155; }
+    .accordion-header:hover { opacity: 0.9; }
+    .accordion-icon {
+      transition: transform 0.3s ease;
+    }
+    .accordion.open .accordion-icon {
+      transform: rotate(180deg);
+    }
+    .accordion-content {
+      overflow: hidden;
+      max-height: 0;
+      transition: max-height 0.3s ease-out;
+    }
+    .accordion.open .accordion-content {
+      max-height: 500px;
+      transition: max-height 0.5s ease-in;
+    }
+    .accordion-inner {
+      padding: 12px 0;
+    }
   </style>
 </head>
 <body class="light">
@@ -79,6 +111,48 @@ const DEMO_PAYLOAD = `<!DOCTYPE html>
     <button onclick="handleOpenExternal()">Open Link</button>
     <button onclick="handleSendFollowUp()">Send Follow-up</button>
     <div class="log" id="log"></div>
+  </div>
+
+  <div class="accordion" id="accordion1" onclick="toggleAccordion('accordion1')">
+    <div class="accordion-header">
+      <span>More Details</span>
+      <span class="accordion-icon">▼</span>
+    </div>
+    <div class="accordion-content">
+      <div class="accordion-inner">
+        <div class="card">
+          <div class="label">Extra Content</div>
+          <div class="value">This content animates open to demonstrate dynamic height resizing.</div>
+        </div>
+        <div class="card">
+          <div class="label">How It Works</div>
+          <div class="value">The iframe reports its scrollHeight via postMessage, and the host resizes up to maxHeight.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="accordion" id="accordion2" onclick="toggleAccordion('accordion2')">
+    <div class="accordion-header">
+      <span>Even More Content</span>
+      <span class="accordion-icon">▼</span>
+    </div>
+    <div class="accordion-content">
+      <div class="accordion-inner">
+        <div class="card">
+          <div class="label">Section 1</div>
+          <div class="value">Lorem ipsum dolor sit amet, consectetur adipiscing elit.</div>
+        </div>
+        <div class="card">
+          <div class="label">Section 2</div>
+          <div class="value">Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</div>
+        </div>
+        <div class="card">
+          <div class="label">Section 3</div>
+          <div class="value">Ut enim ad minim veniam, quis nostrud exercitation ullamco.</div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -120,6 +194,11 @@ const DEMO_PAYLOAD = `<!DOCTYPE html>
       } catch (e) {
         log('Error: ' + e.message);
       }
+    }
+
+    function toggleAccordion(id) {
+      const accordion = document.getElementById(id);
+      accordion.classList.toggle('open');
     }
   <\/script>
 </body>
@@ -260,13 +339,14 @@ export default function OpenSkybridgePage() {
             Widget (Sandboxed iframe)
           </h2>
 
-          <div className="h-[400px] overflow-hidden rounded-lg border">
+          <div className="overflow-hidden rounded-lg border">
             <OpenSkybridge
               runtime={openaiSkybridge()}
               payload={DEMO_PAYLOAD}
               theme={theme}
               locale={locale}
               toolInput={toolInput}
+              maxHeight={800}
               onCallTool={async (name, args) => {
                 addLog(`onCallTool: ${name}(${JSON.stringify(args)})`);
                 // Simulate async tool call
@@ -307,6 +387,9 @@ export default function OpenSkybridgePage() {
               </li>
               <li>
                 Methods are <strong>bridged</strong> to host callbacks
+              </li>
+              <li>
+                <strong>Dynamic height</strong>: iframe auto-resizes up to maxHeight (try the accordions)
               </li>
             </ul>
           </div>
