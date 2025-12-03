@@ -1,317 +1,148 @@
-@theme inline {
-  @keyframes tw-shimmer-text {
-    0% {
-      background-position: 150% 0;
-    }
-    100% {
-      background-position: -50% 0;
-    }
-  }
-
-  @keyframes tw-shimmer-bg {
-    0% {
-      /* Start off-screen to the left with angle-aware overshoot */
-      translate: calc(
-          -1 * var(--tw-shimmer-width) *
-            var(--tw-shimmer-offscreen-multiplier) * 1px
-        )
-        0;
-    }
-    100% {
-      /* End off-screen to the right with the same overshoot */
-      translate: calc(
-          var(--tw-shimmer-width) * var(--tw-shimmer-offscreen-multiplier) * 1px
-        )
-        0;
-    }
-  }
+@property --shimmer-track-height {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 200px;
 }
 
-/*
-  Shared internals for both text and background shimmer utilities.
-  Uses :where() for zero specificity so utility-specific values take precedence.
-*/
-:where(.shimmer, .shimmer-bg) {
-  /* Resolved angle with default (public --shimmer-angle or 90deg) */
-  --tw-shimmer-angle: var(--shimmer-angle, 90deg);
+@property --shimmer-angle {
+  syntax: '<angle>';
+  inherits: true;
+  initial-value: 15deg;
+}
 
-  /* Tangent for diagonal delay and angle-aware overshoot */
-  --tw-shimmer-angle-tan: tan(calc(90deg - var(--tw-shimmer-angle)));
-
-  /*
-    Position-based delay to sync angled shimmers across elements.
-    Uses --shimmer-x and --shimmer-y set via shimmer-x-* / shimmer-y-* utilities.
-  */
-  --tw-shimmer-delay: calc(
-    (var(--shimmer-y, 0) * var(--tw-shimmer-angle-tan) - var(--shimmer-x, 0)) /
-      var(--tw-shimmer-speed) * -1s
-  );
+@theme inline {
+  @keyframes tw-shimmer {
+    from {
+      background-position: 100% 0;
+    }
+  }
 }
 
 @utility shimmer {
-  /* Internally resolved values with defaults (--tw-shimmer-angle from shared rule) */
-  --tw-shimmer-width-auto: 200;
-  --tw-shimmer-width: var(--shimmer-width, var(--tw-shimmer-width-auto));
-  --tw-shimmer-spread: var(--shimmer-spread, 6ch);
-  --tw-shimmer-speed-auto: 150;
-  --tw-shimmer-speed: var(--shimmer-speed, var(--tw-shimmer-speed-auto));
-  --tw-shimmer-color: var(--shimmer-color, oklch(0 0 0 / 0.8));
+  --_gradient-width: calc(var(--_spread) + var(--shimmer-track-height) * tan(var(--shimmer-angle)));
+  --_active-distance: calc(var(--shimmer-track-width, 200px) + var(--_gradient-width));
+  --_duration: var(--shimmer-duration, calc(var(--_active-distance) / var(--_speed) / 1px * 1000));
+  --_repeat-delay: var(--shimmer-repeat-delay, calc(20000 / var(--_speed)));
+  --_repeat-delay-px: calc(var(--_repeat-delay) * var(--_active-distance) / var(--_duration));
+  --_xy-offset-px: calc((var(--shimmer-x, 0) + var(--shimmer-y, 0) * tan(var(--shimmer-angle))) * 1px);
 
-  @variant dark {
-    --tw-shimmer-color: var(--shimmer-color, oklch(1 0 0 / 0.8));
+  --_bg-width: calc(
+    100% +
+    var(--shimmer-track-width, 100%) +
+    var(--_gradient-width) +
+    var(--_repeat-delay-px)
+  );
+
+  --_position: calc(
+    var(--shimmer-track-width, (100% - var(--_gradient-width) - var(--_repeat-delay-px)) / 2)
+    + var(--_gradient-width) / 2
+    + var(--_repeat-delay-px)
+    - var(--_xy-offset-px)
+  );
+
+  &:not(.shimmer-bg) {
+    --_speed: var(--shimmer-speed, 200);
+    --_spread: var(--shimmer-spread, 120px);
+    --_bg: currentColor;
+    --_fg: var(--shimmer-color, oklch(from currentColor 0.9 c h / 1));
+
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
   }
 
-  /*
-    Shimmer highlight: transparent → color → transparent
-    Uses a sine ease-in-out curve (17 stops) for smooth falloff.
-  */
+  &.shimmer-bg {
+    --_speed: var(--shimmer-speed, 500);
+    --_spread: var(--shimmer-spread, 240px);
+    --_bg: transparent;
+    --_fg: var(--shimmer-color, oklch(from currentColor 0 c h / 0.03));
+  }
+
+  @variant dark {
+    &.shimmer-bg {
+      --_fg: var(--shimmer-color, oklch(from currentColor 0 c h / 0.15));
+    }
+  }
+
+  @-moz-document url-prefix() {
+    & {
+      --_duration: var(--shimmer-duration, calc(375000 / var(--_speed)));
+    }
+  }
+
+  /* Use a sine ease-in-out curve (17 stops) for smooth falloff */
+  --_mix-96: color-mix(in oklch, var(--_fg), var(--_bg) 96%);
+  --_mix-83: color-mix(in oklch, var(--_fg), var(--_bg) 83%);
+  --_mix-67: color-mix(in oklch, var(--_fg), var(--_bg) 67%);
+  --_mix-50: color-mix(in oklch, var(--_fg), var(--_bg) 50%);
+  --_mix-33: color-mix(in oklch, var(--_fg), var(--_bg) 33%);
+  --_mix-17: color-mix(in oklch, var(--_fg), var(--_bg) 17%);
+  --_mix-4: color-mix(in oklch, var(--_fg), var(--_bg) 4%);
+
   background:
     linear-gradient(
-        var(--tw-shimmer-angle),
-        transparent calc(50% - var(--tw-shimmer-spread) * 0.5),
-        color-mix(in oklch, var(--tw-shimmer-color), transparent 96%)
-          calc(50% - var(--tw-shimmer-spread) * 0.44),
-        color-mix(in oklch, var(--tw-shimmer-color), transparent 83%)
-          calc(50% - var(--tw-shimmer-spread) * 0.37),
-        color-mix(in oklch, var(--tw-shimmer-color), transparent 67%)
-          calc(50% - var(--tw-shimmer-spread) * 0.31),
-        color-mix(in oklch, var(--tw-shimmer-color), transparent 50%)
-          calc(50% - var(--tw-shimmer-spread) * 0.25),
-        color-mix(in oklch, var(--tw-shimmer-color), transparent 33%)
-          calc(50% - var(--tw-shimmer-spread) * 0.19),
-        color-mix(in oklch, var(--tw-shimmer-color), transparent 17%)
-          calc(50% - var(--tw-shimmer-spread) * 0.12),
-        color-mix(in oklch, var(--tw-shimmer-color), transparent 4%)
-          calc(50% - var(--tw-shimmer-spread) * 0.06),
-        var(--tw-shimmer-color) 50%,
-        color-mix(in oklch, var(--tw-shimmer-color), transparent 4%)
-          calc(50% + var(--tw-shimmer-spread) * 0.06),
-        color-mix(in oklch, var(--tw-shimmer-color), transparent 17%)
-          calc(50% + var(--tw-shimmer-spread) * 0.12),
-        color-mix(in oklch, var(--tw-shimmer-color), transparent 33%)
-          calc(50% + var(--tw-shimmer-spread) * 0.19),
-        color-mix(in oklch, var(--tw-shimmer-color), transparent 50%)
-          calc(50% + var(--tw-shimmer-spread) * 0.25),
-        color-mix(in oklch, var(--tw-shimmer-color), transparent 67%)
-          calc(50% + var(--tw-shimmer-spread) * 0.31),
-        color-mix(in oklch, var(--tw-shimmer-color), transparent 83%)
-          calc(50% + var(--tw-shimmer-spread) * 0.37),
-        color-mix(in oklch, var(--tw-shimmer-color), transparent 96%)
-          calc(50% + var(--tw-shimmer-spread) * 0.44),
-        transparent calc(50% + var(--tw-shimmer-spread) * 0.5)
-      )
-      0 0 / 200% 100% no-repeat,
-    linear-gradient(currentColor, currentColor);
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  animation: tw-shimmer-text
-    calc((var(--tw-shimmer-width) * 2) / var(--tw-shimmer-speed) * 1s) linear
-    infinite;
-  animation-delay: var(--tw-shimmer-delay, 0s);
-}
+      calc(90deg + var(--shimmer-angle)),
+      var(--_bg) calc(var(--_position) - var(--_spread) * 0.5),
+      var(--_mix-96) calc(var(--_position) - var(--_spread) * 0.44),
+      var(--_mix-83) calc(var(--_position) - var(--_spread) * 0.37),
+      var(--_mix-67) calc(var(--_position) - var(--_spread) * 0.31),
+      var(--_mix-50) calc(var(--_position) - var(--_spread) * 0.25),
+      var(--_mix-33) calc(var(--_position) - var(--_spread) * 0.19),
+      var(--_mix-17) calc(var(--_position) - var(--_spread) * 0.12),
+      var(--_mix-4) calc(var(--_position) - var(--_spread) * 0.06),
+      var(--_fg) var(--_position),
+      var(--_mix-4) calc(var(--_position) + var(--_spread) * 0.06),
+      var(--_mix-17) calc(var(--_position) + var(--_spread) * 0.12),
+      var(--_mix-33) calc(var(--_position) + var(--_spread) * 0.19),
+      var(--_mix-50) calc(var(--_position) + var(--_spread) * 0.25),
+      var(--_mix-67) calc(var(--_position) + var(--_spread) * 0.31),
+      var(--_mix-83) calc(var(--_position) + var(--_spread) * 0.37),
+      var(--_mix-96) calc(var(--_position) + var(--_spread) * 0.44),
+      var(--_bg) calc(var(--_position) + var(--_spread) * 0.5)
+    )
+    0 0 / var(--_bg-width) 100%
+    no-repeat;
 
-@utility shimmer-bg {
-  position: relative;
-  overflow: hidden; /* fallback */
-  overflow: clip; /* preferred in modern browsers */
-
-  /* Internally resolved values with defaults (--tw-shimmer-angle from shared rule) */
-
-  /* Auto+final width for background shimmer */
-  --tw-shimmer-width-auto: 800;
-  --tw-shimmer-width: var(--shimmer-width, var(--tw-shimmer-width-auto));
-
-  /*
-    Helper: track width as a length. --shimmer-width stays unitless,
-    but we often need a px length for clamping.
-  */
-  --tw-shimmer-width-px: calc(var(--tw-shimmer-width) * 1px);
-
-  /*
-    Auto spread based on shimmer width, clamped so the stripe is
-    never wider than the track or 800px. This is the base auto value,
-    which can be refined by shimmer-container for container-based sizing.
-  */
-  --tw-shimmer-bg-spread-auto: min(var(--tw-shimmer-width-px), 800px);
-
-  /*
-    Final spread: public override (--shimmer-bg-spread) if set via
-    shimmer-bg-spread-* utilities or inline styles, otherwise auto.
-  */
-  --tw-shimmer-bg-spread: var(
-    --shimmer-bg-spread,
-    var(--tw-shimmer-bg-spread-auto)
-  );
-
-  /* Auto+final speed for background shimmer */
-  --tw-shimmer-speed-auto: 1000;
-  --tw-shimmer-speed: var(--shimmer-speed, var(--tw-shimmer-speed-auto));
-
-  /*
-    Angle-aware offscreen overshoot: multiplier is derived from slope magnitude,
-    mirrored around 90deg, clamped ~1–3x. See README for full explanation.
-    Override via --shimmer-offscreen-multiplier if needed.
-  */
-
-  /* Approximate absolute value of tangent (uses --tw-shimmer-angle-tan from shared rule) */
-  --tw-shimmer-angle-tan-abs: max(
-    var(--tw-shimmer-angle-tan),
-    calc(var(--tw-shimmer-angle-tan) * -1)
-  );
-
-  --tw-shimmer-offscreen-multiplier-auto: clamp(
-    1,
-    calc(1 + var(--tw-shimmer-angle-tan-abs) * 0.3),
-    3
-  );
-
-  --tw-shimmer-offscreen-multiplier: var(
-    --shimmer-offscreen-multiplier,
-    var(--tw-shimmer-offscreen-multiplier-auto)
-  );
-
-  /*
-    Total horizontal distance traveled per cycle:
-      distance = 2 × width × overshootMultiplier
-
-    This is used by:
-      - The keyframes (start/end translate)
-      - The animation duration calculation
-      - Container auto-speed heuristics
-  */
-  --tw-shimmer-distance: calc(
-    var(--tw-shimmer-width) * 2 * var(--tw-shimmer-offscreen-multiplier)
-  );
-
-  --tw-shimmer-color: var(--shimmer-color, oklch(1 0 0 / 0.5));
-
-  @variant dark {
-    --tw-shimmer-color: var(--shimmer-color, oklch(1 0 0 / 0.25));
-  }
-
-  &::after {
-    content: "";
-    position: absolute;
-    will-change: translate, transform;
-    top: -150%;
-    bottom: -150%;
-    left: 0;
-    pointer-events: none;
-    width: var(--tw-shimmer-bg-spread);
-    /*
-      Shimmer highlight: transparent → color → transparent
-      Uses a sine ease-in-out curve (17 stops) for smooth falloff.
-    */
-    background: linear-gradient(
-      90deg,
-      transparent 0%,
-      color-mix(in oklch, var(--tw-shimmer-color), transparent 96%) 6%,
-      color-mix(in oklch, var(--tw-shimmer-color), transparent 83%) 13%,
-      color-mix(in oklch, var(--tw-shimmer-color), transparent 67%) 19%,
-      color-mix(in oklch, var(--tw-shimmer-color), transparent 50%) 25%,
-      color-mix(in oklch, var(--tw-shimmer-color), transparent 33%) 31%,
-      color-mix(in oklch, var(--tw-shimmer-color), transparent 17%) 38%,
-      color-mix(in oklch, var(--tw-shimmer-color), transparent 4%) 44%,
-      var(--tw-shimmer-color) 50%,
-      color-mix(in oklch, var(--tw-shimmer-color), transparent 4%) 56%,
-      color-mix(in oklch, var(--tw-shimmer-color), transparent 17%) 62%,
-      color-mix(in oklch, var(--tw-shimmer-color), transparent 33%) 69%,
-      color-mix(in oklch, var(--tw-shimmer-color), transparent 50%) 75%,
-      color-mix(in oklch, var(--tw-shimmer-color), transparent 67%) 81%,
-      color-mix(in oklch, var(--tw-shimmer-color), transparent 83%) 87%,
-      color-mix(in oklch, var(--tw-shimmer-color), transparent 96%) 94%,
-      transparent 100%
-    );
-    transform: skewX(calc(90deg - var(--tw-shimmer-angle)));
-    animation: tw-shimmer-bg
-      calc(var(--tw-shimmer-distance) / var(--tw-shimmer-speed) * 1s) linear
-      infinite;
-    animation-delay: var(--tw-shimmer-delay, 0s);
-  }
+  animation: tw-shimmer 1s linear 0s infinite backwards;
+  animation-duration: calc((var(--_duration) + var(--_repeat-delay)) * 1ms); 
 }
 
 @utility shimmer-speed-* {
   --shimmer-speed: --value(number);
 }
 
+@utility shimmer-duration-* {
+  --shimmer-duration: --value(integer);
+}
+
+@utility shimmer-repeat-delay-* {
+  --shimmer-repeat-delay: --value(integer);
+}
+
+@utility shimmer-invert {
+  &:not(.shimmer-bg) {
+    --shimmer-color: oklch(from currentColor 0.2 c h / 1);
+  }
+}
+
 @utility shimmer-color-* {
-  --shimmer-color: --alpha(--value([color], --color-*) / calc(--modifier(integer) * 1%));
+  --alpha: 100%;
+  --alpha: calc(--modifier(integer) * 1%);
+  --shimmer-color: --alpha(--value(--color, [color]) / var(--alpha, 100%));
 }
 
 @utility shimmer-spread-* {
-  --shimmer-spread: --spacing(--value(integer));
-}
-@utility shimmer-bg-spread-* {
-  --shimmer-bg-spread: --spacing(--value(integer));
+  --shimmer-spread: calc(--value(integer) * 1px);
 }
 
 @utility shimmer-angle-* {
-  --shimmer-angle: calc(--value(number) * 1deg);
+  --shimmer-angle: calc(--value(integer) * 1deg);
 }
 
-@utility shimmer-width-* {
-  --shimmer-width: --value(number);
-}
+@utility shimmer-container {
+  container-type: inline-size;
 
-@utility shimmer-y-* {
-  --shimmer-y: --value(number);
-}
-
-@utility shimmer-x-* {
-  --shimmer-x: --value(number);
-}
-
-/*
-  Container-based auto-width for shimmer animations.
-  Uses CSS container queries to automatically set --shimmer-width
-  based on the container's width, without needing JS.
-
-  In older browsers, the shimmer-container class has no effect and 
-  shimmers fall back to their default widths or manually set values.
-*/
-@supports (width: 1cqw) {
-  .shimmer-container {
-    container-type: inline-size;
-  }
-
-  .shimmer-container :is(.shimmer, .shimmer-bg) {
-    /*
-      Container-based timing: width from container, pass time ~1.1–1.6s
-      scaling with width. Public --shimmer-width/--shimmer-speed override if set.
-    */
-    --tw-shimmer-width-auto: calc(100cqw / 1px);
-
-    --tw-shimmer-pass-time-auto: clamp(
-      1.1,
-      calc(1.1 + ((var(--tw-shimmer-width) / 320) - 1) * 0.25),
-      1.6
-    );
-  }
-
-  .shimmer-container .shimmer {
-    /* Text shimmer: 1x speed multiplier (~290px/s at 320px, ~470px/s at 640px). */
-    --tw-shimmer-speed-auto: calc(
-      var(--tw-shimmer-width) / var(--tw-shimmer-pass-time-auto)
-    );
-  }
-
-  .shimmer-container .shimmer-bg {
-    /* Auto speed based on angle-aware travel distance for consistent timing. */
-    --tw-shimmer-speed-auto: calc(
-      var(--tw-shimmer-distance) / var(--tw-shimmer-pass-time-auto)
-    );
-
-    /*
-      Container-aware auto spread: clamped to ~200–300px or track width.
-      Override via --shimmer-bg-spread (shimmer-bg-spread-* utilities).
-    */
-    --tw-shimmer-bg-max: min(var(--tw-shimmer-width-px), 300px);
-
-    --tw-shimmer-bg-spread-auto: clamp(
-      min(200px, var(--tw-shimmer-bg-max)),
-      70cqw,
-      var(--tw-shimmer-bg-max)
-    );
+  & .shimmer {
+    --shimmer-track-width: 100cqw;
+    --shimmer-track-height: 100cqw;
   }
 }
