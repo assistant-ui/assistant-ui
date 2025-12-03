@@ -1,0 +1,9 @@
+{
+  "extends": "@assistant-ui/x-buildutils/ts/base",
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "exclude": [
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "src/runtimes/openai-runtime.ts"
+  ]
+}
