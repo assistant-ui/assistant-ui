@@ -12,7 +12,7 @@ import { ExampleShowcase } from "@/components/home/example-showcase";
 
 export default function HomePage() {
   return (
-    <main className="container relative z-2 flex flex-col gap-20 px-4 py-12">
+    <main className="container relative z-2 flex flex-col gap-10 px-4 py-12 md:gap-20">
       <Hero />
 
       <ExampleShowcase />

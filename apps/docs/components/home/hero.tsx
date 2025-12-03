@@ -15,34 +15,33 @@ export function Hero() {
         </p>
       </div>
 
-      <div className="flex flex-col gap-4">
-        <CopyCommandButton />
-        <div className="flex flex-wrap items-center gap-x-3 text-[13px] text-muted-foreground">
-          <Link
-            href="/docs"
-            className="font-medium transition-colors hover:text-foreground"
-          >
-            Get Started →
-          </Link>
-          <span className="size-1 rounded-full bg-border" />
-          <Link
-            href="https://cal.com/simon-farshid/assistant-ui"
-            className="transition-colors hover:text-foreground"
-          >
-            Contact Sales
-          </Link>
-          <span className="size-1 rounded-full bg-border" />
-          <span className="inline-flex items-center gap-1.5">
-            Backed by
-            <Image
-              src="/logos/yc_logo.png"
-              alt="Y Combinator"
-              height={18}
-              width={18}
-            />
-            Combinator
-          </span>
-        </div>
+      <CopyCommandButton />
+
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-3 text-[13px] text-muted-foreground">
+        <Link
+          href="/docs"
+          className="shimmer font-medium text-foreground/60 hover:text-foreground"
+        >
+          Get Started →
+        </Link>
+        <span className="size-1 rounded-full bg-border" />
+        <Link
+          href="https://cal.com/simon-farshid/assistant-ui"
+          className="font-medium text-foreground/60 transition-colors hover:text-foreground"
+        >
+          Contact Sales
+        </Link>
+        <span className="hidden size-1 rounded-full bg-border sm:block" />
+        <span className="inline-flex w-full items-center gap-1.5 sm:w-auto">
+          Backed by
+          <Image
+            src="/logos/yc_logo.png"
+            alt="Y Combinator"
+            height={18}
+            width={18}
+          />
+          Combinator
+        </span>
       </div>
     </section>
   );

@@ -64,7 +64,7 @@ export function TrustedBy() {
   return (
     <section className="flex flex-col items-center gap-4">
       {isMobile ? (
-        <div className="flex w-full overflow-hidden [--duration:20s] [--gap:3rem]">
+        <div className="flex w-full gap-(--gap) overflow-hidden [--duration:20s] [--gap:3rem]">
           {Array.from({ length: 4 }).map((_, i) => (
             <div
               key={i}
