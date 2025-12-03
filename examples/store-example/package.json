@@ -10,8 +10,8 @@
   "dependencies": {
     "@assistant-ui/store": "workspace:*",
     "@assistant-ui/tap": "workspace:*",
-    "next": "16.0.4",
-    "react": "19.2.0",
+    "next": "16.0.7",
+    "react": "19.2.1",
     "react-dom": "19.2.0"
   },
   "devDependencies": {
