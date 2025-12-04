@@ -110,7 +110,7 @@ const ReasoningTrigger: FC<{ active: boolean; className?: string }> = ({
       {active ? (
         <span
           aria-hidden
-          className="aui-reasoning-trigger-shimmer pointer-events-none absolute inset-0 shimmer motion-reduce:animate-none"
+          className="aui-reasoning-trigger-shimmer shimmer pointer-events-none absolute inset-0 motion-reduce:animate-none"
         >
           Reasoning
         </span>
