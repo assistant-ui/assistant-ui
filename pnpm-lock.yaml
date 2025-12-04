@@ -2107,7 +2107,11 @@ importers:
         specifier: ^4.0.14
         version: 4.0.14(@opentelemetry/api@1.9.0)(@types/node@24.10.1)(@vitest/ui@4.0.14)(jiti@2.6.1)(jsdom@27.2.0)(lightningcss@1.30.2)(tsx@4.20.6)(yaml@2.8.1)
 
-  packages/tw-shimmer: {}
+  packages/tw-shimmer:
+    dependencies:
+      tailwindcss:
+        specifier: '>=4.0.0-0'
+        version: 4.1.17
 
   packages/x-buildutils:
     dependencies:
