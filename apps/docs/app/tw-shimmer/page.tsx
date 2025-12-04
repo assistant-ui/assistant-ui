@@ -149,7 +149,7 @@ export default function TwShimmerPage() {
               />
             </BoxCode>
             <BoxContent>
-              <span className="shimmer font-semibold text-foreground/60 text-xl">
+              <span className="shimmer font-semibold text-foreground/80 text-xl dark:text-foreground/60">
                 Shimmer Effect
               </span>
             </BoxContent>
@@ -177,7 +177,7 @@ export default function TwShimmerPage() {
               />
             </BoxCode>
             <BoxContent>
-              <span className="shimmer shimmer-invert font-semibold text-foreground/60 text-xl">
+              <span className="shimmer shimmer-invert font-semibold text-foreground/60 text-xl dark:text-foreground/80">
                 Shimmer Effect
               </span>
             </BoxContent>
@@ -259,21 +259,21 @@ export default function TwShimmerPage() {
             <BoxCode>
               <CodeBlock
                 language="html"
-                code='<span class="shimmer shimmer-angle-30 text-foreground/40">Diagonal Shimmer</span>'
+                code='<span class="shimmer shimmer-angle-75 text-foreground/40">Diagonal Shimmer</span>'
                 highlight="shimmer-angle"
                 highlightMode="text"
               />
             </BoxCode>
             <BoxContent>
               <div className="flex flex-col items-start gap-2">
+                <span className="shimmer shimmer-angle-0 shimmer-duration-5000 font-semibold text-foreground/40 text-xl">
+                  Shimmer Effect (0deg)
+                </span>
                 <span className="shimmer shimmer-duration-5000 font-semibold text-foreground/40 text-xl">
                   Shimmer Effect (15deg)
                 </span>
-                <span className="shimmer shimmer-angle-30 shimmer-duration-5000 font-semibold text-foreground/40 text-xl">
-                  Shimmer Effect (30deg)
-                </span>
-                <span className="shimmer shimmer-angle-45 shimmer-duration-5000 font-semibold text-foreground/40 text-xl">
-                  Shimmer Effect (45deg)
+                <span className="shimmer shimmer-angle-75 shimmer-duration-5000 font-semibold text-foreground/40 text-xl">
+                  Shimmer Effect (75deg)
                 </span>
               </div>
             </BoxContent>

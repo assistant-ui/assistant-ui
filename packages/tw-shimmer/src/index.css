@@ -42,24 +42,27 @@
 
   &:not(.shimmer-bg) {
     --_speed: var(--shimmer-speed, 200);
-    --_spread: var(--shimmer-spread, 120px);
+    --_spread: var(--shimmer-spread, calc(4ch + 80px));
     --_bg: currentColor;
-    --_fg: var(--shimmer-color, oklch(from currentColor 0.9 c h / 1));
+    --_fg: var(--shimmer-color, oklch(from currentColor l c h / calc(alpha * 0.2)));
 
     background-clip: text;
     -webkit-text-fill-color: transparent;
   }
 
   &.shimmer-bg {
-    --_speed: var(--shimmer-speed, 500);
-    --_spread: var(--shimmer-spread, 240px);
+    --_speed: var(--shimmer-speed, 1000);
+    --_spread: var(--shimmer-spread, 480px);
     --_bg: transparent;
-    --_fg: var(--shimmer-color, oklch(from currentColor 0 c h / 0.03));
+    --_fg: var(--shimmer-color, oklch(from currentColor 0 c h / 0.06));
   }
 
   @variant dark {
+    &:not(.shimmer-bg) {
+      --_fg: var(--shimmer-color, oklch(from currentColor max(0.8, calc(l + 0.4)) c h / calc(alpha + 0.4)));
+    }
     &.shimmer-bg {
-      --_fg: var(--shimmer-color, oklch(from currentColor 0 c h / 0.15));
+      --_fg: var(--shimmer-color, oklch(from currentColor 0 c h / 0.30));
     }
   }
 
@@ -120,7 +123,11 @@
 
 @utility shimmer-invert {
   &:not(.shimmer-bg) {
-    --shimmer-color: oklch(from currentColor 0.2 c h / 1);
+    --shimmer-color: oklch(from currentColor min(calc(l - 0.4), 0.2) c h / calc(alpha + 0.4));
+
+    @variant dark {
+      --shimmer-color: oklch(from currentColor l c h / calc(alpha * 0.2));
+    }
   }
 }
 
@@ -143,6 +150,6 @@
 
   & .shimmer {
     --shimmer-track-width: 100cqw;
-    --shimmer-track-height: 100cqw;
+    --shimmer-track-height: max(100cqh, 50cqw, 200px);
   }
 }
