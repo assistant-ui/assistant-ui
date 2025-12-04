@@ -617,11 +617,11 @@ function CodeBlock({
         transformerMetaWordHighlight(),
       ]}
       components={{
-        // biome-ignore lint/correctness/noNestedComponentDefinitions: <explanation>
+        // biome-ignore lint/correctness/noNestedComponentDefinitions: false positive
         Pre: ({ className, ...props }: any) => (
           <pre className={className} {...props} />
         ),
-        // biome-ignore lint/correctness/noNestedComponentDefinitions: <explanation>
+        // biome-ignore lint/correctness/noNestedComponentDefinitions: false positive
         Code: ({ className, ...props }: any) => (
           <code className={className} {...props} />
         ),

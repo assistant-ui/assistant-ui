@@ -19,7 +19,7 @@ export default function ShimmerSandboxPage() {
       <div className="mx-auto max-w-7xl px-4 py-12">
         {/* Header - full width */}
         <header className="mb-12 space-y-4">
-          <h1 className="text-4xl font-bold">Shimmer Sandbox</h1>
+          <h1 className="font-bold text-4xl">Shimmer Sandbox</h1>
           <p className="max-w-2xl text-muted-foreground">
             Comprehensive testing playground for shimmer text and shimmer-bg
             utilities. Use this to tune values, test edge cases, and experiment
@@ -71,7 +71,7 @@ function TableOfContents() {
 
   return (
     <nav className="sticky top-24">
-      <h2 className="mb-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+      <h2 className="mb-3 font-semibold text-muted-foreground text-xs uppercase tracking-wide">
         Sections
       </h2>
       <ul className="space-y-1">
@@ -79,7 +79,7 @@ function TableOfContents() {
           <li key={id}>
             <a
               href={`#${id}`}
-              className="block rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className="block rounded-md px-3 py-1.5 text-muted-foreground text-sm transition-colors hover:bg-muted hover:text-foreground"
             >
               {label}
             </a>
@@ -104,7 +104,7 @@ function Section({
   return (
     <section id={id} className="scroll-mt-8 space-y-6">
       <div className="space-y-2">
-        <h2 className="text-2xl font-bold">{title}</h2>
+        <h2 className="font-bold text-2xl">{title}</h2>
         {description && <p className="text-muted-foreground">{description}</p>}
       </div>
       {children}
@@ -126,7 +126,7 @@ function TestCard({
       <div>
         <h3 className="font-semibold">{title}</h3>
         {description && (
-          <p className="text-sm text-muted-foreground">{description}</p>
+          <p className="text-muted-foreground text-sm">{description}</p>
         )}
       </div>
       {children}
@@ -149,23 +149,23 @@ function TextShimmerSection() {
         {/* Font sizes */}
         <TestCard title="Font Sizes" description="Different text sizes">
           <div className="shimmer-container space-y-2">
-            <p className="shimmer text-xs text-foreground/40">
+            <p className="shimmer text-foreground/40 text-xs">
               Extra small text with shimmer
             </p>
-            <p className="shimmer text-sm text-foreground/40">
+            <p className="shimmer text-foreground/40 text-sm">
               Small text with shimmer effect
             </p>
             <p className="shimmer text-base text-foreground/40">
               Base text with shimmer effect
             </p>
-            <p className="shimmer text-lg text-foreground/40">
+            <p className="shimmer text-foreground/40 text-lg">
               Large text with shimmer
             </p>
-            <p className="shimmer text-xl text-foreground/40">
+            <p className="shimmer text-foreground/40 text-xl">
               Extra large shimmer
             </p>
             <p className="shimmer text-2xl text-foreground/40">2XL shimmer</p>
-            <p className="shimmer text-4xl font-bold text-foreground/40">
+            <p className="shimmer font-bold text-4xl text-foreground/40">
               4XL Bold
             </p>
           </div>
@@ -189,25 +189,25 @@ function TextShimmerSection() {
         {/* Font weights */}
         <TestCard title="Font Weights" description="Different weights">
           <div className="shimmer-container space-y-2">
-            <p className="shimmer text-lg font-thin text-foreground/40">
+            <p className="shimmer font-thin text-foreground/40 text-lg">
               Thin weight shimmer
             </p>
-            <p className="shimmer text-lg font-light text-foreground/40">
+            <p className="shimmer font-light text-foreground/40 text-lg">
               Light weight shimmer
             </p>
-            <p className="shimmer text-lg font-normal text-foreground/40">
+            <p className="shimmer font-normal text-foreground/40 text-lg">
               Normal weight shimmer
             </p>
-            <p className="shimmer text-lg font-medium text-foreground/40">
+            <p className="shimmer font-medium text-foreground/40 text-lg">
               Medium weight shimmer
             </p>
-            <p className="shimmer text-lg font-semibold text-foreground/40">
+            <p className="shimmer font-semibold text-foreground/40 text-lg">
               Semibold shimmer
             </p>
-            <p className="shimmer text-lg font-bold text-foreground/40">
+            <p className="shimmer font-bold text-foreground/40 text-lg">
               Bold weight shimmer
             </p>
-            <p className="shimmer text-lg font-black text-foreground/40">
+            <p className="shimmer font-black text-foreground/40 text-lg">
               Black weight shimmer
             </p>
           </div>
@@ -219,13 +219,13 @@ function TextShimmerSection() {
           description="Uses default width (200px)"
         >
           <div className="space-y-2">
-            <p className="shimmer text-sm text-foreground/40">
+            <p className="shimmer text-foreground/40 text-sm">
               No container - default width (200)
             </p>
             <p className="shimmer text-base text-foreground/40">
               The shimmer will animate at a fixed 200px track width
             </p>
-            <p className="shimmer text-lg text-foreground/40">
+            <p className="shimmer text-foreground/40 text-lg">
               Longer text still uses 200px
             </p>
           </div>
@@ -234,14 +234,14 @@ function TextShimmerSection() {
         {/* Mixed content */}
         <TestCard title="Mixed Content" description="Headlines and body text">
           <div className="shimmer-container space-y-4">
-            <h4 className="shimmer text-2xl font-bold text-foreground/40">
+            <h4 className="shimmer font-bold text-2xl text-foreground/40">
               Headline with shimmer
             </h4>
             <p className="shimmer text-foreground/40">
               Body text that follows the headline. This demonstrates how shimmer
               works in a typical content layout with multiple elements.
             </p>
-            <p className="shimmer text-sm text-foreground/50">
+            <p className="shimmer text-foreground/50 text-sm">
               Caption or metadata text
             </p>
           </div>
@@ -436,7 +436,7 @@ function ContainerSizeSection() {
         <div className="flex flex-wrap items-end gap-4">
           {CONTAINER_SIZES.map(({ width, label }) => (
             <div key={width} className="flex flex-col items-center gap-2">
-              <span className="text-xs text-muted-foreground">{label}</span>
+              <span className="text-muted-foreground text-xs">{label}</span>
               <div
                 className="shimmer-container"
                 style={{ width: `${width}px` }}
@@ -450,7 +450,7 @@ function ContainerSizeSection() {
 
       {/* Detailed breakdown */}
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold">Detailed Breakdown</h3>
+        <h3 className="font-semibold text-lg">Detailed Breakdown</h3>
         <div className="grid gap-4 overflow-x-auto">
           {CONTAINER_SIZES.map(({ width, label }) => (
             <ContainerSizeRow key={width} width={width} label={label} />
@@ -475,7 +475,7 @@ function ContainerSizeRow({ width, label }: { width: number; label: string }) {
   return (
     <div className="flex min-w-max items-center gap-4 rounded-lg border p-3">
       <div className="w-20 shrink-0">
-        <span className="font-mono text-sm font-semibold">{label}</span>
+        <span className="font-mono font-semibold text-sm">{label}</span>
       </div>
       <div
         className="shimmer-container shrink-0"
@@ -483,7 +483,7 @@ function ContainerSizeRow({ width, label }: { width: number; label: string }) {
       >
         <div className="shimmer-bg h-6 w-full rounded bg-muted" />
       </div>
-      <div className="hidden shrink-0 text-xs text-muted-foreground xl:block">
+      <div className="hidden shrink-0 text-muted-foreground text-xs xl:block">
         spread: ~{expectedSpread.toFixed(0)}px | pass: {passTime.toFixed(2)}s |
         speed: {speed.toFixed(0)}px/s
       </div>
@@ -664,7 +664,7 @@ function AngleTestSection() {
             {ANGLES.map((angle) => (
               <p
                 key={angle}
-                className="shimmer text-lg font-medium text-foreground/40"
+                className="shimmer font-medium text-foreground/40 text-lg"
                 style={
                   { "--shimmer-angle": `${angle}deg` } as React.CSSProperties
                 }
@@ -683,7 +683,7 @@ function AngleTestSection() {
           <div className="shimmer-container space-y-3">
             {ANGLES.map((angle) => (
               <div key={angle} className="flex items-center gap-3">
-                <span className="w-12 text-sm text-muted-foreground">
+                <span className="w-12 text-muted-foreground text-sm">
                   {angle}deg
                 </span>
                 <div
@@ -702,7 +702,7 @@ function AngleTestSection() {
           title="Angled + Position Offset"
           description="Using --shimmer-y for vertical alignment"
         >
-          <div className="shimmer-container space-y-2 shimmer-angle-45">
+          <div className="shimmer-container shimmer-angle-45 space-y-2">
             {Array.from({ length: 6 }).map((_, i) => (
               <div
                 key={i}
@@ -723,7 +723,7 @@ function AngleTestSection() {
           description="Using shimmer-x-* for staggered timing"
         >
           {/* Fixed 96px cells + 8px gap = 104px stride */}
-          <div className="shimmer-container grid grid-cols-[repeat(4,96px)] gap-2 shimmer-angle-45">
+          <div className="shimmer-container shimmer-angle-45 grid grid-cols-[repeat(4,96px)] gap-2">
             {Array.from({ length: 8 }).map((_, i) => (
               <div
                 key={i}
@@ -761,7 +761,7 @@ function ColorTestSection() {
           description="Custom shimmer colors on text"
         >
           <div className="shimmer-container space-y-2">
-            <p className="shimmer text-lg text-foreground/40">Default color</p>
+            <p className="shimmer text-foreground/40 text-lg">Default color</p>
             {SHIMMER_COLORS.map(({ name, shimmerColor, textColor }) => (
               <p
                 key={name}
@@ -870,7 +870,7 @@ function SpeedTestSection() {
             {SPEEDS.map((speed) => (
               <p
                 key={speed}
-                className="shimmer text-sm text-foreground/40"
+                className="shimmer text-foreground/40 text-sm"
                 style={{ "--shimmer-speed": speed } as React.CSSProperties}
               >
                 Speed {speed}px/s - The quick brown fox
@@ -887,7 +887,7 @@ function SpeedTestSection() {
           <div className="shimmer-container space-y-2">
             {SPEEDS.map((speed) => (
               <div key={speed} className="flex items-center gap-3">
-                <span className="w-16 text-xs text-muted-foreground">
+                <span className="w-16 text-muted-foreground text-xs">
                   {speed}px/s
                 </span>
                 <div
@@ -907,7 +907,7 @@ function SpeedTestSection() {
           <div className="space-y-4">
             {[200, 400, 600].map((w) => (
               <div key={w} className="space-y-1">
-                <span className="text-xs text-muted-foreground">
+                <span className="text-muted-foreground text-xs">
                   --shimmer-width: 200, --shimmer-speed: 200
                 </span>
                 <div
@@ -933,7 +933,7 @@ function SpeedTestSection() {
           <div className="space-y-4">
             {[200, 400, 600].map((width) => (
               <div key={width} className="space-y-1">
-                <span className="text-xs text-muted-foreground">
+                <span className="text-muted-foreground text-xs">
                   {width}px container - auto speed
                 </span>
                 <div
@@ -974,7 +974,7 @@ function SpreadTestSection() {
             {[2, 4, 6, 8, 10, 12, 16, 20].map((spread) => (
               <p
                 key={spread}
-                className="shimmer text-sm text-foreground/40"
+                className="shimmer text-foreground/40 text-sm"
                 style={
                   { "--shimmer-spread": `${spread}ch` } as React.CSSProperties
                 }
@@ -993,7 +993,7 @@ function SpreadTestSection() {
           <div className="shimmer-container space-y-2">
             {SPREADS.map((spread) => (
               <div key={spread} className="flex items-center gap-3">
-                <span className="w-12 text-xs text-muted-foreground">
+                <span className="w-12 text-muted-foreground text-xs">
                   {spread}px
                 </span>
                 <div
@@ -1017,7 +1017,7 @@ function SpreadTestSection() {
           <div className="space-y-4">
             {[150, 300, 600].map((width) => (
               <div key={width} className="space-y-2">
-                <span className="text-xs text-muted-foreground">
+                <span className="text-muted-foreground text-xs">
                   {width}px container
                 </span>
                 <div
@@ -1049,7 +1049,7 @@ function SpreadTestSection() {
           description="Default auto spread in shimmer-container"
         >
           <div className="space-y-4">
-            <p className="text-xs text-muted-foreground">
+            <p className="text-muted-foreground text-xs">
               Auto spread clamps to: min(200px, track) to 70cqw to min(300px,
               track)
             </p>
@@ -1060,7 +1060,7 @@ function SpreadTestSection() {
                 style={{ width: `${width}px` }}
               >
                 <div className="flex items-center gap-2">
-                  <span className="w-12 shrink-0 text-xs text-muted-foreground">
+                  <span className="w-12 shrink-0 text-muted-foreground text-xs">
                     {width}px
                   </span>
                   <div className="shimmer-bg h-5 flex-1 rounded bg-muted" />
@@ -1092,12 +1092,12 @@ function NestedContainersSection() {
           description="Nested containers with different widths"
         >
           <div className="shimmer-container rounded border p-4">
-            <p className="mb-2 text-xs text-muted-foreground">
+            <p className="mb-2 text-muted-foreground text-xs">
               Outer container (full width)
             </p>
             <div className="shimmer-bg mb-4 h-6 rounded bg-muted" />
             <div className="shimmer-container w-3/4 rounded border border-dashed p-4">
-              <p className="mb-2 text-xs text-muted-foreground">
+              <p className="mb-2 text-muted-foreground text-xs">
                 Inner container (75% width)
               </p>
               <div className="shimmer-bg h-6 rounded bg-muted" />
@@ -1127,7 +1127,7 @@ function NestedContainersSection() {
           description="Text and background shimmer nested"
         >
           <div className="shimmer-container space-y-4 rounded border p-4">
-            <p className="shimmer text-lg font-semibold text-foreground/40">
+            <p className="shimmer font-semibold text-foreground/40 text-lg">
               Outer container text shimmer
             </p>
             <div className="shimmer-bg h-8 rounded bg-muted" />
@@ -1146,7 +1146,7 @@ function NestedContainersSection() {
           <div className="grid grid-cols-2 gap-4">
             {["A", "B", "C", "D"].map((label) => (
               <div key={label} className="shimmer-container rounded border p-3">
-                <p className="mb-2 text-xs text-muted-foreground">
+                <p className="mb-2 text-muted-foreground text-xs">
                   Container {label}
                 </p>
                 <div className="shimmer-bg h-8 rounded bg-muted" />
@@ -1169,7 +1169,7 @@ function NestedContainersSection() {
               } as React.CSSProperties
             }
           >
-            <p className="text-xs text-muted-foreground">
+            <p className="text-muted-foreground text-xs">
               Container: speed=100, angle=75deg
             </p>
             <p className="shimmer text-foreground/40">
@@ -1192,7 +1192,7 @@ function NestedContainersSection() {
             className="shimmer-container space-y-3 rounded border p-4"
             style={{ "--shimmer-speed": 150 } as React.CSSProperties}
           >
-            <p className="text-xs text-muted-foreground">
+            <p className="text-muted-foreground text-xs">
               Container: speed=150 (default angle)
             </p>
             <div className="shimmer-bg h-5 rounded bg-muted" />
@@ -1231,7 +1231,7 @@ function NestedContainersSection() {
             style={{ "--shimmer-angle": "15deg" } as React.CSSProperties}
           >
             <p className="text-[10px] text-muted-foreground">L1: angle=15deg</p>
-            <p className="shimmer text-sm text-foreground/40">
+            <p className="shimmer text-foreground/40 text-sm">
               L1 text shimmer
             </p>
             <div className="shimmer-bg h-4 rounded bg-muted" />
@@ -1243,7 +1243,7 @@ function NestedContainersSection() {
               <p className="text-[10px] text-muted-foreground">
                 L2: speed=200 (inherits angle=15)
               </p>
-              <p className="shimmer text-sm text-foreground/40">
+              <p className="shimmer text-foreground/40 text-sm">
                 L2 text shimmer
               </p>
               <div className="shimmer-bg h-4 rounded bg-muted" />
@@ -1260,7 +1260,7 @@ function NestedContainersSection() {
                 <p className="text-[10px] text-muted-foreground">
                   L3: angle=90 (overrides), color=green, inherits speed=200
                 </p>
-                <p className="shimmer text-sm text-foreground/40">
+                <p className="shimmer text-foreground/40 text-sm">
                   L3 text shimmer
                 </p>
                 <div className="shimmer-bg h-4 rounded bg-muted" />
@@ -1293,7 +1293,7 @@ function NestedContainersSection() {
             <div className="flex gap-3">
               <div className="shimmer-bg size-12 shrink-0 rounded-full bg-muted" />
               <div className="flex-1 space-y-1">
-                <p className="shimmer text-sm font-medium text-foreground/40">
+                <p className="shimmer font-medium text-foreground/40 text-sm">
                   Default speed text
                 </p>
                 <div className="shimmer-bg h-3 w-full rounded bg-muted" />
@@ -1313,7 +1313,7 @@ function NestedContainersSection() {
             >
               <div className="shimmer-bg size-12 shrink-0 rounded-full bg-muted" />
               <div className="flex-1 space-y-1">
-                <p className="shimmer text-sm font-medium text-foreground/40">
+                <p className="shimmer font-medium text-foreground/40 text-sm">
                   Slow + angled (100px/s, 30deg)
                 </p>
                 <div className="shimmer-bg h-3 w-full rounded bg-muted" />
@@ -1333,7 +1333,7 @@ function NestedContainersSection() {
             >
               <div className="shimmer-bg size-12 shrink-0 rounded-full bg-muted" />
               <div className="flex-1 space-y-1">
-                <p className="shimmer text-sm font-medium text-purple-500/50">
+                <p className="shimmer font-medium text-purple-500/50 text-sm">
                   Fast + purple (600px/s)
                 </p>
                 <div className="shimmer-bg h-3 w-full rounded bg-muted" />
@@ -1354,7 +1354,7 @@ function NestedContainersSection() {
               />
               <div className="flex-1 space-y-1">
                 <p
-                  className="shimmer text-sm font-medium text-foreground/40"
+                  className="shimmer font-medium text-foreground/40 text-sm"
                   style={{ "--shimmer-speed": 300 } as React.CSSProperties}
                 >
                   Each element different
@@ -1414,7 +1414,7 @@ function EdgeCasesSection() {
         <TestCard title="Very Large Elements" description="Oversized targets">
           <div className="shimmer-container space-y-4">
             <div className="shimmer-bg h-32 rounded-lg bg-muted" />
-            <p className="shimmer text-6xl font-black text-foreground/40">
+            <p className="shimmer font-black text-6xl text-foreground/40">
               HUGE
             </p>
           </div>
@@ -1451,7 +1451,7 @@ function EdgeCasesSection() {
         >
           <div className="shimmer-container w-48 rounded border p-2">
             <div className="shimmer-bg h-4 w-96 rounded bg-muted" />
-            <p className="mt-2 shimmer whitespace-nowrap text-foreground/40">
+            <p className="shimmer mt-2 whitespace-nowrap text-foreground/40">
               This text is way too long to fit
             </p>
           </div>
@@ -1545,11 +1545,15 @@ function InteractivePlaygroundSection() {
         <div className="space-y-6">
           {/* Width control */}
           <div className="space-y-2">
-            <label className="flex items-center justify-between text-sm font-medium">
+            <label
+              className="flex items-center justify-between font-medium text-sm"
+              htmlFor="container-width"
+            >
               <span>Container Width</span>
               <span className="font-mono text-muted-foreground">{width}px</span>
             </label>
             <input
+              id="container-width"
               type="range"
               min="50"
               max="800"
@@ -1572,7 +1576,10 @@ function InteractivePlaygroundSection() {
 
           {/* Speed control */}
           <div className="space-y-2">
-            <label className="flex items-center justify-between text-sm font-medium">
+            <label
+              className="flex items-center justify-between font-medium text-sm"
+              htmlFor="speed-override"
+            >
               <span>Speed Override</span>
               <span className="font-mono text-muted-foreground">
                 {speed !== null ? `${speed}px/s` : "auto"}
@@ -1580,6 +1587,7 @@ function InteractivePlaygroundSection() {
             </label>
             <div className="flex items-center gap-2">
               <input
+                id="speed-override"
                 type="range"
                 min="50"
                 max="2000"
@@ -1599,7 +1607,10 @@ function InteractivePlaygroundSection() {
 
           {/* Background Spread control */}
           <div className="space-y-2">
-            <label className="flex items-center justify-between text-sm font-medium">
+            <label
+              className="flex items-center justify-between font-medium text-sm"
+              htmlFor="bg-spread"
+            >
               <span>BG Spread (--shimmer-bg-spread)</span>
               <span className="font-mono text-muted-foreground">
                 {bgSpread !== null ? `${bgSpread}px` : "auto"}
@@ -1607,6 +1618,7 @@ function InteractivePlaygroundSection() {
             </label>
             <div className="flex items-center gap-2">
               <input
+                id="bg-spread"
                 type="range"
                 min="20"
                 max="400"
@@ -1626,7 +1638,10 @@ function InteractivePlaygroundSection() {
 
           {/* Text Spread control */}
           <div className="space-y-2">
-            <label className="flex items-center justify-between text-sm font-medium">
+            <label
+              className="flex items-center justify-between font-medium text-sm"
+              htmlFor="text-spread"
+            >
               <span>Text Spread (--shimmer-spread)</span>
               <span className="font-mono text-muted-foreground">
                 {textSpread !== null ? `${textSpread}ch` : "auto (6ch)"}
@@ -1634,6 +1649,7 @@ function InteractivePlaygroundSection() {
             </label>
             <div className="flex items-center gap-2">
               <input
+                id="text-spread"
                 type="range"
                 min="1"
                 max="30"
@@ -1653,13 +1669,17 @@ function InteractivePlaygroundSection() {
 
           {/* Angle control */}
           <div className="space-y-2">
-            <label className="flex items-center justify-between text-sm font-medium">
+            <label
+              className="flex items-center justify-between font-medium text-sm"
+              htmlFor="angle"
+            >
               <span>Angle</span>
               <span className="font-mono text-muted-foreground">
                 {angle}deg
               </span>
             </label>
             <input
+              id="angle"
               type="range"
               min="0"
               max="180"
@@ -1672,7 +1692,7 @@ function InteractivePlaygroundSection() {
 
           {/* Generated styles display */}
           <div className="rounded-lg bg-muted p-4">
-            <p className="mb-2 text-xs font-medium text-muted-foreground">
+            <p className="mb-2 font-medium text-muted-foreground text-xs">
               Applied Styles:
             </p>
             <code className="block space-y-1 text-sm">
@@ -1745,7 +1765,7 @@ function InteractivePlaygroundSection() {
             style={{ width: `${width}px`, maxWidth: "100%" }}
           >
             <p
-              className="shimmer text-xl font-bold text-foreground/40"
+              className="shimmer font-bold text-foreground/40 text-xl"
               style={textShimmerStyle}
             >
               Text Shimmer Preview
