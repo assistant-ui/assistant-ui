@@ -31,7 +31,7 @@ import { MarkdownText } from "../assistant-ui/markdown-text";
 
 export const Grok: FC = () => {
   return (
-    <ThreadPrimitive.Root className="flex h-full flex-col items-stretch bg-[#f7f7f7] px-4 dark:bg-[#0d0d0d]">
+    <ThreadPrimitive.Root className="flex h-full flex-col items-stretch bg-[#fdfdfd] px-4 dark:bg-[#141414]">
       <ThreadPrimitive.Empty>
         <div className="flex h-full flex-col items-center justify-center">
           <GrokLogo className="mb-6 h-10 text-[#0d0d0d] dark:text-white" />
@@ -39,7 +39,7 @@ export const Grok: FC = () => {
         </div>
       </ThreadPrimitive.Empty>
 
-      <ThreadPrimitive.If empty={false}>
+      <AssistantIf condition={(s) => s.thread.isEmpty === false}>
         <ThreadPrimitive.Viewport className="flex grow flex-col overflow-y-scroll pt-16">
           <ThreadPrimitive.Messages components={{ Message: ChatMessage }} />
           <p className="mx-auto w-full max-w-3xl p-2 text-center text-[#9a9a9a] text-xs">
@@ -47,15 +47,22 @@ export const Grok: FC = () => {
           </p>
         </ThreadPrimitive.Viewport>
         <Composer />
-      </ThreadPrimitive.If>
+      </AssistantIf>
     </ThreadPrimitive.Root>
   );
 };
 
 const Composer: FC = () => {
+  const isEmpty = useAssistantState((s) => s.composer.isEmpty);
+  const isRunning = useAssistantState((s) => s.thread.isRunning);
+
   return (
-    <ComposerPrimitive.Root className="group/composer mx-auto mb-3 w-full max-w-3xl">
-      <div className="overflow-hidden rounded-4xl bg-white shadow-sm ring-1 ring-[#e5e5e5] ring-inset transition-shadow focus-within:ring-[#d0d0d0] dark:bg-[#1a1a1a] dark:ring-[#2a2a2a] dark:focus-within:ring-[#3a3a3a]">
+    <ComposerPrimitive.Root
+      className="group/composer mx-auto mb-3 w-full max-w-3xl"
+      data-empty={isEmpty}
+      data-running={isRunning}
+    >
+      <div className="overflow-hidden rounded-4xl bg-[#f8f8f8] shadow-xs ring-1 ring-[#e5e5e5] ring-inset transition-shadow focus-within:ring-[#d0d0d0] dark:bg-[#212121] dark:ring-[#2a2a2a] dark:focus-within:ring-[#3a3a3a]">
         <AssistantIf condition={(s) => s.composer.attachments.length > 0}>
           <div className="flex flex-row flex-wrap gap-2 px-4 pt-3">
             <ComposerPrimitive.Attachments
@@ -77,40 +84,34 @@ const Composer: FC = () => {
 
           <button
             type="button"
-            className="mb-0.5 flex h-9 shrink items-center gap-2 rounded-full px-3 text-[#0d0d0d] transition-colors hover:bg-[#f0f0f0] group-data-[send-disabled=false]/composer:w-9 group-data-[send-disabled=false]/composer:justify-center group-data-[send-disabled=false]/composer:gap-0 group-data-[send-disabled=false]/composer:px-0 dark:text-white dark:hover:bg-[#2a2a2a]"
+            className="mb-0.5 flex h-9 shrink-0 items-center gap-2 rounded-full px-2.5 text-[#0d0d0d] hover:bg-[#f0f0f0] dark:text-white dark:hover:bg-[#2a2a2a]"
           >
             <Moon width={18} height={18} className="shrink-0" />
-            <span className="font-semibold text-sm group-data-[send-disabled=false]/composer:hidden">
-              Grok 3
-            </span>
-            <ChevronDownIcon
-              width={16}
-              height={16}
-              className="shrink-0 group-data-[send-disabled=false]/composer:hidden"
-            />
+            <div className="flex items-center gap-1 overflow-hidden transition-[max-width,opacity] duration-300 group-data-[empty=false]/composer:max-w-0 group-data-[empty=true]/composer:max-w-24 group-data-[empty=false]/composer:opacity-0 group-data-[empty=true]/composer:opacity-100">
+              <span className="whitespace-nowrap font-semibold text-sm">
+                Grok 4.1
+              </span>
+              <ChevronDownIcon width={16} height={16} className="shrink-0" />
+            </div>
           </button>
 
-          <ThreadPrimitive.If running={false}>
+          <div className="relative mb-0.5 h-9 w-9 shrink-0 rounded-full bg-[#0d0d0d] text-white dark:bg-white dark:text-[#0d0d0d]">
             <button
               type="button"
-              className="mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#0d0d0d] text-white transition-all group-data-[send-disabled=false]/composer:hidden dark:bg-white dark:text-[#0d0d0d]"
+              className="absolute inset-0 flex items-center justify-center transition-all duration-300 ease-out group-data-[empty=false]/composer:scale-0 group-data-[running=true]/composer:scale-0 group-data-[empty=false]/composer:opacity-0 group-data-[running=true]/composer:opacity-0"
               aria-label="Voice mode"
             >
               <Mic width={18} height={18} />
             </button>
-          </ThreadPrimitive.If>
 
-          <ThreadPrimitive.If running={false}>
-            <ComposerPrimitive.Send className="mb-0.5 hidden h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#0d0d0d] text-white transition-all group-data-[send-disabled=false]/composer:flex dark:bg-white dark:text-[#0d0d0d]">
+            <ComposerPrimitive.Send className="absolute inset-0 flex items-center justify-center transition-all duration-300 ease-out group-data-[empty=true]/composer:scale-0 group-data-[running=true]/composer:scale-0 group-data-[empty=true]/composer:opacity-0 group-data-[running=true]/composer:opacity-0">
               <ArrowUpIcon width={18} height={18} />
             </ComposerPrimitive.Send>
-          </ThreadPrimitive.If>
 
-          <ThreadPrimitive.If running>
-            <ComposerPrimitive.Cancel className="mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#0d0d0d] text-white dark:bg-white dark:text-[#0d0d0d]">
+            <ComposerPrimitive.Cancel className="absolute inset-0 flex items-center justify-center transition-all duration-300 ease-out group-data-[running=false]/composer:scale-0 group-data-[running=false]/composer:opacity-0">
               <Square width={14} height={14} fill="currentColor" />
             </ComposerPrimitive.Cancel>
-          </ThreadPrimitive.If>
+          </div>
         </div>
       </div>
     </ComposerPrimitive.Root>
@@ -120,7 +121,7 @@ const Composer: FC = () => {
 const ChatMessage: FC = () => {
   return (
     <MessagePrimitive.Root className="group/message relative mx-auto mb-2 flex w-full max-w-3xl flex-col pb-0.5">
-      <MessagePrimitive.If user>
+      <AssistantIf condition={(s) => s.message.role === "user"}>
         <div className="flex flex-col items-end">
           <div className="relative max-w-[90%] rounded-3xl rounded-br-lg border border-[#e5e5e5] bg-[#f0f0f0] px-4 py-3 text-[#0d0d0d] dark:border-[#2a2a2a] dark:bg-[#1a1a1a] dark:text-white">
             <div className="prose prose-sm dark:prose-invert wrap-break-word">
@@ -138,9 +139,9 @@ const ChatMessage: FC = () => {
             </ActionBarPrimitive.Root>
           </div>
         </div>
-      </MessagePrimitive.If>
+      </AssistantIf>
 
-      <MessagePrimitive.If assistant>
+      <AssistantIf condition={(s) => s.message.role === "assistant"}>
         <div className="flex flex-col items-start">
           <div className="w-full max-w-none">
             <div className="prose prose-sm wrap-break-word dark:prose-invert prose-li:my-1 prose-ol:my-1 prose-p:my-2 prose-ul:my-1 text-[#0d0d0d] dark:text-[#e5e5e5]">
@@ -164,7 +165,7 @@ const ChatMessage: FC = () => {
             </ActionBarPrimitive.Root>
           </div>
         </div>
-      </MessagePrimitive.If>
+      </AssistantIf>
     </MessagePrimitive.Root>
   );
 };
