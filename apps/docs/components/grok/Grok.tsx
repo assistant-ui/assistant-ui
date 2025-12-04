@@ -2,6 +2,7 @@
 
 import {
   ActionBarPrimitive,
+  AssistantIf,
   AttachmentPrimitive,
   ComposerPrimitive,
   MessagePrimitive,
@@ -55,7 +56,13 @@ const Composer: FC = () => {
   return (
     <ComposerPrimitive.Root className="group/composer mx-auto mb-3 w-full max-w-3xl">
       <div className="overflow-hidden rounded-4xl bg-white shadow-sm ring-1 ring-[#e5e5e5] ring-inset transition-shadow focus-within:ring-[#d0d0d0] dark:bg-[#1a1a1a] dark:ring-[#2a2a2a] dark:focus-within:ring-[#3a3a3a]">
-        <GrokAttachments />
+        <AssistantIf condition={(s) => s.composer.attachments.length > 0}>
+          <div className="flex flex-row flex-wrap gap-2 px-4 pt-3">
+            <ComposerPrimitive.Attachments
+              components={{ Attachment: GrokAttachment }}
+            />
+          </div>
+        </AssistantIf>
 
         <div className="flex items-end gap-1 p-2">
           <ComposerPrimitive.AddAttachment className="mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#0d0d0d] transition-colors hover:bg-[#f0f0f0] dark:text-white dark:hover:bg-[#2a2a2a]">
@@ -162,26 +169,6 @@ const ChatMessage: FC = () => {
   );
 };
 
-const useFileSrc = (file: File | undefined) => {
-  const [src, setSrc] = useState<string | undefined>(undefined);
-
-  useEffect(() => {
-    if (!file) {
-      setSrc(undefined);
-      return;
-    }
-
-    const objectUrl = URL.createObjectURL(file);
-    setSrc(objectUrl);
-
-    return () => {
-      URL.revokeObjectURL(objectUrl);
-    };
-  }, [file]);
-
-  return src;
-};
-
 const useAttachmentSrc = () => {
   const { file, src } = useAssistantState(
     useShallow(({ attachment }): { file?: File; src?: string } => {
@@ -194,45 +181,49 @@ const useAttachmentSrc = () => {
     }),
   );
 
-  return useFileSrc(file) ?? src;
-};
+  const [fileSrc, setFileSrc] = useState<string | undefined>(undefined);
 
-const GrokAttachments: FC = () => {
-  const attachmentsCount = useAssistantState(
-    (s) => s.composer.attachments.length,
-  );
+  useEffect(() => {
+    if (!file) {
+      setFileSrc(undefined);
+      return;
+    }
+    const objectUrl = URL.createObjectURL(file);
+    setFileSrc(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [file]);
 
-  if (attachmentsCount === 0) return null;
-
-  return (
-    <div className="flex flex-row flex-wrap gap-2 px-4 pt-3">
-      <ComposerPrimitive.Attachments
-        components={{ Attachment: GrokAttachment }}
-      />
-    </div>
-  );
+  return fileSrc ?? src;
 };
 
 const GrokAttachment: FC = () => {
-  const isImage = useAssistantState(
-    ({ attachment }) => attachment.type === "image",
-  );
   const src = useAttachmentSrc();
 
   return (
     <AttachmentPrimitive.Root className="group/attachment relative">
       <div className="flex h-12 items-center gap-2 overflow-hidden rounded-xl border border-[#e5e5e5] bg-[#f0f0f0] p-0.5 transition-colors hover:border-[#d0d0d0] dark:border-[#2a2a2a] dark:bg-[#252525] dark:hover:border-[#3a3a3a]">
-        {isImage && src ? (
-          <img
-            className="h-full w-12 rounded-[9px] object-cover"
-            alt="Attachment"
-            src={src}
-          />
-        ) : (
+        <AssistantIf
+          condition={({ attachment }) => attachment.type === "image"}
+        >
+          {src ? (
+            <img
+              className="h-full w-12 rounded-[9px] object-cover"
+              alt="Attachment"
+              src={src}
+            />
+          ) : (
+            <div className="flex h-full w-12 items-center justify-center rounded-[9px] bg-[#e5e5e5] text-[#6b6b6b] dark:bg-[#3a3a3a] dark:text-[#9a9a9a]">
+              <AttachmentPrimitive.unstable_Thumb className="text-xs" />
+            </div>
+          )}
+        </AssistantIf>
+        <AssistantIf
+          condition={({ attachment }) => attachment.type !== "image"}
+        >
           <div className="flex h-full w-12 items-center justify-center rounded-[9px] bg-[#e5e5e5] text-[#6b6b6b] dark:bg-[#3a3a3a] dark:text-[#9a9a9a]">
             <AttachmentPrimitive.unstable_Thumb className="text-xs" />
           </div>
-        )}
+        </AssistantIf>
       </div>
       <AttachmentPrimitive.Remove className="-right-1.5 -top-1.5 absolute flex h-6 w-6 scale-50 items-center justify-center rounded-full border border-[#e5e5e5] bg-white text-[#6b6b6b] opacity-0 transition-all hover:bg-[#f5f5f5] hover:text-[#0d0d0d] group-hover/attachment:scale-100 group-hover/attachment:opacity-100 dark:border-[#3a3a3a] dark:bg-[#1a1a1a] dark:text-[#9a9a9a] dark:hover:bg-[#252525] dark:hover:text-white">
         <Cross2Icon width={14} height={14} />
