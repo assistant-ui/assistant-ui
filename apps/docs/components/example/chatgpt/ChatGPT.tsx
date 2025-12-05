@@ -20,8 +20,12 @@ import {
   ReloadIcon,
 } from "@radix-ui/react-icons";
 import type { ComponentPropsWithoutRef, FC } from "react";
-import { Button } from "../ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
+import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export const ChatGPT: FC = () => {
   return (

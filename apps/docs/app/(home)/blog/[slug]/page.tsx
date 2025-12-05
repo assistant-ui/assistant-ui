@@ -4,7 +4,7 @@ import Link from "next/link";
 import { blog, BlogPage } from "@/lib/source";
 import { buttonVariants } from "@/components/ui/button";
 import Image from "next/image";
-import profilePic from "../../../../components/testimonials/profiles/Mc0m3zkD_400x400.jpg";
+import profilePic from "@/components/home/testimonials/profiles/Mc0m3zkD_400x400.jpg";
 import { getMDXComponents } from "@/mdx-components";
 
 interface Param {

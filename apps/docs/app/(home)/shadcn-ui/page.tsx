@@ -1,10 +1,10 @@
 "use client";
 
-import { Shadcn } from "@/components/shadcn/Shadcn";
+import { DocsRuntimeProvider } from "@/app/(home)/DocsRuntimeProvider";
+import { Shadcn } from "@/components/example/shadcn/Shadcn";
 import { Button } from "@/components/ui/button";
 import { useChat } from "@ai-sdk/react";
 import Link from "next/link";
-import { DocsRuntimeProvider } from "../DocsRuntimeProvider";
 
 export default function HomePage() {
   return (
