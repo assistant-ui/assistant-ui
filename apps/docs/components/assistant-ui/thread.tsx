@@ -25,12 +25,10 @@ import {
   ChevronRightIcon,
   CopyIcon,
   DownloadIcon,
-  FileTextIcon,
   PencilIcon,
   RefreshCwIcon,
   SquareIcon,
 } from "lucide-react";
-import { jsPDF } from "jspdf";
 import type { FC } from "react";
 
 export const Thread: FC = () => {
@@ -230,30 +228,6 @@ const AssistantMessage: FC = () => {
   );
 };
 
-const exportToPdf = (content: string) => {
-  const doc = new jsPDF();
-  const margin = 20;
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
-  const maxWidth = pageWidth - margin * 2;
-  const lineHeight = 7;
-
-  // splitTextToSize handles word wrapping and long words automatically
-  const lines = doc.splitTextToSize(content, maxWidth);
-
-  let y = margin;
-  for (const line of lines) {
-    if (y > pageHeight - margin) {
-      doc.addPage();
-      y = margin;
-    }
-    doc.text(line, margin, y);
-    y += lineHeight;
-  }
-
-  doc.save(`message-${Date.now()}.pdf`);
-};
-
 const AssistantActionBar: FC = () => {
   return (
     <ActionBarPrimitive.Root
@@ -275,11 +249,6 @@ const AssistantActionBar: FC = () => {
       <ActionBarPrimitive.ExportMarkdown asChild>
         <TooltipIconButton tooltip="Export as Markdown">
           <DownloadIcon />
-        </TooltipIconButton>
-      </ActionBarPrimitive.ExportMarkdown>
-      <ActionBarPrimitive.ExportMarkdown onExport={exportToPdf} asChild>
-        <TooltipIconButton tooltip="Export as PDF">
-          <FileTextIcon />
         </TooltipIconButton>
       </ActionBarPrimitive.ExportMarkdown>
       <ActionBarPrimitive.Reload asChild>
