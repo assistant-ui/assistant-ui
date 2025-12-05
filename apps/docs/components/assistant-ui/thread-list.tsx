@@ -2,9 +2,9 @@ import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  AssistantIf,
   ThreadListItemPrimitive,
   ThreadListPrimitive,
-  useAssistantState,
 } from "@assistant-ui/react";
 import { ArchiveIcon, PlusIcon } from "lucide-react";
 import type { FC } from "react";
@@ -13,7 +13,12 @@ export const ThreadList: FC = () => {
   return (
     <ThreadListPrimitive.Root className="aui-root aui-thread-list-root flex flex-col gap-1">
       <ThreadListNew />
-      <ThreadListItems />
+      <AssistantIf condition={({ threads }) => threads.isLoading}>
+        <ThreadListSkeleton />
+      </AssistantIf>
+      <AssistantIf condition={({ threads }) => !threads.isLoading}>
+        <ThreadListPrimitive.Items components={{ ThreadListItem }} />
+      </AssistantIf>
     </ThreadListPrimitive.Root>
   );
 };
@@ -30,16 +35,6 @@ const ThreadListNew: FC = () => {
       </Button>
     </ThreadListPrimitive.New>
   );
-};
-
-const ThreadListItems: FC = () => {
-  const isLoading = useAssistantState(({ threads }) => threads.isLoading);
-
-  if (isLoading) {
-    return <ThreadListSkeleton />;
-  }
-
-  return <ThreadListPrimitive.Items components={{ ThreadListItem }} />;
 };
 
 const ThreadListSkeleton: FC = () => {

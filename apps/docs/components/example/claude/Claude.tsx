@@ -75,7 +75,17 @@ export const Claude: FC = () => {
             </ComposerPrimitive.Send>
           </div>
         </div>
-        <ClaudeAttachments />
+        <AssistantIf condition={(s) => s.composer.attachments.length > 0}>
+          <div className="overflow-hidden rounded-b-2xl">
+            <div className="overflow-x-auto rounded-b-2xl border-[#00000015] border-t bg-[#f5f5f0] p-3.5 dark:border-[#6c6a6040] dark:bg-[#393937]">
+              <div className="flex flex-row gap-3">
+                <ComposerPrimitive.Attachments
+                  components={{ Attachment: ClaudeAttachment }}
+                />
+              </div>
+            </div>
+          </div>
+        </AssistantIf>
       </ComposerPrimitive.Root>
     </ThreadPrimitive.Root>
   );
@@ -83,7 +93,7 @@ export const Claude: FC = () => {
 
 const ChatMessage: FC = () => {
   return (
-    <MessagePrimitive.Root className="group relative mt-1 mb-1 block">
+    <MessagePrimitive.Root className="group relative mx-auto mt-1 mb-1 block w-full max-w-3xl">
       <AssistantIf condition={({ message }) => message.role === "user"}>
         <div className="group/user wrap-break-word relative inline-flex max-w-[75ch] flex-col gap-2 rounded-xl bg-[#DDD9CE] py-2.5 pr-6 pl-2.5 text-[#1a1a18] transition-all dark:bg-[#393937] dark:text-[#eee]">
           <div className="relative flex flex-row gap-2">
@@ -193,26 +203,6 @@ const useAttachmentSrc = () => {
   );
 
   return useFileSrc(file) ?? src;
-};
-
-const ClaudeAttachments: FC = () => {
-  const attachmentsCount = useAssistantState(
-    (s) => s.composer.attachments.length,
-  );
-
-  if (attachmentsCount === 0) return null;
-
-  return (
-    <div className="overflow-hidden rounded-b-2xl">
-      <div className="overflow-x-auto rounded-b-2xl border-[#00000015] border-t bg-[#f5f5f0] p-3.5 dark:border-[#6c6a6040] dark:bg-[#393937]">
-        <div className="flex flex-row gap-3">
-          <ComposerPrimitive.Attachments
-            components={{ Attachment: ClaudeAttachment }}
-          />
-        </div>
-      </div>
-    </div>
-  );
 };
 
 const ClaudeAttachment: FC = () => {
