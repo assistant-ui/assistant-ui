@@ -4,6 +4,7 @@ import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import Script from "next/script";
 import { Provider } from "./provider";
+import { cn } from "@/lib/utils";
 
 export const metadata = {
   title: {
@@ -15,18 +16,20 @@ export const metadata = {
 
 export default function Layout({ children }: { children: ReactNode }) {
   return (
-    <html
-      lang="en"
-      className={`${GeistSans.variable} ${GeistMono.variable}`}
-      suppressHydrationWarning
-    >
+    <html lang="en" suppressHydrationWarning>
       {/* <head>
         <script
           crossOrigin="anonymous"
           src="//unpkg.com/react-scan/dist/auto.global.js"
         />
       </head> */}
-      <body className={"flex min-h-screen flex-col"}>
+      <body
+        className={cn(
+          "flex min-h-screen flex-col overscroll-none antialiased",
+          GeistSans.className,
+          GeistMono.variable,
+        )}
+      >
         <Provider>{children}</Provider>
         <script
           defer
