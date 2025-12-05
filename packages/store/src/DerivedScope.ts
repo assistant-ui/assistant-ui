@@ -1,5 +1,5 @@
 import { resource } from "@assistant-ui/tap";
-import type { ScopeDefinition, ScopeValue, DerivedScopeProps } from "./types";
+import type { ScopeDefinition, DerivedScopeProps } from "./types";
 
 /**
  * Creates a derived scope field that memoizes based on source and query.
@@ -7,15 +7,17 @@ import type { ScopeDefinition, ScopeValue, DerivedScopeProps } from "./types";
  *
  * @example
  * ```typescript
- * const MessageScope = DerivedScope<MessageScopeDefinition>({
- *   source: "thread",
- *   query: { type: "index", index: 0 },
- *   get: () => messageApi,
+ * const client = useAssistantClient({
+ *   message: DerivedScope({
+ *     source: "thread",
+ *     query: { index: 0 },
+ *     get: (client) => client.thread().message({ index: 0 }),
+ *   }),
  * });
  * ```
  */
 export const DerivedScope = resource(
-  <T extends ScopeDefinition>(config: DerivedScopeProps<T>): ScopeValue<T> => {
-    return config;
+  <T extends ScopeDefinition>(_config: DerivedScopeProps<T>): null => {
+    return null;
   },
 );

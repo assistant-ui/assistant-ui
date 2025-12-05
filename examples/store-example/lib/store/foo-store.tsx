@@ -1,5 +1,8 @@
 "use client";
 
+// Import scope types first to ensure module augmentation is available
+import "./foo-scope";
+
 import React from "react";
 import { resource, tapState } from "@assistant-ui/tap";
 import {
@@ -9,12 +12,9 @@ import {
   tapStoreList,
   DerivedScope,
   useAssistantState,
+  tapStoreContext,
 } from "@assistant-ui/store";
 
-/**
- * Single Foo item resource
- * Manages the state and actions for a single foo item
- */
 export const FooItemResource = resource(
   ({
     initialValue: { id, initialBar },
@@ -23,6 +23,8 @@ export const FooItemResource = resource(
     initialValue: { id: string; initialBar: string };
     remove: () => void;
   }) => {
+    const { events } = tapStoreContext();
+
     const [state, setState] = tapState<{ id: string; bar: string }>({
       id,
       bar: initialBar,
@@ -30,13 +32,19 @@ export const FooItemResource = resource(
 
     const updateBar = (newBar: string) => {
       setState({ ...state, bar: newBar });
+      events.emit("foo.updated", { id, newValue: newBar });
+    };
+
+    const handleRemove = () => {
+      events.emit("foo.removed", { id });
+      remove();
     };
 
     return tapApi(
       {
         getState: () => state,
         updateBar,
-        remove,
+        remove: handleRemove,
       },
       { key: id },
     );
@@ -49,6 +57,7 @@ export const FooItemResource = resource(
  */
 let counter = 3;
 export const FooListResource = resource(() => {
+  const { events } = tapStoreContext();
   const idGenerator = () => `foo-${++counter}`;
 
   const foos = tapStoreList({
@@ -61,10 +70,16 @@ export const FooListResource = resource(() => {
     idGenerator,
   });
 
+  const addFoo = (id?: string) => {
+    const newId = id ?? idGenerator();
+    foos.add(newId);
+    events.emit("fooList.added", { id: newId });
+  };
+
   return tapApi({
     getState: () => ({ foos: foos.state }),
     foo: foos.api,
-    addFoo: (id?: string) => foos.add(id),
+    addFoo,
   });
 });
 
