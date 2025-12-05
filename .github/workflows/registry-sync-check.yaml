@@ -1,0 +1,41 @@
+name: Registry Sync Check
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/registry/components/assistant-ui/**"
+      - "apps/docs/components/assistant-ui/**"
+      - "examples/**/components/assistant-ui/**"
+      - "scripts/sync-registry-components.sh"
+      - "scripts/check-registry-sync.sh"
+      - ".github/workflows/registry-sync-check.yaml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "apps/registry/components/assistant-ui/**"
+      - "apps/docs/components/assistant-ui/**"
+      - "examples/**/components/assistant-ui/**"
+      - "scripts/sync-registry-components.sh"
+      - "scripts/check-registry-sync.sh"
+      - ".github/workflows/registry-sync-check.yaml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check-sync:
+    name: Check Registry Components Sync
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 5
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@v6
+
+      - name: Check registry components are in sync
+        run: bash scripts/check-registry-sync.sh
+
