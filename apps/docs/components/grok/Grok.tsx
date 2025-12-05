@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState, type FC, type SVGProps } from "react";
 import { useShallow } from "zustand/shallow";
-import { MarkdownText } from "../assistant-ui/markdown-text";
+import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 
 export const Grok: FC = () => {
   return (

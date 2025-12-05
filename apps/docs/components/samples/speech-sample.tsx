@@ -1,9 +1,10 @@
 "use client";
+
 import {
   ComposerAddAttachment,
   ComposerAttachments,
   UserMessageAttachments,
-} from "../assistant-ui/attachment";
+} from "@/components/assistant-ui/attachment";
 import {
   ActionBarPrimitive,
   AssistantIf,
@@ -13,7 +14,7 @@ import {
   MessagePrimitive,
   ThreadPrimitive,
 } from "@assistant-ui/react";
-import { SampleFrame } from "./sample-frame";
+import { SampleFrame } from "@/components/samples/sample-frame";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import type { FC } from "react";
 import {
