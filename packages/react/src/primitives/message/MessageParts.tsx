@@ -478,7 +478,7 @@ export const MessagePrimitiveParts: FC<MessagePrimitiveParts.Props> = ({
         );
       } else if (range.type === "toolGroup") {
         const ToolGroupComponent =
-          components!.ToolGroup ?? defaultComponents.ToolGroup;
+          components?.ToolGroup ?? defaultComponents.ToolGroup;
         return (
           <ToolGroupComponent
             key={`tool-${range.startIndex}`}
@@ -500,7 +500,7 @@ export const MessagePrimitiveParts: FC<MessagePrimitiveParts.Props> = ({
       } else {
         // reasoningGroup
         const ReasoningGroupComponent =
-          components!.ReasoningGroup ?? defaultComponents.ReasoningGroup;
+          components?.ReasoningGroup ?? defaultComponents.ReasoningGroup;
         return (
           <ReasoningGroupComponent
             key={`reasoning-${range.startIndex}`}
