@@ -283,11 +283,11 @@ const AssistantActionBar: FC = () => {
           <DownloadIcon />
         </TooltipIconButton>
       </ActionBarPrimitive.ExportMarkdown>
-      <ActionBarPrimitive.Export onExport={exportToPdf} asChild>
+      <ActionBarPrimitive.ExportMarkdown onExport={exportToPdf} asChild>
         <TooltipIconButton tooltip="Export as PDF">
           <FileTextIcon />
         </TooltipIconButton>
-      </ActionBarPrimitive.Export>
+      </ActionBarPrimitive.ExportMarkdown>
       <ActionBarPrimitive.Reload asChild>
         <TooltipIconButton tooltip="Refresh">
           <RefreshCwIcon />

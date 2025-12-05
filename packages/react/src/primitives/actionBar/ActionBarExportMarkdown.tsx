@@ -8,8 +8,10 @@ import { useAssistantState, useAssistantApi } from "../../context";
 
 const useActionBarExportMarkdown = ({
   filename,
+  onExport,
 }: {
   filename?: string | undefined;
+  onExport?: ((content: string) => void | Promise<void>) | undefined;
 } = {}) => {
   const api = useAssistantApi();
   const hasExportableContent = useAssistantState(({ message }) => {
@@ -19,9 +21,14 @@ const useActionBarExportMarkdown = ({
     );
   });
 
-  const callback = useCallback(() => {
+  const callback = useCallback(async () => {
     const content = api.message().getCopyText();
     if (!content) return;
+
+    if (onExport) {
+      await onExport(content);
+      return;
+    }
 
     const blob = new Blob([content], { type: "text/markdown" });
     const url = URL.createObjectURL(blob);
@@ -30,7 +37,7 @@ const useActionBarExportMarkdown = ({
     a.download = filename ?? `message-${Date.now()}.md`;
     a.click();
     URL.revokeObjectURL(url);
-  }, [api, filename]);
+  }, [api, filename, onExport]);
 
   if (!hasExportableContent) return null;
   return callback;
@@ -44,8 +51,8 @@ export namespace ActionBarPrimitiveExportMarkdown {
 export const ActionBarPrimitiveExportMarkdown = forwardRef<
   ActionBarPrimitiveExportMarkdown.Element,
   ActionBarPrimitiveExportMarkdown.Props
->(({ filename, onClick, disabled, ...props }, forwardedRef) => {
-  const callback = useActionBarExportMarkdown({ filename });
+>(({ filename, onExport, onClick, disabled, ...props }, forwardedRef) => {
+  const callback = useActionBarExportMarkdown({ filename, onExport });
   return (
     <Primitive.button
       type="button"
