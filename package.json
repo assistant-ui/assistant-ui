@@ -14,13 +14,19 @@
     "biome:check": "pnpm exec biome check",
     "biome:format": "pnpm exec biome format --write",
     "biome:lint": "pnpm exec biome lint --write",
-    "biome:fix": "pnpm exec biome check --fix"
+    "biome:fix": "pnpm exec biome check --fix",
+    "prepare": "husky"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.8",
     "@changesets/cli": "^2.29.8",
-    "turbo": "^2.6.1",
-    "typescript": "^5.9.3"
+    "turbo": "^2.6.3",
+    "typescript": "^5.9.3",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7"
   },
-  "packageManager": "pnpm@10.24.0"
+  "packageManager": "pnpm@10.24.0",
+  "lint-staged": {
+    "*": "biome check --fix --no-errors-on-unmatched"
+  }
 }

@@ -114,6 +114,9 @@ export const ComposerPrimitiveInput = forwardRef<
     useEscapeKeydown((e) => {
       if (!cancelOnEscape) return;
 
+      // Only handle ESC if it originated from within this input
+      if (!textareaRef.current?.contains(e.target as Node)) return;
+
       const composer = api.composer();
       if (composer.getState().canCancel) {
         composer.cancel();
