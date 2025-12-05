@@ -147,7 +147,9 @@
       "!**/.vercel",
       "!**/out",
       "!**/.source",
-      "!**/next-env.d.ts"
+      "!**/next-env.d.ts",
+      "!**/.tanstack",
+      "!**/routeTree.gen.ts"
     ]
   }
 }
