@@ -76,7 +76,9 @@ export function Footer(): React.ReactElement {
             <p className="text-sm">Packages</p>
             <FooterLink href="/docs/getting-started">assistant-ui</FooterLink>
             <FooterLink href="/tw-shimmer">tw-shimmer</FooterLink>
-            <FooterLink href="/safe-content-frame">safe-content-frame</FooterLink>
+            <FooterLink href="/safe-content-frame">
+              safe-content-frame
+            </FooterLink>
           </div>
           <div className="flex flex-col justify-center gap-4">
             <p className="text-sm">Company</p>
