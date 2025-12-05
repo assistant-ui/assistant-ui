@@ -17,21 +17,21 @@ export function Hero() {
 
       <CopyCommandButton />
 
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-3 text-[13px] text-muted-foreground">
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-3 text-[13px] text-muted-foreground">
         <Link
           href="/docs"
           className="shimmer font-medium text-foreground/60 hover:text-foreground"
         >
           Get Started →
         </Link>
-        <span className="size-1 rounded-full bg-border" />
+        <span className="hidden size-1 rounded-full bg-muted-foreground/20 sm:block" />
         <Link
           href="https://cal.com/simon-farshid/assistant-ui"
           className="font-medium text-foreground/60 transition-colors hover:text-foreground"
         >
           Contact Sales
         </Link>
-        <span className="hidden size-1 rounded-full bg-border sm:block" />
+        <span className="hidden size-1 rounded-full bg-muted-foreground/20 sm:block" />
         <span className="inline-flex w-full items-center gap-1.5 sm:w-auto">
           Backed by
           <Image
