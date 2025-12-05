@@ -100,6 +100,10 @@ if [[ "$has_diff" == true ]]; then
     echo "The following files differ from registry:"
     for file in "${diff_files[@]}"; do
         echo "  - $file"
+        # GitHub Actions annotation for better visibility in PR UI
+        if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
+            echo "::error file=$file::File is out of sync with registry. Run: bash scripts/sync-registry-components.sh"
+        fi
     done
     echo ""
     echo "Please run: bash scripts/sync-registry-components.sh"
