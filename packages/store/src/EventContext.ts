@@ -1,20 +1,5 @@
 import { resource, tapMemo } from "@assistant-ui/tap";
-import type { Unsubscribe } from "./types";
-
-/**
- * Module augmentation interface for custom events.
- *
- * @example
- * ```typescript
- * declare module "@assistant-ui/store" {
- *   interface AssistantEventRegistry {
- *     "thread.run-start": { threadId: string };
- *     "custom.my-event": { data: string };
- *   }
- * }
- * ```
- */
-export interface AssistantEventRegistry {}
+import type { AssistantScopes, Unsubscribe } from "./types";
 
 /**
  * Module augmentation interface for event scope configuration.
@@ -32,14 +17,39 @@ export interface AssistantEventRegistry {}
  */
 export interface AssistantEventScopeConfig {}
 
-export type AssistantEventMap = AssistantEventRegistry & {
+type UnionToIntersection<U> = (
+  U extends unknown
+    ? (x: U) => void
+    : never
+) extends (x: infer I) => void
+  ? I
+  : never;
+
+/**
+ * Event map derived from scope event definitions
+ */
+export type ScopeEventMap = UnionToIntersection<
+  {
+    [K in keyof AssistantScopes]: AssistantScopes[K] extends {
+      events: infer E;
+    }
+      ? E extends Record<string, unknown>
+        ? E
+        : never
+      : never;
+  }[keyof AssistantScopes]
+>;
+
+type WildcardPayload = {
+  [K in keyof ScopeEventMap]: {
+    event: K;
+    payload: ScopeEventMap[K];
+  };
+}[keyof ScopeEventMap];
+
+export type AssistantEventMap = ScopeEventMap & {
   // Catch-all
-  "*": {
-    [K in Exclude<keyof AssistantEventRegistry, "*">]: {
-      event: K;
-      payload: AssistantEventRegistry[K];
-    };
-  }[Exclude<keyof AssistantEventRegistry, "*">];
+  "*": WildcardPayload;
 };
 
 export type AssistantEvent = keyof AssistantEventMap;
@@ -165,12 +175,7 @@ export const EventManager = resource(() => {
           // Emit to wildcard listeners
           if (wildcardListeners) {
             for (const callback of wildcardListeners) {
-              (
-                callback as (payload: {
-                  event: typeof event;
-                  payload: typeof payload;
-                }) => void
-              )({ event, payload });
+              callback({ event, payload } as any);
             }
           }
         });

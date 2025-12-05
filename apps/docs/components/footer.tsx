@@ -1,23 +1,21 @@
 import type { FC, ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import icon from "@/public/favicon/icon.svg";
-import xIcon from "@/app/(home)/logos/x.svg";
-import githubIcon from "@/app/(home)/logos/github.svg";
-import discordIcon from "@/app/(home)/logos/discord.svg";
 
 export function Footer(): React.ReactElement {
   return (
-    <footer className="relative border-t px-8 pt-20 pb-32">
-      <div className="mx-auto flex w-full max-w-screen-xl flex-col justify-between sm:flex-row">
+    <footer className="relative px-8 py-18">
+      <div className="mx-auto flex w-full max-w-7xl flex-col justify-between sm:flex-row">
         <div className="mr-4 flex flex-col gap-4">
           <Link
             className="mr-4 flex items-center gap-3 font-normal text-black text-sm"
             href="/"
           >
             <Image
-              src={icon}
+              src="/favicon/icon.svg"
               alt="logo"
+              width={28}
+              height={28}
               className="inline size-7 dark:hue-rotate-180 dark:invert"
             />
             <span className="font-medium text-2xl text-black dark:text-white">
@@ -31,8 +29,10 @@ export function Footer(): React.ReactElement {
               rel="noopener noreferrer"
             >
               <Image
-                src={xIcon}
+                src="/logos/x.svg"
                 alt="X icon"
+                width={20}
+                height={20}
                 className="inline size-5 opacity-30 transition-opacity hover:opacity-100 dark:hue-rotate-180 dark:invert"
               />
             </Link>
@@ -42,8 +42,10 @@ export function Footer(): React.ReactElement {
               rel="noopener noreferrer"
             >
               <Image
-                src={githubIcon}
+                src="/logos/github.svg"
                 alt="GitHub icon"
+                width={20}
+                height={20}
                 className="inline size-5 opacity-30 transition-opacity hover:opacity-100 dark:hue-rotate-180 dark:invert"
               />
             </Link>
@@ -53,8 +55,10 @@ export function Footer(): React.ReactElement {
               rel="noopener noreferrer"
             >
               <Image
-                src={discordIcon}
+                src="/logos/discord.svg"
                 alt="Discord icon"
+                width={20}
+                height={20}
                 className="inline size-5 opacity-30 transition-opacity hover:opacity-100 dark:hue-rotate-180 dark:invert"
               />
             </Link>
@@ -64,13 +68,21 @@ export function Footer(): React.ReactElement {
             &copy; {new Date().getFullYear()} AgentbaseAI Inc.
           </p>
         </div>
-        <div className="mt-10 grid grid-cols-2 items-start gap-10 sm:mt-0">
+        <div className="mt-10 grid grid-cols-3 items-start gap-10 sm:mt-0">
           <div className="flex w-[160px] flex-col justify-center gap-4">
             <p className="text-sm">Product</p>
             <FooterLink href="/docs/getting-started">Documentation</FooterLink>
             <FooterLink href="/showcase">Showcase</FooterLink>
             <FooterLink href="/examples">Examples</FooterLink>
             <FooterLink href="/pricing">Pricing</FooterLink>
+          </div>
+          <div className="flex w-[160px] flex-col justify-center gap-4">
+            <p className="text-sm">Packages</p>
+            <FooterLink href="/docs/getting-started">assistant-ui</FooterLink>
+            <FooterLink href="/tw-shimmer">tw-shimmer</FooterLink>
+            <FooterLink href="/safe-content-frame">
+              safe-content-frame
+            </FooterLink>
           </div>
           <div className="flex flex-col justify-center gap-4">
             <p className="text-sm">Company</p>
