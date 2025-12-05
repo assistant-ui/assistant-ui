@@ -64,13 +64,19 @@ export function Footer(): React.ReactElement {
             &copy; {new Date().getFullYear()} AgentbaseAI Inc.
           </p>
         </div>
-        <div className="mt-10 grid grid-cols-2 items-start gap-10 sm:mt-0">
+        <div className="mt-10 grid grid-cols-3 items-start gap-10 sm:mt-0">
           <div className="flex w-[160px] flex-col justify-center gap-4">
             <p className="text-sm">Product</p>
             <FooterLink href="/docs/getting-started">Documentation</FooterLink>
             <FooterLink href="/showcase">Showcase</FooterLink>
             <FooterLink href="/examples">Examples</FooterLink>
             <FooterLink href="/pricing">Pricing</FooterLink>
+          </div>
+          <div className="flex w-[160px] flex-col justify-center gap-4">
+            <p className="text-sm">Packages</p>
+            <FooterLink href="/docs/getting-started">assistant-ui</FooterLink>
+            <FooterLink href="/tw-shimmer">tw-shimmer</FooterLink>
+            <FooterLink href="/safe-content-frame">safe-content-frame</FooterLink>
           </div>
           <div className="flex flex-col justify-center gap-4">
             <p className="text-sm">Company</p>
