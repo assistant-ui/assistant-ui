@@ -10,6 +10,7 @@ import { DocsRuntimeProvider } from "@/app/(home)/DocsRuntimeProvider";
 import Link from "next/link";
 import { ExamplesNavbar } from "@/components/examples/ExamplesNavbar";
 import { INTERNAL_EXAMPLES } from "@/lib/examples";
+import { Footer } from "@/components/shared/footer";
 
 // Helper functions to eliminate code duplication
 
@@ -85,7 +86,14 @@ export default async function Page(props: {
   if (isIndexPage(params.slug)) {
     return (
       <div className="examples-page">
-        <DocsPage toc={page.data.toc ?? false} full={page.data.full ?? false}>
+        <DocsPage
+          toc={page.data.toc ?? false}
+          full={page.data.full ?? false}
+          footer={{
+            enabled: true,
+            component: <Footer />,
+          }}
+        >
           <DocsBody>
             <DocsRuntimeProvider>
               <page.data.body components={mdxComponents} />
@@ -97,14 +105,18 @@ export default async function Page(props: {
   }
 
   const example = findExampleBySlug(params.slug);
-  const footer = createGitHubFooter(example);
+  const _footer = createGitHubFooter(example);
 
   return (
     <div className="examples-page">
       <DocsPage
         toc={page.data.toc ?? false}
         full={page.data.full ?? false}
-        tableOfContent={{ footer }}
+        // tableOfContent={{ footer }}
+        footer={{
+          enabled: true,
+          component: <Footer />,
+        }}
       >
         <ExamplesNavbar />
         <DocsBody>

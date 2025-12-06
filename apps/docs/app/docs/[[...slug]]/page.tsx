@@ -13,6 +13,7 @@ import {
   CopyMarkdownButton,
   PageActionsDropdown,
 } from "@/components/docs/page-actions";
+import { Footer } from "@/components/shared/footer";
 
 function DocsCategory({ url }: { url?: string }) {
   const effectiveUrl = url ?? "";
@@ -46,7 +47,7 @@ export default async function Page(props: {
   const githubUrl = `https://github.com/assistant-ui/assistant-ui/blob/main/${path}`;
   const githubEditUrl = `https://github.com/assistant-ui/assistant-ui/edit/main/${path}`;
 
-  const footer = (
+  const editOnGitHub = (
     <a
       href={githubEditUrl}
       target="_blank"
@@ -68,7 +69,11 @@ export default async function Page(props: {
     <DocsPage
       toc={page.data.toc}
       full={page.data.full ?? false}
-      tableOfContent={{ footer }}
+      tableOfContent={{ footer: editOnGitHub }}
+      footer={{
+        enabled: true,
+        component: <Footer />,
+      }}
     >
       <DocsBody>
         <h1>{page.data.title}</h1>
