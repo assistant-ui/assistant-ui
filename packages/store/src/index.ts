@@ -29,7 +29,6 @@ export type {
 
 export type {
   AssistantEvent,
-  AssistantEventRegistry,
   AssistantEventScopeConfig,
   AssistantEventMap,
   AssistantEventScope,

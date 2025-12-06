@@ -1,13 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import {
   useAssistantClient,
   AssistantProvider,
   useAssistantState,
+  useAssistantEvent,
 } from "@assistant-ui/store";
 import { FooList, FooListResource } from "./store/foo-store";
-
-import "./store/foo-scope"; // Register the fooList scope (demonstrates scope registry)
 
 /**
  * Single Foo component - displays and allows editing a single foo
@@ -81,6 +81,66 @@ const AddFooButton = () => {
   );
 };
 
+type EventLogEntry = {
+  id: number;
+  event: string;
+  payload: unknown;
+  timestamp: Date;
+};
+
+let idCounter = 0;
+/**
+ * EventLog component - demonstrates event subscription
+ */
+const EventLog = () => {
+  const [logs, setLogs] = useState<EventLogEntry[]>([]);
+
+  // Subscribe to all events using the wildcard selector
+  useAssistantEvent("*", (data) => {
+    setLogs((prev) => [
+      {
+        id: ++idCounter,
+        event: data.event,
+        payload: data.payload,
+        timestamp: new Date(),
+      },
+      ...prev.slice(0, 9), // Keep last 10 entries
+    ]);
+  });
+
+  return (
+    <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+      <h3 className="mb-3 font-semibold text-gray-900 dark:text-white">
+        Event Log
+      </h3>
+      <div className="max-h-48 space-y-2 overflow-y-auto">
+        {logs.length === 0 ? (
+          <p className="text-gray-500 text-sm dark:text-gray-400">
+            No events yet. Try updating or deleting a foo.
+          </p>
+        ) : (
+          logs.map((log) => (
+            <div
+              key={log.id}
+              className="rounded border border-gray-100 bg-gray-50 p-2 font-mono text-xs dark:border-gray-600 dark:bg-gray-700"
+            >
+              <span className="font-semibold text-blue-600 dark:text-blue-400">
+                {log.event}
+              </span>
+              <span className="ml-2 text-gray-600 dark:text-gray-300">
+                {JSON.stringify(log.payload)}
+              </span>
+              <span className="ml-2 text-gray-400 dark:text-gray-500">
+                {log.timestamp.toLocaleTimeString()}
+              </span>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+};
+
 /**
  * Example App - demonstrates the store with styled components
  *
@@ -109,6 +169,7 @@ export const ExampleApp = () => {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           <FooList components={{ Foo }} />
         </div>
+        <EventLog />
       </div>
     </AssistantProvider>
   );
