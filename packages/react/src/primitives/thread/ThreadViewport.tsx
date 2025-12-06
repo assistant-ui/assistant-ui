@@ -35,12 +35,7 @@ export namespace ThreadPrimitiveViewport {
 
 const useViewportSizeRef = () => {
   const register = useThreadViewport((s) => s.registerViewport);
-  const getHeight = useCallback(
-    (el: HTMLElement) =>
-      el.clientHeight - parseFloat(getComputedStyle(el).paddingTop),
-    [],
-  );
-
+  const getHeight = useCallback((el: HTMLElement) => el.clientHeight, []);
   return useSizeHandle(register, getHeight);
 };
 
