@@ -23,7 +23,7 @@
     "test:run": "vitest run"
   },
   "dependencies": {
-    "@ag-ui/client": "^0.0.41",
+    "@ag-ui/client": "^0.0.42",
     "assistant-stream": "workspace:*"
   },
   "peerDependencies": {
@@ -41,9 +41,9 @@
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.7",
-    "react": "19.2.0",
-    "tsx": "^4.20.6",
-    "vitest": "^4.0.14",
+    "react": "19.2.1",
+    "tsx": "^4.21.0",
+    "vitest": "^4.0.15",
     "jsdom": "^27.2.0"
   },
   "publishConfig": {

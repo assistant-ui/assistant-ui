@@ -23,9 +23,9 @@
     "@types/jscodeshift": "^17.3.0",
     "@types/node": "^24.10.1",
     "@types/semver": "^7.7.1",
-    "tsx": "^4.20.6",
-    "vitest": "^4.0.14",
-    "@vitest/coverage-v8": "^4.0.14"
+    "tsx": "^4.21.0",
+    "vitest": "^4.0.15",
+    "@vitest/coverage-v8": "^4.0.15"
   },
   "files": [
     "dist",
