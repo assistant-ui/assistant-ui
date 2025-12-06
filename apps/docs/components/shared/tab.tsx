@@ -419,7 +419,7 @@ function TabContent({
   return (
     <div
       aria-labelledby={activeTab?.label}
-      className={cn("relative mt-4 flex-1 overflow-y-auto", className)}
+      className={cn("relative mt-4 flex-1 overflow-hidden", className)}
       data-slot="tab-content-panel"
       id={`panel-${activeTab?.label}`}
       role="tabpanel"
