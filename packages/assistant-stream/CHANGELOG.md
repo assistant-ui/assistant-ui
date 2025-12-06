@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.2.43
+
+### Patch Changes
+
+- 01c31fe: chore: update dependencies
+
 ## 0.2.42
 
 ### Patch Changes

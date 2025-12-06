@@ -1,6 +1,6 @@
 {
   "name": "assistant-stream",
-  "version": "0.2.42",
+  "version": "0.2.43",
   "license": "MIT",
   "type": "module",
   "exports": {
@@ -32,8 +32,8 @@
     "@assistant-ui/x-buildutils": "workspace:*",
     "@standard-schema/spec": "^1.0.0",
     "@types/node": "^24.10.1",
-    "tsx": "^4.20.6",
-    "vitest": "^4.0.14"
+    "tsx": "^4.21.0",
+    "vitest": "^4.0.15"
   },
   "publishConfig": {
     "access": "public"

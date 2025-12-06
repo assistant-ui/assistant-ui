@@ -8,7 +8,7 @@
     "chat",
     "assistant-ui"
   ],
-  "version": "0.1.9",
+  "version": "0.1.10",
   "license": "MIT",
   "type": "module",
   "exports": {
@@ -32,13 +32,13 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "assistant-stream": "^0.2.42"
+    "assistant-stream": "^0.2.43"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/node": "^24.10.1",
-    "tsx": "^4.20.6",
-    "vitest": "^4.0.14"
+    "tsx": "^4.21.0",
+    "vitest": "^4.0.15"
   },
   "publishConfig": {
     "access": "public",

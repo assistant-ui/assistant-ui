@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-a2a",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "license": "MIT",
   "type": "module",
   "exports": {
@@ -23,12 +23,12 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "assistant-stream": "^0.2.42",
+    "assistant-stream": "^0.2.43",
     "uuid": "^13.0.0",
     "zod": "^4.1.13"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.11.47",
+    "@assistant-ui/react": "^0.11.48",
     "@types/react": "*",
     "react": "^18 || ^19 || ^19.0.0-rc"
   },
@@ -46,9 +46,9 @@
     "@types/react": "^19.2.7",
     "@types/uuid": "^11.0.0",
     "jsdom": "^27.2.0",
-    "react": "19.2.0",
-    "tsx": "^4.20.6",
-    "vitest": "^4.0.14"
+    "react": "19.2.1",
+    "tsx": "^4.21.0",
+    "vitest": "^4.0.15"
   },
   "publishConfig": {
     "access": "public",
