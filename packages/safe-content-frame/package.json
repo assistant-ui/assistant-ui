@@ -1,6 +1,6 @@
 {
   "name": "safe-content-frame",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Secure iframe rendering for untrusted content using SafeContentFrame",
   "license": "MIT",
   "type": "module",

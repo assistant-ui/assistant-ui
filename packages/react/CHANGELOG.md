@@ -1,5 +1,21 @@
 # @assistant-ui/react
 
+## 0.11.48
+
+### Patch Changes
+
+- ba26b22: feat(react): export as anything
+- d169e4f: feat: add AssistantIf
+- da9f8a6: Fix ESC keydown handler to only trigger when event originates from the composer input
+
+  The `useEscapeKeydown` hook was intercepting ESC key events globally, preventing other UI elements (like Radix dialogs) from responding to ESC. The handler now checks if the event target is within the composer input before calling `preventDefault()`.
+
+- 01c31fe: chore: update dependencies
+- Updated dependencies [01c31fe]
+  - assistant-stream@0.2.43
+  - assistant-cloud@0.1.10
+  - @assistant-ui/tap@0.3.2
+
 ## 0.11.47
 
 ### Patch Changes

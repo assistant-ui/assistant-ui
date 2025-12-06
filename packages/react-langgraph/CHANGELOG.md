@@ -1,5 +1,17 @@
 # @assistant-ui/react-langgraph
 
+## 0.7.11
+
+### Patch Changes
+
+- 01c31fe: chore: update dependencies
+- Updated dependencies [ba26b22]
+- Updated dependencies [d169e4f]
+- Updated dependencies [da9f8a6]
+- Updated dependencies [01c31fe]
+  - @assistant-ui/react@0.11.48
+  - assistant-stream@0.2.43
+
 ## 0.7.10
 
 ### Patch Changes
