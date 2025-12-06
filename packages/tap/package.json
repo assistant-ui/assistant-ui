@@ -27,10 +27,10 @@
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/node": "^24.10.1",
     "@types/react": "*",
-    "@vitest/ui": "^4.0.14",
-    "tsx": "^4.20.6",
+    "@vitest/ui": "^4.0.15",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.14"
+    "vitest": "^4.0.15"
   },
   "exports": {
     ".": {
