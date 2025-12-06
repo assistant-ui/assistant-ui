@@ -24,6 +24,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   CopyIcon,
+  DownloadIcon,
   PencilIcon,
   RefreshCwIcon,
   SquareIcon,
@@ -245,6 +246,11 @@ const AssistantActionBar: FC = () => {
           </AssistantIf>
         </TooltipIconButton>
       </ActionBarPrimitive.Copy>
+      <ActionBarPrimitive.ExportMarkdown asChild>
+        <TooltipIconButton tooltip="Export as Markdown">
+          <DownloadIcon />
+        </TooltipIconButton>
+      </ActionBarPrimitive.ExportMarkdown>
       <ActionBarPrimitive.Reload asChild>
         <TooltipIconButton tooltip="Refresh">
           <RefreshCwIcon />
