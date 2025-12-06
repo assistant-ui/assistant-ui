@@ -30,6 +30,27 @@ export namespace ThreadPrimitiveViewport {
      * - "top": New user messages anchor at the top of the viewport for a focused reading experience.
      */
     turnAnchor?: "top" | "bottom" | undefined;
+
+    /**
+     * Whether to scroll to bottom when a new run starts.
+     *
+     * Defaults to true.
+     */
+    scrollToBottomOnRunStart?: boolean | undefined;
+
+    /**
+     * Whether to scroll to bottom when thread history is first loaded.
+     *
+     * Defaults to true.
+     */
+    scrollToBottomOnInitialize?: boolean | undefined;
+
+    /**
+     * Whether to scroll to bottom when switching to a different thread.
+     *
+     * Defaults to true.
+     */
+    scrollToBottomOnThreadSwitch?: boolean | undefined;
   };
 }
 
@@ -42,19 +63,34 @@ const useViewportSizeRef = () => {
 const ThreadPrimitiveViewportScrollable = forwardRef<
   ThreadPrimitiveViewport.Element,
   ThreadPrimitiveViewport.Props
->(({ autoScroll, children, ...rest }, forwardedRef) => {
-  const autoScrollRef = useThreadViewportAutoScroll<HTMLDivElement>({
-    autoScroll,
-  });
-  const viewportSizeRef = useViewportSizeRef();
-  const ref = useComposedRefs(forwardedRef, autoScrollRef, viewportSizeRef);
+>(
+  (
+    {
+      autoScroll,
+      scrollToBottomOnRunStart,
+      scrollToBottomOnInitialize,
+      scrollToBottomOnThreadSwitch,
+      children,
+      ...rest
+    },
+    forwardedRef,
+  ) => {
+    const autoScrollRef = useThreadViewportAutoScroll<HTMLDivElement>({
+      autoScroll,
+      scrollToBottomOnRunStart,
+      scrollToBottomOnInitialize,
+      scrollToBottomOnThreadSwitch,
+    });
+    const viewportSizeRef = useViewportSizeRef();
+    const ref = useComposedRefs(forwardedRef, autoScrollRef, viewportSizeRef);
 
-  return (
-    <Primitive.div {...rest} ref={ref}>
-      {children}
-    </Primitive.div>
-  );
-});
+    return (
+      <Primitive.div {...rest} ref={ref}>
+        {children}
+      </Primitive.div>
+    );
+  },
+);
 
 ThreadPrimitiveViewportScrollable.displayName =
   "ThreadPrimitive.ViewportScrollable";
