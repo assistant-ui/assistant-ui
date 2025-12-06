@@ -62,7 +62,10 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
         scrollingToBottomBehaviorRef.current = null;
       }
 
-      if (newIsAtBottom !== isAtBottom) {
+      const shouldUpdate =
+        newIsAtBottom || scrollingToBottomBehaviorRef.current === null;
+
+      if (shouldUpdate && newIsAtBottom !== isAtBottom) {
         writableStore(threadViewportStore).setState({
           isAtBottom: newIsAtBottom,
         });
@@ -99,6 +102,14 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     scrollingToBottomBehaviorRef.current = "auto";
     requestAnimationFrame(() => {
       scrollToBottom("auto");
+    });
+  });
+
+  // scroll to bottom instantly when thread history loads
+  useAssistantEvent("thread.initialize", () => {
+    scrollingToBottomBehaviorRef.current = "instant";
+    requestAnimationFrame(() => {
+      scrollToBottom("instant");
     });
   });
 
