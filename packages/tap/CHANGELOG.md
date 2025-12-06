@@ -1,5 +1,11 @@
 # @assistant-ui/tap
 
+## 0.3.2
+
+### Patch Changes
+
+- 01c31fe: chore: update dependencies
+
 ## 0.3.1
 
 ### Patch Changes
