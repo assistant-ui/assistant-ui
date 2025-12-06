@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import type { UIMessage, useChat, CreateUIMessage } from "@ai-sdk/react";
+import { isToolUIPart } from "ai";
 import {
   useExternalStoreRuntime,
   type ExternalStoreAdapter,
@@ -16,13 +17,6 @@ import {
 } from "@assistant-ui/react";
 import { sliceMessagesUntil } from "../utils/sliceMessagesUntil";
 import { toCreateMessage } from "../utils/toCreateMessage";
-
-export type CustomToCreateMessageFunction = <
-  UI_MESSAGE extends UIMessage = UIMessage,
->(
-  message: AppendMessage,
-) => CreateUIMessage<UI_MESSAGE>;
-
 import { vercelAttachmentAdapter } from "../utils/vercelAttachmentAdapter";
 import { getVercelAIMessages } from "../getVercelAIMessages";
 import { AISDKMessageConverter } from "../utils/convertMessage";
@@ -32,9 +26,11 @@ import {
 } from "../adapters/aiSDKFormatAdapter";
 import { useExternalHistory } from "./useExternalHistory";
 
-type PendingHumanTool = {
-  readonly toolCallId: string;
-};
+export type CustomToCreateMessageFunction = <
+  UI_MESSAGE extends UIMessage = UIMessage,
+>(
+  message: AppendMessage,
+) => CreateUIMessage<UI_MESSAGE>;
 
 export type AISDKRuntimeAdapter = {
   adapters?:
@@ -63,12 +59,17 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   }: AISDKRuntimeAdapter = {},
 ) => {
   const contextAdapters = useRuntimeAdapters();
-  const isRunning =
-    chatHelpers.status === "submitted" || chatHelpers.status === "streaming";
-
   const [toolStatuses, setToolStatuses] = useState<
     Record<string, ToolExecutionStatus>
   >({});
+
+  const hasExecutingTools = Object.values(toolStatuses).some(
+    (s) => s?.type === "executing",
+  );
+  const isRunning =
+    chatHelpers.status === "submitted" ||
+    chatHelpers.status === "streaming" ||
+    hasExecutingTools;
 
   const messages = AISDKMessageConverter.useThreadMessages({
     isRunning,
@@ -121,52 +122,32 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     },
   );
 
-  const completePendingToolCalls = () => {
+  const completePendingToolCalls = async () => {
     if (!cancelPendingToolCallsOnSend) return;
 
-    const pendingHumanTools: PendingHumanTool[] = Object.entries(toolStatuses)
-      .filter(
-        (
-          entry,
-        ): entry is [
-          string,
-          Extract<ToolExecutionStatus, { type: "interrupt" }>,
-        ] => entry[1]?.type === "interrupt",
-      )
-      .map(([toolCallId]) => ({ toolCallId }));
+    await toolInvocations.abort();
 
-    if (pendingHumanTools.length === 0) return;
+    // Mark any tool without a result as cancelled (uses setMessages to avoid triggering sendAutomaticallyWhen)
+    chatHelpers.setMessages((messages) => {
+      const lastMessage = messages.at(-1);
+      if (lastMessage?.role !== "assistant") return messages;
 
-    // Set tool statuses to cancelled so UI can show special state
-    setToolStatuses((prev) => {
-      const next = { ...prev };
-      pendingHumanTools.forEach(({ toolCallId }) => {
-        next[toolCallId] = {
-          type: "cancelled",
-          reason: "User cancelled tool call by sending a new message.",
+      let hasChanges = false;
+      const parts = lastMessage.parts?.map((part) => {
+        if (!isToolUIPart(part)) return part;
+        if (part.state === "output-available" || part.state === "output-error")
+          return part;
+
+        hasChanges = true;
+        return {
+          ...part,
+          state: "output-error" as const,
+          errorText: "User cancelled tool call by sending a new message.",
         };
       });
-      return next;
-    });
 
-    // Mark tools as errored in the message history
-    pendingHumanTools.forEach(({ toolCallId }) => {
-      chatHelpers.setMessages(
-        chatHelpers.messages.map((message) => {
-          if (message.id === toolCallId) {
-            return {
-              ...message,
-              content: [
-                {
-                  type: "text",
-                  text: "User cancelled tool call by sending a new message.",
-                },
-              ],
-            };
-          }
-          return message;
-        }),
-      );
+      if (!hasChanges) return messages;
+      return [...messages.slice(0, -1), { ...lastMessage, parts }];
     });
   };
 
@@ -189,10 +170,10 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       ),
     onCancel: async () => {
       chatHelpers.stop();
-      toolInvocations.abort();
+      await toolInvocations.abort();
     },
     onNew: async (message) => {
-      completePendingToolCalls();
+      await completePendingToolCalls();
 
       const createMessage = (
         customToCreateMessage ?? toCreateMessage
@@ -202,8 +183,6 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       });
     },
     onEdit: async (message) => {
-      completePendingToolCalls();
-
       const newMessages = sliceMessagesUntil(
         chatHelpers.messages,
         message.parentId,
@@ -218,8 +197,6 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       });
     },
     onReload: async (parentId: string | null, config) => {
-      completePendingToolCalls();
-
       const newMessages = sliceMessagesUntil(chatHelpers.messages, parentId);
       chatHelpers.setMessages(newMessages);
 
