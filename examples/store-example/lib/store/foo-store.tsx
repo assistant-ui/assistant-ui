@@ -4,15 +4,15 @@
 import "./foo-scope";
 
 import React from "react";
-import { resource, tapState } from "@assistant-ui/tap";
+import { resource, tapMemo, tapState } from "@assistant-ui/tap";
 import {
   useAssistantClient,
   AssistantProvider,
-  tapApi,
   tapStoreList,
   DerivedScope,
   useAssistantState,
   tapStoreContext,
+  type ScopeApi,
 } from "@assistant-ui/store";
 
 export const FooItemResource = resource(
@@ -22,7 +22,7 @@ export const FooItemResource = resource(
   }: {
     initialValue: { id: string; initialBar: string };
     remove: () => void;
-  }) => {
+  }): ScopeApi<"foo"> => {
     const { events } = tapStoreContext();
 
     const [state, setState] = tapState<{ id: string; bar: string }>({
@@ -40,14 +40,14 @@ export const FooItemResource = resource(
       remove();
     };
 
-    return tapApi(
-      {
-        getState: () => state,
+    return {
+      key: id,
+      state,
+      api: {
         updateBar,
         remove: handleRemove,
       },
-      { key: id },
-    );
+    };
   },
 );
 
@@ -56,7 +56,7 @@ export const FooItemResource = resource(
  * Manages a list of foos using tapStoreList
  */
 let counter = 3;
-export const FooListResource = resource(() => {
+export const FooListResource = resource((): ScopeApi<"fooList"> => {
   const { events } = tapStoreContext();
   const idGenerator = () => `foo-${++counter}`;
 
@@ -76,11 +76,15 @@ export const FooListResource = resource(() => {
     events.emit("fooList.added", { id: newId });
   };
 
-  return tapApi({
-    getState: () => ({ foos: foos.state }),
-    foo: foos.api,
-    addFoo,
-  });
+  const state = tapMemo(() => ({ foos: foos.state }), [foos.state]);
+
+  return {
+    state,
+    api: {
+      foo: foos.api,
+      addFoo,
+    },
+  };
 });
 
 /**

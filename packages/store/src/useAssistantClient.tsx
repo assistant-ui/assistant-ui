@@ -28,10 +28,12 @@ import {
   type AssistantEventSelector,
 } from "./EventContext";
 import { withStoreContextProvider } from "./StoreContext";
+import { tapApiResource } from "./tapApiResource";
 
 /**
  * Resource that renders a store with the store context provider.
  * This ensures the context is re-established on every re-render.
+ * Wraps the plain element with tapApiResource to get { key, state, api } structure.
  */
 const RootScopeStoreResource = resource(
   <K extends keyof AssistantScopes>({
@@ -44,7 +46,7 @@ const RootScopeStoreResource = resource(
     parent: AssistantClient;
   }) => {
     return withStoreContextProvider({ events, parent }, () =>
-      tapInlineResource(element),
+      tapApiResource(element),
     );
   },
 );
@@ -70,10 +72,8 @@ const RootScopeResource = resource(
     );
 
     return tapMemo(() => {
-      const scopeFunction = (() => store.getState().api) as ScopeField<
-        AssistantScopes[K]
-      >;
-      scopeFunction.source = "root";
+      const scopeFunction = () => store.getState().api;
+      scopeFunction.source = "root" as const;
       scopeFunction.query = {};
 
       return [

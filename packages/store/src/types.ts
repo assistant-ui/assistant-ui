@@ -59,6 +59,30 @@ export interface AssistantScopeRegistry {}
 export type AssistantScopes = keyof AssistantScopeRegistry extends never
   ? Record<"ERROR: No scopes were defined", ScopeDefinition>
   : { [K in keyof AssistantScopeRegistry]: AssistantScopeRegistry[K] };
+
+/**
+ * Object type that resources return with state, optional key, and api.
+ *
+ * @example
+ * ```typescript
+ * const FooResource = resource((): ScopeApi<"foo"> => {
+ *   const [state, setState] = tapState({ bar: "hello" });
+ *   return {
+ *     state,
+ *     key: "foo-1",
+ *     api: {
+ *       updateBar: (b) => setState({ bar: b })
+ *     }
+ *   };
+ * });
+ * ```
+ */
+export type ScopeApi<K extends keyof AssistantScopes> = {
+  key?: string;
+  state: ReturnType<AssistantScopes[K]["value"]["getState"]>;
+  api: Omit<AssistantScopes[K]["value"], "getState">;
+};
+
 /**
  * Type for a scope field - a function that returns the current API value,
  * with source/query metadata attached (derived from meta)
@@ -76,11 +100,13 @@ export type DerivedScopeProps<T extends ScopeDefinition> = {
 };
 
 /**
- * Input type for scope definitions - ResourceElement that returns the API value
+ * Input type for scope definitions - ResourceElement that returns { state, key?, api }
  * Can optionally include source/query metadata via DerivedScope
  */
 export type ScopeInput<T extends ScopeDefinition> = ResourceElement<{
-  api: T["value"];
+  state: ReturnType<T["value"]["getState"]>;
+  key?: string;
+  api: Omit<T["value"], "getState">;
 }>;
 
 /**

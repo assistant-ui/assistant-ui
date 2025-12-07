@@ -1,11 +1,15 @@
-import { ResourceElement, tapResources } from "@assistant-ui/tap";
-import { ApiObject } from "./tapApi";
+import { ResourceElement } from "@assistant-ui/tap";
+import { ApiProxy, ApiObject, tapApiResources } from "./tapApiResource";
 
 /**
  * Creates a lookup-based resource collection for managing lists of items.
  * Returns both the combined state array and an API function to lookup specific items.
  *
- * @param elements - Array of resource elements, each returning { key, state, api }
+ * Resources should return plain objects with { state, key?, api }.
+ * This function internally wraps each element with tapApiResource to create
+ * stable API proxies.
+ *
+ * @param elements - Array of resource elements, each returning { state, key?, api }
  * @returns Object with { state: TState[], api: (lookup) => TApi }
  *
  * The api function accepts { index: number } or { key: string } for lookups.
@@ -13,34 +17,34 @@ import { ApiObject } from "./tapApi";
  *
  * @example
  * ```typescript
+ * const FooItemResource = resource((): ScopeApi<"foo"> => {
+ *   const [state, setState] = tapState({ id, bar });
+ *   return { state, key: id, api: { updateBar, remove } };
+ * });
+ *
  * const foos = tapLookupResources(
- *   items.map((item) => FooItem({ id: item.id }, { key: item.id }))
+ *   items.map((item) => FooItemResource({ id: item.id }, { key: item.id }))
  * );
  *
  * // Access state array
  * const allStates = foos.state;
  *
- * // Wrap to rename key field to "id"
- * const wrappedApi = (lookup: { index: number } | { id: string }) => {
- *   if ("id" in lookup) {
- *     return foos.api({ key: lookup.id });
- *   } else {
- *     return foos.api(lookup);
- *   }
- * };
+ * // Lookup by index or key
+ * const first = foos.api({ index: 0 });
+ * const byKey = foos.api({ key: "foo-1" });
  * ```
  */
 export const tapLookupResources = <TState, TApi extends ApiObject>(
   elements: ResourceElement<{
-    key: string | undefined;
     state: TState;
     api: TApi;
+    key?: string;
   }>[],
 ): {
   state: TState[];
-  api: (lookup: { index: number } | { key: string }) => TApi;
+  api: (lookup: { index: number } | { key: string }) => ApiProxy<TState, TApi>;
 } => {
-  const resources = tapResources(elements);
+  const resources = tapApiResources(elements);
 
   return {
     state: resources.map((r) => r.state),

@@ -1,7 +1,7 @@
 import { tapState } from "@assistant-ui/tap";
 import type { ContravariantResource } from "@assistant-ui/tap";
 import { tapLookupResources } from "./tapLookupResources";
-import { ApiObject } from "./tapApi";
+import { ApiProxy, ApiObject } from "./tapApiResource";
 
 /**
  * Resource props that will be passed to each item resource
@@ -20,24 +20,17 @@ export type TapStoreListConfig<TProps, TState, TApi extends ApiObject> = {
    */
   initialValues: TProps[];
 
-  // TODO we can't use Resource type here because of contravariance
-  // I think we need a special type in tap that correctly handles the contravariance
-  // or change the behavior of the Resource type
-
   /**
-   * Resource function that creates an element for each item
-   * Should return a ResourceElement with { key, state, api }
+   * Resource function that creates an element for each item.
+   * Should return a plain object with { state, key?, api }.
    *
    * The resource will receive { initialValue, remove } as props.
    */
   resource: ContravariantResource<
-    {
-      key: string | undefined;
-      state: TState;
-      api: TApi;
-    },
+    { state: TState; key?: string; api: TApi },
     TapStoreListResourceProps<TProps>
   >;
+
   /**
    * Optional ID generator function for new items
    * If not provided, items must include an ID when added
@@ -49,26 +42,36 @@ export type TapStoreListConfig<TProps, TState, TApi extends ApiObject> = {
  * Creates a stateful list with add functionality, rendering each item via the provided resource.
  * Returns state array, api lookup function, and add method.
  *
+ * Resources should return plain objects with { state, key?, api }.
+ * Internally uses tapLookupResources which wraps each with tapApiResource.
+ *
  * @param config - Configuration object with initialValues, resource, and optional idGenerator
  * @returns Object with { state: TState[], api: (lookup) => TApi, add: (id?) => void }
  *
  * @example
  * ```typescript
+ * const FooItemResource = resource(
+ *   ({ initialValue, remove }): ScopeApi<"foo"> => {
+ *     const [state, setState] = tapState({ id: initialValue.id, bar: initialValue.bar });
+ *     return { state, key: initialValue.id, api: { updateBar, remove } };
+ *   }
+ * );
+ *
  * const todoList = tapStoreList({
  *   initialValues: [
- *     { id: "1", text: "First todo" },
- *     { id: "2", text: "Second todo" }
+ *     { id: "1", bar: "First" },
+ *     { id: "2", bar: "Second" }
  *   ],
- *   resource: (props) => TodoItemResource(props, { key: props.id }),
- *   idGenerator: () => `todo-${Date.now()}`
+ *   resource: FooItemResource,
+ *   idGenerator: () => `foo-${Date.now()}`
  * });
  *
  * // Access state array
- * const allTodos = todoList.state;
+ * const allFoos = todoList.state;
  *
  * // Lookup specific item
- * const firstTodo = todoList.api({ index: 0 });
- * const specificTodo = todoList.api({ key: "1" });
+ * const first = todoList.api({ index: 0 });
+ * const byId = todoList.api({ id: "1" });
  *
  * // Add new item
  * todoList.add(); // Uses idGenerator
@@ -83,7 +86,7 @@ export const tapStoreList = <
   config: TapStoreListConfig<TProps, TState, TApi>,
 ): {
   state: TState[];
-  api: (lookup: { index: number } | { id: string }) => TApi;
+  api: (lookup: { index: number } | { id: string }) => ApiProxy<TState, TApi>;
   add: (id?: string) => void;
 } => {
   const { initialValues, resource: Resource, idGenerator } = config;

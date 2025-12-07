@@ -12,20 +12,45 @@ The store package provides a bridge between tap Resources and React Components v
 
 A **scope** defines a piece of state in your application. Each scope has:
 
-- **value**: The state type (e.g., `{ bar: string }`)
+- **value**: The API type (e.g., `{ getState: () => State; methods... }`)
 - **source**: Where this scope comes from (`"root"` for top-level, or name of parent scope)
-- **query**: Parameters needed to access this scope (e.g., `{ type: "index", index: number }`)
+- **query**: Parameters needed to access this scope (e.g., `{ index: number }`)
+
+### ScopeApi<K>
+
+Resources return an object typed as `ScopeApi<K>` with `state`, optional `key`, and `api`:
+
+```typescript
+// ScopeApi<K> = { state, key?, api }
+const FooResource = resource((): ScopeApi<"foo"> => {
+  const [state, setState] = tapState({ bar: "hello" });
+  return {
+    state,
+    key: "foo-1",
+    api: {
+      updateBar: (b) => setState({ bar: b })
+    }
+  };
+});
+```
 
 ### Module Augmentation
 
-Define custom scopes by extending the `AssistantScopes` interface:
+Define custom scopes by extending the `AssistantScopeRegistry` interface:
 
 ```typescript
-import type { ScopeDefinition } from "@assistant-ui/store";
-
 declare module "@assistant-ui/store" {
-  interface AssistantScopes {
-    foo: ScopeDefinition<{ bar: string }, "root", {}>;
+  interface AssistantScopeRegistry {
+    foo: {
+      value: {
+        getState: () => { bar: string };
+        updateBar: (newBar: string) => void;
+      };
+      meta: { source: "root"; query: Record<string, never> };
+      events: {
+        "foo.updated": { id: string; newValue: string };
+      };
+    };
   }
 }
 ```
@@ -37,36 +62,36 @@ declare module "@assistant-ui/store" {
 ```typescript
 // foo-scope.ts
 import { resource, tapState } from "@assistant-ui/tap";
-import { tapApi } from "@assistant-ui/store";
+import { registerAssistantScope, type ScopeApi } from "@assistant-ui/store";
 
 // Define the scope type via module augmentation
-// Implement the scope definition raw (no need to import ScopeDefinition)
 declare module "@assistant-ui/store" {
-  interface AssistantScopes {
+  interface AssistantScopeRegistry {
     foo: {
       value: {
         getState: () => { bar: string };
         updateBar: (newBar: string) => void;
       };
-      source: "root";
-      query: Record<string, never>;
+      meta: { source: "root"; query: Record<string, never> };
+      events: Record<string, never>;
     };
   }
 }
 
-// Create the resource
-export const FooResource = resource(() => {
+registerAssistantScope({ name: "foo", defaultInitialize: { error: "Foo not configured" } });
+
+// Create the resource - returns { state, key?, api }
+export const FooResource = resource((): ScopeApi<"foo"> => {
   const [state, setState] = tapState<{ bar: string }>({ bar: "Hello, World!" });
 
   const updateBar = (newBar: string) => {
     setState({ bar: newBar });
   };
 
-  // Use tapApi to wrap the API for stability and reactivity
-  return tapApi({
-    getState: () => state,
-    updateBar,
-  });
+  return {
+    state,
+    api: { updateBar },
+  };
 });
 ```
 
@@ -83,12 +108,12 @@ function MyComponent() {
   });
 
   // Access the state
-  const fooState = client.foo.getState();
+  const fooState = client.foo().getState();
   console.log(fooState.bar); // "Hello, World!"
 
-  // Call actions
+  // Call methods
   const handleClick = () => {
-    client.foo.updateBar("New value!");
+    client.foo().updateBar("New value!");
   };
 
   return <div onClick={handleClick}>{fooState.bar}</div>;
@@ -103,7 +128,7 @@ import { FooResource } from "./foo-scope";
 
 function App() {
   const client = useAssistantClient({
-    foo: FooResource,
+    foo: FooResource(),
   });
 
   return (
@@ -116,7 +141,7 @@ function App() {
 function MyComponent() {
   // Access client from context
   const client = useAssistantClient();
-  const fooState = client.foo.getState();
+  const fooState = client.foo().getState();
 
   return <div>{fooState.bar}</div>;
 }
@@ -131,15 +156,15 @@ import { DerivedScope } from "@assistant-ui/store";
 
 function MyComponent() {
   const client = useAssistantClient({
-    foo: FooResource,
+    foo: FooResource(),
     message: DerivedScope({
       source: "thread",
-      query: { type: "index", index: 0 },
-      get: () => messageApi,
+      query: { index: 0 },
+      get: (aui) => aui.thread().message({ index: 0 }),
     }),
   });
 
-  return <div>{client.message.getState().content}</div>;
+  return <div>{client.message().getState().content}</div>;
 }
 ```
 
@@ -159,7 +184,25 @@ Creates a new AssistantClient with the provided scopes, merging with any client 
 
 ```typescript
 const client = useAssistantClient({
-  foo: FooResource,
+  foo: FooResource(),
+});
+```
+
+### `useAssistantState(selector)`
+
+Subscribes to state changes with a selector. Must return a specific value, not the entire state.
+
+```typescript
+const barValue = useAssistantState(({ foo }) => foo.bar);
+```
+
+### `useAssistantEvent(selector, callback)`
+
+Subscribes to events emitted by scopes.
+
+```typescript
+useAssistantEvent("foo.updated", (payload) => {
+  console.log(`Foo updated: ${payload.newValue}`);
 });
 ```
 
@@ -180,54 +223,70 @@ Creates a derived scope field that memoizes based on source and query.
 ```typescript
 DerivedScope({
   source: "thread",
-  query: { type: "index", index: 0 },
-  get: () => messageApi,
+  query: { index: 0 },
+  get: (aui) => aui.thread().message({ index: 0 }),
 });
 ```
 
-## Advanced: List Management with tapLookupResources
+### `tapStoreContext()`
 
-For managing lists of items, use `tapLookupResources`:
+Access the store context inside tap resources (provides `events` and `parent` client).
 
 ```typescript
-import { tapLookupResources, tapApi } from "@assistant-ui/store";
+const { events } = tapStoreContext();
+events.emit("foo.updated", { id: "123", newValue: "hello" });
+```
 
-// Define item resource
+## Advanced: List Management with tapStoreList
+
+For managing dynamic lists of items:
+
+```typescript
+import { resource, tapState, tapMemo } from "@assistant-ui/tap";
+import { tapStoreList, tapStoreContext, type ScopeApi } from "@assistant-ui/store";
+
+// Define item resource - returns { state, key?, api }
 const FooItemResource = resource(
-  ({ id, initialBar }: { id: string; initialBar: string }) => {
+  ({ initialValue: { id, initialBar }, remove }): ScopeApi<"foo"> => {
+    const { events } = tapStoreContext();
     const [state, setState] = tapState({ id, bar: initialBar });
 
+    const updateBar = (newBar: string) => {
+      setState({ ...state, bar: newBar });
+      events.emit("foo.updated", { id, newValue: newBar });
+    };
+
     return {
-      key: id,
       state,
-      api: tapApi({
-        getState: () => state,
-        updateBar: (newBar: string) => setState({ ...state, bar: newBar }),
-      }),
+      key: id,
+      api: { updateBar, remove },
     };
   },
 );
 
 // Define list resource
-const FooListResource = resource(() => {
-  const items = [
-    { id: "foo-1", initialBar: "First" },
-    { id: "foo-2", initialBar: "Second" },
-  ];
+const FooListResource = resource((): ScopeApi<"fooList"> => {
+  const { events } = tapStoreContext();
 
-  const foos = tapLookupResources(
-    items.map((item) => FooItemResource(item, { key: item.id })),
-  );
+  const foos = tapStoreList({
+    initialValues: [
+      { id: "foo-1", initialBar: "First" },
+      { id: "foo-2", initialBar: "Second" },
+    ],
+    resource: FooItemResource,
+    idGenerator: () => `foo-${Date.now()}`,
+  });
 
-  return tapApi({
-    getState: () => ({ foos: foos.state }),
-    // Wrap to rename "key" field to "id"
-    foo: (lookup: { index: number } | { id: string }) => {
-      return "id" in lookup
-        ? foos.api({ key: lookup.id })
-        : foos.api({ index: lookup.index });
-    },
-  }).api;
+  const addFoo = (id?: string) => {
+    foos.add(id);  // Uses idGenerator if id not provided
+  };
+
+  const state = tapMemo(() => ({ foos: foos.state }), [foos.state]);
+
+  return {
+    state,
+    api: { foo: foos.api, addFoo },
+  };
 });
 ```
 
@@ -237,13 +296,11 @@ Create providers to scope access to specific list items:
 
 ```typescript
 const FooProvider = ({ index, children }) => {
-  const parentAui = useAssistantClient();
-
   const aui = useAssistantClient({
     foo: DerivedScope({
       source: "fooList",
       query: { index },
-      get: () => parentAui.fooList().foo({ index }),
+      get: (aui) => aui.fooList().foo({ index }),
     }),
   });
 
@@ -252,27 +309,26 @@ const FooProvider = ({ index, children }) => {
 
 // Render list
 const FooList = ({ components }) => {
-  const aui = useAssistantClient();
-  const { foos } = aui.fooList().getState();
+  const listLength = useAssistantState(({ fooList }) => fooList.foos.length);
 
   return (
-    <div>
-      {foos.map((_, index) => (
+    <>
+      {Array.from({ length: listLength }, (_, index) => (
         <FooProvider key={index} index={index}>
           <components.Foo />
         </FooProvider>
       ))}
-    </div>
+    </>
   );
 };
 ```
 
 ## Examples
 
-See the [store-example](../store-example) Next.js app for a complete working example including:
+See the [store-example](../../examples/store-example) Next.js app for a complete working example including:
 
-- Basic scope definition with `tapApi`
-- List management with `tapLookupResources`
+- Basic scope definition with `ScopeApi<K>`
+- List management with `tapStoreList`
 - Provider pattern for scoped access
 - Component composition
 - Tailwind CSS styling
@@ -281,15 +337,19 @@ See the [store-example](../store-example) Next.js app for a complete working exa
 
 The store is implemented using tap resources:
 
-1. Each scope is a tap resource that manages its own state
-2. `useAssistantClient` creates a resource that composes all provided scopes
-3. The React Context provides the client to child components
-4. Scopes can be extended/overridden by calling `useAssistantClient` with new scope definitions
+1. Each scope is a tap resource that returns `{ state, key?, api }`
+2. Resources are wrapped with `tapApiResource` to create stable API proxies with `getState` added
+3. `useAssistantClient` creates a resource that composes all provided scopes
+4. Root scopes are wrapped with a store context providing `events` and `parent` access
+5. The React Context provides the client to child components
+6. Scopes can be extended/overridden by calling `useAssistantClient` with new scope definitions
+7. Events are emitted via `tapStoreContext().events.emit()` and subscribed via `useAssistantEvent`
 
 This design allows for:
 
-- ✅ Type-safe scope definitions via module augmentation
-- ✅ Automatic cleanup of resources when components unmount
-- ✅ Composable scope hierarchy (root → derived scopes)
-- ✅ Full TypeScript inference for state and APIs
-- ✅ Zero runtime overhead for scopes that aren't used
+- Type-safe scope definitions via module augmentation
+- Automatic cleanup of resources when components unmount
+- Composable scope hierarchy (root → derived scopes)
+- Full TypeScript inference for state and APIs
+- Zero runtime overhead for scopes that aren't used
+- Decoupled event-driven communication between scopes
