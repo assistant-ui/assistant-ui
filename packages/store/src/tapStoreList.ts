@@ -86,7 +86,7 @@ export const tapStoreList = <
   config: TapStoreListConfig<TProps, TState, TClient>,
 ): {
   state: TState[];
-  client: (lookup: { index: number } | { id: string }) => TClient;
+  get: (lookup: { index: number } | { id: string }) => TClient;
   add: (id?: string) => void;
 } => {
   const { initialValues, resource: Resource, idGenerator } = config;
@@ -127,7 +127,7 @@ export const tapStoreList = <
 
   return {
     state: lookup.state,
-    client: (query: { index: number } | { id: string }) => {
+    get: (query: { index: number } | { id: string }) => {
       if ("index" in query) {
         return lookup.client({ index: query.index });
       }

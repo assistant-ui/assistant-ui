@@ -22,7 +22,7 @@ declare module "@assistant-ui/store" {
   interface AssistantScopeRegistry {
     foo: {
       state: FooState;
-      api: FooApi;
+      client: FooApi;
       meta: FooMeta;
       events: {
         "foo.updated": { id: string; newValue: string };
@@ -31,7 +31,7 @@ declare module "@assistant-ui/store" {
     };
     fooList: {
       state: FooListState;
-      api: FooListApi;
+      client: FooListApi;
       events: {
         "fooList.added": { id: string };
       };

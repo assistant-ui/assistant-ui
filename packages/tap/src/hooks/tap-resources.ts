@@ -1,7 +1,7 @@
 import { RenderResult, ResourceElement, ResourceFiber } from "../core/types";
 import { tapEffect } from "./tap-effect";
 import { tapMemo } from "./tap-memo";
-import { rerenderFiber, tapState } from "./tap-state";
+import { tapState } from "./tap-state";
 import { tapCallback } from "./tap-callback";
 import {
   createResourceFiber,
@@ -9,12 +9,6 @@ import {
   renderResource,
   commitResource,
 } from "../core/ResourceFiber";
-import { getCurrentResourceFiber } from "../core/execution-context";
-
-const tapRerender = () => {
-  const fiber = getCurrentResourceFiber();
-  return tapCallback(() => rerenderFiber(fiber), []);
-};
 
 export type TapResourcesRenderResult<R, K extends string | number | symbol> = {
   add: [K, ResourceFiber<R, any>][];
@@ -31,7 +25,10 @@ export function tapResources<
   getElement: (t: M[keyof M], key: keyof M) => ResourceElement<R>,
   getElementDeps?: any[],
 ): { [K in keyof M]: R } {
-  const rerender = tapRerender();
+  console.log("tapResources reredered");
+  const [version, setVersion] = tapState(0);
+  const rerender = tapCallback(() => setVersion((v) => v + 1), []);
+
   type K = keyof M;
   const [fibers] = tapState(() => new Map<K, ResourceFiber<R, any>>());
 
@@ -58,7 +55,10 @@ export function tapResources<
       // Create new fiber if needed or type changed
       if (!fiber || fiber.resource !== element.type) {
         if (fiber) results.remove.push(key);
-        fiber = createResourceFiber(element.type, rerender);
+        fiber = createResourceFiber(element.type, () => {
+          console.log("scheduleRerender called");
+          rerender();
+        });
         results.add.push([key, fiber]);
       }
 
@@ -82,7 +82,7 @@ export function tapResources<
     }
 
     return results;
-  }, [map, getElementMemo]);
+  }, [map, getElementMemo, version]);
 
   tapEffect(() => {
     for (const key of results.remove) {

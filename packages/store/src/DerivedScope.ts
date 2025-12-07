@@ -17,7 +17,9 @@ import type { ScopeDefinition, DerivedScopeProps } from "./types";
  * ```
  */
 export const DerivedScope = resource(
-  <T extends ScopeDefinition>(_config: DerivedScopeProps<T>): null => {
+  <T extends ScopeDefinition<any, any, any, any>>(
+    _config: DerivedScopeProps<T>,
+  ): null => {
     return null;
   },
 );

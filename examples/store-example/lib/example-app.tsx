@@ -14,14 +14,11 @@ import { FooList, FooListResource } from "./store/foo-store";
  */
 const Foo = () => {
   const aui = useAssistantClient();
-  const fooState = useAssistantState(({ foo }) => {
-    console.log("selector called with state", foo);
-    return foo;
-  });
+  const fooId = useAssistantState(({ foo }) => foo.id);
+  const fooBar = useAssistantState(({ foo }) => foo.bar);
 
   const handleUpdate = () => {
     aui.foo().updateBar(`Updated at ${new Date().toLocaleTimeString()}`);
-    console.log("Foo state", aui.foo().getState(), fooState);
   };
 
   return (
@@ -32,14 +29,14 @@ const Foo = () => {
             ID:
           </span>
           <span className="font-mono text-gray-900 text-sm dark:text-white">
-            {fooState.id}
+            {fooId}
           </span>
         </div>
         <div className="flex items-center gap-2">
           <span className="font-semibold text-gray-500 text-sm dark:text-gray-400">
             Value:
           </span>
-          <span className="text-gray-900 dark:text-white">{fooState.bar}</span>
+          <span className="text-gray-900 dark:text-white">{fooBar}</span>
         </div>
         <div className="mt-2 flex gap-2">
           <button

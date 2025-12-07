@@ -4,6 +4,11 @@
 
 These are concepts that users consuming assistant-ui need to understand.
 
+### Packages
+
+- **@assistant-ui/store** - The store package
+- **@assistant-ui/tap** - The tap package
+
 ### Core
 
 - **AssistantProvider** - React component that provides the AssistantClient to the component tree
@@ -73,17 +78,12 @@ These are concepts for developers creating custom scopes.
 - **AssistantEventScopeConfig** - Module augmentation to map event sources to parent scopes
 - **EventSource<TEvent>** - The part before the dot (e.g., `"thread"` from `"thread.updated"`)
 
-### Store Utilities
-
-- **Store<T>** - Interface: `{ getState(), subscribe(listener), flushSync() }`
-- **asStore(resourceElement)** - Convert a ResourceElement into a Store
-- **Unsubscribe** - `() => void` returned by subscription functions
-
 ### Base Types
 
 - **ClientObject** - Base interface for client types (plain object with methods)
-- **ScopesInput** - Map of scope names to their ResourceElement inputs
+- **ScopeResources** - Map of scope names to their ResourceElement inputs
 - **AssistantScopes** - The complete set of all registered scopes
+- **Unsubscribe** - `() => void` returned by subscription functions
 
 ---
 
@@ -120,6 +120,11 @@ These are implementation details not meant for public use.
 - **checkEventScope** - Type guard for event scope validation
 - **ScopeEventMap** - Combined map of all events from all scopes
 - **SourceByScope<TScope>** - Resolves event sources for a given scope
+
+### Store Utilities
+
+- **Store<T>** - Interface: `{ getState(), subscribe(listener), flushSync() }`
+- **asStore(resourceElement)** - Convert a ResourceElement into a Store
 
 ### Utilities
 

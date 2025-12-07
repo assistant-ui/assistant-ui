@@ -51,7 +51,9 @@ function getOrCreateProxyFn(prop: string) {
 class ReadonlyClientHandler<TState, TClient extends ClientObject>
   implements ProxyHandler<ScopeOutputOf<TState, TClient>>
 {
-  constructor(private readonly getOutput: () => ScopeOutputOf<TState, TClient>) {}
+  constructor(
+    private readonly getOutput: () => ScopeOutputOf<TState, TClient>,
+  ) {}
 
   get(_: unknown, prop: string | symbol) {
     if (prop === SYMBOL_GET_OUTPUT) return this.getOutput;
@@ -110,7 +112,7 @@ export const tapClientResource = <TState, TClient extends ClientObject>(
   const client = tapMemo(
     () =>
       new Proxy<TClient>(
-        undefined as unknown as TClient,
+        {} as TClient,
         new ReadonlyClientHandler<TState, TClient>(() => valueRef.current),
       ),
     [element.type],

@@ -41,9 +41,8 @@ export const FooItemResource = resource(
     };
 
     return {
-      key: id,
       state,
-      api: {
+      client: {
         getState: () => state,
         updateBar,
         remove: handleRemove,
@@ -81,9 +80,9 @@ export const FooListResource = resource((): ScopeOutput<"fooList"> => {
 
   return {
     state,
-    api: {
+    client: {
       getState: () => state,
-      foo: foos.api,
+      foo: foos.get,
       addFoo,
     },
   };

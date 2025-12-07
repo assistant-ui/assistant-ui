@@ -108,7 +108,7 @@ export type ScopeField<T extends ScopeDefinition> = (() => T["client"]) &
 /**
  * Props passed to a derived scope resource element
  */
-export type DerivedScopeProps<T extends ScopeDefinition> = {
+export type DerivedScopeProps<T extends ScopeDefinition<any, any, any, any>> = {
   get: (parent: AssistantClient) => T["client"];
   source: NonNullable<T["meta"]>["source"];
   query: NonNullable<T["meta"]>["query"];
