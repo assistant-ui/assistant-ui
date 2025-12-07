@@ -17,13 +17,12 @@ A **scope** defines a piece of state in your application. Each scope has:
 - **source**: Where this scope comes from (`"root"` for top-level, or name of parent scope)
 - **query**: Parameters needed to access this scope (e.g., `{ index: number }`)
 
-### ScopeApi<K>
+### ScopeOutput<K>
 
-Resources return an object typed as `ScopeApi<K>` with `state`, optional `key`, and `api`:
+Resources return an object typed as `ScopeOutput<K>` with `state`, optional `key`, and `api`:
 
 ```typescript
-// ScopeApi<K> = { state, key?, api }
-const FooResource = resource((): ScopeApi<"foo"> => {
+const FooResource = resource((): ScopeOutput<"foo"> => {
   const [state, setState] = tapState({ bar: "hello" });
   return {
     state,
@@ -79,7 +78,7 @@ declare module "@assistant-ui/store" {
 ```typescript
 // foo-scope.ts
 import { resource, tapState } from "@assistant-ui/tap";
-import { registerAssistantScope, type ScopeApi } from "@assistant-ui/store";
+import { registerAssistantScope, type ScopeOutput } from "@assistant-ui/store";
 
 // Define types separately to avoid duplication
 type FooState = { bar: string };
@@ -102,7 +101,7 @@ declare module "@assistant-ui/store" {
 registerAssistantScope({ name: "foo", defaultInitialize: { error: "Foo not configured" } });
 
 // Create the resource - returns { state, key?, api }
-export const FooResource = resource((): ScopeApi<"foo"> => {
+export const FooResource = resource((): ScopeOutput<"foo"> => {
   const [state, setState] = tapState<FooState>({ bar: "Hello, World!" });
 
   const updateBar = (newBar: string) => {
@@ -267,11 +266,11 @@ For managing dynamic lists of items:
 
 ```typescript
 import { resource, tapState, tapMemo } from "@assistant-ui/tap";
-import { tapStoreList, tapStoreContext, type ScopeApi } from "@assistant-ui/store";
+import { tapStoreList, tapStoreContext, type ScopeOutput } from "@assistant-ui/store";
 
 // Define item resource - returns { state, key?, api }
 const FooItemResource = resource(
-  ({ initialValue: { id, initialBar }, remove }): ScopeApi<"foo"> => {
+  ({ initialValue: { id, initialBar }, remove }): ScopeOutput<"foo"> => {
     const { events } = tapStoreContext();
     const [state, setState] = tapState({ id, bar: initialBar });
 
@@ -293,7 +292,7 @@ const FooItemResource = resource(
 );
 
 // Define list resource
-const FooListResource = resource((): ScopeApi<"fooList"> => {
+const FooListResource = resource((): ScopeOutput<"fooList"> => {
   const { events } = tapStoreContext();
 
   const foos = tapStoreList({
@@ -359,7 +358,7 @@ const FooList = ({ components }) => {
 
 See the [store-example](../../examples/store-example) Next.js app for a complete working example including:
 
-- Basic scope definition with `ScopeApi<K>`
+- Basic scope definition with `ScopeOutput<K>`
 - List management with `tapStoreList`
 - Provider pattern for scoped access
 - Component composition

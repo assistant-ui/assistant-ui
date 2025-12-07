@@ -1,7 +1,7 @@
 import { tapState } from "@assistant-ui/tap";
 import type { ContravariantResource } from "@assistant-ui/tap";
 import { tapLookupResources } from "./tapLookupResources";
-import { ApiObject } from "./tapApiResource";
+import type { ApiObject, ScopeOutputOf } from "./types";
 
 /**
  * Resource props that will be passed to each item resource
@@ -27,7 +27,7 @@ export type TapStoreListConfig<TProps, TState, TApi extends ApiObject> = {
    * The resource will receive { initialValue, remove } as props.
    */
   resource: ContravariantResource<
-    { state: TState; key?: string; api: TApi },
+    ScopeOutputOf<TState, TApi>,
     TapStoreListResourceProps<TProps>
   >;
 
@@ -51,7 +51,7 @@ export type TapStoreListConfig<TProps, TState, TApi extends ApiObject> = {
  * @example
  * ```typescript
  * const FooItemResource = resource(
- *   ({ initialValue, remove }): ScopeApi<"foo"> => {
+ *   ({ initialValue, remove }): ScopeOutput<"foo"> => {
  *     const [state, setState] = tapState({ id: initialValue.id, bar: initialValue.bar });
  *     return { state, key: initialValue.id, api: { updateBar, remove } };
  *   }

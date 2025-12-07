@@ -12,7 +12,7 @@ import {
   DerivedScope,
   useAssistantState,
   tapStoreContext,
-  type ScopeApi,
+  type ScopeOutput,
 } from "@assistant-ui/store";
 
 export const FooItemResource = resource(
@@ -22,7 +22,7 @@ export const FooItemResource = resource(
   }: {
     initialValue: { id: string; initialBar: string };
     remove: () => void;
-  }): ScopeApi<"foo"> => {
+  }): ScopeOutput<"foo"> => {
     const { events } = tapStoreContext();
 
     const [state, setState] = tapState<{ id: string; bar: string }>({
@@ -57,7 +57,7 @@ export const FooItemResource = resource(
  * Manages a list of foos using tapStoreList
  */
 let counter = 3;
-export const FooListResource = resource((): ScopeApi<"fooList"> => {
+export const FooListResource = resource((): ScopeOutput<"fooList"> => {
   const { events } = tapStoreContext();
   const idGenerator = () => `foo-${++counter}`;
 

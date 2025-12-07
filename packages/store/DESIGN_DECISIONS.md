@@ -60,7 +60,7 @@ tapLookupResources()
 tapApiResource()
 
 // Types
-ScopeApi<K>
+ScopeOutput<K>
 ApiObject
 AssistantScopeRegistry (module augmentation)
 registerAssistantScope()

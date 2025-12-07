@@ -7,6 +7,7 @@ import {
   resource,
   tapResources,
 } from "@assistant-ui/tap";
+import type { ApiObject, ScopeOutputOf } from "./types";
 
 /**
  * Symbol used internally to get state from ApiProxy.
@@ -23,20 +24,15 @@ export const getApiState = <TState>(api: ApiObject): TState => {
 };
 
 /**
- * API object type
- */
-export interface ApiObject {
-  [key: string]: (...args: any[]) => any;
-}
-
-/**
  * Readonly API handler for creating stable proxies
  */
 class ReadonlyApiHandler<TState, TApi extends ApiObject>
-  implements ProxyHandler<ClientValue<TState, TApi>>
+  implements ProxyHandler<ScopeOutputOf<TState, TApi>>
 {
   private getState = () => this.getValue().state;
-  constructor(private readonly getValue: () => ClientValue<TState, TApi>) {}
+  constructor(
+    private readonly getValue: () => ScopeOutputOf<TState, TApi>,
+  ) {}
 
   get(_: unknown, prop: string | symbol) {
     if (prop === SYMBOL_GET_STATE) return this.getState;
@@ -74,12 +70,6 @@ class ReadonlyApiHandler<TState, TApi extends ApiObject>
   }
 }
 
-type ClientValue<TState, TApi extends ApiObject> = {
-  state: TState;
-  api: TApi;
-  key?: string;
-};
-
 /**
  * Wraps a plain resource element to create a stable API proxy.
  *
@@ -87,12 +77,8 @@ type ClientValue<TState, TApi extends ApiObject> = {
  * wraps it to produce { key, state, api } where api is a stable proxy.
  */
 export const tapApiResource = <TState, TApi extends ApiObject>(
-  element: ResourceElement<{ state: TState; api: TApi; key?: string }>,
-): {
-  key: string | undefined;
-  state: TState;
-  api: TApi;
-} => {
+  element: ResourceElement<ScopeOutputOf<TState, TApi>>,
+): ScopeOutputOf<TState, TApi> => {
   const value = tapResource(element);
 
   const valueRef = tapRef(value);
@@ -115,16 +101,8 @@ export const tapApiResource = <TState, TApi extends ApiObject>(
 
 const ApiResource = resource(
   <TState, TApi extends ApiObject>(
-    element: ResourceElement<{
-      state: TState;
-      api: TApi;
-      key?: string;
-    }>,
-  ): {
-    key: string | undefined;
-    state: TState;
-    api: TApi;
-  } => {
+    element: ResourceElement<ScopeOutputOf<TState, TApi>>,
+  ): ScopeOutputOf<TState, TApi> => {
     return tapApiResource(element);
   },
 );
@@ -133,18 +111,10 @@ export const tapApiResources = <TState, TApi extends ApiObject>(
   elements: ReadonlyArray<
     readonly [
       key: string | number,
-      element: ResourceElement<{
-        state: TState;
-        api: TApi;
-        key?: string;
-      }>,
+      element: ResourceElement<ScopeOutputOf<TState, TApi>>,
     ]
   >,
-): {
-  key: string | undefined;
-  state: TState;
-  api: TApi;
-}[] => {
+): ScopeOutputOf<TState, TApi>[] => {
   return tapResources(
     elements.map(([key, element]) => [key, ApiResource(element)] as const),
   );

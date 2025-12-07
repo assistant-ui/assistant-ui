@@ -31,14 +31,14 @@ This document provides comprehensive context for AI agents working on the `@assi
 | **Derived Scope** | Scope derived from a parent scope |
 | **AssistantClient** | Central object providing access to all scopes |
 | **ScopeField** | Function returning API + metadata (source/query from meta) |
-| **ScopeApi<K>** | Object type `{ state, key?, api }` returned by resources |
+| **ScopeOutput<K>** | Object type `{ state, key?, api }` returned by resources |
 
 ## File Map
 
 ```
 packages/store/src/
 ├── index.ts                 # Public exports
-├── types.ts                 # Core types: ScopeDefinition, AssistantClient, ScopeApi, ScopeField
+├── types.ts                 # Core types: ScopeDefinition, AssistantClient, ScopeOutput, ScopeField
 ├── AssistantContext.tsx     # React Context provider + useAssistantContextValue
 ├── useAssistantClient.tsx   # Main hook - Root/DerivedScopeResource processing
 ├── useAssistantState.tsx    # ProxiedAssistantState + useSyncExternalStore
@@ -57,12 +57,12 @@ packages/store/src/
 
 ## Key Implementation Details
 
-### 1. ScopeApi<K> Type (types.ts)
+### 1. ScopeOutput<K> Type (types.ts)
 
-Resources return an object typed as `ScopeApi<K>` with `state`, optional `key`, and `api`:
+Resources return an object typed as `ScopeOutput<K>` with `state`, optional `key`, and `api`:
 
 ```typescript
-type ScopeApi<K extends keyof AssistantScopes> = {
+type ScopeOutput<K extends keyof AssistantScopes> = {
   key?: string;
   state: AssistantScopes[K]["state"];
   api: AssistantScopes[K]["api"];
@@ -71,7 +71,7 @@ type ScopeApi<K extends keyof AssistantScopes> = {
 
 Example:
 ```typescript
-const FooResource = resource((): ScopeApi<"foo"> => {
+const FooResource = resource((): ScopeOutput<"foo"> => {
   const [state, setState] = tapState({ bar: "hello" });
   return {
     state,
@@ -230,7 +230,7 @@ EventManager = resource(() => {
 
 **Emitting events from resources:**
 ```typescript
-const FooResource = resource((): ScopeApi<"foo"> => {
+const FooResource = resource((): ScopeOutput<"foo"> => {
   const { events } = tapStoreContext();
   const [state, setState] = tapState({ id, value: "" });
 
@@ -313,7 +313,7 @@ The store is built on `@assistant-ui/tap`:
 
 | Type | Purpose |
 |------|---------|
-| `ScopeApi<K>` | Return type for resources: `{ state, key?, api }` |
+| `ScopeOutput<K>` | Return type for resources: `{ state, key?, api }` |
 | `AssistantClient` | Client type with scope fields + subscribe/flushSync/on |
 | `AssistantScopes` | All registered scopes (from AssistantScopeRegistry) |
 | `AssistantState` | State type extracted from all scopes |
@@ -325,7 +325,7 @@ The store is built on `@assistant-ui/tap`:
 ### Root Scope Resource
 
 ```typescript
-const FooResource = resource((): ScopeApi<"foo"> => {
+const FooResource = resource((): ScopeOutput<"foo"> => {
   const [state, setState] = tapState({ value: "initial" });
 
   return {
@@ -342,7 +342,7 @@ const FooResource = resource((): ScopeApi<"foo"> => {
 
 ```typescript
 const FooItemResource = resource(
-  ({ initialValue, remove }): ScopeApi<"foo"> => {
+  ({ initialValue, remove }): ScopeOutput<"foo"> => {
     const [state, setState] = tapState({ id: initialValue.id, text: initialValue.text });
     return {
       state,
@@ -356,7 +356,7 @@ const FooItemResource = resource(
   }
 );
 
-const FooListResource = resource((): ScopeApi<"fooList"> => {
+const FooListResource = resource((): ScopeOutput<"fooList"> => {
   const foos = tapStoreList({
     initialValues: [{ id: "1", text: "First" }],
     resource: FooItemResource,
@@ -421,7 +421,7 @@ type FooApi = {
 
 ## Key Invariants
 
-1. **ScopeApi<K> return type** - All scope resources must return `{ state, key?, api }` with api as a nested object
+1. **ScopeOutput<K> return type** - All scope resources must return `{ state, key?, api }` with api as a nested object
 2. **Selector required** - useAssistantState cannot return entire state object (throws if you try)
 3. **Source/query metadata** - Derived scopes must specify source and query in DerivedScope config
 4. **Event naming** - Events use `"scope.event-name"` format (e.g., `"foo.updated"`)
@@ -443,7 +443,7 @@ type FooApi = {
 When migrating @assistant-ui/react to use this package:
 
 1. **Define scope types** via module augmentation for all scopes (including events)
-2. **Implement resources** returning `ScopeApi<K>` with `{ state, key?, api }` structure
+2. **Implement resources** returning `ScopeOutput<K>` with `{ state, key?, api }` structure
 3. **Emit events** using `tapStoreContext().events.emit()` in resources
 4. **Create providers** using DerivedScope pattern
 5. **Replace hooks** with useAssistantState/useAssistantEvent
@@ -461,7 +461,7 @@ The react package has a similar but different pattern using `tapApi`:
 | Wrapper output | `{ key, state, api }` with proxy | `{ key, state, api }` with proxy |
 | Lookup return | `{ state, api }` | `{ state, api }` |
 | API property name | `api` | `api` |
-| Type annotation | `ScopeApi<K>` | Direct type annotations |
+| Type annotation | `ScopeOutput<K>` | Direct type annotations |
 | getState | Optional convention | Required in type |
 
 **Key difference:** The react package's `tapApi` takes an API object with methods directly (e.g., `tapApi({ doSomething: () => {} })`), while the store package's `tapApiResource` takes a ResourceElement that returns `{ state, key?, api }` structure.

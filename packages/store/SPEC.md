@@ -17,12 +17,12 @@ A **scope** is a type-safe state container with four properties:
 - **source**: The parent scope name (or `"root"` for top-level scopes)
 - **query**: Lookup parameters used to access this scope from its parent
 
-### ScopeApi<K>
+### ScopeOutput<K>
 
-Resources return an object typed as `ScopeApi<K>` with `state`, optional `key`, and `api`:
+Resources return an object typed as `ScopeOutput<K>` with `state`, optional `key`, and `api`:
 
 ```typescript
-type ScopeApi<K extends keyof AssistantScopes> = {
+type ScopeOutput<K extends keyof AssistantScopes> = {
   key?: string;
   state: AssistantScopes[K]["state"];
   api: AssistantScopes[K]["api"];
@@ -32,7 +32,7 @@ type ScopeApi<K extends keyof AssistantScopes> = {
 Example:
 
 ```typescript
-const FooResource = resource((): ScopeApi<"foo"> => {
+const FooResource = resource((): ScopeOutput<"foo"> => {
   const [state, setState] = tapState({ bar: "hello" });
   return {
     state,
@@ -259,7 +259,7 @@ function tapLookupResources<TState, TApi extends ApiObject>(
 
 ```typescript
 const FooItemResource = resource(
-  ({ initialValue, remove }): ScopeApi<"foo"> => {
+  ({ initialValue, remove }): ScopeOutput<"foo"> => {
     const [state, setState] = tapState({ id: initialValue.id, bar: initialValue.bar });
     return {
       state,
@@ -269,7 +269,7 @@ const FooItemResource = resource(
   }
 );
 
-const FooListResource = resource((): ScopeApi<"fooList"> => {
+const FooListResource = resource((): ScopeOutput<"fooList"> => {
   const items = [
     { id: "item-1", bar: "First" },
     { id: "item-2", bar: "Second" },
@@ -356,12 +356,12 @@ foos.add("custom-id"); // Uses provided id
 
 ## Type System
 
-### ScopeApi<K>
+### ScopeOutput<K>
 
 The object type that resources return:
 
 ```typescript
-type ScopeApi<K extends keyof AssistantScopes> = {
+type ScopeOutput<K extends keyof AssistantScopes> = {
   key?: string;
   state: AssistantScopes[K]["state"];
   api: AssistantScopes[K]["api"];
@@ -436,7 +436,7 @@ declare module "@assistant-ui/store" {
   }
 }
 
-export const MyRootResource = resource((): ScopeApi<"myRoot"> => {
+export const MyRootResource = resource((): ScopeOutput<"myRoot"> => {
   const [state, setState] = tapState({ count: 0 });
 
   return {
@@ -491,7 +491,7 @@ declare module "@assistant-ui/store" {
 }
 
 export const ItemResource = resource(
-  ({ initialValue: { id, initialName }, remove }): ScopeApi<"item"> => {
+  ({ initialValue: { id, initialName }, remove }): ScopeOutput<"item"> => {
     const [state, setState] = tapState({ id, name: initialName });
 
     return {
@@ -506,7 +506,7 @@ export const ItemResource = resource(
   }
 );
 
-export const ItemListResource = resource((): ScopeApi<"itemList"> => {
+export const ItemListResource = resource((): ScopeOutput<"itemList"> => {
   const items = tapStoreList({
     initialValues: [
       { id: "1", initialName: "First" },
@@ -584,12 +584,12 @@ export const ItemList = ({
 
 ## Best Practices
 
-### 1. Use ScopeApi<K> Return Type
+### 1. Use ScopeOutput<K> Return Type
 
-Annotate resource return types with `ScopeApi<K>` for type safety:
+Annotate resource return types with `ScopeOutput<K>` for type safety:
 
 ```typescript
-const MyResource = resource((): ScopeApi<"myScope"> => {
+const MyResource = resource((): ScopeOutput<"myScope"> => {
   // ...
   return {
     state,
@@ -693,7 +693,7 @@ registerAssistantScope({
 When emitting events from resources, use `tapStoreContext()` to access the event manager:
 
 ```typescript
-const MyResource = resource((): ScopeApi<"myScope"> => {
+const MyResource = resource((): ScopeOutput<"myScope"> => {
   const { events } = tapStoreContext();
 
   const doSomething = () => {

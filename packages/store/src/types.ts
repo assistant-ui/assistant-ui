@@ -4,7 +4,13 @@ import type {
   AssistantEventCallback,
   AssistantEventSelector,
 } from "./EventContext";
-import { ApiObject } from "./tapApiResource";
+
+/**
+ * API object type - functions that can be called on a scope
+ */
+export interface ApiObject {
+  [key: string]: (...args: any[]) => any;
+}
 
 type ScopeMetaType = { source: string; query: Record<string, unknown> };
 
@@ -60,11 +66,11 @@ export type AssistantScopes = keyof AssistantScopeRegistry extends never
   : { [K in keyof AssistantScopeRegistry]: AssistantScopeRegistry[K] };
 
 /**
- * Object type that resources return with state, optional key, and api.
+ * Output type that scope resources return with state, optional key, and api.
  *
  * @example
  * ```typescript
- * const FooResource = resource((): ScopeApi<"foo"> => {
+ * const FooResource = resource((): ScopeOutput<"foo"> => {
  *   const [state, setState] = tapState({ bar: "hello" });
  *   return {
  *     state,
@@ -76,11 +82,21 @@ export type AssistantScopes = keyof AssistantScopeRegistry extends never
  * });
  * ```
  */
-export type ScopeApi<K extends keyof AssistantScopes> = {
-  key?: string;
+export type ScopeOutput<K extends keyof AssistantScopes> = {
   state: AssistantScopes[K]["state"];
   api: AssistantScopes[K]["api"];
+  key?: string;
 };
+
+/**
+ * Generic version of ScopeOutput for library code.
+ */
+export type ScopeOutputOf<TState, TApi extends ApiObject> = {
+  state: TState;
+  api: TApi;
+  key?: string | undefined;
+};
+
 
 /**
  * Type for a scope field - a function that returns the API,

@@ -1,5 +1,6 @@
 import { ResourceElement } from "@assistant-ui/tap";
-import { ApiObject, tapApiResources } from "./tapApiResource";
+import { tapApiResources } from "./tapApiResource";
+import type { ApiObject, ScopeOutputOf } from "./types";
 
 /**
  * Creates a lookup-based resource collection for managing lists of items.
@@ -17,7 +18,7 @@ import { ApiObject, tapApiResources } from "./tapApiResource";
  *
  * @example
  * ```typescript
- * const FooItemResource = resource((): ScopeApi<"foo"> => {
+ * const FooItemResource = resource((): ScopeOutput<"foo"> => {
  *   const [state, setState] = tapState({ id, bar });
  *   return { state, key: id, api: { updateBar, remove } };
  * });
@@ -38,11 +39,7 @@ export const tapLookupResources = <TState, TApi extends ApiObject>(
   elements: ReadonlyArray<
     readonly [
       key: string | number,
-      element: ResourceElement<{
-        state: TState;
-        api: TApi;
-        key?: string;
-      }>,
+      element: ResourceElement<ScopeOutputOf<TState, TApi>>,
     ]
   >,
 ): {
