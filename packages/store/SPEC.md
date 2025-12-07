@@ -71,27 +71,38 @@ Define custom scopes by augmenting the `AssistantScopeRegistry` interface.
 **Recommended pattern:** Define types separately to avoid duplication:
 
 ```typescript
-// Define types separately
+// Define all types separately
 type FooState = { bar: string };
-type FooQuery = { index: number } | { id: string };
 type FooApi = {
   getState: () => FooState;  // optional convention
   updateBar: (bar: string) => void;
 };
+type FooMeta = { source: "fooList"; query: { index: number } | { id: string } };
+type FooEvents = {
+  "foo.updated": { id: string; newValue: string };
+};
 
 declare module "@assistant-ui/store" {
   interface AssistantScopeRegistry {
+    // Minimal scope - just state and api
+    simple: {
+      state: FooState;
+      api: FooApi;
+    };
+    // Full scope with meta and events
     foo: {
       state: FooState;
       api: FooApi;
-      meta: { source: "fooList"; query: FooQuery };
-      events: {
-        "foo.updated": { id: string; newValue: string };
-      };
+      meta: FooMeta;
+      events: FooEvents;
     };
   }
 }
 ```
+
+**Note:** `meta` and `events` are optional fields:
+- Omit `meta` for scopes that don't need source/query tracking
+- Omit `events` for scopes that don't emit events
 
 ### Scope Definition Properties
 
@@ -105,14 +116,18 @@ The API object type that consumers will interact with. Can include any methods.
 
 **Note:** `getState()` is an optional convention. If you want it available, include it in your api type and implement it in your resource.
 
-#### meta.source
+#### meta (optional)
+
+The `meta` field is optional. Include it only for derived scopes that need source/query tracking.
+
+##### meta.source
 
 The parent scope from which this scope is derived:
 
 - `"root"` - Top-level scope with no parent
 - `"parentScopeName"` - Name of parent scope (must match a key in `AssistantScopeRegistry`)
 
-#### meta.query
+##### meta.query
 
 The lookup parameters used to access this scope from its parent:
 
@@ -120,6 +135,18 @@ The lookup parameters used to access this scope from its parent:
 - `{ index: number }` - For index-based lookup
 - `{ id: string }` - For ID-based lookup
 - Union types like `{ index: number } | { id: string }` for flexible lookup
+
+#### events (optional)
+
+The `events` field is optional. Include it only for scopes that emit events.
+
+```typescript
+events: {
+  "scopeName.eventName": { /* payload type */ };
+};
+```
+
+Event names follow the convention `"scopeName.eventName"` (e.g., `"foo.updated"`).
 
 ## API Reference
 
@@ -401,11 +428,10 @@ type MyRootApi = {
 
 declare module "@assistant-ui/store" {
   interface AssistantScopeRegistry {
+    // meta and events are optional for simple scopes
     myRoot: {
       state: MyRootState;
       api: MyRootApi;
-      meta: { source: "root"; query: Record<string, never> };
-      events: Record<string, never>;
     };
   }
 }
@@ -450,17 +476,16 @@ type ItemListApi = {
 
 declare module "@assistant-ui/store" {
   interface AssistantScopeRegistry {
+    // Derived scope - meta is needed for source/query tracking
     item: {
       state: ItemState;
       api: ItemApi;
       meta: { source: "itemList"; query: ItemQuery };
-      events: Record<string, never>;
     };
+    // Root scope - meta and events are optional
     itemList: {
       state: ItemListState;
       api: ItemListApi;
-      meta: { source: "root"; query: Record<string, never> };
-      events: Record<string, never>;
     };
   }
 }
@@ -611,11 +636,10 @@ Don't export or import `ScopeDefinition`. Implement scope definitions directly:
 ```typescript
 declare module "@assistant-ui/store" {
   interface AssistantScopeRegistry {
+    // Only state and api are required; meta and events are optional
     myScope: {
       state: { /* ... */ };
       api: { /* ... */ };
-      meta: { source: "root"; query: Record<string, never> };
-      events: Record<string, never>;
     };
   }
 }

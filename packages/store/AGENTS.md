@@ -26,7 +26,7 @@ This document provides comprehensive context for AI agents working on the `@assi
 
 | Concept | Description |
 |---------|-------------|
-| **Scope** | Named state container with state, api, meta (source/query), and events |
+| **Scope** | Named state container with state, api, and optional meta (source/query) and events |
 | **Root Scope** | Top-level scope that owns its state (meta.source = "root") |
 | **Derived Scope** | Scope derived from a parent scope |
 | **AssistantClient** | Central object providing access to all scopes |
@@ -89,27 +89,36 @@ const FooResource = resource((): ScopeApi<"foo"> => {
 Scopes are registered via TypeScript declaration merging. Define types separately to avoid duplication:
 
 ```typescript
-// Define types separately
+// Define all types separately
 type FooState = { bar: string };
-type FooQuery = { index: number } | { id: string };
 type FooApi = {
   getState: () => FooState;  // optional convention
   updateBar: (bar: string) => void;
 };
+type FooMeta = { source: "fooList"; query: { index: number } | { id: string } };
+type FooEvents = {
+  "foo.updated": { id: string; newValue: string };
+};
 
 declare module "@assistant-ui/store" {
   interface AssistantScopeRegistry {
+    // Minimal scope - just state and api (meta and events are optional)
+    simple: {
+      state: FooState;
+      api: FooApi;
+    };
+    // Full scope with meta and events
     foo: {
       state: FooState;
       api: FooApi;
-      meta: { source: "fooList"; query: FooQuery };
-      events: {
-        "foo.updated": { id: string; newValue: string };
-      };
+      meta: FooMeta;
+      events: FooEvents;
     };
   }
 }
 ```
+
+**Note:** `meta` and `events` are optional. Use `meta` for derived scopes with source/query tracking; use `events` for scopes that emit events.
 
 ### 3. useAssistantClient Flow (useAssistantClient.tsx)
 

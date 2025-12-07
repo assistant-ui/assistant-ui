@@ -105,6 +105,7 @@ For reference, these have been decided:
 | `getState` in API | Optional convention, not enforced by store |
 | `value` vs `state`/`api` in scope defs | Use `state` and `api` separately |
 | `ApiProxy` type | Removed - just use `TApi` directly |
+| `meta` and `events` in scope defs | Optional, default to `never` |
 
 ---
 
@@ -187,21 +188,63 @@ interface AssistantScopeRegistry {
 
 **Recommended pattern:**
 ```typescript
+// Define all types separately
 type FooState = { bar: string };
-type FooQuery = { index: number } | { id: string };
 type FooApi = {
   getState: () => FooState;
   updateBar: (bar: string) => void;
 };
+type FooMeta = { source: "fooList"; query: { index: number } | { id: string } };
+type FooEvents = {
+  "foo.updated": { id: string };
+};
 
 declare module "@assistant-ui/store" {
   interface AssistantScopeRegistry {
+    // Minimal scope - just state and api
+    simple: {
+      state: FooState;
+      api: FooApi;
+    };
+    // Full scope with meta and events (both optional)
     foo: {
       state: FooState;
       api: FooApi;
-      meta: { source: "fooList"; query: FooQuery };
-      events: { ... };
+      meta: FooMeta;
+      events: FooEvents;
     };
   }
 }
 ```
+
+---
+
+## Resolved: Optional meta and events
+
+**Decision:** `meta` and `events` are optional fields in scope definitions.
+
+**Rationale:**
+- Not all scopes need source/query tracking (`meta`)
+- Not all scopes emit events (`events`)
+- Reduces boilerplate for simple scopes
+- Type defaults to `never` when omitted
+
+**Implementation:**
+```typescript
+export type ScopeDefinition<
+  TState extends Record<string, unknown> = Record<string, unknown>,
+  TApi extends ApiObject = ApiObject,
+  TMeta extends ScopeMetaType = never,  // defaults to never
+  TEvents extends Record<string, unknown> = never,  // defaults to never
+> = {
+  state: TState;
+  api: TApi;
+  meta?: TMeta;
+  events?: TEvents;
+};
+```
+
+**Usage:**
+- Omit `meta` for root scopes or scopes that don't need source/query tracking
+- Omit `events` for scopes that don't emit events
+- Include `meta` for derived scopes that use `DerivedScope` with source/query

@@ -17,7 +17,7 @@ import type {
   ScopeInput,
   DerivedScopeProps,
 } from "./types";
-import { asStore } from "./asStore";
+import { asStore } from "./utils/asStore";
 import { useAssistantContextValue } from "./AssistantContext";
 import { splitScopes } from "./utils/splitScopes";
 import {

@@ -18,7 +18,7 @@ const NO_OP_SCOPE_FIELD = (() => {
 /**
  * React Context for the AssistantClient
  */
-export const AssistantContext = createContext<AssistantClient>(
+const AssistantContext = createContext<AssistantClient>(
   new Proxy({} as AssistantClient, {
     get(_, prop: string) {
       // Allow access to subscribe and flushSync without error

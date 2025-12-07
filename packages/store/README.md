@@ -41,26 +41,36 @@ const FooResource = resource((): ScopeApi<"foo"> => {
 Define custom scopes by extending the `AssistantScopeRegistry` interface:
 
 ```typescript
-// Define types separately to avoid duplication
+// Define all types separately
 type FooState = { bar: string };
 type FooApi = {
   getState: () => FooState;  // optional convention
   updateBar: (newBar: string) => void;
 };
+type FooMeta = { source: "fooList"; query: { index: number } };
+type FooEvents = {
+  "foo.updated": { id: string; newValue: string };
+};
 
 declare module "@assistant-ui/store" {
   interface AssistantScopeRegistry {
+    // Minimal scope - just state and api (meta and events are optional)
+    simple: {
+      state: FooState;
+      api: FooApi;
+    };
+    // Full scope with all fields
     foo: {
       state: FooState;
       api: FooApi;
-      meta: { source: "root"; query: Record<string, never> };
-      events: {
-        "foo.updated": { id: string; newValue: string };
-      };
+      meta: FooMeta;
+      events: FooEvents;
     };
   }
 }
 ```
+
+**Note:** `meta` and `events` are optional. Only include them if your scope needs source/query metadata or emits events.
 
 ## Usage
 
@@ -79,13 +89,12 @@ type FooApi = {
 };
 
 // Define the scope type via module augmentation
+// Note: meta and events are optional
 declare module "@assistant-ui/store" {
   interface AssistantScopeRegistry {
     foo: {
       state: FooState;
       api: FooApi;
-      meta: { source: "root"; query: Record<string, never> };
-      events: Record<string, never>;
     };
   }
 }
