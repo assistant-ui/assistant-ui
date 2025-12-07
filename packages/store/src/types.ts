@@ -6,9 +6,9 @@ import type {
 } from "./EventContext";
 
 /**
- * API object type - functions that can be called on a scope
+ * Client object type - functions that can be called on a scope
  */
-export interface ApiObject {
+export interface ClientObject {
   [key: string]: (...args: any[]) => any;
 }
 
@@ -17,19 +17,19 @@ type ScopeMetaType = { source: string; query: Record<string, unknown> };
 /**
  * Definition of a scope in the assistant client (internal type)
  * @template TState - The state type for this scope
- * @template TApi - The API type (actions/methods - getState is optional)
+ * @template TClient - The client type (methods - getState is optional)
  * @template TMeta - Source/query metadata (optional)
  * @template TEvents - Events that this scope can emit (optional)
  * @internal
  */
 export type ScopeDefinition<
   TState extends Record<string, unknown> = Record<string, unknown>,
-  TApi extends ApiObject = ApiObject,
+  TClient extends ClientObject = ClientObject,
   TMeta extends ScopeMetaType = never,
   TEvents extends Record<string, unknown> = never,
 > = {
   state: TState;
-  api: TApi;
+  client: TClient;
   meta?: TMeta;
   events?: TEvents;
 };
@@ -44,12 +44,12 @@ export type ScopeDefinition<
  *     // Simple scope (meta and events are optional)
  *     foo: {
  *       state: { bar: string };
- *       api: { updateBar: (bar: string) => void };
+ *       client: { updateBar: (bar: string) => void };
  *     };
  *     // Full scope with meta and events
  *     bar: {
  *       state: { id: string };
- *       api: { update: () => void };
+ *       client: { update: () => void };
  *       meta: { source: "fooList"; query: { index: number } };
  *       events: {
  *         "bar.updated": { id: string };
@@ -66,7 +66,7 @@ export type AssistantScopes = keyof AssistantScopeRegistry extends never
   : { [K in keyof AssistantScopeRegistry]: AssistantScopeRegistry[K] };
 
 /**
- * Output type that scope resources return with state, optional key, and api.
+ * Output type that scope resources return with state and client.
  *
  * @example
  * ```typescript
@@ -74,8 +74,7 @@ export type AssistantScopes = keyof AssistantScopeRegistry extends never
  *   const [state, setState] = tapState({ bar: "hello" });
  *   return {
  *     state,
- *     key: "foo-1",
- *     api: {
+ *     client: {
  *       updateBar: (b) => setState({ bar: b })
  *     }
  *   };
@@ -84,22 +83,22 @@ export type AssistantScopes = keyof AssistantScopeRegistry extends never
  */
 export type ScopeOutput<K extends keyof AssistantScopes> = {
   state: AssistantScopes[K]["state"];
-  api: AssistantScopes[K]["api"];
+  client: AssistantScopes[K]["client"];
 };
 
 /**
  * Generic version of ScopeOutput for library code.
  */
-export type ScopeOutputOf<TState, TApi extends ApiObject> = {
+export type ScopeOutputOf<TState, TClient extends ClientObject> = {
   state: TState;
-  api: TApi;
+  client: TClient;
 };
 
 /**
- * Type for a scope field - a function that returns the API,
+ * Type for a scope field - a function that returns the client,
  * with source/query metadata attached (derived from meta)
  */
-export type ScopeField<T extends ScopeDefinition> = (() => T["api"]) &
+export type ScopeField<T extends ScopeDefinition> = (() => T["client"]) &
   (
     | NonNullable<T["meta"]>
     | { source: "root"; query: Record<string, never> }
@@ -110,19 +109,18 @@ export type ScopeField<T extends ScopeDefinition> = (() => T["api"]) &
  * Props passed to a derived scope resource element
  */
 export type DerivedScopeProps<T extends ScopeDefinition> = {
-  get: (parent: AssistantClient) => T["api"];
+  get: (parent: AssistantClient) => T["client"];
   source: NonNullable<T["meta"]>["source"];
   query: NonNullable<T["meta"]>["query"];
 };
 
 /**
- * Input type for scope definitions - ResourceElement that returns { state, key?, api }
+ * Input type for scope definitions - ResourceElement that returns { state, client }
  * Can optionally include source/query metadata via DerivedScope
  */
 export type ScopeInput<T extends ScopeDefinition> = ResourceElement<{
-  key?: string;
   state: T["state"];
-  api: T["api"];
+  client: T["client"];
 }>;
 
 /**

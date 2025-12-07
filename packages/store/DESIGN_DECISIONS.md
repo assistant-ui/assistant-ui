@@ -57,11 +57,11 @@ DerivedScope(config)
 tapStoreContext()
 tapStoreList()
 tapLookupResources()
-tapApiResource()
+tapClientResource()
 
 // Types
 ScopeOutput<K>
-ApiObject
+ClientObject
 AssistantScopeRegistry (module augmentation)
 registerAssistantScope()
 ```
@@ -76,10 +76,10 @@ registerAssistantScope()
 
 ```typescript
 // tapLookupResources uses "key"
-lookup.api({ key: "foo-1" })
+lookup.client({ key: "foo-1" })
 
 // tapStoreList uses "id"
-foos.api({ id: "foo-1" })
+foos.client({ id: "foo-1" })
 ```
 
 `tapStoreList` translates `{ id }` to `{ key }` internally.
@@ -99,11 +99,11 @@ For reference, these have been decided:
 
 | Decision | Resolution |
 |----------|------------|
-| `actions` vs `api` | Standardized on `api` |
-| `ApiObject` allows nested objects | No, functions only |
+| `actions` vs `client` | Standardized on `client` |
+| `ClientObject` allows nested objects | No, functions only |
 | `tap*` prefix for internal utilities | Keep as signal for "advanced use" |
 | `getState` in API | Optional convention, not enforced by store |
-| `value` vs `state`/`api` in scope defs | Use `state` and `api` separately |
+| `value` vs `state`/`client` in scope defs | Use `state` and `client` separately |
 | `ApiProxy` type | Removed - just use `TApi` directly |
 | `meta` and `events` in scope defs | Optional, default to `never` |
 
@@ -116,14 +116,14 @@ For reference, these have been decided:
 **Rationale:**
 - The store uses an internal `SYMBOL_GET_STATE` mechanism for `useAssistantState`
 - This allows `getState()` to be optional in user-facing APIs
-- Users who want `getState()` can add it to their `api` type and implement it
+- Users who want `getState()` can add it to their `client` type and implement it
 - Reduces type complexity - no need for `ApiProxy` or `ScopeValue` wrapper types
 
 **Implementation:**
-- `tapApiResource` creates a proxy that intercepts `SYMBOL_GET_STATE` internally
-- `useAssistantState` uses `getApiState()` which accesses this symbol
-- User's `api` is passed through directly without modification
-- Types use `T["api"]` directly, no wrapper types needed
+- `tapClientResource` creates a proxy that intercepts `SYMBOL_GET_STATE` internally
+- `useAssistantState` uses `getClientState()` which accesses this symbol
+- User's `client` is passed through directly without modification
+- Types use `T["client"]` directly, no wrapper types needed
 
 **Pattern for users who want getState:**
 ```typescript
@@ -137,7 +137,7 @@ type FooApi = {
 // In resource implementation
 return {
   state,
-  api: {
+  client: {
     getState: () => state,  // implement it yourself
     updateBar,
   },
@@ -148,7 +148,7 @@ return {
 
 ## Resolved: Scope Definition Structure
 
-**Decision:** Use separate `state` and `api` fields instead of `value` with `getState`.
+**Decision:** Use separate `state` and `client` fields instead of `value` with `getState`.
 
 **Before:**
 ```typescript
@@ -169,7 +169,7 @@ interface AssistantScopeRegistry {
 interface AssistantScopeRegistry {
   foo: {
     state: { bar: string };
-    api: {
+    client: {
       getState: () => { bar: string };  // optional
       updateBar: (bar: string) => void;
     };
@@ -182,8 +182,8 @@ interface AssistantScopeRegistry {
 **Rationale:**
 - Clearer separation of concerns
 - `state` is what `useAssistantState` selects from
-- `api` is what `aui.foo()` returns
-- `getState` is optional in `api` - just a convention
+- `client` is what `aui.foo()` returns
+- `getState` is optional in `client` - just a convention
 - Recommended pattern: define types separately to avoid duplication
 
 **Recommended pattern:**
@@ -201,15 +201,15 @@ type FooEvents = {
 
 declare module "@assistant-ui/store" {
   interface AssistantScopeRegistry {
-    // Minimal scope - just state and api
+    // Minimal scope - just state and client
     simple: {
       state: FooState;
-      api: FooApi;
+      client: FooClient;
     };
     // Full scope with meta and events (both optional)
     foo: {
       state: FooState;
-      api: FooApi;
+      client: FooClient;
       meta: FooMeta;
       events: FooEvents;
     };
@@ -233,12 +233,12 @@ declare module "@assistant-ui/store" {
 ```typescript
 export type ScopeDefinition<
   TState extends Record<string, unknown> = Record<string, unknown>,
-  TApi extends ApiObject = ApiObject,
+  TApi extends ClientObject = ClientObject,
   TMeta extends ScopeMetaType = never,  // defaults to never
   TEvents extends Record<string, unknown> = never,  // defaults to never
 > = {
   state: TState;
-  api: TApi;
+  client: TClient;
   meta?: TMeta;
   events?: TEvents;
 };

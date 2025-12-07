@@ -28,12 +28,12 @@ import {
   type AssistantEventSelector,
 } from "./EventContext";
 import { withAssistantTapContextProvider } from "./AssistantTapContext";
-import { tapApiResource } from "./tapApiResource";
+import { tapClientResource } from "./tapClientResource";
 
 /**
  * Resource that renders a store with the store context provider.
  * This ensures the context is re-established on every re-render.
- * Wraps the plain element with tapApiResource to get { key, state, api } structure.
+ * Wraps the plain element with tapClientResource to get { state, client } structure.
  */
 const RootScopeStoreResource = resource(
   <K extends keyof AssistantScopes>({
@@ -46,7 +46,7 @@ const RootScopeStoreResource = resource(
     client: AssistantClient;
   }) => {
     return withAssistantTapContextProvider({ client, events }, () =>
-      tapApiResource(element),
+      tapClientResource(element),
     );
   },
 );
@@ -70,7 +70,7 @@ const RootScopeResource = resource(
     );
 
     return tapMemo(() => {
-      const scopeFunction = () => store.getState().api;
+      const scopeFunction = () => store.getState().client;
       scopeFunction.source = "root" as const;
       scopeFunction.query = {};
 
@@ -92,7 +92,7 @@ const RootScopesResource = resource(
     const events = tapInlineResource(EventManager());
 
     const results = tapResources(scopes, (element) =>
-      RootScopeResource({ element, events, client }),
+      RootScopeResource({ element: element!, events, client }),
     );
 
     const on = <TEvent extends AssistantEvent>(
@@ -189,7 +189,7 @@ const DerivedScopesResource = resource(
       scopes,
       (element) =>
         DerivedScopeResource({
-          element,
+          element: element!,
           client,
         }),
       [],

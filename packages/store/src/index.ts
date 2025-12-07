@@ -26,7 +26,7 @@ export type {
   AssistantState,
   ScopeOutput,
   ScopeOutputOf,
-  ApiObject,
+  ClientObject,
 } from "./types";
 
 export type {

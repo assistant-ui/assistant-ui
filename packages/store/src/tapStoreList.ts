@@ -1,7 +1,7 @@
 import { tapState } from "@assistant-ui/tap";
 import type { ContravariantResource } from "@assistant-ui/tap";
 import { tapLookupResources } from "./tapLookupResources";
-import type { ApiObject, ScopeOutputOf } from "./types";
+import type { ClientObject, ScopeOutputOf } from "./types";
 
 /**
  * Resource props that will be passed to each item resource
@@ -14,7 +14,7 @@ export type TapStoreListResourceProps<TProps> = {
 /**
  * Configuration for tapStoreList hook
  */
-export type TapStoreListConfig<TProps, TState, TApi extends ApiObject> = {
+export type TapStoreListConfig<TProps, TState, TClient extends ClientObject> = {
   /**
    * Initial values for the list items
    */
@@ -22,12 +22,12 @@ export type TapStoreListConfig<TProps, TState, TApi extends ApiObject> = {
 
   /**
    * Resource function that creates an element for each item.
-   * Should return a plain object with { state, key?, api }.
+   * Should return a plain object with { state, client }.
    *
    * The resource will receive { initialValue, remove } as props.
    */
   resource: ContravariantResource<
-    ScopeOutputOf<TState, TApi>,
+    ScopeOutputOf<TState, TClient>,
     TapStoreListResourceProps<TProps>
   >;
 
@@ -40,20 +40,20 @@ export type TapStoreListConfig<TProps, TState, TApi extends ApiObject> = {
 
 /**
  * Creates a stateful list with add functionality, rendering each item via the provided resource.
- * Returns state array, api lookup function, and add method.
+ * Returns state array, client lookup function, and add method.
  *
- * Resources should return plain objects with { state, key?, api }.
- * Internally uses tapLookupResources which wraps each with tapApiResource.
+ * Resources should return plain objects with { state, client }.
+ * Internally uses tapLookupResources which wraps each with tapClientResource.
  *
  * @param config - Configuration object with initialValues, resource, and optional idGenerator
- * @returns Object with { state: TState[], api: (lookup) => TApi, add: (id?) => void }
+ * @returns Object with { state: TState[], client: (lookup) => TClient, add: (id?) => void }
  *
  * @example
  * ```typescript
  * const FooItemResource = resource(
  *   ({ initialValue, remove }): ScopeOutput<"foo"> => {
  *     const [state, setState] = tapState({ id: initialValue.id, bar: initialValue.bar });
- *     return { state, key: initialValue.id, api: { updateBar, remove } };
+ *     return { state, client: { updateBar, remove } };
  *   }
  * );
  *
@@ -70,8 +70,8 @@ export type TapStoreListConfig<TProps, TState, TApi extends ApiObject> = {
  * const allFoos = todoList.state;
  *
  * // Lookup specific item
- * const first = todoList.api({ index: 0 });
- * const byId = todoList.api({ id: "1" });
+ * const first = todoList.client({ index: 0 });
+ * const byId = todoList.client({ id: "1" });
  *
  * // Add new item
  * todoList.add(); // Uses idGenerator
@@ -81,12 +81,12 @@ export type TapStoreListConfig<TProps, TState, TApi extends ApiObject> = {
 export const tapStoreList = <
   TProps extends { id: string },
   TState,
-  TApi extends ApiObject,
+  TClient extends ClientObject,
 >(
-  config: TapStoreListConfig<TProps, TState, TApi>,
+  config: TapStoreListConfig<TProps, TState, TClient>,
 ): {
   state: TState[];
-  api: (lookup: { index: number } | { id: string }) => TApi;
+  client: (lookup: { index: number } | { id: string }) => TClient;
   add: (id?: string) => void;
 } => {
   const { initialValues, resource: Resource, idGenerator } = config;
@@ -95,7 +95,7 @@ export const tapStoreList = <
     Object.fromEntries(initialValues.map((item) => [item.id, item])),
   );
 
-  const lookup = tapLookupResources<TState, TApi, Record<string, TProps>>(
+  const lookup = tapLookupResources<TState, TClient, Record<string, TProps>>(
     items,
     (item, id) =>
       Resource({
@@ -127,11 +127,11 @@ export const tapStoreList = <
 
   return {
     state: lookup.state,
-    api: (query: { index: number } | { id: string }) => {
+    client: (query: { index: number } | { id: string }) => {
       if ("index" in query) {
-        return lookup.api({ index: query.index });
+        return lookup.client({ index: query.index });
       }
-      return lookup.api({ key: query.id });
+      return lookup.client({ key: query.id });
     },
     add,
   };

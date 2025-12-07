@@ -13,13 +13,13 @@ The store package provides a bridge between tap Resources and React Components v
 A **scope** defines a piece of state in your application. Each scope has:
 
 - **state**: The state type for this scope
-- **api**: The API type (methods that operate on the state)
+- **client**: The API type (methods that operate on the state)
 - **source**: Where this scope comes from (`"root"` for top-level, or name of parent scope)
 - **query**: Parameters needed to access this scope (e.g., `{ index: number }`)
 
 ### ScopeOutput<K>
 
-Resources return an object typed as `ScopeOutput<K>` with `state`, optional `key`, and `api`:
+Resources return an object typed as `ScopeOutput<K>` with `state` and `client`:
 
 ```typescript
 const FooResource = resource((): ScopeOutput<"foo"> => {
@@ -27,7 +27,7 @@ const FooResource = resource((): ScopeOutput<"foo"> => {
   return {
     state,
     key: "foo-1",
-    api: {
+    client: {
       getState: () => state,  // optional convention
       updateBar: (b) => setState({ bar: b })
     }
@@ -53,15 +53,15 @@ type FooEvents = {
 
 declare module "@assistant-ui/store" {
   interface AssistantScopeRegistry {
-    // Minimal scope - just state and api (meta and events are optional)
+    // Minimal scope - just state and client (meta and events are optional)
     simple: {
       state: FooState;
-      api: FooApi;
+      client: FooClient;
     };
     // Full scope with all fields
     foo: {
       state: FooState;
-      api: FooApi;
+      client: FooClient;
       meta: FooMeta;
       events: FooEvents;
     };
@@ -93,14 +93,14 @@ declare module "@assistant-ui/store" {
   interface AssistantScopeRegistry {
     foo: {
       state: FooState;
-      api: FooApi;
+      client: FooClient;
     };
   }
 }
 
 registerAssistantScope({ name: "foo", defaultInitialize: { error: "Foo not configured" } });
 
-// Create the resource - returns { state, key?, api }
+// Create the resource - returns { state, client }
 export const FooResource = resource((): ScopeOutput<"foo"> => {
   const [state, setState] = tapState<FooState>({ bar: "Hello, World!" });
 
@@ -110,7 +110,7 @@ export const FooResource = resource((): ScopeOutput<"foo"> => {
 
   return {
     state,
-    api: {
+    client: {
       getState: () => state,
       updateBar,
     },
@@ -130,7 +130,7 @@ function MyComponent() {
     foo: FooResource(),
   });
 
-  // Access the state (if getState is in your api)
+  // Access the state (if getState is in your client)
   const fooState = client.foo().getState();
   console.log(fooState.bar); // "Hello, World!"
 
@@ -268,7 +268,7 @@ For managing dynamic lists of items:
 import { resource, tapState, tapMemo } from "@assistant-ui/tap";
 import { tapStoreList, tapStoreContext, type ScopeOutput } from "@assistant-ui/store";
 
-// Define item resource - returns { state, key?, api }
+// Define item resource - returns { state, client }
 const FooItemResource = resource(
   ({ initialValue: { id, initialBar }, remove }): ScopeOutput<"foo"> => {
     const { events } = tapStoreContext();
@@ -282,7 +282,7 @@ const FooItemResource = resource(
     return {
       state,
       key: id,
-      api: {
+      client: {
         getState: () => state,
         updateBar,
         remove,
@@ -312,9 +312,9 @@ const FooListResource = resource((): ScopeOutput<"fooList"> => {
 
   return {
     state,
-    api: {
+    client: {
       getState: () => state,
-      foo: foos.api,
+      foo: foos.client,
       addFoo,
     },
   };
@@ -368,8 +368,8 @@ See the [store-example](../../examples/store-example) Next.js app for a complete
 
 The store is implemented using tap resources:
 
-1. Each scope is a tap resource that returns `{ state, key?, api }`
-2. Resources are wrapped with `tapApiResource` to create stable API proxies
+1. Each scope is a tap resource that returns `{ state, client }`
+2. Resources are wrapped with `tapClientResource` to create stable API proxies
 3. `useAssistantClient` creates a resource that composes all provided scopes
 4. Root scopes are wrapped with a store context providing `events` and `parent` access
 5. The React Context provides the client to child components
@@ -387,7 +387,7 @@ This design allows for:
 
 ## getState Convention
 
-The `getState()` method is an **optional convention** - the store does not enforce it. If you want `getState()` available in your API, include it in your `api` type and implement it in your resource:
+The `getState()` method is an **optional convention** - the store does not enforce it. If you want `getState()` available in your API, include it in your `client` type and implement it in your resource:
 
 ```typescript
 type FooApi = {
@@ -398,7 +398,7 @@ type FooApi = {
 // In resource:
 return {
   state,
-  api: {
+  client: {
     getState: () => state,  // implement it yourself
     updateBar,
   },

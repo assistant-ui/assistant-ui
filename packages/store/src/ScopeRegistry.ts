@@ -4,7 +4,7 @@ import type { ResourceElement } from "@assistant-ui/tap";
 type ScopeRegistryEntry<K extends keyof AssistantScopes> = {
   name: K;
   defaultInitialize:
-    | ResourceElement<AssistantScopes[K]["api"]>
+    | ResourceElement<AssistantScopes[K]["client"]>
     | { error: string };
 };
 
@@ -45,7 +45,7 @@ export function registerAssistantScope<K extends keyof AssistantScopes>(
 export function getDefaultScopeInitializer<K extends keyof AssistantScopes>(
   name: K,
 ):
-  | (ResourceElement<AssistantScopes[K]["api"]> | { error: string })
+  | (ResourceElement<AssistantScopes[K]["client"]> | { error: string })
   | undefined {
   return scopeRegistry.get(name);
 }
