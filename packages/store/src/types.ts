@@ -85,7 +85,6 @@ export type AssistantScopes = keyof AssistantScopeRegistry extends never
 export type ScopeOutput<K extends keyof AssistantScopes> = {
   state: AssistantScopes[K]["state"];
   api: AssistantScopes[K]["api"];
-  key?: string;
 };
 
 /**
