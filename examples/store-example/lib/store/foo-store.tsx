@@ -11,7 +11,7 @@ import {
   tapStoreList,
   DerivedScope,
   useAssistantState,
-  tapStoreContext,
+  tapEmitEvent,
   type ScopeOutput,
 } from "@assistant-ui/store";
 
@@ -23,7 +23,7 @@ export const FooItemResource = resource(
     initialValue: { id: string; initialBar: string };
     remove: () => void;
   }): ScopeOutput<"foo"> => {
-    const { events } = tapStoreContext();
+    const emit = tapEmitEvent();
 
     const [state, setState] = tapState<{ id: string; bar: string }>({
       id,
@@ -32,11 +32,11 @@ export const FooItemResource = resource(
 
     const updateBar = (newBar: string) => {
       setState({ ...state, bar: newBar });
-      events.emit("foo.updated", { id, newValue: newBar });
+      emit("foo.updated", { id, newValue: newBar });
     };
 
     const handleRemove = () => {
-      events.emit("foo.removed", { id });
+      emit("foo.removed", { id });
       remove();
     };
 
@@ -58,7 +58,7 @@ export const FooItemResource = resource(
  */
 let counter = 3;
 export const FooListResource = resource((): ScopeOutput<"fooList"> => {
-  const { events } = tapStoreContext();
+  const emit = tapEmitEvent();
   const idGenerator = () => `foo-${++counter}`;
 
   const foos = tapStoreList({
@@ -74,7 +74,7 @@ export const FooListResource = resource((): ScopeOutput<"fooList"> => {
   const addFoo = (id?: string) => {
     const newId = id ?? idGenerator();
     foos.add(newId);
-    events.emit("fooList.added", { id: newId });
+    emit("fooList.added", { id: newId });
   };
 
   const state = tapMemo(() => ({ foos: foos.state }), [foos.state]);

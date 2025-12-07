@@ -27,7 +27,7 @@ import {
   type AssistantEventCallback,
   type AssistantEventSelector,
 } from "./EventContext";
-import { withStoreContextProvider } from "./StoreContext";
+import { withAssistantTapContextProvider } from "./AssistantTapContext";
 import { tapApiResource } from "./tapApiResource";
 
 /**
@@ -39,13 +39,13 @@ const RootScopeStoreResource = resource(
   <K extends keyof AssistantScopes>({
     element,
     events,
-    parent,
+    client,
   }: {
     element: ScopeInput<AssistantScopes[K]>;
     events: EventManager;
-    parent: AssistantClient;
+    client: AssistantClient;
   }) => {
-    return withStoreContextProvider({ events, parent }, () =>
+    return withAssistantTapContextProvider({ client, events }, () =>
       tapApiResource(element),
     );
   },
@@ -59,14 +59,14 @@ const RootScopeResource = resource(
   <K extends keyof AssistantScopes>({
     element,
     events,
-    parent,
+    client,
   }: {
     element: ScopeInput<AssistantScopes[K]>;
     events: EventManager;
-    parent: AssistantClient;
+    client: AssistantClient;
   }) => {
     const store = tapResource(
-      asStore(RootScopeStoreResource({ element, events, parent })),
+      asStore(RootScopeStoreResource({ element, events, client })),
     );
 
     return tapMemo(() => {
@@ -88,15 +88,11 @@ const RootScopeResource = resource(
  * Mounts each root scope and returns an object mapping scope names to their stores
  */
 const RootScopesResource = resource(
-  ({ scopes, parent }: { scopes: ScopesInput; parent: AssistantClient }) => {
+  ({ scopes, client }: { scopes: ScopesInput; client: AssistantClient }) => {
     const events = tapInlineResource(EventManager());
 
     const results = tapResources(scopes, (element) =>
-      RootScopeResource({
-        element,
-        events,
-        parent,
-      }),
+      RootScopeResource({ element, events, client }),
     );
 
     const on = <TEvent extends AssistantEvent>(
@@ -150,9 +146,9 @@ const RootScopesResource = resource(
  */
 export const useRootScopes = (
   rootScopes: ScopesInput,
-  parent: AssistantClient,
+  client: AssistantClient,
 ) => {
-  return useResource(RootScopesResource({ scopes: rootScopes, parent }));
+  return useResource(RootScopesResource({ scopes: rootScopes, client }));
 };
 
 /**
@@ -162,24 +158,24 @@ export const useRootScopes = (
 const DerivedScopeResource = resource(
   <K extends keyof AssistantScopes>({
     element,
-    parent,
+    client,
   }: {
     element: ResourceElement<
       AssistantScopes[K],
       DerivedScopeProps<AssistantScopes[K]>
     >;
-    parent: AssistantClient;
+    client: AssistantClient;
   }) => {
     const get = tapEffectEvent(element.props.get);
     const source = element.props.source;
     const query = element.props.query;
     return tapMemo(() => {
-      const scopeFunction = () => get(parent);
+      const scopeFunction = () => get(client);
       scopeFunction.source = source;
       scopeFunction.query = query;
 
       return scopeFunction satisfies ScopeField<AssistantScopes[K]>;
-    }, [get, source, JSON.stringify(query), parent]);
+    }, [get, source, JSON.stringify(query), client]);
   },
 );
 
@@ -188,13 +184,13 @@ const DerivedScopeResource = resource(
  * Builds stable scope functions with source and query metadata
  */
 const DerivedScopesResource = resource(
-  ({ scopes, parent }: { scopes: ScopesInput; parent: AssistantClient }) => {
+  ({ scopes, client }: { scopes: ScopesInput; client: AssistantClient }) => {
     return tapResources(
       scopes,
       (element) =>
         DerivedScopeResource({
           element,
-          parent,
+          client,
         }),
       [],
     );
@@ -206,9 +202,9 @@ const DerivedScopesResource = resource(
  */
 export const useDerivedScopes = (
   derivedScopes: ScopesInput,
-  parent: AssistantClient,
+  client: AssistantClient,
 ) => {
-  return useResource(DerivedScopesResource({ scopes: derivedScopes, parent }));
+  return useResource(DerivedScopesResource({ scopes: derivedScopes, client }));
 };
 
 const useExtendedAssistantClientImpl = (
