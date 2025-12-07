@@ -79,7 +79,7 @@ const RootScopeResource = resource(
       return [
         scopeName,
         {
-          scopeFunction,
+          scopeFunction: scopeFunction satisfies ScopeField<AssistantScopes[K]>,
           subscribe: store.subscribe,
           flushSync: store.flushSync,
         },
@@ -190,13 +190,14 @@ const DerivedScopeResource = resource(
     const source = element.props.source;
     const query = element.props.query;
     return tapMemo(() => {
-      const scopeFunction = (() => get(parentClient)) as ScopeField<
-        AssistantScopes[K]
-      >;
+      const scopeFunction = () => get(parentClient);
       scopeFunction.source = source;
       scopeFunction.query = query;
 
-      return [scopeName, scopeFunction] as const;
+      return [
+        scopeName,
+        scopeFunction satisfies ScopeField<AssistantScopes[K]>,
+      ] as const;
     }, [scopeName, get, source, JSON.stringify(query), parentClient]);
   },
 );

@@ -4,27 +4,28 @@ import type {
   AssistantEventCallback,
   AssistantEventSelector,
 } from "./EventContext";
+import { ApiObject } from "./tapApiResource";
 
-type ScopeValueType = Record<string, unknown> & {
-  getState: () => Record<string, unknown>;
-};
 type ScopeMetaType = { source: string; query: Record<string, unknown> };
 
 /**
  * Definition of a scope in the assistant client (internal type)
- * @template TValue - The API type (must include getState() and any actions)
- * @template TMeta - Source/query metadata (use ScopeMeta or discriminated union)
- * @template TEvents - Optional events that this scope can emit
+ * @template TState - The state type for this scope
+ * @template TApi - The API type (actions/methods - getState is optional)
+ * @template TMeta - Source/query metadata (optional)
+ * @template TEvents - Events that this scope can emit (optional)
  * @internal
  */
 export type ScopeDefinition<
-  TValue extends ScopeValueType = ScopeValueType,
-  TMeta extends ScopeMetaType = ScopeMetaType,
-  TEvents extends Record<string, unknown> = Record<string, unknown>,
+  TState extends Record<string, unknown> = Record<string, unknown>,
+  TApi extends ApiObject = ApiObject,
+  TMeta extends ScopeMetaType = never,
+  TEvents extends Record<string, unknown> = never,
 > = {
-  value: TValue;
-  meta: TMeta;
-  events: TEvents;
+  state: TState;
+  api: TApi;
+  meta?: TMeta;
+  events?: TEvents;
 };
 
 /**
@@ -34,21 +35,19 @@ export type ScopeDefinition<
  * ```typescript
  * declare module "@assistant-ui/store" {
  *   interface AssistantScopeRegistry {
+ *     // Simple scope (meta and events are optional)
  *     foo: {
- *       value: { getState: () => { bar: string }; updateBar: (bar: string) => void };
- *       meta: { source: "root"; query: Record<string, never> };
- *       events: {
- *         "foo.updated": { id: string; newValue: string };
- *         "foo.deleted": { id: string };
- *       };
+ *       state: { bar: string };
+ *       api: { updateBar: (bar: string) => void };
  *     };
- *     // Example with multiple sources (discriminated union):
+ *     // Full scope with meta and events
  *     bar: {
- *       value: { getState: () => { id: string } };
- *       meta:
- *         | { source: "fooList"; query: { index: number } }
- *         | { source: "barList"; query: { id: string } };
- *       events: Record<string, never>;
+ *       state: { id: string };
+ *       api: { update: () => void };
+ *       meta: { source: "fooList"; query: { index: number } };
+ *       events: {
+ *         "bar.updated": { id: string };
+ *       };
  *     };
  *   }
  * }
@@ -79,24 +78,28 @@ export type AssistantScopes = keyof AssistantScopeRegistry extends never
  */
 export type ScopeApi<K extends keyof AssistantScopes> = {
   key?: string;
-  state: ReturnType<AssistantScopes[K]["value"]["getState"]>;
-  api: Omit<AssistantScopes[K]["value"], "getState">;
+  state: AssistantScopes[K]["state"];
+  api: AssistantScopes[K]["api"];
 };
 
 /**
- * Type for a scope field - a function that returns the current API value,
+ * Type for a scope field - a function that returns the API,
  * with source/query metadata attached (derived from meta)
  */
-export type ScopeField<T extends ScopeDefinition> = (() => T["value"]) &
-  (T["meta"] | { source: null; query: null });
+export type ScopeField<T extends ScopeDefinition> = (() => T["api"]) &
+  (
+    | NonNullable<T["meta"]>
+    | { source: "root"; query: Record<string, never> }
+    | { source: null; query: null }
+  );
 
 /**
  * Props passed to a derived scope resource element
  */
 export type DerivedScopeProps<T extends ScopeDefinition> = {
-  get: (parent: AssistantClient) => T["value"];
-  source: T["meta"]["source"];
-  query: T["meta"]["query"];
+  get: (parent: AssistantClient) => T["api"];
+  source: NonNullable<T["meta"]>["source"];
+  query: NonNullable<T["meta"]>["query"];
 };
 
 /**
@@ -104,9 +107,9 @@ export type DerivedScopeProps<T extends ScopeDefinition> = {
  * Can optionally include source/query metadata via DerivedScope
  */
 export type ScopeInput<T extends ScopeDefinition> = ResourceElement<{
-  state: ReturnType<T["value"]["getState"]>;
   key?: string;
-  api: Omit<T["value"], "getState">;
+  state: T["state"];
+  api: T["api"];
 }>;
 
 /**
@@ -125,9 +128,7 @@ export type Unsubscribe = () => void;
  * State type extracted from all scopes
  */
 export type AssistantState = {
-  [K in keyof AssistantScopes]: ReturnType<
-    AssistantScopes[K]["value"]["getState"]
-  >;
+  [K in keyof AssistantScopes]: AssistantScopes[K]["state"];
 };
 
 /**

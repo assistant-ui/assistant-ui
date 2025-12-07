@@ -1,5 +1,5 @@
 import { ResourceElement } from "@assistant-ui/tap";
-import { ApiProxy, ApiObject, tapApiResources } from "./tapApiResource";
+import { ApiObject, tapApiResources } from "./tapApiResource";
 
 /**
  * Creates a lookup-based resource collection for managing lists of items.
@@ -42,7 +42,7 @@ export const tapLookupResources = <TState, TApi extends ApiObject>(
   }>[],
 ): {
   state: TState[];
-  api: (lookup: { index: number } | { key: string }) => ApiProxy<TState, TApi>;
+  api: (lookup: { index: number } | { key: string }) => TApi;
 } => {
   const resources = tapApiResources(elements);
 

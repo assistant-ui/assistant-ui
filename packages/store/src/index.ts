@@ -11,7 +11,7 @@ export { AssistantProvider } from "./AssistantContext";
 export { DerivedScope } from "./DerivedScope";
 
 // tap hooks
-export { tapApiResource, type ApiObject, type ApiProxy } from "./tapApiResource";
+export { tapApiResource, type ApiObject } from "./tapApiResource";
 export { tapStoreContext, type StoreContextValue } from "./StoreContext";
 export { tapLookupResources } from "./tapLookupResources";
 export { tapStoreList, type TapStoreListConfig } from "./tapStoreList";

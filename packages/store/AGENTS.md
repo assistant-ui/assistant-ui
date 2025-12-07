@@ -26,7 +26,7 @@ This document provides comprehensive context for AI agents working on the `@assi
 
 | Concept | Description |
 |---------|-------------|
-| **Scope** | Named state container with value, meta (source/query), and events |
+| **Scope** | Named state container with state, api, meta (source/query), and events |
 | **Root Scope** | Top-level scope that owns its state (meta.source = "root") |
 | **Derived Scope** | Scope derived from a parent scope |
 | **AssistantClient** | Central object providing access to all scopes |
@@ -64,8 +64,8 @@ Resources return an object typed as `ScopeApi<K>` with `state`, optional `key`, 
 ```typescript
 type ScopeApi<K extends keyof AssistantScopes> = {
   key?: string;
-  state: ReturnType<AssistantScopes[K]["value"]["getState"]>;
-  api: Omit<AssistantScopes[K]["value"], "getState">;
+  state: AssistantScopes[K]["state"];
+  api: AssistantScopes[K]["api"];
 };
 ```
 
@@ -77,6 +77,7 @@ const FooResource = resource((): ScopeApi<"foo"> => {
     state,
     key: "foo-1",
     api: {
+      getState: () => state,  // optional convention
       updateBar: (b) => setState({ bar: b })
     }
   };
@@ -85,23 +86,23 @@ const FooResource = resource((): ScopeApi<"foo"> => {
 
 ### 2. Module Augmentation Pattern
 
-Scopes are registered via TypeScript declaration merging. The `meta` field combines `source` and `query` as a pair:
+Scopes are registered via TypeScript declaration merging. Define types separately to avoid duplication:
 
 ```typescript
+// Define types separately
+type FooState = { bar: string };
+type FooQuery = { index: number } | { id: string };
+type FooApi = {
+  getState: () => FooState;  // optional convention
+  updateBar: (bar: string) => void;
+};
+
 declare module "@assistant-ui/store" {
   interface AssistantScopeRegistry {
-    // Simple root scope
-    fooList: {
-      value: { getState: () => State; addFoo: () => void };
-      meta: { source: "root"; query: Record<string, never> };
-      events: {
-        "fooList.added": { id: string };
-      };
-    };
-    // Derived scope with single source
     foo: {
-      value: { getState: () => State; update: () => void };
-      meta: { source: "fooList"; query: { index: number } | { id: string } };
+      state: FooState;
+      api: FooApi;
+      meta: { source: "fooList"; query: FooQuery };
       events: {
         "foo.updated": { id: string; newValue: string };
       };
@@ -151,16 +152,18 @@ tapApiResource(element: ResourceElement<{ state, api, key? }>)
   ├─► tapRef(value) - store latest value for proxy access
   ├─► tapEffect - update ref.current = value on changes
   ├─► tapMemo([element.type]) - create ReadonlyApiHandler proxy (stable identity)
-  │     └─► Proxy intercepts "getState" → returns () => ref.current.state
+  │     └─► Proxy intercepts SYMBOL_GET_STATE → returns () => ref.current.state
   │     └─► Proxy intercepts other props → returns ref.current.api[prop]
   └─► tapMemo([state, key]) → { key, state, api: proxy }
 ```
 
 The `ReadonlyApiHandler` proxy:
-- Intercepts `getState` property to return `() => this.getValue().state`
+- Intercepts `SYMBOL_GET_STATE` (internal) to return `() => this.getValue().state`
 - Delegates other property access to `this.getValue().api[prop]`
 - Creates stable reference that always returns fresh values
 - Is immutable (set, defineProperty, deleteProperty return false)
+
+**Note:** `getState` is NOT automatically added to the API. It's an optional convention that users can implement themselves.
 
 Also exports `tapApiResources(elements[])` which wraps multiple elements using an internal `ApiResource`.
 
@@ -173,12 +176,14 @@ useAssistantState(selector)
   │
   ├─► useAssistantClient() - get client from context
   ├─► useMemo → ProxiedAssistantState.create(client)
-  │     └─► Proxy intercepts prop access → client[prop]().getState()
+  │     └─► Proxy intercepts prop access → getApiState(client[prop]())
   │
   ├─► useSyncExternalStore(client.subscribe, () => selector(proxiedState))
   │
   └─► Throws if slice instanceof ProxiedAssistantState (entire state returned)
 ```
+
+**Note:** `useAssistantState` uses an internal `getApiState()` function that accesses state via `SYMBOL_GET_STATE`, not via `getState()`. This allows `getState()` to be optional in user APIs.
 
 **Limitation:** Cannot return entire state - must use selector that extracts specific values. Will throw error if you try to return the proxied state directly.
 
@@ -228,7 +233,10 @@ const FooResource = resource((): ScopeApi<"foo"> => {
   return {
     state,
     key: id,
-    api: { updateValue },
+    api: {
+      getState: () => state,  // optional convention
+      updateValue,
+    },
   };
 });
 ```
@@ -302,7 +310,7 @@ The store is built on `@assistant-ui/tap`:
 | `AssistantState` | State type extracted from all scopes |
 | `ApiObject` | Base type for api objects |
 | `EventManager` | Event manager type with on/emit methods |
- 
+
 ## Common Patterns
 
 ### Root Scope Resource
@@ -314,6 +322,7 @@ const FooResource = resource((): ScopeApi<"foo"> => {
   return {
     state,
     api: {
+      getState: () => state,  // optional convention
       setValue: (v: string) => setState({ value: v }),
     },
   };
@@ -330,6 +339,7 @@ const FooItemResource = resource(
       state,
       key: initialValue.id,
       api: {
+        getState: () => state,
         updateText: (t) => setState({ ...state, text: t }),
         remove,
       },
@@ -349,6 +359,7 @@ const FooListResource = resource((): ScopeApi<"fooList"> => {
   return {
     state,
     api: {
+      getState: () => state,
       foo: foos.api,
       addFoo: foos.add,
     },
@@ -382,31 +393,24 @@ const FooList = ({ components: { Foo } }) => {
 };
 ```
 
-## Comparison with @assistant-ui/react
+## getState Convention
 
-Features the store lacks (react package has):
+**Important:** `getState()` is an **optional convention**, not enforced by the store.
 
-| Category | React Package Features |
-|----------|------------------------|
-| **Scopes** | threads, threadListItem, thread, message, composer, part, attachment, tools, modelContext |
-| **Thread** | isEmpty, isRunning, capabilities, messages, suggestions, speech, import/export |
-| **Message** | branchNumber, branchCount, isCopied, isHovering, parts, switchToBranch |
-| **Composer** | text, role, attachments, runConfig, isEditing, send, cancel |
-| **Systems** | Branching (MessageRepository), Speech/TTS, Attachments, Tool UI, Feedback |
-| **Events** | thread.run-start/end, thread.initialize, composer.send, etc. |
-| **Runtime** | useLocalRuntime, useExternalStoreRuntime, RuntimeCapabilities |
-| **UI** | ThreadViewport (Zustand), 10+ provider components |
+- The store does NOT automatically add `getState` to APIs
+- If you want `getState()` available, include it in your `api` type and implement it
+- `useAssistantState` uses an internal mechanism (`SYMBOL_GET_STATE`) to access state
+- Define types separately to avoid duplicating the state type:
 
-## Development Notes
+```typescript
+type FooState = { bar: string };
+type FooApi = {
+  getState: () => FooState;  // references FooState, no duplication
+  updateBar: (bar: string) => void;
+};
+```
 
-### Example App
-
-`examples/store-example/` demonstrates:
-- `lib/store/foo-scope.ts` - Scope type definition with events + module augmentation
-- `lib/store/foo-store.tsx` - FooItemResource, FooListResource, FooProvider, FooList using ScopeApi<K>
-- `lib/example-app.tsx` - Full usage with useAssistantClient, useAssistantState, useAssistantEvent
-
-### Key Invariants
+## Key Invariants
 
 1. **ScopeApi<K> return type** - All scope resources must return `{ state, key?, api }` with api as a nested object
 2. **Selector required** - useAssistantState cannot return entire state object (throws if you try)
@@ -415,8 +419,9 @@ Features the store lacks (react package has):
 5. **Scope imports** - Import scope type files before using resources to ensure module augmentation
 6. **tapStoreContext availability** - Only available inside resources wrapped with StoreContext (root scopes)
 7. **Key for lists** - List item resources should provide `key` for efficient lookups
+8. **getState is optional** - The store doesn't enforce getState; it's a user convention
 
-### Debug Tips
+## Debug Tips
 
 1. `console.log` in useAssistantClient.tsx line 143-145 shows subscription callbacks
 2. ProxiedAssistantState throws if you try to return entire state (line 73-77 in useAssistantState.tsx)
@@ -443,13 +448,14 @@ The react package has a similar but different pattern using `tapApi`:
 |---------|---------------------|------------------------------|
 | Resource return | `{ state, key?, api }` | N/A (tapApi takes object directly) |
 | Wrapper function | `tapApiResource(element)` | `tapApi(apiObject, options?)` |
-| Wrapper input | ResourceElement returning `{ state, api, key? }` | Object with `getState` + methods |
+| Wrapper input | ResourceElement returning `{ state, api, key? }` | Object with methods |
 | Wrapper output | `{ key, state, api }` with proxy | `{ key, state, api }` with proxy |
 | Lookup return | `{ state, api }` | `{ state, api }` |
 | API property name | `api` | `api` |
 | Type annotation | `ScopeApi<K>` | Direct type annotations |
+| getState | Optional convention | Required in type |
 
-**Key difference:** The react package's `tapApi` takes an API object with `getState` and action methods directly (e.g., `tapApi({ getState: () => state, doSomething: () => {} })`), while the store package's `tapApiResource` takes a ResourceElement that returns `{ state, key?, api }` structure.
+**Key difference:** The react package's `tapApi` takes an API object with methods directly (e.g., `tapApi({ doSomething: () => {} })`), while the store package's `tapApiResource` takes a ResourceElement that returns `{ state, key?, api }` structure.
 
 Files to compare:
 - Store: `packages/store/src/tapApiResource.ts`

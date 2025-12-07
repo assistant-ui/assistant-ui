@@ -1,28 +1,37 @@
 import { registerAssistantScope } from "@assistant-ui/store";
 
+type FooState = { id: string; bar: string };
+type FooApi = {
+  getState: () => FooState;
+  updateBar: (newBar: string) => void;
+  remove: () => void;
+};
+type FooMeta = {
+  source: "fooList";
+  query: { index: number } | { id: string };
+};
+
+type FooListState = { foos: FooState[] };
+type FooListApi = {
+  getState: () => FooListState;
+  foo: (lookup: FooMeta["query"]) => FooApi;
+  addFoo: (id?: string) => void;
+};
+
 declare module "@assistant-ui/store" {
   interface AssistantScopeRegistry {
     foo: {
-      value: {
-        getState: () => { id: string; bar: string };
-        updateBar: (newBar: string) => void;
-        remove: () => void;
-      };
-      meta: { source: "fooList"; query: { index: number } | { id: string } };
+      state: FooState;
+      api: FooApi;
+      meta: FooMeta;
       events: {
         "foo.updated": { id: string; newValue: string };
         "foo.removed": { id: string };
       };
     };
     fooList: {
-      value: {
-        getState: () => { foos: Array<{ id: string; bar: string }> };
-        foo: (
-          lookup: { index: number } | { id: string },
-        ) => AssistantScopeRegistry["foo"]["value"];
-        addFoo: (id?: string) => void;
-      };
-      meta: { source: "root"; query: Record<string, never> };
+      state: FooListState;
+      api: FooListApi;
       events: {
         "fooList.added": { id: string };
       };

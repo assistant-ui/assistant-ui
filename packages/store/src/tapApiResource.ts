@@ -9,6 +9,20 @@ import {
 } from "@assistant-ui/tap";
 
 /**
+ * Symbol used internally to get state from ApiProxy.
+ * This allows getState() to be optional in the user-facing API.
+ */
+const SYMBOL_GET_STATE = Symbol.for("assistant-ui.getState");
+
+/**
+ * Get the state from an ApiProxy.
+ * Used internally by useAssistantState to access state without requiring getState() in the API.
+ */
+export const getApiState = <TState>(api: ApiObject): TState => {
+  return (api as { [SYMBOL_GET_STATE]: () => TState })[SYMBOL_GET_STATE]!();
+};
+
+/**
  * API object type
  */
 export interface ApiObject {
@@ -25,17 +39,17 @@ class ReadonlyApiHandler<TState, TApi extends ApiObject>
   constructor(private readonly getValue: () => ClientValue<TState, TApi>) {}
 
   get(_: unknown, prop: string | symbol) {
-    if (prop === "getState") return this.getState;
+    if (prop === SYMBOL_GET_STATE) return this.getState;
     return this.getValue().api[prop as keyof TApi];
   }
 
   ownKeys(): ArrayLike<string | symbol> {
-    return ["getState", ...Object.keys(this.getValue().api as object)];
+    return Object.keys(this.getValue().api);
   }
 
   has(_: unknown, prop: string | symbol) {
-    if (prop === "getState") return true;
-    return prop in (this.getValue().api as object);
+    if (prop === SYMBOL_GET_STATE) return true;
+    return prop in this.getValue().api;
   }
 
   getOwnPropertyDescriptor(_: unknown, prop: string | symbol) {
@@ -66,10 +80,6 @@ type ClientValue<TState, TApi extends ApiObject> = {
   key?: string;
 };
 
-export type ApiProxy<TState, TApi extends ApiObject> = TApi & {
-  getState: () => TState;
-};
-
 /**
  * Wraps a plain resource element to create a stable API proxy.
  *
@@ -81,7 +91,7 @@ export const tapApiResource = <TState, TApi extends ApiObject>(
 ): {
   key: string | undefined;
   state: TState;
-  api: ApiProxy<TState, TApi>;
+  api: TApi;
 } => {
   const value = tapResource(element);
 
@@ -93,8 +103,8 @@ export const tapApiResource = <TState, TApi extends ApiObject>(
   // Create stable proxy
   const api = tapMemo(
     () =>
-      new Proxy<ApiProxy<TState, TApi>>(
-        undefined as unknown as ApiProxy<TState, TApi>,
+      new Proxy<TApi>(
+        undefined as unknown as TApi,
         new ReadonlyApiHandler<TState, TApi>(() => valueRef.current),
       ),
     [element.type],
@@ -113,7 +123,7 @@ const ApiResource = resource(
   ): {
     key: string | undefined;
     state: TState;
-    api: ApiProxy<TState, TApi>;
+    api: TApi;
   } => {
     return tapApiResource(element);
   },
@@ -128,7 +138,7 @@ export const tapApiResources = <TState, TApi extends ApiObject>(
 ): {
   key: string | undefined;
   state: TState;
-  api: ApiProxy<TState, TApi>;
+  api: TApi;
 }[] => {
   return tapResources(elements.map((element) => ApiResource(element)));
 };

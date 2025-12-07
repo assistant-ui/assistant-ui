@@ -28,7 +28,7 @@ type UnionToIntersection<U> = (
 /**
  * Event map derived from scope event definitions
  */
-export type ScopeEventMap = UnionToIntersection<
+type RawScopeEventMap = UnionToIntersection<
   {
     [K in keyof AssistantScopes]: AssistantScopes[K] extends {
       events: infer E;
@@ -40,12 +40,20 @@ export type ScopeEventMap = UnionToIntersection<
   }[keyof AssistantScopes]
 >;
 
-type WildcardPayload = {
-  [K in keyof ScopeEventMap]: {
-    event: K;
-    payload: ScopeEventMap[K];
-  };
-}[keyof ScopeEventMap];
+// Fallback to empty object if no events are defined
+export type ScopeEventMap = [RawScopeEventMap] extends [never]
+  ? {}
+  : RawScopeEventMap;
+
+// When no events defined, use `unknown` so callbacks can still be called
+type WildcardPayload = [keyof ScopeEventMap] extends [never]
+  ? unknown
+  : {
+      [K in keyof ScopeEventMap]: {
+        event: K;
+        payload: ScopeEventMap[K];
+      };
+    }[keyof ScopeEventMap];
 
 export type AssistantEventMap = ScopeEventMap & {
   // Catch-all

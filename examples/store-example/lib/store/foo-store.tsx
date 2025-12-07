@@ -44,6 +44,7 @@ export const FooItemResource = resource(
       key: id,
       state,
       api: {
+        getState: () => state,
         updateBar,
         remove: handleRemove,
       },
@@ -81,6 +82,7 @@ export const FooListResource = resource((): ScopeApi<"fooList"> => {
   return {
     state,
     api: {
+      getState: () => state,
       foo: foos.api,
       addFoo,
     },

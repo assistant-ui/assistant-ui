@@ -62,7 +62,6 @@ tapApiResource()
 // Types
 ScopeApi<K>
 ApiObject
-ApiProxy
 AssistantScopeRegistry (module augmentation)
 registerAssistantScope()
 ```
@@ -103,3 +102,106 @@ For reference, these have been decided:
 | `actions` vs `api` | Standardized on `api` |
 | `ApiObject` allows nested objects | No, functions only |
 | `tap*` prefix for internal utilities | Keep as signal for "advanced use" |
+| `getState` in API | Optional convention, not enforced by store |
+| `value` vs `state`/`api` in scope defs | Use `state` and `api` separately |
+| `ApiProxy` type | Removed - just use `TApi` directly |
+
+---
+
+## Resolved: getState Convention
+
+**Decision:** `getState()` is an **optional convention**, not enforced by the store.
+
+**Rationale:**
+- The store uses an internal `SYMBOL_GET_STATE` mechanism for `useAssistantState`
+- This allows `getState()` to be optional in user-facing APIs
+- Users who want `getState()` can add it to their `api` type and implement it
+- Reduces type complexity - no need for `ApiProxy` or `ScopeValue` wrapper types
+
+**Implementation:**
+- `tapApiResource` creates a proxy that intercepts `SYMBOL_GET_STATE` internally
+- `useAssistantState` uses `getApiState()` which accesses this symbol
+- User's `api` is passed through directly without modification
+- Types use `T["api"]` directly, no wrapper types needed
+
+**Pattern for users who want getState:**
+```typescript
+// Define types separately to avoid duplication
+type FooState = { bar: string };
+type FooApi = {
+  getState: () => FooState;  // optional - add if you want it
+  updateBar: (bar: string) => void;
+};
+
+// In resource implementation
+return {
+  state,
+  api: {
+    getState: () => state,  // implement it yourself
+    updateBar,
+  },
+};
+```
+
+---
+
+## Resolved: Scope Definition Structure
+
+**Decision:** Use separate `state` and `api` fields instead of `value` with `getState`.
+
+**Before:**
+```typescript
+interface AssistantScopeRegistry {
+  foo: {
+    value: {
+      getState: () => { bar: string };
+      updateBar: (bar: string) => void;
+    };
+    meta: { ... };
+    events: { ... };
+  };
+}
+```
+
+**After:**
+```typescript
+interface AssistantScopeRegistry {
+  foo: {
+    state: { bar: string };
+    api: {
+      getState: () => { bar: string };  // optional
+      updateBar: (bar: string) => void;
+    };
+    meta: { ... };
+    events: { ... };
+  };
+}
+```
+
+**Rationale:**
+- Clearer separation of concerns
+- `state` is what `useAssistantState` selects from
+- `api` is what `aui.foo()` returns
+- `getState` is optional in `api` - just a convention
+- Recommended pattern: define types separately to avoid duplication
+
+**Recommended pattern:**
+```typescript
+type FooState = { bar: string };
+type FooQuery = { index: number } | { id: string };
+type FooApi = {
+  getState: () => FooState;
+  updateBar: (bar: string) => void;
+};
+
+declare module "@assistant-ui/store" {
+  interface AssistantScopeRegistry {
+    foo: {
+      state: FooState;
+      api: FooApi;
+      meta: { source: "fooList"; query: FooQuery };
+      events: { ... };
+    };
+  }
+}
+```

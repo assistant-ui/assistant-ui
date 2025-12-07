@@ -12,7 +12,8 @@ The store package provides a bridge between tap Resources and React Components v
 
 A **scope** defines a piece of state in your application. Each scope has:
 
-- **value**: The API type (e.g., `{ getState: () => State; methods... }`)
+- **state**: The state type for this scope
+- **api**: The API type (methods that operate on the state)
 - **source**: Where this scope comes from (`"root"` for top-level, or name of parent scope)
 - **query**: Parameters needed to access this scope (e.g., `{ index: number }`)
 
@@ -28,6 +29,7 @@ const FooResource = resource((): ScopeApi<"foo"> => {
     state,
     key: "foo-1",
     api: {
+      getState: () => state,  // optional convention
       updateBar: (b) => setState({ bar: b })
     }
   };
@@ -39,13 +41,18 @@ const FooResource = resource((): ScopeApi<"foo"> => {
 Define custom scopes by extending the `AssistantScopeRegistry` interface:
 
 ```typescript
+// Define types separately to avoid duplication
+type FooState = { bar: string };
+type FooApi = {
+  getState: () => FooState;  // optional convention
+  updateBar: (newBar: string) => void;
+};
+
 declare module "@assistant-ui/store" {
   interface AssistantScopeRegistry {
     foo: {
-      value: {
-        getState: () => { bar: string };
-        updateBar: (newBar: string) => void;
-      };
+      state: FooState;
+      api: FooApi;
       meta: { source: "root"; query: Record<string, never> };
       events: {
         "foo.updated": { id: string; newValue: string };
@@ -64,14 +71,19 @@ declare module "@assistant-ui/store" {
 import { resource, tapState } from "@assistant-ui/tap";
 import { registerAssistantScope, type ScopeApi } from "@assistant-ui/store";
 
+// Define types separately to avoid duplication
+type FooState = { bar: string };
+type FooApi = {
+  getState: () => FooState;
+  updateBar: (newBar: string) => void;
+};
+
 // Define the scope type via module augmentation
 declare module "@assistant-ui/store" {
   interface AssistantScopeRegistry {
     foo: {
-      value: {
-        getState: () => { bar: string };
-        updateBar: (newBar: string) => void;
-      };
+      state: FooState;
+      api: FooApi;
       meta: { source: "root"; query: Record<string, never> };
       events: Record<string, never>;
     };
@@ -82,7 +94,7 @@ registerAssistantScope({ name: "foo", defaultInitialize: { error: "Foo not confi
 
 // Create the resource - returns { state, key?, api }
 export const FooResource = resource((): ScopeApi<"foo"> => {
-  const [state, setState] = tapState<{ bar: string }>({ bar: "Hello, World!" });
+  const [state, setState] = tapState<FooState>({ bar: "Hello, World!" });
 
   const updateBar = (newBar: string) => {
     setState({ bar: newBar });
@@ -90,7 +102,10 @@ export const FooResource = resource((): ScopeApi<"foo"> => {
 
   return {
     state,
-    api: { updateBar },
+    api: {
+      getState: () => state,
+      updateBar,
+    },
   };
 });
 ```
@@ -107,7 +122,7 @@ function MyComponent() {
     foo: FooResource(),
   });
 
-  // Access the state
+  // Access the state (if getState is in your api)
   const fooState = client.foo().getState();
   console.log(fooState.bar); // "Hello, World!"
 
@@ -259,7 +274,11 @@ const FooItemResource = resource(
     return {
       state,
       key: id,
-      api: { updateBar, remove },
+      api: {
+        getState: () => state,
+        updateBar,
+        remove,
+      },
     };
   },
 );
@@ -285,7 +304,11 @@ const FooListResource = resource((): ScopeApi<"fooList"> => {
 
   return {
     state,
-    api: { foo: foos.api, addFoo },
+    api: {
+      getState: () => state,
+      foo: foos.api,
+      addFoo,
+    },
   };
 });
 ```
@@ -338,7 +361,7 @@ See the [store-example](../../examples/store-example) Next.js app for a complete
 The store is implemented using tap resources:
 
 1. Each scope is a tap resource that returns `{ state, key?, api }`
-2. Resources are wrapped with `tapApiResource` to create stable API proxies with `getState` added
+2. Resources are wrapped with `tapApiResource` to create stable API proxies
 3. `useAssistantClient` creates a resource that composes all provided scopes
 4. Root scopes are wrapped with a store context providing `events` and `parent` access
 5. The React Context provides the client to child components
@@ -353,3 +376,25 @@ This design allows for:
 - Full TypeScript inference for state and APIs
 - Zero runtime overhead for scopes that aren't used
 - Decoupled event-driven communication between scopes
+
+## getState Convention
+
+The `getState()` method is an **optional convention** - the store does not enforce it. If you want `getState()` available in your API, include it in your `api` type and implement it in your resource:
+
+```typescript
+type FooApi = {
+  getState: () => FooState;  // optional - add if you want it
+  updateBar: (bar: string) => void;
+};
+
+// In resource:
+return {
+  state,
+  api: {
+    getState: () => state,  // implement it yourself
+    updateBar,
+  },
+};
+```
+
+The internal `useAssistantState` hook accesses state through an internal mechanism and does not require `getState()` to be defined.

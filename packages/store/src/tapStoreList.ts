@@ -1,7 +1,7 @@
 import { tapState } from "@assistant-ui/tap";
 import type { ContravariantResource } from "@assistant-ui/tap";
 import { tapLookupResources } from "./tapLookupResources";
-import { ApiProxy, ApiObject } from "./tapApiResource";
+import { ApiObject } from "./tapApiResource";
 
 /**
  * Resource props that will be passed to each item resource
@@ -86,7 +86,7 @@ export const tapStoreList = <
   config: TapStoreListConfig<TProps, TState, TApi>,
 ): {
   state: TState[];
-  api: (lookup: { index: number } | { id: string }) => ApiProxy<TState, TApi>;
+  api: (lookup: { index: number } | { id: string }) => TApi;
   add: (id?: string) => void;
 } => {
   const { initialValues, resource: Resource, idGenerator } = config;

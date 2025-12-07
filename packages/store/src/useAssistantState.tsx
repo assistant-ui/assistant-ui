@@ -1,6 +1,7 @@
 import { useMemo, useSyncExternalStore, useDebugValue } from "react";
 import type { AssistantClient, AssistantState } from "./types";
 import { useAssistantClient } from "./useAssistantClient";
+import { getApiState } from "./tapApiResource";
 
 /**
  * Proxied state that lazily accesses scope states
@@ -18,9 +19,7 @@ class ProxiedAssistantState {
       throw new Error(`Scope "${String(key)}" not found in client`);
     }
 
-    const api = scopeField();
-    const state = api.getState();
-    return state as AssistantState[K];
+    return getApiState(scopeField());
   }
 
   // Create a Proxy to dynamically handle property access
