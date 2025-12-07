@@ -4,18 +4,14 @@ import type { tapState } from "../hooks/tap-state";
 export type ResourceElement<R, P = any> = {
   type: Resource<R, P>;
   props: P;
-  key?: string | number;
 };
 
 export type Resource<R, P> = (
-  ...args: P extends undefined
-    ? [props?: undefined, options?: { key?: string | number }]
-    : [props: P, options?: { key?: string | number }]
+  ...args: P extends undefined ? [] : [props: P]
 ) => ResourceElement<R, P>;
 
 export type ContravariantResource<R, P> = (
   props: P,
-  options?: { key?: string | number },
 ) => ResourceElement<R, any>;
 
 export type Cell =

@@ -5,11 +5,10 @@ export function resource<R, P>(fn: (props: P) => R): Resource<R, P>;
 export function resource<R, P = undefined>(
   fn: (props: P) => R,
 ): Resource<R, P> {
-  const type = (props?: P, options?: { key?: string | number }) => {
+  const type = (props?: P) => {
     return {
       type,
       props: props!,
-      ...(options?.key !== undefined && { key: options.key }),
     } satisfies ResourceElement<R, P>;
   };
 

@@ -56,28 +56,13 @@ describe("tapResources - Basic Functionality", () => {
   });
 
   describe("Key Validation", () => {
-    it("should require all elements to have keys", () => {
-      const testFiber = createTestResource(() => {
-        expect(() => {
-          tapResources([
-            { type: SimpleCounter, props: { value: 1 } },
-            { type: SimpleCounter, props: { value: 2 } },
-          ]);
-        }).toThrowError("All resource elements must have a key");
-
-        return null;
-      });
-
-      renderTest(testFiber, undefined);
-    });
-
     it("should require all keys to be unique", () => {
       const testFiber = createTestResource(() => {
         expect(() => {
           tapResources([
-            { type: SimpleCounter, props: { value: 1 }, key: "a" },
-            { type: SimpleCounter, props: { value: 2 }, key: "b" },
-            { type: SimpleCounter, props: { value: 3 }, key: "a" }, // Duplicate!
+            ["a", SimpleCounter({ value: 1 })],
+            ["b", SimpleCounter({ value: 2 })],
+            ["a", SimpleCounter({ value: 3 })], // Duplicate!
           ]);
         }).toThrowError('Duplicate key "a" found');
 
@@ -92,9 +77,9 @@ describe("tapResources - Basic Functionality", () => {
     it("should render multiple resources with keys", () => {
       const testFiber = createTestResource(() => {
         const results = tapResources([
-          { type: SimpleCounter, props: { value: 10 }, key: "a" },
-          { type: SimpleCounter, props: { value: 20 }, key: "b" },
-          { type: SimpleCounter, props: { value: 30 }, key: "c" },
+          ["a", SimpleCounter({ value: 10 })],
+          ["b", SimpleCounter({ value: 20 })],
+          ["c", SimpleCounter({ value: 30 })],
         ]);
 
         return results;
@@ -118,7 +103,7 @@ describe("tapResources - Basic Functionality", () => {
         ];
 
         const results = tapResources(
-          items.map((item) => Counter({ value: item.value }, { key: item.id })),
+          items.map((item) => [item.id, Counter({ value: item.value })]),
         );
 
         return results;
@@ -138,12 +123,10 @@ describe("tapResources - Basic Functionality", () => {
       const testFiber = createTestResource(
         (props: { items: Array<{ key: string; value: number }> }) => {
           return tapResources(
-            props.items.map((item) =>
-              TrackingCounter(
-                { value: item.value, id: item.key },
-                { key: item.key },
-              ),
-            ),
+            props.items.map((item) => [
+              item.key,
+              TrackingCounter({ value: item.value, id: item.key }),
+            ]),
           );
         },
       );
@@ -194,11 +177,7 @@ describe("tapResources - Basic Functionality", () => {
     it("should handle adding and removing resources", () => {
       const testFiber = createTestResource((props: { keys: string[] }) => {
         const results = tapResources(
-          props.keys.map((key, index) => ({
-            type: SimpleCounter,
-            props: { value: index * 10 },
-            key,
-          })),
+          props.keys.map((key, index) => [key, SimpleCounter({ value: index * 10 })]),
         );
         return results;
       });
@@ -223,8 +202,8 @@ describe("tapResources - Basic Functionality", () => {
       const testFiber = createTestResource((props: { useCounter: boolean }) => {
         const results = tapResources([
           props.useCounter
-            ? { type: StatefulCounter, props: { initial: 42 }, key: "item" }
-            : { type: Display, props: { text: "Hello" }, key: "item" },
+            ? ["item", StatefulCounter({ initial: 42 })]
+            : ["item", Display({ text: "Hello" })],
         ]);
         return results;
       });

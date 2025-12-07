@@ -130,15 +130,22 @@ const ApiResource = resource(
 );
 
 export const tapApiResources = <TState, TApi extends ApiObject>(
-  elements: ResourceElement<{
-    state: TState;
-    api: TApi;
-    key?: string;
-  }>[],
+  elements: ReadonlyArray<
+    readonly [
+      key: string | number,
+      element: ResourceElement<{
+        state: TState;
+        api: TApi;
+        key?: string;
+      }>,
+    ]
+  >,
 ): {
   key: string | undefined;
   state: TState;
   api: TApi;
 }[] => {
-  return tapResources(elements.map((element) => ApiResource(element)));
+  return tapResources(
+    elements.map(([key, element]) => [key, ApiResource(element)] as const),
+  );
 };

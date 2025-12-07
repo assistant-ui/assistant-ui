@@ -9,34 +9,31 @@ import {
   commitResource,
 } from "../core/ResourceFiber";
 
-export function tapResources<
-  T extends ReadonlyArray<ResourceElement<any, any>>,
->(
-  elements: T,
-): { [K in keyof T]: T[K] extends ResourceElement<infer R, any> ? R : never } {
+export function tapResources<R>(
+  elements: ReadonlyArray<
+    readonly [key: string | number, element: ResourceElement<R, any>]
+  >,
+): R[] {
   // Validate keys
   const seenKeys = new Set<string | number>();
-  elements.forEach((element, index) => {
-    if (element.key === undefined) {
+  elements.forEach(([key], index) => {
+    if (key === undefined) {
       throw new Error(
         `tapResources: All resource elements must have a key. Element at index ${index} is missing a key.`,
       );
     }
-    if (seenKeys.has(element.key)) {
+    if (seenKeys.has(key)) {
       throw new Error(
-        `tapResources: Duplicate key "${element.key}" found. All keys must be unique.`,
+        `tapResources: Duplicate key "${key}" found. All keys must be unique.`,
       );
     }
-    seenKeys.add(element.key);
+    seenKeys.add(key);
   });
 
   const [stateVersion, rerender] = tapState({});
 
   // Create a map of current elements by key for efficient lookup
-  const elementsByKey = tapMemo(
-    () => new Map(elements.map((element) => [element.key!, element])),
-    [elements],
-  );
+  const elementsByKey = tapMemo(() => new Map(elements), [elements]);
 
   // Track fibers persistently across renders
   const [fibers] = tapState(
@@ -99,7 +96,7 @@ export function tapResources<
 
   // Return results in the same order as input elements
   return tapMemo(
-    () => elements.map((element) => results.get(element.key!)?.state),
+    () => elements.map(([key]) => results.get(key)?.state),
     [elements, results],
   ) as any;
 }

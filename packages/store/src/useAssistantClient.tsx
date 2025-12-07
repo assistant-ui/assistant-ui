@@ -97,19 +97,17 @@ const RootScopesResource = resource(
     const events = tapInlineResource(EventManager());
 
     const resultEntries = tapResources(
-      Object.entries(scopes).map(([scopeName, element]) =>
-        RootScopeResource(
-          {
-            scopeName: scopeName as keyof AssistantScopes,
-            element: element as ScopeInput<
-              AssistantScopes[keyof AssistantScopes]
-            >,
-            events,
-            parent,
-          },
-          { key: scopeName },
-        ),
-      ),
+      Object.entries(scopes).map(([scopeName, element]) => [
+        scopeName,
+        RootScopeResource({
+          scopeName: scopeName as keyof AssistantScopes,
+          element: element as ScopeInput<
+            AssistantScopes[keyof AssistantScopes]
+          >,
+          events,
+          parent,
+        }),
+      ]),
     );
 
     const on = <TEvent extends AssistantEvent>(
@@ -215,18 +213,16 @@ const DerivedScopesResource = resource(
     parentClient: AssistantClient;
   }) => {
     const resultEntries = tapResources(
-      Object.entries(scopes).map(([scopeName, element]) =>
-        DerivedScopeResource(
-          {
-            scopeName: scopeName as keyof AssistantScopes,
-            element: element as ScopeInput<
-              AssistantScopes[keyof AssistantScopes]
-            >,
-            parentClient,
-          },
-          { key: scopeName },
-        ),
-      ),
+      Object.entries(scopes).map(([scopeName, element]) => [
+        scopeName,
+        DerivedScopeResource({
+          scopeName: scopeName as keyof AssistantScopes,
+          element: element as ScopeInput<
+            AssistantScopes[keyof AssistantScopes]
+          >,
+          parentClient,
+        }),
+      ]),
     );
 
     return tapMemo(() => {

@@ -9,7 +9,7 @@ import { ApiObject, tapApiResources } from "./tapApiResource";
  * This function internally wraps each element with tapApiResource to create
  * stable API proxies.
  *
- * @param elements - Array of resource elements, each returning { state, key?, api }
+ * @param elements - Array of [key, element] tuples, each element returning { state, key?, api }
  * @returns Object with { state: TState[], api: (lookup) => TApi }
  *
  * The api function accepts { index: number } or { key: string } for lookups.
@@ -23,7 +23,7 @@ import { ApiObject, tapApiResources } from "./tapApiResource";
  * });
  *
  * const foos = tapLookupResources(
- *   items.map((item) => FooItemResource({ id: item.id }, { key: item.id }))
+ *   items.map((item) => [item.id, FooItemResource({ id: item.id })] as const)
  * );
  *
  * // Access state array
@@ -35,11 +35,16 @@ import { ApiObject, tapApiResources } from "./tapApiResource";
  * ```
  */
 export const tapLookupResources = <TState, TApi extends ApiObject>(
-  elements: ResourceElement<{
-    state: TState;
-    api: TApi;
-    key?: string;
-  }>[],
+  elements: ReadonlyArray<
+    readonly [
+      key: string | number,
+      element: ResourceElement<{
+        state: TState;
+        api: TApi;
+        key?: string;
+      }>,
+    ]
+  >,
 ): {
   state: TState[];
   api: (lookup: { index: number } | { key: string }) => TApi;

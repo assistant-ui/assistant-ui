@@ -94,19 +94,15 @@ export const tapStoreList = <
   const [items, setItems] = tapState<TProps[]>(initialValues);
 
   const lookup = tapLookupResources(
-    items.map((item) =>
-      Resource(
-        {
-          initialValue: item,
-          remove: () => {
-            setItems(items.filter((i) => i !== item));
-          },
+    items.map((item) => [
+      item.id,
+      Resource({
+        initialValue: item,
+        remove: () => {
+          setItems(items.filter((i) => i !== item));
         },
-        {
-          key: item.id,
-        },
-      ),
-    ),
+      }),
+    ]),
   );
 
   const add = (id?: string) => {
