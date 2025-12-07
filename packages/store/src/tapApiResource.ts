@@ -13,37 +13,59 @@ import type { ApiObject, ScopeOutputOf } from "./types";
  * Symbol used internally to get state from ApiProxy.
  * This allows getState() to be optional in the user-facing API.
  */
-const SYMBOL_GET_STATE = Symbol.for("assistant-ui.getState");
+const SYMBOL_GET_OUTPUT = Symbol("assistant-ui.store.getValue");
 
-/**
- * Get the state from an ApiProxy.
- * Used internally by useAssistantState to access state without requiring getState() in the API.
- */
 export const getApiState = <TState>(api: ApiObject): TState => {
-  return (api as { [SYMBOL_GET_STATE]: () => TState })[SYMBOL_GET_STATE]!();
+  return (
+    api as unknown as {
+      [SYMBOL_GET_OUTPUT]: () => ScopeOutputOf<TState, ApiObject>;
+    }
+  )[SYMBOL_GET_OUTPUT]!().state;
 };
 
-/**
- * Readonly API handler for creating stable proxies
- */
+// Global cache for function templates by field name
+const fieldAccessFns = new Map<
+  string | symbol,
+  (
+    this: { [SYMBOL_GET_OUTPUT]: () => ScopeOutputOf<unknown, ApiObject> },
+    ...args: unknown[]
+  ) => unknown
+>();
+
+function getOrCreateProxyFn(prop: string) {
+  let template = fieldAccessFns.get(prop);
+  if (!template) {
+    template = function (
+      this: { [SYMBOL_GET_OUTPUT]: () => ScopeOutputOf<unknown, ApiObject> },
+      ...args: unknown[]
+    ) {
+      const method = this[SYMBOL_GET_OUTPUT]().api[prop];
+      if (!method) throw new Error(`Method ${prop} not found`);
+      return method(...args);
+    };
+    fieldAccessFns.set(prop, template);
+  }
+  return template;
+}
+
 class ReadonlyApiHandler<TState, TApi extends ApiObject>
   implements ProxyHandler<ScopeOutputOf<TState, TApi>>
 {
-  private getState = () => this.getValue().state;
-  constructor(private readonly getValue: () => ScopeOutputOf<TState, TApi>) {}
+  constructor(private readonly getOutput: () => ScopeOutputOf<TState, TApi>) {}
 
   get(_: unknown, prop: string | symbol) {
-    if (prop === SYMBOL_GET_STATE) return this.getState;
-    return this.getValue().api[prop as keyof TApi];
+    if (prop === SYMBOL_GET_OUTPUT) return this.getOutput;
+    if (typeof prop !== "string") return undefined;
+    return getOrCreateProxyFn(prop);
   }
 
   ownKeys(): ArrayLike<string | symbol> {
-    return Object.keys(this.getValue().api);
+    return Object.keys(this.getOutput().api);
   }
 
   has(_: unknown, prop: string | symbol) {
-    if (prop === SYMBOL_GET_STATE) return true;
-    return prop in this.getValue().api;
+    if (prop === SYMBOL_GET_OUTPUT) return true;
+    return prop in this.getOutput().api;
   }
 
   getOwnPropertyDescriptor(_: unknown, prop: string | symbol) {
@@ -93,8 +115,8 @@ export const tapApiResource = <TState, TApi extends ApiObject>(
       ),
     [element.type],
   );
-  const { key, state } = value;
-  return tapMemo(() => ({ key, state, api }), [state, key]);
+
+  return tapMemo(() => ({ state: value.state, api }), [value.state]);
 };
 
 const ApiResource = resource(

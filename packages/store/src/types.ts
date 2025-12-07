@@ -94,9 +94,7 @@ export type ScopeOutput<K extends keyof AssistantScopes> = {
 export type ScopeOutputOf<TState, TApi extends ApiObject> = {
   state: TState;
   api: TApi;
-  key?: string | undefined;
 };
-
 
 /**
  * Type for a scope field - a function that returns the API,

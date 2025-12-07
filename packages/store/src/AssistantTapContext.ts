@@ -3,11 +3,7 @@ import {
   tapContext,
   withContextProvider,
 } from "@assistant-ui/tap";
-import type {
-  EventManager,
-  AssistantEvent,
-  AssistantEventMap,
-} from "./EventContext";
+import type { EventManager } from "./EventContext";
 import type { AssistantClient } from "./types";
 
 export type AssistantTapContextValue = {
