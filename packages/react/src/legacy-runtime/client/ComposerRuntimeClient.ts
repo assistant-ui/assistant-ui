@@ -76,12 +76,10 @@ export const ComposerClient = resource(
     }, [runtime, events, threadIdRef, messageIdRef]);
 
     const attachments = tapLookupResources(
-      runtimeState.attachments.map((_, idx) =>
-        ComposerAttachmentClientByIndex(
-          { runtime: runtime, index: idx },
-          { key: idx },
-        ),
-      ),
+      runtimeState.attachments.map((_, idx) => [
+        String(idx),
+        ComposerAttachmentClientByIndex({ runtime: runtime, index: idx }),
+      ]),
     );
 
     const state = tapMemo<ComposerClientState>(() => {

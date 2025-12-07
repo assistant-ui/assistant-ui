@@ -91,18 +91,24 @@ export const tapStoreList = <
 } => {
   const { initialValues, resource: Resource, idGenerator } = config;
 
-  const [items, setItems] = tapState<TProps[]>(initialValues);
+  const [items, setItems] = tapState<Record<string, TProps>>(() =>
+    Object.fromEntries(initialValues.map((item) => [item.id, item])),
+  );
 
-  const lookup = tapLookupResources(
-    items.map((item) => [
-      item.id,
+  const lookup = tapLookupResources<TState, TApi, Record<string, TProps>>(
+    items,
+    (item, id) =>
       Resource({
         initialValue: item,
         remove: () => {
-          setItems(items.filter((i) => i !== item));
+          setItems((items) => {
+            const newItems = { ...items };
+            delete newItems[id];
+            return newItems;
+          });
         },
       }),
-    ]),
+    [Resource],
   );
 
   const add = (id?: string) => {
@@ -116,7 +122,7 @@ export const tapStoreList = <
     // Create a new item with the generated/provided id
     // This assumes TProps has an 'id' field - users will need to ensure their props type supports this
     const newItem = { id: newId } as TProps;
-    setItems([...items, newItem]);
+    setItems((items) => ({ ...items, [newId]: newItem }));
   };
 
   return {

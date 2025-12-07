@@ -1,4 +1,4 @@
-import { ResourceElement } from "@assistant-ui/tap";
+import { ResourceElement, tapMemo } from "@assistant-ui/tap";
 import { tapApiResources } from "./tapApiResource";
 import type { ApiObject, ScopeOutputOf } from "./types";
 
@@ -35,26 +35,38 @@ import type { ApiObject, ScopeOutputOf } from "./types";
  * const byKey = foos.api({ key: "foo-1" });
  * ```
  */
-export const tapLookupResources = <TState, TApi extends ApiObject>(
-  elements: ReadonlyArray<
-    readonly [
-      key: string | number,
-      element: ResourceElement<ScopeOutputOf<TState, TApi>>,
-    ]
-  >,
+export const tapLookupResources = <
+  TState,
+  TApi extends ApiObject,
+  M extends Record<string | number | symbol, any>,
+>(
+  map: M,
+  getElement: (
+    t: M[keyof M],
+    key: keyof M,
+  ) => ResourceElement<ScopeOutputOf<TState, TApi>>,
+  getElementDeps?: any[],
 ): {
   state: TState[];
-  api: (lookup: { index: number } | { key: string }) => TApi;
+  api: (lookup: { index: number } | { key: keyof M }) => TApi;
 } => {
-  const resources = tapApiResources(elements);
+  const resources = tapApiResources(map, getElement, getElementDeps);
+  const keys = tapMemo(() => Object.keys(map) as (keyof M)[], [map]);
+  const state = tapMemo(() => {
+    const result = new Array(keys.length);
+    for (let i = 0; i < keys.length; i++) {
+      result[i] = resources[keys[i]!].state;
+    }
+    return result;
+  }, [keys, resources]);
 
   return {
-    state: resources.map((r) => r.state),
-    api: (lookup: { index: number } | { key: string }) => {
+    state,
+    api: (lookup: { index: number } | { key: keyof M }) => {
       const value =
         "index" in lookup
-          ? resources[lookup.index]?.api
-          : resources.find((r) => r.key === lookup.key)?.api;
+          ? resources[keys[lookup.index]!]?.api
+          : resources[lookup.key]?.api;
 
       if (!value) {
         throw new Error(

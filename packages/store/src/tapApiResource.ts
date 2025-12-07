@@ -30,9 +30,7 @@ class ReadonlyApiHandler<TState, TApi extends ApiObject>
   implements ProxyHandler<ScopeOutputOf<TState, TApi>>
 {
   private getState = () => this.getValue().state;
-  constructor(
-    private readonly getValue: () => ScopeOutputOf<TState, TApi>,
-  ) {}
+  constructor(private readonly getValue: () => ScopeOutputOf<TState, TApi>) {}
 
   get(_: unknown, prop: string | symbol) {
     if (prop === SYMBOL_GET_STATE) return this.getState;
@@ -107,15 +105,21 @@ const ApiResource = resource(
   },
 );
 
-export const tapApiResources = <TState, TApi extends ApiObject>(
-  elements: ReadonlyArray<
-    readonly [
-      key: string | number,
-      element: ResourceElement<ScopeOutputOf<TState, TApi>>,
-    ]
-  >,
-): ScopeOutputOf<TState, TApi>[] => {
+export const tapApiResources = <
+  TState,
+  TApi extends ApiObject,
+  M extends Record<string | number | symbol, any>,
+>(
+  map: M,
+  getElement: (
+    t: M[keyof M],
+    key: keyof M,
+  ) => ResourceElement<ScopeOutputOf<TState, TApi>>,
+  getElementDeps?: any[],
+): { [K in keyof M]: ScopeOutputOf<TState, TApi> } => {
   return tapResources(
-    elements.map(([key, element]) => [key, ApiResource(element)] as const),
+    map,
+    (t, key) => ApiResource(getElement(t, key)),
+    getElementDeps,
   );
 };

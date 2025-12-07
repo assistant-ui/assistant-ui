@@ -5,7 +5,7 @@ export namespace tapState {
   export type StateUpdater<S> = S | ((prev: S) => S);
 }
 
-export const rerender = (fiber: ResourceFiber<any, any>) => {
+export const rerenderFiber = (fiber: ResourceFiber<any, any>) => {
   if (fiber.renderContext) {
     throw new Error("Resource updated during render");
   }
@@ -51,7 +51,7 @@ function getStateCell<T>(
 
         if (!Object.is(currentValue, nextValue)) {
           cell.value = nextValue;
-          rerender(fiber);
+          rerenderFiber(fiber);
         }
       },
     };

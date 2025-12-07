@@ -174,7 +174,7 @@ The `ReadonlyApiHandler` proxy:
 
 **Note:** `getState` is NOT automatically added to the API. It's an optional convention that users can implement themselves.
 
-Also exports `tapApiResources(elements[])` which wraps multiple elements using an internal `ApiResource`.
+Also exports `tapApiResources(map, getElement, deps?)` which wraps multiple elements using an internal `ApiResource`.
 
 ### 5. useAssistantState (useAssistantState.tsx)
 
@@ -274,7 +274,7 @@ The store is built on `@assistant-ui/tap`:
 | `tapRef()` | `useRef` | tapApiResource stores latest value for proxy access |
 | `tapEffectEvent()` | `useEffectEvent` | Fresh DerivedScope get callback (always latest closure) |
 | `tapResource()` | - | Mount single child resource (used in tapApiResource) |
-| `tapResources()` | - | Mount keyed resource list (used in useAssistantClient) |
+| `tapResources(map, getElement, deps?)` | - | Mount keyed resource list from record (used in useAssistantClient) |
 | `tapInlineResource()` | - | Inline resource without separate component (EventManager) |
 | `createResource()` | - | Imperative resource handle with subscribe/flushSync (asStore) |
 | `createContext/tapContext` | Context | StoreContext for events + parent access |
@@ -305,7 +305,7 @@ The store is built on `@assistant-ui/tap`:
 | `DerivedScope(config)` | Define derived scope with source/query/get |
 | `tapApiResource(element)` | Wrap element returning `{ state, api, key? }` with stable proxy |
 | `tapStoreList(config)` | Dynamic list with add/remove (returns `{ state, api, add }`) |
-| `tapLookupResources(elements)` | List lookup by index/key (returns `{ state, api }`) |
+| `tapLookupResources(map, getElement, deps?)` | List lookup by index/key (returns `{ state, api }`) |
 | `tapStoreContext()` | Access `{ events, parent }` in tap resources |
 | `registerAssistantScope(config)` | Register default scope initialization or error |
 

@@ -87,12 +87,10 @@ export const ThreadClient = resource(
     );
 
     const messages = tapLookupResources(
-      runtimeState.messages.map((m) =>
-        MessageClientById(
-          { runtime: runtime, id: m.id, threadIdRef },
-          { key: m.id },
-        ),
-      ),
+      runtimeState.messages.map((m) => [
+        m.id,
+        MessageClientById({ runtime: runtime, id: m.id, threadIdRef }),
+      ]),
     );
 
     const state = tapMemo<ThreadClientState>(() => {

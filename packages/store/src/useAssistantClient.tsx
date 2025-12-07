@@ -57,12 +57,10 @@ const RootScopeStoreResource = resource(
  */
 const RootScopeResource = resource(
   <K extends keyof AssistantScopes>({
-    scopeName,
     element,
     events,
     parent,
   }: {
-    scopeName: K;
     element: ScopeInput<AssistantScopes[K]>;
     events: EventManager;
     parent: AssistantClient;
@@ -76,15 +74,12 @@ const RootScopeResource = resource(
       scopeFunction.source = "root" as const;
       scopeFunction.query = {};
 
-      return [
-        scopeName,
-        {
-          scopeFunction: scopeFunction satisfies ScopeField<AssistantScopes[K]>,
-          subscribe: store.subscribe,
-          flushSync: store.flushSync,
-        },
-      ] as const;
-    }, [scopeName, store]);
+      return {
+        scopeFunction: scopeFunction satisfies ScopeField<AssistantScopes[K]>,
+        subscribe: store.subscribe,
+        flushSync: store.flushSync,
+      };
+    }, [store]);
   },
 );
 
@@ -96,18 +91,12 @@ const RootScopesResource = resource(
   ({ scopes, parent }: { scopes: ScopesInput; parent: AssistantClient }) => {
     const events = tapInlineResource(EventManager());
 
-    const resultEntries = tapResources(
-      Object.entries(scopes).map(([scopeName, element]) => [
-        scopeName,
-        RootScopeResource({
-          scopeName: scopeName as keyof AssistantScopes,
-          element: element as ScopeInput<
-            AssistantScopes[keyof AssistantScopes]
-          >,
-          events,
-          parent,
-        }),
-      ]),
+    const results = tapResources(scopes, (element) =>
+      RootScopeResource({
+        element,
+        events,
+        parent,
+      }),
     );
 
     const on = <TEvent extends AssistantEvent>(
@@ -119,6 +108,7 @@ const RootScopesResource = resource(
     };
 
     return tapMemo(() => {
+      const resultEntries = Object.entries(results);
       if (resultEntries.length === 0) {
         return {
           scopes: {},
@@ -132,9 +122,7 @@ const RootScopesResource = resource(
             scopeName,
             scopeFunction,
           ]),
-        ) as {
-          [K in keyof typeof scopes]: ScopeField<AssistantScopes[K]>;
-        },
+        ),
         subscribe: (callback: () => void) => {
           const unsubscribes = resultEntries.map(([, { subscribe }]) => {
             return subscribe(() => {
@@ -153,7 +141,7 @@ const RootScopesResource = resource(
         },
         on,
       };
-    }, [...resultEntries, events]);
+    }, [results, events]);
   },
 );
 
@@ -173,30 +161,25 @@ export const useRootScopes = (
  */
 const DerivedScopeResource = resource(
   <K extends keyof AssistantScopes>({
-    scopeName,
     element,
-    parentClient,
+    parent,
   }: {
-    scopeName: K;
     element: ResourceElement<
       AssistantScopes[K],
       DerivedScopeProps<AssistantScopes[K]>
     >;
-    parentClient: AssistantClient;
+    parent: AssistantClient;
   }) => {
     const get = tapEffectEvent(element.props.get);
     const source = element.props.source;
     const query = element.props.query;
     return tapMemo(() => {
-      const scopeFunction = () => get(parentClient);
+      const scopeFunction = () => get(parent);
       scopeFunction.source = source;
       scopeFunction.query = query;
 
-      return [
-        scopeName,
-        scopeFunction satisfies ScopeField<AssistantScopes[K]>,
-      ] as const;
-    }, [scopeName, get, source, JSON.stringify(query), parentClient]);
+      return scopeFunction satisfies ScopeField<AssistantScopes[K]>;
+    }, [get, source, JSON.stringify(query), parent]);
   },
 );
 
@@ -205,31 +188,16 @@ const DerivedScopeResource = resource(
  * Builds stable scope functions with source and query metadata
  */
 const DerivedScopesResource = resource(
-  ({
-    scopes,
-    parentClient,
-  }: {
-    scopes: ScopesInput;
-    parentClient: AssistantClient;
-  }) => {
-    const resultEntries = tapResources(
-      Object.entries(scopes).map(([scopeName, element]) => [
-        scopeName,
+  ({ scopes, parent }: { scopes: ScopesInput; parent: AssistantClient }) => {
+    return tapResources(
+      scopes,
+      (element) =>
         DerivedScopeResource({
-          scopeName: scopeName as keyof AssistantScopes,
-          element: element as ScopeInput<
-            AssistantScopes[keyof AssistantScopes]
-          >,
-          parentClient,
+          element,
+          parent,
         }),
-      ]),
+      [],
     );
-
-    return tapMemo(() => {
-      return Object.fromEntries(resultEntries) as {
-        [K in keyof typeof scopes]: ScopeField<AssistantScopes[K]>;
-      };
-    }, [...resultEntries]);
   },
 );
 
@@ -238,11 +206,9 @@ const DerivedScopesResource = resource(
  */
 export const useDerivedScopes = (
   derivedScopes: ScopesInput,
-  parentClient: AssistantClient,
+  parent: AssistantClient,
 ) => {
-  return useResource(
-    DerivedScopesResource({ scopes: derivedScopes, parentClient }),
-  );
+  return useResource(DerivedScopesResource({ scopes: derivedScopes, parent }));
 };
 
 const useExtendedAssistantClientImpl = (
@@ -265,7 +231,7 @@ const useExtendedAssistantClientImpl = (
       subscribe: rootFields.subscribe ?? baseClient.subscribe,
       flushSync: rootFields.flushSync ?? baseClient.flushSync,
       on: rootFields.on ?? baseClient.on,
-    } as AssistantClient;
+    };
   }, [baseClient, rootFields, derivedFields]);
 };
 

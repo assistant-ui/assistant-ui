@@ -151,19 +151,19 @@ export const DerivedScopes = resource(
     });
 
     const results = tapResources(
-      Object.entries(scopeFields).map(([fieldName, scopeElement]) =>
-        ScopeFieldWithNameResource(
-          {
-            fieldName,
-            scopeElement: scopeElement as ReturnType<typeof DerivedScope>,
-          },
-          { key: fieldName },
-        ),
-      ),
+      scopeFields as Record<string, ReturnType<typeof DerivedScope>>,
+      (scopeElement, fieldName) =>
+        ScopeFieldWithNameResource({
+          fieldName,
+          scopeElement,
+        }),
+      [],
     );
 
     return tapMemo(() => {
-      const result = Object.fromEntries(results) as Partial<AssistantApi>;
+      const result = Object.fromEntries(
+        Object.values(results),
+      ) as Partial<AssistantApi>;
 
       const {
         on: onCb,
@@ -181,6 +181,6 @@ export const DerivedScopes = resource(
       if (flushCb) result.flushSync = () => flushCb();
 
       return result;
-    }, [...results]);
+    }, [results]);
   },
 );

@@ -234,26 +234,30 @@ Uses `tapApiResources` internally to create stable API proxies for each element.
 #### Signature
 
 ```typescript
-function tapLookupResources<TState, TApi extends ApiObject>(
-  elements: ResourceElement<{ state: TState; api: TApi; key?: string }>[],
+function tapLookupResources<TState, TApi extends ApiObject, T, K extends string | number>(
+  map: Record<K, T>,
+  getElement: (t: T, key: K) => ResourceElement<ScopeOutputOf<TState, TApi>>,
+  getElementDeps?: any[],
 ): {
   state: TState[];
-  api: (lookup: { index: number } | { key: string }) => TApi;
+  api: (lookup: { index: number } | { key: K }) => TApi;
 };
 ```
 
 **Parameters**:
 
-- `elements`: Array of resource elements returning `{ state, api, key? }`
+- `map`: Record/object where keys identify each resource instance
+- `getElement`: Function receiving value and key, returning a ResourceElement with `{ state, api, key? }`
+- `getElementDeps`: Optional dependency array for memoizing the getElement function
 
 **Returns**: Object with:
 
-- `state`: Array of states from all resources (in order)
-- `api`: Lookup function accepting `{ index: number }` or `{ key: string }`
+- `state`: Array of states from all resources (in iteration order)
+- `api`: Lookup function accepting `{ index: number }` or `{ key: K }`
 
 **Throws**: Error with lookup details if resource not found for given parameters
 
-**Important**: The lookup function uses `{ key: string }` for key-based lookups. Consumers should wrap it to rename the key field to their preferred name (e.g., `id`, `toolCallId`).
+**Important**: The lookup function uses `{ key: K }` for key-based lookups. Consumers should wrap it to rename the key field to their preferred name (e.g., `id`, `toolCallId`).
 
 **Example**:
 
@@ -270,14 +274,14 @@ const FooItemResource = resource(
 );
 
 const FooListResource = resource((): ScopeOutput<"fooList"> => {
-  const items = [
-    { id: "item-1", bar: "First" },
-    { id: "item-2", bar: "Second" },
-  ];
+  const itemsMap = {
+    "item-1": { id: "item-1", bar: "First" },
+    "item-2": { id: "item-2", bar: "Second" },
+  };
 
-  // Pass key in second argument for tapResources
   const lookup = tapLookupResources(
-    items.map((item) => FooItemResource({ initialValue: item, remove: () => {} }, { key: item.id })),
+    itemsMap,
+    (item) => FooItemResource({ initialValue: item, remove: () => {} }),
   );
 
   const state = tapMemo(() => ({ items: lookup.state }), [lookup.state]);
