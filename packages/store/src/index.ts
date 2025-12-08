@@ -15,8 +15,5 @@ export { tapClient, tapEmit } from "./AssistantTapContext";
 export { tapClientLookup } from "./tapClientLookup";
 export { tapClientList } from "./tapClientList";
 
-// registration
-export { registerClient } from "./ClientRegistry";
-
 // types
 export type { AssistantClientRegistry, ClientOutput } from "./types";

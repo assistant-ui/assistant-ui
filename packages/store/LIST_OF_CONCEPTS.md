@@ -49,12 +49,6 @@ These are concepts for developers creating custom clients.
 - **AssistantClientRegistry** - Module augmentation interface to register custom clients
 - **ClientMeta** - Metadata about a client: `{ source, query }`
 
-### Client Registration
-
-- **registerClient({ name, defaultInitialize })** - Register a default client implementation
-- **getDefaultClientInitializer(name)** - Retrieve the registered initializer for a client
-- **hasRegisteredClient(name)** - Check if a client has been registered
-
 ### Client Patterns
 
 - **RootClient** - Top-level client with `source: "root"`, `query: {}`

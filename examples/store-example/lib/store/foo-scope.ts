@@ -1,5 +1,3 @@
-import { registerClient } from "@assistant-ui/store";
-
 type FooState = { id: string; bar: string };
 type FooMethods = {
   getState: () => FooState;
@@ -39,12 +37,4 @@ declare module "@assistant-ui/store" {
   }
 }
 
-registerClient({
-  name: "fooList",
-  defaultInitialize: { error: "FooList is not configured" },
-});
-
-registerClient({
-  name: "foo",
-  defaultInitialize: { error: "Foo is not configured" },
-});
+export default {};

@@ -1,6 +1,5 @@
 import React, { createContext, useContext } from "react";
-import type { AssistantClient, AssistantClients, ClientField } from "./types";
-import { hasRegisteredClient } from "./ClientRegistry";
+import type { AssistantClient, ClientField } from "./types";
 
 const NO_OP_SUBSCRIBE = () => () => {};
 const NO_OP_CLIENT_FIELD = (() => {
@@ -24,11 +23,8 @@ const AssistantContext = createContext<AssistantClient>(
       if (prop === "subscribe") return NO_OP_SUBSCRIBE;
       if (prop === "on") return NO_OP_SUBSCRIBE;
 
-      // If this is a registered client, return a function that errors when called or accessed
-      if (hasRegisteredClient(prop as keyof AssistantClients))
-        return NO_OP_CLIENT_FIELD;
-
-      return null;
+      // Return error field for any client access outside AssistantProvider
+      return NO_OP_CLIENT_FIELD;
     },
   }),
 );
