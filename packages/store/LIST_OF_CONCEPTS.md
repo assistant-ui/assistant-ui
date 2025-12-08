@@ -12,12 +12,12 @@ These are concepts that users consuming assistant-ui need to understand.
 ### Core
 
 - **AssistantProvider** - React component that provides the AssistantClient to the component tree
-- **useAssistantClient(scopeInputs?)** - Hook to access or create an AssistantClient with optional scope inputs
-- **AssistantClient** - The main object for accessing scopes: `client.thread().speak()`
+- **useAssistantClient(clientInputs?)** - Hook to access or create an AssistantClient with optional client inputs
+- **AssistantClient** - The main object for accessing clients: `client.thread().speak()`
 
 ### State
 
-- **State** - The current state of all scopes
+- **State** - The current state of all clients
 - **useAssistantState(selector)** - Hook to subscribe to state changes with a selector function
 - **AssistantIf** - Conditional rendering component that takes a `condition(state) => boolean`
 
@@ -29,36 +29,36 @@ These are concepts that users consuming assistant-ui need to understand.
 - **WildcardEventSelectors** - Use `"*"` to match any event or scope
 - **Payload** - Data passed to event callbacks
 
-### Scope Access
+### Client Access
 
-- **Scope** - A named unit of state and client (e.g., `thread`, `message`)
-- **ScopeField** - Function on AssistantClient to access a scope's client: `client.thread()`
-- **ScopeSource** - The parent scope name (e.g., `"thread"` for messages)
-- **ScopeQuery** - Parameters to identify a specific scope instance (e.g., `{ messageId }`)
+- **Client** - A named unit of state and methods (e.g., `thread`, `message`)
+- **ClientField** - Function on AssistantClient to access a client's methods: `client.thread()`
+- **ClientSource** - The parent client name (e.g., `"thread"` for messages)
+- **ClientQuery** - Parameters to identify a specific client instance (e.g., `{ messageId }`)
 
 ---
 
-## Scope Author Facing
+## Client Author Facing
 
-These are concepts for developers creating custom scopes.
+These are concepts for developers creating custom clients.
 
-### Scope Definition
+### Client Definition
 
-- **ScopeDefinition** - Type defining a scope: `{ state, client, meta?, events? }`
-- **ScopeOutput<K>** - Return type from scope resources: `{ state, client }`
-- **AssistantScopeRegistry** - Module augmentation interface to register custom scopes
-- **ScopeMeta** - Metadata about a scope: `{ source, query }`
+- **ClientDefinition** - Type defining a client: `{ state, methods, meta?, events? }`
+- **ClientOutput<K>** - Return type from client resources: `{ state, methods }`
+- **AssistantClientRegistry** - Module augmentation interface to register custom clients
+- **ClientMeta** - Metadata about a client: `{ source, query }`
 
-### Scope Registration
+### Client Registration
 
-- **registerAssistantScope({ name, defaultInitialize })** - Register a default scope implementation
-- **getDefaultScopeInitializer(name)** - Retrieve the registered initializer for a scope
-- **hasRegisteredScope(name)** - Check if a scope has been registered
+- **registerClient({ name, defaultInitialize })** - Register a default client implementation
+- **getDefaultClientInitializer(name)** - Retrieve the registered initializer for a client
+- **hasRegisteredClient(name)** - Check if a client has been registered
 
-### Scope Patterns
+### Client Patterns
 
-- **RootScope** - Top-level scope with `source: "root"`, `query: {}`
-- **DerivedScope** - Scope created from another scope with `source`, `query`, and `get`
+- **RootClient** - Top-level client with `source: "root"`, `query: {}`
+- **DerivedClient** - Client created from another client with `source`, `query`, and `get`
 
 ### Tap Hooks
 
@@ -67,22 +67,22 @@ These are concepts for developers creating custom scopes.
 
 ### List Management
 
-- **tapStoreList(config)** - Create stateful lists with add/remove functionality
-- **tapLookupResources(map, getElement, deps?)** - Create lookup-based collections
-- **TapStoreListConfig** - Config: `{ initialValues, resource, idGenerator? }`
-- **TapStoreListResourceProps** - Props passed to list items: `{ initialValue, remove }`
+- **tapClientList(config)** - Create stateful lists with add/remove functionality
+- **tapClientLookup(map, getElement, deps?)** - Create lookup-based collections
+- **TapClientListProps** - Config: `{ initialValues, resource, getKey }`
+- **TapClientListResourceProps** - Props passed to list items: `{ key, initialData, remove }`
 
 ### Events
 
 - **AssistantEventMap** - Complete map of all events (includes `"*"` wildcard)
-- **AssistantEventScopeConfig** - Module augmentation to map event sources to parent scopes
+- **AssistantEventScopeConfig** - Module augmentation to map event sources to parent clients
 - **EventSource<TEvent>** - The part before the dot (e.g., `"thread"` from `"thread.updated"`)
 
 ### Base Types
 
-- **ClientObject** - Base interface for client types (plain object with methods)
-- **ScopeResources** - Map of scope names to their ResourceElement inputs
-- **AssistantScopes** - The complete set of all registered scopes
+- **ClientObject** - Base interface for methods types (plain object with methods)
+- **ClientsInput** - Map of client names to their ResourceElement inputs
+- **AssistantClients** - The complete set of all registered clients
 - **Unsubscribe** - `() => void` returned by subscription functions
 
 ---
@@ -100,32 +100,31 @@ These are implementation details not meant for public use.
 
 ### Resource Wrappers
 
-- **RootScopeResource** - Wraps a single root scope with store functionality
-- **RootScopesResource** - Mounts all root scopes with unified subscription
-- **DerivedScopeResource** - Creates a derived scope field with memoized client
-- **DerivedScopesResource** - Handles all derived scopes
+- **RootClientResource** - Wraps a single root client with store functionality
+- **RootClientsResource** - Mounts all root clients with unified subscription
+- **DerivedClientResource** - Creates a derived client field with memoized methods
+- **DerivedClientsResource** - Handles all derived clients
 
 ### Client Proxying
 
 - **tapClientResource** - Wraps ResourceElement to create stable client proxy
 - **tapClientResources** - Batch version for multiple resources
-- **ReadonlyClientHandler** - Proxy handler for read-only, stable client proxies
-- **ProxiedAssistantState** - Lazy state access via Proxy
-- **SYMBOL_GET_OUTPUT** - Internal symbol to access raw `{ state, client }` output
+- **ClientProxy** - Proxy handler for read-only, stable client proxies
+- **SYMBOL_GET_OUTPUT** - Internal symbol to access raw `{ state, methods }` output
 
 ### Event Internals
 
 - **EventManager** - Internal: `{ on(event, callback), emit(event, payload) }`
 - **normalizeEventSelector** - Converts event selector to normalized form
 - **checkEventScope** - Type guard for event scope validation
-- **ScopeEventMap** - Combined map of all events from all scopes
+- **ClientEventMap** - Combined map of all events from all clients
 - **SourceByScope<TScope>** - Resolves event sources for a given scope
 
 ### Store Utilities
 
 - **Store<T>** - Interface: `{ getState(), subscribe(listener) }`
-- **asStore(resourceElement)** - Convert a ResourceElement into a Store
+- **StoreResource** - Convert a ResourceElement into a Store
 
 ### Utilities
 
-- **splitScopes** - Separates scopes into `rootScopes` and `derivedScopes`
+- **splitClients** - Separates clients into `rootClients` and `derivedClients`

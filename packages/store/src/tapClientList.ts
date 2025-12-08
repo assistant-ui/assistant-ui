@@ -1,7 +1,7 @@
 import { tapMemo, tapState } from "@assistant-ui/tap";
 import type { ContravariantResource } from "@assistant-ui/tap";
 import { tapClientLookup } from "./tapClientLookup";
-import type { ClientObject, ScopeOutputOf } from "./types";
+import type { ClientObject, ClientOutputOf } from "./types";
 
 export type TapClientListResourceProps<TData> = {
   key: string;
@@ -9,11 +9,11 @@ export type TapClientListResourceProps<TData> = {
   remove: () => void;
 };
 
-export type TapClientListConfig<TData, TState, TClient extends ClientObject> = {
+export type TapClientListProps<TData, TState, TMethods extends ClientObject> = {
   initialValues: TData[];
   getKey: (data: TData) => string;
   resource: ContravariantResource<
-    ScopeOutputOf<TState, TClient>,
+    ClientOutputOf<TState, TMethods>,
     TapClientListResourceProps<TData>
   >;
 };
@@ -35,14 +35,14 @@ const createProps = <TData>(
   };
 };
 
-export const tapClientList = <TData, TState, TClient extends ClientObject>(
-  config: TapClientListConfig<TData, TState, TClient>,
+export const tapClientList = <TData, TState, TMethods extends ClientObject>(
+  props: TapClientListProps<TData, TState, TMethods>,
 ): {
   state: TState[];
-  get: (lookup: { index: number } | { key: string }) => TClient;
+  get: (lookup: { index: number } | { key: string }) => TMethods;
   add: (initialData: TData) => void;
 } => {
-  const { initialValues, getKey, resource: Resource } = config;
+  const { initialValues, getKey, resource: Resource } = props;
 
   type Props = TapClientListResourceProps<TData>;
 
@@ -64,7 +64,7 @@ export const tapClientList = <TData, TState, TClient extends ClientObject>(
     return Object.fromEntries(entries);
   });
 
-  const lookup = tapClientLookup<TState, TClient, Record<string, Props>>(
+  const lookup = tapClientLookup<TState, TMethods, Record<string, Props>>(
     items,
     Resource,
     [Resource],

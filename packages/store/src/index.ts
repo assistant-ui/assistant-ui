@@ -8,28 +8,28 @@ export { AssistantIf } from "./AssistantIf";
 export { AssistantProvider } from "./AssistantContext";
 
 // resources
-export { DerivedScope } from "./DerivedScope";
+export { DerivedClient } from "./DerivedClient";
 
 // tap hooks
 export { tapAssistantClient, tapEmitEvent } from "./AssistantTapContext";
 export { tapClientLookup } from "./tapClientLookup";
 export {
   tapClientList,
-  type TapClientListConfig,
+  type TapClientListProps,
   type TapClientListResourceProps,
 } from "./tapClientList";
 
 // registration
-export { registerAssistantScope } from "./ScopeRegistry";
+export { registerClient } from "./ClientRegistry";
 
 // types
 export type {
-  AssistantScopes,
-  AssistantScopeRegistry,
+  AssistantClients,
+  AssistantClientRegistry,
   AssistantClient,
   AssistantState,
-  ScopeOutput,
-  ScopeOutputOf,
+  ClientOutput,
+  ClientOutputOf,
   ClientObject,
 } from "./types";
 

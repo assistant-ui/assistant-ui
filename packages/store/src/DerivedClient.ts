@@ -1,14 +1,14 @@
 import { resource } from "@assistant-ui/tap";
-import type { ScopeDefinition, DerivedScopeProps } from "./types";
+import type { ClientDefinition, DerivedClientProps } from "./types";
 
 /**
- * Creates a derived scope field that memoizes based on source and query.
+ * Creates a derived client field that memoizes based on source and query.
  * The get callback always calls the most recent version (useEffectEvent pattern).
  *
  * @example
  * ```typescript
  * const client = useAssistantClient({
- *   message: DerivedScope({
+ *   message: DerivedClient({
  *     source: "thread",
  *     query: { index: 0 },
  *     get: (client) => client.thread().message({ index: 0 }),
@@ -16,9 +16,9 @@ import type { ScopeDefinition, DerivedScopeProps } from "./types";
  * });
  * ```
  */
-export const DerivedScope = resource(
-  <T extends ScopeDefinition<any, any, any, any>>(
-    _config: DerivedScopeProps<T>,
+export const DerivedClient = resource(
+  <T extends ClientDefinition<any, any, any, any>>(
+    _config: DerivedClientProps<T>,
   ): null => {
     return null;
   },

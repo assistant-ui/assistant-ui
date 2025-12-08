@@ -6,30 +6,30 @@ import type {
 } from "./EventContext";
 
 /**
- * Client object type - functions that can be called on a scope
+ * Base type for methods that can be called on a client.
  */
 export interface ClientObject {
   [key: string]: (...args: any[]) => any;
 }
 
-type ScopeMetaType = { source: string; query: Record<string, unknown> };
+type ClientMetaType = { source: string; query: Record<string, unknown> };
 
 /**
- * Definition of a scope in the assistant client (internal type)
- * @template TState - The state type for this scope
- * @template TClient - The client type (methods - getState is optional)
+ * Definition of a client in the assistant system (internal type).
+ * @template TState - The state type for this client
+ * @template TMethods - The methods available on this client
  * @template TMeta - Source/query metadata (optional)
- * @template TEvents - Events that this scope can emit (optional)
+ * @template TEvents - Events that this client can emit (optional)
  * @internal
  */
-export type ScopeDefinition<
+export type ClientDefinition<
   TState extends Record<string, unknown> = Record<string, unknown>,
-  TClient extends ClientObject = ClientObject,
-  TMeta extends ScopeMetaType = never,
+  TMethods extends ClientObject = ClientObject,
+  TMeta extends ClientMetaType = never,
   TEvents extends Record<string, unknown> = never,
 > = {
   state: TState;
-  client: TClient;
+  methods: TMethods;
   meta?: TMeta;
   events?: TEvents;
 };
@@ -40,16 +40,16 @@ export type ScopeDefinition<
  * @example
  * ```typescript
  * declare module "@assistant-ui/store" {
- *   interface AssistantScopeRegistry {
- *     // Simple scope (meta and events are optional)
+ *   interface AssistantClientRegistry {
+ *     // Simple client (meta and events are optional)
  *     foo: {
  *       state: { bar: string };
- *       client: { updateBar: (bar: string) => void };
+ *       methods: { updateBar: (bar: string) => void };
  *     };
- *     // Full scope with meta and events
+ *     // Full client with meta and events
  *     bar: {
  *       state: { id: string };
- *       client: { update: () => void };
+ *       methods: { update: () => void };
  *       meta: { source: "fooList"; query: { index: number } };
  *       events: {
  *         "bar.updated": { id: string };
@@ -59,46 +59,46 @@ export type ScopeDefinition<
  * }
  * ```
  */
-export interface AssistantScopeRegistry {}
+export interface AssistantClientRegistry {}
 
-export type AssistantScopes = keyof AssistantScopeRegistry extends never
-  ? Record<"ERROR: No scopes were defined", ScopeDefinition>
-  : { [K in keyof AssistantScopeRegistry]: AssistantScopeRegistry[K] };
+export type AssistantClients = keyof AssistantClientRegistry extends never
+  ? Record<"ERROR: No clients were defined", ClientDefinition>
+  : { [K in keyof AssistantClientRegistry]: AssistantClientRegistry[K] };
 
 /**
- * Output type that scope resources return with state and client.
+ * Output type that client resources return with state and methods.
  *
  * @example
  * ```typescript
- * const FooResource = resource((): ScopeOutput<"foo"> => {
+ * const FooResource = resource((): ClientOutput<"foo"> => {
  *   const [state, setState] = tapState({ bar: "hello" });
  *   return {
  *     state,
- *     client: {
+ *     methods: {
  *       updateBar: (b) => setState({ bar: b })
  *     }
  *   };
  * });
  * ```
  */
-export type ScopeOutput<K extends keyof AssistantScopes> = {
-  state: AssistantScopes[K]["state"];
-  client: AssistantScopes[K]["client"];
+export type ClientOutput<K extends keyof AssistantClients> = {
+  state: AssistantClients[K]["state"];
+  methods: AssistantClients[K]["methods"];
 };
 
 /**
- * Generic version of ScopeOutput for library code.
+ * Generic version of ClientOutput for library code.
  */
-export type ScopeOutputOf<TState, TClient extends ClientObject> = {
+export type ClientOutputOf<TState, TMethods extends ClientObject> = {
   state: TState;
-  client: TClient;
+  methods: TMethods;
 };
 
 /**
- * Type for a scope field - a function that returns the client,
- * with source/query metadata attached (derived from meta)
+ * Type for a client field - a function that returns the methods,
+ * with source/query metadata attached (derived from meta).
  */
-export type ScopeField<T extends ScopeDefinition<any, any, any, any>> = (() => T["client"]) &
+export type ClientField<T extends ClientDefinition<any, any, any, any>> = (() => T["methods"]) &
   (
     | NonNullable<T["meta"]>
     | { source: "root"; query: Record<string, never> }
@@ -106,47 +106,46 @@ export type ScopeField<T extends ScopeDefinition<any, any, any, any>> = (() => T
   );
 
 /**
- * Props passed to a derived scope resource element
+ * Props passed to a derived client resource element.
  */
-export type DerivedScopeProps<T extends ScopeDefinition<any, any, any, any>> = {
-  get: (parent: AssistantClient) => T["client"];
+export type DerivedClientProps<T extends ClientDefinition<any, any, any, any>> = {
+  get: (parent: AssistantClient) => T["methods"];
   source: NonNullable<T["meta"]>["source"];
   query: NonNullable<T["meta"]>["query"];
 };
 
 /**
- * Input type for scope definitions - ResourceElement that returns { state, client }
- * Can optionally include source/query metadata via DerivedScope
+ * Input type for client definitions - ResourceElement that returns { state, methods }.
  */
-export type ScopeInput<T extends ScopeDefinition<any, any, any, any>> = ResourceElement<{
+export type ClientInput<T extends ClientDefinition<any, any, any, any>> = ResourceElement<{
   state: T["state"];
-  client: T["client"];
+  methods: T["methods"];
 }>;
 
 /**
- * Map of scope names to their input definitions
+ * Map of client names to their input definitions.
  */
-export type ScopesInput = {
-  [K in keyof AssistantScopes]?: ScopeInput<AssistantScopes[K]>;
+export type ClientsInput = {
+  [K in keyof AssistantClients]?: ClientInput<AssistantClients[K]>;
 };
 
 /**
- * Unsubscribe function type
+ * Unsubscribe function type.
  */
 export type Unsubscribe = () => void;
 
 /**
- * State type extracted from all scopes
+ * State type extracted from all clients.
  */
 export type AssistantState = {
-  [K in keyof AssistantScopes]: AssistantScopes[K]["state"];
+  [K in keyof AssistantClients]: AssistantClients[K]["state"];
 };
 
 /**
- * The assistant client type with all registered scopes
+ * The assistant client type with all registered clients.
  */
 export type AssistantClient = {
-  [K in keyof AssistantScopes]: ScopeField<AssistantScopes[K]>;
+  [K in keyof AssistantClients]: ClientField<AssistantClients[K]>;
 } & {
   subscribe(listener: () => void): Unsubscribe;
   on<TEvent extends AssistantEvent>(

@@ -1,14 +1,14 @@
 import React, { createContext, useContext } from "react";
-import type { AssistantClient, AssistantScopes, ScopeField } from "./types";
-import { hasRegisteredScope } from "./ScopeRegistry";
+import type { AssistantClient, AssistantClients, ClientField } from "./types";
+import { hasRegisteredClient } from "./ClientRegistry";
 
 const NO_OP_SUBSCRIBE = () => () => {};
-const NO_OP_SCOPE_FIELD = (() => {
+const NO_OP_CLIENT_FIELD = (() => {
   const fn = (() => {
     throw new Error(
       "You need to wrap this component/hook in <AssistantProvider>",
     );
-  }) as ScopeField<never>;
+  }) as ClientField<never>;
   fn.source = null;
   fn.query = null;
   return fn;
@@ -24,9 +24,9 @@ const AssistantContext = createContext<AssistantClient>(
       if (prop === "subscribe") return NO_OP_SUBSCRIBE;
       if (prop === "on") return NO_OP_SUBSCRIBE;
 
-      // If this is a registered scope, return a function that errors when called or accessed
-      if (hasRegisteredScope(prop as keyof AssistantScopes))
-        return NO_OP_SCOPE_FIELD;
+      // If this is a registered client, return a function that errors when called or accessed
+      if (hasRegisteredClient(prop as keyof AssistantClients))
+        return NO_OP_CLIENT_FIELD;
 
       return null;
     },

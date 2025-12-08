@@ -13,15 +13,15 @@ import {
 } from "@assistant-ui/tap";
 import type {
   AssistantClient,
-  AssistantScopes,
-  ScopesInput,
-  ScopeField,
-  ScopeInput,
-  DerivedScopeProps,
+  AssistantClients,
+  ClientsInput,
+  ClientField,
+  ClientInput,
+  DerivedClientProps,
 } from "./types";
 import { StoreResource } from "./utils/StoreResource";
 import { useAssistantContextValue } from "./AssistantContext";
-import { splitScopes } from "./utils/splitScopes";
+import { splitClients } from "./utils/splitClients";
 import {
   EventManager,
   normalizeEventSelector,
@@ -33,13 +33,13 @@ import { withAssistantTapContextProvider } from "./AssistantTapContext";
 import { tapClientResource } from "./tapClientResource";
 import { getClientIndex } from "./ClientStackContext";
 
-const RootScopeStoreResource = resource(
-  <K extends keyof AssistantScopes>({
+const RootClientStoreResource = resource(
+  <K extends keyof AssistantClients>({
     element,
     events,
     client,
   }: {
-    element: ScopeInput<AssistantScopes[K]>;
+    element: ClientInput<AssistantClients[K]>;
     events: EventManager;
     client: AssistantClient;
   }) => {
@@ -49,20 +49,20 @@ const RootScopeStoreResource = resource(
   },
 );
 
-const RootScopeResource = resource(
-  <K extends keyof AssistantScopes>({
+const RootClientResource = resource(
+  <K extends keyof AssistantClients>({
     element,
     events,
     client,
     notifySubscribers,
   }: {
-    element: ScopeInput<AssistantScopes[K]>;
+    element: ClientInput<AssistantClients[K]>;
     events: EventManager;
     client: AssistantClient;
     notifySubscribers: () => void;
-  }): ScopeField<AssistantScopes[K]> => {
+  }): ClientField<AssistantClients[K]> => {
     const store = tapInlineResource(
-      StoreResource(RootScopeStoreResource({ element, events, client })),
+      StoreResource(RootClientStoreResource({ element, events, client })),
     );
 
     tapEffect(() => {
@@ -70,27 +70,27 @@ const RootScopeResource = resource(
     }, [store, events]);
 
     return tapMemo(() => {
-      const scopeFunction = () => store.getState().client;
-      scopeFunction.source = "root" as const;
-      scopeFunction.query = {};
-      return scopeFunction;
+      const clientFunction = () => store.getState().methods;
+      clientFunction.source = "root" as const;
+      clientFunction.query = {};
+      return clientFunction;
     }, [store]);
   },
 );
 
-const NoOpRootScopeResource = resource(() => {
+const NoOpRootClientsResource = resource(() => {
   return tapMemo(
-    () => ({ scopes: {}, subscribe: undefined, on: undefined }),
+    () => ({ clients: {}, subscribe: undefined, on: undefined }),
     [],
   );
 });
 
-const RootScopesResource = resource(
+const RootClientsResource = resource(
   ({
-    scopes: inputScopes,
+    clients: inputClients,
     client,
   }: {
-    scopes: ScopesInput;
+    clients: ClientsInput;
     client: AssistantClient;
   }) => {
     const { subscribe, notifySubscribers, events } = tapInlineResource(
@@ -102,8 +102,8 @@ const RootScopesResource = resource(
       [client, notifySubscribers],
     );
 
-    const results = tapResources(inputScopes, (element) =>
-      RootScopeResource({
+    const results = tapResources(inputClients, (element) =>
+      RootClientResource({
         element: element!,
         events,
         client,
@@ -113,7 +113,7 @@ const RootScopesResource = resource(
 
     return tapMemo(() => {
       return {
-        scopes: results,
+        clients: results,
         subscribe,
         on: function <TEvent extends AssistantEvent>(
           this: AssistantClient,
@@ -134,7 +134,7 @@ const RootScopesResource = resource(
               return;
             }
 
-            const scopeClient = this[scope as keyof AssistantScopes]?.();
+            const scopeClient = this[scope as keyof AssistantClients]?.();
             if (!scopeClient) return;
 
             const index = getClientIndex(scopeClient);
@@ -155,22 +155,22 @@ const RootScopesResource = resource(
   },
 );
 
-export const useRootScopes = (scopes: ScopesInput, client: AssistantClient) => {
+export const useRootClients = (clients: ClientsInput, client: AssistantClient) => {
   return useResource(
-    Object.keys(scopes).length > 0
-      ? RootScopesResource({ scopes, client })
-      : NoOpRootScopeResource(),
+    Object.keys(clients).length > 0
+      ? RootClientsResource({ clients, client })
+      : NoOpRootClientsResource(),
   );
 };
 
-const DerivedScopeResource = resource(
-  <K extends keyof AssistantScopes>({
+const DerivedClientResource = resource(
+  <K extends keyof AssistantClients>({
     element,
     client,
   }: {
     element: ResourceElement<
-      AssistantScopes[K],
-      DerivedScopeProps<AssistantScopes[K]>
+      AssistantClients[K],
+      DerivedClientProps<AssistantClients[K]>
     >;
     client: AssistantClient;
   }) => {
@@ -178,45 +178,45 @@ const DerivedScopeResource = resource(
     const { source, query } = element.props;
 
     return tapMemo(() => {
-      const scopeFunction = () => get(client);
-      scopeFunction.source = source;
-      scopeFunction.query = query;
-      return scopeFunction as ScopeField<AssistantScopes[K]>;
+      const clientFunction = () => get(client);
+      clientFunction.source = source;
+      clientFunction.query = query;
+      return clientFunction as ClientField<AssistantClients[K]>;
     }, [get, source, JSON.stringify(query), client]);
   },
 );
 
-const DerivedScopesResource = resource(
-  ({ scopes, client }: { scopes: ScopesInput; client: AssistantClient }) => {
+const DerivedClientsResource = resource(
+  ({ clients, client }: { clients: ClientsInput; client: AssistantClient }) => {
     return tapResources(
-      scopes,
-      (element) => DerivedScopeResource({ element: element!, client }),
+      clients,
+      (element) => DerivedClientResource({ element: element!, client }),
       [],
     );
   },
 );
 
-export const useDerivedScopes = (
-  derivedScopes: ScopesInput,
+export const useDerivedClients = (
+  derivedClients: ClientsInput,
   client: AssistantClient,
 ) => {
-  return useResource(DerivedScopesResource({ scopes: derivedScopes, client }));
+  return useResource(DerivedClientsResource({ clients: derivedClients, client }));
 };
 
 const useExtendedAssistantClientImpl = (
-  scopes: ScopesInput,
+  clients: ClientsInput,
 ): AssistantClient => {
   const baseClient = useAssistantContextValue();
-  const { rootScopes, derivedScopes } = splitScopes(scopes);
+  const { rootClients, derivedClients } = splitClients(clients);
 
-  const rootFields = useRootScopes(rootScopes, baseClient);
-  const derivedFields = useDerivedScopes(derivedScopes, baseClient);
+  const rootFields = useRootClients(rootClients, baseClient);
+  const derivedFields = useDerivedClients(derivedClients, baseClient);
 
   return useMemo(
     () =>
       ({
         ...baseClient,
-        ...rootFields.scopes,
+        ...rootFields.clients,
         ...derivedFields,
         subscribe: rootFields.subscribe ?? baseClient.subscribe,
         on: rootFields.on ?? baseClient.on,
@@ -226,10 +226,10 @@ const useExtendedAssistantClientImpl = (
 };
 
 export function useAssistantClient(): AssistantClient;
-export function useAssistantClient(scopes: ScopesInput): AssistantClient;
-export function useAssistantClient(scopes?: ScopesInput): AssistantClient {
-  if (scopes) {
-    return useExtendedAssistantClientImpl(scopes);
+export function useAssistantClient(clients: ClientsInput): AssistantClient;
+export function useAssistantClient(clients?: ClientsInput): AssistantClient {
+  if (clients) {
+    return useExtendedAssistantClientImpl(clients);
   }
   return useAssistantContextValue();
 }

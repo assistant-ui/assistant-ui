@@ -1,10 +1,10 @@
 import { resource, tapMemo } from "@assistant-ui/tap";
-import type { AssistantScopes, Unsubscribe } from "./types";
+import type { AssistantClients, Unsubscribe } from "./types";
 import type { ClientStack } from "./ClientStackContext";
 
 /**
  * Module augmentation interface for event scope configuration.
- * Maps event sources to their parent scopes.
+ * Maps event sources to their parent clients.
  *
  * @example
  * ```typescript
@@ -27,36 +27,36 @@ type UnionToIntersection<U> = (
   : never;
 
 /**
- * Event map derived from scope event definitions
+ * Event map derived from client event definitions.
  */
-type RawScopeEventMap = UnionToIntersection<
+type RawClientEventMap = UnionToIntersection<
   {
-    [K in keyof AssistantScopes]: AssistantScopes[K] extends {
+    [K in keyof AssistantClients]: AssistantClients[K] extends {
       events: infer E;
     }
       ? E extends Record<string, unknown>
         ? E
         : never
       : never;
-  }[keyof AssistantScopes]
+  }[keyof AssistantClients]
 >;
 
 // Fallback to empty object if no events are defined
-export type ScopeEventMap = [RawScopeEventMap] extends [never]
+export type ClientEventMap = [RawClientEventMap] extends [never]
   ? {}
-  : RawScopeEventMap;
+  : RawClientEventMap;
 
 // When no events defined, use `unknown` so callbacks can still be called
-type WildcardPayload = [keyof ScopeEventMap] extends [never]
+type WildcardPayload = [keyof ClientEventMap] extends [never]
   ? unknown
   : {
-      [K in keyof ScopeEventMap]: {
+      [K in keyof ClientEventMap]: {
         event: K;
-        payload: ScopeEventMap[K];
+        payload: ClientEventMap[K];
       };
-    }[keyof ScopeEventMap];
+    }[keyof ClientEventMap];
 
-export type AssistantEventMap = ScopeEventMap & {
+export type AssistantEventMap = ClientEventMap & {
   // Catch-all
   "*": WildcardPayload;
 };

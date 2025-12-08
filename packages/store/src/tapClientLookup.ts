@@ -1,22 +1,22 @@
 import { ResourceElement, tapMemo } from "@assistant-ui/tap";
 import { tapClientResources } from "./tapClientResource";
-import type { ClientObject, ScopeOutputOf } from "./types";
+import type { ClientObject, ClientOutputOf } from "./types";
 import { getClientState } from "./tapClientResource";
 
 export const tapClientLookup = <
   TState,
-  TClient extends ClientObject,
+  TMethods extends ClientObject,
   M extends Record<string | number | symbol, any>,
 >(
   map: M,
   getElement: (
     t: M[keyof M],
     key: keyof M,
-  ) => ResourceElement<ScopeOutputOf<TState, TClient>>,
+  ) => ResourceElement<ClientOutputOf<TState, TMethods>>,
   getElementDeps?: any[],
 ): {
   state: TState[];
-  get: (lookup: { index: number } | { key: keyof M }) => TClient;
+  get: (lookup: { index: number } | { key: keyof M }) => TMethods;
 } => {
   const resources = tapClientResources(map, getElement, getElementDeps);
   const keys = tapMemo(() => Object.keys(map) as (keyof M)[], [map]);
@@ -24,7 +24,7 @@ export const tapClientLookup = <
   const state = tapMemo(() => {
     const result = new Array(keys.length);
     for (let i = 0; i < keys.length; i++) {
-      result[i] = getClientState(resources[keys[i]!].client);
+      result[i] = getClientState(resources[keys[i]!].methods);
     }
     return result;
   }, [keys, resources]);
@@ -34,8 +34,8 @@ export const tapClientLookup = <
     get: (lookup: { index: number } | { key: keyof M }) => {
       const value =
         "index" in lookup
-          ? resources[keys[lookup.index]!]?.client
-          : resources[lookup.key]?.client;
+          ? resources[keys[lookup.index]!]?.methods
+          : resources[lookup.key]?.methods;
 
       if (!value) {
         throw new Error(
