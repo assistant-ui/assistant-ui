@@ -4,6 +4,7 @@ import type {
   AssistantEventCallback,
   AssistantEventSelector,
 } from "./events";
+import { Derived } from "../Derived";
 
 /**
  * Base type for methods that can be called on a client.
@@ -119,7 +120,9 @@ export type ClientResourceElement<T extends ClientSchema<any, any, any, any>> =
  * Map of client names to their ResourceElements.
  */
 export type ClientResourceElements = {
-  [K in keyof ClientSchemas]?: ClientResourceElement<ClientSchemas[K]>;
+  [K in keyof ClientSchemas]?:
+    | ClientResourceElement<ClientSchemas[K]>
+    | ResourceElement<null, Derived.Props<ClientSchemas[K]>>;
 };
 
 /**

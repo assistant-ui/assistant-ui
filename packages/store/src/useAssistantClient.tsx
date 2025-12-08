@@ -20,7 +20,11 @@ import type {
 } from "./types/client";
 import { Derived } from "./Derived";
 import { StoreResource } from "./utils/StoreResource";
-import { useAssistantContextValue } from "./utils/react-assistant-context";
+import {
+  useAssistantContextValue,
+  OuterClient,
+  InnerClient,
+} from "./utils/react-assistant-context";
 import { splitClients } from "./utils/splitClients";
 import {
   normalizeEventSelector,
@@ -103,13 +107,16 @@ const RootClientsResource = resource(
       [client, notifySubscribers],
     );
 
-    const results = tapResources(inputClients, (element) =>
-      RootClientResource({
-        element: element!,
-        events,
-        client,
-        notifySubscribers,
-      }),
+    const results = tapResources(
+      inputClients,
+      (element) =>
+        RootClientResource({
+          element: element!,
+          events,
+          client,
+          notifySubscribers,
+        }),
+      [events, client, notifySubscribers],
     );
 
     return tapMemo(() => {
@@ -172,10 +179,7 @@ const DerivedClientResource = resource(
     element,
     client,
   }: {
-    element: ResourceElement<
-      ClientSchemas[K],
-      Derived.Props<ClientSchemas[K]>
-    >;
+    element: ResourceElement<ClientSchemas[K], Derived.Props<ClientSchemas[K]>>;
     client: AssistantClient;
   }) => {
     const get = tapEffectEvent(element.props.get);
@@ -201,7 +205,7 @@ const DerivedClientsResource = resource(
     return tapResources(
       clients,
       (element) => DerivedClientResource({ element: element!, client }),
-      [],
+      [client],
     );
   },
 );
@@ -224,17 +228,16 @@ const useExtendedAssistantClientImpl = (
   const rootFields = useRootClients(rootClients, baseClient);
   const derivedFields = useDerivedClients(derivedClients, baseClient);
 
-  return useMemo(
-    () =>
-      ({
-        ...baseClient,
-        ...rootFields.clients,
-        ...derivedFields,
-        subscribe: rootFields.subscribe ?? baseClient.subscribe,
-        on: rootFields.on ?? baseClient.on,
-      }) as AssistantClient,
-    [baseClient, rootFields, derivedFields],
-  );
+  return useMemo(() => {
+    // Swap OuterClient -> InnerClient at root to change error message
+    const proto = baseClient === OuterClient ? InnerClient : baseClient;
+    const client = Object.create(proto) as AssistantClient;
+    Object.assign(client, rootFields.clients, derivedFields, {
+      subscribe: rootFields.subscribe ?? baseClient.subscribe,
+      on: rootFields.on ?? baseClient.on,
+    });
+    return client;
+  }, [baseClient, rootFields, derivedFields]);
 };
 
 export function useAssistantClient(): AssistantClient;

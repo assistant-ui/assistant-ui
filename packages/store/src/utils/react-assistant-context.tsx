@@ -2,32 +2,42 @@ import React, { createContext, useContext } from "react";
 import type { AssistantClient, ClientAccessor } from "../types/client";
 
 const NO_OP_SUBSCRIBE = () => () => {};
-const NO_OP_CLIENT_FIELD = (() => {
+
+const createErrorClientField = (message: string): ClientAccessor<never> => {
   const fn = (() => {
-    throw new Error(
-      "You need to wrap this component/hook in <AssistantProvider>",
-    );
+    throw new Error(message);
   }) as ClientAccessor<never>;
   fn.source = null;
   fn.query = null;
   return fn;
-})();
+};
+
+/** Default context value - throws "wrap in AssistantProvider" error */
+export const OuterClient: AssistantClient = new Proxy({} as AssistantClient, {
+  get(_, prop: string) {
+    if (prop === "subscribe") return NO_OP_SUBSCRIBE;
+    if (prop === "on") return NO_OP_SUBSCRIBE;
+    return createErrorClientField(
+      "You need to wrap this component/hook in <AssistantProvider>",
+    );
+  },
+});
+
+/** Root prototype for created clients - throws "scope not defined" error */
+export const InnerClient: AssistantClient = new Proxy({} as AssistantClient, {
+  get(_, prop: string) {
+    if (prop === "subscribe") return NO_OP_SUBSCRIBE;
+    if (prop === "on") return NO_OP_SUBSCRIBE;
+    return createErrorClientField(
+      `The current scope does not have a "${prop}" property.`,
+    );
+  },
+});
 
 /**
  * React Context for the AssistantClient
  */
-const AssistantContext = createContext<AssistantClient>(
-  new Proxy({} as AssistantClient, {
-    get(_, prop: string) {
-      // Allow access to subscribe and on without error
-      if (prop === "subscribe") return NO_OP_SUBSCRIBE;
-      if (prop === "on") return NO_OP_SUBSCRIBE;
-
-      // Return error field for any client access outside AssistantProvider
-      return NO_OP_CLIENT_FIELD;
-    },
-  }),
-);
+const AssistantContext = createContext<AssistantClient>(OuterClient);
 
 export const useAssistantContextValue = (): AssistantClient => {
   return useContext(AssistantContext);
