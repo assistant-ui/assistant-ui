@@ -8,6 +8,11 @@ import {
   tapResources,
 } from "@assistant-ui/tap";
 import type { ClientObject, ScopeOutputOf } from "./types";
+import {
+  tapClientStack,
+  tapWithClientStack,
+  SYMBOL_CLIENT_INDEX,
+} from "./ClientStackContext";
 
 /**
  * Symbol used internally to get state from ClientProxy.
@@ -53,10 +58,12 @@ class ClientProxy<TClient extends ClientObject>
 {
   constructor(
     private readonly getOutput: () => ScopeOutputOf<unknown, TClient>,
+    private readonly index: number,
   ) {}
 
   get(_: unknown, prop: string | symbol) {
     if (prop === SYMBOL_GET_OUTPUT) return this.getOutput;
+    if (prop === SYMBOL_CLIENT_INDEX) return this.index;
     if (typeof prop !== "string") return undefined;
     return getOrCreateProxyFn(prop);
   }
@@ -67,6 +74,7 @@ class ClientProxy<TClient extends ClientObject>
 
   has(_: unknown, prop: string | symbol) {
     if (prop === SYMBOL_GET_OUTPUT) return true;
+    if (prop === SYMBOL_CLIENT_INDEX) return true;
     return prop in this.getOutput().client;
   }
 
@@ -103,16 +111,17 @@ export const tapClientResource = <TState, TClient extends ClientObject>(
 ) => {
   const valueRef = tapRef<ScopeOutputOf<TState, TClient>>();
 
+  const index = tapClientStack().length;
   const client = tapMemo(
     () =>
       new Proxy<TClient>(
         {} as TClient,
-        new ClientProxy<TClient>(() => valueRef.current!),
+        new ClientProxy<TClient>(() => valueRef.current!, index),
       ),
     [],
   );
 
-  const value = tapResource(element);
+  const value = tapWithClientStack(client, () => tapResource(element));
   if (!valueRef.current) {
     valueRef.current = value;
   }

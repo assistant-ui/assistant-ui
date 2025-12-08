@@ -690,21 +690,24 @@ registerAssistantScope({
 });
 ```
 
-### 9. Access Events via tapStoreContext
+### 9. Emit Events via tapEmitEvent
 
-When emitting events from resources, use `tapStoreContext()` to access the event manager:
+When emitting events from resources, use `tapEmitEvent()` to get a stable emit function that automatically captures the client stack:
 
 ```typescript
 const MyResource = resource((): ScopeOutput<"myScope"> => {
-  const { events } = tapStoreContext();
+  const emit = tapEmitEvent();
 
   const doSomething = () => {
     // ... do work ...
-    events.emit("myScope.updated", { id: "123" });
+    emit("myScope.updated", { id: "123" });
   };
 
   return { state, client: { doSomething } };
 });
 ```
 
-Note: `tapStoreContext()` is only available inside resources that are wrapped with the store context (root scopes). It throws an error if called outside this context.
+The `tapEmitEvent()` function:
+- Returns a stable function reference (wrapped with `tapEffectEvent`)
+- Automatically captures the current client stack at call time
+- Events are filtered based on client hierarchy when subscribed to with `client.on()` or `useAssistantEvent`

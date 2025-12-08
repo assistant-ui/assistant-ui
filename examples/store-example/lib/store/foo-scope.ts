@@ -8,14 +8,14 @@ type FooApi = {
 };
 type FooMeta = {
   source: "fooList";
-  query: { index: number } | { id: string };
+  query: { index: number } | { key: string };
 };
 
 type FooListState = { foos: FooState[] };
 type FooListApi = {
   getState: () => FooListState;
   foo: (lookup: FooMeta["query"]) => FooApi;
-  addFoo: (id?: string) => void;
+  addFoo: () => void;
 };
 
 declare module "@assistant-ui/store" {

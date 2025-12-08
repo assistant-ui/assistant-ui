@@ -98,7 +98,7 @@ export type ScopeOutputOf<TState, TClient extends ClientObject> = {
  * Type for a scope field - a function that returns the client,
  * with source/query metadata attached (derived from meta)
  */
-export type ScopeField<T extends ScopeDefinition> = (() => T["client"]) &
+export type ScopeField<T extends ScopeDefinition<any, any, any, any>> = (() => T["client"]) &
   (
     | NonNullable<T["meta"]>
     | { source: "root"; query: Record<string, never> }
@@ -118,7 +118,7 @@ export type DerivedScopeProps<T extends ScopeDefinition<any, any, any, any>> = {
  * Input type for scope definitions - ResourceElement that returns { state, client }
  * Can optionally include source/query metadata via DerivedScope
  */
-export type ScopeInput<T extends ScopeDefinition> = ResourceElement<{
+export type ScopeInput<T extends ScopeDefinition<any, any, any, any>> = ResourceElement<{
   state: T["state"];
   client: T["client"];
 }>;

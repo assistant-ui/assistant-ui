@@ -2,9 +2,11 @@ import {
   createContext,
   tapContext,
   withContextProvider,
+  tapEffectEvent,
 } from "@assistant-ui/tap";
-import type { EventManager } from "./EventContext";
+import type { AssistantEvent, AssistantEventMap, EventManager } from "./EventContext";
 import type { AssistantClient } from "./types";
+import { tapClientStack } from "./ClientStackContext";
 
 export type AssistantTapContextValue = {
   client: AssistantClient;
@@ -44,7 +46,8 @@ export const tapAssistantClient = () => {
 };
 
 /**
- * Returns the emit function for emitting events from tap resources.
+ * Returns a stable emit function for emitting events from tap resources.
+ * Automatically captures the current client stack at the time of calling.
  *
  * @example
  * ```typescript
@@ -54,5 +57,14 @@ export const tapAssistantClient = () => {
  */
 export const tapEmitEvent = () => {
   const { events } = tapAssistantTapContext();
-  return events.emit;
+  const clientStack = tapClientStack();
+
+  return tapEffectEvent(
+    <TEvent extends Exclude<AssistantEvent, "*">>(
+      event: TEvent,
+      payload: AssistantEventMap[TEvent],
+    ) => {
+      events.emit(event, payload, clientStack);
+    },
+  );
 };

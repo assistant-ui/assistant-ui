@@ -1,3 +1,5 @@
+"use client";
+
 import { useMemo } from "react";
 import { useResource } from "@assistant-ui/tap/react";
 import {
@@ -29,12 +31,8 @@ import {
 } from "./EventContext";
 import { withAssistantTapContextProvider } from "./AssistantTapContext";
 import { tapClientResource } from "./tapClientResource";
+import { getClientIndex } from "./ClientStackContext";
 
-/**
- * Resource that renders a store with the store context provider.
- * This ensures the context is re-established on every re-render.
- * Wraps the plain element with tapClientResource to get { state, client } structure.
- */
 const RootScopeStoreResource = resource(
   <K extends keyof AssistantScopes>({
     element,
@@ -51,10 +49,6 @@ const RootScopeStoreResource = resource(
   },
 );
 
-/**
- * Resource for a single root scope
- * Returns a tuple of [scopeName, {scopeFunction, subscribe}]
- */
 const RootScopeResource = resource(
   <K extends keyof AssistantScopes>({
     element,
@@ -72,9 +66,7 @@ const RootScopeResource = resource(
     );
 
     tapEffect(() => {
-      return store.subscribe(() => {
-        notifySubscribers();
-      });
+      return store.subscribe(notifySubscribers);
     }, [store, events]);
 
     return tapMemo(() => {
@@ -87,19 +79,12 @@ const RootScopeResource = resource(
 );
 
 const NoOpRootScopeResource = resource(() => {
-  return tapMemo(() => {
-    return {
-      scopes: {},
-      subscribe: undefined,
-      on: undefined,
-    };
-  }, []);
+  return tapMemo(
+    () => ({ scopes: {}, subscribe: undefined, on: undefined }),
+    [],
+  );
 });
 
-/**
- * Resource for all root scopes
- * Mounts each root scope and returns an object mapping scope names to their stores
- */
 const RootScopesResource = resource(
   ({
     scopes: inputScopes,
@@ -114,7 +99,7 @@ const RootScopesResource = resource(
 
     tapEffect(
       () => client.subscribe(notifySubscribers),
-      [subscribe, notifySubscribers],
+      [client, notifySubscribers],
     );
 
     const results = tapResources(inputScopes, (element) =>
@@ -130,21 +115,46 @@ const RootScopesResource = resource(
       return {
         scopes: results,
         subscribe,
-        on: <TEvent extends AssistantEvent>(
+        on: function <TEvent extends AssistantEvent>(
+          this: AssistantClient,
           selector: AssistantEventSelector<TEvent>,
           callback: AssistantEventCallback<TEvent>,
-        ) => {
-          const { event } = normalizeEventSelector(selector);
-          return events.on(event, callback);
+        ) {
+          if (!this) {
+            throw new Error(
+              "const { on } = useAssistantClient() is not supported. Use aui.on() instead.",
+            );
+          }
+
+          const { scope, event } = normalizeEventSelector(selector);
+
+          const localUnsub = events.on(event, (payload, clientStack) => {
+            if (scope === "*") {
+              callback(payload);
+              return;
+            }
+
+            const scopeClient = this[scope as keyof AssistantScopes]?.();
+            if (!scopeClient) return;
+
+            const index = getClientIndex(scopeClient);
+            if (scopeClient === clientStack[index]) {
+              callback(payload);
+            }
+          });
+
+          const parentUnsub = client.on(selector, callback);
+
+          return () => {
+            localUnsub();
+            parentUnsub();
+          };
         },
       };
-    }, [results, events]);
+    }, [results, events, client]);
   },
 );
 
-/**
- * Hook to mount and access root scopes
- */
 export const useRootScopes = (scopes: ScopesInput, client: AssistantClient) => {
   return useResource(
     Object.keys(scopes).length > 0
@@ -153,10 +163,6 @@ export const useRootScopes = (scopes: ScopesInput, client: AssistantClient) => {
   );
 };
 
-/**
- * Resource for a single derived scope
- * Returns a tuple of [scopeName, scopeFunction] where scopeFunction has source and query
- */
 const DerivedScopeResource = resource(
   <K extends keyof AssistantScopes>({
     element,
@@ -169,39 +175,27 @@ const DerivedScopeResource = resource(
     client: AssistantClient;
   }) => {
     const get = tapEffectEvent(element.props.get);
-    const source = element.props.source;
-    const query = element.props.query;
+    const { source, query } = element.props;
+
     return tapMemo(() => {
       const scopeFunction = () => get(client);
       scopeFunction.source = source;
       scopeFunction.query = query;
-
-      return scopeFunction satisfies ScopeField<AssistantScopes[K]>;
+      return scopeFunction as ScopeField<AssistantScopes[K]>;
     }, [get, source, JSON.stringify(query), client]);
   },
 );
 
-/**
- * Resource for all derived scopes
- * Builds stable scope functions with source and query metadata
- */
 const DerivedScopesResource = resource(
   ({ scopes, client }: { scopes: ScopesInput; client: AssistantClient }) => {
     return tapResources(
       scopes,
-      (element) =>
-        DerivedScopeResource({
-          element: element!,
-          client,
-        }),
+      (element) => DerivedScopeResource({ element: element!, client }),
       [],
     );
   },
 );
 
-/**
- * Hook to mount and access derived scopes
- */
 export const useDerivedScopes = (
   derivedScopes: ScopesInput,
   client: AssistantClient,
@@ -215,49 +209,27 @@ const useExtendedAssistantClientImpl = (
   const baseClient = useAssistantContextValue();
   const { rootScopes, derivedScopes } = splitScopes(scopes);
 
-  // Mount the scopes to keep them alive
   const rootFields = useRootScopes(rootScopes, baseClient);
   const derivedFields = useDerivedScopes(derivedScopes, baseClient);
 
-  return useMemo(() => {
-    // Merge base client with extended client
-    // If baseClient is the default proxy, spreading it will be a no-op
-    return {
-      ...baseClient,
-      ...rootFields.scopes,
-      ...derivedFields,
-      subscribe: rootFields.subscribe ?? baseClient.subscribe,
-      on: rootFields.on ?? baseClient.on,
-    };
-  }, [baseClient, rootFields, derivedFields]);
+  return useMemo(
+    () =>
+      ({
+        ...baseClient,
+        ...rootFields.scopes,
+        ...derivedFields,
+        subscribe: rootFields.subscribe ?? baseClient.subscribe,
+        on: rootFields.on ?? baseClient.on,
+      }) as AssistantClient,
+    [baseClient, rootFields, derivedFields],
+  );
 };
 
-/**
- * Hook to access or extend the AssistantClient
- *
- * @example Without config - returns the client from context:
- * ```typescript
- * const client = useAssistantClient();
- * const fooState = client.foo.getState();
- * ```
- *
- * @example With config - creates a new client with additional scopes:
- * ```typescript
- * const client = useAssistantClient({
- *   message: DerivedScope({
- *     source: "thread",
- *     query: { type: "index", index: 0 },
- *     get: () => messageApi,
- *   }),
- * });
- * ```
- */
 export function useAssistantClient(): AssistantClient;
 export function useAssistantClient(scopes: ScopesInput): AssistantClient;
 export function useAssistantClient(scopes?: ScopesInput): AssistantClient {
   if (scopes) {
     return useExtendedAssistantClientImpl(scopes);
-  } else {
-    return useAssistantContextValue();
   }
+  return useAssistantContextValue();
 }

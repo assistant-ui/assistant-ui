@@ -17,6 +17,11 @@ const Foo = () => {
   const fooId = useAssistantState(({ foo }) => foo.id);
   const fooBar = useAssistantState(({ foo }) => foo.bar);
 
+  // Each foo logs its own events - only receives events from THIS foo instance
+  useAssistantEvent("foo.updated", (payload) => {
+    console.log(`[${fooId}] Updated to: ${payload.newValue}`);
+  });
+
   const handleUpdate = () => {
     aui.foo().updateBar(`Updated at ${new Date().toLocaleTimeString()}`);
   };

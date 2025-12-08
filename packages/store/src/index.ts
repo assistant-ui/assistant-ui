@@ -12,8 +12,12 @@ export { DerivedScope } from "./DerivedScope";
 
 // tap hooks
 export { tapAssistantClient, tapEmitEvent } from "./AssistantTapContext";
-export { tapLookupResources } from "./tapLookupResources";
-export { tapStoreList, type TapStoreListConfig } from "./tapStoreList";
+export { tapClientLookup } from "./tapClientLookup";
+export {
+  tapClientList,
+  type TapClientListConfig,
+  type TapClientListResourceProps,
+} from "./tapClientList";
 
 // registration
 export { registerAssistantScope } from "./ScopeRegistry";

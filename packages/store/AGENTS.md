@@ -47,7 +47,7 @@ packages/store/src/
 ├── EventContext.ts          # EventManager resource + event types (ScopeEventMap, normalizeEventSelector)
 ├── DerivedScope.ts          # DerivedScope marker resource (returns null, props used by useAssistantClient)
 ├── ScopeRegistry.ts         # registerAssistantScope for default scope initialization
-├── StoreContext.ts          # Internal tap context (events + parent client access via tapStoreContext)
+├── AssistantTapContext.ts   # tapAssistantClient and tapEmitEvent for use in tap resources
 ├── asStore.ts               # Convert ResourceElement → Store interface (getState, subscribe)
 ├── tapClientResource.ts        # tapClientResource wrapper + tapClientResources for batches
 ├── tapLookupResources.ts    # List lookup by index/key (returns { state, client })
@@ -230,12 +230,12 @@ EventManager = resource(() => {
 **Emitting events from resources:**
 ```typescript
 const FooResource = resource((): ScopeOutput<"foo"> => {
-  const { events } = tapStoreContext();
   const [state, setState] = tapState({ id, value: "" });
+  const emit = tapEmitEvent();
 
   const updateValue = (newValue: string) => {
     setState({ ...state, value: newValue });
-    events.emit("foo.updated", { id, newValue });
+    emit("foo.updated", { id, newValue });
   };
 
   return {
@@ -305,7 +305,8 @@ The store is built on `@assistant-ui/tap`:
 | `tapClientResource(element)` | Wrap element returning `{ state, client }` with stable proxy |
 | `tapStoreList(config)` | Dynamic list with add/remove (returns `{ state, client, add }`) |
 | `tapLookupResources(map, getElement, deps?)` | List lookup by index/key (returns `{ state, client }`) |
-| `tapStoreContext()` | Access `{ events, parent }` in tap resources |
+| `tapEmitEvent()` | Get stable emit function for events (auto-captures client stack) |
+| `tapAssistantClient()` | Access client in tap resources |
 | `registerAssistantScope(config)` | Register default scope initialization or error |
 
 ### Exported Types
@@ -343,11 +344,17 @@ const FooResource = resource((): ScopeOutput<"foo"> => {
 const FooItemResource = resource(
   ({ initialValue, remove }): ScopeOutput<"foo"> => {
     const [state, setState] = tapState({ id: initialValue.id, text: initialValue.text });
+    const emit = tapEmitEvent();
+
     return {
       state,
       client: {
         getState: () => state,
-        updateText: (t) => setState({ ...state, text: t }),
+        updateText: (t) => {
+          setState({ ...state, text: t });
+          // Each foo emits its own scoped event
+          emit("foo.updated", { id: state.id, newValue: t });
+        },
         remove,
       },
     };
@@ -400,6 +407,29 @@ const FooList = ({ components: { Foo } }) => {
 };
 ```
 
+### Scoped Event Subscription
+
+Each FooProvider creates its own scoped client. Events subscribed within
+that scope will only receive events from that specific foo instance:
+
+```typescript
+// Inside a component wrapped by FooProvider
+const Foo = () => {
+  // Only receives "foo.updated" events from THIS foo, not other foos
+  useAssistantEvent("foo.updated", (payload) => {
+    console.log(`This foo updated: ${payload.id} -> ${payload.newValue}`);
+  });
+
+  const aui = useAssistantClient();
+  return <button onClick={() => aui.foo().updateText("new")}>Update</button>;
+};
+```
+
+The event filtering works because:
+1. `tapEmitEvent()` captures the client stack when called
+2. `useAssistantEvent` compares the listener's scope client with the event's client stack
+3. Only events where the clients match at the appropriate index are forwarded
+
 ## getState Convention
 
 **Important:** `getState()` is an **optional convention**, not enforced by the store.
@@ -424,7 +454,7 @@ type FooApi = {
 3. **Source/query metadata** - Derived scopes must specify source and query in DerivedScope config
 4. **Event naming** - Events use `"scope.event-name"` format (e.g., `"foo.updated"`)
 5. **Scope imports** - Import scope type files before using resources to ensure module augmentation
-6. **tapStoreContext availability** - Only available inside resources wrapped with StoreContext (root scopes)
+6. **tapEmitEvent availability** - Only available inside resources wrapped with AssistantTapContext (root scopes)
 7. **Key for lists** - List item resources should provide `key` for efficient lookups
 8. **getState is optional** - The store doesn't enforce getState; it's a user convention
 
@@ -433,7 +463,7 @@ type FooApi = {
 1. `console.log` in useAssistantClient.tsx line 143-145 shows subscription callbacks
 2. ProxiedAssistantState throws if you try to return entire state (line 73-77 in useAssistantState.tsx)
 3. tapLookupResources throws with lookup details if not found (line 59-63)
-4. tapStoreContext throws if called outside a store context (line 25-26 in StoreContext.ts)
+4. tapEmitEvent throws if called outside AssistantTapContext (line 28-30 in AssistantTapContext.ts)
 5. tapStoreList.add throws if no id provided and no idGenerator configured
 
 ## Migration Path (react → store)
@@ -442,7 +472,7 @@ When migrating @assistant-ui/react to use this package:
 
 1. **Define scope types** via module augmentation for all scopes (including events)
 2. **Implement resources** returning `ScopeOutput<K>` with `{ state, client }` structure
-3. **Emit events** using `tapStoreContext().events.emit()` in resources
+3. **Emit events** using `tapEmitEvent()` in resources (auto-captures client stack)
 4. **Create providers** using DerivedScope pattern
 5. **Replace hooks** with useAssistantState/useAssistantEvent
 6. **Port capabilities** - branching, speech, attachments as scope features

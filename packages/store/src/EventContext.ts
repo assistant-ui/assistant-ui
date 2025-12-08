@@ -1,5 +1,6 @@
 import { resource, tapMemo } from "@assistant-ui/tap";
 import type { AssistantScopes, Unsubscribe } from "./types";
+import type { ClientStack } from "./ClientStackContext";
 
 /**
  * Module augmentation interface for event scope configuration.
@@ -120,27 +121,36 @@ export type AssistantEventCallback<TEvent extends AssistantEvent> = (
   payload: AssistantEventMap[TEvent],
 ) => void;
 
+/**
+ * Internal callback type that receives the client stack for filtering.
+ */
+type InternalEventCallback<TEvent extends AssistantEvent> = (
+  payload: AssistantEventMap[TEvent],
+  clientStack: ClientStack,
+) => void;
+
 export type EventManager = {
   on<TEvent extends AssistantEvent>(
     event: TEvent,
-    callback: AssistantEventCallback<TEvent>,
+    callback: InternalEventCallback<TEvent>,
   ): Unsubscribe;
   emit<TEvent extends Exclude<AssistantEvent, "*">>(
     event: TEvent,
     payload: AssistantEventMap[TEvent],
+    clientStack: ClientStack,
   ): void;
 };
 
 type ListenerMap = Omit<
-  Map<AssistantEvent, Set<AssistantEventCallback<AssistantEvent>>>,
+  Map<AssistantEvent, Set<InternalEventCallback<AssistantEvent>>>,
   "get" | "set"
 > & {
   get<TEvent extends AssistantEvent>(
     event: TEvent,
-  ): Set<AssistantEventCallback<TEvent>> | undefined;
+  ): Set<InternalEventCallback<TEvent>> | undefined;
   set<TEvent extends AssistantEvent>(
     event: TEvent,
-    value: Set<AssistantEventCallback<TEvent>>,
+    value: Set<InternalEventCallback<TEvent>>,
   ): void;
 };
 
@@ -167,7 +177,7 @@ export const EventManager = resource(() => {
           };
         },
 
-        emit: (event, payload) => {
+        emit: (event, payload, clientStack) => {
           const eventListeners = listeners.get(event);
           const wildcardListeners = listeners.get("*");
 
@@ -178,14 +188,14 @@ export const EventManager = resource(() => {
             // Emit to specific event listeners
             if (eventListeners) {
               for (const callback of eventListeners) {
-                callback(payload);
+                callback(payload, clientStack);
               }
             }
 
             // Emit to wildcard listeners
             if (wildcardListeners) {
               for (const callback of wildcardListeners) {
-                callback({ event, payload } as any);
+                callback({ event, payload } as any, clientStack);
               }
             }
           });

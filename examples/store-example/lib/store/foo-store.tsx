@@ -1,6 +1,5 @@
 "use client";
 
-// Import scope types first to ensure module augmentation is available
 import "./foo-scope";
 
 import React from "react";
@@ -8,35 +7,36 @@ import { resource, tapMemo, tapState } from "@assistant-ui/tap";
 import {
   useAssistantClient,
   AssistantProvider,
-  tapStoreList,
+  tapClientList,
   DerivedScope,
   useAssistantState,
   tapEmitEvent,
   type ScopeOutput,
+  type TapClientListResourceProps,
 } from "@assistant-ui/store";
+
+type FooInitialData = { initialBar: string };
 
 export const FooItemResource = resource(
   ({
-    initialValue: { id, initialBar },
+    key,
+    initialData,
     remove,
-  }: {
-    initialValue: { id: string; initialBar: string };
-    remove: () => void;
-  }): ScopeOutput<"foo"> => {
+  }: TapClientListResourceProps<FooInitialData>): ScopeOutput<"foo"> => {
     const emit = tapEmitEvent();
 
-    const [state, setState] = tapState<{ id: string; bar: string }>({
-      id,
-      bar: initialBar,
-    });
+    const [state, setState] = tapState<{ id: string; bar: string }>(() => ({
+      id: key,
+      bar: initialData!.initialBar,
+    }));
 
     const updateBar = (newBar: string) => {
       setState({ ...state, bar: newBar });
-      emit("foo.updated", { id, newValue: newBar });
+      emit("foo.updated", { id: key, newValue: newBar });
     };
 
     const handleRemove = () => {
-      emit("foo.removed", { id });
+      emit("foo.removed", { id: key });
       remove();
     };
 
@@ -51,29 +51,24 @@ export const FooItemResource = resource(
   },
 );
 
-/**
- * FooList resource implementation
- * Manages a list of foos using tapStoreList
- */
-let counter = 3;
+let counter = 0;
 export const FooListResource = resource((): ScopeOutput<"fooList"> => {
   const emit = tapEmitEvent();
-  const idGenerator = () => `foo-${++counter}`;
 
-  const foos = tapStoreList({
+  const foos = tapClientList({
     initialValues: [
-      { id: "foo-1", initialBar: "First Foo" },
-      { id: "foo-2", initialBar: "Second Foo" },
-      { id: "foo-3", initialBar: "Third Foo" },
+      { initialBar: "First Foo" },
+      { initialBar: "Second Foo" },
+      { initialBar: "Third Foo" },
     ],
+    getKey: () => `foo-${++counter}`,
     resource: FooItemResource,
-    idGenerator,
   });
 
-  const addFoo = (id?: string) => {
-    const newId = id ?? idGenerator();
-    foos.add(newId);
-    emit("fooList.added", { id: newId });
+  const addFoo = () => {
+    const key = `foo-${counter + 1}`;
+    foos.add({ initialBar: `New Foo` });
+    emit("fooList.added", { id: key });
   };
 
   const state = tapMemo(() => ({ foos: foos.state }), [foos.state]);
@@ -88,9 +83,6 @@ export const FooListResource = resource((): ScopeOutput<"fooList"> => {
   };
 });
 
-/**
- * FooProvider - Provides foo scope for a specific index
- */
 export const FooProvider = ({
   index,
   children,
@@ -98,7 +90,6 @@ export const FooProvider = ({
   index: number;
   children: React.ReactNode;
 }) => {
-  // Create a derived client with the foo scope at the specified index
   const aui = useAssistantClient({
     foo: DerivedScope({
       source: "fooList",
@@ -110,10 +101,6 @@ export const FooProvider = ({
   return <AssistantProvider client={aui}>{children}</AssistantProvider>;
 };
 
-/**
- * FooList component - minimal mapping component
- * Maps over the list and renders each item in a FooProvider
- */
 export const FooList = ({
   components,
 }: {
