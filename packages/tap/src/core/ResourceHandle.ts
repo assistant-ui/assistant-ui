@@ -20,7 +20,6 @@ export namespace createResource {
     getState(): R;
     subscribe(callback: () => void): Unsubscribe;
     updateInput(props: P): void;
-    flushSync(): void;
     dispose(): void;
   }
 }
@@ -29,12 +28,10 @@ const HandleWrapperResource = resource(
   <R, P>({
     element,
     onUpdateInput,
-    onFlushSync,
     onDispose,
   }: {
     element: ResourceElement<R, P>;
     onUpdateInput: () => void;
-    onFlushSync: () => void;
     onDispose: () => void;
   }): createResource.Handle<R, P> => {
     const [props, setProps] = tapState(element.props);
@@ -60,7 +57,6 @@ const HandleWrapperResource = resource(
           onUpdateInput();
           setProps(() => props);
         },
-        flushSync: onFlushSync,
         dispose: onDispose,
       }),
       [],
@@ -72,18 +68,14 @@ const HandleWrapperResource = resource(
 
 export const createResource = <R, P>(
   element: ResourceElement<R, P>,
-  delayMount = false,
 ): createResource.Handle<R, P> => {
-  let isMounted = !delayMount;
+  let isMounted = false;
   const props = {
     element,
     onUpdateInput: () => {
       if (isMounted) return;
       isMounted = true;
       commitResource(fiber, lastRender);
-    },
-    onFlushSync: () => {
-      scheduler.flushSync();
     },
     onDispose: () => unmountResource(fiber),
   };
@@ -98,6 +90,5 @@ export const createResource = <R, P>(
   );
 
   let lastRender = renderResource(fiber, props);
-  if (isMounted) commitResource(fiber, lastRender);
   return lastRender.state;
 };

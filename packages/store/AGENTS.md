@@ -48,7 +48,7 @@ packages/store/src/
 ├── DerivedScope.ts          # DerivedScope marker resource (returns null, props used by useAssistantClient)
 ├── ScopeRegistry.ts         # registerAssistantScope for default scope initialization
 ├── StoreContext.ts          # Internal tap context (events + parent client access via tapStoreContext)
-├── asStore.ts               # Convert ResourceElement → Store interface (getState, subscribe, flushSync)
+├── asStore.ts               # Convert ResourceElement → Store interface (getState, subscribe)
 ├── tapClientResource.ts        # tapClientResource wrapper + tapClientResources for batches
 ├── tapLookupResources.ts    # List lookup by index/key (returns { state, client })
 ├── tapStoreList.ts          # Dynamic list with add/remove (wraps tapLookupResources)
@@ -136,7 +136,7 @@ useAssistantClient(scopes)
   │                 ├─► RootScopeStoreResource
   │                 │     ├─► withStoreContextProvider({ events, parent })
   │                 │     └─► tapClientResource(element) → { state, client }
-  │                 └─► asStore(element) → Store { getState, subscribe, flushSync }
+  │                 └─► asStore(element) → Store { getState, subscribe }
   │
   ├─► useDerivedScopes(derivedScopes, parentClient)
   │     └─► DerivedScopesResource
@@ -145,7 +145,7 @@ useAssistantClient(scopes)
   │                 └─► Creates ScopeField with source/query metadata
   │
   └─► Merge: { ...baseClient, ...rootFields.scopes, ...derivedFields,
-  │            subscribe: rootFields.subscribe, flushSync: rootFields.flushSync,
+  │            subscribe: rootFields.subscribe,
   │            on: rootFields.on }
 ```
 
@@ -275,7 +275,7 @@ The store is built on `@assistant-ui/tap`:
 | `tapResource()` | - | Mount single child resource (used in tapClientResource) |
 | `tapResources(map, getElement, deps?)` | - | Mount keyed resource list from record (used in useAssistantClient) |
 | `tapInlineResource()` | - | Inline resource without separate component (EventManager) |
-| `createResource()` | - | Imperative resource handle with subscribe/flushSync (asStore) |
+| `createResource()` | - | Imperative resource handle with subscribe (asStore) |
 | `createContext/tapContext` | Context | StoreContext for events + parent access |
 | `withContextProvider` | Provider | StoreContext provider wrapping scope resources |
 
@@ -313,7 +313,7 @@ The store is built on `@assistant-ui/tap`:
 | Type | Purpose |
 |------|---------|
 | `ScopeOutput<K>` | Return type for resources: `{ state, client }` |
-| `AssistantClient` | Client type with scope fields + subscribe/flushSync/on |
+| `AssistantClient` | Client type with scope fields + subscribe/on |
 | `AssistantScopes` | All registered scopes (from AssistantScopeRegistry) |
 | `AssistantState` | State type extracted from all scopes |
 | `ClientObject` | Base type for client objects |

@@ -25,7 +25,6 @@ export function tapResources<
   getElement: (t: M[keyof M], key: keyof M) => ResourceElement<R>,
   getElementDeps?: any[],
 ): { [K in keyof M]: R } {
-  console.log("tapResources reredered");
   const [version, setVersion] = tapState(0);
   const rerender = tapCallback(() => setVersion((v) => v + 1), []);
 

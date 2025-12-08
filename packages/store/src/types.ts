@@ -149,7 +149,6 @@ export type AssistantClient = {
   [K in keyof AssistantScopes]: ScopeField<AssistantScopes[K]>;
 } & {
   subscribe(listener: () => void): Unsubscribe;
-  flushSync(): void;
   on<TEvent extends AssistantEvent>(
     selector: AssistantEventSelector<TEvent>,
     callback: AssistantEventCallback<TEvent>,

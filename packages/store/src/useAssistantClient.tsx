@@ -53,7 +53,7 @@ const RootScopeStoreResource = resource(
 
 /**
  * Resource for a single root scope
- * Returns a tuple of [scopeName, {scopeFunction, subscribe, flushSync}]
+ * Returns a tuple of [scopeName, {scopeFunction, subscribe}]
  */
 const RootScopeResource = resource(
   <K extends keyof AssistantScopes>({
@@ -77,7 +77,6 @@ const RootScopeResource = resource(
       return {
         scopeFunction: scopeFunction satisfies ScopeField<AssistantScopes[K]>,
         subscribe: store.subscribe,
-        flushSync: store.flushSync,
       };
     }, [store]);
   },
@@ -129,11 +128,6 @@ const RootScopesResource = resource(
           return () => {
             unsubscribes.forEach((unsubscribe) => unsubscribe());
           };
-        },
-        flushSync: () => {
-          resultEntries.forEach(([, { flushSync }]) => {
-            flushSync();
-          });
         },
         on,
       };
@@ -225,7 +219,6 @@ const useExtendedAssistantClientImpl = (
       ...rootFields.scopes,
       ...derivedFields,
       subscribe: rootFields.subscribe ?? baseClient.subscribe,
-      flushSync: rootFields.flushSync ?? baseClient.flushSync,
       on: rootFields.on ?? baseClient.on,
     };
   }, [baseClient, rootFields, derivedFields]);

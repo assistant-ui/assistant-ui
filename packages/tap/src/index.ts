@@ -17,6 +17,7 @@ export { tapResources } from "./hooks/tap-resources";
 
 // imperative
 export { createResource } from "./core/ResourceHandle";
+export { flushSync } from "./core/scheduler";
 
 // context
 export { createContext, tapContext, withContextProvider } from "./core/context";

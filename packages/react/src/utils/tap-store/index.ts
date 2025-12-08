@@ -5,7 +5,6 @@ export {
   type DerivedScopeConfig,
   type OnCallbackFn,
   type SubscribeCallbackFn,
-  type FlushSyncCallbackFn,
   type SpecialCallbacks,
   type DerivedScopesInput,
 } from "./derived-scopes";

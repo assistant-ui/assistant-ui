@@ -17,19 +17,11 @@ export interface Store<TState> {
    * Subscribe to the store.
    */
   subscribe(listener: () => void): Unsubscribe;
-
-  /**
-   * Synchronously flush all the updates to the store.
-   */
-  flushSync(): void;
 }
 
 export const asStore = resource(
   <TState, TProps>(element: ResourceElement<TState, TProps>): Store<TState> => {
-    const resource = tapMemo(
-      () => createResource(element, true),
-      [element.type],
-    );
+    const resource = tapMemo(() => createResource(element), [element.type]);
 
     tapEffect(() => {
       resource.updateInput(element.props);

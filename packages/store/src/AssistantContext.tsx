@@ -3,7 +3,6 @@ import type { AssistantClient, AssistantScopes, ScopeField } from "./types";
 import { hasRegisteredScope } from "./ScopeRegistry";
 
 const NO_OP_SUBSCRIBE = () => () => {};
-const NO_OP_FLUSH_SYNC = () => {};
 const NO_OP_SCOPE_FIELD = (() => {
   const fn = (() => {
     throw new Error(
@@ -21,10 +20,9 @@ const NO_OP_SCOPE_FIELD = (() => {
 const AssistantContext = createContext<AssistantClient>(
   new Proxy({} as AssistantClient, {
     get(_, prop: string) {
-      // Allow access to subscribe and flushSync without error
+      // Allow access to subscribe and on without error
       if (prop === "subscribe") return NO_OP_SUBSCRIBE;
       if (prop === "on") return NO_OP_SUBSCRIBE;
-      if (prop === "flushSync") return NO_OP_FLUSH_SYNC;
 
       // If this is a registered scope, return a function that errors when called or accessed
       if (hasRegisteredScope(prop as keyof AssistantScopes))

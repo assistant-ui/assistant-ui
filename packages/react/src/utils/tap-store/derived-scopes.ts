@@ -60,17 +60,11 @@ export type OnCallbackFn = <TEvent extends AssistantEvent>(
 export type SubscribeCallbackFn = (listener: () => void) => Unsubscribe;
 
 /**
- * Type for the special `flushSync` callback function
- */
-export type FlushSyncCallbackFn = () => void;
-
-/**
  * Type for special non-field functions in AssistantApi
  */
 export type SpecialCallbacks = {
   on?: OnCallbackFn;
   subscribe?: SubscribeCallbackFn;
-  flushSync?: FlushSyncCallbackFn;
 };
 
 /**
@@ -144,10 +138,10 @@ const ScopeFieldWithNameResource = resource(
  */
 export const DerivedScopes = resource(
   (scopes: DerivedScopesInput): Partial<AssistantApi> => {
-    const { on, subscribe, flushSync, ...scopeFields } = scopes;
-    const callbacksRef = tapRef({ on, subscribe, flushSync });
+    const { on, subscribe, ...scopeFields } = scopes;
+    const callbacksRef = tapRef({ on, subscribe });
     tapEffect(() => {
-      callbacksRef.current = { on, subscribe, flushSync };
+      callbacksRef.current = { on, subscribe };
     });
 
     const results = tapResources(
@@ -168,7 +162,6 @@ export const DerivedScopes = resource(
       const {
         on: onCb,
         subscribe: subCb,
-        flushSync: flushCb,
       } = callbacksRef.current;
 
       if (onCb) {
@@ -178,7 +171,6 @@ export const DerivedScopes = resource(
         ) => onCb(selector, callback);
       }
       if (subCb) result.subscribe = (listener) => subCb(listener);
-      if (flushCb) result.flushSync = () => flushCb();
 
       return result;
     }, [results]);

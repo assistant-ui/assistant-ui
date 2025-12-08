@@ -123,7 +123,7 @@ These are implementation details not meant for public use.
 
 ### Store Utilities
 
-- **Store<T>** - Interface: `{ getState(), subscribe(listener), flushSync() }`
+- **Store<T>** - Interface: `{ getState(), subscribe(listener) }`
 - **asStore(resourceElement)** - Convert a ResourceElement into a Store
 
 ### Utilities

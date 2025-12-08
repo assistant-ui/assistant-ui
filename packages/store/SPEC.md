@@ -381,7 +381,6 @@ type AssistantClient = {
   [K in keyof AssistantScopes]: ScopeField<AssistantScopes[K]>;
 } & {
   subscribe(listener: () => void): Unsubscribe;
-  flushSync(): void;
   on<TEvent extends AssistantEvent>(
     selector: AssistantEventSelector<TEvent>,
     callback: AssistantEventCallback<TEvent>,
@@ -392,7 +391,6 @@ type AssistantClient = {
 Each scope property is a `ScopeField` - a function that returns the scope's API, with `source` and `query` metadata attached. The client also provides:
 
 - `subscribe`: Subscribe to state changes across all scopes
-- `flushSync`: Synchronously flush pending updates
 - `on`: Subscribe to events (used by `useAssistantEvent` internally)
 
 ### AssistantScopeRegistry
