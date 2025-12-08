@@ -1,5 +1,19 @@
 # @assistant-ui/react
 
+## 0.11.49
+
+### Patch Changes
+
+- 89aec17: feat: AI SDK frontend tool execution cancellation support
+  fix: AI SDK isRunning status when running frontend tools
+- ee7040f: fix: always scroll to bottom when switching to a thread
+- bd27465: feat: ability to disable auto scrollToBottom on message send / thread switch
+- a3e9549: feat: only add turn anchor slack after the first turn
+- 206616b: fix: scroll to bottom button flickers on send message
+- 7aa77b5: feat: do not take viewport padding into account when calculating the slack inset
+- Updated dependencies [89aec17]
+  - assistant-stream@0.2.44
+
 ## 0.11.48
 
 ### Patch Changes
