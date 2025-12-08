@@ -14,28 +14,24 @@ import {
   type ClientResourceOutput,
 } from "@assistant-ui/store";
 
-type FooInitialData = { id: string; initialBar: string };
+type FooData = { id: string; bar: string };
 
 export const FooItemResource = resource(
   ({
-    key,
     getInitialData,
     remove,
-  }: tapClientList.ResourceProps<FooInitialData>): ClientResourceOutput<"foo"> => {
+  }: tapClientList.ResourceProps<FooData>): ClientResourceOutput<"foo"> => {
     const emit = tapEmitClientEvent();
 
-    const [state, setState] = tapState<{ id: string; bar: string }>(() => ({
-      id: key,
-      bar: getInitialData().initialBar,
-    }));
+    const [state, setState] = tapState<FooData>(getInitialData);
 
     const updateBar = (newBar: string) => {
       setState({ ...state, bar: newBar });
-      emit("foo.updated", { id: key, newValue: newBar });
+      emit("foo.updated", { id: state.id, newValue: newBar });
     };
 
     const handleRemove = () => {
-      emit("foo.removed", { id: key });
+      emit("foo.removed", { id: state.id });
       remove();
     };
 
@@ -50,23 +46,23 @@ export const FooItemResource = resource(
   },
 );
 
-const counter = 3;
+let counter = 3;
 export const FooListResource = resource((): ClientResourceOutput<"fooList"> => {
   const emit = tapEmitClientEvent();
 
   const foos = tapClientList({
     initialValues: [
-      { id: "foo-1", initialBar: "First Foo" },
-      { id: "foo-2", initialBar: "Second Foo" },
-      { id: "foo-3", initialBar: "Third Foo" },
+      { id: "foo-1", bar: "First Foo" },
+      { id: "foo-2", bar: "Second Foo" },
+      { id: "foo-3", bar: "Third Foo" },
     ],
     getKey: (foo) => foo.id,
     resource: FooItemResource,
   });
 
   const addFoo = () => {
-    const id = `foo-${counter + 1}`;
-    foos.add({ id: id, initialBar: `New Foo` });
+    const id = `foo-${++counter}`;
+    foos.add({ id: id, bar: `New Foo` });
     emit("fooList.added", { id: id });
   };
 
@@ -91,8 +87,8 @@ export const FooProvider = ({
 }) => {
   const aui = useAssistantClient({
     foo: Derived({
-      source: "fooList",
-      query: { index },
+      source: "fooList2",
+      query: { index2: index },
       get: (aui) => aui.fooList().foo({ index }),
     }),
   });

@@ -61,16 +61,22 @@ export const tapClientList = <TData, TState, TMethods extends ClientMethods>(
   const add = tapMemo(
     () => (data: TData) => {
       const key = getKey(data);
-      setItems((items) => ({
-        ...items,
-        [key]: createProps(key, data, () => {
-          setItems((items) => {
-            const newItems = { ...items };
-            delete newItems[key];
-            return newItems;
-          });
-        }),
-      }));
+      setItems((items) => {
+        if (key in items) {
+          throw new Error("Tried to add item with a keythat already exists");
+        }
+
+        return {
+          ...items,
+          [key]: createProps(key, data, () => {
+            setItems((items) => {
+              const newItems = { ...items };
+              delete newItems[key];
+              return newItems;
+            });
+          }),
+        };
+      });
     },
     [getKey],
   );
