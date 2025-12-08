@@ -1,13 +1,13 @@
 import { useEffect, useEffectEvent } from "react";
 import { useAssistantClient } from "./useAssistantClient";
 import type {
-  AssistantEvent,
+  AssistantEventName,
   AssistantEventCallback,
   AssistantEventSelector,
 } from "./types/events";
 import { normalizeEventSelector } from "./types/events";
 
-export const useAssistantEvent = <TEvent extends AssistantEvent>(
+export const useAssistantEvent = <TEvent extends AssistantEventName>(
   selector: AssistantEventSelector<TEvent>,
   callback: AssistantEventCallback<TEvent>,
 ) => {

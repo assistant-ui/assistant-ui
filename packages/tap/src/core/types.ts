@@ -1,8 +1,9 @@
 import type { tapEffect } from "../hooks/tap-effect";
 import type { tapState } from "../hooks/tap-state";
+import { fnSymbol } from "./callResourceFn";
 
 export type ResourceElement<R, P = any> = {
-  type: Resource<R, P>;
+  type: Resource<R, P> & { [fnSymbol]: (props: P) => R };
   props: P;
 };
 

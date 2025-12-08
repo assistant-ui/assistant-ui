@@ -10,8 +10,8 @@ import {
   tapClientList,
   Derived,
   useAssistantState,
-  tapEmitClientEvent,
-  type ClientResourceOutput,
+  tapAssistantEmit,
+  type ClientOutput,
 } from "@assistant-ui/store";
 
 type FooData = { id: string; bar: string };
@@ -20,8 +20,8 @@ export const FooItemResource = resource(
   ({
     getInitialData,
     remove,
-  }: tapClientList.ResourceProps<FooData>): ClientResourceOutput<"foo"> => {
-    const emit = tapEmitClientEvent();
+  }: tapClientList.ResourceProps<FooData>): ClientOutput<"foo"> => {
+    const emit = tapAssistantEmit();
 
     const [state, setState] = tapState<FooData>(getInitialData);
 
@@ -47,36 +47,40 @@ export const FooItemResource = resource(
 );
 
 let counter = 3;
-export const FooListResource = resource((): ClientResourceOutput<"fooList"> => {
-  const emit = tapEmitClientEvent();
+export const FooListResource = resource(
+  ({ initialValues }: { initialValues: boolean }): ClientOutput<"fooList"> => {
+    const emit = tapAssistantEmit();
 
-  const foos = tapClientList({
-    initialValues: [
-      { id: "foo-1", bar: "First Foo" },
-      { id: "foo-2", bar: "Second Foo" },
-      { id: "foo-3", bar: "Third Foo" },
-    ],
-    getKey: (foo) => foo.id,
-    resource: FooItemResource,
-  });
+    const foos = tapClientList({
+      initialValues: initialValues
+        ? [
+            { id: "foo-1", bar: "First Foo" },
+            { id: "foo-2", bar: "Second Foo" },
+            { id: "foo-3", bar: "Third Foo" },
+          ]
+        : [],
+      getKey: (foo) => foo.id,
+      resource: FooItemResource,
+    });
 
-  const addFoo = () => {
-    const id = `foo-${++counter}`;
-    foos.add({ id: id, bar: `New Foo` });
-    emit("fooList.added", { id: id });
-  };
+    const addFoo = () => {
+      const id = `foo-${++counter}`;
+      foos.add({ id: id, bar: `New Foo` });
+      emit("fooList.added", { id: id });
+    };
 
-  const state = tapMemo(() => ({ foos: foos.state }), [foos.state]);
+    const state = tapMemo(() => ({ foos: foos.state }), [foos.state]);
 
-  return {
-    state,
-    methods: {
-      getState: () => state,
-      foo: foos.get,
-      addFoo,
-    },
-  };
-});
+    return {
+      state,
+      methods: {
+        getState: () => state,
+        foo: foos.get,
+        addFoo,
+      },
+    };
+  },
+);
 
 export const FooProvider = ({
   index,
@@ -87,8 +91,8 @@ export const FooProvider = ({
 }) => {
   const aui = useAssistantClient({
     foo: Derived({
-      source: "fooList2",
-      query: { index2: index },
+      source: "fooList",
+      query: { index: index },
       get: (aui) => aui.fooList().foo({ index }),
     }),
   });

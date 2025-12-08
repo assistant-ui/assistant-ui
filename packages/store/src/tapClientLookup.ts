@@ -1,5 +1,5 @@
 import { ResourceElement, tapMemo, tapResources } from "@assistant-ui/tap";
-import type { ClientMethods, ClientResourceOutputOf } from "./types/client";
+import type { ClientMethods, ClientOutputOf } from "./types/client";
 import { ClientResource, getClientState } from "./utils/ClientResource";
 
 export const tapClientLookup = <
@@ -11,7 +11,7 @@ export const tapClientLookup = <
   getElement: (
     t: M[keyof M],
     key: keyof M,
-  ) => ResourceElement<ClientResourceOutputOf<TState, TMethods>>,
+  ) => ResourceElement<ClientOutputOf<TState, TMethods>>,
   getElementDeps?: any[],
 ): {
   state: TState[];

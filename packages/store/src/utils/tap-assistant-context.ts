@@ -5,12 +5,12 @@ import {
   tapEffectEvent,
 } from "@assistant-ui/tap";
 import type {
-  AssistantEvent,
-  AssistantEventMap,
-  EventManager,
+  AssistantEventName,
+  AssistantEventPayload,
 } from "../types/events";
 import type { AssistantClient } from "../types/client";
 import { tapClientStack } from "./tap-client-stack-context";
+import { EventManager } from "./EventManager";
 
 export type AssistantTapContextValue = {
   client: AssistantClient;
@@ -39,14 +39,14 @@ export const tapAssistantClient = () => {
   return tapAssistantTapContext().client;
 };
 
-export const tapEmitClientEvent = () => {
+export const tapAssistantEmit = () => {
   const { events } = tapAssistantTapContext();
   const clientStack = tapClientStack();
 
   return tapEffectEvent(
-    <TEvent extends Exclude<AssistantEvent, "*">>(
+    <TEvent extends Exclude<AssistantEventName, "*">>(
       event: TEvent,
-      payload: AssistantEventMap[TEvent],
+      payload: AssistantEventPayload[TEvent],
     ) => {
       events.emit(event, payload, clientStack);
     },

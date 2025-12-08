@@ -151,7 +151,7 @@ const EventLog = () => {
  */
 export const ExampleApp = () => {
   const rootClient = useAssistantClient({
-    fooList: FooListResource(),
+    fooList: FooListResource({ initialValues: true }),
   });
 
   return (

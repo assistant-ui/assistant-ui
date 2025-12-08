@@ -6,7 +6,7 @@ import {
   tapResource,
   resource,
 } from "@assistant-ui/tap";
-import type { ClientMethods, ClientResourceOutputOf } from "../types/client";
+import type { ClientMethods, ClientOutputOf } from "../types/client";
 import {
   tapClientStack,
   tapWithClientStack,
@@ -22,7 +22,7 @@ const SYMBOL_GET_OUTPUT = Symbol("assistant-ui.store.getValue");
 export const getClientState = <TState>(client: ClientMethods): TState => {
   return (
     client as unknown as {
-      [SYMBOL_GET_OUTPUT]: () => ClientResourceOutputOf<TState, ClientMethods>;
+      [SYMBOL_GET_OUTPUT]: () => ClientOutputOf<TState, ClientMethods>;
     }
   )[SYMBOL_GET_OUTPUT]!().state;
 };
@@ -32,7 +32,7 @@ const fieldAccessFns = new Map<
   string | symbol,
   (
     this: {
-      [SYMBOL_GET_OUTPUT]: () => ClientResourceOutputOf<unknown, ClientMethods>;
+      [SYMBOL_GET_OUTPUT]: () => ClientOutputOf<unknown, ClientMethods>;
     },
     ...args: unknown[]
   ) => unknown
@@ -43,10 +43,7 @@ function getOrCreateProxyFn(prop: string) {
   if (!template) {
     template = function (
       this: {
-        [SYMBOL_GET_OUTPUT]: () => ClientResourceOutputOf<
-          unknown,
-          ClientMethods
-        >;
+        [SYMBOL_GET_OUTPUT]: () => ClientOutputOf<unknown, ClientMethods>;
       },
       ...args: unknown[]
     ) {
@@ -63,7 +60,7 @@ class ClientProxy<TMethods extends ClientMethods>
   implements ProxyHandler<TMethods>
 {
   constructor(
-    private readonly getOutput: () => ClientResourceOutputOf<unknown, TMethods>,
+    private readonly getOutput: () => ClientOutputOf<unknown, TMethods>,
     private readonly index: number,
   ) {}
 
@@ -114,9 +111,9 @@ class ClientProxy<TMethods extends ClientMethods>
  */
 export const ClientResource = resource(
   <TState, TMethods extends ClientMethods>(
-    element: ResourceElement<ClientResourceOutputOf<TState, TMethods>>,
+    element: ResourceElement<ClientOutputOf<TState, TMethods>>,
   ): { methods: TMethods } => {
-    const valueRef = tapRef<ClientResourceOutputOf<TState, TMethods>>();
+    const valueRef = tapRef<ClientOutputOf<TState, TMethods>>();
 
     const index = tapClientStack().length;
     const methods = tapMemo(

@@ -13,10 +13,9 @@ import {
 } from "@assistant-ui/tap";
 import type {
   AssistantClient,
-  ClientSchemas,
-  ClientResourceElements,
   ClientAccessor,
-  ClientResourceElement,
+  ClientNames,
+  Client,
 } from "./types/client";
 import { Derived } from "./Derived";
 import { StoreResource } from "./utils/StoreResource";
@@ -25,26 +24,29 @@ import {
   OuterClient,
   InnerClient,
 } from "./utils/react-assistant-context";
-import { splitClients } from "./utils/splitClients";
+import {
+  DerivedClients,
+  RootClients,
+  splitClients,
+} from "./utils/splitClients";
 import {
   normalizeEventSelector,
-  type AssistantEvent,
+  type AssistantEventName,
   type AssistantEventCallback,
   type AssistantEventSelector,
-  type EventManager,
 } from "./types/events";
-import { EventManager as EventManagerResource } from "./utils/EventManager";
+import { EventManager } from "./utils/EventManager";
 import { withAssistantTapContextProvider } from "./utils/tap-assistant-context";
 import { ClientResource } from "./utils/ClientResource";
 import { getClientIndex } from "./utils/tap-client-stack-context";
 
-const RootClientStoreResource = resource(
-  <K extends keyof ClientSchemas>({
+const RootClientResource = resource(
+  <K extends ClientNames>({
     element,
     events,
     client,
   }: {
-    element: ClientResourceElement<ClientSchemas[K]>;
+    element: Client<K>;
     events: EventManager;
     client: AssistantClient;
   }) => {
@@ -54,20 +56,20 @@ const RootClientStoreResource = resource(
   },
 );
 
-const RootClientResource = resource(
-  <K extends keyof ClientSchemas>({
+const RootClientAccessorResource = resource(
+  <K extends ClientNames>({
     element,
     events,
     client,
     notifySubscribers,
   }: {
-    element: ClientResourceElement<ClientSchemas[K]>;
+    element: Client<K>;
     events: EventManager;
     client: AssistantClient;
     notifySubscribers: () => void;
-  }): ClientAccessor<ClientSchemas[K]> => {
+  }): ClientAccessor<K> => {
     const store = tapInlineResource(
-      StoreResource(RootClientStoreResource({ element, events, client })),
+      StoreResource(RootClientResource({ element, events, client })),
     );
 
     tapEffect(() => {
@@ -83,23 +85,23 @@ const RootClientResource = resource(
   },
 );
 
-const NoOpRootClientsResource = resource(() => {
+const NoOpRootClientsAccessorsResource = resource(() => {
   return tapMemo(
     () => ({ clients: {}, subscribe: undefined, on: undefined }),
     [],
   );
 });
 
-const RootClientsResource = resource(
+const RootClientAcessorsResource = resource(
   ({
     clients: inputClients,
     client,
   }: {
-    clients: ClientResourceElements;
+    clients: RootClients;
     client: AssistantClient;
   }) => {
     const { subscribe, notifySubscribers, events } = tapInlineResource(
-      EventManagerResource(),
+      EventManager(),
     );
 
     tapEffect(
@@ -110,7 +112,7 @@ const RootClientsResource = resource(
     const results = tapResources(
       inputClients,
       (element) =>
-        RootClientResource({
+        RootClientAccessorResource({
           element: element!,
           events,
           client,
@@ -123,7 +125,7 @@ const RootClientsResource = resource(
       return {
         clients: results,
         subscribe,
-        on: function <TEvent extends AssistantEvent>(
+        on: function <TEvent extends AssistantEventName>(
           this: AssistantClient,
           selector: AssistantEventSelector<TEvent>,
           callback: AssistantEventCallback<TEvent>,
@@ -142,7 +144,7 @@ const RootClientsResource = resource(
               return;
             }
 
-            const scopeClient = this[scope as keyof ClientSchemas]?.();
+            const scopeClient = this[scope as ClientNames]?.();
             if (!scopeClient) return;
 
             const index = getClientIndex(scopeClient);
@@ -164,22 +166,22 @@ const RootClientsResource = resource(
 );
 
 export const useRootClients = (
-  clients: ClientResourceElements,
+  clients: RootClients,
   client: AssistantClient,
 ) => {
   return useResource(
     Object.keys(clients).length > 0
-      ? RootClientsResource({ clients, client })
-      : NoOpRootClientsResource(),
+      ? RootClientAcessorsResource({ clients, client })
+      : NoOpRootClientsAccessorsResource(),
   );
 };
 
-const DerivedClientResource = resource(
-  <K extends keyof ClientSchemas>({
+const DerivedClientAcessorResource = resource(
+  <K extends ClientNames>({
     element,
     client,
   }: {
-    element: ResourceElement<ClientSchemas[K], Derived.Props<ClientSchemas[K]>>;
+    element: Derived<K>;
     client: AssistantClient;
   }) => {
     const get = tapEffectEvent(element.props.get);
@@ -189,38 +191,45 @@ const DerivedClientResource = resource(
       const clientFunction = () => get(client);
       clientFunction.source = source;
       clientFunction.query = query;
-      return clientFunction as ClientAccessor<ClientSchemas[K]>;
+      return clientFunction as ClientAccessor<K>;
     }, [get, source, JSON.stringify(query), client]);
   },
 );
 
-const DerivedClientsResource = resource(
+const DerivedClientAccessorssResource = resource(
   ({
     clients,
     client,
   }: {
-    clients: ClientResourceElements;
+    clients: DerivedClients;
     client: AssistantClient;
   }) => {
     return tapResources(
       clients,
-      (element) => DerivedClientResource({ element: element!, client }),
+      (element) =>
+        DerivedClientAcessorResource({
+          element: element! as ResourceElement<
+            null,
+            Derived.Props<ClientNames>
+          >,
+          client,
+        }),
       [client],
     );
   },
 );
 
 export const useDerivedClients = (
-  derivedClients: ClientResourceElements,
+  derivedClients: DerivedClients,
   client: AssistantClient,
 ) => {
   return useResource(
-    DerivedClientsResource({ clients: derivedClients, client }),
+    DerivedClientAccessorssResource({ clients: derivedClients, client }),
   );
 };
 
 const useExtendedAssistantClientImpl = (
-  clients: ClientResourceElements,
+  clients: useAssistantClient.Props,
 ): AssistantClient => {
   const baseClient = useAssistantContextValue();
   const { rootClients, derivedClients } = splitClients(clients);
@@ -240,12 +249,18 @@ const useExtendedAssistantClientImpl = (
   }, [baseClient, rootFields, derivedFields]);
 };
 
+export namespace useAssistantClient {
+  export type Props = {
+    [K in ClientNames]?: Client<K> | Derived<K>;
+  };
+}
+
 export function useAssistantClient(): AssistantClient;
 export function useAssistantClient(
-  clients: ClientResourceElements,
+  clients: useAssistantClient.Props,
 ): AssistantClient;
 export function useAssistantClient(
-  clients?: ClientResourceElements,
+  clients?: useAssistantClient.Props,
 ): AssistantClient {
   if (clients) {
     return useExtendedAssistantClientImpl(clients);

@@ -13,15 +13,20 @@ export { Derived } from "./Derived";
 // tap hooks
 export {
   tapAssistantClient,
-  tapEmitClientEvent,
+  tapAssistantEmit,
 } from "./utils/tap-assistant-context";
 export { tapClientLookup } from "./tapClientLookup";
 export { tapClientList } from "./tapClientList";
 
 // types
-export type { ClientRegistry, ClientResourceOutput } from "./types/client";
 export type {
-  AssistantEvent,
+  ClientRegistry,
+  ClientOutput,
+} from "./types/client";
+export type {
+  AssistantEventName,
   AssistantEventCallback,
+  AssistantEventPayload,
   AssistantEventSelector,
+  AssistantEventScope,
 } from "./types/events";

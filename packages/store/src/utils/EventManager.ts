@@ -1,6 +1,27 @@
 import { resource, tapMemo } from "@assistant-ui/tap";
 import type { ClientStack } from "./tap-client-stack-context";
-import type { EventManager as EventManagerType } from "../types/events";
+import type {
+  AssistantEventName,
+  AssistantEventPayload,
+} from "../types/events";
+import { Unsubscribe } from "../types/client";
+
+// --- Event Manager Type ---
+
+export type EventManager = {
+  on<TEvent extends AssistantEventName>(
+    event: TEvent,
+    callback: (
+      payload: AssistantEventPayload[TEvent],
+      clientStack: ClientStack,
+    ) => void,
+  ): Unsubscribe;
+  emit<TEvent extends Exclude<AssistantEventName, "*">>(
+    event: TEvent,
+    payload: AssistantEventPayload[TEvent],
+    clientStack: ClientStack,
+  ): void;
+};
 
 type InternalCallback = (payload: unknown, clientStack: ClientStack) => void;
 
@@ -10,7 +31,7 @@ export const EventManager = resource(() => {
     const wildcardListeners = new Set<InternalCallback>();
     const subscribers = new Set<() => void>();
 
-    const events: EventManagerType = {
+    const events: EventManager = {
       on(event, callback) {
         const cb = callback as InternalCallback;
         if (event === "*") {

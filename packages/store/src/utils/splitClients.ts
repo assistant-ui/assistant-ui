@@ -1,9 +1,9 @@
 import { Derived } from "../Derived";
-import type {
-  ClientSchemas,
-  ClientResourceElement,
-  ClientResourceElements,
-} from "../types/client";
+import type { Client, ClientNames } from "../types/client";
+import type { useAssistantClient } from "../useAssistantClient";
+
+export type RootClients = Partial<Record<ClientNames, Client<ClientNames>>>;
+export type DerivedClients = Partial<Record<ClientNames, Derived<ClientNames>>>;
 
 /**
  * Splits a clients object into root clients and derived clients.
@@ -23,18 +23,18 @@ import type {
  * // derivedClients = { bar: ... }
  * ```
  */
-export function splitClients(clients: ClientResourceElements) {
-  const rootClients: ClientResourceElements = {};
-  const derivedClients: ClientResourceElements = {};
+export function splitClients(clients: useAssistantClient.Props) {
+  const rootClients: RootClients = {};
+  const derivedClients: DerivedClients = {};
 
   for (const [key, clientElement] of Object.entries(clients) as [
-    keyof ClientResourceElements,
-    ClientResourceElement<ClientSchemas[keyof ClientResourceElements]>,
+    keyof useAssistantClient.Props,
+    NonNullable<useAssistantClient.Props[keyof useAssistantClient.Props]>,
   ][]) {
     if (clientElement.type === Derived) {
-      derivedClients[key] = clientElement;
+      derivedClients[key] = clientElement as Derived<ClientNames>;
     } else {
-      rootClients[key] = clientElement;
+      rootClients[key] = clientElement as Client<ClientNames>;
     }
   }
 

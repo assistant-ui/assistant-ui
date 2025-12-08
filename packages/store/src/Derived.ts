@@ -1,5 +1,9 @@
 import { resource } from "@assistant-ui/tap";
-import type { AssistantClient, ClientSchema } from "./types/client";
+import type {
+  AssistantClient,
+  ClientNames,
+  ClientAccessor,
+} from "./types/client";
 
 /**
  * Creates a derived client field that memoizes based on source and query.
@@ -17,20 +21,20 @@ import type { AssistantClient, ClientSchema } from "./types/client";
  * ```
  */
 export const Derived = resource(
-  <T extends ClientSchema<any, any, any, any>>(
-    _config: Derived.Props<T>,
-  ): null => {
+  <K extends ClientNames>(_config: Derived.Props<K>): null => {
     return null;
   },
 );
+
+export type Derived<K extends ClientNames> = ReturnType<typeof Derived<K>>;
 
 export namespace Derived {
   /**
    * Props passed to a derived client resource element.
    */
-  export type Props<T extends ClientSchema<any, any, any, any>> = {
-    get: (parent: AssistantClient) => T["methods"];
-    source: NonNullable<T["meta"]>["source"];
-    query: NonNullable<T["meta"]>["query"];
+  export type Props<K extends ClientNames> = {
+    get: (parent: AssistantClient) => ReturnType<ClientAccessor<K>>;
+    source: ClientAccessor<K>["source"];
+    query: ClientAccessor<K>["query"];
   };
 }

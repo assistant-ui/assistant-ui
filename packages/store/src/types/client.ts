@@ -1,10 +1,9 @@
 import type { ResourceElement } from "@assistant-ui/tap";
 import type {
-  AssistantEvent,
+  AssistantEventName,
   AssistantEventCallback,
   AssistantEventSelector,
 } from "./events";
-import { Derived } from "../Derived";
 
 /**
  * Base type for methods that can be called on a client.
@@ -62,7 +61,7 @@ export type ClientSchema<
  */
 export interface ClientRegistry {}
 
-export type ClientSchemas = keyof ClientRegistry extends never
+type ClientSchemas = keyof ClientRegistry extends never
   ? Record<"ERROR: No clients were defined", ClientSchema>
   : { [K in keyof ClientRegistry]: ClientRegistry[K] };
 
@@ -82,7 +81,7 @@ export type ClientSchemas = keyof ClientRegistry extends never
  * });
  * ```
  */
-export type ClientResourceOutput<K extends keyof ClientSchemas> = {
+export type ClientOutput<K extends ClientNames> = {
   state: ClientSchemas[K]["state"];
   methods: ClientSchemas[K]["methods"];
 };
@@ -90,40 +89,29 @@ export type ClientResourceOutput<K extends keyof ClientSchemas> = {
 /**
  * Generic version of ClientResourceOutput for library code.
  */
-export type ClientResourceOutputOf<TState, TMethods extends ClientMethods> = {
+export type ClientOutputOf<TState, TMethods extends ClientMethods> = {
   state: TState;
   methods: TMethods;
 };
+
+export type ClientNames = keyof ClientSchemas;
+
+export type ClientEventTypes<K extends ClientNames> =
+  ClientSchemas[K]["events"];
 
 /**
  * Type for a client accessor - a function that returns the methods,
  * with source/query metadata attached (derived from meta).
  */
-export type ClientAccessor<T extends ClientSchema<any, any, any, any>> =
-  (() => T["methods"]) &
+export type ClientAccessor<K extends ClientNames> =
+  (() => ClientSchemas[K]["methods"]) &
     (
-      | NonNullable<T["meta"]>
+      | NonNullable<ClientSchemas[K]["meta"]>
       | { source: "root"; query: Record<string, never> }
       | { source: null; query: null }
     );
 
-/**
- * ResourceElement that returns { state, methods } for a client.
- */
-export type ClientResourceElement<T extends ClientSchema<any, any, any, any>> =
-  ResourceElement<{
-    state: T["state"];
-    methods: T["methods"];
-  }>;
-
-/**
- * Map of client names to their ResourceElements.
- */
-export type ClientResourceElements = {
-  [K in keyof ClientSchemas]?:
-    | ClientResourceElement<ClientSchemas[K]>
-    | ResourceElement<null, Derived.Props<ClientSchemas[K]>>;
-};
+export type Client<K extends ClientNames> = ResourceElement<ClientOutput<K>>;
 
 /**
  * Unsubscribe function type.
@@ -134,17 +122,17 @@ export type Unsubscribe = () => void;
  * State type extracted from all clients.
  */
 export type AssistantState = {
-  [K in keyof ClientSchemas]: ClientSchemas[K]["state"];
+  [K in ClientNames]: ClientSchemas[K]["state"];
 };
 
 /**
  * The assistant client type with all registered clients.
  */
 export type AssistantClient = {
-  [K in keyof ClientSchemas]: ClientAccessor<ClientSchemas[K]>;
+  [K in ClientNames]: ClientAccessor<K>;
 } & {
   subscribe(listener: () => void): Unsubscribe;
-  on<TEvent extends AssistantEvent>(
+  on<TEvent extends AssistantEventName>(
     selector: AssistantEventSelector<TEvent>,
     callback: AssistantEventCallback<TEvent>,
   ): Unsubscribe;
