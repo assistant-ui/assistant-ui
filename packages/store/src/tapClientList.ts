@@ -3,26 +3,11 @@ import type { ContravariantResource } from "@assistant-ui/tap";
 import { tapClientLookup } from "./tapClientLookup";
 import type { ClientObject, ClientOutputOf } from "./types";
 
-export type TapClientListResourceProps<TData> = {
-  key: string;
-  initialData: TData | undefined;
-  remove: () => void;
-};
-
-export type TapClientListProps<TData, TState, TMethods extends ClientObject> = {
-  initialValues: TData[];
-  getKey: (data: TData) => string;
-  resource: ContravariantResource<
-    ClientOutputOf<TState, TMethods>,
-    TapClientListResourceProps<TData>
-  >;
-};
-
 const createProps = <TData>(
   key: string,
   data: TData,
   remove: () => void,
-): TapClientListResourceProps<TData> => {
+): tapClientList.ResourceProps<TData> => {
   let initialData: TData | undefined = data;
   return {
     key,
@@ -36,7 +21,7 @@ const createProps = <TData>(
 };
 
 export const tapClientList = <TData, TState, TMethods extends ClientObject>(
-  props: TapClientListProps<TData, TState, TMethods>,
+  props: tapClientList.Props<TData, TState, TMethods>,
 ): {
   state: TState[];
   get: (lookup: { index: number } | { key: string }) => TMethods;
@@ -44,7 +29,7 @@ export const tapClientList = <TData, TState, TMethods extends ClientObject>(
 } => {
   const { initialValues, getKey, resource: Resource } = props;
 
-  type Props = TapClientListResourceProps<TData>;
+  type Props = tapClientList.ResourceProps<TData>;
 
   const [items, setItems] = tapState<Record<string, Props>>(() => {
     const entries: [string, Props][] = [];
@@ -93,3 +78,20 @@ export const tapClientList = <TData, TState, TMethods extends ClientObject>(
     add,
   };
 };
+
+export namespace tapClientList {
+  export type ResourceProps<TData> = {
+    key: string;
+    initialData: TData | undefined;
+    remove: () => void;
+  };
+
+  export type Props<TData, TState, TMethods extends ClientObject> = {
+    initialValues: TData[];
+    getKey: (data: TData) => string;
+    resource: ContravariantResource<
+      ClientOutputOf<TState, TMethods>,
+      ResourceProps<TData>
+    >;
+  };
+}

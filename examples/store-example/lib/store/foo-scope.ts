@@ -1,7 +1,7 @@
-import { registerAssistantScope } from "@assistant-ui/store";
+import { registerClient } from "@assistant-ui/store";
 
 type FooState = { id: string; bar: string };
-type FooApi = {
+type FooMethods = {
   getState: () => FooState;
   updateBar: (newBar: string) => void;
   remove: () => void;
@@ -12,17 +12,17 @@ type FooMeta = {
 };
 
 type FooListState = { foos: FooState[] };
-type FooListApi = {
+type FooListMethods = {
   getState: () => FooListState;
-  foo: (lookup: FooMeta["query"]) => FooApi;
+  foo: (lookup: FooMeta["query"]) => FooMethods;
   addFoo: () => void;
 };
 
 declare module "@assistant-ui/store" {
-  interface AssistantScopeRegistry {
+  interface AssistantClientRegistry {
     foo: {
       state: FooState;
-      client: FooApi;
+      methods: FooMethods;
       meta: FooMeta;
       events: {
         "foo.updated": { id: string; newValue: string };
@@ -31,7 +31,7 @@ declare module "@assistant-ui/store" {
     };
     fooList: {
       state: FooListState;
-      client: FooListApi;
+      methods: FooListMethods;
       events: {
         "fooList.added": { id: string };
       };
@@ -39,12 +39,12 @@ declare module "@assistant-ui/store" {
   }
 }
 
-registerAssistantScope({
+registerClient({
   name: "fooList",
   defaultInitialize: { error: "FooList is not configured" },
 });
 
-registerAssistantScope({
+registerClient({
   name: "foo",
   defaultInitialize: { error: "Foo is not configured" },
 });

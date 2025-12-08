@@ -8,11 +8,10 @@ import {
   useAssistantClient,
   AssistantProvider,
   tapClientList,
-  DerivedScope,
+  DerivedClient,
   useAssistantState,
-  tapEmitEvent,
-  type ScopeOutput,
-  type TapClientListResourceProps,
+  tapEmit,
+  type ClientOutput,
 } from "@assistant-ui/store";
 
 type FooInitialData = { initialBar: string };
@@ -22,8 +21,8 @@ export const FooItemResource = resource(
     key,
     initialData,
     remove,
-  }: TapClientListResourceProps<FooInitialData>): ScopeOutput<"foo"> => {
-    const emit = tapEmitEvent();
+  }: tapClientList.ResourceProps<FooInitialData>): ClientOutput<"foo"> => {
+    const emit = tapEmit();
 
     const [state, setState] = tapState<{ id: string; bar: string }>(() => ({
       id: key,
@@ -42,7 +41,7 @@ export const FooItemResource = resource(
 
     return {
       state,
-      client: {
+      methods: {
         getState: () => state,
         updateBar,
         remove: handleRemove,
@@ -52,8 +51,8 @@ export const FooItemResource = resource(
 );
 
 let counter = 0;
-export const FooListResource = resource((): ScopeOutput<"fooList"> => {
-  const emit = tapEmitEvent();
+export const FooListResource = resource((): ClientOutput<"fooList"> => {
+  const emit = tapEmit();
 
   const foos = tapClientList({
     initialValues: [
@@ -75,7 +74,7 @@ export const FooListResource = resource((): ScopeOutput<"fooList"> => {
 
   return {
     state,
-    client: {
+    methods: {
       getState: () => state,
       foo: foos.get,
       addFoo,
@@ -91,7 +90,7 @@ export const FooProvider = ({
   children: React.ReactNode;
 }) => {
   const aui = useAssistantClient({
-    foo: DerivedScope({
+    foo: DerivedClient({
       source: "fooList",
       query: { index },
       get: (aui) => aui.fooList().foo({ index }),

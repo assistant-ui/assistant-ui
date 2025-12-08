@@ -11,36 +11,13 @@ export { AssistantProvider } from "./AssistantContext";
 export { DerivedClient } from "./DerivedClient";
 
 // tap hooks
-export { tapAssistantClient, tapEmitEvent } from "./AssistantTapContext";
+export { tapClient, tapEmit } from "./AssistantTapContext";
 export { tapClientLookup } from "./tapClientLookup";
-export {
-  tapClientList,
-  type TapClientListProps,
-  type TapClientListResourceProps,
-} from "./tapClientList";
+export { tapClientList } from "./tapClientList";
 
 // registration
 export { registerClient } from "./ClientRegistry";
 
 // types
-export type {
-  AssistantClients,
-  AssistantClientRegistry,
-  AssistantClient,
-  AssistantState,
-  ClientOutput,
-  ClientOutputOf,
-  ClientObject,
-} from "./types";
-
-export type {
-  AssistantEvent,
-  AssistantEventScopeConfig,
-  AssistantEventMap,
-  AssistantEventScope,
-  AssistantEventSelector,
-  AssistantEventCallback,
-  EventSource,
-  SourceByScope,
-  EventManager,
-} from "./EventContext";
+export type { AssistantClientRegistry, ClientOutput } from "./types";
+export type { AssistantEventScopeConfig } from "./EventContext";

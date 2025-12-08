@@ -31,31 +31,11 @@ const tapAssistantTapContext = () => {
   return ctx;
 };
 
-/**
- * Returns the AssistantClient from the tap context.
- * Use this to access the client from within tap resources.
- *
- * @example
- * ```typescript
- * const client = tapAssistantClient();
- * const fooState = client.foo().getState();
- * ```
- */
-export const tapAssistantClient = () => {
+export const tapClient = () => {
   return tapAssistantTapContext().client;
 };
 
-/**
- * Returns a stable emit function for emitting events from tap resources.
- * Automatically captures the current client stack at the time of calling.
- *
- * @example
- * ```typescript
- * const emit = tapEmitEvent();
- * emit("foo.updated", { id, newValue });
- * ```
- */
-export const tapEmitEvent = () => {
+export const tapEmit = () => {
   const { events } = tapAssistantTapContext();
   const clientStack = tapClientStack();
 
