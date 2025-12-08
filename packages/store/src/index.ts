@@ -20,4 +20,3 @@ export { registerClient } from "./ClientRegistry";
 
 // types
 export type { AssistantClientRegistry, ClientOutput } from "./types";
-export type { AssistantEventScopeConfig } from "./EventContext";

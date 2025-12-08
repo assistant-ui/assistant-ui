@@ -2,22 +2,6 @@ import { resource, tapMemo } from "@assistant-ui/tap";
 import type { AssistantClients, Unsubscribe } from "./types";
 import type { ClientStack } from "./ClientStackContext";
 
-/**
- * Module augmentation interface for event scope configuration.
- * Maps event sources to their parent clients.
- *
- * @example
- * ```typescript
- * declare module "@assistant-ui/store" {
- *   interface AssistantEventScopeConfig {
- *     composer: "thread" | "message";
- *     thread: never;
- *   }
- * }
- * ```
- */
-export interface AssistantEventScopeConfig {}
-
 type UnionToIntersection<U> = (
   U extends unknown
     ? (x: U) => void
@@ -57,7 +41,6 @@ type WildcardPayload = [keyof ClientEventMap] extends [never]
     }[keyof ClientEventMap];
 
 export type AssistantEventMap = ClientEventMap & {
-  // Catch-all
   "*": WildcardPayload;
 };
 
@@ -66,20 +49,41 @@ export type AssistantEvent = keyof AssistantEventMap;
 export type EventSource<T extends AssistantEvent = AssistantEvent> =
   T extends `${infer Source}.${string}` ? Source : never;
 
+// Extract the source (parent) from a client's meta
+type SourceOf<K extends keyof AssistantClients> =
+  AssistantClients[K] extends { meta: { source: infer S } }
+    ? S extends keyof AssistantClients
+      ? S
+      : never
+    : never;
+
+// Recursively get all ancestors of a client
+type AncestorsOf<
+  K extends keyof AssistantClients,
+  Seen extends keyof AssistantClients = never,
+> = K extends Seen
+  ? never
+  : SourceOf<K> extends never
+    ? never
+    : SourceOf<K> | AncestorsOf<SourceOf<K>, Seen | K>;
+
+// Get all descendants of a client (clients that have this as an ancestor)
+type DescendantsOf<K extends keyof AssistantClients> = {
+  [C in keyof AssistantClients]: K extends AncestorsOf<C> ? C : never;
+}[keyof AssistantClients];
+
+// Given a scope, which event sources does it receive?
 export type SourceByScope<TScope extends AssistantEventScope<AssistantEvent>> =
   | (TScope extends "*" ? EventSource : never)
-  | (TScope extends keyof AssistantEventScopeConfig ? TScope : never)
-  | {
-      [K in keyof AssistantEventScopeConfig]: TScope extends AssistantEventScopeConfig[K]
-        ? K
-        : never;
-    }[keyof AssistantEventScopeConfig];
+  | (TScope extends keyof AssistantClients ? TScope : never)
+  | (TScope extends keyof AssistantClients ? DescendantsOf<TScope> : never);
 
+// For an event, which scopes can listen to it?
 export type AssistantEventScope<TEvent extends AssistantEvent> =
   | "*"
   | EventSource<TEvent>
-  | (EventSource<TEvent> extends keyof AssistantEventScopeConfig
-      ? AssistantEventScopeConfig[EventSource<TEvent>]
+  | (EventSource<TEvent> extends keyof AssistantClients
+      ? AncestorsOf<EventSource<TEvent>>
       : never);
 
 export type AssistantEventSelector<TEvent extends AssistantEvent> =
