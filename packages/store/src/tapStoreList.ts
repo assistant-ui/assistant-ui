@@ -129,9 +129,9 @@ export const tapStoreList = <
     state: lookup.state,
     get: (query: { index: number } | { id: string }) => {
       if ("index" in query) {
-        return lookup.client({ index: query.index });
+        return lookup.get({ index: query.index });
       }
-      return lookup.client({ key: query.id });
+      return lookup.get({ key: query.id });
     },
     add,
   };

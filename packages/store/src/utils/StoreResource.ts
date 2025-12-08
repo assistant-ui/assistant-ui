@@ -1,9 +1,9 @@
 import {
-  tapMemo,
   tapEffect,
   ResourceElement,
   resource,
   createResource,
+  tapState,
 } from "@assistant-ui/tap";
 import { Unsubscribe } from "../types";
 
@@ -19,14 +19,18 @@ export interface Store<TState> {
   subscribe(listener: () => void): Unsubscribe;
 }
 
-export const asStore = resource(
-  <TState, TProps>(element: ResourceElement<TState, TProps>): Store<TState> => {
-    const resource = tapMemo(() => createResource(element), [element.type]);
+export const StoreResource = resource(
+  <TState>(element: ResourceElement<TState>): Store<TState> => {
+    const [handle] = tapState(() => createResource(element, { mount: false }));
 
     tapEffect(() => {
-      resource.updateInput(element.props);
-    });
+      return handle.unmount;
+    }, [handle]);
 
-    return resource;
+    tapEffect(() => {
+      handle.render(element);
+    }, [handle, element]);
+
+    return handle;
   },
 );

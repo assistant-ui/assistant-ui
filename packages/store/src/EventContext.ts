@@ -147,48 +147,62 @@ type ListenerMap = Omit<
 export const EventManager = resource(() => {
   const events = tapMemo(() => {
     const listeners: ListenerMap = new Map();
+    const subscribers = new Set<() => void>();
 
     return {
-      on: (event, callback) => {
-        if (!listeners.has(event)) {
-          listeners.set(event, new Set());
+      events: {
+        on: (event, callback) => {
+          if (!listeners.has(event)) {
+            listeners.set(event, new Set());
+          }
+
+          const eventListeners = listeners.get(event)!;
+          eventListeners.add(callback);
+
+          return () => {
+            eventListeners.delete(callback);
+            if (eventListeners.size === 0) {
+              listeners.delete(event);
+            }
+          };
+        },
+
+        emit: (event, payload) => {
+          const eventListeners = listeners.get(event);
+          const wildcardListeners = listeners.get("*");
+
+          if (!eventListeners && !wildcardListeners) return;
+
+          // make sure state updates flush
+          queueMicrotask(() => {
+            // Emit to specific event listeners
+            if (eventListeners) {
+              for (const callback of eventListeners) {
+                callback(payload);
+              }
+            }
+
+            // Emit to wildcard listeners
+            if (wildcardListeners) {
+              for (const callback of wildcardListeners) {
+                callback({ event, payload } as any);
+              }
+            }
+          });
+        },
+      } satisfies EventManager,
+
+      subscribe: (callback: () => void) => {
+        subscribers.add(callback);
+        return () => subscribers.delete(callback);
+      },
+
+      notifySubscribers: () => {
+        for (const callback of subscribers) {
+          callback();
         }
-
-        const eventListeners = listeners.get(event)!;
-        eventListeners.add(callback);
-
-        return () => {
-          eventListeners.delete(callback);
-          if (eventListeners.size === 0) {
-            listeners.delete(event);
-          }
-        };
       },
-
-      emit: (event, payload) => {
-        const eventListeners = listeners.get(event);
-        const wildcardListeners = listeners.get("*");
-
-        if (!eventListeners && !wildcardListeners) return;
-
-        // make sure state updates flush
-        queueMicrotask(() => {
-          // Emit to specific event listeners
-          if (eventListeners) {
-            for (const callback of eventListeners) {
-              callback(payload);
-            }
-          }
-
-          // Emit to wildcard listeners
-          if (wildcardListeners) {
-            for (const callback of wildcardListeners) {
-              callback({ event, payload } as any);
-            }
-          }
-        });
-      },
-    } satisfies EventManager;
+    };
   }, []);
 
   return events;

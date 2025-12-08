@@ -48,11 +48,11 @@ function getOrCreateProxyFn(prop: string) {
   return template;
 }
 
-class ReadonlyClientHandler<TState, TClient extends ClientObject>
-  implements ProxyHandler<ScopeOutputOf<TState, TClient>>
+class ClientProxy<TClient extends ClientObject>
+  implements ProxyHandler<TClient>
 {
   constructor(
-    private readonly getOutput: () => ScopeOutputOf<TState, TClient>,
+    private readonly getOutput: () => ScopeOutputOf<unknown, TClient>,
   ) {}
 
   get(_: unknown, prop: string | symbol) {
@@ -96,35 +96,38 @@ class ReadonlyClientHandler<TState, TClient extends ClientObject>
  * Wraps a plain resource element to create a stable client proxy.
  *
  * Takes a ResourceElement that returns { state, client } and
- * wraps it to produce { state, client } where client is a stable proxy.
+ * wraps it to produce a stable client proxy.
  */
 export const tapClientResource = <TState, TClient extends ClientObject>(
   element: ResourceElement<ScopeOutputOf<TState, TClient>>,
-): ScopeOutputOf<TState, TClient> => {
-  const value = tapResource(element);
+) => {
+  const valueRef = tapRef<ScopeOutputOf<TState, TClient>>();
 
-  const valueRef = tapRef(value);
-  tapEffect(() => {
-    valueRef.current = value;
-  });
-
-  // Create stable proxy
   const client = tapMemo(
     () =>
       new Proxy<TClient>(
         {} as TClient,
-        new ReadonlyClientHandler<TState, TClient>(() => valueRef.current),
+        new ClientProxy<TClient>(() => valueRef.current!),
       ),
-    [element.type],
+    [],
   );
 
-  return tapMemo(() => ({ state: value.state, client }), [value.state]);
+  const value = tapResource(element);
+  if (!valueRef.current) {
+    valueRef.current = value;
+  }
+
+  tapEffect(() => {
+    valueRef.current = value;
+  });
+
+  return tapMemo(() => ({ client }), [value.state]);
 };
 
 const ClientResource = resource(
   <TState, TClient extends ClientObject>(
     element: ResourceElement<ScopeOutputOf<TState, TClient>>,
-  ): ScopeOutputOf<TState, TClient> => {
+  ): { client: TClient } => {
     return tapClientResource(element);
   },
 );
@@ -140,7 +143,7 @@ export const tapClientResources = <
     key: keyof M,
   ) => ResourceElement<ScopeOutputOf<TState, TClient>>,
   getElementDeps?: any[],
-): { [K in keyof M]: ScopeOutputOf<TState, TClient> } => {
+): { [K in keyof M]: { client: TClient } } => {
   return tapResources(
     map,
     (t, key) => ClientResource(getElement(t, key)),

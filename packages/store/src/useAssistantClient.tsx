@@ -3,11 +3,11 @@ import { useResource } from "@assistant-ui/tap/react";
 import {
   resource,
   tapMemo,
-  tapResource,
   tapResources,
   tapEffectEvent,
   tapInlineResource,
   ResourceElement,
+  tapEffect,
 } from "@assistant-ui/tap";
 import type {
   AssistantClient,
@@ -17,7 +17,7 @@ import type {
   ScopeInput,
   DerivedScopeProps,
 } from "./types";
-import { asStore } from "./utils/asStore";
+import { StoreResource } from "./utils/StoreResource";
 import { useAssistantContextValue } from "./AssistantContext";
 import { splitScopes } from "./utils/splitScopes";
 import {
@@ -60,76 +60,83 @@ const RootScopeResource = resource(
     element,
     events,
     client,
+    notifySubscribers,
   }: {
     element: ScopeInput<AssistantScopes[K]>;
     events: EventManager;
     client: AssistantClient;
-  }) => {
-    const store = tapResource(
-      asStore(RootScopeStoreResource({ element, events, client })),
+    notifySubscribers: () => void;
+  }): ScopeField<AssistantScopes[K]> => {
+    const store = tapInlineResource(
+      StoreResource(RootScopeStoreResource({ element, events, client })),
     );
+
+    tapEffect(() => {
+      return store.subscribe(() => {
+        notifySubscribers();
+      });
+    }, [store, events]);
 
     return tapMemo(() => {
       const scopeFunction = () => store.getState().client;
       scopeFunction.source = "root" as const;
       scopeFunction.query = {};
-
-      return {
-        scopeFunction: scopeFunction satisfies ScopeField<AssistantScopes[K]>,
-        subscribe: store.subscribe,
-      };
+      return scopeFunction;
     }, [store]);
   },
 );
+
+const NoOpRootScopeResource = resource(() => {
+  return tapMemo(() => {
+    return {
+      scopes: {},
+      subscribe: undefined,
+      on: undefined,
+    };
+  }, []);
+});
 
 /**
  * Resource for all root scopes
  * Mounts each root scope and returns an object mapping scope names to their stores
  */
 const RootScopesResource = resource(
-  ({ scopes, client }: { scopes: ScopesInput; client: AssistantClient }) => {
-    const events = tapInlineResource(EventManager());
-
-    const results = tapResources(scopes, (element) =>
-      RootScopeResource({ element: element!, events, client }),
+  ({
+    scopes: inputScopes,
+    client,
+  }: {
+    scopes: ScopesInput;
+    client: AssistantClient;
+  }) => {
+    const { subscribe, notifySubscribers, events } = tapInlineResource(
+      EventManager(),
     );
 
-    const on = <TEvent extends AssistantEvent>(
-      selector: AssistantEventSelector<TEvent>,
-      callback: AssistantEventCallback<TEvent>,
-    ) => {
-      const { event } = normalizeEventSelector(selector);
-      return events.on(event, callback);
-    };
+    tapEffect(
+      () => client.subscribe(notifySubscribers),
+      [subscribe, notifySubscribers],
+    );
+
+    const results = tapResources(inputScopes, (element) =>
+      RootScopeResource({
+        element: element!,
+        events,
+        client,
+        notifySubscribers,
+      }),
+    );
 
     return tapMemo(() => {
-      const resultEntries = Object.entries(results);
-      if (resultEntries.length === 0) {
-        return {
-          scopes: {},
-          on,
-        };
-      }
-
       return {
-        scopes: Object.fromEntries(
-          resultEntries.map(([scopeName, { scopeFunction }]) => [
-            scopeName,
-            scopeFunction,
-          ]),
-        ),
-        subscribe: (callback: () => void) => {
-          const unsubscribes = resultEntries.map(([, { subscribe }]) => {
-            return subscribe(() => {
-              console.log("Callback called for");
-              callback();
-            });
-          });
-          return () => {
-            unsubscribes.forEach((unsubscribe) => unsubscribe());
-          };
+        scopes: results,
+        subscribe,
+        on: <TEvent extends AssistantEvent>(
+          selector: AssistantEventSelector<TEvent>,
+          callback: AssistantEventCallback<TEvent>,
+        ) => {
+          const { event } = normalizeEventSelector(selector);
+          return events.on(event, callback);
         },
-        on,
       };
     }, [results, events]);
   },
@@ -138,11 +145,12 @@ const RootScopesResource = resource(
 /**
  * Hook to mount and access root scopes
  */
-export const useRootScopes = (
-  rootScopes: ScopesInput,
-  client: AssistantClient,
-) => {
-  return useResource(RootScopesResource({ scopes: rootScopes, client }));
+export const useRootScopes = (scopes: ScopesInput, client: AssistantClient) => {
+  return useResource(
+    Object.keys(scopes).length > 0
+      ? RootScopesResource({ scopes, client })
+      : NoOpRootScopeResource(),
+  );
 };
 
 /**

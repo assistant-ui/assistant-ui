@@ -1,6 +1,7 @@
 import { ResourceElement, tapMemo } from "@assistant-ui/tap";
 import { tapClientResources } from "./tapClientResource";
 import type { ClientObject, ScopeOutputOf } from "./types";
+import { getClientState } from "./tapClientResource";
 
 /**
  * Creates a lookup-based resource collection for managing lists of items.
@@ -48,21 +49,21 @@ export const tapLookupResources = <
   getElementDeps?: any[],
 ): {
   state: TState[];
-  client: (lookup: { index: number } | { key: keyof M }) => TClient;
+  get: (lookup: { index: number } | { key: keyof M }) => TClient;
 } => {
   const resources = tapClientResources(map, getElement, getElementDeps);
   const keys = tapMemo(() => Object.keys(map) as (keyof M)[], [map]);
   const state = tapMemo(() => {
     const result = new Array(keys.length);
     for (let i = 0; i < keys.length; i++) {
-      result[i] = resources[keys[i]!].state;
+      result[i] = getClientState(resources[keys[i]!].client);
     }
     return result;
   }, [keys, resources]);
 
   return {
     state,
-    client: (lookup: { index: number } | { key: keyof M }) => {
+    get: (lookup: { index: number } | { key: keyof M }) => {
       const value =
         "index" in lookup
           ? resources[keys[lookup.index]!]?.client

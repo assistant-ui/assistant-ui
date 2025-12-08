@@ -5,9 +5,9 @@ import { tapState } from "./tap-state";
 import { tapCallback } from "./tap-callback";
 import {
   createResourceFiber,
-  unmountResource,
-  renderResource,
-  commitResource,
+  unmountResourceFiber,
+  renderResourceFiber,
+  commitResourceFiber,
 } from "../core/ResourceFiber";
 
 export type TapResourcesRenderResult<R, K extends string | number | symbol> = {
@@ -54,15 +54,12 @@ export function tapResources<
       // Create new fiber if needed or type changed
       if (!fiber || fiber.resource !== element.type) {
         if (fiber) results.remove.push(key);
-        fiber = createResourceFiber(element.type, () => {
-          console.log("scheduleRerender called");
-          rerender();
-        });
+        fiber = createResourceFiber(element.type, rerender);
         results.add.push([key, fiber]);
       }
 
       // Render with current props
-      const renderResult = renderResource(fiber, element.props);
+      const renderResult = renderResourceFiber(fiber, element.props);
       results.commit.push([key, renderResult]);
 
       results.return[key] = renderResult.state;
@@ -83,28 +80,28 @@ export function tapResources<
     return results;
   }, [map, getElementMemo, version]);
 
+  // Cleanup on unmount
+  tapEffect(() => {
+    return () => {
+      for (const key of fibers.keys()) {
+        unmountResourceFiber(fibers.get(key)!);
+        fibers.delete(key);
+      }
+    };
+  }, []);
+
   tapEffect(() => {
     for (const key of results.remove) {
-      unmountResource(fibers.get(key)!);
+      unmountResourceFiber(fibers.get(key)!);
       fibers.delete(key);
     }
     for (const [key, fiber] of results.add) {
       fibers.set(key, fiber);
     }
     for (const [key, result] of results.commit) {
-      commitResource(fibers.get(key)!, result);
+      commitResourceFiber(fibers.get(key)!, result);
     }
   }, [results]);
-
-  // Cleanup on unmount
-  tapEffect(() => {
-    return () => {
-      for (const key of fibers.keys()) {
-        unmountResource(fibers.get(key)!);
-        fibers.delete(key);
-      }
-    };
-  }, []);
 
   return results.return;
 }

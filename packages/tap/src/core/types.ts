@@ -6,13 +6,14 @@ export type ResourceElement<R, P = any> = {
   props: P;
 };
 
+type ResourceArgs<P> = undefined extends P ? [props?: P] : [props: P];
 export type Resource<R, P> = (
-  ...args: P extends undefined ? [] : [props: P]
+  ...args: ResourceArgs<P>
 ) => ResourceElement<R, P>;
 
 export type ContravariantResource<R, P> = (
-  props: P,
-) => ResourceElement<R, any>;
+  ...args: ResourceArgs<P>
+) => ResourceElement<R>;
 
 export type Cell =
   | {

@@ -1,17 +1,17 @@
-import { ResourceElement } from "./types";
+import { RenderResult, ResourceElement } from "./types";
 import {
   createResourceFiber,
-  unmountResource,
-  renderResource,
-  commitResource,
+  unmountResourceFiber,
+  renderResourceFiber,
+  commitResourceFiber,
 } from "./ResourceFiber";
-import { UpdateScheduler } from "./scheduler";
+import { flushSync, UpdateScheduler } from "./scheduler";
 import { tapRef } from "../hooks/tap-ref";
 import { tapState } from "../hooks/tap-state";
 import { tapMemo } from "../hooks/tap-memo";
-import { tapInlineResource } from "../hooks/tap-inline-resource";
 import { tapEffect } from "../hooks/tap-effect";
 import { resource } from "./resource";
+import { tapResource } from "../hooks/tap-resource";
 
 export namespace createResource {
   export type Unsubscribe = () => void;
@@ -19,23 +19,19 @@ export namespace createResource {
   export interface Handle<R, P> {
     getState(): R;
     subscribe(callback: () => void): Unsubscribe;
-    updateInput(props: P): void;
-    dispose(): void;
+    render(element: ResourceElement<R, P>): void;
+    unmount(): void;
   }
 }
 
 const HandleWrapperResource = resource(
-  <R, P>({
-    element,
-    onUpdateInput,
-    onDispose,
-  }: {
+  <R, P>(state: {
     element: ResourceElement<R, P>;
-    onUpdateInput: () => void;
-    onDispose: () => void;
+    onRender: () => void;
+    onUnmount: () => void;
   }): createResource.Handle<R, P> => {
-    const [props, setProps] = tapState(element.props);
-    const value = tapInlineResource({ type: element.type, props });
+    const [, setElement] = tapState(state.element);
+    const value = tapResource(state.element);
     const subscribers = tapRef(new Set<() => void>()).current;
     const valueRef = tapRef(value);
 
@@ -53,11 +49,13 @@ const HandleWrapperResource = resource(
           subscribers.add(callback);
           return () => subscribers.delete(callback);
         },
-        updateInput: (props: P) => {
-          onUpdateInput();
-          setProps(() => props);
+        render: (element: ResourceElement<R, P>) => {
+          state.element = element;
+          setElement(element);
+
+          state.onRender();
         },
-        dispose: onDispose,
+        unmount: state.onUnmount,
       }),
       [],
     );
@@ -68,27 +66,43 @@ const HandleWrapperResource = resource(
 
 export const createResource = <R, P>(
   element: ResourceElement<R, P>,
+  { mount = true }: { mount?: boolean } = {},
 ): createResource.Handle<R, P> => {
-  let isMounted = false;
+  let isMounted = mount;
+  let render: RenderResult;
   const props = {
     element,
-    onUpdateInput: () => {
+    onRender: () => {
       if (isMounted) return;
       isMounted = true;
-      commitResource(fiber, lastRender);
+
+      if (scheduler.isDirty) return;
+      flushSync(() => {
+        commitResourceFiber(fiber, render!);
+      });
     },
-    onDispose: () => unmountResource(fiber),
+    onUnmount: () => {
+      if (!isMounted) return;
+      isMounted = false;
+
+      unmountResourceFiber(fiber);
+    },
   };
 
   const scheduler = new UpdateScheduler(() => {
-    lastRender = renderResource(fiber, props);
-    if (isMounted) commitResource(fiber, lastRender);
+    render = renderResourceFiber(fiber, props);
+
+    if (scheduler.isDirty || !isMounted) return;
+    commitResourceFiber(fiber, render);
   });
 
   const fiber = createResourceFiber(HandleWrapperResource<R, P>, () =>
     scheduler.markDirty(),
   );
 
-  let lastRender = renderResource(fiber, props);
-  return lastRender.state;
+  flushSync(() => {
+    scheduler.markDirty();
+  });
+
+  return render!.state;
 };
