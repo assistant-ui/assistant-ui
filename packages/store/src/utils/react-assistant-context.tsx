@@ -1,5 +1,5 @@
 import React, { createContext, useContext } from "react";
-import type { AssistantClient, ClientAccessor } from "./types";
+import type { AssistantClient, ClientAccessor } from "../types/client";
 
 const NO_OP_SUBSCRIBE = () => () => {};
 const NO_OP_CLIENT_FIELD = (() => {

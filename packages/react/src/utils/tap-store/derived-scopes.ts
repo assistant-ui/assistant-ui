@@ -40,7 +40,7 @@ type AssistantApiFieldNames = {
 /**
  * Configuration for a derived scope field - infers types from the actual values provided
  */
-export type DerivedScopeConfig<TSource extends string | null, TQuery, TApi> = {
+export type DerivedConfig<TSource extends string | null, TQuery, TApi> = {
   source: TSource;
   query: TQuery;
   get: () => TApi;
@@ -159,10 +159,7 @@ export const DerivedScopes = resource(
         Object.values(results),
       ) as Partial<AssistantApi>;
 
-      const {
-        on: onCb,
-        subscribe: subCb,
-      } = callbacksRef.current;
+      const { on: onCb, subscribe: subCb } = callbacksRef.current;
 
       if (onCb) {
         result.on = <TEvent extends AssistantEvent>(

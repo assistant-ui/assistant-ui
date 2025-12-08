@@ -1,5 +1,9 @@
-import { DerivedClient } from "../DerivedClient";
-import type { ClientSchemas, ClientResourceElement, ClientResourceElements } from "../types";
+import { Derived } from "../Derived";
+import type {
+  ClientSchemas,
+  ClientResourceElement,
+  ClientResourceElements,
+} from "../types/client";
 
 /**
  * Splits a clients object into root clients and derived clients.
@@ -11,7 +15,7 @@ import type { ClientSchemas, ClientResourceElement, ClientResourceElements } fro
  * ```typescript
  * const clients = {
  *   foo: RootClient({ ... }),
- *   bar: DerivedClient({ ... }),
+ *   bar: Derived({ ... }),
  * };
  *
  * const { rootClients, derivedClients } = splitClients(clients);
@@ -27,7 +31,7 @@ export function splitClients(clients: ClientResourceElements) {
     keyof ClientResourceElements,
     ClientResourceElement<ClientSchemas[keyof ClientResourceElements]>,
   ][]) {
-    if (clientElement.type === DerivedClient) {
+    if (clientElement.type === Derived) {
       derivedClients[key] = clientElement;
     } else {
       rootClients[key] = clientElement;

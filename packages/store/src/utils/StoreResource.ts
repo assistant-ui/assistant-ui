@@ -5,7 +5,7 @@ import {
   createResource,
   tapState,
 } from "@assistant-ui/tap";
-import { Unsubscribe } from "../types";
+import { Unsubscribe } from "../types/client";
 
 export interface Store<TState> {
   /**

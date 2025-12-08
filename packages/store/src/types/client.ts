@@ -3,7 +3,7 @@ import type {
   AssistantEvent,
   AssistantEventCallback,
   AssistantEventSelector,
-} from "./EventContext";
+} from "./events";
 
 /**
  * Base type for methods that can be called on a client.
@@ -98,29 +98,22 @@ export type ClientResourceOutputOf<TState, TMethods extends ClientMethods> = {
  * Type for a client accessor - a function that returns the methods,
  * with source/query metadata attached (derived from meta).
  */
-export type ClientAccessor<T extends ClientSchema<any, any, any, any>> = (() => T["methods"]) &
-  (
-    | NonNullable<T["meta"]>
-    | { source: "root"; query: Record<string, never> }
-    | { source: null; query: null }
-  );
-
-/**
- * Props passed to a derived client resource element.
- */
-export type DerivedClientProps<T extends ClientSchema<any, any, any, any>> = {
-  get: (parent: AssistantClient) => T["methods"];
-  source: NonNullable<T["meta"]>["source"];
-  query: NonNullable<T["meta"]>["query"];
-};
+export type ClientAccessor<T extends ClientSchema<any, any, any, any>> =
+  (() => T["methods"]) &
+    (
+      | NonNullable<T["meta"]>
+      | { source: "root"; query: Record<string, never> }
+      | { source: null; query: null }
+    );
 
 /**
  * ResourceElement that returns { state, methods } for a client.
  */
-export type ClientResourceElement<T extends ClientSchema<any, any, any, any>> = ResourceElement<{
-  state: T["state"];
-  methods: T["methods"];
-}>;
+export type ClientResourceElement<T extends ClientSchema<any, any, any, any>> =
+  ResourceElement<{
+    state: T["state"];
+    methods: T["methods"];
+  }>;
 
 /**
  * Map of client names to their ResourceElements.

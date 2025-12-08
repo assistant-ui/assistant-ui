@@ -4,9 +4,13 @@ import {
   withContextProvider,
   tapEffectEvent,
 } from "@assistant-ui/tap";
-import type { AssistantEvent, AssistantEventMap, EventManager } from "./EventContext";
-import type { AssistantClient } from "./types";
-import { tapClientStack } from "./ClientStackContext";
+import type {
+  AssistantEvent,
+  AssistantEventMap,
+  EventManager,
+} from "../types/events";
+import type { AssistantClient } from "../types/client";
+import { tapClientStack } from "./tap-client-stack-context";
 
 export type AssistantTapContextValue = {
   client: AssistantClient;
@@ -31,11 +35,11 @@ const tapAssistantTapContext = () => {
   return ctx;
 };
 
-export const tapClient = () => {
+export const tapAssistantClient = () => {
   return tapAssistantTapContext().client;
 };
 
-export const tapEmit = () => {
+export const tapEmitClientEvent = () => {
   const { events } = tapAssistantTapContext();
   const clientStack = tapClientStack();
 

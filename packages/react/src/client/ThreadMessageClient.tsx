@@ -89,7 +89,9 @@ export const ThreadMessageClient = resource(
     const attachments = tapLookupResources(
       message.attachments?.map((_, idx) => [
         String(idx),
-        ThreadMessageAttachmentClient({ attachment: message.attachments![idx]! }),
+        ThreadMessageAttachmentClient({
+          attachment: message.attachments![idx]!,
+        }),
       ]) ?? [],
     );
 

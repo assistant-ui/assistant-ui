@@ -21,10 +21,13 @@ export interface Store<TState> {
 
 export const asStore = resource(
   <TState, TProps>(element: ResourceElement<TState, TProps>): Store<TState> => {
-    const resource = tapMemo(() => createResource(element), [element.type]);
+    const resource = tapMemo(
+      () => createResource(element, { mount: false }),
+      [element.type],
+    );
 
     tapEffect(() => {
-      resource.updateInput(element.props);
+      resource.render(element);
     });
 
     return resource;

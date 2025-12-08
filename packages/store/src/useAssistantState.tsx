@@ -1,7 +1,7 @@
 import { useMemo, useSyncExternalStore, useDebugValue } from "react";
-import type { AssistantClient, AssistantState } from "./types";
+import type { AssistantClient, AssistantState } from "./types/client";
 import { useAssistantClient } from "./useAssistantClient";
-import { getClientState } from "./tapClientResource";
+import { getClientState } from "./utils/ClientResource";
 
 /**
  * Proxied state that lazily accesses scope states

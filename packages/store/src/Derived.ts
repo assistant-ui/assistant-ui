@@ -1,5 +1,5 @@
 import { resource } from "@assistant-ui/tap";
-import type { ClientSchema, DerivedClientProps } from "./types";
+import type { AssistantClient, ClientSchema } from "./types/client";
 
 /**
  * Creates a derived client field that memoizes based on source and query.
@@ -8,7 +8,7 @@ import type { ClientSchema, DerivedClientProps } from "./types";
  * @example
  * ```typescript
  * const client = useAssistantClient({
- *   message: DerivedClient({
+ *   message: Derived({
  *     source: "thread",
  *     query: { index: 0 },
  *     get: (client) => client.thread().message({ index: 0 }),
@@ -16,10 +16,21 @@ import type { ClientSchema, DerivedClientProps } from "./types";
  * });
  * ```
  */
-export const DerivedClient = resource(
+export const Derived = resource(
   <T extends ClientSchema<any, any, any, any>>(
-    _config: DerivedClientProps<T>,
+    _config: Derived.Props<T>,
   ): null => {
     return null;
   },
 );
+
+export namespace Derived {
+  /**
+   * Props passed to a derived client resource element.
+   */
+  export type Props<T extends ClientSchema<any, any, any, any>> = {
+    get: (parent: AssistantClient) => T["methods"];
+    source: NonNullable<T["meta"]>["source"];
+    query: NonNullable<T["meta"]>["query"];
+  };
+}

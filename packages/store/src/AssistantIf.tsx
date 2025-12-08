@@ -2,7 +2,7 @@
 
 import type { FC, PropsWithChildren } from "react";
 import { useAssistantState } from "./useAssistantState";
-import type { AssistantState } from "./types";
+import type { AssistantState } from "./types/client";
 
 export namespace AssistantIf {
   export type Props = PropsWithChildren<{ condition: AssistantIf.Condition }>;

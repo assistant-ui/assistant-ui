@@ -1,5 +1,10 @@
-import { createContext, tapContext, withContextProvider, tapMemo } from "@assistant-ui/tap";
-import type { ClientMethods } from "./types";
+import {
+  createContext,
+  tapContext,
+  withContextProvider,
+  tapMemo,
+} from "@assistant-ui/tap";
+import type { ClientMethods } from "../types/client";
 
 /**
  * Symbol used to get the client index from a ClientProxy.
@@ -33,8 +38,14 @@ export const tapClientStack = (): ClientStack => {
  * Execute a callback with a client pushed onto the stack.
  * The stack is duplicated, not mutated.
  */
-export const tapWithClientStack = <T>(client: ClientMethods, callback: () => T): T => {
+export const tapWithClientStack = <T>(
+  client: ClientMethods,
+  callback: () => T,
+): T => {
   const currentStack = tapClientStack();
-  const newStack = tapMemo(() => [...currentStack, client], [currentStack, client]);
+  const newStack = tapMemo(
+    () => [...currentStack, client],
+    [currentStack, client],
+  );
   return withContextProvider(ClientStackContext, newStack, callback);
 };

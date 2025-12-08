@@ -4,8 +4,8 @@ import type {
   AssistantEvent,
   AssistantEventCallback,
   AssistantEventSelector,
-} from "./EventContext";
-import { normalizeEventSelector } from "./EventContext";
+} from "./types/events";
+import { normalizeEventSelector } from "./types/events";
 
 export const useAssistantEvent = <TEvent extends AssistantEvent>(
   selector: AssistantEventSelector<TEvent>,

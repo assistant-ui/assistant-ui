@@ -1,7 +1,7 @@
 import { tapMemo, tapState } from "@assistant-ui/tap";
 import type { ContravariantResource } from "@assistant-ui/tap";
 import { tapClientLookup } from "./tapClientLookup";
-import type { ClientMethods, ClientResourceOutputOf } from "./types";
+import type { ClientMethods, ClientResourceOutputOf } from "./types/client";
 
 const createProps = <TData>(
   key: string,

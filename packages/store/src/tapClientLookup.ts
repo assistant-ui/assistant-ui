@@ -1,7 +1,6 @@
-import { ResourceElement, tapMemo } from "@assistant-ui/tap";
-import { tapClientResources } from "./tapClientResource";
-import type { ClientMethods, ClientResourceOutputOf } from "./types";
-import { getClientState } from "./tapClientResource";
+import { ResourceElement, tapMemo, tapResources } from "@assistant-ui/tap";
+import type { ClientMethods, ClientResourceOutputOf } from "./types/client";
+import { ClientResource, getClientState } from "./utils/ClientResource";
 
 export const tapClientLookup = <
   TState,
@@ -18,7 +17,11 @@ export const tapClientLookup = <
   state: TState[];
   get: (lookup: { index: number } | { key: keyof M }) => TMethods;
 } => {
-  const resources = tapClientResources(map, getElement, getElementDeps);
+  const resources = tapResources(
+    map,
+    (t, key) => ClientResource(getElement(t, key)),
+    getElementDeps,
+  );
   const keys = tapMemo(() => Object.keys(map) as (keyof M)[], [map]);
 
   const state = tapMemo(() => {

@@ -15,7 +15,7 @@ const useIsomorphicLayoutEffect = shouldAvoidLayoutEffect
   : useLayoutEffect;
 
 export function useResource<TElement extends ResourceElement<unknown>>(
-  element: TElement
+  element: TElement,
 ): TElement extends ResourceElement<infer R> ? R : never {
   const [, rerender] = useState({});
   const fiber = useMemo(

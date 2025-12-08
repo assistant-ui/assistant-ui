@@ -58,9 +58,8 @@ describe("tapResources - Basic Functionality", () => {
   describe("Basic Rendering", () => {
     it("should render multiple resources with keys", () => {
       const testFiber = createTestResource(() => {
-        const results = tapResources(
-          { a: 10, b: 20, c: 30 },
-          (value) => SimpleCounter({ value }),
+        const results = tapResources({ a: 10, b: 20, c: 30 }, (value) =>
+          SimpleCounter({ value }),
         );
 
         return results;
@@ -186,10 +185,12 @@ describe("tapResources - Basic Functionality", () => {
 
     it("should handle changing resource types for the same key", () => {
       const testFiber = createTestResource((props: { useCounter: boolean }) => {
-        const results = tapResources({ item: props.useCounter }, (useCounter) =>
-          useCounter
-            ? StatefulCounter({ initial: 42 })
-            : Display({ text: "Hello" }),
+        const results = tapResources(
+          { item: props.useCounter },
+          (useCounter) =>
+            useCounter
+              ? StatefulCounter({ initial: 42 })
+              : Display({ text: "Hello" }),
         );
         return results;
       });

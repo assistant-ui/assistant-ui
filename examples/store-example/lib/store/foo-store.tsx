@@ -8,9 +8,9 @@ import {
   useAssistantClient,
   AssistantProvider,
   tapClientList,
-  DerivedClient,
+  Derived,
   useAssistantState,
-  tapEmit,
+  tapEmitClientEvent,
   type ClientResourceOutput,
 } from "@assistant-ui/store";
 
@@ -22,7 +22,7 @@ export const FooItemResource = resource(
     initialData,
     remove,
   }: tapClientList.ResourceProps<FooInitialData>): ClientResourceOutput<"foo"> => {
-    const emit = tapEmit();
+    const emit = tapEmitClientEvent();
 
     const [state, setState] = tapState<{ id: string; bar: string }>(() => ({
       id: key,
@@ -52,7 +52,7 @@ export const FooItemResource = resource(
 
 let counter = 0;
 export const FooListResource = resource((): ClientResourceOutput<"fooList"> => {
-  const emit = tapEmit();
+  const emit = tapEmitClientEvent();
 
   const foos = tapClientList({
     initialValues: [

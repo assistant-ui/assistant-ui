@@ -5,15 +5,23 @@ export { useAssistantEvent } from "./useAssistantEvent";
 
 // components
 export { AssistantIf } from "./AssistantIf";
-export { AssistantProvider } from "./AssistantContext";
+export { AssistantProvider } from "./utils/react-assistant-context";
 
 // resources
-export { DerivedClient } from "./DerivedClient";
+export { Derived } from "./Derived";
 
 // tap hooks
-export { tapClient, tapEmit } from "./AssistantTapContext";
+export {
+  tapAssistantClient,
+  tapEmitClientEvent,
+} from "./utils/tap-assistant-context";
 export { tapClientLookup } from "./tapClientLookup";
 export { tapClientList } from "./tapClientList";
 
 // types
-export type { ClientRegistry, ClientResourceOutput } from "./types";
+export type { ClientRegistry, ClientResourceOutput } from "./types/client";
+export type {
+  AssistantEvent,
+  AssistantEventCallback,
+  AssistantEventSelector,
+} from "./types/events";

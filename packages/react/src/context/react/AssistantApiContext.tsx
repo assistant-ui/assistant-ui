@@ -291,19 +291,6 @@ export function useAssistantApi(config?: AssistantClientProps): AssistantApi {
   }
 }
 
-const mergeFns = <TArgs extends Array<unknown>>(
-  fn1: (...args: TArgs) => void,
-  fn2: (...args: TArgs) => void,
-) => {
-  if (fn1 === NO_OP_FN) return fn2;
-  if (fn2 === NO_OP_FN) return fn1;
-
-  return (...args: TArgs) => {
-    fn1(...args);
-    fn2(...args);
-  };
-};
-
 const mergeFnsWithUnsubscribe = <TArgs extends Array<unknown>>(
   fn1: (...args: TArgs) => Unsubscribe,
   fn2: (...args: TArgs) => Unsubscribe,
