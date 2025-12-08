@@ -1,12 +1,16 @@
-import { Welcome } from "../welcome/welcome";
+import { Thread } from "@/components/assistant-ui/thread";
 
 export function meta() {
   return [
-    { title: "New React Router App" },
-    { name: "description", content: "Welcome to React Router!" },
+    { title: "assistant-ui with React Router" },
+    { name: "description", content: "assistant-ui example with React Router" },
   ];
 }
 
 export default function Home() {
-  return <Welcome />;
+  return (
+    <main className="h-dvh">
+      <Thread />
+    </main>
+  );
 }

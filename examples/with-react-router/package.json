@@ -9,16 +9,25 @@
     "typecheck": "react-router typegen && tsc"
   },
   "dependencies": {
+    "@assistant-ui/react": "workspace:*",
+    "@assistant-ui/react-markdown": "workspace:*",
+    "@radix-ui/react-avatar": "^1.1.11",
+    "@radix-ui/react-dialog": "^1.1.15",
+    "@radix-ui/react-slot": "^1.2.4",
+    "@radix-ui/react-tooltip": "^1.2.8",
     "@react-router/node": "7.10.1",
     "@react-router/serve": "7.10.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "isbot": "^5.1.31",
     "lucide-react": "^0.556.0",
+    "openai": "^4.103.0",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
     "react-router": "7.10.1",
-    "tailwind-merge": "^3.4.0"
+    "remark-gfm": "^4.0.1",
+    "tailwind-merge": "^3.4.0",
+    "zustand": "^5.0.9"
   },
   "devDependencies": {
     "@react-router/dev": "7.10.1",
