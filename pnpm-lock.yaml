@@ -685,7 +685,7 @@ importers:
         specifier: ^4.1.17
         version: 4.1.17
       assistant-stream:
-        specifier: ^0.2.43
+        specifier: ^0.2.44
         version: link:../../packages/assistant-stream
       class-variance-authority:
         specifier: ^0.7.1
@@ -1695,7 +1695,7 @@ importers:
         specifier: ^0.1.10
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.2.43
+        specifier: ^0.2.44
         version: link:../assistant-stream
       nanoid:
         specifier: 5.1.6
@@ -1741,7 +1741,7 @@ importers:
   packages/react-a2a:
     dependencies:
       assistant-stream:
-        specifier: ^0.2.43
+        specifier: ^0.2.44
         version: link:../assistant-stream
       uuid:
         specifier: ^13.0.0
@@ -1839,7 +1839,7 @@ importers:
         specifier: '*'
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.2.43
+        specifier: ^0.2.44
         version: link:../assistant-stream
       zod:
         specifier: ^4.1.13
@@ -1876,7 +1876,7 @@ importers:
         specifier: ^7.0.15
         version: 7.0.15
       assistant-stream:
-        specifier: ^0.2.43
+        specifier: ^0.2.44
         version: link:../assistant-stream
       zod:
         specifier: ^4.1.13
@@ -1969,7 +1969,7 @@ importers:
   packages/react-langgraph:
     dependencies:
       assistant-stream:
-        specifier: ^0.2.43
+        specifier: ^0.2.44
         version: link:../assistant-stream
       uuid:
         specifier: ^13.0.0
