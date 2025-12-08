@@ -7,7 +7,7 @@ import {
   resource,
   tapResources,
 } from "@assistant-ui/tap";
-import type { ClientObject, ClientOutputOf } from "./types";
+import type { ClientMethods, ClientResourceOutputOf } from "./types";
 import {
   tapClientStack,
   tapWithClientStack,
@@ -20,10 +20,10 @@ import {
  */
 const SYMBOL_GET_OUTPUT = Symbol("assistant-ui.store.getValue");
 
-export const getClientState = <TState>(client: ClientObject): TState => {
+export const getClientState = <TState>(client: ClientMethods): TState => {
   return (
     client as unknown as {
-      [SYMBOL_GET_OUTPUT]: () => ClientOutputOf<TState, ClientObject>;
+      [SYMBOL_GET_OUTPUT]: () => ClientResourceOutputOf<TState, ClientMethods>;
     }
   )[SYMBOL_GET_OUTPUT]!().state;
 };
@@ -32,7 +32,7 @@ export const getClientState = <TState>(client: ClientObject): TState => {
 const fieldAccessFns = new Map<
   string | symbol,
   (
-    this: { [SYMBOL_GET_OUTPUT]: () => ClientOutputOf<unknown, ClientObject> },
+    this: { [SYMBOL_GET_OUTPUT]: () => ClientResourceOutputOf<unknown, ClientMethods> },
     ...args: unknown[]
   ) => unknown
 >();
@@ -41,7 +41,7 @@ function getOrCreateProxyFn(prop: string) {
   let template = fieldAccessFns.get(prop);
   if (!template) {
     template = function (
-      this: { [SYMBOL_GET_OUTPUT]: () => ClientOutputOf<unknown, ClientObject> },
+      this: { [SYMBOL_GET_OUTPUT]: () => ClientResourceOutputOf<unknown, ClientMethods> },
       ...args: unknown[]
     ) {
       const method = this[SYMBOL_GET_OUTPUT]().methods[prop];
@@ -53,11 +53,11 @@ function getOrCreateProxyFn(prop: string) {
   return template;
 }
 
-class ClientProxy<TMethods extends ClientObject>
+class ClientProxy<TMethods extends ClientMethods>
   implements ProxyHandler<TMethods>
 {
   constructor(
-    private readonly getOutput: () => ClientOutputOf<unknown, TMethods>,
+    private readonly getOutput: () => ClientResourceOutputOf<unknown, TMethods>,
     private readonly index: number,
   ) {}
 
@@ -106,10 +106,10 @@ class ClientProxy<TMethods extends ClientObject>
  * Takes a ResourceElement that returns { state, methods } and
  * wraps it to produce a stable client proxy.
  */
-export const tapClientResource = <TState, TMethods extends ClientObject>(
-  element: ResourceElement<ClientOutputOf<TState, TMethods>>,
+export const tapClientResource = <TState, TMethods extends ClientMethods>(
+  element: ResourceElement<ClientResourceOutputOf<TState, TMethods>>,
 ) => {
-  const valueRef = tapRef<ClientOutputOf<TState, TMethods>>();
+  const valueRef = tapRef<ClientResourceOutputOf<TState, TMethods>>();
 
   const index = tapClientStack().length;
   const methods = tapMemo(
@@ -134,8 +134,8 @@ export const tapClientResource = <TState, TMethods extends ClientObject>(
 };
 
 const ClientResource = resource(
-  <TState, TMethods extends ClientObject>(
-    element: ResourceElement<ClientOutputOf<TState, TMethods>>,
+  <TState, TMethods extends ClientMethods>(
+    element: ResourceElement<ClientResourceOutputOf<TState, TMethods>>,
   ): { methods: TMethods } => {
     return tapClientResource(element);
   },
@@ -143,14 +143,14 @@ const ClientResource = resource(
 
 export const tapClientResources = <
   TState,
-  TMethods extends ClientObject,
+  TMethods extends ClientMethods,
   M extends Record<string | number | symbol, any>,
 >(
   map: M,
   getElement: (
     t: M[keyof M],
     key: keyof M,
-  ) => ResourceElement<ClientOutputOf<TState, TMethods>>,
+  ) => ResourceElement<ClientResourceOutputOf<TState, TMethods>>,
   getElementDeps?: any[],
 ): { [K in keyof M]: { methods: TMethods } } => {
   return tapResources(

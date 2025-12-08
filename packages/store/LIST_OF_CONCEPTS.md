@@ -32,7 +32,7 @@ These are concepts that users consuming assistant-ui need to understand.
 ### Client Access
 
 - **Client** - A named unit of state and methods (e.g., `thread`, `message`)
-- **ClientField** - Function on AssistantClient to access a client's methods: `client.thread()`
+- **ClientAccessor** - Function on AssistantClient to access a client's methods: `client.thread()`
 - **ClientSource** - The parent client name (e.g., `"thread"` for messages)
 - **ClientQuery** - Parameters to identify a specific client instance (e.g., `{ messageId }`)
 
@@ -44,9 +44,9 @@ These are concepts for developers creating custom clients.
 
 ### Client Definition
 
-- **ClientDefinition** - Type defining a client: `{ state, methods, meta?, events? }`
-- **ClientOutput<K>** - Return type from client resources: `{ state, methods }`
-- **AssistantClientRegistry** - Module augmentation interface to register custom clients
+- **ClientSchema** - Type defining a client: `{ state, methods, meta?, events? }`
+- **ClientResourceOutput<K>** - Return type from client resources: `{ state, methods }`
+- **ClientRegistry** - Module augmentation interface to register custom clients
 - **ClientMeta** - Metadata about a client: `{ source, query }`
 
 ### Client Patterns
@@ -74,9 +74,9 @@ These are concepts for developers creating custom clients.
 
 ### Base Types
 
-- **ClientObject** - Base interface for methods types (plain object with methods)
-- **ClientsInput** - Map of client names to their ResourceElement inputs
-- **AssistantClients** - The complete set of all registered clients
+- **ClientMethods** - Base interface for methods types (plain object with methods)
+- **ClientResourceElements** - Map of client names to their ResourceElements
+- **ClientSchemas** - The complete set of all registered clients
 - **Unsubscribe** - `() => void` returned by subscription functions
 
 ---

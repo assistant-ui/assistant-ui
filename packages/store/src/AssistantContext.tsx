@@ -1,5 +1,5 @@
 import React, { createContext, useContext } from "react";
-import type { AssistantClient, ClientField } from "./types";
+import type { AssistantClient, ClientAccessor } from "./types";
 
 const NO_OP_SUBSCRIBE = () => () => {};
 const NO_OP_CLIENT_FIELD = (() => {
@@ -7,7 +7,7 @@ const NO_OP_CLIENT_FIELD = (() => {
     throw new Error(
       "You need to wrap this component/hook in <AssistantProvider>",
     );
-  }) as ClientField<never>;
+  }) as ClientAccessor<never>;
   fn.source = null;
   fn.query = null;
   return fn;

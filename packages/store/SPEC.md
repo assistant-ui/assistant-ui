@@ -234,7 +234,7 @@ Uses `tapClientResources` internally to create stable API proxies for each eleme
 #### Signature
 
 ```typescript
-function tapLookupResources<TState, TApi extends ClientObject, T, K extends string | number>(
+function tapLookupResources<TState, TApi extends ClientMethods, T, K extends string | number>(
   map: Record<K, T>,
   getElement: (t: T, key: K) => ResourceElement<ScopeOutputOf<TState, TApi>>,
   getElementDeps?: any[],
@@ -309,7 +309,7 @@ Uses `tapLookupResources` internally and manages the list state with `tapState`.
 #### Signature
 
 ```typescript
-function tapStoreList<TProps extends { id: string }, TState, TApi extends ClientObject>(
+function tapStoreList<TProps extends { id: string }, TState, TApi extends ClientMethods>(
   config: TapStoreListConfig<TProps, TState, TApi>,
 ): {
   state: TState[];
@@ -403,17 +403,17 @@ interface AssistantScopeRegistry {
 }
 ```
 
-### ClientObject
+### ClientMethods
 
-Base type for client objects:
+Base type for client methods:
 
 ```typescript
-interface ClientObject {
+interface ClientMethods {
   [key: string]: (...args: any[]) => any;
 }
 ```
 
-All client objects must be compatible with this type (functions only).
+All client methods must be compatible with this type (functions only).
 
 ## Patterns
 

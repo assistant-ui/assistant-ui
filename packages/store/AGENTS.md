@@ -317,7 +317,7 @@ The store is built on `@assistant-ui/tap`:
 | `AssistantClient` | Client type with scope fields + subscribe/on |
 | `AssistantScopes` | All registered scopes (from AssistantScopeRegistry) |
 | `AssistantState` | State type extracted from all scopes |
-| `ClientObject` | Base type for client objects |
+| `ClientMethods` | Base type for client methods |
 | `EventManager` | Event manager type with on/emit methods |
 
 ## Common Patterns

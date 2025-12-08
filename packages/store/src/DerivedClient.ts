@@ -1,5 +1,5 @@
 import { resource } from "@assistant-ui/tap";
-import type { ClientDefinition, DerivedClientProps } from "./types";
+import type { ClientSchema, DerivedClientProps } from "./types";
 
 /**
  * Creates a derived client field that memoizes based on source and query.
@@ -17,7 +17,7 @@ import type { ClientDefinition, DerivedClientProps } from "./types";
  * ```
  */
 export const DerivedClient = resource(
-  <T extends ClientDefinition<any, any, any, any>>(
+  <T extends ClientSchema<any, any, any, any>>(
     _config: DerivedClientProps<T>,
   ): null => {
     return null;

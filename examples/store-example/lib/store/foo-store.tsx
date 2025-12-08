@@ -11,7 +11,7 @@ import {
   DerivedClient,
   useAssistantState,
   tapEmit,
-  type ClientOutput,
+  type ClientResourceOutput,
 } from "@assistant-ui/store";
 
 type FooInitialData = { initialBar: string };
@@ -21,7 +21,7 @@ export const FooItemResource = resource(
     key,
     initialData,
     remove,
-  }: tapClientList.ResourceProps<FooInitialData>): ClientOutput<"foo"> => {
+  }: tapClientList.ResourceProps<FooInitialData>): ClientResourceOutput<"foo"> => {
     const emit = tapEmit();
 
     const [state, setState] = tapState<{ id: string; bar: string }>(() => ({
@@ -51,7 +51,7 @@ export const FooItemResource = resource(
 );
 
 let counter = 0;
-export const FooListResource = resource((): ClientOutput<"fooList"> => {
+export const FooListResource = resource((): ClientResourceOutput<"fooList"> => {
   const emit = tapEmit();
 
   const foos = tapClientList({

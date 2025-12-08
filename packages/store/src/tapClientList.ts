@@ -1,7 +1,7 @@
 import { tapMemo, tapState } from "@assistant-ui/tap";
 import type { ContravariantResource } from "@assistant-ui/tap";
 import { tapClientLookup } from "./tapClientLookup";
-import type { ClientObject, ClientOutputOf } from "./types";
+import type { ClientMethods, ClientResourceOutputOf } from "./types";
 
 const createProps = <TData>(
   key: string,
@@ -20,7 +20,7 @@ const createProps = <TData>(
   };
 };
 
-export const tapClientList = <TData, TState, TMethods extends ClientObject>(
+export const tapClientList = <TData, TState, TMethods extends ClientMethods>(
   props: tapClientList.Props<TData, TState, TMethods>,
 ): {
   state: TState[];
@@ -86,11 +86,11 @@ export namespace tapClientList {
     remove: () => void;
   };
 
-  export type Props<TData, TState, TMethods extends ClientObject> = {
+  export type Props<TData, TState, TMethods extends ClientMethods> = {
     initialValues: TData[];
     getKey: (data: TData) => string;
     resource: ContravariantResource<
-      ClientOutputOf<TState, TMethods>,
+      ClientResourceOutputOf<TState, TMethods>,
       ResourceProps<TData>
     >;
   };

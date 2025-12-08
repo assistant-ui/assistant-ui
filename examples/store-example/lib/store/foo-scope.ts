@@ -17,7 +17,7 @@ type FooListMethods = {
 };
 
 declare module "@assistant-ui/store" {
-  interface AssistantClientRegistry {
+  interface ClientRegistry {
     foo: {
       state: FooState;
       methods: FooMethods;

@@ -61,7 +61,7 @@ tapClientResource()
 
 // Types
 ScopeOutput<K>
-ClientObject
+ClientMethods
 AssistantScopeRegistry (module augmentation)
 registerAssistantScope()
 ```
@@ -100,7 +100,7 @@ For reference, these have been decided:
 | Decision | Resolution |
 |----------|------------|
 | `actions` vs `client` | Standardized on `client` |
-| `ClientObject` allows nested objects | No, functions only |
+| `ClientMethods` allows nested objects | No, functions only |
 | `tap*` prefix for internal utilities | Keep as signal for "advanced use" |
 | `getState` in API | Optional convention, not enforced by store |
 | `value` vs `state`/`client` in scope defs | Use `state` and `client` separately |
@@ -233,7 +233,7 @@ declare module "@assistant-ui/store" {
 ```typescript
 export type ScopeDefinition<
   TState extends Record<string, unknown> = Record<string, unknown>,
-  TApi extends ClientObject = ClientObject,
+  TApi extends ClientMethods = ClientMethods,
   TMeta extends ScopeMetaType = never,  // defaults to never
   TEvents extends Record<string, unknown> = never,  // defaults to never
 > = {

@@ -1,5 +1,5 @@
 import { resource, tapMemo } from "@assistant-ui/tap";
-import type { AssistantClients, Unsubscribe } from "./types";
+import type { ClientSchemas, Unsubscribe } from "./types";
 import type { ClientStack } from "./ClientStackContext";
 
 type UnionToIntersection<U> = (
@@ -15,14 +15,14 @@ type UnionToIntersection<U> = (
  */
 type RawClientEventMap = UnionToIntersection<
   {
-    [K in keyof AssistantClients]: AssistantClients[K] extends {
+    [K in keyof ClientSchemas]: ClientSchemas[K] extends {
       events: infer E;
     }
       ? E extends Record<string, unknown>
         ? E
         : never
       : never;
-  }[keyof AssistantClients]
+  }[keyof ClientSchemas]
 >;
 
 // Fallback to empty object if no events are defined
@@ -50,17 +50,17 @@ export type EventSource<T extends AssistantEvent = AssistantEvent> =
   T extends `${infer Source}.${string}` ? Source : never;
 
 // Extract the source (parent) from a client's meta
-type SourceOf<K extends keyof AssistantClients> =
-  AssistantClients[K] extends { meta: { source: infer S } }
-    ? S extends keyof AssistantClients
+type SourceOf<K extends keyof ClientSchemas> =
+  ClientSchemas[K] extends { meta: { source: infer S } }
+    ? S extends keyof ClientSchemas
       ? S
       : never
     : never;
 
 // Recursively get all ancestors of a client
 type AncestorsOf<
-  K extends keyof AssistantClients,
-  Seen extends keyof AssistantClients = never,
+  K extends keyof ClientSchemas,
+  Seen extends keyof ClientSchemas = never,
 > = K extends Seen
   ? never
   : SourceOf<K> extends never
@@ -68,21 +68,21 @@ type AncestorsOf<
     : SourceOf<K> | AncestorsOf<SourceOf<K>, Seen | K>;
 
 // Get all descendants of a client (clients that have this as an ancestor)
-type DescendantsOf<K extends keyof AssistantClients> = {
-  [C in keyof AssistantClients]: K extends AncestorsOf<C> ? C : never;
-}[keyof AssistantClients];
+type DescendantsOf<K extends keyof ClientSchemas> = {
+  [C in keyof ClientSchemas]: K extends AncestorsOf<C> ? C : never;
+}[keyof ClientSchemas];
 
 // Given a scope, which event sources does it receive?
 export type SourceByScope<TScope extends AssistantEventScope<AssistantEvent>> =
   | (TScope extends "*" ? EventSource : never)
-  | (TScope extends keyof AssistantClients ? TScope : never)
-  | (TScope extends keyof AssistantClients ? DescendantsOf<TScope> : never);
+  | (TScope extends keyof ClientSchemas ? TScope : never)
+  | (TScope extends keyof ClientSchemas ? DescendantsOf<TScope> : never);
 
 // For an event, which scopes can listen to it?
 export type AssistantEventScope<TEvent extends AssistantEvent> =
   | "*"
   | EventSource<TEvent>
-  | (EventSource<TEvent> extends keyof AssistantClients
+  | (EventSource<TEvent> extends keyof ClientSchemas
       ? AncestorsOf<EventSource<TEvent>>
       : never);
 

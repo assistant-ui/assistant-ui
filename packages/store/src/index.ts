@@ -16,4 +16,4 @@ export { tapClientLookup } from "./tapClientLookup";
 export { tapClientList } from "./tapClientList";
 
 // types
-export type { AssistantClientRegistry, ClientOutput } from "./types";
+export type { ClientRegistry, ClientResourceOutput } from "./types";
