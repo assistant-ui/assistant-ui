@@ -14,19 +14,19 @@ import {
   type ClientResourceOutput,
 } from "@assistant-ui/store";
 
-type FooInitialData = { initialBar: string };
+type FooInitialData = { id: string; initialBar: string };
 
 export const FooItemResource = resource(
   ({
     key,
-    initialData,
+    getInitialData,
     remove,
   }: tapClientList.ResourceProps<FooInitialData>): ClientResourceOutput<"foo"> => {
     const emit = tapEmitClientEvent();
 
     const [state, setState] = tapState<{ id: string; bar: string }>(() => ({
       id: key,
-      bar: initialData!.initialBar,
+      bar: getInitialData().initialBar,
     }));
 
     const updateBar = (newBar: string) => {
@@ -50,24 +50,24 @@ export const FooItemResource = resource(
   },
 );
 
-let counter = 0;
+const counter = 3;
 export const FooListResource = resource((): ClientResourceOutput<"fooList"> => {
   const emit = tapEmitClientEvent();
 
   const foos = tapClientList({
     initialValues: [
-      { initialBar: "First Foo" },
-      { initialBar: "Second Foo" },
-      { initialBar: "Third Foo" },
+      { id: "foo-1", initialBar: "First Foo" },
+      { id: "foo-2", initialBar: "Second Foo" },
+      { id: "foo-3", initialBar: "Third Foo" },
     ],
-    getKey: () => `foo-${++counter}`,
+    getKey: (foo) => foo.id,
     resource: FooItemResource,
   });
 
   const addFoo = () => {
-    const key = `foo-${counter + 1}`;
-    foos.add({ initialBar: `New Foo` });
-    emit("fooList.added", { id: key });
+    const id = `foo-${counter + 1}`;
+    foos.add({ id: id, initialBar: `New Foo` });
+    emit("fooList.added", { id: id });
   };
 
   const state = tapMemo(() => ({ foos: foos.state }), [foos.state]);
@@ -90,7 +90,7 @@ export const FooProvider = ({
   children: React.ReactNode;
 }) => {
   const aui = useAssistantClient({
-    foo: DerivedClient({
+    foo: Derived({
       source: "fooList",
       query: { index },
       get: (aui) => aui.fooList().foo({ index }),

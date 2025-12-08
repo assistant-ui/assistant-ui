@@ -8,13 +8,16 @@ const createProps = <TData>(
   data: TData,
   remove: () => void,
 ): tapClientList.ResourceProps<TData> => {
-  let initialData: TData | undefined = data;
+  let initialData: { data: TData } | undefined = { data };
   return {
     key,
-    get initialData() {
-      const result = initialData;
+    getInitialData: () => {
+      if (!initialData) {
+        throw new Error("getInitialData may only be called once");
+      }
+      const data = initialData.data;
       initialData = undefined;
-      return result;
+      return data;
     },
     remove,
   };
@@ -82,7 +85,7 @@ export const tapClientList = <TData, TState, TMethods extends ClientMethods>(
 export namespace tapClientList {
   export type ResourceProps<TData> = {
     key: string;
-    initialData: TData | undefined;
+    getInitialData: () => TData;
     remove: () => void;
   };
 
