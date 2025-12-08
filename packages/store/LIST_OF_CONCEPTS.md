@@ -69,7 +69,7 @@ These are concepts for developers creating custom clients.
 ### Events
 
 - **AssistantEventMap** - Complete map of all events (includes `"*"` wildcard)
-- **AssistantEventScopeConfig** - Module augmentation to map event sources to parent clients
+- **AssistantEventScope<TEvent>** - Valid scopes for listening to an event (`"*"`, source, or ancestors)
 - **EventSource<TEvent>** - The part before the dot (e.g., `"thread"` from `"thread.updated"`)
 
 ### Base Types
@@ -110,9 +110,9 @@ These are implementation details not meant for public use.
 
 - **EventManager** - Internal: `{ on(event, callback), emit(event, payload) }`
 - **normalizeEventSelector** - Converts event selector to normalized form
-- **checkEventScope** - Type guard for event scope validation
 - **ClientEventMap** - Combined map of all events from all clients
-- **SourceByScope<TScope>** - Resolves event sources for a given scope
+- **ParentOf<K>** - Extracts the parent client from a client's meta.source
+- **AncestorsOf<K>** - Recursively gets all ancestor clients for scope validation
 
 ### Store Utilities
 
