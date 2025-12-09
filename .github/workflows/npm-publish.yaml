@@ -36,9 +36,6 @@ jobs:
       - name: Install dependencies
         run: make ci-install
 
-      - name: Build packages
-        run: make ci-build
-
       - name: Publish to npm
         run: pnpm changeset publish
         env:
