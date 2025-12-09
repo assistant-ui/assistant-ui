@@ -1,4 +1,5 @@
 import {
+  attachKey,
   resource,
   tapInlineResource,
   tapMemo,
@@ -70,19 +71,23 @@ export const MessageClient = resource(
     );
 
     const parts = tapLookupResources(
-      runtimeState.content.map((part, idx) => [
-        "toolCallId" in part && part.toolCallId != null
-          ? `toolCallId-${part.toolCallId}`
-          : `index-${idx}`,
-        MessagePartByIndex({ runtime, index: idx }),
-      ]),
+      runtimeState.content.map((part, idx) =>
+        attachKey(
+          "toolCallId" in part && part.toolCallId != null
+            ? `toolCallId-${part.toolCallId}`
+            : `index-${idx}`,
+          MessagePartByIndex({ runtime, index: idx }),
+        ),
+      ),
     );
 
     const attachments = tapLookupResources(
-      runtimeState.attachments?.map((attachment, idx) => [
-        attachment.id,
-        MessageAttachmentClientByIndex({ runtime, index: idx }),
-      ]) ?? [],
+      runtimeState.attachments?.map((attachment, idx) =>
+        attachKey(
+          attachment.id,
+          MessageAttachmentClientByIndex({ runtime, index: idx }),
+        ),
+      ) ?? [],
     );
 
     const state = tapMemo<MessageClientState>(() => {

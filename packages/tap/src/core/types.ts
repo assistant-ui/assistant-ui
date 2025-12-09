@@ -3,8 +3,9 @@ import type { tapState } from "../hooks/tap-state";
 import { fnSymbol } from "./callResourceFn";
 
 export type ResourceElement<R, P = any> = {
-  type: Resource<R, P> & { [fnSymbol]: (props: P) => R };
-  props: P;
+  readonly type: Resource<R, P> & { [fnSymbol]: (props: P) => R };
+  readonly props: P;
+  readonly key?: string | number;
 };
 
 type ResourceArgs<P> = undefined extends P ? [props?: P] : [props: P];
@@ -16,32 +17,36 @@ export type ContravariantResource<R, P> = (
   ...args: ResourceArgs<P>
 ) => ResourceElement<R>;
 
-export type ExtractResourceOutput<T> =
-  T extends ResourceElement<infer R, any> ? R : never;
+export type ExtractResourceReturnType<T> =
+  T extends ResourceElement<infer R, any>
+    ? R
+    : T extends Resource<infer R, any>
+      ? R
+      : never;
 
 export type Cell =
   | {
-      type: "state";
+      readonly type: "state";
       value: any;
       set: (updater: tapState.StateUpdater<any>) => void;
     }
   | {
-      type: "effect";
+      readonly type: "effect";
       mounted: boolean;
       cleanup?: tapEffect.Destructor | undefined;
       deps?: readonly unknown[] | undefined;
     };
 
 export interface EffectTask {
-  effect: tapEffect.EffectCallback;
-  deps?: readonly unknown[] | undefined;
-  cellIndex: number;
+  readonly effect: tapEffect.EffectCallback;
+  readonly deps?: readonly unknown[] | undefined;
+  readonly cellIndex: number;
 }
 
 export interface RenderResult {
-  state: any;
-  props: any;
-  commitTasks: EffectTask[];
+  readonly state: any;
+  readonly props: any;
+  readonly commitTasks: EffectTask[];
 }
 
 export interface ResourceFiber<R, P> {

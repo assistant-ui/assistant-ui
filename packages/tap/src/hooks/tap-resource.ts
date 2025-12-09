@@ -1,4 +1,4 @@
-import { ExtractResourceOutput, ResourceElement } from "../core/types";
+import { ExtractResourceReturnType, ResourceElement } from "../core/types";
 import { tapEffect } from "./tap-effect";
 import {
   createResourceFiber,
@@ -11,19 +11,19 @@ import { tapState } from "./tap-state";
 
 export function tapResource<E extends ResourceElement<any, any>>(
   element: E,
-): ExtractResourceOutput<E>;
+): ExtractResourceReturnType<E>;
 export function tapResource<E extends ResourceElement<any, any>>(
   element: E,
   deps: readonly unknown[],
-): ExtractResourceOutput<E>;
+): ExtractResourceReturnType<E>;
 export function tapResource<E extends ResourceElement<any, any>>(
   element: E,
   deps?: readonly unknown[],
-): ExtractResourceOutput<E> {
+): ExtractResourceReturnType<E> {
   const [stateVersion, rerender] = tapState({});
   const fiber = tapMemo(
     () => createResourceFiber(element.type, () => rerender({})),
-    [element.type],
+    [element.type, element.key],
   );
 
   const props = deps ? tapMemo(() => element.props, deps) : element.props;

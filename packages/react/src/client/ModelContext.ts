@@ -1,5 +1,5 @@
 import {
-  createContext,
+  createResourceContext,
   tapContext,
   withContextProvider,
 } from "@assistant-ui/tap";
@@ -10,7 +10,9 @@ export type ModelContextRegistrar = ModelContextProvider & {
   register: (provider: ModelContextProvider) => Unsubscribe;
 };
 
-const ModelContextContext = createContext<ModelContextRegistrar | null>(null);
+const ModelContextContext = createResourceContext<ModelContextRegistrar | null>(
+  null,
+);
 
 export const withModelContextProvider = <TResult>(
   modelContext: ModelContextRegistrar,

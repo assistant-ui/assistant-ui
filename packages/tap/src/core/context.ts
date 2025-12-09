@@ -3,7 +3,7 @@ type Context<T> = {
   [contextValue]: T;
 };
 
-export const createContext = <T>(defaultValue: T): Context<T> => {
+export const createResourceContext = <T>(defaultValue: T): Context<T> => {
   return {
     [contextValue]: defaultValue,
   };

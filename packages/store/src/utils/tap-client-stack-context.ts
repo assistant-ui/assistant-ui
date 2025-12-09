@@ -1,5 +1,5 @@
 import {
-  createContext,
+  createResourceContext,
   tapContext,
   withContextProvider,
   tapMemo,
@@ -25,7 +25,7 @@ export const getClientIndex = (client: ClientMethods): number => {
  */
 export type ClientStack = readonly ClientMethods[];
 
-const ClientStackContext = createContext<ClientStack>([]);
+const ClientStackContext = createResourceContext<ClientStack>([]);
 
 /**
  * Get the current client stack inside a tap resource.

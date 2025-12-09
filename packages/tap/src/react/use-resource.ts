@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
-import { ExtractResourceOutput, ResourceElement } from "../core/types";
+import type { ExtractResourceReturnType, ResourceElement } from "../core/types";
 import {
   createResourceFiber,
   unmountResourceFiber,
@@ -16,11 +16,11 @@ const useIsomorphicLayoutEffect = shouldAvoidLayoutEffect
 
 export function useResource<E extends ResourceElement<any, any>>(
   element: E,
-): ExtractResourceOutput<E> {
+): ExtractResourceReturnType<E> {
   const [, rerender] = useState({});
   const fiber = useMemo(
     () => createResourceFiber(element.type, () => rerender({})),
-    [element.type],
+    [element.type, element.key],
   );
 
   const result = renderResourceFiber(fiber, element.props);

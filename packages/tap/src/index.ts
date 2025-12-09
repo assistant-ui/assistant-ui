@@ -1,4 +1,5 @@
 export { resource } from "./core/resource";
+export { attachKey } from "./core/attachKey";
 
 // primitive hooks
 export { tapState } from "./hooks/tap-state";
@@ -17,15 +18,18 @@ export { tapResources } from "./hooks/tap-resources";
 
 // imperative
 export { createResource } from "./core/createResource";
-export { flushSync } from "./core/scheduler";
+export { flushResourcesSync } from "./core/scheduler";
 
 // context
-export { createContext, tapContext, withContextProvider } from "./core/context";
+export {
+  createResourceContext,
+  tapContext,
+  withContextProvider,
+} from "./core/context";
 
 // types
 export type {
   Resource,
   ContravariantResource,
   ResourceElement,
-  ExtractResourceOutput,
 } from "./core/types";

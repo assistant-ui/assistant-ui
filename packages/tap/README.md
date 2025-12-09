@@ -226,12 +226,12 @@ Create and use context to pass values through resource boundaries without prop d
 
 ```typescript
 import {
-  createContext,
+  createResourceContext,
   tapContext,
   withContextProvider,
 } from "@assistant-ui/tap";
 
-const MyContext = createContext(defaultValue);
+const MyContext = createResourceContext(defaultValue);
 
 // Provide context
 withContextProvider(MyContext, value, () => {

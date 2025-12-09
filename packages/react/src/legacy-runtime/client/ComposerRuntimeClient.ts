@@ -4,6 +4,7 @@ import {
   tapEffect,
   tapInlineResource,
   type tapRef,
+  attachKey,
 } from "@assistant-ui/tap";
 import {
   ComposerRuntime,
@@ -76,10 +77,12 @@ export const ComposerClient = resource(
     }, [runtime, events, threadIdRef, messageIdRef]);
 
     const attachments = tapLookupResources(
-      runtimeState.attachments.map((attachment, idx) => [
-        attachment.id,
-        ComposerAttachmentClientByIndex({ runtime: runtime, index: idx }),
-      ]),
+      runtimeState.attachments.map((attachment, idx) =>
+        attachKey(
+          attachment.id,
+          ComposerAttachmentClientByIndex({ runtime: runtime, index: idx }),
+        ),
+      ),
     );
 
     const state = tapMemo<ComposerClientState>(() => {

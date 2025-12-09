@@ -5,7 +5,7 @@ import {
   renderResourceFiber,
   commitResourceFiber,
 } from "./ResourceFiber";
-import { flushSync, UpdateScheduler } from "./scheduler";
+import { flushResourcesSync, UpdateScheduler } from "./scheduler";
 import { tapRef } from "../hooks/tap-ref";
 import { tapState } from "../hooks/tap-state";
 import { tapMemo } from "../hooks/tap-memo";
@@ -78,7 +78,7 @@ export const createResource = <R, P>(
       if (isMounted) return changed;
       isMounted = true;
 
-      flushSync(() => {
+      flushResourcesSync(() => {
         if (changed) {
           render = renderResourceFiber(fiber, props);
         }
@@ -108,7 +108,7 @@ export const createResource = <R, P>(
     scheduler.markDirty(),
   );
 
-  flushSync(() => {
+  flushResourcesSync(() => {
     scheduler.markDirty();
   });
 

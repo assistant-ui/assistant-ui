@@ -1,11 +1,11 @@
 import {
-  createContext,
+  createResourceContext,
   tapContext,
   withContextProvider,
 } from "@assistant-ui/tap";
 import { EventManager } from "../legacy-runtime/client/EventManagerRuntimeClient";
 
-const EventsContext = createContext<EventManager | null>(null);
+const EventsContext = createResourceContext<EventManager | null>(null);
 
 export const withEventsProvider = <TResult>(
   events: EventManager,

@@ -1,5 +1,5 @@
 import {
-  createContext,
+  createResourceContext,
   tapContext,
   withContextProvider,
   tapEffectEvent,
@@ -22,9 +22,8 @@ export type AssistantTapContextValue = {
   emit: EmitFn;
 };
 
-const AssistantTapContext = createContext<AssistantTapContextValue | null>(
-  null,
-);
+const AssistantTapContext =
+  createResourceContext<AssistantTapContextValue | null>(null);
 
 export const withAssistantTapContextProvider = <TResult>(
   value: AssistantTapContextValue,

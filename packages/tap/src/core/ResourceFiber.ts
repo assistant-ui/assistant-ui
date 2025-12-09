@@ -29,10 +29,10 @@ export function renderResourceFiber<R, P>(
   fiber: ResourceFiber<R, P>,
   props: P,
 ): RenderResult {
-  const result: RenderResult = {
+  const result = {
     commitTasks: [],
     props,
-    state: undefined,
+    state: undefined as R | undefined,
   };
 
   withResourceFiber(fiber, () => {
