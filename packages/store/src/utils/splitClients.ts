@@ -68,7 +68,7 @@ export function splitClients(
       )
         continue;
 
-      if (peerElement.type === Derived) {
+      if (peerElement.type === Derived<ClientNames>) {
         derivedClients[key] = peerElement as DerivedElement<ClientNames>;
       } else {
         rootClients[key] = peerElement as ClientElement<ClientNames>;

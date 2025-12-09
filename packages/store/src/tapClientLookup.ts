@@ -35,17 +35,21 @@ export const tapClientLookup = <
   return {
     state,
     get: (lookup: { index: number } | { key: keyof M }) => {
-      const value =
-        "index" in lookup
-          ? resources[keys[lookup.index]!]
-          : resources[lookup.key];
-
-      if (!value) {
-        throw new Error(
-          `tapClientLookup: Resource not found for lookup: ${JSON.stringify(lookup)}`,
-        );
+      if ("index" in lookup) {
+        if (lookup.index < 0 || lookup.index >= keys.length) {
+          throw new Error(
+            `tapClientLookup: Index ${lookup.index} out of bounds (length: ${keys.length})`,
+          );
+        }
+        return resources[keys[lookup.index]!]!.methods;
       }
 
+      const value = resources[lookup.key];
+      if (!value) {
+        throw new Error(
+          `tapClientLookup: Key "${String(lookup.key)}" not found`,
+        );
+      }
       return value.methods;
     },
   };
