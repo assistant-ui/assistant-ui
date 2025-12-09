@@ -259,7 +259,7 @@ const useExtendedAssistantClientImpl = (
   clients: useAssistantClient.Props,
 ): AssistantClient => {
   const baseClient = useAssistantContextValue();
-  const { rootClients, derivedClients } = splitClients(clients);
+  const { rootClients, derivedClients } = splitClients(clients, baseClient);
 
   const clientRef = useRef({
     parent: baseClient,

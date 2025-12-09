@@ -1,6 +1,11 @@
 import { Derived, DerivedElement } from "../Derived";
-import type { ClientElement, ClientNames } from "../types/client";
+import type {
+  AssistantClient,
+  ClientElement,
+  ClientNames,
+} from "../types/client";
 import type { useAssistantClient } from "../useAssistantClient";
+import { getDefaultPeers } from "../attachDefaultPeers";
 
 export type RootClients = Partial<
   Record<ClientNames, ClientElement<ClientNames>>
@@ -27,7 +32,10 @@ export type DerivedClients = Partial<
  * // derivedClients = { bar: ... }
  * ```
  */
-export function splitClients(clients: useAssistantClient.Props) {
+export function splitClients(
+  clients: useAssistantClient.Props,
+  baseClient: AssistantClient,
+) {
   const rootClients: RootClients = {};
   const derivedClients: DerivedClients = {};
 
@@ -39,6 +47,37 @@ export function splitClients(clients: useAssistantClient.Props) {
       derivedClients[key] = clientElement as DerivedElement<ClientNames>;
     } else {
       rootClients[key] = clientElement as ClientElement<ClientNames>;
+    }
+  }
+
+  for (const [clientKey, clientElement] of Object.entries(rootClients) as [
+    ClientNames,
+    ClientElement<ClientNames> | DerivedElement<ClientNames>,
+  ][]) {
+    const defaultPeers = getDefaultPeers(clientElement.type);
+    if (!defaultPeers) continue;
+
+    for (const [key, peerElement] of Object.entries(defaultPeers) as [
+      ClientNames,
+      ClientElement<ClientNames> | DerivedElement<ClientNames>,
+    ][]) {
+      if (
+        key in rootClients ||
+        key in derivedClients ||
+        baseClient[key].source !== null
+      )
+        continue;
+
+      if (peerElement.type === Derived) {
+        derivedClients[key] = peerElement as DerivedElement<ClientNames>;
+      } else {
+        rootClients[key] = peerElement as ClientElement<ClientNames>;
+        const subDefaultPeers = getDefaultPeers(peerElement.type);
+        if (subDefaultPeers)
+          throw new Error(
+            `Nested default peers are not supported. Client "${clientKey}" has default peers, but its peer "${key}" also has default peers.`,
+          );
+      }
     }
   }
 
