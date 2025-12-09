@@ -1,6 +1,8 @@
 import type { Route } from "./+types/api.chat";
 import OpenAI from "openai";
-import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
+
+type ChatCompletionMessageParam =
+  OpenAI.Chat.Completions.ChatCompletionMessageParam;
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -149,7 +151,40 @@ export async function action({ request }: Route.ActionArgs) {
               ),
             );
 
-            const args = JSON.parse(toolCall.arguments);
+            let parsedArgs: unknown;
+            try {
+              parsedArgs = JSON.parse(toolCall.arguments);
+            } catch (parseError) {
+              const message =
+                parseError instanceof Error
+                  ? parseError.message
+                  : "Invalid tool arguments";
+
+              // Surface parsing failure to the client and continue gracefully
+              const errorResult = JSON.stringify({
+                error: message,
+              });
+
+              controller.enqueue(
+                encoder.encode(
+                  `data: ${JSON.stringify({
+                    type: "tool_result",
+                    id: toolCall.id,
+                    result: errorResult,
+                  })}\n\n`,
+                ),
+              );
+
+              openaiMessages.push({
+                role: "tool",
+                tool_call_id: toolCall.id,
+                content: errorResult,
+              });
+
+              continue;
+            }
+
+            const args = parsedArgs as Record<string, unknown>;
             const result = await executeTool(toolCall.name, args);
 
             // Send tool result event to client

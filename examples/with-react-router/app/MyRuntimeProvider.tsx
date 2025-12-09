@@ -1,14 +1,40 @@
 import type {
   ThreadMessageLike,
   AppendMessage,
-  TextMessagePart,
   ToolCallMessagePart,
+  TextMessagePart,
 } from "@assistant-ui/react";
 import {
   AssistantRuntimeProvider,
   useExternalStoreRuntime,
 } from "@assistant-ui/react";
 import { useState, useCallback } from "react";
+
+type ContentArray = Exclude<ThreadMessageLike["content"], string>;
+type ContentPart = ContentArray[number];
+
+const normalizeContent = (
+  content: ThreadMessageLike["content"],
+): ContentPart[] => {
+  if (typeof content === "string") {
+    return [{ type: "text", text: content } satisfies TextMessagePart];
+  }
+  return [...content];
+};
+
+const ensureAssistantMessage = (
+  messages: readonly ThreadMessageLike[],
+): { messages: ThreadMessageLike[]; assistantMsg: ThreadMessageLike } => {
+  const newMsgs = [...messages];
+  let lastMsg = newMsgs[newMsgs.length - 1];
+
+  if (!lastMsg || lastMsg.role !== "assistant") {
+    lastMsg = { role: "assistant", content: [] };
+    newMsgs.push(lastMsg);
+  }
+
+  return { messages: newMsgs, assistantMsg: lastMsg };
+};
 
 const convertMessage = (message: ThreadMessageLike) => {
   return message;
@@ -62,24 +88,10 @@ export function MyRuntimeProvider({
         if (!reader) throw new Error("No reader");
 
         const decoder = new TextDecoder();
-        const assistantContent: (TextMessagePart | ToolCallMessagePart)[] = [];
         let currentTextContent = "";
 
-        // Add initial assistant message
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "assistant",
-            content: [],
-          },
-        ]);
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          const chunk = decoder.decode(value);
-          const lines = chunk.split("\n");
+        const processChunk = (chunkText: string) => {
+          const lines = chunkText.split("\n");
 
           for (const line of lines) {
             if (line.startsWith("data: ")) {
@@ -91,33 +103,33 @@ export function MyRuntimeProvider({
 
                 if (parsed.type === "text" && parsed.content) {
                   currentTextContent += parsed.content;
+                  const updatedText = currentTextContent;
 
-                  // Update or add text content part
-                  const textPartIndex = assistantContent.findIndex(
-                    (p) => p.type === "text",
-                  );
-                  if (textPartIndex >= 0) {
-                    assistantContent[textPartIndex] = {
-                      type: "text",
-                      text: currentTextContent,
-                    };
-                  } else {
-                    assistantContent.push({
-                      type: "text",
-                      text: currentTextContent,
-                    });
-                  }
-
-                  // Update message
+                  // Update message with new text content
                   setMessages((prev) => {
-                    const newMsgs = [...prev];
-                    const lastMsg = newMsgs[newMsgs.length - 1];
-                    if (lastMsg && lastMsg.role === "assistant") {
-                      newMsgs[newMsgs.length - 1] = {
-                        ...lastMsg,
-                        content: [...assistantContent],
+                    const { messages: newMsgs, assistantMsg } =
+                      ensureAssistantMessage(prev);
+                    const existingContent = normalizeContent(
+                      assistantMsg.content,
+                    );
+                    const textPartIndex = existingContent.findIndex(
+                      (p) => p.type === "text",
+                    );
+                    if (textPartIndex >= 0) {
+                      existingContent[textPartIndex] = {
+                        type: "text",
+                        text: updatedText,
                       };
+                    } else {
+                      existingContent.push({
+                        type: "text",
+                        text: updatedText,
+                      });
                     }
+                    newMsgs[newMsgs.length - 1] = {
+                      ...assistantMsg,
+                      content: existingContent,
+                    };
                     return newMsgs;
                   });
                 } else if (parsed.type === "tool_call") {
@@ -129,54 +141,67 @@ export function MyRuntimeProvider({
                     args: JSON.parse(parsed.arguments),
                     argsText: parsed.arguments,
                   };
-                  assistantContent.push(toolCallPart);
 
                   setMessages((prev) => {
-                    const newMsgs = [...prev];
-                    const lastMsg = newMsgs[newMsgs.length - 1];
-                    if (lastMsg && lastMsg.role === "assistant") {
-                      newMsgs[newMsgs.length - 1] = {
-                        ...lastMsg,
-                        content: [...assistantContent],
-                      };
-                    }
+                    const { messages: newMsgs, assistantMsg } =
+                      ensureAssistantMessage(prev);
+                    const existingContent = normalizeContent(
+                      assistantMsg.content,
+                    );
+                    newMsgs[newMsgs.length - 1] = {
+                      ...assistantMsg,
+                      content: [...existingContent, toolCallPart],
+                    };
                     return newMsgs;
                   });
                 } else if (parsed.type === "tool_result") {
+                  const toolCallId = parsed.id;
+                  const toolResult = JSON.parse(parsed.result);
+
                   // Update tool call with result
-                  const toolCallIndex = assistantContent.findIndex(
-                    (p) =>
-                      p.type === "tool-call" &&
-                      (p as ToolCallMessagePart).toolCallId === parsed.id,
-                  );
-
-                  if (toolCallIndex >= 0) {
-                    const toolCall = assistantContent[
-                      toolCallIndex
-                    ] as ToolCallMessagePart;
-                    assistantContent[toolCallIndex] = {
-                      ...toolCall,
-                      result: JSON.parse(parsed.result),
-                    };
-
-                    setMessages((prev) => {
-                      const newMsgs = [...prev];
-                      const lastMsg = newMsgs[newMsgs.length - 1];
-                      if (lastMsg && lastMsg.role === "assistant") {
-                        newMsgs[newMsgs.length - 1] = {
-                          ...lastMsg,
-                          content: [...assistantContent],
+                  setMessages((prev) => {
+                    const { messages: newMsgs, assistantMsg } =
+                      ensureAssistantMessage(prev);
+                    const existingContent = normalizeContent(
+                      assistantMsg.content,
+                    );
+                    const updatedContent = existingContent.map((part) => {
+                      if (
+                        part.type === "tool-call" &&
+                        (part as ToolCallMessagePart).toolCallId === toolCallId
+                      ) {
+                        return {
+                          ...(part as ToolCallMessagePart),
+                          result: toolResult,
                         };
                       }
-                      return newMsgs;
+                      return part;
                     });
-                  }
+                    newMsgs[newMsgs.length - 1] = {
+                      ...assistantMsg,
+                      content: updatedContent,
+                    };
+                    return newMsgs;
+                  });
                 }
               } catch {
                 // Ignore parse errors
               }
             }
           }
+        };
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value, { stream: true });
+          processChunk(chunk);
+        }
+
+        const finalChunk = decoder.decode();
+        if (finalChunk) {
+          processChunk(finalChunk);
         }
       } catch (error) {
         console.error("Error:", error);

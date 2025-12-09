@@ -19,6 +19,7 @@
     "@react-router/serve": "7.10.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "isbot": "^5.1.32",
     "lucide-react": "^0.556.0",
     "openai": "^6.10.0",
     "react": "^19.2.1",
@@ -31,7 +32,7 @@
   "devDependencies": {
     "@react-router/dev": "7.10.1",
     "@tailwindcss/vite": "^4.1.17",
-    "@types/node": "^24",
+    "@types/node": "^24.10.2",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "tailwindcss": "^4.1.17",
