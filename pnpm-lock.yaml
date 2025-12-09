@@ -1433,6 +1433,9 @@ importers:
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
+      eventsource-parser:
+        specifier: ^3.0.2
+        version: 3.0.6
       isbot:
         specifier: ^5.1.32
         version: 5.1.32
