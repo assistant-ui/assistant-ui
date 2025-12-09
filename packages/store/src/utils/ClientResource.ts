@@ -56,7 +56,7 @@ function getOrCreateProxyFn(prop: string) {
   return template;
 }
 
-class ClientProxy<TMethods extends ClientMethods>
+class ClientProxyHandler<TMethods extends ClientMethods>
   implements ProxyHandler<TMethods>
 {
   constructor(
@@ -95,10 +95,16 @@ class ClientProxy<TMethods extends ClientMethods>
   set() {
     return false;
   }
+  setPrototypeOf() {
+    return false;
+  }
   defineProperty() {
     return false;
   }
   deleteProperty() {
+    return false;
+  }
+  isExtensible() {
     return false;
   }
 }
@@ -120,7 +126,7 @@ export const ClientResource = resource(
       () =>
         new Proxy<TMethods>(
           {} as TMethods,
-          new ClientProxy<TMethods>(() => valueRef.current!, index),
+          new ClientProxyHandler<TMethods>(() => valueRef.current!, index),
         ),
       [],
     );

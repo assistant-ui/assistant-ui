@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useResource } from "@assistant-ui/tap/react";
 import {
   resource,
@@ -38,6 +38,50 @@ import { EventManager } from "./utils/EventManager";
 import { withAssistantTapContextProvider } from "./utils/tap-assistant-context";
 import { ClientResource } from "./utils/ClientResource";
 import { getClientIndex } from "./utils/tap-client-stack-context";
+
+class DeferredClientHandler implements ProxyHandler<AssistantClient> {
+  constructor(private readonly targetRef: { current: AssistantClient }) {}
+
+  get(_: unknown, prop: string | symbol) {
+    return this.targetRef.current[prop as keyof AssistantClient];
+  }
+
+  has(_: unknown, prop: string | symbol) {
+    return prop in this.targetRef.current;
+  }
+
+  ownKeys(): ArrayLike<string | symbol> {
+    return Reflect.ownKeys(this.targetRef.current);
+  }
+
+  getOwnPropertyDescriptor(_: unknown, prop: string | symbol) {
+    return Reflect.getOwnPropertyDescriptor(this.targetRef.current, prop);
+  }
+
+  getPrototypeOf() {
+    return Reflect.getPrototypeOf(this.targetRef.current);
+  }
+
+  set() {
+    return false;
+  }
+
+  setPrototypeOf() {
+    return false;
+  }
+
+  defineProperty() {
+    return false;
+  }
+
+  deleteProperty() {
+    return false;
+  }
+
+  isExtensible() {
+    return false;
+  }
+}
 
 const RootClientResource = resource(
   <K extends ClientNames>({
@@ -230,10 +274,19 @@ const useExtendedAssistantClientImpl = (
   const baseClient = useAssistantContextValue();
   const { rootClients, derivedClients } = splitClients(clients);
 
-  const rootFields = useRootClients(rootClients, baseClient);
-  const derivedFields = useDerivedClients(derivedClients, baseClient);
+  const clientRef = useRef(baseClient);
+  const [deferredClient] = useState(
+    () =>
+      new Proxy<AssistantClient>(
+        {} as AssistantClient,
+        new DeferredClientHandler(clientRef),
+      ),
+  );
 
-  return useMemo(() => {
+  const rootFields = useRootClients(rootClients, deferredClient);
+  const derivedFields = useDerivedClients(derivedClients, deferredClient);
+
+  const finalClient = useMemo(() => {
     // Swap OuterClient -> InnerClient at root to change error message
     const proto = baseClient === OuterClient ? InnerClient : baseClient;
     const client = Object.create(proto) as AssistantClient;
@@ -243,6 +296,15 @@ const useExtendedAssistantClientImpl = (
     });
     return client;
   }, [baseClient, rootFields, derivedFields]);
+
+  if (clientRef.current === baseClient) {
+    clientRef.current = finalClient;
+  }
+  useEffect(() => {
+    clientRef.current = finalClient;
+  });
+
+  return finalClient;
 };
 
 export namespace useAssistantClient {
