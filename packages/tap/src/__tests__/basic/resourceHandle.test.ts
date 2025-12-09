@@ -31,7 +31,7 @@ describe("ResourceHandle - Basic Usage", () => {
     // Initial state
     expect(handle.getState().result).toBe(20);
 
-    // Can call updateInput (though current implementation may have sync issues)
+    // Can call render to update props
     expect(() => handle.render(TestResource({ multiplier: 3 }))).not.toThrow();
   });
 

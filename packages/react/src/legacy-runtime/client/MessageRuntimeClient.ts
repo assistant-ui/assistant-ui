@@ -70,15 +70,17 @@ export const MessageClient = resource(
     );
 
     const parts = tapLookupResources(
-      runtimeState.content.map((_, idx) => [
-        String(idx),
+      runtimeState.content.map((part, idx) => [
+        "toolCallId" in part && part.toolCallId != null
+          ? part.toolCallId
+          : String(idx),
         MessagePartByIndex({ runtime, index: idx }),
       ]),
     );
 
     const attachments = tapLookupResources(
-      runtimeState.attachments?.map((_, idx) => [
-        String(idx),
+      runtimeState.attachments?.map((attachment, idx) => [
+        attachment.id,
         MessageAttachmentClientByIndex({ runtime, index: idx }),
       ]) ?? [],
     );

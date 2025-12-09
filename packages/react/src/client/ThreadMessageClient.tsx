@@ -80,18 +80,18 @@ export const ThreadMessageClient = resource(
     const [isHoveringState, setIsHovering] = tapState(false);
 
     const parts = tapLookupResources(
-      message.content.map((_, idx) => [
-        String(idx),
-        ThreadMessagePartClient({ part: message.content[idx]! }),
+      message.content.map((part, idx) => [
+        "toolCallId" in part && part.toolCallId != null
+          ? part.toolCallId
+          : String(idx),
+        ThreadMessagePartClient({ part }),
       ]),
     );
 
     const attachments = tapLookupResources(
-      message.attachments?.map((_, idx) => [
-        String(idx),
-        ThreadMessageAttachmentClient({
-          attachment: message.attachments![idx]!,
-        }),
+      message.attachments?.map((attachment) => [
+        attachment.id,
+        ThreadMessageAttachmentClient({ attachment }),
       ]) ?? [],
     );
 

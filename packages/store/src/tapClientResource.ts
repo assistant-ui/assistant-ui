@@ -26,7 +26,14 @@ type ClientInternal = {
 };
 
 export const getClientState = (client: ClientMethods) => {
-  return (client as unknown as ClientInternal)[SYMBOL_GET_OUTPUT]?.state;
+  const output = (client as unknown as ClientInternal)[SYMBOL_GET_OUTPUT];
+  if (!output) {
+    throw new Error(
+      "Client scope contains a non-client resource. " +
+        "Ensure your Derived get() returns a client created with tapClientResource(), not a plain resource.",
+    );
+  }
+  return output.state;
 };
 
 // Global cache for function templates by field name
@@ -70,6 +77,8 @@ class ClientProxyHandler
   get(_: unknown, prop: string | symbol) {
     if (prop === SYMBOL_GET_OUTPUT) return this.outputRef.current;
     if (prop === SYMBOL_CLIENT_INDEX) return this.index;
+    const introspection = handleIntrospectionProp(prop, "ClientProxy");
+    if (introspection !== false) return introspection;
     return getOrCreateProxyFn(prop);
   }
 

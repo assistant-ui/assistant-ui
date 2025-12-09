@@ -33,7 +33,7 @@ export type DefaultPeers = {
  *
  * @param resource - The resource to attach default peers to
  * @param peers - The default peer clients to attach
- * @throws Error if a peer key already exists on the resource
+ * @throws Error if a peer key already exists in the resource's default peers
  *
  * @example
  * ```typescript

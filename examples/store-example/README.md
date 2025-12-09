@@ -4,9 +4,10 @@ This is a Next.js application demonstrating the `@assistant-ui/store` package.
 
 ## Features Demonstrated
 
-- **Scope Definition**: Module augmentation for type-safe scopes
-- **tapApi**: Wrapping API objects for stability and reactivity
-- **tapLookupResources**: Managing lists with index and ID lookup
+- **Client Registry**: Module augmentation for type-safe client definitions
+- **tapClientList**: Managing lists with index and key lookup
+- **tapAssistantEmit**: Emitting and subscribing to scoped events
+- **Derived**: Creating derived client scopes from parent resources
 - **Provider Pattern**: Scoped access to list items via FooProvider
 - **Component Composition**: Render props pattern with components prop
 
@@ -25,33 +26,42 @@ Open [http://localhost:3000](http://localhost:3000) to see the example.
 
 ## Project Structure
 
-- `lib/store/foo-store.tsx` - Clean store implementation with:
-  - Scope definitions (foo, fooList) via module augmentation
+- `lib/store/foo-scope.ts` - Type definitions via module augmentation:
+  - Client registry definitions (foo, fooList)
+  - State, methods, meta, and events types
+- `lib/store/foo-store.tsx` - Store implementation with:
   - Resource implementations (FooItemResource, FooListResource)
   - Provider component (FooProvider)
-  - Minimal FooList mapping component
+  - FooList mapping component
 - `lib/example-app.tsx` - Example app with styled components:
-  - Styled Foo component
+  - Foo component with update/delete actions
+  - EventLog component demonstrating event subscriptions
   - ExampleApp with layout and styling
 - `app/page.tsx` - Main page that renders the ExampleApp
 
 ## Key Concepts
 
-### Scope Definition
+### Client Registry
 
 ```typescript
 declare module "@assistant-ui/store" {
-  namespace AssistantStore {
-    interface Scopes {
-      foo: {
-        value: {
-          getState: () => { id: string; bar: string };
-          updateBar: (newBar: string) => void;
-        };
-        source: "fooList";
-        query: { index: number } | { id: string };
+  interface ClientRegistry {
+    foo: {
+      state: { id: string; bar: string };
+      methods: {
+        getState: () => FooState;
+        updateBar: (newBar: string) => void;
+        remove: () => void;
       };
-    }
+      meta: {
+        source: "fooList";
+        query: { index: number } | { key: string };
+      };
+      events: {
+        "foo.updated": { id: string; newValue: string };
+        "foo.removed": { id: string };
+      };
+    };
   }
 }
 ```
@@ -59,31 +69,55 @@ declare module "@assistant-ui/store" {
 ### Resource Implementation
 
 ```typescript
-const FooListResource = resource(() => {
-  const items = [
-    /* ... */
-  ];
-  const foos = tapLookupResources(
-    items.map((item) => FooItemResource(item, { key: item.id })),
-  );
+const FooListResource = resource(
+  ({ initialValues }): ClientOutput<"fooList"> => {
+    const emit = tapAssistantEmit();
 
-  return tapApi({
-    getState: () => ({ foos: foos.state }),
-    foo: foos.api,
-  });
-});
+    const foos = tapClientList({
+      initialValues: initialValues ? [/* ... */] : [],
+      getKey: (foo) => foo.id,
+      resource: FooItemResource,
+    });
+
+    return {
+      state: { foos: foos.state },
+      methods: {
+        getState: () => state,
+        foo: foos.get,
+        addFoo: () => { /* ... */ },
+      },
+    };
+  },
+);
 ```
 
-### Provider Pattern
+### Provider Pattern with Derived
 
 ```typescript
 const FooProvider = ({ index, children }) => {
-  const parentAui = useAssistantClient();
   const aui = useAssistantClient({
-    foo: resource(() => parentAui.fooList().foo({ index }))(),
+    foo: Derived({
+      source: "fooList",
+      query: { index },
+      get: (aui) => aui.fooList().foo({ index }),
+    }),
   });
-  return <AssistantClientProvider client={aui}>{children}</AssistantClientProvider>;
+  return <AssistantProvider client={aui}>{children}</AssistantProvider>;
 };
+```
+
+### Event Subscriptions
+
+```typescript
+// Subscribe to specific events within a scope
+useAssistantEvent("foo.updated", (payload) => {
+  console.log(`Updated to: ${payload.newValue}`);
+});
+
+// Subscribe to all events using wildcard
+useAssistantEvent("*", (data) => {
+  console.log(data.event, data.payload);
+});
 ```
 
 ## Learn More

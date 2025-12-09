@@ -22,6 +22,8 @@ export const createProxiedAssistantState = (
     implements ProxyHandler<AssistantState>
   {
     get(_: unknown, prop: string | symbol) {
+      const introspection = handleIntrospectionProp(prop, "AssistantState");
+      if (introspection !== false) return introspection;
       const scope = prop as keyof AssistantClient;
       if (isIgnoredKey(scope)) return undefined;
       return getClientState(client[scope]());

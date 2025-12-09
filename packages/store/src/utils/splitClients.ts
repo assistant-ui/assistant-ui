@@ -52,7 +52,7 @@ export function splitClients(
 
   for (const [clientKey, clientElement] of Object.entries(rootClients) as [
     ClientNames,
-    ClientElement<ClientNames> | DerivedElement<ClientNames>,
+    ClientElement<ClientNames>,
   ][]) {
     const defaultPeers = getDefaultPeers(clientElement.type);
     if (!defaultPeers) continue;
@@ -68,7 +68,7 @@ export function splitClients(
       )
         continue;
 
-      if (peerElement.type === Derived<ClientNames>) {
+      if (peerElement.type === Derived) {
         derivedClients[key] = peerElement as DerivedElement<ClientNames>;
       } else {
         rootClients[key] = peerElement as ClientElement<ClientNames>;

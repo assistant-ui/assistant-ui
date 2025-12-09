@@ -142,20 +142,32 @@ const RootClientsAccessorsResource = resource(
 
           const { scope, event } = normalizeEventSelector(selector);
 
+          if (scope !== "*") {
+            const source = this[scope as ClientNames].source;
+            if (source === null) {
+              throw new Error(
+                `Scope "${scope}" is not available. Use { scope: "*", event: "${event}" } to listen globally.`,
+              );
+            }
+          }
+
           const localUnsub = notifications.on(event, (payload, clientStack) => {
             if (scope === "*") {
               callback(payload);
               return;
             }
 
-            const scopeClient = this[scope as ClientNames]?.();
-            if (!scopeClient) return;
-
+            const scopeClient = this[scope as ClientNames]();
             const index = getClientIndex(scopeClient);
             if (scopeClient === clientStack[index]) {
               callback(payload);
             }
           });
+          if (
+            scope !== "*" &&
+            clientRef.parent[scope as ClientNames].source === null
+          )
+            return localUnsub;
 
           const parentUnsub = clientRef.parent.on(selector, callback);
 
@@ -252,7 +264,7 @@ export const AssistantClientResource = resource(
     }).current;
 
     const rootFields = tapResource(
-      Object.keys(clients).length > 0
+      Object.keys(rootClients).length > 0
         ? RootClientsAccessorsResource({ clients: rootClients, clientRef })
         : NoOpRootClientsAccessorsResource(),
     );

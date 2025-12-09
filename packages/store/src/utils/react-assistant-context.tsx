@@ -28,7 +28,8 @@ class DefaultAssistantClientProxyHandler
     if (prop === "on") return NO_OP_SUBSCRIBE;
     if (prop === PROXIED_ASSISTANT_STATE_SYMBOL)
       return DefaultAssistantClientProxiedAssistantState;
-    if (typeof prop === "symbol") return undefined;
+    const introspection = handleIntrospectionProp(prop, "DefaultAssistantClient");
+    if (introspection !== false) return introspection;
     return createErrorClientField(
       `The current scope does not have a "${String(prop)}" property.`,
     );
@@ -61,7 +62,8 @@ const DefaultAssistantClientProxiedAssistantState = createProxiedAssistantState(
 export const createRootAssistantClient = (): AssistantClient =>
   new Proxy<AssistantClient>({} as AssistantClient, {
     get(_: AssistantClient, prop: string | symbol) {
-      if (typeof prop === "symbol") return undefined;
+      const introspection = handleIntrospectionProp(prop, "AssistantClient");
+      if (introspection !== false) return introspection;
       return createErrorClientField(
         `The current scope does not have a "${String(prop)}" property.`,
       );
