@@ -1,8 +1,8 @@
-import { resource } from "@assistant-ui/tap";
+import { resource, ResourceElement } from "@assistant-ui/tap";
 import type {
   AssistantClient,
   ClientNames,
-  ClientAccessor,
+  AssistantClientAccessor,
   ClientMeta,
 } from "./types/client";
 
@@ -27,13 +27,16 @@ export const Derived = resource(
   },
 );
 
-export type Derived<K extends ClientNames> = ReturnType<typeof Derived<K>>;
+export type DerivedElement<K extends ClientNames> = ResourceElement<
+  null,
+  Derived.Props<K>
+>;
 
 export namespace Derived {
   /**
    * Props passed to a derived client resource element.
    */
   export type Props<K extends ClientNames> = {
-    get: (parent: AssistantClient) => ReturnType<ClientAccessor<K>>;
+    get: (parent: AssistantClient) => ReturnType<AssistantClientAccessor<K>>;
   } & ClientMeta<K>;
 }

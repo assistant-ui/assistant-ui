@@ -150,12 +150,12 @@ const EventLog = () => {
  * but we're explicitly passing it here for clarity in the example.
  */
 export const ExampleApp = () => {
-  const rootClient = useAssistantClient({
+  const aui = useAssistantClient({
     fooList: FooListResource({ initialValues: true }),
   });
 
   return (
-    <AssistantProvider client={rootClient}>
+    <AssistantProvider client={aui}>
       <div className="space-y-6">
         <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
           <div className="flex items-center justify-between">

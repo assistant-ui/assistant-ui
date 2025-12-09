@@ -8,16 +8,15 @@ import {
   tapResources,
   tapEffectEvent,
   tapInlineResource,
-  ResourceElement,
   tapEffect,
 } from "@assistant-ui/tap";
 import type {
   AssistantClient,
-  ClientAccessor,
+  AssistantClientAccessor,
   ClientNames,
-  Client,
+  ClientElement,
 } from "./types/client";
-import { Derived } from "./Derived";
+import { DerivedElement } from "./Derived";
 import { StoreResource } from "./utils/StoreResource";
 import {
   useAssistantContextValue,
@@ -46,7 +45,7 @@ const RootClientResource = resource(
     events,
     client,
   }: {
-    element: Client<K>;
+    element: ClientElement<K>;
     events: EventManager;
     client: AssistantClient;
   }) => {
@@ -63,11 +62,11 @@ const RootClientAccessorResource = resource(
     client,
     notifySubscribers,
   }: {
-    element: Client<K>;
+    element: ClientElement<K>;
     events: EventManager;
     client: AssistantClient;
     notifySubscribers: () => void;
-  }): ClientAccessor<K> => {
+  }): AssistantClientAccessor<K> => {
     const store = tapInlineResource(
       StoreResource(RootClientResource({ element, events, client })),
     );
@@ -181,7 +180,7 @@ const DerivedClientAcessorResource = resource(
     element,
     client,
   }: {
-    element: Derived<K>;
+    element: DerivedElement<K>;
     client: AssistantClient;
   }) => {
     const get = tapEffectEvent(element.props.get);
@@ -191,7 +190,7 @@ const DerivedClientAcessorResource = resource(
       const clientFunction = () => get(client);
       clientFunction.source = source;
       clientFunction.query = query;
-      return clientFunction as ClientAccessor<K>;
+      return clientFunction;
     }, [get, source, JSON.stringify(query), client]);
   },
 );
@@ -208,10 +207,7 @@ const DerivedClientAccessorssResource = resource(
       clients,
       (element) =>
         DerivedClientAcessorResource({
-          element: element! as ResourceElement<
-            null,
-            Derived.Props<ClientNames>
-          >,
+          element: element!,
           client,
         }),
       [client],
@@ -251,7 +247,7 @@ const useExtendedAssistantClientImpl = (
 
 export namespace useAssistantClient {
   export type Props = {
-    [K in ClientNames]?: Client<K> | Derived<K>;
+    [K in ClientNames]?: ClientElement<K> | DerivedElement<K>;
   };
 }
 

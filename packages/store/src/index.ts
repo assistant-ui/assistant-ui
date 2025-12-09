@@ -22,6 +22,8 @@ export { tapClientList } from "./tapClientList";
 export type {
   ClientRegistry,
   ClientOutput,
+  AssistantClient,
+  AssistantState,
 } from "./types/client";
 export type {
   AssistantEventName,

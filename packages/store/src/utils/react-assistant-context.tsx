@@ -1,12 +1,14 @@
 import React, { createContext, useContext } from "react";
-import type { AssistantClient, ClientAccessor } from "../types/client";
+import type { AssistantClient, AssistantClientAccessor } from "../types/client";
 
 const NO_OP_SUBSCRIBE = () => () => {};
 
-const createErrorClientField = (message: string): ClientAccessor<never> => {
+const createErrorClientField = (
+  message: string,
+): AssistantClientAccessor<never> => {
   const fn = (() => {
     throw new Error(message);
-  }) as ClientAccessor<never>;
+  }) as AssistantClientAccessor<never>;
   fn.source = null;
   fn.query = null;
   return fn;

@@ -1,4 +1,8 @@
-import type { ClientAccessor, ClientEvents, ClientNames } from "./client";
+import type {
+  AssistantClientAccessor,
+  ClientEvents,
+  ClientNames,
+} from "./client";
 
 // --- Event Map Construction ---
 type UnionToIntersection<U> = (
@@ -9,38 +13,27 @@ type UnionToIntersection<U> = (
   ? I
   : never;
 
-type RawClientEventMap = UnionToIntersection<
-  {
-    [K in ClientNames]: ClientEvents<K> extends Record<string, unknown>
-      ? ClientEvents<K>
-      : never;
-  }[ClientNames]
+type ClientEventMap = UnionToIntersection<
+  { [K in ClientNames]: ClientEvents<K> }[ClientNames]
 >;
-
-type ClientEventMap = [RawClientEventMap] extends [never]
-  ? {}
-  : RawClientEventMap;
 
 // --- Core Types ---
 
-type WildcardPayload = [keyof ClientEventMap] extends [never]
-  ? unknown
-  : {
-      [K in keyof ClientEventMap]: { event: K; payload: ClientEventMap[K] };
-    }[keyof ClientEventMap];
+type WildcardPayload = {
+  [K in keyof ClientEventMap]: { event: K; payload: ClientEventMap[K] };
+}[keyof ClientEventMap];
 
 export type AssistantEventPayload = ClientEventMap & { "*": WildcardPayload };
 
 export type AssistantEventName = keyof AssistantEventPayload;
 
-/** Extracts client name from event: `EventSource<"thread.updated">` = `"thread"` */
-type EventSource<T extends AssistantEventName = AssistantEventName> =
+type EventSource<T extends AssistantEventName> =
   T extends `${infer Source}.${string}` ? Source : never;
 
 // --- Scoping ---
 
 type ParentOf<K extends ClientNames> =
-  ClientAccessor<K> extends { source: infer S }
+  AssistantClientAccessor<K> extends { source: infer S }
     ? S extends ClientNames
       ? S
       : never

@@ -12,7 +12,7 @@ export interface ClientMethods {
   [key: string]: (...args: any[]) => any;
 }
 
-type ClientMetaType = { source: string; query: Record<string, unknown> };
+type ClientMetaType = { source: ClientNames; query: Record<string, unknown> };
 
 /**
  * Schema of a client in the assistant system (internal type).
@@ -61,11 +61,16 @@ export type ClientSchema<
  */
 export interface ClientRegistry {}
 
-type ClientEventsType = Record<string, unknown>;
+type ClientEventsType<K extends ClientNames> = Record<
+  `${K}.${string}`,
+  unknown
+>;
 
 type ClientError<E extends string> = {
   state: E;
-  methods: E;
+  methods: Record<E, () => E>;
+  meta: { source: ClientNames; query: Record<E, E> };
+  events: Record<`${E}.`, E>;
 };
 
 type ValidateClient<K extends keyof ClientRegistry> =
@@ -73,20 +78,22 @@ type ValidateClient<K extends keyof ClientRegistry> =
     ? "meta" extends keyof ClientRegistry[K]
       ? ClientRegistry[K]["meta"] extends ClientMetaType
         ? "events" extends keyof ClientRegistry[K]
-          ? ClientRegistry[K]["events"] extends ClientEventsType
+          ? ClientRegistry[K]["events"] extends ClientEventsType<K>
             ? ClientRegistry[K]
             : ClientError<`ERROR: ${K & string} has invalid events type`>
           : ClientRegistry[K]
         : ClientError<`ERROR: ${K & string} has invalid meta type`>
       : "events" extends keyof ClientRegistry[K]
-        ? ClientRegistry[K]["events"] extends ClientEventsType
+        ? ClientRegistry[K]["events"] extends ClientEventsType<K>
           ? ClientRegistry[K]
           : ClientError<`ERROR: ${K & string} has invalid events type`>
         : ClientRegistry[K]
     : ClientError<`ERROR: ${K & string} has invalid methods type`>;
 
 type ClientSchemas = keyof ClientRegistry extends never
-  ? Record<"ERROR: No clients were defined", ClientSchema>
+  ? {
+      "ERROR: No clients were defined": ClientError<"ERROR: No clients were defined">;
+    }
   : { [K in keyof ClientRegistry]: ValidateClient<K> };
 
 /**
@@ -105,10 +112,10 @@ type ClientSchemas = keyof ClientRegistry extends never
  * });
  * ```
  */
-export type ClientOutput<K extends ClientNames> = {
-  state: ClientSchemas[K]["state"];
-  methods: ClientSchemas[K]["methods"];
-};
+export type ClientOutput<K extends ClientNames> = ClientOutputOf<
+  ClientSchemas[K]["state"],
+  ClientSchemas[K]["methods"] & ClientMethods
+>;
 
 /**
  * Generic version of ClientResourceOutput for library code.
@@ -122,27 +129,24 @@ export type ClientNames = keyof ClientSchemas extends infer U ? U : never;
 
 export type ClientEvents<K extends ClientNames> =
   "events" extends keyof ClientSchemas[K]
-    ? ClientSchemas[K]["events"] & ClientEventsType
+    ? ClientSchemas[K]["events"] extends ClientEventsType<K>
+      ? ClientSchemas[K]["events"]
+      : never
     : never;
 
 export type ClientMeta<K extends ClientNames> =
-  | Pick<
-      "meta" extends keyof ClientSchemas[K]
-        ? ClientSchemas[K]["meta"] & ClientMetaType
-        : never,
-      "source" | "query"
-    >
-  | { source: "root"; query: Record<string, never> }
-  | { source: null; query: null };
+  "meta" extends keyof ClientSchemas[K]
+    ? Pick<
+        ClientSchemas[K]["meta"] extends ClientMetaType
+          ? ClientSchemas[K]["meta"]
+          : never,
+        "source" | "query"
+      >
+    : never;
 
-/**
- * Type for a client accessor - a function that returns the methods,
- * with source/query metadata attached (derived from meta).
- */
-export type ClientAccessor<K extends ClientNames> =
-  (() => ClientSchemas[K]["methods"]) & ClientMeta<K>;
-
-export type Client<K extends ClientNames> = ResourceElement<ClientOutput<K>>;
+export type ClientElement<K extends ClientNames> = ResourceElement<
+  ClientOutput<K>
+>;
 
 /**
  * Unsubscribe function type.
@@ -157,10 +161,22 @@ export type AssistantState = {
 };
 
 /**
+ * Type for a client accessor - a function that returns the methods,
+ * with source/query metadata attached (derived from meta).
+ */
+export type AssistantClientAccessor<K extends ClientNames> =
+  (() => ClientSchemas[K]["methods"]) &
+    (
+      | ClientMeta<K>
+      | { source: "root"; query: Record<string, never> }
+      | { source: null; query: null }
+    );
+
+/**
  * The assistant client type with all registered clients.
  */
 export type AssistantClient = {
-  [K in ClientNames]: ClientAccessor<K>;
+  [K in ClientNames]: AssistantClientAccessor<K>;
 } & {
   subscribe(listener: () => void): Unsubscribe;
   on<TEvent extends AssistantEventName>(
