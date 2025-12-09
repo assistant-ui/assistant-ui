@@ -6,3 +6,4 @@ export { ActionBarPrimitiveSpeak as Speak } from "./ActionBarSpeak";
 export { ActionBarPrimitiveStopSpeaking as StopSpeaking } from "./ActionBarStopSpeaking";
 export { ActionBarPrimitiveFeedbackPositive as FeedbackPositive } from "./ActionBarFeedbackPositive";
 export { ActionBarPrimitiveFeedbackNegative as FeedbackNegative } from "./ActionBarFeedbackNegative";
+export { ActionBarPrimitiveExportMarkdown as ExportMarkdown } from "./ActionBarExportMarkdown";

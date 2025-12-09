@@ -1,5 +1,33 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.1.18
+
+### Patch Changes
+
+- 89aec17: feat: AI SDK frontend tool execution cancellation support
+  fix: AI SDK isRunning status when running frontend tools
+- Updated dependencies [89aec17]
+- Updated dependencies [ee7040f]
+- Updated dependencies [bd27465]
+- Updated dependencies [a3e9549]
+- Updated dependencies [206616b]
+- Updated dependencies [7aa77b5]
+  - assistant-stream@0.2.44
+  - @assistant-ui/react@0.11.49
+
+## 1.1.17
+
+### Patch Changes
+
+- 01c31fe: chore: update dependencies
+- Updated dependencies [ba26b22]
+- Updated dependencies [d169e4f]
+- Updated dependencies [da9f8a6]
+- Updated dependencies [01c31fe]
+  - @assistant-ui/react@0.11.48
+  - assistant-stream@0.2.43
+  - assistant-cloud@0.1.10
+
 ## 1.1.16
 
 ### Patch Changes

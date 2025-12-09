@@ -30,6 +30,26 @@ import {
 import { withStoreContextProvider } from "./StoreContext";
 
 /**
+ * Resource that renders a store with the store context provider.
+ * This ensures the context is re-established on every re-render.
+ */
+const RootScopeStoreResource = resource(
+  <K extends keyof AssistantScopes>({
+    element,
+    events,
+    parent,
+  }: {
+    element: ScopeInput<AssistantScopes[K]>;
+    events: EventManager;
+    parent: AssistantClient;
+  }) => {
+    return withStoreContextProvider({ events, parent }, () =>
+      tapInlineResource(element),
+    );
+  },
+);
+
+/**
  * Resource for a single root scope
  * Returns a tuple of [scopeName, {scopeFunction, subscribe, flushSync}]
  */
@@ -37,18 +57,24 @@ const RootScopeResource = resource(
   <K extends keyof AssistantScopes>({
     scopeName,
     element,
+    events,
+    parent,
   }: {
     scopeName: K;
     element: ScopeInput<AssistantScopes[K]>;
+    events: EventManager;
+    parent: AssistantClient;
   }) => {
-    const store = tapResource(asStore(element));
+    const store = tapResource(
+      asStore(RootScopeStoreResource({ element, events, parent })),
+    );
 
     return tapMemo(() => {
       const scopeFunction = (() => store.getState().api) as ScopeField<
         AssistantScopes[K]
       >;
       scopeFunction.source = "root";
-      scopeFunction.query = {} as AssistantScopes[K]["query"];
+      scopeFunction.query = {};
 
       return [
         scopeName,
@@ -70,18 +96,18 @@ const RootScopesResource = resource(
   ({ scopes, parent }: { scopes: ScopesInput; parent: AssistantClient }) => {
     const events = tapInlineResource(EventManager());
 
-    const resultEntries = withStoreContextProvider({ events, parent }, () =>
-      tapResources(
-        Object.entries(scopes).map(([scopeName, element]) =>
-          RootScopeResource(
-            {
-              scopeName: scopeName as keyof AssistantScopes,
-              element: element as ScopeInput<
-                AssistantScopes[keyof AssistantScopes]
-              >,
-            },
-            { key: scopeName },
-          ),
+    const resultEntries = tapResources(
+      Object.entries(scopes).map(([scopeName, element]) =>
+        RootScopeResource(
+          {
+            scopeName: scopeName as keyof AssistantScopes,
+            element: element as ScopeInput<
+              AssistantScopes[keyof AssistantScopes]
+            >,
+            events,
+            parent,
+          },
+          { key: scopeName },
         ),
       ),
     );

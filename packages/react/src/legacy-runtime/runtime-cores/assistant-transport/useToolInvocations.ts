@@ -39,8 +39,7 @@ type UseToolInvocationsParams = {
 
 export type ToolExecutionStatus =
   | { type: "executing" }
-  | { type: "interrupt"; payload: { type: "human"; payload: unknown } }
-  | { type: "cancelled"; reason: string };
+  | { type: "interrupt"; payload: { type: "human"; payload: unknown } };
 
 export function useToolInvocations({
   state,
@@ -71,6 +70,9 @@ export function useToolInvocations({
   >(new Map());
 
   const acRef = useRef<AbortController>(new AbortController());
+  const executingCountRef = useRef(0);
+  const settledResolversRef = useRef<Array<() => void>>([]);
+
   const [controller] = useState(() => {
     const [stream, controller] = createAssistantStreamController();
     const transform = unstable_toolResultStream(
@@ -96,6 +98,28 @@ export function useToolInvocations({
           }));
         });
       },
+      {
+        onExecutionStart: (toolCallId: string) => {
+          executingCountRef.current++;
+          setToolStatuses((prev) => ({
+            ...prev,
+            [toolCallId]: { type: "executing" },
+          }));
+        },
+        onExecutionEnd: (toolCallId: string) => {
+          executingCountRef.current--;
+          setToolStatuses((prev) => {
+            const next = { ...prev };
+            delete next[toolCallId];
+            return next;
+          });
+          // Resolve any waiting abort promises when all tools have settled
+          if (executingCountRef.current === 0) {
+            settledResolversRef.current.forEach((resolve) => resolve());
+            settledResolversRef.current = [];
+          }
+        },
+      },
     );
     stream
       .pipeThrough(transform)
@@ -115,13 +139,6 @@ export function useToolInvocations({
                 result: chunk.result,
                 isError: chunk.isError,
                 ...(chunk.artifact && { artifact: chunk.artifact }),
-              });
-
-              // Clear status when result is set
-              setToolStatuses((prev) => {
-                const next = { ...prev };
-                delete next[chunk.meta.toolCallId];
-                return next;
               });
             }
           },
@@ -234,20 +251,27 @@ export function useToolInvocations({
     }
   }, [state, controller, onResult]);
 
-  const abort = () => {
+  const abort = (): Promise<void> => {
     humanInputRef.current.forEach(({ reject }) => {
       reject(new Error("Tool execution aborted"));
     });
     humanInputRef.current.clear();
-    setToolStatuses({});
 
     acRef.current.abort();
     acRef.current = new AbortController();
+
+    // Return a promise that resolves when all executing tools have settled
+    if (executingCountRef.current === 0) {
+      return Promise.resolve();
+    }
+    return new Promise<void>((resolve) => {
+      settledResolversRef.current.push(resolve);
+    });
   };
 
   return {
     reset: () => {
-      abort();
+      void abort();
       isInitialState.current = true;
     },
     abort,
@@ -255,11 +279,10 @@ export function useToolInvocations({
       const handlers = humanInputRef.current.get(toolCallId);
       if (handlers) {
         humanInputRef.current.delete(toolCallId);
-        setToolStatuses((prev) => {
-          const next = { ...prev };
-          delete next[toolCallId];
-          return next;
-        });
+        setToolStatuses((prev) => ({
+          ...prev,
+          [toolCallId]: { type: "executing" },
+        }));
         handlers.resolve(payload);
       } else {
         throw new Error(

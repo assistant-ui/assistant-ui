@@ -57,7 +57,10 @@ export const ThreadPrimitiveViewportSlack: FC<ThreadViewportSlackProps> = ({
   fillClampThreshold = "10em",
   fillClampOffset = "6em",
 }) => {
-  const isLast = useAssistantState(({ message }) => message.isLast);
+  const isLast = useAssistantState(
+    // only add slack if the message is the last message and we already have at least 3 messages
+    ({ message }) => message.isLast && message.index >= 2,
+  );
   const threadViewportStore = useThreadViewportStore({ optional: true });
   const isNested = useContext(SlackNestingContext);
 

@@ -35,6 +35,10 @@ type ToolStreamCallback = <
 type ToolExecutionOptions = {
   execute: ToolCallback;
   streamCall: ToolStreamCallback;
+  onExecutionStart?:
+    | ((toolCallId: string, toolName: string) => void)
+    | undefined;
+  onExecutionEnd?: ((toolCallId: string, toolName: string) => void) | undefined;
 };
 
 export class ToolExecutionStream extends PipeableTransformStream<
@@ -112,6 +116,7 @@ export class ToolExecutionStream extends PipeableTransformStream<
               if (!streamController)
                 throw new Error("No controller found for tool call");
 
+              let isExecuting = false;
               const promise = withPromiseOrValue(
                 () => {
                   let args;
@@ -123,13 +128,25 @@ export class ToolExecutionStream extends PipeableTransformStream<
                     );
                   }
 
-                  return options.execute({
+                  const executeResult = options.execute({
                     toolCallId,
                     toolName,
                     args,
                   });
+
+                  // Only mark as executing if the tool has frontend execution
+                  if (executeResult !== undefined) {
+                    isExecuting = true;
+                    options.onExecutionStart?.(toolCallId, toolName);
+                  }
+
+                  return executeResult;
                 },
                 (c) => {
+                  if (isExecuting) {
+                    options.onExecutionEnd?.(toolCallId, toolName);
+                  }
+
                   if (c === undefined) return;
 
                   // TODO how to handle new ToolResult({ result: undefined })?
@@ -146,6 +163,10 @@ export class ToolExecutionStream extends PipeableTransformStream<
                   });
                 },
                 (e) => {
+                  if (isExecuting) {
+                    options.onExecutionEnd?.(toolCallId, toolName);
+                  }
+
                   const result = new ToolResponse({
                     result: String(e),
                     isError: true,

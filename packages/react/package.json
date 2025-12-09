@@ -28,7 +28,7 @@
     "conversational-ui",
     "conversational-ai"
   ],
-  "version": "0.11.47",
+  "version": "0.11.49",
   "license": "MIT",
   "type": "module",
   "exports": {
@@ -54,8 +54,8 @@
     "test:mutation": "stryker run"
   },
   "dependencies": {
-    "assistant-cloud": "^0.1.9",
-    "@assistant-ui/tap": "^0.3.1",
+    "assistant-cloud": "^0.1.10",
+    "@assistant-ui/tap": "^0.3.2",
     "@radix-ui/primitive": "^1.1.3",
     "@radix-ui/react-compose-refs": "^1.1.2",
     "@radix-ui/react-context": "^1.1.3",
@@ -65,11 +65,11 @@
     "@radix-ui/react-use-callback-ref": "^1.1.1",
     "@radix-ui/react-use-escape-keydown": "^1.1.1",
     "@standard-schema/spec": "^1.0.0",
-    "assistant-stream": "^0.2.42",
+    "assistant-stream": "^0.2.44",
     "nanoid": "5.1.6",
     "react-textarea-autosize": "^8.5.9",
     "zod": "^4.1.13",
-    "zustand": "^5.0.8"
+    "zustand": "^5.0.9"
   },
   "peerDependencies": {
     "@types/react": "*",
@@ -91,8 +91,8 @@
     "@stryker-mutator/vitest-runner": "^9.4.0",
     "@types/json-schema": "^7.0.15",
     "@types/node": "^24.10.1",
-    "tsx": "^4.20.6",
-    "vitest": "^4.0.14"
+    "tsx": "^4.21.0",
+    "vitest": "^4.0.15"
   },
   "publishConfig": {
     "access": "public",

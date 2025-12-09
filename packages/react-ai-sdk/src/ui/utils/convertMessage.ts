@@ -89,13 +89,6 @@ const convertParts = (
               reason: "interrupt",
             },
           }),
-          ...(toolStatus?.type === "cancelled" && {
-            status: {
-              type: "incomplete" as const,
-              reason: "cancelled",
-              error: toolStatus.reason,
-            },
-          }),
         } satisfies ToolCallMessagePart;
       }
 
@@ -137,13 +130,6 @@ const convertParts = (
             status: {
               type: "requires-action" as const,
               reason: "interrupt",
-            },
-          }),
-          ...(toolStatus?.type === "cancelled" && {
-            status: {
-              type: "incomplete" as const,
-              reason: "cancelled",
-              error: toolStatus.reason,
             },
           }),
         } satisfies ToolCallMessagePart;

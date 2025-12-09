@@ -1,13 +1,5 @@
-/**
- * Scope registration for the foo example
- * Import this file to register the default fooList scope
- */
 import { registerAssistantScope } from "@assistant-ui/store";
 
-/**
- * Define scopes via module augmentation
- * Implement the scope definition raw without importing ScopeDefinition
- */
 declare module "@assistant-ui/store" {
   interface AssistantScopeRegistry {
     foo: {
@@ -16,8 +8,11 @@ declare module "@assistant-ui/store" {
         updateBar: (newBar: string) => void;
         remove: () => void;
       };
-      source: "fooList";
-      query: { index: number } | { id: string };
+      meta: { source: "fooList"; query: { index: number } | { id: string } };
+      events: {
+        "foo.updated": { id: string; newValue: string };
+        "foo.removed": { id: string };
+      };
     };
     fooList: {
       value: {
@@ -27,14 +22,20 @@ declare module "@assistant-ui/store" {
         ) => AssistantScopeRegistry["foo"]["value"];
         addFoo: (id?: string) => void;
       };
-      source: "root";
-      query: Record<string, never>;
+      meta: { source: "root"; query: Record<string, never> };
+      events: {
+        "fooList.added": { id: string };
+      };
     };
   }
 }
 
-// Register the fooList scope with a default implementation
 registerAssistantScope({
   name: "fooList",
   defaultInitialize: { error: "FooList is not configured" },
+});
+
+registerAssistantScope({
+  name: "foo",
+  defaultInitialize: { error: "Foo is not configured" },
 });
