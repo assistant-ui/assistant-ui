@@ -82,8 +82,8 @@ export const ThreadMessageClient = resource(
     const parts = tapLookupResources(
       message.content.map((part, idx) => [
         "toolCallId" in part && part.toolCallId != null
-          ? part.toolCallId
-          : String(idx),
+          ? `toolCallId-${part.toolCallId}`
+          : `index-${idx}`,
         ThreadMessagePartClient({ part }),
       ]),
     );

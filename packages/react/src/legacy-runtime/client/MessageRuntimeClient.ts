@@ -72,8 +72,8 @@ export const MessageClient = resource(
     const parts = tapLookupResources(
       runtimeState.content.map((part, idx) => [
         "toolCallId" in part && part.toolCallId != null
-          ? part.toolCallId
-          : String(idx),
+          ? `toolCallId-${part.toolCallId}`
+          : `index-${idx}`,
         MessagePartByIndex({ runtime, index: idx }),
       ]),
     );
