@@ -37,6 +37,6 @@ export namespace Derived {
    * Props passed to a derived client resource element.
    */
   export type Props<K extends ClientNames> = {
-    get: (parent: AssistantClient) => ReturnType<AssistantClientAccessor<K>>;
-  } & ClientMeta<K>;
+    get: (client: AssistantClient) => ReturnType<AssistantClientAccessor<K>>;
+  } & (ClientMeta<K> | { getMeta: (client: AssistantClient) => ClientMeta<K> });
 }

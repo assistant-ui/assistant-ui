@@ -15,8 +15,9 @@ import type {
   AssistantClientAccessor,
   ClientNames,
   ClientElement,
+  ClientMeta,
 } from "./types/client";
-import { DerivedElement } from "./Derived";
+import { Derived, DerivedElement } from "./Derived";
 import { StoreResource } from "./utils/StoreResource";
 import {
   useAssistantContextValue,
@@ -181,6 +182,24 @@ export const useRootClients = (
   );
 };
 
+type MetaMemo<K extends ClientNames> = {
+  meta?: ClientMeta<K>;
+  dep?: unknown;
+};
+
+const getMeta = <K extends ClientNames>(
+  props: Derived.Props<K>,
+  clientRef: { parent: AssistantClient; current: AssistantClient | null },
+  memo: MetaMemo<K>,
+): ClientMeta<K> => {
+  if ("source" in props && "query" in props) return props;
+  if (memo.dep === props) return memo.meta!;
+  const meta = props.getMeta(clientRef.current!);
+  memo.meta = meta;
+  memo.dep = props;
+  return meta;
+};
+
 const DerivedClientAcessorResource = resource(
   <K extends ClientNames>({
     element,
@@ -189,15 +208,21 @@ const DerivedClientAcessorResource = resource(
     element: DerivedElement<K>;
     clientRef: { parent: AssistantClient; current: AssistantClient | null };
   }) => {
-    const get = tapEffectEvent(element.props.get);
-    const { source, query } = element.props;
+    const get = tapEffectEvent(() => element.props);
 
     return tapMemo(() => {
-      const clientFunction = () => get(clientRef.current!);
-      clientFunction.source = source;
-      clientFunction.query = query;
+      const clientFunction = () => get().get(clientRef.current!);
+      const metaMemo = {};
+      Object.defineProperties(clientFunction, {
+        source: {
+          get: () => getMeta(get(), clientRef, metaMemo).source,
+        },
+        query: {
+          get: () => getMeta(get(), clientRef, metaMemo).query,
+        },
+      });
       return clientFunction;
-    }, [get, source, JSON.stringify(query), clientRef]);
+    }, [clientRef]);
   },
 );
 
