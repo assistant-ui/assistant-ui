@@ -1,3 +1,5 @@
+import "./types/store-augmentation";
+
 export * from "./legacy-runtime/runtime";
 export * from "./legacy-runtime/cloud";
 export * from "./legacy-runtime/runtime-cores";

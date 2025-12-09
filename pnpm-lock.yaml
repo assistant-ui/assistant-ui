@@ -1532,6 +1532,9 @@ importers:
 
   packages/react:
     dependencies:
+      '@assistant-ui/store':
+        specifier: ^0.0.3
+        version: link:../store
       '@assistant-ui/tap':
         specifier: ^0.3.5
         version: link:../tap
