@@ -176,7 +176,22 @@ const Timer = resource(() => {
 
 ### `tapResources`
 
-Renders multiple resources with keys, similar to React's list rendering. All resources must have a unique `key` property.
+Renders multiple resources from a record/map, similar to React's list rendering. Returns a record with the same keys mapping to each resource's result.
+
+```typescript
+tapResources<T, R, K extends string | number>(
+  map: Record<K, T>,
+  getElement: (value: T, key: K) => ResourceElement<R>,
+  getElementDeps?: any[]
+): Record<K, R>
+```
+
+**Parameters:**
+- `map`: A record/object where keys identify each resource instance
+- `getElement`: A function that receives each value and key, returning a ResourceElement
+- `getElementDeps`: Optional dependency array for memoizing the getElement function
+
+**Example:**
 
 ```typescript
 const TodoItem = resource((props: { text: string }) => {
@@ -185,18 +200,25 @@ const TodoItem = resource((props: { text: string }) => {
 });
 
 const TodoList = resource(() => {
-  const todos = [
-    { id: "1", text: "Learn tap" },
-    { id: "2", text: "Build something awesome" },
-  ];
-
-  const todoItems = tapResources(
-    todos.map((todo) => new TodoItem({ text: todo.text }, { key: todo.id })),
+  const todos = tapMemo(
+    () => ({
+      "1": { text: "Learn tap" },
+      "2": { text: "Build something awesome" },
+    }),
+    [],
   );
+
+  // Returns Record<string, { text, completed, setCompleted }>
+  const todoItems = tapResources(todos, (todo) => TodoItem({ text: todo.text }));
 
   return todoItems;
 });
 ```
+
+**Key features:**
+- Resource instances are preserved when keys remain the same
+- Automatically cleans up resources when keys are removed
+- Handles resource type changes (recreates fiber if type changes)
 
 ### `tapContext` and Context Support
 

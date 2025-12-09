@@ -16,7 +16,8 @@ export { tapInlineResource } from "./hooks/tap-inline-resource";
 export { tapResources } from "./hooks/tap-resources";
 
 // imperative
-export { createResource } from "./core/ResourceHandle";
+export { createResource } from "./core/createResource";
+export { flushSync } from "./core/scheduler";
 
 // context
 export { createContext, tapContext, withContextProvider } from "./core/context";
@@ -26,4 +27,5 @@ export type {
   Resource,
   ContravariantResource,
   ResourceElement,
+  ExtractResourceOutput,
 } from "./core/types";

@@ -3,9 +3,9 @@ import { tapEffect } from "../../hooks/tap-effect";
 import { tapState } from "../../hooks/tap-state";
 import { createTestResource, renderTest } from "../test-utils";
 import {
-  renderResource,
-  commitResource,
-  unmountResource,
+  renderResourceFiber,
+  commitResourceFiber,
+  unmountResourceFiber,
 } from "../../core/ResourceFiber";
 
 describe("Errors - Render Errors", () => {
@@ -16,7 +16,7 @@ describe("Errors - Render Errors", () => {
       throw error;
     });
 
-    expect(() => renderResource(resource, undefined)).toThrow(error);
+    expect(() => renderResourceFiber(resource, undefined)).toThrow(error);
   });
 
   it("should throw when hooks are called outside render context", () => {
@@ -40,7 +40,7 @@ describe("Errors - Render Errors", () => {
       return value;
     });
 
-    expect(() => renderResource(resource, undefined)).toThrow(error);
+    expect(() => renderResourceFiber(resource, undefined)).toThrow(error);
   });
 
   it("should detect render during render", () => {
@@ -57,7 +57,7 @@ describe("Errors - Render Errors", () => {
       return count;
     });
 
-    renderResource(resource, undefined);
+    renderResourceFiber(resource, undefined);
   });
 
   it("should allow setState during commit (effects)", () => {
@@ -74,10 +74,10 @@ describe("Errors - Render Errors", () => {
       return count;
     });
 
-    const ctx = renderResource(resource, undefined);
+    const ctx = renderResourceFiber(resource, undefined);
     // This should not throw - setState in effects is allowed
-    expect(() => commitResource(resource, ctx)).not.toThrow();
-    unmountResource(resource);
+    expect(() => commitResourceFiber(resource, ctx)).not.toThrow();
+    unmountResourceFiber(resource);
   });
 
   it("should handle errors in hook order validation", () => {
@@ -94,11 +94,11 @@ describe("Errors - Render Errors", () => {
       return null;
     });
 
-    renderResource(resource, undefined);
+    renderResourceFiber(resource, undefined);
 
     useStateFirst = false;
 
-    expect(() => renderResource(resource, undefined)).toThrow(
+    expect(() => renderResourceFiber(resource, undefined)).toThrow(
       "Hook order changed between renders",
     );
   });
