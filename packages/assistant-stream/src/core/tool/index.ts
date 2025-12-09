@@ -5,4 +5,5 @@ export type { ToolCallReader } from "./tool-types";
 export {
   toolResultStream as unstable_toolResultStream,
   unstable_runPendingTools,
+  type ToolResultStreamOptions,
 } from "./toolResultStream";

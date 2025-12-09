@@ -160,7 +160,7 @@ class SyncStyles {
         }
       }
       lines.push(`}`);
-      lines.push("");
+      lines.push(``);
     }
 
     const output = lines.join("\n");

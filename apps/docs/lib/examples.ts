@@ -30,7 +30,7 @@ const INTERNAL_EXAMPLES: ExampleItem[] = [
     description: "Customized colors and styles for a ChatGPT look and feel.",
     link: "/examples/chatgpt",
     githubLink:
-      "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/chatgpt/ChatGPT.tsx",
+      "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/example/chatgpt/ChatGPT.tsx",
   },
   {
     title: "Claude Clone",
@@ -38,7 +38,15 @@ const INTERNAL_EXAMPLES: ExampleItem[] = [
     description: "Customized colors and styles for a Claude look and feel.",
     link: "/examples/claude",
     githubLink:
-      "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/claude/Claude.tsx",
+      "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/example/claude/Claude.tsx",
+  },
+  {
+    title: "Grok Clone",
+    image: "/screenshot/examples/grok.png",
+    description: "Customized colors and styles for a Grok look and feel.",
+    link: "/examples/grok",
+    githubLink:
+      "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/grok/Grok.tsx",
   },
   {
     title: "Perplexity Clone",
@@ -46,7 +54,7 @@ const INTERNAL_EXAMPLES: ExampleItem[] = [
     description: "Customized colors and styles for a Perplexity look and feel.",
     link: "/examples/perplexity",
     githubLink:
-      "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/perplexity/thread.tsx",
+      "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/example/perplexity/thread.tsx",
   },
   {
     title: "AI SDK",

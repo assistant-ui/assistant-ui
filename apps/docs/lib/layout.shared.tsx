@@ -4,14 +4,13 @@ import {
   ProjectorIcon,
   SparklesIcon,
   WalletIcon,
-  LayoutTemplateIcon,
-  CodeIcon,
+  BoltIcon,
 } from "lucide-react";
 import icon from "@/public/favicon/icon.svg";
 import Image from "next/image";
-import type { DocsLayoutProps } from "fumadocs-ui/layouts/docs";
+import { DocsLayoutProps } from "fumadocs-ui/layouts/docs";
 import { SidebarHiringBanner } from "@/components/docs/SidebarHiringBanner";
-import type { BaseLayoutProps } from "fumadocs-ui/layouts/links";
+import { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 
 const DiscordIcon = () => {
   return (
@@ -62,11 +61,6 @@ export const baseOptions: BaseLayoutProps = {
       icon: <SparklesIcon />,
     },
     {
-      text: "Playground",
-      url: "/playground",
-      icon: <CodeIcon />,
-    },
-    {
       text: "Dashboard",
       url: "https://cloud.assistant-ui.com/",
       icon: <CloudIcon />,
@@ -74,7 +68,7 @@ export const baseOptions: BaseLayoutProps = {
     {
       text: "Tool UI",
       url: "https://tool-ui.com",
-      icon: <LayoutTemplateIcon />,
+      icon: <BoltIcon />,
       external: true,
     },
     {

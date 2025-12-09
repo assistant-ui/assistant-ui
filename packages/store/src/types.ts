@@ -5,21 +5,26 @@ import type {
   AssistantEventSelector,
 } from "./EventContext";
 
+type ScopeValueType = Record<string, unknown> & {
+  getState: () => Record<string, unknown>;
+};
+type ScopeMetaType = { source: string; query: Record<string, unknown> };
+
 /**
  * Definition of a scope in the assistant client (internal type)
  * @template TValue - The API type (must include getState() and any actions)
- * @template TSource - The parent scope name (or "root" for top-level scopes)
- * @template TQuery - The query parameters needed to access this scope from its source
+ * @template TMeta - Source/query metadata (use ScopeMeta or discriminated union)
+ * @template TEvents - Optional events that this scope can emit
  * @internal
  */
 export type ScopeDefinition<
-  TValue = any,
-  TSource extends string | "root" = any,
-  TQuery = any,
+  TValue extends ScopeValueType = ScopeValueType,
+  TMeta extends ScopeMetaType = ScopeMetaType,
+  TEvents extends Record<string, unknown> = Record<string, unknown>,
 > = {
   value: TValue;
-  source: TSource;
-  query: TQuery;
+  meta: TMeta;
+  events: TEvents;
 };
 
 /**
@@ -31,8 +36,19 @@ export type ScopeDefinition<
  *   interface AssistantScopeRegistry {
  *     foo: {
  *       value: { getState: () => { bar: string }; updateBar: (bar: string) => void };
- *       source: "root";
- *       query: Record<string, never>;
+ *       meta: { source: "root"; query: Record<string, never> };
+ *       events: {
+ *         "foo.updated": { id: string; newValue: string };
+ *         "foo.deleted": { id: string };
+ *       };
+ *     };
+ *     // Example with multiple sources (discriminated union):
+ *     bar: {
+ *       value: { getState: () => { id: string } };
+ *       meta:
+ *         | { source: "fooList"; query: { index: number } }
+ *         | { source: "barList"; query: { id: string } };
+ *       events: Record<string, never>;
  *     };
  *   }
  * }
@@ -43,45 +59,20 @@ export interface AssistantScopeRegistry {}
 export type AssistantScopes = keyof AssistantScopeRegistry extends never
   ? Record<"ERROR: No scopes were defined", ScopeDefinition>
   : { [K in keyof AssistantScopeRegistry]: AssistantScopeRegistry[K] };
-
-/**
- * Helper type to extract the value type from a scope definition
- */
-export type ScopeValue<T extends ScopeDefinition> = T["value"];
-
-/**
- * Helper type to extract the source type from a scope definition
- */
-export type ScopeSource<T extends ScopeDefinition> = T["source"];
-
-/**
- * Helper type to extract the query type from a scope definition
- */
-export type ScopeQuery<T extends ScopeDefinition> = T["query"];
-
 /**
  * Type for a scope field - a function that returns the current API value,
- * with source and query metadata attached
+ * with source/query metadata attached (derived from meta)
  */
-export type ScopeField<T extends ScopeDefinition> = (() => ScopeValue<T>) &
-  (
-    | {
-        source: ScopeSource<T>;
-        query: ScopeQuery<T>;
-      }
-    | {
-        source: null;
-        query: null;
-      }
-  );
+export type ScopeField<T extends ScopeDefinition> = (() => T["value"]) &
+  (T["meta"] | { source: null; query: null });
 
 /**
  * Props passed to a derived scope resource element
  */
 export type DerivedScopeProps<T extends ScopeDefinition> = {
-  get: (parent: AssistantClient) => ScopeValue<T>;
-  source: ScopeSource<T>;
-  query: ScopeQuery<T>;
+  get: (parent: AssistantClient) => T["value"];
+  source: T["meta"]["source"];
+  query: T["meta"]["query"];
 };
 
 /**
@@ -89,7 +80,7 @@ export type DerivedScopeProps<T extends ScopeDefinition> = {
  * Can optionally include source/query metadata via DerivedScope
  */
 export type ScopeInput<T extends ScopeDefinition> = ResourceElement<{
-  api: ScopeValue<T>;
+  api: T["value"];
 }>;
 
 /**

@@ -1,7 +1,7 @@
 "use client";
 
 import { useComposedRefs } from "@radix-ui/react-compose-refs";
-import { RefCallback, useCallback, useRef } from "react";
+import { useCallback, useRef, type RefCallback } from "react";
 import { useAssistantEvent } from "../../context";
 import { useOnResizeContent } from "../../utils/hooks/useOnResizeContent";
 import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
@@ -18,11 +18,35 @@ export namespace useThreadViewportAutoScroll {
      * Default false if `turnAnchor` is "top", otherwise defaults to true.
      */
     autoScroll?: boolean | undefined;
+
+    /**
+     * Whether to scroll to bottom when a new run starts.
+     *
+     * Defaults to true.
+     */
+    scrollToBottomOnRunStart?: boolean | undefined;
+
+    /**
+     * Whether to scroll to bottom when thread history is first loaded.
+     *
+     * Defaults to true.
+     */
+    scrollToBottomOnInitialize?: boolean | undefined;
+
+    /**
+     * Whether to scroll to bottom when switching to a different thread.
+     *
+     * Defaults to true.
+     */
+    scrollToBottomOnThreadSwitch?: boolean | undefined;
   };
 }
 
 export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   autoScroll,
+  scrollToBottomOnRunStart = true,
+  scrollToBottomOnInitialize = true,
+  scrollToBottomOnThreadSwitch = true,
 }: useThreadViewportAutoScroll.Options): RefCallback<TElement> => {
   const divRef = useRef<TElement>(null);
 
@@ -62,7 +86,10 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
         scrollingToBottomBehaviorRef.current = null;
       }
 
-      if (newIsAtBottom !== isAtBottom) {
+      const shouldUpdate =
+        newIsAtBottom || scrollingToBottomBehaviorRef.current === null;
+
+      if (shouldUpdate && newIsAtBottom !== isAtBottom) {
         writableStore(threadViewportStore).setState({
           isAtBottom: newIsAtBottom,
         });
@@ -96,9 +123,28 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
 
   // autoscroll on run start
   useAssistantEvent("thread.run-start", () => {
+    if (!scrollToBottomOnRunStart) return;
     scrollingToBottomBehaviorRef.current = "auto";
     requestAnimationFrame(() => {
       scrollToBottom("auto");
+    });
+  });
+
+  // scroll to bottom instantly when thread history is first loaded
+  useAssistantEvent("thread.initialize", () => {
+    if (!scrollToBottomOnInitialize) return;
+    scrollingToBottomBehaviorRef.current = "instant";
+    requestAnimationFrame(() => {
+      scrollToBottom("instant");
+    });
+  });
+
+  // scroll to bottom instantly when switching threads
+  useAssistantEvent("thread-list-item.switched-to", () => {
+    if (!scrollToBottomOnThreadSwitch) return;
+    scrollingToBottomBehaviorRef.current = "instant";
+    requestAnimationFrame(() => {
+      scrollToBottom("instant");
     });
   });
 

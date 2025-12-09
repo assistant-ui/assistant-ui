@@ -1,5 +1,15 @@
 # @assistant-ui/styles
 
+## 0.3.0
+
+### Minor Changes
+
+- 5f4163e: feat: update styles
+
+### Patch Changes
+
+- 01c31fe: chore: update dependencies
+
 ## 0.2.10
 
 ### Patch Changes

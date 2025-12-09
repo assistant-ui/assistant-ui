@@ -274,7 +274,7 @@ const useAssistantTransportThreadRuntime = <T,>(
     },
     onCancel: async () => {
       runManager.cancel();
-      toolInvocations.abort();
+      await toolInvocations.abort();
     },
     onResume: async () => {
       if (!options.resumeApi)

@@ -2,7 +2,7 @@
 import {
   ComposerAddAttachment,
   ComposerAttachments,
-} from "../assistant-ui/attachment";
+} from "@/components/assistant-ui/attachment";
 import {
   AssistantIf,
   ComposerPrimitive,

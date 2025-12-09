@@ -1,6 +1,6 @@
 "use client";
-import { Thread } from "../assistant-ui/thread";
-import { SampleFrame } from "./sample-frame";
+import { Thread } from "@/components/assistant-ui/thread";
+import { SampleFrame } from "@/components/samples/sample-frame";
 
 export const ThreadSample = () => {
   return (
