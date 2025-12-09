@@ -27,4 +27,5 @@ export type {
   Resource,
   ContravariantResource,
   ResourceElement,
+  ExtractResourceOutput,
 } from "./core/types";

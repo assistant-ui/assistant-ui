@@ -4,8 +4,8 @@ import type {
   ClientElement,
   ClientNames,
 } from "../types/client";
-import type { useAssistantClient } from "../useAssistantClient";
 import { getDefaultPeers } from "../attachDefaultPeers";
+import type { useAssistantClient } from "../useAssistantClient";
 
 export type RootClients = Partial<
   Record<ClientNames, ClientElement<ClientNames>>

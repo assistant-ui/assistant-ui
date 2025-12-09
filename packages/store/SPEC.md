@@ -74,6 +74,12 @@ tapAssistantClientRef(): { current: AssistantClient };
 tapAssistantEmit(): <E>(event: E, payload) => void;  // Stable via tapEffectEvent
 ```
 
+### tapClientResource
+```typescript
+tapClientResource(element: ResourceElement<ClientOutputOf<TState, TMethods>>): ClientOutputOf<TState, TMethods>;
+```
+Wraps resource element to create stable client proxy. Adds client to stack for event scoping. Use for 1:1 client mappings.
+
 ### tapClientLookup
 ```typescript
 tapClientLookup<TState, TMethods, M extends Record<string|number|symbol, any>>(
@@ -82,7 +88,7 @@ tapClientLookup<TState, TMethods, M extends Record<string|number|symbol, any>>(
   getElementDeps: any[]
 ): { state: TState[]; get: (lookup: { index: number } | { key: keyof M }) => TMethods };
 ```
-Wraps each element with ClientResource. Throws on lookup miss.
+Wraps each element with `tapClientResource`. Throws on lookup miss.
 
 ### tapClientList
 ```typescript
@@ -103,15 +109,16 @@ type AssistantEventName = keyof ClientEventMap | "*";
 type AssistantEventScope<E> = "*" | EventSource<E> | AncestorsOf<EventSource<E>>;
 type AssistantEventSelector<E> = E | { scope: Scope<E>; event: E };
 ```
-Flow: `tapAssistantEmit` captures client stack → `emit` queues via microtask → EventManager notifies → scope filtering.
+Flow: `tapAssistantEmit` captures client stack → `emit` queues via microtask → NotificationManager notifies → scope filtering.
 
 ## Implementation
 
 | Component | Behavior |
 |-----------|----------|
-| **ClientResource** | Mounts element → stable proxy via `tapMemo` → delegates to ref → `SYMBOL_GET_STATE` for internal access |
-| **ProxiedState** | Proxy intercepts `state.foo` → `client.foo()` → `SYMBOL_GET_STATE` |
+| **tapClientResource** | Mounts element → stable proxy via `tapMemo` → delegates to ref → `SYMBOL_GET_OUTPUT` for internal access |
+| **ProxiedState** | Proxy intercepts `state.foo` → `aui.foo()` → `SYMBOL_GET_OUTPUT` |
 | **Client Stack** | Context stack per level. Emit captures stack. Listeners filter by matching stack |
+| **NotificationManager** | Handles events (`on`/`emit`) and state subscriptions (`subscribe`/`notifySubscribers`) |
 | **splitClients** | Separate root/derived → gather `getDefaultPeers` → filter by existence |
 
 ## Design

@@ -58,11 +58,29 @@ export const NotificationManager = resource((): NotificationManager => {
 
         queueMicrotask(() => {
           if (eventListeners) {
-            for (const cb of eventListeners) cb(payload, clientStack);
+            for (const cb of eventListeners) {
+              try {
+                cb(payload, clientStack);
+              } catch (e) {
+                console.error(
+                  `NotificationManager: callback error for "${event}"`,
+                  e,
+                );
+              }
+            }
           }
           if (wildcardListeners.size > 0) {
             const wrapped = { event, payload };
-            for (const cb of wildcardListeners) cb(wrapped, clientStack);
+            for (const cb of wildcardListeners) {
+              try {
+                cb(wrapped, clientStack);
+              } catch (e) {
+                console.error(
+                  `NotificationManager: wildcard callback error for "${event}"`,
+                  e,
+                );
+              }
+            }
           }
         });
       },
@@ -73,7 +91,13 @@ export const NotificationManager = resource((): NotificationManager => {
       },
 
       notifySubscribers() {
-        for (const cb of subscribers) cb();
+        for (const cb of subscribers) {
+          try {
+            cb();
+          } catch (e) {
+            console.error("NotificationManager: subscriber callback error", e);
+          }
+        }
       },
     };
   }, []);

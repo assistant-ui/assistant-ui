@@ -16,6 +16,9 @@ export type ContravariantResource<R, P> = (
   ...args: ResourceArgs<P>
 ) => ResourceElement<R>;
 
+export type ExtractResourceOutput<T> =
+  T extends ResourceElement<infer R, any> ? R : never;
+
 export type Cell =
   | {
       type: "state";

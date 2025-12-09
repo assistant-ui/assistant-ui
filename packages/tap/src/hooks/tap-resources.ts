@@ -1,4 +1,9 @@
-import { RenderResult, ResourceElement, ResourceFiber } from "../core/types";
+import {
+  ExtractResourceOutput,
+  RenderResult,
+  ResourceElement,
+  ResourceFiber,
+} from "../core/types";
 import { tapEffect } from "./tap-effect";
 import { tapMemo } from "./tap-memo";
 import { tapState } from "./tap-state";
@@ -16,9 +21,6 @@ export type TapResourcesRenderResult<R, K extends string | number | symbol> = {
   commit: [K, RenderResult][];
   return: Record<K, R>;
 };
-
-type ExtractResourceOutput<T> =
-  T extends ResourceElement<infer R, any> ? R : never;
 
 export function tapResources<
   M extends Record<string | number | symbol, any>,

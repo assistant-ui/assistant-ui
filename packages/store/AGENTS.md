@@ -19,6 +19,7 @@ src/
 ├── AssistantIf.tsx                  # Conditional render
 ├── Derived.ts                       # Derived client marker
 ├── attachDefaultPeers.ts            # Default peer attachment
+├── tapClientResource.ts             # Client proxy wrapper for event scoping
 ├── tapClientLookup.ts               # Index/key lookup: {state[], get()}
 ├── tapClientList.ts                 # Dynamic lists: {state[], get(), add()}
 └── utils/                           # Internal implementation
@@ -36,7 +37,7 @@ useAssistantEvent(event,cb)  AssistantProvider  AssistantIf  Derived()
 Above plus:
 ```
 tapAssistantClientRef()      tapAssistantEmit()
-tapClientLookup(map, getElement, deps)
+tapClientResource(element)   tapClientLookup(map, getElement, deps)
 tapClientList({ initialValues, getKey, resource })
 attachDefaultPeers()         ClientOutput<K>  ClientRegistry
 ```
