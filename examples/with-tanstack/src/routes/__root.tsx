@@ -30,9 +30,7 @@ export const Route = createRootRoute({
 function RootDocument({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <head>
-        <HeadContent />
-      </head>
+      <HeadContent />
       <body className="bg-background text-foreground">
         {children}
         <Scripts />
