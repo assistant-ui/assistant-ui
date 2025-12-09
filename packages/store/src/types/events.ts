@@ -1,4 +1,4 @@
-import type { ClientAccessor, ClientEventTypes, ClientNames } from "./client";
+import type { ClientAccessor, ClientEvents, ClientNames } from "./client";
 
 // --- Event Map Construction ---
 type UnionToIntersection<U> = (
@@ -11,8 +11,8 @@ type UnionToIntersection<U> = (
 
 type RawClientEventMap = UnionToIntersection<
   {
-    [K in ClientNames]: ClientEventTypes<K> extends Record<string, unknown>
-      ? ClientEventTypes<K>
+    [K in ClientNames]: ClientEvents<K> extends Record<string, unknown>
+      ? ClientEvents<K>
       : never;
   }[ClientNames]
 >;

@@ -8,12 +8,19 @@ type FooMeta = {
   source: "fooList";
   query: { index: number } | { key: string };
 };
+type FooEvents = {
+  "foo.updated": { id: string; newValue: string };
+  "foo.removed": { id: string };
+};
 
 type FooListState = { foos: FooState[] };
 type FooListMethods = {
   getState: () => FooListState;
   foo: (lookup: FooMeta["query"]) => FooMethods;
   addFoo: () => void;
+};
+type FooListEvents = {
+  "fooList.added": { id: string };
 };
 
 declare module "@assistant-ui/store" {
@@ -22,17 +29,12 @@ declare module "@assistant-ui/store" {
       state: FooState;
       methods: FooMethods;
       meta: FooMeta;
-      events: {
-        "foo.updated": { id: string; newValue: string };
-        "foo.removed": { id: string };
-      };
+      events: FooEvents;
     };
     fooList: {
       state: FooListState;
       methods: FooListMethods;
-      events: {
-        "fooList.added": { id: string };
-      };
+      events: FooListEvents;
     };
   }
 }

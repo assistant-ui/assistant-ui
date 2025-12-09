@@ -3,6 +3,7 @@ import type {
   AssistantClient,
   ClientNames,
   ClientAccessor,
+  ClientMeta,
 } from "./types/client";
 
 /**
@@ -34,7 +35,5 @@ export namespace Derived {
    */
   export type Props<K extends ClientNames> = {
     get: (parent: AssistantClient) => ReturnType<ClientAccessor<K>>;
-    source: ClientAccessor<K>["source"];
-    query: ClientAccessor<K>["query"];
-  };
+  } & ClientMeta<K>;
 }
