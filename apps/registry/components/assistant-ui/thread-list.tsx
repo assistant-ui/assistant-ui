@@ -3,10 +3,16 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   AssistantIf,
+  ThreadListItemMorePrimitive,
   ThreadListItemPrimitive,
   ThreadListPrimitive,
 } from "@assistant-ui/react";
-import { ArchiveIcon, PlusIcon } from "lucide-react";
+import {
+  ArchiveIcon,
+  MoreHorizontalIcon,
+  PlusIcon,
+  TrashIcon,
+} from "lucide-react";
 import type { FC } from "react";
 
 export const ThreadList: FC = () => {
@@ -60,21 +66,41 @@ const ThreadListItem: FC = () => {
       <ThreadListItemPrimitive.Trigger className="aui-thread-list-item-trigger flex h-full flex-1 items-center truncate px-3 text-start text-sm">
         <ThreadListItemPrimitive.Title fallback="New Chat" />
       </ThreadListItemPrimitive.Trigger>
-      <ThreadListItemArchive />
+      <ThreadListItemMore />
     </ThreadListItemPrimitive.Root>
   );
 };
 
-const ThreadListItemArchive: FC = () => {
+const ThreadListItemMore: FC = () => {
   return (
-    <ThreadListItemPrimitive.Archive asChild>
-      <TooltipIconButton
-        variant="ghost"
-        tooltip="Archive thread"
-        className="aui-thread-list-item-archive mr-2 size-7 p-0 opacity-0 transition-opacity group-hover:opacity-100"
+    <ThreadListItemMorePrimitive.Root>
+      <ThreadListItemMorePrimitive.Trigger asChild>
+        <TooltipIconButton
+          variant="ghost"
+          tooltip="More options"
+          className="aui-thread-list-item-more mr-2 size-7 p-0 opacity-0 transition-opacity group-hover:opacity-100 data-[state=open]:bg-accent data-[state=open]:opacity-100"
+        >
+          <MoreHorizontalIcon className="size-4" />
+        </TooltipIconButton>
+      </ThreadListItemMorePrimitive.Trigger>
+      <ThreadListItemMorePrimitive.Content
+        side="bottom"
+        align="start"
+        className="aui-thread-list-item-more-content z-50 min-w-32 overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md"
       >
-        <ArchiveIcon className="size-4" />
-      </TooltipIconButton>
-    </ThreadListItemPrimitive.Archive>
+        <ThreadListItemPrimitive.Archive asChild>
+          <ThreadListItemMorePrimitive.Item className="aui-thread-list-item-more-item flex cursor-pointer select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground">
+            <ArchiveIcon className="size-4" />
+            Archive
+          </ThreadListItemMorePrimitive.Item>
+        </ThreadListItemPrimitive.Archive>
+        <ThreadListItemPrimitive.Delete asChild>
+          <ThreadListItemMorePrimitive.Item className="aui-thread-list-item-more-item flex cursor-pointer select-none items-center gap-2 rounded-sm px-2 py-1.5 text-destructive text-sm outline-none hover:bg-destructive/10 focus:bg-destructive/10">
+            <TrashIcon className="size-4" />
+            Delete
+          </ThreadListItemMorePrimitive.Item>
+        </ThreadListItemPrimitive.Delete>
+      </ThreadListItemMorePrimitive.Content>
+    </ThreadListItemMorePrimitive.Root>
   );
 };
