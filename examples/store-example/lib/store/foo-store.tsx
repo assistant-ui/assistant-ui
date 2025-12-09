@@ -92,7 +92,7 @@ export const FooProvider = ({
   const aui = useAssistantClient({
     foo: Derived({
       source: "fooList",
-      query: { index: index }, 
+      query: { index: index },
       get: (aui) => aui.fooList().foo({ index }),
     }),
   });

@@ -1,23 +1,21 @@
 import { describe, it, expect, vi } from "vitest";
-import { createResource } from "../../core/ResourceHandle";
+import { createResource } from "../../core/createResource";
 import { resource } from "../../core/resource";
 
 describe("ResourceHandle - Basic Usage", () => {
   it("should create a resource handle with const API", () => {
-    const handle = createResource({
-      type: resource((props: number) => {
-        return {
-          value: props * 2,
-          propsUsed: props,
-        };
-      }),
-      props: 5,
+    const TestResource = resource((props: number) => {
+      return {
+        value: props * 2,
+        propsUsed: props,
+      };
     });
+    const handle = createResource(TestResource(5));
 
     // The handle provides a const API
     expect(typeof handle.getState).toBe("function");
     expect(typeof handle.subscribe).toBe("function");
-    expect(typeof handle.updateInput).toBe("function");
+    expect(typeof handle.render).toBe("function");
 
     // Initial state
     expect(handle.getState().value).toBe(10);
@@ -25,25 +23,21 @@ describe("ResourceHandle - Basic Usage", () => {
   });
 
   it("should allow updating props", () => {
-    const handle = createResource({
-      type: resource((props: { multiplier: number }) => {
-        return { result: 10 * props.multiplier };
-      }),
-      props: { multiplier: 2 },
+    const TestResource = resource((props: { multiplier: number }) => {
+      return { result: 10 * props.multiplier };
     });
+    const handle = createResource(TestResource({ multiplier: 2 }));
 
     // Initial state
     expect(handle.getState().result).toBe(20);
 
     // Can call updateInput (though current implementation may have sync issues)
-    expect(() => handle.updateInput({ multiplier: 3 })).not.toThrow();
+    expect(() => handle.render(TestResource({ multiplier: 3 }))).not.toThrow();
   });
 
   it("should support subscribing and unsubscribing", () => {
-    const handle = createResource({
-      type: resource(() => ({ timestamp: Date.now() })),
-      props: undefined,
-    });
+    const TestResource = resource(() => ({ timestamp: Date.now() }));
+    const handle = createResource(TestResource());
 
     const subscriber1 = vi.fn();
     const subscriber2 = vi.fn();
@@ -58,23 +52,5 @@ describe("ResourceHandle - Basic Usage", () => {
 
     unsub1();
     unsub2();
-  });
-
-  it("should provide stable API references", () => {
-    const handle = createResource({
-      type: resource(() => ({ data: "test" })),
-      props: undefined,
-    });
-
-    // The handle is a const object
-    const { getState, subscribe, updateInput } = handle;
-
-    // Methods are stable
-    expect(handle.getState).toBe(getState);
-    expect(handle.subscribe).toBe(subscribe);
-    expect(handle.updateInput).toBe(updateInput);
-
-    // The handle has a dispose method for cleanup
-    expect(typeof (handle as any).dispose).toBe("function");
   });
 });

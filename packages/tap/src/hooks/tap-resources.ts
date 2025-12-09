@@ -17,14 +17,18 @@ export type TapResourcesRenderResult<R, K extends string | number | symbol> = {
   return: Record<K, R>;
 };
 
+type ExtractResourceOutput<T> =
+  T extends ResourceElement<infer R, any> ? R : never;
+
 export function tapResources<
   M extends Record<string | number | symbol, any>,
-  R,
+  E extends ResourceElement<any, any>,
 >(
   map: M,
-  getElement: (t: M[keyof M], key: keyof M) => ResourceElement<R>,
+  getElement: (t: M[keyof M], key: keyof M) => E,
   getElementDeps: any[],
-): { [K in keyof M]: R } {
+): { [K in keyof M]: ExtractResourceOutput<E> } {
+  type R = ExtractResourceOutput<E>;
   const [version, setVersion] = tapState(0);
   const rerender = tapCallback(() => setVersion((v) => v + 1), []);
 

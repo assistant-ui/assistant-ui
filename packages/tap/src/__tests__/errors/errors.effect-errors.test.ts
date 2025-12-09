@@ -3,8 +3,8 @@ import { tapEffect } from "../../hooks/tap-effect";
 import { tapState } from "../../hooks/tap-state";
 import { createTestResource, renderTest, unmountResource } from "../test-utils";
 import {
-  renderResource as renderResourceFiber,
-  commitResource,
+  renderResourceFiber,
+  commitResourceFiber,
 } from "../../core/ResourceFiber";
 
 describe("Errors - Effect Errors", () => {
@@ -39,14 +39,14 @@ describe("Errors - Effect Errors", () => {
 
     // First render and commit - establishes the effect
     const ctx1 = renderResourceFiber(resource, undefined);
-    commitResource(resource, ctx1);
+    commitResourceFiber(resource, ctx1);
 
     // Change dep to trigger cleanup on next render
     dep = 1;
 
     // Second render with different dep should trigger cleanup that throws
     const ctx2 = renderResourceFiber(resource, undefined);
-    expect(() => commitResource(resource, ctx2)).toThrow(error);
+    expect(() => commitResourceFiber(resource, ctx2)).toThrow(error);
   });
 
   it("should throw on invalid effect return value", () => {

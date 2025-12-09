@@ -58,8 +58,10 @@ describe("tapResources - Basic Functionality", () => {
   describe("Basic Rendering", () => {
     it("should render multiple resources with keys", () => {
       const testFiber = createTestResource(() => {
-        const results = tapResources({ a: 10, b: 20, c: 30 }, (value) =>
-          SimpleCounter({ value }),
+        const results = tapResources(
+          { a: 10, b: 20, c: 30 },
+          (value) => SimpleCounter({ value }),
+          [],
         );
 
         return results;
@@ -86,8 +88,10 @@ describe("tapResources - Basic Functionality", () => {
           third: { value: 15 },
         };
 
-        const results = tapResources(items, (item) =>
-          Counter({ value: item.value }),
+        const results = tapResources(
+          items,
+          (item) => Counter({ value: item.value }),
+          [],
         );
 
         return results;
@@ -106,8 +110,11 @@ describe("tapResources - Basic Functionality", () => {
     it("should maintain resource instances when keys remain the same", () => {
       const testFiber = createTestResource(
         (props: { items: Record<string, { value: number; id: string }> }) => {
-          return tapResources(props.items, (item) =>
-            TrackingCounter({ value: item.value, id: item.id }),
+          return tapResources(
+            props.items,
+            (item) => TrackingCounter({ value: item.value, id: item.id }),
+
+            [],
           );
         },
       );
@@ -152,8 +159,11 @@ describe("tapResources - Basic Functionality", () => {
     it("should handle adding and removing resources", () => {
       const testFiber = createTestResource(
         (props: { items: Record<string, number> }) => {
-          const results = tapResources(props.items, (value) =>
-            SimpleCounter({ value }),
+          const results = tapResources(
+            props.items,
+            (value) => SimpleCounter({ value }),
+
+            [],
           );
           return results;
         },
@@ -191,6 +201,7 @@ describe("tapResources - Basic Functionality", () => {
             useCounter
               ? StatefulCounter({ initial: 42 })
               : Display({ text: "Hello" }),
+          [],
         );
         return results;
       });

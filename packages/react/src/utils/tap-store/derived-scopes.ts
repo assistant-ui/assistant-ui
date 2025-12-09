@@ -92,7 +92,7 @@ export type DerivedScopesInput = {
  */
 export const DerivedScope = resource(
   <TSource extends string | null, TQuery, TApi>(
-    config: DerivedScopeConfig<TSource, TQuery, TApi>,
+    config: DerivedConfig<TSource, TQuery, TApi>,
   ): AssistantApiField<
     TApi,
     {
