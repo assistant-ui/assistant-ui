@@ -1,7 +1,7 @@
 "use client";
 import { getClientState } from "../tapClientResource";
 import type { AssistantClient, AssistantState } from "../types/client";
-import { BaseProxyHandler } from "./BaseProxyHandler";
+import { BaseProxyHandler, handleIntrospectionProp } from "./BaseProxyHandler";
 
 export const PROXIED_ASSISTANT_STATE_SYMBOL = Symbol(
   "assistant-ui.store.proxiedAssistantState",

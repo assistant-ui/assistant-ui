@@ -4,7 +4,7 @@ import {
   createProxiedAssistantState,
   PROXIED_ASSISTANT_STATE_SYMBOL,
 } from "./proxied-assistant-state";
-import { BaseProxyHandler } from "./BaseProxyHandler";
+import { BaseProxyHandler, handleIntrospectionProp } from "./BaseProxyHandler";
 
 const NO_OP_SUBSCRIBE = () => () => {};
 
@@ -28,7 +28,10 @@ class DefaultAssistantClientProxyHandler
     if (prop === "on") return NO_OP_SUBSCRIBE;
     if (prop === PROXIED_ASSISTANT_STATE_SYMBOL)
       return DefaultAssistantClientProxiedAssistantState;
-    const introspection = handleIntrospectionProp(prop, "DefaultAssistantClient");
+    const introspection = handleIntrospectionProp(
+      prop,
+      "DefaultAssistantClient",
+    );
     if (introspection !== false) return introspection;
     return createErrorClientField(
       `The current scope does not have a "${String(prop)}" property.`,

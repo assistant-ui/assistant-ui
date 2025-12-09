@@ -13,7 +13,10 @@ import {
   tapWithClientStack,
   SYMBOL_CLIENT_INDEX,
 } from "./utils/tap-client-stack-context";
-import { BaseProxyHandler } from "./utils/BaseProxyHandler";
+import {
+  BaseProxyHandler,
+  handleIntrospectionProp,
+} from "./utils/BaseProxyHandler";
 
 /**
  * Symbol used internally to get state from ClientProxy.
