@@ -15,7 +15,6 @@ import type {
   AssistantClientAccessor,
   ClientNames,
   ClientElement,
-  AssistantState,
 } from "./types/client";
 import { DerivedElement } from "./Derived";
 import { StoreResource } from "./utils/StoreResource";
@@ -37,8 +36,12 @@ import {
 } from "./types/events";
 import { EventManager } from "./utils/EventManager";
 import { withAssistantTapContextProvider } from "./utils/tap-assistant-context";
-import { ClientResource, getClientState } from "./utils/ClientResource";
+import { ClientResource } from "./utils/ClientResource";
 import { getClientIndex } from "./utils/tap-client-stack-context";
+import {
+  PROXIED_ASSISTANT_STATE_SYMBOL,
+  createProxiedAssistantState,
+} from "./utils/proxied-assistant-state";
 
 const RootClientResource = resource(
   <K extends ClientNames>({
@@ -50,10 +53,11 @@ const RootClientResource = resource(
     events: EventManager;
     clientRef: { parent: AssistantClient; current: AssistantClient | null };
   }) => {
-    const methods = withAssistantTapContextProvider({ clientRef, events }, () =>
-      tapInlineResource(ClientResource(element)),
+    const { methods, state } = withAssistantTapContextProvider(
+      { clientRef, events },
+      () => tapInlineResource(ClientResource(element)),
     );
-    return tapMemo(() => ({ methods }), [getClientState(methods)]);
+    return tapMemo(() => ({ methods }), [state]);
   },
 );
 
@@ -197,7 +201,7 @@ const DerivedClientAcessorResource = resource(
   },
 );
 
-const DerivedClientAccessorssResource = resource(
+const DerivedClientAccessorsResource = resource(
   ({
     clients,
     clientRef,
@@ -222,38 +226,8 @@ export const useDerivedClients = (
   clientRef: { parent: AssistantClient; current: AssistantClient | null },
 ) => {
   return useResource(
-    DerivedClientAccessorssResource({ clients: derivedClients, clientRef }),
+    DerivedClientAccessorsResource({ clients: derivedClients, clientRef }),
   );
-};
-
-export const PROXIED_ASSISTANT_STATE_SYMBOL = Symbol(
-  "assistant-ui.store.proxiedAssistantState",
-);
-
-/**
- * Proxied state that lazily accesses scope states
- */
-export const createProxiedAssistantState = (
-  client: AssistantClient,
-): AssistantState => {
-  return new Proxy({} as AssistantState, {
-    get(_, prop) {
-      const scope = prop as keyof AssistantClient;
-      if (scope === "on") return undefined;
-      if (scope === "subscribe") return undefined;
-
-      const scopeField = client[scope]();
-      return getClientState(scopeField);
-    },
-  });
-};
-
-export const getProxiedAssistantState = (
-  client: AssistantClient,
-): AssistantState => {
-  return (
-    client as unknown as { [PROXIED_ASSISTANT_STATE_SYMBOL]: AssistantState }
-  )[PROXIED_ASSISTANT_STATE_SYMBOL];
 };
 
 const useExtendedAssistantClientImpl = (
@@ -281,7 +255,7 @@ const useExtendedAssistantClientImpl = (
     return client;
   }, [baseClient, rootFields, derivedFields]);
 
-  if (clientRef.current === baseClient) {
+  if (clientRef.current === null) {
     clientRef.current = client;
   }
   useEffect(() => {

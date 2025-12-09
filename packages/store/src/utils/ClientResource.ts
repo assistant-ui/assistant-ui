@@ -113,7 +113,7 @@ class ClientProxyHandler implements ProxyHandler<object> {
 export const ClientResource = resource(
   <TState, TMethods extends ClientMethods>(
     element: ResourceElement<ClientOutputOf<TState, TMethods>>,
-  ): TMethods => {
+  ): ClientOutputOf<TState, TMethods> => {
     const valueRef = tapRef(
       null as unknown as ClientOutputOf<TState, TMethods>,
     );
@@ -137,6 +137,6 @@ export const ClientResource = resource(
       valueRef.current = value;
     });
 
-    return methods;
+    return { methods, state: value.state };
   },
 );

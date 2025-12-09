@@ -1,5 +1,9 @@
 import React, { createContext, useContext } from "react";
 import type { AssistantClient, AssistantClientAccessor } from "../types/client";
+import {
+  createProxiedAssistantState,
+  PROXIED_ASSISTANT_STATE_SYMBOL,
+} from "./proxied-assistant-state";
 
 const NO_OP_SUBSCRIBE = () => () => {};
 
@@ -16,22 +20,26 @@ const createErrorClientField = (
 
 /** Default context value - throws "wrap in AssistantProvider" error */
 export const OuterClient: AssistantClient = new Proxy({} as AssistantClient, {
-  get(_, prop: string) {
+  get(_, prop: string | symbol) {
     if (prop === "subscribe") return NO_OP_SUBSCRIBE;
     if (prop === "on") return NO_OP_SUBSCRIBE;
+    if (prop === PROXIED_ASSISTANT_STATE_SYMBOL)
+      return OuterClientProxiedAssistantState;
     return createErrorClientField(
       "You need to wrap this component/hook in <AssistantProvider>",
     );
   },
 });
+const OuterClientProxiedAssistantState =
+  createProxiedAssistantState(OuterClient);
 
 /** Root prototype for created clients - throws "scope not defined" error */
 export const InnerClient: AssistantClient = new Proxy({} as AssistantClient, {
-  get(_, prop: string) {
+  get(_, prop: string | symbol) {
     if (prop === "subscribe") return NO_OP_SUBSCRIBE;
     if (prop === "on") return NO_OP_SUBSCRIBE;
     return createErrorClientField(
-      `The current scope does not have a "${prop}" property.`,
+      `The current scope does not have a "${String(prop)}" property.`,
     );
   },
 });

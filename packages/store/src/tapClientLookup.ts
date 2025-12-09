@@ -1,6 +1,6 @@
 import { ResourceElement, tapMemo, tapResources } from "@assistant-ui/tap";
 import type { ClientMethods, ClientOutputOf } from "./types/client";
-import { ClientResource, getClientState } from "./utils/ClientResource";
+import { ClientResource } from "./utils/ClientResource";
 
 export const tapClientLookup = <
   TState,
@@ -27,7 +27,7 @@ export const tapClientLookup = <
   const state = tapMemo(() => {
     const result = new Array(keys.length);
     for (let i = 0; i < keys.length; i++) {
-      result[i] = getClientState(resources[keys[i]!]);
+      result[i] = resources[keys[i]!].state;
     }
     return result;
   }, [keys, resources]);
@@ -46,7 +46,7 @@ export const tapClientLookup = <
         );
       }
 
-      return value;
+      return value.methods;
     },
   };
 };
