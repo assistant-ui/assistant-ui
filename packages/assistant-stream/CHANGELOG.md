@@ -1,5 +1,12 @@
 # assistant-stream
 
+## 0.2.44
+
+### Patch Changes
+
+- 89aec17: feat: AI SDK frontend tool execution cancellation support
+  fix: AI SDK isRunning status when running frontend tools
+
 ## 0.2.43
 
 ### Patch Changes
