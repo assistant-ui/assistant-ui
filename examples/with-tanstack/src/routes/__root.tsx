@@ -30,7 +30,10 @@ export const Route = createRootRoute({
 function RootDocument({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <HeadContent />
+      {/* biome-ignore lint/style/noHeadElement: TanStack Start uses standard HTML head */}
+      <head>
+        <HeadContent />
+      </head>
       <body className="bg-background text-foreground">
         {children}
         <Scripts />
