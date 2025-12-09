@@ -9,12 +9,17 @@ import type {
   AssistantEventPayload,
 } from "../types/events";
 import type { AssistantClient } from "../types/client";
-import { tapClientStack } from "./tap-client-stack-context";
-import { EventManager } from "./EventManager";
+import { tapClientStack, type ClientStack } from "./tap-client-stack-context";
+
+type EmitFn = <TEvent extends Exclude<AssistantEventName, "*">>(
+  event: TEvent,
+  payload: AssistantEventPayload[TEvent],
+  clientStack: ClientStack,
+) => void;
 
 export type AssistantTapContextValue = {
   clientRef: { parent: AssistantClient; current: AssistantClient | null };
-  events: EventManager;
+  emit: EmitFn;
 };
 
 const AssistantTapContext = createContext<AssistantTapContextValue | null>(
@@ -40,7 +45,7 @@ export const tapAssistantClientRef = () => {
 };
 
 export const tapAssistantEmit = () => {
-  const { events } = tapAssistantTapContext();
+  const { emit } = tapAssistantTapContext();
   const clientStack = tapClientStack();
 
   return tapEffectEvent(
@@ -48,7 +53,7 @@ export const tapAssistantEmit = () => {
       event: TEvent,
       payload: AssistantEventPayload[TEvent],
     ) => {
-      events.emit(event, payload, clientStack);
+      emit(event, payload, clientStack);
     },
   );
 };

@@ -6,9 +6,9 @@ import type {
 } from "../types/events";
 import { Unsubscribe } from "../types/client";
 
-// --- Event Manager Type ---
+type InternalCallback = (payload: unknown, clientStack: ClientStack) => void;
 
-export type EventManager = {
+export type NotificationManager = {
   on<TEvent extends AssistantEventName>(
     event: TEvent,
     callback: (
@@ -21,17 +21,17 @@ export type EventManager = {
     payload: AssistantEventPayload[TEvent],
     clientStack: ClientStack,
   ): void;
+  subscribe(callback: () => void): Unsubscribe;
+  notifySubscribers(): void;
 };
 
-type InternalCallback = (payload: unknown, clientStack: ClientStack) => void;
-
-export const EventManager = resource(() => {
+export const NotificationManager = resource((): NotificationManager => {
   return tapMemo(() => {
     const listeners = new Map<string, Set<InternalCallback>>();
     const wildcardListeners = new Set<InternalCallback>();
     const subscribers = new Set<() => void>();
 
-    const events: EventManager = {
+    return {
       on(event, callback) {
         const cb = callback as InternalCallback;
         if (event === "*") {
@@ -66,15 +66,13 @@ export const EventManager = resource(() => {
           }
         });
       },
-    };
 
-    return {
-      events,
-      subscribe: (callback: () => void) => {
+      subscribe(callback) {
         subscribers.add(callback);
         return () => subscribers.delete(callback);
       },
-      notifySubscribers: () => {
+
+      notifySubscribers() {
         for (const cb of subscribers) cb();
       },
     };

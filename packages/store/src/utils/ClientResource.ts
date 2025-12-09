@@ -25,7 +25,7 @@ type ClientInternal = {
 };
 
 export const getClientState = (client: ClientMethods) => {
-  return (client as ClientInternal)[SYMBOL_GET_OUTPUT]?.state;
+  return (client as unknown as ClientInternal)[SYMBOL_GET_OUTPUT]?.state;
 };
 
 // Global cache for function templates by field name
@@ -34,17 +34,18 @@ const fieldAccessFns = new Map<
   (this: ClientInternal, ...args: unknown[]) => unknown
 >();
 
-function getOrCreateProxyFn(prop: string) {
+function getOrCreateProxyFn(prop: string | symbol) {
   let template = fieldAccessFns.get(prop);
   if (!template) {
     template = function (this: ClientInternal | undefined, ...args: unknown[]) {
       if (!this)
         throw new Error(
-          `Destructuring the client method "${prop}" is not supported.`,
+          `Destructuring the client method "${String(prop)}" is not supported.`,
         );
 
       const method = this[SYMBOL_GET_OUTPUT].methods[prop];
-      if (!method) throw new Error(`Method "${prop}" is not implemented.`);
+      if (!method)
+        throw new Error(`Method "${String(prop)}" is not implemented.`);
       return method(...args);
     };
     fieldAccessFns.set(prop, template);
@@ -68,7 +69,6 @@ class ClientProxyHandler
   get(_: unknown, prop: string | symbol) {
     if (prop === SYMBOL_GET_OUTPUT) return this.outputRef.current;
     if (prop === SYMBOL_CLIENT_INDEX) return this.index;
-    if (typeof prop !== "string") return undefined;
     return getOrCreateProxyFn(prop);
   }
 

@@ -9,7 +9,7 @@ import type {
  * Base type for methods that can be called on a client.
  */
 export interface ClientMethods {
-  [key: string]: (...args: any[]) => any;
+  [key: string | symbol]: (...args: any[]) => any;
 }
 
 type ClientMetaType = { source: ClientNames; query: Record<string, unknown> };

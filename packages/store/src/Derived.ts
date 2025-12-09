@@ -12,11 +12,11 @@ import type {
  *
  * @example
  * ```typescript
- * const client = useAssistantClient({
+ * const aui = useAssistantClient({
  *   message: Derived({
  *     source: "thread",
  *     query: { index: 0 },
- *     get: (client) => client.thread().message({ index: 0 }),
+ *     get: (aui) => aui.thread().message({ index: 0 }),
  *   }),
  * });
  * ```

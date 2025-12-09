@@ -23,14 +23,14 @@ const CounterClient = resource((): ClientOutput<"counter"> => {
 
 // 3. Use in React
 function App() {
-  const client = useAssistantClient({ counter: CounterClient() });
-  return <AssistantProvider client={client}><Counter /></AssistantProvider>;
+  const aui = useAssistantClient({ counter: CounterClient() });
+  return <AssistantProvider client={aui}><Counter /></AssistantProvider>;
 }
 
 function Counter() {
   const count = useAssistantState(({ counter }) => counter.count);
-  const client = useAssistantClient();
-  return <button onClick={() => client.counter().increment()}>{count}</button>;
+  const aui = useAssistantClient();
+  return <button onClick={() => aui.counter().increment()}>{count}</button>;
 }
 ```
 
@@ -53,7 +53,7 @@ declare module "@assistant-ui/store" {
 **Derived Clients**: Access nested clients from parents.
 ```typescript
 useAssistantClient({
-  item: Derived({ source: "list", query: { index: 0 }, get: (c) => c.list().item({ index: 0 }) }),
+  item: Derived({ source: "list", query: { index: 0 }, get: (aui) => aui.list().item({ index: 0 }) }),
 });
 ```
 

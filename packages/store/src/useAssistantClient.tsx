@@ -35,7 +35,7 @@ import {
   type AssistantEventCallback,
   type AssistantEventSelector,
 } from "./types/events";
-import { EventManager } from "./utils/EventManager";
+import { NotificationManager } from "./utils/NotificationManager";
 import { withAssistantTapContextProvider } from "./utils/tap-assistant-context";
 import { ClientResource } from "./utils/ClientResource";
 import { getClientIndex } from "./utils/tap-client-stack-context";
@@ -47,15 +47,15 @@ import {
 const RootClientResource = resource(
   <K extends ClientNames>({
     element,
-    events,
+    emit,
     clientRef,
   }: {
     element: ClientElement<K>;
-    events: EventManager;
+    emit: NotificationManager["emit"];
     clientRef: { parent: AssistantClient; current: AssistantClient | null };
   }) => {
     const { methods, state } = withAssistantTapContextProvider(
-      { clientRef, events },
+      { clientRef, emit },
       () => tapInlineResource(ClientResource(element)),
     );
     return tapMemo(() => ({ methods }), [state]);
@@ -65,22 +65,22 @@ const RootClientResource = resource(
 const RootClientAccessorResource = resource(
   <K extends ClientNames>({
     element,
-    events,
+    notifications,
     clientRef,
-    notifySubscribers,
   }: {
     element: ClientElement<K>;
-    events: EventManager;
+    notifications: NotificationManager;
     clientRef: { parent: AssistantClient; current: AssistantClient | null };
-    notifySubscribers: () => void;
   }): AssistantClientAccessor<K> => {
     const store = tapInlineResource(
-      StoreResource(RootClientResource({ element, events, clientRef })),
+      StoreResource(
+        RootClientResource({ element, emit: notifications.emit, clientRef }),
+      ),
     );
 
     tapEffect(() => {
-      return store.subscribe(notifySubscribers);
-    }, [store, notifySubscribers]);
+      return store.subscribe(notifications.notifySubscribers);
+    }, [store, notifications]);
 
     return tapMemo(() => {
       const clientFunction = () => store.getState().methods;
@@ -106,13 +106,11 @@ const RootClientAcessorsResource = resource(
     clients: RootClients;
     clientRef: { parent: AssistantClient; current: AssistantClient | null };
   }) => {
-    const { subscribe, notifySubscribers, events } = tapInlineResource(
-      EventManager(),
-    );
+    const notifications = tapInlineResource(NotificationManager());
 
     tapEffect(
-      () => clientRef.parent.subscribe(notifySubscribers),
-      [clientRef, notifySubscribers],
+      () => clientRef.parent.subscribe(notifications.notifySubscribers),
+      [clientRef, notifications],
     );
 
     const results = tapResources(
@@ -120,17 +118,16 @@ const RootClientAcessorsResource = resource(
       (element) =>
         RootClientAccessorResource({
           element: element!,
-          events,
+          notifications,
           clientRef,
-          notifySubscribers,
         }),
-      [events, clientRef, notifySubscribers],
+      [notifications, clientRef],
     );
 
     return tapMemo(() => {
       return {
         clients: results,
-        subscribe,
+        subscribe: notifications.subscribe,
         on: function <TEvent extends AssistantEventName>(
           this: AssistantClient,
           selector: AssistantEventSelector<TEvent>,
@@ -144,7 +141,7 @@ const RootClientAcessorsResource = resource(
 
           const { scope, event } = normalizeEventSelector(selector);
 
-          const localUnsub = events.on(event, (payload, clientStack) => {
+          const localUnsub = notifications.on(event, (payload, clientStack) => {
             if (scope === "*") {
               callback(payload);
               return;
@@ -167,7 +164,7 @@ const RootClientAcessorsResource = resource(
           };
         },
       };
-    }, [results, events, clientRef]);
+    }, [results, notifications, clientRef]);
   },
 );
 

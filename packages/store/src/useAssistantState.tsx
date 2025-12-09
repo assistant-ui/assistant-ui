@@ -11,7 +11,7 @@ import { getProxiedAssistantState } from "./utils/proxied-assistant-state";
  *
  * @example
  * ```typescript
- * const client = useAssistantClient({
+ * const aui = useAssistantClient({
  *   foo: RootScope({ ... }),
  * });
  *
@@ -21,11 +21,11 @@ import { getProxiedAssistantState } from "./utils/proxied-assistant-state";
 export const useAssistantState = <T,>(
   selector: (state: AssistantState) => T,
 ): T => {
-  const client = useAssistantClient();
-  const proxiedState = getProxiedAssistantState(client);
+  const aui = useAssistantClient();
+  const proxiedState = getProxiedAssistantState(aui);
 
   const slice = useSyncExternalStore(
-    client.subscribe,
+    aui.subscribe,
     () => selector(proxiedState),
     () => selector(proxiedState),
   );
