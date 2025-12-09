@@ -13,7 +13,7 @@ import { tapClientStack } from "./tap-client-stack-context";
 import { EventManager } from "./EventManager";
 
 export type AssistantTapContextValue = {
-  client: AssistantClient;
+  clientRef: { parent: AssistantClient; current: AssistantClient | null };
   events: EventManager;
 };
 
@@ -35,8 +35,8 @@ const tapAssistantTapContext = () => {
   return ctx;
 };
 
-export const tapAssistantClient = () => {
-  return tapAssistantTapContext().client;
+export const tapAssistantClientRef = () => {
+  return tapAssistantTapContext().clientRef;
 };
 
 export const tapAssistantEmit = () => {

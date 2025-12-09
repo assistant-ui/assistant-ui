@@ -23,7 +23,7 @@ export function tapResources<
 >(
   map: M,
   getElement: (t: M[keyof M], key: keyof M) => ResourceElement<R>,
-  getElementDeps?: any[],
+  getElementDeps: any[],
 ): { [K in keyof M]: R } {
   const [version, setVersion] = tapState(0);
   const rerender = tapCallback(() => setVersion((v) => v + 1), []);
@@ -31,11 +31,10 @@ export function tapResources<
   type K = keyof M;
   const [fibers] = tapState(() => new Map<K, ResourceFiber<R, any>>());
 
-  const getElementMemo = getElementDeps
-    ? tapMemo(() => getElement, getElementDeps)
-    : getElement;
+  const getElementMemo = tapMemo(() => getElement, getElementDeps);
 
   // Process each element
+
   const results = tapMemo(() => {
     const results: TapResourcesRenderResult<R, K> = {
       remove: [],

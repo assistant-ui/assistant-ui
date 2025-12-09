@@ -1,4 +1,4 @@
-import { tapMemo, tapState } from "@assistant-ui/tap";
+import { tapState } from "@assistant-ui/tap";
 import type { ContravariantResource } from "@assistant-ui/tap";
 import { tapClientLookup } from "./tapClientLookup";
 import type { ClientMethods, ClientOutputOf } from "./types/client";
@@ -58,28 +58,25 @@ export const tapClientList = <TData, TState, TMethods extends ClientMethods>(
     [Resource],
   );
 
-  const add = tapMemo(
-    () => (data: TData) => {
-      const key = getKey(data);
-      setItems((items) => {
-        if (key in items) {
-          throw new Error("Tried to add item with a keythat already exists");
-        }
+  const add = (data: TData) => {
+    const key = getKey(data);
+    setItems((items) => {
+      if (key in items) {
+        throw new Error("Tried to add item with a keythat already exists");
+      }
 
-        return {
-          ...items,
-          [key]: createProps(key, data, () => {
-            setItems((items) => {
-              const newItems = { ...items };
-              delete newItems[key];
-              return newItems;
-            });
-          }),
-        };
-      });
-    },
-    [getKey],
-  );
+      return {
+        ...items,
+        [key]: createProps(key, data, () => {
+          setItems((items) => {
+            const newItems = { ...items };
+            delete newItems[key];
+            return newItems;
+          });
+        }),
+      };
+    });
+  };
 
   return {
     state: lookup.state,

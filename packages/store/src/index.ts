@@ -12,7 +12,7 @@ export { Derived } from "./Derived";
 
 // tap hooks
 export {
-  tapAssistantClient,
+  tapAssistantClientRef,
   tapAssistantEmit,
 } from "./utils/tap-assistant-context";
 export { tapClientLookup } from "./tapClientLookup";

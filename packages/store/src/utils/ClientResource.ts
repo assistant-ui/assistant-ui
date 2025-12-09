@@ -19,36 +19,31 @@ import {
  */
 const SYMBOL_GET_OUTPUT = Symbol("assistant-ui.store.getValue");
 
-export const getClientState = <TState>(client: ClientMethods): TState => {
-  return (
-    client as unknown as {
-      [SYMBOL_GET_OUTPUT]: () => ClientOutputOf<TState, ClientMethods>;
-    }
-  )[SYMBOL_GET_OUTPUT]!().state;
+type ClientInternal = {
+  [SYMBOL_GET_OUTPUT]: ClientOutputOf<unknown, ClientMethods>;
+};
+
+export const getClientState = (client: ClientMethods) => {
+  return (client as ClientInternal)[SYMBOL_GET_OUTPUT].state;
 };
 
 // Global cache for function templates by field name
 const fieldAccessFns = new Map<
   string | symbol,
-  (
-    this: {
-      [SYMBOL_GET_OUTPUT]: () => ClientOutputOf<unknown, ClientMethods>;
-    },
-    ...args: unknown[]
-  ) => unknown
+  (this: ClientInternal, ...args: unknown[]) => unknown
 >();
 
 function getOrCreateProxyFn(prop: string) {
   let template = fieldAccessFns.get(prop);
   if (!template) {
-    template = function (
-      this: {
-        [SYMBOL_GET_OUTPUT]: () => ClientOutputOf<unknown, ClientMethods>;
-      },
-      ...args: unknown[]
-    ) {
-      const method = this[SYMBOL_GET_OUTPUT]().methods[prop];
-      if (!method) throw new Error(`Method ${prop} not found`);
+    template = function (this: ClientInternal | undefined, ...args: unknown[]) {
+      if (!this)
+        throw new Error(
+          `Destructuring the client method "${prop}" is not supported.`,
+        );
+
+      const method = this[SYMBOL_GET_OUTPUT].methods[prop];
+      if (!method) throw new Error(`Method "${prop}" is not implemented.`);
       return method(...args);
     };
     fieldAccessFns.set(prop, template);
@@ -56,29 +51,29 @@ function getOrCreateProxyFn(prop: string) {
   return template;
 }
 
-class ClientProxyHandler<TMethods extends ClientMethods>
-  implements ProxyHandler<TMethods>
-{
+class ClientProxyHandler implements ProxyHandler<object> {
   constructor(
-    private readonly getOutput: () => ClientOutputOf<unknown, TMethods>,
+    private readonly outputRef: {
+      current: ClientOutputOf<unknown, ClientMethods>;
+    },
     private readonly index: number,
   ) {}
 
   get(_: unknown, prop: string | symbol) {
-    if (prop === SYMBOL_GET_OUTPUT) return this.getOutput;
+    if (prop === SYMBOL_GET_OUTPUT) return this.outputRef.current;
     if (prop === SYMBOL_CLIENT_INDEX) return this.index;
     if (typeof prop !== "string") return undefined;
     return getOrCreateProxyFn(prop);
   }
 
   ownKeys(): ArrayLike<string | symbol> {
-    return Object.keys(this.getOutput().methods);
+    return Object.keys(this.outputRef.current.methods);
   }
 
   has(_: unknown, prop: string | symbol) {
     if (prop === SYMBOL_GET_OUTPUT) return true;
     if (prop === SYMBOL_CLIENT_INDEX) return true;
-    return prop in this.getOutput().methods;
+    return prop in this.outputRef.current.methods;
   }
 
   getOwnPropertyDescriptor(_: unknown, prop: string | symbol) {
@@ -118,15 +113,17 @@ class ClientProxyHandler<TMethods extends ClientMethods>
 export const ClientResource = resource(
   <TState, TMethods extends ClientMethods>(
     element: ResourceElement<ClientOutputOf<TState, TMethods>>,
-  ): { methods: TMethods } => {
-    const valueRef = tapRef<ClientOutputOf<TState, TMethods>>();
+  ): TMethods => {
+    const valueRef = tapRef(
+      null as unknown as ClientOutputOf<TState, TMethods>,
+    );
 
     const index = tapClientStack().length;
     const methods = tapMemo(
       () =>
         new Proxy<TMethods>(
           {} as TMethods,
-          new ClientProxyHandler<TMethods>(() => valueRef.current!, index),
+          new ClientProxyHandler(valueRef, index),
         ),
       [],
     );
@@ -140,6 +137,6 @@ export const ClientResource = resource(
       valueRef.current = value;
     });
 
-    return tapMemo(() => ({ methods }), [value.state]);
+    return methods;
   },
 );

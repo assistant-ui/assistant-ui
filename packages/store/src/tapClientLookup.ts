@@ -12,7 +12,7 @@ export const tapClientLookup = <
     t: M[keyof M],
     key: keyof M,
   ) => ResourceElement<ClientOutputOf<TState, TMethods>>,
-  getElementDeps?: any[],
+  getElementDeps: any[],
 ): {
   state: TState[];
   get: (lookup: { index: number } | { key: keyof M }) => TMethods;
@@ -27,7 +27,7 @@ export const tapClientLookup = <
   const state = tapMemo(() => {
     const result = new Array(keys.length);
     for (let i = 0; i < keys.length; i++) {
-      result[i] = getClientState(resources[keys[i]!].methods);
+      result[i] = getClientState(resources[keys[i]!]);
     }
     return result;
   }, [keys, resources]);
@@ -37,8 +37,8 @@ export const tapClientLookup = <
     get: (lookup: { index: number } | { key: keyof M }) => {
       const value =
         "index" in lookup
-          ? resources[keys[lookup.index]!]?.methods
-          : resources[lookup.key]?.methods;
+          ? resources[keys[lookup.index]!]
+          : resources[lookup.key];
 
       if (!value) {
         throw new Error(
