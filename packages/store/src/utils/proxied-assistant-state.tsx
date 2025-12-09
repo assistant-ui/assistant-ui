@@ -1,26 +1,45 @@
 "use client";
 import { getClientState } from "./ClientResource";
 import type { AssistantClient, AssistantState } from "../types/client";
+import { BaseProxyHandler } from "./BaseProxyHandler";
 
 export const PROXIED_ASSISTANT_STATE_SYMBOL = Symbol(
   "assistant-ui.store.proxiedAssistantState",
 );
+
+const isIgnoredKey = (key: string | symbol): key is "on" | "subscribe" => {
+  return key === "on" || key === "subscribe" || typeof key === "symbol";
+};
+
 /**
  * Proxied state that lazily accesses scope states
  */
-
 export const createProxiedAssistantState = (
   client: AssistantClient,
 ): AssistantState => {
-  return new Proxy({} as AssistantState, {
-    get(_, prop) {
+  class ProxiedAssistantStateProxyHandler
+    extends BaseProxyHandler
+    implements ProxyHandler<AssistantState>
+  {
+    get(_: unknown, prop: string | symbol) {
       const scope = prop as keyof AssistantClient;
-      if (scope === "on") return undefined;
-      if (scope === "subscribe") return undefined;
-
+      if (isIgnoredKey(scope)) return undefined;
       return getClientState(client[scope]());
-    },
-  });
+    }
+
+    ownKeys(): ArrayLike<string | symbol> {
+      return Object.keys(client).filter((key) => !isIgnoredKey(key));
+    }
+
+    has(_: unknown, prop: string | symbol): boolean {
+      return !isIgnoredKey(prop) && prop in client;
+    }
+  }
+
+  return new Proxy<AssistantState>(
+    {} as AssistantState,
+    new ProxiedAssistantStateProxyHandler(),
+  );
 };
 
 export const getProxiedAssistantState = (

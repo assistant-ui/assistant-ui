@@ -80,7 +80,7 @@ const RootClientAccessorResource = resource(
 
     tapEffect(() => {
       return store.subscribe(notifySubscribers);
-    }, [store, events]);
+    }, [store, notifySubscribers]);
 
     return tapMemo(() => {
       const clientFunction = () => store.getState().methods;
@@ -200,7 +200,7 @@ const getMeta = <K extends ClientNames>(
   return meta;
 };
 
-const DerivedClientAcessorResource = resource(
+const DerivedClientAccessorResource = resource(
   <K extends ClientNames>({
     element,
     clientRef,
@@ -237,7 +237,7 @@ const DerivedClientAccessorsResource = resource(
     return tapResources(
       clients,
       (element) =>
-        DerivedClientAcessorResource({
+        DerivedClientAccessorResource({
           element: element!,
           clientRef,
         }),

@@ -12,6 +12,7 @@ import {
   tapWithClientStack,
   SYMBOL_CLIENT_INDEX,
 } from "./tap-client-stack-context";
+import { BaseProxyHandler } from "./BaseProxyHandler";
 
 /**
  * Symbol used internally to get state from ClientProxy.
@@ -24,7 +25,7 @@ type ClientInternal = {
 };
 
 export const getClientState = (client: ClientMethods) => {
-  return (client as ClientInternal)[SYMBOL_GET_OUTPUT].state;
+  return (client as ClientInternal)[SYMBOL_GET_OUTPUT]?.state;
 };
 
 // Global cache for function templates by field name
@@ -51,13 +52,18 @@ function getOrCreateProxyFn(prop: string) {
   return template;
 }
 
-class ClientProxyHandler implements ProxyHandler<object> {
+class ClientProxyHandler
+  extends BaseProxyHandler
+  implements ProxyHandler<object>
+{
   constructor(
     private readonly outputRef: {
       current: ClientOutputOf<unknown, ClientMethods>;
     },
     private readonly index: number,
-  ) {}
+  ) {
+    super();
+  }
 
   get(_: unknown, prop: string | symbol) {
     if (prop === SYMBOL_GET_OUTPUT) return this.outputRef.current;
@@ -74,33 +80,6 @@ class ClientProxyHandler implements ProxyHandler<object> {
     if (prop === SYMBOL_GET_OUTPUT) return true;
     if (prop === SYMBOL_CLIENT_INDEX) return true;
     return prop in this.outputRef.current.methods;
-  }
-
-  getOwnPropertyDescriptor(_: unknown, prop: string | symbol) {
-    const value = this.get(_, prop);
-    if (value === undefined) return undefined;
-    return {
-      value,
-      writable: false,
-      enumerable: false,
-      configurable: false,
-    };
-  }
-
-  set() {
-    return false;
-  }
-  setPrototypeOf() {
-    return false;
-  }
-  defineProperty() {
-    return false;
-  }
-  deleteProperty() {
-    return false;
-  }
-  isExtensible() {
-    return false;
   }
 }
 

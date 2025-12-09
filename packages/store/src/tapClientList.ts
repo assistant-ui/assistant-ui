@@ -62,7 +62,9 @@ export const tapClientList = <TData, TState, TMethods extends ClientMethods>(
     const key = getKey(data);
     setItems((items) => {
       if (key in items) {
-        throw new Error("Tried to add item with a keythat already exists");
+        throw new Error(
+          `Tried to add item with a key ${key} that already exists`,
+        );
       }
 
       return {

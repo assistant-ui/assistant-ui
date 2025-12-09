@@ -5,6 +5,7 @@ import type {
   AssistantEventCallback,
   AssistantEventSelector,
 } from "./types/events";
+import { normalizeEventSelector } from "./types/events";
 
 export const useAssistantEvent = <TEvent extends AssistantEventName>(
   selector: AssistantEventSelector<TEvent>,
@@ -13,8 +14,9 @@ export const useAssistantEvent = <TEvent extends AssistantEventName>(
   const client = useAssistantClient();
   const callbackRef = useEffectEvent(callback);
 
+  const { scope, event } = normalizeEventSelector(selector);
   useEffect(
-    () => client.on(selector, callbackRef),
-    [client, JSON.stringify(selector)],
+    () => client.on({ scope, event }, callbackRef),
+    [client, scope, event],
   );
 };
