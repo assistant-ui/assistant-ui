@@ -37,5 +37,5 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Check registry components are in sync
-        run: bash scripts/check-registry-sync.sh
+        run: make check-registry
 

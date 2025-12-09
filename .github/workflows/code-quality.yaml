@@ -46,10 +46,10 @@ jobs:
           cache: "pnpm"
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: make ci-install
 
       - name: Run Biome
-        run: pnpm lint
+        run: make ci-lint
 
   build:
     name: Build Changed Packages
@@ -80,7 +80,7 @@ jobs:
             ${{ runner.os }}-turbo-
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: make ci-install
 
       - name: Build packages
         run: |
@@ -122,7 +122,7 @@ jobs:
             ${{ runner.os }}-turbo-
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: make ci-install
 
       - name: Run tests
         run: |

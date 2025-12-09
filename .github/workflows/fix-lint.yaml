@@ -116,11 +116,11 @@ jobs:
 
       - name: Install dependencies
         if: fromJson(steps.check-permission.outputs.result).authorized == true
-        run: pnpm install --frozen-lockfile
+        run: make ci-install
 
       - name: Run Biome fix
         if: fromJson(steps.check-permission.outputs.result).authorized == true
-        run: pnpm biome:fix
+        run: make fix
 
       - name: Commit changes
         if: fromJson(steps.check-permission.outputs.result).authorized == true

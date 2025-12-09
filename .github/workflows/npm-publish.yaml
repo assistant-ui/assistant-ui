@@ -34,12 +34,12 @@ jobs:
           registry-url: "https://registry.npmjs.org"
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: make ci-install
 
       - name: Build packages
-        run: pnpm build
+        run: make ci-build
 
       - name: Publish to npm
-        run: pnpm ci:publish
+        run: pnpm changeset publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

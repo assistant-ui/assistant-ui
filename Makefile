@@ -1,7 +1,7 @@
 # assistant-ui Makefile
 # Simplify common development tasks
 
-.PHONY: help install build build-packages clean clean-all pristine pristine-force dev docs test lint format fix changeset sync-registry check-registry ci-version ci-publish
+.PHONY: help install build build-packages clean clean-all pristine pristine-force dev docs test lint format fix changeset sync-registry check-registry ci-install ci-lint ci-build ci-test ci-version ci-publish
 
 # Default target - show help
 help:
@@ -37,8 +37,14 @@ help:
 	@echo ""
 	@echo "Release:"
 	@echo "  make changeset        Create a new changeset"
-	@echo "  make ci-version       Version packages (CI only)"
-	@echo "  make ci-publish       Publish packages (CI only)"
+	@echo ""
+	@echo "CI (for GitHub Actions):"
+	@echo "  make ci-install       Install with frozen lockfile"
+	@echo "  make ci-lint          Run linter (non-fix mode)"
+	@echo "  make ci-build         Build all packages"
+	@echo "  make ci-test          Run all tests"
+	@echo "  make ci-version       Version packages"
+	@echo "  make ci-publish       Publish packages to npm"
 	@echo ""
 	@echo "Package-specific:"
 	@echo "  make build-PKG        Build specific package (e.g., make build-react)"
@@ -178,6 +184,28 @@ test-%:
 # Dev specific app: make dev-docs, make dev-registry, etc.
 dev-%:
 	pnpm turbo dev --filter="./apps/$*"
+
+# =============================================================================
+# CI Targets (for GitHub Actions)
+# =============================================================================
+
+.PHONY: ci-install ci-lint ci-build ci-test
+
+# CI install with frozen lockfile
+ci-install:
+	pnpm install --frozen-lockfile
+
+# CI lint check
+ci-lint:
+	pnpm exec biome check
+
+# CI build all
+ci-build:
+	pnpm turbo build
+
+# CI test all
+ci-test:
+	pnpm turbo test
 
 # =============================================================================
 # Python Development
