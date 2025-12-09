@@ -37,7 +37,7 @@ import {
 } from "./types/events";
 import { NotificationManager } from "./utils/NotificationManager";
 import { withAssistantTapContextProvider } from "./utils/tap-assistant-context";
-import { ClientResource } from "./utils/ClientResource";
+import { tapClientResource } from "./tapClientResource";
 import { getClientIndex } from "./utils/tap-client-stack-context";
 import {
   PROXIED_ASSISTANT_STATE_SYMBOL,
@@ -56,7 +56,7 @@ const RootClientResource = resource(
   }) => {
     const { methods, state } = withAssistantTapContextProvider(
       { clientRef, emit },
-      () => tapInlineResource(ClientResource(element)),
+      () => tapClientResource(element),
     );
     return tapMemo(() => ({ methods }), [state]);
   },

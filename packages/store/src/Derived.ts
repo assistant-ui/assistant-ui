@@ -7,8 +7,12 @@ import type {
 } from "./types/client";
 
 /**
- * Creates a derived client field that memoizes based on source and query.
+ * Creates a derived client field that references a client from a parent scope.
  * The get callback always calls the most recent version (useEffectEvent pattern).
+ *
+ * IMPORTANT: The `get` callback must return a client that was created via
+ * `tapClientResource` (or `tapClientLookup`/`tapClientList` which use it internally).
+ * This is required for event scoping to work correctly.
  *
  * @example
  * ```typescript

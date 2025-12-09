@@ -200,10 +200,13 @@ const TodoItem = resource((props: { text: string }) => {
 });
 
 const TodoList = resource(() => {
-  const todos = {
-    "1": { text: "Learn tap" },
-    "2": { text: "Build something awesome" },
-  };
+  const todos = tapMemo(
+    () => ({
+      "1": { text: "Learn tap" },
+      "2": { text: "Build something awesome" },
+    }),
+    [],
+  );
 
   // Returns Record<string, { text, completed, setCompleted }>
   const todoItems = tapResources(todos, (todo) => TodoItem({ text: todo.text }));

@@ -16,6 +16,7 @@ export {
   tapAssistantClientRef,
   tapAssistantEmit,
 } from "./utils/tap-assistant-context";
+export { tapClientResource } from "./tapClientResource";
 export { tapClientLookup } from "./tapClientLookup";
 export { tapClientList } from "./tapClientList";
 

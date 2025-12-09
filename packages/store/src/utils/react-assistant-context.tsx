@@ -19,7 +19,7 @@ const createErrorClientField = (
   return fn;
 };
 
-class DefaultAssistantClientProxyHAndler
+class DefaultAssistantClientProxyHandler
   extends BaseProxyHandler
   implements ProxyHandler<AssistantClient>
 {
@@ -50,7 +50,7 @@ class DefaultAssistantClientProxyHAndler
 export const DefaultAssistantClient: AssistantClient =
   new Proxy<AssistantClient>(
     {} as AssistantClient,
-    new DefaultAssistantClientProxyHAndler(),
+    new DefaultAssistantClientProxyHandler(),
   );
 
 const DefaultAssistantClientProxiedAssistantState = createProxiedAssistantState(

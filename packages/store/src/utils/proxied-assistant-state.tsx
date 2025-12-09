@@ -1,5 +1,5 @@
 "use client";
-import { getClientState } from "./ClientResource";
+import { getClientState } from "../tapClientResource";
 import type { AssistantClient, AssistantState } from "../types/client";
 import { BaseProxyHandler } from "./BaseProxyHandler";
 

@@ -80,6 +80,7 @@ useAssistantEvent("myClient.updated", (p) => console.log(p.id));
 |-------------|-------------|
 | `tapAssistantClientRef()` | Access client ref in resources |
 | `tapAssistantEmit()` | Emit events from resources |
+| `tapClientResource(element)` | Wrap resource for event scoping (1:1 mappings) |
 | `tapClientLookup(map, fn, deps)` | Lookup by `{index}` or `{key}` |
 | `tapClientList(config)` | Dynamic list with add/remove |
 | `attachDefaultPeers(resource, peers)` | Attach default peers |

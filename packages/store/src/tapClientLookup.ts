@@ -1,6 +1,6 @@
 import { ResourceElement, tapMemo, tapResources } from "@assistant-ui/tap";
 import type { ClientMethods, ClientOutputOf } from "./types/client";
-import { ClientResource } from "./utils/ClientResource";
+import { ClientResource } from "./tapClientResource";
 
 export const tapClientLookup = <
   TState,

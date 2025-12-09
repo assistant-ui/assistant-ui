@@ -5,14 +5,15 @@ import {
   type ResourceElement,
   tapResource,
   resource,
+  tapInlineResource,
 } from "@assistant-ui/tap";
-import type { ClientMethods, ClientOutputOf } from "../types/client";
+import type { ClientMethods, ClientOutputOf } from "./types/client";
 import {
   tapClientStack,
   tapWithClientStack,
   SYMBOL_CLIENT_INDEX,
-} from "./tap-client-stack-context";
-import { BaseProxyHandler } from "./BaseProxyHandler";
+} from "./utils/tap-client-stack-context";
+import { BaseProxyHandler } from "./utils/BaseProxyHandler";
 
 /**
  * Symbol used internally to get state from ClientProxy.
@@ -87,7 +88,19 @@ class ClientProxyHandler
  * Resource that wraps a plain resource element to create a stable client proxy.
  *
  * Takes a ResourceElement that returns { state, methods } and
- * wraps it to produce a stable client proxy.
+ * wraps it to produce a stable client proxy. This adds the client to the
+ * client stack, enabling event scoping.
+ *
+ * Use this for 1:1 client mappings where you want event scoping to work correctly.
+ *
+ * @example
+ * ```typescript
+ * const MessageResource = resource(({ messageId }: { messageId: string }) => {
+ *   return tapInlineResource(
+ *     tapClientResource(InnerMessageResource({ messageId }))
+ *   );
+ * });
+ * ```
  */
 export const ClientResource = resource(
   <TState, TMethods extends ClientMethods>(
@@ -119,3 +132,9 @@ export const ClientResource = resource(
     return { methods, state: value.state };
   },
 );
+
+export const tapClientResource = <TState, TMethods extends ClientMethods>(
+  element: ResourceElement<ClientOutputOf<TState, TMethods>>,
+) => {
+  return tapInlineResource(ClientResource(element));
+};
