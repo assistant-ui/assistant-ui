@@ -1,53 +1,155 @@
+@property --shimmer-track-height {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 200px;
+}
+
+@property --shimmer-angle {
+  syntax: '<angle>';
+  inherits: true;
+  initial-value: 15deg;
+}
+
 @theme inline {
-  @keyframes shimmer {
-    0% {
-      background-position: 150% 0;
-    }
-    100% {
-      background-position: -50% 0;
+  @keyframes tw-shimmer {
+    from {
+      background-position: 100% 0;
     }
   }
 }
 
 @utility shimmer {
-  --shimmer-speed: 100;
-  --shimmer-width-x: 200;
-  --shimmer-color: black;
-  --shimmer-spread: 6ch;
-  --shimmer-angle: 90deg;
-  background:
-    linear-gradient(
-        var(--shimmer-angle),
-        transparent calc(50% - var(--shimmer-spread) * 0.5),
-        color-mix(in oklch, currentColor, var(--shimmer-color) 90%) 50%,
-        transparent calc(50% + var(--shimmer-spread) * 0.5)
-      )
-      0 0 / 200% 100% no-repeat,
-    linear-gradient(currentColor, currentColor);
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  animation: shimmer
-    calc((var(--shimmer-width-x) * 2) / var(--shimmer-speed) * 1s) infinite
-    linear;
+  --_gradient-width: calc(var(--_spread) + var(--shimmer-track-height) * tan(var(--shimmer-angle)));
+  --_active-distance: calc(var(--shimmer-track-width, 200px) + var(--_gradient-width));
+  --_duration: var(--shimmer-duration, calc(var(--_active-distance) / var(--_speed) / 1px * 1000));
+  --_repeat-delay: var(--shimmer-repeat-delay, calc(20000 / var(--_speed)));
+  --_repeat-delay-px: calc(var(--_repeat-delay) * var(--_active-distance) / var(--_duration));
+  --_xy-offset-px: calc((var(--shimmer-x, 0) + var(--shimmer-y, 0) * tan(var(--shimmer-angle))) * 1px);
+
+  --_bg-width: calc(
+    100% +
+    var(--shimmer-track-width, 100%) +
+    var(--_gradient-width) +
+    var(--_repeat-delay-px)
+  );
+
+  --_position: calc(
+    var(--shimmer-track-width, (100% - var(--_gradient-width) - var(--_repeat-delay-px)) / 2)
+    + var(--_gradient-width) / 2
+    + var(--_repeat-delay-px)
+    - var(--_xy-offset-px)
+  );
+
+  &:not(.shimmer-bg) {
+    --_speed: var(--shimmer-speed, 200);
+    --_spread: var(--shimmer-spread, calc(4ch + 80px));
+    --_bg: currentColor;
+    --_fg: var(--shimmer-color, oklch(from currentColor l c h / calc(alpha * 0.2)));
+
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  &.shimmer-bg {
+    --_speed: var(--shimmer-speed, 1000);
+    --_spread: var(--shimmer-spread, 480px);
+    --_bg: transparent;
+    --_fg: var(--shimmer-color, oklch(from currentColor 0 c h / 0.06));
+  }
 
   @variant dark {
-    --shimmer-color: white;
+    &:not(.shimmer-bg) {
+      --_fg: var(--shimmer-color, oklch(from currentColor max(0.8, calc(l + 0.4)) c h / calc(alpha + 0.4)));
+    }
+    &.shimmer-bg {
+      --_fg: var(--shimmer-color, oklch(from currentColor 0 c h / 0.30));
+    }
   }
+
+  @-moz-document url-prefix() {
+    & {
+      --_duration: var(--shimmer-duration, calc(375000 / var(--_speed)));
+    }
+  }
+
+  /* Use a sine ease-in-out curve (17 stops) for smooth falloff */
+  --_mix-96: color-mix(in oklch, var(--_fg), var(--_bg) 96%);
+  --_mix-83: color-mix(in oklch, var(--_fg), var(--_bg) 83%);
+  --_mix-67: color-mix(in oklch, var(--_fg), var(--_bg) 67%);
+  --_mix-50: color-mix(in oklch, var(--_fg), var(--_bg) 50%);
+  --_mix-33: color-mix(in oklch, var(--_fg), var(--_bg) 33%);
+  --_mix-17: color-mix(in oklch, var(--_fg), var(--_bg) 17%);
+  --_mix-4: color-mix(in oklch, var(--_fg), var(--_bg) 4%);
+
+  background:
+    linear-gradient(
+      calc(90deg + var(--shimmer-angle)),
+      var(--_bg) calc(var(--_position) - var(--_spread) * 0.5),
+      var(--_mix-96) calc(var(--_position) - var(--_spread) * 0.44),
+      var(--_mix-83) calc(var(--_position) - var(--_spread) * 0.37),
+      var(--_mix-67) calc(var(--_position) - var(--_spread) * 0.31),
+      var(--_mix-50) calc(var(--_position) - var(--_spread) * 0.25),
+      var(--_mix-33) calc(var(--_position) - var(--_spread) * 0.19),
+      var(--_mix-17) calc(var(--_position) - var(--_spread) * 0.12),
+      var(--_mix-4) calc(var(--_position) - var(--_spread) * 0.06),
+      var(--_fg) var(--_position),
+      var(--_mix-4) calc(var(--_position) + var(--_spread) * 0.06),
+      var(--_mix-17) calc(var(--_position) + var(--_spread) * 0.12),
+      var(--_mix-33) calc(var(--_position) + var(--_spread) * 0.19),
+      var(--_mix-50) calc(var(--_position) + var(--_spread) * 0.25),
+      var(--_mix-67) calc(var(--_position) + var(--_spread) * 0.31),
+      var(--_mix-83) calc(var(--_position) + var(--_spread) * 0.37),
+      var(--_mix-96) calc(var(--_position) + var(--_spread) * 0.44),
+      var(--_bg) calc(var(--_position) + var(--_spread) * 0.5)
+    )
+    0 0 / var(--_bg-width) 100%
+    no-repeat;
+
+  animation: tw-shimmer 1s linear 0s infinite backwards;
+  animation-duration: calc((var(--_duration) + var(--_repeat-delay)) * 1ms); 
 }
 
 @utility shimmer-speed-* {
   --shimmer-speed: --value(number);
 }
 
+@utility shimmer-duration-* {
+  --shimmer-duration: --value(integer);
+}
+
+@utility shimmer-repeat-delay-* {
+  --shimmer-repeat-delay: --value(integer);
+}
+
+@utility shimmer-invert {
+  &:not(.shimmer-bg) {
+    --shimmer-color: oklch(from currentColor min(calc(l - 0.4), 0.2) c h / calc(alpha + 0.4));
+
+    @variant dark {
+      --shimmer-color: oklch(from currentColor l c h / calc(alpha * 0.2));
+    }
+  }
+}
+
 @utility shimmer-color-* {
-  --shimmer-color: --value(--color-*);
+  --alpha: 100%;
+  --alpha: calc(--modifier(integer) * 1%);
+  --shimmer-color: --alpha(--value(--color, [color]) / var(--alpha, 100%));
 }
 
 @utility shimmer-spread-* {
-  --shimmer-spread: --spacing(--value(integer));
+  --shimmer-spread: calc(--value(integer) * 1px);
 }
 
 @utility shimmer-angle-* {
-  --shimmer-angle: calc(--value(number) * 1deg);
+  --shimmer-angle: calc(--value(integer) * 1deg);
+}
+
+@utility shimmer-container {
+  container-type: inline-size;
+
+  & .shimmer {
+    --shimmer-track-width: 100cqw;
+    --shimmer-track-height: max(100cqh, 50cqw, 200px);
+  }
 }

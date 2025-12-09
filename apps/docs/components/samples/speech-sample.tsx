@@ -1,18 +1,20 @@
 "use client";
+
 import {
   ComposerAddAttachment,
   ComposerAttachments,
   UserMessageAttachments,
-} from "../assistant-ui/attachment";
+} from "@/components/assistant-ui/attachment";
 import {
   ActionBarPrimitive,
+  AssistantIf,
   BranchPickerPrimitive,
   ComposerPrimitive,
   ErrorPrimitive,
   MessagePrimitive,
   ThreadPrimitive,
 } from "@assistant-ui/react";
-import { SampleFrame } from "./sample-frame";
+import { SampleFrame } from "@/components/samples/sample-frame";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import type { FC } from "react";
 import {
@@ -28,10 +30,10 @@ import {
   ChevronRightIcon,
   Square,
 } from "lucide-react";
-import { MarkdownText } from "../assistant-ui/markdown-text";
-import { Button } from "../ui/button";
+import { MarkdownText } from "@/components/assistant-ui/markdown-text";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { ToolFallback } from "../assistant-ui/tool-fallback";
+import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 
 export const SpeechSample = () => {
   return (
@@ -173,7 +175,7 @@ const ComposerAction: FC = () => {
     <div className="aui-composer-action-wrapper relative mx-1 mt-2 mb-2 flex items-center justify-between">
       <ComposerAddAttachment />
 
-      <ThreadPrimitive.If running={false}>
+      <AssistantIf condition={({ thread }) => !thread.isRunning}>
         <ComposerPrimitive.Send asChild>
           <TooltipIconButton
             tooltip="Send message"
@@ -187,9 +189,9 @@ const ComposerAction: FC = () => {
             <ArrowUpIcon className="aui-composer-send-icon size-5" />
           </TooltipIconButton>
         </ComposerPrimitive.Send>
-      </ThreadPrimitive.If>
+      </AssistantIf>
 
-      <ThreadPrimitive.If running>
+      <AssistantIf condition={({ thread }) => thread.isRunning}>
         <ComposerPrimitive.Cancel asChild>
           <Button
             type="button"
@@ -201,7 +203,7 @@ const ComposerAction: FC = () => {
             <Square className="aui-composer-cancel-icon size-3.5 fill-white dark:fill-black" />
           </Button>
         </ComposerPrimitive.Cancel>
-      </ThreadPrimitive.If>
+      </AssistantIf>
     </div>
   );
 };
@@ -248,28 +250,28 @@ const AssistantActionBar: FC = () => {
       autohideFloat="single-branch"
       className="aui-assistant-action-bar-root -ml-1 col-start-3 row-start-2 flex gap-1 text-muted-foreground data-floating:absolute data-floating:rounded-md data-floating:border data-floating:bg-background data-floating:p-1 data-floating:shadow-sm"
     >
-      <MessagePrimitive.If speaking={false}>
+      <AssistantIf condition={({ message }) => message.speech == null}>
         <ActionBarPrimitive.Speak asChild>
           <TooltipIconButton tooltip="Read aloud">
             <AudioLinesIcon />
           </TooltipIconButton>
         </ActionBarPrimitive.Speak>
-      </MessagePrimitive.If>
-      <MessagePrimitive.If speaking>
+      </AssistantIf>
+      <AssistantIf condition={({ message }) => message.speech != null}>
         <ActionBarPrimitive.StopSpeaking asChild>
           <TooltipIconButton tooltip="Stop">
             <StopCircleIcon />
           </TooltipIconButton>
         </ActionBarPrimitive.StopSpeaking>
-      </MessagePrimitive.If>
+      </AssistantIf>
       <ActionBarPrimitive.Copy asChild>
         <TooltipIconButton tooltip="Copy">
-          <MessagePrimitive.If copied>
+          <AssistantIf condition={({ message }) => message.isCopied}>
             <CheckIcon />
-          </MessagePrimitive.If>
-          <MessagePrimitive.If copied={false}>
+          </AssistantIf>
+          <AssistantIf condition={({ message }) => !message.isCopied}>
             <CopyIcon />
-          </MessagePrimitive.If>
+          </AssistantIf>
         </TooltipIconButton>
       </ActionBarPrimitive.Copy>
       <ActionBarPrimitive.Reload asChild>

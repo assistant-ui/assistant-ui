@@ -167,12 +167,12 @@ Show a different icon for a few seconds after the message is copied.
 
 ```tsx
 <ActionBarPrimitive.Copy>
-  <MessagePrimitive.If copied={false}>
+  <AssistantIf condition={({ message }) => !message.isCopied}>
     <CopyIcon />
-  </MessagePrimitive.If>
-  <MessagePrimitive.If copied>
+  </AssistantIf>
+  <AssistantIf condition={({ message }) => message.isCopied}>
     <CopySuccessIcon />
-  </MessagePrimitive.If>
+  </AssistantIf>
 </ActionBarPrimitive.Copy>
 ```
 
@@ -262,3 +262,84 @@ This primitive renders a `<button>` element unless `asChild` is set.
     },
   ]}
 />
+
+### ExportMarkdown
+
+Exports the message content as a Markdown file download by default, or calls a custom export handler when `onExport` is provided.
+
+This primitive renders a `<button>` element unless `asChild` is set.
+
+<ParametersTable
+  type="ActionBarPrimitiveExportMarkdownProps"
+  parameters={[
+    {
+      name: "asChild",
+    },
+    {
+      name: "filename",
+      type: "string",
+      description:
+        "The filename for the downloaded Markdown file. Defaults to 'message-{timestamp}.md'. Ignored when onExport is provided.",
+    },
+    {
+      name: "onExport",
+      type: "(content: string) => void | Promise<void>",
+      description:
+        "Optional callback function that receives the message content. When provided, overrides the default Markdown download behavior. Use this to implement custom export logic (PDF, JSON, TXT, etc.).",
+    },
+  ]}
+/>
+
+#### Examples
+
+Default Markdown export:
+
+```tsx
+<ActionBarPrimitive.ExportMarkdown>
+  <DownloadIcon />
+  Export as Markdown
+</ActionBarPrimitive.ExportMarkdown>
+```
+
+With custom filename:
+
+```tsx
+<ActionBarPrimitive.ExportMarkdown filename="chat-response.md">
+  <DownloadIcon />
+  Download
+</ActionBarPrimitive.ExportMarkdown>
+```
+
+Export as PDF (with custom logic):
+
+```tsx
+<ActionBarPrimitive.ExportMarkdown
+  onExport={async (content) => {
+    const pdf = await generatePdf(content);
+    downloadFile(pdf, "message.pdf");
+  }}
+>
+  <FileIcon />
+  Export PDF
+</ActionBarPrimitive.ExportMarkdown>
+```
+
+Export as JSON:
+
+```tsx
+<ActionBarPrimitive.ExportMarkdown
+  onExport={(content) => {
+    const json = JSON.stringify({ content, timestamp: Date.now() });
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "message.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  }}
+>
+  <CodeIcon />
+  Export JSON
+</ActionBarPrimitive.ExportMarkdown>
+```

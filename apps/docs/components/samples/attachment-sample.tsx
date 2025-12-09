@@ -2,8 +2,12 @@
 import {
   ComposerAddAttachment,
   ComposerAttachments,
-} from "../assistant-ui/attachment";
-import { ComposerPrimitive, ThreadPrimitive } from "@assistant-ui/react";
+} from "@/components/assistant-ui/attachment";
+import {
+  AssistantIf,
+  ComposerPrimitive,
+  ThreadPrimitive,
+} from "@assistant-ui/react";
 import { SampleFrame } from "./sample-frame";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { Button } from "@/components/ui/button";
@@ -73,7 +77,7 @@ const ComposerAction: FC = () => {
   return (
     <div className="aui-composer-action-wrapper relative mx-1 mt-2 mb-2 flex items-center justify-between">
       <ComposerAddAttachment />
-      <ThreadPrimitive.If running={false}>
+      <AssistantIf condition={({ thread }) => !thread.isRunning}>
         <ComposerPrimitive.Send asChild>
           <TooltipIconButton
             tooltip="Send message"
@@ -87,8 +91,8 @@ const ComposerAction: FC = () => {
             <ArrowUpIcon className="aui-composer-send-icon size-5" />
           </TooltipIconButton>
         </ComposerPrimitive.Send>
-      </ThreadPrimitive.If>
-      <ThreadPrimitive.If running>
+      </AssistantIf>
+      <AssistantIf condition={({ thread }) => thread.isRunning}>
         <ComposerPrimitive.Cancel asChild>
           <Button
             type="button"
@@ -100,7 +104,7 @@ const ComposerAction: FC = () => {
             <Square className="aui-composer-cancel-icon size-3.5 fill-white dark:fill-black" />
           </Button>
         </ComposerPrimitive.Cancel>
-      </ThreadPrimitive.If>
+      </AssistantIf>
     </div>
   );
 };

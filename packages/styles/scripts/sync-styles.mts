@@ -160,7 +160,7 @@ class SyncStyles {
         }
       }
       lines.push(`}`);
-      lines.push("");
+      lines.push(``);
     }
 
     const output = lines.join("\n");
@@ -168,7 +168,7 @@ class SyncStyles {
     if (this.dryRun) {
       console.log(chalk.blue("📄 Would generate index.css:"));
       console.log(chalk.gray("─".repeat(50)));
-      console.log(output.slice(0, 2000) + "\n... (truncated)");
+      console.log(`${output.slice(0, 2000)}\n... (truncated)`);
       console.log(chalk.gray("─".repeat(50)));
     } else {
       await fs.writeFile(OUTPUT_FILE, output, "utf-8");

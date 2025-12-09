@@ -20,6 +20,11 @@ import { ModelContext } from "../../model-context";
 
 export type ThreadClientState = {
   /**
+   * Whether the thread is empty. A thread is considered empty when it has no messages and is not loading.
+   */
+  readonly isEmpty: boolean;
+
+  /**
    * Whether the thread is disabled. Disabled threads cannot receive new messages.
    */
   readonly isDisabled: boolean;
