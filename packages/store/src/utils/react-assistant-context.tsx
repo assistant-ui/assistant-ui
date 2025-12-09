@@ -19,7 +19,7 @@ const createErrorClientField = (
   return fn;
 };
 
-class OuterClientProxyHandler
+class DefaultAssistantClientProxyHAndler
   extends BaseProxyHandler
   implements ProxyHandler<AssistantClient>
 {
@@ -27,7 +27,7 @@ class OuterClientProxyHandler
     if (prop === "subscribe") return NO_OP_SUBSCRIBE;
     if (prop === "on") return NO_OP_SUBSCRIBE;
     if (prop === PROXIED_ASSISTANT_STATE_SYMBOL)
-      return OuterClientProxiedAssistantState;
+      return DefaultAssistantClientProxiedAssistantState;
     if (typeof prop === "symbol") return undefined;
     return createErrorClientField(
       `The current scope does not have a "${String(prop)}" property.`,
@@ -47,46 +47,31 @@ class OuterClientProxyHandler
   }
 }
 /** Default context value - throws "wrap in AssistantProvider" error */
-export const OuterClient: AssistantClient = new Proxy<AssistantClient>(
-  {} as AssistantClient,
-  new OuterClientProxyHandler(),
+export const DefaultAssistantClient: AssistantClient =
+  new Proxy<AssistantClient>(
+    {} as AssistantClient,
+    new DefaultAssistantClientProxyHAndler(),
+  );
+
+const DefaultAssistantClientProxiedAssistantState = createProxiedAssistantState(
+  DefaultAssistantClient,
 );
-
-export const OuterClientProxiedAssistantState =
-  createProxiedAssistantState(OuterClient);
-
-class InnerClientProxyHandler
-  extends BaseProxyHandler
-  implements ProxyHandler<AssistantClient>
-{
-  get(_: unknown, prop: string | symbol) {
-    if (prop === "subscribe") return NO_OP_SUBSCRIBE;
-    if (prop === "on") return NO_OP_SUBSCRIBE;
-    if (typeof prop === "symbol") return undefined;
-    return createErrorClientField(
-      `The current scope does not have a "${String(prop)}" property.`,
-    );
-  }
-
-  ownKeys(): ArrayLike<string | symbol> {
-    return ["subscribe", "on"];
-  }
-
-  has(_: unknown, prop: string | symbol): boolean {
-    return prop === "subscribe" || prop === "on";
-  }
-}
 
 /** Root prototype for created clients - throws "scope not defined" error */
-export const InnerClient: AssistantClient = new Proxy<AssistantClient>(
-  {} as AssistantClient,
-  new InnerClientProxyHandler(),
-);
+export const createRootAssistantClient = (): AssistantClient =>
+  new Proxy<AssistantClient>({} as AssistantClient, {
+    get(_: AssistantClient, prop: string | symbol) {
+      if (typeof prop === "symbol") return undefined;
+      return createErrorClientField(
+        `The current scope does not have a "${String(prop)}" property.`,
+      );
+    },
+  });
 
 /**
  * React Context for the AssistantClient
  */
-const AssistantContext = createContext<AssistantClient>(OuterClient);
+const AssistantContext = createContext<AssistantClient>(DefaultAssistantClient);
 
 export const useAssistantContextValue = (): AssistantClient => {
   return useContext(AssistantContext);

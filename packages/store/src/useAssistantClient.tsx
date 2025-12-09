@@ -21,8 +21,8 @@ import { Derived, DerivedElement } from "./Derived";
 import { StoreResource } from "./utils/StoreResource";
 import {
   useAssistantContextValue,
-  OuterClient,
-  InnerClient,
+  DefaultAssistantClient,
+  createRootAssistantClient,
 } from "./utils/react-assistant-context";
 import {
   DerivedClients,
@@ -270,7 +270,10 @@ const useExtendedAssistantClientImpl = (
 
   const client = useMemo(() => {
     // Swap OuterClient -> InnerClient at root to change error message
-    const proto = baseClient === OuterClient ? InnerClient : baseClient;
+    const proto =
+      baseClient === DefaultAssistantClient
+        ? createRootAssistantClient()
+        : baseClient;
     const client = Object.create(proto) as AssistantClient;
     Object.assign(client, rootFields.clients, derivedFields, {
       subscribe: rootFields.subscribe ?? baseClient.subscribe,
