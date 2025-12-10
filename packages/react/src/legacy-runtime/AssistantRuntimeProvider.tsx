@@ -1,17 +1,11 @@
 "use client";
 
 import { FC, memo, PropsWithChildren } from "react";
-import {
-  useAssistantClient,
-  AssistantProvider,
-  Derived,
-} from "@assistant-ui/store";
+import { useAssistantClient, AssistantProvider } from "@assistant-ui/store";
 import { AssistantRuntime } from "./runtime/AssistantRuntime";
 import { AssistantRuntimeCore } from "./runtime-cores/core/AssistantRuntimeCore";
 import { RuntimeAdapter } from "./RuntimeAdapter";
 import { ThreadPrimitiveViewportProvider } from "../context/providers/ThreadViewportProvider";
-import { Tools } from "../model-context";
-import { ModelContext } from "../client/ModelContextClient";
 
 export namespace AssistantRuntimeProvider {
   export type Props = PropsWithChildren<{
@@ -30,24 +24,7 @@ export const AssistantRuntimeProviderImpl: FC<
   AssistantRuntimeProvider.Props
 > = ({ children, runtime }) => {
   const aui = useAssistantClient({
-    modelContext: ModelContext(),
-    tools: Tools({}),
     threads: RuntimeAdapter(runtime),
-    threadListItem: Derived({
-      source: "threads",
-      query: { type: "main" },
-      get: (aui) => aui.threads().item("main"),
-    }),
-    thread: Derived({
-      source: "threads",
-      query: { type: "main" },
-      get: (aui) => aui.threads().thread("main"),
-    }),
-    composer: Derived({
-      source: "thread",
-      query: {},
-      get: (aui) => aui.threads().thread("main").composer,
-    }),
   });
 
   const RenderComponent = getRenderComponent(runtime);

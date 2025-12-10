@@ -13,7 +13,7 @@ Migrate `@assistant-ui/react` to use `@assistant-ui/store`'s `ClientRegistry` pa
 | Phase 1 | Done | Type files and store augmentation |
 | Phase 2 | Done | Client migrations to store patterns |
 | Phase 3 | Done | Drop duplicated context layer |
-| Phase 4 | Not Started | Default peer scopes |
+| Phase 4 | Done | Default peer scopes |
 | Phase 5 | Done | Providers updated to use store |
 | Phase 6 | Not Started | Primitive updates |
 | Phase 7 | Not Started | Testing & cleanup |
@@ -127,9 +127,49 @@ context/ReadonlyStore.ts - SmoothContext
 
 ---
 
-## Phase 4: Define Default Peer Scopes on ThreadList
+## Phase 4: Define Default Peer Scopes on RuntimeAdapter (DONE)
 
-Add `attachDefaultPeers` to `ThreadListClient` for automatic scope resolution.
+### Summary
+
+Added default peer scopes to `RuntimeAdapter` using `attachDefaultPeers`, allowing automatic resolution of derived clients without manual specification in providers.
+
+### Changes Made
+
+**`legacy-runtime/RuntimeAdapter.ts`** - Added default peers:
+```typescript
+attachDefaultPeers(RuntimeAdapter, {
+  threadListItem: Derived({
+    source: "threads",
+    query: { type: "main" },
+    get: (aui) => aui.threads().item("main"),
+  }),
+  thread: Derived({
+    source: "threads",
+    query: { type: "main" },
+    get: (aui) => aui.threads().thread("main"),
+  }),
+  composer: Derived({
+    source: "thread",
+    query: {},
+    get: (aui) => aui.threads().thread("main").composer,
+  }),
+});
+```
+
+**`legacy-runtime/AssistantRuntimeProvider.tsx`** - Simplified to use default peers:
+- Removed manual `Derived` specifications for `threadListItem`, `thread`, and `composer`
+- Now only specifies root clients: `modelContext`, `tools`, and `threads`
+- Default peers are automatically applied from `RuntimeAdapter`
+
+### How Default Peers Work
+
+1. When `useAssistantClient` receives a root client with `attachDefaultPeers` attached
+2. `splitClients` checks for default peers on each root client
+3. Default peers are only applied if:
+   - The scope doesn't exist in parent context
+   - Not explicitly provided by user
+   - Not already defined by another resource's default peers
+4. First definition wins - no overriding is permitted
 
 ---
 
