@@ -2,25 +2,23 @@
 
 import { type FC, type PropsWithChildren } from "react";
 import {
+  useAssistantClient,
   AssistantProvider,
-  useAssistantApi,
-  useExtendedAssistantApi,
-} from "../react/AssistantApiContext";
-import { DerivedScope } from "../../utils/tap-store/derived-scopes";
+  Derived,
+} from "@assistant-ui/store";
 
 export const PartByIndexProvider: FC<
   PropsWithChildren<{
     index: number;
   }>
 > = ({ index, children }) => {
-  const baseApi = useAssistantApi();
-  const api = useExtendedAssistantApi({
-    part: DerivedScope({
+  const aui = useAssistantClient({
+    part: Derived({
       source: "message",
       query: { type: "index", index },
-      get: () => baseApi.message().part({ index }),
+      get: (aui) => aui.message().part({ index }),
     }),
   });
 
-  return <AssistantProvider api={api}>{children}</AssistantProvider>;
+  return <AssistantProvider client={aui}>{children}</AssistantProvider>;
 };

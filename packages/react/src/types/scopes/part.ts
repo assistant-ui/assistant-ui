@@ -32,7 +32,9 @@ export type PartMethods = {
 
 export type PartMeta = {
   source: "message";
-  query: { index: number } | { toolCallId: string };
+  query:
+    | { type: "index"; index: number }
+    | { type: "toolCallId"; toolCallId: string };
 };
 
 export type PartClientSchema = {

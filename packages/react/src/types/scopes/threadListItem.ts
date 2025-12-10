@@ -27,8 +27,8 @@ export type ThreadListItemMeta = {
   source: "threads";
   query:
     | { type: "main" }
-    | { id: string }
-    | { index: number; archived?: boolean };
+    | { type: "id"; id: string }
+    | { type: "index"; index: number; archived?: boolean };
 };
 
 export type ThreadListItemEvents = {

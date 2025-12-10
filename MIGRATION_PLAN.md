@@ -6,6 +6,53 @@ Migrate `@assistant-ui/react` to use `@assistant-ui/store`'s `ClientRegistry` pa
 
 ---
 
+## Current Progress Summary
+
+| Phase | Status | Notes |
+|-------|--------|-------|
+| Phase 1 | ✅ COMPLETE | Type files and store augmentation done |
+| Phase 2 | ✅ COMPLETE | All clients migrated to store patterns |
+| Phase 3 | ⏳ READY | Prerequisites complete, can now drop duplicated context layer |
+| Phase 4 | ⏳ NOT STARTED | Default peer scopes |
+| Phase 5 | ✅ COMPLETE | Providers updated to use store's Derived/useAssistantClient |
+| Phase 6 | ⏳ NOT STARTED | Primitive updates |
+| Phase 7 | ⏳ NOT STARTED | Testing & cleanup |
+
+### Completed Pre-Phase 3 Work
+
+All prerequisites for Phase 3 are now complete:
+
+| Task | Status |
+|------|--------|
+| `client/NoOpComposerClient.tsx` | ✅ Migrated to `ClientOutput<"composer">` pattern |
+| `client/ThreadMessageClient.tsx` | ✅ Migrated to `ClientOutput<"message">` with `tapClientLookup` |
+| All providers migrated to `useAssistantClient` + `Derived` | ✅ Complete |
+| Meta types updated with `type` discriminators | ✅ Complete |
+
+### What Remains: client/AssistantClient.ts
+
+This file still uses old patterns (`asStore`, `Store` from tap-store). However, it may be addressed as part of Phase 3 since it's the bridge between the old and new context systems.
+
+---
+
+## Phase 3 Feasibility Analysis
+
+### Can Phase 3 Be Started Now?
+
+**YES.** All blocking dependencies are resolved:
+- ✅ All client files migrated to store patterns
+- ✅ All providers use `useAssistantClient` + `Derived` from store
+- ✅ Meta types updated with discriminators
+
+### Key Technical Challenges for Phase 3
+
+1. **`client/AssistantClient.ts`** - This is the main bridge file that needs to be addressed
+2. **`context/react/AssistantApiContext.tsx`** - Should be replaced with re-exports from store
+3. **Backward compatibility** - May need `useAssistantApi` as an alias for `useAssistantClient`
+4. **Event system** - Verify events work correctly after migration
+
+---
+
 ## Key Files to Read First
 
 ### Store Package (the target pattern)
@@ -67,187 +114,124 @@ Migrate `@assistant-ui/react` to use `@assistant-ui/store`'s `ClientRegistry` pa
 
 ---
 
-## Phase 1: Add Store Dependency & Create Type Files
+## Phase 1: Add Store Dependency & Create Type Files ✅ COMPLETE
 
-### 1.1 Add dependency to `packages/react/package.json`
-```json
-"@assistant-ui/store": "workspace:*"
-```
+All type files created in `packages/react/src/types/scopes/`:
+- `threads.ts`, `threadListItem.ts`, `thread.ts`, `message.ts`, `part.ts`
+- `composer.ts`, `attachment.ts`, `tools.ts`, `modelContext.ts`, `index.ts`
 
-### 1.2 Create type files structure
-```
-packages/react/src/types/scopes/
-├── index.ts
-├── threads.ts
-├── threadListItem.ts
-├── thread.ts
-├── message.ts
-├── part.ts
-├── composer.ts
-├── attachment.ts
-├── tools.ts
-└── modelContext.ts
-```
+Store augmentation created at `packages/react/src/types/store-augmentation.ts`.
 
-### 1.3 Type file pattern
+---
 
-Each file exports: `{Scope}State`, `{Scope}Methods`, `{Scope}Meta` (if derived), `{Scope}Events` (if has events), and `{Scope}ClientSchema`.
+## Phase 2: Migrate Resources from tapApi to Store Package ✅ COMPLETE
 
-Example structure:
+### All Migrations Complete
+
+| File | Status |
+|------|--------|
+| `legacy-runtime/client/ThreadListRuntimeClient.ts` | ✅ Uses `tapClientResource`, `tapClientLookup` |
+| `legacy-runtime/client/ThreadListItemRuntimeClient.ts` | ✅ Uses `tapAssistantEmit` |
+| `legacy-runtime/client/ThreadRuntimeClient.ts` | ✅ Uses `tapClientResource`, `tapClientLookup`, `tapAssistantEmit` |
+| `legacy-runtime/client/MessageRuntimeClient.ts` | ✅ Uses `tapClientResource`, `tapClientLookup` |
+| `legacy-runtime/client/MessagePartRuntimeClient.ts` | ✅ Migrated |
+| `legacy-runtime/client/ComposerRuntimeClient.ts` | ✅ Uses `tapClientResource`, `tapClientLookup`, `tapAssistantEmit` |
+| `legacy-runtime/client/AttachmentRuntimeClient.ts` | ✅ Migrated |
+| `client/Tools.ts` | ✅ Migrated |
+| `client/ModelContextClient.ts` | ✅ Migrated |
+| `client/NoOpComposerClient.tsx` | ✅ Uses `ClientOutput<"composer">` pattern |
+| `client/ThreadMessageClient.tsx` | ✅ Uses `ClientOutput<"message">` with `tapClientLookup` |
+
+### Migration Pattern Reference
+
+**Return `{ state, methods }` directly:**
 ```typescript
-// types/scopes/thread.ts
+// Resource returns ClientOutput<"scopeName">
+export const MyClient = resource(
+  ({ ... }): ClientOutput<"message"> => {
+    const state = tapMemo<MessageState>(() => ({ ... }), deps);
 
-// State - copy from client/types/Thread.ts ThreadClientState (without nested states)
-export type ThreadState = { ... };
-
-// Methods - copy from client/types/Thread.ts ThreadClientApi (without getState, without nested apis like composer)
-export type ThreadMethods = { ... };
-
-// Meta - for derived scopes only
-export type ThreadMeta = {
-  source: "threads";
-  query: { type: "main" };
-};
-
-// Events - only if scope emits events
-export type ThreadEvents = {
-  "thread.run-start": { threadId: string };
-  "thread.run-end": { threadId: string };
-  "thread.initialize": { threadId: string };
-  "thread.model-context-update": { threadId: string };
-};
-
-// Combined schema for registry
-export type ThreadClientSchema = {
-  state: ThreadState;
-  methods: ThreadMethods;
-  meta: ThreadMeta;
-  events: ThreadEvents;
-};
-```
-
-### 1.4 Create store augmentation
-
-Create `packages/react/src/types/store-augmentation.ts`:
-```typescript
-import type { ThreadsClientSchema } from "./scopes/threads";
-// ... other imports
-
-declare module "@assistant-ui/store" {
-  interface ClientRegistry {
-    threads: ThreadsClientSchema;
-    threadListItem: ThreadListItemClientSchema;
-    thread: ThreadClientSchema;
-    message: MessageClientSchema;
-    part: PartClientSchema;
-    composer: ComposerClientSchema;
-    attachment: AttachmentClientSchema;
-    tools: ToolsClientSchema;
-    modelContext: ModelContextClientSchema;
+    return {
+      state,
+      methods: {
+        getState: () => state,
+        someMethod: () => { ... },
+      },
+    };
   }
-}
+);
 ```
 
-### 1.5 Import augmentation in index.ts
-
-Add to top of `packages/react/src/index.ts`:
+**tapClientLookup for collections:**
 ```typescript
-import "./types/store-augmentation";
+const parts = tapClientLookup(
+  sourceArray,
+  (item, idx) => attachKey(item.id, PartClient({ part: item })),
+  [PartClient, ...deps],
+);
+// Access: parts.state (array), parts.get({ index }) or parts.get({ key })
 ```
 
 ---
 
-## Phase 2: Migrate Resources from tapApi to Store Package
+## Phase 3: Drop Duplicated Context Layer ⏳ READY TO START
 
-### 2.1 Migration pattern
+### Prerequisites ✅ ALL COMPLETE
 
-**Before (current pattern using tapApi):**
-```typescript
-import { tapApi } from "../../utils/tap-store";
+1. ✅ **Phase 2 migrations complete** - All client files use store patterns
+2. ✅ **Phase 5 provider updates complete** - All providers use `useAssistantClient` + `Derived`
 
-export const ThreadClient = resource(({ runtime }) => {
-  // ... setup
-  return tapApi<ThreadClientApi>({
-    getState: () => state,
-    append: runtime.append,
-    // ...
-  });
-});
+### 3.1 Current State Analysis
+
+The react package has its own context layer that duplicates the store package:
+
+| React Package (current) | Store Package (target) |
+|------------------------|----------------------|
+| `AssistantApi` type | `AssistantClient` type |
+| `useAssistantApi()` hook | `useAssistantClient()` hook |
+| `AssistantProvider` (custom) | `AssistantProvider` (from store) |
+| `DerivedScope` resource | `Derived` element (already migrated) |
+| `useExtendedAssistantApi()` | `useAssistantClient(props)` (already using) |
+| `createAssistantApiField()` | Built into store |
+| `extendApi()` | Built into store |
+
+### 3.2 Files Still Using Old Patterns
+
+Only these files still import from `utils/tap-store/derived-scopes`:
+- `context/react/AssistantApiContext.tsx` - **Main target for Phase 3**
+
+All provider files have already been migrated to use `@assistant-ui/store` directly.
+
+### 3.3 Files to Remove (After Migration)
+
+**Can be removed (tap-store related):**
+```
+utils/tap-store/tap-api.ts
+utils/tap-store/derived-scopes.ts
+utils/tap-store/store.ts
+utils/tap-store/index.ts
+client/AssistantClient.ts (will be replaced by store package usage)
+client/EventContext.ts
+client/util-hooks/tapLookupResources.ts
 ```
 
-**After (store pattern using tapClientResource):**
-```typescript
-import { tapClientResource, type ClientOutput } from "@assistant-ui/store";
-
-export const ThreadClient = resource(({ runtime }): ClientOutput<"thread"> => {
-  // ... setup
-  return tapClientResource({
-    state,
-    methods: {
-      append: runtime.append,
-      // ... (no getState needed)
-    },
-  });
-});
+**Must remain (used by other features):**
+```
+context/stores/ThreadViewport.tsx - used by viewport/scroll features
+context/stores/index.ts - exports ThreadViewport
+context/react/utils/createContextStoreHook.ts - used by ThreadViewportContext, SmoothContext
+context/react/utils/createContextHook.ts - used by ThreadViewportContext
+context/react/utils/useRuntimeState.ts - used by createStateHookForRuntime (legacy hooks)
+context/react/utils/createStateHookForRuntime.ts - used by deprecated useThread, useMessage, etc.
+context/ReadonlyStore.ts - used by SmoothContext
 ```
 
-### 2.2 Files to migrate
+Note: The legacy-runtime hooks (`useThread`, `useMessage`, etc.) are deprecated but still supported.
+They use `createStateHookForRuntime` which depends on `useRuntimeState`.
 
-| Current File | Resource Name |
-|--------------|---------------|
-| `legacy-runtime/client/ThreadListRuntimeClient.ts` | `ThreadListClient` |
-| `legacy-runtime/client/ThreadListItemRuntimeClient.ts` | `ThreadListItemClient` |
-| `legacy-runtime/client/ThreadRuntimeClient.ts` | `ThreadClient` |
-| `legacy-runtime/client/MessageRuntimeClient.ts` | `MessageClient` |
-| `legacy-runtime/client/MessagePartRuntimeClient.ts` | `MessagePartClient` |
-| `legacy-runtime/client/ComposerRuntimeClient.ts` | `ComposerClient` |
-| `legacy-runtime/client/AttachmentRuntimeClient.ts` | `AttachmentRuntimeClient` |
-| `client/Tools.ts` | `Tools` |
-| `client/ModelContextClient.ts` | `ModelContext` |
+### 3.4 Target: Replace AssistantApiContext
 
-### 2.3 Replace event emission
-
-**Before:**
-```typescript
-import { tapEvents } from "../../client/EventContext";
-const events = tapEvents();
-events.emit(`thread.${event}`, { threadId });
-```
-
-**After:**
-```typescript
-import { tapAssistantEmit } from "@assistant-ui/store";
-const emit = tapAssistantEmit();
-emit("thread.run-start", { threadId });
-```
-
-### 2.4 Replace tapLookupResources with tapClientLookup
-
-**Before:**
-```typescript
-import { tapLookupResources } from "../../client/util-hooks/tapLookupResources";
-const messages = tapLookupResources(
-  runtimeState.messages.map((m) => [m.id, MessageClientById({ ... })])
-);
-```
-
-**After:**
-```typescript
-import { tapClientLookup } from "@assistant-ui/store";
-const messages = tapClientLookup(
-  Object.fromEntries(runtimeState.messages.map((m) => [m.id, m])),
-  (m, id) => MessageClientById({ runtime, id, threadIdRef }),
-  [MessageClientById, runtime, threadIdRef],
-);
-```
-
----
-
-## Phase 3: Drop Duplicated Context Layer
-
-### 3.1 Replace AssistantApiContext with re-exports
-
-Replace `packages/react/src/context/react/AssistantApiContext.tsx` with:
+The goal is to replace `context/react/AssistantApiContext.tsx` with re-exports:
 ```typescript
 "use client";
 
@@ -273,23 +257,19 @@ export type {
 } from "@assistant-ui/store";
 ```
 
-### 3.2 Files to remove
+### 3.5 ~~Remove zustand from dependencies~~ ❌ NOT FEASIBLE
 
-```
-context/ReadonlyStore.ts
-context/stores/ (entire directory)
-context/react/utils/createContextStoreHook.ts
-context/react/utils/createContextHook.ts
-context/react/utils/useRuntimeState.ts
-utils/tap-store/ (entire directory)
-client/AssistantClient.ts
-client/EventContext.ts
-client/util-hooks/tapLookupResources.ts
-```
+Zustand is used for features **unrelated to the tap-store migration**:
 
-### 3.3 Remove zustand from dependencies
+| Feature | File | Usage |
+|---------|------|-------|
+| ThreadViewport | `context/stores/ThreadViewport.tsx` | Scroll state, isAtBottom, heights |
+| SmoothContext | `utils/smooth/SmoothContext.tsx` | Smooth animation status |
+| useInlineRender | `model-context/useInlineRender.tsx` | Tool UI component caching |
+| RemoteThreadList | `legacy-runtime/runtime-cores/remote-thread-list/` | Remote thread state |
+| MessageParts | `primitives/message/MessageParts.tsx` | `useShallow` for parts comparison |
 
-Update `packages/react/package.json` to remove zustand.
+**Zustand must remain as a dependency.**
 
 ---
 
@@ -334,33 +314,38 @@ attachDefaultPeers(ThreadListClient, {
 
 ---
 
-## Phase 5: Update Providers
+## Phase 5: Update Providers ✅ COMPLETE
 
-### 5.1 Provider pattern
+### All Providers Migrated
 
-**Before:**
+| File | Status |
+|------|--------|
+| `context/providers/MessageProvider.tsx` | ✅ Uses `useAssistantClient` + root client |
+| `context/providers/MessageByIndexProvider.tsx` | ✅ Uses `useAssistantClient` + `Derived` |
+| `context/providers/ThreadListItemProvider.tsx` | ✅ Uses `useAssistantClient` + `Derived` |
+| `context/providers/PartByIndexProvider.tsx` | ✅ Uses `useAssistantClient` + `Derived` |
+| `context/providers/AttachmentByIndexProvider.tsx` | ✅ Uses `useAssistantClient` + `Derived` |
+| `context/providers/TextMessagePartProvider.tsx` | ✅ Uses `useAssistantClient` + root client |
+
+### Provider Pattern (Now Complete)
+
 ```typescript
-const api = useExtendedAssistantApi({
-  message: DerivedScope({ ... }),
-});
-return <AssistantProvider api={api}>{children}</AssistantProvider>;
-```
-
-**After:**
-```typescript
+// Root client provider (creates standalone scope)
 const aui = useAssistantClient({
-  message: Derived({ ... }),
+  message: MessageClient(props),
+});
+return <AssistantProvider client={aui}>{children}</AssistantProvider>;
+
+// Derived client provider (references parent scope)
+const aui = useAssistantClient({
+  message: Derived({
+    source: "thread",
+    query: { type: "index", index },
+    get: (aui) => aui.thread().message({ index }),
+  }),
 });
 return <AssistantProvider client={aui}>{children}</AssistantProvider>;
 ```
-
-### 5.2 Files to update
-
-- `context/providers/MessageProvider.tsx`
-- `context/providers/MessageByIndexProvider.tsx`
-- `context/providers/ThreadListItemProvider.tsx`
-- `context/providers/PartByIndexProvider.tsx`
-- `context/providers/AttachmentByIndexProvider.tsx`
 
 ---
 

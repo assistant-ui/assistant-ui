@@ -2,17 +2,21 @@
 
 import { type FC, type PropsWithChildren } from "react";
 import {
+  useAssistantClient,
   AssistantProvider,
-  useExtendedAssistantApi,
-} from "../react/AssistantApiContext";
-import { PartMethods, PartState } from "../../types/scopes";
+  type ClientOutput,
+} from "@assistant-ui/store";
+import { PartState } from "../../types/scopes";
 import { resource, tapMemo } from "@assistant-ui/tap";
-import { useResource } from "@assistant-ui/tap/react";
-import { asStore, tapApi } from "../../utils/tap-store";
-import { DerivedScope } from "../../utils/tap-store/derived-scopes";
 
 const TextMessagePartClient = resource(
-  ({ text, isRunning }: { text: string; isRunning: boolean }) => {
+  ({
+    text,
+    isRunning,
+  }: {
+    text: string;
+    isRunning: boolean;
+  }): ClientOutput<"part"> => {
     const state = tapMemo<PartState>(
       () => ({
         type: "text",
@@ -22,15 +26,18 @@ const TextMessagePartClient = resource(
       [text, isRunning],
     );
 
-    return tapApi<PartMethods>({
-      getState: () => state,
-      addToolResult: () => {
-        throw new Error("Not supported");
+    return {
+      state,
+      methods: {
+        getState: () => state,
+        addToolResult: () => {
+          throw new Error("Not supported");
+        },
+        resumeToolCall: () => {
+          throw new Error("Not supported");
+        },
       },
-      resumeToolCall: () => {
-        throw new Error("Not supported");
-      },
-    });
+    };
   },
 );
 
@@ -40,17 +47,9 @@ export const TextMessagePartProvider: FC<
     isRunning?: boolean;
   }>
 > = ({ text, isRunning = false, children }) => {
-  const store = useResource(
-    asStore(TextMessagePartClient({ text, isRunning })),
-  );
-  const api = useExtendedAssistantApi({
-    part: DerivedScope({
-      source: "root",
-      query: {},
-      get: () => store.getState().api,
-    }),
-    subscribe: store.subscribe,
+  const aui = useAssistantClient({
+    part: TextMessagePartClient({ text, isRunning }),
   });
 
-  return <AssistantProvider api={api}>{children}</AssistantProvider>;
+  return <AssistantProvider client={aui}>{children}</AssistantProvider>;
 };

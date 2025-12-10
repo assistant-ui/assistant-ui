@@ -53,7 +53,7 @@ export type MessageMethods = {
 
 export type MessageMeta = {
   source: "thread";
-  query: { id: string } | { index: number };
+  query: { type: "id"; id: string } | { type: "index"; index: number };
 };
 
 export type MessageClientSchema = {

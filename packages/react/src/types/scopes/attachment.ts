@@ -12,7 +12,7 @@ export type AttachmentMethods = {
 
 export type AttachmentMeta = {
   source: "message" | "composer";
-  query: { index: number } | { id: string };
+  query: { type: "index"; index: number } | { type: "id"; id: string };
 };
 
 export type AttachmentClientSchema = {
