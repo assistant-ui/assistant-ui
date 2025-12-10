@@ -57,6 +57,8 @@ function getOrCreateProxyFn(prop: string | symbol) {
       const method = this[SYMBOL_GET_OUTPUT].methods[prop];
       if (!method)
         throw new Error(`Method "${String(prop)}" is not implemented.`);
+      if (typeof method !== "function")
+        throw new Error(`"${String(prop)}" is not a function.`);
       return method(...args);
     };
     fieldAccessFns.set(prop, template);
@@ -82,7 +84,9 @@ class ClientProxyHandler
     if (prop === SYMBOL_CLIENT_INDEX) return this.index;
     const introspection = handleIntrospectionProp(prop, "ClientProxy");
     if (introspection !== false) return introspection;
-    return getOrCreateProxyFn(prop);
+    const value = this.outputRef.current.methods[prop];
+    if (typeof value === "function") return getOrCreateProxyFn(prop);
+    return value;
   }
 
   ownKeys(): ArrayLike<string | symbol> {

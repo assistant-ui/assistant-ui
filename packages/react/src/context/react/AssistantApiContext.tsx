@@ -11,26 +11,24 @@ import {
 import { useResource } from "@assistant-ui/tap/react";
 
 import {
-  MessageClientApi,
-  MessageClientState,
-} from "../../client/types/Message";
-import {
-  ThreadListItemClientApi,
-  ThreadListItemClientState,
-} from "../../client/types/ThreadListItem";
-import {
-  MessagePartClientApi,
-  MessagePartClientState,
-} from "../../client/types/Part";
-import { ThreadClientApi, ThreadClientState } from "../../client/types/Thread";
-import {
-  ComposerClientApi,
-  ComposerClientState,
-} from "../../client/types/Composer";
-import {
-  AttachmentClientApi,
-  AttachmentClientState,
-} from "../../client/types/Attachment";
+  MessageMethods,
+  MessageState,
+  ThreadListItemMethods,
+  ThreadListItemState,
+  PartMethods,
+  PartState,
+  ThreadMethods,
+  ThreadState,
+  ComposerMethods,
+  ComposerState,
+  AttachmentMethods,
+  AttachmentState,
+  ThreadsMethods,
+  ThreadsState,
+  ToolsMethods,
+  ToolsState,
+  ModelContextMethods,
+} from "../../types/scopes";
 import { Unsubscribe } from "../../types";
 import {
   AssistantEvent,
@@ -38,35 +36,26 @@ import {
   AssistantEventSelector,
   normalizeEventSelector,
 } from "../../types/EventTypes";
-import {
-  ThreadListClientApi,
-  ThreadListClientState,
-} from "../../client/types/ThreadList";
 import { DevToolsProviderApi } from "../../devtools/DevToolsHooks";
 import {
   AssistantClientProps,
   useAssistantClient,
 } from "../../client/AssistantClient";
-import { ToolsApi, ToolsMeta, ToolsState } from "../../client/types/Tools";
-import {
-  ModelContextApi,
-  ModelContextMeta,
-} from "../../client/types/ModelContext";
 import {
   DerivedScopes,
   DerivedScopesInput,
 } from "../../utils/tap-store/derived-scopes";
 
 export type AssistantState = {
-  readonly threads: ThreadListClientState;
+  readonly threads: ThreadsState;
   readonly tools: ToolsState;
 
-  readonly threadListItem: ThreadListItemClientState;
-  readonly thread: ThreadClientState;
-  readonly composer: ComposerClientState;
-  readonly message: MessageClientState;
-  readonly part: MessagePartClientState;
-  readonly attachment: AttachmentClientState;
+  readonly threadListItem: ThreadListItemState;
+  readonly thread: ThreadState;
+  readonly composer: ComposerState;
+  readonly message: MessageState;
+  readonly part: PartState;
+  readonly attachment: AttachmentState;
 };
 
 export type AssistantApiField<
@@ -118,19 +107,26 @@ type AttachmentMeta = {
   query: { type: "index"; index: number };
 };
 
+type ToolsMeta = {
+  source: "root";
+  query: Record<string, never>;
+};
+
+type ModelContextMeta = {
+  source: "root";
+  query: Record<string, never>;
+};
+
 export type AssistantApi = {
-  threads: AssistantApiField<ThreadListClientApi, ThreadsMeta>;
-  tools: AssistantApiField<ToolsApi, ToolsMeta>;
-  modelContext: AssistantApiField<ModelContextApi, ModelContextMeta>;
-  threadListItem: AssistantApiField<
-    ThreadListItemClientApi,
-    ThreadListItemMeta
-  >;
-  thread: AssistantApiField<ThreadClientApi, ThreadMeta>;
-  composer: AssistantApiField<ComposerClientApi, ComposerMeta>;
-  message: AssistantApiField<MessageClientApi, MessageMeta>;
-  part: AssistantApiField<MessagePartClientApi, PartMeta>;
-  attachment: AssistantApiField<AttachmentClientApi, AttachmentMeta>;
+  threads: AssistantApiField<ThreadsMethods, ThreadsMeta>;
+  tools: AssistantApiField<ToolsMethods, ToolsMeta>;
+  modelContext: AssistantApiField<ModelContextMethods, ModelContextMeta>;
+  threadListItem: AssistantApiField<ThreadListItemMethods, ThreadListItemMeta>;
+  thread: AssistantApiField<ThreadMethods, ThreadMeta>;
+  composer: AssistantApiField<ComposerMethods, ComposerMeta>;
+  message: AssistantApiField<MessageMethods, MessageMeta>;
+  part: AssistantApiField<PartMethods, PartMeta>;
+  attachment: AssistantApiField<AttachmentMethods, AttachmentMeta>;
 
   subscribe(listener: () => void): Unsubscribe;
 

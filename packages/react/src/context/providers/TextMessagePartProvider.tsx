@@ -5,10 +5,7 @@ import {
   AssistantProvider,
   useExtendedAssistantApi,
 } from "../react/AssistantApiContext";
-import {
-  MessagePartClientApi,
-  MessagePartClientState,
-} from "../../client/types/Part";
+import { PartMethods, PartState } from "../../types/scopes";
 import { resource, tapMemo } from "@assistant-ui/tap";
 import { useResource } from "@assistant-ui/tap/react";
 import { asStore, tapApi } from "../../utils/tap-store";
@@ -16,7 +13,7 @@ import { DerivedScope } from "../../utils/tap-store/derived-scopes";
 
 const TextMessagePartClient = resource(
   ({ text, isRunning }: { text: string; isRunning: boolean }) => {
-    const state = tapMemo<MessagePartClientState>(
+    const state = tapMemo<PartState>(
       () => ({
         type: "text",
         text,
@@ -25,7 +22,7 @@ const TextMessagePartClient = resource(
       [text, isRunning],
     );
 
-    return tapApi<MessagePartClientApi>({
+    return tapApi<PartMethods>({
       getState: () => state,
       addToolResult: () => {
         throw new Error("Not supported");

@@ -1,5 +1,7 @@
 import type { Attachment } from "../AttachmentTypes";
 import type { MessageRole, RunConfig } from "../AssistantTypes";
+import type { ComposerRuntime } from "../../legacy-runtime/runtime";
+import type { AttachmentMethods } from "./attachment";
 
 export type ComposerState = {
   readonly text: string;
@@ -14,15 +16,19 @@ export type ComposerState = {
 };
 
 export type ComposerMethods = {
+  getState(): ComposerState;
   setText(text: string): void;
   setRole(role: MessageRole): void;
   setRunConfig(runConfig: RunConfig): void;
   addAttachment(file: File): Promise<void>;
   clearAttachments(): Promise<void>;
+  attachment(selector: { index: number } | { id: string }): AttachmentMethods;
   reset(): Promise<void>;
   send(): void;
   cancel(): void;
   beginEdit(): void;
+  /** @internal */
+  __internal_getRuntime?(): ComposerRuntime;
 };
 
 export type ComposerMeta = {

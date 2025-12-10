@@ -1,4 +1,8 @@
-export type { ThreadsState, ThreadsMethods, ThreadsClientSchema } from "./threads";
+export type {
+  ThreadsState,
+  ThreadsMethods,
+  ThreadsClientSchema,
+} from "./threads";
 export type {
   ThreadListItemState,
   ThreadListItemMethods,
@@ -19,7 +23,12 @@ export type {
   MessageMeta,
   MessageClientSchema,
 } from "./message";
-export type { PartState, PartMethods, PartMeta, PartClientSchema } from "./part";
+export type {
+  PartState,
+  PartMethods,
+  PartMeta,
+  PartClientSchema,
+} from "./part";
 export type {
   ComposerState,
   ComposerMethods,

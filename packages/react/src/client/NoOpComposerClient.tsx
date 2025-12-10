@@ -1,11 +1,11 @@
 "use client";
 import { resource, tapMemo } from "@assistant-ui/tap";
-import { ComposerClientState, ComposerClientApi } from "./types/Composer";
+import { ComposerState, ComposerMethods } from "../types/scopes";
 import { tapApi } from "../utils/tap-store";
 
 export const NoOpComposerClient = resource(
   ({ type }: { type: "edit" | "thread" }) => {
-    const state = tapMemo<ComposerClientState>(() => {
+    const state = tapMemo<ComposerState>(() => {
       return {
         isEditing: false,
         isEmpty: true,
@@ -19,7 +19,7 @@ export const NoOpComposerClient = resource(
       };
     }, [type]);
 
-    return tapApi<ComposerClientApi>({
+    return tapApi<ComposerMethods>({
       getState: () => state,
       setText: () => {
         throw new Error("Not supported");

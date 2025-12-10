@@ -6,9 +6,13 @@ import {
   tapInlineResource,
   attachKey,
 } from "@assistant-ui/tap";
-import { AttachmentClientApi } from "./types/Attachment";
-import { MessageClientState, MessageClientApi } from "./types/Message";
-import { MessagePartClientState, MessagePartClientApi } from "./types/Part";
+import {
+  AttachmentMethods,
+  MessageState,
+  MessageMethods,
+  PartState,
+  PartMethods,
+} from "../types/scopes";
 import { tapLookupResources } from "./util-hooks/tapLookupResources";
 import { tapApi } from "../utils/tap-store";
 import {
@@ -21,14 +25,14 @@ import { NoOpComposerClient } from "./NoOpComposerClient";
 
 const ThreadMessagePartClient = resource(
   ({ part }: { part: ThreadAssistantMessagePart | ThreadUserMessagePart }) => {
-    const state = tapMemo<MessagePartClientState>(() => {
+    const state = tapMemo<PartState>(() => {
       return {
         ...part,
         status: { type: "complete" },
       };
     }, [part]);
 
-    return tapApi<MessagePartClientApi>(
+    return tapApi<PartMethods>(
       {
         getState: () => state,
         addToolResult: () => {
@@ -49,7 +53,7 @@ const ThreadMessagePartClient = resource(
 );
 const ThreadMessageAttachmentClient = resource(
   ({ attachment }: { attachment: Attachment }) => {
-    return tapApi<AttachmentClientApi>(
+    return tapApi<AttachmentMethods>(
       {
         getState: () => attachment,
         remove: () => {
@@ -101,7 +105,7 @@ export const ThreadMessageClient = resource(
       NoOpComposerClient({ type: "edit" }),
     );
 
-    const state = tapMemo<MessageClientState>(() => {
+    const state = tapMemo<MessageState>(() => {
       return {
         ...message,
         parts: parts.state,
@@ -118,7 +122,7 @@ export const ThreadMessageClient = resource(
       };
     }, [message, index, isCopiedState, isHoveringState, isLast]);
 
-    return tapApi<MessageClientApi>({
+    return tapApi<MessageMethods>({
       getState: () => state,
       composer: composerState.api,
       part: (selector) => {

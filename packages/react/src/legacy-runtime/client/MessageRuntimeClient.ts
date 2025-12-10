@@ -5,17 +5,17 @@ import {
   tapMemo,
   tapState,
 } from "@assistant-ui/tap";
-import { tapApi } from "../../utils/tap-store";
+import {
+  type ClientOutput,
+  tapClientLookup,
+  tapClientResource,
+} from "@assistant-ui/store";
 import { MessageRuntime } from "../runtime/MessageRuntime";
 import { tapSubscribable } from "../util-hooks/tapSubscribable";
 import { ComposerClient } from "./ComposerRuntimeClient";
 import { MessagePartClient } from "./MessagePartRuntimeClient";
-import { tapLookupResources } from "../../client/util-hooks/tapLookupResources";
 import { RefObject } from "react";
-import {
-  MessageClientState,
-  MessageClientApi,
-} from "../../client/types/Message";
+import { MessageState } from "../../types/scopes";
 import { AttachmentRuntimeClient } from "./AttachmentRuntimeClient";
 
 const MessageAttachmentClientByIndex = resource(
@@ -47,7 +47,7 @@ export const MessageClient = resource(
   }: {
     runtime: MessageRuntime;
     threadIdRef: RefObject<string>;
-  }) => {
+  }): ClientOutput<"message"> => {
     const runtimeState = tapSubscribable(runtime);
 
     const [isCopiedState, setIsCopied] = tapState(false);
@@ -62,7 +62,7 @@ export const MessageClient = resource(
       [runtime],
     );
 
-    const composer = tapInlineResource(
+    const composer = tapClientResource(
       ComposerClient({
         runtime: runtime.composer,
         threadIdRef,
@@ -70,29 +70,31 @@ export const MessageClient = resource(
       }),
     );
 
-    const parts = tapLookupResources(
-      runtimeState.content.map((part, idx) =>
+    const parts = tapClientLookup(
+      runtimeState.content,
+      (part, idx) =>
         attachKey(
           "toolCallId" in part && part.toolCallId != null
             ? `toolCallId-${part.toolCallId}`
             : `index-${idx}`,
-          MessagePartByIndex({ runtime, index: idx }),
+          MessagePartByIndex({ runtime, index: parseInt(idx, 10) }),
         ),
-      ),
+      [runtime],
     );
 
-    const attachments = tapLookupResources(
-      runtimeState.attachments?.map((attachment, idx) =>
+    const attachments = tapClientLookup(
+      runtimeState.attachments ?? [],
+      (attachment, idx) =>
         attachKey(
           attachment.id,
-          MessageAttachmentClientByIndex({ runtime, index: idx }),
+          MessageAttachmentClientByIndex({ runtime, index: parseInt(idx, 10) }),
         ),
-      ) ?? [],
+      [runtime],
     );
 
-    const state = tapMemo<MessageClientState>(() => {
+    const state = tapMemo<MessageState>(() => {
       return {
-        ...(runtimeState as MessageClientState),
+        ...(runtimeState as MessageState),
 
         parts: parts.state,
         composer: composer.state,
@@ -108,11 +110,12 @@ export const MessageClient = resource(
       isHoveringState,
     ]);
 
-    return tapApi<MessageClientApi>(
-      {
+    return {
+      state,
+      methods: {
         getState: () => state,
 
-        composer: composer.api,
+        composer: composer.methods,
 
         reload: (config) => runtime.reload(config),
         speak: () => runtime.speak(),
@@ -120,20 +123,19 @@ export const MessageClient = resource(
         submitFeedback: (feedback) => runtime.submitFeedback(feedback),
         switchToBranch: (options) => runtime.switchToBranch(options),
         getCopyText: () => runtime.unstable_getCopyText(),
-
         part: (selector) => {
           if ("index" in selector) {
-            return parts.api({ index: selector.index });
+            return parts.get({ index: selector.index });
           } else {
-            return parts.api({ key: `toolCallId-${selector.toolCallId}` });
+            return parts.get({ key: `toolCallId-${selector.toolCallId}` });
           }
         },
 
         attachment: (selector) => {
           if ("id" in selector) {
-            return attachments.api({ key: selector.id });
+            return attachments.get({ key: selector.id });
           } else {
-            return attachments.api(selector);
+            return attachments.get(selector);
           }
         },
 
@@ -142,9 +144,6 @@ export const MessageClient = resource(
 
         __internal_getRuntime: () => runtime,
       },
-      {
-        key: runtimeState.id,
-      },
-    );
+    };
   },
 );

@@ -1,3 +1,4 @@
+import type { ThreadListItemRuntime } from "../../legacy-runtime/runtime";
 import type { ThreadListItemStatus } from "../../legacy-runtime/runtime/ThreadListItemRuntime";
 
 export type ThreadListItemState = {
@@ -9,6 +10,7 @@ export type ThreadListItemState = {
 };
 
 export type ThreadListItemMethods = {
+  getState(): ThreadListItemState;
   switchTo(): void;
   rename(newTitle: string): void;
   archive(): void;
@@ -17,11 +19,16 @@ export type ThreadListItemMethods = {
   generateTitle(): void;
   initialize(): Promise<{ remoteId: string; externalId: string | undefined }>;
   detach(): void;
+  /** @internal */
+  __internal_getRuntime?(): ThreadListItemRuntime;
 };
 
 export type ThreadListItemMeta = {
   source: "threads";
-  query: { type: "main" } | { id: string } | { index: number; archived?: boolean };
+  query:
+    | { type: "main" }
+    | { id: string }
+    | { index: number; archived?: boolean };
 };
 
 export type ThreadListItemEvents = {

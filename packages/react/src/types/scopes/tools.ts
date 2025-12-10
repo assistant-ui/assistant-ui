@@ -6,7 +6,11 @@ export type ToolsState = {
 };
 
 export type ToolsMethods = {
-  setToolUI(toolName: string, render: ToolCallMessagePartComponent): Unsubscribe;
+  getState(): ToolsState;
+  setToolUI(
+    toolName: string,
+    render: ToolCallMessagePartComponent,
+  ): Unsubscribe;
 };
 
 export type ToolsClientSchema = {

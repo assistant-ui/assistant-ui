@@ -15,11 +15,11 @@ import {
   AssistantApi,
   useAssistantApi,
 } from "../../context/react/AssistantApiContext";
-import { ThreadListItemClientApi } from "../../client/types/ThreadListItem";
+import { ThreadListItemMethods } from "../../types/scopes";
 
 // Global WeakMap to store message ID mappings across adapter instances
 const globalMessageIdMapping = new WeakMap<
-  ThreadListItemClientApi,
+  ThreadListItemMethods,
   Record<string, string | Promise<string>>
 >();
 
