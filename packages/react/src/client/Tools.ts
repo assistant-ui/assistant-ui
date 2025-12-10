@@ -1,6 +1,5 @@
 import { resource, tapState, tapEffect } from "@assistant-ui/tap";
-import { type ClientOutput } from "@assistant-ui/store";
-import { tapModelContext } from "./ModelContext";
+import { tapAssistantClientRef, type ClientOutput } from "@assistant-ui/store";
 import { ToolsState } from "../types/scopes";
 import type { Tool } from "assistant-stream";
 import { type Toolkit } from "../model-context/toolbox";
@@ -12,7 +11,7 @@ export const Tools = resource(
       tools: {},
     }));
 
-    const modelContext = tapModelContext();
+    const clientRef = tapAssistantClientRef();
 
     const setToolUI = (
       toolName: string,
@@ -69,12 +68,14 @@ export const Tools = resource(
         }),
       };
 
-      unsubscribes.push(modelContext.register(modelContextProvider));
+      unsubscribes.push(
+        clientRef.current!.modelContext().register(modelContextProvider),
+      );
 
       return () => {
         unsubscribes.forEach((fn) => fn());
       };
-    }, [toolkit, modelContext]);
+    }, [toolkit]);
 
     return {
       state,

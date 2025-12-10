@@ -6,6 +6,8 @@ import {
   tapResource,
   resource,
   tapInlineResource,
+  Resource,
+  attachKey,
 } from "@assistant-ui/tap";
 import type { ClientMethods, ClientOutputOf } from "./types/client";
 import {
@@ -100,6 +102,17 @@ class ClientProxyHandler
   }
 }
 
+const wrapperResource = <R, P>(
+  fn: (props: ResourceElement<P>) => R,
+): Resource<R, ResourceElement<P>> => {
+  const res = resource(fn);
+  return (props: ResourceElement<P>) => {
+    const el = res(props);
+    if (props.key === undefined) return el;
+    return attachKey(props.key, el);
+  };
+};
+
 /**
  * Resource that wraps a plain resource element to create a stable client proxy.
  *
@@ -118,7 +131,7 @@ class ClientProxyHandler
  * });
  * ```
  */
-export const ClientResource = resource(
+export const ClientResource = wrapperResource(
   <TState, TMethods extends ClientMethods>(
     element: ResourceElement<ClientOutputOf<TState, TMethods>>,
   ): ClientOutputOf<TState, TMethods> => {

@@ -8,7 +8,7 @@ import {
   ComposerPrimitive,
   MessagePrimitive,
   useAssistantState,
-  useAssistantApi,
+  useAssistantClient,
 } from "@assistant-ui/react";
 import { useShallow } from "zustand/shallow";
 import {
@@ -130,8 +130,8 @@ const AttachmentThumb: FC = () => {
 };
 
 const AttachmentUI: FC = () => {
-  const api = useAssistantApi();
-  const isComposer = api.attachment.source === "composer";
+  const aui = useAssistantClient();
+  const isComposer = aui.attachment.source === "composer";
 
   const isImage = useAssistantState(
     ({ attachment }) => attachment.type === "image",

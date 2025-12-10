@@ -127,10 +127,10 @@ export type ThreadMeta = {
 };
 
 export type ThreadEvents = {
-  "thread.run-start": { threadId: string };
-  "thread.run-end": { threadId: string };
+  "thread.runStart": { threadId: string };
+  "thread.runEnd": { threadId: string };
   "thread.initialize": { threadId: string };
-  "thread.model-context-update": { threadId: string };
+  "thread.modelContextUpdate": { threadId: string };
 };
 
 export type ThreadClientSchema = {

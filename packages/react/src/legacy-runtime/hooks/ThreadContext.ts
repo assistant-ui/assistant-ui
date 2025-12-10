@@ -117,7 +117,7 @@ export function useThreadModelContext(options?: {
   const [, rerender] = useState({});
 
   const runtime = useThreadRuntime(options);
-  useAssistantEvent("thread.model-context-update", () => rerender({}));
+  useAssistantEvent("thread.modelContextUpdate", () => rerender({}));
 
   if (!runtime) return null;
   return runtime?.getModelContext();

@@ -1,8 +1,4 @@
-import {
-  tapMemo,
-  tapResources,
-  type ResourceElement,
-} from "@assistant-ui/tap";
+import { tapMemo, tapResources, type ResourceElement } from "@assistant-ui/tap";
 import type { ClientMethods, ClientOutputOf } from "./types/client";
 import { ClientResource } from "./tapClientResource";
 

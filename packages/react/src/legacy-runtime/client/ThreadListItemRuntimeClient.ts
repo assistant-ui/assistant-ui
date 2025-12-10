@@ -22,8 +22,8 @@ export const ThreadListItemClient = resource(
 
       // Subscribe to thread list item events
       const threadListItemEvents: ThreadListItemEventType[] = [
-        "switched-to",
-        "switched-away",
+        "switchedTo",
+        "switchedAway",
       ];
 
       for (const event of threadListItemEvents) {

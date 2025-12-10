@@ -32,8 +32,8 @@ export type ThreadListItemMeta = {
 };
 
 export type ThreadListItemEvents = {
-  "threadListItem.switched-to": { threadId: string };
-  "threadListItem.switched-away": { threadId: string };
+  "threadListItem.switchedTo": { threadId: string };
+  "threadListItem.switchedAway": { threadId: string };
 };
 
 export type ThreadListItemClientSchema = {

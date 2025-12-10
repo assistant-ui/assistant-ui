@@ -1,14 +1,16 @@
 import { resource, tapEffect, tapInlineResource } from "@assistant-ui/tap";
 import type { AssistantRuntime } from "./runtime/AssistantRuntime";
 import { ThreadListClient } from "./client/ThreadListRuntimeClient";
-import { tapModelContext } from "../client/ModelContext";
+import { tapAssistantClientRef } from "@assistant-ui/store";
 
 export const RuntimeAdapter = resource((runtime: AssistantRuntime) => {
-  const modelContext = tapModelContext();
+  const clientRef = tapAssistantClientRef();
 
   tapEffect(() => {
-    return runtime.registerModelContextProvider(modelContext);
-  }, [runtime, modelContext]);
+    return runtime.registerModelContextProvider(
+      clientRef.current!.modelContext(),
+    );
+  }, [runtime]);
 
   return tapInlineResource(
     ThreadListClient({

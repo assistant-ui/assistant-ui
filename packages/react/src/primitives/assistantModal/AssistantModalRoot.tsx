@@ -25,7 +25,7 @@ const useAssistantModalOpenState = ({
   useEffect(() => {
     if (!unstable_openOnRunStart) return undefined;
 
-    return aui.on("thread.run-start", () => {
+    return aui.on("thread.runStart", () => {
       setOpen(true);
     });
   }, [unstable_openOnRunStart, setOpen, aui]);

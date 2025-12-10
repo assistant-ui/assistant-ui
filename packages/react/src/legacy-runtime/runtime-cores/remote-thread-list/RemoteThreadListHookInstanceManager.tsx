@@ -113,7 +113,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
           aui.threadListItem().initialize();
 
           // auto generate a title after first run
-          const dispose = runtime.thread.unstable_on("run-end", () => {
+          const dispose = runtime.thread.unstable_on("runEnd", () => {
             dispose();
 
             aui.threadListItem().generateTitle();

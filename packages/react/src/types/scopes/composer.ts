@@ -38,7 +38,7 @@ export type ComposerMeta = {
 
 export type ComposerEvents = {
   "composer.send": { threadId: string; messageId?: string };
-  "composer.attachment-add": { threadId: string; messageId?: string };
+  "composer.attachmentAdd": { threadId: string; messageId?: string };
 };
 
 export type ComposerClientSchema = {

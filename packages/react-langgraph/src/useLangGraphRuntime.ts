@@ -11,7 +11,7 @@ import {
   AssistantCloud,
   unstable_useCloudThreadListAdapter,
   unstable_useRemoteThreadListRuntime,
-  useAssistantApi,
+  useAssistantClient,
   useAssistantState,
   useExternalMessageConverter,
   useExternalStoreRuntime,
@@ -124,10 +124,10 @@ export const useLangGraphInterruptState = () => {
 };
 
 export const useLangGraphSend = () => {
-  const api = useAssistantApi();
+  const aui = useAssistantClient();
 
   return (messages: LangChainMessage[], config: LangGraphSendMessageConfig) => {
-    const extras = api.thread().getState().extras;
+    const extras = aui.thread().getState().extras;
     const { send } = asLangGraphRuntimeExtras(extras);
     return send(messages, config);
   };
@@ -337,7 +337,7 @@ export const useLangGraphRuntime = ({
   delete: deleteFn,
   ...options
 }: UseLangGraphRuntimeOptions) => {
-  const api = useAssistantApi();
+  const aui = useAssistantClient();
   const cloudAdapter = unstable_useCloudThreadListAdapter({
     cloud,
     create: async () => {
@@ -345,8 +345,8 @@ export const useLangGraphRuntime = ({
         return create();
       }
 
-      if (api.threadListItem.source) {
-        return api.threadListItem().initialize();
+      if (aui.threadListItem.source) {
+        return aui.threadListItem().initialize();
       }
 
       throw new Error(

@@ -186,7 +186,7 @@ export const ComposerPrimitiveInput = forwardRef<
       )
         return undefined;
 
-      return aui.on("thread.run-start", focus);
+      return aui.on("thread.runStart", focus);
     }, [unstable_focusOnRunStart, focus, aui]);
 
     useEffect(() => {
@@ -196,7 +196,7 @@ export const ComposerPrimitiveInput = forwardRef<
       )
         return undefined;
 
-      return aui.on("threadListItem.switched-to", focus);
+      return aui.on("threadListItem.switchedTo", focus);
     }, [unstable_focusOnThreadSwitched, focus, aui]);
 
     return (

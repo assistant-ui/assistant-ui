@@ -52,10 +52,10 @@ export const ThreadClient = resource(
 
       // Subscribe to thread events
       const threadEvents: ThreadRuntimeEventType[] = [
-        "run-start",
-        "run-end",
+        "runStart",
+        "runEnd",
         "initialize",
-        "model-context-update",
+        "modelContextUpdate",
       ];
 
       for (const event of threadEvents) {
