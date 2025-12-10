@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
-import { useAssistantState, useAssistantApi } from "../../context";
+import { useAssistantState, useAssistantClient } from "@assistant-ui/store";
 import {
   ActionButtonElement,
   ActionButtonProps,
@@ -9,10 +9,10 @@ import {
 } from "../../utils/createActionButton";
 
 const useActionBarSpeak = () => {
-  const api = useAssistantApi();
+  const aui = useAssistantClient();
   const callback = useCallback(async () => {
-    api.message().speak();
-  }, [api]);
+    aui.message().speak();
+  }, [aui]);
 
   const hasSpeakableContent = useAssistantState(({ message }) => {
     return (

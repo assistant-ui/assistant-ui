@@ -10,7 +10,6 @@ export * as ThreadPrimitive from "./thread";
 export * as ThreadListPrimitive from "./threadList";
 export * as ThreadListItemPrimitive from "./threadListItem";
 
-export { AssistantIf } from "./assistant/AssistantIf";
 
 export { useMessagePartText } from "./messagePart/useMessagePartText";
 export { useMessagePartReasoning } from "./messagePart/useMessagePartReasoning";

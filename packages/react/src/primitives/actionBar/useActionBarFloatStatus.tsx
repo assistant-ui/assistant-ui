@@ -1,6 +1,6 @@
 "use client";
 
-import { useAssistantState } from "../../context";
+import { useAssistantState } from "@assistant-ui/store";
 
 export enum HideAndFloatStatus {
   Hidden = "hidden",

@@ -1,10 +1,8 @@
 "use client";
 
 import { ComponentType, FC, memo, useMemo } from "react";
-import {
-  ThreadListItemByIndexProvider,
-  useAssistantState,
-} from "../../context";
+import { useAssistantState } from "@assistant-ui/store";
+import { ThreadListItemByIndexProvider } from "../../context/providers";
 
 export namespace ThreadListPrimitiveItems {
   export type Props = {

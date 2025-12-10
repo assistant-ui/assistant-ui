@@ -9,7 +9,7 @@ import {
   useContext,
 } from "react";
 import { useThreadViewportStore } from "../../context/react/ThreadViewportContext";
-import { useAssistantState } from "../../context";
+import { useAssistantState } from "@assistant-ui/store";
 import { useManagedRef } from "../../utils/hooks/useManagedRef";
 
 const SlackNestingContext = createContext(false);

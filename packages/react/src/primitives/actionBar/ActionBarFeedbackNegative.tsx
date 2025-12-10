@@ -5,14 +5,14 @@ import { ActionButtonProps } from "../../utils/createActionButton";
 import { composeEventHandlers } from "@radix-ui/primitive";
 import { Primitive } from "@radix-ui/react-primitive";
 import { useCallback } from "react";
-import { useAssistantState, useAssistantApi } from "../../context";
+import { useAssistantState, useAssistantClient } from "@assistant-ui/store";
 
 const useActionBarFeedbackNegative = () => {
-  const api = useAssistantApi();
+  const aui = useAssistantClient();
 
   const callback = useCallback(() => {
-    api.message().submitFeedback({ type: "negative" });
-  }, [api]);
+    aui.message().submitFeedback({ type: "negative" });
+  }, [aui]);
 
   return callback;
 };

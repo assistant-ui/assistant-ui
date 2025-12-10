@@ -3,7 +3,7 @@
 import { FC, useEffect, useState } from "react";
 import * as PopoverPrimitive from "@radix-ui/react-popover";
 import { ScopedProps, usePopoverScope } from "./scope";
-import { useAssistantApi } from "../../context";
+import { useAssistantClient } from "@assistant-ui/store";
 
 export namespace AssistantModalPrimitiveRoot {
   export type Props = PopoverPrimitive.PopoverProps & {
@@ -21,14 +21,14 @@ const useAssistantModalOpenState = ({
   const state = useState(defaultOpen);
 
   const [, setOpen] = state;
-  const api = useAssistantApi();
+  const aui = useAssistantClient();
   useEffect(() => {
     if (!unstable_openOnRunStart) return undefined;
 
-    return api.on("thread.run-start", () => {
+    return aui.on("thread.run-start", () => {
       setOpen(true);
     });
-  }, [unstable_openOnRunStart, setOpen, api]);
+  }, [unstable_openOnRunStart, setOpen, aui]);
 
   return state;
 };

@@ -1,5 +1,5 @@
 import { getPartialJsonObjectFieldState } from "assistant-stream/utils";
-import { useAssistantState } from "../context";
+import { useAssistantState } from "@assistant-ui/store";
 
 const COMPLETE_STATUS = { type: "complete" };
 
