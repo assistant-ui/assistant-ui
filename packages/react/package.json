@@ -54,6 +54,7 @@
     "test:mutation": "stryker run"
   },
   "dependencies": {
+    "@assistant-ui/core": "workspace:*",
     "assistant-cloud": "^0.1.10",
     "@assistant-ui/tap": "^0.3.2",
     "@radix-ui/primitive": "^1.1.3",

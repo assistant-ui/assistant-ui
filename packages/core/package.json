@@ -1,0 +1,55 @@
+{
+  "name": "@assistant-ui/core",
+  "description": "Framework-agnostic core logic for assistant-ui",
+  "version": "0.1.0",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./stream": {
+      "types": "./dist/stream/index.d.ts",
+      "default": "./dist/stream/index.js"
+    },
+    "./stream/utils": {
+      "types": "./dist/stream/utils/index.d.ts",
+      "default": "./dist/stream/utils/index.js"
+    }
+  },
+  "source": "./src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsx scripts/build.mts"
+  },
+  "dependencies": {
+    "nanoid": "5.1.6",
+    "secure-json-parse": "^4.1.0",
+    "@types/json-schema": "^7.0.15"
+  },
+  "devDependencies": {
+    "@assistant-ui/x-buildutils": "workspace:*",
+    "@types/node": "^24.10.1",
+    "tsx": "^4.21.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "homepage": "https://www.assistant-ui.com/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/assistant-ui/assistant-ui/tree/main/packages/core"
+  },
+  "bugs": {
+    "url": "https://github.com/assistant-ui/assistant-ui/issues"
+  }
+}
