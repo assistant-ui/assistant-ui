@@ -5,7 +5,6 @@ export type {
   LanguageModelConfig,
 } from "./ModelContextTypes";
 
-// Re-export Tool from assistant-stream for convenience
 export type { Tool } from "assistant-stream";
 
 export { mergeModelContexts } from "./ModelContextTypes";

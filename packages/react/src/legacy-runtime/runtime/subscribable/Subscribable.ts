@@ -1,4 +1,3 @@
-// Re-export from core for backward compatibility
 export type {
   Subscribable,
   SubscribableWithState,

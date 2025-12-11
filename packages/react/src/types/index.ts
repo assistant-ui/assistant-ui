@@ -1,11 +1,8 @@
-// Re-export core types from @assistant-ui/core
 export type {
-  // Attachment types
   Attachment,
   PendingAttachment,
   CompleteAttachment,
   AttachmentStatus,
-  // Message types
   AppendMessage,
   TextMessagePart,
   ReasoningMessagePart,
@@ -18,24 +15,20 @@ export type {
   MessageStatus,
   MessagePartStatus,
   ToolCallMessagePartStatus,
-  // Thread message types
   ThreadUserMessagePart,
   ThreadAssistantMessagePart,
   ThreadSystemMessage,
   ThreadAssistantMessage,
   ThreadUserMessage,
   ThreadMessage,
-  // Event types
   AssistantEventScope,
   AssistantEventSelector,
   AssistantEvent,
   AssistantEventMap,
   AssistantEventCallback,
-  // Utility types
   Unsubscribe,
 } from "@assistant-ui/core";
 
-// React-specific component types (cannot be moved to core as they depend on React's ComponentType)
 export type {
   EmptyMessagePartComponent,
   EmptyMessagePartProps,

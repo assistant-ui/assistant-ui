@@ -1,8 +1,4 @@
-// Re-export additional core types for backward compatibility
-// Types that are NOT already exported from ./types can be re-exported here
-// Users can also import directly from @assistant-ui/core
 export type {
-  // Adapters (not exported from react/types)
   AttachmentAdapter,
   SpeechSynthesisAdapter,
   SpeechRecognitionAdapter,
@@ -13,32 +9,25 @@ export type {
   ChatModelAdapter,
   ChatModelRunOptions,
   ChatModelRunResult,
-  // Model Context types (not exported from react/model-context)
   LanguageModelV1CallSettings,
   LanguageModelConfig,
-  // Runtime types (not exported from react/runtime-cores)
   ThreadMessageLike,
-  // Stream utils
   ReadonlyJSONValue,
   ReadonlyJSONObject,
 } from "@assistant-ui/core";
 
 export {
-  // Runtime utilities from core
   MessageRepository,
   ExportedMessageRepository,
   fromThreadMessageLike,
   getAutoStatus,
   isAutoStatus,
-  // Utils
   generateId,
   generateOptimisticId,
   isOptimisticId,
   getThreadMessageText,
-  // Event utils
   normalizeEventSelector,
   checkEventScope,
-  // Stream utils
   parsePartialJsonObject,
   getPartialJsonObjectMeta,
   getPartialJsonObjectFieldState,

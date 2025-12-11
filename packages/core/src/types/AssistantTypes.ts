@@ -13,7 +13,6 @@ import type {
   ThreadAssistantMessagePart,
 } from "./MessagePartTypes";
 
-// Re-export message part types for convenience
 export type {
   TextMessagePart,
   ReasoningMessagePart,

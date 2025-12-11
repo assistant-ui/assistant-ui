@@ -2,7 +2,6 @@ export type { ThreadRuntimeCore } from "./legacy-runtime/runtime-cores/core/Thre
 export type { ThreadListRuntimeCore } from "./legacy-runtime/runtime-cores/core/ThreadListRuntimeCore";
 export { DefaultThreadComposerRuntimeCore } from "./legacy-runtime/runtime-cores/composer/DefaultThreadComposerRuntimeCore";
 export { CompositeContextProvider } from "./utils/CompositeContextProvider";
-// Re-export from core
 export {
   MessageRepository,
   generateId,
