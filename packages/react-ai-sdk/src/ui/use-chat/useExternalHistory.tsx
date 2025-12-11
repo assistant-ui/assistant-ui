@@ -98,7 +98,6 @@ export const useExternalHistory = <TMessage,>(
       loadHistory();
     }
   }, [
-    aui,
     historyAdapter,
     storageFormatAdapter,
     toThreadMessages,

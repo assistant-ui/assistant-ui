@@ -14,6 +14,7 @@ import {
   renderResourceFiber,
   commitResourceFiber,
 } from "../core/ResourceFiber";
+import { tapConst } from "./tap-const";
 
 const getKey = (
   isArray: boolean,
@@ -61,17 +62,20 @@ export function tapResources(
   getElementDeps: readonly unknown[],
 ): Record<string, unknown> | unknown[] {
   const [version, setVersion] = tapState(0);
-  const rerender = tapCallback(() => setVersion((v) => v + 1), []);
+  const rerender = tapConst(() => () => setVersion((v) => v + 1), []);
 
-  const [fibers] = tapState(
+  const fibers = tapConst(
     () => new Map<string | number, ResourceFiber<unknown, unknown>>(),
+    [],
   );
 
-  const getElementMemo = tapMemo(() => getElement, getElementDeps);
+  const getElementMemo = tapCallback(getElement, [...getElementDeps]);
 
   // Process each element
 
   const results = tapMemo(() => {
+    void version;
+
     const results: TapResourcesRenderResult = {
       remove: [],
       add: [],

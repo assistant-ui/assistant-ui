@@ -131,6 +131,7 @@ describe("tapEffect - Basic Functionality", () => {
         }, []);
 
         // Effect with deps - runs when deps change
+        // biome-ignore lint/correctness/useExhaustiveDependencies: test
         tapEffect(() => {
           effectCalls.conditional++;
         }, [props.value]);

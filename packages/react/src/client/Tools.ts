@@ -1,4 +1,4 @@
-import { resource, tapState, tapEffect } from "@assistant-ui/tap";
+import { resource, tapState, tapEffect, tapCallback } from "@assistant-ui/tap";
 import { tapAssistantClientRef, type ClientOutput } from "@assistant-ui/store";
 import { ToolsState } from "../types/scopes";
 import type { Tool } from "assistant-stream";
@@ -13,33 +13,33 @@ export const Tools = resource(
 
     const clientRef = tapAssistantClientRef();
 
-    const setToolUI = (
-      toolName: string,
-      render: ToolCallMessagePartComponent,
-    ) => {
-      setState((prev) => {
-        return {
-          ...prev,
-          tools: {
-            ...prev.tools,
-            [toolName]: [...(prev.tools[toolName] ?? []), render],
-          },
-        };
-      });
-
-      return () => {
+    const setToolUI = tapCallback(
+      (toolName: string, render: ToolCallMessagePartComponent) => {
         setState((prev) => {
           return {
             ...prev,
             tools: {
               ...prev.tools,
-              [toolName]:
-                prev.tools[toolName]?.filter((r) => r !== render) ?? [],
+              [toolName]: [...(prev.tools[toolName] ?? []), render],
             },
           };
         });
-      };
-    };
+
+        return () => {
+          setState((prev) => {
+            return {
+              ...prev,
+              tools: {
+                ...prev.tools,
+                [toolName]:
+                  prev.tools[toolName]?.filter((r) => r !== render) ?? [],
+              },
+            };
+          });
+        };
+      },
+      [],
+    );
 
     tapEffect(() => {
       if (!toolkit) return;
@@ -75,7 +75,7 @@ export const Tools = resource(
       return () => {
         unsubscribes.forEach((fn) => fn());
       };
-    }, [toolkit]);
+    }, [toolkit, setToolUI, clientRef]);
 
     return {
       state,

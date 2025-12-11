@@ -1,3 +1,4 @@
+/** biome-ignore-all lint/correctness/useExhaustiveDependencies: tests */
 import { describe, it, expect, vi } from "vitest";
 import { tapEffect } from "../../hooks/tap-effect";
 import { tapState } from "../../hooks/tap-state";

@@ -75,7 +75,7 @@ export function tapClientLookup(
       }
     }
     return mapping;
-  }, [isArray, resources, map, getElement]);
+  }, [isArray, map, getElement]);
 
   const state = tapMemo(() => {
     if (isArray) {

@@ -17,7 +17,7 @@ export const RuntimeAdapter = resource((runtime: AssistantRuntime) => {
     return runtime.registerModelContextProvider(
       clientRef.current!.modelContext(),
     );
-  }, [runtime]);
+  }, [runtime, clientRef]);
 
   return tapInlineResource(
     ThreadListClient({

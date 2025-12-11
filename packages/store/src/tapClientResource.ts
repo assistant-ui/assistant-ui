@@ -146,7 +146,7 @@ export const ClientResource = wrapperResource(
           {} as TMethods,
           new ClientProxyHandler(valueRef, index),
         ),
-      [],
+      [index],
     );
 
     const value = tapWithClientStack(methods, () => tapResource(element));

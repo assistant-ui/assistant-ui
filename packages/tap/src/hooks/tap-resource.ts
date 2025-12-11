@@ -8,29 +8,34 @@ import {
 } from "../core/ResourceFiber";
 import { tapMemo } from "./tap-memo";
 import { tapState } from "./tap-state";
+import { tapConst } from "./tap-const";
 
 export function tapResource<E extends ResourceElement<any, any>>(
   element: E,
 ): ExtractResourceReturnType<E>;
 export function tapResource<E extends ResourceElement<any, any>>(
   element: E,
-  deps: readonly unknown[],
+  propsDeps: readonly unknown[],
 ): ExtractResourceReturnType<E>;
 export function tapResource<E extends ResourceElement<any, any>>(
   element: E,
-  deps?: readonly unknown[],
+  propsDeps?: readonly unknown[],
 ): ExtractResourceReturnType<E> {
-  const [stateVersion, rerender] = tapState({});
-  const fiber = tapMemo(
-    () => createResourceFiber(element.type, () => rerender({})),
-    [element.type, element.key],
-  );
+  const [, setVersion] = tapState(0);
+  const rerender = tapConst(() => () => setVersion((v) => v + 1), []);
+  const fiber = tapMemo(() => {
+    void element.key; // rerender on key change
 
-  const props = deps ? tapMemo(() => element.props, deps) : element.props;
-  const result = tapMemo(
-    () => renderResourceFiber(fiber, props),
-    [fiber, props, stateVersion],
-  );
+    return createResourceFiber(element.type, rerender);
+  }, [element.type, element.key]);
+
+  const result = propsDeps
+    ? // biome-ignore lint/correctness/useExhaustiveDependencies: user provided deps instead of prop identity
+      tapMemo(
+        () => renderResourceFiber(fiber, element.props),
+        [fiber, ...propsDeps],
+      )
+    : renderResourceFiber(fiber, element.props);
 
   tapEffect(() => {
     return () => unmountResourceFiber(fiber);

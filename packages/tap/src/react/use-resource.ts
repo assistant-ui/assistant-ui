@@ -18,10 +18,12 @@ export function useResource<E extends ResourceElement<any, any>>(
   element: E,
 ): ExtractResourceReturnType<E> {
   const [, rerender] = useState({});
-  const fiber = useMemo(
-    () => createResourceFiber(element.type, () => rerender({})),
-    [element.type, element.key],
-  );
+
+  const fiber = useMemo(() => {
+    void element.key; // rerender on key change
+
+    return createResourceFiber(element.type, () => rerender({}));
+  }, [element.type, element.key]);
 
   const result = renderResourceFiber(fiber, element.props);
   useIsomorphicLayoutEffect(() => {

@@ -12,6 +12,7 @@ import { tapMemo } from "../hooks/tap-memo";
 import { tapEffect } from "../hooks/tap-effect";
 import { resource } from "./resource";
 import { tapResource } from "../hooks/tap-resource";
+import { tapConst } from "../hooks/tap-const";
 
 export namespace createResource {
   export type Unsubscribe = () => void;
@@ -26,13 +27,16 @@ export namespace createResource {
 
 const HandleWrapperResource = resource(
   <R, P>(state: {
-    element: ResourceElement<R, P>;
+    elementRef: {
+      current: ResourceElement<R, P>;
+    };
     onRender: (changed: boolean) => boolean;
     onUnmount: () => void;
   }): createResource.Handle<R, P> => {
-    const [, setElement] = tapState(state.element);
-    const value = tapResource(state.element);
-    const subscribers = tapRef(new Set<() => void>()).current;
+    const [, setElement] = tapState(state.elementRef.current);
+    const value = tapResource(state.elementRef.current);
+
+    const subscribers = tapConst(() => new Set<() => void>(), []);
     const valueRef = tapRef(value);
 
     tapEffect(() => {
@@ -49,17 +53,19 @@ const HandleWrapperResource = resource(
           subscribers.add(callback);
           return () => subscribers.delete(callback);
         },
-        render: (element: ResourceElement<R, P>) => {
-          const changed = state.element !== element;
-          state.element = element;
+
+        render: (el: ResourceElement<R, P>) => {
+          const changed = state.elementRef.current !== el;
+          state.elementRef.current = el;
+          setElement(el);
 
           if (state.onRender(changed)) {
-            setElement(element);
+            setElement(el);
           }
         },
         unmount: state.onUnmount,
       }),
-      [],
+      [state],
     );
 
     return handle;
@@ -73,7 +79,7 @@ export const createResource = <R, P>(
   let isMounted = mount;
   let render: RenderResult;
   const props = {
-    element,
+    elementRef: { current: element },
     onRender: (changed: boolean) => {
       if (isMounted) return changed;
       isMounted = true;

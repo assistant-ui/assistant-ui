@@ -59,7 +59,7 @@ const RootClientResource = resource(
       { clientRef, emit },
       () => tapClientResource(element),
     );
-    return tapMemo(() => ({ methods }), [state]);
+    return tapMemo(() => ({ state, methods }), [methods, state]);
   },
 );
 
@@ -285,15 +285,26 @@ export const AssistantClientResource = resource(
         on: rootFields.on ?? baseClient.on,
         [PROXIED_ASSISTANT_STATE_SYMBOL]: createProxiedAssistantState(client),
       });
+      console.log("created client", client);
       return client;
     }, [baseClient, rootFields, derivedFields]);
 
     if (clientRef.current === null) {
       clientRef.current = client;
+      console.log(
+        "set clientRef.current render",
+        client,
+        (client as any)["modelContext"]().getState().version,
+      );
     }
 
     tapEffect(() => {
       clientRef.current = client;
+      console.log(
+        "set clientRef.current",
+        client,
+        (client as any)["modelContext"]().getState().version,
+      );
     });
 
     return client;

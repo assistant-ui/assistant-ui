@@ -112,7 +112,17 @@ export const ThreadMessageClient = resource(
         isCopied: isCopiedState,
         isHovering: isHoveringState,
       };
-    }, [message, index, isCopiedState, isHoveringState, isLast]);
+    }, [
+      message,
+      index,
+      isCopiedState,
+      isHoveringState,
+      isLast,
+      parts.state,
+      composer.state,
+      branchNumber,
+      branchCount,
+    ]);
 
     return {
       state,
