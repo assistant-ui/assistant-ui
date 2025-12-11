@@ -39,7 +39,8 @@
   },
   "peerDependencies": {
     "@types/react": "*",
-    "react": "^18 || ^19"
+    "react": "^18 || ^19",
+    "react-native": "*"
   },
   "peerDependenciesMeta": {
     "@types/react": {

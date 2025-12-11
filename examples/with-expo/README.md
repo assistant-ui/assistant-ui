@@ -1,50 +1,89 @@
-# Welcome to your Expo app 👋
+# assistant-ui Expo Example
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A minimal React Native chat interface using `@assistant-ui/react-native`.
 
-## Get started
+## Features
 
-1. Install dependencies
+- Simple chat UI with message bubbles
+- Text input with send button
+- Dark mode support
+- Simulated AI responses for demo purposes
 
+## Getting Started
+
+1. Install dependencies:
    ```bash
-   npm install
+   pnpm install
    ```
 
-2. Start the app
-
+2. Start the Expo development server:
    ```bash
-   npx expo start
+   pnpm start
    ```
 
-In the output, you'll find options to open the app in a
+3. Run on your preferred platform:
+   - Press `i` for iOS simulator
+   - Press `a` for Android emulator
+   - Scan QR code with Expo Go app for physical device
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## Project Structure
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+```
+app/
+├── _layout.tsx      # Root layout with navigation
+└── index.tsx        # Main chat screen
 
-## Get a fresh project
+components/
+├── chat/
+│   ├── ChatScreen.tsx    # Main chat container
+│   ├── ChatComposer.tsx  # Text input and send button
+│   └── MessageBubble.tsx # Message display component
+├── themed-text.tsx       # Themed text component
+└── themed-view.tsx       # Themed view component
 
-When you're ready, run:
-
-```bash
-npm run reset-project
+hooks/
+├── use-chat-runtime.ts   # Chat runtime with message handling
+├── use-color-scheme.ts   # Color scheme hook
+└── use-theme-color.ts    # Theme color hook
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Using @assistant-ui/react-native
 
-## Learn more
+This example demonstrates how to use the core hooks from `@assistant-ui/react-native`:
 
-To learn more about developing your project with Expo, look at the following resources:
+```tsx
+import {
+  ThreadProvider,
+  ComposerProvider,
+  useThread,
+  useComposer,
+} from "@assistant-ui/react-native";
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+function ChatScreen() {
+  const { threadRuntime, composerRuntime } = useChatRuntime();
 
-## Join the community
+  return (
+    <ThreadProvider runtime={threadRuntime}>
+      <ComposerProvider runtime={composerRuntime}>
+        <Messages />
+        <Composer />
+      </ComposerProvider>
+    </ThreadProvider>
+  );
+}
 
-Join our community of developers creating universal apps.
+function Messages() {
+  const messages = useThread((state) => state.messages);
+  // Render messages...
+}
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+function Composer() {
+  const text = useComposer((state) => state.text);
+  const canSend = useComposer((state) => state.canSend);
+  // Render composer...
+}
+```
+
+## License
+
+MIT
