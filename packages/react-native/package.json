@@ -1,0 +1,66 @@
+{
+  "name": "@assistant-ui/react-native",
+  "description": "React Native hooks for assistant-ui",
+  "keywords": [
+    "react-native",
+    "expo",
+    "ai",
+    "chat",
+    "chatbot",
+    "assistant",
+    "openai",
+    "ai-chat",
+    "ai-chatbot",
+    "ai-assistant"
+  ],
+  "version": "0.0.1",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "source": "./src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsx scripts/build.mts"
+  },
+  "dependencies": {
+    "@assistant-ui/core": "workspace:*"
+  },
+  "peerDependencies": {
+    "@types/react": "*",
+    "react": "^18 || ^19"
+  },
+  "peerDependenciesMeta": {
+    "@types/react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@assistant-ui/x-buildutils": "workspace:*",
+    "@types/node": "^24.10.1",
+    "tsx": "^4.21.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "homepage": "https://www.assistant-ui.com/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/assistant-ui/assistant-ui/tree/main/packages/react-native"
+  },
+  "bugs": {
+    "url": "https://github.com/assistant-ui/assistant-ui/issues"
+  }
+}
