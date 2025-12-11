@@ -2,8 +2,9 @@ import type {
   Attachment,
   PendingAttachment,
   Unsubscribe,
-} from "../../../types";
-import { MessageRole, RunConfig } from "../../../types/AssistantTypes";
+  MessageRole,
+  RunConfig,
+} from "@assistant-ui/core";
 
 export type ComposerRuntimeEventType = "send" | "attachment-add";
 

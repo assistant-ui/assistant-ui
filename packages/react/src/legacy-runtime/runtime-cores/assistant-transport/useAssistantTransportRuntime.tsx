@@ -1,11 +1,11 @@
 "use client";
 
-import {
-  type ReadonlyJSONObject,
-  type ReadonlyJSONValue,
-  asAsyncIterableStream,
-} from "assistant-stream/utils";
-import { AppendMessage } from "../../../types";
+import type {
+  AppendMessage,
+  ReadonlyJSONObject,
+  ReadonlyJSONValue,
+} from "@assistant-ui/core";
+import { asAsyncIterableStream } from "assistant-stream/utils";
 import { useExternalStoreRuntime } from "../external-store/useExternalStoreRuntime";
 import { AssistantRuntime } from "../../runtime/AssistantRuntime";
 import { AddToolResultOptions } from "../core";

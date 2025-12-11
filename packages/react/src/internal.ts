@@ -2,17 +2,20 @@ export type { ThreadRuntimeCore } from "./legacy-runtime/runtime-cores/core/Thre
 export type { ThreadListRuntimeCore } from "./legacy-runtime/runtime-cores/core/ThreadListRuntimeCore";
 export { DefaultThreadComposerRuntimeCore } from "./legacy-runtime/runtime-cores/composer/DefaultThreadComposerRuntimeCore";
 export { CompositeContextProvider } from "./utils/CompositeContextProvider";
-export { MessageRepository } from "./legacy-runtime/runtime-cores/utils/MessageRepository";
+// Re-export from core
+export {
+  MessageRepository,
+  generateId,
+  fromThreadMessageLike,
+  getAutoStatus,
+} from "@assistant-ui/core";
 export { BaseAssistantRuntimeCore } from "./legacy-runtime/runtime-cores/core/BaseAssistantRuntimeCore";
-export { generateId } from "./utils/idUtils";
 export { AssistantRuntimeImpl } from "./legacy-runtime/runtime/AssistantRuntime";
 export {
   ThreadRuntimeImpl,
   type ThreadRuntimeCoreBinding,
   type ThreadListItemRuntimeBinding,
 } from "./legacy-runtime/runtime/ThreadRuntime";
-export { fromThreadMessageLike } from "./legacy-runtime/runtime-cores/external-store/ThreadMessageLike";
-export { getAutoStatus } from "./legacy-runtime/runtime-cores/external-store/auto-status";
 export { splitLocalRuntimeOptions } from "./legacy-runtime/runtime-cores/local/LocalRuntimeOptions";
 export {
   useToolInvocations,

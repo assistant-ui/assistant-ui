@@ -1,15 +1,16 @@
-import {
+import type {
   Attachment,
   CompleteAttachment,
   PendingAttachment,
-} from "../../../types/AttachmentTypes";
-import { AppendMessage } from "../../../types";
-import { AttachmentAdapter } from "../adapters/attachment";
+  AppendMessage,
+  AttachmentAdapter,
+  MessageRole,
+  RunConfig,
+} from "@assistant-ui/core";
 import {
   ComposerRuntimeCore,
   ComposerRuntimeEventType,
 } from "../core/ComposerRuntimeCore";
-import { MessageRole, RunConfig } from "../../../types/AssistantTypes";
 import { BaseSubscribable } from "../remote-thread-list/BaseSubscribable";
 
 const isAttachmentComplete = (a: Attachment): a is CompleteAttachment =>

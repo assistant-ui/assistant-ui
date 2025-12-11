@@ -6,10 +6,7 @@ import {
   useAssistantApi,
   useExtendedAssistantApi,
 } from "../react/AssistantApiContext";
-import {
-  checkEventScope,
-  normalizeEventSelector,
-} from "../../types/EventTypes";
+import { checkEventScope, normalizeEventSelector } from "@assistant-ui/core";
 import { DerivedScope } from "../../utils/tap-store/derived-scopes";
 
 export const MessageByIndexProvider: FC<

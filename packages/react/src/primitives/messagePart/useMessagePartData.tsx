@@ -1,7 +1,7 @@
 "use client";
 
 import { useAssistantState } from "../../context";
-import { DataMessagePart } from "../../types";
+import type { DataMessagePart } from "@assistant-ui/core";
 
 export const useMessagePartData = <T = any>(name?: string) => {
   const part = useAssistantState(({ part }) => {

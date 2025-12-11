@@ -1,6 +1,5 @@
+import type { Attachment, MessageRole, RunConfig } from "@assistant-ui/core";
 import { ComposerRuntime } from "../../legacy-runtime/runtime";
-import { Attachment } from "../../types";
-import { MessageRole, RunConfig } from "../../types/AssistantTypes";
 import { AttachmentClientApi } from "./Attachment";
 
 export type ComposerClientState = {

@@ -1,7 +1,7 @@
 "use client";
 
 import { FC, useCallback, useEffect, useState } from "react";
-import { ToolCallMessagePartProps } from "../types";
+import type { ToolCallMessagePartProps } from "../types";
 import { create } from "zustand";
 
 export const useInlineRender = <TArgs, TResult>(

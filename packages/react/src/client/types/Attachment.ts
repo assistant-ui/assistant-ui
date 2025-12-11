@@ -1,5 +1,5 @@
+import type { Attachment } from "@assistant-ui/core";
 import { AttachmentRuntime } from "../../legacy-runtime/runtime";
-import { Attachment } from "../../types";
 
 export type AttachmentClientState = Attachment;
 

@@ -1,12 +1,16 @@
-import type { ReadonlyJSONValue } from "assistant-stream/utils";
+import type {
+  ReadonlyJSONValue,
+  AppendMessage,
+  ThreadMessage,
+  RunConfig,
+  Unsubscribe,
+  SpeechSynthesisAdapter,
+  ChatModelRunOptions,
+  ChatModelRunResult,
+  ExportedMessageRepository,
+  ThreadMessageLike,
+} from "@assistant-ui/core";
 import { ModelContext } from "../../../model-context";
-import { AppendMessage, ThreadMessage } from "../../../types";
-import { RunConfig } from "../../../types/AssistantTypes";
-import type { Unsubscribe } from "../../../types/Unsubscribe";
-import { SpeechSynthesisAdapter } from "../adapters/speech/SpeechAdapterTypes";
-import { ChatModelRunOptions, ChatModelRunResult } from "../local";
-import { ExportedMessageRepository } from "../utils/MessageRepository";
-import { ThreadMessageLike } from "../external-store";
 import {
   ComposerRuntimeCore,
   ThreadComposerRuntimeCore,

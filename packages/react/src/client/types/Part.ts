@@ -1,11 +1,11 @@
-import { ToolResponse } from "assistant-stream";
-import { MessagePartRuntime } from "../../legacy-runtime/runtime";
-import {
+import type {
   ThreadUserMessagePart,
   ThreadAssistantMessagePart,
   MessagePartStatus,
   ToolCallMessagePartStatus,
-} from "../../types";
+} from "@assistant-ui/core";
+import { ToolResponse } from "assistant-stream";
+import { MessagePartRuntime } from "../../legacy-runtime/runtime";
 
 export type MessagePartClientState = (
   | ThreadUserMessagePart

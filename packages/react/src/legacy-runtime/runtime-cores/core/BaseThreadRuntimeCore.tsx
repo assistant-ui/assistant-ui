@@ -1,8 +1,17 @@
-import type { AppendMessage, ThreadMessage, Unsubscribe } from "../../../types";
+import type {
+  AppendMessage,
+  ThreadMessage,
+  Unsubscribe,
+  SpeechSynthesisAdapter,
+  FeedbackAdapter,
+  AttachmentAdapter,
+  ThreadMessageLike,
+} from "@assistant-ui/core";
 import {
   ExportedMessageRepository,
   MessageRepository,
-} from "../utils/MessageRepository";
+  getThreadMessageText,
+} from "@assistant-ui/core";
 import { DefaultThreadComposerRuntimeCore } from "../composer/DefaultThreadComposerRuntimeCore";
 import {
   AddToolResultOptions,
@@ -17,12 +26,7 @@ import {
   ResumeRunConfig,
 } from "./ThreadRuntimeCore";
 import { DefaultEditComposerRuntimeCore } from "../composer/DefaultEditComposerRuntimeCore";
-import { SpeechSynthesisAdapter } from "../adapters/speech/SpeechAdapterTypes";
-import { FeedbackAdapter } from "../adapters/feedback/FeedbackAdapter";
-import { AttachmentAdapter } from "../adapters/attachment";
-import { getThreadMessageText } from "../../../utils/getThreadMessageText";
 import { ModelContextProvider } from "../../../model-context";
-import { ThreadMessageLike } from "../external-store";
 
 type BaseThreadAdapters = {
   speech?: SpeechSynthesisAdapter | undefined;

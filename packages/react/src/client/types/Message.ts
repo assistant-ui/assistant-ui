@@ -1,3 +1,4 @@
+import type { ThreadMessage, RunConfig } from "@assistant-ui/core";
 import { ComposerClientState, ComposerClientApi } from "./Composer";
 import { MessagePartClientApi, MessagePartClientState } from "./Part";
 import { MessageRuntime } from "../../legacy-runtime/runtime";
@@ -5,8 +6,6 @@ import {
   SpeechState,
   SubmittedFeedback,
 } from "../../legacy-runtime/runtime-cores/core/ThreadRuntimeCore";
-import { ThreadMessage } from "../../types";
-import { RunConfig } from "../../types/AssistantTypes";
 import { AttachmentClientApi } from "./Attachment";
 
 export type MessageClientState = ThreadMessage & {

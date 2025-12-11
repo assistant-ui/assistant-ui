@@ -1,22 +1,5 @@
+import type { Tool } from "assistant-stream";
 import type { Unsubscribe } from "../types/Unsubscribe";
-
-// Tool type will be defined in stream module
-// For now, we use a generic type that matches the expected shape
-export type Tool<
-  TArgs extends Record<string, unknown> = Record<string, unknown>,
-  TResult = unknown,
-> = {
-  type?: "frontend" | "backend" | "human" | undefined;
-  description?: string | undefined;
-  parameters?: unknown;
-  disabled?: boolean;
-  execute?: (args: TArgs, context: unknown) => TResult | Promise<TResult>;
-  experimental_onSchemaValidationError?: (
-    args: unknown,
-    context: unknown,
-  ) => TResult | Promise<TResult>;
-  streamCall?: (reader: unknown, context: unknown) => void;
-};
 
 export type LanguageModelV1CallSettings = {
   maxTokens?: number;
@@ -37,7 +20,7 @@ export type LanguageModelConfig = {
 export type ModelContext = {
   priority?: number | undefined;
   system?: string | undefined;
-  tools?: Record<string, Tool<Record<string, unknown>, unknown>> | undefined;
+  tools?: Record<string, Tool<any, any>> | undefined;
   callSettings?: LanguageModelV1CallSettings | undefined;
   config?: LanguageModelConfig | undefined;
 };

@@ -7,6 +7,7 @@ import {
   PropsWithChildren,
   useMemo,
 } from "react";
+import type { MessagePartStatus } from "@assistant-ui/core";
 import {
   useAssistantState,
   PartByIndexProvider,
@@ -27,7 +28,6 @@ import type {
   ReasoningMessagePartComponent,
 } from "../../types/MessagePartComponentTypes";
 import { MessagePartPrimitiveInProgress } from "../messagePart/MessagePartInProgress";
-import { MessagePartStatus } from "../../types/AssistantTypes";
 
 type MessagePartGroup = {
   groupKey: string | undefined;

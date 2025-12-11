@@ -1,7 +1,7 @@
 "use client";
 
 import { ComponentType, type FC, memo, useMemo } from "react";
-import { Attachment } from "../../types";
+import type { Attachment } from "@assistant-ui/core";
 import {
   useAssistantState,
   ComposerAttachmentByIndexProvider,

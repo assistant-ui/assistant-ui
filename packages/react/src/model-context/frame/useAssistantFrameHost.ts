@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, RefObject } from "react";
+import type { Unsubscribe } from "@assistant-ui/core";
 import { AssistantFrameHost } from "./AssistantFrameHost";
-import { Unsubscribe } from "../../types";
 
 type UseAssistantFrameHostOptions = {
   iframeRef: Readonly<RefObject<HTMLIFrameElement | null | undefined>>;

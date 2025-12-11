@@ -5,17 +5,17 @@ import {
   tapState,
   tapInlineResource,
 } from "@assistant-ui/tap";
+import type {
+  ThreadAssistantMessagePart,
+  ThreadUserMessagePart,
+  Attachment,
+  ThreadMessage,
+} from "@assistant-ui/core";
 import { AttachmentClientApi } from "./types/Attachment";
 import { MessageClientState, MessageClientApi } from "./types/Message";
 import { MessagePartClientState, MessagePartClientApi } from "./types/Part";
 import { tapLookupResources } from "./util-hooks/tapLookupResources";
 import { tapApi } from "../utils/tap-store";
-import {
-  ThreadAssistantMessagePart,
-  ThreadUserMessagePart,
-  Attachment,
-  ThreadMessage,
-} from "../types";
 import { NoOpComposerClient } from "./NoOpComposerClient";
 
 const ThreadMessagePartClient = resource(

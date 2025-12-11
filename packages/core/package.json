@@ -31,6 +31,7 @@
     "build": "tsx scripts/build.mts"
   },
   "dependencies": {
+    "assistant-stream": "^0.2.44",
     "nanoid": "5.1.6",
     "secure-json-parse": "^4.1.0",
     "@types/json-schema": "^7.0.15"

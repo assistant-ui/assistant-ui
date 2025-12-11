@@ -2,7 +2,7 @@
 
 import { type ComponentType, type FC, memo, useMemo } from "react";
 import { useAssistantState, MessageByIndexProvider } from "../../context";
-import { ThreadMessage as ThreadMessageType } from "../../types";
+import type { ThreadMessage as ThreadMessageType } from "@assistant-ui/core";
 
 export namespace ThreadPrimitiveMessages {
   export type Props = {

@@ -9,9 +9,9 @@ import type {
   AssistantEvent,
   AssistantEventCallback,
   AssistantEventSelector,
-} from "../../types/EventTypes";
+  Unsubscribe,
+} from "@assistant-ui/core";
 import type { ResourceElement } from "@assistant-ui/tap";
-import { Unsubscribe } from "../../types";
 
 /**
  * Extract the API return type from an AssistantApiField

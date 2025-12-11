@@ -1,31 +1,33 @@
+import type {
+  AppendMessage,
+  ThreadMessage,
+  ThreadMessageLike,
+} from "@assistant-ui/core";
+import {
+  getAutoStatus,
+  isAutoStatus,
+  fromThreadMessageLike,
+  getThreadMessageText,
+  ExportedMessageRepository,
+  MessageRepository,
+} from "@assistant-ui/core";
 import {
   AddToolResultOptions,
   ResumeRunConfig,
   ResumeToolCallOptions,
   StartRunConfig,
   ThreadSuggestion,
+  RuntimeCapabilities,
+  ThreadRuntimeCore,
 } from "../core/ThreadRuntimeCore";
-
-import { AppendMessage, ThreadMessage } from "../../../types";
 import { ExternalStoreAdapter } from "./ExternalStoreAdapter";
 import {
   getExternalStoreMessage,
   symbolInnerMessage,
 } from "./getExternalStoreMessage";
 import { ThreadMessageConverter } from "./ThreadMessageConverter";
-import { getAutoStatus, isAutoStatus } from "./auto-status";
-import { fromThreadMessageLike, ThreadMessageLike } from "./ThreadMessageLike";
-import { getThreadMessageText } from "../../../utils/getThreadMessageText";
-import {
-  RuntimeCapabilities,
-  ThreadRuntimeCore,
-} from "../core/ThreadRuntimeCore";
 import { BaseThreadRuntimeCore } from "../core/BaseThreadRuntimeCore";
 import { ModelContextProvider } from "../../../model-context";
-import {
-  ExportedMessageRepository,
-  MessageRepository,
-} from "../utils/MessageRepository";
 
 const EMPTY_ARRAY = Object.freeze([]);
 

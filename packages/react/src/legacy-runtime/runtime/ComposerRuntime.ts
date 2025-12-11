@@ -1,11 +1,15 @@
-import { Attachment, PendingAttachment } from "../../types/AttachmentTypes";
+import type {
+  Attachment,
+  PendingAttachment,
+  Unsubscribe,
+  MessageRole,
+  RunConfig,
+} from "@assistant-ui/core";
 import {
   ComposerRuntimeCore,
   ComposerRuntimeEventType,
   ThreadComposerRuntimeCore,
 } from "../runtime-cores/core/ComposerRuntimeCore";
-import { Unsubscribe } from "../../types";
-
 import { LazyMemoizeSubject } from "./subscribable/LazyMemoizeSubject";
 import {
   AttachmentRuntime,
@@ -16,7 +20,6 @@ import {
 import { ShallowMemoizeSubject } from "./subscribable/ShallowMemoizeSubject";
 import { SKIP_UPDATE } from "./subscribable/SKIP_UPDATE";
 import { ComposerRuntimePath } from "./RuntimePathTypes";
-import { MessageRole, RunConfig } from "../../types/AssistantTypes";
 import { EventSubscriptionSubject } from "./subscribable/EventSubscriptionSubject";
 import type {
   ThreadComposerRuntimeCoreBinding,

@@ -1,10 +1,10 @@
+import type { Unsubscribe } from "@assistant-ui/core";
 import { Tool } from "assistant-stream";
 import {
   ModelContext,
   ModelContextProvider,
   mergeModelContexts,
 } from "../../model-context/ModelContextTypes";
-import { Unsubscribe } from "../../types/Unsubscribe";
 import {
   ModelContextRegistryToolHandle,
   ModelContextRegistryInstructionHandle,

@@ -1,5 +1,5 @@
+import type { ThreadMessage } from "@assistant-ui/core";
 import { ThreadState } from "../../runtime";
-import { ThreadMessage } from "../../../types";
 
 export const symbolInnerMessage = Symbol("innerMessage");
 const symbolInnerMessages = Symbol("innerMessages");

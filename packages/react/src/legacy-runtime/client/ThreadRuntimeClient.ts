@@ -1,3 +1,4 @@
+import type { Unsubscribe } from "@assistant-ui/core";
 import { ThreadRuntimeEventType } from "../runtime-cores/core/ThreadRuntimeCore";
 import { ThreadRuntime } from "../runtime/ThreadRuntime";
 import {
@@ -12,7 +13,6 @@ import { MessageClient } from "./MessageRuntimeClient";
 import { tapSubscribable } from "../util-hooks/tapSubscribable";
 import { tapApi } from "../../utils/tap-store";
 import { tapLookupResources } from "../../client/util-hooks/tapLookupResources";
-import { Unsubscribe } from "../../types";
 import { tapEvents } from "../../client/EventContext";
 import { ThreadClientState, ThreadClientApi } from "../../client/types/Thread";
 

@@ -1,10 +1,10 @@
-import { Unsubscribe } from "../../../types";
-import { BaseSubject } from "./BaseSubject";
-import {
+import type {
+  Unsubscribe,
   NestedSubscribable,
   Subscribable,
   SubscribableWithState,
-} from "./Subscribable";
+} from "@assistant-ui/core";
+import { BaseSubject } from "./BaseSubject";
 
 export class NestedSubscriptionSubject<
     TState extends Subscribable | undefined,

@@ -1,4 +1,5 @@
-import { ToolCallMessagePartComponent, Unsubscribe } from "../../types";
+import type { Unsubscribe } from "@assistant-ui/core";
+import type { ToolCallMessagePartComponent } from "../../types";
 
 export type ToolsState = {
   tools: Record<string, ToolCallMessagePartComponent[]>;

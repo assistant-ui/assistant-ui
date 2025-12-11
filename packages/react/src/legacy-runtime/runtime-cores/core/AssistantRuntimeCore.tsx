@@ -1,6 +1,6 @@
 import { ComponentType } from "react";
+import type { Unsubscribe } from "@assistant-ui/core";
 import type { ModelContextProvider } from "../../../model-context/ModelContextTypes";
-import type { Unsubscribe } from "../../../types/Unsubscribe";
 import { ThreadListRuntimeCore } from "./ThreadListRuntimeCore";
 
 export type AssistantRuntimeCore = {
