@@ -1,6 +1,5 @@
-import { View, StyleSheet } from "react-native";
+import { View, StyleSheet, useColorScheme } from "react-native";
 import { ThemedText } from "@/components/themed-text";
-import { useThemeColor } from "@/hooks/use-theme-color";
 import type { ThreadMessage } from "@assistant-ui/core";
 
 type MessageBubbleProps = {
@@ -8,40 +7,44 @@ type MessageBubbleProps = {
 };
 
 export function MessageBubble({ message }: MessageBubbleProps) {
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
   const isUser = message.role === "user";
-  const userBubbleColor = useThemeColor({}, "tint");
-  const assistantBubbleColor = useThemeColor(
-    { light: "#f0f0f0", dark: "#2a2a2a" },
-    "background",
-  );
 
   const textContent = message.content
     .filter((part) => part.type === "text")
     .map((part) => ("text" in part ? part.text : ""))
     .join("\n");
 
+  if (isUser) {
+    return (
+      <View style={[styles.container, styles.userContainer]}>
+        <View
+          style={[
+            styles.bubble,
+            styles.userBubble,
+            { backgroundColor: isDark ? "#0a84ff" : "#007aff" },
+          ]}
+        >
+          <ThemedText style={styles.userText}>{textContent}</ThemedText>
+        </View>
+      </View>
+    );
+  }
+
   return (
-    <View
-      style={[
-        styles.container,
-        isUser ? styles.userContainer : styles.assistantContainer,
-      ]}
-    >
+    <View style={[styles.container, styles.assistantContainer]}>
       <View
         style={[
           styles.bubble,
-          isUser
-            ? [styles.userBubble, { backgroundColor: userBubbleColor }]
-            : [
-                styles.assistantBubble,
-                { backgroundColor: assistantBubbleColor },
-              ],
+          styles.assistantBubble,
+          { backgroundColor: isDark ? "#1c1c1e" : "#f0f0f0" },
         ]}
       >
         <ThemedText
-          style={[styles.text, isUser && styles.userText]}
-          lightColor={isUser ? "#fff" : undefined}
-          darkColor={isUser ? "#fff" : undefined}
+          style={styles.assistantText}
+          lightColor="#000000"
+          darkColor="#ffffff"
         >
           {textContent}
         </ThemedText>
@@ -53,7 +56,7 @@ export function MessageBubble({ message }: MessageBubbleProps) {
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 16,
-    paddingVertical: 4,
+    paddingVertical: 6,
   },
   userContainer: {
     alignItems: "flex-end",
@@ -62,22 +65,26 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
   },
   bubble: {
-    maxWidth: "80%",
+    maxWidth: "85%",
     paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 18,
+    paddingVertical: 12,
+    borderRadius: 20,
   },
   userBubble: {
-    borderBottomRightRadius: 4,
+    borderBottomRightRadius: 6,
   },
   assistantBubble: {
-    borderBottomLeftRadius: 4,
-  },
-  text: {
-    fontSize: 16,
-    lineHeight: 22,
+    borderBottomLeftRadius: 6,
   },
   userText: {
-    color: "#fff",
+    fontSize: 16,
+    lineHeight: 22,
+    color: "#ffffff",
+    letterSpacing: -0.2,
+  },
+  assistantText: {
+    fontSize: 16,
+    lineHeight: 24,
+    letterSpacing: -0.2,
   },
 });

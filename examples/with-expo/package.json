@@ -13,6 +13,7 @@
   "dependencies": {
     "@assistant-ui/core": "workspace:*",
     "@assistant-ui/react-native": "workspace:*",
+    "@react-native-async-storage/async-storage": "2.1.2",
     "openai": "^6.10.0",
     "@expo/vector-icons": "^15.0.3",
     "@react-navigation/bottom-tabs": "^7.4.0",

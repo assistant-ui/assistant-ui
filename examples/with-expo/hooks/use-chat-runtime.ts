@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useMemo } from "react";
+import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import {
   MessageRepository,
   generateId,
@@ -20,18 +20,38 @@ const openai = new OpenAI({
   fetch: expoFetch as unknown as typeof globalThis.fetch,
 });
 
-export function useChatRuntime() {
+interface UseChatRuntimeOptions {
+  threadId: string;
+  getMessages: (threadId: string) => Promise<ThreadMessage[]>;
+  saveMessages: (
+    threadId: string,
+    messages: readonly ThreadMessage[],
+  ) => Promise<void>;
+}
+
+export function useChatRuntime({
+  threadId,
+  getMessages,
+  saveMessages,
+}: UseChatRuntimeOptions) {
   const messageRepository = useRef(new MessageRepository()).current;
   const [threadState, setThreadState] = useState<ThreadRuntimeState>(() =>
-    createInitialThreadState(),
+    createInitialThreadState(threadId),
   );
   const [composerState, setComposerState] = useState<ComposerRuntimeState>(() =>
     createInitialComposerState(),
   );
+  const [isInitialized, setIsInitialized] = useState(false);
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const subscribersRef = useRef<Set<() => void>>(new Set());
   const composerSubscribersRef = useRef<Set<() => void>>(new Set());
+  const threadIdRef = useRef(threadId);
+
+  // Keep threadId ref updated
+  useEffect(() => {
+    threadIdRef.current = threadId;
+  }, [threadId]);
 
   const notifySubscribers = useCallback(() => {
     subscribersRef.current.forEach((cb) => cb());
@@ -41,16 +61,72 @@ export function useChatRuntime() {
     composerSubscribersRef.current.forEach((cb) => cb());
   }, []);
 
-  const updateThreadState = useCallback(() => {
-    const messages = messageRepository.getMessages();
+  const updateThreadState = useCallback(
+    (shouldSave = true) => {
+      const messages = messageRepository.getMessages();
 
-    setThreadState((prev) => ({
-      ...prev,
-      messages,
-      isEmpty: messages.length === 0,
-    }));
-    notifySubscribers();
-  }, [messageRepository, notifySubscribers]);
+      setThreadState((prev) => ({
+        ...prev,
+        messages,
+        isEmpty: messages.length === 0,
+      }));
+      notifySubscribers();
+
+      // Save messages to storage
+      if (shouldSave && messages.length > 0) {
+        saveMessages(threadIdRef.current, messages);
+      }
+    },
+    [messageRepository, notifySubscribers, saveMessages],
+  );
+
+  // Load messages on mount
+  useEffect(() => {
+    const loadMessages = async () => {
+      try {
+        const messages = await getMessages(threadId);
+        if (messages.length > 0) {
+          // Clear existing messages
+          messageRepository.resetHead(null);
+
+          // Add messages to repository
+          let parentId: string | null = null;
+          for (const message of messages) {
+            messageRepository.addOrUpdateMessage(parentId, message);
+            parentId = message.id;
+          }
+
+          // Update state without saving (we just loaded)
+          const loadedMessages = messageRepository.getMessages();
+          setThreadState((prev) => ({
+            ...prev,
+            threadId,
+            messages: loadedMessages,
+            isEmpty: loadedMessages.length === 0,
+            isLoading: false,
+          }));
+          notifySubscribers();
+        } else {
+          setThreadState((prev) => ({
+            ...prev,
+            threadId,
+            isLoading: false,
+          }));
+        }
+      } catch (error) {
+        console.error("Failed to load messages:", error);
+        setThreadState((prev) => ({
+          ...prev,
+          threadId,
+          isLoading: false,
+        }));
+      }
+      setIsInitialized(true);
+    };
+
+    setThreadState((prev) => ({ ...prev, isLoading: true }));
+    loadMessages();
+  }, [threadId, getMessages, messageRepository, notifySubscribers]);
 
   const callOpenAI = useCallback(
     async (parentId: string) => {
@@ -77,7 +153,7 @@ export function useChatRuntime() {
       };
 
       messageRepository.addOrUpdateMessage(parentId, initialAssistantMessage);
-      updateThreadState();
+      updateThreadState(false); // Don't save running state
 
       try {
         const messages = messageRepository.getMessages();
@@ -124,7 +200,7 @@ export function useChatRuntime() {
           };
 
           messageRepository.addOrUpdateMessage(parentId, updatedMessage);
-          updateThreadState();
+          updateThreadState(false); // Don't save during streaming
         }
 
         const finalMessage: ThreadMessage = {
@@ -193,7 +269,7 @@ export function useChatRuntime() {
       } finally {
         setThreadState((prev) => ({ ...prev, isRunning: false }));
         abortControllerRef.current = null;
-        updateThreadState();
+        updateThreadState(true); // Save final state
       }
     },
     [messageRepository, updateThreadState, notifySubscribers],
@@ -226,7 +302,7 @@ export function useChatRuntime() {
           },
         };
         messageRepository.addOrUpdateMessage(parentId, userMessage);
-        updateThreadState();
+        updateThreadState(true); // Save user message
         callOpenAI(userMessage.id);
       } else {
         const assistantMessage: ThreadMessage = {
@@ -244,7 +320,7 @@ export function useChatRuntime() {
           },
         };
         messageRepository.addOrUpdateMessage(parentId, assistantMessage);
-        updateThreadState();
+        updateThreadState(true);
       }
     },
     [messageRepository, updateThreadState, callOpenAI],
@@ -326,16 +402,16 @@ export function useChatRuntime() {
     ],
   );
 
-  return { threadRuntime, composerRuntime };
+  return { threadRuntime, composerRuntime, isInitialized };
 }
 
-function createInitialThreadState(): ThreadRuntimeState {
+function createInitialThreadState(threadId: string): ThreadRuntimeState {
   return {
-    threadId: generateId(),
+    threadId,
     isRunning: false,
     isDisabled: false,
     isEmpty: true,
-    isLoading: false,
+    isLoading: true,
     messages: [],
     capabilities: {
       switchToBranch: false,

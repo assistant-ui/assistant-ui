@@ -1,11 +1,10 @@
 import {
   View,
   TextInput,
-  TouchableOpacity,
+  Pressable,
   StyleSheet,
-  ActivityIndicator,
+  useColorScheme,
 } from "react-native";
-import { useThemeColor } from "@/hooks/use-theme-color";
 import { Ionicons } from "@expo/vector-icons";
 import type { ComposerRuntime } from "@assistant-ui/react-native";
 
@@ -22,16 +21,8 @@ export function ChatComposer({
   canSend,
   isRunning,
 }: ChatComposerProps) {
-  const backgroundColor = useThemeColor(
-    { light: "#f5f5f5", dark: "#1a1a1a" },
-    "background",
-  );
-  const textColor = useThemeColor({}, "text");
-  const placeholderColor = useThemeColor(
-    { light: "#999", dark: "#666" },
-    "text",
-  );
-  const tintColor = useThemeColor({}, "tint");
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
 
   const handleSend = () => {
     if (canSend && !isRunning) {
@@ -39,33 +30,74 @@ export function ChatComposer({
     }
   };
 
+  const handleCancel = () => {
+    if (isRunning) {
+      composerRuntime.cancel();
+    }
+  };
+
   return (
-    <View style={[styles.container, { backgroundColor }]}>
-      <View style={[styles.inputContainer, { backgroundColor }]}>
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: isDark ? "#000000" : "#f2f2f7",
+          borderTopColor: isDark ? "#2c2c2e" : "#e5e5ea",
+        },
+      ]}
+    >
+      <View
+        style={[
+          styles.inputWrapper,
+          {
+            backgroundColor: isDark ? "#1c1c1e" : "#ffffff",
+            borderColor: isDark ? "#3a3a3c" : "#e5e5ea",
+          },
+        ]}
+      >
         <TextInput
-          style={[styles.input, { color: textColor }]}
-          placeholder="Type a message..."
-          placeholderTextColor={placeholderColor}
+          style={[styles.input, { color: isDark ? "#ffffff" : "#000000" }]}
+          placeholder="Message..."
+          placeholderTextColor={isDark ? "#8e8e93" : "#8e8e93"}
           value={text}
           onChangeText={(newText) => composerRuntime.setText(newText)}
           multiline
           maxLength={4000}
           editable={!isRunning}
         />
-        <TouchableOpacity
-          style={[
-            styles.sendButton,
-            { backgroundColor: canSend && !isRunning ? tintColor : "#ccc" },
-          ]}
-          onPress={handleSend}
-          disabled={!canSend || isRunning}
-        >
-          {isRunning ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : (
-            <Ionicons name="send" size={18} color="#fff" />
-          )}
-        </TouchableOpacity>
+        {isRunning ? (
+          <Pressable
+            style={[styles.button, styles.stopButton]}
+            onPress={handleCancel}
+          >
+            <View style={styles.stopIcon} />
+          </Pressable>
+        ) : (
+          <Pressable
+            style={[
+              styles.button,
+              styles.sendButton,
+              {
+                backgroundColor:
+                  canSend && !isRunning
+                    ? isDark
+                      ? "#0a84ff"
+                      : "#007aff"
+                    : isDark
+                      ? "#3a3a3c"
+                      : "#e5e5ea",
+              },
+            ]}
+            onPress={handleSend}
+            disabled={!canSend || isRunning}
+          >
+            <Ionicons
+              name="arrow-up"
+              size={20}
+              color={canSend ? "#ffffff" : isDark ? "#8e8e93" : "#8e8e93"}
+            />
+          </Pressable>
+        )}
       </View>
     </View>
   );
@@ -74,32 +106,44 @@ export function ChatComposer({
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: "#ccc",
+    paddingTop: 12,
+    paddingBottom: 8,
+    borderTopWidth: 1,
   },
-  inputContainer: {
+  inputWrapper: {
     flexDirection: "row",
     alignItems: "flex-end",
     borderRadius: 24,
+    borderWidth: 1,
     paddingLeft: 16,
-    paddingRight: 4,
-    paddingVertical: 4,
-    minHeight: 44,
+    paddingRight: 6,
+    paddingVertical: 6,
+    minHeight: 48,
   },
   input: {
     flex: 1,
     fontSize: 16,
     lineHeight: 22,
-    maxHeight: 100,
-    paddingVertical: 8,
+    maxHeight: 120,
+    paddingVertical: 6,
+    letterSpacing: -0.2,
   },
-  sendButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  button: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     justifyContent: "center",
     alignItems: "center",
     marginLeft: 8,
+  },
+  sendButton: {},
+  stopButton: {
+    backgroundColor: "#ff453a",
+  },
+  stopIcon: {
+    width: 12,
+    height: 12,
+    borderRadius: 2,
+    backgroundColor: "#ffffff",
   },
 });
