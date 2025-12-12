@@ -40,7 +40,7 @@ type AssistantApiFieldNames = {
 /**
  * Configuration for a derived scope field - infers types from the actual values provided
  */
-export type DerivedScopeConfig<TSource extends string | null, TQuery, TApi> = {
+export type DerivedConfig<TSource extends string | null, TQuery, TApi> = {
   source: TSource;
   query: TQuery;
   get: () => TApi;
@@ -60,17 +60,11 @@ export type OnCallbackFn = <TEvent extends AssistantEvent>(
 export type SubscribeCallbackFn = (listener: () => void) => Unsubscribe;
 
 /**
- * Type for the special `flushSync` callback function
- */
-export type FlushSyncCallbackFn = () => void;
-
-/**
  * Type for special non-field functions in AssistantApi
  */
 export type SpecialCallbacks = {
   on?: OnCallbackFn;
   subscribe?: SubscribeCallbackFn;
-  flushSync?: FlushSyncCallbackFn;
 };
 
 /**
@@ -98,7 +92,7 @@ export type DerivedScopesInput = {
  */
 export const DerivedScope = resource(
   <TSource extends string | null, TQuery, TApi>(
-    config: DerivedScopeConfig<TSource, TQuery, TApi>,
+    config: DerivedConfig<TSource, TQuery, TApi>,
   ): AssistantApiField<
     TApi,
     {
@@ -144,32 +138,28 @@ const ScopeFieldWithNameResource = resource(
  */
 export const DerivedScopes = resource(
   (scopes: DerivedScopesInput): Partial<AssistantApi> => {
-    const { on, subscribe, flushSync, ...scopeFields } = scopes;
-    const callbacksRef = tapRef({ on, subscribe, flushSync });
+    const { on, subscribe, ...scopeFields } = scopes;
+    const callbacksRef = tapRef({ on, subscribe });
     tapEffect(() => {
-      callbacksRef.current = { on, subscribe, flushSync };
+      callbacksRef.current = { on, subscribe };
     });
 
     const results = tapResources(
-      Object.entries(scopeFields).map(([fieldName, scopeElement]) =>
-        ScopeFieldWithNameResource(
-          {
-            fieldName,
-            scopeElement: scopeElement as ReturnType<typeof DerivedScope>,
-          },
-          { key: fieldName },
-        ),
-      ),
+      scopeFields as Record<string, ReturnType<typeof DerivedScope>>,
+      (scopeElement, fieldName) =>
+        ScopeFieldWithNameResource({
+          fieldName,
+          scopeElement,
+        }),
+      [],
     );
 
     return tapMemo(() => {
-      const result = Object.fromEntries(results) as Partial<AssistantApi>;
+      const result = Object.fromEntries(
+        Object.values(results),
+      ) as Partial<AssistantApi>;
 
-      const {
-        on: onCb,
-        subscribe: subCb,
-        flushSync: flushCb,
-      } = callbacksRef.current;
+      const { on: onCb, subscribe: subCb } = callbacksRef.current;
 
       if (onCb) {
         result.on = <TEvent extends AssistantEvent>(
@@ -178,9 +168,8 @@ export const DerivedScopes = resource(
         ) => onCb(selector, callback);
       }
       if (subCb) result.subscribe = (listener) => subCb(listener);
-      if (flushCb) result.flushSync = () => flushCb();
 
       return result;
-    }, [...results]);
+    }, [results]);
   },
 );
