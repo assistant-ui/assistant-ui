@@ -1,9 +1,11 @@
 "use client";
 
-import { ReactNode, useState, useEffect } from "react";
+import { type ReactNode, useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Github, Moon, Sun } from "lucide-react";
+import { Moon, Sun } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { GitHubIcon } from "@/components/icons/github";
 
 interface SubProjectLayoutProps {
   name: string;
@@ -30,13 +32,13 @@ function ThemeToggle() {
   };
 
   if (!mounted) {
-    return <div className="size-9" />;
+    return <div className="size-8" />;
   }
 
   return (
     <button
       onClick={toggleTheme}
-      className="flex size-9 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+      className="flex size-8 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
       aria-label="Toggle theme"
     >
       {theme === "light" ? (
@@ -56,8 +58,9 @@ export function SubProjectLayout({
 }: SubProjectLayoutProps): React.ReactElement {
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-50 w-full border-border/40 border-b border-dashed bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
-        <div className="container mx-auto flex h-14 max-w-screen-2xl items-center justify-between px-4 md:px-20">
+      <header className="sticky top-0 z-50 w-full">
+        <div className="mask-[linear-gradient(to_bottom,black_50%,transparent)] dark:mask-[linear-gradient(to_bottom,black_40%,transparent)] pointer-events-none absolute inset-x-0 top-0 h-24 bg-linear-to-b from-background via-60% via-background/80 to-transparent backdrop-blur-xl dark:via-50%" />
+        <div className="container relative mx-auto flex h-12 items-center justify-between px-4 md:px-20">
           <div className="flex items-center">
             <Link href="/" className="flex items-center gap-2">
               <Image
@@ -72,7 +75,10 @@ export function SubProjectLayout({
             <span className="ml-3 text-muted-foreground/40">/</span>
             <Link
               href={`/${name}`}
-              className={`ml-3 text-muted-foreground text-sm transition-colors hover:text-foreground ${shimmerTitle ? "shimmer" : ""}`}
+              className={cn(
+                "ml-3 text-muted-foreground text-sm transition-colors hover:text-foreground",
+                shimmerTitle && "shimmer",
+              )}
             >
               {name}
             </Link>
@@ -83,10 +89,10 @@ export function SubProjectLayout({
               href={githubPath}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex size-9 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
-              aria-label="GitHub"
+              className="flex size-8 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+              aria-label="View on GitHub"
             >
-              <Github className="size-4" />
+              <GitHubIcon className="size-4" />
             </a>
             <ThemeToggle />
           </div>
@@ -95,17 +101,16 @@ export function SubProjectLayout({
 
       <main className="flex-1">{children}</main>
 
-      <footer className="border-t border-dashed py-6 md:py-0">
-        <div className="container mx-auto flex h-14 max-w-screen-2xl items-center justify-between px-4 text-muted-foreground text-sm md:px-20">
+      <footer className="relative px-4 py-8 md:px-20">
+        <div className="mx-auto flex max-w-7xl items-center justify-between text-muted-foreground text-sm">
           <p>
             By{" "}
-            <Link
-              href="https://assistant-ui.com"
-              className="underline underline-offset-4 transition-colors hover:text-foreground"
-            >
+            <Link href="/" className="transition-colors hover:text-foreground">
               assistant-ui
             </Link>
-            . Open source.
+          </p>
+          <p className="text-foreground/30 text-xs">
+            &copy; {new Date().getFullYear()} AgentbaseAI Inc.
           </p>
         </div>
       </footer>

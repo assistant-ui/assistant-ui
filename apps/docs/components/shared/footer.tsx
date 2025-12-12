@@ -4,7 +4,7 @@ import Link from "next/link";
 
 export function Footer(): React.ReactElement {
   return (
-    <footer className="relative px-8 py-18">
+    <footer className="relative px-4 py-10 md:px-8 md:py-18">
       <div className="mx-auto flex w-full max-w-7xl flex-col justify-between sm:flex-row">
         <div className="mr-4 flex flex-col gap-4">
           <Link
