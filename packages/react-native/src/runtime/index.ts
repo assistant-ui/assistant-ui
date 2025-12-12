@@ -8,6 +8,7 @@ export type {
   ThreadCapabilities,
   ThreadRuntime,
   AppendMessage,
+  CoreAppendMessage,
   // Message
   MessageRuntimeState,
   MessageRuntime,
@@ -16,6 +17,7 @@ export type {
   AssistantRuntime,
   // Utility
   Subscribable,
+  CoreSubscribable,
 } from "./types";
 
 export {

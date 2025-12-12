@@ -3,6 +3,8 @@ import type {
   ThreadMessage,
   ThreadListItemState,
   RuntimeCapabilities,
+  AppendMessage as CoreAppendMessage,
+  Subscribable as CoreSubscribable,
 } from "@assistant-ui/core";
 
 // Re-export from core for internal use
@@ -47,11 +49,18 @@ export type ThreadRuntimeState = {
  */
 export type ThreadCapabilities = RuntimeCapabilities;
 
+/**
+ * Simplified AppendMessage type for react-native.
+ * For full type, use CoreAppendMessage from @assistant-ui/core.
+ */
 export type AppendMessage = {
   role: "user" | "assistant";
   content: readonly { type: string; text?: string }[];
   parentId?: string | null;
 };
+
+// Re-export core's AppendMessage for users who need the full type
+export type { CoreAppendMessage };
 
 export type ThreadRuntime = {
   getState: () => ThreadRuntimeState;
@@ -113,7 +122,14 @@ export type AssistantRuntime = {
 // Subscribable utility type
 // ============================================
 
+/**
+ * Simplified Subscribable type for react-native.
+ * For more advanced subscribable patterns, use types from @assistant-ui/core.
+ */
 export type Subscribable<TState> = {
   getState: () => TState;
   subscribe: (callback: () => void) => Unsubscribe;
 };
+
+// Re-export core's Subscribable types for advanced use
+export type { CoreSubscribable };
