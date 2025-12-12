@@ -1,8 +1,16 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { FileText, Hash, Search, ChevronRight, AlignLeft } from "lucide-react";
+import {
+  Search,
+  CornerDownLeft,
+  ArrowUp,
+  ArrowDown,
+  FileText,
+  Hash,
+  Text,
+} from "lucide-react";
 import { useDocsSearch } from "fumadocs-core/search/client";
 import {
   Dialog,
@@ -29,12 +37,6 @@ interface SearchResult {
   contentWithHighlights?: HighlightSegment[];
 }
 
-interface GroupedPage {
-  pagePath: string;
-  pageTitle: string;
-  items: SearchResult[];
-}
-
 interface SearchDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -57,7 +59,8 @@ function HighlightedText({
         <span
           key={i}
           className={cn(
-            segment.styles?.highlight && "font-semibold text-primary",
+            segment.styles?.highlight &&
+              "rounded bg-primary/15 px-0.5 text-primary",
           )}
         >
           {segment.content}
@@ -67,26 +70,53 @@ function HighlightedText({
   );
 }
 
-function getPageTitle(url: string | undefined): string {
-  if (!url) return "Home";
+function formatBreadcrumb(url: string): string {
   const path = url.split("#")[0] ?? "";
   const segments = path.split("/").filter(Boolean);
-  const lastSegment = segments[segments.length - 1] ?? "Home";
-  return lastSegment
-    .split("-")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
+
+  if (segments.length === 0) return "Home";
+
+  return segments
+    .map((segment) =>
+      segment
+        .split("-")
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(" "),
+    )
+    .join(" / ");
 }
 
-function getTypeIcon(type: string) {
+function getResultTitle(item: SearchResult): string {
+  if (item.type === "page") {
+    const path = item.url.split("#")[0] ?? "";
+    const segments = path.split("/").filter(Boolean);
+    const lastSegment = segments[segments.length - 1] ?? "Home";
+    return lastSegment
+      .split("-")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
+  }
+  return item.content;
+}
+
+function ResultIcon({ type }: { type: string }) {
   switch (type) {
     case "page":
-      return <FileText className="size-3.5 shrink-0 opacity-50" />;
+      return <FileText className="size-4" />;
     case "heading":
-      return <Hash className="size-3.5 shrink-0 opacity-50" />;
+      return <Hash className="size-4" />;
     default:
-      return <AlignLeft className="size-3.5 shrink-0 opacity-50" />;
+      return <Text className="size-4" />;
   }
+}
+
+function getPageUrl(url: string): string {
+  return url.split("#")[0] ?? "";
+}
+
+interface GroupedResult {
+  pageUrl: string;
+  items: SearchResult[];
 }
 
 export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
@@ -94,33 +124,30 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
   const { setSearch, query } = useDocsSearch({ type: "fetch" });
   const [inputValue, setInputValue] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const listRef = useRef<HTMLDivElement>(null);
 
   const results = useMemo((): SearchResult[] => {
     if (!query.data || query.data === "empty") return [];
     return query.data as SearchResult[];
   }, [query.data]);
 
-  const groupedByPage = useMemo((): GroupedPage[] => {
-    const pageMap = new Map<string, GroupedPage>();
+  const groupedResults = useMemo((): GroupedResult[] => {
+    const groups: GroupedResult[] = [];
+    let currentGroup: GroupedResult | null = null;
 
     for (const item of results) {
-      const pagePath = item.url.split("#")[0] ?? "";
-      if (!pageMap.has(pagePath)) {
-        pageMap.set(pagePath, {
-          pagePath,
-          pageTitle: getPageTitle(pagePath),
-          items: [],
-        });
+      const pageUrl = getPageUrl(item.url);
+
+      if (!currentGroup || currentGroup.pageUrl !== pageUrl) {
+        currentGroup = { pageUrl, items: [item] };
+        groups.push(currentGroup);
+      } else {
+        currentGroup.items.push(item);
       }
-      pageMap.get(pagePath)!.items.push(item);
     }
 
-    return Array.from(pageMap.values());
+    return groups;
   }, [results]);
-
-  const flatItems = useMemo(() => {
-    return groupedByPage.flatMap((group) => group.items);
-  }, [groupedByPage]);
 
   useEffect(() => {
     if (open) {
@@ -134,6 +161,15 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
     setSelectedIndex(0);
   }, [results]);
 
+  useEffect(() => {
+    if (listRef.current && results.length > 0) {
+      const selectedElement = listRef.current.querySelector(
+        `[data-index="${selectedIndex}"]`,
+      );
+      selectedElement?.scrollIntoView({ block: "nearest" });
+    }
+  }, [selectedIndex, results.length]);
+
   const handleSelect = useCallback(
     (url: string) => {
       onOpenChange(false);
@@ -146,129 +182,135 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
     (e: React.KeyboardEvent) => {
       if (e.key === "ArrowDown") {
         e.preventDefault();
-        setSelectedIndex((i) => Math.min(i + 1, flatItems.length - 1));
+        setSelectedIndex((i) => Math.min(i + 1, results.length - 1));
       } else if (e.key === "ArrowUp") {
         e.preventDefault();
         setSelectedIndex((i) => Math.max(i - 1, 0));
-      } else if (e.key === "Enter" && flatItems[selectedIndex]) {
+      } else if (e.key === "Enter" && results[selectedIndex]) {
         e.preventDefault();
-        handleSelect(flatItems[selectedIndex].url);
+        handleSelect(results[selectedIndex].url);
       }
     },
-    [flatItems, selectedIndex, handleSelect],
+    [results, selectedIndex, handleSelect],
   );
-
-  let itemIndex = 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogHeader className="sr-only">
-        <DialogTitle>Search Documentation</DialogTitle>
-        <DialogDescription>Search for pages and content</DialogDescription>
+        <DialogTitle>Search</DialogTitle>
+        <DialogDescription>Search documentation</DialogDescription>
       </DialogHeader>
       <DialogContent
-        className="gap-0 overflow-hidden p-0 sm:max-w-2xl"
+        className="gap-0 overflow-hidden rounded-3xl border-none p-2 sm:max-w-xl"
         showCloseButton={false}
       >
-        <div className="flex items-center gap-3 border-b px-4">
-          <Search className="size-5 shrink-0 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="Search documentation..."
-            value={inputValue}
-            onChange={(e) => {
-              setInputValue(e.target.value);
-              setSearch(e.target.value);
-            }}
-            onKeyDown={handleKeyDown}
-            className="h-12 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-            autoFocus
-          />
-          <kbd className="hidden rounded border bg-muted px-1.5 py-0.5 font-mono text-muted-foreground text-xs sm:inline">
-            ESC
-          </kbd>
-        </div>
-
-        <div className="h-[350px] overflow-y-auto">
-          {inputValue.length === 0 ? (
-            <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground">
-              <Search className="size-10 opacity-10" />
-              <p className="text-sm">Type to search documentation</p>
-            </div>
-          ) : query.isLoading ? (
-            <div className="flex h-full items-center justify-center text-muted-foreground">
-              <p className="text-sm">Searching...</p>
-            </div>
-          ) : results.length === 0 ? (
-            <div className="flex h-full flex-col items-center justify-center gap-1 text-muted-foreground">
-              <p className="text-sm">No results found</p>
-              <p className="text-xs opacity-60">Try different keywords</p>
-            </div>
-          ) : (
-            <div className="p-2">
-              {groupedByPage.map((group) => (
-                <div key={group.pagePath} className="mb-2 last:mb-0">
-                  <div className="mb-0.5 flex items-center gap-2 rounded px-2 py-1.5">
-                    <FileText className="size-4 text-muted-foreground" />
-                    <span className="font-medium text-sm">
-                      {group.pageTitle}
-                    </span>
-                  </div>
-                  <div className="ml-6 border-l pl-2">
-                    {group.items.map((item) => {
-                      const currentIndex = itemIndex++;
-                      const isSelected = currentIndex === selectedIndex;
-
-                      return (
-                        <button
-                          key={item.id}
-                          onClick={() => handleSelect(item.url)}
-                          className={cn(
-                            "flex w-full items-center gap-2 rounded px-2 py-1 text-left transition-colors",
-                            isSelected ? "bg-accent" : "hover:bg-muted/50",
-                          )}
-                        >
-                          <span className="w-4 flex-none">
-                            {getTypeIcon(item.type)}
-                          </span>
-                          <span className="min-w-0 flex-1 truncate text-sm">
-                            <HighlightedText
-                              segments={item.contentWithHighlights}
-                              fallback={item.content}
-                            />
-                          </span>
-                          {isSelected && (
-                            <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="flex items-center justify-between border-t px-4 py-2">
-          <div className="flex items-center gap-4 text-muted-foreground text-xs">
-            <span className="flex items-center gap-1">
-              <kbd className="rounded border bg-muted px-1 py-0.5 font-mono text-[10px]">
-                ↑
-              </kbd>
-              <kbd className="rounded border bg-muted px-1 py-0.5 font-mono text-[10px]">
-                ↓
-              </kbd>
-              <span className="ml-0.5">navigate</span>
-            </span>
-            <span className="flex items-center gap-1">
-              <kbd className="rounded border bg-muted px-1 py-0.5 font-mono text-[10px]">
-                ↵
-              </kbd>
-              <span className="ml-0.5">select</span>
-            </span>
+        <div className="overflow-hidden rounded-2xl border">
+          {/* Search Input */}
+          <div className="flex items-center gap-2.5 border-border/50 border-b px-3">
+            <Search className="size-4 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Search documentation..."
+              value={inputValue}
+              onChange={(e) => {
+                setInputValue(e.target.value);
+                setSearch(e.target.value);
+              }}
+              onKeyDown={handleKeyDown}
+              className="h-11 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
+              autoFocus
+            />
           </div>
-          <span className="text-[10px] text-muted-foreground">Orama</span>
+
+          {/* Results */}
+          <div
+            ref={listRef}
+            className="h-[min(400px,90vh)] overflow-y-auto overflow-x-hidden overscroll-contain"
+          >
+            {inputValue.length === 0 ? (
+              <div className="flex h-full flex-col items-center justify-center gap-3 px-4">
+                <div className="flex items-center gap-6 text-muted-foreground/60">
+                  <span className="flex items-center gap-1.5 text-sm">
+                    <ArrowUp className="size-3" />
+                    <ArrowDown className="size-3" />
+                    <span>navigate</span>
+                  </span>
+                  <span className="flex items-center gap-1.5 text-sm">
+                    <CornerDownLeft className="size-3" />
+                    <span>select</span>
+                  </span>
+                </div>
+              </div>
+            ) : query.isLoading ? (
+              <div className="flex h-full items-center justify-center">
+                <div className="flex items-center gap-2 text-muted-foreground/60">
+                  <div className="size-1 animate-pulse rounded-full bg-current" />
+                  <div className="size-1 animate-pulse rounded-full bg-current [animation-delay:150ms]" />
+                  <div className="size-1 animate-pulse rounded-full bg-current [animation-delay:300ms]" />
+                </div>
+              </div>
+            ) : results.length === 0 ? (
+              <div className="flex h-full flex-col items-center justify-center gap-1 px-4">
+                <p className="text-muted-foreground/60 text-sm">
+                  No results for "{inputValue}"
+                </p>
+              </div>
+            ) : (
+              <div className="p-2">
+                {(() => {
+                  let flatIndex = 0;
+                  return groupedResults.map((group) => (
+                    <div key={group.pageUrl} className="mb-1 last:mb-0">
+                      {group.items.map((item, itemIndex) => {
+                        const currentIndex = flatIndex++;
+                        const isSelected = currentIndex === selectedIndex;
+                        const title = getResultTitle(item);
+                        const isNested = itemIndex > 0 || item.type !== "page";
+                        const showBreadcrumb = itemIndex === 0;
+
+                        return (
+                          <button
+                            key={item.id}
+                            data-index={currentIndex}
+                            onClick={() => handleSelect(item.url)}
+                            onMouseEnter={() => setSelectedIndex(currentIndex)}
+                            className={cn(
+                              "group flex w-full cursor-pointer items-center gap-3 rounded-lg py-2 pr-3 text-left transition-colors",
+                              isSelected ? "bg-accent" : "hover:bg-accent/50",
+                              isNested ? "pl-9" : "pl-3",
+                            )}
+                          >
+                            <div className="shrink-0 text-muted-foreground">
+                              <ResultIcon type={item.type} />
+                            </div>
+                            <div className="flex min-w-0 flex-1 flex-col">
+                              <span className="truncate font-medium text-foreground text-sm">
+                                <HighlightedText
+                                  segments={item.contentWithHighlights}
+                                  fallback={title}
+                                />
+                              </span>
+                              {showBreadcrumb && (
+                                <span className="truncate text-muted-foreground text-xs">
+                                  {formatBreadcrumb(item.url)}
+                                </span>
+                              )}
+                            </div>
+                            <CornerDownLeft
+                              className={cn(
+                                "size-3.5 shrink-0 text-muted-foreground transition-opacity",
+                                isSelected ? "opacity-60" : "opacity-0",
+                              )}
+                            />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ));
+                })()}
+              </div>
+            )}
+          </div>
         </div>
       </DialogContent>
     </Dialog>
