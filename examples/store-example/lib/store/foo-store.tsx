@@ -1,91 +1,87 @@
 "use client";
 
-// Import scope types first to ensure module augmentation is available
 import "./foo-scope";
 
 import React from "react";
-import { resource, tapState } from "@assistant-ui/tap";
+import { resource, tapMemo, tapState } from "@assistant-ui/tap";
 import {
   useAssistantClient,
   AssistantProvider,
-  tapApi,
-  tapStoreList,
-  DerivedScope,
+  tapClientList,
+  Derived,
   useAssistantState,
-  tapStoreContext,
+  tapAssistantEmit,
+  type ClientOutput,
 } from "@assistant-ui/store";
+
+type FooData = { id: string; bar: string };
 
 export const FooItemResource = resource(
   ({
-    initialValue: { id, initialBar },
+    getInitialData,
     remove,
-  }: {
-    initialValue: { id: string; initialBar: string };
-    remove: () => void;
-  }) => {
-    const { events } = tapStoreContext();
+  }: tapClientList.ResourceProps<FooData>): ClientOutput<"foo"> => {
+    const emit = tapAssistantEmit();
 
-    const [state, setState] = tapState<{ id: string; bar: string }>({
-      id,
-      bar: initialBar,
-    });
+    const [state, setState] = tapState<FooData>(getInitialData);
 
     const updateBar = (newBar: string) => {
       setState({ ...state, bar: newBar });
-      events.emit("foo.updated", { id, newValue: newBar });
+      emit("foo.updated", { id: state.id, newValue: newBar });
     };
 
     const handleRemove = () => {
-      events.emit("foo.removed", { id });
+      emit("foo.removed", { id: state.id });
       remove();
     };
 
-    return tapApi(
-      {
+    return {
+      state,
+      methods: {
         getState: () => state,
         updateBar,
         remove: handleRemove,
       },
-      { key: id },
-    );
+    };
   },
 );
 
-/**
- * FooList resource implementation
- * Manages a list of foos using tapStoreList
- */
 let counter = 3;
-export const FooListResource = resource(() => {
-  const { events } = tapStoreContext();
-  const idGenerator = () => `foo-${++counter}`;
+export const FooListResource = resource(
+  ({ initialValues }: { initialValues: boolean }): ClientOutput<"fooList"> => {
+    const emit = tapAssistantEmit();
 
-  const foos = tapStoreList({
-    initialValues: [
-      { id: "foo-1", initialBar: "First Foo" },
-      { id: "foo-2", initialBar: "Second Foo" },
-      { id: "foo-3", initialBar: "Third Foo" },
-    ],
-    resource: FooItemResource,
-    idGenerator,
-  });
+    const foos = tapClientList({
+      initialValues: initialValues
+        ? [
+            { id: "foo-1", bar: "First Foo" },
+            { id: "foo-2", bar: "Second Foo" },
+            { id: "foo-3", bar: "Third Foo" },
+          ]
+        : [],
+      getKey: (foo) => foo.id,
+      resource: FooItemResource,
+    });
 
-  const addFoo = (id?: string) => {
-    const newId = id ?? idGenerator();
-    foos.add(newId);
-    events.emit("fooList.added", { id: newId });
-  };
+    const addFoo = () => {
+      const id = `foo-${++counter}`;
+      foos.add({ id: id, bar: `New Foo` });
+      emit("fooList.added", { id: id });
+    };
 
-  return tapApi({
-    getState: () => ({ foos: foos.state }),
-    foo: foos.api,
-    addFoo,
-  });
-});
+    const state = tapMemo(() => ({ foos: foos.state }), [foos.state]);
 
-/**
- * FooProvider - Provides foo scope for a specific index
- */
+    return {
+      state,
+      methods: {
+        getState: () => state,
+        foo: foos.get,
+        addFoo,
+      },
+    };
+  },
+);
+
 export const FooProvider = ({
   index,
   children,
@@ -93,11 +89,10 @@ export const FooProvider = ({
   index: number;
   children: React.ReactNode;
 }) => {
-  // Create a derived client with the foo scope at the specified index
   const aui = useAssistantClient({
-    foo: DerivedScope({
+    foo: Derived({
       source: "fooList",
-      query: { index },
+      query: { index: index },
       get: (aui) => aui.fooList().foo({ index }),
     }),
   });
@@ -105,10 +100,6 @@ export const FooProvider = ({
   return <AssistantProvider client={aui}>{children}</AssistantProvider>;
 };
 
-/**
- * FooList component - minimal mapping component
- * Maps over the list and renders each item in a FooProvider
- */
 export const FooList = ({
   components,
 }: {

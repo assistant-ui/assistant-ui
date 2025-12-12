@@ -53,7 +53,6 @@ export const TextMessagePartProvider: FC<
       get: () => store.getState().api,
     }),
     subscribe: store.subscribe,
-    flushSync: store.flushSync,
   });
 
   return <AssistantProvider api={api}>{children}</AssistantProvider>;

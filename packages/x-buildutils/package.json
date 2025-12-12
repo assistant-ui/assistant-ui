@@ -10,13 +10,13 @@
     "cross-spawn": "^7.0.6",
     "esbuild-plugin-file-path-extensions": "^2.1.4",
     "postcss": "^8.5.6",
-    "postcss-js": "^5.0.1",
+    "postcss-js": "^5.0.2",
     "tsup": "8.5.1",
     "typescript": "^5.9.3"
   },
   "devDependencies": {
     "@types/cross-spawn": "^6.0.6",
-    "@types/node": "^24.10.1",
+    "@types/node": "^25.0.0",
     "@types/postcss-js": "^4.1.0",
     "jiti": "^2.6.1"
   }
