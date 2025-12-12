@@ -1,5 +1,23 @@
 # @assistant-ui/react
 
+## 0.11.50
+
+### Patch Changes
+
+- bae3aa2: feat: use new tap global flushSync method
+- e8ea57b: chore: update deps
+- Updated dependencies [bae3aa2]
+- Updated dependencies [bae3aa2]
+- Updated dependencies [bae3aa2]
+- Updated dependencies [bae3aa2]
+- Updated dependencies [bae3aa2]
+- Updated dependencies [bae3aa2]
+- Updated dependencies [e8ea57b]
+- Updated dependencies [bae3aa2]
+  - @assistant-ui/tap@0.3.3
+  - assistant-stream@0.2.45
+  - assistant-cloud@0.1.11
+
 ## 0.11.49
 
 ### Patch Changes
