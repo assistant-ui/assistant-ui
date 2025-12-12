@@ -10,16 +10,16 @@ import { Ionicons } from "@expo/vector-icons";
 import "react-native-reanimated";
 
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { ThreadsProvider, useThreads } from "@/contexts/ThreadsContext";
+import { RuntimeProvider, useRuntime } from "@/contexts/RuntimeContext";
 
 function NewChatButton() {
   const router = useRouter();
-  const { createThread } = useThreads();
+  const runtime = useRuntime();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
 
   const handlePress = () => {
-    const threadId = createThread();
+    const threadId = runtime.switchToNewThread();
     router.push(`/thread/${threadId}`);
   };
 
@@ -79,9 +79,9 @@ function RootLayoutNav() {
 
 export default function RootLayout() {
   return (
-    <ThreadsProvider>
+    <RuntimeProvider>
       <RootLayoutNav />
-    </ThreadsProvider>
+    </RuntimeProvider>
   );
 }
 

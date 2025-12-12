@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useSyncExternalStore } from "react";
 import {
   View,
   Text,
@@ -12,13 +12,13 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MessageBubble } from "./MessageBubble";
 import { ChatComposer } from "./ChatComposer";
-import { useChatRuntime } from "@/hooks/use-chat-runtime";
 import {
   ThreadProvider,
   ComposerProvider,
   useThread,
   useComposer,
   type ThreadMessage,
+  type LocalRuntime,
 } from "@assistant-ui/react-native";
 
 function ChatMessages() {
@@ -97,18 +97,14 @@ function ChatMessages() {
   );
 }
 
-function ChatComposerContainer({
-  composerRuntime,
-}: {
-  composerRuntime: ReturnType<typeof useChatRuntime>["composerRuntime"];
-}) {
+function ChatComposerContainer({ runtime }: { runtime: LocalRuntime }) {
   const text = useComposer((state) => state.text);
   const canSend = useComposer((state) => state.canSend);
   const isRunning = useThread((state) => state.isRunning);
 
   return (
     <ChatComposer
-      composerRuntime={composerRuntime}
+      composerRuntime={runtime.composer}
       text={text}
       canSend={canSend}
       isRunning={isRunning}
@@ -117,31 +113,24 @@ function ChatComposerContainer({
 }
 
 interface ChatScreenProps {
-  threadId: string;
-  getMessages: (threadId: string) => Promise<ThreadMessage[]>;
-  saveMessages: (
-    threadId: string,
-    messages: readonly ThreadMessage[],
-  ) => Promise<void>;
+  runtime: LocalRuntime;
 }
 
-export function ChatScreen({
-  threadId,
-  getMessages,
-  saveMessages,
-}: ChatScreenProps) {
+export function ChatScreen({ runtime }: ChatScreenProps) {
   const insets = useSafeAreaInsets();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
-  const { threadRuntime, composerRuntime } = useChatRuntime({
-    threadId,
-    getMessages,
-    saveMessages,
-  });
+
+  // Force re-render when thread state changes
+  useSyncExternalStore(
+    (callback) => runtime.thread.subscribe(callback),
+    () => runtime.thread.getState(),
+    () => runtime.thread.getState(),
+  );
 
   return (
-    <ThreadProvider runtime={threadRuntime}>
-      <ComposerProvider runtime={composerRuntime}>
+    <ThreadProvider runtime={runtime.thread}>
+      <ComposerProvider runtime={runtime.composer}>
         <View
           style={[
             styles.container,
@@ -157,7 +146,7 @@ export function ChatScreen({
               <ChatMessages />
             </View>
             <View style={{ paddingBottom: insets.bottom }}>
-              <ChatComposerContainer composerRuntime={composerRuntime} />
+              <ChatComposerContainer runtime={runtime} />
             </View>
           </KeyboardAvoidingView>
         </View>
