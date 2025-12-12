@@ -51,9 +51,8 @@ const HandleWrapperResource = resource(
         },
         render: (element: ResourceElement<R, P>) => {
           state.element = element;
-          setElement(element);
-
           state.onRender();
+          setElement(element);
         },
         unmount: state.onUnmount,
       }),
