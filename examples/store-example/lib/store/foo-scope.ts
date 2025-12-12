@@ -1,41 +1,42 @@
-import { registerAssistantScope } from "@assistant-ui/store";
+type FooState = { id: string; bar: string };
+type FooMethods = {
+  getState: () => FooState;
+  updateBar: (newBar: string) => void;
+  remove: () => void;
+};
+type FooMeta = {
+  source: "fooList";
+  query: { index: number } | { key: string };
+};
+type FooEvents = {
+  "foo.updated": { id: string; newValue: string };
+  "foo.removed": { id: string };
+};
+
+type FooListState = { foos: FooState[] };
+type FooListMethods = {
+  getState: () => FooListState;
+  foo: (lookup: FooMeta["query"]) => FooMethods;
+  addFoo: () => void;
+};
+type FooListEvents = {
+  "fooList.added": { id: string };
+};
 
 declare module "@assistant-ui/store" {
-  interface AssistantScopeRegistry {
+  interface ClientRegistry {
     foo: {
-      value: {
-        getState: () => { id: string; bar: string };
-        updateBar: (newBar: string) => void;
-        remove: () => void;
-      };
-      meta: { source: "fooList"; query: { index: number } | { id: string } };
-      events: {
-        "foo.updated": { id: string; newValue: string };
-        "foo.removed": { id: string };
-      };
+      state: FooState;
+      methods: FooMethods;
+      meta: FooMeta;
+      events: FooEvents;
     };
     fooList: {
-      value: {
-        getState: () => { foos: Array<{ id: string; bar: string }> };
-        foo: (
-          lookup: { index: number } | { id: string },
-        ) => AssistantScopeRegistry["foo"]["value"];
-        addFoo: (id?: string) => void;
-      };
-      meta: { source: "root"; query: Record<string, never> };
-      events: {
-        "fooList.added": { id: string };
-      };
+      state: FooListState;
+      methods: FooListMethods;
+      events: FooListEvents;
     };
   }
 }
 
-registerAssistantScope({
-  name: "fooList",
-  defaultInitialize: { error: "FooList is not configured" },
-});
-
-registerAssistantScope({
-  name: "foo",
-  defaultInitialize: { error: "Foo is not configured" },
-});
+export default {};

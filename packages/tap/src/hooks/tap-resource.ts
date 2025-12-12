@@ -1,23 +1,25 @@
-import { ResourceElement } from "../core/types";
+import { ExtractResourceOutput, ResourceElement } from "../core/types";
 import { tapEffect } from "./tap-effect";
 import {
   createResourceFiber,
-  unmountResource,
-  renderResource,
-  commitResource,
+  unmountResourceFiber,
+  renderResourceFiber,
+  commitResourceFiber,
 } from "../core/ResourceFiber";
 import { tapMemo } from "./tap-memo";
 import { tapState } from "./tap-state";
 
-export function tapResource<R, P>(element: ResourceElement<R, P>): R;
-export function tapResource<R, P>(
-  element: ResourceElement<R, P>,
+export function tapResource<E extends ResourceElement<any, any>>(
+  element: E,
+): ExtractResourceOutput<E>;
+export function tapResource<E extends ResourceElement<any, any>>(
+  element: E,
   deps: readonly unknown[],
-): R;
-export function tapResource<R, P>(
-  element: ResourceElement<R, P>,
+): ExtractResourceOutput<E>;
+export function tapResource<E extends ResourceElement<any, any>>(
+  element: E,
   deps?: readonly unknown[],
-): R {
+): ExtractResourceOutput<E> {
   const [stateVersion, rerender] = tapState({});
   const fiber = tapMemo(
     () => createResourceFiber(element.type, () => rerender({})),
@@ -26,16 +28,16 @@ export function tapResource<R, P>(
 
   const props = deps ? tapMemo(() => element.props, deps) : element.props;
   const result = tapMemo(
-    () => renderResource(fiber, props),
+    () => renderResourceFiber(fiber, props),
     [fiber, props, stateVersion],
   );
 
   tapEffect(() => {
-    return () => unmountResource(fiber);
+    return () => unmountResourceFiber(fiber);
   }, [fiber]);
 
   tapEffect(() => {
-    commitResource(fiber, result);
+    commitResourceFiber(fiber, result);
   }, [fiber, result]);
 
   return result.state;

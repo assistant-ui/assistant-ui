@@ -5,31 +5,37 @@ export interface ApiObject {
 }
 
 class ReadonlyApiHandler<TApi extends ApiObject> implements ProxyHandler<TApi> {
-  constructor(private readonly getApi: () => TApi) {}
+  constructor(private readonly ref: tapRef.RefObject<TApi>) {}
 
   get(_: unknown, prop: string | symbol) {
-    return this.getApi()[prop as keyof TApi];
+    return this.ref.current[prop as keyof TApi];
   }
 
   ownKeys(): ArrayLike<string | symbol> {
-    return Object.keys(this.getApi() as object);
+    return Object.keys(this.ref.current as object);
   }
 
   has(_: unknown, prop: string | symbol) {
-    return prop in (this.getApi() as object);
+    return prop in (this.ref.current as object);
   }
 
   getOwnPropertyDescriptor(_: unknown, prop: string | symbol) {
-    return Object.getOwnPropertyDescriptor(this.getApi(), prop);
+    return Object.getOwnPropertyDescriptor(this.ref.current, prop);
   }
 
   set() {
+    return false;
+  }
+  setPrototypeOf() {
     return false;
   }
   defineProperty() {
     return false;
   }
   deleteProperty() {
+    return false;
+  }
+  preventExtensions(): boolean {
     return false;
   }
 }
@@ -46,8 +52,7 @@ export const tapApi = <TApi extends ApiObject & { getState: () => any }>(
   });
 
   const apiProxy = tapMemo(
-    () =>
-      new Proxy<TApi>({} as TApi, new ReadonlyApiHandler(() => ref.current)),
+    () => new Proxy<TApi>({} as TApi, new ReadonlyApiHandler(ref)),
     [],
   );
 

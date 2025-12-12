@@ -8,7 +8,7 @@
     "development",
     "debugging"
   ],
-  "version": "0.1.10",
+  "version": "0.1.11",
   "license": "MIT",
   "type": "module",
   "exports": {
@@ -54,7 +54,7 @@
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/tap": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^24.10.1",
+    "@types/node": "^25.0.0",
     "tsx": "^4.21.0",
     "vitest": "^4.0.15"
   },
