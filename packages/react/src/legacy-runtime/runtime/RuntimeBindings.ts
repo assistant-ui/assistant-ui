@@ -1,20 +1,23 @@
-import type { SubscribableWithState, ThreadMessage } from "@assistant-ui/core";
 import type {
-  ComposerRuntimeCore,
-  ThreadComposerRuntimeCore,
-} from "../runtime-cores/core/ComposerRuntimeCore";
-import type {
-  ThreadRuntimeCore,
+  SubscribableWithState,
+  ThreadMessage,
+  ThreadListItemStatus,
   SpeechState,
   SubmittedFeedback,
-} from "../runtime-cores/core/ThreadRuntimeCore";
-import type { ThreadListRuntimeCore } from "../runtime-cores/core/ThreadListRuntimeCore";
+  ComposerRuntimeCore,
+  ThreadComposerRuntimeCore,
+  ThreadRuntimeCore,
+  ThreadListRuntimeCore,
+} from "@assistant-ui/core";
 import type {
   ComposerRuntimePath,
   ThreadRuntimePath,
   ThreadListItemRuntimePath,
   MessageRuntimePath,
 } from "./RuntimePathTypes";
+
+// Re-export ThreadListItemStatus from core
+export type { ThreadListItemStatus };
 
 export type ComposerRuntimeCoreBinding = SubscribableWithState<
   ComposerRuntimeCore | undefined,
@@ -55,8 +58,6 @@ export type MessageStateBinding = SubscribableWithState<
   },
   MessageRuntimePath
 >;
-
-export type ThreadListItemStatus = "archived" | "regular" | "new" | "deleted";
 
 export type ThreadListItemState = {
   readonly isMain: boolean;
