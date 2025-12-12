@@ -19,13 +19,13 @@ export function createResourceFiber<R, P>(
   };
 }
 
-export function unmountResource<R, P>(fiber: ResourceFiber<R, P>): void {
+export function unmountResourceFiber<R, P>(fiber: ResourceFiber<R, P>): void {
   // Clean up all effects
   fiber.isMounted = false;
   cleanupAllEffects(fiber);
 }
 
-export function renderResource<R, P>(
+export function renderResourceFiber<R, P>(
   fiber: ResourceFiber<R, P>,
   props: P,
 ): RenderResult {
@@ -47,7 +47,7 @@ export function renderResource<R, P>(
   return result;
 }
 
-export function commitResource<R, P>(
+export function commitResourceFiber<R, P>(
   fiber: ResourceFiber<R, P>,
   result: RenderResult,
 ): void {

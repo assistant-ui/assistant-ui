@@ -1,105 +1,112 @@
-import { ResourceElement, ResourceFiber } from "../core/types";
+import {
+  ExtractResourceOutput,
+  RenderResult,
+  ResourceElement,
+  ResourceFiber,
+} from "../core/types";
 import { tapEffect } from "./tap-effect";
 import { tapMemo } from "./tap-memo";
 import { tapState } from "./tap-state";
+import { tapCallback } from "./tap-callback";
 import {
   createResourceFiber,
-  unmountResource,
-  renderResource,
-  commitResource,
+  unmountResourceFiber,
+  renderResourceFiber,
+  commitResourceFiber,
 } from "../core/ResourceFiber";
 
+export type TapResourcesRenderResult<R, K extends string | number | symbol> = {
+  add: [K, ResourceFiber<R, any>][];
+  remove: K[];
+  commit: [K, RenderResult][];
+  return: Record<K, R>;
+};
+
 export function tapResources<
-  T extends ReadonlyArray<ResourceElement<any, any>>,
+  M extends Record<string | number | symbol, any>,
+  E extends ResourceElement<any, any>,
 >(
-  elements: T,
-): { [K in keyof T]: T[K] extends ResourceElement<infer R, any> ? R : never } {
-  // Validate keys
-  const seenKeys = new Set<string | number>();
-  elements.forEach((element, index) => {
-    if (element.key === undefined) {
-      throw new Error(
-        `tapResources: All resource elements must have a key. Element at index ${index} is missing a key.`,
-      );
-    }
-    if (seenKeys.has(element.key)) {
-      throw new Error(
-        `tapResources: Duplicate key "${element.key}" found. All keys must be unique.`,
-      );
-    }
-    seenKeys.add(element.key);
-  });
+  map: M,
+  getElement: (t: M[keyof M], key: keyof M) => E,
+  getElementDeps: any[],
+): { [K in keyof M]: ExtractResourceOutput<E> } {
+  type R = ExtractResourceOutput<E>;
+  const [version, setVersion] = tapState(0);
+  const rerender = tapCallback(() => setVersion((v) => v + 1), []);
 
-  const [stateVersion, rerender] = tapState({});
+  type K = keyof M;
+  const [fibers] = tapState(() => new Map<K, ResourceFiber<R, any>>());
 
-  // Create a map of current elements by key for efficient lookup
-  const elementsByKey = tapMemo(
-    () => new Map(elements.map((element) => [element.key!, element])),
-    [elements],
-  );
-
-  // Track fibers persistently across renders
-  const [fibers] = tapState(
-    () => new Map<string | number, ResourceFiber<any, any>>(),
-  );
+  const getElementMemo = tapMemo(() => getElement, getElementDeps);
 
   // Process each element
+
   const results = tapMemo(() => {
-    const resultMap = new Map<string | number, any>();
-    const currentKeys = new Set<string | number>();
+    const results: TapResourcesRenderResult<R, K> = {
+      remove: [],
+      add: [],
+      commit: [],
+      return: {} as Record<K, R>,
+    };
 
     // Create/update fibers and render
-    elementsByKey.forEach((element, key) => {
-      currentKeys.add(key);
+    for (const key in map) {
+      const value = map[key as K];
+      const element = getElementMemo(value, key);
 
       let fiber = fibers.get(key);
 
       // Create new fiber if needed or type changed
       if (!fiber || fiber.resource !== element.type) {
-        if (fiber) unmountResource(fiber);
-        fiber = createResourceFiber(element.type, () => rerender({}));
-        fibers.set(key, fiber);
+        if (fiber) results.remove.push(key);
+        fiber = createResourceFiber(element.type, rerender);
+        results.add.push([key, fiber]);
       }
 
       // Render with current props
-      const result = renderResource(fiber, element.props);
-      resultMap.set(key, result);
-    });
+      const renderResult = renderResourceFiber(fiber, element.props);
+      results.commit.push([key, renderResult]);
 
-    // Clean up removed fibers
-    fibers.forEach((fiber, key) => {
-      if (!currentKeys.has(key)) {
-        unmountResource(fiber);
-        fibers.delete(key);
+      results.return[key] = renderResult.state;
+    }
+
+    // Clean up removed fibers (only if there might be stale ones)
+    if (
+      fibers.size >
+      results.commit.length - results.add.length + results.remove.length
+    ) {
+      for (const key of fibers.keys()) {
+        if (!(key in map)) {
+          results.remove.push(key);
+        }
       }
-    });
+    }
 
-    return resultMap;
-  }, [elementsByKey, stateVersion]);
-
-  // Commit all renders
-  tapEffect(() => {
-    results.forEach((result, key) => {
-      const fiber = fibers.get(key);
-      if (fiber) {
-        commitResource(fiber, result);
-      }
-    });
-  }, [results, fibers]);
+    return results;
+  }, [map, getElementMemo, version]);
 
   // Cleanup on unmount
   tapEffect(() => {
     return () => {
-      fibers.forEach((fiber) => {
-        unmountResource(fiber);
-      });
-      fibers.clear();
+      for (const key of fibers.keys()) {
+        unmountResourceFiber(fibers.get(key)!);
+        fibers.delete(key);
+      }
     };
-  }, [fibers]);
+  }, []);
 
-  // Return results in the same order as input elements
-  return tapMemo(
-    () => elements.map((element) => results.get(element.key!)?.state),
-    [elements, results],
-  ) as any;
+  tapEffect(() => {
+    for (const key of results.remove) {
+      unmountResourceFiber(fibers.get(key)!);
+      fibers.delete(key);
+    }
+    for (const [key, fiber] of results.add) {
+      fibers.set(key, fiber);
+    }
+    for (const [key, result] of results.commit) {
+      commitResourceFiber(fibers.get(key)!, result);
+    }
+  }, [results]);
+
+  return results.return;
 }

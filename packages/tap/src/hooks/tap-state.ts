@@ -5,16 +5,16 @@ export namespace tapState {
   export type StateUpdater<S> = S | ((prev: S) => S);
 }
 
-export const rerender = (fiber: ResourceFiber<any, any>) => {
+const rerender = (fiber: ResourceFiber<any, any>) => {
   if (fiber.renderContext) {
     throw new Error("Resource updated during render");
   }
-  if (fiber.isNeverMounted) {
-    throw new Error("Resource updated before mount");
-  }
-  // Only schedule rerender if currently mounted
+
   if (fiber.isMounted) {
+    // Only schedule rerender if currently mounted
     fiber.scheduleRerender();
+  } else if (fiber.isNeverMounted) {
+    throw new Error("Resource updated before mount");
   }
 };
 
