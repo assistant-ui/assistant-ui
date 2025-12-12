@@ -8,6 +8,7 @@ import {
   type SourceMessagePart,
   type useExternalMessageConverter,
 } from "@assistant-ui/react";
+import type { ReadonlyJSONObject } from "assistant-stream/utils";
 
 function stripClosingDelimiters(json: string) {
   return json.replace(/[}\]"]+$/, "");
@@ -20,6 +21,23 @@ const convertParts = (
   if (!message.parts || message.parts.length === 0) {
     return [];
   }
+
+  // Per-message cache of last tool input per toolCallId.
+  const lastToolInputs = new Map<string, ReadonlyJSONObject>();
+
+  const getToolArgs = (
+    toolCallId: string,
+    input: unknown,
+  ): ReadonlyJSONObject => {
+    if (input && typeof input === "object" && !Array.isArray(input)) {
+      const jsonInput = input as ReadonlyJSONObject;
+      lastToolInputs.set(toolCallId, jsonInput);
+      return jsonInput;
+    }
+
+    const cached = lastToolInputs.get(toolCallId);
+    return cached ?? {};
+  };
 
   return message.parts
     .filter((p) => p.type !== "step-start" && p.type !== "file")
@@ -48,26 +66,32 @@ const convertParts = (
         const toolCallId = part.toolCallId;
 
         // Extract args and result based on state
-        let args: any = {};
         let result: any;
         let isError = false;
 
-        if (
-          part.state === "input-streaming" ||
-          part.state === "input-available"
-        ) {
-          args = part.input || {};
-        } else if (part.state === "output-available") {
-          args = part.input || {};
+        if (part.state === "output-available") {
           result = part.output;
         } else if (part.state === "output-error") {
-          args = part.input || {};
           isError = true;
           result = { error: part.errorText };
         }
 
-        let argsText = JSON.stringify(args);
-        if (part.state === "input-streaming") {
+        const args = getToolArgs(toolCallId, part.input);
+
+        const existingArgsText =
+          typeof (part as any).argsText === "string"
+            ? ((part as any).argsText as string)
+            : undefined;
+
+        let argsText =
+          existingArgsText !== undefined
+            ? existingArgsText
+            : JSON.stringify(args);
+
+        if (
+          existingArgsText === undefined &&
+          part.state === "input-streaming"
+        ) {
           // the argsText is not complete, so we need to strip the closing delimiters
           // these are added by the AI SDK in fix-json
           argsText = stripClosingDelimiters(argsText);
@@ -98,30 +122,32 @@ const convertParts = (
         const toolCallId = part.toolCallId;
 
         // Extract args and result based on state
-        let args: any = {};
         let result: any;
         let isError = false;
 
-        if (
-          part.state === "input-streaming" ||
-          part.state === "input-available"
-        ) {
-          args = part.input || {};
-        } else if (part.state === "output-available") {
-          args = part.input || {};
+        const args = getToolArgs(toolCallId, part.input);
+
+        if (part.state === "output-available") {
           result = part.output;
         } else if (part.state === "output-error") {
-          args = part.input || {};
           isError = true;
           result = { error: part.errorText };
         }
+
+        const existingArgsText =
+          typeof (part as any).argsText === "string"
+            ? ((part as any).argsText as string)
+            : undefined;
 
         const toolStatus = metadata.toolStatuses?.[toolCallId];
         return {
           type: "tool-call",
           toolName,
           toolCallId,
-          argsText: JSON.stringify(args),
+          argsText:
+            existingArgsText !== undefined
+              ? existingArgsText
+              : JSON.stringify(args),
           args,
           result,
           isError,
