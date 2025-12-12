@@ -18,8 +18,8 @@ function NewChatButton() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
 
-  const handlePress = async () => {
-    const threadId = await createThread();
+  const handlePress = () => {
+    const threadId = createThread();
     router.push(`/thread/${threadId}`);
   };
 

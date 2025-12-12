@@ -23,6 +23,12 @@ export function useThreadsStore() {
     isLoading: true,
   });
   const isInitialized = useRef(false);
+  const stateRef = useRef(state);
+
+  // Keep stateRef in sync
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
   // Load threads from AsyncStorage on mount
   useEffect(() => {
@@ -62,24 +68,10 @@ export function useThreadsStore() {
     }
   }, []);
 
-  // Create a new thread
-  const createThread = useCallback(async (): Promise<string> => {
-    const now = new Date();
-    const newThread: ThreadMetadata = {
-      id: generateId(),
-      title: "New Chat",
-      createdAt: now,
-      lastMessageAt: now,
-    };
-
-    setState((prev) => {
-      const newThreads = [newThread, ...prev.threads];
-      saveThreads(newThreads);
-      return { ...prev, threads: newThreads };
-    });
-
-    return newThread.id;
-  }, [saveThreads]);
+  // Create a new thread - only generates ID, doesn't add to list
+  const createThread = useCallback((): string => {
+    return generateId();
+  }, []);
 
   // Delete a thread
   const deleteThread = useCallback(
@@ -104,7 +96,7 @@ export function useThreadsStore() {
 
   // Update thread metadata (title, lastMessageAt)
   const updateThread = useCallback(
-    async (
+    (
       threadId: string,
       updates: Partial<Pick<ThreadMetadata, "title" | "lastMessageAt">>,
     ) => {
@@ -149,42 +141,77 @@ export function useThreadsStore() {
   // Save messages for a thread
   const saveMessages = useCallback(
     async (threadId: string, messages: readonly ThreadMessage[]) => {
+      if (messages.length === 0) return;
+
       try {
         await AsyncStorage.setItem(
           `${MESSAGES_STORAGE_KEY_PREFIX}${threadId}`,
           JSON.stringify(messages),
         );
 
-        // Update thread title based on first user message if still "New Chat"
-        const thread = state.threads.find((t) => t.id === threadId);
-        if (thread && thread.title === "New Chat" && messages.length > 0) {
+        // Check if thread exists in list
+        const existingThread = stateRef.current.threads.find(
+          (t) => t.id === threadId,
+        );
+
+        if (!existingThread) {
+          // Thread doesn't exist, create it with title from first user message
           const firstUserMessage = messages.find((m) => m.role === "user");
+          let title = "New Chat";
+
           if (firstUserMessage) {
             const textContent = firstUserMessage.content.find(
               (c) => c.type === "text",
             );
             if (textContent && "text" in textContent) {
-              const title =
+              title =
                 textContent.text.slice(0, 50) +
                 (textContent.text.length > 50 ? "..." : "");
-              await updateThread(threadId, {
-                title,
-                lastMessageAt: new Date(),
-              });
-              return;
             }
           }
-        }
 
-        // Update lastMessageAt
-        if (messages.length > 0) {
-          await updateThread(threadId, { lastMessageAt: new Date() });
+          const now = new Date();
+          const newThread: ThreadMetadata = {
+            id: threadId,
+            title,
+            createdAt: now,
+            lastMessageAt: now,
+          };
+
+          setState((prev) => {
+            const newThreads = [newThread, ...prev.threads];
+            saveThreads(newThreads);
+            return { ...prev, threads: newThreads };
+          });
+        } else {
+          // Thread exists, update title if still "New Chat"
+          if (existingThread.title === "New Chat") {
+            const firstUserMessage = messages.find((m) => m.role === "user");
+            if (firstUserMessage) {
+              const textContent = firstUserMessage.content.find(
+                (c) => c.type === "text",
+              );
+              if (textContent && "text" in textContent) {
+                const title =
+                  textContent.text.slice(0, 50) +
+                  (textContent.text.length > 50 ? "..." : "");
+                updateThread(threadId, {
+                  title,
+                  lastMessageAt: new Date(),
+                });
+                return;
+              }
+            }
+          }
+
+          // Update lastMessageAt
+          updateThread(threadId, { lastMessageAt: new Date() });
         }
       } catch (error) {
         console.error("Failed to save messages:", error);
       }
     },
-    [state.threads, updateThread],
+    [saveThreads, updateThread],
   );
 
   return {
