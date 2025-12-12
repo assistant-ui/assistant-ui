@@ -1,4 +1,5 @@
 export { BaseSubject } from "./BaseSubject";
+export { BaseSubscribable } from "./BaseSubscribable";
 export { EventSubscriptionSubject } from "./EventSubscriptionSubject";
 export { LazyMemoizeSubject } from "./LazyMemoizeSubject";
 export { NestedSubscriptionSubject } from "./NestedSubscriptionSubject";

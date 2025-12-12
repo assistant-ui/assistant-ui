@@ -48,6 +48,7 @@ export { normalizeEventSelector, checkEventScope } from "./EventTypes";
 
 export type {
   RuntimeCapabilities,
+  ThreadListItemStatus,
   ThreadListItemState,
   SpeechState,
   SubmittedFeedback,

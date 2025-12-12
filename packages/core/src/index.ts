@@ -4,6 +4,9 @@ export * from "./types";
 // Runtime
 export * from "./runtime";
 
+// Runtime Cores (interfaces and base classes)
+export * from "./runtime-cores";
+
 // Adapters
 export * from "./adapters";
 

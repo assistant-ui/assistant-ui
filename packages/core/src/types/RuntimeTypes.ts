@@ -17,6 +17,11 @@ export type RuntimeCapabilities = {
 };
 
 /**
+ * Status of a thread list item in the thread list.
+ */
+export type ThreadListItemStatus = "archived" | "regular" | "new" | "deleted";
+
+/**
  * State of a thread list item.
  */
 export type ThreadListItemState = {
