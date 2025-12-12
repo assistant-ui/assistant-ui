@@ -1,5 +1,11 @@
 # tw-shimmer
 
+## 0.4.1
+
+### Patch Changes
+
+- e8ea57b: chore: update deps
+
 ## 0.4.0
 
 ### Minor Changes
