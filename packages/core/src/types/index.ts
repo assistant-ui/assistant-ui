@@ -45,3 +45,18 @@ export type {
 } from "./EventTypes";
 
 export { normalizeEventSelector, checkEventScope } from "./EventTypes";
+
+export type {
+  RuntimeCapabilities,
+  ThreadListItemState,
+  SpeechState,
+  SubmittedFeedback,
+} from "./RuntimeTypes";
+
+export type {
+  AddToolResultOptions,
+  ResumeToolCallOptions,
+  SubmitFeedbackOptions,
+  StartRunConfig,
+  ResumeRunConfig,
+} from "./OperationTypes";
