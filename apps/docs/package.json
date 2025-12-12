@@ -41,6 +41,7 @@
     "assistant-stream": "workspace:^",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "cmdk": "^1.1.1",
     "dotenv": "^17.2.3",
     "fast-glob": "^3.3.3",
     "fumadocs-core": "16.2.4",
