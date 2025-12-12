@@ -21,7 +21,7 @@
     "@types/cross-spawn": "^6.0.6",
     "@types/debug": "^4.1.12",
     "@types/jscodeshift": "^17.3.0",
-    "@types/node": "^24.10.1",
+    "@types/node": "^25.0.0",
     "@types/semver": "^7.7.1",
     "tsx": "^4.21.0",
     "vitest": "^4.0.15",

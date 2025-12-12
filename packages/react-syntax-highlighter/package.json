@@ -44,10 +44,10 @@
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^24.10.1",
+    "@types/node": "^25.0.0",
     "@types/react": "^19.2.7",
     "@types/react-syntax-highlighter": "^15.5.13",
-    "react": "19.2.1",
+    "react": "19.2.3",
     "react-syntax-highlighter": "^16.1.0",
     "tsx": "^4.21.0"
   },

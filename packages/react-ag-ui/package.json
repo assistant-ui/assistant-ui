@@ -39,12 +39,12 @@
   "devDependencies": {
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^24.10.1",
+    "@types/node": "^25.0.0",
     "@types/react": "^19.2.7",
-    "react": "19.2.1",
+    "react": "19.2.3",
     "tsx": "^4.21.0",
     "vitest": "^4.0.15",
-    "jsdom": "^27.2.0"
+    "jsdom": "^27.3.0"
   },
   "publishConfig": {
     "access": "public",
