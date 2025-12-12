@@ -8,13 +8,13 @@
   },
   "dependencies": {
     "@assistant-ui/react-devtools": "workspace:*",
-    "react": "19.2.1",
-    "react-dom": "19.2.1"
+    "react": "19.2.3",
+    "react-dom": "19.2.3"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/chrome": "^0.1.32",
-    "@types/node": "^24.10.1",
+    "@types/node": "^25.0.0",
     "@types/webextension-polyfill": "^0.12.4",
     "esbuild": "^0.27.1",
     "tsx": "^4.21.0",

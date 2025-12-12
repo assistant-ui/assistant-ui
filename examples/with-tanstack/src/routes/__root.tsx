@@ -30,6 +30,7 @@ export const Route = createRootRoute({
 function RootDocument({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
+      {/* biome-ignore lint/style/noHeadElement: TanStack Start uses standard HTML head */}
       <head>
         <HeadContent />
       </head>

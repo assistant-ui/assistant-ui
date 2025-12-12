@@ -147,7 +147,6 @@ const getClientFromStore = (client: Store<{ api: AssistantClientApi }>) => {
       );
     },
     subscribe: client.subscribe,
-    flushSync: client.flushSync,
   } satisfies Partial<AssistantApi>;
 };
 

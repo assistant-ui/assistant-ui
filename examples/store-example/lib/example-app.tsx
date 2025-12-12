@@ -14,14 +14,16 @@ import { FooList, FooListResource } from "./store/foo-store";
  */
 const Foo = () => {
   const aui = useAssistantClient();
-  const fooState = useAssistantState(({ foo }) => {
-    console.log("selector called with state", foo);
-    return foo;
+  const fooId = useAssistantState(({ foo }) => foo.id);
+  const fooBar = useAssistantState(({ foo }) => foo.bar);
+
+  // Each foo logs its own events - only receives events from THIS foo instance
+  useAssistantEvent("foo.updated", (payload) => {
+    console.log(`[${fooId}] Updated to: ${payload.newValue}`);
   });
 
   const handleUpdate = () => {
     aui.foo().updateBar(`Updated at ${new Date().toLocaleTimeString()}`);
-    console.log("Foo state", aui.foo().getState(), fooState);
   };
 
   return (
@@ -32,14 +34,14 @@ const Foo = () => {
             ID:
           </span>
           <span className="font-mono text-gray-900 text-sm dark:text-white">
-            {fooState.id}
+            {fooId}
           </span>
         </div>
         <div className="flex items-center gap-2">
           <span className="font-semibold text-gray-500 text-sm dark:text-gray-400">
             Value:
           </span>
-          <span className="text-gray-900 dark:text-white">{fooState.bar}</span>
+          <span className="text-gray-900 dark:text-white">{fooBar}</span>
         </div>
         <div className="mt-2 flex gap-2">
           <button
@@ -148,12 +150,12 @@ const EventLog = () => {
  * but we're explicitly passing it here for clarity in the example.
  */
 export const ExampleApp = () => {
-  const rootClient = useAssistantClient({
-    fooList: FooListResource(),
+  const aui = useAssistantClient({
+    fooList: FooListResource({ initialValues: true }),
   });
 
   return (
-    <AssistantProvider client={rootClient}>
+    <AssistantProvider client={aui}>
       <div className="space-y-6">
         <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
           <div className="flex items-center justify-between">
