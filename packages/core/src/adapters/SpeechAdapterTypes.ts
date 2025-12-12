@@ -58,6 +58,7 @@ export namespace SpeechRecognitionAdapter {
     | {
         type: "ended";
         reason: "stopped" | "cancelled" | "error";
+        error?: unknown;
       };
 
   export type Result = {

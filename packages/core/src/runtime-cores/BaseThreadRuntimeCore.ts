@@ -88,7 +88,6 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
     for (const message of this.messages) {
       if (message.role === "assistant") {
         mostRecentAssistantMessage = message;
-        break;
       }
     }
 

@@ -31,14 +31,14 @@
     "build": "tsx scripts/build.mts"
   },
   "dependencies": {
-    "assistant-stream": "^0.2.44",
+    "assistant-stream": "^0.2.45",
     "nanoid": "5.1.6",
-    "secure-json-parse": "^4.1.0",
-    "@types/json-schema": "^7.0.15"
+    "secure-json-parse": "^4.1.0"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^24.10.1",
+    "@types/json-schema": "^7.0.15",
+    "@types/node": "^25.0.1",
     "tsx": "^4.21.0"
   },
   "publishConfig": {
