@@ -63,7 +63,7 @@ export function Footer(): React.ReactElement {
               />
             </Link>
           </div>
-          <div className="flex-grow" />
+          <div className="grow" />
           <p className="text-foreground/30 text-sm">
             &copy; {new Date().getFullYear()} AgentbaseAI Inc.
           </p>

@@ -18,17 +18,77 @@ import { cn } from "@/lib/utils";
 import { SearchDialog } from "./search-dialog";
 import { GitHubIcon } from "@/components/icons/github";
 import { DiscordIcon } from "@/components/icons/discord";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
 
-const NAV_LINKS = [
-  { label: "Docs", href: "/docs/getting-started" },
-  { label: "Showcase", href: "/showcase" },
-  { label: "Examples", href: "/examples" },
-  { label: "Pricing", href: "/pricing" },
-] as const;
+type DropdownItem = {
+  label: string;
+  href: string;
+  description: string;
+  external: boolean;
+};
 
-const EXTERNAL_LINKS = [
-  { label: "Dashboard", href: "https://cloud.assistant-ui.com/" },
-] as const;
+type NavItem =
+  | { type: "link"; label: string; href: string }
+  | { type: "dropdown"; label: string; items: DropdownItem[] };
+
+const NAV_ITEMS: NavItem[] = [
+  { type: "link", label: "Docs", href: "/docs/getting-started" },
+  { type: "link", label: "Showcase", href: "/showcase" },
+  { type: "link", label: "Examples", href: "/examples" },
+  {
+    type: "dropdown",
+    label: "Products",
+    items: [
+      {
+        label: "Dashboard",
+        href: "https://cloud.assistant-ui.com/",
+        description: "Manage your cloud projects",
+        external: true,
+      },
+      {
+        label: "Tool UI",
+        href: "https://tool-ui.com/",
+        description: "Build tool UIs for AI agents",
+        external: true,
+      },
+      {
+        label: "tw-shimmer",
+        href: "/tw-shimmer",
+        description: "Tailwind CSS shimmer effects",
+        external: false,
+      },
+      {
+        label: "safe-content-frame",
+        href: "/safe-content-frame",
+        description: "Secure sandboxed iframes",
+        external: false,
+      },
+    ],
+  },
+  {
+    type: "dropdown",
+    label: "Resources",
+    items: [
+      {
+        label: "Blog",
+        href: "/blog",
+        description: "Latest news and updates",
+        external: false,
+      },
+      {
+        label: "Careers",
+        href: "/careers",
+        description: "Join our team",
+        external: false,
+      },
+    ],
+  },
+  { type: "link", label: "Pricing", href: "/pricing" },
+];
 
 function ThemeToggle() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
@@ -150,27 +210,59 @@ export function Header() {
         </Link>
 
         <nav className="hidden items-center md:flex">
-          {NAV_LINKS.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="px-3 py-1.5 text-muted-foreground text-sm transition-colors hover:text-foreground"
-            >
-              {link.label}
-            </Link>
-          ))}
-          {EXTERNAL_LINKS.map((link) => (
-            <a
-              key={link.href}
-              href={link.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1 px-3 py-1.5 text-muted-foreground text-sm transition-colors hover:text-foreground"
-            >
-              {link.label}
-              <ExternalLink className="size-3 opacity-40" />
-            </a>
-          ))}
+          {NAV_ITEMS.map((item) =>
+            item.type === "link" ? (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="px-3 py-1.5 text-muted-foreground text-sm transition-colors hover:text-foreground"
+              >
+                {item.label}
+              </Link>
+            ) : (
+              <HoverCard key={item.label} openDelay={100} closeDelay={100}>
+                <HoverCardTrigger asChild>
+                  <button className="px-3 py-1.5 text-muted-foreground text-sm transition-colors hover:text-foreground">
+                    {item.label}
+                  </button>
+                </HoverCardTrigger>
+                <HoverCardContent className="w-56 rounded-xl p-2 shadow-xs">
+                  <div className="flex flex-col">
+                    {item.items.map((link) =>
+                      link.external ? (
+                        <a
+                          key={link.href}
+                          href={link.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex flex-col rounded-md px-2 py-1.5 transition-colors hover:bg-muted"
+                        >
+                          <span className="flex items-center gap-1.5 text-sm">
+                            {link.label}
+                            <ExternalLink className="size-3 opacity-40" />
+                          </span>
+                          <span className="text-muted-foreground text-xs">
+                            {link.description}
+                          </span>
+                        </a>
+                      ) : (
+                        <Link
+                          key={link.href}
+                          href={link.href}
+                          className="flex flex-col rounded-md px-2 py-1.5 transition-colors hover:bg-muted"
+                        >
+                          <span className="text-sm">{link.label}</span>
+                          <span className="text-muted-foreground text-xs">
+                            {link.description}
+                          </span>
+                        </Link>
+                      ),
+                    )}
+                  </div>
+                </HoverCardContent>
+              </HoverCard>
+            ),
+          )}
         </nav>
 
         <div className="flex items-center gap-1">
@@ -220,29 +312,43 @@ export function Header() {
         )}
       >
         <nav className="container mx-auto flex flex-col px-4 pb-4">
-          {NAV_LINKS.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              onClick={() => setMobileMenuOpen(false)}
-              className="py-2 text-muted-foreground text-sm transition-colors hover:text-foreground"
-            >
-              {link.label}
-            </Link>
-          ))}
-          {EXTERNAL_LINKS.map((link) => (
-            <a
-              key={link.href}
-              href={link.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center gap-1 py-2 text-muted-foreground text-sm transition-colors hover:text-foreground"
-            >
-              {link.label}
-              <ExternalLink className="size-3 opacity-40" />
-            </a>
-          ))}
+          {NAV_ITEMS.map((item) =>
+            item.type === "link" ? (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setMobileMenuOpen(false)}
+                className="py-2 text-muted-foreground text-sm transition-colors hover:text-foreground"
+              >
+                {item.label}
+              </Link>
+            ) : (
+              item.items.map((link) =>
+                link.external ? (
+                  <a
+                    key={link.href}
+                    href={link.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-1 py-2 text-muted-foreground text-sm transition-colors hover:text-foreground"
+                  >
+                    {link.label}
+                    <ExternalLink className="size-3 opacity-40" />
+                  </a>
+                ) : (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="py-2 text-muted-foreground text-sm transition-colors hover:text-foreground"
+                  >
+                    {link.label}
+                  </Link>
+                ),
+              )
+            ),
+          )}
           <a
             href="https://github.com/assistant-ui/assistant-ui"
             target="_blank"
