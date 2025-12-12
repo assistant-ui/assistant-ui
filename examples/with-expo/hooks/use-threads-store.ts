@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { generateId, type ThreadMessage } from "@assistant-ui/core";
+import { generateId, type ThreadMessage } from "@assistant-ui/react-native";
 
 const THREADS_STORAGE_KEY = "@assistant-ui/threads";
 const MESSAGES_STORAGE_KEY_PREFIX = "@assistant-ui/messages/";

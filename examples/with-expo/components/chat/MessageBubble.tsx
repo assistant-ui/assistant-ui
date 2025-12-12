@@ -1,6 +1,6 @@
 import { View, StyleSheet, useColorScheme } from "react-native";
 import { ThemedText } from "@/components/themed-text";
-import type { ThreadMessage } from "@assistant-ui/core";
+import type { ThreadMessage } from "@assistant-ui/react-native";
 
 type MessageBubbleProps = {
   message: ThreadMessage;

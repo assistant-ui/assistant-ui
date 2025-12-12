@@ -18,8 +18,8 @@ import {
   ComposerProvider,
   useThread,
   useComposer,
+  type ThreadMessage,
 } from "@assistant-ui/react-native";
-import type { ThreadMessage } from "@assistant-ui/core";
 
 function ChatMessages() {
   const flatListRef = useRef<FlatList>(null);

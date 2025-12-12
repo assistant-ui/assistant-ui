@@ -4,12 +4,10 @@ import {
   generateId,
   type ThreadMessage,
   type Unsubscribe,
-} from "@assistant-ui/core";
-import type {
-  ThreadRuntime,
-  ThreadRuntimeState,
-  ComposerRuntime,
-  ComposerRuntimeState,
+  type ThreadRuntime,
+  type ThreadRuntimeState,
+  type ComposerRuntime,
+  type ComposerRuntimeState,
 } from "@assistant-ui/react-native";
 import OpenAI from "openai";
 import { fetch as expoFetch } from "expo/fetch";

@@ -933,9 +933,6 @@ importers:
 
   examples/with-expo:
     dependencies:
-      '@assistant-ui/core':
-        specifier: workspace:*
-        version: link:../../packages/core
       '@assistant-ui/react-native':
         specifier: workspace:*
         version: link:../../packages/react-native
