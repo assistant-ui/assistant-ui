@@ -2,13 +2,17 @@ import type {
   ReadonlyJSONValue,
   AppendMessage,
   ThreadMessage,
-  RunConfig,
   Unsubscribe,
-  SpeechSynthesisAdapter,
-  ChatModelRunOptions,
-  ChatModelRunResult,
   ExportedMessageRepository,
   ThreadMessageLike,
+  RuntimeCapabilities,
+  SpeechState,
+  SubmittedFeedback,
+  AddToolResultOptions,
+  ResumeToolCallOptions,
+  SubmitFeedbackOptions,
+  StartRunConfig,
+  ResumeRunConfig,
 } from "@assistant-ui/core";
 import { ModelContext } from "../../../model-context";
 import {
@@ -16,48 +20,19 @@ import {
   ThreadComposerRuntimeCore,
 } from "./ComposerRuntimeCore";
 
-export type RuntimeCapabilities = {
-  readonly switchToBranch: boolean;
-  readonly switchBranchDuringRun: boolean;
-  readonly edit: boolean;
-  readonly reload: boolean;
-  readonly cancel: boolean;
-  readonly unstable_copy: boolean;
-  readonly speech: boolean;
-  readonly attachments: boolean;
-  readonly feedback: boolean;
-};
-
-export type AddToolResultOptions = {
-  messageId: string;
-  toolName: string;
-  toolCallId: string;
-  result: ReadonlyJSONValue;
-  isError: boolean;
-  artifact?: ReadonlyJSONValue | undefined;
-};
-
-export type ResumeToolCallOptions = {
-  toolCallId: string;
-  payload: unknown;
-};
-
-export type SubmitFeedbackOptions = {
-  messageId: string;
-  type: "negative" | "positive";
+export type {
+  RuntimeCapabilities,
+  SpeechState,
+  SubmittedFeedback,
+  AddToolResultOptions,
+  ResumeToolCallOptions,
+  SubmitFeedbackOptions,
+  StartRunConfig,
+  ResumeRunConfig,
 };
 
 export type ThreadSuggestion = {
   prompt: string;
-};
-
-export type SpeechState = {
-  readonly messageId: string;
-  readonly status: SpeechSynthesisAdapter.Status;
-};
-
-export type SubmittedFeedback = {
-  readonly type: "negative" | "positive";
 };
 
 export type ThreadRuntimeEventType =
@@ -65,18 +40,6 @@ export type ThreadRuntimeEventType =
   | "run-end"
   | "initialize"
   | "model-context-update";
-
-export type StartRunConfig = {
-  parentId: string | null;
-  sourceId: string | null;
-  runConfig: RunConfig;
-};
-
-export type ResumeRunConfig = StartRunConfig & {
-  stream?: (
-    options: ChatModelRunOptions,
-  ) => AsyncGenerator<ChatModelRunResult, void, unknown>;
-};
 
 export type ThreadRuntimeCore = Readonly<{
   getMessageById: (messageId: string) =>
