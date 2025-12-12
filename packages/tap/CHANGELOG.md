@@ -1,5 +1,18 @@
 # @assistant-ui/tap
 
+## 0.3.3
+
+### Patch Changes
+
+- bae3aa2: feat: new scheduler
+- bae3aa2: feat: global flushSync
+- bae3aa2: feat: align createResource API with react-dom's createRoot
+- bae3aa2: feat: new tapResources API
+- bae3aa2: fix: correctly unmount resources when the element passed to useResource changes
+- bae3aa2: feat: better inference of unions passed to tapResource, tapResources and useResource
+- e8ea57b: chore: update deps
+- bae3aa2: feat: update Resource and ResourceElement types for better type inference
+
 ## 0.3.2
 
 ### Patch Changes

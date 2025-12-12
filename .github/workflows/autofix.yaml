@@ -1,4 +1,4 @@
-name: Fix Lint Issues
+name: Autofix
 
 on:
   issue_comment:
@@ -9,13 +9,13 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: fix-lint-${{ github.event.issue.number }}
+  group: autofix-${{ github.event.issue.number }}
   cancel-in-progress: true
 
 jobs:
-  fix-lint:
-    name: Fix Lint Issues
-    if: ${{ github.event.issue.pull_request && contains(github.event.comment.body, '/fix-lint') && github.event.comment.user.type == 'User' }}
+  autofix:
+    name: Autofix
+    if: ${{ github.event.issue.pull_request && contains(github.event.comment.body, '/autofix') && github.event.comment.user.type == 'User' }}
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 5
     steps:
@@ -114,9 +114,9 @@ jobs:
           node-version: 24
           cache: "pnpm"
 
-      - name: Install dependencies
+      - name: Update lockfile
         if: fromJson(steps.check-permission.outputs.result).authorized == true
-        run: pnpm install --frozen-lockfile
+        run: pnpm install
 
       - name: Run Biome fix
         if: fromJson(steps.check-permission.outputs.result).authorized == true
@@ -133,7 +133,7 @@ jobs:
             echo "No lint issues to fix"
             echo "changes_made=false" >> $GITHUB_OUTPUT
           else
-            git commit -m "style: fix lint issues"
+            git commit -m "chore: autofix"
             echo "changes_made=true" >> $GITHUB_OUTPUT
           fi
 
@@ -164,13 +164,13 @@ jobs:
 
             let message;
             if (!authorized) {
-              message = '❌ Only repository collaborators with write access can use the `/fix-lint` command.';
+              message = '❌ Only repository collaborators with write access can use the `/autofix` command.';
             } else if (changes_made && push_failed) {
-              message = '❌ Failed to push lint fixes. Please ensure "Allow edits from maintainers" is enabled in your PR settings.';
+              message = '❌ Failed to push autofix. Please ensure "Allow edits from maintainers" is enabled in your PR settings.';
             } else if (changes_made) {
-              message = '✅ Lint issues fixed and committed to this PR!';
+              message = '✅ Autofix applied and committed to this PR!';
             } else {
-              message = '✅ No lint issues found in this PR!';
+              message = '✅ No issues found in this PR!';
             }
 
             await github.rest.issues.createComment({

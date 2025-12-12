@@ -133,7 +133,6 @@ export type AssistantApi = {
   attachment: AssistantApiField<AttachmentClientApi, AttachmentMeta>;
 
   subscribe(listener: () => void): Unsubscribe;
-  flushSync(): void;
 
   on<TEvent extends AssistantEvent>(
     event: AssistantEventSelector<TEvent>,
@@ -235,7 +234,6 @@ const AssistantApiContext = createContext<AssistantApi>({
   }),
 
   subscribe: NO_OP_FN,
-  flushSync: NO_OP_FN,
   on: (selector) => {
     const { scope } = normalizeEventSelector(selector);
     throw new Error(`Event scope is not available in this component: ${scope}`);
@@ -250,7 +248,7 @@ export const useAssistantApiImpl = (): AssistantApi => {
  * Hook to extend the current AssistantApi with additional derived scope fields and special callbacks.
  * This merges the derived fields with the existing API from context.
  * Fields are automatically memoized based on source and query changes.
- * Special callbacks (on, subscribe, flushSync) use the useEffectEvent pattern to always access latest values.
+ * Special callbacks (on, subscribe) use the useEffectEvent pattern to always access latest values.
  *
  * @param scopes - Record of field names to DerivedScope resource elements, plus optional special callbacks
  * @returns The merged AssistantApi
@@ -293,19 +291,6 @@ export function useAssistantApi(config?: AssistantClientProps): AssistantApi {
   }
 }
 
-const mergeFns = <TArgs extends Array<unknown>>(
-  fn1: (...args: TArgs) => void,
-  fn2: (...args: TArgs) => void,
-) => {
-  if (fn1 === NO_OP_FN) return fn2;
-  if (fn2 === NO_OP_FN) return fn1;
-
-  return (...args: TArgs) => {
-    fn1(...args);
-    fn2(...args);
-  };
-};
-
 const mergeFnsWithUnsubscribe = <TArgs extends Array<unknown>>(
   fn1: (...args: TArgs) => Unsubscribe,
   fn2: (...args: TArgs) => Unsubscribe,
@@ -329,7 +314,6 @@ export const extendApi = (
   api2: Partial<AssistantApi>,
 ): AssistantApi => {
   const api2Subscribe = api2.subscribe;
-  const api2FlushSync = api2.flushSync;
   return {
     ...api,
     ...api2,
@@ -337,7 +321,6 @@ export const extendApi = (
       api.subscribe,
       api2Subscribe ?? NO_OP_FN,
     ),
-    flushSync: mergeFns(api.flushSync, api2FlushSync ?? NO_OP_FN),
   };
 };
 

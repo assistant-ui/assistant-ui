@@ -42,9 +42,10 @@ export const ThreadListClient = resource(
     );
 
     const threadItems = tapLookupResources(
-      Object.keys(runtimeState.threadItems).map((id) =>
-        ThreadListItemClientById({ runtime, id }, { key: id }),
-      ),
+      Object.keys(runtimeState.threadItems).map((id) => [
+        id,
+        ThreadListItemClientById({ runtime, id }),
+      ]),
     );
 
     const state = tapMemo<ThreadListClientState>(() => {

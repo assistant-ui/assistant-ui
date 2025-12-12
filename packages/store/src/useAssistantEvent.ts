@@ -1,22 +1,19 @@
 import { useEffect, useEffectEvent } from "react";
 import { useAssistantClient } from "./useAssistantClient";
 import type {
-  AssistantEvent,
+  AssistantEventName,
   AssistantEventCallback,
   AssistantEventSelector,
-} from "./EventContext";
-import { normalizeEventSelector } from "./EventContext";
+} from "./types/events";
+import { normalizeEventSelector } from "./types/events";
 
-export const useAssistantEvent = <TEvent extends AssistantEvent>(
+export const useAssistantEvent = <TEvent extends AssistantEventName>(
   selector: AssistantEventSelector<TEvent>,
   callback: AssistantEventCallback<TEvent>,
 ) => {
-  const client = useAssistantClient();
+  const aui = useAssistantClient();
   const callbackRef = useEffectEvent(callback);
 
   const { scope, event } = normalizeEventSelector(selector);
-  useEffect(
-    () => client.on({ scope, event }, callbackRef),
-    [client, scope, event],
-  );
+  useEffect(() => aui.on({ scope, event }, callbackRef), [aui, scope, event]);
 };

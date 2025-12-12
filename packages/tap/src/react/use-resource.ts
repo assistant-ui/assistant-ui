@@ -1,10 +1,10 @@
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
-import { ResourceElement } from "../core/types";
+import { ExtractResourceOutput, ResourceElement } from "../core/types";
 import {
   createResourceFiber,
-  unmountResource,
-  renderResource,
-  commitResource,
+  unmountResourceFiber,
+  renderResourceFiber,
+  commitResourceFiber,
 } from "../core/ResourceFiber";
 
 const shouldAvoidLayoutEffect =
@@ -14,19 +14,21 @@ const useIsomorphicLayoutEffect = shouldAvoidLayoutEffect
   ? useEffect
   : useLayoutEffect;
 
-export function useResource<R, P>(element: ResourceElement<R, P>): R {
+export function useResource<E extends ResourceElement<any, any>>(
+  element: E,
+): ExtractResourceOutput<E> {
   const [, rerender] = useState({});
   const fiber = useMemo(
     () => createResourceFiber(element.type, () => rerender({})),
-    [element.type, rerender],
+    [element.type],
   );
 
-  const result = renderResource(fiber, element.props);
+  const result = renderResourceFiber(fiber, element.props);
   useIsomorphicLayoutEffect(() => {
-    return () => unmountResource(fiber);
-  }, []);
+    return () => unmountResourceFiber(fiber);
+  }, [fiber]);
   useIsomorphicLayoutEffect(() => {
-    commitResource(fiber, result);
+    commitResourceFiber(fiber, result);
   });
 
   return result.state;
