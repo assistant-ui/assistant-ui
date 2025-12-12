@@ -1,5 +1,21 @@
 # @assistant-ui/store
 
+## 0.0.3
+
+### Patch Changes
+
+- bae3aa2: feat: overhaul store implementation
+- e8ea57b: chore: update deps
+- Updated dependencies [bae3aa2]
+- Updated dependencies [bae3aa2]
+- Updated dependencies [bae3aa2]
+- Updated dependencies [bae3aa2]
+- Updated dependencies [bae3aa2]
+- Updated dependencies [bae3aa2]
+- Updated dependencies [e8ea57b]
+- Updated dependencies [bae3aa2]
+  - @assistant-ui/tap@0.3.3
+
 ## 0.0.2
 
 ### Patch Changes
