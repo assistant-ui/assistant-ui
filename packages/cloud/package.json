@@ -32,11 +32,11 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "assistant-stream": "^0.2.43"
+    "assistant-stream": "^0.2.44"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^24.10.1",
+    "@types/node": "^25.0.0",
     "tsx": "^4.21.0",
     "vitest": "^4.0.15"
   },

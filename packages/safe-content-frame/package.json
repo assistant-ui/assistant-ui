@@ -27,7 +27,7 @@
     "@assistant-ui/x-buildutils": "workspace:*",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
-    "vite": "^7.2.6"
+    "vite": "^7.2.7"
   },
   "publishConfig": {
     "access": "public",
