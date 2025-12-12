@@ -8,7 +8,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^2.0.77",
+    "@ai-sdk/openai": "^2.0.84",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-ai-sdk": "workspace:*",
     "@assistant-ui/react-hook-form": "workspace:*",
@@ -24,13 +24,13 @@
     "@radix-ui/react-tabs": "^1.1.13",
     "@radix-ui/react-tooltip": "^1.2.8",
     "@react-hook/media-query": "^1.1.1",
-    "ai": "^5.0.107",
+    "ai": "^5.0.112",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "lucide-react": "^0.556.0",
-    "next": "16.0.7",
-    "react": "19.2.1",
-    "react-dom": "19.2.1",
+    "lucide-react": "^0.560.0",
+    "next": "16.0.10",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
     "react-hook-form": "^7.68.0",
     "react-resizable-panels": "^3.0.6",
     "remark-gfm": "^4.0.1",
@@ -41,11 +41,11 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^24",
+    "@types/node": "^25",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "postcss": "^8",
-    "tailwindcss": "^4.1.17",
+    "tailwindcss": "^4.1.18",
     "typescript": "^5.9.3"
   }
 }
