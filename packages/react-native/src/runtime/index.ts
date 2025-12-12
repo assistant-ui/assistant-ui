@@ -27,5 +27,4 @@ export {
   ThreadRuntimeCore,
   type ThreadRuntimeOptions,
   type ChatModelAdapter,
-  type ChatModelRunOptions,
 } from "./ThreadRuntimeCore";

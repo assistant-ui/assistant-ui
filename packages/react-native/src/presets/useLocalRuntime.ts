@@ -244,6 +244,7 @@ export function useLocalRuntime(options: LocalRuntimeOptions): LocalRuntime {
       messages: [],
       capabilities: {
         switchToBranch: false,
+        switchBranchDuringRun: false,
         edit: false,
         reload: false,
         cancel: true,

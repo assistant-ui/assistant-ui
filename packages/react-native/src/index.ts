@@ -91,6 +91,10 @@ export type {
   CompleteAttachment,
   AttachmentStatus,
   RunConfig,
+  RuntimeCapabilities,
+  ThreadListItemState,
+  ChatModelRunOptions,
+  ChatModelRunResult,
 } from "@assistant-ui/core";
 
 // Re-export core utilities
@@ -121,7 +125,6 @@ export { useThreadList } from "./hooks/useThreadList";
 
 // Runtime
 export type {
-  ThreadListItemState,
   ThreadListState,
   ThreadListRuntime,
   AssistantRuntime,
@@ -145,10 +148,7 @@ export {
   createAsyncStorageAdapter,
 } from "./adapters/StorageAdapter";
 
-export type {
-  ChatModelAdapter,
-  ChatModelRunOptions,
-} from "./adapters/ChatModelAdapter";
+export type { ChatModelAdapter } from "./adapters/ChatModelAdapter";
 
 export {
   type TitleGenerationAdapter,

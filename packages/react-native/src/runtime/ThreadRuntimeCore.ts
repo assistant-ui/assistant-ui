@@ -2,7 +2,12 @@ import {
   MessageRepository,
   generateId,
   type ThreadMessage,
+  type ThreadAssistantMessage,
   type Unsubscribe,
+  type ChatModelAdapter,
+  type ChatModelRunOptions,
+  type ChatModelRunResult,
+  type RuntimeCapabilities,
 } from "@assistant-ui/core";
 import type {
   ThreadRuntimeState,
@@ -11,15 +16,7 @@ import type {
   AppendMessage,
 } from "./types";
 
-export type ChatModelRunOptions = {
-  messages: readonly ThreadMessage[];
-  abortSignal: AbortSignal;
-  onUpdate: (message: ThreadMessage) => void;
-};
-
-export type ChatModelAdapter = {
-  run: (options: ChatModelRunOptions) => Promise<ThreadMessage>;
-};
+export type { ChatModelAdapter, ChatModelRunOptions };
 
 export type ThreadRuntimeOptions = {
   threadId: string;
@@ -33,8 +30,9 @@ export type ThreadRuntimeOptions = {
   capabilities?: Partial<ThreadCapabilities>;
 };
 
-const DEFAULT_CAPABILITIES: ThreadCapabilities = {
+const DEFAULT_CAPABILITIES: RuntimeCapabilities = {
   switchToBranch: false,
+  switchBranchDuringRun: false,
   edit: false,
   reload: false,
   cancel: true,
@@ -176,12 +174,13 @@ export class ThreadRuntimeCore implements ThreadRuntime {
 
     this._abortController = new AbortController();
     const assistantMessageId = generateId();
+    const createdAt = new Date();
 
-    const initialMessage: ThreadMessage = {
+    let message: ThreadAssistantMessage = {
       id: assistantMessageId,
       role: "assistant",
-      content: [{ type: "text", text: "" }],
-      createdAt: new Date(),
+      content: [],
+      createdAt,
       status: { type: "running" },
       metadata: {
         unstable_state: null,
@@ -192,62 +191,87 @@ export class ThreadRuntimeCore implements ThreadRuntime {
       },
     };
 
-    this._messageRepository.addOrUpdateMessage(parentId, initialMessage);
+    this._messageRepository.addOrUpdateMessage(parentId, message);
     this._updateState(false);
+
+    const updateMessage = (result: ChatModelRunResult) => {
+      message = {
+        ...message,
+        content: result.content ?? message.content,
+        status: result.status ?? message.status,
+        metadata: {
+          ...message.metadata,
+          ...(result.metadata?.unstable_state !== undefined && {
+            unstable_state: result.metadata.unstable_state,
+          }),
+          ...(result.metadata?.unstable_annotations && {
+            unstable_annotations: result.metadata.unstable_annotations,
+          }),
+          ...(result.metadata?.unstable_data && {
+            unstable_data: result.metadata.unstable_data,
+          }),
+          ...(result.metadata?.steps && {
+            steps: result.metadata.steps,
+          }),
+          ...(result.metadata?.custom && {
+            custom: { ...message.metadata.custom, ...result.metadata.custom },
+          }),
+        },
+      };
+      this._messageRepository.addOrUpdateMessage(parentId, message);
+      this._updateState(false);
+    };
 
     try {
       const messages = this._messageRepository.getMessages();
-      const finalMessage = await this._options.chatModel.run({
+      const abortSignal = this._abortController.signal;
+
+      const promiseOrGenerator = this._options.chatModel.run({
         messages,
-        abortSignal: this._abortController.signal,
-        onUpdate: (message) => {
-          this._messageRepository.addOrUpdateMessage(parentId, {
-            ...message,
-            id: assistantMessageId,
-          });
-          this._updateState(false);
-        },
+        abortSignal,
+        runConfig: {},
+        context: {},
+        config: {},
+        unstable_getMessage: () => message,
       });
 
-      this._messageRepository.addOrUpdateMessage(parentId, {
-        ...finalMessage,
-        id: assistantMessageId,
-        status: { type: "complete", reason: "stop" },
-      });
+      // Handle both Promise and AsyncGenerator return types
+      if (Symbol.asyncIterator in promiseOrGenerator) {
+        for await (const result of promiseOrGenerator) {
+          if (abortSignal.aborted) {
+            updateMessage({
+              status: { type: "incomplete", reason: "cancelled" },
+            });
+            break;
+          }
+          updateMessage(result);
+        }
+      } else {
+        const result = await promiseOrGenerator;
+        updateMessage(result);
+      }
+
+      // Ensure final status is set
+      if (message.status.type === "running") {
+        updateMessage({
+          status: { type: "complete", reason: "stop" },
+        });
+      }
     } catch (error) {
       if ((error as Error).name === "AbortError") {
-        const existingMessage =
-          this._messageRepository.getMessage(assistantMessageId).message;
-        const existingText = existingMessage.content
-          .filter((p) => p.type === "text")
-          .map((p) => ("text" in p ? p.text : ""))
-          .join("");
-
-        this._messageRepository.addOrUpdateMessage(parentId, {
-          ...existingMessage,
-          content: [{ type: "text", text: existingText }],
+        updateMessage({
           status: { type: "incomplete", reason: "cancelled" },
         });
       } else {
         console.error("Model run error:", error);
-        this._messageRepository.addOrUpdateMessage(parentId, {
-          id: assistantMessageId,
-          role: "assistant",
+        updateMessage({
           content: [
             {
               type: "text",
               text: `Error: ${(error as Error).message || "Failed to get response"}`,
             },
           ],
-          createdAt: initialMessage.createdAt,
           status: { type: "incomplete", reason: "error" },
-          metadata: {
-            unstable_state: null,
-            unstable_annotations: [],
-            unstable_data: [],
-            steps: [],
-            custom: {},
-          },
         });
       }
     } finally {

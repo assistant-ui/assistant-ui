@@ -1,16 +1,16 @@
-import type { Unsubscribe, ThreadMessage } from "@assistant-ui/core";
+import type {
+  Unsubscribe,
+  ThreadMessage,
+  ThreadListItemState,
+  RuntimeCapabilities,
+} from "@assistant-ui/core";
+
+// Re-export from core for internal use
+export type { ThreadListItemState };
 
 // ============================================
 // Thread List Types
 // ============================================
-
-export type ThreadListItemState = {
-  id: string;
-  title: string;
-  createdAt: Date;
-  lastMessageAt: Date;
-  status: "idle" | "active" | "archived";
-};
 
 export type ThreadListState = {
   threads: readonly ThreadListItemState[];
@@ -41,16 +41,11 @@ export type ThreadRuntimeState = {
   capabilities: ThreadCapabilities;
 };
 
-export type ThreadCapabilities = {
-  switchToBranch: boolean;
-  edit: boolean;
-  reload: boolean;
-  cancel: boolean;
-  unstable_copy: boolean;
-  speech: boolean;
-  attachments: boolean;
-  feedback: boolean;
-};
+/**
+ * Thread capabilities type.
+ * This is an alias for RuntimeCapabilities from core.
+ */
+export type ThreadCapabilities = RuntimeCapabilities;
 
 export type AppendMessage = {
   role: "user" | "assistant";
