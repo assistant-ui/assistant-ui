@@ -1,9 +1,17 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { generateId, type ThreadMessage } from "@assistant-ui/react-native";
+import OpenAI from "openai";
+import { fetch as expoFetch } from "expo/fetch";
 
 const THREADS_STORAGE_KEY = "@assistant-ui/threads";
 const MESSAGES_STORAGE_KEY_PREFIX = "@assistant-ui/messages/";
+
+const openai = new OpenAI({
+  apiKey: process.env.EXPO_PUBLIC_OPENAI_API_KEY,
+  dangerouslyAllowBrowser: true,
+  fetch: expoFetch as unknown as typeof globalThis.fetch,
+});
 
 export interface ThreadMetadata {
   id: string;
@@ -17,6 +25,61 @@ interface ThreadsState {
   isLoading: boolean;
 }
 
+// Generate a title using OpenAI
+async function generateThreadTitle(
+  messages: readonly ThreadMessage[],
+): Promise<string> {
+  try {
+    const conversationText = messages
+      .slice(0, 4) // Use first few messages for context
+      .map((m) => {
+        const text = m.content
+          .filter((c) => c.type === "text")
+          .map((c) => ("text" in c ? c.text : ""))
+          .join(" ");
+        return `${m.role}: ${text}`;
+      })
+      .join("\n");
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content:
+            "Generate a very short title (3-6 words) for this conversation. Return only the title, no quotes or punctuation.",
+        },
+        {
+          role: "user",
+          content: conversationText,
+        },
+      ],
+      max_tokens: 20,
+    });
+
+    const title = response.choices[0]?.message?.content?.trim();
+    if (title && title.length > 0) {
+      return title.slice(0, 50);
+    }
+  } catch (error) {
+    console.error("Failed to generate title:", error);
+  }
+
+  // Fallback to first user message
+  const firstUserMessage = messages.find((m) => m.role === "user");
+  if (firstUserMessage) {
+    const textContent = firstUserMessage.content.find((c) => c.type === "text");
+    if (textContent && "text" in textContent) {
+      return (
+        textContent.text.slice(0, 50) +
+        (textContent.text.length > 50 ? "..." : "")
+      );
+    }
+  }
+
+  return "New Chat";
+}
+
 export function useThreadsStore() {
   const [state, setState] = useState<ThreadsState>({
     threads: [],
@@ -24,6 +87,7 @@ export function useThreadsStore() {
   });
   const isInitialized = useRef(false);
   const stateRef = useRef(state);
+  const titleGenerationInProgress = useRef<Set<string>>(new Set());
 
   // Keep stateRef in sync
   useEffect(() => {
@@ -154,26 +218,25 @@ export function useThreadsStore() {
           (t) => t.id === threadId,
         );
 
+        // Check if we have a complete conversation (user + assistant)
+        const hasUserMessage = messages.some((m) => m.role === "user");
+        const hasCompleteAssistantMessage = messages.some(
+          (m) =>
+            m.role === "assistant" &&
+            m.status?.type === "complete" &&
+            m.content.some(
+              (c) => c.type === "text" && "text" in c && c.text.length > 0,
+            ),
+        );
+        const isFirstCompleteConversation =
+          hasUserMessage && hasCompleteAssistantMessage;
+
         if (!existingThread) {
-          // Thread doesn't exist, create it with title from first user message
-          const firstUserMessage = messages.find((m) => m.role === "user");
-          let title = "New Chat";
-
-          if (firstUserMessage) {
-            const textContent = firstUserMessage.content.find(
-              (c) => c.type === "text",
-            );
-            if (textContent && "text" in textContent) {
-              title =
-                textContent.text.slice(0, 50) +
-                (textContent.text.length > 50 ? "..." : "");
-            }
-          }
-
+          // Thread doesn't exist, create it
           const now = new Date();
           const newThread: ThreadMetadata = {
             id: threadId,
-            title,
+            title: "New Chat",
             createdAt: now,
             lastMessageAt: now,
           };
@@ -183,29 +246,35 @@ export function useThreadsStore() {
             saveThreads(newThreads);
             return { ...prev, threads: newThreads };
           });
-        } else {
-          // Thread exists, update title if still "New Chat"
-          if (existingThread.title === "New Chat") {
-            const firstUserMessage = messages.find((m) => m.role === "user");
-            if (firstUserMessage) {
-              const textContent = firstUserMessage.content.find(
-                (c) => c.type === "text",
-              );
-              if (textContent && "text" in textContent) {
-                const title =
-                  textContent.text.slice(0, 50) +
-                  (textContent.text.length > 50 ? "..." : "");
-                updateThread(threadId, {
-                  title,
-                  lastMessageAt: new Date(),
-                });
-                return;
-              }
-            }
-          }
 
-          // Update lastMessageAt
-          updateThread(threadId, { lastMessageAt: new Date() });
+          // Generate title after first complete conversation
+          if (
+            isFirstCompleteConversation &&
+            !titleGenerationInProgress.current.has(threadId)
+          ) {
+            titleGenerationInProgress.current.add(threadId);
+            generateThreadTitle(messages).then((title) => {
+              titleGenerationInProgress.current.delete(threadId);
+              updateThread(threadId, { title });
+            });
+          }
+        } else {
+          // Thread exists
+          if (
+            existingThread.title === "New Chat" &&
+            isFirstCompleteConversation &&
+            !titleGenerationInProgress.current.has(threadId)
+          ) {
+            // Generate title for existing thread that still has default title
+            titleGenerationInProgress.current.add(threadId);
+            generateThreadTitle(messages).then((title) => {
+              titleGenerationInProgress.current.delete(threadId);
+              updateThread(threadId, { title, lastMessageAt: new Date() });
+            });
+          } else {
+            // Just update lastMessageAt
+            updateThread(threadId, { lastMessageAt: new Date() });
+          }
         }
       } catch (error) {
         console.error("Failed to save messages:", error);
