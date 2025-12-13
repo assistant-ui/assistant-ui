@@ -3,9 +3,30 @@ import type {
   PendingAttachment,
   Unsubscribe,
 } from "../../../types";
-import { MessageRole, RunConfig } from "../../../types/AssistantTypes";
+import type { MessageRole, RunConfig } from "../../../types/AssistantTypes";
+import type { SpeechRecognitionAdapter } from "../adapters/speech/SpeechAdapterTypes";
 
 export type ComposerRuntimeEventType = "send" | "attachment-add";
+
+/**
+ * State representing an active speech recognition (dictation) session.
+ */
+export type ListeningState = {
+  readonly status: SpeechRecognitionAdapter.Status;
+  /**
+   * The current interim (partial) transcript being recognized.
+   * This is a preview of what the user is saying and may change
+   * as the speech recognition refines its prediction.
+   *
+   * Note: By default, interim transcripts are shown directly in the composer
+   * input field (like native dictation). This property is provided for
+   * advanced customization when you want to display or style the interim
+   * transcript separately.
+   */
+  readonly transcript?: string;
+  /** Whether text input is disabled during this listening session. */
+  readonly inputDisabled?: boolean;
+};
 
 export type ComposerRuntimeCore = Readonly<{
   isEditing: boolean;
@@ -33,6 +54,23 @@ export type ComposerRuntimeCore = Readonly<{
 
   send: () => void;
   cancel: () => void;
+
+  /**
+   * The current state of speech recognition (dictation).
+   * Undefined when not listening.
+   */
+  listening: ListeningState | undefined;
+
+  /**
+   * Start speech recognition to convert voice to text input.
+   * Requires a SpeechRecognitionAdapter to be configured.
+   */
+  startListening: () => void;
+
+  /**
+   * Stop the current speech recognition session.
+   */
+  stopListening: () => void;
 
   subscribe: (callback: () => void) => Unsubscribe;
 

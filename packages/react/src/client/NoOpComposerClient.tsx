@@ -1,6 +1,6 @@
 "use client";
 import { resource, tapMemo } from "@assistant-ui/tap";
-import { ComposerClientState, ComposerClientApi } from "./types/Composer";
+import type { ComposerClientState, ComposerClientApi } from "./types/Composer";
 import { tapApi } from "../utils/tap-store";
 
 export const NoOpComposerClient = resource(
@@ -16,6 +16,7 @@ export const NoOpComposerClient = resource(
         runConfig: {},
         canCancel: false,
         type: type,
+        listening: undefined,
       };
     }, [type]);
 
@@ -49,6 +50,12 @@ export const NoOpComposerClient = resource(
         throw new Error("Not supported");
       },
       beginEdit: () => {
+        throw new Error("Not supported");
+      },
+      startListening: () => {
+        throw new Error("Not supported");
+      },
+      stopListening: () => {
         throw new Error("Not supported");
       },
     });
