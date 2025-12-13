@@ -96,11 +96,11 @@ export class WebSpeechRecognitionAdapter implements SpeechRecognitionAdapter {
       interimResults?: boolean;
     } = {},
   ) {
-    const defaultLanguage =
-      typeof navigator !== "undefined" && navigator.language
-        ? navigator.language
-        : "en-US";
-    this._language = options.language ?? defaultLanguage;
+    /**
+     * Accessing navigator in constructor will crash SSR
+     * Language will be set in listen() if not provided
+     */
+    this._language = options.language ?? "";
     this._continuous = options.continuous ?? true;
     this._interimResults = options.interimResults ?? true;
   }
@@ -122,7 +122,14 @@ export class WebSpeechRecognitionAdapter implements SpeechRecognitionAdapter {
     }
 
     const recognition = new SpeechRecognitionAPI();
-    recognition.lang = this._language;
+
+    const language =
+      this._language ||
+      (typeof navigator !== "undefined" && navigator.language
+        ? navigator.language
+        : "en-US");
+
+    recognition.lang = language;
     recognition.continuous = this._continuous;
     recognition.interimResults = this._interimResults;
 
