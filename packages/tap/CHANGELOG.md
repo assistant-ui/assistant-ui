@@ -1,5 +1,11 @@
 # @assistant-ui/tap
 
+## 0.3.4
+
+### Patch Changes
+
+- fix: crash on StrictMode
+
 ## 0.3.3
 
 ### Patch Changes
