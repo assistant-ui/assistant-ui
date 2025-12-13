@@ -280,7 +280,7 @@ export abstract class ComposerRuntimeImpl implements ComposerRuntime {
   public startListening() {
     const core = this._core.getState();
     if (!core) throw new Error("Composer is not available");
-    core.startListening();
+    void core.startListening();
   }
 
   public stopListening() {

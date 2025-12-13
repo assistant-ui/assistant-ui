@@ -238,7 +238,7 @@ export abstract class BaseComposerRuntimeCore
     return this._listening;
   }
 
-  public startListening(): void {
+  public async startListening(): Promise<void> {
     const adapter = this.getSpeechRecognitionAdapter();
     if (!adapter) {
       throw new Error("Speech recognition adapter not configured");
@@ -250,8 +250,12 @@ export abstract class BaseComposerRuntimeCore
       }
       this._listeningUnsubscribes = [];
       const oldSession = this._listeningSession;
-      oldSession.stop().catch(() => {});
       this._listeningSession = undefined;
+      try {
+        await oldSession.stop();
+      } catch {
+        //ignore - session already ended
+      }
     }
 
     const inputDisabled = adapter.disableInputDuringListening ?? false;
