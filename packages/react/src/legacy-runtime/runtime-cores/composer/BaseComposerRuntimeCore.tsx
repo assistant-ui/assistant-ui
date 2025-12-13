@@ -316,13 +316,6 @@ export abstract class BaseComposerRuntimeCore
       this._cleanupListening();
     });
     this._listeningUnsubscribes.push(unsubEnd);
-
-    const statusInterval = setInterval(() => {
-      if (session.status.type === "ended") {
-        this._cleanupListening();
-      }
-    }, 100);
-    this._listeningUnsubscribes.push(() => clearInterval(statusInterval));
   }
 
   public stopListening(): void {
