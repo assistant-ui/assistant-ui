@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.11.51
+
+### Patch Changes
+
+- fix: update tap package
+
 ## 0.11.50
 
 ### Patch Changes
@@ -126,7 +132,6 @@
 
 - 66a13a0: fix: separate scroll-to-bottom button from autoScroll behavior (#1916)
 - 4e3877e: feat: Add thread fetching capability to remote thread list adapter
-
   - Add `fetch` method to `RemoteThreadListAdapter` interface
   - Implement `fetch` in cloud adapter to retrieve individual threads
   - Enhance `switchToThread` to automatically fetch and load threads not present in the current list
@@ -286,7 +291,6 @@
 - 94fcc39: feat: Add custom commands support to useAssistantTransportRuntime
 
   Adds the ability to send custom commands through useAssistantTransportRuntime by:
-
   - Introducing a global augmentation pattern via `Assistant.Commands` interface
   - Adding `useAssistantTransportSendCommand` hook for sending custom commands
   - Supporting custom command types in the transport layer
@@ -499,7 +503,6 @@
 - a80dcff: feat: Add \*ByIndex primitives for direct indexed access
 
   Added new primitives that allow rendering individual items by index, improving performance and enabling more granular control:
-
   - `ThreadPrimitive.MessageByIndex` - Render a specific message by index
   - `MessagePrimitive.PartByIndex` - Render a specific message part by index
   - `MessagePrimitive.AttachmentByIndex` - Render a specific message attachment by index
@@ -528,7 +531,6 @@
 ### Patch Changes
 
 - 179f8b7: Add format parameter support to assistant-cloud client library
-
   - Add optional `format` query parameter to `AssistantCloudThreadMessages.list()` method
   - Update cloud history adapter to pass format parameter when loading messages
   - Enables backend-level message format conversion when supported by the cloud backend
