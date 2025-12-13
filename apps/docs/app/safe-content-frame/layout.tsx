@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { ReactNode } from "react";
-import { SafeContentFrameLayoutClient } from "./safe-content-frame-layout-client";
+import { SubProjectLayout } from "@/components/shared/sub-project-layout";
 
 export const metadata: Metadata = {
   title: "Safe Content Frame Demo - assistant-ui",
@@ -14,6 +14,11 @@ export default function SafeContentFrameLayout({
   children: ReactNode;
 }): React.ReactElement {
   return (
-    <SafeContentFrameLayoutClient>{children}</SafeContentFrameLayoutClient>
+    <SubProjectLayout
+      name="safe-content-frame"
+      githubPath="https://github.com/assistant-ui/assistant-ui/tree/main/packages/safe-content-frame"
+    >
+      {children}
+    </SubProjectLayout>
   );
 }
