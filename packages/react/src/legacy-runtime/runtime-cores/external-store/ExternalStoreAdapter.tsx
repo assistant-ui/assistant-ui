@@ -1,16 +1,19 @@
-import { AppendMessage, ThreadMessage } from "../../../types";
-import { AttachmentAdapter } from "../adapters/attachment";
+import type {
+  AppendMessage,
+  ThreadMessage,
+  AttachmentAdapter,
+  FeedbackAdapter,
+  SpeechSynthesisAdapter,
+  ThreadMessageLike,
+  ReadonlyJSONValue,
+} from "@assistant-ui/core";
+import { ExportedMessageRepository } from "@assistant-ui/core";
 import {
   AddToolResultOptions,
   ResumeRunConfig,
   StartRunConfig,
   ThreadSuggestion,
 } from "../core/ThreadRuntimeCore";
-import { FeedbackAdapter } from "../adapters/feedback/FeedbackAdapter";
-import { SpeechSynthesisAdapter } from "../adapters/speech/SpeechAdapterTypes";
-import { ThreadMessageLike } from "./ThreadMessageLike";
-import { ExportedMessageRepository } from "../utils/MessageRepository";
-import type { ReadonlyJSONValue } from "assistant-stream/utils";
 
 export type ExternalStoreThreadData<TState extends "regular" | "archived"> = {
   status: TState;

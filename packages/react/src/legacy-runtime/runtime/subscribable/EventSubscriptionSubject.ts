@@ -1,6 +1,5 @@
-import { Unsubscribe } from "../../../types";
+import type { Unsubscribe, EventSubscribable } from "@assistant-ui/core";
 import { BaseSubject } from "./BaseSubject";
-import { EventSubscribable } from "./Subscribable";
 
 export class EventSubscriptionSubject<
   TEvent extends string,

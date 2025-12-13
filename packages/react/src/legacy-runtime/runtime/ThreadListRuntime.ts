@@ -1,6 +1,6 @@
+import type { Unsubscribe } from "@assistant-ui/core";
 import { LazyMemoizeSubject } from "./subscribable/LazyMemoizeSubject";
 import { ThreadListRuntimeCore } from "../runtime-cores/core/ThreadListRuntimeCore";
-import { Unsubscribe } from "../../types";
 import {
   ThreadListItemRuntime,
   ThreadListItemRuntimeImpl,

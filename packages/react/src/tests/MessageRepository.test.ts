@@ -1,10 +1,13 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
+import type {
+  ThreadMessage,
+  TextMessagePart,
+  ThreadMessageLike,
+} from "@assistant-ui/core";
 import {
   MessageRepository,
   ExportedMessageRepository,
-} from "../legacy-runtime/runtime-cores/utils/MessageRepository";
-import type { ThreadMessage, TextMessagePart } from "../types/AssistantTypes";
-import type { ThreadMessageLike } from "../legacy-runtime/runtime-cores";
+} from "@assistant-ui/core";
 
 // Mock generateId and generateOptimisticId to make tests deterministic
 const mockGenerateId = vi.fn();
@@ -13,11 +16,15 @@ const mockIsOptimisticId = vi.fn((id: string) =>
   id.startsWith("__optimistic__"),
 );
 
-vi.mock("../utils/idUtils", () => ({
-  generateId: () => mockGenerateId(),
-  generateOptimisticId: () => mockGenerateOptimisticId(),
-  isOptimisticId: (id: string) => mockIsOptimisticId(id),
-}));
+vi.mock("@assistant-ui/core", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@assistant-ui/core")>();
+  return {
+    ...actual,
+    generateId: () => mockGenerateId(),
+    generateOptimisticId: () => mockGenerateOptimisticId(),
+    isOptimisticId: (id: string) => mockIsOptimisticId(id),
+  };
+});
 
 /**
  * Tests for the MessageRepository class, which manages message threads with branching capabilities.
