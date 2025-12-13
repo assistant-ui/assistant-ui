@@ -93,6 +93,7 @@ export const ComposerClient = resource(
         attachmentAccept: runtimeState.attachmentAccept,
         isEmpty: runtimeState.isEmpty,
         type: runtimeState.type ?? "thread",
+        listening: runtimeState.listening,
       };
     }, [runtimeState, attachments.state]);
 
@@ -113,6 +114,9 @@ export const ComposerClient = resource(
         (() => {
           throw new Error("beginEdit is not supported in this runtime");
         }),
+
+      startListening: runtime.startListening,
+      stopListening: runtime.stopListening,
 
       attachment: (selector) => {
         if ("id" in selector) {

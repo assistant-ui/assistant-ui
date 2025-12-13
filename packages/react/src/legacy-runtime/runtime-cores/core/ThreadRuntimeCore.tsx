@@ -20,6 +20,7 @@ export type RuntimeCapabilities = {
   readonly cancel: boolean;
   readonly unstable_copy: boolean;
   readonly speech: boolean;
+  readonly dictation: boolean;
   readonly attachments: boolean;
   readonly feedback: boolean;
 };
