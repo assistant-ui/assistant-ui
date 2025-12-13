@@ -1,23 +1,26 @@
 ## CONTRIBUTING
 
-A big welcome and thank you for considering contributing to assistant-ui! It’s people like you that make it a reality for users in our community.
+A big welcome and thank you for considering contributing to assistant-ui! It's people like you that make it a reality for users in our community.
 
 You can contribute by opening an issue, or by making a pull request. For large pull requests, we ask that you open an issue first to discuss the changes before submitting a pull request.
 
 ### Setting up your environment
 
-You need to have Node.js installed on your computer. We develop with the latest LTS version of Node.js.
+You need to have Node.js (v24+) and pnpm installed on your computer.
 
-Install the dependencies:
+**Quick setup for new contributors:**
 
 ```sh
-pnpm install
+make setup
 ```
 
-Make an initial build:
+This will check prerequisites, install dependencies, and build all packages.
+
+**Or manually:**
 
 ```sh
-pnpm turbo build
+make install    # Install dependencies
+make build      # Build all packages
 ```
 
 (some packages rely on build outputs from other packages, even if you want to start the project in development mode)
@@ -27,15 +30,27 @@ pnpm turbo build
 To run the docs project in development mode:
 
 ```sh
-cd apps/docs
-pnpm dev
+make dev
 ```
 
-To run the examples project in development mode:
+To run an example project:
 
 ```sh
-cd examples/<your-example>
-pnpm dev
+make example EXAMPLE=with-langgraph
+```
+
+To see all available examples:
+
+```sh
+make list-examples
+```
+
+### Code quality
+
+```sh
+make lint       # Check code with biome
+make fix        # Auto-fix linting issues
+make test       # Run all tests
 ```
 
 ### Adding a changeset
@@ -47,14 +62,32 @@ Note, this does not apply to packages like `@assistant-ui/docs` or `@assistant-u
 Create a changeset by running:
 
 ```sh
-pnpm changeset
+make changeset
 ```
 
 This will detect which packages changed and prompt you to select type (major, minor, patch) and a description of your changes. For now, most changes in assistant-ui should be classified as a patch.
 
-If you forget to add a changeset before merging, create a new PR and run `pnpm changeset` locally to create a changeset. You'll be prompted to manually select the packages that were changed, set update type, and add description. Commit the changeset file, push the changes, and merge the PR.
+If you forget to add a changeset before merging, create a new PR and run `make changeset` locally to create a changeset. You'll be prompted to manually select the packages that were changed, set update type, and add description. Commit the changeset file, push the changes, and merge the PR.
 
 You can also add changesets on open PRs directly from GitHub using the changeset bot's link in PR comments.
+
+### Available make commands
+
+Run `make help` to see all available commands:
+
+| Command | Description |
+|---------|-------------|
+| `make setup` | Full setup for new contributors |
+| `make install` | Install all dependencies |
+| `make build` | Build all packages and apps |
+| `make dev` | Run docs in development mode |
+| `make example EXAMPLE=name` | Run a specific example |
+| `make lint` | Check code with biome |
+| `make fix` | Fix linting issues |
+| `make test` | Run all tests |
+| `make changeset` | Create a new changeset |
+| `make clean` | Clean build artifacts |
+| `make pristine` | Reset to fresh git clone state |
 
 ### Releasing
 

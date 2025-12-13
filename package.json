@@ -5,7 +5,7 @@
     "node": ">=24"
   },
   "scripts": {
-    "docs:dev": "pnpm --filter=@assistant-ui/docs dev",
+    "docs:dev": "turbo dev --filter=@assistant-ui/docs",
     "ci:version": "changeset version && pnpm install --no-frozen-lockfile",
     "ci:publish": "turbo build --filter=\"./packages/*\" && changeset publish",
     "build": "turbo build",
