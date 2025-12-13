@@ -1,20 +1,18 @@
+import type {
+  ThreadMessage,
+  ThreadAssistantMessagePart,
+  ThreadUserMessagePart,
+  Unsubscribe,
+  MessagePartStatus,
+  RunConfig,
+  ToolCallMessagePartStatus,
+} from "@assistant-ui/core";
+import { getThreadMessageText } from "@assistant-ui/core";
 import {
   SpeechState,
   SubmittedFeedback,
 } from "../runtime-cores/core/ThreadRuntimeCore";
 import { symbolInnerMessage } from "../runtime-cores/external-store/getExternalStoreMessage";
-import {
-  ThreadMessage,
-  ThreadAssistantMessagePart,
-  ThreadUserMessagePart,
-  Unsubscribe,
-} from "../../types";
-import {
-  MessagePartStatus,
-  RunConfig,
-  ToolCallMessagePartStatus,
-} from "../../types/AssistantTypes";
-import { getThreadMessageText } from "../../utils/getThreadMessageText";
 import {
   AttachmentRuntime,
   AttachmentState,

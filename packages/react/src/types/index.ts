@@ -3,9 +3,6 @@ export type {
   PendingAttachment,
   CompleteAttachment,
   AttachmentStatus,
-} from "./AttachmentTypes";
-
-export type {
   AppendMessage,
   TextMessagePart,
   ReasoningMessagePart,
@@ -18,14 +15,19 @@ export type {
   MessageStatus,
   MessagePartStatus,
   ToolCallMessagePartStatus,
-  // thread message types
   ThreadUserMessagePart,
   ThreadAssistantMessagePart,
   ThreadSystemMessage,
   ThreadAssistantMessage,
   ThreadUserMessage,
   ThreadMessage,
-} from "./AssistantTypes";
+  AssistantEventScope,
+  AssistantEventSelector,
+  AssistantEvent,
+  AssistantEventMap,
+  AssistantEventCallback,
+  Unsubscribe,
+} from "@assistant-ui/core";
 
 export type {
   EmptyMessagePartComponent,
@@ -50,13 +52,3 @@ export type {
 
 // Thread list item types
 export type { ThreadListItemStatus } from "../legacy-runtime/runtime/ThreadListItemRuntime";
-
-export type { Unsubscribe } from "./Unsubscribe";
-
-export type {
-  AssistantEventScope,
-  AssistantEventSelector,
-  AssistantEvent,
-  AssistantEventMap,
-  AssistantEventCallback,
-} from "./EventTypes";

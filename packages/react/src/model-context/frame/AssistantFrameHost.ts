@@ -1,8 +1,8 @@
+import type { Unsubscribe } from "@assistant-ui/core";
 import {
   ModelContextProvider,
   ModelContext,
 } from "../../model-context/ModelContextTypes";
-import { Unsubscribe } from "../../types/Unsubscribe";
 import { Tool } from "assistant-stream";
 import {
   FrameMessage,

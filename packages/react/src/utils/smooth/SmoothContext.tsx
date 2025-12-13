@@ -9,12 +9,12 @@ import {
   useContext,
   useState,
 } from "react";
-import { ReadonlyStore } from "../../context/ReadonlyStore";
-import { create, UseBoundStore } from "zustand";
-import {
+import type {
   MessagePartStatus,
   ToolCallMessagePartStatus,
-} from "../../types/AssistantTypes";
+} from "@assistant-ui/core";
+import { ReadonlyStore } from "../../context/ReadonlyStore";
+import { create, UseBoundStore } from "zustand";
 import { useAssistantApi } from "../../context";
 import { createContextStoreHook } from "../../context/react/utils/createContextStoreHook";
 
