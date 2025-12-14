@@ -49,5 +49,6 @@ export const toCreateMessage = <UI_MESSAGE extends UIMessage = UIMessage>(
   return {
     role: message.role,
     parts,
+    metadata: message.metadata,
   } satisfies CreateUIMessage<UIMessage> as CreateUIMessage<UI_MESSAGE>;
 };
