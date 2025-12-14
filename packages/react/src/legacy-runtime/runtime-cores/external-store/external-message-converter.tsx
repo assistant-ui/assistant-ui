@@ -166,7 +166,34 @@ const joinExternalMessages = (
             // TODO keep this in sync
           }
 
-          assistantMessage.content.push(...content);
+          // Add content parts, merging reasoning parts with same parentId
+          for (const part of content) {
+            if (part.type === "reasoning" && "parentId" in part && part.parentId) {
+              const existingIdx = assistantMessage.content.findIndex(
+                (c) =>
+                  c.type === "reasoning" &&
+                  "parentId" in c &&
+                  c.parentId === part.parentId,
+              );
+              if (existingIdx !== -1) {
+                const existing = assistantMessage.content[
+                  existingIdx
+                ] as typeof part;
+                assistantMessage.content[existingIdx] = {
+                  ...existing,
+                  text: existing.text + "\n\n" + part.text,
+                  ...{
+                    [symbolInnerMessage]: [
+                      ...((existing as any)[symbolInnerMessage] ?? []),
+                      ...((part as any)[symbolInnerMessage] ?? []),
+                    ],
+                  },
+                };
+                continue;
+              }
+            }
+            assistantMessage.content.push(part);
+          }
           break;
         default: {
           const unsupportedRole: never = role;
