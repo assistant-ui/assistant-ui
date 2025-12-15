@@ -217,3 +217,12 @@
 .examples-page #nd-toc {
   margin-top: 5rem;
 }
+
+#nd-page[data-full="true"] {
+  max-width: 70%;
+  justify-self: center;
+}
+
+#nd-page[data-full="true"] ~ #nd-toc {
+  justify-self: start;
+}
