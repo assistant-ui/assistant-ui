@@ -76,7 +76,7 @@ export const GeocodeLocationToolUI = () => {
           <ToolCardContent>
             <ToolCardTitle>{name}</ToolCardTitle>
             <ToolCardDescription>
-              {latitude.toFixed(2)}°N, {longitude.toFixed(2)}°E
+              {Math.abs(latitude).toFixed(2)}°{latitude >= 0 ? "N" : "S"}, {Math.abs(longitude).toFixed(2)}°{longitude >= 0 ? "E" : "W"}
             </ToolCardDescription>
           </ToolCardContent>
         </ToolCard>
