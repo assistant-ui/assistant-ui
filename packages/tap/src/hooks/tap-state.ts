@@ -7,14 +7,14 @@ export namespace tapState {
 
 const rerender = (fiber: ResourceFiber<any, any>) => {
   if (fiber.renderContext) {
-    throw new Error("Resource updated during render");
+    throw new Error("tap: state update during render");
   }
 
   if (fiber.isMounted) {
     // Only schedule rerender if currently mounted
     fiber.scheduleRerender();
   } else if (fiber.isNeverMounted) {
-    throw new Error("Resource updated before mount");
+    throw new Error("tap: state update before mount");
   }
 };
 
@@ -26,10 +26,7 @@ function getStateCell<T>(
 
   // Check if we're trying to use more hooks than in previous renders
   if (!fiber.isFirstRender && index >= fiber.cells.length) {
-    throw new Error(
-      "Rendered more hooks than during the previous render. " +
-        "Hooks must be called in the exact same order in every render.",
-    );
+    throw new Error("tap: hook order mismatch");
   }
 
   if (!fiber.cells[index]) {
@@ -61,7 +58,7 @@ function getStateCell<T>(
 
   const cell = fiber.cells[index];
   if (cell.type !== "state") {
-    throw new Error("Hook order changed between renders");
+    throw new Error("tap: hook order mismatch");
   }
 
   return cell as Cell & { type: "state" };

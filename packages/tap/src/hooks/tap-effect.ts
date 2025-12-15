@@ -7,10 +7,7 @@ function getEffectCell(): number {
 
   // Check if we're trying to use more hooks than in previous renders
   if (!fiber.isFirstRender && index >= fiber.cells.length) {
-    throw new Error(
-      "Rendered more hooks than during the previous render. " +
-        "Hooks must be called in the exact same order in every render.",
-    );
+    throw new Error("tap: hook order mismatch");
   }
 
   if (!fiber.cells[index]) {
@@ -25,7 +22,7 @@ function getEffectCell(): number {
 
   const cell = fiber.cells[index];
   if (cell.type !== "effect") {
-    throw new Error("Hook order changed between renders");
+    throw new Error("tap: hook order mismatch");
   }
 
   return index;
