@@ -1,4 +1,5 @@
 "use client";
+import { cn } from "@/lib/utils";
 import { useAssistantTool } from "@assistant-ui/react";
 import { MapPin, CloudSun, AlertCircle } from "lucide-react";
 import { z } from "zod";
@@ -203,11 +204,12 @@ const ToolCard = ({
   variant?: "default" | "error";
 }) => (
   <div
-    className={`mt-2 flex items-center gap-3 rounded-lg border px-3 py-2.5 ${
+    className={cn(
+      "mt-2 flex items-center gap-3 rounded-lg border px-3 py-2.5",
       variant === "error"
         ? "border-destructive/30 bg-destructive/5"
-        : "bg-muted/30"
-    }`}
+        : "bg-muted/30",
+    )}
   >
     {children}
   </div>
@@ -221,9 +223,10 @@ const ToolCardIcon = ({
   loading?: boolean;
 }) => (
   <div
-    className={`flex size-8 shrink-0 items-center justify-center rounded-md bg-background text-muted-foreground shadow-sm ${
-      loading ? "animate-pulse" : ""
-    }`}
+    className={cn(
+      "flex size-8 shrink-0 items-center justify-center rounded-md bg-background text-muted-foreground shadow-sm",
+      loading && "animate-pulse",
+    )}
   >
     {children}
   </div>
