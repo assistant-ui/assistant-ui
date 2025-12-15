@@ -1,6 +1,6 @@
 "use client";
 import { useAssistantTool } from "@assistant-ui/react";
-import { Sun, Moon, Loader2, MapPin } from "lucide-react";
+import { MapPin, CloudSun, AlertCircle } from "lucide-react";
 import { z } from "zod";
 
 // Weather data powered by Open-Meteo (https://open-meteo.com/)
@@ -40,44 +40,45 @@ export const GeocodeLocationToolUI = () => {
     render: ({ result }) => {
       if (result?.error) {
         return (
-          <div className="flex min-h-[68px] items-center gap-3 rounded-md border-2 border-red-400 bg-muted/50 p-3">
-            <span className="text-red-500">⚠️</span>
-            <div className="flex flex-col">
-              <span className="font-semibold text-sm">Geocoding Error</span>
-              <span className="text-muted-foreground text-sm">
+          <ToolCard variant="error">
+            <ToolCardIcon>
+              <AlertCircle className="size-4" />
+            </ToolCardIcon>
+            <ToolCardContent>
+              <ToolCardTitle>Geocoding failed</ToolCardTitle>
+              <ToolCardDescription>
                 {result?.error || "Unknown error"}
-              </span>
-            </div>
-          </div>
+              </ToolCardDescription>
+            </ToolCardContent>
+          </ToolCard>
         );
       }
       if (!result?.result) {
         return (
-          <div className="flex min-h-[68px] items-center gap-3 rounded-md border-2 border-blue-400 bg-muted/50 p-3">
-            <Loader2 className="h-5 w-5 flex-shrink-0 animate-spin text-blue-500" />
-            <div className="flex flex-col">
-              <span className="font-semibold text-sm">
-                Geocoding location...
-              </span>
-              <span className="text-muted-foreground text-sm">
-                Please wait while we find your location
-              </span>
-            </div>
-          </div>
+          <ToolCard>
+            <ToolCardIcon loading>
+              <MapPin className="size-4" />
+            </ToolCardIcon>
+            <ToolCardContent>
+              <ToolCardTitle>Finding location...</ToolCardTitle>
+            </ToolCardContent>
+          </ToolCard>
         );
       }
 
       const { name, latitude, longitude } = result?.result;
       return (
-        <div className="flex min-h-[68px] items-center gap-3 rounded-md border-2 border-blue-400 bg-muted/50 p-3 transition-all duration-300 hover:border-blue-500 hover:bg-muted/70 hover:shadow-md">
-          <MapPin className="h-5 w-5 flex-shrink-0 text-blue-500" />
-          <div className="flex flex-col">
-            <span className="font-semibold text-sm">{name}</span>
-            <span className="text-muted-foreground text-sm">
-              {latitude}°N, {longitude}°E
-            </span>
-          </div>
-        </div>
+        <ToolCard>
+          <ToolCardIcon>
+            <MapPin className="size-4" />
+          </ToolCardIcon>
+          <ToolCardContent>
+            <ToolCardTitle>{name}</ToolCardTitle>
+            <ToolCardDescription>
+              {latitude.toFixed(2)}°N, {longitude.toFixed(2)}°E
+            </ToolCardDescription>
+          </ToolCardContent>
+        </ToolCard>
       );
     },
   });
@@ -147,43 +148,95 @@ export const WeatherSearchToolUI = () => {
       const isLoading = !result;
       const error = result?.success === false ? result.error : null;
       const temp = result?.success ? result.temperature : null;
-      const isDay = result?.success
-        ? new Date(result.timestamp).getHours() >= 6 &&
-          new Date(result.timestamp).getHours() < 18
-        : true;
+
+      if (error) {
+        return (
+          <ToolCard variant="error">
+            <ToolCardIcon>
+              <AlertCircle className="size-4" />
+            </ToolCardIcon>
+            <ToolCardContent>
+              <ToolCardTitle>Weather unavailable</ToolCardTitle>
+              <ToolCardDescription>{error}</ToolCardDescription>
+            </ToolCardContent>
+          </ToolCard>
+        );
+      }
+
+      if (isLoading) {
+        return (
+          <ToolCard>
+            <ToolCardIcon loading>
+              <CloudSun className="size-4" />
+            </ToolCardIcon>
+            <ToolCardContent>
+              <ToolCardTitle>Fetching weather...</ToolCardTitle>
+            </ToolCardContent>
+          </ToolCard>
+        );
+      }
 
       return (
-        <div className="mt-4 flex min-h-[68px] items-center gap-3 rounded-md border-2 border-blue-400 bg-muted/50 p-3 transition-all duration-300 hover:border-blue-500 hover:bg-muted/70 hover:shadow-md">
-          {isLoading ? (
-            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-          ) : error ? (
-            <span className="text-red-500">⚠️</span>
-          ) : isDay ? (
-            <Sun className="h-5 w-5 flex-shrink-0 text-yellow-500" />
-          ) : (
-            <Moon className="h-5 w-5 flex-shrink-0 text-blue-300" />
-          )}
-          <div className="flex flex-col">
-            <span className="font-semibold text-sm">
-              {isLoading
-                ? "Searching for weather..."
-                : error
-                  ? "Error Fetching Weather"
-                  : `Weather in ${args?.query}`}
-            </span>
-            <span className="text-muted-foreground text-sm">
-              {isLoading
-                ? "Loading..."
-                : error
-                  ? error
-                  : temp !== null
-                    ? `${temp}°C`
-                    : "N/A"}
-            </span>
-          </div>
-        </div>
+        <ToolCard>
+          <ToolCardIcon>
+            <CloudSun className="size-4" />
+          </ToolCardIcon>
+          <ToolCardContent>
+            <ToolCardTitle>{args?.query}</ToolCardTitle>
+            <ToolCardDescription>
+              {temp !== null ? `${temp}°C` : "N/A"}
+            </ToolCardDescription>
+          </ToolCardContent>
+        </ToolCard>
       );
     },
   });
   return null;
 };
+
+// Shared Tool Card Components
+const ToolCard = ({
+  children,
+  variant = "default",
+}: {
+  children: React.ReactNode;
+  variant?: "default" | "error";
+}) => (
+  <div
+    className={`mt-2 flex items-center gap-3 rounded-lg border px-3 py-2.5 ${
+      variant === "error"
+        ? "border-destructive/30 bg-destructive/5"
+        : "bg-muted/30"
+    }`}
+  >
+    {children}
+  </div>
+);
+
+const ToolCardIcon = ({
+  children,
+  loading = false,
+}: {
+  children: React.ReactNode;
+  loading?: boolean;
+}) => (
+  <div
+    className={`flex size-8 shrink-0 items-center justify-center rounded-md bg-background text-muted-foreground shadow-sm ${
+      loading ? "animate-pulse" : ""
+    }`}
+  >
+    {children}
+  </div>
+);
+
+const ToolCardContent = ({ children }: { children: React.ReactNode }) => (
+  <div className="flex min-w-0 flex-col gap-0.5">{children}</div>
+);
+
+const ToolCardTitle = ({ children }: { children: React.ReactNode }) => (
+  <span className="truncate font-medium text-sm">{children}</span>
+);
+
+const ToolCardDescription = ({ children }: { children: React.ReactNode }) => (
+  <span className="truncate text-muted-foreground text-xs">{children}</span>
+);
