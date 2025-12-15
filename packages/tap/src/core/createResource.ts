@@ -13,12 +13,14 @@ import { tapEffect } from "../hooks/tap-effect";
 import { resource } from "./resource";
 import { tapResource } from "../hooks/tap-resource";
 import { tapConst } from "../hooks/tap-const";
+import { getDevStrictMode } from "./execution-context";
+import { isDevelopment } from "./env";
 
 export namespace createResource {
   export type Unsubscribe = () => void;
 
   export interface Handle<R, P> {
-    getState(): R;
+    getOutput(): R;
     subscribe(callback: () => void): Unsubscribe;
     render(element: ResourceElement<R, P>): void;
     unmount(): void;
@@ -34,21 +36,21 @@ const HandleWrapperResource = resource(
     onUnmount: () => void;
   }): createResource.Handle<R, P> => {
     const [, setElement] = tapState(state.elementRef.current);
-    const value = tapResource(state.elementRef.current);
+    const output = tapResource(state.elementRef.current);
 
     const subscribers = tapConst(() => new Set<() => void>(), []);
-    const valueRef = tapRef(value);
+    const valueRef = tapRef(output);
 
     tapEffect(() => {
-      if (value !== valueRef.current) {
-        valueRef.current = value;
+      if (output !== valueRef.current) {
+        valueRef.current = output;
         subscribers.forEach((callback) => callback());
       }
     });
 
     const handle = tapMemo(
       () => ({
-        getState: () => valueRef.current,
+        getOutput: () => valueRef.current,
         subscribe: (callback: () => void) => {
           subscribers.add(callback);
           return () => subscribers.delete(callback);
@@ -74,7 +76,10 @@ const HandleWrapperResource = resource(
 
 export const createResource = <R, P>(
   element: ResourceElement<R, P>,
-  { mount = true }: { mount?: boolean } = {},
+  {
+    mount = true,
+    devStrictMode = false,
+  }: { mount?: boolean; devStrictMode?: boolean } = {},
 ): createResource.Handle<R, P> => {
   let isMounted = mount;
   let render: RenderResult;
@@ -86,6 +91,12 @@ export const createResource = <R, P>(
 
       flushResourcesSync(() => {
         if (changed) {
+          // In strict mode, render twice on first render to detect side effects
+          // The first render is discarded, the second is used
+          if (isDevelopment && fiber.devStrictMode === "root") {
+            void renderResourceFiber(fiber, props);
+          }
+
           render = renderResourceFiber(fiber, props);
         }
 
@@ -104,19 +115,27 @@ export const createResource = <R, P>(
   };
 
   const scheduler = new UpdateScheduler(() => {
+    // In strict mode, render twice on first render to detect side effects
+    // The first render is discarded, the second is used
+    if (isDevelopment && fiber.devStrictMode === "root") {
+      void renderResourceFiber(fiber, props);
+    }
+
     render = renderResourceFiber(fiber, props);
 
     if (scheduler.isDirty || !isMounted) return;
     commitResourceFiber(fiber, render);
   });
 
-  const fiber = createResourceFiber(HandleWrapperResource<R, P>, () =>
-    scheduler.markDirty(),
+  const fiber = createResourceFiber(
+    HandleWrapperResource<R, P>,
+    () => scheduler.markDirty(),
+    getDevStrictMode(devStrictMode),
   );
 
   flushResourcesSync(() => {
     scheduler.markDirty();
   });
 
-  return render!.state;
+  return render!.output;
 };

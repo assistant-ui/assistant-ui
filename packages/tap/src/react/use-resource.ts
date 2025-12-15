@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ExtractResourceReturnType, ResourceElement } from "../core/types";
 import {
   createResourceFiber,
@@ -6,9 +6,20 @@ import {
   renderResourceFiber,
   commitResourceFiber,
 } from "../core/ResourceFiber";
+import { isDevelopment } from "../core/env";
 
 const shouldAvoidLayoutEffect =
   (globalThis as any).__ASSISTANT_UI_DISABLE_LAYOUT_EFFECT__ === true;
+
+const useDevStrictMode = () => {
+  if (!isDevelopment) return null;
+
+  const count = useRef(0);
+  const isFirstRender = count.current === 0;
+  useState(() => count.current++);
+  if (count.current !== 2) return null;
+  return isFirstRender ? ("child" as const) : ("root" as const);
+};
 
 const useIsomorphicLayoutEffect = shouldAvoidLayoutEffect
   ? useEffect
@@ -19,10 +30,11 @@ export function useResource<E extends ResourceElement<any, any>>(
 ): ExtractResourceReturnType<E> {
   const [, rerender] = useState({});
 
-  const fiber = useMemo(() => {
-    void element.key; // rerender on key change
+  const devStrictMode = useDevStrictMode();
 
-    return createResourceFiber(element.type, () => rerender({}));
+  // biome-ignore lint/correctness/useExhaustiveDependencies: user provided deps instead of prop identity
+  const fiber = useMemo(() => {
+    return createResourceFiber(element.type, () => rerender({}), devStrictMode);
   }, [element.type, element.key]);
 
   const result = renderResourceFiber(fiber, element.props);
@@ -33,5 +45,5 @@ export function useResource<E extends ResourceElement<any, any>>(
     commitResourceFiber(fiber, result);
   });
 
-  return result.state;
+  return result.output;
 }

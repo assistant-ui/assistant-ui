@@ -13,7 +13,6 @@ export const RuntimeAdapter = resource((runtime: AssistantRuntime) => {
   const clientRef = tapAssistantClientRef();
 
   tapEffect(() => {
-    console.log("tap");
     return runtime.registerModelContextProvider(
       clientRef.current!.modelContext(),
     );

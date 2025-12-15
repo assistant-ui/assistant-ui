@@ -1,3 +1,4 @@
+import { isDevelopment } from "../core/env";
 import { getCurrentResourceFiber } from "../core/execution-context";
 import { Cell, ResourceFiber } from "../core/types";
 
@@ -33,11 +34,18 @@ function getStateCell<T>(
   }
 
   if (!fiber.cells[index]) {
-    // Initialize the value immediately
     const value =
       typeof initialValue === "function"
         ? (initialValue as () => T)()
         : initialValue;
+
+    if (
+      isDevelopment &&
+      fiber.devStrictMode &&
+      typeof initialValue === "function"
+    ) {
+      void (initialValue as () => T)();
+    }
 
     const cell: Cell & { type: "state" } = {
       type: "state",

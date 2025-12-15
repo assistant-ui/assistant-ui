@@ -269,6 +269,23 @@ export const AssistantClientResource = resource(
         : NoOpRootClientsAccessorsResource(),
     );
 
+    // if (clientRef.current === null) {
+    //   console.log("render: ---> new");
+    // } else {
+    //   console.log("render: ---> existing");
+    // }
+
+    // tapEffect(() => {
+    //   console.log("commit: ---> new");
+    // }, []);
+    // tapEffect(() => {
+    //   console.log("commit: ---> ");
+    // });
+
+    // tapMemo(() => {
+    //   console.log("render: rootFields", rootFields.clients);
+    // }, [rootFields]);
+
     const derivedFields = tapInlineResource(
       DerivedClientsAccessorsResource({ clients: derivedClients, clientRef }),
     );
@@ -285,26 +302,30 @@ export const AssistantClientResource = resource(
         on: rootFields.on ?? baseClient.on,
         [PROXIED_ASSISTANT_STATE_SYMBOL]: createProxiedAssistantState(client),
       });
-      console.log("created client", client);
+      // console.log(
+      //   "render: created client",
+      //   client,
+      //   (client as any)["modelContext"]().getState().version,
+      // );
       return client;
     }, [baseClient, rootFields, derivedFields]);
 
     if (clientRef.current === null) {
       clientRef.current = client;
-      console.log(
-        "set clientRef.current render",
-        client,
-        (client as any)["modelContext"]().getState().version,
-      );
+      // console.log(
+      //   "render: set clientRef.current render",
+      //   client,
+      //   (client as any)["modelContext"]().getState().version,
+      // );
     }
 
     tapEffect(() => {
       clientRef.current = client;
-      console.log(
-        "set clientRef.current",
-        client,
-        (client as any)["modelContext"]().getState().version,
-      );
+      // console.log(
+      //   "effect: set clientRef.current",
+      //   client,
+      //   (client as any)["modelContext"]().getState().version,
+      // );
     });
 
     return client;

@@ -23,9 +23,9 @@ export function tapResource<E extends ResourceElement<any, any>>(
 ): ExtractResourceReturnType<E> {
   const [, setVersion] = tapState(0);
   const rerender = tapConst(() => () => setVersion((v) => v + 1), []);
-  const fiber = tapMemo(() => {
-    void element.key; // rerender on key change
 
+  const fiber = tapMemo(() => {
+    void element.key;
     return createResourceFiber(element.type, rerender);
   }, [element.type, element.key]);
 
@@ -37,13 +37,10 @@ export function tapResource<E extends ResourceElement<any, any>>(
       )
     : renderResourceFiber(fiber, element.props);
 
-  tapEffect(() => {
-    return () => unmountResourceFiber(fiber);
-  }, [fiber]);
-
+  tapEffect(() => () => unmountResourceFiber(fiber), [fiber]);
   tapEffect(() => {
     commitResourceFiber(fiber, result);
   }, [fiber, result]);
 
-  return result.state;
+  return result.output;
 }

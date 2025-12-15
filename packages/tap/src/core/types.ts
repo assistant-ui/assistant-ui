@@ -33,7 +33,7 @@ export type Cell =
   | {
       readonly type: "effect";
       mounted: boolean;
-      cleanup?: tapEffect.Destructor | undefined;
+      cleanup?: tapEffect.Destructor | void;
       deps?: readonly unknown[] | undefined;
     };
 
@@ -44,7 +44,7 @@ export interface EffectTask {
 }
 
 export interface RenderResult {
-  readonly state: any;
+  readonly output: any;
   readonly props: any;
   readonly commitTasks: EffectTask[];
 }
@@ -52,6 +52,7 @@ export interface RenderResult {
 export interface ResourceFiber<R, P> {
   readonly scheduleRerender: () => void;
   readonly resource: Resource<R, P>;
+  readonly devStrictMode: "root" | "child" | null;
 
   cells: Cell[];
   currentIndex: number;

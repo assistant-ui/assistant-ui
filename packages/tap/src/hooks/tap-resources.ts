@@ -107,7 +107,7 @@ export function tapResources(
       results.commit.push([elementKey, renderResult]);
 
       results.return[mapKey as keyof typeof results.return] =
-        renderResult.state;
+        renderResult.output;
     }
 
     // Clean up removed fibers (only if there might be stale ones)
