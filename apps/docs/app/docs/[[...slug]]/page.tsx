@@ -1,9 +1,6 @@
 import type { Metadata } from "next";
 import { DocsPage, DocsBody } from "fumadocs-ui/page";
 import { notFound } from "next/navigation";
-import { cn } from "@/lib/utils";
-import { buttonVariants } from "@/components/ui/button";
-import { EditIcon } from "lucide-react";
 import { getMDXComponents } from "@/mdx-components";
 import { DocsRuntimeProvider } from "@/app/(home)/DocsRuntimeProvider";
 import { source } from "@/lib/source";
@@ -14,6 +11,7 @@ import {
   PageActionsDropdown,
 } from "@/components/docs/page-actions";
 import { Footer } from "@/components/shared/footer";
+import { TableOfContents } from "@/components/docs/table-of-contents";
 
 function DocsCategory({ url }: { url?: string }) {
   const effectiveUrl = url ?? "";
@@ -47,29 +45,20 @@ export default async function Page(props: {
   const githubUrl = `https://github.com/assistant-ui/assistant-ui/blob/main/${path}`;
   const githubEditUrl = `https://github.com/assistant-ui/assistant-ui/edit/main/${path}`;
 
-  const editOnGitHub = (
-    <a
-      href={githubEditUrl}
-      target="_blank"
-      rel="noreferrer noopener"
-      className={cn(
-        buttonVariants({
-          variant: "secondary",
-          size: "sm",
-          className: "gap-1.5 text-xs",
-        }),
-      )}
-    >
-      <EditIcon className="size-3" />
-      Edit on GitHub
-    </a>
-  );
-
   return (
     <DocsPage
       toc={page.data.toc}
-      full={page.data.full ?? false}
-      tableOfContent={{ footer: editOnGitHub }}
+      full
+      tableOfContent={{
+        enabled: true,
+        component: (
+          <TableOfContents
+            items={page.data.toc}
+            githubEditUrl={githubEditUrl}
+          />
+        ),
+      }}
+      tableOfContentPopover={{ enabled: true }}
       footer={{
         enabled: true,
         component: <Footer />,

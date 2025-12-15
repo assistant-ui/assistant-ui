@@ -27,7 +27,7 @@ export default async function Page(props: {
     <DocsPage
       toc={page.data.toc}
       tableOfContent={{ enabled: !isIndex }}
-      full={page.data.full ?? false}
+      full={true}
       footer={{ component: <Footer /> }}
     >
       {!isIndex && <ExamplesNavbar />}
