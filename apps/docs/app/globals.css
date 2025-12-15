@@ -3,6 +3,7 @@
 @import "tw-shimmer";
 @import "fumadocs-ui/css/shadcn.css";
 @import "fumadocs-ui/css/preset.css";
+@import "./fumadocs.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -214,15 +215,3 @@
   }
 }
 
-.examples-page #nd-toc {
-  margin-top: 5rem;
-}
-
-#nd-page[data-full="true"] {
-  max-width: 70%;
-  justify-self: center;
-}
-
-#nd-page[data-full="true"] ~ #nd-toc {
-  justify-self: start;
-}

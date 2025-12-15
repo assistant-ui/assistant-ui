@@ -88,6 +88,7 @@ export const baseOptions: BaseLayoutProps = {
 export const sharedDocsOptions: Partial<DocsLayoutProps> = {
   ...baseOptions,
   sidebar: {
-    defaultOpenLevel: 0,
+    defaultOpenLevel: 1,
+    collapsible: false,
   },
 };
