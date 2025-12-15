@@ -2,6 +2,7 @@ import { ResourceFiber, RenderResult, Resource } from "./types";
 import { commitRender, cleanupAllEffects } from "./commit";
 import { withResourceFiber } from "./execution-context";
 import { callResourceFn } from "./callResourceFn";
+import { tapInstrumentation } from "./debug";
 
 export function createResourceFiber<R, P>(
   resource: Resource<R, P>,
@@ -29,6 +30,8 @@ export function renderResourceFiber<R, P>(
   fiber: ResourceFiber<R, P>,
   props: P,
 ): RenderResult {
+  tapInstrumentation?.onRenderStart?.(fiber);
+
   const result: RenderResult = {
     commitTasks: [],
     props,
@@ -43,6 +46,8 @@ export function renderResourceFiber<R, P>(
       fiber.renderContext = undefined;
     }
   });
+
+  tapInstrumentation?.onRenderEnd?.(fiber);
 
   return result;
 }
