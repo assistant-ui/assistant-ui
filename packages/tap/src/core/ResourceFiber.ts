@@ -38,16 +38,18 @@ export function renderResourceFiber<R, P>(
     state: undefined,
   };
 
-  withResourceFiber(fiber, () => {
-    fiber.renderContext = result;
-    try {
-      result.state = callResourceFn(fiber.resource, props);
-    } finally {
-      fiber.renderContext = undefined;
-    }
-  });
-
-  tapInstrumentation?.onRenderEnd?.(fiber);
+  try {
+    withResourceFiber(fiber, () => {
+      fiber.renderContext = result;
+      try {
+        result.state = callResourceFn(fiber.resource, props);
+      } finally {
+        fiber.renderContext = undefined;
+      }
+    });
+  } finally {
+    tapInstrumentation?.onRenderEnd?.(fiber);
+  }
 
   return result;
 }

@@ -34,16 +34,14 @@ describe("tap instrumentation", () => {
 
     expect(result).toBe(42);
 
-    expect(calls).toEqual(
-      expect.arrayContaining([
-        "render:start",
-        "render:end",
-        "commit:start",
-        "commit:end",
-        "effect:run:start",
-        "effect:run:end",
-      ]),
-    );
+    expect(calls).toEqual([
+      "render:start",
+      "render:end",
+      "commit:start",
+      "effect:run:start:0",
+      "effect:run:end:0",
+      "commit:end",
+    ]);
   });
 
   it("calls cleanup instrumentation when resource is unmounted", () => {

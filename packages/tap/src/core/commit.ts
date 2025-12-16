@@ -46,8 +46,12 @@ export function commitRender<R, P>(
         }
       }
       tapInstrumentation?.onEffectRunStart?.(fiber, cellIndex);
-      const cleanup = task.effect();
-      tapInstrumentation?.onEffectRunEnd?.(fiber, cellIndex);
+      let cleanup;
+      try {
+        cleanup = task.effect();
+      } finally {
+        tapInstrumentation?.onEffectRunEnd?.(fiber, cellIndex);
+      }
 
       if (cleanup !== undefined && typeof cleanup !== "function") {
         throw new Error(
