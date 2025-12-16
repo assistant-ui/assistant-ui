@@ -76,7 +76,8 @@ export const GeocodeLocationToolUI = () => {
           <ToolCardContent>
             <ToolCardTitle>{name}</ToolCardTitle>
             <ToolCardDescription>
-              {Math.abs(latitude).toFixed(2)}°{latitude >= 0 ? "N" : "S"}, {Math.abs(longitude).toFixed(2)}°{longitude >= 0 ? "E" : "W"}
+              {Math.abs(latitude).toFixed(2)}°{latitude >= 0 ? "N" : "S"},{" "}
+              {Math.abs(longitude).toFixed(2)}°{longitude >= 0 ? "E" : "W"}
             </ToolCardDescription>
           </ToolCardContent>
         </ToolCard>
@@ -205,7 +206,7 @@ const ToolCard = ({
 }) => (
   <div
     className={cn(
-      "mt-2 flex items-center gap-3 rounded-lg border px-3 py-2.5",
+      "my-2 flex items-center gap-3 rounded-lg border px-3 py-2.5",
       variant === "error"
         ? "border-destructive/30 bg-destructive/5"
         : "bg-muted/30",
