@@ -33,7 +33,7 @@ export default async function Page(props: {
       {!isIndex && <ExamplesNavbar />}
       <DocsBody>
         {!isIndex && (
-          <header className="pb-8 leading-0">
+          <header className="not-prose flex flex-col gap-1 pb-8">
             <h1 className="font-medium text-2xl">{page.data.title}</h1>
             {page.data.description && (
               <p className="text-muted-foreground">{page.data.description}</p>
