@@ -72,10 +72,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     chatHelpers.status === "streaming" ||
     hasExecutingTools;
 
-  const messageTiming = useStreamingTiming(
-    chatHelpers.status,
-    chatHelpers.messages,
-  );
+  const messageTiming = useStreamingTiming(chatHelpers.messages, isRunning);
 
   const messages = AISDKMessageConverter.useThreadMessages({
     isRunning,

@@ -15,14 +15,12 @@ type MessageTimingTracker = {
   toolCallTotalTime: number;
 };
 
-type ChatStatus = "submitted" | "streaming" | "ready" | "error";
-
 export function useStreamingTiming(
-  status: ChatStatus,
   messages: UIMessage[],
+  isRunning: boolean,
 ): Record<string, MessageTiming> {
   const trackersRef = useRef<Record<string, MessageTimingTracker>>({});
-  const prevStatusRef = useRef<ChatStatus>("ready");
+  const prevIsRunningRef = useRef<boolean>(false);
   const pendingStreamStartRef = useRef<number | null>(null);
   const [timings, setTimings] = useState<Record<string, MessageTiming>>({});
 
@@ -31,13 +29,13 @@ export function useStreamingTiming(
   }, []);
 
   useEffect(() => {
-    const prevStatus = prevStatusRef.current;
+    const prevIsRunning = prevIsRunningRef.current;
 
-    if (status === "submitted" && prevStatus !== "submitted") {
+    if (isRunning && !prevIsRunning) {
       pendingStreamStartRef.current = Date.now();
     }
 
-    if (status === "streaming") {
+    if (isRunning) {
       const lastAssistantMsg = findLastAssistantMessage(messages);
       if (lastAssistantMsg) {
         let tracker = trackersRef.current[lastAssistantMsg.id];
@@ -74,7 +72,9 @@ export function useStreamingTiming(
 
               if (!tracker.toolCallStartTimes.has(toolCallId)) {
                 tracker.toolCallStartTimes.set(toolCallId, Date.now());
-              } else if (hasResult) {
+              }
+
+              if (hasResult) {
                 const startTime = tracker.toolCallStartTimes.get(toolCallId);
                 if (startTime !== undefined && startTime > 0) {
                   tracker.toolCallTotalTime += Date.now() - startTime;
@@ -89,10 +89,7 @@ export function useStreamingTiming(
       }
     }
 
-    if (
-      (status === "ready" || status === "error") &&
-      (prevStatus === "streaming" || prevStatus === "submitted")
-    ) {
+    if (!isRunning && prevIsRunning) {
       const lastAssistantMsg = findLastAssistantMessage(messages);
       if (lastAssistantMsg) {
         const tracker = trackersRef.current[lastAssistantMsg.id];
@@ -106,8 +103,8 @@ export function useStreamingTiming(
       pendingStreamStartRef.current = null;
     }
 
-    prevStatusRef.current = status;
-  }, [status, messages, addTiming]);
+    prevIsRunningRef.current = isRunning;
+  }, [isRunning, messages, addTiming]);
 
   return timings;
 }
