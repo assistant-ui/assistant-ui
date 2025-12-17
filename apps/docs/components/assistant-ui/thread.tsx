@@ -16,13 +16,20 @@ import {
   ErrorPrimitive,
   MessagePrimitive,
   ThreadPrimitive,
+  useAssistantState,
 } from "@assistant-ui/react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   ArrowDownIcon,
   ArrowUpIcon,
   CheckIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  ClockIcon,
   CopyIcon,
   DownloadIcon,
   PencilIcon,
@@ -228,6 +235,84 @@ const AssistantMessage: FC = () => {
   );
 };
 
+const formatMs = (ms: number | undefined) => {
+  if (ms === undefined) return "—";
+  if (ms < 1000) return `${Math.round(ms)}ms`;
+  return `${(ms / 1000).toFixed(2)}s`;
+};
+
+const MessageTimingDisplay: FC = () => {
+  const timing = useAssistantState((s) => {
+    const msg = s.message;
+    if (msg.role !== "assistant") return undefined;
+    return msg.metadata.timing;
+  });
+
+  if (!timing) return null;
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="aui-message-timing-button size-6 text-muted-foreground"
+        >
+          <ClockIcon className="size-4" />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent
+        side="right"
+        align="start"
+        className="max-w-xs border border-border bg-popover text-popover-foreground shadow-md [&>span:has(svg)]:hidden"
+      >
+        <div className="grid gap-1.5 text-xs">
+          {timing.timeToFirstChunk !== undefined && (
+            <div className="flex items-center justify-between gap-6">
+              <span className="text-muted-foreground">First chunk</span>
+              <span className="font-mono tabular-nums">
+                {formatMs(timing.timeToFirstChunk)}
+              </span>
+            </div>
+          )}
+          {timing.timeToFirstToken !== undefined && (
+            <div className="flex items-center justify-between gap-6">
+              <span className="text-muted-foreground">First token</span>
+              <span className="font-mono tabular-nums">
+                {formatMs(timing.timeToFirstToken)}
+              </span>
+            </div>
+          )}
+          {timing.totalStreamTime !== undefined && (
+            <div className="flex items-center justify-between gap-6">
+              <span className="text-muted-foreground">Total</span>
+              <span className="font-mono tabular-nums">
+                {formatMs(timing.totalStreamTime)}
+              </span>
+            </div>
+          )}
+          {timing.tokensPerSecond !== undefined && (
+            <div className="flex items-center justify-between gap-6">
+              <span className="text-muted-foreground">Speed</span>
+              <span className="font-mono tabular-nums">
+                {timing.tokensPerSecond.toFixed(1)} tok/s
+              </span>
+            </div>
+          )}
+          {timing.totalChunks !== undefined && (
+            <div className="flex items-center justify-between gap-6">
+              <span className="text-muted-foreground">Chunks</span>
+              <span className="font-mono tabular-nums">
+                {timing.totalChunks}
+              </span>
+            </div>
+          )}
+        </div>
+      </TooltipContent>
+    </Tooltip>
+  );
+};
+
 const AssistantActionBar: FC = () => {
   return (
     <ActionBarPrimitive.Root
@@ -256,6 +341,7 @@ const AssistantActionBar: FC = () => {
           <RefreshCwIcon />
         </TooltipIconButton>
       </ActionBarPrimitive.Reload>
+      <MessageTimingDisplay />
     </ActionBarPrimitive.Root>
   );
 };

@@ -45,6 +45,30 @@ export type ThreadStep = {
     | undefined;
 };
 
+export type MessageTiming = {
+  // Client-measured timing
+  readonly streamStartTime?: number;
+  readonly timeToFirstChunk?: number;
+  readonly timeToFirstToken?: number;
+  readonly totalStreamTime?: number;
+
+  // Streaming metrics
+  readonly totalChunks?: number;
+  readonly tokensPerSecond?: number;
+  readonly largestChunkGap?: number;
+
+  // Tool call metrics
+  readonly toolCallCount?: number;
+  readonly toolCallTotalTime?: number;
+
+  // Server-provided timing (optional)
+  readonly server?: {
+    readonly processingTime?: number;
+    readonly queueTime?: number;
+    readonly custom?: Record<string, unknown>;
+  };
+};
+
 export type MessagePartStatus =
   | {
       readonly type: "running";
@@ -102,6 +126,7 @@ export type ThreadSystemMessage = MessageCommonProps & {
     readonly unstable_annotations?: undefined;
     readonly unstable_data?: undefined;
     readonly steps?: undefined;
+    readonly timing?: undefined;
     readonly submittedFeedback?: undefined;
     readonly custom: Record<string, unknown>;
   };
@@ -116,6 +141,7 @@ export type ThreadUserMessage = MessageCommonProps & {
     readonly unstable_annotations?: undefined;
     readonly unstable_data?: undefined;
     readonly steps?: undefined;
+    readonly timing?: undefined;
     readonly submittedFeedback?: undefined;
     readonly custom: Record<string, unknown>;
   };
@@ -130,6 +156,7 @@ export type ThreadAssistantMessage = MessageCommonProps & {
     readonly unstable_annotations: readonly ReadonlyJSONValue[];
     readonly unstable_data: readonly ReadonlyJSONValue[];
     readonly steps: readonly ThreadStep[];
+    readonly timing?: MessageTiming;
     readonly submittedFeedback?: { readonly type: "positive" | "negative" };
     readonly custom: Record<string, unknown>;
   };
@@ -156,6 +183,7 @@ type BaseThreadMessage = {
     readonly unstable_annotations?: readonly ReadonlyJSONValue[];
     readonly unstable_data?: readonly ReadonlyJSONValue[];
     readonly steps?: readonly ThreadStep[];
+    readonly timing?: MessageTiming;
     readonly submittedFeedback?: { readonly type: "positive" | "negative" };
     readonly custom: Record<string, unknown>;
   };
