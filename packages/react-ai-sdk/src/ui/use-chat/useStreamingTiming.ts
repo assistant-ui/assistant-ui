@@ -2,6 +2,7 @@
 
 import { useRef, useEffect, useState, useCallback } from "react";
 import type { UIMessage } from "@ai-sdk/react";
+import { isToolUIPart } from "ai";
 import type { MessageTiming } from "@assistant-ui/react";
 
 type MessageTimingTracker = {
@@ -10,6 +11,8 @@ type MessageTimingTracker = {
   firstTokenTime?: number;
   endTime?: number;
   chunkCount: number;
+  toolCallStartTimes: Map<string, number>;
+  toolCallTotalTime: number;
 };
 
 type ChatStatus = "submitted" | "streaming" | "ready" | "error";
@@ -39,12 +42,14 @@ export function useStreamingTiming(
       if (lastAssistantMsg) {
         let tracker = trackersRef.current[lastAssistantMsg.id];
 
-        if (!tracker) {
+        if (!tracker || tracker.endTime !== undefined) {
           const streamStartTime = pendingStreamStartRef.current ?? Date.now();
           tracker = {
             streamStartTime,
             chunkCount: 0,
             firstChunkTime: Date.now(),
+            toolCallStartTimes: new Map(),
+            toolCallTotalTime: 0,
           };
           trackersRef.current[lastAssistantMsg.id] = tracker;
           pendingStreamStartRef.current = null;
@@ -56,6 +61,27 @@ export function useStreamingTiming(
           );
           if (hasTextContent) {
             tracker.firstTokenTime = Date.now();
+          }
+        }
+
+        if (lastAssistantMsg.parts) {
+          for (const part of lastAssistantMsg.parts) {
+            if (isToolUIPart(part)) {
+              const toolCallId = part.toolCallId;
+              const hasResult =
+                part.state === "output-available" ||
+                part.state === "output-error";
+
+              if (!tracker.toolCallStartTimes.has(toolCallId)) {
+                tracker.toolCallStartTimes.set(toolCallId, Date.now());
+              } else if (hasResult) {
+                const startTime = tracker.toolCallStartTimes.get(toolCallId);
+                if (startTime !== undefined && startTime > 0) {
+                  tracker.toolCallTotalTime += Date.now() - startTime;
+                  tracker.toolCallStartTimes.set(toolCallId, -1);
+                }
+              }
+            }
           }
         }
 
@@ -105,18 +131,34 @@ function calculateTiming(
 
   const totalStreamTime = endTime ? endTime - streamStartTime : null;
 
-  let estimatedTokens = 0;
-  if (message.parts) {
-    for (const part of message.parts) {
-      if (part.type === "text") {
-        estimatedTokens += Math.ceil(part.text.length / 4);
+  const toolCallCount =
+    message.parts?.filter((part) => isToolUIPart(part)).length ?? 0;
+
+  const toolCallTotalTime =
+    tracker.toolCallTotalTime > 0 ? tracker.toolCallTotalTime : null;
+
+  const metadata = message.metadata as
+    | { totalUsage?: { completionTokens?: number } }
+    | undefined;
+  const serverTokens = metadata?.totalUsage?.completionTokens;
+
+  let tokenCount: number;
+  if (serverTokens !== undefined && serverTokens > 0) {
+    tokenCount = serverTokens;
+  } else {
+    tokenCount = 0;
+    if (message.parts) {
+      for (const part of message.parts) {
+        if (part.type === "text") {
+          tokenCount += Math.ceil(part.text.length / 4);
+        }
       }
     }
   }
 
   const tokensPerSecond =
-    totalStreamTime && estimatedTokens > 0
-      ? (estimatedTokens / totalStreamTime) * 1000
+    totalStreamTime && tokenCount > 0
+      ? (tokenCount / totalStreamTime) * 1000
       : null;
 
   const timeToFirstChunk = firstChunkTime
@@ -134,5 +176,7 @@ function calculateTiming(
     ...(totalStreamTime !== null && { totalStreamTime }),
     ...(totalChunks !== null && { totalChunks }),
     ...(tokensPerSecond !== null && { tokensPerSecond }),
+    ...(toolCallCount > 0 && { toolCallCount }),
+    ...(toolCallTotalTime !== null && { toolCallTotalTime }),
   };
 }
