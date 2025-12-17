@@ -150,7 +150,7 @@ const MessageTimingDisplay: FC = () => {
       >
         {totalTimeText}
       </button>
-      <div className="-translate-y-1/2 pointer-events-none absolute top-1/2 left-full z-10 ml-2 scale-95 rounded-lg border border-[#e5e5e5] bg-white px-3 py-2 opacity-0 shadow-lg transition-all group-hover/timing:pointer-events-auto group-hover/timing:scale-100 group-hover/timing:opacity-100 dark:border-[#2a2a2a] dark:bg-[#1a1a1a]">
+      <div className="-translate-y-1/2 before:-left-2 pointer-events-none absolute top-1/2 left-full z-10 ml-2 scale-95 rounded-lg border border-[#e5e5e5] bg-white px-3 py-2 opacity-0 shadow-lg transition-all before:absolute before:top-0 before:h-full before:w-2 before:content-[''] group-hover/timing:pointer-events-auto group-hover/timing:scale-100 group-hover/timing:opacity-100 dark:border-[#2a2a2a] dark:bg-[#1a1a1a]">
         <div className="grid min-w-[140px] gap-1.5 text-xs">
           {timing.timeToFirstChunk !== undefined && (
             <div className="flex items-center justify-between gap-4">
