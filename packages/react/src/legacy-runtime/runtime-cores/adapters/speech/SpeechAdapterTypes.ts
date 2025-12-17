@@ -118,4 +118,15 @@ export type SpeechRecognitionAdapter = {
    * @default false
    */
   disableInputDuringListening?: boolean;
+
+  /**
+   * Automatically stop listening after a period of silence
+   * Set to a number (milliseconds) to enable auto-stop
+   * Set to false to disable
+   * @default false/undefined (disabled)
+   * @example
+   * // Stop after 3 seconds of silence
+   * autoStopTimeout: 3000
+   */
+  autoStopTimeout?: number | false;
 };

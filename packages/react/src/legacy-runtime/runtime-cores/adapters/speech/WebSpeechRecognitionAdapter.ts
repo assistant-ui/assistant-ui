@@ -76,6 +76,7 @@ export class WebSpeechRecognitionAdapter implements SpeechRecognitionAdapter {
   private _language: string;
   private _continuous: boolean;
   private _interimResults: boolean;
+  public autoStopTimeout?: number | false;
 
   constructor(
     options: {
@@ -94,6 +95,12 @@ export class WebSpeechRecognitionAdapter implements SpeechRecognitionAdapter {
        * Defaults to true for real-time feedback.
        */
       interimResults?: boolean;
+      /**
+       * Automatically stop listening after a period of silence (ms).
+       * @default undefined/false (disabled)
+       * @example 2000 // Stop after 2 seconds of silence
+       */
+      autoStopTimeout?: number | false;
     } = {},
   ) {
     const defaultLanguage =
@@ -103,6 +110,7 @@ export class WebSpeechRecognitionAdapter implements SpeechRecognitionAdapter {
     this._language = options.language ?? defaultLanguage;
     this._continuous = options.continuous ?? true;
     this._interimResults = options.interimResults ?? true;
+    this.autoStopTimeout = options.autoStopTimeout ?? false;
   }
 
   /**

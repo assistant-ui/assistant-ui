@@ -264,7 +264,32 @@ export abstract class BaseComposerRuntimeCore
     this._listening = { status: session.status, inputDisabled };
     this._notifySubscribers();
 
+    let silenceTimer: ReturnType<typeof setTimeout> | undefined;
+
+    const autoStopTimeout = adapter.autoStopTimeout;
+    const shouldAutoStop =
+      typeof autoStopTimeout === "number" && autoStopTimeout > 0;
+
+    const resetSilenceTimer = () => {
+      if (!shouldAutoStop) return;
+
+      if (silenceTimer) {
+        clearTimeout(silenceTimer);
+      }
+
+      silenceTimer = setTimeout(() => {
+        if (this._listeningSession === session) {
+          this.stopListening();
+        }
+      }, autoStopTimeout);
+    };
+
+    if (shouldAutoStop) {
+      resetSilenceTimer();
+    }
+
     const unsubSpeech = session.onSpeech((result) => {
+      resetSilenceTimer();
       const isFinal = result.isFinal !== false;
 
       const needsSeparator =
@@ -300,6 +325,7 @@ export abstract class BaseComposerRuntimeCore
     this._listeningUnsubscribes.push(unsubSpeech);
 
     const unsubStart = session.onSpeechStart(() => {
+      resetSilenceTimer();
       const currentTranscript = this._listening?.transcript;
       this._listening = currentTranscript
         ? {
@@ -313,9 +339,18 @@ export abstract class BaseComposerRuntimeCore
     this._listeningUnsubscribes.push(unsubStart);
 
     const unsubEnd = session.onSpeechEnd(() => {
+      if (silenceTimer) {
+        clearTimeout(silenceTimer);
+      }
       this._cleanupListening();
     });
     this._listeningUnsubscribes.push(unsubEnd);
+
+    this._listeningUnsubscribes.push(() => {
+      if (silenceTimer) {
+        clearTimeout(silenceTimer);
+      }
+    });
 
     const statusInterval = setInterval(() => {
       if (session.status.type === "ended") {
