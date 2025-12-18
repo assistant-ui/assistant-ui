@@ -30,9 +30,9 @@ export function BuilderCodeOutput({ config }: BuilderCodeOutputProps) {
       defaultValue="code"
       value={activeTab}
       onValueChange={setActiveTab}
-      className="flex h-full flex-col"
+      className="flex h-full flex-col gap-0"
     >
-      <div className="flex items-center justify-between border-b px-4 py-2">
+      <div className="flex items-center justify-between border-b p-2">
         <TabsList className="h-8">
           <TabsTrigger value="code" className="gap-1.5 text-xs">
             <CodeIcon className="size-3.5" />
