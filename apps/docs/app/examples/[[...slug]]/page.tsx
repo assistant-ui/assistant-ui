@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { DocsPage, DocsBody } from "fumadocs-ui/page";
 import { notFound } from "next/navigation";
 import { getMDXComponents } from "@/mdx-components";
-import { DocsRuntimeProvider } from "@/app/(home)/DocsRuntimeProvider";
+import { DocsRuntimeProvider } from "@/contexts/DocsRuntimeProvider";
 import { ExamplesNavbar } from "@/components/examples/ExamplesNavbar";
 import { Footer } from "@/components/shared/footer";
 

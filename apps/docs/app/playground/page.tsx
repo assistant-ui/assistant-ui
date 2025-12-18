@@ -1,7 +1,7 @@
 "use client";
 
 import { Builder } from "@/components/builder/builder";
-import { DocsRuntimeProvider } from "../DocsRuntimeProvider";
+import { DocsRuntimeProvider } from "@/contexts/DocsRuntimeProvider";
 
 export default function PlaygroundPage() {
   return (
