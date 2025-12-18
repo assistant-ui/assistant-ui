@@ -415,7 +415,7 @@ For custom thread storage, use `useRemoteThreadListRuntime` with your own adapte
 ```tsx
 import {
   unstable_useRemoteThreadListRuntime as useRemoteThreadListRuntime,
-  useThreadListItem,
+  useAssistantApi,
   RuntimeAdapterProvider,
   AssistantRuntimeProvider,
   type unstable_RemoteThreadListAdapter as RemoteThreadListAdapter,
@@ -487,13 +487,13 @@ export function MyRuntimeProvider({ children }) {
       // The Provider component adds thread-specific adapters
       unstable_Provider: ({ children }) => {
         // This runs in the context of each thread
-        const threadListItem = useThreadListItem();
-        const remoteId = threadListItem.remoteId;
+        const api = useAssistantApi();
 
         // Create thread-specific history adapter
         const history = useMemo<ThreadHistoryAdapter>(
           () => ({
             async load() {
+              const { remoteId } = api.threadListItem().getState();
               if (!remoteId) return { messages: [] };
 
               const messages = await db.messages.findByThreadId(remoteId);
@@ -508,10 +508,8 @@ export function MyRuntimeProvider({ children }) {
             },
 
             async append(message) {
-              if (!remoteId) {
-                console.warn("Cannot save message - thread not initialized");
-                return;
-              }
+              // Wait for initialization to get remoteId (safe to call multiple times)
+              const { remoteId } = await api.threadListItem().initialize();
 
               await db.messages.create({
                 threadId: remoteId,
@@ -522,7 +520,7 @@ export function MyRuntimeProvider({ children }) {
               });
             },
           }),
-          [remoteId],
+          [api],
         );
 
         const adapters = useMemo(() => ({ history }), [history]);
@@ -569,6 +567,31 @@ The complete multi-thread implementation requires:
 4. **runtimeHook** - Creates a basic `LocalRuntime` (adapters are added by Provider)
 
 Without the history adapter, threads would have no message persistence, making them effectively useless. The Provider pattern allows you to add thread-specific functionality while keeping the runtime creation simple.
+
+<Callout type="warn" title="Avoiding Race Conditions">
+When implementing a history adapter, `append()` may be called before the thread is fully initialized, causing the first message to be lost. Instead of checking `if (!remoteId)`, await initialization to ensure the `remoteId` is available:
+
+```tsx
+import { useAssistantApi } from "@assistant-ui/react";
+
+// Inside your unstable_Provider component
+const api = useAssistantApi();
+
+const history = useMemo<ThreadHistoryAdapter>(
+  () => ({
+    async append(message) {
+      // Wait for initialization - safe to call multiple times
+      const { remoteId } = await api.threadListItem().initialize();
+      await db.messages.create({ threadId: remoteId, ...message });
+    },
+    // ...
+  }),
+  [api],
+);
+```
+
+See `AssistantCloudThreadHistoryAdapter` in the source for a production reference.
+</Callout>
 
 #### Database Schema Example
 
