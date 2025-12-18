@@ -25,7 +25,7 @@
     "build": "tsx scripts/build.mts"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.11.51",
+    "@assistant-ui/react": "^0.11.52",
     "@assistant-ui/react-markdown": "^0.11.8",
     "@types/react": "*",
     "@types/react-syntax-highlighter": "*",
