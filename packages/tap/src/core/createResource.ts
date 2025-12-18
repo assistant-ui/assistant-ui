@@ -27,7 +27,7 @@ export namespace createResource {
 const HandleWrapperResource = resource(
   <R, P>(state: {
     element: ResourceElement<R, P>;
-    onRender: () => void;
+    onRender: (changed: boolean) => boolean;
     onUnmount: () => void;
   }): createResource.Handle<R, P> => {
     const [, setElement] = tapState(state.element);
@@ -50,10 +50,12 @@ const HandleWrapperResource = resource(
           return () => subscribers.delete(callback);
         },
         render: (element: ResourceElement<R, P>) => {
+          const changed = state.element !== element;
           state.element = element;
-          setElement(element);
 
-          state.onRender();
+          if (state.onRender(changed)) {
+            setElement(element);
+          }
         },
         unmount: state.onUnmount,
       }),
@@ -72,17 +74,23 @@ export const createResource = <R, P>(
   let render: RenderResult;
   const props = {
     element,
-    onRender: () => {
-      if (isMounted) return;
+    onRender: (changed: boolean) => {
+      if (isMounted) return changed;
       isMounted = true;
 
-      if (scheduler.isDirty) return;
       flushSync(() => {
+        if (changed) {
+          render = renderResourceFiber(fiber, props);
+        }
+
+        if (scheduler.isDirty) return;
         commitResourceFiber(fiber, render!);
       });
+
+      return false;
     },
     onUnmount: () => {
-      if (!isMounted) return;
+      if (!isMounted) throw new Error("Resource not mounted");
       isMounted = false;
 
       unmountResourceFiber(fiber);
