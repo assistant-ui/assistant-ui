@@ -31,6 +31,7 @@ const useIsHoveringRef = () => {
       el.addEventListener("mouseleave", handleMouseLeave);
 
       if (el.matches(":hover")) {
+        // TODO this is needed for SSR to work, figure out why
         queueMicrotask(() => message.setIsHovering(true));
       }
 
