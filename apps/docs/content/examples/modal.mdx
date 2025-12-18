@@ -5,10 +5,9 @@ description: Floating button that opens an AI assistant chat box
 
 import { ModalChat } from "@/components/example/modal/ModalChat";
 import { DocsRuntimeProvider } from "@/app/(home)/DocsRuntimeProvider";
+import { SourceLink } from "@/components/examples/SourceLink";
 
-## Live Demo
-
-<div className="h-[400px]">
+<div className="h-[500px]">
   <DocsRuntimeProvider>
     <ModalChat />
   </DocsRuntimeProvider>
@@ -16,31 +15,68 @@ import { DocsRuntimeProvider } from "@/app/(home)/DocsRuntimeProvider";
 
 ## Overview
 
-The Modal example demonstrates how to create a floating action button that opens an AI assistant chat interface in a modal dialog. This pattern is perfect for applications where you want to provide AI assistance without disrupting the main user interface.
+The Modal example demonstrates how to create a floating action button that opens an AI assistant chat interface in a modal dialog. This pattern is ideal for applications where you want to provide AI assistance without disrupting the main user interface.
 
 ## Features
 
-- **Floating Action Button**: Clean, accessible floating button that triggers the modal
-- **Modal Dialog**: Full-screen modal with proper focus management and keyboard navigation
-- **Responsive Design**: Works seamlessly across desktop and mobile devices
-- **Customizable Styling**: Easy to customize colors, positioning, and animations
-- **Accessibility**: Proper ARIA labels and keyboard navigation support
+- **Floating Action Button**: A clean, accessible button fixed to the corner of the screen
+- **Modal Dialog**: Full-featured chat interface with proper focus management
+- **Smooth Animations**: Enter/exit transitions with zoom and slide effects
+- **Responsive Design**: Works across desktop and mobile devices
+- **Keyboard Navigation**: Escape key to close, proper tab order
 
-## Usage
+## Quick Start
 
-To implement a modal chat interface in your application:
-
-1. **Install Required Components**: Use the assistant-ui CLI to add the modal component
-2. **Wrap with Runtime Provider**: Ensure your modal is wrapped with `AssistantRuntimeProvider`
-3. **Configure API Endpoint**: Set up your chat API endpoint
-4. **Customize Styling**: Modify the button and modal appearance to match your design
+```bash
+npx assistant-ui add assistant-modal
+```
 
 ## Code
 
-The modal implementation uses the `AssistantModal` component from assistant-ui, which provides:
+The modal uses `AssistantModalPrimitive` to create a floating chat interface:
 
-- Automatic focus management
-- Escape key handling
-- Backdrop click to close
-- Responsive positioning
-- Customizable trigger button
+```tsx
+import { AssistantModalPrimitive } from "@assistant-ui/react";
+import { Thread } from "@/components/assistant-ui/thread";
+
+export const AssistantModal = () => {
+  return (
+    <AssistantModalPrimitive.Root>
+      <AssistantModalPrimitive.Anchor className="fixed right-4 bottom-4 size-11">
+        <AssistantModalPrimitive.Trigger asChild>
+          <button className="size-full rounded-full bg-primary shadow hover:scale-110 active:scale-90">
+            <BotIcon />
+          </button>
+        </AssistantModalPrimitive.Trigger>
+      </AssistantModalPrimitive.Anchor>
+
+      <AssistantModalPrimitive.Content
+        sideOffset={16}
+        className="h-[500px] w-[400px] rounded-xl border bg-popover shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out"
+      >
+        <Thread />
+      </AssistantModalPrimitive.Content>
+    </AssistantModalPrimitive.Root>
+  );
+};
+```
+
+### Key Components
+
+| Component | Purpose |
+|-----------|---------|
+| `AssistantModalPrimitive.Root` | Container that manages open/close state |
+| `AssistantModalPrimitive.Anchor` | Positions the trigger button |
+| `AssistantModalPrimitive.Trigger` | Button that opens the modal |
+| `AssistantModalPrimitive.Content` | The modal dialog containing the chat |
+
+### Customization Tips
+
+- Adjust `sideOffset` to control the gap between button and modal
+- Modify `h-[500px] w-[400px]` to change modal dimensions
+- Use `data-[state=open/closed]` for animation states
+- Position the anchor with `fixed right-4 bottom-4` or any corner
+
+## Source
+
+<SourceLink href="https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/assistant-ui/assistant-modal.tsx" />
