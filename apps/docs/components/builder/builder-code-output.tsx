@@ -1,9 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import { highlight } from "sugar-high";
 import { CheckIcon, CopyIcon, TerminalIcon, CodeIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import type { BuilderConfig } from "./types";
 
@@ -12,11 +11,17 @@ interface BuilderCodeOutputProps {
 }
 
 export function BuilderCodeOutput({ config }: BuilderCodeOutputProps) {
-  const [activeTab, setActiveTab] = useState<string>("code");
+  const [activeTab, setActiveTab] = useState<"code" | "cli">("code");
   const [copied, setCopied] = useState(false);
 
   const componentCode = generateComponentCode(config);
   const cliCommand = generateCliCommand(config);
+
+  const highlightedCode = useMemo(
+    () => highlight(componentCode),
+    [componentCode],
+  );
+  const highlightedCli = useMemo(() => highlight(cliCommand), [cliCommand]);
 
   const handleCopy = async () => {
     const text = activeTab === "code" ? componentCode : cliCommand;
@@ -26,33 +31,40 @@ export function BuilderCodeOutput({ config }: BuilderCodeOutputProps) {
   };
 
   return (
-    <Tabs
-      defaultValue="code"
-      value={activeTab}
-      onValueChange={setActiveTab}
-      className="flex h-full flex-col gap-0"
-    >
-      <div className="flex items-center justify-between border-b p-2">
-        <TabsList className="h-8">
-          <TabsTrigger value="code" className="gap-1.5 text-xs">
+    <div className="flex h-full flex-col overflow-hidden">
+      <div className="flex shrink-0 items-center justify-between px-3 py-2">
+        <div className="flex gap-1">
+          <button
+            onClick={() => setActiveTab("code")}
+            className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs transition-colors ${
+              activeTab === "code"
+                ? "bg-foreground/10 text-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
             <CodeIcon className="size-3.5" />
             Code
-          </TabsTrigger>
-          <TabsTrigger value="cli" className="gap-1.5 text-xs">
+          </button>
+          <button
+            onClick={() => setActiveTab("cli")}
+            className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs transition-colors ${
+              activeTab === "cli"
+                ? "bg-foreground/10 text-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
             <TerminalIcon className="size-3.5" />
             CLI
-          </TabsTrigger>
-        </TabsList>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-7 gap-1.5 text-xs"
+          </button>
+        </div>
+        <button
           onClick={handleCopy}
+          className="flex items-center gap-1.5 rounded-md px-2 py-1 text-muted-foreground text-xs transition-colors hover:text-foreground"
         >
           {copied ? (
             <>
               <CheckIcon className="size-3.5" />
-              Copied!
+              Copied
             </>
           ) : (
             <>
@@ -60,33 +72,19 @@ export function BuilderCodeOutput({ config }: BuilderCodeOutputProps) {
               Copy
             </>
           )}
-        </Button>
+        </button>
       </div>
 
-      <TabsContent value="code" className="mt-0 flex-1 overflow-hidden">
-        <pre className="h-full overflow-auto bg-muted/50 p-4 font-mono text-xs leading-relaxed">
-          <code>{componentCode}</code>
+      <div className="min-h-0 flex-1 overflow-auto">
+        <pre className="p-4 font-mono text-xs leading-relaxed">
+          <code
+            dangerouslySetInnerHTML={{
+              __html: activeTab === "code" ? highlightedCode : highlightedCli,
+            }}
+          />
         </pre>
-      </TabsContent>
-
-      <TabsContent value="cli" className="mt-0 flex-1 overflow-hidden">
-        <div className="flex h-full flex-col">
-          <pre className="flex-1 overflow-auto bg-muted/50 p-4 font-mono text-xs leading-relaxed">
-            <code>{cliCommand}</code>
-          </pre>
-          <div className="border-t bg-muted/30 p-4">
-            <p className="text-muted-foreground text-xs">
-              Run these commands to add the configured thread component to your
-              project. Make sure you have{" "}
-              <code className="rounded bg-muted px-1 py-0.5">
-                @assistant-ui/react
-              </code>{" "}
-              installed.
-            </p>
-          </div>
-        </div>
-      </TabsContent>
-    </Tabs>
+      </div>
+    </div>
   );
 }
 

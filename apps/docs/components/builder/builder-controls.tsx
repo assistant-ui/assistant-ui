@@ -1,7 +1,6 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -11,20 +10,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Layers,
-  Palette,
-  MonitorSmartphone,
-  Moon,
-  Sun,
-  RotateCcw,
-} from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { RotateCcw } from "lucide-react";
 
 import type {
   BuilderConfig,
   BorderRadius,
-  Theme,
   UserMessagePosition,
   FontSize,
   MessageSpacing,
@@ -71,461 +62,329 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
     });
   };
 
-  const handleReset = () => {
-    onChange(DEFAULT_CONFIG);
-  };
-
   return (
     <div className="flex h-full flex-col">
-      {/* Header Actions */}
-      <div className="flex items-center justify-between border-b px-4 py-2">
-        <span className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
-          Config
-        </span>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-7"
-          onClick={handleReset}
-          title="Reset to default"
+      <div className="flex items-center justify-between px-4 py-3">
+        <span className="font-medium text-sm">Settings</span>
+        <button
+          onClick={() => onChange(DEFAULT_CONFIG)}
+          className="text-muted-foreground transition-colors hover:text-foreground"
+          title="Reset"
         >
           <RotateCcw className="size-3.5" />
-        </Button>
+        </button>
       </div>
 
-      {/* Presets */}
-      <div className="border-b p-4">
-        <Label className="mb-3 block font-semibold text-muted-foreground text-xs uppercase tracking-wider">
-          Presets
-        </Label>
-        <div className="grid grid-cols-2 gap-2">
-          {PRESETS.map((preset) => (
-            <Button
-              key={preset.id}
-              variant="outline"
-              size="sm"
-              className={cn(
-                "h-auto flex-col items-start gap-0.5 px-3 py-2 text-left",
-                JSON.stringify(config) === JSON.stringify(preset.config) &&
-                  "border-primary bg-primary/5",
-              )}
-              onClick={() => onChange(preset.config)}
-            >
-              <span className="font-medium text-xs">{preset.name}</span>
-            </Button>
-          ))}
-        </div>
-      </div>
+      <ScrollArea className="flex-1">
+        <div className="space-y-6 px-4 pb-6">
+          <Section title="Preset">
+            <div className="flex flex-wrap gap-1.5">
+              {PRESETS.map((preset) => (
+                <button
+                  key={preset.id}
+                  onClick={() => onChange(preset.config)}
+                  className={cn(
+                    "rounded-md px-2.5 py-1 text-xs transition-colors",
+                    JSON.stringify(config) === JSON.stringify(preset.config)
+                      ? "bg-foreground text-background"
+                      : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground",
+                  )}
+                >
+                  {preset.name}
+                </button>
+              ))}
+            </div>
+          </Section>
 
-      {/* Tabs */}
-      <Tabs
-        defaultValue="components"
-        className="min-h-0 flex-1 overflow-hidden"
-      >
-        <TabsList className="mx-4 mt-4 grid w-[calc(100%-2rem)] grid-cols-2">
-          <TabsTrigger value="components" className="gap-1.5 text-xs">
-            <Layers className="size-3.5" />
-            <span className="hidden sm:inline">Components</span>
-          </TabsTrigger>
-          <TabsTrigger value="styles" className="gap-1.5 text-xs">
-            <Palette className="size-3.5" />
-            <span className="hidden sm:inline">Styles</span>
-          </TabsTrigger>
-        </TabsList>
-
-        {/* Components Tab */}
-        <TabsContent value="components" className="flex-1 overflow-y-auto p-4">
-          <div className="space-y-6">
-            <div className="space-y-4">
-              <Label className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
-                Features
-              </Label>
-
-              <ToggleRow
+          <Section title="Features">
+            <div className="space-y-2.5">
+              <Toggle
                 label="Attachments"
-                description="Allow file uploads"
                 checked={config.components.attachments}
-                onCheckedChange={(checked) =>
+                onChange={(checked) =>
                   updateComponents({ attachments: checked })
                 }
               />
-
-              <ToggleRow
+              <Toggle
                 label="Branch Picker"
-                description="Navigate message versions"
                 checked={config.components.branchPicker}
-                onCheckedChange={(checked) =>
+                onChange={(checked) =>
                   updateComponents({ branchPicker: checked })
                 }
               />
-
-              <ToggleRow
+              <Toggle
                 label="Edit Messages"
-                description="Allow editing sent messages"
                 checked={config.components.editMessage}
-                onCheckedChange={(checked) =>
+                onChange={(checked) =>
                   updateComponents({ editMessage: checked })
                 }
               />
-
-              <ToggleRow
+              <Toggle
                 label="Welcome Screen"
-                description="Show welcome when empty"
                 checked={config.components.threadWelcome}
-                onCheckedChange={(checked) =>
+                onChange={(checked) =>
                   updateComponents({ threadWelcome: checked })
                 }
               />
-
-              <ToggleRow
+              <Toggle
                 label="Suggestions"
-                description="Show prompt suggestions"
                 checked={config.components.suggestions}
-                onCheckedChange={(checked) =>
+                onChange={(checked) =>
                   updateComponents({ suggestions: checked })
                 }
               />
-
-              <ToggleRow
+              <Toggle
                 label="Scroll to Bottom"
-                description="Show scroll button"
                 checked={config.components.scrollToBottom}
-                onCheckedChange={(checked) =>
+                onChange={(checked) =>
                   updateComponents({ scrollToBottom: checked })
                 }
               />
             </div>
+          </Section>
 
-            <div className="space-y-4">
-              <Label className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
-                Content
-              </Label>
-
-              <ToggleRow
+          <Section title="Content">
+            <div className="space-y-2.5">
+              <Toggle
                 label="Markdown"
-                description="Render markdown formatting"
                 checked={config.components.markdown}
-                onCheckedChange={(checked) =>
-                  updateComponents({ markdown: checked })
-                }
+                onChange={(checked) => updateComponents({ markdown: checked })}
               />
-
-              <ToggleRow
+              <Toggle
                 label="Reasoning"
-                description="Show AI thinking process"
                 checked={config.components.reasoning}
-                onCheckedChange={(checked) =>
-                  updateComponents({ reasoning: checked })
-                }
+                onChange={(checked) => updateComponents({ reasoning: checked })}
               />
-
-              <ToggleRow
+              <Toggle
                 label="Follow-up Suggestions"
-                description="Show suggestions after responses"
                 checked={config.components.followUpSuggestions}
-                onCheckedChange={(checked) =>
+                onChange={(checked) =>
                   updateComponents({ followUpSuggestions: checked })
                 }
               />
-
-              <ToggleRow
+              <Toggle
                 label="Avatar"
-                description="Show user/assistant avatars"
                 checked={config.components.avatar}
-                onCheckedChange={(checked) =>
-                  updateComponents({ avatar: checked })
-                }
+                onChange={(checked) => updateComponents({ avatar: checked })}
               />
-
-              <ToggleRow
+              <Toggle
                 label="Typing Indicator"
-                description="Show loading animation"
                 checked={config.components.typingIndicator}
-                onCheckedChange={(checked) =>
+                onChange={(checked) =>
                   updateComponents({ typingIndicator: checked })
                 }
               />
             </div>
+          </Section>
 
-            <div className="space-y-4">
-              <Label className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
-                Action Bar
-              </Label>
-
-              <ToggleRow
+          <Section title="Actions">
+            <div className="space-y-2.5">
+              <Toggle
                 label="Copy"
-                description="Copy message content"
                 checked={config.components.actionBar.copy}
-                onCheckedChange={(checked) =>
-                  updateActionBar({ copy: checked })
-                }
+                onChange={(checked) => updateActionBar({ copy: checked })}
               />
-
-              <ToggleRow
+              <Toggle
                 label="Reload"
-                description="Regenerate response"
                 checked={config.components.actionBar.reload}
-                onCheckedChange={(checked) =>
-                  updateActionBar({ reload: checked })
-                }
+                onChange={(checked) => updateActionBar({ reload: checked })}
               />
-
-              <ToggleRow
+              <Toggle
                 label="Speak"
-                description="Read message aloud"
                 checked={config.components.actionBar.speak}
-                onCheckedChange={(checked) =>
-                  updateActionBar({ speak: checked })
-                }
+                onChange={(checked) => updateActionBar({ speak: checked })}
               />
-
-              <ToggleRow
+              <Toggle
                 label="Feedback"
-                description="Thumbs up/down buttons"
                 checked={config.components.actionBar.feedback}
-                onCheckedChange={(checked) =>
-                  updateActionBar({ feedback: checked })
-                }
+                onChange={(checked) => updateActionBar({ feedback: checked })}
               />
             </div>
-          </div>
-        </TabsContent>
+          </Section>
 
-        {/* Styles Tab */}
-        <TabsContent value="styles" className="flex-1 overflow-y-auto p-4">
-          <div className="space-y-6">
-            <div className="space-y-3">
-              <Label className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
-                Theme
-              </Label>
-              <div className="flex gap-2">
-                {(["light", "dark", "system"] as Theme[]).map((theme) => (
-                  <Button
-                    key={theme}
-                    variant="outline"
-                    size="sm"
-                    className={cn(
-                      "flex-1 gap-1.5",
-                      config.styles.theme === theme &&
-                        "border-primary bg-primary/5",
-                    )}
-                    onClick={() => updateStyles({ theme })}
-                  >
-                    {theme === "light" && <Sun className="size-3.5" />}
-                    {theme === "dark" && <Moon className="size-3.5" />}
-                    {theme === "system" && (
-                      <MonitorSmartphone className="size-3.5" />
-                    )}
-                    <span className="capitalize">{theme}</span>
-                  </Button>
-                ))}
-              </div>
+          <Section title="Accent Color">
+            <div className="flex flex-wrap gap-1.5">
+              {ACCENT_COLORS.map((color) => (
+                <button
+                  key={color.value}
+                  type="button"
+                  className={cn(
+                    "size-6 rounded-full transition-all",
+                    config.styles.accentColor === color.value
+                      ? "ring-2 ring-foreground ring-offset-2 ring-offset-background"
+                      : "hover:scale-110",
+                  )}
+                  style={{ backgroundColor: color.value }}
+                  onClick={() => updateStyles({ accentColor: color.value })}
+                  title={color.name}
+                />
+              ))}
             </div>
+          </Section>
 
-            <div className="space-y-3">
-              <Label className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
-                Accent Color
-              </Label>
-              <div className="flex flex-wrap gap-2">
-                {ACCENT_COLORS.map((color) => (
+          <Section title="Border Radius">
+            <div className="flex gap-1">
+              {(["none", "sm", "md", "lg", "full"] as BorderRadius[]).map(
+                (radius) => (
                   <button
-                    key={color.value}
-                    type="button"
+                    key={radius}
                     className={cn(
-                      "size-8 rounded-full border-2 transition-all hover:scale-110",
-                      config.styles.accentColor === color.value
-                        ? "border-foreground"
-                        : "border-transparent",
+                      "flex-1 rounded-md py-1.5 text-xs transition-colors",
+                      config.styles.borderRadius === radius
+                        ? "bg-foreground text-background"
+                        : "bg-muted text-muted-foreground hover:text-foreground",
                     )}
-                    style={{ backgroundColor: color.value }}
-                    onClick={() => updateStyles({ accentColor: color.value })}
-                    title={color.name}
-                  />
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <Label className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
-                Border Radius
-              </Label>
-              <div className="flex gap-2">
-                {(["none", "sm", "md", "lg", "full"] as BorderRadius[]).map(
-                  (radius) => (
-                    <Button
-                      key={radius}
-                      variant="outline"
-                      size="sm"
-                      className={cn(
-                        "flex-1",
-                        config.styles.borderRadius === radius &&
-                          "border-primary bg-primary/5",
-                      )}
-                      onClick={() => updateStyles({ borderRadius: radius })}
-                    >
-                      {radius}
-                    </Button>
-                  ),
-                )}
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <Label className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
-                Font Family
-              </Label>
-              <Select
-                value={config.styles.fontFamily}
-                onValueChange={(value) => updateStyles({ fontFamily: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {FONT_FAMILIES.map((font) => (
-                    <SelectItem key={font.value} value={font.value}>
-                      {font.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-3">
-              <Label className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
-                Font Size
-              </Label>
-              <div className="flex gap-2">
-                {FONT_SIZES.map((size) => (
-                  <Button
-                    key={size.value}
-                    variant="outline"
-                    size="sm"
-                    className={cn(
-                      "flex-1",
-                      config.styles.fontSize === size.value &&
-                        "border-primary bg-primary/5",
-                    )}
-                    onClick={() =>
-                      updateStyles({ fontSize: size.value as FontSize })
-                    }
+                    onClick={() => updateStyles({ borderRadius: radius })}
                   >
-                    {size.name}
-                  </Button>
+                    {radius}
+                  </button>
+                ),
+              )}
+            </div>
+          </Section>
+
+          <Section title="Font">
+            <Select
+              value={config.styles.fontFamily}
+              onValueChange={(value) => updateStyles({ fontFamily: value })}
+            >
+              <SelectTrigger className="h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {FONT_FAMILIES.map((font) => (
+                  <SelectItem key={font.value} value={font.value}>
+                    {font.name}
+                  </SelectItem>
                 ))}
-              </div>
-            </div>
+              </SelectContent>
+            </Select>
+          </Section>
 
-            <div className="space-y-3">
-              <Label className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
-                Max Width
-              </Label>
-              <Select
-                value={config.styles.maxWidth}
-                onValueChange={(value) => updateStyles({ maxWidth: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {MAX_WIDTHS.map((width) => (
-                    <SelectItem key={width.value} value={width.value}>
-                      {width.name} ({width.value})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          <Section title="Font Size">
+            <div className="flex gap-1">
+              {FONT_SIZES.map((size) => (
+                <button
+                  key={size.value}
+                  className={cn(
+                    "flex-1 rounded-md py-1.5 text-xs transition-colors",
+                    config.styles.fontSize === size.value
+                      ? "bg-foreground text-background"
+                      : "bg-muted text-muted-foreground hover:text-foreground",
+                  )}
+                  onClick={() =>
+                    updateStyles({ fontSize: size.value as FontSize })
+                  }
+                >
+                  {size.name}
+                </button>
+              ))}
             </div>
+          </Section>
 
-            <div className="space-y-3">
-              <Label className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
-                Message Spacing
-              </Label>
-              <div className="flex gap-2">
-                {MESSAGE_SPACINGS.map((spacing) => (
-                  <Button
-                    key={spacing.value}
-                    variant="outline"
-                    size="sm"
-                    className={cn(
-                      "flex-1",
-                      config.styles.messageSpacing === spacing.value &&
-                        "border-primary bg-primary/5",
-                    )}
-                    onClick={() =>
-                      updateStyles({
-                        messageSpacing: spacing.value as MessageSpacing,
-                      })
-                    }
-                  >
-                    {spacing.name}
-                  </Button>
+          <Section title="Max Width">
+            <Select
+              value={config.styles.maxWidth}
+              onValueChange={(value) => updateStyles({ maxWidth: value })}
+            >
+              <SelectTrigger className="h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {MAX_WIDTHS.map((width) => (
+                  <SelectItem key={width.value} value={width.value}>
+                    {width.name}
+                  </SelectItem>
                 ))}
-              </div>
-            </div>
+              </SelectContent>
+            </Select>
+          </Section>
 
-            <div className="space-y-3">
-              <Label className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
-                User Message Position
-              </Label>
-              <div className="flex gap-2">
-                {(["right", "left"] as UserMessagePosition[]).map(
-                  (position) => (
-                    <Button
-                      key={position}
-                      variant="outline"
-                      size="sm"
-                      className={cn(
-                        "flex-1 capitalize",
-                        config.styles.userMessagePosition === position &&
-                          "border-primary bg-primary/5",
-                      )}
-                      onClick={() =>
-                        updateStyles({ userMessagePosition: position })
-                      }
-                    >
-                      {position}
-                    </Button>
-                  ),
-                )}
-              </div>
+          <Section title="Spacing">
+            <div className="flex gap-1">
+              {MESSAGE_SPACINGS.map((spacing) => (
+                <button
+                  key={spacing.value}
+                  className={cn(
+                    "flex-1 rounded-md py-1.5 text-xs transition-colors",
+                    config.styles.messageSpacing === spacing.value
+                      ? "bg-foreground text-background"
+                      : "bg-muted text-muted-foreground hover:text-foreground",
+                  )}
+                  onClick={() =>
+                    updateStyles({
+                      messageSpacing: spacing.value as MessageSpacing,
+                    })
+                  }
+                >
+                  {spacing.name}
+                </button>
+              ))}
             </div>
+          </Section>
 
-            <ToggleRow
-              label="Animations"
-              description="Enable message animations"
+          <Section title="User Message">
+            <div className="flex gap-1">
+              {(["left", "right"] as UserMessagePosition[]).map((position) => (
+                <button
+                  key={position}
+                  className={cn(
+                    "flex-1 rounded-md py-1.5 text-xs capitalize transition-colors",
+                    config.styles.userMessagePosition === position
+                      ? "bg-foreground text-background"
+                      : "bg-muted text-muted-foreground hover:text-foreground",
+                  )}
+                  onClick={() =>
+                    updateStyles({ userMessagePosition: position })
+                  }
+                >
+                  {position}
+                </button>
+              ))}
+            </div>
+          </Section>
+
+          <Section title="Animation">
+            <Toggle
+              label="Enable animations"
               checked={config.styles.animations}
-              onCheckedChange={(checked) =>
-                updateStyles({ animations: checked })
-              }
+              onChange={(checked) => updateStyles({ animations: checked })}
             />
-          </div>
-        </TabsContent>
-      </Tabs>
+          </Section>
+        </div>
+      </ScrollArea>
     </div>
   );
 }
 
-interface ToggleRowProps {
-  label: string;
-  description: string;
-  checked: boolean;
-  onCheckedChange: (checked: boolean) => void;
+function Section({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-2.5">
+      <Label className="text-muted-foreground text-xs">{title}</Label>
+      {children}
+    </div>
+  );
 }
 
-function ToggleRow({
+function Toggle({
   label,
-  description,
   checked,
-  onCheckedChange,
-}: ToggleRowProps) {
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}) {
   return (
-    <div className="flex items-center justify-between gap-4">
-      <div className="space-y-0.5">
-        <Label className="font-medium text-sm">{label}</Label>
-        <p className="text-muted-foreground text-xs">{description}</p>
-      </div>
-      <Switch checked={checked} onCheckedChange={onCheckedChange} />
+    <div className="flex items-center justify-between">
+      <span className="text-sm">{label}</span>
+      <Switch checked={checked} onCheckedChange={onChange} />
     </div>
   );
 }

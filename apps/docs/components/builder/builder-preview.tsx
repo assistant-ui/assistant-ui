@@ -28,13 +28,62 @@ import {
   ThreadPrimitive,
 } from "@assistant-ui/react";
 
-import type { FC } from "react";
+import { type FC, createContext, useContext } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 
 import type { BuilderConfig, FontSize, MessageSpacing } from "./types";
+
+interface BuilderPreviewContextValue {
+  config: BuilderConfig;
+  borderRadiusClass: string;
+  messageSpacingClass: string;
+}
+
+const BuilderPreviewContext = createContext<BuilderPreviewContextValue | null>(
+  null,
+);
+
+function useBuilderPreviewContext() {
+  const context = useContext(BuilderPreviewContext);
+  if (!context) {
+    throw new Error(
+      "useBuilderPreviewContext must be used within BuilderPreviewProvider",
+    );
+  }
+  return context;
+}
+
+const UserMessageWrapper: FC = () => {
+  const { config, borderRadiusClass, messageSpacingClass } =
+    useBuilderPreviewContext();
+  return (
+    <UserMessage
+      config={config}
+      borderRadiusClass={borderRadiusClass}
+      messageSpacingClass={messageSpacingClass}
+    />
+  );
+};
+
+const AssistantMessageWrapper: FC = () => {
+  const { config, borderRadiusClass, messageSpacingClass } =
+    useBuilderPreviewContext();
+  return (
+    <AssistantMessage
+      config={config}
+      borderRadiusClass={borderRadiusClass}
+      messageSpacingClass={messageSpacingClass}
+    />
+  );
+};
+
+const messageComponents = {
+  UserMessage: UserMessageWrapper,
+  AssistantMessage: AssistantMessageWrapper,
+};
 
 const PlainText: FC<{ text: string }> = ({ text }) => {
   return <p className="whitespace-pre-wrap">{text}</p>;
@@ -61,60 +110,47 @@ export function BuilderPreview({ config }: BuilderPreviewProps) {
   const themeClass = styles.theme === "dark" ? "dark" : "";
 
   return (
-    <div
-      className={cn("h-full w-full", themeClass)}
-      style={
-        {
-          "--accent-color": styles.accentColor,
-          "--thread-max-width": styles.maxWidth,
-          fontFamily: styles.fontFamily,
-        } as React.CSSProperties
-      }
+    <BuilderPreviewContext.Provider
+      value={{ config, borderRadiusClass, messageSpacingClass }}
     >
-      <ThreadPrimitive.Root
-        className={cn(
-          "flex h-full flex-col bg-background text-foreground",
-          fontSizeClass,
-          themeClass && "bg-zinc-900 text-zinc-100",
-        )}
+      <div
+        className={cn("h-full w-full", themeClass)}
+        style={
+          {
+            "--accent-color": styles.accentColor,
+            "--thread-max-width": styles.maxWidth,
+            fontFamily: styles.fontFamily,
+          } as React.CSSProperties
+        }
       >
-        <ThreadPrimitive.Viewport className="relative flex flex-1 flex-col overflow-y-auto px-4">
-          {components.threadWelcome && (
-            <ThreadPrimitive.Empty>
-              <ThreadWelcome
-                showSuggestions={components.suggestions}
-                borderRadiusClass={borderRadiusClass}
-              />
-            </ThreadPrimitive.Empty>
+        <ThreadPrimitive.Root
+          className={cn(
+            "flex h-full flex-col bg-background text-foreground",
+            fontSizeClass,
+            themeClass && "bg-zinc-900 text-zinc-100",
           )}
-
-          <ThreadPrimitive.Messages
-            components={{
-              UserMessage: () => (
-                <UserMessage
-                  config={config}
+        >
+          <ThreadPrimitive.Viewport className="relative flex flex-1 flex-col overflow-y-auto px-4">
+            {components.threadWelcome && (
+              <ThreadPrimitive.Empty>
+                <ThreadWelcome
+                  showSuggestions={components.suggestions}
                   borderRadiusClass={borderRadiusClass}
-                  messageSpacingClass={messageSpacingClass}
                 />
-              ),
-              AssistantMessage: () => (
-                <AssistantMessage
-                  config={config}
-                  borderRadiusClass={borderRadiusClass}
-                  messageSpacingClass={messageSpacingClass}
-                />
-              ),
-            }}
-          />
+              </ThreadPrimitive.Empty>
+            )}
 
-          <ThreadPrimitive.If empty={false}>
-            <div className="min-h-8 grow" />
-          </ThreadPrimitive.If>
+            <ThreadPrimitive.Messages components={messageComponents} />
 
-          <Composer config={config} borderRadiusClass={borderRadiusClass} />
-        </ThreadPrimitive.Viewport>
-      </ThreadPrimitive.Root>
-    </div>
+            <ThreadPrimitive.If empty={false}>
+              <div className="min-h-8 grow" />
+            </ThreadPrimitive.If>
+
+            <Composer config={config} borderRadiusClass={borderRadiusClass} />
+          </ThreadPrimitive.Viewport>
+        </ThreadPrimitive.Root>
+      </div>
+    </BuilderPreviewContext.Provider>
   );
 }
 
