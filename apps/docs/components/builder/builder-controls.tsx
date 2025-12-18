@@ -64,7 +64,7 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between px-4 py-3">
+      <div className="flex items-center justify-between px-4">
         <span className="font-medium text-sm">Settings</span>
         <button
           onClick={() => onChange(DEFAULT_CONFIG)}
@@ -76,7 +76,7 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
       </div>
 
       <ScrollArea className="flex-1">
-        <div className="space-y-6 px-4 pb-6">
+        <div className="space-y-6 px-4 py-6">
           <Section title="Preset">
             <div className="flex flex-wrap gap-1.5">
               {PRESETS.map((preset) => (

@@ -46,7 +46,7 @@ function ThemeToggle() {
 export default function PlaygroundPage() {
   return (
     <div className="flex h-svh flex-col overflow-hidden">
-      <header className="shrink-0 bg-muted/40">
+      <header className="shrink-0">
         <div className="flex h-11 items-center justify-between px-5 text-sm">
           <div className="flex items-center gap-2">
             <Link

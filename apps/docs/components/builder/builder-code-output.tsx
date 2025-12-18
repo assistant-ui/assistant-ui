@@ -5,6 +5,7 @@ import { highlight } from "sugar-high";
 import { CheckIcon, CopyIcon, TerminalIcon, CodeIcon } from "lucide-react";
 
 import type { BuilderConfig } from "./types";
+import { cn } from "@/lib/utils";
 
 interface BuilderCodeOutputProps {
   config: BuilderConfig;
@@ -36,22 +37,24 @@ export function BuilderCodeOutput({ config }: BuilderCodeOutputProps) {
         <div className="flex gap-1">
           <button
             onClick={() => setActiveTab("code")}
-            className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs transition-colors ${
+            className={cn(
+              "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs transition-colors",
               activeTab === "code"
                 ? "bg-foreground/10 text-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
+                : "text-muted-foreground hover:text-foreground",
+            )}
           >
             <CodeIcon className="size-3.5" />
             Code
           </button>
           <button
             onClick={() => setActiveTab("cli")}
-            className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs transition-colors ${
+            className={cn(
+              "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs transition-colors",
               activeTab === "cli"
                 ? "bg-foreground/10 text-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
+                : "text-muted-foreground hover:text-foreground",
+            )}
           >
             <TerminalIcon className="size-3.5" />
             CLI
