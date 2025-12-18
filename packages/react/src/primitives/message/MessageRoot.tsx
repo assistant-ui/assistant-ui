@@ -30,7 +30,9 @@ const useIsHoveringRef = () => {
       el.addEventListener("mouseenter", handleMouseEnter);
       el.addEventListener("mouseleave", handleMouseLeave);
 
-      if (el.matches(":hover")) message.setIsHovering(true);
+      if (el.matches(":hover")) {
+        queueMicrotask(() => message.setIsHovering(true));
+      }
 
       return () => {
         el.removeEventListener("mouseenter", handleMouseEnter);
