@@ -12,6 +12,7 @@
  */
 
 import { useState, type ReactNode } from "react";
+import { cn } from "@/lib/utils";
 
 export default function ShimmerSandboxPage() {
   return (
@@ -765,7 +766,7 @@ function ColorTestSection() {
             {SHIMMER_COLORS.map(({ name, shimmerColor, textColor }) => (
               <p
                 key={name}
-                className={`shimmer text-lg ${textColor}`}
+                className={cn("shimmer text-lg", textColor)}
                 style={
                   { "--shimmer-color": shimmerColor } as React.CSSProperties
                 }
@@ -1718,7 +1719,10 @@ function InteractivePlaygroundSection() {
         <div className="space-y-4">
           <h3 className="font-semibold">Preview</h3>
           <div
-            className={`${containerClass} rounded-lg border border-dashed p-4`}
+            className={cn(
+              "rounded-lg border border-dashed p-4",
+              containerClass,
+            )}
             style={{ width: `${width}px`, maxWidth: "100%" }}
           >
             <div className="flex gap-3">
@@ -1761,7 +1765,10 @@ function InteractivePlaygroundSection() {
 
           {/* Text shimmer preview */}
           <div
-            className={`${containerClass} space-y-2 rounded-lg border border-dashed p-4`}
+            className={cn(
+              "space-y-2 rounded-lg border border-dashed p-4",
+              containerClass,
+            )}
             style={{ width: `${width}px`, maxWidth: "100%" }}
           >
             <p
