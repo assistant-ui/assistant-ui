@@ -1,8 +1,7 @@
 {
-  "name": "example-with-assistant-transport",
+  "name": "assistant-ui-example-with-assistant-transport",
   "private": true,
   "version": "0.0.0",
-  "type": "module",
   "dependencies": {
     "@assistant-ui/react": "workspace:^",
     "@assistant-ui/react-langgraph": "workspace:^",

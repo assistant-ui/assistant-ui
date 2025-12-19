@@ -1,6 +1,6 @@
 {
-  "name": "with-ag-ui",
-  "version": "0.1.0",
+  "name": "assistant-ui-example-with-ag-ui",
+  "version": "0.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev --turbo",
