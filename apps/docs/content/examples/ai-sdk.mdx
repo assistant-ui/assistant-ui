@@ -5,10 +5,9 @@ description: Chat persistence with AI SDK
 
 import { Shadcn } from "@/components/example/shadcn/Shadcn";
 import { DocsRuntimeProvider } from "@/contexts/DocsRuntimeProvider";
+import { SourceLink } from "@/components/examples/SourceLink";
 
-## Live Demo
-
-<div className="not-prose h-[700px]">
+<div className="not-prose h-[600px]">
   <DocsRuntimeProvider>
     <Shadcn />
   </DocsRuntimeProvider>
@@ -16,37 +15,100 @@ import { DocsRuntimeProvider } from "@/contexts/DocsRuntimeProvider";
 
 ## Overview
 
-The AI SDK example demonstrates how to integrate assistant-ui with the Vercel AI SDK for chat persistence and state management. This example shows a complete chat interface with thread management, message history, and persistent storage.
+This example demonstrates integrating assistant-ui with the Vercel AI SDK for building production-ready chat interfaces. It showcases a complete chat application with thread management, message persistence, and a collapsible sidebar for conversation history.
 
 ## Features
 
-- **Chat Persistence**: Messages are automatically saved and restored between sessions
-- **Thread Management**: Create, switch between, and manage multiple conversation threads
-- **AI SDK Integration**: Seamless integration with Vercel's AI SDK for streaming responses
-- **Real-time Updates**: Live message streaming with proper loading states
-- **Thread List Sidebar**: Easy navigation between different conversations
+- **AI SDK Integration**: Seamless connection with Vercel's `ai` package
+- **Thread Management**: Create, switch, and delete conversation threads
+- **Collapsible Sidebar**: Toggle sidebar visibility for focused chat
+- **Model Picker**: Switch between different AI models
+- **Responsive Design**: Mobile-friendly with sheet-based navigation
+- **Real-time Streaming**: Live message streaming with loading states
 
-## Usage
+## Quick Start
 
-To implement chat persistence with AI SDK:
-
-1. **Install Dependencies**: Add `@assistant-ui/react-ai-sdk` and `ai` packages
-2. **Configure Runtime**: Use `useChatRuntime` hook with your API endpoint
-3. **Add Persistence**: Configure your preferred storage solution (localStorage, database, etc.)
-4. **Thread Management**: Implement thread creation, switching, and deletion
+```bash
+npm install @assistant-ui/react @assistant-ui/react-ai-sdk ai @ai-sdk/openai
+```
 
 ## Code
 
-This example uses the `useChatRuntime` hook which provides:
+### Client Component
 
-- Automatic message persistence
-- Thread state management
-- Streaming response handling
-- Error handling and retry logic
+```tsx
+"use client";
 
-Key implementation details:
+import { useChat } from "@ai-sdk/react";
+import { useVercelAIRuntime } from "@assistant-ui/react-ai-sdk";
+import { AssistantRuntimeProvider, Thread } from "@assistant-ui/react";
 
-- Thread list with create/delete functionality
-- Message history restoration
-- Real-time streaming updates
-- Proper error boundaries
+export default function Chat() {
+  const chat = useChat({
+    api: "/api/chat",
+  });
+
+  const runtime = useVercelAIRuntime(chat);
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <div className="flex h-full">
+        <Sidebar />
+        <main className="flex-1">
+          <Thread />
+        </main>
+      </div>
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+### API Route
+
+```ts
+// app/api/chat/route.ts
+import { openai } from "@ai-sdk/openai";
+import { streamText } from "ai";
+
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+
+  const result = streamText({
+    model: openai("gpt-4o"),
+    messages,
+    // Optional: Add system prompt
+    system: "You are a helpful assistant.",
+  });
+
+  return result.toDataStreamResponse();
+}
+```
+
+### Key Integration Points
+
+| Hook/Function | Purpose |
+|---------------|---------|
+| `useChat` | AI SDK hook for chat state management |
+| `useVercelAIRuntime` | Adapter connecting AI SDK to assistant-ui |
+| `streamText` | Server-side streaming response generation |
+| `toDataStreamResponse` | Converts stream to Response object |
+
+### Adding Persistence
+
+To persist conversations, add a database and modify the API route:
+
+```ts
+// Save messages to database
+await db.messages.create({
+  threadId,
+  role: message.role,
+  content: message.content,
+});
+
+// Load messages on page load
+const savedMessages = await db.messages.findMany({ threadId });
+```
+
+## Source
+
+<SourceLink href="https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/example/shadcn/Shadcn.tsx" />

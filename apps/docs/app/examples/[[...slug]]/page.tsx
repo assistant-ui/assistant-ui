@@ -33,8 +33,11 @@ export default async function Page(props: {
       {!isIndex && <ExamplesNavbar />}
       <DocsBody>
         {!isIndex && (
-          <header className="mt-7 mb-28 text-center">
-            <h1 className="mt-4 font-bold text-5xl">{page.data.title}</h1>
+          <header className="not-prose flex flex-col gap-1 pb-8">
+            <h1 className="font-medium text-2xl">{page.data.title}</h1>
+            {page.data.description && (
+              <p className="text-muted-foreground">{page.data.description}</p>
+            )}
           </header>
         )}
         <DocsRuntimeProvider>
@@ -46,12 +49,10 @@ export default async function Page(props: {
 }
 
 export async function generateStaticParams() {
-  // Generate params for both index and individual pages
   const pages = examples.getPages().map((page) => ({
     slug: page.slugs,
   }));
 
-  // Add the index page (empty slug)
   return [{ slug: [] }, ...pages];
 }
 

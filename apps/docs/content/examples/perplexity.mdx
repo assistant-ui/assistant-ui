@@ -5,10 +5,9 @@ description: Dark theme with cyan accents for a Perplexity look and feel
 
 import { Perplexity } from "@/components/example/perplexity/Perplexity";
 import { DocsRuntimeProvider } from "@/contexts/DocsRuntimeProvider";
+import { SourceLink } from "@/components/examples/SourceLink";
 
-## Live Demo
-
-<div className="not-prose h-[700px]">
+<div className="not-prose h-[600px]">
   <DocsRuntimeProvider>
     <Perplexity />
   </DocsRuntimeProvider>
@@ -16,33 +15,97 @@ import { DocsRuntimeProvider } from "@/contexts/DocsRuntimeProvider";
 
 ## Overview
 
-The Perplexity Clone example demonstrates how to customize assistant-ui to match Perplexity's interface. This includes their distinctive dark theme with cyan accents, search-focused design, and clean approach to AI responses.
+The Perplexity Clone demonstrates how to customize assistant-ui to match Perplexity's search-focused interface. This example features their distinctive forced dark theme with cyan accents, large welcome typography, and answer-focused response formatting.
 
 ## Features
 
-- **Perplexity Styling**: Dark theme with cyan accent colors
-- **Search Interface**: Search-focused input design with prominent search button
-- **Clean Layout**: Perplexity's clean, information-dense design
-- **Responsive Design**: Mobile-optimized interface
-- **Dark Mode**: Forced dark theme for consistent appearance
+- **Forced Dark Theme**: Consistent `#1a1a1a` background regardless of system preference
+- **Cyan Accent**: Signature `#20b8cd` for interactive elements
+- **Search-First Design**: Large welcome text with prominent input
+- **Answer Format**: Responses prefixed with sparkle icon and "Answer" heading
+- **Layered Surfaces**: Multiple dark shades for depth (`#1a1a1a`, `#242424`, `#3a3a3a`)
+- **Attachment Support**: File uploads with paperclip icon
 
-## Usage
+## Quick Start
 
-To create a Perplexity-style interface:
-
-1. **Color Palette**: Dark backgrounds (#1a1a1a, #242424) with cyan accents (#20b8cd)
-2. **Search Design**: Prominent search input with clear visual hierarchy
-3. **Dark Theme**: Use `dark` class to force dark mode styling
-4. **Layout Structure**: Clean, information-dense layout design
+```bash
+npx assistant-ui add thread
+```
 
 ## Code
 
-Key design elements for Perplexity clone:
+The Perplexity clone uses a dark theme with cyan accents:
 
-- **Accent Cyan**: Perplexity's signature cyan (#20b8cd) for primary actions
-- **Dark Surfaces**: Layered dark backgrounds for depth (#1a1a1a, #242424, #3a3a3a)
-- **Search Focus**: Large, prominent search input field
-- **Typography**: Clean, readable fonts optimized for information consumption
-- **Spacing**: Balanced whitespace for readability
+```tsx
+import {
+  ThreadPrimitive,
+  ComposerPrimitive,
+  MessagePrimitive,
+} from "@assistant-ui/react";
 
-The implementation emphasizes information clarity and a consistent dark appearance while maintaining assistant-ui's core functionality.
+export const Thread = () => {
+  return (
+    <ThreadPrimitive.Root
+      className="dark h-full bg-[#1a1a1a] text-[#f5f5f5]"
+      style={{ ["--thread-max-width"]: "42rem" }}
+    >
+      <ThreadPrimitive.Empty>
+        <div className="flex h-full w-full items-center justify-center">
+          <div className="flex w-full max-w-[var(--thread-max-width)] flex-col gap-12">
+            <p className="text-4xl text-[#f5f5f5] md:text-5xl">
+              What do you want to know?
+            </p>
+            <ComposerPrimitive.Root className="rounded-xl border border-[#3a3a3a] bg-[#242424] focus-within:border-[#20b8cd] focus-within:ring-1 focus-within:ring-[#20b8cd]/30">
+              <ComposerPrimitive.Input
+                placeholder="Ask anything..."
+                className="text-[#f5f5f5] text-lg placeholder:text-[#808080]"
+              />
+              <ComposerPrimitive.Send className="rounded-full bg-[#20b8cd] text-[#1a1a1a] hover:bg-[#1aa3b5]">
+                <ArrowRightIcon />
+              </ComposerPrimitive.Send>
+            </ComposerPrimitive.Root>
+          </div>
+        </div>
+      </ThreadPrimitive.Empty>
+
+      <ThreadPrimitive.Viewport>
+        <ThreadPrimitive.Messages components={{ UserMessage, AssistantMessage }} />
+        <Composer />
+      </ThreadPrimitive.Viewport>
+    </ThreadPrimitive.Root>
+  );
+};
+
+const AssistantMessage = () => (
+  <MessagePrimitive.Root className="max-w-[var(--thread-max-width)]">
+    <h1 className="mb-4 inline-flex items-center gap-2 text-2xl text-[#20b8cd]">
+      <SparkleIcon /> Answer
+    </h1>
+    <MessagePrimitive.Parts components={{ Text: MarkdownText }} />
+  </MessagePrimitive.Root>
+);
+```
+
+### Color Palette
+
+| Element | Color |
+|---------|-------|
+| Background | `#1a1a1a` |
+| Surface | `#242424` |
+| Border | `#3a3a3a` |
+| Text | `#f5f5f5` |
+| Muted text | `#808080`, `#a0a0a0` |
+| Accent (cyan) | `#20b8cd` |
+| Accent hover | `#1aa3b5` |
+
+### Styling Details
+
+- **Focus Ring**: `focus-within:border-[#20b8cd] focus-within:ring-1 focus-within:ring-[#20b8cd]/30`
+- **CSS Variable**: `--thread-max-width: 42rem` for consistent content width
+- **Welcome**: Large `text-4xl md:text-5xl` for impact
+- **Follow-up Composer**: Rounded pill with `rounded-full` in follow-up mode
+- **Answer Heading**: Cyan text with sparkle icon prefix
+
+## Source
+
+<SourceLink href="https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/example/perplexity/thread.tsx" />

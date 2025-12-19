@@ -5,10 +5,9 @@ description: Customized colors and styles for a Grok look and feel
 
 import { Grok } from "@/components/grok/Grok";
 import { DocsRuntimeProvider } from "@/contexts/DocsRuntimeProvider";
+import { SourceLink } from "@/components/examples/SourceLink";
 
-## Live Demo
-
-<div className="not-prose h-[700px]">
+<div className="not-prose h-[600px]">
   <DocsRuntimeProvider>
     <Grok />
   </DocsRuntimeProvider>
@@ -16,35 +15,110 @@ import { DocsRuntimeProvider } from "@/contexts/DocsRuntimeProvider";
 
 ## Overview
 
-The Grok Clone example demonstrates how to customize assistant-ui to match xAI's Grok interface. This includes the characteristic light/dark theme support and minimalist design.
+The Grok Clone demonstrates how to customize assistant-ui to match xAI's Grok interface. This example features a clean, minimalist design with smooth animations, inverted color schemes for light/dark modes, and a distinctive welcome screen with the Grok logo.
 
 ## Features
 
-- **Grok Styling**: Authentic Grok look with light and dark theme support
-- **Theme Support**: Light (#FDFDFD) and dark (#141414) backgrounds
-- **Message Formatting**: Clean message layout with proper spacing
-- **Input Design**: Grok-style rounded input field with animated send button
-- **Empty State**: Welcome screen with Grok logo
-- **Action Buttons**: Edit, Copy, Regenerate, and Feedback actions
+- **Minimalist Design**: Clean interface with subtle ring borders
+- **Animated Composer**: Smooth transitions between send, voice, and cancel states
+- **Empty State**: Welcome screen with centered Grok logo
+- **Attachment Thumbnails**: Image preview with hover-to-remove
+- **Inverted Buttons**: Dark button on light mode, light button on dark mode
+- **Model Selector**: Animated expand/collapse on focus
 
-## Usage
+## Quick Start
 
-To create a Grok-style interface:
-
-1. **Color Scheme**: Apply Grok's background colors (#FDFDFD light / #141414 dark)
-2. **Typography**: Use clean, sans-serif fonts with proper hierarchy
-3. **Layout Design**: Implement Grok's minimalist layout with smooth animations
-4. **Component Styling**: Customize all UI elements to match Grok's aesthetic
+```bash
+npx assistant-ui add thread
+```
 
 ## Code
 
-Key styling elements for Grok clone:
+The Grok clone uses clean minimalism with smooth animations:
 
-- **Primary Background**: #FDFDFD (light) / #141414 (dark) for the main container
-- **Input Background**: #F8F8F8 (light) / #212121 (dark) for the composer area
-- **Text Colors**: #0d0d0d (light) / #e5e5e5 (dark) for content
-- **Borders**: Subtle borders (#e5e5e5 light / #2a2a2a dark) for separation
-- **Animations**: Smooth transitions for button states and model selector
+```tsx
+import {
+  ThreadPrimitive,
+  ComposerPrimitive,
+  useAssistantState,
+} from "@assistant-ui/react";
 
-The implementation focuses on the clean, modern aesthetic while maintaining all assistant-ui functionality.
+export const Grok = () => {
+  return (
+    <ThreadPrimitive.Root className="flex h-full flex-col bg-[#fdfdfd] px-4 dark:bg-[#141414]">
+      <ThreadPrimitive.Empty>
+        <div className="flex h-full flex-col items-center justify-center">
+          <GrokLogo className="mb-6 h-10 text-[#0d0d0d] dark:text-white" />
+          <Composer />
+        </div>
+      </ThreadPrimitive.Empty>
 
+      <ThreadPrimitive.Viewport className="flex grow flex-col overflow-y-scroll pt-16">
+        <ThreadPrimitive.Messages components={{ Message: ChatMessage }} />
+      </ThreadPrimitive.Viewport>
+      <Composer />
+    </ThreadPrimitive.Root>
+  );
+};
+
+const Composer = () => {
+  const isEmpty = useAssistantState((s) => s.composer.isEmpty);
+  const isRunning = useAssistantState((s) => s.thread.isRunning);
+
+  return (
+    <ComposerPrimitive.Root
+      className="group/composer mx-auto mb-3 w-full max-w-3xl"
+      data-empty={isEmpty}
+      data-running={isRunning}
+    >
+      <div className="rounded-4xl bg-[#f8f8f8] ring-1 ring-[#e5e5e5] ring-inset dark:bg-[#212121] dark:ring-[#2a2a2a]">
+        <ComposerPrimitive.Input
+          placeholder="What do you want to know?"
+          className="w-full bg-transparent text-[#0d0d0d] outline-none dark:text-white"
+        />
+        {/* Animated button with three states */}
+        <div className="relative h-9 w-9 rounded-full bg-[#0d0d0d] dark:bg-white">
+          <button className="group-data-[empty=false]/composer:scale-0">
+            <Mic /> {/* Voice mode when empty */}
+          </button>
+          <ComposerPrimitive.Send className="group-data-[empty=true]/composer:scale-0">
+            <ArrowUpIcon /> {/* Send when has text */}
+          </ComposerPrimitive.Send>
+          <ComposerPrimitive.Cancel className="group-data-[running=false]/composer:scale-0">
+            <Square /> {/* Stop when running */}
+          </ComposerPrimitive.Cancel>
+        </div>
+      </div>
+    </ComposerPrimitive.Root>
+  );
+};
+```
+
+### Color Palette
+
+| Element | Light | Dark |
+|---------|-------|------|
+| Background | `#fdfdfd` | `#141414` |
+| Input bg | `#f8f8f8` | `#212121` |
+| Text | `#0d0d0d` | `white` |
+| Muted | `#9a9a9a` | `#6b6b6b` |
+| Ring border | `#e5e5e5` | `#2a2a2a` |
+| Send button | `#0d0d0d` | `white` |
+
+### Animation Technique
+
+The composer uses `data-*` attributes for state-based animations:
+
+```tsx
+// Container passes state as data attributes
+<ComposerPrimitive.Root data-empty={isEmpty} data-running={isRunning}>
+
+// Children animate based on parent's data attributes
+<button className="group-data-[empty=false]/composer:scale-0 group-data-[empty=false]/composer:opacity-0">
+```
+
+This creates smooth transitions between voice → send → cancel button states.
+
+## Source
+
+<SourceLink href="https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/grok/Grok.tsx" />
