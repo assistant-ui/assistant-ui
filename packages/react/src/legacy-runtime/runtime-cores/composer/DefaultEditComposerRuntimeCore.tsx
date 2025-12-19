@@ -1,7 +1,8 @@
-import { AppendMessage, ThreadMessage } from "../../../types";
+import type { AppendMessage, ThreadMessage } from "../../../types";
 import { getThreadMessageText } from "../../../utils/getThreadMessageText";
-import { AttachmentAdapter } from "../adapters/attachment";
-import { ThreadRuntimeCore } from "../core/ThreadRuntimeCore";
+import type { AttachmentAdapter } from "../adapters/attachment";
+import type { SpeechRecognitionAdapter } from "../adapters/speech/SpeechAdapterTypes";
+import type { ThreadRuntimeCore } from "../core/ThreadRuntimeCore";
 import { BaseComposerRuntimeCore } from "./BaseComposerRuntimeCore";
 
 export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
@@ -13,13 +14,22 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
     return this.runtime.adapters?.attachments;
   }
 
+  protected getSpeechRecognitionAdapter() {
+    return this.runtime.adapters?.speechRecognition;
+  }
+
   private _nonTextParts;
   private _previousText;
   private _parentId;
   private _sourceId;
   constructor(
     private runtime: ThreadRuntimeCore & {
-      adapters?: { attachments?: AttachmentAdapter | undefined } | undefined;
+      adapters?:
+        | {
+            attachments?: AttachmentAdapter | undefined;
+            speechRecognition?: SpeechRecognitionAdapter | undefined;
+          }
+        | undefined;
     },
     private endEditCallback: () => void,
     { parentId, message }: { parentId: string | null; message: ThreadMessage },
