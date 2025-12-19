@@ -1,16 +1,24 @@
 "use client";
 
-import { type ReactNode, useState, useEffect } from "react";
+import { type ReactNode, useState, useEffect, useMemo } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import Image from "next/image";
 import { Moon, Sun } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { GitHubIcon } from "@/components/icons/github";
 
+interface BreadcrumbItem {
+  label: string;
+  href: string;
+  shimmer?: boolean;
+}
+
 interface SubProjectLayoutProps {
   name: string;
   githubPath: string;
   shimmerTitle?: boolean;
+  breadcrumbs?: BreadcrumbItem[];
   children: ReactNode;
 }
 
@@ -60,8 +68,31 @@ export function SubProjectLayout({
   name,
   githubPath,
   shimmerTitle,
+  breadcrumbs: breadcrumbsOverride,
   children,
 }: SubProjectLayoutProps): React.ReactElement {
+  const pathname = usePathname();
+
+  const breadcrumbs = useMemo(() => {
+    if (breadcrumbsOverride) {
+      return breadcrumbsOverride;
+    }
+
+    const basePath = `/${name}`;
+    if (!pathname.startsWith(basePath) || pathname === basePath) {
+      return [];
+    }
+
+    const subPath = pathname.slice(basePath.length);
+    const segments = subPath.split("/").filter(Boolean);
+
+    return segments.map((segment, index) => ({
+      label: segment,
+      href: `${basePath}/${segments.slice(0, index + 1).join("/")}`,
+      shimmer: false,
+    }));
+  }, [pathname, name, breadcrumbsOverride]);
+
   return (
     <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-50 w-full">
@@ -88,6 +119,23 @@ export function SubProjectLayout({
             >
               {name}
             </Link>
+            {breadcrumbs?.map((item, index) => (
+              <span key={item.href} className="contents">
+                <span className="ml-3 text-muted-foreground/40">/</span>
+                <Link
+                  href={item.href}
+                  className={cn(
+                    "ml-3 text-sm transition-colors hover:text-foreground",
+                    index === breadcrumbs.length - 1
+                      ? "text-foreground"
+                      : "text-muted-foreground",
+                    item.shimmer && "shimmer",
+                  )}
+                >
+                  {item.label}
+                </Link>
+              </span>
+            ))}
           </div>
 
           <div className="flex items-center gap-1">

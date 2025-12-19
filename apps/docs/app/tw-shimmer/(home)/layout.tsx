@@ -1,6 +1,6 @@
-import type { Metadata } from "next";
-import { ReactNode } from "react";
+import type { ReactNode } from "react";
 import { SubProjectLayout } from "@/components/shared/sub-project-layout";
+import { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "tw-shimmer by assistant-ui",
@@ -8,7 +8,7 @@ export const metadata: Metadata = {
     "A zero-dependency Tailwind CSS v4 plugin for beautiful shimmer effects. Fully customizable, performant, and easy to use.",
 };
 
-export default function TwShimmerLayout({
+export default function TwShimmerHomeLayout({
   children,
 }: {
   children: ReactNode;
