@@ -72,6 +72,12 @@ export class LocalThreadRuntimeCore
 
   private _lastRunConfig: RunConfig = {};
 
+  private _getThreadId?: () => string;
+
+  public __internal_setGetThreadId(getThreadId: () => string) {
+    this._getThreadId = getThreadId;
+  }
+
   public get extras() {
     return undefined;
   }
@@ -341,6 +347,7 @@ export class LocalThreadRuntimeCore
         this.adapters.chatModel.run.bind(this.adapters.chatModel);
 
       const abortSignal = this.abortController.signal;
+      const threadId = this._getThreadId?.();
       const promiseOrGenerator = runCallback({
         messages,
         runConfig: this._lastRunConfig,
@@ -348,6 +355,7 @@ export class LocalThreadRuntimeCore
         context,
         config: context,
         unstable_assistantMessageId: message.id,
+        unstable_threadId: threadId,
         unstable_getMessage() {
           return message;
         },

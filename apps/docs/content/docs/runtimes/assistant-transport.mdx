@@ -71,7 +71,8 @@ The backend endpoint receives POST requests with the following payload:
   state: T, // The previous state that the frontend has access to
   commands: AssistantTransportCommand[],
   system?: string,
-  tools?: ToolDefinition[]
+  tools?: ToolDefinition[],
+  threadId: string // The current thread/conversation identifier
 }
 ```
 

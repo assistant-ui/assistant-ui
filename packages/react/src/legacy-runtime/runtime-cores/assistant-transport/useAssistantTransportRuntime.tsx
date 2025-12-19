@@ -88,6 +88,8 @@ const useAssistantTransportThreadRuntime = <T,>(
     onQueue: () => runManager.schedule(),
   });
 
+  const threadId = useAssistantState(({ threadListItem }) => threadListItem.id);
+
   const runManager = useRunManager({
     onRun: async (signal: AbortSignal) => {
       const isResume = resumeFlagRef.current;
@@ -111,6 +113,7 @@ const useAssistantTransportThreadRuntime = <T,>(
             tools: context.tools
               ? toAISDKTools(getEnabledTools(context.tools))
               : undefined,
+            threadId,
             ...context.callSettings,
             ...context.config,
             ...options.body,

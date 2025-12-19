@@ -900,7 +900,7 @@ const OpenAIAdapter: ChatModelAdapter = {
 
 ```tsx
 const CustomAPIAdapter: ChatModelAdapter = {
-  async run({ messages, abortSignal }) {
+  async run({ messages, abortSignal, unstable_threadId }) {
     const response = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -909,6 +909,7 @@ const CustomAPIAdapter: ChatModelAdapter = {
           role: m.role,
           content: m.content,
         })),
+        threadId: unstable_threadId, // Pass thread ID to your backend
       }),
       signal: abortSignal,
     });
@@ -1123,6 +1124,11 @@ Parameters passed to the `run` function.
       type: "ModelContext",
       description: "Additional context including configuration and tools",
       required: true,
+    },
+    {
+      name: "unstable_threadId",
+      type: "string | undefined",
+      description: "The current thread/conversation identifier. Useful for passing to your backend API.",
     },
   ]}
 />

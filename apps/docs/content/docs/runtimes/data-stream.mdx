@@ -63,7 +63,7 @@ Your backend endpoint should accept POST requests and return data stream respons
 import { createAssistantStreamResponse } from "assistant-stream";
 
 export async function POST(request: Request) {
-  const { messages, tools, system } = await request.json();
+  const { messages, tools, system, threadId } = await request.json();
 
   return createAssistantStreamResponse(async (controller) => {
     // Process the request with your AI provider
@@ -80,6 +80,12 @@ export async function POST(request: Request) {
   });
 }
 ```
+
+The request body includes:
+- `messages` - The conversation history
+- `tools` - Available tool definitions
+- `system` - System prompt (if configured)
+- `threadId` - The current thread/conversation identifier
 
 </Step>
 
