@@ -1,5 +1,17 @@
 # @assistant-ui/react
 
+## 0.11.52
+
+### Patch Changes
+
+- 4db92c9: fix(react): useIsHoveringRef on SSR issue
+
+## 0.11.51
+
+### Patch Changes
+
+- fix: update tap package
+
 ## 0.11.50
 
 ### Patch Changes

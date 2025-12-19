@@ -32,9 +32,9 @@ export const registry: RegistryItem[] = [
       },
     ],
     registryDependencies: [
-      "https://r.assistant-ui.com/ai-sdk-backend",
-      "https://r.assistant-ui.com/thread",
-      "https://r.assistant-ui.com/thread-list",
+      "https://r.assistant-ui.com/ai-sdk-backend.json",
+      "https://r.assistant-ui.com/thread.json",
+      "https://r.assistant-ui.com/thread-list.json",
     ],
     meta: {
       importSpecifier: "Assistant",
@@ -66,10 +66,10 @@ export const registry: RegistryItem[] = [
     dependencies: ["@assistant-ui/react", "lucide-react"],
     registryDependencies: [
       "button",
-      "https://r.assistant-ui.com/attachment",
-      "https://r.assistant-ui.com/markdown-text",
-      "https://r.assistant-ui.com/tooltip-icon-button",
-      "https://r.assistant-ui.com/tool-fallback",
+      "https://r.assistant-ui.com/attachment.json",
+      "https://r.assistant-ui.com/markdown-text.json",
+      "https://r.assistant-ui.com/tooltip-icon-button.json",
+      "https://r.assistant-ui.com/tool-fallback.json",
     ],
   },
   {
@@ -81,7 +81,9 @@ export const registry: RegistryItem[] = [
         path: "components/assistant-ui/markdown-text.tsx",
       },
     ],
-    registryDependencies: ["https://r.assistant-ui.com/tooltip-icon-button"],
+    registryDependencies: [
+      "https://r.assistant-ui.com/tooltip-icon-button.json",
+    ],
     dependencies: [
       "@assistant-ui/react-markdown",
       "lucide-react",
@@ -99,7 +101,7 @@ export const registry: RegistryItem[] = [
     ],
     registryDependencies: [
       "collapsible",
-      "https://r.assistant-ui.com/markdown-text",
+      "https://r.assistant-ui.com/markdown-text.json",
     ],
     dependencies: ["@assistant-ui/react", "lucide-react", "tw-shimmer"],
     css: {
@@ -118,7 +120,7 @@ export const registry: RegistryItem[] = [
     registryDependencies: [
       "button",
       "skeleton",
-      "https://r.assistant-ui.com/tooltip-icon-button",
+      "https://r.assistant-ui.com/tooltip-icon-button.json",
     ],
     dependencies: ["@assistant-ui/react", "lucide-react"],
   },
@@ -135,7 +137,7 @@ export const registry: RegistryItem[] = [
       "dialog",
       "tooltip",
       "avatar",
-      "https://r.assistant-ui.com/tooltip-icon-button",
+      "https://r.assistant-ui.com/tooltip-icon-button.json",
     ],
     dependencies: ["@assistant-ui/react", "lucide-react", "zustand"],
   },
@@ -188,8 +190,8 @@ export const registry: RegistryItem[] = [
     ],
     dependencies: ["@assistant-ui/react", "lucide-react"],
     registryDependencies: [
-      "https://r.assistant-ui.com/thread",
-      "https://r.assistant-ui.com/tooltip-icon-button",
+      "https://r.assistant-ui.com/thread.json",
+      "https://r.assistant-ui.com/tooltip-icon-button.json",
     ],
   },
   {
@@ -202,7 +204,10 @@ export const registry: RegistryItem[] = [
       },
     ],
     dependencies: ["@assistant-ui/react"],
-    registryDependencies: ["https://r.assistant-ui.com/thread", "resizable"],
+    registryDependencies: [
+      "resizable",
+      "https://r.assistant-ui.com/thread.json",
+    ],
   },
   {
     name: "tool-fallback",
@@ -252,6 +257,9 @@ export const registry: RegistryItem[] = [
       },
     ],
     dependencies: ["lucide-react"],
-    registryDependencies: ["sidebar", "https://r.assistant-ui.com/thread-list"],
+    registryDependencies: [
+      "sidebar",
+      "https://r.assistant-ui.com/thread-list.json",
+    ],
   },
 ];
