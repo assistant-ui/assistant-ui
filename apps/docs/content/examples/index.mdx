@@ -8,12 +8,11 @@ import { INTERNAL_EXAMPLES, COMMUNITY_EXAMPLES } from "@/lib/examples";
 import { Button } from "@/components/ui/button";
 
 <header className="text-center">
-<h1 className="mt-6 mb-4 text-5xl font-bold">Examples</h1>
+<h1 className="mt-6 mb-4 font-medium text-4xl">Examples</h1>
 
-<aside className="mb-18 text-muted-foreground">
-  Explore our collection of examples that demonstrate different ways
-  to integrate assistant-ui into your applications.
-</aside>
+<span className="mb-16 block text-muted-foreground">
+  Explore our collection of examples that demonstrate different ways to integrate assistant-ui into your applications.
+</span>
 </header>
 
 <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
@@ -22,16 +21,17 @@ import { Button } from "@/components/ui/button";
   ))}
 </div>
 
-<h2 className="mt-20 mb-8 text-3xl font-bold">Community Examples</h2>
+<h2 className="mt-16 mb-8 font-medium text-2xl">Community Examples</h2>
+
 <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
   {COMMUNITY_EXAMPLES.map((item) => (
     <ExampleCard key={item.title} {...item} />
   ))}
 </div>
 
-<div className="my-20 flex flex-col items-center gap-6">
-  <h2 className="text-4xl font-bold">Looking for more examples?</h2>
+<div className="my-16 flex flex-col items-center gap-4">
+  <span className="font-medium text-xl">Looking for more examples?</span>
   <Button asChild>
-    <a href="/showcase">Check out the community showcase!</a>
+    <a href="/showcase">Check out the community showcase</a>
   </Button>
 </div>

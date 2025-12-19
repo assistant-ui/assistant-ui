@@ -1,5 +1,12 @@
 # @assistant-ui/store
 
+## 0.0.4
+
+### Patch Changes
+
+- Updated dependencies
+  - @assistant-ui/tap@0.3.4
+
 ## 0.0.3
 
 ### Patch Changes
