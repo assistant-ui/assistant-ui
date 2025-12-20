@@ -7,60 +7,26 @@ on:
     types: [created]
   issues:
     types: [opened, assigned]
-
-concurrency:
-  group: claude-code-${{ github.event.issue.number || github.event.pull_request.number }}
-  cancel-in-progress: true
+  pull_request_review:
+    types: [submitted]
 
 jobs:
-  check-permissions:
-    # Only run if @claude is mentioned (bot filtering handled by claude-code-action)
+  claude:
     if: |
       (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
       (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
       (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    timeout-minutes: 2
+    runs-on: ubuntu-latest
     permissions:
       contents: read
-    outputs:
-      can-run: ${{ steps.check.outputs.result }}
-    steps:
-      - name: Check user has write access
-        id: check
-        uses: actions/github-script@v8
-        with:
-          script: |
-            try {
-              const { data } = await github.rest.repos.getCollaboratorPermissionLevel({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                username: context.actor
-              });
-              const hasWrite = ['admin', 'write', 'maintain'].includes(data.permission);
-              if (!hasWrite) {
-                core.notice(`Skipped: @claude can only be used by repository collaborators with write access. User ${context.actor} has ${data.permission} access.`);
-              }
-              return hasWrite;
-            } catch (error) {
-              core.setFailed(`Failed to verify permissions for ${context.actor}: ${error.message}`);
-              throw error;
-            }
-
-  claude:
-    needs: check-permissions
-    if: needs.check-permissions.outputs.can-run == 'true'
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    timeout-minutes: 60
-    permissions:
-      contents: read
-      pull-requests: write
-      issues: write
+      pull-requests: read
+      issues: read
       id-token: write
-      actions: read
+      actions: read # Required for Claude to read CI results on PRs
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
@@ -79,6 +45,6 @@ jobs:
 
           # Optional: Add claude_args to customize behavior and configuration
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
-          # or https://docs.claude.com/en/docs/claude-code/cli-reference for available options
+          # or https://code.claude.com/docs/en/cli-reference for available options
           # claude_args: '--allowed-tools Bash(gh pr:*)'
 
