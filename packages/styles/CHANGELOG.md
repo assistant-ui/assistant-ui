@@ -1,5 +1,13 @@
 # @assistant-ui/styles
 
+## 0.3.2
+
+### Patch Changes
+
+- 57bd207: chore: update dependencies
+- cce009d: feat: change import to @import "@assistant-ui/styles";
+- cce009d: chore: use tsc for building packages
+
 ## 0.3.1
 
 ### Patch Changes
