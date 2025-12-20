@@ -118,9 +118,13 @@ jobs:
         if: fromJson(steps.check-permission.outputs.result).authorized == true
         run: pnpm install
 
-      - name: Run Biome fix
+      - name: Run lint fix
         if: fromJson(steps.check-permission.outputs.result).authorized == true
-        run: pnpm biome:fix
+        run: pnpm lint:fix
+
+      - name: Sync registry components
+        if: fromJson(steps.check-permission.outputs.result).authorized == true
+        run: bash scripts/sync-registry-components.sh
 
       - name: Commit changes
         if: fromJson(steps.check-permission.outputs.result).authorized == true
