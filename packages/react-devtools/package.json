@@ -1,5 +1,6 @@
 {
   "name": "@assistant-ui/react-devtools",
+  "version": "0.1.11",
   "description": "React development tools for assistant-ui components",
   "keywords": [
     "assistant-ui",
@@ -8,16 +9,16 @@
     "development",
     "debugging"
   ],
-  "version": "0.1.11",
+  "author": "AgentbaseAI Inc.",
   "license": "MIT",
   "type": "module",
   "exports": {
     ".": {
+      "aui-source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     }
   },
-  "source": "./src/index.ts",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "files": [
@@ -27,20 +28,18 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "tsx scripts/build.mts",
-    "build:lib": "tsx scripts/build-lib.mts",
-    "dev": "tsx scripts/build.mts --watch"
+    "build": "aui-build"
   },
   "dependencies": {
     "zod": "^4.1.13"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "*",
-    "@assistant-ui/tap": "*",
+    "@assistant-ui/react": "^0.11.52",
+    "@assistant-ui/tap": "^0.3.4",
     "@types/react": "*",
     "@types/react-dom": "*",
-    "react": "^18 || ^19 || ^19.0.0-rc",
-    "react-dom": "^18 || ^19 || ^19.0.0-rc"
+    "react": "^18 || ^19",
+    "react-dom": "^18 || ^19"
   },
   "peerDependenciesMeta": {
     "@types/react": {
@@ -55,8 +54,10 @@
     "@assistant-ui/tap": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/node": "^25.0.0",
-    "tsx": "^4.21.0",
-    "vitest": "^4.0.15"
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "react": "19.2.3",
+    "react-dom": "19.2.3"
   },
   "publishConfig": {
     "access": "public",
@@ -65,7 +66,8 @@
   "homepage": "https://www.assistant-ui.com/",
   "repository": {
     "type": "git",
-    "url": "https://github.com/assistant-ui/assistant-ui/tree/main/packages/react-devtools"
+    "url": "git+https://github.com/assistant-ui/assistant-ui.git",
+    "directory": "packages/react-devtools"
   },
   "bugs": {
     "url": "https://github.com/assistant-ui/assistant-ui/issues"

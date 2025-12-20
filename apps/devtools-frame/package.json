@@ -2,6 +2,7 @@
   "name": "@assistant-ui/devtools-frame",
   "version": "0.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev --port 3010",
     "build": "next build",

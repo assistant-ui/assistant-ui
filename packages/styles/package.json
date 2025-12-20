@@ -1,8 +1,18 @@
 {
   "name": "@assistant-ui/styles",
-  "description": "Styles for @assistant-ui/react for non-Tailwind users",
   "version": "0.3.1",
+  "description": "Styles for @assistant-ui/react for non-Tailwind users",
+  "keywords": [
+    "styles",
+    "css",
+    "assistant-ui",
+    "react",
+    "ui",
+    "chat"
+  ],
+  "author": "AgentbaseAI Inc.",
   "license": "MIT",
+  "type": "module",
   "exports": {
     "./*": {
       "default": "./dist/styles/*"
@@ -13,17 +23,18 @@
     "src",
     "README.md"
   ],
-  "sideEffects": false,
+  "sideEffects": [
+    "./dist/styles/*.css"
+  ],
   "scripts": {
-    "build": "tsx scripts/build.mts",
-    "sync-styles": "tsx scripts/sync-styles.mts",
-    "sync-styles:dry-run": "tsx scripts/sync-styles.mts --dry-run"
+    "build": "tsx scripts/build.ts",
+    "sync-styles": "tsx scripts/sync-styles.ts",
+    "sync-styles:dry-run": "tsx scripts/sync-styles.ts --dry-run"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@tailwindcss/postcss": "^4.1.18",
     "@types/node": "^25.0.0",
-    "autoprefixer": "^10.4.22",
     "chalk": "^5.6.2",
     "commander": "^14.0.2",
     "postcss": "^8.5.6",
@@ -41,7 +52,8 @@
   "homepage": "https://www.assistant-ui.com/",
   "repository": {
     "type": "git",
-    "url": "https://github.com/assistant-ui/assistant-ui/tree/main/packages/styles"
+    "url": "git+https://github.com/assistant-ui/assistant-ui.git",
+    "directory": "packages/styles"
   },
   "bugs": {
     "url": "https://github.com/assistant-ui/assistant-ui/issues"
