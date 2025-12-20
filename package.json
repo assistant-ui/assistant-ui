@@ -10,11 +10,8 @@
     "ci:publish": "turbo build --filter=\"./packages/*\" && changeset publish",
     "build": "turbo build",
     "lint": "pnpm exec biome check",
+    "lint:fix": "pnpm exec biome check --fix",
     "test": "turbo test",
-    "biome:check": "pnpm exec biome check",
-    "biome:format": "pnpm exec biome format --write",
-    "biome:lint": "pnpm exec biome lint --write",
-    "biome:fix": "pnpm exec biome check --fix",
     "prepare": "husky"
   },
   "devDependencies": {
