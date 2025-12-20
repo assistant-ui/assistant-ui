@@ -25,7 +25,7 @@
   "dependencies": {
     "assistant-stream": "^0.2.45",
     "uuid": "^13.0.0",
-    "zod": "^4.1.13"
+    "zod": "^4.2.1"
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.11.52",

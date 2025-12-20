@@ -32,7 +32,7 @@
     "dev": "tsx scripts/build.mts --watch"
   },
   "dependencies": {
-    "zod": "^4.1.13"
+    "zod": "^4.2.1"
   },
   "peerDependencies": {
     "@assistant-ui/react": "*",

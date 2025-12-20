@@ -8,7 +8,7 @@
     "cosmiconfig": "^9.0.0",
     "cross-spawn": "^7.0.6",
     "tsconfig-paths": "^4.2.0",
-    "zod": "^4.1.13"
+    "zod": "^4.2.1"
   },
   "type": "module",
   "devDependencies": {
