@@ -5,13 +5,13 @@ import { callResourceFn } from "./callResourceFn";
 import { isDevelopment } from "./env";
 
 export function createResourceFiber<R, P>(
-  resource: Resource<R, P>,
-  scheduleRerender: () => void,
+  type: Resource<R, P>,
+  scheduleUpdate: () => void,
   strictMode: "root" | "child" | null = getDevStrictMode(false),
 ): ResourceFiber<R, P> {
   return {
-    resource,
-    scheduleRerender,
+    type,
+    scheduleUpdate,
     devStrictMode: strictMode,
     cells: [],
     currentIndex: 0,
@@ -44,7 +44,7 @@ export function renderResourceFiber<R, P>(
   withResourceFiber(fiber, () => {
     fiber.renderContext = result;
     try {
-      result.output = callResourceFn(fiber.resource, props);
+      result.output = callResourceFn(fiber.type, props);
     } finally {
       fiber.renderContext = undefined;
     }

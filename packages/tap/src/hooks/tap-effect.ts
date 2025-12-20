@@ -18,6 +18,8 @@ function getEffectCell(): number {
     const cell: Cell & { type: "effect" } = {
       type: "effect",
       mounted: false,
+      cleanup: undefined,
+      deps: undefined,
     };
 
     fiber.cells[index] = cell;

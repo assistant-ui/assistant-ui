@@ -24,7 +24,7 @@ export { flushResourcesSync } from "./core/scheduler";
 // context
 export {
   createResourceContext,
-  tapContext,
+  tap,
   withContextProvider,
 } from "./core/context";
 

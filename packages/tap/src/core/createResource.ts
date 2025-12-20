@@ -20,7 +20,7 @@ export namespace createResource {
   export type Unsubscribe = () => void;
 
   export interface Handle<R, P> {
-    getOutput(): R;
+    getValue(): R;
     subscribe(callback: () => void): Unsubscribe;
     render(element: ResourceElement<R, P>): void;
     unmount(): void;
@@ -50,7 +50,7 @@ const HandleWrapperResource = resource(
 
     const handle = tapMemo(
       () => ({
-        getOutput: () => valueRef.current,
+        getValue: () => valueRef.current,
         subscribe: (callback: () => void) => {
           subscribers.add(callback);
           return () => subscribers.delete(callback);

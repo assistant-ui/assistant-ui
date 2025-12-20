@@ -23,6 +23,6 @@ export const withContextProvider = <T, TResult>(
   }
 };
 
-export const tapContext = <T>(context: Context<T>) => {
+export const tap = <T>(context: Context<T>) => {
   return context[contextValue];
 };

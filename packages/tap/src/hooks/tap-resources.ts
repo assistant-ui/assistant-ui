@@ -95,7 +95,7 @@ export function tapResources(
 
       let fiber = fibers.get(elementKey);
 
-      if (!fiber || fiber.resource !== element.type) {
+      if (!fiber || fiber.type !== element.type) {
         // Create new fiber if needed or type changed
         if (fiber) results.remove.push(elementKey);
         fiber = createResourceFiber(element.type, rerender);

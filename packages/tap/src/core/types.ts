@@ -33,13 +33,13 @@ export type Cell =
   | {
       readonly type: "effect";
       mounted: boolean;
-      cleanup?: tapEffect.Destructor | void;
-      deps?: readonly unknown[] | undefined;
+      cleanup: tapEffect.Destructor | void;
+      deps: readonly unknown[] | undefined;
     };
 
 export interface EffectTask {
   readonly effect: tapEffect.EffectCallback;
-  readonly deps?: readonly unknown[] | undefined;
+  readonly deps: readonly unknown[] | undefined;
   readonly cellIndex: number;
 }
 
@@ -50,8 +50,8 @@ export interface RenderResult {
 }
 
 export interface ResourceFiber<R, P> {
-  readonly scheduleRerender: () => void;
-  readonly resource: Resource<R, P>;
+  readonly scheduleUpdate: () => void;
+  readonly type: Resource<R, P>;
   readonly devStrictMode: "root" | "child" | null;
 
   cells: Cell[];

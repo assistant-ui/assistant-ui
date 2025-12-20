@@ -1,6 +1,6 @@
 import {
   createResourceContext,
-  tapContext,
+  tap,
   withContextProvider,
   tapEffectEvent,
 } from "@assistant-ui/tap";
@@ -33,7 +33,7 @@ export const withAssistantTapContextProvider = <TResult>(
 };
 
 const tapAssistantTapContext = () => {
-  const ctx = tapContext(AssistantTapContext);
+  const ctx = tap(AssistantTapContext);
   if (!ctx) throw new Error("AssistantTapContext is not available");
 
   return ctx;

@@ -4,6 +4,7 @@ import {
   resource,
   createResource,
   tapState,
+  tapMemo,
 } from "@assistant-ui/tap";
 import { Unsubscribe } from "../types/client";
 
@@ -29,6 +30,12 @@ export const StoreResource = resource(
       handle.render(element);
     });
 
-    return handle;
+    return tapMemo(
+      () => ({
+        getState: handle.getValue,
+        subscribe: handle.subscribe,
+      }),
+      [handle],
+    );
   },
 );

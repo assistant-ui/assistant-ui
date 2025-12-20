@@ -45,6 +45,11 @@ import {
   createProxiedAssistantState,
 } from "./utils/proxied-assistant-state";
 
+const tapShallowMemoObject = <T extends object>(object: T) => {
+  // biome-ignore lint/correctness/useExhaustiveDependencies: shallow memo
+  return tapMemo(() => object, [...Object.entries(object).flat()]);
+};
+
 const RootClientResource = resource(
   <K extends ClientNames>({
     element,
@@ -114,15 +119,17 @@ const RootClientsAccessorsResource = resource(
       [clientRef, notifications],
     );
 
-    const results = tapResources(
-      inputClients,
-      (element) =>
-        RootClientAccessorResource({
-          element: element!,
-          notifications,
-          clientRef,
-        }),
-      [notifications, clientRef],
+    const results = tapShallowMemoObject(
+      tapResources(
+        inputClients,
+        (element) =>
+          RootClientAccessorResource({
+            element: element!,
+            notifications,
+            clientRef,
+          }),
+        [notifications, clientRef],
+      ),
     );
 
     return tapMemo(() => {
@@ -233,14 +240,16 @@ const DerivedClientsAccessorsResource = resource(
     clients: DerivedClients;
     clientRef: { parent: AssistantClient; current: AssistantClient | null };
   }) => {
-    return tapResources(
-      clients,
-      (element) =>
-        DerivedClientAccessorResource({
-          element: element!,
-          clientRef,
-        }),
-      [clientRef],
+    return tapShallowMemoObject(
+      tapResources(
+        clients,
+        (element) =>
+          DerivedClientAccessorResource({
+            element: element!,
+            clientRef,
+          }),
+        [clientRef],
+      ),
     );
   },
 );
@@ -250,41 +259,31 @@ const DerivedClientsAccessorsResource = resource(
  */
 export const AssistantClientResource = resource(
   ({
-    baseClient,
+    parent,
     clients,
   }: {
-    baseClient: AssistantClient;
+    parent: AssistantClient;
     clients: useAssistantClient.Props;
   }): AssistantClient => {
-    const { rootClients, derivedClients } = splitClients(clients, baseClient);
+    const { rootClients, derivedClients } = splitClients(clients, parent);
 
     const clientRef = tapRef({
-      parent: baseClient,
+      parent: parent,
       current: null as AssistantClient | null,
     }).current;
+
+    tapEffect(() => {
+      //   if (clientRef.current !== client)
+      //     throw new Error("clientRef.current !== client");
+
+      clientRef.current = client;
+    });
 
     const rootFields = tapResource(
       Object.keys(rootClients).length > 0
         ? RootClientsAccessorsResource({ clients: rootClients, clientRef })
         : NoOpRootClientsAccessorsResource(),
     );
-
-    // if (clientRef.current === null) {
-    //   console.log("render: ---> new");
-    // } else {
-    //   console.log("render: ---> existing");
-    // }
-
-    // tapEffect(() => {
-    //   console.log("commit: ---> new");
-    // }, []);
-    // tapEffect(() => {
-    //   console.log("commit: ---> ");
-    // });
-
-    // tapMemo(() => {
-    //   console.log("render: rootFields", rootFields.clients);
-    // }, [rootFields]);
 
     const derivedFields = tapInlineResource(
       DerivedClientsAccessorsResource({ clients: derivedClients, clientRef }),
@@ -293,40 +292,23 @@ export const AssistantClientResource = resource(
     const client = tapMemo(() => {
       // Swap DefaultAssistantClient -> createRootAssistantClient at root to change error message
       const proto =
-        baseClient === DefaultAssistantClient
+        parent === DefaultAssistantClient
           ? createRootAssistantClient()
-          : baseClient;
+          : parent;
+
       const client = Object.create(proto) as AssistantClient;
       Object.assign(client, rootFields.clients, derivedFields, {
-        subscribe: rootFields.subscribe ?? baseClient.subscribe,
-        on: rootFields.on ?? baseClient.on,
+        subscribe: rootFields.subscribe ?? parent.subscribe,
+        on: rootFields.on ?? parent.on,
         [PROXIED_ASSISTANT_STATE_SYMBOL]: createProxiedAssistantState(client),
       });
-      // console.log(
-      //   "render: created client",
-      //   client,
-      //   (client as any)["modelContext"]().getState().version,
-      // );
+
       return client;
-    }, [baseClient, rootFields, derivedFields]);
+    }, [parent, rootFields, derivedFields]);
 
     if (clientRef.current === null) {
       clientRef.current = client;
-      // console.log(
-      //   "render: set clientRef.current render",
-      //   client,
-      //   (client as any)["modelContext"]().getState().version,
-      // );
     }
-
-    tapEffect(() => {
-      clientRef.current = client;
-      // console.log(
-      //   "effect: set clientRef.current",
-      //   client,
-      //   (client as any)["modelContext"]().getState().version,
-      // );
-    });
 
     return client;
   },
@@ -345,9 +327,9 @@ export function useAssistantClient(
 export function useAssistantClient(
   clients?: useAssistantClient.Props,
 ): AssistantClient {
-  const baseClient = useAssistantContextValue();
+  const parent = useAssistantContextValue();
   if (clients) {
-    return useResource(AssistantClientResource({ baseClient, clients }));
+    return useResource(AssistantClientResource({ parent: parent, clients }));
   }
-  return baseClient;
+  return parent;
 }

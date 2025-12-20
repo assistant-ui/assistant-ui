@@ -6,14 +6,14 @@ export namespace tapState {
   export type StateUpdater<S> = S | ((prev: S) => S);
 }
 
-const rerender = (fiber: ResourceFiber<any, any>) => {
+const scheduleUpdateOnFiber = (fiber: ResourceFiber<any, any>) => {
   if (fiber.renderContext) {
     throw new Error("Resource updated during render");
   }
 
   if (fiber.isMounted) {
     // Only schedule rerender if currently mounted
-    fiber.scheduleRerender();
+    fiber.scheduleUpdate();
   } else if (fiber.isNeverMounted) {
     throw new Error("Resource updated before mount");
   }
@@ -33,46 +33,46 @@ function getStateCell<T>(
     );
   }
 
-  if (!fiber.cells[index]) {
-    const value =
-      typeof initialValue === "function"
-        ? (initialValue as () => T)()
-        : initialValue;
-
-    if (
-      isDevelopment &&
-      fiber.devStrictMode &&
-      typeof initialValue === "function"
-    ) {
-      void (initialValue as () => T)();
-    }
-
-    const cell: Cell & { type: "state" } = {
-      type: "state",
-      value,
-      set: (updater: tapState.StateUpdater<T>) => {
-        const currentValue = cell.value;
-        const nextValue =
-          typeof updater === "function"
-            ? (updater as (prev: T) => T)(currentValue)
-            : updater;
-
-        if (!Object.is(currentValue, nextValue)) {
-          cell.value = nextValue;
-          rerender(fiber);
-        }
-      },
-    };
-
-    fiber.cells[index] = cell;
-  }
-
   const cell = fiber.cells[index];
-  if (cell.type !== "state") {
-    throw new Error("Hook order changed between renders");
+  if (cell) {
+    if (cell.type !== "state")
+      throw new Error("Hook order changed between renders");
+
+    return cell as Cell & { type: "state" };
   }
 
-  return cell as Cell & { type: "state" };
+  const value =
+    typeof initialValue === "function"
+      ? (initialValue as () => T)()
+      : initialValue;
+
+  if (
+    isDevelopment &&
+    fiber.devStrictMode &&
+    typeof initialValue === "function"
+  ) {
+    void (initialValue as () => T)();
+  }
+
+  const newCell: Cell & { type: "state" } = {
+    type: "state",
+    value,
+    set: (updater: tapState.StateUpdater<T>) => {
+      const currentValue = newCell.value;
+      const nextValue =
+        typeof updater === "function"
+          ? (updater as (prev: T) => T)(currentValue)
+          : updater;
+
+      if (!Object.is(currentValue, nextValue)) {
+        newCell.value = nextValue;
+        scheduleUpdateOnFiber(fiber);
+      }
+    },
+  };
+
+  fiber.cells[index] = newCell;
+  return newCell;
 }
 
 export function tapState<S = undefined>(): [
