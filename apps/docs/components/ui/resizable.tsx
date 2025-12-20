@@ -53,4 +53,4 @@ function Separator({
   );
 }
 
-export { Group , ResizablePanel, Separator  };
+export { Group, ResizablePanel, Separator };

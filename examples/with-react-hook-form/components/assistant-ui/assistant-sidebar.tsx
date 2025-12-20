@@ -1,8 +1,4 @@
-import {
-  Separator,
-  ResizablePanel,
-  Group,
-} from "@/components/ui/resizable";
+import { Separator, ResizablePanel, Group } from "@/components/ui/resizable";
 import type { FC, PropsWithChildren } from "react";
 
 import { Thread } from "@/components/assistant-ui/thread";
