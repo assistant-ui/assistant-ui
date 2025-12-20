@@ -34,7 +34,13 @@
     "@assistant-ui/tap": "^0.3.4"
   },
   "peerDependencies": {
+    "@types/react": "*",
     "react": "^18 || ^19"
+  },
+  "peerDependenciesMeta": {
+    "@types/react": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",

@@ -8,9 +8,8 @@ export const PACKAGE_DIR = join(__dirname, "../");
 
 export const EXAMPLES_PATH = join(ROOT_DIR, "examples");
 
-export const DOCS_BASE = join(PACKAGE_DIR, ".docs");
+const DOCS_BASE = join(PACKAGE_DIR, ".docs");
 export const DOCS_PATH = join(DOCS_BASE, "raw/docs");
-export const BLOG_PATH = join(DOCS_BASE, "raw/blog");
 export const CODE_EXAMPLES_PATH = join(DOCS_BASE, "organized/code-examples");
 
 export const MDX_EXTENSION = ".mdx";

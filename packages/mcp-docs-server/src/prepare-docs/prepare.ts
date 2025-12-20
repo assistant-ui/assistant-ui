@@ -2,7 +2,7 @@ import { logger } from "../utils/logger.js";
 import { copyRaw } from "./copy-raw.js";
 import { prepareCodeExamples } from "./code-examples.js";
 
-export async function prepare(): Promise<void> {
+async function prepare(): Promise<void> {
   logger.info("Starting documentation preparation...");
 
   try {

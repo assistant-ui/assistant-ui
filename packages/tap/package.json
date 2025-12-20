@@ -40,9 +40,13 @@
     "test:watch": "vitest"
   },
   "peerDependencies": {
+    "@types/react": "*",
     "react": "^18 || ^19"
   },
   "peerDependenciesMeta": {
+    "@types/react": {
+      "optional": true
+    },
     "react": {
       "optional": true
     }

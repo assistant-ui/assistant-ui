@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import matter from "gray-matter";
 import { logger } from "./logger.js";
 
-export interface MDXContent {
+interface MDXContent {
   content: string;
   frontmatter: Record<string, any>;
   excerpt?: string;
