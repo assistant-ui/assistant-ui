@@ -1,34 +1,18 @@
-interface ApiData {
-  apiId: number;
-  state: any;
-  events: any[];
-  context?: any;
-}
+import {
+  DEVTOOLS_PROTOCOL,
+  DEVTOOLS_PROTOCOL_VERSION,
+  DevToolsMessage,
+  HostToFramePayload,
+} from "./types";
 
-interface UpdateMessage {
-  type: "update";
-  data: {
-    apiList?: Array<{ apiId: number }>;
-    apis?: ApiData[];
-  };
-}
+type UpdatePayload = Extract<HostToFramePayload, { type: "update" }>["data"];
 
-interface HostConnectedMessage {
-  type: "host-connected";
-}
-
-type UpdateListener = (data: {
-  apiList?: Array<{ apiId: number }>;
-  apis?: ApiData[];
-}) => void;
+type UpdateListener = (data: UpdatePayload) => void;
 
 export class FrameClient {
   private listeners = new Set<UpdateListener>();
   private connectionListeners = new Set<() => void>();
-  private lastUpdate: {
-    apiList?: Array<{ apiId: number }>;
-    apis?: ApiData[];
-  } = {};
+  private lastUpdate: UpdatePayload = {};
 
   constructor() {
     this.setupMessageListener();
@@ -36,12 +20,21 @@ export class FrameClient {
 
   private setupMessageListener() {
     window.addEventListener("message", (event) => {
-      const message = event.data as UpdateMessage | HostConnectedMessage;
+      const message = event.data as DevToolsMessage<HostToFramePayload>;
 
-      if (message.type === "update") {
-        this.lastUpdate = message.data;
-        this.notifyListeners(message.data);
-      } else if (message.type === "host-connected") {
+      if (
+        !message ||
+        message.protocol !== DEVTOOLS_PROTOCOL ||
+        message.version !== DEVTOOLS_PROTOCOL_VERSION
+      ) {
+        return;
+      }
+
+      const payload = message.payload;
+      if (payload.type === "update") {
+        this.lastUpdate = payload.data;
+        this.notifyListeners(payload.data);
+      } else if (payload.type === "host-connected") {
         // Host has reconnected (page refresh), notify listeners to re-subscribe
         this.connectionListeners.forEach((listener) => listener());
       }
@@ -71,8 +64,12 @@ export class FrameClient {
   setSubscription(options: { apiList?: boolean; apis?: number[] }) {
     window.parent.postMessage(
       {
-        type: "subscription",
-        data: options,
+        protocol: DEVTOOLS_PROTOCOL,
+        version: DEVTOOLS_PROTOCOL_VERSION,
+        payload: {
+          type: "subscription",
+          data: options,
+        },
       },
       "*",
     );
@@ -81,14 +78,18 @@ export class FrameClient {
   clearEvents(apiId: number) {
     window.parent.postMessage(
       {
-        type: "clearEvents",
-        data: { apiId },
+        protocol: DEVTOOLS_PROTOCOL,
+        version: DEVTOOLS_PROTOCOL_VERSION,
+        payload: {
+          type: "clearEvents",
+          data: { apiId },
+        },
       },
       "*",
     );
   }
 
-  private notifyListeners(data: UpdateMessage["data"]) {
+  private notifyListeners(data: UpdatePayload) {
     this.listeners.forEach((listener) => listener(data));
   }
 
