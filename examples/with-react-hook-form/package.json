@@ -14,6 +14,7 @@
     "@assistant-ui/react-ai-sdk": "workspace:*",
     "@assistant-ui/react-hook-form": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
+    "@hookform/resolvers": "^5.2.2",
     "@radix-ui/react-avatar": "^1.1.11",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-label": "^2.1.8",

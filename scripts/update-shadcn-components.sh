@@ -59,4 +59,10 @@ for ui_dir in "${ui_dirs[@]}"; do
     echo ""
 done
 
+echo "🔧 Running lint:fix..."
+(cd "$ROOT_DIR" && pnpm lint:fix)
+
+echo "🔄 Syncing registry components to examples and docs..."
+"$SCRIPT_DIR/sync-registry-components.sh"
+
 echo "🎉 All shadcn/ui components updated!"
