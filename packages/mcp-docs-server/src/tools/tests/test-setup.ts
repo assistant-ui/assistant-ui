@@ -22,11 +22,15 @@ export const testContext: TestContext = {
     }
     const result = await tool.execute(args);
 
+    const text = result.content?.[0]?.text;
+    if (text === undefined) {
+      throw new Error(`Tool ${name} returned no content`);
+    }
     try {
-      return JSON.parse(result.content[0].text);
+      return JSON.parse(text);
     } catch (error) {
       throw new Error(
-        `Tool ${name} returned invalid JSON. Output: ${result.content[0].text}\nParse error: ${error instanceof Error ? error.message : String(error)}`,
+        `Tool ${name} returned invalid JSON. Output: ${text}\nParse error: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   },

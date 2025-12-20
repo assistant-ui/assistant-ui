@@ -2,14 +2,25 @@
   "name": "safe-content-frame",
   "version": "0.0.4",
   "description": "Secure iframe rendering for untrusted content using SafeContentFrame",
+  "keywords": [
+    "iframe",
+    "sandbox",
+    "security",
+    "html",
+    "content",
+    "safe"
+  ],
+  "author": "AgentbaseAI Inc.",
   "license": "MIT",
   "type": "module",
   "exports": {
     ".": {
+      "aui-source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
     "./shadow_dom": {
+      "aui-source": "./src/shadow_dom.ts",
       "types": "./dist/shadow_dom.d.ts",
       "default": "./dist/shadow_dom.js"
     }
@@ -17,25 +28,29 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "files": [
-    "dist"
+    "dist",
+    "src",
+    "shadow_dom",
+    "README.md"
   ],
+  "sideEffects": false,
   "scripts": {
-    "build": "tsup src/index.ts src/shadow_dom.ts --format esm --dts",
+    "build": "aui-build",
     "dev": "vite demo"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "tsup": "^8.5.1",
-    "typescript": "^5.9.3",
     "vite": "^7.2.7"
   },
   "publishConfig": {
     "access": "public",
     "provenance": true
   },
+  "homepage": "https://www.assistant-ui.com/safe-content-frame",
   "repository": {
     "type": "git",
-    "url": "https://github.com/assistant-ui/assistant-ui/tree/main/packages/safe-content-frame"
+    "url": "git+https://github.com/assistant-ui/assistant-ui.git",
+    "directory": "packages/safe-content-frame"
   },
   "bugs": {
     "url": "https://github.com/assistant-ui/assistant-ui/issues"

@@ -2,6 +2,7 @@
   "name": "@assistant-ui/devtools-extension",
   "version": "0.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "build": "tsx scripts/build-extension.mts",
     "dev": "NODE_ENV=development tsx scripts/build-extension.mts --watch"

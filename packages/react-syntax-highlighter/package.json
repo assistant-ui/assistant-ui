@@ -1,14 +1,27 @@
 {
   "name": "@assistant-ui/react-syntax-highlighter",
   "version": "0.11.8",
+  "description": "Syntax highlighting for assistant-ui",
+  "keywords": [
+    "syntax-highlighter",
+    "code",
+    "highlighting",
+    "assistant-ui",
+    "react",
+    "ai",
+    "chat"
+  ],
+  "author": "AgentbaseAI Inc.",
   "license": "MIT",
   "type": "module",
   "exports": {
     ".": {
+      "aui-source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
     "./full": {
+      "aui-source": "./src/full.tsx",
       "types": "./dist/full.d.ts",
       "default": "./dist/full.js"
     }
@@ -18,18 +31,19 @@
   "files": [
     "dist",
     "src",
+    "full",
     "README.md"
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "tsx scripts/build.mts"
+    "build": "aui-build"
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.11.52",
     "@assistant-ui/react-markdown": "^0.11.8",
     "@types/react": "*",
     "@types/react-syntax-highlighter": "*",
-    "react": "^18 || ^19 || ^19.0.0-rc",
+    "react": "^18 || ^19",
     "react-syntax-highlighter": "^15.5.0"
   },
   "peerDependenciesMeta": {
@@ -44,12 +58,10 @@
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^25.0.0",
     "@types/react": "^19.2.7",
     "@types/react-syntax-highlighter": "^15.5.13",
     "react": "19.2.3",
-    "react-syntax-highlighter": "^16.1.0",
-    "tsx": "^4.21.0"
+    "react-syntax-highlighter": "^16.1.0"
   },
   "publishConfig": {
     "access": "public",
@@ -58,7 +70,8 @@
   "homepage": "https://www.assistant-ui.com/",
   "repository": {
     "type": "git",
-    "url": "https://github.com/assistant-ui/assistant-ui/tree/main/packages/react-syntax-highlighter"
+    "url": "git+https://github.com/assistant-ui/assistant-ui.git",
+    "directory": "packages/react-syntax-highlighter"
   },
   "bugs": {
     "url": "https://github.com/assistant-ui/assistant-ui/issues"

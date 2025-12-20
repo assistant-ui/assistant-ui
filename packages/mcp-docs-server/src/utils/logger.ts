@@ -1,11 +1,11 @@
 export const logger = {
   debug: (message: string, ...args: any[]) => {
-    if (process.env.DEBUG) {
+    if (process.env["DEBUG"]) {
       console.debug(`[DEBUG] ${message}`, ...args);
     }
   },
   info: (message: string, ...args: any[]) => {
-    if (process.env.PREPARE === "true") {
+    if (process.env["PREPARE"] === "true") {
       console.log(`[INFO] ${message}`, ...args);
     }
   },

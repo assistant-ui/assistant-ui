@@ -1,9 +1,4 @@
 {
   "extends": "@assistant-ui/x-buildutils/ts/base",
-  "compilerOptions": {
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
-    "lib": ["ES2023"]
-  },
-  "include": ["scripts/**/*.mts"]
+  "include": ["scripts"]
 }

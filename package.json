@@ -28,5 +28,11 @@
   "packageManager": "pnpm@10.25.0",
   "lint-staged": {
     "*": "biome check --fix --no-errors-on-unmatched"
-  }
+  },
+  "browserslist": [
+    "chrome 111",
+    "edge 111",
+    "firefox 111",
+    "safari 16.4"
+  ]
 }

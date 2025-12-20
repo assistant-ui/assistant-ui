@@ -2,16 +2,39 @@
   "name": "@assistant-ui/mcp-docs-server",
   "version": "0.1.17",
   "description": "MCP server for assistant-ui documentation and examples",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "assistant-ui",
+    "documentation",
+    "ai",
+    "claude"
+  ],
+  "author": "AgentbaseAI Inc.",
+  "license": "MIT",
   "type": "module",
-  "main": "dist/index.js",
+  "exports": {
+    ".": {
+      "aui-source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "bin": {
     "assistant-ui-mcp": "./dist/stdio.js"
   },
+  "files": [
+    "dist",
+    "src",
+    ".docs",
+    "README.md"
+  ],
+  "sideEffects": false,
   "scripts": {
-    "clean": "tsx scripts/clean.mts",
     "prepare-docs": "cross-env PREPARE=true node ./dist/prepare-docs/prepare.js",
-    "build:cli": "tsup src/stdio.ts src/prepare-docs/prepare.ts src/index.ts --format esm --treeshake=smallest --splitting",
-    "build": "pnpm clean && pnpm build:cli && pnpm prepare-docs",
+    "build": "aui-build && pnpm prepare-docs",
     "dev": "tsx src/stdio.ts",
     "pretest": "pnpm build",
     "test": "vitest run",
@@ -19,29 +42,25 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.24.3",
-    "zod": "^4.1.13",
     "gray-matter": "^4.0.3",
-    "cross-env": "^10.1.0"
+    "zod": "^4.1.13"
   },
   "devDependencies": {
+    "@assistant-ui/x-buildutils": "workspace:*",
     "@types/node": "^25.0.0",
-    "tsup": "^8.5.1",
+    "cross-env": "^10.1.0",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3",
     "vitest": "^4.0.15"
   },
-  "files": [
-    "dist",
-    ".docs",
-    "README.md"
-  ],
   "publishConfig": {
     "access": "public",
     "provenance": true
   },
+  "homepage": "https://www.assistant-ui.com/",
   "repository": {
     "type": "git",
-    "url": "https://github.com/assistant-ui/assistant-ui/tree/main/packages/mcp-docs-server"
+    "url": "git+https://github.com/assistant-ui/assistant-ui.git",
+    "directory": "packages/mcp-docs-server"
   },
   "bugs": {
     "url": "https://github.com/assistant-ui/assistant-ui/issues"

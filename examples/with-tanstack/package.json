@@ -1,5 +1,6 @@
 {
-  "name": "assistant-ui-with-tanstack",
+  "name": "with-tanstack",
+  "version": "0.0.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -15,20 +16,20 @@
     "@tailwindcss/vite": "^4.1.18",
     "@tanstack/react-router": "^1.141.1",
     "@tanstack/react-start": "^1.141.1",
-    "@tanstack/router-plugin": "^1.141.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.560.0",
     "nitro": "latest",
     "openai": "^6.10.0",
-    "react": "^19.2.3",
-    "react-dom": "^19.2.3",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
     "remark-gfm": "^4.0.1",
     "tailwind-merge": "^3.4.0",
     "tailwindcss": "^4.1.18",
     "vite-tsconfig-paths": "^5.1.4"
   },
   "devDependencies": {
+    "@assistant-ui/x-buildutils": "workspace:*",
     "@types/node": "^25.0.0",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",

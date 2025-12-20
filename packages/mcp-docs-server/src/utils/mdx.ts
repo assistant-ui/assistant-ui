@@ -16,14 +16,15 @@ export async function readMDXFile(
     const { content, data } = matter(fileContent);
 
     const excerptMatch = content.match(/^(.+?)(?:\n\n|$)/);
-    const excerpt = excerptMatch
-      ? excerptMatch[1].replace(/^#+ /, "")
-      : undefined;
+    const excerpt =
+      excerptMatch?.[1] !== undefined
+        ? excerptMatch[1].replace(/^#+ /, "")
+        : undefined;
 
     return {
       content,
       frontmatter: data,
-      excerpt,
+      ...(excerpt !== undefined && { excerpt }),
     };
   } catch (error) {
     logger.error(`Failed to read MDX file: ${filePath}`, error);

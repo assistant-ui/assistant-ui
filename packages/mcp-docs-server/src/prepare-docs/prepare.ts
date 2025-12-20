@@ -16,7 +16,7 @@ export async function prepare(): Promise<void> {
   }
 }
 
-if (process.env.PREPARE === "true") {
+if (process.env["PREPARE"] === "true") {
   prepare().catch((error) => {
     logger.error("Preparation failed", error);
     process.exit(1);
