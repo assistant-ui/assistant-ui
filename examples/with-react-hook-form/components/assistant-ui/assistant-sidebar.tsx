@@ -1,7 +1,7 @@
 import {
-  ResizableHandle,
+  Separator,
   ResizablePanel,
-  ResizablePanelGroup,
+  Group,
 } from "@/components/ui/resizable";
 import type { FC, PropsWithChildren } from "react";
 
@@ -9,12 +9,12 @@ import { Thread } from "@/components/assistant-ui/thread";
 
 export const AssistantSidebar: FC<PropsWithChildren> = ({ children }) => {
   return (
-    <ResizablePanelGroup direction="horizontal">
+    <Group orientation="horizontal">
       <ResizablePanel>{children}</ResizablePanel>
-      <ResizableHandle />
+      <Separator />
       <ResizablePanel>
         <Thread />
       </ResizablePanel>
-    </ResizablePanelGroup>
+    </Group>
   );
 };

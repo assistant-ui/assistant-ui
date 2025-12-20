@@ -19,11 +19,11 @@
   "dependencies": {
     "@tsconfig/strictest": "^2.0.8",
     "jiti": "^2.6.1",
-    "tinyglobby": "^0.2.14",
+    "tinyglobby": "^0.2.15",
     "typescript": "^5.9.3"
   },
   "devDependencies": {
-    "@types/node": "^25.0.0"
+    "@types/node": "^25.0.3"
   },
   "homepage": "https://www.assistant-ui.com/",
   "repository": {

@@ -9,7 +9,7 @@ import { Thread } from "@/components/assistant-ui/thread";
 
 export const AssistantSidebar: FC<PropsWithChildren> = ({ children }) => {
   return (
-    <ResizablePanelGroup direction="horizontal">
+    <ResizablePanelGroup orientation="horizontal">
       <ResizablePanel>{children}</ResizablePanel>
       <ResizableHandle />
       <ResizablePanel>

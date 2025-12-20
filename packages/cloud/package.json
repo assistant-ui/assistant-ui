@@ -37,8 +37,8 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^25.0.0",
-    "vitest": "^4.0.15"
+    "@types/node": "^25.0.3",
+    "vitest": "^4.0.16"
   },
   "publishConfig": {
     "access": "public",
