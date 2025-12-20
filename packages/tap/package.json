@@ -54,8 +54,8 @@
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/react": "^19.2.7",
-    "@vitest/ui": "^4.0.15",
-    "vitest": "^4.0.15"
+    "@vitest/ui": "^4.0.16",
+    "vitest": "^4.0.16"
   },
   "publishConfig": {
     "access": "public",

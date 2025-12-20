@@ -67,7 +67,7 @@
     "assistant-stream": "^0.2.45",
     "nanoid": "5.1.6",
     "react-textarea-autosize": "^8.5.9",
-    "zod": "^4.1.13",
+    "zod": "^4.2.1",
     "zustand": "^5.0.9"
   },
   "peerDependencies": {
@@ -87,12 +87,12 @@
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/json-schema": "^7.0.15",
-    "@types/node": "^25.0.0",
+    "@types/node": "^25.0.3",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "vitest": "^4.0.15"
+    "vitest": "^4.0.16"
   },
   "publishConfig": {
     "access": "public",
