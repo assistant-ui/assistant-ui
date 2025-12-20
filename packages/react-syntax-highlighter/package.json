@@ -44,7 +44,7 @@
     "@types/react": "*",
     "@types/react-syntax-highlighter": "*",
     "react": "^18 || ^19",
-    "react-syntax-highlighter": "^15.5.0"
+    "react-syntax-highlighter": "^16.0.0"
   },
   "peerDependenciesMeta": {
     "@types/react": {

@@ -1,3 +1,5 @@
+import { IS_PREPARE_MODE } from "../constants.js";
+
 export const logger = {
   debug: (message: string, ...args: any[]) => {
     if (process.env["DEBUG"]) {
@@ -5,7 +7,7 @@ export const logger = {
     }
   },
   info: (message: string, ...args: any[]) => {
-    if (process.env["PREPARE"] === "true") {
+    if (IS_PREPARE_MODE) {
       console.log(`[INFO] ${message}`, ...args);
     }
   },

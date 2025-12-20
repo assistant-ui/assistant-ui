@@ -21,7 +21,6 @@
     "@assistant-ui/react-markdown": "workspace:*",
     "@assistant-ui/react-syntax-highlighter": "workspace:*",
     "@assistant-ui/styles": "workspace:*",
-    "@assistant-ui/x-buildutils": "workspace:*",
     "@langchain/langgraph-sdk": "^1.2.0",
     "@radix-ui/react-avatar": "^1.1.11",
     "@radix-ui/react-collapsible": "^1.1.12",
@@ -66,6 +65,7 @@
   },
   "devDependencies": {
     "@assistant-ui/shadcn-registry": "workspace:*",
+    "@assistant-ui/x-buildutils": "workspace:*",
     "@tailwindcss/postcss": "^4.1.18",
     "@types/mdx": "^2.0.13",
     "@types/node": "^25.0.0",

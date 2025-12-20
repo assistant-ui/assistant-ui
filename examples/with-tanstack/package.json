@@ -19,7 +19,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.560.0",
-    "nitro": "latest",
+    "nitro": "^3.0.1-alpha.1",
     "openai": "^6.10.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
