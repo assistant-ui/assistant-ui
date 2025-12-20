@@ -1,8 +1,6 @@
 name: autofix.ci
 
-on:
-  pull_request:
-    types: [opened, synchronize, reopened]
+on: [pull_request]
 
 permissions:
   contents: read
@@ -11,14 +9,22 @@ jobs:
   autofix:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup node.js
+        uses: actions/setup-node@v6
         with:
           node-version: 24
+          cache: "pnpm"
 
-      - run: pnpm install --ignore-scripts
+      - name: Install dependencies
+        run: pnpm install --ignore-scripts
 
       - name: Lint fix
         run: pnpm lint:fix
