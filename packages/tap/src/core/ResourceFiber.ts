@@ -6,12 +6,12 @@ import { isDevelopment } from "./env";
 
 export function createResourceFiber<R, P>(
   type: Resource<R, P>,
-  scheduleUpdate: () => void,
+  dispatchUpdate: (callback: () => boolean) => void,
   strictMode: "root" | "child" | null = getDevStrictMode(false),
 ): ResourceFiber<R, P> {
   return {
     type,
-    scheduleUpdate,
+    dispatchUpdate,
     devStrictMode: strictMode,
     cells: [],
     currentIndex: 0,

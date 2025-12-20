@@ -50,7 +50,7 @@ export interface RenderResult {
 }
 
 export interface ResourceFiber<R, P> {
-  readonly scheduleUpdate: () => void;
+  readonly dispatchUpdate: (callback: () => boolean) => void;
   readonly type: Resource<R, P>;
   readonly devStrictMode: "root" | "child" | null;
 

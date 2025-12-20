@@ -129,7 +129,9 @@ export const createResource = <R, P>(
 
   const fiber = createResourceFiber(
     HandleWrapperResource<R, P>,
-    () => scheduler.markDirty(),
+    (callback) => {
+      if (callback()) scheduler.markDirty();
+    },
     getDevStrictMode(devStrictMode),
   );
 

@@ -6,14 +6,17 @@ export namespace tapState {
   export type StateUpdater<S> = S | ((prev: S) => S);
 }
 
-const scheduleUpdateOnFiber = (fiber: ResourceFiber<any, any>) => {
+const dispatchOnFiber = (
+  fiber: ResourceFiber<any, any>,
+  callback: () => boolean,
+) => {
   if (fiber.renderContext) {
     throw new Error("Resource updated during render");
   }
 
   if (fiber.isMounted) {
     // Only schedule rerender if currently mounted
-    fiber.scheduleUpdate();
+    fiber.dispatchUpdate(callback);
   } else if (fiber.isNeverMounted) {
     throw new Error("Resource updated before mount");
   }
@@ -58,16 +61,18 @@ function getStateCell<T>(
     type: "state",
     value,
     set: (updater: tapState.StateUpdater<T>) => {
-      const currentValue = newCell.value;
-      const nextValue =
-        typeof updater === "function"
-          ? (updater as (prev: T) => T)(currentValue)
-          : updater;
+      dispatchOnFiber(fiber, () => {
+        const currentValue = newCell.value;
+        const nextValue =
+          typeof updater === "function"
+            ? (updater as (prev: T) => T)(currentValue)
+            : updater;
 
-      if (!Object.is(currentValue, nextValue)) {
+        if (Object.is(currentValue, nextValue)) return false;
+
         newCell.value = nextValue;
-        scheduleUpdateOnFiber(fiber);
-      }
+        return true;
+      });
     },
   };
 

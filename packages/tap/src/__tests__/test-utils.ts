@@ -18,7 +18,9 @@ import { tapState } from "../hooks/tap-state";
  * Sets up a rerender callback that automatically re-renders when state changes.
  */
 export function createTestResource<R, P>(fn: (props: P) => R) {
-  const rerenderCallback = () => {
+  const rerenderCallback = (callback: () => boolean) => {
+    if (!callback()) return;
+
     // Re-render when state changes
     if (activeResources.has(fiber)) {
       const lastProps = propsMap.get(fiber);

@@ -26,7 +26,9 @@ export function tapResource<E extends ResourceElement<any, any>>(
 
   const fiber = tapMemo(() => {
     void element.key;
-    return createResourceFiber(element.type, rerender);
+    return createResourceFiber(element.type, (callback) => {
+      if (callback()) rerender();
+    });
   }, [element.type, element.key]);
 
   const result = propsDeps
