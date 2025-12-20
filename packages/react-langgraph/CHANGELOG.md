@@ -1,5 +1,16 @@
 # @assistant-ui/react-langgraph
 
+## 0.7.13
+
+### Patch Changes
+
+- 57bd207: chore: update dependencies
+- cce009d: chore: use tsc for building packages
+- Updated dependencies [57bd207]
+- Updated dependencies [cce009d]
+  - assistant-stream@0.2.46
+  - @assistant-ui/react@0.11.53
+
 ## 0.7.12
 
 ### Patch Changes
