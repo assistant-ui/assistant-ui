@@ -2,229 +2,56 @@ name: Claude Code Review
 
 on:
   pull_request:
-    types: [opened, synchronize, ready_for_review, reopened]
+    types: [opened, synchronize]
     # Optional: Only run on specific file changes
     # paths:
     #   - "src/**/*.ts"
     #   - "src/**/*.tsx"
     #   - "src/**/*.js"
     #   - "src/**/*.jsx"
-  pull_request_target:
-    types: [opened, synchronize, ready_for_review, reopened]
-
-concurrency:
-  group: claude-code-review-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
-
-env:
-  # Shared action configuration
-  TRACK_PROGRESS: 'true'
-  USE_STICKY_COMMENT: 'true'
-  ADDITIONAL_PERMISSIONS: |
-    actions: read
-
-  REVIEW_PROMPT: |
-    REPO: ${{ github.repository }}
-    PR NUMBER: ${{ github.event.pull_request.number }}
-    TITLE: ${{ github.event.pull_request.title }}
-    BODY: ${{ github.event.pull_request.body }}
-    AUTHOR: ${{ github.event.pull_request.user.login }}
-    COMMIT: ${{ github.event.pull_request.head.sha }}
-    Note: The PR branch is already checked out in the current working directory.
-
-    Gather Context (complete these steps FIRST, silently - don't report on this process):
-    1. Check CI status: Use mcp__github_ci__get_ci_status to see if tests passed/failed
-    2. Get previous reviews: Run gh pr view ${{ github.event.pull_request.number }} --comments
-    3. Identify previous bot reviews and track which issues were raised before
-    4. If CI failed: Use mcp__github_ci__get_workflow_run_details for failure details
-
-    Review Approach:
-    - If first review: Comprehensive analysis of all changes
-    - If previous reviews exist: Focus on changes since last review, track issue status, understand how changes impact pr
-    - Incorporate CI/test failure context into your feedback if relevant
-    - Use inline comments (mcp__github_inline_comment__create_inline_comment) for specific code issues
-
-    Do not include in your review:
-    - Task completion statements ("I completed the review", "Review finished")
-    - Process descriptions ("First I checked X, then I analyzed Y")
-    - Generic meta-commentary about reviewing
-    - Progress tracking
-
-    Review this pull request by individually analysing each of these thoroughly:
-    - Code quality and best practices
-    - Potential bugs or issues
-    - Security implications
-    - Performance considerations
-    - Test coverage
-    - assistant-ui specific requirements:
-      - The PR has a changeset if updating source code of published packages (packages/*)
-      - The PR includes documentation if API surface changes
-
-    Provide a comprehensive review build on previous reviews including:
-    - Summary of changes since last review
-    - Critical issues found (be thorough)
-    - Suggested improvements (be thorough)
-    - Good practices observed (be concise - list only the most notable items without elaboration)
-    - Leverage collapsible <details> sections where appropriate for lengthy explanations or code snippets to enhance human readability
-
-    When reviewing subsequent commits:
-    - Track status of previously identified issues
-    - Identify new problems introduced since last review
-    - Note if fixes introduced new issues
-
-    IMPORTANT: Be comprehensive about issues and improvements. For good practices, be brief - just note what was done well without explaining why or praising excessively. NO meta-commentary about the review process itself.
-
-    Use `mcp__github_inline_comment__create_inline_comment` only for critical code issues or relevant suggestions. Check existing inline comments first to avoid duplicates. Do NOT use inline comments for good practices or positive observations. Each inline comment must be well thought out, precise, and actionable.
-
-    You have been provided with the mcp__github_comment__update_claude_comment tool to update your comment. This tool automatically handles PR comments. Only the body parameter is required - the tool automatically knows which comment to update.
-
-    IMPORTANT: Submit your review feedback by updating the Claude comment using mcp__github_comment__update_claude_comment. This will be displayed as your PR review.
-
-  # Allowed tools:
-  # - mcp__github_inline_comment__create_inline_comment: Create inline code comments
-  # - Bash(gh ...): Read-only GitHub CLI commands for PR/issue info
-  # Note: gh pr comment is NOT allowed - Claude must use update_claude_comment only
-  CLAUDE_ARGS: '--allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*)"'
 
 jobs:
   claude-review:
-    # Only run if at least one review scenario matches
-    if: |
-      github.event.pull_request.draft == false &&
-      github.event.pull_request.head.repo != null &&
-      (
-        (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) ||
-        (github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.full_name != github.repository)
-      )
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    timeout-minutes: 15
+    # Optional: Filter by PR author
+    # if: |
+    #   github.event.pull_request.user.login == 'external-contributor' ||
+    #   github.event.pull_request.user.login == 'new-developer' ||
+    #   github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR'
+
+    runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: write
+      pull-requests: read
       issues: read
       id-token: write
-      actions: read
 
     steps:
-      - name: Checkout internal repository
-        if: |
-          github.event_name == 'pull_request' &&
-          github.event.pull_request.head.repo.full_name == github.repository
-        uses: actions/checkout@v6
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
-          ref: refs/pull/${{ github.event.pull_request.number }}/head
           fetch-depth: 1
 
-      - name: Checkout fork repository
-        if: |
-          github.event_name == 'pull_request_target' &&
-          github.event.pull_request.head.repo.full_name != github.repository
-        uses: actions/checkout@v6
-        with:
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
-          ref: ${{ github.event.pull_request.head.ref }}
-          fetch-depth: 1
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      # Minimize previous bot comments on fork PRs to keep discussion clean
-      # NOTE: Temporary workaround until https://github.com/anthropics/claude-code-action/pull/411 is merged
-      # PR #411 adds sticky_comment_app_bot_id/name config to make sticky comments work with github-actions[bot]
-      # Uses GraphQL script instead of int128/hide-comment-action or step-security fork for no external dependencies
-      - name: Minimize previous fork PR comments
-        if: |
-          github.event_name == 'pull_request_target' &&
-          github.event.pull_request.head.repo.full_name != github.repository
-        uses: actions/github-script@v8
-        with:
-          script: |
-            try {
-              const owner = context.repo.owner;
-              const repo = context.repo.repo;
-              const prNumber = context.issue.number;
-              let hasNextPage = true;
-              let afterCursor = null;
-              let minimizedCount = 0;
-
-              core.info(`Checking for previous github-actions comments on PR #${prNumber}...`);
-
-              while (hasNextPage) {
-                const { repository } = await github.graphql(`
-                  query($owner: String!, $repo: String!, $prNumber: Int!, $after: String) {
-                    repository(owner: $owner, name: $repo) {
-                      pullRequest(number: $prNumber) {
-                        comments(first: 100, after: $after) {
-                          nodes {
-                            id
-                            author { login }
-                            isMinimized
-                          }
-                          pageInfo {
-                            hasNextPage
-                            endCursor
-                          }
-                        }
-                      }
-                    }
-                  }
-                `, { owner, repo, prNumber, after: afterCursor });
-
-                const comments = repository.pullRequest.comments.nodes;
-                const pageInfo = repository.pullRequest.comments.pageInfo;
-
-                // Filter for non-minimized github-actions comments
-                const botComments = comments.filter(c =>
-                  c.author?.login === 'github-actions' && !c.isMinimized
-                );
-
-                core.info(`Found ${botComments.length} non-minimized bot comment(s) in this batch`);
-
-                // Minimize each bot comment
-                for (const comment of botComments) {
-                  await github.graphql(`
-                    mutation($commentId: ID!) {
-                      minimizeComment(input: { subjectId: $commentId, classifier: OUTDATED }) {
-                        minimizedComment { isMinimized }
-                      }
-                    }
-                  `, { commentId: comment.id });
-                  minimizedCount++;
-                }
-
-                hasNextPage = pageInfo.hasNextPage;
-                afterCursor = pageInfo.endCursor;
-              }
-
-              core.info(`✓ Successfully minimized ${minimizedCount} previous comment(s)`);
-            } catch (error) {
-              core.setFailed(`Failed to minimize comments: ${error.message}`);
-            }
-
-      # Same-repo PRs: Use pull_request trigger + OIDC → claude[bot]
-      - name: Internal Review
-        if: |
-          github.event_name == 'pull_request' &&
-          github.event.pull_request.head.repo.full_name == github.repository
+      - name: Run Claude Code Review
+        id: claude-review
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          prompt: ${{ env.REVIEW_PROMPT }}
-          use_sticky_comment: ${{ fromJSON(env.USE_STICKY_COMMENT) }}
-          track_progress: ${{ fromJSON(env.TRACK_PROGRESS) }}
-          claude_args: ${{ env.CLAUDE_ARGS }}
-          additional_permissions: ${{ env.ADDITIONAL_PERMISSIONS }}
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
 
-      # Fork PRs: Use pull_request_target trigger + github_token → github-actions[bot]
-      - name: Fork Review
-        if: |
-          github.event_name == 'pull_request_target' &&
-          github.event.pull_request.head.repo.full_name != github.repository
-        uses: anthropics/claude-code-action@v1
-        with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          allowed_non_write_users: '*'
-          prompt: ${{ env.REVIEW_PROMPT }}
-          use_sticky_comment: ${{ fromJSON(env.USE_STICKY_COMMENT) }}
-          track_progress: ${{ fromJSON(env.TRACK_PROGRESS) }}
-          claude_args: ${{ env.CLAUDE_ARGS }}
-          additional_permissions: ${{ env.ADDITIONAL_PERMISSIONS }}
+            Please review this pull request and provide feedback on:
+            - Code quality and best practices
+            - Potential bugs or issues
+            - Performance considerations
+            - Security concerns
+            - Test coverage
+
+            Use the repository's CLAUDE.md for guidance on style and conventions. Be constructive and helpful in your feedback.
+
+            Use `gh pr comment` with your Bash tool to leave your review as a comment on the PR.
+
+          # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
+          # or https://code.claude.com/docs/en/cli-reference for available options
+          claude_args: '--allowed-tools "Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*)"'
+
