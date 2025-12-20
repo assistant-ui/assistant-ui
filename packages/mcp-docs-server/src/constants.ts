@@ -17,4 +17,6 @@ export const MD_EXTENSION = ".md";
 
 export const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
-export const IS_PREPARE_MODE = process.argv[1]?.includes("prepare-docs/prepare");
+export const IS_PREPARE_MODE = process.argv[1]?.includes(
+  "prepare-docs/prepare",
+);
