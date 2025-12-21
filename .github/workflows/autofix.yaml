@@ -24,11 +24,9 @@ jobs:
           cache: "pnpm"
 
       - name: Update lockfile
-        if: fromJson(steps.check-permission.outputs.result).authorized == true
         run: make ci-install
 
       - name: Run Biome fix
-        if: fromJson(steps.check-permission.outputs.result).authorized == true
         run: make fix
 
       - name: Sync registry components
