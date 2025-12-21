@@ -298,7 +298,7 @@ const ThreadScrollToBottom: FC = () => {
       <TooltipIconButton
         tooltip="Scroll to bottom"
         variant="outline"
-        className="-top-12 absolute z-10 self-center rounded-full p-4 disabled:invisible"
+        className="absolute -top-12 z-10 self-center rounded-full p-4 disabled:invisible"
       >
         <ArrowDownIcon />
       </TooltipIconButton>
@@ -352,10 +352,10 @@ const UserMessage: FC<UserMessageProps> = ({
         {components.editMessage && (
           <div
             className={cn(
-              "-translate-y-1/2 absolute top-1/2 pr-2",
+              "absolute top-1/2 -translate-y-1/2 pr-2",
               isLeftAligned
                 ? "right-0 translate-x-full pr-0 pl-2"
-                : "-translate-x-full left-0",
+                : "left-0 -translate-x-full",
             )}
           >
             <ActionBarPrimitive.Root
@@ -537,7 +537,7 @@ const BranchPicker: FC<BranchPickerProps> = ({ className }) => {
     <BranchPickerPrimitive.Root
       hideWhenSingleBranch
       className={cn(
-        "-ml-2 mr-2 inline-flex items-center text-muted-foreground text-xs",
+        "mr-2 -ml-2 inline-flex items-center text-muted-foreground text-xs",
         className,
       )}
     >
