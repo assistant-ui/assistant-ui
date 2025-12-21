@@ -241,7 +241,7 @@ const ClaudeAttachment: FC = () => {
         </button>
       </div>
       <AttachmentPrimitive.Remove
-        className="-left-2 -top-2 absolute flex h-5 w-5 items-center justify-center rounded-full border border-[#00000020] bg-white/90 text-[#6b6a68] opacity-0 backdrop-blur-sm transition-all hover:bg-white hover:text-[#1a1a18] group-focus-within/thumbnail:opacity-100 group-hover/thumbnail:opacity-100 dark:border-[#6c6a6040] dark:bg-[#1f1e1b]/90 dark:text-[#9a9893] dark:hover:bg-[#1f1e1b] dark:hover:text-[#eee]"
+        className="absolute -top-2 -left-2 flex h-5 w-5 items-center justify-center rounded-full border border-[#00000020] bg-white/90 text-[#6b6a68] opacity-0 backdrop-blur-sm transition-all hover:bg-white hover:text-[#1a1a18] group-focus-within/thumbnail:opacity-100 group-hover/thumbnail:opacity-100 dark:border-[#6c6a6040] dark:bg-[#1f1e1b]/90 dark:text-[#9a9893] dark:hover:bg-[#1f1e1b] dark:hover:text-[#eee]"
         aria-label="Remove attachment"
       >
         <Cross2Icon width={12} height={12} />
