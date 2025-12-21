@@ -25,7 +25,6 @@ import {
   ChevronRightIcon,
   CopyIcon,
   DownloadIcon,
-  MicIcon,
   PencilIcon,
   RefreshCwIcon,
   SquareIcon,
@@ -85,10 +84,10 @@ const ThreadWelcome: FC = () => {
       <div className="aui-thread-welcome-center flex w-full grow flex-col items-center justify-center">
         <div className="aui-thread-welcome-message flex size-full flex-col justify-center px-4">
           <h1 className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-1 animate-in font-semibold text-2xl duration-200">
-            Voice Input Demo
+            Hello there!
           </h1>
           <p className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-1 animate-in text-muted-foreground text-xl delay-75 duration-200">
-            Click the mic button to speak
+            How can I help you today?
           </p>
         </div>
       </div>
@@ -160,37 +159,7 @@ const Composer: FC = () => {
 const ComposerAction: FC = () => {
   return (
     <div className="aui-composer-action-wrapper relative mx-2 mb-2 flex items-center justify-between">
-      <div className="flex items-center gap-1">
-        <ComposerAddAttachment />
-
-        <ComposerPrimitive.If listening={false}>
-          <ComposerPrimitive.Dictate asChild>
-            <TooltipIconButton
-              tooltip="Voice input"
-              side="top"
-              variant="ghost"
-              className="aui-composer-dictate size-8 rounded-full"
-              aria-label="Start voice input"
-            >
-              <MicIcon className="size-4" />
-            </TooltipIconButton>
-          </ComposerPrimitive.Dictate>
-        </ComposerPrimitive.If>
-
-        <ComposerPrimitive.If listening>
-          <ComposerPrimitive.StopDictation asChild>
-            <TooltipIconButton
-              tooltip="Stop listening"
-              side="top"
-              variant="default"
-              className="aui-composer-stop-dictation size-8 rounded-full"
-              aria-label="Stop voice input"
-            >
-              <SquareIcon className="size-3 animate-pulse fill-current" />
-            </TooltipIconButton>
-          </ComposerPrimitive.StopDictation>
-        </ComposerPrimitive.If>
-      </div>
+      <ComposerAddAttachment />
 
       <AssistantIf condition={({ thread }) => !thread.isRunning}>
         <ComposerPrimitive.Send asChild>
