@@ -1,10 +1,22 @@
 {
   "name": "@assistant-ui/react-markdown",
-  "version": "0.11.8",
+  "version": "0.11.9",
+  "description": "Markdown rendering for assistant-ui",
+  "keywords": [
+    "markdown",
+    "react-markdown",
+    "assistant-ui",
+    "react",
+    "ai",
+    "chat",
+    "rendering"
+  ],
+  "author": "AgentbaseAI Inc.",
   "license": "MIT",
   "type": "module",
   "exports": {
     ".": {
+      "aui-source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
@@ -12,7 +24,6 @@
       "default": "./styles/dot.css"
     }
   },
-  "source": "./src/index.ts",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "files": [
@@ -23,21 +34,20 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "tsx scripts/build.mts",
+    "build": "aui-build",
     "test": "vitest run",
     "test:watch": "vitest"
   },
   "dependencies": {
     "@radix-ui/react-primitive": "^2.1.4",
     "@radix-ui/react-use-callback-ref": "^1.1.1",
-    "@types/hast": "^3.0.4",
     "classnames": "^2.5.1",
     "react-markdown": "^10.1.0"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.11.51",
+    "@assistant-ui/react": "^0.11.53",
     "@types/react": "*",
-    "react": "^18 || ^19 || ^19.0.0-rc"
+    "react": "^18 || ^19"
   },
   "peerDependenciesMeta": {
     "@types/react": {
@@ -47,11 +57,11 @@
   "devDependencies": {
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^25.0.0",
+    "@types/hast": "^3.0.4",
+    "@types/react": "^19.2.7",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "tsx": "^4.21.0",
-    "vitest": "^4.0.15"
+    "vitest": "^4.0.16"
   },
   "publishConfig": {
     "access": "public",
@@ -60,7 +70,8 @@
   "homepage": "https://www.assistant-ui.com/",
   "repository": {
     "type": "git",
-    "url": "https://github.com/assistant-ui/assistant-ui/tree/main/packages/react-markdown"
+    "url": "git+https://github.com/assistant-ui/assistant-ui.git",
+    "directory": "packages/react-markdown"
   },
   "bugs": {
     "url": "https://github.com/assistant-ui/assistant-ui/issues"

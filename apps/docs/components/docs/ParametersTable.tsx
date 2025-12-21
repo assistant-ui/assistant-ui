@@ -96,7 +96,7 @@ const ParametersBox: FC<ParametersTableProps> = ({ type, parameters }) => {
       )}
     >
       {!!type && (
-        <h3 className="-translate-y-1/2 absolute top-0 right-3 z-50 rounded-md border bg-background px-4 py-2 font-mono font-semibold text-foreground/70 text-xs">
+        <h3 className="absolute top-0 right-3 z-50 -translate-y-1/2 rounded-md border bg-background px-4 py-2 font-mono font-semibold text-foreground/70 text-xs">
           {type}
         </h3>
       )}

@@ -3,9 +3,9 @@ title: Form Filling Co-Pilot
 description: AssistantSidebar copilot which fills forms for the user
 ---
 
-## Live Demo
+import { SourceLink } from "@/components/examples/SourceLink";
 
-<div className="not-prose h-[700px]">
+<div className="not-prose h-[600px]">
   <iframe
     title="Form Filling Co-Pilot demo"
     className="h-full w-full border-none"
@@ -15,35 +15,94 @@ description: AssistantSidebar copilot which fills forms for the user
 
 ## Overview
 
-The Form Filling Co-Pilot example demonstrates how to create an AI assistant that helps users fill out forms automatically. This pattern is perfect for applications with complex forms where users need assistance with data entry, validation, or completion.
+This example demonstrates how to create an AI assistant sidebar that helps users fill out forms automatically. The assistant understands form structure and can populate fields based on natural language instructions, making complex forms easier to complete.
 
 ## Features
 
-- **Sidebar Assistant**: AI assistant in a sidebar that can interact with form fields
-- **Form Integration**: Direct integration with form inputs and validation
-- **Smart Suggestions**: AI-powered suggestions for form completion
-- **Real-time Assistance**: Live help as users fill out forms
-- **Validation Support**: AI assistance with form validation and error correction
-- **Context Awareness**: Assistant understands form structure and requirements
+- **Sidebar Integration**: AI assistant lives alongside your form
+- **Field Mapping**: Assistant directly modifies form field values
+- **Smart Suggestions**: AI understands context and suggests appropriate values
+- **Validation Awareness**: Respects form validation rules
+- **Undo Support**: Users can review and revert AI changes
+- **React Hook Form**: Seamless integration with popular form library
 
-## Usage
+## Use Cases
 
-To implement a form-filling co-pilot:
+- **Complex Applications**: Multi-step forms with many fields
+- **Data Entry**: Bulk data input from natural language
+- **Accessibility**: Voice-driven form completion
+- **Onboarding**: Guide users through registration flows
 
-1. **Form Setup**: Create your form with proper field identification
-2. **Assistant Integration**: Add assistant-ui sidebar component
-3. **Field Mapping**: Connect assistant responses to form fields
-4. **Validation Logic**: Implement AI-assisted validation and error handling
-5. **User Experience**: Design intuitive interaction patterns
+## Integration
 
-## Code
+The example uses `@assistant-ui/react-hook-form` to connect the AI with form state:
 
-Key implementation aspects:
+```tsx
+import { useFormContext } from "react-hook-form";
+import { makeAssistantToolUI } from "@assistant-ui/react";
+import { AssistantSidebar } from "@assistant-ui/react";
 
-- **Form Field Access**: Use refs or form libraries to access field values
-- **Assistant Context**: Provide form structure and current state to the AI
-- **Response Parsing**: Parse AI responses to extract form data
-- **Validation Integration**: Connect AI suggestions with form validation
-- **User Feedback**: Provide clear feedback on AI actions
+// Define a tool that sets form field values
+const SetFieldTool = makeAssistantToolUI({
+  toolName: "set_field",
+  render: ({ args, status }) => {
+    const { setValue, getValues } = useFormContext();
 
-The implementation uses React Hook Form integration with assistant-ui for seamless form interaction.
+    useEffect(() => {
+      if (status === "complete") {
+        setValue(args.field, args.value, { shouldValidate: true });
+      }
+    }, [args.field, args.value, status, setValue]);
+
+    return (
+      <div className="text-sm text-muted-foreground">
+        Setting {args.field} to "{args.value}"...
+      </div>
+    );
+  },
+});
+
+// Backend tool definition
+const tools = {
+  set_field: {
+    description: "Set a form field to a specific value",
+    parameters: z.object({
+      field: z.string().describe("The name of the form field"),
+      value: z.string().describe("The value to set"),
+    }),
+  },
+};
+```
+
+### Form Integration Pattern
+
+```tsx
+export default function FormPage() {
+  const form = useForm({
+    defaultValues: { name: "", email: "", company: "" },
+  });
+
+  return (
+    <FormProvider {...form}>
+      <div className="flex">
+        <form className="flex-1">
+          {/* Your form fields */}
+        </form>
+        <AssistantSidebar tools={[SetFieldTool]} />
+      </div>
+    </FormProvider>
+  );
+}
+```
+
+### How It Works
+
+1. User opens the assistant sidebar
+2. User describes what they want to fill (e.g., "Fill in my contact info: John Doe, john@example.com")
+3. AI parses the request and calls `set_field` tool for each field
+4. React Hook Form receives the values and updates the UI
+5. User can review and submit the form
+
+## Source
+
+<SourceLink href="https://github.com/assistant-ui/assistant-ui/blob/main/examples/with-react-hook-form/app/page.tsx" />
