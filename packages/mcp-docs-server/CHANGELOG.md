@@ -1,5 +1,12 @@
 # @assistant-ui/mcp-docs-server
 
+## 0.1.18
+
+### Patch Changes
+
+- 57bd207: chore: update dependencies
+- cce009d: chore: use tsc for building packages
+
 ## 0.1.17
 
 ### Patch Changes
