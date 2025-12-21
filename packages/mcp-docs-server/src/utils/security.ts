@@ -1,4 +1,3 @@
-import { normalize, relative } from "node:path";
 import path from "node:path";
 
 export function sanitizePath(userPath: string): string {
@@ -11,13 +10,13 @@ export function sanitizePath(userPath: string): string {
     throw new Error("Invalid path: Directory traversal attempt detected");
   }
 
-  const normalized = normalize(userPath);
+  const normalized = path.normalize(userPath);
 
   if (path.isAbsolute(normalized)) {
     throw new Error("Invalid path: Absolute paths are not allowed");
   }
 
-  const relativePath = relative("", normalized);
+  const relativePath = path.relative("", normalized);
 
   if (relativePath.startsWith("..")) {
     throw new Error("Invalid path: Directory traversal attempt detected");
@@ -50,9 +49,4 @@ export function sanitizePath(userPath: string): string {
 
   // Always return Unix-style paths for consistency across platforms
   return relativePath.replace(/\\/g, "/");
-}
-
-export function isValidPathCharacters(path: string): boolean {
-  const validPathRegex = /^[a-zA-Z0-9\-_/.]+$/;
-  return validPathRegex.test(path);
 }

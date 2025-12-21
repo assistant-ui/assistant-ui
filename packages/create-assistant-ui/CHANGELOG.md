@@ -1,5 +1,12 @@
 # create-assistant-ui
 
+## 0.0.36
+
+### Patch Changes
+
+- 57bd207: chore: update dependencies
+- cce009d: chore: use tsc for building packages
+
 ## 0.0.35
 
 ### Patch Changes
