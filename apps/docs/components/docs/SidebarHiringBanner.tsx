@@ -35,7 +35,7 @@ export const SidebarHiringBanner = () => {
           event.stopPropagation();
           setDismissed(true);
         }}
-        className="-top-[9px] -right-[9px] absolute flex h-5 w-5 items-center justify-center rounded-full border border-border bg-background text-muted-foreground opacity-0 shadow-sm transition hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background group-hover:opacity-100"
+        className="absolute -top-[9px] -right-[9px] flex h-5 w-5 items-center justify-center rounded-full border border-border bg-background text-muted-foreground opacity-0 shadow-sm transition hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background group-hover:opacity-100"
       >
         <span className="font-semibold text-[10px] leading-none">&times;</span>
       </button>

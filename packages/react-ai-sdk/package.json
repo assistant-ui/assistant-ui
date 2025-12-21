@@ -1,10 +1,23 @@
 {
   "name": "@assistant-ui/react-ai-sdk",
-  "version": "1.1.19",
+  "version": "1.1.20",
+  "description": "Vercel AI SDK adapter for assistant-ui",
+  "keywords": [
+    "ai-sdk",
+    "vercel",
+    "assistant-ui",
+    "react",
+    "ai",
+    "chat",
+    "openai",
+    "streaming"
+  ],
+  "author": "AgentbaseAI Inc.",
   "license": "MIT",
   "type": "module",
   "exports": {
     ".": {
+      "aui-source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     }
@@ -18,23 +31,18 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "tsx scripts/build.mts"
+    "build": "aui-build"
   },
   "dependencies": {
-    "@ai-sdk/provider": "^2.0.0",
-    "@ai-sdk/react": "^2.0.114",
-    "@radix-ui/react-use-callback-ref": "^1.1.1",
-    "@types/json-schema": "^7.0.15",
-    "ai": "^5.0.112",
-    "assistant-stream": "^0.2.45",
-    "zod": "^4.1.13",
-    "zustand": "^5.0.9"
+    "@ai-sdk/react": "^2.0.118",
+    "ai": "^5.0.116",
+    "zod": "^4.2.1"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.11.52",
+    "@assistant-ui/react": "^0.11.53",
     "@types/react": "*",
     "assistant-cloud": "*",
-    "react": "^18 || ^19 || ^19.0.0-rc"
+    "react": "^18 || ^19"
   },
   "peerDependenciesMeta": {
     "@types/react": {
@@ -47,18 +55,19 @@
   "devDependencies": {
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^25.0.0",
+    "@types/json-schema": "^7.0.15",
     "@types/react": "^19.2.7",
-    "react": "19.2.3",
-    "tsx": "^4.21.0"
+    "react": "19.2.3"
   },
   "publishConfig": {
     "access": "public",
     "provenance": true
   },
+  "homepage": "https://www.assistant-ui.com/",
   "repository": {
     "type": "git",
-    "url": "https://github.com/assistant-ui/assistant-ui/tree/main/packages/react-ai-sdk"
+    "url": "git+https://github.com/assistant-ui/assistant-ui.git",
+    "directory": "packages/react-ai-sdk"
   },
   "bugs": {
     "url": "https://github.com/assistant-ui/assistant-ui/issues"
