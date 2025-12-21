@@ -17,28 +17,42 @@ describe("convertExternalMessages", () => {
           id: "msg1",
           role: "assistant" as const,
           content: [
-            { type: "reasoning" as const, text: "First reasoning", parentId: "parent1" },
+            {
+              type: "reasoning" as const,
+              text: "First reasoning",
+              parentId: "parent1",
+            },
           ],
         },
         {
           id: "msg2",
           role: "assistant" as const,
           content: [
-            { type: "reasoning" as const, text: "Second reasoning", parentId: "parent1" },
+            {
+              type: "reasoning" as const,
+              text: "Second reasoning",
+              parentId: "parent1",
+            },
           ],
         },
       ];
 
-      const callback: useExternalMessageConverter.Callback<typeof messages[number]> = (msg) => msg;
+      const callback: useExternalMessageConverter.Callback<
+        (typeof messages)[number]
+      > = (msg) => msg;
 
       const result = convertExternalMessages(messages, callback, false, {});
 
       expect(result).toHaveLength(1);
       expect(result[0]!.role).toBe("assistant");
 
-      const reasoningParts = result[0]!.content.filter((p) => p.type === "reasoning");
+      const reasoningParts = result[0]!.content.filter(
+        (p) => p.type === "reasoning",
+      );
       expect(reasoningParts).toHaveLength(1);
-      expect((reasoningParts[0] as any).text).toBe("First reasoning\n\nSecond reasoning");
+      expect((reasoningParts[0] as any).text).toBe(
+        "First reasoning\n\nSecond reasoning",
+      );
       expect((reasoningParts[0] as any).parentId).toBe("parent1");
     });
 
@@ -50,26 +64,26 @@ describe("convertExternalMessages", () => {
         {
           id: "msg1",
           role: "assistant" as const,
-          content: [
-            { type: "reasoning" as const, text: "First reasoning" },
-          ],
+          content: [{ type: "reasoning" as const, text: "First reasoning" }],
         },
         {
           id: "msg2",
           role: "assistant" as const,
-          content: [
-            { type: "reasoning" as const, text: "Second reasoning" },
-          ],
+          content: [{ type: "reasoning" as const, text: "Second reasoning" }],
         },
       ];
 
-      const callback: useExternalMessageConverter.Callback<typeof messages[number]> = (msg) => msg;
+      const callback: useExternalMessageConverter.Callback<
+        (typeof messages)[number]
+      > = (msg) => msg;
 
       const result = convertExternalMessages(messages, callback, false, {});
 
       expect(result).toHaveLength(1);
 
-      const reasoningParts = result[0]!.content.filter((p) => p.type === "reasoning");
+      const reasoningParts = result[0]!.content.filter(
+        (p) => p.type === "reasoning",
+      );
       expect(reasoningParts).toHaveLength(2);
       expect((reasoningParts[0] as any).text).toBe("First reasoning");
       expect((reasoningParts[1] as any).text).toBe("Second reasoning");
@@ -84,25 +98,37 @@ describe("convertExternalMessages", () => {
           id: "msg1",
           role: "assistant" as const,
           content: [
-            { type: "reasoning" as const, text: "Reasoning for parent1", parentId: "parent1" },
+            {
+              type: "reasoning" as const,
+              text: "Reasoning for parent1",
+              parentId: "parent1",
+            },
           ],
         },
         {
           id: "msg2",
           role: "assistant" as const,
           content: [
-            { type: "reasoning" as const, text: "Reasoning for parent2", parentId: "parent2" },
+            {
+              type: "reasoning" as const,
+              text: "Reasoning for parent2",
+              parentId: "parent2",
+            },
           ],
         },
       ];
 
-      const callback: useExternalMessageConverter.Callback<typeof messages[number]> = (msg) => msg;
+      const callback: useExternalMessageConverter.Callback<
+        (typeof messages)[number]
+      > = (msg) => msg;
 
       const result = convertExternalMessages(messages, callback, false, {});
 
       expect(result).toHaveLength(1);
 
-      const reasoningParts = result[0]!.content.filter((p) => p.type === "reasoning");
+      const reasoningParts = result[0]!.content.filter(
+        (p) => p.type === "reasoning",
+      );
       expect(reasoningParts).toHaveLength(2);
       expect((reasoningParts[0] as any).parentId).toBe("parent1");
       expect((reasoningParts[1] as any).parentId).toBe("parent2");
@@ -133,13 +159,17 @@ describe("convertExternalMessages", () => {
         },
       ];
 
-      const callback: useExternalMessageConverter.Callback<typeof messages[number]> = (msg) => msg;
+      const callback: useExternalMessageConverter.Callback<
+        (typeof messages)[number]
+      > = (msg) => msg;
 
       const result = convertExternalMessages(messages, callback, false, {});
 
       expect(result).toHaveLength(1);
 
-      const toolCallParts = result[0]!.content.filter((p) => p.type === "tool-call");
+      const toolCallParts = result[0]!.content.filter(
+        (p) => p.type === "tool-call",
+      );
       expect(toolCallParts).toHaveLength(1);
       expect((toolCallParts[0] as any).result).toEqual({ data: "result" });
     });

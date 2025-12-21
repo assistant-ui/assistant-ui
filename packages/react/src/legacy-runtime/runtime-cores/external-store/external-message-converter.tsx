@@ -168,7 +168,11 @@ const joinExternalMessages = (
 
           // Add content parts, merging reasoning parts with same parentId
           for (const part of content) {
-            if (part.type === "reasoning" && "parentId" in part && part.parentId) {
+            if (
+              part.type === "reasoning" &&
+              "parentId" in part &&
+              part.parentId
+            ) {
               const existingIdx = assistantMessage.content.findIndex(
                 (c) =>
                   c.type === "reasoning" &&
