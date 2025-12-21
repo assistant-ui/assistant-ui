@@ -1,5 +1,12 @@
 # assistant-ui
 
+## 0.0.70
+
+### Patch Changes
+
+- 57bd207: chore: update dependencies
+- cce009d: chore: use tsc for building packages
+
 ## 0.0.69
 
 ### Patch Changes

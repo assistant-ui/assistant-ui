@@ -2,6 +2,7 @@
   "name": "@assistant-ui/devtools-extension",
   "version": "0.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "build": "tsx scripts/build-extension.mts",
     "dev": "NODE_ENV=development tsx scripts/build-extension.mts --watch"
@@ -14,9 +15,9 @@
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/chrome": "^0.1.32",
-    "@types/node": "^25.0.0",
+    "@types/node": "^25.0.3",
     "@types/webextension-polyfill": "^0.12.4",
-    "esbuild": "^0.27.1",
+    "esbuild": "^0.27.2",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   }

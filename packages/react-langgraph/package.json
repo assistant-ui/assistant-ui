@@ -1,10 +1,22 @@
 {
   "name": "@assistant-ui/react-langgraph",
-  "version": "0.7.12",
+  "version": "0.7.13",
+  "description": "LangGraph adapter for assistant-ui",
+  "keywords": [
+    "langgraph",
+    "langchain",
+    "assistant-ui",
+    "react",
+    "ai",
+    "chat",
+    "agents"
+  ],
+  "author": "AgentbaseAI Inc.",
   "license": "MIT",
   "type": "module",
   "exports": {
     ".": {
+      "aui-source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     }
@@ -18,19 +30,18 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "tsx scripts/build.mts",
+    "build": "aui-build",
     "test": "vitest run",
     "test:watch": "vitest"
   },
   "dependencies": {
-    "assistant-stream": "^0.2.45",
-    "uuid": "^13.0.0",
-    "zod": "^4.1.13"
+    "assistant-stream": "^0.2.46",
+    "uuid": "^13.0.0"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.11.52",
+    "@assistant-ui/react": "^0.11.53",
     "@types/react": "*",
-    "react": "^18 || ^19 || ^19.0.0-rc"
+    "react": "^18 || ^19"
   },
   "peerDependenciesMeta": {
     "@types/react": {
@@ -41,14 +52,13 @@
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@testing-library/dom": "^10.4.1",
-    "@testing-library/react": "^16.3.0",
-    "@types/node": "^25.0.0",
+    "@testing-library/react": "^16.3.1",
+    "@types/node": "^25.0.3",
     "@types/react": "^19.2.7",
     "@types/uuid": "^11.0.0",
     "jsdom": "^27.3.0",
     "react": "19.2.3",
-    "tsx": "^4.21.0",
-    "vitest": "^4.0.15"
+    "vitest": "^4.0.16"
   },
   "publishConfig": {
     "access": "public",
@@ -57,7 +67,8 @@
   "homepage": "https://www.assistant-ui.com/",
   "repository": {
     "type": "git",
-    "url": "https://github.com/assistant-ui/assistant-ui/tree/main/packages/react-langgraph"
+    "url": "git+https://github.com/assistant-ui/assistant-ui.git",
+    "directory": "packages/react-langgraph"
   },
   "bugs": {
     "url": "https://github.com/assistant-ui/assistant-ui/issues"

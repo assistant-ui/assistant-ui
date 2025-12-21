@@ -2,7 +2,7 @@ import { logger } from "../utils/logger.js";
 import { copyRaw } from "./copy-raw.js";
 import { prepareCodeExamples } from "./code-examples.js";
 
-export async function prepare(): Promise<void> {
+async function prepare(): Promise<void> {
   logger.info("Starting documentation preparation...");
 
   try {
@@ -16,7 +16,7 @@ export async function prepare(): Promise<void> {
   }
 }
 
-if (process.env.PREPARE === "true") {
+if (import.meta.url === `file://${process.argv[1]}`) {
   prepare().catch((error) => {
     logger.error("Preparation failed", error);
     process.exit(1);
