@@ -32,7 +32,7 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "tsx scripts/build.mts"
+    "build": "aui-build"
   },
   "dependencies": {
     "@assistant-ui/core": "workspace:*"
@@ -49,8 +49,7 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^24.10.1",
-    "tsx": "^4.21.0"
+    "@types/node": "^24.10.1"
   },
   "publishConfig": {
     "access": "public",
