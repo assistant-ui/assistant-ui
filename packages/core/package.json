@@ -28,7 +28,7 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "tsx scripts/build.mts"
+    "build": "aui-build"
   },
   "dependencies": {
     "assistant-stream": "^0.2.45",
@@ -38,8 +38,7 @@
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/json-schema": "^7.0.15",
-    "@types/node": "^25.0.1",
-    "tsx": "^4.21.0"
+    "@types/node": "^25.0.1"
   },
   "publishConfig": {
     "access": "public",
