@@ -1486,6 +1486,31 @@ importers:
         specifier: ^4.0.16
         version: 4.0.16(@opentelemetry/api@1.9.0)(@types/node@25.0.3)(@vitest/ui@4.0.16)(jiti@2.6.1)(jsdom@27.3.0)(lightningcss@1.30.2)(tsx@4.21.0)(yaml@2.8.2)
 
+  packages/core:
+    dependencies:
+      assistant-stream:
+        specifier: ^0.2.45
+        version: link:../assistant-stream
+      nanoid:
+        specifier: 5.1.6
+        version: 5.1.6
+      secure-json-parse:
+        specifier: ^4.1.0
+        version: 4.1.0
+    devDependencies:
+      '@assistant-ui/x-buildutils':
+        specifier: workspace:*
+        version: link:../x-buildutils
+      '@types/json-schema':
+        specifier: ^7.0.15
+        version: 7.0.15
+      '@types/node':
+        specifier: ^25.0.1
+        version: 25.0.3
+      tsx:
+        specifier: ^4.21.0
+        version: 4.21.0
+
   packages/create-assistant-ui:
     dependencies:
       chalk:
@@ -1532,6 +1557,9 @@ importers:
 
   packages/react:
     dependencies:
+      '@assistant-ui/core':
+        specifier: workspace:*
+        version: link:../core
       '@assistant-ui/tap':
         specifier: ^0.3.5
         version: link:../tap
