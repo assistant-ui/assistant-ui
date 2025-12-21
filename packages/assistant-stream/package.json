@@ -1,19 +1,31 @@
 {
   "name": "assistant-stream",
-  "version": "0.2.45",
+  "version": "0.2.46",
+  "description": "Streaming utilities for AI assistants",
+  "keywords": [
+    "ai",
+    "streaming",
+    "assistant",
+    "chat",
+    "openai",
+    "llm",
+    "assistant-ui"
+  ],
+  "author": "AgentbaseAI Inc.",
   "license": "MIT",
   "type": "module",
   "exports": {
     ".": {
+      "aui-source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
     "./utils": {
+      "aui-source": "./src/utils.ts",
       "types": "./dist/utils.d.ts",
       "default": "./dist/utils.js"
     }
   },
-  "source": "./src/index.ts",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "files": [
@@ -24,31 +36,31 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "tsx scripts/build.mts",
+    "build": "aui-build",
     "test": "vitest run",
     "test:watch": "vitest"
   },
+  "dependencies": {
+    "@standard-schema/spec": "^1.1.0",
+    "nanoid": "5.1.6",
+    "secure-json-parse": "^4.1.0"
+  },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@standard-schema/spec": "^1.0.0",
-    "@types/node": "^25.0.0",
-    "tsx": "^4.21.0",
-    "vitest": "^4.0.15"
+    "@types/json-schema": "^7.0.15",
+    "vitest": "^4.0.16"
   },
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "provenance": true
   },
   "homepage": "https://www.assistant-ui.com/",
   "repository": {
     "type": "git",
-    "url": "https://github.com/assistant-ui/assistant-ui/tree/main/packages/assistant-stream"
+    "url": "git+https://github.com/assistant-ui/assistant-ui.git",
+    "directory": "packages/assistant-stream"
   },
   "bugs": {
     "url": "https://github.com/assistant-ui/assistant-ui/issues"
-  },
-  "dependencies": {
-    "@types/json-schema": "^7.0.15",
-    "nanoid": "5.1.6",
-    "secure-json-parse": "^4.1.0"
   }
 }
