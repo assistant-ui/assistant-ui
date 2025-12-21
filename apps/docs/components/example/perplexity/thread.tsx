@@ -68,7 +68,7 @@ const ThreadScrollToBottom: FC = () => {
       <TooltipIconButton
         tooltip="Scroll to bottom"
         variant="outline"
-        className="-top-8 absolute rounded-full border-[#3a3a3a] bg-[#242424] text-[#f5f5f5] hover:bg-[#3a3a3a] disabled:invisible"
+        className="absolute -top-8 rounded-full border-[#3a3a3a] bg-[#242424] text-[#f5f5f5] hover:bg-[#3a3a3a] disabled:invisible"
       >
         <ArrowDownIcon />
       </TooltipIconButton>
@@ -201,7 +201,7 @@ const AssistantMessage: FC = () => {
 
       <AssistantActionBar />
 
-      <BranchPicker className="-ml-2 col-start-2 row-start-2 mr-2" />
+      <BranchPicker className="col-start-2 row-start-2 mr-2 -ml-2" />
     </MessagePrimitive.Root>
   );
 };
@@ -212,7 +212,7 @@ const AssistantActionBar: FC = () => {
       hideWhenRunning
       autohide="not-last"
       autohideFloat="single-branch"
-      className="-ml-1 col-start-3 row-start-2 flex gap-1 text-[#808080]"
+      className="col-start-3 row-start-2 -ml-1 flex gap-1 text-[#808080]"
     >
       <ActionBarPrimitive.Copy asChild>
         <TooltipIconButton

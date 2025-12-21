@@ -7,7 +7,7 @@ import {
   SyntaxHighlighterProps,
 } from "./types";
 import { DefaultCodeBlockContent } from "./defaultComponents";
-import { Element } from "hast";
+import type { Element } from "hast";
 
 export type CodeBlockProps = {
   node: Element | undefined;

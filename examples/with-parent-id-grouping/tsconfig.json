@@ -1,26 +1,8 @@
 {
-  "extends": "@assistant-ui/x-buildutils/ts/base",
+  "extends": "@assistant-ui/x-buildutils/ts/next",
   "compilerOptions": {
-    "target": "ES6",
-    "module": "ESNext",
-    "incremental": true,
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ],
-    "allowJs": true,
-    "strictNullChecks": true,
-    "jsx": "preserve",
-    "paths": {
-      "@/*": ["./*"],
-      "@assistant-ui/*": ["../../packages/*/src"],
-      "@assistant-ui/react/*": ["../../packages/react/src/*"],
-      "@assistant-ui/tap/*": ["../../packages/tap/src/*"],
-      "assistant-stream": ["../../packages/assistant-stream/src"],
-      "assistant-stream/*": ["../../packages/assistant-stream/src/*"]
-    }
+    "paths": { "@/*": ["./*"] }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "include": ["**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
   "exclude": ["node_modules"]
 }
