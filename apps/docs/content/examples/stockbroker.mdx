@@ -3,9 +3,9 @@ title: LangGraph Stockbroker
 description: A stockbroker showing human in the loop with LangGraph
 ---
 
-## Live Demo
+import { SourceLink } from "@/components/examples/SourceLink";
 
-<div className="not-prose h-[700px]">
+<div className="not-prose h-[600px]">
   <iframe
     title="Stockbroker example"
     className="h-full w-full border-none"
@@ -15,35 +15,138 @@ description: A stockbroker showing human in the loop with LangGraph
 
 ## Overview
 
-The LangGraph Stockbroker example demonstrates how to integrate assistant-ui with LangGraph for complex, multi-step workflows that require human-in-the-loop interactions. This example shows a stock trading assistant that can execute trades with user approval.
+A stock trading assistant built with LangGraph that demonstrates human-in-the-loop workflows. The assistant can research stocks, analyze market data, and prepare trades, but requires explicit user approval before executing any transactions. This pattern is essential for applications where AI assists with high-stakes decisions.
 
 ## Features
 
-- **Multi-step Workflows**: Complex workflows managed by LangGraph
-- **Human-in-the-Loop**: User approval required for critical actions
-- **State Management**: Persistent state across workflow steps
-- **Tool Integration**: Integration with external APIs and services
-- **Approval Workflows**: Clear approval interfaces for sensitive operations
-- **Workflow Visualization**: Visual representation of workflow progress
+- **Multi-step Workflows**: Complex operations broken into LangGraph nodes
+- **Human-in-the-Loop**: Critical actions require user confirmation
+- **State Persistence**: Workflow state maintained across interactions
+- **Tool Integration**: Connected to stock market APIs
+- **Approval UI**: Clear interface for reviewing and approving actions
+- **Audit Trail**: Complete history of AI decisions and user approvals
 
-## Usage
+## How It Works
 
-To implement LangGraph workflows with assistant-ui:
+```
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│   Research  │────▶│   Analyze   │────▶│   Prepare   │
+│    Stock    │     │    Data     │     │    Trade    │
+└─────────────┘     └─────────────┘     └─────────────┘
+                                              │
+                                              ▼
+                                    ┌─────────────────┐
+                                    │  Human Approval │
+                                    │   (Required)    │
+                                    └─────────────────┘
+                                              │
+                                              ▼
+                                    ┌─────────────────┐
+                                    │  Execute Trade  │
+                                    └─────────────────┘
+```
 
-1. **LangGraph Setup**: Configure LangGraph workflows and state management
-2. **Tool Integration**: Connect LangGraph tools with assistant-ui components
-3. **Approval Interfaces**: Create UI for human approval of critical actions
-4. **State Persistence**: Maintain workflow state across interactions
-5. **Error Handling**: Implement proper error handling and recovery
+1. User asks about a stock (e.g., "Should I buy AAPL?")
+2. AI researches the stock and analyzes market data
+3. AI prepares a trade recommendation
+4. **Workflow pauses** for user approval
+5. User reviews and approves/rejects the trade
+6. If approved, trade executes
 
-## Code
+## Integration
 
-Key implementation aspects:
+Uses `@assistant-ui/react-langgraph` for LangGraph integration:
 
-- **LangGraph Integration**: Use LangGraph for workflow orchestration
-- **Tool Components**: Create UI components for LangGraph tools
-- **Approval UI**: Interface for user approval of sensitive operations
-- **State Management**: Persistent state management across workflow steps
-- **Error Recovery**: Proper error handling and workflow recovery
+```tsx
+import { useLangGraphRuntime } from "@assistant-ui/react-langgraph";
+import { AssistantRuntimeProvider, Thread } from "@assistant-ui/react";
+import { Client } from "@langchain/langgraph-sdk";
 
-The implementation uses LangGraph's workflow capabilities with assistant-ui for a seamless human-AI collaboration experience.
+const langGraphClient = new Client({
+  apiUrl: process.env.LANGGRAPH_API_URL,
+});
+
+export default function StockbrokerChat() {
+  const runtime = useLangGraphRuntime({
+    threadId,
+    stream: async (messages, { abortSignal }) => {
+      return langGraphClient.runs.stream(
+        threadId,
+        "stockbroker-assistant",
+        {
+          input: { messages },
+          streamMode: "messages",
+        },
+        { signal: abortSignal }
+      );
+    },
+    onSwitchToNewThread: async () => {
+      const { thread_id } = await langGraphClient.threads.create();
+      return thread_id;
+    },
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Thread />
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+### Human-in-the-Loop Pattern
+
+In your LangGraph workflow, define an interrupt point:
+
+```python
+from langgraph.graph import StateGraph
+from langgraph.checkpoint import MemorySaver
+
+def prepare_trade(state):
+    # Prepare trade details
+    return {"trade": trade_details, "needs_approval": True}
+
+def execute_trade(state):
+    # Execute the approved trade
+    return {"result": "Trade executed"}
+
+# Graph with interrupt
+graph = StateGraph(State)
+graph.add_node("prepare", prepare_trade)
+graph.add_node("execute", execute_trade)
+
+# Interrupt before execute for human approval
+graph.add_edge("prepare", "execute")
+graph.set_interrupt_before(["execute"])
+```
+
+### Approval UI Component
+
+```tsx
+const TradeApproval = makeAssistantToolUI({
+  toolName: "execute_trade",
+  render: ({ args, status, addResult }) => {
+    if (status === "requires_action") {
+      return (
+        <div className="rounded-lg border p-4">
+          <h3>Trade Approval Required</h3>
+          <p>Buy {args.shares} shares of {args.symbol}</p>
+          <div className="flex gap-2">
+            <Button onClick={() => addResult({ approved: true })}>
+              Approve
+            </Button>
+            <Button onClick={() => addResult({ approved: false })}>
+              Reject
+            </Button>
+          </div>
+        </div>
+      );
+    }
+    return <p>Trade {status}...</p>;
+  },
+});
+```
+
+## Source
+
+<SourceLink href="https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-langgraph" />

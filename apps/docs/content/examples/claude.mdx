@@ -5,10 +5,9 @@ description: Customized colors and styles for a Claude look and feel
 
 import { Claude } from "@/components/example/claude/Claude";
 import { DocsRuntimeProvider } from "@/app/(home)/DocsRuntimeProvider";
+import { SourceLink } from "@/components/examples/SourceLink";
 
-## Live Demo
-
-<div className="not-prose h-[700px]">
+<div className="not-prose h-[600px]">
   <DocsRuntimeProvider>
     <Claude />
   </DocsRuntimeProvider>
@@ -16,34 +15,81 @@ import { DocsRuntimeProvider } from "@/app/(home)/DocsRuntimeProvider";
 
 ## Overview
 
-The Claude Clone example demonstrates how to customize assistant-ui to match Anthropic's Claude interface. This includes the characteristic orange color scheme, clean typography, and minimalist design that users associate with Claude.
+The Claude Clone demonstrates how to customize assistant-ui to match Anthropic's Claude interface. This example features Claude's distinctive warm color palette, serif typography, and minimalist design philosophy with careful attention to shadows and spacing.
 
 ## Features
 
-- **Claude Styling**: Authentic orange color scheme and visual design
-- **Clean Typography**: Claude's distinctive font choices and text styling
-- **Minimalist Layout**: Clean, uncluttered interface design
-- **Message Formatting**: Proper message styling with Claude's visual patterns
-- **Responsive Design**: Mobile-optimized layout
-- **Accessibility**: High contrast and accessible design patterns
+- **Warm Color Palette**: Beige backgrounds with orange accent (`#ae5630`)
+- **Serif Typography**: Classic `font-serif` for a refined reading experience
+- **Elegant Shadows**: Multi-layered box shadows for depth
+- **Attachment Support**: Image and file upload with thumbnail previews
+- **Feedback Actions**: Thumbs up/down for response quality feedback
+- **Model Selector**: Dropdown to switch between Claude models
 
-## Usage
+## Quick Start
 
-To create a Claude-style interface:
-
-1. **Color Scheme**: Apply Claude's orange (#ff6900) and neutral color palette
-2. **Typography**: Use clean, readable fonts with proper hierarchy
-3. **Layout Design**: Implement Claude's minimalist, content-focused layout
-4. **Component Styling**: Customize all UI elements to match Claude's aesthetic
+```bash
+npx assistant-ui add thread
+```
 
 ## Code
 
-Key styling elements for Claude clone:
+The Claude clone features warm tones and serif typography:
 
-- **Primary Color**: Claude's signature orange for interactive elements
-- **Typography**: Clean, readable fonts with proper line spacing
-- **Spacing**: Generous whitespace and clean margins
-- **Borders**: Subtle borders and dividers
-- **Shadows**: Minimal, subtle shadow effects
+```tsx
+import {
+  ThreadPrimitive,
+  ComposerPrimitive,
+  MessagePrimitive,
+  AttachmentPrimitive,
+} from "@assistant-ui/react";
 
-The implementation focuses on clean, accessible design while maintaining all assistant-ui functionality.
+export const Claude = () => {
+  return (
+    <ThreadPrimitive.Root className="flex h-full flex-col bg-[#F5F5F0] p-4 pt-16 font-serif dark:bg-[#2b2a27]">
+      <ThreadPrimitive.Viewport className="flex grow flex-col overflow-y-scroll">
+        <ThreadPrimitive.Messages components={{ Message: ChatMessage }} />
+      </ThreadPrimitive.Viewport>
+
+      <ComposerPrimitive.Root className="mx-auto flex w-full max-w-3xl flex-col rounded-2xl bg-white p-0.5 shadow-[0_0.25rem_1.25rem_rgba(0,0,0,0.035)] dark:bg-[#1f1e1b]">
+        <ComposerPrimitive.Input
+          placeholder="How can I help you today?"
+          className="w-full resize-none bg-transparent text-[#1a1a18] outline-none dark:text-[#eee]"
+        />
+        <div className="flex items-center gap-2">
+          <ComposerPrimitive.AddAttachment className="rounded-lg border border-[#00000015] hover:bg-[#f5f5f0]">
+            <PlusIcon />
+          </ComposerPrimitive.AddAttachment>
+          <span className="font-serif">Sonnet 4.5</span>
+          <ComposerPrimitive.Send className="rounded-lg bg-[#ae5630] hover:bg-[#c4633a]">
+            <ArrowUpIcon className="text-white" />
+          </ComposerPrimitive.Send>
+        </div>
+      </ComposerPrimitive.Root>
+    </ThreadPrimitive.Root>
+  );
+};
+```
+
+### Color Palette
+
+| Element | Light | Dark |
+|---------|-------|------|
+| Background | `#F5F5F0` | `#2b2a27` |
+| Composer | `white` | `#1f1e1b` |
+| Text | `#1a1a18` | `#eee` |
+| Muted | `#6b6a68` | `#9a9893` |
+| Primary (orange) | `#ae5630` | `#ae5630` |
+| User bubble | `#DDD9CE` | `#393937` |
+
+### Styling Details
+
+- **Typography**: `font-serif` throughout for Claude's classic feel
+- **Shadows**: Complex multi-layer shadows for realistic depth
+- **Borders**: Subtle `border-[#00000015]` for soft separation
+- **Transitions**: Smooth `duration-300 ease-[cubic-bezier(0.165,0.85,0.45,1)]`
+- **Active states**: `active:scale-[0.98]` for tactile button feedback
+
+## Source
+
+<SourceLink href="https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/example/claude/Claude.tsx" />

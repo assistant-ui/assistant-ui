@@ -158,6 +158,6 @@ The project uses Tailwind CSS for styling. Modify `app/globals.css` and `tailwin
 
 ## Learn More
 
-- [assistant-ui Documentation](https://docs.assistant-ui.com)
-- [Assistant Transport Runtime API](https://docs.assistant-ui.com/runtimes/assistant-transport)
+- [assistant-ui Documentation](https://www.assistant-ui.com/docs)
+- [Assistant Transport Runtime API](https://www.assistant-ui.com/docs/runtimes/assistant-transport)
 - [Next.js Documentation](https://nextjs.org/docs)

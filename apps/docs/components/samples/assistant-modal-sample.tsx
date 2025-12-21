@@ -64,7 +64,7 @@ const AssistantModalButton = forwardRef<
 
       <ChevronDownIcon
         data-state={state}
-        className="data-[state=closed]:-rotate-90 absolute size-6 transition-all data-[state=open]:rotate-0 data-[state=closed]:scale-0 data-[state=open]:scale-100"
+        className="absolute size-6 transition-all data-[state=closed]:-rotate-90 data-[state=open]:rotate-0 data-[state=closed]:scale-0 data-[state=open]:scale-100"
       />
       <span className="sr-only">{tooltip}</span>
     </TooltipIconButton>

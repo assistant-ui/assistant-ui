@@ -1,5 +1,12 @@
 # assistant-stream
 
+## 0.2.46
+
+### Patch Changes
+
+- 57bd207: chore: update dependencies
+- cce009d: chore: use tsc for building packages
+
 ## 0.2.45
 
 ### Patch Changes

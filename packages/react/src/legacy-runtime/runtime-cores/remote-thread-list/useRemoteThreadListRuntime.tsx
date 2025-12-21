@@ -58,6 +58,5 @@ export const useRemoteThreadListRuntime = (
     return options.runtimeHook();
   }
 
-  // eslint-disable-next-line react-hooks/rules-of-hooks
   return useRemoteThreadListRuntimeImpl(options);
 };
