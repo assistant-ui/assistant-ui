@@ -1,5 +1,15 @@
 # @assistant-ui/react-hook-form
 
+## 0.11.11
+
+### Patch Changes
+
+- 57bd207: chore: update dependencies
+- cce009d: chore: use tsc for building packages
+- Updated dependencies [57bd207]
+- Updated dependencies [cce009d]
+  - @assistant-ui/react@0.11.53
+
 ## 0.11.10
 
 ### Patch Changes

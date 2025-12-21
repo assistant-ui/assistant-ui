@@ -1,10 +1,22 @@
 {
   "name": "@assistant-ui/react-ag-ui",
-  "version": "0.0.6",
+  "version": "0.0.7",
+  "description": "AG-UI protocol adapter for assistant-ui",
+  "keywords": [
+    "ag-ui",
+    "copilotkit",
+    "assistant-ui",
+    "react",
+    "ai",
+    "chat",
+    "protocol"
+  ],
+  "author": "AgentbaseAI Inc.",
   "license": "MIT",
   "type": "module",
   "exports": {
     ".": {
+      "aui-source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     }
@@ -18,18 +30,18 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "tsx scripts/build.mts",
-    "test": "vitest",
-    "test:run": "vitest run"
+    "build": "aui-build",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@ag-ui/client": "^0.0.42",
-    "assistant-stream": "workspace:*"
+    "assistant-stream": "^0.2.46"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.11.51",
+    "@assistant-ui/react": "^0.11.53",
     "@types/react": "*",
-    "react": "^18 || ^19 || ^19.0.0-rc"
+    "react": "^18 || ^19"
   },
   "peerDependenciesMeta": {
     "@types/react": {
@@ -39,20 +51,19 @@
   "devDependencies": {
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^25.0.0",
     "@types/react": "^19.2.7",
     "react": "19.2.3",
-    "tsx": "^4.21.0",
-    "vitest": "^4.0.15",
-    "jsdom": "^27.3.0"
+    "vitest": "^4.0.16"
   },
   "publishConfig": {
     "access": "public",
     "provenance": true
   },
+  "homepage": "https://www.assistant-ui.com/",
   "repository": {
     "type": "git",
-    "url": "https://github.com/assistant-ui/assistant-ui/tree/main/packages/react-ag-ui"
+    "url": "git+https://github.com/assistant-ui/assistant-ui.git",
+    "directory": "packages/react-ag-ui"
   },
   "bugs": {
     "url": "https://github.com/assistant-ui/assistant-ui/issues"

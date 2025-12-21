@@ -1,4 +1,4 @@
-import { Element } from "hast";
+import type { Element } from "hast";
 import { ComponentProps, ComponentType, ElementType, memo } from "react";
 import { CodeHeaderProps, SyntaxHighlighterProps } from "./overrides/types";
 
