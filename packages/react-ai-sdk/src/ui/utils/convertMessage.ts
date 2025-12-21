@@ -224,7 +224,9 @@ export const AISDKMessageConverter = unstable_createMessageConverter(
 
       case "assistant": {
         const legacyMessage = message as UIMessage & {
-          annotations?: MessageMetadata extends { unstable_annotations?: infer A }
+          annotations?: MessageMetadata extends {
+            unstable_annotations?: infer A;
+          }
             ? A
             : never;
           data?: unknown | readonly unknown[];
@@ -237,7 +239,8 @@ export const AISDKMessageConverter = unstable_createMessageConverter(
           content: convertParts(message, metadata),
           metadata: {
             unstable_annotations:
-              incomingMetadata?.unstable_annotations ?? legacyMessage.annotations,
+              incomingMetadata?.unstable_annotations ??
+              legacyMessage.annotations,
             unstable_data:
               incomingMetadata?.unstable_data ??
               (Array.isArray(legacyMessage.data)
