@@ -1,5 +1,22 @@
 # @assistant-ui/store
 
+## 0.0.5
+
+### Patch Changes
+
+- 57bd207: chore: update dependencies
+- cce009d: chore: use tsc for building packages
+- Updated dependencies [57bd207]
+- Updated dependencies [cce009d]
+  - @assistant-ui/tap@0.3.5
+
+## 0.0.4
+
+### Patch Changes
+
+- Updated dependencies
+  - @assistant-ui/tap@0.3.4
+
 ## 0.0.3
 
 ### Patch Changes

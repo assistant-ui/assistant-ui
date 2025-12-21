@@ -1,4 +1,5 @@
 {
+  "type": "module",
   "main": "../dist/react/index.js",
   "types": "../dist/react/index.d.ts"
 }

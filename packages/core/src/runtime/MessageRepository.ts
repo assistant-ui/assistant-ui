@@ -332,7 +332,7 @@ export class MessageRepository {
     const message = this.messages.get(messageId);
     if (!message)
       throw new Error(
-        "MessageRepository(updateMessage): Message not found. This is likely an internal bug in assistant-ui.",
+        "MessageRepository(getMessage): Message not found. This is likely an internal bug in assistant-ui.",
       );
 
     return {

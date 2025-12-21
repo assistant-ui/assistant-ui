@@ -29,9 +29,7 @@ export class EventSubscriptionSubject<
       lastState = newState;
 
       innerUnsubscribe?.();
-      innerUnsubscribe = this.config.binding
-        .getState()
-        ?.unstable_on(this.config.event, callback);
+      innerUnsubscribe = newState?.unstable_on(this.config.event, callback);
     };
 
     const outerUnsubscribe = this.outerSubscribe(onRuntimeUpdate);

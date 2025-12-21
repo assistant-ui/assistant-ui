@@ -1,5 +1,16 @@
 # @assistant-ui/react-syntax-highlighter
 
+## 0.11.9
+
+### Patch Changes
+
+- 57bd207: chore: update dependencies
+- cce009d: chore: use tsc for building packages
+- Updated dependencies [57bd207]
+- Updated dependencies [cce009d]
+  - @assistant-ui/react@0.11.53
+  - @assistant-ui/react-markdown@0.11.9
+
 ## 0.11.8
 
 ### Patch Changes

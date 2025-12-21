@@ -33,7 +33,7 @@ export const parsePartialJsonObject = (
 
   try {
     const res = sjson.parse(json);
-    if (typeof res !== "object" || res === null)
+    if (typeof res !== "object" || res === null || Array.isArray(res))
       throw new Error("argsText is expected to be an object");
 
     res[PARTIAL_JSON_OBJECT_META_SYMBOL] = {
@@ -45,7 +45,7 @@ export const parsePartialJsonObject = (
     try {
       const [fixedJson, partialPath] = fixJson(json);
       const res = sjson.parse(fixedJson);
-      if (typeof res !== "object" || res === null)
+      if (typeof res !== "object" || res === null || Array.isArray(res))
         throw new Error("argsText is expected to be an object");
 
       res[PARTIAL_JSON_OBJECT_META_SYMBOL] = {
