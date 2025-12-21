@@ -1,182 +1,35 @@
-name: Autofix
+name: autofix.ci
 
-on:
-  issue_comment:
-    types: [created]
+on: [pull_request]
 
 permissions:
-  contents: write
-  pull-requests: write
-
-concurrency:
-  group: autofix-${{ github.event.issue.number }}
-  cancel-in-progress: true
+  contents: read
 
 jobs:
   autofix:
-    name: Autofix
-    if: ${{ github.event.issue.pull_request && contains(github.event.comment.body, '/autofix') && github.event.comment.user.type == 'User' }}
     runs-on: blacksmith-4vcpu-ubuntu-2404
-    timeout-minutes: 5
     steps:
-      - name: Check commenter permissions
-        uses: actions/github-script@v8
-        id: check-permission
-        with:
-          script: |
-            const { owner, repo } = context.issue;
-            const commenter = context.payload.comment.user.login;
-
-            try {
-              const { data: permission } = await github.rest.repos.getCollaboratorPermissionLevel({
-                owner,
-                repo,
-                username: commenter
-              });
-
-              const allowedPermissions = ['admin', 'write'];
-              const hasPermission = allowedPermissions.includes(permission.permission);
-
-              console.log(`User ${commenter} has permission: ${permission.permission}`);
-
-              if (!hasPermission) {
-                core.setFailed(`User ${commenter} does not have write access to this repository`);
-                return { authorized: false };
-              }
-
-              return { authorized: true };
-            } catch (error) {
-              core.setFailed(`Failed to check permissions: ${error.message}`);
-              return { authorized: false };
-            }
-          result-encoding: json
-
-      - name: Get PR information
-        if: fromJson(steps.check-permission.outputs.result).authorized == true
-        uses: actions/github-script@v8
-        id: get-pr
-        with:
-          script: |
-            const { owner, repo, number } = context.issue;
-            try {
-              const pr = await github.rest.pulls.get({
-                owner,
-                repo,
-                pull_number: number
-              });
-
-              const isFork = pr.data.head.repo.full_name !== pr.data.base.repo.full_name;
-
-              // Log information for debugging
-              console.log(`PR ${number}: head_ref=${pr.data.head.ref}, is_fork=${isFork}`);
-              if (isFork) {
-                console.log(`Fork: ${pr.data.head.repo.full_name}`);
-              }
-
-              return {
-                head_ref: pr.data.head.ref,
-                head_sha: pr.data.head.sha,
-                base_ref: pr.data.base.ref,
-                is_fork: isFork,
-                fork_owner: isFork ? pr.data.head.repo.owner.login : null,
-                fork_repo: isFork ? pr.data.head.repo.name : null,
-                pr_number: number
-              };
-            } catch (error) {
-              core.setFailed(`Failed to get PR information: ${error.message}`);
-              return null;
-            }
-          result-encoding: json
-
-      - name: Checkout PR (same repo)
-        if: fromJson(steps.check-permission.outputs.result).authorized == true && fromJson(steps.get-pr.outputs.result).is_fork == false
+      - name: Checkout code repository
         uses: actions/checkout@v6
         with:
-          ref: ${{ fromJson(steps.get-pr.outputs.result).head_sha }}
-          fetch-depth: 1
-
-      - name: Checkout PR (forked repo)
-        if: fromJson(steps.check-permission.outputs.result).authorized == true && fromJson(steps.get-pr.outputs.result).is_fork == true
-        uses: actions/checkout@v6
-        with:
-          ref: ${{ fromJson(steps.get-pr.outputs.result).head_sha }}
-          fetch-depth: 1
-          repository: ${{ format('{0}/{1}', fromJson(steps.get-pr.outputs.result).fork_owner, fromJson(steps.get-pr.outputs.result).fork_repo) }}
+          fetch-depth: 0
 
       - name: Install pnpm
-        if: fromJson(steps.check-permission.outputs.result).authorized == true
         uses: pnpm/action-setup@v4
 
       - name: Setup node.js
-        if: fromJson(steps.check-permission.outputs.result).authorized == true
         uses: actions/setup-node@v6
         with:
           node-version: 24
           cache: "pnpm"
 
-      - name: Update lockfile
-        if: fromJson(steps.check-permission.outputs.result).authorized == true
-        run: pnpm install
+      - name: Install dependencies
+        run: pnpm install --ignore-scripts
 
-      - name: Run Biome fix
-        if: fromJson(steps.check-permission.outputs.result).authorized == true
-        run: pnpm biome:fix
+      - name: Lint fix
+        run: pnpm lint:fix
 
-      - name: Commit changes
-        if: fromJson(steps.check-permission.outputs.result).authorized == true
-        id: commit
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add -A
-          if git diff --staged --quiet; then
-            echo "No lint issues to fix"
-            echo "changes_made=false" >> $GITHUB_OUTPUT
-          else
-            git commit -m "chore: autofix"
-            echo "changes_made=true" >> $GITHUB_OUTPUT
-          fi
+      - name: Sync registry components
+        run: bash scripts/sync-registry-components.sh
 
-      - name: Push changes
-        if: fromJson(steps.check-permission.outputs.result).authorized == true && steps.commit.outputs.changes_made == 'true'
-        id: push
-        run: |
-          # Try to push changes
-          if git push origin ${{ fromJson(steps.get-pr.outputs.result).head_ref }}; then
-            echo "Successfully pushed changes"
-            echo "failed=false" >> $GITHUB_OUTPUT
-          else
-            echo "Failed to push changes - this might be due to permissions"
-            echo "The contributor may need to enable 'Allow edits from maintainers' in their PR"
-            echo "failed=true" >> $GITHUB_OUTPUT
-            exit 1
-          fi
-
-      - name: Comment on PR
-        if: always()
-        uses: actions/github-script@v8
-        with:
-          script: |
-            const { owner, repo, number } = context.issue;
-            const authorized = '${{ fromJson(steps.check-permission.outputs.result).authorized }}' === 'true';
-            const changes_made = '${{ steps.commit.outputs.changes_made }}' === 'true';
-            const push_failed = '${{ steps.push.outputs.failed }}' === 'true';
-
-            let message;
-            if (!authorized) {
-              message = '❌ Only repository collaborators with write access can use the `/autofix` command.';
-            } else if (changes_made && push_failed) {
-              message = '❌ Failed to push autofix. Please ensure "Allow edits from maintainers" is enabled in your PR settings.';
-            } else if (changes_made) {
-              message = '✅ Autofix applied and committed to this PR!';
-            } else {
-              message = '✅ No issues found in this PR!';
-            }
-
-            await github.rest.issues.createComment({
-              owner,
-              repo,
-              issue_number: number,
-              body: message
-            });
-
+      - uses: autofix-ci/action@ff86a557419858bb967097bfc916833f5647fa8c
