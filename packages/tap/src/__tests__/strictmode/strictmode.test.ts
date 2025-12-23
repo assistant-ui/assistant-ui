@@ -22,7 +22,7 @@ describe("Strict Mode", () => {
     });
 
     const handle = createResource(TestResource(), { devStrictMode: true });
-    const output = handle.getOutput();
+    const output = handle.getValue();
 
     expect(renderCount).toBe(2);
     expect(output.renderCount).toBe(2);
@@ -114,7 +114,7 @@ describe("Strict Mode", () => {
     });
 
     const handle = createResource(TestResource(), { devStrictMode: true });
-    const output = handle.getOutput();
+    const output = handle.getValue();
 
     expect(renderCount).toBe(2);
     expect(output.renderCount).toBe(2);
@@ -189,7 +189,7 @@ describe("Strict Mode", () => {
       mount: true,
       devStrictMode: true,
     });
-    const output = handle.getOutput();
+    const output = handle.getValue();
 
     expect(renderCount).toBe(4);
     expect(fnCount).toBe(4);

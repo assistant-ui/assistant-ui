@@ -20,6 +20,8 @@ const dispatchOnFiber = (
   } else if (fiber.isNeverMounted) {
     throw new Error("Resource updated before mount");
   }
+
+  // TODO mark dirty
 };
 
 function getStateCell<T>(
