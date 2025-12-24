@@ -1,6 +1,6 @@
 import type { tapEffect } from "../hooks/tap-effect";
 import type { tapState } from "../hooks/tap-state";
-import { fnSymbol } from "./callResourceFn";
+import type { fnSymbol } from "./callResourceFn";
 
 export type ResourceElement<R, P = any> = {
   readonly type: Resource<R, P> & { [fnSymbol]: (props: P) => R };
@@ -8,14 +8,8 @@ export type ResourceElement<R, P = any> = {
   readonly key?: string | number;
 };
 
-type ResourceArgs<P> = undefined extends P ? [props?: P] : [props: P];
-export type Resource<R, P> = (
-  ...args: ResourceArgs<P>
-) => ResourceElement<R, P>;
-
-export type ContravariantResource<R, P> = (
-  ...args: ResourceArgs<P>
-) => ResourceElement<R>;
+export type Resource<R, P> = (props: P) => ResourceElement<R, P>;
+export type ContravariantResource<R, P> = (props: P) => ResourceElement<R>;
 
 export type ExtractResourceReturnType<T> =
   T extends ResourceElement<infer R, any>

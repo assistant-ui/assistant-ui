@@ -59,14 +59,13 @@ export function commitResourceFiber<R, P>(
 ): void {
   if (
     (isDevelopment && fiber.devStrictMode === "root" && fiber.isNeverMounted) ||
-    // process.env.NODE_ENV === "test"
     false
   ) {
     fiber.isMounted = true;
-    commitRender(result, fiber);
+    commitRender(result);
     unmountResourceFiber(fiber);
   }
 
   fiber.isMounted = true;
-  commitRender(result, fiber);
+  commitRender(result);
 }

@@ -1,7 +1,10 @@
-import { Resource, ResourceElement } from "./types";
+import { ResourceElement } from "./types";
 import { fnSymbol } from "./callResourceFn";
-export function resource<R>(fn: () => R): Resource<R, undefined>;
-export function resource<R, P>(fn: (props: P) => R): Resource<R, P>;
+
+export function resource<R>(fn: () => R): () => ResourceElement<R, undefined>;
+export function resource<R, P>(
+  fn: (props: P) => R,
+): (props: P) => ResourceElement<R, P>;
 export function resource<R, P = undefined>(fn: (props: P) => R) {
   const type = (props?: P) => {
     return {
