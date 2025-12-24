@@ -14,6 +14,7 @@ let fontsCache: {
   geistSemiBold: Buffer;
   geistRegular: Buffer;
   geistMedium: Buffer;
+  geistMono: Buffer;
 } | null = null;
 
 async function loadFonts() {
@@ -21,13 +22,15 @@ async function loadFonts() {
 
   const fontPath = join(process.cwd(), "node_modules/geist/dist/fonts");
 
-  const [geistSemiBold, geistRegular, geistMedium] = await Promise.all([
-    readFile(join(fontPath, "geist-sans/Geist-SemiBold.ttf")),
-    readFile(join(fontPath, "geist-sans/Geist-Regular.ttf")),
-    readFile(join(fontPath, "geist-sans/Geist-Medium.ttf")),
-  ]);
+  const [geistSemiBold, geistRegular, geistMedium, geistMono] =
+    await Promise.all([
+      readFile(join(fontPath, "geist-sans/Geist-SemiBold.ttf")),
+      readFile(join(fontPath, "geist-sans/Geist-Regular.ttf")),
+      readFile(join(fontPath, "geist-sans/Geist-Medium.ttf")),
+      readFile(join(fontPath, "geist-mono/GeistMono-Regular.ttf")),
+    ]);
 
-  fontsCache = { geistSemiBold, geistRegular, geistMedium };
+  fontsCache = { geistSemiBold, geistRegular, geistMedium, geistMono };
   return fontsCache;
 }
 
@@ -161,8 +164,8 @@ export async function GET(request: NextRequest) {
           style={{
             fontSize: 32,
             fontWeight: 400,
-            color: "#737373",
-            fontFamily: "Geist",
+            color: "#a3a3a3",
+            fontFamily: "GeistMono",
           }}
         >
           assistant-ui.com
@@ -193,7 +196,7 @@ export async function GET(request: NextRequest) {
         {description && (
           <span
             style={{
-              fontSize: 32,
+              fontSize: 36,
               fontWeight: 400,
               color: "#a3a3a3",
               fontFamily: "Geist",
@@ -231,6 +234,12 @@ export async function GET(request: NextRequest) {
           data: fonts.geistMedium,
           style: "normal",
           weight: 500,
+        },
+        {
+          name: "GeistMono",
+          data: fonts.geistMono,
+          style: "normal",
+          weight: 400,
         },
       ],
     });
