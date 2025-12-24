@@ -165,7 +165,7 @@ export async function GET(request: NextRequest) {
             fontFamily: "Geist",
           }}
         >
-          The UX of ChatGPT in your own app
+          assistant-ui.com
         </span>
       </div>
 
