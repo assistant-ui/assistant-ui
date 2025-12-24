@@ -10,36 +10,40 @@ const size = {
   height: 630,
 };
 
+let fontsCache: {
+  geistSemiBold: Buffer;
+  geistRegular: Buffer;
+  geistMedium: Buffer;
+} | null = null;
+
+async function loadFonts() {
+  if (fontsCache) return fontsCache;
+
+  const fontPath = join(process.cwd(), "node_modules/geist/dist/fonts");
+
+  const [geistSemiBold, geistRegular, geistMedium] = await Promise.all([
+    readFile(join(fontPath, "geist-sans/Geist-SemiBold.ttf")),
+    readFile(join(fontPath, "geist-sans/Geist-Regular.ttf")),
+    readFile(join(fontPath, "geist-sans/Geist-Medium.ttf")),
+  ]);
+
+  fontsCache = { geistSemiBold, geistRegular, geistMedium };
+  return fontsCache;
+}
+
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const title = searchParams.get("title") ?? "Documentation";
   const description = searchParams.get("description");
   const variant = searchParams.get("variant");
 
-  const geistSemiBold = await readFile(
-    join(
-      process.cwd(),
-      "node_modules/geist/dist/fonts/geist-sans/Geist-SemiBold.ttf",
-    ),
-  );
-  const geistRegular = await readFile(
-    join(
-      process.cwd(),
-      "node_modules/geist/dist/fonts/geist-sans/Geist-Regular.ttf",
-    ),
-  );
-  const geistMedium = await readFile(
-    join(
-      process.cwd(),
-      "node_modules/geist/dist/fonts/geist-sans/Geist-Medium.ttf",
-    ),
-  );
-  const geistMono = await readFile(
-    join(
-      process.cwd(),
-      "node_modules/geist/dist/fonts/geist-mono/GeistMono-Regular.ttf",
-    ),
-  );
+  let fonts: Awaited<ReturnType<typeof loadFonts>>;
+  try {
+    fonts = await loadFonts();
+  } catch (error) {
+    console.error("Failed to load fonts for OG image:", error);
+    return new Response("Failed to load fonts", { status: 500 });
+  }
 
   const homeContent = (
     <div
@@ -206,33 +210,32 @@ export async function GET(request: NextRequest) {
     </div>
   );
 
-  return new ImageResponse(variant === "home" ? homeContent : pageContent, {
-    ...size,
-    fonts: [
-      {
-        name: "Geist",
-        data: geistSemiBold,
-        style: "normal",
-        weight: 600,
-      },
-      {
-        name: "Geist",
-        data: geistRegular,
-        style: "normal",
-        weight: 400,
-      },
-      {
-        name: "Geist",
-        data: geistMedium,
-        style: "normal",
-        weight: 500,
-      },
-      {
-        name: "GeistMono",
-        data: geistMono,
-        style: "normal",
-        weight: 400,
-      },
-    ],
-  });
+  try {
+    return new ImageResponse(variant === "home" ? homeContent : pageContent, {
+      ...size,
+      fonts: [
+        {
+          name: "Geist",
+          data: fonts.geistSemiBold,
+          style: "normal",
+          weight: 600,
+        },
+        {
+          name: "Geist",
+          data: fonts.geistRegular,
+          style: "normal",
+          weight: 400,
+        },
+        {
+          name: "Geist",
+          data: fonts.geistMedium,
+          style: "normal",
+          weight: 500,
+        },
+      ],
+    });
+  } catch (error) {
+    console.error("Failed to generate OG image:", error);
+    return new Response("Failed to generate image", { status: 500 });
+  }
 }
