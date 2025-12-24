@@ -206,35 +206,33 @@ export async function GET(request: NextRequest) {
     </div>
   );
 
-  return new ImageResponse(variant === "home" ? homeContent : pageContent,
-    {
-      ...size,
-      fonts: [
-        {
-          name: "Geist",
-          data: geistSemiBold,
-          style: "normal",
-          weight: 600,
-        },
-        {
-          name: "Geist",
-          data: geistRegular,
-          style: "normal",
-          weight: 400,
-        },
-        {
-          name: "Geist",
-          data: geistMedium,
-          style: "normal",
-          weight: 500,
-        },
-        {
-          name: "GeistMono",
-          data: geistMono,
-          style: "normal",
-          weight: 400,
-        },
-      ],
-    },
-  );
+  return new ImageResponse(variant === "home" ? homeContent : pageContent, {
+    ...size,
+    fonts: [
+      {
+        name: "Geist",
+        data: geistSemiBold,
+        style: "normal",
+        weight: 600,
+      },
+      {
+        name: "Geist",
+        data: geistRegular,
+        style: "normal",
+        weight: 400,
+      },
+      {
+        name: "Geist",
+        data: geistMedium,
+        style: "normal",
+        weight: 500,
+      },
+      {
+        name: "GeistMono",
+        data: geistMono,
+        style: "normal",
+        weight: 400,
+      },
+    ],
+  });
 }

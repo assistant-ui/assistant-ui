@@ -9,7 +9,9 @@ export function Hero() {
       <StarPill />
 
       <div className="flex flex-col gap-1">
-        <h1 className="font-medium text-2xl">The UX of ChatGPT in your own app</h1>
+        <h1 className="font-medium text-2xl">
+          The UX of ChatGPT in your own app
+        </h1>
         <p className="text-lg text-muted-foreground">
           Open-source React toolkit for production AI chat experiences.
         </p>
