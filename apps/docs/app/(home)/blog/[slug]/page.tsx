@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { use } from "react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
@@ -83,4 +84,45 @@ export function generateStaticParams(): Param[] {
   return blog.getPages().map((page) => ({
     slug: page.slugs[0]!,
   }));
+}
+
+export async function generateMetadata(props: {
+  params: Promise<Param>;
+}): Promise<Metadata> {
+  const params = await props.params;
+  const page = blog.getPage([params.slug]) as BlogPage | undefined;
+
+  if (!page) {
+    return { title: "Not Found" };
+  }
+
+  const ogSearchParams = new URLSearchParams();
+  ogSearchParams.set("title", page.data.title);
+  if (page.data.description) {
+    ogSearchParams.set("description", page.data.description);
+  }
+
+  return {
+    title: page.data.title,
+    description: page.data.description,
+    openGraph: {
+      title: page.data.title,
+      description: page.data.description ?? undefined,
+      type: "article",
+      images: [
+        {
+          url: `/api/og?${ogSearchParams.toString()}`,
+          width: 1200,
+          height: 630,
+          alt: page.data.title,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: page.data.title,
+      description: page.data.description ?? undefined,
+      images: [`/api/og?${ogSearchParams.toString()}`],
+    },
+  };
 }

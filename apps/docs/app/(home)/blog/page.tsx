@@ -1,5 +1,33 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { blog, BlogPage } from "@/lib/source";
+
+const title = "Blog";
+const description = "News and updates from assistant-ui";
+
+export const metadata: Metadata = {
+  title,
+  description,
+  openGraph: {
+    title,
+    description,
+    type: "website",
+    images: [
+      {
+        url: `/api/og?title=${encodeURIComponent(title)}&description=${encodeURIComponent(description)}`,
+        width: 1200,
+        height: 630,
+        alt: title,
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title,
+    description,
+    images: [`/api/og?title=${encodeURIComponent(title)}&description=${encodeURIComponent(description)}`],
+  },
+};
 
 export default function Page(): React.ReactElement {
   const posts = [...(blog.getPages() as BlogPage[])].sort(

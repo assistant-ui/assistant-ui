@@ -3,10 +3,34 @@ import type { ReactElement } from "react";
 import { Metadata } from "next";
 import { careers, CareerPage } from "@/lib/source";
 
+const title = "Careers";
+const description =
+  "Help build the future of agentic UI. Explore open roles at assistant-ui.";
+
 export const metadata: Metadata = {
-  title: "Careers",
-  description:
-    "Help build the future of agentic UI. Explore open roles at assistant-ui.",
+  title,
+  description,
+  openGraph: {
+    title,
+    description,
+    type: "website",
+    images: [
+      {
+        url: `/api/og?title=${encodeURIComponent(title)}&description=${encodeURIComponent(description)}`,
+        width: 1200,
+        height: 630,
+        alt: title,
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title,
+    description,
+    images: [
+      `/api/og?title=${encodeURIComponent(title)}&description=${encodeURIComponent(description)}`,
+    ],
+  },
 };
 
 const roleOrder = (value: unknown, fallback: number) => {
