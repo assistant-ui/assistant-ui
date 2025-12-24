@@ -6,12 +6,46 @@ import Script from "next/script";
 import { Provider } from "./provider";
 import { cn } from "@/lib/utils";
 
+const getMetadataBase = () => {
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    return new URL(process.env.NEXT_PUBLIC_APP_URL);
+  }
+  if (process.env.VERCEL_URL) {
+    return new URL(`https://${process.env.VERCEL_URL}`);
+  }
+  if (process.env.NODE_ENV === "production") {
+    return new URL("https://www.assistant-ui.com");
+  }
+  return new URL("http://localhost:3001");
+};
+
 export const metadata = {
+  metadataBase: getMetadataBase(),
   title: {
     template: "%s | assistant-ui",
     default: "assistant-ui",
   },
   description: "The TypeScript/React library for AI Chat",
+  openGraph: {
+    title: "assistant-ui",
+    description: "The TypeScript/React library for AI Chat",
+    siteName: "assistant-ui",
+    type: "website",
+    images: [
+      {
+        url: "/api/og?variant=home",
+        width: 1200,
+        height: 630,
+        alt: "assistant-ui",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "assistant-ui",
+    description: "The TypeScript/React library for AI Chat",
+    images: ["/api/og?variant=home"],
+  },
 };
 
 export default function Layout({ children }: { children: ReactNode }) {

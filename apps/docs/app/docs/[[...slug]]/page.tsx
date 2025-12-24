@@ -109,8 +109,34 @@ export async function generateMetadata(
       title: "Not Found",
     };
 
+  const ogSearchParams = new URLSearchParams();
+  ogSearchParams.set("title", page.data.title);
+  if (page.data.description) {
+    ogSearchParams.set("description", page.data.description);
+  }
+  ogSearchParams.set("section", "docs");
+
   return {
     title: page.data.title,
     description: page.data.description ?? null,
+    openGraph: {
+      title: page.data.title,
+      description: page.data.description ?? undefined,
+      type: "article",
+      images: [
+        {
+          url: `/api/og?${ogSearchParams.toString()}`,
+          width: 1200,
+          height: 630,
+          alt: page.data.title,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: page.data.title,
+      description: page.data.description ?? undefined,
+      images: [`/api/og?${ogSearchParams.toString()}`],
+    },
   } satisfies Metadata;
 }
