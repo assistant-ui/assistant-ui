@@ -216,6 +216,9 @@ export async function GET(request: NextRequest) {
   try {
     return new ImageResponse(variant === "home" ? homeContent : pageContent, {
       ...size,
+      headers: {
+        "Cache-Control": "public, max-age=31536000, immutable",
+      },
       fonts: [
         {
           name: "Geist",
