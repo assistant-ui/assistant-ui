@@ -4,7 +4,7 @@ import {
   tapMemo,
   tapState,
   tapInlineResource,
-  attachKey,
+  withKey,
 } from "@assistant-ui/tap";
 import { type ClientOutput, tapClientLookup } from "@assistant-ui/store";
 import { MessageState, PartState } from "../types/scopes";
@@ -79,7 +79,7 @@ export const ThreadMessageClient = resource(
     const parts = tapClientLookup(
       message.content,
       (part, idx) =>
-        attachKey(
+        withKey(
           "toolCallId" in part && part.toolCallId != null
             ? `toolCallId-${part.toolCallId}`
             : `index-${idx}`,
@@ -91,7 +91,7 @@ export const ThreadMessageClient = resource(
     const attachments = tapClientLookup(
       message.attachments ?? [],
       (attachment) =>
-        attachKey(attachment.id, ThreadMessageAttachmentClient({ attachment })),
+        withKey(attachment.id, ThreadMessageAttachmentClient({ attachment })),
       [message.attachments],
     );
 

@@ -7,7 +7,7 @@ import {
   resource,
   tapInlineResource,
   Resource,
-  attachKey,
+  withKey,
 } from "@assistant-ui/tap";
 import type { ClientMethods, ClientOutputOf } from "./types/client";
 import {
@@ -109,7 +109,7 @@ const wrapperResource = <R, P>(
   return (props: ResourceElement<P>) => {
     const el = res(props);
     if (props.key === undefined) return el;
-    return attachKey(props.key, el);
+    return withKey(props.key, el);
   };
 };
 

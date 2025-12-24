@@ -1,5 +1,5 @@
 import {
-  attachKey,
+  withKey,
   resource,
   tapInlineResource,
   tapMemo,
@@ -73,7 +73,7 @@ export const MessageClient = resource(
     const parts = tapClientLookup(
       runtimeState.content,
       (part, idx) =>
-        attachKey(
+        withKey(
           "toolCallId" in part && part.toolCallId != null
             ? `toolCallId-${part.toolCallId}`
             : `index-${idx}`,
@@ -85,7 +85,7 @@ export const MessageClient = resource(
     const attachments = tapClientLookup(
       runtimeState.attachments ?? [],
       (attachment, idx) =>
-        attachKey(
+        withKey(
           attachment.id,
           MessageAttachmentClientByIndex({ runtime, index: parseInt(idx, 10) }),
         ),

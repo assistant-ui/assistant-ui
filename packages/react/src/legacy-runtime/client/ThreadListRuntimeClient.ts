@@ -1,5 +1,5 @@
 import {
-  attachKey,
+  withKey,
   resource,
   tapInlineResource,
   tapMemo,
@@ -48,7 +48,7 @@ export const ThreadListClient = resource(
 
     const threadItems = tapClientLookup(
       runtimeState.threadItems,
-      (_, id) => attachKey(id, ThreadListItemClientById({ runtime, id })),
+      (_, id) => withKey(id, ThreadListItemClientById({ runtime, id })),
       [runtime],
     );
 

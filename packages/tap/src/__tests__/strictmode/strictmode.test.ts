@@ -6,7 +6,7 @@ import { tapState } from "../../hooks/tap-state";
 import { tapEffect } from "../../hooks/tap-effect";
 import { tapResource } from "../../hooks/tap-resource";
 import { createResource } from "../../core/createResource";
-import { attachKey } from "../../core/attachKey";
+import { withKey } from "../../core/withKey";
 
 describe("Strict Mode", () => {
   it("should be in development", () => {
@@ -182,7 +182,7 @@ describe("Strict Mode", () => {
       tapEffect(() => {
         setId(1);
       });
-      return tapResource(attachKey(id, TestChildResource()));
+      return tapResource(withKey(id, TestChildResource()));
     });
 
     const handle = createResource(TestResource(), {
@@ -231,7 +231,7 @@ describe("Strict Mode", () => {
           events.push(`outer-unmount-${id}`);
         };
       });
-      return tapResource(attachKey(id, TestChildResource()));
+      return tapResource(withKey(id, TestChildResource()));
     });
 
     createResource(TestResource(), {

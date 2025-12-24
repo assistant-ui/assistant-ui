@@ -6,7 +6,7 @@ import {
   tapMemo,
   tapEffect,
   type tapRef,
-  attachKey,
+  withKey,
 } from "@assistant-ui/tap";
 import {
   type ClientOutput,
@@ -92,7 +92,7 @@ export const ThreadClient = resource(
     const messages = tapClientLookup(
       runtimeState.messages,
       (m) =>
-        attachKey(m.id, MessageClientById({ runtime, id: m.id, threadIdRef })),
+        withKey(m.id, MessageClientById({ runtime, id: m.id, threadIdRef })),
       [runtime, threadIdRef],
     );
 

@@ -4,7 +4,7 @@ import {
   tapEffect,
   tapInlineResource,
   type tapRef,
-  attachKey,
+  withKey,
 } from "@assistant-ui/tap";
 import {
   type ClientOutput,
@@ -77,7 +77,7 @@ export const ComposerClient = resource(
     const attachments = tapClientLookup(
       runtimeState.attachments,
       (attachment, idx) =>
-        attachKey(
+        withKey(
           attachment.id,
           ComposerAttachmentClientByIndex({
             runtime,

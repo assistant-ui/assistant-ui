@@ -59,7 +59,6 @@ const HandleWrapperResource = resource(
         render: (el: ResourceElement<R, P>) => {
           const changed = state.elementRef.current !== el;
           state.elementRef.current = el;
-          setElement(el);
 
           if (state.onRender(changed)) {
             setElement(el);

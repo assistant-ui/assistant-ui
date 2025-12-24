@@ -32,21 +32,20 @@ export type Cell =
     }
   | {
       readonly type: "effect";
-      mounted: boolean;
       cleanup: tapEffect.Destructor | void;
-      deps: readonly unknown[] | undefined;
+      deps: readonly unknown[] | null | undefined;
     };
 
 export interface EffectTask {
   readonly effect: tapEffect.EffectCallback;
   readonly deps: readonly unknown[] | undefined;
-  readonly cellIndex: number;
+  readonly cell: Cell & { type: "effect" };
 }
 
 export interface RenderResult {
   readonly output: any;
   readonly props: any;
-  readonly commitTasks: EffectTask[];
+  readonly commitTasks: (() => void)[];
 }
 
 export interface ResourceFiber<R, P> {

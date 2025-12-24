@@ -1,5 +1,5 @@
 export { resource } from "./core/resource";
-export { attachKey } from "./core/attachKey";
+export { withKey } from "./core/withKey";
 
 // primitive hooks
 export { tapState } from "./hooks/tap-state";
