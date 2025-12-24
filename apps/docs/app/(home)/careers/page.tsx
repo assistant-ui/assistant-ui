@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactElement } from "react";
-import { Metadata } from "next";
+import type { Metadata } from "next";
+import { createOgMetadata } from "@/lib/og";
 import { careers, CareerPage } from "@/lib/source";
 
 const title = "Careers";
@@ -10,27 +11,7 @@ const description =
 export const metadata: Metadata = {
   title,
   description,
-  openGraph: {
-    title,
-    description,
-    type: "website",
-    images: [
-      {
-        url: `/api/og?title=${encodeURIComponent(title)}&description=${encodeURIComponent(description)}`,
-        width: 1200,
-        height: 630,
-        alt: title,
-      },
-    ],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title,
-    description,
-    images: [
-      `/api/og?title=${encodeURIComponent(title)}&description=${encodeURIComponent(description)}`,
-    ],
-  },
+  ...createOgMetadata(title, description),
 };
 
 const roleOrder = (value: unknown, fallback: number) => {

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { DocsPage, DocsBody } from "fumadocs-ui/page";
 import { notFound } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { createOgMetadata } from "@/lib/og";
 import { buttonVariants } from "@/components/ui/button";
 import { EditIcon } from "lucide-react";
 import { getMDXComponents } from "@/mdx-components";
@@ -104,38 +105,11 @@ export async function generateMetadata(
 ): Promise<Metadata> {
   const { slug = [] } = await props.params;
   const page = source.getPage(slug);
-  if (!page)
-    return {
-      title: "Not Found",
-    };
-
-  const ogSearchParams = new URLSearchParams();
-  ogSearchParams.set("title", page.data.title);
-  if (page.data.description) {
-    ogSearchParams.set("description", page.data.description);
-  }
+  if (!page) return { title: "Not Found" };
 
   return {
     title: page.data.title,
-    description: page.data.description ?? null,
-    openGraph: {
-      title: page.data.title,
-      description: page.data.description ?? undefined,
-      type: "article",
-      images: [
-        {
-          url: `/api/og?${ogSearchParams.toString()}`,
-          width: 1200,
-          height: 630,
-          alt: page.data.title,
-        },
-      ],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: page.data.title,
-      description: page.data.description ?? undefined,
-      images: [`/api/og?${ogSearchParams.toString()}`],
-    },
-  } satisfies Metadata;
+    description: page.data.description,
+    ...createOgMetadata(page.data.title, page.data.description),
+  };
 }

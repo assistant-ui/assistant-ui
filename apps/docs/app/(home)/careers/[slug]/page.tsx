@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import type { ReactElement } from "react";
 import type { Metadata } from "next";
+import { createOgMetadata } from "@/lib/og";
 import { careers, CareerPage } from "@/lib/source";
 import { getMDXComponents } from "@/mdx-components";
 import { ApplyForm } from "@/components/careers/ApplyForm";
@@ -93,37 +94,11 @@ export async function generateMetadata(props: {
   const params = await props.params;
   const page = careers.getPage([params.slug]) as CareerPage | undefined;
 
-  if (!page) {
-    return { title: "Not Found" };
-  }
-
-  const ogSearchParams = new URLSearchParams();
-  ogSearchParams.set("title", page.data.title);
-  if (page.data.summary) {
-    ogSearchParams.set("description", page.data.summary);
-  }
+  if (!page) return { title: "Not Found" };
 
   return {
     title: page.data.title,
     description: page.data.summary,
-    openGraph: {
-      title: page.data.title,
-      description: page.data.summary ?? undefined,
-      type: "article",
-      images: [
-        {
-          url: `/api/og?${ogSearchParams.toString()}`,
-          width: 1200,
-          height: 630,
-          alt: page.data.title,
-        },
-      ],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: page.data.title,
-      description: page.data.summary ?? undefined,
-      images: [`/api/og?${ogSearchParams.toString()}`],
-    },
+    ...createOgMetadata(page.data.title, page.data.summary),
   };
 }

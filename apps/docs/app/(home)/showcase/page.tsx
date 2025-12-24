@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Image from "next/image";
-
+import { createOgMetadata } from "@/lib/og";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -10,25 +10,7 @@ const description = "Projects built with assistant-ui";
 export const metadata: Metadata = {
   title,
   description,
-  openGraph: {
-    title,
-    description,
-    type: "website",
-    images: [
-      {
-        url: `/api/og?title=${encodeURIComponent(title)}&description=${encodeURIComponent(description)}`,
-        width: 1200,
-        height: 630,
-        alt: title,
-      },
-    ],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title,
-    description,
-    images: [`/api/og?title=${encodeURIComponent(title)}&description=${encodeURIComponent(description)}`],
-  },
+  ...createOgMetadata(title, description),
 };
 
 type ShowcaseItem = {

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { use } from "react";
+import { createOgMetadata } from "@/lib/og";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { blog, BlogPage } from "@/lib/source";
@@ -92,37 +93,11 @@ export async function generateMetadata(props: {
   const params = await props.params;
   const page = blog.getPage([params.slug]) as BlogPage | undefined;
 
-  if (!page) {
-    return { title: "Not Found" };
-  }
-
-  const ogSearchParams = new URLSearchParams();
-  ogSearchParams.set("title", page.data.title);
-  if (page.data.description) {
-    ogSearchParams.set("description", page.data.description);
-  }
+  if (!page) return { title: "Not Found" };
 
   return {
     title: page.data.title,
     description: page.data.description,
-    openGraph: {
-      title: page.data.title,
-      description: page.data.description ?? undefined,
-      type: "article",
-      images: [
-        {
-          url: `/api/og?${ogSearchParams.toString()}`,
-          width: 1200,
-          height: 630,
-          alt: page.data.title,
-        },
-      ],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: page.data.title,
-      description: page.data.description ?? undefined,
-      images: [`/api/og?${ogSearchParams.toString()}`],
-    },
+    ...createOgMetadata(page.data.title, page.data.description),
   };
 }

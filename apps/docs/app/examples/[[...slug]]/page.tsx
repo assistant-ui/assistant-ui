@@ -1,5 +1,6 @@
 import { examples, type ExamplePage } from "@/lib/source";
 import type { Metadata } from "next";
+import { createOgMetadata } from "@/lib/og";
 import { DocsPage, DocsBody } from "fumadocs-ui/page";
 import { notFound } from "next/navigation";
 import { getMDXComponents } from "@/mdx-components";
@@ -62,33 +63,9 @@ export async function generateMetadata(
   const { slug = [] } = await props.params;
   const page = getPage(slug);
 
-  const ogSearchParams = new URLSearchParams();
-  ogSearchParams.set("title", page.data.title);
-  if (page.data.description) {
-    ogSearchParams.set("description", page.data.description);
-  }
-
   return {
     title: page.data.title,
     description: page.data.description,
-    openGraph: {
-      title: page.data.title,
-      description: page.data.description ?? undefined,
-      type: "article",
-      images: [
-        {
-          url: `/api/og?${ogSearchParams.toString()}`,
-          width: 1200,
-          height: 630,
-          alt: page.data.title,
-        },
-      ],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: page.data.title,
-      description: page.data.description ?? undefined,
-      images: [`/api/og?${ogSearchParams.toString()}`],
-    },
+    ...createOgMetadata(page.data.title, page.data.description),
   };
 }
