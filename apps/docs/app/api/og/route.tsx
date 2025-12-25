@@ -1,7 +1,8 @@
 import { ImageResponse } from "next/og";
 import { type NextRequest } from "next/server";
 import { readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { join, dirname } from "node:path";
+import { createRequire } from "node:module";
 
 export const runtime = "nodejs";
 
@@ -17,10 +18,13 @@ let fontsCache: {
   geistMono: Buffer;
 } | null = null;
 
+const require = createRequire(import.meta.url);
+
 async function loadFonts() {
   if (fontsCache) return fontsCache;
 
-  const fontPath = join(process.cwd(), "node_modules/geist/dist/fonts");
+  const geistPath = dirname(require.resolve("geist/package.json"));
+  const fontPath = join(geistPath, "dist/fonts");
 
   const [geistSemiBold, geistRegular, geistMedium, geistMono] =
     await Promise.all([
@@ -36,9 +40,13 @@ async function loadFonts() {
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
-  const title = searchParams.get("title") ?? "Documentation";
-  const description = searchParams.get("description");
+  const title = (searchParams.get("title") ?? "Documentation").slice(0, 100);
+  const description = searchParams.get("description")?.slice(0, 200) ?? null;
   const variant = searchParams.get("variant");
+
+  if (variant && !["home", "page"].includes(variant)) {
+    return new Response("Invalid variant", { status: 400 });
+  }
 
   let fonts: Awaited<ReturnType<typeof loadFonts>>;
   try {
