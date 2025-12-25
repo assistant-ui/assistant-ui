@@ -22,12 +22,20 @@ export type Cell =
   | {
       readonly type: "state";
       value: any;
-      set: (updater: tapState.StateUpdater<any>) => void;
+      readonly set: (updater: tapState.StateUpdater<any>) => void;
     }
   | {
       readonly type: "effect";
       cleanup: tapEffect.Destructor | void;
       deps: readonly unknown[] | null | undefined;
+    }
+  | {
+      readonly type: "memo";
+      value: any;
+      deps: readonly unknown[] | undefined;
+
+      wipValue: any;
+      wipDeps: readonly unknown[] | undefined;
     };
 
 export interface EffectTask {

@@ -33,3 +33,4 @@ export const registerRenderMountTask = (task: () => void) => {
   const fiber = getCurrentResourceFiber();
   fiber.renderContext!.commitTasks.push(task);
 };
+

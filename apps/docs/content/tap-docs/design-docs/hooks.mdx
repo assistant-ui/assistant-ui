@@ -125,6 +125,8 @@ const tapReducer = (reducer, initialArg, init) => {
 
 
 ```ts
+
+
 let renderScope = null;
 const useRenderScope = (fiber) => {
   try {
@@ -138,6 +140,10 @@ const createRenderScope = () => ({
   
 })
 
-const renderScope = useMemo(createRenderScope, [fiber.commitVersion]);
+const renderScope = useMemo(() => ({}), [fiber.commitVersion]);
+fiber.renderContext = {
+  
+}
+
 const [version, dispatchUpdate] = useRenderScope(fiber)
 ```
