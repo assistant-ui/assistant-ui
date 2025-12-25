@@ -68,7 +68,7 @@
 
   @-moz-document url-prefix() {
     & {
-      --_duration: var(--shimmer-duration, calc(500000 / var(--_speed)));
+      --_duration: var(--shimmer-duration, calc(375000 / var(--_speed)));
     }
   }
 
