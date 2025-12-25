@@ -1,10 +1,4 @@
-import {
-  useLayoutEffect,
-  useMemo,
-  useReducer,
-  useRef,
-  useState,
-} from "react";
+import { useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
 import type { ExtractResourceReturnType, ResourceElement } from "../core/types";
 import {
   createResourceFiber,
