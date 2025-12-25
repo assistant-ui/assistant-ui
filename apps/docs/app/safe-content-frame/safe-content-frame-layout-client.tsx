@@ -35,7 +35,7 @@ export function SafeContentFrameLayoutClient({
   return (
     <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-50 w-full border-border/40 border-b border-dashed bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-14 max-w-screen-2xl items-center">
+        <div className="container mx-auto flex h-14 max-w-screen-2xl items-center px-4">
           <div className="mr-4 flex">
             <Link href="/" className="flex items-center space-x-2">
               <Image
@@ -82,7 +82,7 @@ export function SafeContentFrameLayoutClient({
       </header>
       <main className="flex-1">{children}</main>
       <footer className="border-t border-dashed py-6 md:py-0">
-        <div className="container flex h-14 max-w-screen-2xl items-center justify-between text-muted-foreground text-sm">
+        <div className="container mx-auto flex h-14 max-w-screen-2xl items-center justify-between px-4 text-muted-foreground text-sm">
           <p>
             By{" "}
             <Link
