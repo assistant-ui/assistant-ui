@@ -75,7 +75,13 @@ export async function GET(request: NextRequest) {
           gap: 32,
         }}
       >
-        <svg width="120" height="120" viewBox="0 0 32 32" fill="none">
+        <svg
+          width="120"
+          height="120"
+          viewBox="0 0 32 32"
+          fill="none"
+          style={{ marginBottom: -10 }}
+        >
           <rect width="32" height="32" rx="6" fill="#000000" />
           <g
             transform="translate(4,4)"
@@ -91,7 +97,7 @@ export async function GET(request: NextRequest) {
         </svg>
         <span
           style={{
-            fontSize: 100,
+            fontSize: 120,
             fontWeight: 600,
             color: "#ffffff",
             fontFamily: fontSans,
@@ -101,18 +107,23 @@ export async function GET(request: NextRequest) {
           assistant-ui
         </span>
       </div>
-      <span
+      <div
         style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
           fontSize: 48,
           fontWeight: 400,
+          gap: 10,
           color: "#a3a3a3",
           textAlign: "center",
           fontFamily: fontSans,
           letterSpacing: "-0.01em",
         }}
       >
-        Open-source React toolkit for production AI chat experiences.
-      </span>
+        <span>An open-source React toolkit for</span>
+        <span>production AI chat experiences</span>
+      </div>
     </div>
   );
 
