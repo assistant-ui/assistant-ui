@@ -117,7 +117,6 @@ export function OgTemplate({
         position: "relative",
       }}
     >
-      {/* Background decoration layer */}
       {backgroundDecoration && (
         <div
           style={{
@@ -135,10 +134,8 @@ export function OgTemplate({
         </div>
       )}
 
-      {/* Header */}
       <OgHeader subtle={subtleBranding} />
 
-      {/* Main content area */}
       <div
         style={{
           display: "flex",
@@ -152,33 +149,6 @@ export function OgTemplate({
       >
         {children}
       </div>
-    </div>
-  );
-}
-
-/** Shimmer gradient decoration for tw-shimmer OG image */
-export function ShimmerDecoration() {
-  return (
-    <div
-      style={{
-        display: "flex",
-        width: "100%",
-        height: "100%",
-        alignItems: "center",
-        justifyContent: "center",
-        overflow: "hidden",
-      }}
-    >
-      {/* Horizontal shimmer band */}
-      <div
-        style={{
-          width: "1000px",
-          height: "300px",
-          background:
-            "linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.02) 25%, rgba(255,255,255,0.08) 45%, rgba(255,255,255,0.15) 50%, rgba(255,255,255,0.08) 55%, rgba(255,255,255,0.02) 75%, rgba(255,255,255,0) 100%)",
-          transform: "skewX(-20deg)",
-        }}
-      />
     </div>
   );
 }

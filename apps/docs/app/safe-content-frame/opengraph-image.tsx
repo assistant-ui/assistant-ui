@@ -3,41 +3,44 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { OG_SIZE, OgTemplate } from "@/lib/og-template";
 
-export const alt = "tw-shimmer";
+export const alt = "Safe Content Frame";
 export const size = OG_SIZE;
 export const contentType = "image/png";
 
 export default async function Image() {
-  const [geistSemiBold, geistRegular, geistMedium, geistMono, shimmerTextPng] =
+  const [geistSemiBold, geistRegular, geistMedium, geistMono] =
     await Promise.all([
       readFile(join(process.cwd(), "assets/Geist-SemiBold.ttf")),
       readFile(join(process.cwd(), "assets/Geist-Regular.ttf")),
       readFile(join(process.cwd(), "assets/Geist-Medium.ttf")),
       readFile(join(process.cwd(), "assets/GeistMono-Regular.ttf")),
-      readFile(join(process.cwd(), "assets/tw-shimmer-text.png"), "base64"),
     ]);
-
-  const shimmerTextSrc = `data:image/png;base64,${shimmerTextPng}`;
 
   return new ImageResponse(
     <OgTemplate subtleBranding>
-      <img
-        src={shimmerTextSrc}
-        alt="tw-shimmer"
-        height={100}
-        style={{ objectFit: "contain", marginBottom: 20 }}
-      />
       <span
         style={{
-          fontSize: 42,
+          fontSize: 90,
+          fontWeight: 600,
+          color: "#ffffff",
+          textAlign: "left",
+          fontFamily: "Geist",
+          letterSpacing: "-0.02em",
+        }}
+      >
+        Safe Content Frame
+      </span>
+      <span
+        style={{
+          fontSize: 38,
           fontWeight: 400,
           color: "#a3a3a3",
           fontFamily: "Geist",
           letterSpacing: "-0.01em",
-          textAlign: "center",
+          textAlign: "left",
         }}
       >
-        Zero-dependency CSS-only shimmer
+        Render untrusted HTML securely in sandboxed iframes
       </span>
     </OgTemplate>,
     {
