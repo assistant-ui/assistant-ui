@@ -23,8 +23,8 @@ const require = createRequire(import.meta.url);
 async function loadFonts() {
   if (fontsCache) return fontsCache;
 
-  const geistPath = dirname(require.resolve("geist/package.json"));
-  const fontPath = join(geistPath, "dist/fonts");
+  const geistDistPath = dirname(require.resolve("geist/font/sans"));
+  const fontPath = join(geistDistPath, "fonts");
 
   const [geistSemiBold, geistRegular, geistMedium, geistMono] =
     await Promise.all([
