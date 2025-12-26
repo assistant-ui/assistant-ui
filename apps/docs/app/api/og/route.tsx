@@ -41,7 +41,7 @@ async function loadFonts() {
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const title = (searchParams.get("title") ?? "Documentation").slice(0, 100);
-  const description = searchParams.get("description")?.slice(0, 200) ?? null;
+  const description = searchParams.get("description")?.slice(0, 93) ?? null;
   const variant = searchParams.get("variant");
 
   if (variant && !["home", "page"].includes(variant)) {
@@ -225,7 +225,7 @@ export async function GET(request: NextRequest) {
     return new ImageResponse(variant === "home" ? homeContent : pageContent, {
       ...size,
       headers: {
-        "Cache-Control": "public, max-age=31536000, immutable",
+        "Cache-Control": "public, max-age=86400, s-maxage=31536000",
       },
       fonts: [
         {
