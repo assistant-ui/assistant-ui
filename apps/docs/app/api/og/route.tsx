@@ -12,30 +12,60 @@ const size = {
 };
 
 let fontsCache: {
-  geistSemiBold: Buffer;
-  geistRegular: Buffer;
-  geistMedium: Buffer;
-  geistMono: Buffer;
+  geistSemiBold: ArrayBuffer;
+  geistRegular: ArrayBuffer;
+  geistMedium: ArrayBuffer;
+  geistMono: ArrayBuffer;
 } | null = null;
 
 const require = createRequire(import.meta.url);
 
+function bufferToArrayBuffer(buffer: Buffer): ArrayBuffer {
+  // `Buffer#buffer` can be backed by `SharedArrayBuffer` in some runtimes.
+  // `ImageResponse` expects an `ArrayBuffer`, so we copy into a fresh one.
+  const arrayBuffer = new ArrayBuffer(buffer.byteLength);
+  new Uint8Array(arrayBuffer).set(buffer);
+  return arrayBuffer;
+}
+
 async function loadFonts() {
   if (fontsCache) return fontsCache;
 
-  const geistDistPath = dirname(require.resolve("geist/font/sans"));
-  const fontPath = join(geistDistPath, "fonts");
+  const fontPathsToTry = [
+    // Prefer resolving from the Geist package (pnpm/hoisting-safe).
+    join(dirname(require.resolve("geist/font/sans")), "fonts"),
+    // Fallback for environments where `require.resolve` behaves unexpectedly.
+    join(process.cwd(), "node_modules/geist/dist/fonts"),
+  ];
 
-  const [geistSemiBold, geistRegular, geistMedium, geistMono] =
-    await Promise.all([
-      readFile(join(fontPath, "geist-sans/Geist-SemiBold.ttf")),
-      readFile(join(fontPath, "geist-sans/Geist-Regular.ttf")),
-      readFile(join(fontPath, "geist-sans/Geist-Medium.ttf")),
-      readFile(join(fontPath, "geist-mono/GeistMono-Regular.ttf")),
-    ]);
+  let lastError: unknown;
+  for (const fontPath of fontPathsToTry) {
+    try {
+      const [geistSemiBold, geistRegular, geistMedium, geistMono] =
+        await Promise.all([
+          readFile(join(fontPath, "geist-sans/Geist-SemiBold.ttf")),
+          readFile(join(fontPath, "geist-sans/Geist-Regular.ttf")),
+          readFile(join(fontPath, "geist-sans/Geist-Medium.ttf")),
+          readFile(join(fontPath, "geist-mono/GeistMono-Regular.ttf")),
+        ]);
 
-  fontsCache = { geistSemiBold, geistRegular, geistMedium, geistMono };
-  return fontsCache;
+      fontsCache = {
+        geistSemiBold: bufferToArrayBuffer(geistSemiBold),
+        geistRegular: bufferToArrayBuffer(geistRegular),
+        geistMedium: bufferToArrayBuffer(geistMedium),
+        geistMono: bufferToArrayBuffer(geistMono),
+      };
+
+      return fontsCache;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw new Error(
+    `Failed to load Geist fonts (tried: ${fontPathsToTry.join(", ")})`,
+    { cause: lastError },
+  );
 }
 
 export async function GET(request: NextRequest) {
@@ -48,13 +78,17 @@ export async function GET(request: NextRequest) {
     return new Response("Invalid variant", { status: 400 });
   }
 
-  let fonts: Awaited<ReturnType<typeof loadFonts>>;
+  let fonts: Awaited<ReturnType<typeof loadFonts>> | null = null;
   try {
     fonts = await loadFonts();
   } catch (error) {
+    // Don't fail the OG endpoint if fonts are missing (e.g. serverless file tracing).
+    // We'll fall back to system fonts so previews still work.
     console.error("Failed to load fonts for OG image:", error);
-    return new Response("Failed to load fonts", { status: 500 });
   }
+
+  const fontSans = fonts ? "Geist" : "sans-serif";
+  const fontMono = fonts ? "GeistMono" : "monospace";
 
   const homeContent = (
     <div
@@ -96,7 +130,7 @@ export async function GET(request: NextRequest) {
             fontSize: 100,
             fontWeight: 600,
             color: "#ffffff",
-            fontFamily: "Geist",
+            fontFamily: fontSans,
             letterSpacing: "-0.02em",
           }}
         >
@@ -108,7 +142,7 @@ export async function GET(request: NextRequest) {
           fontSize: 48,
           fontWeight: 400,
           color: "#a3a3a3",
-          fontFamily: "Geist",
+          fontFamily: fontSans,
           letterSpacing: "-0.01em",
         }}
       >
@@ -161,7 +195,7 @@ export async function GET(request: NextRequest) {
               fontSize: 44,
               fontWeight: 500,
               color: "#e5e5e5",
-              fontFamily: "Geist",
+              fontFamily: fontSans,
               letterSpacing: "-0.01em",
             }}
           >
@@ -173,7 +207,7 @@ export async function GET(request: NextRequest) {
             fontSize: 32,
             fontWeight: 400,
             color: "#a3a3a3",
-            fontFamily: "GeistMono",
+            fontFamily: fontMono,
           }}
         >
           assistant-ui.com
@@ -194,7 +228,7 @@ export async function GET(request: NextRequest) {
             fontSize: title.length > 50 ? 56 : title.length > 30 ? 68 : 80,
             fontWeight: 600,
             color: "#ffffff",
-            fontFamily: "Geist",
+            fontFamily: fontSans,
             lineHeight: 1.1,
             letterSpacing: "-0.02em",
           }}
@@ -207,7 +241,7 @@ export async function GET(request: NextRequest) {
               fontSize: 36,
               fontWeight: 400,
               color: "#a3a3a3",
-              fontFamily: "Geist",
+              fontFamily: fontSans,
               lineHeight: 1.4,
               letterSpacing: "-0.01em",
             }}
@@ -222,12 +256,20 @@ export async function GET(request: NextRequest) {
   );
 
   try {
-    return new ImageResponse(variant === "home" ? homeContent : pageContent, {
+    type ImageResponseOptions = NonNullable<
+      ConstructorParameters<typeof ImageResponse>[1]
+    >;
+
+    const imageOptions: ImageResponseOptions = {
       ...size,
       headers: {
         "Cache-Control": "public, max-age=86400, s-maxage=31536000",
+        "x-assistant-ui-og-fonts": fonts ? "geist" : "default",
       },
-      fonts: [
+    };
+
+    if (fonts) {
+      imageOptions.fonts = [
         {
           name: "Geist",
           data: fonts.geistSemiBold,
@@ -252,8 +294,13 @@ export async function GET(request: NextRequest) {
           style: "normal",
           weight: 400,
         },
-      ],
-    });
+      ];
+    }
+
+    return new ImageResponse(
+      variant === "home" ? homeContent : pageContent,
+      imageOptions,
+    );
   } catch (error) {
     console.error("Failed to generate OG image:", error);
     return new Response("Failed to generate image", { status: 500 });
