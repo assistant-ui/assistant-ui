@@ -8,9 +8,8 @@ export const size = OG_SIZE;
 export const contentType = "image/png";
 
 export default async function Image() {
-  const [geistSemiBold, geistRegular, geistMedium, geistMono, shimmerTextPng] =
+  const [geistRegular, geistMedium, geistMono, shimmerTextPng] =
     await Promise.all([
-      readFile(join(process.cwd(), "assets/Geist-SemiBold.ttf")),
       readFile(join(process.cwd(), "assets/Geist-Regular.ttf")),
       readFile(join(process.cwd(), "assets/Geist-Medium.ttf")),
       readFile(join(process.cwd(), "assets/GeistMono-Regular.ttf")),
@@ -43,12 +42,6 @@ export default async function Image() {
     {
       ...size,
       fonts: [
-        {
-          name: "Geist",
-          data: geistSemiBold,
-          style: "normal",
-          weight: 600,
-        },
         {
           name: "Geist",
           data: geistRegular,

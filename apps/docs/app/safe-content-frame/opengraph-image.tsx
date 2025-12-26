@@ -23,7 +23,7 @@ export default async function Image() {
           fontSize: 90,
           fontWeight: 600,
           color: "#ffffff",
-          textAlign: "left",
+          textAlign: "center",
           fontFamily: "Geist",
           letterSpacing: "-0.02em",
         }}
