@@ -1,8 +1,7 @@
 import { ImageResponse } from "next/og";
-import { type NextRequest } from "next/server";
+import { type ImageResponseOptions, type NextRequest } from "next/server";
 import { readFile } from "node:fs/promises";
-import { join, dirname } from "node:path";
-import { createRequire } from "node:module";
+import { join } from "node:path";
 
 export const runtime = "nodejs";
 
@@ -12,60 +11,25 @@ const size = {
 };
 
 let fontsCache: {
-  geistSemiBold: ArrayBuffer;
-  geistRegular: ArrayBuffer;
-  geistMedium: ArrayBuffer;
-  geistMono: ArrayBuffer;
+  geistSemiBold: Buffer;
+  geistRegular: Buffer;
+  geistMedium: Buffer;
+  geistMono: Buffer;
 } | null = null;
-
-const require = createRequire(import.meta.url);
-
-function bufferToArrayBuffer(buffer: Buffer): ArrayBuffer {
-  // `Buffer#buffer` can be backed by `SharedArrayBuffer` in some runtimes.
-  // `ImageResponse` expects an `ArrayBuffer`, so we copy into a fresh one.
-  const arrayBuffer = new ArrayBuffer(buffer.byteLength);
-  new Uint8Array(arrayBuffer).set(buffer);
-  return arrayBuffer;
-}
 
 async function loadFonts() {
   if (fontsCache) return fontsCache;
 
-  const fontPathsToTry = [
-    // Prefer resolving from the Geist package (pnpm/hoisting-safe).
-    join(dirname(require.resolve("geist/font/sans")), "fonts"),
-    // Fallback for environments where `require.resolve` behaves unexpectedly.
-    join(process.cwd(), "node_modules/geist/dist/fonts"),
-  ];
+  const [geistSemiBold, geistRegular, geistMedium, geistMono] =
+    await Promise.all([
+      readFile(join(process.cwd(), "assets/Geist-SemiBold.ttf")),
+      readFile(join(process.cwd(), "assets/Geist-Regular.ttf")),
+      readFile(join(process.cwd(), "assets/Geist-Medium.ttf")),
+      readFile(join(process.cwd(), "assets/GeistMono-Regular.ttf")),
+    ]);
 
-  let lastError: unknown;
-  for (const fontPath of fontPathsToTry) {
-    try {
-      const [geistSemiBold, geistRegular, geistMedium, geistMono] =
-        await Promise.all([
-          readFile(join(fontPath, "geist-sans/Geist-SemiBold.ttf")),
-          readFile(join(fontPath, "geist-sans/Geist-Regular.ttf")),
-          readFile(join(fontPath, "geist-sans/Geist-Medium.ttf")),
-          readFile(join(fontPath, "geist-mono/GeistMono-Regular.ttf")),
-        ]);
-
-      fontsCache = {
-        geistSemiBold: bufferToArrayBuffer(geistSemiBold),
-        geistRegular: bufferToArrayBuffer(geistRegular),
-        geistMedium: bufferToArrayBuffer(geistMedium),
-        geistMono: bufferToArrayBuffer(geistMono),
-      };
-
-      return fontsCache;
-    } catch (error) {
-      lastError = error;
-    }
-  }
-
-  throw new Error(
-    `Failed to load Geist fonts (tried: ${fontPathsToTry.join(", ")})`,
-    { cause: lastError },
-  );
+  fontsCache = { geistSemiBold, geistRegular, geistMedium, geistMono };
+  return fontsCache;
 }
 
 export async function GET(request: NextRequest) {
@@ -256,15 +220,10 @@ export async function GET(request: NextRequest) {
   );
 
   try {
-    type ImageResponseOptions = NonNullable<
-      ConstructorParameters<typeof ImageResponse>[1]
-    >;
-
     const imageOptions: ImageResponseOptions = {
       ...size,
       headers: {
         "Cache-Control": "public, max-age=86400, s-maxage=31536000",
-        "x-assistant-ui-og-fonts": fonts ? "geist" : "default",
       },
     };
 
