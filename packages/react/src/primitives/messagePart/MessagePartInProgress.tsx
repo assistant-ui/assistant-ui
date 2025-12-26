@@ -1,7 +1,7 @@
 "use client";
 
 import { FC, PropsWithChildren } from "react";
-import { useAssistantState } from "../../context";
+import { useAssistantState } from "@assistant-ui/store";
 
 export namespace MessagePartPrimitiveInProgress {
   export type Props = PropsWithChildren;

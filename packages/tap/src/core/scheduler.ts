@@ -77,7 +77,7 @@ const flushScheduled = () => {
   }
 };
 
-export const flushSync = <T>(callback: () => T): T => {
+export const flushResourcesSync = <T>(callback: () => T): T => {
   const prev = flushState;
   flushState = {
     schedulers: new Set([]),

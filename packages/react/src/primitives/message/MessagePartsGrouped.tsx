@@ -7,12 +7,11 @@ import {
   PropsWithChildren,
   useMemo,
 } from "react";
+import { useAssistantState, useAssistantClient } from "@assistant-ui/store";
 import {
-  useAssistantState,
   PartByIndexProvider,
-  useAssistantApi,
   TextMessagePartProvider,
-} from "../../context";
+} from "../../context/providers";
 import { MessagePartPrimitiveText } from "../messagePart/MessagePartText";
 import { MessagePartPrimitiveImage } from "../messagePart/MessagePartImage";
 import type {
@@ -261,13 +260,13 @@ const MessagePartComponent: FC<MessagePartComponentProps> = ({
     tools = {},
   } = {},
 }) => {
-  const api = useAssistantApi();
+  const aui = useAssistantClient();
   const part = useAssistantState(({ part }) => part);
 
   const type = part.type;
   if (type === "tool-call") {
-    const addResult = (result: any) => api.part().addToolResult(result);
-    const resume = api.part().resumeToolCall;
+    const addResult = (result: any) => aui.part().addToolResult(result);
+    const resume = aui.part().resumeToolCall;
     if ("Override" in tools)
       return <tools.Override {...part} addResult={addResult} resume={resume} />;
     const Tool = tools.by_name?.[part.toolName] ?? tools.Fallback;

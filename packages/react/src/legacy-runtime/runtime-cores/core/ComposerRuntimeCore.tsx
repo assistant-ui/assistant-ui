@@ -5,7 +5,7 @@ import type {
 } from "../../../types";
 import { MessageRole, RunConfig } from "../../../types/AssistantTypes";
 
-export type ComposerRuntimeEventType = "send" | "attachment-add";
+export type ComposerRuntimeEventType = "send" | "attachmentAdd";
 
 export type ComposerRuntimeCore = Readonly<{
   isEditing: boolean;

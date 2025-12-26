@@ -1,15 +1,4 @@
 "use client";
-// TODO createContextStoreHook does not work well with server-side nextjs bundler
-// use client necessary here for now
-
-export {
-  useAssistantApi,
-  useExtendedAssistantApi,
-  type AssistantApi,
-  type AssistantState,
-} from "./AssistantApiContext";
-export { useAssistantState } from "./hooks/useAssistantState";
-export { useAssistantEvent } from "./hooks/useAssistantEvent";
 
 export {
   useThreadViewport,
@@ -59,5 +48,3 @@ export {
   useThreadListItemRuntime,
   useThreadListItem,
 } from "../../legacy-runtime/hooks/ThreadListItemContext";
-
-export { AssistantProvider } from "./AssistantApiContext";

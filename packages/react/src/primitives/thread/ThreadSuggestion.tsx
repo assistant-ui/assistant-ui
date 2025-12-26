@@ -6,7 +6,7 @@ import {
   createActionButton,
 } from "../../utils/createActionButton";
 import { useCallback } from "react";
-import { useAssistantState, useAssistantApi } from "../../context";
+import { useAssistantState, useAssistantClient } from "@assistant-ui/store";
 
 const useThreadSuggestion = ({
   prompt,
@@ -39,7 +39,7 @@ const useThreadSuggestion = ({
   /** @deprecated Use `clearComposer` instead. */
   method?: "replace";
 }) => {
-  const api = useAssistantApi();
+  const aui = useAssistantClient();
   const disabled = useAssistantState(({ thread }) => thread.isDisabled);
 
   // ========== Deprecation Mapping ==========
@@ -47,24 +47,24 @@ const useThreadSuggestion = ({
   // ==========================================
 
   const callback = useCallback(() => {
-    const isRunning = api.thread().getState().isRunning;
+    const isRunning = aui.thread().getState().isRunning;
 
     if (resolvedSend && !isRunning) {
-      api.thread().append(prompt);
+      aui.thread().append(prompt);
       if (clearComposer) {
-        api.composer().setText("");
+        aui.composer().setText("");
       }
     } else {
       if (clearComposer) {
-        api.composer().setText(prompt);
+        aui.composer().setText(prompt);
       } else {
-        const currentText = api.composer().getState().text;
-        api
+        const currentText = aui.composer().getState().text;
+        aui
           .composer()
           .setText(currentText.trim() ? `${currentText} ${prompt}` : prompt);
       }
     }
-  }, [api, resolvedSend, clearComposer, prompt]);
+  }, [aui, resolvedSend, clearComposer, prompt]);
 
   if (disabled) return null;
   return callback;

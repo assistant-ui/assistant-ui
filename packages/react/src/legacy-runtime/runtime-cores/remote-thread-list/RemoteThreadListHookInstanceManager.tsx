@@ -10,7 +10,8 @@ import {
   ComponentType,
 } from "react";
 import { UseBoundStore, StoreApi, create } from "zustand";
-import { useAssistantApi, ThreadListItemByIdProvider } from "../../../context";
+import { useAssistantClient } from "@assistant-ui/store";
+import { ThreadListItemByIdProvider } from "../../../context/providers";
 import { ThreadRuntimeCore, ThreadRuntimeImpl } from "../../../internal";
 import { BaseSubscribable } from "./BaseSubscribable";
 import { AssistantRuntime } from "../../runtime";
@@ -104,22 +105,22 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     }, [threadBinding, updateRuntime]);
 
     // auto initialize thread
-    const api = useAssistantApi();
+    const aui = useAssistantClient();
     useEffect(() => {
       return runtime.threads.main.unstable_on("initialize", () => {
-        const state = api.threadListItem().getState();
+        const state = aui.threadListItem().getState();
         if (state.status === "new") {
-          api.threadListItem().initialize();
+          aui.threadListItem().initialize();
 
           // auto generate a title after first run
-          const dispose = runtime.thread.unstable_on("run-end", () => {
+          const dispose = runtime.thread.unstable_on("runEnd", () => {
             dispose();
 
-            api.threadListItem().generateTitle();
+            aui.threadListItem().generateTitle();
           });
         }
       });
-    }, [runtime, api]);
+    }, [runtime, aui]);
 
     return null;
   };

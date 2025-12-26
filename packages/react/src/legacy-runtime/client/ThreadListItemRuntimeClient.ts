@@ -1,18 +1,20 @@
 import { resource, tapEffect } from "@assistant-ui/tap";
+import { type ClientOutput, tapAssistantEmit } from "@assistant-ui/store";
 import {
   ThreadListItemEventType,
   ThreadListItemRuntime,
 } from "../runtime/ThreadListItemRuntime";
 import { Unsubscribe } from "../../types";
-import { tapApi } from "../../utils/tap-store";
 import { tapSubscribable } from "../util-hooks/tapSubscribable";
-import { tapEvents } from "../../client/EventContext";
-import { ThreadListItemClientApi } from "../../client/types/ThreadListItem";
 
 export const ThreadListItemClient = resource(
-  ({ runtime }: { runtime: ThreadListItemRuntime }) => {
-    const runtimeState = tapSubscribable(runtime);
-    const events = tapEvents();
+  ({
+    runtime,
+  }: {
+    runtime: ThreadListItemRuntime;
+  }): ClientOutput<"threadListItem"> => {
+    const state = tapSubscribable(runtime);
+    const emit = tapAssistantEmit();
 
     // Bind thread list item events to event manager
     tapEffect(() => {
@@ -20,13 +22,13 @@ export const ThreadListItemClient = resource(
 
       // Subscribe to thread list item events
       const threadListItemEvents: ThreadListItemEventType[] = [
-        "switched-to",
-        "switched-away",
+        "switchedTo",
+        "switchedAway",
       ];
 
       for (const event of threadListItemEvents) {
         const unsubscribe = runtime.unstable_on(event, () => {
-          events.emit(`thread-list-item.${event}`, {
+          emit(`threadListItem.${event}`, {
             threadId: runtime.getState()!.id,
           });
         });
@@ -36,11 +38,12 @@ export const ThreadListItemClient = resource(
       return () => {
         for (const unsub of unsubscribers) unsub();
       };
-    }, [runtime, events]);
+    }, [runtime, emit]);
 
-    return tapApi<ThreadListItemClientApi>(
-      {
-        getState: () => runtimeState,
+    return {
+      state,
+      methods: {
+        getState: () => state,
         switchTo: runtime.switchTo,
         rename: runtime.rename,
         archive: runtime.archive,
@@ -51,9 +54,6 @@ export const ThreadListItemClient = resource(
         detach: runtime.detach,
         __internal_getRuntime: () => runtime,
       },
-      {
-        key: runtimeState.id,
-      },
-    );
+    };
   },
 );

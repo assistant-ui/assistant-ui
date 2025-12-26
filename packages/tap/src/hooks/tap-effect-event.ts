@@ -1,5 +1,8 @@
 import { tapRef } from "./tap-ref";
 import { tapEffect } from "./tap-effect";
+import { isDevelopment } from "../core/env";
+import { tapCallback } from "./tap-callback";
+import { getCurrentResourceFiber } from "../core/execution-context";
 
 /**
  * Creates a stable function reference that always calls the most recent version of the callback.
@@ -24,6 +27,18 @@ export function tapEffectEvent<T extends (...args: any[]) => any>(
   tapEffect(() => {
     callbackRef.current = callback;
   });
+
+  if (isDevelopment) {
+    const fiber = getCurrentResourceFiber();
+    return tapCallback(
+      ((...args: Parameters<T>) => {
+        if (fiber.renderContext)
+          throw new Error("tapEffectEvent cannot be called during render");
+        return callbackRef.current(...args);
+      }) as T,
+      [],
+    );
+  }
 
   return callbackRef.current;
 }

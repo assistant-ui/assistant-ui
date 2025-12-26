@@ -31,7 +31,7 @@ import { ToolExecutionStatus, useToolInvocations } from "./useToolInvocations";
 import { toAISDKTools, getEnabledTools, createRequestHeaders } from "./utils";
 import { useRemoteThreadListRuntime } from "../remote-thread-list/useRemoteThreadListRuntime";
 import { InMemoryThreadListAdapter } from "../remote-thread-list/adapter/in-memory";
-import { useAssistantApi, useAssistantState } from "../../../context/react";
+import { useAssistantClient, useAssistantState } from "@assistant-ui/store";
 import { UserExternalState } from "../../../augmentations";
 
 const symbolAssistantTransportExtras = Symbol("assistant-transport-extras");
@@ -57,10 +57,10 @@ const asAssistantTransportExtras = (
 };
 
 export const useAssistantTransportSendCommand = () => {
-  const api = useAssistantApi();
+  const aui = useAssistantClient();
 
   return (command: AssistantTransportCommand) => {
-    const extras = api.thread().getState().extras;
+    const extras = aui.thread().getState().extras;
     const transportExtras = asAssistantTransportExtras(extras);
     transportExtras.sendCommand(command);
   };

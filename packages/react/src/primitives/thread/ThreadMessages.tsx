@@ -1,7 +1,8 @@
 "use client";
 
 import { type ComponentType, type FC, memo, useMemo } from "react";
-import { useAssistantState, MessageByIndexProvider } from "../../context";
+import { useAssistantState } from "@assistant-ui/store";
+import { MessageByIndexProvider } from "../../context/providers";
 import { ThreadMessage as ThreadMessageType } from "../../types";
 
 export namespace ThreadPrimitiveMessages {

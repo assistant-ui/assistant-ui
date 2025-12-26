@@ -2,10 +2,8 @@
 
 import { ComponentType, type FC, memo, useMemo } from "react";
 import { Attachment } from "../../types";
-import {
-  useAssistantState,
-  ComposerAttachmentByIndexProvider,
-} from "../../context";
+import { useAssistantState } from "@assistant-ui/store";
+import { ComposerAttachmentByIndexProvider } from "../../context/providers";
 
 export namespace ComposerPrimitiveAttachments {
   export type Props = {

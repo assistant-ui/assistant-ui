@@ -3,6 +3,7 @@ import { loader } from "fumadocs-core/source";
 import { toFumadocsSource } from "fumadocs-mdx/runtime/server";
 import {
   docs,
+  tapDocs as tapDocsCollection,
   examples as examplePages,
   blog as blogPosts,
   careers as careersCollection,
@@ -11,6 +12,11 @@ import {
 export const source = loader({
   baseUrl: "/docs",
   source: docs.toFumadocsSource(),
+});
+
+export const tapDocs = loader({
+  baseUrl: "/tap/docs",
+  source: tapDocsCollection.toFumadocsSource(),
 });
 
 export const examples = loader({

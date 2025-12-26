@@ -1,7 +1,7 @@
 "use client";
 
 import type { FC, PropsWithChildren } from "react";
-import { useAssistantState } from "../../context";
+import { useAssistantState } from "@assistant-ui/store";
 import type { RequireAtLeastOne } from "../../utils/RequireAtLeastOne";
 
 type MessageIfFilters = {

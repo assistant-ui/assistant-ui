@@ -13,13 +13,13 @@ describe("ResourceHandle - Basic Usage", () => {
     const handle = createResource(TestResource(5));
 
     // The handle provides a const API
-    expect(typeof handle.getState).toBe("function");
+    expect(typeof handle.getValue).toBe("function");
     expect(typeof handle.subscribe).toBe("function");
     expect(typeof handle.render).toBe("function");
 
     // Initial state
-    expect(handle.getState().value).toBe(10);
-    expect(handle.getState().propsUsed).toBe(5);
+    expect(handle.getValue().value).toBe(10);
+    expect(handle.getValue().propsUsed).toBe(5);
   });
 
   it("should allow updating props", () => {
@@ -29,7 +29,7 @@ describe("ResourceHandle - Basic Usage", () => {
     const handle = createResource(TestResource({ multiplier: 2 }));
 
     // Initial state
-    expect(handle.getState().result).toBe(20);
+    expect(handle.getValue().result).toBe(20);
 
     // Can call render to update props
     expect(() => handle.render(TestResource({ multiplier: 3 }))).not.toThrow();

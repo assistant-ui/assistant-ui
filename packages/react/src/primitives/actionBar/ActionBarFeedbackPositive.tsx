@@ -3,15 +3,15 @@
 import { forwardRef, useCallback } from "react";
 import { ActionButtonProps } from "../../utils/createActionButton";
 import { composeEventHandlers } from "@radix-ui/primitive";
-import { useAssistantState, useAssistantApi } from "../../context";
+import { useAssistantState, useAssistantClient } from "@assistant-ui/store";
 import { Primitive } from "@radix-ui/react-primitive";
 
 const useActionBarFeedbackPositive = () => {
-  const api = useAssistantApi();
+  const aui = useAssistantClient();
 
   const callback = useCallback(() => {
-    api.message().submitFeedback({ type: "positive" });
-  }, [api]);
+    aui.message().submitFeedback({ type: "positive" });
+  }, [aui]);
 
   return callback;
 };

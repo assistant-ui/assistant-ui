@@ -2,7 +2,7 @@
 
 import { Primitive } from "@radix-ui/react-primitive";
 import { type ComponentRef, forwardRef, ComponentPropsWithoutRef } from "react";
-import { useAssistantState } from "../../context";
+import { useAssistantState } from "@assistant-ui/store";
 
 export namespace ErrorPrimitiveMessage {
   export type Element = ComponentRef<typeof Primitive.span>;

@@ -6,13 +6,13 @@ import { ModelContext } from "../../model-context";
 import { createStateHookForRuntime } from "../../context/react/utils/createStateHookForRuntime";
 import { ThreadComposerRuntime } from "../runtime";
 import {
-  useAssistantApi,
+  useAssistantClient,
   useAssistantEvent,
   useAssistantState,
-} from "../../context/react";
+} from "@assistant-ui/store";
 
 /**
- * @deprecated Use `useAssistantApi()` with `api.thread()` instead. See migration guide: https://docs.assistant-ui.com/docs/migrations/v0-12
+ * @deprecated Use `useAssistantClient()` with `aui.thread()` instead. See migration guide: https://docs.assistant-ui.com/docs/migrations/v0-12
  *
  * Hook to access the ThreadRuntime from the current context.
  *
@@ -36,9 +36,9 @@ import {
  *
  * // After:
  * function MyComponent() {
- *   const api = useAssistantApi();
+ *   const aui = useAssistantClient();
  *   const handleSendMessage = (text: string) => {
- *     api.thread().append({ role: "user", content: [{ type: "text", text }] });
+ *     aui.thread().append({ role: "user", content: [{ type: "text", text }] });
  *   };
  *   return <button onClick={() => handleSendMessage("Hello!")}>Send</button>;
  * }
@@ -51,9 +51,9 @@ export function useThreadRuntime(options?: {
   optional?: boolean | undefined;
 }): ThreadRuntime | null;
 export function useThreadRuntime(options?: { optional?: boolean | undefined }) {
-  const api = useAssistantApi();
+  const aui = useAssistantClient();
   const runtime = useAssistantState(() =>
-    api.thread.source ? (api.thread().__internal_getRuntime?.() ?? null) : null,
+    aui.thread.source ? (aui.thread().__internal_getRuntime?.() ?? null) : null,
   );
   if (!runtime && !options?.optional) {
     throw new Error("ThreadRuntime is not available");
@@ -117,7 +117,7 @@ export function useThreadModelContext(options?: {
   const [, rerender] = useState({});
 
   const runtime = useThreadRuntime(options);
-  useAssistantEvent("thread.model-context-update", () => rerender({}));
+  useAssistantEvent("thread.modelContextUpdate", () => rerender({}));
 
   if (!runtime) return null;
   return runtime?.getModelContext();

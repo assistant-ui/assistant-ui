@@ -1,7 +1,7 @@
 "use client";
 
 import type { FC } from "react";
-import { useAssistantState } from "../../context";
+import { useAssistantState } from "@assistant-ui/store";
 
 const useBranchPickerNumber = () => {
   const branchNumber = useAssistantState(({ message }) => message.branchNumber);

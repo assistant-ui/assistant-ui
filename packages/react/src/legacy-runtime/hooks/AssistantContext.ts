@@ -1,12 +1,12 @@
 "use client";
 
-import { useAssistantApi } from "../../context/react/AssistantApiContext";
+import { useAssistantClient } from "@assistant-ui/store";
 import { AssistantRuntime } from "../runtime/AssistantRuntime";
 import type { ThreadListRuntime } from "../runtime/ThreadListRuntime";
 import { createStateHookForRuntime } from "../../context/react/utils/createStateHookForRuntime";
 
 /**
- * @deprecated Use `useAssistantApi()` instead. See migration guide: https://docs.assistant-ui.com/docs/migrations/v0-12
+ * @deprecated Use `useAssistantClient()` instead. See migration guide: https://docs.assistant-ui.com/docs/migrations/v0-12
  *
  * Hook to access the AssistantRuntime from the current context.
  *
@@ -30,9 +30,9 @@ import { createStateHookForRuntime } from "../../context/react/utils/createState
  *
  * // After:
  * function MyComponent() {
- *   const api = useAssistantApi();
+ *   const aui = useAssistantClient();
  *   const handleNewThread = () => {
- *     api.threads().switchToNewThread();
+ *     aui.threads().switchToNewThread();
  *   };
  *   return <button onClick={handleNewThread}>New Thread</button>;
  * }
@@ -47,8 +47,8 @@ export function useAssistantRuntime(options?: {
 export function useAssistantRuntime(options?: {
   optional?: boolean | undefined;
 }) {
-  const api = useAssistantApi();
-  const runtime = api.threads().__internal_getAssistantRuntime?.() ?? null;
+  const aui = useAssistantClient();
+  const runtime = aui.threads().__internal_getAssistantRuntime?.() ?? null;
 
   if (!runtime && !options?.optional) {
     throw new Error("AssistantRuntime is not available");

@@ -220,26 +220,26 @@ const TodoList = resource(() => {
 - Automatically cleans up resources when keys are removed
 - Handles resource type changes (recreates fiber if type changes)
 
-### `tapContext` and Context Support
+### `tap` and Context Support
 
 Create and use context to pass values through resource boundaries without prop drilling.
 
 ```typescript
 import {
-  createContext,
-  tapContext,
+  createResourceContext,
+  tap,
   withContextProvider,
 } from "@assistant-ui/tap";
 
-const MyContext = createContext(defaultValue);
+const MyContext = createResourceContext(defaultValue);
 
 // Provide context
 withContextProvider(MyContext, value, () => {
-  // Inside this function, tapContext can access the value
+  // Inside this function, tap can access the value
 });
 
 // Access context in a resource
-const value = tapContext(MyContext);
+const value = tap(MyContext);
 ```
 
 ## Resource Management

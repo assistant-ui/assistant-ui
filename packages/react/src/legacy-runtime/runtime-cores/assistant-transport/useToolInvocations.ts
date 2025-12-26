@@ -249,7 +249,7 @@ export function useToolInvocations({
     if (isInitialState.current) {
       isInitialState.current = false;
     }
-  }, [state, controller, onResult]);
+  }, [state, controller]);
 
   const abort = (): Promise<void> => {
     humanInputRef.current.forEach(({ reject }) => {
