@@ -7,6 +7,11 @@ import { Provider } from "./provider";
 import { cn } from "@/lib/utils";
 
 const getMetadataBase = () => {
+  const appUrl = process.env["NEXT_PUBLIC_APP_URL"];
+  if (appUrl) {
+    return new URL(appUrl);
+  }
+
   if (process.env.NODE_ENV === "production") {
     return new URL("https://www.assistant-ui.com");
   }

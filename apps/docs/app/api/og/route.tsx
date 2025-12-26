@@ -106,11 +106,12 @@ export async function GET(request: NextRequest) {
           fontSize: 48,
           fontWeight: 400,
           color: "#a3a3a3",
+          textAlign: "center",
           fontFamily: fontSans,
           letterSpacing: "-0.01em",
         }}
       >
-        The UX of ChatGPT in your own app
+        Open-source React toolkit for production AI chat experiences.
       </span>
     </div>
   );
