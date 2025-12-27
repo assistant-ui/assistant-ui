@@ -4,7 +4,13 @@
     "build": {
       "dependsOn": ["^build"],
       "inputs": ["**/*.*", "!.next", "!.turbo"],
-      "outputs": ["dist", ".next/**", "!.next/cache/**", "generated/**"],
+      "outputs": [
+        "dist",
+        ".next/**",
+        "!.next/cache/**",
+        "generated/**",
+        ".output/**"
+      ],
       "env": [
         "OPENAI_*",
         "ASSISTANT_*",
