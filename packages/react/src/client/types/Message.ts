@@ -17,7 +17,19 @@ export type MessageClientState = ThreadMessage & {
   readonly branchCount: number;
 
   /**
-   * @deprecated This API is still under active development and might change without notice.
+   * @deprecated The `speech` property is deprecated and will be removed in a future version.
+   *
+   * To enable text-to-speech, provide a `SpeechSynthesisAdapter` to the runtime.
+   *
+   * @example, using `useChatRuntime`:
+   *
+   * import { WebSpeechSynthesisAdapter } from "@assistant-ui/react";
+   * import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+   * const runtime = useChatRuntime({
+   *   adapters: {
+   *     speech: new WebSpeechSynthesisAdapter(),
+   *   },
+   * });
    */
   readonly speech: SpeechState | undefined;
   /**
@@ -45,11 +57,11 @@ export type MessageClientApi = {
 
   reload(config?: { runConfig?: RunConfig }): void;
   /**
-   * @deprecated This API is still under active development and might change without notice.
+   * @deprecated The `speak()` method is deprecated. Use the `AssistantActionBar.Speak` component instead.
    */
   speak(): void;
   /**
-   * @deprecated This API is still under active development and might change without notice.
+   * @deprecated The `stopSpeaking()` method is deprecated. Use the `AssistantActionBar.StopSpeaking` component instead.
    */
   stopSpeaking(): void;
   submitFeedback(feedback: { type: "positive" | "negative" }): void;
