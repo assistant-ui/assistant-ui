@@ -106,6 +106,30 @@ type AssistantMessageStepUsage = {
   completionTokens: number;
 };
 
+export type AssistantMessageTiming = {
+  // Client-measured timing
+  streamStartTime?: number;
+  timeToFirstChunk?: number;
+  timeToFirstToken?: number;
+  totalStreamTime?: number;
+
+  // Streaming metrics
+  totalChunks?: number;
+  tokensPerSecond?: number;
+  largestChunkGap?: number;
+
+  // Tool call metrics
+  toolCallCount?: number;
+  toolCallTotalTime?: number;
+
+  // Server-provided timing (optional)
+  server?: {
+    processingTime?: number;
+    queueTime?: number;
+    custom?: Record<string, unknown>;
+  };
+};
+
 type AssistantMessageStepMetadata =
   | {
       state: "started";
@@ -164,6 +188,7 @@ export type AssistantMessage = {
     unstable_data: ReadonlyJSONValue[];
     unstable_annotations: ReadonlyJSONValue[];
     steps: AssistantMessageStepMetadata[];
+    timing?: AssistantMessageTiming;
     custom: Record<string, unknown>;
   };
 };

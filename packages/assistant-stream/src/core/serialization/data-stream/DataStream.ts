@@ -182,6 +182,7 @@ export class DataStreamEncoder
             // in the future, we should create a handler that waits for text parts to finish before continuing
             case "tool-call-args-text-finish":
             case "part-finish":
+            case "timing":
               break;
 
             default: {

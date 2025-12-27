@@ -7,7 +7,13 @@ import {
   type DataMessagePart,
   type SourceMessagePart,
   type useExternalMessageConverter,
+  type MessageTiming,
 } from "@assistant-ui/react";
+
+export type AISDKMessageConverterMetadata =
+  useExternalMessageConverter.Metadata & {
+    readonly messageTiming?: Record<string, MessageTiming>;
+  };
 
 function stripClosingDelimiters(json: string) {
   return json.replace(/[}\]"]+$/, "");
@@ -15,7 +21,7 @@ function stripClosingDelimiters(json: string) {
 
 const convertParts = (
   message: UIMessage,
-  metadata: useExternalMessageConverter.Metadata,
+  metadata: AISDKMessageConverterMetadata,
 ) => {
   if (!message.parts || message.parts.length === 0) {
     return [];
@@ -172,7 +178,7 @@ const convertParts = (
 };
 
 export const AISDKMessageConverter = unstable_createMessageConverter(
-  (message: UIMessage, metadata: useExternalMessageConverter.Metadata) => {
+  (message: UIMessage, metadata: AISDKMessageConverterMetadata) => {
     // UIMessage doesn't have createdAt, so we'll use current date or undefined
     const createdAt = new Date();
     switch (message.role) {
@@ -217,7 +223,8 @@ export const AISDKMessageConverter = unstable_createMessageConverter(
           content: convertParts(message, metadata),
         };
 
-      case "assistant":
+      case "assistant": {
+        const timing = metadata.messageTiming?.[message.id];
         return {
           role: "assistant",
           id: message.id,
@@ -231,8 +238,10 @@ export const AISDKMessageConverter = unstable_createMessageConverter(
                 ? [(message as any).data]
                 : undefined,
             custom: {},
+            ...(timing && { timing }),
           },
         };
+      }
 
       default:
         console.warn(`Unsupported message role: ${message.role}`);
