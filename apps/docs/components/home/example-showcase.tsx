@@ -5,7 +5,7 @@ import { Claude } from "@/components/example/claude/Claude";
 import { Perplexity } from "@/components/example/perplexity/Perplexity";
 import { Shadcn } from "@/components/example/shadcn/Shadcn";
 import { Tab } from "@/components/shared/tab";
-import { DocsRuntimeProvider } from "@/app/(home)/DocsRuntimeProvider";
+import { DocsRuntimeProvider } from "@/contexts/DocsRuntimeProvider";
 
 const ExampleWrapper = ({ children }: { children: React.ReactNode }) => (
   <div className="h-full overflow-hidden rounded-lg border">{children}</div>
