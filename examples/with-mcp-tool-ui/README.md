@@ -1,13 +1,28 @@
 # with-mcp-tool-ui Example
 
-This example demonstrates how to integrate assistant-ui with an MCP server and render rich tool UI components for tool results.
+This example demonstrates the **remote Tool UI loading pattern** - where MCP server developers ship their own UI components that are automatically loaded and rendered in sandboxed iframes.
 
-## Features
+## Key Concept
 
-- AI-powered weather assistant using Claude or GPT-4
-- Beautiful weather cards rendered inline in chat
-- MCP server integration for weather data
-- Streaming responses with loading states
+**Traditional Pattern** (app developer builds UI):
+```tsx
+// App developer must build UI for each MCP server
+<AssistantRuntimeProvider runtime={runtime}>
+  <WeatherToolUI />     // Built by app developer
+  <SpotifyToolUI />     // Built by app developer
+  <Thread />
+</AssistantRuntimeProvider>
+```
+
+**Remote Loading Pattern** (MCP server ships UI):
+```tsx
+// MCP server developer ships UI, app developer just enables it
+<MCPToolUIProvider servers={[{ serverId: "weather-mcp", capability }]}>
+  <Thread />
+</MCPToolUIProvider>
+```
+
+The UI components run in **sandboxed iframes** for security isolation. Each MCP server's UI runs on a separate origin (PSL-isolated subdomain).
 
 ## Quick Start
 
@@ -27,116 +42,168 @@ cp .env.example .env
 # Add your API key (ANTHROPIC_API_KEY or OPENAI_API_KEY)
 ```
 
-### 3. Build the MCP weather server
+### 3. Build and start the UI server
 
-In a separate terminal:
+In a separate terminal, start the UI component server:
 
 ```bash
 cd examples/mcp-weather-ui
-pnpm build
+pnpm build        # Build the MCP server
+pnpm build:ui     # Build the UI bundle
+pnpm start:ui     # Start the UI server on port 3001
 ```
 
-### 4. Start the example app
+You should see:
+```
+🎨 Tool UI Server running at http://localhost:3001
+
+  Endpoints:
+    GET /render       - Iframe render page
+    GET /bundle.js    - UI component bundle
+    GET /manifest.json - UI manifest
+```
+
+### 4. Build and run the MCP server
+
+In another terminal:
+
+```bash
+cd examples/mcp-weather-ui
+pnpm start         # Start the MCP server (stdio)
+```
+
+### 5. Start the example app
 
 ```bash
 cd examples/with-mcp-tool-ui
 pnpm dev
 ```
 
-### 5. Open the app
+### 6. Open the app
 
 Navigate to http://localhost:3005 and try asking:
 
 - "What's the weather in San Francisco?"
 - "Compare the weather in New York and Los Angeles"
-- "Is it going to rain in Seattle?"
 
 ## How It Works
 
 ### Architecture
 
 ```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│   Next.js App   │────▶│   API Route     │────▶│  MCP Server     │
-│  (assistant-ui) │     │  (AI SDK)       │     │  (weather-ui)   │
-└─────────────────┘     └─────────────────┘     └─────────────────┘
-        │                       │
-        │                       │
-        ▼                       ▼
-┌─────────────────┐     ┌─────────────────┐
-│  Tool UI Comps  │◀────│  Tool Results   │
-│  (WeatherCard)  │     │  (JSON)         │
-└─────────────────┘     └─────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│  Next.js App (localhost:3005)                                   │
+│                                                                 │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │  <MCPToolUIProvider servers={[...]}>                      │  │
+│  │                                                           │  │
+│  │    When AI calls get_weather tool:                        │  │
+│  │                                                           │  │
+│  │    ┌─────────────────────────────────────────────────┐   │  │
+│  │    │  IFRAME (sandbox="allow-scripts")               │   │  │
+│  │    │  src="localhost:3001/render?component=WeatherCard"│  │  │
+│  │    │                                                   │   │  │
+│  │    │  ┌─────────────────────────────────────────┐     │   │  │
+│  │    │  │  WeatherCard (from MCP server bundle)   │     │   │  │
+│  │    │  │                                         │     │   │  │
+│  │    │  │  🌤️ San Francisco, CA                   │     │   │  │
+│  │    │  │  72°F Sunny                             │     │   │  │
+│  │    │  └─────────────────────────────────────────┘     │   │  │
+│  │    └─────────────────────────────────────────────────────┘   │  │
+│  │                                                           │  │
+│  └───────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
+         │                              ▲
+         │ postMessage                  │ postMessage
+         │ (render props)               │ (resize, actions)
+         ▼                              │
+┌─────────────────────────────────────────────────────────────────┐
+│  UI Server (localhost:3001)                                      │
+│                                                                  │
+│  /manifest.json  → Describes available components                │
+│  /bundle.js      → Compiled UI components (WeatherCard, etc.)    │
+│  /render         → HTML host page for iframe                     │
+└─────────────────────────────────────────────────────────────────┘
 ```
+
+### Security Model
+
+1. **Iframe Sandbox**: Components run with `sandbox="allow-scripts"` only
+   - No access to parent page cookies/storage
+   - No form submission, popups, or navigation
+
+2. **Origin Isolation**: In production, each MCP server gets a PSL-isolated subdomain
+   - `weather-mcp.auiusercontent.com`
+   - `spotify-mcp.auiusercontent.com`
+   - Browser treats each as a completely separate site
+
+3. **Bundle Integrity**: SHA-256 hash verification ensures bundles haven't been tampered with
 
 ### Key Files
 
-- `app/api/chat/route.ts` - API route that connects to MCP server
-- `components/weather-card.tsx` - Rich weather display component
-- `components/weather-tool-uis.tsx` - Tool UI registrations
-- `components/chat.tsx` - Main chat interface with runtime
+- `app/page.tsx` - Uses `MCPToolUIProvider` to enable remote loading
+- `../mcp-weather-ui/src/ui/index.ts` - The UI bundle with WeatherCard component
+- `../mcp-weather-ui/src/ui-server.ts` - Development server for UI hosting
+- `../mcp-weather-ui/manifest.dev.json` - Manifest describing available components
 
-### Tool UI Registration
+### The Provider
 
-Tool UIs are registered using `makeAssistantToolUI`:
+```tsx
+import { MCPToolUIProvider } from "@assistant-ui/tool-ui";
 
-```typescript
-const GetWeatherToolUI = makeAssistantToolUI({
-  toolName: "get_weather",
-  render: ({ result, status }) => {
-    if (status.type === "running") return <LoadingSkeleton />;
-    return <WeatherCard data={JSON.parse(result)} />;
-  },
-});
-```
+const WEATHER_MCP_CAPABILITY = {
+  version: "1.0",
+  registry: "http://localhost:3001",  // Where to fetch manifest
+  serverId: "weather-mcp",
+  bundleHash: "sha256:...",           // For integrity verification
+};
 
-Mount inside `AssistantRuntimeProvider`:
-
-```typescript
-<AssistantRuntimeProvider runtime={runtime}>
-  <GetWeatherToolUI />
+<MCPToolUIProvider
+  servers={[
+    { serverId: "weather-mcp", capability: WEATHER_MCP_CAPABILITY }
+  ]}
+>
   <Thread />
-</AssistantRuntimeProvider>
+</MCPToolUIProvider>
 ```
 
-## Using with HTTP MCP Server
+## Production vs Development
 
-To use an HTTP-based MCP server instead of stdio:
-
-1. Set the `MCP_SERVER_URL` environment variable:
-
-   ```bash
-   MCP_SERVER_URL=http://localhost:3001/mcp
-   ```
-
-2. The API route will automatically use HTTP transport instead of stdio.
-
-## Customization
-
-### Adding New Tool UIs
-
-1. Create your component in `components/`
-2. Create a tool UI registration with `makeAssistantToolUI`
-3. Mount it inside `AssistantRuntimeProvider`
-
-### Styling
-
-This example uses Tailwind CSS. Weather cards use gradient backgrounds based on conditions. Customize the styles in `components/weather-card.tsx`.
+| Aspect | Development | Production |
+|--------|-------------|------------|
+| Registry URL | `localhost:3001` | `registry.assistant-ui.com` |
+| Bundle URL | `localhost:3001/bundle.js` | `weather-mcp.auiusercontent.com/bundle.js` |
+| Render URL | `localhost:3001/render` | `weather-mcp.auiusercontent.com/render` |
+| Hash verification | Placeholder hash | Real SHA-256 hash |
+| Origin isolation | Same localhost (less secure) | PSL-isolated subdomains |
 
 ## Troubleshooting
 
-### MCP Server Connection Failed
+### "Failed to fetch manifest"
 
-Make sure the MCP server is built:
-
+Make sure the UI server is running:
 ```bash
-cd ../mcp-weather-ui && pnpm build
+cd ../mcp-weather-ui && pnpm dev:ui
 ```
 
-### No Weather Data Displayed
+### Component not rendering
 
-Check the browser console and server logs for errors. The tool result should be valid JSON.
+Check browser console for errors. The manifest must be accessible at:
+```
+http://localhost:3001/v1/servers/weather-mcp/manifest.json
+```
 
-### Tool UI Not Rendering
+### "Bundle hash mismatch"
 
-Ensure the `toolName` in `makeAssistantToolUI` exactly matches the MCP tool name.
+For development, both the capability and manifest use a placeholder hash. If you see this error, ensure both match.
+
+## Next Steps
+
+To deploy to production:
+
+1. Build your UI bundle: `pnpm build:ui`
+2. Calculate the bundle hash: `npx @assistant-ui/tool-ui-server hash -b dist/bundle.js`
+3. Update your manifest with the real hash
+4. Publish to the registry: `npx @assistant-ui/tool-ui-server publish ...`
+
+The `auiusercontent.com` hosting infrastructure will serve your bundle on a PSL-isolated subdomain.

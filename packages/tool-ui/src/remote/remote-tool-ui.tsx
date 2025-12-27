@@ -144,7 +144,7 @@ export const RemoteToolUI: React.FC<RemoteToolUIProps> = ({
       {status === "loading" &&
         (fallback ?? (
           <div className="tool-ui-remote-loading">
-            <div className="bg-muted h-24 animate-pulse rounded-lg" />
+            <div className="h-24 animate-pulse rounded-lg bg-muted" />
           </div>
         ))}
 

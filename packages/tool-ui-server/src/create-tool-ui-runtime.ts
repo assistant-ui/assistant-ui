@@ -40,7 +40,7 @@ export interface ToolUIRuntime {
  * ```
  */
 export function createToolUIRuntime(): ToolUIRuntime {
-  // biome-ignore lint/suspicious/noExplicitAny: needed for dynamic component registry
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const components = new Map<string, ToolUIComponentConfig<any>>();
   let currentProps: Record<string, unknown> | null = null;
 

@@ -90,9 +90,12 @@ export const MCPToolUIProvider: React.FC<MCPToolUIProviderProps> = ({
               return;
             }
 
+            // Derive baseUrl from the manifest's bundleUrl
+            // This allows local development without requiring auiusercontent.com
+            const bundleOrigin = new URL(manifest.bundleUrl).origin;
             results[serverId] = {
               manifest,
-              baseUrl: `https://${serverId}.auiusercontent.com`,
+              baseUrl: bundleOrigin,
             };
           } catch (error) {
             console.warn(`Error loading manifest for ${serverId}:`, error);
