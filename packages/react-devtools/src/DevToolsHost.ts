@@ -3,28 +3,13 @@ import {
   sanitizeForMessage,
   serializeModelContext,
 } from "./utils/serialization";
-
-interface FrameToHostMessage {
-  type: "subscription" | "clearEvents";
-  data: {
-    apiList?: boolean;
-    apis?: number[];
-    apiId?: number;
-  };
-}
-
-interface HostToFrameMessage {
-  type: "update";
-  data: {
-    apiList?: Array<{ apiId: number }>;
-    apis?: Array<{
-      apiId: number;
-      state: any;
-      events: any[];
-      modelContext?: any;
-    }>;
-  };
-}
+import {
+  DEVTOOLS_PROTOCOL,
+  DEVTOOLS_PROTOCOL_VERSION,
+  DevToolsMessage,
+  FrameToHostPayload,
+  HostToFramePayload,
+} from "./types";
 
 export class DevToolsHost {
   private subscription: {
@@ -35,28 +20,39 @@ export class DevToolsHost {
     apis: new Set(),
   };
   private unsubscribe?: () => void;
-  private onSendMessage: (message: HostToFrameMessage) => void;
+  private onSendMessage: (message: DevToolsMessage<HostToFramePayload>) => void;
 
-  constructor(onSendMessage: (message: HostToFrameMessage) => void) {
+  constructor(
+    onSendMessage: (message: DevToolsMessage<HostToFramePayload>) => void,
+  ) {
     this.onSendMessage = onSendMessage;
     this.subscribeToDevTools();
   }
 
-  onReceiveMessage(message: FrameToHostMessage) {
-    switch (message.type) {
+  onReceiveMessage(message: DevToolsMessage<FrameToHostPayload>) {
+    if (
+      message.protocol !== DEVTOOLS_PROTOCOL ||
+      message.version !== DEVTOOLS_PROTOCOL_VERSION
+    ) {
+      return;
+    }
+    const payload = message.payload;
+    switch (payload.type) {
       case "subscription":
-        this.handleSubscription(message.data);
+        this.handleSubscription(payload.data);
         break;
       case "clearEvents":
-        if (typeof message.data.apiId === "number") {
-          DevToolsHooks.clearEventLogs(message.data.apiId);
+        if (typeof payload.data.apiId === "number") {
+          DevToolsHooks.clearEventLogs(payload.data.apiId);
           // The subscription will automatically trigger an update
         }
         break;
     }
   }
 
-  private handleSubscription(data: FrameToHostMessage["data"]) {
+  private handleSubscription(
+    data: Extract<FrameToHostPayload, { type: "subscription" }>["data"],
+  ) {
     const prevApiList = this.subscription.apiList;
     const prevApis = new Set(this.subscription.apis);
 
@@ -80,9 +76,15 @@ export class DevToolsHost {
   }
 
   private sendUpdate() {
-    const update: HostToFrameMessage = {
-      type: "update",
-      data: {},
+    const update: DevToolsMessage<
+      Extract<HostToFramePayload, { type: "update" }>
+    > = {
+      protocol: DEVTOOLS_PROTOCOL,
+      version: DEVTOOLS_PROTOCOL_VERSION,
+      payload: {
+        type: "update",
+        data: {},
+      },
     };
 
     const allApis = DevToolsHooks.getApis();
@@ -93,7 +95,9 @@ export class DevToolsHost {
     }
 
     if (this.subscription.apiList) {
-      update.data.apiList = [...allApis.keys()].map((apiId) => ({ apiId }));
+      update.payload.data.apiList = [...allApis.keys()].map((apiId) => ({
+        apiId,
+      }));
 
       if (this.subscription.apis.size === 0 && allApis.size > 0) {
         this.subscription.apis = new Set([allApis.keys().next().value!]);
@@ -101,7 +105,7 @@ export class DevToolsHost {
     }
 
     if (this.subscription.apis.size > 0) {
-      update.data.apis = [];
+      update.payload.data.apis = [];
 
       for (const apiId of this.subscription.apis) {
         const apiEntry = allApis.get(apiId);
@@ -125,7 +129,7 @@ export class DevToolsHost {
             apiEntry.api?.thread?.().getModelContext(),
           );
 
-          update.data.apis.push({
+          update.payload.data.apis.push({
             apiId,
             state: sanitizeForMessage(state),
             events: sanitizeForMessage(apiEntry.logs) as unknown[],
@@ -135,7 +139,7 @@ export class DevToolsHost {
       }
     }
 
-    if (Object.keys(update.data).length === 0) {
+    if (Object.keys(update.payload.data).length === 0) {
       return;
     }
 
