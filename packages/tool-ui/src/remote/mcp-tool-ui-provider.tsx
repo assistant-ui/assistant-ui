@@ -1,13 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { useAssistantToolUI } from "@assistant-ui/react";
+import { makeAssistantToolUI } from "@assistant-ui/react";
 import { RemoteToolUI } from "./remote-tool-ui";
-import {
-  type UIManifest,
-  UIManifestSchema,
-  type MCPUICapability,
-} from "../schemas/manifest";
+import { UIManifestSchema, type MCPUICapability } from "../schemas/manifest";
 
 export interface MCPToolUIProviderProps {
   /** MCP servers with UI capability */
@@ -24,9 +20,9 @@ export interface MCPToolUIProviderProps {
   children: React.ReactNode;
 }
 
-interface LoadedManifest {
-  manifest: UIManifest;
-  baseUrl: string;
+interface ToolUIComponent {
+  toolName: string;
+  Component: React.ComponentType;
 }
 
 /**
@@ -49,14 +45,12 @@ export const MCPToolUIProvider: React.FC<MCPToolUIProviderProps> = ({
   errorFallback,
   children,
 }) => {
-  const [manifests, setManifests] = React.useState<
-    Record<string, LoadedManifest>
-  >({});
+  const [toolUIs, setToolUIs] = React.useState<ToolUIComponent[]>([]);
 
-  // Fetch manifests for all UI-enabled servers
+  // Fetch manifests and create tool UI components
   React.useEffect(() => {
     const loadManifests = async () => {
-      const results: Record<string, LoadedManifest> = {};
+      const components: ToolUIComponent[] = [];
 
       await Promise.all(
         servers.map(async ({ serverId, capability }) => {
@@ -91,75 +85,66 @@ export const MCPToolUIProvider: React.FC<MCPToolUIProviderProps> = ({
             }
 
             // Derive baseUrl from the manifest's bundleUrl
-            // This allows local development without requiring auiusercontent.com
             const bundleOrigin = new URL(manifest.bundleUrl).origin;
-            results[serverId] = {
-              manifest,
-              baseUrl: bundleOrigin,
-            };
+
+            // Create a tool UI component for each tool
+            for (const component of manifest.components) {
+              for (const toolName of component.toolNames) {
+                const baseUrl = bundleOrigin;
+                const componentName = component.name;
+                const loading = loadingFallback;
+                const error = errorFallback;
+
+                // Create the tool UI component using makeAssistantToolUI
+                const ToolUIComponent = makeAssistantToolUI({
+                  toolName,
+                  render: ({ args, result, addResult, status }) => {
+                    if (status.type === "running") {
+                      return (
+                        loading ?? (
+                          <div className="my-4 h-48 max-w-md animate-pulse rounded-2xl bg-slate-200" />
+                        )
+                      );
+                    }
+
+                    return (
+                      <RemoteToolUI
+                        src={`${baseUrl}/render?component=${componentName}`}
+                        toolName={toolName}
+                        props={{ args, result }}
+                        onAddResult={addResult}
+                        fallback={loading}
+                        errorFallback={error}
+                      />
+                    );
+                  },
+                });
+
+                components.push({
+                  toolName,
+                  Component: ToolUIComponent,
+                });
+              }
+            }
           } catch (error) {
             console.warn(`Error loading manifest for ${serverId}:`, error);
           }
         }),
       );
 
-      setManifests(results);
+      setToolUIs(components);
     };
 
     loadManifests();
-  }, [servers]);
+  }, [servers, loadingFallback, errorFallback]);
 
-  // Register tool UIs for all loaded manifests
   return (
     <>
-      {Object.entries(manifests).map(([serverId, { manifest, baseUrl }]) => (
-        <ManifestToolUIRegistrar
-          key={serverId}
-          manifest={manifest}
-          baseUrl={baseUrl}
-          loadingFallback={loadingFallback}
-          errorFallback={errorFallback}
-        />
+      {/* Render all the tool UI components to register them */}
+      {toolUIs.map(({ toolName, Component }) => (
+        <Component key={toolName} />
       ))}
       {children}
     </>
   );
-};
-
-interface ManifestToolUIRegistrarProps {
-  manifest: UIManifest;
-  baseUrl: string;
-  loadingFallback?: React.ReactNode | undefined;
-  errorFallback?: React.ReactNode | undefined;
-}
-
-const ManifestToolUIRegistrar: React.FC<ManifestToolUIRegistrarProps> = ({
-  manifest,
-  baseUrl,
-  loadingFallback,
-  errorFallback,
-}) => {
-  // Register a tool UI for each component's tool names
-  for (const component of manifest.components) {
-    for (const toolName of component.toolNames) {
-      // Note: This hook is called in a loop which is not ideal,
-      // but it's a workaround for dynamic tool registration
-      // eslint-disable-next-line react-hooks/rules-of-hooks
-      useAssistantToolUI({
-        toolName,
-        render: ({ args, result, addResult }) => (
-          <RemoteToolUI
-            src={`${baseUrl}/render?component=${component.name}`}
-            toolName={toolName}
-            props={{ args, result }}
-            onAddResult={addResult}
-            fallback={loadingFallback}
-            errorFallback={errorFallback}
-          />
-        ),
-      });
-    }
-  }
-
-  return null;
 };

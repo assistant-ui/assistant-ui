@@ -97,10 +97,37 @@ export function createToolUIRuntime(): ToolUIRuntime {
               component ||
               new URLSearchParams(window.location.search).get("component");
             if (componentName) {
-              renderComponent(
-                componentName,
-                (props as { args?: unknown })?.args ?? props,
-              );
+              // The result contains the tool output data
+              // Parse it if it's a string (MCP returns JSON strings)
+              let resultData = (props as { result?: unknown })?.result;
+              if (typeof resultData === "string") {
+                try {
+                  resultData = JSON.parse(resultData);
+                } catch {
+                  // Keep as string if not valid JSON
+                }
+              }
+              // Handle MCP content format: { content: [{ type: "text", text: "..." }] }
+              if (
+                resultData &&
+                typeof resultData === "object" &&
+                "content" in resultData
+              ) {
+                const content = (
+                  resultData as {
+                    content: Array<{ type: string; text?: string }>;
+                  }
+                ).content;
+                const textContent = content?.find((c) => c.type === "text");
+                if (textContent?.text) {
+                  try {
+                    resultData = JSON.parse(textContent.text);
+                  } catch {
+                    // Keep as-is if not valid JSON
+                  }
+                }
+              }
+              renderComponent(componentName, resultData ?? props);
             }
           } catch (error) {
             window.parent.postMessage(
