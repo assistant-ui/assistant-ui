@@ -20,7 +20,8 @@ const { server, toolWithUI, getUICapability, generateManifest, start } =
     serverId: "weather-mcp",
     name: "Weather MCP Server",
     version: "1.0.0",
-    bundleHash: "sha256:0000000000000000000000000000000000000000000000000000000000000000", // Replace with actual hash after build
+    bundleHash:
+      "sha256:0000000000000000000000000000000000000000000000000000000000000000", // Replace with actual hash after build
   });
 
 // =============================================================================
@@ -41,6 +42,46 @@ interface WeatherData {
     low: number;
     condition: string;
   }>;
+}
+
+// =============================================================================
+// Text Formatting Utilities (for legacy mode)
+// =============================================================================
+
+function formatWeatherText(weather: WeatherData): string {
+  const unit = weather.unit === "celsius" ? "C" : "F";
+  const forecastText = weather.forecast
+    ? weather.forecast
+        .map((day) => `  ${day.day}: ${day.high}°/${day.low}° ${day.condition}`)
+        .join("\n")
+    : "";
+
+  return `Weather in ${weather.location}: ${weather.temperature}°${unit}, ${weather.condition}
+
+Current Conditions:
+• Temperature: ${weather.temperature}°${unit}
+• Conditions: ${weather.condition}
+• Humidity: ${weather.humidity}%
+• Wind: ${weather.windSpeed} mph ${weather.windDirection}
+
+${forecastText ? "5-Day Forecast:\n" + forecastText : ""}`;
+}
+
+function formatComparisonText(
+  weather1: WeatherData,
+  weather2: WeatherData,
+): string {
+  return `Weather Comparison:
+
+${weather1.location} vs ${weather2.location}
+
+🌍 ${weather1.location}:
+• Temperature: ${weather1.temperature}°${weather1.unit === "celsius" ? "C" : "F"}, ${weather1.condition}
+• Humidity: ${weather1.humidity}%, Wind: ${weather1.windSpeed} mph ${weather1.windDirection}
+
+🌍 ${weather2.location}:
+• Temperature: ${weather2.temperature}°${weather2.unit === "celsius" ? "C" : "F"}, ${weather2.condition}
+• Humidity: ${weather2.humidity}%, Wind: ${weather2.windSpeed} mph ${weather2.windDirection}`;
 }
 
 // =============================================================================
@@ -90,9 +131,14 @@ toolWithUI({
       .optional()
       .default("fahrenheit")
       .describe("Temperature unit"),
+    aui: z
+      .boolean()
+      .optional()
+      .default(true)
+      .describe("Enable AUI rich components (fallback to text if false)"),
   }),
   component: "WeatherCard",
-  execute: async ({ location, unit }) => {
+  execute: async ({ location, unit, aui }) => {
     const weather = await fetchWeather(location);
 
     // Convert temperature if needed
@@ -106,18 +152,79 @@ toolWithUI({
       }));
     }
 
-    return weather;
+    // Support both legacy (text-only) and AUI modes
+    if (aui) {
+      // AUI mode: return component reference for rich UI
+      return {
+        component: "WeatherCard",
+        props: {
+          location: weather.location,
+          temperature: weather.temperature,
+          unit: weather.unit,
+          condition: weather.condition,
+          humidity: weather.humidity,
+          windSpeed: weather.windSpeed,
+          windDirection: weather.windDirection,
+          forecast: weather.forecast,
+        },
+        // Also provide fallback text for non-AUI clients
+        text: formatWeatherText(weather),
+      };
+    } else {
+      // Legacy mode: return formatted text only
+      return formatWeatherText(weather);
+    }
   },
-  transformResult: (result) => ({
-    location: result.location,
-    temperature: result.temperature,
-    unit: result.unit,
-    condition: result.condition,
-    humidity: result.humidity,
-    windSpeed: result.windSpeed,
-    windDirection: result.windDirection,
-    forecast: result.forecast,
+  transformResult: (result, args) => {
+    // Handle both component result and text result
+    if (typeof result === "object" && result.component) {
+      return result as Record<string, unknown>; // Pass through AUI result
+    }
+    // For text results, return as MCP text content
+    return {
+      content: [
+        {
+          type: "text",
+          text: result as string,
+        },
+      ],
+    };
+  },
+});
+
+toolWithUI({
+  name: "compare_weather",
+  description:
+    "Compare weather between two locations side by side. Useful for travel planning.",
+  parameters: z.object({
+    location1: z.string().describe("First city to compare"),
+    location2: z.string().describe("Second city to compare"),
+    aui: z
+      .boolean()
+      .optional()
+      .default(true)
+      .describe("Enable AUI rich components (fallback to text if false)"),
   }),
+  component: "WeatherComparison",
+  execute: async ({ location1, location2, aui }) => {
+    const [weather1, weather2] = await Promise.all([
+      fetchWeather(location1),
+      fetchWeather(location2),
+    ]);
+
+    if (aui) {
+      // AUI mode: return component reference
+      return {
+        component: "WeatherComparison",
+        props: { location1: weather1, location2: weather2 },
+        // Fallback text
+        text: formatComparisonText(weather1, weather2),
+      };
+    } else {
+      // Legacy mode: return formatted text
+      return formatComparisonText(weather1, weather2);
+    }
+  },
 });
 
 // =============================================================================
@@ -131,14 +238,46 @@ toolWithUI({
   parameters: z.object({
     location1: z.string().describe("First city to compare"),
     location2: z.string().describe("Second city to compare"),
+    aui: z
+      .boolean()
+      .optional()
+      .default(true)
+      .describe("Enable AUI rich components (fallback to text if false)"),
   }),
   component: "WeatherComparison",
-  execute: async ({ location1, location2 }) => {
+  execute: async ({ location1, location2, aui }) => {
     const [weather1, weather2] = await Promise.all([
       fetchWeather(location1),
       fetchWeather(location2),
     ]);
-    return { location1: weather1, location2: weather2 };
+
+    if (aui) {
+      // AUI mode: return component reference
+      return {
+        component: "WeatherComparison",
+        props: { location1: weather1, location2: weather2 },
+        // Fallback text
+        text: formatComparisonText(weather1, weather2),
+      };
+    } else {
+      // Legacy mode: return formatted text
+      return formatComparisonText(weather1, weather2);
+    }
+  },
+  transformResult: (result, args) => {
+    // Handle both component result and text result
+    if (typeof result === "object" && result.component) {
+      return result as Record<string, unknown>; // Pass through AUI result
+    }
+    // For text results, return as MCP text content
+    return {
+      content: [
+        {
+          type: "text",
+          text: result as string,
+        },
+      ],
+    };
   },
 });
 
