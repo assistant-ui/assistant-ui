@@ -9,6 +9,7 @@ export * as MessagePrimitive from "./message";
 export * as ThreadPrimitive from "./thread";
 export * as ThreadListPrimitive from "./threadList";
 export * as ThreadListItemPrimitive from "./threadListItem";
+export * as ThreadListItemMorePrimitive from "./threadListItemMore";
 
 export { AssistantIf } from "./assistant/AssistantIf";
 
