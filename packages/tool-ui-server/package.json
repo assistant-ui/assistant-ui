@@ -1,0 +1,59 @@
+{
+  "name": "@assistant-ui/tool-ui-server",
+  "version": "0.0.1",
+  "description": "SDK for creating UI-enabled MCP servers",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "source": "./src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "tool-ui-server": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup src/index.ts src/cli.ts --format esm --dts",
+    "dev": "tsup src/index.ts src/cli.ts --format esm --dts --watch",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "zod": "^3.25.56",
+    "zod-to-json-schema": "^3.25.0"
+  },
+  "peerDependencies": {
+    "@modelcontextprotocol/sdk": "^1.23.0"
+  },
+  "peerDependenciesMeta": {
+    "@modelcontextprotocol/sdk": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.23.0",
+    "tsup": "^8.4.0",
+    "typescript": "^5.7.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "homepage": "https://www.assistant-ui.com/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/assistant-ui/assistant-ui/tree/main/packages/tool-ui-server"
+  },
+  "bugs": {
+    "url": "https://github.com/assistant-ui/assistant-ui/issues"
+  }
+}

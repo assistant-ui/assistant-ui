@@ -1,0 +1,24 @@
+{
+  "version": "1.0",
+  "serverId": "weather-mcp",
+  "serverName": "Weather MCP Server (Development)",
+  "bundleUrl": "http://localhost:3001/bundle.js",
+  "bundleHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "components": [
+    {
+      "name": "WeatherCard",
+      "description": "Displays weather information with temperature, conditions, and forecast",
+      "toolNames": ["get_weather"]
+    },
+    {
+      "name": "WeatherComparison",
+      "description": "Compares weather between two locations side by side",
+      "toolNames": ["compare_weather"]
+    }
+  ],
+  "permissions": {
+    "network": false,
+    "storage": false,
+    "clipboard": false
+  }
+}
