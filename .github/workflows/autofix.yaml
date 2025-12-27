@@ -23,11 +23,11 @@ jobs:
           node-version: 24
           cache: "pnpm"
 
-      - name: Install dependencies
-        run: pnpm install --ignore-scripts
+      - name: Update lockfile
+        run: make ci-install
 
-      - name: Lint fix
-        run: pnpm lint:fix
+      - name: Run Biome fix
+        run: make fix
 
       - name: Sync registry components
         run: bash scripts/sync-registry-components.sh

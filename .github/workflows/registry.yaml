@@ -47,7 +47,7 @@ jobs:
         run: npm install --global vercel@latest
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: make ci-install
 
       - name: Pull Vercel Environment Information
         working-directory: apps/registry
