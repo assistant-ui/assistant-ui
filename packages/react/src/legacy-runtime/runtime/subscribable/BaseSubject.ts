@@ -1,4 +1,4 @@
-import { Unsubscribe } from "../../../types/Unsubscribe";
+import type { Unsubscribe } from "@assistant-ui/core";
 
 export abstract class BaseSubject {
   private _subscriptions = new Set<() => void>();

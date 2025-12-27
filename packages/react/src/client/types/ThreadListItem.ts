@@ -1,5 +1,5 @@
 import { ThreadListItemRuntime } from "../../legacy-runtime/runtime";
-import { ThreadListItemStatus } from "../../types";
+import type { ThreadListItemStatus } from "../../legacy-runtime/runtime/ThreadListItemRuntime";
 
 export type ThreadListItemClientState = {
   readonly id: string;
