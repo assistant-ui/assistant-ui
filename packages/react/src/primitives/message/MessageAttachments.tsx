@@ -5,7 +5,7 @@ import {
   useAssistantState,
   MessageAttachmentByIndexProvider,
 } from "../../context";
-import { CompleteAttachment } from "../../types";
+import type { CompleteAttachment } from "@assistant-ui/core";
 
 export namespace MessagePrimitiveAttachments {
   export type Props = {

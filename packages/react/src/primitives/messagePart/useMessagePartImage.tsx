@@ -2,7 +2,7 @@
 
 import { MessagePartState } from "../../legacy-runtime/runtime/MessagePartRuntime";
 import { useAssistantState } from "../../context";
-import { ImageMessagePart } from "../../types";
+import type { ImageMessagePart } from "@assistant-ui/core";
 
 export const useMessagePartImage = () => {
   const image = useAssistantState(({ part }) => {

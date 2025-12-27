@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useAssistantState } from "../../context";
-import {
+import type {
   MessagePartStatus,
   ReasoningMessagePart,
   TextMessagePart,
-} from "../../types/AssistantTypes";
+} from "@assistant-ui/core";
+import { useAssistantState } from "../../context";
 import { useCallbackRef } from "@radix-ui/react-use-callback-ref";
 import { useSmoothStatusStore } from "./SmoothContext";
 import { writableStore } from "../../context/ReadonlyStore";

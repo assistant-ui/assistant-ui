@@ -1,4 +1,4 @@
-import { ThreadMessage } from "../../../types";
+import type { ThreadMessage } from "@assistant-ui/core";
 
 export type ConverterCallback<TIn> = (
   cache: ThreadMessage | undefined,

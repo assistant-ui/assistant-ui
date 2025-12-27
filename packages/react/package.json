@@ -54,6 +54,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@assistant-ui/core": "workspace:*",
     "assistant-cloud": "^0.1.12",
     "@assistant-ui/tap": "^0.3.5",
     "@radix-ui/primitive": "^1.1.3",

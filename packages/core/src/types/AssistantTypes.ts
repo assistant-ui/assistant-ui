@@ -1,5 +1,5 @@
 import type { CompleteAttachment } from "./AttachmentTypes";
-import type { ReadonlyJSONValue } from "assistant-stream/utils";
+import type { ReadonlyJSONValue } from "../stream/utils/json/json-value";
 import type {
   TextMessagePart,
   ReasoningMessagePart,
@@ -13,7 +13,6 @@ import type {
   ThreadAssistantMessagePart,
 } from "./MessagePartTypes";
 
-// Re-export message part types for convenience
 export type {
   TextMessagePart,
   ReasoningMessagePart,
