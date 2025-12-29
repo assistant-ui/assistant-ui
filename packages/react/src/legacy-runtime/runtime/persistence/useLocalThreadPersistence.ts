@@ -54,7 +54,7 @@ export function useLocalThreadPersistence(
   const enabled = options.enabled ?? true;
   const debounceMs = options.debounceMs ?? 300;
 
-  const hasRestoredRef = useRef(false);
+  const restoredKeyRef = useRef<string | null>(null);
   const debounceTimerRef = useRef<number | null>(null);
 
   /**
@@ -65,19 +65,25 @@ export function useLocalThreadPersistence(
       return;
     }
 
-    if (!enabled || !runtime || hasRestoredRef.current) {
+    if (!enabled || !runtime || restoredKeyRef.current === key) {
       return;
     }
 
     const raw = localStorage.getItem(key);
     if (!raw) {
-      hasRestoredRef.current = true;
+      restoredKeyRef.current = key;
       return;
     }
 
     try {
       const snapshot = JSON.parse(raw) as ExportedMessageRepository;
-      runtime.thread.import(snapshot);
+      if (snapshot && snapshot.messages) {
+        runtime.thread.import(snapshot);
+      } else {
+        console.warn(
+          "[assistant-ui] Failed to restore local thread: invalid data format",
+        );
+      }
     } catch (err) {
       console.warn(
         "[assistant-ui] Failed to restore local thread persistence",
@@ -85,7 +91,7 @@ export function useLocalThreadPersistence(
       );
     }
 
-    hasRestoredRef.current = true;
+    restoredKeyRef.current = key;
   }, [runtime, enabled, key]);
 
   /**
