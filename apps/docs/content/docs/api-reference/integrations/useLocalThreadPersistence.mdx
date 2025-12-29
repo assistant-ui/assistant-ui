@@ -1,0 +1,127 @@
+---
+title: useLocalThreadPersistence
+description: A small opt-in React hook that persists and restores the currently active assistant thread using browser storage.
+---
+
+`useLocalThreadPersistence` is a small opt-in React hook that persists and restores the currently active assistant thread using browser storage.
+
+The goal of this hook is to show how to:
+
+- keep the active assistant thread across page reloads
+- avoid setting up a backend or database
+- use `assistant-ui`'s local runtime with minimal configuration
+- remain fully opt-in and explicit about persistence
+
+## Why This Hook Exists
+
+By default, `useLocalRuntime` is **fully in-memory**. That means refreshing the page clears all messages, which can make demos and prototypes feel fragile. This hook shows how to fill that gap **without changing core runtime behavior**.
+
+## Key Concept: Opt-In Persistence
+
+Persistence in `assistant-ui` is **never implicit**. This example opts in explicitly by calling `useLocalThreadPersistence(runtime)`. Removing that single line reverts the app back to fully in-memory behavior with no browser storage usage.
+
+## Import
+
+```tsx
+import { useLocalThreadPersistence } from "@assistant-ui/react";
+```
+
+## Usage
+
+```tsx
+"use client";
+
+import { Thread } from "@/components/assistant-ui/thread";
+import {
+  AssistantRuntimeProvider,
+  useLocalRuntime,
+  useLocalThreadPersistence,
+} from "@assistant-ui/react";
+import { localAdapter } from "@/lib/localAdapter";
+
+export default function Home() {
+  const runtime = useLocalRuntime(localAdapter);
+
+  useLocalThreadPersistence(runtime, {
+    key: "assistant-ui:with-local-persistence",
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <div className="h-full">
+        <Thread />
+      </div>
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+## Configuration Options
+
+The persistence hook supports optional configuration:
+
+```tsx
+useLocalThreadPersistence(runtime, {
+  enabled: true,
+  key: "my-app:assistant",
+  debounceMs: 500,
+});
+```
+
+| Option       | Default                   | Description                        |
+| ------------ | ------------------------- | ---------------------------------- |
+| `enabled`    | `true`                    | Toggle persistence on/off          |
+| `key`        | `"assistant-ui:thread"`   | Storage key                        |
+| `debounceMs` | `300`                     | Debounce duration for writes (ms)  |
+
+## Persistence Behavior
+
+### What Is Persisted
+
+- The currently active thread
+- Message content
+- Parent/child relationships
+- Message metadata
+
+### What Is Not Persisted
+
+- Thread list
+- Archived threads
+- Execution state (streaming, tools, runs)
+- Adapters or model configuration
+
+### Thread Switching Behavior
+
+This hook persists only one thread. If you switch threads and reload the page, only the last active thread is restored. Previously persisted threads remain in `localStorage`, but are not automatically restored. This avoids:
+
+- accidental thread mixing
+- ambiguous restore logic
+- hidden state bugs
+
+## Storage Backend
+
+This hook uses `localStorage`. This means:
+
+- data is browser-scoped
+- data is synchronous
+- storage limits apply (usually ~5MB)
+
+For larger or multi-thread use cases, `IndexedDB` or an external store is recommended.
+
+## When to Use This Pattern
+
+This pattern is ideal for:
+
+- demos
+- prototypes
+- local tools
+- onboarding experiences
+- development playgrounds
+
+It is **not** intended as a production persistence solution.
+
+## Related Examples
+
+- [with-ai-sdk-v5](/examples/with-ai-sdk-v5) — AI SDK runtime (no persistence)
+- [with-external-store](/examples/with-external-store) — full persistence control
+- [with-thread-history-adapter](/examples/with-thread-history-adapter) — message-only persistence
