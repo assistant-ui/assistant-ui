@@ -52,7 +52,7 @@ export default function TwShimmerPage() {
   }, []);
 
   return (
-    <div className="container max-w-7xl space-y-16 px-4 py-12">
+    <div className="container mx-auto max-w-7xl space-y-16 px-4 py-12">
       <HighlightStyles />
       <div className="mx-auto flex w-fit flex-col items-center space-y-6 text-center">
         <div className="flex cursor-default rounded-full bg-border p-px">
