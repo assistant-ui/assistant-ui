@@ -10,6 +10,12 @@ DOCS_DIR="$SCRIPT_DIR/../apps/docs/components/assistant-ui"
 # Files to exclude from syncing (these often have example-specific customizations)
 EXCLUDED_FILES=()
 
+# Example-specific exclusions (format: "example-name:filename")
+# These files have custom implementations that should not be overwritten
+EXAMPLE_EXCLUSIONS=(
+    "with-elevenlabs-scribe:thread.tsx"  # Custom dictation UI
+)
+
 echo "Syncing shared components from registry to examples and docs..."
 echo "Excluded files: ${EXCLUDED_FILES[*]}"
 
@@ -35,12 +41,13 @@ echo "Found ${#registry_files[@]} files in registry: ${registry_files[*]}"
 sync_to_target() {
     local target_dir="$1"
     local target_name="$2"
+    local example_name="$3"  # Optional: example name for example-specific exclusions
 
     echo ""
     echo "Checking $target_name"
 
     for registry_file in "${registry_files[@]}"; do
-        # Check if file is in excluded list
+        # Check if file is in global excluded list
         is_excluded=false
         for excluded in "${EXCLUDED_FILES[@]}"; do
             if [[ "$registry_file" == "$excluded" ]]; then
@@ -48,6 +55,16 @@ sync_to_target() {
                 break
             fi
         done
+
+        # Check if file is in example-specific exclusions
+        if [[ -n "$example_name" ]]; then
+            for exclusion in "${EXAMPLE_EXCLUSIONS[@]}"; do
+                if [[ "$exclusion" == "$example_name:$registry_file" ]]; then
+                    is_excluded=true
+                    break
+                fi
+            done
+        fi
 
         if [[ "$is_excluded" == true ]]; then
             echo "  Skipping $registry_file (excluded)"
@@ -82,7 +99,7 @@ echo "Found ${#examples[@]} examples with assistant-ui components: ${examples[*]
 
 # Sync each example
 for example in "${examples[@]}"; do
-    sync_to_target "$EXAMPLES_DIR/$example/components/assistant-ui" "example: $example"
+    sync_to_target "$EXAMPLES_DIR/$example/components/assistant-ui" "example: $example" "$example"
 done
 
 echo ""
