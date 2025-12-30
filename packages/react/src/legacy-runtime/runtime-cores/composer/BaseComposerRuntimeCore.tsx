@@ -233,6 +233,9 @@ export abstract class BaseComposerRuntimeCore
   private _listeningUnsubscribes: Unsubscribe[] = [];
   private _dictationBaseText = "";
   private _currentInterimText = "";
+  private _listeningSessionIdCounter = 0;
+  private _activeListeningSessionId: number | undefined;
+  private _isCleaningListening = false;
 
   public get listening(): ListeningState | undefined {
     return this._listening;
@@ -261,10 +264,18 @@ export abstract class BaseComposerRuntimeCore
 
     const session = adapter.listen();
     this._listeningSession = session;
+    const sessionId = ++this._listeningSessionIdCounter;
+    this._activeListeningSessionId = sessionId;
     this._listening = { status: session.status, inputDisabled };
     this._notifySubscribers();
 
     const unsubSpeech = session.onSpeech((result) => {
+      if (
+        this._activeListeningSessionId !== sessionId ||
+        this._listeningSession !== session
+      ) {
+        return;
+      }
       const isFinal = result.isFinal !== false;
 
       const needsSeparator =
@@ -300,6 +311,12 @@ export abstract class BaseComposerRuntimeCore
     this._listeningUnsubscribes.push(unsubSpeech);
 
     const unsubStart = session.onSpeechStart(() => {
+      if (
+        this._activeListeningSessionId !== sessionId ||
+        this._listeningSession !== session
+      ) {
+        return;
+      }
       const currentTranscript = this._listening?.transcript;
       this._listening = currentTranscript
         ? {
@@ -313,13 +330,19 @@ export abstract class BaseComposerRuntimeCore
     this._listeningUnsubscribes.push(unsubStart);
 
     const unsubEnd = session.onSpeechEnd(() => {
-      this._cleanupListening();
+      this._cleanupListening({ sessionId });
     });
     this._listeningUnsubscribes.push(unsubEnd);
 
     const statusInterval = setInterval(() => {
+      if (
+        this._activeListeningSessionId !== sessionId ||
+        this._listeningSession !== session
+      ) {
+        return;
+      }
       if (session.status.type === "ended") {
-        this._cleanupListening();
+        this._cleanupListening({ sessionId });
       }
     }, 100);
     this._listeningUnsubscribes.push(() => clearInterval(statusInterval));
@@ -328,22 +351,37 @@ export abstract class BaseComposerRuntimeCore
   public stopListening(): void {
     if (!this._listeningSession) return;
 
-    this._listeningSession.stop().finally(() => {
-      this._cleanupListening();
+    const session = this._listeningSession;
+    const sessionId = this._activeListeningSessionId;
+    session.stop().finally(() => {
+      this._cleanupListening({ sessionId });
     });
   }
 
-  private _cleanupListening(): void {
-    for (const unsub of this._listeningUnsubscribes) {
-      unsub();
+  private _cleanupListening(options?: { sessionId: number | undefined }): void {
+    if (
+      options?.sessionId !== undefined &&
+      options.sessionId !== this._activeListeningSessionId
+    ) {
+      return;
     }
-    this._listeningUnsubscribes = [];
+    if (this._isCleaningListening) return;
+    this._isCleaningListening = true;
+    try {
+      for (const unsub of this._listeningUnsubscribes) {
+        unsub();
+      }
+      this._listeningUnsubscribes = [];
 
-    this._listeningSession = undefined;
-    this._listening = undefined;
-    this._dictationBaseText = "";
-    this._currentInterimText = "";
-    this._notifySubscribers();
+      this._listeningSession = undefined;
+      this._activeListeningSessionId = undefined;
+      this._listening = undefined;
+      this._dictationBaseText = "";
+      this._currentInterimText = "";
+      this._notifySubscribers();
+    } finally {
+      this._isCleaningListening = false;
+    }
   }
 
   private _eventSubscribers = new Map<
