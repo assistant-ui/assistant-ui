@@ -320,6 +320,7 @@ export class AgUiThreadRuntimeCore {
       createdAt: new Date(),
       status: { type: "running" },
       content: [],
+      attachments: [],
       metadata: {
         unstable_state: this.stateSnapshot ?? null,
         unstable_annotations: [],

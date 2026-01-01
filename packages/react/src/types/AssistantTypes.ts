@@ -124,6 +124,7 @@ export type ThreadUserMessage = MessageCommonProps & {
 export type ThreadAssistantMessage = MessageCommonProps & {
   readonly role: "assistant";
   readonly content: readonly ThreadAssistantMessagePart[];
+  readonly attachments: readonly CompleteAttachment[];
   readonly status: MessageStatus;
   readonly metadata: {
     readonly unstable_state: ReadonlyJSONValue;
