@@ -191,6 +191,7 @@ export class LocalThreadRuntimeCore
       role: "assistant",
       status: { type: "running" },
       content: [],
+      attachments: [],
       metadata: {
         unstable_state: this.state,
         unstable_annotations: [],

@@ -223,6 +223,31 @@ export const AISDKMessageConverter = unstable_createMessageConverter(
           id: message.id,
           createdAt,
           content: convertParts(message, metadata),
+          attachments: message.parts
+            ?.filter((p) => p.type === "file")
+            .map((part, idx) => {
+              return {
+                id: idx.toString(),
+                type: part.mediaType.startsWith("image/") ? "image" : "file",
+                name: part.filename ?? "file",
+                content: [
+                  part.mediaType.startsWith("image/")
+                    ? {
+                        type: "image",
+                        image: part.url,
+                        filename: part.filename!,
+                      }
+                    : {
+                        type: "file",
+                        filename: part.filename!,
+                        data: part.url,
+                        mimeType: part.mediaType,
+                      },
+                ],
+                contentType: part.mediaType ?? "unknown/unknown",
+                status: { type: "complete" as const },
+              };
+            }),
           metadata: {
             unstable_annotations: (message as any).annotations,
             unstable_data: Array.isArray((message as any).data)

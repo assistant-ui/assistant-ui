@@ -95,9 +95,6 @@ export const fromThreadMessageLike = (
     return null;
   };
 
-  if (role !== "user" && attachments?.length)
-    throw new Error("attachments are only supported for user messages");
-
   if (role !== "assistant" && status)
     throw new Error("status is only supported for assistant messages");
 
@@ -160,6 +157,7 @@ export const fromThreadMessageLike = (
             }
           })
           .filter((c) => !!c),
+        attachments: attachments ?? [],
         status: status ?? fallbackStatus,
         metadata: {
           unstable_state: metadata?.unstable_state ?? null,
