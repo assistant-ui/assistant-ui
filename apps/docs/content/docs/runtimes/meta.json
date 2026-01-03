@@ -5,6 +5,7 @@
     "ai-sdk",
     "data-stream",
     "mastra",
+    "ag-ui",
     "langgraph",
     "langserve",
     "external-store",
