@@ -335,6 +335,67 @@ See complete widget implementations:
 
 ---
 
+## Workbench Features
+
+### Display Modes
+
+The workbench toolbar lets you preview your widget in different display modes:
+
+| Mode | Description |
+| --- | --- |
+| **Inline** | Widget appears embedded in the conversation flow (default) |
+| **PiP** | Widget floats above the conversation as a picture-in-picture overlay |
+| **Fullscreen** | Widget takes over the entire viewport |
+
+Use these modes to test how your widget adapts to different contexts. Your widget can read the current mode via `useDisplayMode()` and request changes via `useRequestDisplayMode()`.
+
+### Device Types
+
+Test responsive layouts by switching between device presets:
+
+- **Desktop** — Full width (770px max)
+- **Tablet** — Tablet viewport
+- **Mobile** — Mobile viewport
+- **Resizable** — Drag to resize freely
+
+### Conversation Mode
+
+Conversation Mode (chat bubble icon, inline mode only) shows your widget in a simulated ChatGPT conversation context:
+
+```
+┌─────────────────────────────────────┐
+│  User: "Show me coffee shops nearby" │  ← User message
+├─────────────────────────────────────┤
+│  🔄 Using poi_search...              │  ← Tool indicator
+├─────────────────────────────────────┤
+│  ┌─────────────────────────────────┐│
+│  │     [Your Widget]               ││  ← Widget preview
+│  └─────────────────────────────────┘│
+├─────────────────────────────────────┤
+│  Assistant: "Here are some nearby..."│  ← Response
+└─────────────────────────────────────┘
+```
+
+This helps visualize the full flow: user prompt → tool call → widget render → assistant response.
+
+**Customizing conversation messages:**
+
+Add a `conversation` field to your mock variant in `lib/workbench/mock-config/`:
+
+```ts
+{
+  id: "coffee-search",
+  name: "Coffee Search",
+  toolInput: { query: "coffee shops", location: "San Francisco" },
+  conversation: {
+    userMessage: "Find coffee shops near me",
+    assistantResponse: "I found several great coffee shops nearby. Tap any location for details!"
+  }
+}
+```
+
+---
+
 ## Keyboard Shortcuts (Workbench Only)
 
 | Shortcut               | Action            |
