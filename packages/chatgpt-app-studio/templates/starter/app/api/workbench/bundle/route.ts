@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import * as esbuild from "esbuild";
 import path from "node:path";
 import fs from "node:fs/promises";
+import crypto from "node:crypto";
 
 export const runtime = "nodejs";
 
@@ -52,10 +53,6 @@ const COMPONENT_MAP: Record<string, ComponentConfig> = {
     exportName: "POIMapSDK",
   },
 };
-
-function sanitizeComponentId(id: string): string {
-  return id.replace(/[^a-zA-Z0-9-]/g, "");
-}
 
 const bundleCache = new Map<string, { bundle: string; timestamp: number }>();
 const CACHE_TTL = 5000;
@@ -116,8 +113,7 @@ export async function GET(request: NextRequest) {
       "WIDGET_IMPORT_LINE",
       importLine,
     );
-    const safeId = sanitizeComponentId(componentId);
-    const entryPath = path.join(tempDir, `entry-${safeId}.tsx`);
+    const entryPath = path.join(tempDir, `entry-${crypto.randomUUID()}.tsx`);
     await fs.writeFile(entryPath, entryContent, "utf-8");
 
     const result = await esbuild.build({

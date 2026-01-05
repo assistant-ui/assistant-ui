@@ -139,13 +139,22 @@ async function initializeSession(
   return { sessionId };
 }
 
-function isAllowedServerUrl(url: string): boolean {
+function validateAndConstructUrl(url: string): string | null {
   try {
     const parsed = new URL(url);
-    const allowedHosts = ["localhost", "127.0.0.1", "[::1]"];
-    return allowedHosts.includes(parsed.hostname);
+    const allowedHosts = ["localhost", "127.0.0.1", "[::1]"] as const;
+    const matchedHost = allowedHosts.find((h) => h === parsed.hostname);
+    if (!matchedHost) {
+      return null;
+    }
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return null;
+    }
+    const safeProtocol = parsed.protocol === "https:" ? "https:" : "http:";
+    const safePort = parsed.port ? `:${parseInt(parsed.port, 10)}` : "";
+    return `${safeProtocol}//${matchedHost}${safePort}${parsed.pathname}${parsed.search}`;
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -179,7 +188,8 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!isAllowedServerUrl(serverUrl)) {
+    const validatedUrl = validateAndConstructUrl(serverUrl);
+    if (!validatedUrl) {
       return NextResponse.json(
         {
           error: {
@@ -194,10 +204,10 @@ export async function POST(request: Request) {
       );
     }
 
-    let sessionId = getOrCreateSession(serverUrl);
+    let sessionId = getOrCreateSession(validatedUrl);
 
     if (!sessionId) {
-      const initResult = await initializeSession(serverUrl);
+      const initResult = await initializeSession(validatedUrl);
       if (initResult.error) {
         return NextResponse.json({ error: initResult.error });
       }
@@ -209,7 +219,7 @@ export async function POST(request: Request) {
       error,
       sessionId: newSessionId,
     } = await mcpRequest(
-      serverUrl,
+      validatedUrl,
       "tools/call",
       {
         name: tool,
@@ -219,7 +229,7 @@ export async function POST(request: Request) {
     );
 
     if (newSessionId && newSessionId !== sessionId) {
-      cacheSession(serverUrl, newSessionId);
+      cacheSession(validatedUrl, newSessionId);
     }
 
     if (error) {
@@ -227,11 +237,11 @@ export async function POST(request: Request) {
         error.type === "tool_error" &&
         error.message?.includes("not initialized")
       ) {
-        clearSession(serverUrl);
-        const retryInit = await initializeSession(serverUrl);
+        clearSession(validatedUrl);
+        const retryInit = await initializeSession(validatedUrl);
         if (!retryInit.error) {
           const retryResult = await mcpRequest(
-            serverUrl,
+            validatedUrl,
             "tools/call",
             { name: tool, arguments: args || {} },
             retryInit.sessionId,
