@@ -110,11 +110,11 @@ export function updatePackageJson(
   try {
     const content = fs.readFileSync(pkgPath, "utf-8");
     const pkg = JSON.parse(content) as Record<string, unknown>;
-    pkg.name = name;
-    pkg.version = "0.1.0";
-    pkg.private = true;
+    pkg["name"] = name;
+    pkg["version"] = "0.1.0";
+    pkg["private"] = true;
     if (description) {
-      pkg.description = description;
+      pkg["description"] = description;
     }
     fs.writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`);
   } catch (error) {
@@ -125,7 +125,7 @@ export function updatePackageJson(
 }
 
 export function detectPackageManager(): "npm" | "pnpm" | "yarn" | "bun" {
-  const ua = process.env.npm_config_user_agent || "";
+  const ua = process.env["npm_config_user_agent"] ?? "";
   if (ua.includes("pnpm")) return "pnpm";
   if (ua.includes("yarn")) return "yarn";
   if (ua.includes("bun")) return "bun";

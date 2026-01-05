@@ -192,34 +192,34 @@ describe("updatePackageJson", () => {
 });
 
 describe("detectPackageManager", () => {
-  const originalEnv = process.env.npm_config_user_agent;
+  const originalEnv = process.env["npm_config_user_agent"];
 
   afterEach(() => {
-    process.env.npm_config_user_agent = originalEnv;
+    process.env["npm_config_user_agent"] = originalEnv;
   });
 
   it("detects pnpm", () => {
-    process.env.npm_config_user_agent = "pnpm/8.0.0 node/v18.0.0";
+    process.env["npm_config_user_agent"] = "pnpm/8.0.0 node/v18.0.0";
     expect(detectPackageManager()).toBe("pnpm");
   });
 
   it("detects yarn", () => {
-    process.env.npm_config_user_agent = "yarn/1.22.0 node/v18.0.0";
+    process.env["npm_config_user_agent"] = "yarn/1.22.0 node/v18.0.0";
     expect(detectPackageManager()).toBe("yarn");
   });
 
   it("detects bun", () => {
-    process.env.npm_config_user_agent = "bun/1.0.0";
+    process.env["npm_config_user_agent"] = "bun/1.0.0";
     expect(detectPackageManager()).toBe("bun");
   });
 
   it("defaults to npm", () => {
-    process.env.npm_config_user_agent = "";
+    process.env["npm_config_user_agent"] = "";
     expect(detectPackageManager()).toBe("npm");
   });
 
   it("defaults to npm when env var is missing", () => {
-    delete process.env.npm_config_user_agent;
+    delete process.env["npm_config_user_agent"];
     expect(detectPackageManager()).toBe("npm");
   });
 });

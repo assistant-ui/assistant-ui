@@ -135,13 +135,14 @@ async function main() {
     : await p.text({
         message: "Project name:",
         placeholder: "my-chatgpt-app",
-        validate: (value) => {
+        validate: (value): string | undefined => {
           if (!value) return "Project name is required";
           const pathCheck = isValidProjectPath(value);
           if (!pathCheck.valid) return pathCheck.error;
           if (!isValidPackageName(toValidPackageName(value))) {
             return "Invalid project name";
           }
+          return undefined;
         },
       });
 

@@ -1,13 +1,4 @@
 {
-  "compilerOptions": {
-    "target": "ES2022",
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-    "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "declaration": true,
-    "outDir": "dist"
-  },
+  "extends": "@assistant-ui/x-buildutils/ts/base",
   "include": ["src"]
 }
