@@ -10,6 +10,7 @@ import {
 } from "@/lib/workbench/store";
 import { workbenchComponents } from "@/lib/workbench/component-registry";
 import type { ConversationContext } from "@/lib/workbench/mock-config";
+import { MorphContainer } from "./component-renderer";
 
 interface MessageBubbleProps {
   sender: "user" | "assistant";
@@ -111,7 +112,7 @@ export function ConversationView({
 
           <ToolIndicator toolName={toolName} isDark={isDark} />
 
-          <div
+          <MorphContainer
             className={cn(
               "w-full overflow-hidden rounded-2xl border shadow-sm",
               isDark ? "border-neutral-700" : "border-neutral-200",
@@ -119,7 +120,7 @@ export function ConversationView({
             style={{ height: widgetHeight, maxHeight: widgetHeight }}
           >
             <div className="h-full overflow-auto">{children}</div>
-          </div>
+          </MorphContainer>
 
           <MessageBubble
             sender="assistant"
