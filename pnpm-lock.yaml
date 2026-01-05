@@ -1300,9 +1300,6 @@ importers:
       ai:
         specifier: ^5.0.116
         version: 5.0.116(zod@4.2.1)
-      assistant-stream:
-        specifier: workspace:*
-        version: link:../../packages/assistant-stream
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -1322,14 +1319,11 @@ importers:
         specifier: 19.2.3
         version: 19.2.3(react@19.2.3)
       redis:
-        specifier: ^5.0.0
+        specifier: ^5.10.0
         version: 5.10.0
       remark-gfm:
         specifier: ^4.0.1
         version: 4.0.1
-      resumable-stream:
-        specifier: ^2.2.10
-        version: 2.2.10
       tailwind-merge:
         specifier: ^3.4.0
         version: 3.4.0
@@ -6947,9 +6941,6 @@ packages:
   restore-cursor@5.1.0:
     resolution: {integrity: sha512-oMA2dcrw6u0YfxJQXm342bFKX/E4sG9rbTzO9ptUcR/e8A33cHuvStiYOwH7fszkZlZ1z/ta9AAoPk2F4qIOHA==}
     engines: {node: '>=18'}
-
-  resumable-stream@2.2.10:
-    resolution: {integrity: sha512-pSJtiDVkPgirq4x+e+gu67IEkUVYGu1cPgW5AnTHCfYGRfIUjS3d4pj7VGveXmYWb9hy6yIMFTM4YzK7rqj14A==}
 
   retry@0.13.1:
     resolution: {integrity: sha512-XQBQ3I8W1Cge0Seh+6gjj03LbmRFWuoszgK9ooCpwYIrhhoO80pfq4cUkU5DkknwfOfFteRwlZ56PYOGYyFWdg==}
@@ -13331,8 +13322,6 @@ snapshots:
     dependencies:
       onetime: 7.0.0
       signal-exit: 4.1.0
-
-  resumable-stream@2.2.10: {}
 
   retry@0.13.1: {}
 

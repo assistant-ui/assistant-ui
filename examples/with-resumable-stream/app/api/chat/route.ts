@@ -11,7 +11,7 @@ import { after } from "next/server";
 import {
   createResumableStreamContext,
   type ResumableStreamContext,
-} from "resumable-stream";
+} from "@/lib/resumable-stream";
 import { z } from "zod";
 
 export const maxDuration = 60;

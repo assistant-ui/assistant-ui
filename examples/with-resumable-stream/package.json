@@ -24,9 +24,8 @@
     "next": "16.1.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "redis": "^5.0.0",
+    "redis": "^5.10.0",
     "remark-gfm": "^4.0.1",
-    "resumable-stream": "^2.2.10",
     "tailwind-merge": "^3.4.0",
     "zod": "^4.2.1",
     "zustand": "^5.0.9"
