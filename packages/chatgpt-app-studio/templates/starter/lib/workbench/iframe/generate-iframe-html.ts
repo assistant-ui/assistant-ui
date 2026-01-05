@@ -57,6 +57,15 @@ const BRIDGE_SCRIPT = `
     return changed;
   }
 
+  function updateThemeClass(theme) {
+    var root = document.documentElement;
+    if (theme === "dark") {
+      root.classList.add("dark");
+    } else {
+      root.classList.remove("dark");
+    }
+  }
+
   function handleMessage(event) {
     const message = event.data;
     if (!message || typeof message !== "object" || !message.type) return;
@@ -67,6 +76,9 @@ const BRIDGE_SCRIPT = `
         globals = { ...DEFAULT_GLOBALS, ...message.globals };
         const changed = buildChangedGlobals(previousGlobals, globals);
         if (Object.keys(changed).length > 0) {
+          if (changed.theme) {
+            updateThemeClass(changed.theme);
+          }
           dispatchGlobalsChange(changed);
         }
         break;

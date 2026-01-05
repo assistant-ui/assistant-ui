@@ -116,9 +116,10 @@ Three independent reviews (Claude Opus, GPT-4, Gemini) converged on similar find
   - File: `lib/export/bundler.ts:86-91`
   - Status: Uses relative paths with `./` prefix
 
-- [ ] **Fix dark mode in exported widgets** — Source: Claude, Gemini
-  - Files: `lib/export/compile-css.ts:12`, `lib/export/production-provider.tsx`
-  - Issue: CSS expects `.dark` class but wrapper may not set it
+- [x] **Fix dark mode in exported widgets** — Source: Claude, Gemini ✅ Fixed
+  - Files: `lib/export/bridge.ts`, `lib/workbench/openai-bridge.ts`, `lib/workbench/iframe/generate-iframe-html.ts`
+  - Issue: CSS expects `.dark` class but wrapper wasn't updating it on theme change
+  - Fix: All three bridges now call `updateThemeClass()` when theme changes in `OPENAI_SET_GLOBALS`
 
 #### Code Quality
 - [ ] **Fix tool name collision in MCP generation** — Source: Claude, Gemini

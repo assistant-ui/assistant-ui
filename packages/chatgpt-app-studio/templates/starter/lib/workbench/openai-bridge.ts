@@ -33,6 +33,15 @@ export function generateBridgeScript(initialGlobals: OpenAIGlobals): string {
     });
   }
 
+  function updateThemeClass(theme) {
+    var root = document.documentElement;
+    if (theme === 'dark') {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+  }
+
   window.addEventListener('message', function(event) {
     const data = event.data;
     if (!data || typeof data !== 'object') return;
@@ -54,6 +63,9 @@ export function generateBridgeScript(initialGlobals: OpenAIGlobals): string {
 
       // Dispatch event if anything changed
       if (Object.keys(changedKeys).length > 0) {
+        if (changedKeys.theme) {
+          updateThemeClass(changedKeys.theme);
+        }
         window.dispatchEvent(new CustomEvent('openai:set_globals', {
           detail: { globals: changedKeys }
         }));
