@@ -160,7 +160,7 @@ export const RemoteToolUI: React.FC<RemoteToolUIProps> = ({
         src={src}
         name={iframeName}
         title={`Tool UI: ${toolName}`}
-        sandbox="allow-scripts allow-same-origin allow-forms"
+        sandbox="allow-scripts allow-forms"
         style={{ height: `${height}px` }}
         className="w-full border-0"
         onLoad={() => setStatus("loading")}
