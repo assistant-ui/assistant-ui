@@ -4,6 +4,13 @@ import { makeAssistantToolUI } from "@assistant-ui/react";
 import { WeatherCard } from "./weather-card";
 import { WeatherComparison } from "./weather-comparison";
 
+// Global state to track mode (simple approach for demo)
+declare global {
+  // eslint-disable-next-line no-var
+  var __weatherMode__: boolean | undefined;
+}
+globalThis.__weatherMode__ = true;
+
 /**
  * Tool UI for the get_weather MCP tool.
  * Renders a beautiful weather card when the AI retrieves weather data.
@@ -28,6 +35,9 @@ export const GetWeatherToolUI = makeAssistantToolUI<
       // First parse if it's a string
       let parsed = typeof result === "string" ? JSON.parse(result) : result;
 
+      // Get current mode (default to AUI mode)
+      const isAuiMode = globalThis.__weatherMode__ !== false;
+
       // Handle MCP result format: {content: [{type: "text", text: "..."}], isError: boolean}
       if (parsed.content && Array.isArray(parsed.content)) {
         // If there's an error, show error state
@@ -44,8 +54,44 @@ export const GetWeatherToolUI = makeAssistantToolUI<
           (c: { type: string }) => c.type === "text",
         );
         if (textContent?.text) {
+          // Legacy mode: show raw JSON
+          if (!isAuiMode) {
+            return (
+              <div className="my-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <pre className="whitespace-pre-wrap font-mono text-slate-700 text-sm">
+                  {textContent.text}
+                </pre>
+              </div>
+            );
+          }
           parsed = JSON.parse(textContent.text);
         }
+      }
+
+      // Handle AUI component format: {component: "WeatherCard", props: {...}, text: "..."}
+      if (parsed.component && parsed.props) {
+        // Legacy mode: show raw JSON
+        if (!isAuiMode) {
+          return (
+            <div className="my-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+              <pre className="whitespace-pre-wrap font-mono text-slate-700 text-sm">
+                {JSON.stringify(parsed.props, null, 2)}
+              </pre>
+            </div>
+          );
+        }
+        parsed = parsed.props;
+      }
+
+      // Legacy mode fallback
+      if (!isAuiMode) {
+        return (
+          <div className="my-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <pre className="whitespace-pre-wrap font-mono text-slate-700 text-sm">
+              {JSON.stringify(parsed, null, 2)}
+            </pre>
+          </div>
+        );
       }
 
       return <WeatherCard data={parsed} />;
@@ -84,6 +130,9 @@ export const CompareWeatherToolUI = makeAssistantToolUI<
     try {
       let parsed = typeof result === "string" ? JSON.parse(result) : result;
 
+      // Get current mode (default to AUI mode)
+      const isAuiMode = globalThis.__weatherMode__ !== false;
+
       // Handle MCP result format
       if (parsed.content && Array.isArray(parsed.content)) {
         if (parsed.isError) {
@@ -98,8 +147,44 @@ export const CompareWeatherToolUI = makeAssistantToolUI<
           (c: { type: string }) => c.type === "text",
         );
         if (textContent?.text) {
+          // Legacy mode: show raw JSON
+          if (!isAuiMode) {
+            return (
+              <div className="my-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <pre className="whitespace-pre-wrap font-mono text-slate-700 text-sm">
+                  {textContent.text}
+                </pre>
+              </div>
+            );
+          }
           parsed = JSON.parse(textContent.text);
         }
+      }
+
+      // Handle AUI component format: {component: "WeatherComparison", props: {...}, text: "..."}
+      if (parsed.component && parsed.props) {
+        // Legacy mode: show raw JSON
+        if (!isAuiMode) {
+          return (
+            <div className="my-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+              <pre className="whitespace-pre-wrap font-mono text-slate-700 text-sm">
+                {JSON.stringify(parsed.props, null, 2)}
+              </pre>
+            </div>
+          );
+        }
+        parsed = parsed.props;
+      }
+
+      // Legacy mode fallback
+      if (!isAuiMode) {
+        return (
+          <div className="my-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <pre className="whitespace-pre-wrap font-mono text-slate-700 text-sm">
+              {JSON.stringify(parsed, null, 2)}
+            </pre>
+          </div>
+        );
       }
 
       return <WeatherComparison data={parsed} />;

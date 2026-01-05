@@ -27,7 +27,7 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "tsx scripts/build.mts",
+    "build": "aui-build",
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest"

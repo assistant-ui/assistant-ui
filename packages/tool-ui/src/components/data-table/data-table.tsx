@@ -2,7 +2,13 @@
 
 import * as React from "react";
 import { cn } from "../../utils/cn";
-import { Table, TableBody, TableRow, TableCell, ActionButtons } from "../shared";
+import {
+  Table,
+  TableBody,
+  TableRow,
+  TableCell,
+  ActionButtons,
+} from "../shared";
 import { normalizeActionsConfig } from "../../utils/actions-config";
 import { sortData } from "./utilities";
 import type {
@@ -164,13 +170,13 @@ export function DataTable<T extends object = RowData>({
               ? "block"
               : layout === "cards"
                 ? "hidden"
-                : "hidden @md:block",
+                : "@md:block hidden",
           )}
         >
           <div className="relative">
             <div
               className={cn(
-                "bg-card relative w-full overflow-clip overflow-y-auto rounded-lg border",
+                "relative w-full overflow-clip overflow-y-auto rounded-lg border bg-card",
                 "touch-pan-x",
                 maxHeight && "max-h-[--max-height]",
               )}
@@ -197,6 +203,7 @@ export function DataTable<T extends object = RowData>({
                   ) : data.length === 0 ? (
                     <DataTableEmpty message={emptyMessage} />
                   ) : (
+                    <DataTableContent />
                   )}
                 </Table>
               </DataTableErrorBoundary>
@@ -227,11 +234,11 @@ export function DataTable<T extends object = RowData>({
             {isLoading ? (
               <DataTableSkeletonCards />
             ) : data.length === 0 ? (
-              <div className="text-muted-foreground py-8 text-center">
+              <div className="py-8 text-center text-muted-foreground">
                 {emptyMessage}
               </div>
             ) : (
-              <div className="bg-card flex flex-col overflow-hidden rounded-2xl border shadow-xs">
+              <div className="flex flex-col overflow-hidden rounded-2xl border bg-card shadow-xs">
                 {data.map((row, i) => {
                   const keyVal = rowIdKey ? row[rowIdKey] : undefined;
                   const rowKey = keyVal != null ? String(keyVal) : String(i);
@@ -285,7 +292,7 @@ function DataTableEmpty({ message }: { message: string }) {
 
   return (
     <TableBody>
-      <TableRow className="bg-card h-24 text-center">
+      <TableRow className="h-24 bg-card text-center">
         <TableCell colSpan={columns.length} role="status" aria-live="polite">
           {message}
         </TableCell>
@@ -305,7 +312,7 @@ function DataTableSkeleton() {
           <TableRow key={i}>
             {columns.map((_, j) => (
               <TableCell key={j}>
-                <div className="bg-muted/50 h-4 animate-pulse rounded" />
+                <div className="h-4 animate-pulse rounded bg-muted/50" />
               </TableCell>
             ))}
           </TableRow>
@@ -320,9 +327,9 @@ function DataTableSkeletonCards() {
     <>
       {Array.from({ length: 3 }).map((_, i) => (
         <div key={i} className="flex flex-col gap-2 rounded-lg border p-4">
-          <div className="bg-muted/50 h-5 w-1/2 animate-pulse rounded" />
-          <div className="bg-muted/50 h-4 w-3/4 animate-pulse rounded" />
-          <div className="bg-muted/50 h-4 w-2/3 animate-pulse rounded" />
+          <div className="h-5 w-1/2 animate-pulse rounded bg-muted/50" />
+          <div className="h-4 w-3/4 animate-pulse rounded bg-muted/50" />
+          <div className="h-4 w-2/3 animate-pulse rounded bg-muted/50" />
         </div>
       ))}
     </>

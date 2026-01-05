@@ -33,27 +33,27 @@ const conditionIcons: Record<string, string> = {
 };
 
 export function WeatherCard({ data }: { data: WeatherData }) {
-  const bgClass = conditionStyles[data.condition] ?? conditionStyles.cloudy;
+  const bgClass = conditionStyles[data.condition] ?? conditionStyles["cloudy"];
   const icon = conditionIcons[data.condition] ?? "\uD83C\uDF24\uFE0F";
   const tempUnit = data.unit === "celsius" ? "C" : "F";
 
   return (
     <div
-      className={`my-4 rounded-2xl bg-gradient-to-br ${bgClass} p-6 text-white shadow-lg max-w-md`}
+      className={`my-4 rounded-2xl bg-gradient-to-br ${bgClass} max-w-md p-6 text-white shadow-lg`}
     >
-      <div className="mb-2 text-lg font-semibold">{data.location}</div>
+      <div className="mb-2 font-semibold text-lg">{data.location}</div>
 
-      <div className="flex items-center gap-4 mb-4">
+      <div className="mb-4 flex items-center gap-4">
         <span className="text-5xl">{icon}</span>
         <div>
-          <div className="text-4xl font-bold">
+          <div className="font-bold text-4xl">
             {data.temperature}&deg;{tempUnit}
           </div>
           <div className="text-lg capitalize opacity-90">{data.condition}</div>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 text-sm opacity-90 mb-4">
+      <div className="mb-4 grid grid-cols-2 gap-2 text-sm opacity-90">
         <div>
           {"\uD83D\uDCA7"} Humidity: {data.humidity}%
         </div>
@@ -63,12 +63,14 @@ export function WeatherCard({ data }: { data: WeatherData }) {
       </div>
 
       {data.forecast && data.forecast.length > 0 && (
-        <div className="border-t border-white/20 pt-4 mt-4">
+        <div className="mt-4 border-white/20 border-t pt-4">
           <div className="flex justify-between">
             {data.forecast.map((day) => (
               <div key={day.day} className="text-center text-sm">
                 <div className="font-medium">{day.day}</div>
-                <div>{conditionIcons[day.condition] ?? "\uD83C\uDF24\uFE0F"}</div>
+                <div>
+                  {conditionIcons[day.condition] ?? "\uD83C\uDF24\uFE0F"}
+                </div>
                 <div className="opacity-80">
                   {day.high}&deg; / {day.low}&deg;
                 </div>

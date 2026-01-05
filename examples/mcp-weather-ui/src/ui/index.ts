@@ -6,7 +6,7 @@
  * via postMessage.
  */
 
-import { createToolUIRuntime, emitAction } from "@assistant-ui/tool-ui-server";
+import { createToolUIRuntime } from "@assistant-ui/tool-ui-server";
 import { z } from "zod";
 
 // =============================================================================
@@ -39,198 +39,86 @@ const WeatherComparisonSchema = z.object({
 });
 
 // =============================================================================
-// Styling
+// Styling - matching the original Tailwind component exactly
 // =============================================================================
 
-const styles = `
-  * {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-  }
+const conditionStyles: Record<string, string> = {
+  sunny: "from-amber-400 to-orange-500",
+  cloudy: "from-slate-400 to-slate-600",
+  rainy: "from-blue-400 to-blue-600",
+  snowy: "from-slate-100 to-slate-300 text-slate-800",
+  stormy: "from-slate-700 to-purple-900",
+};
 
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background: transparent;
-    color: #1f2937;
-  }
-
-  .weather-card {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-radius: 16px;
-    padding: 24px;
-    color: white;
-    max-width: 400px;
-  }
-
-  .weather-card.sunny {
-    background: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
-  }
-
-  .weather-card.cloudy {
-    background: linear-gradient(135deg, #bdc3c7 0%, #2c3e50 100%);
-  }
-
-  .weather-card.rainy {
-    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-  }
-
-  .weather-card.snowy {
-    background: linear-gradient(135deg, #e6e9f0 0%, #eef1f5 100%);
-    color: #1f2937;
-  }
-
-  .weather-card.stormy {
-    background: linear-gradient(135deg, #2c3e50 0%, #4ca1af 100%);
-  }
-
-  .weather-location {
-    font-size: 1.25rem;
-    font-weight: 600;
-    margin-bottom: 8px;
-  }
-
-  .weather-main {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    margin-bottom: 16px;
-  }
-
-  .weather-temp {
-    font-size: 3rem;
-    font-weight: 700;
-  }
-
-  .weather-condition {
-    font-size: 1.5rem;
-  }
-
-  .weather-icon {
-    font-size: 3rem;
-  }
-
-  .weather-details {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    font-size: 0.875rem;
-    opacity: 0.9;
-  }
-
-  .weather-forecast {
-    display: flex;
-    justify-content: space-between;
-    margin-top: 16px;
-    padding-top: 16px;
-    border-top: 1px solid rgba(255, 255, 255, 0.2);
-  }
-
-  .forecast-day {
-    text-align: center;
-    font-size: 0.75rem;
-  }
-
-  .forecast-day-name {
-    font-weight: 600;
-    margin-bottom: 4px;
-  }
-
-  .forecast-temps {
-    opacity: 0.8;
-  }
-
-  .weather-comparison {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-  }
-
-  .action-button {
-    margin-top: 16px;
-    padding: 8px 16px;
-    background: rgba(255, 255, 255, 0.2);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 8px;
-    color: inherit;
-    cursor: pointer;
-    font-size: 0.875rem;
-  }
-
-  .action-button:hover {
-    background: rgba(255, 255, 255, 0.3);
-  }
-`;
+const conditionIcons: Record<string, string> = {
+  sunny: "\u2600\uFE0F",
+  cloudy: "\u2601\uFE0F",
+  rainy: "\uD83C\uDF27\uFE0F",
+  snowy: "\u2744\uFE0F",
+  stormy: "\u26C8\uFE0F",
+};
 
 // =============================================================================
 // Helpers
 // =============================================================================
 
 function getWeatherIcon(condition: string): string {
-  switch (condition) {
-    case "sunny":
-      return "☀️";
-    case "cloudy":
-      return "☁️";
-    case "rainy":
-      return "🌧️";
-    case "snowy":
-      return "❄️";
-    case "stormy":
-      return "⛈️";
-    default:
-      return "🌤️";
-  }
+  return conditionIcons[condition] ?? "\uD83C\uDF24\uFE0F";
 }
 
-function formatTemperature(temp: number, unit: string): string {
-  return `${temp}°${unit === "celsius" ? "C" : "F"}`;
+function escapeHtml(text: string): string {
+  const div = document.createElement("div");
+  div.textContent = text;
+  return div.innerHTML;
 }
 
 // =============================================================================
-// Components
+// Components - using exact same Tailwind classes as the original
 // =============================================================================
 
-function renderWeatherCard(
-  props: z.infer<typeof WeatherCardSchema>,
-): string {
+function renderWeatherCard(props: z.infer<typeof WeatherCardSchema>): string {
+  const bgClass = conditionStyles[props.condition] ?? conditionStyles["cloudy"];
   const icon = getWeatherIcon(props.condition);
-  const temp = formatTemperature(props.temperature, props.unit);
+  const tempUnit = props.unit === "celsius" ? "C" : "F";
 
   return `
-    <div class="weather-card ${props.condition}">
-      <div class="weather-location">${escapeHtml(props.location)}</div>
-      <div class="weather-main">
-        <span class="weather-icon">${icon}</span>
-        <span class="weather-temp">${temp}</span>
-        <span class="weather-condition">${capitalize(props.condition)}</span>
+    <div class="my-4 rounded-2xl bg-gradient-to-br ${bgClass} p-6 text-white shadow-lg max-w-md">
+      <div class="mb-2 text-lg font-semibold">${escapeHtml(props.location)}</div>
+
+      <div class="flex items-center gap-4 mb-4">
+        <span class="text-5xl">${icon}</span>
+        <div>
+          <div class="text-4xl font-bold">${props.temperature}&deg;${tempUnit}</div>
+          <div class="text-lg capitalize opacity-90">${props.condition}</div>
+        </div>
       </div>
-      <div class="weather-details">
-        <div>💧 Humidity: ${props.humidity}%</div>
-        <div>💨 Wind: ${props.windSpeed} mph ${props.windDirection}</div>
+
+      <div class="grid grid-cols-2 gap-2 text-sm opacity-90 mb-4">
+        <div>\uD83D\uDCA7 Humidity: ${props.humidity}%</div>
+        <div>\uD83D\uDCA8 Wind: ${props.windSpeed} mph ${props.windDirection}</div>
       </div>
+
       ${
-        props.forecast
+        props.forecast && props.forecast.length > 0
           ? `
-        <div class="weather-forecast">
-          ${props.forecast
-            .map(
-              (day) => `
-            <div class="forecast-day">
-              <div class="forecast-day-name">${day.day}</div>
-              <div>${getWeatherIcon(day.condition)}</div>
-              <div class="forecast-temps">${day.high}° / ${day.low}°</div>
-            </div>
-          `,
-            )
-            .join("")}
+        <div class="border-t border-white/20 pt-4 mt-4">
+          <div class="flex justify-between">
+            ${props.forecast
+              .map(
+                (day) => `
+              <div class="text-center text-sm">
+                <div class="font-medium">${day.day}</div>
+                <div>${getWeatherIcon(day.condition)}</div>
+                <div class="opacity-80">${day.high}&deg; / ${day.low}&deg;</div>
+              </div>
+            `,
+              )
+              .join("")}
+          </div>
         </div>
       `
           : ""
       }
-      <button class="action-button" onclick="window.handleRefresh()">
-        🔄 Refresh
-      </button>
     </div>
   `;
 }
@@ -239,7 +127,7 @@ function renderWeatherComparison(
   props: z.infer<typeof WeatherComparisonSchema>,
 ): string {
   return `
-    <div class="weather-comparison">
+    <div class="grid grid-cols-2 gap-4">
       ${renderWeatherCard(props.location1)}
       ${renderWeatherCard(props.location2)}
     </div>
@@ -247,34 +135,24 @@ function renderWeatherComparison(
 }
 
 // =============================================================================
-// Utilities
-// =============================================================================
-
-function escapeHtml(text: string): string {
-  const div = document.createElement("div");
-  div.textContent = text;
-  return div.innerHTML;
-}
-
-function capitalize(text: string): string {
-  return text.charAt(0).toUpperCase() + text.slice(1);
-}
-
-// =============================================================================
 // Runtime Setup
 // =============================================================================
 
-// Inject styles
-const styleSheet = document.createElement("style");
-styleSheet.textContent = styles;
-document.head.appendChild(styleSheet);
+// Inject Tailwind CSS via CDN and wait for it to load
+function loadTailwind(): Promise<void> {
+  return new Promise((resolve) => {
+    const tailwindScript = document.createElement("script");
+    tailwindScript.src = "https://cdn.tailwindcss.com";
+    tailwindScript.onload = () => {
+      // Give Tailwind a moment to initialize
+      setTimeout(resolve, 50);
+    };
+    tailwindScript.onerror = () => resolve(); // Continue even if fails
+    document.head.appendChild(tailwindScript);
+  });
+}
 
-// Global action handler
-(window as unknown as { handleRefresh: () => void }).handleRefresh = () => {
-  emitAction("refresh");
-};
-
-// Create and start the runtime
+// Create the runtime
 const runtime = createToolUIRuntime();
 
 runtime.register({
@@ -289,4 +167,7 @@ runtime.register({
   render: renderWeatherComparison,
 });
 
-runtime.start();
+// Load Tailwind then start the runtime
+loadTailwind().then(() => {
+  runtime.start();
+});

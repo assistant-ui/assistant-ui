@@ -192,41 +192,6 @@ toolWithUI({
   },
 });
 
-toolWithUI({
-  name: "compare_weather",
-  description:
-    "Compare weather between two locations side by side. Useful for travel planning.",
-  parameters: z.object({
-    location1: z.string().describe("First city to compare"),
-    location2: z.string().describe("Second city to compare"),
-    aui: z
-      .boolean()
-      .optional()
-      .default(true)
-      .describe("Enable AUI rich components (fallback to text if false)"),
-  }),
-  component: "WeatherComparison",
-  execute: async ({ location1, location2, aui }) => {
-    const [weather1, weather2] = await Promise.all([
-      fetchWeather(location1),
-      fetchWeather(location2),
-    ]);
-
-    if (aui) {
-      // AUI mode: return component reference
-      return {
-        component: "WeatherComparison",
-        props: { location1: weather1, location2: weather2 },
-        // Fallback text
-        text: formatComparisonText(weather1, weather2),
-      };
-    } else {
-      // Legacy mode: return formatted text
-      return formatComparisonText(weather1, weather2);
-    }
-  },
-});
-
 // =============================================================================
 // Tool: compare_weather
 // =============================================================================

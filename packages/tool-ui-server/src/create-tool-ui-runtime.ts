@@ -127,6 +127,17 @@ export function createToolUIRuntime(): ToolUIRuntime {
                   }
                 }
               }
+              // Handle component result format: { component: "Name", props: {...}, text: "..." }
+              // Extract the props if the result has a component/props structure
+              if (
+                resultData &&
+                typeof resultData === "object" &&
+                "props" in resultData &&
+                typeof (resultData as { props?: unknown }).props === "object"
+              ) {
+                resultData = (resultData as { props: Record<string, unknown> })
+                  .props;
+              }
               renderComponent(componentName, resultData ?? props);
             }
           } catch (error) {

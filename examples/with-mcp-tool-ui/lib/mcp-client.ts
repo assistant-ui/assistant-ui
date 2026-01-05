@@ -10,7 +10,7 @@ import { Experimental_StdioMCPTransport as StdioMCPTransport } from "@ai-sdk/mcp
  */
 export async function createWeatherMCPClient() {
   // Check for HTTP MCP server first
-  const mcpServerUrl = process.env.MCP_SERVER_URL;
+  const mcpServerUrl = process.env["MCP_SERVER_URL"];
 
   if (mcpServerUrl) {
     console.log(`[MCP] Connecting via HTTP/SSE to ${mcpServerUrl}`);

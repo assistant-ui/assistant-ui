@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev --port 3005",
+    "dev": "concurrently \"pnpm dev:ui\" \"pnpm dev:app\"",
+    "dev:app": "next dev --port 3005",
+    "dev:ui": "cd ../mcp-weather-ui && pnpm build:ui && pnpm start:ui",
     "build": "next build",
     "start": "next start",
     "lint": "eslint ."
@@ -36,6 +38,7 @@
     "zod": "^3.25.0"
   },
   "devDependencies": {
+    "concurrently": "^9.1.2",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/json-schema": "^7.0.15",
     "@types/node": "^24.10.1",

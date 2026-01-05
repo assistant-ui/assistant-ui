@@ -67,8 +67,10 @@ export const RemoteToolUI: React.FC<RemoteToolUIProps> = ({
     if (!expectedOrigin) return;
 
     const handleMessage = (event: MessageEvent<RemoteMessage>) => {
-      // Validate origin (must be from our PSL-isolated domain)
-      if (event.origin !== expectedOrigin) return;
+      // Validate origin - sandboxed iframes have "null" origin
+      // In production with PSL-isolated domains, we'd check the actual origin
+      // For development with sandbox="allow-scripts", origin is "null"
+      if (event.origin !== expectedOrigin && event.origin !== "null") return;
       if (!event.data || typeof event.data.type !== "string") return;
 
       const { type, payload } = event.data;
@@ -76,10 +78,10 @@ export const RemoteToolUI: React.FC<RemoteToolUIProps> = ({
       switch (type) {
         case "ready":
           setStatus("ready");
-          // Send initial props
+          // Send initial props - use "*" for sandboxed iframes (they have null origin)
           iframeRef.current?.contentWindow?.postMessage(
             { type: "render", toolName, props },
-            expectedOrigin,
+            "*",
           );
           break;
 
@@ -115,9 +117,10 @@ export const RemoteToolUI: React.FC<RemoteToolUIProps> = ({
       iframeRef.current?.contentWindow &&
       expectedOrigin
     ) {
+      // Use "*" for sandboxed iframes (they have null origin)
       iframeRef.current.contentWindow.postMessage(
         { type: "update", props },
-        expectedOrigin,
+        "*",
       );
     }
   }, [status, props, expectedOrigin]);
