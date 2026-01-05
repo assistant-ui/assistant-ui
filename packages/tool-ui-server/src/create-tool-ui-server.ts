@@ -79,43 +79,42 @@ export function createToolUIServer(options: ToolUIServerOptions) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const shape = (parameters as any).shape ?? parameters;
     server.tool(toolName, description, shape, async (args: unknown) => {
-        // Validate arguments
-        const parseResult = parameters.safeParse(args);
-        if (!parseResult.success) {
-          return {
-            content: [
-              {
-                type: "text" as const,
-                text: `Invalid arguments: ${parseResult.error.message}`,
-              },
-            ],
-            isError: true,
-          };
-        }
-
-        // Execute tool
-        const result = await execute(parseResult.data);
-
-        // Transform result for UI
-        const componentProps = transformResult
-          ? transformResult(result, parseResult.data)
-          : result;
-
+      // Validate arguments
+      const parseResult = parameters.safeParse(args);
+      if (!parseResult.success) {
         return {
           content: [
             {
               type: "text" as const,
-              text: JSON.stringify(result),
+              text: `Invalid arguments: ${parseResult.error.message}`,
             },
           ],
-          // Extended result with UI metadata (this would need MCP protocol extension)
-          _ui: {
-            component,
-            props: componentProps,
-          },
+          isError: true,
         };
-      },
-    );
+      }
+
+      // Execute tool
+      const result = await execute(parseResult.data);
+
+      // Transform result for UI
+      const componentProps = transformResult
+        ? transformResult(result, parseResult.data)
+        : result;
+
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(result),
+          },
+        ],
+        // Extended result with UI metadata (this would need MCP protocol extension)
+        _ui: {
+          component,
+          props: componentProps,
+        },
+      };
+    });
   }
 
   /**
@@ -168,4 +167,3 @@ export function createToolUIServer(options: ToolUIServerOptions) {
     start,
   };
 }
-
