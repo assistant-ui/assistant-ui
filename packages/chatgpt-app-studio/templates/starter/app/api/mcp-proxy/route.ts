@@ -139,6 +139,16 @@ async function initializeSession(
   return { sessionId };
 }
 
+function isAllowedServerUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    const allowedHosts = ["localhost", "127.0.0.1", "[::1]"];
+    return allowedHosts.includes(parsed.hostname);
+  } catch {
+    return false;
+  }
+}
+
 export async function POST(request: Request) {
   if (process.env.NODE_ENV !== "development") {
     return NextResponse.json(
@@ -166,6 +176,21 @@ export async function POST(request: Request) {
           },
         },
         { status: 400 },
+      );
+    }
+
+    if (!isAllowedServerUrl(serverUrl)) {
+      return NextResponse.json(
+        {
+          error: {
+            type: "server_error",
+            message:
+              "MCP proxy only allows localhost URLs for security reasons.",
+            suggestion:
+              "Use a localhost URL (e.g., http://localhost:3001/mcp).",
+          },
+        },
+        { status: 403 },
       );
     }
 

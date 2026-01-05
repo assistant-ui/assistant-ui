@@ -53,6 +53,10 @@ const COMPONENT_MAP: Record<string, ComponentConfig> = {
   },
 };
 
+function sanitizeComponentId(id: string): string {
+  return id.replace(/[^a-zA-Z0-9-]/g, "");
+}
+
 const bundleCache = new Map<string, { bundle: string; timestamp: number }>();
 const CACHE_TTL = 5000;
 
@@ -112,7 +116,8 @@ export async function GET(request: NextRequest) {
       "WIDGET_IMPORT_LINE",
       importLine,
     );
-    const entryPath = path.join(tempDir, `entry-${componentId}.tsx`);
+    const safeId = sanitizeComponentId(componentId);
+    const entryPath = path.join(tempDir, `entry-${safeId}.tsx`);
     await fs.writeFile(entryPath, entryContent, "utf-8");
 
     const result = await esbuild.build({
