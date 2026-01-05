@@ -420,18 +420,25 @@ export function PreviewToolbar() {
               <Button
                 variant="ghost"
                 size="icon"
+                disabled={displayMode !== "inline"}
                 className={cn(
                   "size-7",
-                  conversationMode
-                    ? "bg-primary/10 text-primary hover:bg-primary/20"
-                    : "text-muted-foreground hover:text-foreground",
+                  displayMode !== "inline"
+                    ? "cursor-not-allowed text-muted-foreground/40"
+                    : conversationMode
+                      ? "bg-primary/10 text-primary hover:bg-primary/20"
+                      : "text-muted-foreground hover:text-foreground",
                 )}
                 onClick={() => setConversationMode(!conversationMode)}
               >
                 <MessageSquare className="size-4" />
               </Button>
             </TooltipPrimitive.Trigger>
-            <TooltipContent side="top">Conversation Mode</TooltipContent>
+            <TooltipContent side="top">
+              {displayMode !== "inline"
+                ? "Conversation Mode (inline only)"
+                : "Conversation Mode"}
+            </TooltipContent>
           </TooltipPrimitive.Root>
 
           <TooltipPrimitive.Root>
