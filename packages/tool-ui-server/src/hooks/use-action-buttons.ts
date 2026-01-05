@@ -1,12 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Action } from "../schemas/shared";
 
 export type UseActionButtonsOptions = {
   actions: Action[];
   onAction: (actionId: string) => void | Promise<void>;
-  onBeforeAction?: ((actionId: string) => boolean | Promise<boolean>) | undefined;
+  onBeforeAction?:
+    | ((actionId: string) => boolean | Promise<boolean>)
+    | undefined;
   confirmTimeout?: number | undefined;
 };
 
@@ -28,12 +30,7 @@ export type UseActionButtonsResult = {
 export function useActionButtons(
   options: UseActionButtonsOptions,
 ): UseActionButtonsResult {
-  const {
-    actions,
-    onAction,
-    onBeforeAction,
-    confirmTimeout = 3000,
-  } = options;
+  const { actions, onAction, onBeforeAction, confirmTimeout = 3000 } = options;
 
   const [confirmingActionId, setConfirmingActionId] = useState<string | null>(
     null,
@@ -41,6 +38,8 @@ export function useActionButtons(
   const [executingActionId, setExecutingActionId] = useState<string | null>(
     null,
   );
+  // Ref for synchronous double-click prevention (state updates are async)
+  const isExecutingRef = useRef(false);
 
   useEffect(() => {
     if (!confirmingActionId) return;
@@ -64,8 +63,8 @@ export function useActionButtons(
       const action = actions.find((a) => a.id === actionId);
       if (!action) return;
 
-      const isExecuting = executingActionId !== null;
-      if (action.disabled || action.loading || isExecuting) {
+      // Use ref for synchronous check to prevent race conditions on rapid clicks
+      if (action.disabled || action.loading || isExecutingRef.current) {
         return;
       }
 
@@ -83,14 +82,17 @@ export function useActionButtons(
       }
 
       try {
+        // Set ref synchronously to prevent double-clicks
+        isExecutingRef.current = true;
         setExecutingActionId(action.id);
         await onAction(action.id);
       } finally {
+        isExecutingRef.current = false;
         setExecutingActionId(null);
         setConfirmingActionId(null);
       }
     },
-    [actions, confirmingActionId, executingActionId, onAction, onBeforeAction],
+    [actions, confirmingActionId, onAction, onBeforeAction],
   );
 
   const resolvedActions = useMemo(

@@ -1,15 +1,17 @@
 "use client";
 
 import * as React from "react";
-import type { Action } from "../../schemas/shared";
-import { cn } from "../../utils/cn";
+import type { Action } from "../../../schemas/shared";
+import { cn } from "../../../utils/cn";
 import { Button } from "./button";
-import { useActionButtons } from "../../hooks/use-action-buttons";
+import { useActionButtons } from "../../../hooks/use-action-buttons";
 
 export interface ActionButtonsProps {
   actions: Action[];
   onAction: (actionId: string) => void | Promise<void>;
-  onBeforeAction?: ((actionId: string) => boolean | Promise<boolean>) | undefined;
+  onBeforeAction?:
+    | ((actionId: string) => boolean | Promise<boolean>)
+    | undefined;
   confirmTimeout?: number | undefined;
   align?: "left" | "center" | "right" | undefined;
   className?: string | undefined;
@@ -49,7 +51,7 @@ export function ActionButtons({
     confirmTimeout,
   });
 
-  // Sort actions by priority: default (0) -> secondary (1) -> destructive (2)
+  // Sort actions by priority: default (0) -> secondary (1) -> ghost (2) -> destructive (3)
   // Combined with flex-*-reverse, first items appear at bottom (mobile) / right (desktop)
   const sortedActions = React.useMemo(() => {
     return [...resolvedActions].sort(
@@ -99,13 +101,14 @@ export function ActionButtons({
               // Desktop: fit content, smaller
               "@sm/actions:min-h-0 @sm/actions:w-auto @sm/actions:px-3 @sm/actions:py-2 @sm/actions:text-sm",
               // Visual separation for destructive actions on mobile (top) and desktop (left)
-              isFirstDestructive && "mt-2 @sm/actions:mt-0 @sm/actions:mr-2",
+              isFirstDestructive && "@sm/actions:mt-0 mt-2 @sm/actions:mr-2",
               action.isConfirming &&
-                "ring-destructive animate-pulse ring-2 ring-offset-2",
+                "animate-pulse ring-2 ring-destructive ring-offset-2",
             )}
             aria-label={
               action.shortcut ? `${label} (${action.shortcut})` : label
             }
+            aria-pressed={action.isConfirming ? true : undefined}
           >
             {action.isLoading && (
               <svg
@@ -134,7 +137,7 @@ export function ActionButtons({
             )}
             {label}
             {action.shortcut && !action.isLoading && (
-              <kbd className="border-border bg-muted ml-2.5 hidden rounded-lg border px-2 py-0.5 font-mono text-xs font-medium sm:inline-block">
+              <kbd className="ml-2.5 @sm/actions:inline-block hidden rounded-lg border border-border bg-muted px-2 py-0.5 font-medium font-mono text-xs">
                 {action.shortcut}
               </kbd>
             )}

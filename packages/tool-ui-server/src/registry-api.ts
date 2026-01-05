@@ -218,8 +218,7 @@ export interface AuthHeaders {
  * - component: Component name to render
  *
  * Security headers:
- * - X-Frame-Options: ALLOWALL (must be embeddable)
- * - Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'
+ * - Content-Security-Policy: frame-ancestors *; default-src 'self'; script-src 'self' 'unsafe-inline'
  * - X-Content-Type-Options: nosniff
  *
  * The page:

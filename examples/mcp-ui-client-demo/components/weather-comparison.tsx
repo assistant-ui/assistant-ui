@@ -1,22 +1,6 @@
 "use client";
 
-import { WeatherCard } from "./weather-card";
-
-interface WeatherData {
-  location: string;
-  temperature: number;
-  unit: "celsius" | "fahrenheit";
-  condition: "sunny" | "cloudy" | "rainy" | "snowy" | "stormy";
-  humidity: number;
-  windSpeed: number;
-  windDirection: string;
-  forecast?: Array<{
-    day: string;
-    high: number;
-    low: number;
-    condition: string;
-  }>;
-}
+import { WeatherCard, WeatherData } from "./weather-card";
 
 interface ComparisonData {
   location1: WeatherData;

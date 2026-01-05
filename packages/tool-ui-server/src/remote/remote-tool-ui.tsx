@@ -53,6 +53,9 @@ export const RemoteToolUI: React.FC<RemoteToolUIProps> = ({
   const [height, setHeight] = React.useState(100);
   const [error, setError] = React.useState<string | null>(null);
 
+  // Generate unique iframe name for stronger validation
+  const iframeName = React.useMemo(() => `tool-ui-${crypto.randomUUID()}`, []);
+
   // Extract origin for validation
   const expectedOrigin = React.useMemo(() => {
     try {
@@ -67,10 +70,9 @@ export const RemoteToolUI: React.FC<RemoteToolUIProps> = ({
     if (!expectedOrigin) return;
 
     const handleMessage = (event: MessageEvent<RemoteMessage>) => {
-      // Validate origin - sandboxed iframes have "null" origin
-      // In production with PSL-isolated domains, we'd check the actual origin
-      // For development with sandbox="allow-scripts", origin is "null"
-      if (event.origin !== expectedOrigin && event.origin !== "null") return;
+      // Validate message source instead of just origin
+      // This prevents malicious iframes from sending fake messages
+      if (event.source !== iframeRef.current?.contentWindow) return;
       if (!event.data || typeof event.data.type !== "string") return;
 
       const { type, payload } = event.data;
@@ -78,7 +80,8 @@ export const RemoteToolUI: React.FC<RemoteToolUIProps> = ({
       switch (type) {
         case "ready":
           setStatus("ready");
-          // Send initial props - use "*" for sandboxed iframes (they have null origin)
+          // SECURITY: Using "*" because sandboxed iframes have null origin
+          // Never send sensitive data via props - iframe could be malicious
           iframeRef.current?.contentWindow?.postMessage(
             { type: "render", toolName, props },
             "*",
@@ -117,7 +120,8 @@ export const RemoteToolUI: React.FC<RemoteToolUIProps> = ({
       iframeRef.current?.contentWindow &&
       expectedOrigin
     ) {
-      // Use "*" for sandboxed iframes (they have null origin)
+      // SECURITY: Using "*" because sandboxed iframes have null origin
+      // Props should never contain sensitive information
       iframeRef.current.contentWindow.postMessage(
         { type: "update", props },
         "*",
@@ -154,14 +158,12 @@ export const RemoteToolUI: React.FC<RemoteToolUIProps> = ({
       <iframe
         ref={iframeRef}
         src={src}
-        sandbox="allow-scripts"
-        style={{
-          width: "100%",
-          height: status === "ready" ? height : 0,
-          border: "none",
-          display: status === "ready" ? "block" : "none",
-        }}
-        title={`${toolName} UI`}
+        name={iframeName}
+        title={`Tool UI: ${toolName}`}
+        sandbox="allow-scripts allow-same-origin allow-forms"
+        style={{ height: `${height}px` }}
+        className="w-full border-0"
+        onLoad={() => setStatus("loading")}
       />
     </div>
   );

@@ -37,8 +37,7 @@ const server = createServer((req, res) => {
   res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-  // Allow embedding in iframes
-  res.setHeader("X-Frame-Options", "ALLOWALL");
+  // Allow embedding in iframes everywhere
   res.setHeader("Content-Security-Policy", "frame-ancestors *");
 
   const url = new URL(req.url || "/", `http://localhost:${PORT}`);

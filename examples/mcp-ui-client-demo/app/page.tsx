@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Thread } from "@/components/assistant-ui/thread";
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
-import { MCPToolUIProvider } from "@assistant-ui/tool-ui";
+import { MCPToolUIProvider } from "@assistant-ui/tool-ui-server";
 import {
   GetWeatherToolUI,
   CompareWeatherToolUI,

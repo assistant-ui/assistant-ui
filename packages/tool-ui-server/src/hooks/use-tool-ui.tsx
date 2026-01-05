@@ -19,7 +19,14 @@ export interface ToolUIRegistration<
    * Transform raw tool args/result into component props.
    * Defaults to passing args directly.
    */
-  transform?: ((args: unknown, result?: TResult) => z.infer<TSchema>) | undefined;
+  transform?:
+    | ((args: unknown, result?: TResult) => z.infer<TSchema>)
+    | undefined;
+  /**
+   * Handler for component actions (e.g., button clicks).
+   * If provided, this will be passed to the component as the onAction prop.
+   */
+  onAction?: ((actionId: string) => void) | undefined;
 }
 
 /**
@@ -43,7 +50,13 @@ export interface ToolUIRegistration<
 export function useToolUI<TSchema extends z.ZodType, TResult = unknown>(
   registration: ToolUIRegistration<TSchema, TResult>,
 ) {
-  const { toolName, schema, component: Component, transform } = registration;
+  const {
+    toolName,
+    schema,
+    component: Component,
+    transform,
+    onAction,
+  } = registration;
 
   useAssistantToolUI({
     toolName,
@@ -67,6 +80,7 @@ export function useToolUI<TSchema extends z.ZodType, TResult = unknown>(
           data={parseResult.data}
           result={result as TResult}
           status={status}
+          onAction={onAction}
         />
       );
     },

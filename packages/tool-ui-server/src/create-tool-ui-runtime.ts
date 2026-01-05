@@ -86,6 +86,9 @@ export function createToolUIRuntime(): ToolUIRuntime {
   function start() {
     // Listen for messages from parent
     window.addEventListener("message", (event) => {
+      // SECURITY: Only accept messages from our parent window
+      if (event.source !== window.parent) return;
+
       const { type, props, component } = event.data || {};
 
       switch (type) {

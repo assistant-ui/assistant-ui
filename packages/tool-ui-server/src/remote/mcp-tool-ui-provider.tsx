@@ -22,6 +22,7 @@ export interface MCPToolUIProviderProps {
 
 interface ToolUIComponent {
   toolName: string;
+  serverId: string;
   Component: React.ComponentType;
 }
 
@@ -41,6 +42,7 @@ interface ToolUIComponent {
  */
 export const MCPToolUIProvider: React.FC<MCPToolUIProviderProps> = ({
   servers,
+  registryUrl,
   loadingFallback,
   errorFallback,
   children,
@@ -55,7 +57,7 @@ export const MCPToolUIProvider: React.FC<MCPToolUIProviderProps> = ({
       await Promise.all(
         servers.map(async ({ serverId, capability }) => {
           try {
-            const manifestUrl = `${capability.registry}/v1/servers/${serverId}/manifest.json`;
+            const manifestUrl = `${registryUrl ?? capability.registry}/v1/servers/${serverId}/manifest.json`;
             const response = await fetch(manifestUrl);
 
             if (!response.ok) {
@@ -109,7 +111,7 @@ export const MCPToolUIProvider: React.FC<MCPToolUIProviderProps> = ({
 
                     return (
                       <RemoteToolUI
-                        src={`${baseUrl}/render?component=${componentName}`}
+                        src={`${baseUrl}/render?component=${encodeURIComponent(componentName)}`}
                         toolName={toolName}
                         props={{ args, result }}
                         onAddResult={addResult}
@@ -122,6 +124,7 @@ export const MCPToolUIProvider: React.FC<MCPToolUIProviderProps> = ({
 
                 components.push({
                   toolName,
+                  serverId,
                   Component: ToolUIComponent,
                 });
               }
@@ -136,13 +139,13 @@ export const MCPToolUIProvider: React.FC<MCPToolUIProviderProps> = ({
     };
 
     loadManifests();
-  }, [servers, loadingFallback, errorFallback]);
+  }, [servers, registryUrl, loadingFallback, errorFallback]);
 
   return (
     <>
       {/* Render all the tool UI components to register them */}
-      {toolUIs.map(({ toolName, Component }) => (
-        <Component key={toolName} />
+      {toolUIs.map(({ toolName, serverId, Component }) => (
+        <Component key={`${serverId}-${toolName}`} />
       ))}
       {children}
     </>

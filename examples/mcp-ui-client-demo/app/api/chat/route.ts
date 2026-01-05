@@ -17,7 +17,8 @@ export async function POST(req: Request) {
   const { messages }: { messages: UIMessage[] } = await req.json();
 
   // Create MCP client and get tools using native SDK (bypasses @ai-sdk/mcp race condition)
-  let mcpClient;
+  let mcpClient: Awaited<ReturnType<typeof createNativeMCPClient>> | null =
+    null;
   let tools: Record<string, unknown> = {};
 
   try {
@@ -54,7 +55,12 @@ export async function POST(req: Request) {
     streamOptions.tools = tools as Parameters<typeof streamText>[0]["tools"];
   }
 
-  const result = streamText(streamOptions);
+  const result = streamText({
+    ...streamOptions,
+    onFinish: async () => {
+      await mcpClient?.close();
+    },
+  });
 
   return result.toUIMessageStreamResponse();
 }

@@ -36,6 +36,18 @@ function parseArgs(): { command: string; options: CLIOptions } {
     registry: "https://registry.assistant-ui.com",
   };
 
+  /**
+   * Get the value for a flag, validating it's not another flag.
+   * Returns undefined if the next arg is missing or is a flag.
+   */
+  function getFlagValue(flagName: string, next: string | undefined): string {
+    if (next === undefined || next.startsWith("-")) {
+      console.error(`Error: ${flagName} requires a value`);
+      process.exit(1);
+    }
+    return next;
+  }
+
   for (let i = 1; i < args.length; i++) {
     const arg = args[i];
     const next = args[i + 1];
@@ -43,21 +55,21 @@ function parseArgs(): { command: string; options: CLIOptions } {
     switch (arg) {
       case "-s":
       case "--server-id":
-        options.serverId = next;
+        options.serverId = getFlagValue("--server-id", next);
         i++;
         break;
       case "-b":
       case "--bundle":
-        options.bundle = next;
+        options.bundle = getFlagValue("--bundle", next);
         i++;
         break;
       case "-m":
       case "--manifest":
-        options.manifest = next;
+        options.manifest = getFlagValue("--manifest", next);
         i++;
         break;
       case "--registry":
-        options.registry = next;
+        options.registry = getFlagValue("--registry", next);
         i++;
         break;
       case "--dry-run":
@@ -150,8 +162,13 @@ function validateManifest(manifestPath: string): ManifestData {
     if (!component.name || typeof component.name !== "string") {
       throw new Error("Component missing name");
     }
-    if (!Array.isArray(component.toolNames) || component.toolNames.length === 0) {
-      throw new Error(`Component ${component.name} must have at least one toolName`);
+    if (
+      !Array.isArray(component.toolNames) ||
+      component.toolNames.length === 0
+    ) {
+      throw new Error(
+        `Component ${component.name} must have at least one toolName`,
+      );
     }
   }
 
@@ -207,7 +224,9 @@ async function publishCommand(options: CLIOptions): Promise<void> {
     console.log("\n[Dry run] Would publish:");
     console.log(`  Server ID: ${serverId}`);
     console.log(`  Bundle: ${bundle}`);
-    console.log(`  Components: ${manifestData.components.map((c) => c.name).join(", ")}`);
+    console.log(
+      `  Components: ${manifestData.components.map((c) => c.name).join(", ")}`,
+    );
     console.log(`  Registry: ${registry}`);
     return;
   }
@@ -235,11 +254,15 @@ async function publishCommand(options: CLIOptions): Promise<void> {
 
     if (response.ok) {
       console.log("\nPublished successfully!");
-      console.log(`Bundle URL: https://${serverId}.auiusercontent.com/bundle.js`);
+      console.log(
+        `Bundle URL: https://${serverId}.auiusercontent.com/bundle.js`,
+      );
       console.log(`Render URL: https://${serverId}.auiusercontent.com/render`);
     } else {
       const errorText = await response.text();
-      console.error(`\nPublish failed: ${response.status} ${response.statusText}`);
+      console.error(
+        `\nPublish failed: ${response.status} ${response.statusText}`,
+      );
       console.error(errorText);
       process.exit(1);
     }
@@ -249,7 +272,9 @@ async function publishCommand(options: CLIOptions): Promise<void> {
       error instanceof Error ? error.message : "Unknown error",
     );
     console.error("\nNote: The registry service may not be available yet.");
-    console.error("Use --dry-run to validate your bundle and manifest locally.");
+    console.error(
+      "Use --dry-run to validate your bundle and manifest locally.",
+    );
     process.exit(1);
   }
 }
@@ -294,7 +319,9 @@ function validateCommand(options: CLIOptions): void {
     console.log(`  Permissions:`);
     console.log(`    - network: ${manifestData.permissions?.network ?? false}`);
     console.log(`    - storage: ${manifestData.permissions?.storage ?? false}`);
-    console.log(`    - clipboard: ${manifestData.permissions?.clipboard ?? false}`);
+    console.log(
+      `    - clipboard: ${manifestData.permissions?.clipboard ?? false}`,
+    );
   } catch (error) {
     console.error("Manifest validation failed:");
     console.error(error instanceof Error ? error.message : "Unknown error");

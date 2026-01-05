@@ -1,6 +1,6 @@
 "use client";
 
-interface WeatherData {
+export interface WeatherData {
   location: string;
   temperature: number;
   unit: "celsius" | "fahrenheit";
