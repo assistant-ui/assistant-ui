@@ -70,9 +70,41 @@ export function emptyDir(dir: string): void {
   }
 }
 
+const EXCLUDED_DIRS = new Set([
+  "node_modules",
+  ".next",
+  ".pnp",
+  ".yarn",
+  "coverage",
+  "out",
+  "build",
+  "dist",
+  "export",
+  ".export-temp",
+  ".vercel",
+  ".turbo",
+  ".git",
+]);
+
+const EXCLUDED_FILES = new Set([
+  ".DS_Store",
+  "package-lock.json",
+  "yarn.lock",
+  "pnpm-lock.yaml",
+  "bun.lockb",
+  "next-env.d.ts",
+  "tsconfig.tsbuildinfo",
+]);
+
 export function copyDir(src: string, dest: string): void {
   fs.mkdirSync(dest, { recursive: true });
   for (const file of fs.readdirSync(src)) {
+    if (EXCLUDED_DIRS.has(file) || EXCLUDED_FILES.has(file)) {
+      continue;
+    }
+    if (file.endsWith(".tsbuildinfo")) {
+      continue;
+    }
     const srcPath = path.join(src, file);
     const destPath = path.join(dest, file);
     const stat = fs.statSync(srcPath);
