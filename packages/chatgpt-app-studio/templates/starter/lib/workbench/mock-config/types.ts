@@ -7,12 +7,18 @@ export interface MockResponse {
   _meta?: Record<string, unknown>;
 }
 
+export interface ConversationContext {
+  userMessage: string;
+  assistantResponse?: string;
+}
+
 export interface MockVariant {
   id: string;
   name: string;
   type: MockVariantType;
   response: MockResponse;
   delay: number;
+  conversation?: ConversationContext;
 }
 
 export interface ToolAnnotations {

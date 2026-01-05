@@ -18,6 +18,10 @@ export function createDefaultVariants(toolName: string): MockVariant[] {
           message: `Mock success response for ${toolName}`,
         },
       },
+      conversation: {
+        userMessage: `Can you help me with ${formatToolName(toolName)}?`,
+        assistantResponse: `Here's what I found. Let me know if you need anything else!`,
+      },
     },
     {
       id: generateId(),
@@ -26,6 +30,10 @@ export function createDefaultVariants(toolName: string): MockVariant[] {
       delay: 200,
       response: {
         structuredContent: {},
+      },
+      conversation: {
+        userMessage: `Search for something that doesn't exist`,
+        assistantResponse: `I couldn't find any results for your query.`,
       },
     },
     {
@@ -36,6 +44,10 @@ export function createDefaultVariants(toolName: string): MockVariant[] {
       response: {
         isError: true,
         content: `Mock error: ${toolName} failed`,
+      },
+      conversation: {
+        userMessage: `Try something that will fail`,
+        assistantResponse: `I encountered an error while processing your request. Please try again.`,
       },
     },
     {
@@ -49,8 +61,19 @@ export function createDefaultVariants(toolName: string): MockVariant[] {
           message: `Slow response for ${toolName}`,
         },
       },
+      conversation: {
+        userMessage: `This might take a while...`,
+        assistantResponse: `That took a bit longer than usual, but here are your results!`,
+      },
     },
   ];
+}
+
+function formatToolName(toolName: string): string {
+  return toolName
+    .replace(/[-_]/g, " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .toLowerCase();
 }
 
 export function createToolMockConfig(toolName: string): ToolMockConfig {

@@ -2,6 +2,7 @@ export type {
   MockVariantType,
   MockResponse,
   MockVariant,
+  ConversationContext,
   ToolMockConfig,
   MockConfigState,
   ToolAnnotations,

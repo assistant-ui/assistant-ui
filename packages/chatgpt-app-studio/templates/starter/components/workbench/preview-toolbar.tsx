@@ -6,6 +6,7 @@ import {
   useDisplayMode,
   useWorkbenchTheme,
   useDeviceType,
+  useConversationMode,
 } from "@/lib/workbench/store";
 import {
   LOCALE_OPTIONS,
@@ -48,6 +49,7 @@ import {
   X,
   Layers,
   MoveHorizontal,
+  MessageSquare,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/ui/cn";
@@ -337,14 +339,17 @@ export function PreviewToolbar() {
   const displayMode = useDisplayMode();
   const theme = useWorkbenchTheme();
   const deviceType = useDeviceType();
+  const conversationMode = useConversationMode();
 
-  const { setDisplayMode, setDeviceType, setTheme } = useWorkbenchStore(
-    useShallow((s) => ({
-      setDisplayMode: s.setDisplayMode,
-      setDeviceType: s.setDeviceType,
-      setTheme: s.setTheme,
-    })),
-  );
+  const { setDisplayMode, setDeviceType, setTheme, setConversationMode } =
+    useWorkbenchStore(
+      useShallow((s) => ({
+        setDisplayMode: s.setDisplayMode,
+        setDeviceType: s.setDeviceType,
+        setTheme: s.setTheme,
+        setConversationMode: s.setConversationMode,
+      })),
+    );
 
   const isDark = theme === "dark";
 
@@ -410,6 +415,25 @@ export function PreviewToolbar() {
         </div>
 
         <div className="flex items-center gap-1">
+          <TooltipPrimitive.Root>
+            <TooltipPrimitive.Trigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn(
+                  "size-7",
+                  conversationMode
+                    ? "bg-primary/10 text-primary hover:bg-primary/20"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+                onClick={() => setConversationMode(!conversationMode)}
+              >
+                <MessageSquare className="size-4" />
+              </Button>
+            </TooltipPrimitive.Trigger>
+            <TooltipContent side="top">Conversation Mode</TooltipContent>
+          </TooltipPrimitive.Root>
+
           <TooltipPrimitive.Root>
             <TooltipPrimitive.Trigger asChild>
               <Button

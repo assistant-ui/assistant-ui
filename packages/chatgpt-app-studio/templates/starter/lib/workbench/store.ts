@@ -74,6 +74,7 @@ interface WorkbenchState {
   isSDKGuideOpen: boolean;
   simulation: SimulationState;
   useIframePreview: boolean;
+  conversationMode: boolean;
 
   setSelectedComponent: (id: string) => void;
   setDisplayMode: (mode: DisplayMode) => void;
@@ -135,6 +136,7 @@ interface WorkbenchState {
   setToolDescriptorMeta: (toolName: string, meta: ToolDescriptorMeta) => void;
   setToolSchemas: (toolName: string, schemas: ToolSchemas) => void;
   setIframePreview: (enabled: boolean) => void;
+  setConversationMode: (enabled: boolean) => void;
 }
 
 function buildOpenAIGlobals(
@@ -207,6 +209,7 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
   isSDKGuideOpen: false,
   simulation: DEFAULT_SIMULATION_STATE,
   useIframePreview: false,
+  conversationMode: false,
   setSelectedComponent: (id) => {
     clearFiles();
     set(() => {
@@ -309,6 +312,7 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
   setSDKGuideOpen: (open) => set(() => ({ isSDKGuideOpen: open })),
   setResizableWidth: (width) => set(() => ({ resizableWidth: width })),
   setIframePreview: (enabled) => set(() => ({ useIframePreview: enabled })),
+  setConversationMode: (enabled) => set(() => ({ conversationMode: enabled })),
   selectSimTool: (toolName) =>
     set((state) => ({
       simulation: { ...state.simulation, selectedTool: toolName },
@@ -619,3 +623,5 @@ export const useResizableWidth = () =>
   useWorkbenchStore((s) => s.resizableWidth);
 export const useServerUrl = () =>
   useWorkbenchStore((s) => s.mockConfig.serverUrl);
+export const useConversationMode = () =>
+  useWorkbenchStore((s) => s.conversationMode);

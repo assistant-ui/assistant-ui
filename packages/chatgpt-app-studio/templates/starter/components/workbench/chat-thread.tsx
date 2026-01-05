@@ -6,8 +6,10 @@ import {
   useDisplayMode,
   useWorkbenchStore,
   useWorkbenchTheme,
+  useConversationMode,
 } from "@/lib/workbench/store";
 import { MorphContainer } from "./component-renderer";
+import { ConversationView } from "./conversation-view";
 
 interface MockMessage {
   id: string;
@@ -105,6 +107,7 @@ interface ChatThreadProps {
 export function ChatThread({ children, className }: ChatThreadProps) {
   const displayMode = useDisplayMode();
   const theme = useWorkbenchTheme();
+  const conversationMode = useConversationMode();
   const maxHeight = useWorkbenchStore((s) => s.maxHeight);
   const intrinsicHeight = useWorkbenchStore((s) => s.intrinsicHeight);
   const isDark = theme === "dark";
@@ -141,14 +144,22 @@ export function ChatThread({ children, className }: ChatThreadProps) {
     );
   }
 
+  if (conversationMode) {
+    return (
+      <ConversationView className={className} widgetHeight={widgetHeight}>
+        {children}
+      </ConversationView>
+    );
+  }
+
   return (
-    <InlineLayout
+    <IsolatedLayout
       className={className}
       isDark={isDark}
       widgetHeight={widgetHeight}
     >
       {children}
-    </InlineLayout>
+    </IsolatedLayout>
   );
 }
 
@@ -162,7 +173,7 @@ interface InlineLayoutProps extends LayoutProps {
   widgetHeight: number;
 }
 
-function InlineLayout({
+function IsolatedLayout({
   children,
   className,
   isDark,
@@ -171,28 +182,20 @@ function InlineLayout({
   return (
     <div
       className={cn(
-        "relative flex h-full flex-col overflow-hidden transition-colors",
+        "relative flex h-full flex-col items-center justify-center overflow-hidden transition-colors",
         isDark ? "bg-neutral-900" : "bg-white",
         className,
       )}
     >
-      <div className="scrollbar-subtle flex-1 overflow-y-auto">
-        <div className="mx-auto flex max-w-[770px] flex-col gap-4 p-4 pb-24">
-          <MessageList messages={MOCK_MESSAGES} isDark={isDark} />
-
-          <MorphContainer
-            className={cn(
-              "w-full overflow-hidden rounded-2xl border shadow-sm",
-              isDark ? "border-neutral-700" : "border-neutral-200",
-            )}
-            style={{ height: widgetHeight, maxHeight: widgetHeight }}
-          >
-            <div className="h-full overflow-auto">{children}</div>
-          </MorphContainer>
-
-          <MessageList messages={MOCK_MESSAGES_AFTER} isDark={isDark} />
-        </div>
-      </div>
+      <MorphContainer
+        className={cn(
+          "w-full max-w-[770px] overflow-hidden rounded-2xl border shadow-sm",
+          isDark ? "border-neutral-700" : "border-neutral-200",
+        )}
+        style={{ height: widgetHeight, maxHeight: widgetHeight }}
+      >
+        <div className="h-full overflow-auto">{children}</div>
+      </MorphContainer>
     </div>
   );
 }
