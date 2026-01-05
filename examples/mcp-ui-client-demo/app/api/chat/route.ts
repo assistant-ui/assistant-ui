@@ -40,8 +40,8 @@ export async function POST(req: Request) {
 
   // Select model based on environment
   const model = process.env["ANTHROPIC_API_KEY"]
-    ? anthropic("claude-sonnet-4-20250514")
-    : openai("gpt-4o");
+    ? anthropic("claude-sonnet-4-5")
+    : openai("gpt-5.2");
 
   // Build streamText options conditionally
   const streamOptions: any = {
