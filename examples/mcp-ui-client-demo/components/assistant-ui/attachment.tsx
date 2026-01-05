@@ -78,7 +78,7 @@ const AttachmentPreview: FC<AttachmentPreviewProps> = ({ src }) => {
           ? "aui-attachment-preview-image-loaded block h-auto max-h-[80vh] w-auto max-w-full object-contain"
           : "aui-attachment-preview-image-loading hidden"
       }
-      onLoad={() => setIsLoaded(true)}
+      onLoadingComplete={() => setIsLoaded(true)}
       priority={false}
     />
   );
