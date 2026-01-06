@@ -84,10 +84,10 @@ const ThreadWelcome: FC = () => {
       <div className="aui-thread-welcome-center flex w-full grow flex-col items-center justify-center">
         <div className="aui-thread-welcome-message flex size-full flex-col justify-center px-4">
           <h1 className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-1 animate-in font-semibold text-2xl duration-200">
-            Resumable Stream Example
+            Hello there!
           </h1>
           <p className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-1 animate-in text-muted-foreground text-xl delay-75 duration-200">
-            Ask me anything and watch the streaming response!
+            How can I help you today?
           </p>
         </div>
       </div>
@@ -103,9 +103,9 @@ const SUGGESTIONS = [
     prompt: "What's the weather in San Francisco?",
   },
   {
-    title: "Write a short story",
-    label: "about a robot learning to cook",
-    prompt: "Write a short story about a robot learning to cook",
+    title: "Explain React hooks",
+    label: "like useState and useEffect",
+    prompt: "Explain React hooks like useState and useEffect",
   },
 ] as const;
 
