@@ -1,4 +1,3 @@
-// Re-export types from schemas
 export type {
   ToolUIId,
   Action,
@@ -6,3 +5,5 @@ export type {
   SerializableActionsConfig,
   SerializableAction,
 } from "../schemas";
+
+export * from "./protocol";

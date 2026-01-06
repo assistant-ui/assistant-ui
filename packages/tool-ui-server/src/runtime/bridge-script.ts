@@ -1,0 +1,165 @@
+import type { AUIGlobals } from "../types/protocol";
+
+export const DEFAULT_GLOBALS: AUIGlobals = {
+  theme: "light",
+  locale: "en-US",
+  displayMode: "inline",
+  maxHeight: 800,
+  toolInput: {},
+  toolOutput: null,
+  widgetState: null,
+  userAgent: {
+    device: { type: "desktop" },
+    capabilities: { hover: true, touch: false },
+  },
+  safeArea: {
+    insets: { top: 0, bottom: 0, left: 0, right: 0 },
+  },
+};
+
+export function generateBridgeScript(): string {
+  return `
+(function() {
+  var DEFAULT_GLOBALS = ${JSON.stringify(DEFAULT_GLOBALS)};
+
+  var pendingCalls = new Map();
+  var globals = Object.assign({}, DEFAULT_GLOBALS);
+  var previousGlobals = null;
+
+  function generateCallId() {
+    return Date.now() + "-" + Math.random().toString(36).slice(2, 11);
+  }
+
+  function dispatchGlobalsChange(changedGlobals) {
+    var event = new CustomEvent("aui:set_globals", {
+      detail: { globals: changedGlobals },
+    });
+    window.dispatchEvent(event);
+  }
+
+  function buildChangedGlobals(prev, next) {
+    if (!prev) return next;
+    var changed = {};
+    Object.keys(next).forEach(function(key) {
+      var prevVal = JSON.stringify(prev[key]);
+      var nextVal = JSON.stringify(next[key]);
+      if (prevVal !== nextVal) {
+        changed[key] = next[key];
+      }
+    });
+    return changed;
+  }
+
+  function handleMessage(event) {
+    if (event.source !== window.parent) return;
+    
+    var message = event.data;
+    if (!message || typeof message !== "object" || !message.type) return;
+
+    switch (message.type) {
+      case "AUI_SET_GLOBALS":
+        previousGlobals = globals;
+        globals = Object.assign({}, DEFAULT_GLOBALS, message.globals);
+        var changed = buildChangedGlobals(previousGlobals, globals);
+        if (Object.keys(changed).length > 0) {
+          dispatchGlobalsChange(changed);
+        }
+        break;
+
+      case "AUI_METHOD_RESPONSE":
+        var pending = pendingCalls.get(message.id);
+        if (pending) {
+          if (message.error) {
+            pending.reject(new Error(message.error));
+          } else {
+            pending.resolve(message.result);
+          }
+          pendingCalls.delete(message.id);
+        }
+        break;
+    }
+  }
+
+  function callMethod(method, args) {
+    return new Promise(function(resolve, reject) {
+      var id = generateCallId();
+      pendingCalls.set(id, { resolve: resolve, reject: reject });
+
+      window.parent.postMessage({
+        type: "AUI_METHOD_CALL",
+        id: id,
+        method: method,
+        args: args,
+      }, "*");
+
+      setTimeout(function() {
+        var p = pendingCalls.get(id);
+        if (p) {
+          p.reject(new Error("Method call timed out: " + method));
+          pendingCalls.delete(id);
+        }
+      }, 30000);
+    });
+  }
+
+  window.addEventListener("message", handleMessage);
+
+  var api = {
+    callTool: function(name, args) {
+      return callMethod("callTool", [name, args]);
+    },
+    setWidgetState: function(state) {
+      callMethod("setWidgetState", [state]);
+    },
+    sendFollowUpMessage: function(args) {
+      return callMethod("sendFollowUpMessage", [args]);
+    },
+    requestDisplayMode: function(args) {
+      return callMethod("requestDisplayMode", [args]);
+    },
+    requestModal: function(options) {
+      return callMethod("requestModal", [options]);
+    },
+    requestClose: function() {
+      callMethod("requestClose", []);
+    },
+    openExternal: function(payload) {
+      callMethod("openExternal", [payload]);
+    },
+    notifyIntrinsicHeight: function(height) {
+      callMethod("notifyIntrinsicHeight", [height]);
+    },
+  };
+
+  Object.defineProperty(window, "aui", {
+    value: Object.assign(
+      Object.create(null, {
+        theme: { get: function() { return globals.theme; }, enumerable: true },
+        locale: { get: function() { return globals.locale; }, enumerable: true },
+        displayMode: { get: function() { return globals.displayMode; }, enumerable: true },
+        maxHeight: { get: function() { return globals.maxHeight; }, enumerable: true },
+        toolInput: { get: function() { return globals.toolInput; }, enumerable: true },
+        toolOutput: { get: function() { return globals.toolOutput; }, enumerable: true },
+        widgetState: { get: function() { return globals.widgetState; }, enumerable: true },
+        userAgent: { get: function() { return globals.userAgent; }, enumerable: true },
+        safeArea: { get: function() { return globals.safeArea; }, enumerable: true },
+      }),
+      api
+    ),
+    configurable: false,
+    writable: false,
+  });
+
+  window.__initAUIGlobals = function(initialGlobals) {
+    previousGlobals = globals;
+    globals = Object.assign({}, DEFAULT_GLOBALS, initialGlobals);
+    var changed = buildChangedGlobals(previousGlobals, globals);
+    if (Object.keys(changed).length > 0) {
+      dispatchGlobalsChange(changed);
+    }
+  };
+
+  window.parent.postMessage({ type: "ready" }, "*");
+})();
+`;
+}

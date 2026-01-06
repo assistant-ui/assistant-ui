@@ -25,7 +25,9 @@
   "scripts": {
     "build": "tsup src/index.ts src/cli.ts --format esm --dts",
     "dev": "tsup src/index.ts src/cli.ts --format esm --dts --watch",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.7",
@@ -70,11 +72,13 @@
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
+    "jsdom": "^27.3.0",
     "next-themes": "^0.4.4",
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "tsup": "^8.4.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "vitest": "^3.2.3"
   },
   "publishConfig": {
     "access": "public",

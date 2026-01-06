@@ -1,9 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { makeAssistantToolUI } from "@assistant-ui/react";
+import { makeAssistantToolUI, useAssistantApi } from "@assistant-ui/react";
 import { RemoteToolUI } from "./remote-tool-ui";
 import { UIManifestSchema, type MCPUICapability } from "../schemas/manifest";
+import type { DisplayMode, Theme, WidgetState } from "../types/protocol";
+
+const ToolUIThemeContext = React.createContext<Theme>("light");
 
 export interface MCPToolUIProviderProps {
   /** MCP servers with UI capability */
@@ -13,6 +16,8 @@ export interface MCPToolUIProviderProps {
   }>;
   /** Custom registry URL (default: registry.assistant-ui.com) */
   registryUrl?: string | undefined;
+  /** Theme for tool UIs */
+  theme?: Theme | undefined;
   /** Fallback component for loading state */
   loadingFallback?: React.ReactNode | undefined;
   /** Fallback component for errors */
@@ -43,11 +48,21 @@ interface ToolUIComponent {
 export const MCPToolUIProvider: React.FC<MCPToolUIProviderProps> = ({
   servers,
   registryUrl,
+  theme = "light",
   loadingFallback,
   errorFallback,
   children,
 }) => {
   const [toolUIs, setToolUIs] = React.useState<ToolUIComponent[]>([]);
+
+  const fallbackRefs = React.useRef({ loadingFallback, errorFallback });
+  fallbackRefs.current = { loadingFallback, errorFallback };
+
+  const serversKey = React.useMemo(
+    () =>
+      servers.map((s) => `${s.serverId}:${s.capability.bundleHash}`).join(","),
+    [servers],
+  );
 
   // Fetch manifests and create tool UI components
   React.useEffect(() => {
@@ -94,30 +109,67 @@ export const MCPToolUIProvider: React.FC<MCPToolUIProviderProps> = ({
               for (const toolName of component.toolNames) {
                 const baseUrl = bundleOrigin;
                 const componentName = component.name;
-                const loading = loadingFallback;
-                const error = errorFallback;
 
-                // Create the tool UI component using makeAssistantToolUI
                 const ToolUIComponent = makeAssistantToolUI({
                   toolName,
-                  render: ({ args, result, addResult, status }) => {
+                  render: function ToolUIRenderer({
+                    args,
+                    result,
+                    addResult,
+                    status,
+                  }) {
+                    const api = useAssistantApi();
+                    const currentTheme = React.useContext(ToolUIThemeContext);
+                    const [widgetState, setWidgetState] =
+                      React.useState<WidgetState>(null);
+
+                    const handleSendFollowUpMessage = React.useCallback(
+                      async (payload: { prompt: string }) => {
+                        api.thread().append({
+                          role: "user",
+                          content: [{ type: "text", text: payload.prompt }],
+                        });
+                      },
+                      [api],
+                    );
+
+                    const handleRequestDisplayMode = React.useCallback(
+                      async (payload: { mode: DisplayMode }) => {
+                        return { mode: payload.mode };
+                      },
+                      [],
+                    );
+
+                    const { loadingFallback: loading, errorFallback: error } =
+                      fallbackRefs.current;
+
                     if (status.type === "running") {
                       return (
-                        loading ?? (
-                          <div className="my-4 h-48 max-w-md animate-pulse rounded-2xl bg-slate-200" />
-                        )
+                        <div className="mb-4">
+                          {loading ?? (
+                            <div className="h-24 max-w-md animate-pulse rounded-2xl bg-slate-200" />
+                          )}
+                        </div>
                       );
                     }
 
                     return (
-                      <RemoteToolUI
-                        src={`${baseUrl}/render?component=${encodeURIComponent(componentName)}`}
-                        toolName={toolName}
-                        props={{ args, result }}
-                        onAddResult={addResult}
-                        fallback={loading}
-                        errorFallback={error}
-                      />
+                      <div className="mb-4">
+                        <RemoteToolUI
+                          src={`${baseUrl}/render?component=${encodeURIComponent(componentName)}`}
+                          toolName={toolName}
+                          toolInput={args as Record<string, unknown>}
+                          toolOutput={result as Record<string, unknown> | null}
+                          theme={currentTheme}
+                          widgetState={widgetState}
+                          onWidgetStateChange={setWidgetState}
+                          onSendFollowUpMessage={handleSendFollowUpMessage}
+                          onRequestDisplayMode={handleRequestDisplayMode}
+                          onAddResult={addResult}
+                          fallback={loading}
+                          errorFallback={error}
+                        />
+                      </div>
                     );
                   },
                 });
@@ -139,15 +191,16 @@ export const MCPToolUIProvider: React.FC<MCPToolUIProviderProps> = ({
     };
 
     loadManifests();
-  }, [servers, registryUrl, loadingFallback, errorFallback]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serversKey, registryUrl]);
 
   return (
-    <>
+    <ToolUIThemeContext.Provider value={theme}>
       {/* Render all the tool UI components to register them */}
       {toolUIs.map(({ toolName, serverId, Component }) => (
         <Component key={`${serverId}-${toolName}`} />
       ))}
       {children}
-    </>
+    </ToolUIThemeContext.Provider>
   );
 };

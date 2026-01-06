@@ -4,9 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "concurrently \"pnpm dev:ui\" \"pnpm dev:app\"",
+    "dev": "pnpm build:deps && concurrently -n ui,app -c blue,green \"pnpm dev:ui\" \"pnpm dev:app\"",
     "dev:app": "next dev --port 3005",
-    "dev:ui": "cd ../mcp-server-with-ui && pnpm build:ui && pnpm start:ui",
+    "dev:ui": "cd ../mcp-server-with-ui && pnpm dev:ui",
+    "build:deps": "cd ../../packages/tool-ui-server && pnpm build && cd ../../examples/mcp-server-with-ui && pnpm build && pnpm build:ui",
     "build": "next build",
     "start": "next start",
     "lint": "eslint ."

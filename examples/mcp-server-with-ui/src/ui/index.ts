@@ -82,7 +82,7 @@ function renderWeatherCard(props: z.infer<typeof WeatherCardSchema>): string {
   const tempUnit = props.unit === "celsius" ? "C" : "F";
 
   return `
-    <div class="my-4 rounded-2xl bg-gradient-to-br ${bgClass} p-6 text-white shadow-lg max-w-md">
+    <div class="rounded-2xl bg-gradient-to-br ${bgClass} p-6 text-white shadow-lg max-w-md">
       <div class="mb-2 text-lg font-semibold">${escapeHtml(props.location)}</div>
 
       <div class="flex items-center gap-4 mb-4">
@@ -152,7 +152,8 @@ function loadTailwind(): Promise<void> {
   });
 }
 
-// Create the runtime
+import { AUIDemoComponent } from "./aui-demo";
+
 const runtime = createToolUIRuntime();
 
 runtime.register({
@@ -167,7 +168,8 @@ runtime.register({
   render: renderWeatherComparison,
 });
 
-// Load Tailwind then start the runtime
+runtime.register(AUIDemoComponent);
+
 loadTailwind().then(() => {
   runtime.start();
 });

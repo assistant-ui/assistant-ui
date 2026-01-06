@@ -4,3 +4,19 @@ export {
   type UseActionButtonsOptions,
   type UseActionButtonsResult,
 } from "./use-action-buttons";
+export {
+  AUIProvider,
+  useAUI,
+  useTheme,
+  useLocale,
+  useDisplayMode,
+  useToolInput,
+  useToolOutput,
+  useWidgetState,
+  useCallTool,
+  useRequestDisplayMode,
+  useSendFollowUpMessage,
+  useMaxHeight,
+  useUserAgent,
+  useSafeArea,
+} from "./use-aui";

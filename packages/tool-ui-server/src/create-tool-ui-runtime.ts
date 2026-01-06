@@ -1,44 +1,123 @@
 import type { z } from "zod";
+import type { AUIGlobals, WindowAUI } from "./types/protocol";
+
+declare global {
+  interface Window {
+    aui?: WindowAUI;
+    __initAUIGlobals?: (globals: AUIGlobals) => void;
+  }
+}
 
 export interface ToolUIComponentConfig<TSchema extends z.ZodType> {
-  /** Component name (must match server registration) */
   name: string;
-  /** Props schema for validation */
   schema: TSchema;
-  /** Render function */
   render: (props: z.infer<TSchema>) => HTMLElement | string;
 }
 
 export interface ToolUIRuntime {
-  /** Register a component */
   register: <TSchema extends z.ZodType>(
     config: ToolUIComponentConfig<TSchema>,
   ) => void;
-  /** Start the runtime (call after all components registered) */
   start: () => void;
 }
 
-/**
- * Create a runtime for tool UI components in the iframe.
- *
- * @example
- * ```typescript
- * const runtime = createToolUIRuntime();
- *
- * runtime.register({
- *   name: "WeatherCard",
- *   schema: WeatherPropsSchema,
- *   render: (props) => `
- *     <div class="weather-card">
- *       <h2>${props.location}</h2>
- *       <p>${props.temperature}°</p>
- *     </div>
- *   `,
- * });
- *
- * runtime.start();
- * ```
- */
+export function getGlobals(): AUIGlobals | null {
+  if (typeof window === "undefined" || !window.aui) return null;
+  return {
+    theme: window.aui.theme,
+    locale: window.aui.locale,
+    displayMode: window.aui.displayMode,
+    maxHeight: window.aui.maxHeight,
+    toolInput: window.aui.toolInput,
+    toolOutput: window.aui.toolOutput,
+    widgetState: window.aui.widgetState,
+    userAgent: window.aui.userAgent,
+    safeArea: window.aui.safeArea,
+  };
+}
+
+export function onGlobalsChange(
+  callback: (changed: Partial<AUIGlobals>) => void,
+): () => void {
+  if (typeof window === "undefined") return () => {};
+
+  const handler = (event: Event) => {
+    const customEvent = event as CustomEvent<{ globals: Partial<AUIGlobals> }>;
+    callback(customEvent.detail.globals);
+  };
+
+  window.addEventListener("aui:set_globals", handler);
+  return () => window.removeEventListener("aui:set_globals", handler);
+}
+
+export async function callTool(
+  name: string,
+  args: Record<string, unknown>,
+): Promise<unknown> {
+  if (typeof window === "undefined" || !window.aui) {
+    throw new Error("AUI bridge not available");
+  }
+  return window.aui.callTool(name, args);
+}
+
+export function setWidgetState(state: Record<string, unknown> | null): void {
+  if (typeof window === "undefined" || !window.aui) {
+    console.warn("AUI bridge not available");
+    return;
+  }
+  window.aui.setWidgetState(state);
+}
+
+export async function requestDisplayMode(
+  mode: "inline" | "fullscreen" | "pip",
+): Promise<{ mode: string }> {
+  if (typeof window === "undefined" || !window.aui) {
+    throw new Error("AUI bridge not available");
+  }
+  return window.aui.requestDisplayMode({ mode });
+}
+
+export async function sendFollowUpMessage(prompt: string): Promise<void> {
+  if (typeof window === "undefined" || !window.aui) {
+    throw new Error("AUI bridge not available");
+  }
+  return window.aui.sendFollowUpMessage({ prompt });
+}
+
+export async function requestModal(options: {
+  title?: string;
+  params?: Record<string, unknown>;
+}): Promise<void> {
+  if (typeof window === "undefined" || !window.aui) {
+    throw new Error("AUI bridge not available");
+  }
+  return window.aui.requestModal(options);
+}
+
+export function requestClose(): void {
+  if (typeof window === "undefined" || !window.aui) {
+    console.warn("AUI bridge not available");
+    return;
+  }
+  window.aui.requestClose();
+}
+
+export function openExternal(href: string): void {
+  if (typeof window === "undefined" || !window.aui) {
+    window.open(href, "_blank", "noopener,noreferrer");
+    return;
+  }
+  window.aui.openExternal({ href });
+}
+
+export function notifyIntrinsicHeight(height: number): void {
+  if (typeof window === "undefined" || !window.aui) {
+    window.parent?.postMessage({ type: "resize", payload: height }, "*");
+    return;
+  }
+  window.aui.notifyIntrinsicHeight(height);
+}
+
 export function createToolUIRuntime(): ToolUIRuntime {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const components = new Map<string, ToolUIComponentConfig<any>>();
@@ -75,18 +154,25 @@ export function createToolUIRuntime(): ToolUIRuntime {
         container.appendChild(output);
       }
 
-      // Report height to parent
       requestAnimationFrame(() => {
-        const height = container.scrollHeight;
+        const firstChild = container.firstElementChild as HTMLElement | null;
+        let height = container.scrollHeight;
+        if (firstChild) {
+          const style = window.getComputedStyle(firstChild);
+          const marginTop = parseFloat(style.marginTop) || 0;
+          const marginBottom = parseFloat(style.marginBottom) || 0;
+          height = Math.max(
+            height,
+            firstChild.offsetHeight + marginTop + marginBottom,
+          );
+        }
         window.parent.postMessage({ type: "resize", payload: height }, "*");
       });
     }
   }
 
   function start() {
-    // Listen for messages from parent
     window.addEventListener("message", (event) => {
-      // SECURITY: Only accept messages from our parent window
       if (event.source !== window.parent) return;
 
       const { type, props, component } = event.data || {};
@@ -95,13 +181,10 @@ export function createToolUIRuntime(): ToolUIRuntime {
         case "render":
           currentProps = props;
           try {
-            // Component name comes from URL or message
             const componentName =
               component ||
               new URLSearchParams(window.location.search).get("component");
             if (componentName) {
-              // The result contains the tool output data
-              // Parse it if it's a string (MCP returns JSON strings)
               let resultData = (props as { result?: unknown })?.result;
               if (typeof resultData === "string") {
                 try {
@@ -110,7 +193,6 @@ export function createToolUIRuntime(): ToolUIRuntime {
                   // Keep as string if not valid JSON
                 }
               }
-              // Handle MCP content format: { content: [{ type: "text", text: "..." }] }
               if (
                 resultData &&
                 typeof resultData === "object" &&
@@ -130,8 +212,6 @@ export function createToolUIRuntime(): ToolUIRuntime {
                   }
                 }
               }
-              // Handle component result format: { component: "Name", props: {...}, text: "..." }
-              // Extract the props if the result has a component/props structure
               if (
                 resultData &&
                 typeof resultData === "object" &&
@@ -159,7 +239,6 @@ export function createToolUIRuntime(): ToolUIRuntime {
           if (currentProps) {
             const updatedProps = { ...currentProps, ...props };
             currentProps = updatedProps;
-            // Re-render with updated props
             const componentName = new URLSearchParams(
               window.location.search,
             ).get("component");
@@ -171,23 +250,16 @@ export function createToolUIRuntime(): ToolUIRuntime {
       }
     });
 
-    // Signal ready
     window.parent.postMessage({ type: "ready" }, "*");
   }
 
   return { register, start };
 }
 
-/**
- * Helper to emit actions to parent.
- */
 export function emitAction(actionId: string) {
   window.parent.postMessage({ type: "action", payload: actionId }, "*");
 }
 
-/**
- * Helper to emit result (for human-in-loop tools).
- */
 export function emitResult(result: unknown) {
   window.parent.postMessage({ type: "addResult", payload: result }, "*");
 }

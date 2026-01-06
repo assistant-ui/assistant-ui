@@ -1,62 +1,86 @@
 "use client";
 
 import * as React from "react";
+import { createPortal } from "react-dom";
 import { cn } from "../utils/cn";
+import { MessageBridge, MessageBridgeHandlers } from "./message-bridge";
+import type {
+  AUIGlobals,
+  Theme,
+  DisplayMode,
+  WidgetState,
+  CallToolResponse,
+  ModalOptions,
+} from "../types/protocol";
+import { DEFAULT_GLOBALS } from "../runtime/bridge-script";
 
 export interface RemoteToolUIProps {
-  /** PSL-isolated subdomain URL */
   src: string;
-  /** Tool name for identification */
   toolName: string;
-  /** Props to pass to remote component */
-  props: Record<string, unknown>;
-  /** Callback when remote component emits action */
+  toolInput: Record<string, unknown>;
+  toolOutput: Record<string, unknown> | null;
+  theme?: Theme;
+  locale?: string;
+  displayMode?: DisplayMode;
+  maxHeight?: number;
+  widgetState?: WidgetState;
+  onWidgetStateChange?: (state: WidgetState) => void;
+  onCallTool?: (
+    name: string,
+    args: Record<string, unknown>,
+  ) => Promise<CallToolResponse>;
+  onSendFollowUpMessage?: (args: { prompt: string }) => Promise<void>;
+  onRequestDisplayMode?: (args: {
+    mode: DisplayMode;
+  }) => Promise<{ mode: DisplayMode }>;
+  onRequestModal?: (options: ModalOptions) => Promise<void>;
+  onRequestClose?: () => void;
+  onOpenExternal?: (payload: { href: string }) => void;
   onAction?: ((actionId: string, payload?: unknown) => void) | undefined;
-  /** Callback to add tool result (for human-in-loop) */
   onAddResult?: ((result: unknown) => void) | undefined;
-  /** Fallback while loading */
   fallback?: React.ReactNode | undefined;
-  /** Error fallback */
   errorFallback?: React.ReactNode | undefined;
-  /** Additional class names */
   className?: string | undefined;
+  /** @deprecated Use toolInput and toolOutput instead */
+  props?: Record<string, unknown>;
 }
 
-interface RemoteMessage {
-  type: "ready" | "action" | "addResult" | "resize" | "error";
-  payload?: unknown;
-}
-
-/**
- * Renders a tool UI component from a remote PSL-isolated source.
- *
- * Security model:
- * - Component runs in sandboxed iframe
- * - Only allow-scripts enabled (no same-origin)
- * - Communication via postMessage with origin validation
- * - PSL isolation prevents cross-component data access
- */
 export const RemoteToolUI: React.FC<RemoteToolUIProps> = ({
   src,
   toolName,
-  props,
+  toolInput,
+  toolOutput,
+  theme = "light",
+  locale = "en-US",
+  displayMode: initialDisplayMode = "inline",
+  maxHeight = 800,
+  widgetState = null,
+  onWidgetStateChange,
+  onCallTool,
+  onSendFollowUpMessage,
+  onRequestDisplayMode,
+  onRequestModal,
+  onRequestClose,
+  onOpenExternal,
   onAction,
   onAddResult,
   fallback,
   errorFallback,
   className,
+  props: legacyProps,
 }) => {
   const iframeRef = React.useRef<HTMLIFrameElement>(null);
+  const bridgeRef = React.useRef<MessageBridge | null>(null);
   const [status, setStatus] = React.useState<"loading" | "ready" | "error">(
     "loading",
   );
   const [height, setHeight] = React.useState(100);
   const [error, setError] = React.useState<string | null>(null);
+  const [displayMode, setDisplayMode] =
+    React.useState<DisplayMode>(initialDisplayMode);
 
-  // Generate unique iframe name for stronger validation
   const iframeName = React.useMemo(() => `tool-ui-${crypto.randomUUID()}`, []);
 
-  // Extract origin for validation
   const expectedOrigin = React.useMemo(() => {
     try {
       return new URL(src).origin;
@@ -65,69 +89,139 @@ export const RemoteToolUI: React.FC<RemoteToolUIProps> = ({
     }
   }, [src]);
 
-  // Handle messages from iframe
+  const resolvedToolInput = legacyProps?.args
+    ? (legacyProps.args as Record<string, unknown>)
+    : toolInput;
+  const resolvedToolOutput = legacyProps?.result
+    ? (legacyProps.result as Record<string, unknown>)
+    : toolOutput;
+
+  const globals = React.useMemo<AUIGlobals>(
+    () => ({
+      theme,
+      locale,
+      displayMode,
+      maxHeight,
+      toolInput: resolvedToolInput,
+      toolOutput: resolvedToolOutput,
+      widgetState,
+      userAgent: DEFAULT_GLOBALS.userAgent,
+      safeArea: DEFAULT_GLOBALS.safeArea,
+    }),
+    [
+      theme,
+      locale,
+      displayMode,
+      maxHeight,
+      resolvedToolInput,
+      resolvedToolOutput,
+      widgetState,
+    ],
+  );
+
+  const callbackRefs = React.useRef({
+    onCallTool,
+    onWidgetStateChange,
+    onSendFollowUpMessage,
+    onRequestDisplayMode,
+    onRequestModal,
+    onRequestClose,
+    onOpenExternal,
+  });
+  callbackRefs.current = {
+    onCallTool,
+    onWidgetStateChange,
+    onSendFollowUpMessage,
+    onRequestDisplayMode,
+    onRequestModal,
+    onRequestClose,
+    onOpenExternal,
+  };
+
+  const handlers = React.useMemo<MessageBridgeHandlers>(
+    () => ({
+      callTool: async (name, args) => {
+        if (!callbackRefs.current.onCallTool) {
+          throw new Error("callTool not supported");
+        }
+        return callbackRefs.current.onCallTool(name, args);
+      },
+      setWidgetState: (state) => {
+        callbackRefs.current.onWidgetStateChange?.(state);
+      },
+      sendFollowUpMessage: async (args) => {
+        if (!callbackRefs.current.onSendFollowUpMessage) {
+          throw new Error("sendFollowUpMessage not supported");
+        }
+        return callbackRefs.current.onSendFollowUpMessage(args);
+      },
+      requestDisplayMode: async (args) => {
+        setDisplayMode(args.mode);
+        if (callbackRefs.current.onRequestDisplayMode) {
+          return callbackRefs.current.onRequestDisplayMode(args);
+        }
+        return { mode: args.mode };
+      },
+      requestModal: async (options) => {
+        if (!callbackRefs.current.onRequestModal) {
+          throw new Error("requestModal not supported");
+        }
+        return callbackRefs.current.onRequestModal(options);
+      },
+      requestClose: () => {
+        callbackRefs.current.onRequestClose?.();
+      },
+      openExternal: (payload) => {
+        if (callbackRefs.current.onOpenExternal) {
+          callbackRefs.current.onOpenExternal(payload);
+        } else {
+          window.open(payload.href, "_blank", "noopener,noreferrer");
+        }
+      },
+      notifyIntrinsicHeight: (h) => {
+        setHeight(Math.min(h, maxHeight));
+      },
+    }),
+    [maxHeight],
+  );
+
+  const globalsRef = React.useRef(globals);
+  globalsRef.current = globals;
+
   React.useEffect(() => {
-    if (!expectedOrigin) return;
+    if (!iframeRef.current || !expectedOrigin) return;
 
-    const handleMessage = (event: MessageEvent<RemoteMessage>) => {
-      // Validate message source instead of just origin
-      // This prevents malicious iframes from sending fake messages
-      if (event.source !== iframeRef.current?.contentWindow) return;
-      if (!event.data || typeof event.data.type !== "string") return;
-
-      const { type, payload } = event.data;
-
-      switch (type) {
-        case "ready":
-          setStatus("ready");
-          // SECURITY: Using "*" because sandboxed iframes have null origin
-          // Never send sensitive data via props - iframe could be malicious
-          iframeRef.current?.contentWindow?.postMessage(
-            { type: "render", toolName, props },
-            "*",
-          );
-          break;
-
-        case "action":
-          onAction?.(payload as string);
-          break;
-
-        case "addResult":
-          onAddResult?.(payload);
-          break;
-
-        case "resize":
-          if (typeof payload === "number" && payload > 0) {
-            setHeight(Math.min(payload, 800)); // Cap at 800px
-          }
-          break;
-
-        case "error":
-          setStatus("error");
-          setError(payload as string);
-          break;
-      }
+    const legacyHandlers = {
+      onReady: () => {
+        setStatus("ready");
+        bridgeRef.current?.sendGlobals(globalsRef.current, {
+          toolName,
+          isInitial: true,
+        });
+      },
+      onAction: onAction,
+      onAddResult: onAddResult,
+      onResize: (h: number) => setHeight(Math.min(h, maxHeight)),
+      onError: (err: string) => {
+        setStatus("error");
+        setError(err);
+      },
     };
 
-    window.addEventListener("message", handleMessage);
-    return () => window.removeEventListener("message", handleMessage);
-  }, [expectedOrigin, toolName, props, onAction, onAddResult]);
+    bridgeRef.current = new MessageBridge(handlers, legacyHandlers);
+    bridgeRef.current.attach(iframeRef.current);
 
-  // Send updated props when they change
+    return () => {
+      bridgeRef.current?.detach();
+      bridgeRef.current = null;
+    };
+  }, [expectedOrigin, handlers, onAction, onAddResult, maxHeight, toolName]);
+
   React.useEffect(() => {
-    if (
-      status === "ready" &&
-      iframeRef.current?.contentWindow &&
-      expectedOrigin
-    ) {
-      // SECURITY: Using "*" because sandboxed iframes have null origin
-      // Props should never contain sensitive information
-      iframeRef.current.contentWindow.postMessage(
-        { type: "update", props },
-        "*",
-      );
+    if (status === "ready" && bridgeRef.current) {
+      bridgeRef.current.sendGlobals(globals, { toolName });
     }
-  }, [status, props, expectedOrigin]);
+  }, [status, globals, toolName]);
 
   if (!expectedOrigin) {
     return (
@@ -146,25 +240,60 @@ export const RemoteToolUI: React.FC<RemoteToolUIProps> = ({
     );
   }
 
-  return (
-    <div className={cn("tool-ui-remote-container", className)}>
-      {status === "loading" &&
-        (fallback ?? (
-          <div className="tool-ui-remote-loading">
-            <div className="h-24 animate-pulse rounded-lg bg-muted" />
-          </div>
-        ))}
+  const isFullscreen = displayMode === "fullscreen";
 
-      <iframe
-        ref={iframeRef}
-        src={src}
-        name={iframeName}
-        title={`Tool UI: ${toolName}`}
-        sandbox="allow-scripts allow-forms"
-        style={{ height: `${height}px` }}
-        className="w-full border-0"
-        onLoad={() => setStatus("loading")}
-      />
-    </div>
+  const fullscreenHeader = isFullscreen
+    ? createPortal(
+        <div
+          className="fixed inset-x-0 top-0 z-50 flex items-center justify-between border-b bg-background px-4 py-2"
+          role="banner"
+        >
+          <span className="font-medium">{toolName}</span>
+          <button
+            onClick={() => setDisplayMode("inline")}
+            className="rounded-md px-3 py-1 text-sm hover:bg-muted"
+            aria-label="Exit fullscreen"
+          >
+            Exit Fullscreen
+          </button>
+        </div>,
+        document.body,
+      )
+    : null;
+
+  return (
+    <>
+      {fullscreenHeader}
+      <div
+        className={cn(
+          "tool-ui-remote-container",
+          isFullscreen
+            ? "fixed inset-0 z-40 flex flex-col bg-background pt-12"
+            : "",
+          className,
+        )}
+      >
+        {status === "loading" &&
+          (fallback ?? (
+            <div className="tool-ui-remote-loading">
+              <div className="h-24 animate-pulse rounded-lg bg-muted" />
+            </div>
+          ))}
+        <iframe
+          ref={iframeRef}
+          src={src}
+          name={iframeName}
+          title={`Tool UI: ${toolName}`}
+          sandbox="allow-scripts allow-forms"
+          scrolling="no"
+          style={isFullscreen ? undefined : { height: `${height}px` }}
+          className={cn(
+            "border-0",
+            isFullscreen ? "h-full w-full flex-1" : "w-full",
+          )}
+          onLoad={() => setStatus("loading")}
+        />
+      </div>
+    </>
   );
 };

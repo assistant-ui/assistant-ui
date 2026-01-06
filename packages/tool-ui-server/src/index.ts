@@ -4,6 +4,16 @@ export {
   createToolUIRuntime,
   emitAction,
   emitResult,
+  getGlobals,
+  onGlobalsChange,
+  callTool,
+  setWidgetState,
+  requestDisplayMode,
+  sendFollowUpMessage,
+  requestModal,
+  requestClose,
+  openExternal,
+  notifyIntrinsicHeight,
   type ToolUIComponentConfig,
   type ToolUIRuntime,
 } from "./create-tool-ui-runtime";
@@ -71,6 +81,20 @@ export {
   useActionButtons,
   type UseActionButtonsOptions,
   type UseActionButtonsResult,
+  AUIProvider,
+  useAUI,
+  useTheme,
+  useLocale,
+  useDisplayMode,
+  useToolInput,
+  useToolOutput,
+  useWidgetState,
+  useCallTool,
+  useRequestDisplayMode,
+  useSendFollowUpMessage,
+  useMaxHeight,
+  useUserAgent,
+  useSafeArea,
 } from "./hooks";
 
 // Remote components
@@ -90,3 +114,19 @@ export {
   MCPUICapabilitySchema,
   type MCPUICapability,
 } from "./schemas/manifest";
+
+// Protocol types
+export type {
+  DisplayMode,
+  Theme,
+  WidgetState,
+  AUIGlobals,
+  AUIAPI,
+  WindowAUI,
+  CallToolResponse,
+  ModalOptions,
+  UserAgent,
+  SafeArea,
+  ParentToIframeMessage,
+  IframeToParentMessage,
+} from "./types/protocol";

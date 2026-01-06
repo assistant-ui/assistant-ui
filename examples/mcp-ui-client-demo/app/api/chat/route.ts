@@ -11,7 +11,7 @@ When a user asks about weather:
 1. Use get_weather for a single location
 2. Use compare_weather when comparing two places
 
-Always provide helpful commentary about the weather after displaying it.`;
+IMPORTANT: Tool results are automatically rendered as rich UI components. Do NOT repeat or echo the raw JSON data from tool results. Instead, provide brief helpful commentary about what the weather means (e.g., "Perfect day for outdoor activities!" or "You might want to bring an umbrella").`;
 
 export async function POST(req: Request) {
   const { messages }: { messages: UIMessage[] } = await req.json();

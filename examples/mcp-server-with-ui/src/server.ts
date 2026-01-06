@@ -246,15 +246,36 @@ toolWithUI({
   },
 });
 
-// =============================================================================
-// Log capability and manifest for debugging
-// =============================================================================
+toolWithUI({
+  name: "aui_demo",
+  description:
+    "Demo tool that shows all AUI protocol features: theme awareness, widget state, display modes, and follow-up messages.",
+  parameters: z.object({
+    title: z.string().optional().default("AUI Protocol Demo"),
+    message: z.string().optional(),
+  }),
+  component: "AUIDemo",
+  execute: async ({ title, message }) => {
+    return {
+      component: "AUIDemo",
+      props: { title, message },
+      text: `AUI Demo Widget: ${title}${message ? ` - ${message}` : ""}`,
+    };
+  },
+  transformResult: (result, _args) => {
+    if (typeof result === "object" && "component" in result) {
+      return result as Record<string, unknown>;
+    }
+    return {
+      content: [{ type: "text", text: String(result) }],
+    };
+  },
+});
 
 console.error("Weather MCP Server starting...");
 console.error("UI Capability:", JSON.stringify(getUICapability(), null, 2));
 console.error("Manifest:", JSON.stringify(generateManifest(), null, 2));
 
-// Start the server
 start().catch((error) => {
   console.error("Failed to start server:", error);
   process.exit(1);

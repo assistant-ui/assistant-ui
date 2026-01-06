@@ -14,11 +14,19 @@
       "name": "WeatherComparison",
       "description": "Compares weather between two locations side by side",
       "toolNames": ["compare_weather"]
+    },
+    {
+      "name": "AUIDemo",
+      "description": "Demo component that showcases all AUI protocol features",
+      "toolNames": ["aui_demo"]
     }
   ],
   "permissions": {
     "network": false,
     "storage": false,
-    "clipboard": false
+    "clipboard": false,
+    "callTools": true,
+    "displayMode": true,
+    "followUpMessages": true
   }
 }
