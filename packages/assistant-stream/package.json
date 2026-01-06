@@ -24,6 +24,19 @@
       "aui-source": "./src/utils.ts",
       "types": "./dist/utils.d.ts",
       "default": "./dist/utils.js"
+    },
+    "./resumable": {
+      "aui-source": "./src/resumable/index.ts",
+      "types": "./dist/resumable/index.d.ts",
+      "default": "./dist/resumable/index.js"
+    }
+  },
+  "peerDependencies": {
+    "redis": "^5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "redis": {
+      "optional": true
     }
   },
   "main": "./dist/index.js",

@@ -9,9 +9,9 @@ import {
 } from "ai";
 import { after } from "next/server";
 import {
-  createResumableStreamContext,
+  unstable_createResumableStreamContext,
   type ResumableStreamContext,
-} from "@/lib/resumable-stream";
+} from "assistant-stream/resumable";
 import { z } from "zod";
 
 export const maxDuration = 60;
@@ -21,7 +21,7 @@ let globalStreamContext: ResumableStreamContext | null = null;
 export function getStreamContext() {
   if (!globalStreamContext) {
     try {
-      globalStreamContext = createResumableStreamContext({
+      globalStreamContext = unstable_createResumableStreamContext({
         waitUntil: after,
       });
     } catch (error: unknown) {
@@ -96,7 +96,6 @@ export async function POST(req: Request) {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache",
       Connection: "keep-alive",
-      "X-Stream-Id": streamId,
     },
   });
 }

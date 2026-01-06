@@ -11,29 +11,34 @@ export interface ResumableStreamContext {
   ) => Promise<ReadableStream<string> | null>;
 }
 
+export interface ResumableStreamOptions {
+  waitUntil: ((promise: Promise<unknown>) => void) | null;
+  redisUrl?: string;
+}
+
 let globalRedis: RedisClientType | null = null;
 let globalInitPromise: Promise<void> | null = null;
 
-function getRedisClient(): {
+function getRedisClient(redisUrl?: string): {
   client: RedisClientType;
   initPromise: Promise<void>;
 } {
   if (!globalRedis) {
-    const redisUrl = process.env["REDIS_URL"];
-    if (!redisUrl) {
+    const url = redisUrl ?? process.env["REDIS_URL"];
+    if (!url) {
       throw new Error("REDIS_URL environment variable is required");
     }
-    globalRedis = createClient({ url: redisUrl });
+    globalRedis = createClient({ url });
     globalInitPromise = globalRedis.connect().then(() => {});
   }
   return { client: globalRedis, initPromise: globalInitPromise! };
 }
 
-export function createResumableStreamContext(options: {
-  waitUntil: ((promise: Promise<unknown>) => void) | null;
-}): ResumableStreamContext {
+export function unstable_createResumableStreamContext(
+  options: ResumableStreamOptions,
+): ResumableStreamContext {
   const waitUntil = options.waitUntil || ((p) => p);
-  const { client: redis, initPromise } = getRedisClient();
+  const { client: redis, initPromise } = getRedisClient(options.redisUrl);
 
   return {
     resumableStream: async (

@@ -1300,6 +1300,9 @@ importers:
       ai:
         specifier: ^5.0.116
         version: 5.0.116(zod@4.2.1)
+      assistant-stream:
+        specifier: workspace:*
+        version: link:../../packages/assistant-stream
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -1495,6 +1498,9 @@ importers:
       nanoid:
         specifier: 5.1.6
         version: 5.1.6
+      redis:
+        specifier: ^5.0.0
+        version: 5.10.0
       secure-json-parse:
         specifier: ^4.1.0
         version: 4.1.0
