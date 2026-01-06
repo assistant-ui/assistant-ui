@@ -54,3 +54,4 @@ __pycache__
 specs/*
 .specstory/
 .cursorindexingignore
+notes/
