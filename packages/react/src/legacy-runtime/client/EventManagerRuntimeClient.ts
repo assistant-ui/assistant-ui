@@ -1,10 +1,10 @@
 import { resource, tapMemo } from "@assistant-ui/tap";
-import { Unsubscribe } from "../../types/Unsubscribe";
-import {
+import type {
+  Unsubscribe,
   AssistantEventMap,
   AssistantEvent,
   AssistantEventCallback,
-} from "../../types/EventTypes";
+} from "@assistant-ui/core";
 
 export type EventManager = {
   on<TEvent extends AssistantEvent>(

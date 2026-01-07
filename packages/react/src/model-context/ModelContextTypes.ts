@@ -1,4 +1,4 @@
-import { Unsubscribe } from "../types/Unsubscribe";
+import type { Unsubscribe } from "@assistant-ui/core";
 import { Tool } from "assistant-stream";
 
 export type LanguageModelV1CallSettings = {
@@ -61,14 +61,14 @@ export const mergeModelContexts = (
     }
     if (config.config) {
       acc.config = {
-        ...acc.config,
         ...config.config,
+        ...acc.config,
       };
     }
     if (config.callSettings) {
       acc.callSettings = {
-        ...acc.callSettings,
         ...config.callSettings,
+        ...acc.callSettings,
       };
     }
     return acc;
