@@ -117,7 +117,7 @@ const useAssistantTransportThreadRuntime = <T,>(
               : undefined,
             ...context.callSettings,
             ...context.config,
-            ...bodyValue,
+            ...(bodyValue ?? {}),
           }),
           signal,
         },

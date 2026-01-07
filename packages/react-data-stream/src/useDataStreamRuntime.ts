@@ -32,7 +32,7 @@ export type UseDataStreamRuntimeOptions = {
   onCancel?: () => void;
   credentials?: RequestCredentials;
   headers?: HeadersValue | (() => Promise<HeadersValue>);
-  body?: object | (() => Promise<object>);
+  body?: object | (() => Promise<object | undefined>);
   sendExtraMessageFields?: boolean;
 } & LocalRuntimeOptions;
 
@@ -121,7 +121,7 @@ class DataStreamRuntimeAdapter implements ChatModelAdapter {
         state: unstable_getMessage().metadata.unstable_state || undefined,
         ...context.callSettings,
         ...context.config,
-        ...bodyValue,
+        ...(bodyValue ?? {}),
       } satisfies DataStreamRuntimeRequestOptions),
       signal: abortSignal,
     });
