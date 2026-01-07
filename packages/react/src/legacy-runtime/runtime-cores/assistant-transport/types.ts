@@ -88,7 +88,7 @@ export type AssistantTransportOptions<T> = {
   protocol?: AssistantTransportProtocol;
   converter: AssistantTransportStateConverter<T>;
   headers: HeadersValue | (() => Promise<HeadersValue>);
-  body?: object;
+  body?: object | (() => Promise<object>);
   onResponse?: (response: Response) => void;
   onFinish?: () => void;
   onError?: (
