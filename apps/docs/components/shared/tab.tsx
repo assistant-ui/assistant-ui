@@ -105,6 +105,12 @@ function Tab({
     width: "0px",
   });
   const tabRefs = React.useRef<(HTMLElement | null)[]>([]);
+  const scrollContainerRef = React.useRef<HTMLDivElement | null>(null);
+  const [scrollPosition, setScrollPosition] = React.useState(0);
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    setScrollPosition(e.currentTarget.scrollLeft);
+  };
 
   // Check if we have content tabs (tabs with value)
   const hasContentTabs = tabs.some((tab) => tab.value !== undefined);
@@ -135,12 +141,12 @@ function Tab({
       if (hoveredElement) {
         const { offsetLeft, offsetWidth } = hoveredElement;
         setHoverStyle({
-          left: `${offsetLeft}px`,
+          left: `${offsetLeft - scrollPosition}px`,
           width: `${offsetWidth}px`,
         });
       }
     }
-  }, [hoveredIndex]);
+  }, [hoveredIndex, scrollPosition]);
 
   React.useEffect(() => {
     if (activeIndex !== -1) {
@@ -148,12 +154,12 @@ function Tab({
       if (activeElement) {
         const { offsetLeft, offsetWidth } = activeElement;
         setActiveStyle({
-          left: `${offsetLeft}px`,
+          left: `${offsetLeft - scrollPosition}px`,
           width: `${offsetWidth}px`,
         });
       }
     }
-  }, [activeIndex]);
+  }, [activeIndex, scrollPosition]);
 
   React.useEffect(() => {
     requestAnimationFrame(() => {
@@ -165,13 +171,18 @@ function Tab({
         if (activeElement) {
           const { offsetLeft, offsetWidth } = activeElement;
           setActiveStyle({
-            left: `${offsetLeft}px`,
+            left: `${offsetLeft - scrollPosition}px`,
             width: `${offsetWidth}px`,
           });
         }
       }
     });
-  }, [isPureNavigationMode, navigationActiveIndex, contentActiveIndex]);
+  }, [
+    isPureNavigationMode,
+    navigationActiveIndex,
+    contentActiveIndex,
+    scrollPosition,
+  ]);
 
   const handleKeyDown = (index: number, e: React.KeyboardEvent) => {
     const tab = tabs[index];
@@ -215,31 +226,38 @@ function Tab({
             variant={variant}
           />
         )}
-        <TabContainer>
-          {tabs.map((tab, index) => (
-            <TabItem
-              index={index}
-              isActive={
-                isPureNavigationMode
-                  ? Boolean(
-                      tab.href &&
-                        (tab.isActive
-                          ? tab.isActive(pathname)
-                          : pathname === tab.href),
-                    )
-                  : tab.value !== undefined && index === contentActiveIndex
-              }
-              key={tab.label}
-              onClick={() => handleContentTabClick(index)}
-              onKeyDown={(e) => handleKeyDown(index, e)}
-              onMouseEnter={() => setHoveredIndex(index)}
-              onMouseLeave={() => setHoveredIndex(null)}
-              tab={tab}
-              tabRefs={tabRefs}
-              variant={variant}
-            />
-          ))}
-        </TabContainer>
+        <div
+          className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          ref={scrollContainerRef}
+          onScroll={handleScroll}
+          style={{ msOverflowStyle: "none" }}
+        >
+          <TabContainer>
+            {tabs.map((tab, index) => (
+              <TabItem
+                index={index}
+                isActive={
+                  isPureNavigationMode
+                    ? Boolean(
+                        tab.href &&
+                          (tab.isActive
+                            ? tab.isActive(pathname)
+                            : pathname === tab.href),
+                      )
+                    : tab.value !== undefined && index === contentActiveIndex
+                }
+                key={tab.label}
+                onClick={() => handleContentTabClick(index)}
+                onKeyDown={(e) => handleKeyDown(index, e)}
+                onMouseEnter={() => setHoveredIndex(index)}
+                onMouseLeave={() => setHoveredIndex(null)}
+                tab={tab}
+                tabRefs={tabRefs}
+                variant={variant}
+              />
+            ))}
+          </TabContainer>
+        </div>
       </TabList>
 
       {/* Content panel - show when there are content tabs */}
