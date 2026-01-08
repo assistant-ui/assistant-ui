@@ -1,0 +1,67 @@
+{
+  "version": "1.0",
+  "serverId": "weather-mcp",
+  "serverName": "Weather MCP Server (Development)",
+  "bundleUrl": "http://localhost:3001/bundle.js",
+  "bundleHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "components": [
+    {
+      "name": "WeatherCard",
+      "description": "Displays weather information with temperature, conditions, and forecast",
+      "toolNames": ["get_weather"]
+    },
+    {
+      "name": "WeatherComparison",
+      "description": "Compares weather between two locations side by side",
+      "toolNames": ["compare_weather"]
+    },
+    {
+      "name": "AUIDemo",
+      "description": "Demo component that showcases all AUI protocol features",
+      "toolNames": ["aui_demo"]
+    },
+    {
+      "name": "FeatureShowcase",
+      "description": "Comprehensive demo of all 16+ client-side AUI APIs",
+      "toolNames": ["feature_showcase"]
+    },
+    {
+      "name": "DeleteConfirmation",
+      "description": "Confirmation UI for destructive actions",
+      "toolNames": ["delete_location"]
+    },
+    {
+      "name": "WeatherAlerts",
+      "description": "Displays active weather alerts with severity levels",
+      "toolNames": ["get_weather_alerts"]
+    },
+    {
+      "name": "ImageAnalysis",
+      "description": "Shows results of weather image analysis",
+      "toolNames": ["analyze_weather_image"]
+    },
+    {
+      "name": "RefreshIndicator",
+      "description": "Shows data refresh status",
+      "toolNames": ["refresh_weather_data"]
+    },
+    {
+      "name": "SaveConfirmation",
+      "description": "Confirmation for saved favorites",
+      "toolNames": ["save_favorite_location"]
+    },
+    {
+      "name": "PersonalizedForecast",
+      "description": "Weather forecast with personalized recommendations",
+      "toolNames": ["get_personalized_forecast"]
+    }
+  ],
+  "permissions": {
+    "network": false,
+    "storage": false,
+    "clipboard": false,
+    "callTools": true,
+    "displayMode": true,
+    "followUpMessages": true
+  }
+}

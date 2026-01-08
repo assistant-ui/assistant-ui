@@ -1,0 +1,95 @@
+{
+  "name": "@assistant-ui/tool-ui-server",
+  "version": "0.0.1",
+  "description": "SDK for creating UI-enabled MCP servers",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "source": "./src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "tool-ui-server": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup src/index.ts src/cli.ts --format esm --dts --external react --external react-dom --external @assistant-ui/react --external next-themes",
+    "dev": "tsup src/index.ts src/cli.ts --format esm --dts --external react --external react-dom --external @assistant-ui/react --external next-themes --watch",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@radix-ui/react-accordion": "^1.2.7",
+    "@radix-ui/react-collapsible": "^1.1.11",
+    "@radix-ui/react-primitive": "^2.1.4",
+    "@radix-ui/react-slot": "^1.2.3",
+    "@radix-ui/react-tooltip": "^1.2.7",
+    "ansi-to-react": "^6.1.6",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.511.0",
+    "shiki": "^3.5.0",
+    "tailwind-merge": "^3.1.0",
+    "zod": "^3.25.56",
+    "zod-to-json-schema": "^3.25.0"
+  },
+  "peerDependencies": {
+    "@assistant-ui/react": ">=0.11.0",
+    "@modelcontextprotocol/sdk": "^1.23.0",
+    "@types/react": "*",
+    "next-themes": "^0.4.4",
+    "react": "^18 || ^19 || ^19.0.0-rc"
+  },
+  "peerDependenciesMeta": {
+    "@assistant-ui/react": {
+      "optional": true
+    },
+    "@modelcontextprotocol/sdk": {
+      "optional": true
+    },
+    "@types/react": {
+      "optional": true
+    },
+    "next-themes": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@assistant-ui/react": "workspace:*",
+    "@assistant-ui/x-buildutils": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.23.0",
+    "@types/node": "^24.10.1",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "jsdom": "^27.3.0",
+    "next-themes": "^0.4.4",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "tsup": "^8.4.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.2.3"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "homepage": "https://www.assistant-ui.com/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/assistant-ui/assistant-ui/tree/main/packages/tool-ui-server"
+  },
+  "bugs": {
+    "url": "https://github.com/assistant-ui/assistant-ui/issues"
+  }
+}

@@ -52,3 +52,5 @@ __pycache__
 # GitHub Spec Kit - https://github.com/github/spec-kit
 .specify/
 specs/*
+.specstory/
+.cursorindexingignore
