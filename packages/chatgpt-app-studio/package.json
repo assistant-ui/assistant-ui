@@ -1,0 +1,67 @@
+{
+  "name": "chatgpt-app-studio",
+  "version": "0.1.0",
+  "description": "Create ChatGPT App projects with one command",
+  "keywords": [
+    "chatgpt",
+    "openai",
+    "widget",
+    "app",
+    "create",
+    "scaffold",
+    "studio",
+    "mcp"
+  ],
+  "author": "AgentbaseAI Inc.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "chatgpt-app-studio": "./bin/chatgpt-app-studio.js"
+  },
+  "files": [
+    "bin",
+    "dist",
+    "templates",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup src/index.ts src/utils.ts --format esm --dts --clean",
+    "dev": "tsup src/index.ts src/utils.ts --format esm --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:smoke": "vitest run --config vitest.smoke.config.ts",
+    "test:coverage": "vitest run --coverage",
+    "test:scaffold": "bash scripts/test-scaffold.sh",
+    "typecheck": "tsc --noEmit",
+    "prepack": "pnpm run build"
+  },
+  "dependencies": {
+    "@clack/prompts": "^0.11.0",
+    "picocolors": "^1.1.1"
+  },
+  "devDependencies": {
+    "@assistant-ui/x-buildutils": "workspace:*",
+    "@types/node": "^22.10.0",
+    "@vitest/coverage-v8": "^4.0.16",
+    "tsup": "^8.4.0",
+    "typescript": "^5.8.3",
+    "vitest": "^4.0.16"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "homepage": "https://www.assistant-ui.com/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/assistant-ui/assistant-ui.git",
+    "directory": "packages/chatgpt-app-studio"
+  },
+  "bugs": {
+    "url": "https://github.com/assistant-ui/assistant-ui/issues"
+  },
+  "engines": {
+    "node": ">=20.9.0"
+  }
+}
