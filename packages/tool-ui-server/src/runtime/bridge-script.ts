@@ -111,7 +111,7 @@ export function generateBridgeScript(): string {
       return callMethod("callTool", [name, args]);
     },
     setWidgetState: function(state) {
-      callMethod("setWidgetState", [state]);
+      return callMethod("setWidgetState", [state]);
     },
     sendFollowUpMessage: function(args) {
       return callMethod("sendFollowUpMessage", [args]);
@@ -123,13 +123,13 @@ export function generateBridgeScript(): string {
       return callMethod("requestModal", [options]);
     },
     requestClose: function() {
-      callMethod("requestClose", []);
+      return callMethod("requestClose", []);
     },
     openExternal: function(payload) {
-      callMethod("openExternal", [payload]);
+      return callMethod("openExternal", [payload]);
     },
     notifyIntrinsicHeight: function(height) {
-      callMethod("notifyIntrinsicHeight", [height]);
+      return callMethod("notifyIntrinsicHeight", [height]);
     },
     uploadFile: function(file) {
       return new Promise(function(resolve, reject) {

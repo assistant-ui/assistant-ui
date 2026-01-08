@@ -188,7 +188,10 @@ export class TokenValidator {
       base64 += "=";
     }
     // Decode
-    return atob(base64);
+    const binaryString = atob(base64);
+    return new TextDecoder("utf-8").decode(
+      Uint8Array.from(binaryString, (c) => c.charCodeAt(0)),
+    );
   }
 
   /**

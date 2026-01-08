@@ -323,7 +323,7 @@ Add to your Claude Desktop config:
 
 ## Security
 
-- UI components run in sandboxed iframes (`allow-scripts` only)
+- UI components run in sandboxed iframes (`allow-scripts allow-forms`)
 - Communication via postMessage with origin validation
 - PSL-isolated hosting prevents cross-component data access
 - Bundle integrity verified via SHA-256 hash

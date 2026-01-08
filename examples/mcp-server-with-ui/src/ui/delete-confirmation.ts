@@ -1,5 +1,12 @@
 import { z } from "zod";
 
+// HTML escape utility
+const escapeHtml = (text: string): string => {
+  const div = document.createElement("div");
+  div.textContent = text;
+  return div.innerHTML;
+};
+
 const DeleteConfirmationSchema = z.object({
   deleted: z.boolean(),
   locationId: z.string(),
@@ -20,9 +27,9 @@ function renderDeleteConfirmation(
       margin: 0 auto;
     ">
       <div style="font-size: 32px; margin-bottom: 12px;">🗑️</div>
-      <div style="font-weight: 600; margin-bottom: 8px; font-size: 18px;">${props.message}</div>
+      <div style="font-weight: 600; margin-bottom: 8px; font-size: 18px;">${escapeHtml(props.message)}</div>
       <div style="font-size: 12px; opacity: 0.8; font-family: monospace; background: rgba(0,0,0,0.2); padding: 4px 8px; border-radius: 4px; display: inline-block;">
-        ID: ${props.locationId}
+        ID: ${escapeHtml(props.locationId)}
       </div>
       <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.3);">
         <div style="font-size: 14px; opacity: 0.9;">

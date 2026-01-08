@@ -138,6 +138,8 @@ export const RemoteToolUI: React.FC<RemoteToolUIProps> = ({
       resolvedToolInput,
       resolvedToolOutput,
       widgetState,
+      userLocation,
+      toolResponseMetadata,
     ],
   );
 

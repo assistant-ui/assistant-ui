@@ -123,6 +123,9 @@ describe("MessageBridge", () => {
       onResize: vi.fn(),
     };
 
+    // Detach the original bridge to ensure test isolation
+    bridge.detach();
+
     const bridgeWithLegacy = new MessageBridge(handlers, legacyHandlers);
     bridgeWithLegacy.attach(mockIframe);
 

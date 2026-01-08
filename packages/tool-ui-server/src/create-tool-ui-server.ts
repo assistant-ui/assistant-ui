@@ -57,6 +57,11 @@ export function createToolUIServer(options: ToolUIServerOptions) {
     toolNames: string[];
   }> = [];
 
+  // Track registered tools for OAuth scope collection
+  const registeredTools: Array<{
+    securitySchemes?: Array<{ type: string; scopes?: string[] }>;
+  }> = [];
+
   /**
    * Register a tool with UI component.
    */
@@ -70,6 +75,7 @@ export function createToolUIServer(options: ToolUIServerOptions) {
       component,
       execute,
       transformResult,
+      securitySchemes,
     } = config;
 
     // Track component registration
@@ -78,6 +84,11 @@ export function createToolUIServer(options: ToolUIServerOptions) {
       existingComponent.toolNames.push(toolName);
     } else {
       components.push({ name: component, toolNames: [toolName] });
+    }
+
+    // Track tool for OAuth scope collection
+    if (securitySchemes) {
+      registeredTools.push({ securitySchemes });
     }
 
     // Register tool with MCP server
@@ -165,12 +176,20 @@ export function createToolUIServer(options: ToolUIServerOptions) {
     await server.connect(transport);
   }
 
-  // Auto-collect scopes from tools if not specified
+  // Auto-collect scopes from tools if not specified (computed lazily)
   let oauthConfig = oauth;
   if (oauthConfig && !oauthConfig.scopesSupported) {
+    // Use a getter to collect scopes when actually needed
+    let cachedScopes: string[] | null = null;
+
     oauthConfig = {
       ...oauthConfig,
-      scopesSupported: collectScopesFromTools([]), // TODO: Track registered tools
+      get scopesSupported() {
+        if (cachedScopes === null) {
+          cachedScopes = collectScopesFromTools(registeredTools);
+        }
+        return cachedScopes;
+      },
     };
   }
 

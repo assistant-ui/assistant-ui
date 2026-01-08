@@ -1,5 +1,12 @@
 import { z } from "zod";
 
+// HTML escape utility
+const escapeHtml = (text: string): string => {
+  const div = document.createElement("div");
+  div.textContent = text;
+  return div.innerHTML;
+};
+
 const WeatherAlertsSchema = z.object({
   region: z.string(),
   alerts: z.array(
@@ -109,7 +116,7 @@ function renderWeatherAlerts(
         <div>
           <h3 style="margin: 0; font-size: 20px; font-weight: 700;">Weather Alerts</h3>
           <div style="font-size: 14px; opacity: 0.8; margin-top: 2px;">
-            ${props.region} • ${alertSummary}
+            ${escapeHtml(props.region)} • ${escapeHtml(alertSummary)}
           </div>
         </div>
         ${

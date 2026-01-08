@@ -49,6 +49,7 @@ export class MessageBridge {
   private handlers: MessageBridgeHandlers;
   private boundHandleMessage: (event: MessageEvent) => void;
   private legacyHandlers: LegacyHandlers | undefined;
+  private expectedOrigin: string | null = null;
 
   constructor(
     handlers: MessageBridgeHandlers,
@@ -61,12 +62,22 @@ export class MessageBridge {
 
   attach(iframe: HTMLIFrameElement) {
     this.iframe = iframe;
+    // Capture the expected origin from the iframe's src
+    if (iframe.src) {
+      try {
+        this.expectedOrigin = new URL(iframe.src).origin;
+      } catch {
+        // If URL parsing fails, fall back to null (prevents posts)
+        this.expectedOrigin = null;
+      }
+    }
     window.addEventListener("message", this.boundHandleMessage);
   }
 
   detach() {
     window.removeEventListener("message", this.boundHandleMessage);
     this.iframe = null;
+    this.expectedOrigin = null;
   }
 
   sendGlobals(
@@ -79,7 +90,7 @@ export class MessageBridge {
       type: "AUI_SET_GLOBALS",
       globals,
     };
-    this.iframe.contentWindow.postMessage(message, "*");
+    this.iframe.contentWindow.postMessage(message, this.expectedOrigin ?? "*");
 
     if (options?.isInitial) {
       const legacyProps = {
@@ -92,7 +103,7 @@ export class MessageBridge {
           toolName: options?.toolName,
           props: legacyProps,
         },
-        "*",
+        this.expectedOrigin ?? "*",
       );
     }
   }
@@ -211,7 +222,7 @@ export class MessageBridge {
       id,
       result,
     };
-    this.iframe.contentWindow.postMessage(message, "*");
+    this.iframe.contentWindow.postMessage(message, this.expectedOrigin ?? "*");
   }
 
   private sendError(id: string, error: string) {
@@ -222,6 +233,6 @@ export class MessageBridge {
       id,
       error,
     };
-    this.iframe.contentWindow.postMessage(message, "*");
+    this.iframe.contentWindow.postMessage(message, this.expectedOrigin ?? "*");
   }
 }

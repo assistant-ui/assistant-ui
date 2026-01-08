@@ -13,6 +13,7 @@ export async function POST(req: Request) {
     const tool = tools[name];
 
     if (!tool) {
+      await mcpClient.close();
       return Response.json(
         { error: `Tool '${name}' not found` },
         { status: 404 },

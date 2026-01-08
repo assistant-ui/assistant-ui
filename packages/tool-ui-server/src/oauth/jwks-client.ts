@@ -72,7 +72,12 @@ export class JWKSClient {
       const key = this.cache?.keys.get(kid);
 
       return key ?? null;
-    } catch {
+    } catch (error) {
+      // Log error for debugging OAuth issues, but don't expose internal details
+      console.error(
+        "Failed to get public key from JWKS:",
+        error instanceof Error ? error.message : "Unknown error",
+      );
       return null;
     }
   }

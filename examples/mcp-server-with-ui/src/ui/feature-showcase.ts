@@ -20,6 +20,13 @@ const FeatureShowcaseSchema = z.object({
 
 type FeatureShowcaseProps = z.infer<typeof FeatureShowcaseSchema>;
 
+// HTML escape utility
+const escapeHtml = (text: string): string => {
+  const div = document.createElement("div");
+  div.textContent = text;
+  return div.innerHTML;
+};
+
 function renderFeatureShowcase(props: FeatureShowcaseProps): HTMLElement {
   const container = document.createElement("div");
   container.id = "feature-showcase";
@@ -485,10 +492,10 @@ function renderFeatureShowcase(props: FeatureShowcaseProps): HTMLElement {
 
           if (fileResult) {
             fileResult.innerHTML = `
-              <div><strong>📁 File Name:</strong> ${file.name}</div>
-              <div><strong>🆔 File ID:</strong> <code>${uploadResult.fileId}</code></div>
+              <div><strong>📁 File Name:</strong> ${escapeHtml(file.name)}</div>
+              <div><strong>🆔 File ID:</strong> <code>${escapeHtml(uploadResult.fileId)}</code></div>
               <div><strong>📊 File Size:</strong> ${(file.size / 1024).toFixed(1)}KB</div>
-              <div><strong>🔗 Download URL:</strong> <a href="${urlResult.downloadUrl}" target="_blank">Open in new tab</a></div>
+              <div><strong>🔗 Download URL:</strong> <a href="${escapeHtml(urlResult.downloadUrl)}" target="_blank">Open in new tab</a></div>
               <div><strong>✅ Upload Status:</strong> <span style="color: ${successColor};">Success</span></div>
             `;
             fileResult.style.borderColor = successColor;

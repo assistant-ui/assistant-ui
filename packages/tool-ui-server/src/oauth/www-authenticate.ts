@@ -66,10 +66,10 @@ export function buildWWWAuthenticate(options: WWWAuthenticateOptions): string {
 }
 
 /**
- * Escape double quotes in header values
+ * Escape double quotes and backslashes in header values
  */
 function escapeQuotes(value: string): string {
-  return value.replace(/"/g, '\\"');
+  return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 }
 
 /**
