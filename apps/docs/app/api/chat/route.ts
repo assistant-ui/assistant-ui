@@ -13,7 +13,7 @@ export async function POST(req: Request) {
 
   const result = streamText({
     model: openai("gpt-5-nano"),
-    messages: convertToModelMessages(messages),
+    messages: await convertToModelMessages(messages),
     maxOutputTokens: 1200,
     stopWhen: stepCountIs(10),
     tools: {

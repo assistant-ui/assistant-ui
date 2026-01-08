@@ -1,10 +1,10 @@
-import {
-  LanguageModelV1FilePart,
-  LanguageModelV1ImagePart,
-  LanguageModelV1Message,
-  LanguageModelV1TextPart,
-  LanguageModelV1ToolCallPart,
-  LanguageModelV1ToolResultPart,
+import type {
+  JSONValue,
+  LanguageModelV2FilePart,
+  LanguageModelV2Message,
+  LanguageModelV2TextPart,
+  LanguageModelV2ToolCallPart,
+  LanguageModelV2ToolResultPart,
 } from "@ai-sdk/provider";
 import {
   TextMessagePart,
@@ -13,14 +13,14 @@ import {
 } from "@assistant-ui/react";
 
 const assistantMessageSplitter = () => {
-  const stash: LanguageModelV1Message[] = [];
+  const stash: LanguageModelV2Message[] = [];
   let assistantMessage = {
     role: "assistant" as const,
-    content: [] as (LanguageModelV1TextPart | LanguageModelV1ToolCallPart)[],
+    content: [] as (LanguageModelV2TextPart | LanguageModelV2ToolCallPart)[],
   };
   let toolMessage = {
     role: "tool" as const,
-    content: [] as LanguageModelV1ToolResultPart[],
+    content: [] as LanguageModelV2ToolResultPart[],
   };
 
   return {
@@ -32,14 +32,14 @@ const assistantMessageSplitter = () => {
         assistantMessage = {
           role: "assistant" as const,
           content: [] as (
-            | LanguageModelV1TextPart
-            | LanguageModelV1ToolCallPart
+            | LanguageModelV2TextPart
+            | LanguageModelV2ToolCallPart
           )[],
         };
 
         toolMessage = {
           role: "tool" as const,
-          content: [] as LanguageModelV1ToolResultPart[],
+          content: [] as LanguageModelV2ToolResultPart[],
         };
       }
 
@@ -50,19 +50,19 @@ const assistantMessageSplitter = () => {
         type: "tool-call",
         toolCallId: part.toolCallId,
         toolName: part.toolName,
-        args: part.args,
+        input: part.args,
       });
 
       toolMessage.content.push({
         type: "tool-result",
         toolCallId: part.toolCallId,
         toolName: part.toolName,
-        ...("artifact" in part ? { artifact: part.artifact } : {}),
-        result:
+        output:
           part.result === undefined
-            ? "Error: tool is has no configured code to run"
-            : part.result,
-        isError: part.isError ?? part.result === undefined,
+            ? { type: "error-text", value: "Error: tool has no configured code to run" }
+            : part.isError
+              ? { type: "error-json", value: part.result as JSONValue }
+              : { type: "json", value: part.result as JSONValue },
       });
     },
     getMessages: () => {
@@ -81,7 +81,7 @@ const assistantMessageSplitter = () => {
 export function toLanguageModelMessages(
   message: readonly ThreadMessage[],
   options: { unstable_includeId?: boolean | undefined } = {},
-): LanguageModelV1Message[] {
+): LanguageModelV2Message[] {
   const includeId = options.unstable_includeId ?? false;
   return message.flatMap((message) => {
     const role = message.role;
@@ -104,16 +104,11 @@ export function toLanguageModelMessages(
           ...message.content,
           ...attachments.map((a) => a.content).flat(),
         ];
-        const msg: LanguageModelV1Message = {
+        const msg: LanguageModelV2Message = {
           ...(includeId ? { unstable_id: (message as ThreadMessage).id } : {}),
           role: "user",
           content: content.map(
-            (
-              part,
-            ):
-              | LanguageModelV1TextPart
-              | LanguageModelV1ImagePart
-              | LanguageModelV1FilePart => {
+            (part): LanguageModelV2TextPart | LanguageModelV2FilePart => {
               const type = part.type;
               switch (type) {
                 case "text": {
@@ -121,9 +116,11 @@ export function toLanguageModelMessages(
                 }
 
                 case "image": {
+                  // In AI SDK v6, images are handled as file parts
                   return {
-                    type: "image",
-                    image: new URL(part.image),
+                    type: "file",
+                    data: new URL(part.image),
+                    mediaType: "image/png",
                   };
                 }
 
@@ -131,14 +128,14 @@ export function toLanguageModelMessages(
                   return {
                     type: "file",
                     data: new URL(part.data),
-                    mimeType: part.mimeType,
+                    mediaType: part.mimeType,
                   };
                 }
 
                 default: {
                   const unhandledType: "audio" = type;
                   throw new Error(
-                    `Unspported message part type: ${unhandledType}`,
+                    `Unsupported message part type: ${unhandledType}`,
                   );
                 }
               }

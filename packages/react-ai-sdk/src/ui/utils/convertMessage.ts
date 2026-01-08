@@ -1,4 +1,4 @@
-import { isToolUIPart, type UIMessage } from "ai";
+import { isToolUIPart, getToolName, type UIMessage } from "ai";
 import {
   unstable_createMessageConverter,
   type ReasoningMessagePart,
@@ -9,6 +9,7 @@ import {
   type useExternalMessageConverter,
   type ThreadMessageLike,
 } from "@assistant-ui/react";
+import type { ReadonlyJSONObject } from "assistant-stream/utils";
 
 type MessageMetadata = ThreadMessageLike["metadata"];
 
@@ -45,26 +46,28 @@ const convertParts = (
         } satisfies ReasoningMessagePart;
       }
 
-      // Handle tool-* parts (AI SDK v5 tool calls)
+      // Handle tool parts (both static tool-* and dynamic-tool)
+      // In AI SDK v6, isToolUIPart returns true for both static and dynamic tools
       if (isToolUIPart(part)) {
-        const toolName = type.replace("tool-", "");
+        // Use getToolName which works for both static and dynamic tools
+        const toolName = getToolName(part);
         const toolCallId = part.toolCallId;
 
         // Extract args and result based on state
-        let args: any = {};
-        let result: any;
+        let args: ReadonlyJSONObject = {};
+        let result: unknown = undefined;
         let isError = false;
 
         if (
           part.state === "input-streaming" ||
           part.state === "input-available"
         ) {
-          args = part.input || {};
+          args = (part.input as ReadonlyJSONObject) || {};
         } else if (part.state === "output-available") {
-          args = part.input || {};
+          args = (part.input as ReadonlyJSONObject) || {};
           result = part.output;
         } else if (part.state === "output-error") {
-          args = part.input || {};
+          args = (part.input as ReadonlyJSONObject) || {};
           isError = true;
           result = { error: part.errorText };
         }
@@ -82,49 +85,6 @@ const convertParts = (
           toolName,
           toolCallId,
           argsText,
-          args,
-          result,
-          isError,
-          ...(toolStatus?.type === "interrupt" && {
-            interrupt: toolStatus.payload,
-            status: {
-              type: "requires-action" as const,
-              reason: "interrupt",
-            },
-          }),
-        } satisfies ToolCallMessagePart;
-      }
-
-      // Handle dynamic-tool parts
-      if (type === "dynamic-tool") {
-        const toolName = part.toolName;
-        const toolCallId = part.toolCallId;
-
-        // Extract args and result based on state
-        let args: any = {};
-        let result: any;
-        let isError = false;
-
-        if (
-          part.state === "input-streaming" ||
-          part.state === "input-available"
-        ) {
-          args = part.input || {};
-        } else if (part.state === "output-available") {
-          args = part.input || {};
-          result = part.output;
-        } else if (part.state === "output-error") {
-          args = part.input || {};
-          isError = true;
-          result = { error: part.errorText };
-        }
-
-        const toolStatus = metadata.toolStatuses?.[toolCallId];
-        return {
-          type: "tool-call",
-          toolName,
-          toolCallId,
-          argsText: JSON.stringify(args),
           args,
           result,
           isError,
