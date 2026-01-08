@@ -17,6 +17,10 @@ describe("MessageBridge", () => {
       requestClose: vi.fn(),
       openExternal: vi.fn(),
       notifyIntrinsicHeight: vi.fn(),
+      uploadFile: vi.fn().mockResolvedValue({ fileId: "test-file-id" }),
+      getFileDownloadUrl: vi
+        .fn()
+        .mockResolvedValue({ downloadUrl: "test-download-url" }),
     };
 
     mockContentWindow = {
@@ -49,6 +53,8 @@ describe("MessageBridge", () => {
         capabilities: { hover: true, touch: false },
       },
       safeArea: { insets: { top: 0, bottom: 0, left: 0, right: 0 } },
+      userLocation: null,
+      toolResponseMetadata: null,
     };
 
     bridge.sendGlobals(globals);

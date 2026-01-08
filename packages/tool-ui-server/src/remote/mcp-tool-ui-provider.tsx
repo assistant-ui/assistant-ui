@@ -4,9 +4,19 @@ import * as React from "react";
 import { makeAssistantToolUI, useAssistantApi } from "@assistant-ui/react";
 import { RemoteToolUI } from "./remote-tool-ui";
 import { UIManifestSchema, type MCPUICapability } from "../schemas/manifest";
-import type { DisplayMode, Theme, WidgetState } from "../types/protocol";
+import type {
+  DisplayMode,
+  Theme,
+  WidgetState,
+  CallToolResponse,
+  ModalOptions,
+} from "../types/protocol";
 
 const ToolUIThemeContext = React.createContext<Theme>("light");
+const CallToolContext = React.createContext<
+  | ((name: string, args: Record<string, unknown>) => Promise<CallToolResponse>)
+  | null
+>(null);
 
 export interface MCPToolUIProviderProps {
   /** MCP servers with UI capability */
@@ -22,6 +32,15 @@ export interface MCPToolUIProviderProps {
   loadingFallback?: React.ReactNode | undefined;
   /** Fallback component for errors */
   errorFallback?: React.ReactNode | undefined;
+  /** Handler for calling tools from within widgets */
+  onCallTool?: (
+    name: string,
+    args: Record<string, unknown>,
+  ) => Promise<CallToolResponse>;
+  /** Handler for modal requests from widgets */
+  onRequestModal?: (options: ModalOptions) => Promise<void>;
+  /** Handler for close requests from widgets */
+  onRequestClose?: () => void;
   children: React.ReactNode;
 }
 
@@ -51,12 +70,24 @@ export const MCPToolUIProvider: React.FC<MCPToolUIProviderProps> = ({
   theme = "light",
   loadingFallback,
   errorFallback,
+  onCallTool,
+  onRequestModal,
+  onRequestClose,
   children,
 }) => {
   const [toolUIs, setToolUIs] = React.useState<ToolUIComponent[]>([]);
 
   const fallbackRefs = React.useRef({ loadingFallback, errorFallback });
   fallbackRefs.current = { loadingFallback, errorFallback };
+
+  const callToolRef = React.useRef(onCallTool);
+  callToolRef.current = onCallTool;
+
+  const requestModalRef = React.useRef(onRequestModal);
+  requestModalRef.current = onRequestModal;
+
+  const requestCloseRef = React.useRef(onRequestClose);
+  requestCloseRef.current = onRequestClose;
 
   const serversKey = React.useMemo(
     () =>
@@ -120,8 +151,22 @@ export const MCPToolUIProvider: React.FC<MCPToolUIProviderProps> = ({
                   }) {
                     const api = useAssistantApi();
                     const currentTheme = React.useContext(ToolUIThemeContext);
+                    const callToolHandler = React.useContext(CallToolContext);
                     const [widgetState, setWidgetState] =
                       React.useState<WidgetState>(null);
+
+                    const handleCallTool = React.useCallback(
+                      async (
+                        name: string,
+                        toolArgs: Record<string, unknown>,
+                      ) => {
+                        if (!callToolHandler) {
+                          throw new Error("callTool not configured");
+                        }
+                        return callToolHandler(name, toolArgs);
+                      },
+                      [callToolHandler],
+                    );
 
                     const handleSendFollowUpMessage = React.useCallback(
                       async (payload: { prompt: string }) => {
@@ -139,6 +184,22 @@ export const MCPToolUIProvider: React.FC<MCPToolUIProviderProps> = ({
                       },
                       [],
                     );
+
+                    const handleRequestModal = React.useCallback(
+                      async (options: ModalOptions) => {
+                        if (requestModalRef.current) {
+                          return requestModalRef.current(options);
+                        }
+                        console.log("[Tool UI] Modal requested:", options);
+                      },
+                      [],
+                    );
+
+                    const handleRequestClose = React.useCallback(() => {
+                      if (requestCloseRef.current) {
+                        requestCloseRef.current();
+                      }
+                    }, []);
 
                     const { loadingFallback: loading, errorFallback: error } =
                       fallbackRefs.current;
@@ -163,8 +224,13 @@ export const MCPToolUIProvider: React.FC<MCPToolUIProviderProps> = ({
                           theme={currentTheme}
                           widgetState={widgetState}
                           onWidgetStateChange={setWidgetState}
+                          onCallTool={
+                            callToolHandler ? handleCallTool : undefined
+                          }
                           onSendFollowUpMessage={handleSendFollowUpMessage}
                           onRequestDisplayMode={handleRequestDisplayMode}
+                          onRequestModal={handleRequestModal}
+                          onRequestClose={handleRequestClose}
                           onAddResult={addResult}
                           fallback={loading}
                           errorFallback={error}
@@ -196,11 +262,12 @@ export const MCPToolUIProvider: React.FC<MCPToolUIProviderProps> = ({
 
   return (
     <ToolUIThemeContext.Provider value={theme}>
-      {/* Render all the tool UI components to register them */}
-      {toolUIs.map(({ toolName, serverId, Component }) => (
-        <Component key={`${serverId}-${toolName}`} />
-      ))}
-      {children}
+      <CallToolContext.Provider value={onCallTool ?? null}>
+        {toolUIs.map(({ toolName, serverId, Component }) => (
+          <Component key={`${serverId}-${toolName}`} />
+        ))}
+        {children}
+      </CallToolContext.Provider>
     </ToolUIThemeContext.Provider>
   );
 };

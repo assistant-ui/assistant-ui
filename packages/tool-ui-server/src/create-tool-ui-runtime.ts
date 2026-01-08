@@ -33,6 +33,8 @@ export function getGlobals(): AUIGlobals | null {
     widgetState: window.aui.widgetState,
     userAgent: window.aui.userAgent,
     safeArea: window.aui.safeArea,
+    userLocation: window.aui.userLocation,
+    toolResponseMetadata: window.aui.toolResponseMetadata,
   };
 }
 
@@ -116,6 +118,22 @@ export function notifyIntrinsicHeight(height: number): void {
     return;
   }
   window.aui.notifyIntrinsicHeight(height);
+}
+
+export async function uploadFile(file: File): Promise<{ fileId: string }> {
+  if (typeof window === "undefined" || !window.aui) {
+    throw new Error("AUI bridge not available");
+  }
+  return window.aui.uploadFile(file);
+}
+
+export async function getFileDownloadUrl(
+  fileId: string,
+): Promise<{ downloadUrl: string }> {
+  if (typeof window === "undefined" || !window.aui) {
+    throw new Error("AUI bridge not available");
+  }
+  return window.aui.getFileDownloadUrl({ fileId });
 }
 
 export function createToolUIRuntime(): ToolUIRuntime {

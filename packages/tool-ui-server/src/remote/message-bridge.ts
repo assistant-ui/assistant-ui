@@ -7,6 +7,8 @@ import type {
   WidgetState,
   DisplayMode,
   ModalOptions,
+  UploadFileResponse,
+  GetFileDownloadUrlResponse,
 } from "../types/protocol";
 
 export interface MessageBridgeHandlers {
@@ -23,23 +25,34 @@ export interface MessageBridgeHandlers {
   requestClose: () => void;
   openExternal: (payload: { href: string }) => void;
   notifyIntrinsicHeight: (height: number) => void;
+  uploadFile: (file: {
+    name: string;
+    type: string;
+    size: number;
+    data: string;
+  }) => Promise<UploadFileResponse>;
+  getFileDownloadUrl: (args: {
+    fileId: string;
+  }) => Promise<GetFileDownloadUrlResponse>;
 }
+
+type LegacyHandlers = {
+  onReady?: (() => void) | undefined;
+  onAction?: ((actionId: string, payload?: unknown) => void) | undefined;
+  onAddResult?: ((result: unknown) => void) | undefined;
+  onResize?: ((height: number) => void) | undefined;
+  onError?: ((error: string) => void) | undefined;
+};
 
 export class MessageBridge {
   private iframe: HTMLIFrameElement | null = null;
   private handlers: MessageBridgeHandlers;
   private boundHandleMessage: (event: MessageEvent) => void;
-  private legacyHandlers?: {
-    onReady?: () => void;
-    onAction?: (actionId: string, payload?: unknown) => void;
-    onAddResult?: (result: unknown) => void;
-    onResize?: (height: number) => void;
-    onError?: (error: string) => void;
-  };
+  private legacyHandlers: LegacyHandlers | undefined;
 
   constructor(
     handlers: MessageBridgeHandlers,
-    legacyHandlers?: MessageBridge["legacyHandlers"],
+    legacyHandlers?: LegacyHandlers,
   ) {
     this.handlers = handlers;
     this.legacyHandlers = legacyHandlers;
@@ -174,6 +187,16 @@ export class MessageBridge {
         const [height] = args as [number];
         this.handlers.notifyIntrinsicHeight(height);
         return undefined;
+      }
+      case "uploadFile": {
+        const [fileData] = args as [
+          { name: string; type: string; size: number; data: string },
+        ];
+        return this.handlers.uploadFile(fileData);
+      }
+      case "getFileDownloadUrl": {
+        const [urlArgs] = args as [{ fileId: string }];
+        return this.handlers.getFileDownloadUrl(urlArgs);
       }
       default:
         throw new Error(`Unknown method: ${method}`);

@@ -11,6 +11,12 @@ export {
   SerializableActionsConfigSchema,
   type SerializableActionsConfig,
   type SerializableAction,
+  ToolInvocationMessagesSchema,
+  ToolMetadataSchema,
+  ToolAnnotationsSchema,
+  type ToolInvocationMessages,
+  type ToolMetadata,
+  type ToolAnnotations,
 } from "./shared";
 
 // Manifest schemas

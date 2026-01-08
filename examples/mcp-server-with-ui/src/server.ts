@@ -14,7 +14,7 @@
 import { createToolUIServer } from "@assistant-ui/tool-ui-server";
 import { z } from "zod";
 
-// Create the UI-enabled MCP server
+// Create the UI-enabled MCP server with OAuth support
 const { toolWithUI, getUICapability, generateManifest, start } =
   createToolUIServer({
     serverId: "weather-mcp",
@@ -22,6 +22,14 @@ const { toolWithUI, getUICapability, generateManifest, start } =
     version: "1.0.0",
     bundleHash:
       "sha256:0000000000000000000000000000000000000000000000000000000000000000", // Replace with actual hash after build
+    // NEW: OAuth configuration (optional - for demonstration)
+    // In production, uncomment and configure with real auth server
+    // oauth: {
+    //   resource: "https://weather-mcp.example.com",
+    //   authorizationServers: ["https://auth.example.com"],
+    //   scopesSupported: ["favorites:read", "favorites:write", "profile:read"],
+    //   resourceDocumentation: "https://docs.example.com/weather-mcp",
+    // },
   });
 
 // =============================================================================
@@ -269,6 +277,310 @@ toolWithUI({
     return {
       content: [{ type: "text", text: String(result) }],
     };
+  },
+});
+
+// =============================================================================
+// Tool: delete_location (Demonstrates Tool Annotations)
+// =============================================================================
+
+toolWithUI({
+  name: "delete_location",
+  description:
+    "Delete a saved location from favorites. Demonstrates destructive tool annotation.",
+  parameters: z.object({
+    locationId: z.string().describe("ID of the location to delete"),
+  }),
+  component: "DeleteConfirmation",
+  annotations: {
+    destructiveHint: true,
+    completionMessage: "Location deleted successfully",
+  },
+  execute: async ({ locationId }) => {
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    const result = {
+      deleted: true,
+      locationId,
+      message: `Location ${locationId} has been removed from your favorites.`,
+    };
+    return {
+      component: "DeleteConfirmation",
+      props: result,
+      text: result.message,
+    };
+  },
+  transformResult: (result) => {
+    if (typeof result === "object" && "component" in result) {
+      return result as Record<string, unknown>;
+    }
+    return { content: [{ type: "text", text: JSON.stringify(result) }] };
+  },
+});
+
+// =============================================================================
+// Tool: get_weather_alerts (Demonstrates Invocation Messages + Read-Only)
+// =============================================================================
+
+toolWithUI({
+  name: "get_weather_alerts",
+  description:
+    "Get active weather alerts for a region. Demonstrates invocation messages and read-only annotation.",
+  parameters: z.object({
+    region: z.string().describe("Region code (e.g., 'US-CA')"),
+  }),
+  component: "WeatherAlerts",
+  annotations: {
+    readOnlyHint: true,
+  },
+  invocationMessages: {
+    invoking: "Checking weather alerts...",
+    invoked: "Weather alerts retrieved",
+  },
+  execute: async ({ region }) => {
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    const result = {
+      region,
+      alerts: [
+        {
+          type: "Heat Advisory",
+          severity: "moderate",
+          expires: "2024-01-15T18:00:00Z",
+        },
+        {
+          type: "Air Quality Alert",
+          severity: "low",
+          expires: "2024-01-14T12:00:00Z",
+        },
+      ],
+    };
+    return {
+      component: "WeatherAlerts",
+      props: result,
+      text: `${result.alerts.length} weather alerts for ${region}`,
+    };
+  },
+  transformResult: (result) => {
+    if (typeof result === "object" && "component" in result) {
+      return result as Record<string, unknown>;
+    }
+    return { content: [{ type: "text", text: JSON.stringify(result) }] };
+  },
+});
+
+// =============================================================================
+// Tool: analyze_weather_image (Demonstrates File Handling)
+// =============================================================================
+
+toolWithUI({
+  name: "analyze_weather_image",
+  description:
+    "Analyze a weather-related image (satellite, radar, etc.). Demonstrates file parameter handling.",
+  parameters: z.object({
+    imageFile: z.string().describe("File ID of the uploaded image"),
+    analysisType: z
+      .enum(["satellite", "radar", "forecast"])
+      .default("satellite"),
+  }),
+  component: "ImageAnalysis",
+  fileParams: ["imageFile"],
+  visibility: "public",
+  widgetAccessible: true,
+  execute: async ({ imageFile, analysisType }) => {
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    const result = {
+      fileId: imageFile,
+      analysisType,
+      result: {
+        clouds: "scattered cumulus",
+        precipitation: "none detected",
+        confidence: 0.87,
+      },
+    };
+    return {
+      component: "ImageAnalysis",
+      props: result,
+      text: `Image analysis (${analysisType}): ${result.result.clouds}, ${result.result.precipitation}`,
+    };
+  },
+  transformResult: (result) => {
+    if (typeof result === "object" && "component" in result) {
+      return result as Record<string, unknown>;
+    }
+    return { content: [{ type: "text", text: JSON.stringify(result) }] };
+  },
+});
+
+// =============================================================================
+// Tool: refresh_weather_data (Private Tool - Widget Accessible Only)
+// =============================================================================
+
+toolWithUI({
+  name: "refresh_weather_data",
+  description:
+    "Refresh weather data for a location. Hidden from model, callable from widget only.",
+  parameters: z.object({
+    location: z.string(),
+    force: z.boolean().default(false),
+  }),
+  component: "RefreshIndicator",
+  visibility: "private",
+  widgetAccessible: true,
+  execute: async ({ location, force }) => {
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    const result = {
+      location,
+      refreshed: true,
+      timestamp: new Date().toISOString(),
+      forced: force,
+    };
+    return {
+      component: "RefreshIndicator",
+      props: result,
+      text: `Weather data refreshed for ${location}`,
+    };
+  },
+  transformResult: (result) => {
+    if (typeof result === "object" && "component" in result) {
+      return result as Record<string, unknown>;
+    }
+    return { content: [{ type: "text", text: JSON.stringify(result) }] };
+  },
+});
+
+// =============================================================================
+// Tool: save_favorite_location (OAuth Protected)
+// =============================================================================
+
+toolWithUI({
+  name: "save_favorite_location",
+  description: "Save a location to your favorites. Requires authentication.",
+  parameters: z.object({
+    location: z.string().describe("Location to save"),
+    nickname: z.string().optional().describe("Custom name for this location"),
+    simulateAuth: z
+      .boolean()
+      .optional()
+      .default(true)
+      .describe(
+        "Simulate authenticated request (for demo). Defaults to true for easy testing.",
+      ),
+  }),
+  component: "SaveConfirmation",
+  securitySchemes: [{ type: "oauth2", scopes: ["favorites:write"] }],
+  execute: async ({ location, nickname, simulateAuth }, context) => {
+    const isAuthenticated = simulateAuth || context?.auth?.isAuthenticated;
+
+    if (!isAuthenticated) {
+      const result = {
+        error: "Authentication required",
+        requiresAuth: true,
+      };
+      return {
+        component: "SaveConfirmation",
+        props: result,
+        text: "Authentication required to save favorites",
+      };
+    }
+
+    const locationId = `fav_${location.toLowerCase().replace(/\s+/g, "_")}_${Date.now().toString(36)}`;
+    const result = {
+      saved: true,
+      locationId,
+      location,
+      nickname: nickname ?? location,
+      userId: context?.auth?.claims?.sub ?? "demo_user_123",
+    };
+    return {
+      component: "SaveConfirmation",
+      props: result,
+      text: `Saved "${result.nickname}" to favorites with ID: ${locationId}`,
+    };
+  },
+  transformResult: (result) => {
+    if (typeof result === "object" && "component" in result) {
+      return result as Record<string, unknown>;
+    }
+    return { content: [{ type: "text", text: JSON.stringify(result) }] };
+  },
+});
+
+// =============================================================================
+// Tool: get_personalized_forecast (Mixed Security)
+// =============================================================================
+
+toolWithUI({
+  name: "get_personalized_forecast",
+  description:
+    "Get weather forecast. Anonymous users get basic forecast, authenticated users get personalized recommendations.",
+  parameters: z.object({
+    location: z.string(),
+  }),
+  component: "PersonalizedForecast",
+  securitySchemes: [
+    { type: "noauth" },
+    { type: "oauth2", scopes: ["profile:read"] },
+  ],
+  execute: async ({ location }, context) => {
+    const isAuthenticated = context?.auth?.isAuthenticated ?? false;
+    const baseForecast = await fetchWeather(location);
+
+    const result = isAuthenticated
+      ? {
+          ...baseForecast,
+          personalized: true,
+          recommendations: [
+            "Based on your preferences, bring a light jacket",
+            "Good day for outdoor activities you enjoy",
+          ],
+          userId: context?.auth?.claims?.sub,
+        }
+      : {
+          ...baseForecast,
+          personalized: false,
+          recommendations: null,
+        };
+
+    return {
+      component: "PersonalizedForecast",
+      props: result,
+      text: `${result.location}: ${result.temperature}°${result.unit === "celsius" ? "C" : "F"} - ${result.condition}${result.personalized ? " (personalized)" : ""}`,
+    };
+  },
+  transformResult: (result) => {
+    if (typeof result === "object" && "component" in result) {
+      return result as Record<string, unknown>;
+    }
+    return { content: [{ type: "text", text: JSON.stringify(result) }] };
+  },
+});
+
+toolWithUI({
+  name: "feature_showcase",
+  description:
+    "Launch the comprehensive AUI feature showcase. Demonstrates ALL client-side APIs including file handling, tool calling, modals, and more.",
+  parameters: z.object({
+    title: z.string().optional().default("AUI Feature Showcase"),
+  }),
+  component: "FeatureShowcase",
+  annotations: {
+    readOnlyHint: true,
+  },
+  invocationMessages: {
+    invoking: "Loading feature showcase...",
+    invoked: "Feature showcase ready!",
+  },
+  execute: async ({ title }) => {
+    return {
+      component: "FeatureShowcase",
+      props: { title },
+      text: `AUI Feature Showcase: ${title}`,
+    };
+  },
+  transformResult: (result, _args) => {
+    if (typeof result === "object" && "component" in result) {
+      return result as Record<string, unknown>;
+    }
+    return { content: [{ type: "text", text: String(result) }] };
   },
 });
 

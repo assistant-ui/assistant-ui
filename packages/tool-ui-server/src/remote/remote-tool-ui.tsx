@@ -6,6 +6,10 @@ import { cn } from "../utils/cn";
 import { MessageBridge, MessageBridgeHandlers } from "./message-bridge";
 import type {
   AUIGlobals,
+  UserLocation,
+  ToolResponseMetadata,
+  UploadFileResponse,
+  GetFileDownloadUrlResponse,
   Theme,
   DisplayMode,
   WidgetState,
@@ -36,11 +40,22 @@ export interface RemoteToolUIProps {
   onRequestModal?: (options: ModalOptions) => Promise<void>;
   onRequestClose?: () => void;
   onOpenExternal?: (payload: { href: string }) => void;
+  onUploadFile?: (file: {
+    name: string;
+    type: string;
+    size: number;
+    data: string;
+  }) => Promise<UploadFileResponse>;
+  onGetFileDownloadUrl?: (args: {
+    fileId: string;
+  }) => Promise<GetFileDownloadUrlResponse>;
   onAction?: ((actionId: string, payload?: unknown) => void) | undefined;
   onAddResult?: ((result: unknown) => void) | undefined;
   fallback?: React.ReactNode | undefined;
   errorFallback?: React.ReactNode | undefined;
   className?: string | undefined;
+  userLocation?: UserLocation | null;
+  toolResponseMetadata?: ToolResponseMetadata | null;
   /** @deprecated Use toolInput and toolOutput instead */
   props?: Record<string, unknown>;
 }
@@ -62,11 +77,15 @@ export const RemoteToolUI: React.FC<RemoteToolUIProps> = ({
   onRequestModal,
   onRequestClose,
   onOpenExternal,
+  onUploadFile,
+  onGetFileDownloadUrl,
   onAction,
   onAddResult,
   fallback,
   errorFallback,
   className,
+  userLocation,
+  toolResponseMetadata,
   props: legacyProps,
 }) => {
   const iframeRef = React.useRef<HTMLIFrameElement>(null);
@@ -78,6 +97,7 @@ export const RemoteToolUI: React.FC<RemoteToolUIProps> = ({
   const [error, setError] = React.useState<string | null>(null);
   const [displayMode, setDisplayMode] =
     React.useState<DisplayMode>(initialDisplayMode);
+  const [isClosed, setIsClosed] = React.useState(false);
 
   const iframeName = React.useMemo(() => `tool-ui-${crypto.randomUUID()}`, []);
 
@@ -89,11 +109,11 @@ export const RemoteToolUI: React.FC<RemoteToolUIProps> = ({
     }
   }, [src]);
 
-  const resolvedToolInput = legacyProps?.args
-    ? (legacyProps.args as Record<string, unknown>)
+  const resolvedToolInput = legacyProps?.["args"]
+    ? (legacyProps["args"] as Record<string, unknown>)
     : toolInput;
-  const resolvedToolOutput = legacyProps?.result
-    ? (legacyProps.result as Record<string, unknown>)
+  const resolvedToolOutput = legacyProps?.["result"]
+    ? (legacyProps["result"] as Record<string, unknown>)
     : toolOutput;
 
   const globals = React.useMemo<AUIGlobals>(
@@ -107,6 +127,8 @@ export const RemoteToolUI: React.FC<RemoteToolUIProps> = ({
       widgetState,
       userAgent: DEFAULT_GLOBALS.userAgent,
       safeArea: DEFAULT_GLOBALS.safeArea,
+      userLocation: userLocation ?? null,
+      toolResponseMetadata: toolResponseMetadata ?? null,
     }),
     [
       theme,
@@ -127,6 +149,8 @@ export const RemoteToolUI: React.FC<RemoteToolUIProps> = ({
     onRequestModal,
     onRequestClose,
     onOpenExternal,
+    onUploadFile,
+    onGetFileDownloadUrl,
   });
   callbackRefs.current = {
     onCallTool,
@@ -136,6 +160,8 @@ export const RemoteToolUI: React.FC<RemoteToolUIProps> = ({
     onRequestModal,
     onRequestClose,
     onOpenExternal,
+    onUploadFile,
+    onGetFileDownloadUrl,
   };
 
   const handlers = React.useMemo<MessageBridgeHandlers>(
@@ -169,6 +195,8 @@ export const RemoteToolUI: React.FC<RemoteToolUIProps> = ({
         return callbackRefs.current.onRequestModal(options);
       },
       requestClose: () => {
+        setIsClosed(true);
+        setDisplayMode("inline");
         callbackRefs.current.onRequestClose?.();
       },
       openExternal: (payload) => {
@@ -180,6 +208,18 @@ export const RemoteToolUI: React.FC<RemoteToolUIProps> = ({
       },
       notifyIntrinsicHeight: (h) => {
         setHeight(Math.min(h, maxHeight));
+      },
+      uploadFile: async (fileData) => {
+        if (!callbackRefs.current.onUploadFile) {
+          throw new Error("uploadFile not supported");
+        }
+        return callbackRefs.current.onUploadFile(fileData);
+      },
+      getFileDownloadUrl: async (args) => {
+        if (!callbackRefs.current.onGetFileDownloadUrl) {
+          throw new Error("getFileDownloadUrl not supported");
+        }
+        return callbackRefs.current.onGetFileDownloadUrl(args);
       },
     }),
     [maxHeight],
@@ -223,6 +263,12 @@ export const RemoteToolUI: React.FC<RemoteToolUIProps> = ({
     }
   }, [status, globals, toolName]);
 
+  React.useEffect(() => {
+    if (toolResponseMetadata?.closeWidget && onRequestClose) {
+      onRequestClose();
+    }
+  }, [toolResponseMetadata?.closeWidget, onRequestClose]);
+
   if (!expectedOrigin) {
     return (
       errorFallback ?? <div className="tool-ui-error">Invalid source URL</div>
@@ -240,12 +286,55 @@ export const RemoteToolUI: React.FC<RemoteToolUIProps> = ({
     );
   }
 
-  const isFullscreen = displayMode === "fullscreen";
+  if (isClosed) {
+    return null;
+  }
 
-  const fullscreenHeader = isFullscreen
-    ? createPortal(
+  const isFullscreen = displayMode === "fullscreen";
+  const isPip = displayMode === "pip";
+
+  const loadingContent =
+    status === "loading" &&
+    (fallback ?? (
+      <div className={isPip ? "p-4" : "tool-ui-remote-loading"}>
+        <div className="h-24 animate-pulse rounded-lg bg-muted" />
+      </div>
+    ));
+
+  const iframeContent = (
+    <>
+      {loadingContent}
+      <iframe
+        ref={iframeRef}
+        src={src}
+        name={iframeName}
+        title={`Tool UI: ${toolName}`}
+        sandbox="allow-scripts allow-forms"
+        scrolling="auto"
+        style={
+          isPip
+            ? { height: `${Math.min(height, 320)}px` }
+            : isFullscreen
+              ? { height: "100%", width: "100%" }
+              : { height: `${height}px` }
+        }
+        className={cn(
+          "w-full",
+          toolResponseMetadata?.prefersBorder
+            ? "border border-border"
+            : "border-0",
+          isFullscreen ? "h-full" : "",
+        )}
+        onLoad={() => setStatus("loading")}
+      />
+    </>
+  );
+
+  if (isFullscreen) {
+    return createPortal(
+      <div className="fixed inset-0 z-[9999] flex flex-col bg-background">
         <div
-          className="fixed inset-x-0 top-0 z-50 flex items-center justify-between border-b bg-background px-4 py-2"
+          className="flex shrink-0 items-center justify-between border-b bg-background px-4 py-2"
           role="banner"
         >
           <span className="font-medium">{toolName}</span>
@@ -256,44 +345,49 @@ export const RemoteToolUI: React.FC<RemoteToolUIProps> = ({
           >
             Exit Fullscreen
           </button>
-        </div>,
-        document.body,
-      )
-    : null;
+        </div>
+        <div className="flex-1 overflow-hidden">{iframeContent}</div>
+      </div>,
+      document.body,
+    );
+  }
+
+  if (isPip) {
+    return createPortal(
+      <div className="fixed right-4 bottom-4 z-50 flex max-h-96 w-80 flex-col overflow-hidden rounded-lg border border-border bg-background shadow-2xl">
+        <div
+          className="flex items-center justify-between border-b bg-muted/50 px-3 py-2"
+          role="banner"
+        >
+          <span className="truncate font-medium text-sm">{toolName}</span>
+          <div className="flex gap-1">
+            <button
+              onClick={() => setDisplayMode("fullscreen")}
+              className="rounded p-1 text-xs hover:bg-muted"
+              aria-label="Expand to fullscreen"
+              title="Fullscreen"
+            >
+              ⛶
+            </button>
+            <button
+              onClick={() => setDisplayMode("inline")}
+              className="rounded p-1 text-xs hover:bg-muted"
+              aria-label="Exit PiP"
+              title="Close"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+        <div className="flex-1 overflow-auto">{iframeContent}</div>
+      </div>,
+      document.body,
+    );
+  }
 
   return (
-    <>
-      {fullscreenHeader}
-      <div
-        className={cn(
-          "tool-ui-remote-container",
-          isFullscreen
-            ? "fixed inset-0 z-40 flex flex-col bg-background pt-12"
-            : "",
-          className,
-        )}
-      >
-        {status === "loading" &&
-          (fallback ?? (
-            <div className="tool-ui-remote-loading">
-              <div className="h-24 animate-pulse rounded-lg bg-muted" />
-            </div>
-          ))}
-        <iframe
-          ref={iframeRef}
-          src={src}
-          name={iframeName}
-          title={`Tool UI: ${toolName}`}
-          sandbox="allow-scripts allow-forms"
-          scrolling="no"
-          style={isFullscreen ? undefined : { height: `${height}px` }}
-          className={cn(
-            "border-0",
-            isFullscreen ? "h-full w-full flex-1" : "w-full",
-          )}
-          onLoad={() => setStatus("loading")}
-        />
-      </div>
-    </>
+    <div className={cn("tool-ui-remote-container", className)}>
+      {iframeContent}
+    </div>
   );
 };

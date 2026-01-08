@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { ReactNode } from "react";
+import { SecuritySchemeSchema } from "./oauth";
 
 /**
  * Schema for tool UI identity.
@@ -60,3 +61,30 @@ export type SerializableActionsConfig = z.infer<
 >;
 
 export type SerializableAction = z.infer<typeof SerializableActionSchema>;
+
+// Tool invocation messages schemas for ChatGPT Apps SDK compatibility
+export const ToolInvocationMessagesSchema = z.object({
+  invoking: z.string().max(64).optional(),
+  invoked: z.string().max(64).optional(),
+});
+
+// Tool metadata schemas for ChatGPT Apps SDK compatibility
+export const ToolMetadataSchema = z.object({
+  visibility: z.enum(["private", "public"]).optional(),
+  widgetAccessible: z.boolean().optional(),
+  fileParams: z.array(z.string()).optional(),
+  securitySchemes: z.array(SecuritySchemeSchema).optional(),
+});
+
+// Tool annotations schemas aligned with ChatGPT Apps SDK API
+export const ToolAnnotationsSchema = z.object({
+  readOnlyHint: z.boolean().optional(),
+  destructiveHint: z.boolean().optional(),
+  completionMessage: z.string().optional(),
+});
+
+export type ToolInvocationMessages = z.infer<
+  typeof ToolInvocationMessagesSchema
+>;
+export type ToolMetadata = z.infer<typeof ToolMetadataSchema>;
+export type ToolAnnotations = z.infer<typeof ToolAnnotationsSchema>;

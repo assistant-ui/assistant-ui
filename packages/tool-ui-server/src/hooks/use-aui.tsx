@@ -3,6 +3,10 @@
 import * as React from "react";
 import type {
   AUIGlobals,
+  UserLocation,
+  ToolResponseMetadata,
+  UploadFileResponse,
+  GetFileDownloadUrlResponse,
   Theme,
   DisplayMode,
   WidgetState,
@@ -24,6 +28,8 @@ interface AUIContextValue extends AUIGlobals {
   requestClose: () => void;
   openExternal: (href: string) => void;
   notifyIntrinsicHeight: (height: number) => void;
+  uploadFile: (file: File) => Promise<UploadFileResponse>;
+  getFileDownloadUrl: (fileId: string) => Promise<GetFileDownloadUrlResponse>;
 }
 
 const AUIContext = React.createContext<AUIContextValue | null>(null);
@@ -45,6 +51,8 @@ const DEFAULT_GLOBALS: AUIGlobals = {
     capabilities: { hover: true, touch: false },
   },
   safeArea: { insets: { top: 0, bottom: 0, left: 0, right: 0 } },
+  userLocation: null,
+  toolResponseMetadata: null,
 };
 
 export function AUIProvider({ children }: AUIProviderProps) {
@@ -62,6 +70,8 @@ export function AUIProvider({ children }: AUIProviderProps) {
       widgetState: window.aui.widgetState,
       userAgent: window.aui.userAgent,
       safeArea: window.aui.safeArea,
+      userLocation: window.aui.userLocation,
+      toolResponseMetadata: window.aui.toolResponseMetadata,
     };
   });
 
@@ -117,6 +127,14 @@ export function AUIProvider({ children }: AUIProviderProps) {
         } else {
           window.parent?.postMessage({ type: "resize", payload: height }, "*");
         }
+      },
+      uploadFile: async (file) => {
+        if (!window.aui) throw new Error("AUI not available");
+        return window.aui.uploadFile(file);
+      },
+      getFileDownloadUrl: async (fileId) => {
+        if (!window.aui) throw new Error("AUI not available");
+        return window.aui.getFileDownloadUrl({ fileId });
       },
     }),
     [globals],
@@ -195,4 +213,26 @@ export function useUserAgent() {
 
 export function useSafeArea() {
   return useAUI().safeArea;
+}
+
+export function useUserLocation(): UserLocation | null {
+  return useAUI().userLocation;
+}
+
+export function useToolResponseMetadata(): ToolResponseMetadata | null {
+  return useAUI().toolResponseMetadata;
+}
+
+export function useUploadFile() {
+  return React.useCallback(async (file: File) => {
+    if (!window.aui) throw new Error("AUI not available");
+    return window.aui.uploadFile(file);
+  }, []);
+}
+
+export function useGetFileDownloadUrl() {
+  return React.useCallback(async (fileId: string) => {
+    if (!window.aui) throw new Error("AUI not available");
+    return window.aui.getFileDownloadUrl({ fileId });
+  }, []);
 }

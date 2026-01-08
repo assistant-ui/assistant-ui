@@ -33,6 +33,10 @@ describe("AUI Protocol Integration", () => {
       requestClose: vi.fn(),
       openExternal: vi.fn(),
       notifyIntrinsicHeight: vi.fn(),
+      uploadFile: vi.fn().mockResolvedValue({ fileId: "test-file-id" }),
+      getFileDownloadUrl: vi
+        .fn()
+        .mockResolvedValue({ downloadUrl: "test-download-url" }),
     };
 
     const mockIframe = {
@@ -82,6 +86,10 @@ describe("AUI Protocol Integration", () => {
       requestClose: vi.fn(),
       openExternal: vi.fn(),
       notifyIntrinsicHeight: vi.fn(),
+      uploadFile: vi.fn().mockResolvedValue({ fileId: "test-file-id" }),
+      getFileDownloadUrl: vi
+        .fn()
+        .mockResolvedValue({ downloadUrl: "test-download-url" }),
     };
 
     const mockIframe = {
@@ -120,6 +128,10 @@ describe("AUI Protocol Integration", () => {
       requestClose: vi.fn(),
       openExternal: vi.fn(),
       notifyIntrinsicHeight: vi.fn(),
+      uploadFile: vi.fn().mockResolvedValue({ fileId: "test-file-id" }),
+      getFileDownloadUrl: vi
+        .fn()
+        .mockResolvedValue({ downloadUrl: "test-download-url" }),
     };
 
     const mockIframe = {
@@ -165,6 +177,10 @@ describe("AUI Protocol Integration", () => {
       requestClose: vi.fn(),
       openExternal: vi.fn(),
       notifyIntrinsicHeight: vi.fn(),
+      uploadFile: vi.fn().mockResolvedValue({ fileId: "test-file-id" }),
+      getFileDownloadUrl: vi
+        .fn()
+        .mockResolvedValue({ downloadUrl: "test-download-url" }),
     };
 
     const mockIframe = {

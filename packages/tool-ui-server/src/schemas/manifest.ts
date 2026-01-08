@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ToolAnnotationsSchema } from "./shared";
 
 export const ComponentDefinitionSchema = z.object({
   name: z.string().min(1),
@@ -7,6 +8,8 @@ export const ComponentDefinitionSchema = z.object({
   propsSchema: z.record(z.unknown()).optional(),
   visibility: z.enum(["visible", "hidden"]).default("visible"),
   defaultDisplayMode: z.enum(["inline", "fullscreen", "pip"]).default("inline"),
+  prefersBorder: z.boolean().optional(),
+  annotations: ToolAnnotationsSchema.optional(),
 });
 
 export type ComponentDefinition = z.infer<typeof ComponentDefinitionSchema>;

@@ -6,3 +6,4 @@ export {
   formatDuration,
 } from "./format";
 export { normalizeActionsConfig, type ActionsProp } from "./actions-config";
+export { generateWidgetSessionId } from "./widget-session";

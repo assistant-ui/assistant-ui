@@ -7,6 +7,11 @@ import type {
   UICapability,
   UIManifest,
 } from "./types";
+import {
+  createProtectedResourceMetadataHandler,
+  isProtectedResourceMetadataRequest,
+} from "./oauth/metadata-handler";
+import { collectScopesFromTools } from "./oauth/protected-resource-metadata";
 
 /**
  * Create an MCP server with UI capability.
@@ -38,6 +43,7 @@ export function createToolUIServer(options: ToolUIServerOptions) {
     version,
     registryUrl = "https://registry.assistant-ui.com",
     bundleHash,
+    oauth,
   } = options;
 
   const server = new McpServer({
@@ -159,11 +165,41 @@ export function createToolUIServer(options: ToolUIServerOptions) {
     await server.connect(transport);
   }
 
+  // Auto-collect scopes from tools if not specified
+  let oauthConfig = oauth;
+  if (oauthConfig && !oauthConfig.scopesSupported) {
+    oauthConfig = {
+      ...oauthConfig,
+      scopesSupported: collectScopesFromTools([]), // TODO: Track registered tools
+    };
+  }
+
+  // Create metadata handler if OAuth is configured
+  const metadataHandler = oauthConfig
+    ? createProtectedResourceMetadataHandler(oauthConfig)
+    : null;
+
   return {
     server,
     toolWithUI,
     getUICapability,
     generateManifest,
     start,
+
+    /**
+     * Handle OAuth metadata requests
+     * Call this before your MCP handler for HTTP transports
+     */
+    handleOAuthMetadata: metadataHandler,
+
+    /**
+     * Check if a request is for OAuth metadata
+     */
+    isOAuthMetadataRequest: isProtectedResourceMetadataRequest,
+
+    /**
+     * OAuth configuration (if enabled)
+     */
+    oauthConfig,
   };
 }

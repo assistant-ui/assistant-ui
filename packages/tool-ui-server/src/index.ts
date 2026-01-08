@@ -14,6 +14,8 @@ export {
   requestClose,
   openExternal,
   notifyIntrinsicHeight,
+  uploadFile,
+  getFileDownloadUrl,
   type ToolUIComponentConfig,
   type ToolUIRuntime,
 } from "./create-tool-ui-runtime";
@@ -22,6 +24,30 @@ export type {
   ToolWithUIConfig,
   UICapability,
 } from "./types";
+
+// OAuth types and schemas
+export type {
+  SecurityScheme,
+  NoAuthSecurityScheme,
+  OAuth2SecurityScheme,
+  OAuthResourceServerConfig,
+  TokenClaims,
+  TokenValidationResult,
+  AuthenticatedRequest,
+  ToolExecutionContext,
+} from "./types/oauth";
+
+export {
+  SecuritySchemeSchema,
+  NoAuthSecuritySchemeSchema,
+  OAuth2SecuritySchemeSchema,
+  OAuthResourceServerConfigSchema,
+  ProtectedResourceMetadataSchema,
+  type ProtectedResourceMetadata,
+} from "./schemas/oauth";
+
+// OAuth module - comprehensive OAuth 2.1 support
+export * as OAuth from "./oauth";
 
 // Registry API types (for consumers building registry clients)
 export {
@@ -95,6 +121,10 @@ export {
   useMaxHeight,
   useUserAgent,
   useSafeArea,
+  useUserLocation,
+  useToolResponseMetadata,
+  useUploadFile,
+  useGetFileDownloadUrl,
 } from "./hooks";
 
 // Remote components
@@ -129,4 +159,8 @@ export type {
   SafeArea,
   ParentToIframeMessage,
   IframeToParentMessage,
+  UserLocation,
+  ToolResponseMetadata,
+  UploadFileResponse,
+  GetFileDownloadUrlResponse,
 } from "./types/protocol";

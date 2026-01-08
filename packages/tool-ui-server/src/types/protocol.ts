@@ -29,6 +29,42 @@ export interface SafeArea {
   insets: SafeAreaInsets;
 }
 
+export interface UserLocation {
+  city?: string;
+  region?: string;
+  country?: string;
+  timezone?: string;
+  latitude?: number;
+  longitude?: number;
+}
+
+export interface ToolResponseMetadata {
+  widgetSessionId?: string;
+  closeWidget?: boolean;
+  prefersBorder?: boolean;
+  [key: string]: unknown;
+}
+
+// Tool invocation messages for ChatGPT Apps SDK compatibility
+export interface ToolInvocationMessages {
+  invoking?: string; // Max 64 characters
+  invoked?: string; // Max 64 characters
+}
+
+// Tool metadata for ChatGPT Apps SDK compatibility
+export interface ToolMetadata {
+  visibility?: "private" | "public";
+  widgetAccessible?: boolean;
+  fileParams?: string[];
+}
+
+// Tool annotations aligned with ChatGPT Apps SDK API
+export interface ToolAnnotations {
+  readOnlyHint?: boolean;
+  destructiveHint?: boolean;
+  completionMessage?: string;
+}
+
 export interface AUIGlobals {
   theme: Theme;
   locale: string;
@@ -39,6 +75,8 @@ export interface AUIGlobals {
   widgetState: WidgetState;
   userAgent: UserAgent;
   safeArea: SafeArea;
+  userLocation: UserLocation | null;
+  toolResponseMetadata: ToolResponseMetadata | null;
 }
 
 export interface CallToolResponse {
@@ -50,6 +88,14 @@ export interface CallToolResponse {
 export interface ModalOptions {
   title?: string;
   params?: Record<string, unknown>;
+}
+
+export interface UploadFileResponse {
+  fileId: string;
+}
+
+export interface GetFileDownloadUrlResponse {
+  downloadUrl: string;
 }
 
 export interface AUIAPI {
@@ -66,6 +112,10 @@ export interface AUIAPI {
   requestClose: () => void;
   openExternal: (payload: { href: string }) => void;
   notifyIntrinsicHeight: (height: number) => void;
+  uploadFile: (file: File) => Promise<UploadFileResponse>;
+  getFileDownloadUrl: (args: {
+    fileId: string;
+  }) => Promise<GetFileDownloadUrlResponse>;
 }
 
 export type WindowAUI = AUIGlobals & AUIAPI;

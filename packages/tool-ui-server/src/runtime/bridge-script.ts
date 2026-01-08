@@ -15,6 +15,8 @@ export const DEFAULT_GLOBALS: AUIGlobals = {
   safeArea: {
     insets: { top: 0, bottom: 0, left: 0, right: 0 },
   },
+  userLocation: null,
+  toolResponseMetadata: null,
 };
 
 export function generateBridgeScript(): string {
@@ -129,6 +131,27 @@ export function generateBridgeScript(): string {
     notifyIntrinsicHeight: function(height) {
       callMethod("notifyIntrinsicHeight", [height]);
     },
+    uploadFile: function(file) {
+      return new Promise(function(resolve, reject) {
+        var reader = new FileReader();
+        reader.onload = function() {
+          var base64 = reader.result.toString().split(',')[1];
+          callMethod("uploadFile", [{
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            data: base64
+          }]).then(resolve).catch(reject);
+        };
+        reader.onerror = function() {
+          reject(new Error("Failed to read file"));
+        };
+        reader.readAsDataURL(file);
+      });
+    },
+    getFileDownloadUrl: function(args) {
+      return callMethod("getFileDownloadUrl", [args]);
+    },
   };
 
   Object.defineProperty(window, "aui", {
@@ -143,6 +166,8 @@ export function generateBridgeScript(): string {
         widgetState: { get: function() { return globals.widgetState; }, enumerable: true },
         userAgent: { get: function() { return globals.userAgent; }, enumerable: true },
         safeArea: { get: function() { return globals.safeArea; }, enumerable: true },
+        userLocation: { get: function() { return globals.userLocation; }, enumerable: true },
+        toolResponseMetadata: { get: function() { return globals.toolResponseMetadata; }, enumerable: true },
       }),
       api
     ),
