@@ -1,8 +1,6 @@
 "use client";
 
-import { useState } from "react";
 import type { ConsoleEntry, ConsoleEntryType } from "@/lib/workbench/types";
-import { cn } from "@/lib/ui/cn";
 import {
   Wrench,
   CornerDownRight,
@@ -12,7 +10,6 @@ import {
   MessageSquare,
   FileIcon,
   Activity,
-  Settings2,
   Circle,
   AlertCircle,
   Loader2,
@@ -20,10 +17,6 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { Entry } from "./activity-primitives/entry-layout";
 import { ArgsPreview, ResultPreview } from "./activity-primitives";
-import {
-  InlineResponseConfig,
-  useToolHasCustomConfig,
-} from "./inline-response-config";
 
 const ENTRY_CONFIG: Record<
   ConsoleEntryType,
@@ -195,35 +188,6 @@ function SimulatedBadge({ mode }: { mode: SimulatedMode }) {
   }
 }
 
-interface ConfigButtonProps {
-  isOpen: boolean;
-  hasConfig: boolean;
-  onClick: () => void;
-}
-
-function ConfigButton({ isOpen, hasConfig, onClick }: ConfigButtonProps) {
-  return (
-    <button
-      type="button"
-      onClick={(e) => {
-        e.stopPropagation();
-        onClick();
-      }}
-      className={cn(
-        "rounded p-1 transition-all",
-        isOpen
-          ? "bg-muted text-foreground"
-          : hasConfig
-            ? "text-blue-500 hover:bg-muted/50"
-            : "text-muted-foreground/40 opacity-0 hover:bg-muted/50 hover:text-muted-foreground group-hover/entry:opacity-100",
-      )}
-      title="Configure response"
-    >
-      <Settings2 className="size-3.5" />
-    </button>
-  );
-}
-
 interface ResponseEntryProps {
   response: ConsoleEntry;
   isExpanded: boolean;
@@ -334,26 +298,19 @@ export function CallToolGroupEntry({
   onToggleResponse,
   recencyOpacity = 1,
 }: CallToolGroupEntryProps) {
-  const [isConfigOpen, setIsConfigOpen] = useState(false);
-
   const config = ENTRY_CONFIG.callTool;
   const timestamp = formatTimestamp(request.timestamp);
   const toolName = extractToolName(request.method);
   const keyArg = extractKeyArg(request.args);
   const hasRequestDetails = request.args !== undefined;
 
-  const hasCustomConfig = useToolHasCustomConfig(toolName ?? "");
   const { isSimulated, mode: simulatedMode } = parseSimulatedResponse(response);
 
   const opacityStyle = { opacity: recencyOpacity };
 
   return (
-    <Entry.Root indicator={hasCustomConfig ? "configured" : "none"}>
-      <Entry.Row
-        indicator={hasCustomConfig ? "configured" : "none"}
-        onClick={onToggleRequest}
-        disabled={!hasRequestDetails}
-      >
+    <Entry.Root>
+      <Entry.Row onClick={onToggleRequest} disabled={!hasRequestDetails}>
         <Entry.Icon
           icon={config.icon}
           color={config.color}
@@ -368,26 +325,8 @@ export function CallToolGroupEntry({
           <Entry.Timestamp visible={requestExpanded || responseExpanded}>
             {timestamp}
           </Entry.Timestamp>
-          {toolName && (
-            <Entry.Actions>
-              <ConfigButton
-                isOpen={isConfigOpen}
-                hasConfig={hasCustomConfig}
-                onClick={() => setIsConfigOpen(!isConfigOpen)}
-              />
-            </Entry.Actions>
-          )}
         </Entry.Content>
       </Entry.Row>
-
-      {isConfigOpen && toolName && (
-        <Entry.Details>
-          <InlineResponseConfig
-            toolName={toolName}
-            lastResponseData={response?.result}
-          />
-        </Entry.Details>
-      )}
 
       {requestExpanded && (
         <Entry.Details>

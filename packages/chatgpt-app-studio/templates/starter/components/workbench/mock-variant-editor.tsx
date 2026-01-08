@@ -30,6 +30,8 @@ interface MockVariantEditorProps {
   variant: MockVariant;
   onSave: (variant: MockVariant) => void;
   onCancel: () => void;
+  inline?: boolean;
+  disabled?: boolean;
 }
 
 const jsonLinterWithNullSupport = linter((view): Diagnostic[] => {
@@ -78,6 +80,8 @@ export function MockVariantEditor({
   variant,
   onSave,
   onCancel,
+  inline = false,
+  disabled = false,
 }: MockVariantEditorProps) {
   const [prevVariantId, setPrevVariantId] = useState(variant.id);
   const [name, setName] = useState(variant.name);
@@ -117,6 +121,12 @@ export function MockVariantEditor({
       const parsed = JSON.parse(text);
       setLastParsed(parsed);
       setHasError(false);
+      if (inline) {
+        onSave({
+          ...variant,
+          response: parsed,
+        });
+      }
     } catch {
       setHasError(true);
     }
@@ -133,6 +143,36 @@ export function MockVariantEditor({
       response: lastParsed,
     });
   };
+
+  if (inline) {
+    return (
+      <div
+        className={cn(
+          "overflow-hidden rounded-md border bg-input/50",
+          disabled && "pointer-events-none",
+        )}
+      >
+        <CodeMirror
+          value={responseText}
+          height="180px"
+          extensions={extensions}
+          onChange={handleResponseChange}
+          theme={theme === "dark" ? githubDark : githubLight}
+          editable={!disabled}
+          basicSetup={{
+            lineNumbers: false,
+            foldGutter: false,
+            highlightActiveLineGutter: false,
+            highlightActiveLine: false,
+          }}
+          className={cn(
+            "[&_.cm-editor]:bg-transparent!",
+            "[&_.cm-gutters]:bg-transparent!",
+          )}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="border-t pt-4">
