@@ -23,6 +23,7 @@ import { clearFiles } from "./file-store";
 import type {
   MockConfigState,
   MockVariant,
+  MockResponse,
   ToolAnnotations,
   ToolDescriptorMeta,
   ToolSchemas,
@@ -121,6 +122,13 @@ interface WorkbenchState {
   setServerUrl: (url: string) => void;
   setToolSource: (toolName: string, source: ToolSource) => void;
   registerTool: (toolName: string) => void;
+  registerToolsFromServer: (
+    tools: Array<{
+      name: string;
+      description?: string;
+      inputSchema?: Record<string, unknown>;
+    }>,
+  ) => void;
   removeTool: (toolName: string) => void;
   setActiveVariant: (toolName: string, variantId: string | null) => void;
   setInterceptMode: (toolName: string, enabled: boolean) => void;
@@ -131,6 +139,7 @@ interface WorkbenchState {
     updates: Partial<MockVariant>,
   ) => void;
   removeVariant: (toolName: string, variantId: string) => void;
+  updateToolResponse: (toolName: string, response: MockResponse) => void;
   setMockConfig: (config: MockConfigState) => void;
   setToolAnnotations: (toolName: string, annotations: ToolAnnotations) => void;
   setToolDescriptorMeta: (toolName: string, meta: ToolDescriptorMeta) => void;
@@ -385,6 +394,33 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
       };
     }),
 
+  registerToolsFromServer: (tools) =>
+    set((state) => {
+      const newTools: Record<string, ToolMockConfig> = {};
+      for (const tool of tools) {
+        if (!state.mockConfig.tools[tool.name]) {
+          const config = createToolMockConfig(tool.name);
+          config.source = "server";
+          if (tool.inputSchema) {
+            config.schemas = { inputSchema: tool.inputSchema };
+          }
+          newTools[tool.name] = config;
+        }
+      }
+      if (Object.keys(newTools).length === 0) {
+        return state;
+      }
+      return {
+        mockConfig: {
+          ...state.mockConfig,
+          tools: {
+            ...state.mockConfig.tools,
+            ...newTools,
+          },
+        },
+      };
+    }),
+
   removeTool: (toolName) =>
     set((state) => {
       const { [toolName]: _removed, ...remainingTools } =
@@ -481,6 +517,21 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
               activeVariantId: newActiveId,
               variants: tool.variants.filter((v) => v.id !== variantId),
             },
+          },
+        },
+      };
+    }),
+
+  updateToolResponse: (toolName, response) =>
+    set((state) => {
+      const tool = state.mockConfig.tools[toolName];
+      if (!tool) return state;
+      return {
+        mockConfig: {
+          ...state.mockConfig,
+          tools: {
+            ...state.mockConfig.tools,
+            [toolName]: { ...tool, mockResponse: response },
           },
         },
       };

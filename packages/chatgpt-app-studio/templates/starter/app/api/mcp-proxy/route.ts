@@ -158,6 +158,48 @@ function validateAndConstructUrl(url: string): string | null {
   }
 }
 
+async function handleToolsList(body: { serverUrl: string }): Promise<Response> {
+  const validatedUrl = validateAndConstructUrl(body.serverUrl);
+  if (!validatedUrl) {
+    return NextResponse.json(
+      {
+        error: {
+          type: "server_error",
+          message: "MCP proxy only allows localhost URLs for security reasons.",
+          suggestion: "Use a localhost URL (e.g., http://localhost:3001/mcp).",
+        },
+      },
+      { status: 403 },
+    );
+  }
+
+  let sessionId = getOrCreateSession(validatedUrl);
+
+  if (!sessionId) {
+    const initResult = await initializeSession(validatedUrl);
+    if (initResult.error) {
+      return NextResponse.json({ error: initResult.error });
+    }
+    sessionId = initResult.sessionId;
+  }
+
+  const {
+    result,
+    error,
+    sessionId: newSessionId,
+  } = await mcpRequest(validatedUrl, "tools/list", {}, sessionId);
+
+  if (newSessionId && newSessionId !== sessionId) {
+    cacheSession(validatedUrl, newSessionId);
+  }
+
+  if (error) {
+    return NextResponse.json({ error });
+  }
+
+  return NextResponse.json({ result });
+}
+
 export async function POST(request: Request) {
   if (process.env.NODE_ENV !== "development") {
     return NextResponse.json(
@@ -173,14 +215,33 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { tool, args, serverUrl } = await request.json();
+    const body = await request.json();
+    const { serverUrl, method } = body;
 
-    if (!tool || !serverUrl) {
+    if (!serverUrl) {
       return NextResponse.json(
         {
           error: {
             type: "invalid_response",
-            message: "Missing tool or serverUrl",
+            message: "Missing serverUrl",
+            suggestion: "Check the request parameters.",
+          },
+        },
+        { status: 400 },
+      );
+    }
+
+    if (method === "tools/list") {
+      return handleToolsList(body);
+    }
+
+    const { tool, args } = body;
+    if (!tool) {
+      return NextResponse.json(
+        {
+          error: {
+            type: "invalid_response",
+            message: "Missing tool",
             suggestion: "Check the request parameters.",
           },
         },

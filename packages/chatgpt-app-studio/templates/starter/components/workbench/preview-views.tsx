@@ -168,8 +168,10 @@ function ResizablePreview() {
 
 function DesktopPreview() {
   return (
-    <div className="h-full w-full">
-      <ChatWithComposer />
+    <div className="h-full w-full overflow-hidden bg-dot-grid bg-neutral-100 p-4 dark:bg-neutral-950">
+      <div className="h-full w-full overflow-hidden rounded-xl border border-neutral-200 shadow-sm dark:border-neutral-700/50">
+        <ChatWithComposer />
+      </div>
     </div>
   );
 }

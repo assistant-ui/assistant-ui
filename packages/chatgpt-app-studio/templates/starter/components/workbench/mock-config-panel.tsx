@@ -1,97 +1,341 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { useShallow } from "zustand/react/shallow";
 import { useWorkbenchStore, useMockConfig } from "@/lib/workbench/store";
-import type { MockVariant } from "@/lib/workbench/mock-config";
+import { fetchMcpTools } from "@/lib/workbench/mcp-client";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Plus,
-  Trash2,
-  ChevronDown,
-  Pencil,
-  Server,
-  Layers,
-} from "lucide-react";
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { ChevronDown, Wrench, RefreshCw, Loader2 } from "lucide-react";
 import { cn } from "@/lib/ui/cn";
 import { MockVariantEditor } from "./mock-variant-editor";
 
-function CollapsibleSection({
-  title,
-  expanded,
-  onToggle,
-  children,
-}: {
-  title: string;
-  expanded?: boolean;
-  onToggle: () => void;
-  children: React.ReactNode;
-}) {
+type ServerStatus = "idle" | "connecting" | "connected" | "error";
+
+const STATUS_CONFIG: Record<
+  Exclude<ServerStatus, "idle">,
+  { dot: string; text?: string; textClass: string }
+> = {
+  connecting: {
+    dot: "bg-amber-500 animate-pulse",
+    text: "Connecting...",
+    textClass: "text-amber-600 dark:text-amber-400",
+  },
+  connected: {
+    dot: "bg-emerald-500",
+    textClass: "text-emerald-600 dark:text-emerald-400",
+  },
+  error: {
+    dot: "bg-red-500",
+    text: "Not connected",
+    textClass: "text-red-600 dark:text-red-400",
+  },
+};
+
+const ERROR_MESSAGE_MAX_LENGTH = 80;
+const ACCORDION_EASING = "ease-[cubic-bezier(0.22,1,0.36,1)]";
+
+function truncateMessage(message: string, maxLength: number): string {
+  return message.length > maxLength
+    ? message.slice(0, maxLength) + "…"
+    : message;
+}
+
+function formatToolCount(count: number): string {
+  return `${count} tool${count !== 1 ? "s" : ""}`;
+}
+
+interface ServerStatusIndicatorProps {
+  status: ServerStatus;
+  toolCount?: number;
+  errorMessage?: string;
+}
+
+function ServerStatusIndicator({
+  status,
+  toolCount,
+  errorMessage,
+}: ServerStatusIndicatorProps) {
+  if (status === "idle") return null;
+
+  const config = STATUS_CONFIG[status];
+  const displayText =
+    status === "connected" && toolCount !== undefined
+      ? formatToolCount(toolCount)
+      : config.text;
+
+  const indicator = (
+    <span
+      className={cn("flex items-center gap-1.5 text-[10px]", config.textClass)}
+    >
+      <span className={cn("size-1.5 rounded-full", config.dot)} />
+      {displayText}
+    </span>
+  );
+
+  if (status === "error" && errorMessage) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button type="button" className="cursor-help">
+            {indicator}
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="max-w-[200px] text-xs">
+          {truncateMessage(errorMessage, ERROR_MESSAGE_MAX_LENGTH)}
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  return indicator;
+}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-lg border border-border/50">
+    <div className="mb-2 font-medium text-[10px] text-muted-foreground/70 uppercase tracking-widest">
+      {children}
+    </div>
+  );
+}
+
+interface FetchToolsButtonProps {
+  onClick: () => void;
+  isLoading: boolean;
+  variant?: "default" | "icon";
+}
+
+function FetchToolsButton({
+  onClick,
+  isLoading,
+  variant = "default",
+}: FetchToolsButtonProps) {
+  const icon = isLoading ? (
+    <Loader2 className="size-3.5 animate-spin" />
+  ) : (
+    <RefreshCw className="size-3.5" />
+  );
+
+  if (variant === "icon") {
+    return (
+      <Button
+        variant="outline"
+        size="icon"
+        onClick={onClick}
+        disabled={isLoading}
+        className="size-7 shrink-0"
+        title="Fetch tools from server"
+      >
+        {icon}
+      </Button>
+    );
+  }
+
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={onClick}
+      disabled={isLoading}
+      className="mt-4 gap-2"
+    >
+      {icon}
+      Fetch from Server
+    </Button>
+  );
+}
+
+interface ToolAccordionItemProps {
+  name: string;
+  isExpanded: boolean;
+  onToggle: () => void;
+}
+
+function ToolAccordionItem({
+  name,
+  isExpanded,
+  onToggle,
+}: ToolAccordionItemProps) {
+  const mockConfig = useMockConfig();
+  const toolConfig = mockConfig.tools[name];
+  const isSimulationEnabled = mockConfig.globalEnabled;
+  const updateToolResponse = useWorkbenchStore((s) => s.updateToolResponse);
+
+  if (!toolConfig) return null;
+
+  const editorVariant = {
+    id: "default",
+    name: "Default",
+    type: "success" as const,
+    delay: 300,
+    response: toolConfig.mockResponse ?? { structuredContent: {} },
+  };
+
+  return (
+    <div className="overflow-hidden rounded-lg border border-border/40 bg-card/50">
       <button
         type="button"
         onClick={onToggle}
-        className="flex w-full items-center justify-between px-3 py-2 text-left font-medium text-xs hover:bg-muted/50"
+        className="group flex w-full items-center gap-2 px-3 py-2.5 text-left transition-colors hover:bg-card"
       >
-        {title}
         <ChevronDown
           className={cn(
-            "size-3.5 transition-transform duration-200",
-            expanded && "rotate-180",
+            "size-3.5 shrink-0 text-muted-foreground/60 transition-transform duration-100",
+            ACCORDION_EASING,
+            isExpanded ? "rotate-0" : "-rotate-90",
           )}
         />
+        <div className="flex size-6 shrink-0 items-center justify-center rounded-md bg-blue-500/15 text-blue-600 dark:text-blue-400">
+          <Wrench className="size-3" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="truncate font-medium font-mono text-xs">{name}</div>
+        </div>
       </button>
+
       <div
         className={cn(
-          "grid transition-[grid-template-rows] duration-200 ease-out",
-          expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+          "grid transition-all duration-150",
+          ACCORDION_EASING,
+          isExpanded
+            ? "grid-rows-[1fr] opacity-100"
+            : "grid-rows-[0fr] opacity-0",
         )}
       >
-        <div className="min-h-0 overflow-hidden">
-          <div className="px-3 pb-3">{children}</div>
+        <div className="overflow-hidden">
+          <div className="border-border/40 border-t px-3 py-3">
+            <div className={cn(!isSimulationEnabled && "opacity-60")}>
+              {!isSimulationEnabled && (
+                <div className="mb-3 flex items-center gap-2 rounded-md bg-amber-500/10 px-2.5 py-2 text-amber-600 text-xs dark:text-amber-400">
+                  <span>Enable Simulation to use mock responses</span>
+                </div>
+              )}
+
+              <MockVariantEditor
+                variant={editorVariant}
+                onSave={(variant) => updateToolResponse(name, variant.response)}
+                onCancel={() => {}}
+                inline
+                disabled={!isSimulationEnabled}
+              />
+            </div>
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-function formatDelay(ms: number): string {
-  if (ms >= 1000) {
-    return `${(ms / 1000).toFixed(1)}s`;
-  }
-  return `${ms}ms`;
+interface EmptyStateProps {
+  onFetchTools: () => void;
+  isFetching: boolean;
+  hasError: boolean;
 }
 
-function AnnotationToggle({
-  label,
-  hint,
-  checked,
-  onChange,
-}: {
-  label: string;
-  hint: string;
-  checked: boolean;
-  onChange: (checked: boolean) => void;
-}) {
+function EmptyState({ onFetchTools, isFetching, hasError }: EmptyStateProps) {
   return (
-    // biome-ignore lint/a11y/noLabelWithoutControl: Switch is a form control wrapped by label
-    <label className="flex items-center justify-between gap-2">
-      <div>
-        <div className="font-medium text-xs">{label}</div>
-        <div className="text-[10px] text-muted-foreground">{hint}</div>
+    <div className="flex h-full flex-col items-center justify-center p-6">
+      <div className="mb-4 flex size-12 items-center justify-center rounded-xl bg-blue-500/10">
+        <Wrench className="size-5 text-blue-500/50" />
       </div>
-      <Switch checked={checked} onCheckedChange={onChange} />
-    </label>
+      <div className="mb-1 font-medium text-sm">No tools yet</div>
+      <p className="max-w-[200px] text-center text-muted-foreground text-xs">
+        Tools appear here when your widget calls{" "}
+        <code className="rounded bg-muted px-1 py-0.5 font-mono text-[10px]">
+          callTool()
+        </code>
+      </p>
+      <FetchToolsButton onClick={onFetchTools} isLoading={isFetching} />
+      {hasError && (
+        <p className="mt-2 text-[10px] text-red-600 dark:text-red-400">
+          Server not connected
+        </p>
+      )}
+    </div>
+  );
+}
+
+interface SimulationToggleProps {
+  enabled: boolean;
+  onToggle: (enabled: boolean) => void;
+}
+
+function SimulationToggle({ enabled, onToggle }: SimulationToggleProps) {
+  return (
+    <div className="flex items-center justify-between">
+      <div className="flex cursor-pointer items-center gap-2.5">
+        <Switch
+          id="simulation-toggle"
+          checked={enabled}
+          onCheckedChange={onToggle}
+        />
+        <label
+          htmlFor="simulation-toggle"
+          className="cursor-pointer font-medium text-sm"
+        >
+          Simulation
+        </label>
+      </div>
+      {enabled && (
+        <span className="flex items-center gap-1.5 text-[10px] text-emerald-600 dark:text-emerald-400">
+          <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />
+          Active
+        </span>
+      )}
+    </div>
+  );
+}
+
+interface McpServerSectionProps {
+  serverUrl: string;
+  onServerUrlChange: (url: string) => void;
+  onFetchTools: () => void;
+  isFetching: boolean;
+  status: ServerStatus;
+  toolCount?: number;
+  errorMessage?: string;
+}
+
+function McpServerSection({
+  serverUrl,
+  onServerUrlChange,
+  onFetchTools,
+  isFetching,
+  status,
+  toolCount,
+  errorMessage,
+}: McpServerSectionProps) {
+  return (
+    <div>
+      <div className="mb-2 flex items-center justify-between">
+        <span className="font-medium text-[10px] text-muted-foreground/70 uppercase tracking-widest">
+          MCP Server
+        </span>
+        <ServerStatusIndicator
+          status={status}
+          toolCount={toolCount}
+          errorMessage={errorMessage}
+        />
+      </div>
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={serverUrl}
+          onChange={(e) => onServerUrlChange(e.target.value)}
+          placeholder="http://localhost:3001/mcp"
+          className="flex-1 rounded-md border border-border/40 bg-muted/30 px-2.5 py-1.5 font-mono text-xs placeholder:text-muted-foreground/50 focus:border-foreground/20 focus:outline-none"
+        />
+        <FetchToolsButton
+          onClick={onFetchTools}
+          isLoading={isFetching}
+          variant="icon"
+        />
+      </div>
+    </div>
   );
 }
 
@@ -99,520 +343,82 @@ export function MockConfigPanel() {
   const mockConfig = useMockConfig();
   const toolNames = Object.keys(mockConfig.tools);
 
-  const {
-    setMocksEnabled,
-    setServerUrl,
-    setToolSource,
-    registerTool,
-    removeTool,
-    setActiveVariant,
-    addVariant,
-    updateVariant,
-    removeVariant,
-    setToolAnnotations,
-    setToolSchemas,
-  } = useWorkbenchStore(
-    useShallow((s) => ({
-      setMocksEnabled: s.setMocksEnabled,
-      setServerUrl: s.setServerUrl,
-      setToolSource: s.setToolSource,
-      registerTool: s.registerTool,
-      removeTool: s.removeTool,
-      setActiveVariant: s.setActiveVariant,
-      addVariant: s.addVariant,
-      updateVariant: s.updateVariant,
-      removeVariant: s.removeVariant,
-      setToolAnnotations: s.setToolAnnotations,
-      setToolSchemas: s.setToolSchemas,
-    })),
+  const [serverStatus, setServerStatus] = useState<ServerStatus>("idle");
+  const [errorMessage, setErrorMessage] = useState<string | undefined>();
+  const [lastFetchedCount, setLastFetchedCount] = useState<
+    number | undefined
+  >();
+  const [expandedTool, setExpandedTool] = useState<string | null>(null);
+
+  const setMocksEnabled = useWorkbenchStore((s) => s.setMocksEnabled);
+  const setServerUrl = useWorkbenchStore((s) => s.setServerUrl);
+  const registerToolsFromServer = useWorkbenchStore(
+    (s) => s.registerToolsFromServer,
   );
 
-  const [selectedTool, setSelectedTool] = useState<string | null>(
-    toolNames[0] ?? null,
-  );
-  const [editingVariant, setEditingVariant] = useState<MockVariant | null>(
-    null,
-  );
-  const [newToolName, setNewToolName] = useState("");
-  const [showAddTool, setShowAddTool] = useState(false);
-  const [expandedSections, setExpandedSections] = useState<
-    Record<string, boolean>
-  >({});
+  const handleFetchTools = useCallback(async () => {
+    setServerStatus("connecting");
+    setErrorMessage(undefined);
 
-  const toggleSection = useCallback((section: string) => {
-    setExpandedSections((prev) => ({ ...prev, [section]: !prev[section] }));
+    const result = await fetchMcpTools(mockConfig.serverUrl);
+
+    if (result.success && result.tools) {
+      registerToolsFromServer(result.tools);
+      setLastFetchedCount(result.tools.length);
+      setServerStatus("connected");
+    } else if (result.error) {
+      setErrorMessage(result.error.message);
+      setServerStatus("error");
+    }
+  }, [mockConfig.serverUrl, registerToolsFromServer]);
+
+  const toggleTool = useCallback((name: string) => {
+    setExpandedTool((prev) => (prev === name ? null : name));
   }, []);
 
-  const toolConfig = selectedTool ? mockConfig.tools[selectedTool] : null;
+  const isFetching = serverStatus === "connecting";
 
-  const handleAddTool = useCallback(() => {
-    const name = newToolName.trim();
-    if (name && !mockConfig.tools[name]) {
-      registerTool(name);
-      setSelectedTool(name);
-      setNewToolName("");
-      setShowAddTool(false);
-    }
-  }, [newToolName, mockConfig.tools, registerTool]);
-
-  const handleDeleteTool = useCallback(() => {
-    if (!selectedTool) return;
-    removeTool(selectedTool);
-    const remaining = Object.keys(mockConfig.tools).filter(
-      (n) => n !== selectedTool,
-    );
-    setSelectedTool(remaining[0] ?? null);
-  }, [selectedTool, mockConfig.tools, removeTool]);
-
-  const handleAddVariant = useCallback(() => {
-    if (!selectedTool) return;
-    const newVariant: MockVariant = {
-      id: `mock-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      name: "custom",
-      type: "custom",
-      delay: 300,
-      response: {
-        structuredContent: {},
-      },
-    };
-    addVariant(selectedTool, newVariant);
-    setEditingVariant(newVariant);
-  }, [selectedTool, addVariant]);
-
-  const handleSaveVariant = useCallback(
-    (variant: MockVariant) => {
-      if (!selectedTool) return;
-      updateVariant(selectedTool, variant.id, variant);
-      setEditingVariant(null);
-    },
-    [selectedTool, updateVariant],
-  );
-
-  const handleDeleteVariant = useCallback(
-    (variantId: string) => {
-      if (!selectedTool) return;
-      removeVariant(selectedTool, variantId);
-      if (editingVariant?.id === variantId) {
-        setEditingVariant(null);
-      }
-    },
-    [selectedTool, removeVariant, editingVariant],
-  );
-
-  if (toolNames.length === 0 && !showAddTool) {
+  if (toolNames.length === 0) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-4 p-6 text-center">
-        <div className="text-muted-foreground text-sm">
-          No tools registered yet.
-        </div>
-        <div className="text-muted-foreground text-xs">
-          Tools are auto-registered when callTool() is invoked, or you can add
-          one manually.
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setShowAddTool(true)}
-          className="mt-2"
-        >
-          <Plus className="mr-1.5 size-3.5" />
-          Add Tool
-        </Button>
-      </div>
+      <EmptyState
+        onFetchTools={handleFetchTools}
+        isFetching={isFetching}
+        hasError={serverStatus === "error"}
+      />
     );
   }
 
   return (
-    <div className="flex h-full flex-col gap-4 p-4">
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          {/* biome-ignore lint/a11y/noLabelWithoutControl: Switch is a form control wrapped by label */}
-          <label className="flex items-center gap-2 text-sm">
-            <Switch
-              checked={mockConfig.globalEnabled}
-              onCheckedChange={setMocksEnabled}
-            />
-            Simulation Mode
-          </label>
-        </div>
-
-        <div className="space-y-1">
-          <label
-            htmlFor="mcp-server-url"
-            className="font-medium text-[10px] text-muted-foreground uppercase tracking-wider"
-          >
-            MCP Server URL
-          </label>
-          <input
-            id="mcp-server-url"
-            type="text"
-            value={mockConfig.serverUrl}
-            onChange={(e) => setServerUrl(e.target.value)}
-            placeholder="http://localhost:3001/mcp"
-            className="w-full rounded-md bg-input/70 px-2 py-1.5 font-mono text-xs focus:outline-none"
-          />
-        </div>
+    <div className="flex h-full flex-col overflow-hidden">
+      <div className="shrink-0 space-y-4 border-border/40 border-b p-4">
+        <SimulationToggle
+          enabled={mockConfig.globalEnabled}
+          onToggle={setMocksEnabled}
+        />
+        <McpServerSection
+          serverUrl={mockConfig.serverUrl}
+          onServerUrlChange={setServerUrl}
+          onFetchTools={handleFetchTools}
+          isFetching={isFetching}
+          status={serverStatus}
+          toolCount={lastFetchedCount}
+          errorMessage={errorMessage}
+        />
       </div>
 
-      <div className="flex items-center gap-2">
-        {showAddTool ? (
-          <div className="flex flex-1 items-center gap-2">
-            <input
-              type="text"
-              value={newToolName}
-              onChange={(e) => setNewToolName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleAddTool()}
-              placeholder="tool_name"
-              className="flex-1 rounded-md bg-input/70 px-2 py-1.5 text-sm focus:outline-none"
+      <div className="scrollbar-subtle flex-1 overflow-y-auto p-4">
+        <SectionLabel>Tools</SectionLabel>
+        <div className="space-y-2">
+          {toolNames.map((name) => (
+            <ToolAccordionItem
+              key={name}
+              name={name}
+              isExpanded={expandedTool === name}
+              onToggle={() => toggleTool(name)}
             />
-            <Button variant="ghost" size="sm" onClick={handleAddTool}>
-              Add
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setShowAddTool(false);
-                setNewToolName("");
-              }}
-            >
-              Cancel
-            </Button>
-          </div>
-        ) : (
-          <>
-            <Select value={selectedTool ?? ""} onValueChange={setSelectedTool}>
-              <SelectTrigger className="h-8 flex-1 text-xs">
-                <SelectValue placeholder="Select tool" />
-              </SelectTrigger>
-              <SelectContent>
-                {toolNames.map((name) => (
-                  <SelectItem key={name} value={name} className="text-xs">
-                    {name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-8"
-              onClick={() => setShowAddTool(true)}
-            >
-              <Plus className="size-4" />
-            </Button>
-            {selectedTool && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-8 text-destructive hover:text-destructive"
-                onClick={handleDeleteTool}
-              >
-                <Trash2 className="size-4" />
-              </Button>
-            )}
-          </>
-        )}
+          ))}
+        </div>
       </div>
-
-      {toolConfig && (
-        <>
-          <div className="flex-1 space-y-3 overflow-auto">
-            <div className="flex items-center gap-1 rounded-lg border border-border/50 p-1">
-              <button
-                type="button"
-                onClick={() => setToolSource(selectedTool!, "mock")}
-                className={cn(
-                  "flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 font-medium text-xs transition-colors",
-                  toolConfig.source === "mock"
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:bg-muted/50",
-                )}
-              >
-                <Layers className="size-3.5" />
-                Mock
-              </button>
-              <button
-                type="button"
-                onClick={() => setToolSource(selectedTool!, "server")}
-                className={cn(
-                  "flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 font-medium text-xs transition-colors",
-                  toolConfig.source === "server"
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:bg-muted/50",
-                )}
-              >
-                <Server className="size-3.5" />
-                Server
-              </button>
-            </div>
-
-            {toolConfig.source === "mock" && (
-              <div className="space-y-3">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Select
-                      value={toolConfig.activeVariantId ?? "default"}
-                      onValueChange={(value) =>
-                        setActiveVariant(
-                          selectedTool!,
-                          value === "default" ? null : value,
-                        )
-                      }
-                    >
-                      <SelectTrigger className="h-8 flex-1 text-xs">
-                        <SelectValue placeholder="Select scenario" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="default" className="text-xs">
-                          Default response
-                        </SelectItem>
-                        {toolConfig.variants.map((variant) => (
-                          <SelectItem
-                            key={variant.id}
-                            value={variant.id}
-                            className="text-xs"
-                          >
-                            <span
-                              className={cn(
-                                "mr-1.5 rounded px-1 py-0.5 font-medium text-[10px] uppercase",
-                                variant.type === "success" &&
-                                  "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
-                                variant.type === "error" &&
-                                  "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-                                variant.type === "empty" &&
-                                  "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400",
-                                variant.type === "slow" &&
-                                  "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
-                                variant.type === "custom" &&
-                                  "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-                              )}
-                            >
-                              {variant.name}
-                            </span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {toolConfig.activeVariantId && (
-                      <>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="size-8"
-                          onClick={() => {
-                            const variant = toolConfig.variants.find(
-                              (v) => v.id === toolConfig.activeVariantId,
-                            );
-                            if (variant) setEditingVariant(variant);
-                          }}
-                        >
-                          <Pencil className="size-3.5" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="size-8 text-destructive hover:text-destructive"
-                          onClick={() =>
-                            handleDeleteVariant(toolConfig.activeVariantId!)
-                          }
-                        >
-                          <Trash2 className="size-3.5" />
-                        </Button>
-                      </>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="size-8"
-                      onClick={handleAddVariant}
-                    >
-                      <Plus className="size-4" />
-                    </Button>
-                  </div>
-
-                  {toolConfig.activeVariantId &&
-                    (() => {
-                      const activeVariant = toolConfig.variants.find(
-                        (v) => v.id === toolConfig.activeVariantId,
-                      );
-                      if (!activeVariant) return null;
-                      return (
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] text-muted-foreground">
-                            Delay: {formatDelay(activeVariant.delay)}
-                          </span>
-                          <Slider
-                            value={[activeVariant.delay]}
-                            onValueChange={(values) => {
-                              updateVariant(selectedTool!, activeVariant.id, {
-                                delay: values[0],
-                              });
-                            }}
-                            min={0}
-                            max={5000}
-                            step={100}
-                            className="flex-1"
-                          />
-                        </div>
-                      );
-                    })()}
-                </div>
-
-                <CollapsibleSection
-                  title="Advanced"
-                  expanded={expandedSections.advanced}
-                  onToggle={() => toggleSection("advanced")}
-                >
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <div className="font-medium text-[10px] text-muted-foreground uppercase tracking-wider">
-                        Annotations
-                      </div>
-                      <AnnotationToggle
-                        label="Read Only"
-                        hint="Indicates tool doesn't modify state"
-                        checked={toolConfig.annotations?.readOnlyHint ?? false}
-                        onChange={(checked) =>
-                          setToolAnnotations(selectedTool!, {
-                            ...toolConfig.annotations,
-                            readOnlyHint: checked,
-                          })
-                        }
-                      />
-                      <AnnotationToggle
-                        label="Destructive"
-                        hint="Indicates tool may delete data"
-                        checked={
-                          toolConfig.annotations?.destructiveHint ?? false
-                        }
-                        onChange={(checked) =>
-                          setToolAnnotations(selectedTool!, {
-                            ...toolConfig.annotations,
-                            destructiveHint: checked,
-                          })
-                        }
-                      />
-                      <AnnotationToggle
-                        label="Open World"
-                        hint="Indicates tool accesses external resources"
-                        checked={toolConfig.annotations?.openWorldHint ?? false}
-                        onChange={(checked) =>
-                          setToolAnnotations(selectedTool!, {
-                            ...toolConfig.annotations,
-                            openWorldHint: checked,
-                          })
-                        }
-                      />
-                      <AnnotationToggle
-                        label="Idempotent"
-                        hint="Indicates repeated calls produce same result"
-                        checked={
-                          toolConfig.annotations?.idempotentHint ?? false
-                        }
-                        onChange={(checked) =>
-                          setToolAnnotations(selectedTool!, {
-                            ...toolConfig.annotations,
-                            idempotentHint: checked,
-                          })
-                        }
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="font-medium text-[10px] text-muted-foreground uppercase tracking-wider">
-                        Schemas
-                      </div>
-                      <div>
-                        <div className="mb-1 text-muted-foreground text-xs">
-                          Input Schema (JSON)
-                        </div>
-                        <textarea
-                          className="w-full rounded-md bg-input/70 p-2 font-mono text-xs"
-                          rows={3}
-                          placeholder="{}"
-                          value={
-                            toolConfig.schemas?.inputSchema
-                              ? JSON.stringify(
-                                  toolConfig.schemas.inputSchema,
-                                  null,
-                                  2,
-                                )
-                              : ""
-                          }
-                          onChange={(e) => {
-                            try {
-                              const parsed = e.target.value
-                                ? JSON.parse(e.target.value)
-                                : undefined;
-                              setToolSchemas(selectedTool!, {
-                                ...toolConfig.schemas,
-                                inputSchema: parsed,
-                              });
-                            } catch {
-                              // Ignore parse errors while typing
-                            }
-                          }}
-                        />
-                      </div>
-                      <div>
-                        <div className="mb-1 text-muted-foreground text-xs">
-                          Output Schema (JSON)
-                        </div>
-                        <textarea
-                          className="w-full rounded-md bg-input/70 p-2 font-mono text-xs"
-                          rows={3}
-                          placeholder="{}"
-                          value={
-                            toolConfig.schemas?.outputSchema
-                              ? JSON.stringify(
-                                  toolConfig.schemas.outputSchema,
-                                  null,
-                                  2,
-                                )
-                              : ""
-                          }
-                          onChange={(e) => {
-                            try {
-                              const parsed = e.target.value
-                                ? JSON.parse(e.target.value)
-                                : undefined;
-                              setToolSchemas(selectedTool!, {
-                                ...toolConfig.schemas,
-                                outputSchema: parsed,
-                              });
-                            } catch {
-                              // Ignore parse errors while typing
-                            }
-                          }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </CollapsibleSection>
-              </div>
-            )}
-
-            {toolConfig.source === "server" && (
-              <div className="flex flex-col items-center justify-center gap-2 py-8 text-center text-muted-foreground text-xs">
-                <Server className="size-8 text-muted-foreground/50" />
-                <div>Tool calls will be routed to the MCP server.</div>
-                <div className="text-[10px]">
-                  Make sure your server is running at the configured URL.
-                </div>
-              </div>
-            )}
-          </div>
-
-          {editingVariant && (
-            <MockVariantEditor
-              variant={editingVariant}
-              onSave={handleSaveVariant}
-              onCancel={() => setEditingVariant(null)}
-            />
-          )}
-        </>
-      )}
     </div>
   );
 }
