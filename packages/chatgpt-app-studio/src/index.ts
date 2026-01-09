@@ -96,10 +96,246 @@ function quotePath(p: string): string {
   return `'${p.replace(/'/g, "'\\''")}'`;
 }
 
+type TemplateType = "minimal" | "poi-map";
+
+const TEMPLATE_COMPONENTS: Record<TemplateType, string[]> = {
+  minimal: ["welcome"],
+  "poi-map": ["poi-map"],
+};
+
+const TEMPLATE_EXPORT_CONFIG: Record<
+  TemplateType,
+  { entryPoint: string; exportName: string }
+> = {
+  minimal: {
+    entryPoint: "lib/workbench/wrappers/welcome-card-sdk.tsx",
+    exportName: "WelcomeCardSDK",
+  },
+  "poi-map": {
+    entryPoint: "lib/workbench/wrappers/poi-map-sdk.tsx",
+    exportName: "POIMapSDK",
+  },
+};
+
+function generateComponentRegistry(components: string[]): string {
+  const imports: string[] = [];
+  const entries: string[] = [];
+
+  if (components.includes("welcome")) {
+    imports.push('import { WelcomeCardSDK } from "./wrappers";');
+    entries.push(`  {
+    id: "welcome",
+    label: "Welcome",
+    description: "A simple starter widget - the perfect starting point",
+    category: "cards",
+    component: WelcomeCardSDK,
+    defaultProps: {
+      title: "Welcome!",
+      message:
+        "This is your ChatGPT App. Edit this component to build something amazing.",
+    },
+    exportConfig: {
+      entryPoint: "lib/workbench/wrappers/welcome-card-sdk.tsx",
+      exportName: "WelcomeCardSDK",
+    },
+  }`);
+  }
+
+  if (components.includes("poi-map")) {
+    imports.push('import { POIMapSDK } from "./wrappers";');
+    entries.push(`  {
+    id: "poi-map",
+    label: "POI Map",
+    description:
+      "Interactive map with points of interest - demonstrates display mode transitions, widget state, and tool calls",
+    category: "data",
+    component: POIMapSDK,
+    defaultProps: {
+      id: "workbench-poi-map",
+      title: "San Francisco Highlights",
+      pois: [
+        {
+          id: "1",
+          name: "Golden Gate Bridge",
+          category: "landmark",
+          lat: 37.8199,
+          lng: -122.4783,
+          description: "Iconic suspension bridge spanning the Golden Gate strait",
+          rating: 4.8,
+          imageUrl: "https://images.unsplash.com/photo-1449034446853-66c86144b0ad?w=400",
+        },
+        {
+          id: "2",
+          name: "Fisherman's Wharf",
+          category: "entertainment",
+          lat: 37.808,
+          lng: -122.4177,
+          description: "Historic waterfront with restaurants and attractions",
+          rating: 4.3,
+        },
+      ],
+      initialCenter: { lat: 37.7749, lng: -122.4194 },
+      initialZoom: 12,
+    },
+    exportConfig: {
+      entryPoint: "lib/workbench/wrappers/poi-map-sdk.tsx",
+      exportName: "POIMapSDK",
+    },
+  }`);
+  }
+
+  return `"use client";
+
+import type { ComponentType } from "react";
+${imports.join("\n")}
+
+export type ComponentCategory = "cards" | "lists" | "forms" | "data";
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyComponent = ComponentType<any>;
+
+export interface WorkbenchComponentEntry {
+  id: string;
+  label: string;
+  description: string;
+  category: ComponentCategory;
+  component: AnyComponent;
+  defaultProps: Record<string, unknown>;
+  exportConfig: {
+    entryPoint: string;
+    exportName: string;
+  };
+}
+
+export const workbenchComponents: WorkbenchComponentEntry[] = [
+${entries.join(",\n")}
+];
+
+export function getComponent(id: string): WorkbenchComponentEntry | undefined {
+  return workbenchComponents.find((c) => c.id === id);
+}
+
+export function getComponentIds(): string[] {
+  return workbenchComponents.map((c) => c.id);
+}
+`;
+}
+
+function generateWrappersIndex(components: string[]): string {
+  const exports: string[] = [];
+  if (components.includes("welcome")) {
+    exports.push('export { WelcomeCardSDK } from "./welcome-card-sdk";');
+  }
+  if (components.includes("poi-map")) {
+    exports.push('export { POIMapSDK } from "./poi-map-sdk";');
+  }
+  return exports.length > 0 ? exports.join("\n") + "\n" : "// No components\n";
+}
+
+function generateExamplesIndex(components: string[]): string {
+  const exports: string[] = [];
+  if (components.includes("welcome")) {
+    exports.push('export * from "./welcome-card";');
+  }
+  if (components.includes("poi-map")) {
+    exports.push('export * from "./poi-map";');
+  }
+  return exports.length > 0 ? exports.join("\n") + "\n" : "// No examples\n";
+}
+
+function updateExportScriptDefaults(
+  targetDir: string,
+  entryPoint: string,
+  exportName: string,
+): void {
+  const exportScriptPath = path.join(targetDir, "scripts/export.ts");
+  let content = fs.readFileSync(exportScriptPath, "utf-8");
+
+  // Update the default entryPoint
+  content = content.replace(
+    /entryPoint: "lib\/workbench\/wrappers\/[^"]+"/,
+    `entryPoint: "${entryPoint}"`,
+  );
+
+  // Update the default exportName
+  content = content.replace(
+    /exportName: "[^"]+",\n\s+name:/,
+    `exportName: "${exportName}",\n    name:`,
+  );
+
+  // Update help text defaults
+  content = content.replace(
+    /Widget entry point \(default: [^)]+\)/,
+    `Widget entry point (default: ${entryPoint})`,
+  );
+  content = content.replace(
+    /Export name from entry file \(default: [^)]+\)/,
+    `Export name from entry file (default: ${exportName})`,
+  );
+
+  fs.writeFileSync(exportScriptPath, content);
+}
+
+function applyTemplate(targetDir: string, template: TemplateType): void {
+  const components = TEMPLATE_COMPONENTS[template];
+
+  // Update component registry
+  const registryPath = path.join(
+    targetDir,
+    "lib/workbench/component-registry.tsx",
+  );
+  fs.writeFileSync(registryPath, generateComponentRegistry(components));
+
+  // Update wrappers index
+  const wrappersIndexPath = path.join(
+    targetDir,
+    "lib/workbench/wrappers/index.ts",
+  );
+  fs.writeFileSync(wrappersIndexPath, generateWrappersIndex(components));
+
+  // Update examples index
+  const examplesIndexPath = path.join(
+    targetDir,
+    "components/examples/index.ts",
+  );
+  fs.writeFileSync(examplesIndexPath, generateExamplesIndex(components));
+
+  // Remove unused example directories
+  const examplesDir = path.join(targetDir, "components/examples");
+  if (!components.includes("welcome")) {
+    fs.rmSync(path.join(examplesDir, "welcome-card"), {
+      recursive: true,
+      force: true,
+    });
+    fs.rmSync(
+      path.join(targetDir, "lib/workbench/wrappers/welcome-card-sdk.tsx"),
+      { force: true },
+    );
+  }
+  if (!components.includes("poi-map")) {
+    fs.rmSync(path.join(examplesDir, "poi-map"), {
+      recursive: true,
+      force: true,
+    });
+    fs.rmSync(path.join(targetDir, "lib/workbench/wrappers/poi-map-sdk.tsx"), {
+      force: true,
+    });
+  }
+
+  // Update export script defaults
+  const exportConfig = TEMPLATE_EXPORT_CONFIG[template];
+  updateExportScriptDefaults(
+    targetDir,
+    exportConfig.entryPoint,
+    exportConfig.exportName,
+  );
+}
+
 interface ProjectConfig {
   name: string;
   packageName: string;
   description: string;
+  template: TemplateType;
   includeServer: boolean;
 }
 
@@ -162,6 +398,28 @@ async function main() {
     process.exit(0);
   }
 
+  const template = await p.select({
+    message: "Choose a starter template:",
+    options: [
+      {
+        value: "minimal",
+        label: "Minimal",
+        hint: "Simple welcome card - perfect starting point",
+      },
+      {
+        value: "poi-map",
+        label: "Locations App",
+        hint: "Interactive map demo with full SDK features",
+      },
+    ],
+    initialValue: "minimal",
+  });
+
+  if (p.isCancel(template)) {
+    p.cancel("Operation cancelled.");
+    process.exit(0);
+  }
+
   const includeServer = await p.confirm({
     message: "Include MCP server?",
     initialValue: true,
@@ -182,6 +440,7 @@ async function main() {
     name: projectName as string,
     packageName,
     description: (description as string) || "",
+    template: template as TemplateType,
     includeServer: includeServer as boolean,
   };
 
@@ -217,6 +476,9 @@ async function main() {
   copyDir(templateDir, targetDir);
   renameFiles(targetDir);
   updatePackageJson(targetDir, config.packageName, config.description);
+
+  s.message("Applying template...");
+  applyTemplate(targetDir, config.template);
 
   if (config.includeServer) {
     s.message("Generating MCP server...");
