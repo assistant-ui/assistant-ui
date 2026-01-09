@@ -18,6 +18,46 @@ const CallToolContext = React.createContext<
   | null
 >(null);
 
+const extractToolOutput = (toolOutput: unknown): unknown => {
+  if (typeof toolOutput !== "object" || toolOutput === null) {
+    return toolOutput;
+  }
+
+  const output = toolOutput as Record<string, unknown>;
+
+  // Check if we have the MCP UI structure: { content: [...], _ui: { props: {...} } }
+  if (
+    "_ui" in output &&
+    typeof output._ui === "object" &&
+    output._ui !== null
+  ) {
+    const uiData = output._ui as Record<string, unknown>;
+
+    // Handle nested structure: _ui.props.props
+    if (
+      "props" in uiData &&
+      typeof uiData.props === "object" &&
+      uiData.props !== null
+    ) {
+      const props = uiData.props as Record<string, unknown>;
+
+      // If props.props exists, extract the inner props (actual component props)
+      if (
+        "props" in props &&
+        typeof props.props === "object" &&
+        props.props !== null
+      ) {
+        return props.props;
+      }
+
+      // Otherwise, return the outer props
+      return props;
+    }
+  }
+
+  return toolOutput;
+};
+
 export interface MCPToolUIProviderProps {
   /** MCP servers with UI capability */
   servers: Array<{
@@ -220,7 +260,12 @@ export const MCPToolUIProvider: React.FC<MCPToolUIProviderProps> = ({
                           src={`${baseUrl}/render?component=${encodeURIComponent(componentName)}`}
                           toolName={toolName}
                           toolInput={args as Record<string, unknown>}
-                          toolOutput={result as Record<string, unknown> | null}
+                          toolOutput={
+                            extractToolOutput(result) as Record<
+                              string,
+                              unknown
+                            > | null
+                          }
                           theme={currentTheme}
                           widgetState={widgetState}
                           onWidgetStateChange={setWidgetState}
