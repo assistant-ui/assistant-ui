@@ -176,6 +176,14 @@
   animation: shine var(--duration) infinite linear;
 }
 
+@utility scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 @property --angle {
   syntax: "<angle>";
   inherits: false;

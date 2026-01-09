@@ -129,7 +129,7 @@ export default function SafeContentFramePage() {
   };
 
   return (
-    <div className="container max-w-screen-xl space-y-12 px-4 py-12">
+    <div className="container mx-auto max-w-screen-xl space-y-12 px-4 py-12">
       <div className="flex flex-col items-center space-y-6 text-center">
         <div className="flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm">
           <Shield className="size-4" />

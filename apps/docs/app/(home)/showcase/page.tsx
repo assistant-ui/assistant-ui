@@ -1,7 +1,17 @@
+import type { Metadata } from "next";
 import Image from "next/image";
-
+import { createOgMetadata } from "@/lib/og";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+
+const title = "Showcase";
+const description = "Projects built with assistant-ui";
+
+export const metadata: Metadata = {
+  title,
+  description,
+  ...createOgMetadata(title, description),
+};
 
 type ShowcaseItem = {
   title: string;
