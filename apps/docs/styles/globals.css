@@ -4,7 +4,9 @@
 @import "fumadocs-ui/css/shadcn.css";
 @import "fumadocs-ui/css/preset.css";
 
-@import "../styles/sugar-high.css";
+@import "./sugar-high.css";
+
+@plugin "tailwind-scrollbar";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -137,6 +139,10 @@
   }
 }
 
+:focus-visible {
+  box-shadow: none;
+}
+
 @layer base {
   :root {
     --primary: var(--docs-color);
@@ -179,14 +185,6 @@
 /* Create a utility class for the animation */
 @utility animate-shine {
   animation: shine var(--duration) infinite linear;
-}
-
-@utility scrollbar-none {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-  &::-webkit-scrollbar {
-    display: none;
-  }
 }
 
 @property --angle {

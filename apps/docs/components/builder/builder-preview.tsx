@@ -140,6 +140,12 @@ export function BuilderPreview({ config }: BuilderPreviewProps) {
               </ThreadPrimitive.Empty>
             )}
 
+            {!components.threadWelcome && (
+              <ThreadPrimitive.Empty>
+                <div className="grow" />
+              </ThreadPrimitive.Empty>
+            )}
+
             <ThreadPrimitive.Messages components={messageComponents} />
 
             <ThreadPrimitive.If empty={false}>

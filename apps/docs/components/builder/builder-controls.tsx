@@ -1,34 +1,56 @@
 "use client";
 
-import { cn } from "@/lib/utils";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { RotateCcw } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Select } from "@/components/shared/select";
+import { Switch } from "@/components/shared/switch";
 
 import type {
   BuilderConfig,
   BorderRadius,
-  UserMessagePosition,
   FontSize,
   MessageSpacing,
 } from "./types";
-import {
-  ACCENT_COLORS,
-  FONT_FAMILIES,
-  MAX_WIDTHS,
-  FONT_SIZES,
-  MESSAGE_SPACINGS,
-  DEFAULT_CONFIG,
-} from "./types";
 import { PRESETS } from "./presets";
+
+const FONT_OPTIONS = [
+  { label: "System", value: "system-ui" },
+  { label: "Inter", value: "Inter, sans-serif" },
+  { label: "Geist", value: "Geist, sans-serif" },
+  { label: "Serif", value: "Georgia, serif" },
+  { label: "Mono", value: "ui-monospace, monospace" },
+];
+
+const FONT_SIZE_OPTIONS = [
+  { label: "Small", value: "sm" },
+  { label: "Default", value: "base" },
+  { label: "Large", value: "lg" },
+];
+
+const MAX_WIDTH_OPTIONS = [
+  { label: "Narrow", value: "32rem" },
+  { label: "Default", value: "44rem" },
+  { label: "Wide", value: "56rem" },
+  { label: "Full", value: "100%" },
+];
+
+const SPACING_OPTIONS = [
+  { label: "Compact", value: "compact" },
+  { label: "Comfortable", value: "comfortable" },
+  { label: "Spacious", value: "spacious" },
+];
+
+const USER_MESSAGE_OPTIONS = [
+  { label: "Left", value: "left" },
+  { label: "Right", value: "right" },
+];
+
+const RADIUS_OPTIONS = [
+  { label: "None", value: "none" },
+  { label: "Small", value: "sm" },
+  { label: "Medium", value: "md" },
+  { label: "Large", value: "lg" },
+  { label: "Full", value: "full" },
+];
 
 interface BuilderControlsProps {
   config: BuilderConfig;
@@ -63,296 +85,293 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
   };
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between px-4">
-        <span className="font-medium text-sm">Settings</span>
-        <button
-          onClick={() => onChange(DEFAULT_CONFIG)}
-          className="text-muted-foreground transition-colors hover:text-foreground"
-          title="Reset"
-        >
-          <RotateCcw className="size-3.5" />
-        </button>
-      </div>
+    <div className="scrollbar-none h-full overflow-y-auto">
+      <div className="space-y-5">
+        <Row
+          label="Preset"
+          control={<PresetSelect config={config} onChange={onChange} />}
+        />
 
-      <ScrollArea className="flex-1">
-        <div className="space-y-6 px-4 py-6">
-          <Section title="Preset">
-            <div className="flex flex-wrap gap-1.5">
-              {PRESETS.map((preset) => (
-                <button
-                  key={preset.id}
-                  onClick={() => onChange(preset.config)}
-                  className={cn(
-                    "rounded-md px-2.5 py-1 text-xs transition-colors",
-                    JSON.stringify(config) === JSON.stringify(preset.config)
-                      ? "bg-foreground text-background"
-                      : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground",
-                  )}
-                >
-                  {preset.name}
-                </button>
-              ))}
-            </div>
-          </Section>
-
-          <Section title="Features">
-            <div className="space-y-2.5">
-              <Toggle
-                label="Attachments"
-                checked={config.components.attachments}
-                onChange={(checked) =>
-                  updateComponents({ attachments: checked })
-                }
-              />
-              <Toggle
-                label="Branch Picker"
-                checked={config.components.branchPicker}
-                onChange={(checked) =>
-                  updateComponents({ branchPicker: checked })
-                }
-              />
-              <Toggle
-                label="Edit Messages"
-                checked={config.components.editMessage}
-                onChange={(checked) =>
-                  updateComponents({ editMessage: checked })
-                }
-              />
-              <Toggle
-                label="Welcome Screen"
-                checked={config.components.threadWelcome}
-                onChange={(checked) =>
-                  updateComponents({ threadWelcome: checked })
-                }
-              />
-              <Toggle
-                label="Suggestions"
-                checked={config.components.suggestions}
-                onChange={(checked) =>
-                  updateComponents({ suggestions: checked })
-                }
-              />
-              <Toggle
-                label="Scroll to Bottom"
-                checked={config.components.scrollToBottom}
-                onChange={(checked) =>
-                  updateComponents({ scrollToBottom: checked })
-                }
-              />
-            </div>
-          </Section>
-
-          <Section title="Content">
-            <div className="space-y-2.5">
-              <Toggle
-                label="Markdown"
-                checked={config.components.markdown}
-                onChange={(checked) => updateComponents({ markdown: checked })}
-              />
-              <Toggle
-                label="Reasoning"
-                checked={config.components.reasoning}
-                onChange={(checked) => updateComponents({ reasoning: checked })}
-              />
-              <Toggle
-                label="Follow-up Suggestions"
-                checked={config.components.followUpSuggestions}
-                onChange={(checked) =>
-                  updateComponents({ followUpSuggestions: checked })
-                }
-              />
-              <Toggle
-                label="Avatar"
-                checked={config.components.avatar}
-                onChange={(checked) => updateComponents({ avatar: checked })}
-              />
-              <Toggle
-                label="Typing Indicator"
-                checked={config.components.typingIndicator}
-                onChange={(checked) =>
-                  updateComponents({ typingIndicator: checked })
-                }
-              />
-            </div>
-          </Section>
-
-          <Section title="Actions">
-            <div className="space-y-2.5">
-              <Toggle
-                label="Copy"
-                checked={config.components.actionBar.copy}
-                onChange={(checked) => updateActionBar({ copy: checked })}
-              />
-              <Toggle
-                label="Reload"
-                checked={config.components.actionBar.reload}
-                onChange={(checked) => updateActionBar({ reload: checked })}
-              />
-              <Toggle
-                label="Speak"
-                checked={config.components.actionBar.speak}
-                onChange={(checked) => updateActionBar({ speak: checked })}
-              />
-              <Toggle
-                label="Feedback"
-                checked={config.components.actionBar.feedback}
-                onChange={(checked) => updateActionBar({ feedback: checked })}
-              />
-            </div>
-          </Section>
-
-          <Section title="Accent Color">
-            <div className="flex flex-wrap gap-1.5">
-              {ACCENT_COLORS.map((color) => (
-                <button
-                  key={color.value}
-                  type="button"
-                  className={cn(
-                    "size-6 rounded-full transition-all",
-                    config.styles.accentColor === color.value
-                      ? "ring-2 ring-foreground ring-offset-2 ring-offset-background"
-                      : "hover:scale-110",
-                  )}
-                  style={{ backgroundColor: color.value }}
-                  onClick={() => updateStyles({ accentColor: color.value })}
-                  title={color.name}
-                />
-              ))}
-            </div>
-          </Section>
-
-          <Section title="Border Radius">
-            <div className="flex gap-1">
-              {(["none", "sm", "md", "lg", "full"] as BorderRadius[]).map(
-                (radius) => (
-                  <button
-                    key={radius}
-                    className={cn(
-                      "flex-1 rounded-md py-1.5 text-xs transition-colors",
-                      config.styles.borderRadius === radius
-                        ? "bg-foreground text-background"
-                        : "bg-muted text-muted-foreground hover:text-foreground",
-                    )}
-                    onClick={() => updateStyles({ borderRadius: radius })}
-                  >
-                    {radius}
-                  </button>
-                ),
-              )}
-            </div>
-          </Section>
-
-          <Section title="Font">
-            <Select
-              value={config.styles.fontFamily}
-              onValueChange={(value) => updateStyles({ fontFamily: value })}
-            >
-              <SelectTrigger className="h-8 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {FONT_FAMILIES.map((font) => (
-                  <SelectItem key={font.value} value={font.value}>
-                    {font.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Section>
-
-          <Section title="Font Size">
-            <div className="flex gap-1">
-              {FONT_SIZES.map((size) => (
-                <button
-                  key={size.value}
-                  className={cn(
-                    "flex-1 rounded-md py-1.5 text-xs transition-colors",
-                    config.styles.fontSize === size.value
-                      ? "bg-foreground text-background"
-                      : "bg-muted text-muted-foreground hover:text-foreground",
-                  )}
-                  onClick={() =>
-                    updateStyles({ fontSize: size.value as FontSize })
+        <Section title="Features">
+          <div className="space-y-1">
+            <Row
+              label="Attachments"
+              control={
+                <Switch
+                  checked={config.components.attachments}
+                  onCheckedChange={(checked) =>
+                    updateComponents({ attachments: checked })
                   }
-                >
-                  {size.name}
-                </button>
-              ))}
-            </div>
-          </Section>
+                />
+              }
+            />
+            <Row
+              label="Branch Picker"
+              control={
+                <Switch
+                  checked={config.components.branchPicker}
+                  onCheckedChange={(checked) =>
+                    updateComponents({ branchPicker: checked })
+                  }
+                />
+              }
+            />
+            <Row
+              label="Edit Messages"
+              control={
+                <Switch
+                  checked={config.components.editMessage}
+                  onCheckedChange={(checked) =>
+                    updateComponents({ editMessage: checked })
+                  }
+                />
+              }
+            />
+            <Row
+              label="Welcome Screen"
+              control={
+                <Switch
+                  checked={config.components.threadWelcome}
+                  onCheckedChange={(checked) =>
+                    updateComponents({ threadWelcome: checked })
+                  }
+                />
+              }
+            />
+            <Row
+              label="Suggestions"
+              control={
+                <Switch
+                  checked={config.components.suggestions}
+                  onCheckedChange={(checked) =>
+                    updateComponents({ suggestions: checked })
+                  }
+                />
+              }
+            />
+            <Row
+              label="Scroll to Bottom"
+              control={
+                <Switch
+                  checked={config.components.scrollToBottom}
+                  onCheckedChange={(checked) =>
+                    updateComponents({ scrollToBottom: checked })
+                  }
+                />
+              }
+            />
+            <Row
+              label="Markdown"
+              control={
+                <Switch
+                  checked={config.components.markdown}
+                  onCheckedChange={(checked) =>
+                    updateComponents({ markdown: checked })
+                  }
+                />
+              }
+            />
+            <Row
+              label="Reasoning"
+              control={
+                <Switch
+                  checked={config.components.reasoning}
+                  onCheckedChange={(checked) =>
+                    updateComponents({ reasoning: checked })
+                  }
+                />
+              }
+            />
+            <Row
+              label="Follow-ups"
+              control={
+                <Switch
+                  checked={config.components.followUpSuggestions}
+                  onCheckedChange={(checked) =>
+                    updateComponents({ followUpSuggestions: checked })
+                  }
+                />
+              }
+            />
+            <Row
+              label="Avatar"
+              control={
+                <Switch
+                  checked={config.components.avatar}
+                  onCheckedChange={(checked) =>
+                    updateComponents({ avatar: checked })
+                  }
+                />
+              }
+            />
+            <Row
+              label="Typing Indicator"
+              control={
+                <Switch
+                  checked={config.components.typingIndicator}
+                  onCheckedChange={(checked) =>
+                    updateComponents({ typingIndicator: checked })
+                  }
+                />
+              }
+            />
+          </div>
+        </Section>
 
-          <Section title="Max Width">
-            <Select
-              value={config.styles.maxWidth}
-              onValueChange={(value) => updateStyles({ maxWidth: value })}
-            >
-              <SelectTrigger className="h-8 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {MAX_WIDTHS.map((width) => (
-                  <SelectItem key={width.value} value={width.value}>
-                    {width.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Section>
+        <Section title="Actions">
+          <div className="space-y-1">
+            <Row
+              label="Copy"
+              control={
+                <Switch
+                  checked={config.components.actionBar.copy}
+                  onCheckedChange={(checked) =>
+                    updateActionBar({ copy: checked })
+                  }
+                />
+              }
+            />
+            <Row
+              label="Reload"
+              control={
+                <Switch
+                  checked={config.components.actionBar.reload}
+                  onCheckedChange={(checked) =>
+                    updateActionBar({ reload: checked })
+                  }
+                />
+              }
+            />
+            <Row
+              label="Speak"
+              control={
+                <Switch
+                  checked={config.components.actionBar.speak}
+                  onCheckedChange={(checked) =>
+                    updateActionBar({ speak: checked })
+                  }
+                />
+              }
+            />
+            <Row
+              label="Feedback"
+              control={
+                <Switch
+                  checked={config.components.actionBar.feedback}
+                  onCheckedChange={(checked) =>
+                    updateActionBar({ feedback: checked })
+                  }
+                />
+              }
+            />
+          </div>
+        </Section>
 
-          <Section title="Spacing">
-            <div className="flex gap-1">
-              {MESSAGE_SPACINGS.map((spacing) => (
-                <button
-                  key={spacing.value}
-                  className={cn(
-                    "flex-1 rounded-md py-1.5 text-xs transition-colors",
-                    config.styles.messageSpacing === spacing.value
-                      ? "bg-foreground text-background"
-                      : "bg-muted text-muted-foreground hover:text-foreground",
-                  )}
-                  onClick={() =>
+        <Section title="Typography">
+          <div className="space-y-1">
+            <Row
+              label="Font"
+              control={
+                <Select
+                  value={config.styles.fontFamily}
+                  onValueChange={(value) => updateStyles({ fontFamily: value })}
+                  options={FONT_OPTIONS}
+                />
+              }
+            />
+            <Row
+              label="Size"
+              control={
+                <Select
+                  value={config.styles.fontSize}
+                  onValueChange={(value) =>
+                    updateStyles({ fontSize: value as FontSize })
+                  }
+                  options={FONT_SIZE_OPTIONS}
+                />
+              }
+            />
+          </div>
+        </Section>
+
+        <Section title="Layout">
+          <div className="space-y-1">
+            <Row
+              label="Max Width"
+              control={
+                <Select
+                  value={config.styles.maxWidth}
+                  onValueChange={(value) => updateStyles({ maxWidth: value })}
+                  options={MAX_WIDTH_OPTIONS}
+                />
+              }
+            />
+            <Row
+              label="Spacing"
+              control={
+                <Select
+                  value={config.styles.messageSpacing}
+                  onValueChange={(value) =>
+                    updateStyles({ messageSpacing: value as MessageSpacing })
+                  }
+                  options={SPACING_OPTIONS}
+                />
+              }
+            />
+            <Row
+              label="User Message"
+              control={
+                <Select
+                  value={config.styles.userMessagePosition}
+                  onValueChange={(value) =>
                     updateStyles({
-                      messageSpacing: spacing.value as MessageSpacing,
+                      userMessagePosition: value as "left" | "right",
                     })
                   }
-                >
-                  {spacing.name}
-                </button>
-              ))}
-            </div>
-          </Section>
-
-          <Section title="User Message">
-            <div className="flex gap-1">
-              {(["left", "right"] as UserMessagePosition[]).map((position) => (
-                <button
-                  key={position}
-                  className={cn(
-                    "flex-1 rounded-md py-1.5 text-xs capitalize transition-colors",
-                    config.styles.userMessagePosition === position
-                      ? "bg-foreground text-background"
-                      : "bg-muted text-muted-foreground hover:text-foreground",
-                  )}
-                  onClick={() =>
-                    updateStyles({ userMessagePosition: position })
-                  }
-                >
-                  {position}
-                </button>
-              ))}
-            </div>
-          </Section>
-
-          <Section title="Animation">
-            <Toggle
-              label="Enable animations"
-              checked={config.styles.animations}
-              onChange={(checked) => updateStyles({ animations: checked })}
+                  options={USER_MESSAGE_OPTIONS}
+                />
+              }
             />
-          </Section>
-        </div>
-      </ScrollArea>
+            <Row
+              label="Radius"
+              control={
+                <Select
+                  value={config.styles.borderRadius}
+                  onValueChange={(value) =>
+                    updateStyles({ borderRadius: value as BorderRadius })
+                  }
+                  options={RADIUS_OPTIONS}
+                />
+              }
+            />
+          </div>
+        </Section>
+
+        <Section title="Style">
+          <div className="space-y-1">
+            <Row
+              label="Accent Color"
+              control={
+                <ColorPicker
+                  value={config.styles.accentColor}
+                  onChange={(value) => updateStyles({ accentColor: value })}
+                />
+              }
+            />
+            <Row
+              label="Animations"
+              control={
+                <Switch
+                  checked={config.styles.animations}
+                  onCheckedChange={(checked) =>
+                    updateStyles({ animations: checked })
+                  }
+                />
+              }
+            />
+          </div>
+        </Section>
+      </div>
     </div>
   );
 }
@@ -365,26 +384,89 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <div className="space-y-2.5">
-      <Label className="text-muted-foreground text-xs">{title}</Label>
+    <div className="space-y-2">
+      <span className="font-medium text-muted-foreground text-xs">{title}</span>
       {children}
     </div>
   );
 }
 
-function Toggle({
-  label,
-  checked,
+function Row({ label, control }: { label: string; control: React.ReactNode }) {
+  return (
+    <div className="flex h-7 items-center justify-between">
+      <span className="text-sm">{label}</span>
+      {control}
+    </div>
+  );
+}
+
+function ColorPicker({
+  value,
   onChange,
 }: {
-  label: string;
-  checked: boolean;
-  onChange: (checked: boolean) => void;
+  value: string;
+  onChange: (value: string) => void;
 }) {
+  const [localValue, setLocalValue] = useState(value);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    setLocalValue(value);
+  }, [value]);
+
+  const handleChange = (newValue: string) => {
+    setLocalValue(newValue);
+
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+
+    timeoutRef.current = setTimeout(() => {
+      onChange(newValue);
+    }, 50);
+  };
+
   return (
-    <div className="flex items-center justify-between">
-      <span className="text-sm">{label}</span>
-      <Switch checked={checked} onCheckedChange={onChange} />
-    </div>
+    <label className="relative cursor-pointer">
+      <div
+        className="size-5 rounded-md shadow-sm ring-1 ring-black/10 ring-inset"
+        style={{ backgroundColor: localValue }}
+      />
+      <input
+        type="color"
+        value={localValue}
+        onChange={(e) => handleChange(e.target.value)}
+        className="absolute inset-0 size-full cursor-pointer opacity-0"
+      />
+    </label>
+  );
+}
+
+function PresetSelect({
+  config,
+  onChange,
+}: {
+  config: BuilderConfig;
+  onChange: (config: BuilderConfig) => void;
+}) {
+  const currentPreset = PRESETS.find(
+    (preset) => JSON.stringify(preset.config) === JSON.stringify(config),
+  );
+
+  const options = PRESETS.map((preset) => ({
+    label: preset.name,
+    value: preset.id,
+  }));
+
+  return (
+    <Select
+      value={currentPreset?.id ?? ""}
+      onValueChange={(id) => {
+        const preset = PRESETS.find((p) => p.id === id);
+        if (preset) onChange(preset.config);
+      }}
+      options={options}
+      placeholder="Custom"
+    />
   );
 }

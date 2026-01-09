@@ -6,6 +6,7 @@ import Image from "next/image";
 import { Github, Moon, Sun } from "lucide-react";
 import { Builder } from "@/components/builder/builder";
 import { DocsRuntimeProvider } from "@/contexts/DocsRuntimeProvider";
+import { DEFAULT_CONFIG, type BuilderConfig } from "@/components/builder/types";
 
 function ThemeToggle() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
@@ -44,6 +45,8 @@ function ThemeToggle() {
 }
 
 export default function PlaygroundPage() {
+  const [config, setConfig] = useState<BuilderConfig>(DEFAULT_CONFIG);
+
   return (
     <div className="flex h-svh flex-col overflow-hidden">
       <header className="shrink-0">
@@ -82,7 +85,7 @@ export default function PlaygroundPage() {
 
       <main className="min-h-0 flex-1 overflow-hidden">
         <DocsRuntimeProvider>
-          <Builder />
+          <Builder config={config} onChange={setConfig} />
         </DocsRuntimeProvider>
       </main>
     </div>

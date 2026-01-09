@@ -1,20 +1,20 @@
 "use client";
 
-import { useState } from "react";
-
 import type { BuilderConfig } from "./types";
-import { DEFAULT_CONFIG } from "./types";
 import { BuilderControls } from "./builder-controls";
 import { BuilderPreview } from "./builder-preview";
 import { BuilderCodeOutput } from "./builder-code-output";
 
-export function Builder() {
-  const [config, setConfig] = useState<BuilderConfig>(DEFAULT_CONFIG);
+interface BuilderProps {
+  config: BuilderConfig;
+  onChange: (config: BuilderConfig) => void;
+}
 
+export function Builder({ config, onChange }: BuilderProps) {
   return (
     <div className="flex h-full w-full gap-4 overflow-hidden bg-background p-4">
       <div className="w-72 shrink-0 overflow-hidden lg:w-80">
-        <BuilderControls config={config} onChange={setConfig} />
+        <BuilderControls config={config} onChange={onChange} />
       </div>
 
       <div className="grid min-h-0 flex-1 grid-rows-2 gap-4 overflow-hidden lg:grid-cols-2 lg:grid-rows-1">

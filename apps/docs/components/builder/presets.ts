@@ -297,6 +297,43 @@ export const PRESETS: Preset[] = [
       },
     },
   },
+  {
+    id: "grok",
+    name: "Grok",
+    description: "xAI's Grok-inspired minimal dark interface",
+    config: {
+      components: {
+        attachments: true,
+        branchPicker: false,
+        editMessage: true,
+        actionBar: {
+          copy: true,
+          reload: true,
+          speak: false,
+          feedback: true,
+        },
+        threadWelcome: false,
+        suggestions: false,
+        scrollToBottom: false,
+        markdown: true,
+        reasoning: false,
+        followUpSuggestions: false,
+        avatar: false,
+        typingIndicator: true,
+      },
+      styles: {
+        theme: "dark",
+        accentColor: "#171717",
+        borderRadius: "full",
+        maxWidth: "48rem",
+        fontFamily: "system-ui",
+        fontSize: "base",
+        messageSpacing: "comfortable",
+        userMessagePosition: "right",
+        animations: true,
+      },
+    },
+  },
 ];
 
 export function getPresetById(id: string): Preset | undefined {
