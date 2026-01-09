@@ -34,4 +34,38 @@ describe("generateBridgeScript", () => {
     expect(script).toContain("30000");
     expect(script).toContain("timed out");
   });
+
+  describe("OpenAI namespace compatibility", () => {
+    it("defines window.openai as alias to window.aui", () => {
+      const script = generateBridgeScript();
+      expect(script).toContain('Object.defineProperty(window, "openai"');
+      expect(script).toContain("value: window.aui");
+    });
+
+    it("includes previousDisplayMode property", () => {
+      const script = generateBridgeScript();
+      expect(script).toContain("previousDisplayMode");
+    });
+
+    it("includes view property", () => {
+      const script = generateBridgeScript();
+      expect(script).toContain("view");
+    });
+
+    it("dispatches both aui and openai events", () => {
+      const script = generateBridgeScript();
+      expect(script).toContain('CustomEvent("aui:set_globals"');
+      expect(script).toContain('CustomEvent("openai:set_globals"');
+    });
+
+    it("handles OPENAI_SET_GLOBALS message type", () => {
+      const script = generateBridgeScript();
+      expect(script).toContain("OPENAI_SET_GLOBALS");
+    });
+
+    it("handles OPENAI_METHOD_RESPONSE message type", () => {
+      const script = generateBridgeScript();
+      expect(script).toContain("OPENAI_METHOD_RESPONSE");
+    });
+  });
 });

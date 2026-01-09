@@ -42,6 +42,7 @@ const DEFAULT_GLOBALS: AUIGlobals = {
   theme: "light",
   locale: "en-US",
   displayMode: "inline",
+  previousDisplayMode: null,
   maxHeight: 800,
   toolInput: {},
   toolOutput: null,
@@ -53,6 +54,7 @@ const DEFAULT_GLOBALS: AUIGlobals = {
   safeArea: { insets: { top: 0, bottom: 0, left: 0, right: 0 } },
   userLocation: null,
   toolResponseMetadata: null,
+  view: null,
 };
 
 export function AUIProvider({ children }: AUIProviderProps) {
@@ -64,6 +66,7 @@ export function AUIProvider({ children }: AUIProviderProps) {
       theme: window.aui.theme,
       locale: window.aui.locale,
       displayMode: window.aui.displayMode,
+      previousDisplayMode: window.aui.previousDisplayMode,
       maxHeight: window.aui.maxHeight,
       toolInput: window.aui.toolInput,
       toolOutput: window.aui.toolOutput,
@@ -72,6 +75,7 @@ export function AUIProvider({ children }: AUIProviderProps) {
       safeArea: window.aui.safeArea,
       userLocation: window.aui.userLocation,
       toolResponseMetadata: window.aui.toolResponseMetadata,
+      view: window.aui.view,
     };
   });
 

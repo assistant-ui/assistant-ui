@@ -1,0 +1,38 @@
+# Dependency directories
+node_modules/
+.pnpm-store/
+
+# Build outputs
+/assets
+dist/
+build/
+.vite/
+coverage/
+
+# Logs and caches
+*.log
+pnpm-debug.log
+npm-debug.log
+yarn-error.log
+*.tsbuildinfo
+.eslintcache
+
+# Environment files
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Editor and OS files
+.DS_Store
+.idea/
+.vscode/
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+
+# Ruff
+.ruff_cache/

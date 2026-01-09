@@ -121,6 +121,7 @@ export const RemoteToolUI: React.FC<RemoteToolUIProps> = ({
       theme,
       locale,
       displayMode,
+      previousDisplayMode: null,
       maxHeight,
       toolInput: resolvedToolInput,
       toolOutput: resolvedToolOutput,
@@ -129,6 +130,7 @@ export const RemoteToolUI: React.FC<RemoteToolUIProps> = ({
       safeArea: DEFAULT_GLOBALS.safeArea,
       userLocation: userLocation ?? null,
       toolResponseMetadata: toolResponseMetadata ?? null,
+      view: null,
     }),
     [
       theme,

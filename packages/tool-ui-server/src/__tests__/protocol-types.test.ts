@@ -7,7 +7,10 @@ import type {
   ToolAnnotations,
   UploadFileResponse,
   GetFileDownloadUrlResponse,
+  View,
+  AUIGlobals,
 } from "../types/protocol";
+import { DEFAULT_GLOBALS } from "../runtime/bridge-script";
 
 describe("Protocol Types - UserLocation", () => {
   it("accepts valid user location data", () => {
@@ -206,5 +209,43 @@ describe("Protocol Types - File Handling Responses", () => {
     expect(response.downloadUrl).toBe(
       "https://example.com/files/download/file-abc-123-xyz-789",
     );
+  });
+});
+
+describe("View type", () => {
+  it("accepts modal mode with params", () => {
+    const view: View = {
+      mode: "modal",
+      params: { title: "Test Modal" },
+    };
+    expect(view.mode).toBe("modal");
+    expect(view.params).toEqual({ title: "Test Modal" });
+  });
+
+  it("accepts inline mode with null params", () => {
+    const view: View = {
+      mode: "inline",
+      params: null,
+    };
+    expect(view.mode).toBe("inline");
+    expect(view.params).toBeNull();
+  });
+});
+
+describe("AUIGlobals with new properties", () => {
+  it("includes previousDisplayMode", () => {
+    const globals: AUIGlobals = {
+      ...DEFAULT_GLOBALS,
+      previousDisplayMode: "inline",
+    };
+    expect(globals.previousDisplayMode).toBe("inline");
+  });
+
+  it("includes view", () => {
+    const globals: AUIGlobals = {
+      ...DEFAULT_GLOBALS,
+      view: { mode: "modal", params: null },
+    };
+    expect(globals.view?.mode).toBe("modal");
   });
 });

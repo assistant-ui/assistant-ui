@@ -44,6 +44,7 @@ describe("MessageBridge", () => {
       theme: "dark" as const,
       locale: "en-US",
       displayMode: "inline" as const,
+      previousDisplayMode: null,
       maxHeight: 600,
       toolInput: { query: "test" },
       toolOutput: null,
@@ -55,6 +56,7 @@ describe("MessageBridge", () => {
       safeArea: { insets: { top: 0, bottom: 0, left: 0, right: 0 } },
       userLocation: null,
       toolResponseMetadata: null,
+      view: null,
     };
 
     bridge.sendGlobals(globals);

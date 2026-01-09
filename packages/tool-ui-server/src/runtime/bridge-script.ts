@@ -4,6 +4,7 @@ export const DEFAULT_GLOBALS: AUIGlobals = {
   theme: "light",
   locale: "en-US",
   displayMode: "inline",
+  previousDisplayMode: null,
   maxHeight: 800,
   toolInput: {},
   toolOutput: null,
@@ -17,6 +18,7 @@ export const DEFAULT_GLOBALS: AUIGlobals = {
   },
   userLocation: null,
   toolResponseMetadata: null,
+  view: null,
 };
 
 export function generateBridgeScript(): string {
@@ -33,10 +35,17 @@ export function generateBridgeScript(): string {
   }
 
   function dispatchGlobalsChange(changedGlobals) {
-    var event = new CustomEvent("aui:set_globals", {
+    // Dispatch AUI event (our standard)
+    var auiEvent = new CustomEvent("aui:set_globals", {
       detail: { globals: changedGlobals },
     });
-    window.dispatchEvent(event);
+    window.dispatchEvent(auiEvent);
+    
+    // Dispatch OpenAI event (ChatGPT Apps compatibility)
+    var openaiEvent = new CustomEvent("openai:set_globals", {
+      detail: { globals: changedGlobals },
+    });
+    window.dispatchEvent(openaiEvent);
   }
 
   function buildChangedGlobals(prev, next) {
@@ -58,10 +67,25 @@ export function generateBridgeScript(): string {
     var message = event.data;
     if (!message || typeof message !== "object" || !message.type) return;
 
-    switch (message.type) {
+    // Normalize OPENAI_ prefix to AUI_ for consistent handling
+    var type = message.type;
+    if (type === "OPENAI_SET_GLOBALS") {
+      type = "AUI_SET_GLOBALS";
+    } else if (type === "OPENAI_METHOD_RESPONSE") {
+      type = "AUI_METHOD_RESPONSE";
+    }
+
+    switch (type) {
       case "AUI_SET_GLOBALS":
         previousGlobals = globals;
-        globals = Object.assign({}, DEFAULT_GLOBALS, message.globals);
+        
+        // Track previousDisplayMode when displayMode changes
+        var newGlobals = Object.assign({}, DEFAULT_GLOBALS, message.globals);
+        if (previousGlobals && newGlobals.displayMode !== previousGlobals.displayMode) {
+          newGlobals.previousDisplayMode = previousGlobals.displayMode;
+        }
+        
+        globals = newGlobals;
         var changed = buildChangedGlobals(previousGlobals, globals);
         if (Object.keys(changed).length > 0) {
           dispatchGlobalsChange(changed);
@@ -160,6 +184,7 @@ export function generateBridgeScript(): string {
         theme: { get: function() { return globals.theme; }, enumerable: true },
         locale: { get: function() { return globals.locale; }, enumerable: true },
         displayMode: { get: function() { return globals.displayMode; }, enumerable: true },
+        previousDisplayMode: { get: function() { return globals.previousDisplayMode; }, enumerable: true },
         maxHeight: { get: function() { return globals.maxHeight; }, enumerable: true },
         toolInput: { get: function() { return globals.toolInput; }, enumerable: true },
         toolOutput: { get: function() { return globals.toolOutput; }, enumerable: true },
@@ -168,9 +193,17 @@ export function generateBridgeScript(): string {
         safeArea: { get: function() { return globals.safeArea; }, enumerable: true },
         userLocation: { get: function() { return globals.userLocation; }, enumerable: true },
         toolResponseMetadata: { get: function() { return globals.toolResponseMetadata; }, enumerable: true },
+        view: { get: function() { return globals.view; }, enumerable: true },
       }),
       api
     ),
+    configurable: false,
+    writable: false,
+  });
+
+  // OpenAI namespace compatibility - alias to window.aui
+  Object.defineProperty(window, "openai", {
+    value: window.aui,
     configurable: false,
     writable: false,
   });

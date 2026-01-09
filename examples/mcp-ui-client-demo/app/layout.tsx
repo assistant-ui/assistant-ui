@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "MCP Tool UI Example",
-  description: "Example of assistant-ui with MCP server and tool-ui components",
+  title: "OpenAI Apps SDK Examples on MCP AUI",
+  description:
+    "OpenAI ChatGPT Apps running on MCP AUI via window.openai compatibility",
 };
 
 export default function RootLayout({

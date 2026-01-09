@@ -16,7 +16,7 @@
   <div id="root"></div>
   <script>
   (function() {
-    var DEFAULT_GLOBALS = {"theme":"light","locale":"en-US","displayMode":"inline","maxHeight":800,"toolInput":{},"toolOutput":null,"widgetState":null,"userAgent":{"device":{"type":"desktop"},"capabilities":{"hover":true,"touch":false}},"safeArea":{"insets":{"top":0,"bottom":0,"left":0,"right":0}}};
+    var DEFAULT_GLOBALS = {"theme":"light","locale":"en-US","displayMode":"inline","previousDisplayMode":null,"maxHeight":800,"toolInput":{},"toolOutput":null,"widgetState":null,"userAgent":{"device":{"type":"desktop"},"capabilities":{"hover":true,"touch":false}},"safeArea":{"insets":{"top":0,"bottom":0,"left":0,"right":0}},"userLocation":null,"toolResponseMetadata":null,"view":null};
 
     var pendingCalls = new Map();
     var globals = Object.assign({}, DEFAULT_GLOBALS);
@@ -27,10 +27,17 @@
     }
 
     function dispatchGlobalsChange(changedGlobals) {
-      var event = new CustomEvent("aui:set_globals", {
+      // Dispatch AUI event (our standard)
+      var auiEvent = new CustomEvent("aui:set_globals", {
         detail: { globals: changedGlobals },
       });
-      window.dispatchEvent(event);
+      window.dispatchEvent(auiEvent);
+      
+      // Dispatch OpenAI event (ChatGPT Apps compatibility)
+      var openaiEvent = new CustomEvent("openai:set_globals", {
+        detail: { globals: changedGlobals },
+      });
+      window.dispatchEvent(openaiEvent);
     }
 
     function buildChangedGlobals(prev, next) {
@@ -52,12 +59,28 @@
       var message = event.data;
       if (!message || typeof message !== "object" || !message.type) return;
 
+      // Normalize OPENAI_ prefix to AUI_ for consistent handling
+      var type = message.type;
+      if (type === "OPENAI_SET_GLOBALS") {
+        type = "AUI_SET_GLOBALS";
+      } else if (type === "OPENAI_METHOD_RESPONSE") {
+        type = "AUI_METHOD_RESPONSE";
+      }
+
       var changed;
       var pending;
-      switch (message.type) {
+      var newGlobals;
+      switch (type) {
         case "AUI_SET_GLOBALS":
           previousGlobals = globals;
-          globals = Object.assign({}, DEFAULT_GLOBALS, message.globals);
+          
+          // Track previousDisplayMode when displayMode changes
+          newGlobals = Object.assign({}, DEFAULT_GLOBALS, message.globals);
+          if (previousGlobals && newGlobals.displayMode !== previousGlobals.displayMode) {
+            newGlobals.previousDisplayMode = previousGlobals.displayMode;
+          }
+          
+          globals = newGlobals;
           changed = buildChangedGlobals(previousGlobals, globals);
           if (Object.keys(changed).length > 0) {
             dispatchGlobalsChange(changed);
@@ -125,7 +148,28 @@
         return callMethod("openExternal", [payload]);
       },
       notifyIntrinsicHeight: function(height) {
-        callMethod("notifyIntrinsicHeight", [height]);
+        return callMethod("notifyIntrinsicHeight", [height]);
+      },
+      uploadFile: function(file) {
+        return new Promise(function(resolve, reject) {
+          var reader = new FileReader();
+          reader.onload = function() {
+            var base64 = reader.result.toString().split(',')[1];
+            callMethod("uploadFile", [{
+              name: file.name,
+              type: file.type,
+              size: file.size,
+              data: base64
+            }]).then(resolve).catch(reject);
+          };
+          reader.onerror = function() {
+            reject(new Error("Failed to read file"));
+          };
+          reader.readAsDataURL(file);
+        });
+      },
+      getFileDownloadUrl: function(args) {
+        return callMethod("getFileDownloadUrl", [args]);
       },
     };
 
@@ -135,15 +179,26 @@
           theme: { get: function() { return globals.theme; }, enumerable: true },
           locale: { get: function() { return globals.locale; }, enumerable: true },
           displayMode: { get: function() { return globals.displayMode; }, enumerable: true },
+          previousDisplayMode: { get: function() { return globals.previousDisplayMode; }, enumerable: true },
           maxHeight: { get: function() { return globals.maxHeight; }, enumerable: true },
           toolInput: { get: function() { return globals.toolInput; }, enumerable: true },
           toolOutput: { get: function() { return globals.toolOutput; }, enumerable: true },
           widgetState: { get: function() { return globals.widgetState; }, enumerable: true },
           userAgent: { get: function() { return globals.userAgent; }, enumerable: true },
           safeArea: { get: function() { return globals.safeArea; }, enumerable: true },
+          userLocation: { get: function() { return globals.userLocation; }, enumerable: true },
+          toolResponseMetadata: { get: function() { return globals.toolResponseMetadata; }, enumerable: true },
+          view: { get: function() { return globals.view; }, enumerable: true },
         }),
         api
       ),
+      configurable: false,
+      writable: false,
+    });
+
+    // OpenAI namespace compatibility - alias to window.aui
+    Object.defineProperty(window, "openai", {
+      value: window.aui,
       configurable: false,
       writable: false,
     });
@@ -160,6 +215,88 @@
     window.parent.postMessage({ type: "ready" }, "*");
   })();
   </script>
-  <script type="module" src="/bundle.js"></script>
+  <script>
+  // Support loading external bundles via ?bundleUrl= or ?htmlUrl= query params
+  // This enables testing OpenAI Apps SDK examples through our bridge
+  (function() {
+    var params = new URLSearchParams(window.location.search);
+    var bundleUrl = params.get('bundleUrl');
+    var cssUrl = params.get('cssUrl');
+    var htmlUrl = params.get('htmlUrl');
+    var rootId = params.get('rootId') || 'root';
+    
+    // Update root div id if specified
+    if (rootId !== 'root') {
+      var rootDiv = document.getElementById('root');
+      if (rootDiv) rootDiv.id = rootId;
+    }
+    
+    if (htmlUrl) {
+      // Load external HTML content (for OpenAI examples that have their own HTML structure)
+      fetch(htmlUrl)
+        .then(function(res) { return res.text(); })
+        .then(function(html) {
+          // Parse the HTML and extract body content and scripts/styles
+          var parser = new DOMParser();
+          var doc = parser.parseFromString(html, 'text/html');
+          
+          // Copy body content
+          document.body.innerHTML = doc.body.innerHTML;
+          
+          // Load stylesheets from head
+          var links = doc.querySelectorAll('link[rel="stylesheet"]');
+          links.forEach(function(link) {
+            var newLink = document.createElement('link');
+            newLink.rel = 'stylesheet';
+            newLink.href = link.href;
+            document.head.appendChild(newLink);
+          });
+          
+          // Load scripts (preserving order)
+          var scripts = doc.querySelectorAll('script');
+          var loadScript = function(script, callback) {
+            var newScript = document.createElement('script');
+            if (script.src) {
+              newScript.src = script.src;
+              newScript.type = script.type || 'text/javascript';
+              newScript.onload = callback;
+              newScript.onerror = callback;
+            } else {
+              newScript.textContent = script.textContent;
+              newScript.type = script.type || 'text/javascript';
+            }
+            document.body.appendChild(newScript);
+            if (!script.src) callback();
+          };
+          
+          var i = 0;
+          var loadNext = function() {
+            if (i < scripts.length) {
+              loadScript(scripts[i++], loadNext);
+            }
+          };
+          loadNext();
+        })
+        .catch(function(err) {
+          console.error('Failed to load external HTML:', err);
+          document.body.innerHTML = `<div style="color:red;padding:20px;">Failed to load widget: ${err.message}</div>`;
+        });
+    } else {
+      // Load CSS if specified
+      if (cssUrl) {
+        var link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = cssUrl;
+        document.head.appendChild(link);
+      }
+      
+      // Load bundle (default or custom)
+      var script = document.createElement('script');
+      script.type = 'module';
+      script.src = bundleUrl || '/bundle.js';
+      document.body.appendChild(script);
+    }
+  })();
+  </script>
 </body>
 </html>

@@ -27,6 +27,7 @@ export function getGlobals(): AUIGlobals | null {
     theme: window.aui.theme,
     locale: window.aui.locale,
     displayMode: window.aui.displayMode,
+    previousDisplayMode: window.aui.previousDisplayMode,
     maxHeight: window.aui.maxHeight,
     toolInput: window.aui.toolInput,
     toolOutput: window.aui.toolOutput,
@@ -35,6 +36,7 @@ export function getGlobals(): AUIGlobals | null {
     safeArea: window.aui.safeArea,
     userLocation: window.aui.userLocation,
     toolResponseMetadata: window.aui.toolResponseMetadata,
+    view: window.aui.view,
   };
 }
 

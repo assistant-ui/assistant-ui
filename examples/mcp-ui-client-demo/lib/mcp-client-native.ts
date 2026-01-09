@@ -1,13 +1,9 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import { tool, jsonSchema } from "ai";
+import { dynamicTool, jsonSchema } from "ai";
 import type { JSONSchema7 } from "json-schema";
+import type { Tool } from "ai";
 
-/**
- * Create an MCP client using the native MCP SDK instead of @ai-sdk/mcp.
- * This bypasses the @ai-sdk/mcp integration which has a race condition
- * where tool arguments arrive after the controller is closed.
- */
 export async function createNativeMCPClient() {
   const transport = new StdioClientTransport({
     command: "node",
@@ -26,48 +22,41 @@ export async function createNativeMCPClient() {
 
   await client.connect(transport);
 
-  // List available tools from the MCP server
   const { tools: mcpTools } = await client.listTools();
   console.log(
     `[MCP Native] Loaded ${mcpTools.length} tools:`,
     mcpTools.map((t) => t.name),
   );
 
-  // Convert MCP tools to AI SDK format
-  const aiSdkTools: Record<string, any> = {};
+  const aiSdkTools: Record<string, Tool<unknown, unknown>> = {};
 
   for (const mcpTool of mcpTools) {
-    // Use JSON Schema directly - no conversion needed
     const schema = mcpTool.inputSchema as JSONSchema7;
+    const { $schema: _, ...cleanSchema } = schema;
 
-    // Remove $schema property if present (OpenAI doesn't like it)
-    const { $schema, ...cleanSchema } = schema;
+    const mcpToolName = mcpTool.name;
+    const mcpToolDescription = mcpTool.description || "";
 
-    console.log(
-      `[MCP Native] Tool ${mcpTool.name} schema:`,
-      JSON.stringify(cleanSchema),
-    );
-
-    aiSdkTools[mcpTool.name] = tool({
-      description: mcpTool.description || "",
-      inputSchema: jsonSchema(cleanSchema),
-      execute: async (args) => {
+    aiSdkTools[mcpToolName] = dynamicTool({
+      description: mcpToolDescription,
+      inputSchema: jsonSchema<unknown>(cleanSchema),
+      execute: async (input: unknown) => {
+        const args = input as Record<string, unknown>;
         console.log(
-          `[MCP Native] Calling ${mcpTool.name} with args:`,
+          `[MCP Native] Calling ${mcpToolName} with args:`,
           JSON.stringify(args),
         );
 
         const result = await client.callTool({
-          name: mcpTool.name,
-          arguments: args as Record<string, unknown>,
+          name: mcpToolName,
+          arguments: args,
         });
 
         console.log(
-          `[MCP Native] ${mcpTool.name} result:`,
+          `[MCP Native] ${mcpToolName} result:`,
           JSON.stringify(result),
         );
 
-        // Return the result - AI SDK expects the raw result
         return result;
       },
     });

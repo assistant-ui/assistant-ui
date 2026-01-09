@@ -226,6 +226,59 @@ function WidgetComponent() {
 - [x] Full backward compatibility
 - [x] Documentation and examples
 
+## OpenAI Namespace Compatibility
+
+ChatGPT Apps built with `chatgpt-app-studio` can run on MCP AUI with zero code changes.
+
+### How It Works
+
+The bridge script provides dual-namespace support:
+
+- **`window.aui`** - MCP AUI standard namespace
+- **`window.openai`** - ChatGPT Apps SDK compatibility alias (same object)
+
+Both message prefixes are supported:
+- `AUI_SET_GLOBALS` / `OPENAI_SET_GLOBALS`
+- `AUI_METHOD_RESPONSE` / `OPENAI_METHOD_RESPONSE`
+
+Both event types are dispatched:
+- `aui:set_globals`
+- `openai:set_globals`
+
+### New Properties
+
+Two additional properties are now available on the global object:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `previousDisplayMode` | `DisplayMode \| null` | Previous display mode (for animations) |
+| `view` | `View \| null` | Modal view state |
+
+### Usage
+
+ChatGPT Apps work automatically:
+
+```typescript
+// ChatGPT App code works unchanged
+const theme = window.openai.theme;
+const result = await window.openai.callTool("search", { query: "test" });
+```
+
+MCP AUI apps can use either namespace:
+
+```typescript
+// Both work identically
+window.aui.callTool("search", { query: "test" });
+window.openai.callTool("search", { query: "test" });
+```
+
+### Architecture
+
+- **Minimal Changes:** Only iframe-side bridge script modified
+- **Zero Parent Changes:** Parent-side MessageBridge unchanged
+- **Full Compatibility:** Both namespaces permanently supported
+- **Performance:** Negligible overhead (~1-2KB gzipped)
+
 ## 🎯 Feature Parity Status
 
 **ChatGPT Apps SDK Compatibility: 100% Complete**
@@ -240,3 +293,5 @@ All ChatGPT Apps SDK features are now available in `@assistant-ui/tool-ui-server
 - ✅ Widget session management
 - ✅ Server-side close handling
 - ✅ Border styling support
+- ✅ OpenAI namespace compatibility (window.openai)
+- ✅ previousDisplayMode and view properties

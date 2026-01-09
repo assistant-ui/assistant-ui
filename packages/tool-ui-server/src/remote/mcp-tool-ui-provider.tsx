@@ -254,24 +254,22 @@ export const MCPToolUIProvider: React.FC<MCPToolUIProviderProps> = ({
                       );
                     }
 
+                    const toolOutput = extractToolOutput(result);
+                    console.log("[ToolUI] Extracted toolOutput:", toolOutput);
+
                     return (
                       <div className="mb-4">
                         <RemoteToolUI
                           src={`${baseUrl}/render?component=${encodeURIComponent(componentName)}`}
                           toolName={toolName}
                           toolInput={args as Record<string, unknown>}
-                          toolOutput={
-                            extractToolOutput(result) as Record<
-                              string,
-                              unknown
-                            > | null
-                          }
+                          toolOutput={toolOutput as Record<string, unknown> | null}
                           theme={currentTheme}
                           widgetState={widgetState}
                           onWidgetStateChange={setWidgetState}
-                          onCallTool={
-                            callToolHandler ? handleCallTool : undefined
-                          }
+                          {...(callToolHandler && {
+                            onCallTool: handleCallTool,
+                          })}
                           onSendFollowUpMessage={handleSendFollowUpMessage}
                           onRequestDisplayMode={handleRequestDisplayMode}
                           onRequestModal={handleRequestModal}

@@ -45,6 +45,11 @@ export interface ToolResponseMetadata {
   [key: string]: unknown;
 }
 
+export interface View {
+  mode: "modal" | "inline";
+  params: Record<string, unknown> | null;
+}
+
 // Tool invocation messages for ChatGPT Apps SDK compatibility
 export interface ToolInvocationMessages {
   invoking?: string; // Max 64 characters
@@ -69,6 +74,7 @@ export interface AUIGlobals {
   theme: Theme;
   locale: string;
   displayMode: DisplayMode;
+  previousDisplayMode: DisplayMode | null;
   maxHeight: number;
   toolInput: Record<string, unknown>;
   toolOutput: Record<string, unknown> | null;
@@ -77,6 +83,7 @@ export interface AUIGlobals {
   safeArea: SafeArea;
   userLocation: UserLocation | null;
   toolResponseMetadata: ToolResponseMetadata | null;
+  view: View | null;
 }
 
 export interface CallToolResponse {
