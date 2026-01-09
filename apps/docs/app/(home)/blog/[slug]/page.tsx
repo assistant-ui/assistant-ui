@@ -1,4 +1,6 @@
+import type { Metadata } from "next";
 import { use } from "react";
+import { createOgMetadata } from "@/lib/og";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { blog, BlogPage } from "@/lib/source";
@@ -83,4 +85,19 @@ export function generateStaticParams(): Param[] {
   return blog.getPages().map((page) => ({
     slug: page.slugs[0]!,
   }));
+}
+
+export async function generateMetadata(props: {
+  params: Promise<Param>;
+}): Promise<Metadata> {
+  const params = await props.params;
+  const page = blog.getPage([params.slug]) as BlogPage | undefined;
+
+  if (!page) return { title: "Not Found" };
+
+  return {
+    title: page.data.title,
+    description: page.data.description,
+    ...createOgMetadata(page.data.title, page.data.description),
+  };
 }

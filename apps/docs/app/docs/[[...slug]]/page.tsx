@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { DocsPage, DocsBody } from "fumadocs-ui/page";
 import { notFound } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { createOgMetadata } from "@/lib/og";
 import { buttonVariants } from "@/components/ui/button";
 import { EditIcon } from "lucide-react";
 import { getMDXComponents } from "@/mdx-components";
@@ -104,13 +105,11 @@ export async function generateMetadata(
 ): Promise<Metadata> {
   const { slug = [] } = await props.params;
   const page = source.getPage(slug);
-  if (!page)
-    return {
-      title: "Not Found",
-    };
+  if (!page) return { title: "Not Found" };
 
   return {
     title: page.data.title,
-    description: page.data.description ?? null,
-  } satisfies Metadata;
+    description: page.data.description,
+    ...createOgMetadata(page.data.title, page.data.description),
+  };
 }

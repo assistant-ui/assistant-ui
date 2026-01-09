@@ -1,5 +1,6 @@
 import { examples, type ExamplePage } from "@/lib/source";
 import type { Metadata } from "next";
+import { createOgMetadata } from "@/lib/og";
 import { DocsPage, DocsBody } from "fumadocs-ui/page";
 import { notFound } from "next/navigation";
 import { getMDXComponents } from "@/mdx-components";
@@ -61,8 +62,10 @@ export async function generateMetadata(
 ): Promise<Metadata> {
   const { slug = [] } = await props.params;
   const page = getPage(slug);
+
   return {
     title: page.data.title,
     description: page.data.description,
+    ...createOgMetadata(page.data.title, page.data.description),
   };
 }

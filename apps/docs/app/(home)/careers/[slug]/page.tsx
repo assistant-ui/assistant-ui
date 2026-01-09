@@ -2,6 +2,8 @@ import { use } from "react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import type { ReactElement } from "react";
+import type { Metadata } from "next";
+import { createOgMetadata } from "@/lib/og";
 import { careers, CareerPage } from "@/lib/source";
 import { getMDXComponents } from "@/mdx-components";
 import { ApplyForm } from "@/components/careers/ApplyForm";
@@ -84,4 +86,19 @@ export function generateStaticParams(): Params[] {
   return careers.getPages().map((page) => ({
     slug: page.slugs[0]!,
   }));
+}
+
+export async function generateMetadata(props: {
+  params: Promise<Params>;
+}): Promise<Metadata> {
+  const params = await props.params;
+  const page = careers.getPage([params.slug]) as CareerPage | undefined;
+
+  if (!page) return { title: "Not Found" };
+
+  return {
+    title: page.data.title,
+    description: page.data.summary,
+    ...createOgMetadata(page.data.title, page.data.summary),
+  };
 }
