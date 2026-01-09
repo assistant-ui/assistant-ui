@@ -152,27 +152,25 @@ function SearchButton({ onToggle }: { onToggle: () => void }) {
 
 function HiringBanner({ onDismiss }: { onDismiss: () => void }) {
   return (
-    <div className="relative">
-      <div className="container mx-auto flex h-8 items-center justify-between px-4 md:px-20">
-        <div className="w-8" />
-        <Link
-          href="/careers"
-          className="group inline-flex items-center gap-1.5 text-xs"
-        >
-          <span className="shimmer text-muted-foreground transition-colors group-hover:text-foreground">
-            We're hiring. Build the future of agentic UI.
-          </span>
-          <ArrowRight className="size-3 text-muted-foreground transition-all group-hover:translate-x-0.5 group-hover:text-foreground" />
-        </Link>
-        <button
-          type="button"
-          aria-label="Dismiss hiring banner"
-          onClick={onDismiss}
-          className="flex size-8 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <X className="size-3.5" />
-        </button>
-      </div>
+    <div className="mx-auto flex h-8 w-full max-w-7xl items-center justify-between px-4 md:px-8">
+      <div className="w-8" />
+      <Link
+        href="/careers"
+        className="group inline-flex items-center gap-1.5 text-xs"
+      >
+        <span className="shimmer text-muted-foreground transition-colors group-hover:text-foreground">
+          We're hiring. Build the future of agentic UI.
+        </span>
+        <ArrowRight className="size-3 text-muted-foreground transition-all group-hover:translate-x-0.5 group-hover:text-foreground" />
+      </Link>
+      <button
+        type="button"
+        aria-label="Dismiss hiring banner"
+        onClick={onDismiss}
+        className="flex size-8 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <X className="size-3.5" />
+      </button>
     </div>
   );
 }
@@ -197,7 +195,7 @@ export function Header() {
             : "mask-[linear-gradient(to_bottom,black_50%,transparent)] dark:mask-[linear-gradient(to_bottom,black_40%,transparent)] h-24 via-60% dark:via-50%",
         )}
       />
-      <div className="container relative mx-auto flex h-12 items-center justify-between px-4 md:px-20">
+      <div className="relative mx-auto flex h-12 w-full max-w-7xl items-center justify-between px-4 md:px-8">
         <Link href="/" className="flex items-center gap-2">
           <Image
             src="/favicon/icon.svg"
@@ -307,66 +305,72 @@ export function Header() {
 
       <div
         className={cn(
-          "relative overflow-hidden transition-all duration-200 md:hidden",
-          mobileMenuOpen ? "max-h-80" : "max-h-0",
+          "fixed inset-x-0 top-12 bottom-0 z-40 bg-background transition-opacity duration-200 md:hidden",
+          mobileMenuOpen ? "opacity-100" : "pointer-events-none opacity-0",
         )}
       >
-        <nav className="container mx-auto flex flex-col px-4 pb-4">
+        <nav className="flex h-full flex-col gap-1 overflow-y-auto px-4 pt-4">
           {NAV_ITEMS.map((item) =>
             item.type === "link" ? (
               <Link
                 key={item.href}
                 href={item.href}
                 onClick={() => setMobileMenuOpen(false)}
-                className="py-2 text-muted-foreground text-sm transition-colors hover:text-foreground"
+                className="py-3 text-foreground text-lg transition-colors"
               >
                 {item.label}
               </Link>
             ) : (
-              item.items.map((link) =>
-                link.external ? (
-                  <a
-                    key={link.href}
-                    href={link.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center gap-1 py-2 text-muted-foreground text-sm transition-colors hover:text-foreground"
-                  >
-                    {link.label}
-                    <ExternalLink className="size-3 opacity-40" />
-                  </a>
-                ) : (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="py-2 text-muted-foreground text-sm transition-colors hover:text-foreground"
-                  >
-                    {link.label}
-                  </Link>
-                ),
-              )
+              <div key={item.label} className="flex flex-col">
+                <span className="py-3 text-muted-foreground text-sm">
+                  {item.label}
+                </span>
+                {item.items.map((link) =>
+                  link.external ? (
+                    <a
+                      key={link.href}
+                      href={link.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center gap-1.5 py-2 pl-4 text-foreground text-lg transition-colors"
+                    >
+                      {link.label}
+                      <ExternalLink className="size-3.5 opacity-40" />
+                    </a>
+                  ) : (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="py-2 pl-4 text-foreground text-lg transition-colors"
+                    >
+                      {link.label}
+                    </Link>
+                  ),
+                )}
+              </div>
             ),
           )}
-          <a
-            href="https://github.com/assistant-ui/assistant-ui"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 py-2 text-muted-foreground text-sm transition-colors hover:text-foreground"
-          >
-            <GitHubIcon className="size-4" />
-            GitHub
-          </a>
-          <a
-            href="https://discord.gg/S9dwgCNEFs"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 py-2 text-muted-foreground text-sm transition-colors hover:text-foreground"
-          >
-            <DiscordIcon className="size-4" />
-            Discord
-          </a>
+
+          <div className="mt-auto flex gap-4 border-t py-6">
+            <a
+              href="https://github.com/assistant-ui/assistant-ui"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <GitHubIcon className="size-5" />
+            </a>
+            <a
+              href="https://discord.gg/S9dwgCNEFs"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <DiscordIcon className="size-5" />
+            </a>
+          </div>
         </nav>
       </div>
 
