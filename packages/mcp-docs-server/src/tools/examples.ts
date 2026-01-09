@@ -11,7 +11,7 @@ const examplesInputSchema = z.object({
     .string()
     .optional()
     .describe(
-      'Example name (e.g., "with-ai-sdk"). Leave empty to list all examples.',
+      'Example name (e.g., "with-ai-sdk-v6"). Leave empty to list all examples.',
     ),
 });
 
