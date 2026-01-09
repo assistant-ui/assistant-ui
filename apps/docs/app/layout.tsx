@@ -58,7 +58,7 @@ export default function Layout({ children }: { children: ReactNode }) {
       </head> */}
       <body
         className={cn(
-          "flex min-h-screen flex-col overscroll-none antialiased",
+          "flex min-h-screen flex-col antialiased",
           GeistSans.className,
           GeistMono.variable,
         )}

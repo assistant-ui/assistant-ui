@@ -152,25 +152,27 @@ function SearchButton({ onToggle }: { onToggle: () => void }) {
 
 function HiringBanner({ onDismiss }: { onDismiss: () => void }) {
   return (
-    <div className="mx-auto flex h-8 w-full max-w-7xl items-center justify-between px-4 md:px-8">
-      <div className="w-8" />
-      <Link
-        href="/careers"
-        className="group inline-flex items-center gap-1.5 text-xs"
-      >
-        <span className="shimmer text-muted-foreground transition-colors group-hover:text-foreground">
-          We're hiring. Build the future of agentic UI.
-        </span>
-        <ArrowRight className="size-3 text-muted-foreground transition-all group-hover:translate-x-0.5 group-hover:text-foreground" />
-      </Link>
-      <button
-        type="button"
-        aria-label="Dismiss hiring banner"
-        onClick={onDismiss}
-        className="flex size-8 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
-      >
-        <X className="size-3.5" />
-      </button>
+    <div className="relative">
+      <div className="mx-auto flex h-8 w-full max-w-7xl items-center justify-between px-4 md:px-8">
+        <div className="w-8" />
+        <Link
+          href="/careers"
+          className="group inline-flex items-center gap-1.5 text-xs"
+        >
+          <span className="shimmer text-muted-foreground transition-colors group-hover:text-foreground">
+            We're hiring. Build the future of agentic UI.
+          </span>
+          <ArrowRight className="size-3 text-muted-foreground transition-all group-hover:translate-x-0.5 group-hover:text-foreground" />
+        </Link>
+        <button
+          type="button"
+          aria-label="Dismiss hiring banner"
+          onClick={onDismiss}
+          className="flex size-8 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <X className="size-3.5" />
+        </button>
+      </div>
     </div>
   );
 }

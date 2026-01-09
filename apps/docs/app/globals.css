@@ -127,6 +127,9 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    @apply overscroll-none scroll-smooth;
+  }
   body {
     @apply bg-background text-foreground;
   }
@@ -225,3 +228,4 @@
 .examples-page #nd-toc {
   margin-top: 5rem;
 }
+

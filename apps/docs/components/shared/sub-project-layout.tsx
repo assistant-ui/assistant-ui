@@ -97,7 +97,7 @@ export function SubProjectLayout({
     <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-50 w-full">
         <div className="mask-[linear-gradient(to_bottom,black_50%,transparent)] dark:mask-[linear-gradient(to_bottom,black_40%,transparent)] pointer-events-none absolute inset-x-0 top-0 h-24 bg-linear-to-b from-background via-60% via-background/80 to-transparent backdrop-blur-xl dark:via-50%" />
-        <div className="container relative mx-auto flex h-12 items-center justify-between px-4 md:px-20">
+        <div className="relative mx-auto flex h-12 w-full max-w-7xl items-center justify-between px-4 md:px-8">
           <div className="flex items-center">
             <Link href="/" className="flex items-center gap-2">
               <Image
