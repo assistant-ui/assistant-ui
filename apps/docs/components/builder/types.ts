@@ -2,6 +2,7 @@ export type Theme = "light" | "dark" | "system";
 export type BorderRadius = "none" | "sm" | "md" | "lg" | "full";
 export type FontSize = "sm" | "base" | "lg";
 export type MessageSpacing = "compact" | "comfortable" | "spacious";
+export type TypingIndicator = "none" | "dot";
 
 export interface ActionBarConfig {
   copy: boolean;
@@ -22,7 +23,8 @@ export interface ComponentsConfig {
   reasoning: boolean;
   followUpSuggestions: boolean;
   avatar: boolean;
-  typingIndicator: boolean;
+  typingIndicator: TypingIndicator;
+  thinkingIndicator: boolean;
 }
 
 export type UserMessagePosition = "right" | "left";
@@ -69,7 +71,8 @@ export const DEFAULT_CONFIG: BuilderConfig = {
     reasoning: false,
     followUpSuggestions: false,
     avatar: false,
-    typingIndicator: true,
+    typingIndicator: "dot",
+    thinkingIndicator: false,
   },
   styles: {
     theme: "light",
@@ -124,4 +127,13 @@ export const MESSAGE_SPACINGS = [
   { name: "Compact", value: "compact" },
   { name: "Comfortable", value: "comfortable" },
   { name: "Spacious", value: "spacious" },
+] as const;
+
+export const TYPING_INDICATORS = [
+  {
+    name: "Dot",
+    value: "dot",
+    description: "Animated dot indicator (●) while streaming",
+  },
+  { name: "None", value: "none", description: "No indicator" },
 ] as const;

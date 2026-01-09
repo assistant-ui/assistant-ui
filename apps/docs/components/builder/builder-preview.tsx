@@ -22,6 +22,7 @@ import {
 
 import {
   ActionBarPrimitive,
+  AssistantIf,
   BranchPickerPrimitive,
   ComposerPrimitive,
   MessagePrimitive,
@@ -125,9 +126,8 @@ export function BuilderPreview({ config }: BuilderPreviewProps) {
       >
         <ThreadPrimitive.Root
           className={cn(
-            "flex h-full flex-col bg-background text-foreground",
+            "flex h-full flex-col bg-background text-foreground dark:bg-zinc-900 dark:text-zinc-100",
             fontSizeClass,
-            themeClass && "bg-zinc-900 text-zinc-100",
           )}
         >
           <ThreadPrimitive.Viewport className="relative flex flex-1 flex-col overflow-y-auto px-4">
@@ -148,9 +148,9 @@ export function BuilderPreview({ config }: BuilderPreviewProps) {
 
             <ThreadPrimitive.Messages components={messageComponents} />
 
-            <ThreadPrimitive.If empty={false}>
+            <AssistantIf condition={({ thread }) => !thread.isEmpty}>
               <div className="min-h-8 grow" />
-            </ThreadPrimitive.If>
+            </AssistantIf>
 
             <Composer config={config} borderRadiusClass={borderRadiusClass} />
           </ThreadPrimitive.Viewport>
@@ -236,12 +236,12 @@ const Composer: FC<ComposerProps> = ({ config, borderRadiusClass }) => {
   const { components } = config;
 
   return (
-    <div className="sticky bottom-0 mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-4 bg-background pb-4">
+    <div className="sticky bottom-0 mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-4 bg-background pb-4 dark:bg-zinc-900">
       {components.scrollToBottom && <ThreadScrollToBottom />}
       <ComposerPrimitive.Root className="relative flex w-full flex-col">
         <div
           className={cn(
-            "flex w-full flex-col border border-input bg-background px-1 pt-2 shadow-sm",
+            "flex w-full flex-col border border-input bg-background px-1 pt-2 shadow-sm dark:border-zinc-700 dark:bg-zinc-800",
             borderRadiusClass,
           )}
         >
@@ -266,31 +266,41 @@ const Composer: FC<ComposerProps> = ({ config, borderRadiusClass }) => {
               <div />
             )}
 
-            <ThreadPrimitive.If running={false}>
+            <AssistantIf condition={({ thread }) => !thread.isRunning}>
               <ComposerPrimitive.Send asChild>
                 <TooltipIconButton
                   tooltip="Send message"
                   variant="default"
-                  className={cn("size-[34px] rounded-full p-1")}
+                  className={cn(
+                    "size-[34px] rounded-full p-1",
+                    isLightColor(config.styles.accentColor)
+                      ? "text-black"
+                      : "text-white",
+                  )}
                   style={{ backgroundColor: "var(--accent-color)" }}
                 >
-                  <ArrowUpIcon className="size-5 text-white" />
+                  <ArrowUpIcon className="size-5" />
                 </TooltipIconButton>
               </ComposerPrimitive.Send>
-            </ThreadPrimitive.If>
+            </AssistantIf>
 
-            <ThreadPrimitive.If running>
+            <AssistantIf condition={({ thread }) => thread.isRunning}>
               <ComposerPrimitive.Cancel asChild>
                 <Button
                   variant="default"
                   size="icon"
-                  className="size-[34px] rounded-full"
+                  className={cn(
+                    "size-[34px] rounded-full",
+                    isLightColor(config.styles.accentColor)
+                      ? "text-black"
+                      : "text-white",
+                  )}
                   style={{ backgroundColor: "var(--accent-color)" }}
                 >
-                  <Square className="size-3.5 fill-white text-white" />
+                  <Square className="size-3.5 fill-current" />
                 </Button>
               </ComposerPrimitive.Cancel>
-            </ThreadPrimitive.If>
+            </AssistantIf>
           </div>
         </div>
       </ComposerPrimitive.Root>
@@ -405,6 +415,11 @@ const AssistantMessage: FC<AssistantMessageProps> = ({
         styles.animations &&
           "fade-in slide-in-from-bottom-2 animate-in duration-300",
       )}
+      style={
+        components.typingIndicator !== "dot"
+          ? ({ "--aui-content": "none" } as React.CSSProperties)
+          : undefined
+      }
     >
       {components.avatar && (
         <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
@@ -432,13 +447,17 @@ const AssistantMessage: FC<AssistantMessageProps> = ({
           <MessagePrimitive.Parts components={{ Text: TextComponent }} />
         </div>
 
-        {components.typingIndicator && (
-          <ThreadPrimitive.If running>
-            <div className="mt-2 flex items-center gap-2 text-muted-foreground">
+        {components.thinkingIndicator && (
+          <AssistantIf
+            condition={({ thread, message }) =>
+              thread.isRunning && message.content.length === 0
+            }
+          >
+            <div className="flex items-center gap-2 text-muted-foreground">
               <LoaderIcon className="size-4 animate-spin" />
               <span className="text-sm">Thinking...</span>
             </div>
-          </ThreadPrimitive.If>
+          </AssistantIf>
         )}
 
         <div className="mt-2 flex">
@@ -447,22 +466,22 @@ const AssistantMessage: FC<AssistantMessageProps> = ({
         </div>
 
         {components.followUpSuggestions && (
-          <ThreadPrimitive.If running={false}>
+          <AssistantIf condition={({ thread }) => !thread.isRunning}>
             <div className="mt-4 flex flex-wrap gap-2">
               <ThreadPrimitive.Suggestion
                 prompt="Tell me more"
-                className="rounded-full border bg-background px-3 py-1 text-sm hover:bg-muted"
+                className="rounded-full border bg-background px-3 py-1 text-sm hover:bg-muted dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700"
               >
                 Tell me more
               </ThreadPrimitive.Suggestion>
               <ThreadPrimitive.Suggestion
                 prompt="Can you explain differently?"
-                className="rounded-full border bg-background px-3 py-1 text-sm hover:bg-muted"
+                className="rounded-full border bg-background px-3 py-1 text-sm hover:bg-muted dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700"
               >
                 Explain differently
               </ThreadPrimitive.Suggestion>
             </div>
-          </ThreadPrimitive.If>
+          </AssistantIf>
         )}
       </div>
     </MessagePrimitive.Root>
@@ -496,12 +515,12 @@ const AssistantActionBar: FC<AssistantActionBarProps> = ({ config }) => {
       {actionBar.copy && (
         <ActionBarPrimitive.Copy asChild>
           <TooltipIconButton tooltip="Copy">
-            <MessagePrimitive.If copied>
+            <AssistantIf condition={({ message }) => message.isCopied}>
               <CheckIcon />
-            </MessagePrimitive.If>
-            <MessagePrimitive.If copied={false}>
+            </AssistantIf>
+            <AssistantIf condition={({ message }) => !message.isCopied}>
               <CopyIcon />
-            </MessagePrimitive.If>
+            </AssistantIf>
           </TooltipIconButton>
         </ActionBarPrimitive.Copy>
       )}
@@ -563,3 +582,22 @@ const BranchPicker: FC<BranchPickerProps> = ({ className }) => {
     </BranchPickerPrimitive.Root>
   );
 };
+
+/**
+ * Determines if a hex color is light (should use dark text) or dark (should use light text)
+ */
+function isLightColor(hexColor: string): boolean {
+  // Remove # if present
+  const hex = hexColor.replace("#", "");
+
+  // Parse RGB values
+  const r = parseInt(hex.substring(0, 2), 16);
+  const g = parseInt(hex.substring(2, 4), 16);
+  const b = parseInt(hex.substring(4, 6), 16);
+
+  // Calculate relative luminance using sRGB formula
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+
+  // Return true if light (luminance > 0.5)
+  return luminance > 0.5;
+}

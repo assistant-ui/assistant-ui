@@ -23,7 +23,8 @@ export const PRESETS: Preset[] = [
         reasoning: false,
         followUpSuggestions: false,
         avatar: false,
-        typingIndicator: true,
+        typingIndicator: "dot",
+        thinkingIndicator: false,
       },
       styles: {
         theme: "light",
@@ -60,7 +61,8 @@ export const PRESETS: Preset[] = [
         reasoning: false,
         followUpSuggestions: false,
         avatar: true,
-        typingIndicator: true,
+        typingIndicator: "dot",
+        thinkingIndicator: false,
       },
       styles: {
         theme: "dark",
@@ -97,7 +99,8 @@ export const PRESETS: Preset[] = [
         reasoning: true,
         followUpSuggestions: false,
         avatar: true,
-        typingIndicator: true,
+        typingIndicator: "dot",
+        thinkingIndicator: false,
       },
       styles: {
         theme: "light",
@@ -134,7 +137,8 @@ export const PRESETS: Preset[] = [
         reasoning: false,
         followUpSuggestions: true,
         avatar: false,
-        typingIndicator: true,
+        typingIndicator: "dot",
+        thinkingIndicator: false,
       },
       styles: {
         theme: "dark",
@@ -171,7 +175,8 @@ export const PRESETS: Preset[] = [
         reasoning: false,
         followUpSuggestions: false,
         avatar: false,
-        typingIndicator: false,
+        typingIndicator: "none",
+        thinkingIndicator: false,
       },
       styles: {
         theme: "light",
@@ -208,7 +213,8 @@ export const PRESETS: Preset[] = [
         reasoning: false,
         followUpSuggestions: true,
         avatar: false,
-        typingIndicator: true,
+        typingIndicator: "dot",
+        thinkingIndicator: false,
       },
       styles: {
         theme: "light",
@@ -245,7 +251,8 @@ export const PRESETS: Preset[] = [
         reasoning: true,
         followUpSuggestions: false,
         avatar: true,
-        typingIndicator: true,
+        typingIndicator: "dot",
+        thinkingIndicator: false,
       },
       styles: {
         theme: "dark",
@@ -282,7 +289,8 @@ export const PRESETS: Preset[] = [
         reasoning: false,
         followUpSuggestions: false,
         avatar: true,
-        typingIndicator: true,
+        typingIndicator: "dot",
+        thinkingIndicator: false,
       },
       styles: {
         theme: "light",
@@ -319,7 +327,8 @@ export const PRESETS: Preset[] = [
         reasoning: false,
         followUpSuggestions: false,
         avatar: false,
-        typingIndicator: true,
+        typingIndicator: "dot",
+        thinkingIndicator: false,
       },
       styles: {
         theme: "dark",

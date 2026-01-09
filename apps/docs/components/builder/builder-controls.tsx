@@ -9,6 +9,7 @@ import type {
   BorderRadius,
   FontSize,
   MessageSpacing,
+  TypingIndicator,
 } from "./types";
 import { PRESETS } from "./presets";
 
@@ -42,6 +43,11 @@ const SPACING_OPTIONS = [
 const USER_MESSAGE_OPTIONS = [
   { label: "Left", value: "left" },
   { label: "Right", value: "right" },
+];
+
+const TYPING_INDICATOR_OPTIONS = [
+  { label: "Dot (●)", value: "dot" },
+  { label: "None", value: "none" },
 ];
 
 const RADIUS_OPTIONS = [
@@ -207,10 +213,24 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
             <Row
               label="Typing Indicator"
               control={
+                <Select
+                  value={config.components.typingIndicator}
+                  onValueChange={(value) =>
+                    updateComponents({
+                      typingIndicator: value as TypingIndicator,
+                    })
+                  }
+                  options={TYPING_INDICATOR_OPTIONS}
+                />
+              }
+            />
+            <Row
+              label="Thinking Text"
+              control={
                 <Switch
-                  checked={config.components.typingIndicator}
+                  checked={config.components.thinkingIndicator}
                   onCheckedChange={(checked) =>
-                    updateComponents({ typingIndicator: checked })
+                    updateComponents({ thinkingIndicator: checked })
                   }
                 />
               }

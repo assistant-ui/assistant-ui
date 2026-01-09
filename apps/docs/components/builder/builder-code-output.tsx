@@ -97,8 +97,10 @@ function generateComponentCode(config: BuilderConfig): string {
   const imports = [
     `import {`,
     `  ActionBarPrimitive,`,
+    `  AssistantIf,`,
     components.branchPicker && `  BranchPickerPrimitive,`,
     `  ComposerPrimitive,`,
+    `  ErrorPrimitive,`,
     `  MessagePrimitive,`,
     `  ThreadPrimitive,`,
     `} from "@assistant-ui/react";`,
@@ -106,7 +108,17 @@ function generateComponentCode(config: BuilderConfig): string {
     `import { Button } from "@/components/ui/button";`,
     `import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";`,
     components.markdown &&
+      components.typingIndicator === "dot" &&
+      `import "@assistant-ui/react-markdown/styles/dot.css";`,
+    components.markdown &&
       `import { MarkdownText } from "@/components/assistant-ui/markdown-text";`,
+    components.markdown &&
+      `import { ToolFallback } from "@/components/assistant-ui/tool-fallback";`,
+    components.attachments && `import {`,
+    components.attachments && `  ComposerAddAttachment,`,
+    components.attachments && `  ComposerAttachments,`,
+    components.attachments && `  UserMessageAttachments,`,
+    components.attachments && `} from "@/components/assistant-ui/attachment";`,
   ]
     .filter(Boolean)
     .join("\n");
@@ -117,10 +129,16 @@ function generateComponentCode(config: BuilderConfig): string {
   const fontSizeClass = getFontSizeClass(styles.fontSize);
   const messageSpacingClass = getMessageSpacingClass(styles.messageSpacing);
 
+  // Calculate foreground color based on accent color luminance
+  const accentForeground = isLightColor(styles.accentColor)
+    ? "#000000"
+    : "#ffffff";
+
   // Generate CSS variables section
   const cssVariables = `
     "--thread-max-width": "${styles.maxWidth}",
-    "--accent-color": "${styles.accentColor}",`;
+    "--accent-color": "${styles.accentColor}",
+    "--accent-foreground": "${accentForeground}",`;
 
   // Generate font family inline style
   const fontFamilyStyle =
@@ -136,27 +154,34 @@ export function Thread() {
       style={{${cssVariables}${fontFamilyStyle}
       }}
     >
-      <ThreadPrimitive.Viewport className="relative flex flex-1 flex-col overflow-y-auto px-4">
+      <ThreadPrimitive.Viewport
+        turnAnchor="top"
+        className="relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll scroll-smooth px-4 pt-4"
+      >
         ${
           components.threadWelcome
-            ? `<ThreadPrimitive.Empty>
+            ? `<AssistantIf condition={({ thread }) => thread.isEmpty}>
           <ThreadWelcome />
-        </ThreadPrimitive.Empty>`
+        </AssistantIf>`
             : ""
         }
 
         <ThreadPrimitive.Messages
           components={{
-            UserMessage,
+            UserMessage,${
+              components.editMessage
+                ? `
+            EditComposer,`
+                : ""
+            }
             AssistantMessage,
           }}
         />
 
-        <ThreadPrimitive.If empty={false}>
-          <div className="min-h-8 grow" />
-        </ThreadPrimitive.If>
-
-        <Composer />
+        <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mx-auto mt-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-4 overflow-visible rounded-t-3xl bg-background pb-4">
+          ${components.scrollToBottom ? "<ThreadScrollToBottom />" : ""}
+          <Composer />
+        </ThreadPrimitive.ViewportFooter>
       </ThreadPrimitive.Viewport>
     </ThreadPrimitive.Root>
   );
@@ -202,55 +227,64 @@ function ThreadWelcome() {
   const composerComponent = `
 function Composer() {
   return (
-    <div className="sticky bottom-0 mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-4 bg-background pb-4">
-      ${components.scrollToBottom ? "<ThreadScrollToBottom />" : ""}
-      <ComposerPrimitive.Root className="relative flex w-full flex-col">
-        <div className="flex w-full flex-col ${borderRadiusClass} border border-input bg-background px-1 pt-2 shadow-sm">
-          <ComposerPrimitive.Input
-            placeholder="Send a message..."
-            className="mb-1 max-h-32 min-h-16 w-full resize-none bg-transparent px-3.5 pt-1.5 pb-3 text-base outline-none placeholder:text-muted-foreground"
-            rows={1}
-            autoFocus
-          />
-          <div className="relative mx-1 mt-2 mb-2 flex items-center justify-between">
-            ${
-              components.attachments
-                ? `<ComposerPrimitive.AddAttachment asChild>
-              <TooltipIconButton tooltip="Add attachment" variant="ghost" className="text-muted-foreground">
-                <PaperclipIcon className="size-5" />
-              </TooltipIconButton>
-            </ComposerPrimitive.AddAttachment>`
-                : "<div />"
-            }
+    <ComposerPrimitive.Root className="relative flex w-full flex-col">
+      <ComposerPrimitive.AttachmentDropzone className="flex w-full flex-col ${borderRadiusClass} border border-input bg-background px-1 pt-2 outline-none transition-shadow has-[textarea:focus-visible]:border-ring has-[textarea:focus-visible]:ring-2 has-[textarea:focus-visible]:ring-ring/20 data-[dragging=true]:border-ring data-[dragging=true]:border-dashed data-[dragging=true]:bg-accent/50">
+        ${components.attachments ? "<ComposerAttachments />" : ""}
+        <ComposerPrimitive.Input
+          placeholder="Send a message..."
+          className="mb-1 max-h-32 min-h-14 w-full resize-none bg-transparent px-4 pt-2 pb-3 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-0"
+          rows={1}
+          autoFocus
+          aria-label="Message input"
+        />
+        <ComposerAction />
+      </ComposerPrimitive.AttachmentDropzone>
+    </ComposerPrimitive.Root>
+  );
+}
 
-            <ThreadPrimitive.If running={false}>
-              <ComposerPrimitive.Send asChild>
-                <TooltipIconButton
-                  tooltip="Send message"
-                  variant="default"
-                  className="size-[34px] rounded-full p-1"
-                  style={{ backgroundColor: "var(--accent-color)" }}
-                >
-                  <ArrowUpIcon className="size-5 text-white" />
-                </TooltipIconButton>
-              </ComposerPrimitive.Send>
-            </ThreadPrimitive.If>
+function ComposerAction() {
+  return (
+    <div className="relative mx-2 mb-2 flex items-center justify-between">
+      ${components.attachments ? "<ComposerAddAttachment />" : "<div />"}
 
-            <ThreadPrimitive.If running>
-              <ComposerPrimitive.Cancel asChild>
-                <Button
-                  variant="default"
-                  size="icon"
-                  className="size-[34px] rounded-full"
-                  style={{ backgroundColor: "var(--accent-color)" }}
-                >
-                  <Square className="size-3.5 fill-current" />
-                </Button>
-              </ComposerPrimitive.Cancel>
-            </ThreadPrimitive.If>
-          </div>
-        </div>
-      </ComposerPrimitive.Root>
+      <AssistantIf condition={({ thread }) => !thread.isRunning}>
+        <ComposerPrimitive.Send asChild>
+          <TooltipIconButton
+            tooltip="Send message"
+            side="bottom"
+            type="submit"
+            variant="default"
+            size="icon"
+            className="size-8 rounded-full"
+            style={{
+              backgroundColor: "var(--accent-color)",
+              color: "var(--accent-foreground)",
+            }}
+            aria-label="Send message"
+          >
+            <ArrowUpIcon className="size-4" />
+          </TooltipIconButton>
+        </ComposerPrimitive.Send>
+      </AssistantIf>
+
+      <AssistantIf condition={({ thread }) => thread.isRunning}>
+        <ComposerPrimitive.Cancel asChild>
+          <Button
+            type="button"
+            variant="default"
+            size="icon"
+            className="size-8 rounded-full"
+            style={{
+              backgroundColor: "var(--accent-color)",
+              color: "var(--accent-foreground)",
+            }}
+            aria-label="Stop generating"
+          >
+            <SquareIcon className="size-3 fill-current" />
+          </Button>
+        </ComposerPrimitive.Cancel>
+      </AssistantIf>
     </div>
   );
 }`;
@@ -272,52 +306,58 @@ function ThreadScrollToBottom() {
 }`
     : "";
 
-  const isLeftAligned = styles.userMessagePosition === "left";
   const animationClass = styles.animations
-    ? " animate-in fade-in slide-in-from-bottom-2 duration-300"
+    ? " fade-in slide-in-from-bottom-1 animate-in duration-150"
     : "";
-
-  const userMessageRootClass = `mx-auto flex w-full max-w-[var(--thread-max-width)] gap-3 px-2 ${messageSpacingClass} ${isLeftAligned ? "flex-row" : "flex-row-reverse"}${animationClass}`;
-  const userMessageContentClass = `relative min-w-0 max-w-[80%]${!isLeftAligned ? " ml-auto" : ""}`;
-  const editButtonPositionClass = isLeftAligned
-    ? "absolute top-1/2 -translate-y-1/2 right-0 translate-x-full pl-2"
-    : "absolute top-1/2 -translate-y-1/2 left-0 -translate-x-full pr-2";
 
   const userMessageComponent = `
 function UserMessage() {
   return (
-    <MessagePrimitive.Root className="${userMessageRootClass}">
-      ${
-        components.avatar
-          ? `<div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted">
-        <UserIcon className="size-4" />
-      </div>`
-          : ""
-      }
-      <div className="${userMessageContentClass}">
-        <div className="${borderRadiusClass} bg-muted px-5 py-2.5 break-words text-foreground">
+    <MessagePrimitive.Root
+      className="mx-auto grid w-full max-w-[var(--thread-max-width)] auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] content-start gap-y-2 px-2 ${messageSpacingClass}${animationClass}"
+      data-role="user"
+    >
+      ${components.attachments ? "<UserMessageAttachments />" : ""}
+
+      <div className="relative col-start-2 min-w-0">
+        <div className="${borderRadiusClass} bg-muted px-4 py-2.5 break-words text-foreground">
           <MessagePrimitive.Parts />
         </div>
         ${
           components.editMessage
-            ? `<div className="${editButtonPositionClass}">
-          <ActionBarPrimitive.Root hideWhenRunning autohide="not-last" className="flex flex-col items-end">
-            <ActionBarPrimitive.Edit asChild>
-              <TooltipIconButton tooltip="Edit" className="p-4">
-                <PencilIcon />
-              </TooltipIconButton>
-            </ActionBarPrimitive.Edit>
-          </ActionBarPrimitive.Root>
+            ? `<div className="absolute top-1/2 left-0 -translate-x-full -translate-y-1/2 pr-2">
+          <UserActionBar />
         </div>`
             : ""
         }
       </div>
-      ${components.branchPicker ? `<BranchPicker className="-mr-1 self-end" />` : ""}
+
+      ${components.branchPicker ? `<BranchPicker className="col-span-full col-start-1 row-start-3 -mr-1 justify-end" />` : ""}
     </MessagePrimitive.Root>
   );
+}
+
+${
+  components.editMessage
+    ? `function UserActionBar() {
+  return (
+    <ActionBarPrimitive.Root
+      hideWhenRunning
+      autohide="not-last"
+      className="flex flex-col items-end"
+    >
+      <ActionBarPrimitive.Edit asChild>
+        <TooltipIconButton tooltip="Edit" className="p-4">
+          <PencilIcon />
+        </TooltipIconButton>
+      </ActionBarPrimitive.Edit>
+    </ActionBarPrimitive.Root>
+  );
+}`
+    : ""
 }`;
 
-  const assistantMessageRootClass = `relative mx-auto flex w-full max-w-[var(--thread-max-width)] gap-3 ${messageSpacingClass}${animationClass}`;
+  const assistantMessageRootClass = `relative mx-auto w-full max-w-[var(--thread-max-width)] ${messageSpacingClass}${animationClass}`;
   const textComponent = components.markdown ? "MarkdownText" : "undefined";
 
   const reasoningSection = components.reasoning
@@ -339,7 +379,10 @@ function UserMessage() {
   const assistantMessageComponent = `
 function AssistantMessage() {
   return (
-    <MessagePrimitive.Root className="${assistantMessageRootClass}">
+    <MessagePrimitive.Root
+      className="${assistantMessageRootClass}"
+      data-role="assistant"
+    >
       ${
         components.avatar
           ? `<div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
@@ -347,49 +390,62 @@ function AssistantMessage() {
       </div>`
           : ""
       }
-      <div className="min-w-0 flex-1">${reasoningSection}
-        <div className="leading-7 break-words text-foreground">
-          <MessagePrimitive.Parts${components.markdown ? ` components={{ Text: ${textComponent} }}` : ""} />
-        </div>
-        ${
-          components.typingIndicator
+      <div className="break-words px-2 leading-relaxed text-foreground">${reasoningSection}
+        <MessagePrimitive.Parts
+          components={{
+            ${components.markdown ? `Text: ${textComponent},` : ""}
+            ${components.markdown ? `tools: { Fallback: ToolFallback },` : ""}
+          }}
+        />
+        <MessageError />${
+          components.thinkingIndicator
             ? `
-        <ThreadPrimitive.If running>
-          <div className="mt-2 flex items-center gap-2 text-muted-foreground">
+        <AssistantIf condition={({ thread, message }) => thread.isRunning && message.content.length === 0}>
+          <div className="flex items-center gap-2 text-muted-foreground">
             <LoaderIcon className="size-4 animate-spin" />
             <span className="text-sm">Thinking...</span>
           </div>
-        </ThreadPrimitive.If>`
-            : ""
-        }
-
-        <div className="mt-2 flex">
-          ${components.branchPicker ? "<BranchPicker />" : ""}
-          <AssistantActionBar />
-        </div>
-        ${
-          components.followUpSuggestions
-            ? `
-        <ThreadPrimitive.If running={false}>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <ThreadPrimitive.Suggestion
-              prompt="Tell me more"
-              className="rounded-full border bg-background px-3 py-1 text-sm hover:bg-muted"
-            >
-              Tell me more
-            </ThreadPrimitive.Suggestion>
-            <ThreadPrimitive.Suggestion
-              prompt="Can you explain differently?"
-              className="rounded-full border bg-background px-3 py-1 text-sm hover:bg-muted"
-            >
-              Explain differently
-            </ThreadPrimitive.Suggestion>
-          </div>
-        </ThreadPrimitive.If>`
+        </AssistantIf>`
             : ""
         }
       </div>
+
+      <div className="mt-1 ml-2 flex">
+        ${components.branchPicker ? "<BranchPicker />" : ""}
+        <AssistantActionBar />
+      </div>
+      ${
+        components.followUpSuggestions
+          ? `
+      <AssistantIf condition={({ thread }) => !thread.isRunning}>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <ThreadPrimitive.Suggestion
+            prompt="Tell me more"
+            className="rounded-full border bg-background px-3 py-1 text-sm hover:bg-muted"
+          >
+            Tell me more
+          </ThreadPrimitive.Suggestion>
+          <ThreadPrimitive.Suggestion
+            prompt="Can you explain differently?"
+            className="rounded-full border bg-background px-3 py-1 text-sm hover:bg-muted"
+          >
+            Explain differently
+          </ThreadPrimitive.Suggestion>
+        </div>
+      </AssistantIf>`
+          : ""
+      }
     </MessagePrimitive.Root>
+  );
+}
+
+function MessageError() {
+  return (
+    <MessagePrimitive.Error>
+      <ErrorPrimitive.Root className="mt-2 rounded-md border border-destructive bg-destructive/10 p-3 text-destructive text-sm dark:bg-destructive/5 dark:text-red-200">
+        <ErrorPrimitive.Message className="line-clamp-2" />
+      </ErrorPrimitive.Root>
+    </MessagePrimitive.Error>
   );
 }`;
 
@@ -415,26 +471,31 @@ function AssistantActionBar() {
       hideWhenRunning
       autohide="not-last"
       autohideFloat="single-branch"
-      className="-ml-1 flex gap-1 text-muted-foreground"
+      className="-ml-1 flex gap-1 text-muted-foreground data-floating:absolute data-floating:rounded-md data-floating:border data-floating:bg-background data-floating:p-1 data-floating:shadow-sm"
     >
       ${
         components.actionBar.copy
           ? `<ActionBarPrimitive.Copy asChild>
         <TooltipIconButton tooltip="Copy">
-          <MessagePrimitive.If copied>
+          <AssistantIf condition={({ message }) => message.isCopied}>
             <CheckIcon />
-          </MessagePrimitive.If>
-          <MessagePrimitive.If copied={false}>
+          </AssistantIf>
+          <AssistantIf condition={({ message }) => !message.isCopied}>
             <CopyIcon />
-          </MessagePrimitive.If>
+          </AssistantIf>
         </TooltipIconButton>
       </ActionBarPrimitive.Copy>`
           : ""
       }
+      <ActionBarPrimitive.ExportMarkdown asChild>
+        <TooltipIconButton tooltip="Export as Markdown">
+          <DownloadIcon />
+        </TooltipIconButton>
+      </ActionBarPrimitive.ExportMarkdown>
       ${
         components.actionBar.reload
           ? `<ActionBarPrimitive.Reload asChild>
-        <TooltipIconButton tooltip="Regenerate">
+        <TooltipIconButton tooltip="Refresh">
           <RefreshCwIcon />
         </TooltipIconButton>
       </ActionBarPrimitive.Reload>`
@@ -455,11 +516,12 @@ function AssistantActionBar() {
 
   const branchPickerComponent = components.branchPicker
     ? `
-function BranchPicker({ className }: { className?: string }) {
+function BranchPicker({ className, ...rest }: { className?: string }) {
   return (
     <BranchPickerPrimitive.Root
       hideWhenSingleBranch
       className={cn("mr-2 -ml-2 inline-flex items-center text-xs text-muted-foreground", className)}
+      {...rest}
     >
       <BranchPickerPrimitive.Previous asChild>
         <TooltipIconButton tooltip="Previous">
@@ -479,6 +541,30 @@ function BranchPicker({ className }: { className?: string }) {
 }`
     : "";
 
+  const editComposerComponent = components.editMessage
+    ? `
+function EditComposer() {
+  return (
+    <MessagePrimitive.Root className="mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col px-2 py-3">
+      <ComposerPrimitive.Root className="ml-auto flex w-full max-w-[85%] flex-col ${borderRadiusClass} bg-muted">
+        <ComposerPrimitive.Input
+          className="min-h-14 w-full resize-none bg-transparent p-4 text-foreground text-sm outline-none"
+          autoFocus
+        />
+        <div className="mx-3 mb-3 flex items-center gap-2 self-end">
+          <ComposerPrimitive.Cancel asChild>
+            <Button variant="ghost" size="sm">Cancel</Button>
+          </ComposerPrimitive.Cancel>
+          <ComposerPrimitive.Send asChild>
+            <Button size="sm">Update</Button>
+          </ComposerPrimitive.Send>
+        </div>
+      </ComposerPrimitive.Root>
+    </MessagePrimitive.Root>
+  );
+}`
+    : "";
+
   return [
     `"use client";`,
     ``,
@@ -491,6 +577,7 @@ function BranchPicker({ className }: { className?: string }) {
     composerComponent,
     scrollToBottomComponent,
     userMessageComponent,
+    editComposerComponent,
     assistantMessageComponent,
     actionBarComponent,
     branchPickerComponent,
@@ -501,10 +588,9 @@ function BranchPicker({ className }: { className?: string }) {
 
 function generateIconImports(config: BuilderConfig): string {
   const { components } = config;
-  const icons: string[] = ["ArrowUpIcon", "Square"];
+  const icons: string[] = ["ArrowUpIcon", "DownloadIcon", "SquareIcon"];
 
   if (components.scrollToBottom) icons.push("ArrowDownIcon");
-  if (components.attachments) icons.push("PaperclipIcon");
   if (components.editMessage) icons.push("PencilIcon");
   if (components.branchPicker)
     icons.push("ChevronLeftIcon", "ChevronRightIcon");
@@ -514,7 +600,7 @@ function generateIconImports(config: BuilderConfig): string {
   if (components.actionBar.feedback)
     icons.push("ThumbsUpIcon", "ThumbsDownIcon");
   if (components.avatar) icons.push("BotIcon", "UserIcon");
-  if (components.typingIndicator) icons.push("LoaderIcon");
+  if (components.thinkingIndicator) icons.push("LoaderIcon");
   if (components.reasoning) icons.push("ChevronDownIcon");
 
   return `import {\n  ${[...new Set(icons)].sort().join(",\n  ")},\n} from "lucide-react";`;
@@ -550,6 +636,18 @@ function getMessageSpacingClass(spacing: string): string {
       spacious: "py-6",
     }[spacing] || "py-4"
   );
+}
+
+/**
+ * Determines if a hex color is light (should use dark text) or dark (should use light text)
+ */
+function isLightColor(hexColor: string): boolean {
+  const hex = hexColor.replace("#", "");
+  const r = parseInt(hex.substring(0, 2), 16);
+  const g = parseInt(hex.substring(2, 4), 16);
+  const b = parseInt(hex.substring(4, 6), 16);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.5;
 }
 
 function generateCliCommand(config: BuilderConfig): string {
@@ -623,7 +721,8 @@ ${featureNotes.length > 0 ? `${featureNotes.join("\n")}\n` : ""}
 # - Reasoning: ${components.reasoning ? "yes" : "no"}
 # - Follow-up Suggestions: ${components.followUpSuggestions ? "yes" : "no"}
 # - Avatar: ${components.avatar ? "yes" : "no"}
-# - Typing Indicator: ${components.typingIndicator ? "yes" : "no"}
+# - Typing Indicator: ${components.typingIndicator}
+# - Thinking Text: ${components.thinkingIndicator ? "yes" : "no"}
 # - Action Bar Copy: ${components.actionBar.copy ? "yes" : "no"}
 # - Action Bar Reload: ${components.actionBar.reload ? "yes" : "no"}
 # - Action Bar Speak: ${components.actionBar.speak ? "yes" : "no"}
