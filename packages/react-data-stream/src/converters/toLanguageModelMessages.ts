@@ -12,6 +12,25 @@ import {
   ToolCallMessagePart,
 } from "@assistant-ui/react";
 
+const IMAGE_MEDIA_TYPES: Record<string, string> = {
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  gif: "image/gif",
+  webp: "image/webp",
+  svg: "image/svg+xml",
+  avif: "image/avif",
+  bmp: "image/bmp",
+  ico: "image/x-icon",
+  tiff: "image/tiff",
+  tif: "image/tiff",
+};
+
+const inferImageMediaType = (url: string): string => {
+  const ext = url.split(".").pop()?.toLowerCase().split("?")[0] ?? "";
+  return IMAGE_MEDIA_TYPES[ext] ?? "image/png";
+};
+
 const assistantMessageSplitter = () => {
   const stash: LanguageModelV2Message[] = [];
   let assistantMessage = {
@@ -116,11 +135,11 @@ export function toLanguageModelMessages(
                 }
 
                 case "image": {
-                  // In AI SDK v6, images are handled as file parts
+                  // ImageMessagePart doesn't include media type info, so we infer from URL
                   return {
                     type: "file",
                     data: new URL(part.image),
-                    mediaType: "image/png",
+                    mediaType: inferImageMediaType(part.image),
                   };
                 }
 
