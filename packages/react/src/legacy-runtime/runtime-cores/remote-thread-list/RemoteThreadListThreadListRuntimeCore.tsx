@@ -361,11 +361,7 @@ export class RemoteThreadListThreadListRuntimeCore
     if (this._mainThreadId === data.id) return;
 
     const task = this._hookManager.startThreadRuntime(data.id);
-    if (this.mainThreadId !== undefined) {
-      await task;
-    } else {
-      task.then(() => this._notifySubscribers());
-    }
+    await task;
 
     if (data.status === "archived") await this.unarchive(data.id);
     this._mainThreadId = data.id;
