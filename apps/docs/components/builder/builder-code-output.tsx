@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { highlight } from "sugar-high";
+import { useState } from "react";
+import ShikiHighlighter from "react-shiki";
 import { CheckIcon, CopyIcon, TerminalIcon, CodeIcon } from "lucide-react";
 
 import type { BuilderConfig } from "./types";
@@ -17,12 +17,6 @@ export function BuilderCodeOutput({ config }: BuilderCodeOutputProps) {
 
   const componentCode = generateComponentCode(config);
   const cliCommand = generateCliCommand(config);
-
-  const highlightedCode = useMemo(
-    () => highlight(componentCode),
-    [componentCode],
-  );
-  const highlightedCli = useMemo(() => highlight(cliCommand), [cliCommand]);
 
   const handleCopy = async () => {
     const text = activeTab === "code" ? componentCode : cliCommand;
@@ -78,14 +72,16 @@ export function BuilderCodeOutput({ config }: BuilderCodeOutputProps) {
         </button>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-auto">
-        <pre className="p-4 font-mono text-xs leading-relaxed">
-          <code
-            dangerouslySetInnerHTML={{
-              __html: activeTab === "code" ? highlightedCode : highlightedCli,
-            }}
-          />
-        </pre>
+      <div className="min-h-0 flex-1 overflow-auto text-xs leading-relaxed [&_pre]:m-0! [&_pre]:bg-transparent! [&_pre]:p-0!">
+        <ShikiHighlighter
+          language={activeTab === "code" ? "tsx" : "bash"}
+          theme={{ dark: "vitesse-dark", light: "vitesse-light" }}
+          addDefaultStyles={false}
+          showLanguage={false}
+          defaultColor="light-dark()"
+        >
+          {activeTab === "code" ? componentCode.trim() : cliCommand.trim()}
+        </ShikiHighlighter>
       </div>
     </div>
   );

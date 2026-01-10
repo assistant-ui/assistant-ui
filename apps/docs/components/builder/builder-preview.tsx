@@ -29,13 +29,27 @@ import {
   ThreadPrimitive,
 } from "@assistant-ui/react";
 
-import { type FC, createContext, useContext } from "react";
+import { type FC, createContext, useContext, useMemo, memo } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
-import { MarkdownText } from "@/components/assistant-ui/markdown-text";
+import {
+  type CodeHeaderProps,
+  MarkdownTextPrimitive,
+  unstable_memoizeMarkdownComponents as memoizeMarkdownComponents,
+  useIsMarkdownCodeBlock,
+  type SyntaxHighlighterProps,
+} from "@assistant-ui/react-markdown";
+import remarkGfm from "remark-gfm";
+import ShikiHighlighter from "react-shiki";
 
-import type { BuilderConfig, FontSize, MessageSpacing } from "./types";
+import {
+  SHIKI_THEME_MAP,
+  type BuilderConfig,
+  type CodeHighlightTheme,
+  type FontSize,
+  type MessageSpacing,
+} from "./types";
 
 interface BuilderPreviewContextValue {
   config: BuilderConfig;
@@ -405,7 +419,13 @@ const AssistantMessage: FC<AssistantMessageProps> = ({
   messageSpacingClass,
 }) => {
   const { components, styles } = config;
-  const TextComponent = components.markdown ? MarkdownText : PlainText;
+  const TextComponent = components.markdown
+    ? () => (
+        <ConfigurableMarkdownText
+          codeHighlightTheme={components.codeHighlightTheme}
+        />
+      )
+    : PlainText;
 
   return (
     <MessagePrimitive.Root
@@ -603,3 +623,162 @@ function isLightColor(hexColor: string): boolean {
   // Return true if light (luminance > 0.5)
   return luminance > 0.5;
 }
+
+const MarkdownCodeHeader: FC<CodeHeaderProps> = ({ language }) => (
+  <div className="mt-4 flex items-center justify-between gap-4 rounded-t-lg bg-zinc-800 px-4 py-2 font-semibold text-sm text-zinc-300 dark:bg-zinc-700">
+    <span className="lowercase">{language}</span>
+  </div>
+);
+
+const MarkdownH1: FC<React.ComponentProps<"h1">> = ({
+  className,
+  ...props
+}) => (
+  <h1
+    className={cn(
+      "mb-8 scroll-m-20 font-extrabold text-4xl tracking-tight last:mb-0",
+      className,
+    )}
+    {...props}
+  />
+);
+
+const MarkdownH2: FC<React.ComponentProps<"h2">> = ({
+  className,
+  ...props
+}) => (
+  <h2
+    className={cn(
+      "mt-8 mb-4 scroll-m-20 font-semibold text-3xl tracking-tight first:mt-0 last:mb-0",
+      className,
+    )}
+    {...props}
+  />
+);
+
+const MarkdownH3: FC<React.ComponentProps<"h3">> = ({
+  className,
+  ...props
+}) => (
+  <h3
+    className={cn(
+      "mt-6 mb-4 scroll-m-20 font-semibold text-2xl tracking-tight first:mt-0 last:mb-0",
+      className,
+    )}
+    {...props}
+  />
+);
+
+const MarkdownP: FC<React.ComponentProps<"p">> = ({ className, ...props }) => (
+  <p
+    className={cn("mt-5 mb-5 leading-7 first:mt-0 last:mb-0", className)}
+    {...props}
+  />
+);
+
+const MarkdownUl: FC<React.ComponentProps<"ul">> = ({
+  className,
+  ...props
+}) => (
+  <ul className={cn("my-5 ml-6 list-disc [&>li]:mt-2", className)} {...props} />
+);
+
+const MarkdownOl: FC<React.ComponentProps<"ol">> = ({
+  className,
+  ...props
+}) => (
+  <ol
+    className={cn("my-5 ml-6 list-decimal [&>li]:mt-2", className)}
+    {...props}
+  />
+);
+
+const MarkdownPre: FC<React.ComponentProps<"pre">> = ({
+  className,
+  ...props
+}) => (
+  <pre
+    className={cn(
+      "overflow-x-auto rounded-b-lg bg-zinc-900 p-4 text-white dark:bg-zinc-800",
+      className,
+    )}
+    {...props}
+  />
+);
+
+const MarkdownCode: FC<React.ComponentProps<"code">> = ({
+  className,
+  ...props
+}) => {
+  const isCodeBlock = useIsMarkdownCodeBlock();
+  return (
+    <code
+      className={cn(
+        !isCodeBlock && "rounded border bg-muted px-1 font-semibold",
+        className,
+      )}
+      {...props}
+    />
+  );
+};
+
+const baseMarkdownComponents = {
+  h1: MarkdownH1,
+  h2: MarkdownH2,
+  h3: MarkdownH3,
+  p: MarkdownP,
+  ul: MarkdownUl,
+  ol: MarkdownOl,
+  pre: MarkdownPre,
+  code: MarkdownCode,
+  CodeHeader: MarkdownCodeHeader,
+};
+
+const createSyntaxHighlighter = (
+  theme: Exclude<CodeHighlightTheme, "none">,
+): FC<SyntaxHighlighterProps> => {
+  const SyntaxHighlighter: FC<SyntaxHighlighterProps> = ({
+    code,
+    language,
+  }) => (
+    <ShikiHighlighter
+      language={language ?? "text"}
+      theme={SHIKI_THEME_MAP[theme]}
+      addDefaultStyles={false}
+      showLanguage={false}
+      defaultColor="light-dark()"
+      className="[&_pre]:overflow-x-auto [&_pre]:rounded-b-lg [&_pre]:bg-zinc-900 [&_pre]:p-4 dark:[&_pre]:bg-zinc-800"
+    >
+      {code}
+    </ShikiHighlighter>
+  );
+  return SyntaxHighlighter;
+};
+
+interface ConfigurableMarkdownTextProps {
+  codeHighlightTheme: CodeHighlightTheme;
+}
+
+const ConfigurableMarkdownText: FC<ConfigurableMarkdownTextProps> = memo(
+  ({ codeHighlightTheme }) => {
+    const components = useMemo(() => {
+      if (codeHighlightTheme === "none") {
+        return memoizeMarkdownComponents(baseMarkdownComponents);
+      }
+
+      return memoizeMarkdownComponents({
+        ...baseMarkdownComponents,
+        SyntaxHighlighter: createSyntaxHighlighter(codeHighlightTheme),
+      });
+    }, [codeHighlightTheme]);
+
+    return (
+      <MarkdownTextPrimitive
+        remarkPlugins={[remarkGfm]}
+        components={components}
+      />
+    );
+  },
+);
+
+ConfigurableMarkdownText.displayName = "ConfigurableMarkdownText";

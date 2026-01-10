@@ -4,6 +4,13 @@ export type FontSize = "sm" | "base" | "lg";
 export type MessageSpacing = "compact" | "comfortable" | "spacious";
 export type TypingIndicator = "none" | "dot";
 export type LoadingIndicator = "none" | "spinner" | "text";
+export type CodeHighlightTheme =
+  | "none"
+  | "github"
+  | "vitesse"
+  | "tokyo-night"
+  | "one-dark-pro"
+  | "dracula";
 
 export interface ActionBarConfig {
   copy: boolean;
@@ -21,6 +28,7 @@ export interface ComponentsConfig {
   suggestions: boolean;
   scrollToBottom: boolean;
   markdown: boolean;
+  codeHighlightTheme: CodeHighlightTheme;
   reasoning: boolean;
   followUpSuggestions: boolean;
   avatar: boolean;
@@ -70,6 +78,7 @@ export const DEFAULT_CONFIG: BuilderConfig = {
     suggestions: true,
     scrollToBottom: true,
     markdown: true,
+    codeHighlightTheme: "vitesse",
     reasoning: false,
     followUpSuggestions: false,
     avatar: false,
@@ -140,3 +149,23 @@ export const LOADING_INDICATORS = [
   { label: "Spinner", value: "spinner" },
   { label: "Text", value: "text" },
 ] as const;
+
+export const CODE_HIGHLIGHT_THEMES = [
+  { label: "None", value: "none" },
+  { label: "GitHub", value: "github" },
+  { label: "Vitesse", value: "vitesse" },
+  { label: "Tokyo Night", value: "tokyo-night" },
+  { label: "One Dark Pro", value: "one-dark-pro" },
+  { label: "Dracula", value: "dracula" },
+] as const;
+
+export const SHIKI_THEME_MAP: Record<
+  Exclude<CodeHighlightTheme, "none">,
+  { dark: string; light: string }
+> = {
+  github: { dark: "github-dark", light: "github-light" },
+  vitesse: { dark: "vitesse-dark", light: "vitesse-light" },
+  "tokyo-night": { dark: "tokyo-night", light: "github-light" },
+  "one-dark-pro": { dark: "one-dark-pro", light: "github-light" },
+  dracula: { dark: "dracula", light: "github-light" },
+};

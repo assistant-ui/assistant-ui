@@ -1,11 +1,18 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { CircleAlertIcon } from "lucide-react";
 import { Select } from "@/components/shared/select";
 import { Switch } from "@/components/shared/switch";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 import {
   BORDER_RADIUSES,
+  CODE_HIGHLIGHT_THEMES,
   FONT_FAMILIES,
   FONT_SIZES,
   LOADING_INDICATORS,
@@ -15,6 +22,7 @@ import {
   USER_MESSAGE_POSITIONS,
   type BuilderConfig,
   type BorderRadius,
+  type CodeHighlightTheme,
   type FontSize,
   type LoadingIndicator,
   type MessageSpacing,
@@ -141,6 +149,35 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
                 />
               }
             />
+            {config.components.markdown && (
+              <Row
+                label="Code Theme"
+                info={
+                  <>
+                    Syntax highlighting theme powered by{" "}
+                    <a
+                      href="https://shiki.style/themes"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline"
+                    >
+                      Shiki
+                    </a>
+                  </>
+                }
+                control={
+                  <Select
+                    value={config.components.codeHighlightTheme}
+                    onValueChange={(value) =>
+                      updateComponents({
+                        codeHighlightTheme: value as CodeHighlightTheme,
+                      })
+                    }
+                    options={CODE_HIGHLIGHT_THEMES}
+                  />
+                }
+              />
+            )}
             <Row
               label="Reasoning"
               control={
@@ -394,10 +431,33 @@ function Section({
   );
 }
 
-function Row({ label, control }: { label: string; control: React.ReactNode }) {
+function Row({
+  label,
+  control,
+  info,
+}: {
+  label: string;
+  control: React.ReactNode;
+  info?: React.ReactNode;
+}) {
   return (
     <div className="flex h-7 items-center justify-between">
-      <span className="text-sm">{label}</span>
+      <span className="flex items-center gap-2 text-sm">
+        {label}
+        {info && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                className="flex items-center text-muted-foreground hover:text-foreground"
+              >
+                <CircleAlertIcon className="size-3" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top">{info}</TooltipContent>
+          </Tooltip>
+        )}
+      </span>
       {control}
     </div>
   );

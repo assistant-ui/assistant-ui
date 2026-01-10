@@ -4,8 +4,6 @@
 @import "fumadocs-ui/css/shadcn.css";
 @import "fumadocs-ui/css/preset.css";
 
-@import "./sugar-high.css";
-
 @plugin "tailwind-scrollbar";
 
 @custom-variant dark (&:is(.dark *));

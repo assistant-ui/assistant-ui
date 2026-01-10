@@ -65,7 +65,6 @@
     "remark-gfm": "^4.0.1",
     "remark-mdx": "^3.1.1",
     "safe-content-frame": "workspace:*",
-    "sugar-high": "^0.9.5",
     "tailwind-merge": "^3.4.0",
     "tailwind-scrollbar": "^4.0.2",
     "tw-shimmer": "workspace:*",
