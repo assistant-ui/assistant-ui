@@ -6,7 +6,7 @@ import {
   createActionButton,
 } from "../../utils/createActionButton";
 import { useCallback } from "react";
-import { useAssistantState, useAssistantApi } from "../../context";
+import { useAssistantState, useAssistantClient } from "@assistant-ui/store";
 
 /**
  * Hook that provides reload functionality for action bar buttons.
@@ -30,7 +30,7 @@ import { useAssistantState, useAssistantApi } from "../../context";
  * ```
  */
 const useActionBarReload = () => {
-  const api = useAssistantApi();
+  const aui = useAssistantClient();
 
   const disabled = useAssistantState(
     (s) =>
@@ -40,8 +40,8 @@ const useActionBarReload = () => {
   );
 
   const callback = useCallback(() => {
-    api.message().reload();
-  }, [api]);
+    aui.message().reload();
+  }, [aui]);
 
   if (disabled) return null;
   return callback;

@@ -2,10 +2,10 @@
 
 import { AttachmentRuntime } from "../runtime/AttachmentRuntime";
 import { createStateHookForRuntime } from "../../context/react/utils/createStateHookForRuntime";
-import { useAssistantApi, useAssistantState } from "../../context/react";
+import { useAssistantClient, useAssistantState } from "@assistant-ui/store";
 
 /**
- * @deprecated Use `useAssistantApi()` with `api.attachment()` instead. See migration guide: https://docs.assistant-ui.com/docs/migrations/v0-12
+ * @deprecated Use `useAssistantClient()` with `aui.attachment()` instead. See migration guide: https://docs.assistant-ui.com/docs/migrations/v0-12
  */
 export function useAttachmentRuntime(options?: {
   optional?: false | undefined;
@@ -16,10 +16,10 @@ export function useAttachmentRuntime(options?: {
 export function useAttachmentRuntime(options?: {
   optional?: boolean | undefined;
 }): AttachmentRuntime | null {
-  const api = useAssistantApi();
+  const aui = useAssistantClient();
   const runtime = useAssistantState(() =>
-    api.attachment.source
-      ? (api.attachment().__internal_getRuntime?.() ?? null)
+    aui.attachment.source
+      ? (aui.attachment().__internal_getRuntime?.() ?? null)
       : null,
   );
   if (!runtime && !options?.optional) {

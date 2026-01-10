@@ -7,7 +7,7 @@ import {
   ComposerPrimitive,
   MessagePrimitive,
   useAssistantState,
-  useAssistantApi,
+  useAssistantClient,
 } from "@assistant-ui/react";
 import { useShallow } from "zustand/shallow";
 import {
@@ -121,8 +121,8 @@ const AttachmentThumb: FC = () => {
 };
 
 const AttachmentUI: FC = () => {
-  const api = useAssistantApi();
-  const canRemove = api.attachment.source !== "message";
+  const aui = useAssistantClient();
+  const canRemove = aui.attachment.source !== "message";
   const typeLabel = useAssistantState(({ attachment }) => {
     const type = attachment.type;
     switch (type) {

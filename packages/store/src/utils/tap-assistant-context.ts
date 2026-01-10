@@ -1,6 +1,6 @@
 import {
-  createContext,
-  tapContext,
+  createResourceContext,
+  tap,
   withContextProvider,
   tapEffectEvent,
 } from "@assistant-ui/tap";
@@ -22,9 +22,8 @@ export type AssistantTapContextValue = {
   emit: EmitFn;
 };
 
-const AssistantTapContext = createContext<AssistantTapContextValue | null>(
-  null,
-);
+const AssistantTapContext =
+  createResourceContext<AssistantTapContextValue | null>(null);
 
 export const withAssistantTapContextProvider = <TResult>(
   value: AssistantTapContextValue,
@@ -34,7 +33,7 @@ export const withAssistantTapContextProvider = <TResult>(
 };
 
 const tapAssistantTapContext = () => {
-  const ctx = tapContext(AssistantTapContext);
+  const ctx = tap(AssistantTapContext);
   if (!ctx) throw new Error("AssistantTapContext is not available");
 
   return ctx;

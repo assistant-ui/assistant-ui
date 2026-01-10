@@ -7,6 +7,12 @@ export class CompositeContextProvider implements ModelContextProvider {
   private _providers = new Set<ModelContextProvider>();
 
   getModelContext() {
+    const that = this;
+    console.log("getModelContext", {
+      get test() {
+        return that._providers;
+      },
+    });
     return mergeModelContexts(this._providers);
   }
 

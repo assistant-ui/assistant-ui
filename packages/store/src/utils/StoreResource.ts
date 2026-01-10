@@ -4,6 +4,7 @@ import {
   resource,
   createResource,
   tapState,
+  tapMemo,
 } from "@assistant-ui/tap";
 import { Unsubscribe } from "../types/client";
 
@@ -23,14 +24,18 @@ export const StoreResource = resource(
   <TState>(element: ResourceElement<TState>): Store<TState> => {
     const [handle] = tapState(() => createResource(element, { mount: false }));
 
-    tapEffect(() => {
-      return handle.unmount;
-    }, [handle]);
+    tapEffect(() => handle.unmount, [handle]);
 
     tapEffect(() => {
       handle.render(element);
-    }, [handle, element]);
+    });
 
-    return handle;
+    return tapMemo(
+      () => ({
+        getState: handle.getValue,
+        subscribe: handle.subscribe,
+      }),
+      [handle],
+    );
   },
 );

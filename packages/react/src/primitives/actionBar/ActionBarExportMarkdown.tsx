@@ -4,7 +4,7 @@ import { forwardRef, useCallback } from "react";
 import { ActionButtonProps } from "../../utils/createActionButton";
 import { composeEventHandlers } from "@radix-ui/primitive";
 import { Primitive } from "@radix-ui/react-primitive";
-import { useAssistantState, useAssistantApi } from "../../context";
+import { useAssistantState, useAssistantClient } from "@assistant-ui/store";
 
 const useActionBarExportMarkdown = ({
   filename,
@@ -13,7 +13,7 @@ const useActionBarExportMarkdown = ({
   filename?: string | undefined;
   onExport?: ((content: string) => void | Promise<void>) | undefined;
 } = {}) => {
-  const api = useAssistantApi();
+  const aui = useAssistantClient();
   const hasExportableContent = useAssistantState(({ message }) => {
     return (
       (message.role !== "assistant" || message.status?.type !== "running") &&
@@ -22,7 +22,7 @@ const useActionBarExportMarkdown = ({
   });
 
   const callback = useCallback(async () => {
-    const content = api.message().getCopyText();
+    const content = aui.message().getCopyText();
     if (!content) return;
 
     if (onExport) {
@@ -37,7 +37,7 @@ const useActionBarExportMarkdown = ({
     a.download = filename ?? `message-${Date.now()}.md`;
     a.click();
     URL.revokeObjectURL(url);
-  }, [api, filename, onExport]);
+  }, [aui, filename, onExport]);
 
   if (!hasExportableContent) return null;
   return callback;

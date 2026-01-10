@@ -1,35 +1,46 @@
-import { useEffect, useLayoutEffect, useMemo, useState } from "react";
-import { ExtractResourceOutput, ResourceElement } from "../core/types";
+import { useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
+import type { ExtractResourceReturnType, ResourceElement } from "../core/types";
 import {
   createResourceFiber,
   unmountResourceFiber,
   renderResourceFiber,
   commitResourceFiber,
 } from "../core/ResourceFiber";
+import { isDevelopment } from "../core/env";
 
-const shouldAvoidLayoutEffect =
-  (globalThis as any).__ASSISTANT_UI_DISABLE_LAYOUT_EFFECT__ === true;
+const useDevStrictMode = () => {
+  if (!isDevelopment) return null;
 
-const useIsomorphicLayoutEffect = shouldAvoidLayoutEffect
-  ? useEffect
-  : useLayoutEffect;
+  const count = useRef(0);
+  const isFirstRender = count.current === 0;
+  useState(() => count.current++);
+  if (count.current !== 2) return null;
+  return isFirstRender ? ("child" as const) : ("root" as const);
+};
+
+const resourceReducer = (version: number, callback: () => boolean) => {
+  return version + (callback() ? 1 : 0);
+};
 
 export function useResource<E extends ResourceElement<any, any>>(
   element: E,
-): ExtractResourceOutput<E> {
-  const [, rerender] = useState({});
-  const fiber = useMemo(
-    () => createResourceFiber(element.type, () => rerender({})),
-    [element.type],
-  );
+): ExtractResourceReturnType<E> {
+  const [, dispatch] = useReducer(resourceReducer, 0);
+
+  const devStrictMode = useDevStrictMode();
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: user provided deps instead of prop identity
+  const fiber = useMemo(() => {
+    return createResourceFiber(element.type, dispatch, devStrictMode);
+  }, [element.type, element.key]);
 
   const result = renderResourceFiber(fiber, element.props);
-  useIsomorphicLayoutEffect(() => {
+  useLayoutEffect(() => {
     return () => unmountResourceFiber(fiber);
   }, [fiber]);
-  useIsomorphicLayoutEffect(() => {
+  useLayoutEffect(() => {
     commitResourceFiber(fiber, result);
   });
 
-  return result.state;
+  return result.output;
 }

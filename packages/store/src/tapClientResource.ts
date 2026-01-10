@@ -6,6 +6,8 @@ import {
   tapResource,
   resource,
   tapInlineResource,
+  Resource,
+  withKey,
 } from "@assistant-ui/tap";
 import type { ClientMethods, ClientOutputOf } from "./types/client";
 import {
@@ -57,6 +59,8 @@ function getOrCreateProxyFn(prop: string | symbol) {
       const method = this[SYMBOL_GET_OUTPUT].methods[prop];
       if (!method)
         throw new Error(`Method "${String(prop)}" is not implemented.`);
+      if (typeof method !== "function")
+        throw new Error(`"${String(prop)}" is not a function.`);
       return method(...args);
     };
     fieldAccessFns.set(prop, template);
@@ -82,7 +86,9 @@ class ClientProxyHandler
     if (prop === SYMBOL_CLIENT_INDEX) return this.index;
     const introspection = handleIntrospectionProp(prop, "ClientProxy");
     if (introspection !== false) return introspection;
-    return getOrCreateProxyFn(prop);
+    const value = this.outputRef.current.methods[prop];
+    if (typeof value === "function") return getOrCreateProxyFn(prop);
+    return value;
   }
 
   ownKeys(): ArrayLike<string | symbol> {
@@ -95,6 +101,17 @@ class ClientProxyHandler
     return prop in this.outputRef.current.methods;
   }
 }
+
+const wrapperResource = <R, P>(
+  fn: (props: ResourceElement<P>) => R,
+): Resource<R, ResourceElement<P>> => {
+  const res = resource(fn);
+  return (props: ResourceElement<P>) => {
+    const el = res(props);
+    if (props.key === undefined) return el;
+    return withKey(props.key, el);
+  };
+};
 
 /**
  * Resource that wraps a plain resource element to create a stable client proxy.
@@ -114,7 +131,7 @@ class ClientProxyHandler
  * });
  * ```
  */
-export const ClientResource = resource(
+export const ClientResource = wrapperResource(
   <TState, TMethods extends ClientMethods>(
     element: ResourceElement<ClientOutputOf<TState, TMethods>>,
   ): ClientOutputOf<TState, TMethods> => {
@@ -129,7 +146,7 @@ export const ClientResource = resource(
           {} as TMethods,
           new ClientProxyHandler(valueRef, index),
         ),
-      [],
+      [index],
     );
 
     const value = tapWithClientStack(methods, () => tapResource(element));

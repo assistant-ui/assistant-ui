@@ -1,10 +1,8 @@
 "use client";
 
 import { ComponentType, type FC, memo, useMemo } from "react";
-import {
-  useAssistantState,
-  MessageAttachmentByIndexProvider,
-} from "../../context";
+import { useAssistantState } from "@assistant-ui/store";
+import { MessageAttachmentByIndexProvider } from "../../context/providers";
 import { CompleteAttachment } from "../../types";
 
 export namespace MessagePrimitiveAttachments {

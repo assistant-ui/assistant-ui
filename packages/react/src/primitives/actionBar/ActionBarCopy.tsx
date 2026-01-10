@@ -5,7 +5,7 @@ import { ActionButtonProps } from "../../utils/createActionButton";
 import { composeEventHandlers } from "@radix-ui/primitive";
 import { Primitive } from "@radix-ui/react-primitive";
 import { useCallback } from "react";
-import { useAssistantState, useAssistantApi } from "../../context";
+import { useAssistantState, useAssistantClient } from "@assistant-ui/store";
 
 /**
  * Hook that provides copy functionality for action bar buttons.
@@ -36,7 +36,7 @@ const useActionBarPrimitiveCopy = ({
 }: {
   copiedDuration?: number | undefined;
 } = {}) => {
-  const api = useAssistantApi();
+  const aui = useAssistantClient();
   const hasCopyableContent = useAssistantState(({ message }) => {
     return (
       (message.role !== "assistant" || message.status?.type !== "running") &&
@@ -48,15 +48,15 @@ const useActionBarPrimitiveCopy = ({
   const composerValue = useAssistantState(({ composer }) => composer.text);
 
   const callback = useCallback(() => {
-    const valueToCopy = isEditing ? composerValue : api.message().getCopyText();
+    const valueToCopy = isEditing ? composerValue : aui.message().getCopyText();
 
     if (!valueToCopy) return;
 
     navigator.clipboard.writeText(valueToCopy).then(() => {
-      api.message().setIsCopied(true);
-      setTimeout(() => api.message().setIsCopied(false), copiedDuration);
+      aui.message().setIsCopied(true);
+      setTimeout(() => aui.message().setIsCopied(false), copiedDuration);
     });
-  }, [api, isEditing, composerValue, copiedDuration]);
+  }, [aui, isEditing, composerValue, copiedDuration]);
 
   if (!hasCopyableContent) return null;
   return callback;

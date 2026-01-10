@@ -3,7 +3,7 @@ import { ThreadListItemRuntimePath } from "./RuntimePathTypes";
 import { SubscribableWithState } from "./subscribable/Subscribable";
 import { ThreadListRuntimeCoreBinding } from "./ThreadListRuntime";
 
-export type ThreadListItemEventType = "switched-to" | "switched-away";
+export type ThreadListItemEventType = "switchedTo" | "switchedAway";
 
 import type {
   ThreadListItemState,
@@ -120,7 +120,7 @@ export class ThreadListItemRuntimeImpl implements ThreadListItemRuntime {
 
   public unstable_on(event: ThreadListItemEventType, callback: () => void) {
     // if the runtime is bound to a specific thread, trigger if isMain is toggled
-    // if the runtime is bound to the main thread, trigger switched-to if threadId changes
+    // if the runtime is bound to the main thread, trigger switchedTo if threadId changes
 
     let prevIsMain = this._core.getState().isMain;
     let prevThreadId = this._core.getState().id;
@@ -132,8 +132,8 @@ export class ThreadListItemRuntimeImpl implements ThreadListItemRuntime {
       prevIsMain = newIsMain;
       prevThreadId = newThreadId;
 
-      if (event === "switched-to" && !newIsMain) return;
-      if (event === "switched-away" && newIsMain) return;
+      if (event === "switchedTo" && !newIsMain) return;
+      if (event === "switchedAway" && newIsMain) return;
       callback();
     });
   }

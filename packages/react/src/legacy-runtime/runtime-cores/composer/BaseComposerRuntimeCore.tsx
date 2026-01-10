@@ -187,7 +187,7 @@ export abstract class BaseComposerRuntimeCore
       upsertAttachment(await promiseOrGenerator);
     }
 
-    this._notifyEventSubscribers("attachment-add");
+    this._notifyEventSubscribers("attachmentAdd");
     this._notifySubscribers();
   }
 

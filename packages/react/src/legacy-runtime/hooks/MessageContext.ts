@@ -1,12 +1,12 @@
 "use client";
 
 import { MessageRuntime } from "../runtime/MessageRuntime";
-import { useAssistantApi, useAssistantState } from "../../context/react";
+import { useAssistantClient, useAssistantState } from "@assistant-ui/store";
 import { createStateHookForRuntime } from "../../context/react/utils/createStateHookForRuntime";
 import { EditComposerRuntime } from "../runtime";
 
 /**
- * @deprecated Use `useAssistantApi()` with `api.message()` instead. See migration guide: https://docs.assistant-ui.com/docs/migrations/v0-12
+ * @deprecated Use `useAssistantClient()` with `aui.message()` instead. See migration guide: https://docs.assistant-ui.com/docs/migrations/v0-12
  *
  * Hook to access the MessageRuntime from the current context.
  *
@@ -38,12 +38,12 @@ import { EditComposerRuntime } from "../runtime";
  *
  * // After:
  * function MessageActions() {
- *   const api = useAssistantApi();
+ *   const aui = useAssistantClient();
  *   const handleReload = () => {
- *     api.message().reload();
+ *     aui.message().reload();
  *   };
  *   const handleEdit = () => {
- *     api.message().startEdit();
+ *     aui.message().startEdit();
  *   };
  *   return (
  *     <div>
@@ -63,10 +63,10 @@ export function useMessageRuntime(options?: {
 export function useMessageRuntime(options?: {
   optional?: boolean | undefined;
 }) {
-  const api = useAssistantApi();
+  const aui = useAssistantClient();
   const runtime = useAssistantState(() =>
-    api.message.source
-      ? (api.message().__internal_getRuntime?.() ?? null)
+    aui.message.source
+      ? (aui.message().__internal_getRuntime?.() ?? null)
       : null,
   );
   if (!runtime && !options?.optional) {

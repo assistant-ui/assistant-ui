@@ -1,11 +1,11 @@
 "use client";
 
-import { useAssistantApi, useAssistantState } from "../../context/react";
+import { useAssistantClient, useAssistantState } from "@assistant-ui/store";
 import { ComposerRuntime } from "../runtime/ComposerRuntime";
 import { createStateHookForRuntime } from "../../context/react/utils/createStateHookForRuntime";
 
 /**
- * @deprecated Use `useAssistantApi()` with `api.composer()` instead. See migration guide: https://docs.assistant-ui.com/docs/migrations/v0-12
+ * @deprecated Use `useAssistantClient()` with `aui.composer()` instead. See migration guide: https://docs.assistant-ui.com/docs/migrations/v0-12
  *
  * Hook to access the ComposerRuntime from the current context.
  *
@@ -43,17 +43,17 @@ import { createStateHookForRuntime } from "../../context/react/utils/createState
  *
  * // After:
  * function ComposerActions() {
- *   const api = useAssistantApi();
+ *   const aui = useAssistantClient();
  *   const canSend = useAssistantState(({ composer }) => composer.canSend);
  *   const canCancel = useAssistantState(({ composer }) => composer.canCancel);
  *   const handleSend = () => {
  *     if (canSend) {
- *       api.composer().send();
+ *       aui.composer().send();
  *     }
  *   };
  *   const handleCancel = () => {
  *     if (canCancel) {
- *       api.composer().cancel();
+ *       aui.composer().cancel();
  *     }
  *   };
  *   return (
@@ -74,10 +74,10 @@ export function useComposerRuntime(options?: {
 export function useComposerRuntime(options?: {
   optional?: boolean | undefined;
 }): ComposerRuntime | null {
-  const api = useAssistantApi();
+  const aui = useAssistantClient();
   const runtime = useAssistantState(() =>
-    api.composer.source
-      ? (api.composer().__internal_getRuntime?.() ?? null)
+    aui.composer.source
+      ? (aui.composer().__internal_getRuntime?.() ?? null)
       : null,
   );
   if (!runtime && !options?.optional) {

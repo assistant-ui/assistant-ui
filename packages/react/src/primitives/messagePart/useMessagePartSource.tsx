@@ -1,7 +1,7 @@
 "use client";
 
 import type { MessagePartState } from "../../legacy-runtime/runtime/MessagePartRuntime";
-import { useAssistantState } from "../../context";
+import { useAssistantState } from "@assistant-ui/store";
 import { SourceMessagePart } from "../../types";
 
 export const useMessagePartSource = () => {

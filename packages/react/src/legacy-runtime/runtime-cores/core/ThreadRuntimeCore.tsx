@@ -57,10 +57,10 @@ export type SubmittedFeedback = {
 };
 
 export type ThreadRuntimeEventType =
-  | "run-start"
-  | "run-end"
+  | "runStart"
+  | "runEnd"
   | "initialize"
-  | "model-context-update";
+  | "modelContextUpdate";
 
 export type StartRunConfig = {
   parentId: string | null;

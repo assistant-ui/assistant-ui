@@ -6,10 +6,10 @@ import {
   createActionButton,
 } from "../../utils/createActionButton";
 import { useCallback } from "react";
-import { useAssistantState, useAssistantApi } from "../../context";
+import { useAssistantState, useAssistantClient } from "@assistant-ui/store";
 
 const useBranchPickerNext = () => {
-  const api = useAssistantApi();
+  const aui = useAssistantClient();
   const disabled = useAssistantState(({ thread, message }) => {
     // Disabled if no next branch
     if (message.branchNumber >= message.branchCount) return true;
@@ -23,8 +23,8 @@ const useBranchPickerNext = () => {
   });
 
   const callback = useCallback(() => {
-    api.message().switchToBranch({ position: "next" });
-  }, [api]);
+    aui.message().switchToBranch({ position: "next" });
+  }, [aui]);
 
   if (disabled) return null;
   return callback;

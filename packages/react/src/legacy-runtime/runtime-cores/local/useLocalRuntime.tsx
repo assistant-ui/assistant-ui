@@ -14,17 +14,14 @@ const useLocalThreadRuntime = (
   { initialMessages, ...options }: LocalRuntimeOptions,
 ) => {
   const { modelContext, ...threadListAdapters } = useRuntimeAdapters() ?? {};
-  const opt = useMemo(
-    () => ({
-      ...options,
-      adapters: {
-        ...threadListAdapters,
-        ...options.adapters,
-        chatModel: adapter,
-      },
-    }),
-    [adapter, options, threadListAdapters],
-  );
+  const opt = {
+    ...options,
+    adapters: {
+      ...threadListAdapters,
+      ...options.adapters,
+      chatModel: adapter,
+    },
+  };
 
   const [runtime] = useState(() => new LocalRuntimeCore(opt, initialMessages));
 
@@ -37,7 +34,7 @@ const useLocalThreadRuntime = (
   useEffect(() => {
     runtime.threads.getMainThreadRuntimeCore().__internal_setOptions(opt);
     runtime.threads.getMainThreadRuntimeCore().__internal_load();
-  }, [runtime, opt]);
+  });
 
   useEffect(() => {
     if (!modelContext) return undefined;
