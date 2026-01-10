@@ -17,10 +17,7 @@ export function withResourceFiber<R, P>(
 
     // ensure hook count matches
     if (fiber.cells.length !== fiber.currentIndex) {
-      throw new Error(
-        `Rendered ${fiber.currentIndex} hooks but expected ${fiber.cells.length}. ` +
-          "Hooks must be called in the exact same order in every render.",
-      );
+      throw new Error("tap: hook order mismatch");
     }
   } finally {
     currentResourceFiber = previousContext;
@@ -28,7 +25,7 @@ export function withResourceFiber<R, P>(
 }
 export function getCurrentResourceFiber(): ResourceFiber<unknown, unknown> {
   if (!currentResourceFiber) {
-    throw new Error("No resource fiber available");
+    throw new Error("tap: no active resource fiber");
   }
   return currentResourceFiber;
 }

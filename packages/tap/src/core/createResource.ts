@@ -90,7 +90,7 @@ export const createResource = <R, P>(
       return false;
     },
     onUnmount: () => {
-      if (!isMounted) throw new Error("Resource not mounted");
+      if (!isMounted) throw new Error("tap: resource not mounted");
       isMounted = false;
 
       unmountResourceFiber(fiber);
