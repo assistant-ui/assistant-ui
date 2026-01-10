@@ -38,7 +38,7 @@ export const init = new Command()
         [
           `shadcn@latest`,
           "add",
-          "https://r.assistant-ui.com/chat/b/ai-sdk-quick-start/json.json",
+          "https://r.assistant-ui.com/chat/b/ai-sdk-quick-start/json",
         ],
         {
           stdio: "inherit",

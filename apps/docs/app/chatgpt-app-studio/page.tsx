@@ -90,7 +90,7 @@ export default function ChatGptAppStudioPage() {
 
   return (
     <>
-      <div className="container mx-auto max-w-7xl space-y-10 px-4 py-8 md:space-y-16 md:py-12">
+      <div className="mx-auto w-full max-w-7xl space-y-10 px-4 pt-14 pb-8 md:space-y-16">
         <div className="flex flex-col gap-6">
           <div className="rainbow-border relative inline-flex w-fit rounded-full p-px text-sm after:absolute after:inset-0 after:-z-10 after:block after:rounded-full">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-background px-4 py-1.5">

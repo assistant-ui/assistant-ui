@@ -160,14 +160,14 @@ function SearchButton({ onToggle }: { onToggle: () => void }) {
 function HiringBanner({ onDismiss }: { onDismiss: () => void }) {
   return (
     <div className="relative">
-      <div className="mx-auto flex h-8 w-full max-w-7xl items-center justify-between px-4 md:px-8">
-        <div className="w-8" />
+      <div className="mx-auto flex h-8 w-full max-w-7xl items-center justify-between px-4">
+        <div className="hidden w-8 sm:block" />
         <Link
           href="/careers"
           className="group inline-flex items-center gap-1.5 text-xs"
         >
           <span className="shimmer text-muted-foreground transition-colors group-hover:text-foreground">
-            We're hiring. Build the future of agentic UI.
+            We&apos;re hiring. Build the future of agentic UI.
           </span>
           <ArrowRight className="size-3 text-muted-foreground transition-all group-hover:translate-x-0.5 group-hover:text-foreground" />
         </Link>
@@ -187,24 +187,22 @@ function HiringBanner({ onDismiss }: { onDismiss: () => void }) {
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
   const [dismissed, setDismissed] = usePersistentBoolean(
     "homepage-hiring-banner-dismissed",
   );
 
-  const showBanner = pathname === "/" && !dismissed;
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const showBanner = mounted && pathname === "/" && !dismissed;
 
   return (
     <header className="sticky top-0 z-50 w-full">
-      <div
-        className={cn(
-          "pointer-events-none absolute inset-x-0 top-0 bg-linear-to-b from-background via-background/80 to-transparent backdrop-blur-xl",
-          showBanner
-            ? "mask-[linear-gradient(to_bottom,black_55%,transparent)] dark:mask-[linear-gradient(to_bottom,black_50%,transparent)] h-30 via-65% dark:via-60%"
-            : "mask-[linear-gradient(to_bottom,black_50%,transparent)] dark:mask-[linear-gradient(to_bottom,black_40%,transparent)] h-24 via-60% dark:via-50%",
-        )}
-      />
-      <div className="relative mx-auto flex h-12 w-full max-w-7xl items-center justify-between px-4 md:px-8">
+      <div className="mask-[linear-gradient(to_bottom,black_50%,transparent)] dark:mask-[linear-gradient(to_bottom,black_40%,transparent)] pointer-events-none absolute inset-x-0 top-0 h-24 bg-linear-to-b from-background via-60% via-background/80 to-transparent backdrop-blur-xl dark:via-50%" />
+      <div className="relative mx-auto flex h-12 w-full max-w-7xl items-center justify-between px-4">
         <Link href="/" className="flex items-center gap-2">
           <Image
             src="/favicon/icon.svg"
@@ -383,7 +381,11 @@ export function Header() {
         </nav>
       </div>
 
-      {showBanner && <HiringBanner onDismiss={() => setDismissed(true)} />}
+      {showBanner && (
+        <div className="absolute top-full right-0 left-0">
+          <HiringBanner onDismiss={() => setDismissed(true)} />
+        </div>
+      )}
     </header>
   );
 }

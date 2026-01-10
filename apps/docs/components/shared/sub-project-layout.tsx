@@ -12,7 +12,7 @@ import { Select } from "./select";
 const SUB_PROJECTS = [
   {
     value: "chatgpt-app-studio",
-    label: "chatgpt-app-studio",
+    label: "ChatGPT App Studio",
     textValue: "chatgpt-app-studio",
   },
   {
@@ -22,7 +22,7 @@ const SUB_PROJECTS = [
   },
   {
     value: "safe-content-frame",
-    label: "safe-content-frame",
+    label: "Safe Content Frame",
     textValue: "safe-content-frame",
   },
 ] as const;
@@ -38,6 +38,8 @@ interface SubProjectLayoutProps {
   githubPath: string;
   breadcrumbs?: BreadcrumbItem[];
   children: ReactNode;
+  hideFooter?: boolean;
+  fullHeight?: boolean;
 }
 
 function ThemeToggle() {
@@ -87,6 +89,8 @@ export function SubProjectLayout({
   githubPath,
   breadcrumbs: breadcrumbsOverride,
   children,
+  hideFooter = false,
+  fullHeight = false,
 }: SubProjectLayoutProps): React.ReactElement {
   const pathname = usePathname();
   const router = useRouter();
@@ -112,10 +116,24 @@ export function SubProjectLayout({
   }, [pathname, name, breadcrumbsOverride]);
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-50 w-full">
-        <div className="mask-[linear-gradient(to_bottom,black_50%,transparent)] dark:mask-[linear-gradient(to_bottom,black_40%,transparent)] pointer-events-none absolute inset-x-0 top-0 h-24 bg-linear-to-b from-background via-60% via-background/80 to-transparent backdrop-blur-xl dark:via-50%" />
-        <div className="relative mx-auto flex h-12 w-full max-w-7xl items-center justify-between px-4 md:px-8">
+    <div
+      className={cn(
+        "flex flex-col",
+        fullHeight ? "h-svh overflow-hidden" : "min-h-screen",
+      )}
+    >
+      <header
+        className={cn("z-50 w-full shrink-0", !fullHeight && "sticky top-0")}
+      >
+        {!fullHeight && (
+          <div className="mask-[linear-gradient(to_bottom,black_50%,transparent)] dark:mask-[linear-gradient(to_bottom,black_40%,transparent)] pointer-events-none absolute inset-x-0 top-0 h-24 bg-linear-to-b from-background via-60% via-background/80 to-transparent backdrop-blur-xl dark:via-50%" />
+        )}
+        <div
+          className={cn(
+            "relative flex h-12 w-full items-center justify-between px-4",
+            !fullHeight && "mx-auto max-w-7xl",
+          )}
+        >
           <div className="flex min-w-0 items-center">
             <Link href="/" className="flex shrink-0 items-center gap-2">
               <Image
@@ -129,9 +147,7 @@ export function SubProjectLayout({
                 assistant-ui
               </span>
             </Link>
-            <span className="mr-2 ml-3 text-muted-foreground/40 sm:mx-2">
-              /
-            </span>
+            <span className="ml-3 text-muted-foreground/40">/</span>
             <Select
               value={name}
               onValueChange={(value) => router.push(`/${value}`)}
@@ -144,11 +160,11 @@ export function SubProjectLayout({
             <span className="hidden sm:contents">
               {breadcrumbs?.map((item, index) => (
                 <span key={item.href} className="contents">
-                  <span className="mx-2 text-muted-foreground/40">/</span>
+                  <span className="mr-3 ml-1 text-muted-foreground/40">/</span>
                   <Link
                     href={item.href}
                     className={cn(
-                      "text-sm transition-colors hover:text-foreground",
+                      "mr-2 text-sm transition-colors hover:text-foreground",
                       index === breadcrumbs.length - 1
                         ? "text-foreground"
                         : "text-muted-foreground",
@@ -177,21 +193,28 @@ export function SubProjectLayout({
         </div>
       </header>
 
-      <main className="flex-1">{children}</main>
+      <main className={cn("flex-1", fullHeight && "min-h-0 overflow-hidden")}>
+        {children}
+      </main>
 
-      <footer className="relative px-4 py-8 md:px-20">
-        <div className="mx-auto flex max-w-7xl items-center justify-between text-muted-foreground text-sm">
-          <p>
-            By{" "}
-            <Link href="/" className="transition-colors hover:text-foreground">
-              assistant-ui
-            </Link>
-          </p>
-          <p className="text-foreground/30 text-xs">
-            &copy; {new Date().getFullYear()} AgentbaseAI Inc.
-          </p>
-        </div>
-      </footer>
+      {!hideFooter && (
+        <footer className="relative px-4 py-8">
+          <div className="mx-auto flex max-w-7xl items-center justify-between text-muted-foreground text-sm">
+            <p>
+              By{" "}
+              <Link
+                href="/"
+                className="transition-colors hover:text-foreground"
+              >
+                assistant-ui
+              </Link>
+            </p>
+            <p className="text-foreground/30 text-xs">
+              &copy; {new Date().getFullYear()} AgentbaseAI Inc.
+            </p>
+          </div>
+        </footer>
+      )}
     </div>
   );
 }
