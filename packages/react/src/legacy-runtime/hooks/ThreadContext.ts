@@ -12,7 +12,7 @@ import {
 } from "../../context/react";
 
 /**
- * @deprecated Use `useAssistantApi()` with `api.thread()` instead. See migration guide: https://docs.assistant-ui.com/docs/migrations/v0-12
+ * @deprecated Use `useAssistantApi()` with `api.thread()` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
  *
  * Hook to access the ThreadRuntime from the current context.
  *
@@ -62,7 +62,7 @@ export function useThreadRuntime(options?: { optional?: boolean | undefined }) {
 }
 
 /**
- * @deprecated Use `useAssistantState(({ thread }) => thread)` instead. See migration guide: https://docs.assistant-ui.com/docs/migrations/v0-12
+ * @deprecated Use `useAssistantState(({ thread }) => thread)` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
  *
  * Hook to access the current thread state.
  *
@@ -96,14 +96,14 @@ const useThreadComposerRuntime = (opt: {
 }): ThreadComposerRuntime | null => useThreadRuntime(opt)?.composer ?? null;
 
 /**
- * @deprecated Use `useAssistantState(({ thread }) => thread.composer)` instead. See migration guide: https://docs.assistant-ui.com/docs/migrations/v0-12
+ * @deprecated Use `useAssistantState(({ thread }) => thread.composer)` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
  */
 export const useThreadComposer = createStateHookForRuntime(
   useThreadComposerRuntime,
 );
 
 /**
- * @deprecated Use `useAssistantState(({ thread }) => thread.modelContext)` instead. See migration guide: https://docs.assistant-ui.com/docs/migrations/v0-12
+ * @deprecated Use `useAssistantState(({ thread }) => thread.modelContext)` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
  */
 export function useThreadModelContext(options?: {
   optional?: false | undefined;

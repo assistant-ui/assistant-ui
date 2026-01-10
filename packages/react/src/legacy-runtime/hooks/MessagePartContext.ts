@@ -5,7 +5,7 @@ import { createStateHookForRuntime } from "../../context/react/utils/createState
 import { useAssistantApi, useAssistantState } from "../../context/react";
 
 /**
- * @deprecated Use `useAssistantApi()` with `api.part()` instead. See migration guide: https://docs.assistant-ui.com/docs/migrations/v0-12
+ * @deprecated Use `useAssistantApi()` with `api.part()` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
  */
 export function useMessagePartRuntime(options?: {
   optional?: false | undefined;
@@ -27,6 +27,6 @@ export function useMessagePartRuntime(options?: {
 }
 
 /**
- * @deprecated Use `useAssistantState(({ part }) => part)` instead. See migration guide: https://docs.assistant-ui.com/docs/migrations/v0-12
+ * @deprecated Use `useAssistantState(({ part }) => part)` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
  */
 export const useMessagePart = createStateHookForRuntime(useMessagePartRuntime);

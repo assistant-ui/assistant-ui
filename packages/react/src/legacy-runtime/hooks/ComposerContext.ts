@@ -5,7 +5,7 @@ import { ComposerRuntime } from "../runtime/ComposerRuntime";
 import { createStateHookForRuntime } from "../../context/react/utils/createStateHookForRuntime";
 
 /**
- * @deprecated Use `useAssistantApi()` with `api.composer()` instead. See migration guide: https://docs.assistant-ui.com/docs/migrations/v0-12
+ * @deprecated Use `useAssistantApi()` with `api.composer()` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
  *
  * Hook to access the ComposerRuntime from the current context.
  *
@@ -87,7 +87,7 @@ export function useComposerRuntime(options?: {
 }
 
 /**
- * @deprecated Use `useAssistantState(({ composer }) => composer)` instead. See migration guide: https://docs.assistant-ui.com/docs/migrations/v0-12
+ * @deprecated Use `useAssistantState(({ composer }) => composer)` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
  *
  * Hook to access the current composer state.
  *
