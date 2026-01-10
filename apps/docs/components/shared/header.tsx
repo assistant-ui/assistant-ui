@@ -62,9 +62,15 @@ const NAV_ITEMS: NavItem[] = [
         external: false,
       },
       {
-        label: "safe-content-frame",
+        label: "Safe Content Frame",
         href: "/safe-content-frame",
         description: "Secure sandboxed iframes",
+        external: false,
+      },
+      {
+        label: "ChatGPT App Studio",
+        href: "/chatgpt-app-studio",
+        description: "Build ChatGPT apps",
         external: false,
       },
     ],

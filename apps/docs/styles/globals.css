@@ -135,6 +135,10 @@
   }
 }
 
+:focus-visible {
+  box-shadow: none;
+}
+
 @layer base {
   :root {
     --primary: var(--docs-color);

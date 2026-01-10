@@ -100,7 +100,7 @@ export default function TwShimmerPage() {
           </Box>
 
           <Box>
-            <BoxCodeHeader fileName="app/globals.css" />
+            <BoxCodeHeader fileName="styles/globals.css" />
             <BoxCode>
               <CodeBlock
                 language="css"

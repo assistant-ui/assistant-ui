@@ -90,8 +90,8 @@ export default function ChatGptAppStudioPage() {
 
   return (
     <>
-      <main className="container relative z-2 mx-auto flex-col space-y-10 px-4 py-8 md:space-y-20 md:px-20">
-        <section className="flex flex-col gap-6">
+      <div className="container mx-auto max-w-7xl space-y-10 px-4 py-8 md:space-y-16 md:py-12">
+        <div className="flex flex-col gap-6">
           <div className="rainbow-border relative inline-flex w-fit rounded-full p-px text-sm after:absolute after:inset-0 after:-z-10 after:block after:rounded-full">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-background px-4 py-1.5">
               <Sparkles className="size-3.5 text-violet-500" />
@@ -126,21 +126,21 @@ export default function ChatGptAppStudioPage() {
               View on GitHub
             </Link>
           </div>
-        </section>
+        </div>
 
         <HeroShowcase onFullscreen={() => setIsFullscreen(true)} />
 
-        <section className="flex flex-col gap-8">
-          <div className="flex flex-col items-center gap-2 text-center">
-            <h2 className="font-medium text-3xl tracking-tight">
+        <div className="space-y-6 md:space-y-8">
+          <div className="text-center">
+            <h2 className="mb-2 font-medium text-2xl md:text-3xl">
               Everything you need to build ChatGPT Apps
             </h2>
-            <p className="text-muted-foreground">
-              Local development workbench with production-ready export.
+            <p className="text-base text-muted-foreground md:text-xl">
+              Local development workbench with production-ready export
             </p>
           </div>
 
-          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-6 sm:grid-cols-2 md:gap-8 lg:grid-cols-3">
             {FEATURES.map((feature) => {
               const Icon = feature.icon;
               return (
@@ -156,19 +156,19 @@ export default function ChatGptAppStudioPage() {
               );
             })}
           </div>
-        </section>
+        </div>
 
-        <section className="flex flex-col gap-8">
-          <div className="flex flex-col items-center gap-2 text-center">
-            <h2 className="font-medium text-3xl tracking-tight">
+        <div className="space-y-6 md:space-y-8">
+          <div className="text-center">
+            <h2 className="mb-2 font-medium text-2xl md:text-3xl">
               How It Works
             </h2>
-            <p className="text-muted-foreground">
+            <p className="text-base text-muted-foreground md:text-xl">
               From scaffold to production in four steps.
             </p>
           </div>
 
-          <div className="mx-auto grid max-w-3xl gap-6 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2 md:gap-6">
             {STEPS.map((step, index) => (
               <div key={step.title} className="flex gap-4">
                 <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted font-medium text-muted-foreground text-sm">
@@ -183,13 +183,13 @@ export default function ChatGptAppStudioPage() {
               </div>
             ))}
           </div>
-        </section>
+        </div>
 
-        <section className="flex flex-col items-center gap-6 py-16 text-center">
-          <p className="font-medium text-2xl tracking-tight">
+        <div className="flex flex-col items-center space-y-4 py-6 text-center md:space-y-6 md:py-8">
+          <p className="font-medium text-xl tracking-tight md:text-2xl">
             Start building your ChatGPT App today.
           </p>
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4">
             <Button asChild>
               <Link href="https://platform.openai.com/docs/guides/building-apps/introduction">
                 Read the Docs <ArrowRight />
@@ -204,8 +204,8 @@ export default function ChatGptAppStudioPage() {
               View Source
             </Link>
           </div>
-        </section>
-      </main>
+        </div>
+      </div>
 
       {isFullscreen && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/90 backdrop-blur-sm">
@@ -249,10 +249,10 @@ function HeroShowcase({ onFullscreen }: { onFullscreen: () => void }) {
   const iframeSrc = `${WORKBENCH_URL}?component=poi-map`;
 
   return (
-    <section className="hero-showcase-section relative -mx-4 md:-mx-20">
+    <div className="hero-showcase-section relative">
       <div className="hero-showcase-glow" />
 
-      <div className="hero-showcase-container mx-auto max-w-6xl px-4 md:px-8">
+      <div className="hero-showcase-container">
         <div className="hero-showcase-frame group relative">
           <div className="hero-showcase-border" />
 
@@ -327,7 +327,7 @@ function HeroShowcase({ onFullscreen }: { onFullscreen: () => void }) {
           </div>
         </div>
       </div>
-    </section>
+    </div>
   );
 }
 

@@ -2,11 +2,30 @@
 
 import { type ReactNode, useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
 import { Moon, Sun } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { GitHubIcon } from "@/components/icons/github";
+import { Select } from "./select";
+
+const SUB_PROJECTS = [
+  {
+    value: "chatgpt-app-studio",
+    label: "chatgpt-app-studio",
+    textValue: "chatgpt-app-studio",
+  },
+  {
+    value: "tw-shimmer",
+    label: <span className="shimmer">tw-shimmer</span>,
+    textValue: "tw-shimmer",
+  },
+  {
+    value: "safe-content-frame",
+    label: "safe-content-frame",
+    textValue: "safe-content-frame",
+  },
+] as const;
 
 interface BreadcrumbItem {
   label: string;
@@ -72,6 +91,7 @@ export function SubProjectLayout({
   children,
 }: SubProjectLayoutProps): React.ReactElement {
   const pathname = usePathname();
+  const router = useRouter();
 
   const breadcrumbs = useMemo(() => {
     if (breadcrumbsOverride) {
@@ -98,8 +118,8 @@ export function SubProjectLayout({
       <header className="sticky top-0 z-50 w-full">
         <div className="mask-[linear-gradient(to_bottom,black_50%,transparent)] dark:mask-[linear-gradient(to_bottom,black_40%,transparent)] pointer-events-none absolute inset-x-0 top-0 h-24 bg-linear-to-b from-background via-60% via-background/80 to-transparent backdrop-blur-xl dark:via-50%" />
         <div className="relative mx-auto flex h-12 w-full max-w-7xl items-center justify-between px-4 md:px-8">
-          <div className="flex items-center">
-            <Link href="/" className="flex items-center gap-2">
+          <div className="flex min-w-0 items-center">
+            <Link href="/" className="flex shrink-0 items-center gap-2">
               <Image
                 src="/favicon/icon.svg"
                 alt="assistant-ui logo"
@@ -107,35 +127,41 @@ export function SubProjectLayout({
                 height={18}
                 className="dark:hue-rotate-180 dark:invert"
               />
-              <span className="font-medium tracking-tight">assistant-ui</span>
-            </Link>
-            <span className="ml-3 text-muted-foreground/40">/</span>
-            <Link
-              href={`/${name}`}
-              className={cn(
-                "ml-3 text-muted-foreground text-sm transition-colors hover:text-foreground",
-                shimmerTitle && "shimmer",
-              )}
-            >
-              {name}
-            </Link>
-            {breadcrumbs?.map((item, index) => (
-              <span key={item.href} className="contents">
-                <span className="ml-3 text-muted-foreground/40">/</span>
-                <Link
-                  href={item.href}
-                  className={cn(
-                    "ml-3 text-sm transition-colors hover:text-foreground",
-                    index === breadcrumbs.length - 1
-                      ? "text-foreground"
-                      : "text-muted-foreground",
-                    item.shimmer && "shimmer",
-                  )}
-                >
-                  {item.label}
-                </Link>
+              <span className="hidden font-medium tracking-tight sm:inline">
+                assistant-ui
               </span>
-            ))}
+            </Link>
+            <span className="mr-2 ml-3 text-muted-foreground/40 sm:mx-2">
+              /
+            </span>
+            <Select
+              value={name}
+              onValueChange={(value) => router.push(`/${value}`)}
+              options={SUB_PROJECTS.map((p) => ({
+                value: p.value,
+                label: p.label,
+                textValue: p.textValue,
+              }))}
+            />
+            <span className="hidden sm:contents">
+              {breadcrumbs?.map((item, index) => (
+                <span key={item.href} className="contents">
+                  <span className="mx-2 text-muted-foreground/40">/</span>
+                  <Link
+                    href={item.href}
+                    className={cn(
+                      "text-sm transition-colors hover:text-foreground",
+                      index === breadcrumbs.length - 1
+                        ? "text-foreground"
+                        : "text-muted-foreground",
+                      item.shimmer && "shimmer",
+                    )}
+                  >
+                    {item.label}
+                  </Link>
+                </span>
+              ))}
+            </span>
           </div>
 
           <div className="flex items-center gap-1">

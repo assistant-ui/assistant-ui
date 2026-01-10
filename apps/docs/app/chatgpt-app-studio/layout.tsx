@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { ReactNode } from "react";
-import { ChatGptAppStudioLayoutClient } from "./chatgpt-app-studio-layout-client";
+import { SubProjectLayout } from "@/components/shared/sub-project-layout";
 
 export const metadata: Metadata = {
   title: "ChatGPT App Studio by assistant-ui",
@@ -14,6 +14,11 @@ export default function ChatGptAppStudioLayout({
   children: ReactNode;
 }): React.ReactElement {
   return (
-    <ChatGptAppStudioLayoutClient>{children}</ChatGptAppStudioLayoutClient>
+    <SubProjectLayout
+      name="chatgpt-app-studio"
+      githubPath="https://github.com/assistant-ui/assistant-ui/tree/main/packages/chatgpt-app-studio"
+    >
+      {children}
+    </SubProjectLayout>
   );
 }
