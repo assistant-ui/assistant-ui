@@ -1,0 +1,50 @@
+---
+title: Google Gemini Clone
+description: Customized colors and styles for a Gemini look and feel
+---
+
+import { Gemini } from "@/components/example/google-gemini/Gemini.tsx";
+import { DocsRuntimeProvider } from "@/app/(home)/DocsRuntimeProvider";
+
+## Live Demo
+
+<div className="not-prose h-[700px]">
+  <DocsRuntimeProvider>
+    <Gemini />
+  </DocsRuntimeProvider>
+</div>
+
+## Overview
+
+The Google Gemini Clone example demonstrates how to customize assistant-ui to match Google Gemini's interface. This includes the characteristic light/dark theme support and minimalist design.
+
+## Features
+
+- **Google Gemini Styling**: Authentic Google Gemini look with light and dark theme support
+- **Theme Support**: Light (#F5F5F0) and dark (#000000) backgrounds
+- **Message Formatting**: Clean message layout with proper spacing
+- **Input Design**: Google-Gemini-style rounded input field with animated send button
+- **Empty State**: Welcome screen with Google Gemini logo
+- **Action Buttons**: Edit, Copy, Regenerate, and Feedback actions
+
+## Usage
+
+To create a Google-Gemini-style interface:
+
+1. **Color Scheme**: Apply Google Gemini's background colors (#F5F5F0 light / #000000 dark)
+2. **Typography**: Use clean, sans-serif fonts with proper hierarchy
+3. **Layout Design**: Implement Google Gemini's minimalist layout with smooth animations
+4. **Component Styling**: Customize all UI elements to match Google Gemini's aesthetic
+
+## Code
+
+Key styling elements for Google Gemini clone:
+
+- **Primary Background**: #F5F5F0 (light) / #000000 (dark) for the main container
+- **Input Background**: #FFFFFF (light) / #1f1e1b (dark) for the composer area
+- **Text Colors**: #0d0d0d (light), #1a1a18 (input) / #e5e5e5 (dark) for content
+- **Borders**: Subtle borders (#e5e5e5 light / #2a2a2a dark) for separation
+- **Animations**: Smooth transitions for button states and model selector
+
+The implementation focuses on the clean, modern aesthetic while maintaining all assistant-ui functionality.
+
