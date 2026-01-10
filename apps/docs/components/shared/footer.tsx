@@ -56,7 +56,7 @@ const FOOTER_LINKS: Record<string, FooterLinkItem[]> = {
 export function Footer(): React.ReactElement {
   return (
     <footer className="py-10 md:py-16">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-10 px-4 md:flex-row md:justify-between md:px-8">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-10 px-4 md:flex-row md:justify-between">
         <div className="grid grid-cols-2 gap-x-12 gap-y-8 sm:grid-cols-4 md:order-2 lg:gap-x-16">
           {Object.entries(FOOTER_LINKS).map(([category, links]) => (
             <div key={category} className="flex flex-col gap-3">

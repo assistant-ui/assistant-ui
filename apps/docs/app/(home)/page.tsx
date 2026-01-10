@@ -12,7 +12,7 @@ import { ExampleShowcase } from "@/components/home/example-showcase";
 
 export default function HomePage() {
   return (
-    <main className="relative z-2 mx-auto w-full max-w-7xl flex-col space-y-10 px-4 py-8 md:space-y-20 md:px-8">
+    <main className="relative z-2 mx-auto w-full max-w-7xl flex-col space-y-10 px-4 pt-14 pb-8 md:space-y-20">
       <Hero />
 
       <ExampleShowcase />

@@ -32,7 +32,7 @@ export function Select({
     <SelectPrimitive.Root value={value} onValueChange={onValueChange}>
       <SelectPrimitive.Trigger
         className={cn(
-          "flex items-center gap-1 rounded-md px-2 py-1 text-sm outline-none transition-colors",
+          "flex items-center gap-1.5 rounded-md py-1 pr-2 pl-3 text-sm outline-none transition-colors",
           "text-muted-foreground hover:bg-muted hover:text-foreground",
           "focus-visible:ring-2 focus-visible:ring-ring/50",
           !selectedOption && placeholder && "italic opacity-70",
@@ -49,7 +49,7 @@ export function Select({
           align="start"
           sideOffset={6}
           className={cn(
-            "z-50 min-w-[10rem] overflow-hidden rounded-xl border bg-popover/95 p-1.5 text-popover-foreground shadow-lg backdrop-blur-sm",
+            "z-50 min-w-40 overflow-hidden rounded-xl border bg-popover/95 p-1.5 text-popover-foreground shadow-lg backdrop-blur-sm",
             "data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=open]:animate-in",
             "data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=closed]:animate-out",
             "data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2",
@@ -70,7 +70,7 @@ export function Select({
                   "relative flex cursor-default select-none items-center rounded-lg py-2 pr-9 pl-3 text-sm outline-none transition-colors",
                   "focus:bg-accent focus:text-accent-foreground",
                   "data-[state=checked]:font-medium",
-                  "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+                  "data-disabled:pointer-events-none data-disabled:opacity-50",
                 )}
               >
                 <SelectPrimitive.ItemText>
