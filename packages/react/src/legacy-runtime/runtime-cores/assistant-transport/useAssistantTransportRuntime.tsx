@@ -84,6 +84,7 @@ const useAssistantTransportThreadRuntime = <T,>(
   const agentStateRef = useRef(options.initialState);
   const [, rerender] = useState(0);
   const resumeFlagRef = useRef(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const commandQueue = useCommandQueue({
     onQueue: () => runManager.schedule(),
   });
@@ -302,9 +303,11 @@ const useAssistantTransportThreadRuntime = <T,>(
       commandQueue.enqueue(command);
     },
     onLoadExternalState: async (state) => {
+      setIsLoadingHistory(true);
       agentStateRef.current = state as T;
       toolInvocations.reset();
       rerender((prev) => prev + 1);
+      queueMicrotask(() => setIsLoadingHistory(false));
     },
   });
 
@@ -313,6 +316,7 @@ const useAssistantTransportThreadRuntime = <T,>(
     getTools: () => runtime.thread.getModelContext().tools,
     onResult: commandQueue.enqueue,
     setToolStatuses,
+    isLoading: isLoadingHistory,
   });
 
   return runtime;
