@@ -21,7 +21,8 @@ const FOOTER_LINKS: Record<string, FooterLinkItem[]> = {
     },
     { label: "Tool UI", href: "https://tool-ui.com/", external: true },
     { label: "tw-shimmer", href: "/tw-shimmer" },
-    { label: "safe-content-frame", href: "/safe-content-frame" },
+    { label: "Safe Content Frame", href: "/safe-content-frame" },
+    { label: "ChatGPT App Studio", href: "/chatgpt-app-studio" },
   ],
   Resources: [
     { label: "Documentation", href: "/docs/getting-started" },

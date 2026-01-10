@@ -1,6 +1,6 @@
 {
   "name": "chatgpt-app-studio",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Create ChatGPT App projects with one command",
   "keywords": [
     "chatgpt",
@@ -28,6 +28,10 @@
   "scripts": {
     "build": "tsup src/index.ts src/utils.ts --format esm --dts --clean",
     "dev": "tsup src/index.ts src/utils.ts --format esm --watch",
+    "preview:sync": "tsx scripts/sync-template.ts",
+    "preview:install": "cd .preview && npm install",
+    "preview:dev": "cd .preview && npm run dev",
+    "preview": "tsx scripts/sync-template.ts && cd .preview && npm run dev",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:smoke": "vitest run --config vitest.smoke.config.ts",
@@ -45,12 +49,12 @@
     "@types/node": "^22.10.0",
     "@vitest/coverage-v8": "^4.0.16",
     "tsup": "^8.4.0",
+    "tsx": "^4.21.0",
     "typescript": "^5.8.3",
     "vitest": "^4.0.16"
   },
   "publishConfig": {
-    "access": "public",
-    "provenance": true
+    "access": "public"
   },
   "homepage": "https://www.assistant-ui.com/",
   "repository": {

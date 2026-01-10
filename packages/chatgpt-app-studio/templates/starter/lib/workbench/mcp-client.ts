@@ -138,6 +138,75 @@ export async function callMcpTool(
   }
 }
 
+export interface McpToolDefinition {
+  name: string;
+  description?: string;
+  inputSchema?: Record<string, unknown>;
+}
+
+export interface McpToolsListResponse {
+  success: boolean;
+  tools?: McpToolDefinition[];
+  error?: McpError;
+}
+
+export async function fetchMcpTools(
+  serverUrl: string,
+): Promise<McpToolsListResponse> {
+  try {
+    const response = await fetch("/api/mcp-proxy", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        method: "tools/list",
+        serverUrl,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => "Unknown error");
+      const errorType =
+        response.status === 404
+          ? "not_found"
+          : response.status >= 500
+            ? "server_error"
+            : "unknown";
+      return {
+        success: false,
+        error: createMcpError(errorType, errorText),
+      };
+    }
+
+    const data = await response.json();
+
+    if (data.error) {
+      return {
+        success: false,
+        error: data.error as McpError,
+      };
+    }
+
+    const tools = data.result?.tools ?? [];
+    return {
+      success: true,
+      tools,
+    };
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Failed to fetch tools";
+    const errorType =
+      error instanceof TypeError && String(error).includes("fetch")
+        ? "connection_refused"
+        : "unknown";
+    return {
+      success: false,
+      error: createMcpError(errorType, message),
+    };
+  }
+}
+
 export async function checkMcpServerHealth(
   serverUrl: string,
 ): Promise<{ healthy: boolean; error?: string }> {

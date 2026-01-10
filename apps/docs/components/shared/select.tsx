@@ -1,13 +1,20 @@
 "use client";
 
+import type { ReactNode } from "react";
 import * as SelectPrimitive from "@radix-ui/react-select";
 import { CheckIcon, ChevronDownIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+interface SelectOption {
+  value: string;
+  label: ReactNode;
+  textValue?: string;
+}
+
 interface SelectProps {
   value: string;
   onValueChange: (value: string) => void;
-  options: { label: string; value: string }[];
+  options: SelectOption[];
   placeholder?: string;
   className?: string;
 }
@@ -20,7 +27,6 @@ export function Select({
   className,
 }: SelectProps) {
   const selectedOption = options.find((opt) => opt.value === value);
-  const displayLabel = selectedOption?.label ?? placeholder;
 
   return (
     <SelectPrimitive.Root value={value} onValueChange={onValueChange}>
@@ -33,14 +39,14 @@ export function Select({
           className,
         )}
       >
-        <span>{displayLabel}</span>
+        <span>{selectedOption?.label ?? placeholder}</span>
         <ChevronDownIcon className="size-3.5 opacity-50" />
       </SelectPrimitive.Trigger>
 
       <SelectPrimitive.Portal>
         <SelectPrimitive.Content
           position="popper"
-          align="end"
+          align="start"
           sideOffset={6}
           className={cn(
             "z-50 min-w-[10rem] overflow-hidden rounded-xl border bg-popover/95 p-1.5 text-popover-foreground shadow-lg backdrop-blur-sm",
@@ -54,6 +60,12 @@ export function Select({
               <SelectPrimitive.Item
                 key={option.value}
                 value={option.value}
+                textValue={
+                  option.textValue ??
+                  (typeof option.label === "string"
+                    ? option.label
+                    : option.value)
+                }
                 className={cn(
                   "relative flex cursor-default select-none items-center rounded-lg py-2 pr-9 pl-3 text-sm outline-none transition-colors",
                   "focus:bg-accent focus:text-accent-foreground",

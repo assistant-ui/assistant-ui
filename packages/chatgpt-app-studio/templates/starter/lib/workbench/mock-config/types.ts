@@ -53,6 +53,7 @@ export interface ToolMockConfig {
   annotations?: ToolAnnotations;
   descriptorMeta?: ToolDescriptorMeta;
   schemas?: ToolSchemas;
+  mockResponse?: MockResponse;
 }
 
 export interface MockConfigState {
