@@ -29,3 +29,7 @@ export type {
   ResourceElement,
   ExtractResourceOutput,
 } from "./core/types";
+
+// instrumentation / debugging
+export { setTapInstrumentation } from "./core/debug";
+export type { TapInstrumentation } from "./core/debug";
