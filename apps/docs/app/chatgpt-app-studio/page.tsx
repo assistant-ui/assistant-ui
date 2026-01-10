@@ -82,7 +82,8 @@ const STEPS = [
   },
 ] as const;
 
-const WORKBENCH_URL = "http://localhost:3002";
+const WORKBENCH_URL =
+  process.env["NEXT_PUBLIC_WORKBENCH_URL"] ?? "http://localhost:3002";
 
 export default function ChatGptAppStudioPage() {
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -265,7 +266,7 @@ function HeroShowcase({ onFullscreen }: { onFullscreen: () => void }) {
               </div>
               <div className="ml-4 flex-1">
                 <div className="mx-auto w-fit rounded-md bg-zinc-800/60 px-3 py-1 font-mono text-xs text-zinc-400">
-                  localhost:3002
+                  {new URL(WORKBENCH_URL).host}
                 </div>
               </div>
               <button
