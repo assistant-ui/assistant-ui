@@ -447,7 +447,7 @@ const AssistantMessage: FC<AssistantMessageProps> = ({
           <MessagePrimitive.Parts components={{ Text: TextComponent }} />
         </div>
 
-        {components.thinkingIndicator && (
+        {components.loadingIndicator !== "none" && (
           <AssistantIf
             condition={({ thread, message }) =>
               thread.isRunning && message.content.length === 0
@@ -455,7 +455,9 @@ const AssistantMessage: FC<AssistantMessageProps> = ({
           >
             <div className="flex items-center gap-2 text-muted-foreground">
               <LoaderIcon className="size-4 animate-spin" />
-              <span className="text-sm">Thinking...</span>
+              {components.loadingIndicator === "text" && (
+                <span className="text-sm">{components.loadingText}</span>
+              )}
             </div>
           </AssistantIf>
         )}

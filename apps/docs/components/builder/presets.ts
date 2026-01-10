@@ -24,7 +24,8 @@ export const PRESETS: Preset[] = [
         followUpSuggestions: false,
         avatar: false,
         typingIndicator: "dot",
-        thinkingIndicator: false,
+        loadingIndicator: "text",
+        loadingText: "Thinking...",
       },
       styles: {
         theme: "light",
@@ -62,7 +63,8 @@ export const PRESETS: Preset[] = [
         followUpSuggestions: false,
         avatar: true,
         typingIndicator: "dot",
-        thinkingIndicator: false,
+        loadingIndicator: "text",
+        loadingText: "Thinking...",
       },
       styles: {
         theme: "dark",
@@ -100,7 +102,8 @@ export const PRESETS: Preset[] = [
         followUpSuggestions: false,
         avatar: true,
         typingIndicator: "dot",
-        thinkingIndicator: false,
+        loadingIndicator: "text",
+        loadingText: "Thinking...",
       },
       styles: {
         theme: "light",
@@ -138,7 +141,8 @@ export const PRESETS: Preset[] = [
         followUpSuggestions: true,
         avatar: false,
         typingIndicator: "dot",
-        thinkingIndicator: false,
+        loadingIndicator: "text",
+        loadingText: "Thinking...",
       },
       styles: {
         theme: "dark",
@@ -176,7 +180,8 @@ export const PRESETS: Preset[] = [
         followUpSuggestions: false,
         avatar: false,
         typingIndicator: "none",
-        thinkingIndicator: false,
+        loadingIndicator: "text",
+        loadingText: "Thinking...",
       },
       styles: {
         theme: "light",
@@ -214,7 +219,8 @@ export const PRESETS: Preset[] = [
         followUpSuggestions: true,
         avatar: false,
         typingIndicator: "dot",
-        thinkingIndicator: false,
+        loadingIndicator: "text",
+        loadingText: "Thinking...",
       },
       styles: {
         theme: "light",
@@ -252,7 +258,8 @@ export const PRESETS: Preset[] = [
         followUpSuggestions: false,
         avatar: true,
         typingIndicator: "dot",
-        thinkingIndicator: false,
+        loadingIndicator: "text",
+        loadingText: "Thinking...",
       },
       styles: {
         theme: "dark",
@@ -290,7 +297,8 @@ export const PRESETS: Preset[] = [
         followUpSuggestions: false,
         avatar: true,
         typingIndicator: "dot",
-        thinkingIndicator: false,
+        loadingIndicator: "text",
+        loadingText: "Thinking...",
       },
       styles: {
         theme: "light",
@@ -328,7 +336,8 @@ export const PRESETS: Preset[] = [
         followUpSuggestions: false,
         avatar: false,
         typingIndicator: "dot",
-        thinkingIndicator: false,
+        loadingIndicator: "text",
+        loadingText: "Thinking...",
       },
       styles: {
         theme: "dark",

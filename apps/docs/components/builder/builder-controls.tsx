@@ -4,59 +4,23 @@ import { useState, useEffect, useRef } from "react";
 import { Select } from "@/components/shared/select";
 import { Switch } from "@/components/shared/switch";
 
-import type {
-  BuilderConfig,
-  BorderRadius,
-  FontSize,
-  MessageSpacing,
-  TypingIndicator,
+import {
+  BORDER_RADIUSES,
+  FONT_FAMILIES,
+  FONT_SIZES,
+  LOADING_INDICATORS,
+  MAX_WIDTHS,
+  MESSAGE_SPACINGS,
+  TYPING_INDICATORS,
+  USER_MESSAGE_POSITIONS,
+  type BuilderConfig,
+  type BorderRadius,
+  type FontSize,
+  type LoadingIndicator,
+  type MessageSpacing,
+  type TypingIndicator,
 } from "./types";
 import { PRESETS } from "./presets";
-
-const FONT_OPTIONS = [
-  { label: "System", value: "system-ui" },
-  { label: "Inter", value: "Inter, sans-serif" },
-  { label: "Geist", value: "Geist, sans-serif" },
-  { label: "Serif", value: "Georgia, serif" },
-  { label: "Mono", value: "ui-monospace, monospace" },
-];
-
-const FONT_SIZE_OPTIONS = [
-  { label: "Small", value: "sm" },
-  { label: "Default", value: "base" },
-  { label: "Large", value: "lg" },
-];
-
-const MAX_WIDTH_OPTIONS = [
-  { label: "Narrow", value: "32rem" },
-  { label: "Default", value: "44rem" },
-  { label: "Wide", value: "56rem" },
-  { label: "Full", value: "100%" },
-];
-
-const SPACING_OPTIONS = [
-  { label: "Compact", value: "compact" },
-  { label: "Comfortable", value: "comfortable" },
-  { label: "Spacious", value: "spacious" },
-];
-
-const USER_MESSAGE_OPTIONS = [
-  { label: "Left", value: "left" },
-  { label: "Right", value: "right" },
-];
-
-const TYPING_INDICATOR_OPTIONS = [
-  { label: "Dot (●)", value: "dot" },
-  { label: "None", value: "none" },
-];
-
-const RADIUS_OPTIONS = [
-  { label: "None", value: "none" },
-  { label: "Small", value: "sm" },
-  { label: "Medium", value: "md" },
-  { label: "Large", value: "lg" },
-  { label: "Full", value: "full" },
-];
 
 interface BuilderControlsProps {
   config: BuilderConfig;
@@ -220,21 +184,40 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
                       typingIndicator: value as TypingIndicator,
                     })
                   }
-                  options={TYPING_INDICATOR_OPTIONS}
+                  options={TYPING_INDICATORS}
                 />
               }
             />
             <Row
-              label="Thinking Text"
+              label="Loading"
               control={
-                <Switch
-                  checked={config.components.thinkingIndicator}
-                  onCheckedChange={(checked) =>
-                    updateComponents({ thinkingIndicator: checked })
+                <Select
+                  value={config.components.loadingIndicator}
+                  onValueChange={(value) =>
+                    updateComponents({
+                      loadingIndicator: value as LoadingIndicator,
+                    })
                   }
+                  options={LOADING_INDICATORS}
                 />
               }
             />
+            {config.components.loadingIndicator === "text" && (
+              <Row
+                label="Loading Text"
+                control={
+                  <input
+                    type="text"
+                    value={config.components.loadingText}
+                    onChange={(e) =>
+                      updateComponents({ loadingText: e.target.value })
+                    }
+                    className="h-7 w-32 rounded-md border bg-background px-2 text-sm"
+                    placeholder="Thinking..."
+                  />
+                }
+              />
+            )}
           </div>
         </Section>
 
@@ -295,7 +278,7 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
                 <Select
                   value={config.styles.fontFamily}
                   onValueChange={(value) => updateStyles({ fontFamily: value })}
-                  options={FONT_OPTIONS}
+                  options={FONT_FAMILIES}
                 />
               }
             />
@@ -307,7 +290,7 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
                   onValueChange={(value) =>
                     updateStyles({ fontSize: value as FontSize })
                   }
-                  options={FONT_SIZE_OPTIONS}
+                  options={FONT_SIZES}
                 />
               }
             />
@@ -322,7 +305,7 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
                 <Select
                   value={config.styles.maxWidth}
                   onValueChange={(value) => updateStyles({ maxWidth: value })}
-                  options={MAX_WIDTH_OPTIONS}
+                  options={MAX_WIDTHS}
                 />
               }
             />
@@ -334,7 +317,7 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
                   onValueChange={(value) =>
                     updateStyles({ messageSpacing: value as MessageSpacing })
                   }
-                  options={SPACING_OPTIONS}
+                  options={MESSAGE_SPACINGS}
                 />
               }
             />
@@ -348,7 +331,7 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
                       userMessagePosition: value as "left" | "right",
                     })
                   }
-                  options={USER_MESSAGE_OPTIONS}
+                  options={USER_MESSAGE_POSITIONS}
                 />
               }
             />
@@ -360,7 +343,7 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
                   onValueChange={(value) =>
                     updateStyles({ borderRadius: value as BorderRadius })
                   }
-                  options={RADIUS_OPTIONS}
+                  options={BORDER_RADIUSES}
                 />
               }
             />

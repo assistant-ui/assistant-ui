@@ -398,12 +398,16 @@ function AssistantMessage() {
           }}
         />
         <MessageError />${
-          components.thinkingIndicator
+          components.loadingIndicator !== "none"
             ? `
         <AssistantIf condition={({ thread, message }) => thread.isRunning && message.content.length === 0}>
           <div className="flex items-center gap-2 text-muted-foreground">
-            <LoaderIcon className="size-4 animate-spin" />
-            <span className="text-sm">Thinking...</span>
+            <LoaderIcon className="size-4 animate-spin" />${
+              components.loadingIndicator === "text"
+                ? `
+            <span className="text-sm">${components.loadingText}</span>`
+                : ""
+            }
           </div>
         </AssistantIf>`
             : ""
@@ -600,7 +604,7 @@ function generateIconImports(config: BuilderConfig): string {
   if (components.actionBar.feedback)
     icons.push("ThumbsUpIcon", "ThumbsDownIcon");
   if (components.avatar) icons.push("BotIcon", "UserIcon");
-  if (components.thinkingIndicator) icons.push("LoaderIcon");
+  if (components.loadingIndicator !== "none") icons.push("LoaderIcon");
   if (components.reasoning) icons.push("ChevronDownIcon");
 
   return `import {\n  ${[...new Set(icons)].sort().join(",\n  ")},\n} from "lucide-react";`;
@@ -722,7 +726,7 @@ ${featureNotes.length > 0 ? `${featureNotes.join("\n")}\n` : ""}
 # - Follow-up Suggestions: ${components.followUpSuggestions ? "yes" : "no"}
 # - Avatar: ${components.avatar ? "yes" : "no"}
 # - Typing Indicator: ${components.typingIndicator}
-# - Thinking Text: ${components.thinkingIndicator ? "yes" : "no"}
+# - Loading: ${components.loadingIndicator}${components.loadingIndicator === "text" ? ` ("${components.loadingText}")` : ""}
 # - Action Bar Copy: ${components.actionBar.copy ? "yes" : "no"}
 # - Action Bar Reload: ${components.actionBar.reload ? "yes" : "no"}
 # - Action Bar Speak: ${components.actionBar.speak ? "yes" : "no"}

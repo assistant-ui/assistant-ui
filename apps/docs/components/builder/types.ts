@@ -3,6 +3,7 @@ export type BorderRadius = "none" | "sm" | "md" | "lg" | "full";
 export type FontSize = "sm" | "base" | "lg";
 export type MessageSpacing = "compact" | "comfortable" | "spacious";
 export type TypingIndicator = "none" | "dot";
+export type LoadingIndicator = "none" | "spinner" | "text";
 
 export interface ActionBarConfig {
   copy: boolean;
@@ -24,7 +25,8 @@ export interface ComponentsConfig {
   followUpSuggestions: boolean;
   avatar: boolean;
   typingIndicator: TypingIndicator;
-  thinkingIndicator: boolean;
+  loadingIndicator: LoadingIndicator;
+  loadingText: string;
 }
 
 export type UserMessagePosition = "right" | "left";
@@ -72,7 +74,8 @@ export const DEFAULT_CONFIG: BuilderConfig = {
     followUpSuggestions: false,
     avatar: false,
     typingIndicator: "dot",
-    thinkingIndicator: false,
+    loadingIndicator: "text",
+    loadingText: "Thinking...",
   },
   styles: {
     theme: "light",
@@ -87,53 +90,53 @@ export const DEFAULT_CONFIG: BuilderConfig = {
   },
 };
 
-export const ACCENT_COLORS = [
-  { name: "Sky", value: "#0ea5e9" },
-  { name: "Violet", value: "#8b5cf6" },
-  { name: "Rose", value: "#f43f5e" },
-  { name: "Amber", value: "#f59e0b" },
-  { name: "Emerald", value: "#10b981" },
-  { name: "Slate", value: "#64748b" },
-  { name: "Indigo", value: "#6366f1" },
-  { name: "Pink", value: "#ec4899" },
-  { name: "Teal", value: "#14b8a6" },
-  { name: "Orange", value: "#f97316" },
-  { name: "Cyan", value: "#22d3ee" },
-  { name: "Neutral", value: "#171717" },
-] as const;
-
 export const FONT_FAMILIES = [
-  { name: "System", value: "system-ui" },
-  { name: "Inter", value: "Inter, sans-serif" },
-  { name: "Geist", value: "Geist, sans-serif" },
-  { name: "Serif", value: "Georgia, serif" },
-  { name: "Mono", value: "ui-monospace, monospace" },
-] as const;
-
-export const MAX_WIDTHS = [
-  { name: "Narrow", value: "32rem" },
-  { name: "Default", value: "44rem" },
-  { name: "Wide", value: "56rem" },
-  { name: "Full", value: "100%" },
+  { label: "System", value: "system-ui" },
+  { label: "Inter", value: "Inter, sans-serif" },
+  { label: "Geist", value: "Geist, sans-serif" },
+  { label: "Serif", value: "Georgia, serif" },
+  { label: "Mono", value: "ui-monospace, monospace" },
 ] as const;
 
 export const FONT_SIZES = [
-  { name: "Small", value: "sm" },
-  { name: "Default", value: "base" },
-  { name: "Large", value: "lg" },
+  { label: "Small", value: "sm" },
+  { label: "Default", value: "base" },
+  { label: "Large", value: "lg" },
+] as const;
+
+export const MAX_WIDTHS = [
+  { label: "Narrow", value: "32rem" },
+  { label: "Default", value: "44rem" },
+  { label: "Wide", value: "56rem" },
+  { label: "Full", value: "100%" },
 ] as const;
 
 export const MESSAGE_SPACINGS = [
-  { name: "Compact", value: "compact" },
-  { name: "Comfortable", value: "comfortable" },
-  { name: "Spacious", value: "spacious" },
+  { label: "Compact", value: "compact" },
+  { label: "Comfortable", value: "comfortable" },
+  { label: "Spacious", value: "spacious" },
+] as const;
+
+export const USER_MESSAGE_POSITIONS = [
+  { label: "Left", value: "left" },
+  { label: "Right", value: "right" },
+] as const;
+
+export const BORDER_RADIUSES = [
+  { label: "None", value: "none" },
+  { label: "Small", value: "sm" },
+  { label: "Medium", value: "md" },
+  { label: "Large", value: "lg" },
+  { label: "Full", value: "full" },
 ] as const;
 
 export const TYPING_INDICATORS = [
-  {
-    name: "Dot",
-    value: "dot",
-    description: "Animated dot indicator (●) while streaming",
-  },
-  { name: "None", value: "none", description: "No indicator" },
+  { label: "None", value: "none" },
+  { label: "Dot (●)", value: "dot" },
+] as const;
+
+export const LOADING_INDICATORS = [
+  { label: "None", value: "none" },
+  { label: "Spinner", value: "spinner" },
+  { label: "Text", value: "text" },
 ] as const;
