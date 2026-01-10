@@ -39,9 +39,32 @@ export interface ComponentsConfig {
 
 export type UserMessagePosition = "right" | "left";
 
+export interface ThemeColor {
+  light: string;
+  dark: string;
+}
+
 export interface StylesConfig {
   theme: Theme;
-  accentColor: string;
+
+  // Colors (with light/dark variants)
+  colors: {
+    accent: ThemeColor;
+    background?: ThemeColor;
+    foreground?: ThemeColor;
+    muted?: ThemeColor;
+    mutedForeground?: ThemeColor;
+    border?: ThemeColor;
+    userMessage?: ThemeColor;
+    assistantMessage?: ThemeColor;
+    composer?: ThemeColor;
+    userAvatar?: ThemeColor;
+    assistantAvatar?: ThemeColor;
+    suggestion?: ThemeColor;
+    suggestionBorder?: ThemeColor;
+  };
+
+  // Layout
   borderRadius: BorderRadius;
   maxWidth: string;
   fontFamily: string;
@@ -62,6 +85,22 @@ export interface Preset {
   description: string;
   config: BuilderConfig;
 }
+
+// Default theme colors
+export const DEFAULT_COLORS = {
+  accent: { light: "#0ea5e9", dark: "#0ea5e9" },
+  background: { light: "#ffffff", dark: "#18181b" },
+  foreground: { light: "#09090b", dark: "#fafafa" },
+  muted: { light: "#f4f4f5", dark: "#27272a" },
+  mutedForeground: { light: "#71717a", dark: "#a1a1aa" },
+  border: { light: "#e4e4e7", dark: "#3f3f46" },
+  userMessage: { light: "#f4f4f5", dark: "#27272a" },
+  composer: { light: "#ffffff", dark: "#27272a" },
+  userAvatar: { light: "#e4e4e7", dark: "#3f3f46" },
+  assistantAvatar: { light: "#e4e4e7", dark: "#3f3f46" },
+  suggestion: { light: "#fafafa", dark: "#27272a" },
+  suggestionBorder: { light: "#e4e4e7", dark: "#3f3f46" },
+} as const;
 
 export const DEFAULT_CONFIG: BuilderConfig = {
   components: {
@@ -88,7 +127,9 @@ export const DEFAULT_CONFIG: BuilderConfig = {
   },
   styles: {
     theme: "light",
-    accentColor: "#0ea5e9",
+    colors: {
+      accent: DEFAULT_COLORS.accent,
+    },
     borderRadius: "lg",
     maxWidth: "44rem",
     fontFamily: "system-ui",

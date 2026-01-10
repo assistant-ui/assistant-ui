@@ -1,9 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
 import { CircleAlertIcon } from "lucide-react";
 import { Select } from "@/components/shared/select";
 import { Switch } from "@/components/shared/switch";
+import {
+  ThemeColorPicker,
+  OptionalThemeColorPicker,
+} from "@/components/shared/color-picker";
 import {
   Tooltip,
   TooltipContent,
@@ -13,6 +16,7 @@ import {
 import {
   BORDER_RADIUSES,
   CODE_HIGHLIGHT_THEMES,
+  DEFAULT_COLORS,
   FONT_FAMILIES,
   FONT_SIZES,
   LOADING_INDICATORS,
@@ -26,6 +30,7 @@ import {
   type FontSize,
   type LoadingIndicator,
   type MessageSpacing,
+  type ThemeColor,
   type TypingIndicator,
 } from "./types";
 import { PRESETS } from "./presets";
@@ -47,6 +52,40 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
     onChange({
       ...config,
       styles: { ...config.styles, ...updates },
+    });
+  };
+
+  const updateColor = <K extends keyof BuilderConfig["styles"]["colors"]>(
+    key: K,
+    value: BuilderConfig["styles"]["colors"][K],
+  ) => {
+    onChange({
+      ...config,
+      styles: {
+        ...config.styles,
+        colors: { ...config.styles.colors, [key]: value },
+      },
+    });
+  };
+
+  const updateOptionalColor = <
+    K extends keyof BuilderConfig["styles"]["colors"],
+  >(
+    key: K,
+    value: ThemeColor | undefined,
+  ) => {
+    const newColors = { ...config.styles.colors };
+    if (value === undefined) {
+      delete newColors[key];
+    } else {
+      newColors[key] = value;
+    }
+    onChange({
+      ...config,
+      styles: {
+        ...config.styles,
+        colors: newColors,
+      },
     });
   };
 
@@ -387,17 +426,165 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
           </div>
         </Section>
 
-        <Section title="Style">
+        <Section title="Colors">
           <div className="space-y-1">
             <Row
-              label="Accent Color"
+              label="Accent"
               control={
-                <ColorPicker
-                  value={config.styles.accentColor}
-                  onChange={(value) => updateStyles({ accentColor: value })}
+                <ThemeColorPicker
+                  value={config.styles.colors.accent}
+                  onChange={(value) => updateColor("accent", value)}
                 />
               }
             />
+            <Row
+              label="Background"
+              control={
+                <OptionalThemeColorPicker
+                  value={config.styles.colors.background}
+                  defaultValue={DEFAULT_COLORS.background}
+                  onChange={(value) => updateOptionalColor("background", value)}
+                />
+              }
+            />
+            <Row
+              label="Foreground"
+              control={
+                <OptionalThemeColorPicker
+                  value={config.styles.colors.foreground}
+                  defaultValue={DEFAULT_COLORS.foreground}
+                  onChange={(value) => updateOptionalColor("foreground", value)}
+                />
+              }
+            />
+            <Row
+              label="Muted"
+              control={
+                <OptionalThemeColorPicker
+                  value={config.styles.colors.mutedForeground}
+                  defaultValue={DEFAULT_COLORS.mutedForeground}
+                  onChange={(value) =>
+                    updateOptionalColor("mutedForeground", value)
+                  }
+                />
+              }
+            />
+            <Row
+              label="Border"
+              control={
+                <OptionalThemeColorPicker
+                  value={config.styles.colors.border}
+                  defaultValue={DEFAULT_COLORS.border}
+                  onChange={(value) => updateOptionalColor("border", value)}
+                />
+              }
+            />
+          </div>
+        </Section>
+
+        <Section title="Message Colors">
+          <div className="space-y-1">
+            <Row
+              label="User Background"
+              control={
+                <OptionalThemeColorPicker
+                  value={config.styles.colors.userMessage}
+                  defaultValue={DEFAULT_COLORS.userMessage}
+                  onChange={(value) =>
+                    updateOptionalColor("userMessage", value)
+                  }
+                />
+              }
+            />
+            <Row
+              label="Assistant Background"
+              control={
+                <OptionalThemeColorPicker
+                  value={config.styles.colors.assistantMessage}
+                  defaultValue={DEFAULT_COLORS.background}
+                  onChange={(value) =>
+                    updateOptionalColor("assistantMessage", value)
+                  }
+                />
+              }
+            />
+            <Row
+              label="Composer"
+              control={
+                <OptionalThemeColorPicker
+                  value={config.styles.colors.composer}
+                  defaultValue={DEFAULT_COLORS.composer}
+                  onChange={(value) => updateOptionalColor("composer", value)}
+                />
+              }
+            />
+          </div>
+        </Section>
+
+        {config.components.avatar && (
+          <Section title="Avatar Colors">
+            <div className="space-y-1">
+              <Row
+                label="User Avatar"
+                control={
+                  <OptionalThemeColorPicker
+                    value={config.styles.colors.userAvatar}
+                    defaultValue={DEFAULT_COLORS.userAvatar}
+                    onChange={(value) =>
+                      updateOptionalColor("userAvatar", value)
+                    }
+                  />
+                }
+              />
+              <Row
+                label="Assistant Avatar"
+                control={
+                  <OptionalThemeColorPicker
+                    value={config.styles.colors.assistantAvatar}
+                    defaultValue={DEFAULT_COLORS.assistantAvatar}
+                    onChange={(value) =>
+                      updateOptionalColor("assistantAvatar", value)
+                    }
+                  />
+                }
+              />
+            </div>
+          </Section>
+        )}
+
+        {config.components.suggestions && (
+          <Section title="Suggestion Colors">
+            <div className="space-y-1">
+              <Row
+                label="Background"
+                control={
+                  <OptionalThemeColorPicker
+                    value={config.styles.colors.suggestion}
+                    defaultValue={DEFAULT_COLORS.suggestion}
+                    onChange={(value) =>
+                      updateOptionalColor("suggestion", value)
+                    }
+                  />
+                }
+              />
+              <Row
+                label="Border"
+                control={
+                  <OptionalThemeColorPicker
+                    value={config.styles.colors.suggestionBorder}
+                    defaultValue={DEFAULT_COLORS.suggestionBorder}
+                    onChange={(value) =>
+                      updateOptionalColor("suggestionBorder", value)
+                    }
+                  />
+                }
+              />
+            </div>
+          </Section>
+        )}
+
+        <Section title="Style">
+          <div className="space-y-1">
             <Row
               label="Animations"
               control={
@@ -460,48 +647,6 @@ function Row({
       </span>
       {control}
     </div>
-  );
-}
-
-function ColorPicker({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-}) {
-  const [localValue, setLocalValue] = useState(value);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  useEffect(() => {
-    setLocalValue(value);
-  }, [value]);
-
-  const handleChange = (newValue: string) => {
-    setLocalValue(newValue);
-
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
-
-    timeoutRef.current = setTimeout(() => {
-      onChange(newValue);
-    }, 50);
-  };
-
-  return (
-    <label className="relative cursor-pointer">
-      <div
-        className="size-5 rounded-md shadow-sm ring-1 ring-black/10 ring-inset"
-        style={{ backgroundColor: localValue }}
-      />
-      <input
-        type="color"
-        value={localValue}
-        onChange={(e) => handleChange(e.target.value)}
-        className="absolute inset-0 size-full cursor-pointer opacity-0"
-      />
-    </label>
   );
 }
 

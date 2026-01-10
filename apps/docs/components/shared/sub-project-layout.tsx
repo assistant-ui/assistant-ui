@@ -11,6 +11,11 @@ import { Select } from "./select";
 
 const SUB_PROJECTS = [
   {
+    value: "playground",
+    label: "Playground",
+    textValue: "playground",
+  },
+  {
     value: "chatgpt-app-studio",
     label: "ChatGPT App Studio",
     textValue: "chatgpt-app-studio",

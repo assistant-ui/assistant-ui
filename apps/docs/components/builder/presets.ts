@@ -1,4 +1,7 @@
-import type { Preset, BuilderConfig } from "./types";
+import type { Preset, BuilderConfig, ThemeColor } from "./types";
+
+// Helper to create a ThemeColor
+const color = (light: string, dark: string): ThemeColor => ({ light, dark });
 
 export const PRESETS: Preset[] = [
   {
@@ -30,7 +33,9 @@ export const PRESETS: Preset[] = [
       },
       styles: {
         theme: "light",
-        accentColor: "#0ea5e9",
+        colors: {
+          accent: color("#0ea5e9", "#0ea5e9"),
+        },
         borderRadius: "lg",
         maxWidth: "44rem",
         fontFamily: "system-ui",
@@ -70,7 +75,17 @@ export const PRESETS: Preset[] = [
       },
       styles: {
         theme: "dark",
-        accentColor: "#ffffff",
+        colors: {
+          accent: color("#10a37f", "#ffffff"),
+          background: color("#ffffff", "#212121"),
+          foreground: color("#0d0d0d", "#ececec"),
+          mutedForeground: color("#6e6e6e", "#9b9b9b"),
+          border: color("#e5e5e5", "#424242"),
+          userMessage: color("#f7f7f8", "#2f2f2f"),
+          composer: color("#f7f7f8", "#2f2f2f"),
+          userAvatar: color("#10a37f", "#19c37d"),
+          assistantAvatar: color("#000000", "#ab68ff"),
+        },
         borderRadius: "full",
         maxWidth: "48rem",
         fontFamily: "system-ui",
@@ -110,7 +125,19 @@ export const PRESETS: Preset[] = [
       },
       styles: {
         theme: "light",
-        accentColor: "#ae5630",
+        colors: {
+          accent: color("#c96442", "#d4a27a"),
+          background: color("#faf9f5", "#2b2a27"),
+          foreground: color("#3d3929", "#e8e4d9"),
+          mutedForeground: color("#8b8579", "#9b9589"),
+          border: color("#e5e0d5", "#3d3b36"),
+          userMessage: color("#f5f0e6", "#3d3b36"),
+          composer: color("#ffffff", "#1f1e1b"),
+          userAvatar: color("#c96442", "#d4a27a"),
+          assistantAvatar: color("#c96442", "#d4a27a"),
+          suggestion: color("#faf8f5", "#3d3b36"),
+          suggestionBorder: color("#e5e0d5", "#4d4b46"),
+        },
         borderRadius: "lg",
         maxWidth: "48rem",
         fontFamily: "Georgia, serif",
@@ -150,7 +177,15 @@ export const PRESETS: Preset[] = [
       },
       styles: {
         theme: "dark",
-        accentColor: "#22d3ee",
+        colors: {
+          accent: color("#20b8cd", "#22d3ee"),
+          background: color("#ffffff", "#0f172a"),
+          foreground: color("#1e293b", "#e2e8f0"),
+          mutedForeground: color("#64748b", "#94a3b8"),
+          border: color("#e2e8f0", "#334155"),
+          userMessage: color("#f1f5f9", "#1e293b"),
+          composer: color("#f8fafc", "#1e293b"),
+        },
         borderRadius: "lg",
         maxWidth: "42rem",
         fontFamily: "system-ui",
@@ -190,7 +225,9 @@ export const PRESETS: Preset[] = [
       },
       styles: {
         theme: "light",
-        accentColor: "#171717",
+        colors: {
+          accent: color("#171717", "#fafafa"),
+        },
         borderRadius: "md",
         maxWidth: "40rem",
         fontFamily: "system-ui",
@@ -230,7 +267,17 @@ export const PRESETS: Preset[] = [
       },
       styles: {
         theme: "light",
-        accentColor: "#6366f1",
+        colors: {
+          accent: color("#1a73e8", "#8ab4f8"),
+          background: color("#ffffff", "#1f1f1f"),
+          foreground: color("#1f1f1f", "#e3e3e3"),
+          mutedForeground: color("#5f6368", "#9aa0a6"),
+          border: color("#e8eaed", "#3c4043"),
+          userMessage: color("#e8f0fe", "#303134"),
+          composer: color("#ffffff", "#303134"),
+          suggestion: color("#f8f9fa", "#303134"),
+          suggestionBorder: color("#dadce0", "#5f6368"),
+        },
         borderRadius: "full",
         maxWidth: "44rem",
         fontFamily: "system-ui",
@@ -270,7 +317,19 @@ export const PRESETS: Preset[] = [
       },
       styles: {
         theme: "dark",
-        accentColor: "#8b5cf6",
+        colors: {
+          accent: color("#8b5cf6", "#8b5cf6"),
+          background: color("#ffffff", "#0d1117"),
+          foreground: color("#1f2328", "#e6edf3"),
+          mutedForeground: color("#656d76", "#7d8590"),
+          border: color("#d0d7de", "#30363d"),
+          userMessage: color("#f6f8fa", "#161b22"),
+          composer: color("#f6f8fa", "#161b22"),
+          userAvatar: color("#1a7f37", "#238636"),
+          assistantAvatar: color("#8b5cf6", "#8b5cf6"),
+          suggestion: color("#f6f8fa", "#161b22"),
+          suggestionBorder: color("#d0d7de", "#30363d"),
+        },
         borderRadius: "lg",
         maxWidth: "56rem",
         fontFamily: "ui-monospace, monospace",
@@ -310,7 +369,15 @@ export const PRESETS: Preset[] = [
       },
       styles: {
         theme: "light",
-        accentColor: "#10b981",
+        colors: {
+          accent: color("#007a5a", "#2eb67d"),
+          background: color("#ffffff", "#1a1d21"),
+          foreground: color("#1d1c1d", "#d1d2d3"),
+          mutedForeground: color("#616061", "#ababad"),
+          border: color("#dddddd", "#323539"),
+          userAvatar: color("#007a5a", "#2eb67d"),
+          assistantAvatar: color("#4a154b", "#611f69"),
+        },
         borderRadius: "sm",
         maxWidth: "100%",
         fontFamily: "system-ui",
@@ -350,7 +417,15 @@ export const PRESETS: Preset[] = [
       },
       styles: {
         theme: "dark",
-        accentColor: "#171717",
+        colors: {
+          accent: color("#000000", "#ffffff"),
+          background: color("#ffffff", "#000000"),
+          foreground: color("#000000", "#ffffff"),
+          mutedForeground: color("#52525b", "#71717a"),
+          border: color("#e4e4e7", "#27272a"),
+          userMessage: color("#f4f4f5", "#18181b"),
+          composer: color("#f4f4f5", "#18181b"),
+        },
         borderRadius: "full",
         maxWidth: "48rem",
         fontFamily: "system-ui",

@@ -125,15 +125,16 @@ function generateComponentCode(config: BuilderConfig): string {
   const fontSizeClass = getFontSizeClass(styles.fontSize);
   const messageSpacingClass = getMessageSpacingClass(styles.messageSpacing);
 
+  // Use light mode accent color for generated code
+  const accentColor = styles.colors.accent.light;
+
   // Calculate foreground color based on accent color luminance
-  const accentForeground = isLightColor(styles.accentColor)
-    ? "#000000"
-    : "#ffffff";
+  const accentForeground = isLightColor(accentColor) ? "#000000" : "#ffffff";
 
   // Generate CSS variables section
   const cssVariables = `
     "--thread-max-width": "${styles.maxWidth}",
-    "--accent-color": "${styles.accentColor}",
+    "--accent-color": "${accentColor}",
     "--accent-foreground": "${accentForeground}",`;
 
   // Generate font family inline style
@@ -702,7 +703,7 @@ ${addCommand}
 ${featureNotes.length > 0 ? `${featureNotes.join("\n")}\n` : ""}
 # Configuration Summary:
 # - Theme: ${config.styles.theme}
-# - Accent Color: ${config.styles.accentColor}
+# - Accent Color: ${config.styles.colors.accent.light} (light) / ${config.styles.colors.accent.dark} (dark)
 # - Border Radius: ${config.styles.borderRadius}
 # - Font: ${config.styles.fontFamily}
 # - Font Size: ${config.styles.fontSize}

@@ -15,7 +15,7 @@ import {
   PaperclipIcon,
   PencilIcon,
   RefreshCwIcon,
-  Square,
+  SquareIcon,
   ThumbsDownIcon,
   ThumbsUpIcon,
   UserIcon,
@@ -31,7 +31,15 @@ import {
   ThreadPrimitive,
 } from "@assistant-ui/react";
 
-import { type FC, createContext, useContext, useMemo, memo } from "react";
+import {
+  type FC,
+  createContext,
+  useContext,
+  useMemo,
+  memo,
+  useState,
+  useEffect,
+} from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
@@ -47,16 +55,18 @@ import ShikiHighlighter from "react-shiki";
 
 import {
   SHIKI_THEME_MAP,
+  DEFAULT_COLORS,
   type BuilderConfig,
   type CodeHighlightTheme,
   type FontSize,
   type MessageSpacing,
+  type ThemeColor,
 } from "./types";
 
 interface BuilderPreviewContextValue {
   config: BuilderConfig;
-  borderRadiusClass: string;
-  messageSpacingClass: string;
+  isDark: boolean;
+  accentColor: string;
 }
 
 const BuilderPreviewContext = createContext<BuilderPreviewContextValue | null>(
@@ -74,38 +84,19 @@ function useBuilderPreviewContext() {
 }
 
 const UserMessageWrapper: FC = () => {
-  const { config, borderRadiusClass, messageSpacingClass } =
-    useBuilderPreviewContext();
-  return (
-    <UserMessage
-      config={config}
-      borderRadiusClass={borderRadiusClass}
-      messageSpacingClass={messageSpacingClass}
-    />
-  );
+  const { config } = useBuilderPreviewContext();
+  return <UserMessage config={config} />;
 };
 
 const AssistantMessageWrapper: FC = () => {
-  const { config, borderRadiusClass, messageSpacingClass } =
-    useBuilderPreviewContext();
-  return (
-    <AssistantMessage
-      config={config}
-      borderRadiusClass={borderRadiusClass}
-      messageSpacingClass={messageSpacingClass}
-    />
-  );
-};
-
-const EditComposerWrapper: FC = () => {
-  const { borderRadiusClass } = useBuilderPreviewContext();
-  return <EditComposer borderRadiusClass={borderRadiusClass} />;
+  const { config } = useBuilderPreviewContext();
+  return <AssistantMessage config={config} />;
 };
 
 const messageComponents = {
   UserMessage: UserMessageWrapper,
   AssistantMessage: AssistantMessageWrapper,
-  EditComposer: EditComposerWrapper,
+  EditComposer: () => <EditComposer />,
 };
 
 const PlainText: FC<{ text: string }> = ({ text }) => {
@@ -116,65 +107,134 @@ interface BuilderPreviewProps {
   config: BuilderConfig;
 }
 
+// Hook to detect page theme from document.documentElement.classList
+function usePageTheme() {
+  const [isDark, setIsDark] = useState(false);
+
+  useEffect(() => {
+    // Initial check
+    setIsDark(document.documentElement.classList.contains("dark"));
+
+    // Watch for changes
+    const observer = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        if (mutation.attributeName === "class") {
+          setIsDark(document.documentElement.classList.contains("dark"));
+        }
+      }
+    });
+
+    observer.observe(document.documentElement, { attributes: true });
+
+    return () => observer.disconnect();
+  }, []);
+
+  return isDark;
+}
+
 export function BuilderPreview({ config }: BuilderPreviewProps) {
   const { components, styles } = config;
 
-  const borderRadiusClass = {
-    none: "rounded-none",
-    sm: "rounded-sm",
-    md: "rounded-md",
-    lg: "rounded-lg",
-    full: "rounded-3xl",
-  }[styles.borderRadius];
-
   const fontSizeClass = getFontSizeClass(styles.fontSize);
-  const messageSpacingClass = getMessageSpacingClass(styles.messageSpacing);
 
-  const themeClass = styles.theme === "dark" ? "dark" : "";
+  // Always follow page theme so user can preview both light and dark variants
+  const isDark = usePageTheme();
+
+  // Helper to get color value based on current theme
+  const getColor = (
+    color: ThemeColor | undefined,
+    fallback: ThemeColor,
+  ): string => {
+    const c = color ?? fallback;
+    return isDark ? c.dark : c.light;
+  };
+
+  const { colors } = styles;
+  const accentColor = getColor(colors.accent, DEFAULT_COLORS.accent);
+
+  // Define CSS variables with theme-aware values
+  const cssVars = {
+    "--aui-thread-max-width": styles.maxWidth,
+    "--aui-accent-color": accentColor,
+    "--aui-background": getColor(colors.background, DEFAULT_COLORS.background),
+    "--aui-foreground": getColor(colors.foreground, DEFAULT_COLORS.foreground),
+    "--aui-muted": getColor(colors.muted, DEFAULT_COLORS.muted),
+    "--aui-muted-foreground": getColor(
+      colors.mutedForeground,
+      DEFAULT_COLORS.mutedForeground,
+    ),
+    "--aui-border": getColor(colors.border, DEFAULT_COLORS.border),
+    "--aui-user-message-background": getColor(
+      colors.userMessage,
+      DEFAULT_COLORS.userMessage,
+    ),
+    "--aui-assistant-message-background": colors.assistantMessage
+      ? getColor(colors.assistantMessage, DEFAULT_COLORS.background)
+      : undefined,
+    "--aui-composer-background": getColor(
+      colors.composer,
+      DEFAULT_COLORS.composer,
+    ),
+    "--aui-user-avatar-background": getColor(
+      colors.userAvatar,
+      DEFAULT_COLORS.userAvatar,
+    ),
+    "--aui-assistant-avatar-background": getColor(
+      colors.assistantAvatar,
+      DEFAULT_COLORS.assistantAvatar,
+    ),
+    "--aui-suggestion-background": getColor(
+      colors.suggestion,
+      DEFAULT_COLORS.suggestion,
+    ),
+    "--aui-suggestion-border": getColor(
+      colors.suggestionBorder,
+      DEFAULT_COLORS.suggestionBorder,
+    ),
+    fontFamily: styles.fontFamily,
+  } as React.CSSProperties;
 
   return (
-    <BuilderPreviewContext.Provider
-      value={{ config, borderRadiusClass, messageSpacingClass }}
-    >
+    <BuilderPreviewContext.Provider value={{ config, isDark, accentColor }}>
       <div
-        className={cn("h-full w-full", themeClass)}
-        style={
-          {
-            "--accent-color": styles.accentColor,
-            "--thread-max-width": styles.maxWidth,
-            fontFamily: styles.fontFamily,
-          } as React.CSSProperties
-        }
+        className={cn("h-full w-full", isDark ? "dark" : "light")}
+        style={cssVars}
       >
         <ThreadPrimitive.Root
           className={cn(
-            "flex h-full flex-col bg-background text-foreground dark:bg-zinc-900 dark:text-zinc-100",
+            "aui-root aui-thread-root @container flex h-full flex-col",
             fontSizeClass,
           )}
+          style={{
+            backgroundColor: "var(--aui-background)",
+            color: "var(--aui-foreground)",
+          }}
         >
-          <ThreadPrimitive.Viewport className="relative flex flex-1 flex-col overflow-y-auto px-4">
+          <ThreadPrimitive.Viewport
+            turnAnchor="top"
+            className="aui-thread-viewport relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll scroll-smooth px-4 pt-4"
+          >
             {components.threadWelcome && (
-              <ThreadPrimitive.Empty>
-                <ThreadWelcome
-                  showSuggestions={components.suggestions}
-                  borderRadiusClass={borderRadiusClass}
-                />
-              </ThreadPrimitive.Empty>
+              <AssistantIf condition={({ thread }) => thread.isEmpty}>
+                <ThreadWelcome config={config} />
+              </AssistantIf>
             )}
 
             {!components.threadWelcome && (
-              <ThreadPrimitive.Empty>
+              <AssistantIf condition={({ thread }) => thread.isEmpty}>
                 <div className="grow" />
-              </ThreadPrimitive.Empty>
+              </AssistantIf>
             )}
 
             <ThreadPrimitive.Messages components={messageComponents} />
 
-            <AssistantIf condition={({ thread }) => !thread.isEmpty}>
-              <div className="min-h-8 grow" />
-            </AssistantIf>
-
-            <Composer config={config} borderRadiusClass={borderRadiusClass} />
+            <ThreadPrimitive.ViewportFooter
+              className="aui-thread-viewport-footer sticky bottom-0 mx-auto mt-auto flex w-full max-w-(--aui-thread-max-width) flex-col gap-4 overflow-visible rounded-t-3xl pb-4 md:pb-6"
+              style={{ backgroundColor: "var(--aui-background)" }}
+            >
+              {components.scrollToBottom && <ThreadScrollToBottom />}
+              <Composer config={config} />
+            </ThreadPrimitive.ViewportFooter>
           </ThreadPrimitive.Viewport>
         </ThreadPrimitive.Root>
       </div>
@@ -193,139 +253,210 @@ function getFontSizeClass(fontSize: FontSize): string {
 function getMessageSpacingClass(spacing: MessageSpacing): string {
   return {
     compact: "py-2",
-    comfortable: "py-4",
-    spacious: "py-6",
+    comfortable: "py-3",
+    spacious: "py-5",
   }[spacing];
 }
 
 interface ThreadWelcomeProps {
-  showSuggestions: boolean;
-  borderRadiusClass: string;
+  config: BuilderConfig;
 }
 
-const ThreadWelcome: FC<ThreadWelcomeProps> = ({
-  showSuggestions,
-  borderRadiusClass,
-}) => {
+const ThreadWelcome: FC<ThreadWelcomeProps> = ({ config }) => {
+  const { components, styles } = config;
+
   return (
-    <div className="mx-auto my-auto flex w-full max-w-[var(--thread-max-width)] flex-grow flex-col">
-      <div className="flex w-full flex-grow flex-col items-center justify-center">
-        <div className="flex size-full flex-col justify-center px-8">
-          <div className="font-semibold text-2xl">Hello there!</div>
-          <div className="text-2xl text-muted-foreground/65">
+    <div className="aui-thread-welcome-root mx-auto my-auto flex w-full max-w-(--aui-thread-max-width) grow flex-col">
+      <div className="aui-thread-welcome-center flex w-full grow flex-col items-center justify-center">
+        <div className="aui-thread-welcome-message flex size-full flex-col justify-center px-4">
+          <h1
+            className={cn(
+              "aui-thread-welcome-message-inner font-semibold text-2xl",
+              styles.animations &&
+                "fade-in slide-in-from-bottom-1 animate-in duration-200",
+            )}
+          >
+            Hello there!
+          </h1>
+          <p
+            className={cn(
+              "aui-thread-welcome-message-inner text-xl",
+              styles.animations &&
+                "fade-in slide-in-from-bottom-1 animate-in delay-75 duration-200",
+            )}
+            style={{ color: "var(--aui-muted-foreground)" }}
+          >
             How can I help you today?
-          </div>
+          </p>
         </div>
       </div>
-      {showSuggestions && (
-        <div className="grid w-full gap-2 pb-4 md:grid-cols-2">
-          {[
-            { title: "What's the weather", label: "in San Francisco?" },
-            { title: "Explain React hooks", label: "like useState" },
-          ].map((suggestion) => (
-            <ThreadPrimitive.Suggestion
-              key={suggestion.title}
-              prompt={`${suggestion.title} ${suggestion.label}`}
-              send
-              asChild
+      {components.suggestions && <ThreadSuggestions config={config} />}
+    </div>
+  );
+};
+
+const SUGGESTIONS = [
+  {
+    title: "What's the weather",
+    label: "in San Francisco?",
+    prompt: "What's the weather in San Francisco?",
+  },
+  {
+    title: "Explain React hooks",
+    label: "like useState and useEffect",
+    prompt: "Explain React hooks like useState and useEffect",
+  },
+] as const;
+
+interface ThreadSuggestionsProps {
+  config: BuilderConfig;
+}
+
+const ThreadSuggestions: FC<ThreadSuggestionsProps> = ({ config }) => {
+  const { styles } = config;
+
+  return (
+    <div className="aui-thread-welcome-suggestions grid w-full @md:grid-cols-2 gap-2 pb-4">
+      {SUGGESTIONS.map((suggestion, index) => (
+        <div
+          key={suggestion.prompt}
+          className={cn(
+            "aui-thread-welcome-suggestion-display @md:nth-[n+3]:block nth-[n+3]:hidden",
+            styles.animations &&
+              "fade-in slide-in-from-bottom-2 animate-in fill-mode-both duration-200",
+          )}
+          style={
+            styles.animations
+              ? { animationDelay: `${100 + index * 50}ms` }
+              : undefined
+          }
+        >
+          <ThreadPrimitive.Suggestion prompt={suggestion.prompt} send asChild>
+            <Button
+              variant="ghost"
+              className="aui-thread-welcome-suggestion h-auto w-full @md:flex-col flex-wrap items-start justify-start gap-1 rounded-2xl px-4 py-3 text-left text-sm transition-colors"
+              style={{
+                backgroundColor: "var(--aui-suggestion-background)",
+                borderWidth: "1px",
+                borderStyle: "solid",
+                borderColor: "var(--aui-suggestion-border)",
+              }}
+              aria-label={suggestion.prompt}
             >
-              <Button
-                variant="ghost"
-                className={cn(
-                  "h-auto w-full flex-col items-start justify-start gap-1 border px-5 py-4 text-left text-sm",
-                  borderRadiusClass,
-                )}
+              <span className="aui-thread-welcome-suggestion-text-1 font-medium">
+                {suggestion.title}
+              </span>
+              <span
+                className="aui-thread-welcome-suggestion-text-2"
+                style={{ color: "var(--aui-muted-foreground)" }}
               >
-                <span className="font-medium">{suggestion.title}</span>
-                <span className="text-muted-foreground">
-                  {suggestion.label}
-                </span>
-              </Button>
-            </ThreadPrimitive.Suggestion>
-          ))}
+                {suggestion.label}
+              </span>
+            </Button>
+          </ThreadPrimitive.Suggestion>
         </div>
-      )}
+      ))}
     </div>
   );
 };
 
 interface ComposerProps {
   config: BuilderConfig;
-  borderRadiusClass: string;
 }
 
-const Composer: FC<ComposerProps> = ({ config, borderRadiusClass }) => {
+const Composer: FC<ComposerProps> = ({ config }) => {
+  const { styles } = config;
+
+  return (
+    <ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col">
+      <ComposerPrimitive.AttachmentDropzone
+        className={cn(
+          "aui-composer-attachment-dropzone flex w-full flex-col px-1 pt-2 outline-none transition-shadow",
+          "has-[textarea:focus-visible]:ring-2 has-[textarea:focus-visible]:ring-ring/20",
+          "data-[dragging=true]:border-dashed data-[dragging=true]:bg-accent/50",
+          getBorderRadiusClass(styles.borderRadius),
+        )}
+        style={{
+          backgroundColor: "var(--aui-composer-background)",
+          borderWidth: "1px",
+          borderStyle: "solid",
+          borderColor: "var(--aui-border)",
+        }}
+      >
+        <ComposerPrimitive.Input
+          placeholder="Send a message..."
+          className="aui-composer-input mb-1 max-h-32 min-h-14 w-full resize-none bg-transparent px-4 pt-2 pb-3 text-sm outline-none placeholder:text-[var(--aui-muted-foreground)] focus-visible:ring-0"
+          rows={1}
+          autoFocus
+          aria-label="Message input"
+        />
+        <ComposerAction config={config} />
+      </ComposerPrimitive.AttachmentDropzone>
+    </ComposerPrimitive.Root>
+  );
+};
+
+interface ComposerActionProps {
+  config: BuilderConfig;
+}
+
+const ComposerAction: FC<ComposerActionProps> = ({ config }) => {
+  const { accentColor } = useBuilderPreviewContext();
   const { components } = config;
 
   return (
-    <div className="sticky bottom-0 mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-4 bg-background pb-4 dark:bg-zinc-900">
-      {components.scrollToBottom && <ThreadScrollToBottom />}
-      <ComposerPrimitive.Root className="relative flex w-full flex-col">
-        <div
-          className={cn(
-            "flex w-full flex-col border border-input bg-background px-1 pt-2 shadow-sm dark:border-zinc-700 dark:bg-zinc-800",
-            borderRadiusClass,
-          )}
-        >
-          <ComposerPrimitive.Input
-            placeholder="Send a message..."
-            className="mb-1 max-h-32 min-h-16 w-full resize-none bg-transparent px-3.5 pt-1.5 pb-3 text-base outline-none placeholder:text-muted-foreground"
-            rows={1}
-            autoFocus
-          />
-          <div className="relative mx-1 mt-2 mb-2 flex items-center justify-between">
-            {components.attachments ? (
-              <ComposerPrimitive.AddAttachment asChild>
-                <TooltipIconButton
-                  tooltip="Add attachment"
-                  variant="ghost"
-                  className="text-muted-foreground"
-                >
-                  <PaperclipIcon className="size-5" />
-                </TooltipIconButton>
-              </ComposerPrimitive.AddAttachment>
-            ) : (
-              <div />
+    <div className="aui-composer-action-wrapper relative mx-2 mb-2 flex items-center justify-between">
+      {components.attachments ? (
+        <ComposerPrimitive.AddAttachment asChild>
+          <TooltipIconButton
+            tooltip="Add attachment"
+            variant="ghost"
+            style={{ color: "var(--aui-muted-foreground)" }}
+          >
+            <PaperclipIcon className="size-5" />
+          </TooltipIconButton>
+        </ComposerPrimitive.AddAttachment>
+      ) : (
+        <div />
+      )}
+
+      <AssistantIf condition={({ thread }) => !thread.isRunning}>
+        <ComposerPrimitive.Send asChild>
+          <TooltipIconButton
+            tooltip="Send message"
+            side="bottom"
+            type="submit"
+            variant="default"
+            size="icon"
+            className={cn(
+              "aui-composer-send size-8 rounded-full",
+              isLightColor(accentColor) ? "text-black" : "text-white",
             )}
+            style={{ backgroundColor: "var(--aui-accent-color)" }}
+            aria-label="Send message"
+          >
+            <ArrowUpIcon className="aui-composer-send-icon size-4" />
+          </TooltipIconButton>
+        </ComposerPrimitive.Send>
+      </AssistantIf>
 
-            <AssistantIf condition={({ thread }) => !thread.isRunning}>
-              <ComposerPrimitive.Send asChild>
-                <TooltipIconButton
-                  tooltip="Send message"
-                  variant="default"
-                  className={cn(
-                    "size-[34px] rounded-full p-1",
-                    isLightColor(config.styles.accentColor)
-                      ? "text-black"
-                      : "text-white",
-                  )}
-                  style={{ backgroundColor: "var(--accent-color)" }}
-                >
-                  <ArrowUpIcon className="size-5" />
-                </TooltipIconButton>
-              </ComposerPrimitive.Send>
-            </AssistantIf>
-
-            <AssistantIf condition={({ thread }) => thread.isRunning}>
-              <ComposerPrimitive.Cancel asChild>
-                <Button
-                  variant="default"
-                  size="icon"
-                  className={cn(
-                    "size-[34px] rounded-full",
-                    isLightColor(config.styles.accentColor)
-                      ? "text-black"
-                      : "text-white",
-                  )}
-                  style={{ backgroundColor: "var(--accent-color)" }}
-                >
-                  <Square className="size-3.5 fill-current" />
-                </Button>
-              </ComposerPrimitive.Cancel>
-            </AssistantIf>
-          </div>
-        </div>
-      </ComposerPrimitive.Root>
+      <AssistantIf condition={({ thread }) => thread.isRunning}>
+        <ComposerPrimitive.Cancel asChild>
+          <Button
+            type="button"
+            variant="default"
+            size="icon"
+            className={cn(
+              "aui-composer-cancel size-8 rounded-full",
+              isLightColor(accentColor) ? "text-black" : "text-white",
+            )}
+            style={{ backgroundColor: "var(--aui-accent-color)" }}
+            aria-label="Stop generating"
+          >
+            <SquareIcon className="aui-composer-cancel-icon size-3 fill-current" />
+          </Button>
+        </ComposerPrimitive.Cancel>
+      </AssistantIf>
     </div>
   );
 };
@@ -336,7 +467,11 @@ const ThreadScrollToBottom: FC = () => {
       <TooltipIconButton
         tooltip="Scroll to bottom"
         variant="outline"
-        className="absolute -top-12 z-10 self-center rounded-full p-4 disabled:invisible"
+        className="aui-thread-scroll-to-bottom absolute -top-12 z-10 self-center rounded-full p-4 disabled:invisible"
+        style={{
+          backgroundColor: "var(--aui-background)",
+          borderColor: "var(--aui-border)",
+        }}
       >
         <ArrowDownIcon />
       </TooltipIconButton>
@@ -346,87 +481,128 @@ const ThreadScrollToBottom: FC = () => {
 
 interface UserMessageProps {
   config: BuilderConfig;
-  borderRadiusClass: string;
-  messageSpacingClass: string;
 }
 
-const UserMessage: FC<UserMessageProps> = ({
-  config,
-  borderRadiusClass,
-  messageSpacingClass,
-}) => {
+const UserMessage: FC<UserMessageProps> = ({ config }) => {
   const { components, styles } = config;
   const isLeftAligned = styles.userMessagePosition === "left";
+  const messageSpacingClass = getMessageSpacingClass(styles.messageSpacing);
 
+  // For left-aligned, use flex layout like before
+  // For right-aligned (default), use grid layout like thread.tsx
+  if (isLeftAligned) {
+    return (
+      <MessagePrimitive.Root
+        className={cn(
+          "aui-user-message-root mx-auto flex w-full max-w-(--aui-thread-max-width) gap-3 px-2",
+          messageSpacingClass,
+          styles.animations &&
+            "fade-in slide-in-from-bottom-1 animate-in duration-150",
+        )}
+        data-role="user"
+      >
+        {components.avatar && (
+          <div
+            className="flex size-8 shrink-0 items-center justify-center rounded-full"
+            style={{ backgroundColor: "var(--aui-user-avatar-background)" }}
+          >
+            <UserIcon className="size-4" />
+          </div>
+        )}
+        <div className="relative min-w-0 max-w-[80%]">
+          <div
+            className={cn(
+              "aui-user-message-content wrap-break-word px-4 py-2.5",
+              getBorderRadiusClass(styles.borderRadius),
+            )}
+            style={{ backgroundColor: "var(--aui-user-message-background)" }}
+          >
+            <MessagePrimitive.Parts />
+          </div>
+          {components.editMessage && (
+            <div className="aui-user-action-bar-wrapper absolute top-1/2 right-0 translate-x-full -translate-y-1/2 pl-2">
+              <UserActionBar />
+            </div>
+          )}
+        </div>
+        {components.branchPicker && (
+          <BranchPicker className="aui-user-branch-picker -mr-1 self-end" />
+        )}
+      </MessagePrimitive.Root>
+    );
+  }
+
+  // Right-aligned (default) - use grid layout like thread.tsx
   return (
     <MessagePrimitive.Root
       className={cn(
-        "mx-auto flex w-full max-w-[var(--thread-max-width)] gap-3 px-2",
+        "aui-user-message-root mx-auto grid w-full max-w-(--aui-thread-max-width) auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] content-start gap-y-2 px-2",
         messageSpacingClass,
-        isLeftAligned ? "flex-row" : "flex-row-reverse",
+        "[&:where(>*)]:col-start-2",
         styles.animations &&
-          "fade-in slide-in-from-bottom-2 animate-in duration-300",
+          "fade-in slide-in-from-bottom-1 animate-in duration-150",
       )}
+      data-role="user"
     >
       {components.avatar && (
-        <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted">
-          <UserIcon className="size-4" />
+        <div className="col-start-2 flex justify-end">
+          <div
+            className="flex size-8 shrink-0 items-center justify-center rounded-full"
+            style={{ backgroundColor: "var(--aui-user-avatar-background)" }}
+          >
+            <UserIcon className="size-4" />
+          </div>
         </div>
       )}
-      <div
-        className={cn(
-          "relative min-w-0 max-w-[80%]",
-          !isLeftAligned && "ml-auto",
-        )}
-      >
+
+      <div className="aui-user-message-content-wrapper relative col-start-2 min-w-0">
         <div
           className={cn(
-            "break-words bg-muted px-5 py-2.5 text-foreground",
-            borderRadiusClass,
+            "aui-user-message-content wrap-break-word px-4 py-2.5",
+            getBorderRadiusClass(styles.borderRadius),
           )}
+          style={{ backgroundColor: "var(--aui-user-message-background)" }}
         >
           <MessagePrimitive.Parts />
         </div>
         {components.editMessage && (
-          <div
-            className={cn(
-              "absolute top-1/2 -translate-y-1/2 pr-2",
-              isLeftAligned
-                ? "right-0 translate-x-full pr-0 pl-2"
-                : "left-0 -translate-x-full",
-            )}
-          >
-            <ActionBarPrimitive.Root
-              hideWhenRunning
-              autohide="not-last"
-              className="flex flex-col items-end"
-            >
-              <ActionBarPrimitive.Edit asChild>
-                <TooltipIconButton tooltip="Edit" className="p-4">
-                  <PencilIcon />
-                </TooltipIconButton>
-              </ActionBarPrimitive.Edit>
-            </ActionBarPrimitive.Root>
+          <div className="aui-user-action-bar-wrapper absolute top-1/2 left-0 -translate-x-full -translate-y-1/2 pr-2">
+            <UserActionBar />
           </div>
         )}
       </div>
 
-      {components.branchPicker && <BranchPicker className="-mr-1 self-end" />}
+      {components.branchPicker && (
+        <BranchPicker className="aui-user-branch-picker col-span-full col-start-1 row-start-3 -mr-1 justify-end" />
+      )}
     </MessagePrimitive.Root>
+  );
+};
+
+const UserActionBar: FC = () => {
+  return (
+    <ActionBarPrimitive.Root
+      hideWhenRunning
+      autohide="not-last"
+      className="aui-user-action-bar-root flex flex-col items-end"
+    >
+      <ActionBarPrimitive.Edit asChild>
+        <TooltipIconButton tooltip="Edit" className="aui-user-action-edit p-4">
+          <PencilIcon />
+        </TooltipIconButton>
+      </ActionBarPrimitive.Edit>
+    </ActionBarPrimitive.Root>
   );
 };
 
 interface AssistantMessageProps {
   config: BuilderConfig;
-  borderRadiusClass: string;
-  messageSpacingClass: string;
 }
 
-const AssistantMessage: FC<AssistantMessageProps> = ({
-  config,
-  messageSpacingClass,
-}) => {
+const AssistantMessage: FC<AssistantMessageProps> = ({ config }) => {
   const { components, styles } = config;
+  const messageSpacingClass = getMessageSpacingClass(styles.messageSpacing);
+
   const TextComponent = components.markdown
     ? () => (
         <ConfigurableMarkdownText
@@ -438,83 +614,145 @@ const AssistantMessage: FC<AssistantMessageProps> = ({
   return (
     <MessagePrimitive.Root
       className={cn(
-        "relative mx-auto flex w-full max-w-[var(--thread-max-width)] gap-3",
+        "aui-assistant-message-root relative mx-auto w-full max-w-(--aui-thread-max-width)",
         messageSpacingClass,
         styles.animations &&
-          "fade-in slide-in-from-bottom-2 animate-in duration-300",
+          "fade-in slide-in-from-bottom-1 animate-in duration-150",
       )}
+      data-role="assistant"
       style={
         components.typingIndicator !== "dot"
           ? ({ "--aui-content": "none" } as React.CSSProperties)
           : undefined
       }
     >
-      {components.avatar && (
-        <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
-          <BotIcon className="size-4" />
-        </div>
-      )}
-      <div className="min-w-0 flex-1">
-        {/* Reasoning/Thinking Section */}
-        {components.reasoning && (
-          <div className="mb-3 overflow-hidden rounded-lg border border-muted-foreground/30 border-dashed bg-muted/30">
-            <details className="group">
-              <summary className="flex cursor-pointer items-center gap-2 px-3 py-2 text-muted-foreground text-sm hover:bg-muted/50">
-                <ChevronDownIcon className="size-4 transition-transform group-open:rotate-180" />
-                <span className="font-medium">Thinking...</span>
-              </summary>
-              <div className="border-muted-foreground/30 border-t border-dashed px-3 py-2 text-muted-foreground text-sm italic">
-                Let me analyze this step by step. First, I&apos;ll consider the
-                key points of your question...
-              </div>
-            </details>
+      <div className="flex gap-3">
+        {components.avatar && (
+          <div
+            className="flex size-8 shrink-0 items-center justify-center rounded-full"
+            style={{
+              backgroundColor: "var(--aui-assistant-avatar-background)",
+            }}
+          >
+            <BotIcon className="size-4" />
           </div>
         )}
+        <div
+          className={cn(
+            "min-w-0 flex-1",
+            styles.colors.assistantMessage && "rounded-2xl px-4 py-3",
+          )}
+          style={
+            styles.colors.assistantMessage
+              ? { backgroundColor: "var(--aui-assistant-message-background)" }
+              : undefined
+          }
+        >
+          {/* Reasoning/Thinking Section */}
+          {components.reasoning && (
+            <div
+              className="mb-3 overflow-hidden rounded-lg border border-dashed"
+              style={{
+                borderColor:
+                  "color-mix(in srgb, var(--aui-muted-foreground) 30%, transparent)",
+                backgroundColor: "var(--aui-muted)",
+                opacity: 0.3,
+              }}
+            >
+              <details className="group" style={{ opacity: 1 / 0.3 }}>
+                <summary
+                  className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm"
+                  style={{ color: "var(--aui-muted-foreground)" }}
+                >
+                  <ChevronDownIcon className="size-4 transition-transform group-open:rotate-180" />
+                  <span className="font-medium">Thinking...</span>
+                </summary>
+                <div
+                  className="border-t border-dashed px-3 py-2 text-sm italic"
+                  style={{
+                    color: "var(--aui-muted-foreground)",
+                    borderColor:
+                      "color-mix(in srgb, var(--aui-muted-foreground) 30%, transparent)",
+                  }}
+                >
+                  Let me analyze this step by step. First, I&apos;ll consider
+                  the key points of your question...
+                </div>
+              </details>
+            </div>
+          )}
 
-        <div className="break-words text-foreground leading-7">
-          <MessagePrimitive.Parts components={{ Text: TextComponent }} />
-        </div>
-
-        {components.loadingIndicator !== "none" && (
-          <AssistantIf
-            condition={({ thread, message }) =>
-              thread.isRunning && message.content.length === 0
-            }
+          <div
+            className={cn(
+              "aui-assistant-message-content wrap-break-word leading-relaxed",
+              !styles.colors.assistantMessage && "px-2",
+            )}
           >
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <LoaderIcon className="size-4 animate-spin" />
-              {components.loadingIndicator === "text" && (
-                <span className="text-sm">{components.loadingText}</span>
-              )}
-            </div>
-          </AssistantIf>
-        )}
+            <MessagePrimitive.Parts components={{ Text: TextComponent }} />
+          </div>
 
-        <div className="mt-2 flex min-h-6">
-          {components.branchPicker && <BranchPicker />}
-          <AssistantActionBar config={config} />
+          {components.loadingIndicator !== "none" && (
+            <AssistantIf
+              condition={({ thread, message }) =>
+                thread.isRunning && message.content.length === 0
+              }
+            >
+              <div
+                className="flex items-center gap-2 px-2"
+                style={{ color: "var(--aui-muted-foreground)" }}
+              >
+                <LoaderIcon className="size-4 animate-spin" />
+                {components.loadingIndicator === "text" && (
+                  <span className="text-sm">{components.loadingText}</span>
+                )}
+              </div>
+            </AssistantIf>
+          )}
+
+          <div className="aui-assistant-message-footer mt-1 ml-2 flex">
+            {components.branchPicker && <BranchPicker />}
+            <AssistantActionBar config={config} />
+          </div>
+
+          {components.followUpSuggestions && (
+            <AssistantIf condition={({ thread }) => !thread.isRunning}>
+              <FollowUpSuggestions />
+            </AssistantIf>
+          )}
         </div>
-
-        {components.followUpSuggestions && (
-          <AssistantIf condition={({ thread }) => !thread.isRunning}>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <ThreadPrimitive.Suggestion
-                prompt="Tell me more"
-                className="rounded-full border bg-background px-3 py-1 text-sm hover:bg-muted dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700"
-              >
-                Tell me more
-              </ThreadPrimitive.Suggestion>
-              <ThreadPrimitive.Suggestion
-                prompt="Can you explain differently?"
-                className="rounded-full border bg-background px-3 py-1 text-sm hover:bg-muted dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700"
-              >
-                Explain differently
-              </ThreadPrimitive.Suggestion>
-            </div>
-          </AssistantIf>
-        )}
       </div>
     </MessagePrimitive.Root>
+  );
+};
+
+const FollowUpSuggestions: FC = () => {
+  return (
+    <div className="mt-4 flex flex-wrap gap-2">
+      <ThreadPrimitive.Suggestion
+        prompt="Tell me more"
+        className="rounded-full px-3 py-1 text-sm"
+        style={{
+          backgroundColor: "var(--aui-suggestion-background)",
+          borderWidth: "1px",
+          borderStyle: "solid",
+          borderColor: "var(--aui-suggestion-border)",
+        }}
+      >
+        Tell me more
+      </ThreadPrimitive.Suggestion>
+      <ThreadPrimitive.Suggestion
+        prompt="Can you explain differently?"
+        className="rounded-full px-3 py-1 text-sm"
+        style={{
+          backgroundColor: "var(--aui-suggestion-background)",
+          borderWidth: "1px",
+          borderStyle: "solid",
+          borderColor: "var(--aui-suggestion-border)",
+        }}
+      >
+        Explain differently
+      </ThreadPrimitive.Suggestion>
+    </div>
   );
 };
 
@@ -540,7 +778,8 @@ const AssistantActionBar: FC<AssistantActionBarProps> = ({ config }) => {
       hideWhenRunning
       autohide="not-last"
       autohideFloat="single-branch"
-      className="-ml-1 flex gap-1 text-muted-foreground"
+      className="aui-assistant-action-bar-root -ml-1 flex gap-1 data-floating:absolute data-floating:rounded-md data-floating:border data-floating:p-1 data-floating:shadow-sm"
+      style={{ color: "var(--aui-muted-foreground)" }}
     >
       {actionBar.copy && (
         <ActionBarPrimitive.Copy asChild>
@@ -556,7 +795,7 @@ const AssistantActionBar: FC<AssistantActionBarProps> = ({ config }) => {
       )}
       {actionBar.reload && (
         <ActionBarPrimitive.Reload asChild>
-          <TooltipIconButton tooltip="Regenerate">
+          <TooltipIconButton tooltip="Refresh">
             <RefreshCwIcon />
           </TooltipIconButton>
         </ActionBarPrimitive.Reload>
@@ -570,7 +809,6 @@ const AssistantActionBar: FC<AssistantActionBarProps> = ({ config }) => {
       )}
       {actionBar.feedback && (
         <>
-          {/* Using regular buttons for preview - actual implementation uses ActionBarPrimitive.FeedbackPositive/Negative */}
           <TooltipIconButton tooltip="Good response">
             <ThumbsUpIcon />
           </TooltipIconButton>
@@ -592,16 +830,17 @@ const BranchPicker: FC<BranchPickerProps> = ({ className }) => {
     <BranchPickerPrimitive.Root
       hideWhenSingleBranch
       className={cn(
-        "mr-2 -ml-2 inline-flex items-center text-muted-foreground text-xs",
+        "aui-branch-picker-root mr-2 -ml-2 inline-flex items-center text-xs",
         className,
       )}
+      style={{ color: "var(--aui-muted-foreground)" }}
     >
       <BranchPickerPrimitive.Previous asChild>
         <TooltipIconButton tooltip="Previous">
           <ChevronLeftIcon />
         </TooltipIconButton>
       </BranchPickerPrimitive.Previous>
-      <span className="font-medium">
+      <span className="aui-branch-picker-state font-medium">
         <BranchPickerPrimitive.Number /> / <BranchPickerPrimitive.Count />
       </span>
       <BranchPickerPrimitive.Next asChild>
@@ -613,22 +852,50 @@ const BranchPicker: FC<BranchPickerProps> = ({ className }) => {
   );
 };
 
+const EditComposer: FC = () => {
+  return (
+    <MessagePrimitive.Root className="aui-edit-composer-wrapper mx-auto flex w-full max-w-(--aui-thread-max-width) flex-col px-2 py-3">
+      <ComposerPrimitive.Root className="aui-edit-composer-root ml-auto flex w-full max-w-[85%] flex-col rounded-2xl bg-muted">
+        <ComposerPrimitive.Input
+          className="aui-edit-composer-input min-h-14 w-full resize-none bg-transparent p-4 text-foreground text-sm outline-none"
+          autoFocus
+        />
+        <div className="aui-edit-composer-footer mx-3 mb-3 flex items-center gap-2 self-end">
+          <ComposerPrimitive.Cancel asChild>
+            <Button variant="ghost" size="sm">
+              Cancel
+            </Button>
+          </ComposerPrimitive.Cancel>
+          <ComposerPrimitive.Send asChild>
+            <Button size="sm">Update</Button>
+          </ComposerPrimitive.Send>
+        </div>
+      </ComposerPrimitive.Root>
+    </MessagePrimitive.Root>
+  );
+};
+
+function getBorderRadiusClass(borderRadius: string): string {
+  return (
+    {
+      none: "rounded-none",
+      sm: "rounded-lg",
+      md: "rounded-xl",
+      lg: "rounded-2xl",
+      full: "rounded-3xl",
+    }[borderRadius] ?? "rounded-2xl"
+  );
+}
+
 /**
  * Determines if a hex color is light (should use dark text) or dark (should use light text)
  */
 function isLightColor(hexColor: string): boolean {
-  // Remove # if present
   const hex = hexColor.replace("#", "");
-
-  // Parse RGB values
   const r = parseInt(hex.substring(0, 2), 16);
   const g = parseInt(hex.substring(2, 4), 16);
   const b = parseInt(hex.substring(4, 6), 16);
-
-  // Calculate relative luminance using sRGB formula
   const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-
-  // Return true if light (luminance > 0.5)
   return luminance > 0.5;
 }
 
@@ -791,35 +1058,3 @@ const ConfigurableMarkdownText: FC<ConfigurableMarkdownTextProps> = memo(
 );
 
 ConfigurableMarkdownText.displayName = "ConfigurableMarkdownText";
-
-interface EditComposerProps {
-  borderRadiusClass: string;
-}
-
-const EditComposer: FC<EditComposerProps> = ({ borderRadiusClass }) => {
-  return (
-    <MessagePrimitive.Root className="mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col px-2 py-3">
-      <ComposerPrimitive.Root
-        className={cn(
-          "ml-auto flex w-full max-w-[85%] flex-col bg-muted",
-          borderRadiusClass,
-        )}
-      >
-        <ComposerPrimitive.Input
-          className="min-h-14 w-full resize-none bg-transparent p-4 text-foreground text-sm outline-none"
-          autoFocus
-        />
-        <div className="mx-3 mb-3 flex items-center gap-2 self-end">
-          <ComposerPrimitive.Cancel asChild>
-            <Button variant="ghost" size="sm">
-              Cancel
-            </Button>
-          </ComposerPrimitive.Cancel>
-          <ComposerPrimitive.Send asChild>
-            <Button size="sm">Send</Button>
-          </ComposerPrimitive.Send>
-        </div>
-      </ComposerPrimitive.Root>
-    </MessagePrimitive.Root>
-  );
-};

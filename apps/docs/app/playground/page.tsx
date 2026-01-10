@@ -1,90 +1,187 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import Link from "next/link";
-import Image from "next/image";
-import { Github, Moon, Sun } from "lucide-react";
-import { Builder } from "@/components/builder/builder";
+import { useState, useCallback, useRef } from "react";
+import {
+  CodeIcon,
+  XIcon,
+  Monitor,
+  Tablet,
+  Smartphone,
+  Plus,
+} from "lucide-react";
+import { ThreadListPrimitive } from "@assistant-ui/react";
 import { DEFAULT_CONFIG, type BuilderConfig } from "@/components/builder/types";
+import { BuilderControls } from "@/components/builder/builder-controls";
+import { BuilderPreview } from "@/components/builder/builder-preview";
+import { BuilderCodeOutput } from "@/components/builder/builder-code-output";
+import { cn } from "@/lib/utils";
 
-function ThemeToggle() {
-  const [theme, setTheme] = useState<"light" | "dark">("light");
-  const [mounted, setMounted] = useState(false);
+const VIEWPORT_PRESETS = {
+  desktop: { width: "100%", label: "Desktop", icon: Monitor },
+  tablet: { width: 768, label: "Tablet", icon: Tablet },
+  mobile: { width: 375, label: "Mobile", icon: Smartphone },
+} as const;
 
-  useEffect(() => {
-    setMounted(true);
-    const isDark = document.documentElement.classList.contains("dark");
-    setTheme(isDark ? "dark" : "light");
-  }, []);
-
-  const toggleTheme = () => {
-    const newTheme = theme === "light" ? "dark" : "light";
-    setTheme(newTheme);
-    document.documentElement.classList.toggle("dark", newTheme === "dark");
-    localStorage.setItem("theme", newTheme);
-  };
-
-  if (!mounted) {
-    return <div className="size-7" />;
-  }
-
-  return (
-    <button
-      onClick={toggleTheme}
-      className="flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-      aria-label="Toggle theme"
-    >
-      {theme === "light" ? (
-        <Moon className="size-4" />
-      ) : (
-        <Sun className="size-4" />
-      )}
-    </button>
-  );
-}
+type ViewportPreset = keyof typeof VIEWPORT_PRESETS;
 
 export default function PlaygroundPage() {
   const [config, setConfig] = useState<BuilderConfig>(DEFAULT_CONFIG);
+  const [showCode, setShowCode] = useState(false);
+  const [viewportPreset, setViewportPreset] = useState<ViewportPreset | null>(
+    "desktop",
+  );
+  const [viewportWidth, setViewportWidth] = useState<number | "100%">("100%");
+  const isResizing = useRef(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const handlePresetChange = (preset: ViewportPreset) => {
+    setViewportPreset(preset);
+    setViewportWidth(VIEWPORT_PRESETS[preset].width);
+  };
+
+  const handleResizeStart = useCallback(
+    (e: React.MouseEvent, side: "left" | "right") => {
+      e.preventDefault();
+      isResizing.current = true;
+      document.body.style.cursor = "ew-resize";
+      document.body.style.userSelect = "none";
+
+      const startX = e.clientX;
+      const startWidth =
+        viewportWidth === "100%"
+          ? (containerRef.current?.offsetWidth ?? 800)
+          : viewportWidth;
+
+      const handleMouseMove = (e: MouseEvent) => {
+        if (!isResizing.current) return;
+        const delta =
+          side === "right" ? e.clientX - startX : startX - e.clientX;
+        const newWidth = Math.max(320, startWidth + delta * 2);
+        setViewportWidth(newWidth);
+        setViewportPreset(null);
+      };
+
+      const handleMouseUp = () => {
+        isResizing.current = false;
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+        document.removeEventListener("mousemove", handleMouseMove);
+        document.removeEventListener("mouseup", handleMouseUp);
+      };
+
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+    },
+    [viewportWidth],
+  );
 
   return (
-    <div className="flex h-svh flex-col overflow-hidden">
-      <header className="shrink-0">
-        <div className="flex h-11 items-center justify-between px-5 text-sm">
-          <div className="flex items-center gap-2">
-            <Link
-              href="/"
-              className="group flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground"
-            >
-              <Image
-                src="/favicon/icon.svg"
-                alt="logo"
-                width={18}
-                height={18}
-                className="size-[18px] opacity-40 grayscale transition-all group-hover:opacity-100 group-hover:grayscale-0 dark:hue-rotate-180 dark:invert"
-              />
-              <span>assistant-ui</span>
-            </Link>
-            <span className="text-muted-foreground/30">/</span>
-            <span className="text-foreground">playground</span>
+    <div className="flex h-full w-full gap-4 overflow-hidden bg-background p-4">
+      <div className="w-72 shrink-0 overflow-hidden lg:w-80">
+        <BuilderControls config={config} onChange={setConfig} />
+      </div>
+
+      <div
+        ref={containerRef}
+        className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border bg-muted/30"
+      >
+        <div className="flex shrink-0 items-center justify-between border-b bg-background/50 px-3 py-2">
+          <div className="flex items-center gap-1">
+            {(Object.keys(VIEWPORT_PRESETS) as ViewportPreset[]).map((key) => {
+              const preset = VIEWPORT_PRESETS[key];
+              const Icon = preset.icon;
+              return (
+                <button
+                  key={key}
+                  onClick={() => handlePresetChange(key)}
+                  className={cn(
+                    "flex items-center gap-1.5 rounded-md px-2 py-1 text-xs transition-colors",
+                    viewportPreset === key
+                      ? "bg-foreground/10 text-foreground"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <Icon className="size-3.5" />
+                  {preset.label}
+                </button>
+              );
+            })}
+            <span className="ml-2 text-muted-foreground text-xs">
+              {viewportWidth === "100%" ? "100%" : `${viewportWidth}px`}
+            </span>
           </div>
 
           <div className="flex items-center gap-1">
-            <Link
-              href="https://github.com/assistant-ui/assistant-ui"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            <ThreadListPrimitive.New
+              className="flex items-center gap-1.5 rounded-md px-2.5 py-1 font-medium text-muted-foreground text-xs transition-colors hover:text-foreground"
+              aria-label="New chat"
             >
-              <Github className="size-4" />
-            </Link>
-            <ThemeToggle />
+              <Plus className="size-3.5" />
+              New
+            </ThreadListPrimitive.New>
+
+            <button
+              onClick={() => setShowCode(!showCode)}
+              className={cn(
+                "flex items-center gap-1.5 rounded-md px-2.5 py-1 font-medium text-xs transition-colors",
+                showCode
+                  ? "bg-foreground/10 text-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {showCode ? (
+                <>
+                  <XIcon className="size-3.5" />
+                  Close
+                </>
+              ) : (
+                <>
+                  <CodeIcon className="size-3.5" />
+                  Code
+                </>
+              )}
+            </button>
           </div>
         </div>
-      </header>
 
-      <main className="min-h-0 flex-1 overflow-hidden">
-        <Builder config={config} onChange={setConfig} />
-      </main>
+        <div className="relative min-h-0 flex-1 overflow-hidden">
+          <div className="flex h-full items-stretch justify-center p-4">
+            {viewportWidth !== "100%" && (
+              <div
+                onMouseDown={(e) => handleResizeStart(e, "left")}
+                className="group flex w-4 shrink-0 cursor-ew-resize items-center justify-center"
+              >
+                <div className="h-12 w-1 rounded-full bg-border transition-colors group-hover:bg-foreground/30" />
+              </div>
+            )}
+
+            <div
+              className="relative h-full overflow-hidden rounded-lg border bg-background shadow-sm"
+              style={{
+                width: viewportWidth === "100%" ? "100%" : viewportWidth,
+                maxWidth: "100%",
+              }}
+            >
+              <BuilderPreview config={config} />
+
+              {showCode && (
+                <div className="absolute inset-0 z-[5] overflow-hidden bg-card">
+                  <BuilderCodeOutput config={config} />
+                </div>
+              )}
+            </div>
+
+            {viewportWidth !== "100%" && (
+              <div
+                onMouseDown={(e) => handleResizeStart(e, "right")}
+                className="group flex w-4 shrink-0 cursor-ew-resize items-center justify-center"
+              >
+                <div className="h-12 w-1 rounded-full bg-border transition-colors group-hover:bg-foreground/30" />
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
