@@ -1,7 +1,15 @@
 "use client";
 
 import { useState, useCallback, useRef } from "react";
-import { CodeIcon, XIcon, Monitor, Tablet, Smartphone } from "lucide-react";
+import {
+  CodeIcon,
+  XIcon,
+  Monitor,
+  Tablet,
+  Smartphone,
+  Plus,
+} from "lucide-react";
+import { ThreadListPrimitive } from "@assistant-ui/react";
 import type { BuilderConfig } from "./types";
 import { BuilderControls } from "./builder-controls";
 import { BuilderPreview } from "./builder-preview";
@@ -107,27 +115,37 @@ export function Builder({ config, onChange }: BuilderProps) {
             </span>
           </div>
 
-          <button
-            onClick={() => setShowCode(!showCode)}
-            className={cn(
-              "flex items-center gap-1.5 rounded-md px-2.5 py-1 font-medium text-xs transition-colors",
-              showCode
-                ? "bg-foreground/10 text-foreground"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {showCode ? (
-              <>
-                <XIcon className="size-3.5" />
-                Close
-              </>
-            ) : (
-              <>
-                <CodeIcon className="size-3.5" />
-                Code
-              </>
-            )}
-          </button>
+          <div className="flex items-center gap-1">
+            <ThreadListPrimitive.New
+              className="flex items-center gap-1.5 rounded-md px-2.5 py-1 font-medium text-muted-foreground text-xs transition-colors hover:text-foreground"
+              aria-label="New chat"
+            >
+              <Plus className="size-3.5" />
+              New
+            </ThreadListPrimitive.New>
+
+            <button
+              onClick={() => setShowCode(!showCode)}
+              className={cn(
+                "flex items-center gap-1.5 rounded-md px-2.5 py-1 font-medium text-xs transition-colors",
+                showCode
+                  ? "bg-foreground/10 text-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {showCode ? (
+                <>
+                  <XIcon className="size-3.5" />
+                  Close
+                </>
+              ) : (
+                <>
+                  <CodeIcon className="size-3.5" />
+                  Code
+                </>
+              )}
+            </button>
+          </div>
         </div>
 
         <div className="relative min-h-0 flex-1 overflow-hidden">

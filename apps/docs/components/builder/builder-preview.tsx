@@ -1,5 +1,7 @@
 "use client";
 
+import "@assistant-ui/react-markdown/styles/dot.css";
+
 import {
   ArrowDownIcon,
   ArrowUpIcon,
@@ -95,9 +97,15 @@ const AssistantMessageWrapper: FC = () => {
   );
 };
 
+const EditComposerWrapper: FC = () => {
+  const { borderRadiusClass } = useBuilderPreviewContext();
+  return <EditComposer borderRadiusClass={borderRadiusClass} />;
+};
+
 const messageComponents = {
   UserMessage: UserMessageWrapper,
   AssistantMessage: AssistantMessageWrapper,
+  EditComposer: EditComposerWrapper,
 };
 
 const PlainText: FC<{ text: string }> = ({ text }) => {
@@ -482,7 +490,7 @@ const AssistantMessage: FC<AssistantMessageProps> = ({
           </AssistantIf>
         )}
 
-        <div className="mt-2 flex">
+        <div className="mt-2 flex min-h-6">
           {components.branchPicker && <BranchPicker />}
           <AssistantActionBar config={config} />
         </div>
@@ -775,6 +783,7 @@ const ConfigurableMarkdownText: FC<ConfigurableMarkdownTextProps> = memo(
     return (
       <MarkdownTextPrimitive
         remarkPlugins={[remarkGfm]}
+        className="aui-md"
         components={components}
       />
     );
@@ -782,3 +791,35 @@ const ConfigurableMarkdownText: FC<ConfigurableMarkdownTextProps> = memo(
 );
 
 ConfigurableMarkdownText.displayName = "ConfigurableMarkdownText";
+
+interface EditComposerProps {
+  borderRadiusClass: string;
+}
+
+const EditComposer: FC<EditComposerProps> = ({ borderRadiusClass }) => {
+  return (
+    <MessagePrimitive.Root className="mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col px-2 py-3">
+      <ComposerPrimitive.Root
+        className={cn(
+          "ml-auto flex w-full max-w-[85%] flex-col bg-muted",
+          borderRadiusClass,
+        )}
+      >
+        <ComposerPrimitive.Input
+          className="min-h-14 w-full resize-none bg-transparent p-4 text-foreground text-sm outline-none"
+          autoFocus
+        />
+        <div className="mx-3 mb-3 flex items-center gap-2 self-end">
+          <ComposerPrimitive.Cancel asChild>
+            <Button variant="ghost" size="sm">
+              Cancel
+            </Button>
+          </ComposerPrimitive.Cancel>
+          <ComposerPrimitive.Send asChild>
+            <Button size="sm">Send</Button>
+          </ComposerPrimitive.Send>
+        </div>
+      </ComposerPrimitive.Root>
+    </MessagePrimitive.Root>
+  );
+};

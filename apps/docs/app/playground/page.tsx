@@ -5,7 +5,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { Github, Moon, Sun } from "lucide-react";
 import { Builder } from "@/components/builder/builder";
-import { DocsRuntimeProvider } from "@/contexts/DocsRuntimeProvider";
 import { DEFAULT_CONFIG, type BuilderConfig } from "@/components/builder/types";
 
 function ThemeToggle() {
@@ -84,9 +83,7 @@ export default function PlaygroundPage() {
       </header>
 
       <main className="min-h-0 flex-1 overflow-hidden">
-        <DocsRuntimeProvider>
-          <Builder config={config} onChange={setConfig} />
-        </DocsRuntimeProvider>
+        <Builder config={config} onChange={setConfig} />
       </main>
     </div>
   );
