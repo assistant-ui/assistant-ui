@@ -36,7 +36,6 @@ interface BreadcrumbItem {
 interface SubProjectLayoutProps {
   name: string;
   githubPath: string;
-  shimmerTitle?: boolean;
   breadcrumbs?: BreadcrumbItem[];
   children: ReactNode;
 }
@@ -86,7 +85,6 @@ function ThemeToggle() {
 export function SubProjectLayout({
   name,
   githubPath,
-  shimmerTitle,
   breadcrumbs: breadcrumbsOverride,
   children,
 }: SubProjectLayoutProps): React.ReactElement {

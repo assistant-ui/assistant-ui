@@ -15,7 +15,6 @@ export default function SpreadTestLayout({
     <SubProjectLayout
       name="tw-shimmer"
       githubPath="https://github.com/assistant-ui/assistant-ui/tree/main/packages/tw-shimmer"
-      shimmerTitle
       breadcrumbs={[{ label: "spread-test", href: "/tw-shimmer/spread-test" }]}
     >
       {children}
