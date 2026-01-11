@@ -131,11 +131,8 @@ export function generateRegistryJson(config: BuilderConfig) {
 function generateThreadCode(config: BuilderConfig): string {
   const { components, styles } = config;
 
-  const imports = [
-    `"use client";`,
-    ``,
+  const externalImports = [
     generateIconImports(config),
-    ``,
     `import {`,
     `  ActionBarPrimitive,`,
     `  AssistantIf,`,
@@ -145,29 +142,39 @@ function generateThreadCode(config: BuilderConfig): string {
     `  MessagePrimitive,`,
     `  ThreadPrimitive,`,
     `} from "@assistant-ui/react";`,
-    ``,
-    `import { Button } from "@/components/ui/button";`,
-    `import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";`,
     components.markdown && components.typingIndicator === "dot"
       ? `import "@assistant-ui/react-markdown/styles/dot.css";`
       : null,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const internalImports = [
+    `import { Button } from "@/components/ui/button";`,
+    `import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";`,
     components.markdown
       ? `import { MarkdownText } from "@/components/assistant-ui/markdown-text";`
       : null,
     components.markdown
       ? `import { ToolFallback } from "@/components/assistant-ui/tool-fallback";`
       : null,
-    components.attachments ? `import {` : null,
-    components.attachments ? `  ComposerAddAttachment,` : null,
-    components.attachments ? `  ComposerAttachments,` : null,
-    components.attachments ? `  UserMessageAttachments,` : null,
     components.attachments
-      ? `} from "@/components/assistant-ui/attachment";`
+      ? `import {
+  ComposerAddAttachment,
+  ComposerAttachments,
+  UserMessageAttachments,
+} from "@/components/assistant-ui/attachment";`
       : null,
     `import { cn } from "@/lib/utils";`,
   ]
     .filter(Boolean)
     .join("\n");
+
+  const imports = `"use client";
+
+${externalImports}
+
+${internalImports}`;
 
   const borderRadiusClass = getBorderRadiusClass(styles.borderRadius);
   const fontSizeClass = getFontSizeClass(styles.fontSize);

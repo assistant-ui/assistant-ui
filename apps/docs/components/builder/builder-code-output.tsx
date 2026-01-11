@@ -92,7 +92,10 @@ export function BuilderCodeOutput({ config }: BuilderCodeOutputProps) {
 function generateComponentCode(config: BuilderConfig): string {
   const { components, styles } = config;
 
-  const imports = [
+  const iconImports = generateIconImports(config);
+
+  const externalImports = [
+    iconImports,
     `import {`,
     `  ActionBarPrimitive,`,
     `  AssistantIf,`,
@@ -102,26 +105,30 @@ function generateComponentCode(config: BuilderConfig): string {
     `  MessagePrimitive,`,
     `  ThreadPrimitive,`,
     `} from "@assistant-ui/react";`,
-    ``,
-    `import { Button } from "@/components/ui/button";`,
-    `import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";`,
     components.markdown &&
       components.typingIndicator === "dot" &&
       `import "@assistant-ui/react-markdown/styles/dot.css";`,
-    components.markdown &&
-      `import { MarkdownText } from "@/components/assistant-ui/markdown-text";`,
-    components.markdown &&
-      `import { ToolFallback } from "@/components/assistant-ui/tool-fallback";`,
-    components.attachments && `import {`,
-    components.attachments && `  ComposerAddAttachment,`,
-    components.attachments && `  ComposerAttachments,`,
-    components.attachments && `  UserMessageAttachments,`,
-    components.attachments && `} from "@/components/assistant-ui/attachment";`,
   ]
     .filter(Boolean)
     .join("\n");
 
-  const iconImports = generateIconImports(config);
+  const internalImports = [
+    `import { Button } from "@/components/ui/button";`,
+    `import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";`,
+    components.markdown &&
+      `import { MarkdownText } from "@/components/assistant-ui/markdown-text";`,
+    components.markdown &&
+      `import { ToolFallback } from "@/components/assistant-ui/tool-fallback";`,
+    components.attachments &&
+      `import {
+  ComposerAddAttachment,
+  ComposerAttachments,
+  UserMessageAttachments,
+} from "@/components/assistant-ui/attachment";`,
+    `import { cn } from "@/lib/utils";`,
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   const borderRadiusClass = getBorderRadiusClass(styles.borderRadius);
   const fontSizeClass = getFontSizeClass(styles.fontSize);
@@ -561,13 +568,14 @@ function EditComposer() {
 }`
     : "";
 
+  const allImports = `"use client";
+
+${externalImports}
+
+${internalImports}`;
+
   return [
-    `"use client";`,
-    ``,
-    iconImports,
-    ``,
-    imports,
-    `import { cn } from "@/lib/utils";`,
+    allImports,
     threadComponent,
     welcomeComponent,
     composerComponent,
