@@ -346,7 +346,8 @@ export const useLangGraphRuntime = ({
       }
 
       if (api.threadListItem.source) {
-        return api.threadListItem().initialize();
+        const { externalId } = await api.threadListItem().initialize();
+        return { externalId };
       }
 
       throw new Error(
