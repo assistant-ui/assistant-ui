@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useCallback, useRef } from "react";
 import {
   CodeIcon,
   XIcon,
@@ -10,34 +10,43 @@ import {
   Plus,
 } from "lucide-react";
 import { ThreadListPrimitive } from "@assistant-ui/react";
-import { DEFAULT_CONFIG, type BuilderConfig } from "@/components/builder/types";
 import { BuilderControls } from "@/components/builder/builder-controls";
 import { BuilderPreview } from "@/components/builder/builder-preview";
 import { BuilderCodeOutput } from "@/components/builder/builder-code-output";
+import { ShareButton } from "@/components/builder/share-button";
 import { cn } from "@/lib/utils";
+import {
+  usePlaygroundState,
+  type ViewportPreset,
+} from "@/lib/playground-url-state";
 
 const VIEWPORT_PRESETS = {
-  desktop: { width: "100%", label: "Desktop", icon: Monitor },
+  desktop: { width: "100%" as const, label: "Desktop", icon: Monitor },
   tablet: { width: 768, label: "Tablet", icon: Tablet },
   mobile: { width: 375, label: "Mobile", icon: Smartphone },
 } as const;
 
-type ViewportPreset = keyof typeof VIEWPORT_PRESETS;
-
 export default function PlaygroundPage() {
-  const [config, setConfig] = useState<BuilderConfig>(DEFAULT_CONFIG);
-  const [showCode, setShowCode] = useState(false);
-  const [viewportPreset, setViewportPreset] = useState<ViewportPreset | null>(
-    "desktop",
-  );
-  const [viewportWidth, setViewportWidth] = useState<number | "100%">("100%");
+  const {
+    config,
+    showCode,
+    viewportPreset,
+    viewportWidth,
+    setConfig,
+    setShowCode,
+    setViewportPreset,
+    setViewportWidth,
+  } = usePlaygroundState();
+
   const isResizing = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const handlePresetChange = (preset: ViewportPreset) => {
-    setViewportPreset(preset);
-    setViewportWidth(VIEWPORT_PRESETS[preset].width);
-  };
+  const handlePresetChange = useCallback(
+    (preset: ViewportPreset) => {
+      setViewportPreset(preset);
+    },
+    [setViewportPreset],
+  );
 
   const handleResizeStart = useCallback(
     (e: React.MouseEvent, side: "left" | "right") => {
@@ -58,7 +67,6 @@ export default function PlaygroundPage() {
           side === "right" ? e.clientX - startX : startX - e.clientX;
         const newWidth = Math.max(320, startWidth + delta * 2);
         setViewportWidth(newWidth);
-        setViewportPreset(null);
       };
 
       const handleMouseUp = () => {
@@ -72,7 +80,7 @@ export default function PlaygroundPage() {
       document.addEventListener("mousemove", handleMouseMove);
       document.addEventListener("mouseup", handleMouseUp);
     },
-    [viewportWidth],
+    [viewportWidth, setViewportWidth],
   );
 
   return (
@@ -112,6 +120,8 @@ export default function PlaygroundPage() {
           </div>
 
           <div className="flex items-center gap-1">
+            <ShareButton />
+
             <ThreadListPrimitive.New
               className="flex items-center gap-1.5 rounded-md px-2.5 py-1 font-medium text-muted-foreground text-xs transition-colors hover:text-foreground"
               aria-label="New chat"

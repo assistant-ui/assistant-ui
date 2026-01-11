@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { ReactNode } from "react";
+import { ReactNode, Suspense } from "react";
 import { SubProjectLayout } from "@/components/shared/sub-project-layout";
 import { PlaygroundRuntimeProvider } from "@/contexts/PlaygroundRuntimeProvider";
 
@@ -21,7 +21,9 @@ export default function PlaygroundLayout({
       fullHeight
       hideFooter
     >
-      <PlaygroundRuntimeProvider>{children}</PlaygroundRuntimeProvider>
+      <Suspense>
+        <PlaygroundRuntimeProvider>{children}</PlaygroundRuntimeProvider>
+      </Suspense>
     </SubProjectLayout>
   );
 }
