@@ -92,7 +92,7 @@ export async function createMultiServerMCPClient(enabledServerIds: string[]) {
     connectedServers.push({ id: config.id, client, tools });
 
     for (const [toolName, tool] of Object.entries(tools)) {
-      const namespacedName = `${config.id}:${toolName}`;
+      const namespacedName = `${config.id}__${toolName}`;
       aggregatedTools[namespacedName] = tool;
     }
   }
