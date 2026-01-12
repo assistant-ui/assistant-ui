@@ -1,6 +1,7 @@
 "use client";
 
-import { CircleAlertIcon } from "lucide-react";
+import { CircleAlertIcon, SunIcon, MoonIcon } from "lucide-react";
+
 import { Select } from "@/components/shared/select";
 import { Switch } from "@/components/shared/switch";
 import {
@@ -12,7 +13,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-
 import {
   BORDER_RADIUSES,
   CODE_HIGHLIGHT_THEMES,
@@ -101,6 +101,8 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
     });
   };
 
+  const { components, styles } = config;
+
   return (
     <div className="scrollbar-none h-full overflow-y-auto">
       <div className="space-y-5">
@@ -109,15 +111,71 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
           control={<PresetSelect config={config} onChange={onChange} />}
         />
 
-        <Section title="Features">
+        <Section title="Messages" headerRight={<ColorModeHeader />}>
           <div className="space-y-1">
             <Row
-              label="Attachments"
+              label="User Position"
+              control={
+                <Select
+                  value={styles.userMessagePosition}
+                  onValueChange={(value) =>
+                    updateStyles({
+                      userMessagePosition: value as "left" | "right",
+                    })
+                  }
+                  options={USER_MESSAGE_POSITIONS}
+                />
+              }
+            />
+            <Row
+              label="User Background"
+              control={
+                <ThemeColorPicker
+                  value={
+                    styles.colors.userMessage ?? DEFAULT_COLORS.userMessage
+                  }
+                  onChange={(value) => updateColor("userMessage", value)}
+                />
+              }
+            />
+            <SwitchColorRow
+              label="Assistant Background"
+              enabled={styles.colors.assistantMessage !== undefined}
+              onEnabledChange={(enabled) => {
+                if (enabled) {
+                  updateOptionalColor(
+                    "assistantMessage",
+                    DEFAULT_COLORS.background,
+                  );
+                } else {
+                  updateOptionalColor("assistantMessage", undefined);
+                }
+              }}
+              color={styles.colors.assistantMessage}
+              defaultColor={DEFAULT_COLORS.background}
+              onColorChange={(color) =>
+                updateOptionalColor("assistantMessage", color)
+              }
+            />
+            <Row
+              label="Spacing"
+              control={
+                <Select
+                  value={styles.messageSpacing}
+                  onValueChange={(value) =>
+                    updateStyles({ messageSpacing: value as MessageSpacing })
+                  }
+                  options={MESSAGE_SPACINGS}
+                />
+              }
+            />
+            <Row
+              label="Edit"
               control={
                 <Switch
-                  checked={config.components.attachments}
+                  checked={components.editMessage}
                   onCheckedChange={(checked) =>
-                    updateComponents({ attachments: checked })
+                    updateComponents({ editMessage: checked })
                   }
                 />
               }
@@ -126,42 +184,25 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
               label="Branch Picker"
               control={
                 <Switch
-                  checked={config.components.branchPicker}
+                  checked={components.branchPicker}
                   onCheckedChange={(checked) =>
                     updateComponents({ branchPicker: checked })
                   }
                 />
               }
             />
+          </div>
+        </Section>
+
+        <Section title="Thread">
+          <div className="space-y-1">
             <Row
-              label="Edit Messages"
+              label="Welcome"
               control={
                 <Switch
-                  checked={config.components.editMessage}
-                  onCheckedChange={(checked) =>
-                    updateComponents({ editMessage: checked })
-                  }
-                />
-              }
-            />
-            <Row
-              label="Welcome Screen"
-              control={
-                <Switch
-                  checked={config.components.threadWelcome}
+                  checked={components.threadWelcome}
                   onCheckedChange={(checked) =>
                     updateComponents({ threadWelcome: checked })
-                  }
-                />
-              }
-            />
-            <Row
-              label="Suggestions"
-              control={
-                <Switch
-                  checked={config.components.suggestions}
-                  onCheckedChange={(checked) =>
-                    updateComponents({ suggestions: checked })
                   }
                 />
               }
@@ -170,7 +211,7 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
               label="Scroll to Bottom"
               control={
                 <Switch
-                  checked={config.components.scrollToBottom}
+                  checked={components.scrollToBottom}
                   onCheckedChange={(checked) =>
                     updateComponents({ scrollToBottom: checked })
                   }
@@ -178,22 +219,67 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
               }
             />
             <Row
+              label="Max Width"
+              control={
+                <Select
+                  value={styles.maxWidth}
+                  onValueChange={(value) => updateStyles({ maxWidth: value })}
+                  options={MAX_WIDTHS}
+                />
+              }
+            />
+          </div>
+        </Section>
+
+        <Section title="Composer" headerRight={<ColorModeHeader />}>
+          <div className="space-y-1">
+            <Row
+              label="Attachments"
+              control={
+                <Switch
+                  checked={components.attachments}
+                  onCheckedChange={(checked) =>
+                    updateComponents({ attachments: checked })
+                  }
+                />
+              }
+            />
+            <SwitchColorRow
+              label="Background"
+              enabled={styles.colors.composer !== undefined}
+              onEnabledChange={(enabled) => {
+                if (enabled) {
+                  updateOptionalColor("composer", DEFAULT_COLORS.composer);
+                } else {
+                  updateOptionalColor("composer", undefined);
+                }
+              }}
+              color={styles.colors.composer}
+              defaultColor={DEFAULT_COLORS.composer}
+              onColorChange={(color) => updateOptionalColor("composer", color)}
+            />
+          </div>
+        </Section>
+
+        <Section title="Content">
+          <div className="space-y-1">
+            <Row
               label="Markdown"
               control={
                 <Switch
-                  checked={config.components.markdown}
+                  checked={components.markdown}
                   onCheckedChange={(checked) =>
                     updateComponents({ markdown: checked })
                   }
                 />
               }
             />
-            {config.components.markdown && (
-              <Row
+            {components.markdown && (
+              <IndentedRow
                 label="Code Theme"
                 info={
                   <>
-                    Syntax highlighting theme powered by{" "}
+                    Syntax highlighting powered by{" "}
                     <a
                       href="https://shiki.style/themes"
                       target="_blank"
@@ -206,7 +292,7 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
                 }
                 control={
                   <Select
-                    value={config.components.codeHighlightTheme}
+                    value={components.codeHighlightTheme}
                     onValueChange={(value) =>
                       updateComponents({
                         codeHighlightTheme: value as CodeHighlightTheme,
@@ -221,7 +307,7 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
               label="Reasoning"
               control={
                 <Switch
-                  checked={config.components.reasoning}
+                  checked={components.reasoning}
                   onCheckedChange={(checked) =>
                     updateComponents({ reasoning: checked })
                   }
@@ -232,7 +318,7 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
               label="Follow-ups"
               control={
                 <Switch
-                  checked={config.components.followUpSuggestions}
+                  checked={components.followUpSuggestions}
                   onCheckedChange={(checked) =>
                     updateComponents({ followUpSuggestions: checked })
                   }
@@ -240,21 +326,86 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
               }
             />
             <Row
-              label="Avatar"
+              label="Suggestions"
               control={
                 <Switch
-                  checked={config.components.avatar}
+                  checked={components.suggestions}
                   onCheckedChange={(checked) =>
-                    updateComponents({ avatar: checked })
+                    updateComponents({ suggestions: checked })
                   }
                 />
               }
             />
+            {components.suggestions && (
+              <>
+                <IndentedRow
+                  label="Background"
+                  control={
+                    <OptionalThemeColorPicker
+                      value={styles.colors.suggestion}
+                      defaultValue={DEFAULT_COLORS.suggestion}
+                      onChange={(value) =>
+                        updateOptionalColor("suggestion", value)
+                      }
+                    />
+                  }
+                />
+                <IndentedRow
+                  label="Border"
+                  control={
+                    <OptionalThemeColorPicker
+                      value={styles.colors.suggestionBorder}
+                      defaultValue={DEFAULT_COLORS.suggestionBorder}
+                      onChange={(value) =>
+                        updateOptionalColor("suggestionBorder", value)
+                      }
+                    />
+                  }
+                />
+              </>
+            )}
+          </div>
+        </Section>
+
+        <SectionWithToggle
+          title="Avatar"
+          headerRight={<ColorModeHeader />}
+          enabled={components.avatar}
+          onEnabledChange={(checked) => updateComponents({ avatar: checked })}
+        >
+          <div className="space-y-1">
+            <Row
+              label="User"
+              control={
+                <OptionalThemeColorPicker
+                  value={styles.colors.userAvatar}
+                  defaultValue={DEFAULT_COLORS.userAvatar}
+                  onChange={(value) => updateOptionalColor("userAvatar", value)}
+                />
+              }
+            />
+            <Row
+              label="Assistant"
+              control={
+                <OptionalThemeColorPicker
+                  value={styles.colors.assistantAvatar}
+                  defaultValue={DEFAULT_COLORS.assistantAvatar}
+                  onChange={(value) =>
+                    updateOptionalColor("assistantAvatar", value)
+                  }
+                />
+              }
+            />
+          </div>
+        </SectionWithToggle>
+
+        <Section title="Loading">
+          <div className="space-y-1">
             <Row
               label="Typing Indicator"
               control={
                 <Select
-                  value={config.components.typingIndicator}
+                  value={components.typingIndicator}
                   onValueChange={(value) =>
                     updateComponents({
                       typingIndicator: value as TypingIndicator,
@@ -265,10 +416,10 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
               }
             />
             <Row
-              label="Loading"
+              label="Loading Style"
               control={
                 <Select
-                  value={config.components.loadingIndicator}
+                  value={components.loadingIndicator}
                   onValueChange={(value) =>
                     updateComponents({
                       loadingIndicator: value as LoadingIndicator,
@@ -278,13 +429,13 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
                 />
               }
             />
-            {config.components.loadingIndicator === "text" && (
-              <Row
-                label="Loading Text"
+            {components.loadingIndicator === "text" && (
+              <IndentedRow
+                label="Text"
                 control={
                   <input
                     type="text"
-                    value={config.components.loadingText}
+                    value={components.loadingText}
                     onChange={(e) =>
                       updateComponents({ loadingText: e.target.value })
                     }
@@ -303,7 +454,7 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
               label="Copy"
               control={
                 <Switch
-                  checked={config.components.actionBar.copy}
+                  checked={components.actionBar.copy}
                   onCheckedChange={(checked) =>
                     updateActionBar({ copy: checked })
                   }
@@ -314,7 +465,7 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
               label="Reload"
               control={
                 <Switch
-                  checked={config.components.actionBar.reload}
+                  checked={components.actionBar.reload}
                   onCheckedChange={(checked) =>
                     updateActionBar({ reload: checked })
                   }
@@ -325,7 +476,7 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
               label="Speak"
               control={
                 <Switch
-                  checked={config.components.actionBar.speak}
+                  checked={components.actionBar.speak}
                   onCheckedChange={(checked) =>
                     updateActionBar({ speak: checked })
                   }
@@ -336,7 +487,7 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
               label="Feedback"
               control={
                 <Switch
-                  checked={config.components.actionBar.feedback}
+                  checked={components.actionBar.feedback}
                   onCheckedChange={(checked) =>
                     updateActionBar({ feedback: checked })
                   }
@@ -352,7 +503,7 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
               label="Font"
               control={
                 <Select
-                  value={config.styles.fontFamily}
+                  value={styles.fontFamily}
                   onValueChange={(value) => updateStyles({ fontFamily: value })}
                   options={FONT_FAMILIES}
                 />
@@ -362,7 +513,7 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
               label="Size"
               control={
                 <Select
-                  value={config.styles.fontSize}
+                  value={styles.fontSize}
                   onValueChange={(value) =>
                     updateStyles({ fontSize: value as FontSize })
                   }
@@ -376,46 +527,10 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
         <Section title="Layout">
           <div className="space-y-1">
             <Row
-              label="Max Width"
-              control={
-                <Select
-                  value={config.styles.maxWidth}
-                  onValueChange={(value) => updateStyles({ maxWidth: value })}
-                  options={MAX_WIDTHS}
-                />
-              }
-            />
-            <Row
-              label="Spacing"
-              control={
-                <Select
-                  value={config.styles.messageSpacing}
-                  onValueChange={(value) =>
-                    updateStyles({ messageSpacing: value as MessageSpacing })
-                  }
-                  options={MESSAGE_SPACINGS}
-                />
-              }
-            />
-            <Row
-              label="User Message"
-              control={
-                <Select
-                  value={config.styles.userMessagePosition}
-                  onValueChange={(value) =>
-                    updateStyles({
-                      userMessagePosition: value as "left" | "right",
-                    })
-                  }
-                  options={USER_MESSAGE_POSITIONS}
-                />
-              }
-            />
-            <Row
               label="Radius"
               control={
                 <Select
-                  value={config.styles.borderRadius}
+                  value={styles.borderRadius}
                   onValueChange={(value) =>
                     updateStyles({ borderRadius: value as BorderRadius })
                   }
@@ -423,16 +538,27 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
                 />
               }
             />
+            <Row
+              label="Animations"
+              control={
+                <Switch
+                  checked={styles.animations}
+                  onCheckedChange={(checked) =>
+                    updateStyles({ animations: checked })
+                  }
+                />
+              }
+            />
           </div>
         </Section>
 
-        <Section title="Colors">
+        <Section title="Colors" headerRight={<ColorModeHeader />}>
           <div className="space-y-1">
             <Row
               label="Accent"
               control={
                 <ThemeColorPicker
-                  value={config.styles.colors.accent}
+                  value={styles.colors.accent}
                   onChange={(value) => updateColor("accent", value)}
                 />
               }
@@ -441,7 +567,7 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
               label="Background"
               control={
                 <OptionalThemeColorPicker
-                  value={config.styles.colors.background}
+                  value={styles.colors.background}
                   defaultValue={DEFAULT_COLORS.background}
                   onChange={(value) => updateOptionalColor("background", value)}
                 />
@@ -451,7 +577,7 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
               label="Foreground"
               control={
                 <OptionalThemeColorPicker
-                  value={config.styles.colors.foreground}
+                  value={styles.colors.foreground}
                   defaultValue={DEFAULT_COLORS.foreground}
                   onChange={(value) => updateOptionalColor("foreground", value)}
                 />
@@ -461,7 +587,7 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
               label="Muted"
               control={
                 <OptionalThemeColorPicker
-                  value={config.styles.colors.mutedForeground}
+                  value={styles.colors.mutedForeground}
                   defaultValue={DEFAULT_COLORS.mutedForeground}
                   onChange={(value) =>
                     updateOptionalColor("mutedForeground", value)
@@ -473,126 +599,9 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
               label="Border"
               control={
                 <OptionalThemeColorPicker
-                  value={config.styles.colors.border}
+                  value={styles.colors.border}
                   defaultValue={DEFAULT_COLORS.border}
                   onChange={(value) => updateOptionalColor("border", value)}
-                />
-              }
-            />
-          </div>
-        </Section>
-
-        <Section title="Message Colors">
-          <div className="space-y-1">
-            <Row
-              label="User Background"
-              control={
-                <OptionalThemeColorPicker
-                  value={config.styles.colors.userMessage}
-                  defaultValue={DEFAULT_COLORS.userMessage}
-                  onChange={(value) =>
-                    updateOptionalColor("userMessage", value)
-                  }
-                />
-              }
-            />
-            <Row
-              label="Assistant Background"
-              control={
-                <OptionalThemeColorPicker
-                  value={config.styles.colors.assistantMessage}
-                  defaultValue={DEFAULT_COLORS.background}
-                  onChange={(value) =>
-                    updateOptionalColor("assistantMessage", value)
-                  }
-                />
-              }
-            />
-            <Row
-              label="Composer"
-              control={
-                <OptionalThemeColorPicker
-                  value={config.styles.colors.composer}
-                  defaultValue={DEFAULT_COLORS.composer}
-                  onChange={(value) => updateOptionalColor("composer", value)}
-                />
-              }
-            />
-          </div>
-        </Section>
-
-        {config.components.avatar && (
-          <Section title="Avatar Colors">
-            <div className="space-y-1">
-              <Row
-                label="User Avatar"
-                control={
-                  <OptionalThemeColorPicker
-                    value={config.styles.colors.userAvatar}
-                    defaultValue={DEFAULT_COLORS.userAvatar}
-                    onChange={(value) =>
-                      updateOptionalColor("userAvatar", value)
-                    }
-                  />
-                }
-              />
-              <Row
-                label="Assistant Avatar"
-                control={
-                  <OptionalThemeColorPicker
-                    value={config.styles.colors.assistantAvatar}
-                    defaultValue={DEFAULT_COLORS.assistantAvatar}
-                    onChange={(value) =>
-                      updateOptionalColor("assistantAvatar", value)
-                    }
-                  />
-                }
-              />
-            </div>
-          </Section>
-        )}
-
-        {config.components.suggestions && (
-          <Section title="Suggestion Colors">
-            <div className="space-y-1">
-              <Row
-                label="Background"
-                control={
-                  <OptionalThemeColorPicker
-                    value={config.styles.colors.suggestion}
-                    defaultValue={DEFAULT_COLORS.suggestion}
-                    onChange={(value) =>
-                      updateOptionalColor("suggestion", value)
-                    }
-                  />
-                }
-              />
-              <Row
-                label="Border"
-                control={
-                  <OptionalThemeColorPicker
-                    value={config.styles.colors.suggestionBorder}
-                    defaultValue={DEFAULT_COLORS.suggestionBorder}
-                    onChange={(value) =>
-                      updateOptionalColor("suggestionBorder", value)
-                    }
-                  />
-                }
-              />
-            </div>
-          </Section>
-        )}
-
-        <Section title="Style">
-          <div className="space-y-1">
-            <Row
-              label="Animations"
-              control={
-                <Switch
-                  checked={config.styles.animations}
-                  onCheckedChange={(checked) =>
-                    updateStyles({ animations: checked })
-                  }
                 />
               }
             />
@@ -605,15 +614,64 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
 
 function Section({
   title,
+  headerRight,
   children,
 }: {
   title: string;
+  headerRight?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
     <div className="space-y-2">
-      <span className="font-medium text-muted-foreground text-xs">{title}</span>
+      <div className="flex items-center justify-between">
+        <span className="font-medium text-muted-foreground text-xs">
+          {title}
+        </span>
+        {headerRight}
+      </div>
       {children}
+    </div>
+  );
+}
+
+function SectionWithToggle({
+  title,
+  headerRight,
+  enabled,
+  onEnabledChange,
+  children,
+}: {
+  title: string;
+  headerRight?: React.ReactNode;
+  enabled: boolean;
+  onEnabledChange: (enabled: boolean) => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="font-medium text-muted-foreground text-xs">
+          {title}
+        </span>
+        <div className="flex items-center gap-2">
+          {enabled && headerRight}
+          <Switch checked={enabled} onCheckedChange={onEnabledChange} />
+        </div>
+      </div>
+      {enabled && children}
+    </div>
+  );
+}
+
+function ColorModeHeader() {
+  return (
+    <div className="flex gap-1">
+      <div className="flex size-5 items-center justify-center">
+        <SunIcon className="size-3 text-muted-foreground" />
+      </div>
+      <div className="flex size-5 items-center justify-center">
+        <MoonIcon className="size-3 text-muted-foreground" />
+      </div>
     </div>
   );
 }
@@ -646,6 +704,59 @@ function Row({
         )}
       </span>
       {control}
+    </div>
+  );
+}
+
+function IndentedRow({
+  label,
+  control,
+  info,
+}: {
+  label: string;
+  control: React.ReactNode;
+  info?: React.ReactNode;
+}) {
+  return (
+    <div className="ml-4 border-border border-l pl-3">
+      <Row label={label} control={control} info={info} />
+    </div>
+  );
+}
+
+function SwitchColorRow({
+  label,
+  enabled,
+  onEnabledChange,
+  color,
+  defaultColor,
+  onColorChange,
+}: {
+  label: string;
+  enabled: boolean;
+  onEnabledChange: (enabled: boolean) => void;
+  color: ThemeColor | undefined;
+  defaultColor: ThemeColor;
+  onColorChange: (color: ThemeColor | undefined) => void;
+}) {
+  return (
+    <div className="flex h-7 items-center justify-between">
+      <span className="text-sm">{label}</span>
+      <div className="flex items-center gap-2">
+        <Switch
+          checked={enabled}
+          onCheckedChange={(checked) => {
+            onEnabledChange(checked);
+            if (!checked) onColorChange(undefined);
+          }}
+        />
+        {enabled && (
+          <ThemeColorPicker
+            value={color ?? defaultColor}
+            onChange={onColorChange}
+          />
+        )}
+      </div>
     </div>
   );
 }

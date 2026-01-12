@@ -18,11 +18,10 @@ export function BuilderCodeOutput({ config }: BuilderCodeOutputProps) {
   const [copied, setCopied] = useState(false);
 
   const componentCode = generateComponentCode(config);
-  const cliCommand = generateCliCommand(config);
+  const cliCommands = generateCliCommands(config);
 
   const handleCopy = async () => {
-    const text = activeTab === "code" ? componentCode : cliCommand;
-    await navigator.clipboard.writeText(text);
+    await navigator.clipboard.writeText(componentCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -56,35 +55,144 @@ export function BuilderCodeOutput({ config }: BuilderCodeOutputProps) {
             CLI
           </button>
         </div>
-        <button
-          onClick={handleCopy}
-          className="flex items-center gap-1.5 rounded-md px-2 py-1 text-muted-foreground text-xs transition-colors hover:text-foreground"
-        >
-          {copied ? (
-            <>
-              <CheckIcon className="size-3.5" />
-              Copied
-            </>
-          ) : (
-            <>
-              <CopyIcon className="size-3.5" />
-              Copy
-            </>
-          )}
-        </button>
+        {activeTab === "code" && (
+          <button
+            onClick={handleCopy}
+            className="flex items-center gap-1.5 rounded-md px-2 py-1 text-muted-foreground text-xs transition-colors hover:text-foreground"
+          >
+            {copied ? (
+              <>
+                <CheckIcon className="size-3.5" />
+                Copied
+              </>
+            ) : (
+              <>
+                <CopyIcon className="size-3.5" />
+                Copy
+              </>
+            )}
+          </button>
+        )}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-auto text-xs leading-relaxed [&_pre]:m-0! [&_pre]:bg-transparent! [&_pre]:p-0!">
-        <ShikiHighlighter
-          language={activeTab === "code" ? "tsx" : "bash"}
-          theme={{ dark: "vitesse-dark", light: "vitesse-light" }}
-          addDefaultStyles={false}
-          showLanguage={false}
-          defaultColor="light-dark()"
-        >
-          {activeTab === "code" ? componentCode.trim() : cliCommand.trim()}
-        </ShikiHighlighter>
+      {activeTab === "code" ? (
+        <div className="min-h-0 flex-1 overflow-auto text-xs leading-relaxed [&_pre]:m-0! [&_pre]:bg-transparent! [&_pre]:p-0!">
+          <ShikiHighlighter
+            language="tsx"
+            theme={{ dark: "vitesse-dark", light: "vitesse-light" }}
+            addDefaultStyles={false}
+            showLanguage={false}
+            defaultColor="light-dark()"
+          >
+            {componentCode.trim()}
+          </ShikiHighlighter>
+        </div>
+      ) : (
+        <CliCommandsView commands={cliCommands} />
+      )}
+    </div>
+  );
+}
+
+interface CliCommand {
+  label: string;
+  description?: string;
+  command?: string;
+}
+
+interface CliCommands {
+  primary: CliCommand;
+  alternative: CliCommand;
+  manual: CliCommand[];
+  summary: string[];
+}
+
+function CliCommandsView({ commands }: { commands: CliCommands }) {
+  return (
+    <div className="scrollbar-none min-h-0 flex-1 space-y-4 overflow-auto p-3 text-xs">
+      <CommandBlock
+        label={commands.primary.label}
+        {...(commands.primary.command && { command: commands.primary.command })}
+        {...(commands.primary.description && {
+          description: commands.primary.description,
+        })}
+      />
+
+      <CommandBlock
+        label={commands.alternative.label}
+        {...(commands.alternative.command && {
+          command: commands.alternative.command,
+        })}
+      />
+
+      <div className="border-t pt-4">
+        <p className="mb-3 text-muted-foreground">Or set up manually:</p>
+        <div className="space-y-3">
+          {commands.manual.map((cmd, index) => (
+            <CommandBlock
+              key={index}
+              label={`${index + 1}. ${cmd.label}`}
+              {...(cmd.command && { command: cmd.command })}
+              {...(cmd.description && { description: cmd.description })}
+            />
+          ))}
+        </div>
       </div>
+
+      <div className="border-t pt-4">
+        <p className="mb-2 font-medium text-foreground">Configuration</p>
+        <div className="space-y-1 text-muted-foreground">
+          {commands.summary.map((item, index) => (
+            <div key={index}>{item}</div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CommandBlock({
+  label,
+  description,
+  command,
+}: {
+  label: string;
+  description?: string;
+  command?: string;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    if (!command) return;
+    await navigator.clipboard.writeText(command);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div>
+      <div className="mb-1 font-medium text-foreground">{label}</div>
+      {description && (
+        <p className="mb-1.5 text-muted-foreground">{description}</p>
+      )}
+      {command && (
+        <div className="group relative">
+          <pre className="overflow-x-auto rounded-md bg-muted p-2 pr-8 font-mono">
+            {command}
+          </pre>
+          <button
+            onClick={handleCopy}
+            className="absolute top-1.5 right-1.5 rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-foreground/10 hover:text-foreground group-hover:opacity-100"
+            title="Copy command"
+          >
+            {copied ? (
+              <CheckIcon className="size-3.5" />
+            ) : (
+              <CopyIcon className="size-3.5" />
+            )}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -654,7 +762,7 @@ function isLightColor(hexColor: string): boolean {
   return luminance > 0.5;
 }
 
-function generateCliCommand(config: BuilderConfig): string {
+function generateCliCommands(config: BuilderConfig): CliCommands {
   const { components } = config;
 
   const matchingPreset = configMatchesPreset(config);
@@ -675,76 +783,53 @@ function generateCliCommand(config: BuilderConfig): string {
     componentsToAdd.push("attachment");
   }
 
-  const addCommand =
-    componentsToAdd.length > 0
-      ? `npx assistant-ui@latest add ${componentsToAdd.join(" ")}`
-      : "";
+  const addCommand = `npx assistant-ui@latest add ${componentsToAdd.join(" ")}`;
 
-  const featureNotes: string[] = [];
+  const enabledFeatures: string[] = [];
+  if (components.markdown) enabledFeatures.push("Markdown");
+  if (components.attachments) enabledFeatures.push("Attachments");
+  if (components.branchPicker) enabledFeatures.push("Branch Picker");
+  if (components.editMessage) enabledFeatures.push("Edit Message");
+  if (components.threadWelcome) enabledFeatures.push("Welcome Screen");
+  if (components.suggestions) enabledFeatures.push("Suggestions");
+  if (components.scrollToBottom) enabledFeatures.push("Scroll to Bottom");
+  if (components.reasoning) enabledFeatures.push("Reasoning");
+  if (components.followUpSuggestions) enabledFeatures.push("Follow-ups");
+  if (components.avatar) enabledFeatures.push("Avatar");
+  if (components.actionBar.copy) enabledFeatures.push("Copy");
+  if (components.actionBar.reload) enabledFeatures.push("Reload");
+  if (components.actionBar.speak) enabledFeatures.push("Speak");
+  if (components.actionBar.feedback) enabledFeatures.push("Feedback");
 
-  if (components.reasoning) {
-    featureNotes.push(
-      "# Note: Reasoning/thinking display is included in the code above",
-    );
-  }
+  const summary: string[] = [
+    `Style: ${config.styles.borderRadius} radius, ${config.styles.fontFamily}`,
+    `Enabled: ${enabledFeatures.length > 0 ? enabledFeatures.join(", ") : "None"}`,
+  ];
 
-  if (components.actionBar.speak) {
-    featureNotes.push("# Note: Text-to-speech requires browser API support");
-  }
-
-  if (components.actionBar.feedback) {
-    featureNotes.push(
-      "# Note: Feedback buttons require backend integration to store user feedback",
-    );
-  }
-
-  return `# ─────────────────────────────────────────────────────────────────
-# One-command setup with your configuration:
-# ─────────────────────────────────────────────────────────────────
-npx assistant-ui@latest init --preset "${presetUrl}"
-
-# Or use shadcn directly:
-npx shadcn@latest add "${presetUrl}"
-
-# ─────────────────────────────────────────────────────────────────
-# Manual setup (alternative):
-# ─────────────────────────────────────────────────────────────────
-
-# Step 1: Initialize assistant-ui in your project
-npx assistant-ui@latest init
-
-# Step 2: Add the required components
-${addCommand}
-
-# Step 3: Copy the generated code above and paste it into your thread.tsx file
-# The code is customized based on your playground configuration
-
-${featureNotes.length > 0 ? `${featureNotes.join("\n")}\n` : ""}
-# Configuration Summary:
-# - Theme: ${config.styles.theme}
-# - Accent Color: ${config.styles.colors.accent.light} (light) / ${config.styles.colors.accent.dark} (dark)
-# - Border Radius: ${config.styles.borderRadius}
-# - Font: ${config.styles.fontFamily}
-# - Font Size: ${config.styles.fontSize}
-# - Message Spacing: ${config.styles.messageSpacing}
-# - User Message Position: ${config.styles.userMessagePosition}
-# - Animations: ${config.styles.animations ? "enabled" : "disabled"}
-#
-# Components enabled:
-# - Attachments: ${components.attachments ? "yes" : "no"}
-# - Branch Picker: ${components.branchPicker ? "yes" : "no"}
-# - Edit Messages: ${components.editMessage ? "yes" : "no"}
-# - Welcome Screen: ${components.threadWelcome ? "yes" : "no"}
-# - Suggestions: ${components.suggestions ? "yes" : "no"}
-# - Scroll to Bottom: ${components.scrollToBottom ? "yes" : "no"}
-# - Markdown: ${components.markdown ? "yes" : "no"}
-# - Reasoning: ${components.reasoning ? "yes" : "no"}
-# - Follow-up Suggestions: ${components.followUpSuggestions ? "yes" : "no"}
-# - Avatar: ${components.avatar ? "yes" : "no"}
-# - Typing Indicator: ${components.typingIndicator}
-# - Loading: ${components.loadingIndicator}${components.loadingIndicator === "text" ? ` ("${components.loadingText}")` : ""}
-# - Action Bar Copy: ${components.actionBar.copy ? "yes" : "no"}
-# - Action Bar Reload: ${components.actionBar.reload ? "yes" : "no"}
-# - Action Bar Speak: ${components.actionBar.speak ? "yes" : "no"}
-# - Action Bar Feedback: ${components.actionBar.feedback ? "yes" : "no"}`;
+  return {
+    primary: {
+      label: "One-command setup",
+      description: "Install with your current configuration",
+      command: `npx assistant-ui@latest init --preset "${presetUrl}"`,
+    },
+    alternative: {
+      label: "Using shadcn",
+      command: `npx shadcn@latest add "${presetUrl}"`,
+    },
+    manual: [
+      {
+        label: "Initialize",
+        command: "npx assistant-ui@latest init",
+      },
+      {
+        label: "Add components",
+        command: addCommand,
+      },
+      {
+        label: "Copy code",
+        description: "Copy the code from the Code tab into your thread.tsx",
+      },
+    ],
+    summary,
+  };
 }

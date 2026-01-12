@@ -58,7 +58,6 @@ import {
   DEFAULT_COLORS,
   type BuilderConfig,
   type CodeHighlightTheme,
-  type FontSize,
   type MessageSpacing,
   type ThemeColor,
 } from "./types";
@@ -135,8 +134,6 @@ function usePageTheme() {
 export function BuilderPreview({ config }: BuilderPreviewProps) {
   const { components, styles } = config;
 
-  const fontSizeClass = getFontSizeClass(styles.fontSize);
-
   // Always follow page theme so user can preview both light and dark variants
   const isDark = usePageTheme();
 
@@ -201,13 +198,11 @@ export function BuilderPreview({ config }: BuilderPreviewProps) {
         style={cssVars}
       >
         <ThreadPrimitive.Root
-          className={cn(
-            "aui-root aui-thread-root @container flex h-full flex-col",
-            fontSizeClass,
-          )}
+          className="aui-root aui-thread-root @container flex h-full flex-col"
           style={{
             backgroundColor: "var(--aui-background)",
             color: "var(--aui-foreground)",
+            fontSize: styles.fontSize,
           }}
         >
           <ThreadPrimitive.Viewport
@@ -240,14 +235,6 @@ export function BuilderPreview({ config }: BuilderPreviewProps) {
       </div>
     </BuilderPreviewContext.Provider>
   );
-}
-
-function getFontSizeClass(fontSize: FontSize): string {
-  return {
-    sm: "text-sm",
-    base: "text-base",
-    lg: "text-lg",
-  }[fontSize];
 }
 
 function getMessageSpacingClass(spacing: MessageSpacing): string {
@@ -614,7 +601,7 @@ const AssistantMessage: FC<AssistantMessageProps> = ({ config }) => {
   return (
     <MessagePrimitive.Root
       className={cn(
-        "aui-assistant-message-root relative mx-auto w-full max-w-(--aui-thread-max-width)",
+        "aui-assistant-message-root relative mx-auto w-full max-w-(--aui-thread-max-width) px-2",
         messageSpacingClass,
         styles.animations &&
           "fade-in slide-in-from-bottom-1 animate-in duration-150",
@@ -637,21 +624,10 @@ const AssistantMessage: FC<AssistantMessageProps> = ({ config }) => {
             <BotIcon className="size-4" />
           </div>
         )}
-        <div
-          className={cn(
-            "min-w-0 flex-1",
-            styles.colors.assistantMessage && "rounded-2xl px-4 py-3",
-          )}
-          style={
-            styles.colors.assistantMessage
-              ? { backgroundColor: "var(--aui-assistant-message-background)" }
-              : undefined
-          }
-        >
-          {/* Reasoning/Thinking Section */}
+        <div className="min-w-0 flex-1 space-y-2">
           {components.reasoning && (
             <div
-              className="mb-3 overflow-hidden rounded-lg border border-dashed"
+              className="overflow-hidden rounded-lg border border-dashed"
               style={{
                 borderColor:
                   "color-mix(in srgb, var(--aui-muted-foreground) 30%, transparent)",
@@ -685,31 +661,36 @@ const AssistantMessage: FC<AssistantMessageProps> = ({ config }) => {
           <div
             className={cn(
               "aui-assistant-message-content wrap-break-word leading-relaxed",
-              !styles.colors.assistantMessage && "px-2",
+              styles.colors.assistantMessage && "rounded-2xl px-4 py-3",
             )}
+            style={
+              styles.colors.assistantMessage
+                ? { backgroundColor: "var(--aui-assistant-message-background)" }
+                : undefined
+            }
           >
             <MessagePrimitive.Parts components={{ Text: TextComponent }} />
+
+            {components.loadingIndicator !== "none" && (
+              <AssistantIf
+                condition={({ thread, message }) =>
+                  thread.isRunning && message.content.length === 0
+                }
+              >
+                <div
+                  className="flex items-center gap-2"
+                  style={{ color: "var(--aui-muted-foreground)" }}
+                >
+                  <LoaderIcon className="size-4 animate-spin" />
+                  {components.loadingIndicator === "text" && (
+                    <span className="text-sm">{components.loadingText}</span>
+                  )}
+                </div>
+              </AssistantIf>
+            )}
           </div>
 
-          {components.loadingIndicator !== "none" && (
-            <AssistantIf
-              condition={({ thread, message }) =>
-                thread.isRunning && message.content.length === 0
-              }
-            >
-              <div
-                className="flex items-center gap-2 px-2"
-                style={{ color: "var(--aui-muted-foreground)" }}
-              >
-                <LoaderIcon className="size-4 animate-spin" />
-                {components.loadingIndicator === "text" && (
-                  <span className="text-sm">{components.loadingText}</span>
-                )}
-              </div>
-            </AssistantIf>
-          )}
-
-          <div className="aui-assistant-message-footer mt-1 ml-2 flex">
+          <div className="aui-assistant-message-footer flex">
             {components.branchPicker && <BranchPicker />}
             <AssistantActionBar config={config} />
           </div>
@@ -727,7 +708,7 @@ const AssistantMessage: FC<AssistantMessageProps> = ({ config }) => {
 
 const FollowUpSuggestions: FC = () => {
   return (
-    <div className="mt-4 flex flex-wrap gap-2">
+    <div className="flex flex-wrap gap-2">
       <ThreadPrimitive.Suggestion
         prompt="Tell me more"
         className="rounded-full px-3 py-1 text-sm"
@@ -900,7 +881,7 @@ function isLightColor(hexColor: string): boolean {
 }
 
 const MarkdownCodeHeader: FC<CodeHeaderProps> = ({ language }) => (
-  <div className="mt-4 flex items-center justify-between gap-4 rounded-t-lg bg-zinc-800 px-4 py-2 font-semibold text-sm text-zinc-300 dark:bg-zinc-700">
+  <div className="mt-4 flex items-center gap-4 rounded-t-lg border border-b-0 px-4 py-2 font-medium text-muted-foreground text-sm">
     <span className="lowercase">{language}</span>
   </div>
 );
@@ -974,7 +955,7 @@ const MarkdownPre: FC<React.ComponentProps<"pre">> = ({
 }) => (
   <pre
     className={cn(
-      "overflow-x-auto rounded-b-lg bg-zinc-900 p-4 text-white dark:bg-zinc-800",
+      "overflow-x-auto rounded-b-lg border border-t-0 p-4",
       className,
     )}
     {...props}
@@ -1021,8 +1002,8 @@ const createSyntaxHighlighter = (
       theme={SHIKI_THEME_MAP[theme]}
       addDefaultStyles={false}
       showLanguage={false}
-      defaultColor="light-dark()"
-      className="[&_pre]:overflow-x-auto [&_pre]:rounded-b-lg [&_pre]:bg-zinc-900 [&_pre]:p-4 dark:[&_pre]:bg-zinc-800"
+      as="div"
+      className="not-fumadocs-codeblock overflow-x-auto rounded-b-lg border border-t-0 p-4 [&_.line:last-child:empty]:hidden"
     >
       {code}
     </ShikiHighlighter>

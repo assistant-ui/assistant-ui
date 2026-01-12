@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+
 import type { ThemeColor } from "@/components/builder/types";
 
 export type { ThemeColor };
@@ -88,7 +89,6 @@ export function OptionalThemeColorPicker({
             isCustom ? "ring-black/10" : "opacity-50 ring-black/5"
           }`}
           style={{ backgroundColor: displayValue.light }}
-          title={isCustom ? "Light mode color" : "Default (click to customize)"}
         />
         <input
           type="color"
@@ -103,7 +103,6 @@ export function OptionalThemeColorPicker({
             isCustom ? "ring-black/10" : "opacity-50 ring-black/5"
           }`}
           style={{ backgroundColor: displayValue.dark }}
-          title={isCustom ? "Dark mode color" : "Default (click to customize)"}
         />
         <input
           type="color"

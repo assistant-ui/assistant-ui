@@ -1,6 +1,6 @@
 export type Theme = "light" | "dark" | "system";
 export type BorderRadius = "none" | "sm" | "md" | "lg" | "full";
-export type FontSize = "sm" | "base" | "lg";
+export type FontSize = "13px" | "14px" | "15px" | "16px";
 export type MessageSpacing = "compact" | "comfortable" | "spacious";
 export type TypingIndicator = "none" | "dot";
 export type LoadingIndicator = "none" | "spinner" | "text";
@@ -133,7 +133,7 @@ export const DEFAULT_CONFIG: BuilderConfig = {
     borderRadius: "lg",
     maxWidth: "44rem",
     fontFamily: "system-ui",
-    fontSize: "base",
+    fontSize: "14px",
     messageSpacing: "comfortable",
     userMessagePosition: "right",
     animations: true,
@@ -143,15 +143,16 @@ export const DEFAULT_CONFIG: BuilderConfig = {
 export const FONT_FAMILIES = [
   { label: "System", value: "system-ui" },
   { label: "Inter", value: "Inter, sans-serif" },
-  { label: "Geist", value: "Geist, sans-serif" },
+  { label: "Geist", value: "GeistSans, sans-serif" },
   { label: "Serif", value: "Georgia, serif" },
   { label: "Mono", value: "ui-monospace, monospace" },
 ] as const;
 
 export const FONT_SIZES = [
-  { label: "Small", value: "sm" },
-  { label: "Default", value: "base" },
-  { label: "Large", value: "lg" },
+  { label: "13px", value: "13px" },
+  { label: "14px", value: "14px" },
+  { label: "15px", value: "15px" },
+  { label: "16px", value: "16px" },
 ] as const;
 
 export const MAX_WIDTHS = [

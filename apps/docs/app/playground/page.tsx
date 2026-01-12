@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   CodeIcon,
   XIcon,
@@ -8,12 +8,20 @@ import {
   Tablet,
   Smartphone,
   Plus,
+  SlidersHorizontal,
 } from "lucide-react";
 import { ThreadListPrimitive } from "@assistant-ui/react";
 import { BuilderControls } from "@/components/builder/builder-controls";
 import { BuilderPreview } from "@/components/builder/builder-preview";
 import { BuilderCodeOutput } from "@/components/builder/builder-code-output";
 import { ShareButton } from "@/components/builder/share-button";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import {
   usePlaygroundState,
@@ -38,6 +46,7 @@ export default function PlaygroundPage() {
     setViewportWidth,
   } = usePlaygroundState();
 
+  const [controlsOpen, setControlsOpen] = useState(false);
   const isResizing = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -84,8 +93,8 @@ export default function PlaygroundPage() {
   );
 
   return (
-    <div className="flex h-full w-full gap-4 overflow-hidden bg-background p-4">
-      <div className="w-72 shrink-0 overflow-hidden lg:w-80">
+    <div className="flex h-full w-full gap-4 overflow-hidden bg-background p-2 md:p-4">
+      <div className="hidden w-72 shrink-0 overflow-hidden md:block lg:w-80">
         <BuilderControls config={config} onChange={setConfig} />
       </div>
 
@@ -93,8 +102,8 @@ export default function PlaygroundPage() {
         ref={containerRef}
         className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border bg-muted/30"
       >
-        <div className="flex shrink-0 items-center justify-between border-b bg-background/50 px-3 py-2">
-          <div className="flex items-center gap-1">
+        <div className="flex shrink-0 items-center justify-between border-b bg-background/50 px-2 py-2 md:px-3">
+          <div className="hidden items-center gap-1 md:flex">
             {(Object.keys(VIEWPORT_PRESETS) as ViewportPreset[]).map((key) => {
               const preset = VIEWPORT_PRESETS[key];
               const Icon = preset.icon;
@@ -119,6 +128,29 @@ export default function PlaygroundPage() {
             </span>
           </div>
 
+          <Sheet open={controlsOpen} onOpenChange={setControlsOpen}>
+            <SheetTrigger asChild>
+              <button
+                className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 font-medium text-muted-foreground text-xs transition-colors hover:bg-foreground/5 hover:text-foreground md:hidden"
+                aria-label="Open controls"
+              >
+                <SlidersHorizontal className="size-4" />
+                <span>Customize</span>
+              </button>
+            </SheetTrigger>
+            <SheetContent
+              side="bottom"
+              className="h-[85vh] overflow-hidden rounded-t-2xl"
+            >
+              <SheetHeader>
+                <SheetTitle>Customize</SheetTitle>
+              </SheetHeader>
+              <div className="h-[calc(100%-3rem)] overflow-y-auto px-4 pb-8">
+                <BuilderControls config={config} onChange={setConfig} />
+              </div>
+            </SheetContent>
+          </Sheet>
+
           <div className="flex items-center gap-1">
             <ShareButton />
 
@@ -127,7 +159,7 @@ export default function PlaygroundPage() {
               aria-label="New chat"
             >
               <Plus className="size-3.5" />
-              New
+              <span className="hidden sm:inline">New</span>
             </ThreadListPrimitive.New>
 
             <button
@@ -142,12 +174,12 @@ export default function PlaygroundPage() {
               {showCode ? (
                 <>
                   <XIcon className="size-3.5" />
-                  Close
+                  <span className="hidden sm:inline">Close</span>
                 </>
               ) : (
                 <>
                   <CodeIcon className="size-3.5" />
-                  Code
+                  <span className="hidden sm:inline">Code</span>
                 </>
               )}
             </button>
@@ -155,18 +187,18 @@ export default function PlaygroundPage() {
         </div>
 
         <div className="relative min-h-0 flex-1 overflow-hidden">
-          <div className="flex h-full items-stretch justify-center p-4">
+          <div className="flex h-full items-stretch justify-center p-2 md:p-4">
             {viewportWidth !== "100%" && (
               <div
                 onMouseDown={(e) => handleResizeStart(e, "left")}
-                className="group flex w-4 shrink-0 cursor-ew-resize items-center justify-center"
+                className="group hidden w-4 shrink-0 cursor-ew-resize items-center justify-center md:flex"
               >
                 <div className="h-12 w-1 rounded-full bg-border transition-colors group-hover:bg-foreground/30" />
               </div>
             )}
 
             <div
-              className="relative h-full overflow-hidden rounded-lg border bg-background shadow-sm"
+              className="max-md:!w-full relative h-full overflow-hidden rounded-lg border bg-background shadow-sm"
               style={{
                 width: viewportWidth === "100%" ? "100%" : viewportWidth,
                 maxWidth: "100%",
@@ -184,7 +216,7 @@ export default function PlaygroundPage() {
             {viewportWidth !== "100%" && (
               <div
                 onMouseDown={(e) => handleResizeStart(e, "right")}
-                className="group flex w-4 shrink-0 cursor-ew-resize items-center justify-center"
+                className="group hidden w-4 shrink-0 cursor-ew-resize items-center justify-center md:flex"
               >
                 <div className="h-12 w-1 rounded-full bg-border transition-colors group-hover:bg-foreground/30" />
               </div>
