@@ -364,6 +364,7 @@ export function fixJson(input: string): [string, string[]] {
 
           case "e":
           case "E":
+          case "+":
           case "-":
           case ".": {
             break;

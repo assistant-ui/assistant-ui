@@ -10,6 +10,13 @@ import {
 } from "react";
 import { useResource } from "@assistant-ui/tap/react";
 
+import type {
+  Unsubscribe,
+  AssistantEvent,
+  AssistantEventCallback,
+  AssistantEventSelector,
+} from "@assistant-ui/core";
+import { normalizeEventSelector } from "@assistant-ui/core";
 import {
   MessageClientApi,
   MessageClientState,
@@ -31,13 +38,6 @@ import {
   AttachmentClientApi,
   AttachmentClientState,
 } from "../../client/types/Attachment";
-import { Unsubscribe } from "../../types";
-import {
-  AssistantEvent,
-  AssistantEventCallback,
-  AssistantEventSelector,
-  normalizeEventSelector,
-} from "../../types/EventTypes";
 import {
   ThreadListClientApi,
   ThreadListClientState,

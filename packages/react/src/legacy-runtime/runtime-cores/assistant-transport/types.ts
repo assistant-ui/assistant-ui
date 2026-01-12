@@ -1,5 +1,4 @@
-import { ReadonlyJSONValue } from "assistant-stream/utils";
-import { ThreadMessage } from "../../../types";
+import type { ReadonlyJSONValue, ThreadMessage } from "@assistant-ui/core";
 import { AttachmentAdapter, ThreadHistoryAdapter } from "..";
 import { UserCommands } from "../../../augmentations";
 import type { ToolExecutionStatus } from "./useToolInvocations";

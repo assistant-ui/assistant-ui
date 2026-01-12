@@ -71,9 +71,9 @@ describe("unstable_runPendingTools", () => {
 
       const executionTime = endTime - startTime;
 
-      expect(executionTime).toBeGreaterThanOrEqual(100);
-      // The execution time should be less than the sum of the delays of both tools.
-      expect(executionTime).toBeLessThan(300);
+      expect(executionTime).toBeGreaterThanOrEqual(90);
+      // The execution time should be less than the sum of the delays of all tools.
+      expect(executionTime).toBeLessThan(250);
 
       expect(updatedMessage.parts).toHaveLength(3);
       expect(updatedMessage.parts[0]).toMatchObject({

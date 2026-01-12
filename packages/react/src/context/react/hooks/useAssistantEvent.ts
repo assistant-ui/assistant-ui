@@ -1,11 +1,11 @@
 import { useEffect, useRef } from "react";
 import { useAssistantApi } from "../../react/AssistantApiContext";
-import {
+import type {
   AssistantEvent,
   AssistantEventCallback,
   AssistantEventSelector,
-  normalizeEventSelector,
-} from "../../../types/EventTypes";
+} from "@assistant-ui/core";
+import { normalizeEventSelector } from "@assistant-ui/core";
 
 export const useAssistantEvent = <TEvent extends AssistantEvent>(
   selector: AssistantEventSelector<TEvent>,

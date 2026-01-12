@@ -1,4 +1,4 @@
-import { ReadonlyJSONObject } from "assistant-stream/utils";
+import type { ReadonlyJSONObject } from "../stream/utils/json/json-value";
 import type { ThreadMessage } from "./AssistantTypes";
 
 export type TextMessagePart = {
@@ -43,7 +43,7 @@ export type Unstable_AudioMessagePart = {
   };
 };
 
-export type DataMessagePart<T = any> = {
+export type DataMessagePart<T = unknown> = {
   readonly type: "data";
   readonly name: string;
   readonly data: T;
