@@ -1,16 +1,18 @@
-import {
+import type {
   Attachment,
   CompleteAttachment,
   PendingAttachment,
 } from "../../../types/AttachmentTypes";
-import { AppendMessage } from "../../../types";
-import { AttachmentAdapter } from "../adapters/attachment";
-import {
+import type { AppendMessage, Unsubscribe } from "../../../types";
+import type { AttachmentAdapter } from "../adapters/attachment";
+import type {
   ComposerRuntimeCore,
   ComposerRuntimeEventType,
+  ListeningState,
 } from "../core/ComposerRuntimeCore";
-import { MessageRole, RunConfig } from "../../../types/AssistantTypes";
+import type { MessageRole, RunConfig } from "../../../types/AssistantTypes";
 import { BaseSubscribable } from "../remote-thread-list/BaseSubscribable";
+import type { SpeechRecognitionAdapter } from "../adapters/speech/SpeechAdapterTypes";
 
 const isAttachmentComplete = (a: Attachment): a is CompleteAttachment =>
   a.status.type === "complete";
@@ -22,6 +24,9 @@ export abstract class BaseComposerRuntimeCore
   public readonly isEditing = true;
 
   protected abstract getAttachmentAdapter(): AttachmentAdapter | undefined;
+  protected abstract getSpeechRecognitionAdapter():
+    | SpeechRecognitionAdapter
+    | undefined;
 
   public get attachmentAccept(): string {
     return this.getAttachmentAdapter()?.accept ?? "*";
@@ -65,6 +70,15 @@ export abstract class BaseComposerRuntimeCore
     if (this._text === value) return;
 
     this._text = value;
+    // When dictation is active and the user manually edits the composer text,
+    // treat the new text as the updated base so speech results are appended
+    // instead of overwriting manual edits.
+    if (this._listening) {
+      this._dictationBaseText = value;
+      this._currentInterimText = "";
+      const { status, inputDisabled } = this._listening;
+      this._listening = inputDisabled ? { status, inputDisabled } : { status };
+    }
     this._notifySubscribers();
   }
 
@@ -121,6 +135,11 @@ export abstract class BaseComposerRuntimeCore
   }
 
   public async send() {
+    if (this._listeningSession) {
+      this._listeningSession.cancel();
+      this._cleanupListening();
+    }
+
     const adapter = this.getAttachmentAdapter();
     const attachments =
       adapter && this.attachments.length > 0
@@ -207,6 +226,162 @@ export abstract class BaseComposerRuntimeCore
       ...this._attachments.slice(index + 1),
     ];
     this._notifySubscribers();
+  }
+
+  private _listening: ListeningState | undefined;
+  private _listeningSession: SpeechRecognitionAdapter.Session | undefined;
+  private _listeningUnsubscribes: Unsubscribe[] = [];
+  private _dictationBaseText = "";
+  private _currentInterimText = "";
+  private _listeningSessionIdCounter = 0;
+  private _activeListeningSessionId: number | undefined;
+  private _isCleaningListening = false;
+
+  public get listening(): ListeningState | undefined {
+    return this._listening;
+  }
+
+  public startListening(): void {
+    const adapter = this.getSpeechRecognitionAdapter();
+    if (!adapter) {
+      throw new Error("Speech recognition adapter not configured");
+    }
+
+    if (this._listeningSession) {
+      for (const unsub of this._listeningUnsubscribes) {
+        unsub();
+      }
+      this._listeningUnsubscribes = [];
+      const oldSession = this._listeningSession;
+      oldSession.stop().catch(() => {});
+      this._listeningSession = undefined;
+    }
+
+    const inputDisabled = adapter.disableInputDuringListening ?? false;
+
+    this._dictationBaseText = this._text;
+    this._currentInterimText = "";
+
+    const session = adapter.listen();
+    this._listeningSession = session;
+    const sessionId = ++this._listeningSessionIdCounter;
+    this._activeListeningSessionId = sessionId;
+    this._listening = { status: session.status, inputDisabled };
+    this._notifySubscribers();
+
+    const unsubSpeech = session.onSpeech((result) => {
+      if (
+        this._activeListeningSessionId !== sessionId ||
+        this._listeningSession !== session
+      ) {
+        return;
+      }
+      const isFinal = result.isFinal !== false;
+
+      const needsSeparator =
+        this._dictationBaseText &&
+        !this._dictationBaseText.endsWith(" ") &&
+        result.transcript;
+      const separator = needsSeparator ? " " : "";
+
+      if (isFinal) {
+        this._dictationBaseText =
+          this._dictationBaseText + separator + result.transcript;
+        this._currentInterimText = "";
+        this._text = this._dictationBaseText;
+
+        if (this._listening) {
+          const { transcript: _, ...rest } = this._listening;
+          this._listening = rest;
+        }
+        this._notifySubscribers();
+      } else {
+        this._currentInterimText = separator + result.transcript;
+        this._text = this._dictationBaseText + this._currentInterimText;
+
+        if (this._listening) {
+          this._listening = {
+            ...this._listening,
+            transcript: result.transcript,
+          };
+        }
+        this._notifySubscribers();
+      }
+    });
+    this._listeningUnsubscribes.push(unsubSpeech);
+
+    const unsubStart = session.onSpeechStart(() => {
+      if (
+        this._activeListeningSessionId !== sessionId ||
+        this._listeningSession !== session
+      ) {
+        return;
+      }
+      const currentTranscript = this._listening?.transcript;
+      this._listening = currentTranscript
+        ? {
+            status: { type: "running" },
+            transcript: currentTranscript,
+            inputDisabled,
+          }
+        : { status: { type: "running" }, inputDisabled };
+      this._notifySubscribers();
+    });
+    this._listeningUnsubscribes.push(unsubStart);
+
+    const unsubEnd = session.onSpeechEnd(() => {
+      this._cleanupListening({ sessionId });
+    });
+    this._listeningUnsubscribes.push(unsubEnd);
+
+    const statusInterval = setInterval(() => {
+      if (
+        this._activeListeningSessionId !== sessionId ||
+        this._listeningSession !== session
+      ) {
+        return;
+      }
+      if (session.status.type === "ended") {
+        this._cleanupListening({ sessionId });
+      }
+    }, 100);
+    this._listeningUnsubscribes.push(() => clearInterval(statusInterval));
+  }
+
+  public stopListening(): void {
+    if (!this._listeningSession) return;
+
+    const session = this._listeningSession;
+    const sessionId = this._activeListeningSessionId;
+    session.stop().finally(() => {
+      this._cleanupListening({ sessionId });
+    });
+  }
+
+  private _cleanupListening(options?: { sessionId: number | undefined }): void {
+    if (
+      options?.sessionId !== undefined &&
+      options.sessionId !== this._activeListeningSessionId
+    ) {
+      return;
+    }
+    if (this._isCleaningListening) return;
+    this._isCleaningListening = true;
+    try {
+      for (const unsub of this._listeningUnsubscribes) {
+        unsub();
+      }
+      this._listeningUnsubscribes = [];
+
+      this._listeningSession = undefined;
+      this._activeListeningSessionId = undefined;
+      this._listening = undefined;
+      this._dictationBaseText = "";
+      this._currentInterimText = "";
+      this._notifySubscribers();
+    } finally {
+      this._isCleaningListening = false;
+    }
   }
 
   private _eventSubscribers = new Map<
