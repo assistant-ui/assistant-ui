@@ -157,7 +157,7 @@ const AttachmentUI: FC = () => {
         className={cn(
           "aui-attachment-root relative",
           isImage &&
-            "aui-attachment-root-composer only:[&>#attachment-tile]:size-24",
+            "aui-attachment-root-composer only:[&>.aui-attachment-tile]:size-24",
         )}
       >
         <AttachmentPreviewDialog>
