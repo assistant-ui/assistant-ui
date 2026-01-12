@@ -2,7 +2,8 @@ import Link from "next/link";
 import type { ReactElement } from "react";
 import type { Metadata } from "next";
 import { createOgMetadata } from "@/lib/og";
-import { careers, CareerPage } from "@/lib/source";
+import { careers, type CareerPage } from "@/lib/source";
+import { ArrowRight } from "lucide-react";
 
 const title = "Careers";
 const description =
@@ -31,63 +32,64 @@ export default function CareersPage(): ReactElement {
   });
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-24 px-6 pt-20 pb-24 sm:px-8 lg:px-0">
-      <section className="space-y-6 text-center">
-        <p className="text-muted-foreground text-sm uppercase tracking-[0.3em]">
-          Careers
-        </p>
-        <h1 className="font-semibold text-4xl tracking-tight sm:text-5xl">
-          Build the future of agentic UI with us
+    <main className="mx-auto w-full max-w-3xl px-4 py-16 md:py-24">
+      <header className="mb-12">
+        <p className="mb-3 text-muted-foreground text-sm">Careers</p>
+        <h1 className="font-medium text-2xl tracking-tight">
+          Build the future of agentic UI
         </h1>
-        <p className="mx-auto max-w-2xl text-base text-muted-foreground sm:text-lg">
+        <p className="mt-2 max-w-xl text-muted-foreground">
           We&apos;re a small, product-obsessed team crafting the tools that
-          power the next generation of AI-native products. Join us if you care
-          about beautiful interfaces, fast iteration, and developer velocity.
+          power the next generation of AI-native products.
         </p>
-      </section>
+      </header>
 
-      <section className="grid gap-10">
-        <div className="space-y-3">
-          <h2 className="font-semibold text-xl">Open roles</h2>
+      <section>
+        <div className="mb-6 flex items-center justify-between">
+          <h2 className="font-medium text-sm">Open roles</h2>
           <p className="text-muted-foreground text-sm">
-            Don&apos;t see the perfect fit? We&apos;d still love to hear from
-            you - drop us a note at
-            <span className="px-1 font-medium text-foreground">
-              <a href="mailto:hello@assistant-ui.com">hello@assistant-ui.com</a>
-            </span>
-            .
+            {roles.length} {roles.length === 1 ? "position" : "positions"}
           </p>
         </div>
 
-        <div className="overflow-hidden border border-border/70 border-dashed bg-background/80">
-          <div className="divide-y divide-dashed divide-border/70">
-            {roles.map((role) => (
-              <article key={role.url} className="group">
-                <div className="flex flex-col gap-4 px-6 py-8 transition-colors duration-200 group-hover:bg-primary/5 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="space-y-2">
-                    <h3 className="font-medium text-2xl tracking-tight">
-                      {role.data.title}
-                    </h3>
-                    <p className="flex flex-wrap items-center gap-3 text-muted-foreground text-sm">
-                      <span>{role.data.location}</span>
-                      <span className="text-muted-foreground/40">•</span>
-                      <span>{role.data.type}</span>
-                      <span className="text-muted-foreground/40">•</span>
+        <div className="space-y-6">
+          {roles.map((role) => (
+            <Link
+              key={role.url}
+              href={role.url}
+              className="group flex items-center justify-between gap-4"
+            >
+              <div className="min-w-0 flex-1">
+                <h3 className="font-medium">{role.data.title}</h3>
+                <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-muted-foreground text-sm">
+                  <span>{role.data.location}</span>
+                  <span className="text-muted-foreground/40">·</span>
+                  <span>{role.data.type}</span>
+                  {role.data.salary && (
+                    <>
+                      <span className="text-muted-foreground/40">·</span>
                       <span>{role.data.salary}</span>
-                    </p>
-                  </div>
-                  <Link
-                    href={role.url}
-                    className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 font-medium text-foreground text-sm transition-colors hover:border-primary hover:bg-primary/5 hover:text-primary"
-                  >
-                    Read more
-                  </Link>
-                </div>
-              </article>
-            ))}
-          </div>
+                    </>
+                  )}
+                </p>
+              </div>
+              <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+            </Link>
+          ))}
         </div>
       </section>
-    </div>
+
+      <section className="mt-16">
+        <p className="text-muted-foreground">
+          Don&apos;t see the perfect fit?{" "}
+          <a
+            href="mailto:hello@assistant-ui.com"
+            className="font-medium text-foreground transition-colors hover:text-foreground/70"
+          >
+            Reach out anyway →
+          </a>
+        </p>
+      </section>
+    </main>
   );
 }
