@@ -1,5 +1,14 @@
 # @assistant-ui/react-a2a
 
+## 1.0.0
+
+### Patch Changes
+
+- Updated dependencies [ab2259d]
+- Updated dependencies [699e585]
+- Updated dependencies [4b63488]
+  - @assistant-ui/react@0.12.0
+
 ## 0.1.5
 
 ### Patch Changes
