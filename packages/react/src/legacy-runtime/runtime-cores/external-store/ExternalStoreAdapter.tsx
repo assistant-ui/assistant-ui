@@ -7,6 +7,7 @@ import {
   ThreadSuggestion,
 } from "../core/ThreadRuntimeCore";
 import { FeedbackAdapter } from "../adapters/feedback/FeedbackAdapter";
+import { ResumableAdapter } from "../adapters/resumable/ResumableAdapter";
 import { SpeechSynthesisAdapter } from "../adapters/speech/SpeechAdapterTypes";
 import { ThreadMessageLike } from "./ThreadMessageLike";
 import { ExportedMessageRepository } from "../utils/MessageRepository";
@@ -86,6 +87,7 @@ type ExternalStoreAdapterBase<T> = {
         attachments?: AttachmentAdapter | undefined;
         speech?: SpeechSynthesisAdapter | undefined;
         feedback?: FeedbackAdapter | undefined;
+        resumable?: ResumableAdapter | undefined;
         /**
          * @deprecated This API is still under active development and might change without notice.
          */

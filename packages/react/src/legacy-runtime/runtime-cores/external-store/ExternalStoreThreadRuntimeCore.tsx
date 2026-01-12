@@ -52,6 +52,7 @@ export class ExternalStoreThreadRuntimeCore
     speech: false,
     attachments: false,
     feedback: false,
+    resumable: false,
   };
 
   public get capabilities() {
@@ -118,6 +119,7 @@ export class ExternalStoreThreadRuntimeCore
       unstable_copy: this._store.unstable_capabilities?.copy !== false, // default true
       attachments: !!this._store.adapters?.attachments,
       feedback: !!this._store.adapters?.feedback,
+      resumable: !!this._store.adapters?.resumable,
     };
 
     let messages: readonly ThreadMessage[];
@@ -207,7 +209,16 @@ export class ExternalStoreThreadRuntimeCore
         this._notifyEventSubscribers("run-start");
       } else {
         this._notifyEventSubscribers("run-end");
+        const resumableAdapter = this._store.adapters?.resumable;
+        if (resumableAdapter?.storage) {
+          resumableAdapter.storage.clearAll();
+        }
       }
+    }
+
+    const resumableAdapter = this._store.adapters?.resumable;
+    if (resumableAdapter?.storage && isRunning && store.state !== undefined) {
+      resumableAdapter.storage.setState(store.state);
     }
 
     if (this._assistantOptimisticId) {

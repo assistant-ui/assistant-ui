@@ -1,8 +1,12 @@
 import { ReadonlyJSONValue } from "assistant-stream/utils";
 import { ThreadMessage } from "../../../types";
-import { AttachmentAdapter, ThreadHistoryAdapter } from "..";
+import { AttachmentAdapter, ResumableAdapter, ThreadHistoryAdapter } from "..";
 import { UserCommands } from "../../../augmentations";
 import type { ToolExecutionStatus } from "./useToolInvocations";
+
+export type TransportResumableAdapter = ResumableAdapter & {
+  resumeApi?: string | ((streamId: string) => string);
+};
 
 // Message part types
 export type TextPart = {
@@ -112,6 +116,7 @@ export type AssistantTransportOptions<T> = {
   adapters?: {
     attachments?: AttachmentAdapter | undefined;
     history?: ThreadHistoryAdapter | undefined;
+    resumable?: TransportResumableAdapter | undefined;
   };
 };
 
