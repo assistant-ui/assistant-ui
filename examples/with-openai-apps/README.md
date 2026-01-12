@@ -82,3 +82,23 @@ Open http://localhost:3005 and try:
 - "Add items to my cart" (shopping cart server)
 
 Each server runs independently and can be developed/deployed separately.
+
+## Tool Namespacing
+
+When multiple servers are enabled, tools are namespaced using the pattern `serverId__toolName` to prevent collisions. For example:
+
+- `pizzaz-node__pizza-map`
+- `pizzaz-python__pizza-map`
+- `kitchen-sink-node__todo_list`
+
+This format is required for OpenAI compatibility (function names must match `^[a-zA-Z0-9_-]{1,64}$`).
+
+The LLM sees and uses these full namespaced names. When you ask "show me pizza places", the model will call the appropriate namespaced tool based on which servers are enabled.
+
+## Production Deployment
+
+This example uses hardcoded `localhost:4444` for the assets server. For production:
+
+1. Set `ASSETS_BASE_URL` environment variable to your assets server URL
+2. Restrict CORS to your actual client origin (currently uses `*` for development)
+3. Deploy widget assets to a CDN or static hosting service

@@ -8,6 +8,7 @@ import { generateBridgeScript } from "@assistant-ui/tool-ui-server";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ASSETS_DIR = join(__dirname, "assets");
 const PORT = process.env.PORT || 4444;
+const BASE_URL = process.env.ASSETS_BASE_URL || `http://localhost:${PORT}`;
 
 function injectBridgeScript(html) {
   const bridgeScript = generateBridgeScript();
@@ -160,7 +161,7 @@ app.get("/v1/servers/:serverId/manifest.json", (req, res) => {
     version: "1.0",
     serverId,
     serverName: config.serverName,
-    bundleUrl: `http://localhost:${PORT}/bundle.js`,
+    bundleUrl: `${BASE_URL}/bundle.js`,
     bundleHash,
     components: config.components.map((c) => ({
       name: c.name,
