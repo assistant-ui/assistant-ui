@@ -1,12 +1,17 @@
 import Link from "next/link";
 import type { ReactElement } from "react";
-import { Metadata } from "next";
+import type { Metadata } from "next";
+import { createOgMetadata } from "@/lib/og";
 import { careers, CareerPage } from "@/lib/source";
 
+const title = "Careers";
+const description =
+  "Help build the future of agentic UI. Explore open roles at assistant-ui.";
+
 export const metadata: Metadata = {
-  title: "Careers",
-  description:
-    "Help build the future of agentic UI. Explore open roles at assistant-ui.",
+  title,
+  description,
+  ...createOgMetadata(title, description),
 };
 
 const roleOrder = (value: unknown, fallback: number) => {

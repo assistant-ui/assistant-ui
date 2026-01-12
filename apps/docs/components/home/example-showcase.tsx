@@ -6,7 +6,7 @@ import { Perplexity } from "@/components/example/perplexity/Perplexity";
 import { Shadcn } from "@/components/example/shadcn/Shadcn";
 import { Tab } from "@/components/shared/tab";
 import { DocsRuntimeProvider } from "@/app/(home)/DocsRuntimeProvider";
-import { Grok } from "@/components/grok/Grok";
+import { Grok } from "@/components/example/grok/Grok";
 
 const ExampleWrapper = ({ children }: { children: React.ReactNode }) => (
   <div className="h-full overflow-hidden rounded-lg border">{children}</div>
@@ -39,6 +39,16 @@ const EXAMPLE_TABS = [
       <ExampleWrapper>
         <DocsRuntimeProvider>
           <Claude />
+        </DocsRuntimeProvider>
+      </ExampleWrapper>
+    ),
+  },
+  {
+    label: "Grok",
+    value: (
+      <ExampleWrapper>
+        <DocsRuntimeProvider>
+          <Grok />
         </DocsRuntimeProvider>
       </ExampleWrapper>
     ),

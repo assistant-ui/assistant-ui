@@ -1,5 +1,5 @@
 {
-  "projectName": "assistant-ui-with-tanstack",
+  "projectName": "with-tanstack",
   "mode": "file-router",
   "typescript": true,
   "tailwind": true,
