@@ -115,7 +115,7 @@ export default function ShowcasePage() {
         ))}
       </div>
 
-      <section className="mt-24 border-border border-t pt-12">
+      <section className="mt-16">
         <p className="text-muted-foreground">
           Building something cool?{" "}
           <a
@@ -166,7 +166,7 @@ function ShowcaseCard({
         </div>
 
         <Link href={link} target="_blank" rel="noopener noreferrer">
-          <h3 className="font-medium transition-colors group-hover:text-muted-foreground">
+          <h3 className="font-medium text-foreground/80 transition-colors group-hover:text-foreground">
             {title}
           </h3>
         </Link>
@@ -176,7 +176,7 @@ function ShowcaseCard({
         </p>
 
         {(repositoryLink || announcementLink) && (
-          <div className="mt-3 flex items-center gap-3 border-border border-t pt-3">
+          <div className="mt-4 flex items-center gap-3">
             {repositoryLink && (
               <Link
                 href={repositoryLink}

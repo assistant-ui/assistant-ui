@@ -42,10 +42,10 @@ export default function BlogPage(): React.ReactElement {
           <Link
             key={post.url}
             href={post.url}
-            className="group flex items-start justify-between gap-4"
+            className="group block sm:flex sm:items-start sm:justify-between sm:gap-4"
           >
-            <div className="min-w-0 flex-1">
-              <h2 className="font-medium transition-colors group-hover:text-muted-foreground">
+            <div className="min-w-0 sm:flex-1">
+              <h2 className="font-medium text-foreground/80 transition-colors group-hover:text-foreground">
                 {post.data.title}
               </h2>
               {post.data.description && (
@@ -55,7 +55,7 @@ export default function BlogPage(): React.ReactElement {
               )}
             </div>
             {post.data.date && (
-              <time className="shrink-0 text-muted-foreground text-sm">
+              <time className="mt-2 block text-muted-foreground text-sm sm:mt-0 sm:shrink-0">
                 {formatDate(post.data.date)}
               </time>
             )}

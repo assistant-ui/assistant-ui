@@ -3,7 +3,6 @@ import type { ReactElement } from "react";
 import type { Metadata } from "next";
 import { createOgMetadata } from "@/lib/og";
 import { careers, type CareerPage } from "@/lib/source";
-import { ArrowRight } from "lucide-react";
 
 const title = "Careers";
 const description =
@@ -54,26 +53,21 @@ export default function CareersPage(): ReactElement {
 
         <div className="space-y-6">
           {roles.map((role) => (
-            <Link
-              key={role.url}
-              href={role.url}
-              className="group flex items-center justify-between gap-4"
-            >
-              <div className="min-w-0 flex-1">
-                <h3 className="font-medium">{role.data.title}</h3>
-                <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-muted-foreground text-sm">
-                  <span>{role.data.location}</span>
-                  <span className="text-muted-foreground/40">·</span>
-                  <span>{role.data.type}</span>
-                  {role.data.salary && (
-                    <>
-                      <span className="text-muted-foreground/40">·</span>
-                      <span>{role.data.salary}</span>
-                    </>
-                  )}
-                </p>
-              </div>
-              <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+            <Link key={role.url} href={role.url} className="group block">
+              <h3 className="font-medium text-foreground/80 transition-colors group-hover:text-foreground">
+                {role.data.title}
+              </h3>
+              <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-muted-foreground text-sm">
+                <span>{role.data.location}</span>
+                <span className="text-muted-foreground/40">·</span>
+                <span>{role.data.type}</span>
+                {role.data.salary && (
+                  <>
+                    <span className="text-muted-foreground/40">·</span>
+                    <span>{role.data.salary}</span>
+                  </>
+                )}
+              </p>
             </Link>
           ))}
         </div>
