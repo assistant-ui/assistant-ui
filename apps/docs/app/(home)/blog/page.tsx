@@ -20,7 +20,7 @@ export default function Page(): React.ReactElement {
   return (
     <main className="mx-auto w-full max-w-screen-sm p-4 py-12">
       <h1 className="mb-4 px-4 pb-2 font-bold text-4xl">assistant-ui Blog</h1>
-      <div className="flex flex-col">
+      <div className="flex flex-col gap-2">
         {posts.map((post) => (
           <Link
             key={post.url}
