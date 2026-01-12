@@ -1,5 +1,16 @@
+import type { Metadata } from "next";
+import { createOgMetadata } from "@/lib/og";
 import PricingSection from "./pricing-section";
 import OpenSourceCard from "./open-source-card";
+
+const title = "Pricing";
+const description = "Fully managed backend for AI chat applications";
+
+export const metadata: Metadata = {
+  title,
+  description,
+  ...createOgMetadata(title, description),
+};
 
 export default function PricingPage() {
   return (

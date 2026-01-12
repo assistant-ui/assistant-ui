@@ -1,5 +1,6 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "ui": "tui",
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
@@ -9,7 +10,8 @@
         ".next/**",
         "!.next/cache/**",
         "generated/**",
-        ".output/**"
+        ".output/**",
+        "build/**"
       ],
       "env": [
         "OPENAI_*",
