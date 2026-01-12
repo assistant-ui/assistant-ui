@@ -1,0 +1,10 @@
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 1rem;
+  margin: 0;
+  padding: 0;
+}

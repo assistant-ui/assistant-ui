@@ -1,0 +1,233 @@
+:root {
+  --color-bg: #ffffff;
+  --color-text: #1f2937;
+  --color-text-muted: #6b7280;
+  --color-primary: #2563eb;
+  --color-primary-hover: #1d4ed8;
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+  --color-bar-bg: #e5e7eb;
+  --color-card-bg: #f9fafb;
+  --color-border: #e5e7eb;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: #111827;
+    --color-text: #f9fafb;
+    --color-text-muted: #9ca3af;
+    --color-primary: #3b82f6;
+    --color-primary-hover: #60a5fa;
+    --color-success: #34d399;
+    --color-warning: #fbbf24;
+    --color-danger: #f87171;
+    --color-bar-bg: #374151;
+    --color-card-bg: #1f2937;
+    --color-border: #374151;
+  }
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.main {
+  width: 100%;
+  margin: 0 auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Header */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.btn {
+  padding: 6px 16px;
+  min-width: 60px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border: none;
+  border-radius: 6px;
+  background: var(--color-primary);
+  color: white;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.btn:hover {
+  background: var(--color-primary-hover);
+}
+
+.btn.active {
+  background: var(--color-danger);
+}
+
+.btn.active:hover {
+  background: #dc2626;
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.status-text {
+  min-width: 8ch;
+  font-family: ui-monospace, monospace;
+  text-align: right;
+}
+
+.status-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-text-muted);
+}
+
+.status-indicator.polling {
+  background: var(--color-success);
+  animation: pulse 1.5s infinite;
+}
+
+.status-indicator.error {
+  background: var(--color-danger);
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Section titles */
+.section-title {
+  margin: 0 0 8px 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+}
+
+/* Chart section */
+.chart-section {
+  background: var(--color-card-bg);
+  border-radius: 8px;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+}
+
+.chart-container {
+  position: relative;
+  height: 200px;
+}
+
+/* Memory section */
+.memory-section {
+  background: var(--color-card-bg);
+  border-radius: 8px;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+}
+
+.memory-bar-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.memory-bar {
+  flex: 1;
+  height: 20px;
+  background: var(--color-bar-bg);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.memory-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--color-success);
+  border-radius: 10px;
+  transition: width 0.3s ease, background 0.3s ease;
+}
+
+.memory-bar-fill.warning {
+  background: var(--color-warning);
+}
+
+.memory-bar-fill.danger {
+  background: var(--color-danger);
+}
+
+.memory-percent {
+  font-size: 1.25rem;
+  font-weight: 600;
+  min-width: 50px;
+  text-align: right;
+}
+
+.memory-detail {
+  margin-top: 4px;
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+}
+
+/* Info section */
+.info-section {
+  background: var(--color-card-bg);
+  border-radius: 8px;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+}
+
+.info-list {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.info-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.info-item dt {
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+}
+
+.info-item dd {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+}

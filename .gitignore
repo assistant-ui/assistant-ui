@@ -54,3 +54,5 @@ __pycache__
 specs/*
 .specstory/
 .cursorindexingignore
+examples/with-mcp-apps/servers/**/.venv/
+examples/with-mcp-apps/servers/**/node_modules/

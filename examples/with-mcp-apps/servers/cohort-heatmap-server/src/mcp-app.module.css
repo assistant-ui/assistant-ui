@@ -1,0 +1,238 @@
+/* CSS Variables for theming */
+.container {
+  --color-bg: #ffffff;
+  --color-text: #1f2937;
+  --color-text-muted: #6b7280;
+  --color-border: #e5e7eb;
+
+  /* Retention colors */
+  --color-retention-high: #22c55e;
+  --color-retention-medium: #eab308;
+  --color-retention-low: #f97316;
+  --color-retention-critical: #ef4444;
+
+  --color-highlight: rgba(59, 130, 246, 0.2);
+}
+
+@media (prefers-color-scheme: dark) {
+  .container {
+    --color-bg: #111827;
+    --color-text: #f9fafb;
+    --color-text-muted: #9ca3af;
+    --color-border: #374151;
+    --color-highlight: rgba(96, 165, 250, 0.25);
+  }
+}
+
+/* Layout */
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 600px;
+  max-height: 600px;
+  overflow: hidden;
+  padding: 12px;
+  gap: 8px;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.title {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.controls {
+  display: flex;
+  gap: 12px;
+}
+
+.control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.control select {
+  padding: 4px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: inherit;
+}
+
+/* Heatmap Grid */
+.heatmapWrapper {
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.heatmapGrid {
+  display: grid;
+  gap: 2px;
+  width: max-content;
+}
+
+.headerCorner {
+  width: 120px;
+}
+
+.headerPeriod {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  height: 20px;
+}
+
+.headerPeriod.highlighted {
+  background: var(--color-highlight);
+  border-radius: 4px;
+}
+
+/* Row Labels */
+.label {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-right: 8px;
+  width: 120px;
+}
+
+.label.highlighted {
+  background: var(--color-highlight);
+  border-radius: 4px;
+}
+
+.cohortName {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.cohortSize {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+/* Data Cells */
+.cell {
+  width: 44px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+
+.cell:hover {
+  transform: scale(1.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  z-index: 10;
+}
+
+.cell.highlighted {
+  outline: 2px solid var(--color-text);
+  outline-offset: 1px;
+}
+
+.cellEmpty {
+  width: 44px;
+  height: 32px;
+  background-color: var(--color-border);
+  border-radius: 3px;
+  opacity: 0.3;
+}
+
+/* Legend */
+.legend {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  font-size: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-border);
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legendColor {
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+}
+
+/* Tooltip */
+.tooltip {
+  position: fixed;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  pointer-events: none;
+  z-index: 100;
+  min-width: 180px;
+}
+
+.tooltipHeader {
+  font-weight: 600;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.tooltipRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+.tooltipLabel {
+  color: var(--color-text-muted);
+}
+
+.tooltipValue {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Loading/Error states */
+.loading, .error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  font-size: 14px;
+}
+
+.error {
+  color: var(--color-retention-critical);
+}

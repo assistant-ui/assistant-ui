@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light dark">
+  <title>Budget Allocator</title>
+</head>
+<body>
+  <div class="app-container">
+    <header class="header">
+      <h1 class="title">Budget Allocator</h1>
+      <select id="budget-selector" class="budget-select"></select>
+    </header>
+
+    <section class="chart-section">
+      <canvas id="budget-chart"></canvas>
+    </section>
+
+    <section class="sliders-section" id="sliders-container"></section>
+
+    <footer class="footer">
+      <div id="status-bar" class="status-bar">
+        Allocated: $0 / $0
+      </div>
+      <div class="comparison-bar">
+        <span id="comparison-summary">Loading benchmarks...</span>
+        <label class="stage-label">
+          Stage:
+          <select id="stage-selector" class="stage-select"></select>
+        </label>
+      </div>
+    </footer>
+  </div>
+  <script type="module" src="/src/mcp-app.ts"></script>
+</body>
+</html>

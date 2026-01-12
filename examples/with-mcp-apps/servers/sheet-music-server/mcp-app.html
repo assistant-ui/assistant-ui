@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light dark">
+  <title>Sheet Music Viewer</title>
+</head>
+<body>
+  <main class="main">
+    <header class="header">
+      <div id="audio-controls" class="audio-controls abcjs-large">
+        <!-- SynthController will inject audio controls here -->
+      </div>
+      <span id="status" class="status">Waiting for notation...</span>
+    </header>
+
+    <section class="sheet-section">
+      <div id="sheet-music" class="sheet-music-container">
+        <!-- ABC notation will be rendered here by abcjs -->
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="./src/mcp-app.ts"></script>
+</body>
+</html>

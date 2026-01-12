@@ -1,0 +1,65 @@
+.main {
+  --color-primary: #2563eb;
+  --color-primary-hover: #1d4ed8;
+  --color-notice-bg: #eff6ff;
+
+  width: 100%;
+  max-width: 425px;
+  box-sizing: border-box;
+
+  > * {
+    margin-top: 0;
+    margin-bottom: 0;
+  }
+
+  > * + * {
+    margin-top: 1.5rem;
+  }
+}
+
+.action {
+  > * {
+    margin-top: 0;
+    margin-bottom: 0;
+    width: 100%;
+  }
+
+  > * + * {
+    margin-top: 0.5rem;
+  }
+
+  /* Consistent font for form inputs (inherits from global.css) */
+  textarea,
+  input {
+    font-family: inherit;
+    font-size: inherit;
+  }
+
+  button {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 6px;
+    color: white;
+    font-weight: bold;
+    background-color: var(--color-primary);
+    cursor: pointer;
+
+    &:hover,
+    &:focus-visible {
+      background-color: var(--color-primary-hover);
+    }
+  }
+}
+
+.notice {
+  padding: 0.5rem 0.75rem;
+  color: var(--color-primary);
+  text-align: center;
+  font-style: italic;
+  background-color: var(--color-notice-bg);
+
+  &::before {
+    content: "ℹ️ ";
+    font-style: normal;
+  }
+}

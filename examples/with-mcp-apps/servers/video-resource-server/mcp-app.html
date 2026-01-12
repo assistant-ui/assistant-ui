@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light dark">
+  <title>Video Resource Player</title>
+</head>
+<body>
+  <main class="main">
+    <div id="loading" class="loading">
+      <div class="spinner"></div>
+      <p id="loading-text">Waiting for video...</p>
+    </div>
+
+    <div id="error" class="error" style="display: none;">
+      <p class="error-title">Error loading video</p>
+      <p id="error-message"></p>
+    </div>
+
+    <div id="player" class="player" style="display: none;">
+      <video id="video" controls></video>
+      <p id="video-info" class="video-info"></p>
+    </div>
+  </main>
+  <script type="module" src="/src/mcp-app.ts"></script>
+</body>
+</html>

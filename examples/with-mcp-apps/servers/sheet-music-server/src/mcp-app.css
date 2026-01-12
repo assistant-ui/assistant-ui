@@ -1,0 +1,87 @@
+:root {
+  --color-bg: #ffffff;
+  --color-text: #1f2937;
+  --color-text-muted: #6b7280;
+  --color-primary: #2563eb;
+  --color-success: #10b981;
+  --color-danger: #ef4444;
+  --color-card-bg: #f9fafb;
+  --color-border: #e5e7eb;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: #111827;
+    --color-text: #f9fafb;
+    --color-text-muted: #9ca3af;
+    --color-primary: #3b82f6;
+    --color-success: #34d399;
+    --color-danger: #f87171;
+    --color-card-bg: #1f2937;
+    --color-border: #374151;
+  }
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.main {
+  width: 100%;
+  margin: 0 auto;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Header */
+#audio-controls:empty {
+  display: none;
+}
+
+#audio-controls:not(:empty) ~ #status {
+  display: none;
+}
+
+.audio-controls {
+  width: 100%;
+
+  .abcjs-inline-audio {
+    border-radius: 8px;
+
+    /* Make loop button active state more visible */
+    .abcjs-midi-loop.abcjs-pushed {
+      background-color: var(--color-success) !important;
+      border-color: var(--color-success) !important;
+    }
+  }
+}
+
+.status {
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+}
+
+.status.error {
+  color: var(--color-danger);
+}
+
+
+/* Sheet Music Section */
+.sheet-section {
+  background: var(--color-card-bg);
+  border-radius: 8px;
+  padding: 16px;
+  border: 1px solid var(--color-border);
+  min-height: 500px;
+
+  .sheet-music-container {
+    width: 100%;
+    overflow-x: auto;
+  }
+}

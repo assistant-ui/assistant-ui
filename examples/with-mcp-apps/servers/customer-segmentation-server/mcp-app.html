@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light dark">
+  <title>Customer Segmentation Explorer</title>
+</head>
+<body>
+  <main class="main">
+    <header class="header">
+      <h1 class="title">Customer Segmentation</h1>
+    </header>
+
+    <section class="controls-section">
+      <label class="select-label">
+        X:
+        <select id="x-axis" class="select">
+          <option value="annualRevenue">Annual Revenue</option>
+          <option value="employeeCount">Employees</option>
+          <option value="accountAge">Account Age (mo)</option>
+          <option value="engagementScore">Engagement</option>
+          <option value="supportTickets">Support Tickets</option>
+          <option value="nps">NPS</option>
+        </select>
+      </label>
+      <label class="select-label">
+        Y:
+        <select id="y-axis" class="select">
+          <option value="annualRevenue">Annual Revenue</option>
+          <option value="employeeCount">Employees</option>
+          <option value="accountAge">Account Age (mo)</option>
+          <option value="engagementScore" selected>Engagement</option>
+          <option value="supportTickets">Support Tickets</option>
+          <option value="nps">NPS</option>
+        </select>
+      </label>
+      <label class="select-label">
+        Size:
+        <select id="size-metric" class="select">
+          <option value="off">Off</option>
+          <option value="annualRevenue">Annual Revenue</option>
+          <option value="employeeCount">Employees</option>
+          <option value="accountAge">Account Age (mo)</option>
+          <option value="engagementScore">Engagement</option>
+          <option value="supportTickets">Support Tickets</option>
+          <option value="nps">NPS</option>
+        </select>
+      </label>
+    </section>
+
+    <section class="chart-section">
+      <div class="chart-container">
+        <canvas id="scatter-chart"></canvas>
+      </div>
+    </section>
+
+    <section class="legend-section">
+      <div id="legend" class="legend"></div>
+    </section>
+
+    <section class="detail-section">
+      <div id="detail-panel" class="detail-panel">
+        <span class="detail-placeholder">Hover over a point to see details</span>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="./src/mcp-app.ts"></script>
+</body>
+</html>

@@ -1,0 +1,459 @@
+/* CSS Variables for theming */
+:root {
+  --color-bg: #ffffff;
+  --color-text: #1f2937;
+  --color-text-muted: #6b7280;
+  --color-border: #e5e7eb;
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+  --color-info: #3b82f6;
+  --slider-track: #e5e7eb;
+  --slider-thumb: #3b82f6;
+  --slider-thumb-size: 16px;
+  --card-bg: #f9fafb;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: #111827;
+    --color-text: #f9fafb;
+    --color-text-muted: #9ca3af;
+    --color-border: #374151;
+    --color-success: #34d399;
+    --color-warning: #fbbf24;
+    --color-danger: #f87171;
+    --color-info: #60a5fa;
+    --slider-track: #374151;
+    --slider-thumb: #60a5fa;
+    --card-bg: #1f2937;
+  }
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+/* App Container - Prefers 600px but shrinks responsively */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 600px;
+  width: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  overflow: hidden;
+  padding: 12px;
+  gap: 8px;
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* Header */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.budget-select {
+  padding: 6px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.budget-select:focus {
+  outline: 2px solid var(--color-info);
+  outline-offset: 1px;
+}
+
+/* Chart Section */
+.chart-section {
+  flex: 0 0 160px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 4px;
+}
+
+#budget-chart {
+  max-width: 150px;
+  max-height: 150px;
+}
+
+/* Sliders Section */
+.sliders-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow: visible;
+  min-height: 0;
+}
+
+/* Slider Row */
+.slider-row {
+  display: grid;
+  grid-template-columns: 95px 50px minmax(60px, 1fr) 56px 46px;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  background: var(--card-bg);
+  transition: background-color 0.15s ease;
+}
+
+.slider-row.highlighted {
+  background: var(--color-border);
+}
+
+/* Responsive: narrower screens */
+@media (max-width: 500px) {
+  .app-container {
+    padding: 8px;
+    gap: 6px;
+  }
+
+  .header {
+    padding-bottom: 6px;
+  }
+
+  .title {
+    font-size: 16px;
+  }
+
+  .chart-section {
+    flex: 0 0 120px;
+  }
+
+  #budget-chart {
+    max-width: 110px;
+    max-height: 110px;
+  }
+
+  .slider-row {
+    grid-template-columns: 85px 40px minmax(30px, 1fr) 48px 38px;
+    gap: 4px;
+    padding: 3px 4px;
+  }
+
+  .slider-label {
+    font-size: 12px;
+    gap: 4px;
+  }
+
+  .color-dot {
+    width: 8px;
+    height: 8px;
+  }
+
+  .sparkline {
+    width: 32px;
+    height: 16px;
+  }
+
+  .slider-value .percent {
+    font-size: 11px;
+  }
+
+  .slider-value .amount {
+    font-size: 9px;
+  }
+
+  .percentile-badge {
+    font-size: 9px;
+    padding: 2px 4px;
+  }
+
+  .status-bar {
+    font-size: 11px;
+    padding: 6px 8px;
+  }
+
+  .comparison-bar {
+    font-size: 10px;
+    padding: 6px 8px;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+}
+
+/* Very narrow screens: hide sparklines */
+@media (max-width: 380px) {
+  .slider-row {
+    grid-template-columns: 80px minmax(30px, 1fr) 44px 36px;
+  }
+
+  .sparkline-wrapper {
+    display: none;
+  }
+
+  .comparison-bar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+/* Slider Label */
+.slider-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.color-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: var(--category-color);
+  flex-shrink: 0;
+}
+
+.label-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Sparkline */
+.sparkline {
+  width: 50px;
+  height: 28px;
+  border-radius: 3px;
+  background: var(--color-border);
+  cursor: help;
+}
+
+.sparkline-wrapper {
+  position: relative;
+}
+
+.sparkline-wrapper:hover .sparkline-tooltip {
+  opacity: 1;
+  visibility: visible;
+}
+
+.sparkline-tooltip {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 5px 10px;
+  background: var(--color-text);
+  color: var(--color-bg);
+  font-size: 12px;
+  border-radius: 4px;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s ease;
+  pointer-events: none;
+  z-index: 10;
+  margin-bottom: 4px;
+}
+
+/* Slider Container - pad left to prevent thumb bleeding into sparkline */
+.slider-container {
+  overflow: visible;
+  padding: 4px 0 4px calc(var(--slider-thumb-size) / 2);
+}
+
+/* Range Slider */
+.slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--slider-track);
+  outline: none;
+  cursor: pointer;
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: var(--slider-thumb-size);
+  height: var(--slider-thumb-size);
+  border-radius: 50%;
+  background: var(--slider-thumb);
+  cursor: pointer;
+  transition: transform 0.1s ease;
+  border: 2px solid var(--color-bg);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.slider::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+}
+
+.slider::-moz-range-thumb {
+  width: var(--slider-thumb-size);
+  height: var(--slider-thumb-size);
+  border-radius: 50%;
+  background: var(--slider-thumb);
+  cursor: pointer;
+  border: 2px solid var(--color-bg);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.slider:focus {
+  outline: none;
+}
+
+.slider:focus::-webkit-slider-thumb {
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+}
+
+/* Slider Value Display */
+.slider-value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.slider-value .percent {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.slider-value .amount {
+  display: block;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+/* Percentile Badge */
+.percentile-badge {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 3px 6px;
+  border-radius: 4px;
+  text-align: center;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+
+.percentile-icon {
+  font-size: 8px;
+}
+
+.percentile-normal {
+  color: var(--color-success);
+  background: rgba(16, 185, 129, 0.15);
+}
+
+.percentile-high {
+  color: var(--color-info);
+  background: rgba(59, 130, 246, 0.15);
+}
+
+.percentile-low {
+  color: var(--color-warning);
+  background: rgba(245, 158, 11, 0.15);
+}
+
+/* Footer */
+.footer {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Status Bar */
+.status-bar {
+  padding: 10px 12px;
+  border-radius: 6px;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.status-balanced {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--color-success);
+}
+
+.status-warning {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--color-warning);
+}
+
+.status-warning.status-over {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--color-danger);
+}
+
+.status-icon {
+  font-size: 12px;
+}
+
+/* Comparison Bar */
+.comparison-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--card-bg);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.comparison-highlight {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.stage-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.stage-select {
+  padding: 4px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.stage-select:focus {
+  outline: 2px solid var(--color-info);
+  outline-offset: 1px;
+}

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light dark">
+  <title>System Monitor</title>
+</head>
+<body>
+  <main class="main">
+    <header class="header">
+      <h1 class="title">System Monitor</h1>
+      <div class="header-controls">
+        <button id="poll-toggle-btn" class="btn">Start</button>
+        <span class="status">
+          <span id="status-indicator" class="status-indicator"></span>
+          <span id="status-text" class="status-text">Ready</span>
+        </span>
+      </div>
+    </header>
+
+    <section class="chart-section">
+      <h2 class="section-title">CPU Usage</h2>
+      <div class="chart-container">
+        <canvas id="cpu-chart"></canvas>
+      </div>
+    </section>
+
+    <section class="memory-section">
+      <h2 class="section-title">Memory</h2>
+      <div class="memory-bar-container">
+        <div class="memory-bar">
+          <div id="memory-bar-fill" class="memory-bar-fill"></div>
+        </div>
+        <span id="memory-percent" class="memory-percent">--%</span>
+      </div>
+      <div id="memory-detail" class="memory-detail">-- / --</div>
+    </section>
+
+    <section class="info-section">
+      <h2 class="section-title">System Info</h2>
+      <dl class="info-list">
+        <div class="info-item">
+          <dt>Hostname</dt>
+          <dd id="info-hostname">--</dd>
+        </div>
+        <div class="info-item">
+          <dt>Platform</dt>
+          <dd id="info-platform">--</dd>
+        </div>
+        <div class="info-item">
+          <dt>Uptime</dt>
+          <dd id="info-uptime">--</dd>
+        </div>
+      </dl>
+    </section>
+  </main>
+
+  <script type="module" src="./src/mcp-app.ts"></script>
+</body>
+</html>
