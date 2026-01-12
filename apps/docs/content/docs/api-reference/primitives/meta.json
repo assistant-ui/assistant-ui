@@ -5,11 +5,13 @@
     "Thread",
     "ThreadList",
     "ThreadListItem",
+    "ThreadListItemMore",
     "Composer",
     "Message",
     "Error",
     "BranchPicker",
     "ActionBar",
+    "ActionBarMore",
     "MessagePart",
     "...",
     "composition"

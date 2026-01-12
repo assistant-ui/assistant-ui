@@ -115,6 +115,22 @@ const runtime = useDataStreamRuntime({
 });
 ```
 
+### Dynamic Body
+
+```tsx
+const runtime = useDataStreamRuntime({
+  api: "/api/chat",
+  headers: async () => ({
+    "Authorization": `Bearer ${await getAuthToken()}`,
+  }),
+  body: async () => ({
+    requestId: crypto.randomUUID(),
+    timestamp: Date.now(),
+    signature: await computeSignature(),
+  }),
+});
+```
+
 ### Event Callbacks
 
 ```tsx

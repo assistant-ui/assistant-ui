@@ -46,7 +46,7 @@ const INTERNAL_EXAMPLES: ExampleItem[] = [
     description: "Customized colors and styles for a Grok look and feel.",
     link: "/examples/grok",
     githubLink:
-      "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/grok/Grok.tsx",
+      "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/example/grok/Grok.tsx",
   },
   {
     title: "Perplexity Clone",
