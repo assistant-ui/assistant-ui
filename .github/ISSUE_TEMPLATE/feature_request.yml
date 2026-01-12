@@ -1,0 +1,40 @@
+name: Feature request
+description: Suggest an improvement or new capability for assistant-ui
+labels: ["enhancement"]
+
+body:
+  - type: textarea
+    attributes:
+      label: Problem statement
+      description: What problem are you trying to solve?
+      placeholder: |
+        I am trying to...
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Proposed solution (optional)
+      description: If you have an idea for an API or behavior, describe it here.
+
+  - type: dropdown
+    attributes:
+      label: Area
+      options:
+        - Runtime / Streaming
+        - React / UI
+        - Store / Persistence
+        - Tooling / DevTools
+        - Apps / Examples
+        - Documentation
+        - Unsure
+
+  - type: textarea
+    attributes:
+      label: Alternatives considered
+      description: Other approaches or workarounds you tried.
+
+  - type: textarea
+    attributes:
+      label: Additional context
+      description: Any extra details, links, or examples.
