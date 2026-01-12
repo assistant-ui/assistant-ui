@@ -91,12 +91,9 @@ export async function createMultiServerMCPClient(enabledServerIds: string[]) {
 
     connectedServers.push({ id: config.id, client, tools });
 
-    // Merge tools into aggregated set, prefixing with server ID to avoid collisions
     for (const [toolName, tool] of Object.entries(tools)) {
-      // Use server ID prefix if there's a collision, otherwise use plain name
-      const key =
-        toolName in aggregatedTools ? `${config.id}:${toolName}` : toolName;
-      aggregatedTools[key] = tool;
+      const namespacedName = `${config.id}:${toolName}`;
+      aggregatedTools[namespacedName] = tool;
     }
   }
 
