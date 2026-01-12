@@ -6,6 +6,12 @@ import { CheckIcon, CopyIcon, TerminalIcon, CodeIcon } from "lucide-react";
 
 import type { BuilderConfig } from "./types";
 import { configMatchesPreset } from "./presets";
+import {
+  BORDER_RADIUS_CLASS,
+  FONT_SIZE_CLASS,
+  MESSAGE_SPACING_CLASS,
+  isLightColor,
+} from "@/lib/builder-utils";
 import { encodeConfig } from "@/lib/playground-url-state";
 import { cn } from "@/lib/utils";
 
@@ -238,9 +244,9 @@ function generateComponentCode(config: BuilderConfig): string {
     .filter(Boolean)
     .join("\n");
 
-  const borderRadiusClass = getBorderRadiusClass(styles.borderRadius);
-  const fontSizeClass = getFontSizeClass(styles.fontSize);
-  const messageSpacingClass = getMessageSpacingClass(styles.messageSpacing);
+  const borderRadiusClass = BORDER_RADIUS_CLASS[styles.borderRadius];
+  const fontSizeClass = FONT_SIZE_CLASS[styles.fontSize];
+  const messageSpacingClass = MESSAGE_SPACING_CLASS[styles.messageSpacing];
   const accentColor = styles.colors.accent.light;
   const accentForeground = isLightColor(accentColor) ? "#000000" : "#ffffff";
 
@@ -718,50 +724,6 @@ function generateIconImports(config: BuilderConfig): string {
   return `import {\n  ${[...new Set(icons)].sort().join(",\n  ")},\n} from "lucide-react";`;
 }
 
-function getBorderRadiusClass(radius: string): string {
-  return (
-    {
-      none: "rounded-none",
-      sm: "rounded-sm",
-      md: "rounded-md",
-      lg: "rounded-lg",
-      full: "rounded-3xl",
-    }[radius] || "rounded-lg"
-  );
-}
-
-function getFontSizeClass(fontSize: string): string {
-  return (
-    {
-      sm: "text-sm",
-      base: "text-base",
-      lg: "text-lg",
-    }[fontSize] || "text-base"
-  );
-}
-
-function getMessageSpacingClass(spacing: string): string {
-  return (
-    {
-      compact: "py-2",
-      comfortable: "py-4",
-      spacious: "py-6",
-    }[spacing] || "py-4"
-  );
-}
-
-/**
- * Determines if a hex color is light (should use dark text) or dark (should use light text)
- */
-function isLightColor(hexColor: string): boolean {
-  const hex = hexColor.replace("#", "");
-  const r = parseInt(hex.substring(0, 2), 16);
-  const g = parseInt(hex.substring(2, 4), 16);
-  const b = parseInt(hex.substring(4, 6), 16);
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return luminance > 0.5;
-}
-
 function generateCliCommands(config: BuilderConfig): CliCommands {
   const { components } = config;
 
@@ -774,7 +736,7 @@ function generateCliCommands(config: BuilderConfig): CliCommands {
   const componentsToAdd: string[] = ["thread"];
 
   if (components.markdown) {
-    componentsToAdd.push("markdown-text");
+    componentsToAdd.push("markdown-text", "tool-fallback");
   }
 
   componentsToAdd.push("tooltip-icon-button");

@@ -85,7 +85,11 @@ export function applyDiff(
 
 export function base64UrlEncode(str: string): string {
   if (typeof window !== "undefined") {
-    return btoa(unescape(encodeURIComponent(str)))
+    const bytes = new TextEncoder().encode(str);
+    const binary = Array.from(bytes, (byte) => String.fromCharCode(byte)).join(
+      "",
+    );
+    return btoa(binary)
       .replace(/\+/g, "-")
       .replace(/\//g, "_")
       .replace(/=+$/, "");
@@ -94,13 +98,14 @@ export function base64UrlEncode(str: string): string {
 }
 
 export function base64UrlDecode(str: string): string {
-  // Add back padding
   const pad = str.length % 4;
   const padded = pad ? str + "=".repeat(4 - pad) : str;
   const base64 = padded.replace(/-/g, "+").replace(/_/g, "/");
 
   if (typeof window !== "undefined") {
-    return decodeURIComponent(escape(atob(base64)));
+    const binary = atob(base64);
+    const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+    return new TextDecoder().decode(bytes);
   }
   return Buffer.from(base64, "base64").toString("utf-8");
 }
@@ -157,7 +162,7 @@ export const parseAsViewportWidth = createParser<number | "100%">({
   parse(query: string): number | "100%" | null {
     if (query === "full") return "100%";
     const num = parseInt(query, 10);
-    return isNaN(num) ? null : num;
+    return Number.isNaN(num) ? null : num;
   },
   serialize(value: number | "100%"): string {
     return value === "100%" ? "full" : String(value);

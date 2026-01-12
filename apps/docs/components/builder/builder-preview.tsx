@@ -58,9 +58,13 @@ import {
   DEFAULT_COLORS,
   type BuilderConfig,
   type CodeHighlightTheme,
-  type MessageSpacing,
   type ThemeColor,
 } from "./types";
+import {
+  BORDER_RADIUS_CLASS,
+  MESSAGE_SPACING_CLASS,
+  isLightColor,
+} from "@/lib/builder-utils";
 
 interface BuilderPreviewContextValue {
   config: BuilderConfig;
@@ -92,14 +96,25 @@ const AssistantMessageWrapper: FC = () => {
   return <AssistantMessage config={config} />;
 };
 
+const EditComposerWrapper: FC = () => <EditComposer />;
+
 const messageComponents = {
   UserMessage: UserMessageWrapper,
   AssistantMessage: AssistantMessageWrapper,
-  EditComposer: () => <EditComposer />,
+  EditComposer: EditComposerWrapper,
 };
 
 const PlainText: FC<{ text: string }> = ({ text }) => {
   return <p className="whitespace-pre-wrap">{text}</p>;
+};
+
+const MarkdownTextWrapper: FC = () => {
+  const { config } = useBuilderPreviewContext();
+  return (
+    <ConfigurableMarkdownText
+      codeHighlightTheme={config.components.codeHighlightTheme}
+    />
+  );
 };
 
 interface BuilderPreviewProps {
@@ -237,14 +252,6 @@ export function BuilderPreview({ config }: BuilderPreviewProps) {
   );
 }
 
-function getMessageSpacingClass(spacing: MessageSpacing): string {
-  return {
-    compact: "py-2",
-    comfortable: "py-3",
-    spacious: "py-5",
-  }[spacing];
-}
-
 interface ThreadWelcomeProps {
   config: BuilderConfig;
 }
@@ -361,7 +368,7 @@ const Composer: FC<ComposerProps> = ({ config }) => {
           "aui-composer-attachment-dropzone flex w-full flex-col px-1 pt-2 outline-none transition-shadow",
           "has-[textarea:focus-visible]:ring-2 has-[textarea:focus-visible]:ring-ring/20",
           "data-[dragging=true]:border-dashed data-[dragging=true]:bg-accent/50",
-          getBorderRadiusClass(styles.borderRadius),
+          BORDER_RADIUS_CLASS[styles.borderRadius],
         )}
         style={{
           backgroundColor: "var(--aui-composer-background)",
@@ -473,7 +480,7 @@ interface UserMessageProps {
 const UserMessage: FC<UserMessageProps> = ({ config }) => {
   const { components, styles } = config;
   const isLeftAligned = styles.userMessagePosition === "left";
-  const messageSpacingClass = getMessageSpacingClass(styles.messageSpacing);
+  const messageSpacingClass = MESSAGE_SPACING_CLASS[styles.messageSpacing];
 
   // For left-aligned, use flex layout like before
   // For right-aligned (default), use grid layout like thread.tsx
@@ -500,7 +507,7 @@ const UserMessage: FC<UserMessageProps> = ({ config }) => {
           <div
             className={cn(
               "aui-user-message-content wrap-break-word px-4 py-2.5",
-              getBorderRadiusClass(styles.borderRadius),
+              BORDER_RADIUS_CLASS[styles.borderRadius],
             )}
             style={{ backgroundColor: "var(--aui-user-message-background)" }}
           >
@@ -546,7 +553,7 @@ const UserMessage: FC<UserMessageProps> = ({ config }) => {
         <div
           className={cn(
             "aui-user-message-content wrap-break-word px-4 py-2.5",
-            getBorderRadiusClass(styles.borderRadius),
+            BORDER_RADIUS_CLASS[styles.borderRadius],
           )}
           style={{ backgroundColor: "var(--aui-user-message-background)" }}
         >
@@ -588,15 +595,9 @@ interface AssistantMessageProps {
 
 const AssistantMessage: FC<AssistantMessageProps> = ({ config }) => {
   const { components, styles } = config;
-  const messageSpacingClass = getMessageSpacingClass(styles.messageSpacing);
+  const messageSpacingClass = MESSAGE_SPACING_CLASS[styles.messageSpacing];
 
-  const TextComponent = components.markdown
-    ? () => (
-        <ConfigurableMarkdownText
-          codeHighlightTheme={components.codeHighlightTheme}
-        />
-      )
-    : PlainText;
+  const TextComponent = components.markdown ? MarkdownTextWrapper : PlainText;
 
   return (
     <MessagePrimitive.Root
@@ -855,30 +856,6 @@ const EditComposer: FC = () => {
     </MessagePrimitive.Root>
   );
 };
-
-function getBorderRadiusClass(borderRadius: string): string {
-  return (
-    {
-      none: "rounded-none",
-      sm: "rounded-lg",
-      md: "rounded-xl",
-      lg: "rounded-2xl",
-      full: "rounded-3xl",
-    }[borderRadius] ?? "rounded-2xl"
-  );
-}
-
-/**
- * Determines if a hex color is light (should use dark text) or dark (should use light text)
- */
-function isLightColor(hexColor: string): boolean {
-  const hex = hexColor.replace("#", "");
-  const r = parseInt(hex.substring(0, 2), 16);
-  const g = parseInt(hex.substring(2, 4), 16);
-  const b = parseInt(hex.substring(4, 6), 16);
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return luminance > 0.5;
-}
 
 const MarkdownCodeHeader: FC<CodeHeaderProps> = ({ language }) => (
   <div className="mt-4 flex items-center gap-4 rounded-t-lg border border-b-0 px-4 py-2 font-medium text-muted-foreground text-sm">

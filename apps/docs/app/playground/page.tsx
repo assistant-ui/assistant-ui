@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   CodeIcon,
   XIcon,
@@ -49,6 +49,13 @@ export default function PlaygroundPage() {
   const [controlsOpen, setControlsOpen] = useState(false);
   const isResizing = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const cleanupRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    return () => {
+      cleanupRef.current?.();
+    };
+  }, []);
 
   const handlePresetChange = useCallback(
     (preset: ViewportPreset) => {
@@ -80,6 +87,14 @@ export default function PlaygroundPage() {
 
       const handleMouseUp = () => {
         isResizing.current = false;
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+        document.removeEventListener("mousemove", handleMouseMove);
+        document.removeEventListener("mouseup", handleMouseUp);
+        cleanupRef.current = null;
+      };
+
+      cleanupRef.current = () => {
         document.body.style.cursor = "";
         document.body.style.userSelect = "";
         document.removeEventListener("mousemove", handleMouseMove);
