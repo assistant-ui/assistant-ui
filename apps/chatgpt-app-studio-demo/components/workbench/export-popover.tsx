@@ -13,10 +13,14 @@ import {
   CheckCircle2,
   AlertCircle,
   FolderOpen,
+  ExternalLink,
+  Package,
+  Terminal,
 } from "lucide-react";
-import { cn } from "@/lib/ui/cn";
 import { useSelectedComponent } from "@/lib/workbench/store";
 import { getComponent } from "@/lib/workbench/component-registry";
+
+const isDemoMode = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 
 type ExportStatus = "idle" | "exporting" | "success" | "error";
 
@@ -34,7 +38,50 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function ExportPopover() {
+function DemoModeContent() {
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2">
+        <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10">
+          <Package className="size-4 text-primary" />
+        </div>
+        <div>
+          <div className="font-medium">Export to Production</div>
+          <div className="text-[11px] text-muted-foreground">
+            Available when running locally
+          </div>
+        </div>
+      </div>
+
+      <p className="text-[11px] text-muted-foreground leading-relaxed">
+        Export bundles your widget as a self-contained HTML file with all
+        dependencies inlined, ready to deploy to ChatGPT.
+      </p>
+
+      <div className="space-y-2">
+        <div className="font-medium text-[11px] text-muted-foreground">
+          To use export, run locally:
+        </div>
+        <div className="flex items-center gap-2 rounded-md bg-muted px-3 py-2 font-mono text-[11px]">
+          <Terminal className="size-3.5 shrink-0 text-muted-foreground" />
+          <span>npx chatgpt-app-studio</span>
+        </div>
+      </div>
+
+      <a
+        href="https://www.assistant-ui.com/docs/chatgpt-app-studio"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-2 font-medium text-[11px] text-primary-foreground transition-colors hover:bg-primary/90"
+      >
+        View Documentation
+        <ExternalLink className="size-3" />
+      </a>
+    </div>
+  );
+}
+
+function ExportContent() {
   const [status, setStatus] = useState<ExportStatus>("idle");
   const [result, setResult] = useState<ExportResult | null>(null);
   const selectedComponentId = useSelectedComponent();
@@ -90,108 +137,100 @@ export function ExportPopover() {
   const hasExported = result !== null;
 
   return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="font-medium">Export Widget</div>
+        <Button
+          size="sm"
+          onClick={handleExport}
+          disabled={status === "exporting"}
+          className="h-7 gap-1.5 text-xs"
+        >
+          {status === "exporting" ? (
+            <>
+              <Loader2 className="size-3 animate-spin" />
+              Exporting...
+            </>
+          ) : (
+            <>
+              <Download className="size-3" />
+              {hasExported ? "Re-export" : "Export"}
+            </>
+          )}
+        </Button>
+      </div>
+
+      {!hasExported && status !== "exporting" && componentEntry && (
+        <p className="text-[11px] text-muted-foreground">
+          Bundle <span className="font-medium">{componentEntry.label}</span> for
+          production deployment.
+        </p>
+      )}
+
+      {result?.success && result.files && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-1.5 text-green-600 dark:text-green-400">
+            <CheckCircle2 className="size-3.5" />
+            <span>Export successful</span>
+          </div>
+          <button
+            onClick={handleOpenFolder}
+            className="flex w-full items-center justify-between rounded bg-muted px-2 py-1.5 font-mono text-[11px] transition-colors hover:bg-muted/80"
+          >
+            <span>./export/</span>
+            <FolderOpen className="size-3.5 text-muted-foreground" />
+          </button>
+          <div className="space-y-0.5 text-[11px]">
+            {result.files.map((f) => (
+              <div
+                key={f.relativePath}
+                className="flex justify-between gap-3 text-muted-foreground"
+              >
+                <span className="truncate">{f.relativePath}</span>
+                <span className="shrink-0 tabular-nums">
+                  {formatBytes(f.size)}
+                </span>
+              </div>
+            ))}
+          </div>
+          <div className="border-t pt-2 text-[11px] text-muted-foreground">
+            Total:{" "}
+            {formatBytes(result.files.reduce((sum, f) => sum + f.size, 0))}
+          </div>
+        </div>
+      )}
+
+      {result && !result.success && (
+        <div className="space-y-1">
+          <div className="flex items-center gap-1.5 text-destructive">
+            <AlertCircle className="size-3.5" />
+            <span>Export failed</span>
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            {result.errors?.[0] ?? "Unknown error"}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function ExportPopover() {
+  return (
     <Popover>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
           size="sm"
-          className={cn(
-            "h-7 gap-1.5 rounded-md px-2.5 font-medium text-xs",
-            status === "success" &&
-              "border-green-500/50 text-green-600 hover:text-green-600 dark:text-green-400",
-            status === "error" &&
-              "border-destructive/50 text-destructive hover:text-destructive",
-          )}
+          className="h-7 gap-1.5 rounded-md px-2.5 font-medium text-xs"
         >
-          {status === "exporting" ? (
-            <Loader2 className="size-3.5 animate-spin" />
-          ) : status === "success" ? (
-            <CheckCircle2 className="size-3.5" />
-          ) : status === "error" ? (
-            <AlertCircle className="size-3.5" />
-          ) : (
-            <Download className="size-3.5" />
-          )}
+          <Download className="size-3.5" />
           Export
         </Button>
       </PopoverTrigger>
 
       <PopoverContent align="end" className="w-72 text-xs">
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="font-medium">Export Widget</div>
-            <Button
-              size="sm"
-              onClick={handleExport}
-              disabled={status === "exporting"}
-              className="h-7 gap-1.5 text-xs"
-            >
-              {status === "exporting" ? (
-                <>
-                  <Loader2 className="size-3 animate-spin" />
-                  Exporting...
-                </>
-              ) : (
-                <>
-                  <Download className="size-3" />
-                  {hasExported ? "Re-export" : "Export"}
-                </>
-              )}
-            </Button>
-          </div>
-
-          {!hasExported && status !== "exporting" && componentEntry && (
-            <p className="text-[11px] text-muted-foreground">
-              Bundle <span className="font-medium">{componentEntry.label}</span>{" "}
-              for production deployment.
-            </p>
-          )}
-
-          {result?.success && result.files && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-1.5 text-green-600 dark:text-green-400">
-                <CheckCircle2 className="size-3.5" />
-                <span>Export successful</span>
-              </div>
-              <button
-                onClick={handleOpenFolder}
-                className="flex w-full items-center justify-between rounded bg-muted px-2 py-1.5 font-mono text-[11px] transition-colors hover:bg-muted/80"
-              >
-                <span>./export/</span>
-                <FolderOpen className="size-3.5 text-muted-foreground" />
-              </button>
-              <div className="space-y-0.5 text-[11px]">
-                {result.files.map((f) => (
-                  <div
-                    key={f.relativePath}
-                    className="flex justify-between gap-3 text-muted-foreground"
-                  >
-                    <span className="truncate">{f.relativePath}</span>
-                    <span className="shrink-0 tabular-nums">
-                      {formatBytes(f.size)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <div className="border-t pt-2 text-[11px] text-muted-foreground">
-                Total:{" "}
-                {formatBytes(result.files.reduce((sum, f) => sum + f.size, 0))}
-              </div>
-            </div>
-          )}
-
-          {result && !result.success && (
-            <div className="space-y-1">
-              <div className="flex items-center gap-1.5 text-destructive">
-                <AlertCircle className="size-3.5" />
-                <span>Export failed</span>
-              </div>
-              <p className="text-[11px] text-muted-foreground">
-                {result.errors?.[0] ?? "Unknown error"}
-              </p>
-            </div>
-          )}
-        </div>
+        {isDemoMode ? <DemoModeContent /> : <ExportContent />}
       </PopoverContent>
     </Popover>
   );
