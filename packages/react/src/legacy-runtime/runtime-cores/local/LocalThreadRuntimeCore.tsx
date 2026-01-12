@@ -39,6 +39,7 @@ export class LocalThreadRuntimeCore
     speech: false,
     attachments: false,
     feedback: false,
+    resumable: false,
   };
 
   private abortController: AbortController | null = null;

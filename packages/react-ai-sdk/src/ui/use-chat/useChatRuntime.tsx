@@ -1,26 +1,36 @@
 "use client";
 
+import { useEffect, useMemo, useRef, useState } from "react";
+
 import { useChat, type UIMessage } from "@ai-sdk/react";
-import type { AssistantCloud } from "assistant-cloud";
 import {
   AssistantRuntime,
   unstable_useCloudThreadListAdapter,
   unstable_useRemoteThreadListRuntime,
   useAssistantState,
 } from "@assistant-ui/react";
+import type { AssistantCloud } from "assistant-cloud";
+import { ChatInit, ChatTransport } from "ai";
+
+import {
+  AssistantChatTransport,
+  ChatResumableAdapter,
+  ResumableState,
+} from "./AssistantChatTransport";
 import {
   useAISDKRuntime,
   type AISDKRuntimeAdapter,
   type CustomToCreateMessageFunction,
 } from "./useAISDKRuntime";
-import { ChatInit, ChatTransport } from "ai";
-import { AssistantChatTransport } from "./AssistantChatTransport";
-import { useEffect, useMemo, useRef } from "react";
 
 export type UseChatRuntimeOptions<UI_MESSAGE extends UIMessage = UIMessage> =
   ChatInit<UI_MESSAGE> & {
     cloud?: AssistantCloud | undefined;
-    adapters?: AISDKRuntimeAdapter["adapters"] | undefined;
+    adapters?:
+      | (AISDKRuntimeAdapter["adapters"] & {
+          resumable?: ChatResumableAdapter | undefined;
+        })
+      | undefined;
     toCreateMessage?: CustomToCreateMessageFunction;
   };
 
@@ -47,9 +57,9 @@ const useDynamicChatTransport = <UI_MESSAGE extends UIMessage = UIMessage>(
   return dynamicTransport;
 };
 
-const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
+function useChatThreadRuntime<UI_MESSAGE extends UIMessage = UIMessage>(
   options?: UseChatRuntimeOptions<UI_MESSAGE>,
-): AssistantRuntime => {
+): AssistantRuntime {
   const {
     adapters,
     transport: transportOptions,
@@ -57,15 +67,42 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     ...chatOptions
   } = options ?? {};
 
-  const transport = useDynamicChatTransport(
-    transportOptions ?? new AssistantChatTransport(),
+  const resumableAdapter =
+    adapters?.resumable ??
+    (transportOptions instanceof AssistantChatTransport
+      ? transportOptions.getResumableAdapter()
+      : undefined);
+
+  const [pendingResume] = useState<ResumableState<UI_MESSAGE>>(() => {
+    const storage = resumableAdapter?.storage;
+    if (!storage) return null;
+
+    const streamId = storage.getStreamId();
+    const messages = storage.getState<UI_MESSAGE[]>();
+    if (streamId && messages && messages.length > 0) {
+      return { streamId, messages };
+    }
+    return null;
+  });
+
+  const [transport] = useState<
+    AssistantChatTransport<UI_MESSAGE> | ChatTransport<UI_MESSAGE>
+  >(
+    () =>
+      transportOptions ??
+      new AssistantChatTransport<UI_MESSAGE>(
+        resumableAdapter ? { resumable: resumableAdapter } : undefined,
+      ),
   );
+
+  const dynamicTransport = useDynamicChatTransport(transport);
+  const pendingResumeTriggeredRef = useRef(false);
 
   const id = useAssistantState(({ threadListItem }) => threadListItem.id);
   const chat = useChat({
     ...chatOptions,
     id,
-    transport,
+    transport: dynamicTransport,
   });
 
   const runtime = useAISDKRuntime(chat, {
@@ -77,8 +114,28 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     transport.setRuntime(runtime);
   }
 
+  useEffect(() => {
+    if (!pendingResume || pendingResumeTriggeredRef.current) return;
+    pendingResumeTriggeredRef.current = true;
+
+    if (transport instanceof AssistantChatTransport) {
+      transport.setPendingResume(pendingResume);
+    }
+
+    resumableAdapter?.onResumingChange?.(true);
+
+    const lastMessage = pendingResume.messages.at(-1);
+    const userText =
+      lastMessage?.parts
+        ?.filter((p): p is { type: "text"; text: string } => p.type === "text")
+        .map((p) => p.text)
+        .join("") ?? "";
+
+    chat.sendMessage({ text: userText });
+  }, [chat, pendingResume, resumableAdapter, transport]);
+
   return runtime;
-};
+}
 
 export const useChatRuntime = <UI_MESSAGE extends UIMessage = UIMessage>({
   cloud,

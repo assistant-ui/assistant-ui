@@ -9,7 +9,7 @@ import { AppendMessage } from "../../../types";
 import { useExternalStoreRuntime } from "../external-store/useExternalStoreRuntime";
 import { AssistantRuntime } from "../../runtime/AssistantRuntime";
 import { AddToolResultOptions } from "../core";
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import {
   AssistantMessageAccumulator,
   DataStreamDecoder,
@@ -81,12 +81,47 @@ export function useAssistantTransportState<T>(
 const useAssistantTransportThreadRuntime = <T,>(
   options: AssistantTransportOptions<T>,
 ): AssistantRuntime => {
-  const agentStateRef = useRef(options.initialState);
+  const resumableAdapter = options.adapters?.resumable;
+  const storage = resumableAdapter?.storage;
+
   const [, rerender] = useState(0);
   const resumeFlagRef = useRef(false);
+  const pendingResumeRef = useRef<boolean>(false);
+
+  const getInitialState = (): { state: T; pendingResume: boolean } => {
+    if (storage) {
+      const storedState = storage.getState<T>();
+      if (storedState !== null) {
+        return { state: storedState, pendingResume: !!storage.getStreamId() };
+      }
+    }
+    return { state: options.initialState, pendingResume: false };
+  };
+
+  const [initialData] = useState(getInitialState);
+  const agentStateRef = useRef<T>(initialData.state);
+
+  if (pendingResumeRef.current === false && initialData.pendingResume) {
+    pendingResumeRef.current = true;
+  }
   const commandQueue = useCommandQueue({
     onQueue: () => runManager.schedule(),
   });
+
+  const getResumeApi = (): string | undefined => {
+    if (!storage) return options.resumeApi;
+
+    const streamId = storage.getStreamId();
+    if (!streamId) return options.resumeApi;
+
+    if (resumableAdapter?.resumeApi) {
+      return typeof resumableAdapter.resumeApi === "function"
+        ? resumableAdapter.resumeApi(streamId)
+        : resumableAdapter.resumeApi;
+    }
+
+    return options.resumeApi;
+  };
 
   const runManager = useRunManager({
     onRun: async (signal: AbortSignal) => {
@@ -103,27 +138,32 @@ const useAssistantTransportThreadRuntime = <T,>(
           : options.body;
       const context = runtime.thread.getModelContext();
 
-      const response = await fetch(
-        isResume ? options.resumeApi! : options.api,
-        {
-          method: "POST",
-          headers,
-          body: JSON.stringify({
-            commands,
-            state: agentStateRef.current,
-            system: context.system,
-            tools: context.tools
-              ? toAISDKTools(getEnabledTools(context.tools))
-              : undefined,
-            ...context.callSettings,
-            ...context.config,
-            ...(bodyValue ?? {}),
-          }),
-          signal,
-        },
-      );
+      const resumeApi = getResumeApi();
+      const response = await fetch(isResume ? resumeApi! : options.api, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          commands,
+          state: agentStateRef.current,
+          system: context.system,
+          tools: context.tools
+            ? toAISDKTools(getEnabledTools(context.tools))
+            : undefined,
+          ...context.callSettings,
+          ...context.config,
+          ...(bodyValue ?? {}),
+        }),
+        signal,
+      });
 
       options.onResponse?.(response);
+
+      if (storage) {
+        const streamId = response.headers.get("X-Stream-Id");
+        if (streamId) {
+          storage.setStreamId(streamId);
+        }
+      }
 
       if (!response.ok) {
         throw new Error(`Status ${response.status}: ${await response.text()}`);
@@ -281,7 +321,8 @@ const useAssistantTransportThreadRuntime = <T,>(
       await toolInvocations.abort();
     },
     onResume: async () => {
-      if (!options.resumeApi)
+      const resumeApi = getResumeApi();
+      if (!resumeApi)
         throw new Error("Must pass resumeApi to options to resume runs");
 
       resumeFlagRef.current = true;
@@ -314,6 +355,16 @@ const useAssistantTransportThreadRuntime = <T,>(
     onResult: commandQueue.enqueue,
     setToolStatuses,
   });
+
+  useEffect(() => {
+    if (pendingResumeRef.current) {
+      pendingResumeRef.current = false;
+      resumableAdapter?.onResumingChange?.(true);
+
+      resumeFlagRef.current = true;
+      runManager.schedule();
+    }
+  }, []);
 
   return runtime;
 };

@@ -140,6 +140,7 @@ export const EMPTY_THREAD_CORE: ThreadRuntimeCore = {
     speech: false,
     attachments: false,
     feedback: false,
+    resumable: false,
   },
 
   isDisabled: false,

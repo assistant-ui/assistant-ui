@@ -1,43 +1,12 @@
 "use client";
 
-import { AssistantRuntimeProvider, useAssistantApi } from "@assistant-ui/react";
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import {
-  unstable_useResumableRuntime,
-  type ResumeState,
+  useChatRuntime,
+  createResumableStateStorage,
+  AssistantChatTransport,
 } from "@assistant-ui/react-ai-sdk";
-import type { UIMessage } from "ai";
-import { useEffect, useRef, type ReactNode } from "react";
-
-function extractUserText(messages: UIMessage[]): string {
-  const lastUserMessage = messages[messages.length - 1];
-  if (!lastUserMessage) return "";
-
-  return (
-    lastUserMessage.parts
-      ?.filter((p): p is { type: "text"; text: string } => p.type === "text")
-      .map((p) => p.text)
-      .join("") ?? ""
-  );
-}
-
-function ResumeInitializer({ resumeState }: { resumeState: ResumeState }) {
-  const api = useAssistantApi();
-  const triggeredRef = useRef(false);
-
-  useEffect(() => {
-    if (!resumeState || triggeredRef.current) return;
-    triggeredRef.current = true;
-
-    const userText = extractUserText(resumeState.userMessages);
-
-    api.thread().append({
-      role: "user",
-      content: [{ type: "text", text: userText }],
-    });
-  }, [resumeState, api]);
-
-  return null;
-}
+import { useMemo, type ReactNode } from "react";
 
 export function MyRuntimeProvider({
   children,
@@ -46,18 +15,27 @@ export function MyRuntimeProvider({
   children: ReactNode;
   onResuming?: (isResuming: boolean) => void;
 }) {
-  const { runtime, resumeState, isReady } = unstable_useResumableRuntime({
-    api: "/api/chat",
-    onResumingChange: onResuming,
-  });
+  const storage = useMemo(() => createResumableStateStorage(), []);
 
-  if (!isReady) {
-    return null;
-  }
+  const transport = useMemo(
+    () =>
+      new AssistantChatTransport({
+        api: "/api/chat",
+        resumable: {
+          storage,
+          resumeApi: (streamId) => `/api/chat/resume/${streamId}`,
+          ...(onResuming && { onResumingChange: onResuming }),
+        },
+      }),
+    [storage, onResuming],
+  );
+
+  const runtime = useChatRuntime({
+    transport,
+  });
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
-      {resumeState && <ResumeInitializer resumeState={resumeState} />}
       {children}
     </AssistantRuntimeProvider>
   );

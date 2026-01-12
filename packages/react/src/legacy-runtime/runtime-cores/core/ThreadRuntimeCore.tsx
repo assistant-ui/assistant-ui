@@ -22,6 +22,7 @@ export type RuntimeCapabilities = {
   readonly speech: boolean;
   readonly attachments: boolean;
   readonly feedback: boolean;
+  readonly resumable: boolean;
 };
 
 export type AddToolResultOptions = {
