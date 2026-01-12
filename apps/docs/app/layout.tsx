@@ -1,4 +1,4 @@
-import "./globals.css";
+import "@/styles/globals.css";
 import type { ReactNode } from "react";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
@@ -58,7 +58,7 @@ export default function Layout({ children }: { children: ReactNode }) {
       </head> */}
       <body
         className={cn(
-          "flex min-h-screen flex-col overscroll-none antialiased",
+          "flex min-h-screen flex-col antialiased",
           GeistSans.className,
           GeistMono.variable,
         )}

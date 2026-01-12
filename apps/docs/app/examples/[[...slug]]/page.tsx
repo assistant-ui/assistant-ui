@@ -6,7 +6,6 @@ import { notFound } from "next/navigation";
 import { getMDXComponents } from "@/mdx-components";
 import { DocsRuntimeProvider } from "@/app/(home)/DocsRuntimeProvider";
 import { ExamplesNavbar } from "@/components/examples/ExamplesNavbar";
-import { Footer } from "@/components/shared/footer";
 
 function getPage(slug: string[] | undefined): ExamplePage {
   const page = examples.getPage(slug);
@@ -29,7 +28,6 @@ export default async function Page(props: {
       toc={page.data.toc}
       tableOfContent={{ enabled: !isIndex }}
       full={page.data.full ?? false}
-      footer={{ component: <Footer /> }}
     >
       {!isIndex && <ExamplesNavbar />}
       <DocsBody>
