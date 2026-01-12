@@ -484,9 +484,11 @@ const runtime = useAssistantTransportRuntime({
     "Authorization": `Bearer ${await getAccessToken()}`,
     "X-Request-ID": crypto.randomUUID(),
   }),
-  body: {
+  body: async () => ({
     customField: "value",
-  },
+    requestId: crypto.randomUUID(),
+    timestamp: Date.now(),
+  }),
 });
 ```
 

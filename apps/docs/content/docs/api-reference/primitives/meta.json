@@ -5,6 +5,7 @@
     "Thread",
     "ThreadList",
     "ThreadListItem",
+    "ThreadListItemMore",
     "Composer",
     "Message",
     "Error",

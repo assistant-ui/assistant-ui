@@ -14,7 +14,6 @@ import {
   CopyMarkdownButton,
   PageActionsDropdown,
 } from "@/components/docs/page-actions";
-import { Footer } from "@/components/shared/footer";
 
 function DocsCategory({ url }: { url?: string }) {
   const effectiveUrl = url ?? "";
@@ -71,10 +70,6 @@ export default async function Page(props: {
       toc={page.data.toc}
       full={page.data.full ?? false}
       tableOfContent={{ footer: editOnGitHub }}
-      footer={{
-        enabled: true,
-        component: <Footer />,
-      }}
     >
       <DocsBody>
         <h1>{page.data.title}</h1>

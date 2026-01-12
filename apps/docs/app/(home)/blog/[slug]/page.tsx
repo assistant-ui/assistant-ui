@@ -42,7 +42,7 @@ export default function Page(props: {
         )}
       </div>
       <div
-        className="mx-auto w-full max-w-screen-xl rounded-xl border py-12 md:px-8"
+        className="mx-auto w-full max-w-screen-xl rounded-xl border px-4 py-12"
         style={{
           backgroundColor: "black",
           backgroundImage: [
