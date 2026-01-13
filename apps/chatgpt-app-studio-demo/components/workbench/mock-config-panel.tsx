@@ -411,64 +411,50 @@ export function MockConfigPanel() {
     setShowDemoDialog(true);
   }, []);
 
-  if (toolNames.length === 0) {
-    return (
-      <>
+  return (
+    <>
+      {toolNames.length === 0 ? (
         <EmptyState
           onFetchTools={handleFetchTools}
           isFetching={isFetching}
           hasError={serverStatus === "error"}
           onDemoModeClick={handleDemoModeClick}
         />
-        <Dialog open={showDemoDialog} onOpenChange={setShowDemoDialog}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Demo Mode</DialogTitle>
-              <DialogDescription>
-                This feature is only available when running the workbench
-                locally.
-              </DialogDescription>
-            </DialogHeader>
-          </DialogContent>
-        </Dialog>
-      </>
-    );
-  }
+      ) : (
+        <div className="flex h-full flex-col overflow-hidden">
+          <div className="shrink-0 space-y-4 border-border/40 border-b p-4">
+            <SimulationToggle
+              enabled={mockConfig.globalEnabled}
+              onToggle={setMocksEnabled}
+            />
+            <McpServerSection
+              serverUrl={mockConfig.serverUrl}
+              onServerUrlChange={setServerUrl}
+              onFetchTools={handleFetchTools}
+              isFetching={isFetching}
+              status={serverStatus}
+              toolCount={lastFetchedCount}
+              errorMessage={errorMessage}
+              onDemoModeClick={handleDemoModeClick}
+            />
+          </div>
 
-  return (
-    <>
-      <div className="flex h-full flex-col overflow-hidden">
-        <div className="shrink-0 space-y-4 border-border/40 border-b p-4">
-          <SimulationToggle
-            enabled={mockConfig.globalEnabled}
-            onToggle={setMocksEnabled}
-          />
-          <McpServerSection
-            serverUrl={mockConfig.serverUrl}
-            onServerUrlChange={setServerUrl}
-            onFetchTools={handleFetchTools}
-            isFetching={isFetching}
-            status={serverStatus}
-            toolCount={lastFetchedCount}
-            errorMessage={errorMessage}
-            onDemoModeClick={handleDemoModeClick}
-          />
-        </div>
-
-        <div className="scrollbar-subtle flex-1 overflow-y-auto p-4">
-          <SectionLabel>Tools</SectionLabel>
-          <div className="space-y-2">
-            {toolNames.map((name) => (
-              <ToolAccordionItem
-                key={name}
-                name={name}
-                isExpanded={expandedTool === name}
-                onToggle={() => toggleTool(name)}
-              />
-            ))}
+          <div className="scrollbar-subtle flex-1 overflow-y-auto p-4">
+            <SectionLabel>Tools</SectionLabel>
+            <div className="space-y-2">
+              {toolNames.map((name) => (
+                <ToolAccordionItem
+                  key={name}
+                  name={name}
+                  isExpanded={expandedTool === name}
+                  onToggle={() => toggleTool(name)}
+                />
+              ))}
+            </div>
           </div>
         </div>
-      </div>
+      )}
+
       <Dialog open={showDemoDialog} onOpenChange={setShowDemoDialog}>
         <DialogContent>
           <DialogHeader>

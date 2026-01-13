@@ -130,9 +130,14 @@ export function ChatThread({ children, className }: ChatThreadProps) {
 
       // Notify parent window to prevent scrolling
       if (window.parent !== window) {
+        // Use document.referrer to get parent origin, fallback to same origin
+        const targetOrigin = document.referrer
+          ? new URL(document.referrer).origin
+          : window.location.origin;
+
         window.parent.postMessage(
           { type: "workbench:fullscreen", value: true },
-          "*",
+          targetOrigin,
         );
       }
 
@@ -142,9 +147,13 @@ export function ChatThread({ children, className }: ChatThreadProps) {
 
         // Notify parent window to restore scrolling
         if (window.parent !== window) {
+          const targetOrigin = document.referrer
+            ? new URL(document.referrer).origin
+            : window.location.origin;
+
           window.parent.postMessage(
             { type: "workbench:fullscreen", value: false },
-            "*",
+            targetOrigin,
           );
         }
       };

@@ -98,6 +98,12 @@ export default function ChatGptAppStudioPage() {
     };
 
     const handleMessage = (event: MessageEvent) => {
+      // Validate message origin matches workbench URL
+      const workbenchOrigin = new URL(WORKBENCH_URL).origin;
+      if (event.origin !== workbenchOrigin) {
+        return; // Reject messages from untrusted origins
+      }
+
       if (event.data?.type === "workbench:fullscreen") {
         if (event.data.value) {
           // Set overflow hidden with !important
