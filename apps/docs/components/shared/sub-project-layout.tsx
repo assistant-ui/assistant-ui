@@ -1,13 +1,13 @@
 "use client";
 
-import { type ReactNode, useState, useEffect, useMemo } from "react";
+import { type ReactNode, useMemo } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
-import { Moon, Sun } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { GitHubIcon } from "@/components/icons/github";
 import { Select } from "./select";
+import { ThemeToggle } from "./theme-toggle";
 
 const SUB_PROJECTS = [
   {
@@ -45,48 +45,6 @@ interface SubProjectLayoutProps {
   children: ReactNode;
   hideFooter?: boolean;
   fullHeight?: boolean;
-}
-
-function ThemeToggle() {
-  const [theme, setTheme] = useState<"light" | "dark">("light");
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-    const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null;
-    if (savedTheme) {
-      setTheme(savedTheme);
-      document.documentElement.classList.toggle("dark", savedTheme === "dark");
-    } else {
-      const isDark = document.documentElement.classList.contains("dark");
-      setTheme(isDark ? "dark" : "light");
-    }
-  }, []);
-
-  const toggleTheme = () => {
-    const newTheme = theme === "light" ? "dark" : "light";
-    setTheme(newTheme);
-    document.documentElement.classList.toggle("dark", newTheme === "dark");
-    localStorage.setItem("theme", newTheme);
-  };
-
-  if (!mounted) {
-    return <div className="size-8" />;
-  }
-
-  return (
-    <button
-      onClick={toggleTheme}
-      className="flex size-8 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
-      aria-label="Toggle theme"
-    >
-      {theme === "light" ? (
-        <Moon className="size-4" />
-      ) : (
-        <Sun className="size-4" />
-      )}
-    </button>
-  );
 }
 
 export function SubProjectLayout({

@@ -1,19 +1,13 @@
 import type { Metadata } from "next";
 import { DocsPage, DocsBody } from "fumadocs-ui/page";
 import { notFound } from "next/navigation";
-import { cn } from "@/lib/utils";
 import { createOgMetadata } from "@/lib/og";
-import { buttonVariants } from "@/components/ui/button";
-import { EditIcon } from "lucide-react";
 import { getMDXComponents } from "@/mdx-components";
 import { DocsRuntimeProvider } from "@/contexts/DocsRuntimeProvider";
 import { source } from "@/lib/source";
 import { getPageTreePeers } from "fumadocs-core/page-tree";
 import { Card, Cards } from "fumadocs-ui/components/card";
-import {
-  CopyMarkdownButton,
-  PageActionsDropdown,
-} from "@/components/docs/page-actions";
+import { TableOfContents } from "@/components/docs/table-of-contents";
 
 function DocsCategory({ url }: { url?: string }) {
   const effectiveUrl = url ?? "";
@@ -39,50 +33,42 @@ export default async function Page(props: {
   }
 
   const mdxComponents = getMDXComponents({
-    DocsCategory: DocsCategory,
+    DocsCategory,
   });
 
   const path = `apps/docs/content/docs/${page.path}`;
   const markdownUrl = `${page.url}.mdx`;
-  const githubUrl = `https://github.com/assistant-ui/assistant-ui/blob/main/${path}`;
   const githubEditUrl = `https://github.com/assistant-ui/assistant-ui/edit/main/${path}`;
-
-  const editOnGitHub = (
-    <a
-      href={githubEditUrl}
-      target="_blank"
-      rel="noreferrer noopener"
-      className={cn(
-        buttonVariants({
-          variant: "secondary",
-          size: "sm",
-          className: "gap-1.5 text-xs",
-        }),
-      )}
-    >
-      <EditIcon className="size-3" />
-      Edit on GitHub
-    </a>
-  );
 
   return (
     <DocsPage
       toc={page.data.toc}
-      full={page.data.full ?? false}
-      tableOfContent={{ footer: editOnGitHub }}
+      full
+      tableOfContent={{
+        enabled: true,
+        component: (
+          <TableOfContents
+            items={page.data.toc}
+            githubEditUrl={githubEditUrl}
+            markdownUrl={markdownUrl}
+          />
+        ),
+      }}
+      tableOfContentPopover={{
+        enabled: false,
+      }}
     >
       <DocsBody>
-        <h1>{page.data.title}</h1>
-        <div className="not-prose mb-6 flex gap-2">
-          <CopyMarkdownButton markdownUrl={markdownUrl} />
-          <PageActionsDropdown
-            markdownUrl={markdownUrl}
-            githubUrl={githubUrl}
-          />
-        </div>
-        {page.data.description && (
-          <p className="mb-4 text-muted-foreground">{page.data.description}</p>
-        )}
+        <header className="not-prose mb-8 md:mb-12">
+          <h1 className="font-medium text-3xl tracking-tight">
+            {page.data.title}
+          </h1>
+          {page.data.description && (
+            <p className="mt-3 text-lg text-muted-foreground">
+              {page.data.description}
+            </p>
+          )}
+        </header>
         <DocsRuntimeProvider>
           <page.data.body components={mdxComponents} />
         </DocsRuntimeProvider>

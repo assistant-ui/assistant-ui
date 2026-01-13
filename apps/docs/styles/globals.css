@@ -1,8 +1,11 @@
 @import "tailwindcss";
+
 @import "tw-animate-css";
 @import "tw-shimmer";
 @import "fumadocs-ui/css/shadcn.css";
 @import "fumadocs-ui/css/preset.css";
+
+@import "./fumadocs.css";
 
 @plugin "tailwind-scrollbar";
 
