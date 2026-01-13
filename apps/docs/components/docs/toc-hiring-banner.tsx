@@ -16,8 +16,8 @@ export const TOCHiringBanner = () => {
         href="/careers"
         className="block rounded-md border border-border/60 border-dashed px-3 py-2.5 transition-colors hover:border-border hover:bg-muted/30"
       >
-        <p className="font-medium text-foreground/70 text-xs uppercase">
-          Hey! We are hiring
+        <p className="shimmer font-medium text-foreground/70 text-xs uppercase">
+          WE ARE HIRING
         </p>
         <p className="mt-0.5 text-muted-foreground text-xs">
           Build the future of agentic UI.
@@ -31,7 +31,7 @@ export const TOCHiringBanner = () => {
           e.preventDefault();
           setDismissed(true);
         }}
-        className="-right-1.5 -top-1.5 absolute flex size-4 items-center justify-center rounded-full bg-muted text-muted-foreground opacity-0 transition-opacity hover:bg-muted-foreground/20 hover:text-foreground group-hover:opacity-100"
+        className="absolute -top-1.5 -right-1.5 flex size-4 items-center justify-center rounded-full bg-muted text-muted-foreground opacity-0 transition-opacity hover:bg-muted-foreground/20 hover:text-foreground group-hover:opacity-100"
       >
         <span className="text-[10px] leading-none">×</span>
       </button>

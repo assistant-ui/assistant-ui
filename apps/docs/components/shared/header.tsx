@@ -3,19 +3,12 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import {
-  Menu,
-  X,
-  Moon,
-  Sun,
-  ExternalLink,
-  ArrowRight,
-  Search,
-} from "lucide-react";
+import { Menu, X, ExternalLink, ArrowRight, Search } from "lucide-react";
 import { usePersistentBoolean } from "@/hooks/use-persistent-boolean";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { SearchDialog } from "./search-dialog";
+import { ThemeToggle } from "./theme-toggle";
 import { GitHubIcon } from "@/components/icons/github";
 import { DiscordIcon } from "@/components/icons/discord";
 import {
@@ -95,42 +88,6 @@ const NAV_ITEMS: NavItem[] = [
   },
   { type: "link", label: "Pricing", href: "/pricing" },
 ];
-
-function ThemeToggle() {
-  const [theme, setTheme] = useState<"light" | "dark">("light");
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-    const isDark = document.documentElement.classList.contains("dark");
-    setTheme(isDark ? "dark" : "light");
-  }, []);
-
-  const toggleTheme = () => {
-    const newTheme = theme === "light" ? "dark" : "light";
-    setTheme(newTheme);
-    document.documentElement.classList.toggle("dark", newTheme === "dark");
-    localStorage.setItem("theme", newTheme);
-  };
-
-  if (!mounted) {
-    return <div className="size-8" />;
-  }
-
-  return (
-    <button
-      onClick={toggleTheme}
-      className="flex size-8 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
-      aria-label="Toggle theme"
-    >
-      {theme === "light" ? (
-        <Moon className="size-4" />
-      ) : (
-        <Sun className="size-4" />
-      )}
-    </button>
-  );
-}
 
 function SearchButton({ onToggle }: { onToggle: () => void }) {
   useEffect(() => {

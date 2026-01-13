@@ -78,7 +78,40 @@
 }
 
 /* Chevron icons for folders */
-#nd-sidebar button svg {
+#nd-sidebar svg[data-icon] {
   width: 0.875rem !important;
   height: 0.875rem !important;
+}
+
+/* Sidebar footer - remove border */
+#nd-sidebar .border-t,
+#nd-sidebar-mobile .border-t {
+  border-top: none !important;
+}
+
+/* ===== TOC Popover Customization ===== */
+
+/* Make TOC popover full width on mobile */
+[data-toc-popover] {
+  width: 100vw !important;
+  margin-inline-start: calc(-1 * var(--fd-sidebar-width, 0px)) !important;
+  left: 0 !important;
+}
+
+/* Remove border, keep background for scroll overlap */
+[data-toc-popover] header {
+  border-bottom: none !important;
+}
+
+/* Match page content padding */
+[data-toc-popover-trigger],
+[data-toc-popover-content] {
+  padding-inline: 1rem !important; /* px-4 */
+}
+
+@media (min-width: 768px) {
+  [data-toc-popover-trigger],
+  [data-toc-popover-content] {
+    padding-inline: 1.5rem !important; /* md:px-6 */
+  }
 }

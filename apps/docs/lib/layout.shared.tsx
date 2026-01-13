@@ -10,6 +10,7 @@ import icon from "@/public/favicon/icon.svg";
 import Image from "next/image";
 import { DocsLayoutProps } from "fumadocs-ui/layouts/docs";
 import { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
+import { ThemeToggle } from "@/components/shared/theme-toggle";
 
 const DiscordIcon = () => {
   return (
@@ -29,6 +30,9 @@ const DiscordIcon = () => {
 // shared configuration
 export const baseOptions: BaseLayoutProps = {
   githubUrl: "https://github.com/assistant-ui/assistant-ui",
+  themeSwitch: {
+    component: <ThemeToggle />,
+  },
   nav: {
     title: (
       <>
