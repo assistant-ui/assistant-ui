@@ -342,7 +342,6 @@ async function main(): Promise<void> {
     case "validate":
       validateCommand(options);
       break;
-    case "-h":
     default:
       printHelp();
       break;

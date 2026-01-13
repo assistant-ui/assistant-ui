@@ -23,25 +23,25 @@ function ServerItem({
   onToggle: () => void;
 }) {
   return (
-    <label className="flex items-start gap-2 cursor-pointer group">
+    <label className="group flex cursor-pointer items-start gap-2">
       <input
         type="checkbox"
         checked={isEnabled}
         onChange={onToggle}
         className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
       />
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5 flex-wrap">
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-1.5">
           <span className="font-medium text-foreground text-sm">
             {server.name}
           </span>
           {isEnabled && (
-            <span className="text-[10px] px-1 py-0.5 rounded bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
+            <span className="rounded bg-green-100 px-1 py-0.5 text-[10px] text-green-700 dark:bg-green-900 dark:text-green-300">
               Active
             </span>
           )}
         </div>
-        <p className="text-xs text-muted-foreground line-clamp-2">
+        <p className="line-clamp-2 text-muted-foreground text-xs">
           {server.description}
         </p>
       </div>
@@ -79,9 +79,9 @@ export function SettingsDialog() {
             ))}
           </div>
         </div>
-        <div className="border-t pt-3 text-xs text-muted-foreground">
+        <div className="border-t pt-3 text-muted-foreground text-xs">
           All servers must be running before enabling. Run{" "}
-          <code className="bg-muted px-1 rounded">pnpm dev:all</code> to start
+          <code className="rounded bg-muted px-1">pnpm dev:all</code> to start
           all servers.
         </div>
       </DialogContent>

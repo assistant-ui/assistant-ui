@@ -104,7 +104,7 @@ describe("File Handling Integration Tests", () => {
 
   it("handles getFileDownloadUrl method call", async () => {
     const fileId = "file-download-xyz-789";
-    const expectedUrl = "https://example.com/files/download/" + fileId;
+    const expectedUrl = `https://example.com/files/download/${fileId}`;
 
     const handlers: MessageBridgeHandlers = {
       callTool: vi.fn(),

@@ -263,7 +263,9 @@ export const MCPToolUIProvider: React.FC<MCPToolUIProviderProps> = ({
                           src={`${baseUrl}/render?component=${encodeURIComponent(componentName)}`}
                           toolName={toolName}
                           toolInput={args as Record<string, unknown>}
-                          toolOutput={toolOutput as Record<string, unknown> | null}
+                          toolOutput={
+                            toolOutput as Record<string, unknown> | null
+                          }
                           theme={currentTheme}
                           widgetState={widgetState}
                           onWidgetStateChange={setWidgetState}

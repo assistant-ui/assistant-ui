@@ -115,7 +115,7 @@ export default function Home() {
               </div>
 
               <div className="border-border border-t bg-muted/30 px-4 py-2">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <div className="flex items-center gap-2 text-muted-foreground text-xs">
                   <span>Active servers:</span>
                   {enabledServers.length === 0 ? (
                     <span className="text-amber-600">None selected</span>
@@ -125,7 +125,7 @@ export default function Home() {
                       return (
                         <span
                           key={id}
-                          className="px-1.5 py-0.5 rounded bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
+                          className="rounded bg-green-100 px-1.5 py-0.5 text-green-700 dark:bg-green-900 dark:text-green-300"
                         >
                           {server?.name ?? id}
                         </span>
