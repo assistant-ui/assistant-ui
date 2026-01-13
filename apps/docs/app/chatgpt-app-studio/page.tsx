@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   CheckIcon,
   CopyIcon,
@@ -88,6 +88,24 @@ const WORKBENCH_URL =
 export default function ChatGptAppStudioPage() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const iframeSrc = `${WORKBENCH_URL}?component=poi-map`;
+
+  // Listen for fullscreen messages from workbench iframe
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === "workbench:fullscreen") {
+        if (event.data.value) {
+          document.documentElement.style.overflow = "hidden";
+          document.body.style.overflow = "hidden";
+        } else {
+          document.documentElement.style.overflow = "";
+          document.body.style.overflow = "";
+        }
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, []);
 
   return (
     <>

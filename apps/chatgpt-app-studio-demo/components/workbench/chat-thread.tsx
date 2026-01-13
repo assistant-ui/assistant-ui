@@ -127,9 +127,26 @@ export function ChatThread({ children, className }: ChatThreadProps) {
     if (displayMode === "fullscreen") {
       document.documentElement.style.overflow = "hidden";
       document.body.style.overflow = "hidden";
+
+      // Notify parent window to prevent scrolling
+      if (window.parent !== window) {
+        window.parent.postMessage(
+          { type: "workbench:fullscreen", value: true },
+          "*",
+        );
+      }
+
       return () => {
         document.documentElement.style.overflow = "";
         document.body.style.overflow = "";
+
+        // Notify parent window to restore scrolling
+        if (window.parent !== window) {
+          window.parent.postMessage(
+            { type: "workbench:fullscreen", value: false },
+            "*",
+          );
+        }
       };
     }
   }, [displayMode]);
