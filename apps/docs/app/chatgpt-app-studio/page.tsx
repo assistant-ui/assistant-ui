@@ -91,14 +91,38 @@ export default function ChatGptAppStudioPage() {
 
   // Listen for fullscreen messages from workbench iframe
   useEffect(() => {
+    const preventScroll = (e: Event) => {
+      e.preventDefault();
+      e.stopPropagation();
+      return false;
+    };
+
     const handleMessage = (event: MessageEvent) => {
       if (event.data?.type === "workbench:fullscreen") {
         if (event.data.value) {
-          document.documentElement.style.overflow = "hidden";
-          document.body.style.overflow = "hidden";
+          // Set overflow hidden with !important
+          document.documentElement.style.setProperty(
+            "overflow",
+            "hidden",
+            "important",
+          );
+          document.body.style.setProperty("overflow", "hidden", "important");
+
+          // Also prevent scroll events
+          window.addEventListener("scroll", preventScroll, { passive: false });
+          window.addEventListener("wheel", preventScroll, { passive: false });
+          window.addEventListener("touchmove", preventScroll, {
+            passive: false,
+          });
         } else {
-          document.documentElement.style.overflow = "";
-          document.body.style.overflow = "";
+          // Restore overflow
+          document.documentElement.style.removeProperty("overflow");
+          document.body.style.removeProperty("overflow");
+
+          // Remove scroll prevention
+          window.removeEventListener("scroll", preventScroll);
+          window.removeEventListener("wheel", preventScroll);
+          window.removeEventListener("touchmove", preventScroll);
         }
       }
     };
