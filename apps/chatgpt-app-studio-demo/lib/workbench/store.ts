@@ -215,7 +215,7 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
   activeToolCall: null,
   isConsoleOpen: false,
   isLeftPanelOpen: true,
-  isRightPanelOpen: false,
+  isRightPanelOpen: true,
   isSDKGuideOpen: false,
   simulation: DEFAULT_SIMULATION_STATE,
   useIframePreview: false,

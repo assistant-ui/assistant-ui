@@ -42,6 +42,7 @@ export function WorkbenchShell() {
   const isRightPanelOpen = useIsRightPanelOpen();
   const isSDKGuideOpen = useIsSDKGuideOpen();
   const setSDKGuideOpen = useWorkbenchStore((s) => s.setSDKGuideOpen);
+  const setWorkbenchTheme = useWorkbenchStore((s) => s.setTheme);
   const { setTheme, resolvedTheme } = useTheme();
 
   useWorkbenchPersistence();
@@ -49,6 +50,12 @@ export function WorkbenchShell() {
   React.useEffect(() => {
     setMounted(true);
   }, []);
+
+  React.useEffect(() => {
+    if (mounted && resolvedTheme) {
+      setWorkbenchTheme(resolvedTheme as "light" | "dark");
+    }
+  }, [mounted, resolvedTheme, setWorkbenchTheme]);
 
   const isDark = mounted && resolvedTheme === "dark";
 
