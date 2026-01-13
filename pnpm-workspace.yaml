@@ -1,6 +1,7 @@
 packages:
   - packages/*
   - examples/*
+  - examples/with-openai-apps/servers
   - apps/*
 
 onlyBuiltDependencies:

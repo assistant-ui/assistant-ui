@@ -26,6 +26,7 @@
     "concurrently": "^9.1.2"
   },
   "workspaces": [
-    "client"
+    "client",
+    "servers"
   ]
 }
