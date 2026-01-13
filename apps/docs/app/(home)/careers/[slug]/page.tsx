@@ -2,9 +2,12 @@ import { use } from "react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import type { ReactElement } from "react";
-import { careers, CareerPage } from "@/lib/source";
+import type { Metadata } from "next";
+import { createOgMetadata } from "@/lib/og";
+import { careers, type CareerPage } from "@/lib/source";
 import { getMDXComponents } from "@/mdx-components";
 import { ApplyForm } from "@/components/careers/ApplyForm";
+import { ArrowLeft } from "lucide-react";
 
 interface Params {
   slug: string;
@@ -23,59 +26,46 @@ export default function CareerRolePage({
   }
 
   const role = page;
-
   const mdxComponents = getMDXComponents({});
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-col gap-12 px-6 pt-16 pb-24 sm:px-8 lg:px-0">
-      <div className="flex items-center justify-between">
-        <Link
-          href="/careers"
-          className="text-muted-foreground text-sm transition hover:text-foreground"
-        >
-          ← Back to careers
-        </Link>
-        <div className="hidden text-muted-foreground text-xs sm:flex sm:gap-3">
-          <span>{role.data.location}</span>
-          <span className="text-muted-foreground/40">•</span>
-          <span>{role.data.type}</span>
-          <span className="text-muted-foreground/40">•</span>
-          <span>{role.data.salary}</span>
-        </div>
-      </div>
+    <main className="mx-auto w-full max-w-3xl px-4 py-16 md:py-24">
+      <Link
+        href="/careers"
+        className="inline-flex items-center gap-1.5 text-muted-foreground text-sm transition-colors hover:text-foreground"
+      >
+        <ArrowLeft className="h-3.5 w-3.5" />
+        Careers
+      </Link>
 
-      <header className="space-y-4">
-        <p className="text-muted-foreground text-sm uppercase tracking-[0.3em]">
-          Role
+      <header className="mt-8">
+        <p className="text-muted-foreground text-sm">
+          {role.data.location} · {role.data.type}
+          {role.data.salary && ` · ${role.data.salary}`}
         </p>
-        <h1 className="font-semibold text-4xl tracking-tight sm:text-5xl">
+        <h1 className="mt-2 font-medium text-3xl tracking-tight">
           {role.data.title}
         </h1>
-        <p className="max-w-2xl text-base text-muted-foreground sm:text-lg">
-          {role.data.summary}
-        </p>
-        <div className="flex gap-3 text-muted-foreground text-sm sm:hidden">
-          <span>{role.data.location}</span>
-          <span className="text-muted-foreground/40">•</span>
-          <span>{role.data.type}</span>
-          <span className="text-muted-foreground/40">•</span>
-          <span>{role.data.salary}</span>
-        </div>
+        {role.data.summary && (
+          <p className="mt-3 text-lg text-muted-foreground">
+            {role.data.summary}
+          </p>
+        )}
       </header>
 
-      <div className="flex w-full flex-col border border-border/70 border-dashed bg-background/80">
-        <article className="prose-neutral dark:prose-invert prose max-w-none px-6 py-8">
-          <role.data.body components={mdxComponents} />
-        </article>
+      <article className="prose mt-12 max-w-none">
+        <role.data.body components={mdxComponents} />
+      </article>
 
-        <section className="w-full border-border/70 border-t border-dashed px-6 py-6">
-          <h2 className="font-medium text-lg">Ready to apply?</h2>
-          <p className="mt-1 mb-6 text-muted-foreground text-sm">
-            Send a quick introduction and a few links. We read every submission.
-          </p>
+      <section className="mt-16">
+        <h2 className="font-medium text-xl">Apply for this role</h2>
+        <p className="mt-2 text-muted-foreground text-sm">
+          Send a quick introduction and a few links. We read every submission.
+        </p>
+        <div className="mt-6">
           <ApplyForm roleTitle={role.data.title} />
-        </section>
-      </div>
+        </div>
+      </section>
     </main>
   );
 }
@@ -84,4 +74,19 @@ export function generateStaticParams(): Params[] {
   return careers.getPages().map((page) => ({
     slug: page.slugs[0]!,
   }));
+}
+
+export async function generateMetadata(props: {
+  params: Promise<Params>;
+}): Promise<Metadata> {
+  const params = await props.params;
+  const page = careers.getPage([params.slug]) as CareerPage | undefined;
+
+  if (!page) return { title: "Not Found" };
+
+  return {
+    title: page.data.title,
+    description: page.data.summary,
+    ...createOgMetadata(page.data.title, page.data.summary),
+  };
 }

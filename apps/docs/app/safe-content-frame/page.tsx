@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import { Play, Trash2, Shield, Code, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SafeContentFrame, type RenderedFrame } from "safe-content-frame";
+import { cn } from "@/lib/utils";
 
 const DEFAULT_HTML = `<h1>Hello from Safe Content Frame!</h1>
 <p>This content is rendered in a <strong>sandboxed iframe</strong>.</p>
@@ -128,7 +129,7 @@ export default function SafeContentFramePage() {
   };
 
   return (
-    <div className="container max-w-screen-xl space-y-12 px-4 py-12">
+    <div className="container mx-auto max-w-screen-xl space-y-12 px-4 py-12">
       <div className="flex flex-col items-center space-y-6 text-center">
         <div className="flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm">
           <Shield className="size-4" />
@@ -190,15 +191,14 @@ export default function SafeContentFramePage() {
           </div>
 
           <div
-            className={`rounded-lg p-3 font-mono text-sm ${
-              status.type === "error"
-                ? "bg-destructive/10 text-destructive"
-                : status.type === "success"
-                  ? "bg-green-500/10 text-green-600 dark:text-green-400"
-                  : status.type === "loading"
-                    ? "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400"
-                    : "bg-muted text-muted-foreground"
-            }`}
+            className={cn("rounded-lg p-3 font-mono text-sm", {
+              "bg-destructive/10 text-destructive": status.type === "error",
+              "bg-green-500/10 text-green-600 dark:text-green-400":
+                status.type === "success",
+              "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400":
+                status.type === "loading",
+              "bg-muted text-muted-foreground": status.type === "idle",
+            })}
           >
             {status.message}
           </div>

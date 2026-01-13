@@ -5,8 +5,7 @@ packages:
 
 onlyBuiltDependencies:
   - '@tailwindcss/oxide@4.1.17'
-  - esbuild@0.25.12
-  - esbuild@0.27.1
+  - esbuild
   - sharp@0.34.5
   - unrs-resolver@1.11.1
 

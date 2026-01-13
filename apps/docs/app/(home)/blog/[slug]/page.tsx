@@ -1,14 +1,24 @@
+import type { Metadata } from "next";
 import { use } from "react";
+import { createOgMetadata } from "@/lib/og";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { blog, BlogPage } from "@/lib/source";
-import { buttonVariants } from "@/components/ui/button";
+import { blog, type BlogPage } from "@/lib/source";
 import Image from "next/image";
 import profilePic from "@/components/home/testimonials/profiles/Mc0m3zkD_400x400.jpg";
 import { getMDXComponents } from "@/mdx-components";
+import { ArrowLeft } from "lucide-react";
 
 interface Param {
   slug: string;
+}
+
+function formatDate(date: Date): string {
+  return date.toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
 export default function Page(props: {
@@ -21,60 +31,44 @@ export default function Page(props: {
   if (!page) notFound();
 
   return (
-    <main className="px-4">
-      <div className="mx-auto flex w-full max-w-screen-xl items-center justify-between py-4">
-        <Link
-          href="/blog"
-          className={buttonVariants({ size: "sm", variant: "ghost" })}
-        >
-          Back
-        </Link>
-        {!!page.data.date && (
-          <p className="text-gray-500 text-xs">
-            {page.data.date.toLocaleString("en-US", {
-              year: "numeric",
-              month: "2-digit",
-              day: "2-digit",
-            })}
-          </p>
-        )}
-      </div>
-      <div
-        className="mx-auto w-full max-w-screen-xl rounded-xl border py-12 md:px-8"
-        style={{
-          backgroundColor: "black",
-          backgroundImage: [
-            "linear-gradient(140deg, hsla(274,94%,54%,0.3), transparent 50%)",
-            "linear-gradient(to left top, hsla(260,90%,50%,0.8), transparent 50%)",
-            "radial-gradient(circle at 100% 100%, hsla(240,100%,82%,1), hsla(240,40%,40%,1) 17%, hsla(240,40%,40%,0.5) 20%, transparent)",
-          ].join(", "),
-          backgroundBlendMode: "difference, difference, normal",
-        }}
+    <main className="mx-auto w-full max-w-3xl px-4 py-16 md:py-24">
+      <Link
+        href="/blog"
+        className="inline-flex items-center gap-1.5 text-muted-foreground text-sm transition-colors hover:text-foreground"
       >
-        <div className="mx-auto flex w-full max-w-screen-sm flex-col items-center justify-center px-4">
-          <h1 className="text-center font-bold text-4xl text-white">
-            {page.data.title}
-          </h1>
-          <p className="mt-4 text-balance text-center text-lg text-white/80">
+        <ArrowLeft className="h-3.5 w-3.5" />
+        Blog
+      </Link>
+
+      <header className="mt-8">
+        {page.data.date && (
+          <time className="text-muted-foreground text-sm">
+            {formatDate(page.data.date)}
+          </time>
+        )}
+        <h1 className="mt-2 font-medium text-3xl tracking-tight">
+          {page.data.title}
+        </h1>
+        {page.data.description && (
+          <p className="mt-3 text-lg text-muted-foreground">
             {page.data.description}
           </p>
+        )}
+        <div className="mt-6 flex items-center gap-2.5">
+          <Image
+            src={profilePic}
+            alt="Simon Farshid"
+            width={28}
+            height={28}
+            className="rounded-full"
+          />
+          <span className="text-muted-foreground text-sm">Simon Farshid</span>
         </div>
-      </div>
-      <article className="lg:prose-lg prose mx-auto w-full max-w-screen-sm py-8">
+      </header>
+
+      <article className="prose mt-12 max-w-none">
         <page.data.body components={mdxComponents} />
       </article>
-      <div className="mx-auto mb-20 flex w-full max-w-screen-sm items-start gap-3">
-        <Image
-          src={profilePic}
-          alt="Simon Farshid"
-          width={32}
-          height={32}
-          className="size-8 rounded-full"
-        />
-        <div className="mt-1.5 flex flex-col">
-          <span className="font-medium text-sm">Simon Farshid</span>
-        </div>
-      </div>
     </main>
   );
 }
@@ -83,4 +77,19 @@ export function generateStaticParams(): Param[] {
   return blog.getPages().map((page) => ({
     slug: page.slugs[0]!,
   }));
+}
+
+export async function generateMetadata(props: {
+  params: Promise<Param>;
+}): Promise<Metadata> {
+  const params = await props.params;
+  const page = blog.getPage([params.slug]) as BlogPage | undefined;
+
+  if (!page) return { title: "Not Found" };
+
+  return {
+    title: page.data.title,
+    description: page.data.description,
+    ...createOgMetadata(page.data.title, page.data.description),
+  };
 }

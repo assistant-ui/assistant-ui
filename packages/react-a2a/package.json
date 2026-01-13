@@ -1,10 +1,22 @@
 {
   "name": "@assistant-ui/react-a2a",
-  "version": "0.1.4",
+  "version": "0.1.5",
+  "description": "A2A protocol adapter for assistant-ui",
+  "keywords": [
+    "a2a",
+    "agent-to-agent",
+    "assistant-ui",
+    "react",
+    "ai",
+    "chat",
+    "protocol"
+  ],
+  "author": "AgentbaseAI Inc.",
   "license": "MIT",
   "type": "module",
   "exports": {
     ".": {
+      "aui-source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     }
@@ -18,19 +30,16 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "tsx scripts/build.mts",
-    "test": "vitest run --passWithNoTests",
-    "test:watch": "vitest"
+    "build": "aui-build"
   },
   "dependencies": {
-    "assistant-stream": "^0.2.45",
-    "uuid": "^13.0.0",
-    "zod": "^4.1.13"
+    "assistant-stream": "^0.2.46",
+    "uuid": "^13.0.0"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.11.51",
+    "@assistant-ui/react": "^0.11.53",
     "@types/react": "*",
-    "react": "^18 || ^19 || ^19.0.0-rc"
+    "react": "^18 || ^19"
   },
   "peerDependenciesMeta": {
     "@types/react": {
@@ -40,15 +49,9 @@
   "devDependencies": {
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@testing-library/dom": "^10.4.1",
-    "@testing-library/react": "^16.3.0",
-    "@types/node": "^25.0.0",
     "@types/react": "^19.2.7",
     "@types/uuid": "^11.0.0",
-    "jsdom": "^27.3.0",
-    "react": "19.2.3",
-    "tsx": "^4.21.0",
-    "vitest": "^4.0.15"
+    "react": "19.2.3"
   },
   "publishConfig": {
     "access": "public",
@@ -57,7 +60,8 @@
   "homepage": "https://www.assistant-ui.com/",
   "repository": {
     "type": "git",
-    "url": "https://github.com/assistant-ui/assistant-ui/tree/main/packages/react-a2a"
+    "url": "git+https://github.com/assistant-ui/assistant-ui.git",
+    "directory": "packages/react-a2a"
   },
   "bugs": {
     "url": "https://github.com/assistant-ui/assistant-ui/issues"

@@ -1,11 +1,11 @@
 import { examples, type ExamplePage } from "@/lib/source";
 import type { Metadata } from "next";
+import { createOgMetadata } from "@/lib/og";
 import { DocsPage, DocsBody } from "fumadocs-ui/page";
 import { notFound } from "next/navigation";
 import { getMDXComponents } from "@/mdx-components";
 import { DocsRuntimeProvider } from "@/app/(home)/DocsRuntimeProvider";
 import { ExamplesNavbar } from "@/components/examples/ExamplesNavbar";
-import { Footer } from "@/components/shared/footer";
 
 function getPage(slug: string[] | undefined): ExamplePage {
   const page = examples.getPage(slug);
@@ -28,13 +28,15 @@ export default async function Page(props: {
       toc={page.data.toc}
       tableOfContent={{ enabled: !isIndex }}
       full={true}
-      footer={{ component: <Footer /> }}
     >
       {!isIndex && <ExamplesNavbar />}
       <DocsBody>
         {!isIndex && (
-          <header className="mt-7 mb-28 text-center">
-            <h1 className="mt-4 font-bold text-5xl">{page.data.title}</h1>
+          <header className="not-prose flex flex-col gap-1 pb-8">
+            <h1 className="font-medium text-2xl">{page.data.title}</h1>
+            {page.data.description && (
+              <p className="text-muted-foreground">{page.data.description}</p>
+            )}
           </header>
         )}
         <DocsRuntimeProvider>
@@ -46,12 +48,10 @@ export default async function Page(props: {
 }
 
 export async function generateStaticParams() {
-  // Generate params for both index and individual pages
   const pages = examples.getPages().map((page) => ({
     slug: page.slugs,
   }));
 
-  // Add the index page (empty slug)
   return [{ slug: [] }, ...pages];
 }
 
@@ -60,8 +60,10 @@ export async function generateMetadata(
 ): Promise<Metadata> {
   const { slug = [] } = await props.params;
   const page = getPage(slug);
+
   return {
     title: page.data.title,
     description: page.data.description,
+    ...createOgMetadata(page.data.title, page.data.description),
   };
 }

@@ -1,6 +1,6 @@
 import Image from "next/image";
-import { Card } from "@/components/ui/card";
 import Link from "next/link";
+import { ExternalLink } from "lucide-react";
 import { ExampleItem } from "@/lib/examples";
 
 export function ExampleCard({
@@ -10,35 +10,34 @@ export function ExampleCard({
   link,
   external = false,
 }: ExampleItem) {
-  const cardContent = (
-    <Card className="group relative flex min-h-[350px] flex-col overflow-hidden rounded-lg bg-card">
+  return (
+    <Link
+      href={link}
+      className="not-prose group block overflow-hidden rounded-lg border bg-card transition-colors hover:border-foreground/20"
+      {...(external && { target: "_blank", rel: "noopener noreferrer" })}
+    >
       <div className="overflow-hidden">
         <Image
           src={image}
           alt={title}
           width={600}
           height={400}
-          className="aspect-[4/3] w-full object-cover transition-transform duration-300 group-hover:scale-105 md:aspect-[16/9]"
+          className="aspect-video w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
         />
       </div>
-      <div className="flex flex-col gap-1 p-4 pt-2">
+      <div className="flex flex-col gap-1 p-4">
         <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-lg">{title}</h3>
+          <h3 className="font-medium">{title}</h3>
+          {external && (
+            <ExternalLink className="size-4 text-muted-foreground" />
+          )}
         </div>
-        <div className="flex-1">
-          <p className="text-muted-foreground">{description}</p>
-        </div>
+        {description && (
+          <p className="text-muted-foreground text-sm leading-relaxed">
+            {description}
+          </p>
+        )}
       </div>
-    </Card>
-  );
-
-  return (
-    <Link
-      href={link}
-      className="not-prose no-underline"
-      {...(external && { target: "_blank", rel: "noopener noreferrer" })}
-    >
-      {cardContent}
     </Link>
   );
 }

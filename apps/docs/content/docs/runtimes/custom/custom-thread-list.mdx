@@ -1,5 +1,6 @@
 ---
 title: Custom Thread List
+description: Plug a custom thread database for multi-thread persistence.
 ---
 
 import { Callout } from "fumadocs-ui/components/callout";
@@ -216,6 +217,42 @@ When the hook mounts it calls `list()` on your adapter, hydrates existing thread
 - `archive`, `unarchive`, and `delete` are called optimistically; throw to revert the UI.
 - `generateTitle()` powers the automatic title button and expects an `AssistantStream`.
 - Provide a `runtimeHook` that always returns a fresh runtime instance per active thread.
+
+## Avoiding Race Conditions in History Adapters
+
+<Callout type="warn">
+When implementing a custom history adapter, you must await thread initialization before saving messages. Failing to do so can cause the first message to be lost due to a race condition.
+</Callout>
+
+If you're building a history adapter that persists messages to your own database, use `api.threadListItem().initialize()` to ensure the thread is fully initialized before saving:
+
+```tsx
+import { useAssistantApi } from "@assistant-ui/react";
+
+// Inside your unstable_Provider component
+const api = useAssistantApi();
+
+const history = useMemo<ThreadHistoryAdapter>(
+  () => ({
+    async append(message) {
+      // Wait for initialization to complete and get the remoteId
+      const { remoteId } = await api.threadListItem().initialize();
+
+      // Now safe to save the message using the remoteId
+      await saveMessageToDatabase(remoteId, message);
+    },
+    // ...
+  }),
+  [api],
+);
+```
+
+The `initialize()` method:
+- Can be called multiple times safely
+- Always waits for the initial `initialize()` call to complete
+- Returns the same `remoteId` on subsequent calls
+
+See `AssistantCloudThreadHistoryAdapter` in the source code for a production-ready reference implementation.
 
 ## Optional Adapters
 

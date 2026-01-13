@@ -1,0 +1,5 @@
+# Environment variables for local development
+# Copy this file to .env.local and add your keys
+
+# OpenAI API key (optional - only needed for SDK Guide feature)
+# OPENAI_API_KEY=sk-...

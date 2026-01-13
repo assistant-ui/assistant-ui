@@ -1,5 +1,15 @@
 # assistant-cloud
 
+## 0.1.12
+
+### Patch Changes
+
+- 57bd207: chore: update dependencies
+- cce009d: chore: use tsc for building packages
+- Updated dependencies [57bd207]
+- Updated dependencies [cce009d]
+  - assistant-stream@0.2.46
+
 ## 0.1.11
 
 ### Patch Changes

@@ -1,5 +1,12 @@
 # @assistant-ui/tap
 
+## 0.3.5
+
+### Patch Changes
+
+- 57bd207: chore: update dependencies
+- cce009d: chore: use tsc for building packages
+
 ## 0.3.4
 
 ### Patch Changes
