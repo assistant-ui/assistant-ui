@@ -123,6 +123,15 @@ export function ChatThread({ children, className }: ChatThreadProps) {
     }
   }, [displayMode]);
 
+  useEffect(() => {
+    if (displayMode === "fullscreen") {
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = "";
+      };
+    }
+  }, [displayMode]);
+
   if (displayMode === "fullscreen") {
     return (
       <FullscreenLayout className={className} isDark={isDark}>
@@ -182,7 +191,7 @@ function IsolatedLayout({
   return (
     <div
       className={cn(
-        "relative flex h-full flex-col items-center justify-center overflow-hidden transition-colors",
+        "relative flex h-full flex-col items-center justify-center overflow-hidden px-4 transition-colors",
         isDark ? "bg-neutral-900" : "bg-white",
         className,
       )}
@@ -258,8 +267,12 @@ function FullscreenLayout({ children, className, isDark }: LayoutProps) {
         isDark ? "bg-neutral-900" : "bg-white",
         className,
       )}
+      style={{ overscrollBehavior: "contain" }}
     >
-      <MorphContainer className="h-full overflow-auto">
+      <MorphContainer
+        className="h-full overflow-auto"
+        style={{ overscrollBehavior: "contain" }}
+      >
         {children}
       </MorphContainer>
     </div>

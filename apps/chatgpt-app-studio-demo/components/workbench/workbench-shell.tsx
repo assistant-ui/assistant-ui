@@ -24,7 +24,7 @@ import { SELECT_CLASSES, COMPACT_SMALL_TEXT_CLASSES } from "./styles";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/ui/cn";
 import { useTheme } from "next-themes";
-import { Moon, Sun, Sparkles } from "lucide-react";
+import { Moon, Sun, MessageCircle } from "lucide-react";
 import { OnboardingModal } from "./onboarding-modal";
 import { LeftPanelIcon, RightPanelIcon } from "./panel-toggle-icons";
 import { SDKGuideModal } from "./sdk-guide/sdk-guide-modal";
@@ -176,12 +176,12 @@ export function WorkbenchShell() {
 
           <Button
             variant="ghost"
-            size="icon"
-            aria-label="SDK Guide (⌘/)"
-            className="size-7 rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            aria-label="SDK Assistant (⌘/)"
+            className="h-7 gap-1.5 rounded-md px-2 text-muted-foreground text-sm transition-colors hover:bg-muted hover:text-foreground"
             onClick={toggleSDKGuide}
           >
-            <Sparkles className="size-4" />
+            <MessageCircle className="size-4" />
+            <span>SDK Assistant</span>
           </Button>
 
           <ExportPopover />

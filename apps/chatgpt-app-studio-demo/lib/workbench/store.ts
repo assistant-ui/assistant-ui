@@ -199,7 +199,7 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
   toolInput: defaultComponent?.defaultProps ?? {},
   toolOutput: null,
   widgetState: null,
-  maxHeight: 500,
+  maxHeight: 400,
   intrinsicHeight: null,
   toolResponseMetadata: null,
   safeAreaInsets: { top: 10, bottom: 100, left: 10, right: 10 },

@@ -31,6 +31,7 @@ const customEditorStyleLight = EditorView.theme(
     },
     ".cm-content": {
       padding: "0px",
+      cursor: "text",
     },
     ".cm-gutters": {
       backgroundColor: "transparent",
@@ -81,7 +82,9 @@ const customEditorStyleDark = EditorView.theme(
       fontSize: "12px",
       fontFamily: "ui-monospace, monospace",
     },
-    ".cm-content": {},
+    ".cm-content": {
+      cursor: "text",
+    },
     ".cm-gutters": {
       backgroundColor: "transparent",
       borderRight: "none",

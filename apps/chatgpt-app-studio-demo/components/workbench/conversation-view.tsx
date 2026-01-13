@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { cn } from "@/lib/ui/cn";
-import { Loader2 } from "lucide-react";
+import { MapPin, MessageCircle } from "lucide-react";
 import {
   useWorkbenchStore,
   useWorkbenchTheme,
@@ -50,18 +50,35 @@ function ToolIndicator({
   toolName: string;
   isDark: boolean;
 }) {
+  const component = workbenchComponents.find((c) => c.id === toolName);
+  const appName = component?.label ?? toolName;
+
+  const iconMap: Record<string, typeof MapPin> = {
+    "poi-map": MapPin,
+    welcome: MessageCircle,
+  };
+
+  const Icon = iconMap[toolName] || MessageCircle;
+
   return (
     <div className="flex justify-start">
-      <div
-        className={cn(
-          "flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs",
-          isDark
-            ? "bg-neutral-800 text-neutral-400"
-            : "bg-neutral-100 text-neutral-500",
-        )}
-      >
-        <Loader2 className="size-3 animate-spin" />
-        <span>Using {toolName}...</span>
+      <div className="flex items-center gap-2.5">
+        <div
+          className={cn(
+            "flex size-8 items-center justify-center rounded-full",
+            isDark ? "bg-blue-600" : "bg-blue-500",
+          )}
+        >
+          <Icon className="size-4 text-white" />
+        </div>
+        <span
+          className={cn(
+            "font-medium text-sm",
+            isDark ? "text-neutral-200" : "text-neutral-700",
+          )}
+        >
+          {appName}
+        </span>
       </div>
     </div>
   );

@@ -23,7 +23,7 @@ export function ActivityPanel() {
 
   return (
     <div className="flex h-full flex-col overflow-hidden pt-6">
-      <div className="flex h-9 shrink-0 items-center justify-between border-b px-4">
+      <div className="flex h-12 shrink-0 items-center justify-between border-b px-4 pb-2">
         <div className="flex select-none items-center gap-1">
           <button
             type="button"
@@ -54,7 +54,7 @@ export function ActivityPanel() {
             )}
           >
             <Wrench className="size-3.5" />
-            Simulation
+            Tools
           </button>
         </div>
         {activeTab === "activity" && logCount > 0 && (
