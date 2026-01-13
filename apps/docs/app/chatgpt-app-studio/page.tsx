@@ -134,7 +134,15 @@ export default function ChatGptAppStudioPage() {
     };
 
     window.addEventListener("message", handleMessage);
-    return () => window.removeEventListener("message", handleMessage);
+    return () => {
+      window.removeEventListener("message", handleMessage);
+      // Cleanup scroll prevention listeners on unmount
+      document.documentElement.style.removeProperty("overflow");
+      document.body.style.removeProperty("overflow");
+      window.removeEventListener("scroll", preventScroll);
+      window.removeEventListener("wheel", preventScroll);
+      window.removeEventListener("touchmove", preventScroll);
+    };
   }, []);
 
   return (
