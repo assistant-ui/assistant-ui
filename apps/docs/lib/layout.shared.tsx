@@ -26,9 +26,13 @@ export const baseOptions: BaseLayoutProps = {
         <Image
           src={icon}
           alt="logo"
-          className="inline size-4 dark:hue-rotate-180 dark:invert"
+          width={18}
+          height={18}
+          className="inline dark:hue-rotate-180 dark:invert"
         />
-        <span className="font-medium">assistant-ui</span>
+        <span className="font-medium text-base tracking-tight">
+          assistant-ui
+        </span>
       </>
     ),
     transparentMode: "none",
