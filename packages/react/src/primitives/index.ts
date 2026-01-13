@@ -1,4 +1,5 @@
 export * as ActionBarPrimitive from "./actionBar";
+export * as ActionBarMorePrimitive from "./actionBarMore";
 export * as AssistantModalPrimitive from "./assistantModal";
 export * as AttachmentPrimitive from "./attachment";
 export * as BranchPickerPrimitive from "./branchPicker";

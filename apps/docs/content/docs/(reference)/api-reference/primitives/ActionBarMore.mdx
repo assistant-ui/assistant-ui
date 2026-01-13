@@ -1,0 +1,326 @@
+---
+title: ActionBarMorePrimitive
+---
+
+A dropdown menu for additional actions that don't fit in the main action bar.
+
+import { ParametersTable, DataAttributesTable } from "@/components/docs";
+import { Code } from "@radix-ui/themes";
+
+## Anatomy
+
+```tsx
+import { ActionBarPrimitive, ActionBarMorePrimitive } from "@assistant-ui/react";
+
+const MessageActions = () => (
+  <ActionBarPrimitive.Root>
+    <ActionBarPrimitive.Copy />
+    <ActionBarPrimitive.Reload />
+
+    <ActionBarMorePrimitive.Root>
+      <ActionBarMorePrimitive.Trigger>
+        <MoreHorizontalIcon />
+      </ActionBarMorePrimitive.Trigger>
+      <ActionBarMorePrimitive.Content>
+        <ActionBarMorePrimitive.Item onSelect={() => console.log("Edit")}>
+          Edit
+        </ActionBarMorePrimitive.Item>
+        <ActionBarMorePrimitive.Item onSelect={() => console.log("Speak")}>
+          Read aloud
+        </ActionBarMorePrimitive.Item>
+        <ActionBarMorePrimitive.Separator />
+        <ActionBarMorePrimitive.Item onSelect={() => console.log("Feedback")}>
+          Submit feedback
+        </ActionBarMorePrimitive.Item>
+      </ActionBarMorePrimitive.Content>
+    </ActionBarMorePrimitive.Root>
+  </ActionBarPrimitive.Root>
+);
+```
+
+## API Reference
+
+### Root
+
+Contains all parts of the dropdown menu.
+
+<ParametersTable
+  type="ActionBarMorePrimitiveRootProps"
+  parameters={[
+    {
+      name: "defaultOpen",
+      type: "boolean",
+      default: "false",
+      description:
+        "The open state of the dropdown menu when it is initially rendered. Use when you do not need to control its open state.",
+    },
+    {
+      name: "open",
+      type: "boolean",
+      description:
+        "The controlled open state of the dropdown menu. Must be used in conjunction with onOpenChange.",
+    },
+    {
+      name: "onOpenChange",
+      type: "(open: boolean) => void",
+      description:
+        "Event handler called when the open state of the dropdown menu changes.",
+    },
+    {
+      name: "modal",
+      type: "boolean",
+      default: "true",
+      description:
+        "The modality of the dropdown menu. When set to true, interaction with outside elements will be disabled and only menu content will be visible to screen readers.",
+    },
+    {
+      name: "dir",
+      type: "'ltr' | 'rtl'",
+      description: "The reading direction of the dropdown menu.",
+    },
+  ]}
+/>
+
+### Trigger
+
+A button that toggles the dropdown menu.
+
+This primitive renders a `<button>` element unless `asChild` is set.
+
+<ParametersTable
+  type="ActionBarMorePrimitiveTriggerProps"
+  parameters={[
+    {
+      name: "asChild",
+    },
+  ]}
+/>
+
+<DataAttributesTable
+  data={[
+    {
+      attribute: "[data-state]",
+      values: <Code>"open" | "closed"</Code>,
+    },
+    {
+      attribute: "[data-disabled]",
+      values: "Present when disabled",
+    },
+  ]}
+/>
+
+### Content
+
+The component that pops out when the dropdown menu is open.
+
+This primitive renders a `<div>` element unless `asChild` is set.
+
+<ParametersTable
+  type="ActionBarMorePrimitiveContentProps"
+  parameters={[
+    {
+      name: "asChild",
+    },
+    {
+      name: "side",
+      type: "'top' | 'right' | 'bottom' | 'left'",
+      default: "'bottom'",
+      description: "The preferred side of the trigger to render against.",
+    },
+    {
+      name: "sideOffset",
+      type: "number",
+      default: "4",
+      description: "The distance in pixels from the trigger.",
+    },
+    {
+      name: "align",
+      type: "'start' | 'center' | 'end'",
+      default: "'center'",
+      description: "The preferred alignment against the trigger.",
+    },
+    {
+      name: "alignOffset",
+      type: "number",
+      default: "0",
+      description: "An offset in pixels from the align option.",
+    },
+    {
+      name: "portalProps",
+      type: "PortalProps",
+      description: "Props to pass to the Portal component.",
+    },
+  ]}
+/>
+
+<DataAttributesTable
+  data={[
+    {
+      attribute: "[data-state]",
+      values: <Code>"open" | "closed"</Code>,
+    },
+    {
+      attribute: "[data-side]",
+      values: <Code>"top" | "right" | "bottom" | "left"</Code>,
+    },
+    {
+      attribute: "[data-align]",
+      values: <Code>"start" | "center" | "end"</Code>,
+    },
+  ]}
+/>
+
+Refer to Radix UI's Documentation for [DropdownMenu.Content](https://www.radix-ui.com/primitives/docs/components/dropdown-menu#content) for more details.
+
+### Item
+
+A menu item within the dropdown menu.
+
+This primitive renders a `<div>` element unless `asChild` is set.
+
+<ParametersTable
+  type="ActionBarMorePrimitiveItemProps"
+  parameters={[
+    {
+      name: "asChild",
+    },
+    {
+      name: "disabled",
+      type: "boolean",
+      description: "When true, prevents the user from interacting with the item.",
+    },
+    {
+      name: "onSelect",
+      type: "(event: Event) => void",
+      description:
+        "Event handler called when the user selects an item (via mouse or keyboard). Calling event.preventDefault in this handler will prevent the dropdown menu from closing when selecting that item.",
+    },
+    {
+      name: "textValue",
+      type: "string",
+      description:
+        "Optional text used for typeahead purposes. By default the typeahead behavior will use the .textContent of the item.",
+    },
+  ]}
+/>
+
+<DataAttributesTable
+  data={[
+    {
+      attribute: "[data-disabled]",
+      values: "Present when disabled",
+    },
+    {
+      attribute: "[data-highlighted]",
+      values: "Present when highlighted",
+    },
+  ]}
+/>
+
+Refer to Radix UI's Documentation for [DropdownMenu.Item](https://www.radix-ui.com/primitives/docs/components/dropdown-menu#item) for more details.
+
+### Separator
+
+A visual separator between groups of items.
+
+This primitive renders a `<div>` element unless `asChild` is set.
+
+<ParametersTable
+  type="ActionBarMorePrimitiveSeparatorProps"
+  parameters={[
+    {
+      name: "asChild",
+    },
+  ]}
+/>
+
+## Example Usage
+
+### Basic dropdown menu
+
+```tsx
+import { ActionBarMorePrimitive } from "@assistant-ui/react";
+import { MoreHorizontal, Pencil, Volume2, ThumbsUp } from "lucide-react";
+
+const MoreActionsMenu = () => (
+  <ActionBarMorePrimitive.Root>
+    <ActionBarMorePrimitive.Trigger className="action-button">
+      <MoreHorizontal className="size-4" />
+    </ActionBarMorePrimitive.Trigger>
+    <ActionBarMorePrimitive.Content className="dropdown-content">
+      <ActionBarMorePrimitive.Item
+        className="dropdown-item"
+        onSelect={() => console.log("Edit")}
+      >
+        <Pencil className="size-4" />
+        Edit message
+      </ActionBarMorePrimitive.Item>
+      <ActionBarMorePrimitive.Item
+        className="dropdown-item"
+        onSelect={() => console.log("Speak")}
+      >
+        <Volume2 className="size-4" />
+        Read aloud
+      </ActionBarMorePrimitive.Item>
+      <ActionBarMorePrimitive.Separator className="dropdown-separator" />
+      <ActionBarMorePrimitive.Item
+        className="dropdown-item"
+        onSelect={() => console.log("Like")}
+      >
+        <ThumbsUp className="size-4" />
+        Good response
+      </ActionBarMorePrimitive.Item>
+    </ActionBarMorePrimitive.Content>
+  </ActionBarMorePrimitive.Root>
+);
+```
+
+### Using with action hooks
+
+You can combine the dropdown menu items with action hooks from ActionBarPrimitive:
+
+```tsx
+import {
+  ActionBarPrimitive,
+  ActionBarMorePrimitive,
+  useAssistantApi,
+  useAssistantState,
+} from "@assistant-ui/react";
+import { useCallback } from "react";
+
+const useEditAction = () => {
+  const api = useAssistantApi();
+  const disabled = useAssistantState(({ composer }) => composer.isEditing);
+  const callback = useCallback(() => api.composer().beginEdit(), [api]);
+  if (disabled) return null;
+  return callback;
+};
+
+const useSpeakAction = () => {
+  const api = useAssistantApi();
+  return useCallback(() => api.message().speak(), [api]);
+};
+
+const MoreActionsWithHooks = () => {
+  const edit = useEditAction();
+  const speak = useSpeakAction();
+
+  return (
+    <ActionBarMorePrimitive.Root>
+      <ActionBarMorePrimitive.Trigger>
+        <MoreHorizontalIcon />
+      </ActionBarMorePrimitive.Trigger>
+      <ActionBarMorePrimitive.Content>
+        <ActionBarMorePrimitive.Item onSelect={edit ?? undefined} disabled={!edit}>
+          Edit
+        </ActionBarMorePrimitive.Item>
+        <ActionBarMorePrimitive.Item onSelect={speak}>
+          Read aloud
+        </ActionBarMorePrimitive.Item>
+      </ActionBarMorePrimitive.Content>
+    </ActionBarMorePrimitive.Root>
+  );
+};
+```
+
+

@@ -1,0 +1,19 @@
+{
+  "title": "Radix UI Primitives",
+  "pages": [
+    "AssistantModal",
+    "Thread",
+    "ThreadList",
+    "ThreadListItem",
+    "ThreadListItemMore",
+    "Composer",
+    "Message",
+    "Error",
+    "BranchPicker",
+    "ActionBar",
+    "ActionBarMore",
+    "MessagePart",
+    "...",
+    "composition"
+  ]
+}
