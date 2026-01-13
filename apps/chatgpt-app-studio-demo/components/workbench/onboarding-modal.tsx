@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Layers, Wand2, Database } from "lucide-react";
 
 const ONBOARDING_KEY = "chatgpt-app-studio-workbench-onboarded";
+const isDemoMode = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 
 interface OnboardingStep {
   icon: React.ReactNode;
@@ -45,6 +46,7 @@ export function OnboardingModal() {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
+    if (isDemoMode) return;
     const hasOnboarded = localStorage.getItem(ONBOARDING_KEY);
     if (!hasOnboarded) {
       const timer = setTimeout(() => setOpen(true), 500);
