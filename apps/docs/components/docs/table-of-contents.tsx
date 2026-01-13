@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import { Copy, Check, FileText, EditIcon } from "lucide-react";
+import { Copy, Check, FileText, EditIcon, AlertCircle } from "lucide-react";
 import { TOCHiringBanner } from "@/components/docs/toc-hiring-banner";
 import { useCopyButton } from "fumadocs-ui/utils/use-copy-button";
 
@@ -35,10 +35,19 @@ function TOCActions({
   markdownUrl: string | undefined;
   githubEditUrl: string | undefined;
 }) {
+  const [error, setError] = useState(false);
+
   const handleCopy = async () => {
     if (!markdownUrl) return;
-    const content = await fetchMarkdown(markdownUrl);
-    await navigator.clipboard.writeText(content);
+    setError(false);
+    try {
+      const content = await fetchMarkdown(markdownUrl);
+      await navigator.clipboard.writeText(content);
+    } catch {
+      setError(true);
+      setTimeout(() => setError(false), 2000);
+      throw new Error("Copy failed");
+    }
   };
 
   const [checked, onClick] = useCopyButton(handleCopy);
@@ -51,12 +60,14 @@ function TOCActions({
       {markdownUrl && (
         <>
           <button onClick={onClick} className={linkClass}>
-            {checked ? (
+            {error ? (
+              <AlertCircle className="size-3 text-destructive" />
+            ) : checked ? (
               <Check className="size-3" />
             ) : (
               <Copy className="size-3" />
             )}
-            Copy page
+            {error ? "Copy failed" : "Copy page"}
           </button>
           <a
             href={`${BASE_URL}${markdownUrl}`}

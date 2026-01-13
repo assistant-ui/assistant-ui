@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 export interface SidebarTab {
   url: string;
   title: string;
-  description?: string;
+  description?: string | undefined;
   icon?: ReactNode;
   urls?: Set<string>;
 }
@@ -26,10 +26,7 @@ function getFolderUrls(
 export function getSidebarTabs(tree: PageTree.Root): SidebarTab[] {
   const results: SidebarTab[] = [];
 
-  function scanOptions(
-    node: PageTree.Root | PageTree.Folder,
-    unlisted?: boolean,
-  ) {
+  function scanOptions(node: PageTree.Root | PageTree.Folder) {
     if ("root" in node && node.root) {
       const urls = getFolderUrls(node);
 
@@ -48,12 +45,12 @@ export function getSidebarTabs(tree: PageTree.Root): SidebarTab[] {
     }
 
     for (const child of node.children) {
-      if (child.type === "folder") scanOptions(child, unlisted);
+      if (child.type === "folder") scanOptions(child);
     }
   }
 
   scanOptions(tree);
-  if (tree.fallback) scanOptions(tree.fallback, true);
+  if (tree.fallback) scanOptions(tree.fallback);
 
   return results;
 }

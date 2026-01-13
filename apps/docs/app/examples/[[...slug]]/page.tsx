@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 import { getMDXComponents } from "@/mdx-components";
 import { DocsRuntimeProvider } from "@/app/(home)/DocsRuntimeProvider";
 import { ExamplesNavbar } from "@/components/examples/ExamplesNavbar";
+import { TableOfContents } from "@/components/docs/table-of-contents";
 
 function getPage(slug: string[] | undefined): ExamplePage {
   const page = examples.getPage(slug);
@@ -23,19 +24,39 @@ export default async function Page(props: {
   const page = getPage(params.slug);
   const isIndex = !params.slug || params.slug.length === 0;
 
+  const path = `apps/docs/content/examples/${page.path}`;
+  const markdownUrl = `${page.url}.mdx`;
+  const githubEditUrl = `https://github.com/assistant-ui/assistant-ui/edit/main/${path}`;
+
   return (
     <DocsPage
       toc={page.data.toc}
-      tableOfContent={{ enabled: !isIndex }}
       full={true}
+      tableOfContent={{
+        enabled: !isIndex,
+        component: !isIndex ? (
+          <TableOfContents
+            items={page.data.toc}
+            githubEditUrl={githubEditUrl}
+            markdownUrl={markdownUrl}
+          />
+        ) : undefined,
+      }}
+      tableOfContentPopover={{
+        enabled: false,
+      }}
     >
       {!isIndex && <ExamplesNavbar />}
       <DocsBody>
         {!isIndex && (
-          <header className="not-prose flex flex-col gap-1 pb-8">
-            <h1 className="font-medium text-2xl">{page.data.title}</h1>
+          <header className="not-prose mb-8 md:mb-12">
+            <h1 className="font-medium text-3xl tracking-tight">
+              {page.data.title}
+            </h1>
             {page.data.description && (
-              <p className="text-muted-foreground">{page.data.description}</p>
+              <p className="mt-3 text-lg text-muted-foreground">
+                {page.data.description}
+              </p>
             )}
           </header>
         )}
