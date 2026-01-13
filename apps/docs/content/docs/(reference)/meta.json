@@ -1,0 +1,12 @@
+{
+  "title": "Reference",
+  "description": "API reference and advanced topics",
+  "icon": "FileCode",
+  "root": true,
+  "pages": [
+    "...api-reference",
+    "...migrations",
+    "legacy",
+    "react-compatibility"
+  ]
+}

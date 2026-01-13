@@ -1,5 +1,8 @@
 {
-  "title": "Runtime",
+  "title": "Runtimes",
+  "description": "Backend integrations",
+  "icon": "Server",
+  "root": true,
   "pages": [
     "pick-a-runtime",
     "ai-sdk",

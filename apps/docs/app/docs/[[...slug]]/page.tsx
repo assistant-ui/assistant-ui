@@ -63,6 +63,9 @@ export default async function Page(props: {
           />
         ),
       }}
+      tableOfContentPopover={{
+        enabled: false,
+      }}
     >
       <DocsBody>
         <header className="not-prose mb-8 md:mb-12">

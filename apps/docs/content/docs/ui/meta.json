@@ -1,5 +1,8 @@
 {
-  "title": "shadcn/ui",
+  "title": "UI",
+  "description": "shadcn/ui components",
+  "icon": "PanelsTopLeft",
+  "root": true,
   "pages": [
     "Thread",
     "ThreadList",
