@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import { EditIcon } from "lucide-react";
+import { Copy, Check, FileText, EditIcon } from "lucide-react";
 import { TOCHiringBanner } from "@/components/docs/toc-hiring-banner";
+import { useCopyButton } from "fumadocs-ui/utils/use-copy-button";
 
 type TOCItem = {
   title: ReactNode;
@@ -14,11 +15,79 @@ type TOCItem = {
 type TableOfContentsProps = {
   items: TOCItem[];
   githubEditUrl?: string;
+  markdownUrl?: string;
 };
+
+const BASE_URL = "https://assistant-ui.com";
+
+async function fetchMarkdown(url: string): Promise<string> {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch markdown: ${response.status}`);
+  }
+  return response.text();
+}
+
+function TOCActions({
+  markdownUrl,
+  githubEditUrl,
+}: {
+  markdownUrl: string | undefined;
+  githubEditUrl: string | undefined;
+}) {
+  const handleCopy = async () => {
+    if (!markdownUrl) return;
+    const content = await fetchMarkdown(markdownUrl);
+    await navigator.clipboard.writeText(content);
+  };
+
+  const [checked, onClick] = useCopyButton(handleCopy);
+
+  const linkClass =
+    "inline-flex items-center gap-1.5 text-muted-foreground text-xs transition-colors hover:text-foreground";
+
+  return (
+    <div className="flex flex-col gap-3">
+      {markdownUrl && (
+        <>
+          <button onClick={onClick} className={linkClass}>
+            {checked ? (
+              <Check className="size-3" />
+            ) : (
+              <Copy className="size-3" />
+            )}
+            Copy page
+          </button>
+          <a
+            href={`${BASE_URL}${markdownUrl}`}
+            target="_blank"
+            rel="noreferrer noopener"
+            className={linkClass}
+          >
+            <FileText className="size-3" />
+            View as Markdown
+          </a>
+        </>
+      )}
+      {githubEditUrl && (
+        <a
+          href={githubEditUrl}
+          target="_blank"
+          rel="noreferrer noopener"
+          className={linkClass}
+        >
+          <EditIcon className="size-3" />
+          Edit on GitHub
+        </a>
+      )}
+    </div>
+  );
+}
 
 export function TableOfContents({
   items,
   githubEditUrl,
+  markdownUrl,
 }: TableOfContentsProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const listRef = useRef<HTMLUListElement>(null);
@@ -104,18 +173,8 @@ export function TableOfContents({
             );
           })}
         </ul>
-        <div className="mt-4 shrink-0 space-y-4 border-t pt-4">
-          {githubEditUrl && (
-            <a
-              href={githubEditUrl}
-              target="_blank"
-              rel="noreferrer noopener"
-              className="inline-flex items-center gap-1.5 text-muted-foreground text-xs transition-colors hover:text-foreground"
-            >
-              <EditIcon className="size-3" />
-              Edit on GitHub
-            </a>
-          )}
+        <div className="mt-6 shrink-0 space-y-4">
+          <TOCActions markdownUrl={markdownUrl} githubEditUrl={githubEditUrl} />
           <TOCHiringBanner />
         </div>
       </div>

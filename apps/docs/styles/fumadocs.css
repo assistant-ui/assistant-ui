@@ -1,6 +1,8 @@
-#nd-page[data-full="true"] {
-  max-width: 70%;
-  justify-self: center;
+@media (min-width: 1280px) {
+  #nd-page[data-full="true"] {
+    max-width: 70%;
+    justify-self: center;
+  }
 }
 
 #nd-page[data-full="true"] ~ #nd-toc {
@@ -115,3 +117,96 @@
     padding-inline: 1.5rem !important; /* md:px-6 */
   }
 }
+
+/* Hide the progress circle - too feature-rich for minimal design */
+[data-toc-popover-trigger] svg[role="progressbar"] {
+  display: none !important;
+}
+
+/* Simpler trigger styling */
+[data-toc-popover-trigger] {
+  color: var(--fd-muted-foreground) !important;
+  font-size: 0.875rem !important;
+}
+
+/* Simple solid background */
+[data-toc-popover] header {
+  background: var(--fd-background) !important;
+}
+
+/* ===== Subnav Customization ===== */
+
+/* Remove border and align padding with page content */
+#nd-subnav {
+  border-bottom: none !important;
+  padding-inline: 1rem !important; /* px-4, matches page content */
+}
+
+@media (min-width: 768px) {
+  #nd-subnav {
+    padding-inline: 1.5rem !important; /* md:px-6 */
+  }
+}
+
+/* ===== Mobile Sidebar Customization ===== */
+
+/* Apply same clean styling as desktop sidebar */
+#nd-sidebar-mobile a,
+#nd-sidebar-mobile button {
+  padding-block: 0.375rem !important;
+  padding-inline-end: 0.625rem !important;
+  border-radius: 0.375rem !important;
+  font-size: 0.875rem !important;
+  background: transparent !important;
+  transition: color 0.15s ease, background-color 0.15s ease !important;
+}
+
+/* Hover state */
+#nd-sidebar-mobile a:hover,
+#nd-sidebar-mobile button:hover {
+  color: var(--fd-foreground) !important;
+  background: var(--fd-accent) !important;
+}
+
+/* Active state */
+#nd-sidebar-mobile a[data-active="true"] {
+  color: var(--fd-foreground) !important;
+  font-weight: 500 !important;
+  background: var(--fd-accent) !important;
+}
+
+/* Remove the active indicator bar */
+#nd-sidebar-mobile a[data-active="true"]::before {
+  display: none !important;
+}
+
+/* Section separators */
+#nd-sidebar-mobile p {
+  margin-top: 1.25rem !important;
+  margin-bottom: 0.375rem !important;
+  padding-inline-start: 0.625rem !important;
+  font-size: 0.6875rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.04em !important;
+  text-transform: uppercase !important;
+  color: var(--fd-muted-foreground) !important;
+  opacity: 0.6;
+}
+
+#nd-sidebar-mobile p:first-of-type {
+  margin-top: 0 !important;
+}
+
+/* Icons */
+#nd-sidebar-mobile svg {
+  width: 1rem !important;
+  height: 1rem !important;
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+
+#nd-sidebar-mobile svg[data-icon] {
+  width: 0.875rem !important;
+  height: 0.875rem !important;
+}
+
