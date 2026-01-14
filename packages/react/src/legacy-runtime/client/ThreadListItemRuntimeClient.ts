@@ -1,9 +1,9 @@
+import type { Unsubscribe } from "@assistant-ui/core";
 import { resource, tapEffect } from "@assistant-ui/tap";
 import {
   ThreadListItemEventType,
   ThreadListItemRuntime,
 } from "../runtime/ThreadListItemRuntime";
-import { Unsubscribe } from "../../types";
 import { tapApi } from "../../utils/tap-store";
 import { tapSubscribable } from "../util-hooks/tapSubscribable";
 import { tapEvents } from "../../client/EventContext";

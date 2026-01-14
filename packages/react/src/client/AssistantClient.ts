@@ -5,17 +5,16 @@ import {
   ResourceElement,
   tapResource,
 } from "@assistant-ui/tap";
+import type {
+  AssistantEvent,
+  AssistantEventCallback,
+} from "@assistant-ui/core";
+import { checkEventScope, normalizeEventSelector } from "@assistant-ui/core";
 import { ThreadListClientApi, ThreadListClientState } from "./types/ThreadList";
 import { Tools } from "../model-context";
 import { asStore, Store, tapApi } from "../utils/tap-store";
 import { useResource } from "@assistant-ui/tap/react";
 import { useMemo } from "react";
-import {
-  AssistantEvent,
-  AssistantEventCallback,
-  checkEventScope,
-  normalizeEventSelector,
-} from "../types/EventTypes";
 import { EventManager } from "../legacy-runtime/client/EventManagerRuntimeClient";
 import {
   AssistantApi,
@@ -28,7 +27,7 @@ import { withModelContextProvider } from "./ModelContext";
 import { ToolsApi, ToolsState } from "./types/Tools";
 import { ModelContextApi, ModelContextState } from "./types/ModelContext";
 import { ModelContext as ModelContextResource } from "./ModelContextClient";
-import { Unsubscribe } from "../types";
+import type { Unsubscribe } from "@assistant-ui/core";
 
 type AssistantClientState = {
   readonly threads: ThreadListClientState;
