@@ -18,7 +18,7 @@ export function DocsFooter({ previous, next }: DocsFooterProps) {
   if (!previous && !next) return null;
 
   return (
-    <nav className="mt-16 grid grid-cols-2 gap-3 text-sm">
+    <nav className="mt-16 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2 sm:gap-3">
       {previous ? (
         <Link
           href={previous.url}

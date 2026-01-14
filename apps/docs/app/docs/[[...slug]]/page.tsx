@@ -73,7 +73,7 @@ export default async function Page(props: {
     >
       <DocsBody>
         <header className="not-prose mb-8">
-          <div className="flex items-start justify-between gap-4">
+          <div className="flex items-center justify-between gap-4">
             <h1 className="font-medium text-xl tracking-tight md:text-2xl">
               {page.data.title}
             </h1>

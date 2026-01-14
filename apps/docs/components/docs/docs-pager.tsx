@@ -20,22 +20,22 @@ export function DocsPager({ previous, next }: DocsPagerProps) {
       {previous ? (
         <Link
           href={previous.url}
-          className="flex size-8 items-center justify-center rounded-md bg-muted/50 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="flex size-9 items-center justify-center rounded-md bg-muted/50 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:size-8"
         >
           <ChevronLeft className="size-4" />
         </Link>
       ) : (
-        <div className="size-8" />
+        <div className="size-9 sm:size-8" />
       )}
       {next ? (
         <Link
           href={next.url}
-          className="flex size-8 items-center justify-center rounded-md bg-muted/50 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="flex size-9 items-center justify-center rounded-md bg-muted/50 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:size-8"
         >
           <ChevronRight className="size-4" />
         </Link>
       ) : (
-        <div className="size-8" />
+        <div className="size-9 sm:size-8" />
       )}
     </div>
   );
