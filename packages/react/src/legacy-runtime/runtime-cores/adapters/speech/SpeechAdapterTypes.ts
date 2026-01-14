@@ -69,7 +69,7 @@ export type SpeechSynthesisAdapter = {
   speak: (text: string) => SpeechSynthesisAdapter.Utterance;
 };
 
-export namespace SpeechRecognitionAdapter {
+export namespace DictationAdapter {
   export type Status =
     | {
         type: "starting" | "running";
@@ -108,14 +108,14 @@ export namespace SpeechRecognitionAdapter {
   };
 }
 
-export type SpeechRecognitionAdapter = {
-  listen: () => SpeechRecognitionAdapter.Session;
+export type DictationAdapter = {
+  listen: () => DictationAdapter.Session;
 
   /**
-   * Whether to disable text input while listening.
+   * Whether to disable text input while dictation is active.
    * Some adapters (like ElevenLabs Scribe) return cumulative transcripts
    * that conflict with simultaneous typing.
    * @default false
    */
-  disableInputDuringListening?: boolean;
+  disableInputDuringDictation?: boolean;
 };

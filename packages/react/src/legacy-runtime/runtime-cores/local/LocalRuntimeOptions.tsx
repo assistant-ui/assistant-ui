@@ -4,7 +4,7 @@ import type { ThreadMessageLike } from "../external-store";
 import type { FeedbackAdapter } from "../adapters/feedback/FeedbackAdapter";
 import type {
   SpeechSynthesisAdapter,
-  SpeechRecognitionAdapter,
+  DictationAdapter,
 } from "../adapters/speech/SpeechAdapterTypes";
 import type { ChatModelAdapter } from "./ChatModelAdapter";
 import type { AssistantCloud } from "assistant-cloud";
@@ -17,7 +17,7 @@ export type LocalRuntimeOptionsBase = {
     history?: ThreadHistoryAdapter | undefined;
     attachments?: AttachmentAdapter | undefined;
     speech?: SpeechSynthesisAdapter | undefined;
-    speechRecognition?: SpeechRecognitionAdapter | undefined;
+    dictation?: DictationAdapter | undefined;
     feedback?: FeedbackAdapter | undefined;
     suggestion?: SuggestionAdapter | undefined;
   };

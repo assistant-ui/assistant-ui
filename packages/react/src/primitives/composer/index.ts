@@ -8,5 +8,5 @@ export { ComposerPrimitiveAttachmentByIndex as AttachmentByIndex } from "./Compo
 export { ComposerPrimitiveAttachmentDropzone as AttachmentDropzone } from "./ComposerAttachmentDropzone";
 export { ComposerPrimitiveDictate as Dictate } from "./ComposerDictate";
 export { ComposerPrimitiveStopDictation as StopDictation } from "./ComposerStopDictation";
-export { ComposerPrimitiveListeningTranscript as ListeningTranscript } from "./ComposerListeningTranscript";
+export { ComposerPrimitiveDictationTranscript as DictationTranscript } from "./ComposerDictationTranscript";
 export { ComposerPrimitiveIf as If } from "./ComposerIf";

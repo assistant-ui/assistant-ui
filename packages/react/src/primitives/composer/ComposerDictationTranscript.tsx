@@ -4,32 +4,32 @@ import { Primitive } from "@radix-ui/react-primitive";
 import { type ComponentRef, forwardRef, ComponentPropsWithoutRef } from "react";
 import { useAssistantState } from "../../context";
 
-export namespace ComposerPrimitiveListeningTranscript {
+export namespace ComposerPrimitiveDictationTranscript {
   export type Element = ComponentRef<typeof Primitive.span>;
   export type Props = ComponentPropsWithoutRef<typeof Primitive.span>;
 }
 
 /**
- * Renders the current interim (partial) transcript while speech recognition is active.
+ * Renders the current interim (partial) transcript while dictation is active.
  *
  * This component displays real-time feedback of what the user is saying before
  * the transcription is finalized and committed to the composer input.
  *
  * @example
  * ```tsx
- * <ComposerPrimitive.If listening>
- *   <div className="listening-preview">
- *     <ComposerPrimitive.ListeningTranscript />
+ * <ComposerPrimitive.If dictation>
+ *   <div className="dictation-preview">
+ *     <ComposerPrimitive.DictationTranscript />
  *   </div>
  * </ComposerPrimitive.If>
  * ```
  */
-export const ComposerPrimitiveListeningTranscript = forwardRef<
-  ComposerPrimitiveListeningTranscript.Element,
-  ComposerPrimitiveListeningTranscript.Props
+export const ComposerPrimitiveDictationTranscript = forwardRef<
+  ComposerPrimitiveDictationTranscript.Element,
+  ComposerPrimitiveDictationTranscript.Props
 >(({ children, ...props }, forwardRef) => {
   const transcript = useAssistantState(
-    ({ composer }) => composer.listening?.transcript,
+    ({ composer }) => composer.dictation?.transcript,
   );
 
   if (!transcript) return null;
@@ -41,5 +41,5 @@ export const ComposerPrimitiveListeningTranscript = forwardRef<
   );
 });
 
-ComposerPrimitiveListeningTranscript.displayName =
-  "ComposerPrimitive.ListeningTranscript";
+ComposerPrimitiveDictationTranscript.displayName =
+  "ComposerPrimitive.DictationTranscript";

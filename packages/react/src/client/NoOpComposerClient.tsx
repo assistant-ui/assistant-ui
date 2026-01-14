@@ -16,7 +16,7 @@ export const NoOpComposerClient = resource(
         runConfig: {},
         canCancel: false,
         type: type,
-        listening: undefined,
+        dictation: undefined,
       };
     }, [type]);
 
@@ -52,10 +52,10 @@ export const NoOpComposerClient = resource(
       beginEdit: () => {
         throw new Error("Not supported");
       },
-      startListening: () => {
+      startDictation: () => {
         throw new Error("Not supported");
       },
-      stopListening: () => {
+      stopDictation: () => {
         throw new Error("Not supported");
       },
     });

@@ -8,11 +8,11 @@ import type { AttachmentAdapter } from "../adapters/attachment";
 import type {
   ComposerRuntimeCore,
   ComposerRuntimeEventType,
-  ListeningState,
+  DictationState,
 } from "../core/ComposerRuntimeCore";
 import type { MessageRole, RunConfig } from "../../../types/AssistantTypes";
 import { BaseSubscribable } from "../remote-thread-list/BaseSubscribable";
-import type { SpeechRecognitionAdapter } from "../adapters/speech/SpeechAdapterTypes";
+import type { DictationAdapter } from "../adapters/speech/SpeechAdapterTypes";
 
 const isAttachmentComplete = (a: Attachment): a is CompleteAttachment =>
   a.status.type === "complete";
@@ -24,9 +24,7 @@ export abstract class BaseComposerRuntimeCore
   public readonly isEditing = true;
 
   protected abstract getAttachmentAdapter(): AttachmentAdapter | undefined;
-  protected abstract getSpeechRecognitionAdapter():
-    | SpeechRecognitionAdapter
-    | undefined;
+  protected abstract getDictationAdapter(): DictationAdapter | undefined;
 
   public get attachmentAccept(): string {
     return this.getAttachmentAdapter()?.accept ?? "*";
@@ -73,11 +71,11 @@ export abstract class BaseComposerRuntimeCore
     // When dictation is active and the user manually edits the composer text,
     // treat the new text as the updated base so speech results are appended
     // instead of overwriting manual edits.
-    if (this._listening) {
+    if (this._dictation) {
       this._dictationBaseText = value;
       this._currentInterimText = "";
-      const { status, inputDisabled } = this._listening;
-      this._listening = inputDisabled ? { status, inputDisabled } : { status };
+      const { status, inputDisabled } = this._dictation;
+      this._dictation = inputDisabled ? { status, inputDisabled } : { status };
     }
     this._notifySubscribers();
   }
@@ -135,9 +133,9 @@ export abstract class BaseComposerRuntimeCore
   }
 
   public async send() {
-    if (this._listeningSession) {
-      this._listeningSession.cancel();
-      this._cleanupListening();
+    if (this._dictationSession) {
+      this._dictationSession.cancel();
+      this._cleanupDictation();
     }
 
     const adapter = this.getAttachmentAdapter();
@@ -228,54 +226,59 @@ export abstract class BaseComposerRuntimeCore
     this._notifySubscribers();
   }
 
-  private _listening: ListeningState | undefined;
-  private _listeningSession: SpeechRecognitionAdapter.Session | undefined;
-  private _listeningUnsubscribes: Unsubscribe[] = [];
+  private _dictation: DictationState | undefined;
+  private _dictationSession: DictationAdapter.Session | undefined;
+  private _dictationUnsubscribes: Unsubscribe[] = [];
   private _dictationBaseText = "";
   private _currentInterimText = "";
-  private _listeningSessionIdCounter = 0;
-  private _activeListeningSessionId: number | undefined;
-  private _isCleaningListening = false;
+  private _dictationSessionIdCounter = 0;
+  private _activeDictationSessionId: number | undefined;
+  private _isCleaningDictation = false;
 
-  public get listening(): ListeningState | undefined {
-    return this._listening;
+  public get dictation(): DictationState | undefined {
+    return this._dictation;
   }
 
-  public startListening(): void {
-    const adapter = this.getSpeechRecognitionAdapter();
+  private _isActiveSession(
+    sessionId: number,
+    session: DictationAdapter.Session,
+  ): boolean {
+    return (
+      this._activeDictationSessionId === sessionId &&
+      this._dictationSession === session
+    );
+  }
+
+  public startDictation(): void {
+    const adapter = this.getDictationAdapter();
     if (!adapter) {
-      throw new Error("Speech recognition adapter not configured");
+      throw new Error("Dictation adapter not configured");
     }
 
-    if (this._listeningSession) {
-      for (const unsub of this._listeningUnsubscribes) {
+    if (this._dictationSession) {
+      for (const unsub of this._dictationUnsubscribes) {
         unsub();
       }
-      this._listeningUnsubscribes = [];
-      const oldSession = this._listeningSession;
+      this._dictationUnsubscribes = [];
+      const oldSession = this._dictationSession;
       oldSession.stop().catch(() => {});
-      this._listeningSession = undefined;
+      this._dictationSession = undefined;
     }
 
-    const inputDisabled = adapter.disableInputDuringListening ?? false;
+    const inputDisabled = adapter.disableInputDuringDictation ?? false;
 
     this._dictationBaseText = this._text;
     this._currentInterimText = "";
 
     const session = adapter.listen();
-    this._listeningSession = session;
-    const sessionId = ++this._listeningSessionIdCounter;
-    this._activeListeningSessionId = sessionId;
-    this._listening = { status: session.status, inputDisabled };
+    this._dictationSession = session;
+    const sessionId = ++this._dictationSessionIdCounter;
+    this._activeDictationSessionId = sessionId;
+    this._dictation = { status: session.status, inputDisabled };
     this._notifySubscribers();
 
     const unsubSpeech = session.onSpeech((result) => {
-      if (
-        this._activeListeningSessionId !== sessionId ||
-        this._listeningSession !== session
-      ) {
-        return;
-      }
+      if (!this._isActiveSession(sessionId, session)) return;
       const isFinal = result.isFinal !== false;
 
       const needsSeparator =
@@ -290,97 +293,85 @@ export abstract class BaseComposerRuntimeCore
         this._currentInterimText = "";
         this._text = this._dictationBaseText;
 
-        if (this._listening) {
-          const { transcript: _, ...rest } = this._listening;
-          this._listening = rest;
+        if (this._dictation) {
+          const { transcript: _, ...rest } = this._dictation;
+          this._dictation = rest;
         }
         this._notifySubscribers();
       } else {
         this._currentInterimText = separator + result.transcript;
         this._text = this._dictationBaseText + this._currentInterimText;
 
-        if (this._listening) {
-          this._listening = {
-            ...this._listening,
+        if (this._dictation) {
+          this._dictation = {
+            ...this._dictation,
             transcript: result.transcript,
           };
         }
         this._notifySubscribers();
       }
     });
-    this._listeningUnsubscribes.push(unsubSpeech);
+    this._dictationUnsubscribes.push(unsubSpeech);
 
     const unsubStart = session.onSpeechStart(() => {
-      if (
-        this._activeListeningSessionId !== sessionId ||
-        this._listeningSession !== session
-      ) {
-        return;
-      }
-      const currentTranscript = this._listening?.transcript;
-      this._listening = currentTranscript
-        ? {
-            status: { type: "running" },
-            transcript: currentTranscript,
-            inputDisabled,
-          }
-        : { status: { type: "running" }, inputDisabled };
+      if (!this._isActiveSession(sessionId, session)) return;
+
+      this._dictation = {
+        status: { type: "running" },
+        inputDisabled,
+        ...(this._dictation?.transcript && {
+          transcript: this._dictation.transcript,
+        }),
+      };
       this._notifySubscribers();
     });
-    this._listeningUnsubscribes.push(unsubStart);
+    this._dictationUnsubscribes.push(unsubStart);
 
     const unsubEnd = session.onSpeechEnd(() => {
-      this._cleanupListening({ sessionId });
+      this._cleanupDictation({ sessionId });
     });
-    this._listeningUnsubscribes.push(unsubEnd);
+    this._dictationUnsubscribes.push(unsubEnd);
 
     const statusInterval = setInterval(() => {
-      if (
-        this._activeListeningSessionId !== sessionId ||
-        this._listeningSession !== session
-      ) {
-        return;
-      }
+      if (!this._isActiveSession(sessionId, session)) return;
+
       if (session.status.type === "ended") {
-        this._cleanupListening({ sessionId });
+        this._cleanupDictation({ sessionId });
       }
     }, 100);
-    this._listeningUnsubscribes.push(() => clearInterval(statusInterval));
+    this._dictationUnsubscribes.push(() => clearInterval(statusInterval));
   }
 
-  public stopListening(): void {
-    if (!this._listeningSession) return;
+  public stopDictation(): void {
+    if (!this._dictationSession) return;
 
-    const session = this._listeningSession;
-    const sessionId = this._activeListeningSessionId;
+    const session = this._dictationSession;
+    const sessionId = this._activeDictationSessionId;
     session.stop().finally(() => {
-      this._cleanupListening({ sessionId });
+      this._cleanupDictation({ sessionId });
     });
   }
 
-  private _cleanupListening(options?: { sessionId: number | undefined }): void {
-    if (
+  private _cleanupDictation(options?: { sessionId: number | undefined }): void {
+    const isStaleSession =
       options?.sessionId !== undefined &&
-      options.sessionId !== this._activeListeningSessionId
-    ) {
-      return;
-    }
-    if (this._isCleaningListening) return;
-    this._isCleaningListening = true;
+      options.sessionId !== this._activeDictationSessionId;
+    if (isStaleSession || this._isCleaningDictation) return;
+
+    this._isCleaningDictation = true;
     try {
-      for (const unsub of this._listeningUnsubscribes) {
+      for (const unsub of this._dictationUnsubscribes) {
         unsub();
       }
-      this._listeningUnsubscribes = [];
-
-      this._listeningSession = undefined;
-      this._activeListeningSessionId = undefined;
-      this._listening = undefined;
+      this._dictationUnsubscribes = [];
+      this._dictationSession = undefined;
+      this._activeDictationSessionId = undefined;
+      this._dictation = undefined;
       this._dictationBaseText = "";
       this._currentInterimText = "";
       this._notifySubscribers();
     } finally {
-      this._isCleaningListening = false;
+      this._isCleaningDictation = false;
     }
   }
 

@@ -1,6 +1,6 @@
 export type {
   SpeechSynthesisAdapter,
-  SpeechRecognitionAdapter,
+  DictationAdapter,
 } from "./SpeechAdapterTypes";
 export { WebSpeechSynthesisAdapter } from "./WebSpeechSynthesisAdapter";
-export { WebSpeechRecognitionAdapter } from "./WebSpeechRecognitionAdapter";
+export { WebSpeechDictationAdapter } from "./WebSpeechDictationAdapter";

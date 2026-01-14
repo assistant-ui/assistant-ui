@@ -43,10 +43,10 @@ const EditComposer = () => (
 const ComposerWithDictation = () => (
   <ComposerPrimitive.Root>
     <ComposerPrimitive.Input />
-    <ComposerPrimitive.If listening={false}>
+    <ComposerPrimitive.If dictation={false}>
       <ComposerPrimitive.Dictate />
     </ComposerPrimitive.If>
-    <ComposerPrimitive.If listening>
+    <ComposerPrimitive.If dictation>
       <ComposerPrimitive.StopDictation />
     </ComposerPrimitive.If>
     <ComposerPrimitive.Send />
@@ -231,9 +231,9 @@ This primitive renders a `<button>` element unless `asChild` is set.
 
 ### Dictate
 
-Renders a button to start speech recognition (dictation) to convert voice to text.
+Renders a button to start dictation to convert voice to text.
 
-Requires a `SpeechRecognitionAdapter` to be configured in the runtime.
+Requires a `DictationAdapter` to be configured in the runtime.
 
 This primitive renders a `<button>` element unless `asChild` is set.
 
@@ -248,9 +248,9 @@ This primitive renders a `<button>` element unless `asChild` is set.
 
 ### StopDictation
 
-Renders a button to stop the current speech recognition session.
+Renders a button to stop the current dictation session.
 
-Only visible when dictation is active.
+Only rendered when dictation is active.
 
 This primitive renders a `<button>` element unless `asChild` is set.
 
@@ -263,9 +263,9 @@ This primitive renders a `<button>` element unless `asChild` is set.
   ]}
 />
 
-### ListeningTranscript
+### DictationTranscript
 
-Renders the current interim (partial) transcript while speech recognition is active.
+Renders the current interim (partial) transcript while dictation is active.
 
 <Callout type="info">
 **Note:** By default, interim transcripts are displayed directly in the composer input (like native dictation).
@@ -278,9 +278,9 @@ This primitive renders a `<span>` element.
 
 ```tsx
 {/* Optional: Display interim transcript separately with custom styling */}
-<ComposerPrimitive.If listening>
-  <div className="listening-preview">
-    <ComposerPrimitive.ListeningTranscript className="italic text-muted" />
+<ComposerPrimitive.If dictation>
+  <div className="dictation-preview">
+    <ComposerPrimitive.DictationTranscript className="italic text-muted" />
   </div>
 </ComposerPrimitive.If>
 ```
@@ -299,10 +299,10 @@ Renders children if a condition is met.
       description: "Render children if the message is being edited.",
     },
     {
-      name: "listening",
+      name: "dictation",
       required: false,
       type: "boolean | undefined",
-      description: "Render children if speech recognition (dictation) is active.",
+      description: "Render children if dictation is active.",
     },
   ]}
 />
@@ -310,5 +310,5 @@ Renders children if a condition is met.
 ```tsx
 <Composer.If editing>{/* rendered if message is being edited */}</Composer.If>
 
-<Composer.If listening>{/* rendered if dictation is active */}</Composer.If>
+<Composer.If dictation>{/* rendered if dictation is active */}</Composer.If>
 ```

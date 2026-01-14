@@ -119,7 +119,7 @@ export class ExternalStoreThreadRuntimeCore
       reload: this._store.onReload !== undefined,
       cancel: this._store.onCancel !== undefined,
       speech: this._store.adapters?.speech !== undefined,
-      dictation: this._store.adapters?.speechRecognition !== undefined,
+      dictation: this._store.adapters?.dictation !== undefined,
       unstable_copy: this._store.unstable_capabilities?.copy !== false, // default true
       attachments: !!this._store.adapters?.attachments,
       feedback: !!this._store.adapters?.feedback,

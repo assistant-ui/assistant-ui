@@ -4,7 +4,7 @@ import { GeocodeLocationToolUI } from "@/components/tools/weather-tool";
 import {
   AssistantRuntimeProvider,
   WebSpeechSynthesisAdapter,
-  WebSpeechRecognitionAdapter,
+  WebSpeechDictationAdapter,
   AssistantCloud,
 } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
@@ -25,7 +25,7 @@ export function DocsRuntimeProvider({
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
     adapters: {
       speech: new WebSpeechSynthesisAdapter(),
-      speechRecognition: new WebSpeechRecognitionAdapter(),
+      dictation: new WebSpeechDictationAdapter(),
     },
     cloud: assistantCloud,
   });

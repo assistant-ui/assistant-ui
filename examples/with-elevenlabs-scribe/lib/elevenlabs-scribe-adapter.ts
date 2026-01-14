@@ -1,4 +1,4 @@
-import type { SpeechRecognitionAdapter } from "@assistant-ui/react";
+import type { DictationAdapter } from "@assistant-ui/react";
 import { Scribe, RealtimeEvents } from "@elevenlabs/client";
 
 /**
@@ -9,10 +9,10 @@ import { Scribe, RealtimeEvents } from "@elevenlabs/client";
  *
  * @see https://elevenlabs.io/docs/cookbooks/speech-to-text/streaming
  */
-export class ElevenLabsScribeAdapter implements SpeechRecognitionAdapter {
+export class ElevenLabsScribeAdapter implements DictationAdapter {
   private tokenEndpoint: string;
   private languageCode: string;
-  public disableInputDuringListening: boolean;
+  public disableInputDuringDictation: boolean;
 
   constructor(options: {
     tokenEndpoint: string;
@@ -23,25 +23,25 @@ export class ElevenLabsScribeAdapter implements SpeechRecognitionAdapter {
      * with simultaneous typing.
      * @default true
      */
-    disableInputDuringListening?: boolean;
+    disableInputDuringDictation?: boolean;
   }) {
     this.tokenEndpoint = options.tokenEndpoint;
     this.languageCode = options.languageCode ?? "en";
-    this.disableInputDuringListening =
-      options.disableInputDuringListening ?? true;
+    this.disableInputDuringDictation =
+      options.disableInputDuringDictation ?? true;
   }
 
-  listen(): SpeechRecognitionAdapter.Session {
+  listen(): DictationAdapter.Session {
     const callbacks = {
       start: new Set<() => void>(),
-      end: new Set<(result: SpeechRecognitionAdapter.Result) => void>(),
-      speech: new Set<(result: SpeechRecognitionAdapter.Result) => void>(),
+      end: new Set<(result: DictationAdapter.Result) => void>(),
+      speech: new Set<(result: DictationAdapter.Result) => void>(),
     };
 
     let connection: ReturnType<typeof Scribe.connect> | null = null;
     let fullTranscript = "";
 
-    const session: SpeechRecognitionAdapter.Session = {
+    const session: DictationAdapter.Session = {
       status: { type: "starting" },
 
       stop: async () => {
@@ -51,7 +51,7 @@ export class ElevenLabsScribeAdapter implements SpeechRecognitionAdapter {
           connection.close();
           connection = null;
         }
-        (session as { status: SpeechRecognitionAdapter.Status }).status = {
+        (session as { status: DictationAdapter.Status }).status = {
           type: "ended",
           reason: "stopped",
         };
@@ -65,7 +65,7 @@ export class ElevenLabsScribeAdapter implements SpeechRecognitionAdapter {
           connection.close();
           connection = null;
         }
-        (session as { status: SpeechRecognitionAdapter.Status }).status = {
+        (session as { status: DictationAdapter.Status }).status = {
           type: "ended",
           reason: "cancelled",
         };
@@ -78,18 +78,14 @@ export class ElevenLabsScribeAdapter implements SpeechRecognitionAdapter {
         };
       },
 
-      onSpeechEnd: (
-        callback: (result: SpeechRecognitionAdapter.Result) => void,
-      ) => {
+      onSpeechEnd: (callback: (result: DictationAdapter.Result) => void) => {
         callbacks.end.add(callback);
         return () => {
           callbacks.end.delete(callback);
         };
       },
 
-      onSpeech: (
-        callback: (result: SpeechRecognitionAdapter.Result) => void,
-      ) => {
+      onSpeech: (callback: (result: DictationAdapter.Result) => void) => {
         callbacks.speech.add(callback);
         return () => {
           callbacks.speech.delete(callback);
@@ -111,11 +107,11 @@ export class ElevenLabsScribeAdapter implements SpeechRecognitionAdapter {
   }
 
   private async connect(
-    session: SpeechRecognitionAdapter.Session,
+    session: DictationAdapter.Session,
     callbacks: {
       start: Set<() => void>;
-      end: Set<(result: SpeechRecognitionAdapter.Result) => void>;
-      speech: Set<(result: SpeechRecognitionAdapter.Result) => void>;
+      end: Set<(result: DictationAdapter.Result) => void>;
+      speech: Set<(result: DictationAdapter.Result) => void>;
     },
     refs: {
       setConnection: (conn: ReturnType<typeof Scribe.connect>) => void;
@@ -134,9 +130,8 @@ export class ElevenLabsScribeAdapter implements SpeechRecognitionAdapter {
 
       const { token } = await tokenResponse.json();
 
-      const currentStatus = (
-        session as { status: SpeechRecognitionAdapter.Status }
-      ).status;
+      const currentStatus = (session as { status: DictationAdapter.Status })
+        .status;
       if (currentStatus.type === "ended") {
         // Session was cancelled or stopped before the connection was created.
         // Avoid opening a new microphone session in this case.
@@ -157,7 +152,7 @@ export class ElevenLabsScribeAdapter implements SpeechRecognitionAdapter {
       refs.setConnection(connection);
 
       connection.on(RealtimeEvents.SESSION_STARTED, () => {
-        (session as { status: SpeechRecognitionAdapter.Status }).status = {
+        (session as { status: DictationAdapter.Status }).status = {
           type: "running",
         };
         for (const cb of callbacks.start) cb();
@@ -181,12 +176,12 @@ export class ElevenLabsScribeAdapter implements SpeechRecognitionAdapter {
       connection.on(RealtimeEvents.CLOSE, () => {
         const currentStatus = (
           session as {
-            status: SpeechRecognitionAdapter.Status;
+            status: DictationAdapter.Status;
           }
         ).status;
 
         if (currentStatus.type !== "ended") {
-          (session as { status: SpeechRecognitionAdapter.Status }).status = {
+          (session as { status: DictationAdapter.Status }).status = {
             type: "ended",
             reason: "stopped",
           };
@@ -200,7 +195,7 @@ export class ElevenLabsScribeAdapter implements SpeechRecognitionAdapter {
 
       connection.on(RealtimeEvents.ERROR, (error) => {
         console.error("ElevenLabs Scribe error:", error);
-        (session as { status: SpeechRecognitionAdapter.Status }).status = {
+        (session as { status: DictationAdapter.Status }).status = {
           type: "ended",
           reason: "error",
         };
@@ -208,14 +203,14 @@ export class ElevenLabsScribeAdapter implements SpeechRecognitionAdapter {
 
       connection.on(RealtimeEvents.AUTH_ERROR, (data) => {
         console.error("ElevenLabs Scribe auth error:", data.error);
-        (session as { status: SpeechRecognitionAdapter.Status }).status = {
+        (session as { status: DictationAdapter.Status }).status = {
           type: "ended",
           reason: "error",
         };
       });
     } catch (error) {
       console.error("ElevenLabs Scribe connection failed:", error);
-      (session as { status: SpeechRecognitionAdapter.Status }).status = {
+      (session as { status: DictationAdapter.Status }).status = {
         type: "ended",
         reason: "error",
       };

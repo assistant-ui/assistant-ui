@@ -5,7 +5,7 @@ import type {
 import type {
   ComposerRuntimeCore,
   ComposerRuntimeEventType,
-  ListeningState,
+  DictationState,
   ThreadComposerRuntimeCore,
 } from "../runtime-cores/core/ComposerRuntimeCore";
 import type { Unsubscribe } from "../../types";
@@ -47,10 +47,10 @@ type BaseComposerState = {
   readonly attachmentAccept: string;
 
   /**
-   * The current state of speech recognition (dictation).
-   * Undefined when not listening.
+   * The current state of dictation.
+   * Undefined when dictation is not active.
    */
-  readonly listening: ListeningState | undefined;
+  readonly dictation: DictationState | undefined;
 };
 
 export type ThreadComposerState = BaseComposerState & {
@@ -82,7 +82,7 @@ const getThreadComposerState = (
     role: runtime?.role ?? "user",
     runConfig: runtime?.runConfig ?? EMPTY_OBJECT,
     attachmentAccept: runtime?.attachmentAccept ?? "",
-    listening: runtime?.listening,
+    dictation: runtime?.dictation,
 
     value: runtime?.text ?? "",
   });
@@ -103,7 +103,7 @@ const getEditComposerState = (
     attachments: runtime?.attachments ?? EMPTY_ARRAY,
     runConfig: runtime?.runConfig ?? EMPTY_OBJECT,
     attachmentAccept: runtime?.attachmentAccept ?? "",
-    listening: runtime?.listening,
+    dictation: runtime?.dictation,
 
     value: runtime?.text ?? "",
   });
@@ -182,15 +182,15 @@ export type ComposerRuntime = {
   getAttachmentByIndex(idx: number): AttachmentRuntime;
 
   /**
-   * Start speech recognition to convert voice to text input.
-   * Requires a SpeechRecognitionAdapter to be configured.
+   * Start dictation to convert voice to text input.
+   * Requires a DictationAdapter to be configured.
    */
-  startListening(): void;
+  startDictation(): void;
 
   /**
-   * Stop the current speech recognition session.
+   * Stop the current dictation session.
    */
-  stopListening(): void;
+  stopDictation(): void;
 
   /**
    * @deprecated This API is still under active development and might change without notice.
@@ -222,8 +222,8 @@ export abstract class ComposerRuntimeImpl implements ComposerRuntime {
     this.cancel = this.cancel.bind(this);
     this.setRole = this.setRole.bind(this);
     this.getAttachmentByIndex = this.getAttachmentByIndex.bind(this);
-    this.startListening = this.startListening.bind(this);
-    this.stopListening = this.stopListening.bind(this);
+    this.startDictation = this.startDictation.bind(this);
+    this.stopDictation = this.stopDictation.bind(this);
     this.unstable_on = this.unstable_on.bind(this);
   }
 
@@ -277,16 +277,16 @@ export abstract class ComposerRuntimeImpl implements ComposerRuntime {
     core.setRole(role);
   }
 
-  public startListening() {
+  public startDictation() {
     const core = this._core.getState();
     if (!core) throw new Error("Composer is not available");
-    core.startListening();
+    core.startDictation();
   }
 
-  public stopListening() {
+  public stopDictation() {
     const core = this._core.getState();
     if (!core) throw new Error("Composer is not available");
-    core.stopListening();
+    core.stopDictation();
   }
 
   public subscribe(callback: () => void) {

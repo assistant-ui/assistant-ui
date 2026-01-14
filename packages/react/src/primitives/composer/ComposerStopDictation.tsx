@@ -10,15 +10,15 @@ import { createActionButton } from "../../utils/createActionButton";
 
 const useComposerStopDictation = () => {
   const api = useAssistantApi();
-  const isListening = useAssistantState(
-    ({ composer }) => composer.listening != null,
+  const isDictating = useAssistantState(
+    ({ composer }) => composer.dictation != null,
   );
 
   const callback = useCallback(() => {
-    api.composer().stopListening();
+    api.composer().stopDictation();
   }, [api]);
 
-  if (!isListening) return null;
+  if (!isDictating) return null;
   return callback;
 };
 
@@ -28,9 +28,9 @@ export namespace ComposerPrimitiveStopDictation {
 }
 
 /**
- * A button that stops the current speech recognition (dictation) session.
+ * A button that stops the current dictation session.
  *
- * Only visible when dictation is active.
+ * Only rendered when dictation is active.
  *
  * @example
  * ```tsx

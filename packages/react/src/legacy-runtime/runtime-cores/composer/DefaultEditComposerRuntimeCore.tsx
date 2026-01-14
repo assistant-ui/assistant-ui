@@ -1,7 +1,7 @@
 import type { AppendMessage, ThreadMessage } from "../../../types";
 import { getThreadMessageText } from "../../../utils/getThreadMessageText";
 import type { AttachmentAdapter } from "../adapters/attachment";
-import type { SpeechRecognitionAdapter } from "../adapters/speech/SpeechAdapterTypes";
+import type { DictationAdapter } from "../adapters/speech/SpeechAdapterTypes";
 import type { ThreadRuntimeCore } from "../core/ThreadRuntimeCore";
 import { BaseComposerRuntimeCore } from "./BaseComposerRuntimeCore";
 
@@ -14,8 +14,8 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
     return this.runtime.adapters?.attachments;
   }
 
-  protected getSpeechRecognitionAdapter() {
-    return this.runtime.adapters?.speechRecognition;
+  protected getDictationAdapter() {
+    return this.runtime.adapters?.dictation;
   }
 
   private _nonTextParts;
@@ -27,7 +27,7 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
       adapters?:
         | {
             attachments?: AttachmentAdapter | undefined;
-            speechRecognition?: SpeechRecognitionAdapter | undefined;
+            dictation?: DictationAdapter | undefined;
           }
         | undefined;
     },

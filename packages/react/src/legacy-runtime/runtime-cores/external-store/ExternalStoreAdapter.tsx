@@ -9,7 +9,7 @@ import type {
 import type { FeedbackAdapter } from "../adapters/feedback/FeedbackAdapter";
 import type {
   SpeechSynthesisAdapter,
-  SpeechRecognitionAdapter,
+  DictationAdapter,
 } from "../adapters/speech/SpeechAdapterTypes";
 import type { ThreadMessageLike } from "./ThreadMessageLike";
 import type { ExportedMessageRepository } from "../utils/MessageRepository";
@@ -88,7 +88,7 @@ type ExternalStoreAdapterBase<T> = {
     | {
         attachments?: AttachmentAdapter | undefined;
         speech?: SpeechSynthesisAdapter | undefined;
-        speechRecognition?: SpeechRecognitionAdapter | undefined;
+        dictation?: DictationAdapter | undefined;
         feedback?: FeedbackAdapter | undefined;
         /**
          * @deprecated This API is still under active development and might change without notice.

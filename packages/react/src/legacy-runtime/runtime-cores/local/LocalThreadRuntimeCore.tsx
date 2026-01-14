@@ -90,7 +90,7 @@ export class LocalThreadRuntimeCore
       hasUpdates = true;
     }
 
-    const canDictate = options.adapters?.speechRecognition !== undefined;
+    const canDictate = options.adapters?.dictation !== undefined;
     if (this.capabilities.dictation !== canDictate) {
       this.capabilities.dictation = canDictate;
       hasUpdates = true;

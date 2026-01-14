@@ -8,7 +8,7 @@ import { ElevenLabsScribeAdapter } from "@/lib/elevenlabs-scribe-adapter";
 export default function Home() {
   const runtime = useChatRuntime({
     adapters: {
-      speechRecognition: new ElevenLabsScribeAdapter({
+      dictation: new ElevenLabsScribeAdapter({
         tokenEndpoint: "/api/scribe-token",
         languageCode: "en", // Change to your preferred language
       }),

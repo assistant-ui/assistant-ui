@@ -1,5 +1,5 @@
 import type { Unsubscribe } from "../../../../types";
-import type { SpeechRecognitionAdapter } from "./SpeechAdapterTypes";
+import type { DictationAdapter } from "./SpeechAdapterTypes";
 
 // Type definitions for Web Speech API
 // Users can install @types/dom-speech-recognition for full type support
@@ -59,7 +59,7 @@ const getSpeechRecognitionAPI = ():
 };
 
 /**
- * WebSpeechRecognitionAdapter provides speech-to-text functionality using
+ * WebSpeechDictationAdapter provides speech-to-text (dictation) functionality using
  * the browser's Web Speech API (SpeechRecognition).
  *
  * @example
@@ -67,12 +67,12 @@ const getSpeechRecognitionAPI = ():
  * const runtime = useChatRuntime({
  *   api: "/api/chat",
  *   adapters: {
- *     speechRecognition: new WebSpeechRecognitionAdapter(),
+ *     dictation: new WebSpeechDictationAdapter(),
  *   },
  * });
  * ```
  */
-export class WebSpeechRecognitionAdapter implements SpeechRecognitionAdapter {
+export class WebSpeechDictationAdapter implements DictationAdapter {
   private _language: string;
   private _continuous: boolean;
   private _interimResults: boolean;
@@ -80,12 +80,12 @@ export class WebSpeechRecognitionAdapter implements SpeechRecognitionAdapter {
   constructor(
     options: {
       /**
-       * The language for speech recognition (e.g., "en-US", "zh-CN").
+       * The language for dictation (e.g., "en-US", "zh-CN").
        * Defaults to the browser's language.
        */
       language?: string;
       /**
-       * Whether to continue listening after the user stops speaking.
+       * Whether to keep recording after the user stops speaking.
        * Defaults to true.
        */
       continuous?: boolean;
@@ -112,7 +112,7 @@ export class WebSpeechRecognitionAdapter implements SpeechRecognitionAdapter {
     return getSpeechRecognitionAPI() !== undefined;
   }
 
-  listen(): SpeechRecognitionAdapter.Session {
+  listen(): DictationAdapter.Session {
     const SpeechRecognitionAPI = getSpeechRecognitionAPI();
     if (!SpeechRecognitionAPI) {
       throw new Error(
@@ -128,16 +128,15 @@ export class WebSpeechRecognitionAdapter implements SpeechRecognitionAdapter {
 
     const speechStartCallbacks = new Set<() => void>();
     const speechEndCallbacks = new Set<
-      (result: SpeechRecognitionAdapter.Result) => void
+      (result: DictationAdapter.Result) => void
     >();
     const speechCallbacks = new Set<
-      (result: SpeechRecognitionAdapter.Result) => void
+      (result: DictationAdapter.Result) => void
     >();
-    const statusSubscribers = new Set<() => void>();
 
     let finalTranscript = "";
 
-    const session: SpeechRecognitionAdapter.Session = {
+    const session: DictationAdapter.Session = {
       status: { type: "starting" },
 
       stop: async () => {
@@ -166,7 +165,7 @@ export class WebSpeechRecognitionAdapter implements SpeechRecognitionAdapter {
       },
 
       onSpeechEnd: (
-        callback: (result: SpeechRecognitionAdapter.Result) => void,
+        callback: (result: DictationAdapter.Result) => void,
       ): Unsubscribe => {
         speechEndCallbacks.add(callback);
         return () => {
@@ -175,7 +174,7 @@ export class WebSpeechRecognitionAdapter implements SpeechRecognitionAdapter {
       },
 
       onSpeech: (
-        callback: (result: SpeechRecognitionAdapter.Result) => void,
+        callback: (result: DictationAdapter.Result) => void,
       ): Unsubscribe => {
         speechCallbacks.add(callback);
         return () => {
@@ -184,9 +183,8 @@ export class WebSpeechRecognitionAdapter implements SpeechRecognitionAdapter {
       },
     };
 
-    const updateStatus = (newStatus: SpeechRecognitionAdapter.Status) => {
+    const updateStatus = (newStatus: DictationAdapter.Status) => {
       session.status = newStatus;
-      for (const cb of statusSubscribers) cb();
     };
 
     recognition.addEventListener("speechstart", () => {
@@ -241,11 +239,7 @@ export class WebSpeechRecognitionAdapter implements SpeechRecognitionAdapter {
         updateStatus({ type: "ended", reason: "cancelled" });
       } else {
         updateStatus({ type: "ended", reason: "error" });
-        console.error(
-          "Speech recognition error:",
-          errorEvent.error,
-          errorEvent.message,
-        );
+        console.error("Dictation error:", errorEvent.error, errorEvent.message);
       }
     });
 

@@ -163,7 +163,7 @@ const ComposerAction: FC = () => {
       <div className="flex items-center gap-1">
         <ComposerAddAttachment />
 
-        <ComposerPrimitive.If listening={false}>
+        <ComposerPrimitive.If dictation={false}>
           <ComposerPrimitive.Dictate asChild>
             <TooltipIconButton
               tooltip="Voice input"
@@ -177,10 +177,10 @@ const ComposerAction: FC = () => {
           </ComposerPrimitive.Dictate>
         </ComposerPrimitive.If>
 
-        <ComposerPrimitive.If listening>
+        <ComposerPrimitive.If dictation>
           <ComposerPrimitive.StopDictation asChild>
             <TooltipIconButton
-              tooltip="Stop listening"
+              tooltip="Stop dictation"
               side="top"
               variant="default"
               className="aui-composer-stop-dictation size-8 rounded-full"

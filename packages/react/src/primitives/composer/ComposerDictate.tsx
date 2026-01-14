@@ -10,19 +10,18 @@ import { createActionButton } from "../../utils/createActionButton";
 
 const useComposerDictate = () => {
   const api = useAssistantApi();
-  const isListening = useAssistantState(
-    ({ composer }) => composer.listening != null,
+  const disabled = useAssistantState(
+    ({ thread, composer }) =>
+      composer.dictation != null ||
+      !thread.capabilities.dictation ||
+      !composer.isEditing,
   );
-  const canDictate = useAssistantState(
-    ({ thread }) => thread.capabilities.dictation,
-  );
-  const isEditing = useAssistantState(({ composer }) => composer.isEditing);
 
   const callback = useCallback(() => {
-    api.composer().startListening();
+    api.composer().startDictation();
   }, [api]);
 
-  if (isListening || !canDictate || !isEditing) return null;
+  if (disabled) return null;
   return callback;
 };
 
@@ -32,9 +31,9 @@ export namespace ComposerPrimitiveDictate {
 }
 
 /**
- * A button that starts speech recognition (dictation) to convert voice to text.
+ * A button that starts dictation to convert voice to text.
  *
- * Requires a SpeechRecognitionAdapter to be configured in the runtime.
+ * Requires a DictationAdapter to be configured in the runtime.
  *
  * @example
  * ```tsx

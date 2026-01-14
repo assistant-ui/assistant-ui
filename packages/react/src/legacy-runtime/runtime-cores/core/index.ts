@@ -4,4 +4,4 @@ export type {
   ThreadSuggestion,
 } from "./ThreadRuntimeCore";
 
-export type { ListeningState } from "./ComposerRuntimeCore";
+export type { DictationState } from "./ComposerRuntimeCore";

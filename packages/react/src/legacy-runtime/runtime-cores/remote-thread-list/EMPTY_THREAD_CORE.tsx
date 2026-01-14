@@ -111,13 +111,13 @@ export const EMPTY_THREAD_CORE: ThreadRuntimeCore = {
       // noop
     },
 
-    listening: undefined,
+    dictation: undefined,
 
-    startListening() {
+    startDictation() {
       throw EMPTY_THREAD_ERROR;
     },
 
-    stopListening() {
+    stopDictation() {
       // noop
     },
 

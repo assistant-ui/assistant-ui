@@ -4,19 +4,19 @@ import type {
   Unsubscribe,
 } from "../../../types";
 import type { MessageRole, RunConfig } from "../../../types/AssistantTypes";
-import type { SpeechRecognitionAdapter } from "../adapters/speech/SpeechAdapterTypes";
+import type { DictationAdapter } from "../adapters/speech/SpeechAdapterTypes";
 
 export type ComposerRuntimeEventType = "send" | "attachment-add";
 
 /**
- * State representing an active speech recognition (dictation) session.
+ * State representing an active dictation session.
  */
-export type ListeningState = {
-  readonly status: SpeechRecognitionAdapter.Status;
+export type DictationState = {
+  readonly status: DictationAdapter.Status;
   /**
    * The current interim (partial) transcript being recognized.
    * This is a preview of what the user is saying and may change
-   * as the speech recognition refines its prediction.
+   * as dictation refines its prediction.
    *
    * Note: By default, interim transcripts are shown directly in the composer
    * input field (like native dictation). This property is provided for
@@ -24,7 +24,7 @@ export type ListeningState = {
    * transcript separately.
    */
   readonly transcript?: string;
-  /** Whether text input is disabled during this listening session. */
+  /** Whether text input is disabled during this dictation session. */
   readonly inputDisabled?: boolean;
 };
 
@@ -56,21 +56,21 @@ export type ComposerRuntimeCore = Readonly<{
   cancel: () => void;
 
   /**
-   * The current state of speech recognition (dictation).
-   * Undefined when not listening.
+   * The current state of dictation.
+   * Undefined when dictation is not active.
    */
-  listening: ListeningState | undefined;
+  dictation: DictationState | undefined;
 
   /**
-   * Start speech recognition to convert voice to text input.
-   * Requires a SpeechRecognitionAdapter to be configured.
+   * Start dictation to convert voice to text input.
+   * Requires a DictationAdapter to be configured.
    */
-  startListening: () => void;
+  startDictation: () => void;
 
   /**
-   * Stop the current speech recognition session.
+   * Stop the current dictation session.
    */
-  stopListening: () => void;
+  stopDictation: () => void;
 
   subscribe: (callback: () => void) => Unsubscribe;
 
