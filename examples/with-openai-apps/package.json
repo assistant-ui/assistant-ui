@@ -16,7 +16,7 @@
     "dev:kitchen-python": "cd servers && pnpm start:kitchen-python",
     "dev:solar-python": "cd servers && pnpm start:solar-python",
     "dev:shopping-python": "cd servers && pnpm start:shopping-python",
-    "build": "pnpm build:assets && cd client && pnpm build",
+    "build": "pnpm build:assets",
     "build:assets": "cd servers && pnpm build",
     "setup:python": "cd servers && pnpm setup:python",
     "install-deps": "pnpm install && cd client && pnpm install",
