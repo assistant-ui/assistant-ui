@@ -94,8 +94,8 @@ const EntryRow = forwardRef<HTMLDivElement, EntryRowProps>(
           "grid w-full items-center px-4 text-left",
           GRID_TEMPLATE,
           paddingY,
-          "pr-2",
-          !disabled && "hover:bg-muted/10",
+          "pr-4",
+          !disabled && "hover:bg-muted/40",
           disabled && "cursor-default",
           className,
         )}

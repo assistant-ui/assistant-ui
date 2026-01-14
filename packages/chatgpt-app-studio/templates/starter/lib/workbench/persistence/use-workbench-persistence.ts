@@ -52,7 +52,6 @@ export function useWorkbenchPersistence() {
     if (urlState.device) store.setDeviceType(urlState.device);
     if (urlState.theme) store.setTheme(urlState.theme);
     isUpdatingFromUrl.current = false;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

@@ -3,7 +3,7 @@ import { DocsPage, DocsBody } from "fumadocs-ui/page";
 import { notFound } from "next/navigation";
 import { createOgMetadata } from "@/lib/og";
 import { getMDXComponents } from "@/mdx-components";
-import { DocsRuntimeProvider } from "@/app/(home)/DocsRuntimeProvider";
+import { DocsRuntimeProvider } from "@/contexts/DocsRuntimeProvider";
 import { source } from "@/lib/source";
 import { getPageTreePeers } from "fumadocs-core/page-tree";
 import { Card, Cards } from "fumadocs-ui/components/card";

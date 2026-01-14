@@ -10,9 +10,18 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { ChevronDown, Wrench, RefreshCw, Loader2 } from "lucide-react";
 import { cn } from "@/lib/ui/cn";
 import { MockVariantEditor } from "./mock-variant-editor";
+
+const isDemoMode = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 
 type ServerStatus = "idle" | "connecting" | "connected" | "error";
 
@@ -107,13 +116,16 @@ interface FetchToolsButtonProps {
   onClick: () => void;
   isLoading: boolean;
   variant?: "default" | "icon";
+  onDemoModeClick?: () => void;
 }
 
 function FetchToolsButton({
   onClick,
   isLoading,
   variant = "default",
+  onDemoModeClick,
 }: FetchToolsButtonProps) {
+  const handleClick = isDemoMode && onDemoModeClick ? onDemoModeClick : onClick;
   const icon = isLoading ? (
     <Loader2 className="size-3.5 animate-spin" />
   ) : (
@@ -125,7 +137,7 @@ function FetchToolsButton({
       <Button
         variant="outline"
         size="icon"
-        onClick={onClick}
+        onClick={handleClick}
         disabled={isLoading}
         className="size-7 shrink-0"
         title="Fetch tools from server"
@@ -139,7 +151,7 @@ function FetchToolsButton({
     <Button
       variant="outline"
       size="sm"
-      onClick={onClick}
+      onClick={handleClick}
       disabled={isLoading}
       className="mt-4 gap-2"
     >
@@ -215,6 +227,10 @@ function ToolAccordionItem({
                 </div>
               )}
 
+              <div className="mb-2 font-medium text-[10px] text-muted-foreground/70 uppercase tracking-widest">
+                Mock Response
+              </div>
+
               <MockVariantEditor
                 variant={editorVariant}
                 onSave={(variant) => updateToolResponse(name, variant.response)}
@@ -234,9 +250,15 @@ interface EmptyStateProps {
   onFetchTools: () => void;
   isFetching: boolean;
   hasError: boolean;
+  onDemoModeClick?: () => void;
 }
 
-function EmptyState({ onFetchTools, isFetching, hasError }: EmptyStateProps) {
+function EmptyState({
+  onFetchTools,
+  isFetching,
+  hasError,
+  onDemoModeClick,
+}: EmptyStateProps) {
   return (
     <div className="flex h-full flex-col items-center justify-center p-6">
       <div className="mb-4 flex size-12 items-center justify-center rounded-xl bg-blue-500/10">
@@ -249,7 +271,11 @@ function EmptyState({ onFetchTools, isFetching, hasError }: EmptyStateProps) {
           callTool()
         </code>
       </p>
-      <FetchToolsButton onClick={onFetchTools} isLoading={isFetching} />
+      <FetchToolsButton
+        onClick={onFetchTools}
+        isLoading={isFetching}
+        onDemoModeClick={onDemoModeClick}
+      />
       {hasError && (
         <p className="mt-2 text-[10px] text-red-600 dark:text-red-400">
           Server not connected
@@ -298,6 +324,7 @@ interface McpServerSectionProps {
   status: ServerStatus;
   toolCount?: number;
   errorMessage?: string;
+  onDemoModeClick?: () => void;
 }
 
 function McpServerSection({
@@ -308,6 +335,7 @@ function McpServerSection({
   status,
   toolCount,
   errorMessage,
+  onDemoModeClick,
 }: McpServerSectionProps) {
   return (
     <div>
@@ -333,6 +361,7 @@ function McpServerSection({
           onClick={onFetchTools}
           isLoading={isFetching}
           variant="icon"
+          onDemoModeClick={onDemoModeClick}
         />
       </div>
     </div>
@@ -349,6 +378,7 @@ export function MockConfigPanel() {
     number | undefined
   >();
   const [expandedTool, setExpandedTool] = useState<string | null>(null);
+  const [showDemoDialog, setShowDemoDialog] = useState(false);
 
   const setMocksEnabled = useWorkbenchStore((s) => s.setMocksEnabled);
   const setServerUrl = useWorkbenchStore((s) => s.setServerUrl);
@@ -377,48 +407,64 @@ export function MockConfigPanel() {
   }, []);
 
   const isFetching = serverStatus === "connecting";
-
-  if (toolNames.length === 0) {
-    return (
-      <EmptyState
-        onFetchTools={handleFetchTools}
-        isFetching={isFetching}
-        hasError={serverStatus === "error"}
-      />
-    );
-  }
+  const handleDemoModeClick = useCallback(() => {
+    setShowDemoDialog(true);
+  }, []);
 
   return (
-    <div className="flex h-full flex-col overflow-hidden">
-      <div className="shrink-0 space-y-4 border-border/40 border-b p-4">
-        <SimulationToggle
-          enabled={mockConfig.globalEnabled}
-          onToggle={setMocksEnabled}
-        />
-        <McpServerSection
-          serverUrl={mockConfig.serverUrl}
-          onServerUrlChange={setServerUrl}
+    <>
+      {toolNames.length === 0 ? (
+        <EmptyState
           onFetchTools={handleFetchTools}
           isFetching={isFetching}
-          status={serverStatus}
-          toolCount={lastFetchedCount}
-          errorMessage={errorMessage}
+          hasError={serverStatus === "error"}
+          onDemoModeClick={handleDemoModeClick}
         />
-      </div>
-
-      <div className="scrollbar-subtle flex-1 overflow-y-auto p-4">
-        <SectionLabel>Tools</SectionLabel>
-        <div className="space-y-2">
-          {toolNames.map((name) => (
-            <ToolAccordionItem
-              key={name}
-              name={name}
-              isExpanded={expandedTool === name}
-              onToggle={() => toggleTool(name)}
+      ) : (
+        <div className="flex h-full flex-col overflow-hidden">
+          <div className="shrink-0 space-y-4 border-border/40 border-b p-4">
+            <SimulationToggle
+              enabled={mockConfig.globalEnabled}
+              onToggle={setMocksEnabled}
             />
-          ))}
+            <McpServerSection
+              serverUrl={mockConfig.serverUrl}
+              onServerUrlChange={setServerUrl}
+              onFetchTools={handleFetchTools}
+              isFetching={isFetching}
+              status={serverStatus}
+              toolCount={lastFetchedCount}
+              errorMessage={errorMessage}
+              onDemoModeClick={handleDemoModeClick}
+            />
+          </div>
+
+          <div className="scrollbar-subtle flex-1 overflow-y-auto p-4">
+            <SectionLabel>Tools</SectionLabel>
+            <div className="space-y-2">
+              {toolNames.map((name) => (
+                <ToolAccordionItem
+                  key={name}
+                  name={name}
+                  isExpanded={expandedTool === name}
+                  onToggle={() => toggleTool(name)}
+                />
+              ))}
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
+      )}
+
+      <Dialog open={showDemoDialog} onOpenChange={setShowDemoDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Demo Mode</DialogTitle>
+            <DialogDescription>
+              This feature is only available when running the workbench locally.
+            </DialogDescription>
+          </DialogHeader>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

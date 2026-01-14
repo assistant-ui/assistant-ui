@@ -123,6 +123,43 @@ export function ChatThread({ children, className }: ChatThreadProps) {
     }
   }, [displayMode]);
 
+  useEffect(() => {
+    if (displayMode === "fullscreen") {
+      document.documentElement.style.overflow = "hidden";
+      document.body.style.overflow = "hidden";
+
+      // Notify parent window to prevent scrolling
+      if (window.parent !== window) {
+        // Use document.referrer to get parent origin, fallback to same origin
+        const targetOrigin = document.referrer
+          ? new URL(document.referrer).origin
+          : window.location.origin;
+
+        window.parent.postMessage(
+          { type: "workbench:fullscreen", value: true },
+          targetOrigin,
+        );
+      }
+
+      return () => {
+        document.documentElement.style.overflow = "";
+        document.body.style.overflow = "";
+
+        // Notify parent window to restore scrolling
+        if (window.parent !== window) {
+          const targetOrigin = document.referrer
+            ? new URL(document.referrer).origin
+            : window.location.origin;
+
+          window.parent.postMessage(
+            { type: "workbench:fullscreen", value: false },
+            targetOrigin,
+          );
+        }
+      };
+    }
+  }, [displayMode]);
+
   if (displayMode === "fullscreen") {
     return (
       <FullscreenLayout className={className} isDark={isDark}>
@@ -182,7 +219,7 @@ function IsolatedLayout({
   return (
     <div
       className={cn(
-        "relative flex h-full flex-col items-center justify-center overflow-hidden transition-colors",
+        "relative flex h-full flex-col items-center justify-center overflow-hidden px-4 transition-colors",
         isDark ? "bg-neutral-900" : "bg-white",
         className,
       )}
@@ -258,8 +295,12 @@ function FullscreenLayout({ children, className, isDark }: LayoutProps) {
         isDark ? "bg-neutral-900" : "bg-white",
         className,
       )}
+      style={{ overscrollBehavior: "contain" }}
     >
-      <MorphContainer className="h-full overflow-auto">
+      <MorphContainer
+        className="h-full overflow-auto"
+        style={{ overscrollBehavior: "contain" }}
+      >
         {children}
       </MorphContainer>
     </div>
