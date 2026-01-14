@@ -154,8 +154,6 @@
   margin-top: 2.5rem !important;
   margin-bottom: 1rem !important;
   line-height: 1.4 !important;
-  padding-bottom: 0.625rem !important;
-  border-bottom: 1px solid var(--border) !important;
 }
 
 .prose :where(h3):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
@@ -193,7 +191,6 @@
   padding: 0.125rem 0.375rem !important;
   border-radius: 0.25rem !important;
   background: var(--muted) !important;
-  border: 1px solid var(--border) !important;
 }
 
 .prose :where(pre):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
@@ -218,8 +215,7 @@
   :where(a):not(:where([class~="not-prose"], [class~="not-prose"] *)):not(
     [data-card]
   ) {
-  text-underline-offset: 3px !important;
-  text-decoration-thickness: 1px !important;
+  text-decoration: none !important;
 }
 
 .prose :where(table):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
@@ -243,7 +239,6 @@ figure.shiki {
   margin-top: 1.25rem !important;
   margin-bottom: 1.25rem !important;
   border-radius: 0.5rem !important;
-  border: 1px solid var(--border) !important;
   box-shadow: none !important;
   background: var(--muted) !important;
   overflow: hidden;
@@ -256,7 +251,6 @@ figure.shiki {
 figure.shiki > div:first-child:has(figcaption) {
   height: 2rem !important;
   padding-inline: 0.75rem !important;
-  border-bottom: 1px solid var(--border) !important;
   background: transparent !important;
   font-size: 0.75rem !important;
 }

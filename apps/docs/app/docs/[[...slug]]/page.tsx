@@ -9,6 +9,7 @@ import { getPageTreePeers, findNeighbour } from "fumadocs-core/page-tree";
 import { Card, Cards } from "fumadocs-ui/components/card";
 import { TableOfContents } from "@/components/docs/table-of-contents";
 import { DocsFooter } from "@/components/docs/docs-footer";
+import { DocsPager } from "@/components/docs/docs-pager";
 
 function DocsCategory({ url }: { url?: string }) {
   const effectiveUrl = url ?? "";
@@ -71,10 +72,18 @@ export default async function Page(props: {
       }}
     >
       <DocsBody>
-        <header className="not-prose mb-8 border-border/60 border-b pb-6">
-          <h1 className="font-medium text-xl tracking-tight md:text-2xl">
-            {page.data.title}
-          </h1>
+        <header className="not-prose mb-8">
+          <div className="flex items-start justify-between gap-4">
+            <h1 className="font-medium text-xl tracking-tight md:text-2xl">
+              {page.data.title}
+            </h1>
+            <DocsPager
+              previous={
+                footerPrevious ? { url: footerPrevious.url } : undefined
+              }
+              next={footerNext ? { url: footerNext.url } : undefined}
+            />
+          </div>
           {page.data.description && (
             <p className="mt-2 text-muted-foreground text-sm md:text-base">
               {page.data.description}
