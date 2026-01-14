@@ -191,7 +191,6 @@ ${imports.join("\n")}
 
 export type ComponentCategory = "cards" | "lists" | "forms" | "data";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyComponent = ComponentType<any>;
 
 export interface WorkbenchComponentEntry {
