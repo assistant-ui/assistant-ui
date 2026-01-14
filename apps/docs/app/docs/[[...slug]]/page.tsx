@@ -5,9 +5,10 @@ import { createOgMetadata } from "@/lib/og";
 import { getMDXComponents } from "@/mdx-components";
 import { DocsRuntimeProvider } from "@/app/(home)/DocsRuntimeProvider";
 import { source } from "@/lib/source";
-import { getPageTreePeers } from "fumadocs-core/page-tree";
+import { getPageTreePeers, findNeighbour } from "fumadocs-core/page-tree";
 import { Card, Cards } from "fumadocs-ui/components/card";
 import { TableOfContents } from "@/components/docs/table-of-contents";
+import { DocsFooter } from "@/components/docs/docs-footer";
 
 function DocsCategory({ url }: { url?: string }) {
   const effectiveUrl = url ?? "";
@@ -40,6 +41,14 @@ export default async function Page(props: {
   const markdownUrl = `${page.url}.mdx`;
   const githubEditUrl = `https://github.com/assistant-ui/assistant-ui/edit/main/${path}`;
 
+  const neighbours = findNeighbour(source.pageTree, page.url);
+  const footerPrevious = neighbours.previous
+    ? { name: neighbours.previous.name, url: neighbours.previous.url }
+    : undefined;
+  const footerNext = neighbours.next
+    ? { name: neighbours.next.name, url: neighbours.next.url }
+    : undefined;
+
   return (
     <DocsPage
       toc={page.data.toc}
@@ -57,14 +66,17 @@ export default async function Page(props: {
       tableOfContentPopover={{
         enabled: false,
       }}
+      footer={{
+        enabled: false,
+      }}
     >
       <DocsBody>
-        <header className="not-prose mb-8 md:mb-12">
-          <h1 className="font-medium text-3xl tracking-tight">
+        <header className="not-prose mb-8 border-border/60 border-b pb-6">
+          <h1 className="font-medium text-xl tracking-tight md:text-2xl">
             {page.data.title}
           </h1>
           {page.data.description && (
-            <p className="mt-3 text-lg text-muted-foreground">
+            <p className="mt-2 text-muted-foreground text-sm md:text-base">
               {page.data.description}
             </p>
           )}
@@ -72,6 +84,7 @@ export default async function Page(props: {
         <DocsRuntimeProvider>
           <page.data.body components={mdxComponents} />
         </DocsRuntimeProvider>
+        <DocsFooter previous={footerPrevious} next={footerNext} />
       </DocsBody>
     </DocsPage>
   );

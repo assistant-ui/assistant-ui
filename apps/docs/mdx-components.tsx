@@ -19,7 +19,7 @@ export function getMDXComponents(components: MDXComponents): MDXComponents {
     ...Twoslash,
     pre: (props: CodeBlockProps) => (
       <CodeBlock {...props}>
-        <Pre className="max-h-[400px]">{props.children}</Pre>
+        <Pre className="max-h-[350px]">{props.children}</Pre>
       </CodeBlock>
     ),
     Tabs,
