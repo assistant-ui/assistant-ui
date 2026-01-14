@@ -14,7 +14,7 @@ import {
   MessagePrimitive,
   ThreadPrimitive,
 } from "@assistant-ui/react";
-import { SampleFrame } from "@/components/samples/sample-frame";
+import { SampleFrame } from "@/components/docs/samples/sample-frame";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import type { FC } from "react";
 import {

@@ -1,7 +1,7 @@
 "use client";
 
 import { Thread } from "@/components/assistant-ui/thread";
-import { SampleFrame } from "@/components/samples/sample-frame";
+import { SampleFrame } from "@/components/docs/samples/sample-frame";
 
 export const ToolUISample = () => {
   return (
