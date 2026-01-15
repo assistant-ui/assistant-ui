@@ -83,7 +83,7 @@ export function Callout({
       <div className="mt-0.5 shrink-0">
         {icon ?? <Icon className={cn("size-4", config.iconClassName)} />}
       </div>
-      <div className="min-w-0 flex-1 [&_code]:rounded [&_code]:bg-black/10 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-[0.8125rem] dark:[&_code]:bg-white/10">
+      <div className="min-w-0 flex-1 [&_code]:rounded [&_code]:bg-black/10 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-[0.8125rem] dark:[&_code]:bg-white/10 [&_li]:py-0.5 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-4 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-4">
         {title && <p className="mb-1 font-medium">{title}</p>}
         <div>{children}</div>
       </div>

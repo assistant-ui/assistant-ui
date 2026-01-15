@@ -1,11 +1,12 @@
 import { DynamicCodeBlock } from "fumadocs-ui/components/dynamic-codeblock";
-import { Tab, Tabs } from "fumadocs-ui/components/tabs";
+import { Tab, Tabs } from "@/components/docs/fumadocs/tabs";
 import {
   resolveAllComponents,
   ComponentSourceFromFile,
   type ResolvedGroup,
-} from "./component-source";
-import { SetupInstructions } from "./setup-instructions";
+} from "@/components/docs/fumadocs/install/component-source";
+import { SetupInstructions } from "@/components/docs/fumadocs/install/setup-instructions";
+import { PackageManagerTabs } from "@/components/docs/fumadocs/install/package-manager-tabs";
 
 type InstallCommandProps =
   | {
@@ -18,42 +19,6 @@ type InstallCommandProps =
       /** NPM packages to install */
       npm: string[];
     };
-
-const PACKAGE_MANAGERS = ["npm", "yarn", "pnpm", "bun", "xpm"] as const;
-
-function getInstallCommand(
-  pm: (typeof PACKAGE_MANAGERS)[number],
-  packages: string[],
-): string {
-  const pkgList = packages.join(" ");
-  switch (pm) {
-    case "npm":
-      return `npm install ${pkgList}`;
-    case "yarn":
-      return `yarn add ${pkgList}`;
-    case "pnpm":
-      return `pnpm add ${pkgList}`;
-    case "bun":
-      return `bun add ${pkgList}`;
-    case "xpm":
-      return `xpm add ${pkgList}`;
-  }
-}
-
-function PackageManagerTabs({ packages }: { packages: string[] }) {
-  return (
-    <Tabs groupId="pm" items={[...PACKAGE_MANAGERS]}>
-      {PACKAGE_MANAGERS.map((pm) => (
-        <Tab key={pm}>
-          <DynamicCodeBlock
-            lang="bash"
-            code={getInstallCommand(pm, packages)}
-          />
-        </Tab>
-      ))}
-    </Tabs>
-  );
-}
 
 function FileGroup({ title, group }: { title: string; group: ResolvedGroup }) {
   if (group.files.length === 0) return null;
@@ -83,11 +48,10 @@ export async function InstallCommand(props: InstallCommandProps) {
   const components = props.shadcn;
   const shadcnCmd = `npx shadcn@latest add ${components.map((c) => `@assistant-ui/${c}`).join(" ")}`;
 
-  // Resolve all components and their dependencies
   const resolved = await resolveAllComponents(props.shadcn);
 
   return (
-    <Tabs items={["shadcn", "Manual"]}>
+    <Tabs items={["CLI", "Manual"]}>
       <Tab>
         <DynamicCodeBlock lang="bash" code={shadcnCmd} />
       </Tab>

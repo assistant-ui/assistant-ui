@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 type CardProps = {
-  title: string;
+  title: ReactNode;
   description?: string;
   href?: string;
   children?: ReactNode;

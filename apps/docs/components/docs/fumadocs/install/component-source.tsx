@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { DynamicCodeBlock } from "fumadocs-ui/components/dynamic-codeblock";
-import { CodeCollapsible } from "./code-collapsible";
+import { CodeCollapsible } from "@/components/docs/fumadocs/code-collapsible";
 
 type RegistryFile = {
   content: string;

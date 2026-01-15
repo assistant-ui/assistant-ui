@@ -217,41 +217,60 @@
 figure.shiki {
   margin-top: 1.25rem !important;
   margin-bottom: 1.25rem !important;
-  border-radius: 0.5rem !important;
+  border-radius: 0.75rem !important;
+  border: none !important;
   box-shadow: none !important;
-  background: var(--muted) !important;
+  background: oklch(0.97 0 0) !important;
   overflow: hidden;
 
   .dark & {
-    background: oklch(0.18 0 0) !important;
+    background: oklch(0.16 0 0) !important;
   }
 
+  /* Header with title */
   & > div:first-child:has(figcaption) {
-    height: 2rem !important;
-    padding-inline: 0.75rem !important;
-    background: transparent !important;
-    font-size: 0.75rem !important;
+    height: 2.25rem !important;
+    padding-inline: 0.875rem !important;
+    border-bottom: none !important;
+    background: oklch(0.93 0 0) !important;
+
+    .dark & {
+      background: oklch(0.13 0 0) !important;
+    }
   }
 
   & figcaption {
-    font-family: var(--font-mono), ui-monospace, monospace !important;
-    font-size: 0.75rem !important;
-    color: var(--muted-foreground) !important;
+    font-family: var(--font-sans), system-ui, sans-serif !important;
+    font-size: 0.8125rem !important;
+    font-weight: 500 !important;
+    color: oklch(0.45 0 0) !important;
+
+    .dark & {
+      color: oklch(0.6 0 0) !important;
+    }
   }
 
+  /* Copy button position (no title) */
   & > div:first-child:not(:has(figcaption)) {
     top: 0.5rem !important;
     right: 0.5rem !important;
   }
 
+  /* Copy button */
   & button[aria-label*="Copy"] {
-    width: 1.5rem !important;
-    height: 1.5rem !important;
+    width: 1.75rem !important;
+    height: 1.75rem !important;
     padding: 0 !important;
-    border-radius: 0.25rem !important;
+    border-radius: 0.375rem !important;
     background: transparent !important;
+    color: var(--muted-foreground) !important;
     opacity: 0;
-    transition: opacity 0.15s ease !important;
+    transition: all 0.15s ease !important;
+
+    &:hover {
+      background: var(--muted) !important;
+      color: var(--foreground) !important;
+    }
 
     & svg {
       width: 0.875rem !important;
@@ -263,39 +282,56 @@ figure.shiki {
     opacity: 1;
   }
 
+  /* Code region */
   & > div[role="region"] {
-    padding-top: 0.75rem !important;
-    padding-bottom: 0.75rem !important;
+    padding-top: 0.875rem !important;
+    padding-bottom: 0.875rem !important;
     font-size: 0.8125rem !important;
-    line-height: 1.6 !important;
+    line-height: 1.65 !important;
   }
 
   & pre {
-    --padding-left: 0.75rem !important;
-    --padding-right: 0.75rem !important;
+    --padding-left: 0.875rem !important;
+    --padding-right: 0.875rem !important;
   }
 
+  /* Line numbers */
   & [data-line-numbers] .line {
-    padding-left: calc(0.75rem + 2rem) !important;
+    padding-left: calc(0.875rem + 2.25rem) !important;
 
     &::after {
-      left: 0.75rem !important;
+      left: 0.875rem !important;
+      width: 1.5rem !important;
       color: var(--muted-foreground) !important;
-      opacity: 0.4 !important;
+      opacity: 0.35 !important;
       font-size: 0.6875rem !important;
     }
   }
 
+  /* Highlighted lines */
   & .highlighted {
-    background: oklch(0.5 0.15 250 / 0.15) !important;
+    background: oklch(0.7 0.12 250 / 0.1) !important;
+
+    .dark & {
+      background: oklch(0.5 0.15 250 / 0.15) !important;
+    }
   }
 
+  /* Diff styles */
   & .diff.add {
-    background: oklch(0.7 0.15 145 / 0.15) !important;
+    background: oklch(0.85 0.12 145 / 0.2) !important;
+
+    .dark & {
+      background: oklch(0.45 0.12 145 / 0.2) !important;
+    }
   }
 
   & .diff.remove {
-    background: oklch(0.6 0.2 25 / 0.15) !important;
+    background: oklch(0.85 0.15 25 / 0.2) !important;
+
+    .dark & {
+      background: oklch(0.45 0.15 25 / 0.2) !important;
+    }
   }
 }
 

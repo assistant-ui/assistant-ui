@@ -1,4 +1,4 @@
-import { ParametersTable } from "@/components/docs";
+import { ParametersTable } from "@/components/docs/tables/ParametersTable";
 
 export const AssistantRuntimeProviderProps = () => {
   return (

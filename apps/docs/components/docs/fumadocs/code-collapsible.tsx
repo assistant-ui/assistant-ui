@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import {
   Collapsible,
   CollapsibleContent,
@@ -27,21 +26,6 @@ export function CodeCollapsible({
       onOpenChange={setIsOpen}
       className={cn("group/collapsible relative my-4", className)}
     >
-      <CollapsibleTrigger asChild>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="absolute top-1.5 right-12 z-10 h-7 gap-1 px-2 text-muted-foreground text-xs"
-        >
-          <ChevronDownIcon
-            className={cn(
-              "size-3 transition-transform",
-              isOpen && "rotate-180",
-            )}
-          />
-          {isOpen ? "Collapse" : "Expand"}
-        </Button>
-      </CollapsibleTrigger>
       <CollapsibleContent
         forceMount
         className={cn(

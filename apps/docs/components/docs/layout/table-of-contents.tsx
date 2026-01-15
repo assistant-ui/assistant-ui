@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { Copy, Check, FileText, EditIcon, AlertCircle } from "lucide-react";
-import { TOCHiringBanner } from "@/components/docs/toc-hiring-banner";
 import { useCopyButton } from "fumadocs-ui/utils/use-copy-button";
+import { TOCHiringBanner } from "@/components/docs/layout/toc-hiring-banner";
 
 type TOCItem = {
   title: ReactNode;

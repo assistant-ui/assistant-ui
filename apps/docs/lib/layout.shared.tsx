@@ -11,7 +11,7 @@ import Image from "next/image";
 import { DocsLayoutProps } from "fumadocs-ui/layouts/docs";
 import { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
-import { SidebarSearch } from "@/components/docs/sidebar-search";
+import { SidebarSearch } from "@/components/docs/layout/sidebar-search";
 import { DiscordIcon } from "@/components/icons/discord";
 
 // shared configuration

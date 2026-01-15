@@ -1,9 +1,9 @@
 import type { MDXComponents } from "mdx/types";
 import { Accordion, Accordions } from "fumadocs-ui/components/accordion";
-import { Callout } from "@/components/docs/callout";
-import { Card, Cards } from "@/components/docs/card";
-import { Step, Steps } from "@/components/docs/steps";
-import { Tab, Tabs } from "fumadocs-ui/components/tabs";
+import { Callout } from "@/components/docs/fumadocs/callout";
+import { Card, Cards } from "@/components/docs/fumadocs/card";
+import { Step, Steps } from "@/components/docs/fumadocs/steps";
+import { Tab, Tabs } from "@/components/docs/fumadocs/tabs";
 import { TypeTable } from "fumadocs-ui/components/type-table";
 import defaultComponents from "fumadocs-ui/mdx";
 import {

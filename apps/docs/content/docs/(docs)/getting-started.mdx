@@ -3,9 +3,11 @@ title: Getting Started
 description: Get assistant-ui running in 5 minutes with npm and your first chat component.
 ---
 
-import { InstallCommand } from "@/components/docs/install-command";
+import { InstallCommand } from "@/components/docs/fumadocs/install/install-command";
 
-## Start with a new project
+## Quick Start
+
+The fastest way to get started with assistant-ui.
 
 ![animated gif showing the steps to create a new project](../../../../../.github/assets/assistant-ui-starter.gif)
 
@@ -17,11 +19,13 @@ import { InstallCommand } from "@/components/docs/install-command";
 **Create a new project:**
 
 ```sh
-# Create a new project with the default template
 npx assistant-ui@latest create
+```
 
-# Or choose one of the following templates:
-# Assistant Cloud for baked in persistence and thread management
+Or choose a template:
+
+```sh
+# Assistant Cloud - with persistence and thread management
 npx assistant-ui@latest create -t cloud
 
 # LangGraph
@@ -31,10 +35,9 @@ npx assistant-ui@latest create -t langgraph
 npx assistant-ui@latest create -t mcp
 ```
 
-**Add assistant-ui to an existing React project:**
+**Add to an existing project:**
 
 ```sh
-# Add assistant-ui to an existing React project
 npx assistant-ui@latest init
 ```
 
@@ -43,13 +46,10 @@ npx assistant-ui@latest init
 
 ### Add API key
 
-Add a new `.env` file to your project with your OpenAI API key:
+Create a `.env` file with your API key:
 
 ```
 OPENAI_API_KEY="sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-
-# chat history -- sign up for free on https://cloud.assistant-ui.com
-# NEXT_PUBLIC_ASSISTANT_BASE_URL="https://..."
 ```
 
   </Step>
@@ -64,11 +64,9 @@ npm run dev
   </Step>
 </Steps>
 
-## Manual installation
+## Add to Existing Project
 
-<Callout>
-  We recommend `npx assistant-ui init` to setup existing projects.
-</Callout>
+If you prefer not to use the CLI, you can install components manually.
 
 <Steps>
   <Step>

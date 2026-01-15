@@ -6,7 +6,7 @@ import { notFound } from "next/navigation";
 import { getMDXComponents } from "@/mdx-components";
 import { DocsRuntimeProvider } from "@/contexts/DocsRuntimeProvider";
 import { ExamplesNavbar } from "@/components/examples/ExamplesNavbar";
-import { TableOfContents } from "@/components/docs/table-of-contents";
+import { TableOfContents } from "@/components/docs/layout/table-of-contents";
 
 function getPage(slug: string[] | undefined): ExamplePage {
   const page = examples.getPage(slug);
