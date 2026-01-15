@@ -1,9 +1,10 @@
 "use client";
+
 import {
   ComposerAddAttachment,
   ComposerAttachments,
   UserMessageAttachments,
-} from "../assistant-ui/attachment";
+} from "@/components/assistant-ui/attachment";
 import {
   ActionBarPrimitive,
   BranchPickerPrimitive,
@@ -27,10 +28,10 @@ import {
   Square,
   MicIcon,
 } from "lucide-react";
-import { MarkdownText } from "../assistant-ui/markdown-text";
-import { Button } from "../ui/button";
+import { MarkdownText } from "@/components/assistant-ui/markdown-text";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { ToolFallback } from "../assistant-ui/tool-fallback";
+import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 
 export const DictationSample = () => {
   return (
