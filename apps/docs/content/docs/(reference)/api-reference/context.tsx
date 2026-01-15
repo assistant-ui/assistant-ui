@@ -8,6 +8,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Fragment } from "react";
+import { cn } from "@/lib/utils";
 
 interface ComponentProps {
   name: string;
@@ -131,7 +132,7 @@ export const ContextLevel: React.FC<ContextLevelProps> = ({
   color,
   children,
 }) => (
-  <div className={`mb-12 border-l-4 pl-6`} style={{ borderColor: color }}>
+  <div className="mb-12 border-l-4 pl-6" style={{ borderColor: color }}>
     {children}
   </div>
 );

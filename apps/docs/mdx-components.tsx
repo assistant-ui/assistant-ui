@@ -13,7 +13,7 @@ import {
 } from "fumadocs-ui/components/codeblock";
 import * as Twoslash from "fumadocs-twoslash/ui";
 
-import "fumadocs-twoslash/twoslash.css";
+import "@/styles/twoslash.css";
 
 export function getMDXComponents(components: MDXComponents): MDXComponents {
   return {
@@ -21,7 +21,7 @@ export function getMDXComponents(components: MDXComponents): MDXComponents {
     ...Twoslash,
     pre: (props: CodeBlockProps) => (
       <CodeBlock {...props}>
-        <Pre className="max-h-[350px]">{props.children}</Pre>
+        <Pre className="max-h-87.5">{props.children}</Pre>
       </CodeBlock>
     ),
     Tabs,

@@ -78,10 +78,8 @@ export default async function Page(props: {
               {page.data.title}
             </h1>
             <DocsPager
-              previous={
-                footerPrevious ? { url: footerPrevious.url } : undefined
-              }
-              next={footerNext ? { url: footerNext.url } : undefined}
+              {...(footerPrevious && { previous: { url: footerPrevious.url } })}
+              {...(footerNext && { next: { url: footerNext.url } })}
               markdownUrl={markdownUrl}
             />
           </div>

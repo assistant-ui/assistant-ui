@@ -12,6 +12,7 @@ export function Provider({ children }: { children: ReactNode }) {
       <RootProvider search={{ SearchDialog }}>{children}</RootProvider>
 
       <Toaster
+        position="top-center"
         toastOptions={{
           classNames: {
             toast:

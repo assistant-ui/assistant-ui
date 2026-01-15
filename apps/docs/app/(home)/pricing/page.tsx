@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { createOgMetadata } from "@/lib/og";
 import { Check, Github } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const title = "Pricing";
 const description = "Fully managed backend for AI chat applications";
@@ -84,11 +85,12 @@ export default function PricingPage() {
           {plans.map((plan) => (
             <div
               key={plan.name}
-              className={`relative flex flex-col rounded-lg border p-6 ${
+              className={cn(
+                "relative flex flex-col rounded-lg border p-6",
                 plan.highlighted
                   ? "border-foreground/20 bg-muted/30"
-                  : "border-border"
-              }`}
+                  : "border-border",
+              )}
             >
               <div className="mb-6">
                 <h3 className="font-medium text-sm">{plan.name}</h3>
@@ -121,11 +123,12 @@ export default function PricingPage() {
 
               <Link
                 href={plan.href}
-                className={`block rounded-md py-2 text-center font-medium text-sm transition-colors ${
+                className={cn(
+                  "block rounded-md py-2 text-center font-medium text-sm transition-colors",
                   plan.highlighted
                     ? "bg-foreground text-background hover:bg-foreground/90"
-                    : "border border-border hover:bg-muted"
-                }`}
+                    : "border border-border hover:bg-muted",
+                )}
               >
                 {plan.cta}
               </Link>
