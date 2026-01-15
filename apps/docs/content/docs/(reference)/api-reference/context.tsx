@@ -8,7 +8,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Fragment } from "react";
-import { cn } from "@/lib/utils";
 
 interface ComponentProps {
   name: string;
