@@ -1,10 +1,9 @@
 ---
 title: Data Stream Protocol
+description: Integration with data stream protocol endpoints for streaming AI responses.
 ---
 
-import { Step, Steps } from "fumadocs-ui/components/steps";
-import { Callout } from "fumadocs-ui/components/callout";
-import { InstallCommand } from "@/components/docs/install-command";
+import { InstallCommand } from "@/components/docs/fumadocs/install/install-command";
 
 The `@assistant-ui/react-data-stream` package provides integration with data stream protocol endpoints, enabling streaming AI responses with tool support and state management.
 
@@ -120,6 +119,22 @@ const runtime = useDataStreamRuntime({
 });
 ```
 
+### Dynamic Body
+
+```tsx
+const runtime = useDataStreamRuntime({
+  api: "/api/chat",
+  headers: async () => ({
+    "Authorization": `Bearer ${await getAuthToken()}`,
+  }),
+  body: async () => ({
+    requestId: crypto.randomUUID(),
+    timestamp: Date.now(),
+    signature: await computeSignature(),
+  }),
+});
+```
+
 ### Event Callbacks
 
 ```tsx
@@ -141,6 +156,13 @@ const runtime = useDataStreamRuntime({
 ```
 
 ## Tool Integration
+
+<Callout type="warn">
+  Human-in-the-loop tools (using `human()` for tool interrupts) are not supported
+  in the data stream runtime. If you need human approval workflows or interactive
+  tool UIs, consider using [LocalRuntime](/docs/runtimes/custom/local) or
+  [Assistant Cloud](/docs/cloud/overview) instead.
+</Callout>
 
 ### Frontend Tools
 

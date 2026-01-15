@@ -6,4 +6,7 @@ export { ComposerPrimitiveAddAttachment as AddAttachment } from "./ComposerAddAt
 export { ComposerPrimitiveAttachments as Attachments } from "./ComposerAttachments";
 export { ComposerPrimitiveAttachmentByIndex as AttachmentByIndex } from "./ComposerAttachments";
 export { ComposerPrimitiveAttachmentDropzone as AttachmentDropzone } from "./ComposerAttachmentDropzone";
+export { ComposerPrimitiveDictate as Dictate } from "./ComposerDictate";
+export { ComposerPrimitiveStopDictation as StopDictation } from "./ComposerStopDictation";
+export { ComposerPrimitiveDictationTranscript as DictationTranscript } from "./ComposerDictationTranscript";
 export { ComposerPrimitiveIf as If } from "./ComposerIf";

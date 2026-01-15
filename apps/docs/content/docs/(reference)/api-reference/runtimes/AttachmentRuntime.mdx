@@ -1,0 +1,47 @@
+---
+title: AttachmentRuntime
+description: Hooks for accessing attachment state in composer and messages.
+---
+
+import { ParametersTable } from "@/components/docs/tables/ParametersTable";
+import {
+  ComposerAttachmentState,
+  MessageAttachmentState,
+} from "@/components/docs/tables/parameters/context";
+
+### `useAttachment`
+
+Access the current attachment state:
+
+```tsx
+import { useAttachment } from "@assistant-ui/react";
+
+const { attachment } = useAttachment();
+const att = useAttachment((m) => m.attachment);
+```
+
+### `useComposerAttachment` (Composer)
+
+When working with a composer’s attachment:
+
+```tsx
+import { useComposerAttachment } from "@assistant-ui/react";
+
+const { attachment } = useComposerAttachment();
+const composerAttachment = useComposerAttachment((m) => m.attachment);
+```
+
+<ParametersTable {...ComposerAttachmentState} />
+
+### `useMessageAttachment` (Message)
+
+For managing a message’s attachment:
+
+```tsx
+import { useMessageAttachment } from "@assistant-ui/react";
+
+const { attachment } = useMessageAttachment();
+const messageAttachment = useMessageAttachment((m) => m.attachment);
+```
+
+<ParametersTable {...MessageAttachmentState} />

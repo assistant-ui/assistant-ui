@@ -1,6 +1,6 @@
 "use client";
 
-import { DocsRuntimeProvider } from "@/app/(home)/DocsRuntimeProvider";
+import { DocsRuntimeProvider } from "@/contexts/DocsRuntimeProvider";
 import { Shadcn } from "@/components/example/shadcn/Shadcn";
 import { Button } from "@/components/ui/button";
 import { useChat } from "@ai-sdk/react";

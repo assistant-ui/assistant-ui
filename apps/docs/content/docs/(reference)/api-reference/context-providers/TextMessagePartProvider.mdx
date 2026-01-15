@@ -1,0 +1,27 @@
+---
+title: <TextMessagePartProvider />
+description: Context provider for reusing text components outside of message content.
+---
+
+import { ParametersTable } from "@/components/docs/tables/ParametersTable";
+import { AssistantRuntimeProvider } from "@/generated/typeDocs";
+
+The `TextMessagePartProvider` provides data and APIs for `TextMessagePart` components.
+
+This is useful if you want to reuse the same `Text` component outside of a message text, e.g. with the `@assistant-ui/react-markdown` package.
+
+```tsx {1, 8, 10}
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+
+const MyApp = () => {
+  return (
+    <TextMessagePartProvider text={"Hello!"}>
+      <MyMarkdownText />
+    </AssistantRuntimeProvider>
+  );
+};
+```
+
+#### Properties
+
+<ParametersTable {...AssistantRuntimeProvider} />

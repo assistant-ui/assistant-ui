@@ -1,0 +1,72 @@
+---
+title: makeAssistantVisible
+description: Make React components visible and interactive to assistants via higher-order component wrapping.
+---
+
+`makeAssistantVisible` is a higher-order component (HOC) that makes React components "visible" by the assistant, allowing it to understand and interact with the component's HTML structure.
+
+## Usage
+
+```tsx
+import { makeAssistantVisible } from "@assistant-ui/react";
+
+const Button = ({ onClick, children }) => (
+  <button onClick={onClick}>{children}</button>
+);
+
+// Basic usage - makes component HTML readable
+const ReadableButton = makeAssistantVisible(Button);
+
+// With clickable configuration
+const ClickableButton = makeAssistantVisible(Button, {
+  clickable: true, // Enables the click tool
+});
+```
+
+## API Reference
+
+### Parameters
+
+- `Component`: The base React component to enhance
+- `config`: Optional configuration object
+  - `clickable`: When true, enables the assistant to programmatically click the component
+
+### Behavior
+
+The HOC will:
+
+1. Make the component's HTML structure available to the assistant via the system context
+2. Optionally provide a `click` tool if `clickable` is true
+3. Handle nested readable components (only the outermost component's HTML is provided)
+4. Forward refs and maintain component props
+
+## Example
+
+```tsx
+// Create a readable form input
+const Input = ({ label, ...props }) => (
+  <div>
+    <label>{label}</label>
+    <input {...props} />
+  </div>
+);
+
+const ReadableInput = makeAssistantVisible(Input);
+
+// Use in your component
+function Form() {
+  return (
+    <ReadableInput label="Email" type="email" placeholder="Enter your email" />
+  );
+}
+```
+
+## Technical Details
+
+When a component is made readable:
+
+- It's wrapped in a `ReadableContext.Provider` to handle nesting
+- The component's `outerHTML` is provided as system context
+- If `clickable` is true, a unique `data-click-id` is added and a `click` tool is provided
+- The click tool uses `querySelector` and simulates a click event
+- All props and refs are properly forwarded to maintain component functionality

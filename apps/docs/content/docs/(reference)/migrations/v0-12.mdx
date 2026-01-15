@@ -1,0 +1,126 @@
+---
+title: Migration to v0.12
+description: Unified state API replaces individual context hooks.
+---
+
+## Major Architecture Change: Unified State API
+
+Version 0.12 introduces a complete rewrite of the state management system with a more consistent API.
+
+## Breaking Changes
+
+### 1. Context Hooks Replaced with Unified State API
+
+All individual context hooks have been replaced with a single `useAssistantState` hook and `useAssistantApi` for actions.
+
+#### What changed
+
+The following hooks have been removed:
+
+**Removed Hooks:**
+
+- `useMessageUtils` → Use `useAssistantState(({ message }) => message.isHovering)` / `useAssistantState(({ message }) => message.isCopied)`
+- `useMessageUtilsStore` → Use `useAssistantApi()` with `api.message().setIsHovering()` / `api.message().setIsCopied()`
+- `useToolUIs` → Use `useAssistantState(({ tools }) => tools)` and `useAssistantApi()` with `api.tools()`
+- `useToolUIsStore` → Use `useAssistantApi()` with `api.tools()`
+
+**Deprecated Hooks:**
+
+- `useAssistantRuntime` → Use `useAssistantApi()`
+- `useThread` → Use `useAssistantState(({ thread }) => thread)`
+- `useThreadRuntime` → Use `useAssistantApi()` with `api.thread()`
+- `useMessage` → Use `useAssistantState(({ message }) => message)`
+- `useMessageRuntime` → Use `useAssistantApi()` with `api.message()`
+- `useComposer` → Use `useAssistantState(({ composer }) => composer)`
+- `useComposerRuntime` → Use `useAssistantApi()` with `api.composer()`
+- `useEditComposer` → Use `useAssistantState(({ message }) => message.composer)`
+- `useThreadListItem` → Use `useAssistantState(({ threadListItem }) => threadListItem)`
+- `useThreadListItemRuntime` → Use `useAssistantApi()` with `api.threadListItem()`
+- `useMessagePart` → Use `useAssistantState(({ part }) => part)`
+- `useMessagePartRuntime` → Use `useAssistantApi()` with `api.part()`
+- `useAttachment` → Use `useAssistantState(({ attachment }) => attachment)`
+- `useAttachmentRuntime` → Use `useAssistantApi()` with `api.attachment()`
+- `useThreadModelContext` / `useThreadModelConfig` → Use `useAssistantState(({ thread }) => thread.modelContext)`
+- `useThreadComposer` → Use `useAssistantState(({ thread }) => thread.composer)`
+- `useThreadList` → Use `useAssistantState(({ threads }) => threads)`
+
+#### Migration Examples
+
+**Before:**
+
+```tsx
+import {
+  useThread,
+  useThreadRuntime,
+  useComposer,
+  useComposerRuntime,
+  useMessage,
+  useMessageRuntime,
+} from "@assistant-ui/react";
+
+function MyComponent() {
+  // Reading state
+  const messages = useThread((t) => t.messages);
+  const isRunning = useThread((t) => t.isRunning);
+  const composerText = useComposer((c) => c.text);
+  const messageRole = useMessage((m) => m.role);
+
+  // Using runtime for actions
+  const threadRuntime = useThreadRuntime();
+  const composerRuntime = useComposerRuntime();
+  const messageRuntime = useMessageRuntime();
+
+  const handleSend = () => {
+    composerRuntime.send();
+  };
+
+  const handleReload = () => {
+    messageRuntime.reload();
+  };
+
+  const handleCancel = () => {
+    threadRuntime.cancelRun();
+  };
+
+  return null;
+}
+```
+
+**After:**
+
+```tsx
+import { useAssistantState, useAssistantApi } from "@assistant-ui/react";
+
+function MyComponent() {
+  // Reading state - all through single hook
+  const messages = useAssistantState(({ thread }) => thread.messages);
+  const isRunning = useAssistantState(({ thread }) => thread.isRunning);
+  const composerText = useAssistantState(({ composer }) => composer.text);
+  const messageRole = useAssistantState(({ message }) => message.role);
+
+  // Using API for actions
+  const api = useAssistantApi();
+
+  const handleSend = () => {
+    api.composer().send();
+  };
+
+  const handleReload = () => {
+    api.message().reload();
+  };
+
+  const handleCancel = () => {
+    api.thread().cancelRun();
+  };
+
+  return null;
+}
+```
+
+## Getting Help
+
+If you encounter issues during migration:
+
+1. Check the updated API documentation for detailed examples
+2. Review the example applications in the repository
+3. Report issues at https://github.com/assistant-ui/assistant-ui/issues

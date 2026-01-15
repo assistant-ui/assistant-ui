@@ -99,6 +99,10 @@ const useAssistantTransportThreadRuntime = <T,>(
         throw new Error("No commands to send");
 
       const headers = await createRequestHeaders(options.headers);
+      const bodyValue =
+        typeof options.body === "function"
+          ? await options.body()
+          : options.body;
       const context = runtime.thread.getModelContext();
 
       const response = await fetch(
@@ -116,7 +120,7 @@ const useAssistantTransportThreadRuntime = <T,>(
             threadId,
             ...context.callSettings,
             ...context.config,
-            ...options.body,
+            ...(bodyValue ?? {}),
           }),
           signal,
         },

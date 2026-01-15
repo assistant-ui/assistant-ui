@@ -6,6 +6,9 @@ import { create } from "./create";
 import { logger } from "../lib/utils/logger";
 import { hasConfig } from "../lib/utils/config";
 
+const DEFAULT_REGISTRY_URL =
+  "https://r.assistant-ui.com/chat/b/ai-sdk-quick-start/json";
+
 export const init = new Command()
   .name("init")
   .description("initialize assistant-ui in a new or existing project")
@@ -14,37 +17,37 @@ export const init = new Command()
     "the working directory. defaults to the current directory.",
     process.cwd(),
   )
+  .option(
+    "-p, --preset <url>",
+    "preset URL from playground (e.g., https://www.assistant-ui.com/playground/init?preset=chatgpt)",
+  )
   .action(async (opts) => {
     const cwd = opts.cwd;
+    const presetUrl = opts.preset;
 
-    // Check if already initialized
     if (hasConfig(cwd)) {
       logger.warn("Project is already initialized.");
       logger.info("Use 'assistant-ui add' to add more components.");
       return;
     }
 
-    // Check if package.json exists in the current directory
     const packageJsonPath = path.join(cwd, "package.json");
     const packageJsonExists = fs.existsSync(packageJsonPath);
 
     if (packageJsonExists) {
-      // If package.json exists, run shadcn add command
-      logger.info("Initializing assistant-ui in existing project...");
+      const registryUrl = presetUrl ?? DEFAULT_REGISTRY_URL;
+
+      if (presetUrl) {
+        logger.info("Initializing assistant-ui with preset configuration...");
+      } else {
+        logger.info("Initializing assistant-ui in existing project...");
+      }
       logger.break();
 
-      const child = spawn(
-        "npx",
-        [
-          `shadcn@latest`,
-          "add",
-          "https://r.assistant-ui.com/chat/b/ai-sdk-quick-start/json.json",
-        ],
-        {
-          stdio: "inherit",
-          cwd,
-        },
-      );
+      const child = spawn("npx", [`shadcn@latest`, "add", registryUrl], {
+        stdio: "inherit",
+        cwd,
+      });
 
       child.on("error", (error) => {
         logger.error(`Failed to initialize: ${error.message}`);
@@ -64,11 +67,8 @@ export const init = new Command()
         }
       });
     } else {
-      // If package.json doesn't exist, use the create command
       logger.info("Creating a new assistant-ui project...");
       logger.break();
-
-      // Execute the create command with default template
       await create.parseAsync([]);
     }
   });

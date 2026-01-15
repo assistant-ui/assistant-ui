@@ -1,11 +1,14 @@
-import { ThreadHistoryAdapter } from "../adapters/thread-history/ThreadHistoryAdapter";
-import { AttachmentAdapter } from "../adapters/attachment/AttachmentAdapter";
-import { ThreadMessageLike } from "../external-store";
-import { FeedbackAdapter } from "../adapters/feedback/FeedbackAdapter";
-import { SpeechSynthesisAdapter } from "../adapters/speech/SpeechAdapterTypes";
-import { ChatModelAdapter } from "./ChatModelAdapter";
-import { AssistantCloud } from "assistant-cloud";
-import { SuggestionAdapter } from "../adapters";
+import type { ThreadHistoryAdapter } from "../adapters/thread-history/ThreadHistoryAdapter";
+import type { AttachmentAdapter } from "../adapters/attachment/AttachmentAdapter";
+import type { ThreadMessageLike } from "../external-store";
+import type { FeedbackAdapter } from "../adapters/feedback/FeedbackAdapter";
+import type {
+  SpeechSynthesisAdapter,
+  DictationAdapter,
+} from "../adapters/speech/SpeechAdapterTypes";
+import type { ChatModelAdapter } from "./ChatModelAdapter";
+import type { AssistantCloud } from "assistant-cloud";
+import type { SuggestionAdapter } from "../adapters";
 
 export type LocalRuntimeOptionsBase = {
   maxSteps?: number | undefined;
@@ -14,6 +17,7 @@ export type LocalRuntimeOptionsBase = {
     history?: ThreadHistoryAdapter | undefined;
     attachments?: AttachmentAdapter | undefined;
     speech?: SpeechSynthesisAdapter | undefined;
+    dictation?: DictationAdapter | undefined;
     feedback?: FeedbackAdapter | undefined;
     suggestion?: SuggestionAdapter | undefined;
   };

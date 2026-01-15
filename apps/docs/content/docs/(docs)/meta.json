@@ -1,0 +1,19 @@
+{
+  "title": "Docs",
+  "description": "Getting started with assistant-ui",
+  "icon": "BookOpen",
+  "root": true,
+  "pages": [
+    "---Introduction---",
+    "about-assistantui",
+    "getting-started",
+    "cli",
+    "mcp-docs-server",
+    "architecture",
+    "devtools",
+    "---Guides---",
+    "...guides",
+    "---Copilots---",
+    "...copilots"
+  ]
+}

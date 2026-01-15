@@ -69,7 +69,7 @@ export type SpeechSynthesisAdapter = {
   speak: (text: string) => SpeechSynthesisAdapter.Utterance;
 };
 
-export namespace SpeechRecognitionAdapter {
+export namespace DictationAdapter {
   export type Status =
     | {
         type: "starting" | "running";
@@ -80,7 +80,22 @@ export namespace SpeechRecognitionAdapter {
       };
 
   export type Result = {
+    /** The transcribed text */
     transcript: string;
+    /**
+     * Whether this is a final (committed) result or an interim (partial) result.
+     *
+     * - `true` (final): The text should be appended to the composer input.
+     *   This text is finalized and won't change.
+     *
+     * - `false` (interim/partial): The text is a preview that may change.
+     *   It should be displayed as a preview but not appended to the input yet.
+     *   Subsequent interim results replace the previous interim result.
+     *
+     * Defaults to `true` for backwards compatibility with adapters that
+     * don't set this flag.
+     */
+    isFinal?: boolean;
   };
 
   export type Session = {
@@ -93,6 +108,14 @@ export namespace SpeechRecognitionAdapter {
   };
 }
 
-export type SpeechRecognitionAdapter = {
-  listen: () => SpeechRecognitionAdapter.Session;
+export type DictationAdapter = {
+  listen: () => DictationAdapter.Session;
+
+  /**
+   * Whether to disable text input while dictation is active.
+   * Some adapters (like ElevenLabs Scribe) return cumulative transcripts
+   * that conflict with simultaneous typing.
+   * @default false
+   */
+  disableInputDuringDictation?: boolean;
 };

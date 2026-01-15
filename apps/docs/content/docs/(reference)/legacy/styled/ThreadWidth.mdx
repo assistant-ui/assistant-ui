@@ -1,0 +1,22 @@
+---
+title: Thread Width
+description: Customize thread max width using CSS variables.
+---
+
+You can modify the max width of the thread via the CSS variable `--aui-thread-max-width`.
+
+## Wider Thread
+
+```css title="@/app/globals.css"
+:root {
+  --aui-thread-max-width: 600px;
+}
+```
+
+## Take up the whole screen
+
+```css title="@/app/globals.css"
+:root {
+  --aui-thread-max-width: infinity;
+}
+```

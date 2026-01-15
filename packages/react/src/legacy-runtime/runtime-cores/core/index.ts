@@ -3,3 +3,5 @@ export type {
   SubmitFeedbackOptions,
   ThreadSuggestion,
 } from "./ThreadRuntimeCore";
+
+export type { DictationState } from "./ComposerRuntimeCore";

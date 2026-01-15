@@ -42,7 +42,7 @@
   },
   "dependencies": {
     "@standard-schema/spec": "^1.1.0",
-    "nanoid": "5.1.6",
+    "nanoid": "^5.1.6",
     "secure-json-parse": "^4.1.0"
   },
   "devDependencies": {

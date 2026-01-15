@@ -1,0 +1,57 @@
+---
+title: Message Editing
+description: Allow users to edit their messages with custom editor interfaces.
+---
+
+Give the user the ability to edit their message.
+
+## Enabling edit support
+
+You can show an editor interface by using `ComposerPrimitive`.
+
+```tsx {1,11,25,31-43}
+import { ComposerPrimitive } from "@assistant-ui/react";
+...
+
+const Thread = () => {
+  return (
+    <ThreadPrimitive.Root>
+      <ThreadPrimitive.Viewport>
+        ...
+        <ThreadPrimitive.Messages components={{
+          ...,
+          EditComposer, // <-- Show our new component during edit mode
+        }} />
+      </ThreadPrimitive.Viewport>
+      ...
+    </ThreadPrimitive.Root>
+  );
+};
+
+const UserMessage = () => {
+  return (
+    <MessagePrimitive.Root>
+      ...
+      <ActionBarPrimitive.Root>
+        ...
+        <ActionBarPrimitive.Edit /> {/* <-- add a button to enable edit mode */}
+      </ActionBarPrimitive.Root>
+    </MessagePrimitive.Root>
+  );
+};
+
+// define a new component
+const EditComposer = () => {
+  return (
+    // you can return a MessagePrimitive including a ComposerPrimitive, or only a ComposerPrimitive
+    <MessagePrimitive.Root>
+      ...
+      <ComposerPrimitive.Root>
+        <ComposerPrimitive.Input />
+        <ComposerPrimitive.Cancel />
+        <ComposerPrimitive.Send />
+      </ComposerPrimitive.Root>
+    </MessagePrimitive.Root>
+  );
+};
+```

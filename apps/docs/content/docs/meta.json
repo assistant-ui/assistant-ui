@@ -1,31 +1,3 @@
 {
-  "title": "mdx",
-  "root": true,
-  "pages": [
-    "---Introduction---",
-    "about-assistantui",
-    "getting-started",
-    "cli",
-    "mcp-docs-server",
-    "architecture",
-    "devtools",
-    "---Guides---",
-    "...guides",
-    "---Copilots---",
-    "...copilots",
-    "---UI---",
-    "...ui",
-    "---Backends---",
-    "...runtimes",
-    "---Cloud---",
-    "...cloud",
-    "---Reference---",
-    "api-reference",
-    "concepts",
-    "migrations",
-    "legacy",
-    "components",
-    "reference",
-    "react-compatibility"
-  ]
+  "pages": ["(docs)", "ui", "runtimes", "cloud", "(reference)"]
 }

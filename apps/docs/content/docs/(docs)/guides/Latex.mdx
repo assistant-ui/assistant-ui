@@ -1,0 +1,106 @@
+---
+title: LaTeX
+description: Render mathematical expressions in chat messages using KaTeX.
+---
+
+
+Render LaTeX mathematical expressions in chat messages using KaTeX.
+
+<Callout type="warn">LaTeX rendering is not enabled in markdown by default.</Callout>
+
+<Steps>
+  <Step>
+
+### Install dependencies
+
+```bash
+npm i katex rehype-katex remark-math
+```
+
+  </Step>
+  <Step>
+
+### Add KaTeX CSS to your layout
+
+```tsx title="/app/layout.tsx"
+import "katex/dist/katex.min.css"; // [!code ++]
+```
+
+  </Step>
+  <Step>
+
+### Update `markdown-text.tsx`
+
+```tsx title="/components/assistant-ui/markdown-text.tsx"
+import remarkMath from "remark-math";     // [!code ++]
+import rehypeKatex from "rehype-katex";   // [!code ++]
+
+const MarkdownTextImpl = () => {
+  return (
+    <MarkdownTextPrimitive
+      remarkPlugins={[remarkGfm, remarkMath]} // add remarkMath // [!code ++]
+      rehypePlugins={[rehypeKatex]}           // add rehypeKatex // [!code ++]
+      className="aui-md"
+      components={defaultComponents}
+    />
+  );
+};
+
+export const MarkdownText = memo(MarkdownTextImpl);
+```
+
+  </Step>
+</Steps>
+
+## Supported Formats
+
+By default, remark-math supports:
+- `$...$` for inline math
+- `$$...$$` for display math
+- Fenced code blocks with the `math` language identifier
+
+## Supporting Alternative LaTeX Delimiters
+
+Many language models generate LaTeX using different delimiter formats:
+- `\(...\)` for inline math
+- `\[...\]` for display math
+- Custom formats like `[/math]...[/math]`
+
+You can use the `preprocess` prop to normalize these formats:
+
+```tsx title="/components/assistant-ui/markdown-text.tsx"
+const MarkdownTextImpl = () => {
+  return (
+    <MarkdownTextPrimitive
+      remarkPlugins={[remarkGfm, remarkMath]}
+      rehypePlugins={[rehypeKatex]}
+      preprocess={normalizeCustomMathTags} // [!code ++]
+      className="aui-md"
+      components={defaultComponents}
+    />
+  );
+};
+
+// Your LaTeX preprocessing function
+function normalizeCustomMathTags(input: string): string {
+  return (
+    input
+      // Convert [/math]...[/math] to $$...$$
+      .replace(/\[\/math\]([\s\S]*?)\[\/math\]/g, (_, content) => `$$${content.trim()}$$`)
+
+      // Convert [/inline]...[/inline] to $...$
+      .replace(/\[\/inline\]([\s\S]*?)\[\/inline\]/g, (_, content) => `$${content.trim()}$`)
+
+      // Convert \( ... \) to $...$ (inline math) - handles both single and double backslashes
+      .replace(/\\{1,2}\(([\s\S]*?)\\{1,2}\)/g, (_, content) => `$${content.trim()}$`)
+
+      // Convert \[ ... \] to $$...$$ (block math) - handles both single and double backslashes
+      .replace(/\\{1,2}\[([\s\S]*?)\\{1,2}\]/g, (_, content) => `$$${content.trim()}$$`)
+  );
+}
+```
+
+<Callout type="tip">
+The preprocessing function runs before markdown parsing, allowing you to transform any delimiter format into the standard `$` and `$$` format.
+</Callout>
+

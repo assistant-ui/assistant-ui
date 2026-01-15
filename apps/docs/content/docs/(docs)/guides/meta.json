@@ -1,0 +1,14 @@
+{
+  "title": "Guides",
+  "pages": [
+    "context-api",
+    "Attachments",
+    "Branching",
+    "Editing",
+    "Speech",
+    "Dictation",
+    "Latex",
+    "Tools",
+    "ToolUI"
+  ]
+}
