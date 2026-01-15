@@ -32,7 +32,7 @@
     "mermaid": "^11.12.2",
     "next": "^16",
     "postcss": "^8.5.6",
-    "react": "19.2.3",
+    "react": "^19.2.3",
     "react-resizable-panels": "^4.0.13",
     "react-shiki": "^0.9.1",
     "react-syntax-highlighter": "^16.1.0",
