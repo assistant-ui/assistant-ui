@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePersistentBoolean } from "@/hooks/use-persistent-boolean";
+import { X } from "lucide-react";
 
 export const TOCHiringBanner = () => {
   const [dismissed, setDismissed] = usePersistentBoolean(
@@ -14,15 +15,14 @@ export const TOCHiringBanner = () => {
     <div className="group relative">
       <Link
         href="/careers"
-        className="block rounded-md border border-border/60 border-dashed px-3 py-2.5 transition-colors hover:border-border hover:bg-muted/30"
+        className="block rounded-xl bg-muted px-3.5 py-3 transition-colors hover:bg-accent"
       >
-        <p className="shimmer font-medium text-foreground/70 text-xs uppercase">
-          WE ARE HIRING
+        <p className="shimmer font-medium text-[11px] text-foreground/80 uppercase tracking-wide">
+          We are hiring
         </p>
-        <p className="mt-0.5 text-muted-foreground text-xs">
-          Build the future of agentic UI.
+        <p className="mt-1.5 text-muted-foreground text-xs leading-relaxed">
+          Build the future of agentic UI with us →
         </p>
-        <p className="text-muted-foreground text-xs">With us →</p>
       </Link>
       <button
         type="button"
@@ -31,9 +31,9 @@ export const TOCHiringBanner = () => {
           e.preventDefault();
           setDismissed(true);
         }}
-        className="absolute -top-1.5 -right-1.5 flex size-4 items-center justify-center rounded-full bg-muted text-muted-foreground opacity-0 transition-opacity hover:bg-muted-foreground/20 hover:text-foreground group-hover:opacity-100"
+        className="absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full bg-background text-muted-foreground opacity-0 shadow-sm transition-all hover:text-foreground group-hover:opacity-100"
       >
-        <span className="text-[10px] leading-none">×</span>
+        <X className="size-3" />
       </button>
     </div>
   );

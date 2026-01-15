@@ -31,15 +31,8 @@ import {
   ThreadPrimitive,
 } from "@assistant-ui/react";
 
-import {
-  type FC,
-  createContext,
-  useContext,
-  useMemo,
-  memo,
-  useState,
-  useEffect,
-} from "react";
+import { type FC, createContext, useContext, useMemo, memo } from "react";
+import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
@@ -123,27 +116,8 @@ interface BuilderPreviewProps {
 
 // Hook to detect page theme from document.documentElement.classList
 function usePageTheme() {
-  const [isDark, setIsDark] = useState(false);
-
-  useEffect(() => {
-    // Initial check
-    setIsDark(document.documentElement.classList.contains("dark"));
-
-    // Watch for changes
-    const observer = new MutationObserver((mutations) => {
-      for (const mutation of mutations) {
-        if (mutation.attributeName === "class") {
-          setIsDark(document.documentElement.classList.contains("dark"));
-        }
-      }
-    });
-
-    observer.observe(document.documentElement, { attributes: true });
-
-    return () => observer.disconnect();
-  }, []);
-
-  return isDark;
+  const { resolvedTheme } = useTheme();
+  return resolvedTheme === "dark";
 }
 
 export function BuilderPreview({ config }: BuilderPreviewProps) {

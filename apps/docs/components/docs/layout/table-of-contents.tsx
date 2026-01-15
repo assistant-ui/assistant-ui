@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import { Copy, Check, FileText, EditIcon, AlertCircle } from "lucide-react";
-import { useCopyButton } from "fumadocs-ui/utils/use-copy-button";
+import { Copy, FileText, EditIcon } from "lucide-react";
+import { toast } from "sonner";
 import { TOCHiringBanner } from "@/components/docs/layout/toc-hiring-banner";
 
 type TOCItem = {
@@ -35,22 +35,16 @@ function TOCActions({
   markdownUrl: string | undefined;
   githubEditUrl: string | undefined;
 }) {
-  const [error, setError] = useState(false);
-
   const handleCopy = async () => {
     if (!markdownUrl) return;
-    setError(false);
     try {
       const content = await fetchMarkdown(markdownUrl);
       await navigator.clipboard.writeText(content);
+      toast.success("Copied to clipboard");
     } catch {
-      setError(true);
-      setTimeout(() => setError(false), 2000);
-      throw new Error("Copy failed");
+      toast.error("Failed to copy");
     }
   };
-
-  const [checked, onClick] = useCopyButton(handleCopy);
 
   const linkClass =
     "inline-flex items-center gap-1.5 text-muted-foreground text-xs transition-colors hover:text-foreground";
@@ -59,15 +53,9 @@ function TOCActions({
     <div className="flex flex-col gap-3">
       {markdownUrl && (
         <>
-          <button onClick={onClick} className={linkClass}>
-            {error ? (
-              <AlertCircle className="size-3 text-destructive" />
-            ) : checked ? (
-              <Check className="size-3" />
-            ) : (
-              <Copy className="size-3" />
-            )}
-            {error ? "Copy failed" : "Copy page"}
+          <button onClick={handleCopy} className={linkClass}>
+            <Copy className="size-3" />
+            Copy page
           </button>
           <a
             href={`${BASE_URL}${markdownUrl}`}

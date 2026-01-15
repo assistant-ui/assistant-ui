@@ -28,7 +28,7 @@
 }
 
 :is(#nd-sidebar, #nd-sidebar-mobile) {
-  & :is(a, button) {
+  & :is(a, button):not([data-sidebar-control]) {
     padding-block: 0.375rem !important;
     padding-inline-end: 0.625rem !important;
     border-radius: 0.375rem !important;
@@ -201,6 +201,56 @@
 
   & :where(table):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
     font-size: 0.8125rem !important;
+    margin-top: 1.25rem !important;
+    margin-bottom: 1.25rem !important;
+    width: 100% !important;
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+    background: var(--muted) !important;
+    border-radius: 0.75rem !important;
+    overflow: hidden !important;
+
+    & thead {
+      background: transparent !important;
+    }
+
+    & th {
+      padding: 0.75rem 1rem !important;
+      text-align: left !important;
+      font-weight: 500 !important;
+      color: var(--muted-foreground) !important;
+      border: none !important;
+    }
+
+    & td {
+      padding: 0.75rem 1rem !important;
+      border: none !important;
+      vertical-align: top !important;
+    }
+
+    & tr {
+      border: none !important;
+    }
+
+    & tbody tr {
+      background: var(--background) !important;
+    }
+
+    & tbody tr:first-child td:first-child {
+      border-top-left-radius: 0.5rem !important;
+    }
+
+    & tbody tr:first-child td:last-child {
+      border-top-right-radius: 0.5rem !important;
+    }
+
+    & tbody tr:last-child td:first-child {
+      border-bottom-left-radius: 0.5rem !important;
+    }
+
+    & tbody tr:last-child td:last-child {
+      border-bottom-right-radius: 0.5rem !important;
+    }
   }
 
   & :where(hr):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
@@ -220,34 +270,22 @@ figure.shiki {
   border-radius: 0.75rem !important;
   border: none !important;
   box-shadow: none !important;
-  background: oklch(0.97 0 0) !important;
+  background: var(--muted) !important;
   overflow: hidden;
-
-  .dark & {
-    background: oklch(0.16 0 0) !important;
-  }
 
   /* Header with title */
   & > div:first-child:has(figcaption) {
     height: 2.25rem !important;
     padding-inline: 0.875rem !important;
     border-bottom: none !important;
-    background: oklch(0.93 0 0) !important;
-
-    .dark & {
-      background: oklch(0.13 0 0) !important;
-    }
+    background: transparent !important;
   }
 
   & figcaption {
     font-family: var(--font-sans), system-ui, sans-serif !important;
     font-size: 0.8125rem !important;
     font-weight: 500 !important;
-    color: oklch(0.45 0 0) !important;
-
-    .dark & {
-      color: oklch(0.6 0 0) !important;
-    }
+    color: var(--muted-foreground) !important;
   }
 
   /* Copy button position (no title) */
@@ -264,12 +302,13 @@ figure.shiki {
     border-radius: 0.375rem !important;
     background: transparent !important;
     color: var(--muted-foreground) !important;
-    opacity: 0;
+    opacity: 0.5;
     transition: all 0.15s ease !important;
 
     &:hover {
-      background: var(--muted) !important;
+      background: var(--background) !important;
       color: var(--foreground) !important;
+      opacity: 1;
     }
 
     & svg {
@@ -303,7 +342,7 @@ figure.shiki {
       left: 0.875rem !important;
       width: 1.5rem !important;
       color: var(--muted-foreground) !important;
-      opacity: 0.35 !important;
+      opacity: 0.5 !important;
       font-size: 0.6875rem !important;
     }
   }

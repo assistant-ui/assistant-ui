@@ -82,6 +82,7 @@ export default async function Page(props: {
                 footerPrevious ? { url: footerPrevious.url } : undefined
               }
               next={footerNext ? { url: footerNext.url } : undefined}
+              markdownUrl={markdownUrl}
             />
           </div>
           {page.data.description && (
