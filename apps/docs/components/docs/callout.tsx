@@ -74,20 +74,18 @@ export function Callout({
   return (
     <div
       className={cn(
-        "my-4 flex gap-3 rounded-lg p-4 text-sm",
+        "not-prose my-4 flex items-start gap-2 rounded-lg px-3 py-2 text-sm",
         config.className,
         className,
       )}
       {...props}
     >
-      <div className="shrink-0 pt-0.5">
+      <div className="mt-0.5 shrink-0">
         {icon ?? <Icon className={cn("size-4", config.iconClassName)} />}
       </div>
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 [&_code]:rounded [&_code]:bg-black/10 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-[0.8125rem] dark:[&_code]:bg-white/10">
         {title && <p className="mb-1 font-medium">{title}</p>}
-        <div className="[&_p:first-child]:mt-0 [&_p:last-child]:mb-0 [&_p]:my-0">
-          {children}
-        </div>
+        <div>{children}</div>
       </div>
     </div>
   );

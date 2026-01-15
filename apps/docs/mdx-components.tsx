@@ -1,6 +1,8 @@
 import type { MDXComponents } from "mdx/types";
 import { Accordion, Accordions } from "fumadocs-ui/components/accordion";
 import { Callout } from "@/components/docs/callout";
+import { Card, Cards } from "@/components/docs/card";
+import { Step, Steps } from "@/components/docs/steps";
 import { Tab, Tabs } from "fumadocs-ui/components/tabs";
 import { TypeTable } from "fumadocs-ui/components/type-table";
 import defaultComponents from "fumadocs-ui/mdx";
@@ -25,6 +27,10 @@ export function getMDXComponents(components: MDXComponents): MDXComponents {
     Tabs,
     Tab,
     Callout,
+    Card,
+    Cards,
+    Step,
+    Steps,
     TypeTable,
     Accordion,
     Accordions,

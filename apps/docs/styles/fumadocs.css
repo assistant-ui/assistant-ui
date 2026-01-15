@@ -27,77 +27,66 @@
   border-inline-end: none !important;
 }
 
-#nd-sidebar a,
-#nd-sidebar button,
-#nd-sidebar-mobile a,
-#nd-sidebar-mobile button {
-  padding-block: 0.375rem !important;
-  padding-inline-end: 0.625rem !important;
-  border-radius: 0.375rem !important;
-  font-size: 0.875rem !important;
-  background: transparent !important;
-  transition: color 0.15s ease, background-color 0.15s ease !important;
-}
+:is(#nd-sidebar, #nd-sidebar-mobile) {
+  & :is(a, button) {
+    padding-block: 0.375rem !important;
+    padding-inline-end: 0.625rem !important;
+    border-radius: 0.375rem !important;
+    font-size: 0.875rem !important;
+    background: transparent !important;
+    transition: color 0.15s ease, background-color 0.15s ease !important;
 
-#nd-sidebar a:hover,
-#nd-sidebar button:hover,
-#nd-sidebar-mobile a:hover,
-#nd-sidebar-mobile button:hover {
-  color: var(--fd-foreground) !important;
-  background: var(--fd-accent) !important;
-}
+    &:hover {
+      color: var(--fd-foreground) !important;
+      background: var(--fd-accent) !important;
+    }
+  }
 
-#nd-sidebar a[data-active="true"],
-#nd-sidebar-mobile a[data-active="true"] {
-  color: var(--fd-foreground) !important;
-  font-weight: 500 !important;
-  background: var(--fd-accent) !important;
-}
+  & a[data-active="true"] {
+    color: var(--fd-foreground) !important;
+    font-weight: 500 !important;
+    background: var(--fd-accent) !important;
 
-#nd-sidebar a[data-active="true"]::before,
-#nd-sidebar-mobile a[data-active="true"]::before {
-  display: none !important;
+    &::before {
+      display: none !important;
+    }
+  }
+
+  & p {
+    margin-top: 1.25rem !important;
+    margin-bottom: 0.375rem !important;
+    padding-inline-start: 0.625rem !important;
+    font-size: 0.6875rem !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.04em !important;
+    text-transform: uppercase !important;
+    color: var(--fd-muted-foreground) !important;
+    opacity: 0.6;
+
+    &:first-of-type {
+      margin-top: 0 !important;
+    }
+  }
+
+  & svg {
+    width: 1rem !important;
+    height: 1rem !important;
+    opacity: 0.7;
+    flex-shrink: 0;
+
+    &[data-icon] {
+      width: 0.875rem !important;
+      height: 0.875rem !important;
+    }
+  }
+
+  & .border-t {
+    border-top: none !important;
+  }
 }
 
 #nd-sidebar [class*="before:bg-fd-border"] {
   --tw-border-opacity: 0.4;
-}
-
-#nd-sidebar p,
-#nd-sidebar-mobile p {
-  margin-top: 1.25rem !important;
-  margin-bottom: 0.375rem !important;
-  padding-inline-start: 0.625rem !important;
-  font-size: 0.6875rem !important;
-  font-weight: 600 !important;
-  letter-spacing: 0.04em !important;
-  text-transform: uppercase !important;
-  color: var(--fd-muted-foreground) !important;
-  opacity: 0.6;
-}
-
-#nd-sidebar p:first-of-type,
-#nd-sidebar-mobile p:first-of-type {
-  margin-top: 0 !important;
-}
-
-#nd-sidebar svg,
-#nd-sidebar-mobile svg {
-  width: 1rem !important;
-  height: 1rem !important;
-  opacity: 0.7;
-  flex-shrink: 0;
-}
-
-#nd-sidebar svg[data-icon],
-#nd-sidebar-mobile svg[data-icon] {
-  width: 0.875rem !important;
-  height: 0.875rem !important;
-}
-
-#nd-sidebar .border-t,
-#nd-sidebar-mobile .border-t {
-  border-top: none !important;
 }
 
 #nd-subnav {
@@ -109,11 +98,11 @@
   width: 100vw !important;
   margin-inline-start: calc(-1 * var(--fd-sidebar-width, 0px)) !important;
   left: 0 !important;
-}
 
-[data-toc-popover] header {
-  border-bottom: none !important;
-  background: var(--fd-background) !important;
+  & header {
+    border-bottom: none !important;
+    background: var(--fd-background) !important;
+  }
 }
 
 [data-toc-popover-trigger],
@@ -131,108 +120,98 @@
 [data-toc-popover-trigger] {
   color: var(--fd-muted-foreground) !important;
   font-size: 0.875rem !important;
-}
 
-[data-toc-popover-trigger] svg[role="progressbar"] {
-  display: none !important;
+  & svg[role="progressbar"] {
+    display: none !important;
+  }
 }
 
 .prose {
   font-size: 0.875rem !important;
   line-height: 1.7 !important;
-}
 
-.prose :where(p):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
-  margin-top: 1.25rem !important;
-  margin-bottom: 1.25rem !important;
-}
+  & :where(p):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    margin-top: 1.25rem !important;
+    margin-bottom: 1.25rem !important;
+  }
 
-.prose :where(h2):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
-  font-size: 1.25rem !important;
-  font-weight: 500 !important;
-  letter-spacing: -0.02em !important;
-  margin-top: 2.5rem !important;
-  margin-bottom: 1rem !important;
-  line-height: 1.4 !important;
-}
+  & :where(h2):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    font-size: 1.25rem !important;
+    font-weight: 500 !important;
+    letter-spacing: -0.02em !important;
+    margin-top: 2.5rem !important;
+    margin-bottom: 1rem !important;
+    line-height: 1.4 !important;
+  }
 
-.prose :where(h3):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
-  font-size: 1rem !important;
-  font-weight: 500 !important;
-  letter-spacing: -0.01em !important;
-  margin-top: 2rem !important;
-  margin-bottom: 0.75rem !important;
-  line-height: 1.5 !important;
-}
+  & :where(h3):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    font-size: 1rem !important;
+    font-weight: 500 !important;
+    letter-spacing: -0.01em !important;
+    margin-top: 2rem !important;
+    margin-bottom: 0.75rem !important;
+    line-height: 1.5 !important;
+  }
 
-.prose :where(h4):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
-  font-size: 0.875rem !important;
-  font-weight: 600 !important;
-  margin-top: 1.5rem !important;
-  margin-bottom: 0.5rem !important;
-  line-height: 1.5 !important;
-}
+  & :where(h4):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    font-size: 0.875rem !important;
+    font-weight: 600 !important;
+    margin-top: 1.5rem !important;
+    margin-bottom: 0.5rem !important;
+    line-height: 1.5 !important;
+  }
 
-.prose :where(ul, ol):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
-  margin-top: 1rem !important;
-  margin-bottom: 1rem !important;
-}
+  & :where(ul, ol):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    margin-top: 1rem !important;
+    margin-bottom: 1rem !important;
+  }
 
-.prose :where(li):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
-  margin-top: 0.25rem !important;
-  margin-bottom: 0.25rem !important;
-}
+  & :where(li):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    margin-top: 0.25rem !important;
+    margin-bottom: 0.25rem !important;
+  }
 
-.prose
-  :where(code):not(:where(pre code)):not(
-    :where([class~="not-prose"], [class~="not-prose"] *)
-  ) {
-  font-size: 0.8125rem !important;
-  padding: 0.125rem 0.375rem !important;
-  border-radius: 0.25rem !important;
-  background: var(--muted) !important;
-}
+  & :where(code):not(:where(pre code)):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    font-size: 0.8125rem !important;
+    padding: 0.125rem 0.375rem !important;
+    border-radius: 0.25rem !important;
+    background: var(--muted) !important;
+  }
 
-.prose :where(pre):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
-  margin-top: 1.25rem !important;
-  margin-bottom: 1.25rem !important;
-  border-radius: 0.5rem !important;
-}
+  & :where(pre):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    margin-top: 1.25rem !important;
+    margin-bottom: 1.25rem !important;
+    border-radius: 0.5rem !important;
+  }
 
-.prose
-  :where(blockquote):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
-  font-style: normal !important;
-  font-weight: 400 !important;
-  color: var(--muted-foreground) !important;
-  margin-top: 1.25rem !important;
-  margin-bottom: 1.25rem !important;
-  padding-left: 1rem !important;
-  border-left-width: 2px !important;
-  border-left-color: var(--border) !important;
-}
+  & :where(blockquote):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    font-style: normal !important;
+    font-weight: 400 !important;
+    color: var(--muted-foreground) !important;
+    margin-top: 1.25rem !important;
+    margin-bottom: 1.25rem !important;
+    padding-left: 1rem !important;
+    border-left-width: 2px !important;
+    border-left-color: var(--border) !important;
+  }
 
-.prose
-  :where(a):not(:where([class~="not-prose"], [class~="not-prose"] *)):not(
-    [data-card]
-  ) {
-  text-decoration: none !important;
-}
+  & :where(a):not(:where([class~="not-prose"], [class~="not-prose"] *)):not([data-card]) {
+    text-decoration: none !important;
+  }
 
-.prose :where(table):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
-  font-size: 0.8125rem !important;
-}
+  & :where(table):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    font-size: 0.8125rem !important;
+  }
 
-.prose :where(hr):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
-  margin-top: 2rem !important;
-  margin-bottom: 2rem !important;
-  border-color: var(--border) !important;
-}
+  & :where(hr):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    margin-top: 2rem !important;
+    margin-bottom: 2rem !important;
+    border-color: var(--border) !important;
+  }
 
-.prose
-  :where(h2 + p, h3 + p, h4 + p):not(
-    :where([class~="not-prose"], [class~="not-prose"] *)
-  ) {
-  margin-top: 0 !important;
+  & :where(h2 + p, h3 + p, h4 + p):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    margin-top: 0 !important;
+  }
 }
 
 figure.shiki {
@@ -242,80 +221,110 @@ figure.shiki {
   box-shadow: none !important;
   background: var(--muted) !important;
   overflow: hidden;
+
+  .dark & {
+    background: oklch(0.18 0 0) !important;
+  }
+
+  & > div:first-child:has(figcaption) {
+    height: 2rem !important;
+    padding-inline: 0.75rem !important;
+    background: transparent !important;
+    font-size: 0.75rem !important;
+  }
+
+  & figcaption {
+    font-family: var(--font-mono), ui-monospace, monospace !important;
+    font-size: 0.75rem !important;
+    color: var(--muted-foreground) !important;
+  }
+
+  & > div:first-child:not(:has(figcaption)) {
+    top: 0.5rem !important;
+    right: 0.5rem !important;
+  }
+
+  & button[aria-label*="Copy"] {
+    width: 1.5rem !important;
+    height: 1.5rem !important;
+    padding: 0 !important;
+    border-radius: 0.25rem !important;
+    background: transparent !important;
+    opacity: 0;
+    transition: opacity 0.15s ease !important;
+
+    & svg {
+      width: 0.875rem !important;
+      height: 0.875rem !important;
+    }
+  }
+
+  &:hover button[aria-label*="Copy"] {
+    opacity: 1;
+  }
+
+  & > div[role="region"] {
+    padding-top: 0.75rem !important;
+    padding-bottom: 0.75rem !important;
+    font-size: 0.8125rem !important;
+    line-height: 1.6 !important;
+  }
+
+  & pre {
+    --padding-left: 0.75rem !important;
+    --padding-right: 0.75rem !important;
+  }
+
+  & [data-line-numbers] .line {
+    padding-left: calc(0.75rem + 2rem) !important;
+
+    &::after {
+      left: 0.75rem !important;
+      color: var(--muted-foreground) !important;
+      opacity: 0.4 !important;
+      font-size: 0.6875rem !important;
+    }
+  }
+
+  & .highlighted {
+    background: oklch(0.5 0.15 250 / 0.15) !important;
+  }
+
+  & .diff.add {
+    background: oklch(0.7 0.15 145 / 0.15) !important;
+  }
+
+  & .diff.remove {
+    background: oklch(0.6 0.2 25 / 0.15) !important;
+  }
 }
 
-.dark figure.shiki {
-  background: oklch(0.18 0 0) !important;
+/* Code blocks inside tabs */
+[role="tabpanel"] > figure.shiki {
+  &:first-child {
+    margin-top: 0 !important;
+  }
+  &:last-child {
+    margin-bottom: 0 !important;
+  }
+  &:only-child {
+    margin: 0 !important;
+  }
 }
 
-figure.shiki > div:first-child:has(figcaption) {
-  height: 2rem !important;
-  padding-inline: 0.75rem !important;
-  background: transparent !important;
-  font-size: 0.75rem !important;
-}
-
-figure.shiki figcaption {
-  font-family: var(--font-mono), ui-monospace, monospace !important;
-  font-size: 0.75rem !important;
-  color: var(--muted-foreground) !important;
-}
-
-figure.shiki > div:first-child:not(:has(figcaption)) {
-  top: 0.5rem !important;
-  right: 0.5rem !important;
-}
-
-figure.shiki button[aria-label*="Copy"] {
-  width: 1.5rem !important;
-  height: 1.5rem !important;
+[role="tabpanel"]:has(> figure.shiki:only-child) {
   padding: 0 !important;
-  border-radius: 0.25rem !important;
-  background: transparent !important;
-  opacity: 0;
-  transition: opacity 0.15s ease !important;
 }
 
-figure.shiki button[aria-label*="Copy"] svg {
-  width: 0.875rem !important;
-  height: 0.875rem !important;
+/* Steps component */
+.steps-container {
+  counter-reset: step;
 }
 
-figure.shiki:hover button[aria-label*="Copy"] {
-  opacity: 1;
+.step-number {
+  counter-increment: step;
 }
 
-figure.shiki > div[role="region"] {
-  padding-top: 0.75rem !important;
-  padding-bottom: 0.75rem !important;
-  font-size: 0.8125rem !important;
-  line-height: 1.6 !important;
-}
-
-figure.shiki pre {
-  --padding-left: 0.75rem !important;
-  --padding-right: 0.75rem !important;
-}
-
-figure.shiki [data-line-numbers] .line {
-  padding-left: calc(0.75rem + 2rem) !important;
-}
-
-figure.shiki [data-line-numbers] .line::after {
-  left: 0.75rem !important;
-  color: var(--muted-foreground) !important;
-  opacity: 0.4 !important;
-  font-size: 0.6875rem !important;
-}
-
-figure.shiki .highlighted {
-  background: oklch(0.5 0.15 250 / 0.15) !important;
-}
-
-figure.shiki .diff.add {
-  background: oklch(0.7 0.15 145 / 0.15) !important;
-}
-
-figure.shiki .diff.remove {
-  background: oklch(0.6 0.2 25 / 0.15) !important;
+.step-number::before {
+  content: counter(step);
 }

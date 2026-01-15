@@ -6,7 +6,7 @@ import { getMDXComponents } from "@/mdx-components";
 import { DocsRuntimeProvider } from "@/contexts/DocsRuntimeProvider";
 import { source } from "@/lib/source";
 import { getPageTreePeers, findNeighbour } from "fumadocs-core/page-tree";
-import { Card, Cards } from "fumadocs-ui/components/card";
+import { Card, Cards } from "@/components/docs/card";
 import { TableOfContents } from "@/components/docs/table-of-contents";
 import { DocsFooter } from "@/components/docs/docs-footer";
 import { DocsPager } from "@/components/docs/docs-pager";
