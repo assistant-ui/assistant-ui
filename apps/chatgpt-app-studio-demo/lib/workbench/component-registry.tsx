@@ -5,7 +5,6 @@ import { WelcomeCardSDK, POIMapSDK } from "./wrappers";
 
 export type ComponentCategory = "cards" | "lists" | "forms" | "data";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyComponent = ComponentType<any>;
 
 export interface WorkbenchComponentEntry {

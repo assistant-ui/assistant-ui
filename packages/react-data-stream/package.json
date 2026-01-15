@@ -51,7 +51,7 @@
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/json-schema": "^7.0.15",
     "@types/react": "^19.2.7",
-    "react": "19.2.3"
+    "react": "^19.2.3"
   },
   "publishConfig": {
     "access": "public",

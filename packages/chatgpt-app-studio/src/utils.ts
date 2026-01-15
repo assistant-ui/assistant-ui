@@ -206,9 +206,8 @@ export async function generateMcpServer(
           zod: "^3.25.76",
         },
         devDependencies: {
-          "@eslint/js": "^9.39.0",
+          "@biomejs/biome": "^2.3.11",
           "@types/node": "^22.0.0",
-          eslint: "^9.39.0",
           tsx: "^4.21.0",
           typescript: "^5.8.0",
         },
@@ -432,26 +431,31 @@ dist/
   );
 
   fs.writeFileSync(
-    path.join(serverDir, "eslint.config.mjs"),
-    `import js from "@eslint/js";
-
-export default [
-  js.configs.recommended,
-  {
-    ignores: ["dist/**", "node_modules/**"],
-  },
-  {
-    files: ["src/**/*.ts"],
-    languageOptions: {
-      ecmaVersion: 2022,
-      sourceType: "module",
-    },
-    rules: {
-      "no-unused-vars": "off",
-    },
-  },
-];
-`,
+    path.join(serverDir, "biome.json"),
+    JSON.stringify(
+      {
+        $schema: "https://biomejs.dev/schemas/2.3.11/schema.json",
+        formatter: {
+          enabled: true,
+          indentStyle: "space",
+          indentWidth: 2,
+        },
+        linter: {
+          enabled: true,
+          rules: {
+            recommended: true,
+            correctness: {
+              noUnusedVariables: "off",
+            },
+          },
+        },
+        files: {
+          includes: ["**", "!dist", "!node_modules"],
+        },
+      },
+      null,
+      2,
+    ),
   );
 
   fs.writeFileSync(

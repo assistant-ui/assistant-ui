@@ -2,8 +2,8 @@ import { fromThreadMessageLike, generateId } from "../../../internal";
 import type { AppendMessage, ThreadAssistantMessage } from "../../../types";
 import type { ChatModelAdapter, ChatModelRunResult } from "./ChatModelAdapter";
 import { shouldContinue } from "./shouldContinue";
-import { LocalRuntimeOptionsBase } from "./LocalRuntimeOptions";
-import {
+import type { LocalRuntimeOptionsBase } from "./LocalRuntimeOptions";
+import type {
   AddToolResultOptions,
   ResumeToolCallOptions,
   ThreadSuggestion,
@@ -12,8 +12,8 @@ import {
   ResumeRunConfig,
 } from "../core/ThreadRuntimeCore";
 import { BaseThreadRuntimeCore } from "../core/BaseThreadRuntimeCore";
-import { RunConfig } from "../../../types/AssistantTypes";
-import { ModelContextProvider } from "../../../model-context";
+import type { RunConfig } from "../../../types/AssistantTypes";
+import type { ModelContextProvider } from "../../../model-context";
 
 class AbortError extends Error {
   override name = "AbortError";
@@ -37,6 +37,7 @@ export class LocalThreadRuntimeCore
     cancel: true,
     unstable_copy: true,
     speech: false,
+    dictation: false,
     attachments: false,
     feedback: false,
   };
@@ -86,6 +87,12 @@ export class LocalThreadRuntimeCore
     const canSpeak = options.adapters?.speech !== undefined;
     if (this.capabilities.speech !== canSpeak) {
       this.capabilities.speech = canSpeak;
+      hasUpdates = true;
+    }
+
+    const canDictate = options.adapters?.dictation !== undefined;
+    if (this.capabilities.dictation !== canDictate) {
+      this.capabilities.dictation = canDictate;
       hasUpdates = true;
     }
 
