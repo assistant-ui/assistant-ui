@@ -16,6 +16,7 @@ import type { JSONSchema7 } from "json-schema";
 import {
   AssistantMessageAccumulator,
   DataStreamDecoder,
+  UIMessageStreamDecoder,
   unstable_toolResultStream,
 } from "assistant-stream";
 import { asAsyncIterableStream } from "assistant-stream/utils";
@@ -24,8 +25,19 @@ const { splitLocalRuntimeOptions } = INTERNAL;
 
 type HeadersValue = Record<string, string> | Headers;
 
+export type DataStreamProtocol = "ui-message-stream" | "data-stream";
+
 export type UseDataStreamRuntimeOptions = {
   api: string;
+  /** Defaults to "ui-message-stream". Use "data-stream" for legacy AI SDK. */
+  protocol?: DataStreamProtocol;
+  /** Callback for data-* parts (ui-message-stream only). */
+  onData?: (data: {
+    type: string;
+    name: string;
+    data: unknown;
+    transient?: boolean;
+  }) => void;
   onResponse?: (response: Response) => void | Promise<void>;
   onFinish?: (message: ThreadMessage) => void;
   onError?: (error: Error) => void;
@@ -144,8 +156,16 @@ class DataStreamRuntimeAdapter implements ChatModelAdapter {
         throw new Error("Response body is null");
       }
 
+      const protocol = this.options.protocol ?? "ui-message-stream";
+      const decoder =
+        protocol === "ui-message-stream"
+          ? new UIMessageStreamDecoder(
+              this.options.onData ? { onData: this.options.onData } : {},
+            )
+          : new DataStreamDecoder();
+
       const stream = result.body
-        .pipeThrough(new DataStreamDecoder())
+        .pipeThrough(decoder)
         .pipeThrough(
           unstable_toolResultStream(context.tools, abortSignal, () => {
             throw new Error(

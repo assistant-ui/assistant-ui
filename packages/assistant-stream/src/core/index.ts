@@ -19,6 +19,12 @@ export {
   AssistantTransportDecoder,
   AssistantTransportEncoder,
 } from "./serialization/assistant-transport/AssistantTransport";
+export {
+  UIMessageStreamDecoder,
+  type UIMessageStreamChunk,
+  type UIMessageStreamDataChunk,
+  type UIMessageStreamDecoderOptions,
+} from "./serialization/ui-message-stream/UIMessageStream";
 export { AssistantMessageStream } from "./accumulators/AssistantMessageStream";
 export type { AssistantMessage } from "./utils/types";
 
