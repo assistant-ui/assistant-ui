@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import Script from "next/script";
+import { Analytics } from "@vercel/analytics/next";
 import { Provider } from "./provider";
 import { cn } from "@/lib/utils";
 
@@ -64,6 +65,7 @@ export default function Layout({ children }: { children: ReactNode }) {
         )}
       >
         <Provider>{children}</Provider>
+        <Analytics />
         <script
           defer
           src="/umami/script.js"

@@ -40,6 +40,7 @@
     "@shikijs/transformers": "^3.20.0",
     "@theguild/remark-mermaid": "^0.3.0",
     "@upstash/ratelimit": "^2.0.7",
+    "@vercel/analytics": "^1.6.1",
     "@vercel/kv": "^3.0.0",
     "ai": "^5.0.116",
     "assistant-stream": "workspace:*",
