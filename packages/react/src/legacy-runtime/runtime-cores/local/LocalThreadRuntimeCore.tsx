@@ -73,10 +73,18 @@ export class LocalThreadRuntimeCore
 
   private _lastRunConfig: RunConfig = {};
 
-  private _getThreadId?: () => string;
+  private _getThreadId?: () => string | undefined;
 
-  public __internal_setGetThreadId(getThreadId: () => string) {
+  public __internal_setGetThreadId(getThreadId: () => string | undefined) {
     this._getThreadId = getThreadId;
+  }
+
+  private _getInitializePromise?: () => Promise<unknown> | undefined;
+
+  public __internal_setGetInitializePromise(
+    getPromise: () => Promise<unknown> | undefined,
+  ) {
+    this._getInitializePromise = getPromise;
   }
 
   public get extras() {
@@ -156,6 +164,11 @@ export class LocalThreadRuntimeCore
 
   public async append(message: AppendMessage): Promise<void> {
     this.ensureInitialized();
+
+    const initPromise = this._getInitializePromise?.();
+    if (initPromise) {
+      await initPromise;
+    }
 
     const newMessage = fromThreadMessageLike(message, generateId(), {
       type: "complete",
@@ -363,6 +376,7 @@ export class LocalThreadRuntimeCore
         config: context,
         unstable_assistantMessageId: message.id,
         unstable_threadId: threadId,
+        unstable_parentId: parentId,
         unstable_getMessage() {
           return message;
         },

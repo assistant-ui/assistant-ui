@@ -43,6 +43,7 @@ type DataStreamRuntimeRequestOptions = {
   runConfig?: any;
   unstable_assistantMessageId?: string;
   threadId?: string;
+  parentId?: string | null;
   state?: any;
 };
 
@@ -83,6 +84,7 @@ class DataStreamRuntimeAdapter implements ChatModelAdapter {
     context,
     unstable_assistantMessageId,
     unstable_threadId,
+    unstable_parentId,
     unstable_getMessage,
   }: ChatModelRunOptions) {
     const headersValue =
@@ -120,6 +122,9 @@ class DataStreamRuntimeAdapter implements ChatModelAdapter {
         ) as unknown as DataStreamRuntimeRequestOptions["tools"],
         ...(unstable_assistantMessageId ? { unstable_assistantMessageId } : {}),
         ...(unstable_threadId ? { threadId: unstable_threadId } : {}),
+        ...(unstable_parentId !== undefined
+          ? { parentId: unstable_parentId }
+          : {}),
         runConfig,
         state: unstable_getMessage().metadata.unstable_state || undefined,
         ...context.callSettings,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChatModelAdapter } from "./ChatModelAdapter";
 import { LocalRuntimeCore } from "./LocalRuntimeCore";
 import type { LocalRuntimeOptions } from "./LocalRuntimeOptions";
@@ -29,13 +29,16 @@ const useLocalThreadRuntime = (
 
   const [runtime] = useState(() => new LocalRuntimeCore(opt, initialMessages));
 
-  const threadId = useAssistantState(({ threadListItem }) => threadListItem.id);
+  const threadIdRef = useRef<string | undefined>(undefined);
+  threadIdRef.current = useAssistantState(
+    ({ threadListItem }) => threadListItem.remoteId,
+  );
 
   useEffect(() => {
     runtime.threads
       .getMainThreadRuntimeCore()
-      .__internal_setGetThreadId(() => threadId);
-  }, [runtime, threadId]);
+      .__internal_setGetThreadId(() => threadIdRef.current);
+  }, [runtime]);
 
   useEffect(() => {
     return () => {

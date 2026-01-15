@@ -24,7 +24,6 @@ export class LocalThreadListRuntimeCore
     super();
 
     this._mainThread = _threadFactory();
-    this._mainThread.__internal_setGetThreadId(() => this.mainThreadId);
   }
 
   public get isLoading() {
