@@ -124,6 +124,9 @@ export class LocalThreadRuntimeCore
       .then((repo) => {
         if (!repo) return;
         this.repository.import(repo);
+        if (repo.messages.length > 0) {
+          this.ensureInitialized();
+        }
         this._notifySubscribers();
 
         const resume = this.adapters.history?.resume?.bind(
