@@ -208,6 +208,13 @@ export function generateBridgeScript(): string {
     writable: false,
   });
 
+  // WebPlus namespace compatibility - alias to window.aui
+  Object.defineProperty(window, "webplus", {
+    value: window.aui,
+    configurable: false,
+    writable: false,
+  });
+
   window.__initAUIGlobals = function(initialGlobals) {
     previousGlobals = globals;
     globals = Object.assign({}, DEFAULT_GLOBALS, initialGlobals);
