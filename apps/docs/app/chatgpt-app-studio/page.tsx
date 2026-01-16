@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   CheckIcon,
   CopyIcon,
@@ -88,6 +88,62 @@ const WORKBENCH_URL =
 export default function ChatGptAppStudioPage() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const iframeSrc = `${WORKBENCH_URL}?component=poi-map`;
+
+  // Listen for fullscreen messages from workbench iframe
+  useEffect(() => {
+    const preventScroll = (e: Event) => {
+      e.preventDefault();
+      e.stopPropagation();
+      return false;
+    };
+
+    const handleMessage = (event: MessageEvent) => {
+      // Validate message origin matches workbench URL
+      const workbenchOrigin = new URL(WORKBENCH_URL).origin;
+      if (event.origin !== workbenchOrigin) {
+        return; // Reject messages from untrusted origins
+      }
+
+      if (event.data?.type === "workbench:fullscreen") {
+        if (event.data.value) {
+          // Set overflow hidden with !important
+          document.documentElement.style.setProperty(
+            "overflow",
+            "hidden",
+            "important",
+          );
+          document.body.style.setProperty("overflow", "hidden", "important");
+
+          // Also prevent scroll events
+          window.addEventListener("scroll", preventScroll, { passive: false });
+          window.addEventListener("wheel", preventScroll, { passive: false });
+          window.addEventListener("touchmove", preventScroll, {
+            passive: false,
+          });
+        } else {
+          // Restore overflow
+          document.documentElement.style.removeProperty("overflow");
+          document.body.style.removeProperty("overflow");
+
+          // Remove scroll prevention
+          window.removeEventListener("scroll", preventScroll);
+          window.removeEventListener("wheel", preventScroll);
+          window.removeEventListener("touchmove", preventScroll);
+        }
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
+    return () => {
+      window.removeEventListener("message", handleMessage);
+      // Cleanup scroll prevention listeners on unmount
+      document.documentElement.style.removeProperty("overflow");
+      document.body.style.removeProperty("overflow");
+      window.removeEventListener("scroll", preventScroll);
+      window.removeEventListener("wheel", preventScroll);
+      window.removeEventListener("touchmove", preventScroll);
+    };
+  }, []);
 
   return (
     <>

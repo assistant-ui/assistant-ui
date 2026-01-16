@@ -1,6 +1,6 @@
 "use client";
 
-import { DocsRuntimeProvider } from "@/app/(home)/DocsRuntimeProvider";
+import { DocsRuntimeProvider } from "@/contexts/DocsRuntimeProvider";
 import { Shadcn } from "@/components/example/shadcn/Shadcn";
 import { Button } from "@/components/ui/button";
 import { useChat } from "@ai-sdk/react";
@@ -17,7 +17,7 @@ export default function HomePage() {
 
       <div className="mb-8 flex justify-center gap-2">
         <Button asChild>
-          <Link href="/docs/getting-started">Get Started</Link>
+          <Link href="/docs">Get Started</Link>
         </Button>
       </div>
       <div className="mx-auto flex w-full max-w-screen-xl flex-col">

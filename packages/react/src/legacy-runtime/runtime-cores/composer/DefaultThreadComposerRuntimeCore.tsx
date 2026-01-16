@@ -1,7 +1,8 @@
-import { AppendMessage, PendingAttachment } from "../../../types";
-import { AttachmentAdapter } from "../adapters/attachment";
-import { ThreadComposerRuntimeCore } from "../core/ComposerRuntimeCore";
-import { ThreadRuntimeCore } from "../core/ThreadRuntimeCore";
+import type { AppendMessage, PendingAttachment } from "../../../types";
+import type { AttachmentAdapter } from "../adapters/attachment";
+import type { DictationAdapter } from "../adapters/speech/SpeechAdapterTypes";
+import type { ThreadComposerRuntimeCore } from "../core/ComposerRuntimeCore";
+import type { ThreadRuntimeCore } from "../core/ThreadRuntimeCore";
 import { BaseComposerRuntimeCore } from "./BaseComposerRuntimeCore";
 
 export class DefaultThreadComposerRuntimeCore
@@ -21,9 +22,18 @@ export class DefaultThreadComposerRuntimeCore
     return this.runtime.adapters?.attachments;
   }
 
+  protected getDictationAdapter() {
+    return this.runtime.adapters?.dictation;
+  }
+
   constructor(
     private runtime: Omit<ThreadRuntimeCore, "composer"> & {
-      adapters?: { attachments?: AttachmentAdapter | undefined } | undefined;
+      adapters?:
+        | {
+            attachments?: AttachmentAdapter | undefined;
+            dictation?: DictationAdapter | undefined;
+          }
+        | undefined;
     },
   ) {
     super();

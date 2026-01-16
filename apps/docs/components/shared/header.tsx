@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Menu, X, ExternalLink, ArrowRight, Search } from "lucide-react";
+import { Menu, X, ArrowUpRight, ArrowRight, Search } from "lucide-react";
 import { usePersistentBoolean } from "@/hooks/use-persistent-boolean";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -29,9 +29,10 @@ type NavItem =
   | { type: "dropdown"; label: string; items: DropdownItem[] };
 
 const NAV_ITEMS: NavItem[] = [
-  { type: "link", label: "Docs", href: "/docs/getting-started" },
+  { type: "link", label: "Docs", href: "/docs" },
   { type: "link", label: "Showcase", href: "/showcase" },
   { type: "link", label: "Examples", href: "/examples" },
+  { type: "link", label: "Playground", href: "/playground" },
   {
     type: "dropdown",
     label: "Products",
@@ -200,7 +201,7 @@ export function Header() {
                         >
                           <span className="flex items-center gap-1.5 text-sm">
                             {link.label}
-                            <ExternalLink className="size-3 opacity-40" />
+                            <ArrowUpRight className="size-3 opacity-40" />
                           </span>
                           <span className="text-muted-foreground text-xs">
                             {link.description}
@@ -299,7 +300,7 @@ export function Header() {
                       className="flex items-center gap-1.5 py-2 pl-4 text-foreground text-lg transition-colors"
                     >
                       {link.label}
-                      <ExternalLink className="size-3.5 opacity-40" />
+                      <ArrowUpRight className="size-3.5 opacity-40" />
                     </a>
                   ) : (
                     <Link

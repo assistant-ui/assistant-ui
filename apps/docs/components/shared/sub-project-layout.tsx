@@ -11,6 +11,11 @@ import { ThemeToggle } from "./theme-toggle";
 
 const SUB_PROJECTS = [
   {
+    value: "playground",
+    label: "Playground",
+    textValue: "playground",
+  },
+  {
     value: "chatgpt-app-studio",
     label: "ChatGPT App Studio",
     textValue: "chatgpt-app-studio",
@@ -109,7 +114,9 @@ export function SubProjectLayout({
             <Select
               value={name}
               onValueChange={(value) => router.push(`/${value}`)}
-              options={SUB_PROJECTS.map((p) => ({
+              options={SUB_PROJECTS.toSorted((a, b) =>
+                a.value.toString().localeCompare(b.value.toString()),
+              ).map((p) => ({
                 value: p.value,
                 label: p.label,
                 textValue: p.textValue,

@@ -33,7 +33,7 @@
     "build": "aui-build"
   },
   "dependencies": {
-    "zod": "^4.2.1"
+    "zod": "^4.3.5"
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.11.53",
@@ -50,7 +50,7 @@
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/react": "^19.2.7",
-    "react": "19.2.3",
+    "react": "^19.2.3",
     "react-hook-form": "^7.69.0"
   },
   "publishConfig": {

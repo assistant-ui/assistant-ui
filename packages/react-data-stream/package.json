@@ -34,7 +34,7 @@
   "dependencies": {
     "@ai-sdk/provider": "^1.1.3",
     "assistant-stream": "^0.2.46",
-    "zod": "^4.2.1"
+    "zod": "^4.3.5"
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.11.53",
@@ -51,7 +51,7 @@
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/json-schema": "^7.0.15",
     "@types/react": "^19.2.7",
-    "react": "19.2.3"
+    "react": "^19.2.3"
   },
   "publishConfig": {
     "access": "public",

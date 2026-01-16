@@ -1,0 +1,50 @@
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(calc(-100% - var(--gap)));
+  }
+}
+
+@utility animate-marquee {
+  animation: marquee var(--duration) linear infinite;
+}
+
+@property --angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@keyframes rotate {
+  to {
+    --angle: 360deg;
+  }
+}
+
+.rainbow-border {
+  animation: rotate 10s linear infinite;
+  background: linear-gradient(
+    var(--angle),
+    #02fcef70 0,
+    #ffb52b70 50%,
+    #a02bfe70 100%
+  );
+
+  &:after {
+    animation: rotate 10s linear infinite;
+    background: linear-gradient(
+      var(--angle),
+      #02fcef70 0,
+      #ffb52b70 50%,
+      #a02bfe70 100%
+    );
+    filter: blur(10px);
+    transition: all 0.4s ease-out;
+  }
+
+  &:hover:after {
+    transform: scale(1.1, 1.1);
+  }
+}

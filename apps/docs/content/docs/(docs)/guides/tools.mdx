@@ -1,0 +1,739 @@
+---
+title: Tools
+description: Give your assistant actions like API calls, database queries, and more.
+---
+
+Tools enable LLMs to take actions and interact with external systems. assistant-ui provides a comprehensive toolkit for creating, managing, and visualizing tool interactions in real-time.
+
+## Overview
+
+Tools in assistant-ui are functions that the LLM can call to perform specific tasks. They bridge the gap between the LLM's reasoning capabilities and real-world actions like:
+
+- Fetching data from APIs
+- Performing calculations
+- Interacting with databases
+- Controlling UI elements
+- Executing workflows
+
+When tools are executed, you can display custom generative UI components that provide rich, interactive visualizations of the tool's execution and results. Learn more in the [Generative UI guide](/docs/guides/tool-ui).
+
+<Callout type="tip">
+  If you haven't provided a custom UI for a tool, assistant-ui offers a
+  [`ToolFallback`](/docs/ui/tool-fallback) component that you can add to your
+  codebase to render a default UI for tool executions. You can customize this by
+  creating your own Tool UI component for the tool's name.
+</Callout>
+
+## Tool Creation Methods
+
+assistant-ui offers multiple ways to create and register tools, each suited for different use cases:
+
+- **`makeAssistantTool`**: Register client-defined tools with the assistant context
+- **`useAssistantTool`**: Hook-based dynamic tool registration
+- **`makeAssistantToolUI`**: UI-only components for existing tools
+- **Direct context registration**: Advanced registration with full model context control
+
+### 1. Using `makeAssistantTool`
+
+Register tools with the assistant context. Returns a React component that registers the tool when rendered:
+
+```tsx
+import { makeAssistantTool, tool } from "@assistant-ui/react";
+import { z } from "zod";
+
+// Define the tool
+const weatherTool = tool({
+  description: "Get current weather for a location",
+  parameters: z.object({
+    location: z.string().describe("City name or zip code"),
+    unit: z.enum(["celsius", "fahrenheit"]).default("celsius"),
+  }),
+  execute: async ({ location, unit }) => {
+    // Tool execution logic
+    const weather = await fetchWeatherAPI(location, unit);
+    return weather;
+  },
+});
+
+// Create the component
+const WeatherTool = makeAssistantTool({
+  ...weatherTool,
+  toolName: "getWeather",
+});
+
+// Place the tool component inside AssistantRuntimeProvider
+function App() {
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <WeatherTool />
+      <Thread />
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+<Callout type="tip">
+  When using server-side runtimes like Vercel AI SDK, you can pass
+  client-defined tools to your backend using `frontendTools`. See the
+  [Client-Defined Tools with
+  frontendTools](#client-defined-tools-with-frontendtools) section below.
+</Callout>
+
+### 2. Using `useAssistantTool` Hook
+
+Register tools dynamically using React hooks. Useful for conditional tools or when tool availability depends on component state:
+
+```tsx
+import { useAssistantTool } from "@assistant-ui/react";
+import { z } from "zod";
+
+function DynamicTools() {
+  const [dataSource, setDataSource] = useState<"local" | "cloud">("local");
+
+  useAssistantTool({
+    toolName: "searchData",
+    description: "Search through the selected data source",
+    parameters: z.object({
+      query: z.string(),
+    }),
+    execute: async ({ query }) => {
+      if (dataSource === "local") {
+        return await searchLocalDatabase(query);
+      } else {
+        return await searchCloudDatabase(query);
+      }
+    },
+    // Re-register when data source changes
+    enabled: true,
+  });
+
+  return null;
+}
+```
+
+### 3. Using `makeAssistantToolUI`
+
+Create generative UI components for tools that are defined elsewhere. This is UI-only - the tool's execution logic must be registered separately (e.g., in your backend, MCP server, or another component):
+
+<Callout type="note">
+  This creates only the UI component. The actual tool execution happens where
+  you've defined it (typically in your API route with server-based runtimes like
+  Vercel AI SDK).
+</Callout>
+
+```tsx
+import { makeAssistantToolUI, AssistantToolUI } from "@assistant-ui/react";
+
+const SearchResultsUI = makeAssistantToolUI<
+  {
+    query: string;
+  },
+  {
+    results: Array<{
+      id: string;
+      url: string;
+      title: string;
+      snippet: string;
+    }>;
+  }
+>({
+  toolName: "webSearch", // Must match the registered tool's name
+  render: ({ args, result }) => {
+    return (
+      <div className="search-results">
+        <h3>Search: {args.query}</h3>
+        {result.results.map((item) => (
+          <div key={item.id}>
+            <a href={item.url}>{item.title}</a>
+            <p>{item.snippet}</p>
+          </div>
+        ))}
+      </div>
+    );
+  },
+});
+
+// Place the tool component inside AssistantRuntimeProvider
+function App() {
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <SearchResultsUI />
+      <Thread />
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+### 4. Advanced: Direct Context Registration
+
+Use `api.modelContext().register()` when you need to configure more than just tools:
+
+```tsx
+import { tool, useAssistantApi } from "@assistant-ui/react";
+import { useEffect, useState } from "react";
+import { z } from "zod";
+
+function MyComponent() {
+  const api = useAssistantApi();
+  const [isCreativeMode, setIsCreativeMode] = useState(false);
+
+  useEffect(() => {
+    const calculateTool = tool({
+      description: "Perform mathematical calculations",
+      parameters: z.object({
+        expression: z.string(),
+      }),
+      execute: async ({ expression }) => {
+        return eval(expression); // Note: Use proper math parser in production
+      },
+    });
+
+    // Register tools with model configuration
+    return api.modelContext().register({
+      getModelContext: () => ({
+        tools: { calculate: calculateTool },
+        callSettings: {
+          temperature: isCreativeMode ? 0.9 : 0.2,
+          maxTokens: 1000,
+        },
+        priority: 10, // Higher priority overrides other providers
+      }),
+    });
+  }, [api, isCreativeMode]);
+
+  return <div>{/* Your component */}</div>;
+}
+```
+
+Use this approach when you need:
+
+- Dynamic model parameters (temperature, maxTokens, etc.)
+- Priority-based context merging
+- Multiple context types in one registration
+
+## Tool Paradigms
+
+### Frontend Tools
+
+Tools that execute in the browser, accessing client-side resources:
+
+```tsx
+const screenshotTool = tool({
+  description: "Capture a screenshot of the current page",
+  parameters: z.object({
+    selector: z.string().optional(),
+  }),
+  execute: async ({ selector }) => {
+    const element = selector ? document.querySelector(selector) : document.body;
+    const screenshot = await captureElement(element);
+    return { dataUrl: screenshot };
+  },
+});
+
+const ScreenshotTool = makeAssistantTool({
+  ...screenshotTool,
+  toolName: "screenshot",
+});
+```
+
+### Backend Tools
+
+Tools that trigger server-side operations:
+
+```tsx
+// Backend route (AI SDK)
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+
+  const result = streamText({
+    model: openai("gpt-4o"),
+    messages: convertToModelMessages(messages),
+    tools: {
+      queryDatabase: {
+        description: "Query the application database",
+        inputSchema: z.object({
+          query: z.string(),
+          table: z.string(),
+        }),
+        execute: async ({ query, table }) => {
+          // Server-side database access
+          const results = await db.query(query, { table });
+          return results;
+        },
+      },
+    },
+  });
+
+  return result.toUIMessageStreamResponse();
+}
+```
+
+### Client-Defined Tools with frontendTools
+
+Currently, the Vercel AI SDK adapter implements automatic serialization of client-defined tools. When using this adapter, tools registered via `makeAssistantTool`, `useAssistantTool`, or `registerModelContextProvider` are automatically included in API requests. The `frontendTools` utility helps you use these tools server-side:
+
+```tsx
+// Frontend: Define tool with makeAssistantTool
+import { makeAssistantTool, tool } from "@assistant-ui/react";
+
+const calculateTool = tool({
+  description: "Perform calculations",
+  parameters: z.object({
+    expression: z.string(),
+  }),
+  execute: async ({ expression }) => {
+    return eval(expression); // Note: Use proper math parser in production
+  },
+});
+
+const CalculateTool = makeAssistantTool({
+  ...calculateTool,
+  toolName: "calculate",
+});
+
+// Backend: Use frontendTools to receive client tools
+import { frontendTools } from "@assistant-ui/react-ai-sdk";
+
+export async function POST(req: Request) {
+  const { messages, tools } = await req.json();
+
+  const result = streamText({
+    model: openai("gpt-4o"),
+    messages: convertToModelMessages(messages),
+    tools: {
+      ...frontendTools(tools), // Client-defined tools
+      // Additional server-side tools
+      queryDatabase: {
+        description: "Query the application database",
+        inputSchema: z.object({ query: z.string() }),
+        execute: async ({ query }) => {
+          return await db.query(query);
+        },
+      },
+    },
+  });
+
+  return result.toUIMessageStreamResponse();
+}
+```
+
+<Callout type="note">
+  The `frontendTools` utility is currently only available for the Vercel AI SDK
+  integration. Other adapters like LangGraph follow a server-side tool
+  definition model and don't yet implement client tool serialization. Learn more
+  in the [Vercel AI SDK integration guide](/docs/runtimes/ai-sdk/use-chat-hook).
+</Callout>
+
+### Human-in-the-Loop Tools
+
+Tools that require human approval or input:
+
+```tsx
+import { makeAssistantTool, tool } from "@assistant-ui/react";
+import { z } from "zod";
+
+const refundTool = tool({
+  description: "Process a customer refund",
+  parameters: z.object({
+    orderId: z.string(),
+    amount: z.number(),
+    reason: z.string(),
+  }),
+  execute: async ({ orderId, amount, reason }) => {
+    // Wait for human approval
+    const approved = await requestHumanApproval({
+      action: "refund",
+      details: { orderId, amount, reason },
+    });
+
+    if (!approved) {
+      throw new Error("Refund rejected by administrator");
+    }
+
+    return await processRefund(orderId, amount);
+  },
+});
+
+const RefundTool = makeAssistantTool({
+  ...refundTool,
+  toolName: "requestRefund",
+});
+```
+
+### Tool Human Input
+
+Tools can pause their execution to request user input or approval before continuing. This is useful for:
+
+- Requesting user confirmation for sensitive operations
+- Collecting additional information mid-execution
+- Implementing progressive disclosure workflows
+- Building interactive, multi-step tool experiences
+
+```tsx
+import { makeAssistantTool, tool } from "@assistant-ui/react";
+import { z } from "zod";
+
+const confirmationTool = tool({
+  description: "Send an email with confirmation",
+  parameters: z.object({
+    to: z.string(),
+    subject: z.string(),
+    body: z.string(),
+  }),
+  execute: async ({ to, subject, body }, { human }) => {
+    // Request user confirmation before sending
+    const confirmed = await human({
+      type: "confirmation",
+      action: "send-email",
+      details: { to, subject },
+    });
+
+    if (!confirmed) {
+      return {
+        status: "cancelled",
+        message: "Email sending cancelled by user",
+      };
+    }
+
+    // Proceed with sending the email
+    await sendEmail({ to, subject, body });
+    return { status: "sent", message: `Email sent to ${to}` };
+  },
+});
+
+const EmailTool = makeAssistantTool({
+  ...confirmationTool,
+  toolName: "sendEmail",
+  render: ({ args, result, interrupt, resume }) => {
+    // The interrupt payload is available when the tool is waiting for user input
+    if (interrupt) {
+      return (
+        <div className="confirmation-dialog">
+          <h3>Confirm Email</h3>
+          <p>Send email to: {interrupt.payload.details.to}</p>
+          <p>Subject: {interrupt.payload.details.subject}</p>
+          <div className="actions">
+            <button onClick={() => resume(true)}>Confirm</button>
+            <button onClick={() => resume(false)}>Cancel</button>
+          </div>
+        </div>
+      );
+    }
+
+    // Show the result after completion
+    if (result) {
+      return (
+        <div className="email-result">
+          <p>{result.message}</p>
+        </div>
+      );
+    }
+
+    // Show loading state
+    return <div>Preparing email...</div>;
+  },
+});
+```
+
+#### Human Input Behavior
+
+- **Payload**: The object passed to `human()` is available in the `render` function as `interrupt.payload`
+- **Type**: The `interrupt` object has the structure `{ type: "human", payload: ... }`
+- **Resume**: Call `resume(payload)` to continue execution - the payload becomes the resolved value of the `human()` call
+- **Multiple Requests**: If `human()` is called multiple times, previous requests are automatically rejected with an error
+- **Cancellation**: If the tool execution is aborted (e.g., user cancels the message), all pending requests are rejected
+
+#### Advanced Human Input Patterns
+
+You can use human input for complex multi-step interactions:
+
+```tsx
+const wizardTool = tool({
+  description: "Multi-step data processing wizard",
+  parameters: z.object({
+    dataSource: z.string(),
+  }),
+  execute: async ({ dataSource }, { human }) => {
+    // Step 1: Load data
+    const data = await loadData(dataSource);
+
+    // Step 2: Request user to select columns
+    const selectedColumns = await human({
+      type: "column-selection",
+      availableColumns: data.columns,
+    });
+
+    // Step 3: Request processing options
+    const options = await human({
+      type: "processing-options",
+      columns: selectedColumns,
+    });
+
+    // Step 4: Process data with user selections
+    const result = await processData(data, selectedColumns, options);
+    return result;
+  },
+});
+
+const WizardTool = makeAssistantTool({
+  ...wizardTool,
+  toolName: "dataWizard",
+  render: ({ args, result, interrupt, resume }) => {
+    if (interrupt?.payload.type === "column-selection") {
+      return (
+        <ColumnSelector
+          columns={interrupt.payload.availableColumns}
+          onSelect={(cols) => resume(cols)}
+        />
+      );
+    }
+
+    if (interrupt?.payload.type === "processing-options") {
+      return (
+        <ProcessingOptions
+          columns={interrupt.payload.columns}
+          onConfirm={(opts) => resume(opts)}
+        />
+      );
+    }
+
+    if (result) {
+      return <ResultDisplay data={result} />;
+    }
+
+    return <div>Loading...</div>;
+  },
+});
+```
+
+<Callout type="note">
+  When a tool calls `human()` multiple times (e.g., for multi-step
+  workflows), each new request automatically rejects any previous pending
+  request. Make sure to handle potential errors if you need to support
+  cancellation of earlier steps.
+</Callout>
+
+### MCP (Model Context Protocol) Tools
+
+Integration with MCP servers using AI SDK v5's experimental MCP support:
+
+<Callout type="warning">
+  MCP support in AI SDK v5 is experimental. The API may change in future
+  releases. Make sure to install the MCP SDK: `npm install
+  @modelcontextprotocol/sdk`
+</Callout>
+
+```tsx
+// Server-side usage (e.g., in your API route)
+import { experimental_createMCPClient, streamText } from "ai";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+
+export async function POST(req: Request) {
+  // Create MCP client with stdio transport
+  const client = await experimental_createMCPClient({
+    transport: new StdioClientTransport({
+      command: "npx",
+      args: ["@modelcontextprotocol/server-github"],
+    }),
+  });
+
+  try {
+    // Get tools from the MCP server
+    const tools = await client.tools();
+
+    const result = streamText({
+      model: openai("gpt-4o"),
+      tools,
+      messages: convertToModelMessages(messages),
+    });
+
+    return result.toUIMessageStreamResponse();
+  } finally {
+    // Always close the client to release resources
+    await client.close();
+  }
+}
+
+// Frontend usage with assistant-ui
+const runtime = useChatRuntime({
+  api: "/api/chat", // Your API route that uses MCP tools
+});
+```
+
+Alternative transport options:
+
+```tsx
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
+
+// HTTP transport
+const httpClient = await experimental_createMCPClient({
+  transport: new StreamableHTTPClientTransport(
+    new URL("http://localhost:3000/mcp"),
+  ),
+});
+
+// Server-Sent Events transport
+const sseClient = await experimental_createMCPClient({
+  transport: new SSEClientTransport(new URL("http://localhost:3000/sse")),
+});
+```
+
+## Advanced Patterns
+
+### Tool Composition
+
+Combining multiple tools for complex workflows:
+
+```tsx
+const travelPlannerTool = tool({
+  description: "Plan a complete trip itinerary",
+  parameters: z.object({
+    destination: z.string(),
+    dates: z.object({
+      start: z.string(),
+      end: z.string(),
+    }),
+  }),
+  execute: async ({ destination, dates }) => {
+    // Execute multiple operations
+    const weather = await getWeatherAPI(destination);
+    const hotels = await searchHotelsAPI({
+      location: destination,
+      dates,
+    });
+    const activities = await findActivitiesAPI({
+      location: destination,
+      weather: weather.forecast,
+    });
+
+    return {
+      weather,
+      hotels,
+      activities,
+      itinerary: generateItinerary({ weather, hotels, activities }),
+    };
+  },
+});
+
+const TravelPlannerTool = makeAssistantTool({
+  ...travelPlannerTool,
+  toolName: "planTrip",
+});
+```
+
+### Conditional Tool Availability
+
+Tools that appear based on context:
+
+```tsx
+function ConditionalTools() {
+  const { user } = useAuth();
+  const { subscription } = useSubscription();
+
+  // Premium features
+  useAssistantTool({
+    toolName: "advancedAnalysis",
+    description: "Perform advanced data analysis",
+    parameters: z.object({
+      dataset: z.string(),
+    }),
+    execute: async (args) => {
+      // Premium analysis logic
+    },
+    enabled: subscription?.tier === "premium",
+  });
+
+  // Role-based tools
+  useAssistantTool({
+    toolName: "adminPanel",
+    description: "Access admin controls",
+    parameters: z.object({}),
+    execute: async () => {
+      // Admin actions
+    },
+    enabled: user?.role === "admin",
+  });
+}
+```
+
+### Tool Error Handling
+
+Robust error handling and recovery:
+
+```tsx
+const resilientTool = tool({
+  description: "Fetch data with retry logic",
+  parameters: z.object({
+    endpoint: z.string(),
+  }),
+  execute: async ({ endpoint }, { abortSignal }) => {
+    const maxRetries = 3;
+    let lastError;
+
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        const response = await fetch(endpoint, { signal: abortSignal });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return await response.json();
+      } catch (error) {
+        lastError = error;
+        if (abortSignal.aborted) throw error; // Don't retry on abort
+        await new Promise((resolve) => setTimeout(resolve, 1000 * (i + 1)));
+      }
+    }
+
+    throw new Error(
+      `Failed after ${maxRetries} attempts: ${lastError.message}`,
+    );
+  },
+});
+
+const ResilientTool = makeAssistantTool({
+  ...resilientTool,
+  toolName: "fetchWithRetries",
+});
+```
+
+## Best Practices
+
+1. **Clear Descriptions**: Write descriptive tool descriptions that help the LLM understand when to use each tool
+2. **Parameter Validation**: Use Zod schemas to ensure type safety and provide clear parameter descriptions
+3. **Error Handling**: Always handle potential errors gracefully with user-friendly messages
+4. **Loading States**: Provide visual feedback during tool execution
+5. **Security**: Validate permissions and sanitize inputs, especially for destructive operations
+6. **Performance**: Use abort signals for cancellable operations and implement timeouts
+7. **Testing**: Test tools in isolation and with the full assistant flow
+
+## Tool Execution Context
+
+Tools receive additional context during execution:
+
+```tsx
+execute: async (args, context) => {
+  // context.abortSignal - AbortSignal for cancellation
+  // context.toolCallId - Unique identifier for this invocation
+  // context.human - Function to request human input
+
+  // Example: Request user confirmation
+  const userResponse = await context.human({
+    message: "Are you sure?",
+  });
+};
+```
+
+The execution context provides:
+
+- **`abortSignal`**: An `AbortSignal` that triggers when the tool execution is cancelled
+- **`toolCallId`**: A unique identifier for this specific tool invocation
+- **`human`**: A function that pauses execution and requests user input. The payload passed to `human()` becomes available in the render function, and the value passed to `resume()` becomes the resolved value of the `human()` call
+
+## Runtime Integration
+
+Each integration handles tools differently:
+
+- **Vercel AI SDK**: Tools defined in API routes with `streamText({ tools: {...} })`. Also supports client-defined tools via `frontendTools`.
+- **LangGraph**: Tools defined in your LangGraph graph configuration.
+- **Mastra**: Tools defined as typed functions used by agents and workflows.
+
+All integrations support tool UI customization via `makeAssistantToolUI`.

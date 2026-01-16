@@ -1,0 +1,72 @@
+---
+title: Custom Scrollbar
+description: Integrate custom scrollbar UI using Radix UI Scroll Area.
+---
+
+If you want to show a custom scrollbar UI of the Thread.Viewport in place of the system default, you can integrate `@radix-ui/react-scroll-area`.
+An example implementation of this is [shadcn-ui's Scroll Area](https://ui.shadcn.com/docs/components/scroll-area).
+
+## Add shadcn Scroll Area
+
+```sh
+npx shadcn@latest add scroll-area
+```
+
+### @radix-ui/react-scroll-area v1.2.0 release candidate required
+
+The v1.2.0-rc.x release candidate can be installed via
+
+```sh
+pnpm add @radix-ui/react-scroll-area@next
+```
+
+## Additional Styles
+
+The radix-ui Viewport component adds an intermediate `<div data-radix-scroll-area-content>` element.
+Add the following CSS to your `globals.css`:
+
+```css title="@/app/globals.css"
+.aui-thread-viewport > [data-radix-scroll-area-content] {
+  @apply flex flex-col items-center self-stretch bg-inherit;
+}
+```
+
+## Integration
+
+- Decompose `Thread` into `MyThread` (see [Decomposition](/docs/legacy/styled/decomposition))
+- Wrap `Thread.Root` with `<ScrollAreaPrimitive.Root asChild>`
+- Wrap `Thread.Viewport` with `<ScrollAreaPrimitive.Viewport asChild>`
+- Add shadcn's `<ScrollBar />` to `Thread.Root`
+
+The resulting MyThread component should look like this:
+
+```tsx
+import {
+  Thread,
+  ThreadWelcome,
+  Composer,
+  type ThreadConfig,
+} from "@assistant-ui/react-ui";
+import * as ScrollAreaPrimitive from "@radix-ui/react-scroll-area"; // [!code highlight]
+import { ScrollBar } from "@/components/ui/scroll-area"; // [!code highlight]
+
+const MyThread: FC<ThreadConfig> = (config) => {
+  return (
+    <ScrollAreaPrimitive.Root asChild> /* [!code highlight] */
+      <Thread.Root config={config}>
+        <ScrollAreaPrimitive.Viewport asChild> /* [!code highlight] */
+          <Thread.Viewport>
+            <ThreadWelcome />
+            <Thread.Messages />
+            <Thread.ViewportFooter>
+              <Thread.ScrollToBottom />
+              <Composer />
+            </Thread.ViewportFooter>
+          </Thread.Viewport>
+        </ScrollAreaPrimitive.Viewport> /* [!code highlight] */
+        <ScrollBar /> /* [!code highlight] */
+      </Thread.Root>
+    </ScrollAreaPrimitive.Root> /* [!code highlight] */
+  );
+};
+```

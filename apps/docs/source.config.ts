@@ -12,6 +12,16 @@ import { z } from "zod";
 import { remarkMermaid } from "@theguild/remark-mermaid";
 import { createFileSystemTypesCache } from "fumadocs-twoslash/cache-fs";
 import lastModified from "fumadocs-mdx/plugins/last-modified";
+import type { ShikiTransformer } from "shiki";
+
+function transformerLineNumbers(): ShikiTransformer {
+  return {
+    name: "line-numbers",
+    pre(node) {
+      node.properties["data-line-numbers"] = "";
+    },
+  };
+}
 
 export const docs = defineDocs({
   docs: {
@@ -67,7 +77,7 @@ export default defineConfig({
       },
       transformers: [
         ...(rehypeCodeDefaultOptions.transformers ?? []),
-
+        transformerLineNumbers(),
         transformerMetaHighlight(),
         transformerTwoslash({
           typesCache: createFileSystemTypesCache(),

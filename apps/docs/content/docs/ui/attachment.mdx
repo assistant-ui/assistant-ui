@@ -1,0 +1,227 @@
+---
+title: Attachment
+description: UI components for attaching and viewing files in messages.
+---
+
+import { ParametersTable } from "@/components/docs/tables/ParametersTable";
+import { AttachmentSample } from "@/components/docs/samples/attachment-sample";
+import { InstallCommand } from "@/components/docs/fumadocs/install/install-command";
+
+<AttachmentSample />
+
+<Callout type="info">
+  **Note:** These components provide the UI for attachments, but you also need
+  to configure attachment adapters in your runtime to handle file uploads and
+  processing. See the [Attachments Guide](/docs/guides/attachments) for complete
+  setup instructions.
+</Callout>
+
+## Getting Started
+
+<Steps>
+  <Step>
+
+### Add `attachment`
+
+<InstallCommand shadcn={["attachment"]} />
+
+This adds a `/components/assistant-ui/attachment.tsx` file to your project, which you can adjust as needed.
+
+  </Step>
+  <Step>
+
+### Use in your application
+
+```tsx title="/components/assistant-ui/thread.tsx" {1-4,9-10}
+import {
+  ComposerAttachments,
+  ComposerAddAttachment,
+} from "@/components/assistant-ui/attachment";
+
+const Composer: FC = () => {
+  return (
+    <ComposerPrimitive.Root className="...">
+      <ComposerAttachments />
+      <ComposerAddAttachment />
+
+      <ComposerPrimitive.Input
+        autoFocus
+        placeholder="Write a message..."
+        rows={1}
+        className="..."
+      />
+      <ComposerAction />
+    </ComposerPrimitive.Root>
+  );
+};
+```
+
+```tsx title="/components/assistant-ui/thread.tsx" {1,8}
+import { UserMessageAttachments } from "@/components/assistant-ui/attachment";
+
+const UserMessage: FC = () => {
+  return (
+    <MessagePrimitive.Root className="...">
+      <UserActionBar />
+
+      <UserMessageAttachments />
+
+      <div className="...">
+        <MessagePrimitive.Parts />
+      </div>
+
+      <BranchPicker className="..." />
+    </MessagePrimitive.Root>
+  );
+};
+```
+
+  </Step>
+</Steps>
+
+## API Reference
+
+### Composer Attachments
+
+#### ComposerPrimitive.Attachments
+
+Renders all attachments in the composer.
+
+<ParametersTable
+  type="ComposerPrimitiveAttachmentsProps"
+  parameters={[
+    {
+      name: "components",
+      type: "AttachmentComponents",
+      description: "Components to render for different attachment types.",
+      children: [
+        {
+          type: "AttachmentComponents",
+          parameters: [
+            {
+              name: "Image",
+              type: "ComponentType",
+              description: "Component for image attachments.",
+            },
+            {
+              name: "Document",
+              type: "ComponentType",
+              description: "Component for document attachments (PDF, etc.).",
+            },
+            {
+              name: "File",
+              type: "ComponentType",
+              description: "Component for generic file attachments.",
+            },
+            {
+              name: "Attachment",
+              type: "ComponentType",
+              description: "Fallback component for all attachment types.",
+            },
+          ],
+        },
+      ],
+    },
+  ]}
+/>
+
+#### ComposerPrimitive.AddAttachment
+
+A button that opens the file picker to add attachments.
+
+<ParametersTable
+  type="ComposerPrimitiveAddAttachmentProps"
+  parameters={[
+    {
+      name: "multiple",
+      type: "boolean",
+      default: "true",
+      description: "Allow selecting multiple files at once.",
+    },
+    {
+      name: "asChild",
+      type: "boolean",
+      default: "false",
+      description: "Merge props with child element instead of rendering a wrapper button.",
+    },
+  ]}
+/>
+
+This primitive renders a `<button>` element unless `asChild` is set.
+
+### Message Attachments
+
+#### MessagePrimitive.Attachments
+
+Renders all attachments in a user message.
+
+<ParametersTable
+  type="MessagePrimitiveAttachmentsProps"
+  parameters={[
+    {
+      name: "components",
+      type: "AttachmentComponents",
+      description: "Components to render for different attachment types (same as ComposerPrimitive.Attachments).",
+    },
+  ]}
+/>
+
+### Attachment Primitives
+
+#### AttachmentPrimitive.Root
+
+Container for a single attachment.
+
+<ParametersTable
+  type="AttachmentPrimitiveRootProps"
+  parameters={[
+    {
+      name: "asChild",
+      type: "boolean",
+      default: "false",
+      description: "Merge props with child element instead of rendering a wrapper div.",
+    },
+  ]}
+/>
+
+#### AttachmentPrimitive.Name
+
+Renders the attachment's file name.
+
+#### AttachmentPrimitive.Remove
+
+A button to remove the attachment from the composer.
+
+<ParametersTable
+  type="AttachmentPrimitiveRemoveProps"
+  parameters={[
+    {
+      name: "asChild",
+      type: "boolean",
+      default: "false",
+      description: "Merge props with child element instead of rendering a wrapper button.",
+    },
+  ]}
+/>
+
+### Attachment Types
+
+Attachments have the following structure:
+
+```typescript
+type Attachment = {
+  id: string;
+  type: "image" | "document" | "file";
+  name: string;
+  contentType: string;
+  file?: File;
+  status:
+    | { type: "running" | "requires-action" | "incomplete"; progress?: number }
+    | { type: "complete" };
+};
+```
+
+## Related Components
+
+- [Thread](/docs/ui/thread) - Main chat interface that displays attachments
+- [Attachments Guide](/docs/guides/attachments) - Complete setup instructions for attachment adapters

@@ -59,8 +59,8 @@
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/hast": "^3.0.4",
     "@types/react": "^19.2.7",
-    "react": "19.2.3",
-    "react-dom": "19.2.3",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
     "vitest": "^4.0.16"
   },
   "publishConfig": {

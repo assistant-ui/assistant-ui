@@ -1,0 +1,400 @@
+---
+title: Thread
+description: The main chat container with messages, composer, and auto-scroll.
+---
+
+import { ParametersTable } from "@/components/docs/tables/ParametersTable";
+import { InstallCommand } from "@/components/docs/fumadocs/install/install-command";
+import { ThreadSample } from "@/components/docs/samples/thread-sample";
+
+A complete chat interface that combines message rendering, auto-scrolling, composer input,
+attachments, and conditional UI states. Fully customizable and composable.
+
+
+<ThreadSample />
+
+## Anatomy
+
+The Thread component is built with the following primitives:
+
+```tsx
+import { ThreadPrimitive, AssistantIf } from "@assistant-ui/react";
+
+<ThreadPrimitive.Root>
+  <ThreadPrimitive.Viewport>
+    <ThreadPrimitive.Empty />
+    <ThreadPrimitive.Messages
+      components={{
+        EditComposer,
+        UserMessage,
+        AssistantMessage,
+      }}
+    />
+    <ThreadPrimitive.ScrollToBottom />
+  </ThreadPrimitive.Viewport>
+  <ThreadPrimitive.Suggestion />
+  <AssistantIf condition={...} />
+</ThreadPrimitive.Root>
+```
+
+## Getting Started
+
+<Steps>
+  <Step>
+
+### Add the component
+
+<InstallCommand shadcn={["thread"]} />
+
+This adds a `/components/assistant-ui/thread.tsx` file to your project, which you can adjust as needed.
+
+  </Step>
+  <Step>
+
+### Use in your application
+
+```tsx title="/app/page.tsx" {1,6}
+import { Thread } from "@/components/assistant-ui/thread";
+
+export default function Chat() {
+  return (
+    <div className="h-full">
+      <Thread />
+    </div>
+  );
+}
+```
+
+  </Step>
+</Steps>
+
+## Examples
+
+### Welcome Screen
+
+```tsx
+<AssistantIf condition={({ thread }) => thread.isEmpty}>
+  <ThreadWelcome />
+</AssistantIf>
+```
+
+### Viewport Spacer
+
+```tsx
+<AssistantIf condition={({ thread }) => !thread.isEmpty}>
+  <div className="min-h-8 grow" />
+</AssistantIf>
+```
+
+### Conditional Send/Cancel Button
+
+```tsx
+<AssistantIf condition={({ thread }) => !thread.isRunning}>
+  <ComposerPrimitive.Send>
+    Send
+  </ComposerPrimitive.Send>
+</AssistantIf>
+
+<AssistantIf condition={({ thread }) => thread.isRunning}>
+  <ComposerPrimitive.Cancel>
+    Cancel
+  </ComposerPrimitive.Cancel>
+</AssistantIf>
+```
+
+### Suggestions
+
+```tsx
+<ThreadPrimitive.Suggestion
+  prompt="What's the weather in San Francisco?"
+  send
+/>
+```
+
+## API Reference
+
+The following primitives are used within the Thread component and can be customized in your `/components/assistant-ui/thread.tsx` file.
+
+### Root
+
+Contains all parts of the thread.
+
+<ParametersTable
+  type="ThreadPrimitiveRootProps"
+  parameters={[
+    {
+      name: "asChild",
+      type: "boolean",
+      default: "false",
+      description: "Merge props with child element instead of rendering a wrapper div.",
+    },
+    {
+      name: "className",
+      type: "string",
+      description: "CSS class name.",
+    },
+  ]}
+/>
+
+This primitive renders a `<div>` element unless `asChild` is set.
+
+### Viewport
+
+The scrollable area containing all messages. Automatically scrolls to the bottom as new messages are added.
+
+<ParametersTable
+  type="ThreadPrimitiveViewportProps"
+  parameters={[
+    {
+      name: "asChild",
+      type: "boolean",
+      default: "false",
+      description: "Merge props with child element instead of rendering a wrapper div.",
+    },
+    {
+      name: "autoScroll",
+      type: "boolean",
+      default: "true",
+      description:
+        "Whether to automatically scroll to the bottom when new messages are added while the viewport was previously scrolled to the bottom.",
+    },
+    {
+      name: "className",
+      type: "string",
+      description: "CSS class name.",
+    },
+  ]}
+/>
+
+This primitive renders a `<div>` element unless `asChild` is set.
+
+### Messages
+
+Renders all messages in the thread. This primitive renders a separate component for each message.
+
+```tsx
+<ThreadPrimitive.Messages
+  components={{
+    UserMessage: UserMessage,
+    EditComposer: EditComposer,
+    AssistantMessage: AssistantMessage,
+  }}
+/>
+```
+
+<ParametersTable
+  type="ThreadPrimitiveMessagesProps"
+  parameters={[
+    {
+      name: "components",
+      type: "MessageComponents",
+      required: true,
+      description: "Components to render for different message types.",
+      children: [
+        {
+          type: "MessageComponents",
+          parameters: [
+            {
+              name: "Message",
+              type: "ComponentType",
+              description: "Default component for all messages.",
+            },
+            {
+              name: "UserMessage",
+              type: "ComponentType",
+              description: "Component for user messages.",
+            },
+            {
+              name: "EditComposer",
+              type: "ComponentType",
+              description:
+                "Component for user messages being edited.",
+            },
+            {
+              name: "AssistantMessage",
+              type: "ComponentType",
+              description: "Component for assistant messages.",
+            },
+            {
+              name: "SystemMessage",
+              type: "ComponentType",
+              description: "Component for system messages.",
+            },
+          ],
+        },
+      ],
+    },
+  ]}
+/>
+
+
+### MessageByIndex
+
+Renders a single message at the specified index.
+
+```tsx
+<ThreadPrimitive.MessageByIndex
+  index={0}
+  components={{
+    UserMessage: UserMessage,
+    AssistantMessage: AssistantMessage
+  }}
+/>
+```
+
+<ParametersTable
+  type="ThreadPrimitiveMessageByIndexProps"
+  parameters={[
+    {
+      name: "index",
+      type: "number",
+      required: true,
+      description: "The index of the message to render.",
+    },
+    {
+      name: "components",
+      type: "MessageComponents",
+      description: "Components to render for different message types.",
+    },
+  ]}
+/>
+
+### Empty
+
+Renders children only when there are no messages in the thread.
+
+<ParametersTable
+  type="ThreadPrimitiveEmptyProps"
+  parameters={[
+    {
+      name: "children",
+      type: "ReactNode",
+      description: "Content to display when the thread is empty.",
+    },
+  ]}
+/>
+
+### ScrollToBottom
+
+A button to scroll the viewport to the bottom. Disabled when the viewport is already at the bottom.
+
+<ParametersTable
+  type="ThreadPrimitiveScrollToBottomProps"
+  parameters={[
+    {
+      name: "asChild",
+      type: "boolean",
+      default: "false",
+      description: "Merge props with child element instead of rendering a wrapper button.",
+    },
+    {
+      name: "className",
+      type: "string",
+      description: "CSS class name.",
+    },
+  ]}
+/>
+
+This primitive renders a `<button>` element unless `asChild` is set.
+
+### Suggestion
+
+Shows a suggestion to the user. When clicked, replaces the composer's value with the suggestion and optionally sends it.
+
+```tsx
+<ThreadPrimitive.Suggestion
+  prompt="Tell me about React hooks"
+  send
+/>
+```
+
+<ParametersTable
+  type="ThreadPrimitiveSuggestionProps"
+  parameters={[
+    {
+      name: "prompt",
+      type: "string",
+      required: true,
+      description: "The suggestion text to use when clicked.",
+    },
+    {
+      name: "send",
+      type: "boolean",
+      description:
+        "When true, automatically sends the message. When false, replaces or appends the composer text with the suggestion - depending on the value of `clearComposer`",
+    },
+    {
+      name: "clearComposer",
+      type: "boolean",
+      default: "true",
+      description:
+        "Whether to clear the composer after sending. When send is set to false, determines if composer text is replaced with suggestion (true, default), or if the suggestion's prompt is appended to the composer text (false).",
+    },
+    {
+      name: "autoSend",
+      type: "boolean",
+      deprecated: true,
+      description: "Deprecated. Use 'send' instead.",
+    },
+    {
+      name: "method",
+      type: "'replace'",
+      deprecated: true,
+      description: "Deprecated. This parameter is no longer used.",
+    },
+    {
+      name: "asChild",
+      type: "boolean",
+      default: "false",
+      description: "Merge props with child element instead of rendering a wrapper button.",
+    },
+    {
+      name: "className",
+      type: "string",
+      description: "CSS class name.",
+    },
+  ]}
+/>
+
+This primitive renders a `<button>` element unless `asChild` is set.
+
+### AssistantIf
+
+Conditionally renders children based on assistant state. This is a generic component that can access thread, message, composer, and other state.
+
+```tsx
+import { AssistantIf } from "@assistant-ui/react";
+
+<AssistantIf condition={({ thread }) => thread.isEmpty}>
+  <WelcomeScreen />
+</AssistantIf>
+
+<AssistantIf condition={({ thread }) => thread.isRunning}>
+  <LoadingIndicator />
+</AssistantIf>
+
+<AssistantIf condition={({ message }) => message.role === "assistant"}>
+  <AssistantAvatar />
+</AssistantIf>
+```
+
+<ParametersTable
+  type="AssistantIfProps"
+  parameters={[
+    {
+      name: "condition",
+      type: "(state: AssistantState) => boolean",
+      required: true,
+      description: "A function that receives the assistant state and returns whether to render children.",
+    },
+  ]}
+/>
+
+<Callout type="info">
+The condition function receives an `AssistantState` object with access to `thread`, `message`, `composer`, `part`, and `attachment` state depending on context.
+</Callout>
+
+
+## Related Components
+
+- [ThreadList](/docs/ui/thread-list) - List of threads, with or without sidebar

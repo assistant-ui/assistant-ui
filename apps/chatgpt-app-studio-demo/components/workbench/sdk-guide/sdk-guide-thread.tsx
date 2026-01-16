@@ -18,7 +18,7 @@ import {
   CheckIcon,
   CopyIcon,
   RefreshCwIcon,
-  Sparkles,
+  MessageCircle,
   SquareIcon,
 } from "lucide-react";
 import type { FC } from "react";
@@ -58,9 +58,9 @@ export const SDKGuideThread: FC = () => {
     >
       <div className="flex shrink-0 items-center gap-2 border-border/50 border-b px-4 py-3">
         <div className="flex size-7 items-center justify-center rounded-full bg-primary/10">
-          <Sparkles className="size-3.5 text-primary" />
+          <MessageCircle className="size-3.5 text-primary" />
         </div>
-        <span className="font-medium text-sm">SDK Guide</span>
+        <span className="font-medium text-sm">SDK Assistant</span>
       </div>
 
       <ThreadPrimitive.Viewport
@@ -78,7 +78,7 @@ export const SDKGuideThread: FC = () => {
           }}
         />
 
-        <ThreadPrimitive.ViewportFooter className="aui-thread-viewport-footer sticky bottom-0 mt-auto flex w-full flex-col gap-3 overflow-visible rounded-t-2xl pb-4">
+        <ThreadPrimitive.ViewportFooter className="aui-thread-viewport-footer sticky bottom-0 mt-auto flex w-full flex-col gap-3 overflow-visible rounded-t-2xl bg-background pt-3 pb-4">
           <ThreadScrollToBottom />
           <ContextIndicator />
           <SDKGuideComposer />
@@ -108,12 +108,10 @@ const SDKGuideWelcome: FC = () => {
       <div className="aui-thread-welcome-center flex w-full grow flex-col items-center justify-center">
         <div className="aui-thread-welcome-message flex flex-col items-center justify-center gap-2 px-4 py-8 text-center">
           <div className="flex size-12 items-center justify-center rounded-full bg-primary/10">
-            <Sparkles className="size-6 text-primary" />
+            <MessageCircle className="size-6 text-primary" />
           </div>
-          <h1 className="fade-in slide-in-from-bottom-1 animate-in font-semibold text-lg duration-200">
-            SDK Guide
-          </h1>
-          <p className="fade-in slide-in-from-bottom-1 max-w-xs animate-in text-muted-foreground text-sm delay-75 duration-200">
+          <h1 className="font-semibold text-lg">SDK Assistant</h1>
+          <p className="max-w-xs text-muted-foreground text-sm">
             I can help you build ChatGPT Apps. I have access to the SDK docs and
             can inspect your current configuration.
           </p>
@@ -127,23 +125,22 @@ const SDKGuideWelcome: FC = () => {
 const SDKGuideSuggestions: FC = () => {
   return (
     <div className="aui-thread-welcome-suggestions grid w-full grid-cols-2 gap-2 pb-4">
-      {SDK_SUGGESTIONS.map((suggestion, index) => (
-        <div
+      {SDK_SUGGESTIONS.map((suggestion) => (
+        <ThreadPrimitive.Suggestion
           key={suggestion.prompt}
-          className="fade-in slide-in-from-bottom-2 animate-in fill-mode-both duration-200"
-          style={{ animationDelay: `${100 + index * 50}ms` }}
+          prompt={suggestion.prompt}
+          send
+          asChild
         >
-          <ThreadPrimitive.Suggestion prompt={suggestion.prompt} send asChild>
-            <Button
-              variant="ghost"
-              className="h-auto w-full flex-col items-start justify-start gap-0.5 rounded-xl border px-3 py-2.5 text-left text-xs transition-colors hover:bg-muted"
-              aria-label={suggestion.prompt}
-            >
-              <span className="font-medium">{suggestion.title}</span>
-              <span className="text-muted-foreground">{suggestion.label}</span>
-            </Button>
-          </ThreadPrimitive.Suggestion>
-        </div>
+          <Button
+            variant="ghost"
+            className="h-auto w-full flex-col items-start justify-start gap-0.5 rounded-xl border px-3 py-2.5 text-left text-xs transition-colors hover:bg-muted"
+            aria-label={suggestion.prompt}
+          >
+            <span className="font-medium">{suggestion.title}</span>
+            <span className="text-muted-foreground">{suggestion.label}</span>
+          </Button>
+        </ThreadPrimitive.Suggestion>
       ))}
     </div>
   );

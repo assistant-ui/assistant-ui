@@ -3,11 +3,13 @@ import { DocsPage, DocsBody } from "fumadocs-ui/page";
 import { notFound } from "next/navigation";
 import { createOgMetadata } from "@/lib/og";
 import { getMDXComponents } from "@/mdx-components";
-import { DocsRuntimeProvider } from "@/app/(home)/DocsRuntimeProvider";
+import { DocsRuntimeProvider } from "@/contexts/DocsRuntimeProvider";
 import { source } from "@/lib/source";
-import { getPageTreePeers } from "fumadocs-core/page-tree";
-import { Card, Cards } from "fumadocs-ui/components/card";
-import { TableOfContents } from "@/components/docs/table-of-contents";
+import { getPageTreePeers, findNeighbour } from "fumadocs-core/page-tree";
+import { Card, Cards } from "@/components/docs/fumadocs/card";
+import { TableOfContents } from "@/components/docs/layout/table-of-contents";
+import { DocsFooter } from "@/components/docs/layout/docs-footer";
+import { DocsPager } from "@/components/docs/layout/docs-pager";
 
 function DocsCategory({ url }: { url?: string }) {
   const effectiveUrl = url ?? "";
@@ -40,6 +42,14 @@ export default async function Page(props: {
   const markdownUrl = `${page.url}.mdx`;
   const githubEditUrl = `https://github.com/assistant-ui/assistant-ui/edit/main/${path}`;
 
+  const neighbours = findNeighbour(source.pageTree, page.url);
+  const footerPrevious = neighbours.previous
+    ? { name: neighbours.previous.name, url: neighbours.previous.url }
+    : undefined;
+  const footerNext = neighbours.next
+    ? { name: neighbours.next.name, url: neighbours.next.url }
+    : undefined;
+
   return (
     <DocsPage
       toc={page.data.toc}
@@ -57,14 +67,24 @@ export default async function Page(props: {
       tableOfContentPopover={{
         enabled: false,
       }}
+      footer={{
+        enabled: false,
+      }}
     >
       <DocsBody>
-        <header className="not-prose mb-8 md:mb-12">
-          <h1 className="font-medium text-3xl tracking-tight">
-            {page.data.title}
-          </h1>
+        <header className="not-prose mb-8">
+          <div className="flex items-center justify-between gap-4">
+            <h1 className="font-medium text-xl tracking-tight md:text-2xl">
+              {page.data.title}
+            </h1>
+            <DocsPager
+              {...(footerPrevious && { previous: { url: footerPrevious.url } })}
+              {...(footerNext && { next: { url: footerNext.url } })}
+              markdownUrl={markdownUrl}
+            />
+          </div>
           {page.data.description && (
-            <p className="mt-3 text-lg text-muted-foreground">
+            <p className="mt-2 text-muted-foreground text-sm md:text-base">
               {page.data.description}
             </p>
           )}
@@ -72,6 +92,7 @@ export default async function Page(props: {
         <DocsRuntimeProvider>
           <page.data.body components={mdxComponents} />
         </DocsRuntimeProvider>
+        <DocsFooter previous={footerPrevious} next={footerNext} />
       </DocsBody>
     </DocsPage>
   );

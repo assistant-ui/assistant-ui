@@ -1,0 +1,23 @@
+---
+title: MessagePartRuntime
+description: Hook for accessing message part state within parts.
+---
+
+import { ParametersTable } from "@/components/docs/tables/ParametersTable";
+import { MessagePartState } from "@/components/docs/tables/parameters/context";
+
+### `useMessagePart`
+
+Access the message part state:
+
+```tsx
+import { useMessagePart } from "@assistant-ui/react";
+
+const part = useMessagePart();
+const partState = useMessagePart.getState();
+
+const status = useMessagePart((m) => m.status);
+const statusAgain = useMessagePart.getState().status;
+```
+
+<ParametersTable {...MessagePartState} />

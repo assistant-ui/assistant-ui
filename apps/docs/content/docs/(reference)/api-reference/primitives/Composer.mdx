@@ -5,9 +5,9 @@ description: Primitives for the text input, send button, and attachments.
 
 The user interface to add new messages or edit existing ones.
 
-import { Callout } from "fumadocs-ui/components/callout";
 
-import { ParametersTable, KeyboardTable } from "@/components/docs";
+import { ParametersTable } from "@/components/docs/tables/ParametersTable";
+import { KeyboardTable } from "@/components/docs/tables/KeyboardTable";
 import { Code } from "@radix-ui/themes";
 
 <Callout>
@@ -36,6 +36,20 @@ const EditComposer = () => (
     <ComposerPrimitive.Input />
     <ComposerPrimitive.Send />
     <ComposerPrimitive.Cancel />
+  </ComposerPrimitive.Root>
+);
+
+// with voice input (dictation)
+const ComposerWithDictation = () => (
+  <ComposerPrimitive.Root>
+    <ComposerPrimitive.Input />
+    <ComposerPrimitive.If dictation={false}>
+      <ComposerPrimitive.Dictate />
+    </ComposerPrimitive.If>
+    <ComposerPrimitive.If dictation>
+      <ComposerPrimitive.StopDictation />
+    </ComposerPrimitive.If>
+    <ComposerPrimitive.Send />
   </ComposerPrimitive.Root>
 );
 ```
@@ -214,3 +228,87 @@ This primitive renders a `<button>` element unless `asChild` is set.
     },
   ]}
 />
+
+### Dictate
+
+Renders a button to start dictation to convert voice to text.
+
+Requires a `DictationAdapter` to be configured in the runtime.
+
+This primitive renders a `<button>` element unless `asChild` is set.
+
+<ParametersTable
+  type="ComposerPrimitiveDictateProps"
+  parameters={[
+    {
+      name: "asChild",
+    },
+  ]}
+/>
+
+### StopDictation
+
+Renders a button to stop the current dictation session.
+
+Only rendered when dictation is active.
+
+This primitive renders a `<button>` element unless `asChild` is set.
+
+<ParametersTable
+  type="ComposerPrimitiveStopDictationProps"
+  parameters={[
+    {
+      name: "asChild",
+    },
+  ]}
+/>
+
+### DictationTranscript
+
+Renders the current interim (partial) transcript while dictation is active.
+
+<Callout type="info">
+**Note:** By default, interim transcripts are displayed directly in the composer input (like native dictation).
+This component is for **advanced customization** when you want to display the interim transcript separately (e.g., in a different style or location).
+</Callout>
+
+Only renders when there is an active interim transcript (returns `null` otherwise).
+
+This primitive renders a `<span>` element.
+
+```tsx
+{/* Optional: Display interim transcript separately with custom styling */}
+<ComposerPrimitive.If dictation>
+  <div className="dictation-preview">
+    <ComposerPrimitive.DictationTranscript className="italic text-muted" />
+  </div>
+</ComposerPrimitive.If>
+```
+
+### If
+
+Renders children if a condition is met.
+
+<ParametersTable
+  type="UseComposerIfProps"
+  parameters={[
+    {
+      name: "editing",
+      required: false,
+      type: "boolean | undefined",
+      description: "Render children if the message is being edited.",
+    },
+    {
+      name: "dictation",
+      required: false,
+      type: "boolean | undefined",
+      description: "Render children if dictation is active.",
+    },
+  ]}
+/>
+
+```tsx
+<Composer.If editing>{/* rendered if message is being edited */}</Composer.If>
+
+<Composer.If dictation>{/* rendered if dictation is active */}</Composer.If>
+```

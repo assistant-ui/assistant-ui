@@ -14,6 +14,8 @@ import {
 import { parseUrlParams, buildUrlParams } from "./url";
 import type { UrlState } from "./types";
 
+const isDemoMode = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
+
 export function useWorkbenchPersistence() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -32,7 +34,7 @@ export function useWorkbenchPersistence() {
     if (prefs.locale) store.setLocale(prefs.locale);
     if (prefs.isLeftPanelOpen !== undefined)
       store.setLeftPanelOpen(prefs.isLeftPanelOpen);
-    if (prefs.isRightPanelOpen !== undefined)
+    if (!isDemoMode && prefs.isRightPanelOpen !== undefined)
       store.setRightPanelOpen(prefs.isRightPanelOpen);
 
     const consoleLogs = readSessionStorageConsole();
@@ -52,7 +54,6 @@ export function useWorkbenchPersistence() {
     if (urlState.device) store.setDeviceType(urlState.device);
     if (urlState.theme) store.setTheme(urlState.theme);
     isUpdatingFromUrl.current = false;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

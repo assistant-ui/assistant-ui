@@ -5,7 +5,10 @@ import { useAssistantState } from "../../context";
 import type { RequireAtLeastOne } from "../../utils/RequireAtLeastOne";
 
 type ComposerIfFilters = {
+  /** Whether the composer is in editing mode */
   editing: boolean | undefined;
+  /** Whether dictation is currently active */
+  dictation: boolean | undefined;
 };
 
 export type UseComposerIfProps = RequireAtLeastOne<ComposerIfFilters>;
@@ -14,6 +17,10 @@ const useComposerIf = (props: UseComposerIfProps) => {
   return useAssistantState(({ composer }) => {
     if (props.editing === true && !composer.isEditing) return false;
     if (props.editing === false && composer.isEditing) return false;
+
+    const isDictating = composer.dictation != null;
+    if (props.dictation === true && !isDictating) return false;
+    if (props.dictation === false && isDictating) return false;
 
     return true;
   });

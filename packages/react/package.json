@@ -66,9 +66,9 @@
     "@radix-ui/react-use-callback-ref": "^1.1.1",
     "@radix-ui/react-use-escape-keydown": "^1.1.1",
     "assistant-stream": "^0.2.46",
-    "nanoid": "5.1.6",
+    "nanoid": "^5.1.6",
     "react-textarea-autosize": "^8.5.9",
-    "zod": "^4.2.1",
+    "zod": "^4.3.5",
     "zustand": "^5.0.9"
   },
   "peerDependencies": {
@@ -91,8 +91,8 @@
     "@types/node": "^25.0.3",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
-    "react": "19.2.3",
-    "react-dom": "19.2.3",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
     "vitest": "^4.0.16"
   },
   "publishConfig": {

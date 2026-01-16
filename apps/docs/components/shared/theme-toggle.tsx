@@ -1,45 +1,37 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Moon, Sun } from "lucide-react";
+import { useTheme } from "next-themes";
+import { useEffect, useState } from "react";
+import { Monitor, Moon, Sun } from "lucide-react";
 
 export function ThemeToggle() {
-  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
-  useEffect(() => {
-    setMounted(true);
-    const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null;
-    if (savedTheme) {
-      setTheme(savedTheme);
-      document.documentElement.classList.toggle("dark", savedTheme === "dark");
-    } else {
-      const isDark = document.documentElement.classList.contains("dark");
-      setTheme(isDark ? "dark" : "light");
-    }
-  }, []);
+  useEffect(() => setMounted(true), []);
 
-  const toggleTheme = () => {
-    const newTheme = theme === "light" ? "dark" : "light";
-    setTheme(newTheme);
-    document.documentElement.classList.toggle("dark", newTheme === "dark");
-    localStorage.setItem("theme", newTheme);
+  const cycleTheme = () => {
+    if (theme === "light") setTheme("dark");
+    else if (theme === "dark") setTheme("system");
+    else setTheme("light");
   };
-
-  if (!mounted) {
-    return <div className="size-8" />;
-  }
 
   return (
     <button
-      onClick={toggleTheme}
+      onClick={cycleTheme}
       className="ms-auto flex size-8 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
       aria-label="Toggle theme"
     >
-      {theme === "light" ? (
-        <Moon className="size-4" />
+      {mounted ? (
+        theme === "system" ? (
+          <Monitor className="size-4" />
+        ) : theme === "dark" ? (
+          <Moon className="size-4" />
+        ) : (
+          <Sun className="size-4" />
+        )
       ) : (
-        <Sun className="size-4" />
+        <div className="size-4" />
       )}
     </button>
   );

@@ -1,7 +1,7 @@
 import type { FC, ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ExternalLink } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import { GitHubIcon } from "@/components/icons/github";
 import { DiscordIcon } from "@/components/icons/discord";
 
@@ -13,19 +13,20 @@ type FooterLinkItem = {
 
 const FOOTER_LINKS: Record<string, FooterLinkItem[]> = {
   Products: [
-    { label: "assistant-ui", href: "/docs/getting-started" },
+    { label: "Docs", href: "/docs" },
     {
       label: "Dashboard",
       href: "https://cloud.assistant-ui.com/",
       external: true,
     },
+    { label: "Playground", href: "/playground" },
     { label: "Tool UI", href: "https://tool-ui.com/", external: true },
     { label: "tw-shimmer", href: "/tw-shimmer" },
     { label: "Safe Content Frame", href: "/safe-content-frame" },
     { label: "ChatGPT App Studio", href: "/chatgpt-app-studio" },
   ],
   Resources: [
-    { label: "Documentation", href: "/docs/getting-started" },
+    { label: "Documentation", href: "/docs" },
     { label: "Examples", href: "/examples" },
     { label: "Showcase", href: "/showcase" },
     { label: "Blog", href: "/blog" },
@@ -143,7 +144,7 @@ const FooterLink: FC<{
         rel="noopener noreferrer"
       >
         {children}
-        <ExternalLink className="size-3 opacity-40" />
+        <ArrowUpRight className="size-3 opacity-40" />
       </a>
     );
   }

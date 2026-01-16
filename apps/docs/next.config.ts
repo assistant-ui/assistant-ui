@@ -4,6 +4,13 @@ import { NextConfig } from "next";
 const config: NextConfig = {
   transpilePackages: ["@assistant-ui/*", "shiki"],
   serverExternalPackages: ["twoslash"],
+  redirects: async () => [
+    {
+      source: "/docs/getting-started",
+      destination: "/docs",
+      permanent: true,
+    },
+  ],
   rewrites: async () => ({
     beforeFiles: [
       {

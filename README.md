@@ -4,7 +4,7 @@
 
 <p align="center">
   <a href="https://www.assistant-ui.com">Product</a> ·
-  <a href="https://www.assistant-ui.com/docs/getting-started">Documentation</a> ·
+  <a href="https://www.assistant-ui.com/docs">Documentation</a> ·
   <a href="https://www.assistant-ui.com/examples">Examples</a> ·
   <a href="https://discord.gg/S9dwgCNEFs">Discord Community</a> ·
   <a href="https://cal.com/simon-farshid/assistant-ui">Contact Sales</a>
@@ -50,7 +50,7 @@ npx assistant-ui init     # add to existing project
 
 - **Build**: composable primitives to create any chat UX (message list, input, thread, toolbar) and a polished shadcn/ui theme you can fully customize.
 
-- **Ship**: production-ready UX out of the box — streaming, auto-scroll, retries, attachments, markdown and code highlighting — plus keyboard shortcuts and accessibility by default.
+- **Ship**: production-ready UX out of the box — streaming, auto-scroll, retries, attachments, markdown, code highlighting, and voice input (dictation) — plus keyboard shortcuts and accessibility by default.
 
 - **Generate**: render tool calls and JSON as components, collect human approvals inline, and enable safe frontend actions.
 

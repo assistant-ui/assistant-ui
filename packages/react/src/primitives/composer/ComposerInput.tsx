@@ -108,7 +108,10 @@ export const ComposerPrimitiveInput = forwardRef<
     const Component = asChild ? Slot : TextareaAutosize;
 
     const isDisabled =
-      useAssistantState(({ thread }) => thread.isDisabled) || disabledProp;
+      useAssistantState(
+        ({ thread, composer }) =>
+          thread.isDisabled || composer.dictation?.inputDisabled,
+      ) || disabledProp;
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const ref = useComposedRefs(forwardedRef, textareaRef);
 
