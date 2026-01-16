@@ -26,7 +26,7 @@ describe("Path Traversal Security", () => {
 
     it("should handle multiple paths with one malicious", async () => {
       const result = await testContext.callTool("assistantUIDocs", {
-        paths: ["getting-started", "../../../../etc/passwd", "guides"],
+        paths: ["(docs)/index", "../../../../etc/passwd", "(docs)/guides"],
       });
 
       expect(result.results).toBeDefined();
@@ -63,12 +63,12 @@ describe("Path Traversal Security", () => {
   describe("Valid paths should still work", () => {
     it("should allow valid documentation paths", async () => {
       const result = await testContext.callTool("assistantUIDocs", {
-        paths: ["getting-started", "api-reference/primitives/Thread"],
+        paths: ["(docs)/index", "(reference)/api-reference/primitives/Thread"],
       });
 
       expect(result.results).toBeDefined();
       expect(result.results).toHaveLength(2);
-      expect(result.results.every((r: any) => r.found || r.error)).toBe(true);
+      expect(result.results.every((r: any) => r.found)).toBe(true);
     });
 
     it("should allow valid example names", async () => {
