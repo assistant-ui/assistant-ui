@@ -35,10 +35,7 @@ import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 
 export const DictationSample = () => {
   return (
-    <SampleFrame
-      sampleText="Sample Dictation"
-      description="Click the microphone button in the composer to start voice input. Speak and your words will be transcribed to text."
-    >
+    <SampleFrame className="overflow-hidden bg-muted/40">
       <Thread />
     </SampleFrame>
   );

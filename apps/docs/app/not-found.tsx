@@ -13,6 +13,7 @@ const MESSAGE =
 export default function NotFound() {
   const router = useRouter();
   const [url, setUrl] = useState("");
+  const [canGoBack, setCanGoBack] = useState(false);
   const [showAssistant, setShowAssistant] = useState(false);
   const [displayedTitle, setDisplayedTitle] = useState("");
   const [displayedMessage, setDisplayedMessage] = useState("");
@@ -20,6 +21,10 @@ export default function NotFound() {
 
   useEffect(() => {
     setUrl(window.location.href);
+    setCanGoBack(
+      window.history.length > 1 &&
+        document.referrer.startsWith(window.location.origin),
+    );
 
     const assistantTimer = setTimeout(() => setShowAssistant(true), 600);
 
@@ -54,7 +59,7 @@ export default function NotFound() {
   }, [showAssistant]);
 
   return (
-    <main className="flex flex-1 flex-col items-center justify-center px-4">
+    <main className="flex h-dvh min-h-0 flex-col items-center justify-center overflow-hidden px-4">
       <div className="flex w-full max-w-md flex-col gap-4">
         <div className="fade-in slide-in-from-bottom-2 flex animate-in justify-end fill-mode-both duration-500">
           <div className="rounded-2xl rounded-tr-sm bg-primary px-4 py-3 text-primary-foreground">
@@ -86,7 +91,7 @@ export default function NotFound() {
                     <span className="ml-0.5 inline-block h-4 w-0.5 animate-pulse bg-foreground" />
                   )}
                 </p>
-                {displayedMessage && (
+                {displayedTitle.length === TITLE.length && (
                   <p className="mt-1 text-muted-foreground text-sm">
                     {displayedMessage}
                     {displayedMessage.length < MESSAGE.length && (
@@ -101,20 +106,22 @@ export default function NotFound() {
 
         {showActions && (
           <div className="fade-in slide-in-from-bottom-2 flex animate-in flex-col gap-2 fill-mode-both pl-11 duration-500">
-            <button
-              onClick={() => router.back()}
-              className="flex items-center gap-3 rounded-lg border bg-muted/30 px-3 py-2.5 transition-colors hover:bg-muted/50"
-            >
-              <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-background text-muted-foreground shadow-sm">
-                <ArrowLeft className="size-4" />
-              </div>
-              <div className="flex min-w-0 flex-col gap-0.5 text-left">
-                <span className="truncate font-medium text-sm">Go back</span>
-                <span className="truncate text-muted-foreground text-xs">
-                  Return to previous page
-                </span>
-              </div>
-            </button>
+            {canGoBack && (
+              <button
+                onClick={() => router.back()}
+                className="flex items-center gap-3 rounded-lg border bg-muted/30 px-3 py-2.5 transition-colors hover:bg-muted/50"
+              >
+                <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-background text-muted-foreground shadow-sm">
+                  <ArrowLeft className="size-4" />
+                </div>
+                <div className="flex min-w-0 flex-col gap-0.5 text-left">
+                  <span className="truncate font-medium text-sm">Go back</span>
+                  <span className="truncate text-muted-foreground text-xs">
+                    Return to previous page
+                  </span>
+                </div>
+              </button>
+            )}
             <Link
               href="/"
               className="flex items-center gap-3 rounded-lg border bg-muted/30 px-3 py-2.5 transition-colors hover:bg-muted/50"

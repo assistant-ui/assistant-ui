@@ -3,12 +3,9 @@ title: ThreadList
 description: Switch between conversations. Supports sidebar or dropdown layouts.
 ---
 
+import { ParametersTable } from "@/components/docs/tables/ParametersTable";
 import { InstallCommand } from "@/components/docs/fumadocs/install/install-command";
 import { ThreadListSample } from "@/components/docs/samples/threadlist-sample";
-
-## Overview
-
-The ThreadList component lets the user switch between threads.
 
 <ThreadListSample />
 
@@ -84,5 +81,195 @@ Use `threadlist-sidebar` for a complete sidebar layout or `thread-list` for cust
 
   </Step>
 </Steps>
+
+## Anatomy
+
+The ThreadList component is built with the following primitives:
+
+```tsx
+import { ThreadListPrimitive, ThreadListItemPrimitive } from "@assistant-ui/react";
+
+<ThreadListPrimitive.Root>
+  <ThreadListPrimitive.New />
+  <ThreadListPrimitive.Items
+    components={{
+      ThreadListItem: () => (
+        <ThreadListItemPrimitive.Root>
+          <ThreadListItemPrimitive.Trigger>
+            <ThreadListItemPrimitive.Title />
+          </ThreadListItemPrimitive.Trigger>
+          <ThreadListItemPrimitive.Archive />
+          <ThreadListItemPrimitive.Delete />
+        </ThreadListItemPrimitive.Root>
+      ),
+    }}
+  />
+</ThreadListPrimitive.Root>
+```
+
+## API Reference
+
+### ThreadListPrimitive.Root
+
+Container for the thread list.
+
+<ParametersTable
+  type="ThreadListPrimitiveRootProps"
+  parameters={[
+    {
+      name: "asChild",
+      type: "boolean",
+      default: "false",
+      description: "Merge props with child element instead of rendering a wrapper div.",
+    },
+  ]}
+/>
+
+### ThreadListPrimitive.Items
+
+Renders all threads in the list.
+
+<ParametersTable
+  type="ThreadListPrimitiveItemsProps"
+  parameters={[
+    {
+      name: "archived",
+      type: "boolean",
+      description: "When true, renders archived threads instead of active threads.",
+    },
+    {
+      name: "components",
+      type: "object",
+      required: true,
+      description: "Component configuration.",
+      children: [
+        {
+          type: "Components",
+          parameters: [
+            {
+              name: "ThreadListItem",
+              type: "ComponentType",
+              required: true,
+              description: "Component to render for each thread item.",
+            },
+          ],
+        },
+      ],
+    },
+  ]}
+/>
+
+### ThreadListPrimitive.New
+
+A button to create a new thread.
+
+<ParametersTable
+  type="ThreadListPrimitiveNewProps"
+  parameters={[
+    {
+      name: "asChild",
+      type: "boolean",
+      default: "false",
+      description: "Merge props with child element instead of rendering a wrapper button.",
+    },
+  ]}
+/>
+
+### ThreadListItemPrimitive.Root
+
+Container for a single thread item. Automatically sets `data-active` and `aria-current` when this is the current thread.
+
+<ParametersTable
+  type="ThreadListItemPrimitiveRootProps"
+  parameters={[
+    {
+      name: "asChild",
+      type: "boolean",
+      default: "false",
+      description: "Merge props with child element instead of rendering a wrapper div.",
+    },
+  ]}
+/>
+
+### ThreadListItemPrimitive.Trigger
+
+A button that switches to this thread when clicked.
+
+<ParametersTable
+  type="ThreadListItemPrimitiveTriggerProps"
+  parameters={[
+    {
+      name: "asChild",
+      type: "boolean",
+      default: "false",
+      description: "Merge props with child element instead of rendering a wrapper button.",
+    },
+  ]}
+/>
+
+### ThreadListItemPrimitive.Title
+
+Renders the thread's title.
+
+<ParametersTable
+  type="ThreadListItemPrimitiveTitleProps"
+  parameters={[
+    {
+      name: "fallback",
+      type: "ReactNode",
+      description: "Content to display when the thread has no title.",
+    },
+  ]}
+/>
+
+### ThreadListItemPrimitive.Archive
+
+A button to archive the thread.
+
+<ParametersTable
+  type="ThreadListItemPrimitiveArchiveProps"
+  parameters={[
+    {
+      name: "asChild",
+      type: "boolean",
+      default: "false",
+      description: "Merge props with child element instead of rendering a wrapper button.",
+    },
+  ]}
+/>
+
+### ThreadListItemPrimitive.Unarchive
+
+A button to restore an archived thread.
+
+### ThreadListItemPrimitive.Delete
+
+A button to permanently delete the thread.
+
+<ParametersTable
+  type="ThreadListItemPrimitiveDeleteProps"
+  parameters={[
+    {
+      name: "asChild",
+      type: "boolean",
+      default: "false",
+      description: "Merge props with child element instead of rendering a wrapper button.",
+    },
+  ]}
+/>
+
+### ThreadListItemMore
+
+A dropdown menu for additional thread actions, built on Radix UI DropdownMenu:
+
+- `ThreadListItemMorePrimitive.Root` - Menu container
+- `ThreadListItemMorePrimitive.Trigger` - Button to open the menu
+- `ThreadListItemMorePrimitive.Content` - Menu content container
+- `ThreadListItemMorePrimitive.Item` - Individual menu item
+- `ThreadListItemMorePrimitive.Separator` - Visual separator between items
+
+## Related Components
+
+- [Thread](/docs/ui/thread) - The main chat interface displayed alongside the list
 
 

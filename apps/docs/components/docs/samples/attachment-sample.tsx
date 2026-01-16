@@ -1,110 +1,82 @@
 "use client";
-import {
-  ComposerAddAttachment,
-  ComposerAttachments,
-} from "@/components/assistant-ui/attachment";
-import {
-  AssistantIf,
-  ComposerPrimitive,
-  ThreadPrimitive,
-} from "@assistant-ui/react";
+
+import { ArrowUpIcon, FileText, PlusIcon, XIcon } from "lucide-react";
 import { SampleFrame } from "./sample-frame";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
-import { Button } from "@/components/ui/button";
-import { FC } from "react";
-import { ArrowDownIcon, ArrowUpIcon, Square } from "lucide-react";
 
-export const AttachmentSample = () => {
-  return (
-    <SampleFrame
-      sampleText="Sample Attachment"
-      className="h-min [&_.aui-thread-viewport]:pt-5"
-    >
-      <Thread />
-    </SampleFrame>
-  );
+type AttachmentTileStaticProps = {
+  name: string;
+  isImage?: boolean;
 };
 
-export const Thread: FC = () => {
-  return (
-    <ThreadPrimitive.Root
-      className="aui-root aui-thread-root @container flex h-full flex-col bg-background"
-      style={{
-        ["--thread-max-width" as string]: "44rem",
-      }}
-    >
-      <ThreadPrimitive.Viewport className="aui-thread-viewport relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll px-4">
-        <div className="aui-composer-wrapper sticky bottom-0 mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-4 overflow-visible rounded-t-3xl bg-background pb-4 md:pb-6">
-          <ThreadScrollToBottom />
-          <Composer />
-        </div>
-      </ThreadPrimitive.Viewport>
-    </ThreadPrimitive.Root>
-  );
-};
+function AttachmentTileStatic({ name, isImage }: AttachmentTileStaticProps) {
+  const attachmentType = isImage ? "Image" : "Document";
 
-const ThreadScrollToBottom: FC = () => {
   return (
-    <ThreadPrimitive.ScrollToBottom asChild>
-      <TooltipIconButton
-        tooltip="Scroll to bottom"
-        variant="outline"
-        className="aui-thread-scroll-to-bottom absolute -top-12 z-10 self-center rounded-full p-4 disabled:invisible dark:bg-background dark:hover:bg-accent"
+    <div className="aui-attachment-root relative">
+      <div
+        className="aui-attachment-tile aui-attachment-tile-composer size-14 cursor-pointer overflow-hidden rounded-[14px] border border-foreground/20 bg-muted transition-opacity hover:opacity-75"
+        role="button"
+        aria-label={`${attachmentType} attachment: ${name}`}
       >
-        <ArrowDownIcon />
+        <div className="flex h-full w-full items-center justify-center">
+          {isImage ? (
+            <div className="h-full w-full bg-linear-to-br from-blue-100 to-blue-200 dark:from-blue-900 dark:to-blue-800" />
+          ) : (
+            <FileText className="aui-attachment-tile-fallback-icon size-8 text-muted-foreground" />
+          )}
+        </div>
+      </div>
+      <TooltipIconButton
+        tooltip="Remove file"
+        className="aui-attachment-tile-remove absolute top-1.5 right-1.5 size-3.5 rounded-full bg-white text-muted-foreground opacity-100 shadow-sm hover:bg-white! [&_svg]:text-black hover:[&_svg]:text-destructive"
+        side="top"
+      >
+        <XIcon className="aui-attachment-remove-icon size-3 dark:stroke-[2.5px]" />
       </TooltipIconButton>
-    </ThreadPrimitive.ScrollToBottom>
-  );
-};
-
-const Composer: FC = () => {
-  return (
-    <ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col rounded-3xl border border-border bg-muted px-1 pt-2 shadow-[0_9px_9px_0px_rgba(0,0,0,0.01),0_2px_5px_0px_rgba(0,0,0,0.06)] dark:border-muted-foreground/15">
-      <ComposerAttachments />
-      <ComposerPrimitive.Input
-        placeholder="Send a message..."
-        className="aui-composer-input mb-1 max-h-32 min-h-16 w-full resize-none bg-transparent px-3.5 pt-1.5 pb-3 text-base outline-none placeholder:text-muted-foreground focus:outline-primary"
-        rows={1}
-        autoFocus
-        aria-label="Message input"
-      />
-      <ComposerAction />
-    </ComposerPrimitive.Root>
-  );
-};
-
-const ComposerAction: FC = () => {
-  return (
-    <div className="aui-composer-action-wrapper relative mx-1 mt-2 mb-2 flex items-center justify-between">
-      <ComposerAddAttachment />
-      <AssistantIf condition={({ thread }) => !thread.isRunning}>
-        <ComposerPrimitive.Send asChild>
-          <TooltipIconButton
-            tooltip="Send message"
-            side="bottom"
-            type="submit"
-            variant="default"
-            size="icon"
-            className="aui-composer-send size-[34px] rounded-full p-1"
-            aria-label="Send message"
-          >
-            <ArrowUpIcon className="aui-composer-send-icon size-5" />
-          </TooltipIconButton>
-        </ComposerPrimitive.Send>
-      </AssistantIf>
-      <AssistantIf condition={({ thread }) => thread.isRunning}>
-        <ComposerPrimitive.Cancel asChild>
-          <Button
-            type="button"
-            variant="default"
-            size="icon"
-            className="aui-composer-cancel size-[34px] rounded-full border border-muted-foreground/60 hover:bg-primary/75 dark:border-muted-foreground/90"
-            aria-label="Stop generating"
-          >
-            <Square className="aui-composer-cancel-icon size-3.5 fill-white dark:fill-black" />
-          </Button>
-        </ComposerPrimitive.Cancel>
-      </AssistantIf>
     </div>
   );
-};
+}
+
+export function AttachmentSample() {
+  return (
+    <SampleFrame className="flex h-auto items-center justify-center bg-background p-8">
+      <div className="w-full max-w-xl">
+        <div className="aui-composer-root relative flex w-full flex-col rounded-3xl border border-border bg-muted px-1 pt-2 shadow-[0_9px_9px_0px_rgba(0,0,0,0.01),0_2px_5px_0px_rgba(0,0,0,0.06)] dark:border-muted-foreground/15">
+          <div className="aui-composer-attachments mb-2 flex w-full flex-row items-center gap-2 overflow-x-auto px-1.5 pt-0.5 pb-1">
+            <AttachmentTileStatic name="screenshot.png" isImage />
+            <AttachmentTileStatic name="document.pdf" />
+          </div>
+
+          <div className="aui-composer-input mb-1 min-h-10 w-full px-3.5 pt-1.5 pb-3 text-muted-foreground">
+            Send a message...
+          </div>
+
+          <div className="aui-composer-action-wrapper relative mx-1 mt-2 mb-2 flex items-center justify-between">
+            <TooltipIconButton
+              tooltip="Add Attachment"
+              side="bottom"
+              variant="ghost"
+              size="icon"
+              className="aui-composer-add-attachment size-8.5 rounded-full p-1 font-semibold text-xs hover:bg-muted-foreground/15 dark:border-muted-foreground/15 dark:hover:bg-muted-foreground/30"
+              aria-label="Add Attachment"
+            >
+              <PlusIcon className="aui-attachment-add-icon size-5 stroke-[1.5px]" />
+            </TooltipIconButton>
+
+            <TooltipIconButton
+              tooltip="Send message"
+              side="bottom"
+              variant="default"
+              size="icon"
+              className="aui-composer-send size-8.5 rounded-full p-1"
+              aria-label="Send message"
+            >
+              <ArrowUpIcon className="aui-composer-send-icon size-5" />
+            </TooltipIconButton>
+          </div>
+        </div>
+      </div>
+    </SampleFrame>
+  );
+}

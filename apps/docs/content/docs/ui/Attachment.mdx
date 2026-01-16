@@ -3,12 +3,9 @@ title: Attachment
 description: UI components for attaching and viewing files in messages.
 ---
 
+import { ParametersTable } from "@/components/docs/tables/ParametersTable";
 import { AttachmentSample } from "@/components/docs/samples/attachment-sample";
 import { InstallCommand } from "@/components/docs/fumadocs/install/install-command";
-
-## Overview
-
-The Attachment components let the user attach files and view the attachments.
 
 <AttachmentSample />
 
@@ -81,3 +78,150 @@ const UserMessage: FC = () => {
 
   </Step>
 </Steps>
+
+## API Reference
+
+### Composer Attachments
+
+#### ComposerPrimitive.Attachments
+
+Renders all attachments in the composer.
+
+<ParametersTable
+  type="ComposerPrimitiveAttachmentsProps"
+  parameters={[
+    {
+      name: "components",
+      type: "AttachmentComponents",
+      description: "Components to render for different attachment types.",
+      children: [
+        {
+          type: "AttachmentComponents",
+          parameters: [
+            {
+              name: "Image",
+              type: "ComponentType",
+              description: "Component for image attachments.",
+            },
+            {
+              name: "Document",
+              type: "ComponentType",
+              description: "Component for document attachments (PDF, etc.).",
+            },
+            {
+              name: "File",
+              type: "ComponentType",
+              description: "Component for generic file attachments.",
+            },
+            {
+              name: "Attachment",
+              type: "ComponentType",
+              description: "Fallback component for all attachment types.",
+            },
+          ],
+        },
+      ],
+    },
+  ]}
+/>
+
+#### ComposerPrimitive.AddAttachment
+
+A button that opens the file picker to add attachments.
+
+<ParametersTable
+  type="ComposerPrimitiveAddAttachmentProps"
+  parameters={[
+    {
+      name: "multiple",
+      type: "boolean",
+      default: "true",
+      description: "Allow selecting multiple files at once.",
+    },
+    {
+      name: "asChild",
+      type: "boolean",
+      default: "false",
+      description: "Merge props with child element instead of rendering a wrapper button.",
+    },
+  ]}
+/>
+
+This primitive renders a `<button>` element unless `asChild` is set.
+
+### Message Attachments
+
+#### MessagePrimitive.Attachments
+
+Renders all attachments in a user message.
+
+<ParametersTable
+  type="MessagePrimitiveAttachmentsProps"
+  parameters={[
+    {
+      name: "components",
+      type: "AttachmentComponents",
+      description: "Components to render for different attachment types (same as ComposerPrimitive.Attachments).",
+    },
+  ]}
+/>
+
+### Attachment Primitives
+
+#### AttachmentPrimitive.Root
+
+Container for a single attachment.
+
+<ParametersTable
+  type="AttachmentPrimitiveRootProps"
+  parameters={[
+    {
+      name: "asChild",
+      type: "boolean",
+      default: "false",
+      description: "Merge props with child element instead of rendering a wrapper div.",
+    },
+  ]}
+/>
+
+#### AttachmentPrimitive.Name
+
+Renders the attachment's file name.
+
+#### AttachmentPrimitive.Remove
+
+A button to remove the attachment from the composer.
+
+<ParametersTable
+  type="AttachmentPrimitiveRemoveProps"
+  parameters={[
+    {
+      name: "asChild",
+      type: "boolean",
+      default: "false",
+      description: "Merge props with child element instead of rendering a wrapper button.",
+    },
+  ]}
+/>
+
+### Attachment Types
+
+Attachments have the following structure:
+
+```typescript
+type Attachment = {
+  id: string;
+  type: "image" | "document" | "file";
+  name: string;
+  contentType: string;
+  file?: File;
+  status:
+    | { type: "running" | "requires-action" | "incomplete"; progress?: number }
+    | { type: "complete" };
+};
+```
+
+## Related Components
+
+- [Thread](/docs/ui/thread) - Main chat interface that displays attachments
+- [Attachments Guide](/docs/guides/attachments) - Complete setup instructions for attachment adapters

@@ -3,10 +3,16 @@ title: ToolGroup
 description: Wrapper for consecutive tool calls with collapsible and styled options.
 ---
 
+import { ParametersTable } from "@/components/docs/tables/ParametersTable";
+import { ToolGroupSample } from "@/components/docs/samples/tool-group-sample";
 
-## Overview
+A wrapper component that groups consecutive tool calls together, allowing you to display them in a collapsible or styled container.
 
-The ToolGroup component wraps consecutive tool-call message parts, enabling you to create custom presentations for grouped tool calls such as collapsible sections and custom styling.
+<ToolGroupSample />
+
+## Getting Started
+
+The ToolGroup component is defined inline in your thread component. Here's how to add it:
 
 ### Use it in your application
 
@@ -49,13 +55,33 @@ const AssistantMessage: FC = () => {
 };
 ```
 
-## Props
+## API Reference
 
-The ToolGroup component receives the following props:
+### ToolGroup
 
-- `startIndex`: The index of the first tool call in the group
-- `endIndex`: The index of the last tool call in the group
-- `children`: The rendered tool call components
+<ParametersTable
+  type="ToolGroupProps"
+  parameters={[
+    {
+      name: "startIndex",
+      type: "number",
+      required: true,
+      description: "The index of the first tool call in the group.",
+    },
+    {
+      name: "endIndex",
+      type: "number",
+      required: true,
+      description: "The index of the last tool call in the group.",
+    },
+    {
+      name: "children",
+      type: "ReactNode",
+      required: true,
+      description: "The rendered tool call components.",
+    },
+  ]}
+/>
 
 ## Examples
 
@@ -94,3 +120,8 @@ const ToolGroup: FC<
   );
 };
 ```
+
+## Related Components
+
+- [ToolFallback](/docs/ui/tool-fallback) - Default UI for tools without custom renderers
+- [PartGrouping](/docs/ui/part-grouping) - Advanced message part grouping (experimental)

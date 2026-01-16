@@ -4,8 +4,11 @@ description: Render Mermaid diagrams in chat messages with streaming support.
 ---
 
 import { InstallCommand } from "@/components/docs/fumadocs/install/install-command";
+import { MermaidSample } from "@/components/docs/samples/mermaid-sample";
 
-Render Mermaid diagrams in chat messages with the `mermaid-diagram` component.
+<MermaidSample />
+
+## Getting Started
 
 <Steps>
   <Step>
@@ -66,7 +69,7 @@ The `MermaidDiagram` component is optimized for streaming scenarios:
 Mermaid supports various diagram types including:
 
 - Flowcharts and decision trees
-- Sequence diagrams  
+- Sequence diagrams
 - Gantt charts
 - Class diagrams
 - State diagrams
@@ -75,3 +78,8 @@ Mermaid supports various diagram types including:
 - Entity relationship diagrams
 
 See the [Mermaid documentation](https://mermaid.js.org/) for complete syntax reference.
+
+## Related Components
+
+- [Markdown](/docs/ui/markdown) - Rich text rendering where mermaid is integrated
+- [Syntax Highlighting](/docs/ui/syntax-highlighting) - Code highlighting for other languages

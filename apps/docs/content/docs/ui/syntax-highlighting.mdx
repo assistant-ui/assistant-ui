@@ -4,8 +4,9 @@ description: Code block syntax highlighting with react-shiki or react-syntax-hig
 ---
 
 import { InstallCommand } from "@/components/docs/fumadocs/install/install-command";
+import { SyntaxHighlightingSample } from "@/components/docs/samples/syntax-highlighting-sample";
 
-Syntax highlighting for code blocks in markdown.
+<SyntaxHighlightingSample />
 
 <Callout type="warn">Syntax highlighting is not enabled in markdown by default.</Callout>
 
@@ -246,3 +247,8 @@ By default, the syntax highlighter uses a light build that only includes languag
 ```tsx title="/components/assistant-ui/syntax-highlighter.tsx"
 import { makePrismAsyncSyntaxHighlighter } from "@assistant-ui/react-syntax-highlighter/full";
 ```
+
+## Related Components
+
+- [Markdown](/docs/ui/markdown) - Rich text rendering that uses syntax highlighting
+- [Mermaid](/docs/ui/mermaid) - Render diagrams instead of code blocks

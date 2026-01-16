@@ -416,6 +416,9 @@ importers:
       lucide-react:
         specifier: ^0.562.0
         version: 0.562.0(react@19.2.3)
+      mermaid:
+        specifier: ^11.12.2
+        version: 11.12.2
       next:
         specifier: ^16.1.1
         version: 16.1.1(@opentelemetry/api@1.9.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
@@ -434,6 +437,9 @@ importers:
       react-dom:
         specifier: ^19.2.3
         version: 19.2.3(react@19.2.3)
+      react-markdown:
+        specifier: ^10.1.0
+        version: 10.1.0(@types/react@19.2.7)(react@19.2.3)
       react-resizable-panels:
         specifier: ^4.0.13
         version: 4.0.13(react-dom@19.2.3(react@19.2.3))(react@19.2.3)

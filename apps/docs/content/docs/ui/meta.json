@@ -4,18 +4,20 @@
   "icon": "PanelsTopLeft",
   "root": true,
   "pages": [
+    "thread",
     "assistant-modal",
+    "---Components---",
+    "thread-list",
     "assistant-sidebar",
     "attachment",
     "markdown",
-    "mermaid",
-    "part-grouping",
-    "reasoning",
-    "scrollbar",
     "syntax-highlighting",
-    "thread",
-    "thread-list",
+    "mermaid",
+    "reasoning",
     "tool-fallback",
-    "tool-group"
+    "tool-group",
+    "scrollbar",
+    "---Experimental---",
+    "part-grouping"
   ]
 }

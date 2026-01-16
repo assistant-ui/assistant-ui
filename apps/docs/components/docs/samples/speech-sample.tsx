@@ -37,10 +37,7 @@ import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 
 export const SpeechSample = () => {
   return (
-    <SampleFrame
-      sampleText="Sample Text to Speech"
-      description="Try submitting a message, then clicking on the speech icon in the assistant message."
-    >
+    <SampleFrame className="overflow-hidden bg-muted/40">
       <Thread />
     </SampleFrame>
   );

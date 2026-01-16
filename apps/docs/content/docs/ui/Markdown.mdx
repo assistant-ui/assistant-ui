@@ -3,9 +3,10 @@ title: Markdown
 description: Display rich text with headings, lists, links, and code blocks.
 ---
 
-Allow the assistant to display rich text using markdown.
-
 import { InstallCommand } from "@/components/docs/fumadocs/install/install-command";
+import { MarkdownSample } from "@/components/docs/samples/markdown-sample";
+
+<MarkdownSample />
 
 <Callout>
   Markdown support is already included by default in the `Thread` component.
@@ -67,3 +68,8 @@ const AssistantMessage: FC = () => {
 ## Syntax highlighting
 
 Syntax Highlighting is not included by default, see [Syntax Highlighting](/docs/ui/syntax-highlighting) to learn how to add it.
+
+## Related Components
+
+- [Syntax Highlighting](/docs/ui/syntax-highlighting) - Add code highlighting to markdown
+- [Mermaid](/docs/ui/mermaid) - Render diagrams in markdown code blocks

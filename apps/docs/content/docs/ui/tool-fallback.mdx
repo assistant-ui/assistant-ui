@@ -4,10 +4,9 @@ description: Default UI component for tools without dedicated custom renderers.
 ---
 
 import { InstallCommand } from "@/components/docs/fumadocs/install/install-command";
+import { ToolFallbackSample } from "@/components/docs/samples/tool-fallback-sample";
 
-## Overview
-
-The ToolFallback component displays a default ToolUI for tools that do not have a dedicated ToolUI.
+<ToolFallbackSample />
 
 ## Getting Started
 
@@ -61,3 +60,7 @@ const AssistantMessage: FC = () => {
 
   </Step>
 </Steps>
+
+## Related Components
+
+- [ToolGroup](/docs/ui/tool-group) - Group consecutive tool calls together
