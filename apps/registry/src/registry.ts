@@ -271,7 +271,11 @@ export const registry: RegistryItem[] = [
         path: "components/assistant-ui/sources.tsx",
       },
     ],
-    dependencies: ["@assistant-ui/react"],
+    dependencies: [
+      "@assistant-ui/react",
+      "@radix-ui/react-slot",
+      "class-variance-authority",
+    ],
     registryDependencies: [],
   },
 ];

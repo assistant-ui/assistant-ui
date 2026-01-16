@@ -1,34 +1,47 @@
 "use client";
 
-import { Sources } from "@/components/assistant-ui/sources";
+import {
+  Source,
+  SourceIcon,
+  SourceTitle,
+} from "@/components/assistant-ui/sources";
 import { SampleFrame } from "@/components/docs/samples/sample-frame";
+
+const sources = [
+  { url: "https://openai.com", title: "OpenAI Research" },
+  { url: "https://github.com", title: "github.com" },
+  { url: "https://react.dev", title: "React Docs" },
+];
+
+function VariantRow({
+  label,
+  variant,
+}: {
+  label: string;
+  variant?: "default" | "secondary" | "outline" | "ghost";
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <span className="font-medium text-muted-foreground text-xs">{label}</span>
+      <div className="flex flex-wrap items-center gap-2">
+        {sources.map((source) => (
+          <Source key={source.url} variant={variant} href={source.url}>
+            <SourceIcon url={source.url} />
+            <SourceTitle>{source.title}</SourceTitle>
+          </Source>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export function SourcesSample() {
   return (
-    <SampleFrame className="flex h-auto flex-wrap items-center gap-2 p-6">
-      <Sources
-        type="source"
-        sourceType="url"
-        id="1"
-        url="https://openai.com/research"
-        title="OpenAI Research"
-        status={{ type: "complete" }}
-      />
-      <Sources
-        type="source"
-        sourceType="url"
-        id="2"
-        url="https://github.com/assistant-ui/assistant-ui"
-        status={{ type: "complete" }}
-      />
-      <Sources
-        type="source"
-        sourceType="url"
-        id="3"
-        url="https://react.dev/learn"
-        title="React Docs"
-        status={{ type: "complete" }}
-      />
+    <SampleFrame className="flex h-auto flex-col gap-6 p-6">
+      <VariantRow label="Default" />
+      <VariantRow label="Secondary" variant="secondary" />
+      <VariantRow label="Outline" variant="outline" />
+      <VariantRow label="Ghost" variant="ghost" />
     </SampleFrame>
   );
 }

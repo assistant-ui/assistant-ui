@@ -1,6 +1,8 @@
 "use client";
 
-import { memo, type FC } from "react";
+import { memo, useState } from "react";
+import { Slot } from "@radix-ui/react-slot";
+import { cva, type VariantProps } from "class-variance-authority";
 import type { SourceMessagePartComponent } from "@assistant-ui/react";
 import { cn } from "@/lib/utils";
 
@@ -12,25 +14,107 @@ const extractDomain = (url: string): string => {
   }
 };
 
-const Favicon: FC<{ url: string; className?: string }> = ({
+const getDomainInitial = (url: string): string => {
+  const domain = extractDomain(url);
+  return domain.charAt(0).toUpperCase();
+};
+
+const sourceVariants = cva(
+  "inline-flex cursor-pointer items-center gap-1.5 rounded-md text-xs outline-none transition-colors focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50",
+  {
+    variants: {
+      variant: {
+        default:
+          "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground",
+        secondary:
+          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+        outline:
+          "border bg-transparent text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+        ghost:
+          "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+      },
+      size: {
+        default: "px-2 py-1",
+        sm: "px-1.5 py-0.5",
+        lg: "px-2.5 py-1.5",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+      size: "default",
+    },
+  },
+);
+
+function SourceIcon({
   url,
   className,
-}) => {
+  ...props
+}: React.ComponentProps<"span"> & { url: string }) {
+  const [hasError, setHasError] = useState(false);
   const domain = extractDomain(url);
+
+  if (hasError) {
+    return (
+      <span
+        data-slot="source-icon-fallback"
+        className={cn(
+          "flex size-3.5 shrink-0 items-center justify-center rounded-sm bg-muted font-medium text-[10px]",
+          className,
+        )}
+        {...props}
+      >
+        {getDomainInitial(url)}
+      </span>
+    );
+  }
+
   return (
     <img
+      data-slot="source-icon"
       src={`https://www.google.com/s2/favicons?domain=${domain}&sz=32`}
       alt=""
-      className={cn(
-        "aui-source-favicon size-3.5 shrink-0 rounded-sm",
-        className,
-      )}
-      onError={(e) => {
-        e.currentTarget.style.display = "none";
-      }}
+      className={cn("size-3.5 shrink-0 rounded-sm", className)}
+      onError={() => setHasError(true)}
+      {...(props as React.ComponentProps<"img">)}
     />
   );
-};
+}
+
+function SourceTitle({ className, ...props }: React.ComponentProps<"span">) {
+  return (
+    <span
+      data-slot="source-title"
+      className={cn("max-w-37.5 truncate", className)}
+      {...props}
+    />
+  );
+}
+
+export type SourceProps = React.ComponentProps<"a"> &
+  VariantProps<typeof sourceVariants> & {
+    asChild?: boolean;
+  };
+
+function Source({
+  className,
+  variant,
+  size,
+  asChild = false,
+  ...props
+}: SourceProps) {
+  const Comp = asChild ? Slot : "a";
+
+  return (
+    <Comp
+      data-slot="source"
+      data-variant={variant}
+      data-size={size}
+      className={cn(sourceVariants({ variant, size, className }))}
+      {...props}
+    />
+  );
+}
 
 const SourcesImpl: SourceMessagePartComponent = ({
   url,
@@ -43,24 +127,22 @@ const SourcesImpl: SourceMessagePartComponent = ({
   const displayTitle = title || domain;
 
   return (
-    <a
-      href={url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className={cn(
-        "aui-source-root inline-flex cursor-pointer items-center gap-1.5",
-        "rounded-md bg-muted/50 px-2 py-1 text-xs",
-        "transition-colors hover:bg-muted",
-        "text-muted-foreground hover:text-foreground",
-      )}
-    >
-      <Favicon url={url} />
-      <span className="aui-source-title max-w-37.5 truncate">
-        {displayTitle}
-      </span>
-    </a>
+    <Source href={url} target="_blank" rel="noopener noreferrer">
+      <SourceIcon url={url} />
+      <SourceTitle>{displayTitle}</SourceTitle>
+    </Source>
   );
 };
 
-export const Sources = memo(SourcesImpl);
+const Sources = memo(SourcesImpl) as unknown as SourceMessagePartComponent & {
+  Root: typeof Source;
+  Icon: typeof SourceIcon;
+  Title: typeof SourceTitle;
+};
+
 Sources.displayName = "Sources";
+Sources.Root = Source;
+Sources.Icon = SourceIcon;
+Sources.Title = SourceTitle;
+
+export { Sources, Source, SourceIcon, SourceTitle, sourceVariants };

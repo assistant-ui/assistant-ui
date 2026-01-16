@@ -43,20 +43,45 @@ const AssistantMessage: FC = () => {
   </Step>
 </Steps>
 
-## How It Works
+## Variants
 
-- Renders only for `sourceType: "url"` parts
-- Displays favicon via Google favicon service
-- Shows truncated title (or domain fallback)
-- External link icon on hover
+Use the `variant` prop to change the visual style.
 
-## Customization
+```tsx
+<Source variant="default" />   // Subtle background
+<Source variant="secondary" /> // Secondary color
+<Source variant="outline" />   // Border only
+<Source variant="ghost" />     // No background
+```
 
-Modify `/components/assistant-ui/sources.tsx`:
-- Sizing/spacing
-- Colors/hover states
-- Max title width (default 150px)
-- Favicon fallback behavior
+## Sizes
+
+Use the `size` prop to change the size.
+
+```tsx
+<Source size="sm" />      // Small
+<Source size="default" /> // Default
+<Source size="lg" />      // Large
+```
+
+## Composable API
+
+The component exports composable sub-components:
+
+```tsx
+import { Source, SourceIcon, SourceTitle } from "@/components/assistant-ui/sources";
+
+<Source href="https://example.com" className="gap-2">
+  <SourceIcon url="https://example.com" className="size-4" />
+  <SourceTitle className="max-w-none font-medium">Example</SourceTitle>
+</Source>
+```
+
+| Component | Description |
+|-----------|-------------|
+| `Source` | Root container, renders as `<a>` |
+| `SourceIcon` | Favicon with domain initial fallback |
+| `SourceTitle` | Truncated title text |
 
 ## Related
 
