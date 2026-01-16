@@ -1,4 +1,4 @@
-import { ExternalLinkIcon } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 
 function ExternalLink({
   href,
@@ -15,7 +15,7 @@ function ExternalLink({
       className="inline-flex items-center gap-0.5 text-fd-primary underline underline-offset-2 hover:text-fd-primary/80"
     >
       {children}
-      <ExternalLinkIcon className="size-3" />
+      <ArrowUpRight className="size-3" />
     </a>
   );
 }

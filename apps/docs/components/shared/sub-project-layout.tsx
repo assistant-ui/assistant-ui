@@ -114,7 +114,9 @@ export function SubProjectLayout({
             <Select
               value={name}
               onValueChange={(value) => router.push(`/${value}`)}
-              options={SUB_PROJECTS.map((p) => ({
+              options={SUB_PROJECTS.toSorted((a, b) =>
+                a.value.toString().localeCompare(b.value.toString()),
+              ).map((p) => ({
                 value: p.value,
                 label: p.label,
                 textValue: p.textValue,

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Menu, X, ExternalLink, ArrowRight, Search } from "lucide-react";
+import { Menu, X, ArrowUpRight, ArrowRight, Search } from "lucide-react";
 import { usePersistentBoolean } from "@/hooks/use-persistent-boolean";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -201,7 +201,7 @@ export function Header() {
                         >
                           <span className="flex items-center gap-1.5 text-sm">
                             {link.label}
-                            <ExternalLink className="size-3 opacity-40" />
+                            <ArrowUpRight className="size-3 opacity-40" />
                           </span>
                           <span className="text-muted-foreground text-xs">
                             {link.description}
@@ -300,7 +300,7 @@ export function Header() {
                       className="flex items-center gap-1.5 py-2 pl-4 text-foreground text-lg transition-colors"
                     >
                       {link.label}
-                      <ExternalLink className="size-3.5 opacity-40" />
+                      <ArrowUpRight className="size-3.5 opacity-40" />
                     </a>
                   ) : (
                     <Link

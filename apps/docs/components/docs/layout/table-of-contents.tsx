@@ -3,9 +3,9 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { Copy, FileText, EditIcon } from "lucide-react";
-import { toast } from "sonner";
 import { TOCHiringBanner } from "@/components/docs/layout/toc-hiring-banner";
 import { BASE_URL } from "@/lib/constants";
+import { useMarkdownCopy } from "@/hooks/use-markdown-copy";
 
 type TOCItem = {
   title: ReactNode;
@@ -19,14 +19,6 @@ type TableOfContentsProps = {
   markdownUrl?: string;
 };
 
-async function fetchMarkdown(url: string): Promise<string> {
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch markdown: ${response.status}`);
-  }
-  return response.text();
-}
-
 function TOCActions({
   markdownUrl,
   githubEditUrl,
@@ -34,27 +26,23 @@ function TOCActions({
   markdownUrl: string | undefined;
   githubEditUrl: string | undefined;
 }) {
-  const handleCopy = async () => {
-    if (!markdownUrl) return;
-    try {
-      const content = await fetchMarkdown(markdownUrl);
-      await navigator.clipboard.writeText(content);
-      toast.success("Copied to clipboard");
-    } catch {
-      toast.error("Failed to copy");
-    }
-  };
+  const { copy, prefetch, isLoading } = useMarkdownCopy(markdownUrl);
+
+  // Prefetch on mount since TOC is always visible on desktop
+  useEffect(() => {
+    prefetch();
+  }, [prefetch]);
 
   const linkClass =
-    "inline-flex items-center gap-1.5 text-muted-foreground text-xs transition-colors hover:text-foreground";
+    "inline-flex items-center gap-1.5 text-muted-foreground text-xs transition-colors hover:text-foreground disabled:opacity-50";
 
   return (
     <div className="flex flex-col gap-3">
       {markdownUrl && (
         <>
-          <button onClick={handleCopy} className={linkClass}>
+          <button onClick={copy} disabled={isLoading} className={linkClass}>
             <Copy className="size-3" />
-            Copy page
+            {isLoading ? "Loading..." : "Copy page"}
           </button>
           <a
             href={`${BASE_URL}${markdownUrl}`}
@@ -149,15 +137,13 @@ export function TableOfContents({
           {items.map((item) => {
             const id = item.url.slice(1);
             const isActive = activeId === id;
-            const indent = item.depth > 2 ? (item.depth - 2) * 12 : 0;
+            const indent = Math.max(0, item.depth - 2) * 12;
 
             return (
               <li key={item.url} data-toc-id={id}>
                 <a
                   href={item.url}
-                  style={{
-                    paddingLeft: indent > 0 ? `${indent}px` : undefined,
-                  }}
+                  style={{ paddingLeft: indent || undefined }}
                   className={cn(
                     "wrap-break-word block py-1 text-[13px] leading-snug transition-colors",
                     isActive

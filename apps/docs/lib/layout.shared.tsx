@@ -5,6 +5,7 @@ import {
   SparklesIcon,
   WalletIcon,
   BoltIcon,
+  PlayIcon,
 } from "lucide-react";
 import icon from "@/public/favicon/icon.svg";
 import Image from "next/image";
@@ -58,6 +59,12 @@ export const baseOptions: BaseLayoutProps = {
       text: "Dashboard",
       url: "https://cloud.assistant-ui.com/",
       icon: <CloudIcon />,
+      external: true,
+    },
+    {
+      text: "Playground",
+      url: "/playground",
+      icon: <PlayIcon />,
     },
     {
       text: "Tool UI",

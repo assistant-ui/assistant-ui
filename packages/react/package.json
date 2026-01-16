@@ -68,7 +68,7 @@
     "assistant-stream": "^0.2.46",
     "nanoid": "^5.1.6",
     "react-textarea-autosize": "^8.5.9",
-    "zod": "^4.2.1",
+    "zod": "^4.3.5",
     "zustand": "^5.0.9"
   },
   "peerDependencies": {

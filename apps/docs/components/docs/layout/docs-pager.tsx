@@ -8,7 +8,6 @@ import {
   Copy,
   FileText,
 } from "lucide-react";
-import { toast } from "sonner";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/shared/dropdown-menu";
 import { BASE_URL } from "@/lib/constants";
+import { useMarkdownCopy } from "@/hooks/use-markdown-copy";
 
 type PagerItem = {
   url: string;
@@ -27,25 +27,8 @@ type DocsPagerProps = {
   markdownUrl?: string;
 };
 
-async function fetchMarkdown(url: string): Promise<string> {
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch markdown: ${response.status}`);
-  }
-  return response.text();
-}
-
 export function DocsPager({ previous, next, markdownUrl }: DocsPagerProps) {
-  const handleCopy = async () => {
-    if (!markdownUrl) return;
-    try {
-      const content = await fetchMarkdown(markdownUrl);
-      await navigator.clipboard.writeText(content);
-      toast.success("Copied to clipboard");
-    } catch {
-      toast.error("Failed to copy");
-    }
-  };
+  const { copy, prefetch, isLoading } = useMarkdownCopy(markdownUrl);
 
   const buttonClass =
     "flex size-7 items-center justify-center rounded-md bg-muted/50 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:size-8";
@@ -73,16 +56,17 @@ export function DocsPager({ previous, next, markdownUrl }: DocsPagerProps) {
         </div>
       )}
       {markdownUrl && (
-        <DropdownMenu>
+        <DropdownMenu onOpenChange={(open) => open && prefetch()}>
           <DropdownMenuTrigger className={buttonClass}>
             <MoreHorizontal className="size-4" />
           </DropdownMenuTrigger>
           <DropdownMenuContent>
             <DropdownMenuItem
               icon={<Copy className="size-4" />}
-              onClick={handleCopy}
+              onClick={copy}
+              disabled={isLoading}
             >
-              Copy page
+              {isLoading ? "Loading..." : "Copy page"}
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
               <a

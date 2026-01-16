@@ -1,3 +1,15 @@
+html:has(#nd-docs-layout) {
+  scroll-padding-top: 6rem;
+
+  @media (min-width: 768px) {
+    scroll-padding-top: 2.5rem;
+  }
+
+  @media (min-width: 1280px) {
+    scroll-padding-top: 0;
+  }
+}
+
 @media (min-width: 1280px) {
   #nd-page[data-full="true"] {
     max-width: 70%;

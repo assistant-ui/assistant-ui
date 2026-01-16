@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ExternalLink } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import { ExampleItem } from "@/lib/examples";
 
 export function ExampleCard({
@@ -29,7 +29,7 @@ export function ExampleCard({
         <div className="flex items-center justify-between">
           <h3 className="font-medium">{title}</h3>
           {external && (
-            <ExternalLink className="size-4 text-muted-foreground" />
+            <ArrowUpRight className="size-4 text-muted-foreground" />
           )}
         </div>
         {description && (
