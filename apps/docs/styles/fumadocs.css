@@ -201,7 +201,9 @@
   }
 
   & :where(a):not(:where([class~="not-prose"], [class~="not-prose"] *)):not([data-card]) {
-    text-decoration: none !important;
+    text-decoration: underline !important;
+    text-underline-offset: 2px !important;
+    text-decoration-color: var(--fd-muted-foreground) !important;
   }
 
   & :where(table):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
@@ -266,6 +268,12 @@
 
   & :where(h2 + p, h3 + p, h4 + p):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
     margin-top: 0 !important;
+  }
+
+  & :where(img):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    margin-left: auto !important;
+    margin-right: auto !important;
+    border-radius: 0.75rem !important;
   }
 }
 
