@@ -1,0 +1,63 @@
+---
+title: Sources
+description: Display URL sources with favicon, title, and external link.
+---
+
+import { InstallCommand } from "@/components/docs/fumadocs/install/install-command";
+import { SourcesSample } from "@/components/docs/samples/sources-sample";
+
+<SourcesSample />
+
+## Getting Started
+
+<Steps>
+  <Step>
+
+### Add `sources`
+
+<InstallCommand shadcn={["sources"]} />
+
+  </Step>
+  <Step>
+
+### Use in your application
+
+Pass `Sources` to `MessagePrimitive.Parts`:
+
+```tsx title="/components/assistant-ui/thread.tsx" {1,8}
+import { Sources } from "@/components/assistant-ui/sources";
+
+const AssistantMessage: FC = () => {
+  return (
+    <MessagePrimitive.Root className="...">
+      <MessagePrimitive.Parts
+        components={{
+          Source: Sources,
+        }}
+      />
+    </MessagePrimitive.Root>
+  );
+};
+```
+
+  </Step>
+</Steps>
+
+## How It Works
+
+- Renders only for `sourceType: "url"` parts
+- Displays favicon via Google favicon service
+- Shows truncated title (or domain fallback)
+- External link icon on hover
+
+## Customization
+
+Modify `/components/assistant-ui/sources.tsx`:
+- Sizing/spacing
+- Colors/hover states
+- Max title width (default 150px)
+- Favicon fallback behavior
+
+## Related
+
+- [PartGrouping](/docs/ui/part-grouping) - Group sources by parentId

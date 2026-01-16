@@ -262,4 +262,16 @@ export const registry: RegistryItem[] = [
       "https://r.assistant-ui.com/thread-list.json",
     ],
   },
+  {
+    name: "sources",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/sources.tsx",
+      },
+    ],
+    dependencies: ["@assistant-ui/react"],
+    registryDependencies: [],
+  },
 ];
