@@ -83,7 +83,7 @@ export function Callout({
       <div className="mt-0.5 shrink-0">
         {icon ?? <Icon className={cn("size-4", config.iconClassName)} />}
       </div>
-      <div className="min-w-0 flex-1 [&_code]:rounded [&_code]:bg-black/10 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-[0.8125rem] dark:[&_code]:bg-white/10 [&_li]:py-0.5 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-4 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-4">
+      <div className="min-w-0 flex-1 [&_a]:underline [&_a]:underline-offset-2 [&_blockquote]:border-current/30 [&_blockquote]:border-l-2 [&_blockquote]:pl-3 [&_blockquote]:italic [&_code]:rounded [&_code]:bg-black/10 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-[0.8125rem] dark:[&_code]:bg-white/10 [&_kbd]:rounded [&_kbd]:border [&_kbd]:border-current/20 [&_kbd]:bg-black/5 [&_kbd]:px-1.5 [&_kbd]:py-0.5 [&_kbd]:font-mono [&_kbd]:text-[0.8125rem] dark:[&_kbd]:bg-white/5 [&_li]:py-0.5 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-4 [&_p+p]:mt-2 [&_strong]:font-semibold [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-4">
         {title && <p className="mb-1 font-medium">{title}</p>}
         <div>{children}</div>
       </div>

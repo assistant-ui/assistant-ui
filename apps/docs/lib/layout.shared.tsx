@@ -40,7 +40,7 @@ export const baseOptions: BaseLayoutProps = {
   links: [
     {
       text: "Docs",
-      url: "/docs/getting-started",
+      url: "/docs",
       icon: <BookIcon />,
       active: "nested-url",
     },

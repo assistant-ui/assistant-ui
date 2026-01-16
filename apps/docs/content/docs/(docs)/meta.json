@@ -6,7 +6,7 @@
   "pages": [
     "---Introduction---",
     "about-assistantui",
-    "getting-started",
+    "index",
     "cli",
     "mcp-docs-server",
     "architecture",

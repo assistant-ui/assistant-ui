@@ -29,7 +29,7 @@ type NavItem =
   | { type: "dropdown"; label: string; items: DropdownItem[] };
 
 const NAV_ITEMS: NavItem[] = [
-  { type: "link", label: "Docs", href: "/docs/getting-started" },
+  { type: "link", label: "Docs", href: "/docs" },
   { type: "link", label: "Showcase", href: "/showcase" },
   { type: "link", label: "Examples", href: "/examples" },
   { type: "link", label: "Playground", href: "/playground" },

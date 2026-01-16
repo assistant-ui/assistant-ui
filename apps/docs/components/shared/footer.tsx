@@ -13,7 +13,7 @@ type FooterLinkItem = {
 
 const FOOTER_LINKS: Record<string, FooterLinkItem[]> = {
   Products: [
-    { label: "assistant-ui", href: "/docs/getting-started" },
+    { label: "assistant-ui", href: "/docs" },
     {
       label: "Dashboard",
       href: "https://cloud.assistant-ui.com/",
@@ -25,7 +25,7 @@ const FOOTER_LINKS: Record<string, FooterLinkItem[]> = {
     { label: "ChatGPT App Studio", href: "/chatgpt-app-studio" },
   ],
   Resources: [
-    { label: "Documentation", href: "/docs/getting-started" },
+    { label: "Documentation", href: "/docs" },
     { label: "Examples", href: "/examples" },
     { label: "Showcase", href: "/showcase" },
     { label: "Blog", href: "/blog" },
