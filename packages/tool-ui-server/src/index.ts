@@ -164,3 +164,9 @@ export type {
   UploadFileResponse,
   GetFileDownloadUrlResponse,
 } from "./types/protocol";
+
+// Runtime utilities
+export {
+  generateBridgeScript,
+  DEFAULT_GLOBALS,
+} from "./runtime/bridge-script";
