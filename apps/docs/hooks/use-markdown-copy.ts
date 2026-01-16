@@ -18,7 +18,10 @@ export function useMarkdownCopy(markdownUrl: string | undefined) {
     hasFetched.current = true;
     setIsLoading(true);
     fetch(markdownUrl)
-      .then((res) => res.text())
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.text();
+      })
       .then(setContent)
       .catch(() => setContent(null))
       .finally(() => setIsLoading(false));
