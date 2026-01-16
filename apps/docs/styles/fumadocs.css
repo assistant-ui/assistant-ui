@@ -174,8 +174,19 @@
   & :where(code):not(:where(pre code)):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
     font-size: 0.8125rem !important;
     padding: 0.125rem 0.375rem !important;
-    border-radius: 0.25rem !important;
+    border-radius: 0.375rem !important;
+    border: none !important;
     background: var(--muted) !important;
+    font-weight: 500 !important;
+  }
+
+  & [class~="not-prose"] :where(code):not(:where(pre code)) {
+    font-size: 0.8125rem !important;
+    padding: 0.125rem 0.375rem !important;
+    border-radius: 0.375rem !important;
+    border: none !important;
+    background: var(--muted) !important;
+    font-weight: 500 !important;
   }
 
   & :where(pre):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
@@ -282,8 +293,8 @@ figure.shiki {
   }
 
   & figcaption {
-    font-family: var(--font-sans), system-ui, sans-serif !important;
-    font-size: 0.8125rem !important;
+    font-family: var(--font-geist-mono), ui-monospace, monospace !important;
+    font-size: 0.8625rem !important;
     font-weight: 500 !important;
     color: var(--muted-foreground) !important;
   }

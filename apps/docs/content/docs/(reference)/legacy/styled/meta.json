@@ -1,12 +1,12 @@
 {
   "title": "Styled Components",
   "pages": [
-    "Thread",
-    "ThreadWidth",
-    "AssistantModal",
-    "Markdown",
-    "Decomposition",
-    "Scrollbar",
+    "assistant-modal",
+    "decomposition",
+    "markdown",
+    "scrollbar",
+    "thread",
+    "thread-width",
     "..."
   ]
 }

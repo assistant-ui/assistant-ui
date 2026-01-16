@@ -4,18 +4,18 @@
   "icon": "PanelsTopLeft",
   "root": true,
   "pages": [
-    "Thread",
-    "ThreadList",
-    "Attachment",
-    "AssistantModal",
-    "AssistantSidebar",
-    "Markdown",
-    "Mermaid",
-    "SyntaxHighlighting",
-    "ToolFallback",
-    "ToolGroup",
-    "Reasoning",
-    "PartGrouping",
-    "Scrollbar"
+    "assistant-modal",
+    "assistant-sidebar",
+    "attachment",
+    "markdown",
+    "mermaid",
+    "part-grouping",
+    "reasoning",
+    "scrollbar",
+    "syntax-highlighting",
+    "thread",
+    "thread-list",
+    "tool-fallback",
+    "tool-group"
   ]
 }
