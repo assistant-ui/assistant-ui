@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { Copy, FileText, EditIcon } from "lucide-react";
 import { toast } from "sonner";
 import { TOCHiringBanner } from "@/components/docs/layout/toc-hiring-banner";
+import { BASE_URL } from "@/lib/constants";
 
 type TOCItem = {
   title: ReactNode;
@@ -17,8 +18,6 @@ type TableOfContentsProps = {
   githubEditUrl?: string;
   markdownUrl?: string;
 };
-
-const BASE_URL = "https://assistant-ui.com";
 
 async function fetchMarkdown(url: string): Promise<string> {
   const response = await fetch(url);

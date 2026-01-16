@@ -15,6 +15,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/shared/dropdown-menu";
+import { BASE_URL } from "@/lib/constants";
 
 type PagerItem = {
   url: string;
@@ -25,8 +26,6 @@ type DocsPagerProps = {
   next?: PagerItem;
   markdownUrl?: string;
 };
-
-const BASE_URL = "https://assistant-ui.com";
 
 async function fetchMarkdown(url: string): Promise<string> {
   const response = await fetch(url);

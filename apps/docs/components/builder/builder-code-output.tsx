@@ -14,6 +14,7 @@ import {
 } from "@/lib/builder-utils";
 import { encodeConfig } from "@/lib/playground-url-state";
 import { cn } from "@/lib/utils";
+import { BASE_URL } from "@/lib/constants";
 
 interface BuilderCodeOutputProps {
   config: BuilderConfig;
@@ -728,10 +729,10 @@ function generateCliCommands(config: BuilderConfig): CliCommands {
   const { components } = config;
 
   const matchingPreset = configMatchesPreset(config);
-  const baseUrl = "https://www.assistant-ui.com/playground/init";
+  const playgroundInitUrl = `${BASE_URL}/playground/init`;
   const presetUrl = matchingPreset
-    ? `${baseUrl}?preset=${matchingPreset.id}`
-    : `${baseUrl}?c=${encodeConfig(config)}`;
+    ? `${playgroundInitUrl}?preset=${matchingPreset.id}`
+    : `${playgroundInitUrl}?c=${encodeConfig(config)}`;
 
   const componentsToAdd: string[] = ["thread"];
 
