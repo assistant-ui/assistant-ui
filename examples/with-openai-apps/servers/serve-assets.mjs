@@ -209,9 +209,29 @@ app.get("/bundle.js", (req, res) => {
   res.send("// Placeholder bundle - widgets are loaded via /render endpoint");
 });
 
+// Map template URIs to actual file names
+// e.g., pizza-map.html -> pizzaz.html, pizza-carousel.html -> pizzaz-carousel.html
+const TEMPLATE_URI_MAP = {
+  "pizza-map": "pizzaz",
+  "pizza-carousel": "pizzaz-carousel",
+  "pizza-albums": "pizzaz-albums",
+  "pizza-list": "pizzaz-list",
+  "pizza-shop": "pizzaz-shop",
+  "kitchen-sink-lite": "kitchen-sink-lite",
+  "solar-system": "solar-system",
+  "shopping-cart": "shopping-cart",
+};
+
 // Serve HTML files with bridge script injection
 app.get("/:filename.html", (req, res, next) => {
-  const filePath = join(ASSETS_DIR, req.params.filename + ".html");
+  let filename = req.params.filename;
+
+  // Check if we need to map this filename
+  if (TEMPLATE_URI_MAP[filename]) {
+    filename = TEMPLATE_URI_MAP[filename];
+  }
+
+  const filePath = join(ASSETS_DIR, filename + ".html");
   if (existsSync(filePath)) {
     const html = readFileSync(filePath, "utf8");
     res.type("text/html");

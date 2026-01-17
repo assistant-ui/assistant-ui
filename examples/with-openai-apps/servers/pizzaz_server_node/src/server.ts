@@ -43,7 +43,7 @@ const ASSETS_DIR = path.resolve(ROOT_DIR, "assets");
 function readWidgetHtml(componentName: string): string {
   if (!fs.existsSync(ASSETS_DIR)) {
     throw new Error(
-      `Widget assets not found. Expected directory ${ASSETS_DIR}. Run "pnpm run build" before starting the server.`,
+      `Widget assets not found. Expected directory ${ASSETS_DIR}. Run "pnpm run build" before starting the server.`
     );
   }
 
@@ -56,8 +56,7 @@ function readWidgetHtml(componentName: string): string {
     const candidates = fs
       .readdirSync(ASSETS_DIR)
       .filter(
-        (file) =>
-          file.startsWith(`${componentName}-`) && file.endsWith(".html"),
+        (file) => file.startsWith(`${componentName}-`) && file.endsWith(".html")
       )
       .sort();
     const fallback = candidates[candidates.length - 1];
@@ -68,7 +67,7 @@ function readWidgetHtml(componentName: string): string {
 
   if (!htmlContents) {
     throw new Error(
-      `Widget HTML for "${componentName}" not found in ${ASSETS_DIR}. Run "pnpm run build" to generate the assets.`,
+      `Widget HTML for "${componentName}" not found in ${ASSETS_DIR}. Run "pnpm run build" to generate the assets.`
     );
   }
 
@@ -128,16 +127,15 @@ const widgets: PizzazWidget[] = [
     html: readWidgetHtml("pizzaz-list"),
     responseText: "Rendered a pizza list!",
   },
-  // pizzaz-shop disabled - has dependency resolution issues
-  // {
-  //   id: "pizza-shop",
-  //   title: "Open Pizzaz Shop",
-  //   templateUri: "ui://widget/pizza-shop.html",
-  //   invoking: "Opening the shop",
-  //   invoked: "Shop opened",
-  //   html: readWidgetHtml("pizzaz-shop"),
-  //   responseText: "Rendered the Pizzaz shop!",
-  // },
+  {
+    id: "pizza-shop",
+    title: "Open Pizzaz Shop",
+    templateUri: "ui://widget/pizza-shop.html",
+    invoking: "Opening the shop",
+    invoked: "Shop opened",
+    html: readWidgetHtml("pizzaz-shop"),
+    responseText: "Rendered the Pizzaz shop!",
+  },
 ];
 
 const widgetsById = new Map<string, PizzazWidget>();
@@ -205,14 +203,14 @@ function createPizzazServer(): Server {
         resources: {},
         tools: {},
       },
-    },
+    }
   );
 
   server.setRequestHandler(
     ListResourcesRequestSchema,
     async (_request: ListResourcesRequest) => ({
       resources,
-    }),
+    })
   );
 
   server.setRequestHandler(
@@ -234,21 +232,21 @@ function createPizzazServer(): Server {
           },
         ],
       };
-    },
+    }
   );
 
   server.setRequestHandler(
     ListResourceTemplatesRequestSchema,
     async (_request: ListResourceTemplatesRequest) => ({
       resourceTemplates,
-    }),
+    })
   );
 
   server.setRequestHandler(
     ListToolsRequestSchema,
     async (_request: ListToolsRequest) => ({
       tools,
-    }),
+    })
   );
 
   server.setRequestHandler(
@@ -274,7 +272,7 @@ function createPizzazServer(): Server {
         },
         _meta: widgetInvocationMeta(widget),
       };
-    },
+    }
   );
 
   return server;
@@ -298,9 +296,8 @@ async function handleSseRequest(res: ServerResponse) {
 
   sessions.set(sessionId, { server, transport });
 
-  transport.onclose = async () => {
+  transport.onclose = () => {
     sessions.delete(sessionId);
-    await server.close();
   };
 
   transport.onerror = (error) => {
@@ -321,7 +318,7 @@ async function handleSseRequest(res: ServerResponse) {
 async function handlePostMessage(
   req: IncomingMessage,
   res: ServerResponse,
-  url: URL,
+  url: URL
 ) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Headers", "content-type");
@@ -349,8 +346,8 @@ async function handlePostMessage(
   }
 }
 
-const portEnv = Number(process.env.PORT ?? 8001);
-const port = Number.isFinite(portEnv) ? portEnv : 8001;
+const portEnv = Number(process.env.PORT ?? 8000);
+const port = Number.isFinite(portEnv) ? portEnv : 8000;
 
 const httpServer = createServer(
   async (req: IncomingMessage, res: ServerResponse) => {
@@ -385,7 +382,7 @@ const httpServer = createServer(
     }
 
     res.writeHead(404).end("Not Found");
-  },
+  }
 );
 
 httpServer.on("clientError", (err: Error, socket) => {
@@ -397,6 +394,6 @@ httpServer.listen(port, () => {
   console.log(`Pizzaz MCP server listening on http://localhost:${port}`);
   console.log(`  SSE stream: GET http://localhost:${port}${ssePath}`);
   console.log(
-    `  Message post endpoint: POST http://localhost:${port}${postPath}?sessionId=...`,
+    `  Message post endpoint: POST http://localhost:${port}${postPath}?sessionId=...`
   );
 });
