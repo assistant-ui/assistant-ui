@@ -329,14 +329,16 @@ export const RemoteToolUI: React.FC<RemoteToolUIProps> = ({
             : "border-0",
           isFullscreen ? "h-full" : "",
         )}
-        onLoad={() => setStatus("loading")}
       />
     </>
   );
 
   if (isFullscreen) {
     return createPortal(
-      <div className="fixed inset-0 z-[9999] flex flex-col bg-background">
+      <div
+        className="fixed inset-0 flex flex-col"
+        style={{ zIndex: 99999, backgroundColor: "white" }}
+      >
         <div
           className="flex shrink-0 items-center justify-between border-b bg-background px-4 py-2"
           role="banner"
@@ -350,7 +352,9 @@ export const RemoteToolUI: React.FC<RemoteToolUIProps> = ({
             Exit Fullscreen
           </button>
         </div>
-        <div className="flex-1 overflow-hidden">{iframeContent}</div>
+        <div className="h-full min-h-0 flex-1 overflow-hidden">
+          {iframeContent}
+        </div>
       </div>,
       document.body,
     );

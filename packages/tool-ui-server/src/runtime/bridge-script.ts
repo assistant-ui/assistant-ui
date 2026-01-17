@@ -225,6 +225,43 @@ export function generateBridgeScript(): string {
   };
 
   window.parent.postMessage({ type: "ready" }, "*");
+
+  // Auto-detect height changes and notify parent
+  var lastReportedHeight = 0;
+  function reportHeight() {
+    var height = Math.max(
+      document.body.scrollHeight,
+      document.body.offsetHeight,
+      document.documentElement.scrollHeight,
+      document.documentElement.offsetHeight
+    );
+    if (height !== lastReportedHeight && height > 0) {
+      lastReportedHeight = height;
+      callMethod("notifyIntrinsicHeight", [height]);
+    }
+  }
+
+  // Use ResizeObserver for efficient height tracking
+  if (typeof ResizeObserver !== "undefined") {
+    var resizeObserver = new ResizeObserver(function() {
+      reportHeight();
+    });
+    if (document.body) {
+      resizeObserver.observe(document.body);
+    } else {
+      document.addEventListener("DOMContentLoaded", function() {
+        resizeObserver.observe(document.body);
+        reportHeight();
+      });
+    }
+  }
+
+  // Also report on load and after a short delay for async content
+  window.addEventListener("load", function() {
+    reportHeight();
+    setTimeout(reportHeight, 100);
+    setTimeout(reportHeight, 500);
+  });
 })();
 `;
 }
