@@ -16,79 +16,7 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
-
-type DropdownItem = {
-  label: string;
-  href: string;
-  description: string;
-  external: boolean;
-};
-
-type NavItem =
-  | { type: "link"; label: string; href: string }
-  | { type: "dropdown"; label: string; items: DropdownItem[] };
-
-const NAV_ITEMS: NavItem[] = [
-  { type: "link", label: "Docs", href: "/docs" },
-  { type: "link", label: "Showcase", href: "/showcase" },
-  { type: "link", label: "Examples", href: "/examples" },
-  { type: "link", label: "Playground", href: "/playground" },
-  {
-    type: "dropdown",
-    label: "Products",
-    items: [
-      {
-        label: "Dashboard",
-        href: "https://cloud.assistant-ui.com/",
-        description: "Manage your cloud projects",
-        external: true,
-      },
-      {
-        label: "Tool UI",
-        href: "https://tool-ui.com/",
-        description: "Build tool UIs for AI agents",
-        external: true,
-      },
-      {
-        label: "tw-shimmer",
-        href: "/tw-shimmer",
-        description: "Tailwind CSS shimmer effects",
-        external: false,
-      },
-      {
-        label: "Safe Content Frame",
-        href: "/safe-content-frame",
-        description: "Secure sandboxed iframes",
-        external: false,
-      },
-      {
-        label: "ChatGPT App Studio",
-        href: "/chatgpt-app-studio",
-        description: "Build ChatGPT apps",
-        external: false,
-      },
-    ],
-  },
-  {
-    type: "dropdown",
-    label: "Resources",
-    items: [
-      {
-        label: "Blog",
-        href: "/blog",
-        description: "Latest news and updates",
-        external: false,
-      },
-      {
-        label: "Careers",
-        href: "/careers",
-        description: "Join our team",
-        external: false,
-      },
-    ],
-  },
-  { type: "link", label: "Pricing", href: "/pricing" },
-];
+import { NAV_ITEMS } from "@/lib/constants";
 
 function SearchButton({ onToggle }: { onToggle: () => void }) {
   useEffect(() => {
@@ -158,7 +86,7 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50 w-full">
-      <div className="mask-[linear-gradient(to_bottom,black_50%,transparent)] dark:mask-[linear-gradient(to_bottom,black_40%,transparent)] pointer-events-none absolute inset-x-0 top-0 h-24 bg-linear-to-b from-background via-60% via-background/80 to-transparent backdrop-blur-xl dark:via-50%" />
+      <div className="mask-[linear-gradient(to_bottom,black_50%,transparent)] dark:mask-[linear-gradient(to_bottom,black_40%,transparent)] pointer-events-none absolute inset-x-0 top-0 h-16 bg-linear-to-b from-background via-60% via-background/80 to-transparent backdrop-blur-xl md:h-24 dark:via-50%" />
       <div className="relative mx-auto flex h-12 w-full max-w-7xl items-center justify-between px-4">
         <Link href="/" className="flex items-center gap-2">
           <Image

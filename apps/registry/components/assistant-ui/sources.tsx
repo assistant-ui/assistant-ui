@@ -101,6 +101,8 @@ function Source({
   variant,
   size,
   asChild = false,
+  target = "_blank",
+  rel = "noopener noreferrer",
   ...props
 }: SourceProps) {
   const Comp = asChild ? Slot : "a";
@@ -110,6 +112,8 @@ function Source({
       data-slot="source"
       data-variant={variant}
       data-size={size}
+      target={target}
+      rel={rel}
       className={cn(sourceVariants({ variant, size, className }))}
       {...props}
     />

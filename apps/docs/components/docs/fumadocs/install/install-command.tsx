@@ -1,4 +1,3 @@
-import { DynamicCodeBlock } from "fumadocs-ui/components/dynamic-codeblock";
 import { Tab, Tabs } from "@/components/docs/fumadocs/tabs";
 import {
   resolveAllComponents,
@@ -6,7 +5,10 @@ import {
   type ResolvedGroup,
 } from "@/components/docs/fumadocs/install/component-source";
 import { SetupInstructions } from "@/components/docs/fumadocs/install/setup-instructions";
-import { PackageManagerTabs } from "@/components/docs/fumadocs/install/package-manager-tabs";
+import {
+  PackageManagerTabs,
+  ShadcnInstallTabs,
+} from "@/components/docs/fumadocs/install/package-manager-tabs";
 
 type InstallCommandProps =
   | {
@@ -46,14 +48,14 @@ export async function InstallCommand(props: InstallCommandProps) {
   }
 
   const components = props.shadcn;
-  const shadcnCmd = `npx shadcn@latest add ${components.map((c) => `@assistant-ui/${c}`).join(" ")}`;
+  const urls = components.map((c) => `https://r.assistant-ui.com/${c}.json`);
 
   const resolved = await resolveAllComponents(props.shadcn);
 
   return (
     <Tabs items={["CLI", "Manual"]}>
       <Tab>
-        <DynamicCodeBlock lang="bash" code={shadcnCmd} />
+        <ShadcnInstallTabs urls={urls} />
       </Tab>
       <Tab>
         {props.manualSetupInstructions && <SetupInstructions />}

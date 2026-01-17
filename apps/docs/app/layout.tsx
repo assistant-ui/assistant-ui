@@ -20,6 +20,12 @@ const getMetadataBase = () => {
   return new URL("http://localhost:3000");
 };
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+};
+
 export const metadata = {
   metadataBase: getMetadataBase(),
   title: {

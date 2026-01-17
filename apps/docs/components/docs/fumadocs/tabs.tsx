@@ -1,6 +1,5 @@
 "use client";
 
-import * as React from "react";
 import {
   createContext,
   useContext,
@@ -8,10 +7,10 @@ import {
   useId,
   useMemo,
   useState,
-  useRef,
   type ReactNode,
 } from "react";
 import { cn } from "@/lib/utils";
+import { useAnimatedTabs } from "@/hooks/use-animated-tabs";
 
 type CollectionKey = string | symbol;
 
@@ -63,51 +62,24 @@ export function Tabs({
   groupId,
   children,
   ...props
-}: TabsProps) {
+}: TabsProps): React.ReactElement {
   const defaultItem = items?.[defaultIndex];
   const defaultValue = defaultItem ? escapeValue(defaultItem) : undefined;
   const [value, setValue] = useState(defaultValue);
-  const [activeStyle, setActiveStyle] = useState({ left: 0, width: 0 });
-  const [hoverStyle, setHoverStyle] = useState({ left: 0, width: 0 });
-  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
-  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const collection = useMemo<CollectionKey[]>(() => [], []);
 
   const activeIndex = items
     ? items.findIndex((item) => escapeValue(item) === value)
     : -1;
 
-  // Update active indicator position
-  useEffect(() => {
-    if (activeIndex !== -1 && tabRefs.current[activeIndex]) {
-      const el = tabRefs.current[activeIndex];
-      if (el) {
-        setActiveStyle({ left: el.offsetLeft, width: el.offsetWidth });
-      }
-    }
-  }, [activeIndex, value]);
-
-  // Update hover indicator position
-  useEffect(() => {
-    if (hoveredIndex !== null && tabRefs.current[hoveredIndex]) {
-      const el = tabRefs.current[hoveredIndex];
-      if (el) {
-        setHoverStyle({ left: el.offsetLeft, width: el.offsetWidth });
-      }
-    }
-  }, [hoveredIndex]);
-
-  // Initialize active indicator on mount
-  useEffect(() => {
-    requestAnimationFrame(() => {
-      if (activeIndex !== -1 && tabRefs.current[activeIndex]) {
-        const el = tabRefs.current[activeIndex];
-        if (el) {
-          setActiveStyle({ left: el.offsetLeft, width: el.offsetWidth });
-        }
-      }
-    });
-  }, []);
+  const {
+    containerRef,
+    tabRefs,
+    hoveredIndex,
+    setHoveredIndex,
+    activeStyle,
+    hoverStyle,
+  } = useAnimatedTabs({ activeIndex });
 
   return (
     <div
@@ -116,12 +88,14 @@ export function Tabs({
       {...props}
     >
       {items && (
-        <div className="scrollbar-none relative flex items-center gap-1 overflow-x-auto">
+        <div
+          ref={containerRef}
+          className="scrollbar-none relative flex items-center gap-1 overflow-x-auto"
+        >
           {label && (
             <span className="my-auto me-auto font-medium text-sm">{label}</span>
           )}
 
-          {/* Hover indicator */}
           {hoveredIndex !== null && hoverStyle.width > 0 && (
             <div
               className="pointer-events-none absolute top-0 h-7.5 rounded-md bg-fd-accent transition-all duration-200 ease-out"
@@ -132,14 +106,15 @@ export function Tabs({
             />
           )}
 
-          {/* Active indicator */}
-          <div
-            className="pointer-events-none absolute top-0 h-7.5 rounded-md bg-fd-accent transition-all duration-200 ease-out"
-            style={{
-              left: `${activeStyle.left}px`,
-              width: `${activeStyle.width}px`,
-            }}
-          />
+          {activeStyle.width > 0 && (
+            <div
+              className="pointer-events-none absolute top-0 h-7.5 rounded-md bg-fd-accent transition-all duration-200 ease-out"
+              style={{
+                left: `${activeStyle.left}px`,
+                width: `${activeStyle.width}px`,
+              }}
+            />
+          )}
 
           {items.map((item, index) => (
             <button
@@ -185,7 +160,12 @@ export interface TabProps extends React.ComponentProps<"div"> {
   value?: string;
 }
 
-export function Tab({ value, className, children, ...props }: TabProps) {
+export function Tab({
+  value,
+  className,
+  children,
+  ...props
+}: TabProps): React.ReactElement {
   const { items, value: activeValue } = useTabContext();
   const resolved =
     value ??
@@ -220,7 +200,7 @@ export function Tab({ value, className, children, ...props }: TabProps) {
 /**
  * Return the index of children using React context collection pattern
  */
-function useCollectionIndex() {
+function useCollectionIndex(): number {
   const key = useId();
   const { collection } = useTabContext();
 

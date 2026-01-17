@@ -1,0 +1,210 @@
+"use client";
+
+import { useState, type ReactNode } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import type * as PageTree from "fumadocs-core/page-tree";
+import { ChevronDown } from "lucide-react";
+import { DiscordIcon } from "@/components/icons/discord";
+import { GitHubIcon } from "@/components/icons/github";
+import { ThemeToggle } from "@/components/shared/theme-toggle";
+import { cn } from "@/lib/utils";
+import { useDocsSidebar } from "@/components/docs/contexts/sidebar";
+
+interface SidebarContentProps {
+  tree?: PageTree.Root;
+  banner?: ReactNode;
+}
+
+function findTopLevelFolder(
+  nodes: PageTree.Node[],
+  pathname: string,
+): PageTree.Folder | null {
+  for (const node of nodes) {
+    if (node.type === "folder") {
+      if (node.index && pathname.startsWith(node.index.url)) {
+        return node;
+      }
+      if (containsPath(node, pathname)) {
+        return node;
+      }
+    }
+  }
+  return null;
+}
+
+function containsPath(folder: PageTree.Folder, pathname: string): boolean {
+  for (const child of folder.children) {
+    if (child.type === "page" && pathname === child.url) {
+      return true;
+    }
+    if (child.type === "folder") {
+      if (child.index && pathname === child.index.url) {
+        return true;
+      }
+      if (containsPath(child, pathname)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+function PageTreeItem({
+  item,
+  onNavigate,
+  depth = 0,
+}: {
+  item: PageTree.Node;
+  onNavigate: () => void;
+  depth?: number;
+}) {
+  const pathname = usePathname();
+  const [open, setOpen] = useState(true);
+
+  if (item.type === "separator") {
+    return (
+      <p className="mt-4 mb-1 text-muted-foreground text-sm first:mt-0">
+        {item.name}
+      </p>
+    );
+  }
+
+  if (item.type === "folder") {
+    const isActive = item.index && pathname === item.index.url;
+    return (
+      <div>
+        {item.index ? (
+          <Link
+            href={item.index.url}
+            onClick={onNavigate}
+            className={cn(
+              "flex w-full items-center gap-2 py-2 transition-colors",
+              depth > 0 && "pl-4",
+              isActive
+                ? "font-medium text-foreground"
+                : "text-muted-foreground",
+            )}
+          >
+            {item.icon}
+            <span className="flex-1">{item.name}</span>
+            {item.children.length > 0 && (
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setOpen(!open);
+                }}
+                className="p-1 text-muted-foreground"
+              >
+                <ChevronDown
+                  className={cn(
+                    "size-4 transition-transform",
+                    !open && "-rotate-90",
+                  )}
+                />
+              </button>
+            )}
+          </Link>
+        ) : (
+          <button
+            onClick={() => setOpen(!open)}
+            className={cn(
+              "flex w-full items-center gap-2 py-2 text-muted-foreground transition-colors",
+              depth > 0 && "pl-4",
+            )}
+          >
+            {item.icon}
+            <span className="flex-1 text-left">{item.name}</span>
+            <ChevronDown
+              className={cn(
+                "size-4 text-muted-foreground transition-transform",
+                !open && "-rotate-90",
+              )}
+            />
+          </button>
+        )}
+        {open && item.children.length > 0 && (
+          <div className="pl-4">
+            {item.children.map((child) => (
+              <PageTreeItem
+                key={child.$id}
+                item={child}
+                onNavigate={onNavigate}
+                depth={depth + 1}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  const isActive = pathname === item.url;
+  return (
+    <Link
+      href={item.url}
+      onClick={onNavigate}
+      className={cn(
+        "flex items-center gap-2 py-2 transition-colors",
+        depth > 0 && "pl-4",
+        isActive ? "font-medium text-foreground" : "text-muted-foreground",
+      )}
+    >
+      {item.icon}
+      {item.name}
+    </Link>
+  );
+}
+
+export function SidebarContent({ tree, banner }: SidebarContentProps) {
+  const pathname = usePathname();
+  const { setOpen } = useDocsSidebar();
+
+  const topLevelFolder = tree
+    ? findTopLevelFolder(tree.children, pathname)
+    : null;
+  const itemsToShow = topLevelFolder ? topLevelFolder.children : tree?.children;
+
+  return (
+    <div className="flex h-full flex-col">
+      {banner && <div className="shrink-0 px-4 pt-6 pb-4">{banner}</div>}
+
+      {itemsToShow && (
+        <nav className="flex-1 overflow-y-auto px-6">
+          {itemsToShow.map((item) => (
+            <PageTreeItem
+              key={item.$id}
+              item={item}
+              onNavigate={() => setOpen(false)}
+            />
+          ))}
+        </nav>
+      )}
+
+      <div className="flex shrink-0 items-center gap-4 px-4 py-6">
+        <a
+          href="https://github.com/assistant-ui/assistant-ui"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+          aria-label="GitHub"
+        >
+          <GitHubIcon className="size-5" />
+        </a>
+        <a
+          href="https://discord.gg/S9dwgCNEFs"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+          aria-label="Discord"
+        >
+          <DiscordIcon className="size-5" />
+        </a>
+        <div className="ml-auto">
+          <ThemeToggle />
+        </div>
+      </div>
+    </div>
+  );
+}

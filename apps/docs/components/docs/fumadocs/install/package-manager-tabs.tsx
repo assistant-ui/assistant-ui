@@ -1,8 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import { DynamicCodeBlock } from "fumadocs-ui/components/dynamic-codeblock";
-import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import { useAnimatedTabs } from "@/hooks/use-animated-tabs";
 
 const PACKAGE_MANAGERS = ["npm", "pnpm", "yarn", "bun", "xpm"] as const;
 type PackageManager = (typeof PACKAGE_MANAGERS)[number];
@@ -23,45 +24,44 @@ function getInstallCommand(pm: PackageManager, packages: string[]): string {
   }
 }
 
-function getElementStyle(el: HTMLElement | null): {
-  left: number;
-  width: number;
-} {
-  if (!el) return { left: 0, width: 0 };
-  return { left: el.offsetLeft, width: el.offsetWidth };
+function getShadcnCommand(pm: PackageManager, urls: string[]): string {
+  const urlList = urls.join(" ");
+  switch (pm) {
+    case "npm":
+    case "yarn":
+      return `npx shadcn@latest add ${urlList}`;
+    case "pnpm":
+      return `pnpm dlx shadcn@latest add ${urlList}`;
+    case "bun":
+      return `bunx --bun shadcn@latest add ${urlList}`;
+    case "xpm":
+      return `xpx shadcn@latest add ${urlList}`;
+  }
 }
 
-export function PackageManagerTabs({ packages }: { packages: string[] }) {
+function CommandTabs({
+  getCommand,
+}: {
+  getCommand: (pm: PackageManager) => string;
+}) {
   const [pm, setPm] = useState<PackageManager>("npm");
-  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
-  const [activeStyle, setActiveStyle] = useState({ left: 0, width: 0 });
-  const [hoverStyle, setHoverStyle] = useState({ left: 0, width: 0 });
-  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
-
   const activeIndex = PACKAGE_MANAGERS.indexOf(pm);
 
-  useEffect(() => {
-    const el = tabRefs.current[activeIndex];
-    if (el) setActiveStyle(getElementStyle(el));
-  }, [activeIndex]);
-
-  useEffect(() => {
-    if (hoveredIndex === null) return;
-    const el = tabRefs.current[hoveredIndex];
-    if (el) setHoverStyle(getElementStyle(el));
-  }, [hoveredIndex]);
-
-  useEffect(() => {
-    requestAnimationFrame(() => {
-      const el = tabRefs.current[activeIndex];
-      if (el) setActiveStyle(getElementStyle(el));
-    });
-  }, []);
+  const {
+    containerRef,
+    tabRefs,
+    hoveredIndex,
+    setHoveredIndex,
+    activeStyle,
+    hoverStyle,
+  } = useAnimatedTabs({ activeIndex });
 
   return (
     <div className="not-prose my-4 overflow-hidden rounded-xl bg-[oklch(0.97_0_0)] dark:bg-[oklch(0.16_0_0)]">
-      <div className="relative flex items-center gap-1 px-3 py-2">
-        {/* Hover indicator */}
+      <div
+        ref={containerRef}
+        className="relative flex items-center gap-1 px-3 py-2"
+      >
         {hoveredIndex !== null && hoverStyle.width > 0 && (
           <div
             className="pointer-events-none absolute h-6.5 rounded-md bg-[oklch(0.88_0_0)] transition-all duration-200 ease-out dark:bg-[oklch(0.25_0_0)]"
@@ -72,14 +72,15 @@ export function PackageManagerTabs({ packages }: { packages: string[] }) {
           />
         )}
 
-        {/* Active indicator */}
-        <div
-          className="pointer-events-none absolute h-6.5 rounded-md bg-[oklch(0.92_0_0)] transition-all duration-200 ease-out dark:bg-[oklch(0.22_0_0)]"
-          style={{
-            left: `${activeStyle.left}px`,
-            width: `${activeStyle.width}px`,
-          }}
-        />
+        {activeStyle.width > 0 && (
+          <div
+            className="pointer-events-none absolute h-6.5 rounded-md bg-[oklch(0.92_0_0)] transition-all duration-200 ease-out dark:bg-[oklch(0.22_0_0)]"
+            style={{
+              left: `${activeStyle.left}px`,
+              width: `${activeStyle.width}px`,
+            }}
+          />
+        )}
 
         {PACKAGE_MANAGERS.map((manager, index) => (
           <button
@@ -103,8 +104,24 @@ export function PackageManagerTabs({ packages }: { packages: string[] }) {
         ))}
       </div>
       <div className="[&_figure]:my-0! [&_figure]:rounded-none! [&_figure]:bg-transparent!">
-        <DynamicCodeBlock lang="bash" code={getInstallCommand(pm, packages)} />
+        <DynamicCodeBlock lang="bash" code={getCommand(pm)} />
       </div>
     </div>
   );
+}
+
+export function PackageManagerTabs({
+  packages,
+}: {
+  packages: string[];
+}): React.ReactElement {
+  return <CommandTabs getCommand={(pm) => getInstallCommand(pm, packages)} />;
+}
+
+export function ShadcnInstallTabs({
+  urls,
+}: {
+  urls: string[];
+}): React.ReactElement {
+  return <CommandTabs getCommand={(pm) => getShadcnCommand(pm, urls)} />;
 }

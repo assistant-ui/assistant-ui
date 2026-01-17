@@ -1,23 +1,21 @@
-import {
-  BookIcon,
-  CloudIcon,
-  ProjectorIcon,
-  SparklesIcon,
-  WalletIcon,
-  BoltIcon,
-  PlayIcon,
-} from "lucide-react";
-import icon from "@/public/favicon/icon.svg";
 import Image from "next/image";
-import { DocsLayoutProps } from "fumadocs-ui/layouts/docs";
-import { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
-import { ThemeToggle } from "@/components/shared/theme-toggle";
-import { SidebarSearch } from "@/components/docs/layout/sidebar-search";
+import type { DocsLayoutProps } from "fumadocs-ui/layouts/docs";
+import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 import { DiscordIcon } from "@/components/icons/discord";
+import { ThemeToggle } from "@/components/shared/theme-toggle";
+import icon from "@/public/favicon/icon.svg";
 
 // shared configuration
 export const baseOptions: BaseLayoutProps = {
   githubUrl: "https://github.com/assistant-ui/assistant-ui",
+  links: [
+    {
+      type: "icon",
+      icon: <DiscordIcon className="size-4" />,
+      text: "Discord",
+      url: "https://discord.gg/S9dwgCNEFs",
+    },
+  ],
   themeSwitch: {
     component: <ThemeToggle />,
   },
@@ -38,53 +36,6 @@ export const baseOptions: BaseLayoutProps = {
     ),
     transparentMode: "none",
   },
-  links: [
-    {
-      text: "Docs",
-      url: "/docs",
-      icon: <BookIcon />,
-      active: "nested-url",
-    },
-    {
-      text: "Showcase",
-      url: "/showcase",
-      icon: <ProjectorIcon />,
-    },
-    {
-      text: "Examples",
-      url: "/examples",
-      icon: <SparklesIcon />,
-    },
-    {
-      text: "Dashboard",
-      url: "https://cloud.assistant-ui.com/",
-      icon: <CloudIcon />,
-      external: true,
-    },
-    {
-      text: "Playground",
-      url: "/playground",
-      icon: <PlayIcon />,
-    },
-    {
-      text: "Tool UI",
-      url: "https://tool-ui.com",
-      icon: <BoltIcon />,
-      external: true,
-    },
-    {
-      text: "Pricing",
-      url: "/pricing",
-      icon: <WalletIcon />,
-    },
-    {
-      type: "icon",
-      text: "Discord",
-      url: "https://discord.gg/S9dwgCNEFs",
-      icon: <DiscordIcon />,
-      external: true,
-    },
-  ],
 };
 
 export const sharedDocsOptions: Partial<DocsLayoutProps> = {
@@ -94,8 +45,6 @@ export const sharedDocsOptions: Partial<DocsLayoutProps> = {
     collapsible: false,
   },
   searchToggle: {
-    components: {
-      lg: <SidebarSearch />,
-    },
+    enabled: false,
   },
 };

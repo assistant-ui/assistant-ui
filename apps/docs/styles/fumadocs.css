@@ -1,12 +1,20 @@
+:root {
+  --docs-header-height: 48px;
+}
+
+#nd-docs-layout {
+  --fd-banner-height: var(--docs-header-height);
+}
+
 html:has(#nd-docs-layout) {
-  scroll-padding-top: 6rem;
+  scroll-padding-top: calc(var(--docs-header-height) + 6rem);
 
   @media (min-width: 768px) {
-    scroll-padding-top: 2.5rem;
+    scroll-padding-top: calc(var(--docs-header-height) + 2.5rem);
   }
 
   @media (min-width: 1280px) {
-    scroll-padding-top: 0;
+    scroll-padding-top: var(--docs-header-height);
   }
 }
 
@@ -29,8 +37,12 @@ html:has(#nd-docs-layout) {
 
 @media (min-width: 768px) {
   #nd-page {
-    padding-top: 4rem !important;
+    padding-top: 2.5rem !important;
   }
+}
+
+#nd-toc > .sticky {
+  top: calc(var(--docs-header-height) + 2rem) !important;
 }
 
 #nd-sidebar {
@@ -72,6 +84,10 @@ html:has(#nd-docs-layout) {
     letter-spacing: 0 !important;
     text-transform: none !important;
     color: var(--fd-muted-foreground) !important;
+
+    &:first-of-type {
+      margin-top: 0 !important;
+    }
   }
 
   & svg {
@@ -96,8 +112,11 @@ html:has(#nd-docs-layout) {
 }
 
 #nd-subnav {
-  border-bottom: none !important;
-  padding-inline: 1rem !important;
+  display: none !important;
+}
+
+#nd-sidebar-mobile {
+  display: none !important;
 }
 
 [data-toc-popover] {
