@@ -57,14 +57,14 @@ describe("assistantUIDocs", () => {
 
   it("should support multiple path requests", async () => {
     const result = await testContext.callTool("assistantUIDocs", {
-      paths: ["(docs)/index", "(reference)/api-reference/primitives/Thread"],
+      paths: ["(docs)/index", "(reference)/api-reference/primitives/thread"],
     });
 
     expect(result.results).toBeDefined();
     expect(result.results).toHaveLength(2);
     expect(result.results[0].path).toBe("(docs)/index");
     expect(result.results[1].path).toBe(
-      "(reference)/api-reference/primitives/Thread",
+      "(reference)/api-reference/primitives/thread",
     );
   });
 

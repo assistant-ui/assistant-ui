@@ -63,7 +63,7 @@ describe("Path Traversal Security", () => {
   describe("Valid paths should still work", () => {
     it("should allow valid documentation paths", async () => {
       const result = await testContext.callTool("assistantUIDocs", {
-        paths: ["(docs)/index", "(reference)/api-reference/primitives/Thread"],
+        paths: ["(docs)/index", "(reference)/api-reference/primitives/thread"],
       });
 
       expect(result.results).toBeDefined();
