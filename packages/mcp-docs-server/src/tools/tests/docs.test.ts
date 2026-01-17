@@ -76,9 +76,9 @@ describe("assistantUIDocs", () => {
     expect(result.path).toBe("(reference)/api-reference/primitives");
     expect(result.found).toBe(true);
     expect(result.type).toBe("directory");
-    expect(result.files).toContain("Thread");
-    expect(result.files).toContain("Message");
-    expect(result.files).toContain("Composer");
+    expect(result.files).toContain("thread");
+    expect(result.files).toContain("message");
+    expect(result.files).toContain("composer");
   });
 
   it("should parse MDX files with frontmatter", async () => {
