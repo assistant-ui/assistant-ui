@@ -5,7 +5,6 @@ description: Explore interactive examples and implementations of assistant-ui
 
 import { ExampleCard } from "@/components/examples/ExampleCard";
 import { INTERNAL_EXAMPLES, COMMUNITY_EXAMPLES } from "@/lib/examples";
-import { Button } from "@/components/ui/button";
 
 <header className="text-center">
 <h1 className="mb-4 font-medium text-4xl">Examples</h1>
@@ -29,9 +28,6 @@ import { Button } from "@/components/ui/button";
   ))}
 </div>
 
-<div className="my-16 flex flex-col items-center gap-4">
-  <span className="font-medium text-xl">Looking for more examples?</span>
-  <Button asChild>
-    <a href="/showcase">Check out the community showcase</a>
-  </Button>
+<div className="my-16 not-prose">
+  <p className="text-muted-foreground">Looking for more examples? <a href="/showcase" className="font-medium text-foreground transition-colors hover:text-foreground/70">Check out the community showcase →</a></p>
 </div>
