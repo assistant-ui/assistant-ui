@@ -9,12 +9,14 @@ import {
   Smartphone,
   Plus,
   SlidersHorizontal,
+  SquareTerminal,
 } from "lucide-react";
 import { ThreadListPrimitive } from "@assistant-ui/react";
 import { BuilderControls } from "@/components/builder/builder-controls";
 import { BuilderPreview } from "@/components/builder/builder-preview";
 import { BuilderCodeOutput } from "@/components/builder/builder-code-output";
 import { ShareButton } from "@/components/builder/share-button";
+import { CreateDialog } from "@/components/builder/create-dialog";
 import {
   Sheet,
   SheetContent,
@@ -49,6 +51,7 @@ export default function PlaygroundPage() {
   const [controlsOpen, setControlsOpen] = useState(false);
   const isResizing = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const previewContainerRef = useRef<HTMLDivElement>(null);
   const cleanupRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
@@ -171,10 +174,10 @@ export default function PlaygroundPage() {
 
             <ThreadListPrimitive.New
               className="flex items-center gap-1.5 rounded-md px-2.5 py-1 font-medium text-muted-foreground text-xs transition-colors hover:text-foreground"
-              aria-label="New chat"
+              aria-label="New thread"
             >
               <Plus className="size-3.5" />
-              <span className="hidden sm:inline">New</span>
+              <span className="hidden sm:inline">New Thread</span>
             </ThreadListPrimitive.New>
 
             <button
@@ -198,10 +201,21 @@ export default function PlaygroundPage() {
                 </>
               )}
             </button>
+
+            <CreateDialog
+              config={config}
+              container={previewContainerRef}
+              onOpenCodeView={() => setShowCode(true)}
+            >
+              <button className="flex items-center gap-1.5 rounded-md bg-foreground px-3 py-1.5 font-medium text-background text-xs transition-colors hover:bg-foreground/90">
+                <SquareTerminal className="size-3.5" />
+                Create Project
+              </button>
+            </CreateDialog>
           </div>
         </div>
 
-        <div className="relative min-h-0 flex-1 overflow-hidden">
+        <div ref={previewContainerRef} className="relative min-h-0 flex-1 overflow-hidden">
           <div className="flex h-full items-stretch justify-center p-2 md:p-4">
             {viewportWidth !== "100%" && (
               <div

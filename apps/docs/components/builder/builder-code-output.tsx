@@ -2,30 +2,24 @@
 
 import { useState } from "react";
 import ShikiHighlighter from "react-shiki";
-import { CheckIcon, CopyIcon, TerminalIcon, CodeIcon } from "lucide-react";
+import { CheckIcon, CopyIcon } from "lucide-react";
 
 import type { BuilderConfig } from "./types";
-import { configMatchesPreset } from "./presets";
 import {
   BORDER_RADIUS_CLASS,
   FONT_SIZE_CLASS,
   MESSAGE_SPACING_CLASS,
   isLightColor,
 } from "@/lib/builder-utils";
-import { encodeConfig } from "@/lib/playground-url-state";
-import { cn } from "@/lib/utils";
-import { BASE_URL } from "@/lib/constants";
 
 interface BuilderCodeOutputProps {
   config: BuilderConfig;
 }
 
 export function BuilderCodeOutput({ config }: BuilderCodeOutputProps) {
-  const [activeTab, setActiveTab] = useState<"code" | "cli">("code");
   const [copied, setCopied] = useState(false);
 
   const componentCode = generateComponentCode(config);
-  const cliCommands = generateCliCommands(config);
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(componentCode);
@@ -36,170 +30,36 @@ export function BuilderCodeOutput({ config }: BuilderCodeOutputProps) {
   return (
     <div className="flex h-full flex-col overflow-hidden">
       <div className="flex shrink-0 items-center justify-between px-3 py-2">
-        <div className="flex gap-1">
-          <button
-            onClick={() => setActiveTab("code")}
-            className={cn(
-              "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs transition-colors",
-              activeTab === "code"
-                ? "bg-foreground/10 text-foreground"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            <CodeIcon className="size-3.5" />
-            Code
-          </button>
-          <button
-            onClick={() => setActiveTab("cli")}
-            className={cn(
-              "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs transition-colors",
-              activeTab === "cli"
-                ? "bg-foreground/10 text-foreground"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            <TerminalIcon className="size-3.5" />
-            CLI
-          </button>
-        </div>
-        {activeTab === "code" && (
-          <button
-            onClick={handleCopy}
-            className="flex items-center gap-1.5 rounded-md px-2 py-1 text-muted-foreground text-xs transition-colors hover:text-foreground"
-          >
-            {copied ? (
-              <>
-                <CheckIcon className="size-3.5" />
-                Copied
-              </>
-            ) : (
-              <>
-                <CopyIcon className="size-3.5" />
-                Copy
-              </>
-            )}
-          </button>
-        )}
-      </div>
-
-      {activeTab === "code" ? (
-        <div className="min-h-0 flex-1 overflow-auto text-xs leading-relaxed [&_pre]:m-0! [&_pre]:bg-transparent! [&_pre]:p-0!">
-          <ShikiHighlighter
-            language="tsx"
-            theme={{ dark: "vitesse-dark", light: "vitesse-light" }}
-            addDefaultStyles={false}
-            showLanguage={false}
-            defaultColor="light-dark()"
-          >
-            {componentCode.trim()}
-          </ShikiHighlighter>
-        </div>
-      ) : (
-        <CliCommandsView commands={cliCommands} />
-      )}
-    </div>
-  );
-}
-
-interface CliCommand {
-  label: string;
-  description?: string;
-  command?: string;
-}
-
-interface CliCommands {
-  primary: CliCommand;
-  alternative: CliCommand;
-  manual: CliCommand[];
-  summary: string[];
-}
-
-function CliCommandsView({ commands }: { commands: CliCommands }) {
-  return (
-    <div className="scrollbar-none min-h-0 flex-1 space-y-4 overflow-auto p-3 text-xs">
-      <CommandBlock
-        label={commands.primary.label}
-        {...(commands.primary.command && { command: commands.primary.command })}
-        {...(commands.primary.description && {
-          description: commands.primary.description,
-        })}
-      />
-
-      <CommandBlock
-        label={commands.alternative.label}
-        {...(commands.alternative.command && {
-          command: commands.alternative.command,
-        })}
-      />
-
-      <div className="border-t pt-4">
-        <p className="mb-3 text-muted-foreground">Or set up manually:</p>
-        <div className="space-y-3">
-          {commands.manual.map((cmd, index) => (
-            <CommandBlock
-              key={index}
-              label={`${index + 1}. ${cmd.label}`}
-              {...(cmd.command && { command: cmd.command })}
-              {...(cmd.description && { description: cmd.description })}
-            />
-          ))}
-        </div>
-      </div>
-
-      <div className="border-t pt-4">
-        <p className="mb-2 font-medium text-foreground">Configuration</p>
-        <div className="space-y-1 text-muted-foreground">
-          {commands.summary.map((item, index) => (
-            <div key={index}>{item}</div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function CommandBlock({
-  label,
-  description,
-  command,
-}: {
-  label: string;
-  description?: string;
-  command?: string;
-}) {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = async () => {
-    if (!command) return;
-    await navigator.clipboard.writeText(command);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  return (
-    <div>
-      <div className="mb-1 font-medium text-foreground">{label}</div>
-      {description && (
-        <p className="mb-1.5 text-muted-foreground">{description}</p>
-      )}
-      {command && (
-        <div className="group relative">
-          <pre className="overflow-x-auto rounded-md bg-muted p-2 pr-8 font-mono">
-            {command}
-          </pre>
-          <button
-            onClick={handleCopy}
-            className="absolute top-1.5 right-1.5 rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-foreground/10 hover:text-foreground group-hover:opacity-100"
-            title="Copy command"
-          >
-            {copied ? (
+        <span className="font-medium text-sm">thread.tsx</span>
+        <button
+          onClick={handleCopy}
+          className="flex items-center gap-1.5 rounded-md px-2 py-1 text-muted-foreground text-xs transition-colors hover:text-foreground"
+        >
+          {copied ? (
+            <>
               <CheckIcon className="size-3.5" />
-            ) : (
+              Copied
+            </>
+          ) : (
+            <>
               <CopyIcon className="size-3.5" />
-            )}
-          </button>
-        </div>
-      )}
+              Copy
+            </>
+          )}
+        </button>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-auto text-xs leading-relaxed [&_pre]:m-0! [&_pre]:bg-transparent! [&_pre]:p-0!">
+        <ShikiHighlighter
+          language="tsx"
+          theme={{ dark: "vitesse-dark", light: "vitesse-light" }}
+          addDefaultStyles={false}
+          showLanguage={false}
+          defaultColor="light-dark()"
+        >
+          {componentCode.trim()}
+        </ShikiHighlighter>
+      </div>
     </div>
   );
 }
@@ -728,83 +588,3 @@ function generateIconImports(config: BuilderConfig): string {
   return `import {\n  ${[...new Set(icons)].sort().join(",\n  ")},\n} from "lucide-react";`;
 }
 
-function generateCliCommands(config: BuilderConfig): CliCommands {
-  const { components } = config;
-
-  const matchingPreset = configMatchesPreset(config);
-  const playgroundInitUrl = `${BASE_URL}/playground/init`;
-  const presetUrl = matchingPreset
-    ? `${playgroundInitUrl}?preset=${matchingPreset.id}`
-    : `${playgroundInitUrl}?c=${encodeConfig(config)}`;
-
-  const componentsToAdd: string[] = ["thread"];
-
-  if (components.markdown) {
-    componentsToAdd.push("markdown-text", "tool-fallback");
-  }
-
-  componentsToAdd.push("tooltip-icon-button");
-
-  if (components.attachments) {
-    componentsToAdd.push("attachment");
-  }
-
-  if (components.reasoning) {
-    componentsToAdd.push("reasoning");
-  }
-
-  if (components.sources) {
-    componentsToAdd.push("sources");
-  }
-
-  const addCommand = `npx assistant-ui@latest add ${componentsToAdd.join(" ")}`;
-
-  const enabledFeatures: string[] = [];
-  if (components.markdown) enabledFeatures.push("Markdown");
-  if (components.attachments) enabledFeatures.push("Attachments");
-  if (components.branchPicker) enabledFeatures.push("Branch Picker");
-  if (components.editMessage) enabledFeatures.push("Edit Message");
-  if (components.threadWelcome) enabledFeatures.push("Welcome Screen");
-  if (components.suggestions) enabledFeatures.push("Suggestions");
-  if (components.scrollToBottom) enabledFeatures.push("Scroll to Bottom");
-  if (components.reasoning) enabledFeatures.push("Reasoning");
-  if (components.sources) enabledFeatures.push("Sources");
-  if (components.followUpSuggestions) enabledFeatures.push("Follow-ups");
-  if (components.avatar) enabledFeatures.push("Avatar");
-  if (components.actionBar.copy) enabledFeatures.push("Copy");
-  if (components.actionBar.reload) enabledFeatures.push("Reload");
-  if (components.actionBar.speak) enabledFeatures.push("Speak");
-  if (components.actionBar.feedback) enabledFeatures.push("Feedback");
-
-  const summary: string[] = [
-    `Style: ${config.styles.borderRadius} radius, ${config.styles.fontFamily}`,
-    `Enabled: ${enabledFeatures.length > 0 ? enabledFeatures.join(", ") : "None"}`,
-  ];
-
-  return {
-    primary: {
-      label: "One-command setup",
-      description: "Install with your current configuration",
-      command: `npx assistant-ui@latest init --preset "${presetUrl}"`,
-    },
-    alternative: {
-      label: "Using shadcn",
-      command: `npx shadcn@latest add "${presetUrl}"`,
-    },
-    manual: [
-      {
-        label: "Initialize",
-        command: "npx assistant-ui@latest init",
-      },
-      {
-        label: "Add components",
-        command: addCommand,
-      },
-      {
-        label: "Copy code",
-        description: "Copy the code from the Code tab into your thread.tsx",
-      },
-    ],
-    summary,
-  };
-}

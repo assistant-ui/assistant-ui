@@ -30,7 +30,7 @@ import {
   ThreadPrimitive,
 } from "@assistant-ui/react";
 
-import { type FC, createContext, useContext, useMemo, memo } from "react";
+import { type FC, createContext, useContext, useMemo, memo, useState, useEffect } from "react";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -127,6 +127,14 @@ interface BuilderPreviewProps {
 // Hook to detect page theme from document.documentElement.classList
 function usePageTheme() {
   const { resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Return false during SSR/hydration to avoid mismatch, then update on client
+  if (!mounted) return false;
   return resolvedTheme === "dark";
 }
 
