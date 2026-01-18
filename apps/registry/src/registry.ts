@@ -110,7 +110,7 @@ export const registry: RegistryItem[] = [
       "tw-shimmer",
     ],
     css: {
-      "@import": "tw-shimmer",
+      "@import \"tw-shimmer\"": {},
     },
   },
   {
