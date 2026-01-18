@@ -315,6 +315,17 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
               }
             />
             <Row
+              label="Sources"
+              control={
+                <Switch
+                  checked={components.sources}
+                  onCheckedChange={(checked) =>
+                    updateComponents({ sources: checked })
+                  }
+                />
+              }
+            />
+            <Row
               label="Follow-ups"
               control={
                 <Switch

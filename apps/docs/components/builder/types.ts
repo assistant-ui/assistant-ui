@@ -30,6 +30,7 @@ export interface ComponentsConfig {
   markdown: boolean;
   codeHighlightTheme: CodeHighlightTheme;
   reasoning: boolean;
+  sources: boolean;
   followUpSuggestions: boolean;
   avatar: boolean;
   typingIndicator: TypingIndicator;
@@ -119,6 +120,7 @@ export const DEFAULT_CONFIG: BuilderConfig = {
     markdown: true,
     codeHighlightTheme: "vitesse",
     reasoning: false,
+    sources: false,
     followUpSuggestions: false,
     avatar: false,
     typingIndicator: "dot",

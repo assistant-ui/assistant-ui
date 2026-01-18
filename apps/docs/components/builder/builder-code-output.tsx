@@ -234,6 +234,10 @@ function generateComponentCode(config: BuilderConfig): string {
       `import { MarkdownText } from "@/components/assistant-ui/markdown-text";`,
     components.markdown &&
       `import { ToolFallback } from "@/components/assistant-ui/tool-fallback";`,
+    components.reasoning &&
+      `import { Reasoning, ReasoningGroup } from "@/components/assistant-ui/reasoning";`,
+    components.sources &&
+      `import { Sources } from "@/components/assistant-ui/sources";`,
     components.attachments &&
       `import {
   ComposerAddAttachment,
@@ -473,23 +477,28 @@ ${
 }`;
 
   const assistantMessageRootClass = `relative mx-auto w-full max-w-[var(--thread-max-width)] ${messageSpacingClass}${animationClass}`;
-  const textComponent = components.markdown ? "MarkdownText" : "undefined";
 
-  const reasoningSection = components.reasoning
-    ? `
-        {/* Reasoning/Thinking Section */}
-        <div className="mb-3 overflow-hidden rounded-lg border border-dashed border-muted-foreground/30 bg-muted/30">
-          <details className="group">
-            <summary className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:bg-muted/50">
-              <ChevronDownIcon className="size-4 transition-transform group-open:rotate-180" />
-              <span className="font-medium">Thinking...</span>
-            </summary>
-            <div className="border-t border-dashed border-muted-foreground/30 px-3 py-2 text-sm italic text-muted-foreground">
-              {/* Reasoning content will be displayed here */}
-            </div>
-          </details>
-        </div>`
-    : "";
+  // Build MessagePrimitive.Parts components object
+  const partsComponents: string[] = [];
+  if (components.markdown) {
+    partsComponents.push(`Text: MarkdownText`);
+    partsComponents.push(`tools: { Fallback: ToolFallback }`);
+  }
+  if (components.reasoning) {
+    partsComponents.push(`Reasoning`);
+    partsComponents.push(`ReasoningGroup`);
+  }
+  if (components.sources) {
+    partsComponents.push(`Source: Sources`);
+  }
+
+  const partsComponentsStr =
+    partsComponents.length > 0
+      ? `
+          components={{
+            ${partsComponents.join(",\n            ")},
+          }}`
+      : "";
 
   const assistantMessageComponent = `
 function AssistantMessage() {
@@ -505,13 +514,8 @@ function AssistantMessage() {
       </div>`
           : ""
       }
-      <div className="break-words px-2 leading-relaxed text-foreground">${reasoningSection}
-        <MessagePrimitive.Parts
-          components={{
-            ${components.markdown ? `Text: ${textComponent},` : ""}
-            ${components.markdown ? `tools: { Fallback: ToolFallback },` : ""}
-          }}
-        />
+      <div className="break-words px-2 leading-relaxed text-foreground">
+        <MessagePrimitive.Parts${partsComponentsStr} />
         <MessageError />${
           components.loadingIndicator !== "none"
             ? `
@@ -720,7 +724,6 @@ function generateIconImports(config: BuilderConfig): string {
     icons.push("ThumbsUpIcon", "ThumbsDownIcon");
   if (components.avatar) icons.push("BotIcon", "UserIcon");
   if (components.loadingIndicator !== "none") icons.push("LoaderIcon");
-  if (components.reasoning) icons.push("ChevronDownIcon");
 
   return `import {\n  ${[...new Set(icons)].sort().join(",\n  ")},\n} from "lucide-react";`;
 }
@@ -746,6 +749,14 @@ function generateCliCommands(config: BuilderConfig): CliCommands {
     componentsToAdd.push("attachment");
   }
 
+  if (components.reasoning) {
+    componentsToAdd.push("reasoning");
+  }
+
+  if (components.sources) {
+    componentsToAdd.push("sources");
+  }
+
   const addCommand = `npx assistant-ui@latest add ${componentsToAdd.join(" ")}`;
 
   const enabledFeatures: string[] = [];
@@ -757,6 +768,7 @@ function generateCliCommands(config: BuilderConfig): CliCommands {
   if (components.suggestions) enabledFeatures.push("Suggestions");
   if (components.scrollToBottom) enabledFeatures.push("Scroll to Bottom");
   if (components.reasoning) enabledFeatures.push("Reasoning");
+  if (components.sources) enabledFeatures.push("Sources");
   if (components.followUpSuggestions) enabledFeatures.push("Follow-ups");
   if (components.avatar) enabledFeatures.push("Avatar");
   if (components.actionBar.copy) enabledFeatures.push("Copy");

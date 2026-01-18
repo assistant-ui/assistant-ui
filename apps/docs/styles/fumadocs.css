@@ -85,7 +85,7 @@ html:has(#nd-docs-layout) {
     text-transform: none !important;
     color: var(--fd-muted-foreground) !important;
 
-    &:first-of-type {
+    &:first-child {
       margin-top: 0 !important;
     }
   }
@@ -237,10 +237,15 @@ html:has(#nd-docs-layout) {
     text-decoration-color: var(--fd-muted-foreground) !important;
   }
 
+  & :where(.prose-no-margin):has(table) {
+    margin-top: 0rem !important;
+    margin-bottom: 0rem !important;
+  }
+
   & :where(table):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
     font-size: 0.8125rem !important;
-    margin-top: 1.25rem !important;
-    margin-bottom: 1.25rem !important;
+    margin-top: 0rem !important;
+    margin-bottom: 0rem !important;
     width: 100% !important;
     border-collapse: separate !important;
     border-spacing: 0 !important;

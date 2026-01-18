@@ -103,7 +103,12 @@ export const registry: RegistryItem[] = [
       "collapsible",
       "https://r.assistant-ui.com/markdown-text.json",
     ],
-    dependencies: ["@assistant-ui/react", "lucide-react", "tw-shimmer"],
+    dependencies: [
+      "@assistant-ui/react",
+      "lucide-react",
+      "class-variance-authority",
+      "tw-shimmer",
+    ],
     css: {
       "@import": "tw-shimmer",
     },

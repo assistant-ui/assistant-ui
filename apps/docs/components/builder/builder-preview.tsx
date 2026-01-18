@@ -7,7 +7,6 @@ import {
   ArrowUpIcon,
   BotIcon,
   CheckIcon,
-  ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   CopyIcon,
@@ -36,6 +35,17 @@ import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import {
+  ReasoningRoot,
+  ReasoningTrigger,
+  ReasoningContent,
+  ReasoningText,
+} from "@/components/assistant-ui/reasoning";
+import {
+  Source,
+  SourceIcon,
+  SourceTitle,
+} from "@/components/assistant-ui/sources";
 import {
   type CodeHeaderProps,
   MarkdownTextPrimitive,
@@ -601,36 +611,17 @@ const AssistantMessage: FC<AssistantMessageProps> = ({ config }) => {
         )}
         <div className="min-w-0 flex-1 space-y-2">
           {components.reasoning && (
-            <div
-              className="overflow-hidden rounded-lg border border-dashed"
-              style={{
-                borderColor:
-                  "color-mix(in srgb, var(--aui-muted-foreground) 30%, transparent)",
-                backgroundColor: "var(--aui-muted)",
-                opacity: 0.3,
-              }}
-            >
-              <details className="group" style={{ opacity: 1 / 0.3 }}>
-                <summary
-                  className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm"
-                  style={{ color: "var(--aui-muted-foreground)" }}
-                >
-                  <ChevronDownIcon className="size-4 transition-transform group-open:rotate-180" />
-                  <span className="font-medium">Thinking...</span>
-                </summary>
-                <div
-                  className="border-t border-dashed px-3 py-2 text-sm italic"
-                  style={{
-                    color: "var(--aui-muted-foreground)",
-                    borderColor:
-                      "color-mix(in srgb, var(--aui-muted-foreground) 30%, transparent)",
-                  }}
-                >
-                  Let me analyze this step by step. First, I&apos;ll consider
-                  the key points of your question...
-                </div>
-              </details>
-            </div>
+            <ReasoningRoot variant="muted" className="mb-0">
+              <ReasoningTrigger />
+              <ReasoningContent>
+                <ReasoningText>
+                  <p>
+                    Let me analyze this step by step. First, I&apos;ll consider
+                    the key points of your question...
+                  </p>
+                </ReasoningText>
+              </ReasoningContent>
+            </ReasoningRoot>
           )}
 
           <div
@@ -664,6 +655,19 @@ const AssistantMessage: FC<AssistantMessageProps> = ({ config }) => {
               </AssistantIf>
             )}
           </div>
+
+          {components.sources && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              <Source href="https://react.dev">
+                <SourceIcon url="https://react.dev" />
+                <SourceTitle>React Documentation</SourceTitle>
+              </Source>
+              <Source href="https://nextjs.org">
+                <SourceIcon url="https://nextjs.org" />
+                <SourceTitle>Next.js</SourceTitle>
+              </Source>
+            </div>
+          )}
 
           <div className="aui-assistant-message-footer flex">
             {components.branchPicker && <BranchPicker />}
