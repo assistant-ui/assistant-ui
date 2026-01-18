@@ -1,5 +1,17 @@
 # @assistant-ui/react-data-stream
 
+## 0.11.14
+
+### Patch Changes
+
+- 4b63488: Allow async function for `body` in runtime options
+- Updated dependencies [ab2259d]
+- Updated dependencies [699e585]
+- Updated dependencies [4b63488]
+- Updated dependencies [aee8561]
+- Updated dependencies [dbfdb11]
+  - @assistant-ui/react@0.11.54
+
 ## 0.11.13
 
 ### Patch Changes

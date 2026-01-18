@@ -39,7 +39,7 @@
     "zod": "^4.3.5"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.11.53",
+    "@assistant-ui/react": "^0.11.54",
     "@types/react": "*",
     "assistant-cloud": "*",
     "react": "^18 || ^19"
