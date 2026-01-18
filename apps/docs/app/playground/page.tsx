@@ -141,9 +141,9 @@ export default function PlaygroundPage() {
                 </button>
               );
             })}
-            <span className="ml-2 text-muted-foreground text-xs">
+            <code className="ml-1.5 rounded-sm bg-muted px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground ring-1 ring-inset ring-black/5 dark:ring-white/10">
               {viewportWidth === "100%" ? "100%" : `${viewportWidth}px`}
-            </span>
+            </code>
           </div>
 
           <Sheet open={controlsOpen} onOpenChange={setControlsOpen}>
@@ -170,8 +170,6 @@ export default function PlaygroundPage() {
           </Sheet>
 
           <div className="flex items-center gap-1">
-            <ShareButton />
-
             <ThreadListPrimitive.New
               className="flex items-center gap-1.5 rounded-md px-2.5 py-1 font-medium text-muted-foreground text-xs transition-colors hover:text-foreground"
               aria-label="New thread"
@@ -179,6 +177,8 @@ export default function PlaygroundPage() {
               <Plus className="size-3.5" />
               <span className="hidden sm:inline">New Thread</span>
             </ThreadListPrimitive.New>
+
+            <ShareButton />
 
             <button
               onClick={() => setShowCode(!showCode)}
@@ -215,7 +215,10 @@ export default function PlaygroundPage() {
           </div>
         </div>
 
-        <div ref={previewContainerRef} className="relative min-h-0 flex-1 overflow-hidden">
+        <div
+          ref={previewContainerRef}
+          className="relative min-h-0 flex-1 overflow-hidden"
+        >
           <div className="flex h-full items-stretch justify-center p-2 md:p-4">
             {viewportWidth !== "100%" && (
               <div

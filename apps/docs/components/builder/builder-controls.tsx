@@ -106,12 +106,16 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
   return (
     <div className="scrollbar-none h-full overflow-y-auto">
       <div className="space-y-5">
-        <Row
-          label="Preset"
-          control={<PresetSelect config={config} onChange={onChange} />}
-        />
+        <div className="flex items-center justify-between rounded-lg border bg-muted/30 px-3 py-1">
+          <span className="font-medium text-sm">Preset</span>
+          <PresetSelect config={config} onChange={onChange} />
+        </div>
 
-        <Section title="Messages" headerRight={<ColorModeHeader />}>
+        <Section
+          title="Messages"
+          headerRight={<ColorModeHeader />}
+          withDivider={false}
+        >
           <div className="space-y-1">
             <Row
               label="User Position"
@@ -627,13 +631,19 @@ function Section({
   title,
   headerRight,
   children,
+  withDivider = true,
 }: {
   title: string;
   headerRight?: React.ReactNode;
   children: React.ReactNode;
+  withDivider?: boolean;
 }) {
   return (
-    <div className="space-y-2">
+    <div
+      className={
+        withDivider ? "space-y-2 border-border/50 border-t pt-4" : "space-y-2"
+      }
+    >
       <div className="flex items-center justify-between">
         <span className="font-medium text-muted-foreground text-xs">
           {title}
@@ -659,7 +669,7 @@ function SectionWithToggle({
   children: React.ReactNode;
 }) {
   return (
-    <div className="space-y-2">
+    <div className="space-y-2 border-border/50 border-t pt-4">
       <div className="flex items-center justify-between">
         <span className="font-medium text-muted-foreground text-xs">
           {title}
@@ -676,14 +686,19 @@ function SectionWithToggle({
 
 function ColorModeHeader() {
   return (
-    <div className="flex gap-1">
-      <div className="flex size-5 items-center justify-center">
-        <SunIcon className="size-3 text-muted-foreground" />
-      </div>
-      <div className="flex size-5 items-center justify-center">
-        <MoonIcon className="size-3 text-muted-foreground" />
-      </div>
-    </div>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div className="flex gap-1">
+          <div className="flex size-5 items-center justify-center">
+            <SunIcon className="size-3.5 text-muted-foreground" />
+          </div>
+          <div className="flex size-5 items-center justify-center">
+            <MoonIcon className="size-3.5 text-muted-foreground" />
+          </div>
+        </div>
+      </TooltipTrigger>
+      <TooltipContent side="top">Light &amp; Dark mode colors</TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -754,6 +769,12 @@ function SwitchColorRow({
     <div className="flex h-7 items-center justify-between">
       <span className="text-sm">{label}</span>
       <div className="flex items-center gap-2">
+        <div className={enabled ? "" : "pointer-events-none opacity-40"}>
+          <ThemeColorPicker
+            value={color ?? defaultColor}
+            onChange={onColorChange}
+          />
+        </div>
         <Switch
           checked={enabled}
           onCheckedChange={(checked) => {
@@ -761,12 +782,6 @@ function SwitchColorRow({
             if (!checked) onColorChange(undefined);
           }}
         />
-        {enabled && (
-          <ThemeColorPicker
-            value={color ?? defaultColor}
-            onChange={onColorChange}
-          />
-        )}
       </div>
     </div>
   );

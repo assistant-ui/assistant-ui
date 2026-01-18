@@ -101,10 +101,10 @@ export function OptionalThemeColorPicker({
       </label>
       <label className="relative cursor-pointer">
         <div
-          className={
-            (cn("size-5 rounded-md shadow-sm ring-1 ring-inset"),
-            isCustom ? "ring-black/10" : "opacity-50 ring-black/5")
-          }
+          className={cn(
+            "size-5 rounded-md shadow-sm ring-1 ring-inset",
+            isCustom ? "ring-black/10" : "opacity-50 ring-black/5",
+          )}
           style={{ backgroundColor: displayValue.dark }}
         />
         <input
