@@ -114,10 +114,20 @@ export const useCloudThreadListAdapter = (
     },
 
     generateTitle: async (threadId, messages) => {
+      // Filter messages to only include content types the title generator understands
+      // (reasoning, source, etc. are not needed for title generation)
+      // TODO serialize these to a more efficient format
+      const filteredMessages = messages.map((msg) => ({
+        ...msg,
+        content: msg.content.filter(
+          (part) => part.type === "text" || part.type === "tool-call",
+        ),
+      }));
+
       return cloud.runs.stream({
         thread_id: threadId,
         assistant_id: "system/thread_title",
-        messages: messages, // TODO serialize these to a more efficient format
+        messages: filteredMessages,
       });
     },
 
