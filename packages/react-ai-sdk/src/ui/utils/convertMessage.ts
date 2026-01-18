@@ -222,36 +222,14 @@ export const AISDKMessageConverter = unstable_createMessageConverter(
           metadata: message.metadata as MessageMetadata,
         };
 
-      case "assistant": {
-        const legacyMessage = message as UIMessage & {
-          annotations?: MessageMetadata extends {
-            unstable_annotations?: infer A;
-          }
-            ? A
-            : never;
-          data?: unknown | readonly unknown[];
-        };
-        const incomingMetadata = message.metadata as MessageMetadata;
+      case "assistant":
         return {
           role: "assistant",
           id: message.id,
           createdAt,
           content: convertParts(message, metadata),
-          metadata: {
-            unstable_annotations:
-              incomingMetadata?.unstable_annotations ??
-              legacyMessage.annotations,
-            unstable_data:
-              incomingMetadata?.unstable_data ??
-              (Array.isArray(legacyMessage.data)
-                ? legacyMessage.data
-                : legacyMessage.data
-                  ? [legacyMessage.data]
-                  : undefined),
-            custom: incomingMetadata?.custom ?? {},
-          },
+          metadata: message.metadata as MessageMetadata,
         };
-      }
 
       default:
         console.warn(`Unsupported message role: ${message.role}`);
