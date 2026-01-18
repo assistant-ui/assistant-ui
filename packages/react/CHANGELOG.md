@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.11.55
+
+### Patch Changes
+
+- 5ca09bc: fix(cloud): filter unsupported messages parts passed to `generateTitle`
+
 ## 0.11.54
 
 ### Patch Changes
