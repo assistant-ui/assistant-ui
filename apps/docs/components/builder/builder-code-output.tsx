@@ -587,4 +587,3 @@ function generateIconImports(config: BuilderConfig): string {
 
   return `import {\n  ${[...new Set(icons)].sort().join(",\n  ")},\n} from "lucide-react";`;
 }
-

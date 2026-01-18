@@ -30,7 +30,15 @@ import {
   ThreadPrimitive,
 } from "@assistant-ui/react";
 
-import { type FC, createContext, useContext, useMemo, memo, useState, useEffect } from "react";
+import {
+  type FC,
+  createContext,
+  useContext,
+  useMemo,
+  memo,
+  useState,
+  useEffect,
+} from "react";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";

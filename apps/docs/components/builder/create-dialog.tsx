@@ -17,7 +17,12 @@ interface CreateDialogProps {
   onOpenCodeView?: () => void;
 }
 
-export function CreateDialog({ config, children, container, onOpenCodeView }: CreateDialogProps) {
+export function CreateDialog({
+  config,
+  children,
+  container,
+  onOpenCodeView,
+}: CreateDialogProps) {
   const [open, setOpen] = useState(false);
   const commands = generateCliCommands(config);
 
@@ -30,65 +35,67 @@ export function CreateDialog({ config, children, container, onOpenCodeView }: Cr
     <DialogPrimitive.Root open={open} onOpenChange={setOpen}>
       <DialogPrimitive.Trigger asChild>{children}</DialogPrimitive.Trigger>
       <DialogPrimitive.Portal container={container?.current}>
-        <DialogPrimitive.Overlay className="absolute inset-0 z-50 bg-black/50 data-[state=closed]:animate-out data-[state=open]:animate-in data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
-        <DialogPrimitive.Content className="absolute top-1/2 left-1/2 z-50 grid max-h-[85vh] w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 overflow-hidden rounded-lg border bg-background p-6 shadow-lg duration-200 data-[state=closed]:animate-out data-[state=open]:animate-in data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95">
+        <DialogPrimitive.Overlay className="data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 absolute inset-0 z-50 bg-black/50 data-[state=closed]:animate-out data-[state=open]:animate-in" />
+        <DialogPrimitive.Content className="data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 absolute top-1/2 left-1/2 z-50 grid max-h-[85vh] w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 overflow-hidden rounded-lg border bg-background p-6 shadow-lg duration-200 data-[state=closed]:animate-out data-[state=open]:animate-in">
           <DialogPrimitive.Title className="font-semibold text-lg leading-none">
             Create your assistant
           </DialogPrimitive.Title>
-        <div className="space-y-4 overflow-y-auto text-sm">
-          <CommandBlock
-            label={commands.primary.label}
-            {...(commands.primary.description && {
-              description: commands.primary.description,
-            })}
-            {...(commands.primary.command && {
-              command: commands.primary.command,
-            })}
-          />
+          <div className="space-y-4 overflow-y-auto text-sm">
+            <CommandBlock
+              label={commands.primary.label}
+              {...(commands.primary.description && {
+                description: commands.primary.description,
+              })}
+              {...(commands.primary.command && {
+                command: commands.primary.command,
+              })}
+            />
 
-          <CommandBlock
-            label={commands.alternative.label}
-            {...(commands.alternative.command && {
-              command: commands.alternative.command,
-            })}
-          />
+            <CommandBlock
+              label={commands.alternative.label}
+              {...(commands.alternative.command && {
+                command: commands.alternative.command,
+              })}
+            />
 
-          <div className="border-t pt-4">
-            <p className="mb-3 text-muted-foreground">Or set up manually:</p>
-            <div className="space-y-3">
-              {commands.manual.slice(0, 2).map((cmd, index) => (
-                <CommandBlock
-                  key={index}
-                  label={`${index + 1}. ${cmd.label}`}
-                  {...(cmd.command && { command: cmd.command })}
-                  {...(cmd.description && { description: cmd.description })}
-                />
-              ))}
-              <div>
-                <div className="mb-1 font-medium text-foreground">3. Copy code</div>
-                <p className="text-muted-foreground">
-                  Copy the code from the{" "}
-                  <button
-                    onClick={handleOpenCodeView}
-                    className="text-foreground underline underline-offset-2 hover:text-foreground/80"
-                  >
-                    Code view
-                  </button>{" "}
-                  into your thread.tsx
-                </p>
+            <div className="border-t pt-4">
+              <p className="mb-3 text-muted-foreground">Or set up manually:</p>
+              <div className="space-y-3">
+                {commands.manual.slice(0, 2).map((cmd, index) => (
+                  <CommandBlock
+                    key={index}
+                    label={`${index + 1}. ${cmd.label}`}
+                    {...(cmd.command && { command: cmd.command })}
+                    {...(cmd.description && { description: cmd.description })}
+                  />
+                ))}
+                <div>
+                  <div className="mb-1 font-medium text-foreground">
+                    3. Copy code
+                  </div>
+                  <p className="text-muted-foreground">
+                    Copy the code from the{" "}
+                    <button
+                      onClick={handleOpenCodeView}
+                      className="text-foreground underline underline-offset-2 hover:text-foreground/80"
+                    >
+                      Code view
+                    </button>{" "}
+                    into your thread.tsx
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t pt-4">
+              <p className="mb-2 font-medium text-foreground">Configuration</p>
+              <div className="space-y-1 text-muted-foreground">
+                {commands.summary.map((item, index) => (
+                  <div key={index}>{item}</div>
+                ))}
               </div>
             </div>
           </div>
-
-          <div className="border-t pt-4">
-            <p className="mb-2 font-medium text-foreground">Configuration</p>
-            <div className="space-y-1 text-muted-foreground">
-              {commands.summary.map((item, index) => (
-                <div key={index}>{item}</div>
-              ))}
-            </div>
-          </div>
-        </div>
           <DialogPrimitive.Close className="absolute top-4 right-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
             <XIcon className="size-4" />
             <span className="sr-only">Close</span>

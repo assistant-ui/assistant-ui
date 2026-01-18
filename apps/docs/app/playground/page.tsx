@@ -141,7 +141,7 @@ export default function PlaygroundPage() {
                 </button>
               );
             })}
-            <code className="ml-1.5 rounded-sm bg-muted px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground ring-1 ring-inset ring-black/5 dark:ring-white/10">
+            <code className="ml-1.5 rounded-sm bg-muted px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground ring-1 ring-black/5 ring-inset dark:ring-white/10">
               {viewportWidth === "100%" ? "100%" : `${viewportWidth}px`}
             </code>
           </div>
