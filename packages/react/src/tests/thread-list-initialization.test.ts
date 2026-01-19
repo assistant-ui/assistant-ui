@@ -22,7 +22,11 @@ const createDeferredPromise = <T>() => {
 type PendingTask = ReturnType<typeof createDeferredPromise<ThreadRuntimeCore>>;
 
 // Use vi.hoisted to define things that need to be available for the hoisted vi.mock
-const { MockHookInstanceManager, getCurrentMockInstance, setCurrentMockInstance } = vi.hoisted(() => {
+const {
+  MockHookInstanceManager,
+  getCurrentMockInstance,
+  setCurrentMockInstance,
+} = vi.hoisted(() => {
   // Store the current mock instance so tests can access it
   let currentMockInstance: any = null;
 
@@ -85,7 +89,9 @@ const { MockHookInstanceManager, getCurrentMockInstance, setCurrentMockInstance 
   return {
     MockHookInstanceManager,
     getCurrentMockInstance: () => currentMockInstance,
-    setCurrentMockInstance: (instance: any) => { currentMockInstance = instance; },
+    setCurrentMockInstance: (instance: any) => {
+      currentMockInstance = instance;
+    },
   };
 });
 
@@ -511,9 +517,7 @@ describe("RemoteThreadListThreadListRuntimeCore", () => {
       // This is what happens when a user starts typing before runtime is ready
       expect(() => {
         core.composer.setText("Hello");
-      }).toThrow(
-        "This is the empty thread, a placeholder for the main thread",
-      );
+      }).toThrow("This is the empty thread, a placeholder for the main thread");
     });
 
     /**
@@ -531,9 +535,7 @@ describe("RemoteThreadListThreadListRuntimeCore", () => {
       // BUG: User tries to send a message - this throws!
       expect(() => {
         core.composer.send();
-      }).toThrow(
-        "This is the empty thread, a placeholder for the main thread",
-      );
+      }).toThrow("This is the empty thread, a placeholder for the main thread");
     });
 
     /**
@@ -554,9 +556,7 @@ describe("RemoteThreadListThreadListRuntimeCore", () => {
           role: "user",
           content: [{ type: "text", text: "Hello" }],
         });
-      }).toThrow(
-        "This is the empty thread, a placeholder for the main thread",
-      );
+      }).toThrow("This is the empty thread, a placeholder for the main thread");
     });
 
     /**
@@ -607,27 +607,24 @@ describe("RemoteThreadListThreadListRuntimeCore", () => {
      *
      * This test is marked as .todo - convert to regular it() once the bug is fixed.
      */
-    it.todo(
-      "FIXED: composer.setText should NOT throw during first thread init",
-      () => {
-        runtime = new RemoteThreadListThreadListRuntimeCore(
-          options,
-          mockContextProvider,
-        );
+    it.todo("FIXED: composer.setText should NOT throw during first thread init", () => {
+      runtime = new RemoteThreadListThreadListRuntimeCore(
+        options,
+        mockContextProvider,
+      );
 
-        // mainThreadId is set immediately
-        expect(runtime.mainThreadId).toBeDefined();
+      // mainThreadId is set immediately
+      expect(runtime.mainThreadId).toBeDefined();
 
-        // Get the core (currently EMPTY_THREAD_CORE)
-        const core = runtime.getMainThreadRuntimeCore();
+      // Get the core (currently EMPTY_THREAD_CORE)
+      const core = runtime.getMainThreadRuntimeCore();
 
-        // THIS SHOULD NOT THROW - but currently it does (the bug)
-        // Once fixed, this will pass and .todo should be removed
-        expect(() => {
-          core.composer.setText("Hello");
-        }).not.toThrow();
-      },
-    );
+      // THIS SHOULD NOT THROW - but currently it does (the bug)
+      // Once fixed, this will pass and .todo should be removed
+      expect(() => {
+        core.composer.setText("Hello");
+      }).not.toThrow();
+    });
   });
 
   describe("Edge cases", () => {
