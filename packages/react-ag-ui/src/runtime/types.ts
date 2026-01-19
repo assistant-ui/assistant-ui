@@ -1,5 +1,6 @@
 import type {
   AttachmentAdapter,
+  DictationAdapter,
   FeedbackAdapter,
   SpeechSynthesisAdapter,
   ThreadHistoryAdapter,
@@ -10,6 +11,7 @@ import type { Logger } from "./logger";
 export type UseAgUiRuntimeAdapters = {
   attachments?: AttachmentAdapter;
   speech?: SpeechSynthesisAdapter;
+  dictation?: DictationAdapter;
   feedback?: FeedbackAdapter;
   history?: ThreadHistoryAdapter;
 };
