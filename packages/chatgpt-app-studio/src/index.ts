@@ -1,22 +1,28 @@
 import fs from "node:fs";
+import { createWriteStream } from "node:fs";
+import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import path from "node:path";
+import os from "node:os";
 import { fileURLToPath } from "node:url";
 import * as p from "@clack/prompts";
 import pc from "picocolors";
+import { extract } from "tar";
 import {
   isValidPackageName,
   isValidProjectPath,
   toValidPackageName,
   isEmpty,
   emptyDir,
-  copyDir,
-  renameFiles,
   updatePackageJson,
   detectPackageManager,
   generateMcpServer,
 } from "./utils.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+const TEMPLATE_REPO = "assistant-ui/chatgpt-app-studio-starter";
+const TEMPLATE_BRANCH = "main";
 
 const REQUIRED_NODE_VERSION = { major: 20, minor: 9, patch: 0 } as const;
 
@@ -338,6 +344,46 @@ interface ProjectConfig {
   includeServer: boolean;
 }
 
+async function downloadTemplate(targetDir: string): Promise<void> {
+  const tarballUrl = `https://github.com/${TEMPLATE_REPO}/archive/refs/heads/${TEMPLATE_BRANCH}.tar.gz`;
+  const tempDir = path.join(os.tmpdir(), `chatgpt-app-studio-${Date.now()}`);
+  const tarballPath = path.join(tempDir, "template.tar.gz");
+
+  try {
+    fs.mkdirSync(tempDir, { recursive: true });
+
+    // Download the tarball
+    const response = await fetch(tarballUrl);
+    if (!response.ok) {
+      throw new Error(
+        `Failed to download template: ${response.status} ${response.statusText}`,
+      );
+    }
+
+    const fileStream = createWriteStream(tarballPath);
+    const body = response.body;
+    if (!body) {
+      throw new Error("No response body received");
+    }
+
+    const nodeStream = Readable.fromWeb(
+      body as Parameters<typeof Readable.fromWeb>[0],
+    );
+    await pipeline(nodeStream, fileStream);
+
+    // Extract the tarball
+    fs.mkdirSync(targetDir, { recursive: true });
+    await extract({
+      file: tarballPath,
+      cwd: targetDir,
+      strip: 1, // Remove the top-level directory (e.g., chatgpt-app-studio-starter-main/)
+    });
+  } finally {
+    // Cleanup temp directory
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+}
+
 async function main() {
   ensureSupportedNodeVersion();
 
@@ -460,20 +506,19 @@ async function main() {
   }
 
   const s = p.spinner();
-  s.start("Creating project...");
+  s.start("Downloading template...");
 
-  const templateDir = path.resolve(__dirname, "../templates/starter");
-
-  if (!fs.existsSync(templateDir)) {
-    s.stop("Template not found");
+  try {
+    await downloadTemplate(targetDir);
+  } catch (error) {
+    s.stop("Download failed");
     p.log.error(
-      `Template directory not found at ${templateDir}. Make sure templates are included in the package.`,
+      `Failed to download template: ${error instanceof Error ? error.message : String(error)}`,
     );
     process.exit(1);
   }
 
-  copyDir(templateDir, targetDir);
-  renameFiles(targetDir);
+  s.message("Creating project...");
   updatePackageJson(targetDir, config.packageName, config.description);
 
   s.message("Applying template...");
