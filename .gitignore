@@ -43,11 +43,19 @@ packages/*/generated
 
 # python
 __pycache__
+.venv
 
 .langgraph_api
 
 # Cursor
 .cursor
+.cursorindexingignore
+
+# Playwright MCP
+.playwright-mcp/
+
+# Specstory
+.specstory/
 
 # GitHub Spec Kit - https://github.com/github/spec-kit
 .specify/
