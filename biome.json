@@ -151,6 +151,7 @@
       "!**/.tanstack",
       "!**/.output",
       "!**/routeTree.gen.ts",
+      "!examples/with-openai-apps/servers",
       "!**/packages/chatgpt-app-studio/templates"
     ]
   }

@@ -1,0 +1,32 @@
+{
+  "name": "with-mcp-apps",
+  "version": "1.0.0",
+  "private": true,
+  "description": "MCP Apps SDK Demo with multiple servers and chat client",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -n app,assets,pizzaz-node,kitchen-node -c green,cyan,blue,yellow \"pnpm dev:app\" \"pnpm dev:assets\" \"pnpm dev:pizzaz-node\" \"pnpm dev:kitchen-node\"",
+    "dev:all": "concurrently -n app,assets,pizzaz-node,kitchen-node,pizzaz-py,kitchen-py,solar-py,shopping-py \"pnpm dev:app\" \"pnpm dev:assets\" \"pnpm dev:pizzaz-node\" \"pnpm dev:kitchen-node\" \"pnpm dev:pizzaz-python\" \"pnpm dev:kitchen-python\" \"pnpm dev:solar-python\" \"pnpm dev:shopping-python\"",
+    "dev:node-only": "concurrently -n app,assets,pizzaz-node,kitchen-node -c green,cyan,blue,yellow \"pnpm dev:app\" \"pnpm dev:assets\" \"pnpm dev:pizzaz-node\" \"pnpm dev:kitchen-node\"",
+    "dev:app": "cd client && pnpm dev:app",
+    "dev:assets": "cd servers && pnpm dev:assets",
+    "dev:pizzaz-node": "cd servers/pizzaz_server_node && PORT=8000 pnpm start",
+    "dev:kitchen-node": "cd servers/kitchen_sink_server_node && PORT=8001 pnpm start",
+    "dev:pizzaz-python": "cd servers && pnpm start:pizzaz-python",
+    "dev:kitchen-python": "cd servers && pnpm start:kitchen-python",
+    "dev:solar-python": "cd servers && pnpm start:solar-python",
+    "dev:shopping-python": "cd servers && pnpm start:shopping-python",
+    "build": "pnpm build:assets",
+    "build:assets": "cd servers && pnpm build",
+    "setup:python": "cd servers && pnpm setup:python",
+    "install-deps": "pnpm install && cd client && pnpm install",
+    "install:all": "pnpm install && (cd client && pnpm install) && (cd servers/pizzaz_server_node && pnpm install) && (cd servers/kitchen_sink_server_node && pnpm install)"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  },
+  "workspaces": [
+    "client",
+    "servers"
+  ]
+}

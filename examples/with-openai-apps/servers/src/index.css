@@ -1,0 +1,39 @@
+@import "tailwindcss";
+@import "@openai/apps-sdk-ui/css";
+@source "../node_modules/@openai/apps-sdk-ui";
+@source ".";
+
+@layer utilities {
+  .overflow-auto > *,
+  .overflow-scroll > *,
+  .overflow-x-auto > *,
+  .overflow-y-auto > * {
+    scrollbar-color: auto;
+  }
+
+  /* Base style for scrollable elements */
+  .overflow-auto,
+  .overflow-scroll,
+  .overflow-x-auto,
+  .overflow-y-auto,
+  .overflow-x-scroll,
+  .overflow-y-scroll {
+    scrollbar-color: rgb(0, 0, 0, 0.1) transparent;
+
+    @media (prefers-color-scheme: dark) {
+      scrollbar-color: rgb(255, 255, 255, 0.1) transparent;
+    }
+  }
+
+  /* Hover state directly on the scrollable element */
+  .overflow-auto:hover,
+  .overflow-scroll:hover,
+  .overflow-x-auto:hover,
+  .overflow-y-auto:hover {
+    scrollbar-color: rgb(0, 0, 0, 0.2) transparent;
+
+    @media (prefers-color-scheme: dark) {
+      scrollbar-color: rgb(255, 255, 255, 0.2) transparent;
+    }
+  }
+}
