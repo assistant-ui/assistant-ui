@@ -1,5 +1,7 @@
 "use client";
 
+import { z } from "zod";
+
 type ThreadMessageLike = {
   id: string;
   role: string;
@@ -156,10 +158,12 @@ export const toAgUiTools = (tools: Record<string, any> | undefined) => {
       name,
       description: tool?.description ?? undefined,
       parameters:
-        typeof tool?.parameters?.toJSON === "function"
-          ? tool.parameters.toJSON()
-          : typeof tool?.parameters?.toJSONSchema === "function"
-            ? tool.parameters.toJSONSchema()
-            : tool?.parameters,
+        tool?.parameters instanceof z.ZodType
+          ? z.toJSONSchema(tool.parameters)
+          : typeof tool?.parameters?.toJSON === "function"
+            ? tool.parameters.toJSON()
+            : typeof tool?.parameters?.toJSONSchema === "function"
+              ? tool.parameters.toJSONSchema()
+              : tool?.parameters,
     }));
 };

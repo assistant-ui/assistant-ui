@@ -1948,6 +1948,9 @@ importers:
       assistant-stream:
         specifier: ^0.2.46
         version: link:../assistant-stream
+      zod:
+        specifier: ^4.3.5
+        version: 4.3.5
     devDependencies:
       '@assistant-ui/react':
         specifier: workspace:*
