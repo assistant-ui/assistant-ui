@@ -101,10 +101,9 @@ async def kitchen_sink_template() -> str:
 @mcp.tool()
 async def kitchen_sink_show(
     message: str = Field(..., description="Primary message to render in the widget."),
-    accent_color: str = Field(
+    accentColor: str = Field(
         default="#2d6cdf",
         description="Accent color for the widget header.",
-        alias="accentColor",
     ),
     details: str | None = Field(
         default=None,
@@ -114,7 +113,7 @@ async def kitchen_sink_show(
     # Return the widget markup + structured payload so the Apps SDK can hydrate the UI.
     payload = WidgetPayload(
         message=message,
-        accentColor=accent_color,
+        accentColor=accentColor,
         details=details,
         fromTool="kitchen-sink-show",
     )
