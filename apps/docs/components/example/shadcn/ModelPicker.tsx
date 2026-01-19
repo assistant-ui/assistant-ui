@@ -11,7 +11,12 @@ import Image from "next/image";
 import type { FC } from "react";
 
 const MODELS = [
-  { name: "GPT-5 Nano", value: "gpt-5-nano", icon: "/providers/openai.svg", disabled: false },
+  {
+    name: "GPT-5 Nano",
+    value: "gpt-5-nano",
+    icon: "/providers/openai.svg",
+    disabled: false,
+  },
   {
     name: "Deepseek R1",
     value: "deepseek-r1",
@@ -40,8 +45,14 @@ export const ModelPicker: FC = () => {
       </SelectTrigger>
       <SelectContent>
         {MODELS.map((model) => (
-          <SelectItem key={model.value} value={model.value} disabled={model.disabled}>
-            <span className={`flex items-center gap-2 ${model.disabled ? "opacity-50" : ""}`}>
+          <SelectItem
+            key={model.value}
+            value={model.value}
+            disabled={model.disabled}
+          >
+            <span
+              className={`flex items-center gap-2 ${model.disabled ? "opacity-50" : ""}`}
+            >
               <Image
                 src={model.icon}
                 alt={model.name}
