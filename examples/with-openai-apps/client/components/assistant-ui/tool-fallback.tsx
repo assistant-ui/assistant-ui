@@ -8,7 +8,7 @@ import {
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { RemoteToolUI } from "@assistant-ui/tool-ui-server";
+import { RemoteToolUI, useToolUITheme } from "@assistant-ui/tool-ui-server";
 
 function getTemplateUri(result: unknown): string | null {
   if (!result || typeof result !== "object") return null;
@@ -34,6 +34,7 @@ export const ToolFallback: ToolCallMessagePartComponent = ({
   status,
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(true);
+  const theme = useToolUITheme();
 
   const templateUri = getTemplateUri(result);
   const assetUrl = templateUri ? templateUriToAssetUrl(templateUri) : null;
@@ -46,6 +47,7 @@ export const ToolFallback: ToolCallMessagePartComponent = ({
           toolName={toolName}
           toolInput={args as Record<string, unknown>}
           toolOutput={result as Record<string, unknown>}
+          theme={theme}
         />
       </div>
     );

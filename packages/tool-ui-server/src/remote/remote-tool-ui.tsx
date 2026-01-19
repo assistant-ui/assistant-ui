@@ -259,7 +259,20 @@ export const RemoteToolUI: React.FC<RemoteToolUIProps> = ({
       bridgeRef.current?.detach();
       bridgeRef.current = null;
     };
-  }, [expectedOrigin, handlers, onAction, onAddResult, maxHeight, toolName]);
+  }, [
+    expectedOrigin,
+    handlers,
+    onAction,
+    onAddResult,
+    maxHeight,
+    toolName,
+    displayMode,
+  ]);
+
+  // Reset status when displayMode changes (iframe recreates)
+  React.useEffect(() => {
+    setStatus("loading");
+  }, [displayMode]);
 
   React.useEffect(() => {
     if (status === "ready" && bridgeRef.current) {

@@ -95,6 +95,14 @@ This format is required for OpenAI compatibility (function names must match `^[a
 
 The LLM sees and uses these full namespaced names. When you ask "show me pizza places", the model will call the appropriate namespaced tool based on which servers are enabled.
 
+## Known Limitations
+
+### Widget Dark Mode
+
+The widget HTML/CSS (imported from ChatGPT Apps) has hardcoded light mode styling (`bg-white`, `text-black`). While the host correctly passes `theme: "dark"` to widgets via `window.openai.theme`, the widgets themselves don't have dark mode CSS variants. The fullscreen overlay and app chrome will be dark, but widget content remains light-themed.
+
+To add dark mode support, widget source files in `servers/src/` would need Tailwind `dark:` variants (e.g., `bg-white dark:bg-zinc-900`).
+
 ## Production Deployment
 
 This example uses hardcoded `localhost:4444` for the assets server. For production:

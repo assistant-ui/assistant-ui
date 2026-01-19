@@ -13,6 +13,15 @@ import type {
 } from "../types/protocol";
 
 const ToolUIThemeContext = React.createContext<Theme>("light");
+
+/**
+ * Hook to access the current theme from MCPToolUIProvider.
+ * Use this in components that need to pass theme to RemoteToolUI.
+ */
+export function useToolUITheme(): Theme {
+  return React.useContext(ToolUIThemeContext);
+}
+
 const CallToolContext = React.createContext<
   | ((name: string, args: Record<string, unknown>) => Promise<CallToolResponse>)
   | null

@@ -133,6 +133,7 @@ export {
   type RemoteToolUIProps,
   MCPToolUIProvider,
   type MCPToolUIProviderProps,
+  useToolUITheme,
 } from "./remote";
 
 // Manifest schemas
