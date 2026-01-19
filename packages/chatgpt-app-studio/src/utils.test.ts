@@ -6,11 +6,9 @@ import {
   isValidPackageName,
   toValidPackageName,
   isEmpty,
-  copyDir,
-  renameFiles,
   updatePackageJson,
   detectPackageManager,
-} from "./utils.js";
+} from "./utils";
 
 describe("isValidPackageName", () => {
   it("accepts valid package names", () => {
@@ -87,70 +85,6 @@ describe("isEmpty", () => {
   it("returns false for non-empty directory", () => {
     fs.writeFileSync(path.join(tempDir, "file.txt"), "content");
     expect(isEmpty(tempDir)).toBe(false);
-  });
-});
-
-describe("copyDir", () => {
-  let srcDir: string;
-  let destDir: string;
-
-  beforeEach(() => {
-    srcDir = fs.mkdtempSync(path.join(os.tmpdir(), "src-"));
-    destDir = path.join(os.tmpdir(), `dest-${Date.now()}`);
-  });
-
-  afterEach(() => {
-    fs.rmSync(srcDir, { recursive: true, force: true });
-    if (fs.existsSync(destDir)) {
-      fs.rmSync(destDir, { recursive: true, force: true });
-    }
-  });
-
-  it("copies files", () => {
-    fs.writeFileSync(path.join(srcDir, "file.txt"), "content");
-    copyDir(srcDir, destDir);
-    expect(fs.readFileSync(path.join(destDir, "file.txt"), "utf-8")).toBe(
-      "content",
-    );
-  });
-
-  it("copies nested directories", () => {
-    fs.mkdirSync(path.join(srcDir, "nested"));
-    fs.writeFileSync(path.join(srcDir, "nested", "file.txt"), "nested content");
-    copyDir(srcDir, destDir);
-    expect(
-      fs.readFileSync(path.join(destDir, "nested", "file.txt"), "utf-8"),
-    ).toBe("nested content");
-  });
-});
-
-describe("renameFiles", () => {
-  let tempDir: string;
-
-  beforeEach(() => {
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "rename-"));
-  });
-
-  afterEach(() => {
-    fs.rmSync(tempDir, { recursive: true, force: true });
-  });
-
-  it("renames _gitignore to .gitignore", () => {
-    fs.writeFileSync(path.join(tempDir, "_gitignore"), "node_modules");
-    renameFiles(tempDir);
-    expect(fs.existsSync(path.join(tempDir, ".gitignore"))).toBe(true);
-    expect(fs.existsSync(path.join(tempDir, "_gitignore"))).toBe(false);
-  });
-
-  it("renames _env.local to .env.local", () => {
-    fs.writeFileSync(path.join(tempDir, "_env.local"), "SECRET=123");
-    renameFiles(tempDir);
-    expect(fs.existsSync(path.join(tempDir, ".env.local"))).toBe(true);
-    expect(fs.existsSync(path.join(tempDir, "_env.local"))).toBe(false);
-  });
-
-  it("handles missing files gracefully", () => {
-    expect(() => renameFiles(tempDir)).not.toThrow();
   });
 });
 

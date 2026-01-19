@@ -16,8 +16,7 @@ import {
   emptyDir,
   updatePackageJson,
   detectPackageManager,
-  generateMcpServer,
-} from "./utils.js";
+} from "./utils";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -524,9 +523,8 @@ async function main() {
   s.message("Applying template...");
   applyTemplate(targetDir, config.template);
 
-  if (config.includeServer) {
-    s.message("Generating MCP server...");
-    await generateMcpServer(targetDir, config);
+  if (!config.includeServer) {
+    fs.rmSync(path.join(targetDir, "server"), { recursive: true, force: true });
   }
 
   s.stop("Project created!");
