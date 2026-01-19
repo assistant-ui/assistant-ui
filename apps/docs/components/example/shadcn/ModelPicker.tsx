@@ -11,29 +11,25 @@ import Image from "next/image";
 import type { FC } from "react";
 
 const MODELS = [
-  { name: "GPT 4o-mini", value: "gpt-4o-mini", icon: "/providers/openai.svg" },
+  { name: "GPT-5 Nano", value: "gpt-5-nano", icon: "/providers/openai.svg", disabled: false },
   {
     name: "Deepseek R1",
     value: "deepseek-r1",
     icon: "/providers/deepseek.svg",
+    disabled: true,
   },
   {
-    name: "Claude 3.5 Sonnet",
-    value: "claude-3.5-sonnet",
+    name: "Claude 4.5 Sonnet",
+    value: "claude-4.5-sonnet",
     icon: "/providers/anthropic.svg",
+    disabled: true,
   },
   {
-    name: "Gemini 2.0 Flash",
-    value: "gemini-2.0-flash",
+    name: "Gemini 3.0 Flash",
+    value: "gemini-3.0-flash",
     icon: "/providers/google.svg",
+    disabled: true,
   },
-  { name: "Llama 3 8b", value: "llama-3-8b", icon: "/providers/meta.svg" },
-  {
-    name: "Firefunction V2",
-    value: "firefunction-v2",
-    icon: "/providers/fireworks.svg",
-  },
-  { name: "Mistral 7b", value: "mistral-7b", icon: "/providers/mistral.svg" },
 ] as const;
 
 export const ModelPicker: FC = () => {
@@ -44,8 +40,8 @@ export const ModelPicker: FC = () => {
       </SelectTrigger>
       <SelectContent>
         {MODELS.map((model) => (
-          <SelectItem key={model.value} value={model.value}>
-            <span className="flex items-center gap-2">
+          <SelectItem key={model.value} value={model.value} disabled={model.disabled}>
+            <span className={`flex items-center gap-2 ${model.disabled ? "opacity-50" : ""}`}>
               <Image
                 src={model.icon}
                 alt={model.name}
