@@ -1,14 +1,6 @@
 "use client";
 
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  type ReactNode,
-} from "react";
-
-const STORAGE_KEY = "docs-chat-panel-open";
+import { createContext, useContext, useState, type ReactNode } from "react";
 
 interface ChatPanelContextValue {
   open: boolean;
@@ -27,34 +19,14 @@ export function useChatPanel() {
 }
 
 export function ChatPanelProvider({ children }: { children: ReactNode }) {
-  const [open, setOpenState] = useState(false);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored === "true") {
-      setOpenState(true);
-    }
-  }, []);
-
-  function setOpen(value: boolean): void {
-    setOpenState(value);
-    localStorage.setItem(STORAGE_KEY, String(value));
-  }
+  const [open, setOpen] = useState(false);
 
   function toggle(): void {
-    setOpenState((prev) => {
-      const next = !prev;
-      localStorage.setItem(STORAGE_KEY, String(next));
-      return next;
-    });
+    setOpen((prev) => !prev);
   }
 
-  const effectiveOpen = mounted ? open : false;
-
   return (
-    <ChatPanelContext.Provider value={{ open: effectiveOpen, setOpen, toggle }}>
+    <ChatPanelContext.Provider value={{ open, setOpen, toggle }}>
       {children}
     </ChatPanelContext.Provider>
   );

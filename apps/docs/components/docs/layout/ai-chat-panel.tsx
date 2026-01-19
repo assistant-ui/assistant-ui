@@ -1,6 +1,6 @@
 "use client";
 
-import { Thread } from "@/components/assistant-ui/thread";
+import { SidebarThread } from "@/components/docs/assistant/sidebar-thread";
 import { Button } from "@/components/ui/button";
 import { useChatPanel } from "@/components/docs/contexts/chat-panel";
 import { PanelRightCloseIcon, PanelRightOpenIcon } from "lucide-react";
@@ -30,13 +30,13 @@ export function AIChatPanel(): React.ReactNode {
         variant="ghost"
         size="icon"
         onClick={toggle}
-        className="absolute top-2 left-2 z-10 size-8 opacity-0 transition-opacity group-hover:opacity-100"
+        className="absolute top-1/2 left-0 z-10 size-6 -translate-x-1/2 -translate-y-1/2 rounded-full border border-l bg-background opacity-0 shadow-sm transition-opacity group-hover:opacity-100"
         aria-label="Close AI Chat"
       >
-        <PanelRightCloseIcon className="size-4" />
+        <PanelRightCloseIcon className="size-3" />
       </Button>
       <div className="min-h-0 flex-1">
-        <Thread />
+        <SidebarThread />
       </div>
     </div>
   );
