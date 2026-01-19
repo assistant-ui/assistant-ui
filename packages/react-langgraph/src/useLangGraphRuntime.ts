@@ -313,19 +313,30 @@ const useLangGraphRuntimeImpl = ({
       : undefined,
   });
 
+  const threadListItemState = useAssistantState(({ threadListItem }) => {
+    return threadListItem ?? null;
+  });
+  const externalId = threadListItemState?.externalId;
+
   {
     const loadingRef = useRef(false);
-    useEffect(() => {
-      if (!loadThread || loadingRef.current) return;
+    const lastLoadedIdRef = useRef<string | null>(null);
 
-      const externalId = runtime.threads.mainItem.getState().externalId;
-      if (externalId) {
+    useEffect(() => {
+      if (!loadThread) return;
+
+      if (
+        externalId &&
+        !loadingRef.current &&
+        lastLoadedIdRef.current !== externalId
+      ) {
         loadingRef.current = true;
+        lastLoadedIdRef.current = externalId;
         loadThread(externalId).finally(() => {
           loadingRef.current = false;
         });
       }
-    }, [loadThread, runtime]);
+    }, [loadThread, externalId]);
   }
 
   return runtime;
