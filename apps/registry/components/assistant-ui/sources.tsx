@@ -24,10 +24,7 @@ const sourceVariants = cva(
   {
     variants: {
       variant: {
-        default:
-          "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground",
-        secondary:
-          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+        default: "bg-secondary text-secondary-foreground hover:bg-secondary/70",
         outline:
           "border bg-transparent text-muted-foreground hover:bg-accent hover:text-accent-foreground",
         ghost:
