@@ -9,11 +9,12 @@
     "start": "next start"
   },
   "dependencies": {
-    "@assistant-ui/react": "workspace:*",
-    "@assistant-ui/react-markdown": "workspace:*",
-    "@assistant-ui/react-ag-ui": "workspace:*",
     "@ag-ui/client": "^0.0.42",
+    "@assistant-ui/react": "workspace:*",
+    "@assistant-ui/react-ag-ui": "workspace:*",
+    "@assistant-ui/react-markdown": "workspace:*",
     "@radix-ui/react-avatar": "^1.1.11",
+    "@radix-ui/react-collapsible": "^1.1.12",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-slot": "^1.2.4",
     "@radix-ui/react-tooltip": "^1.2.8",
