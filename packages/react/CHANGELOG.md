@@ -1,5 +1,13 @@
 # @assistant-ui/react
 
+## 0.11.56
+
+### Patch Changes
+
+- 3a0b9c8: fix(react): scroll to bottom on initial history load
+- b8f62e1: fix: add missing type export for `ExportedMessageRespositoryItem`
+- 8d5c20c: fix: restore `useLocalThreadRuntime` export as deprecated alias to `useLocalRuntime`
+
 ## 0.11.55
 
 ### Patch Changes

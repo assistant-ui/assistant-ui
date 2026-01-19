@@ -1,5 +1,15 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.1.21
+
+### Patch Changes
+
+- 5ce45bd: fix(react-ai-sdk): preserve metadata in message conversion
+- Updated dependencies [3a0b9c8]
+- Updated dependencies [b8f62e1]
+- Updated dependencies [8d5c20c]
+  - @assistant-ui/react@0.11.56
+
 ## 1.1.20
 
 ### Patch Changes
