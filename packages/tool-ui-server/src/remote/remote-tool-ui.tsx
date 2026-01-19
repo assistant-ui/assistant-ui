@@ -336,11 +336,11 @@ export const RemoteToolUI: React.FC<RemoteToolUIProps> = ({
   if (isFullscreen) {
     return createPortal(
       <div
-        className="fixed inset-0 flex flex-col bg-background"
+        className="fixed inset-0 flex flex-col bg-white dark:bg-zinc-950"
         style={{ zIndex: 99999 }}
       >
         <div
-          className="flex shrink-0 items-center justify-between border-b bg-background px-4 py-2"
+          className="flex shrink-0 items-center justify-between border-b bg-white px-4 py-2 dark:bg-zinc-950"
           role="banner"
         >
           <span className="font-medium">{toolName}</span>

@@ -296,9 +296,11 @@ async function handleSseRequest(res: ServerResponse) {
 
   sessions.set(sessionId, { server, transport });
 
-  transport.onclose = async () => {
+  transport.onclose = () => {
     sessions.delete(sessionId);
-    await server.close();
+    void server.close().catch((error) => {
+      console.error("Failed to close MCP server", error);
+    });
   };
 
   transport.onerror = (error) => {
