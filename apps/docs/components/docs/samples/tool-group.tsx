@@ -78,7 +78,7 @@ function SearchToolUI({ query, results }: { query: string; results: number }) {
 }
 
 function ToolGroupDemo({
-  variant,
+  variant = "default",
 }: {
   variant?: "default" | "outline" | "muted";
 }) {
@@ -100,7 +100,7 @@ function ToolGroupDemo({
 
 function VariantRow({
   label,
-  variant,
+  variant = "default",
 }: {
   label: string;
   variant?: "default" | "outline" | "muted";
@@ -130,10 +130,10 @@ function StreamingWeatherToolUI({
   condition,
   isLoading,
 }: {
-  location?: string;
-  temperature?: number;
-  condition?: "Sunny" | "Cloudy" | "Rainy";
-  isLoading?: boolean;
+  location: string | undefined;
+  temperature: number | undefined;
+  condition: "Sunny" | "Cloudy" | "Rainy" | undefined;
+  isLoading: boolean;
 }) {
   const conditionConfig = {
     Sunny: { icon: SunIcon, color: "text-yellow-500", bg: "bg-yellow-50" },
@@ -216,6 +216,8 @@ function ToolGroupStreamingDemo() {
   useEffect(() => {
     if (phase === "idle" || phase === "done") return;
 
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+
     if (phase === "tool1") {
       setIsOpen(true);
       setWeather1({});
@@ -229,7 +231,7 @@ function ToolGroupStreamingDemo() {
         () => setWeather1((w) => ({ ...w, temperature: 68 })),
         () => {
           setWeather1((w) => ({ ...w, condition: "Sunny" }));
-          setTimeout(() => setPhase("tool2"), 300);
+          timeout = setTimeout(() => setPhase("tool2"), 300);
         },
       ];
 
@@ -242,7 +244,10 @@ function ToolGroupStreamingDemo() {
           clearInterval(interval);
         }
       }, 400);
-      return () => clearInterval(interval);
+      return () => {
+        clearInterval(interval);
+        if (timeout) clearTimeout(timeout);
+      };
     }
 
     if (phase === "tool2") {
@@ -251,7 +256,7 @@ function ToolGroupStreamingDemo() {
         () => setWeather2((w) => ({ ...w, temperature: 55 })),
         () => {
           setWeather2((w) => ({ ...w, condition: "Rainy" }));
-          setTimeout(() => setPhase("tool3"), 300);
+          timeout = setTimeout(() => setPhase("tool3"), 300);
         },
       ];
 
@@ -264,7 +269,10 @@ function ToolGroupStreamingDemo() {
           clearInterval(interval);
         }
       }, 400);
-      return () => clearInterval(interval);
+      return () => {
+        clearInterval(interval);
+        if (timeout) clearTimeout(timeout);
+      };
     }
 
     // phase === "tool3" - Search with ToolFallback
@@ -278,14 +286,17 @@ function ToolGroupStreamingDemo() {
         index++;
       } else {
         clearInterval(interval);
-        setTimeout(() => {
+        timeout = setTimeout(() => {
           setSearchResult({ results: 24, relevance: "high" });
           setSearchStatus({ type: "complete" });
           setPhase("done");
         }, 400);
       }
     }, 25);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      if (timeout) clearTimeout(timeout);
+    };
   }, [phase]);
 
   const handleStart = () => {
