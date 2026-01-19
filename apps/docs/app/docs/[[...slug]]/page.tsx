@@ -3,7 +3,6 @@ import { DocsPage, DocsBody } from "fumadocs-ui/page";
 import { notFound } from "next/navigation";
 import { createOgMetadata } from "@/lib/og";
 import { getMDXComponents } from "@/mdx-components";
-import { DocsRuntimeProvider } from "@/contexts/DocsRuntimeProvider";
 import { source } from "@/lib/source";
 import { getPageTreePeers, findNeighbour } from "fumadocs-core/page-tree";
 import { Card, Cards } from "@/components/docs/fumadocs/card";
@@ -89,9 +88,7 @@ export default async function Page(props: {
             </p>
           )}
         </header>
-        <DocsRuntimeProvider>
-          <page.data.body components={mdxComponents} />
-        </DocsRuntimeProvider>
+        <page.data.body components={mdxComponents} />
         <DocsFooter previous={footerPrevious} next={footerNext} />
       </DocsBody>
     </DocsPage>
