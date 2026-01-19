@@ -5,7 +5,7 @@
   "description": "MCP Apps Servers and Assets",
   "type": "module",
   "scripts": {
-    "dev:all": "concurrently -n assets,pizzaz-py,kitchen-py,solar-py,shopping-py,kitchen-node,pizzaz-node -c blue,green,yellow,magenta,cyan,red,white \"pnpm dev:assets\" \"pnpm start:pizzaz-python\" \"pnpm start:kitchen-python\" \"pnpm start:solar-python\" \"pnpm start:shopping-python\" \"cd kitchen_sink_server_node && PORT=8001 pnpm start\" \"cd pizzaz_server_node && PORT=8000 pnpm start\"",
+    "dev:all": "concurrently -n assets,pizzaz-py,kitchen-py,solar-py,shopping-py,kitchen-node,pizzaz-node -c blue,green,yellow,magenta,cyan,red,white \"pnpm dev:assets\" \"pnpm start:pizzaz-python\" \"pnpm start:kitchen-python\" \"pnpm start:solar-python\" \"pnpm start:shopping-python\" \"cd kitchen_sink_server_node && PORT=8000 pnpm start\" \"cd pizzaz_server_node && PORT=8001 pnpm start\"",
     "dev:assets": "node ./serve-assets.mjs",
     "build": "pnpm run build:all",
     "build:all": "tsx ./build-all.mts",

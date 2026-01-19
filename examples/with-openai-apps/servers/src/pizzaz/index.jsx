@@ -181,7 +181,7 @@ export default function App() {
       <div
         style={{
           maxHeight,
-          height: displayMode === "fullscreen" ? maxHeight - 40 : 480,
+          height: displayMode === "fullscreen" ? (maxHeight ?? 480) - 40 : 480,
         }}
         className={
           "relative antialiased w-full min-h-[480px] overflow-hidden " +

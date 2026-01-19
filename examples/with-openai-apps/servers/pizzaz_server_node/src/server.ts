@@ -296,8 +296,9 @@ async function handleSseRequest(res: ServerResponse) {
 
   sessions.set(sessionId, { server, transport });
 
-  transport.onclose = () => {
+  transport.onclose = async () => {
     sessions.delete(sessionId);
+    await server.close();
   };
 
   transport.onerror = (error) => {
@@ -346,8 +347,8 @@ async function handlePostMessage(
   }
 }
 
-const portEnv = Number(process.env.PORT ?? 8000);
-const port = Number.isFinite(portEnv) ? portEnv : 8000;
+const portEnv = Number(process.env.PORT ?? 8001);
+const port = Number.isFinite(portEnv) ? portEnv : 8001;
 
 const httpServer = createServer(
   async (req: IncomingMessage, res: ServerResponse) => {
