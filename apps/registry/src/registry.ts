@@ -227,6 +227,25 @@ export const registry: RegistryItem[] = [
     registryDependencies: ["collapsible"],
   },
   {
+    name: "tool-group",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/tool-group.tsx",
+      },
+    ],
+    dependencies: [
+      "@assistant-ui/react",
+      "lucide-react",
+      "class-variance-authority",
+    ],
+    registryDependencies: ["collapsible"],
+    css: {
+      '@import "tw-shimmer"': {},
+    },
+  },
+  {
     name: "shiki-highlighter",
     type: "registry:component",
     files: [
