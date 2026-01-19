@@ -78,7 +78,10 @@ function ReasoningRoot({
       data-variant={variant}
       open={isOpen}
       onOpenChange={handleOpenChange}
-      className={cn(reasoningVariants({ variant, className }))}
+      className={cn(
+        "group/reasoning-root",
+        reasoningVariants({ variant, className }),
+      )}
       style={
         {
           "--animation-duration": `${ANIMATION_DURATION}ms`,
@@ -98,6 +101,7 @@ function ReasoningFade({ className, ...props }: React.ComponentProps<"div">) {
       className={cn(
         "aui-reasoning-fade pointer-events-none absolute inset-x-0 bottom-0 z-10 h-8",
         "bg-[linear-gradient(to_top,var(--color-background),transparent)]",
+        "group-data-[variant=muted]/reasoning-root:bg-[linear-gradient(to_top,hsl(var(--muted)/0.5),transparent)]",
         "fade-in-0 animate-in",
         "group-data-[state=open]/collapsible-content:animate-out",
         "group-data-[state=open]/collapsible-content:fade-out-0",
@@ -196,7 +200,7 @@ function ReasoningText({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="reasoning-text"
       className={cn(
-        "aui-reasoning-text relative z-0 max-h-64 space-y-4 overflow-y-auto pt-2 pb-4 pl-6 leading-relaxed",
+        "aui-reasoning-text relative z-0 max-h-64 overflow-y-auto pt-2 pb-2 pl-6 leading-relaxed",
         "transform-gpu transition-[transform,opacity]",
         "group-data-[state=open]/collapsible-content:animate-in",
         "group-data-[state=closed]/collapsible-content:animate-out",
@@ -206,7 +210,6 @@ function ReasoningText({ className, ...props }: React.ComponentProps<"div">) {
         "group-data-[state=closed]/collapsible-content:slide-out-to-top-4",
         "group-data-[state=open]/collapsible-content:duration-(--animation-duration)",
         "group-data-[state=closed]/collapsible-content:duration-(--animation-duration)",
-        "[&_p]:-mb-2",
         className,
       )}
       {...props}
