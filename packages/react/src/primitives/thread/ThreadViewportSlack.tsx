@@ -57,9 +57,13 @@ export const ThreadPrimitiveViewportSlack: FC<ThreadViewportSlackProps> = ({
   fillClampThreshold = "10em",
   fillClampOffset = "6em",
 }) => {
-  const isLast = useAssistantState(
-    // only add slack if the message is the last message and we already have at least 3 messages
-    ({ message }) => message.isLast && message.index >= 2,
+  const shouldApplySlack = useAssistantState(
+    // only add slack to the last assistant message following a user message (valid turn)
+    ({ thread, message }) =>
+      message.isLast &&
+      message.role === "assistant" &&
+      message.index >= 1 &&
+      thread.messages.at(message.index - 1)?.role === "user",
   );
   const threadViewportStore = useThreadViewportStore({ optional: true });
   const isNested = useContext(SlackNestingContext);
@@ -70,7 +74,7 @@ export const ThreadPrimitiveViewportSlack: FC<ThreadViewportSlackProps> = ({
 
       const updateMinHeight = () => {
         const state = threadViewportStore.getState();
-        if (state.turnAnchor === "top" && isLast) {
+        if (state.turnAnchor === "top" && shouldApplySlack) {
           const { viewport, inset, userMessage } = state.height;
           const threshold = parseCssLength(fillClampThreshold, el);
           const offset = parseCssLength(fillClampOffset, el);
@@ -93,7 +97,7 @@ export const ThreadPrimitiveViewportSlack: FC<ThreadViewportSlackProps> = ({
     },
     [
       threadViewportStore,
-      isLast,
+      shouldApplySlack,
       isNested,
       fillClampThreshold,
       fillClampOffset,

@@ -111,17 +111,17 @@ export const MessagePrimitiveRoot = forwardRef<
 >((props, forwardRef) => {
   const isHoveringRef = useIsHoveringRef();
   const anchorUserMessageRef = useMessageViewportRef();
-  const role = useAssistantState(({ message }) => message.role);
   const ref = useComposedRefs<HTMLDivElement>(
     forwardRef,
     isHoveringRef,
     anchorUserMessageRef,
   );
 
-  const content = <Primitive.div {...props} ref={ref} />;
-  if (role === "system") return content;
-
-  return <ThreadPrimitiveViewportSlack>{content}</ThreadPrimitiveViewportSlack>;
+  return (
+    <ThreadPrimitiveViewportSlack>
+      <Primitive.div {...props} ref={ref} />
+    </ThreadPrimitiveViewportSlack>
+  );
 });
 
 MessagePrimitiveRoot.displayName = "MessagePrimitive.Root";
