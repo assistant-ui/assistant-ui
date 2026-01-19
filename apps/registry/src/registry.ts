@@ -224,7 +224,7 @@ export const registry: RegistryItem[] = [
       },
     ],
     dependencies: ["@assistant-ui/react", "lucide-react"],
-    registryDependencies: ["button"],
+    registryDependencies: ["collapsible"],
   },
   {
     name: "shiki-highlighter",

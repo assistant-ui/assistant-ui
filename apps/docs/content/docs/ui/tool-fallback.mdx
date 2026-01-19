@@ -4,7 +4,12 @@ description: Default UI component for tools without dedicated custom renderers.
 ---
 
 import { InstallCommand } from "@/components/docs/fumadocs/install/install-command";
-import { ToolFallbackSample } from "@/components/docs/samples/tool-fallback";
+import {
+  ToolFallbackSample,
+  ToolFallbackRunningSample,
+  ToolFallbackCancelledSample,
+  ToolFallbackStreamingSample,
+} from "@/components/docs/samples/tool-fallback";
 
 <ToolFallbackSample />
 
@@ -26,33 +31,19 @@ This adds a `/components/assistant-ui/tool-fallback.tsx` file to your project, w
 
 Pass the `ToolFallback` component to the `MessagePrimitive.Parts` component
 
-```tsx twoslash title="/components/assistant-ui/thread.tsx" {1,11}
-// @filename: /components/assistant-ui/tool-fallback.tsx
-import { FC } from "react";
-export const ToolFallback: FC = () => null;
-
-// @filename: ./thread.tsx
-import { FC } from "react";
-import { MessagePrimitive } from "@assistant-ui/react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-
-const AssistantActionBar: FC = () => null;
-const BranchPicker: FC<{ className?: string }> = () => null;
-
-// ---cut---
+```tsx title="/components/assistant-ui/thread.tsx" {1,9}
 import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 
-const AssistantMessage: FC = () => {
+const AssistantMessage = () => {
   return (
-    <MessagePrimitive.Root className="...">
-      <div className="...">
-        <MessagePrimitive.Parts
-          components={{ tools: { Fallback: ToolFallback } }}
-        />
-      </div>
-      <AssistantActionBar />
-
-      <BranchPicker className="..." />
+    <MessagePrimitive.Root>
+      <MessagePrimitive.Parts
+        components={{
+          tools: { 
+            Fallback: ToolFallback 
+          },
+        }}
+      />
     </MessagePrimitive.Root>
   );
 };
@@ -60,6 +51,61 @@ const AssistantMessage: FC = () => {
 
   </Step>
 </Steps>
+
+## Examples
+
+### Streaming Demo
+
+Interactive demo showing the full tool call lifecycle: running → complete.
+
+<ToolFallbackStreamingSample />
+
+### Running State
+
+Shows a loading spinner and shimmer animation while the tool is executing.
+
+<ToolFallbackRunningSample />
+
+### Cancelled State
+
+Shows a muted appearance when a tool call was cancelled.
+
+<ToolFallbackCancelledSample />
+
+## Composable API
+
+All sub-components are exported for custom layouts:
+
+| Component | Description |
+| --------- | ----------- |
+| `ToolFallback.Root` | Collapsible container with scroll lock |
+| `ToolFallback.Trigger` | Header with tool name, status icon, and shimmer |
+| `ToolFallback.Content` | Animated collapsible content wrapper |
+| `ToolFallback.Args` | Displays tool arguments |
+| `ToolFallback.Result` | Displays tool execution result |
+| `ToolFallback.Error` | Displays error or cancellation messages |
+
+```tsx
+import {
+  ToolFallback,
+  ToolFallbackRoot,
+  ToolFallbackTrigger,
+  ToolFallbackContent,
+  ToolFallbackArgs,
+  ToolFallbackResult,
+  ToolFallbackError,
+} from "@/components/assistant-ui/tool-fallback";
+
+// Compound component syntax
+<ToolFallback.Root>
+  <ToolFallback.Trigger toolName="get_weather" status={status} />
+  <ToolFallback.Content>
+    <ToolFallback.Error status={status} />
+    <ToolFallback.Args argsText={argsText} />
+    <ToolFallback.Result result={result} />
+  </ToolFallback.Content>
+</ToolFallback.Root>
+```
 
 ## Related Components
 
