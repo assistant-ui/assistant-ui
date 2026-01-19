@@ -330,10 +330,15 @@ const useLangGraphRuntimeImpl = ({
         !loadingRef.current &&
         lastLoadedIdRef.current !== externalId
       ) {
+        const idToLoad = externalId;
         loadingRef.current = true;
-        lastLoadedIdRef.current = externalId;
-        loadThread(externalId).finally(() => {
+
+        loadThread(idToLoad).finally(() => {
           loadingRef.current = false;
+
+          if (idToLoad === externalId) {
+            lastLoadedIdRef.current = idToLoad;
+          }
         });
       }
     }, [loadThread, externalId]);
