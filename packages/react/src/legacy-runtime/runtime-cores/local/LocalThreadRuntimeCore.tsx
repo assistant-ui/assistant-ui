@@ -376,7 +376,11 @@ export class LocalThreadRuntimeCore
       }
     } catch (e) {
       // TODO this should be handled by the run result stream
-      if (e instanceof Error && e.name === "AbortError") {
+      if (e instanceof AbortError) {
+        updateMessage({
+          status: { type: "incomplete", reason: "cancelled" },
+        });
+      } else if (e instanceof Error && e.name === "AbortError") {
         updateMessage({
           status: { type: "incomplete", reason: "cancelled" },
         });
