@@ -16,38 +16,44 @@ import {
   DocsChatPanel,
 } from "@/components/docs/layout/docs-layout";
 import { DocsRuntimeProvider } from "@/contexts/DocsRuntimeProvider";
+import { SidebarRuntimeProvider } from "@/contexts/SidebarRuntimeProvider";
+import { CurrentPageProvider } from "@/components/docs/contexts/current-page";
 
 export default function Layout({ children }: { children: ReactNode }) {
   const tabs = getSidebarTabs(source.pageTree);
 
   return (
-    <ChatPanelProvider>
-      <DocsRuntimeProvider>
-        <DocsSidebarProvider>
-          <DocsHeader section="Docs" sectionHref="/docs" />
-          <DocsContent>
-            <DocsLayout
-              {...sharedDocsOptions}
-              tree={source.pageTree}
-              nav={{ enabled: false }}
-              sidebar={{
-                ...sharedDocsOptions.sidebar,
-                tabs: false,
-                banner: <SidebarTabs tabs={tabs} />,
-              }}
-            >
-              {children}
-            </DocsLayout>
-          </DocsContent>
-          <DocsSidebar>
-            <SidebarContent
-              tree={source.pageTree}
-              banner={<SidebarTabs tabs={tabs} />}
-            />
-          </DocsSidebar>
-        </DocsSidebarProvider>
-        <DocsChatPanel />
-      </DocsRuntimeProvider>
-    </ChatPanelProvider>
+    <CurrentPageProvider>
+      <ChatPanelProvider>
+        <DocsRuntimeProvider>
+          <DocsSidebarProvider>
+            <DocsHeader section="Docs" sectionHref="/docs" />
+            <DocsContent>
+              <DocsLayout
+                {...sharedDocsOptions}
+                tree={source.pageTree}
+                nav={{ enabled: false }}
+                sidebar={{
+                  ...sharedDocsOptions.sidebar,
+                  tabs: false,
+                  banner: <SidebarTabs tabs={tabs} />,
+                }}
+              >
+                {children}
+              </DocsLayout>
+            </DocsContent>
+            <DocsSidebar>
+              <SidebarContent
+                tree={source.pageTree}
+                banner={<SidebarTabs tabs={tabs} />}
+              />
+            </DocsSidebar>
+          </DocsSidebarProvider>
+        </DocsRuntimeProvider>
+        <SidebarRuntimeProvider>
+          <DocsChatPanel />
+        </SidebarRuntimeProvider>
+      </ChatPanelProvider>
+    </CurrentPageProvider>
   );
 }

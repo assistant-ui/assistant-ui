@@ -3,7 +3,6 @@
 import type { ReactNode } from "react";
 import { AIChatPanel } from "@/components/docs/layout/ai-chat-panel";
 import { useChatPanel } from "@/components/docs/contexts/chat-panel";
-import { SidebarRuntimeProvider } from "@/contexts/SidebarRuntimeProvider";
 import { cn } from "@/lib/utils";
 
 export function DocsContent({
@@ -36,9 +35,7 @@ export function DocsChatPanel(): React.ReactNode {
       )}
       style={open ? { width: `${width}px` } : undefined}
     >
-      <SidebarRuntimeProvider>
-        <AIChatPanel />
-      </SidebarRuntimeProvider>
+      <AIChatPanel />
     </div>
   );
 }
