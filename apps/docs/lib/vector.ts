@@ -3,6 +3,7 @@ import { embed } from "ai";
 import { openai } from "@ai-sdk/openai";
 
 export interface DocMetadata {
+  [key: string]: unknown;
   url: string;
   title: string;
   content: string;
@@ -19,10 +20,14 @@ let cachedIndex: Index | null = null;
 
 function getVectorIndex(): Index {
   if (!cachedIndex) {
-    cachedIndex = new Index({
-      url: process.env.UPSTASH_VECTOR_REST_URL!,
-      token: process.env.UPSTASH_VECTOR_REST_TOKEN!,
-    });
+    const url = process.env["UPSTASH_VECTOR_REST_URL"];
+    const token = process.env["UPSTASH_VECTOR_REST_TOKEN"];
+    if (!url || !token) {
+      throw new Error(
+        "Missing UPSTASH_VECTOR_REST_URL or UPSTASH_VECTOR_REST_TOKEN",
+      );
+    }
+    cachedIndex = new Index({ url, token });
   }
   return cachedIndex;
 }

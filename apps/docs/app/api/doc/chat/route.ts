@@ -232,7 +232,18 @@ export async function POST(req: Request): Promise<Response> {
             .describe("Page slug (e.g., 'ui/thread') or URL"),
         }),
         execute: async ({ slugOrUrl }) => {
-          const normalized = slugOrUrl.replace(/^\/docs\/?/, "");
+          let path = slugOrUrl;
+          if (
+            slugOrUrl.startsWith("http://") ||
+            slugOrUrl.startsWith("https://")
+          ) {
+            try {
+              path = new URL(slugOrUrl).pathname;
+            } catch {
+              return { error: `Invalid URL: ${slugOrUrl}` };
+            }
+          }
+          const normalized = path.replace(/^\/docs\/?/, "");
           const slugs = normalized.split("/").filter(Boolean);
 
           const page = source.getPage(slugs);
