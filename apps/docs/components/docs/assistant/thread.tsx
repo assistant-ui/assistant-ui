@@ -4,6 +4,7 @@ import {
   AssistantIf,
   ThreadPrimitive,
   useAssistantApi,
+  useAssistantState,
 } from "@assistant-ui/react";
 import { useEffect, useRef } from "react";
 import { AssistantMessage, UserMessage } from "./messages";
@@ -14,18 +15,17 @@ import { AssistantFooter } from "@/components/docs/assistant/footer";
 function PendingMessageHandler() {
   const { pendingMessage, clearPendingMessage } = useAssistantPanel();
   const api = useAssistantApi();
+  const isRunning = useAssistantState(({ thread }) => thread.isRunning);
   const processedRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!pendingMessage || processedRef.current === pendingMessage) return;
+    if (isRunning) return;
 
-    const isRunning = api.thread().getState().isRunning;
-    if (!isRunning) {
-      processedRef.current = pendingMessage;
-      clearPendingMessage();
-      api.thread().append(pendingMessage);
-    }
-  }, [pendingMessage, clearPendingMessage, api]);
+    processedRef.current = pendingMessage;
+    clearPendingMessage();
+    api.thread().append(pendingMessage);
+  }, [pendingMessage, clearPendingMessage, api, isRunning]);
 
   return null;
 }

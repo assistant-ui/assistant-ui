@@ -168,7 +168,7 @@ const markdownComponents = memoizeMarkdownComponents({
 
     if (href?.startsWith("/")) {
       return (
-        <Link href={href} className={linkClass}>
+        <Link href={href} className={linkClass} {...props}>
           {children}
         </Link>
       );
