@@ -313,7 +313,9 @@ const useLangGraphRuntimeImpl = ({
       : undefined,
   });
 
-  const externalId = useAssistantState(({ threadListItem }) => threadListItem.externalId);
+  const externalId = useAssistantState(
+    ({ threadListItem }) => threadListItem.externalId,
+  );
 
   {
     const loadingRef = useRef(false);
