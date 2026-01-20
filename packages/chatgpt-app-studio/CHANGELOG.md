@@ -1,5 +1,11 @@
 # chatgpt-app-studio
 
+## 0.3.2
+
+### Patch Changes
+
+- 3719567: chore: update deps
+
 ## 0.3.1
 
 ### Patch Changes

@@ -1,5 +1,21 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.2.0
+
+### Minor Changes
+
+- 6fd744a: Upgrade to Vercel AI SDK v6
+  - Updated peer dependencies: `ai@^6.0.0`, `@ai-sdk/react@^3.0.0`
+  - Renamed format adapter from `aiSDKV5FormatAdapter` to `aiSDKV6FormatAdapter`
+  - Updated `@ai-sdk/provider` to use LanguageModelV2 types
+
+### Patch Changes
+
+- 3719567: chore: update deps
+- Updated dependencies [3719567]
+  - assistant-cloud@0.1.13
+  - @assistant-ui/react@0.11.58
+
 ## 1.1.21
 
 ### Patch Changes

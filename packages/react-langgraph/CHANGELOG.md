@@ -1,5 +1,14 @@
 # @assistant-ui/react-langgraph
 
+## 0.7.15
+
+### Patch Changes
+
+- 3719567: chore: update deps
+- Updated dependencies [3719567]
+  - assistant-stream@0.2.47
+  - @assistant-ui/react@0.11.58
+
 ## 0.7.14
 
 ### Patch Changes
