@@ -8,8 +8,7 @@
     "build:docs": "tsx ./scripts/generate-docs.mts",
     "dev": "next dev",
     "start": "next start",
-    "postinstall": "fumadocs-mdx",
-    "sync-embeddings": "tsx scripts/sync-embeddings.ts"
+    "postinstall": "fumadocs-mdx"
   },
   "dependencies": {
     "@ai-sdk/openai": "^2.0.88",
@@ -41,7 +40,6 @@
     "@shikijs/transformers": "^3.20.0",
     "@theguild/remark-mermaid": "^0.3.0",
     "@upstash/ratelimit": "^2.0.8",
-    "@upstash/vector": "^1.1.0",
     "@vercel/analytics": "^1.6.1",
     "@vercel/kv": "^3.0.0",
     "ai": "^5.0.116",

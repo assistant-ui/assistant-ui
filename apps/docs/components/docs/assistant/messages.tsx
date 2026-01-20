@@ -12,7 +12,7 @@ import {
   FileTextIcon,
   FolderTreeIcon,
   LoaderIcon,
-  SearchIcon,
+  type LucideIcon,
 } from "lucide-react";
 import { type FC, type ReactNode, useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
@@ -64,21 +64,13 @@ function getToolDisplay(
   toolName: string,
   args: Record<string, unknown>,
   isRunning: boolean,
-): { icon: typeof SearchIcon; label: string; detail: string } {
+): { icon: LucideIcon; label: string; detail: string } {
   switch (toolName) {
-    case "searchDocs": {
-      const query = (args as { query?: string })?.query ?? "";
-      return {
-        icon: SearchIcon,
-        label: isRunning ? "Searching" : "Searched",
-        detail: `"${query}"`,
-      };
-    }
-    case "browseDocs": {
+    case "listDocs": {
       const path = (args as { path?: string })?.path;
       return {
         icon: FolderTreeIcon,
-        label: isRunning ? "Browsing" : "Browsed",
+        label: isRunning ? "Listing" : "Listed",
         detail: path ? `/${path}` : "documentation structure",
       };
     }
@@ -105,7 +97,7 @@ function ToolStatusIcon({
   FallbackIcon,
 }: {
   status: { type: string } | undefined;
-  FallbackIcon: typeof SearchIcon;
+  FallbackIcon: LucideIcon;
 }): ReactNode {
   if (status?.type === "running") {
     return <LoaderIcon className="size-3 animate-spin" />;
