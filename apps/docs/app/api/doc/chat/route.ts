@@ -1,3 +1,6 @@
+import { getLLMText } from "@/lib/get-llm-text";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { source } from "@/lib/source";
 import { openai } from "@ai-sdk/openai";
 import { frontendTools } from "@assistant-ui/react-ai-sdk";
 import {
@@ -7,11 +10,8 @@ import {
   streamText,
   tool,
 } from "ai";
-import z from "zod";
-import { source } from "@/lib/source";
-import { getLLMText } from "@/lib/get-llm-text";
-import { checkRateLimit } from "@/lib/rate-limit";
 import type * as PageTree from "fumadocs-core/page-tree";
+import z from "zod";
 
 function findFolderByPath(
   tree: PageTree.Root,
@@ -118,7 +118,7 @@ export async function POST(req: Request): Promise<Response> {
   const { messages, tools } = await req.json();
 
   const prunedMessages = pruneMessages({
-    messages: convertToModelMessages(messages),
+    messages: await convertToModelMessages(messages),
     toolCalls: "before-last-2-messages",
     reasoning: "none",
     emptyMessages: "remove",
