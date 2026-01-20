@@ -15,7 +15,7 @@ export function AIChatPanel(): React.ReactNode {
           variant="ghost"
           size="icon"
           onClick={toggle}
-          className="size-9"
+          className="size-7"
           aria-label="Open AI Chat"
         >
           <PanelRightOpenIcon className="size-4" />

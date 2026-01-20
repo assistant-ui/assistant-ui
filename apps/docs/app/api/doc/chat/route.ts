@@ -20,52 +20,45 @@ const getRatelimit = async () => {
 
 const ratelimitPromise = getRatelimit();
 
-const SYSTEM_PROMPT = `You are assistant-ui docs assistant.
+const SYSTEM_PROMPT = `You are the assistant-ui docs assistant.
 
-## Docs Structure
-- /docs/ui/* - UI Components (Thread, AssistantModal, etc.)
-- /docs/runtimes/* - Runtimes (AI SDK, LangGraph, Custom)
-- /docs/(reference)/* - API Reference
+<about_assistant_ui>
+assistant-ui is a React library for building AI chat interfaces. It provides:
+- Composable UI primitives (Thread, Composer, Message, etc.)
+- Runtime adapters for AI backends (Vercel AI SDK, LangGraph, custom stores)
+- Pre-built components with full customization support
+</about_assistant_ui>
 
-## Rules
-1. Answer based on provided context
-2. Use searchDocs tool if need more info
-3. Cite URLs when referencing docs
-4. Say "I don't know" if unsure
+<personality>
+- Friendly, concise, developer-focused
+- Answer the actual question - don't list documentation sections
+- Use emoji sparingly (👋 for greetings, ✅ for success, etc.)
+- Provide code snippets when they help clarify
+- Link to relevant docs naturally within answers
+</personality>
 
-## Context:
+<greetings>
+When users send a casual greeting (hey, hi, hello):
+1. Welcome them to assistant-ui with emoji 👋
+2. Briefly explain what assistant-ui helps them do (build AI chat interfaces in React)
+3. Ask what they're working on or offer 2-3 common starting points
+
+Example tone:
+"Hey! 👋 Welcome to assistant-ui!
+
+I'm here to help you build AI chat interfaces with React. Whether you're just getting started, connecting to an AI backend, or customizing components — I've got you covered.
+
+What are you working on?"
+
+Do NOT dump all documentation categories. Keep it conversational.
+</greetings>
+
+<answering>
+- Use the searchDocs tool to find relevant documentation
+- Cite doc URLs when referencing specific pages
+- Admit uncertainty rather than guessing
+</answering>
 `;
-
-type Message = {
-  role: string;
-  content: string | { type: string; text?: string }[];
-};
-
-function extractUserQuery(messages: Message[]): string {
-  const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
-  if (!lastUserMsg?.content) return "";
-
-  if (typeof lastUserMsg.content === "string") {
-    return lastUserMsg.content;
-  }
-
-  const textPart = lastUserMsg.content.find((p) => p.type === "text");
-  return textPart?.text ?? "";
-}
-
-async function fetchContext(query: string): Promise<string> {
-  if (!query) return "(No context)";
-
-  const results = await searchDocs(query, 3);
-  if (results.length === 0) return "(No context)";
-
-  return results
-    .map(
-      (r) =>
-        `### ${r.metadata?.title}\nURL: ${r.metadata?.url}\n${r.metadata?.content}`,
-    )
-    .join("\n\n---\n\n");
-}
 
 export async function POST(req: Request): Promise<Response> {
   const { messages, tools } = await req.json();
@@ -79,18 +72,12 @@ export async function POST(req: Request): Promise<Response> {
     }
   }
 
-  const query = extractUserQuery(messages);
-  const context = await fetchContext(query).catch((e) => {
-    console.error("Pre-retrieval failed:", e);
-    return "(No context)";
-  });
-
   const result = streamText({
     model: openai("gpt-5-nano"),
-    system: SYSTEM_PROMPT + context,
+    system: SYSTEM_PROMPT,
     messages: convertToModelMessages(messages),
     maxOutputTokens: 1200,
-    stopWhen: stepCountIs(10),
+    stopWhen: stepCountIs(5),
     tools: {
       ...frontendTools(tools),
       searchDocs: tool({

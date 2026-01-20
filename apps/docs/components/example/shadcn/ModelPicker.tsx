@@ -7,35 +7,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { MODELS } from "@/constants/model";
 import Image from "next/image";
 import type { FC } from "react";
-
-const MODELS = [
-  {
-    name: "GPT-5 Nano",
-    value: "gpt-5-nano",
-    icon: "/providers/openai.svg",
-    disabled: false,
-  },
-  {
-    name: "Deepseek R1",
-    value: "deepseek-r1",
-    icon: "/providers/deepseek.svg",
-    disabled: true,
-  },
-  {
-    name: "Claude 4.5 Sonnet",
-    value: "claude-4.5-sonnet",
-    icon: "/providers/anthropic.svg",
-    disabled: true,
-  },
-  {
-    name: "Gemini 3.0 Flash",
-    value: "gemini-3.0-flash",
-    icon: "/providers/google.svg",
-    disabled: true,
-  },
-] as const;
 
 export const ModelPicker: FC = () => {
   return (

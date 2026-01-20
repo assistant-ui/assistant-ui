@@ -5,6 +5,7 @@ import {
   useChatRuntime,
   AssistantChatTransport,
 } from "@assistant-ui/react-ai-sdk";
+import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import type { ReactNode } from "react";
 
 export function SidebarRuntimeProvider({ children }: { children: ReactNode }) {
@@ -12,6 +13,7 @@ export function SidebarRuntimeProvider({ children }: { children: ReactNode }) {
     transport: new AssistantChatTransport({
       api: "/api/doc/chat",
     }),
+    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
   });
 
   return (

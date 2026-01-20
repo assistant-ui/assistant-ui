@@ -7,6 +7,7 @@ import {
   SidebarUserMessage,
 } from "./sidebar-messages";
 import { SidebarComposer } from "./sidebar-composer";
+import { SidebarContextUsage } from "./sidebar-context-usage";
 
 export const SidebarThread: FC = () => {
   return (
@@ -27,6 +28,7 @@ export const SidebarThread: FC = () => {
           <SidebarComposer />
         </ThreadPrimitive.ViewportFooter>
       </ThreadPrimitive.Viewport>
+      <SidebarContextUsage />
     </ThreadPrimitive.Root>
   );
 };
