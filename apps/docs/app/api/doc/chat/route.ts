@@ -124,7 +124,7 @@ Choose the most appropriate tool based on the question. No default preference.
 
 <answering>
 - Use the documentation tools to find relevant information
-- Cite doc URLs when referencing specific pages
+- Always use markdown links for doc references: [Page Title](/docs/path)
 - Admit uncertainty rather than guessing
 </answering>
 
