@@ -13,7 +13,7 @@ import { source } from "@/lib/source";
 import { getLLMText } from "@/lib/get-llm-text";
 import type * as PageTree from "fumadocs-core/page-tree";
 
-export const maxDuration = 30;
+export const maxDuration = 300;
 
 const isDev = process.env.NODE_ENV === "development";
 
@@ -163,7 +163,7 @@ export async function POST(req: Request): Promise<Response> {
     model: openai("gpt-5-nano"),
     system: SYSTEM_PROMPT,
     messages: prunedMessages,
-    stopWhen: stepCountIs(20),
+    stopWhen: stepCountIs(25),
     tools: {
       ...frontendTools(tools),
       searchDocs: tool({
