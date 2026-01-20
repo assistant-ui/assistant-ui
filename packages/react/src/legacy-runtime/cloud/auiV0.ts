@@ -86,102 +86,102 @@ export const auiV0Encode = (message: ThreadMessage): AuiV0Message => {
     role: message.role,
     content: message.content
       .map((part) => {
-      const type = part.type;
-      switch (type) {
-        case "text": {
-          return {
-            type: "text",
-            text: part.text,
-          } as const;
-        }
+        const type = part.type;
+        switch (type) {
+          case "text": {
+            return {
+              type: "text",
+              text: part.text,
+            } as const;
+          }
 
-        case "reasoning": {
-          return {
-            type: "reasoning",
-            text: part.text,
-          } as const;
-        }
+          case "reasoning": {
+            return {
+              type: "reasoning",
+              text: part.text,
+            } as const;
+          }
 
-        case "source": {
-          return {
-            type: "source",
-            sourceType: part.sourceType,
-            id: part.id,
-            url: part.url,
-            ...(part.title ? { title: part.title } : undefined),
-          } as const;
-        }
+          case "source": {
+            return {
+              type: "source",
+              sourceType: part.sourceType,
+              id: part.id,
+              url: part.url,
+              ...(part.title ? { title: part.title } : undefined),
+            } as const;
+          }
 
-        case "tool-call": {
-          if (!isJSONValue(part.result)) {
-            console.warn(
-              `tool-call result is not JSON! ${JSON.stringify(part)}`,
+          case "tool-call": {
+            if (!isJSONValue(part.result)) {
+              console.warn(
+                `tool-call result is not JSON! ${JSON.stringify(part)}`,
+              );
+            }
+            return {
+              type: "tool-call",
+              toolCallId: part.toolCallId,
+              toolName: part.toolName,
+              ...(JSON.stringify(part.args) === part.argsText
+                ? {
+                    args: part.args,
+                  }
+                : { argsText: part.argsText }),
+              ...(part.result
+                ? { result: part.result as ReadonlyJSONValue }
+                : {}),
+              ...(part.isError ? ({ isError: true } as const) : {}),
+            } as const;
+          }
+
+          case "image": {
+            return {
+              type: "image",
+              image: part.image,
+              ...(part.filename ? { filename: part.filename } : undefined),
+            } as const;
+          }
+
+          case "file": {
+            return {
+              type: "file",
+              data: part.data,
+              mimeType: part.mimeType,
+              ...(part.filename ? { filename: part.filename } : undefined),
+            } as const;
+          }
+
+          case "audio": {
+            return {
+              type: "audio",
+              audio: {
+                data: part.audio.data,
+                format: part.audio.format,
+              },
+            } as const;
+          }
+
+          case "data": {
+            if (!isJSONValue(part.data)) {
+              console.warn(
+                `data part "${part.name}" contains non-JSON data, skipping`,
+              );
+              return null;
+            }
+            return {
+              type: "data",
+              name: part.name,
+              data: part.data as ReadonlyJSONValue,
+            } as const;
+          }
+
+          default: {
+            const unhandledType: never = type;
+            throw new Error(
+              `Message part type not supported by aui/v0: ${unhandledType}`,
             );
           }
-          return {
-            type: "tool-call",
-            toolCallId: part.toolCallId,
-            toolName: part.toolName,
-            ...(JSON.stringify(part.args) === part.argsText
-              ? {
-                  args: part.args,
-                }
-              : { argsText: part.argsText }),
-            ...(part.result
-              ? { result: part.result as ReadonlyJSONValue }
-              : {}),
-            ...(part.isError ? ({ isError: true } as const) : {}),
-          } as const;
         }
-
-        case "image": {
-          return {
-            type: "image",
-            image: part.image,
-            ...(part.filename ? { filename: part.filename } : undefined),
-          } as const;
-        }
-
-        case "file": {
-          return {
-            type: "file",
-            data: part.data,
-            mimeType: part.mimeType,
-            ...(part.filename ? { filename: part.filename } : undefined),
-          } as const;
-        }
-
-        case "audio": {
-          return {
-            type: "audio",
-            audio: {
-              data: part.audio.data,
-              format: part.audio.format,
-            },
-          } as const;
-        }
-
-        case "data": {
-          if (!isJSONValue(part.data)) {
-            console.warn(
-              `data part "${part.name}" contains non-JSON data, skipping`,
-            );
-            return null;
-          }
-          return {
-            type: "data",
-            name: part.name,
-            data: part.data as ReadonlyJSONValue,
-          } as const;
-        }
-
-        default: {
-          const unhandledType: never = type;
-          throw new Error(
-            `Message part type not supported by aui/v0: ${unhandledType}`,
-          );
-        }
-      }
       })
       .filter((part): part is NonNullable<typeof part> => part !== null),
     metadata: message.metadata as AuiV0Message["metadata"],
