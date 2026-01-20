@@ -84,9 +84,14 @@ const useAssistantTransportThreadRuntime = <T,>(
   const agentStateRef = useRef(options.initialState);
   const [, rerender] = useState(0);
   const resumeFlagRef = useRef(false);
+  const parentIdRef = useRef<string | null | undefined>(undefined);
   const commandQueue = useCommandQueue({
     onQueue: () => runManager.schedule(),
   });
+
+  const threadId = useAssistantState(
+    ({ threadListItem }) => threadListItem.remoteId,
+  );
 
   const runManager = useRunManager({
     onRun: async (signal: AbortSignal) => {
@@ -115,6 +120,10 @@ const useAssistantTransportThreadRuntime = <T,>(
             tools: context.tools
               ? toAISDKTools(getEnabledTools(context.tools))
               : undefined,
+            threadId,
+            ...(parentIdRef.current !== undefined && {
+              parentId: parentIdRef.current,
+            }),
             ...context.callSettings,
             ...context.config,
             ...(bodyValue ?? {}),
@@ -250,6 +259,9 @@ const useAssistantTransportThreadRuntime = <T,>(
     onNew: async (message: AppendMessage): Promise<void> => {
       if (message.role !== "user")
         throw new Error("Only user messages are supported");
+
+      // Store parentId for the request
+      parentIdRef.current = message.parentId;
 
       // Convert AppendMessage to AddMessageCommand
       const parts: UserMessagePart[] = [];
