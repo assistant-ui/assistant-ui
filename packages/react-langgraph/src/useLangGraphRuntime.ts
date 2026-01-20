@@ -303,12 +303,12 @@ const useLangGraphRuntimeImpl = ({
 
   {
     const api = useAssistantApi();
-    
+
     const loadRef = useRef(load);
     useEffect(() => {
       loadRef.current = load;
     });
-    
+
     useEffect(() => {
       const load = loadRef.current;
       if (!load) return;
