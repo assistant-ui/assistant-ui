@@ -15,6 +15,7 @@ export const NAV_ITEMS: NavItem[] = [
   { type: "link", label: "Docs", href: "/docs" },
   { type: "link", label: "Showcase", href: "/showcase" },
   { type: "link", label: "Examples", href: "/examples" },
+  { type: "link", label: "Cloud", href: "https://cloud.assistant-ui.com" },
   { type: "link", label: "Playground", href: "/playground" },
   {
     type: "dropdown",
