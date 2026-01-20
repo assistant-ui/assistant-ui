@@ -44,9 +44,8 @@ function SearchButton({ onToggle }: { onToggle: () => void }) {
 
 function HiringBanner({ onDismiss }: { onDismiss: () => void }) {
   return (
-    <div className="relative">
-      <div className="mx-auto flex h-8 w-full max-w-7xl items-center justify-between px-4">
-        <div className="hidden w-8 sm:block" />
+    <div className="relative flex justify-center">
+      <div className="relative flex items-center gap-3 rounded-full border border-border/50 bg-background/60 px-4 py-1.5 backdrop-blur-md">
         <Link
           href="/careers"
           className="group inline-flex items-center gap-1.5 text-xs"
@@ -58,11 +57,11 @@ function HiringBanner({ onDismiss }: { onDismiss: () => void }) {
         </Link>
         <button
           type="button"
-          aria-label="Dismiss hiring banner"
+          aria-label="Dismiss"
           onClick={onDismiss}
-          className="flex size-8 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+          className="flex size-5 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
-          <X className="size-3.5" />
+          <X className="size-3" />
         </button>
       </div>
     </div>
@@ -102,13 +101,25 @@ export function Header() {
         <nav className="hidden items-center md:flex">
           {NAV_ITEMS.map((item) =>
             item.type === "link" ? (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="px-3 py-1.5 text-muted-foreground text-sm transition-colors hover:text-foreground"
-              >
-                {item.label}
-              </Link>
+              item.href.startsWith("http") ? (
+                <a
+                  key={item.href}
+                  href={item.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3 py-1.5 text-muted-foreground text-sm transition-colors hover:text-foreground"
+                >
+                  {item.label}
+                </a>
+              ) : (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className="px-3 py-1.5 text-muted-foreground text-sm transition-colors hover:text-foreground"
+                >
+                  {item.label}
+                </Link>
+              )
             ) : (
               <HoverCard key={item.label} openDelay={100} closeDelay={100}>
                 <HoverCardTrigger asChild>
@@ -204,14 +215,27 @@ export function Header() {
         <nav className="flex h-full flex-col gap-1 overflow-y-auto px-4 pt-4">
           {NAV_ITEMS.map((item) =>
             item.type === "link" ? (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setMobileMenuOpen(false)}
-                className="py-3 text-foreground text-lg transition-colors"
-              >
-                {item.label}
-              </Link>
+              item.href.startsWith("http") ? (
+                <a
+                  key={item.href}
+                  href={item.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="py-3 text-foreground text-lg transition-colors"
+                >
+                  {item.label}
+                </a>
+              ) : (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="py-3 text-foreground text-lg transition-colors"
+                >
+                  {item.label}
+                </Link>
+              )
             ) : (
               <div key={item.label} className="flex flex-col">
                 <span className="py-3 text-muted-foreground text-sm">
