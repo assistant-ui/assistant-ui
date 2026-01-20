@@ -1,0 +1,89 @@
+{
+  "name": "@assistant-ui/react-streamdown",
+  "version": "0.0.1",
+  "description": "Streamdown-based markdown rendering for assistant-ui",
+  "keywords": [
+    "markdown",
+    "streamdown",
+    "assistant-ui",
+    "react",
+    "ai",
+    "chat",
+    "streaming"
+  ],
+  "author": "AgentbaseAI Inc.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "aui-source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "aui-build",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "streamdown": "^1.0.0"
+  },
+  "peerDependencies": {
+    "@assistant-ui/react": "^0.11.57",
+    "@streamdown/code": "^1.0.0",
+    "@streamdown/cjk": "^1.0.0",
+    "@streamdown/math": "^1.0.0",
+    "@streamdown/mermaid": "^1.0.0",
+    "@types/react": "*",
+    "react": "^18 || ^19"
+  },
+  "peerDependenciesMeta": {
+    "@types/react": {
+      "optional": true
+    },
+    "@streamdown/code": {
+      "optional": true
+    },
+    "@streamdown/cjk": {
+      "optional": true
+    },
+    "@streamdown/math": {
+      "optional": true
+    },
+    "@streamdown/mermaid": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@assistant-ui/react": "workspace:*",
+    "@assistant-ui/x-buildutils": "workspace:*",
+    "@streamdown/code": "^1.0.0",
+    "@types/hast": "^3.0.4",
+    "@types/react": "^19.2.7",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "vitest": "^4.0.16"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "homepage": "https://www.assistant-ui.com/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/assistant-ui/assistant-ui.git",
+    "directory": "packages/react-streamdown"
+  },
+  "bugs": {
+    "url": "https://github.com/assistant-ui/assistant-ui/issues"
+  }
+}

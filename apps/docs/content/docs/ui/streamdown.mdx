@@ -1,0 +1,141 @@
+---
+title: Streamdown
+description: Alternative markdown renderer with built-in syntax highlighting, math, and diagram support.
+---
+
+import { PackageManagerTabs } from "@/components/docs/fumadocs/install/package-manager-tabs";
+import { StreamdownSample } from "@/components/docs/samples/streamdown";
+
+<StreamdownSample />
+
+<Callout type="info">
+  `@assistant-ui/react-streamdown` is an **alternative** to `@assistant-ui/react-markdown`. Choose based on your needs:
+  - **react-markdown**: Lightweight, bring-your-own syntax highlighter
+  - **react-streamdown**: Feature-rich with built-in Shiki, KaTeX, Mermaid support
+</Callout>
+
+## Installation
+
+<PackageManagerTabs packages={["@assistant-ui/react-streamdown", "streamdown"]} />
+
+For additional features, install the optional plugins:
+
+<PackageManagerTabs packages={["@streamdown/code", "@streamdown/math", "@streamdown/mermaid", "@streamdown/cjk"]} />
+
+## Basic Usage
+
+```tsx
+import { StreamdownTextPrimitive } from "@assistant-ui/react-streamdown";
+
+// Inside a MessagePrimitive.Parts component
+<MessagePrimitive.Parts components={{ Text: StreamdownText }} />
+
+// Where StreamdownText is:
+const StreamdownText = () => <StreamdownTextPrimitive />;
+```
+
+## With Plugins (Recommended)
+
+```tsx
+import { StreamdownTextPrimitive } from "@assistant-ui/react-streamdown";
+import { code } from "@streamdown/code";
+import { math } from "@streamdown/math";
+import { mermaid } from "@streamdown/mermaid";
+import "katex/dist/katex.min.css";
+
+const StreamdownText = () => (
+  <StreamdownTextPrimitive
+    plugins={{ code, math, mermaid }}
+    shikiTheme={["github-light", "github-dark"]}
+  />
+);
+```
+
+## Migration from react-markdown
+
+If you're migrating from `@assistant-ui/react-markdown`, your existing `SyntaxHighlighter` and `CodeHeader` components still work:
+
+```tsx
+import { StreamdownTextPrimitive } from "@assistant-ui/react-streamdown";
+
+const StreamdownText = () => (
+  <StreamdownTextPrimitive
+    components={{
+      SyntaxHighlighter: MySyntaxHighlighter,
+      CodeHeader: MyCodeHeader,
+    }}
+    componentsByLanguage={{
+      mermaid: { SyntaxHighlighter: MermaidRenderer }
+    }}
+  />
+);
+```
+
+## Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `mode` | `"streaming" \| "static"` | `"streaming"` | Rendering mode |
+| `plugins` | `PluginConfig` | - | Streamdown plugins (code, math, mermaid, cjk) |
+| `shikiTheme` | `[string, string]` | - | Light and dark theme for Shiki |
+| `components` | `object` | - | Custom components including `SyntaxHighlighter` and `CodeHeader` |
+| `componentsByLanguage` | `object` | - | Language-specific component overrides |
+| `preprocess` | `(text: string) => string` | - | Text preprocessing function |
+| `controls` | `boolean \| object` | `true` | Enable/disable UI controls for code blocks and tables |
+| `containerProps` | `object` | - | Props for the container div |
+| `containerClassName` | `string` | - | Class name for the container |
+
+## Plugin Configuration
+
+### Code Highlighting
+
+```tsx
+import { code } from "@streamdown/code";
+
+<StreamdownTextPrimitive
+  plugins={{ code }}
+  shikiTheme={["github-light", "github-dark"]}
+/>
+```
+
+### Math (LaTeX)
+
+```tsx
+import { math } from "@streamdown/math";
+import "katex/dist/katex.min.css";
+
+<StreamdownTextPrimitive plugins={{ math }} />
+```
+
+### Mermaid Diagrams
+
+```tsx
+import { mermaid } from "@streamdown/mermaid";
+
+<StreamdownTextPrimitive plugins={{ mermaid }} />
+```
+
+### CJK Text Optimization
+
+```tsx
+import { cjk } from "@streamdown/cjk";
+
+<StreamdownTextPrimitive plugins={{ cjk }} />
+```
+
+## Comparison with react-markdown
+
+| Feature | react-markdown | react-streamdown |
+|---------|---------------|------------------|
+| Bundle size | Smaller | Larger (with plugins) |
+| Syntax highlighting | Bring your own | Built-in Shiki |
+| Math rendering | Manual setup | Built-in KaTeX |
+| Mermaid diagrams | Manual setup | Built-in support |
+| CJK optimization | None | Built-in |
+| Streaming | `smooth` prop | `mode` + block-based |
+
+## Related Components
+
+- [Markdown](/docs/ui/markdown) - Lightweight markdown with react-markdown
+- [Syntax Highlighting](/docs/ui/syntax-highlighting) - Add code highlighting to react-markdown
+- [Mermaid](/docs/ui/mermaid) - Render diagrams in react-markdown
