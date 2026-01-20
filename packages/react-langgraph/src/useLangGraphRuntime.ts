@@ -230,18 +230,6 @@ const useLangGraphRuntimeImpl = ({
     isRunning,
   });
 
-  const loadThread = useMemo(
-    () =>
-      !load
-        ? undefined
-        : async (externalId: string) => {
-            const { messages, interrupts } = await load(externalId);
-            setMessages(messages);
-            setInterrupt(interrupts?.[0]);
-          },
-    [load, setMessages, setInterrupt],
-  );
-
   const runtime = useExternalStoreRuntime({
     isRunning,
     messages: threadMessages,
@@ -313,34 +301,26 @@ const useLangGraphRuntimeImpl = ({
       : undefined,
   });
 
-  const externalId = useAssistantState(
-    ({ threadListItem }) => threadListItem.externalId,
-  );
-
   {
-    const loadingRef = useRef(false);
-    const lastLoadedIdRef = useRef<string | null>(null);
-
+    const api = useAssistantApi();
+    
+    const loadRef = useRef(load);
     useEffect(() => {
-      if (!loadThread) return;
+      loadRef.current = load;
+    });
+    
+    useEffect(() => {
+      const load = loadRef.current;
+      if (!load) return;
 
-      if (
-        externalId &&
-        !loadingRef.current &&
-        lastLoadedIdRef.current !== externalId
-      ) {
-        const idToLoad = externalId;
-        loadingRef.current = true;
+      const externalId = api.threadListItem().getState().externalId;
+      if (externalId == null) return;
 
-        loadThread(idToLoad).finally(() => {
-          loadingRef.current = false;
-
-          if (idToLoad === externalId) {
-            lastLoadedIdRef.current = idToLoad;
-          }
-        });
-      }
-    }, [loadThread, externalId]);
+      load(externalId).finally(({ messages, interrupts }) => {
+        setMessages(messages);
+        setInterrupt(interrupts?.[0]);
+      });
+    }, [api, setMessages, setInterrupt]);
   }
 
   return runtime;
