@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import type { FC } from "react";
 import { cn } from "@/lib/utils";
+import { Reasoning, ReasoningGroup } from "@/components/assistant-ui/reasoning";
 
 export const SidebarUserMessage: FC = () => {
   return (
@@ -33,6 +34,8 @@ export const SidebarAssistantMessage: FC = () => {
           components={{
             Empty: SidebarThinking,
             Text: SidebarMarkdownText,
+            Reasoning: Reasoning,
+            ReasoningGroup: ReasoningGroup,
             tools: {
               Fallback: SidebarToolCall,
             },
@@ -57,10 +60,14 @@ const SidebarThinking: FC<{ status: { type: string } }> = ({ status }) => {
 
 const SidebarToolCall: ToolCallMessagePartComponent = ({
   toolName,
+  args,
   status,
 }) => {
   const isRunning = status?.type === "running";
   const isComplete = status?.type === "complete";
+
+  const displayName =
+    toolName === "searchDocs" ? (args as { query?: string })?.query : toolName;
 
   return (
     <div
@@ -77,7 +84,7 @@ const SidebarToolCall: ToolCallMessagePartComponent = ({
         <SearchIcon className="size-3" />
       )}
       <span className="flex-1 truncate">
-        {isRunning ? "Searching" : "Searched"}: {toolName}
+        {isRunning ? "Searching" : "Searched"}: {displayName}
       </span>
       <ChevronRightIcon className="size-3 opacity-50" />
     </div>

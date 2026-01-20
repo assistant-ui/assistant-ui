@@ -1,6 +1,12 @@
 import { openai } from "@ai-sdk/openai";
 import { frontendTools } from "@assistant-ui/react-ai-sdk";
-import { convertToModelMessages, stepCountIs, streamText, tool } from "ai";
+import {
+  convertToModelMessages,
+  pruneMessages,
+  stepCountIs,
+  streamText,
+  tool,
+} from "ai";
 import z from "zod";
 import { searchDocs } from "@/lib/vector";
 
@@ -58,6 +64,15 @@ Do NOT dump all documentation categories. Keep it conversational.
 - Cite doc URLs when referencing specific pages
 - Admit uncertainty rather than guessing
 </answering>
+
+<formatting>
+Use inline code (\`backticks\`) for:
+- Components: \`Thread\`, \`Composer\`, \`Message\`
+- Hooks: \`useChat\`, \`useThreadRuntime\`
+- Props, parameters, types
+- Packages: \`@assistant-ui/react\`
+- File paths
+</formatting>
 `;
 
 export async function POST(req: Request): Promise<Response> {
@@ -72,12 +87,18 @@ export async function POST(req: Request): Promise<Response> {
     }
   }
 
+  const prunedMessages = pruneMessages({
+    messages: convertToModelMessages(messages),
+    toolCalls: "before-last-2-messages",
+    reasoning: "none",
+    emptyMessages: "remove",
+  });
+
   const result = streamText({
     model: openai("gpt-5-nano"),
     system: SYSTEM_PROMPT,
-    messages: convertToModelMessages(messages),
-    maxOutputTokens: 1200,
-    stopWhen: stepCountIs(5),
+    messages: prunedMessages,
+    stopWhen: stepCountIs(20),
     tools: {
       ...frontendTools(tools),
       searchDocs: tool({
@@ -86,7 +107,7 @@ export async function POST(req: Request): Promise<Response> {
           query: z.string().describe("Search query"),
         }),
         execute: async ({ query }) => {
-          const results = await searchDocs(query, 5);
+          const results = await searchDocs(query, 3);
           return results.map((r) => ({
             title: r.metadata?.title,
             url: r.metadata?.url,

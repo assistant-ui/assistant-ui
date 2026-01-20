@@ -3,7 +3,53 @@
 import { SidebarThread } from "@/components/docs/assistant/sidebar-thread";
 import { Button } from "@/components/ui/button";
 import { useChatPanel } from "@/components/docs/contexts/chat-panel";
+import { cn } from "@/lib/utils";
 import { PanelRightCloseIcon, PanelRightOpenIcon } from "lucide-react";
+import { useCallback, useRef, useState } from "react";
+
+function ResizeHandle() {
+  const { width, setWidth } = useChatPanel();
+  const [isResizing, setIsResizing] = useState(false);
+  const startXRef = useRef(0);
+  const startWidthRef = useRef(0);
+
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      setIsResizing(true);
+      startXRef.current = e.clientX;
+      startWidthRef.current = width;
+
+      const handleMouseMove = (e: MouseEvent) => {
+        const delta = startXRef.current - e.clientX;
+        setWidth(startWidthRef.current + delta);
+      };
+
+      const handleMouseUp = () => {
+        setIsResizing(false);
+        document.removeEventListener("mousemove", handleMouseMove);
+        document.removeEventListener("mouseup", handleMouseUp);
+      };
+
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+    },
+    [width, setWidth],
+  );
+
+  return (
+    <div
+      onMouseDown={handleMouseDown}
+      className={cn(
+        "absolute top-0 bottom-0 -left-0.5 w-1 cursor-col-resize",
+        "after:absolute after:top-0 after:bottom-0 after:left-1/2 after:w-px after:-translate-x-1/2 after:transition-colors",
+        isResizing
+          ? "after:bg-primary/40"
+          : "after:bg-transparent hover:after:bg-primary/20",
+      )}
+    />
+  );
+}
 
 export function AIChatPanel(): React.ReactNode {
   const { open, toggle } = useChatPanel();
@@ -26,6 +72,7 @@ export function AIChatPanel(): React.ReactNode {
 
   return (
     <div className="group relative flex h-full flex-col border-l bg-background">
+      <ResizeHandle />
       <Button
         variant="ghost"
         size="icon"

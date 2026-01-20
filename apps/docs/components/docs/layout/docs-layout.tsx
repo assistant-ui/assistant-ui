@@ -11,13 +11,13 @@ export function DocsContent({
 }: {
   children: ReactNode;
 }): React.ReactNode {
-  const { open } = useChatPanel();
+  const { open, width } = useChatPanel();
 
   return (
     <div
       className="transition-[margin] duration-200 md:mr-(--chat-panel-width)"
       style={{
-        ["--chat-panel-width" as string]: open ? "400px" : "48px",
+        ["--chat-panel-width" as string]: open ? `${width}px` : "48px",
       }}
     >
       {children}
@@ -26,14 +26,15 @@ export function DocsContent({
 }
 
 export function DocsChatPanel(): React.ReactNode {
-  const { open } = useChatPanel();
+  const { open, width } = useChatPanel();
 
   return (
     <div
       className={cn(
-        "fixed top-12 right-0 bottom-0 hidden transition-[width] duration-200 md:block",
-        open ? "w-100" : "w-12",
+        "fixed top-12 right-0 bottom-0 hidden md:block",
+        !open && "w-12",
       )}
+      style={open ? { width: `${width}px` } : undefined}
     >
       <SidebarRuntimeProvider>
         <AIChatPanel />
