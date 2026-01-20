@@ -9,10 +9,48 @@ import {
 } from "ai";
 import z from "zod";
 import { searchDocs } from "@/lib/vector";
+import { source } from "@/lib/source";
+import { getLLMText } from "@/lib/get-llm-text";
+import type * as PageTree from "fumadocs-core/page-tree";
 
 export const maxDuration = 30;
 
 const isDev = process.env.NODE_ENV === "development";
+
+// Helper functions for browseDocs tool
+function findFolderByPath(
+  tree: PageTree.Root,
+  path: string,
+): PageTree.Folder | null {
+  const segments = path.split("/").filter(Boolean);
+  let current: PageTree.Node[] = tree.children;
+  let folder: PageTree.Folder | null = null;
+
+  for (const seg of segments) {
+    folder =
+      current.find(
+        (n): n is PageTree.Folder =>
+          n.type === "folder" &&
+          (n.index?.url?.includes(`/${seg}`) ||
+            (typeof n.name === "string" &&
+              n.name.toLowerCase() === seg.toLowerCase())),
+      ) ?? null;
+    if (!folder) return null;
+    current = folder.children;
+  }
+  return folder;
+}
+
+function countPages(folder: PageTree.Folder): number {
+  return folder.children.reduce(
+    (acc, node) => {
+      if (node.type === "page") return acc + 1;
+      if (node.type === "folder") return acc + countPages(node);
+      return acc;
+    },
+    folder.index ? 1 : 0,
+  );
+}
 
 const getRatelimit = async () => {
   if (isDev) return null;
@@ -59,8 +97,33 @@ What are you working on?"
 Do NOT dump all documentation categories. Keep it conversational.
 </greetings>
 
+<tools>
+You have three documentation tools:
+
+1. **searchDocs** - Semantic search across all docs
+   - Best for: finding pages by concept/keyword
+   - Returns: snippets with titles and URLs
+
+2. **browseDocs** - Explore documentation structure
+   - Best for: understanding what's available, finding related pages
+   - Use with no path for root categories, or specify path (e.g., "ui")
+   - Returns: list of pages/folders at that level
+
+3. **readDoc** - Read full page content
+   - Best for: getting complete information after identifying the right page
+   - Input: slug like "ui/thread"
+   - Returns: full processed page content
+
+**Recommended patterns:**
+- Specific question → searchDocs → readDoc for full context
+- Exploring options → browseDocs → readDoc relevant pages
+- "What can I do with X?" → browseDocs(X category) → summarize
+
+Choose the most appropriate tool based on the question. No default preference.
+</tools>
+
 <answering>
-- Use the searchDocs tool to find relevant documentation
+- Use the documentation tools to find relevant information
 - Cite doc URLs when referencing specific pages
 - Admit uncertainty rather than guessing
 </answering>
@@ -113,6 +176,70 @@ export async function POST(req: Request): Promise<Response> {
             url: r.metadata?.url,
             content: r.metadata?.content,
           }));
+        },
+      }),
+      browseDocs: tool({
+        description: "Browse documentation structure at a given path",
+        inputSchema: z.object({
+          path: z
+            .string()
+            .optional()
+            .describe(
+              "Path to browse (e.g., 'ui', 'runtimes'). Empty for root.",
+            ),
+        }),
+        execute: async ({ path }) => {
+          const pageTree = source.pageTree;
+
+          if (!path) {
+            // Return root categories
+            return pageTree.children
+              .filter((node): node is PageTree.Folder => node.type === "folder")
+              .map((folder) => ({
+                name: folder.name,
+                path: folder.index?.url?.replace("/docs/", "") ?? "",
+                pageCount: countPages(folder),
+              }));
+          }
+
+          // Find folder at path, return children
+          const targetFolder = findFolderByPath(pageTree, path);
+          if (!targetFolder) return { error: "Path not found" };
+
+          return targetFolder.children.flatMap((node) => {
+            switch (node.type) {
+              case "page":
+                return { type: "page", title: node.name, url: node.url };
+              case "folder":
+                return {
+                  type: "folder",
+                  name: node.name,
+                  path: node.index?.url?.replace("/docs/", "") ?? "",
+                };
+              case "separator":
+                return { type: "separator", name: node.name };
+              default:
+                return [];
+            }
+          });
+        },
+      }),
+      readDoc: tool({
+        description: "Read full content of a documentation page",
+        inputSchema: z.object({
+          slugOrUrl: z
+            .string()
+            .describe("Page slug (e.g., 'ui/thread') or URL"),
+        }),
+        execute: async ({ slugOrUrl }) => {
+          const normalized = slugOrUrl.replace(/^\/docs\/?/, "");
+          const slugs = normalized.split("/").filter(Boolean);
+
+          const page = source.getPage(slugs);
+          if (!page) return { error: `Page not found: ${slugOrUrl}` };
+
+          const content = await getLLMText(page);
+          return { title: page.data.title, url: page.url, content };
         },
       }),
     },

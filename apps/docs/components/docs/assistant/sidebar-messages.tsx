@@ -7,8 +7,11 @@ import {
   type ToolCallMessagePartComponent,
 } from "@assistant-ui/react";
 import {
+  BookOpenIcon,
   CheckIcon,
   ChevronRightIcon,
+  FileTextIcon,
+  FolderTreeIcon,
   LoaderIcon,
   SearchIcon,
 } from "lucide-react";
@@ -58,6 +61,46 @@ const SidebarThinking: FC<{ status: { type: string } }> = ({ status }) => {
   );
 };
 
+function getToolDisplay(
+  toolName: string,
+  args: Record<string, unknown>,
+  isRunning: boolean,
+): { icon: typeof SearchIcon; label: string; detail: string } {
+  switch (toolName) {
+    case "searchDocs": {
+      const query = (args as { query?: string })?.query ?? "";
+      return {
+        icon: SearchIcon,
+        label: isRunning ? "Searching" : "Searched",
+        detail: `"${query}"`,
+      };
+    }
+    case "browseDocs": {
+      const path = (args as { path?: string })?.path;
+      return {
+        icon: FolderTreeIcon,
+        label: isRunning ? "Browsing" : "Browsed",
+        detail: path ? `/${path}` : "documentation structure",
+      };
+    }
+    case "readDoc": {
+      const slug = (args as { slugOrUrl?: string })?.slugOrUrl ?? "";
+      const normalizedSlug = slug.replace(/^\/docs\/?/, "");
+      return {
+        icon: FileTextIcon,
+        label: isRunning ? "Reading" : "Read",
+        detail: `/docs/${normalizedSlug}`,
+      };
+    }
+    default:
+      return {
+        icon: BookOpenIcon,
+        label: isRunning ? "Running" : "Completed",
+        detail: toolName,
+      };
+  }
+}
+
 const SidebarToolCall: ToolCallMessagePartComponent = ({
   toolName,
   args,
@@ -65,9 +108,11 @@ const SidebarToolCall: ToolCallMessagePartComponent = ({
 }) => {
   const isRunning = status?.type === "running";
   const isComplete = status?.type === "complete";
-
-  const displayName =
-    toolName === "searchDocs" ? (args as { query?: string })?.query : toolName;
+  const {
+    icon: Icon,
+    label,
+    detail,
+  } = getToolDisplay(toolName, args, isRunning);
 
   return (
     <div
@@ -81,10 +126,10 @@ const SidebarToolCall: ToolCallMessagePartComponent = ({
       ) : isComplete ? (
         <CheckIcon className="size-3 text-emerald-500" />
       ) : (
-        <SearchIcon className="size-3" />
+        <Icon className="size-3" />
       )}
       <span className="flex-1 truncate">
-        {isRunning ? "Searching" : "Searched"}: {displayName}
+        {label} {detail}
       </span>
       <ChevronRightIcon className="size-3 opacity-50" />
     </div>
