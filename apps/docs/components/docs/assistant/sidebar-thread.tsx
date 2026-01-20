@@ -11,8 +11,8 @@ import {
   SidebarUserMessage,
 } from "./sidebar-messages";
 import { SidebarComposer } from "./sidebar-composer";
-import { SidebarContextUsage } from "./sidebar-context-usage";
 import { useChatPanel } from "@/components/docs/contexts/chat-panel";
+import { SidebarFooter } from "@/components/docs/assistant/sidebar-footer";
 
 function PendingMessageHandler() {
   const { pendingMessage, clearPendingMessage } = useChatPanel();
@@ -51,7 +51,7 @@ export const SidebarThread: FC = () => {
           <SidebarComposer />
         </ThreadPrimitive.ViewportFooter>
       </ThreadPrimitive.Viewport>
-      <SidebarContextUsage />
+      <SidebarFooter />
     </ThreadPrimitive.Root>
   );
 };

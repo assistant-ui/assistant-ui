@@ -5,12 +5,26 @@ import { type Model, MODELS } from "@/constants/model";
 import { AssistantIf, ComposerPrimitive } from "@assistant-ui/react";
 import { ArrowUpIcon, ChevronDownIcon, SquareIcon } from "lucide-react";
 import Image from "next/image";
-import { type FC, useState } from "react";
+import { type FC, useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 
 export const SidebarComposer: FC = () => {
   const [model, setModel] = useState<Model>(MODELS[0]);
   const [showPicker, setShowPicker] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showPicker) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        setShowPicker(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showPicker]);
 
   return (
     <ComposerPrimitive.Root className="bg-background py-3">
@@ -23,7 +37,7 @@ export const SidebarComposer: FC = () => {
           />
         </ComposerPrimitive.Input>
         <div className="flex items-center justify-between px-1.5 pb-1.5">
-          <div className="relative">
+          <div className="relative" ref={pickerRef}>
             <button
               type="button"
               onClick={() => setShowPicker(!showPicker)}

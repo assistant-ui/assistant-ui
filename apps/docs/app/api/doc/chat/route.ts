@@ -257,5 +257,13 @@ export async function POST(req: Request): Promise<Response> {
     onError: console.error,
   });
 
-  return result.toUIMessageStreamResponse();
+  return result.toUIMessageStreamResponse({
+    originalMessages: messages,
+    messageMetadata: ({ part }) => {
+      if (part.type === "finish") {
+        return { custom: { usage: part.totalUsage } };
+      }
+      return undefined;
+    },
+  });
 }

@@ -1,12 +1,30 @@
 "use client";
 
-import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import {
+  AssistantRuntimeProvider,
+  useAssistantInstructions,
+} from "@assistant-ui/react";
 import {
   useChatRuntime,
   AssistantChatTransport,
 } from "@assistant-ui/react-ai-sdk";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import type { ReactNode } from "react";
+import { useCurrentPage } from "@/components/docs/contexts/current-page";
+
+function SidebarPageContext() {
+  const currentPage = useCurrentPage();
+  const pathname = currentPage?.pathname;
+
+  useAssistantInstructions({
+    instruction: pathname
+      ? `The user is currently viewing: ${pathname}`
+      : "The user is on the docs site.",
+    disabled: !pathname,
+  });
+
+  return null;
+}
 
 export function SidebarRuntimeProvider({ children }: { children: ReactNode }) {
   const runtime = useChatRuntime({
@@ -18,6 +36,7 @@ export function SidebarRuntimeProvider({ children }: { children: ReactNode }) {
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
+      <SidebarPageContext />
       {children}
     </AssistantRuntimeProvider>
   );
