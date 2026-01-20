@@ -160,7 +160,7 @@ const markdownComponents = memoizeMarkdownComponents({
       {...props}
     />
   ),
-  a: ({ className, href, children, ...props }) => {
+  a: ({ className, href, children, title, target, rel }) => {
     const linkClass = cn(
       "text-primary underline underline-offset-2 hover:text-primary/80",
       className,
@@ -168,13 +168,19 @@ const markdownComponents = memoizeMarkdownComponents({
 
     if (href?.startsWith("/")) {
       return (
-        <Link href={href} className={linkClass} {...props}>
+        <Link href={href} className={linkClass} title={title} target={target}>
           {children}
         </Link>
       );
     }
     return (
-      <a href={href} className={linkClass} {...props}>
+      <a
+        href={href}
+        className={linkClass}
+        title={title}
+        target={target}
+        rel={rel}
+      >
         {children}
       </a>
     );
