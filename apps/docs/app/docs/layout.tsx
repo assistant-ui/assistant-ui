@@ -10,13 +10,13 @@ import {
   DocsSidebar,
 } from "@/components/docs/contexts/sidebar";
 import { SidebarContent } from "@/components/docs/layout/sidebar-content";
-import { ChatPanelProvider } from "@/components/docs/contexts/chat-panel";
+import { AssistantPanelProvider } from "@/components/docs/assistant/context";
 import {
   DocsContent,
-  DocsChatPanel,
+  DocsAssistantPanel,
 } from "@/components/docs/layout/docs-layout";
 import { DocsRuntimeProvider } from "@/contexts/DocsRuntimeProvider";
-import { SidebarRuntimeProvider } from "@/contexts/SidebarRuntimeProvider";
+import { DocsAssistantRuntimeProvider } from "@/contexts/AssistantRuntimeProvider";
 import { CurrentPageProvider } from "@/components/docs/contexts/current-page";
 
 export default function Layout({ children }: { children: ReactNode }) {
@@ -24,7 +24,7 @@ export default function Layout({ children }: { children: ReactNode }) {
 
   return (
     <CurrentPageProvider>
-      <ChatPanelProvider>
+      <AssistantPanelProvider>
         <DocsRuntimeProvider>
           <DocsSidebarProvider>
             <DocsHeader section="Docs" sectionHref="/docs" />
@@ -50,10 +50,10 @@ export default function Layout({ children }: { children: ReactNode }) {
             </DocsSidebar>
           </DocsSidebarProvider>
         </DocsRuntimeProvider>
-        <SidebarRuntimeProvider>
-          <DocsChatPanel />
-        </SidebarRuntimeProvider>
-      </ChatPanelProvider>
+        <DocsAssistantRuntimeProvider>
+          <DocsAssistantPanel />
+        </DocsAssistantRuntimeProvider>
+      </AssistantPanelProvider>
     </CurrentPageProvider>
   );
 }

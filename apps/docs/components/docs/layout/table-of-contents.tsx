@@ -6,7 +6,7 @@ import { Copy, EditIcon, FileText, SparklesIcon } from "lucide-react";
 import { TOCHiringBanner } from "@/components/docs/layout/toc-hiring-banner";
 import { BASE_URL } from "@/lib/constants";
 import { useMarkdownCopy } from "@/hooks/use-markdown-copy";
-import { useChatPanel } from "@/components/docs/contexts/chat-panel";
+import { useAssistantPanel } from "@/components/docs/assistant/context";
 import { useCurrentPage } from "@/components/docs/contexts/current-page";
 
 type TOCItem = {
@@ -29,7 +29,7 @@ function TOCActions({
   githubEditUrl: string | undefined;
 }) {
   const { copy, prefetch, isLoading } = useMarkdownCopy(markdownUrl);
-  const { askAI } = useChatPanel();
+  const { askAI } = useAssistantPanel();
   const currentPage = useCurrentPage();
 
   // Prefetch on mount since TOC is always visible on desktop

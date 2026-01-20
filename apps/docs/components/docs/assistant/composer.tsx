@@ -8,7 +8,7 @@ import Image from "next/image";
 import { type FC, useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 
-export const SidebarComposer: FC = () => {
+export const AssistantComposer: FC = () => {
   const [model, setModel] = useState<Model>(MODELS[0]);
   const [showPicker, setShowPicker] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
@@ -88,14 +88,14 @@ export const SidebarComposer: FC = () => {
               </div>
             )}
           </div>
-          <SidebarComposerAction />
+          <AssistantComposerAction />
         </div>
       </div>
     </ComposerPrimitive.Root>
   );
 };
 
-const SidebarComposerAction: FC = () => {
+const AssistantComposerAction: FC = () => {
   return (
     <>
       <AssistantIf condition={({ thread }) => !thread.isRunning}>

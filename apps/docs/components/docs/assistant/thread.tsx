@@ -6,16 +6,13 @@ import {
   useAssistantApi,
 } from "@assistant-ui/react";
 import { type FC, useEffect } from "react";
-import {
-  SidebarAssistantMessage,
-  SidebarUserMessage,
-} from "./sidebar-messages";
-import { SidebarComposer } from "./sidebar-composer";
-import { useChatPanel } from "@/components/docs/contexts/chat-panel";
-import { SidebarFooter } from "@/components/docs/assistant/sidebar-footer";
+import { AssistantMessage, UserMessage } from "./messages";
+import { AssistantComposer } from "./composer";
+import { useAssistantPanel } from "@/components/docs/assistant/context";
+import { AssistantFooter } from "@/components/docs/assistant/footer";
 
 function PendingMessageHandler() {
-  const { pendingMessage, clearPendingMessage } = useChatPanel();
+  const { pendingMessage, clearPendingMessage } = useAssistantPanel();
   const api = useAssistantApi();
 
   useEffect(() => {
@@ -31,32 +28,32 @@ function PendingMessageHandler() {
   return null;
 }
 
-export const SidebarThread: FC = () => {
+export const AssistantThread: FC = () => {
   return (
     <ThreadPrimitive.Root className="flex h-full flex-col bg-background">
       <PendingMessageHandler />
       <ThreadPrimitive.Viewport className="scrollbar-none flex flex-1 flex-col overflow-y-auto px-3 pt-3">
         <AssistantIf condition={({ thread }) => thread.isEmpty}>
-          <SidebarWelcome />
+          <AssistantWelcome />
         </AssistantIf>
 
         <ThreadPrimitive.Messages
           components={{
-            UserMessage: SidebarUserMessage,
-            AssistantMessage: SidebarAssistantMessage,
+            UserMessage: UserMessage,
+            AssistantMessage: AssistantMessage,
           }}
         />
 
         <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mt-auto bg-background">
-          <SidebarComposer />
+          <AssistantComposer />
         </ThreadPrimitive.ViewportFooter>
       </ThreadPrimitive.Viewport>
-      <SidebarFooter />
+      <AssistantFooter />
     </ThreadPrimitive.Root>
   );
 };
 
-const SidebarWelcome: FC = () => {
+const AssistantWelcome: FC = () => {
   return (
     <div className="flex flex-1 flex-col items-center justify-center p-6 text-center">
       <p className="text-muted-foreground text-sm">

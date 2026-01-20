@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 
 const CONTEXT_WINDOW = 400_000;
 
-export const SidebarFooter: FC = () => {
+export const AssistantFooter: FC = () => {
   const api = useAssistantApi();
   const messages = useAssistantState(({ thread }) => thread.messages);
 

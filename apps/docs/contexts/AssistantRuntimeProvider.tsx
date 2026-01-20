@@ -12,7 +12,7 @@ import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import type { ReactNode } from "react";
 import { useCurrentPage } from "@/components/docs/contexts/current-page";
 
-function SidebarPageContext() {
+function AssistantPageContext() {
   const currentPage = useCurrentPage();
   const pathname = currentPage?.pathname;
 
@@ -26,7 +26,11 @@ function SidebarPageContext() {
   return null;
 }
 
-export function SidebarRuntimeProvider({ children }: { children: ReactNode }) {
+export function DocsAssistantRuntimeProvider({
+  children,
+}: {
+  children: ReactNode;
+}) {
   const runtime = useChatRuntime({
     transport: new AssistantChatTransport({
       api: "/api/doc/chat",
@@ -36,7 +40,7 @@ export function SidebarRuntimeProvider({ children }: { children: ReactNode }) {
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
-      <SidebarPageContext />
+      <AssistantPageContext />
       {children}
     </AssistantRuntimeProvider>
   );

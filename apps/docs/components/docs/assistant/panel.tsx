@@ -1,14 +1,14 @@
 "use client";
 
-import { SidebarThread } from "@/components/docs/assistant/sidebar-thread";
+import { AssistantThread } from "@/components/docs/assistant/thread";
 import { Button } from "@/components/ui/button";
-import { useChatPanel } from "@/components/docs/contexts/chat-panel";
+import { useAssistantPanel } from "@/components/docs/assistant/context";
 import { cn } from "@/lib/utils";
 import { PanelRightCloseIcon, SparklesIcon } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 
 function ResizeHandle() {
-  const { width, setWidth } = useChatPanel();
+  const { width, setWidth } = useAssistantPanel();
   const [isResizing, setIsResizing] = useState(false);
   const startXRef = useRef(0);
   const startWidthRef = useRef(0);
@@ -51,8 +51,8 @@ function ResizeHandle() {
   );
 }
 
-export function AIChatPanel(): React.ReactNode {
-  const { open, toggle } = useChatPanel();
+export function AssistantPanel(): React.ReactNode {
+  const { open, toggle } = useAssistantPanel();
 
   if (!open) {
     return (
@@ -80,7 +80,7 @@ export function AIChatPanel(): React.ReactNode {
         <PanelRightCloseIcon className="size-3" />
       </Button>
       <div className="min-h-0 flex-1">
-        <SidebarThread />
+        <AssistantThread />
       </div>
     </div>
   );

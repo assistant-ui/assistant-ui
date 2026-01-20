@@ -1,6 +1,6 @@
 "use client";
 
-import { SidebarMarkdownText } from "./sidebar-markdown";
+import { MarkdownText } from "./markdown";
 import {
   ErrorPrimitive,
   MessagePrimitive,
@@ -19,7 +19,7 @@ import type { FC } from "react";
 import { cn } from "@/lib/utils";
 import { Reasoning, ReasoningGroup } from "@/components/assistant-ui/reasoning";
 
-export const SidebarUserMessage: FC = () => {
+export const UserMessage: FC = () => {
   return (
     <MessagePrimitive.Root className="flex justify-end py-2" data-role="user">
       <div className="max-w-[85%] rounded-2xl bg-muted px-3 py-2 text-sm">
@@ -29,28 +29,28 @@ export const SidebarUserMessage: FC = () => {
   );
 };
 
-export const SidebarAssistantMessage: FC = () => {
+export const AssistantMessage: FC = () => {
   return (
     <MessagePrimitive.Root className="py-2" data-role="assistant">
       <div className="text-sm">
         <MessagePrimitive.Parts
           components={{
-            Empty: SidebarThinking,
-            Text: SidebarMarkdownText,
+            Empty: Thinking,
+            Text: MarkdownText,
             Reasoning: Reasoning,
             ReasoningGroup: ReasoningGroup,
             tools: {
-              Fallback: SidebarToolCall,
+              Fallback: ToolCall,
             },
           }}
         />
-        <SidebarMessageError />
+        <MessageError />
       </div>
     </MessagePrimitive.Root>
   );
 };
 
-const SidebarThinking: FC<{ status: { type: string } }> = ({ status }) => {
+const Thinking: FC<{ status: { type: string } }> = ({ status }) => {
   if (status.type !== "running") return null;
 
   return (
@@ -101,11 +101,7 @@ function getToolDisplay(
   }
 }
 
-const SidebarToolCall: ToolCallMessagePartComponent = ({
-  toolName,
-  args,
-  status,
-}) => {
+const ToolCall: ToolCallMessagePartComponent = ({ toolName, args, status }) => {
   const isRunning = status?.type === "running";
   const isComplete = status?.type === "complete";
   const {
@@ -136,7 +132,7 @@ const SidebarToolCall: ToolCallMessagePartComponent = ({
   );
 };
 
-const SidebarMessageError: FC = () => {
+const MessageError: FC = () => {
   return (
     <MessagePrimitive.Error>
       <ErrorPrimitive.Root className="mt-2 rounded-md border border-destructive bg-destructive/10 p-2 text-destructive text-xs dark:bg-destructive/5 dark:text-red-200">

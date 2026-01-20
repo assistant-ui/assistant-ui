@@ -12,7 +12,7 @@ const MIN_WIDTH = 320;
 const MAX_WIDTH = 600;
 const DEFAULT_WIDTH = 400;
 
-interface ChatPanelContextValue {
+interface AssistantPanelContextValue {
   open: boolean;
   setOpen: (open: boolean) => void;
   toggle: () => void;
@@ -23,17 +23,21 @@ interface ChatPanelContextValue {
   askAI: (message: string) => void;
 }
 
-const ChatPanelContext = createContext<ChatPanelContextValue | null>(null);
+const AssistantPanelContext = createContext<AssistantPanelContextValue | null>(
+  null,
+);
 
-export function useChatPanel() {
-  const ctx = useContext(ChatPanelContext);
+export function useAssistantPanel() {
+  const ctx = useContext(AssistantPanelContext);
   if (!ctx) {
-    throw new Error("useChatPanel must be used within ChatPanelProvider");
+    throw new Error(
+      "useAssistantPanel must be used within AssistantPanelProvider",
+    );
   }
   return ctx;
 }
 
-export function ChatPanelProvider({ children }: { children: ReactNode }) {
+export function AssistantPanelProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const [width, setWidthState] = useState(DEFAULT_WIDTH);
   const [pendingMessage, setPendingMessage] = useState<string | null>(null);
@@ -56,7 +60,7 @@ export function ChatPanelProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <ChatPanelContext.Provider
+    <AssistantPanelContext.Provider
       value={{
         open,
         setOpen,
@@ -69,6 +73,6 @@ export function ChatPanelProvider({ children }: { children: ReactNode }) {
       }}
     >
       {children}
-    </ChatPanelContext.Provider>
+    </AssistantPanelContext.Provider>
   );
 }

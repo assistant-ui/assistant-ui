@@ -16,17 +16,17 @@ import { CheckIcon, CopyIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ShikiHighlighter from "react-shiki";
 
-const SidebarMarkdownTextImpl = () => {
+const MarkdownTextImpl = () => {
   return (
     <MarkdownTextPrimitive
       remarkPlugins={[remarkGfm]}
-      className="aui-md-sidebar"
-      components={sidebarComponents}
+      className="aui-md-assistant"
+      components={markdownComponents}
     />
   );
 };
 
-export const SidebarMarkdownText = memo(SidebarMarkdownTextImpl);
+export const MarkdownText = memo(MarkdownTextImpl);
 
 const useCopyToClipboard = ({
   copiedDuration = 3000,
@@ -73,10 +73,7 @@ const CodeHeader: FC<CodeHeaderProps> = ({ language, code }) => {
   );
 };
 
-const SidebarSyntaxHighlighter: FC<SyntaxHighlighterProps> = ({
-  code,
-  language,
-}) => {
+const SyntaxHighlighter: FC<SyntaxHighlighterProps> = ({ code, language }) => {
   return (
     <ShikiHighlighter
       language={language}
@@ -100,8 +97,8 @@ const SidebarSyntaxHighlighter: FC<SyntaxHighlighterProps> = ({
   );
 };
 
-const sidebarComponents = memoizeMarkdownComponents({
-  SyntaxHighlighter: SidebarSyntaxHighlighter,
+const markdownComponents = memoizeMarkdownComponents({
+  SyntaxHighlighter: SyntaxHighlighter,
   h1: ({ className, ...props }) => (
     <h1
       className={cn(

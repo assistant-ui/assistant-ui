@@ -1,8 +1,8 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { AIChatPanel } from "@/components/docs/layout/ai-chat-panel";
-import { useChatPanel } from "@/components/docs/contexts/chat-panel";
+import { AssistantPanel } from "@/components/docs/assistant/panel";
+import { useAssistantPanel } from "@/components/docs/assistant/context";
 import { cn } from "@/lib/utils";
 
 export function DocsContent({
@@ -10,7 +10,7 @@ export function DocsContent({
 }: {
   children: ReactNode;
 }): React.ReactNode {
-  const { open, width } = useChatPanel();
+  const { open, width } = useAssistantPanel();
 
   return (
     <div
@@ -24,8 +24,8 @@ export function DocsContent({
   );
 }
 
-export function DocsChatPanel(): React.ReactNode {
-  const { open, width } = useChatPanel();
+export function DocsAssistantPanel(): React.ReactNode {
+  const { open, width } = useAssistantPanel();
 
   return (
     <div
@@ -35,7 +35,7 @@ export function DocsChatPanel(): React.ReactNode {
       )}
       style={open ? { width: `${width}px` } : undefined}
     >
-      <AIChatPanel />
+      <AssistantPanel />
     </div>
   );
 }
