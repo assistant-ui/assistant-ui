@@ -10,6 +10,7 @@ import {
 import z from "zod";
 import { source } from "@/lib/source";
 import { getLLMText } from "@/lib/get-llm-text";
+import { checkRateLimit } from "@/lib/rate-limit";
 import type * as PageTree from "fumadocs-core/page-tree";
 
 function findFolderByPath(
@@ -40,20 +41,6 @@ function findFolderByPath(
 }
 
 export const maxDuration = 300;
-
-const isDev = process.env.NODE_ENV === "development";
-
-const getRatelimit = async () => {
-  if (isDev) return null;
-  const { kv } = await import("@vercel/kv");
-  const { Ratelimit } = await import("@upstash/ratelimit");
-  return new Ratelimit({
-    redis: kv,
-    limiter: Ratelimit.fixedWindow(5, "30s"),
-  });
-};
-
-const ratelimitPromise = getRatelimit();
 
 const SYSTEM_PROMPT = `You are the assistant-ui docs assistant.
 
@@ -125,16 +112,10 @@ Use inline code (\`backticks\`) for:
 `;
 
 export async function POST(req: Request): Promise<Response> {
-  const { messages, tools } = await req.json();
+  const rateLimitResponse = await checkRateLimit(req);
+  if (rateLimitResponse) return rateLimitResponse;
 
-  const ratelimit = await ratelimitPromise;
-  if (ratelimit) {
-    const ip = req.headers.get("x-forwarded-for") ?? "ip";
-    const { success } = await ratelimit.limit(ip);
-    if (!success) {
-      return new Response("Rate limit exceeded", { status: 429 });
-    }
-  }
+  const { messages, tools } = await req.json();
 
   const prunedMessages = pruneMessages({
     messages: convertToModelMessages(messages),
@@ -203,18 +184,10 @@ export async function POST(req: Request): Promise<Response> {
             .describe("Page slug (e.g., 'ui/thread') or URL"),
         }),
         execute: async ({ slugOrUrl }) => {
-          let path = slugOrUrl;
-          if (
-            slugOrUrl.startsWith("http://") ||
-            slugOrUrl.startsWith("https://")
-          ) {
-            try {
-              path = new URL(slugOrUrl).pathname;
-            } catch {
-              return { error: `Invalid URL: ${slugOrUrl}` };
-            }
-          }
-          // Remove any leading /docs/ or docs/ prefixes (handles /docs/docs/... typos)
+          const path = slugOrUrl.startsWith("http")
+            ? new URL(slugOrUrl).pathname
+            : slugOrUrl;
+
           const normalized = path.replace(/^(\/docs\/|docs\/)+/, "");
           const slugs = normalized.split("/").filter(Boolean);
 

@@ -1,35 +1,15 @@
 import { openai } from "@ai-sdk/openai";
 import { convertToModelMessages, stepCountIs, streamText } from "ai";
 import { frontendTools } from "@assistant-ui/react-ai-sdk";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export const maxDuration = 30;
 
-const isDev = process.env.NODE_ENV === "development";
-
-const getRatelimit = async () => {
-  if (isDev) return null;
-  const { kv } = await import("@vercel/kv");
-  const { Ratelimit } = await import("@upstash/ratelimit");
-  return new Ratelimit({
-    redis: kv,
-    limiter: Ratelimit.fixedWindow(5, "30s"),
-  });
-};
-
-const ratelimitPromise = getRatelimit();
-
 export async function POST(req: Request) {
+  const rateLimitResponse = await checkRateLimit(req);
+  if (rateLimitResponse) return rateLimitResponse;
+
   const { messages, tools } = await req.json();
-
-  const ratelimit = await ratelimitPromise;
-  if (ratelimit) {
-    const ip = req.headers.get("x-forwarded-for") ?? "ip";
-    const { success } = await ratelimit.limit(ip);
-
-    if (!success) {
-      return new Response("Rate limit exceeded", { status: 429 });
-    }
-  }
 
   const result = streamText({
     model: openai("gpt-5-nano"),

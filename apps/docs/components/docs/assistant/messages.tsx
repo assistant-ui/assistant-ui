@@ -4,7 +4,7 @@ import { MarkdownText } from "./markdown";
 import {
   ErrorPrimitive,
   MessagePrimitive,
-  type ToolCallMessagePartComponent,
+  type ToolCallMessagePartProps,
 } from "@assistant-ui/react";
 import {
   BookOpenIcon,
@@ -14,7 +14,7 @@ import {
   LoaderIcon,
   type LucideIcon,
 } from "lucide-react";
-import { type FC, type ReactNode, useState, useEffect, useRef } from "react";
+import { type ReactNode, useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { Reasoning, ReasoningGroup } from "@/components/assistant-ui/reasoning";
 
@@ -49,7 +49,7 @@ export function AssistantMessage(): ReactNode {
   );
 }
 
-const Thinking: FC<{ status: { type: string } }> = ({ status }) => {
+function Thinking({ status }: { status: { type: string } }): ReactNode {
   if (status.type !== "running") return null;
 
   return (
@@ -58,7 +58,7 @@ const Thinking: FC<{ status: { type: string } }> = ({ status }) => {
       <span className="text-sm">Thinking...</span>
     </div>
   );
-};
+}
 
 function getToolDisplay(
   toolName: string,
@@ -99,16 +99,17 @@ function ToolStatusIcon({
   status: { type: string } | undefined;
   FallbackIcon: LucideIcon;
 }): ReactNode {
-  if (status?.type === "running") {
-    return <LoaderIcon className="size-3 animate-spin" />;
+  switch (status?.type) {
+    case "running":
+      return <LoaderIcon className="size-3 animate-spin" />;
+    case "complete":
+      return <CheckIcon className="size-3 text-emerald-500" />;
+    default:
+      return <FallbackIcon className="size-3" />;
   }
-  if (status?.type === "complete") {
-    return <CheckIcon className="size-3 text-emerald-500" />;
-  }
-  return <FallbackIcon className="size-3" />;
 }
 
-function useToolDuration(isRunning: boolean) {
+function useToolDuration(isRunning: boolean): number | null {
   const startTimeRef = useRef<number | null>(null);
   const [duration, setDuration] = useState<number | null>(null);
 
@@ -128,7 +129,11 @@ function formatDuration(ms: number): string {
   return `${(ms / 1000).toFixed(1)}s`;
 }
 
-const ToolCall: ToolCallMessagePartComponent = ({ toolName, args, status }) => {
+function ToolCall({
+  toolName,
+  args,
+  status,
+}: ToolCallMessagePartProps): ReactNode {
   const isRunning = status?.type === "running";
   const { icon, label, detail } = getToolDisplay(toolName, args, isRunning);
   const duration = useToolDuration(isRunning);
@@ -151,9 +156,9 @@ const ToolCall: ToolCallMessagePartComponent = ({ toolName, args, status }) => {
       )}
     </div>
   );
-};
+}
 
-const MessageError: FC = () => {
+function MessageError(): ReactNode {
   return (
     <MessagePrimitive.Error>
       <ErrorPrimitive.Root className="mt-2 rounded-md border border-destructive bg-destructive/10 p-2 text-destructive text-xs dark:bg-destructive/5 dark:text-red-200">
@@ -161,4 +166,4 @@ const MessageError: FC = () => {
       </ErrorPrimitive.Root>
     </MessagePrimitive.Error>
   );
-};
+}
