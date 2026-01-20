@@ -15,12 +15,13 @@ export const SidebarComposer: FC = () => {
   return (
     <ComposerPrimitive.Root className="bg-background py-3">
       <div className="rounded-xl border border-border bg-muted/50 focus-within:border-ring/50 focus-within:ring-1 focus-within:ring-ring/20">
-        <ComposerPrimitive.Input
-          placeholder="Ask a question..."
-          className="field-sizing-content max-h-24 w-full resize-none bg-transparent px-3 pt-2.5 pb-2 text-sm leading-5 placeholder:text-muted-foreground focus:outline-none"
-          rows={1}
-          autoFocus
-        />
+        <ComposerPrimitive.Input asChild>
+          <textarea
+            placeholder="Ask a question..."
+            className="field-sizing-content max-h-32 w-full resize-none bg-transparent px-3 pt-2.5 pb-2 text-sm leading-5 placeholder:text-muted-foreground focus:outline-none"
+            rows={1}
+          />
+        </ComposerPrimitive.Input>
         <div className="flex items-center justify-between px-1.5 pb-1.5">
           <div className="relative">
             <button

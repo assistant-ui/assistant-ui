@@ -2,10 +2,12 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import { Copy, FileText, EditIcon } from "lucide-react";
+import { Copy, EditIcon, FileText, SparklesIcon } from "lucide-react";
 import { TOCHiringBanner } from "@/components/docs/layout/toc-hiring-banner";
 import { BASE_URL } from "@/lib/constants";
 import { useMarkdownCopy } from "@/hooks/use-markdown-copy";
+import { useChatPanel } from "@/components/docs/contexts/chat-panel";
+import { useCurrentPage } from "@/components/docs/contexts/current-page";
 
 type TOCItem = {
   title: ReactNode;
@@ -27,6 +29,8 @@ function TOCActions({
   githubEditUrl: string | undefined;
 }) {
   const { copy, prefetch, isLoading } = useMarkdownCopy(markdownUrl);
+  const { askAI } = useChatPanel();
+  const currentPage = useCurrentPage();
 
   // Prefetch on mount since TOC is always visible on desktop
   useEffect(() => {
@@ -35,6 +39,11 @@ function TOCActions({
 
   const linkClass =
     "inline-flex items-center gap-1.5 text-muted-foreground text-xs transition-colors hover:text-foreground disabled:opacity-50";
+
+  const handleAskAI = () => {
+    const page = currentPage?.pathname ?? "this page";
+    askAI(`Explain ${page}`);
+  };
 
   return (
     <div className="flex flex-col gap-3">
@@ -66,6 +75,10 @@ function TOCActions({
           Edit on GitHub
         </a>
       )}
+      <button onClick={handleAskAI} className={linkClass}>
+        <SparklesIcon className="size-3" />
+        Ask AI
+      </button>
     </div>
   );
 }

@@ -1,6 +1,12 @@
 "use client";
 
-import { createContext, useContext, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useState,
+  type ReactNode,
+} from "react";
 
 const MIN_WIDTH = 320;
 const MAX_WIDTH = 600;
@@ -12,6 +18,9 @@ interface ChatPanelContextValue {
   toggle: () => void;
   width: number;
   setWidth: (width: number) => void;
+  pendingMessage: string | null;
+  clearPendingMessage: () => void;
+  askAI: (message: string) => void;
 }
 
 const ChatPanelContext = createContext<ChatPanelContextValue | null>(null);
@@ -27,6 +36,7 @@ export function useChatPanel() {
 export function ChatPanelProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const [width, setWidthState] = useState(DEFAULT_WIDTH);
+  const [pendingMessage, setPendingMessage] = useState<string | null>(null);
 
   function toggle(): void {
     setOpen((prev) => !prev);
@@ -36,9 +46,27 @@ export function ChatPanelProvider({ children }: { children: ReactNode }) {
     setWidthState(Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, newWidth)));
   }
 
+  const clearPendingMessage = useCallback(() => {
+    setPendingMessage(null);
+  }, []);
+
+  const askAI = useCallback((message: string) => {
+    setPendingMessage(message);
+    setOpen(true);
+  }, []);
+
   return (
     <ChatPanelContext.Provider
-      value={{ open, setOpen, toggle, width, setWidth }}
+      value={{
+        open,
+        setOpen,
+        toggle,
+        width,
+        setWidth,
+        pendingMessage,
+        clearPendingMessage,
+        askAI,
+      }}
     >
       {children}
     </ChatPanelContext.Provider>

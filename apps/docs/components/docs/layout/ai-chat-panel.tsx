@@ -4,7 +4,7 @@ import { SidebarThread } from "@/components/docs/assistant/sidebar-thread";
 import { Button } from "@/components/ui/button";
 import { useChatPanel } from "@/components/docs/contexts/chat-panel";
 import { cn } from "@/lib/utils";
-import { PanelRightCloseIcon, PanelRightOpenIcon } from "lucide-react";
+import { PanelRightCloseIcon, SparklesIcon } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 
 function ResizeHandle() {
@@ -56,22 +56,19 @@ export function AIChatPanel(): React.ReactNode {
 
   if (!open) {
     return (
-      <div className="flex h-full flex-col items-center justify-center border-l bg-background">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={toggle}
-          className="size-7"
-          aria-label="Open AI Chat"
-        >
-          <PanelRightOpenIcon className="size-4" />
-        </Button>
-      </div>
+      <button
+        type="button"
+        onClick={toggle}
+        className="group relative flex h-full w-full cursor-pointer flex-col items-center bg-background before:absolute before:top-0 before:bottom-0 before:left-0 before:w-px before:bg-linear-to-b before:from-transparent before:via-border before:to-transparent after:absolute after:inset-0 after:bg-linear-to-b after:from-transparent after:via-muted/50 after:to-transparent after:opacity-0 after:transition-opacity hover:after:opacity-100"
+        aria-label="Open AI Chat"
+      >
+        <SparklesIcon className="absolute top-1/2 left-1/2 z-10 size-4 -translate-x-1/2 -translate-y-1/2 text-muted-foreground transition-colors group-hover:text-foreground" />
+      </button>
     );
   }
 
   return (
-    <div className="group relative flex h-full flex-col border-l bg-background">
+    <div className="group relative flex h-full flex-col bg-background before:absolute before:top-0 before:bottom-0 before:left-0 before:w-px before:bg-linear-to-b before:from-transparent before:via-border before:to-transparent">
       <ResizeHandle />
       <Button
         variant="ghost"
