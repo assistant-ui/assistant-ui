@@ -155,6 +155,7 @@ export function DocsHeader({ section, sectionHref }: DocsHeaderProps) {
               ),
             )}
           </nav>
+          <ThemeToggle />
         </div>
       </div>
     </header>

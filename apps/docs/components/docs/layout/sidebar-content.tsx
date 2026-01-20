@@ -5,9 +5,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type * as PageTree from "fumadocs-core/page-tree";
 import { ChevronDown } from "lucide-react";
-import { DiscordIcon } from "@/components/icons/discord";
-import { GitHubIcon } from "@/components/icons/github";
-import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { cn } from "@/lib/utils";
 import { useDocsSidebar } from "@/components/docs/contexts/sidebar";
 
@@ -181,30 +178,6 @@ export function SidebarContent({ tree, banner }: SidebarContentProps) {
           ))}
         </nav>
       )}
-
-      <div className="flex shrink-0 items-center gap-4 px-4 py-6">
-        <a
-          href="https://github.com/assistant-ui/assistant-ui"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
-          aria-label="GitHub"
-        >
-          <GitHubIcon className="size-5" />
-        </a>
-        <a
-          href="https://discord.gg/S9dwgCNEFs"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
-          aria-label="Discord"
-        >
-          <DiscordIcon className="size-5" />
-        </a>
-        <div className="ml-auto">
-          <ThemeToggle />
-        </div>
-      </div>
     </div>
   );
 }

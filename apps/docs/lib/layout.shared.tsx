@@ -2,7 +2,6 @@ import Image from "next/image";
 import type { DocsLayoutProps } from "fumadocs-ui/layouts/docs";
 import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 import { DiscordIcon } from "@/components/icons/discord";
-import { ThemeToggle } from "@/components/shared/theme-toggle";
 import icon from "@/public/favicon/icon.svg";
 
 // shared configuration
@@ -17,7 +16,7 @@ export const baseOptions: BaseLayoutProps = {
     },
   ],
   themeSwitch: {
-    component: <ThemeToggle />,
+    enabled: false,
   },
   nav: {
     title: (
