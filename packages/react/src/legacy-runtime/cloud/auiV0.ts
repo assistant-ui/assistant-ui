@@ -37,29 +37,6 @@ type AuiV0MessageMessagePart =
       readonly argsText: string;
       readonly result?: ReadonlyJSONValue;
       readonly isError?: true;
-    }
-  | {
-      readonly type: "image";
-      readonly image: string;
-      readonly filename?: string;
-    }
-  | {
-      readonly type: "file";
-      readonly data: string;
-      readonly mimeType: string;
-      readonly filename?: string;
-    }
-  | {
-      readonly type: "audio";
-      readonly audio: {
-        readonly data: string;
-        readonly format: "mp3" | "wav";
-      };
-    }
-  | {
-      readonly type: "data";
-      readonly name: string;
-      readonly data: ReadonlyJSONValue;
     };
 
 type AuiV0Message = {
@@ -81,109 +58,67 @@ type AuiV0Message = {
 };
 
 export const auiV0Encode = (message: ThreadMessage): AuiV0Message => {
+  // TODO attachments are currently intentionally ignored
   // info: ID and createdAt are ignored (we use the server value instead)
   return {
     role: message.role,
-    content: message.content
-      .map((part) => {
-        const type = part.type;
-        switch (type) {
-          case "text": {
-            return {
-              type: "text",
-              text: part.text,
-            } as const;
-          }
+    content: message.content.map((part) => {
+      const type = part.type;
+      switch (type) {
+        case "text": {
+          return {
+            type: "text",
+            text: part.text,
+          };
+        }
 
-          case "reasoning": {
-            return {
-              type: "reasoning",
-              text: part.text,
-            } as const;
-          }
+        case "reasoning": {
+          return {
+            type: "reasoning",
+            text: part.text,
+          };
+        }
 
-          case "source": {
-            return {
-              type: "source",
-              sourceType: part.sourceType,
-              id: part.id,
-              url: part.url,
-              ...(part.title ? { title: part.title } : undefined),
-            } as const;
-          }
+        case "source": {
+          return {
+            type: "source",
+            sourceType: part.sourceType,
+            id: part.id,
+            url: part.url,
+            ...(part.title ? { title: part.title } : undefined),
+          };
+        }
 
-          case "tool-call": {
-            if (!isJSONValue(part.result)) {
-              console.warn(
-                `tool-call result is not JSON! ${JSON.stringify(part)}`,
-              );
-            }
-            return {
-              type: "tool-call",
-              toolCallId: part.toolCallId,
-              toolName: part.toolName,
-              ...(JSON.stringify(part.args) === part.argsText
-                ? {
-                    args: part.args,
-                  }
-                : { argsText: part.argsText }),
-              ...(part.result
-                ? { result: part.result as ReadonlyJSONValue }
-                : {}),
-              ...(part.isError ? ({ isError: true } as const) : {}),
-            } as const;
-          }
-
-          case "image": {
-            return {
-              type: "image",
-              image: part.image,
-              ...(part.filename ? { filename: part.filename } : undefined),
-            } as const;
-          }
-
-          case "file": {
-            return {
-              type: "file",
-              data: part.data,
-              mimeType: part.mimeType,
-              ...(part.filename ? { filename: part.filename } : undefined),
-            } as const;
-          }
-
-          case "audio": {
-            return {
-              type: "audio",
-              audio: {
-                data: part.audio.data,
-                format: part.audio.format,
-              },
-            } as const;
-          }
-
-          case "data": {
-            if (!isJSONValue(part.data)) {
-              console.warn(
-                `data part "${part.name}" contains non-JSON data, skipping`,
-              );
-              return null;
-            }
-            return {
-              type: "data",
-              name: part.name,
-              data: part.data as ReadonlyJSONValue,
-            } as const;
-          }
-
-          default: {
-            const unhandledType: never = type;
-            throw new Error(
-              `Message part type not supported by aui/v0: ${unhandledType}`,
+        case "tool-call": {
+          if (!isJSONValue(part.result)) {
+            console.warn(
+              `tool-call result is not JSON! ${JSON.stringify(part)}`,
             );
           }
+          return {
+            type: "tool-call",
+            toolCallId: part.toolCallId,
+            toolName: part.toolName,
+            ...(JSON.stringify(part.args) === part.argsText
+              ? {
+                  args: part.args,
+                }
+              : { argsText: part.argsText }),
+            ...(part.result
+              ? { result: part.result as ReadonlyJSONValue }
+              : {}),
+            ...(part.isError ? { isError: true } : {}),
+          };
         }
-      })
-      .filter((part): part is NonNullable<typeof part> => part !== null),
+
+        default: {
+          const unhandledType: "image" | "file" | "audio" | "data" = type;
+          throw new Error(
+            `Message part type not supported by aui/v0: ${unhandledType}`,
+          );
+        }
+      }
+    }),
     metadata: message.metadata as AuiV0Message["metadata"],
     ...(message.status
       ? {
