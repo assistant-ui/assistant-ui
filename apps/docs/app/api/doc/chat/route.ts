@@ -108,6 +108,7 @@ You have three documentation tools:
    - Best for: understanding what's available, finding related pages
    - Use with no path for root categories, or specify path (e.g., "ui")
    - Returns: list of pages/folders at that level
+   - IMPORTANT: Only items with a "url" field are linkable pages. Folders without "url" are just categories - don't link to them.
 
 3. **readDoc** - Read full page content
    - Best for: getting complete information after identifying the right page
@@ -196,9 +197,11 @@ export async function POST(req: Request): Promise<Response> {
             return pageTree.children
               .filter((node): node is PageTree.Folder => node.type === "folder")
               .map((folder) => ({
+                type: "folder",
                 name: folder.name,
-                path: folder.index?.url?.replace("/docs/", "") ?? "",
                 pageCount: countPages(folder),
+                // Only include url if folder has an index page
+                ...(folder.index ? { url: folder.index.url } : {}),
               }));
           }
 
@@ -214,7 +217,8 @@ export async function POST(req: Request): Promise<Response> {
                 return {
                   type: "folder",
                   name: node.name,
-                  path: node.index?.url?.replace("/docs/", "") ?? "",
+                  // Only include url if folder has an index page
+                  ...(node.index ? { url: node.index.url } : {}),
                 };
               case "separator":
                 return { type: "separator", name: node.name };

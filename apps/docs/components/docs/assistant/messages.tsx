@@ -9,13 +9,12 @@ import {
 import {
   BookOpenIcon,
   CheckIcon,
-  ChevronRightIcon,
   FileTextIcon,
   FolderTreeIcon,
   LoaderIcon,
   SearchIcon,
 } from "lucide-react";
-import type { FC, ReactNode } from "react";
+import { type FC, type ReactNode, useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { Reasoning, ReasoningGroup } from "@/components/assistant-ui/reasoning";
 
@@ -117,9 +116,30 @@ function ToolStatusIcon({
   return <FallbackIcon className="size-3" />;
 }
 
+function useToolDuration(isRunning: boolean) {
+  const startTimeRef = useRef<number | null>(null);
+  const [duration, setDuration] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (isRunning && startTimeRef.current === null) {
+      startTimeRef.current = Date.now();
+    } else if (!isRunning && startTimeRef.current !== null) {
+      setDuration(Date.now() - startTimeRef.current);
+    }
+  }, [isRunning]);
+
+  return duration;
+}
+
+function formatDuration(ms: number): string {
+  if (ms < 1000) return `${ms}ms`;
+  return `${(ms / 1000).toFixed(1)}s`;
+}
+
 const ToolCall: ToolCallMessagePartComponent = ({ toolName, args, status }) => {
   const isRunning = status?.type === "running";
   const { icon, label, detail } = getToolDisplay(toolName, args, isRunning);
+  const duration = useToolDuration(isRunning);
 
   return (
     <div
@@ -132,7 +152,11 @@ const ToolCall: ToolCallMessagePartComponent = ({ toolName, args, status }) => {
       <span className="flex-1 truncate">
         {label} {detail}
       </span>
-      <ChevronRightIcon className="size-3 opacity-50" />
+      {duration !== null && (
+        <span className="text-muted-foreground/60">
+          {formatDuration(duration)}
+        </span>
+      )}
     </div>
   );
 };
