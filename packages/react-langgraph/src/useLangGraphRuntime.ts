@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   LangChainMessage,
   LangChainToolCall,
@@ -316,7 +316,7 @@ const useLangGraphRuntimeImpl = ({
       const externalId = api.threadListItem().getState().externalId;
       if (externalId == null) return;
 
-      load(externalId).finally(({ messages, interrupts }) => {
+      load(externalId).then(({ messages, interrupts }) => {
         setMessages(messages);
         setInterrupt(interrupts?.[0]);
       });
