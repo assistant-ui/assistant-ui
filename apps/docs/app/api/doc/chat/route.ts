@@ -116,11 +116,12 @@ You have three documentation tools:
    - Returns: full processed page content
 
 **Recommended patterns:**
-- Specific question → searchDocs → readDoc for full context
+- User provides a specific page path (e.g., "/docs/ui/thread") → readDoc directly, no search needed
+- Specific question without page path → searchDocs → readDoc for full context
 - Exploring options → browseDocs → readDoc relevant pages
 - "What can I do with X?" → browseDocs(X category) → summarize
 
-Choose the most appropriate tool based on the question. No default preference.
+IMPORTANT: When the user mentions a specific doc path like "/docs/..." or "explain /docs/...", use readDoc directly. Don't search first.
 </tools>
 
 <answering>

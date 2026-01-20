@@ -27,7 +27,7 @@ export function AssistantComposer(): ReactNode {
   }, [showPicker]);
 
   return (
-    <ComposerPrimitive.Root className="bg-background py-3">
+    <ComposerPrimitive.Root className="bg-background py-2">
       <div className="rounded-xl border border-border bg-muted/50 focus-within:border-ring/50 focus-within:ring-1 focus-within:ring-ring/20">
         <ComposerPrimitive.Input asChild>
           <textarea

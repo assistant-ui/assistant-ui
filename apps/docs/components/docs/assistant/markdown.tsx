@@ -15,6 +15,7 @@ import { type CSSProperties, type FC, memo, useState } from "react";
 import { CheckIcon, CopyIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ShikiHighlighter from "react-shiki";
+import Link from "next/link";
 
 const MarkdownTextImpl = () => {
   return (
@@ -82,7 +83,7 @@ const SyntaxHighlighter: FC<SyntaxHighlighterProps> = ({ code, language }) => {
       showLanguage={false}
       showLineNumbers
       defaultColor={false}
-      className="[&_pre]:scrollbar-none [&_pre]:overflow-x-auto [&_pre]:rounded-t-none [&_pre]:rounded-b-lg [&_pre]:border [&_pre]:border-border/50 [&_pre]:border-t-0 [&_pre]:bg-muted/30 [&_pre]:p-3 [&_pre]:text-xs [&_pre]:leading-relaxed"
+      className="[&_pre]:scrollbar-none [&_pre]:overflow-x-auto [&_pre]:rounded-t-none [&_pre]:rounded-b-lg [&_pre]:border [&_pre]:border-border/50 [&_pre]:border-t-0 [&_pre]:bg-muted/30 [&_pre]:py-3 [&_pre]:pr-3 [&_pre]:pl-1 [&_pre]:text-xs [&_pre]:leading-relaxed"
       style={
         {
           "--line-numbers-foreground": "var(--color-muted-foreground)",
@@ -159,15 +160,25 @@ const markdownComponents = memoizeMarkdownComponents({
       {...props}
     />
   ),
-  a: ({ className, ...props }) => (
-    <a
-      className={cn(
-        "text-primary underline underline-offset-2 hover:text-primary/80",
-        className,
-      )}
-      {...props}
-    />
-  ),
+  a: ({ className, href, children, ...props }) => {
+    const linkClass = cn(
+      "text-primary underline underline-offset-2 hover:text-primary/80",
+      className,
+    );
+
+    if (href?.startsWith("/")) {
+      return (
+        <Link href={href} className={linkClass}>
+          {children}
+        </Link>
+      );
+    }
+    return (
+      <a href={href} className={linkClass} {...props}>
+        {children}
+      </a>
+    );
+  },
   blockquote: ({ className, ...props }) => (
     <blockquote
       className={cn(

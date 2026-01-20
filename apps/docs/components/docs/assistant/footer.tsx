@@ -48,7 +48,7 @@ export function AssistantFooter(): ReactNode {
   const usageK = (totalTokens / 1000).toFixed(1);
 
   return (
-    <div className="flex items-center justify-between px-3 py-2">
+    <div className="flex items-center justify-between px-3 py-1.5">
       <button
         type="button"
         onClick={() => api.threads().switchToNewThread()}
