@@ -42,13 +42,13 @@ export function AssistantPanelProvider({ children }: { children: ReactNode }) {
   const [width, setWidthState] = useState(DEFAULT_WIDTH);
   const [pendingMessage, setPendingMessage] = useState<string | null>(null);
 
-  function toggle(): void {
+  const toggle = useCallback(() => {
     setOpen((prev) => !prev);
-  }
+  }, []);
 
-  function setWidth(newWidth: number): void {
+  const setWidth = useCallback((newWidth: number) => {
     setWidthState(Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, newWidth)));
-  }
+  }, []);
 
   const clearPendingMessage = useCallback(() => {
     setPendingMessage(null);

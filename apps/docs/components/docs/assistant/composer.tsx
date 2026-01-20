@@ -5,10 +5,10 @@ import { type Model, MODELS } from "@/constants/model";
 import { AssistantIf, ComposerPrimitive } from "@assistant-ui/react";
 import { ArrowUpIcon, ChevronDownIcon, SquareIcon } from "lucide-react";
 import Image from "next/image";
-import { type FC, useState, useRef, useEffect } from "react";
+import { type ReactNode, useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 
-export const AssistantComposer: FC = () => {
+export function AssistantComposer(): ReactNode {
   const [model, setModel] = useState<Model>(MODELS[0]);
   const [showPicker, setShowPicker] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
@@ -16,11 +16,11 @@ export const AssistantComposer: FC = () => {
   useEffect(() => {
     if (!showPicker) return;
 
-    const handleClickOutside = (e: MouseEvent) => {
+    function handleClickOutside(e: MouseEvent): void {
       if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
         setShowPicker(false);
       }
-    };
+    }
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -93,9 +93,9 @@ export const AssistantComposer: FC = () => {
       </div>
     </ComposerPrimitive.Root>
   );
-};
+}
 
-const AssistantComposerAction: FC = () => {
+function AssistantComposerAction(): ReactNode {
   return (
     <>
       <AssistantIf condition={({ thread }) => !thread.isRunning}>
@@ -120,4 +120,4 @@ const AssistantComposerAction: FC = () => {
       </AssistantIf>
     </>
   );
-};
+}

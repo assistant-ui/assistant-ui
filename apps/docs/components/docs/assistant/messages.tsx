@@ -15,11 +15,11 @@ import {
   LoaderIcon,
   SearchIcon,
 } from "lucide-react";
-import type { FC } from "react";
+import type { FC, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { Reasoning, ReasoningGroup } from "@/components/assistant-ui/reasoning";
 
-export const UserMessage: FC = () => {
+export function UserMessage(): ReactNode {
   return (
     <MessagePrimitive.Root className="flex justify-end py-2" data-role="user">
       <div className="max-w-[85%] rounded-2xl bg-muted px-3 py-2 text-sm">
@@ -27,9 +27,9 @@ export const UserMessage: FC = () => {
       </div>
     </MessagePrimitive.Root>
   );
-};
+}
 
-export const AssistantMessage: FC = () => {
+export function AssistantMessage(): ReactNode {
   return (
     <MessagePrimitive.Root className="py-2" data-role="assistant">
       <div className="text-sm">
@@ -37,8 +37,8 @@ export const AssistantMessage: FC = () => {
           components={{
             Empty: Thinking,
             Text: MarkdownText,
-            Reasoning: Reasoning,
-            ReasoningGroup: ReasoningGroup,
+            Reasoning,
+            ReasoningGroup,
             tools: {
               Fallback: ToolCall,
             },
@@ -48,7 +48,7 @@ export const AssistantMessage: FC = () => {
       </div>
     </MessagePrimitive.Root>
   );
-};
+}
 
 const Thinking: FC<{ status: { type: string } }> = ({ status }) => {
   if (status.type !== "running") return null;
@@ -101,14 +101,25 @@ function getToolDisplay(
   }
 }
 
+function ToolStatusIcon({
+  status,
+  FallbackIcon,
+}: {
+  status: { type: string } | undefined;
+  FallbackIcon: typeof SearchIcon;
+}): ReactNode {
+  if (status?.type === "running") {
+    return <LoaderIcon className="size-3 animate-spin" />;
+  }
+  if (status?.type === "complete") {
+    return <CheckIcon className="size-3 text-emerald-500" />;
+  }
+  return <FallbackIcon className="size-3" />;
+}
+
 const ToolCall: ToolCallMessagePartComponent = ({ toolName, args, status }) => {
   const isRunning = status?.type === "running";
-  const isComplete = status?.type === "complete";
-  const {
-    icon: Icon,
-    label,
-    detail,
-  } = getToolDisplay(toolName, args, isRunning);
+  const { icon, label, detail } = getToolDisplay(toolName, args, isRunning);
 
   return (
     <div
@@ -117,13 +128,7 @@ const ToolCall: ToolCallMessagePartComponent = ({ toolName, args, status }) => {
         isRunning && "animate-pulse",
       )}
     >
-      {isRunning ? (
-        <LoaderIcon className="size-3 animate-spin" />
-      ) : isComplete ? (
-        <CheckIcon className="size-3 text-emerald-500" />
-      ) : (
-        <Icon className="size-3" />
-      )}
+      <ToolStatusIcon status={status} FallbackIcon={icon} />
       <span className="flex-1 truncate">
         {label} {detail}
       </span>

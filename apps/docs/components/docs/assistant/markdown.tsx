@@ -230,9 +230,7 @@ const markdownComponents = memoizeMarkdownComponents({
       {...props}
     />
   ),
-  tr: ({ className, ...props }) => (
-    <tr className={cn("", className)} {...props} />
-  ),
+  tr: (props) => <tr {...props} />,
   pre: ({ className, ...props }) => (
     <pre
       className={cn(

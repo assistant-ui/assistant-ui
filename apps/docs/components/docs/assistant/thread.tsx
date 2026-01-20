@@ -5,7 +5,7 @@ import {
   ThreadPrimitive,
   useAssistantApi,
 } from "@assistant-ui/react";
-import { type FC, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { AssistantMessage, UserMessage } from "./messages";
 import { AssistantComposer } from "./composer";
 import { useAssistantPanel } from "@/components/docs/assistant/context";
@@ -30,7 +30,7 @@ function PendingMessageHandler() {
   return null;
 }
 
-export const AssistantThread: FC = () => {
+export function AssistantThread(): React.ReactNode {
   return (
     <ThreadPrimitive.Root className="flex h-full flex-col bg-background">
       <PendingMessageHandler />
@@ -41,8 +41,8 @@ export const AssistantThread: FC = () => {
 
         <ThreadPrimitive.Messages
           components={{
-            UserMessage: UserMessage,
-            AssistantMessage: AssistantMessage,
+            UserMessage,
+            AssistantMessage,
           }}
         />
 
@@ -53,9 +53,9 @@ export const AssistantThread: FC = () => {
       <AssistantFooter />
     </ThreadPrimitive.Root>
   );
-};
+}
 
-const AssistantWelcome: FC = () => {
+function AssistantWelcome(): React.ReactNode {
   return (
     <div className="flex flex-1 flex-col items-center justify-center p-6 text-center">
       <p className="text-muted-foreground text-sm">
@@ -63,4 +63,4 @@ const AssistantWelcome: FC = () => {
       </p>
     </div>
   );
-};
+}

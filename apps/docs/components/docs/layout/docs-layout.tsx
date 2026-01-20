@@ -3,37 +3,30 @@
 import type { ReactNode } from "react";
 import { AssistantPanel } from "@/components/docs/assistant/panel";
 import { useAssistantPanel } from "@/components/docs/assistant/context";
-import { cn } from "@/lib/utils";
 
-export function DocsContent({
-  children,
-}: {
-  children: ReactNode;
-}): React.ReactNode {
+export function DocsContent({ children }: { children: ReactNode }): ReactNode {
   const { open, width } = useAssistantPanel();
+  const panelWidth = open ? `${width}px` : "44px";
 
   return (
     <div
       className="transition-[margin] duration-300 ease-out md:mr-(--chat-panel-width)"
-      style={{
-        ["--chat-panel-width" as string]: open ? `${width}px` : "44px",
-      }}
+      style={{ "--chat-panel-width": panelWidth } as React.CSSProperties}
     >
       {children}
     </div>
   );
 }
 
-export function DocsAssistantPanel(): React.ReactNode {
+export function DocsAssistantPanel(): ReactNode {
   const { open, width } = useAssistantPanel();
 
   return (
     <div
-      className={cn(
-        "fixed top-12 right-0 bottom-0 hidden transition-[width] duration-300 ease-out md:block",
-        !open && "w-11",
-      )}
-      style={open ? { width: `${width}px` } : undefined}
+      className="fixed top-12 right-0 bottom-0 hidden w-(--panel-width) transition-[width] duration-300 ease-out md:block"
+      style={
+        { "--panel-width": open ? `${width}px` : "44px" } as React.CSSProperties
+      }
     >
       <AssistantPanel />
     </div>

@@ -2,31 +2,41 @@
 
 import { useAssistantState, useAssistantApi } from "@assistant-ui/react";
 import { PlusIcon } from "lucide-react";
-import type { FC } from "react";
+import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 const CONTEXT_WINDOW = 400_000;
 
-export const AssistantFooter: FC = () => {
+function getUsageColorClass(percent: number): string {
+  if (percent < 50) return "bg-emerald-500";
+  if (percent < 80) return "bg-amber-500";
+  return "bg-red-500";
+}
+
+export function AssistantFooter(): ReactNode {
   const api = useAssistantApi();
   const messages = useAssistantState(({ thread }) => thread.messages);
 
   const totalTokens = messages.reduce((acc, message) => {
     if (message.role !== "assistant") return acc;
 
-    const metadata = message.metadata as any;
-    const usage = metadata?.custom?.usage;
+    const metadata = message.metadata as Record<string, unknown>;
+    const custom = metadata["custom"] as Record<string, unknown> | undefined;
+    if (!custom) return acc;
+    const usage = custom["usage"] as Record<string, number> | undefined;
     if (usage) {
       const total =
-        usage.totalTokens ??
-        (usage.inputTokens ?? 0) + (usage.outputTokens ?? 0);
+        usage["totalTokens"] ??
+        (usage["inputTokens"] ?? 0) + (usage["outputTokens"] ?? 0);
       if (total > 0) return acc + total;
     }
 
-    const steps = metadata?.steps ?? [];
+    const steps = (metadata["steps"] ?? []) as Array<{
+      usage?: { promptTokens: number; completionTokens: number };
+    }>;
     return (
       acc +
-      steps.reduce((stepAcc: number, step: any) => {
+      steps.reduce((stepAcc, step) => {
         const stepUsage = step.usage;
         if (!stepUsage) return stepAcc;
         return stepAcc + stepUsage.promptTokens + stepUsage.completionTokens;
@@ -53,11 +63,7 @@ export const AssistantFooter: FC = () => {
           <div
             className={cn(
               "h-full rounded-full transition-all duration-300",
-              usagePercent < 50
-                ? "bg-emerald-500"
-                : usagePercent < 80
-                  ? "bg-amber-500"
-                  : "bg-red-500",
+              getUsageColorClass(usagePercent),
             )}
             style={{ width: `${usagePercent}%` }}
           />
@@ -68,4 +74,4 @@ export const AssistantFooter: FC = () => {
       </div>
     </div>
   );
-};
+}
