@@ -12,9 +12,9 @@ import {
 import { SidebarContent } from "@/components/docs/layout/sidebar-content";
 import { ChatPanelProvider } from "@/components/docs/contexts/chat-panel";
 import {
-  DocsContentWithMargin,
+  DocsContent,
   DocsChatPanel,
-} from "@/components/docs/layout/docs-with-chat";
+} from "@/components/docs/layout/docs-layout";
 import { DocsRuntimeProvider } from "@/contexts/DocsRuntimeProvider";
 
 export default function Layout({ children }: { children: ReactNode }) {
@@ -25,7 +25,7 @@ export default function Layout({ children }: { children: ReactNode }) {
       <DocsRuntimeProvider>
         <DocsSidebarProvider>
           <DocsHeader section="Docs" sectionHref="/docs" />
-          <DocsContentWithMargin>
+          <DocsContent>
             <DocsLayout
               {...sharedDocsOptions}
               tree={source.pageTree}
@@ -38,7 +38,7 @@ export default function Layout({ children }: { children: ReactNode }) {
             >
               {children}
             </DocsLayout>
-          </DocsContentWithMargin>
+          </DocsContent>
           <DocsSidebar>
             <SidebarContent
               tree={source.pageTree}

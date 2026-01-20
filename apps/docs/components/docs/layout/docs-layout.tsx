@@ -3,20 +3,19 @@
 import type { ReactNode } from "react";
 import { AIChatPanel } from "@/components/docs/layout/ai-chat-panel";
 import { useChatPanel } from "@/components/docs/contexts/chat-panel";
+import { SidebarRuntimeProvider } from "@/contexts/SidebarRuntimeProvider";
 import { cn } from "@/lib/utils";
 
-interface DocsWithChatProps {
-  children: ReactNode;
-}
-
-export function DocsContentWithMargin({
+export function DocsContent({
   children,
-}: DocsWithChatProps): React.ReactNode {
+}: {
+  children: ReactNode;
+}): React.ReactNode {
   const { open } = useChatPanel();
 
   return (
     <div
-      className="transition-[margin] duration-200 md:mr-[var(--chat-panel-width)]"
+      className="transition-[margin] duration-200 md:mr-(--chat-panel-width)"
       style={{
         ["--chat-panel-width" as string]: open ? "400px" : "48px",
       }}
@@ -33,10 +32,12 @@ export function DocsChatPanel(): React.ReactNode {
     <div
       className={cn(
         "fixed top-12 right-0 bottom-0 hidden transition-[width] duration-200 md:block",
-        open ? "w-[400px]" : "w-12",
+        open ? "w-100" : "w-12",
       )}
     >
-      <AIChatPanel />
+      <SidebarRuntimeProvider>
+        <AIChatPanel />
+      </SidebarRuntimeProvider>
     </div>
   );
 }
