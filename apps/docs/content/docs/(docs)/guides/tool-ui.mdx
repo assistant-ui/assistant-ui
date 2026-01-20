@@ -192,7 +192,7 @@ function App() {
 When using the Vercel AI SDK, define the corresponding tool in your API route:
 
 ```tsx title="/app/api/chat/route.ts"
-import { streamText, tool } from "ai";
+import { streamText, tool, zodSchema } from "ai";
 import { z } from "zod";
 
 export async function POST(req: Request) {
@@ -204,10 +204,12 @@ export async function POST(req: Request) {
     tools: {
       getWeather: tool({
         description: "Get current weather for a location",
-        inputSchema: z.object({
-          location: z.string(),
-          unit: z.enum(["celsius", "fahrenheit"]),
-        }),
+        inputSchema: zodSchema(
+          z.object({
+            location: z.string(),
+            unit: z.enum(["celsius", "fahrenheit"]),
+          }),
+        ),
         execute: async ({ location, unit }) => {
           const weather = await fetchWeatherAPI(location);
           return {

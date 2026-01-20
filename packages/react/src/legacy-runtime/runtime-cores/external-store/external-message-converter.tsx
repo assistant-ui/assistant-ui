@@ -185,7 +185,7 @@ const joinExternalMessages = (
                 ] as typeof part;
                 assistantMessage.content[existingIdx] = {
                   ...existing,
-                  text: existing.text + "\n\n" + part.text,
+                  text: `${existing.text}\n\n${part.text}`,
                   ...{
                     [symbolInnerMessage]: [
                       ...((existing as any)[symbolInnerMessage] ?? []),

@@ -11,4 +11,4 @@ onlyBuiltDependencies:
 
 strictDepBuilds: true
 
-verifyDepsBeforeRun: true
+verifyDepsBeforeRun: install

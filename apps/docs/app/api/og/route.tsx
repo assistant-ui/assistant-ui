@@ -223,7 +223,7 @@ export async function GET(request: NextRequest) {
             }}
           >
             {description.length > 90
-              ? description.slice(0, 90) + "..."
+              ? `${description.slice(0, 90)}...`
               : description}
           </span>
         )}

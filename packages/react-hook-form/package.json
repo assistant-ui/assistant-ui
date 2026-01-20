@@ -49,9 +49,9 @@
   "devDependencies": {
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/react": "^19.2.7",
+    "@types/react": "^19.2.9",
     "react": "^19.2.3",
-    "react-hook-form": "^7.69.0"
+    "react-hook-form": "^7.71.1"
   },
   "publishConfig": {
     "access": "public",

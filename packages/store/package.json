@@ -44,7 +44,7 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/react": "^19.2.7",
+    "@types/react": "^19.2.9",
     "react": "^19.2.3"
   },
   "publishConfig": {

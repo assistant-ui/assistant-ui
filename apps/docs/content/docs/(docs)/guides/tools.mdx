@@ -251,10 +251,12 @@ export async function POST(req: Request) {
     tools: {
       queryDatabase: {
         description: "Query the application database",
-        inputSchema: z.object({
-          query: z.string(),
-          table: z.string(),
-        }),
+        inputSchema: zodSchema(
+          z.object({
+            query: z.string(),
+            table: z.string(),
+          }),
+        ),
         execute: async ({ query, table }) => {
           // Server-side database access
           const results = await db.query(query, { table });
@@ -305,7 +307,7 @@ export async function POST(req: Request) {
       // Additional server-side tools
       queryDatabase: {
         description: "Query the application database",
-        inputSchema: z.object({ query: z.string() }),
+        inputSchema: zodSchema(z.object({ query: z.string() })),
         execute: async ({ query }) => {
           return await db.query(query);
         },

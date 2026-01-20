@@ -9,6 +9,7 @@ import {
   stepCountIs,
   streamText,
   tool,
+  zodSchema,
 } from "ai";
 import type * as PageTree from "fumadocs-core/page-tree";
 import z from "zod";
@@ -134,14 +135,16 @@ export async function POST(req: Request): Promise<Response> {
       listDocs: tool({
         description:
           "List documentation pages. Use with no path for root categories, or specify path to browse a section.",
-        inputSchema: z.object({
-          path: z
-            .string()
-            .optional()
-            .describe(
-              "Path to browse (e.g., 'ui', 'runtimes'). Empty for root.",
-            ),
-        }),
+        inputSchema: zodSchema(
+          z.object({
+            path: z
+              .string()
+              .optional()
+              .describe(
+                "Path to browse (e.g., 'ui', 'runtimes'). Empty for root.",
+              ),
+          }),
+        ),
         execute: async ({ path }) => {
           const pageTree = source.pageTree;
 
@@ -178,11 +181,13 @@ export async function POST(req: Request): Promise<Response> {
       }),
       readDoc: tool({
         description: "Read full content of a documentation page",
-        inputSchema: z.object({
-          slugOrUrl: z
-            .string()
-            .describe("Page slug (e.g., 'ui/thread') or URL"),
-        }),
+        inputSchema: zodSchema(
+          z.object({
+            slugOrUrl: z
+              .string()
+              .describe("Page slug (e.g., 'ui/thread') or URL"),
+          }),
+        ),
         execute: async ({ slugOrUrl }) => {
           const path = slugOrUrl.startsWith("http")
             ? new URL(slugOrUrl).pathname
