@@ -78,7 +78,10 @@ const assistantMessageSplitter = () => {
         toolName: part.toolName,
         output:
           part.result === undefined
-            ? { type: "error-text", value: "Error: tool has no configured code to run" }
+            ? {
+                type: "error-text",
+                value: "Error: tool has no configured code to run",
+              }
             : part.isError
               ? { type: "error-json", value: part.result as JSONValue }
               : { type: "json", value: part.result as JSONValue },

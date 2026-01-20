@@ -55,7 +55,7 @@ const convertParts = (
 
         // Extract args and result based on state
         let args: ReadonlyJSONObject = {};
-        let result: unknown = undefined;
+        let result: unknown;
         let isError = false;
 
         if (
