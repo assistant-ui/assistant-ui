@@ -1,5 +1,11 @@
 # chatgpt-app-studio
 
+## 0.3.1
+
+### Patch Changes
+
+- 218fb69: refactor(chatgpt-app-studio): download template from GitHub instead of bundling in package
+
 ## 0.3.0
 
 ### Minor Changes

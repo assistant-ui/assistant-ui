@@ -1,5 +1,16 @@
 # @assistant-ui/react-langgraph
 
+## 0.7.14
+
+### Patch Changes
+
+- 07ff0d7: fix(react-langgraph): trigger `loadThread` when switching threads
+- Updated dependencies [ebd41c7]
+- Updated dependencies [9a110ea]
+- Updated dependencies [caee095]
+- Updated dependencies [9883125]
+  - @assistant-ui/react@0.11.57
+
 ## 0.7.13
 
 ### Patch Changes

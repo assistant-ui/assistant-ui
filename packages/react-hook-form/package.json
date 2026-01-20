@@ -36,7 +36,7 @@
     "zod": "^4.3.5"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.11.56",
+    "@assistant-ui/react": "^0.11.57",
     "@types/react": "*",
     "react": "^18 || ^19",
     "react-hook-form": "^7"
