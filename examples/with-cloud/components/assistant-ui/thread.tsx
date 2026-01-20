@@ -17,6 +17,7 @@ import {
   ErrorPrimitive,
   MessagePrimitive,
   ThreadPrimitive,
+  useThreadRuntime,
 } from "@assistant-ui/react";
 import {
   ArrowDownIcon,
@@ -28,10 +29,12 @@ import {
   DownloadIcon,
   MoreHorizontalIcon,
   PencilIcon,
+  PlayIcon,
   RefreshCwIcon,
   SquareIcon,
+  WifiOffIcon,
 } from "lucide-react";
-import type { FC } from "react";
+import { type FC, useState } from "react";
 
 export const Thread: FC = () => {
   return (
@@ -158,40 +161,107 @@ const Composer: FC = () => {
   );
 };
 
+const DisconnectResumeButton: FC<{
+  isDisconnected: boolean;
+  onDisconnect: () => void;
+  onResume: () => void;
+}> = ({ isDisconnected, onDisconnect, onResume }) => {
+  if (isDisconnected) {
+    return (
+      <TooltipIconButton
+        tooltip="Resume stream"
+        side="bottom"
+        type="button"
+        variant="outline"
+        size="icon"
+        className="mr-2 size-8 rounded-full border-green-500 text-green-500 hover:bg-green-50"
+        aria-label="Resume stream"
+        onClick={onResume}
+      >
+        <PlayIcon className="size-4" />
+      </TooltipIconButton>
+    );
+  }
+
+  return (
+    <TooltipIconButton
+      tooltip="Simulate Disconnect (test resume)"
+      side="bottom"
+      type="button"
+      variant="outline"
+      size="icon"
+      className="mr-2 size-8 rounded-full border-orange-500 text-orange-500 hover:bg-orange-50"
+      aria-label="Simulate network disconnect"
+      onClick={onDisconnect}
+    >
+      <WifiOffIcon className="size-4" />
+    </TooltipIconButton>
+  );
+};
+
 const ComposerAction: FC = () => {
+  const threadRuntime = useThreadRuntime();
+  const [isDisconnected, setIsDisconnected] = useState(false);
+
+  const handleDisconnect = () => {
+    threadRuntime.cancelRun();
+    setIsDisconnected(true);
+  };
+
+  const handleResume = () => {
+    threadRuntime.unstable_resumeRun({ parentId: null });
+    setIsDisconnected(false);
+  };
+
   return (
     <div className="aui-composer-action-wrapper relative mx-2 mb-2 flex items-center justify-between">
       <ComposerAddAttachment />
 
-      <AssistantIf condition={({ thread }) => !thread.isRunning}>
-        <ComposerPrimitive.Send asChild>
-          <TooltipIconButton
-            tooltip="Send message"
-            side="bottom"
-            type="submit"
-            variant="default"
-            size="icon"
-            className="aui-composer-send size-8 rounded-full"
-            aria-label="Send message"
-          >
-            <ArrowUpIcon className="aui-composer-send-icon size-4" />
-          </TooltipIconButton>
-        </ComposerPrimitive.Send>
-      </AssistantIf>
+      <div className="flex items-center">
+        <AssistantIf
+          condition={({ thread }) => thread.isRunning || isDisconnected}
+        >
+          <DisconnectResumeButton
+            isDisconnected={isDisconnected}
+            onDisconnect={handleDisconnect}
+            onResume={handleResume}
+          />
+        </AssistantIf>
 
-      <AssistantIf condition={({ thread }) => thread.isRunning}>
-        <ComposerPrimitive.Cancel asChild>
-          <Button
-            type="button"
-            variant="default"
-            size="icon"
-            className="aui-composer-cancel size-8 rounded-full"
-            aria-label="Stop generating"
-          >
-            <SquareIcon className="aui-composer-cancel-icon size-3 fill-current" />
-          </Button>
-        </ComposerPrimitive.Cancel>
-      </AssistantIf>
+        <AssistantIf
+          condition={({ thread }) => !thread.isRunning && !isDisconnected}
+        >
+          <ComposerPrimitive.Send asChild>
+            <TooltipIconButton
+              tooltip="Send message"
+              side="bottom"
+              type="submit"
+              variant="default"
+              size="icon"
+              className="aui-composer-send size-8 rounded-full"
+              aria-label="Send message"
+            >
+              <ArrowUpIcon className="aui-composer-send-icon size-4" />
+            </TooltipIconButton>
+          </ComposerPrimitive.Send>
+        </AssistantIf>
+
+        <AssistantIf
+          condition={({ thread }) => thread.isRunning && !isDisconnected}
+        >
+          <ComposerPrimitive.Cancel asChild>
+            <Button
+              type="button"
+              variant="default"
+              size="icon"
+              className="aui-composer-cancel size-8 rounded-full"
+              aria-label="Stop generating"
+            >
+              <SquareIcon className="aui-composer-cancel-icon size-3 fill-current" />
+            </Button>
+          </ComposerPrimitive.Cancel>
+        </AssistantIf>
+      </div>
     </div>
   );
 };
