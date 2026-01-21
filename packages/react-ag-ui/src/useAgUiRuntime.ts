@@ -65,8 +65,10 @@ export function useAgUiRuntime(
   }, [attachmentsAdapter, speechAdapter, dictationAdapter, feedbackAdapter]);
 
   const store = useMemo(
-    () =>
-      ({
+    () => {
+      void _version; // rerender on version change
+
+      return {
         messages: core.getMessages(),
         state: core.getState(),
         isRunning: core.isRunning(),
@@ -84,9 +86,10 @@ export function useAgUiRuntime(
         onLoadExternalState: (state: ReadonlyJSONValue) =>
           core.loadExternalState(state),
         adapters: adapterAdapters,
-      }) satisfies ExternalStoreAdapter<ThreadMessage>,
-    // version is intentionally included to trigger re-computation when core state changes via notifyUpdate
-    [adapterAdapters, core],
+      } satisfies ExternalStoreAdapter<ThreadMessage>;
+    },
+    // _version is intentionally included to trigger re-computation when core state changes via notifyUpdate
+    [adapterAdapters, core, _version],
   );
 
   const runtime = useExternalStoreRuntime(store);

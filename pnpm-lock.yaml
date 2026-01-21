@@ -2205,7 +2205,7 @@ importers:
   packages/store:
     dependencies:
       '@assistant-ui/tap':
-        specifier: ^0.3.6
+        specifier: ^0.4.0
         version: link:../tap
     devDependencies:
       '@assistant-ui/x-buildutils':

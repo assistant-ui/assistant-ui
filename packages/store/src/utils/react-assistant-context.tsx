@@ -34,7 +34,7 @@ class DefaultAssistantClientProxyHandler
     );
     if (introspection !== false) return introspection;
     return createErrorClientField(
-      `The current scope does not have a "${String(prop)}" property.`,
+      "You are using a component or hook that requires an AssistantProvider. Wrap your component in an <AssistantProvider> component.",
     );
   }
 
@@ -67,6 +67,7 @@ export const createRootAssistantClient = (): AssistantClient =>
     get(_: AssistantClient, prop: string | symbol) {
       const introspection = handleIntrospectionProp(prop, "AssistantClient");
       if (introspection !== false) return introspection;
+
       return createErrorClientField(
         `The current scope does not have a "${String(prop)}" property.`,
       );

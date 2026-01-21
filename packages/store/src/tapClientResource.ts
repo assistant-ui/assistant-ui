@@ -4,7 +4,6 @@ import {
   tapRef,
   type ResourceElement,
   tapResource,
-  resource,
   tapInlineResource,
 } from "@assistant-ui/tap";
 import type { ClientMethods, ClientOutputOf } from "./types/client";
@@ -17,6 +16,7 @@ import {
   BaseProxyHandler,
   handleIntrospectionProp,
 } from "./utils/BaseProxyHandler";
+import { wrapperResource } from "./wrapperResource";
 
 /**
  * Symbol used internally to get state from ClientProxy.
@@ -57,6 +57,8 @@ function getOrCreateProxyFn(prop: string | symbol) {
       const method = this[SYMBOL_GET_OUTPUT].methods[prop];
       if (!method)
         throw new Error(`Method "${String(prop)}" is not implemented.`);
+      if (typeof method !== "function")
+        throw new Error(`"${String(prop)}" is not a function.`);
       return method(...args);
     };
     fieldAccessFns.set(prop, template);
@@ -82,7 +84,9 @@ class ClientProxyHandler
     if (prop === SYMBOL_CLIENT_INDEX) return this.index;
     const introspection = handleIntrospectionProp(prop, "ClientProxy");
     if (introspection !== false) return introspection;
-    return getOrCreateProxyFn(prop);
+    const value = this.outputRef.current.methods[prop];
+    if (typeof value === "function") return getOrCreateProxyFn(prop);
+    return value;
   }
 
   ownKeys(): ArrayLike<string | symbol> {
@@ -114,10 +118,12 @@ class ClientProxyHandler
  * });
  * ```
  */
-export const ClientResource = resource(
+export const ClientResource = wrapperResource(
   <TState, TMethods extends ClientMethods>(
     element: ResourceElement<ClientOutputOf<TState, TMethods>>,
-  ): ClientOutputOf<TState, TMethods> => {
+  ): ClientOutputOf<TState, TMethods> & {
+    key: string | number | undefined;
+  } => {
     const valueRef = tapRef(
       null as unknown as ClientOutputOf<TState, TMethods>,
     );
@@ -129,7 +135,7 @@ export const ClientResource = resource(
           {} as TMethods,
           new ClientProxyHandler(valueRef, index),
         ),
-      [],
+      [index],
     );
 
     const value = tapWithClientStack(methods, () => tapResource(element));
@@ -141,7 +147,7 @@ export const ClientResource = resource(
       valueRef.current = value;
     });
 
-    return { methods, state: value.state };
+    return { methods, state: value.state, key: element.key };
   },
 );
 
