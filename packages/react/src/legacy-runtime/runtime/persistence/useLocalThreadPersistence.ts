@@ -77,7 +77,7 @@ export function useLocalThreadPersistence(
 
     try {
       const snapshot = JSON.parse(raw) as ExportedMessageRepository;
-      if (snapshot && snapshot.messages) {
+      if (snapshot?.messages) {
         runtime.thread.import(snapshot);
       } else {
         console.warn(
