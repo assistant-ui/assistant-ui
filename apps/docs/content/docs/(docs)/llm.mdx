@@ -1,0 +1,304 @@
+---
+title: "AI-Assisted Development"
+description: Use AI tools to build with assistant-ui faster. AI-accessible documentation, Claude Code skills, and MCP integration.
+---
+
+import { FileText } from "lucide-react";
+
+Build faster with AI assistants that understand assistant-ui. This page covers all the ways to give your AI tools access to assistant-ui documentation and context.
+
+## AI Accessible Documentation
+
+Our docs are designed to be easily accessible to AI assistants:
+
+<Cards>
+  <Card icon={<FileText className="text-blue-300" />} title="/llms.txt" href="/llms.txt" external>
+    Structured index of all documentation pages. Point your AI here for a quick overview.
+  </Card>
+
+  <Card icon={<FileText className="text-green-300" />} title="/llms-full.txt" href="/llms-full.txt" external>
+    Complete documentation in a single file. Use this for full context.
+  </Card>
+
+  <Card icon={<FileText className="text-purple-300" />} title=".mdx suffix">
+    Add `.mdx` to any page's URL to get raw markdown content (e.g., `/docs/installation.mdx`).
+  </Card>
+</Cards>
+
+### Context Files
+
+Add assistant-ui context to your project's `CLAUDE.md` or `.cursorrules`:
+
+```md
+## assistant-ui
+
+This project uses assistant-ui for chat interfaces.
+
+Documentation: https://www.assistant-ui.com/llms-full.txt
+
+Key patterns:
+- Use AssistantRuntimeProvider at the app root
+- Thread component for full chat interface
+- AssistantModal for floating chat widget
+- useChatRuntime hook with AI SDK transport
+```
+
+## Skills
+
+Install assistant-ui skills for AI Tools:
+
+```sh
+npx skills add assistant-ui/skills
+```
+
+| Skill | Purpose |
+|-------|---------|
+| `/assistant-ui` | General architecture and overview guide |
+| `/setup` | Project setup and configuration |
+| `/primitives` | UI component primitives (Thread, Composer, Message, etc.) |
+| `/runtime` | Runtime system and state management |
+| `/tools` | Tool registration and tool UI |
+| `/streaming` | Streaming protocol with assistant-stream |
+| `/integrations` | Backend integrations (AI SDK, LangGraph, custom APIs) |
+| `/cloud` | Cloud persistence and authorization |
+| `/thread-list` | Multi-thread management |
+
+Use by typing the command in Claude Code, e.g., `/assistant-ui` for the main guide or `/setup` when setting up a project.
+
+## MCP
+
+`@assistant-ui/mcp-docs-server` provides direct access to assistant-ui's documentation and examples in your IDE via the Model Context Protocol.
+
+Once installed, you can write prompts and assume your AI assistant will understand everything about assistant-ui:
+
+- **Add features**: "Add a chat interface with streaming support to my app"
+- **Ask about integrations**: "How do I integrate assistant-ui with the Vercel AI SDK?"
+- **Debug code**: "My Thread component isn't updating when new messages arrive, what could be wrong?"
+
+### Installation
+
+Choose your IDE or tool to get started.
+
+#### Claude Code
+
+```bash
+# Add to current project only
+claude mcp add assistant-ui -- npx -y @assistant-ui/mcp-docs-server
+
+# Or add globally for all projects
+claude mcp add --scope user assistant-ui -- npx -y @assistant-ui/mcp-docs-server
+```
+
+To manage the server:
+
+```bash
+claude mcp list          # View configured servers
+claude mcp get assistant-ui    # Get server details
+claude mcp remove assistant-ui # Remove the server
+```
+
+#### Claude Desktop
+
+Add to your Claude Desktop configuration:
+- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+
+```json
+{
+  "mcpServers": {
+    "assistant-ui": {
+      "command": "npx",
+      "args": ["-y", "@assistant-ui/mcp-docs-server"]
+    }
+  }
+}
+```
+
+#### IDEs (Cursor, Windsurf, VSCode, Zed)
+
+Configuration file locations:
+- **Cursor**: `.cursor/mcp.json` in project root, or `~/.cursor/mcp.json` globally
+- **Windsurf**: `~/.codeium/windsurf/mcp_config.json` (global only)
+- **VSCode**: `~/.vscode/mcp.json` in project root
+- **Zed**: `settings.json` (open via `cmd+,`)
+
+##### macOS/Linux
+
+{/*
+LLM CONTEXT: This Tabs component shows MCP server configuration for different IDEs on MacOS/Linux.
+Each tab displays the JSON configuration needed to set up the assistant-ui MCP docs server in that specific IDE.
+*/}
+
+<Tabs items={["cursor", "windsurf", "vscode", "zed"]}>
+  <Tab>
+```json
+{
+  "mcpServers": {
+    "assistant-ui": {
+      "command": "npx",
+      "args": ["-y", "@assistant-ui/mcp-docs-server"]
+    }
+  }
+}
+```
+  </Tab>
+  <Tab>
+```json
+{
+  "mcpServers": {
+    "assistant-ui": {
+      "command": "npx",
+      "args": ["-y", "@assistant-ui/mcp-docs-server"]
+    }
+  }
+}
+```
+  </Tab>
+  <Tab>
+```json
+{
+  "servers": {
+    "assistant-ui": {
+      "command": "npx",
+      "args": ["-y", "@assistant-ui/mcp-docs-server"],
+      "type": "stdio"
+    }
+  }
+}
+```
+  </Tab>
+  <Tab>
+```json
+{
+  "context_servers": {
+    "assistant-ui": {
+      "command": {
+        "path": "npx",
+        "args": ["-y", "@assistant-ui/mcp-docs-server"],
+        "env": {}
+      },
+      "settings": {}
+    }
+  }
+}
+```
+  </Tab>
+</Tabs>
+
+##### Windows
+
+{/*
+LLM CONTEXT: This Tabs component shows MCP server configuration for different IDEs on Windows.
+On latest Windsurf and Cursor the direct npx command works.
+*/}
+
+<Tabs items={["cursor", "windsurf", "vscode", "zed"]}>
+  <Tab>
+```json
+{
+  "mcpServers": {
+    "assistant-ui": {
+      "command": "npx",
+      "args": ["-y", "@assistant-ui/mcp-docs-server"]
+    }
+  }
+}
+```
+  </Tab>
+  <Tab>
+```json
+{
+  "mcpServers": {
+    "assistant-ui": {
+      "command": "npx",
+      "args": ["-y", "@assistant-ui/mcp-docs-server"]
+    }
+  }
+}
+```
+  </Tab>
+  <Tab>
+```json
+{
+  "servers": {
+    "assistant-ui": {
+      "command": "cmd",
+      "args": ["/c", "npx", "-y", "@assistant-ui/mcp-docs-server"],
+      "type": "stdio"
+    }
+  }
+}
+```
+  </Tab>
+  <Tab>
+```json
+{
+  "context_servers": {
+    "assistant-ui": {
+      "command": {
+        "path": "cmd",
+        "args": ["/c", "npx", "-y", "@assistant-ui/mcp-docs-server"],
+        "env": {}
+      },
+      "settings": {}
+    }
+  }
+}
+```
+  </Tab>
+</Tabs>
+
+### Post-Installation
+
+<Tabs items={["Claude Code", "Claude Desktop", "Cursor", "Windsurf", "VSCode", "Zed"]}>
+  <Tab>
+The MCP server starts automatically once added. Verify it's working by mentioning assistant-ui in your prompts.
+  </Tab>
+  <Tab>
+1. Restart Claude Desktop after updating the configuration
+2. The MCP server starts automatically when Claude Desktop launches
+3. Verify by asking about assistant-ui - Claude will have direct access to docs
+  </Tab>
+  <Tab>
+1. Open Cursor settings (`Cmd/Ctrl + ,`)
+2. Navigate to MCP settings
+3. Find "assistant-ui" and click "enable"
+4. Re-open any agent chat to use the MCP server
+  </Tab>
+  <Tab>
+1. Fully quit and re-open Windsurf
+2. Verify in the MCP settings panel
+3. If tool calls fail, restart the MCP server in settings
+  </Tab>
+  <Tab>
+1. Open settings (`Cmd/Ctrl + ,`)
+2. Search for "MCP" and enable "Chat > MCP"
+3. Open GitHub Copilot Chat in "Agent" mode
+4. Open `mcp.json` and click "start"
+5. Check tools button for "assistantUIDocs" and "assistantUIExamples"
+  </Tab>
+  <Tab>
+1. Open settings (`Cmd/Ctrl + ,`)
+2. The server starts automatically with the Assistant Panel
+3. Verify in the tools dropdown
+  </Tab>
+</Tabs>
+
+### Available Tools
+
+| Tool | Description |
+|------|-------------|
+| `assistantUIDocs` | Access complete documentation: getting started, component APIs, runtime docs, integration guides |
+| `assistantUIExamples` | Browse full code examples: AI SDK, LangGraph, OpenAI Assistants, Ollama, external stores, tool UI patterns |
+
+### Troubleshooting
+
+**Server Not Starting**
+- Ensure npx is installed and working
+- Check for conflicting MCP servers
+- Verify configuration file syntax
+- On Windows, use the Windows-specific configuration
+
+**Tool Calls Failing**
+- Restart the MCP server and/or your IDE
+- Update to the latest version of your IDE
