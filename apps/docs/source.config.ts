@@ -37,6 +37,21 @@ export const docs = defineDocs({
   },
 });
 
+export const tapDocs = defineDocs({
+  dir: "content/tap-docs",
+  docs: {
+    schema: frontmatterSchema,
+    postprocess: {
+      includeProcessedMarkdown: true,
+    },
+  },
+  meta: {
+    schema: metaSchema.extend({
+      description: z.string().optional(),
+    }),
+  },
+});
+
 export const examples = defineCollections({
   type: "doc",
   dir: "content/examples",

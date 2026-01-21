@@ -1,0 +1,5 @@
+{
+  "title": "Tap Documentation",
+  "root": true,
+  "pages": ["introduction", "design-docs"]
+}
