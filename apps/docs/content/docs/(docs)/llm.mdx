@@ -67,70 +67,41 @@ Use by typing the command in Claude Code, e.g., `/assistant-ui` for the main gui
 
 ## MCP
 
-`@assistant-ui/mcp-docs-server` provides direct access to assistant-ui's documentation and examples in your IDE via the Model Context Protocol.
+`@assistant-ui/mcp-docs-server` provides direct access to assistant-ui documentation and examples in your IDE via the Model Context Protocol.
 
-Once installed, you can write prompts and assume your AI assistant will understand everything about assistant-ui:
+Once installed, your AI assistant will understand everything about assistant-ui - just ask naturally:
 
-- **Add features**: "Add a chat interface with streaming support to my app"
-- **Ask about integrations**: "How do I integrate assistant-ui with the Vercel AI SDK?"
-- **Debug code**: "My Thread component isn't updating when new messages arrive, what could be wrong?"
+- "Add a chat interface with streaming support to my app"
+- "How do I integrate assistant-ui with the Vercel AI SDK?"
+- "My Thread component isn't updating, what could be wrong?"
 
-### Installation
-
-Choose your IDE or tool to get started.
-
-#### Claude Code
+### Quick Install (CLI)
 
 ```bash
-# Add to current project only
-claude mcp add assistant-ui -- npx -y @assistant-ui/mcp-docs-server
-
-# Or add globally for all projects
-claude mcp add --scope user assistant-ui -- npx -y @assistant-ui/mcp-docs-server
+npx assistant-ui mcp
 ```
 
-To manage the server:
+Or specify your IDE directly:
 
 ```bash
-claude mcp list          # View configured servers
-claude mcp get assistant-ui    # Get server details
-claude mcp remove assistant-ui # Remove the server
+npx assistant-ui mcp --cursor
+npx assistant-ui mcp --windsurf
+npx assistant-ui mcp --vscode
+npx assistant-ui mcp --zed
+npx assistant-ui mcp --claude-code
+npx assistant-ui mcp --claude-desktop
 ```
 
-#### Claude Desktop
+### Manual Installation
 
-Add to your Claude Desktop configuration:
-- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
-- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
-
-```json
-{
-  "mcpServers": {
-    "assistant-ui": {
-      "command": "npx",
-      "args": ["-y", "@assistant-ui/mcp-docs-server"]
-    }
-  }
-}
-```
-
-#### IDEs (Cursor, Windsurf, VSCode, Zed)
-
-Configuration file locations:
-- **Cursor**: `.cursor/mcp.json` in project root, or `~/.cursor/mcp.json` globally
-- **Windsurf**: `~/.codeium/windsurf/mcp_config.json` (global only)
-- **VSCode**: `~/.vscode/mcp.json` in project root
-- **Zed**: `settings.json` (open via `cmd+,`)
-
-##### macOS/Linux
-
-{/*
-LLM CONTEXT: This Tabs component shows MCP server configuration for different IDEs on MacOS/Linux.
-Each tab displays the JSON configuration needed to set up the assistant-ui MCP docs server in that specific IDE.
-*/}
-
-<Tabs items={["cursor", "windsurf", "vscode", "zed"]}>
+<Tabs items={["Cursor", "Windsurf", "VSCode", "Zed", "Claude Code", "Claude Desktop"]}>
   <Tab>
+<a href="cursor://anysphere.cursor-deeplink/mcp/install?name=assistant-ui&config=eyJjb21tYW5kIjoibnB4IiwiYXJncyI6WyIteSIsIkBhc3Npc3RhbnQtdWkvbWNwLWRvY3Mtc2VydmVyIl19">
+  <img src="https://cursor.com/deeplink/mcp-install-dark.svg" alt="Install in Cursor" className="not-prose" />
+</a>
+
+Or add to `.cursor/mcp.json`:
+
 ```json
 {
   "mcpServers": {
@@ -141,8 +112,12 @@ Each tab displays the JSON configuration needed to set up the assistant-ui MCP d
   }
 }
 ```
+
+After adding, open Cursor Settings → MCP → find "assistant-ui" and click enable.
   </Tab>
   <Tab>
+Add to `~/.codeium/windsurf/mcp_config.json`:
+
 ```json
 {
   "mcpServers": {
@@ -153,8 +128,12 @@ Each tab displays the JSON configuration needed to set up the assistant-ui MCP d
   }
 }
 ```
+
+After adding, fully quit and re-open Windsurf.
   </Tab>
   <Tab>
+Add to `.vscode/mcp.json` in your project:
+
 ```json
 {
   "servers": {
@@ -166,34 +145,37 @@ Each tab displays the JSON configuration needed to set up the assistant-ui MCP d
   }
 }
 ```
+
+Enable MCP in Settings → search "MCP" → enable "Chat > MCP". Use GitHub Copilot Chat in Agent mode.
   </Tab>
   <Tab>
+Add to `settings.json` (open via `cmd+,`):
+
 ```json
 {
   "context_servers": {
     "assistant-ui": {
       "command": {
         "path": "npx",
-        "args": ["-y", "@assistant-ui/mcp-docs-server"],
-        "env": {}
-      },
-      "settings": {}
+        "args": ["-y", "@assistant-ui/mcp-docs-server"]
+      }
     }
   }
 }
 ```
+
+The server starts automatically with the Assistant Panel.
   </Tab>
-</Tabs>
-
-##### Windows
-
-{/*
-LLM CONTEXT: This Tabs component shows MCP server configuration for different IDEs on Windows.
-On latest Windsurf and Cursor the direct npx command works.
-*/}
-
-<Tabs items={["cursor", "windsurf", "vscode", "zed"]}>
   <Tab>
+```bash
+claude mcp add assistant-ui -- npx -y @assistant-ui/mcp-docs-server
+```
+
+The server starts automatically once added.
+  </Tab>
+  <Tab>
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
+
 ```json
 {
   "mcpServers": {
@@ -204,83 +186,8 @@ On latest Windsurf and Cursor the direct npx command works.
   }
 }
 ```
-  </Tab>
-  <Tab>
-```json
-{
-  "mcpServers": {
-    "assistant-ui": {
-      "command": "npx",
-      "args": ["-y", "@assistant-ui/mcp-docs-server"]
-    }
-  }
-}
-```
-  </Tab>
-  <Tab>
-```json
-{
-  "servers": {
-    "assistant-ui": {
-      "command": "cmd",
-      "args": ["/c", "npx", "-y", "@assistant-ui/mcp-docs-server"],
-      "type": "stdio"
-    }
-  }
-}
-```
-  </Tab>
-  <Tab>
-```json
-{
-  "context_servers": {
-    "assistant-ui": {
-      "command": {
-        "path": "cmd",
-        "args": ["/c", "npx", "-y", "@assistant-ui/mcp-docs-server"],
-        "env": {}
-      },
-      "settings": {}
-    }
-  }
-}
-```
-  </Tab>
-</Tabs>
 
-### Post-Installation
-
-<Tabs items={["Claude Code", "Claude Desktop", "Cursor", "Windsurf", "VSCode", "Zed"]}>
-  <Tab>
-The MCP server starts automatically once added. Verify it's working by mentioning assistant-ui in your prompts.
-  </Tab>
-  <Tab>
-1. Restart Claude Desktop after updating the configuration
-2. The MCP server starts automatically when Claude Desktop launches
-3. Verify by asking about assistant-ui - Claude will have direct access to docs
-  </Tab>
-  <Tab>
-1. Open Cursor settings (`Cmd/Ctrl + ,`)
-2. Navigate to MCP settings
-3. Find "assistant-ui" and click "enable"
-4. Re-open any agent chat to use the MCP server
-  </Tab>
-  <Tab>
-1. Fully quit and re-open Windsurf
-2. Verify in the MCP settings panel
-3. If tool calls fail, restart the MCP server in settings
-  </Tab>
-  <Tab>
-1. Open settings (`Cmd/Ctrl + ,`)
-2. Search for "MCP" and enable "Chat > MCP"
-3. Open GitHub Copilot Chat in "Agent" mode
-4. Open `mcp.json` and click "start"
-5. Check tools button for "assistantUIDocs" and "assistantUIExamples"
-  </Tab>
-  <Tab>
-1. Open settings (`Cmd/Ctrl + ,`)
-2. The server starts automatically with the Assistant Panel
-3. Verify in the tools dropdown
+Restart Claude Desktop after updating the configuration.
   </Tab>
 </Tabs>
 
@@ -288,17 +195,10 @@ The MCP server starts automatically once added. Verify it's working by mentionin
 
 | Tool | Description |
 |------|-------------|
-| `assistantUIDocs` | Access complete documentation: getting started, component APIs, runtime docs, integration guides |
-| `assistantUIExamples` | Browse full code examples: AI SDK, LangGraph, OpenAI Assistants, Ollama, external stores, tool UI patterns |
+| `assistantUIDocs` | Access documentation: getting started, component APIs, runtime docs, integration guides |
+| `assistantUIExamples` | Browse code examples: AI SDK, LangGraph, OpenAI Assistants, tool UI patterns |
 
 ### Troubleshooting
 
-**Server Not Starting**
-- Ensure npx is installed and working
-- Check for conflicting MCP servers
-- Verify configuration file syntax
-- On Windows, use the Windows-specific configuration
-
-**Tool Calls Failing**
-- Restart the MCP server and/or your IDE
-- Update to the latest version of your IDE
+- **Server not starting**: Ensure `npx` is installed and working. Check configuration file syntax.
+- **Tool calls failing**: Restart the MCP server and/or your IDE. Update to latest IDE version.
