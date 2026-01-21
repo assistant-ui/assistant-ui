@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { type Model, MODELS } from "@/constants/model";
-import { AssistantIf, ComposerPrimitive } from "@assistant-ui/react";
+import { AuiIf, ComposerPrimitive } from "@assistant-ui/react";
 import { ArrowUpIcon, ChevronDownIcon, SquareIcon } from "lucide-react";
 import Image from "next/image";
 import { type ReactNode, useState, useRef, useEffect } from "react";
@@ -98,15 +98,15 @@ export function AssistantComposer(): ReactNode {
 function AssistantComposerAction(): ReactNode {
   return (
     <>
-      <AssistantIf condition={({ thread }) => !thread.isRunning}>
+      <AuiIf condition={({ thread }) => !thread.isRunning}>
         <ComposerPrimitive.Send asChild>
           <Button type="submit" size="icon" className="size-7 rounded-lg">
             <ArrowUpIcon className="size-4" />
           </Button>
         </ComposerPrimitive.Send>
-      </AssistantIf>
+      </AuiIf>
 
-      <AssistantIf condition={({ thread }) => thread.isRunning}>
+      <AuiIf condition={({ thread }) => thread.isRunning}>
         <ComposerPrimitive.Cancel asChild>
           <Button
             type="button"
@@ -117,7 +117,7 @@ function AssistantComposerAction(): ReactNode {
             <SquareIcon className="size-3 fill-current" />
           </Button>
         </ComposerPrimitive.Cancel>
-      </AssistantIf>
+      </AuiIf>
     </>
   );
 }

@@ -1,10 +1,10 @@
 "use client";
 
 import type { FC } from "react";
-import { useAssistantState } from "../../context";
+import { useAuiState } from "@assistant-ui/store";
 
 const useBranchPickerNumber = () => {
-  const branchNumber = useAssistantState(({ message }) => message.branchNumber);
+  const branchNumber = useAuiState(({ message }) => message.branchNumber);
   return branchNumber;
 };
 

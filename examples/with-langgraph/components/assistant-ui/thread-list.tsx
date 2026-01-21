@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  AssistantIf,
+  AuiIf,
   ThreadListItemMorePrimitive,
   ThreadListItemPrimitive,
   ThreadListPrimitive,
@@ -13,12 +13,12 @@ export const ThreadList: FC = () => {
   return (
     <ThreadListPrimitive.Root className="aui-root aui-thread-list-root flex flex-col gap-1">
       <ThreadListNew />
-      <AssistantIf condition={({ threads }) => threads.isLoading}>
+      <AuiIf condition={({ threads }) => threads.isLoading}>
         <ThreadListSkeleton />
-      </AssistantIf>
-      <AssistantIf condition={({ threads }) => !threads.isLoading}>
+      </AuiIf>
+      <AuiIf condition={({ threads }) => !threads.isLoading}>
         <ThreadListPrimitive.Items components={{ ThreadListItem }} />
-      </AssistantIf>
+      </AuiIf>
     </ThreadListPrimitive.Root>
   );
 };

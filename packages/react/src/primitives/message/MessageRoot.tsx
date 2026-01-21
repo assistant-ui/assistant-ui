@@ -7,7 +7,7 @@ import {
   ComponentPropsWithoutRef,
   useCallback,
 } from "react";
-import { useAssistantApi, useAssistantState } from "../../context";
+import { useAui, useAuiState } from "@assistant-ui/store";
 import { useManagedRef } from "../../utils/hooks/useManagedRef";
 import { useSizeHandle } from "../../utils/hooks/useSizeHandle";
 import { useComposedRefs } from "@radix-ui/react-compose-refs";
@@ -15,8 +15,8 @@ import { useThreadViewport } from "../../context/react/ThreadViewportContext";
 import { ThreadPrimitiveViewportSlack } from "../thread/ThreadViewportSlack";
 
 const useIsHoveringRef = () => {
-  const api = useAssistantApi();
-  const message = useAssistantState(() => api.message());
+  const aui = useAui();
+  const message = useAuiState(() => aui.message());
 
   const callbackRef = useCallback(
     (el: HTMLElement) => {
@@ -59,7 +59,7 @@ const useMessageViewportRef = () => {
 
   // inset rules:
   // - the previous user message before the last assistant message registers its full height
-  const shouldRegisterAsInset = useAssistantState(
+  const shouldRegisterAsInset = useAuiState(
     ({ thread, message }) =>
       turnAnchor === "top" &&
       message.role === "user" &&

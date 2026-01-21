@@ -1,6 +1,6 @@
 "use client";
 
-import { useAssistantState } from "@assistant-ui/react";
+import { useAuiState } from "@assistant-ui/react";
 import type { SyntaxHighlighterProps } from "@assistant-ui/react-markdown";
 import mermaid from "mermaid";
 import { FC, useEffect, useRef } from "react";
@@ -46,7 +46,7 @@ export const MermaidDiagram: FC<MermaidDiagramProps> = ({
   const ref = useRef<HTMLPreElement>(null);
 
   // Detect when this code block is complete
-  const isComplete = useAssistantState(({ part }) => {
+  const isComplete = useAuiState(({ part }) => {
     if (part.type !== "text") return false;
 
     // Find the position of this code block

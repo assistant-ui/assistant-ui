@@ -16,7 +16,7 @@ import type {
  *
  * @example
  * ```typescript
- * const aui = useAssistantClient({
+ * const aui = useAui({
  *   message: Derived({
  *     source: "thread",
  *     query: { index: 0 },

@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import {
-  useAssistantClient,
-  AssistantProvider,
-  useAssistantState,
-  useAssistantEvent,
+  useAui,
+  AuiProvider,
+  useAuiState,
+  useAuiEvent,
 } from "@assistant-ui/store";
 import { FooList, FooListResource } from "./store/foo-store";
 
@@ -13,12 +13,12 @@ import { FooList, FooListResource } from "./store/foo-store";
  * Single Foo component - displays and allows editing a single foo
  */
 const Foo = () => {
-  const aui = useAssistantClient();
-  const fooId = useAssistantState(({ foo }) => foo.id);
-  const fooBar = useAssistantState(({ foo }) => foo.bar);
+  const aui = useAui();
+  const fooId = useAuiState(({ foo }) => foo.id);
+  const fooBar = useAuiState(({ foo }) => foo.bar);
 
   // Each foo logs its own events - only receives events from THIS foo instance
-  useAssistantEvent("foo.updated", (payload) => {
+  useAuiEvent("foo.updated", (payload) => {
     console.log(`[${fooId}] Updated to: ${payload.newValue}`);
   });
 
@@ -63,7 +63,7 @@ const Foo = () => {
 };
 
 const FooListLength = () => {
-  const fooListLength = useAssistantState(({ fooList }) => fooList.foos.length);
+  const fooListLength = useAuiState(({ fooList }) => fooList.foos.length);
   return (
     <span className="text-gray-500 dark:text-gray-400">
       ({fooListLength} items)
@@ -72,7 +72,7 @@ const FooListLength = () => {
 };
 
 const AddFooButton = () => {
-  const aui = useAssistantClient();
+  const aui = useAui();
   return (
     <button
       onClick={() => aui.fooList().addFoo()}
@@ -98,7 +98,7 @@ const EventLog = () => {
   const [logs, setLogs] = useState<EventLogEntry[]>([]);
 
   // Subscribe to all events using the wildcard selector
-  useAssistantEvent("*", (data) => {
+  useAuiEvent("*", (data) => {
     setLogs((prev) => [
       {
         id: ++idCounter,
@@ -150,12 +150,12 @@ const EventLog = () => {
  * but we're explicitly passing it here for clarity in the example.
  */
 export const ExampleApp = () => {
-  const aui = useAssistantClient({
+  const aui = useAui({
     fooList: FooListResource({ initialValues: true }),
   });
 
   return (
-    <AssistantProvider client={aui}>
+    <AuiProvider value={aui}>
       <div className="space-y-6">
         <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
           <div className="flex items-center justify-between">
@@ -173,6 +173,6 @@ export const ExampleApp = () => {
         </div>
         <EventLog />
       </div>
-    </AssistantProvider>
+    </AuiProvider>
   );
 };

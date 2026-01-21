@@ -1,7 +1,7 @@
 "use client";
 
 import type { FC, PropsWithChildren } from "react";
-import { useAssistantState } from "../../context";
+import { useAuiState } from "@assistant-ui/store";
 
 export namespace ThreadPrimitiveEmpty {
   export type Props = PropsWithChildren;
@@ -10,7 +10,7 @@ export namespace ThreadPrimitiveEmpty {
 export const ThreadPrimitiveEmpty: FC<ThreadPrimitiveEmpty.Props> = ({
   children,
 }) => {
-  const empty = useAssistantState(
+  const empty = useAuiState(
     ({ thread }) => thread.messages.length === 0 && !thread.isLoading,
   );
   return empty ? children : null;

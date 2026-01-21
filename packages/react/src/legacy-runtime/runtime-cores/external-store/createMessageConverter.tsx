@@ -1,6 +1,6 @@
 "use client";
 import { ThreadState } from "../../runtime";
-import { useAssistantApi, useAssistantState } from "../../../context";
+import { useAui, useAuiState } from "@assistant-ui/store";
 import { ThreadMessage } from "../../../types";
 import {
   useExternalMessageConverter,
@@ -57,13 +57,13 @@ export const createMessageConverter = <T extends object>(
       return first;
     },
     useOriginalMessages: () => {
-      const api = useAssistantApi();
-      const partMessages = useAssistantState((s) => {
-        if (api.part.source) return getExternalStoreMessages(s.part);
+      const aui = useAui();
+      const partMessages = useAuiState((s) => {
+        if (aui.part.source) return getExternalStoreMessages(s.part);
         return undefined;
       });
 
-      const messageMessages = useAssistantState<T[]>(({ message }) =>
+      const messageMessages = useAuiState<T[]>(({ message }) =>
         getExternalStoreMessages(message),
       );
 

@@ -4,7 +4,6 @@ import {
   resource,
   createResource,
   tapState,
-  tapMemo,
 } from "@assistant-ui/tap";
 import { Unsubscribe } from "../types/client";
 
@@ -12,7 +11,7 @@ export interface Store<TState> {
   /**
    * Get the current state of the store.
    */
-  getState(): TState;
+  getValue(): TState;
 
   /**
    * Subscribe to the store.
@@ -30,12 +29,6 @@ export const StoreResource = resource(
       handle.render(element);
     });
 
-    return tapMemo(
-      () => ({
-        getState: handle.getValue,
-        subscribe: handle.subscribe,
-      }),
-      [handle],
-    );
+    return handle;
   },
 );

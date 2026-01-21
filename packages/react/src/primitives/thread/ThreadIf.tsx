@@ -1,7 +1,7 @@
 "use client";
 
 import type { FC, PropsWithChildren } from "react";
-import { useAssistantState } from "../../context";
+import { useAuiState } from "@assistant-ui/store";
 import type { RequireAtLeastOne } from "../../utils/RequireAtLeastOne";
 
 type ThreadIfFilters = {
@@ -13,7 +13,7 @@ type ThreadIfFilters = {
 type UseThreadIfProps = RequireAtLeastOne<ThreadIfFilters>;
 
 const useThreadIf = (props: UseThreadIfProps) => {
-  return useAssistantState(({ thread }) => {
+  return useAuiState(({ thread }) => {
     if (props.empty === true && !thread.isEmpty) return false;
     if (props.empty === false && thread.isEmpty) return false;
 
@@ -31,7 +31,7 @@ export namespace ThreadPrimitiveIf {
 }
 
 /**
- * @deprecated Use `<AssistantIf condition={({ thread }) => ...} />` instead.
+ * @deprecated Use `<AuiIf condition={({ thread }) => ...} />` instead.
  */
 export const ThreadPrimitiveIf: FC<ThreadPrimitiveIf.Props> = ({
   children,

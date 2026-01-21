@@ -23,7 +23,7 @@ import {
 
 import {
   ActionBarPrimitive,
-  AssistantIf,
+  AuiIf,
   BranchPickerPrimitive,
   ComposerPrimitive,
   MessagePrimitive,
@@ -225,15 +225,15 @@ export function BuilderPreview({ config }: BuilderPreviewProps) {
             className="aui-thread-viewport relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll scroll-smooth px-4 pt-4"
           >
             {components.threadWelcome && (
-              <AssistantIf condition={({ thread }) => thread.isEmpty}>
+              <AuiIf condition={({ thread }) => thread.isEmpty}>
                 <ThreadWelcome config={config} />
-              </AssistantIf>
+              </AuiIf>
             )}
 
             {!components.threadWelcome && (
-              <AssistantIf condition={({ thread }) => thread.isEmpty}>
+              <AuiIf condition={({ thread }) => thread.isEmpty}>
                 <div className="grow" />
-              </AssistantIf>
+              </AuiIf>
             )}
 
             <ThreadPrimitive.Messages components={messageComponents} />
@@ -414,7 +414,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ config }) => {
         <div />
       )}
 
-      <AssistantIf condition={({ thread }) => !thread.isRunning}>
+      <AuiIf condition={({ thread }) => !thread.isRunning}>
         <ComposerPrimitive.Send asChild>
           <TooltipIconButton
             tooltip="Send message"
@@ -432,9 +432,9 @@ const ComposerAction: FC<ComposerActionProps> = ({ config }) => {
             <ArrowUpIcon className="aui-composer-send-icon size-4" />
           </TooltipIconButton>
         </ComposerPrimitive.Send>
-      </AssistantIf>
+      </AuiIf>
 
-      <AssistantIf condition={({ thread }) => thread.isRunning}>
+      <AuiIf condition={({ thread }) => thread.isRunning}>
         <ComposerPrimitive.Cancel asChild>
           <Button
             type="button"
@@ -450,7 +450,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ config }) => {
             <SquareIcon className="aui-composer-cancel-icon size-3 fill-current" />
           </Button>
         </ComposerPrimitive.Cancel>
-      </AssistantIf>
+      </AuiIf>
     </div>
   );
 };
@@ -654,7 +654,7 @@ const AssistantMessage: FC<AssistantMessageProps> = ({ config }) => {
             <MessagePrimitive.Parts components={{ Text: TextComponent }} />
 
             {components.loadingIndicator !== "none" && (
-              <AssistantIf
+              <AuiIf
                 condition={({ thread, message }) =>
                   thread.isRunning && message.content.length === 0
                 }
@@ -668,7 +668,7 @@ const AssistantMessage: FC<AssistantMessageProps> = ({ config }) => {
                     <span className="text-sm">{components.loadingText}</span>
                   )}
                 </div>
-              </AssistantIf>
+              </AuiIf>
             )}
           </div>
 
@@ -691,9 +691,9 @@ const AssistantMessage: FC<AssistantMessageProps> = ({ config }) => {
           </div>
 
           {components.followUpSuggestions && (
-            <AssistantIf condition={({ thread }) => !thread.isRunning}>
+            <AuiIf condition={({ thread }) => !thread.isRunning}>
               <FollowUpSuggestions />
-            </AssistantIf>
+            </AuiIf>
           )}
         </div>
       </div>
@@ -760,12 +760,12 @@ const AssistantActionBar: FC<AssistantActionBarProps> = ({ config }) => {
       {actionBar.copy && (
         <ActionBarPrimitive.Copy asChild>
           <TooltipIconButton tooltip="Copy">
-            <AssistantIf condition={({ message }) => message.isCopied}>
+            <AuiIf condition={({ message }) => message.isCopied}>
               <CheckIcon />
-            </AssistantIf>
-            <AssistantIf condition={({ message }) => !message.isCopied}>
+            </AuiIf>
+            <AuiIf condition={({ message }) => !message.isCopied}>
               <CopyIcon />
-            </AssistantIf>
+            </AuiIf>
           </TooltipIconButton>
         </ActionBarPrimitive.Copy>
       )}

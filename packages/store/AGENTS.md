@@ -13,10 +13,10 @@ src/
 ├── index.ts                         # Public exports
 ├── types/client.ts                  # ClientRegistry, ClientOutput, AssistantClient
 ├── types/events.ts                  # Event types
-├── useAssistantClient.tsx           # Main hook
-├── useAssistantState.tsx            # State subscription
-├── useAssistantEvent.ts             # Event subscription
-├── AssistantIf.tsx                  # Conditional render
+├── useAui.tsx                       # Main hook
+├── useAuiState.tsx                  # State subscription
+├── useAuiEvent.ts                   # Event subscription
+├── AuiIf.tsx                        # Conditional render
 ├── Derived.ts                       # Derived client marker
 ├── attachDefaultPeers.ts            # Default peer attachment
 ├── tapClientResource.ts             # Client proxy wrapper for event scoping
@@ -29,8 +29,8 @@ src/
 
 ### End Users
 ```
-useAssistantClient()         useAssistantState(selector)
-useAssistantEvent(event,cb)  AssistantProvider  AssistantIf  Derived()
+useAui()         useAuiState(selector)
+useAuiEvent(event,cb)  AuiProvider  AuiIf  Derived()
 ```
 
 ### Library Authors
@@ -79,7 +79,7 @@ const list = tapClientList({
 // Returns: { state: State[], get: (lookup) => Methods, add: (data) => void }
 ```
 
-### useAssistantClient Flow
+### useAui Flow
 ```
 splitClients → gather default peers → mount root clients → create derived accessors → merge
 ```
@@ -87,7 +87,7 @@ splitClients → gather default peers → mount root clients → create derived 
 ## Invariants
 
 1. Resources return `{ state, methods }` as `ClientOutput<K>`
-2. `useAssistantState` requires selector (throws if returning whole state)
+2. `useAuiState` requires selector (throws if returning whole state)
 3. Event names: `"clientName.eventName"`
 4. Derived needs `source`, `query`, `get` (or `getMeta`)
 5. Default peers: first definition wins

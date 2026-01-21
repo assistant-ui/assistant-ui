@@ -1,10 +1,10 @@
 "use client";
 
 import {
-  AssistantIf,
+  AuiIf,
   ThreadPrimitive,
-  useAssistantApi,
-  useAssistantState,
+  useAui,
+  useAuiState,
 } from "@assistant-ui/react";
 import { useEffect, useRef } from "react";
 import { AssistantMessage, UserMessage } from "./messages";
@@ -14,8 +14,8 @@ import { AssistantFooter } from "@/components/docs/assistant/footer";
 
 function PendingMessageHandler() {
   const { pendingMessage, clearPendingMessage } = useAssistantPanel();
-  const api = useAssistantApi();
-  const isRunning = useAssistantState(({ thread }) => thread.isRunning);
+  const aui = useAui();
+  const isRunning = useAuiState(({ thread }) => thread.isRunning);
   const processedRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -24,8 +24,8 @@ function PendingMessageHandler() {
 
     processedRef.current = pendingMessage;
     clearPendingMessage();
-    api.thread().append(pendingMessage);
-  }, [pendingMessage, clearPendingMessage, api, isRunning]);
+    aui.thread().append(pendingMessage);
+  }, [pendingMessage, clearPendingMessage, aui, isRunning]);
 
   return null;
 }
@@ -35,9 +35,9 @@ export function AssistantThread(): React.ReactNode {
     <ThreadPrimitive.Root className="flex h-full flex-col bg-background">
       <PendingMessageHandler />
       <ThreadPrimitive.Viewport className="scrollbar-none flex flex-1 flex-col overflow-y-auto px-3 pt-3">
-        <AssistantIf condition={({ thread }) => thread.isEmpty}>
+        <AuiIf condition={({ thread }) => thread.isEmpty}>
           <AssistantWelcome />
-        </AssistantIf>
+        </AuiIf>
 
         <ThreadPrimitive.Messages
           components={{

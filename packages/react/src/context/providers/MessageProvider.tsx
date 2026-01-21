@@ -1,30 +1,18 @@
 "use client";
 
 import { type FC, type PropsWithChildren } from "react";
-import {
-  AssistantProvider,
-  useExtendedAssistantApi,
-} from "../react/AssistantApiContext";
-import { useResource } from "@assistant-ui/tap/react";
-import { asStore } from "../../utils/tap-store";
+import { useAui, AuiProvider } from "@assistant-ui/store";
 import {
   ThreadMessageClientProps,
   ThreadMessageClient,
 } from "../../client/ThreadMessageClient";
-import { DerivedScope } from "../../utils/tap-store/derived-scopes";
 
 export const MessageProvider: FC<
   PropsWithChildren<ThreadMessageClientProps>
 > = ({ children, ...props }) => {
-  const store = useResource(asStore(ThreadMessageClient(props)));
-  const api = useExtendedAssistantApi({
-    message: DerivedScope({
-      source: "root",
-      query: {},
-      get: () => store.getValue().api,
-    }),
-    subscribe: store.subscribe,
+  const aui = useAui({
+    message: ThreadMessageClient(props),
   });
 
-  return <AssistantProvider api={api}>{children}</AssistantProvider>;
+  return <AuiProvider value={aui}>{children}</AuiProvider>;
 };

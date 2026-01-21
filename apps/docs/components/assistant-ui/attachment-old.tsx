@@ -6,8 +6,8 @@ import {
   AttachmentPrimitive,
   ComposerPrimitive,
   MessagePrimitive,
-  useAssistantState,
-  useAssistantApi,
+  useAui,
+  useAuiState,
 } from "@assistant-ui/react";
 import { useShallow } from "zustand/shallow";
 import {
@@ -45,7 +45,7 @@ const useFileSrc = (file: File | undefined) => {
 };
 
 const useAttachmentSrc = () => {
-  const { file, src } = useAssistantState(
+  const { file, src } = useAuiState(
     useShallow(({ attachment: a }): { file?: File; src?: string } => {
       if (a.type !== "image") return {};
       if (a.file) return { file: a.file };
@@ -106,9 +106,7 @@ const AttachmentPreviewDialog: FC<PropsWithChildren> = ({ children }) => {
 };
 
 const AttachmentThumb: FC = () => {
-  const isImage = useAssistantState(
-    ({ attachment }) => attachment.type === "image",
-  );
+  const isImage = useAuiState(({ attachment }) => attachment.type === "image");
   const src = useAttachmentSrc();
   return (
     <Avatar className="flex size-10 items-center justify-center rounded border bg-muted text-sm">
@@ -121,9 +119,9 @@ const AttachmentThumb: FC = () => {
 };
 
 const AttachmentUI: FC = () => {
-  const api = useAssistantApi();
-  const canRemove = api.attachment.source !== "message";
-  const typeLabel = useAssistantState(({ attachment }) => {
+  const aui = useAui();
+  const canRemove = aui.attachment.source !== "message";
+  const typeLabel = useAuiState(({ attachment }) => {
     const type = attachment.type;
     switch (type) {
       case "image":
