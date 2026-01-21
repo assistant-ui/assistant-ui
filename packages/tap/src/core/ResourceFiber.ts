@@ -1,15 +1,18 @@
 import { ResourceFiber, RenderResult, Resource } from "./types";
 import { commitRender, cleanupAllEffects } from "./commit";
-import { withResourceFiber } from "./execution-context";
+import { getDevStrictMode, withResourceFiber } from "./execution-context";
 import { callResourceFn } from "./callResourceFn";
+import { isDevelopment } from "./env";
 
 export function createResourceFiber<R, P>(
-  resource: Resource<R, P>,
-  scheduleRerender: () => void,
+  type: Resource<R, P>,
+  dispatchUpdate: (callback: () => boolean) => void,
+  strictMode: "root" | "child" | null = getDevStrictMode(false),
 ): ResourceFiber<R, P> {
   return {
-    resource,
-    scheduleRerender,
+    type,
+    dispatchUpdate,
+    devStrictMode: strictMode,
     cells: [],
     currentIndex: 0,
     renderContext: undefined,
@@ -20,8 +23,11 @@ export function createResourceFiber<R, P>(
 }
 
 export function unmountResourceFiber<R, P>(fiber: ResourceFiber<R, P>): void {
-  // Clean up all effects
+  if (!fiber.isMounted)
+    throw new Error("Tried to unmount a fiber that is already unmounted");
+
   fiber.isMounted = false;
+  fiber.isNeverMounted = false;
   cleanupAllEffects(fiber);
 }
 
@@ -29,16 +35,16 @@ export function renderResourceFiber<R, P>(
   fiber: ResourceFiber<R, P>,
   props: P,
 ): RenderResult {
-  const result: RenderResult = {
+  const result = {
     commitTasks: [],
     props,
-    state: undefined,
+    output: undefined as R | undefined,
   };
 
   withResourceFiber(fiber, () => {
     fiber.renderContext = result;
     try {
-      result.state = callResourceFn(fiber.resource, props);
+      result.output = callResourceFn(fiber.type, props);
     } finally {
       fiber.renderContext = undefined;
     }
@@ -51,8 +57,12 @@ export function commitResourceFiber<R, P>(
   fiber: ResourceFiber<R, P>,
   result: RenderResult,
 ): void {
-  fiber.isMounted = true;
-  fiber.isNeverMounted = false;
+  if (isDevelopment && fiber.devStrictMode === "root" && fiber.isNeverMounted) {
+    fiber.isMounted = true;
+    commitRender(result);
+    unmountResourceFiber(fiber);
+  }
 
-  commitRender(result, fiber);
+  fiber.isMounted = true;
+  commitRender(result);
 }

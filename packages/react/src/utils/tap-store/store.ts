@@ -11,7 +11,7 @@ export interface Store<TState> {
   /**
    * Get the current state of the store.
    */
-  getState(): TState;
+  getValue(): TState;
 
   /**
    * Subscribe to the store.
@@ -21,6 +21,7 @@ export interface Store<TState> {
 
 export const asStore = resource(
   <TState, TProps>(element: ResourceElement<TState, TProps>): Store<TState> => {
+    // biome-ignore lint/correctness/useExhaustiveDependencies: we only depend on the element type
     const resource = tapMemo(
       () => createResource(element, { mount: false }),
       [element.type],

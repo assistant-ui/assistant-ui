@@ -1,5 +1,5 @@
 import { tapRef } from "./tap-ref";
-import { depsShallowEqual } from "./depsShallowEqual";
+import { depsShallowEqual } from "./utils/depsShallowEqual";
 
 export const tapMemo = <T>(fn: () => T, deps: readonly unknown[]) => {
   const dataRef = tapRef<{ value: T; deps: readonly unknown[] }>();

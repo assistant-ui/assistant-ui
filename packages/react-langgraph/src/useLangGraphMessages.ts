@@ -202,7 +202,7 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
-  }, [abortControllerRef]);
+  }, []);
 
   return {
     interrupt,

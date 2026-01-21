@@ -17,7 +17,7 @@ import TextareaAutosize, {
 import { useEscapeKeydown } from "@radix-ui/react-use-escape-keydown";
 import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
 import { useAssistantState, useAssistantApi } from "../../context";
-import { flushSync } from "@assistant-ui/tap";
+import { flushResourcesSync } from "@assistant-ui/tap";
 
 export namespace ComposerPrimitiveInput {
   export type Element = HTMLTextAreaElement;
@@ -211,7 +211,7 @@ export const ComposerPrimitiveInput = forwardRef<
         disabled={isDisabled}
         onChange={composeEventHandlers(onChange, (e) => {
           if (!api.composer().getState().isEditing) return;
-          flushSync(() => {
+          flushResourcesSync(() => {
             api.composer().setText(e.target.value);
           });
         })}

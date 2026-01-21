@@ -4,6 +4,7 @@ import {
   tapMemo,
   tapState,
   tapInlineResource,
+  withKey,
 } from "@assistant-ui/tap";
 import { AttachmentClientApi } from "./types/Attachment";
 import { MessageClientState, MessageClientApi } from "./types/Message";
@@ -80,19 +81,20 @@ export const ThreadMessageClient = resource(
     const [isHoveringState, setIsHovering] = tapState(false);
 
     const parts = tapLookupResources(
-      message.content.map((part, idx) => [
-        "toolCallId" in part && part.toolCallId != null
-          ? `toolCallId-${part.toolCallId}`
-          : `index-${idx}`,
-        ThreadMessagePartClient({ part }),
-      ]),
+      message.content.map((part, idx) =>
+        withKey(
+          "toolCallId" in part && part.toolCallId != null
+            ? `toolCallId-${part.toolCallId}`
+            : `index-${idx}`,
+          ThreadMessagePartClient({ part }),
+        ),
+      ),
     );
 
     const attachments = tapLookupResources(
-      message.attachments?.map((attachment) => [
-        attachment.id,
-        ThreadMessageAttachmentClient({ attachment }),
-      ]) ?? [],
+      message.attachments?.map((attachment) =>
+        withKey(attachment.id, ThreadMessageAttachmentClient({ attachment })),
+      ) ?? [],
     );
 
     const composerState = tapInlineResource(
@@ -114,7 +116,17 @@ export const ThreadMessageClient = resource(
         isCopied: isCopiedState,
         isHovering: isHoveringState,
       };
-    }, [message, index, isCopiedState, isHoveringState, isLast]);
+    }, [
+      message,
+      index,
+      isCopiedState,
+      isHoveringState,
+      isLast,
+      branchCount,
+      branchNumber,
+      composerState.state,
+      parts.state,
+    ]);
 
     return tapApi<MessageClientApi>({
       getState: () => state,

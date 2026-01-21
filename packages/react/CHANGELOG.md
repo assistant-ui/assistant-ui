@@ -1,5 +1,13 @@
 # @assistant-ui/react
 
+## 0.11.59
+
+### Patch Changes
+
+- fe06c7c: Revert "fix(react): accept URL-based images in sanitizeImageContent (#3069)"
+- Updated dependencies
+  - @assistant-ui/tap@0.4.0
+
 ## 0.11.58
 
 ### Patch Changes

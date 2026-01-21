@@ -165,7 +165,7 @@ export const useA2AMessages = <TMessage extends { id?: string }>({
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
-  }, [abortControllerRef]);
+  }, []);
 
   return {
     messages,

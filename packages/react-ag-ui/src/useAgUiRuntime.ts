@@ -20,7 +20,7 @@ export function useAgUiRuntime(
   options: UseAgUiRuntimeOptions,
 ): AssistantRuntime {
   const logger = useMemo(() => makeLogger(options.logger), [options.logger]);
-  const [version, setVersion] = useState(0);
+  const [_version, setVersion] = useState(0);
   const notifyUpdate = useCallback(() => setVersion((v) => v + 1), []);
   const coreRef = useRef<AgUiThreadRuntimeCore | null>(null);
   const runtimeAdapters = useRuntimeAdapters();
@@ -86,7 +86,7 @@ export function useAgUiRuntime(
         adapters: adapterAdapters,
       }) satisfies ExternalStoreAdapter<ThreadMessage>,
     // version is intentionally included to trigger re-computation when core state changes via notifyUpdate
-    [adapterAdapters, core, version],
+    [adapterAdapters, core],
   );
 
   const runtime = useExternalStoreRuntime(store);

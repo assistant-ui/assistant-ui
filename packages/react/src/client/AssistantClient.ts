@@ -94,28 +94,28 @@ const AssistantStore = resource(
 
 const getClientFromStore = (client: Store<{ api: AssistantClientApi }>) => {
   const getItem = () => {
-    return client.getState().api.threads.item("main");
+    return client.getValue().api.threads.item("main");
   };
   return {
     threads: createAssistantApiField({
       source: "root",
       query: {},
-      get: () => client.getState().api.threads,
+      get: () => client.getValue().api.threads,
     }),
     tools: createAssistantApiField({
       source: "root",
       query: {},
-      get: () => client.getState().api.tools,
+      get: () => client.getValue().api.tools,
     }),
     modelContext: createAssistantApiField({
       source: "root",
       query: {},
-      get: () => client.getState().api.modelContext,
+      get: () => client.getValue().api.modelContext,
     }),
     thread: createAssistantApiField({
       source: "threads",
       query: { type: "main" },
-      get: () => client.getState().api.threads.thread("main"),
+      get: () => client.getValue().api.threads.thread("main"),
     }),
     threadListItem: createAssistantApiField({
       source: "threads",
@@ -125,18 +125,18 @@ const getClientFromStore = (client: Store<{ api: AssistantClientApi }>) => {
     composer: createAssistantApiField({
       source: "thread",
       query: {},
-      get: () => client.getState().api.threads.thread("main").composer,
+      get: () => client.getValue().api.threads.thread("main").composer,
     }),
     on(selector, callback) {
       const { event, scope } = normalizeEventSelector(selector);
-      if (scope === "*") return client.getState().api.on(event, callback);
+      if (scope === "*") return client.getValue().api.on(event, callback);
 
       if (
         checkEventScope("thread", scope, event) ||
         checkEventScope("thread-list-item", scope, event) ||
         checkEventScope("composer", scope, event)
       ) {
-        return client.getState().api.on(event, (e) => {
+        return client.getValue().api.on(event, (e) => {
           if (e.threadId !== getItem().getState().id) return;
           callback(e);
         });

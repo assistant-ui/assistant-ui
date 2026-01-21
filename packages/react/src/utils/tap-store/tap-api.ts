@@ -65,6 +65,6 @@ export const tapApi = <TApi extends ApiObject & { getState: () => any }>(
       state,
       api: apiProxy,
     }),
-    [state, key],
+    [state, key, apiProxy],
   );
 };

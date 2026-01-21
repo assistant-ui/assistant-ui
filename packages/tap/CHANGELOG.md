@@ -1,5 +1,16 @@
 # @assistant-ui/tap
 
+## 0.4.0
+
+### Minor Changes
+
+- feat: add StrictMode support
+- feat: add tapConst
+- feat: rewrite tapResources for better performance
+- feat: withKey API
+- feat: flushResourcesSync API
+- fix: correctly unmount effects
+
 ## 0.3.6
 
 ### Patch Changes

@@ -24,6 +24,7 @@ const useLocalThreadRuntime = (
         chatModel: adapter,
       },
     }),
+    // biome-ignore lint/correctness/useExhaustiveDependencies: options and threadListAdapters are derived from localOptions and runtimeAdapters
     [adapter, options, threadListAdapters],
   );
 
