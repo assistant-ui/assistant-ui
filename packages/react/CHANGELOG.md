@@ -14,7 +14,6 @@
 
 ### Patch Changes
 
-- ebd41c7: fix(react): accept URL-based images in sanitizeImageContent
 - 9a110ea: fix(react): prevent viewport slack feedback loop
 - caee095: feat(react): allow passing threadId to backend
 - 9883125: fix(react): merge reasoning parts with same parentId in ExternalStoreRuntime
