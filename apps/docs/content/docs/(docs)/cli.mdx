@@ -262,6 +262,48 @@ Options:
   -h, --help             display help for command
 ```
 
+## mcp
+
+Use the `mcp` command to install the assistant-ui MCP docs server for your IDE.
+
+```bash
+npx assistant-ui@latest mcp
+```
+
+This command configures the [Model Context Protocol](/docs/llm#mcp) server, giving your AI assistant direct access to assistant-ui documentation.
+
+**Examples**
+
+```bash
+# Interactive - prompts to select IDE
+npx assistant-ui mcp
+
+# Install for specific IDE
+npx assistant-ui mcp --cursor
+npx assistant-ui mcp --windsurf
+npx assistant-ui mcp --vscode
+npx assistant-ui mcp --zed
+npx assistant-ui mcp --claude-code
+npx assistant-ui mcp --claude-desktop
+```
+
+**Options**
+
+```bash
+Usage: assistant-ui mcp [options]
+
+install assistant-ui MCP docs server for your IDE
+
+Options:
+  --cursor          install for Cursor
+  --windsurf        install for Windsurf
+  --vscode          install for VSCode
+  --zed             install for Zed
+  --claude-code     install for Claude Code
+  --claude-desktop  install for Claude Desktop
+  -h, --help        display help for command
+```
+
 ## Common Workflows
 
 ### Starting a new project
