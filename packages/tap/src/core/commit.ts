@@ -9,7 +9,7 @@ export function commitRender<R, P>(
     const cellIndex = task.cellIndex;
     const effectCell = fiber.cells[cellIndex]!;
     if (effectCell.type !== "effect") {
-      throw new Error("Cannot find effect cell");
+      throw new Error("tap: missing effect cell");
     }
 
     // Check if deps changed
@@ -25,9 +25,7 @@ export function commitRender<R, P>(
     if (shouldRunEffect) {
       if (effectCell.mounted) {
         if (typeof effectCell.deps !== typeof task.deps) {
-          throw new Error(
-            "tapEffect called with and without dependencies across re-renders",
-          );
+          throw new Error("tap: inconsistent effect dependencies");
         }
 
         try {
@@ -41,10 +39,7 @@ export function commitRender<R, P>(
       const cleanup = task.effect();
 
       if (cleanup !== undefined && typeof cleanup !== "function") {
-        throw new Error(
-          "An effect function must either return a cleanup function or nothing. " +
-            `Received: ${typeof cleanup}`,
-        );
+        throw new Error("tap: invalid effect return value");
       }
 
       effectCell.mounted = true;

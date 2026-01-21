@@ -9,7 +9,7 @@ export function callResourceFn<R, P>(resource: Resource<R, P>, props: P): R {
     fnSymbol
   ];
   if (!fn) {
-    throw new Error("ResourceElement.type is not a valid Resource");
+    throw new Error("tap: invalid resource element");
   }
   return fn(props);
 }
