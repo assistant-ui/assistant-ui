@@ -280,7 +280,7 @@ export class AgUiThreadRuntimeCore {
     runConfig: RunConfig | undefined,
     historyMessages: readonly ThreadMessage[] | undefined,
   ) {
-    const threadId = "main";
+    const threadId = this.agent.threadId || "main";
     const messages = toAgUiMessages(historyMessages ?? this.messages);
     const context = this.runtime?.thread.getModelContext();
     return {
