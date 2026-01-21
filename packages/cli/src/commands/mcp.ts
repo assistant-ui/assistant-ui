@@ -68,7 +68,15 @@ const MCP_CONFIGS: Record<
   },
   zed: {
     name: "Zed",
-    getPath: () => path.join(os.homedir(), ".config", "zed", "settings.json"),
+    getPath: () => {
+      if (process.platform === "win32") {
+        return path.join(process.env["APPDATA"] || "", "Zed", "settings.json");
+      }
+      if (process.platform === "darwin") {
+        return path.join(os.homedir(), ".zed", "settings.json");
+      }
+      return path.join(os.homedir(), ".config", "zed", "settings.json");
+    },
     config: {
       context_servers: {
         "assistant-ui": {
@@ -173,33 +181,41 @@ async function installForTarget(target: MCPTarget): Promise<void> {
     });
   }
 
+  if (target === "claude-desktop" && process.platform === "linux") {
+    logger.error("Claude Desktop is not available on Linux.");
+    logger.info(
+      "See: https://claude.ai/download for supported operating systems.",
+    );
+    throw new Error("Unsupported platform for Claude Desktop");
+  }
+
   const targetConfig = MCP_CONFIGS[target];
   const configPath = targetConfig.getPath();
   const configDir = path.dirname(configPath);
 
   logger.info(`Installing MCP server for ${targetConfig.name}...`);
 
-  // Create directory if it doesn't exist
   if (!fs.existsSync(configDir)) {
     fs.mkdirSync(configDir, { recursive: true });
   }
 
-  // Read existing config or create new one
   let existingConfig: any = {};
   if (fs.existsSync(configPath)) {
+    const content = fs.readFileSync(configPath, "utf-8");
     try {
-      const content = fs.readFileSync(configPath, "utf-8");
       existingConfig = JSON.parse(content);
-    } catch {
-      logger.warn(`Could not parse existing config at ${configPath}`);
+    } catch (e) {
+      logger.error(`Could not parse existing config at ${configPath}`);
+      logger.error(
+        "Please fix the JSON syntax error before running this command.",
+      );
+      throw e;
     }
   }
 
-  // Merge configs
   const newConfig = deepMerge(existingConfig, targetConfig.config);
 
-  // Write config
-  fs.writeFileSync(configPath, JSON.stringify(newConfig, null, 2) + "\n");
+  fs.writeFileSync(configPath, `${JSON.stringify(newConfig, null, 2)}\n`);
 
   logger.break();
   logger.success(`MCP server installed for ${targetConfig.name}!`);
