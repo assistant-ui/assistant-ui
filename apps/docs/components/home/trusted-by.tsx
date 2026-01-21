@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { useMediaQuery } from "@/lib/useMediaQuery";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import Image from "next/image";
 import Link from "next/link";
 

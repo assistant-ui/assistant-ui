@@ -6,6 +6,7 @@ import type {
 } from "../types/client";
 import { getDefaultPeers } from "../attachDefaultPeers";
 import type { useAssistantClient } from "../useAssistantClient";
+import { tapMemo } from "@assistant-ui/tap";
 
 export type RootClients = Partial<
   Record<ClientNames, ClientElement<ClientNames>>
@@ -32,7 +33,7 @@ export type DerivedClients = Partial<
  * // derivedClients = { bar: ... }
  * ```
  */
-export function splitClients(
+function splitClients(
   clients: useAssistantClient.Props,
   baseClient: AssistantClient,
 ) {
@@ -83,3 +84,20 @@ export function splitClients(
 
   return { rootClients, derivedClients };
 }
+
+const tapShallowMemoObject = <T extends object>(object: T) => {
+  // biome-ignore lint/correctness/useExhaustiveDependencies: shallow memo
+  return tapMemo(() => object, [...Object.entries(object).flat()]);
+};
+
+export const tapSplitClients = (
+  clients: useAssistantClient.Props,
+  baseClient: AssistantClient,
+) => {
+  const { rootClients, derivedClients } = splitClients(clients, baseClient);
+
+  return {
+    rootClients: tapShallowMemoObject(rootClients),
+    derivedClients: tapShallowMemoObject(derivedClients),
+  };
+};

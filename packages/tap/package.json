@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/tap",
-  "version": "0.3.5",
+  "version": "0.4.0",
   "description": "Zero-dependency reactive state management inspired by React hooks",
   "keywords": [
     "state-management",
@@ -53,9 +53,16 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/react": "^19.2.7",
-    "@vitest/ui": "^4.0.16",
-    "vitest": "^4.0.16"
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/react": "^16.3.1",
+    "@types/react": "^19.2.9",
+    "@types/node": "^25.0.3",
+    "@types/react-dom": "^19.2.3",
+    "@vitest/ui": "^4.0.17",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "jsdom": "^27.3.0",
+    "vitest": "^4.0.17"
   },
   "publishConfig": {
     "access": "public",

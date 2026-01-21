@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   LangChainMessage,
   LangChainToolCall,
@@ -230,18 +230,6 @@ const useLangGraphRuntimeImpl = ({
     isRunning,
   });
 
-  const loadThread = useMemo(
-    () =>
-      !load
-        ? undefined
-        : async (externalId: string) => {
-            const { messages, interrupts } = await load(externalId);
-            setMessages(messages);
-            setInterrupt(interrupts?.[0]);
-          },
-    [load, setMessages, setInterrupt],
-  );
-
   const runtime = useExternalStoreRuntime({
     isRunning,
     messages: threadMessages,
@@ -314,18 +302,25 @@ const useLangGraphRuntimeImpl = ({
   });
 
   {
-    const loadingRef = useRef(false);
-    useEffect(() => {
-      if (!loadThread || loadingRef.current) return;
+    const api = useAssistantApi();
 
-      const externalId = runtime.threads.mainItem.getState().externalId;
-      if (externalId) {
-        loadingRef.current = true;
-        loadThread(externalId).finally(() => {
-          loadingRef.current = false;
-        });
-      }
-    }, [loadThread, runtime]);
+    const loadRef = useRef(load);
+    useEffect(() => {
+      loadRef.current = load;
+    });
+
+    useEffect(() => {
+      const load = loadRef.current;
+      if (!load) return;
+
+      const externalId = api.threadListItem().getState().externalId;
+      if (externalId == null) return;
+
+      load(externalId).then(({ messages, interrupts }) => {
+        setMessages(messages);
+        setInterrupt(interrupts?.[0]);
+      });
+    }, [api, setMessages, setInterrupt]);
   }
 
   return runtime;

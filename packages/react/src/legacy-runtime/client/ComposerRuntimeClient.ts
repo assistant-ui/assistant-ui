@@ -4,6 +4,7 @@ import {
   tapEffect,
   tapInlineResource,
   type tapRef,
+  withKey,
 } from "@assistant-ui/tap";
 import {
   ComposerRuntime,
@@ -76,10 +77,12 @@ export const ComposerClient = resource(
     }, [runtime, events, threadIdRef, messageIdRef]);
 
     const attachments = tapLookupResources(
-      runtimeState.attachments.map((attachment, idx) => [
-        attachment.id,
-        ComposerAttachmentClientByIndex({ runtime: runtime, index: idx }),
-      ]),
+      runtimeState.attachments.map((attachment, idx) =>
+        withKey(
+          attachment.id,
+          ComposerAttachmentClientByIndex({ runtime: runtime, index: idx }),
+        ),
+      ),
     );
 
     const state = tapMemo<ComposerClientState>(() => {
@@ -93,6 +96,7 @@ export const ComposerClient = resource(
         attachmentAccept: runtimeState.attachmentAccept,
         isEmpty: runtimeState.isEmpty,
         type: runtimeState.type ?? "thread",
+        dictation: runtimeState.dictation,
       };
     }, [runtimeState, attachments.state]);
 
@@ -113,6 +117,9 @@ export const ComposerClient = resource(
         (() => {
           throw new Error("beginEdit is not supported in this runtime");
         }),
+
+      startDictation: runtime.startDictation,
+      stopDictation: runtime.stopDictation,
 
       attachment: (selector) => {
         if ("id" in selector) {

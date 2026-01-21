@@ -246,7 +246,7 @@ export const useA2ARuntime = ({
         loadingRef.current = false;
       });
     }
-  }, []);
+  }, [switchToThread, threadListItemRuntime]);
 
   return useExternalStoreRuntime({
     isRunning,

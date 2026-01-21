@@ -3,11 +3,8 @@ title: LocalRuntime
 description: Quickest path to a working chat. Handles state while you handle the API.
 ---
 
-import { Callout } from "fumadocs-ui/components/callout";
-import { Steps, Step } from "fumadocs-ui/components/steps";
-import { Card, Cards } from "fumadocs-ui/components/card";
-import { ParametersTable } from "@/components/docs";
-import { InstallCommand } from "@/components/docs/install-command";
+import { ParametersTable } from "@/components/docs/tables/ParametersTable";
+import { InstallCommand } from "@/components/docs/fumadocs/install/install-command";
 
 ## Overview
 
@@ -901,7 +898,7 @@ const OpenAIAdapter: ChatModelAdapter = {
 
 ```tsx
 const CustomAPIAdapter: ChatModelAdapter = {
-  async run({ messages, abortSignal }) {
+  async run({ messages, abortSignal, unstable_threadId }) {
     const response = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -910,6 +907,7 @@ const CustomAPIAdapter: ChatModelAdapter = {
           role: m.role,
           content: m.content,
         })),
+        threadId: unstable_threadId, // Pass thread ID to your backend
       }),
       signal: abortSignal,
     });
@@ -1125,6 +1123,11 @@ Parameters passed to the `run` function.
       description: "Additional context including configuration and tools",
       required: true,
     },
+    {
+      name: "unstable_threadId",
+      type: "string | undefined",
+      description: "The current thread/conversation identifier. Useful for passing to your backend API.",
+    },
   ]}
 />
 
@@ -1254,8 +1257,8 @@ Interface for implementing custom thread list storage.
 
 ### Related Runtime APIs
 
-- [AssistantRuntime API](/docs/api-reference/runtimes/AssistantRuntime) - Core runtime interface and methods
-- [ThreadRuntime API](/docs/api-reference/runtimes/ThreadRuntime) - Thread-specific operations and state management
+- [AssistantRuntime API](/docs/api-reference/runtimes/assistant-runtime) - Core runtime interface and methods
+- [ThreadRuntime API](/docs/api-reference/runtimes/thread-runtime) - Thread-specific operations and state management
 
 ## Related Resources
 

@@ -6,6 +6,7 @@ import {
   tapMemo,
   tapEffect,
   type tapRef,
+  withKey,
 } from "@assistant-ui/tap";
 import { ComposerClient } from "./ComposerRuntimeClient";
 import { MessageClient } from "./MessageRuntimeClient";
@@ -68,7 +69,7 @@ export const ThreadClient = resource(
       return () => {
         for (const unsub of unsubscribers) unsub();
       };
-    }, [runtime]);
+    }, [runtime, events.emit]);
 
     const threadIdRef = tapMemo(
       () => ({
@@ -87,10 +88,12 @@ export const ThreadClient = resource(
     );
 
     const messages = tapLookupResources(
-      runtimeState.messages.map((m) => [
-        m.id,
-        MessageClientById({ runtime: runtime, id: m.id, threadIdRef }),
-      ]),
+      runtimeState.messages.map((m) =>
+        withKey(
+          m.id,
+          MessageClientById({ runtime: runtime, id: m.id, threadIdRef }),
+        ),
+      ),
     );
 
     const state = tapMemo<ThreadClientState>(() => {

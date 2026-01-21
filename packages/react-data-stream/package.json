@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-data-stream",
-  "version": "0.11.13",
+  "version": "0.12.0",
   "description": "Data stream adapter for assistant-ui",
   "keywords": [
     "data-stream",
@@ -32,12 +32,12 @@
     "build": "aui-build"
   },
   "dependencies": {
-    "@ai-sdk/provider": "^1.1.3",
-    "assistant-stream": "^0.2.46",
-    "zod": "^4.2.1"
+    "@ai-sdk/provider": "^3.0.4",
+    "assistant-stream": "^0.2.47",
+    "zod": "^4.3.5"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.11.53",
+    "@assistant-ui/react": "^0.11.59",
     "@types/react": "*",
     "react": "^18 || ^19"
   },
@@ -50,8 +50,8 @@
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/json-schema": "^7.0.15",
-    "@types/react": "^19.2.7",
-    "react": "19.2.3"
+    "@types/react": "^19.2.9",
+    "react": "^19.2.3"
   },
   "publishConfig": {
     "access": "public",

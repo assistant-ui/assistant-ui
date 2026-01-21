@@ -3,8 +3,10 @@ import type { ReactNode } from "react";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import Script from "next/script";
+import { Analytics } from "@vercel/analytics/next";
 import { Provider } from "./provider";
 import { cn } from "@/lib/utils";
+import { BASE_URL } from "@/lib/constants";
 
 const getMetadataBase = () => {
   const appUrl = process.env["NEXT_PUBLIC_APP_URL"];
@@ -13,9 +15,15 @@ const getMetadataBase = () => {
   }
 
   if (process.env.NODE_ENV === "production") {
-    return new URL("https://www.assistant-ui.com");
+    return new URL(BASE_URL);
   }
   return new URL("http://localhost:3000");
+};
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
 };
 
 export const metadata = {
@@ -64,6 +72,7 @@ export default function Layout({ children }: { children: ReactNode }) {
         )}
       >
         <Provider>{children}</Provider>
+        <Analytics />
         <script
           defer
           src="/umami/script.js"

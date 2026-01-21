@@ -1,6 +1,6 @@
 import {
-  createContext,
-  tapContext,
+  createResourceContext,
+  tap,
   withContextProvider,
 } from "@assistant-ui/tap";
 import { ModelContextProvider } from "../model-context/ModelContextTypes";
@@ -10,7 +10,9 @@ export type ModelContextRegistrar = ModelContextProvider & {
   register: (provider: ModelContextProvider) => Unsubscribe;
 };
 
-const ModelContextContext = createContext<ModelContextRegistrar | null>(null);
+const ModelContextContext = createResourceContext<ModelContextRegistrar | null>(
+  null,
+);
 
 export const withModelContextProvider = <TResult>(
   modelContext: ModelContextRegistrar,
@@ -20,7 +22,7 @@ export const withModelContextProvider = <TResult>(
 };
 
 export const tapModelContext = () => {
-  const modelContext = tapContext(ModelContextContext);
+  const modelContext = tap(ModelContextContext);
   if (!modelContext)
     throw new Error("Model context is not available in this context");
 

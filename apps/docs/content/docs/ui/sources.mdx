@@ -1,0 +1,87 @@
+---
+title: Sources
+description: Display URL sources with favicon, title, and external link.
+---
+
+import { InstallCommand } from "@/components/docs/fumadocs/install/install-command";
+import { SourcesSample } from "@/components/docs/samples/sources";
+
+<SourcesSample />
+
+## Getting Started
+
+<Steps>
+  <Step>
+
+### Add `sources`
+
+<InstallCommand shadcn={["sources"]} />
+
+  </Step>
+  <Step>
+
+### Use in your application
+
+Pass `Sources` to `MessagePrimitive.Parts`:
+
+```tsx title="/components/assistant-ui/thread.tsx" {1,8}
+import { Sources } from "@/components/assistant-ui/sources";
+
+const AssistantMessage: FC = () => {
+  return (
+    <MessagePrimitive.Root className="...">
+      <MessagePrimitive.Parts
+        components={{
+          Source: Sources,
+        }}
+      />
+    </MessagePrimitive.Root>
+  );
+};
+```
+
+  </Step>
+</Steps>
+
+## Variants
+
+Use the `variant` prop to change the visual style.
+
+```tsx
+<Source variant="default" /> // Default
+<Source variant="outline" /> // Border only
+<Source variant="ghost" />   // No background
+```
+
+## Sizes
+
+Use the `size` prop to change the size.
+
+```tsx
+<Source size="sm" />      // Small
+<Source size="default" /> // Default
+<Source size="lg" />      // Large
+```
+
+## Composable API
+
+The component exports composable sub-components:
+
+```tsx
+import { Source, SourceIcon, SourceTitle } from "@/components/assistant-ui/sources";
+
+<Source href="https://example.com" className="gap-2">
+  <SourceIcon url="https://example.com" className="size-4" />
+  <SourceTitle className="max-w-none font-medium">Example</SourceTitle>
+</Source>
+```
+
+| Component | Description |
+|-----------|-------------|
+| `Source` | Root container, renders as `<a>` |
+| `SourceIcon` | Favicon with domain initial fallback |
+| `SourceTitle` | Truncated title text |
+
+## Related
+
+- [PartGrouping](/docs/ui/part-grouping) - Group sources by parentId

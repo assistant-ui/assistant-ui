@@ -57,7 +57,42 @@
             "ignoreRestSiblings": true
           }
         },
-        "useExhaustiveDependencies": "off",
+        "useExhaustiveDependencies": {
+          "level": "error",
+          "options": {
+            "hooks": [
+              {
+                "name": "tapEffect",
+                "closureIndex": 0,
+                "dependenciesIndex": 1
+              },
+              {
+                "name": "tapEffectEvent",
+                "stableResult": true
+              },
+              { "name": "tapMemo", "closureIndex": 0, "dependenciesIndex": 1 },
+              {
+                "name": "tapCallback",
+                "closureIndex": 0,
+                "dependenciesIndex": 1
+              },
+              { "name": "tapRef", "stableResult": true },
+              { "name": "tapState", "stableResult": [1] },
+              { "name": "tapEffectEvent", "stableResult": true },
+              {
+                "name": "tapConst",
+                "closureIndex": 0,
+                "dependenciesIndex": 1,
+                "stableResult": true
+              },
+              {
+                "name": "tapResources",
+                "closureIndex": 0,
+                "dependenciesIndex": 1
+              }
+            ]
+          }
+        },
         "useHookAtTopLevel": "off",
         "noSwitchDeclarations": "off",
         "noUnsafeOptionalChaining": "off",
@@ -150,7 +185,8 @@
       "!**/next-env.d.ts",
       "!**/.tanstack",
       "!**/.output",
-      "!**/routeTree.gen.ts"
+      "!**/routeTree.gen.ts",
+      "!**/packages/chatgpt-app-studio/templates"
     ]
   }
 }

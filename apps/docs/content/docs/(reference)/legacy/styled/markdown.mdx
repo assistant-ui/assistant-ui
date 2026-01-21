@@ -1,0 +1,83 @@
+---
+title: Markdown
+description: Enable rich text formatting for assistant messages using markdown.
+---
+
+Allow the assistant to display rich text using markdown.
+
+import { InstallCommand } from "@/components/docs/fumadocs/install/install-command";
+
+## Enabling markdown support
+
+<Steps>
+
+<Step>
+### Install `@assistant-ui/react-markdown`
+
+<InstallCommand npm={["@assistant-ui/react-markdown"]} />
+
+</Step>
+<Step>
+
+### Setup styles
+
+<Tabs items={["Tailwind", "Tailwind + shadcn-ui", "Not using Tailwind"]}>
+
+```ts {3} title="/tailwind.config.ts" tab="Tailwind"
+{
+  plugins: [
+    require("tailwindcss-animate"),
+    require("@assistant-ui/react-ui/tailwindcss")
+  ],
+}
+```
+
+```ts title="/tailwind.config.ts" tab="Tailwind + shadcn-ui"
+{
+  plugins: [
+    require("tailwindcss-animate"),
+    require("@assistant-ui/react-ui/tailwindcss")({ shadcn: true })
+  ],
+}
+```
+
+```ts title="/app/layout.tsx" tab="Not using Tailwind"
+import "@assistant-ui/react-ui/styles/index.css";
+import "@assistant-ui/react-ui/styles/markdown.css";
+```
+
+</Tabs>
+
+</Step>
+
+<Step>
+
+### Define a `MarkdownText` component
+
+```tsx {1} title="@/components/markdown-text.tsx"
+import { makeMarkdownText } from "@assistant-ui/react-ui";
+
+export const MarkdownText = makeMarkdownText();
+```
+
+</Step>
+
+<Step>
+
+### Use it with `Thread`
+
+Pass the `MarkdownText` component to your `Thread` component.
+
+```tsx {1, 7}
+import { MarkdownText } from "@/components/markdown-text";
+
+const Home = () => {
+  return (
+    <Thread assistantMessage={{ components: { Text: MarkdownText } }}>
+  );
+};
+```
+
+</Step>
+
+</Steps>

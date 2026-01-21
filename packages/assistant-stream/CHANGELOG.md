@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.2.47
+
+### Patch Changes
+
+- 3719567: chore: update deps
+
 ## 0.2.46
 
 ### Patch Changes

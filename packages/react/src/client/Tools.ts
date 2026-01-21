@@ -1,4 +1,4 @@
-import { resource, tapState, tapEffect } from "@assistant-ui/tap";
+import { resource, tapState, tapEffect, tapConst } from "@assistant-ui/tap";
 import { tapApi } from "../utils/tap-store";
 import { tapModelContext } from "./ModelContext";
 import { ToolsState, ToolsApi } from "./types/Tools";
@@ -11,6 +11,34 @@ export const Tools = resource(({ toolkit }: { toolkit?: Toolkit }) => {
   }));
 
   const modelContext = tapModelContext();
+
+  const setToolUI = tapConst(
+    () => (toolName: string, render: any) => {
+      setState((prev) => {
+        return {
+          ...prev,
+          tools: {
+            ...prev.tools,
+            [toolName]: [...(prev.tools[toolName] ?? []), render],
+          },
+        };
+      });
+
+      return () => {
+        setState((prev) => {
+          return {
+            ...prev,
+            tools: {
+              ...prev.tools,
+              [toolName]:
+                prev.tools[toolName]?.filter((r) => r !== render) ?? [],
+            },
+          };
+        });
+      };
+    },
+    [],
+  );
 
   tapEffect(() => {
     if (!toolkit) return;
@@ -45,30 +73,6 @@ export const Tools = resource(({ toolkit }: { toolkit?: Toolkit }) => {
       unsubscribes.forEach((fn) => fn());
     };
   }, [toolkit, modelContext]);
-
-  const setToolUI = (toolName: string, render: any) => {
-    setState((prev) => {
-      return {
-        ...prev,
-        tools: {
-          ...prev.tools,
-          [toolName]: [...(prev.tools[toolName] ?? []), render],
-        },
-      };
-    });
-
-    return () => {
-      setState((prev) => {
-        return {
-          ...prev,
-          tools: {
-            ...prev.tools,
-            [toolName]: prev.tools[toolName]?.filter((r) => r !== render) ?? [],
-          },
-        };
-      });
-    };
-  };
 
   return tapApi<ToolsApi>({
     getState: () => state,

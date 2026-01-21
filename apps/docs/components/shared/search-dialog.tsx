@@ -159,7 +159,7 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
 
   useEffect(() => {
     setSelectedIndex(0);
-  }, [results]);
+  }, []);
 
   useEffect(() => {
     if (listRef.current && results.length > 0) {

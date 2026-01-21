@@ -4,7 +4,7 @@
 
 <p align="center">
   <a href="https://www.assistant-ui.com">Product</a> ·
-  <a href="https://www.assistant-ui.com/docs/getting-started">Documentation</a> ·
+  <a href="https://www.assistant-ui.com/docs">Documentation</a> ·
   <a href="https://www.assistant-ui.com/examples">Examples</a> ·
   <a href="https://discord.gg/S9dwgCNEFs">Discord Community</a> ·
   <a href="https://cal.com/simon-farshid/assistant-ui">Contact Sales</a>
@@ -39,6 +39,8 @@ You can get started by running `npx assistant-ui create` (new project) or `npx a
 - Chat UI
   - Streaming, Auto-scrolling, Markdown, Code Highlighting, File Attachments, and more
 - Keyboard shortcuts and accessibility features
+- Speech-to-Text (Dictation)
+  - Voice input with Web Speech API or custom adapters (ElevenLabs, etc.)
 - Generative UI
   - Map LLM tool calls and JSONs to custom UI components
 - Frontend tool calls
@@ -89,11 +91,12 @@ With >50k+ monthly downloads, assistant-ui is the most popular UI library for AI
 - [x] Improved Markdown rendering performance
 - [x] LangGraph `interrupt()` support
 - [x] Open in v0 support
+- [x] Speech-to-Text (Dictation) with custom adapter support
 - [ ] Improved documentation (work in progress)
-- [ ] OpenAI Realtime Voice (work in progress)
+- [ ] Realtime Voice Conversation (work in progress)
 - [ ] Resume interrupted LLM calls (work in progress)
 - [ ] Native PDF attachment support
-- [ ] Follow-up suggestions
+- [ ] Follow-up suggestions
 
 ## Next Steps
 

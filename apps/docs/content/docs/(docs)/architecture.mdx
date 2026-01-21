@@ -1,0 +1,93 @@
+---
+title: "Architecture"
+description: How components, runtimes, and cloud services fit together.
+---
+
+import { Sparkles, PanelsTopLeft, Database, Terminal } from "lucide-react";
+
+## assistant-ui is built on these main pillars:
+
+<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <Card title='1. Frontend components'>
+        Shadcn UI chat components with built-in state management
+    </Card>
+
+    <Card title='2. Runtime'>
+        State management layer connecting UI to LLMs and backend services
+    </Card>
+
+    <Card title='3. Assistant Cloud'>
+        Hosted service for thread persistence, history, and user management
+    </Card>
+</div>
+
+
+
+### 1. Frontend components
+Stylized and functional chat components built on top of Shadcn components that have context state management provided by the assistantUI runtime provider. These pre-built React components come with intelligent state management. [View our components](/docs/ui/thread)
+
+### 2. Runtime
+A React state management context for assistant chat. The runtime handles data conversions between the local state and calls to backends and LLMs. We offer different runtime solutions that work with various frameworks like Vercel AI SDK, LangGraph, LangChain, Helicone, local runtime, and an ExternalStore when you need full control of the frontend message state. [You can view the runtimes we support](/docs/runtimes/pick-a-runtime)
+
+### 3. Assistant Cloud
+A hosted service that enhances your assistant experience with comprehensive thread management and message history. Assistant Cloud stores complete message history, automatically persists threads, supports human-in-the-loop workflows, and integrates with common auth providers to seamlessly allow users to resume conversations at any point. [Cloud Docs](/docs/cloud/overview)
+
+
+### There are three common ways to architect your assistant-ui application:
+
+#### **1. Direct Integration with External Providers**
+
+```mermaid
+graph TD
+    A[Frontend Components] --> B[Runtime]
+    B --> D[External Providers or LLM APIs]
+    
+    
+    classDef default color:#f8fafc,text-align:center
+    
+    style A fill:#e879f9,stroke:#2e1065,stroke-width:2px,color:#2e1065,font-weight:bold
+    style B fill:#93c5fd,stroke:#1e3a8a,stroke-width:2px,color:#1e3a8a,font-weight:bold
+    style D fill:#fca5a5,stroke:#7f1d1d,stroke-width:2px,color:#7f1d1d,font-weight:bold
+    
+    class A,B,C,D,E default
+```
+
+#### **2. Using your own API endpoint**
+
+```mermaid
+graph TD
+    A[Frontend Components] --> B[Runtime]
+    B --> E[Your API Backend]
+    E --> D[External Providers or LLM APIs]
+    
+    
+    classDef default color:#f8fafc,text-align:center
+    
+    style A fill:#e879f9,stroke:#2e1065,stroke-width:2px,color:#2e1065,font-weight:bold
+    style B fill:#93c5fd,stroke:#1e3a8a,stroke-width:2px,color:#1e3a8a,font-weight:bold
+    style D fill:#fca5a5,stroke:#7f1d1d,stroke-width:2px,color:#7f1d1d,font-weight:bold
+    style E fill:#fca5a5,stroke:#7f1d1d,stroke-width:2px,color:#7f1d1d,font-weight:bold
+    
+    class A,B,C,D,E default
+```
+
+#### **3. With Assistant Cloud**
+
+```mermaid
+graph TD
+    A[Frontend Components] --> B[Runtime]
+    B --> C[Cloud]
+    E --> C
+    C --> D[External Providers or LLM APIs]
+    B --> E[Your API Backend]
+    
+    classDef default color:#f8fafc,text-align:center
+    
+    style A fill:#e879f9,stroke:#2e1065,stroke-width:2px,color:#2e1065,font-weight:bold
+    style B fill:#93c5fd,stroke:#1e3a8a,stroke-width:2px,color:#1e3a8a,font-weight:bold
+    style C fill:#86efac,stroke:#064e3b,stroke-width:2px,color:#064e3b,font-weight:bold
+    style D fill:#fca5a5,stroke:#7f1d1d,stroke-width:2px,color:#7f1d1d,font-weight:bold
+    style E fill:#fca5a5,stroke:#7f1d1d,stroke-width:2px,color:#7f1d1d,font-weight:bold
+    
+    class A,B,C,D,E default
+```

@@ -1,0 +1,747 @@
+---
+title: Generative UI
+description: Render tool calls as interactive UI instead of plain text.
+---
+
+import { ToolUISample } from "@/components/docs/samples/tool-ui";
+
+Create custom UI components for AI tool calls, providing visual feedback and interactive experiences when tools are executed.
+
+<ToolUISample />
+
+## Overview
+
+Tool UIs in assistant-ui allow you to create custom interfaces that appear when AI tools are called. These generative UI components enhance the user experience by:
+
+- **Visualizing tool execution** with loading states and progress indicators
+- **Displaying results** in rich, formatted layouts
+- **Enabling user interaction** through forms and controls
+- **Providing error feedback** with helpful recovery options
+
+This guide demonstrates building tool UIs with the **Vercel AI SDK**.
+
+## Creating Tool UIs
+
+There are two main approaches to creating tool UIs in assistant-ui:
+
+### 1. Client-Defined Tools (`makeAssistantTool`)
+
+If you're creating tools on the client side, use `makeAssistantTool` to register them with the assistant context. Then create a UI component with `makeAssistantToolUI`:
+
+```tsx
+import { makeAssistantTool, tool } from "@assistant-ui/react";
+import { z } from "zod";
+
+// Define the tool
+const weatherTool = tool({
+  description: "Get current weather for a location",
+  parameters: z.object({
+    location: z.string(),
+    unit: z.enum(["celsius", "fahrenheit"]),
+  }),
+  execute: async ({ location, unit }) => {
+    const weather = await fetchWeatherAPI(location, unit);
+    return weather;
+  },
+});
+
+// Register the tool
+const WeatherTool = makeAssistantTool({
+  ...weatherTool,
+  toolName: "getWeather",
+});
+
+// Create the UI
+const WeatherToolUI = makeAssistantToolUI<
+  { location: string; unit: "celsius" | "fahrenheit" },
+  { temperature: number; description: string }
+>({
+  toolName: "getWeather",
+  render: ({ args, result, status }) => {
+    if (status.type === "running") {
+      return <div>Checking weather in {args.location}...</div>;
+    }
+
+    return (
+      <div className="weather-card">
+        <h3>{args.location}</h3>
+        <p>
+          {result.temperature}°{args.unit === "celsius" ? "C" : "F"}
+        </p>
+        <p>{result.description}</p>
+      </div>
+    );
+  },
+});
+```
+
+<Callout type="tip">
+  Tools defined with `makeAssistantTool` can be passed to your backend using the
+  `frontendTools` utility
+</Callout>
+
+Learn more about creating tools in the [Tools Guide](/docs/guides/tools).
+
+### 2. UI-Only for Existing Tools (`makeAssistantToolUI`)
+
+If your tool is defined elsewhere (e.g., in your backend API, MCP server, or LangGraph), use `makeAssistantToolUI` to create just the UI component:
+
+```tsx
+import { makeAssistantToolUI } from "@assistant-ui/react";
+
+const WeatherToolUI = makeAssistantToolUI<
+  { location: string; unit: "celsius" | "fahrenheit" },
+  { temperature: number; description: string }
+>({
+  toolName: "getWeather", // Must match the backend tool name
+  render: ({ args, result, status }) => {
+    // UI rendering logic only
+  },
+});
+```
+
+## Quick Start Example
+
+This example shows how to implement the UI-only approach using `makeAssistantToolUI`:
+
+<Steps>
+  <Step>
+
+### Create a Tool UI Component
+
+```tsx
+import { makeAssistantToolUI } from "@assistant-ui/react";
+import { z } from "zod";
+
+type WeatherArgs = {
+  location: string;
+  unit: "celsius" | "fahrenheit";
+};
+
+type WeatherResult = {
+  temperature: number;
+  description: string;
+  humidity: number;
+  windSpeed: number;
+};
+
+const WeatherToolUI = makeAssistantToolUI<WeatherArgs, WeatherResult>({
+  toolName: "getWeather",
+  render: ({ args, status, result }) => {
+    if (status.type === "running") {
+      return (
+        <div className="flex items-center gap-2">
+          <Spinner />
+          <span>Checking weather in {args.location}...</span>
+        </div>
+      );
+    }
+
+    if (status.type === "incomplete" && status.reason === "error") {
+      return (
+        <div className="text-red-500">
+          Failed to get weather for {args.location}
+        </div>
+      );
+    }
+
+    return (
+      <div className="weather-card rounded-lg bg-blue-50 p-4">
+        <h3 className="text-lg font-bold">{args.location}</h3>
+        <div className="mt-2 grid grid-cols-2 gap-4">
+          <div>
+            <p className="text-2xl">
+              {result.temperature}°{args.unit === "celsius" ? "C" : "F"}
+            </p>
+            <p className="text-gray-600">{result.description}</p>
+          </div>
+          <div className="text-sm">
+            <p>Humidity: {result.humidity}%</p>
+            <p>Wind: {result.windSpeed} km/h</p>
+          </div>
+        </div>
+      </div>
+    );
+  },
+});
+```
+
+  </Step>
+  <Step>
+
+### Register the Tool UI
+
+Place the component inside your `AssistantRuntimeProvider`:
+
+```tsx
+function App() {
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Thread />
+      <WeatherToolUI />
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Define the Backend Tool (Vercel AI SDK)
+
+When using the Vercel AI SDK, define the corresponding tool in your API route:
+
+```tsx title="/app/api/chat/route.ts"
+import { streamText, tool, zodSchema } from "ai";
+import { z } from "zod";
+
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+
+  const result = streamText({
+    model: openai("gpt-4o"),
+    messages: convertToModelMessages(messages),
+    tools: {
+      getWeather: tool({
+        description: "Get current weather for a location",
+        inputSchema: zodSchema(
+          z.object({
+            location: z.string(),
+            unit: z.enum(["celsius", "fahrenheit"]),
+          }),
+        ),
+        execute: async ({ location, unit }) => {
+          const weather = await fetchWeatherAPI(location);
+          return {
+            temperature: weather.temp,
+            description: weather.condition,
+            humidity: weather.humidity,
+            windSpeed: weather.wind,
+          };
+        },
+      }),
+    },
+  });
+
+  return result.toUIMessageStreamResponse();
+}
+```
+
+  </Step>
+</Steps>
+
+## Tool UI Patterns
+
+### Component Pattern
+
+Create standalone tool UI components:
+
+```tsx
+export const WebSearchToolUI = makeAssistantToolUI<
+  { query: string },
+  { results: SearchResult[] }
+>({
+  toolName: "webSearch",
+  render: ({ args, status, result }) => {
+    return (
+      <div className="search-container">
+        <div className="mb-3 flex items-center gap-2">
+          <SearchIcon />
+          <span>Search results for: "{args.query}"</span>
+        </div>
+
+        {status.type === "running" && <LoadingSpinner />}
+
+        {result && (
+          <div className="space-y-2">
+            {result.results.map((item, index) => (
+              <div key={index} className="rounded border p-3">
+                <a href={item.url} className="font-medium text-blue-600">
+                  {item.title}
+                </a>
+                <p className="text-sm text-gray-600">{item.snippet}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  },
+});
+```
+
+### Hook Pattern
+
+Use hooks for dynamic tool UI registration:
+
+<Callout type="tip">
+When you assign your `makeAssistantToolUI({...})` call to a constant starting with `use…`, you can call it directly as a hook inside your component. This pattern lets you access local props or state when rendering the tool UI.
+</Callout>
+
+```tsx
+import { useAssistantToolUI } from "@assistant-ui/react";
+
+function DynamicToolUI() {
+  const [theme, setTheme] = useState("light");
+
+  useAssistantToolUI({
+    toolName: "analyzeData",
+    render: ({ args, result, status }) => {
+      // Hook allows access to component state
+      return (
+        <DataVisualization
+          data={result}
+          theme={theme}
+          loading={status.type === "running"}
+        />
+      );
+    },
+  });
+
+  return null;
+}
+```
+
+### Inline Pattern
+
+For tools that need access to parent component props:
+
+<Callout type="tip">
+  **Why `useInlineRender`?** By default, a tool UI's `render` function is
+  static. Use `useInlineRender` when your UI needs access to dynamic component
+  props (for example, to pass in an `id` or other contextual data).
+</Callout>
+
+```tsx
+import { useAssistantToolUI, useInlineRender } from "@assistant-ui/react";
+
+function ProductPage({ productId, productName }) {
+  useAssistantToolUI({
+    toolName: "checkInventory",
+    render: useInlineRender(({ args, result }) => {
+      // Access parent component props
+      return (
+        <div className="inventory-status">
+          <h4>{productName} Inventory</h4>
+          <p>
+            Stock for {productId}: {result.quantity} units
+          </p>
+          <p>Location: {result.warehouse}</p>
+        </div>
+      );
+    }),
+  });
+
+  return <div>Product details...</div>;
+}
+```
+
+## Interactive Tool UIs
+
+### User Input Collection
+
+Create tools that collect user input during execution:
+
+<Callout type="tip">
+  **Pro tip:** Call `addResult(...)` exactly once to complete the tool call.
+  After it's invoked, the assistant will resume the conversation with your
+  provided data.
+</Callout>
+
+```tsx
+const DatePickerToolUI = makeAssistantToolUI<
+  { prompt: string },
+  { date: string }
+>({
+  toolName: "selectDate",
+  render: ({ args, result, addResult }) => {
+    if (result) {
+      return (
+        <div className="rounded bg-green-50 p-3">
+          ✅ Selected date: {new Date(result.date).toLocaleDateString()}
+        </div>
+      );
+    }
+
+    return (
+      <div className="rounded border p-4">
+        <p className="mb-3">{args.prompt}</p>
+        <DatePicker
+          onChange={(date) => {
+            addResult({ date: date.toISOString() });
+          }}
+        />
+      </div>
+    );
+  },
+});
+```
+
+### Multi-Step Interactions
+
+Build complex workflows with human-in-the-loop patterns for multi-step user interactions:
+
+```tsx
+const DeleteProjectTool = makeAssistantTool({
+  toolName: "deleteProject",
+  execute: async ({ projectId }, { human }) => {
+    const response = await human({ action, details });
+    if (!response.approved) throw new Error("Project deletion cancelled");
+
+    await deleteProject(projectId);
+    return { success: true };
+  },
+});
+
+const ApprovalTool = makeAssistantTool({
+  ...tool({
+    description: "Request user approval for an action",
+    parameters: z.object({
+      action: z.string(),
+      details: z.any(),
+    }),
+    execute: async ({ action, details }, { human }) => {
+      // Request approval from user
+      const response = await human({ action, details });
+
+      return {
+        approved: response.approved,
+        reason: response.reason,
+      };
+    },
+  }),
+  toolName: "requestApproval",
+  render: ({ args, result, interrupt, resume }) => {
+    const [reason, setReason] = useState("");
+
+    // Show result after approval/rejection
+    if (result) {
+      return (
+        <div className={result.approved ? "text-green-600" : "text-red-600"}>
+          {result.approved ? "✅ Approved" : `❌ Rejected: ${result.reason}`}
+        </div>
+      );
+    }
+
+    // Show approval UI when waiting for user input
+    if (interrupt) {
+      return (
+        <div className="rounded border-2 border-yellow-400 p-4">
+          <h4 className="font-bold">Approval Required</h4>
+          <p className="my-2">{interrupt.payload.action}</p>
+          <pre className="rounded bg-gray-100 p-2 text-sm">
+            {JSON.stringify(interrupt.payload.details, null, 2)}
+          </pre>
+
+          <div className="mt-4 flex gap-2">
+            <button
+              onClick={() => resume({ approved: true })}
+              className="rounded bg-green-500 px-4 py-2 text-white"
+            >
+              Approve
+            </button>
+            <button
+              onClick={() => resume({ approved: false, reason })}
+              className="rounded bg-red-500 px-4 py-2 text-white"
+            >
+              Reject
+            </button>
+            <input
+              type="text"
+              placeholder="Rejection reason..."
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              className="flex-1 rounded border px-2"
+            />
+          </div>
+        </div>
+      );
+    }
+
+    return <div>Processing...</div>;
+  },
+});
+```
+
+<Callout type="tip">
+  Use tool human input (`human()` / `resume()`) for workflows that need to
+  pause tool execution and wait for user input. Use `addResult()` for "human
+  tools" where the AI requests a tool call but the entire execution happens
+  through user interaction.
+</Callout>
+
+## Advanced Features
+
+### Tool Status Handling
+
+The `status` prop provides detailed execution state:
+
+```tsx
+render: ({ status, args }) => {
+  switch (status.type) {
+    case "running":
+      return <LoadingState />;
+
+    case "requires-action":
+      return <UserInputRequired reason={status.reason} />;
+
+    case "incomplete":
+      if (status.reason === "cancelled") {
+        return <div>Operation cancelled</div>;
+      }
+      if (status.reason === "error") {
+        return <ErrorDisplay error={status.error} />;
+      }
+      return <div>Failed: {status.reason}</div>;
+
+    case "complete":
+      return <SuccessDisplay />;
+  }
+};
+```
+
+### Field-Level Validation
+
+Use `useToolArgsFieldStatus` to show validation states:
+
+```tsx
+import { useToolArgsFieldStatus } from "@assistant-ui/react";
+
+const FormToolUI = makeAssistantToolUI({
+  toolName: "submitForm",
+  render: ({ args }) => {
+    const emailStatus = useToolArgsFieldStatus("email");
+    const phoneStatus = useToolArgsFieldStatus("phone");
+
+    return (
+      <form className="space-y-4">
+        <div>
+          <input
+            type="email"
+            value={args.email}
+            className={emailStatus.type === "running" ? "loading" : ""}
+            disabled
+          />
+          {emailStatus.type === "incomplete" && (
+            <span className="text-red-500">Invalid email</span>
+          )}
+        </div>
+
+        <div>
+          <input
+            type="tel"
+            value={args.phone}
+            className={phoneStatus.type === "running" ? "loading" : ""}
+            disabled
+          />
+        </div>
+      </form>
+    );
+  },
+});
+```
+
+### Partial Results & Streaming
+
+Display results as they stream in:
+
+```tsx
+const AnalysisToolUI = makeAssistantToolUI<
+  { data: string },
+  { progress: number; insights: string[] }
+>({
+  toolName: "analyzeData",
+  render: ({ result, status }) => {
+    const progress = result?.progress || 0;
+    const insights = result?.insights || [];
+
+    return (
+      <div className="analysis-container">
+        {status.type === "running" && (
+          <div className="mb-4">
+            <div className="mb-1 flex justify-between">
+              <span>Analyzing...</span>
+              <span>{progress}%</span>
+            </div>
+            <div className="w-full rounded bg-gray-200">
+              <div
+                className="h-2 rounded bg-blue-500"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        <div className="space-y-2">
+          {insights.map((insight, i) => (
+            <div key={i} className="rounded bg-gray-50 p-2">
+              {insight}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  },
+});
+```
+
+### Custom Tool Fallback
+
+Provide a custom UI for tools without specific UIs:
+
+```tsx
+<Thread
+  components={{
+    ToolFallback: ({ toolName, args, result }) => (
+      <div className="tool-fallback rounded bg-gray-100 p-3">
+        <code className="text-sm">
+          {toolName}({JSON.stringify(args)})
+        </code>
+        {result && (
+          <pre className="mt-2 text-xs">{JSON.stringify(result, null, 2)}</pre>
+        )}
+      </div>
+    ),
+  }}
+/>
+```
+
+## Execution Context
+
+Generative UI components have access to execution context through props:
+
+```tsx
+type ToolUIRenderProps<TArgs, TResult> = {
+  // Tool arguments
+  args: TArgs;
+  argsText: string; // JSON stringified args
+
+  // Execution status
+  status: ToolCallMessagePartStatus;
+  isError?: boolean;
+
+  // Tool result (may be partial during streaming)
+  result?: TResult;
+
+  // Tool metadata
+  toolName: string;
+  toolCallId: string;
+
+  // Interactive callbacks
+  addResult: (result: TResult) => void;
+  resume: (payload: unknown) => void;
+
+  // Interrupt state
+  interrupt?: { type: "human"; payload: unknown }; // Payload from context.human()
+
+  // Optional artifact data
+  artifact?: unknown;
+};
+```
+
+### Human Input Handling
+
+When a tool calls `human()` during execution, the payload becomes available in the render function as `interrupt.payload`:
+
+```tsx
+const ConfirmationToolUI = makeAssistantToolUI<
+  { action: string },
+  { confirmed: boolean }
+>({
+  toolName: "confirmAction",
+  render: ({ args, result, interrupt, resume }) => {
+    // Tool is waiting for user input
+    if (interrupt) {
+      return (
+        <div className="confirmation-dialog">
+          <p>Confirm: {interrupt.payload.message}</p>
+          <button onClick={() => resume(true)}>Yes</button>
+          <button onClick={() => resume(false)}>No</button>
+        </div>
+      );
+    }
+
+    // Tool completed
+    if (result) {
+      return <div>Action {result.confirmed ? "confirmed" : "cancelled"}</div>;
+    }
+
+    return <div>Processing...</div>;
+  },
+});
+```
+
+Learn more about tool human input in the [Tools Guide](/docs/guides/tools#tool-human-input).
+
+## Best Practices
+
+### 1. Handle All Status States
+
+Always handle loading, error, and success states:
+
+```tsx
+render: ({ status, result, args }) => {
+  if (status.type === "running") return <Skeleton />;
+  if (status.type === "incomplete") return <ErrorState />;
+  if (!result) return null;
+  return <ResultDisplay result={result} />;
+};
+```
+
+### 2. Provide Visual Feedback
+
+Use animations and transitions for better UX:
+
+```tsx
+<div
+  className={cn(
+    "transition-all duration-300",
+    status.type === "running" && "opacity-50",
+    status.type === "complete" && "opacity-100",
+  )}
+>
+  {/* Tool UI content */}
+</div>
+```
+
+### 3. Make UIs Accessible
+
+Ensure keyboard navigation and screen reader support:
+
+```tsx
+<button
+  onClick={() => addResult(value)}
+  aria-label="Confirm selection"
+  className="focus:outline-none focus:ring-2"
+>
+  Confirm
+</button>
+```
+
+### 4. Optimize Performance
+
+Use `useInlineRender` to prevent unnecessary re-renders:
+
+```tsx
+useAssistantToolUI({
+  toolName: "heavyComputation",
+  render: useInlineRender(({ result }) => {
+    // Expensive rendering logic
+    return <ComplexVisualization data={result} />;
+  }),
+});
+```
+
+<Callout>
+  Generative UI components are only displayed in the chat interface. The actual
+  tool execution happens on the backend. This separation allows you to create
+  rich, interactive experiences while keeping sensitive logic secure on the
+  server.
+</Callout>
+
+## Related Guides
+
+- [Tools Guide](/docs/guides/tools) - Learn how to create and use tools with AI models
+- [Tool Fallback](/docs/ui/tool-fallback) - Default UI for tools without custom components
+- [API Reference](/docs/api-reference/primitives/message-part) - Detailed type definitions and component APIs
+- [Message Primitive](/docs/api-reference/primitives/message) - Complete Message component documentation

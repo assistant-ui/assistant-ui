@@ -1,6 +1,7 @@
 "use client";
 
 import { describe, it, expect } from "vitest";
+import { z } from "zod";
 import {
   toAgUiMessages,
   toAgUiTools,
@@ -136,5 +137,38 @@ describe("adapter conversions", () => {
         parameters: { type: "boolean" },
       },
     ]);
+  });
+
+  it("converts Zod schemas to JSON Schema format", () => {
+    const zodSchema = z.object({
+      message: z.string().describe("Text to log to the console."),
+    });
+
+    const tools = toAgUiTools({
+      console_log: {
+        description: "Log a message to the console.",
+        parameters: zodSchema,
+      },
+    });
+
+    expect(tools).toHaveLength(1);
+    expect(tools[0]).toMatchObject({
+      name: "console_log",
+      description: "Log a message to the console.",
+    });
+    // Verify parameters is a plain JSON Schema object, not a Zod instance
+    expect(tools[0]!.parameters).toMatchObject({
+      type: "object",
+      properties: {
+        message: {
+          type: "string",
+          description: "Text to log to the console.",
+        },
+      },
+      required: ["message"],
+    });
+    // Ensure it's not a Zod instance (no Zod methods)
+    expect(tools[0]!.parameters).not.toHaveProperty("parse");
+    expect(tools[0]!.parameters).not.toHaveProperty("_def");
   });
 });

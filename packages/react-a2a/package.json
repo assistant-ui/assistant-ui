@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-a2a",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "A2A protocol adapter for assistant-ui",
   "keywords": [
     "a2a",
@@ -33,11 +33,11 @@
     "build": "aui-build"
   },
   "dependencies": {
-    "assistant-stream": "^0.2.46",
+    "assistant-stream": "^0.2.47",
     "uuid": "^13.0.0"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.11.53",
+    "@assistant-ui/react": "^0.11.59",
     "@types/react": "*",
     "react": "^18 || ^19"
   },
@@ -49,9 +49,9 @@
   "devDependencies": {
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/react": "^19.2.7",
+    "@types/react": "^19.2.9",
     "@types/uuid": "^11.0.0",
-    "react": "19.2.3"
+    "react": "^19.2.3"
   },
   "publishConfig": {
     "access": "public",

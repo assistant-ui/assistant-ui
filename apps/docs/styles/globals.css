@@ -1,12 +1,21 @@
 @import "tailwindcss";
+
 @import "tw-animate-css";
 @import "tw-shimmer";
 @import "fumadocs-ui/css/shadcn.css";
 @import "fumadocs-ui/css/preset.css";
 
+@import "./fumadocs.css";
+@import "./animate.css";
+
+@plugin "tailwind-scrollbar";
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -138,98 +147,3 @@
 :focus-visible {
   box-shadow: none;
 }
-
-@layer base {
-  :root {
-    --primary: var(--docs-color);
-    --docs-color: 220deg 91% 54%;
-    --reference-color: 250 80% 54%;
-  }
-
-  .dark {
-    --docs-color: 217deg 92% 76%;
-    --reference-color: 250 100% 80%;
-  }
-}
-
-/* Horizontal marquee keyframes */
-@keyframes marquee {
-  from {
-    transform: translateX(0);
-  }
-  to {
-    transform: translateX(calc(-100% - var(--gap)));
-  }
-}
-
-@utility animate-marquee {
-  animation: marquee var(--duration) linear infinite;
-}
-
-@keyframes shine {
-  0% {
-    background-position: 0% 0%;
-  }
-  50% {
-    background-position: 100% 100%;
-  }
-  100% {
-    background-position: 0% 0%;
-  }
-}
-
-/* Create a utility class for the animation */
-@utility animate-shine {
-  animation: shine var(--duration) infinite linear;
-}
-
-@utility scrollbar-none {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-  &::-webkit-scrollbar {
-    display: none;
-  }
-}
-
-@property --angle {
-  syntax: "<angle>";
-  inherits: false;
-  initial-value: 0deg;
-}
-
-@keyframes rotate {
-  to {
-    --angle: 360deg;
-  }
-}
-
-.rainbow-border {
-  animation: rotate 10s linear infinite;
-  background: linear-gradient(
-    var(--angle),
-    #02fcef70 0,
-    #ffb52b70 50%,
-    #a02bfe70 100%
-  );
-
-  &:after {
-    animation: rotate 10s linear infinite;
-    background: linear-gradient(
-      var(--angle),
-      #02fcef70 0,
-      #ffb52b70 50%,
-      #a02bfe70 100%
-    );
-    filter: blur(10px);
-    transition: all 0.4s ease-out;
-  }
-
-  &:hover:after {
-    transform: scale(1.1, 1.1);
-  }
-}
-
-.examples-page #nd-toc {
-  margin-top: 5rem;
-}
-

@@ -1,15 +1,20 @@
 "use client";
 
-import { type ReactNode, useState, useEffect, useMemo } from "react";
+import { type ReactNode, useMemo } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
-import { Moon, Sun } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { GitHubIcon } from "@/components/icons/github";
 import { Select } from "./select";
+import { ThemeToggle } from "./theme-toggle";
 
 const SUB_PROJECTS = [
+  {
+    value: "playground",
+    label: "Playground",
+    textValue: "playground",
+  },
   {
     value: "chatgpt-app-studio",
     label: "ChatGPT App Studio",
@@ -40,48 +45,6 @@ interface SubProjectLayoutProps {
   children: ReactNode;
   hideFooter?: boolean;
   fullHeight?: boolean;
-}
-
-function ThemeToggle() {
-  const [theme, setTheme] = useState<"light" | "dark">("light");
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-    const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null;
-    if (savedTheme) {
-      setTheme(savedTheme);
-      document.documentElement.classList.toggle("dark", savedTheme === "dark");
-    } else {
-      const isDark = document.documentElement.classList.contains("dark");
-      setTheme(isDark ? "dark" : "light");
-    }
-  }, []);
-
-  const toggleTheme = () => {
-    const newTheme = theme === "light" ? "dark" : "light";
-    setTheme(newTheme);
-    document.documentElement.classList.toggle("dark", newTheme === "dark");
-    localStorage.setItem("theme", newTheme);
-  };
-
-  if (!mounted) {
-    return <div className="size-8" />;
-  }
-
-  return (
-    <button
-      onClick={toggleTheme}
-      className="flex size-8 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
-      aria-label="Toggle theme"
-    >
-      {theme === "light" ? (
-        <Moon className="size-4" />
-      ) : (
-        <Sun className="size-4" />
-      )}
-    </button>
-  );
 }
 
 export function SubProjectLayout({
@@ -126,7 +89,7 @@ export function SubProjectLayout({
         className={cn("z-50 w-full shrink-0", !fullHeight && "sticky top-0")}
       >
         {!fullHeight && (
-          <div className="mask-[linear-gradient(to_bottom,black_50%,transparent)] dark:mask-[linear-gradient(to_bottom,black_40%,transparent)] pointer-events-none absolute inset-x-0 top-0 h-24 bg-linear-to-b from-background via-60% via-background/80 to-transparent backdrop-blur-xl dark:via-50%" />
+          <div className="mask-[linear-gradient(to_bottom,black_50%,transparent)] dark:mask-[linear-gradient(to_bottom,black_40%,transparent)] pointer-events-none absolute inset-x-0 top-0 h-16 bg-linear-to-b from-background via-60% via-background/80 to-transparent backdrop-blur-xl md:h-24 dark:via-50%" />
         )}
         <div
           className={cn(
@@ -151,7 +114,9 @@ export function SubProjectLayout({
             <Select
               value={name}
               onValueChange={(value) => router.push(`/${value}`)}
-              options={SUB_PROJECTS.map((p) => ({
+              options={SUB_PROJECTS.toSorted((a, b) =>
+                a.value.toString().localeCompare(b.value.toString()),
+              ).map((p) => ({
                 value: p.value,
                 label: p.label,
                 textValue: p.textValue,

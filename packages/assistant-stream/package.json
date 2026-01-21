@@ -1,6 +1,6 @@
 {
   "name": "assistant-stream",
-  "version": "0.2.46",
+  "version": "0.2.47",
   "description": "Streaming utilities for AI assistants",
   "keywords": [
     "ai",
@@ -42,13 +42,13 @@
   },
   "dependencies": {
     "@standard-schema/spec": "^1.1.0",
-    "nanoid": "5.1.6",
+    "nanoid": "^5.1.6",
     "secure-json-parse": "^4.1.0"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/json-schema": "^7.0.15",
-    "vitest": "^4.0.16"
+    "vitest": "^4.0.17"
   },
   "publishConfig": {
     "access": "public",

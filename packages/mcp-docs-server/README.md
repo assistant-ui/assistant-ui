@@ -2,8 +2,8 @@
 
 A Model Context Protocol (MCP) server that provides AI assistants with direct access to assistant-ui's documentation and examples.
 
-> **📖 Full Documentation**  
-> For detailed installation instructions, troubleshooting, and advanced usage, visit the [complete documentation](https://www.assistant-ui.com/docs/mcp-docs-server).
+> **📖 Full Documentation**
+> For detailed installation instructions, troubleshooting, and advanced usage, visit the [complete documentation](https://www.assistant-ui.com/docs/llm#mcp).
 
 ## Installation
 
@@ -67,7 +67,7 @@ Add to `~/.codeium/windsurf/mcp_config.json`:
 
 ### VSCode
 
-Add to `~/.vscode/mcp.json` (Windows users: see [full docs](https://www.assistant-ui.com/docs/mcp-docs-server) for Windows-specific config):
+Add to `.vscode/mcp.json` in your project:
 
 ```json
 {

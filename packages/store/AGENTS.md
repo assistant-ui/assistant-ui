@@ -37,7 +37,7 @@ useAssistantEvent(event,cb)  AssistantProvider  AssistantIf  Derived()
 Above plus:
 ```
 tapAssistantClientRef()      tapAssistantEmit()
-tapClientResource(element)   tapClientLookup(map, getElement, deps)
+tapClientResource(element)   tapClientLookup(getElements, deps)
 tapClientList({ initialValues, getKey, resource })
 attachDefaultPeers()         ClientOutput<K>  ClientRegistry
 ```

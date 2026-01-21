@@ -1,0 +1,21 @@
+{
+  "title": "Radix UI Primitives",
+  "pages": [
+    "action-bar",
+    "action-bar-more",
+    "assistant-if",
+    "assistant-modal",
+    "attachment",
+    "branch-picker",
+    "composer",
+    "error",
+    "message",
+    "message-part",
+    "thread",
+    "thread-list",
+    "thread-list-item",
+    "thread-list-item-more",
+    "...",
+    "composition"
+  ]
+}

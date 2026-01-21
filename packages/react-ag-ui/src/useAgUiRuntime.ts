@@ -20,7 +20,7 @@ export function useAgUiRuntime(
   options: UseAgUiRuntimeOptions,
 ): AssistantRuntime {
   const logger = useMemo(() => makeLogger(options.logger), [options.logger]);
-  const [version, setVersion] = useState(0);
+  const [_version, setVersion] = useState(0);
   const notifyUpdate = useCallback(() => setVersion((v) => v + 1), []);
   const coreRef = useRef<AgUiThreadRuntimeCore | null>(null);
   const runtimeAdapters = useRuntimeAdapters();
@@ -29,6 +29,7 @@ export function useAgUiRuntime(
     options.adapters?.attachments ?? runtimeAdapters?.attachments;
   const historyAdapter = options.adapters?.history ?? runtimeAdapters?.history;
   const speechAdapter = options.adapters?.speech;
+  const dictationAdapter = options.adapters?.dictation;
   const feedbackAdapter = options.adapters?.feedback;
 
   if (!coreRef.current) {
@@ -58,13 +59,16 @@ export function useAgUiRuntime(
       {};
     if (attachmentsAdapter) value.attachments = attachmentsAdapter;
     if (speechAdapter) value.speech = speechAdapter;
+    if (dictationAdapter) value.dictation = dictationAdapter;
     if (feedbackAdapter) value.feedback = feedbackAdapter;
     return Object.keys(value).length ? value : undefined;
-  }, [attachmentsAdapter, speechAdapter, feedbackAdapter]);
+  }, [attachmentsAdapter, speechAdapter, dictationAdapter, feedbackAdapter]);
 
   const store = useMemo(
-    () =>
-      ({
+    () => {
+      void _version; // rerender on version change
+
+      return {
         messages: core.getMessages(),
         state: core.getState(),
         isRunning: core.isRunning(),
@@ -82,9 +86,10 @@ export function useAgUiRuntime(
         onLoadExternalState: (state: ReadonlyJSONValue) =>
           core.loadExternalState(state),
         adapters: adapterAdapters,
-      }) satisfies ExternalStoreAdapter<ThreadMessage>,
-    // version is intentionally included to trigger re-computation when core state changes via notifyUpdate
-    [adapterAdapters, core, version],
+      } satisfies ExternalStoreAdapter<ThreadMessage>;
+    },
+    // _version is intentionally included to trigger re-computation when core state changes via notifyUpdate
+    [adapterAdapters, core, _version],
   );
 
   const runtime = useExternalStoreRuntime(store);

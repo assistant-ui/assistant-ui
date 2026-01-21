@@ -1,4 +1,4 @@
-import { resource, tapEffect } from "@assistant-ui/tap";
+import { resource, tapEffect, withKey } from "@assistant-ui/tap";
 import { tapMemo, tapRef, tapResource, tapResources } from "@assistant-ui/tap";
 import { createAssistantApiField } from "../../context/react/AssistantApiContext";
 import type {
@@ -105,6 +105,7 @@ export const DerivedScope = resource(
       getRef.current = config.get;
     });
 
+    // biome-ignore lint/correctness/useExhaustiveDependencies: compare config as JSON string to avoid unnecessary re-renders
     return tapMemo(() => {
       return createAssistantApiField({
         source: config.source,
@@ -144,20 +145,20 @@ export const DerivedScopes = resource(
       callbacksRef.current = { on, subscribe };
     });
 
-    const results = tapResources(
-      scopeFields as Record<string, ReturnType<typeof DerivedScope>>,
-      (scopeElement, fieldName) =>
-        ScopeFieldWithNameResource({
+    const results = tapResources(() =>
+      Object.entries(scopeFields).map(([fieldName, scopeElement]) =>
+        withKey(
           fieldName,
-          scopeElement,
-        }),
-      [],
+          ScopeFieldWithNameResource({
+            fieldName,
+            scopeElement: scopeElement as ReturnType<typeof DerivedScope>,
+          }),
+        ),
+      ),
     );
 
     return tapMemo(() => {
-      const result = Object.fromEntries(
-        Object.values(results),
-      ) as Partial<AssistantApi>;
+      const result = Object.fromEntries(results) as Partial<AssistantApi>;
 
       const { on: onCb, subscribe: subCb } = callbacksRef.current;
 

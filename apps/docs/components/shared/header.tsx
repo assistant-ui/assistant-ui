@@ -3,19 +3,12 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import {
-  Menu,
-  X,
-  Moon,
-  Sun,
-  ExternalLink,
-  ArrowRight,
-  Search,
-} from "lucide-react";
+import { Menu, X, ArrowUpRight, ArrowRight, Search } from "lucide-react";
 import { usePersistentBoolean } from "@/hooks/use-persistent-boolean";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { SearchDialog } from "./search-dialog";
+import { ThemeToggle } from "./theme-toggle";
 import { GitHubIcon } from "@/components/icons/github";
 import { DiscordIcon } from "@/components/icons/discord";
 import {
@@ -23,114 +16,7 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
-
-type DropdownItem = {
-  label: string;
-  href: string;
-  description: string;
-  external: boolean;
-};
-
-type NavItem =
-  | { type: "link"; label: string; href: string }
-  | { type: "dropdown"; label: string; items: DropdownItem[] };
-
-const NAV_ITEMS: NavItem[] = [
-  { type: "link", label: "Docs", href: "/docs/getting-started" },
-  { type: "link", label: "Showcase", href: "/showcase" },
-  { type: "link", label: "Examples", href: "/examples" },
-  {
-    type: "dropdown",
-    label: "Products",
-    items: [
-      {
-        label: "Dashboard",
-        href: "https://cloud.assistant-ui.com/",
-        description: "Manage your cloud projects",
-        external: true,
-      },
-      {
-        label: "Tool UI",
-        href: "https://tool-ui.com/",
-        description: "Build tool UIs for AI agents",
-        external: true,
-      },
-      {
-        label: "tw-shimmer",
-        href: "/tw-shimmer",
-        description: "Tailwind CSS shimmer effects",
-        external: false,
-      },
-      {
-        label: "Safe Content Frame",
-        href: "/safe-content-frame",
-        description: "Secure sandboxed iframes",
-        external: false,
-      },
-      {
-        label: "ChatGPT App Studio",
-        href: "/chatgpt-app-studio",
-        description: "Build ChatGPT apps",
-        external: false,
-      },
-    ],
-  },
-  {
-    type: "dropdown",
-    label: "Resources",
-    items: [
-      {
-        label: "Blog",
-        href: "/blog",
-        description: "Latest news and updates",
-        external: false,
-      },
-      {
-        label: "Careers",
-        href: "/careers",
-        description: "Join our team",
-        external: false,
-      },
-    ],
-  },
-  { type: "link", label: "Pricing", href: "/pricing" },
-];
-
-function ThemeToggle() {
-  const [theme, setTheme] = useState<"light" | "dark">("light");
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-    const isDark = document.documentElement.classList.contains("dark");
-    setTheme(isDark ? "dark" : "light");
-  }, []);
-
-  const toggleTheme = () => {
-    const newTheme = theme === "light" ? "dark" : "light";
-    setTheme(newTheme);
-    document.documentElement.classList.toggle("dark", newTheme === "dark");
-    localStorage.setItem("theme", newTheme);
-  };
-
-  if (!mounted) {
-    return <div className="size-8" />;
-  }
-
-  return (
-    <button
-      onClick={toggleTheme}
-      className="flex size-8 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
-      aria-label="Toggle theme"
-    >
-      {theme === "light" ? (
-        <Moon className="size-4" />
-      ) : (
-        <Sun className="size-4" />
-      )}
-    </button>
-  );
-}
+import { NAV_ITEMS } from "@/lib/constants";
 
 function SearchButton({ onToggle }: { onToggle: () => void }) {
   useEffect(() => {
@@ -158,9 +44,8 @@ function SearchButton({ onToggle }: { onToggle: () => void }) {
 
 function HiringBanner({ onDismiss }: { onDismiss: () => void }) {
   return (
-    <div className="relative">
-      <div className="mx-auto flex h-8 w-full max-w-7xl items-center justify-between px-4">
-        <div className="hidden w-8 sm:block" />
+    <div className="relative flex justify-center">
+      <div className="relative flex items-center gap-3 rounded-full border border-border/50 bg-background/60 px-4 py-1.5 backdrop-blur-md">
         <Link
           href="/careers"
           className="group inline-flex items-center gap-1.5 text-xs"
@@ -172,11 +57,11 @@ function HiringBanner({ onDismiss }: { onDismiss: () => void }) {
         </Link>
         <button
           type="button"
-          aria-label="Dismiss hiring banner"
+          aria-label="Dismiss"
           onClick={onDismiss}
-          className="flex size-8 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+          className="flex size-5 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
-          <X className="size-3.5" />
+          <X className="size-3" />
         </button>
       </div>
     </div>
@@ -200,7 +85,7 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50 w-full">
-      <div className="mask-[linear-gradient(to_bottom,black_50%,transparent)] dark:mask-[linear-gradient(to_bottom,black_40%,transparent)] pointer-events-none absolute inset-x-0 top-0 h-24 bg-linear-to-b from-background via-60% via-background/80 to-transparent backdrop-blur-xl dark:via-50%" />
+      <div className="mask-[linear-gradient(to_bottom,black_50%,transparent)] dark:mask-[linear-gradient(to_bottom,black_40%,transparent)] pointer-events-none absolute inset-x-0 top-0 h-16 bg-linear-to-b from-background via-60% via-background/80 to-transparent backdrop-blur-xl md:h-24 dark:via-50%" />
       <div className="relative mx-auto flex h-12 w-full max-w-7xl items-center justify-between px-4">
         <Link href="/" className="flex items-center gap-2">
           <Image
@@ -216,13 +101,25 @@ export function Header() {
         <nav className="hidden items-center md:flex">
           {NAV_ITEMS.map((item) =>
             item.type === "link" ? (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="px-3 py-1.5 text-muted-foreground text-sm transition-colors hover:text-foreground"
-              >
-                {item.label}
-              </Link>
+              item.href.startsWith("http") ? (
+                <a
+                  key={item.href}
+                  href={item.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3 py-1.5 text-muted-foreground text-sm transition-colors hover:text-foreground"
+                >
+                  {item.label}
+                </a>
+              ) : (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className="px-3 py-1.5 text-muted-foreground text-sm transition-colors hover:text-foreground"
+                >
+                  {item.label}
+                </Link>
+              )
             ) : (
               <HoverCard key={item.label} openDelay={100} closeDelay={100}>
                 <HoverCardTrigger asChild>
@@ -243,7 +140,7 @@ export function Header() {
                         >
                           <span className="flex items-center gap-1.5 text-sm">
                             {link.label}
-                            <ExternalLink className="size-3 opacity-40" />
+                            <ArrowUpRight className="size-3 opacity-40" />
                           </span>
                           <span className="text-muted-foreground text-xs">
                             {link.description}
@@ -318,14 +215,27 @@ export function Header() {
         <nav className="flex h-full flex-col gap-1 overflow-y-auto px-4 pt-4">
           {NAV_ITEMS.map((item) =>
             item.type === "link" ? (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setMobileMenuOpen(false)}
-                className="py-3 text-foreground text-lg transition-colors"
-              >
-                {item.label}
-              </Link>
+              item.href.startsWith("http") ? (
+                <a
+                  key={item.href}
+                  href={item.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="py-3 text-foreground text-lg transition-colors"
+                >
+                  {item.label}
+                </a>
+              ) : (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="py-3 text-foreground text-lg transition-colors"
+                >
+                  {item.label}
+                </Link>
+              )
             ) : (
               <div key={item.label} className="flex flex-col">
                 <span className="py-3 text-muted-foreground text-sm">
@@ -342,7 +252,7 @@ export function Header() {
                       className="flex items-center gap-1.5 py-2 pl-4 text-foreground text-lg transition-colors"
                     >
                       {link.label}
-                      <ExternalLink className="size-3.5 opacity-40" />
+                      <ArrowUpRight className="size-3.5 opacity-40" />
                     </a>
                   ) : (
                     <Link

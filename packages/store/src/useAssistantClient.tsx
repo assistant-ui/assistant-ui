@@ -10,6 +10,7 @@ import {
   tapEffect,
   tapRef,
   tapResource,
+  withKey,
 } from "@assistant-ui/tap";
 import type {
   AssistantClient,
@@ -28,7 +29,7 @@ import {
 import {
   DerivedClients,
   RootClients,
-  splitClients,
+  tapSplitClients,
 } from "./utils/splitClients";
 import {
   normalizeEventSelector,
@@ -59,7 +60,7 @@ const RootClientResource = resource(
       { clientRef, emit },
       () => tapClientResource(element),
     );
-    return tapMemo(() => ({ methods }), [state]);
+    return tapMemo(() => ({ state, methods }), [methods, state]);
   },
 );
 
@@ -68,10 +69,12 @@ const RootClientAccessorResource = resource(
     element,
     notifications,
     clientRef,
+    name,
   }: {
     element: ClientElement<K>;
     notifications: NotificationManager;
     clientRef: { parent: AssistantClient; current: AssistantClient | null };
+    name: K;
   }): AssistantClientAccessor<K> => {
     const store = tapInlineResource(
       StoreResource(
@@ -85,16 +88,32 @@ const RootClientAccessorResource = resource(
 
     return tapMemo(() => {
       const clientFunction = () => store.getState().methods;
-      clientFunction.source = "root" as const;
-      clientFunction.query = {};
-      return clientFunction;
-    }, [store]);
+      Object.defineProperties(clientFunction, {
+        source: {
+          value: "root" as const,
+          writable: false,
+        },
+        query: {
+          value: {} as Record<string, never>,
+          writable: false,
+        },
+        name: {
+          value: name,
+          configurable: true,
+        },
+      });
+      return clientFunction as AssistantClientAccessor<K>;
+    }, [store, name]);
   },
 );
 
 const NoOpRootClientsAccessorsResource = resource(() => {
   return tapMemo(
-    () => ({ clients: {}, subscribe: undefined, on: undefined }),
+    () => ({
+      clients: [] as AssistantClientAccessor<ClientNames>[],
+      subscribe: undefined,
+      on: undefined,
+    }),
     [],
   );
 });
@@ -115,14 +134,19 @@ const RootClientsAccessorsResource = resource(
     );
 
     const results = tapResources(
-      inputClients,
-      (element) =>
-        RootClientAccessorResource({
-          element: element!,
-          notifications,
-          clientRef,
-        }),
-      [notifications, clientRef],
+      () =>
+        Object.keys(inputClients).map((key) =>
+          withKey(
+            key,
+            RootClientAccessorResource({
+              element: inputClients[key as keyof typeof inputClients]!,
+              notifications,
+              clientRef,
+              name: key as keyof typeof inputClients,
+            }),
+          ),
+        ),
+      [inputClients, notifications, clientRef],
     );
 
     return tapMemo(() => {
@@ -203,9 +227,11 @@ const DerivedClientAccessorResource = resource(
   <K extends ClientNames>({
     element,
     clientRef,
+    name,
   }: {
     element: DerivedElement<K>;
     clientRef: { parent: AssistantClient; current: AssistantClient | null };
+    name: K;
   }) => {
     const get = tapEffectEvent(() => element.props);
 
@@ -219,9 +245,13 @@ const DerivedClientAccessorResource = resource(
         query: {
           get: () => getMeta(get(), clientRef, metaMemo).query,
         },
+        name: {
+          value: name,
+          configurable: true,
+        },
       });
-      return clientFunction;
-    }, [clientRef]);
+      return clientFunction as AssistantClientAccessor<K>;
+    }, [clientRef, name]);
   },
 );
 
@@ -234,13 +264,18 @@ const DerivedClientsAccessorsResource = resource(
     clientRef: { parent: AssistantClient; current: AssistantClient | null };
   }) => {
     return tapResources(
-      clients,
-      (element) =>
-        DerivedClientAccessorResource({
-          element: element!,
-          clientRef,
-        }),
-      [clientRef],
+      () =>
+        Object.keys(clients).map((key) =>
+          withKey(
+            key,
+            DerivedClientAccessorResource({
+              element: clients[key as keyof typeof clients]!,
+              clientRef,
+              name: key as keyof typeof clients,
+            }),
+          ),
+        ),
+      [clients, clientRef],
     );
   },
 );
@@ -250,18 +285,25 @@ const DerivedClientsAccessorsResource = resource(
  */
 export const AssistantClientResource = resource(
   ({
-    baseClient,
+    parent,
     clients,
   }: {
-    baseClient: AssistantClient;
+    parent: AssistantClient;
     clients: useAssistantClient.Props;
   }): AssistantClient => {
-    const { rootClients, derivedClients } = splitClients(clients, baseClient);
+    const { rootClients, derivedClients } = tapSplitClients(clients, parent);
 
     const clientRef = tapRef({
-      parent: baseClient,
+      parent: parent,
       current: null as AssistantClient | null,
     }).current;
+
+    tapEffect(() => {
+      // if (clientRef.current && clientRef.current !== client)
+      //   throw new Error("clientRef.current !== client");
+
+      clientRef.current = client;
+    });
 
     const rootFields = tapResource(
       Object.keys(rootClients).length > 0
@@ -276,25 +318,30 @@ export const AssistantClientResource = resource(
     const client = tapMemo(() => {
       // Swap DefaultAssistantClient -> createRootAssistantClient at root to change error message
       const proto =
-        baseClient === DefaultAssistantClient
+        parent === DefaultAssistantClient
           ? createRootAssistantClient()
-          : baseClient;
+          : parent;
+
       const client = Object.create(proto) as AssistantClient;
-      Object.assign(client, rootFields.clients, derivedFields, {
-        subscribe: rootFields.subscribe ?? baseClient.subscribe,
-        on: rootFields.on ?? baseClient.on,
+      Object.assign(client, {
+        subscribe: rootFields.subscribe ?? parent.subscribe,
+        on: rootFields.on ?? parent.on,
         [PROXIED_ASSISTANT_STATE_SYMBOL]: createProxiedAssistantState(client),
       });
+
+      for (const field of rootFields.clients) {
+        (client as any)[field.name] = field;
+      }
+      for (const field of derivedFields) {
+        (client as any)[field.name] = field;
+      }
+
       return client;
-    }, [baseClient, rootFields, derivedFields]);
+    }, [parent, rootFields, derivedFields]);
 
     if (clientRef.current === null) {
       clientRef.current = client;
     }
-
-    tapEffect(() => {
-      clientRef.current = client;
-    });
 
     return client;
   },
@@ -313,9 +360,9 @@ export function useAssistantClient(
 export function useAssistantClient(
   clients?: useAssistantClient.Props,
 ): AssistantClient {
-  const baseClient = useAssistantContextValue();
+  const parent = useAssistantContextValue();
   if (clients) {
-    return useResource(AssistantClientResource({ baseClient, clients }));
+    return useResource(AssistantClientResource({ parent: parent, clients }));
   }
-  return baseClient;
+  return parent;
 }

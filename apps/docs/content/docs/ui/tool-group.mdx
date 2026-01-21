@@ -1,0 +1,214 @@
+---
+title: ToolGroup
+description: Wrapper for consecutive tool calls with collapsible and styled options.
+---
+
+import { InstallCommand } from "@/components/docs/fumadocs/install/install-command";
+import { ParametersTable } from "@/components/docs/tables/ParametersTable";
+import {
+  ToolGroupSample,
+  ToolGroupStreamingSample,
+} from "@/components/docs/samples/tool-group";
+
+A wrapper component that groups consecutive tool calls together, displaying them in a collapsible container with auto-expand behavior during streaming.
+
+<ToolGroupSample />
+
+## Getting Started
+
+<Steps>
+  <Step>
+
+### Add `tool-group`
+
+<InstallCommand shadcn={["tool-group"]} />
+
+This adds a `/components/assistant-ui/tool-group.tsx` file to your project, which you can adjust as needed.
+
+  </Step>
+  <Step>
+
+### Use it in your application
+
+Pass the `ToolGroup` component to the `MessagePrimitive.Parts` component
+
+```tsx title="/components/assistant-ui/thread.tsx" {1,8}
+import { ToolGroup } from "@/components/assistant-ui/tool-group";
+
+const AssistantMessage = () => {
+  return (
+    <MessagePrimitive.Root>
+      <MessagePrimitive.Parts
+        components={{
+          ToolGroup,
+        }}
+      />
+    </MessagePrimitive.Root>
+  );
+};
+```
+
+  </Step>
+</Steps>
+
+## Variants
+
+Use the `variant` prop on `ToolGroup.Root` to change the visual style:
+
+```tsx
+<ToolGroup.Root variant="outline">...</ToolGroup.Root>
+<ToolGroup.Root variant="muted">...</ToolGroup.Root>
+```
+
+| Variant   | Description                        |
+| --------- | ---------------------------------- |
+| `default` | No additional styling              |
+| `outline` | Rounded border                     |
+| `muted`   | Muted background with border       |
+
+## Examples
+
+### Streaming Demo (Custom UI + Fallback)
+
+Interactive demo showing tool group with **custom tool UIs** and **ToolFallback** working together. Watch as weather cards stream in with loading states, followed by a search tool using the fallback UI.
+
+<ToolGroupStreamingSample />
+
+### Custom Tool UIs
+
+ToolGroup works with any custom tool UI components:
+
+```tsx
+// Custom Weather Tool UI
+function WeatherToolUI({ location, temperature, condition }) {
+  return (
+    <div className="flex items-center gap-3 rounded-lg border p-3">
+      <WeatherIcon condition={condition} />
+      <div>
+        <div className="text-xs text-muted-foreground">{location}</div>
+        <div className="text-lg font-medium">{temperature}°F</div>
+      </div>
+    </div>
+  );
+}
+
+// Use in ToolGroup
+<ToolGroupRoot variant="outline">
+  <ToolGroupTrigger count={3} />
+  <ToolGroupContent>
+    <WeatherToolUI location="New York" temperature={65} condition="Cloudy" />
+    <WeatherToolUI location="London" temperature={55} condition="Rainy" />
+    <SearchToolUI query="best restaurants" results={24} />
+  </ToolGroupContent>
+</ToolGroupRoot>
+```
+
+## Composable API
+
+All sub-components are exported for custom layouts:
+
+| Component | Description |
+| --------- | ----------- |
+| `ToolGroup.Root` | Collapsible container with scroll lock and variants |
+| `ToolGroup.Trigger` | Header with tool count, shimmer animation, and chevron |
+| `ToolGroup.Content` | Animated collapsible content wrapper |
+
+```tsx
+import {
+  ToolGroup,
+  ToolGroupRoot,
+  ToolGroupTrigger,
+  ToolGroupContent,
+} from "@/components/assistant-ui/tool-group";
+
+// Compound component syntax
+<ToolGroup.Root variant="outline" defaultOpen>
+  <ToolGroup.Trigger count={3} active={false} />
+  <ToolGroup.Content>
+    {/* Any tool UI components - custom or ToolFallback */}
+  </ToolGroup.Content>
+</ToolGroup.Root>
+```
+
+## API Reference
+
+### ToolGroupRoot
+
+<ParametersTable
+  type="ToolGroupRootProps"
+  parameters={[
+    {
+      name: "variant",
+      type: '"default" | "outline" | "muted"',
+      default: '"default"',
+      description: "Visual variant of the tool group container.",
+    },
+    {
+      name: "open",
+      type: "boolean",
+      description: "Controlled open state.",
+    },
+    {
+      name: "onOpenChange",
+      type: "(open: boolean) => void",
+      description: "Callback when open state changes.",
+    },
+    {
+      name: "defaultOpen",
+      type: "boolean",
+      default: "false",
+      description: "Initial open state for uncontrolled usage.",
+    },
+  ]}
+/>
+
+### ToolGroupTrigger
+
+<ParametersTable
+  type="ToolGroupTriggerProps"
+  parameters={[
+    {
+      name: "count",
+      type: "number",
+      required: true,
+      description: "Number of tool calls to display in the label.",
+    },
+    {
+      name: "active",
+      type: "boolean",
+      default: "false",
+      description: "Shows loading spinner and shimmer animation when true.",
+    },
+  ]}
+/>
+
+### ToolGroup (Default Export)
+
+<ParametersTable
+  type="ToolGroupProps"
+  parameters={[
+    {
+      name: "startIndex",
+      type: "number",
+      required: true,
+      description: "The index of the first tool call in the group.",
+    },
+    {
+      name: "endIndex",
+      type: "number",
+      required: true,
+      description: "The index of the last tool call in the group.",
+    },
+    {
+      name: "children",
+      type: "ReactNode",
+      required: true,
+      description: "The rendered tool call components.",
+    },
+  ]}
+/>
+
+## Related Components
+
+- [ToolFallback](/docs/ui/tool-fallback) - Default UI for tools without custom renderers
+- [PartGrouping](/docs/ui/part-grouping) - Advanced message part grouping (experimental)

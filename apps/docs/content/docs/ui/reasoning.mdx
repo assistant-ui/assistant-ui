@@ -1,0 +1,148 @@
+---
+title: Reasoning
+description: Collapsible UI for displaying AI reasoning and thinking messages.
+---
+
+import { InstallCommand } from "@/components/docs/fumadocs/install/install-command";
+import { ReasoningSample, ReasoningGroupSample } from "@/components/docs/samples/reasoning";
+
+<ReasoningSample />
+
+## Getting Started
+
+<Steps>
+  <Step>
+
+### Add `reasoning`
+
+<InstallCommand shadcn={["reasoning"]} />
+
+This adds a `/components/assistant-ui/reasoning.tsx` file to your project.
+
+  </Step>
+  <Step>
+
+### Use in your application
+
+Pass the `Reasoning` and `ReasoningGroup` components to the `MessagePrimitive.Parts` component:
+
+```tsx title="/app/components/assistant-ui/thread.tsx" {2,10-11}
+import { MessagePrimitive } from "@assistant-ui/react";
+import { Reasoning, ReasoningGroup } from "@/components/assistant-ui/reasoning";
+
+const AssistantMessage: FC = () => {
+  return (
+    <MessagePrimitive.Root className="...">
+      <div className="...">
+        <MessagePrimitive.Parts
+          components={{
+            Reasoning: Reasoning,
+            ReasoningGroup: ReasoningGroup
+          }}
+        />
+      </div>
+      <AssistantActionBar />
+      <BranchPicker className="..." />
+    </MessagePrimitive.Root>
+  );
+};
+```
+
+  </Step>
+</Steps>
+
+## How It Works
+
+The component consists of two parts:
+
+1. **Reasoning**: Renders individual reasoning message part content (with markdown support)
+2. **ReasoningGroup**: Wraps consecutive reasoning parts in a collapsible container
+
+Consecutive reasoning parts are automatically grouped together by the `ReasoningGroup` component.
+
+> When using the composable API, `Reasoning.Text` is a plain container. Add `<MarkdownText />` for markdown rendering.
+
+## Variants
+
+Use the `variant` prop on `Reasoning.Root` to change the visual style:
+
+```tsx
+<Reasoning.Root variant="outline">...</Reasoning.Root>
+<Reasoning.Root variant="muted">...</Reasoning.Root>
+```
+
+| Variant   | Description                        |
+| --------- | ---------------------------------- |
+| `default` | No additional styling              |
+| `muted`   | Muted background                   |
+| `outline` | Rounded border                     |
+
+## ReasoningGroup
+
+`ReasoningGroup` wraps consecutive reasoning parts in a collapsible container. It auto-expands during streaming.
+
+<ReasoningGroupSample />
+
+```tsx
+import { ReasoningGroup } from "@/components/assistant-ui/reasoning";
+
+const ReasoningGroupImpl: ReasoningGroupComponent = ({
+  children,
+  startIndex,
+  endIndex,
+}) => {
+  const isReasoningStreaming = useAssistantState(({ message }) => {
+    if (message.status?.type !== "running") return false;
+    const lastIndex = message.parts.length - 1;
+    if (lastIndex < 0) return false;
+    const lastType = message.parts[lastIndex]?.type;
+    if (lastType !== "reasoning") return false;
+    return lastIndex >= startIndex && lastIndex <= endIndex;
+  });
+
+  return (
+    <ReasoningRoot defaultOpen={isReasoningStreaming}>
+      <ReasoningTrigger active={isReasoningStreaming} />
+      <ReasoningContent aria-busy={isReasoningStreaming}>
+        <ReasoningText>{children}</ReasoningText>
+      </ReasoningContent>
+    </ReasoningRoot>
+  );
+};
+```
+
+## Composable API
+
+All sub-components are exported for custom layouts:
+
+| Component             | Description                                |
+| --------------------- | ------------------------------------------ |
+| `Reasoning.Root`      | Collapsible container with scroll lock     |
+| `Reasoning.Trigger`   | Button with icon, label, and shimmer       |
+| `Reasoning.Content`   | Animated collapsible content wrapper       |
+| `Reasoning.Text`      | Text wrapper with slide/fade animation     |
+| `Reasoning.Fade`      | Gradient fade overlay at bottom            |
+
+```tsx
+import {
+  Reasoning,
+  ReasoningRoot,
+  ReasoningTrigger,
+  ReasoningContent,
+  ReasoningText,
+  ReasoningFade,
+} from "@/components/assistant-ui/reasoning";
+
+// Compound component syntax
+<Reasoning.Root variant="muted">
+  <Reasoning.Trigger active={isStreaming} />
+  <Reasoning.Content>
+    <Reasoning.Text>{children}</Reasoning.Text>
+  </Reasoning.Content>
+</Reasoning.Root>
+```
+
+## Related Components
+
+- [ToolGroup](/docs/ui/tool-group) - Similar grouping pattern for tool calls
+- [PartGrouping](/docs/ui/part-grouping) - Experimental API for grouping message parts

@@ -1,0 +1,60 @@
+---
+title: Message Branching
+description: Navigate between different conversation branches when editing or reloading messages.
+---
+
+import { BranchingSample } from "@/components/docs/samples/branching";
+
+Switch between different conversation branches.
+
+<BranchingSample />
+
+A new branch is created when:
+
+- a user message is edited
+- an assistant message is reloaded
+
+Branches are automatically tracked by assistant-ui by observing changes to the `messages` array.
+
+## Enabling branch support
+
+You can show a branch picker by using `BranchPickerPrimitive`.
+
+```tsx {1, 8, 15-30}
+import { BranchPickerPrimitive } from "@assistant-ui/react";
+
+
+const Message = () => {
+  return (
+    <MessagePrimitive.Root>
+      ...
+      <BranchPicker /> {/* <-- show the branch picker */}
+      ...
+    </EditComposerPrimitive.Root>
+  );
+};
+
+
+const BranchPicker = () => {
+  return (
+    <BranchPickerPrimitive.Root hideWhenSingleBranch>
+      <BranchPickerPrimitive.Previous />
+      <BranchPickerPrimitive.Number /> / <BranchPickerPrimitive.Count />
+      <BranchPickerPrimitive.Next />
+    </BranchPickerPrimitive.Root>
+  );
+};
+```
+
+## API
+
+You can access the current branch state or navigate via the API as well.  
+These APIs rely on the message state and may only be called inside a message component.
+
+```tsx
+const hasBranches = useMessageIf({ hasBranches: true }); // whether branchCount is >= 2
+
+// navigation
+const goToNextBranch = useGoToNextBranch(); // null if there is no next branch
+const goToPreviousBranch = useGoToPreviousBranch(); // null if there is no previous branch
+```

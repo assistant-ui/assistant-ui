@@ -1,0 +1,42 @@
+---
+title: Text-to-Speech (Speech Synthesis)
+description: Read messages aloud with Web Speech API or custom TTS.
+---
+
+import { SpeechSample } from "@/components/docs/samples/speech";
+
+assistant-ui supports text-to-speech via the `SpeechSynthesisAdapter` interface.
+
+<SpeechSample />
+
+## SpeechSynthesisAdapter
+
+Currently, the following speech synthesis adapters are supported:
+
+- `WebSpeechSynthesisAdapter`: Uses the browser's `Web Speech API`
+
+Support for other speech synthesis adapters is planned for the future.
+
+Passing a `SpeechSynthesisAdapter` to the runtime will enable text-to-speech support.
+
+## UI
+
+By default, a `Read aloud` button will be shown in the assistant message action bar.
+
+This is implemented using `AssistantActionBar.SpeechControl` which is a wrapper around `AssistantActionBar.Speak` and `AssistantActionBar.StopSpeaking`.
+The underlying primitives are `ActionBarPrimitive.Speak` and `ActionBarPrimitive.StopSpeaking`.
+
+## Example
+
+The following example uses the `WebSpeechSynthesisAdapter`.
+
+```tsx
+import { WebSpeechSynthesisAdapter } from "@assistant-ui/react";
+
+const runtime = useChatRuntime({
+  api: "/api/chat",
+  adapters: {
+    speech: new WebSpeechSynthesisAdapter(),
+  },
+});
+```

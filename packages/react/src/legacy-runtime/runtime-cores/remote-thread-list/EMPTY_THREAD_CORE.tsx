@@ -1,4 +1,4 @@
-import { ThreadRuntimeCore } from "../../../internal";
+import type { ThreadRuntimeCore } from "../../../internal";
 
 const EMPTY_THREAD_ERROR = new Error(
   "This is the empty thread, a placeholder for the main thread. You cannot perform any actions on this thread instance. This error is probably because you tried to call a thread method in your render function. Call the method inside a `useEffect` hook instead.",
@@ -111,6 +111,16 @@ export const EMPTY_THREAD_CORE: ThreadRuntimeCore = {
       // noop
     },
 
+    dictation: undefined,
+
+    startDictation() {
+      throw EMPTY_THREAD_ERROR;
+    },
+
+    stopDictation() {
+      // noop
+    },
+
     subscribe() {
       return () => {};
     },
@@ -138,6 +148,7 @@ export const EMPTY_THREAD_CORE: ThreadRuntimeCore = {
     cancel: false,
     unstable_copy: false,
     speech: false,
+    dictation: false,
     attachments: false,
     feedback: false,
   },

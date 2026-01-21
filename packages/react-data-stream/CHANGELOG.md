@@ -1,5 +1,33 @@
 # @assistant-ui/react-data-stream
 
+## 0.12.0
+
+### Minor Changes
+
+- 6fd744a: Upgrade to Vercel AI SDK v6
+  - Updated peer dependencies: `ai@^6.0.0`, `@ai-sdk/react@^3.0.0`
+  - Renamed format adapter from `aiSDKV5FormatAdapter` to `aiSDKV6FormatAdapter`
+  - Updated `@ai-sdk/provider` to use LanguageModelV2 types
+
+### Patch Changes
+
+- 3719567: chore: update deps
+- Updated dependencies [3719567]
+  - assistant-stream@0.2.47
+  - @assistant-ui/react@0.11.58
+
+## 0.11.14
+
+### Patch Changes
+
+- 4b63488: Allow async function for `body` in runtime options
+- Updated dependencies [ab2259d]
+- Updated dependencies [699e585]
+- Updated dependencies [4b63488]
+- Updated dependencies [aee8561]
+- Updated dependencies [dbfdb11]
+  - @assistant-ui/react@0.11.54
+
 ## 0.11.13
 
 ### Patch Changes

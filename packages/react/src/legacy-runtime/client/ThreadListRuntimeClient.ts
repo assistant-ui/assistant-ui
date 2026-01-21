@@ -1,5 +1,10 @@
 import { tapApi } from "../../utils/tap-store";
-import { resource, tapInlineResource, tapMemo } from "@assistant-ui/tap";
+import {
+  resource,
+  tapInlineResource,
+  tapMemo,
+  withKey,
+} from "@assistant-ui/tap";
 import { ThreadListRuntime } from "../runtime/ThreadListRuntime";
 import { tapSubscribable } from "../util-hooks/tapSubscribable";
 import { ThreadListItemClient } from "./ThreadListItemRuntimeClient";
@@ -42,10 +47,9 @@ export const ThreadListClient = resource(
     );
 
     const threadItems = tapLookupResources(
-      Object.keys(runtimeState.threadItems).map((id) => [
-        id,
-        ThreadListItemClientById({ runtime, id }),
-      ]),
+      Object.keys(runtimeState.threadItems).map((id) =>
+        withKey(id, ThreadListItemClientById({ runtime, id })),
+      ),
     );
 
     const state = tapMemo<ThreadListClientState>(() => {

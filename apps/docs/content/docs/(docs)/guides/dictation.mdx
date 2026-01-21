@@ -1,0 +1,370 @@
+---
+title: Speech-to-Text (Dictation)
+---
+
+import { DictationSample } from "@/components/docs/samples/dictation";
+
+assistant-ui supports speech-to-text (dictation) via the `DictationAdapter` interface. This allows users to input messages using their voice.
+
+<DictationSample />
+
+## DictationAdapter
+
+Currently, the following dictation adapters are supported:
+
+- `WebSpeechDictationAdapter`: Uses the browser's `Web Speech API` (SpeechRecognition)
+
+The `WebSpeechDictationAdapter` is supported in Chrome, Edge, and Safari. Check [browser compatibility](https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognition#browser_compatibility) for details.
+
+## Configuration
+
+```tsx
+import { WebSpeechDictationAdapter } from "@assistant-ui/react";
+
+const runtime = useChatRuntime({
+  api: "/api/chat",
+  adapters: {
+    dictation: new WebSpeechDictationAdapter({
+      // Optional configuration
+      language: "en-US",         // Language for recognition (default: browser language)
+      continuous: true,          // Keep recording after user stops (default: true)
+      interimResults: true,      // Return interim results (default: true)
+    }),
+  },
+});
+```
+
+## UI
+
+The dictation feature uses `ComposerPrimitive.Dictate` and `ComposerPrimitive.StopDictation` components.
+
+```tsx
+import { ComposerPrimitive } from "@assistant-ui/react";
+import { MicIcon, SquareIcon } from "lucide-react";
+
+const ComposerWithDictation = () => (
+  <ComposerPrimitive.Root>
+    <ComposerPrimitive.Input />
+
+    {/* Show Dictate button when not dictating */}
+    <ComposerPrimitive.If dictation={false}>
+      <ComposerPrimitive.Dictate>
+        <MicIcon />
+      </ComposerPrimitive.Dictate>
+    </ComposerPrimitive.If>
+
+    {/* Show Stop button when dictating */}
+    <ComposerPrimitive.If dictation>
+      <ComposerPrimitive.StopDictation>
+        <SquareIcon className="animate-pulse" />
+      </ComposerPrimitive.StopDictation>
+    </ComposerPrimitive.If>
+
+    <ComposerPrimitive.Send />
+  </ComposerPrimitive.Root>
+);
+```
+
+## Browser Compatibility Check
+
+You can check if the browser supports dictation:
+
+```tsx
+import { WebSpeechDictationAdapter } from "@assistant-ui/react";
+
+if (WebSpeechDictationAdapter.isSupported()) {
+  // Dictation is available
+}
+```
+
+## Disabling Input During Dictation
+
+Some dictation services (like ElevenLabs Scribe) return cumulative transcripts that conflict with simultaneous typing. You can disable the text input during dictation:
+
+```tsx
+import type { DictationAdapter } from "@assistant-ui/react";
+
+class MyAdapter implements DictationAdapter {
+  // Set to true to disable typing while dictating
+  disableInputDuringDictation = true;
+
+  listen() { /* ... */ }
+}
+```
+
+<Callout type="info">
+  When a message is sent during an active dictation session, the session is automatically stopped.
+</Callout>
+
+## Custom Adapters
+
+You can create custom adapters to integrate with any dictation service by implementing the `DictationAdapter` interface.
+
+### DictationAdapter Interface
+
+```tsx
+import type { DictationAdapter } from "@assistant-ui/react";
+
+class MyCustomDictationAdapter implements DictationAdapter {
+  // Optional: disable text input while dictating (default: false)
+  disableInputDuringDictation?: boolean;
+
+  listen(): DictationAdapter.Session {
+    // Return a session object that manages the dictation
+    return {
+      status: { type: "starting" },
+
+      stop: async () => {
+        // Stop recognition and finalize results
+      },
+
+      cancel: () => {
+        // Cancel recognition without finalizing
+      },
+
+      onSpeechStart: (callback) => {
+        // Called when speech is detected
+        return () => {}; // Return unsubscribe function
+      },
+
+      onSpeechEnd: (callback) => {
+        // Called when recognition ends with final result
+        return () => {};
+      },
+
+      onSpeech: (callback) => {
+        // Called with transcription results
+        // callback({ transcript: "text", isFinal: true })
+        //
+        // isFinal: true  → Append to composer input (default)
+        // isFinal: false → Show as preview only
+        return () => {};
+      },
+    };
+  }
+}
+```
+
+### Interim vs Final Results
+
+The `onSpeech` callback receives results with an optional `isFinal` flag:
+
+```tsx
+onSpeech: (callback) => {
+  // callback({ transcript: "text", isFinal: true })
+  // - isFinal: true  → Text is committed to the input
+  // - isFinal: false → Text is shown as preview in the input
+  return () => {};
+},
+```
+
+**Both interim and final results are displayed directly in the input field**, just like native dictation on iOS/Android. Interim results replace each other until a final result commits the text. This provides seamless real-time feedback while the user speaks.
+
+### Example: ElevenLabs Scribe v2 Realtime
+
+[ElevenLabs Scribe](https://elevenlabs.io/docs/capabilities/speech-to-text) provides ultra-low latency (~150ms) real-time transcription via WebSocket.
+
+#### Install Dependencies
+
+```bash
+npm install @elevenlabs/client
+```
+
+#### Backend API Route
+
+Create an API route to generate single-use tokens:
+
+```ts title="app/api/scribe-token/route.ts"
+export async function POST() {
+  const response = await fetch(
+    "https://api.elevenlabs.io/v1/single-use-token/realtime_scribe",
+    {
+      method: "POST",
+      headers: {
+        "xi-api-key": process.env.ELEVENLABS_API_KEY!,
+      },
+    }
+  );
+
+  const data = await response.json();
+  return Response.json({ token: data.token });
+}
+```
+
+#### Frontend Adapter
+
+```tsx title="lib/elevenlabs-scribe-adapter.ts"
+import type { DictationAdapter } from "@assistant-ui/react";
+import { Scribe, RealtimeEvents } from "@elevenlabs/client";
+
+export class ElevenLabsScribeAdapter implements DictationAdapter {
+  private tokenEndpoint: string;
+  private languageCode: string;
+
+  // ElevenLabs returns cumulative transcripts, so we disable typing during dictation
+  public disableInputDuringDictation: boolean;
+
+  constructor(options: {
+    tokenEndpoint: string;
+    languageCode?: string;
+    disableInputDuringDictation?: boolean;
+  }) {
+    this.tokenEndpoint = options.tokenEndpoint;
+    this.languageCode = options.languageCode ?? "en";
+    this.disableInputDuringDictation = options.disableInputDuringDictation ?? true;
+  }
+
+  listen(): DictationAdapter.Session {
+    const callbacks = {
+      start: new Set<() => void>(),
+      end: new Set<(r: DictationAdapter.Result) => void>(),
+      speech: new Set<(r: DictationAdapter.Result) => void>(),
+    };
+
+    let connection: ReturnType<typeof Scribe.connect> | null = null;
+    let fullTranscript = "";
+
+    const session: DictationAdapter.Session = {
+      status: { type: "starting" },
+
+      stop: async () => {
+        if (connection) {
+          connection.commit();
+          await new Promise((r) => setTimeout(r, 500));
+          connection.close();
+        }
+        if (fullTranscript) {
+          for (const cb of callbacks.end) cb({ transcript: fullTranscript });
+        }
+      },
+
+      cancel: () => {
+        connection?.close();
+      },
+
+      onSpeechStart: (cb) => {
+        callbacks.start.add(cb);
+        return () => callbacks.start.delete(cb);
+      },
+
+      onSpeechEnd: (cb) => {
+        callbacks.end.add(cb);
+        return () => callbacks.end.delete(cb);
+      },
+
+      onSpeech: (cb) => {
+        callbacks.speech.add(cb);
+        return () => callbacks.speech.delete(cb);
+      },
+    };
+
+    this.connect(session, callbacks, {
+      setConnection: (c) => { connection = c; },
+      getFullTranscript: () => fullTranscript,
+      setFullTranscript: (t) => { fullTranscript = t; },
+    });
+
+    return session;
+  }
+
+  private async connect(
+    session: DictationAdapter.Session,
+    callbacks: {
+      start: Set<() => void>;
+      end: Set<(r: DictationAdapter.Result) => void>;
+      speech: Set<(r: DictationAdapter.Result) => void>;
+    },
+    refs: {
+      setConnection: (c: ReturnType<typeof Scribe.connect>) => void;
+      getFullTranscript: () => string;
+      setFullTranscript: (t: string) => void;
+    }
+  ) {
+    try {
+      // 1. Get token from backend
+      const tokenRes = await fetch(this.tokenEndpoint, { method: "POST" });
+      const { token } = await tokenRes.json();
+
+      // 2. Connect to Scribe with microphone
+      const connection = Scribe.connect({
+        token,
+        modelId: "scribe_v2_realtime",
+        languageCode: this.languageCode,
+        microphone: {
+          echoCancellation: true,
+          noiseSuppression: true,
+        },
+      });
+      refs.setConnection(connection);
+
+      // 3. Handle events
+      connection.on(RealtimeEvents.SESSION_STARTED, () => {
+        (session as { status: DictationAdapter.Status }).status = {
+          type: "running",
+        };
+        for (const cb of callbacks.start) cb();
+      });
+
+      // Partial transcripts → preview (isFinal: false)
+      connection.on(RealtimeEvents.PARTIAL_TRANSCRIPT, (data) => {
+        if (data.text) {
+          for (const cb of callbacks.speech)
+            cb({ transcript: data.text, isFinal: false });
+        }
+      });
+
+      // Committed transcripts → append to input (isFinal: true)
+      connection.on(RealtimeEvents.COMMITTED_TRANSCRIPT, (data) => {
+        if (data.text?.trim()) {
+          refs.setFullTranscript(refs.getFullTranscript() + data.text + " ");
+          for (const cb of callbacks.speech)
+            cb({ transcript: data.text, isFinal: true });
+        }
+      });
+
+      connection.on(RealtimeEvents.ERROR, (error) => {
+        console.error("Scribe error:", error);
+        (session as { status: DictationAdapter.Status }).status = {
+          type: "ended",
+          reason: "error",
+        };
+      });
+
+    } catch (error) {
+      console.error("ElevenLabs Scribe connection failed:", error);
+      (session as { status: DictationAdapter.Status }).status = {
+        type: "ended",
+        reason: "error",
+      };
+    }
+  }
+}
+```
+
+#### Usage
+
+```tsx
+const runtime = useChatRuntime({
+  api: "/api/chat",
+  adapters: {
+    dictation: new ElevenLabsScribeAdapter({
+      tokenEndpoint: "/api/scribe-token",
+      languageCode: "en", // Optional: supports 90+ languages
+      disableInputDuringDictation: true, // Default: true (recommended for ElevenLabs)
+    }),
+  },
+});
+```
+
+#### Real-time Preview
+
+The transcription is displayed directly in the input field as the user speaks — just like native dictation. No additional UI components are needed for basic use cases.
+
+<Callout type="info">
+  For advanced customization, `composer.dictation?.transcript` contains the current interim transcript, and `ComposerPrimitive.DictationTranscript` can display it separately if desired.
+</Callout>
+
+<Callout type="info">
+  For more details, see the [ElevenLabs Scribe documentation](https://elevenlabs.io/docs/capabilities/speech-to-text).
+</Callout>
+

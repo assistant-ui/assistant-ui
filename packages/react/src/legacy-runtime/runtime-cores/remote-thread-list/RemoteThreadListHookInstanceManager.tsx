@@ -103,15 +103,25 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
       return threadBinding.outerSubscribe(updateRuntime);
     }, [threadBinding, updateRuntime]);
 
-    // auto initialize thread
     const api = useAssistantApi();
+    const initPromiseRef = useRef<Promise<unknown> | undefined>(undefined);
+
+    useEffect(() => {
+      const runtimeCore = threadBinding.getState();
+      const setGetInitializePromise = (runtimeCore as Record<string, unknown>)[
+        "__internal_setGetInitializePromise"
+      ];
+      if (typeof setGetInitializePromise === "function") {
+        setGetInitializePromise(() => initPromiseRef.current);
+      }
+    }, [threadBinding]);
+
     useEffect(() => {
       return runtime.threads.main.unstable_on("initialize", () => {
         const state = api.threadListItem().getState();
         if (state.status === "new") {
-          api.threadListItem().initialize();
+          initPromiseRef.current = api.threadListItem().initialize();
 
-          // auto generate a title after first run
           const dispose = runtime.thread.unstable_on("run-end", () => {
             dispose();
 

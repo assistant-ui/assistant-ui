@@ -3,9 +3,7 @@ title: Data Stream Protocol
 description: Integration with data stream protocol endpoints for streaming AI responses.
 ---
 
-import { Step, Steps } from "fumadocs-ui/components/steps";
-import { Callout } from "fumadocs-ui/components/callout";
-import { InstallCommand } from "@/components/docs/install-command";
+import { InstallCommand } from "@/components/docs/fumadocs/install/install-command";
 
 The `@assistant-ui/react-data-stream` package provides integration with data stream protocol endpoints, enabling streaming AI responses with tool support and state management.
 
@@ -64,7 +62,7 @@ Your backend endpoint should accept POST requests and return data stream respons
 import { createAssistantStreamResponse } from "assistant-stream";
 
 export async function POST(request: Request) {
-  const { messages, tools, system } = await request.json();
+  const { messages, tools, system, threadId } = await request.json();
 
   return createAssistantStreamResponse(async (controller) => {
     // Process the request with your AI provider
@@ -81,6 +79,12 @@ export async function POST(request: Request) {
   });
 }
 ```
+
+The request body includes:
+- `messages` - The conversation history
+- `tools` - Available tool definitions
+- `system` - System prompt (if configured)
+- `threadId` - The current thread/conversation identifier
 
 </Step>
 

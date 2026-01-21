@@ -1,5 +1,25 @@
 # @assistant-ui/react-ag-ui
 
+## 0.0.9
+
+### Patch Changes
+
+- 3719567: chore: update deps
+- Updated dependencies [3719567]
+  - assistant-stream@0.2.47
+  - @assistant-ui/react@0.11.58
+
+## 0.0.8
+
+### Patch Changes
+
+- bb1b4c2: fix(react-ag-ui): add missing DictationAdapter to UseAgUiRuntimeAdapters
+- Updated dependencies [ebd41c7]
+- Updated dependencies [9a110ea]
+- Updated dependencies [caee095]
+- Updated dependencies [9883125]
+  - @assistant-ui/react@0.11.57
+
 ## 0.0.7
 
 ### Patch Changes

@@ -103,9 +103,14 @@ export const registry: RegistryItem[] = [
       "collapsible",
       "https://r.assistant-ui.com/markdown-text.json",
     ],
-    dependencies: ["@assistant-ui/react", "lucide-react", "tw-shimmer"],
+    dependencies: [
+      "@assistant-ui/react",
+      "lucide-react",
+      "class-variance-authority",
+      "tw-shimmer",
+    ],
     css: {
-      "@import": "tw-shimmer",
+      '@import "tw-shimmer"': {},
     },
   },
   {
@@ -219,7 +224,26 @@ export const registry: RegistryItem[] = [
       },
     ],
     dependencies: ["@assistant-ui/react", "lucide-react"],
-    registryDependencies: ["button"],
+    registryDependencies: ["collapsible"],
+  },
+  {
+    name: "tool-group",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/tool-group.tsx",
+      },
+    ],
+    dependencies: [
+      "@assistant-ui/react",
+      "lucide-react",
+      "class-variance-authority",
+    ],
+    registryDependencies: ["collapsible"],
+    css: {
+      '@import "tw-shimmer"': {},
+    },
   },
   {
     name: "shiki-highlighter",
@@ -261,5 +285,21 @@ export const registry: RegistryItem[] = [
       "sidebar",
       "https://r.assistant-ui.com/thread-list.json",
     ],
+  },
+  {
+    name: "sources",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/sources.tsx",
+      },
+    ],
+    dependencies: [
+      "@assistant-ui/react",
+      "@radix-ui/react-slot",
+      "class-variance-authority",
+    ],
+    registryDependencies: [],
   },
 ];

@@ -1,4 +1,4 @@
-import { ExtractResourceOutput, ResourceElement } from "../core/types";
+import { ExtractResourceReturnType, ResourceElement } from "../core/types";
 import { tapEffect } from "./tap-effect";
 import {
   createResourceFiber,
@@ -8,37 +8,41 @@ import {
 } from "../core/ResourceFiber";
 import { tapMemo } from "./tap-memo";
 import { tapState } from "./tap-state";
+import { tapConst } from "./tap-const";
 
 export function tapResource<E extends ResourceElement<any, any>>(
   element: E,
-): ExtractResourceOutput<E>;
+): ExtractResourceReturnType<E>;
 export function tapResource<E extends ResourceElement<any, any>>(
   element: E,
-  deps: readonly unknown[],
-): ExtractResourceOutput<E>;
+  propsDeps: readonly unknown[],
+): ExtractResourceReturnType<E>;
 export function tapResource<E extends ResourceElement<any, any>>(
   element: E,
-  deps?: readonly unknown[],
-): ExtractResourceOutput<E> {
-  const [stateVersion, rerender] = tapState({});
-  const fiber = tapMemo(
-    () => createResourceFiber(element.type, () => rerender({})),
-    [element.type],
-  );
+  propsDeps?: readonly unknown[],
+): ExtractResourceReturnType<E> {
+  const [version, setVersion] = tapState(0);
+  const rerender = tapConst(() => () => setVersion((v) => v + 1), []);
 
-  const props = deps ? tapMemo(() => element.props, deps) : element.props;
-  const result = tapMemo(
-    () => renderResourceFiber(fiber, props),
-    [fiber, props, stateVersion],
-  );
+  const fiber = tapMemo(() => {
+    void element.key;
+    return createResourceFiber(element.type, (callback) => {
+      if (callback()) rerender();
+    });
+  }, [element.type, element.key]);
 
-  tapEffect(() => {
-    return () => unmountResourceFiber(fiber);
-  }, [fiber]);
+  const result = propsDeps
+    ? // biome-ignore lint/correctness/useExhaustiveDependencies: user provided deps instead of prop identity
+      tapMemo(
+        () => renderResourceFiber(fiber, element.props),
+        [fiber, ...propsDeps, version],
+      )
+    : renderResourceFiber(fiber, element.props);
 
+  tapEffect(() => () => unmountResourceFiber(fiber), [fiber]);
   tapEffect(() => {
     commitResourceFiber(fiber, result);
   }, [fiber, result]);
 
-  return result.state;
+  return result.output;
 }

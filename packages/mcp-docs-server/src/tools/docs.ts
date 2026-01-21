@@ -18,7 +18,7 @@ const docsInputSchema = z.object({
     .array(z.string())
     .min(1)
     .describe(
-      'Documentation paths to retrieve (e.g., ["getting-started", "api-reference/primitives/Thread"])',
+      'Documentation paths to retrieve (e.g., ["getting-started", "api-reference/primitives/thread"])',
     ),
 });
 

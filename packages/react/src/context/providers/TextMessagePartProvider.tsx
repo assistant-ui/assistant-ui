@@ -50,7 +50,7 @@ export const TextMessagePartProvider: FC<
     part: DerivedScope({
       source: "root",
       query: {},
-      get: () => store.getState().api,
+      get: () => store.getValue().api,
     }),
     subscribe: store.subscribe,
   });

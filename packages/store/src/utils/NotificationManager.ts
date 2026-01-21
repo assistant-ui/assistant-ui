@@ -1,10 +1,11 @@
-import { resource, tapMemo } from "@assistant-ui/tap";
+import { resource } from "@assistant-ui/tap";
 import type { ClientStack } from "./tap-client-stack-context";
 import type {
   AssistantEventName,
   AssistantEventPayload,
 } from "../types/events";
 import { Unsubscribe } from "../types/client";
+import { tapConst } from "@assistant-ui/tap";
 
 type InternalCallback = (payload: unknown, clientStack: ClientStack) => void;
 
@@ -26,7 +27,7 @@ export type NotificationManager = {
 };
 
 export const NotificationManager = resource((): NotificationManager => {
-  return tapMemo(() => {
+  return tapConst(() => {
     const listeners = new Map<string, Set<InternalCallback>>();
     const wildcardListeners = new Set<InternalCallback>();
     const subscribers = new Set<() => void>();

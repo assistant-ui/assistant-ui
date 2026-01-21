@@ -3,9 +3,6 @@ title: Assistant Transport
 description: Stream agent state to the frontend and handle user commands for custom agents.
 ---
 
-import { Callout } from "fumadocs-ui/components/callout";
-import { Tab, Tabs } from "fumadocs-ui/components/tabs";
-
 If you've built an agent as a Python or TypeScript script and want to add a UI to it, you need to solve two problems: streaming updates to the frontend and integrating with the UI framework. Assistant Transport handles both.
 
 Assistant Transport streams your agent's complete state to the frontend in real-time. Unlike traditional approaches that only stream predefined message types (like text or tool calls), it streams your entire agent state—whatever structure your agent uses internally.
@@ -72,7 +69,8 @@ The backend endpoint receives POST requests with the following payload:
   state: T, // The previous state that the frontend has access to
   commands: AssistantTransportCommand[],
   system?: string,
-  tools?: ToolDefinition[]
+  tools?: ToolDefinition[],
+  threadId: string // The current thread/conversation identifier
 }
 ```
 
