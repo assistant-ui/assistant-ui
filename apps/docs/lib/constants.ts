@@ -22,12 +22,6 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Products",
     items: [
       {
-        label: "Dashboard",
-        href: "https://cloud.assistant-ui.com/",
-        description: "Manage your cloud projects",
-        external: true,
-      },
-      {
         label: "Tool UI",
         href: "https://tool-ui.com/",
         description: "Build tool UIs for AI agents",

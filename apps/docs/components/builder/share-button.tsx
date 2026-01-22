@@ -63,12 +63,12 @@ export function ShareButton({ className }: ShareButtonProps) {
       {copied ? (
         <>
           <Check className="size-3.5" />
-          Copied!
+          <span className="hidden sm:inline">Copied!</span>
         </>
       ) : (
         <>
           <Link2 className="size-3.5" />
-          Share
+          <span className="hidden sm:inline">Share</span>
         </>
       )}
     </button>

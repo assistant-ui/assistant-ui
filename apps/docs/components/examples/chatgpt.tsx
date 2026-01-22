@@ -19,21 +19,16 @@ import {
   Pencil1Icon,
   ReloadIcon,
 } from "@radix-ui/react-icons";
-import type { ComponentPropsWithoutRef, FC } from "react";
-import { Button } from "@/components/ui/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import type { FC } from "react";
+import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 
 export const ChatGPT: FC = () => {
   return (
     <ThreadPrimitive.Root className="dark flex h-full flex-col items-stretch bg-[#212121] px-4 text-foreground">
-      <ThreadPrimitive.Viewport className="flex flex-grow flex-col gap-8 overflow-y-scroll pt-16">
+      <ThreadPrimitive.Viewport className="flex grow flex-col gap-8 overflow-y-scroll pt-16">
         <ThreadPrimitive.Empty>
-          <div className="flex flex-grow flex-col items-center justify-center">
-            <Avatar.Root className="flex h-12 w-12 items-center justify-center rounded-[24px] border border-white/15 shadow">
+          <div className="flex grow flex-col items-center justify-center">
+            <Avatar.Root className="flex h-12 w-12 items-center justify-center rounded-3xl border border-white/15 shadow">
               <Avatar.AvatarFallback>C</Avatar.AvatarFallback>
             </Avatar.Root>
             <p className="mt-4 text-white text-xl">How can I help you today?</p>
@@ -49,14 +44,14 @@ export const ChatGPT: FC = () => {
         />
       </ThreadPrimitive.Viewport>
 
-      <ComposerPrimitive.Root className="mx-auto flex w-full max-w-screen-md items-end rounded-3xl bg-white/5 pl-2">
+      <ComposerPrimitive.Root className="mx-auto flex w-full max-w-3xl items-end rounded-3xl bg-white/5 pl-2">
         <ComposerPrimitive.Input
           placeholder="Message ChatGPT"
-          className="h-12 max-h-40 flex-grow resize-none bg-transparent p-3.5 text-sm text-white outline-none placeholder:text-white/50"
+          className="h-12 max-h-40 grow resize-none bg-transparent p-3.5 text-sm text-white outline-none placeholder:text-white/50"
         />
         <AssistantIf condition={({ thread }) => !thread.isRunning}>
           <ComposerPrimitive.Send className="m-2 flex size-8 items-center justify-center rounded-full bg-white transition-opacity disabled:opacity-10">
-            <ArrowUpIcon className="size-5 text-black [&_path]:stroke-[1] [&_path]:stroke-black" />
+            <ArrowUpIcon className="size-5 text-black [&_path]:stroke-1 [&_path]:stroke-black" />
           </ComposerPrimitive.Send>
         </AssistantIf>
         <AssistantIf condition={({ thread }) => thread.isRunning}>
@@ -74,7 +69,7 @@ export const ChatGPT: FC = () => {
 
 const UserMessage: FC = () => {
   return (
-    <MessagePrimitive.Root className="relative mx-auto flex w-full max-w-screen-md flex-col items-end gap-1">
+    <MessagePrimitive.Root className="relative mx-auto flex w-full max-w-3xl flex-col items-end gap-1">
       <div className="flex items-start gap-4">
         <ActionBarPrimitive.Root
           hideWhenRunning
@@ -83,9 +78,9 @@ const UserMessage: FC = () => {
           className="mt-2"
         >
           <ActionBarPrimitive.Edit asChild>
-            <ActionButton tooltip="Edit">
+            <TooltipIconButton tooltip="Edit" className="text-[#b4b4b4]">
               <Pencil1Icon />
-            </ActionButton>
+            </TooltipIconButton>
           </ActionBarPrimitive.Edit>
         </ActionBarPrimitive.Root>
 
@@ -101,7 +96,7 @@ const UserMessage: FC = () => {
 
 const EditComposer: FC = () => {
   return (
-    <ComposerPrimitive.Root className="mx-auto flex w-full max-w-screen-md flex-col justify-end gap-1 rounded-3xl bg-white/15">
+    <ComposerPrimitive.Root className="mx-auto flex w-full max-w-3xl flex-col justify-end gap-1 rounded-3xl bg-white/15">
       <ComposerPrimitive.Input className="flex h-8 w-full resize-none bg-transparent p-5 pb-0 text-white outline-none" />
 
       <div className="m-3 mt-2 flex items-center justify-center gap-2 self-end">
@@ -118,8 +113,8 @@ const EditComposer: FC = () => {
 
 const AssistantMessage: FC = () => {
   return (
-    <MessagePrimitive.Root className="relative mx-auto flex w-full max-w-screen-md gap-3">
-      <Avatar.Root className="flex size-8 flex-shrink-0 items-center justify-center rounded-[24px] border border-white/15 shadow">
+    <MessagePrimitive.Root className="relative mx-auto flex w-full max-w-3xl gap-3">
+      <Avatar.Root className="flex size-8 shrink-0 items-center justify-center rounded-3xl border border-white/15 shadow">
         <Avatar.AvatarFallback className="text-white text-xs">
           C
         </Avatar.AvatarFallback>
@@ -137,22 +132,22 @@ const AssistantMessage: FC = () => {
             hideWhenRunning
             autohide="not-last"
             autohideFloat="single-branch"
-            className="flex items-center gap-1 rounded-lg data-[floating]:absolute data-[floating]:border-2 data-[floating]:p-1"
+            className="flex items-center gap-1 rounded-lg data-floating:absolute data-floating:border-2 data-floating:p-1"
           >
             <ActionBarPrimitive.Reload asChild>
-              <ActionButton tooltip="Reload">
+              <TooltipIconButton tooltip="Reload" className="text-[#b4b4b4]">
                 <ReloadIcon />
-              </ActionButton>
+              </TooltipIconButton>
             </ActionBarPrimitive.Reload>
             <ActionBarPrimitive.Copy asChild>
-              <ActionButton tooltip="Copy">
+              <TooltipIconButton tooltip="Copy" className="text-[#b4b4b4]">
                 <AssistantIf condition={({ message }) => message.isCopied}>
                   <CheckIcon />
                 </AssistantIf>
                 <AssistantIf condition={({ message }) => !message.isCopied}>
                   <CopyIcon />
                 </AssistantIf>
-              </ActionButton>
+              </TooltipIconButton>
             </ActionBarPrimitive.Copy>
           </ActionBarPrimitive.Root>
         </div>
@@ -171,44 +166,16 @@ const BranchPicker: FC<{ className?: string }> = ({ className }) => {
       )}
     >
       <BranchPickerPrimitive.Previous asChild>
-        <ActionButton tooltip="Previous">
+        <TooltipIconButton tooltip="Previous" className="text-[#b4b4b4]">
           <ChevronLeftIcon />
-        </ActionButton>
+        </TooltipIconButton>
       </BranchPickerPrimitive.Previous>
       <BranchPickerPrimitive.Number />/<BranchPickerPrimitive.Count />
       <BranchPickerPrimitive.Next asChild>
-        <ActionButton tooltip="Next">
+        <TooltipIconButton tooltip="Next" className="text-[#b4b4b4]">
           <ChevronRightIcon />
-        </ActionButton>
+        </TooltipIconButton>
       </BranchPickerPrimitive.Next>
     </BranchPickerPrimitive.Root>
-  );
-};
-
-type ActionButtonProps = ComponentPropsWithoutRef<typeof Button> & {
-  tooltip: string;
-};
-
-const ActionButton: FC<ActionButtonProps> = ({
-  tooltip,
-  className,
-  children,
-  ...rest
-}) => {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className={cn("size-auto p-1 text-[#b4b4b4]", className)}
-          {...rest}
-        >
-          {children}
-          <span className="sr-only">{tooltip}</span>
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent side="bottom">{tooltip}</TooltipContent>
-    </Tooltip>
   );
 };

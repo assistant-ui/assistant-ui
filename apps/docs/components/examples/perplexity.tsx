@@ -20,6 +20,7 @@ import {
   PaperclipIcon,
   RefreshCwIcon,
   SparkleIcon,
+  Square,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -30,7 +31,7 @@ import {
   UserMessageAttachments,
 } from "@/components/assistant-ui/attachment-old";
 
-export const Thread: FC = () => {
+export const Perplexity: FC = () => {
   return (
     <ThreadPrimitive.Root
       className="dark box-border h-full bg-[#1a1a1a] text-[#f5f5f5]"
@@ -50,9 +51,9 @@ export const Thread: FC = () => {
             }}
           />
 
-          <div className="min-h-8 flex-grow" />
+          <div className="min-h-8 grow" />
 
-          <div className="sticky bottom-0 mt-3 flex w-full max-w-[var(--thread-max-width)] flex-col items-center justify-end rounded-t-lg bg-inherit pb-4">
+          <div className="sticky bottom-0 mt-3 flex w-full max-w-(--thread-max-width) flex-col items-center justify-end rounded-t-lg bg-inherit pb-4">
             <ThreadScrollToBottom />
             <Composer />
           </div>
@@ -79,8 +80,8 @@ const ThreadScrollToBottom: FC = () => {
 const ThreadWelcome: FC = () => {
   return (
     <div className="flex h-full w-full items-center justify-center px-4">
-      <div className="flex w-full max-w-[var(--thread-max-width)] flex-grow flex-col gap-12">
-        <div className="flex w-full flex-grow flex-col items-center justify-center">
+      <div className="flex w-full max-w-(--thread-max-width) grow flex-col gap-12">
+        <div className="flex w-full grow flex-col items-center justify-center">
           <p className="font-display font-regular text-4xl text-[#f5f5f5] md:text-5xl">
             What do you want to know?
           </p>
@@ -90,17 +91,17 @@ const ThreadWelcome: FC = () => {
             rows={1}
             autoFocus
             placeholder="Ask anything..."
-            className="max-h-40 w-full flex-grow resize-none border-none bg-transparent px-2 py-4 text-[#f5f5f5] text-lg outline-none placeholder:text-[#808080] focus:ring-0 disabled:cursor-not-allowed"
+            className="max-h-40 w-full grow resize-none border-none bg-transparent px-2 py-4 text-[#f5f5f5] text-lg outline-none placeholder:text-[#808080] focus:ring-0 disabled:cursor-not-allowed"
           />
           <div className="mx-1.5 flex gap-2">
-            <div className="flex-grow" />
+            <div className="grow" />
             <ComposerPrimitive.AddAttachment asChild>
               <TooltipIconButton
                 className="my-2.5 size-8 rounded-max p-2 text-[#808080] transition-colors hover:text-[#f5f5f5]"
                 tooltip="Add Attachment"
                 variant="ghost"
               >
-                <PaperclipIcon className="!size-4.5" />
+                <PaperclipIcon className="size-4.5!" />
               </TooltipIconButton>
             </ComposerPrimitive.AddAttachment>
             <ComposerPrimitive.Send asChild>
@@ -128,7 +129,7 @@ const Composer: FC = () => {
           rows={1}
           autoFocus
           placeholder="Ask follow-up"
-          className="max-h-40 flex-grow resize-none border-none bg-transparent px-4 py-4 text-[#f5f5f5] text-lg outline-none placeholder:text-[#808080] focus:ring-0 disabled:cursor-not-allowed"
+          className="max-h-40 grow resize-none border-none bg-transparent px-4 py-4 text-[#f5f5f5] text-lg outline-none placeholder:text-[#808080] focus:ring-0 disabled:cursor-not-allowed"
         />
         <div className="flex gap-3">
           <ComposerPrimitive.AddAttachment asChild>
@@ -137,7 +138,7 @@ const Composer: FC = () => {
               tooltip="Add Attachment"
               variant="ghost"
             >
-              <PaperclipIcon className="!size-6" />
+              <PaperclipIcon className="size-6!" />
             </TooltipIconButton>
           </ComposerPrimitive.AddAttachment>
           <ComposerAction />
@@ -157,7 +158,7 @@ const ComposerAction: FC = () => {
             variant="default"
             className="my-2.5 size-10 rounded-full bg-[#20b8cd] p-2 text-[#1a1a1a] transition-colors hover:bg-[#1aa3b5]"
           >
-            <ArrowUpIcon className="!size-5" />
+            <ArrowUpIcon className="size-5!" />
           </TooltipIconButton>
         </ComposerPrimitive.Send>
       </AssistantIf>
@@ -168,7 +169,7 @@ const ComposerAction: FC = () => {
             variant="default"
             className="my-2.5 size-10 rounded-full bg-[#20b8cd] p-2 text-[#1a1a1a] transition-colors hover:bg-[#1aa3b5]"
           >
-            <CircleStopIcon />
+            <Square className="size-4" fill="currentColor" />
           </TooltipIconButton>
         </ComposerPrimitive.Cancel>
       </AssistantIf>
@@ -178,10 +179,10 @@ const ComposerAction: FC = () => {
 
 const UserMessage: FC = () => {
   return (
-    <MessagePrimitive.Root className="relative w-full max-w-[var(--thread-max-width)] gap-y-2 py-4">
+    <MessagePrimitive.Root className="relative w-full max-w-(--thread-max-width) gap-y-2 py-4">
       <UserMessageAttachments />
 
-      <div className="break-words rounded-3xl py-2.5 text-3xl text-[#f5f5f5]">
+      <div className="wrap-break-word rounded-3xl py-2.5 text-3xl text-[#f5f5f5]">
         <MessagePrimitive.Parts />
       </div>
     </MessagePrimitive.Root>
@@ -190,8 +191,8 @@ const UserMessage: FC = () => {
 
 const AssistantMessage: FC = () => {
   return (
-    <MessagePrimitive.Root className="relative grid w-full max-w-[var(--thread-max-width)] grid-cols-[auto_auto_1fr] grid-rows-[auto_1fr] py-4">
-      <div className="col-span-2 col-start-2 row-start-1 my-1.5 max-w-[calc(var(--thread-max-width)*0.8)] break-words text-[#e5e5e5] leading-7">
+    <MessagePrimitive.Root className="relative grid w-full max-w-(--thread-max-width) grid-cols-[auto_auto_1fr] grid-rows-[auto_1fr] py-4">
+      <div className="wrap-break-word col-span-2 col-start-2 row-start-1 my-1.5 max-w-[calc(var(--thread-max-width)*0.8)] text-[#e5e5e5] leading-7">
         <h1 className="mb-4 inline-flex items-center gap-2 text-2xl text-[#20b8cd]">
           <SparkleIcon /> Answer
         </h1>
@@ -272,20 +273,5 @@ const BranchPicker: FC<BranchPickerPrimitive.Root.Props> = ({
         </TooltipIconButton>
       </BranchPickerPrimitive.Next>
     </BranchPickerPrimitive.Root>
-  );
-};
-
-const CircleStopIcon = () => {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 16 16"
-      fill="currentColor"
-      width="16"
-      height="16"
-      aria-hidden="true"
-    >
-      <rect width="10" height="10" x="3" y="3" rx="2" />
-    </svg>
   );
 };
