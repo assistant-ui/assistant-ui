@@ -142,6 +142,38 @@ describe("TimingTracker", () => {
       expect(timing.toolCallCount).toBeUndefined();
       expect(timing.toolCallTotalTime).toBeUndefined();
     });
+
+    it("should ignore duplicate start events for same tool call", () => {
+      const tracker = new TimingTracker();
+
+      vi.advanceTimersByTime(100);
+      tracker.recordToolCallStart("tool-1");
+
+      vi.advanceTimersByTime(200);
+      tracker.recordToolCallStart("tool-1"); // duplicate - should be ignored
+
+      vi.advanceTimersByTime(300);
+      tracker.recordToolCallEnd("tool-1");
+
+      const timing = tracker.getTiming();
+      expect(timing.toolCallCount).toBe(1); // not 2
+      expect(timing.toolCallTotalTime).toBe(500); // 200 + 300, not 300
+    });
+
+    it("should ignore start event for already completed tool call", () => {
+      const tracker = new TimingTracker();
+
+      tracker.recordToolCallStart("tool-1");
+      vi.advanceTimersByTime(200);
+      tracker.recordToolCallEnd("tool-1");
+
+      vi.advanceTimersByTime(100);
+      tracker.recordToolCallStart("tool-1"); // already completed - should be ignored
+
+      const timing = tracker.getTiming();
+      expect(timing.toolCallCount).toBe(1); // not 2
+      expect(timing.toolCallTotalTime).toBe(200);
+    });
   });
 
   describe("server timing", () => {

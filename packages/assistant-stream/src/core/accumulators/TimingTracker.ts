@@ -8,6 +8,7 @@ export class TimingTracker {
   private largestChunkGap = 0;
   private chunkCount = 0;
   private toolCallStartTimes = new Map<string, number>();
+  private completedToolCalls = new Set<string>();
   private toolCallTotalTime = 0;
   private toolCallCount = 0;
   private serverTiming:
@@ -45,8 +46,13 @@ export class TimingTracker {
   }
 
   recordToolCallStart(toolCallId: string): void {
-    this.toolCallStartTimes.set(toolCallId, Date.now());
-    this.toolCallCount++;
+    if (
+      !this.toolCallStartTimes.has(toolCallId) &&
+      !this.completedToolCalls.has(toolCallId)
+    ) {
+      this.toolCallStartTimes.set(toolCallId, Date.now());
+      this.toolCallCount++;
+    }
   }
 
   recordToolCallEnd(toolCallId: string): void {
@@ -54,6 +60,7 @@ export class TimingTracker {
     if (startTime !== undefined) {
       this.toolCallTotalTime += Date.now() - startTime;
       this.toolCallStartTimes.delete(toolCallId);
+      this.completedToolCalls.add(toolCallId);
     }
   }
 

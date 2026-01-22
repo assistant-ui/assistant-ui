@@ -417,9 +417,10 @@ export class DataStreamDecoder extends PipeableTransformStream<
               // ignore these for now
               break;
 
-            default:
-              // Ignore unknown chunk types for forward compatibility
-              break;
+            default: {
+              const exhaustiveCheck: never = type;
+              throw new Error(`unsupported chunk type: ${exhaustiveCheck}`);
+            }
           }
         },
         flush() {
