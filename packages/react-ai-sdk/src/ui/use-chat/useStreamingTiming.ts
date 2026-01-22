@@ -5,7 +5,7 @@ import type { UIMessage } from "@ai-sdk/react";
 import { isToolUIPart } from "ai";
 import type { MessageTiming } from "@assistant-ui/react";
 
-// Maximum number of message timings to retain to prevent memory leaks
+/** Maximum number of message timings to retain to prevent memory leaks */
 const MAX_RETAINED_TIMINGS = 100;
 
 type MessageTimingTracker = {
@@ -23,9 +23,15 @@ type MessageTimingTracker = {
   toolCallCount: number;
 };
 
+type ServerTiming = {
+  processingTime?: number;
+  queueTime?: number;
+  custom?: Record<string, unknown>;
+};
+
 /**
- * Generate a content snapshot to detect actual content changes (real chunks).
- * This allows us to distinguish between re-renders and actual data arrival.
+ * Generate a content snapshot to detect actual content changes.
+ * This distinguishes between re-renders and actual data arrival.
  */
 function getContentSnapshot(message: UIMessage | undefined): string {
   if (!message?.parts) return "";
@@ -64,12 +70,24 @@ function createTracker(streamStartTime: number): MessageTimingTracker {
   };
 }
 
-/**
- * Clears internal Maps and Sets in a tracker to free memory.
- */
+/** Clears internal Maps and Sets in a tracker to free memory */
 function clearTrackerResources(tracker: MessageTimingTracker): void {
   tracker.toolCallStartTimes.clear();
   tracker.completedToolCalls.clear();
+}
+
+/** Remove finalized trackers for messages that no longer exist */
+function cleanupOldTrackers(
+  trackers: Record<string, MessageTimingTracker>,
+  currentMessageIds: Set<string>,
+): void {
+  for (const id of Object.keys(trackers)) {
+    const tracker = trackers[id];
+    if (tracker?.endTime !== undefined && !currentMessageIds.has(id)) {
+      clearTrackerResources(tracker);
+      delete trackers[id];
+    }
+  }
 }
 
 function recordChunk(tracker: MessageTimingTracker): void {
@@ -118,12 +136,6 @@ function recordToolCallEnd(
   }
 }
 
-type ServerTiming = {
-  processingTime?: number;
-  queueTime?: number;
-  custom?: Record<string, unknown>;
-};
-
 function extractServerTiming(message: UIMessage): ServerTiming | undefined {
   const metadata = message.metadata as
     | {
@@ -135,61 +147,98 @@ function extractServerTiming(message: UIMessage): ServerTiming | undefined {
   return metadata?.timing?.server ?? metadata?.serverTiming;
 }
 
-function calculateTiming(
-  tracker: MessageTimingTracker,
-  message: UIMessage,
-): MessageTiming {
-  const { streamStartTime, firstChunkTime, firstTokenTime, endTime } = tracker;
-
-  const totalStreamTime = endTime ? endTime - streamStartTime : null;
-
-  const toolCallTotalTime =
-    tracker.toolCallTotalTime > 0 ? tracker.toolCallTotalTime : null;
-
+function estimateTokenCount(message: UIMessage): number {
   const metadata = message.metadata as
     | { totalUsage?: { completionTokens?: number } }
     | undefined;
   const serverTokens = metadata?.totalUsage?.completionTokens;
 
-  let tokenCount: number;
   if (serverTokens !== undefined && serverTokens > 0) {
-    tokenCount = serverTokens;
-  } else {
-    tokenCount = 0;
-    if (message.parts) {
-      for (const part of message.parts) {
-        if (part.type === "text") {
-          tokenCount += Math.ceil(part.text.length / 4);
-        }
+    return serverTokens;
+  }
+
+  let count = 0;
+  if (message.parts) {
+    for (const part of message.parts) {
+      if (part.type === "text") {
+        count += Math.ceil(part.text.length / 4);
       }
     }
   }
+  return count;
+}
+
+function calculateTiming(
+  tracker: MessageTimingTracker,
+  message: UIMessage,
+): MessageTiming {
+  const { streamStartTime, firstChunkTime, firstTokenTime, endTime } = tracker;
+  const totalStreamTime = endTime ? endTime - streamStartTime : null;
+  const tokenCount = estimateTokenCount(message);
+  const serverTiming = extractServerTiming(message);
 
   const tokensPerSecond =
     totalStreamTime && tokenCount > 0
       ? (tokenCount / totalStreamTime) * 1000
       : null;
 
-  const totalChunks = tracker.chunkCount > 0 ? tracker.chunkCount : null;
-  const largestChunkGap =
-    tracker.largestChunkGap > 0 ? tracker.largestChunkGap : null;
-
-  const serverTiming = extractServerTiming(message);
-
-  const timing: MessageTiming = {
+  // Build timing object - use type assertion for mutable construction
+  const timing = {
     streamStartTime,
     ...(firstChunkTime !== undefined && { timeToFirstChunk: firstChunkTime }),
     ...(firstTokenTime !== undefined && { timeToFirstToken: firstTokenTime }),
     ...(totalStreamTime !== null && { totalStreamTime }),
-    ...(totalChunks !== null && { totalChunks }),
+    ...(tracker.chunkCount > 0 && { totalChunks: tracker.chunkCount }),
     ...(tokensPerSecond !== null && { tokensPerSecond }),
-    ...(largestChunkGap !== null && { largestChunkGap }),
+    ...(tracker.largestChunkGap > 0 && {
+      largestChunkGap: tracker.largestChunkGap,
+    }),
     ...(tracker.toolCallCount > 0 && { toolCallCount: tracker.toolCallCount }),
-    ...(toolCallTotalTime !== null && { toolCallTotalTime }),
-    ...(serverTiming !== undefined && { server: serverTiming }),
-  };
+    ...(tracker.toolCallTotalTime > 0 && {
+      toolCallTotalTime: tracker.toolCallTotalTime,
+    }),
+    ...(serverTiming && { server: serverTiming }),
+  } satisfies MessageTiming;
 
   return timing;
+}
+
+/** Process tool call parts and update tracker */
+function processToolCalls(
+  tracker: MessageTimingTracker,
+  message: UIMessage,
+): void {
+  if (!message.parts) return;
+
+  for (const part of message.parts) {
+    if (isToolUIPart(part)) {
+      const toolCallId = part.toolCallId;
+      recordToolCallStart(tracker, toolCallId);
+
+      const hasResult =
+        part.state === "output-available" || part.state === "output-error";
+      if (hasResult) {
+        recordToolCallEnd(tracker, toolCallId);
+      }
+    }
+  }
+}
+
+/** Prune oldest timings if exceeding the limit */
+function pruneTimings(
+  timings: Record<string, MessageTiming>,
+): Record<string, MessageTiming> {
+  const keys = Object.keys(timings);
+  if (keys.length <= MAX_RETAINED_TIMINGS) {
+    return timings;
+  }
+
+  const keysToKeep = keys.slice(-MAX_RETAINED_TIMINGS);
+  const pruned: Record<string, MessageTiming> = {};
+  for (const key of keysToKeep) {
+    pruned[key] = timings[key]!;
+  }
+  return pruned;
 }
 
 export function useStreamingTiming(
@@ -202,29 +251,14 @@ export function useStreamingTiming(
   const [timings, setTimings] = useState<Record<string, MessageTiming>>({});
 
   const addTiming = useCallback((messageId: string, timing: MessageTiming) => {
-    setTimings((prev) => {
-      const newTimings = { ...prev, [messageId]: timing };
-      const keys = Object.keys(newTimings);
-
-      // Prune oldest timings if exceeding limit
-      if (keys.length > MAX_RETAINED_TIMINGS) {
-        const keysToKeep = keys.slice(-MAX_RETAINED_TIMINGS);
-        const pruned: Record<string, MessageTiming> = {};
-        for (const key of keysToKeep) {
-          pruned[key] = newTimings[key]!;
-        }
-        return pruned;
-      }
-
-      return newTimings;
-    });
+    setTimings((prev) => pruneTimings({ ...prev, [messageId]: timing }));
   }, []);
 
   const lastAssistantMsg = useMemo(
     () => findLastAssistantMessage(messages),
     [messages],
   );
-  const lastMessageId = lastAssistantMsg?.id;
+
   const contentSnapshot = useMemo(
     () => getContentSnapshot(lastAssistantMsg),
     [lastAssistantMsg],
@@ -233,10 +267,12 @@ export function useStreamingTiming(
   useEffect(() => {
     const prevIsRunning = prevIsRunningRef.current;
 
+    // Mark stream start time
     if (isRunning && !prevIsRunning) {
       pendingStreamStartRef.current = Date.now();
     }
 
+    // Handle active streaming
     if (isRunning && lastAssistantMsg) {
       let tracker = trackersRef.current[lastAssistantMsg.id];
 
@@ -247,15 +283,9 @@ export function useStreamingTiming(
         trackersRef.current[lastAssistantMsg.id] = tracker;
         pendingStreamStartRef.current = null;
 
-        // Clean up old finalized trackers to prevent memory leaks
+        // Clean up old finalized trackers
         const messageIds = new Set(messages.map((m) => m.id));
-        for (const id of Object.keys(trackersRef.current)) {
-          const t = trackersRef.current[id];
-          if (t && t.endTime !== undefined && !messageIds.has(id)) {
-            clearTrackerResources(t);
-            delete trackersRef.current[id];
-          }
-        }
+        cleanupOldTrackers(trackersRef.current, messageIds);
       }
 
       // Detect actual content change by comparing snapshots
@@ -271,25 +301,10 @@ export function useStreamingTiming(
         }
       }
 
-      if (lastAssistantMsg.parts) {
-        for (const part of lastAssistantMsg.parts) {
-          if (isToolUIPart(part)) {
-            const toolCallId = part.toolCallId;
-            const hasResult =
-              part.state === "output-available" ||
-              part.state === "output-error";
-
-            recordToolCallStart(tracker, toolCallId);
-
-            if (hasResult) {
-              recordToolCallEnd(tracker, toolCallId);
-            }
-          }
-        }
-      }
+      processToolCalls(tracker, lastAssistantMsg);
     }
 
-    // Finalize timing when stream ends (normal completion or error/abort)
+    // Finalize timing when stream ends
     if (!isRunning && prevIsRunning) {
       pendingStreamStartRef.current = null;
 
@@ -305,7 +320,7 @@ export function useStreamingTiming(
     }
 
     prevIsRunningRef.current = isRunning;
-  }, [isRunning, lastMessageId, contentSnapshot, lastAssistantMsg, addTiming]);
+  }, [isRunning, contentSnapshot, lastAssistantMsg, addTiming, messages]);
 
   return timings;
 }
