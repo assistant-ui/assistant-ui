@@ -98,6 +98,14 @@ function inferImageMediaType(url: string): string {
   return IMAGE_MEDIA_TYPES[ext] ?? "image/png";
 }
 
+function toUrlOrString(value: string): string | URL {
+  try {
+    return new URL(value);
+  } catch {
+    return value;
+  }
+}
+
 type ToolCallAccumulator = {
   textParts: (GenericTextPart | GenericToolCallPart)[];
   toolResults: GenericToolResultPart[];
@@ -172,13 +180,13 @@ function convertUserMessage(
     } else if (part.type === "image" && part.image) {
       content.push({
         type: "file",
-        data: new URL(part.image),
+        data: toUrlOrString(part.image),
         mediaType: inferImageMediaType(part.image),
       });
     } else if (part.type === "file" && part.data && part.mimeType) {
       content.push({
         type: "file",
-        data: new URL(part.data),
+        data: toUrlOrString(part.data),
         mediaType: part.mimeType,
       });
     }

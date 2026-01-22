@@ -15,6 +15,16 @@ import {
   type GenericToolResultPart,
 } from "assistant-stream";
 
+function toUrl(value: string | URL): URL {
+  if (value instanceof URL) return value;
+  try {
+    return new URL(value);
+  } catch {
+    // For relative URLs, create URL with a dummy base
+    return new URL(value, "file://");
+  }
+}
+
 function convertUserContent(
   content: GenericMessage & { role: "user" },
 ): (LanguageModelV2TextPart | LanguageModelV2FilePart)[] {
@@ -24,7 +34,7 @@ function convertUserContent(
     }
     return {
       type: "file",
-      data: typeof part.data === "string" ? new URL(part.data) : part.data,
+      data: toUrl(part.data),
       mediaType: part.mediaType,
     };
   });
@@ -99,24 +109,24 @@ export function toLanguageModelMessages(
   for (const generic of genericMessages) {
     const converted = convertGenericToLanguageModel(generic);
 
-    // Find the corresponding original message for ID
-    while (
-      messageIndex < messages.length &&
-      messages[messageIndex]!.role !== generic.role
-    ) {
-      messageIndex++;
-    }
+    // Tool messages are synthesized from assistant message tool calls,
+    // they don't have a corresponding original message
+    if (generic.role !== "tool") {
+      // Find the corresponding original message for ID
+      while (
+        messageIndex < messages.length &&
+        messages[messageIndex]!.role !== generic.role
+      ) {
+        messageIndex++;
+      }
 
-    if (messageIndex < messages.length) {
-      (converted as any).unstable_id = messages[messageIndex]!.id;
+      if (messageIndex < messages.length) {
+        (converted as any).unstable_id = messages[messageIndex]!.id;
+        messageIndex++;
+      }
     }
 
     result.push(converted);
-
-    // Tool messages don't advance the original message index
-    if (generic.role !== "tool") {
-      messageIndex++;
-    }
   }
 
   return result;
