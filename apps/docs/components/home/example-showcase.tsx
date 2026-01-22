@@ -64,16 +64,6 @@ const EXAMPLE_TABS = [
     ),
   },
   {
-    label: "Grok",
-    value: (
-      <ExampleWrapper>
-        <DocsRuntimeProvider>
-          <Grok />
-        </DocsRuntimeProvider>
-      </ExampleWrapper>
-    ),
-  },
-  {
     label: "Explore More →",
     href: "/examples",
   },

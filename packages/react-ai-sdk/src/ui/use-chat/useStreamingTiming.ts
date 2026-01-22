@@ -23,12 +23,6 @@ type MessageTimingTracker = {
   toolCallCount: number;
 };
 
-type ServerTiming = {
-  processingTime?: number;
-  queueTime?: number;
-  custom?: Record<string, unknown>;
-};
-
 /**
  * Generate a content snapshot to detect actual content changes.
  * This distinguishes between re-renders and actual data arrival.
@@ -136,6 +130,8 @@ function recordToolCallEnd(
   }
 }
 
+type ServerTiming = NonNullable<MessageTiming["server"]>;
+
 function extractServerTiming(message: UIMessage): ServerTiming | undefined {
   const metadata = message.metadata as
     | {
@@ -145,6 +141,25 @@ function extractServerTiming(message: UIMessage): ServerTiming | undefined {
     | undefined;
 
   return metadata?.timing?.server ?? metadata?.serverTiming;
+}
+
+function extractTimingFromAnnotations(
+  message: UIMessage,
+): MessageTiming | undefined {
+  const annotations = (message as { annotations?: unknown[] }).annotations;
+  if (!annotations) return undefined;
+
+  const timingAnnotation = annotations.find(
+    (a): a is { type: string } & MessageTiming =>
+      typeof a === "object" &&
+      a !== null &&
+      (a as { type?: string }).type === "aui-timing",
+  );
+
+  if (!timingAnnotation) return undefined;
+
+  const { type: _, ...timing } = timingAnnotation;
+  return timing;
 }
 
 function estimateTokenCount(message: UIMessage): number {
@@ -168,7 +183,7 @@ function estimateTokenCount(message: UIMessage): number {
   return count;
 }
 
-function calculateTiming(
+function calculateClientTiming(
   tracker: MessageTimingTracker,
   message: UIMessage,
 ): MessageTiming {
@@ -201,6 +216,22 @@ function calculateTiming(
   } satisfies MessageTiming;
 
   return timing;
+}
+
+function calculateTiming(
+  tracker: MessageTimingTracker,
+  message: UIMessage,
+): MessageTiming {
+  const annotationTiming = extractTimingFromAnnotations(message);
+
+  if (annotationTiming) {
+    return {
+      ...annotationTiming,
+      streamStartTime: tracker.streamStartTime,
+    };
+  }
+
+  return calculateClientTiming(tracker, message);
 }
 
 /** Process tool call parts and update tracker */
