@@ -71,15 +71,14 @@ const INTERNAL_EXAMPLES: ExampleItem[] = [
       "A personalized AI chat app powered by Mem0 that remembers your preferences, facts, and memories.",
     link: "/examples/mem0",
     githubLink:
-      "https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-ai-sdk-v5",
+      "https://github.com/mem0ai/mem0/blob/main/examples/mem0-demo/components/assistant-ui/thread.tsx",
   },
   {
     title: "LangGraph Stockbroker",
     image: "/screenshot/stockbroker.png",
     description: "A stockbroker showing human in the loop with LangGraph",
     link: "/examples/stockbroker",
-    githubLink:
-      "https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-langgraph",
+    githubLink: "https://github.com/assistant-ui/assistant-ui-stockbroker",
   },
   {
     title: "Artifacts",

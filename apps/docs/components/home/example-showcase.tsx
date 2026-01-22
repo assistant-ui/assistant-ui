@@ -9,7 +9,9 @@ import { DocsRuntimeProvider } from "@/contexts/DocsRuntimeProvider";
 import { Grok } from "@/components/examples/grok";
 
 const ExampleWrapper = ({ children }: { children: React.ReactNode }) => (
-  <div className="h-full overflow-hidden rounded-lg border">{children}</div>
+  <div className="not-prose h-full overflow-hidden rounded-lg border">
+    {children}
+  </div>
 );
 
 const EXAMPLE_TABS = [
