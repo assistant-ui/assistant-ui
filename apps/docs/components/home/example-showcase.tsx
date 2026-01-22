@@ -1,12 +1,12 @@
 "use client";
 
-import { ChatGPT } from "@/components/example/chatgpt";
-import { Claude } from "@/components/example/claude";
-import { Perplexity } from "@/components/example/perplexity";
-import { Shadcn } from "@/components/example/shadcn";
+import { ChatGPT } from "@/components/examples/chatgpt";
+import { Claude } from "@/components/examples/claude";
+import { Perplexity } from "@/components/examples/perplexity";
+import { Shadcn } from "@/components/examples/shadcn";
 import { Tab } from "@/components/shared/tab";
 import { DocsRuntimeProvider } from "@/contexts/DocsRuntimeProvider";
-import { Grok } from "@/components/example/grok";
+import { Grok } from "@/components/examples/grok";
 
 const ExampleWrapper = ({ children }: { children: React.ReactNode }) => (
   <div className="h-full overflow-hidden rounded-lg border">{children}</div>
