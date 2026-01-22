@@ -15,6 +15,7 @@ import {
   DataStreamDecoder,
   AssistantTransportDecoder,
   unstable_createInitialMessage as createInitialMessage,
+  toToolsJSONSchema,
 } from "assistant-stream";
 import {
   AssistantTransportOptions,
@@ -28,7 +29,7 @@ import { useCommandQueue } from "./commandQueue";
 import { useRunManager } from "./runManager";
 import { useConvertedState } from "./useConvertedState";
 import { ToolExecutionStatus, useToolInvocations } from "./useToolInvocations";
-import { toAISDKTools, getEnabledTools, createRequestHeaders } from "./utils";
+import { createRequestHeaders } from "./utils";
 import { useRemoteThreadListRuntime } from "../remote-thread-list/useRemoteThreadListRuntime";
 import { InMemoryThreadListAdapter } from "../remote-thread-list/adapter/in-memory";
 import { useAssistantApi, useAssistantState } from "../../../context/react";
@@ -117,9 +118,7 @@ const useAssistantTransportThreadRuntime = <T,>(
             commands,
             state: agentStateRef.current,
             system: context.system,
-            tools: context.tools
-              ? toAISDKTools(getEnabledTools(context.tools))
-              : undefined,
+            tools: context.tools ? toToolsJSONSchema(context.tools) : undefined,
             threadId,
             ...(parentIdRef.current !== undefined && {
               parentId: parentIdRef.current,

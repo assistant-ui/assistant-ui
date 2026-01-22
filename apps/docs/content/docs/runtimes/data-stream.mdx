@@ -229,16 +229,49 @@ The `useCloudRuntime` hook is currently under active development and not yet rea
 
 ## Message Conversion
 
-The package includes utilities for converting between message formats:
+### Framework-Agnostic Conversion (Recommended)
+
+For custom integrations, use the framework-agnostic utilities from `assistant-stream`:
+
+```tsx
+import { toGenericMessages, toToolsJSONSchema } from "assistant-stream";
+
+// Convert messages to a generic format
+const genericMessages = toGenericMessages(messages);
+
+// Convert tools to JSON Schema format
+const toolSchemas = toToolsJSONSchema(tools);
+```
+
+The `GenericMessage` format can be easily converted to any LLM provider format:
+
+```tsx
+import type { GenericMessage } from "assistant-stream";
+
+// GenericMessage is a union of:
+// - { role: "system"; content: string }
+// - { role: "user"; content: (GenericTextPart | GenericFilePart)[] }
+// - { role: "assistant"; content: (GenericTextPart | GenericToolCallPart)[] }
+// - { role: "tool"; content: GenericToolResultPart[] }
+```
+
+### AI SDK Specific Conversion
+
+For AI SDK integration, use `toLanguageModelMessages`:
 
 ```tsx
 import { toLanguageModelMessages } from "@assistant-ui/react-data-stream";
 
-// Convert assistant-ui messages to language model format
+// Convert to AI SDK LanguageModelV2Message format
 const languageModelMessages = toLanguageModelMessages(messages, {
   unstable_includeId: true, // Include message IDs
 });
 ```
+
+<Callout type="info">
+`toLanguageModelMessages` internally uses `toGenericMessages` and adds AI SDK-specific transformations.
+For new custom integrations, prefer using `toGenericMessages` directly.
+</Callout>
 
 ## Error Handling
 
