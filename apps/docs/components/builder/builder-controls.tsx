@@ -769,12 +769,6 @@ function SwitchColorRow({
     <div className="flex h-7 items-center justify-between">
       <span className="text-sm">{label}</span>
       <div className="flex items-center gap-2">
-        <div className={enabled ? "" : "pointer-events-none opacity-40"}>
-          <ThemeColorPicker
-            value={color ?? defaultColor}
-            onChange={onColorChange}
-          />
-        </div>
         <Switch
           checked={enabled}
           onCheckedChange={(checked) => {
@@ -782,6 +776,12 @@ function SwitchColorRow({
             if (!checked) onColorChange(undefined);
           }}
         />
+        <div className={enabled ? "" : "pointer-events-none opacity-40"}>
+          <ThemeColorPicker
+            value={color ?? defaultColor}
+            onChange={onColorChange}
+          />
+        </div>
       </div>
     </div>
   );
