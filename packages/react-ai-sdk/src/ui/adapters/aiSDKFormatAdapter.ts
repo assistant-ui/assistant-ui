@@ -17,10 +17,9 @@ export const aiSDKV6FormatAdapter: MessageFormatAdapter<
   encode({
     message: { id, parts, ...message },
   }: MessageFormatItem<UIMessage>): AISDKStorageFormat {
-    // Filter out FileContentParts until they are supported
     return {
       ...message,
-      parts: parts.filter((part) => part.type !== "file"),
+      parts,
     };
   },
 
