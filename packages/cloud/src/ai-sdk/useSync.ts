@@ -17,6 +17,7 @@ export type UseSyncResult = [
 export type UseSyncChat = {
   messages: UIMessage[];
   setMessages: (messages: UIMessage[]) => void;
+  status: "submitted" | "streaming" | "ready" | "error";
 };
 
 /**
@@ -73,18 +74,21 @@ export function useSync(
 
         if (cancelled) return;
 
-        // Decode messages and set them
-        const messages = response.messages.map(decode);
+        // Sort messages by height (chain order) and decode them
+        const sortedMessages = [...response.messages].sort(
+          (a, b) => a.height - b.height,
+        );
+        const messages = sortedMessages.map(decode);
         chat.setMessages(messages);
 
-        // Mark all loaded messages as persisted
-        persistedIdsRef.current = new Set(response.messages.map((m) => m.id));
+        // Mark all loaded messages as persisted (use sorted for correct last ID)
+        persistedIdsRef.current = new Set(sortedMessages.map((m) => m.id));
         // Build the local→remote mapping (for loaded messages, local=remote)
         localToRemoteIdRef.current = new Map(
-          response.messages.map((m) => [m.id, m.id]),
+          sortedMessages.map((m) => [m.id, m.id]),
         );
-        // Set the last remote ID for chaining
-        const lastMessage = response.messages[response.messages.length - 1];
+        // Set the last remote ID for chaining (use sorted to get the actual last message)
+        const lastMessage = sortedMessages[sortedMessages.length - 1];
         lastRemoteIdRef.current = lastMessage?.id ?? null;
       } catch (err) {
         if (cancelled) return;
@@ -107,9 +111,21 @@ export function useSync(
   useEffect(() => {
     if (isSyncingRef.current) return;
 
-    const newMessages = chat.messages.filter(
-      (m) => !persistedIdsRef.current.has(m.id),
-    );
+    const isStreaming =
+      chat.status === "streaming" || chat.status === "submitted";
+
+    const newMessages = chat.messages.filter((m, i) => {
+      // Already persisted
+      if (persistedIdsRef.current.has(m.id)) return false;
+
+      // Skip assistant messages that are still streaming (last message while running)
+      const isLastMessage = i === chat.messages.length - 1;
+      if (isLastMessage && m.role === "assistant" && isStreaming) {
+        return false;
+      }
+
+      return true;
+    });
 
     if (newMessages.length === 0) return;
 
@@ -153,7 +169,7 @@ export function useSync(
     }
 
     persistMessages();
-  }, [cloud, chat.messages]);
+  }, [cloud, chat.messages, chat.status]);
 
   const selectThread = useCallback((id: string | null) => {
     setThreadId(id);
