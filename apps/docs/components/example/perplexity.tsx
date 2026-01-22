@@ -20,6 +20,7 @@ import {
   PaperclipIcon,
   RefreshCwIcon,
   SparkleIcon,
+  Square,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -30,7 +31,7 @@ import {
   UserMessageAttachments,
 } from "@/components/assistant-ui/attachment-old";
 
-export const Thread: FC = () => {
+export const Perplexity: FC = () => {
   return (
     <ThreadPrimitive.Root
       className="dark box-border h-full bg-[#1a1a1a] text-[#f5f5f5]"
@@ -168,7 +169,7 @@ const ComposerAction: FC = () => {
             variant="default"
             className="my-2.5 size-10 rounded-full bg-[#20b8cd] p-2 text-[#1a1a1a] transition-colors hover:bg-[#1aa3b5]"
           >
-            <CircleStopIcon />
+            <Square className="size-4" fill="currentColor" />
           </TooltipIconButton>
         </ComposerPrimitive.Cancel>
       </AssistantIf>
@@ -272,20 +273,5 @@ const BranchPicker: FC<BranchPickerPrimitive.Root.Props> = ({
         </TooltipIconButton>
       </BranchPickerPrimitive.Next>
     </BranchPickerPrimitive.Root>
-  );
-};
-
-const CircleStopIcon = () => {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 16 16"
-      fill="currentColor"
-      width="16"
-      height="16"
-      aria-hidden="true"
-    >
-      <rect width="10" height="10" x="3" y="3" rx="2" />
-    </svg>
   );
 };

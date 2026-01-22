@@ -19,13 +19,8 @@ import {
   Pencil1Icon,
   ReloadIcon,
 } from "@radix-ui/react-icons";
-import type { ComponentPropsWithoutRef, FC } from "react";
-import { Button } from "@/components/ui/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import type { FC } from "react";
+import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 
 export const ChatGPT: FC = () => {
   return (
@@ -83,9 +78,9 @@ const UserMessage: FC = () => {
           className="mt-2"
         >
           <ActionBarPrimitive.Edit asChild>
-            <ActionButton tooltip="Edit">
+            <TooltipIconButton tooltip="Edit" className="text-[#b4b4b4]">
               <Pencil1Icon />
-            </ActionButton>
+            </TooltipIconButton>
           </ActionBarPrimitive.Edit>
         </ActionBarPrimitive.Root>
 
@@ -140,19 +135,19 @@ const AssistantMessage: FC = () => {
             className="flex items-center gap-1 rounded-lg data-[floating]:absolute data-[floating]:border-2 data-[floating]:p-1"
           >
             <ActionBarPrimitive.Reload asChild>
-              <ActionButton tooltip="Reload">
+              <TooltipIconButton tooltip="Reload" className="text-[#b4b4b4]">
                 <ReloadIcon />
-              </ActionButton>
+              </TooltipIconButton>
             </ActionBarPrimitive.Reload>
             <ActionBarPrimitive.Copy asChild>
-              <ActionButton tooltip="Copy">
+              <TooltipIconButton tooltip="Copy" className="text-[#b4b4b4]">
                 <AssistantIf condition={({ message }) => message.isCopied}>
                   <CheckIcon />
                 </AssistantIf>
                 <AssistantIf condition={({ message }) => !message.isCopied}>
                   <CopyIcon />
                 </AssistantIf>
-              </ActionButton>
+              </TooltipIconButton>
             </ActionBarPrimitive.Copy>
           </ActionBarPrimitive.Root>
         </div>
@@ -171,44 +166,16 @@ const BranchPicker: FC<{ className?: string }> = ({ className }) => {
       )}
     >
       <BranchPickerPrimitive.Previous asChild>
-        <ActionButton tooltip="Previous">
+        <TooltipIconButton tooltip="Previous" className="text-[#b4b4b4]">
           <ChevronLeftIcon />
-        </ActionButton>
+        </TooltipIconButton>
       </BranchPickerPrimitive.Previous>
       <BranchPickerPrimitive.Number />/<BranchPickerPrimitive.Count />
       <BranchPickerPrimitive.Next asChild>
-        <ActionButton tooltip="Next">
+        <TooltipIconButton tooltip="Next" className="text-[#b4b4b4]">
           <ChevronRightIcon />
-        </ActionButton>
+        </TooltipIconButton>
       </BranchPickerPrimitive.Next>
     </BranchPickerPrimitive.Root>
-  );
-};
-
-type ActionButtonProps = ComponentPropsWithoutRef<typeof Button> & {
-  tooltip: string;
-};
-
-const ActionButton: FC<ActionButtonProps> = ({
-  tooltip,
-  className,
-  children,
-  ...rest
-}) => {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className={cn("size-auto p-1 text-[#b4b4b4]", className)}
-          {...rest}
-        >
-          {children}
-          <span className="sr-only">{tooltip}</span>
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent side="bottom">{tooltip}</TooltipContent>
-    </Tooltip>
   );
 };
