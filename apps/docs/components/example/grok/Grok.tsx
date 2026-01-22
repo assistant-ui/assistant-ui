@@ -42,11 +42,11 @@ export const Grok: FC = () => {
       <AssistantIf condition={(s) => s.thread.isEmpty === false}>
         <ThreadPrimitive.Viewport className="flex grow flex-col overflow-y-scroll pt-16">
           <ThreadPrimitive.Messages components={{ Message: ChatMessage }} />
-          <p className="mx-auto w-full max-w-3xl p-2 text-center text-[#9a9a9a] text-xs">
-            Grok can make mistakes. Verify important information.
-          </p>
         </ThreadPrimitive.Viewport>
         <Composer />
+        <p className="mx-auto w-full max-w-3xl pb-2 text-center text-[#9a9a9a] text-xs">
+          Grok can make mistakes. Verify important information.
+        </p>
       </AssistantIf>
     </ThreadPrimitive.Root>
   );
@@ -79,7 +79,7 @@ const Composer: FC = () => {
           <ComposerPrimitive.Input
             placeholder="What do you want to know?"
             minRows={1}
-            className="my-2 h-6 max-h-[400px] min-w-0 flex-1 resize-none bg-transparent text-[#0d0d0d] text-base leading-6 outline-none placeholder:text-[#9a9a9a] dark:text-white dark:placeholder:text-[#6b6b6b]"
+            className="my-2 h-6 max-h-100 min-w-0 flex-1 resize-none bg-transparent text-[#0d0d0d] text-base leading-6 outline-none placeholder:text-[#9a9a9a] dark:text-white dark:placeholder:text-[#6b6b6b]"
           />
 
           <button
@@ -124,7 +124,7 @@ const ChatMessage: FC = () => {
       <AssistantIf condition={(s) => s.message.role === "user"}>
         <div className="flex flex-col items-end">
           <div className="relative max-w-[90%] rounded-3xl rounded-br-lg border border-[#e5e5e5] bg-[#f0f0f0] px-4 py-3 text-[#0d0d0d] dark:border-[#2a2a2a] dark:bg-[#1a1a1a] dark:text-white">
-            <div className="prose prose-sm dark:prose-invert wrap-break-word">
+            <div className="prose prose-sm dark:prose-invert wrap-break-word prose-p:my-0">
               <MessagePrimitive.Parts components={{ Text: MarkdownText }} />
             </div>
           </div>
