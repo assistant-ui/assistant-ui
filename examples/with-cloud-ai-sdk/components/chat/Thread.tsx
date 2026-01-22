@@ -17,7 +17,7 @@ function ThreadWelcome() {
         <MessageCircle className="size-8 text-muted-foreground" />
       </div>
       <div>
-        <h2 className="text-xl font-semibold">How can I help you today?</h2>
+        <h2 className="font-semibold text-xl">How can I help you today?</h2>
         <p className="text-muted-foreground">
           Send a message to start a conversation.
         </p>
@@ -34,7 +34,7 @@ function LoadingIndicator() {
         <span className="size-2 animate-bounce rounded-full bg-muted-foreground [animation-delay:-0.15s]" />
         <span className="size-2 animate-bounce rounded-full bg-muted-foreground" />
       </div>
-      <span className="text-sm text-muted-foreground">Thinking...</span>
+      <span className="text-muted-foreground text-sm">Thinking...</span>
     </div>
   );
 }

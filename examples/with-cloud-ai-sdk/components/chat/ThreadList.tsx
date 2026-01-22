@@ -24,7 +24,7 @@ export function ThreadList({
       <div className="p-3">
         <button
           onClick={() => onSelect(null)}
-          className="flex w-full items-center justify-center gap-2 rounded-lg border border-sidebar-border bg-sidebar-accent px-4 py-2 text-sm font-medium text-sidebar-accent-foreground transition-colors hover:bg-sidebar-accent/80"
+          className="flex w-full items-center justify-center gap-2 rounded-lg border border-sidebar-border bg-sidebar-accent px-4 py-2 font-medium text-sidebar-accent-foreground text-sm transition-colors hover:bg-sidebar-accent/80"
         >
           <Plus className="size-4" />
           New Chat
@@ -33,11 +33,11 @@ export function ThreadList({
 
       <div className="flex-1 overflow-y-auto px-2 pb-2">
         {isLoading ? (
-          <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">
+          <div className="flex items-center justify-center py-8 text-muted-foreground text-sm">
             Loading...
           </div>
         ) : threads.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-2 py-8 text-center text-sm text-muted-foreground">
+          <div className="flex flex-col items-center justify-center gap-2 py-8 text-center text-muted-foreground text-sm">
             <MessageSquare className="size-8 opacity-50" />
             <p>No conversations yet</p>
           </div>

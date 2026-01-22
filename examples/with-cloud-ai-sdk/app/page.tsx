@@ -8,9 +8,9 @@ import { Thread } from "@/components/chat/Thread";
 import { Composer } from "@/components/chat/Composer";
 import { ThreadList } from "@/components/chat/ThreadList";
 
-// Anonymous auth - works out of the box, no setup required
+// Cloud auth - uses project-specific URL from environment
 const cloud = new AssistantCloud({
-  baseUrl: "https://backend.assistant-ui.com",
+  baseUrl: process.env["NEXT_PUBLIC_ASSISTANT_BASE_URL"]!,
   anonymous: true,
 });
 
@@ -18,11 +18,13 @@ export default function Home() {
   // AI SDK chat state - defaults to /api/chat
   const chat = useChat();
 
-  // Cloud sync - persists messages, manages thread ID
-  const [threadId, selectThread] = useSync(cloud, chat);
-
   // Thread list from cloud
   const threads = useThreads(cloud);
+
+  // Cloud sync - persists messages, manages thread ID
+  const [threadId, selectThread] = useSync(cloud, chat, {
+    onThreadCreated: () => threads.refresh(),
+  });
 
   // Local input state
   const [input, setInput] = useState("");
@@ -34,8 +36,7 @@ export default function Home() {
     await chat.sendMessage({ parts: [{ type: "text", text }] });
   };
 
-  const isRunning =
-    chat.status === "streaming" || chat.status === "submitted";
+  const isRunning = chat.status === "streaming" || chat.status === "submitted";
 
   return (
     <div className="flex h-full">

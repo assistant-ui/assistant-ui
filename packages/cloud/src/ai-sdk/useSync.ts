@@ -17,6 +17,11 @@ export type UseSyncResult = [
 export type UseSyncChat = {
   messages: UIMessage[];
   setMessages: (messages: UIMessage[]) => void;
+  status: "submitted" | "streaming" | "ready" | "error";
+};
+
+export type UseSyncOptions = {
+  onThreadCreated?: (id: string) => void;
 };
 
 /**
@@ -24,38 +29,54 @@ export type UseSyncChat = {
  *
  * @example
  * ```tsx
- * const chat = useChat({ api: "/api/chat" });
- * const [threadId, selectThread, { isLoading }] = useSync(cloud, chat);
+ * const chat = useChat();
+ * const [threadId, selectThread] = useSync(cloud, chat, {
+ *   onThreadCreated: () => threads.refresh(),
+ * });
  * ```
  */
 export function useSync(
   cloud: AssistantCloud,
   chat: UseSyncChat,
+  options?: UseSyncOptions,
 ): UseSyncResult {
   const [threadId, setThreadId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  const [retryTrigger, setRetryTrigger] = useState(0);
 
-  // Track which message IDs have been persisted
+  // Refs for latest values (avoids stale closures in async functions)
+  const messagesRef = useRef(chat.messages);
+  messagesRef.current = chat.messages;
+  const statusRef = useRef(chat.status);
+  statusRef.current = chat.status;
+  const setMessagesRef = useRef(chat.setMessages);
+  setMessagesRef.current = chat.setMessages;
+  const onThreadCreatedRef = useRef(options?.onThreadCreated);
+  onThreadCreatedRef.current = options?.onThreadCreated;
+
   const persistedIdsRef = useRef<Set<string>>(new Set());
-  // Map local message IDs to cloud message IDs
-  const localToRemoteIdRef = useRef<Map<string, string>>(new Map());
-  // Track the last remote message ID for parent_id chaining
   const lastRemoteIdRef = useRef<string | null>(null);
-  // Track if we're currently syncing to prevent re-entry
   const isSyncingRef = useRef(false);
-  // Track the current threadId for the sync effect
   const currentThreadIdRef = useRef<string | null>(null);
+  const mountedRef = useRef(true);
+  const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+      if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
+    };
+  }, []);
 
   // Load messages when threadId changes
   useEffect(() => {
     currentThreadIdRef.current = threadId;
 
     if (threadId === null) {
-      // Clear state for new thread
-      chat.setMessages([]);
+      setMessagesRef.current([]);
       persistedIdsRef.current = new Set();
-      localToRemoteIdRef.current = new Map();
       lastRemoteIdRef.current = null;
       return;
     }
@@ -73,18 +94,14 @@ export function useSync(
 
         if (cancelled) return;
 
-        // Decode messages and set them
-        const messages = response.messages.map(decode);
-        chat.setMessages(messages);
-
-        // Mark all loaded messages as persisted
-        persistedIdsRef.current = new Set(response.messages.map((m) => m.id));
-        // Build the local→remote mapping (for loaded messages, local=remote)
-        localToRemoteIdRef.current = new Map(
-          response.messages.map((m) => [m.id, m.id]),
+        const sortedMessages = [...response.messages].sort(
+          (a, b) => a.height - b.height,
         );
-        // Set the last remote ID for chaining
-        const lastMessage = response.messages[response.messages.length - 1];
+        const messages = sortedMessages.map(decode);
+        setMessagesRef.current(messages);
+
+        persistedIdsRef.current = new Set(sortedMessages.map((m) => m.id));
+        const lastMessage = sortedMessages[sortedMessages.length - 1];
         lastRemoteIdRef.current = lastMessage?.id ?? null;
       } catch (err) {
         if (cancelled) return;
@@ -103,57 +120,74 @@ export function useSync(
     };
   }, [cloud, threadId]);
 
-  // Persist new messages when they appear
+  // Persist new messages (deps trigger re-run, refs provide latest values in async code)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional trigger deps
   useEffect(() => {
     if (isSyncingRef.current) return;
 
-    const newMessages = chat.messages.filter(
-      (m) => !persistedIdsRef.current.has(m.id),
-    );
+    const getPending = () => {
+      const isStreaming =
+        statusRef.current === "streaming" || statusRef.current === "submitted";
+      return messagesRef.current.filter((m, i) => {
+        if (persistedIdsRef.current.has(m.id)) return false;
+        const isLast = i === messagesRef.current.length - 1;
+        if (isLast && m.role === "assistant" && isStreaming) return false;
+        return true;
+      });
+    };
 
-    if (newMessages.length === 0) return;
-
+    if (getPending().length === 0) return;
     isSyncingRef.current = true;
 
     async function persistMessages() {
       try {
-        for (const message of newMessages) {
-          // Skip if already persisted (race condition check)
-          if (persistedIdsRef.current.has(message.id)) continue;
+        let pending = getPending();
+        while (pending.length > 0) {
+          for (const message of pending) {
+            if (persistedIdsRef.current.has(message.id)) continue;
+            if (!mountedRef.current) return;
 
-          let targetThreadId = currentThreadIdRef.current;
+            let targetThreadId = currentThreadIdRef.current;
 
-          // Auto-create thread if needed
-          if (targetThreadId === null) {
-            const response = await cloud.threads.create({
-              last_message_at: new Date(),
+            if (targetThreadId === null) {
+              const res = await cloud.threads.create({
+                last_message_at: new Date(),
+              });
+              targetThreadId = res.thread_id;
+              currentThreadIdRef.current = targetThreadId;
+              if (mountedRef.current) setThreadId(targetThreadId);
+              onThreadCreatedRef.current?.(targetThreadId);
+            }
+
+            const res = await cloud.threads.messages.create(targetThreadId, {
+              parent_id: lastRemoteIdRef.current,
+              format: MESSAGE_FORMAT,
+              content: encode(message),
             });
-            targetThreadId = response.thread_id;
-            currentThreadIdRef.current = targetThreadId;
-            setThreadId(targetThreadId);
+
+            persistedIdsRef.current.add(message.id);
+            lastRemoteIdRef.current = res.message_id;
           }
-
-          // Persist the message
-          const response = await cloud.threads.messages.create(targetThreadId, {
-            parent_id: lastRemoteIdRef.current,
-            format: MESSAGE_FORMAT,
-            content: encode(message),
-          });
-
-          // Update tracking state
-          persistedIdsRef.current.add(message.id);
-          localToRemoteIdRef.current.set(message.id, response.message_id);
-          lastRemoteIdRef.current = response.message_id;
+          // Re-check for messages that arrived during persist
+          pending = getPending();
         }
-      } catch (err) {
-        setError(err instanceof Error ? err : new Error(String(err)));
-      } finally {
         isSyncingRef.current = false;
+      } catch (err) {
+        if (!mountedRef.current) {
+          isSyncingRef.current = false;
+          return;
+        }
+        setError(err instanceof Error ? err : new Error(String(err)));
+        // Retry after delay — keep isSyncingRef true to block re-entry
+        retryTimeoutRef.current = setTimeout(() => {
+          isSyncingRef.current = false;
+          if (mountedRef.current) setRetryTrigger((n) => n + 1);
+        }, 2000);
       }
     }
 
     persistMessages();
-  }, [cloud, chat.messages]);
+  }, [cloud, chat.messages, chat.status, retryTrigger]);
 
   const selectThread = useCallback((id: string | null) => {
     setThreadId(id);
