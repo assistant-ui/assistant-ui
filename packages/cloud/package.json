@@ -42,9 +42,9 @@
     "assistant-stream": "^0.3.2"
   },
   "peerDependencies": {
-    "@ai-sdk/react": "^2.0.0",
+    "@ai-sdk/react": "^3.0.0",
     "@types/react": "*",
-    "ai": "^5.0.0",
+    "ai": "^6.0.0",
     "react": "^18 || ^19"
   },
   "peerDependenciesMeta": {
@@ -62,11 +62,11 @@
     }
   },
   "devDependencies": {
-    "@ai-sdk/react": "^2.0.118",
+    "@ai-sdk/react": "^3.0.44",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/node": "^25.2.1",
     "@types/react": "^19.2.7",
-    "ai": "^5.0.116",
+    "ai": "^6.0.42",
     "react": "^19.2.3",
     "vitest": "^4.0.18"
   },
