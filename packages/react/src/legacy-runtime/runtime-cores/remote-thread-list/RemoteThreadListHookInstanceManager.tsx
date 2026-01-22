@@ -112,7 +112,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
         "__internal_setGetInitializePromise"
       ];
       if (typeof setGetInitializePromise === "function") {
-        setGetInitializePromise(() => initPromiseRef.current);
+        setGetInitializePromise.call(runtimeCore, () => initPromiseRef.current);
       }
     }, [threadBinding]);
 
