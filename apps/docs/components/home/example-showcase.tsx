@@ -74,7 +74,7 @@ const EXAMPLE_TABS = [
 export function ExampleShowcase() {
   return (
     <section>
-      <Tab tabs={EXAMPLE_TABS} className="h-[600px]" variant="ghost" />
+      <Tab tabs={EXAMPLE_TABS} className="h-160" variant="ghost" />
     </section>
   );
 }

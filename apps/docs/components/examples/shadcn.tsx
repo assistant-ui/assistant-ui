@@ -2,19 +2,14 @@
 
 import { Thread } from "@/components/assistant-ui/thread";
 import { ThreadList } from "@/components/assistant-ui/thread-list";
+import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import icon from "@/public/favicon/icon.svg";
-import type { TooltipContentProps } from "@radix-ui/react-tooltip";
 import { MenuIcon, PanelLeftIcon, ShareIcon } from "lucide-react";
 import Image from "next/image";
-import { ComponentPropsWithRef, useState, type FC } from "react";
+import { useState, type FC } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import {
   Select,
   SelectContent,
@@ -23,30 +18,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { MODELS } from "@/constants/model";
-
-type ButtonWithTooltipProps = ComponentPropsWithRef<typeof Button> & {
-  tooltip: string;
-  side?: TooltipContentProps["side"];
-};
-
-const ButtonWithTooltip: FC<ButtonWithTooltipProps> = ({
-  children,
-  tooltip,
-  side = "top",
-  ...rest
-}) => {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button {...rest}>
-          {children}
-          <span className="sr-only">{tooltip}</span>
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent side={side}>{tooltip}</TooltipContent>
-    </Tooltip>
-  );
-};
 
 const Logo: FC = () => {
   return (
@@ -66,7 +37,7 @@ const Sidebar: FC<{ collapsed?: boolean }> = ({ collapsed }) => {
     <aside
       className={cn(
         "flex h-full flex-col bg-muted/30 transition-all duration-200",
-        collapsed ? "w-0 overflow-hidden opacity-0" : "w-[260px] opacity-100",
+        collapsed ? "w-0 overflow-hidden opacity-0" : "w-65 opacity-100",
       )}
     >
       <div className="flex h-14 shrink-0 items-center px-4">
@@ -92,7 +63,7 @@ const MobileSidebar: FC = () => {
           <span className="sr-only">Toggle menu</span>
         </Button>
       </SheetTrigger>
-      <SheetContent side="left" className="w-[280px] p-0">
+      <SheetContent side="left" className="w-70 p-0">
         <div className="flex h-14 items-center px-4">
           <Logo />
         </div>
@@ -143,7 +114,7 @@ const Header: FC<{
   return (
     <header className="flex h-14 shrink-0 items-center gap-2 px-4">
       <MobileSidebar />
-      <ButtonWithTooltip
+      <TooltipIconButton
         variant="ghost"
         size="icon"
         tooltip={sidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
@@ -152,9 +123,9 @@ const Header: FC<{
         className="hidden size-9 md:flex"
       >
         <PanelLeftIcon className="size-4" />
-      </ButtonWithTooltip>
+      </TooltipIconButton>
       <ModelPicker />
-      <ButtonWithTooltip
+      <TooltipIconButton
         variant="ghost"
         size="icon"
         tooltip="Share"
@@ -162,7 +133,7 @@ const Header: FC<{
         className="ml-auto size-9"
       >
         <ShareIcon className="size-4" />
-      </ButtonWithTooltip>
+      </TooltipIconButton>
     </header>
   );
 };

@@ -13,9 +13,8 @@ type FooterLinkItem = {
 
 const FOOTER_LINKS: Record<string, FooterLinkItem[]> = {
   Products: [
-    { label: "Docs", href: "/docs" },
     {
-      label: "Dashboard",
+      label: "Cloud",
       href: "https://cloud.assistant-ui.com/",
       external: true,
     },
