@@ -8,9 +8,9 @@ import { Thread } from "@/components/chat/Thread";
 import { Composer } from "@/components/chat/Composer";
 import { ThreadList } from "@/components/chat/ThreadList";
 
-// Anonymous auth - works out of the box, no setup required
+// Cloud auth - uses project-specific URL from environment
 const cloud = new AssistantCloud({
-  baseUrl: "https://backend.assistant-ui.com",
+  baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
   anonymous: true,
 });
 
