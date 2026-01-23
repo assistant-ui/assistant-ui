@@ -112,7 +112,7 @@ export class AgUiThreadRuntimeCore {
     this.notifyUpdate();
 
     this._loadPromise = promise
-      .then((repo) => {
+      .then(async (repo) => {
         if (!repo) return;
 
         const messages = repo.messages.map((item) => item.message);
@@ -120,8 +120,14 @@ export class AgUiThreadRuntimeCore {
 
         if (repo.unstable_resume) {
           const parentId = repo.headId ?? messages.at(-1)?.id ?? null;
-          this.startRun(parentId, this.lastRunConfig);
+          await this.startRun(parentId, this.lastRunConfig);
         }
+      })
+      .catch((error) => {
+        this.logger.error?.("[agui] failed to load history", error);
+        this.onError?.(
+          error instanceof Error ? error : new Error(String(error)),
+        );
       })
       .finally(() => {
         this._isLoading = false;

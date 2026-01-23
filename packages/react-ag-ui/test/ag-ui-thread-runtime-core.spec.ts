@@ -309,4 +309,59 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(runAgent).toHaveBeenCalledTimes(1);
     expect(core.getMessages().length).toBeGreaterThanOrEqual(1);
   });
+
+  it("calls onError when history.load() throws", async () => {
+    const agent = { runAgent: vi.fn() } as unknown as HttpAgent;
+    const onError = vi.fn();
+
+    const historyAdapter: ThreadHistoryAdapter = {
+      load: vi.fn().mockRejectedValue(new Error("load failed")),
+      append: vi.fn(),
+    };
+
+    const core = createCore(agent, { onError, history: historyAdapter });
+    await core.__internal_load();
+
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError).toHaveBeenCalledWith(expect.any(Error));
+    expect(onError.mock.calls[0][0].message).toBe("load failed");
+    expect(core.isLoading).toBe(false);
+  });
+
+  it("resets isLoading to false when history.load() throws", async () => {
+    const agent = { runAgent: vi.fn() } as unknown as HttpAgent;
+
+    const historyAdapter: ThreadHistoryAdapter = {
+      load: vi.fn().mockRejectedValue(new Error("network error")),
+      append: vi.fn(),
+    };
+
+    const core = createCore(agent, { history: historyAdapter });
+
+    expect(core.isLoading).toBe(false);
+    const loadPromise = core.__internal_load();
+    expect(core.isLoading).toBe(true);
+
+    await loadPromise;
+
+    expect(core.isLoading).toBe(false);
+    expect(core.getMessages()).toHaveLength(0);
+  });
+
+  it("converts non-Error throws to Error in onError callback", async () => {
+    const agent = { runAgent: vi.fn() } as unknown as HttpAgent;
+    const onError = vi.fn();
+
+    const historyAdapter: ThreadHistoryAdapter = {
+      load: vi.fn().mockRejectedValue("string error"),
+      append: vi.fn(),
+    };
+
+    const core = createCore(agent, { onError, history: historyAdapter });
+    await core.__internal_load();
+
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError).toHaveBeenCalledWith(expect.any(Error));
+    expect(onError.mock.calls[0][0].message).toBe("string error");
+  });
 });
