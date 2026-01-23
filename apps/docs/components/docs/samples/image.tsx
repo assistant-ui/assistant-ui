@@ -15,7 +15,7 @@ function VariantRow({
   variant,
 }: {
   label: string;
-  variant?: "default" | "bordered" | "ghost";
+  variant?: "default" | "muted";
 }) {
   return (
     <div className="flex flex-col gap-2">
@@ -38,8 +38,7 @@ export function ImageSample() {
   return (
     <SampleFrame className="flex h-auto flex-col gap-6 overflow-x-auto p-6">
       <VariantRow label="Default" />
-      <VariantRow label="Bordered" variant="bordered" />
-      <VariantRow label="Ghost" variant="ghost" />
+      <VariantRow label="Muted" variant="muted" />
     </SampleFrame>
   );
 }

@@ -19,9 +19,8 @@ const fileVariants = cva(
   {
     variants: {
       variant: {
-        default: "border border-border bg-muted/30 hover:bg-muted/50",
-        outline: "border-2 border-border hover:bg-accent/50",
-        ghost: "hover:bg-accent/50",
+        default: "border border-border hover:bg-muted/50",
+        muted: "bg-muted/50 hover:bg-muted/70",
       },
       size: {
         sm: "px-2.5 py-1.5 text-xs",

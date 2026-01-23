@@ -17,9 +17,8 @@ const imageVariants = cva(
   {
     variants: {
       variant: {
-        default: "border border-border bg-muted/30",
-        bordered: "border-2 border-border",
-        ghost: "",
+        default: "border border-border",
+        muted: "bg-muted/50",
       },
       size: {
         sm: "max-w-64",
