@@ -88,9 +88,13 @@ export const useCloudThreadListAdapter = (
     },
 
     initialize: async () => {
-      const createTask = adapter.create?.() ?? Promise.resolve();
-      const t = await createTask;
-      const external_id = t ? t.externalId : undefined;
+      let external_id: string | undefined;
+
+      if (adapter.create) {
+        const result = await adapter.create();
+        external_id = result.externalId;
+      }
+
       const { thread_id: remoteId } = await cloud.threads.create({
         last_message_at: new Date(),
         external_id,
