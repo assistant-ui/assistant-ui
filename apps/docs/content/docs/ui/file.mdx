@@ -108,10 +108,20 @@ import {
 |-----------|-------------|
 | `File` | Default export, renders complete file part |
 | `File.Root` | Container with variant and size styling |
-| `File.Icon` | MIME type-aware icon |
+| `File.Icon` | MIME type-aware icon, or pass custom `children` |
 | `File.Name` | Truncated filename |
 | `File.Size` | Human-readable file size |
 | `File.Download` | Download link button |
+
+### Custom Icon
+
+Pass `children` to `File.Icon` to override the default MIME type icon:
+
+```tsx
+<File.Icon>
+  <MyCustomIcon className="size-5" />
+</File.Icon>
+```
 
 ## Utilities
 

@@ -109,15 +109,16 @@ function FileRoot({
 }
 
 type FileIconDisplayProps = React.ComponentProps<"span"> & {
-  mimeType: string;
+  mimeType?: string;
 };
 
 function FileIconDisplay({
   mimeType,
   className,
+  children,
   ...props
 }: FileIconDisplayProps) {
-  const IconComponent = getMimeTypeIcon(mimeType);
+  const IconComponent = mimeType ? getMimeTypeIcon(mimeType) : FileIcon;
 
   return (
     <span
@@ -125,7 +126,7 @@ function FileIconDisplay({
       className={cn("shrink-0 text-muted-foreground", className)}
       {...props}
     >
-      <IconComponent className="size-5" />
+      {children ?? <IconComponent className="size-5" />}
     </span>
   );
 }

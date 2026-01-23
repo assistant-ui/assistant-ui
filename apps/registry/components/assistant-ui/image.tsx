@@ -180,9 +180,7 @@ const ImageImpl: ImageMessagePartComponent = ({ image, filename }) => {
   return (
     <ImageRoot>
       <ImageDialog src={image} alt={filename || "Image content"}>
-        <div>
-          <ImagePreview src={image} alt={filename || "Image content"} />
-        </div>
+        <ImagePreview src={image} alt={filename || "Image content"} />
       </ImageDialog>
       <ImageFilename>{filename}</ImageFilename>
     </ImageRoot>

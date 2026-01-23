@@ -76,11 +76,9 @@ import {
   ImageDialog,
 } from "@/components/assistant-ui/image";
 
-<ImageRoot variant="bordered" size="lg">
+<ImageRoot variant="muted" size="lg">
   <ImageDialog src="https://example.com/photo.jpg" alt="Photo">
-    <div>
-      <ImagePreview src="https://example.com/photo.jpg" alt="Photo" />
-    </div>
+    <ImagePreview src="https://example.com/photo.jpg" alt="Photo" />
   </ImageDialog>
   <ImageFilename>photo.jpg</ImageFilename>
 </ImageRoot>
@@ -90,7 +88,7 @@ import {
 |-----------|-------------|
 | `Image` | Default export, renders complete image part |
 | `Image.Root` | Container with variant and size styling |
-| `Image.Preview` | `<img>` element with loading/error states |
+| `Image.Preview` | Image container with loading/error states |
 | `Image.Filename` | Optional filename display below image |
 | `Image.Dialog` | Fullscreen preview dialog on click |
 

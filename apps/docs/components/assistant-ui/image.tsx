@@ -57,13 +57,13 @@ function ImageRoot({
   );
 }
 
-type ImagePreviewProps = React.ComponentProps<"img"> & {
-  isLoading?: boolean;
+type ImagePreviewProps = Omit<React.ComponentProps<"img">, "children"> & {
+  containerClassName?: string;
 };
 
 function ImagePreview({
   className,
-  isLoading,
+  containerClassName,
   onLoad,
   onError,
   alt = "Image content",
@@ -72,49 +72,46 @@ function ImagePreview({
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState(false);
 
-  if (error) {
-    return (
-      <div
-        data-slot="image-preview-error"
-        className={cn(
-          "flex min-h-32 items-center justify-center bg-muted/50 p-4",
-          className,
-        )}
-      >
-        <ImageOffIcon className="size-8 text-muted-foreground" />
-      </div>
-    );
-  }
-
   return (
-    <>
-      {!loaded && (
+    <div
+      data-slot="image-preview"
+      className={cn("relative min-h-32", containerClassName)}
+    >
+      {!loaded && !error && (
         <div
           data-slot="image-preview-loading"
-          className="flex min-h-32 items-center justify-center bg-muted/50 p-4"
+          className="absolute inset-0 flex items-center justify-center bg-muted/50"
         >
           <ImageIcon className="size-8 animate-pulse text-muted-foreground" />
         </div>
       )}
-      <img
-        data-slot="image-preview"
-        alt={alt}
-        className={cn(
-          "block h-auto w-full object-contain",
-          !loaded && "hidden",
-          className,
-        )}
-        onLoad={(e) => {
-          setLoaded(true);
-          onLoad?.(e);
-        }}
-        onError={(e) => {
-          setError(true);
-          onError?.(e);
-        }}
-        {...props}
-      />
-    </>
+      {error ? (
+        <div
+          data-slot="image-preview-error"
+          className="flex min-h-32 items-center justify-center bg-muted/50 p-4"
+        >
+          <ImageOffIcon className="size-8 text-muted-foreground" />
+        </div>
+      ) : (
+        <img
+          alt={alt}
+          className={cn(
+            "block h-auto w-full object-contain",
+            !loaded && "invisible",
+            className,
+          )}
+          onLoad={(e) => {
+            setLoaded(true);
+            onLoad?.(e);
+          }}
+          onError={(e) => {
+            setError(true);
+            onError?.(e);
+          }}
+          {...props}
+        />
+      )}
+    </div>
   );
 }
 
@@ -183,9 +180,7 @@ const ImageImpl: ImageMessagePartComponent = ({ image, filename }) => {
   return (
     <ImageRoot>
       <ImageDialog src={image} alt={filename || "Image content"}>
-        <div>
-          <ImagePreview src={image} alt={filename || "Image content"} />
-        </div>
+        <ImagePreview src={image} alt={filename || "Image content"} />
       </ImageDialog>
       <ImageFilename>{filename}</ImageFilename>
     </ImageRoot>
