@@ -4,7 +4,6 @@ import {
   memo,
   useState,
   useEffect,
-  useCallback,
   useRef,
   type PropsWithChildren,
 } from "react";
@@ -161,23 +160,18 @@ function ImageZoom({ src, alt = "Image preview", children }: ImageZoomProps) {
     setIsMounted(true);
   }, []);
 
-  const handleOpen = useCallback(() => {
-    setIsOpen(true);
-  }, []);
-
-  const handleClose = useCallback(() => {
-    setIsOpen(false);
-  }, []);
+  const handleOpen = () => setIsOpen(true);
+  const handleClose = () => setIsOpen(false);
 
   // ESC key to close
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") handleClose();
+      if (e.key === "Escape") setIsOpen(false);
     };
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, handleClose]);
+  }, [isOpen]);
 
   // Lock body scroll when open
   useEffect(() => {
