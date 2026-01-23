@@ -56,20 +56,23 @@ function SizeRow() {
     <div className="flex flex-col gap-2">
       <span className="font-medium text-muted-foreground text-xs">Sizes</span>
       <div className="flex flex-wrap items-center gap-2">
-        {(["sm", "default", "lg"] as const).map((size) => (
-          <FileRoot key={size} size={size}>
-            <FileIconDisplay mimeType={file.mimeType} />
-            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-              <FileName>{`${size}.pdf`}</FileName>
-              <FileSize bytes={file.size} className="text-xs" />
-            </div>
-            <FileDownload
-              data={SAMPLE_DATA}
-              mimeType={file.mimeType}
-              filename={file.filename}
-            />
-          </FileRoot>
-        ))}
+        {(["sm", "default", "lg"] as const).map((size) => {
+          const filename = `${size}.pdf`;
+          return (
+            <FileRoot key={size} size={size}>
+              <FileIconDisplay mimeType={file.mimeType} />
+              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <FileName>{filename}</FileName>
+                <FileSize bytes={file.size} className="text-xs" />
+              </div>
+              <FileDownload
+                data={SAMPLE_DATA}
+                mimeType={file.mimeType}
+                filename={filename}
+              />
+            </FileRoot>
+          );
+        })}
       </div>
     </div>
   );

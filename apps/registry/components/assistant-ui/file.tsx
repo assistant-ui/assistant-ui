@@ -35,9 +35,6 @@ const fileVariants = cva(
   },
 );
 
-/**
- * Get the appropriate icon component based on MIME type
- */
 function getMimeTypeIcon(mimeType: string): FC<{ className?: string }> {
   if (mimeType.startsWith("image/")) {
     return ImageIcon;
@@ -60,21 +57,13 @@ function getMimeTypeIcon(mimeType: string): FC<{ className?: string }> {
   return FileIcon;
 }
 
-/**
- * Calculate file size from base64 string
- */
 function getBase64Size(base64: string): number {
-  // Remove data URL prefix if present
-  const base64Data = base64.includes(",") ? base64.split(",")[1]! : base64;
-  // Calculate size: base64 encodes 3 bytes into 4 characters
-  // Account for padding
+  const commaIndex = base64.indexOf(",");
+  const base64Data = commaIndex >= 0 ? base64.slice(commaIndex + 1) : base64;
   const padding = (base64Data.match(/=/g) || []).length;
   return Math.floor((base64Data.length * 3) / 4) - padding;
 }
 
-/**
- * Format bytes into human-readable size
- */
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) {
     return `${bytes} B`;
@@ -177,7 +166,6 @@ function FileDownload({
   children,
   ...props
 }: FileDownloadProps) {
-  // Create data URL if not already one
   const href = data.startsWith("data:")
     ? data
     : `data:${mimeType};base64,${data}`;

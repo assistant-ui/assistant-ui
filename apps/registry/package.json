@@ -24,6 +24,7 @@
     "@tailwindcss/postcss": "^4.1.18",
     "@types/node": "^25.0.9",
     "@types/react": "^19.2.9",
+    "@types/react-dom": "^19.2.3",
     "@types/react-syntax-highlighter": "^15.5.13",
     "ai": "^6.0.42",
     "class-variance-authority": "^0.7.1",

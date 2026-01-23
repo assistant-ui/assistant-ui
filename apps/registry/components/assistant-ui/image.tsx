@@ -68,18 +68,25 @@ function ImagePreview({
   onLoad,
   onError,
   alt = "Image content",
+  src,
   ...props
 }: ImagePreviewProps) {
   const imgRef = useRef<HTMLImageElement>(null);
-  const [loaded, setLoaded] = useState(false);
-  const [error, setError] = useState(false);
+  const [loadedSrc, setLoadedSrc] = useState<string | undefined>(undefined);
+  const [errorSrc, setErrorSrc] = useState<string | undefined>(undefined);
 
-  // Handle cached images that may already be complete
+  const loaded = loadedSrc === src;
+  const error = errorSrc === src;
+
   useEffect(() => {
-    if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) {
-      setLoaded(true);
+    if (
+      typeof src === "string" &&
+      imgRef.current?.complete &&
+      imgRef.current.naturalWidth > 0
+    ) {
+      setLoadedSrc(src);
     }
-  }, []);
+  }, [src]);
 
   return (
     <div
@@ -104,6 +111,7 @@ function ImagePreview({
       ) : (
         <img
           ref={imgRef}
+          src={src}
           alt={alt}
           className={cn(
             "block h-auto w-full object-contain",
@@ -111,11 +119,11 @@ function ImagePreview({
             className,
           )}
           onLoad={(e) => {
-            setLoaded(true);
+            if (typeof src === "string") setLoadedSrc(src);
             onLoad?.(e);
           }}
           onError={(e) => {
-            setError(true);
+            if (typeof src === "string") setErrorSrc(src);
             onError?.(e);
           }}
           {...props}
@@ -155,7 +163,6 @@ function ImageZoom({ src, alt = "Image preview", children }: ImageZoomProps) {
   const [isMounted, setIsMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
 
-  // SSR safety: only render portal on client
   useEffect(() => {
     setIsMounted(true);
   }, []);
@@ -163,7 +170,6 @@ function ImageZoom({ src, alt = "Image preview", children }: ImageZoomProps) {
   const handleOpen = () => setIsOpen(true);
   const handleClose = () => setIsOpen(false);
 
-  // ESC key to close
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -173,15 +179,13 @@ function ImageZoom({ src, alt = "Image preview", children }: ImageZoomProps) {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [isOpen]);
 
-  // Lock body scroll when open
   useEffect(() => {
-    if (isOpen) {
-      const originalOverflow = document.body.style.overflow;
-      document.body.style.overflow = "hidden";
-      return () => {
-        document.body.style.overflow = originalOverflow;
-      };
-    }
+    if (!isOpen) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
   }, [isOpen]);
 
   return (

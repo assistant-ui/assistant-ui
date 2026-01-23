@@ -396,6 +396,9 @@ importers:
       '@types/react':
         specifier: ^19.2.9
         version: 19.2.9
+      '@types/react-dom':
+        specifier: ^19.2.3
+        version: 19.2.3(@types/react@19.2.9)
       '@types/react-syntax-highlighter':
         specifier: ^15.5.13
         version: 15.5.13
