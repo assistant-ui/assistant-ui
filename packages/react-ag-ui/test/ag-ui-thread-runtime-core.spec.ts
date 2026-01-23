@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import type {
   AppendMessage,
   ThreadAssistantMessage,
+  ThreadHistoryAdapter,
   ThreadMessage,
 } from "@assistant-ui/react";
 import type { HttpAgent } from "@ag-ui/client";
@@ -28,7 +29,11 @@ const noopLogger = makeLogger();
 
 const createCore = (
   agent: HttpAgent,
-  hooks: { onError?: (e: Error) => void; onCancel?: () => void } = {},
+  hooks: {
+    onError?: (e: Error) => void;
+    onCancel?: () => void;
+    history?: ThreadHistoryAdapter;
+  } = {},
 ) =>
   new AgUiThreadRuntimeCore({
     agent,
@@ -36,6 +41,7 @@ const createCore = (
     showThinking: true,
     ...(hooks.onError ? { onError: hooks.onError } : {}),
     ...(hooks.onCancel ? { onCancel: hooks.onCancel } : {}),
+    ...(hooks.history ? { history: hooks.history } : {}),
     notifyUpdate: () => {},
   });
 
@@ -192,5 +198,115 @@ describe("AGUIThreadRuntimeCore", () => {
         message.role === "assistant" && message.content === "",
     );
     expect(containsEmptyAssistant).toBe(false);
+  });
+
+  it("loads history on __internal_load", async () => {
+    const agent = { runAgent: vi.fn() } as unknown as HttpAgent;
+
+    const userMessage: ThreadMessage = {
+      id: "msg-1",
+      role: "user",
+      createdAt: new Date(),
+      content: [{ type: "text", text: "Hello" }],
+      metadata: { custom: {} },
+    };
+    const assistantMessage: ThreadAssistantMessage = {
+      id: "msg-2",
+      role: "assistant",
+      createdAt: new Date(),
+      status: { type: "complete", reason: "unknown" },
+      content: [{ type: "text", text: "Hi there!" }],
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+    };
+
+    const historyAdapter: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue({
+        headId: "msg-2",
+        messages: [
+          { message: userMessage, parentId: null },
+          { message: assistantMessage, parentId: "msg-1" },
+        ],
+      }),
+      append: vi.fn().mockResolvedValue(undefined),
+    };
+
+    const core = createCore(agent, { history: historyAdapter });
+
+    expect(core.isLoading).toBe(false);
+    const loadPromise = core.__internal_load();
+    expect(core.isLoading).toBe(true);
+
+    await loadPromise;
+
+    expect(historyAdapter.load).toHaveBeenCalledTimes(1);
+    expect(core.isLoading).toBe(false);
+    expect(core.getMessages()).toHaveLength(2);
+    expect(core.getMessages()[0]?.id).toBe("msg-1");
+    expect(core.getMessages()[1]?.id).toBe("msg-2");
+  });
+
+  it("returns existing promise if __internal_load called multiple times", async () => {
+    const agent = { runAgent: vi.fn() } as unknown as HttpAgent;
+
+    const historyAdapter: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue(null),
+      append: vi.fn(),
+    };
+
+    const core = createCore(agent, { history: historyAdapter });
+
+    const promise1 = core.__internal_load();
+    const promise2 = core.__internal_load();
+
+    expect(promise1).toBe(promise2);
+    await promise1;
+
+    expect(historyAdapter.load).toHaveBeenCalledTimes(1);
+  });
+
+  it("handles missing history adapter gracefully", async () => {
+    const agent = { runAgent: vi.fn() } as unknown as HttpAgent;
+    const core = createCore(agent);
+
+    await core.__internal_load();
+
+    expect(core.getMessages()).toHaveLength(0);
+    expect(core.isLoading).toBe(false);
+  });
+
+  it("triggers startRun when unstable_resume is true", async () => {
+    const runAgent = vi.fn(async (_input, subscriber) => {
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+
+    const userMessage: ThreadMessage = {
+      id: "msg-1",
+      role: "user",
+      createdAt: new Date(),
+      content: [{ type: "text", text: "Hello" }],
+      metadata: { custom: {} },
+    };
+
+    const historyAdapter: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue({
+        headId: "msg-1",
+        messages: [{ message: userMessage, parentId: null }],
+        unstable_resume: true,
+      }),
+      append: vi.fn().mockResolvedValue(undefined),
+    };
+
+    const core = createCore(agent, { history: historyAdapter });
+    await core.__internal_load();
+
+    expect(runAgent).toHaveBeenCalledTimes(1);
+    expect(core.getMessages().length).toBeGreaterThanOrEqual(1);
   });
 });

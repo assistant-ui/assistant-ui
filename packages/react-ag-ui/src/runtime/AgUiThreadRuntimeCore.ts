@@ -57,6 +57,8 @@ export class AgUiThreadRuntimeCore {
   private lastRunConfig: RunConfig | undefined;
   private readonly assistantHistoryParents = new Map<string, string | null>();
   private readonly recordedHistoryIds = new Set<string>();
+  private _isLoading = false;
+  private _loadPromise: Promise<void> | undefined;
 
   constructor(options: CoreOptions) {
     this.agent = options.agent;
@@ -95,6 +97,38 @@ export class AgUiThreadRuntimeCore {
 
   isRunning(): boolean {
     return this.isRunningFlag;
+  }
+
+  get isLoading(): boolean {
+    return this._isLoading;
+  }
+
+  __internal_load(): Promise<void> {
+    if (this._loadPromise) return this._loadPromise;
+
+    const promise = this.history?.load() ?? Promise.resolve(null);
+
+    this._isLoading = true;
+    this.notifyUpdate();
+
+    this._loadPromise = promise
+      .then((repo) => {
+        if (!repo) return;
+
+        const messages = repo.messages.map((item) => item.message);
+        this.applyExternalMessages(messages);
+
+        if (repo.unstable_resume) {
+          const parentId = repo.headId ?? messages.at(-1)?.id ?? null;
+          this.startRun(parentId, this.lastRunConfig);
+        }
+      })
+      .finally(() => {
+        this._isLoading = false;
+        this.notifyUpdate();
+      });
+
+    return this._loadPromise;
   }
 
   async append(message: AppendMessage): Promise<void> {
