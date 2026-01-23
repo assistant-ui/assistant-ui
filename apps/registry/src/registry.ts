@@ -311,12 +311,12 @@ export const registry: RegistryItem[] = [
         path: "components/assistant-ui/image.tsx",
       },
     ],
-    registryDependencies: ["dialog"],
     dependencies: [
       "@assistant-ui/react",
       "lucide-react",
       "class-variance-authority",
     ],
+    registryDependencies: [],
   },
   {
     name: "file",

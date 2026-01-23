@@ -73,13 +73,13 @@ import {
   ImageRoot,
   ImagePreview,
   ImageFilename,
-  ImageDialog,
+  ImageZoom,
 } from "@/components/assistant-ui/image";
 
 <ImageRoot variant="muted" size="lg">
-  <ImageDialog src="https://example.com/photo.jpg" alt="Photo">
+  <ImageZoom src="https://example.com/photo.jpg" alt="Photo">
     <ImagePreview src="https://example.com/photo.jpg" alt="Photo" />
-  </ImageDialog>
+  </ImageZoom>
   <ImageFilename>photo.jpg</ImageFilename>
 </ImageRoot>
 ```
@@ -90,7 +90,7 @@ import {
 | `Image.Root` | Container with variant and size styling |
 | `Image.Preview` | Image container with loading/error states |
 | `Image.Filename` | Optional filename display below image |
-| `Image.Dialog` | Fullscreen preview dialog on click |
+| `Image.Zoom` | Medium-style zoom overlay (click to expand, ESC to close) |
 
 ## Related
 

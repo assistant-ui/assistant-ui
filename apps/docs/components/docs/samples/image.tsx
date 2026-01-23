@@ -4,6 +4,7 @@ import {
   ImageRoot,
   ImagePreview,
   ImageFilename,
+  ImageZoom,
 } from "@/components/assistant-ui/image";
 import { SampleFrame } from "@/components/docs/samples/sample-frame";
 
@@ -22,11 +23,15 @@ function VariantRow({
       <span className="font-medium text-muted-foreground text-xs">{label}</span>
       <div className="flex flex-wrap items-start gap-4">
         <ImageRoot variant={variant} size="sm">
-          <ImagePreview src={PLACEHOLDER_IMAGE} alt="Mountain landscape" />
+          <ImageZoom src={PLACEHOLDER_IMAGE} alt="Mountain landscape">
+            <ImagePreview src={PLACEHOLDER_IMAGE} alt="Mountain landscape" />
+          </ImageZoom>
           <ImageFilename>landscape-sm.jpg</ImageFilename>
         </ImageRoot>
         <ImageRoot variant={variant} size="default">
-          <ImagePreview src={PLACEHOLDER_IMAGE} alt="Mountain landscape" />
+          <ImageZoom src={PLACEHOLDER_IMAGE} alt="Mountain landscape">
+            <ImagePreview src={PLACEHOLDER_IMAGE} alt="Mountain landscape" />
+          </ImageZoom>
           <ImageFilename>landscape-default.jpg</ImageFilename>
         </ImageRoot>
       </div>
@@ -37,7 +42,7 @@ function VariantRow({
 export function ImageSample() {
   return (
     <SampleFrame className="flex h-auto flex-col gap-6 overflow-x-auto p-6">
-      <VariantRow label="Default" />
+      <VariantRow label="Default (click to zoom)" />
       <VariantRow label="Muted" variant="muted" />
     </SampleFrame>
   );
