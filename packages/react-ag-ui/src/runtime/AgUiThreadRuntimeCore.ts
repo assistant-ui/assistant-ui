@@ -109,7 +109,6 @@ export class AgUiThreadRuntimeCore {
     const promise = this.history?.load() ?? Promise.resolve(null);
 
     this._isLoading = true;
-    this.notifyUpdate();
 
     this._loadPromise = promise
       .then(async (repo) => {
@@ -134,6 +133,7 @@ export class AgUiThreadRuntimeCore {
         this.notifyUpdate();
       });
 
+    this.notifyUpdate();
     return this._loadPromise;
   }
 

@@ -114,7 +114,8 @@
         "noStaticElementInteractions": "off",
         "useFocusableInteractive": "off",
         "useButtonType": "off",
-        "useSemanticElements": "off"
+        "useSemanticElements": "off",
+        "noRedundantAlt": "off"
       },
       "security": {
         "noDangerouslySetInnerHtml": "off"
