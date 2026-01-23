@@ -34,8 +34,7 @@ export default function Home() {
     await chat.sendMessage({ parts: [{ type: "text", text }] });
   };
 
-  const isRunning =
-    chat.status === "streaming" || chat.status === "submitted";
+  const isRunning = chat.status === "streaming" || chat.status === "submitted";
 
   return (
     <div className="flex h-full">
