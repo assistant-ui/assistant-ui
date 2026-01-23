@@ -1,6 +1,5 @@
 import * as React from "react";
 import { Github, MessagesSquare } from "lucide-react";
-import Link from "next/link";
 import {
   Sidebar,
   SidebarContent,
@@ -23,7 +22,7 @@ export function ThreadListSidebar({
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton size="lg" asChild>
-                <Link
+                <a
                   href="https://assistant-ui.com"
                   target="_blank"
                   rel="noopener noreferrer"
@@ -36,7 +35,7 @@ export function ThreadListSidebar({
                       assistant-ui
                     </span>
                   </div>
-                </Link>
+                </a>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
@@ -50,9 +49,10 @@ export function ThreadListSidebar({
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
-              <Link
+              <a
                 href="https://github.com/assistant-ui/assistant-ui"
                 target="_blank"
+                rel="noopener noreferrer"
               >
                 <div className="aui-sidebar-footer-icon-wrapper flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
                   <Github className="aui-sidebar-footer-icon size-4" />
@@ -63,7 +63,7 @@ export function ThreadListSidebar({
                   </span>
                   <span>View Source</span>
                 </div>
-              </Link>
+              </a>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
