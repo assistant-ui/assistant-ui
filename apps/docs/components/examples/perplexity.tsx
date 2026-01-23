@@ -29,7 +29,7 @@ import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button
 import {
   ComposerAttachments,
   UserMessageAttachments,
-} from "@/components/assistant-ui/attachment-old";
+} from "@/components/legacy/attachment-old";
 
 export const Perplexity: FC = () => {
   return (
