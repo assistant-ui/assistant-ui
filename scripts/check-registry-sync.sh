@@ -3,9 +3,8 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REGISTRY_DIR="$SCRIPT_DIR/../apps/registry/components/assistant-ui"
+SOURCE_DIR="$SCRIPT_DIR/../packages/ui/src/components/assistant-ui"
 EXAMPLES_DIR="$SCRIPT_DIR/../examples"
-DOCS_DIR="$SCRIPT_DIR/../apps/docs/components/assistant-ui"
 
 # Files to exclude from checking (these often have example-specific customizations)
 EXCLUDED_FILES=()
@@ -16,11 +15,11 @@ EXAMPLE_EXCLUSIONS=(
     "with-elevenlabs-scribe:thread.tsx"  # Custom dictation UI
 )
 
-echo "Checking registry components are in sync with examples and docs..."
+echo "Checking packages/ui components are in sync with examples..."
 echo "Excluded files: ${EXCLUDED_FILES[*]}"
 
-if [[ ! -d "$REGISTRY_DIR" ]]; then
-    echo "Error: Registry directory not found: $REGISTRY_DIR"
+if [[ ! -d "$SOURCE_DIR" ]]; then
+    echo "Error: Source directory not found: $SOURCE_DIR"
     exit 1
 fi
 
@@ -29,13 +28,13 @@ if [[ ! -d "$EXAMPLES_DIR" ]]; then
     exit 1
 fi
 
-# Get all registry files
-registry_files=()
+# Get all source files
+source_files=()
 while IFS= read -r -d '' file; do
-    registry_files+=("$(basename "$file")")
-done < <(find "$REGISTRY_DIR" -maxdepth 1 -type f \( -name "*.tsx" -o -name "*.ts" \) -print0)
+    source_files+=("$(basename "$file")")
+done < <(find "$SOURCE_DIR" -maxdepth 1 -type f \( -name "*.tsx" -o -name "*.ts" \) -print0)
 
-echo "Found ${#registry_files[@]} files in registry: ${registry_files[*]}"
+echo "Found ${#source_files[@]} files in packages/ui: ${source_files[*]}"
 
 has_diff=false
 diff_files=()
@@ -46,11 +45,11 @@ check_target() {
     local target_name="$2"
     local example_name="$3"  # Optional: example name for example-specific exclusions
 
-    for registry_file in "${registry_files[@]}"; do
+    for source_file in "${source_files[@]}"; do
         # Check if file is in global excluded list
         is_excluded=false
         for excluded in "${EXCLUDED_FILES[@]}"; do
-            if [[ "$registry_file" == "$excluded" ]]; then
+            if [[ "$source_file" == "$excluded" ]]; then
                 is_excluded=true
                 break
             fi
@@ -59,7 +58,7 @@ check_target() {
         # Check if file is in example-specific exclusions
         if [[ -n "$example_name" ]]; then
             for exclusion in "${EXAMPLE_EXCLUSIONS[@]}"; do
-                if [[ "$exclusion" == "$example_name:$registry_file" ]]; then
+                if [[ "$exclusion" == "$example_name:$source_file" ]]; then
                     is_excluded=true
                     break
                 fi
@@ -70,25 +69,18 @@ check_target() {
             continue
         fi
 
-        registry_path="$REGISTRY_DIR/$registry_file"
-        target_path="$target_dir/$registry_file"
+        source_path="$SOURCE_DIR/$source_file"
+        target_path="$target_dir/$source_file"
 
         if [[ -f "$target_path" ]]; then
-            if ! diff -q "$registry_path" "$target_path" > /dev/null 2>&1; then
-                echo "❌ Out of sync: $target_name/$registry_file"
+            if ! diff -q "$source_path" "$target_path" > /dev/null 2>&1; then
+                echo "❌ Out of sync: $target_name/$source_file"
                 has_diff=true
-                diff_files+=("$target_name/$registry_file")
+                diff_files+=("$target_name/$source_file")
             fi
         fi
     done
 }
-
-# Check docs
-if [[ -d "$DOCS_DIR" ]]; then
-    echo ""
-    echo "Checking docs..."
-    check_target "$DOCS_DIR" "apps/docs/components/assistant-ui"
-fi
 
 # Get examples with assistant-ui components
 examples=()
@@ -112,14 +104,14 @@ echo ""
 
 if [[ "$has_diff" == true ]]; then
     echo "============================================"
-    echo "❌ Registry components are out of sync!"
+    echo "❌ Components are out of sync!"
     echo ""
-    echo "The following files differ from registry:"
+    echo "The following files differ from packages/ui:"
     for file in "${diff_files[@]}"; do
         echo "  - $file"
         # GitHub Actions annotation for better visibility in PR UI
         if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
-            echo "::error file=$file::File is out of sync with registry. Run: bash scripts/sync-registry-components.sh"
+            echo "::error file=$file::File is out of sync with packages/ui. Run: bash scripts/sync-registry-components.sh"
         fi
     done
     echo ""
@@ -127,6 +119,6 @@ if [[ "$has_diff" == true ]]; then
     echo "============================================"
     exit 1
 else
-    echo "✅ All registry components are in sync!"
+    echo "✅ All components are in sync!"
 fi
 

@@ -14,6 +14,7 @@
     "@ai-sdk/openai": "^3.0.13",
     "@ai-sdk/react": "^3.0.44",
     "@assistant-ui/react": "workspace:*",
+    "@assistant-ui/ui": "workspace:*",
     "@assistant-ui/react-ai-sdk": "workspace:*",
     "@assistant-ui/react-data-stream": "workspace:*",
     "@assistant-ui/react-devtools": "workspace:*",

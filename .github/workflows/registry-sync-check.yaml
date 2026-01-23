@@ -4,8 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - "apps/registry/components/assistant-ui/**"
-      - "apps/docs/components/assistant-ui/**"
+      - "packages/ui/src/components/assistant-ui/**"
       - "examples/**/components/assistant-ui/**"
       - "scripts/sync-registry-components.sh"
       - "scripts/check-registry-sync.sh"
@@ -13,8 +12,7 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - "apps/registry/components/assistant-ui/**"
-      - "apps/docs/components/assistant-ui/**"
+      - "packages/ui/src/components/assistant-ui/**"
       - "examples/**/components/assistant-ui/**"
       - "scripts/sync-registry-components.sh"
       - "scripts/check-registry-sync.sh"

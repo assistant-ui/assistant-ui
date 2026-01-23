@@ -2,6 +2,9 @@
   "extends": "@assistant-ui/x-buildutils/ts/next",
   "compilerOptions": {
     "paths": {
+      "@/components/assistant-ui/*": [
+        "../../packages/ui/src/components/assistant-ui/*"
+      ],
       "@/*": ["./*"],
       "fumadocs-mdx:collections/*": ["./.source/*"],
       "@assistant-ui/*": ["../../packages/*/src"],

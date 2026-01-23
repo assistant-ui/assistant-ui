@@ -11,12 +11,16 @@ async function buildRegistry(registry: RegistryItem[]) {
 
   for (const item of registry) {
     const files = item.files?.map((file) => {
-      const content = readFileSync(path.join(process.cwd(), file.path), "utf8");
+      // Read from sourcePath if provided, otherwise use path
+      const readPath = file.sourcePath ?? file.path;
+      const content = readFileSync(path.join(process.cwd(), readPath), "utf8");
 
       // No transformation - just return content as-is
+      // Exclude sourcePath from output (it's only for build)
+      const { sourcePath: _, ...fileOutput } = file;
       return {
         content,
-        ...file,
+        ...fileOutput,
       };
     });
 

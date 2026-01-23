@@ -3,9 +3,8 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REGISTRY_DIR="$SCRIPT_DIR/../apps/registry/components/assistant-ui"
+SOURCE_DIR="$SCRIPT_DIR/../packages/ui/src/components/assistant-ui"
 EXAMPLES_DIR="$SCRIPT_DIR/../examples"
-DOCS_DIR="$SCRIPT_DIR/../apps/docs/components/assistant-ui"
 
 # Files to exclude from syncing (these often have example-specific customizations)
 EXCLUDED_FILES=()
@@ -16,11 +15,11 @@ EXAMPLE_EXCLUSIONS=(
     "with-elevenlabs-scribe:thread.tsx"  # Custom dictation UI
 )
 
-echo "Syncing shared components from registry to examples and docs..."
+echo "Syncing shared components from packages/ui to examples..."
 echo "Excluded files: ${EXCLUDED_FILES[*]}"
 
-if [[ ! -d "$REGISTRY_DIR" ]]; then
-    echo "Error: Registry directory not found: $REGISTRY_DIR"
+if [[ ! -d "$SOURCE_DIR" ]]; then
+    echo "Error: Source directory not found: $SOURCE_DIR"
     exit 1
 fi
 
@@ -29,13 +28,13 @@ if [[ ! -d "$EXAMPLES_DIR" ]]; then
     exit 1
 fi
 
-# Get all registry files
-registry_files=()
+# Get all source files
+source_files=()
 while IFS= read -r -d '' file; do
-    registry_files+=("$(basename "$file")")
-done < <(find "$REGISTRY_DIR" -maxdepth 1 -type f \( -name "*.tsx" -o -name "*.ts" \) -print0)
+    source_files+=("$(basename "$file")")
+done < <(find "$SOURCE_DIR" -maxdepth 1 -type f \( -name "*.tsx" -o -name "*.ts" \) -print0)
 
-echo "Found ${#registry_files[@]} files in registry: ${registry_files[*]}"
+echo "Found ${#source_files[@]} files in packages/ui: ${source_files[*]}"
 
 # Helper function to sync files to a target directory
 sync_to_target() {
@@ -46,11 +45,11 @@ sync_to_target() {
     echo ""
     echo "Checking $target_name"
 
-    for registry_file in "${registry_files[@]}"; do
+    for source_file in "${source_files[@]}"; do
         # Check if file is in global excluded list
         is_excluded=false
         for excluded in "${EXCLUDED_FILES[@]}"; do
-            if [[ "$registry_file" == "$excluded" ]]; then
+            if [[ "$source_file" == "$excluded" ]]; then
                 is_excluded=true
                 break
             fi
@@ -59,7 +58,7 @@ sync_to_target() {
         # Check if file is in example-specific exclusions
         if [[ -n "$example_name" ]]; then
             for exclusion in "${EXAMPLE_EXCLUSIONS[@]}"; do
-                if [[ "$exclusion" == "$example_name:$registry_file" ]]; then
+                if [[ "$exclusion" == "$example_name:$source_file" ]]; then
                     is_excluded=true
                     break
                 fi
@@ -67,24 +66,19 @@ sync_to_target() {
         fi
 
         if [[ "$is_excluded" == true ]]; then
-            echo "  Skipping $registry_file (excluded)"
+            echo "  Skipping $source_file (excluded)"
             continue
         fi
 
-        registry_path="$REGISTRY_DIR/$registry_file"
-        target_path="$target_dir/$registry_file"
+        source_path="$SOURCE_DIR/$source_file"
+        target_path="$target_dir/$source_file"
 
         if [[ -f "$target_path" ]]; then
-            echo "  Copying $registry_file from registry to $target_name"
-            cp "$registry_path" "$target_path"
+            echo "  Copying $source_file from packages/ui to $target_name"
+            cp "$source_path" "$target_path"
         fi
     done
 }
-
-# Sync to docs
-if [[ -d "$DOCS_DIR" ]]; then
-    sync_to_target "$DOCS_DIR" "docs"
-fi
 
 # Get examples with assistant-ui components
 examples=()
