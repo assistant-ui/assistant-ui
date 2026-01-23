@@ -1,0 +1,141 @@
+---
+title: File
+description: Display file message parts with icon, name, size, and download button.
+---
+
+import { InstallCommand } from "@/components/docs/fumadocs/install/install-command";
+import { FileSample } from "@/components/docs/samples/file";
+
+<FileSample />
+
+## Getting Started
+
+<Steps>
+  <Step>
+
+### Add `file`
+
+<InstallCommand shadcn={["file"]} />
+
+  </Step>
+  <Step>
+
+### Use in your application
+
+Pass `File` to `MessagePrimitive.Parts`:
+
+```tsx title="/components/assistant-ui/thread.tsx" {1,8}
+import { File } from "@/components/assistant-ui/file";
+
+const AssistantMessage: FC = () => {
+  return (
+    <MessagePrimitive.Root className="...">
+      <MessagePrimitive.Parts
+        components={{
+          File,
+        }}
+      />
+    </MessagePrimitive.Root>
+  );
+};
+```
+
+  </Step>
+</Steps>
+
+## Variants
+
+Use the `variant` prop to change the visual style.
+
+```tsx
+<File.Root variant="default" /> // Border with subtle background
+<File.Root variant="outline" /> // Thicker border only
+<File.Root variant="ghost" />   // No border or background
+```
+
+## Sizes
+
+Use the `size` prop to change padding and font size.
+
+```tsx
+<File.Root size="sm" />      // Compact
+<File.Root size="default" /> // Default
+<File.Root size="lg" />      // Larger
+```
+
+## MimeType Icons
+
+The component automatically selects an appropriate icon based on the file's MIME type:
+
+| MIME Type | Icon |
+|-----------|------|
+| `image/*` | ImageIcon |
+| `application/pdf` | FileTextIcon |
+| `application/json` | BracesIcon |
+| `text/*` | FileTextIcon |
+| `audio/*` | MusicIcon |
+| `video/*` | VideoIcon |
+| fallback | FileIcon |
+
+## Composable API
+
+The component exports composable sub-components:
+
+```tsx
+import {
+  File,
+  FileRoot,
+  FileIconDisplay,
+  FileName,
+  FileSize,
+  FileDownload,
+} from "@/components/assistant-ui/file";
+
+<FileRoot variant="outline" size="lg">
+  <FileIconDisplay mimeType="application/pdf" />
+  <div className="flex flex-col gap-0.5">
+    <FileName>report.pdf</FileName>
+    <FileSize bytes={2048} className="text-xs" />
+  </div>
+  <FileDownload
+    data="SGVsbG8gV29ybGQh"
+    mimeType="application/pdf"
+    filename="report.pdf"
+  />
+</FileRoot>
+```
+
+| Component | Description |
+|-----------|-------------|
+| `File` | Default export, renders complete file part |
+| `File.Root` | Container with variant and size styling |
+| `File.Icon` | MIME type-aware icon |
+| `File.Name` | Truncated filename |
+| `File.Size` | Human-readable file size |
+| `File.Download` | Download link button |
+
+## Utilities
+
+The component also exports utility functions:
+
+```tsx
+import {
+  getMimeTypeIcon,
+  getBase64Size,
+  formatFileSize,
+} from "@/components/assistant-ui/file";
+
+// Get icon component for a MIME type
+const Icon = getMimeTypeIcon("application/pdf"); // FileTextIcon
+
+// Calculate size from base64 string
+const bytes = getBase64Size("SGVsbG8gV29ybGQh"); // 12
+
+// Format bytes to human-readable
+const size = formatFileSize(2048); // "2.0 KB"
+```
+
+## Related
+
+- [Image](/docs/ui/image) - Image message parts
+- [Attachment](/docs/ui/attachment) - File attachments in composer and messages

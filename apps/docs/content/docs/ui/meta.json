@@ -17,6 +17,8 @@
     "tool-fallback",
     "tool-group",
     "sources",
+    "image",
+    "file",
     "scrollbar",
     "---Experimental---",
     "part-grouping"

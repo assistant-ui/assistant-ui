@@ -302,4 +302,35 @@ export const registry: RegistryItem[] = [
     ],
     registryDependencies: [],
   },
+  {
+    name: "image",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/image.tsx",
+      },
+    ],
+    registryDependencies: ["dialog"],
+    dependencies: [
+      "@assistant-ui/react",
+      "lucide-react",
+      "class-variance-authority",
+    ],
+  },
+  {
+    name: "file",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/file.tsx",
+      },
+    ],
+    dependencies: [
+      "@assistant-ui/react",
+      "lucide-react",
+      "class-variance-authority",
+    ],
+  },
 ];
