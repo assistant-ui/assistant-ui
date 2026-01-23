@@ -44,7 +44,7 @@ export class ToolUIRuntimeImpl implements ToolUIRuntime {
     return instance;
   }
 
-  public update(instanceId: string, _result: unknown): void {
+  public update(instanceId: string, result: unknown): void {
     const instance = this._host.get(instanceId);
     const state = instance.getState();
 
@@ -53,7 +53,7 @@ export class ToolUIRuntimeImpl implements ToolUIRuntime {
     }
 
     instance.markUpdating();
-    instance.setResult(_result);
+    instance.setResult(result);
     instance.markActive();
   }
 

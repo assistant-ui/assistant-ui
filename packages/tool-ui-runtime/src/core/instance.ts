@@ -1,7 +1,5 @@
-import {
-  ToolUILifecycleState,
-  assertValidToolUILifecycleTransition,
-} from "./lifecycle";
+import type { ToolUILifecycleState } from "./lifecycle";
+import { assertValidToolUILifecycleTransition } from "./lifecycle";
 
 export type ToolUICallContext = {
   readonly toolCallId: string;
@@ -13,24 +11,29 @@ export type ToolUIInstanceState = {
   readonly id: string;
   readonly context: ToolUICallContext;
   readonly lifecycle: ToolUILifecycleState;
+
   readonly result?: unknown;
+  readonly output?: unknown;
 };
 
-export type ToolUIInstance = {
+export interface ToolUIInstance {
   readonly id: string;
   getState(): ToolUIInstanceState;
   resolve(): void;
   markMounting(): void;
   markActive(): void;
   markUpdating(): void;
-  close(): void;
   setResult(result: unknown): void;
-};
+  setOutput(output: unknown): void;
+  close(): void;
+}
 
 export class ToolUIInstanceImpl implements ToolUIInstance {
   private _state: ToolUIInstanceState;
+  public readonly id: string;
 
-  public constructor(id: string, context: ToolUICallContext) {
+  constructor(id: string, context: ToolUICallContext) {
+    this.id = id;
     this._state = {
       id,
       context,
@@ -38,15 +41,11 @@ export class ToolUIInstanceImpl implements ToolUIInstance {
     };
   }
 
-  public get id(): string {
-    return this._state.id;
-  }
-
   public getState(): ToolUIInstanceState {
     return this._state;
   }
 
-  protected transition(to: ToolUILifecycleState): void {
+  private _transition(to: ToolUILifecycleState) {
     assertValidToolUILifecycleTransition(this._state.lifecycle, to);
 
     this._state = {
@@ -56,24 +55,19 @@ export class ToolUIInstanceImpl implements ToolUIInstance {
   }
 
   public resolve(): void {
-    this.transition("resolved");
+    this._transition("resolved");
   }
 
   public markMounting(): void {
-    this.transition("mounting");
+    this._transition("mounting");
   }
 
   public markActive(): void {
-    this.transition("active");
+    this._transition("active");
   }
 
   public markUpdating(): void {
-    this.transition("updating");
-  }
-
-  public close(): void {
-    this.transition("closing");
-    this.transition("closed");
+    this._transition("updating");
   }
 
   public setResult(result: unknown): void {
@@ -81,5 +75,17 @@ export class ToolUIInstanceImpl implements ToolUIInstance {
       ...this._state,
       result,
     };
+  }
+
+  public setOutput(output: unknown): void {
+    this._state = {
+      ...this._state,
+      output,
+    };
+  }
+
+  public close(): void {
+    this._transition("closing");
+    this._transition("closed");
   }
 }

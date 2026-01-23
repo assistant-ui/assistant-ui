@@ -5,7 +5,7 @@ export { ToolUIRuntimeImpl } from "./core/runtime";
 export type { ToolUIHost } from "./core/host";
 export { ToolUIHostImpl } from "./core/host";
 
-export type { ToolUIInstance } from "./core/instance";
+export type { ToolUIInstance, ToolUICallContext } from "./core/instance";
 
 // Lifecycle
 export type { ToolUILifecycleState } from "./core/lifecycle";
