@@ -25,6 +25,8 @@ const VALID_EXAMPLES = [
   "with-langgraph",
   "with-parent-id-grouping",
   "with-react-hook-form",
+  "with-react-router",
+  "with-tanstack",
 ];
 
 export async function createFromExample(

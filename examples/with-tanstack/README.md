@@ -1,13 +1,13 @@
-# React Router Integration
+# TanStack Start Integration
 
-This example demonstrates how to use assistant-ui with React Router (v7) and Vite.
+This example demonstrates how to use assistant-ui with TanStack Start (TanStack Router + Vite).
 
 ## Quick Start
 
 ### Using CLI (Recommended)
 
 ```bash
-npx assistant-ui@latest create my-app --example with-react-router
+npx assistant-ui@latest create my-app --example with-tanstack
 cd my-app
 ```
 
@@ -28,13 +28,12 @@ npm run dev
 
 ## Features
 
-- React Router v7 integration
-- Vite-based development server
+- TanStack Start (TanStack Router + Vite)
+- Full-stack React with server functions
 - OpenAI streaming chat
-- Zustand for state management
 - Markdown message rendering
 
 ## Related Documentation
 
 - [assistant-ui Documentation](https://www.assistant-ui.com/docs)
-- [React Router Documentation](https://reactrouter.com/)
+- [TanStack Start Documentation](https://tanstack.com/start)
