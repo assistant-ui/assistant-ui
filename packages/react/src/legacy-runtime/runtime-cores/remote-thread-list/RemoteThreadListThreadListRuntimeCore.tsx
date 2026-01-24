@@ -145,6 +145,8 @@ export class RemoteThreadListThreadListRuntimeCore
   private readonly _hookManager: RemoteThreadListHookInstanceManager;
 
   private _loadThreadsPromise: Promise<void> | undefined;
+  private _pendingFetches = new Map<string, Promise<RemoteThreadMetadata>>();
+  private _pendingCore: PendingThreadCore | undefined;
 
   private _mainThreadId!: string;
   private readonly _state = new OptimisticState<RemoteThreadState>({
@@ -290,7 +292,7 @@ export class RemoteThreadListThreadListRuntimeCore
 
   public getMainThreadRuntimeCore() {
     const result = this._hookManager.getThreadRuntimeCore(this._mainThreadId);
-    if (!result) return EMPTY_THREAD_CORE;
+    if (!result) return this._pendingCore ?? EMPTY_THREAD_CORE;
     return result;
   }
 
@@ -311,50 +313,66 @@ export class RemoteThreadListThreadListRuntimeCore
     let data = this.getItemById(threadIdOrRemoteId);
 
     if (!data) {
-      const remoteMetadata =
-        await this._options.adapter.fetch(threadIdOrRemoteId);
-      const state = this._state.value;
-      const mappingId = createThreadMappingId(remoteMetadata.remoteId);
+      // Deduplicate: reuse in-flight fetch for the same thread ID
+      let fetchPromise = this._pendingFetches.get(threadIdOrRemoteId);
+      if (!fetchPromise) {
+        fetchPromise = this._options.adapter.fetch(threadIdOrRemoteId);
+        this._pendingFetches.set(threadIdOrRemoteId, fetchPromise);
+        fetchPromise.finally(() => {
+          this._pendingFetches.delete(threadIdOrRemoteId);
+        });
+      }
 
-      const newThreadData = {
-        ...state.threadData,
-        [mappingId]: {
-          id: mappingId,
-          initializeTask: Promise.resolve({
+      const remoteMetadata = await fetchPromise;
+
+      // Re-check: another concurrent call may have already inserted this thread
+      data = this.getItemById(threadIdOrRemoteId);
+      if (!data) {
+        const state = this._state.value;
+        const mappingId = createThreadMappingId(remoteMetadata.remoteId);
+
+        const newThreadData = {
+          ...state.threadData,
+          [mappingId]: {
+            id: remoteMetadata.remoteId,
+            initializeTask: Promise.resolve({
+              remoteId: remoteMetadata.remoteId,
+              externalId: remoteMetadata.externalId,
+            }),
             remoteId: remoteMetadata.remoteId,
             externalId: remoteMetadata.externalId,
-          }),
-          remoteId: remoteMetadata.remoteId,
-          externalId: remoteMetadata.externalId,
-          status: remoteMetadata.status,
-          title: remoteMetadata.title,
-        } as RemoteThreadData,
-      };
+            status: remoteMetadata.status,
+            title: remoteMetadata.title,
+          } as RemoteThreadData,
+        };
 
-      const newThreadIdMap = {
-        ...state.threadIdMap,
-        [remoteMetadata.remoteId]: mappingId,
-      };
+        const newThreadIdMap = {
+          ...state.threadIdMap,
+          [remoteMetadata.remoteId]: mappingId,
+        };
 
-      const newThreadIds =
-        remoteMetadata.status === "regular"
-          ? [...state.threadIds, remoteMetadata.remoteId]
-          : state.threadIds;
+        const newThreadIds =
+          remoteMetadata.status === "regular" &&
+          !state.threadIds.includes(remoteMetadata.remoteId)
+            ? [...state.threadIds, remoteMetadata.remoteId]
+            : state.threadIds;
 
-      const newArchivedThreadIds =
-        remoteMetadata.status === "archived"
-          ? [...state.archivedThreadIds, remoteMetadata.remoteId]
-          : state.archivedThreadIds;
+        const newArchivedThreadIds =
+          remoteMetadata.status === "archived" &&
+          !state.archivedThreadIds.includes(remoteMetadata.remoteId)
+            ? [...state.archivedThreadIds, remoteMetadata.remoteId]
+            : state.archivedThreadIds;
 
-      this._state.update({
-        ...state,
-        threadIds: newThreadIds,
-        archivedThreadIds: newArchivedThreadIds,
-        threadIdMap: newThreadIdMap,
-        threadData: newThreadData,
-      });
+        this._state.update({
+          ...state,
+          threadIds: newThreadIds,
+          archivedThreadIds: newArchivedThreadIds,
+          threadIdMap: newThreadIdMap,
+          threadData: newThreadData,
+        });
 
-      data = this.getItemById(threadIdOrRemoteId);
+        data = this.getItemById(threadIdOrRemoteId);
+      }
     }
 
     if (!data) throw new Error("Thread not found");
@@ -364,7 +382,13 @@ export class RemoteThreadListThreadListRuntimeCore
     if (this.mainThreadId !== undefined) {
       await task;
     } else {
-      task.then(() => this._notifySubscribers());
+      const pending = new PendingThreadCore();
+      this._pendingCore = pending;
+      task.then((runtime) => {
+        pending.resolve(runtime);
+        this._pendingCore = undefined;
+        this._notifySubscribers();
+      });
     }
 
     if (data.status === "archived") await this.unarchive(data.id);
@@ -616,9 +640,12 @@ export class RemoteThreadListThreadListRuntimeCore
     const boundIds = this.useBoundIds();
     const { Provider } = this.useProvider();
 
-    const adapters = {
-      modelContext: this.contextProvider,
-    };
+    const contextProvider = this.contextProvider;
+    // biome-ignore lint/correctness/useExhaustiveDependencies: contextProvider is stable (set once in constructor)
+    const adapters = useMemo(
+      () => ({ modelContext: contextProvider }),
+      [contextProvider],
+    );
 
     return (
       (boundIds.length === 0 || boundIds[0] === id) && (
