@@ -10,7 +10,7 @@ import { ThreadList } from "@/components/chat/ThreadList";
 
 // Cloud auth - uses project-specific URL from environment
 const cloud = new AssistantCloud({
-  baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
+  baseUrl: process.env["NEXT_PUBLIC_ASSISTANT_BASE_URL"]!,
   anonymous: true,
 });
 
@@ -18,11 +18,13 @@ export default function Home() {
   // AI SDK chat state - defaults to /api/chat
   const chat = useChat();
 
-  // Cloud sync - persists messages, manages thread ID
-  const [threadId, selectThread] = useSync(cloud, chat);
-
   // Thread list from cloud
   const threads = useThreads(cloud);
+
+  // Cloud sync - persists messages, manages thread ID
+  const [threadId, selectThread] = useSync(cloud, chat, {
+    onThreadCreated: () => threads.refresh(),
+  });
 
   // Local input state
   const [input, setInput] = useState("");
