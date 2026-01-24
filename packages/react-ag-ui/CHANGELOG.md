@@ -1,5 +1,18 @@
 # @assistant-ui/react-ag-ui
 
+## 0.0.10
+
+### Patch Changes
+
+- c7b7897: fix(react-ag-ui): load history on runtime initialization
+- 7073ccc: fix(react-ag-ui): use `threadId` instead of hardcoded `main`
+- Updated dependencies [6eab31e]
+- Updated dependencies [9314b36]
+- Updated dependencies [083ed83]
+- Updated dependencies [6511990]
+- Updated dependencies [a526e63]
+  - @assistant-ui/react@0.11.60
+
 ## 0.0.9
 
 ### Patch Changes

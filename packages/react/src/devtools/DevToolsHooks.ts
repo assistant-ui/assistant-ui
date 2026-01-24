@@ -1,4 +1,4 @@
-import { AssistantApi } from "../context/react/AssistantApiContext";
+import { AssistantClient } from "@assistant-ui/store";
 import { Unsubscribe } from "../types";
 
 export interface EventLog {
@@ -8,7 +8,7 @@ export interface EventLog {
 }
 
 interface DevToolsApiEntry {
-  api: Partial<AssistantApi>;
+  api: Partial<AssistantClient>;
   logs: EventLog[];
 }
 
@@ -85,22 +85,22 @@ export class DevToolsHooks {
 export class DevToolsProviderApi {
   private static readonly MAX_EVENT_LOGS_PER_API = 200;
 
-  static register(api: Partial<AssistantApi>): Unsubscribe {
+  static register(aui: Partial<AssistantClient>): Unsubscribe {
     const hook = getHook();
 
     for (const entry of hook.apis.values()) {
-      if (entry.api === api) {
+      if (entry.api === aui) {
         return () => {};
       }
     }
 
     const apiId = hook.nextId++;
     const entry: DevToolsApiEntry = {
-      api,
+      api: aui,
       logs: [],
     };
 
-    const eventUnsubscribe = api.on?.("*", (e) => {
+    const eventUnsubscribe = aui.on?.("*", (e) => {
       const entry = hook.apis.get(apiId);
       if (!entry) return;
 
@@ -119,7 +119,7 @@ export class DevToolsProviderApi {
       DevToolsProviderApi.notifyListeners(apiId);
     });
 
-    const stateUnsubscribe = api.subscribe?.(() => {
+    const stateUnsubscribe = aui.subscribe?.(() => {
       DevToolsProviderApi.notifyListeners(apiId);
     });
 

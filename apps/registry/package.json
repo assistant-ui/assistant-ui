@@ -7,11 +7,13 @@
     "build": "tsx ./scripts/build-registry.ts"
   },
   "dependencies": {
-    "@radix-ui/react-collapsible": "^1.1.12"
+    "@radix-ui/react-collapsible": "^1.1.12",
+    "@radix-ui/react-select": "^2.2.6"
   },
   "devDependencies": {
     "@ai-sdk/openai": "^3.0.13",
     "@assistant-ui/react": "workspace:*",
+    "@assistant-ui/ui": "workspace:*",
     "@assistant-ui/react-ai-sdk": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
     "@assistant-ui/react-syntax-highlighter": "workspace:*",
@@ -24,13 +26,13 @@
     "@tailwindcss/postcss": "^4.1.18",
     "@types/node": "^25.0.9",
     "@types/react": "^19.2.9",
+    "@types/react-dom": "^19.2.3",
     "@types/react-syntax-highlighter": "^15.5.13",
     "ai": "^6.0.42",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.562.0",
     "mermaid": "^11.12.2",
-    "next": "^16.1.4",
     "postcss": "^8.5.6",
     "react": "^19.2.3",
     "react-resizable-panels": "^4.4.1",

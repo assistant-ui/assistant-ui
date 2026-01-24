@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useAssistantState } from "../../context";
+import { useAuiState } from "@assistant-ui/store";
 import {
   MessagePartStatus,
   ReasoningMessagePart,
@@ -75,7 +75,7 @@ export const useSmooth = (
   smooth: boolean = false,
 ): MessagePartState & (TextMessagePart | ReasoningMessagePart) => {
   const { text } = state;
-  const id = useAssistantState(({ message }) => message.id);
+  const id = useAuiState(({ message }) => message.id);
 
   const idRef = useRef(id);
   const [displayedText, setDisplayedText] = useState(text);

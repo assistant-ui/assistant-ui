@@ -14,6 +14,7 @@
     "@assistant-ui/react-ai-sdk": "workspace:*",
     "@assistant-ui/react-hook-form": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
+    "@assistant-ui/ui": "workspace:*",
     "@hookform/resolvers": "^5.2.2",
     "@radix-ui/react-avatar": "^1.1.11",
     "@radix-ui/react-collapsible": "^1.1.12",
@@ -31,10 +32,8 @@
     "react-dom": "^19.2.3",
     "react-hook-form": "^7.71.1",
     "react-resizable-panels": "^4.4.1",
-    "remark-gfm": "^4.0.1",
     "tailwind-merge": "^3.4.0",
-    "zod": "^4.3.5",
-    "zustand": "^5.0.10"
+    "zod": "^4.3.5"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",

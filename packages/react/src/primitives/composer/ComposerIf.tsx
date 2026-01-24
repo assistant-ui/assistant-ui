@@ -1,7 +1,7 @@
 "use client";
 
 import type { FC, PropsWithChildren } from "react";
-import { useAssistantState } from "../../context";
+import { useAuiState } from "@assistant-ui/store";
 import type { RequireAtLeastOne } from "../../utils/RequireAtLeastOne";
 
 type ComposerIfFilters = {
@@ -14,7 +14,7 @@ type ComposerIfFilters = {
 export type UseComposerIfProps = RequireAtLeastOne<ComposerIfFilters>;
 
 const useComposerIf = (props: UseComposerIfProps) => {
-  return useAssistantState(({ composer }) => {
+  return useAuiState(({ composer }) => {
     if (props.editing === true && !composer.isEditing) return false;
     if (props.editing === false && composer.isEditing) return false;
 
@@ -31,7 +31,7 @@ export namespace ComposerPrimitiveIf {
 }
 
 /**
- * @deprecated Use `<AssistantIf condition={({ composer }) => ...} />` instead.
+ * @deprecated Use `<AuiIf condition={({ composer }) => ...} />` instead.
  */
 export const ComposerPrimitiveIf: FC<ComposerPrimitiveIf.Props> = ({
   children,

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useAssistantApi } from "../context/react/AssistantApiContext";
+import { useAui } from "@assistant-ui/store";
 
 export type AssistantInstructionsConfig = {
   disabled?: boolean | undefined;
@@ -19,7 +19,7 @@ export const useAssistantInstructions = (
   config: string | AssistantInstructionsConfig,
 ) => {
   const { instruction, disabled = false } = getInstructions(config);
-  const api = useAssistantApi();
+  const aui = useAui();
 
   useEffect(() => {
     if (disabled) return;
@@ -27,8 +27,8 @@ export const useAssistantInstructions = (
     const config = {
       system: instruction,
     };
-    return api.modelContext().register({
+    return aui.modelContext().register({
       getModelContext: () => config,
     });
-  }, [api, instruction, disabled]);
+  }, [aui, instruction, disabled]);
 };

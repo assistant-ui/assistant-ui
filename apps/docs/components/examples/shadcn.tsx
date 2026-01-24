@@ -10,13 +10,7 @@ import { MenuIcon, PanelLeftIcon, ShareIcon } from "lucide-react";
 import Image from "next/image";
 import { useState, type FC } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { ModelSelector } from "@/components/assistant-ui/model-selector";
 import { MODELS } from "@/constants/model";
 
 const Logo: FC = () => {
@@ -75,35 +69,28 @@ const MobileSidebar: FC = () => {
   );
 };
 
+const models = MODELS.map((m) => ({
+  id: m.value,
+  name: m.name,
+  icon: (
+    <Image
+      src={m.icon}
+      alt={m.name}
+      width={16}
+      height={16}
+      className="size-4"
+    />
+  ),
+  ...(m.disabled ? { disabled: true as const } : undefined),
+}));
+
 const ModelPicker: FC = () => {
   return (
-    <Select defaultValue={MODELS[0].value}>
-      <SelectTrigger className="h-9 w-auto gap-2 border-none bg-transparent px-2 shadow-none hover:bg-muted focus:ring-0">
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        {MODELS.map((model) => (
-          <SelectItem
-            key={model.value}
-            value={model.value}
-            disabled={model.disabled}
-          >
-            <span
-              className={`flex items-center gap-2 ${model.disabled ? "opacity-50" : ""}`}
-            >
-              <Image
-                src={model.icon}
-                alt={model.name}
-                width={16}
-                height={16}
-                className="size-4"
-              />
-              <span>{model.name}</span>
-            </span>
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <ModelSelector
+      models={models}
+      defaultValue={MODELS[0].value}
+      variant="default"
+    />
   );
 };
 

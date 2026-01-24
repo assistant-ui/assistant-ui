@@ -14,6 +14,7 @@ export const registryItemTypeSchema = z.enum([
 
 export const registryItemFileSchema = z.object({
   path: z.string(),
+  sourcePath: z.string().optional(), // path to read source from (relative to registry root)
   content: z.string().optional(),
   type: registryItemTypeSchema,
   target: z.string().optional(),

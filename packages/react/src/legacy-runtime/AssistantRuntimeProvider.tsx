@@ -1,10 +1,7 @@
 "use client";
 
 import { FC, memo, PropsWithChildren } from "react";
-import {
-  useAssistantApi,
-  AssistantProvider,
-} from "../context/react/AssistantApiContext";
+import { useAui, AuiProvider } from "@assistant-ui/store";
 import { AssistantRuntime } from "./runtime/AssistantRuntime";
 import { AssistantRuntimeCore } from "./runtime-cores/core/AssistantRuntimeCore";
 import { RuntimeAdapter } from "./RuntimeAdapter";
@@ -26,14 +23,14 @@ const getRenderComponent = (runtime: AssistantRuntime) => {
 export const AssistantRuntimeProviderImpl: FC<
   AssistantRuntimeProvider.Props
 > = ({ children, runtime }) => {
-  const api = useAssistantApi({
+  const aui = useAui({
     threads: RuntimeAdapter(runtime),
   });
 
   const RenderComponent = getRenderComponent(runtime);
 
   return (
-    <AssistantProvider api={api}>
+    <AuiProvider value={aui}>
       {RenderComponent && <RenderComponent />}
 
       {/* TODO temporarily allow accessing viewport state from outside the viewport */}
@@ -41,7 +38,7 @@ export const AssistantRuntimeProviderImpl: FC<
       <ThreadPrimitiveViewportProvider>
         {children}
       </ThreadPrimitiveViewportProvider>
-    </AssistantProvider>
+    </AuiProvider>
   );
 };
 

@@ -1,26 +1,20 @@
 "use client";
 
 import { type FC, type PropsWithChildren } from "react";
-import {
-  AssistantProvider,
-  useAssistantApi,
-  useExtendedAssistantApi,
-} from "../react/AssistantApiContext";
-import { DerivedScope } from "../../utils/tap-store/derived-scopes";
+import { useAui, AuiProvider, Derived } from "@assistant-ui/store";
 
 export const PartByIndexProvider: FC<
   PropsWithChildren<{
     index: number;
   }>
 > = ({ index, children }) => {
-  const baseApi = useAssistantApi();
-  const api = useExtendedAssistantApi({
-    part: DerivedScope({
+  const aui = useAui({
+    part: Derived({
       source: "message",
       query: { type: "index", index },
-      get: () => baseApi.message().part({ index }),
+      get: (aui) => aui.message().part({ index }),
     }),
   });
 
-  return <AssistantProvider api={api}>{children}</AssistantProvider>;
+  return <AuiProvider value={aui}>{children}</AuiProvider>;
 };

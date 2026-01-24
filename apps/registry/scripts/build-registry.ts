@@ -6,17 +6,35 @@ import { RegistryItem } from "@/src/schema";
 const REGISTRY_PATH = path.join(process.cwd(), "dist");
 const REGISTRY_INDEX_PATH = path.join(REGISTRY_PATH, "registry.json");
 
+/**
+ * Transform @assistant-ui/ui/* imports to @/* imports for standalone projects
+ * This is needed because the monorepo uses @assistant-ui/ui/* for internal imports
+ * but the registry output should use @/* which works with standard shadcn setup
+ */
+function transformImports(content: string): string {
+  return content
+    .replace(/@assistant-ui\/ui\/lib\//g, "@/lib/")
+    .replace(/@assistant-ui\/ui\/components\/ui\//g, "@/components/ui/")
+    .replace(/@assistant-ui\/ui\/hooks\//g, "@/hooks/");
+}
+
 async function buildRegistry(registry: RegistryItem[]) {
   await fs.mkdir(REGISTRY_PATH, { recursive: true });
 
   for (const item of registry) {
     const files = item.files?.map((file) => {
-      const content = readFileSync(path.join(process.cwd(), file.path), "utf8");
+      // Read from sourcePath if provided, otherwise use path
+      const readPath = file.sourcePath ?? file.path;
+      let content = readFileSync(path.join(process.cwd(), readPath), "utf8");
 
-      // No transformation - just return content as-is
+      // Transform @assistant-ui/ui/* imports to @/* imports
+      content = transformImports(content);
+
+      // Exclude sourcePath from output (it's only for build)
+      const { sourcePath: _, ...fileOutput } = file;
       return {
         content,
-        ...file,
+        ...fileOutput,
       };
     });
 

@@ -40,7 +40,7 @@ The Grok clone uses clean minimalism with smooth animations:
 import {
   ThreadPrimitive,
   ComposerPrimitive,
-  useAssistantState,
+  useAuiState,
 } from "@assistant-ui/react";
 
 export const Grok = () => {
@@ -62,8 +62,8 @@ export const Grok = () => {
 };
 
 const Composer = () => {
-  const isEmpty = useAssistantState((s) => s.composer.isEmpty);
-  const isRunning = useAssistantState((s) => s.thread.isRunning);
+  const isEmpty = useAuiState((s) => s.composer.isEmpty);
+  const isRunning = useAuiState((s) => s.thread.isRunning);
 
   return (
     <ComposerPrimitive.Root

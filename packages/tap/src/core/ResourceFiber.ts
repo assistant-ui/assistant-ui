@@ -27,7 +27,6 @@ export function unmountResourceFiber<R, P>(fiber: ResourceFiber<R, P>): void {
     throw new Error("Tried to unmount a fiber that is already unmounted");
 
   fiber.isMounted = false;
-  fiber.isNeverMounted = false;
   cleanupAllEffects(fiber);
 }
 
@@ -57,12 +56,13 @@ export function commitResourceFiber<R, P>(
   fiber: ResourceFiber<R, P>,
   result: RenderResult,
 ): void {
-  if (isDevelopment && fiber.devStrictMode === "root" && fiber.isNeverMounted) {
-    fiber.isMounted = true;
+  fiber.isMounted = true;
+
+  if (isDevelopment && fiber.isNeverMounted && fiber.devStrictMode === "root") {
     commitRender(result);
-    unmountResourceFiber(fiber);
+    cleanupAllEffects(fiber);
   }
 
-  fiber.isMounted = true;
+  fiber.isNeverMounted = false;
   commitRender(result);
 }

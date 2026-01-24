@@ -12,6 +12,7 @@
     "@ai-sdk/openai": "^3.0.13",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
+    "@assistant-ui/ui": "workspace:*",
     "@radix-ui/react-avatar": "^1.1.11",
     "@radix-ui/react-collapsible": "^1.1.12",
     "@radix-ui/react-dialog": "^1.1.15",
@@ -23,9 +24,7 @@
     "next": "^16.1.4",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
-    "remark-gfm": "^4.0.1",
-    "tailwind-merge": "^3.4.0",
-    "zustand": "^5.0.10"
+    "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",

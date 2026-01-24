@@ -503,7 +503,7 @@ To enable resumability, you need to:
 2. Use the `unstable_resumeRun` API to resume a conversation
 
 ```typescript
-import { useAssistantApi } from "@assistant-ui/react";
+import { useAui } from "@assistant-ui/react";
 
 const runtime = useAssistantTransportRuntime({
   // ... other options
@@ -513,8 +513,8 @@ const runtime = useAssistantTransportRuntime({
 });
 
 // Typically called on thread switch or mount to check if sync server has anything to resume
-const api = useAssistantApi();
-api.thread().unstable_resumeRun({
+const aui = useAui();
+aui.thread().unstable_resumeRun({
   parentId: null, // Ignored (will be removed in a future version)
 });
 ```

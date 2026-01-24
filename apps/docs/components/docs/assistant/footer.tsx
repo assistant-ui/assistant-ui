@@ -1,6 +1,6 @@
 "use client";
 
-import { useAssistantState, useAssistantApi } from "@assistant-ui/react";
+import { useAuiState, useAui } from "@assistant-ui/react";
 import { PlusIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
@@ -14,8 +14,8 @@ function getUsageColorClass(percent: number): string {
 }
 
 export function AssistantFooter(): ReactNode {
-  const api = useAssistantApi();
-  const messages = useAssistantState(({ thread }) => thread.messages);
+  const aui = useAui();
+  const messages = useAuiState(({ thread }) => thread.messages);
 
   const totalTokens = messages.reduce((acc, message) => {
     if (message.role !== "assistant") return acc;
@@ -51,7 +51,7 @@ export function AssistantFooter(): ReactNode {
     <div className="flex items-center justify-between px-3 py-1.5">
       <button
         type="button"
-        onClick={() => api.threads().switchToNewThread()}
+        onClick={() => aui.threads().switchToNewThread()}
         className="flex items-center gap-1.5 rounded-md px-2 py-1 text-muted-foreground text-xs transition-colors hover:bg-muted hover:text-foreground"
       >
         <PlusIcon className="size-3.5" />

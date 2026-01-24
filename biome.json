@@ -66,10 +66,6 @@
                 "closureIndex": 0,
                 "dependenciesIndex": 1
               },
-              {
-                "name": "tapEffectEvent",
-                "stableResult": true
-              },
               { "name": "tapMemo", "closureIndex": 0, "dependenciesIndex": 1 },
               {
                 "name": "tapCallback",
@@ -114,7 +110,8 @@
         "noStaticElementInteractions": "off",
         "useFocusableInteractive": "off",
         "useButtonType": "off",
-        "useSemanticElements": "off"
+        "useSemanticElements": "off",
+        "noRedundantAlt": "off"
       },
       "security": {
         "noDangerouslySetInnerHtml": "off"
@@ -173,6 +170,23 @@
       "enabled": false
     }
   },
+  "overrides": [
+    {
+      "includes": ["packages/ui/src/components/ui/**"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "useExhaustiveDependencies": "off",
+            "noNestedComponentDefinitions": "off"
+          },
+          "a11y": {
+            "useAriaPropsForRole": "off",
+            "noRedundantRoles": "off"
+          }
+        }
+      }
+    }
+  ],
   "files": {
     "includes": [
       "**",

@@ -1,30 +1,28 @@
-# AI SDK v5 Example
+# AI SDK v6 Example
 
-This example demonstrates how to use `@assistant-ui/react-ai-sdk-v5` with the Vercel AI SDK v5.
+This example demonstrates how to use `@assistant-ui/react-ai-sdk` with the Vercel AI SDK v6.
 
-## Getting Started
+## Quick Start
 
-1. Install dependencies:
-
-```bash
-npm install
-```
-
-2. Set up your environment variables:
+### Using CLI (Recommended)
 
 ```bash
-cp .env.example .env.local
+npx assistant-ui@latest create my-app --example with-ai-sdk-v6
+cd my-app
 ```
 
-Add your Anthropic API key to `.env.local`:
+### Environment Variables
+
+Create `.env.local`:
 
 ```
 ANTHROPIC_API_KEY=your-api-key-here
 ```
 
-3. Run the development server:
+### Run
 
 ```bash
+npm install
 npm run dev
 ```
 
@@ -32,10 +30,10 @@ Open [http://localhost:3000](http://localhost:3000) to see the result.
 
 ## Key Features
 
-- Uses the new AI SDK v5 with `@ai-sdk/react` and `@ai-sdk/anthropic`
+- Uses the new AI SDK v6 with `@ai-sdk/react` and `@ai-sdk/anthropic`
 - Integrates with `@assistant-ui/react` using the new `useChatRuntime` hook
 - No RSC support (client-side only)
-- Simplified integration with the `useChatRuntime` hook that wraps AI SDK v5's `useChat`
+- Simplified integration with the `useChatRuntime` hook that wraps AI SDK v6's `useChat`
 - Automatically uses `AssistantChatTransport` to pass system messages and frontend tools to the backend
 
 ## Custom Transport Configuration
@@ -70,4 +68,9 @@ const runtime = useChatRuntime({
 
 ## API Route
 
-The API route at `/api/chat` uses the new `streamText` function from AI SDK v5 to handle chat completions.
+The API route at `/api/chat` uses the new `streamText` function from AI SDK v6 to handle chat completions.
+
+## Related Documentation
+
+- [assistant-ui Documentation](https://www.assistant-ui.com/docs)
+- [AI SDK Integration Guide](https://www.assistant-ui.com/docs/runtimes/ai-sdk)

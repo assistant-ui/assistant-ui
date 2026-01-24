@@ -6,18 +6,18 @@ import {
   createActionButton,
 } from "../../utils/createActionButton";
 import { useCallback } from "react";
-import { useAssistantState, useAssistantApi } from "../../context";
+import { useAuiState, useAui } from "@assistant-ui/store";
 
 export const useComposerSend = () => {
-  const api = useAssistantApi();
+  const aui = useAui();
 
-  const disabled = useAssistantState(
+  const disabled = useAuiState(
     (s) => s.thread.isRunning || !s.composer.isEditing || s.composer.isEmpty,
   );
 
   const callback = useCallback(() => {
-    api.composer().send();
-  }, [api]);
+    aui.composer().send();
+  }, [aui]);
 
   if (disabled) return null;
   return callback;

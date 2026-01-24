@@ -1,14 +1,22 @@
 import { resource, tapEffect, tapInlineResource } from "@assistant-ui/tap";
 import type { AssistantRuntime } from "./runtime/AssistantRuntime";
 import { ThreadListClient } from "./client/ThreadListRuntimeClient";
-import { tapModelContext } from "../client/ModelContext";
+import {
+  tapAssistantClientRef,
+  Derived,
+  attachDefaultPeers,
+} from "@assistant-ui/store";
+import { ModelContext } from "../client/ModelContextClient";
+import { Tools } from "../model-context";
 
 export const RuntimeAdapter = resource((runtime: AssistantRuntime) => {
-  const modelContext = tapModelContext();
+  const clientRef = tapAssistantClientRef();
 
   tapEffect(() => {
-    return runtime.registerModelContextProvider(modelContext);
-  }, [runtime, modelContext]);
+    return runtime.registerModelContextProvider(
+      clientRef.current!.modelContext(),
+    );
+  }, [runtime, clientRef]);
 
   return tapInlineResource(
     ThreadListClient({
@@ -16,4 +24,24 @@ export const RuntimeAdapter = resource((runtime: AssistantRuntime) => {
       __internal_assistantRuntime: runtime,
     }),
   );
+});
+
+attachDefaultPeers(RuntimeAdapter, {
+  modelContext: ModelContext(),
+  tools: Tools({}),
+  threadListItem: Derived({
+    source: "threads",
+    query: { type: "main" },
+    get: (aui) => aui.threads().item("main"),
+  }),
+  thread: Derived({
+    source: "threads",
+    query: { type: "main" },
+    get: (aui) => aui.threads().thread("main"),
+  }),
+  composer: Derived({
+    source: "thread",
+    query: {},
+    get: (aui) => aui.threads().thread("main").composer,
+  }),
 });

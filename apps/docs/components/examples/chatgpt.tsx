@@ -3,7 +3,7 @@
 import { cn } from "@/lib/utils";
 import {
   ActionBarPrimitive,
-  AssistantIf,
+  AuiIf,
   BranchPickerPrimitive,
   ComposerPrimitive,
   MessagePrimitive,
@@ -49,16 +49,16 @@ export const ChatGPT: FC = () => {
           placeholder="Message ChatGPT"
           className="h-12 max-h-40 grow resize-none bg-transparent p-3.5 text-sm text-white outline-none placeholder:text-white/50"
         />
-        <AssistantIf condition={({ thread }) => !thread.isRunning}>
+        <AuiIf condition={({ thread }) => !thread.isRunning}>
           <ComposerPrimitive.Send className="m-2 flex size-8 items-center justify-center rounded-full bg-white transition-opacity disabled:opacity-10">
             <ArrowUpIcon className="size-5 text-black [&_path]:stroke-1 [&_path]:stroke-black" />
           </ComposerPrimitive.Send>
-        </AssistantIf>
-        <AssistantIf condition={({ thread }) => thread.isRunning}>
+        </AuiIf>
+        <AuiIf condition={({ thread }) => thread.isRunning}>
           <ComposerPrimitive.Cancel className="m-2 flex size-8 items-center justify-center rounded-full bg-white">
             <div className="size-2.5 bg-black" />
           </ComposerPrimitive.Cancel>
-        </AssistantIf>
+        </AuiIf>
       </ComposerPrimitive.Root>
       <p className="p-2 text-center text-[#cdcdcd] text-xs">
         ChatGPT can make mistakes. Check important info.
@@ -141,12 +141,12 @@ const AssistantMessage: FC = () => {
             </ActionBarPrimitive.Reload>
             <ActionBarPrimitive.Copy asChild>
               <TooltipIconButton tooltip="Copy" className="text-[#b4b4b4]">
-                <AssistantIf condition={({ message }) => message.isCopied}>
+                <AuiIf condition={({ message }) => message.isCopied}>
                   <CheckIcon />
-                </AssistantIf>
-                <AssistantIf condition={({ message }) => !message.isCopied}>
+                </AuiIf>
+                <AuiIf condition={({ message }) => !message.isCopied}>
                   <CopyIcon />
-                </AssistantIf>
+                </AuiIf>
               </TooltipIconButton>
             </ActionBarPrimitive.Copy>
           </ActionBarPrimitive.Root>

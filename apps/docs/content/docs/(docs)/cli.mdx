@@ -56,6 +56,26 @@ This command uses `create-next-app` with assistant-ui starter templates.
 | `langgraph` | LangGraph integration | `npx assistant-ui create -t langgraph` |
 | `mcp` | Model Context Protocol support | `npx assistant-ui create -t mcp` |
 
+**Available Examples**
+
+Use `--example` to create a project from one of the monorepo examples with full feature demonstrations:
+
+| Example | Description | Command |
+|---------|-------------|---------|
+| `with-ai-sdk-v6` | Vercel AI SDK v6 integration | `npx assistant-ui create my-app -e with-ai-sdk-v6` |
+| `with-langgraph` | LangGraph agent with custom tools | `npx assistant-ui create my-app -e with-langgraph` |
+| `with-cloud` | Assistant Cloud persistence | `npx assistant-ui create my-app -e with-cloud` |
+| `with-ag-ui` | AG-UI protocol integration | `npx assistant-ui create my-app -e with-ag-ui` |
+| `with-assistant-transport` | Custom backend via Assistant Transport | `npx assistant-ui create my-app -e with-assistant-transport` |
+| `with-external-store` | External message store | `npx assistant-ui create my-app -e with-external-store` |
+| `with-custom-thread-list` | Custom thread list UI | `npx assistant-ui create my-app -e with-custom-thread-list` |
+| `with-react-hook-form` | React Hook Form integration | `npx assistant-ui create my-app -e with-react-hook-form` |
+| `with-ffmpeg` | FFmpeg video processing tool | `npx assistant-ui create my-app -e with-ffmpeg` |
+| `with-elevenlabs-scribe` | ElevenLabs voice transcription | `npx assistant-ui create my-app -e with-elevenlabs-scribe` |
+| `with-parent-id-grouping` | Message part grouping | `npx assistant-ui create my-app -e with-parent-id-grouping` |
+| `with-react-router` | React Router v7 integration | `npx assistant-ui create my-app -e with-react-router` |
+| `with-tanstack` | TanStack Start integration | `npx assistant-ui create my-app -e with-tanstack` |
+
 **Examples**
 
 ```bash
@@ -64,6 +84,9 @@ npx assistant-ui@latest create my-app
 
 # Create with cloud template
 npx assistant-ui@latest create my-app -t cloud
+
+# Create from an example
+npx assistant-ui@latest create my-app --example with-langgraph
 
 # Create with specific package manager
 npx assistant-ui@latest create my-app --use-pnpm
@@ -84,6 +107,7 @@ Arguments:
 
 Options:
   -t, --template <template>  template to use (default, cloud, langgraph, mcp)
+  -e, --example <example>    create from an example (e.g., with-langgraph)
   --use-npm                  explicitly use npm
   --use-pnpm                 explicitly use pnpm
   --use-yarn                 explicitly use yarn

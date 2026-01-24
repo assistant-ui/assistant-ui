@@ -2,10 +2,10 @@
 
 import { ThreadListItemRuntime } from "../runtime/ThreadListItemRuntime";
 import { createStateHookForRuntime } from "../../context/react/utils/createStateHookForRuntime";
-import { useAssistantApi, useAssistantState } from "../../context/react";
+import { useAui, useAuiState } from "@assistant-ui/store";
 
 /**
- * @deprecated Use `useAssistantApi()` with `api.threadListItem()` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
+ * @deprecated Use `useAui()` with `aui.threadListItem()` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
  */
 export function useThreadListItemRuntime(options?: {
   optional?: false | undefined;
@@ -16,10 +16,10 @@ export function useThreadListItemRuntime(options?: {
 export function useThreadListItemRuntime(options?: {
   optional?: boolean | undefined;
 }) {
-  const api = useAssistantApi();
-  const runtime = useAssistantState(() =>
-    api.threadListItem.source
-      ? (api.threadListItem().__internal_getRuntime?.() ?? null)
+  const aui = useAui();
+  const runtime = useAuiState(() =>
+    aui.threadListItem.source
+      ? (aui.threadListItem().__internal_getRuntime?.() ?? null)
       : null,
   );
   if (!runtime && !options?.optional) {
@@ -29,7 +29,7 @@ export function useThreadListItemRuntime(options?: {
 }
 
 /**
- * @deprecated Use `useAssistantState(({ threadListItem }) => threadListItem)` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
+ * @deprecated Use `useAuiState(({ threadListItem }) => threadListItem)` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
  */
 export const useThreadListItem = createStateHookForRuntime(
   useThreadListItemRuntime,

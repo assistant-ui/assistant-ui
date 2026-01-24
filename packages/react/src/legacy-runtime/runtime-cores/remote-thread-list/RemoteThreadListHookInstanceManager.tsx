@@ -10,7 +10,8 @@ import {
   ComponentType,
 } from "react";
 import { UseBoundStore, StoreApi, create } from "zustand";
-import { useAssistantApi, ThreadListItemByIdProvider } from "../../../context";
+import { useAui } from "@assistant-ui/store";
+import { ThreadListItemByIdProvider } from "../../../context/providers";
 import { ThreadRuntimeCore, ThreadRuntimeImpl } from "../../../internal";
 import { BaseSubscribable } from "./BaseSubscribable";
 import { AssistantRuntime } from "../../runtime";
@@ -103,7 +104,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
       return threadBinding.outerSubscribe(updateRuntime);
     }, [threadBinding, updateRuntime]);
 
-    const api = useAssistantApi();
+    const aui = useAui();
     const initPromiseRef = useRef<Promise<unknown> | undefined>(undefined);
 
     useEffect(() => {
@@ -118,18 +119,18 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
 
     useEffect(() => {
       return runtime.threads.main.unstable_on("initialize", () => {
-        const state = api.threadListItem().getState();
+        const state = aui.threadListItem().getState();
         if (state.status === "new") {
-          initPromiseRef.current = api.threadListItem().initialize();
+          initPromiseRef.current = aui.threadListItem().initialize();
 
-          const dispose = runtime.thread.unstable_on("run-end", () => {
+          const dispose = runtime.thread.unstable_on("runEnd", () => {
             dispose();
 
-            api.threadListItem().generateTitle();
+            aui.threadListItem().generateTitle();
           });
         }
       });
-    }, [runtime, api]);
+    }, [runtime, aui]);
 
     return null;
   };

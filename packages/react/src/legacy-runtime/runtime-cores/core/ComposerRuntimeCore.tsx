@@ -6,7 +6,7 @@ import type {
 import type { MessageRole, RunConfig } from "../../../types/AssistantTypes";
 import type { DictationAdapter } from "../adapters/speech/SpeechAdapterTypes";
 
-export type ComposerRuntimeEventType = "send" | "attachment-add";
+export type ComposerRuntimeEventType = "send" | "attachmentAdd";
 
 /**
  * State representing an active dictation session.

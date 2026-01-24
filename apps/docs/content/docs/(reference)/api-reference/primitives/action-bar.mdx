@@ -169,12 +169,12 @@ Show a different icon for a few seconds after the message is copied.
 
 ```tsx
 <ActionBarPrimitive.Copy>
-  <AssistantIf condition={({ message }) => !message.isCopied}>
+  <AuiIf condition={({ message }) => !message.isCopied}>
     <CopyIcon />
-  </AssistantIf>
-  <AssistantIf condition={({ message }) => message.isCopied}>
+  </AuiIf>
+  <AuiIf condition={({ message }) => message.isCopied}>
     <CopySuccessIcon />
-  </AssistantIf>
+  </AuiIf>
 </ActionBarPrimitive.Copy>
 ```
 

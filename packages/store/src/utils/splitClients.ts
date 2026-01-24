@@ -5,7 +5,7 @@ import type {
   ClientNames,
 } from "../types/client";
 import { getDefaultPeers } from "../attachDefaultPeers";
-import type { useAssistantClient } from "../useAssistantClient";
+import type { useAui } from "../useAui";
 import { tapMemo } from "@assistant-ui/tap";
 
 export type RootClients = Partial<
@@ -33,16 +33,13 @@ export type DerivedClients = Partial<
  * // derivedClients = { bar: ... }
  * ```
  */
-function splitClients(
-  clients: useAssistantClient.Props,
-  baseClient: AssistantClient,
-) {
+function splitClients(clients: useAui.Props, baseClient: AssistantClient) {
   const rootClients: RootClients = {};
   const derivedClients: DerivedClients = {};
 
   for (const [key, clientElement] of Object.entries(clients) as [
-    keyof useAssistantClient.Props,
-    NonNullable<useAssistantClient.Props[keyof useAssistantClient.Props]>,
+    keyof useAui.Props,
+    NonNullable<useAui.Props[keyof useAui.Props]>,
   ][]) {
     if (clientElement.type === Derived) {
       derivedClients[key] = clientElement as DerivedElement<ClientNames>;
@@ -91,7 +88,7 @@ const tapShallowMemoObject = <T extends object>(object: T) => {
 };
 
 export const tapSplitClients = (
-  clients: useAssistantClient.Props,
+  clients: useAui.Props,
   baseClient: AssistantClient,
 ) => {
   const { rootClients, derivedClients } = splitClients(clients, baseClient);

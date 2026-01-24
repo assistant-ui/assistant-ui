@@ -6,7 +6,7 @@ Tap-based state management with React Context integration.
 
 ```typescript
 import { resource, tapState } from "@assistant-ui/tap";
-import { useAssistantClient, useAssistantState, AssistantProvider, type ClientOutput } from "@assistant-ui/store";
+import { useAui, useAuiState, AuiProvider, type ClientOutput } from "@assistant-ui/store";
 
 // 1. Define client type
 declare module "@assistant-ui/store" {
@@ -23,13 +23,13 @@ const CounterClient = resource((): ClientOutput<"counter"> => {
 
 // 3. Use in React
 function App() {
-  const aui = useAssistantClient({ counter: CounterClient() });
-  return <AssistantProvider client={aui}><Counter /></AssistantProvider>;
+  const aui = useAui({ counter: CounterClient() });
+  return <AuiProvider value={aui}><Counter /></AuiProvider>;
 }
 
 function Counter() {
-  const count = useAssistantState(({ counter }) => counter.count);
-  const aui = useAssistantClient();
+  const count = useAuiState(({ counter }) => counter.count);
+  const aui = useAui();
   return <button onClick={() => aui.counter().increment()}>{count}</button>;
 }
 ```
@@ -52,7 +52,7 @@ declare module "@assistant-ui/store" {
 
 **Derived Clients**: Access nested clients from parents.
 ```typescript
-useAssistantClient({
+useAui({
   item: Derived({ source: "list", query: { index: 0 }, get: (aui) => aui.list().item({ index: 0 }) }),
 });
 ```
@@ -62,19 +62,19 @@ useAssistantClient({
 const emit = tapAssistantEmit();
 emit("myClient.updated", { id: "123" });
 
-useAssistantEvent("myClient.updated", (p) => console.log(p.id));
+useAuiEvent("myClient.updated", (p) => console.log(p.id));
 ```
 
 ## API
 
 | Hook/Component | Description |
 |----------------|-------------|
-| `useAssistantClient()` | Get client from context |
-| `useAssistantClient(clients)` | Create/extend client |
-| `useAssistantState(selector)` | Subscribe to state |
-| `useAssistantEvent(event, cb)` | Subscribe to events |
-| `AssistantProvider` | Provide client to tree |
-| `AssistantIf` | Conditional rendering |
+| `useAui()` | Get client from context |
+| `useAui(clients)` | Create/extend client |
+| `useAuiState(selector)` | Subscribe to state |
+| `useAuiEvent(event, cb)` | Subscribe to events |
+| `AuiProvider` | Provide client to tree |
+| `AuiIf` | Conditional rendering |
 
 | Tap Utility | Description |
 |-------------|-------------|

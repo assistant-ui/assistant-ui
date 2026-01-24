@@ -11,6 +11,8 @@ const bundle = [
   "v0-8/ui-package-split",
   "v0-9/edge-package-split",
   "v0-11/content-part-to-message-part",
+  "v0-12/assistant-api-to-aui",
+  "v0-12/event-names-to-camelcase",
 ];
 
 const log = debug("codemod:upgrade");
