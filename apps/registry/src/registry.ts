@@ -344,9 +344,10 @@ export const registry: RegistryItem[] = [
     ],
     dependencies: [
       "@assistant-ui/react",
+      "@radix-ui/react-select",
       "lucide-react",
       "class-variance-authority",
     ],
-    registryDependencies: ["dropdown-menu"],
+    registryDependencies: ["select"],
   },
 ];

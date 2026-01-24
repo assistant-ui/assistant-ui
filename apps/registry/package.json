@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "@radix-ui/react-collapsible": "^1.1.12",
-    "@radix-ui/react-dropdown-menu": "^2.1.16"
+    "@radix-ui/react-select": "^2.2.6"
   },
   "devDependencies": {
     "@ai-sdk/openai": "^3.0.13",
