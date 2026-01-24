@@ -365,4 +365,21 @@ export const registry: RegistryItem[] = [
       "class-variance-authority",
     ],
   },
+  {
+    name: "model-selector",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/model-selector.tsx",
+      },
+    ],
+    dependencies: [
+      "@assistant-ui/react",
+      "@radix-ui/react-select",
+      "lucide-react",
+      "class-variance-authority",
+    ],
+    registryDependencies: ["select"],
+  },
 ];

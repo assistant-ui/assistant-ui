@@ -1,5 +1,17 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.2.1
+
+### Patch Changes
+
+- 083ed83: fix(cloud): serialize image and file parts across all formats
+- Updated dependencies [6eab31e]
+- Updated dependencies [9314b36]
+- Updated dependencies [083ed83]
+- Updated dependencies [6511990]
+- Updated dependencies [a526e63]
+  - @assistant-ui/react@0.11.60
+
 ## 1.2.0
 
 ### Minor Changes

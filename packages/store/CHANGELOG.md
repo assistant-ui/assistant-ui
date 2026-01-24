@@ -1,5 +1,11 @@
 # @assistant-ui/store
 
+## 0.1.0
+
+### Minor Changes
+
+- 11625b5: feat: store v0.1
+
 ## 0.0.6
 
 ### Patch Changes

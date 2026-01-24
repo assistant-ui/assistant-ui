@@ -1,0 +1,227 @@
+---
+title: ModelSelector
+description: Model picker with unified overlay positioning and runtime integration.
+---
+
+import { InstallCommand } from "@/components/docs/fumadocs/install/install-command";
+import { ParametersTable } from "@/components/docs/tables/ParametersTable";
+import { ModelSelectorSample } from "@/components/docs/samples/model-selector";
+
+A select component that lets users switch between AI models. Uses item-aligned positioning so the selected model overlays the trigger for a unified look. Integrates with assistant-ui's `ModelContext` system to automatically propagate the selected model to your backend.
+
+<ModelSelectorSample />
+
+## Getting Started
+
+<Steps>
+  <Step>
+
+### Add `model-selector`
+
+<InstallCommand shadcn={["model-selector"]} />
+
+  </Step>
+  <Step>
+
+### Use in your application
+
+Place the `ModelSelector` inside your thread component, typically in the composer area:
+
+```tsx title="/components/assistant-ui/thread.tsx" {1,6-14}
+import { ModelSelector } from "@/components/assistant-ui/model-selector";
+
+const ComposerAction: FC = () => {
+  return (
+    <div className="flex items-center gap-1">
+      <ModelSelector
+        models={[
+          { id: "gpt-5-nano", name: "GPT-5 Nano", description: "Fast and efficient" },
+          { id: "gpt-5-mini", name: "GPT-5 Mini", description: "Balanced performance" },
+          { id: "gpt-5", name: "GPT-5", description: "Most capable" },
+        ]}
+        defaultValue="gpt-5-mini"
+        variant="ghost"
+        size="sm"
+      />
+    </div>
+  );
+};
+```
+
+  </Step>
+  <Step>
+
+### Read the model in your API route
+
+The selected model name is sent as `config.modelName` in the request body:
+
+```tsx title="app/api/chat/route.ts" {2,5}
+export async function POST(req: Request) {
+  const { messages, config } = await req.json();
+
+  const result = streamText({
+    model: openai(config?.modelName ?? "gpt-4o"),
+    messages: convertToModelMessages(messages),
+  });
+
+  return result.toUIMessageStreamResponse();
+}
+```
+
+  </Step>
+</Steps>
+
+## Variants
+
+Use the `variant` prop to change the trigger's visual style.
+
+```tsx
+<ModelSelector variant="ghost" />   // No background (default)
+<ModelSelector variant="outline" /> // Border only
+<ModelSelector variant="default" /> // Solid background
+```
+
+| Variant   | Description                                    |
+| --------- | ---------------------------------------------- |
+| `ghost`   | No background, subtle hover (default)          |
+| `outline` | Border with transparent background             |
+| `default` | Solid secondary background                     |
+
+## Sizes
+
+Use the `size` prop to control the trigger dimensions.
+
+```tsx
+<ModelSelector size="sm" />      // Compact (h-7, text-xs)
+<ModelSelector size="default" /> // Standard (h-8)
+<ModelSelector size="lg" />      // Large (h-9)
+```
+
+## Model Options
+
+Each model in the `models` array supports:
+
+```tsx
+const models = [
+  {
+    id: "gpt-5",           // Sent to backend as config.modelName
+    name: "GPT-5",         // Display name in trigger and items
+    description: "Most capable", // Optional subtitle in items only
+    icon: <SparklesIcon />,      // Optional icon (any ReactNode)
+  },
+];
+```
+
+## Runtime Integration
+
+The default `ModelSelector` export automatically registers the selected model with assistant-ui's `ModelContext` system. When a user selects a model:
+
+1. The component calls `api.modelContext().register()` with `config.modelName`
+2. The `AssistantChatTransport` includes `config` in the request body
+3. Your API route reads `config.modelName` to determine which model to use
+
+This works out of the box with `@assistant-ui/react-ai-sdk`.
+
+## Composable API
+
+For custom layouts, use the sub-components directly with `ModelSelector.Root`:
+
+```tsx
+import {
+  ModelSelectorRoot,
+  ModelSelectorTrigger,
+  ModelSelectorContent,
+  ModelSelectorItem,
+} from "@/components/assistant-ui/model-selector";
+
+<ModelSelectorRoot models={models} value={modelId} onValueChange={setModelId}>
+  <ModelSelectorTrigger variant="outline" size="lg" />
+  <ModelSelectorContent />
+</ModelSelectorRoot>
+```
+
+| Component | Description |
+|-----------|-------------|
+| `ModelSelector` | Default export with runtime integration |
+| `ModelSelector.Root` | Presentational root (no runtime, controlled state) |
+| `ModelSelector.Trigger` | CVA-styled trigger showing current model |
+| `ModelSelector.Content` | Select content with model items |
+| `ModelSelector.Item` | Individual model option with icon, name, description |
+
+## API Reference
+
+### ModelSelector
+
+<ParametersTable
+  type="ModelSelectorProps"
+  parameters={[
+    {
+      name: "models",
+      type: "ModelOption[]",
+      required: true,
+      description: "Array of available models to display.",
+    },
+    {
+      name: "defaultValue",
+      type: "string",
+      description: "Initial model ID for uncontrolled usage.",
+    },
+    {
+      name: "value",
+      type: "string",
+      description: "Controlled selected model ID.",
+    },
+    {
+      name: "onValueChange",
+      type: "(value: string) => void",
+      description: "Callback when selected model changes.",
+    },
+    {
+      name: "variant",
+      type: '"ghost" | "outline" | "default"',
+      default: '"ghost"',
+      description: "Visual style of the trigger button.",
+    },
+    {
+      name: "size",
+      type: '"sm" | "default" | "lg"',
+      default: '"default"',
+      description: "Size of the trigger button.",
+    },
+    {
+      name: "contentClassName",
+      type: "string",
+      description: "Additional class name for the dropdown content.",
+    },
+  ]}
+/>
+
+### ModelOption
+
+<ParametersTable
+  type="ModelOption"
+  parameters={[
+    {
+      name: "id",
+      type: "string",
+      required: true,
+      description: "Unique identifier sent to the backend as modelName.",
+    },
+    {
+      name: "name",
+      type: "string",
+      required: true,
+      description: "Display name shown in trigger and dropdown.",
+    },
+    {
+      name: "description",
+      type: "string",
+      description: "Optional subtitle shown below the model name.",
+    },
+    {
+      name: "icon",
+      type: "React.ReactNode",
+      description: "Optional icon displayed before the model name.",
+    },
+  ]}
+/>
