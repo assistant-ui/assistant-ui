@@ -66,20 +66,27 @@ This does NOT apply to private packages like `@assistant-ui/docs` or `@assistant
 
 **`assistant-stream`** - Streaming protocol and utilities
 - `AssistantStream`: Core streaming class
-- `DataStreamEncoder/Decoder`: For AI SDK data stream format
-- `AssistantTransportEncoder/Decoder`: For assistant-ui's native transport format
-- Tool definitions and accumulators
+- Serialization formats: `DataStream` (AI SDK format), `AssistantTransport` (native format), `UIMessageStream`
+- Tool definitions, accumulators, and partial JSON parsing
+
+**`@assistant-ui/tap`** - Zero-dependency reactive state management (internal)
+- React hooks-inspired API: `tapState`, `tapEffect`, `tapMemo`, `tapCallback`, `tapRef`
+- Used internally for runtime state management
+
+**`@assistant-ui/store`** - Tap-based state management layer for React (internal)
+- Bridges `@assistant-ui/tap` with React components
+- `useAui`, `useAuiState`, `useAuiEvent` hooks
 
 ### Integration Packages
 
 - **`@assistant-ui/react-ai-sdk`**: Vercel AI SDK integration
   - `useChatRuntime()`: Connect to AI SDK's useChat
   - `useAISDKRuntime()`: Lower-level AI SDK runtime
-
 - **`@assistant-ui/react-langgraph`**: LangGraph integration
-  - `useLangGraphRuntime()`: Connect to LangGraph agents
-  - `useLangGraphMessages()`: Message handling utilities
-
+- **`@assistant-ui/react-data-stream`**: Data stream protocol runtime
+- **`@assistant-ui/react-ag-ui`**: AG-UI protocol integration
+- **`@assistant-ui/react-a2a`**: A2A (Agent-to-Agent) protocol integration
+- **`@assistant-ui/react-hook-form`**: React Hook Form integration
 - **`@assistant-ui/react-markdown`**: Markdown rendering
 - **`@assistant-ui/react-syntax-highlighter`**: Code highlighting
 - **`@assistant-ui/styles`**: Pre-built CSS for non-Tailwind users
@@ -104,4 +111,5 @@ Runtimes manage:
 - **Turbo**: Monorepo task orchestration
 - **`@assistant-ui/x-buildutils`**: Internal build tool (`aui-build` command)
 - **Biome**: Linting and formatting (replaces ESLint/Prettier)
+  - Tailwind class sorting enforced via `useSortedClasses` rule
 - **Vitest**: Testing framework
