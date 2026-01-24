@@ -3,6 +3,7 @@ export {
   type UseSyncResult,
   type UseSyncState,
   type UseSyncChat,
+  type UseSyncOptions,
 } from "./useSync";
 export {
   useThreads,
