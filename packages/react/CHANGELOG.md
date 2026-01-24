@@ -1,11 +1,14 @@
 # @assistant-ui/react
 
-## 0.11.60
+## 0.12.0
 
-### Patch Changes
+### Minor Changes
+
+- 9314b36: feat: use @assistant-ui/store to power state management
+
+# Patch Changes
 
 - 6eab31e: fix(react): handle tool argsText key reordering during streaming
-- 9314b36: feat: use @assistant-ui/store to power state management
 - 083ed83: fix(cloud): serialize image and file parts across all formats
 - 6511990: fix(react): bind `this` context when calling `__internal_setGetInitializePromise`
 - a526e63: fix uncaught AbortError when cancelling streams
