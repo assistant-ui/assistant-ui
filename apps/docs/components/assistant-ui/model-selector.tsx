@@ -39,8 +39,7 @@ const modelSelectorTriggerVariants = cva(
   {
     variants: {
       variant: {
-        default:
-          "bg-secondary text-secondary-foreground hover:bg-secondary/70",
+        default: "bg-secondary text-secondary-foreground hover:bg-secondary/70",
         outline:
           "border border-input text-muted-foreground hover:bg-accent hover:text-accent-foreground",
         ghost:
