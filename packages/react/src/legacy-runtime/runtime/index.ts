@@ -26,3 +26,5 @@ export type {
   ThreadListItemRuntime,
   ThreadListItemState,
 } from "./ThreadListItemRuntime";
+
+export { useLocalThreadPersistence } from "./persistence/useLocalThreadPersistence";
