@@ -67,28 +67,32 @@ export async function createFromExample(
   logger.step("Transforming tsconfig.json...");
   await transformTsConfig(absoluteProjectDir);
 
-  // 5. Scan for required components
+  // 5. Transform CSS files (remove monorepo-specific @source directives)
+  logger.step("Transforming CSS files...");
+  await transformCssFiles(absoluteProjectDir);
+
+  // 6. Scan for required components
   logger.step("Scanning for required components...");
   const { assistantUI, shadcnUI } =
     await scanRequiredComponents(absoluteProjectDir);
 
-  // 6. Remove workspace components directory
+  // 7. Remove workspace components directory
   logger.step("Cleaning up workspace components...");
   await removeWorkspaceComponents(absoluteProjectDir);
 
-  // 7. Install dependencies first (needed for shadcn)
+  // 8. Install dependencies first (needed for shadcn)
   if (!opts.skipInstall) {
     logger.step("Installing dependencies...");
     await installDependencies(absoluteProjectDir, opts);
   }
 
-  // 8. Install shadcn UI components (standard shadcn components like button, tooltip, etc.)
+  // 9. Install shadcn UI components (standard shadcn components like button, tooltip, etc.)
   if (shadcnUI.length > 0) {
     logger.step(`Installing shadcn UI components: ${shadcnUI.join(", ")}...`);
     await installShadcnComponents(absoluteProjectDir, shadcnUI);
   }
 
-  // 9. Install assistant-ui components
+  // 10. Install assistant-ui components
   if (assistantUI.length > 0) {
     logger.step(
       `Installing assistant-ui components: ${assistantUI.join(", ")}...`,
@@ -167,6 +171,32 @@ async function transformPackageJson(projectDir: string): Promise<void> {
   fs.writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`);
 }
 
+async function transformCssFiles(projectDir: string): Promise<void> {
+  // Find all CSS files
+  const cssFiles = globSync("**/*.css", {
+    cwd: projectDir,
+    ignore: ["**/node_modules/**", "**/dist/**", "**/.next/**"],
+  });
+
+  for (const file of cssFiles) {
+    const fullPath = path.join(projectDir, file);
+    try {
+      let content = fs.readFileSync(fullPath, "utf-8");
+
+      // Remove @source lines that point to monorepo packages directory
+      // These are only needed in the monorepo context
+      content = content.replace(
+        /@source\s+["'][^"']*packages\/ui\/src[^"']*["'];\s*\n?/g,
+        "",
+      );
+
+      fs.writeFileSync(fullPath, content);
+    } catch {
+      // Ignore files that cannot be read/written
+    }
+  }
+}
+
 async function transformTsConfig(projectDir: string): Promise<void> {
   const tsconfigPath = path.join(projectDir, "tsconfig.json");
 
@@ -181,6 +211,7 @@ async function transformTsConfig(projectDir: string): Promise<void> {
   if (tsconfig.compilerOptions?.paths) {
     delete tsconfig.compilerOptions.paths["@/components/assistant-ui/*"];
     delete tsconfig.compilerOptions.paths["@/components/ui/*"];
+    delete tsconfig.compilerOptions.paths["@assistant-ui/ui/*"];
 
     // If paths is empty, remove it
     if (Object.keys(tsconfig.compilerOptions.paths).length === 0) {
