@@ -6,7 +6,7 @@ import {
   createActionButton,
 } from "../../utils/createActionButton";
 import { useCallback } from "react";
-import { useAssistantState, useAssistantApi } from "../../context";
+import { useAuiState, useAui } from "@assistant-ui/store";
 
 /**
  * Hook that provides edit functionality for action bar buttons.
@@ -30,12 +30,12 @@ import { useAssistantState, useAssistantApi } from "../../context";
  * ```
  */
 const useActionBarEdit = () => {
-  const api = useAssistantApi();
-  const disabled = useAssistantState(({ composer }) => composer.isEditing);
+  const aui = useAui();
+  const disabled = useAuiState(({ composer }) => composer.isEditing);
 
   const callback = useCallback(() => {
-    api.composer().beginEdit();
-  }, [api]);
+    aui.composer().beginEdit();
+  }, [aui]);
 
   if (disabled) return null;
   return callback;

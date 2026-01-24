@@ -1,23 +1,21 @@
-import { ComposerClientState, ComposerClientApi } from "./Composer";
-import { MessagePartClientApi, MessagePartClientState } from "./Part";
-import { MessageRuntime } from "../../legacy-runtime/runtime";
-import {
+import type { ThreadMessage } from "../AssistantTypes";
+import type {
   SpeechState,
   SubmittedFeedback,
 } from "../../legacy-runtime/runtime-cores/core/ThreadRuntimeCore";
-import { ThreadMessage } from "../../types";
-import { RunConfig } from "../../types/AssistantTypes";
-import { AttachmentClientApi } from "./Attachment";
+import type { RunConfig } from "../AssistantTypes";
+import type { MessageRuntime } from "../../legacy-runtime/runtime";
+import type { ComposerMethods, ComposerState } from "./composer";
+import type { PartMethods, PartState } from "./part";
+import type { AttachmentMethods } from "./attachment";
 
-export type MessageClientState = ThreadMessage & {
+export type MessageState = ThreadMessage & {
   readonly parentId: string | null;
   readonly isLast: boolean;
-
   readonly branchNumber: number;
   readonly branchCount: number;
-
   /**
-   * @deprecated The `speech` property is deprecated and will be removed in a future version.
+   * @deprecated This API is still under active development and might change without notice.
    *
    * To enable text-to-speech, provide a `SpeechSynthesisAdapter` to the runtime.
    *
@@ -31,40 +29,28 @@ export type MessageClientState = ThreadMessage & {
    *     speech: new WebSpeechSynthesisAdapter(),
    *   },
    * });
-   * ```
    */
   readonly speech: SpeechState | undefined;
-  /**
-   * @deprecated Use `message.metadata.submittedFeedback` instead. This will be removed in 0.12.0.
-   */
+  /** @deprecated Use `message.metadata.submittedFeedback` instead. This will be removed in 0.12.0. */
   readonly submittedFeedback: SubmittedFeedback | undefined;
-
-  readonly composer: ComposerClientState;
-  readonly parts: readonly MessagePartClientState[];
-
+  readonly composer: ComposerState;
+  readonly parts: readonly PartState[];
   readonly isCopied: boolean;
   readonly isHovering: boolean;
-
   /** The position of this message in the thread (0 for first message) */
   readonly index: number;
 };
 
-export type MessageClientApi = {
+export type MessageMethods = {
   /**
    * Get the current state of the message.
    */
-  getState(): MessageClientState;
-
-  readonly composer: ComposerClientApi;
-
+  getState(): MessageState;
+  composer: ComposerMethods;
   reload(config?: { runConfig?: RunConfig }): void;
-  /**
-   * @deprecated The `speak()` method is deprecated. Use the `ActionBarPrimitive.Speak` component instead.
-   */
+  /** @deprecated This API is still under active development and might change without notice. */
   speak(): void;
-  /**
-   * @deprecated The `stopSpeaking()` method is deprecated. Use the `ActionBarPrimitive.StopSpeaking` component instead.
-   */
+  /** @deprecated This API is still under active development and might change without notice. */
   stopSpeaking(): void;
   submitFeedback(feedback: { type: "positive" | "negative" }): void;
   switchToBranch(options: {
@@ -72,15 +58,21 @@ export type MessageClientApi = {
     branchId?: string;
   }): void;
   getCopyText(): string;
-
-  part: (
-    selector: { index: number } | { toolCallId: string },
-  ) => MessagePartClientApi;
-  attachment(selector: { index: number } | { id: string }): AttachmentClientApi;
-
+  part(selector: { index: number } | { toolCallId: string }): PartMethods;
+  attachment(selector: { index: number } | { id: string }): AttachmentMethods;
   setIsCopied(value: boolean): void;
   setIsHovering(value: boolean): void;
-
   /** @internal */
   __internal_getRuntime?(): MessageRuntime;
+};
+
+export type MessageMeta = {
+  source: "thread";
+  query: { type: "id"; id: string } | { type: "index"; index: number };
+};
+
+export type MessageClientSchema = {
+  state: MessageState;
+  methods: MessageMethods;
+  meta: MessageMeta;
 };

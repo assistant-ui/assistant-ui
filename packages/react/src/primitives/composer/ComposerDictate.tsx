@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
-import { useAssistantState, useAssistantApi } from "../../context";
+import { useAui, useAuiState } from "@assistant-ui/store";
 import type {
   ActionButtonElement,
   ActionButtonProps,
@@ -9,8 +9,8 @@ import type {
 import { createActionButton } from "../../utils/createActionButton";
 
 const useComposerDictate = () => {
-  const api = useAssistantApi();
-  const disabled = useAssistantState(
+  const aui = useAui();
+  const disabled = useAuiState(
     ({ thread, composer }) =>
       composer.dictation != null ||
       !thread.capabilities.dictation ||
@@ -18,8 +18,8 @@ const useComposerDictate = () => {
   );
 
   const callback = useCallback(() => {
-    api.composer().startDictation();
-  }, [api]);
+    aui.composer().startDictation();
+  }, [aui]);
 
   if (disabled) return null;
   return callback;

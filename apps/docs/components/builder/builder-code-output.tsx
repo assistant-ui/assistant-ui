@@ -73,7 +73,7 @@ function generateComponentCode(config: BuilderConfig): string {
     iconImports,
     `import {`,
     `  ActionBarPrimitive,`,
-    `  AssistantIf,`,
+    `  AuiIf,`,
     components.branchPicker && `  BranchPickerPrimitive,`,
     `  ComposerPrimitive,`,
     `  ErrorPrimitive,`,
@@ -139,9 +139,9 @@ export function Thread() {
       >
         ${
           components.threadWelcome
-            ? `<AssistantIf condition={({ thread }) => thread.isEmpty}>
+            ? `<AuiIf condition={({ thread }) => thread.isEmpty}>
           <ThreadWelcome />
-        </AssistantIf>`
+        </AuiIf>`
             : ""
         }
 
@@ -227,7 +227,7 @@ function ComposerAction() {
     <div className="relative mx-2 mb-2 flex items-center justify-between">
       ${components.attachments ? "<ComposerAddAttachment />" : "<div />"}
 
-      <AssistantIf condition={({ thread }) => !thread.isRunning}>
+      <AuiIf condition={({ thread }) => !thread.isRunning}>
         <ComposerPrimitive.Send asChild>
           <TooltipIconButton
             tooltip="Send message"
@@ -245,9 +245,9 @@ function ComposerAction() {
             <ArrowUpIcon className="size-4" />
           </TooltipIconButton>
         </ComposerPrimitive.Send>
-      </AssistantIf>
+      </AuiIf>
 
-      <AssistantIf condition={({ thread }) => thread.isRunning}>
+      <AuiIf condition={({ thread }) => thread.isRunning}>
         <ComposerPrimitive.Cancel asChild>
           <Button
             type="button"
@@ -263,7 +263,7 @@ function ComposerAction() {
             <SquareIcon className="size-3 fill-current" />
           </Button>
         </ComposerPrimitive.Cancel>
-      </AssistantIf>
+      </AuiIf>
     </div>
   );
 }`;
@@ -379,7 +379,7 @@ function AssistantMessage() {
         <MessageError />${
           components.loadingIndicator !== "none"
             ? `
-        <AssistantIf condition={({ thread, message }) => thread.isRunning && message.content.length === 0}>
+        <AuiIf condition={({ thread, message }) => thread.isRunning && message.content.length === 0}>
           <div className="flex items-center gap-2 text-muted-foreground">
             <LoaderIcon className="size-4 animate-spin" />${
               components.loadingIndicator === "text"
@@ -388,7 +388,7 @@ function AssistantMessage() {
                 : ""
             }
           </div>
-        </AssistantIf>`
+        </AuiIf>`
             : ""
         }
       </div>
@@ -400,7 +400,7 @@ function AssistantMessage() {
       ${
         components.followUpSuggestions
           ? `
-      <AssistantIf condition={({ thread }) => !thread.isRunning}>
+      <AuiIf condition={({ thread }) => !thread.isRunning}>
         <div className="mt-4 flex flex-wrap gap-2">
           <ThreadPrimitive.Suggestion
             prompt="Tell me more"
@@ -415,7 +415,7 @@ function AssistantMessage() {
             Explain differently
           </ThreadPrimitive.Suggestion>
         </div>
-      </AssistantIf>`
+      </AuiIf>`
           : ""
       }
     </MessagePrimitive.Root>
@@ -459,12 +459,12 @@ function AssistantActionBar() {
         components.actionBar.copy
           ? `<ActionBarPrimitive.Copy asChild>
         <TooltipIconButton tooltip="Copy">
-          <AssistantIf condition={({ message }) => message.isCopied}>
+          <AuiIf condition={({ message }) => message.isCopied}>
             <CheckIcon />
-          </AssistantIf>
-          <AssistantIf condition={({ message }) => !message.isCopied}>
+          </AuiIf>
+          <AuiIf condition={({ message }) => !message.isCopied}>
             <CopyIcon />
-          </AssistantIf>
+          </AuiIf>
         </TooltipIconButton>
       </ActionBarPrimitive.Copy>`
           : ""

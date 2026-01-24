@@ -66,10 +66,6 @@
                 "closureIndex": 0,
                 "dependenciesIndex": 1
               },
-              {
-                "name": "tapEffectEvent",
-                "stableResult": true
-              },
               { "name": "tapMemo", "closureIndex": 0, "dependenciesIndex": 1 },
               {
                 "name": "tapCallback",

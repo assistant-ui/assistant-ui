@@ -7,7 +7,7 @@ import { RemoteThreadListOptions } from "./types";
 import { AssistantRuntimeImpl } from "../../../internal";
 import { AssistantRuntimeCore } from "../core/AssistantRuntimeCore";
 import { AssistantRuntime } from "../../runtime/AssistantRuntime";
-import { useAssistantApiImpl } from "../../../context/react/AssistantApiContext";
+import { useAui } from "@assistant-ui/store";
 
 class RemoteThreadListRuntimeCore
   extends BaseAssistantRuntimeCore
@@ -42,8 +42,8 @@ const useRemoteThreadListRuntimeImpl = (
 export const useRemoteThreadListRuntime = (
   options: RemoteThreadListOptions,
 ): AssistantRuntime => {
-  const api = useAssistantApiImpl();
-  const isNested = api.threadListItem.source !== null;
+  const aui = useAui();
+  const isNested = aui.threadListItem.source !== null;
 
   if (isNested) {
     if (!options.allowNesting) {

@@ -1,5 +1,5 @@
 import { useEffect, useEffectEvent } from "react";
-import { useAssistantClient } from "./useAssistantClient";
+import { useAui } from "./useAui";
 import type {
   AssistantEventName,
   AssistantEventCallback,
@@ -7,11 +7,11 @@ import type {
 } from "./types/events";
 import { normalizeEventSelector } from "./types/events";
 
-export const useAssistantEvent = <TEvent extends AssistantEventName>(
+export const useAuiEvent = <TEvent extends AssistantEventName>(
   selector: AssistantEventSelector<TEvent>,
   callback: AssistantEventCallback<TEvent>,
 ) => {
-  const aui = useAssistantClient();
+  const aui = useAui();
   const callbackRef = useEffectEvent(callback);
 
   const { scope, event } = normalizeEventSelector(selector);

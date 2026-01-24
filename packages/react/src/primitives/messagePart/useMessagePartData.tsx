@@ -1,10 +1,10 @@
 "use client";
 
-import { useAssistantState } from "../../context";
+import { useAuiState } from "@assistant-ui/store";
 import { DataMessagePart } from "../../types";
 
 export const useMessagePartData = <T = any>(name?: string) => {
-  const part = useAssistantState(({ part }) => {
+  const part = useAuiState(({ part }) => {
     if (part.type !== "data") {
       return null;
     }

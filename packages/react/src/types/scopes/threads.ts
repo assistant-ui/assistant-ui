@@ -1,25 +1,22 @@
-import {
-  ThreadListItemClientState,
-  ThreadListItemClientApi,
-} from "./ThreadListItem";
-import { ThreadClientApi, ThreadClientState } from "./Thread";
 import type { AssistantRuntime } from "../../legacy-runtime/runtime/AssistantRuntime";
+import type {
+  ThreadListItemMethods,
+  ThreadListItemState,
+} from "./threadListItem";
+import type { ThreadMethods, ThreadState } from "./thread";
 
-export type ThreadListClientState = {
+export type ThreadsState = {
   readonly mainThreadId: string;
   readonly newThreadId: string | null;
   readonly isLoading: boolean;
   readonly threadIds: readonly string[];
   readonly archivedThreadIds: readonly string[];
-
-  readonly threadItems: readonly ThreadListItemClientState[];
-
-  readonly main: ThreadClientState;
+  readonly threadItems: readonly ThreadListItemState[];
+  readonly main: ThreadState;
 };
 
-export type ThreadListClientApi = {
-  getState(): ThreadListClientState;
-
+export type ThreadsMethods = {
+  getState(): ThreadsState;
   switchToThread(threadId: string): void;
   switchToNewThread(): void;
   item(
@@ -27,10 +24,13 @@ export type ThreadListClientApi = {
       | "main"
       | { id: string }
       | { index: number; archived?: boolean },
-  ): ThreadListItemClientApi;
-
-  thread(selector: "main"): ThreadClientApi;
-
+  ): ThreadListItemMethods;
+  thread(selector: "main"): ThreadMethods;
   /** @internal */
   __internal_getAssistantRuntime?(): AssistantRuntime;
+};
+
+export type ThreadsClientSchema = {
+  state: ThreadsState;
+  methods: ThreadsMethods;
 };

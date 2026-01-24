@@ -12,8 +12,6 @@ export * as ThreadListPrimitive from "./threadList";
 export * as ThreadListItemPrimitive from "./threadListItem";
 export * as ThreadListItemMorePrimitive from "./threadListItemMore";
 
-export { AssistantIf } from "./assistant/AssistantIf";
-
 export { useMessagePartText } from "./messagePart/useMessagePartText";
 export { useMessagePartReasoning } from "./messagePart/useMessagePartReasoning";
 export { useMessagePartSource } from "./messagePart/useMessagePartSource";

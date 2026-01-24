@@ -30,29 +30,29 @@ type AssistantState = { [K]: ClientSchemas[K]["state"] };
 
 ## API
 
-### useAssistantClient
+### useAui
 ```typescript
-useAssistantClient(): AssistantClient;
-useAssistantClient(clients: { [K]?: ClientElement<K> | DerivedElement<K> }): AssistantClient;
+useAui(): AssistantClient;
+useAui(clients: { [K]?: ClientElement<K> | DerivedElement<K> }): AssistantClient;
 ```
 Flow: splitClients → gather default peers → mount root clients → create derived accessors → merge with parent.
 
-### useAssistantState
+### useAuiState
 ```typescript
-useAssistantState<T>(selector: (state: AssistantState) => T): T;
+useAuiState<T>(selector: (state: AssistantState) => T): T;
 ```
 `useSyncExternalStore` with proxied state. **Throws** if selector returns proxy (must return specific value).
 
-### useAssistantEvent
+### useAuiEvent
 ```typescript
-useAssistantEvent<E>(selector: E | { scope: EventScope<E>; event: E }, callback: (payload) => void): void;
+useAuiEvent<E>(selector: E | { scope: EventScope<E>; event: E }, callback: (payload) => void): void;
 ```
 Selectors: `"client.event"` | `{ scope: "parent", event }` | `{ scope: "*", event }`. Wildcard `"*"` receives all.
 
-### AssistantProvider / AssistantIf
+### AuiProvider / AuiIf
 ```typescript
-<AssistantProvider client={client}>{children}</AssistantProvider>
-<AssistantIf condition={(state) => boolean}>{children}</AssistantIf>
+<AuiProvider value={aui}>{children}</AuiProvider>
+<AuiIf condition={(state) => boolean}>{children}</AuiIf>
 ```
 
 ### Derived
@@ -125,7 +125,7 @@ Flow: `tapAssistantEmit` captures client stack → `emit` queues via microtask �
 
 | Audience | API Surface |
 |----------|-------------|
-| Users | `useAssistantClient`, `useAssistantState`, `useAssistantEvent`, `AssistantProvider`, `AssistantIf`, `Derived` |
+| Users | `useAui`, `useAuiState`, `useAuiEvent`, `AuiProvider`, `AuiIf`, `Derived` |
 | Authors | Above + `tap*`, `attachDefaultPeers`, `ClientOutput`, `ClientRegistry` |
 | Internal | `utils/*` |
 
@@ -137,5 +137,5 @@ Flow: `tapAssistantEmit` captures client stack → `emit` queues via microtask �
 2. Resources return `{ state, methods }` matching `ClientOutput<K>`
 3. Events: `"clientName.eventName"` format
 4. `meta.source` must be valid `ClientNames`
-5. `useAssistantState` selector cannot return whole state
+5. `useAuiState` selector cannot return whole state
 6. Default peers: first definition wins, no override

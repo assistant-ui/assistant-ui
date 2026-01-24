@@ -1,6 +1,6 @@
 import { useSyncExternalStore, useDebugValue } from "react";
 import type { AssistantState } from "./types/client";
-import { useAssistantClient } from "./useAssistantClient";
+import { useAui } from "./useAui";
 import { getProxiedAssistantState } from "./utils/proxied-assistant-state";
 
 /**
@@ -11,17 +11,15 @@ import { getProxiedAssistantState } from "./utils/proxied-assistant-state";
  *
  * @example
  * ```typescript
- * const aui = useAssistantClient({
+ * const aui = useAui({
  *   foo: RootScope({ ... }),
  * });
  *
- * const bar = useAssistantState((state) => state.foo.bar);
+ * const bar = useAuiState((state) => state.foo.bar);
  * ```
  */
-export const useAssistantState = <T,>(
-  selector: (state: AssistantState) => T,
-): T => {
-  const aui = useAssistantClient();
+export const useAuiState = <T,>(selector: (state: AssistantState) => T): T => {
+  const aui = useAui();
   const proxiedState = getProxiedAssistantState(aui);
 
   const slice = useSyncExternalStore(

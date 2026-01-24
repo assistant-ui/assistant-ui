@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
-import { useAssistantState, useAssistantApi } from "../../context";
+import { useAuiState, useAui } from "@assistant-ui/store";
 import {
   ActionButtonElement,
   ActionButtonProps,
@@ -9,12 +9,12 @@ import {
 } from "../../utils/createActionButton";
 
 const useActionBarSpeak = () => {
-  const api = useAssistantApi();
+  const aui = useAui();
   const callback = useCallback(async () => {
-    api.message().speak();
-  }, [api]);
+    aui.message().speak();
+  }, [aui]);
 
-  const hasSpeakableContent = useAssistantState(({ message }) => {
+  const hasSpeakableContent = useAuiState(({ message }) => {
     return (
       (message.role !== "assistant" || message.status?.type !== "running") &&
       message.parts.some((c) => c.type === "text" && c.text.length > 0)

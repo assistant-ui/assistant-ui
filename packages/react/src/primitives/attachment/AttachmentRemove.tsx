@@ -6,14 +6,14 @@ import {
   createActionButton,
 } from "../../utils/createActionButton";
 import { useCallback } from "react";
-import { useAssistantApi } from "../../context";
+import { useAui } from "@assistant-ui/store";
 
 const useAttachmentRemove = () => {
-  const api = useAssistantApi();
+  const aui = useAui();
 
   const handleRemoveAttachment = useCallback(() => {
-    api.attachment().remove();
-  }, [api]);
+    aui.attachment().remove();
+  }, [aui]);
 
   return handleRemoveAttachment;
 };

@@ -6,7 +6,7 @@ import {
   AssistantRuntime,
   unstable_useCloudThreadListAdapter,
   unstable_useRemoteThreadListRuntime,
-  useAssistantState,
+  useAuiState,
 } from "@assistant-ui/react";
 import {
   useAISDKRuntime,
@@ -61,7 +61,7 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     transportOptions ?? new AssistantChatTransport(),
   );
 
-  const id = useAssistantState(({ threadListItem }) => threadListItem.id);
+  const id = useAuiState(({ threadListItem }) => threadListItem.id);
   const chat = useChat({
     ...chatOptions,
     id,

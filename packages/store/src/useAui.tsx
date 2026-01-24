@@ -87,7 +87,7 @@ const RootClientAccessorResource = resource(
     }, [store, notifications]);
 
     return tapMemo(() => {
-      const clientFunction = () => store.getState().methods;
+      const clientFunction = () => store.getValue().methods;
       Object.defineProperties(clientFunction, {
         source: {
           value: "root" as const,
@@ -160,7 +160,7 @@ const RootClientsAccessorsResource = resource(
         ) {
           if (!this) {
             throw new Error(
-              "const { on } = useAssistantClient() is not supported. Use aui.on() instead.",
+              "const { on } = useAui() is not supported. Use aui.on() instead.",
             );
           }
 
@@ -289,7 +289,7 @@ export const AssistantClientResource = resource(
     clients,
   }: {
     parent: AssistantClient;
-    clients: useAssistantClient.Props;
+    clients: useAui.Props;
   }): AssistantClient => {
     const { rootClients, derivedClients } = tapSplitClients(clients, parent);
 
@@ -347,19 +347,15 @@ export const AssistantClientResource = resource(
   },
 );
 
-export namespace useAssistantClient {
+export namespace useAui {
   export type Props = {
     [K in ClientNames]?: ClientElement<K> | DerivedElement<K>;
   };
 }
 
-export function useAssistantClient(): AssistantClient;
-export function useAssistantClient(
-  clients: useAssistantClient.Props,
-): AssistantClient;
-export function useAssistantClient(
-  clients?: useAssistantClient.Props,
-): AssistantClient {
+export function useAui(): AssistantClient;
+export function useAui(clients: useAui.Props): AssistantClient;
+export function useAui(clients?: useAui.Props): AssistantClient {
   const parent = useAssistantContextValue();
   if (clients) {
     return useResource(AssistantClientResource({ parent: parent, clients }));

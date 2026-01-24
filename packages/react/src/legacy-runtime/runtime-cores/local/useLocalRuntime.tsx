@@ -8,30 +8,26 @@ import { useRuntimeAdapters } from "../adapters/RuntimeAdapterProvider";
 import { useRemoteThreadListRuntime } from "../remote-thread-list/useRemoteThreadListRuntime";
 import { useCloudThreadListAdapter } from "../remote-thread-list/adapter/cloud";
 import { AssistantRuntimeImpl } from "../../../internal";
-import { useAssistantState } from "../../../context/react";
+import { useAuiState } from "@assistant-ui/store";
 
 const useLocalThreadRuntime = (
   adapter: ChatModelAdapter,
   { initialMessages, ...options }: LocalRuntimeOptions,
 ) => {
   const { modelContext, ...threadListAdapters } = useRuntimeAdapters() ?? {};
-  const opt = useMemo(
-    () => ({
-      ...options,
-      adapters: {
-        ...threadListAdapters,
-        ...options.adapters,
-        chatModel: adapter,
-      },
-    }),
-    // biome-ignore lint/correctness/useExhaustiveDependencies: options and threadListAdapters are derived from localOptions and runtimeAdapters
-    [adapter, options, threadListAdapters],
-  );
+  const opt = {
+    ...options,
+    adapters: {
+      ...threadListAdapters,
+      ...options.adapters,
+      chatModel: adapter,
+    },
+  };
 
   const [runtime] = useState(() => new LocalRuntimeCore(opt, initialMessages));
 
   const threadIdRef = useRef<string | undefined>(undefined);
-  threadIdRef.current = useAssistantState(
+  threadIdRef.current = useAuiState(
     ({ threadListItem }) => threadListItem.remoteId,
   );
 
@@ -50,7 +46,7 @@ const useLocalThreadRuntime = (
   useEffect(() => {
     runtime.threads.getMainThreadRuntimeCore().__internal_setOptions(opt);
     runtime.threads.getMainThreadRuntimeCore().__internal_load();
-  }, [runtime, opt]);
+  });
 
   useEffect(() => {
     if (!modelContext) return undefined;

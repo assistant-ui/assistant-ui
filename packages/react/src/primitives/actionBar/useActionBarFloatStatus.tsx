@@ -1,6 +1,6 @@
 "use client";
 
-import { useAssistantState } from "../../context";
+import { useAuiState } from "@assistant-ui/store";
 
 export enum HideAndFloatStatus {
   Hidden = "hidden",
@@ -19,7 +19,7 @@ export const useActionBarFloatStatus = ({
   autohide,
   autohideFloat,
 }: UseActionBarFloatStatusProps) => {
-  return useAssistantState(({ thread, message }) => {
+  return useAuiState(({ thread, message }) => {
     if (hideWhenRunning && thread.isRunning) return HideAndFloatStatus.Hidden;
 
     const autohideEnabled =

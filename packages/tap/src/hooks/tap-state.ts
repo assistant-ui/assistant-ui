@@ -70,6 +70,14 @@ function getStateCell<T>(
             ? (updater as (prev: T) => T)(currentValue)
             : updater;
 
+        if (
+          isDevelopment &&
+          fiber.devStrictMode &&
+          typeof updater === "function"
+        ) {
+          void (updater as (prev: T) => T)(currentValue);
+        }
+
         if (Object.is(currentValue, nextValue)) return false;
 
         newCell.value = nextValue;

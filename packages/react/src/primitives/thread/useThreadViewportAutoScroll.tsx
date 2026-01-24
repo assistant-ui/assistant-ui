@@ -2,7 +2,7 @@
 
 import { useComposedRefs } from "@radix-ui/react-compose-refs";
 import { useCallback, useRef, type RefCallback } from "react";
-import { useAssistantEvent } from "../../context";
+import { useAuiEvent } from "@assistant-ui/store";
 import { useOnResizeContent } from "../../utils/hooks/useOnResizeContent";
 import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
 import { useManagedRef } from "../../utils/hooks/useManagedRef";
@@ -122,7 +122,7 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   });
 
   // autoscroll on run start
-  useAssistantEvent("thread.run-start", () => {
+  useAuiEvent("thread.runStart", () => {
     if (!scrollToBottomOnRunStart) return;
     scrollingToBottomBehaviorRef.current = "auto";
     requestAnimationFrame(() => {
@@ -131,7 +131,7 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   });
 
   // scroll to bottom instantly when thread history is first loaded
-  useAssistantEvent("thread.initialize", () => {
+  useAuiEvent("thread.initialize", () => {
     if (!scrollToBottomOnInitialize) return;
     scrollingToBottomBehaviorRef.current = "instant";
     requestAnimationFrame(() => {
@@ -140,7 +140,7 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   });
 
   // scroll to bottom instantly when switching threads
-  useAssistantEvent("thread-list-item.switched-to", () => {
+  useAuiEvent("threadListItem.switchedTo", () => {
     if (!scrollToBottomOnThreadSwitch) return;
     scrollingToBottomBehaviorRef.current = "instant";
     requestAnimationFrame(() => {

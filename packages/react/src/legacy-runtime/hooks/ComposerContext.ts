@@ -1,11 +1,11 @@
 "use client";
 
-import { useAssistantApi, useAssistantState } from "../../context/react";
+import { useAui, useAuiState } from "@assistant-ui/store";
 import { ComposerRuntime } from "../runtime/ComposerRuntime";
 import { createStateHookForRuntime } from "../../context/react/utils/createStateHookForRuntime";
 
 /**
- * @deprecated Use `useAssistantApi()` with `api.composer()` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
+ * @deprecated Use `useAui()` with `aui.composer()` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
  *
  * Hook to access the ComposerRuntime from the current context.
  *
@@ -43,17 +43,17 @@ import { createStateHookForRuntime } from "../../context/react/utils/createState
  *
  * // After:
  * function ComposerActions() {
- *   const api = useAssistantApi();
- *   const canSend = useAssistantState(({ composer }) => composer.canSend);
- *   const canCancel = useAssistantState(({ composer }) => composer.canCancel);
+ *   const aui = useAui();
+ *   const canSend = useAuiState(({ composer }) => composer.canSend);
+ *   const canCancel = useAuiState(({ composer }) => composer.canCancel);
  *   const handleSend = () => {
  *     if (canSend) {
- *       api.composer().send();
+ *       aui.composer().send();
  *     }
  *   };
  *   const handleCancel = () => {
  *     if (canCancel) {
- *       api.composer().cancel();
+ *       aui.composer().cancel();
  *     }
  *   };
  *   return (
@@ -74,10 +74,10 @@ export function useComposerRuntime(options?: {
 export function useComposerRuntime(options?: {
   optional?: boolean | undefined;
 }): ComposerRuntime | null {
-  const api = useAssistantApi();
-  const runtime = useAssistantState(() =>
-    api.composer.source
-      ? (api.composer().__internal_getRuntime?.() ?? null)
+  const aui = useAui();
+  const runtime = useAuiState(() =>
+    aui.composer.source
+      ? (aui.composer().__internal_getRuntime?.() ?? null)
       : null,
   );
   if (!runtime && !options?.optional) {
@@ -87,7 +87,7 @@ export function useComposerRuntime(options?: {
 }
 
 /**
- * @deprecated Use `useAssistantState(({ composer }) => composer)` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
+ * @deprecated Use `useAuiState(({ composer }) => composer)` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
  *
  * Hook to access the current composer state.
  *
@@ -115,9 +115,9 @@ export function useComposerRuntime(options?: {
  *
  * // After:
  * function ComposerStatus() {
- *   const text = useAssistantState(({ composer }) => composer.text);
- *   const canSend = useAssistantState(({ composer }) => composer.canSend);
- *   const attachmentCount = useAssistantState(({ composer }) => composer.attachments.length);
+ *   const text = useAuiState(({ composer }) => composer.text);
+ *   const canSend = useAuiState(({ composer }) => composer.canSend);
+ *   const attachmentCount = useAuiState(({ composer }) => composer.attachments.length);
  *   return (
  *     <div>
  *       Text: {text.length} chars,

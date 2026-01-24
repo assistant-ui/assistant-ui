@@ -1,10 +1,10 @@
+import type { Attachment } from "../AttachmentTypes";
+import type { MessageRole, RunConfig } from "../AssistantTypes";
 import type { ComposerRuntime } from "../../legacy-runtime/runtime";
-import type { DictationState } from "../../legacy-runtime/runtime-cores/core/ComposerRuntimeCore";
-import type { Attachment } from "../../types";
-import type { MessageRole, RunConfig } from "../../types/AssistantTypes";
-import type { AttachmentClientApi } from "./Attachment";
+import type { AttachmentMethods } from "./attachment";
+import { DictationState } from "../../legacy-runtime/runtime-cores";
 
-export type ComposerClientState = {
+export type ComposerState = {
   readonly text: string;
   readonly role: MessageRole;
   readonly attachments: readonly Attachment[];
@@ -14,6 +14,7 @@ export type ComposerClientState = {
   readonly attachmentAccept: string;
   readonly isEmpty: boolean;
   readonly type: "thread" | "edit";
+
   /**
    * The current state of dictation.
    * Undefined when dictation is not active.
@@ -21,15 +22,14 @@ export type ComposerClientState = {
   readonly dictation: DictationState | undefined;
 };
 
-export type ComposerClientApi = {
-  getState(): ComposerClientState;
-
+export type ComposerMethods = {
+  getState(): ComposerState;
   setText(text: string): void;
   setRole(role: MessageRole): void;
   setRunConfig(runConfig: RunConfig): void;
   addAttachment(file: File): Promise<void>;
   clearAttachments(): Promise<void>;
-  attachment(selector: { index: number } | { id: string }): AttachmentClientApi;
+  attachment(selector: { index: number } | { id: string }): AttachmentMethods;
   reset(): Promise<void>;
   send(): void;
   cancel(): void;
@@ -48,4 +48,21 @@ export type ComposerClientApi = {
 
   /** @internal */
   __internal_getRuntime?(): ComposerRuntime;
+};
+
+export type ComposerMeta = {
+  source: "thread" | "message";
+  query: Record<string, never>;
+};
+
+export type ComposerEvents = {
+  "composer.send": { threadId: string; messageId?: string };
+  "composer.attachmentAdd": { threadId: string; messageId?: string };
+};
+
+export type ComposerClientSchema = {
+  state: ComposerState;
+  methods: ComposerMethods;
+  meta: ComposerMeta;
+  events: ComposerEvents;
 };

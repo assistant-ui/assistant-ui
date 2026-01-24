@@ -1,7 +1,7 @@
 "use client";
 
 import { FC, PropsWithChildren } from "react";
-import { useAssistantState } from "../../context";
+import { useAuiState } from "@assistant-ui/store";
 
 export namespace MessagePartPrimitiveInProgress {
   export type Props = PropsWithChildren;
@@ -11,7 +11,7 @@ export namespace MessagePartPrimitiveInProgress {
 export const MessagePartPrimitiveInProgress: FC<
   MessagePartPrimitiveInProgress.Props
 > = ({ children }) => {
-  const isInProgress = useAssistantState(
+  const isInProgress = useAuiState(
     ({ part }) => part.status.type === "running",
   );
 

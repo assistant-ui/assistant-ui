@@ -2,12 +2,12 @@
 
 import {
   ActionBarPrimitive,
-  AssistantIf,
+  AuiIf,
   AttachmentPrimitive,
   ComposerPrimitive,
   MessagePrimitive,
   ThreadPrimitive,
-  useAssistantState,
+  useAuiState,
 } from "@assistant-ui/react";
 import {
   ArrowUpIcon,
@@ -40,7 +40,7 @@ export const Grok: FC = () => {
         </div>
       </ThreadPrimitive.Empty>
 
-      <AssistantIf condition={(s) => s.thread.isEmpty === false}>
+      <AuiIf condition={(s) => s.thread.isEmpty === false}>
         <ThreadPrimitive.Viewport className="flex grow flex-col overflow-y-scroll pt-16">
           <ThreadPrimitive.Messages components={{ Message: ChatMessage }} />
         </ThreadPrimitive.Viewport>
@@ -48,14 +48,14 @@ export const Grok: FC = () => {
         <p className="mx-auto w-full max-w-3xl pb-2 text-center text-[#9a9a9a] text-xs">
           Grok can make mistakes. Verify important information.
         </p>
-      </AssistantIf>
+      </AuiIf>
     </ThreadPrimitive.Root>
   );
 };
 
 const Composer: FC = () => {
-  const isEmpty = useAssistantState((s) => s.composer.isEmpty);
-  const isRunning = useAssistantState((s) => s.thread.isRunning);
+  const isEmpty = useAuiState((s) => s.composer.isEmpty);
+  const isRunning = useAuiState((s) => s.thread.isRunning);
 
   return (
     <ComposerPrimitive.Root
@@ -64,13 +64,13 @@ const Composer: FC = () => {
       data-running={isRunning}
     >
       <div className="overflow-hidden rounded-4xl bg-[#f8f8f8] shadow-xs ring-1 ring-[#e5e5e5] ring-inset transition-shadow focus-within:ring-[#d0d0d0] dark:bg-[#212121] dark:ring-[#2a2a2a] dark:focus-within:ring-[#3a3a3a]">
-        <AssistantIf condition={(s) => s.composer.attachments.length > 0}>
+        <AuiIf condition={(s) => s.composer.attachments.length > 0}>
           <div className="flex flex-row flex-wrap gap-2 px-4 pt-3">
             <ComposerPrimitive.Attachments
               components={{ Attachment: GrokAttachment }}
             />
           </div>
-        </AssistantIf>
+        </AuiIf>
 
         <div className="flex items-end gap-1 p-2">
           <ComposerPrimitive.AddAttachment className="mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#0d0d0d] transition-colors hover:bg-[#f0f0f0] dark:text-white dark:hover:bg-[#2a2a2a]">
@@ -122,7 +122,7 @@ const Composer: FC = () => {
 const ChatMessage: FC = () => {
   return (
     <MessagePrimitive.Root className="group/message relative mx-auto mb-2 flex w-full max-w-3xl flex-col pb-0.5">
-      <AssistantIf condition={(s) => s.message.role === "user"}>
+      <AuiIf condition={(s) => s.message.role === "user"}>
         <div className="flex flex-col items-end">
           <div className="relative max-w-[90%] rounded-3xl rounded-br-lg border border-[#e5e5e5] bg-[#f0f0f0] px-4 py-3 text-[#0d0d0d] dark:border-[#2a2a2a] dark:bg-[#1a1a1a] dark:text-white">
             <div className="prose prose-sm dark:prose-invert wrap-break-word prose-p:my-0">
@@ -140,9 +140,9 @@ const ChatMessage: FC = () => {
             </ActionBarPrimitive.Root>
           </div>
         </div>
-      </AssistantIf>
+      </AuiIf>
 
-      <AssistantIf condition={(s) => s.message.role === "assistant"}>
+      <AuiIf condition={(s) => s.message.role === "assistant"}>
         <div className="flex flex-col items-start">
           <div className="w-full max-w-none">
             <div className="prose prose-sm wrap-break-word dark:prose-invert prose-li:my-1 prose-ol:my-1 prose-p:my-2 prose-ul:my-1 text-[#0d0d0d] dark:text-[#e5e5e5]">
@@ -166,13 +166,13 @@ const ChatMessage: FC = () => {
             </ActionBarPrimitive.Root>
           </div>
         </div>
-      </AssistantIf>
+      </AuiIf>
     </MessagePrimitive.Root>
   );
 };
 
 const useAttachmentSrc = () => {
-  const { file, src } = useAssistantState(
+  const { file, src } = useAuiState(
     useShallow(({ attachment }): { file?: File; src?: string } => {
       if (attachment.type !== "image") return {};
       if (attachment.file) return { file: attachment.file };
@@ -204,9 +204,7 @@ const GrokAttachment: FC = () => {
   return (
     <AttachmentPrimitive.Root className="group/attachment relative">
       <div className="flex h-12 items-center gap-2 overflow-hidden rounded-xl border border-[#e5e5e5] bg-[#f0f0f0] p-0.5 transition-colors hover:border-[#d0d0d0] dark:border-[#2a2a2a] dark:bg-[#252525] dark:hover:border-[#3a3a3a]">
-        <AssistantIf
-          condition={({ attachment }) => attachment.type === "image"}
-        >
+        <AuiIf condition={({ attachment }) => attachment.type === "image"}>
           {src ? (
             <img
               className="h-full w-12 rounded-[9px] object-cover"
@@ -218,14 +216,12 @@ const GrokAttachment: FC = () => {
               <AttachmentPrimitive.unstable_Thumb className="text-xs" />
             </div>
           )}
-        </AssistantIf>
-        <AssistantIf
-          condition={({ attachment }) => attachment.type !== "image"}
-        >
+        </AuiIf>
+        <AuiIf condition={({ attachment }) => attachment.type !== "image"}>
           <div className="flex h-full w-12 items-center justify-center rounded-[9px] bg-[#e5e5e5] text-[#6b6b6b] dark:bg-[#3a3a3a] dark:text-[#9a9a9a]">
             <AttachmentPrimitive.unstable_Thumb className="text-xs" />
           </div>
-        </AssistantIf>
+        </AuiIf>
       </div>
       <AttachmentPrimitive.Remove className="absolute -top-1.5 -right-1.5 flex h-6 w-6 scale-50 items-center justify-center rounded-full border border-[#e5e5e5] bg-white text-[#6b6b6b] opacity-0 transition-all hover:bg-[#f5f5f5] hover:text-[#0d0d0d] group-hover/attachment:scale-100 group-hover/attachment:opacity-100 dark:border-[#3a3a3a] dark:bg-[#1a1a1a] dark:text-[#9a9a9a] dark:hover:bg-[#252525] dark:hover:text-white">
         <Cross2Icon width={14} height={14} />

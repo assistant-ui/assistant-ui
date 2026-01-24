@@ -2,10 +2,10 @@
 
 import { AttachmentRuntime } from "../runtime/AttachmentRuntime";
 import { createStateHookForRuntime } from "../../context/react/utils/createStateHookForRuntime";
-import { useAssistantApi, useAssistantState } from "../../context/react";
+import { useAui, useAuiState } from "@assistant-ui/store";
 
 /**
- * @deprecated Use `useAssistantApi()` with `api.attachment()` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
+ * @deprecated Use `useAui()` with `aui.attachment()` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
  */
 export function useAttachmentRuntime(options?: {
   optional?: false | undefined;
@@ -16,10 +16,10 @@ export function useAttachmentRuntime(options?: {
 export function useAttachmentRuntime(options?: {
   optional?: boolean | undefined;
 }): AttachmentRuntime | null {
-  const api = useAssistantApi();
-  const runtime = useAssistantState(() =>
-    api.attachment.source
-      ? (api.attachment().__internal_getRuntime?.() ?? null)
+  const aui = useAui();
+  const runtime = useAuiState(() =>
+    aui.attachment.source
+      ? (aui.attachment().__internal_getRuntime?.() ?? null)
       : null,
   );
   if (!runtime && !options?.optional) {
@@ -84,7 +84,7 @@ export function useMessageAttachmentRuntime(options?: {
 }
 
 /**
- * @deprecated Use `useAssistantState(({ attachment }) => attachment)` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
+ * @deprecated Use `useAuiState(({ attachment }) => attachment)` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
  */
 export const useAttachment = createStateHookForRuntime(useAttachmentRuntime);
 

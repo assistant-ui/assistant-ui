@@ -1,10 +1,8 @@
 "use client";
 
 import { ComponentType, FC, memo, useMemo } from "react";
-import {
-  ThreadListItemByIndexProvider,
-  useAssistantState,
-} from "../../context";
+import { useAuiState } from "@assistant-ui/store";
+import { ThreadListItemByIndexProvider } from "../../context/providers";
 
 export namespace ThreadListPrimitiveItems {
   export type Props = {
@@ -62,7 +60,7 @@ export const ThreadListPrimitiveItems: FC<ThreadListPrimitiveItems.Props> = ({
   archived = false,
   components,
 }) => {
-  const contentLength = useAssistantState(({ threads }) =>
+  const contentLength = useAuiState(({ threads }) =>
     archived ? threads.archivedThreadIds.length : threads.threadIds.length,
   );
 

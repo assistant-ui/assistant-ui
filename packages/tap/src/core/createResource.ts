@@ -90,8 +90,7 @@ export const createResource = <R, P>(
 
       flushResourcesSync(() => {
         if (changed) {
-          // In strict mode, render twice on first render to detect side effects
-          // The first render is discarded, the second is used
+          // In strict mode, render twice to detect side effects
           if (isDevelopment && fiber.devStrictMode === "root") {
             void renderResourceFiber(fiber, props);
           }
@@ -114,8 +113,7 @@ export const createResource = <R, P>(
   };
 
   const scheduler = new UpdateScheduler(() => {
-    // In strict mode, render twice on first render to detect side effects
-    // The first render is discarded, the second is used
+    // In strict mode, render twice to detect side effects
     if (isDevelopment && fiber.devStrictMode === "root") {
       void renderResourceFiber(fiber, props);
     }
