@@ -14,6 +14,9 @@
     "jsx": "preserve",
     "paths": {
       "@/*": ["./*"],
+      "@/components/assistant-ui/*": [
+        "../../packages/ui/src/components/assistant-ui/*"
+      ],
       "@assistant-ui/*": ["../../packages/*/src"],
       "@assistant-ui/react/*": ["../../packages/react/src/*"],
       "@assistant-ui/tap/*": ["../../packages/tap/src/*"],
