@@ -238,7 +238,10 @@ export class PendingThreadCore implements ThreadRuntimeCore {
 
   unstable_on(event: string, callback: unknown) {
     if (this._resolvedRuntime) {
-      return this._resolvedRuntime.unstable_on(event as never, callback as never);
+      return this._resolvedRuntime.unstable_on(
+        event as never,
+        callback as never,
+      );
     }
     return () => {};
   }
