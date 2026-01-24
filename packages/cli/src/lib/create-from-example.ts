@@ -69,7 +69,8 @@ export async function createFromExample(
 
   // 5. Scan for required components
   logger.step("Scanning for required components...");
-  const components = await scanRequiredComponents(absoluteProjectDir);
+  const { assistantUI, shadcnUI } =
+    await scanRequiredComponents(absoluteProjectDir);
 
   // 6. Remove workspace components directory
   logger.step("Cleaning up workspace components...");
@@ -81,10 +82,18 @@ export async function createFromExample(
     await installDependencies(absoluteProjectDir, opts);
   }
 
-  // 8. Install shadcn components
-  if (components.length > 0) {
-    logger.step(`Installing shadcn components: ${components.join(", ")}...`);
-    await installComponents(absoluteProjectDir, components, opts);
+  // 8. Install shadcn UI components (standard shadcn components like button, tooltip, etc.)
+  if (shadcnUI.length > 0) {
+    logger.step(`Installing shadcn UI components: ${shadcnUI.join(", ")}...`);
+    await installShadcnComponents(absoluteProjectDir, shadcnUI);
+  }
+
+  // 9. Install assistant-ui components
+  if (assistantUI.length > 0) {
+    logger.step(
+      `Installing assistant-ui components: ${assistantUI.join(", ")}...`,
+    );
+    await installComponents(absoluteProjectDir, assistantUI, opts);
   }
 
   logger.break();
@@ -171,6 +180,7 @@ async function transformTsConfig(projectDir: string): Promise<void> {
   // Remove workspace paths
   if (tsconfig.compilerOptions?.paths) {
     delete tsconfig.compilerOptions.paths["@/components/assistant-ui/*"];
+    delete tsconfig.compilerOptions.paths["@/components/ui/*"];
 
     // If paths is empty, remove it
     if (Object.keys(tsconfig.compilerOptions.paths).length === 0) {
@@ -211,13 +221,21 @@ async function transformTsConfig(projectDir: string): Promise<void> {
   fs.writeFileSync(tsconfigPath, `${JSON.stringify(tsconfig, null, 2)}\n`);
 }
 
-async function scanRequiredComponents(projectDir: string): Promise<string[]> {
+interface RequiredComponents {
+  assistantUI: string[];
+  shadcnUI: string[];
+}
+
+async function scanRequiredComponents(
+  projectDir: string,
+): Promise<RequiredComponents> {
   const files = globSync("**/*.{ts,tsx}", {
     cwd: projectDir,
     ignore: ["**/node_modules/**", "**/dist/**", "**/.next/**"],
   });
 
-  const components = new Set<string>();
+  const assistantUIComponents = new Set<string>();
+  const shadcnUIComponents = new Set<string>();
 
   for (const file of files) {
     const fullPath = path.join(projectDir, file);
@@ -225,18 +243,27 @@ async function scanRequiredComponents(projectDir: string): Promise<string[]> {
       const content = fs.readFileSync(fullPath, "utf-8");
 
       // Match imports from "@/components/assistant-ui/xxx"
-      const importRegex =
+      const assistantUIRegex =
         /from\s+["']@\/components\/assistant-ui\/([^"']+)["']/g;
       let match;
-      while ((match = importRegex.exec(content)) !== null) {
-        components.add(match[1]!);
+      while ((match = assistantUIRegex.exec(content)) !== null) {
+        assistantUIComponents.add(match[1]!);
+      }
+
+      // Match imports from "@/components/ui/xxx"
+      const uiRegex = /from\s+["']@\/components\/ui\/([^"']+)["']/g;
+      while ((match = uiRegex.exec(content)) !== null) {
+        shadcnUIComponents.add(match[1]!);
       }
     } catch {
       // Ignore files that cannot be read
     }
   }
 
-  return Array.from(components);
+  return {
+    assistantUI: Array.from(assistantUIComponents),
+    shadcnUI: Array.from(shadcnUIComponents),
+  };
 }
 
 async function removeWorkspaceComponents(projectDir: string): Promise<void> {
@@ -245,6 +272,39 @@ async function removeWorkspaceComponents(projectDir: string): Promise<void> {
   if (fs.existsSync(componentsDir)) {
     fs.rmSync(componentsDir, { recursive: true });
   }
+}
+
+async function installShadcnComponents(
+  projectDir: string,
+  components: string[],
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(
+      "npx",
+      ["shadcn@latest", "add", ...components, "--yes"],
+      {
+        cwd: projectDir,
+        stdio: "inherit",
+        shell: true,
+      },
+    );
+
+    child.on("error", (error) => {
+      reject(
+        new Error(`Failed to install shadcn components: ${error.message}`),
+      );
+    });
+
+    child.on("close", (code) => {
+      if (code !== 0) {
+        // Don't fail if shadcn has issues, just warn
+        logger.warn(
+          `shadcn exited with code ${code}, components may need manual installation`,
+        );
+      }
+      resolve();
+    });
+  });
 }
 
 async function installComponents(

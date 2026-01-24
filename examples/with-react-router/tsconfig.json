@@ -15,7 +15,11 @@
     "rootDirs": [".", "./.react-router/types"],
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./app/*"]
+      "@/*": ["./app/*"],
+      "@/components/assistant-ui/*": [
+        "../../packages/ui/src/components/assistant-ui/*"
+      ],
+      "@/components/ui/*": ["../../packages/ui/src/components/ui/*"]
     },
     "esModuleInterop": true,
     "verbatimModuleSyntax": true,
