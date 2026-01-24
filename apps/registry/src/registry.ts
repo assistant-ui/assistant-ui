@@ -372,6 +372,8 @@ export const registry: RegistryItem[] = [
       {
         type: "registry:component",
         path: "components/assistant-ui/model-selector.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/model-selector.tsx",
       },
     ],
     dependencies: [
