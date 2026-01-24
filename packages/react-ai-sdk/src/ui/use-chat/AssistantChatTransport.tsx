@@ -47,6 +47,7 @@ export class AssistantChatTransport<
           body: {
             callSettings: context?.callSettings,
             system: context?.system,
+            config: context?.config,
             tools: toAISDKTools(getEnabledTools(context?.tools ?? {})),
             ...options?.body,
           },
