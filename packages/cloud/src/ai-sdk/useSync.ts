@@ -78,6 +78,8 @@ export function useSync(
       setMessagesRef.current([]);
       persistedIdsRef.current = new Set();
       lastRemoteIdRef.current = null;
+      setIsLoading(false);
+      setError(null);
       return;
     }
 
@@ -117,6 +119,11 @@ export function useSync(
 
     return () => {
       cancelled = true;
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
+        retryTimeoutRef.current = null;
+        isSyncingRef.current = false;
+      }
     };
   }, [cloud, threadId]);
 

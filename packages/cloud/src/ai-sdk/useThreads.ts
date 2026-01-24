@@ -73,7 +73,6 @@ export function useThreads(cloud: AssistantCloud): UseThreadsResult {
         setList((prev) => prev.filter((t) => t.id !== id));
       } catch (err) {
         setError(err instanceof Error ? err : new Error(String(err)));
-        throw err;
       }
     },
     [cloud],
@@ -86,7 +85,6 @@ export function useThreads(cloud: AssistantCloud): UseThreadsResult {
         setList((prev) => prev.map((t) => (t.id === id ? { ...t, title } : t)));
       } catch (err) {
         setError(err instanceof Error ? err : new Error(String(err)));
-        throw err;
       }
     },
     [cloud],
@@ -99,7 +97,6 @@ export function useThreads(cloud: AssistantCloud): UseThreadsResult {
         setList((prev) => prev.filter((t) => t.id !== id));
       } catch (err) {
         setError(err instanceof Error ? err : new Error(String(err)));
-        throw err;
       }
     },
     [cloud],

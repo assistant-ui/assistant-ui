@@ -17,7 +17,17 @@ export const MESSAGE_FORMAT = "ai-sdk/v6";
 export function encode({ id, parts, ...rest }: UIMessage): ReadonlyJSONObject {
   return {
     ...rest,
-    parts: parts?.filter((part) => part.type !== "file"),
+    parts: parts?.filter((part) => {
+      if (part.type === "file") {
+        if (process.env["NODE_ENV"] === "development") {
+          console.warn(
+            "[useSync] File attachments are not yet supported and will not be persisted to cloud",
+          );
+        }
+        return false;
+      }
+      return true;
+    }),
   } as ReadonlyJSONObject;
 }
 

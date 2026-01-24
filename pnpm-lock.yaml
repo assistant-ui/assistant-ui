@@ -966,6 +966,70 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
+  examples/with-cloud-ai-sdk:
+    dependencies:
+      '@ai-sdk/openai':
+        specifier: ^3.0.13
+        version: 3.0.13(zod@4.3.5)
+      '@ai-sdk/react':
+        specifier: ^3.0.44
+        version: 3.0.44(react@19.2.3)(zod@4.3.5)
+      ai:
+        specifier: ^6.0.42
+        version: 6.0.42(zod@4.3.5)
+      assistant-cloud:
+        specifier: workspace:*
+        version: link:../../packages/cloud
+      class-variance-authority:
+        specifier: ^0.7.1
+        version: 0.7.1
+      clsx:
+        specifier: ^2.1.1
+        version: 2.1.1
+      lucide-react:
+        specifier: ^0.562.0
+        version: 0.562.0(react@19.2.3)
+      next:
+        specifier: ^16.1.4
+        version: 16.1.4(@opentelemetry/api@1.9.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      react:
+        specifier: ^19.2.3
+        version: 19.2.3
+      react-dom:
+        specifier: ^19.2.3
+        version: 19.2.3(react@19.2.3)
+      tailwind-merge:
+        specifier: ^3.4.0
+        version: 3.4.0
+    devDependencies:
+      '@assistant-ui/x-buildutils':
+        specifier: workspace:*
+        version: link:../../packages/x-buildutils
+      '@tailwindcss/postcss':
+        specifier: ^4.1.18
+        version: 4.1.18
+      '@types/node':
+        specifier: ^25.0.9
+        version: 25.0.9
+      '@types/react':
+        specifier: ^19.2.9
+        version: 19.2.9
+      '@types/react-dom':
+        specifier: ^19.2.3
+        version: 19.2.3(@types/react@19.2.9)
+      postcss:
+        specifier: ^8.5.6
+        version: 8.5.6
+      tailwindcss:
+        specifier: ^4.1.18
+        version: 4.1.18
+      tw-animate-css:
+        specifier: ^1.4.0
+        version: 1.4.0
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
   examples/with-custom-thread-list:
     dependencies:
       '@ai-sdk/openai':
@@ -1966,12 +2030,24 @@ importers:
         specifier: ^0.3.2
         version: link:../assistant-stream
     devDependencies:
+      '@ai-sdk/react':
+        specifier: ^3.0.44
+        version: 3.0.44(react@19.2.3)(zod@4.3.5)
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils
       '@types/node':
         specifier: ^25.2.1
         version: 25.2.1
+      '@types/react':
+        specifier: ^19.2.7
+        version: 19.2.9
+      ai:
+        specifier: ^6.0.42
+        version: 6.0.42(zod@4.3.5)
+      react:
+        specifier: ^19.2.3
+        version: 19.2.3
       vitest:
         specifier: ^4.0.18
         version: 4.0.18(@opentelemetry/api@1.9.0)(@types/node@25.2.1)(@vitest/ui@4.0.18)(jiti@2.6.1)(jsdom@28.0.0)(lightningcss@1.30.2)(tsx@4.21.0)(yaml@2.8.2)

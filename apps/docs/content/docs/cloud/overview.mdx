@@ -3,7 +3,7 @@ title: Overview
 description: Hosted service for thread management, chat history, and user authentication.
 ---
 
-Assistant Cloud is a hosted service built for assistant-ui frontends that offers comprehensive thread management and message history. It automatically persists threads, supports human-in-the-loop workflows, and integrates with common auth providers to seamlessly allow users to resume conversations at any point.
+Assistant Cloud is a hosted service that provides thread management and message history for AI chat applications. It automatically persists threads, supports human-in-the-loop workflows, and integrates with common auth providers to seamlessly allow users to resume conversations at any point. Works with any React UI — with or without assistant-ui components.
 
 
 ## Features
@@ -47,10 +47,12 @@ Supported auth providers:
 
 To get started, create an account at [Assistant Cloud Dashboard](https://cloud.assistant-ui.com/) and follow one of the walkthroughs for your preferred backend:
 
-- [AI SDK](/docs/cloud/persistence/ai-sdk)
-- [LangGraph](/docs/cloud/persistence/langgraph)
+- [AI SDK](/docs/cloud/ai-sdk) — two hooks, bring your own UI
+- [AI SDK + assistant-ui](/docs/cloud/ai-sdk-assistant-ui) — full integration with pre-built components
+- [LangGraph + assistant-ui](/docs/cloud/langgraph)
 
 You can also check out our example repositories to see how to integrate Assistant Cloud with your frontend:
 
-- [With AI SDK](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-cloud)
-- [With LangGraph](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-langgraph)
+- [AI SDK (standalone)](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-cloud-ai-sdk)
+- [AI SDK + assistant-ui](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-cloud)
+- [LangGraph + assistant-ui](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-langgraph)
