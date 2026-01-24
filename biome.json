@@ -170,6 +170,23 @@
       "enabled": false
     }
   },
+  "overrides": [
+    {
+      "includes": ["packages/ui/src/components/ui/**"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "useExhaustiveDependencies": "off",
+            "noNestedComponentDefinitions": "off"
+          },
+          "a11y": {
+            "useAriaPropsForRole": "off",
+            "noRedundantRoles": "off"
+          }
+        }
+      }
+    }
+  ],
   "files": {
     "includes": [
       "**",

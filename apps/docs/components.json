@@ -12,10 +12,13 @@
   },
   "aliases": {
     "components": "@/components",
-    "utils": "@/lib/utils",
-    "ui": "@/components/ui",
+    "utils": "@assistant-ui/ui/lib/utils",
+    "ui": "@assistant-ui/ui/components/ui",
     "lib": "@/lib",
     "hooks": "@/hooks"
   },
-  "iconLibrary": "lucide"
+  "iconLibrary": "lucide",
+  "registries": {
+    "@assistant-ui": "https://r.assistant-ui.com/{name}.json"
+  }
 }
