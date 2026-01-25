@@ -1,11 +1,10 @@
 import { PostHog } from "posthog-node";
 
-export const posthogServer = new PostHog(
-  process.env["NEXT_PUBLIC_POSTHOG_API_KEY"]!,
-  {
-    host: "https://us.i.posthog.com",
-  },
-);
+const apiKey = process.env["NEXT_PUBLIC_POSTHOG_API_KEY"];
+
+export const posthogServer = apiKey
+  ? new PostHog(apiKey, { host: "https://us.i.posthog.com" })
+  : null;
 
 export function getDistinctId(req: Request): string {
   const cookie = req.headers.get("cookie");

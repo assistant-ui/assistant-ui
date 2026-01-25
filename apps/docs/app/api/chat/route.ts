@@ -13,14 +13,18 @@ export async function POST(req: Request) {
 
   const { messages, tools } = await req.json();
 
-  const tracedModel = withTracing(openai("gpt-5-nano"), posthogServer, {
-    posthogDistinctId: getDistinctId(req),
-    posthogPrivacyMode: false,
-    posthogProperties: {
-      $ai_span_name: "general_chat",
-      source: "general_chat",
-    },
-  });
+  const baseModel = openai("gpt-5-nano");
+
+  const tracedModel = posthogServer
+    ? withTracing(baseModel, posthogServer, {
+        posthogDistinctId: getDistinctId(req),
+        posthogPrivacyMode: false,
+        posthogProperties: {
+          $ai_span_name: "general_chat",
+          source: "general_chat",
+        },
+      })
+    : baseModel;
 
   const result = streamText({
     model: tracedModel,

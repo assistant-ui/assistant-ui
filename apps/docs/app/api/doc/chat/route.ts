@@ -127,14 +127,18 @@ export async function POST(req: Request): Promise<Response> {
     emptyMessages: "remove",
   });
 
-  const tracedModel = withTracing(openai("gpt-5-nano"), posthogServer, {
-    posthogDistinctId: getDistinctId(req),
-    posthogPrivacyMode: false,
-    posthogProperties: {
-      $ai_span_name: "docs_assistant_chat",
-      source: "docs_assistant",
-    },
-  });
+  const baseModel = openai("gpt-5-nano");
+
+  const tracedModel = posthogServer
+    ? withTracing(baseModel, posthogServer, {
+        posthogDistinctId: getDistinctId(req),
+        posthogPrivacyMode: false,
+        posthogProperties: {
+          $ai_span_name: "docs_assistant_chat",
+          source: "docs_assistant",
+        },
+      })
+    : baseModel;
 
   const result = streamText({
     model: tracedModel,
