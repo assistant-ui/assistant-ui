@@ -10,7 +10,7 @@ export function CopyCommandButton() {
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText("npx assistant-ui init");
-    analytics.npmCommandCopied();
+    analytics.cta.npmCommandCopied();
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };

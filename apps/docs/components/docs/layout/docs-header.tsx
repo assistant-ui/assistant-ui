@@ -25,7 +25,7 @@ function HeaderSearch() {
   return (
     <button
       onClick={() => {
-        analytics.searchOpened("header");
+        analytics.search.opened("header");
         setOpenSearch(true);
       }}
       className="flex h-8 w-full max-w-96 items-center gap-2 rounded-lg border border-border/50 bg-muted/50 px-3 text-muted-foreground text-sm transition-colors hover:bg-muted hover:text-foreground"
@@ -54,7 +54,7 @@ function MobileControls() {
     <div className="ml-auto flex items-center gap-1 md:hidden">
       <button
         onClick={() => {
-          analytics.searchOpened("header");
+          analytics.search.opened("header");
           setOpenSearch(true);
         }}
         className="flex size-8 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"

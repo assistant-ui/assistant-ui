@@ -176,7 +176,7 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
   const handleSelect = useCallback(
     (url: string) => {
       const position = results.findIndex((r) => r.url === url);
-      analytics.searchResultClicked(inputValue, url, position);
+      analytics.search.resultClicked(inputValue, url, position);
       onOpenChange(false);
       router.push(url);
     },
@@ -191,8 +191,8 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
     )
       return;
     lastTrackedQuery.current = inputValue;
-    if (results.length === 0) analytics.searchNoResults(inputValue);
-    else analytics.searchQuerySubmitted(inputValue, results.length);
+    if (results.length === 0) analytics.search.noResults(inputValue);
+    else analytics.search.querySubmitted(inputValue, results.length);
   }, [inputValue, results.length, query.isLoading]);
 
   const handleKeyDown = useCallback(

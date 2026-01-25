@@ -4,6 +4,7 @@ import { useState } from "react";
 import { DynamicCodeBlock } from "fumadocs-ui/components/dynamic-codeblock";
 import { cn } from "@/lib/utils";
 import { useAnimatedTabs } from "@/hooks/use-animated-tabs";
+import { analytics } from "@/lib/analytics";
 
 const PACKAGE_MANAGERS = ["npm", "pnpm", "yarn", "bun", "xpm"] as const;
 type PackageManager = (typeof PACKAGE_MANAGERS)[number];
@@ -89,7 +90,12 @@ function CommandTabs({
               tabRefs.current[index] = el;
             }}
             type="button"
-            onClick={() => setPm(manager)}
+            onClick={() => {
+              if (pm !== manager) {
+                analytics.install.packageManagerSelected(manager);
+              }
+              setPm(manager);
+            }}
             onMouseEnter={() => setHoveredIndex(index)}
             onMouseLeave={() => setHoveredIndex(null)}
             className={cn(

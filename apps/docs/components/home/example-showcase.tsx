@@ -7,6 +7,7 @@ import { Shadcn } from "@/components/examples/shadcn";
 import { Tab } from "@/components/shared/tab";
 import { DocsRuntimeProvider } from "@/contexts/DocsRuntimeProvider";
 import { Grok } from "@/components/examples/grok";
+import { analytics } from "@/lib/analytics";
 
 const ExampleWrapper = ({ children }: { children: React.ReactNode }) => (
   <div className="not-prose h-full overflow-hidden rounded-lg border">
@@ -74,7 +75,12 @@ const EXAMPLE_TABS = [
 export function ExampleShowcase() {
   return (
     <section>
-      <Tab tabs={EXAMPLE_TABS} className="h-160" variant="ghost" />
+      <Tab
+        tabs={EXAMPLE_TABS}
+        className="h-160"
+        variant="ghost"
+        onTabChange={(label) => analytics.example.tabSwitched(label)}
+      />
     </section>
   );
 }

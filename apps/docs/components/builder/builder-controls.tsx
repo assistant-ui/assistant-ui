@@ -34,6 +34,7 @@ import {
   type TypingIndicator,
 } from "./types";
 import { PRESETS } from "./presets";
+import { analytics } from "@/lib/analytics";
 
 interface BuilderControlsProps {
   config: BuilderConfig;
@@ -808,7 +809,10 @@ function PresetSelect({
       value={currentPreset?.id ?? ""}
       onValueChange={(id) => {
         const preset = PRESETS.find((p) => p.id === id);
-        if (preset) onChange(preset.config);
+        if (preset) {
+          analytics.builder.presetSelected(preset.name);
+          onChange(preset.config);
+        }
       }}
       options={options}
       placeholder="Custom"

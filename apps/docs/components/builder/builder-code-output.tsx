@@ -11,6 +11,7 @@ import {
   MESSAGE_SPACING_CLASS,
   isLightColor,
 } from "@/lib/builder-utils";
+import { analytics } from "@/lib/analytics";
 
 interface BuilderCodeOutputProps {
   config: BuilderConfig;
@@ -22,6 +23,7 @@ export function BuilderCodeOutput({ config }: BuilderCodeOutputProps) {
   const componentCode = generateComponentCode(config);
 
   const handleCopy = async () => {
+    analytics.builder.codeCopied();
     await navigator.clipboard.writeText(componentCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);

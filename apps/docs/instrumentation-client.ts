@@ -7,5 +7,6 @@ if (apiKey) {
     api_host: "/ph",
     ui_host: "https://us.posthog.com",
     defaults: "2025-11-30",
+    capture_exceptions: true,
   });
 }

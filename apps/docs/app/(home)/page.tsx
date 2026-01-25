@@ -35,14 +35,14 @@ export default function HomePage() {
           <Button asChild>
             <Link
               href="/docs"
-              onClick={() => analytics.ctaClicked("get_started", "footer")}
+              onClick={() => analytics.cta.clicked("get_started", "footer")}
             >
               Get Started <ArrowRight />
             </Link>
           </Button>
           <Link
             href="https://cal.com/simon-farshid/assistant-ui"
-            onClick={() => analytics.ctaClicked("contact_sales", "footer")}
+            onClick={() => analytics.cta.clicked("contact_sales", "footer")}
             className={buttonVariants({
               variant: "outline",
             })}
