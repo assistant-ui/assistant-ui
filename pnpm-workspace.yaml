@@ -5,7 +5,9 @@ packages:
 
 onlyBuiltDependencies:
   - '@tailwindcss/oxide@4.1.17'
+  - core-js
   - esbuild
+  - protobufjs
   - sharp@0.34.5
   - unrs-resolver@1.11.1
 
