@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.12.1
+
+### Patch Changes
+
+- 8672695: fix: race condition in RemoteThreadListRuntime causing app crash on thread deletion
+
 ## 0.12.0
 
 ### Minor Changes

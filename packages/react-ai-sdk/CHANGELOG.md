@@ -1,5 +1,13 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.3.1
+
+### Patch Changes
+
+- 5876c0f: feat(react-ai-sdk): propagate ModelContext config (modelName) through AssistantChatTransport
+- Updated dependencies [8672695]
+  - @assistant-ui/react@0.12.1
+
 ## 1.2.1
 
 ### Patch Changes

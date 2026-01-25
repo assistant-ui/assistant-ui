@@ -1,5 +1,11 @@
 # assistant-ui
 
+## 0.0.74
+
+### Patch Changes
+
+- ab66134: feat(assistant-ui): allow create new project from examples
+
 ## 0.0.73
 
 ### Minor Changes
