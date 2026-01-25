@@ -1,3 +1,6 @@
+"use client";
+
+import { analytics } from "@/lib/analytics";
 import { StarPill } from "@/components/home/star-pill";
 import { CopyCommandButton } from "@/components/home/copy-command-button";
 import Image from "next/image";
@@ -22,6 +25,7 @@ export function Hero() {
       <div className="flex flex-wrap items-center gap-x-5 gap-y-3 text-[13px] text-muted-foreground">
         <Link
           href="/docs"
+          onClick={() => analytics.ctaClicked("get_started", "hero")}
           className="shimmer font-medium text-foreground/60 hover:text-foreground"
         >
           Get Started →
@@ -29,6 +33,7 @@ export function Hero() {
         <span className="hidden size-1 rounded-full bg-muted-foreground/20 sm:block" />
         <Link
           href="https://cal.com/simon-farshid/assistant-ui"
+          onClick={() => analytics.ctaClicked("contact_sales", "hero")}
           className="font-medium text-foreground/60 transition-colors hover:text-foreground"
         >
           Contact Sales

@@ -20,6 +20,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { analytics } from "@/lib/analytics";
 
 interface HighlightSegment {
   type: "text";
@@ -172,11 +173,26 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
 
   const handleSelect = useCallback(
     (url: string) => {
+      const position = results.findIndex((r) => r.url === url);
+      analytics.searchResultClicked(inputValue, url, position);
       onOpenChange(false);
       router.push(url);
     },
-    [onOpenChange, router],
+    [onOpenChange, router, results, inputValue],
   );
+
+  const lastTrackedQuery = useRef("");
+  useEffect(() => {
+    if (
+      !inputValue ||
+      query.isLoading ||
+      inputValue === lastTrackedQuery.current
+    )
+      return;
+    lastTrackedQuery.current = inputValue;
+    if (results.length === 0) analytics.searchNoResults(inputValue);
+    else analytics.searchQuerySubmitted(inputValue, results.length);
+  }, [inputValue, results.length, query.isLoading]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {

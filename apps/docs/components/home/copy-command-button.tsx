@@ -1,5 +1,6 @@
 "use client";
 
+import { analytics } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 import { CheckIcon, CopyIcon } from "lucide-react";
 import { useState } from "react";
@@ -9,6 +10,7 @@ export function CopyCommandButton() {
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText("npx assistant-ui init");
+    analytics.npmCommandCopied();
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
