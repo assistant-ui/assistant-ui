@@ -1,0 +1,4 @@
+{
+  "extends": "@assistant-ui/x-buildutils/ts/base",
+  "include": ["src"]
+}
