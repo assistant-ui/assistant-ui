@@ -180,6 +180,9 @@ function Tab({
     // Only handle key events for content tabs (tabs with value)
     if (tab?.value !== undefined && (e.key === "Enter" || e.key === " ")) {
       e.preventDefault();
+      if (index !== contentActiveIndex) {
+        onTabChange?.(tab.label, index);
+      }
       setContentActiveIndex(index);
     }
   };
