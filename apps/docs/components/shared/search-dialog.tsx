@@ -150,11 +150,13 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
     return groups;
   }, [results]);
 
+  const lastTrackedQuery = useRef("");
   useEffect(() => {
     if (open) {
       setInputValue("");
       setSearch("");
       setSelectedIndex(0);
+      lastTrackedQuery.current = "";
     }
   }, [open, setSearch]);
 
@@ -181,7 +183,6 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
     [onOpenChange, router, results, inputValue],
   );
 
-  const lastTrackedQuery = useRef("");
   useEffect(() => {
     if (
       !inputValue ||
