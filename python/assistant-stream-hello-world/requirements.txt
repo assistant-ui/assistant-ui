@@ -1,2 +1,2 @@
-assistant-stream==0.0.7
-fastapi==0.115.0
+assistant-stream==0.0.31
+fastapi==0.128.0
