@@ -8,13 +8,19 @@ import {
   memo,
   PropsWithChildren,
   ComponentType,
+  useMemo,
 } from "react";
 import { UseBoundStore, StoreApi, create } from "zustand";
 import { useAui } from "@assistant-ui/store";
-import { ThreadListItemByIdProvider } from "../../../context/providers";
-import { ThreadRuntimeCore, ThreadRuntimeImpl } from "../../../internal";
+import { ThreadListItemRuntimeProvider } from "../../../context/providers";
+import {
+  ThreadListRuntimeCore,
+  ThreadRuntimeCore,
+  ThreadRuntimeImpl,
+} from "../../../internal";
 import { BaseSubscribable } from "./BaseSubscribable";
 import { AssistantRuntime } from "../../runtime";
+import { ThreadListRuntimeImpl } from "../../runtime/ThreadListRuntime";
 
 type RemoteThreadListHook = () => AssistantRuntime;
 
@@ -27,9 +33,14 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
   >;
   private instances = new Map<string, RemoteThreadListHookInstance>();
   private useAliveThreadsKeysChanged = create(() => ({}));
+  private parent: ThreadListRuntimeCore;
 
-  constructor(runtimeHook: RemoteThreadListHook) {
+  constructor(
+    runtimeHook: RemoteThreadListHook,
+    parent: ThreadListRuntimeCore,
+  ) {
     super();
+    this.parent = parent;
     this.useRuntimeHook = create(() => ({ useRuntime: runtimeHook }));
   }
 
@@ -139,14 +150,17 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     threadId: string;
     provider: ComponentType<PropsWithChildren>;
   }> = memo(({ threadId, provider: Provider }) => {
-    // Runtime is provided by ThreadListItemByIdProvider
+    const runtime = useMemo(
+      () => new ThreadListRuntimeImpl(this.parent).getItemById(threadId),
+      [threadId],
+    );
 
     return (
-      <ThreadListItemByIdProvider id={threadId}>
+      <ThreadListItemRuntimeProvider runtime={runtime}>
         <Provider>
           <this._InnerActiveThreadProvider threadId={threadId} />
         </Provider>
-      </ThreadListItemByIdProvider>
+      </ThreadListItemRuntimeProvider>
     );
   });
 

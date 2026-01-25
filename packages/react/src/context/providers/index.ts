@@ -1,7 +1,7 @@
 export { AssistantRuntimeProvider } from "../../legacy-runtime/AssistantRuntimeProvider";
 export {
   ThreadListItemByIndexProvider,
-  ThreadListItemByIdProvider,
+  ThreadListItemRuntimeProvider,
 } from "./ThreadListItemProvider";
 export { MessageByIndexProvider } from "./MessageByIndexProvider";
 export { PartByIndexProvider } from "./PartByIndexProvider";

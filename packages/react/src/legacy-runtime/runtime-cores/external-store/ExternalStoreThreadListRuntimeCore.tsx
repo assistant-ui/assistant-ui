@@ -47,7 +47,7 @@ export class ExternalStoreThreadListRuntimeCore
     return this._archivedThreads;
   }
 
-  public get threadData() {
+  public get threadItems() {
     return this._threadData;
   }
 

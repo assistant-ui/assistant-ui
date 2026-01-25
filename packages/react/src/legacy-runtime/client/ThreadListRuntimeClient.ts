@@ -57,10 +57,10 @@ export const ThreadListClient = resource(
     const state = tapMemo<ThreadsState>(() => {
       return {
         mainThreadId: runtimeState.mainThreadId,
-        newThreadId: runtimeState.newThread ?? null,
+        newThreadId: runtimeState.newThreadId ?? null,
         isLoading: runtimeState.isLoading,
-        threadIds: runtimeState.threads,
-        archivedThreadIds: runtimeState.archivedThreads,
+        threadIds: runtimeState.threadIds,
+        archivedThreadIds: runtimeState.archivedThreadIds,
         threadItems: threadItems.state,
 
         main: main.state,
