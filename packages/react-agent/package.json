@@ -1,0 +1,67 @@
+{
+  "name": "@assistant-ui/react-agent",
+  "version": "0.0.1",
+  "description": "Anthropic Agents SDK integration for assistant-ui",
+  "keywords": [
+    "anthropic",
+    "claude",
+    "agent",
+    "assistant-ui",
+    "react",
+    "ai",
+    "supervision",
+    "agentic"
+  ],
+  "author": "AgentbaseAI Inc.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "aui-source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "aui-build"
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.2.19",
+    "nanoid": "^5.1.6"
+  },
+  "peerDependencies": {
+    "@types/react": "*",
+    "react": "^18 || ^19"
+  },
+  "peerDependenciesMeta": {
+    "@types/react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@assistant-ui/x-buildutils": "workspace:*",
+    "@types/react": "^19.2.9",
+    "react": "^19.2.3"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "homepage": "https://www.assistant-ui.com/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/assistant-ui/assistant-ui.git",
+    "directory": "packages/react-agent"
+  },
+  "bugs": {
+    "url": "https://github.com/assistant-ui/assistant-ui/issues"
+  }
+}
