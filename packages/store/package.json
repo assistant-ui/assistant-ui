@@ -31,7 +31,8 @@
     "build": "aui-build"
   },
   "dependencies": {
-    "@assistant-ui/tap": "^0.4.0"
+    "@assistant-ui/tap": "^0.4.0",
+    "use-effect-event": "^2.0.3"
   },
   "peerDependencies": {
     "@types/react": "*",
