@@ -1,94 +1,139 @@
-import { ToolUICallContext, ToolUIInstance } from "../core/instance";
-import { ToolUIRuntime } from "../core/runtime";
+import { ToolUIInstance } from "../core/instance";
 import { ToolUIRegistry } from "../registry/registry";
 import { ToolUISandbox } from "../sandbox/types";
+import { ToolUIRenderOutput } from "./types";
 
-export type ToolUIManagerOptions = {
-  runtime: ToolUIRuntime;
-  registry: ToolUIRegistry;
-  createSandbox: () => ToolUISandbox;
+export type ToolUIRendererSession = {
+  readonly instance: ToolUIInstance;
+  output: ToolUIRenderOutput;
+  container: HTMLElement;
+  sandbox?: ToolUISandbox;
 };
 
-export class ToolUIManager {
-  private readonly _runtime: ToolUIRuntime;
+/**
+ * TODO: renderer plugins (custom renderers) support
+ */
+export class ToolUIRendererManager {
   private readonly _registry: ToolUIRegistry;
   private readonly _createSandbox: () => ToolUISandbox;
-  private readonly _sandboxes = new Map<string, ToolUISandbox>();
+  private readonly _sessions = new Map<string, ToolUIRendererSession>();
 
-  constructor(options: ToolUIManagerOptions) {
-    this._runtime = options.runtime;
+  constructor(options: {
+    registry: ToolUIRegistry;
+    createSandbox: () => ToolUISandbox;
+  }) {
     this._registry = options.registry;
     this._createSandbox = options.createSandbox;
-
-    this.__internal_bindMethods();
   }
 
-  protected __internal_bindMethods() {
-    this.mount = this.mount.bind(this);
-    this.update = this.update.bind(this);
-    this.close = this.close.bind(this);
-    this.get = this.get.bind(this);
-    this.list = this.list.bind(this);
-  }
+  public mount(instance: ToolUIInstance, container: HTMLElement): void {
+    const id = instance.id;
 
-  public async mount(context: ToolUICallContext): Promise<ToolUIInstance> {
-    const instance = await this._runtime.mount(context);
-    const id = instance.getState().id;
-
-    const factory = this._registry.get(context.toolName);
-    if (!factory) {
-      return instance;
+    if (this._sessions.has(id)) {
+      return;
     }
 
-    const sandbox = this._createSandbox();
-    this._sandboxes.set(id, sandbox);
+    const output = this._resolveOutput(instance);
 
-    const output = factory({
-      context,
-    });
+    if (!output || output.kind === "empty") {
+      return;
+    }
 
-    await sandbox.mount(instance, output);
+    const session: ToolUIRendererSession = {
+      instance,
+      output,
+      container,
+    };
 
-    return instance;
+    this._sessions.set(id, session);
+
+    this._render(session);
   }
 
-  public update(instanceId: string, result: unknown): void {
-    this._runtime.update(instanceId, result);
+  public update(instance: ToolUIInstance): void {
+    const session = this._sessions.get(instance.id);
+    if (!session) return;
 
-    const sandbox = this._sandboxes.get(instanceId);
-    if (!sandbox) return;
+    const output = this._resolveOutput(instance);
+    if (!output) return;
 
-    const instance = this._runtime.get(instanceId);
+    session.output = output;
+
+    this._render(session);
+  }
+
+  public unmount(instance: ToolUIInstance): void {
+    const session = this._sessions.get(instance.id);
+    if (!session) return;
+
+    if (session.sandbox) {
+      session.sandbox.unmount();
+    }
+
+    session.container.innerHTML = "";
+
+    this._sessions.delete(instance.id);
+  }
+
+  public list(): readonly ToolUIRendererSession[] {
+    return Array.from(this._sessions.values());
+  }
+
+  private _resolveOutput(
+    instance: ToolUIInstance,
+  ): ToolUIRenderOutput | undefined {
     const state = instance.getState();
+    const factory = this._registry.resolve(state.context.toolName);
 
-    const factory = this._registry.get(state.context.toolName);
-    if (!factory) return;
+    if (!factory) return undefined;
 
-    const output = factory({
+    return factory({
+      id: state.id,
+      lifecycle: state.lifecycle,
       context: state.context,
-      result,
+      result: state.result,
     });
-
-    sandbox.update(instance, output);
   }
 
-  public close(instanceId: string) {
-    const sandbox = this._sandboxes.get(instanceId);
-    if (!sandbox) return;
-    sandbox.destroy();
-    this._sandboxes.delete(instanceId);
-    this._runtime.close(instanceId);
-  }
+  private _render(session: ToolUIRendererSession): void {
+    const { container, instance, output } = session;
 
-  public get(instanceId: string): ToolUIInstance | void {
-    const instance = this._runtime.get(instanceId);
-    if (!instanceId) return;
-    return instance;
-  }
+    switch (output.kind) {
+      case "empty": {
+        return;
+      }
 
-  public list(): readonly ToolUIInstance[] | [] {
-    const list = this._runtime.list();
-    if (!list) return [];
-    return list;
+      case "react": {
+        /**
+         * React rendering is handled by React layer
+         * only the output is stored here
+         */
+        return;
+      }
+
+      case "html": {
+        if (!this._createSandbox) {
+          throw new Error(
+            "Too UI output requires a sandbox, but no sandbox factory was provided",
+          );
+        }
+
+        if (!session.sandbox) {
+          const sandbox = this._createSandbox();
+          session.sandbox = sandbox;
+
+          void sandbox.mount(instance, output, container);
+        } else {
+          void session.sandbox.update(instance, output);
+        }
+
+        return;
+      }
+
+      default: {
+        const _exhaustive: never = output;
+        throw new Error(`Unknown ToolUIRenderOutput kind: ${_exhaustive}`);
+      }
+    }
   }
 }

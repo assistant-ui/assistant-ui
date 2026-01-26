@@ -1,16 +1,12 @@
-import {
-  ToolUIInstance,
-  ToolUIRuntime,
-  ToolUIRuntimeImpl,
-} from "@assistant-ui/tool-ui-runtime";
+import { ToolUIInstance, ToolUIRuntime } from "@assistant-ui/tool-ui-runtime";
 import type { ToolUICallContext } from "@assistant-ui/tool-ui-runtime";
 
 export class ToolUIController {
   private readonly _runtime: ToolUIRuntime;
   private readonly _instances = new Map<string, ToolUIInstance>();
 
-  constructor(runtime?: ToolUIRuntime) {
-    this._runtime = runtime ?? new ToolUIRuntimeImpl();
+  constructor(runtime: ToolUIRuntime) {
+    this._runtime = runtime;
   }
 
   /**

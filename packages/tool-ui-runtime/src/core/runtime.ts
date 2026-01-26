@@ -1,10 +1,18 @@
-import { ToolUIInstance, ToolUIInstanceImpl } from "./instance";
+import { ToolUIRegistry } from "../registry/registry";
+import { ToolUISandbox } from "../sandbox/types";
+import { ToolUIRendererManager } from "../renderer/manager";
+import {
+  ToolUICallContext,
+  ToolUIInstance,
+  ToolUIInstanceImpl,
+} from "./instance";
 import { ToolUIHost, ToolUIHostImpl } from "./host";
-import type { ToolUICallContext } from "./instance";
 
 export type ToolUIRuntimeOptions = {
-  host?: ToolUIHost;
+  registry: ToolUIRegistry;
+  createSandbox: () => ToolUISandbox;
 };
+
 export type ToolUIRuntime = {
   mount(context: ToolUICallContext): ToolUIInstance;
   update(instanceId: string, result: unknown): void;
@@ -13,11 +21,20 @@ export type ToolUIRuntime = {
   list(): readonly ToolUIInstance[];
 };
 
+/**
+ * TODO: multi-agent routing support
+ */
 export class ToolUIRuntimeImpl implements ToolUIRuntime {
   private readonly _host: ToolUIHost;
+  private readonly _renderer: ToolUIRendererManager;
 
-  constructor(options: ToolUIRuntimeOptions = {}) {
-    this._host = options.host ?? new ToolUIHostImpl();
+  constructor(options: ToolUIRuntimeOptions) {
+    this._host = new ToolUIHostImpl();
+
+    this._renderer = new ToolUIRendererManager({
+      registry: options.registry,
+      createSandbox: options.createSandbox,
+    });
 
     this.__internal_bindMethods();
   }
@@ -70,5 +87,12 @@ export class ToolUIRuntimeImpl implements ToolUIRuntime {
 
   public list(): readonly ToolUIInstance[] {
     return this._host.list();
+  }
+
+  /**
+   * Internal access for React integration
+   */
+  public __internal_getRenderer(): ToolUIRendererManager {
+    return this._renderer;
   }
 }

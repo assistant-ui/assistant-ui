@@ -19,12 +19,15 @@ export type ToolUIInstanceState = {
 export interface ToolUIInstance {
   readonly id: string;
   getState(): ToolUIInstanceState;
+
   resolve(): void;
   markMounting(): void;
   markActive(): void;
   markUpdating(): void;
+
   setResult(result: unknown): void;
   setOutput(output: unknown): void;
+
   close(): void;
 }
 

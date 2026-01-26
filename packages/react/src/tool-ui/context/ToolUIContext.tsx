@@ -1,16 +1,34 @@
 "use client";
 
 import { createContext, useContext } from "react";
-import type { ToolUIRuntime } from "@assistant-ui/tool-ui-runtime";
+import type {
+  ToolUIRendererManager,
+  ToolUIRuntime,
+} from "@assistant-ui/tool-ui-runtime";
 
-export const ToolUIContext = createContext<ToolUIRuntime | null>(null);
+export type ToolUIContextValue = {
+  readonly runtime: ToolUIRuntime;
+  readonly renderer: ToolUIRendererManager;
+};
+
+export const ToolUIContext = createContext<ToolUIContextValue | null>(null);
 
 export function useToolUIRuntime(): ToolUIRuntime {
-  const runtime = useContext(ToolUIContext);
+  const ctx = useContext(ToolUIContext);
 
-  if (!runtime) {
+  if (!ctx) {
     throw new Error("useToolUIRuntime must be used inside a <ToolUIProvider>");
   }
 
-  return runtime;
+  return ctx.runtime;
+}
+
+export function useToolUIRenderer(): ToolUIRendererManager {
+  const ctx = useContext(ToolUIContext);
+
+  if (!ctx) {
+    throw new Error("useToolUIRenderer must be used inside a <ToolUIProvider>");
+  }
+
+  return ctx.renderer;
 }

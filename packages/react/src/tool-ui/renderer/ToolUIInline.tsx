@@ -1,21 +1,16 @@
 "use client";
 
-import { memo } from "react";
+import { memo, useEffect, useRef } from "react";
 import { useAssistantState } from "../../context/react/hooks/useAssistantState";
-import { useToolUIRuntime } from "../context/ToolUIContext";
+import { useToolUIRenderer, useToolUIRuntime } from "../context/ToolUIContext";
 import type { ToolUIInstance } from "@assistant-ui/tool-ui-runtime";
 
 /**
  * Renders Tool UI instances inline under assistant messages.
- *
- * This is a minimal renderer that:
- * - associates tool-call message parts with ToolUIInstance objects
- * - renders lifecycle + debug info
- *
- * Real rendering (registry / sandbox / iframe) will be layered on later.
  */
 export const ToolUIInline = memo(() => {
   const runtime = useToolUIRuntime();
+  const renderer = useToolUIRenderer();
 
   const message = useAssistantState(({ message }) => message);
 
@@ -45,58 +40,54 @@ export const ToolUIInline = memo(() => {
         }
 
         return (
-          <ToolUIInstanceRenderer key={part.toolCallId} instance={instance} />
+          <ToolUIInlineMount
+            key={part.toolCallId}
+            instance={instance}
+            renderer={renderer}
+          />
         );
       })}
     </>
   );
 });
 
-ToolUIInline.displayName = "InlineToolUIRenderer";
+ToolUIInline.displayName = "ToolUIInline";
 
 /**
- * Minimal debug renderer for a Tool UI instance.
- *
- * This intentionally does NOT render real UI yet.
- *
+ *Mounts a single Tool UI instance into the DOM
  */
-const ToolUIInstanceRenderer = memo(
-  ({ instance }: { instance: ToolUIInstance }) => {
-    const state = instance.getState();
+const ToolUIInlineMount = memo(
+  ({
+    instance,
+    renderer,
+  }: {
+    instance: ToolUIInstance;
+    renderer: ReturnType<typeof useToolUIRenderer>;
+  }) => {
+    const containerRef = useRef<HTMLDivElement | null>(null);
+
+    useEffect(() => {
+      const container = containerRef.current;
+      if (!container) return;
+
+      renderer.mount(instance, container);
+
+      return () => {
+        renderer.unmount(instance);
+      };
+    }, [instance, renderer]);
 
     return (
       <div
+        ref={containerRef}
         style={{
           marginTop: 8,
-          padding: 12,
-          border: "1px solid var(--aui-border, #ddd)",
           borderRadius: 6,
-          background: "var(--aui-muted, #fafafa)",
-          fontSize: 12,
+          overflow: "hidden",
         }}
-      >
-        <div>
-          <strong>Tool:</strong> {state.context.toolName}
-        </div>
-        <div>
-          <strong>Call ID:</strong> {state.context.toolCallId}
-        </div>
-        <div>
-          <strong>Lifecycle:</strong> {state.lifecycle}
-        </div>
-
-        {state.context.args !== undefined && (
-          <pre style={{ marginTop: 8 }}>
-            {JSON.stringify(state.context.args, null, 2)}
-          </pre>
-        )}
-
-        {state.result !== undefined && (
-          <pre style={{ marginTop: 8 }}>
-            Result: {JSON.stringify(state.result, null, 2)}
-          </pre>
-        )}
-      </div>
+      />
     );
   },
 );
+
+ToolUIInlineMount.displayName = "ToolUIInlineMount";

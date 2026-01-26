@@ -3,7 +3,7 @@ import type { ToolUIFactory, ToolUIRegistryEntry } from "./types";
 export type ToolUIRegistry = {
   register(entry: ToolUIRegistryEntry): void;
   unregister(toolName: string): void;
-  get(toolName: string): ToolUIFactory | undefined;
+  resolve(toolName: string): ToolUIFactory | undefined;
   list(): readonly ToolUIRegistryEntry[];
 };
 
@@ -22,7 +22,7 @@ export class ToolUIRegistryImpl implements ToolUIRegistry {
     this._entries.delete(toolName);
   }
 
-  public get(toolName: string): ToolUIFactory | undefined {
+  public resolve(toolName: string): ToolUIFactory | undefined {
     return this._entries.get(toolName);
   }
 

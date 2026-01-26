@@ -26,6 +26,6 @@ export function assertValidToolUILifecycleTransition(
 ): void {
   const allowed = VALID_TRANSITIONS[from];
   if (!allowed.includes(to)) {
-    throw new Error(`Invalid Tool UI lifecycle transition: ${from} → ${to}`);
+    throw new Error(`Invalid Tool UI lifecycle transition: ${from} to ${to}`);
   }
 }

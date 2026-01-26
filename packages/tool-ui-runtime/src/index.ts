@@ -12,11 +12,19 @@ export type { ToolUILifecycleState } from "./core/lifecycle";
 export { assertValidToolUILifecycleTransition } from "./core/lifecycle";
 
 // Registry
+export type {
+  ToolUIFactory,
+  ToolUIRegistryEntry,
+  ToolUIFactoryProps,
+} from "./registry/types";
+export { ToolUIRegistryImpl } from "./registry/registry";
 export type { ToolUIRegistry } from "./registry/registry";
 
 // Sandbox
 export type { ToolUISandbox, ToolUISandboxOptions } from "./sandbox/types";
-export { IframeSandbox } from "./sandbox/iframe";
+export { SafeContentFrameSandbox } from "./sandbox/safeContentFrameSandbox";
 
 //Renderer
-export { ToolUIManager } from "./renderer/manager";
+export type { ToolUIRenderOutput } from "./renderer/types";
+export { ToolUIRendererManager } from "./renderer/manager";
+export type { ToolUIRendererSession } from "./renderer/manager";

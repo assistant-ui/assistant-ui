@@ -1,5 +1,5 @@
 import { ToolUIInstance } from "../core/instance";
-import { ToolUIRenderOutput } from "../registry/types";
+import { ToolUIRenderOutput } from "../renderer/types";
 
 export type ToolUISandboxOptions = Record<string, unknown>;
 
@@ -9,9 +9,13 @@ export interface ToolUISandbox {
   mount(
     instance: ToolUIInstance,
     output: ToolUIRenderOutput,
+    container: HTMLElement,
   ): Promise<void> | void;
 
-  update(instance: ToolUIInstance, output: ToolUIRenderOutput): void;
+  update(
+    instance: ToolUIInstance,
+    output: ToolUIRenderOutput,
+  ): Promise<void> | void;
 
-  destroy(): void;
+  unmount(): void;
 }
