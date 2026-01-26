@@ -40,7 +40,6 @@ const ComposerAction: FC = () => {
           { id: "gpt-5", name: "GPT-5", description: "Most capable" },
         ]}
         defaultValue="gpt-5-mini"
-        variant="ghost"
         size="sm"
       />
     </div>
@@ -76,16 +75,16 @@ export async function POST(req: Request) {
 Use the `variant` prop to change the trigger's visual style.
 
 ```tsx
-<ModelSelector variant="ghost" />   // No background (default)
+<ModelSelector variant="default" /> // No background (default)
 <ModelSelector variant="outline" /> // Border only
-<ModelSelector variant="default" /> // Solid background
+<ModelSelector variant="muted" />   // Solid background
 ```
 
 | Variant   | Description                                    |
 | --------- | ---------------------------------------------- |
-| `ghost`   | No background, subtle hover (default)          |
+| `default` | No background, subtle hover (default)          |
 | `outline` | Border with transparent background             |
-| `default` | Solid secondary background                     |
+| `muted`   | Solid secondary background                     |
 
 ## Sizes
 
@@ -178,8 +177,8 @@ import {
     },
     {
       name: "variant",
-      type: '"ghost" | "outline" | "default"',
-      default: '"ghost"',
+      type: '"default" | "outline" | "muted"',
+      default: '"default"',
       description: "Visual style of the trigger button.",
     },
     {

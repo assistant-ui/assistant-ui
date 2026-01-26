@@ -39,11 +39,11 @@ const modelSelectorTriggerVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-secondary text-secondary-foreground hover:bg-secondary/70",
+        default:
+          "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
         outline:
           "border border-input text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-        ghost:
-          "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+        muted: "bg-secondary text-secondary-foreground hover:bg-secondary/70",
       },
       size: {
         default: "h-8 px-3 py-1.5",
@@ -52,7 +52,7 @@ const modelSelectorTriggerVariants = cva(
       },
     },
     defaultVariants: {
-      variant: "ghost",
+      variant: "default",
       size: "default",
     },
   },
@@ -100,7 +100,7 @@ function ModelSelectorTrigger({
   return (
     <SelectPrimitive.Trigger
       data-slot="model-selector-trigger"
-      data-variant={variant ?? "ghost"}
+      data-variant={variant ?? "default"}
       data-size={size ?? "default"}
       className={cn(modelSelectorTriggerVariants({ variant, size }), className)}
       {...props}
