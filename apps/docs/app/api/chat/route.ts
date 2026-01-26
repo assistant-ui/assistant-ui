@@ -33,7 +33,7 @@ export async function POST(req: Request) {
 
   const prunedMessages = pruneMessages({
     messages: await convertToModelMessages(messages),
-    reasoning: "all",
+    reasoning: "none",
   });
 
   const result = streamText({
