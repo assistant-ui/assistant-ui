@@ -191,8 +191,8 @@ const UserMessage: FC = () => {
 
 const AssistantMessage: FC = () => {
   return (
-    <MessagePrimitive.Root className="relative grid w-full max-w-(--thread-max-width) grid-cols-[auto_auto_1fr] grid-rows-[auto_1fr] py-4">
-      <div className="wrap-break-word col-span-2 col-start-2 row-start-1 my-1.5 max-w-[calc(var(--thread-max-width)*0.8)] text-[#e5e5e5] leading-7">
+    <MessagePrimitive.Root className="relative w-full max-w-(--thread-max-width) py-4">
+      <div className="wrap-break-word my-1.5 text-[#e5e5e5] leading-7">
         <h1 className="mb-4 inline-flex items-center gap-2 text-2xl text-[#20b8cd]">
           <SparkleIcon /> Answer
         </h1>
@@ -200,9 +200,10 @@ const AssistantMessage: FC = () => {
         <MessagePrimitive.Parts components={{ Text: MarkdownText }} />
       </div>
 
-      <AssistantActionBar />
-
-      <BranchPicker className="col-start-2 row-start-2 mr-2 -ml-2" />
+      <div className="flex">
+        <BranchPicker className="mr-2" />
+        <AssistantActionBar />
+      </div>
     </MessagePrimitive.Root>
   );
 };
@@ -213,7 +214,7 @@ const AssistantActionBar: FC = () => {
       hideWhenRunning
       autohide="not-last"
       autohideFloat="single-branch"
-      className="col-start-3 row-start-2 -ml-1 flex gap-1 text-[#808080]"
+      className="-ml-1 flex gap-1 text-[#808080]"
     >
       <ActionBarPrimitive.Copy asChild>
         <TooltipIconButton

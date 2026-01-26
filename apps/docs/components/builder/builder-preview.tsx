@@ -852,8 +852,10 @@ const EditComposer: FC = () => {
 };
 
 const MarkdownCodeHeader: FC<CodeHeaderProps> = ({ language }) => (
-  <div className="mt-4 flex items-center gap-4 rounded-t-lg border border-b-0 px-4 py-2 font-medium text-muted-foreground text-sm">
-    <span className="lowercase">{language}</span>
+  <div className="mt-2.5 flex items-center justify-between rounded-t-lg border border-border/50 border-b-0 bg-muted/50 px-3 py-1.5 text-xs">
+    <span className="font-medium text-muted-foreground lowercase">
+      {language}
+    </span>
   </div>
 );
 
@@ -863,7 +865,7 @@ const MarkdownH1: FC<React.ComponentProps<"h1">> = ({
 }) => (
   <h1
     className={cn(
-      "mb-8 scroll-m-20 font-extrabold text-4xl tracking-tight last:mb-0",
+      "mb-2 scroll-m-20 font-semibold text-base first:mt-0 last:mb-0",
       className,
     )}
     {...props}
@@ -876,7 +878,7 @@ const MarkdownH2: FC<React.ComponentProps<"h2">> = ({
 }) => (
   <h2
     className={cn(
-      "mt-8 mb-4 scroll-m-20 font-semibold text-3xl tracking-tight first:mt-0 last:mb-0",
+      "mt-3 mb-1.5 scroll-m-20 font-semibold text-sm first:mt-0 last:mb-0",
       className,
     )}
     {...props}
@@ -889,7 +891,7 @@ const MarkdownH3: FC<React.ComponentProps<"h3">> = ({
 }) => (
   <h3
     className={cn(
-      "mt-6 mb-4 scroll-m-20 font-semibold text-2xl tracking-tight first:mt-0 last:mb-0",
+      "mt-2.5 mb-1 scroll-m-20 font-semibold text-sm first:mt-0 last:mb-0",
       className,
     )}
     {...props}
@@ -898,7 +900,7 @@ const MarkdownH3: FC<React.ComponentProps<"h3">> = ({
 
 const MarkdownP: FC<React.ComponentProps<"p">> = ({ className, ...props }) => (
   <p
-    className={cn("mt-5 mb-5 leading-7 first:mt-0 last:mb-0", className)}
+    className={cn("my-2.5 leading-normal first:mt-0 last:mb-0", className)}
     {...props}
   />
 );
@@ -907,7 +909,13 @@ const MarkdownUl: FC<React.ComponentProps<"ul">> = ({
   className,
   ...props
 }) => (
-  <ul className={cn("my-5 ml-6 list-disc [&>li]:mt-2", className)} {...props} />
+  <ul
+    className={cn(
+      "my-2 ml-4 list-disc marker:text-muted-foreground [&>li]:mt-1",
+      className,
+    )}
+    {...props}
+  />
 );
 
 const MarkdownOl: FC<React.ComponentProps<"ol">> = ({
@@ -915,7 +923,10 @@ const MarkdownOl: FC<React.ComponentProps<"ol">> = ({
   ...props
 }) => (
   <ol
-    className={cn("my-5 ml-6 list-decimal [&>li]:mt-2", className)}
+    className={cn(
+      "my-2 ml-4 list-decimal marker:text-muted-foreground [&>li]:mt-1",
+      className,
+    )}
     {...props}
   />
 );
@@ -926,7 +937,7 @@ const MarkdownPre: FC<React.ComponentProps<"pre">> = ({
 }) => (
   <pre
     className={cn(
-      "overflow-x-auto rounded-b-lg border border-t-0 p-4",
+      "overflow-x-auto rounded-t-none rounded-b-lg border border-border/50 border-t-0 bg-muted/30 p-3 text-xs leading-relaxed",
       className,
     )}
     {...props}
@@ -941,13 +952,19 @@ const MarkdownCode: FC<React.ComponentProps<"code">> = ({
   return (
     <code
       className={cn(
-        !isCodeBlock && "rounded border bg-muted px-1 font-semibold",
+        !isCodeBlock &&
+          "rounded-md border border-border/50 bg-muted/50 px-1.5 py-0.5 font-mono text-[0.85em]",
         className,
       )}
       {...props}
     />
   );
 };
+
+const MarkdownLi: FC<React.ComponentProps<"li">> = ({
+  className,
+  ...props
+}) => <li className={cn("leading-normal", className)} {...props} />;
 
 const baseMarkdownComponents = {
   h1: MarkdownH1,
@@ -956,6 +973,7 @@ const baseMarkdownComponents = {
   p: MarkdownP,
   ul: MarkdownUl,
   ol: MarkdownOl,
+  li: MarkdownLi,
   pre: MarkdownPre,
   code: MarkdownCode,
   CodeHeader: MarkdownCodeHeader,
@@ -974,7 +992,7 @@ const createSyntaxHighlighter = (
       addDefaultStyles={false}
       showLanguage={false}
       as="div"
-      className="not-fumadocs-codeblock overflow-x-auto rounded-b-lg border border-t-0 p-4 [&_.line:last-child:empty]:hidden"
+      className="not-fumadocs-codeblock overflow-x-auto rounded-t-none rounded-b-lg border border-border/50 border-t-0 bg-muted/30 p-3 text-xs leading-relaxed [&_.line:last-child:empty]:hidden"
     >
       {code}
     </ShikiHighlighter>
