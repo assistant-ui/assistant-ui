@@ -23,14 +23,17 @@ export function commitRender(renderResult: RenderResult): void {
 export function cleanupAllEffects<R, P>(executionContext: ResourceFiber<R, P>) {
   const errors: unknown[] = [];
   for (const cell of executionContext.cells) {
-    if (cell?.type === "effect" && cell.cleanup) {
-      try {
-        cell.cleanup?.();
-      } catch (e) {
-        errors.push(e);
-      } finally {
-        cell.cleanup = undefined;
-        cell.deps = null; // Reset deps so effect runs again on next mount
+    if (cell?.type === "effect") {
+      cell.deps = null; // Reset deps so effect runs again on next mount
+
+      if (cell.cleanup) {
+        try {
+          cell.cleanup?.();
+        } catch (e) {
+          errors.push(e);
+        } finally {
+          cell.cleanup = undefined;
+        }
       }
     }
   }
