@@ -15,6 +15,9 @@ export function commitRender(renderResult: RenderResult): void {
     if (errors.length === 1) {
       throw errors[0];
     } else {
+      for (const error of errors) {
+        console.error(error);
+      }
       throw new AggregateError(errors, "Errors during commit");
     }
   }
@@ -38,6 +41,9 @@ export function cleanupAllEffects<R, P>(executionContext: ResourceFiber<R, P>) {
     if (errors.length === 1) {
       throw errors[0];
     } else {
+      for (const error of errors) {
+        console.error(error);
+      }
       throw new AggregateError(errors, "Errors during cleanup");
     }
   }
