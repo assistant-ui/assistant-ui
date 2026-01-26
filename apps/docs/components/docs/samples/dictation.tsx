@@ -116,12 +116,12 @@ const ThreadWelcomeSuggestions: FC = () => {
       ].map((suggestedAction, index) => (
         <div
           key={`suggested-action-${suggestedAction.title}-${index}`}
-          className="aui-thread-welcome-suggestion-display @md:[&:nth-child(n+3)]:block [&:nth-child(n+3)]:hidden"
+          className="aui-thread-welcome-suggestion-display @md:nth-[n+3]:block nth-[n+3]:hidden"
         >
           <ThreadPrimitive.Suggestion
             prompt={suggestedAction.action}
-            method="replace"
-            autoSend
+            clearComposer
+            send
             asChild
           >
             <Button
@@ -145,7 +145,7 @@ const ThreadWelcomeSuggestions: FC = () => {
 
 const Composer: FC = () => {
   return (
-    <div className="aui-composer-wrapper sticky bottom-0 mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-4 overflow-visible rounded-t-3xl bg-background pb-4 md:pb-6">
+    <div className="aui-composer-wrapper sticky bottom-0 mx-auto flex w-full max-w-(--thread-max-width) flex-col gap-4 overflow-visible rounded-t-3xl bg-background pb-4 md:pb-6">
       <ThreadScrollToBottom />
       <ThreadPrimitive.Empty>
         <ThreadWelcomeSuggestions />

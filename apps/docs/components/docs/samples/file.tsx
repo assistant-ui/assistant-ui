@@ -25,7 +25,7 @@ function VariantRow({
   variant,
 }: {
   label: string;
-  variant?: "default" | "muted";
+  variant?: "outline" | "ghost" | "muted";
 }) {
   return (
     <div className="flex flex-col gap-2">
@@ -99,7 +99,7 @@ function MimeTypeRow() {
 export function FileSample() {
   return (
     <SampleFrame className="flex h-auto flex-col gap-6 p-6">
-      <VariantRow label="Default" />
+      <VariantRow label="Outline (default)" />
       <VariantRow label="Muted" variant="muted" />
       <SizeRow />
       <MimeTypeRow />
