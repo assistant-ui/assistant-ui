@@ -17,15 +17,15 @@ const selectTriggerVariants = cva(
   {
     variants: {
       variant: {
-        default:
-          "border border-input bg-transparent shadow-xs hover:bg-accent hover:text-accent-foreground",
+        default: "hover:bg-accent hover:text-accent-foreground",
         outline:
           "border border-input bg-transparent hover:bg-accent hover:text-accent-foreground",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
+        muted: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
       },
       size: {
         default: "h-9 px-3 py-2",
         sm: "h-8 px-2.5 py-1.5 text-xs",
+        lg: "h-10 px-4 py-2.5",
       },
     },
     defaultVariants: {

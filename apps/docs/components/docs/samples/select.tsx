@@ -115,7 +115,7 @@ export function SelectGroupsSample() {
 export function SelectVariantsSample() {
   const [defaultValue, setDefaultValue] = useState("react");
   const [outlineValue, setOutlineValue] = useState("vue");
-  const [ghostValue, setGhostValue] = useState("svelte");
+  const [mutedValue, setMutedValue] = useState("svelte");
 
   return (
     <SampleFrame className="flex h-auto items-center justify-center gap-4 p-6">
@@ -146,9 +146,9 @@ export function SelectVariantsSample() {
         </SelectRoot>
       </div>
       <div className="flex flex-col gap-2">
-        <span className="text-muted-foreground text-xs">Ghost</span>
-        <SelectRoot value={ghostValue} onValueChange={setGhostValue}>
-          <SelectTrigger variant="ghost" className="w-32">
+        <span className="text-muted-foreground text-xs">Muted</span>
+        <SelectRoot value={mutedValue} onValueChange={setMutedValue}>
+          <SelectTrigger variant="muted" className="w-32">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

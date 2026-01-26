@@ -91,9 +91,9 @@ Use the `variant` prop to change the trigger's visual style.
 Use the `size` prop to control the trigger dimensions.
 
 ```tsx
-<ModelSelector size="sm" />      // Compact (h-7, text-xs)
-<ModelSelector size="default" /> // Standard (h-8)
-<ModelSelector size="lg" />      // Large (h-9)
+<ModelSelector size="sm" />      // Compact (h-8, text-xs)
+<ModelSelector size="default" /> // Standard (h-9)
+<ModelSelector size="lg" />      // Large (h-10)
 ```
 
 ## Model Options
@@ -134,7 +134,7 @@ import {
 } from "@/components/assistant-ui/model-selector";
 
 <ModelSelectorRoot models={models} value={modelId} onValueChange={setModelId}>
-  <ModelSelectorTrigger variant="outline" size="lg" />
+  <ModelSelectorTrigger variant="outline" />
   <ModelSelectorContent />
 </ModelSelectorRoot>
 ```

@@ -1,18 +1,32 @@
 "use client";
 
-import { memo, useState, useEffect, createContext, useContext } from "react";
-import { cva, type VariantProps } from "class-variance-authority";
+import {
+  memo,
+  useState,
+  useEffect,
+  createContext,
+  useContext,
+  type ComponentPropsWithoutRef,
+  type ReactNode,
+} from "react";
 import * as SelectPrimitive from "@radix-ui/react-select";
-import { CheckIcon, ChevronDownIcon } from "lucide-react";
+import { type VariantProps } from "class-variance-authority";
+import { CheckIcon } from "lucide-react";
 import { useAssistantApi } from "@assistant-ui/react";
 import { cn } from "@/lib/utils";
-import { Select, SelectContent, SelectValue } from "@/components/ui/select";
+import {
+  SelectRoot,
+  SelectTrigger,
+  SelectContent,
+  SelectItem,
+  selectTriggerVariants,
+} from "@/components/assistant-ui/select";
 
 export type ModelOption = {
   id: string;
   name: string;
   description?: string;
-  icon?: React.ReactNode;
+  icon?: ReactNode;
   disabled?: boolean;
 };
 
@@ -34,36 +48,12 @@ function useModelSelectorContext() {
   return ctx;
 }
 
-const modelSelectorTriggerVariants = cva(
-  "aui-model-selector-trigger inline-flex w-fit cursor-pointer items-center justify-between gap-2 rounded-md border-0 bg-transparent text-sm shadow-none outline-none transition-[color,box-shadow] focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-2 [&_svg]:pointer-events-none [&_svg]:shrink-0",
-  {
-    variants: {
-      variant: {
-        default:
-          "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-        outline:
-          "border border-input text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-        muted: "bg-secondary text-secondary-foreground hover:bg-secondary/70",
-      },
-      size: {
-        default: "h-8 px-3 py-1.5",
-        sm: "h-7 px-2 py-1 text-xs",
-        lg: "h-9 px-4 py-2",
-      },
-    },
-    defaultVariants: {
-      variant: "default",
-      size: "default",
-    },
-  },
-);
-
 export type ModelSelectorRootProps = {
   models: ModelOption[];
   value?: string;
   onValueChange?: (value: string) => void;
   defaultValue?: string;
-  children: React.ReactNode;
+  children: ReactNode;
 };
 
 function ModelSelectorRoot({
@@ -73,7 +63,7 @@ function ModelSelectorRoot({
   defaultValue,
   children,
 }: ModelSelectorRootProps) {
-  const selectProps: React.ComponentProps<typeof Select> = {};
+  const selectProps: ComponentPropsWithoutRef<typeof SelectRoot> = {};
   if (value !== undefined) selectProps.value = value;
   if (onValueChange) selectProps.onValueChange = onValueChange;
   const resolvedDefault = defaultValue ?? models[0]?.id;
@@ -81,39 +71,36 @@ function ModelSelectorRoot({
 
   return (
     <ModelSelectorContext.Provider value={{ models }}>
-      <Select {...selectProps}>{children}</Select>
+      <SelectRoot {...selectProps}>{children}</SelectRoot>
     </ModelSelectorContext.Provider>
   );
 }
 
-export type ModelSelectorTriggerProps = React.ComponentProps<
-  typeof SelectPrimitive.Trigger
-> &
-  VariantProps<typeof modelSelectorTriggerVariants>;
+export type ModelSelectorTriggerProps = ComponentPropsWithoutRef<
+  typeof SelectTrigger
+>;
 
 function ModelSelectorTrigger({
   className,
   variant,
   size,
+  children,
   ...props
 }: ModelSelectorTriggerProps) {
   return (
-    <SelectPrimitive.Trigger
+    <SelectTrigger
       data-slot="model-selector-trigger"
-      data-variant={variant ?? "default"}
-      data-size={size ?? "default"}
-      className={cn(modelSelectorTriggerVariants({ variant, size }), className)}
+      variant={variant}
+      size={size}
+      className={cn("aui-model-selector-trigger", className)}
       {...props}
     >
-      <SelectValue />
-      <SelectPrimitive.Icon asChild>
-        <ChevronDownIcon className="size-3.5 opacity-60" />
-      </SelectPrimitive.Icon>
-    </SelectPrimitive.Trigger>
+      {children ?? <SelectPrimitive.Value />}
+    </SelectTrigger>
   );
 }
 
-export type ModelSelectorContentProps = React.ComponentProps<
+export type ModelSelectorContentProps = ComponentPropsWithoutRef<
   typeof SelectContent
 >;
 
@@ -143,8 +130,8 @@ function ModelSelectorContent({
 }
 
 export type ModelSelectorItemProps = Omit<
-  React.ComponentProps<typeof SelectPrimitive.Item>,
-  "value"
+  ComponentPropsWithoutRef<typeof SelectItem>,
+  "value" | "children"
 > & {
   model: ModelOption;
 };
@@ -158,15 +145,18 @@ function ModelSelectorItem({
     <SelectPrimitive.Item
       data-slot="model-selector-item"
       value={model.id}
+      textValue={model.name}
       className={cn(
-        "relative flex w-full cursor-default select-none items-center gap-2 rounded-sm py-1.5 pr-8 pl-2 text-sm outline-hidden focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-40",
+        "relative flex w-full cursor-default select-none items-center gap-2 rounded-lg py-2 pr-9 pl-3 text-sm outline-none",
+        "focus:bg-accent focus:text-accent-foreground",
+        "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
         className,
       )}
       {...props}
     >
-      <span className="absolute right-2 flex size-3.5 items-center justify-center">
+      <span className="absolute right-3 flex size-4 items-center justify-center">
         <SelectPrimitive.ItemIndicator>
-          <CheckIcon className="size-3.5" />
+          <CheckIcon className="size-4" />
         </SelectPrimitive.ItemIndicator>
       </span>
       <SelectPrimitive.ItemText>
@@ -189,7 +179,7 @@ function ModelSelectorItem({
 }
 
 export type ModelSelectorProps = Omit<ModelSelectorRootProps, "children"> &
-  VariantProps<typeof modelSelectorTriggerVariants> & {
+  VariantProps<typeof selectTriggerVariants> & {
     contentClassName?: string;
   };
 
@@ -254,5 +244,4 @@ export {
   ModelSelectorTrigger,
   ModelSelectorContent,
   ModelSelectorItem,
-  modelSelectorTriggerVariants,
 };
