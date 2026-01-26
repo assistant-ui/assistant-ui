@@ -76,25 +76,25 @@ export async function POST(req: Request) {
 Use the `variant` prop to change the trigger's visual style.
 
 ```tsx
-<ModelSelector variant="ghost" />   // No background (default)
+<ModelSelector variant="default" /> // No background (default)
 <ModelSelector variant="outline" /> // Border only
-<ModelSelector variant="default" /> // Solid background
+<ModelSelector variant="muted" />   // Muted background
 ```
 
-| Variant   | Description                                    |
-| --------- | ---------------------------------------------- |
-| `ghost`   | No background, subtle hover (default)          |
-| `outline` | Border with transparent background             |
-| `default` | Solid secondary background                     |
+| Variant   | Description                           |
+| --------- | ------------------------------------- |
+| `default` | No background, subtle hover (default) |
+| `outline` | Border with transparent background    |
+| `muted`   | Muted background                      |
 
 ## Sizes
 
 Use the `size` prop to control the trigger dimensions.
 
 ```tsx
-<ModelSelector size="sm" />      // Compact (h-7, text-xs)
-<ModelSelector size="default" /> // Standard (h-8)
-<ModelSelector size="lg" />      // Large (h-9)
+<ModelSelector size="sm" /> // Compact
+<ModelSelector size="md" /> // Standard (default)
+<ModelSelector size="lg" /> // Large
 ```
 
 ## Model Options
@@ -178,14 +178,14 @@ import {
     },
     {
       name: "variant",
-      type: '"ghost" | "outline" | "default"',
-      default: '"ghost"',
+      type: '"default" | "outline" | "muted"',
+      default: '"default"',
       description: "Visual style of the trigger button.",
     },
     {
       name: "size",
-      type: '"sm" | "default" | "lg"',
-      default: '"default"',
+      type: '"sm" | "md" | "lg"',
+      default: '"md"',
       description: "Size of the trigger button.",
     },
     {

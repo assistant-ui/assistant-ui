@@ -6,7 +6,6 @@ import * as SelectPrimitive from "@radix-ui/react-select";
 import { CheckIcon, ChevronDownIcon } from "lucide-react";
 import { useAssistantApi } from "@assistant-ui/react";
 import { cn } from "@/lib/utils";
-import { Select, SelectContent, SelectValue } from "@/components/ui/select";
 
 export type ModelOption = {
   id: string;
@@ -35,25 +34,25 @@ function useModelSelectorContext() {
 }
 
 const modelSelectorTriggerVariants = cva(
-  "aui-model-selector-trigger inline-flex w-fit cursor-pointer items-center justify-between gap-2 rounded-md border-0 bg-transparent text-sm shadow-none outline-none transition-[color,box-shadow] focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-2 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+  "aui-model-selector-trigger inline-flex w-fit cursor-pointer items-center gap-1.5 rounded-md text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50",
   {
     variants: {
       variant: {
-        default: "bg-secondary text-secondary-foreground hover:bg-secondary/70",
+        default: "text-muted-foreground hover:bg-muted hover:text-foreground",
         outline:
-          "border border-input text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-        ghost:
-          "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+          "border border-input text-muted-foreground hover:bg-muted hover:text-foreground",
+        muted:
+          "bg-muted text-muted-foreground hover:bg-muted/70 hover:text-foreground",
       },
       size: {
-        default: "h-8 px-3 py-1.5",
-        sm: "h-7 px-2 py-1 text-xs",
-        lg: "h-9 px-4 py-2",
+        sm: "py-1 pr-1.5 pl-2 text-xs",
+        md: "py-1.5 pr-2 pl-3",
+        lg: "py-2 pr-2.5 pl-4",
       },
     },
     defaultVariants: {
-      variant: "ghost",
-      size: "default",
+      variant: "default",
+      size: "md",
     },
   },
 );
@@ -73,15 +72,15 @@ function ModelSelectorRoot({
   defaultValue,
   children,
 }: ModelSelectorRootProps) {
-  const selectProps: React.ComponentProps<typeof Select> = {};
-  if (value !== undefined) selectProps.value = value;
-  if (onValueChange) selectProps.onValueChange = onValueChange;
-  const resolvedDefault = defaultValue ?? models[0]?.id;
-  if (resolvedDefault) selectProps.defaultValue = resolvedDefault;
-
   return (
     <ModelSelectorContext.Provider value={{ models }}>
-      <Select {...selectProps}>{children}</Select>
+      <SelectPrimitive.Root
+        value={value}
+        onValueChange={onValueChange}
+        defaultValue={defaultValue ?? models[0]?.id}
+      >
+        {children}
+      </SelectPrimitive.Root>
     </ModelSelectorContext.Provider>
   );
 }
@@ -95,50 +94,61 @@ function ModelSelectorTrigger({
   className,
   variant,
   size,
+  children,
   ...props
 }: ModelSelectorTriggerProps) {
   return (
     <SelectPrimitive.Trigger
       data-slot="model-selector-trigger"
-      data-variant={variant ?? "ghost"}
-      data-size={size ?? "default"}
       className={cn(modelSelectorTriggerVariants({ variant, size }), className)}
       {...props}
     >
-      <SelectValue />
-      <SelectPrimitive.Icon asChild>
-        <ChevronDownIcon className="size-3.5 opacity-60" />
-      </SelectPrimitive.Icon>
+      {children ?? <SelectPrimitive.Value />}
+      <ChevronDownIcon className="size-3.5 opacity-50" />
     </SelectPrimitive.Trigger>
   );
 }
 
 export type ModelSelectorContentProps = React.ComponentProps<
-  typeof SelectContent
+  typeof SelectPrimitive.Content
 >;
 
 function ModelSelectorContent({
   className,
   children,
+  position = "popper",
+  sideOffset = 6,
   ...props
 }: ModelSelectorContentProps) {
   const { models } = useModelSelectorContext();
 
   return (
-    <SelectContent
-      data-slot="model-selector-content"
-      className={cn("min-w-[180px]", className)}
-      {...props}
-    >
-      {children ??
-        models.map((model) => (
-          <ModelSelectorItem
-            key={model.id}
-            model={model}
-            {...(model.disabled ? { disabled: true } : undefined)}
-          />
-        ))}
-    </SelectContent>
+    <SelectPrimitive.Portal>
+      <SelectPrimitive.Content
+        data-slot="model-selector-content"
+        position={position}
+        sideOffset={sideOffset}
+        className={cn(
+          "z-50 min-w-44 overflow-hidden rounded-xl border bg-popover/95 p-1.5 text-popover-foreground shadow-lg backdrop-blur-sm",
+          "data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=open]:animate-in",
+          "data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=closed]:animate-out",
+          "data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2",
+          className,
+        )}
+        {...props}
+      >
+        <SelectPrimitive.Viewport className="space-y-0.5">
+          {children ??
+            models.map((model) => (
+              <ModelSelectorItem
+                key={model.id}
+                model={model}
+                disabled={model.disabled}
+              />
+            ))}
+        </SelectPrimitive.Viewport>
+      </SelectPrimitive.Content>
+    </SelectPrimitive.Portal>
   );
 }
 
@@ -158,17 +168,16 @@ function ModelSelectorItem({
     <SelectPrimitive.Item
       data-slot="model-selector-item"
       value={model.id}
+      textValue={model.name}
       className={cn(
-        "relative flex w-full cursor-default select-none items-center gap-2 rounded-sm py-1.5 pr-8 pl-2 text-sm outline-hidden focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-40",
+        "relative flex w-full cursor-default select-none items-center gap-2 rounded-lg py-2 pr-9 pl-3 text-sm outline-none transition-colors",
+        "focus:bg-accent focus:text-accent-foreground",
+        "data-[state=checked]:font-medium",
+        "data-disabled:pointer-events-none data-disabled:opacity-50",
         className,
       )}
       {...props}
     >
-      <span className="absolute right-2 flex size-3.5 items-center justify-center">
-        <SelectPrimitive.ItemIndicator>
-          <CheckIcon className="size-3.5" />
-        </SelectPrimitive.ItemIndicator>
-      </span>
       <SelectPrimitive.ItemText>
         <span className="flex items-center gap-2">
           {model.icon && (
@@ -176,7 +185,7 @@ function ModelSelectorItem({
               {model.icon}
             </span>
           )}
-          <span className="truncate font-medium">{model.name}</span>
+          <span className="truncate">{model.name}</span>
         </span>
       </SelectPrimitive.ItemText>
       {model.description && (
@@ -184,6 +193,11 @@ function ModelSelectorItem({
           {model.description}
         </span>
       )}
+      <span className="absolute right-3 flex size-4 items-center justify-center">
+        <SelectPrimitive.ItemIndicator>
+          <CheckIcon className="size-4" />
+        </SelectPrimitive.ItemIndicator>
+      </span>
     </SelectPrimitive.Item>
   );
 }

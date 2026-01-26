@@ -35,7 +35,7 @@ function VariantRow({
   variant,
 }: {
   label: string;
-  variant?: "default" | "outline" | "ghost";
+  variant?: "default" | "outline" | "muted";
 }) {
   const [value, setValue] = useState("gpt-5-mini");
 
@@ -53,9 +53,9 @@ function VariantRow({
 export function ModelSelectorSample() {
   return (
     <SampleFrame className="flex h-auto flex-col gap-6 p-6">
-      <VariantRow label="Ghost (default)" variant="ghost" />
-      <VariantRow label="Outline" variant="outline" />
       <VariantRow label="Default" variant="default" />
+      <VariantRow label="Outline" variant="outline" />
+      <VariantRow label="Muted" variant="muted" />
     </SampleFrame>
   );
 }
