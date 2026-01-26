@@ -3,15 +3,8 @@ import { convertExternalMessages } from "../legacy-runtime/runtime-cores/externa
 import type { useExternalMessageConverter } from "../legacy-runtime/runtime-cores/external-store/external-message-converter";
 import { isErrorMessageId } from "../utils/idUtils";
 
-/**
- * Tests for the external message converter, specifically the joinExternalMessages logic.
- */
 describe("convertExternalMessages", () => {
   describe("reasoning part merging", () => {
-    /**
-     * Tests that reasoning parts with the same parentId are merged together.
-     * The text should be concatenated with a double newline separator.
-     */
     it("should merge reasoning parts with the same parentId", () => {
       const messages = [
         {
@@ -57,9 +50,6 @@ describe("convertExternalMessages", () => {
       expect((reasoningParts[0] as any).parentId).toBe("parent1");
     });
 
-    /**
-     * Tests that reasoning parts without parentId remain separate.
-     */
     it("should keep reasoning parts without parentId separate", () => {
       const messages = [
         {
@@ -90,9 +80,6 @@ describe("convertExternalMessages", () => {
       expect((reasoningParts[1] as any).text).toBe("Second reasoning");
     });
 
-    /**
-     * Tests that reasoning parts with different parentIds remain separate.
-     */
     it("should keep reasoning parts with different parentIds separate", () => {
       const messages = [
         {
@@ -135,9 +122,6 @@ describe("convertExternalMessages", () => {
       expect((reasoningParts[1] as any).parentId).toBe("parent2");
     });
 
-    /**
-     * Tests that tool result merging still works correctly alongside reasoning merging.
-     */
     it("should still merge tool results with matching tool calls", () => {
       const messages = [
         {
@@ -177,10 +161,6 @@ describe("convertExternalMessages", () => {
   });
 
   describe("synthetic error message", () => {
-    /**
-     * Tests that a synthetic error message is created when metadata.error exists
-     * and there are no messages (empty array).
-     */
     it("should create synthetic error message when error exists and no messages", () => {
       const messages: never[] = [];
       const callback: useExternalMessageConverter.Callback<never> = (msg) =>
@@ -201,10 +181,6 @@ describe("convertExternalMessages", () => {
       expect(isErrorMessageId(result[0]!.id)).toBe(true);
     });
 
-    /**
-     * Tests that a synthetic error message is created when metadata.error exists
-     * and the last message is a user message.
-     */
     it("should create synthetic error message when error exists and last message is user", () => {
       const messages = [
         {
@@ -234,10 +210,6 @@ describe("convertExternalMessages", () => {
       expect(isErrorMessageId(result[1]!.id)).toBe(true);
     });
 
-    /**
-     * Tests that NO synthetic error message is created when the last message
-     * is already an assistant message (error is attached to existing message).
-     */
     it("should not create synthetic error message when last message is assistant", () => {
       const messages = [
         {
@@ -264,19 +236,14 @@ describe("convertExternalMessages", () => {
       expect(result[0]!.role).toBe("user");
       expect(result[1]!.role).toBe("assistant");
       expect(result[1]!.id).toBe("assistant1");
-      // Error should be attached to the existing assistant message
       expect(result[1]!.status).toMatchObject({
         type: "incomplete",
         reason: "error",
         error: "Connection error",
       });
-      // Should NOT be a synthetic error message
       expect(isErrorMessageId(result[1]!.id)).toBe(false);
     });
 
-    /**
-     * Tests that no synthetic error message is created when there's no error.
-     */
     it("should not create synthetic message when no error", () => {
       const messages = [
         {

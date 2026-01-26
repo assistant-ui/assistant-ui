@@ -264,26 +264,27 @@ const chunkExternalMessages = <T,>(
   return results;
 };
 
-const createErrorAssistantMessage = (
+function createErrorAssistantMessage(
   error: ReadonlyJSONValue,
-): ThreadAssistantMessage => {
-  const msg: ThreadAssistantMessage = {
-    id: generateErrorMessageId(),
-    role: "assistant",
-    content: [],
-    status: { type: "incomplete", reason: "error", error },
-    createdAt: new Date(),
-    metadata: {
-      unstable_state: null,
-      unstable_annotations: [],
-      unstable_data: [],
-      custom: {},
-      steps: [],
+): ThreadAssistantMessage {
+  return Object.assign<ThreadAssistantMessage, { [symbolInnerMessage]: [] }>(
+    {
+      id: generateErrorMessageId(),
+      role: "assistant",
+      content: [],
+      status: { type: "incomplete", reason: "error", error },
+      createdAt: new Date(),
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        custom: {},
+        steps: [],
+      },
     },
-  };
-  (msg as any)[symbolInnerMessage] = [];
-  return msg;
-};
+    { [symbolInnerMessage]: [] },
+  );
+}
 
 export const convertExternalMessages = <T extends WeakKey>(
   messages: T[],
@@ -304,11 +305,6 @@ export const convertExternalMessages = <T extends WeakKey>(
   const result = chunks.map((message, idx) => {
     const isLast = idx === chunks.length - 1;
     const joined = joinExternalMessages(message.outputs);
-    const hasSuspendedToolCalls =
-      typeof joined.content === "object" &&
-      joined.content.some(
-        (c) => c.type === "tool-call" && c.result === undefined,
-      );
     const hasPendingToolCalls =
       typeof joined.content === "object" &&
       joined.content.some(
@@ -317,7 +313,7 @@ export const convertExternalMessages = <T extends WeakKey>(
     const autoStatus = getAutoStatus(
       isLast,
       isRunning,
-      hasSuspendedToolCalls,
+      hasPendingToolCalls,
       hasPendingToolCalls,
       isLast ? metadata.error : undefined,
     );
@@ -330,7 +326,6 @@ export const convertExternalMessages = <T extends WeakKey>(
     return newMessage;
   });
 
-  // If error exists and last message is not assistant, append synthetic error message
   if (metadata.error) {
     const lastMessage = result.at(-1);
     if (!lastMessage || lastMessage.role !== "assistant") {
@@ -444,7 +439,6 @@ export const useExternalMessageConverter = <T extends WeakKey>({
       symbolInnerMessage
     ] = messages;
 
-    // If error exists and last message is not assistant, append synthetic error message
     if (state.metadata.error) {
       const lastMessage = threadMessages.at(-1);
       if (!lastMessage || lastMessage.role !== "assistant") {
