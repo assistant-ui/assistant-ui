@@ -89,7 +89,7 @@ const ModelPicker: FC = () => {
     <ModelSelector
       models={models}
       defaultValue={MODELS[0].value}
-      variant="default"
+      variant="outline"
     />
   );
 };
