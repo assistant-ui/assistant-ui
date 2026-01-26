@@ -1,12 +1,13 @@
 {
-  "title": "UI",
+  "title": "Components",
   "description": "shadcn/ui components",
   "icon": "PanelsTopLeft",
   "root": true,
   "pages": [
+    "---Functional---",
     "assistant-modal",
     "thread",
-    "---Components---",
+    "---Add-ons---",
     "assistant-sidebar",
     "attachment",
     "file",
@@ -21,6 +22,8 @@
     "thread-list",
     "tool-fallback",
     "tool-group",
+    "---Standalone---",
+    "select",
     "---Experimental---",
     "part-grouping"
   ]

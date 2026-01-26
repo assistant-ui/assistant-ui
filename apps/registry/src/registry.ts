@@ -382,6 +382,19 @@ export const registry: RegistryItem[] = [
       "lucide-react",
       "class-variance-authority",
     ],
-    registryDependencies: ["select"],
+    registryDependencies: [],
+  },
+  {
+    name: "select",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/select.tsx",
+        sourcePath: "../../packages/ui/src/components/assistant-ui/select.tsx",
+      },
+    ],
+    dependencies: ["@radix-ui/react-select", "lucide-react"],
+    registryDependencies: [],
   },
 ];
