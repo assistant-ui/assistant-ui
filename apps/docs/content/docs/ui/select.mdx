@@ -62,9 +62,9 @@ Use the `variant` prop on `SelectTrigger` to change the visual style.
 <SelectVariantsSample />
 
 ```tsx
-<SelectTrigger variant="default" /> // Border with shadow (default)
-<SelectTrigger variant="outline" /> // Border only
+<SelectTrigger variant="outline" /> // Border (default)
 <SelectTrigger variant="ghost" />   // No border
+<SelectTrigger variant="muted" />   // Solid background
 ```
 
 ### Sizes
@@ -249,7 +249,7 @@ export function FrameworkPicker() {
 | Component | Description |
 |-----------|-------------|
 | `SelectRoot` | The root component that manages state. |
-| `SelectTrigger` | The button that opens the dropdown. Accepts `variant` (`"default"` \| `"outline"` \| `"ghost"`) and `size` (`"default"` \| `"sm"`). |
+| `SelectTrigger` | The button that opens the dropdown. Accepts `variant` (`"outline"` \| `"ghost"` \| `"muted"`) and `size` (`"default"` \| `"sm"` \| `"lg"`). |
 | `SelectValue` | Renders the selected value or placeholder. |
 | `SelectContent` | The dropdown content container with animations. |
 | `SelectItem` | An individual selectable item. |

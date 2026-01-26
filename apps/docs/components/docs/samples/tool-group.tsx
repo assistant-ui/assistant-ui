@@ -78,9 +78,9 @@ function SearchToolUI({ query, results }: { query: string; results: number }) {
 }
 
 function ToolGroupDemo({
-  variant = "default",
+  variant = "outline",
 }: {
-  variant?: "default" | "outline" | "muted";
+  variant?: "outline" | "ghost" | "muted";
 }) {
   return (
     <ToolGroupRoot variant={variant}>
@@ -100,10 +100,10 @@ function ToolGroupDemo({
 
 function VariantRow({
   label,
-  variant = "default",
+  variant = "outline",
 }: {
   label: string;
-  variant?: "default" | "outline" | "muted";
+  variant?: "outline" | "ghost" | "muted";
 }) {
   return (
     <div className="flex flex-col gap-2">
@@ -116,8 +116,8 @@ function VariantRow({
 export function ToolGroupSample() {
   return (
     <SampleFrame className="flex h-auto flex-col gap-4 p-4">
-      <VariantRow label="Default" variant="default" />
-      <VariantRow label="Outline" variant="outline" />
+      <VariantRow label="Outline (default)" variant="outline" />
+      <VariantRow label="Ghost" variant="ghost" />
       <VariantRow label="Muted" variant="muted" />
     </SampleFrame>
   );

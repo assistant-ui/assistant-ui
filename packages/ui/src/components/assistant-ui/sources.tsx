@@ -24,9 +24,9 @@ const sourceVariants = cva(
   {
     variants: {
       variant: {
-        default: "hover:bg-accent hover:text-accent-foreground",
         outline:
           "border bg-transparent text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+        ghost: "hover:bg-accent hover:text-accent-foreground",
         muted: "bg-secondary text-secondary-foreground hover:bg-secondary/70",
       },
       size: {
@@ -36,7 +36,7 @@ const sourceVariants = cva(
       },
     },
     defaultVariants: {
-      variant: "default",
+      variant: "outline",
       size: "default",
     },
   },

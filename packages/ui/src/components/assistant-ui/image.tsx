@@ -18,7 +18,8 @@ const imageVariants = cva(
   {
     variants: {
       variant: {
-        default: "border border-border",
+        outline: "border border-border",
+        ghost: "",
         muted: "bg-muted/50",
       },
       size: {
@@ -29,7 +30,7 @@ const imageVariants = cva(
       },
     },
     defaultVariants: {
-      variant: "default",
+      variant: "outline",
       size: "default",
     },
   },

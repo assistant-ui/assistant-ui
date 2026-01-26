@@ -17,9 +17,9 @@ const selectTriggerVariants = cva(
   {
     variants: {
       variant: {
-        default: "hover:bg-accent hover:text-accent-foreground",
         outline:
           "border border-input bg-transparent hover:bg-accent hover:text-accent-foreground",
+        ghost: "hover:bg-accent hover:text-accent-foreground",
         muted: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
       },
       size: {
@@ -29,7 +29,7 @@ const selectTriggerVariants = cva(
       },
     },
     defaultVariants: {
-      variant: "default",
+      variant: "outline",
       size: "default",
     },
   },
@@ -45,7 +45,7 @@ const SelectTrigger = ({
   VariantProps<typeof selectTriggerVariants>) => (
   <SelectPrimitive.Trigger
     data-slot="select-trigger"
-    data-variant={variant ?? "default"}
+    data-variant={variant ?? "outline"}
     data-size={size ?? "default"}
     className={cn(selectTriggerVariants({ variant, size }), className)}
     {...props}

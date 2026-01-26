@@ -23,12 +23,12 @@ const ANIMATION_DURATION = 200;
 const toolGroupVariants = cva("aui-tool-group-root group/tool-group w-full", {
   variants: {
     variant: {
-      default: "",
       outline: "rounded-lg border py-3",
+      ghost: "",
       muted: "rounded-lg border border-muted-foreground/30 bg-muted/30 py-3",
     },
   },
-  defaultVariants: { variant: "default" },
+  defaultVariants: { variant: "outline" },
 });
 
 export type ToolGroupRootProps = Omit<
@@ -74,7 +74,7 @@ function ToolGroupRoot({
     <Collapsible
       ref={collapsibleRef}
       data-slot="tool-group-root"
-      data-variant={variant ?? "default"}
+      data-variant={variant ?? "outline"}
       open={isOpen}
       onOpenChange={handleOpenChange}
       className={cn(

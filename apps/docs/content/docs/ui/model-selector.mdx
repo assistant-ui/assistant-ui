@@ -75,15 +75,15 @@ export async function POST(req: Request) {
 Use the `variant` prop to change the trigger's visual style.
 
 ```tsx
-<ModelSelector variant="default" /> // No background (default)
-<ModelSelector variant="outline" /> // Border only
+<ModelSelector variant="outline" /> // Border (default)
+<ModelSelector variant="ghost" />   // No background
 <ModelSelector variant="muted" />   // Solid background
 ```
 
 | Variant   | Description                                    |
 | --------- | ---------------------------------------------- |
-| `default` | No background, subtle hover (default)          |
-| `outline` | Border with transparent background             |
+| `outline` | Border with transparent background (default)   |
+| `ghost`   | No background, subtle hover                    |
 | `muted`   | Solid secondary background                     |
 
 ## Sizes
@@ -177,8 +177,8 @@ import {
     },
     {
       name: "variant",
-      type: '"default" | "outline" | "muted"',
-      default: '"default"',
+      type: '"outline" | "ghost" | "muted"',
+      default: '"outline"',
       description: "Visual style of the trigger button.",
     },
     {
