@@ -38,7 +38,7 @@ export function AssistantComposer(): ReactNode {
           <ModelSelector
             models={models}
             defaultValue={MODELS[0].value}
-            variant="ghost"
+            variant="default"
             size="sm"
           />
           <AssistantComposerAction />
