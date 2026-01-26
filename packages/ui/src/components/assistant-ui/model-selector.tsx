@@ -67,18 +67,24 @@ export type ModelSelectorRootProps = {
 
 function ModelSelectorRoot({
   models,
-  value,
-  onValueChange,
+  value: controlledValue,
+  onValueChange: controlledOnValueChange,
   defaultValue,
   children,
 }: ModelSelectorRootProps) {
+  const [internalValue, setInternalValue] = useState(
+    () => defaultValue ?? models[0]?.id ?? "",
+  );
+
+  const isControlled = controlledValue !== undefined;
+  const value = isControlled ? controlledValue : internalValue;
+  const onValueChange = isControlled
+    ? controlledOnValueChange!
+    : setInternalValue;
+
   return (
     <ModelSelectorContext.Provider value={{ models }}>
-      <SelectPrimitive.Root
-        value={value}
-        onValueChange={onValueChange}
-        defaultValue={defaultValue ?? models[0]?.id}
-      >
+      <SelectPrimitive.Root value={value} onValueChange={onValueChange}>
         {children}
       </SelectPrimitive.Root>
     </ModelSelectorContext.Provider>
