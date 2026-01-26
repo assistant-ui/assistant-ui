@@ -20,7 +20,6 @@ const fruits = [
   { value: "orange", label: "Orange" },
 ];
 
-// Main sample
 export function SelectSample() {
   const [value, setValue] = useState("apple");
 
@@ -37,7 +36,6 @@ export function SelectSample() {
   );
 }
 
-// Disabled items example
 export function SelectDisabledItemsSample() {
   const [value, setValue] = useState("free");
 
@@ -56,7 +54,6 @@ export function SelectDisabledItemsSample() {
   );
 }
 
-// Placeholder example
 export function SelectPlaceholderSample() {
   const [value, setValue] = useState("");
 
@@ -72,7 +69,6 @@ export function SelectPlaceholderSample() {
   );
 }
 
-// Disabled select example
 export function SelectDisabledSample() {
   const [value, setValue] = useState("apple");
 
@@ -88,7 +84,6 @@ export function SelectDisabledSample() {
   );
 }
 
-// Groups example
 export function SelectGroupsSample() {
   const [value, setValue] = useState("react");
 
@@ -110,6 +105,127 @@ export function SelectGroupsSample() {
             <SelectLabel>Backend</SelectLabel>
             <SelectItem value="node">Node.js</SelectItem>
             <SelectItem value="python">Python</SelectItem>
+          </SelectGroup>
+        </SelectContent>
+      </SelectRoot>
+    </SampleFrame>
+  );
+}
+
+export function SelectVariantsSample() {
+  const [defaultValue, setDefaultValue] = useState("react");
+  const [outlineValue, setOutlineValue] = useState("vue");
+  const [ghostValue, setGhostValue] = useState("svelte");
+
+  return (
+    <SampleFrame className="flex h-auto items-center justify-center gap-4 p-6">
+      <div className="flex flex-col gap-2">
+        <span className="text-muted-foreground text-xs">Default</span>
+        <SelectRoot value={defaultValue} onValueChange={setDefaultValue}>
+          <SelectTrigger variant="default" className="w-32">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="react">React</SelectItem>
+            <SelectItem value="vue">Vue</SelectItem>
+            <SelectItem value="svelte">Svelte</SelectItem>
+          </SelectContent>
+        </SelectRoot>
+      </div>
+      <div className="flex flex-col gap-2">
+        <span className="text-muted-foreground text-xs">Outline</span>
+        <SelectRoot value={outlineValue} onValueChange={setOutlineValue}>
+          <SelectTrigger variant="outline" className="w-32">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="react">React</SelectItem>
+            <SelectItem value="vue">Vue</SelectItem>
+            <SelectItem value="svelte">Svelte</SelectItem>
+          </SelectContent>
+        </SelectRoot>
+      </div>
+      <div className="flex flex-col gap-2">
+        <span className="text-muted-foreground text-xs">Ghost</span>
+        <SelectRoot value={ghostValue} onValueChange={setGhostValue}>
+          <SelectTrigger variant="ghost" className="w-32">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="react">React</SelectItem>
+            <SelectItem value="vue">Vue</SelectItem>
+            <SelectItem value="svelte">Svelte</SelectItem>
+          </SelectContent>
+        </SelectRoot>
+      </div>
+    </SampleFrame>
+  );
+}
+
+export function SelectSizesSample() {
+  const [defaultValue, setDefaultValue] = useState("react");
+  const [smValue, setSmValue] = useState("vue");
+
+  return (
+    <SampleFrame className="flex h-auto items-center justify-center gap-4 p-6">
+      <div className="flex flex-col gap-2">
+        <span className="text-muted-foreground text-xs">Default</span>
+        <SelectRoot value={defaultValue} onValueChange={setDefaultValue}>
+          <SelectTrigger size="default" className="w-36">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="react">React</SelectItem>
+            <SelectItem value="vue">Vue</SelectItem>
+            <SelectItem value="svelte">Svelte</SelectItem>
+          </SelectContent>
+        </SelectRoot>
+      </div>
+      <div className="flex flex-col gap-2">
+        <span className="text-muted-foreground text-xs">Small</span>
+        <SelectRoot value={smValue} onValueChange={setSmValue}>
+          <SelectTrigger size="sm" className="w-36">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="react">React</SelectItem>
+            <SelectItem value="vue">Vue</SelectItem>
+            <SelectItem value="svelte">Svelte</SelectItem>
+          </SelectContent>
+        </SelectRoot>
+      </div>
+    </SampleFrame>
+  );
+}
+
+export function SelectScrollableSample() {
+  const [value, setValue] = useState("est");
+
+  return (
+    <SampleFrame className="flex h-auto items-center justify-center p-6">
+      <SelectRoot value={value} onValueChange={setValue}>
+        <SelectTrigger className="w-64">
+          <SelectValue placeholder="Select a timezone..." />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectGroup>
+            <SelectLabel>North America</SelectLabel>
+            <SelectItem value="est">Eastern Standard Time (EST)</SelectItem>
+            <SelectItem value="cst">Central Standard Time (CST)</SelectItem>
+            <SelectItem value="mst">Mountain Standard Time (MST)</SelectItem>
+            <SelectItem value="pst">Pacific Standard Time (PST)</SelectItem>
+          </SelectGroup>
+          <SelectGroup>
+            <SelectLabel>Europe</SelectLabel>
+            <SelectItem value="gmt">Greenwich Mean Time (GMT)</SelectItem>
+            <SelectItem value="cet">Central European Time (CET)</SelectItem>
+            <SelectItem value="eet">Eastern European Time (EET)</SelectItem>
+          </SelectGroup>
+          <SelectGroup>
+            <SelectLabel>Asia</SelectLabel>
+            <SelectItem value="ist">India Standard Time (IST)</SelectItem>
+            <SelectItem value="cst_china">China Standard Time (CST)</SelectItem>
+            <SelectItem value="jst">Japan Standard Time (JST)</SelectItem>
           </SelectGroup>
         </SelectContent>
       </SelectRoot>

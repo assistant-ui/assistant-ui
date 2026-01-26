@@ -2,12 +2,9 @@
 
 import type { ComponentPropsWithoutRef, ReactNode } from "react";
 import * as SelectPrimitive from "@radix-ui/react-select";
+import { cva, type VariantProps } from "class-variance-authority";
 import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-// =============================================================================
-// Composable Sub-components
-// =============================================================================
 
 const SelectRoot = SelectPrimitive.Root;
 
@@ -15,26 +12,47 @@ const SelectGroup = SelectPrimitive.Group;
 
 const SelectValue = SelectPrimitive.Value;
 
+const selectTriggerVariants = cva(
+  "flex w-fit items-center justify-between gap-2 whitespace-nowrap rounded-md text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 data-[placeholder]:text-muted-foreground [&>span]:line-clamp-1 [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+  {
+    variants: {
+      variant: {
+        default:
+          "border border-input bg-transparent shadow-xs hover:bg-accent hover:text-accent-foreground",
+        outline:
+          "border border-input bg-transparent hover:bg-accent hover:text-accent-foreground",
+        ghost: "hover:bg-accent hover:text-accent-foreground",
+      },
+      size: {
+        default: "h-9 px-3 py-2",
+        sm: "h-8 px-2.5 py-1.5 text-xs",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+      size: "default",
+    },
+  },
+);
+
 const SelectTrigger = ({
   className,
+  variant,
+  size,
   children,
   ...props
-}: ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger>) => (
+}: ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger> &
+  VariantProps<typeof selectTriggerVariants>) => (
   <SelectPrimitive.Trigger
     data-slot="select-trigger"
-    className={cn(
-      "flex items-center justify-between gap-2 rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none transition-colors",
-      "placeholder:text-muted-foreground",
-      "focus:ring-2 focus:ring-ring/50",
-      "disabled:cursor-not-allowed disabled:opacity-50",
-      "[&>span]:line-clamp-1",
-      className,
-    )}
+    data-variant={variant ?? "default"}
+    data-size={size ?? "default"}
+    className={cn(selectTriggerVariants({ variant, size }), className)}
     {...props}
   >
     {children}
     <SelectPrimitive.Icon asChild>
-      <ChevronDownIcon className="size-4 shrink-0 opacity-50" />
+      <ChevronDownIcon className="size-4 opacity-50" />
     </SelectPrimitive.Icon>
   </SelectPrimitive.Trigger>
 );
@@ -96,9 +114,8 @@ const SelectContent = ({
       <SelectScrollUpButton />
       <SelectPrimitive.Viewport
         className={cn(
-          "space-y-0.5",
           position === "popper" &&
-            "h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]",
+            "h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)] scroll-my-1",
         )}
       >
         {children}
@@ -114,7 +131,7 @@ const SelectLabel = ({
 }: ComponentPropsWithoutRef<typeof SelectPrimitive.Label>) => (
   <SelectPrimitive.Label
     data-slot="select-label"
-    className={cn("px-2 py-1.5 font-semibold text-sm", className)}
+    className={cn("px-2 py-1.5 text-muted-foreground text-xs", className)}
     {...props}
   />
 );
@@ -127,10 +144,10 @@ const SelectItem = ({
   <SelectPrimitive.Item
     data-slot="select-item"
     className={cn(
-      "relative flex w-full cursor-default select-none items-center rounded-lg py-2 pr-9 pl-3 text-sm outline-none transition-colors",
+      "relative flex w-full cursor-default select-none items-center gap-2 rounded-lg py-2 pr-9 pl-3 text-sm outline-none",
       "focus:bg-accent focus:text-accent-foreground",
-      "data-[state=checked]:font-medium",
       "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+      "[&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
       className,
     )}
     {...props}
@@ -150,14 +167,10 @@ const SelectSeparator = ({
 }: ComponentPropsWithoutRef<typeof SelectPrimitive.Separator>) => (
   <SelectPrimitive.Separator
     data-slot="select-separator"
-    className={cn("-mx-1 my-1 h-px bg-muted", className)}
+    className={cn("-mx-1 my-1 h-px bg-border", className)}
     {...props}
   />
 );
-
-// =============================================================================
-// Simple API
-// =============================================================================
 
 export interface SelectOption {
   value: string;
@@ -203,7 +216,7 @@ function Select({
 
       <SelectContent>
         {options.map((option) => (
-          <SelectPrimitive.Item
+          <SelectItem
             key={option.value}
             value={option.value}
             disabled={option.disabled}
@@ -211,29 +224,14 @@ function Select({
               option.textValue ??
               (typeof option.label === "string" ? option.label : option.value)
             }
-            className={cn(
-              "relative flex cursor-default select-none items-center rounded-lg py-2 pr-9 pl-3 text-sm outline-none transition-colors",
-              "focus:bg-accent focus:text-accent-foreground",
-              "data-[state=checked]:font-medium",
-              "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
-            )}
           >
-            <SelectPrimitive.ItemText>{option.label}</SelectPrimitive.ItemText>
-            <span className="absolute right-3 flex size-4 items-center justify-center">
-              <SelectPrimitive.ItemIndicator>
-                <CheckIcon className="size-4" />
-              </SelectPrimitive.ItemIndicator>
-            </span>
-          </SelectPrimitive.Item>
+            {option.label}
+          </SelectItem>
         ))}
       </SelectContent>
     </SelectRoot>
   );
 }
-
-// =============================================================================
-// Exports
-// =============================================================================
 
 export {
   Select,
@@ -247,4 +245,5 @@ export {
   SelectSeparator,
   SelectScrollUpButton,
   SelectScrollDownButton,
+  selectTriggerVariants,
 };

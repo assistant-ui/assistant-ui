@@ -11,6 +11,9 @@ import {
   SelectPlaceholderSample,
   SelectDisabledSample,
   SelectGroupsSample,
+  SelectVariantsSample,
+  SelectSizesSample,
+  SelectScrollableSample,
 } from "@/components/docs/samples/select";
 
 A styled select component built on Radix UI Select primitives. Provides a convenient options-based API and composable sub-components for custom layouts.
@@ -52,47 +55,34 @@ export function FruitPicker() {
 
 ## Examples
 
-### Disabled Items
+### Variants
 
-<SelectDisabledItemsSample />
+Use the `variant` prop on `SelectTrigger` to change the visual style.
 
-```tsx
-<Select
-  value={value}
-  onValueChange={setValue}
-  options={[
-    { value: "free", label: "Free" },
-    { value: "pro", label: "Pro" },
-    { value: "enterprise", label: "Enterprise", disabled: true },
-  ]}
-/>
-```
-
-### With Placeholder
-
-<SelectPlaceholderSample />
+<SelectVariantsSample />
 
 ```tsx
-<Select
-  value={value}
-  onValueChange={setValue}
-  options={options}
-  placeholder="Choose an option..."
-/>
+<SelectTrigger variant="default" /> // Border with shadow (default)
+<SelectTrigger variant="outline" /> // Border only
+<SelectTrigger variant="ghost" />   // No border
 ```
 
-### Disabled Select
+### Sizes
 
-<SelectDisabledSample />
+Use the `size` prop on `SelectTrigger` to change the height.
+
+<SelectSizesSample />
 
 ```tsx
-<Select
-  value={value}
-  onValueChange={setValue}
-  options={options}
-  disabled
-/>
+<SelectTrigger size="default" /> // 36px (default)
+<SelectTrigger size="sm" />      // 32px
 ```
+
+### Scrollable
+
+Long lists automatically become scrollable.
+
+<SelectScrollableSample />
 
 ### Groups
 
@@ -137,6 +127,48 @@ export function FrameworkPicker() {
     </SelectRoot>
   );
 }
+```
+
+### Disabled Items
+
+<SelectDisabledItemsSample />
+
+```tsx
+<Select
+  value={value}
+  onValueChange={setValue}
+  options={[
+    { value: "free", label: "Free" },
+    { value: "pro", label: "Pro" },
+    { value: "enterprise", label: "Enterprise", disabled: true },
+  ]}
+/>
+```
+
+### With Placeholder
+
+<SelectPlaceholderSample />
+
+```tsx
+<Select
+  value={value}
+  onValueChange={setValue}
+  options={options}
+  placeholder="Choose an option..."
+/>
+```
+
+### Disabled Select
+
+<SelectDisabledSample />
+
+```tsx
+<Select
+  value={value}
+  onValueChange={setValue}
+  options={options}
+  disabled
+/>
 ```
 
 ## API Reference
@@ -217,7 +249,7 @@ export function FrameworkPicker() {
 | Component | Description |
 |-----------|-------------|
 | `SelectRoot` | The root component that manages state. |
-| `SelectTrigger` | The button that opens the select dropdown. |
+| `SelectTrigger` | The button that opens the dropdown. Accepts `variant` (`"default"` \| `"outline"` \| `"ghost"`) and `size` (`"default"` \| `"sm"`). |
 | `SelectValue` | Renders the selected value or placeholder. |
 | `SelectContent` | The dropdown content container with animations. |
 | `SelectItem` | An individual selectable item. |
