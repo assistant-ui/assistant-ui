@@ -2,7 +2,7 @@
 
 import { CircleAlertIcon, SunIcon, MoonIcon } from "lucide-react";
 
-import { Select } from "@/components/shared/select";
+import { Select } from "@/components/assistant-ui/select";
 import { Switch } from "@/components/shared/switch";
 import {
   ThemeColorPicker,

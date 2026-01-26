@@ -179,27 +179,23 @@ export interface SelectOption {
   disabled?: boolean;
 }
 
-export interface SelectProps {
+export interface SelectProps
+  extends Pick<
+    ComponentPropsWithoutRef<typeof SelectPrimitive.Root>,
+    "value" | "onValueChange" | "disabled"
+  > {
   value: string;
   onValueChange: (value: string) => void;
   options: readonly SelectOption[];
   placeholder?: string;
   className?: string;
-  disabled?: boolean;
 }
 
-function Select({
-  value,
-  onValueChange,
-  options,
-  placeholder,
-  className,
-  disabled,
-}: SelectProps) {
-  const selectedOption = options.find((opt) => opt.value === value);
+function Select({ options, placeholder, className, ...props }: SelectProps) {
+  const selectedOption = options.find((opt) => opt.value === props.value);
 
   return (
-    <SelectRoot value={value} onValueChange={onValueChange} disabled={disabled}>
+    <SelectRoot {...props}>
       <SelectPrimitive.Trigger
         className={cn(
           "flex items-center gap-1.5 rounded-md py-1 pr-2 pl-3 text-sm outline-none transition-colors",
@@ -215,17 +211,16 @@ function Select({
       </SelectPrimitive.Trigger>
 
       <SelectContent>
-        {options.map((option) => (
+        {options.map(({ label, disabled, textValue, ...itemProps }) => (
           <SelectItem
-            key={option.value}
-            value={option.value}
-            disabled={option.disabled}
+            key={itemProps.value}
+            {...itemProps}
+            {...(disabled !== undefined ? { disabled } : {})}
             textValue={
-              option.textValue ??
-              (typeof option.label === "string" ? option.label : option.value)
+              textValue ?? (typeof label === "string" ? label : itemProps.value)
             }
           >
-            {option.label}
+            {label}
           </SelectItem>
         ))}
       </SelectContent>

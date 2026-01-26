@@ -382,7 +382,7 @@ export const registry: RegistryItem[] = [
       "lucide-react",
       "class-variance-authority",
     ],
-    registryDependencies: [],
+    registryDependencies: ["select"],
   },
   {
     name: "select",
