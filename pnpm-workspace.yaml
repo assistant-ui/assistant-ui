@@ -3,6 +3,9 @@ packages:
   - examples/*
   - apps/*
 
+ignoredBuiltDependencies:
+  - '@modelcontextprotocol/ext-apps'
+
 onlyBuiltDependencies:
   - '@tailwindcss/oxide@4.1.17'
   - core-js
