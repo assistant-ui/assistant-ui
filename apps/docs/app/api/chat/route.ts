@@ -3,7 +3,12 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { openai } from "@ai-sdk/openai";
 import { frontendTools } from "@assistant-ui/react-ai-sdk";
 import { withTracing } from "@posthog/ai";
-import { convertToModelMessages, stepCountIs, streamText } from "ai";
+import {
+  convertToModelMessages,
+  pruneMessages,
+  stepCountIs,
+  streamText,
+} from "ai";
 
 export const maxDuration = 30;
 
@@ -26,9 +31,14 @@ export async function POST(req: Request) {
       })
     : baseModel;
 
+  const prunedMessages = pruneMessages({
+    messages: await convertToModelMessages(messages),
+    reasoning: "all",
+  });
+
   const result = streamText({
     model: tracedModel,
-    messages: await convertToModelMessages(messages),
+    messages: prunedMessages,
     maxOutputTokens: 1200,
     stopWhen: stepCountIs(10),
     tools: frontendTools(tools),
