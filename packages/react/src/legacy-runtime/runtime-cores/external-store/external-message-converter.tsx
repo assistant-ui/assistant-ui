@@ -11,6 +11,8 @@ import { getAutoStatus, isAutoStatus } from "./auto-status";
 import { ThreadMessage, ToolCallMessagePart } from "../../../types";
 import { ToolExecutionStatus } from "../assistant-transport/useToolInvocations";
 import { ReadonlyJSONValue } from "assistant-stream/utils";
+import { generateErrorMessageId } from "../../../utils/idUtils";
+import { ThreadAssistantMessage } from "../../../types/AssistantTypes";
 
 export namespace useExternalMessageConverter {
   export type Message =
@@ -262,6 +264,27 @@ const chunkExternalMessages = <T,>(
   return results;
 };
 
+const createErrorAssistantMessage = (
+  error: ReadonlyJSONValue,
+): ThreadAssistantMessage => {
+  const msg: ThreadAssistantMessage = {
+    id: generateErrorMessageId(),
+    role: "assistant",
+    content: [],
+    status: { type: "incomplete", reason: "error", error },
+    createdAt: new Date(),
+    metadata: {
+      unstable_state: null,
+      unstable_annotations: [],
+      unstable_data: [],
+      custom: {},
+      steps: [],
+    },
+  };
+  (msg as any)[symbolInnerMessage] = [];
+  return msg;
+};
+
 export const convertExternalMessages = <T extends WeakKey>(
   messages: T[],
   callback: useExternalMessageConverter.Callback<T>,
@@ -278,7 +301,7 @@ export const convertExternalMessages = <T extends WeakKey>(
 
   const chunks = chunkExternalMessages(callbackResults);
 
-  return chunks.map((message, idx) => {
+  const result = chunks.map((message, idx) => {
     const isLast = idx === chunks.length - 1;
     const joined = joinExternalMessages(message.outputs);
     const hasSuspendedToolCalls =
@@ -306,6 +329,16 @@ export const convertExternalMessages = <T extends WeakKey>(
     (newMessage as any)[symbolInnerMessage] = message.inputs;
     return newMessage;
   });
+
+  // If error exists and last message is not assistant, append synthetic error message
+  if (metadata.error) {
+    const lastMessage = result.at(-1);
+    if (!lastMessage || lastMessage.role !== "assistant") {
+      result.push(createErrorAssistantMessage(metadata.error));
+    }
+  }
+
+  return result;
 };
 
 export const useExternalMessageConverter = <T extends WeakKey>({
@@ -410,6 +443,14 @@ export const useExternalMessageConverter = <T extends WeakKey>({
     (threadMessages as unknown as { [symbolInnerMessage]: T[] })[
       symbolInnerMessage
     ] = messages;
+
+    // If error exists and last message is not assistant, append synthetic error message
+    if (state.metadata.error) {
+      const lastMessage = threadMessages.at(-1);
+      if (!lastMessage || lastMessage.role !== "assistant") {
+        threadMessages.push(createErrorAssistantMessage(state.metadata.error));
+      }
+    }
 
     return threadMessages;
   }, [state, messages, isRunning, joinStrategy]);
