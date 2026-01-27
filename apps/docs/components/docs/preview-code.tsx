@@ -78,7 +78,7 @@ export function PreviewCodeClient({
           {children}
         </div>
       ) : (
-        <div className="preview-code-block relative overflow-hidden rounded-xl border border-border/50 bg-muted">
+        <div className="preview-code-block relative overflow-hidden rounded-xl">
           <button
             onClick={handleCopy}
             className="absolute top-2 right-2 z-10 flex size-7 items-center justify-center rounded-md text-muted-foreground opacity-50 transition-all hover:bg-background hover:text-foreground hover:opacity-100"
@@ -90,7 +90,7 @@ export function PreviewCodeClient({
               <CopyIcon className="size-3.5" />
             )}
           </button>
-          <div className="max-h-96 overflow-auto py-3.5 text-[0.8125rem] leading-[1.65]">
+          <div className="scrollbar-none max-h-96 overflow-auto py-3.5 text-[0.8125rem] leading-[1.65]">
             <ShikiHighlighter
               language="tsx"
               theme={{ dark: "catppuccin-mocha", light: "catppuccin-latte" }}
