@@ -2258,6 +2258,9 @@ importers:
       '@assistant-ui/tap':
         specifier: ^0.4.0
         version: link:../tap
+      use-effect-event:
+        specifier: ^2.0.3
+        version: 2.0.3(react@19.2.3)
     devDependencies:
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
@@ -9080,6 +9083,11 @@ packages:
     peerDependenciesMeta:
       '@types/react':
         optional: true
+
+  use-effect-event@2.0.3:
+    resolution: {integrity: sha512-fz1en+z3fYXCXx3nMB8hXDMuygBltifNKZq29zDx+xNJ+1vEs6oJlYd9sK31vxJ0YI534VUsHEBY0k2BATsmBQ==}
+    peerDependencies:
+      react: ^18.3 || ^19.0.0-0
 
   use-isomorphic-layout-effect@1.2.1:
     resolution: {integrity: sha512-tpZZ+EX0gaghDAiFR37hj5MgY6ZN55kLiPkJsKxBMZ6GZdOSPJXiOzPM984oPYZ5AnehYx5WQp1+ME8I/P/pRA==}
@@ -16521,6 +16529,10 @@ snapshots:
       react: 19.2.4
     optionalDependencies:
       '@types/react': 19.2.9
+
+  use-effect-event@2.0.3(react@19.2.3):
+    dependencies:
+      react: 19.2.3
 
   use-isomorphic-layout-effect@1.2.1(@types/react@19.2.9)(react@19.2.4):
     dependencies:
