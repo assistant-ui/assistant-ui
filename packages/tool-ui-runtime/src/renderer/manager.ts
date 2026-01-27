@@ -47,19 +47,24 @@ export class ToolUIRendererManager {
 
     this._sessions.set(id, session);
 
-    this._render(session);
+    this._renderSession(session);
   }
 
   public update(instance: ToolUIInstance): void {
     const session = this._sessions.get(instance.id);
     if (!session) return;
 
-    const output = this._resolveOutput(instance);
-    if (!output) return;
+    const newOutput = this._resolveOutput(instance);
+    if (!newOutput) return;
 
-    session.output = output;
+    // Prevent unnecessary re-renders by comparing outputs
+    if (this._isSameOutput(session.output, newOutput)) {
+      return;
+    }
 
-    this._render(session);
+    session.output = newOutput;
+
+    this._renderSession(session);
   }
 
   public unmount(instance: ToolUIInstance): void {
@@ -95,7 +100,21 @@ export class ToolUIRendererManager {
     });
   }
 
-  private _render(session: ToolUIRendererSession): void {
+  private _isSameOutput(a: ToolUIRenderOutput, b: ToolUIRenderOutput): boolean {
+    if (a.kind !== b.kind) return false;
+
+    if (a.kind === "html" && b.kind === "html") {
+      return a.html === b.html && a.height === b.height;
+    }
+
+    if (a.kind === "react" && b.kind === "react") {
+      return a.element === b.element;
+    }
+
+    return a.kind === "empty" && b.kind === "empty";
+  }
+
+  private _renderSession(session: ToolUIRendererSession): void {
     const { container, instance, output } = session;
 
     switch (output.kind) {
@@ -114,7 +133,7 @@ export class ToolUIRendererManager {
       case "html": {
         if (!this._createSandbox) {
           throw new Error(
-            "Too UI output requires a sandbox, but no sandbox factory was provided",
+            "Tool UI output requires a sandbox, but no sandbox factory was provided",
           );
         }
 

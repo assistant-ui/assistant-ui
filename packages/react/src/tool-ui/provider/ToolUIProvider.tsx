@@ -33,6 +33,19 @@ type ProviderState = {
   renderer: ToolUIRendererManager;
 };
 
+function hasInternalRenderer(
+  runtime: ToolUIRuntime,
+): runtime is ToolUIRuntime & {
+  __internal_getRenderer(): ToolUIRendererManager;
+} {
+  return (
+    typeof runtime === "object" &&
+    runtime !== null &&
+    "__internal_getRenderer" in runtime &&
+    typeof (runtime as any).__internal_getRenderer === "function"
+  );
+}
+
 export const ToolUIProvider = memo(
   ({
     children,
@@ -42,6 +55,11 @@ export const ToolUIProvider = memo(
   }: ToolUIProvider.Props) => {
     const { runtime, renderer } = useMemo<ProviderState>(() => {
       if (externalRuntime !== undefined) {
+        if (!hasInternalRenderer(externalRuntime)) {
+          throw new Error(
+            "ToolUIProvider: external runtime must expose __internal_getRenderer() method",
+          );
+        }
         const runtime: ToolUIRuntime = externalRuntime;
         const renderer = (runtime as any).__internal_getRenderer();
         return {

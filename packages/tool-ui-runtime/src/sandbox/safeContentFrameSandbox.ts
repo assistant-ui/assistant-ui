@@ -49,7 +49,16 @@ export class SafeContentFrameSandbox implements ToolUISandbox {
 
     this._container = container;
 
-    await this._renderHtml(output, container);
+    try {
+      await this._renderHtml(output, container);
+    } catch (error) {
+      this._container = null;
+      container.innerHTML = "";
+
+      throw new Error(
+        `Failed to mount Tool UI Sandbox: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
   }
 
   public async update(
@@ -64,10 +73,22 @@ export class SafeContentFrameSandbox implements ToolUISandbox {
       return;
     }
 
-    if (this._frame) {
-      this._frame.dispose();
-      this._frame = null;
-      this._container.innerHTML = "";
+    const oldFrame = this._frame;
+
+    try {
+      if (oldFrame) {
+        oldFrame.dispose();
+        this._frame = null;
+        this._container.innerHTML = "";
+      }
+    } catch (error) {
+      if (oldFrame && !this._frame) {
+        this._container.innerHTML = "";
+      }
+
+      throw new Error(
+        `Failed to update Tool UI sandbox: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
 
     await this._renderHtml(output, this._container);

@@ -77,6 +77,8 @@ export class ToolUIRuntimeImpl implements ToolUIRuntime {
   public close(instanceId: string): void {
     const instance = this._host.get(instanceId);
 
+    this._renderer.unmount(instance);
+
     instance.close();
     this._host.remove(instanceId);
   }

@@ -52,5 +52,30 @@ export function useToolUISync(controller: ToolUIController) {
     };
 
     processMessages(messages as readonly ToolUIMinimalMessage[]);
+
+    // Clean up stale tool call IDs
+    const currentToolCallIds = new Set<string>();
+    const collectToolCallIds = (msgs: readonly ToolUIMinimalMessage[]) => {
+      for (const message of msgs) {
+        for (const content of message.content) {
+          if (content.type === "tool-call") {
+            currentToolCallIds.add(content.toolCallId);
+            if (content.messages) {
+              collectToolCallIds(
+                content.messages as readonly ToolUIMinimalMessage[],
+              );
+            }
+          }
+        }
+      }
+    };
+
+    collectToolCallIds(messages as readonly ToolUIMinimalMessage[]);
+
+    for (const id of processedToolCallsRef.current) {
+      if (!currentToolCallIds.has(id)) {
+        processedToolCallsRef.current.delete(id);
+      }
+    }
   }, [messages, controller]);
 }
