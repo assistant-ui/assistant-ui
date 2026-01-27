@@ -18,6 +18,11 @@ const badgeVariants = cva(
           "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground",
         ghost:
           "bg-transparent text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+        info: "bg-blue-100 text-blue-700 hover:bg-blue-100/80 dark:bg-blue-900/50 dark:text-blue-300",
+        warning:
+          "bg-amber-100 text-amber-700 hover:bg-amber-100/80 dark:bg-amber-900/50 dark:text-amber-300",
+        success:
+          "bg-emerald-100 text-emerald-700 hover:bg-emerald-100/80 dark:bg-emerald-900/50 dark:text-emerald-300",
         destructive:
           "bg-destructive text-destructive-foreground hover:bg-destructive/80",
       },

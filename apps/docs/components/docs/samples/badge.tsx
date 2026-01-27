@@ -1,8 +1,10 @@
 "use client";
 
-import { ArrowUpRight, Check, X, AlertCircle } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ArrowUpRight, Check, X, AlertCircle, Loader2 } from "lucide-react";
 import { Badge } from "@/components/assistant-ui/badge";
 import { SampleFrame } from "@/components/docs/samples/sample-frame";
+import { cn } from "@/lib/utils";
 
 export function BadgeSample() {
   return (
@@ -11,6 +13,9 @@ export function BadgeSample() {
       <Badge variant="secondary">Secondary</Badge>
       <Badge variant="muted">Muted</Badge>
       <Badge variant="ghost">Ghost</Badge>
+      <Badge variant="info">Info</Badge>
+      <Badge variant="warning">Warning</Badge>
+      <Badge variant="success">Success</Badge>
       <Badge variant="destructive">Destructive</Badge>
     </SampleFrame>
   );
@@ -76,6 +81,51 @@ export function BadgeAsLinkSample() {
           npm
           <ArrowUpRight />
         </a>
+      </Badge>
+    </SampleFrame>
+  );
+}
+
+export function BadgeAnimatedSample() {
+  const [status, setStatus] = useState<"loading" | "success">("loading");
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setStatus((prev) => (prev === "loading" ? "success" : "loading"));
+    }, 2000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <SampleFrame className="flex h-auto items-center justify-center p-6">
+      <Badge
+        variant={status === "loading" ? "muted" : "success"}
+        className="overflow-hidden"
+      >
+        <span className="relative flex h-4 items-center">
+          <span
+            className={cn(
+              "flex items-center gap-1 transition-all duration-300",
+              status === "loading"
+                ? "opacity-100"
+                : "-translate-y-full opacity-0",
+            )}
+          >
+            <Loader2 className="animate-spin" />
+            Loading
+          </span>
+          <span
+            className={cn(
+              "absolute inset-0 flex items-center gap-1 transition-all duration-300",
+              status === "success"
+                ? "translate-y-0 opacity-100"
+                : "translate-y-full opacity-0",
+            )}
+          >
+            <Check />
+            Success
+          </span>
+        </span>
       </Badge>
     </SampleFrame>
   );

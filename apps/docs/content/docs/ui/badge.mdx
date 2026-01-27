@@ -1,6 +1,9 @@
 ---
 title: Badge
 description: A small label component for displaying status, categories, or metadata.
+links:
+  - label: Radix UI Slot
+    url: https://www.radix-ui.com/primitives/docs/utilities/slot
 ---
 
 import { InstallCommand } from "@/components/docs/fumadocs/install/install-command";
@@ -11,9 +14,8 @@ import {
   BadgeSizesSample,
   BadgeWithIconSample,
   BadgeAsLinkSample,
+  BadgeAnimatedSample,
 } from "@/components/docs/samples/badge";
-
-A styled badge component for displaying labels, tags, or status indicators.
 
 <Callout>
   This is a **standalone component** that does not depend on the assistant-ui runtime. Use it anywhere in your application.
@@ -48,7 +50,10 @@ Use the `variant` prop to change the visual style.
 <Badge variant="secondary" />   // Secondary background
 <Badge variant="muted" />       // Muted background
 <Badge variant="ghost" />       // No background
-<Badge variant="destructive" /> // Destructive/error style
+<Badge variant="info" />        // Blue/info style
+<Badge variant="warning" />     // Amber/warning style
+<Badge variant="success" />     // Green/success style
+<Badge variant="destructive" /> // Red/error style
 ```
 
 ### Sizes
@@ -79,6 +84,14 @@ Use the `asChild` prop to render the badge as a different element, like a link.
   <BadgeAsLinkSample />
 </PreviewCode>
 
+### Animated
+
+Combine with CSS transitions for scroll and color animations.
+
+<PreviewCode file="components/docs/samples/badge" name="BadgeAnimatedSample">
+  <BadgeAnimatedSample />
+</PreviewCode>
+
 ## API Reference
 
 ### Badge
@@ -88,7 +101,7 @@ Use the `asChild` prop to render the badge as a different element, like a link.
   parameters={[
     {
       name: "variant",
-      type: '"outline" | "secondary" | "muted" | "ghost" | "destructive"',
+      type: '"outline" | "secondary" | "muted" | "ghost" | "info" | "warning" | "success" | "destructive"',
       default: '"outline"',
       description: "The visual style of the badge.",
     },
