@@ -2260,7 +2260,7 @@ importers:
         version: link:../tap
       use-effect-event:
         specifier: ^2.0.3
-        version: 2.0.3(react@19.2.3)
+        version: 2.0.3(react@19.2.4)
     devDependencies:
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
@@ -16530,9 +16530,9 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.2.9
 
-  use-effect-event@2.0.3(react@19.2.3):
+  use-effect-event@2.0.3(react@19.2.4):
     dependencies:
-      react: 19.2.3
+      react: 19.2.4
 
   use-isomorphic-layout-effect@1.2.1(@types/react@19.2.9)(react@19.2.4):
     dependencies:
