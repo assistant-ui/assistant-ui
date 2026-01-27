@@ -24,6 +24,7 @@
     "tool-fallback",
     "tool-group",
     "---Standalone---",
+    "badge",
     "select",
     "---Experimental---",
     "part-grouping"

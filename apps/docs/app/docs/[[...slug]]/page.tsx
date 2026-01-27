@@ -10,6 +10,7 @@ import { TableOfContents } from "@/components/docs/layout/table-of-contents";
 import { DocsFooter } from "@/components/docs/layout/docs-footer";
 import { DocsPager } from "@/components/docs/layout/docs-pager";
 import { ArrowUpRight } from "lucide-react";
+import { Badge } from "@/components/assistant-ui/badge";
 
 function DocsCategory({ url }: { url?: string }) {
   const effectiveUrl = url ?? "";
@@ -91,16 +92,12 @@ export default async function Page(props: {
           {page.data.links && page.data.links.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-2">
               {page.data.links.map((link) => (
-                <a
-                  key={link.url}
-                  href={link.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-muted-foreground text-xs transition-colors hover:bg-muted/80 hover:text-foreground"
-                >
-                  {link.label}
-                  <ArrowUpRight className="size-3" />
-                </a>
+                <Badge key={link.url} asChild variant="muted">
+                  <a href={link.url} target="_blank" rel="noopener noreferrer">
+                    {link.label}
+                    <ArrowUpRight />
+                  </a>
+                </Badge>
               ))}
             </div>
           )}

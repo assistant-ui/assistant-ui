@@ -401,4 +401,17 @@ export const registry: RegistryItem[] = [
     ],
     registryDependencies: [],
   },
+  {
+    name: "badge",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/badge.tsx",
+        sourcePath: "../../packages/ui/src/components/assistant-ui/badge.tsx",
+      },
+    ],
+    dependencies: ["@radix-ui/react-slot", "class-variance-authority"],
+    registryDependencies: [],
+  },
 ];
