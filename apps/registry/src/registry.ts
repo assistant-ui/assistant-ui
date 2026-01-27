@@ -427,4 +427,22 @@ export const registry: RegistryItem[] = [
     ],
     registryDependencies: [],
   },
+  {
+    name: "accordion",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/accordion.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/accordion.tsx",
+      },
+    ],
+    dependencies: [
+      "@radix-ui/react-accordion",
+      "lucide-react",
+      "class-variance-authority",
+    ],
+    registryDependencies: [],
+  },
 ];
