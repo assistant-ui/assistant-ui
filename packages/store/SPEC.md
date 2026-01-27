@@ -68,6 +68,8 @@ attachDefaultPeers(resource, { [K]: ClientElement<K> | DerivedElement<K> }): voi
 ```
 Applied if scope not in parent, user input, or previous peers. First wins; throws on duplicate attach.
 
+**Peer Flattening**: Nested default peers are automatically flattened. If a peer has its own default peers, they are recursively gathered and added at the same level. This prevents nesting issues while maintaining the "first wins" rule.
+
 ### tapAssistantClientRef / tapAssistantEmit
 ```typescript
 tapAssistantClientRef(): { current: AssistantClient };
@@ -119,7 +121,7 @@ Flow: `tapAssistantEmit` captures client stack → `emit` queues via microtask �
 | **ProxiedState** | Proxy intercepts `state.foo` → `aui.foo()` → `SYMBOL_GET_OUTPUT` |
 | **Client Stack** | Context stack per level. Emit captures stack. Listeners filter by matching stack |
 | **NotificationManager** | Handles events (`on`/`emit`) and state subscriptions (`subscribe`/`notifySubscribers`) |
-| **splitClients** | Separate root/derived → gather `getDefaultPeers` → filter by existence |
+| **splitClients** | Separate root/derived → recursively gather and flatten `getDefaultPeers` → filter by existence (first wins) |
 
 ## Design
 

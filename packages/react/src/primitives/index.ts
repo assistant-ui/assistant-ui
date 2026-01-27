@@ -8,6 +8,7 @@ export * as MessagePartPrimitive from "./messagePart";
 export * as ErrorPrimitive from "./error";
 export * as MessagePrimitive from "./message";
 export * as ThreadPrimitive from "./thread";
+export * as SuggestionPrimitive from "./suggestion";
 export * as ThreadListPrimitive from "./threadList";
 export * as ThreadListItemPrimitive from "./threadListItem";
 export * as ThreadListItemMorePrimitive from "./threadListItemMore";

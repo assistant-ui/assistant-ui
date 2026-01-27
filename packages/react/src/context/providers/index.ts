@@ -4,6 +4,7 @@ export {
   ThreadListItemRuntimeProvider,
 } from "./ThreadListItemProvider";
 export { MessageByIndexProvider } from "./MessageByIndexProvider";
+export { SuggestionByIndexProvider } from "./SuggestionByIndexProvider";
 export { PartByIndexProvider } from "./PartByIndexProvider";
 export {
   MessageAttachmentByIndexProvider,

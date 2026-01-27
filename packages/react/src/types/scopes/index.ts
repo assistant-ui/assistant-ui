@@ -44,6 +44,18 @@ export type {
 } from "./attachment";
 export type { ToolsState, ToolsMethods, ToolsClientSchema } from "./tools";
 export type {
+  SuggestionsState,
+  SuggestionsMethods,
+  SuggestionsClientSchema,
+  Suggestion,
+} from "./suggestions";
+export type {
+  SuggestionState,
+  SuggestionMethods,
+  SuggestionMeta,
+  SuggestionClientSchema,
+} from "./suggestion";
+export type {
   ModelContextState,
   ModelContextMethods,
   ModelContextClientSchema,

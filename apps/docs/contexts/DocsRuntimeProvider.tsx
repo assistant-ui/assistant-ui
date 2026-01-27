@@ -7,6 +7,7 @@ import {
   AssistantCloud,
   useAui,
   Tools,
+  Suggestions,
 } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import { DevToolsModal } from "@assistant-ui/react-devtools";
@@ -34,6 +35,18 @@ export function DocsRuntimeProvider({
 
   const aui = useAui({
     tools: Tools({ toolkit: docsToolkit }),
+    suggestions: Suggestions([
+      {
+        title: "What's the weather",
+        label: "in San Francisco?",
+        prompt: "What's the weather in San Francisco?",
+      },
+      {
+        title: "Explain React hooks",
+        label: "like useState and useEffect",
+        prompt: "Explain React hooks like useState and useEffect",
+      },
+    ]),
   });
 
   return (

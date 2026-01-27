@@ -1,0 +1,296 @@
+---
+title: Suggestions
+description: Display suggested prompts to help users get started with your assistant.
+---
+
+Suggestions are pre-defined prompts that help users discover what your assistant can do. They appear in the welcome screen and provide a quick way to start conversations.
+
+## Overview
+
+The Suggestions API allows you to configure a list of suggested prompts that are displayed when the thread is empty. Users can click on a suggestion to either populate the composer or immediately send the message.
+
+## Quick Start
+
+Configure suggestions using the `Suggestions()` API in your runtime provider:
+
+```tsx
+import { useAui, Tools, Suggestions } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+
+function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
+  const runtime = useChatRuntime();
+
+  const aui = useAui({
+    tools: Tools({ toolkit: myToolkit }),
+    suggestions: Suggestions([
+      "What can you help me with?",
+      "Tell me a joke",
+      "Explain quantum computing",
+    ]),
+  });
+
+  return (
+    <AssistantRuntimeProvider aui={aui} runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+## Suggestion Format
+
+Suggestions can be provided as either strings or objects with title, label, and prompt:
+
+### Simple Strings
+
+```tsx
+const aui = useAui({
+  suggestions: Suggestions([
+    "What's the weather today?",
+    "Help me write an email",
+    "Explain React hooks",
+  ]),
+});
+```
+
+### Objects with Title and Description
+
+For more detailed suggestions with separate display text and prompts:
+
+```tsx
+const aui = useAui({
+  suggestions: Suggestions([
+    {
+      title: "Weather",
+      label: "in San Francisco",
+      prompt: "What's the weather in San Francisco?",
+    },
+    {
+      title: "React Hooks",
+      label: "useState and useEffect",
+      prompt: "Explain React hooks like useState and useEffect",
+    },
+    {
+      title: "Travel Tips",
+      label: "for Tokyo",
+      prompt: "Give me travel tips for visiting Tokyo",
+    },
+  ]),
+});
+```
+
+## Displaying Suggestions
+
+The default Thread component from the shadcn registry already includes suggestion rendering. The suggestions are displayed in the welcome screen when the thread is empty.
+
+### Customizing Suggestion Display
+
+If you want to customize how suggestions are displayed, you can modify your Thread component:
+
+```tsx
+import {
+  ThreadPrimitive,
+  SuggestionPrimitive,
+  AuiIf,
+} from "@assistant-ui/react";
+
+const ThreadWelcome = () => {
+  return (
+    <div className="flex flex-col items-center justify-center">
+      <h1>Welcome!</h1>
+      <p>How can I help you today?</p>
+
+      {/* Display suggestions */}
+      <div className="grid grid-cols-2 gap-2">
+        <ThreadPrimitive.Suggestions
+          components={{
+            Suggestion: SuggestionItem,
+          }}
+        />
+      </div>
+    </div>
+  );
+};
+
+const SuggestionItem = () => {
+  return (
+    <SuggestionPrimitive.Trigger send asChild>
+      <button className="rounded-lg border p-3 hover:bg-muted">
+        <div className="font-medium">
+          <SuggestionPrimitive.Title />
+        </div>
+        <div className="text-muted-foreground text-sm">
+          <SuggestionPrimitive.Description />
+        </div>
+      </button>
+    </SuggestionPrimitive.Trigger>
+  );
+};
+```
+
+## Suggestion Primitives
+
+### ThreadPrimitive.Suggestions
+
+Renders all suggestions from the suggestions scope.
+
+```tsx
+<ThreadPrimitive.Suggestions
+  components={{
+    Suggestion: CustomSuggestionComponent,
+  }}
+/>
+```
+
+### SuggestionPrimitive.Title
+
+Displays the suggestion's title (the first part when using object format, or the full text when using strings).
+
+```tsx
+<SuggestionPrimitive.Title />
+```
+
+### SuggestionPrimitive.Description
+
+Displays the suggestion's description/label (only shown when using object format).
+
+```tsx
+<SuggestionPrimitive.Description />
+```
+
+### SuggestionPrimitive.Trigger
+
+A button that triggers the suggestion action when clicked.
+
+```tsx
+<SuggestionPrimitive.Trigger
+  send={true}
+  clearComposer={true}
+  asChild
+>
+  <button>Click me</button>
+</SuggestionPrimitive.Trigger>
+```
+
+**Props:**
+
+- `send` (boolean): When true, automatically sends the message. When false, only populates the composer.
+- `clearComposer` (boolean, default: true): When `send` is false, determines if the composer is cleared before adding the suggestion (true) or if the suggestion is appended (false).
+- `asChild` (boolean): Merge props with child element instead of rendering a button.
+
+## Dynamic Suggestions
+
+You can dynamically change suggestions based on your application state:
+
+```tsx
+import { useMemo } from "react";
+
+function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
+  const runtime = useChatRuntime();
+  const user = useUser(); // Your user hook
+
+  const suggestions = useMemo(() => {
+    if (user.isPremium) {
+      return [
+        "Analyze my business data",
+        "Generate a detailed report",
+        "Create a custom workflow",
+      ];
+    }
+    return [
+      "What can you do?",
+      "Tell me a joke",
+      "Help me get started",
+    ];
+  }, [user.isPremium]);
+
+  const aui = useAui({
+    tools: Tools({ toolkit: myToolkit }),
+    suggestions: Suggestions(suggestions),
+  });
+
+  return (
+    <AssistantRuntimeProvider aui={aui} runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+## Context-Aware Suggestions
+
+Suggestions can be tailored to different contexts or user intents:
+
+```tsx
+const suggestions = [
+  {
+    title: "Code Review",
+    label: "Get feedback on your code",
+    prompt: "Can you review this code for me?",
+  },
+  {
+    title: "Debug Help",
+    label: "Find and fix issues",
+    prompt: "Help me debug this error",
+  },
+  {
+    title: "Best Practices",
+    label: "Learn recommended patterns",
+    prompt: "What are the best practices for this?",
+  },
+];
+```
+
+## Best Practices
+
+1. **Keep suggestions concise**: Use clear, actionable prompts that users can understand at a glance
+2. **Show capabilities**: Use suggestions to highlight your assistant's key features
+3. **Provide variety**: Offer suggestions across different use cases
+4. **Use the object format for complex suggestions**: When you need separate title/description, use the object format
+5. **Limit the number**: 3-6 suggestions work best to avoid overwhelming users
+6. **Make them actionable**: Each suggestion should lead to a meaningful interaction
+
+## Migration from Legacy API
+
+If you're using the deprecated `ThreadPrimitive.Suggestion` component, migrate to the new API:
+
+### Before (Deprecated)
+
+```tsx
+<ThreadPrimitive.Suggestion
+  prompt="What's the weather?"
+  send
+/>
+```
+
+### After (Recommended)
+
+1. Configure suggestions in your runtime provider:
+
+```tsx
+const aui = useAui({
+  suggestions: Suggestions(["What's the weather?"]),
+});
+```
+
+2. Display suggestions using the primitives:
+
+```tsx
+<ThreadPrimitive.Suggestions
+  components={{
+    Suggestion: SuggestionItem,
+  }}
+/>
+```
+
+The new API provides:
+- **Centralized configuration**: Define suggestions once in your runtime provider
+- **Better separation of concerns**: Configuration separate from presentation
+- **Type safety**: Full TypeScript support
+- **Consistency**: Follows the same pattern as the Tools API
+
+## Related
+
+- [Thread Component](/docs/ui/thread) - Main chat interface
+- [Tools Guide](/docs/guides/tools) - Configure assistant actions
+- [Context API](/docs/guides/context-api) - Access assistant state

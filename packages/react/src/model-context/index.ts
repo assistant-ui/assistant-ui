@@ -23,5 +23,7 @@ export type { Toolkit, ToolDefinition } from "./toolbox";
 
 export { Tools } from "../client/Tools";
 
+export { Suggestions, type SuggestionConfig } from "../client/Suggestions";
+
 export * from "./registry";
 export * from "./frame";
