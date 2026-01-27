@@ -11,6 +11,13 @@ const createDelayedTool = (delay: number, result?: string): Tool => ({
   },
 });
 
+const createErrorTool = (message: string): Tool => ({
+  parameters: { type: "object", properties: {} },
+  execute: async () => {
+    throw new Error(message);
+  },
+});
+
 describe("unstable_runPendingTools", () => {
   describe("parallel execution", () => {
     it("should run tool calls in parallel", async () => {
@@ -396,5 +403,51 @@ describe("unstable_runPendingTools", () => {
         isError: false,
       });
     });
+
+    it("should handle tool execution errors gracefully", async () => {
+      const errorTool = createErrorTool("Something went wrong");
+      const tools = { errorTool };
+
+      const message: AssistantMessage = {
+        role: "assistant",
+        status: {
+          type: "requires-action",
+          reason: "tool-calls",
+        },
+        parts: [
+          {
+            type: "tool-call",
+            toolCallId: "1",
+            toolName: "errorTool",
+            args: {},
+          } as ToolCallPart,
+        ],
+        content: [],
+        metadata: {
+          unstable_state: {},
+          unstable_data: [],
+          unstable_annotations: [],
+          steps: [],
+          custom: {},
+        },
+      };
+
+      const updatedMessage = await unstable_runPendingTools(
+        message,
+        tools,
+        new AbortController().signal,
+        async () => {},
+      );
+
+      expect(updatedMessage.parts[0]).toMatchObject({
+        type: "tool-call",
+        toolCallId: "1",
+        state: "result",
+        result: "Something went wrong",
+        isError: true,
+      });
+    });
+
   });
+
 });
