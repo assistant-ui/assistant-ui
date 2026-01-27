@@ -11,6 +11,11 @@ const config: NextConfig = {
       destination: "/docs",
       permanent: true,
     },
+    {
+      source: "/chatgpt-app-studio",
+      destination: "/mcp-app-studio",
+      permanent: true,
+    },
   ],
   rewrites: async () => ({
     beforeFiles: [
