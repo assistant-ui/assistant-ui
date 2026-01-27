@@ -22,13 +22,11 @@ function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
 
   const aui = useAui({
     tools: Tools({ toolkit: myToolkit }),
-    suggestions: Suggestions({
-      suggestions: [
-        "What can you help me with?",
-        "Tell me a joke",
-        "Explain quantum computing",
-      ],
-    }),
+    suggestions: Suggestions([
+      "What can you help me with?",
+      "Tell me a joke",
+      "Explain quantum computing",
+    ]),
   });
 
   return (
@@ -47,13 +45,11 @@ Suggestions can be provided as either strings or objects with title, label, and 
 
 ```tsx
 const aui = useAui({
-  suggestions: Suggestions({
-    suggestions: [
-      "What's the weather today?",
-      "Help me write an email",
-      "Explain React hooks",
-    ],
-  }),
+  suggestions: Suggestions([
+    "What's the weather today?",
+    "Help me write an email",
+    "Explain React hooks",
+  ]),
 });
 ```
 
@@ -63,25 +59,23 @@ For more detailed suggestions with separate display text and prompts:
 
 ```tsx
 const aui = useAui({
-  suggestions: Suggestions({
-    suggestions: [
-      {
-        title: "Weather",
-        label: "in San Francisco",
-        prompt: "What's the weather in San Francisco?",
-      },
-      {
-        title: "React Hooks",
-        label: "useState and useEffect",
-        prompt: "Explain React hooks like useState and useEffect",
-      },
-      {
-        title: "Travel Tips",
-        label: "for Tokyo",
-        prompt: "Give me travel tips for visiting Tokyo",
-      },
-    ],
-  }),
+  suggestions: Suggestions([
+    {
+      title: "Weather",
+      label: "in San Francisco",
+      prompt: "What's the weather in San Francisco?",
+    },
+    {
+      title: "React Hooks",
+      label: "useState and useEffect",
+      prompt: "Explain React hooks like useState and useEffect",
+    },
+    {
+      title: "Travel Tips",
+      label: "for Tokyo",
+      prompt: "Give me travel tips for visiting Tokyo",
+    },
+  ]),
 });
 ```
 
@@ -212,7 +206,7 @@ function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
 
   const aui = useAui({
     tools: Tools({ toolkit: myToolkit }),
-    suggestions: Suggestions({ suggestions }),
+    suggestions: Suggestions(suggestions),
   });
 
   return (
@@ -275,9 +269,7 @@ If you're using the deprecated `ThreadPrimitive.Suggestion` component, migrate t
 
 ```tsx
 const aui = useAui({
-  suggestions: Suggestions({
-    suggestions: ["What's the weather?"],
-  }),
+  suggestions: Suggestions(["What's the weather?"]),
 });
 ```
 

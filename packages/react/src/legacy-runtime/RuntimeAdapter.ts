@@ -29,7 +29,7 @@ export const RuntimeAdapter = resource((runtime: AssistantRuntime) => {
 attachDefaultPeers(RuntimeAdapter, {
   modelContext: ModelContext(),
   tools: Tools({}),
-  suggestions: Suggestions({}),
+  suggestions: Suggestions(),
   threadListItem: Derived({
     source: "threads",
     query: { type: "main" },

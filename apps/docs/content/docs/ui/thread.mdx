@@ -111,9 +111,7 @@ import { SuggestionPrimitive, ThreadPrimitive } from "@assistant-ui/react";
 
 // Configure suggestions in your runtime provider
 const aui = useAui({
-  suggestions: Suggestions({
-    suggestions: ["What's the weather?", "Tell me a joke"],
-  }),
+  suggestions: Suggestions(["What's the weather?", "Tell me a joke"]),
 });
 
 // Display suggestions in your thread component

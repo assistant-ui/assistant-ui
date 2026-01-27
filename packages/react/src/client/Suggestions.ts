@@ -17,28 +17,23 @@ const SuggestionClient = resource(
   },
 );
 
-export const Suggestions = resource(
-  ({
-    suggestions,
-  }: {
-    suggestions?: SuggestionConfig[];
-  }): ClientOutput<"suggestions"> => {
+const SuggestionsResource = resource(
+  (suggestions?: SuggestionConfig[]): ClientOutput<"suggestions"> => {
     const [state] = tapState<SuggestionsState>(() => {
-      const normalizedSuggestions =
-        suggestions?.map((s) => {
-          if (typeof s === "string") {
-            return {
-              title: s,
-              label: "",
-              prompt: s,
-            };
-          }
+      const normalizedSuggestions = (suggestions ?? []).map((s) => {
+        if (typeof s === "string") {
           return {
-            title: s.title,
-            label: s.label,
-            prompt: s.prompt,
+            title: s,
+            label: "",
+            prompt: s,
           };
-        }) ?? [];
+        }
+        return {
+          title: s.title,
+          label: s.label,
+          prompt: s.prompt,
+        };
+      });
 
       return {
         suggestions: normalizedSuggestions,
@@ -64,3 +59,16 @@ export const Suggestions = resource(
     };
   },
 );
+
+export const Suggestions: {
+  (): import("@assistant-ui/tap").ResourceElement<
+    ClientOutput<"suggestions">,
+    undefined
+  >;
+  (
+    suggestions: SuggestionConfig[],
+  ): import("@assistant-ui/tap").ResourceElement<
+    ClientOutput<"suggestions">,
+    SuggestionConfig[]
+  >;
+} = SuggestionsResource as any;
