@@ -91,10 +91,20 @@ const IMAGE_MEDIA_TYPES: Record<string, string> = {
   ico: "image/x-icon",
   tiff: "image/tiff",
   tif: "image/tiff",
+  heic: "image/heic",
+  heif: "image/heif",
 };
 
 function inferImageMediaType(url: string): string {
-  const ext = url.split(".").pop()?.toLowerCase().split("?")[0] ?? "";
+  // Handle data URLs: data:[<mediatype>][;base64],<data>
+  if (url.startsWith("data:")) {
+    const match = url.match(/^data:([^;,]+)/);
+    if (match?.[1]) return match[1];
+  }
+
+  // Extract extension from URL path, ignoring query string and hash
+  const pathWithoutParams = url.split(/[?#]/)[0];
+  const ext = pathWithoutParams.split(".").pop()?.toLowerCase() ?? "";
   return IMAGE_MEDIA_TYPES[ext] ?? "image/png";
 }
 
@@ -114,8 +124,8 @@ type ToolCallAccumulator = {
 function processToolCall(
   part: MessagePartLike,
   accumulator: ToolCallAccumulator,
-): void {
-  if (!part.toolCallId || !part.toolName) return;
+): boolean {
+  if (!part.toolCallId || !part.toolName) return false;
 
   accumulator.textParts.push({
     type: "tool-call",
@@ -135,7 +145,9 @@ function processToolCall(
       toolResult.isError = true;
     }
     accumulator.toolResults.push(toolResult);
+    return true;
   }
+  return false;
 }
 
 function flushAccumulator(
@@ -216,8 +228,7 @@ function convertAssistantMessage(
       }
       accumulator.textParts.push({ type: "text", text: part.text });
     } else if (part.type === "tool-call") {
-      processToolCall(part, accumulator);
-      if (part.result !== undefined) {
+      if (processToolCall(part, accumulator)) {
         hasPendingToolResults = true;
       }
     }

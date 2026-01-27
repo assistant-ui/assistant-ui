@@ -100,16 +100,13 @@ export function toToolsJSONSchema(
 
   return Object.fromEntries(
     Object.entries(tools)
-      .filter(([name, tool]) => filter(name, tool))
-      .filter(([, tool]) => tool.parameters !== undefined)
-      .map(([name, tool]) => {
-        const entry: ToolJSONSchema = {
+      .filter(([name, tool]) => filter(name, tool) && tool.parameters)
+      .map(([name, tool]) => [
+        name,
+        {
+          ...(tool.description && { description: tool.description }),
           parameters: toJSONSchema(tool.parameters!),
-        };
-        if (tool.description) {
-          entry.description = tool.description;
-        }
-        return [name, entry];
-      }),
+        },
+      ]),
   );
 }
