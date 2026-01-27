@@ -32,7 +32,7 @@ import { ThreadPrimitive, AuiIf } from "@assistant-ui/react";
     />
     <ThreadPrimitive.ScrollToBottom />
   </ThreadPrimitive.Viewport>
-  <ThreadPrimitive.Suggestion />
+  <ThreadPrimitive.Suggestions />
   <AuiIf condition={...} />
 </ThreadPrimitive.Root>
 ```
@@ -104,11 +104,33 @@ export default function Chat() {
 
 ### Suggestions
 
+Display suggested prompts using the Suggestions API. See the [Suggestions guide](/docs/guides/suggestions) for detailed configuration.
+
 ```tsx
-<ThreadPrimitive.Suggestion
-  prompt="What's the weather in San Francisco?"
-  send
+import { SuggestionPrimitive, ThreadPrimitive } from "@assistant-ui/react";
+
+// Configure suggestions in your runtime provider
+const aui = useAui({
+  suggestions: Suggestions({
+    suggestions: ["What's the weather?", "Tell me a joke"],
+  }),
+});
+
+// Display suggestions in your thread component
+<ThreadPrimitive.Suggestions
+  components={{
+    Suggestion: SuggestionItem,
+  }}
 />
+
+// Custom suggestion item
+const SuggestionItem = () => (
+  <SuggestionPrimitive.Trigger send asChild>
+    <button>
+      <SuggestionPrimitive.Title />
+    </button>
+  </SuggestionPrimitive.Trigger>
+);
 ```
 
 ## API Reference
@@ -297,66 +319,32 @@ A button to scroll the viewport to the bottom. Disabled when the viewport is alr
 
 This primitive renders a `<button>` element unless `asChild` is set.
 
-### Suggestion
+### Suggestions
 
-Shows a suggestion to the user. When clicked, replaces the composer's value with the suggestion and optionally sends it.
+Renders all configured suggestions. Configure suggestions using the `Suggestions()` API in your runtime provider.
 
 ```tsx
-<ThreadPrimitive.Suggestion
-  prompt="Tell me about React hooks"
-  send
+<ThreadPrimitive.Suggestions
+  components={{
+    Suggestion: CustomSuggestionComponent,
+  }}
 />
 ```
 
 <ParametersTable
-  type="ThreadPrimitiveSuggestionProps"
+  type="ThreadPrimitiveSuggestionsProps"
   parameters={[
     {
-      name: "prompt",
-      type: "string",
-      required: true,
-      description: "The suggestion text to use when clicked.",
-    },
-    {
-      name: "send",
-      type: "boolean",
-      description:
-        "When true, automatically sends the message. When false, replaces or appends the composer text with the suggestion - depending on the value of `clearComposer`",
-    },
-    {
-      name: "clearComposer",
-      type: "boolean",
-      default: "true",
-      description:
-        "Whether to clear the composer after sending. When send is set to false, determines if composer text is replaced with suggestion (true, default), or if the suggestion's prompt is appended to the composer text (false).",
-    },
-    {
-      name: "autoSend",
-      type: "boolean",
-      deprecated: true,
-      description: "Deprecated. Use 'send' instead.",
-    },
-    {
-      name: "method",
-      type: "'replace'",
-      deprecated: true,
-      description: "Deprecated. This parameter is no longer used.",
-    },
-    {
-      name: "asChild",
-      type: "boolean",
-      default: "false",
-      description: "Merge props with child element instead of rendering a wrapper button.",
-    },
-    {
-      name: "className",
-      type: "string",
-      description: "CSS class name.",
+      name: "components",
+      type: "{ Suggestion: ComponentType }",
+      description: "Custom component to render each suggestion.",
     },
   ]}
 />
 
-This primitive renders a `<button>` element unless `asChild` is set.
+<Callout type="info">
+See the [Suggestions guide](/docs/guides/suggestions) for detailed information on configuring and customizing suggestions.
+</Callout>
 
 ### AuiIf
 

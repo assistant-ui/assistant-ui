@@ -7,7 +7,7 @@ import {
   attachDefaultPeers,
 } from "@assistant-ui/store";
 import { ModelContext } from "../client/ModelContextClient";
-import { Tools } from "../model-context";
+import { Tools, Suggestions } from "../model-context";
 
 export const RuntimeAdapter = resource((runtime: AssistantRuntime) => {
   const clientRef = tapAssistantClientRef();
@@ -29,6 +29,7 @@ export const RuntimeAdapter = resource((runtime: AssistantRuntime) => {
 attachDefaultPeers(RuntimeAdapter, {
   modelContext: ModelContext(),
   tools: Tools({}),
+  suggestions: Suggestions({}),
   threadListItem: Derived({
     source: "threads",
     query: { type: "main" },

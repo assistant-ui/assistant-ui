@@ -9,3 +9,7 @@ export { ThreadPrimitiveMessages as Messages } from "./ThreadMessages";
 export { ThreadPrimitiveMessageByIndex as MessageByIndex } from "./ThreadMessages";
 export { ThreadPrimitiveScrollToBottom as ScrollToBottom } from "./ThreadScrollToBottom";
 export { ThreadPrimitiveSuggestion as Suggestion } from "./ThreadSuggestion";
+export {
+  ThreadPrimitiveSuggestions as Suggestions,
+  ThreadPrimitiveSuggestionByIndex as SuggestionByIndex,
+} from "./ThreadSuggestions";

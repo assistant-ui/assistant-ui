@@ -1,0 +1,153 @@
+---
+title: SuggestionPrimitive
+---
+
+import { ParametersTable } from "@/components/docs/tables/ParametersTable";
+
+Primitives for rendering individual suggestions. These primitives must be used within a suggestion context provided by `ThreadPrimitive.Suggestions`.
+
+## Quick Reference
+
+```tsx
+import { SuggestionPrimitive } from "@assistant-ui/react";
+
+<SuggestionPrimitive.Title />
+<SuggestionPrimitive.Description />
+<SuggestionPrimitive.Trigger />
+```
+
+## API Reference
+
+### `SuggestionPrimitive.Title`
+
+Displays the suggestion's title.
+
+```tsx
+import { SuggestionPrimitive } from "@assistant-ui/react";
+
+const SuggestionCard = () => {
+  return (
+    <div>
+      <h3>
+        <SuggestionPrimitive.Title />
+      </h3>
+    </div>
+  );
+};
+```
+
+This primitive renders a `<span>` element.
+
+### `SuggestionPrimitive.Description`
+
+Displays the suggestion's description/label. This is only shown when suggestions are configured using the object format with separate title and label.
+
+```tsx
+import { SuggestionPrimitive } from "@assistant-ui/react";
+
+const SuggestionCard = () => {
+  return (
+    <div>
+      <p className="text-muted-foreground">
+        <SuggestionPrimitive.Description />
+      </p>
+    </div>
+  );
+};
+```
+
+This primitive renders a `<span>` element.
+
+### `SuggestionPrimitive.Trigger`
+
+A button that triggers the suggestion action when clicked. When clicked, it either sends the message immediately or populates the composer with the suggestion's prompt.
+
+```tsx
+import { SuggestionPrimitive } from "@assistant-ui/react";
+
+const SuggestionButton = () => {
+  return (
+    <SuggestionPrimitive.Trigger send asChild>
+      <button>
+        <SuggestionPrimitive.Title />
+      </button>
+    </SuggestionPrimitive.Trigger>
+  );
+};
+```
+
+<ParametersTable
+  type="SuggestionPrimitiveTriggerProps"
+  parameters={[
+    {
+      name: "send",
+      type: "boolean",
+      description:
+        "When true, automatically sends the message. When false, only populates the composer with the suggestion's prompt.",
+    },
+    {
+      name: "clearComposer",
+      type: "boolean",
+      default: "true",
+      description:
+        "When send is false, determines whether to clear the composer before adding the suggestion (true) or append to existing text (false).",
+    },
+    {
+      name: "asChild",
+      type: "boolean",
+      default: "false",
+      description: "Merge props with child element instead of rendering a wrapper button.",
+    },
+    {
+      name: "className",
+      type: "string",
+      description: "CSS class name.",
+    },
+  ]}
+/>
+
+This primitive renders a `<button>` element unless `asChild` is set.
+
+## Usage Example
+
+```tsx
+import {
+  ThreadPrimitive,
+  SuggestionPrimitive,
+} from "@assistant-ui/react";
+
+const ThreadWelcome = () => {
+  return (
+    <div>
+      <h1>How can I help you?</h1>
+      <div className="grid grid-cols-2 gap-2">
+        <ThreadPrimitive.Suggestions
+          components={{
+            Suggestion: SuggestionCard,
+          }}
+        />
+      </div>
+    </div>
+  );
+};
+
+const SuggestionCard = () => {
+  return (
+    <SuggestionPrimitive.Trigger send asChild>
+      <button className="flex flex-col gap-1 rounded-lg border p-3 hover:bg-muted">
+        <span className="font-medium">
+          <SuggestionPrimitive.Title />
+        </span>
+        <span className="text-muted-foreground text-sm">
+          <SuggestionPrimitive.Description />
+        </span>
+      </button>
+    </SuggestionPrimitive.Trigger>
+  );
+};
+```
+
+## See Also
+
+- [Suggestions Guide](/docs/guides/suggestions) - Configure and customize suggestions
+- [ThreadPrimitive.Suggestions](/docs/reference/api-reference/primitives/thread#threadprimitive-suggestions) - Render all suggestions

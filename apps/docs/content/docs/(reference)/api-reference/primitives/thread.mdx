@@ -183,57 +183,46 @@ This primitive renders a `<button>` element unless `asChild` is set.
   ]}
 />
 
-### `ThreadPrimitive.Suggestion`
+### `ThreadPrimitive.Suggestions`
 
-Shows a suggestion to the user. When the user clicks on the suggestion, the composer's value is set to the suggestion's prompt.
-
-This primitive renders a `<button>` element unless `asChild` is set.
+Renders all configured suggestions from the Suggestions API. Each suggestion is rendered using the provided Suggestion component.
 
 ```tsx
-import { ThreadPrimitive } from "@assistant-ui/react";
+import { ThreadPrimitive, SuggestionPrimitive } from "@assistant-ui/react";
 
-const Suggestion = () => {
+const SuggestionsList = () => {
   return (
-    <ThreadPrimitive.Suggestion
-      prompt="I need help with product search"
-      send
-    />
+    <div className="grid grid-cols-2 gap-2">
+      <ThreadPrimitive.Suggestions
+        components={{
+          Suggestion: SuggestionItem,
+        }}
+      />
+    </div>
   );
 };
+
+const SuggestionItem = () => (
+  <SuggestionPrimitive.Trigger send asChild>
+    <button className="p-3 border rounded">
+      <SuggestionPrimitive.Title />
+      <SuggestionPrimitive.Description />
+    </button>
+  </SuggestionPrimitive.Trigger>
+);
 ```
 
 <ParametersTable
-  type="ThreadPrimitiveSuggestionProps"
+  type="ThreadPrimitiveSuggestionsProps"
   parameters={[
     {
-      name: "prompt",
-      type: "string",
-      description: "The suggestion's prompt.",
-    },
-    {
-      name: "send",
-      type: "boolean",
-      description:
-        "When true, automatically sends the message. When false, replaces or appends the composer text with the suggestion - depending on the value of `clearComposer`",
-    },
-    {
-      name: "clearComposer",
-      type: "boolean",
-      default: "true",
-      description:
-        "Whether to clear the composer after sending. When send is set to false, determines if composer text is replaced with suggestion (true, default), or if the suggestion's prompt is appended to the composer text (false).",
-    },
-    {
-      name: "autoSend",
-      type: "boolean",
-      deprecated: true,
-      description: "Deprecated. Use 'send' instead.",
-    },
-    {
-      name: "method",
-      type: "'replace'",
-      deprecated: true,
-      description: "Deprecated. This parameter is no longer used.",
+      name: "components",
+      type: "{ Suggestion: ComponentType }",
+      description: "Custom component to render each suggestion.",
     },
   ]}
 />
+
+<Callout type="info">
+Configure suggestions using the `Suggestions()` API in your runtime provider. See the [Suggestions guide](/docs/guides/suggestions) for details.
+</Callout>
