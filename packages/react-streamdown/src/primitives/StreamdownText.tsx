@@ -1,15 +1,43 @@
 "use client";
 
 import { INTERNAL, useMessagePartText } from "@assistant-ui/react";
-import { Streamdown } from "streamdown";
+import { harden } from "rehype-harden";
+import rehypeRaw from "rehype-raw";
+import rehypeSanitize from "rehype-sanitize";
+import { Streamdown, type StreamdownProps } from "streamdown";
 import { type ComponentRef, forwardRef, useMemo } from "react";
 import { useAdaptedComponents } from "../adapters/components-adapter";
 import { DEFAULT_SHIKI_THEME, mergePlugins } from "../defaults";
-import type { StreamdownTextPrimitiveProps } from "../types";
+import type { SecurityConfig, StreamdownTextPrimitiveProps } from "../types";
 
 const { useSmoothStatus } = INTERNAL;
 
 type StreamdownTextPrimitiveElement = ComponentRef<"div">;
+
+/**
+ * Builds custom rehypePlugins array with security configuration.
+ * This overrides streamdown's default allow-all policy.
+ */
+const buildSecurityRehypePlugins = (
+  security: SecurityConfig,
+): NonNullable<StreamdownProps["rehypePlugins"]> => {
+  return [
+    rehypeRaw,
+    [rehypeSanitize, {}],
+    [
+      harden,
+      {
+        allowedImagePrefixes: security.allowedImagePrefixes ?? ["*"],
+        allowedLinkPrefixes: security.allowedLinkPrefixes ?? ["*"],
+        allowedProtocols: security.allowedProtocols ?? ["*"],
+        allowDataImages: security.allowDataImages ?? true,
+        defaultOrigin: security.defaultOrigin,
+        blockedLinkClass: security.blockedLinkClass,
+        blockedImageClass: security.blockedImageClass,
+      },
+    ],
+  ];
+};
 
 /**
  * A primitive component for rendering markdown text using Streamdown.
@@ -73,7 +101,12 @@ export const StreamdownTextPrimitive = forwardRef<
       linkSafety,
       remend,
       mermaid,
+      parseIncompleteMarkdown,
       allowedTags,
+      remarkRehypeOptions,
+      security,
+      BlockComponent,
+      parseMarkdownIntoBlocksFn,
 
       // streamdown props
       mode = "streaming",
@@ -129,10 +162,19 @@ export const StreamdownTextPrimitive = forwardRef<
     }, [components, adaptedComponents]);
 
     // Merge container class names
-    const containerClass =
-      [containerClassName, containerProps?.className]
-        .filter(Boolean)
-        .join(" ") || undefined;
+    const containerClass = useMemo(() => {
+      return (
+        [containerClassName, containerProps?.className]
+          .filter(Boolean)
+          .join(" ") || undefined
+      );
+    }, [containerClassName, containerProps?.className]);
+
+    // Build custom rehypePlugins when security config is provided
+    const rehypePlugins = useMemo(() => {
+      if (!security) return undefined;
+      return buildSecurityRehypePlugins(security);
+    }, [security]);
 
     // Build optional props object (filter out undefined for exactOptionalPropertyTypes)
     const optionalProps = {
@@ -142,9 +184,14 @@ export const StreamdownTextPrimitive = forwardRef<
       ...(linkSafety && { linkSafety }),
       ...(remend && { remend }),
       ...(mermaid && { mermaid }),
+      ...(parseIncompleteMarkdown !== undefined && { parseIncompleteMarkdown }),
       ...(allowedTags && { allowedTags }),
       ...(resolvedPlugins && { plugins: resolvedPlugins }),
       ...(resolvedShikiTheme && { shikiTheme: resolvedShikiTheme }),
+      ...(remarkRehypeOptions && { remarkRehypeOptions }),
+      ...(rehypePlugins && { rehypePlugins }),
+      ...(BlockComponent && { BlockComponent }),
+      ...(parseMarkdownIntoBlocksFn && { parseMarkdownIntoBlocksFn }),
     };
 
     return (

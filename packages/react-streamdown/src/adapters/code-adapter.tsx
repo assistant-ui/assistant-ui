@@ -131,6 +131,7 @@ export function createCodeAdapter(options: CodeAdapterOptions) {
   const AdaptedCode = memo(AdaptedCodeInner, (prev, next) => {
     return (
       prev.className === next.className &&
+      prev.children === next.children &&
       prev.node?.position?.start.line === next.node?.position?.start.line &&
       prev.node?.position?.end.line === next.node?.position?.end.line
     );

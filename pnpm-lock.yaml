@@ -2237,6 +2237,15 @@ importers:
       '@streamdown/mermaid':
         specifier: ^1.0.0
         version: 1.0.1(react@19.2.4)
+      rehype-harden:
+        specifier: ^1.1.7
+        version: 1.1.7
+      rehype-raw:
+        specifier: ^7.0.0
+        version: 7.0.0
+      rehype-sanitize:
+        specifier: ^6.0.0
+        version: 6.0.0
       streamdown:
         specifier: ^2.0.0
         version: 2.1.0(react@19.2.4)
@@ -2265,6 +2274,9 @@ importers:
       react-dom:
         specifier: ^19.2.3
         version: 19.2.4(react@19.2.4)
+      remark-rehype:
+        specifier: ^11.1.2
+        version: 11.1.2
       vitest:
         specifier: ^4.0.16
         version: 4.0.18(@opentelemetry/api@1.9.0)(@types/node@25.0.10)(@vitest/ui@4.0.18)(jiti@2.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(tsx@4.21.0)(yaml@2.8.2)

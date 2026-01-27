@@ -1,5 +1,6 @@
 import type { Element } from "hast";
 import type { ComponentPropsWithoutRef, ComponentType, ReactNode } from "react";
+import type { Options as RemarkRehypeOptions } from "remark-rehype";
 import type {
   StreamdownProps,
   MermaidOptions,
@@ -52,6 +53,18 @@ export type LinkSafetyConfig = {
 };
 
 /**
+ * Custom handler for incomplete markdown completion.
+ */
+export type RemendHandler = {
+  /** Handler name for identification */
+  name: string;
+  /** Function to transform text */
+  handle: (text: string) => string;
+  /** Priority for handler execution order (lower runs first, default: 100) */
+  priority?: number;
+};
+
+/**
  * Configuration for incomplete markdown auto-completion.
  */
 export type RemendConfig = {
@@ -75,6 +88,8 @@ export type RemendConfig = {
   katex?: boolean;
   /** Handle incomplete setext headings to prevent misinterpretation */
   setextHeadings?: boolean;
+  /** Custom handlers for incomplete markdown completion */
+  handlers?: RemendHandler[];
 };
 
 /**
@@ -130,16 +145,23 @@ export type StreamdownTextComponents = NonNullable<
  * Plugin configuration type.
  * Set to `false` to explicitly disable a plugin.
  * Set to a plugin instance to use that plugin.
- * Omit or set to `undefined` to use auto-detection for code/math/cjk.
+ *
+ * NOTE: Plugins are NOT auto-detected for tree-shaking optimization.
+ * You must explicitly import and provide them.
+ *
+ * @example
+ * import { code } from "@streamdown/code";
+ * import { math } from "@streamdown/math";
+ * <StreamdownTextPrimitive plugins={{ code, math }} />
  */
 export type PluginConfig = {
-  /** Code syntax highlighting plugin. Auto-detected if @streamdown/code is installed. */
+  /** Code syntax highlighting plugin. Must be explicitly provided. */
   code?: unknown | false | undefined;
-  /** Math/LaTeX rendering plugin. Auto-detected if @streamdown/math is installed. */
+  /** Math/LaTeX rendering plugin. Must be explicitly provided. */
   math?: unknown | false | undefined;
-  /** CJK text optimization plugin. Auto-detected if @streamdown/cjk is installed. */
+  /** CJK text optimization plugin. Must be explicitly provided. */
   cjk?: unknown | false | undefined;
-  /** Mermaid diagram plugin. Must be explicitly provided (not auto-detected). */
+  /** Mermaid diagram plugin. Must be explicitly provided. */
   mermaid?: unknown | false | undefined;
 };
 
@@ -155,7 +177,53 @@ export type ResolvedPluginConfig = NonNullable<StreamdownProps["plugins"]>;
  */
 export type AllowedTags = Record<string, string[]>;
 
-export type { MermaidOptions, MermaidErrorComponentProps };
+/**
+ * Security configuration for URL validation via rehype-harden.
+ * Overrides streamdown's permissive defaults (allow-all policy).
+ *
+ * @example
+ * // Restrict to specific domains
+ * security={{
+ *   allowedLinkPrefixes: ["https://example.com", "https://docs.example.com"],
+ *   allowedImagePrefixes: ["https://cdn.example.com"],
+ *   allowedProtocols: ["https", "mailto"],
+ * }}
+ */
+export type SecurityConfig = {
+  /** URL prefixes allowed for links. Default: ["*"] (all) */
+  allowedLinkPrefixes?: string[];
+  /** URL prefixes allowed for images. Default: ["*"] (all) */
+  allowedImagePrefixes?: string[];
+  /** Allowed protocols (e.g., ["http", "https", "mailto"]). Default: ["*"] */
+  allowedProtocols?: string[];
+  /** Allow base64 data images. Default: true */
+  allowDataImages?: boolean;
+  /** Default origin for relative URLs */
+  defaultOrigin?: string;
+  /** CSS class for blocked links */
+  blockedLinkClass?: string;
+  /** CSS class for blocked images */
+  blockedImageClass?: string;
+};
+
+export type { MermaidOptions, MermaidErrorComponentProps, RemarkRehypeOptions };
+
+/**
+ * Props for the BlockComponent override.
+ * Used to customize how individual markdown blocks are rendered.
+ *
+ * Note: This is a documentation type. The actual BlockComponent prop
+ * uses StreamdownProps["BlockComponent"] for type compatibility.
+ */
+export type BlockProps = {
+  content: string;
+  shouldParseIncompleteMarkdown: boolean;
+  index: number;
+  components?: StreamdownProps["components"];
+  rehypePlugins?: StreamdownProps["rehypePlugins"];
+  remarkPlugins?: StreamdownProps["remarkPlugins"];
+  remarkRehypeOptions?: RemarkRehypeOptions;
+};
 
 /**
  * Props for StreamdownTextPrimitive.
@@ -170,6 +238,8 @@ export type StreamdownTextPrimitiveProps = Omit<
   | "linkSafety"
   | "remend"
   | "mermaid"
+  | "BlockComponent"
+  | "parseMarkdownIntoBlocksFn"
 > & {
   /**
    * Custom components for rendering markdown elements.
@@ -284,6 +354,13 @@ export type StreamdownTextPrimitiveProps = Omit<
   mermaid?: MermaidOptions | undefined;
 
   /**
+   * Whether to parse incomplete markdown during streaming.
+   * When true, incomplete markdown syntax will be processed as-is.
+   * When false (default), remend will complete the syntax first.
+   */
+  parseIncompleteMarkdown?: boolean | undefined;
+
+  /**
    * Allowed HTML tags whitelist.
    * Maps tag names to their allowed attribute names.
    * Use this to allow specific HTML tags in markdown content.
@@ -292,6 +369,48 @@ export type StreamdownTextPrimitiveProps = Omit<
    * allowedTags={{ div: ['class', 'id'], span: ['class'] }}
    */
   allowedTags?: AllowedTags | undefined;
+
+  /**
+   * Options passed to remark-rehype during markdown processing.
+   * Allows customization of the remark to rehype conversion.
+   *
+   * @example
+   * remarkRehypeOptions={{ allowDangerousHtml: true }}
+   */
+  remarkRehypeOptions?: RemarkRehypeOptions | undefined;
+
+  /**
+   * Security configuration for URL/image validation.
+   * Overrides streamdown's default (allow-all) policy via rehype-harden.
+   *
+   * @example
+   * // Restrict links to trusted domains only
+   * security={{
+   *   allowedLinkPrefixes: ["https://trusted.com"],
+   *   allowedImagePrefixes: ["https://cdn.trusted.com"],
+   *   allowedProtocols: ["https"],
+   * }}
+   */
+  security?: SecurityConfig | undefined;
+
+  /**
+   * Custom component for rendering individual markdown blocks.
+   * Use this for advanced block-level customization.
+   *
+   * @example
+   * BlockComponent={({ content, index }) => <div key={index}>{content}</div>}
+   */
+  BlockComponent?: StreamdownProps["BlockComponent"] | undefined;
+
+  /**
+   * Custom function to parse markdown into blocks.
+   * By default, streamdown splits on double newlines.
+   * Use this to implement custom block splitting logic.
+   *
+   * @example
+   * parseMarkdownIntoBlocksFn={(md) => md.split(/\n{2,}/)}
+   */
+  parseMarkdownIntoBlocksFn?: ((markdown: string) => string[]) | undefined;
 };
 
 export type { StreamdownProps };

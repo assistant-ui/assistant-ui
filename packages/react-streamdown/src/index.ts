@@ -1,6 +1,10 @@
 export { StreamdownTextPrimitive } from "./primitives/StreamdownText";
-export { useIsStreamdownCodeBlock } from "./adapters/PreOverride";
+export {
+  useIsStreamdownCodeBlock,
+  useStreamdownPreProps,
+} from "./adapters/PreOverride";
 export { DEFAULT_SHIKI_THEME } from "./defaults";
+export { memoCompareNodes } from "./memoization";
 
 export type {
   StreamdownTextPrimitiveProps,
@@ -15,9 +19,13 @@ export type {
   LinkSafetyConfig,
   LinkSafetyModalProps,
   RemendConfig,
+  RemendHandler,
   MermaidOptions,
   MermaidErrorComponentProps,
   AllowedTags,
+  RemarkRehypeOptions,
+  BlockProps,
+  SecurityConfig,
 } from "./types";
 
 // Re-export streamdown context and utilities

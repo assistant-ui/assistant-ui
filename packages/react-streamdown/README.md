@@ -79,6 +79,13 @@ import { StreamdownTextPrimitive } from "@assistant-ui/react-streamdown";
 | `controls` | `boolean \| object` | Enable/disable UI controls for code blocks and tables |
 | `containerProps` | `object` | Props for the container div |
 | `containerClassName` | `string` | Class name for the container |
+| `remarkRehypeOptions` | `object` | Options passed to remark-rehype during processing |
+| `BlockComponent` | `React.ComponentType` | Custom component for rendering blocks |
+| `parseMarkdownIntoBlocksFn` | `(md: string) => string[]` | Custom block parsing function |
+| `remend` | `object` | Incomplete markdown auto-completion config |
+| `linkSafety` | `object` | Link safety confirmation config |
+| `mermaid` | `object` | Mermaid diagram rendering config |
+| `allowedTags` | `object` | HTML tags whitelist |
 
 ## Differences from react-markdown
 
@@ -86,6 +93,70 @@ import { StreamdownTextPrimitive } from "@assistant-ui/react-streamdown";
 2. **Built-in highlighting**: Shiki is integrated via `@streamdown/code` plugin
 3. **No smooth prop**: Streaming animation is handled by streamdown's `mode` and `isAnimating`
 4. **Auto isAnimating**: Automatically detects streaming state from message context
+
+## Advanced Usage
+
+### Custom Block Rendering
+
+Use `BlockComponent` to customize how individual markdown blocks are rendered:
+
+```tsx
+<StreamdownTextPrimitive
+  BlockComponent={({ content, index }) => (
+    <div key={index} className="my-block">
+      {/* Custom block rendering */}
+    </div>
+  )}
+/>
+```
+
+### Custom Block Parsing
+
+Override the default block splitting logic:
+
+```tsx
+<StreamdownTextPrimitive
+  parseMarkdownIntoBlocksFn={(markdown) => markdown.split(/\n{2,}/)}
+/>
+```
+
+### Using Hooks
+
+```tsx
+import {
+  useIsStreamdownCodeBlock,
+  useStreamdownPreProps,
+} from "@assistant-ui/react-streamdown";
+
+// Inside a code component
+function MyCodeComponent() {
+  const isCodeBlock = useIsStreamdownCodeBlock();
+  const preProps = useStreamdownPreProps();
+
+  if (!isCodeBlock) {
+    return <code className="inline-code">...</code>;
+  }
+
+  return <pre {...preProps}>...</pre>;
+}
+```
+
+## Performance Best Practices
+
+1. **Use memoized components**: Custom `SyntaxHighlighter` and `CodeHeader` components should be memoized to avoid unnecessary re-renders.
+
+2. **Avoid inline function props**: Define `preprocess`, `parseMarkdownIntoBlocksFn`, and other callbacks outside the render function or wrap them in `useCallback`.
+
+3. **Plugin configuration**: Pass plugin objects by reference (not inline) to prevent recreation on each render.
+
+```tsx
+// Good
+const plugins = useMemo(() => ({ code, math }), []);
+<StreamdownTextPrimitive plugins={plugins} />
+
+// Avoid
+<StreamdownTextPrimitive plugins={{ code, math }} />
+```
 
 ## License
 

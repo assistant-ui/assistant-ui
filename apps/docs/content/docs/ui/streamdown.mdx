@@ -91,6 +91,9 @@ const StreamdownText = () => (
 | `allowedTags` | `Record<string, string[]>` | - | HTML tags whitelist |
 | `containerProps` | `object` | - | Props for the container div |
 | `containerClassName` | `string` | - | Class name for the container |
+| `remarkRehypeOptions` | `object` | - | Options passed to remark-rehype |
+| `BlockComponent` | `ComponentType` | - | Custom component for rendering blocks |
+| `parseMarkdownIntoBlocksFn` | `(md: string) => string[]` | - | Custom block parsing function |
 
 ## Plugin Configuration
 
@@ -224,6 +227,24 @@ function MyCodeComponent({ children, ...props }) {
 }
 ```
 
+You can also use `useStreamdownPreProps` to access the props passed to the parent `<pre>` element:
+
+```tsx
+import { useStreamdownPreProps } from "@assistant-ui/react-streamdown";
+
+function MyCodeComponent({ children }) {
+  const preProps = useStreamdownPreProps();
+
+  if (!preProps) {
+    // Inline code
+    return <code>{children}</code>;
+  }
+
+  // Block code - preProps contains className, node, etc.
+  return <code className={preProps.className}>{children}</code>;
+}
+```
+
 ## Comparison with react-markdown
 
 | Feature | react-markdown | react-streamdown |
@@ -237,7 +258,7 @@ function MyCodeComponent({ children, ...props }) {
 
 ## Re-exported Utilities
 
-The package re-exports useful utilities from `streamdown`:
+The package re-exports useful utilities:
 
 ```tsx
 import {
@@ -245,6 +266,11 @@ import {
   StreamdownContext,
   // Parse markdown into blocks (for custom implementations)
   parseMarkdownIntoBlocks,
+  // Hooks for custom code components
+  useIsStreamdownCodeBlock,
+  useStreamdownPreProps,
+  // Memo comparison utility for custom components
+  memoCompareNodes,
 } from "@assistant-ui/react-streamdown";
 ```
 
@@ -267,6 +293,8 @@ import type {
   LinkSafetyConfig,
   RemendConfig,
   AllowedTags,
+  RemarkRehypeOptions,
+  BlockProps,
 } from "@assistant-ui/react-streamdown";
 ```
 
