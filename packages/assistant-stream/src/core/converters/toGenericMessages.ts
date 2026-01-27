@@ -103,7 +103,7 @@ function inferImageMediaType(url: string): string {
   }
 
   // Extract extension from URL path, ignoring query string and hash
-  const pathWithoutParams = url.split(/[?#]/)[0];
+  const [pathWithoutParams = ""] = url.split(/[?#]/);
   const ext = pathWithoutParams.split(".").pop()?.toLowerCase() ?? "";
   return IMAGE_MEDIA_TYPES[ext] ?? "image/png";
 }
