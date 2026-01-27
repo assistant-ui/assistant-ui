@@ -76,7 +76,7 @@ export const ToolUIProvider = memo(
 
       if (!createSandbox) {
         throw new Error(
-          "ToolUIProvider: `createSanbox` must be provided when constructing runtime",
+          "ToolUIProvider: `createSandbox` must be provided when constructing runtime",
         );
       }
 
