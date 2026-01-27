@@ -158,13 +158,17 @@ describe("Strict Mode", () => {
     let mountCount = 0;
     let unmountCount = 0;
 
-    const TestChildResource = resource(() => {
+    const incrementRenderCount = () => {
       renderCount++;
+      return renderCount;
+    };
+
+    const TestChildResource = resource(() => {
       const [fnState] = tapState(() => {
         fnCount++;
         return fnCount;
       });
-      const count = renderCount;
+      const count = incrementRenderCount();
       tapEffect(() => {
         expect(fnState % 2).toBe(1);
         expect(count).toBe(fnState + 1);

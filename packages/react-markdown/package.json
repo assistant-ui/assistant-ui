@@ -59,9 +59,9 @@
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/hast": "^3.0.4",
     "@types/react": "^19.2.9",
-    "react": "^19.2.3",
-    "react-dom": "^19.2.3",
-    "vitest": "^4.0.17"
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "vitest": "^4.0.18"
   },
   "publishConfig": {
     "access": "public",

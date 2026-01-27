@@ -30,7 +30,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@clack/prompts": "^0.10.0",
+    "@clack/prompts": "^0.11.0",
     "chalk": "^5.6.2",
     "cli-progress": "^3.12.0",
     "commander": "^14.0.2",
@@ -46,9 +46,9 @@
     "@types/cross-spawn": "^6.0.6",
     "@types/debug": "^4.1.12",
     "@types/jscodeshift": "^17.3.0",
-    "@types/node": "^25.0.9",
-    "@vitest/coverage-v8": "^4.0.17",
-    "vitest": "^4.0.17"
+    "@types/node": "^25.0.10",
+    "@vitest/coverage-v8": "^4.0.18",
+    "vitest": "^4.0.18"
   },
   "publishConfig": {
     "access": "public",
