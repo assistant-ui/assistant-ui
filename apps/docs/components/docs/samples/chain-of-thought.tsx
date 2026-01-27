@@ -851,7 +851,7 @@ function PartsGroupedTraceDemo() {
               }}
               components={{
                 Text: MarkdownText,
-                tools: { Fallback: ToolFallback },
+                tools: { Override: ToolFallback },
               }}
             />
           </ChainOfThoughtContent>
