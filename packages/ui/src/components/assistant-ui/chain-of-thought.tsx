@@ -4,6 +4,7 @@ import {
   createContext,
   memo,
   useCallback,
+  useMemo,
   useContext,
   useRef,
   useState,
@@ -788,16 +789,19 @@ function ChainOfThoughtTraceGroup({
   const context = useContext(ChainOfThoughtTraceContext);
   const inferStep = context?.inferStep ?? defaultInferStep;
 
-  const { groupParts, isActive } = useAuiState(({ message }) => {
-    const groupParts = indices.map((i) => message.parts[i]).filter(Boolean);
-    const lastIndex = message.parts.length - 1;
-    const isActive =
-      message.status?.type === "running" &&
-      lastIndex >= 0 &&
-      indices.includes(lastIndex);
+  const messageParts = useAuiState(({ message }) => message.parts);
+  const isRunning = useAuiState(
+    ({ message }) => message.status?.type === "running",
+  );
 
-    return { groupParts, isActive };
-  });
+  const groupParts = useMemo(() => {
+    return indices
+      .map((i) => messageParts[i])
+      .filter((part): part is (typeof messageParts)[number] => Boolean(part));
+  }, [indices, messageParts]);
+
+  const lastIndex = messageParts.length - 1;
+  const isActive = isRunning && lastIndex >= 0 && indices.includes(lastIndex);
 
   const meta = inferStep({
     groupKey,
