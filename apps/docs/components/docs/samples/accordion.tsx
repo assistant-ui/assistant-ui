@@ -44,51 +44,39 @@ export function AccordionVariantsSample() {
       <div className="flex w-[400px] flex-col gap-2">
         <span className="text-muted-foreground text-xs">Default</span>
         <Accordion type="single" collapsible variant="default">
-          <AccordionItem value="a" variant="default">
-            <AccordionTrigger variant="default">Section A</AccordionTrigger>
-            <AccordionContent variant="default">
-              Content for section A.
-            </AccordionContent>
+          <AccordionItem value="a">
+            <AccordionTrigger>Section A</AccordionTrigger>
+            <AccordionContent>Content for section A.</AccordionContent>
           </AccordionItem>
-          <AccordionItem value="b" variant="default">
-            <AccordionTrigger variant="default">Section B</AccordionTrigger>
-            <AccordionContent variant="default">
-              Content for section B.
-            </AccordionContent>
+          <AccordionItem value="b">
+            <AccordionTrigger>Section B</AccordionTrigger>
+            <AccordionContent>Content for section B.</AccordionContent>
           </AccordionItem>
         </Accordion>
       </div>
       <div className="flex w-[400px] flex-col gap-2">
         <span className="text-muted-foreground text-xs">Outline</span>
         <Accordion type="single" collapsible variant="outline">
-          <AccordionItem value="a" variant="outline">
-            <AccordionTrigger variant="outline">Section A</AccordionTrigger>
-            <AccordionContent variant="outline">
-              Content for section A.
-            </AccordionContent>
+          <AccordionItem value="a">
+            <AccordionTrigger>Section A</AccordionTrigger>
+            <AccordionContent>Content for section A.</AccordionContent>
           </AccordionItem>
-          <AccordionItem value="b" variant="outline">
-            <AccordionTrigger variant="outline">Section B</AccordionTrigger>
-            <AccordionContent variant="outline">
-              Content for section B.
-            </AccordionContent>
+          <AccordionItem value="b">
+            <AccordionTrigger>Section B</AccordionTrigger>
+            <AccordionContent>Content for section B.</AccordionContent>
           </AccordionItem>
         </Accordion>
       </div>
       <div className="flex w-[400px] flex-col gap-2">
         <span className="text-muted-foreground text-xs">Ghost</span>
         <Accordion type="single" collapsible variant="ghost">
-          <AccordionItem value="a" variant="ghost">
-            <AccordionTrigger variant="ghost">Section A</AccordionTrigger>
-            <AccordionContent variant="ghost">
-              Content for section A.
-            </AccordionContent>
+          <AccordionItem value="a">
+            <AccordionTrigger>Section A</AccordionTrigger>
+            <AccordionContent>Content for section A.</AccordionContent>
           </AccordionItem>
-          <AccordionItem value="b" variant="ghost">
-            <AccordionTrigger variant="ghost">Section B</AccordionTrigger>
-            <AccordionContent variant="ghost">
-              Content for section B.
-            </AccordionContent>
+          <AccordionItem value="b">
+            <AccordionTrigger>Section B</AccordionTrigger>
+            <AccordionContent>Content for section B.</AccordionContent>
           </AccordionItem>
         </Accordion>
       </div>
@@ -130,38 +118,38 @@ export function AccordionWithIconsSample() {
         variant="outline"
         className="w-[400px]"
       >
-        <AccordionItem value="account" variant="outline">
-          <AccordionTrigger variant="outline">
+        <AccordionItem value="account">
+          <AccordionTrigger>
             <span className="flex items-center gap-2">
               <User className="size-4" />
               Account Settings
             </span>
           </AccordionTrigger>
-          <AccordionContent variant="outline">
+          <AccordionContent>
             Manage your account details, profile picture, and personal
             information.
           </AccordionContent>
         </AccordionItem>
-        <AccordionItem value="billing" variant="outline">
-          <AccordionTrigger variant="outline">
+        <AccordionItem value="billing">
+          <AccordionTrigger>
             <span className="flex items-center gap-2">
               <CreditCard className="size-4" />
               Billing
             </span>
           </AccordionTrigger>
-          <AccordionContent variant="outline">
+          <AccordionContent>
             View your billing history, manage payment methods, and update
             subscription.
           </AccordionContent>
         </AccordionItem>
-        <AccordionItem value="preferences" variant="outline">
-          <AccordionTrigger variant="outline">
+        <AccordionItem value="preferences">
+          <AccordionTrigger>
             <span className="flex items-center gap-2">
               <Settings className="size-4" />
               Preferences
             </span>
           </AccordionTrigger>
-          <AccordionContent variant="outline">
+          <AccordionContent>
             Customize your experience with notification and display settings.
           </AccordionContent>
         </AccordionItem>
@@ -171,7 +159,7 @@ export function AccordionWithIconsSample() {
 }
 
 export function AccordionControlledSample() {
-  const [value, setValue] = useState<string | undefined>("item-1");
+  const [value, setValue] = useState("item-1");
 
   return (
     <SampleFrame className="flex h-auto flex-col items-center justify-center gap-4 p-6">

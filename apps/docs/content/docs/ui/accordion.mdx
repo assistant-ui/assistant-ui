@@ -58,32 +58,32 @@ export function Example() {
 
 ### Variants
 
-Use the `variant` prop on each component to change the visual style.
+Use the `variant` prop on `Accordion` to change the visual style. Child components inherit the variant automatically.
 
 <AccordionVariantsSample />
 
 ```tsx
 // Default - border-bottom separator
-<Accordion variant="default">
-  <AccordionItem variant="default">
-    <AccordionTrigger variant="default">...</AccordionTrigger>
-    <AccordionContent variant="default">...</AccordionContent>
+<Accordion type="single" collapsible variant="default">
+  <AccordionItem value="item-1">
+    <AccordionTrigger>...</AccordionTrigger>
+    <AccordionContent>...</AccordionContent>
   </AccordionItem>
 </Accordion>
 
-// Outline - bordered container with dividers
-<Accordion variant="outline">
-  <AccordionItem variant="outline">
-    <AccordionTrigger variant="outline">...</AccordionTrigger>
-    <AccordionContent variant="outline">...</AccordionContent>
+// Outline - bordered container
+<Accordion type="single" collapsible variant="outline">
+  <AccordionItem value="item-1">
+    <AccordionTrigger>...</AccordionTrigger>
+    <AccordionContent>...</AccordionContent>
   </AccordionItem>
 </Accordion>
 
-// Ghost - separated cards with borders
-<Accordion variant="ghost">
-  <AccordionItem variant="ghost">
-    <AccordionTrigger variant="ghost">...</AccordionTrigger>
-    <AccordionContent variant="ghost">...</AccordionContent>
+// Ghost - separated cards
+<Accordion type="single" collapsible variant="ghost">
+  <AccordionItem value="item-1">
+    <AccordionTrigger>...</AccordionTrigger>
+    <AccordionContent>...</AccordionContent>
   </AccordionItem>
 </Accordion>
 ```
@@ -137,17 +137,17 @@ A practical example of using accordion for a FAQ section.
 
 | Component | Description |
 |-----------|-------------|
-| `Accordion` | The root component that manages accordion state. |
+| `Accordion` | The root component that manages accordion state and variant. |
 | `AccordionItem` | A single collapsible section container. |
 | `AccordionTrigger` | The clickable header that toggles content visibility. |
 | `AccordionContent` | The collapsible content panel. |
 
 ### Accordion
 
-The root component that manages accordion state.
+The root component that manages accordion state. Set `variant` here to style all child components.
 
 <ParametersTable
-  type="AccordionRootProps"
+  type="AccordionProps"
   parameters={[
     {
       name: "type",
@@ -180,7 +180,7 @@ The root component that manages accordion state.
       name: "variant",
       type: '"default" | "outline" | "ghost"',
       default: '"default"',
-      description: "The visual style of the accordion.",
+      description: "The visual style of the accordion. Child components inherit this automatically.",
     },
     {
       name: "className",
@@ -204,12 +204,6 @@ A single collapsible section container.
       description: "A unique identifier for this item.",
     },
     {
-      name: "variant",
-      type: '"default" | "outline" | "ghost"',
-      default: '"default"',
-      description: "The visual style of the item.",
-    },
-    {
       name: "disabled",
       type: "boolean",
       description: "Whether the item is disabled.",
@@ -230,12 +224,6 @@ The clickable header that toggles content visibility.
   type="AccordionTriggerProps"
   parameters={[
     {
-      name: "variant",
-      type: '"default" | "outline" | "ghost"',
-      default: '"default"',
-      description: "The visual style of the trigger.",
-    },
-    {
       name: "className",
       type: "string",
       description: "Additional CSS classes.",
@@ -251,12 +239,6 @@ The collapsible content panel.
   type="AccordionContentProps"
   parameters={[
     {
-      name: "variant",
-      type: '"default" | "outline" | "ghost"',
-      default: '"default"',
-      description: "The visual style of the content.",
-    },
-    {
       name: "className",
       type: "string",
       description: "Additional CSS classes.",
@@ -269,25 +251,11 @@ The collapsible content panel.
 | Export | Description |
 |--------|-------------|
 | `accordionVariants` | Styles for the accordion container. |
-| `accordionItemVariants` | Styles for accordion items. |
-| `accordionTriggerVariants` | Styles for accordion triggers. |
-| `accordionContentVariants` | Styles for accordion content wrapper. |
-| `accordionContentInnerVariants` | Styles for accordion content inner div. |
 
 ```tsx
-import {
-  accordionVariants,
-  accordionItemVariants,
-  accordionTriggerVariants,
-  accordionContentVariants,
-  accordionContentInnerVariants,
-} from "@/components/assistant-ui/accordion";
+import { accordionVariants } from "@/components/assistant-ui/accordion";
 
 <div className={accordionVariants({ variant: "outline" })}>
-  <div className={accordionItemVariants({ variant: "outline" })}>
-    <button className={accordionTriggerVariants({ variant: "outline" })}>
-      Custom Trigger
-    </button>
-  </div>
+  Custom Accordion Container
 </div>
 ```

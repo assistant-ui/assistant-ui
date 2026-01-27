@@ -57,7 +57,7 @@ export function Example() {
 
 ### Variants
 
-Use the `variant` prop on `TabsList` to change the visual style. The variant is automatically inherited by child `TabsTrigger` components.
+Use the `variant` prop on `TabsList` to change the visual style. Child components inherit the variant automatically.
 
 <TabsVariantsSample />
 
@@ -71,7 +71,7 @@ Use the `variant` prop on `TabsList` to change the visual style. The variant is 
 
 ### Sizes
 
-Use the `size` prop on `TabsList` to change the tab height.
+Use the `size` prop on `TabsList` to change the tab height. Child components inherit the size automatically.
 
 <TabsSizesSample />
 
@@ -128,8 +128,8 @@ All variants feature smooth animated indicators that slide between tabs:
 | Component | Description |
 |-----------|-------------|
 | `Tabs` | The root component that manages tab state. |
-| `TabsList` | The container for tab triggers. Accepts `variant` and `size` props. |
-| `TabsTrigger` | An individual tab button. Inherits `variant` and `size` from `TabsList`. |
+| `TabsList` | The container for tab triggers. Set `variant` and `size` here. |
+| `TabsTrigger` | An individual tab button. Inherits variant/size from TabsList. |
 | `TabsContent` | The content panel for a tab. |
 
 ### Tabs
@@ -164,7 +164,7 @@ The root component that manages tab state.
 
 ### TabsList
 
-The container for tab triggers.
+The container for tab triggers. Set `variant` and `size` here to style all child components.
 
 <ParametersTable
   type="TabsListProps"
@@ -173,13 +173,13 @@ The container for tab triggers.
       name: "variant",
       type: '"default" | "line" | "ghost" | "pills" | "outline"',
       default: '"default"',
-      description: "The visual style of the tabs. Inherited by child TabsTrigger components.",
+      description: "The visual style of the tabs. Child components inherit this automatically.",
     },
     {
       name: "size",
       type: '"sm" | "default" | "lg"',
       default: '"default"',
-      description: "The size of the tabs. Inherited by child TabsTrigger components.",
+      description: "The size of the tabs. Child components inherit this automatically.",
     },
     {
       name: "className",
@@ -201,16 +201,6 @@ An individual tab button.
       type: "string",
       required: true,
       description: "The unique value for this tab.",
-    },
-    {
-      name: "variant",
-      type: '"default" | "line" | "ghost" | "pills" | "outline"',
-      description: "Override the variant from TabsList.",
-    },
-    {
-      name: "size",
-      type: '"sm" | "default" | "lg"',
-      description: "Override the size from TabsList.",
     },
     {
       name: "asChild",
@@ -257,19 +247,15 @@ The content panel for a tab.
 | Export | Description |
 |--------|-------------|
 | `tabsListVariants` | Styles for the tabs list container. |
-| `tabsTriggerVariants` | Styles for individual tab triggers. |
 | `tabsActiveIndicatorVariants` | Styles for the animated active indicator. |
 
 ```tsx
 import {
   tabsListVariants,
-  tabsTriggerVariants,
   tabsActiveIndicatorVariants,
 } from "@/components/assistant-ui/tabs";
 
 <div className={tabsListVariants({ variant: "ghost", size: "sm" })}>
-  <button className={tabsTriggerVariants({ variant: "ghost", size: "sm" })}>
-    Custom Tab
-  </button>
+  Custom Tabs Container
 </div>
 ```
