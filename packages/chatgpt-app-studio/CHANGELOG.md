@@ -1,5 +1,11 @@
 # chatgpt-app-studio
 
+## 0.3.3
+
+### Patch Changes
+
+- 605d825: chore: update dependencies
+
 ## 0.3.2
 
 ### Patch Changes

@@ -1,5 +1,14 @@
 # @assistant-ui/tap
 
+## 0.4.1
+
+### Patch Changes
+
+- 8cbf686: fix: tap should run effects after remount
+- a8be364: feat: log individual errors when throwing AggregateError
+- 605d825: chore: update dependencies
+- fe15232: fix: tap strict mode should double invoke tapMemo calls
+
 ## 0.4.0
 
 ### Minor Changes
