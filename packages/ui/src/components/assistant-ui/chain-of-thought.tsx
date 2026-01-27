@@ -24,7 +24,6 @@ import {
   FileTextIcon,
   WrenchIcon,
   CheckCircleIcon,
-  CircleIcon,
   AlertCircleIcon,
   ArrowDownIcon,
   RotateCcwIcon,
@@ -66,6 +65,7 @@ const STEP_STAGGER_DELAY = 40;
 /**
  * Map of step types to their default icons.
  * Extend this record to add custom step types.
+ * Note: "default" is handled specially with a small bullet dot.
  */
 const stepTypeIcons = {
   search: SearchIcon,
@@ -74,8 +74,24 @@ const stepTypeIcons = {
   tool: WrenchIcon,
   complete: CheckCircleIcon,
   error: AlertCircleIcon,
-  default: CircleIcon,
-} as const satisfies Record<string, LucideIcon>;
+  default: null, // Uses BulletDot component instead
+} as const satisfies Record<string, LucideIcon | null>;
+
+/**
+ * Small muted bullet dot for default/non-tool steps.
+ * More subtle than the full icons used for tool calls.
+ */
+function BulletDot({ className }: { className?: string }) {
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        "aui-chain-of-thought-bullet-dot size-1.5 rounded-full bg-current",
+        className,
+      )}
+    />
+  );
+}
 
 export type StepType = keyof typeof stepTypeIcons;
 export type StepStatus = "pending" | "active" | "complete" | "error";
@@ -225,7 +241,7 @@ function ChainOfThoughtTrigger({
       data-slot="chain-of-thought-trigger"
       className={cn(
         "aui-chain-of-thought-trigger",
-        "group/trigger flex max-w-[75%] items-center gap-3 py-1",
+        "group/trigger flex max-w-full items-start gap-3 py-1 text-left",
         "text-muted-foreground text-sm transition-colors hover:text-foreground",
         className,
       )}
@@ -262,16 +278,18 @@ function ChainOfThoughtTrigger({
         )}
       </span>
 
-      <ChevronDownIcon
-        data-slot="chain-of-thought-trigger-chevron"
-        className={cn(
-          "aui-chain-of-thought-trigger-chevron size-4 shrink-0",
-          // Spring easing for natural rotation with slight overshoot
-          "transition-transform duration-(--animation-duration) ease-(--spring-easing)",
-          "group-data-[state=closed]/trigger:-rotate-90",
-          "group-data-[state=open]/trigger:rotate-0",
-        )}
-      />
+      <span className="flex h-6 shrink-0 items-center">
+        <ChevronDownIcon
+          data-slot="chain-of-thought-trigger-chevron"
+          className={cn(
+            "aui-chain-of-thought-trigger-chevron size-4",
+            // Spring easing for natural rotation with slight overshoot
+            "transition-transform duration-(--animation-duration) ease-(--spring-easing)",
+            "group-data-[state=closed]/trigger:-rotate-90",
+            "group-data-[state=open]/trigger:rotate-0",
+          )}
+        />
+      </span>
     </CollapsibleTrigger>
   );
 }
@@ -477,7 +495,9 @@ function ChainOfThoughtText({
       data-slot="chain-of-thought-text"
       className={cn(
         "aui-chain-of-thought-text",
-        "relative z-0 max-h-64 overflow-y-auto pt-2 pb-2 pl-6 leading-relaxed",
+        "relative z-0 max-h-64 overflow-y-auto overflow-x-hidden pt-2 pb-2 pl-9 leading-relaxed",
+        // Handle long unbreakable content (URLs, code, etc.)
+        "break-words [overflow-wrap:anywhere]",
         "transform-gpu",
         // Open animation: spring easing, staggered fade+slide
         "group-data-[state=open]/collapsible-content:animate-in",
@@ -522,7 +542,7 @@ function ChainOfThoughtPlaceholder({
       data-slot="chain-of-thought-placeholder"
       className={cn(
         "aui-chain-of-thought-placeholder",
-        "py-2 pl-6 text-muted-foreground/70 italic",
+        "py-2 pl-9 text-muted-foreground/70 italic",
         className,
       )}
       {...props}
@@ -777,8 +797,15 @@ function ChainOfThoughtStep({
       );
     }
 
-    // Type-based icon
+    // Type-based icon (default type uses small bullet dot)
     const TypeIcon = stepTypeIcons[type];
+    if (TypeIcon === null) {
+      return (
+        <StepIndicatorWrapper status={effectiveStatus}>
+          <BulletDot />
+        </StepIndicatorWrapper>
+      );
+    }
     return (
       <StepIndicatorWrapper status={effectiveStatus}>
         <IconRenderer Icon={TypeIcon} pulse={active === true} />
@@ -822,6 +849,7 @@ function ChainOfThoughtStep({
         className={cn(
           "aui-chain-of-thought-step-content",
           "min-w-0 flex-1 text-muted-foreground leading-relaxed",
+          "break-words [overflow-wrap:anywhere]",
           "transition-colors duration-200",
           isActive && "text-foreground",
           isError && "text-destructive",
@@ -949,7 +977,12 @@ function ChainOfThoughtStepBody({
   return (
     <div
       data-slot="chain-of-thought-step-body"
-      className={cn("aui-chain-of-thought-step-body", className)}
+      className={cn(
+        "aui-chain-of-thought-step-body",
+        // Consistent line-height for nested lists and content
+        "[&_li]:leading-relaxed [&_ol]:my-1 [&_ul]:my-1",
+        className,
+      )}
       {...props}
     />
   );
@@ -966,7 +999,7 @@ function ChainOfThoughtStepBadges({
     <div
       data-slot="chain-of-thought-step-badges"
       className={cn(
-        "aui-chain-of-thought-step-badges mt-1.5 flex flex-wrap gap-1.5",
+        "aui-chain-of-thought-step-badges mt-1.5 flex flex-wrap gap-1.5 pb-0.5",
         className,
       )}
       {...props}
@@ -992,6 +1025,65 @@ function ChainOfThoughtBadge({
       )}
       {...props}
     />
+  );
+}
+
+export type ChainOfThoughtToolBadgeProps = React.ComponentProps<"span"> & {
+  /** Tool name to display */
+  toolName: string;
+  /** Tool status */
+  status?: "running" | "complete" | "error";
+};
+
+/**
+ * Inline tool badge for displaying tool calls within ChainOfThought traces.
+ * A flattened, non-collapsible alternative to ToolFallback for less visual clutter.
+ */
+function ChainOfThoughtToolBadge({
+  toolName,
+  status = "complete",
+  className,
+  ...props
+}: ChainOfThoughtToolBadgeProps) {
+  const isRunning = status === "running";
+  const isError = status === "error";
+
+  return (
+    <span
+      data-slot="chain-of-thought-tool-badge"
+      data-status={status}
+      className={cn(
+        "aui-chain-of-thought-tool-badge",
+        "inline-flex items-center gap-1.5 rounded-md px-2 py-0.5",
+        "font-mono text-xs",
+        // Status-based styling
+        isError
+          ? "bg-destructive/10 text-destructive"
+          : "bg-muted text-muted-foreground",
+        className,
+      )}
+      {...props}
+    >
+      {isRunning && (
+        <span
+          aria-hidden
+          className="aui-chain-of-thought-tool-badge-spinner size-3 animate-spin rounded-full border-2 border-current border-t-transparent"
+        />
+      )}
+      {isError && (
+        <AlertCircleIcon
+          aria-hidden
+          className="aui-chain-of-thought-tool-badge-error-icon size-3"
+        />
+      )}
+      {!isRunning && !isError && (
+        <WrenchIcon
+          aria-hidden
+          className="aui-chain-of-thought-tool-badge-icon size-3"
+        />
+      )}
+      <span className="aui-chain-of-thought-tool-badge-name">{toolName}</span>
+    </span>
   );
 }
 
@@ -1220,6 +1312,30 @@ function ChainOfThoughtTrace({
 }
 
 /**
+ * Inline tool renderer for ChainOfThought traces.
+ * Renders tool calls as inline badges instead of nested collapsibles.
+ * Use as `components.tools.Override` in ChainOfThought.Trace.
+ */
+const ChainOfThoughtTraceTool = memo(function ChainOfThoughtTraceTool({
+  toolName,
+  status,
+}: {
+  toolName: string;
+  argsText?: string;
+  result?: unknown;
+  status?: { type: string; reason?: string; error?: unknown };
+}) {
+  const badgeStatus: "running" | "complete" | "error" =
+    status?.type === "running"
+      ? "running"
+      : status?.type === "incomplete"
+        ? "error"
+        : "complete";
+
+  return <ChainOfThoughtToolBadge toolName={toolName} status={badgeStatus} />;
+});
+
+/**
  * Default implementation for rendering reasoning message parts.
  */
 const ChainOfThoughtImpl: ReasoningMessagePartComponent = () => (
@@ -1311,6 +1427,8 @@ const ChainOfThought = memo(
   StepBadges: typeof ChainOfThoughtStepBadges;
   StepImage: typeof ChainOfThoughtStepImage;
   Badge: typeof ChainOfThoughtBadge;
+  ToolBadge: typeof ChainOfThoughtToolBadge;
+  TraceTool: typeof ChainOfThoughtTraceTool;
   Announcer: typeof ChainOfThoughtAnnouncer;
 };
 
@@ -1329,6 +1447,8 @@ ChainOfThought.StepBody = ChainOfThoughtStepBody;
 ChainOfThought.StepBadges = ChainOfThoughtStepBadges;
 ChainOfThought.StepImage = ChainOfThoughtStepImage;
 ChainOfThought.Badge = ChainOfThoughtBadge;
+ChainOfThought.ToolBadge = ChainOfThoughtToolBadge;
+ChainOfThought.TraceTool = ChainOfThoughtTraceTool;
 ChainOfThought.Announcer = ChainOfThoughtAnnouncer;
 
 const ChainOfThoughtGroup = memo(ChainOfThoughtGroupImpl);
@@ -1351,6 +1471,8 @@ export {
   ChainOfThoughtStepBadges,
   ChainOfThoughtStepImage,
   ChainOfThoughtBadge,
+  ChainOfThoughtToolBadge,
+  ChainOfThoughtTraceTool,
   ChainOfThoughtAnnouncer,
   chainOfThoughtVariants,
   stepVariants,
