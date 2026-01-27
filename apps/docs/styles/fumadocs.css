@@ -205,10 +205,18 @@ html:has(#nd-docs-layout) {
     margin-bottom: 0.25rem !important;
   }
 
-  & :where(code):not(:where(pre code)):not(:where([class~="not-prose"], [class~="not-prose"] *)),
-  & [class~="not-prose"] :where(code):not(:where(pre code)) {
+  & :where(code):not(:where(pre code)):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
     font-size: 0.8125rem !important;
     padding: 0.125rem 0.375rem !important;
+    border-radius: 0.375rem !important;
+    border: none !important;
+    background: var(--muted) !important;
+    font-weight: 500 !important;
+  }
+
+  & [class~="not-prose"] :where(code):not(:where(pre code)) {
+    font-size: 0.75rem !important;
+    padding: 0.0625rem 0.25rem !important;
     border-radius: 0.375rem !important;
     border: none !important;
     background: var(--muted) !important;
@@ -244,7 +252,6 @@ html:has(#nd-docs-layout) {
   }
 
   & :where(table):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
-    font-size: 0.75rem !important;
     margin-top: 0rem !important;
     margin-bottom: 0rem !important;
     width: 100% !important;
@@ -294,6 +301,11 @@ html:has(#nd-docs-layout) {
 
     & tbody tr:last-child td:last-child {
       border-bottom-right-radius: 0.5rem !important;
+    }
+
+    & code {
+      font-size: 0.75rem !important;
+      padding: 0.0625rem 0.25rem !important;
     }
   }
 
