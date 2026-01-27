@@ -25,6 +25,13 @@ html:has(#nd-docs-layout) {
   }
 }
 
+/* When container is narrow (e.g. assistant panel open), use full width */
+@container (max-width: 1200px) {
+  #nd-page[data-full="true"] {
+    max-width: 100%;
+  }
+}
+
 #nd-page[data-full="true"] ~ #nd-toc {
   justify-self: start;
 }
@@ -196,15 +203,7 @@ html:has(#nd-docs-layout) {
     margin-bottom: 0.25rem !important;
   }
 
-  & :where(code):not(:where(pre code)):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
-    font-size: 0.8125rem !important;
-    padding: 0.125rem 0.375rem !important;
-    border-radius: 0.375rem !important;
-    border: none !important;
-    background: var(--muted) !important;
-    font-weight: 500 !important;
-  }
-
+  & :where(code):not(:where(pre code)):not(:where([class~="not-prose"], [class~="not-prose"] *)),
   & [class~="not-prose"] :where(code):not(:where(pre code)) {
     font-size: 0.8125rem !important;
     padding: 0.125rem 0.375rem !important;
