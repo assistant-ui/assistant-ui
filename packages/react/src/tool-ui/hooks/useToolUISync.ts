@@ -73,6 +73,7 @@ export function useToolUISync(controller: ToolUIController) {
 
     for (const id of processedToolCallsRef.current) {
       if (!currentToolCallIds.has(id)) {
+        controller.onToolCallEnd(id);
         processedToolCallsRef.current.delete(id);
       }
     }

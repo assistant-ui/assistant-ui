@@ -148,6 +148,8 @@ export class ToolUIRendererManager {
                 `Failed to mount Tool UI sandbox for ${instance.id}:`,
                 error,
               );
+              session.sandbox?.unmount();
+              container.innerHTML = "";
               this._sessions.delete(instance.id);
             });
           }
