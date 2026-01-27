@@ -31,38 +31,32 @@ function useTabsListContext() {
 
 function Tabs({
   className,
-  orientation = "horizontal",
   ...props
 }: React.ComponentProps<typeof TabsPrimitive.Root>) {
   return (
     <TabsPrimitive.Root
       data-slot="tabs"
-      data-orientation={orientation}
-      orientation={orientation}
-      className={cn(
-        "group/tabs flex gap-2 data-[orientation=horizontal]:flex-col",
-        className,
-      )}
+      className={cn("group/tabs flex flex-col gap-2", className)}
       {...props}
     />
   );
 }
 
 const tabsListVariants = cva(
-  "group/tabs-list relative inline-flex w-fit items-center justify-center text-muted-foreground group-data-[orientation=vertical]/tabs:h-fit group-data-[orientation=vertical]/tabs:flex-col",
+  "group/tabs-list relative inline-flex w-fit items-center justify-center text-muted-foreground",
   {
     variants: {
       variant: {
         default: "gap-1 rounded-lg bg-muted p-1",
         line: "gap-1 border-border border-b bg-transparent pb-2",
-        ghost: "gap-1.5 bg-transparent pb-2",
+        ghost: "gap-1.5 bg-transparent",
         pills: "gap-2 bg-transparent",
         outline: "gap-1 rounded-lg border border-border p-1",
       },
       size: {
-        sm: "h-8 group-data-[orientation=horizontal]/tabs:h-8",
-        default: "h-9 group-data-[orientation=horizontal]/tabs:h-9",
-        lg: "h-10 group-data-[orientation=horizontal]/tabs:h-10",
+        sm: "h-8",
+        default: "h-9",
+        lg: "h-10",
       },
     },
     defaultVariants: {
@@ -80,7 +74,7 @@ const tabsActiveIndicatorVariants = cva(
         default:
           "inset-y-1 rounded-md bg-background shadow-sm dark:border dark:border-input dark:bg-input/30",
         line: "bottom-0 h-0.5 bg-foreground",
-        ghost: "bottom-0 h-0.5 bg-foreground",
+        ghost: "inset-y-1 rounded-md bg-foreground/8",
         pills: "inset-y-0 rounded-full bg-primary",
         outline: "inset-y-1 rounded-md border border-border bg-background",
       },
@@ -222,7 +216,7 @@ function TabsList({
           hoverStyle.width !== "0px" && (
             <div
               data-slot="tabs-hover-indicator"
-              className="pointer-events-none absolute flex h-[30px] items-center rounded-md bg-foreground/8 transition-all duration-300 ease-out"
+              className="pointer-events-none absolute inset-y-1 rounded-md bg-foreground/8 transition-all duration-300 ease-out"
               style={hoverStyle}
             />
           )}
@@ -246,7 +240,7 @@ function TabsList({
 }
 
 const tabsTriggerVariants = cva(
-  "relative z-10 inline-flex flex-1 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap font-medium text-foreground/60 transition-[color] duration-300 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:font-medium data-[state=active]:text-foreground group-data-[orientation=vertical]/tabs:w-full group-data-[orientation=vertical]/tabs:justify-start dark:text-muted-foreground dark:hover:text-foreground [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+  "relative z-10 inline-flex flex-1 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap font-medium text-foreground/60 transition-[color] duration-300 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:font-medium data-[state=active]:text-foreground dark:text-muted-foreground dark:hover:text-foreground [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
   {
     variants: {
       variant: {

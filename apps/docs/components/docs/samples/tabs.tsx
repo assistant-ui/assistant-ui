@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { FileText, Settings, User, Bell, Lock, CreditCard } from "lucide-react";
+import { FileText, Settings, User, Bell, Lock } from "lucide-react";
 import {
   Tabs,
   TabsList,
@@ -168,47 +168,6 @@ export function TabsWithIconsSample() {
   );
 }
 
-export function TabsVerticalSample() {
-  return (
-    <SampleFrame className="flex h-auto items-center justify-center p-6">
-      <Tabs defaultValue="general" orientation="vertical" className="w-[500px]">
-        <TabsList variant="ghost" className="w-40">
-          <TabsTrigger value="general">
-            <Settings />
-            General
-          </TabsTrigger>
-          <TabsTrigger value="billing">
-            <CreditCard />
-            Billing
-          </TabsTrigger>
-          <TabsTrigger value="notifications">
-            <Bell />
-            Notifications
-          </TabsTrigger>
-        </TabsList>
-        <TabsContent value="general" className="flex-1 p-4">
-          <h3 className="font-medium">General Settings</h3>
-          <p className="mt-2 text-muted-foreground text-sm">
-            Configure general application settings.
-          </p>
-        </TabsContent>
-        <TabsContent value="billing" className="flex-1 p-4">
-          <h3 className="font-medium">Billing</h3>
-          <p className="mt-2 text-muted-foreground text-sm">
-            Manage your billing information and subscriptions.
-          </p>
-        </TabsContent>
-        <TabsContent value="notifications" className="flex-1 p-4">
-          <h3 className="font-medium">Notifications</h3>
-          <p className="mt-2 text-muted-foreground text-sm">
-            Choose how you want to be notified.
-          </p>
-        </TabsContent>
-      </Tabs>
-    </SampleFrame>
-  );
-}
-
 export function TabsControlledSample() {
   const [activeTab, setActiveTab] = useState("overview");
 
@@ -247,13 +206,13 @@ export function TabsAsLinkSample() {
       <Tabs defaultValue="docs">
         <TabsList variant="line">
           <TabsTrigger value="docs" asChild>
-            <a href="#docs">
+            <a href="#installation">
               <FileText />
               Docs
             </a>
           </TabsTrigger>
           <TabsTrigger value="api" asChild>
-            <a href="#api">
+            <a href="#api-reference">
               <Settings />
               API
             </a>
@@ -295,7 +254,7 @@ export function TabsAnimatedIndicatorSample() {
       </div>
       <div className="flex flex-col gap-2">
         <span className="text-muted-foreground text-xs">
-          Ghost - Hover background + sliding underline
+          Ghost - Sliding background with hover effect
         </span>
         <Tabs defaultValue="dashboard">
           <TabsList variant="ghost">

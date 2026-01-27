@@ -14,7 +14,6 @@ import {
   TabsVariantsSample,
   TabsSizesSample,
   TabsWithIconsSample,
-  TabsVerticalSample,
   TabsControlledSample,
   TabsAsLinkSample,
   TabsAnimatedIndicatorSample,
@@ -90,14 +89,6 @@ Tabs automatically style SVG icons placed inside triggers.
   <TabsWithIconsSample />
 </PreviewCode>
 
-### Vertical Orientation
-
-Use `orientation="vertical"` for a vertical tab layout.
-
-<PreviewCode file="components/docs/samples/tabs" name="TabsVerticalSample">
-  <TabsVerticalSample />
-</PreviewCode>
-
 ### Controlled
 
 Use `value` and `onValueChange` for controlled tab state.
@@ -122,7 +113,7 @@ All variants feature smooth animated indicators that slide between tabs:
 |---------|-----------------|
 | `default` | Sliding background with shadow |
 | `line` | Sliding underline |
-| `ghost` | Hover background + sliding underline |
+| `ghost` | Sliding background with hover effect |
 | `pills` | Sliding pill background |
 | `outline` | Sliding border |
 
@@ -153,12 +144,6 @@ The root component that manages tab state.
       name: "onValueChange",
       type: "(value: string) => void",
       description: "Callback when the active tab changes.",
-    },
-    {
-      name: "orientation",
-      type: '"horizontal" | "vertical"',
-      default: '"horizontal"',
-      description: "The orientation of the tabs.",
     },
     {
       name: "className",
