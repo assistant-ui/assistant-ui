@@ -2,7 +2,14 @@
   "extends": "@assistant-ui/x-buildutils/ts/base",
   "compilerOptions": {
     "types": ["vite/client"],
-    "paths": { "@/*": ["./src/*"] }
+    "paths": {
+      "@/*": ["./src/*"],
+      "@/components/assistant-ui/*": [
+        "../../packages/ui/src/components/assistant-ui/*"
+      ],
+      "@/components/ui/*": ["../../packages/ui/src/components/ui/*"],
+      "@assistant-ui/ui/*": ["../../packages/ui/src/*"]
+    }
   },
   "include": ["**/*.ts", "**/*.tsx"],
   "exclude": ["node_modules"]

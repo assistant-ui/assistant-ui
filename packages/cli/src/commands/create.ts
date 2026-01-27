@@ -2,6 +2,7 @@ import { Command } from "commander";
 import chalk from "chalk";
 import { spawn } from "cross-spawn";
 import { logger } from "../lib/utils/logger";
+import { createFromExample } from "../lib/create-from-example";
 
 export const create = new Command()
   .name("create")
@@ -12,12 +13,34 @@ export const create = new Command()
     "-t, --template <template>",
     "template to use (default, cloud, langgraph, mcp)",
   )
+  .option(
+    "-e, --example <example>",
+    "create from an example (e.g., with-langgraph, with-ai-sdk-v6)",
+  )
   .option("--use-npm", "explicitly use npm")
   .option("--use-pnpm", "explicitly use pnpm")
   .option("--use-yarn", "explicitly use yarn")
   .option("--use-bun", "explicitly use bun")
   .option("--skip-install", "skip installing packages")
-  .action((_, opts) => {
+  .action(async (projectDirectory, opts) => {
+    // Handle --example option
+    if (opts.example) {
+      if (!projectDirectory) {
+        logger.error("Project directory is required when using --example");
+        process.exit(1);
+      }
+
+      await createFromExample(projectDirectory, opts.example, {
+        skipInstall: opts.skipInstall,
+        useNpm: opts.useNpm,
+        usePnpm: opts.usePnpm,
+        useYarn: opts.useYarn,
+        useBun: opts.useBun,
+      });
+      return;
+    }
+
+    // Handle --template option (existing logic)
     const templates = {
       default: "https://github.com/assistant-ui/assistant-ui-starter",
       cloud: "https://github.com/assistant-ui/assistant-ui-starter-cloud",

@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { GitHubIcon } from "@/components/icons/github";
-import { Select } from "./select";
+import { Select } from "@/components/assistant-ui/select";
 import { ThemeToggle } from "./theme-toggle";
 
 const SUB_PROJECTS = [

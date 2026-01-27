@@ -4,8 +4,8 @@ description: Customized colors and styles for a Grok look and feel
 ---
 
 import { DocsRuntimeProvider } from "@/contexts/DocsRuntimeProvider";
-import { Grok } from "@/components/example/grok/Grok";
-import { SourceLink } from "@/components/examples/SourceLink";
+import { Grok } from "@/components/examples/grok";
+import { SourceLink } from "@/components/docs/source-link";
 
 <div className="not-prose h-[600px]">
   <DocsRuntimeProvider>
@@ -40,7 +40,7 @@ The Grok clone uses clean minimalism with smooth animations:
 import {
   ThreadPrimitive,
   ComposerPrimitive,
-  useAssistantState,
+  useAuiState,
 } from "@assistant-ui/react";
 
 export const Grok = () => {
@@ -62,8 +62,8 @@ export const Grok = () => {
 };
 
 const Composer = () => {
-  const isEmpty = useAssistantState((s) => s.composer.isEmpty);
-  const isRunning = useAssistantState((s) => s.thread.isRunning);
+  const isEmpty = useAuiState((s) => s.composer.isEmpty);
+  const isRunning = useAuiState((s) => s.thread.isRunning);
 
   return (
     <ComposerPrimitive.Root
@@ -121,4 +121,4 @@ This creates smooth transitions between voice → send → cancel button states.
 
 ## Source
 
-<SourceLink href="https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/example/grok/Grok.tsx" />
+<SourceLink href="https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/examples/grok.tsx" />

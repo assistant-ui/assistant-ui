@@ -34,7 +34,7 @@ function VariantRow({
   variant,
 }: {
   label: string;
-  variant?: "default" | "outline" | "muted";
+  variant?: "outline" | "ghost" | "muted";
 }) {
   return (
     <div className="flex flex-col gap-2">
@@ -47,9 +47,9 @@ function VariantRow({
 export function ReasoningSample() {
   return (
     <SampleFrame className="flex h-auto flex-col gap-4 p-4">
-      <VariantRow label="Default" variant="default" />
+      <VariantRow label="Outline (default)" variant="outline" />
+      <VariantRow label="Ghost" variant="ghost" />
       <VariantRow label="Muted" variant="muted" />
-      <VariantRow label="Outline" variant="outline" />
     </SampleFrame>
   );
 }

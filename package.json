@@ -15,14 +15,14 @@
     "prepare": "husky"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.3.11",
+    "@biomejs/biome": "^2.3.13",
     "@changesets/cli": "^2.29.8",
     "husky": "^9.1.7",
     "lint-staged": "^16.2.7",
-    "turbo": "^2.7.5",
+    "turbo": "^2.7.6",
     "typescript": "^5.9.3"
   },
-  "packageManager": "pnpm@10.28.1",
+  "packageManager": "pnpm@10.28.2",
   "lint-staged": {
     "*": "biome check --fix --no-errors-on-unmatched"
   },

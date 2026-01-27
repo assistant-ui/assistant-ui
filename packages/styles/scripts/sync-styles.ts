@@ -12,8 +12,9 @@ const MONO_ROOT = path.resolve(PKG_ROOT, "..", "..");
 
 const REGISTRY_DIR = path.join(
   MONO_ROOT,
-  "apps",
-  "registry",
+  "packages",
+  "ui",
+  "src",
   "components",
   "assistant-ui",
 );

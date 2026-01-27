@@ -1,21 +1,19 @@
 import { resource } from "@assistant-ui/tap";
-import { AttachmentClientApi } from "../../client/types/Attachment";
-import { tapApi } from "../../utils/tap-store";
+import { type ClientOutput } from "@assistant-ui/store";
 import { AttachmentRuntime } from "../runtime";
 import { tapSubscribable } from "../util-hooks/tapSubscribable";
 
 export const AttachmentRuntimeClient = resource(
-  ({ runtime }: { runtime: AttachmentRuntime }) => {
+  ({ runtime }: { runtime: AttachmentRuntime }): ClientOutput<"attachment"> => {
     const state = tapSubscribable(runtime);
-    return tapApi<AttachmentClientApi>(
-      {
+
+    return {
+      state,
+      methods: {
         getState: () => state,
         remove: runtime.remove,
         __internal_getRuntime: () => runtime,
       },
-      {
-        key: state.id,
-      },
-    );
+    };
   },
 );

@@ -1,5 +1,24 @@
 # @assistant-ui/store
 
+## 0.1.1
+
+### Patch Changes
+
+- 2e088eb: fix: restore React 18 compatibility by using use-effect-event polyfill
+- a8be364: feat: log individual errors when throwing AggregateError
+- 605d825: chore: update dependencies
+- Updated dependencies [8cbf686]
+- Updated dependencies [a8be364]
+- Updated dependencies [605d825]
+- Updated dependencies [fe15232]
+  - @assistant-ui/tap@0.4.1
+
+## 0.1.0
+
+### Minor Changes
+
+- 11625b5: feat: store v0.1
+
 ## 0.0.6
 
 ### Patch Changes

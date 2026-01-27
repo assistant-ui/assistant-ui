@@ -88,20 +88,30 @@ export const createResource = <R, P>(
       if (isMounted) return changed;
       isMounted = true;
 
-      flushResourcesSync(() => {
+      if (
+        isDevelopment &&
+        fiber.isNeverMounted &&
+        fiber.devStrictMode === "child"
+      ) {
         if (changed) {
-          // In strict mode, render twice on first render to detect side effects
-          // The first render is discarded, the second is used
-          if (isDevelopment && fiber.devStrictMode === "root") {
-            void renderResourceFiber(fiber, props);
-          }
-
           render = renderResourceFiber(fiber, props);
         }
+        commitResourceFiber(fiber, render);
+      } else {
+        flushResourcesSync(() => {
+          if (changed) {
+            // In strict mode, render twice to detect side effects
+            if (isDevelopment && fiber.devStrictMode === "root") {
+              void renderResourceFiber(fiber, props);
+            }
 
-        if (scheduler.isDirty) return;
-        commitResourceFiber(fiber, render!);
-      });
+            render = renderResourceFiber(fiber, props);
+          }
+
+          if (scheduler.isDirty) return;
+          commitResourceFiber(fiber, render!);
+        });
+      }
 
       return false;
     },
@@ -114,9 +124,12 @@ export const createResource = <R, P>(
   };
 
   const scheduler = new UpdateScheduler(() => {
-    // In strict mode, render twice on first render to detect side effects
-    // The first render is discarded, the second is used
-    if (isDevelopment && fiber.devStrictMode === "root") {
+    // In strict mode, render twice to detect side effects
+    if (
+      isDevelopment &&
+      (fiber.devStrictMode === "root" ||
+        (fiber.devStrictMode && !fiber.isFirstRender))
+    ) {
       void renderResourceFiber(fiber, props);
     }
 

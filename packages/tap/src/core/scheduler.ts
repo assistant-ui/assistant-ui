@@ -68,6 +68,9 @@ const flushScheduled = () => {
       if (errors.length === 1) {
         throw errors[0];
       } else {
+        for (const error of errors) {
+          console.error(error);
+        }
         throw new AggregateError(errors, "Errors occurred during flushSync");
       }
     }

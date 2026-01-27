@@ -2,10 +2,8 @@
 
 import { ComponentType, type FC, memo, useMemo } from "react";
 import { Attachment } from "../../types";
-import {
-  useAssistantState,
-  ComposerAttachmentByIndexProvider,
-} from "../../context";
+import { useAuiState } from "@assistant-ui/store";
+import { ComposerAttachmentByIndexProvider } from "../../context/providers";
 
 export namespace ComposerPrimitiveAttachments {
   export type Props = {
@@ -41,7 +39,7 @@ const getComponent = (
 const AttachmentComponent: FC<{
   components: ComposerPrimitiveAttachments.Props["components"];
 }> = ({ components }) => {
-  const attachment = useAssistantState(({ attachment }) => attachment);
+  const attachment = useAuiState(({ attachment }) => attachment);
   if (!attachment) return null;
 
   const Component = getComponent(components, attachment);
@@ -96,9 +94,7 @@ ComposerPrimitiveAttachmentByIndex.displayName =
 export const ComposerPrimitiveAttachments: FC<
   ComposerPrimitiveAttachments.Props
 > = ({ components }) => {
-  const attachmentsCount = useAssistantState(
-    (s) => s.composer.attachments.length,
-  );
+  const attachmentsCount = useAuiState((s) => s.composer.attachments.length);
 
   const attachmentElements = useMemo(() => {
     return Array.from({ length: attachmentsCount }, (_, index) => (

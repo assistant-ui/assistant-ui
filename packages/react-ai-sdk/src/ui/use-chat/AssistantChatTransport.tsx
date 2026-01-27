@@ -24,6 +24,7 @@ export class AssistantChatTransport<
           body: {
             callSettings: context?.callSettings,
             system: context?.system,
+            config: context?.config,
             tools: toToolsJSONSchema(context?.tools ?? {}),
             ...options?.body,
           },

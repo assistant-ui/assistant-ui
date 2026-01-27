@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/styles",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "Styles for @assistant-ui/react for non-Tailwind users",
   "keywords": [
     "styles",
@@ -34,7 +34,7 @@
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@tailwindcss/postcss": "^4.1.18",
-    "@types/node": "^25.0.9",
+    "@types/node": "^25.0.10",
     "chalk": "^5.6.2",
     "commander": "^14.0.2",
     "postcss": "^8.5.6",

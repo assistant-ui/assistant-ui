@@ -1,5 +1,17 @@
 # @assistant-ui/react-langgraph
 
+## 0.12.1
+
+### Patch Changes
+
+- 605d825: chore: update dependencies
+- Updated dependencies [1ea3e28]
+- Updated dependencies [8cbf686]
+- Updated dependencies [a8be364]
+- Updated dependencies [605d825]
+  - @assistant-ui/react@0.12.2
+  - assistant-stream@0.2.48
+
 ## 0.7.15
 
 ### Patch Changes
@@ -176,7 +188,7 @@
 
 - 9e03f7a: fix: Handle undefined extras in useLangGraphInterruptState
 
-  Fixed an issue where useLangGraphInterruptState would throw errors when thread extras are undefined (e.g., with EMPTY_THREAD_CORE). The hook now safely returns undefined when extras are not available, and uses useAssistantApi for imperative operations in useLangGraphSend to avoid similar issues.
+  Fixed an issue where useLangGraphInterruptState would throw errors when thread extras are undefined (e.g., with EMPTY_THREAD_CORE). The hook now safely returns undefined when extras are not available, and uses useAui for imperative operations in useLangGraphSend to avoid similar issues.
 
 - Updated dependencies [94fcc39]
   - @assistant-ui/react@0.11.20
@@ -239,7 +251,7 @@
 
 ### Patch Changes
 
-- 072de1d: fix: incorrect use of api.threadListItem()
+- 072de1d: fix: incorrect use of aui.threadListItem()
 - Updated dependencies [2e1815e]
   - @assistant-ui/react@0.11.3
 

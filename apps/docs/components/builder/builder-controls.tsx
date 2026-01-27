@@ -2,7 +2,7 @@
 
 import { CircleAlertIcon, SunIcon, MoonIcon } from "lucide-react";
 
-import { Select } from "@/components/shared/select";
+import { Select } from "@/components/assistant-ui/select";
 import { Switch } from "@/components/shared/switch";
 import {
   ThemeColorPicker,
@@ -34,6 +34,7 @@ import {
   type TypingIndicator,
 } from "./types";
 import { PRESETS } from "./presets";
+import { analytics } from "@/lib/analytics";
 
 interface BuilderControlsProps {
   config: BuilderConfig;
@@ -769,12 +770,6 @@ function SwitchColorRow({
     <div className="flex h-7 items-center justify-between">
       <span className="text-sm">{label}</span>
       <div className="flex items-center gap-2">
-        <div className={enabled ? "" : "pointer-events-none opacity-40"}>
-          <ThemeColorPicker
-            value={color ?? defaultColor}
-            onChange={onColorChange}
-          />
-        </div>
         <Switch
           checked={enabled}
           onCheckedChange={(checked) => {
@@ -782,6 +777,12 @@ function SwitchColorRow({
             if (!checked) onColorChange(undefined);
           }}
         />
+        <div className={enabled ? "" : "pointer-events-none opacity-40"}>
+          <ThemeColorPicker
+            value={color ?? defaultColor}
+            onChange={onColorChange}
+          />
+        </div>
       </div>
     </div>
   );
@@ -808,7 +809,10 @@ function PresetSelect({
       value={currentPreset?.id ?? ""}
       onValueChange={(id) => {
         const preset = PRESETS.find((p) => p.id === id);
-        if (preset) onChange(preset.config);
+        if (preset) {
+          analytics.builder.presetSelected(preset.name);
+          onChange(preset.config);
+        }
       }}
       options={options}
       placeholder="Custom"

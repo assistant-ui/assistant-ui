@@ -23,7 +23,7 @@
     "typescript": "^5.9.3"
   },
   "devDependencies": {
-    "@types/node": "^25.0.9"
+    "@types/node": "^25.0.10"
   },
   "homepage": "https://www.assistant-ui.com/",
   "repository": {

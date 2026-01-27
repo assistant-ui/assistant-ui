@@ -7,12 +7,11 @@ import {
   PropsWithChildren,
   useMemo,
 } from "react";
+import { useAuiState, useAui } from "@assistant-ui/store";
 import {
-  useAssistantState,
   PartByIndexProvider,
-  useAssistantApi,
   TextMessagePartProvider,
-} from "../../context";
+} from "../../context/providers";
 import { MessagePartPrimitiveText } from "../messagePart/MessagePartText";
 import { MessagePartPrimitiveImage } from "../messagePart/MessagePartImage";
 import type {
@@ -75,7 +74,7 @@ const groupMessagePartsByParentId: GroupingFunction = (
 const useMessagePartsGrouped = (
   groupingFunction: GroupingFunction,
 ): MessagePartGroup[] => {
-  const parts = useAssistantState(({ message }) => message.parts);
+  const parts = useAuiState(({ message }) => message.parts);
 
   return useMemo(() => {
     if (parts.length === 0) {
@@ -220,7 +219,7 @@ const ToolUIDisplay = ({
 }: {
   Fallback: ToolCallMessagePartComponent | undefined;
 } & ToolCallMessagePartProps) => {
-  const Render = useAssistantState(({ tools }) => {
+  const Render = useAuiState(({ tools }) => {
     const Render = tools.tools[props.toolName] ?? Fallback;
     if (Array.isArray(Render)) return Render[0] ?? Fallback;
     return Render;
@@ -261,13 +260,13 @@ const MessagePartComponent: FC<MessagePartComponentProps> = ({
     tools = {},
   } = {},
 }) => {
-  const api = useAssistantApi();
-  const part = useAssistantState(({ part }) => part);
+  const aui = useAui();
+  const part = useAuiState(({ part }) => part);
 
   const type = part.type;
   if (type === "tool-call") {
-    const addResult = (result: any) => api.part().addToolResult(result);
-    const resume = api.part().resumeToolCall;
+    const addResult = (result: any) => aui.part().addToolResult(result);
+    const resume = aui.part().resumeToolCall;
     if ("Override" in tools)
       return <tools.Override {...part} addResult={addResult} resume={resume} />;
     const Tool = tools.by_name?.[part.toolName] ?? tools.Fallback;
@@ -355,7 +354,7 @@ const COMPLETE_STATUS: MessagePartStatus = Object.freeze({
 });
 
 const EmptyPartsImpl: FC<MessagePartComponentProps> = ({ components }) => {
-  const status = useAssistantState(
+  const status = useAuiState(
     (s) => (s.message.status ?? COMPLETE_STATUS) as MessagePartStatus,
   );
 
@@ -427,9 +426,7 @@ const EmptyParts = memo(
 export const MessagePrimitiveUnstable_PartsGrouped: FC<
   MessagePrimitiveUnstable_PartsGrouped.Props
 > = ({ groupingFunction, components }) => {
-  const contentLength = useAssistantState(
-    ({ message }) => message.parts.length,
-  );
+  const contentLength = useAuiState(({ message }) => message.parts.length);
   const messageGroups = useMessagePartsGrouped(groupingFunction);
 
   const partsElements = useMemo(() => {

@@ -7,12 +7,11 @@ import {
   PropsWithChildren,
   useMemo,
 } from "react";
+import { useAuiState, useAui } from "@assistant-ui/store";
 import {
-  useAssistantState,
-  useAssistantApi,
   PartByIndexProvider,
   TextMessagePartProvider,
-} from "../../context";
+} from "../../context/providers";
 import { MessagePartPrimitiveText } from "../messagePart/MessagePartText";
 import { MessagePartPrimitiveImage } from "../messagePart/MessagePartImage";
 import type {
@@ -107,7 +106,7 @@ const groupMessageParts = (
 };
 
 const useMessagePartsGroups = (): MessagePartRange[] => {
-  const messageTypes = useAssistantState(
+  const messageTypes = useAuiState(
     useShallow((s) => s.message.parts.map((c: any) => c.type)),
   );
 
@@ -243,6 +242,17 @@ export namespace MessagePrimitiveParts {
           ReasoningGroup?: ReasoningGroupComponent;
         }
       | undefined;
+    /**
+     * When enabled, shows the Empty component if the last part in the message
+     * is anything other than Text or Reasoning.
+     *
+     * This can be useful to ensure there's always a visible element at the end
+     * of messages that end with non-text content like tool calls or images.
+     *
+     * @experimental This API is experimental and may change in future versions.
+     * @default true
+     */
+    unstable_showEmptyOnNonTextEnd?: boolean | undefined;
   };
 }
 
@@ -252,7 +262,7 @@ const ToolUIDisplay = ({
 }: {
   Fallback: ToolCallMessagePartComponent | undefined;
 } & ToolCallMessagePartProps) => {
-  const Render = useAssistantState(({ tools }) => {
+  const Render = useAuiState(({ tools }) => {
     const Render = tools.tools[props.toolName] ?? Fallback;
     if (Array.isArray(Render)) return Render[0] ?? Fallback;
     return Render;
@@ -294,13 +304,13 @@ const MessagePartComponent: FC<MessagePartComponentProps> = ({
     tools = {},
   } = {},
 }) => {
-  const api = useAssistantApi();
-  const part = useAssistantState(({ part }) => part);
+  const aui = useAui();
+  const part = useAuiState(({ part }) => part);
 
   const type = part.type;
   if (type === "tool-call") {
-    const addResult = api.part().addToolResult;
-    const resume = api.part().resumeToolCall;
+    const addResult = aui.part().addToolResult;
+    const resume = aui.part().resumeToolCall;
     if ("Override" in tools)
       return <tools.Override {...part} addResult={addResult} resume={resume} />;
     const Tool = tools.by_name?.[part.toolName] ?? tools.Fallback;
@@ -409,7 +419,7 @@ const COMPLETE_STATUS: MessagePartStatus = Object.freeze({
 });
 
 const EmptyPartsImpl: FC<MessagePartComponentProps> = ({ components }) => {
-  const status = useAssistantState(
+  const status = useAuiState(
     (s) => (s.message.status ?? COMPLETE_STATUS) as MessagePartStatus,
   );
 
@@ -426,6 +436,30 @@ const EmptyPartsImpl: FC<MessagePartComponentProps> = ({ components }) => {
 const EmptyParts = memo(
   EmptyPartsImpl,
   (prev, next) =>
+    prev.components?.Empty === next.components?.Empty &&
+    prev.components?.Text === next.components?.Text,
+);
+
+const ConditionalEmptyImpl: FC<{
+  components: MessagePrimitiveParts.Props["components"];
+  enabled: boolean;
+}> = ({ components, enabled }) => {
+  const shouldShowEmpty = useAuiState(({ message }) => {
+    if (!enabled) return false;
+    if (message.parts.length === 0) return false;
+
+    const lastPart = message.parts[message.parts.length - 1];
+    return lastPart?.type !== "text" && lastPart?.type !== "reasoning";
+  });
+
+  if (!shouldShowEmpty) return null;
+  return <EmptyParts components={components} />;
+};
+
+const ConditionalEmpty = memo(
+  ConditionalEmptyImpl,
+  (prev, next) =>
+    prev.enabled === next.enabled &&
     prev.components?.Empty === next.components?.Empty &&
     prev.components?.Text === next.components?.Text,
 );
@@ -456,10 +490,9 @@ const EmptyParts = memo(
  */
 export const MessagePrimitiveParts: FC<MessagePrimitiveParts.Props> = ({
   components,
+  unstable_showEmptyOnNonTextEnd = true,
 }) => {
-  const contentLength = useAssistantState(
-    ({ message }) => message.parts.length,
-  );
+  const contentLength = useAuiState(({ message }) => message.parts.length);
   const messageRanges = useMessagePartsGroups();
 
   const partsElements = useMemo(() => {
@@ -523,7 +556,15 @@ export const MessagePrimitiveParts: FC<MessagePrimitiveParts.Props> = ({
     });
   }, [messageRanges, components, contentLength]);
 
-  return <>{partsElements}</>;
+  return (
+    <>
+      {partsElements}
+      <ConditionalEmpty
+        components={components}
+        enabled={unstable_showEmptyOnNonTextEnd}
+      />
+    </>
+  );
 };
 
 MessagePrimitiveParts.displayName = "MessagePrimitive.Parts";

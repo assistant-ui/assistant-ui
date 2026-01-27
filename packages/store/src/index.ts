@@ -1,11 +1,11 @@
 // hooks
-export { useAssistantClient } from "./useAssistantClient";
-export { useAssistantState } from "./useAssistantState";
-export { useAssistantEvent } from "./useAssistantEvent";
+export { useAui } from "./useAui";
+export { useAuiState } from "./useAuiState";
+export { useAuiEvent } from "./useAuiEvent";
 
 // components
-export { AssistantIf } from "./AssistantIf";
-export { AssistantProvider } from "./utils/react-assistant-context";
+export { AuiIf } from "./AuiIf";
+export { AuiProvider } from "./utils/react-assistant-context";
 
 // resources
 export { Derived } from "./Derived";

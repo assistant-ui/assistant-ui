@@ -4,6 +4,7 @@ import { NextConfig } from "next";
 const config: NextConfig = {
   transpilePackages: ["@assistant-ui/*", "shiki"],
   serverExternalPackages: ["twoslash"],
+  skipTrailingSlashRedirect: true,
   redirects: async () => [
     {
       source: "/docs/getting-started",
@@ -20,6 +21,14 @@ const config: NextConfig = {
       {
         source: "/docs/:path*.mdx",
         destination: "/llms.mdx/:path*",
+      },
+      {
+        source: "/ph/static/:path*",
+        destination: "https://us-assets.i.posthog.com/static/:path*",
+      },
+      {
+        source: "/ph/:path*",
+        destination: "https://us.i.posthog.com/:path*",
       },
     ],
     fallback: [

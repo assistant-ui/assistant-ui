@@ -192,6 +192,22 @@ export function useToolInvocations({
                   }
                 } else {
                   if (!content.argsText.startsWith(lastState.argsText)) {
+                    // Check if this is key reordering (both are complete JSON)
+                    // This happens when transitioning from streaming to complete state
+                    // and the provider returns keys in a different order
+                    if (
+                      isArgsTextComplete(lastState.argsText) &&
+                      isArgsTextComplete(content.argsText)
+                    ) {
+                      lastState.controller.argsText.close();
+                      lastToolStates.current[content.toolCallId] = {
+                        argsText: content.argsText,
+                        hasResult: lastState.hasResult,
+                        argsComplete: true,
+                        controller: lastState.controller,
+                      };
+                      return; // Continue to next content part
+                    }
                     throw new Error(
                       `Tool call argsText can only be appended, not updated: ${content.argsText} does not start with ${lastState.argsText}`,
                     );

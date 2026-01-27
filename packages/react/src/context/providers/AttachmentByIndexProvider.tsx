@@ -1,29 +1,22 @@
 "use client";
 
 import { type FC, type PropsWithChildren } from "react";
-
-import {
-  AssistantProvider,
-  useAssistantApi,
-  useExtendedAssistantApi,
-} from "../react/AssistantApiContext";
-import { DerivedScope } from "../../utils/tap-store/derived-scopes";
+import { useAui, AuiProvider, Derived } from "@assistant-ui/store";
 
 export const MessageAttachmentByIndexProvider: FC<
   PropsWithChildren<{
     index: number;
   }>
 > = ({ index, children }) => {
-  const baseApi = useAssistantApi();
-  const api = useExtendedAssistantApi({
-    attachment: DerivedScope({
+  const aui = useAui({
+    attachment: Derived({
       source: "message",
       query: { type: "index", index },
-      get: () => baseApi.message().attachment({ index }),
+      get: (aui) => aui.message().attachment({ index }),
     }),
   });
 
-  return <AssistantProvider api={api}>{children}</AssistantProvider>;
+  return <AuiProvider value={aui}>{children}</AuiProvider>;
 };
 
 export const ComposerAttachmentByIndexProvider: FC<
@@ -31,14 +24,13 @@ export const ComposerAttachmentByIndexProvider: FC<
     index: number;
   }>
 > = ({ index, children }) => {
-  const baseApi = useAssistantApi();
-  const api = useExtendedAssistantApi({
-    attachment: DerivedScope({
+  const aui = useAui({
+    attachment: Derived({
       source: "composer",
       query: { type: "index", index },
-      get: () => baseApi.composer().attachment({ index }),
+      get: (aui) => aui.composer().attachment({ index }),
     }),
   });
 
-  return <AssistantProvider api={api}>{children}</AssistantProvider>;
+  return <AuiProvider value={aui}>{children}</AuiProvider>;
 };

@@ -8,14 +8,17 @@ import {
   type tapRef,
   withKey,
 } from "@assistant-ui/tap";
+import {
+  type ClientOutput,
+  tapAssistantEmit,
+  tapClientLookup,
+  tapClientResource,
+} from "@assistant-ui/store";
 import { ComposerClient } from "./ComposerRuntimeClient";
 import { MessageClient } from "./MessageRuntimeClient";
 import { tapSubscribable } from "../util-hooks/tapSubscribable";
-import { tapApi } from "../../utils/tap-store";
-import { tapLookupResources } from "../../client/util-hooks/tapLookupResources";
 import { Unsubscribe } from "../../types";
-import { tapEvents } from "../../client/EventContext";
-import { ThreadClientState, ThreadClientApi } from "../../client/types/Thread";
+import { ThreadState } from "../../types/scopes";
 
 const MessageClientById = resource(
   ({
@@ -39,10 +42,9 @@ const MessageClientById = resource(
 );
 
 export const ThreadClient = resource(
-  ({ runtime }: { runtime: ThreadRuntime }) => {
+  ({ runtime }: { runtime: ThreadRuntime }): ClientOutput<"thread"> => {
     const runtimeState = tapSubscribable(runtime);
-
-    const events = tapEvents();
+    const emit = tapAssistantEmit();
 
     // Bind thread events to event manager
     tapEffect(() => {
@@ -50,16 +52,16 @@ export const ThreadClient = resource(
 
       // Subscribe to thread events
       const threadEvents: ThreadRuntimeEventType[] = [
-        "run-start",
-        "run-end",
+        "runStart",
+        "runEnd",
         "initialize",
-        "model-context-update",
+        "modelContextUpdate",
       ];
 
       for (const event of threadEvents) {
         const unsubscribe = runtime.unstable_on(event, () => {
           const threadId = runtime.getState()?.threadId || "unknown";
-          events.emit(`thread.${event}`, {
+          emit(`thread.${event}`, {
             threadId,
           });
         });
@@ -69,7 +71,7 @@ export const ThreadClient = resource(
       return () => {
         for (const unsub of unsubscribers) unsub();
       };
-    }, [runtime, events.emit]);
+    }, [runtime, emit]);
 
     const threadIdRef = tapMemo(
       () => ({
@@ -80,23 +82,22 @@ export const ThreadClient = resource(
       [runtime],
     );
 
-    const composer = tapInlineResource(
+    const composer = tapClientResource(
       ComposerClient({
         runtime: runtime.composer,
         threadIdRef,
       }),
     );
 
-    const messages = tapLookupResources(
-      runtimeState.messages.map((m) =>
-        withKey(
-          m.id,
-          MessageClientById({ runtime: runtime, id: m.id, threadIdRef }),
+    const messages = tapClientLookup(
+      () =>
+        runtimeState.messages.map((m) =>
+          withKey(m.id, MessageClientById({ runtime, id: m.id, threadIdRef })),
         ),
-      ),
+      [runtimeState.messages, runtime, threadIdRef],
     );
 
-    const state = tapMemo<ThreadClientState>(() => {
+    const state = tapMemo<ThreadState>(() => {
       return {
         isEmpty: messages.state.length === 0 && !runtimeState.isLoading,
         isDisabled: runtimeState.isDisabled,
@@ -113,36 +114,35 @@ export const ThreadClient = resource(
       };
     }, [runtimeState, messages, composer.state]);
 
-    return tapApi<ThreadClientApi>({
-      getState: () => state,
-
-      composer: composer.api,
-
-      append: runtime.append,
-      startRun: runtime.startRun,
-      unstable_resumeRun: runtime.unstable_resumeRun,
-      cancelRun: runtime.cancelRun,
-      getModelContext: runtime.getModelContext,
-      export: runtime.export,
-      import: runtime.import,
-      reset: runtime.reset,
-      stopSpeaking: runtime.stopSpeaking,
-      startVoice: async () => {
-        throw new Error("startVoice is not supported in this runtime");
+    return {
+      state,
+      methods: {
+        getState: () => state,
+        composer: composer.methods,
+        append: runtime.append,
+        startRun: runtime.startRun,
+        unstable_resumeRun: runtime.unstable_resumeRun,
+        cancelRun: runtime.cancelRun,
+        getModelContext: runtime.getModelContext,
+        export: runtime.export,
+        import: runtime.import,
+        reset: runtime.reset,
+        stopSpeaking: runtime.stopSpeaking,
+        startVoice: async () => {
+          throw new Error("startVoice is not supported in this runtime");
+        },
+        stopVoice: async () => {
+          throw new Error("stopVoice is not supported in this runtime");
+        },
+        message: (selector) => {
+          if ("id" in selector) {
+            return messages.get({ key: selector.id });
+          } else {
+            return messages.get(selector);
+          }
+        },
+        __internal_getRuntime: () => runtime,
       },
-      stopVoice: async () => {
-        throw new Error("stopVoice is not supported in this runtime");
-      },
-
-      message: (selector) => {
-        if ("id" in selector) {
-          return messages.api({ key: selector.id });
-        } else {
-          return messages.api(selector);
-        }
-      },
-
-      __internal_getRuntime: () => runtime,
-    });
+    };
   },
 );

@@ -15,6 +15,9 @@ export function commitRender(renderResult: RenderResult): void {
     if (errors.length === 1) {
       throw errors[0];
     } else {
+      for (const error of errors) {
+        console.error(error);
+      }
       throw new AggregateError(errors, "Errors during commit");
     }
   }
@@ -23,14 +26,17 @@ export function commitRender(renderResult: RenderResult): void {
 export function cleanupAllEffects<R, P>(executionContext: ResourceFiber<R, P>) {
   const errors: unknown[] = [];
   for (const cell of executionContext.cells) {
-    if (cell?.type === "effect" && cell.cleanup) {
-      try {
-        cell.cleanup?.();
-      } catch (e) {
-        errors.push(e);
-      } finally {
-        cell.cleanup = undefined;
-        cell.deps = null; // Reset deps so effect runs again on next mount
+    if (cell?.type === "effect") {
+      cell.deps = null; // Reset deps so effect runs again on next mount
+
+      if (cell.cleanup) {
+        try {
+          cell.cleanup?.();
+        } catch (e) {
+          errors.push(e);
+        } finally {
+          cell.cleanup = undefined;
+        }
       }
     }
   }
@@ -38,6 +44,9 @@ export function cleanupAllEffects<R, P>(executionContext: ResourceFiber<R, P>) {
     if (errors.length === 1) {
       throw errors[0];
     } else {
+      for (const error of errors) {
+        console.error(error);
+      }
       throw new AggregateError(errors, "Errors during cleanup");
     }
   }

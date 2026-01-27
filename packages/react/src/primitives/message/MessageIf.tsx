@@ -1,7 +1,7 @@
 "use client";
 
 import type { FC, PropsWithChildren } from "react";
-import { useAssistantState } from "../../context";
+import { useAuiState } from "@assistant-ui/store";
 import type { RequireAtLeastOne } from "../../utils/RequireAtLeastOne";
 
 type MessageIfFilters = {
@@ -20,7 +20,7 @@ type MessageIfFilters = {
 type UseMessageIfProps = RequireAtLeastOne<MessageIfFilters>;
 
 const useMessageIf = (props: UseMessageIfProps) => {
-  return useAssistantState(({ message }) => {
+  return useAuiState(({ message }) => {
     const {
       role,
       attachments,
@@ -78,7 +78,7 @@ export namespace MessagePrimitiveIf {
 }
 
 /**
- * @deprecated Use `<AssistantIf condition={({ message }) => ...} />` instead.
+ * @deprecated Use `<AuiIf condition={({ message }) => ...} />` instead.
  */
 export const MessagePrimitiveIf: FC<MessagePrimitiveIf.Props> = ({
   children,

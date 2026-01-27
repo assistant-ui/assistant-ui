@@ -8,6 +8,7 @@ import { BASE_URL } from "@/lib/constants";
 import { useMarkdownCopy } from "@/hooks/use-markdown-copy";
 import { useAssistantPanel } from "@/components/docs/assistant/context";
 import { useCurrentPage } from "@/components/docs/contexts/current-page";
+import { analytics } from "@/lib/analytics";
 
 type TOCItem = {
   title: ReactNode;
@@ -45,11 +46,33 @@ function TOCActions({
     askAI(`Explain ${page}`);
   };
 
+  const handleCopy = () => {
+    analytics.toc.actionClicked("copy");
+    copy();
+  };
+
+  const handleMarkdownClick = () => {
+    analytics.toc.actionClicked("markdown");
+  };
+
+  const handleGitHubClick = () => {
+    analytics.toc.actionClicked("github");
+  };
+
+  const handleAskAIClick = () => {
+    analytics.toc.actionClicked("ask_ai");
+    handleAskAI();
+  };
+
   return (
     <div className="flex flex-col gap-3">
       {markdownUrl && (
         <>
-          <button onClick={copy} disabled={isLoading} className={linkClass}>
+          <button
+            onClick={handleCopy}
+            disabled={isLoading}
+            className={linkClass}
+          >
             <Copy className="size-3" />
             {isLoading ? "Loading..." : "Copy page"}
           </button>
@@ -58,6 +81,7 @@ function TOCActions({
             target="_blank"
             rel="noreferrer noopener"
             className={linkClass}
+            onClick={handleMarkdownClick}
           >
             <FileText className="size-3" />
             View as Markdown
@@ -70,12 +94,13 @@ function TOCActions({
           target="_blank"
           rel="noreferrer noopener"
           className={linkClass}
+          onClick={handleGitHubClick}
         >
           <EditIcon className="size-3" />
           Edit on GitHub
         </a>
       )}
-      <button onClick={handleAskAI} className={linkClass}>
+      <button onClick={handleAskAIClick} className={linkClass}>
         <SparklesIcon className="size-3" />
         Ask AI
       </button>
@@ -151,6 +176,7 @@ export function TableOfContents({
             const id = item.url.slice(1);
             const isActive = activeId === id;
             const indent = Math.max(0, item.depth - 2) * 12;
+            const titleText = typeof item.title === "string" ? item.title : id;
 
             return (
               <li key={item.url} data-toc-id={id}>
@@ -163,6 +189,9 @@ export function TableOfContents({
                       ? "font-medium text-foreground"
                       : "text-muted-foreground hover:text-foreground",
                   )}
+                  onClick={() =>
+                    analytics.toc.linkClicked(titleText, item.depth)
+                  }
                 >
                   {item.title}
                 </a>

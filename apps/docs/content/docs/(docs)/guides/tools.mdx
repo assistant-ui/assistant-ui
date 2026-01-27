@@ -166,15 +166,15 @@ function App() {
 
 ### 4. Advanced: Direct Context Registration
 
-Use `api.modelContext().register()` when you need to configure more than just tools:
+Use `aui.modelContext().register()` when you need to configure more than just tools:
 
 ```tsx
-import { tool, useAssistantApi } from "@assistant-ui/react";
+import { tool, useAui } from "@assistant-ui/react";
 import { useEffect, useState } from "react";
 import { z } from "zod";
 
 function MyComponent() {
-  const api = useAssistantApi();
+  const aui = useAui();
   const [isCreativeMode, setIsCreativeMode] = useState(false);
 
   useEffect(() => {
@@ -189,7 +189,7 @@ function MyComponent() {
     });
 
     // Register tools with model configuration
-    return api.modelContext().register({
+    return aui.modelContext().register({
       getModelContext: () => ({
         tools: { calculate: calculateTool },
         callSettings: {

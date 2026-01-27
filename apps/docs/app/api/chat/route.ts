@@ -1,7 +1,14 @@
-import { openai } from "@ai-sdk/openai";
-import { convertToModelMessages, stepCountIs, streamText } from "ai";
-import { frontendTools } from "@assistant-ui/react-ai-sdk";
+import { getDistinctId, posthogServer } from "@/lib/posthog-server";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { openai } from "@ai-sdk/openai";
+import { frontendTools } from "@assistant-ui/react-ai-sdk";
+import { withTracing } from "@posthog/ai";
+import {
+  convertToModelMessages,
+  pruneMessages,
+  stepCountIs,
+  streamText,
+} from "ai";
 
 export const maxDuration = 30;
 
@@ -11,14 +18,30 @@ export async function POST(req: Request) {
 
   const { messages, tools } = await req.json();
 
-  const result = streamText({
-    model: openai("gpt-5-nano"),
+  const baseModel = openai("gpt-5-nano");
+
+  const tracedModel = posthogServer
+    ? withTracing(baseModel, posthogServer, {
+        posthogDistinctId: getDistinctId(req),
+        posthogPrivacyMode: false,
+        posthogProperties: {
+          $ai_span_name: "general_chat",
+          source: "general_chat",
+        },
+      })
+    : baseModel;
+
+  const prunedMessages = pruneMessages({
     messages: await convertToModelMessages(messages),
+    reasoning: "none",
+  });
+
+  const result = streamText({
+    model: tracedModel,
+    messages: prunedMessages,
     maxOutputTokens: 1200,
     stopWhen: stepCountIs(10),
-    tools: {
-      ...frontendTools(tools),
-    },
+    tools: frontendTools(tools),
     onError: console.error,
   });
 

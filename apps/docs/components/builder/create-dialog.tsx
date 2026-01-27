@@ -9,6 +9,7 @@ import type { BuilderConfig } from "./types";
 import { configMatchesPreset } from "./presets";
 import { encodeConfig } from "@/lib/playground-url-state";
 import { BASE_URL } from "@/lib/constants";
+import { analytics } from "@/lib/analytics";
 
 interface CreateDialogProps {
   config: BuilderConfig;
@@ -26,13 +27,20 @@ export function CreateDialog({
   const [open, setOpen] = useState(false);
   const commands = generateCliCommands(config);
 
+  const handleOpenChange = (isOpen: boolean) => {
+    if (isOpen) {
+      analytics.builder.createDialogOpened();
+    }
+    setOpen(isOpen);
+  };
+
   const handleOpenCodeView = () => {
     setOpen(false);
     onOpenCodeView?.();
   };
 
   return (
-    <DialogPrimitive.Root open={open} onOpenChange={setOpen}>
+    <DialogPrimitive.Root open={open} onOpenChange={handleOpenChange}>
       <DialogPrimitive.Trigger asChild>{children}</DialogPrimitive.Trigger>
       <DialogPrimitive.Portal container={container?.current}>
         <DialogPrimitive.Overlay className="data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 absolute inset-0 z-50 bg-black/50 data-[state=closed]:animate-out data-[state=open]:animate-in" />
@@ -49,6 +57,7 @@ export function CreateDialog({
               {...(commands.primary.command && {
                 command: commands.primary.command,
               })}
+              commandType="init"
             />
 
             <CommandBlock
@@ -56,6 +65,7 @@ export function CreateDialog({
               {...(commands.alternative.command && {
                 command: commands.alternative.command,
               })}
+              commandType="shadcn"
             />
 
             <div className="border-t pt-4">
@@ -67,6 +77,7 @@ export function CreateDialog({
                     label={`${index + 1}. ${cmd.label}`}
                     {...(cmd.command && { command: cmd.command })}
                     {...(cmd.description && { description: cmd.description })}
+                    commandType={index === 0 ? "manual_init" : "manual_add"}
                   />
                 ))}
                 <div>
@@ -110,15 +121,20 @@ function CommandBlock({
   label,
   description,
   command,
+  commandType,
 }: {
   label: string;
   description?: string;
   command?: string;
+  commandType?: "init" | "shadcn" | "manual_init" | "manual_add";
 }) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
     if (!command) return;
+    if (commandType) {
+      analytics.builder.commandCopied(commandType);
+    }
     await navigator.clipboard.writeText(command);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);

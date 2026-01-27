@@ -64,10 +64,6 @@ export type ThreadListItemState = {
   readonly id: string;
   readonly remoteId: string | undefined;
   readonly externalId: string | undefined;
-  /**
-   * @deprecated Use `id` instead. This field will be removed in version 0.12.0.
-   */
-  readonly threadId: string;
   readonly status: ThreadListItemStatus;
   readonly title?: string | undefined;
 };

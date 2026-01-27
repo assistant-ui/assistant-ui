@@ -36,7 +36,7 @@ export function tapEffectEvent<T extends (...args: any[]) => any>(
           throw new Error("tapEffectEvent cannot be called during render");
         return callbackRef.current(...args);
       }) as T,
-      [],
+      [fiber],
     );
   }
 

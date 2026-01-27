@@ -1,5 +1,44 @@
 # @assistant-ui/react
 
+## 0.12.2
+
+### Patch Changes
+
+- 1ea3e28: feat(react): better error handling
+- 8cbf686: fix: tap should run effects after remount
+- a8be364: feat: log individual errors when throwing AggregateError
+- 605d825: chore: update dependencies
+- Updated dependencies [8cbf686]
+- Updated dependencies [2e088eb]
+- Updated dependencies [a8be364]
+- Updated dependencies [605d825]
+- Updated dependencies [fe15232]
+  - @assistant-ui/tap@0.4.1
+  - @assistant-ui/store@0.1.1
+  - assistant-stream@0.2.48
+  - assistant-cloud@0.1.14
+
+## 0.12.1
+
+### Patch Changes
+
+- 8672695: fix: race condition in RemoteThreadListRuntime causing app crash on thread deletion
+
+## 0.12.0
+
+### Minor Changes
+
+- 9314b36: feat: use @assistant-ui/store to power state management
+
+# Patch Changes
+
+- 6eab31e: fix(react): handle tool argsText key reordering during streaming
+- 083ed83: fix(cloud): serialize image and file parts across all formats
+- 6511990: fix(react): bind `this` context when calling `__internal_setGetInitializePromise`
+- a526e63: fix uncaught AbortError when cancelling streams
+- Updated dependencies [11625b5]
+  - @assistant-ui/store@0.0.7
+
 ## 0.11.59
 
 ### Patch Changes

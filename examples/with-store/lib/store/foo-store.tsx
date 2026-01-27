@@ -5,11 +5,11 @@ import "./foo-scope";
 import React from "react";
 import { resource, tapMemo, tapState } from "@assistant-ui/tap";
 import {
-  useAssistantClient,
-  AssistantProvider,
+  useAui,
+  AuiProvider,
   tapClientList,
   Derived,
-  useAssistantState,
+  useAuiState,
   tapAssistantEmit,
   type ClientOutput,
 } from "@assistant-ui/store";
@@ -89,7 +89,7 @@ export const FooProvider = ({
   index: number;
   children: React.ReactNode;
 }) => {
-  const aui = useAssistantClient({
+  const aui = useAui({
     foo: Derived({
       source: "fooList",
       query: { index: index },
@@ -97,7 +97,7 @@ export const FooProvider = ({
     }),
   });
 
-  return <AssistantProvider client={aui}>{children}</AssistantProvider>;
+  return <AuiProvider value={aui}>{children}</AuiProvider>;
 };
 
 export const FooList = ({
@@ -105,7 +105,7 @@ export const FooList = ({
 }: {
   components: { Foo: React.ComponentType };
 }) => {
-  const fooListState = useAssistantState(({ fooList }) => fooList.foos.length);
+  const fooListState = useAuiState(({ fooList }) => fooList.foos.length);
 
   return (
     <>

@@ -50,7 +50,7 @@ export class LocalThreadListRuntimeCore
     return DEFAULT_THREAD_ID;
   }
 
-  public get threadData() {
+  public get threadItems() {
     return DEFAULT_THREAD_DATA;
   }
 

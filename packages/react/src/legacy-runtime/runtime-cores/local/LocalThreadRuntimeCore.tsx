@@ -230,7 +230,7 @@ export class LocalThreadRuntimeCore
       createdAt: new Date(),
     };
 
-    this._notifyEventSubscribers("run-start");
+    this._notifyEventSubscribers("runStart");
 
     try {
       this._suggestions = [];
@@ -248,7 +248,7 @@ export class LocalThreadRuntimeCore
         runCallback = undefined;
       } while (shouldContinue(message, this._options.unstable_humanToolNames));
     } finally {
-      this._notifyEventSubscribers("run-end");
+      this._notifyEventSubscribers("runEnd");
     }
 
     this._suggestionsController = new AbortController();
@@ -409,6 +409,10 @@ export class LocalThreadRuntimeCore
     } catch (e) {
       // TODO this should be handled by the run result stream
       if (e instanceof AbortError) {
+        updateMessage({
+          status: { type: "incomplete", reason: "cancelled" },
+        });
+      } else if (e instanceof Error && e.name === "AbortError") {
         updateMessage({
           status: { type: "incomplete", reason: "cancelled" },
         });

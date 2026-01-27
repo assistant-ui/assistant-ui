@@ -1,7 +1,7 @@
 "use client";
 
 import type { FC, ReactNode } from "react";
-import { useAssistantState } from "../../context";
+import { useAuiState } from "@assistant-ui/store";
 
 export namespace ThreadListItemPrimitiveTitle {
   export type Props = {
@@ -12,7 +12,7 @@ export namespace ThreadListItemPrimitiveTitle {
 export const ThreadListItemPrimitiveTitle: FC<
   ThreadListItemPrimitiveTitle.Props
 > = ({ fallback }) => {
-  const title = useAssistantState(({ threadListItem }) => threadListItem.title);
+  const title = useAuiState(({ threadListItem }) => threadListItem.title);
   return <>{title || fallback}</>;
 };
 

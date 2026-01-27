@@ -1,10 +1,8 @@
 "use client";
 
 import { ComponentType, type FC, memo, useMemo } from "react";
-import {
-  useAssistantState,
-  MessageAttachmentByIndexProvider,
-} from "../../context";
+import { useAuiState } from "@assistant-ui/store";
+import { MessageAttachmentByIndexProvider } from "../../context/providers";
 import { CompleteAttachment } from "../../types";
 
 export namespace MessagePrimitiveAttachments {
@@ -41,7 +39,7 @@ const getComponent = (
 const AttachmentComponent: FC<{
   components: MessagePrimitiveAttachments.Props["components"];
 }> = ({ components }) => {
-  const attachment = useAssistantState(({ attachment }) => attachment);
+  const attachment = useAuiState(({ attachment }) => attachment);
   if (!attachment) return null;
 
   const Component = getComponent(components, attachment as CompleteAttachment);
@@ -96,7 +94,7 @@ MessagePrimitiveAttachmentByIndex.displayName =
 export const MessagePrimitiveAttachments: FC<
   MessagePrimitiveAttachments.Props
 > = ({ components }) => {
-  const attachmentsCount = useAssistantState(({ message }) => {
+  const attachmentsCount = useAuiState(({ message }) => {
     if (message.role !== "user") return 0;
     return message.attachments.length;
   });

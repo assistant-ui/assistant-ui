@@ -6,7 +6,7 @@ import {
   createActionButton,
 } from "../../utils/createActionButton";
 import { useCallback } from "react";
-import { useAssistantState, useAssistantApi } from "../../context";
+import { useAuiState, useAui } from "@assistant-ui/store";
 
 /**
  * Hook that provides navigation to the previous branch functionality.
@@ -30,8 +30,8 @@ import { useAssistantState, useAssistantApi } from "../../context";
  * ```
  */
 const useBranchPickerPrevious = () => {
-  const api = useAssistantApi();
-  const disabled = useAssistantState(({ thread, message }) => {
+  const aui = useAui();
+  const disabled = useAuiState(({ thread, message }) => {
     // Disabled if no previous branch
     if (message.branchNumber <= 1) return true;
 
@@ -44,8 +44,8 @@ const useBranchPickerPrevious = () => {
   });
 
   const callback = useCallback(() => {
-    api.message().switchToBranch({ position: "previous" });
-  }, [api]);
+    aui.message().switchToBranch({ position: "previous" });
+  }, [aui]);
 
   if (disabled) return null;
   return callback;

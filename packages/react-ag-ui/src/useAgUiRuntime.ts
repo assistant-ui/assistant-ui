@@ -69,6 +69,7 @@ export function useAgUiRuntime(
       void _version; // rerender on version change
 
       return {
+        isLoading: core.isLoading,
         messages: core.getMessages(),
         state: core.getState(),
         isRunning: core.isRunning(),
@@ -100,6 +101,10 @@ export function useAgUiRuntime(
       core.detachRuntime();
     };
   }, [core, runtime]);
+
+  useEffect(() => {
+    core.__internal_load();
+  }, [core]);
 
   return runtime;
 }

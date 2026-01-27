@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-ag-ui",
-  "version": "0.0.9",
+  "version": "0.0.11",
   "description": "AG-UI protocol adapter for assistant-ui",
   "keywords": [
     "ag-ui",
@@ -36,11 +36,11 @@
   },
   "dependencies": {
     "@ag-ui/client": "^0.0.43",
-    "assistant-stream": "^0.2.47",
-    "zod": "^4.3.5"
+    "assistant-stream": "^0.2.48",
+    "zod": "^4.3.6"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.11.59",
+    "@assistant-ui/react": "^0.12.2",
     "@types/react": "*",
     "react": "^18 || ^19"
   },
@@ -53,8 +53,8 @@
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/react": "^19.2.9",
-    "react": "^19.2.3",
-    "vitest": "^4.0.17"
+    "react": "^19.2.4",
+    "vitest": "^4.0.18"
   },
   "publishConfig": {
     "access": "public",

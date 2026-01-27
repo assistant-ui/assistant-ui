@@ -1,5 +1,17 @@
 # @assistant-ui/react-syntax-highlighter
 
+## 0.12.1
+
+### Patch Changes
+
+- 605d825: chore: update dependencies
+- Updated dependencies [1ea3e28]
+- Updated dependencies [8cbf686]
+- Updated dependencies [a8be364]
+- Updated dependencies [605d825]
+  - @assistant-ui/react@0.12.2
+  - @assistant-ui/react-markdown@0.12.1
+
 ## 0.11.10
 
 ### Patch Changes

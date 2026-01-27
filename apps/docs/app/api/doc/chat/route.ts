@@ -1,8 +1,10 @@
 import { getLLMText } from "@/lib/get-llm-text";
+import { getDistinctId, posthogServer } from "@/lib/posthog-server";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { source } from "@/lib/source";
 import { openai } from "@ai-sdk/openai";
 import { frontendTools } from "@assistant-ui/react-ai-sdk";
+import { withTracing } from "@posthog/ai";
 import {
   convertToModelMessages,
   pruneMessages,
@@ -14,31 +16,31 @@ import {
 import type * as PageTree from "fumadocs-core/page-tree";
 import z from "zod";
 
+function normalizeSegment(name: string): string {
+  return name.toLowerCase().replace(/\s+/g, "-");
+}
+
 function findFolderByPath(
   tree: PageTree.Root,
   path: string,
 ): PageTree.Folder | undefined {
   const segments = path.split("/").filter(Boolean);
-
+  let currentFolder: PageTree.Folder | undefined;
   let children: PageTree.Node[] = tree.children;
-  let foundFolder: PageTree.Folder | undefined;
 
   for (const segment of segments) {
-    foundFolder = undefined;
-    for (const node of children) {
-      if (node.type === "folder") {
-        const name = typeof node.name === "string" ? node.name : "";
-        if (name.toLowerCase().replace(/\s+/g, "-") === segment.toLowerCase()) {
-          foundFolder = node;
-          children = node.children;
-          break;
-        }
-      }
-    }
-    if (!foundFolder) return undefined;
+    const folder = children.find(
+      (node): node is PageTree.Folder =>
+        node.type === "folder" &&
+        normalizeSegment(typeof node.name === "string" ? node.name : "") ===
+          segment.toLowerCase(),
+    );
+    if (!folder) return undefined;
+    currentFolder = folder;
+    children = folder.children;
   }
 
-  return foundFolder;
+  return currentFolder;
 }
 
 export const maxDuration = 300;
@@ -125,8 +127,21 @@ export async function POST(req: Request): Promise<Response> {
     emptyMessages: "remove",
   });
 
+  const baseModel = openai("gpt-5-nano");
+
+  const tracedModel = posthogServer
+    ? withTracing(baseModel, posthogServer, {
+        posthogDistinctId: getDistinctId(req),
+        posthogPrivacyMode: false,
+        posthogProperties: {
+          $ai_span_name: "docs_assistant_chat",
+          source: "docs_assistant",
+        },
+      })
+    : baseModel;
+
   const result = streamText({
-    model: openai("gpt-5-nano"),
+    model: tracedModel,
     system: SYSTEM_PROMPT,
     messages: prunedMessages,
     stopWhen: stepCountIs(25),

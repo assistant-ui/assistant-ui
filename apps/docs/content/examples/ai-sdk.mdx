@@ -3,9 +3,9 @@ title: AI SDK + Chat Persistence
 description: Chat persistence with AI SDK
 ---
 
-import { Shadcn } from "@/components/example/shadcn/Shadcn";
+import { Shadcn } from "@/components/examples/shadcn";
 import { DocsRuntimeProvider } from "@/contexts/DocsRuntimeProvider";
-import { SourceLink } from "@/components/examples/SourceLink";
+import { SourceLink } from "@/components/docs/source-link";
 
 <div className="not-prose h-[600px]">
   <DocsRuntimeProvider>
@@ -111,4 +111,4 @@ const savedMessages = await db.messages.findMany({ threadId });
 
 ## Source
 
-<SourceLink href="https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/example/shadcn/Shadcn.tsx" />
+<SourceLink href="https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/examples/shadcn.tsx" />

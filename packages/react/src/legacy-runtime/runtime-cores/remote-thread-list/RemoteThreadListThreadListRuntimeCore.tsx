@@ -156,7 +156,7 @@ export class RemoteThreadListThreadListRuntimeCore
     threadData: {},
   });
 
-  public get threadData() {
+  public get threadItems() {
     return this._state.value.threadData;
   }
 
@@ -240,12 +240,12 @@ export class RemoteThreadListThreadListRuntimeCore
     this._state.subscribe(() => this._notifySubscribers());
     this._hookManager = new RemoteThreadListHookInstanceManager(
       options.runtimeHook,
+      this,
     );
     this.useProvider = create(() => ({
       Provider: options.adapter.unstable_Provider ?? Fragment,
     }));
     this.__internal_setOptions(options);
-
     this.switchToNewThread();
   }
 

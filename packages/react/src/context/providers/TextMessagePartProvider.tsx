@@ -1,22 +1,19 @@
 "use client";
 
 import { type FC, type PropsWithChildren } from "react";
-import {
-  AssistantProvider,
-  useExtendedAssistantApi,
-} from "../react/AssistantApiContext";
-import {
-  MessagePartClientApi,
-  MessagePartClientState,
-} from "../../client/types/Part";
+import { useAui, AuiProvider, type ClientOutput } from "@assistant-ui/store";
+import { PartState } from "../../types/scopes";
 import { resource, tapMemo } from "@assistant-ui/tap";
-import { useResource } from "@assistant-ui/tap/react";
-import { asStore, tapApi } from "../../utils/tap-store";
-import { DerivedScope } from "../../utils/tap-store/derived-scopes";
 
 const TextMessagePartClient = resource(
-  ({ text, isRunning }: { text: string; isRunning: boolean }) => {
-    const state = tapMemo<MessagePartClientState>(
+  ({
+    text,
+    isRunning,
+  }: {
+    text: string;
+    isRunning: boolean;
+  }): ClientOutput<"part"> => {
+    const state = tapMemo<PartState>(
       () => ({
         type: "text",
         text,
@@ -25,15 +22,18 @@ const TextMessagePartClient = resource(
       [text, isRunning],
     );
 
-    return tapApi<MessagePartClientApi>({
-      getState: () => state,
-      addToolResult: () => {
-        throw new Error("Not supported");
+    return {
+      state,
+      methods: {
+        getState: () => state,
+        addToolResult: () => {
+          throw new Error("Not supported");
+        },
+        resumeToolCall: () => {
+          throw new Error("Not supported");
+        },
       },
-      resumeToolCall: () => {
-        throw new Error("Not supported");
-      },
-    });
+    };
   },
 );
 
@@ -43,17 +43,9 @@ export const TextMessagePartProvider: FC<
     isRunning?: boolean;
   }>
 > = ({ text, isRunning = false, children }) => {
-  const store = useResource(
-    asStore(TextMessagePartClient({ text, isRunning })),
-  );
-  const api = useExtendedAssistantApi({
-    part: DerivedScope({
-      source: "root",
-      query: {},
-      get: () => store.getValue().api,
-    }),
-    subscribe: store.subscribe,
+  const aui = useAui({
+    part: TextMessagePartClient({ text, isRunning }),
   });
 
-  return <AssistantProvider api={api}>{children}</AssistantProvider>;
+  return <AuiProvider value={aui}>{children}</AuiProvider>;
 };
