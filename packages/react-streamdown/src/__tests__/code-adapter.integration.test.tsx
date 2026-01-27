@@ -1,8 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { createCodeAdapter } from "../adapters/code-adapter";
 import { PreContext } from "../adapters/PreOverride";
+
+afterEach(cleanup);
 
 // Wrapper to provide PreContext (simulates being inside a code block)
 function CodeBlockWrapper({ children }: { children: ReactNode }) {
@@ -13,24 +15,11 @@ function CodeBlockWrapper({ children }: { children: ReactNode }) {
   );
 }
 
-// Wrapper to simulate inline code (no PreContext)
-function InlineCodeWrapper({ children }: { children: ReactNode }) {
-  return <>{children}</>;
-}
-
 describe("createCodeAdapter integration", () => {
-  beforeEach(() => {
-    cleanup();
-  });
-
   describe("inline code detection", () => {
     it("renders inline code when not inside PreContext", () => {
       const AdaptedCode = createCodeAdapter({});
-      render(
-        <InlineCodeWrapper>
-          <AdaptedCode className="inline">console.log</AdaptedCode>
-        </InlineCodeWrapper>,
-      );
+      render(<AdaptedCode className="inline">console.log</AdaptedCode>);
 
       const codeElement = screen.getByText("console.log");
       expect(codeElement.tagName).toBe("CODE");
@@ -39,11 +28,7 @@ describe("createCodeAdapter integration", () => {
 
     it("applies inline class along with user class", () => {
       const AdaptedCode = createCodeAdapter({});
-      render(
-        <InlineCodeWrapper>
-          <AdaptedCode className="custom-class">code</AdaptedCode>
-        </InlineCodeWrapper>,
-      );
+      render(<AdaptedCode className="custom-class">code</AdaptedCode>);
 
       const codeElement = screen.getByText("code");
       expect(codeElement.className).toContain("aui-streamdown-inline-code");
@@ -100,72 +85,68 @@ describe("createCodeAdapter integration", () => {
   });
 
   describe("language detection", () => {
-    it("extracts language from className", () => {
-      const testCases = [
-        { className: "language-javascript", expected: "javascript" },
-        { className: "language-typescript", expected: "typescript" },
-        { className: "language-python", expected: "python" },
-        { className: "language-rust", expected: "rust" },
-        { className: "language-go", expected: "go" },
-        { className: "language-c++", expected: "c++" },
-        { className: "language-c#", expected: "c#" },
-        { className: "language-", expected: "" },
-        { className: "", expected: "" },
-        { className: undefined, expected: "" },
-      ];
+    it.each([
+      ["language-javascript", "javascript"],
+      ["language-typescript", "typescript"],
+      ["language-python", "python"],
+      ["language-rust", "rust"],
+      ["language-go", "go"],
+      ["language-c++", "c++"],
+      ["language-c#", "c#"],
+      ["language-", ""],
+      ["", ""],
+      [undefined, ""],
+    ])("extracts %s as %s", (className, expected) => {
+      const MockSyntax = vi.fn(({ language }) => (
+        <div data-testid="syntax">{language}</div>
+      ));
+      const AdaptedCode = createCodeAdapter({ SyntaxHighlighter: MockSyntax });
 
-      for (const { className, expected } of testCases) {
-        cleanup();
-        const MockSyntax = vi.fn(({ language }) => (
-          <div data-testid="syntax">{language}</div>
-        ));
-        const AdaptedCode = createCodeAdapter({
-          SyntaxHighlighter: MockSyntax,
-        });
+      render(
+        <CodeBlockWrapper>
+          <AdaptedCode className={className}>code</AdaptedCode>
+        </CodeBlockWrapper>,
+      );
 
-        render(
-          <CodeBlockWrapper>
-            <AdaptedCode className={className}>code</AdaptedCode>
-          </CodeBlockWrapper>,
-        );
-
-        expect(screen.getByTestId("syntax").textContent).toBe(expected);
-      }
+      expect(screen.getByTestId("syntax").textContent).toBe(expected);
     });
   });
 
   describe("componentsByLanguage", () => {
-    it("uses language-specific SyntaxHighlighter", () => {
-      const DefaultSyntax = vi.fn(() => (
-        <div data-testid="default">default</div>
-      ));
+    it("uses language-specific SyntaxHighlighter for matching language", () => {
       const PythonSyntax = vi.fn(() => (
         <div data-testid="python">python specific</div>
       ));
-
       const AdaptedCode = createCodeAdapter({
-        SyntaxHighlighter: DefaultSyntax,
-        componentsByLanguage: {
-          python: { SyntaxHighlighter: PythonSyntax },
-        },
+        SyntaxHighlighter: () => <div>default</div>,
+        componentsByLanguage: { python: { SyntaxHighlighter: PythonSyntax } },
       });
 
-      // Python should use specific
       render(
         <PreContext.Provider value={{}}>
           <AdaptedCode className="language-python">code</AdaptedCode>
         </PreContext.Provider>,
       );
+
       expect(screen.getByTestId("python")).toBeDefined();
       expect(PythonSyntax).toHaveBeenCalled();
-      cleanup();
+    });
 
-      // JavaScript should use default
+    it("uses default SyntaxHighlighter for non-matching language", () => {
+      const DefaultSyntax = vi.fn(() => (
+        <div data-testid="default">default</div>
+      ));
+      const AdaptedCode = createCodeAdapter({
+        SyntaxHighlighter: DefaultSyntax,
+        componentsByLanguage: { python: { SyntaxHighlighter: () => <div /> } },
+      });
+
       render(
         <PreContext.Provider value={{}}>
           <AdaptedCode className="language-javascript">code</AdaptedCode>
         </PreContext.Provider>,
       );
+
       expect(screen.getByTestId("default")).toBeDefined();
     });
 

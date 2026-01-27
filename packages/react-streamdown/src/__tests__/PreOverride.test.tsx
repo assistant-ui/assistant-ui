@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, afterEach } from "vitest";
 import { render, renderHook, screen, cleanup } from "@testing-library/react";
 import type { ReactNode } from "react";
 import {
@@ -8,9 +8,7 @@ import {
   useStreamdownPreProps,
 } from "../adapters/PreOverride";
 
-beforeEach(() => {
-  cleanup();
-});
+afterEach(cleanup);
 
 describe("useIsStreamdownCodeBlock", () => {
   it("returns false when not inside PreContext", () => {

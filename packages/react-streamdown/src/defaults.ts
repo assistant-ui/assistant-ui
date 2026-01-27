@@ -39,7 +39,7 @@ export function mergePlugins(
   // Mermaid requires explicit enabling (not auto-detected)
   const mermaid = userPlugins?.mermaid;
   if (mermaid && mermaid !== false) {
-    result.mermaid = mermaid;
+    result["mermaid"] = mermaid;
   }
 
   return result as ResolvedPluginConfig;
