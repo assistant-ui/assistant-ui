@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useEffect, useRef } from "react";
-import { useAssistantState } from "../../context/react/hooks/useAssistantState";
+import { useAuiState } from "@assistant-ui/store";
 import { useToolUIRenderer, useToolUIRuntime } from "../context/ToolUIContext";
 import type { ToolUIInstance } from "@assistant-ui/tool-ui-runtime";
 
@@ -12,13 +12,13 @@ export const ToolUIInline = memo(() => {
   const runtime = useToolUIRuntime();
   const renderer = useToolUIRenderer();
 
-  const message = useAssistantState(({ message }) => message);
+  const message = useAuiState((s) => s.message);
 
   if (!message || message.role !== "assistant") {
     return null;
   }
 
-  const toolCallParts = message.content.filter(
+  const toolCallParts = message.parts.filter(
     (part): part is Extract<typeof part, { type: "tool-call" }> =>
       part.type === "tool-call",
   );
@@ -54,7 +54,7 @@ export const ToolUIInline = memo(() => {
 ToolUIInline.displayName = "ToolUIInline";
 
 /**
- *Mounts a single Tool UI instance into the DOM
+ * Mounts a single Tool UI instance into the DOM
  */
 const ToolUIInlineMount = memo(
   ({
