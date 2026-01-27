@@ -39,7 +39,7 @@ export async function POST(req: Request) {
   const result = streamText({
     model: tracedModel,
     messages: prunedMessages,
-    maxOutputTokens: 1200,
+    maxOutputTokens: 15000,
     stopWhen: stepCountIs(10),
     tools: frontendTools(tools),
     onError: console.error,

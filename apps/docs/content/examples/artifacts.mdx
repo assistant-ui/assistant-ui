@@ -4,13 +4,13 @@ description: Open Source Claude Artifacts. You can ask the bot to generate websi
 ---
 
 import { Artifacts } from "@/components/examples/artifacts";
-import { DocsRuntimeProvider } from "@/contexts/DocsRuntimeProvider";
+import { ArtifactsRuntimeProvider } from "@/contexts/ArtifactsRuntimeProvider";
 import { SourceLink } from "@/components/docs/source-link";
 
 <div className="not-prose h-[600px]">
-  <DocsRuntimeProvider>
+  <ArtifactsRuntimeProvider>
     <Artifacts />
-  </DocsRuntimeProvider>
+  </ArtifactsRuntimeProvider>
 </div>
 
 ## Overview
@@ -43,6 +43,7 @@ An open-source implementation of Claude Artifacts that allows users to generate 
 
 ## Source
 
-This example is available as a standalone project:
+The implementation for this example is available in the docs:
 
-<SourceLink href="https://github.com/Yonom/assistant-ui-artifacts" />
+<SourceLink href="https://github.com/Yonom/assistant-ui/tree/main/apps/docs/contexts/ArtifactsRuntimeProvider.tsx" />
+<SourceLink href="https://github.com/Yonom/assistant-ui/tree/main/apps/docs/components/examples/artifacts-view.tsx" />
