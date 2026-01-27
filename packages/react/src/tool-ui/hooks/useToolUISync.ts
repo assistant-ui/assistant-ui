@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { useAssistantState } from "../../context";
 import { ToolUIController } from "../ToolUIController";
 import type { ToolUICallContext } from "@assistant-ui/tool-ui-runtime";
+import { useAssistantState } from "../..";
 
 type ToolUIMinimalMessage = {
   readonly content: readonly any[];
