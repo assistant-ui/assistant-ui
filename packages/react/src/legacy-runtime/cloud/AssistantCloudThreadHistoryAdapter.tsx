@@ -1,7 +1,7 @@
 import { RefObject, useState } from "react";
 import { ThreadHistoryAdapter } from "../runtime-cores/adapters/thread-history/ThreadHistoryAdapter";
 import { ExportedMessageRepositoryItem } from "../runtime-cores/utils/MessageRepository";
-import { AssistantCloud } from "assistant-cloud";
+import { AssistantCloud, CloudMessagePersistence } from "assistant-cloud";
 import { auiV0Decode, auiV0Encode } from "./auiV0";
 import {
   MessageFormatAdapter,
@@ -14,10 +14,10 @@ import { ReadonlyJSONObject } from "assistant-stream/utils";
 import { AssistantClient, useAui } from "@assistant-ui/store";
 import { ThreadListItemMethods } from "../../types/scopes";
 
-// Global WeakMap to store message ID mappings across adapter instances
-const globalMessageIdMapping = new WeakMap<
+// Global WeakMap to store CloudMessagePersistence instances per thread list item
+const globalPersistenceMap = new WeakMap<
   ThreadListItemMethods,
-  Record<string, string | Promise<string>>
+  CloudMessagePersistence
 >();
 
 class FormattedThreadHistoryAdapter<TMessage, TStorageFormat>
@@ -58,11 +58,15 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     private aui: AssistantClient,
   ) {}
 
-  private get _getIdForLocalId(): Record<string, string | Promise<string>> {
-    if (!globalMessageIdMapping.has(this.aui.threadListItem())) {
-      globalMessageIdMapping.set(this.aui.threadListItem(), {});
+  private get persistence(): CloudMessagePersistence {
+    const threadListItem = this.aui.threadListItem();
+    if (!globalPersistenceMap.has(threadListItem)) {
+      globalPersistenceMap.set(
+        threadListItem,
+        new CloudMessagePersistence(this.cloudRef.current),
+      );
     }
-    return globalMessageIdMapping.get(this.aui.threadListItem())!;
+    return globalPersistenceMap.get(threadListItem)!;
   }
 
   withFormat<TMessage, TStorageFormat>(
@@ -73,34 +77,21 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
 
   async append({ parentId, message }: ExportedMessageRepositoryItem) {
     const { remoteId } = await this.aui.threadListItem().initialize();
-    const task = this.cloudRef.current.threads.messages
-      .create(remoteId, {
-        parent_id: parentId
-          ? ((await this._getIdForLocalId[parentId]) ?? parentId)
-          : null,
-        format: "aui/v0",
-        content: auiV0Encode(message),
-      })
-      .then(({ message_id }) => {
-        this._getIdForLocalId[message.id] = message_id;
-        return message_id;
-      });
-
-    this._getIdForLocalId[message.id] = task;
-
-    return task.then(() => {});
+    await this.persistence.append(
+      remoteId,
+      message.id,
+      parentId,
+      "aui/v0",
+      auiV0Encode(message),
+    );
   }
 
   async load() {
     const remoteId = this.aui.threadListItem().getState().remoteId;
     if (!remoteId) return { messages: [] };
-    const { messages } = await this.cloudRef.current.threads.messages.list(
-      remoteId,
-      {
-        format: "aui/v0",
-      },
-    );
-    const payload = {
+
+    const messages = await this.persistence.load(remoteId, "aui/v0");
+    return {
       messages: messages
         .filter(
           (m): m is typeof m & { format: "aui/v0" } => m.format === "aui/v0",
@@ -108,7 +99,6 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
         .map(auiV0Decode)
         .reverse(),
     };
-    return payload;
   }
 
   // Internal methods for FormattedThreadHistoryAdapter
@@ -119,23 +109,13 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     content: T,
   ) {
     const { remoteId } = await this.aui.threadListItem().initialize();
-
-    const task = this.cloudRef.current.threads.messages
-      .create(remoteId, {
-        parent_id: parentId
-          ? ((await this._getIdForLocalId[parentId]) ?? parentId)
-          : null,
-        format,
-        content: content as ReadonlyJSONObject,
-      })
-      .then(({ message_id }) => {
-        this._getIdForLocalId[messageId] = message_id;
-        return message_id;
-      });
-
-    this._getIdForLocalId[messageId] = task;
-
-    return task.then(() => {});
+    await this.persistence.append(
+      remoteId,
+      messageId,
+      parentId,
+      format,
+      content as ReadonlyJSONObject,
+    );
   }
 
   async _loadWithFormat<TMessage, TStorageFormat>(
@@ -147,12 +127,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     const remoteId = this.aui.threadListItem().getState().remoteId;
     if (!remoteId) return { messages: [] };
 
-    const { messages } = await this.cloudRef.current.threads.messages.list(
-      remoteId,
-      {
-        format,
-      },
-    );
+    const messages = await this.persistence.load(remoteId, format);
 
     return {
       messages: messages
