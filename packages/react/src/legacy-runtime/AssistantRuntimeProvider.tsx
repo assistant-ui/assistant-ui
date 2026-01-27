@@ -1,7 +1,7 @@
 "use client";
 
 import { FC, memo, PropsWithChildren } from "react";
-import { useAui, AuiProvider } from "@assistant-ui/store";
+import { useAui, AuiProvider, AssistantClient } from "@assistant-ui/store";
 import { AssistantRuntime } from "./runtime/AssistantRuntime";
 import { AssistantRuntimeCore } from "./runtime-cores/core/AssistantRuntimeCore";
 import { RuntimeAdapter } from "./RuntimeAdapter";
@@ -13,6 +13,11 @@ export namespace AssistantRuntimeProvider {
      * The runtime to provide to the rest of your app.
      */
     runtime: AssistantRuntime;
+
+    /**
+     * The aui instance to extend. If not provided, a new aui instance will be created.
+     */
+    aui?: AssistantClient;
   }>;
 }
 
@@ -22,8 +27,8 @@ const getRenderComponent = (runtime: AssistantRuntime) => {
 
 export const AssistantRuntimeProviderImpl: FC<
   AssistantRuntimeProvider.Props
-> = ({ children, runtime }) => {
-  const aui = useAui({ threads: RuntimeAdapter(runtime) }, { root: true });
+> = ({ children, aui: parent = null, runtime }) => {
+  const aui = useAui({ threads: RuntimeAdapter(runtime) }, { parent: parent });
 
   const RenderComponent = getRenderComponent(runtime);
 
