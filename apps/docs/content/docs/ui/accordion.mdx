@@ -271,7 +271,8 @@ The collapsible content panel.
 | `accordionVariants` | Styles for the accordion container. |
 | `accordionItemVariants` | Styles for accordion items. |
 | `accordionTriggerVariants` | Styles for accordion triggers. |
-| `accordionContentVariants` | Styles for accordion content. |
+| `accordionContentVariants` | Styles for accordion content wrapper. |
+| `accordionContentInnerVariants` | Styles for accordion content inner div. |
 
 ```tsx
 import {
@@ -279,6 +280,7 @@ import {
   accordionItemVariants,
   accordionTriggerVariants,
   accordionContentVariants,
+  accordionContentInnerVariants,
 } from "@/components/assistant-ui/accordion";
 
 <div className={accordionVariants({ variant: "outline" })}>

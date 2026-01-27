@@ -12,7 +12,7 @@ const accordionVariants = cva("aui-accordion group/accordion w-full", {
   variants: {
     variant: {
       default: "flex flex-col",
-      outline: "flex flex-col divide-y rounded-lg border",
+      outline: "flex flex-col rounded-lg border",
       ghost: "flex flex-col gap-2",
     },
   },
@@ -44,8 +44,8 @@ const accordionItemVariants = cva("aui-accordion-item group/accordion-item", {
   variants: {
     variant: {
       default: "border-b last:border-b-0",
-      outline: "",
-      ghost: "rounded-lg border",
+      outline: "border-b last:border-b-0",
+      ghost: "rounded-lg data-[state=open]:bg-muted/50",
     },
   },
   defaultVariants: { variant: "default" },
@@ -67,16 +67,16 @@ function AccordionItem({ className, variant, ...props }: AccordionItemProps) {
 }
 
 const accordionTriggerVariants = cva(
-  "aui-accordion-trigger group/accordion-trigger flex flex-1 items-center justify-between gap-4 text-left font-medium text-sm outline-none transition-all disabled:pointer-events-none disabled:opacity-50",
+  "aui-accordion-trigger group/accordion-trigger flex w-full flex-1 items-center justify-between gap-4 text-left font-medium text-sm outline-none transition-all disabled:pointer-events-none disabled:opacity-50",
   {
     variants: {
       variant: {
         default:
-          "rounded-md py-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring/50",
+          "py-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring/50",
         outline:
           "px-4 py-3 hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-inset",
         ghost:
-          "px-4 py-3 hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring/50",
+          "rounded-lg px-4 py-2 hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring/50",
       },
     },
     defaultVariants: { variant: "default" },
@@ -116,18 +116,29 @@ function AccordionTrigger({
 }
 
 const accordionContentVariants = cva(
-  "aui-accordion-content overflow-hidden text-sm transition-all",
+  "aui-accordion-content overflow-hidden text-sm",
   {
     variants: {
       variant: {
         default: "",
-        outline: "px-4",
-        ghost: "px-4",
+        outline: "",
+        ghost: "",
       },
     },
     defaultVariants: { variant: "default" },
   },
 );
+
+const accordionContentInnerVariants = cva("", {
+  variants: {
+    variant: {
+      default: "pb-4",
+      outline: "border-t px-4 py-3",
+      ghost: "px-4 py-3",
+    },
+  },
+  defaultVariants: { variant: "default" },
+});
 
 export type AccordionContentProps = ComponentProps<
   typeof AccordionPrimitive.Content
@@ -150,7 +161,9 @@ function AccordionContent({
       )}
       {...props}
     >
-      <div className="pt-0 pb-4">{children}</div>
+      <div className={accordionContentInnerVariants({ variant })}>
+        {children}
+      </div>
     </AccordionPrimitive.Content>
   );
 }
@@ -180,4 +193,5 @@ export {
   accordionItemVariants,
   accordionTriggerVariants,
   accordionContentVariants,
+  accordionContentInnerVariants,
 };
