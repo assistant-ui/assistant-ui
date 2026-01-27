@@ -141,9 +141,26 @@ export class ToolUIRendererManager {
           const sandbox = this._createSandbox();
           session.sandbox = sandbox;
 
-          void sandbox.mount(instance, output, container);
+          const mountResult = sandbox.mount(instance, output, container);
+          if (mountResult instanceof Promise) {
+            mountResult.catch((error) => {
+              console.error(
+                `Failed to mount Tool UI sandbox for ${instance.id}:`,
+                error,
+              );
+              this._sessions.delete(instance.id);
+            });
+          }
         } else {
-          void session.sandbox.update(instance, output);
+          const updateResult = session.sandbox.update(instance, output);
+          if (updateResult instanceof Promise) {
+            updateResult.catch((error) => {
+              console.error(
+                `Failed to update Tool UI sandbox for ${instance.id}:`,
+                error,
+              );
+            });
+          }
         }
 
         return;
