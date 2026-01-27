@@ -25,7 +25,16 @@ function transformerLineNumbers(): ShikiTransformer {
 
 export const docs = defineDocs({
   docs: {
-    schema: frontmatterSchema,
+    schema: frontmatterSchema.extend({
+      links: z
+        .array(
+          z.object({
+            label: z.string(),
+            url: z.string(),
+          }),
+        )
+        .optional(),
+    }),
     postprocess: {
       includeProcessedMarkdown: true,
     },

@@ -9,6 +9,7 @@ import { Card, Cards } from "@/components/docs/fumadocs/card";
 import { TableOfContents } from "@/components/docs/layout/table-of-contents";
 import { DocsFooter } from "@/components/docs/layout/docs-footer";
 import { DocsPager } from "@/components/docs/layout/docs-pager";
+import { ArrowUpRight } from "lucide-react";
 
 function DocsCategory({ url }: { url?: string }) {
   const effectiveUrl = url ?? "";
@@ -86,6 +87,22 @@ export default async function Page(props: {
             <p className="mt-2 text-muted-foreground text-sm md:text-base">
               {page.data.description}
             </p>
+          )}
+          {page.data.links && page.data.links.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {page.data.links.map((link) => (
+                <a
+                  key={link.url}
+                  href={link.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-muted-foreground text-xs transition-colors hover:bg-muted/80 hover:text-foreground"
+                >
+                  {link.label}
+                  <ArrowUpRight className="size-3" />
+                </a>
+              ))}
+            </div>
           )}
         </header>
         <page.data.body components={mdxComponents} />
