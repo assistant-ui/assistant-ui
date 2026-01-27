@@ -5,18 +5,44 @@ import { CheckIcon, CopyIcon } from "lucide-react";
 import ShikiHighlighter from "react-shiki";
 import { cn } from "@/lib/utils";
 
+type Tab = "preview" | "code";
+
 type PreviewCodeClientProps = {
   code: string;
   children: React.ReactNode;
   className?: string;
 };
 
+type TabButtonProps = {
+  label: string;
+  value: Tab;
+  currentTab: Tab;
+  onSelect: (tab: Tab) => void;
+};
+
+function TabButton({ label, value, currentTab, onSelect }: TabButtonProps) {
+  const isActive = currentTab === value;
+  return (
+    <button
+      onClick={() => onSelect(value)}
+      className={cn(
+        "rounded-md px-2.5 py-1 text-xs transition-colors",
+        isActive
+          ? "bg-muted font-medium text-foreground"
+          : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+      )}
+    >
+      {label}
+    </button>
+  );
+}
+
 export function PreviewCodeClient({
   code,
   children,
   className,
 }: PreviewCodeClientProps) {
-  const [tab, setTab] = useState<"preview" | "code">("preview");
+  const [tab, setTab] = useState<Tab>("preview");
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -28,28 +54,18 @@ export function PreviewCodeClient({
   return (
     <div className="not-prose my-4">
       <div className="flex justify-end gap-1 pb-2">
-        <button
-          onClick={() => setTab("preview")}
-          className={cn(
-            "rounded-md px-2.5 py-1 text-xs transition-colors",
-            tab === "preview"
-              ? "bg-muted font-medium text-foreground"
-              : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
-          )}
-        >
-          Preview
-        </button>
-        <button
-          onClick={() => setTab("code")}
-          className={cn(
-            "rounded-md px-2.5 py-1 text-xs transition-colors",
-            tab === "code"
-              ? "bg-muted font-medium text-foreground"
-              : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
-          )}
-        >
-          Code
-        </button>
+        <TabButton
+          label="Preview"
+          value="preview"
+          currentTab={tab}
+          onSelect={setTab}
+        />
+        <TabButton
+          label="Code"
+          value="code"
+          currentTab={tab}
+          onSelect={setTab}
+        />
       </div>
 
       {tab === "preview" ? (

@@ -11,15 +11,78 @@ type PreviewCodeProps = {
   className?: string;
 };
 
+type StringState = { inString: boolean; stringChar: string };
+
+function updateStringState(
+  state: StringState,
+  char: string,
+  prevChar: string,
+): boolean {
+  if (state.inString) {
+    if (char === state.stringChar && prevChar !== "\\") {
+      state.inString = false;
+    }
+    return true;
+  }
+  if (char === '"' || char === "'" || char === "`") {
+    state.inString = true;
+    state.stringChar = char;
+    return true;
+  }
+  return false;
+}
+
+function findMatchingParen(source: string, startIndex: number): number {
+  const state: StringState = { inString: false, stringChar: "" };
+  let parenCount = 0;
+
+  for (let i = startIndex; i < source.length; i++) {
+    const char = source[i]!;
+    const prevChar = source[i - 1] ?? "";
+    if (updateStringState(state, char, prevChar)) continue;
+
+    if (char === "(") parenCount++;
+    if (char === ")") {
+      if (parenCount === 0) {
+        const endIndex = i + 1;
+        return source[endIndex] === ";" ? endIndex + 1 : endIndex;
+      }
+      parenCount--;
+    }
+  }
+  return -1;
+}
+
+function findMatchingBrace(source: string, startIndex: number): number {
+  const state: StringState = { inString: false, stringChar: "" };
+  let braceCount = 0;
+  let foundFirstBrace = false;
+
+  for (let i = startIndex; i < source.length; i++) {
+    const char = source[i]!;
+    const prevChar = source[i - 1] ?? "";
+    if (updateStringState(state, char, prevChar)) continue;
+
+    if (char === "{") {
+      braceCount++;
+      foundFirstBrace = true;
+    }
+    if (char === "}") {
+      braceCount--;
+      if (foundFirstBrace && braceCount === 0) {
+        return i + 1;
+      }
+    }
+  }
+  return -1;
+}
+
 function extractFunctionCode(source: string, functionName: string): string {
-  // Match export function FunctionName or export const FunctionName
   const functionRegex = new RegExp(
     `export\\s+function\\s+${functionName}\\s*\\([^)]*\\)\\s*\\{`,
-    "g",
   );
   const constRegex = new RegExp(
     `export\\s+const\\s+${functionName}\\s*=\\s*(?:function\\s*)?\\([^)]*\\)\\s*(?:=>\\s*)?\\{?`,
-    "g",
   );
 
   let match = functionRegex.exec(source);
@@ -37,110 +100,42 @@ function extractFunctionCode(source: string, functionName: string): string {
   }
 
   const startIndex = match.index;
+  const searchStart = match.index + match[0].length;
 
   if (isArrowWithoutBrace) {
-    // Arrow function without braces - find the end by matching parentheses
-    let parenCount = 0;
-    let inString = false;
-    let stringChar = "";
-    let endIndex = match.index + match[0].length;
-
-    for (let i = endIndex; i < source.length; i++) {
-      const char = source[i];
-      const prevChar = source[i - 1];
-
-      if (inString) {
-        if (char === stringChar && prevChar !== "\\") {
-          inString = false;
-        }
-        continue;
-      }
-
-      if (char === '"' || char === "'" || char === "`") {
-        inString = true;
-        stringChar = char;
-        continue;
-      }
-
-      if (char === "(") parenCount++;
-      if (char === ")") {
-        if (parenCount === 0) {
-          endIndex = i + 1;
-          // Skip trailing semicolon
-          if (source[endIndex] === ";") endIndex++;
-          break;
-        }
-        parenCount--;
-      }
-    }
-
+    const endIndex = findMatchingParen(source, searchStart);
+    if (endIndex === -1) return `// Could not parse function: ${functionName}`;
     return source.slice(startIndex, endIndex).trim();
   }
 
-  // Function with braces - count braces to find the end
-  let braceCount = 0;
-  let inString = false;
-  let stringChar = "";
-  let foundFirstBrace = false;
-
-  for (let i = match.index + match[0].length - 1; i < source.length; i++) {
-    const char = source[i];
-    const prevChar = source[i - 1];
-
-    if (inString) {
-      if (char === stringChar && prevChar !== "\\") {
-        inString = false;
-      }
-      continue;
-    }
-
-    if (char === '"' || char === "'" || char === "`") {
-      inString = true;
-      stringChar = char;
-      continue;
-    }
-
-    if (char === "{") {
-      braceCount++;
-      foundFirstBrace = true;
-    }
-    if (char === "}") {
-      braceCount--;
-      if (foundFirstBrace && braceCount === 0) {
-        return source.slice(startIndex, i + 1).trim();
-      }
-    }
-  }
-
-  return `// Could not parse function: ${functionName}`;
+  const endIndex = findMatchingBrace(source, searchStart - 1);
+  if (endIndex === -1) return `// Could not parse function: ${functionName}`;
+  return source.slice(startIndex, endIndex).trim();
 }
 
 function extractImports(source: string): string[] {
   const imports: string[] = [];
-  // Match both single-line and multi-line imports
   const lines = source.split("\n");
   let currentImport = "";
   let inImport = false;
+
+  const isImportComplete = (line: string): boolean =>
+    (line.includes(" from ") && (line.includes('"') || line.includes("'"))) ||
+    line.includes('"') ||
+    line.includes("'");
 
   for (const line of lines) {
     if (line.trim().startsWith("import ")) {
       inImport = true;
       currentImport = line;
-      if (
-        line.includes(" from ") &&
-        (line.includes('"') || line.includes("'"))
-      ) {
-        imports.push(currentImport);
-        currentImport = "";
-        inImport = false;
-      }
     } else if (inImport) {
       currentImport += `\n${line}`;
-      if (line.includes(" from ") || line.includes('"') || line.includes("'")) {
-        imports.push(currentImport);
-        currentImport = "";
-        inImport = false;
-      }
+    }
+
+    if (inImport && isImportComplete(line)) {
+      imports.push(currentImport);
+      currentImport = "";
+      inImport = false;
     }
   }
   return imports;
@@ -148,17 +143,17 @@ function extractImports(source: string): string[] {
 
 function filterRelevantImports(imports: string[], code: string): string[] {
   return imports.filter((imp) => {
-    // Extract imported names from the import statement
     const namedMatch = imp.match(/import\s+\{([^}]+)\}/);
     const defaultMatch = imp.match(/import\s+(\w+)\s+from/);
 
-    if (namedMatch) {
+    if (namedMatch?.[1]) {
       const names = namedMatch[1]
         .split(",")
-        .map((n) => n.trim().split(" as ")[0].trim());
+        .map((n) => n.trim().split(" as ")[0]?.trim())
+        .filter((name): name is string => Boolean(name));
       return names.some((name) => code.includes(name));
     }
-    if (defaultMatch) {
+    if (defaultMatch?.[1]) {
       return code.includes(defaultMatch[1]);
     }
     return false;
@@ -166,16 +161,10 @@ function filterRelevantImports(imports: string[], code: string): string[] {
 }
 
 function cleanupCode(code: string): string {
-  let result = code;
-
-  // Remove SampleFrame wrapper entirely and dedent the content
-  result = result.replace(/<SampleFrame[^>]*>\s*/g, "");
-  result = result.replace(/\s*<\/SampleFrame>/g, "");
-
-  // Remove "export " prefix
-  result = result.replace(/^export\s+/, "");
-
-  return result;
+  return code
+    .replace(/<SampleFrame[^>]*>\s*/g, "")
+    .replace(/\s*<\/SampleFrame>/g, "")
+    .replace(/^export\s+/, "");
 }
 
 function cleanupImports(imports: string[]): string[] {
@@ -213,7 +202,7 @@ export async function PreviewCode({
   }
 
   return (
-    <PreviewCodeClient code={code} className={className}>
+    <PreviewCodeClient code={code} {...(className && { className })}>
       {children}
     </PreviewCodeClient>
   );
