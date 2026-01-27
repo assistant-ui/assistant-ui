@@ -1,16 +1,17 @@
 "use client";
 
-import { WeatherSearchToolUI } from "@/components/tools/weather-tool";
-import { GeocodeLocationToolUI } from "@/components/tools/weather-tool";
 import {
   AssistantRuntimeProvider,
   WebSpeechSynthesisAdapter,
   WebSpeechDictationAdapter,
   AssistantCloud,
+  useAui,
+  Tools,
 } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import { DevToolsModal } from "@assistant-ui/react-devtools";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
+import { docsToolkit } from "@/lib/docs-toolkit";
 
 export function DocsRuntimeProvider({
   children,
@@ -30,11 +31,14 @@ export function DocsRuntimeProvider({
     },
     cloud: assistantCloud,
   });
+
+  const aui = useAui({
+    tools: Tools({ toolkit: docsToolkit }),
+  });
+
   return (
-    <AssistantRuntimeProvider runtime={runtime}>
+    <AssistantRuntimeProvider aui={aui} runtime={runtime}>
       {children}
-      <WeatherSearchToolUI />
-      <GeocodeLocationToolUI />
 
       <DevToolsModal />
     </AssistantRuntimeProvider>

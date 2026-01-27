@@ -355,10 +355,26 @@ export namespace useAui {
 
 export function useAui(): AssistantClient;
 export function useAui(clients: useAui.Props): AssistantClient;
-export function useAui(clients?: useAui.Props): AssistantClient {
-  const parent = useAssistantContextValue();
+export function useAui(
+  clients: useAui.Props,
+  config: { parent: null | AssistantClient },
+): AssistantClient;
+/** @deprecated This API is highly experimental and may be changed in a minor release */
+export function useAui(
+  clients?: useAui.Props,
+  { parent }: { parent: null | AssistantClient } = {
+    parent: useAssistantContextValue(),
+  },
+): AssistantClient {
   if (clients) {
-    return useResource(AssistantClientResource({ parent: parent, clients }));
+    return useResource(
+      AssistantClientResource({
+        parent: parent ?? DefaultAssistantClient,
+        clients,
+      }),
+    );
   }
+  if (parent === null)
+    throw new Error("received null parent, this usage is not allowed");
   return parent;
 }

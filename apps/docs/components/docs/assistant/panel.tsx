@@ -51,36 +51,54 @@ function ResizeHandle() {
   );
 }
 
-export function AssistantPanel(): React.ReactNode {
+export function AssistantPanelToggle(): React.ReactNode {
   const { open, toggle } = useAssistantPanel();
 
-  if (!open) {
-    return (
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={toggle}
+      className={cn(
+        "absolute top-1/2 left-0 z-10 size-6 -translate-x-1/2 -translate-y-1/2 rounded-full border bg-background shadow-sm transition-opacity duration-300",
+        open ? "opacity-100" : "pointer-events-none opacity-0",
+      )}
+      aria-label="Close AI Chat"
+    >
+      <PanelRightCloseIcon className="size-3" />
+    </Button>
+  );
+}
+
+export function AssistantPanelContent(): React.ReactNode {
+  const { open, toggle } = useAssistantPanel();
+
+  return (
+    <div className="relative h-full w-(--panel-content-width) bg-background before:absolute before:top-0 before:bottom-0 before:left-0 before:w-px before:bg-linear-to-b before:from-transparent before:via-border before:to-transparent">
       <button
         type="button"
         onClick={toggle}
-        className="group relative flex h-full w-full cursor-pointer flex-col items-center bg-background before:absolute before:top-0 before:bottom-0 before:left-0 before:w-px before:bg-linear-to-b before:from-transparent before:via-border before:to-transparent after:absolute after:inset-0 after:bg-linear-to-b after:from-transparent after:via-muted/50 after:to-transparent after:opacity-0 after:transition-opacity hover:after:opacity-100"
+        className={cn(
+          "group absolute inset-y-0 left-0 z-20 w-[44px] cursor-pointer bg-background transition-opacity duration-300",
+          "before:absolute before:top-0 before:bottom-0 before:left-0 before:w-px before:bg-linear-to-b before:from-transparent before:via-border before:to-transparent",
+          "after:absolute after:inset-0 after:bg-linear-to-b after:from-transparent after:via-muted/50 after:to-transparent after:opacity-0 after:transition-opacity hover:after:opacity-100",
+          open ? "pointer-events-none opacity-0" : "opacity-100",
+        )}
         aria-label="Open AI Chat"
       >
         <SparklesIcon className="absolute top-1/2 left-1/2 z-10 size-4 -translate-x-1/2 -translate-y-1/2 text-muted-foreground transition-colors group-hover:text-foreground" />
       </button>
-    );
-  }
 
-  return (
-    <div className="group relative flex h-full flex-col bg-background before:absolute before:top-0 before:bottom-0 before:left-0 before:w-px before:bg-linear-to-b before:from-transparent before:via-border before:to-transparent">
-      <ResizeHandle />
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={toggle}
-        className="absolute top-1/2 left-0 z-10 size-6 -translate-x-1/2 -translate-y-1/2 rounded-full border border-l bg-background opacity-0 shadow-sm transition-opacity group-hover:opacity-100"
-        aria-label="Close AI Chat"
+      <div
+        className={cn(
+          "flex h-full flex-col transition-opacity duration-300",
+          open ? "opacity-100" : "pointer-events-none opacity-0",
+        )}
       >
-        <PanelRightCloseIcon className="size-3" />
-      </Button>
-      <div className="min-h-0 flex-1">
-        <AssistantThread />
+        <ResizeHandle />
+        <div className="min-h-0 flex-1">
+          <AssistantThread />
+        </div>
       </div>
     </div>
   );
