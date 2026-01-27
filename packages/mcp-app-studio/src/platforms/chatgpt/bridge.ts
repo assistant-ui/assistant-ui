@@ -16,6 +16,24 @@ import {
 } from "../../core/capabilities";
 import "./types";
 
+/**
+ * Shallow comparison of two HostContext objects.
+ * Compares top-level properties by value (primitives) or reference (objects).
+ */
+function hostContextChanged(
+  prev: HostContext | null,
+  next: HostContext,
+): boolean {
+  if (!prev) return true;
+  const keys = new Set([...Object.keys(prev), ...Object.keys(next)]) as Set<
+    keyof HostContext
+  >;
+  for (const key of keys) {
+    if (prev[key] !== next[key]) return true;
+  }
+  return false;
+}
+
 export class ChatGPTBridge implements ExtendedBridge {
   readonly platform = "chatgpt" as const;
   readonly capabilities: HostCapabilities = CHATGPT_CAPABILITIES;
@@ -82,7 +100,7 @@ export class ChatGPTBridge implements ExtendedBridge {
   private handleGlobalsChange = () => {
     const newContext = this.buildHostContext();
 
-    if (JSON.stringify(newContext) !== JSON.stringify(this.lastContext)) {
+    if (hostContextChanged(this.lastContext, newContext)) {
       this.lastContext = newContext;
       this.contextCallbacks.forEach((cb) => cb(newContext));
     }

@@ -47,6 +47,8 @@ export function useHostContext(): HostContext | null {
     if (!bridge) return;
     return bridge.onHostContextChanged((ctx) => {
       setContext((prev: HostContext | null) =>
+        // On first context update, ctx should contain full context from getHostContext().
+        // On subsequent updates, merge partial updates with existing state.
         prev ? { ...prev, ...ctx } : (ctx as HostContext),
       );
     });

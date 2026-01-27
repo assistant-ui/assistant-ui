@@ -45,10 +45,17 @@ export function UniversalProvider({
       return;
     }
 
-    newBridge.connect().then(() => {
-      setBridge(newBridge);
-      setReady(true);
-    });
+    newBridge
+      .connect()
+      .then(() => {
+        setBridge(newBridge);
+        setReady(true);
+      })
+      .catch((error) => {
+        console.error("[mcp-app-studio] Bridge connection failed:", error);
+        // Allow render with null bridge so the app can show a fallback UI
+        setReady(true);
+      });
   }, [appInfo, appCapabilities]);
 
   if (!ready) return null;

@@ -70,26 +70,26 @@ export class MCPBridge implements ExtendedBridge {
       { autoResize },
     );
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    this.app.ontoolinput = (params: any) => {
-      this.toolInputCallbacks.forEach((cb) =>
-        cb(params.arguments as Record<string, unknown>),
-      );
+    this.app.ontoolinput = (params) => {
+      const args = (params.arguments ?? {}) as Record<string, unknown>;
+      this.toolInputCallbacks.forEach((cb) => cb(args));
     };
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    this.app.ontoolinputpartial = (params: any) => {
-      this.toolInputPartialCallbacks.forEach((cb) =>
-        cb(params.arguments as Record<string, unknown>),
-      );
+    this.app.ontoolinputpartial = (params) => {
+      const args = (params.arguments ?? {}) as Record<string, unknown>;
+      this.toolInputPartialCallbacks.forEach((cb) => cb(args));
     };
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    this.app.ontoolresult = (params: any) => {
+    this.app.ontoolresult = (params) => {
       const result: ToolResult = {
         content: params.content as ContentBlock[],
-        structuredContent: params.structuredContent as Record<string, unknown>,
       };
+      if (params.structuredContent !== undefined) {
+        result.structuredContent = params.structuredContent as Record<
+          string,
+          unknown
+        >;
+      }
       if (params.isError !== undefined) {
         result.isError = params.isError;
       }
@@ -99,13 +99,12 @@ export class MCPBridge implements ExtendedBridge {
       this.toolResultCallbacks.forEach((cb) => cb(result));
     };
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    this.app.ontoolcancelled = (params: any) => {
-      this.toolCancelledCallbacks.forEach((cb) => cb(params.reason));
+    this.app.ontoolcancelled = (params) => {
+      const reason = (params.reason ?? "") as string;
+      this.toolCancelledCallbacks.forEach((cb) => cb(reason));
     };
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    this.app.onhostcontextchanged = (params: any) => {
+    this.app.onhostcontextchanged = (params: Record<string, unknown>) => {
       const ctx = this.mapHostContext(params);
       this.contextCallbacks.forEach((cb) => cb(ctx));
     };
@@ -127,9 +126,12 @@ export class MCPBridge implements ExtendedBridge {
     return ctx ? this.mapHostContext(ctx) : null;
   }
 
+  /**
+   * Maps SDK host context to our HostContext type.
+   * The SDK returns a well-defined structure matching HostContext properties
+   * (theme, locale, displayMode, etc.), so this cast is safe at runtime.
+   */
   private mapHostContext(ctx: Record<string, unknown>): HostContext {
-    // Cast to HostContext and let the SDK handle the actual values
-    // The SDK returns properly typed values, so this cast is safe
     return ctx as unknown as HostContext;
   }
 
@@ -227,22 +229,27 @@ export class MCPBridge implements ExtendedBridge {
   }
 
   setCallToolHandler(handler: CallToolHandler): void {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    this.app.oncalltool = async (params: any, extra: any) => {
-      const result = await handler(params.name, params.arguments ?? {}, extra);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const content: any[] =
+    this.app.oncalltool = async (params, extra) => {
+      const name = params.name as string;
+      const args = (params.arguments ?? {}) as Record<string, unknown>;
+      const result = await handler(name, args, extra);
+
+      const content =
         result.content?.map((c) => {
           if (c.type === "text") {
-            return { type: "text", text: c.text };
+            return { type: "text" as const, text: c.text };
           }
           if (c.type === "image" || c.type === "audio") {
             return { type: c.type, data: c.data, mimeType: c.mimeType };
           }
           return c;
         }) ?? [];
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const response: any = { content };
+
+      const response: {
+        content: typeof content;
+        structuredContent?: Record<string, unknown>;
+        isError?: boolean;
+      } = { content };
       if (result.structuredContent !== undefined) {
         response.structuredContent = result.structuredContent;
       }
@@ -254,9 +261,9 @@ export class MCPBridge implements ExtendedBridge {
   }
 
   setListToolsHandler(handler: ListToolsHandler): void {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    this.app.onlisttools = async (params: any) => {
-      const tools = await handler(params?.cursor);
+    this.app.onlisttools = async (params) => {
+      const cursor = params?.cursor as string | undefined;
+      const tools = await handler(cursor);
       return { tools };
     };
   }
