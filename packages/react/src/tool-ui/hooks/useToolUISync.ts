@@ -36,9 +36,8 @@ export function useToolUISync(controller: ToolUIController) {
               controller.onToolCallResult(toolCallId, content.result);
             }
 
-            if (content.result !== undefined || content.isError) {
-              controller.onToolCallEnd(toolCallId);
-            }
+            // Don't close immediately - removed to allow UI to render
+            // Cleanup will happen when messages are removed from state
 
             // Nested tool calls (multi-agent future-safe)
             if (content.messages) {
