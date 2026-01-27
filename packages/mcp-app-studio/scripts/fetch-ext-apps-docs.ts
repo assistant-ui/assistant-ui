@@ -9,8 +9,8 @@
  * Output: ./docs/@modelcontextprotocol-ext-apps/
  */
 
-import { writeFileSync, mkdirSync, existsSync } from "fs";
-import { join } from "path";
+import { writeFileSync, mkdirSync, existsSync } from "node:fs";
+import { join } from "node:path";
 
 const DOCS_DIR = join(process.cwd(), "docs/@modelcontextprotocol-ext-apps");
 
@@ -229,7 +229,7 @@ function htmlToMarkdown(html: string, title: string): string {
 
   if (contentMatch) {
     for (const section of contentMatch) {
-      md += convertHtmlContent(section) + "\n\n";
+      md += `${convertHtmlContent(section)}\n\n`;
     }
   } else if (mainMatch) {
     md += convertHtmlContent(mainMatch[1]);
