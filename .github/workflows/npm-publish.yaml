@@ -6,7 +6,7 @@ on:
 
 permissions:
   id-token: write
-  contents: read
+  contents: write
 
 env:
   CI: true
@@ -40,3 +40,39 @@ jobs:
         run: pnpm ci:publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Create GitHub Releases
+        run: |
+          git fetch --tags
+
+          for pkg in packages/*/package.json; do
+            name=$(jq -r '.name' "$pkg")
+            version=$(jq -r '.version' "$pkg")
+            private=$(jq -r '.private // false' "$pkg")
+
+            [[ "$private" == "true" ]] && continue
+
+            tag="${name}@${version}"
+
+            # Check if tag exists
+            git rev-parse "$tag" >/dev/null 2>&1 || continue
+
+            # Check if release already exists
+            gh release view "$tag" >/dev/null 2>&1 && continue
+
+            # Extract changelog notes
+            changelog_dir=$(dirname "$pkg")
+            changelog="$changelog_dir/CHANGELOG.md"
+
+            if [[ -f "$changelog" ]]; then
+              notes=$(awk "/^## ${version//./\\.}\$/,/^## [0-9]/" "$changelog" | head -n -1 | tail -n +2)
+            else
+              notes="Release ${tag}"
+            fi
+
+            echo "Creating release: $tag"
+            gh release create "$tag" \
+              --title "$tag" \
+              --notes "$notes" \
+              --verify-tag
+          done
