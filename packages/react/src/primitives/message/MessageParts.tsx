@@ -242,6 +242,17 @@ export namespace MessagePrimitiveParts {
           ReasoningGroup?: ReasoningGroupComponent;
         }
       | undefined;
+    /**
+     * When enabled, shows the Empty component if the last part in the message
+     * is anything other than Text or Reasoning.
+     *
+     * This can be useful to ensure there's always a visible element at the end
+     * of messages that end with non-text content like tool calls or images.
+     *
+     * @experimental This API is experimental and may change in future versions.
+     * @default true
+     */
+    unstable_showEmptyOnNonTextEnd?: boolean | undefined;
   };
 }
 
@@ -429,6 +440,30 @@ const EmptyParts = memo(
     prev.components?.Text === next.components?.Text,
 );
 
+const ConditionalEmptyImpl: FC<{
+  components: MessagePrimitiveParts.Props["components"];
+  enabled: boolean;
+}> = ({ components, enabled }) => {
+  const shouldShowEmpty = useAuiState(({ message }) => {
+    if (!enabled) return false;
+    if (message.parts.length === 0) return false;
+
+    const lastPart = message.parts[message.parts.length - 1];
+    return lastPart?.type !== "text" && lastPart?.type !== "reasoning";
+  });
+
+  if (!shouldShowEmpty) return null;
+  return <EmptyParts components={components} />;
+};
+
+const ConditionalEmpty = memo(
+  ConditionalEmptyImpl,
+  (prev, next) =>
+    prev.enabled === next.enabled &&
+    prev.components?.Empty === next.components?.Empty &&
+    prev.components?.Text === next.components?.Text,
+);
+
 /**
  * Renders the parts of a message with support for multiple content types.
  *
@@ -455,6 +490,7 @@ const EmptyParts = memo(
  */
 export const MessagePrimitiveParts: FC<MessagePrimitiveParts.Props> = ({
   components,
+  unstable_showEmptyOnNonTextEnd = true,
 }) => {
   const contentLength = useAuiState(({ message }) => message.parts.length);
   const messageRanges = useMessagePartsGroups();
@@ -520,7 +556,15 @@ export const MessagePrimitiveParts: FC<MessagePrimitiveParts.Props> = ({
     });
   }, [messageRanges, components, contentLength]);
 
-  return <>{partsElements}</>;
+  return (
+    <>
+      {partsElements}
+      <ConditionalEmpty
+        components={components}
+        enabled={unstable_showEmptyOnNonTextEnd}
+      />
+    </>
+  );
 };
 
 MessagePrimitiveParts.displayName = "MessagePrimitive.Parts";
