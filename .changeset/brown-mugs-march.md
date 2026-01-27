@@ -1,5 +1,5 @@
 ---
-"@fake-scope/fake-pkg": patch
+"@assistant-ui/react": patch
 ---
 
 feat: new tools API
