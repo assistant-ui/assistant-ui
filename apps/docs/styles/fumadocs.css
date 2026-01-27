@@ -65,7 +65,9 @@ html:has(#nd-docs-layout) {
     border-radius: 0.375rem !important;
     font-size: 0.875rem !important;
     background: transparent !important;
-    transition: color 0.15s ease, background-color 0.15s ease !important;
+    transition:
+      color 0.15s ease,
+      background-color 0.15s ease !important;
 
     &:hover {
       color: var(--fd-foreground) !important;
@@ -305,7 +307,10 @@ html:has(#nd-docs-layout) {
     margin-top: 0 !important;
   }
 
-  & :where(h2 + ul, h3 + ul, h4 + ul, h2 + ol, h3 + ol, h4 + ol):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+  &
+    :where(h2 + ul, h3 + ul, h4 + ul, h2 + ol, h3 + ol, h4 + ol):not(
+      :where([class~="not-prose"], [class~="not-prose"] *)
+    ) {
     margin-top: 0.5rem !important;
   }
 
@@ -389,14 +394,6 @@ figure.shiki {
   /* Line numbers */
   & [data-line-numbers] .line {
     padding-left: calc(0.875rem + 2.25rem) !important;
-
-    &::after {
-      left: 0.875rem !important;
-      width: 1.5rem !important;
-      color: var(--muted-foreground) !important;
-      opacity: 0.5 !important;
-      font-size: 0.6875rem !important;
-    }
   }
 
   /* Highlighted lines */
@@ -451,4 +448,50 @@ figure.shiki {
 
 .step-number::before {
   content: counter(step);
+}
+
+/* PreviewCode component */
+.preview-code-block {
+  & pre {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    counter-reset: line !important;
+  }
+
+  & code {
+    display: block !important;
+  }
+
+  & .line {
+    display: inline-block !important;
+    width: 100% !important;
+    padding-left: 2.5rem !important;
+    padding-right: 0.5rem !important;
+    position: relative !important;
+  }
+
+  & .line::before {
+    content: counter(line) !important;
+    counter-increment: line !important;
+    position: absolute !important;
+    left: 0.5rem !important;
+    width: 1.5rem !important;
+    text-align: right !important;
+    color: var(--muted-foreground) !important;
+    opacity: 0.5 !important;
+    font-size: 0.8125rem !important;
+    line-height: inherit !important;
+    user-select: none !important;
+  }
+}
+
+/* Override fumadocs line numbers to be right-aligned */
+figure.shiki pre[data-line-numbers] span.line::after,
+.shiki pre[data-line-numbers] span.line::after,
+pre.shiki[data-line-numbers] span.line::after,
+[data-line-numbers] span.line::after {
+  width: 1.5rem !important;
+  text-align: right !important;
+  left: 0.5rem !important;
 }
