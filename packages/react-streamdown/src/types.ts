@@ -1,6 +1,10 @@
 import type { Element } from "hast";
 import type { ComponentPropsWithoutRef, ComponentType, ReactNode } from "react";
-import type { StreamdownProps } from "streamdown";
+import type {
+  StreamdownProps,
+  MermaidOptions,
+  MermaidErrorComponentProps,
+} from "streamdown";
 
 /**
  * Caret style for streaming indicator.
@@ -146,6 +150,14 @@ export type PluginConfig = {
 export type ResolvedPluginConfig = NonNullable<StreamdownProps["plugins"]>;
 
 /**
+ * Allowed HTML tags whitelist.
+ * Maps tag names to allowed attribute names.
+ */
+export type AllowedTags = Record<string, string[]>;
+
+export type { MermaidOptions, MermaidErrorComponentProps };
+
+/**
  * Props for StreamdownTextPrimitive.
  */
 export type StreamdownTextPrimitiveProps = Omit<
@@ -157,6 +169,7 @@ export type StreamdownTextPrimitiveProps = Omit<
   | "controls"
   | "linkSafety"
   | "remend"
+  | "mermaid"
 > & {
   /**
    * Custom components for rendering markdown elements.
@@ -255,6 +268,30 @@ export type StreamdownTextPrimitiveProps = Omit<
    * remend={{ linkMode: "text-only" }}
    */
   remend?: RemendConfig | undefined;
+
+  /**
+   * Mermaid diagram configuration.
+   * Allows customization of Mermaid rendering.
+   *
+   * @example
+   * // Custom Mermaid config
+   * mermaid={{ config: { theme: 'dark' } }}
+   *
+   * @example
+   * // Custom error component
+   * mermaid={{ errorComponent: MyMermaidError }}
+   */
+  mermaid?: MermaidOptions | undefined;
+
+  /**
+   * Allowed HTML tags whitelist.
+   * Maps tag names to their allowed attribute names.
+   * Use this to allow specific HTML tags in markdown content.
+   *
+   * @example
+   * allowedTags={{ div: ['class', 'id'], span: ['class'] }}
+   */
+  allowedTags?: AllowedTags | undefined;
 };
 
 export type { StreamdownProps };

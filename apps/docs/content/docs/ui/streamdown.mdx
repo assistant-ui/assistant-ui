@@ -84,6 +84,11 @@ const StreamdownText = () => (
 | `componentsByLanguage` | `object` | - | Language-specific component overrides |
 | `preprocess` | `(text: string) => string` | - | Text preprocessing function |
 | `controls` | `boolean \| object` | `true` | Enable/disable UI controls for code blocks and tables |
+| `caret` | `"block" \| "circle"` | - | Streaming caret style |
+| `mermaid` | `MermaidOptions` | - | Mermaid diagram configuration |
+| `linkSafety` | `LinkSafetyConfig` | - | Link safety confirmation dialog |
+| `remend` | `RemendConfig` | - | Incomplete markdown auto-completion |
+| `allowedTags` | `Record<string, string[]>` | - | HTML tags whitelist |
 | `containerProps` | `object` | - | Props for the container div |
 | `containerClassName` | `string` | - | Class name for the container |
 
@@ -125,6 +130,82 @@ import { cjk } from "@streamdown/cjk";
 <StreamdownTextPrimitive plugins={{ cjk }} />
 ```
 
+## Advanced Configuration
+
+### Mermaid Options
+
+Customize Mermaid diagram rendering with configuration and error handling:
+
+```tsx
+import { mermaid } from "@streamdown/mermaid";
+
+<StreamdownTextPrimitive
+  plugins={{ mermaid }}
+  mermaid={{
+    config: { theme: "dark" },
+    errorComponent: ({ error, chart, retry }) => (
+      <div>
+        <p>Failed to render diagram: {error}</p>
+        <button onClick={retry}>Retry</button>
+      </div>
+    ),
+  }}
+/>
+```
+
+### Streaming Caret
+
+Display a caret indicator during streaming:
+
+```tsx
+<StreamdownTextPrimitive caret="block" />  // ▋
+<StreamdownTextPrimitive caret="circle" /> // ●
+```
+
+### Link Safety
+
+Show confirmation before opening external links:
+
+```tsx
+<StreamdownTextPrimitive
+  linkSafety={{
+    enabled: true,
+    onLinkCheck: (url) => url.startsWith("https://trusted.com"),
+  }}
+/>
+```
+
+### Incomplete Markdown Handling (Remend)
+
+Configure how incomplete markdown syntax is handled during streaming:
+
+```tsx
+<StreamdownTextPrimitive
+  remend={{
+    links: true,      // Complete incomplete links
+    images: true,     // Handle incomplete images
+    bold: true,       // Complete **text → **text**
+    italic: true,     // Complete *text → *text*
+    inlineCode: true, // Complete `code → `code`
+    katex: true,      // Complete $$equation → $$equation$$
+  }}
+/>
+```
+
+### Allowed HTML Tags
+
+Allow specific HTML tags in markdown content:
+
+```tsx
+<StreamdownTextPrimitive
+  allowedTags={{
+    div: ["class", "id"],
+    span: ["class", "style"],
+    iframe: ["src", "width", "height"],
+  }}
+/>
+```
+
 ## Detecting Inline vs Block Code
 
 When building custom code components, you can use `useIsStreamdownCodeBlock` to detect whether you're inside a code block or inline code:
@@ -153,6 +234,41 @@ function MyCodeComponent({ children, ...props }) {
 | Mermaid diagrams | Manual setup | Built-in support |
 | CJK optimization | None | Built-in |
 | Streaming | `smooth` prop | `mode` + block-based |
+
+## Re-exported Utilities
+
+The package re-exports useful utilities from `streamdown`:
+
+```tsx
+import {
+  // Context for accessing streamdown state
+  StreamdownContext,
+  // Parse markdown into blocks (for custom implementations)
+  parseMarkdownIntoBlocks,
+} from "@assistant-ui/react-streamdown";
+```
+
+### Available Types
+
+```tsx
+import type {
+  // Plugin types
+  CodeHighlighterPlugin,
+  DiagramPlugin,
+  MathPlugin,
+  CjkPlugin,
+  HighlightOptions,
+  // Shiki types
+  BundledTheme,
+  BundledLanguage,
+  // Configuration types
+  MermaidOptions,
+  MermaidErrorComponentProps,
+  LinkSafetyConfig,
+  RemendConfig,
+  AllowedTags,
+} from "@assistant-ui/react-streamdown";
+```
 
 ## Related Components
 

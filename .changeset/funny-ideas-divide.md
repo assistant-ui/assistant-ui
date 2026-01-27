@@ -1,5 +1,5 @@
 ---
-"@assistant-ui/react-streamdown": patch
+"@assistant-ui/react-streamdown": minor
 ---
 
 feat: add @assistant-ui/react-streamdown package

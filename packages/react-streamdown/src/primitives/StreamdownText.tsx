@@ -72,6 +72,8 @@ export const StreamdownTextPrimitive = forwardRef<
       controls,
       linkSafety,
       remend,
+      mermaid,
+      allowedTags,
 
       // streamdown props
       mode = "streaming",
@@ -139,6 +141,8 @@ export const StreamdownTextPrimitive = forwardRef<
       ...(controls !== undefined && { controls }),
       ...(linkSafety && { linkSafety }),
       ...(remend && { remend }),
+      ...(mermaid && { mermaid }),
+      ...(allowedTags && { allowedTags }),
       ...(resolvedPlugins && { plugins: resolvedPlugins }),
       ...(resolvedShikiTheme && { shikiTheme: resolvedShikiTheme }),
     };
