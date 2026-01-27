@@ -4,8 +4,8 @@ import {
   createContext,
   memo,
   useCallback,
-  useMemo,
   useContext,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -683,21 +683,30 @@ function ChainOfThoughtStepImage({
   );
 }
 
-type MessagePartGroup = {
-  groupKey: string | undefined;
-  indices: number[];
+type PartsGroupedGroupingFunction = React.ComponentProps<
+  typeof MessagePrimitive.Unstable_PartsGrouped
+>["groupingFunction"];
+
+type MessagePartGroup = ReturnType<PartsGroupedGroupingFunction>[number];
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+const getParentId = (part: unknown): string | undefined => {
+  if (!isRecord(part)) return undefined;
+  const parentId = part.parentId;
+  return typeof parentId === "string" ? parentId : undefined;
 };
 
-const groupMessagePartsByParentId = (
+const groupMessagePartsByParentId: PartsGroupedGroupingFunction = (
   parts: readonly any[],
-): MessagePartGroup[] => {
+) => {
   // Map maintains insertion order, so groups appear in order of first occurrence
   const groupMap = new Map<string, number[]>();
 
   // Process each part in order
   for (let i = 0; i < parts.length; i++) {
-    const part = parts[i];
-    const parentId = part?.parentId as string | undefined;
+    const parentId = getParentId(parts[i]);
 
     // For parts without parentId, assign a unique group ID to maintain their position
     const groupId = parentId ?? `__ungrouped_${i}`;
@@ -728,9 +737,7 @@ export type ChainOfThoughtTraceProps = Omit<
   React.ComponentProps<typeof ChainOfThoughtTimeline>,
   "children"
 > & {
-  groupingFunction?: React.ComponentProps<
-    typeof MessagePrimitive.Unstable_PartsGrouped
-  >["groupingFunction"];
+  groupingFunction?: PartsGroupedGroupingFunction;
   components?: React.ComponentProps<
     typeof MessagePrimitive.Unstable_PartsGrouped
   >["components"];
@@ -748,13 +755,19 @@ export type ChainOfThoughtTraceProps = Omit<
   }) => ChainOfThoughtTraceStepMeta;
 };
 
+type ToolCallPartLike = {
+  type: "tool-call";
+  toolName?: string;
+};
+
+const isToolCallPart = (part: unknown): part is ToolCallPartLike =>
+  isRecord(part) && part.type === "tool-call";
+
 const defaultInferStep: NonNullable<ChainOfThoughtTraceProps["inferStep"]> = ({
   groupKey,
   parts,
 }) => {
-  const tool = parts.find((p) => p?.type === "tool-call") as
-    | { toolName?: string }
-    | undefined;
+  const tool = parts.find(isToolCallPart);
   const toolName = tool?.toolName;
 
   const type: StepType = toolName
@@ -803,12 +816,16 @@ function ChainOfThoughtTraceGroup({
   const lastIndex = messageParts.length - 1;
   const isActive = isRunning && lastIndex >= 0 && indices.includes(lastIndex);
 
-  const meta = inferStep({
-    groupKey,
-    indices,
-    parts: groupParts,
-    isActive,
-  });
+  const meta = useMemo(
+    () =>
+      inferStep({
+        groupKey,
+        indices,
+        parts: groupParts,
+        isActive,
+      }),
+    [inferStep, groupKey, indices, groupParts, isActive],
+  );
 
   return (
     <ChainOfThoughtStep
@@ -840,15 +857,21 @@ function ChainOfThoughtTrace({
   inferStep = defaultInferStep,
   ...timelineProps
 }: ChainOfThoughtTraceProps) {
+  const contextValue = useMemo(() => ({ inferStep }), [inferStep]);
+  const groupedComponents = useMemo(
+    () => ({
+      ...components,
+      Group: ChainOfThoughtTraceGroup,
+    }),
+    [components],
+  );
+
   return (
     <ChainOfThoughtTimeline className={className} {...timelineProps}>
-      <ChainOfThoughtTraceContext.Provider value={{ inferStep }}>
+      <ChainOfThoughtTraceContext.Provider value={contextValue}>
         <MessagePrimitive.Unstable_PartsGrouped
           groupingFunction={groupingFunction}
-          components={{
-            ...components,
-            Group: ChainOfThoughtTraceGroup,
-          }}
+          components={groupedComponents}
         />
       </ChainOfThoughtTraceContext.Provider>
     </ChainOfThoughtTimeline>
