@@ -88,6 +88,12 @@ export class ToolUIInstanceImpl implements ToolUIInstance {
   }
 
   public close(): void {
+    if (
+      this._state.lifecycle === "closed" ||
+      this._state.lifecycle === "closing"
+    ) {
+      return;
+    }
     this._transition("closing");
     this._transition("closed");
   }
