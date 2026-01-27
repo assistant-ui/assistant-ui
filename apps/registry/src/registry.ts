@@ -410,4 +410,21 @@ export const registry: RegistryItem[] = [
     dependencies: ["@radix-ui/react-slot", "class-variance-authority"],
     registryDependencies: [],
   },
+  {
+    name: "tabs",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/tabs.tsx",
+        sourcePath: "../../packages/ui/src/components/assistant-ui/tabs.tsx",
+      },
+    ],
+    dependencies: [
+      "@radix-ui/react-tabs",
+      "@radix-ui/react-slot",
+      "class-variance-authority",
+    ],
+    registryDependencies: [],
+  },
 ];

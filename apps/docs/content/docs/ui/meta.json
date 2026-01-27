@@ -26,6 +26,7 @@
     "---Standalone---",
     "badge",
     "select",
+    "tabs",
     "---Experimental---",
     "part-grouping"
   ]
