@@ -10,7 +10,6 @@ import {
 import { SampleFrame } from "@/components/docs/samples/sample-frame";
 import { Button } from "@/components/ui/button";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
-import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import {
   ChainOfThoughtRoot,
   ChainOfThoughtTrigger,
@@ -26,6 +25,7 @@ import {
   ChainOfThoughtStepImage,
   ChainOfThoughtBadge,
   ChainOfThoughtAnnouncer,
+  ChainOfThoughtTraceTool,
   chainOfThoughtVariants,
 } from "@/components/assistant-ui/chain-of-thought";
 
@@ -1604,11 +1604,6 @@ function PartsGroupedTraceDemo() {
   const [activeStep, setActiveStep] = useState<TraceActiveStep>("search");
   const isRunning = activeStep !== "complete";
 
-  const activeParentId =
-    activeStep === "complete"
-      ? TRACE_PARENT_IDS.summary
-      : TRACE_PARENT_IDS[activeStep];
-
   const message: ThreadAssistantMessage = {
     id: "cot-trace-message",
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
@@ -1652,15 +1647,6 @@ function PartsGroupedTraceDemo() {
         text: "Summary: Hayden Bleasel is a product designer and engineer.",
         parentId: TRACE_PARENT_IDS.summary,
       },
-      ...(isRunning
-        ? ([
-            {
-              type: "text",
-              text: "Working…",
-              parentId: activeParentId,
-            },
-          ] as const)
-        : []),
     ],
     metadata: {
       unstable_state: null,
@@ -1732,7 +1718,7 @@ function PartsGroupedTraceDemo() {
               }}
               components={{
                 Text: MarkdownText,
-                tools: { Override: ToolFallback },
+                tools: { Override: ChainOfThoughtTraceTool },
               }}
             />
           </ChainOfThoughtContent>
