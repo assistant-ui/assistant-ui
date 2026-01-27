@@ -217,8 +217,6 @@ const useLangGraphRuntimeImpl = ({
     try {
       setIsRunning(true);
       await sendMessage(messages, config);
-    } catch (error) {
-      console.error("Error streaming messages:", error);
     } finally {
       setIsRunning(false);
     }
