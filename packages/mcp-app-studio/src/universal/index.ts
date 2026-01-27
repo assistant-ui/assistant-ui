@@ -1,4 +1,12 @@
-export { detectPlatform, isChatGPT, isMCP } from "./detect";
+export {
+  detectPlatform,
+  detectPlatformDetailed,
+  isChatGPT,
+  isMCP,
+  enableDebugMode,
+  disableDebugMode,
+  type DetectionResult,
+} from "./detect";
 export {
   UniversalProvider,
   useUniversalBridge,
@@ -19,4 +27,5 @@ export {
   useUpdateModelContext,
   useWidgetState,
   useLog,
+  useFeature,
 } from "./hooks";

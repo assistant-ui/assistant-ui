@@ -40,9 +40,9 @@ export const NAV_ITEMS: NavItem[] = [
         external: false,
       },
       {
-        label: "ChatGPT App Studio",
-        href: "/chatgpt-app-studio",
-        description: "Build ChatGPT apps",
+        label: "MCP App Studio",
+        href: "/mcp-app-studio",
+        description: "Build apps for AI assistants",
         external: false,
       },
     ],

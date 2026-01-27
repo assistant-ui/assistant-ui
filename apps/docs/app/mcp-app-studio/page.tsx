@@ -85,7 +85,7 @@ const STEPS = [
 const WORKBENCH_URL =
   process.env["NEXT_PUBLIC_WORKBENCH_URL"] ?? "http://localhost:3002";
 
-export default function ChatGptAppStudioPage() {
+export default function McpAppStudioPage() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const iframeSrc = `${WORKBENCH_URL}?component=poi-map`;
 
@@ -159,10 +159,10 @@ export default function ChatGptAppStudioPage() {
           </div>
 
           <div className="flex flex-col gap-1">
-            <h1 className="font-medium text-2xl">ChatGPT App Studio</h1>
+            <h1 className="font-medium text-2xl">MCP App Studio</h1>
             <p className="max-w-lg text-lg text-muted-foreground">
-              Build and preview ChatGPT Apps locally. A development workbench
-              with live preview, mock tool responses, and production export.
+              Build and preview MCP Apps locally. A development workbench with
+              live preview, mock tool responses, and production export.
             </p>
           </div>
 
@@ -177,7 +177,7 @@ export default function ChatGptAppStudioPage() {
             </Link>
             <span className="hidden size-1 rounded-full bg-muted-foreground/20 sm:block" />
             <Link
-              href="https://github.com/assistant-ui/assistant-ui/tree/main/packages/chatgpt-app-studio"
+              href="https://github.com/assistant-ui/assistant-ui/tree/main/packages/mcp-app-studio"
               className="font-medium text-foreground/60 transition-colors hover:text-foreground"
             >
               View on GitHub
@@ -190,7 +190,7 @@ export default function ChatGptAppStudioPage() {
         <div className="space-y-6 md:space-y-8">
           <div className="text-center">
             <h2 className="mb-2 font-medium text-2xl md:text-3xl">
-              Everything you need to build ChatGPT Apps
+              Everything you need to build MCP Apps
             </h2>
             <p className="text-base text-muted-foreground md:text-xl">
               Local development workbench with production-ready export
@@ -244,7 +244,7 @@ export default function ChatGptAppStudioPage() {
 
         <div className="flex flex-col items-center space-y-4 py-6 text-center md:space-y-6 md:py-8">
           <p className="font-medium text-xl tracking-tight md:text-2xl">
-            Start building your ChatGPT App today.
+            Start building your MCP App today.
           </p>
           <div className="flex items-center gap-4">
             <Button asChild>
@@ -253,7 +253,7 @@ export default function ChatGptAppStudioPage() {
               </Link>
             </Button>
             <Link
-              href="https://github.com/assistant-ui/assistant-ui/tree/main/packages/chatgpt-app-studio"
+              href="https://github.com/assistant-ui/assistant-ui/tree/main/packages/mcp-app-studio"
               className={buttonVariants({
                 variant: "outline",
               })}
@@ -275,7 +275,7 @@ export default function ChatGptAppStudioPage() {
                   <div className="size-3 rounded-full bg-green-500/80" />
                 </div>
                 <span className="font-mono text-sm text-zinc-400">
-                  ChatGPT App Studio Workbench
+                  MCP App Studio Workbench
                 </span>
               </div>
               <button
@@ -289,7 +289,7 @@ export default function ChatGptAppStudioPage() {
             <iframe
               src={iframeSrc}
               className="size-full border-0"
-              title="ChatGPT App Studio Workbench (Fullscreen)"
+              title="MCP App Studio Workbench (Fullscreen)"
               allow="clipboard-read; clipboard-write"
             />
           </div>
@@ -360,7 +360,7 @@ function HeroShowcase({ onFullscreen }: { onFullscreen: () => void }) {
                       <p className="max-w-xs text-sm text-zinc-500">
                         Run{" "}
                         <code className="rounded bg-zinc-800 px-1.5 py-0.5 font-mono text-xs">
-                          npx chatgpt-app-studio
+                          npx mcp-app-studio
                         </code>{" "}
                         to start
                       </p>
@@ -377,7 +377,7 @@ function HeroShowcase({ onFullscreen }: { onFullscreen: () => void }) {
                 )}
                 onLoad={() => setIsLoaded(true)}
                 onError={() => setHasError(true)}
-                title="ChatGPT App Studio Workbench"
+                title="MCP App Studio Workbench"
                 allow="clipboard-read; clipboard-write"
               />
             </div>
@@ -392,7 +392,7 @@ function CopyCommandButton() {
   const [copied, setCopied] = useState(false);
 
   const copyToClipboard = () => {
-    navigator.clipboard.writeText("npx chatgpt-app-studio my-chatgpt-app");
+    navigator.clipboard.writeText("npx mcp-app-studio my-app");
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -403,7 +403,7 @@ function CopyCommandButton() {
       className="group inline-flex w-fit items-center gap-1.5 rounded-md border border-border/60 bg-muted/30 px-3 py-1.5 font-mono text-sm transition-all hover:border-border hover:bg-muted/50"
     >
       <span className="text-muted-foreground/70">$</span>
-      <span>npx chatgpt-app-studio my-chatgpt-app</span>
+      <span>npx mcp-app-studio my-app</span>
       <div className="relative ml-1 flex size-4 items-center justify-center text-muted-foreground">
         <CheckIcon
           className={cn(

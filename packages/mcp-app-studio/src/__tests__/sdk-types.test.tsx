@@ -1,0 +1,186 @@
+/**
+ * @vitest-environment jsdom
+ */
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+
+import {
+  UniversalProvider,
+  useUniversalBridge,
+  usePlatform,
+  detectPlatform,
+  isChatGPT,
+  isMCP,
+  useHostContext,
+  useTheme,
+  useCapabilities,
+  useToolInput,
+  useToolInputPartial,
+  useToolResult,
+  useDisplayMode,
+  useCallTool,
+  useOpenLink,
+  useSendMessage,
+  useUpdateModelContext,
+  useWidgetState,
+  useLog,
+  textBlock,
+  imageBlock,
+  CHATGPT_CAPABILITIES,
+  MCP_CAPABILITIES,
+} from "../sdk";
+
+import type {
+  Platform,
+  DisplayMode,
+  Theme,
+  ContentBlock,
+  TextContentBlock,
+  ImageContentBlock,
+  ToolResult,
+} from "../core/types";
+
+import type { HostCapabilities } from "../core/capabilities";
+
+describe("SDK Exports", () => {
+  it("exports UniversalProvider component", () => {
+    expect(UniversalProvider).toBeDefined();
+    expect(typeof UniversalProvider).toBe("function");
+  });
+
+  it("exports platform detection functions", () => {
+    expect(detectPlatform).toBeDefined();
+    expect(isChatGPT).toBeDefined();
+    expect(isMCP).toBeDefined();
+    expect(typeof detectPlatform).toBe("function");
+    expect(typeof isChatGPT).toBe("function");
+    expect(typeof isMCP).toBe("function");
+  });
+
+  it("exports all universal hooks", () => {
+    expect(useUniversalBridge).toBeDefined();
+    expect(usePlatform).toBeDefined();
+    expect(useHostContext).toBeDefined();
+    expect(useTheme).toBeDefined();
+    expect(useCapabilities).toBeDefined();
+    expect(useToolInput).toBeDefined();
+    expect(useToolInputPartial).toBeDefined();
+    expect(useToolResult).toBeDefined();
+    expect(useDisplayMode).toBeDefined();
+    expect(useCallTool).toBeDefined();
+    expect(useOpenLink).toBeDefined();
+    expect(useSendMessage).toBeDefined();
+    expect(useUpdateModelContext).toBeDefined();
+    expect(useWidgetState).toBeDefined();
+    expect(useLog).toBeDefined();
+  });
+
+  it("exports content block helpers", () => {
+    expect(textBlock).toBeDefined();
+    expect(imageBlock).toBeDefined();
+
+    const text = textBlock("hello");
+    expect(text.type).toBe("text");
+    expect(text.text).toBe("hello");
+
+    const image = imageBlock("base64data", "image/png");
+    expect(image.type).toBe("image");
+    expect(image.data).toBe("base64data");
+    expect(image.mimeType).toBe("image/png");
+  });
+
+  it("exports capability constants", () => {
+    expect(CHATGPT_CAPABILITIES).toBeDefined();
+    expect(MCP_CAPABILITIES).toBeDefined();
+
+    expect(CHATGPT_CAPABILITIES.callTool).toBe(true);
+    expect(CHATGPT_CAPABILITIES.modelContext).toBe(false);
+    expect(MCP_CAPABILITIES.callTool).toBe(true);
+    expect(MCP_CAPABILITIES.modelContext).toBe(true);
+  });
+});
+
+describe("Platform Detection", () => {
+  let originalOpenai: unknown;
+
+  beforeEach(() => {
+    originalOpenai = (window as any).openai;
+    delete (window as any).openai;
+  });
+
+  afterEach(() => {
+    if (originalOpenai !== undefined) {
+      (window as any).openai = originalOpenai;
+    } else {
+      delete (window as any).openai;
+    }
+  });
+
+  it("returns 'unknown' when no platform markers exist", () => {
+    expect(detectPlatform()).toBe("unknown");
+  });
+
+  it("detects ChatGPT when window.openai exists", () => {
+    (window as any).openai = { callTool: vi.fn() };
+
+    expect(detectPlatform()).toBe("chatgpt");
+    expect(isChatGPT()).toBe(true);
+    expect(isMCP()).toBe(false);
+  });
+
+  it("detects MCP when __MCP_HOST__ window property exists", () => {
+    (window as any).__MCP_HOST__ = true;
+
+    expect(detectPlatform()).toBe("mcp");
+    expect(isMCP()).toBe(true);
+    expect(isChatGPT()).toBe(false);
+
+    delete (window as any).__MCP_HOST__;
+  });
+});
+
+describe("Type Compatibility", () => {
+  it("Platform type includes expected values", () => {
+    const platforms: Platform[] = ["chatgpt", "mcp", "unknown"];
+    expect(platforms).toHaveLength(3);
+  });
+
+  it("DisplayMode type includes expected values", () => {
+    const modes: DisplayMode[] = ["inline", "fullscreen", "pip"];
+    expect(modes).toHaveLength(3);
+  });
+
+  it("Theme type includes expected values", () => {
+    const themes: Theme[] = ["light", "dark"];
+    expect(themes).toHaveLength(2);
+  });
+
+  it("ContentBlock types are valid", () => {
+    const text: TextContentBlock = { type: "text", text: "hello" };
+    const image: ImageContentBlock = {
+      type: "image",
+      data: "base64",
+      mimeType: "image/png",
+    };
+
+    const blocks: ContentBlock[] = [text, image];
+    expect(blocks).toHaveLength(2);
+  });
+
+  it("ToolResult type is valid", () => {
+    const result: ToolResult = {
+      content: [{ type: "text", text: "result" }],
+      isError: false,
+    };
+    expect(result.content).toHaveLength(1);
+  });
+
+  it("HostCapabilities type matches expected shape", () => {
+    const caps: HostCapabilities = CHATGPT_CAPABILITIES;
+    expect(caps.callTool).toBeDefined();
+    expect(caps.openLink).toBeDefined();
+    expect(caps.displayModes).toBeDefined();
+    expect(caps.sendMessage).toBeDefined();
+    expect(caps.modelContext).toBeDefined();
+    expect(caps.logging).toBeDefined();
+  });
+});

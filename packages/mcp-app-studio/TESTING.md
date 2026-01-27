@@ -16,10 +16,10 @@ Step through this checklist to validate the complete user journey.
 
 ```bash
 cd ~/Code/tests/test-scaffold
-node /path/to/bin/chatgpt-app-studio.js my-app
+node /path/to/bin/mcp-app-studio.js my-app
 ```
 
-- [x] Intro banner shows `chatgpt-app-studio`
+- [x] Intro banner shows `mcp-app-studio`
 - [x] Spinner shows "Creating project..." (implicit, fast)
 - [x] Success message "Project created!"
 - [x] "Next steps" box shows correct commands

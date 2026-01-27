@@ -20,7 +20,7 @@ describe("isValidPackageName", () => {
 
   it("accepts scoped package names", () => {
     expect(isValidPackageName("@scope/my-app")).toBe(true);
-    expect(isValidPackageName("@assistant-ui/chatgpt-app-studio")).toBe(true);
+    expect(isValidPackageName("@assistant-ui/mcp-app-studio")).toBe(true);
   });
 
   it("rejects invalid package names", () => {

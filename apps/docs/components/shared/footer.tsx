@@ -22,7 +22,7 @@ const FOOTER_LINKS: Record<string, FooterLinkItem[]> = {
     { label: "Tool UI", href: "https://tool-ui.com/", external: true },
     { label: "tw-shimmer", href: "/tw-shimmer" },
     { label: "Safe Content Frame", href: "/safe-content-frame" },
-    { label: "ChatGPT App Studio", href: "/chatgpt-app-studio" },
+    { label: "MCP App Studio", href: "/mcp-app-studio" },
   ],
   Resources: [
     { label: "Documentation", href: "/docs" },

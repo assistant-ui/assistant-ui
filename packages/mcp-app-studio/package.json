@@ -1,6 +1,6 @@
 {
-  "name": "chatgpt-app-studio",
-  "version": "0.3.3",
+  "name": "mcp-app-studio",
+  "version": "0.4.0",
   "description": "Build interactive apps for AI assistants (ChatGPT, Claude, MCP hosts)",
   "keywords": [
     "chatgpt",
@@ -18,7 +18,7 @@
   "license": "MIT",
   "type": "module",
   "bin": {
-    "chatgpt-app-studio": "./bin/chatgpt-app-studio.js"
+    "mcp-app-studio": "./bin/mcp-app-studio.js"
   },
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -113,7 +113,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/assistant-ui/assistant-ui.git",
-    "directory": "packages/chatgpt-app-studio"
+    "directory": "packages/mcp-app-studio"
   },
   "bugs": {
     "url": "https://github.com/assistant-ui/assistant-ui/issues"

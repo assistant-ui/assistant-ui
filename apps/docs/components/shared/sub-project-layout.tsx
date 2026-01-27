@@ -16,9 +16,9 @@ const SUB_PROJECTS = [
     textValue: "playground",
   },
   {
-    value: "chatgpt-app-studio",
-    label: "ChatGPT App Studio",
-    textValue: "chatgpt-app-studio",
+    value: "mcp-app-studio",
+    label: "MCP App Studio",
+    textValue: "mcp-app-studio",
   },
   {
     value: "tw-shimmer",

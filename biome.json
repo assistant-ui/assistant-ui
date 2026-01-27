@@ -200,7 +200,7 @@
       "!**/.tanstack",
       "!**/.output",
       "!**/routeTree.gen.ts",
-      "!**/packages/chatgpt-app-studio/templates"
+      "!**/packages/mcp-app-studio/templates"
     ]
   }
 }

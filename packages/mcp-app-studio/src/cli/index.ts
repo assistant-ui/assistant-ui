@@ -20,7 +20,7 @@ import {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const TEMPLATE_REPO = "assistant-ui/chatgpt-app-studio-starter";
+const TEMPLATE_REPO = "assistant-ui/mcp-app-studio-starter";
 const TEMPLATE_BRANCH = "main";
 
 const REQUIRED_NODE_VERSION = { major: 20, minor: 9, patch: 0 } as const;
@@ -54,7 +54,7 @@ function ensureSupportedNodeVersion(): void {
   if (!isVersionAtLeast(current, REQUIRED_NODE_VERSION)) {
     console.error(
       pc.red(
-        `chatgpt-app-studio requires Node.js >=${REQUIRED_NODE_VERSION.major}.${REQUIRED_NODE_VERSION.minor}.${REQUIRED_NODE_VERSION.patch} (detected ${process.versions.node}).`,
+        `mcp-app-studio requires Node.js >=${REQUIRED_NODE_VERSION.major}.${REQUIRED_NODE_VERSION.minor}.${REQUIRED_NODE_VERSION.patch} (detected ${process.versions.node}).`,
       ),
     );
     console.error(pc.dim("Please upgrade Node.js (recommended: latest LTS)."));
@@ -74,23 +74,28 @@ function getVersion(): string {
 
 function showHelp(): void {
   console.log(`
-chatgpt-app-studio v${getVersion()}
+mcp-app-studio v${getVersion()}
 
-Create ChatGPT apps with a local development workbench.
+Create interactive apps for ChatGPT and MCP hosts (like Claude Desktop).
 
-Requirements:
+${pc.bold("Requirements:")}
   Node.js >=${REQUIRED_NODE_VERSION.major}.${REQUIRED_NODE_VERSION.minor}.${REQUIRED_NODE_VERSION.patch}
 
-Usage:
-  npx chatgpt-app-studio [project-name]
+${pc.bold("Usage:")}
+  npx mcp-app-studio [project-name] [options]
 
-Options:
+${pc.bold("Options:")}
   --help, -h     Show this help message
   --version, -v  Show version number
 
-Examples:
-  npx chatgpt-app-studio my-app
-  npx chatgpt-app-studio
+${pc.bold("Examples:")}
+  npx mcp-app-studio my-app
+  npx mcp-app-studio .          ${pc.dim("# Use current directory")}
+  npx mcp-app-studio
+
+${pc.bold("Learn more:")}
+  Documentation: https://github.com/assistant-ui/mcp-app-studio
+  Examples:      https://github.com/assistant-ui/mcp-app-studio-starter
 `);
 }
 
@@ -345,7 +350,7 @@ interface ProjectConfig {
 
 async function downloadTemplate(targetDir: string): Promise<void> {
   const tarballUrl = `https://github.com/${TEMPLATE_REPO}/archive/refs/heads/${TEMPLATE_BRANCH}.tar.gz`;
-  const tempDir = path.join(os.tmpdir(), `chatgpt-app-studio-${Date.now()}`);
+  const tempDir = path.join(os.tmpdir(), `mcp-app-studio-${Date.now()}`);
   const tarballPath = path.join(tempDir, "template.tar.gz");
 
   try {
@@ -375,7 +380,7 @@ async function downloadTemplate(targetDir: string): Promise<void> {
     await extract({
       file: tarballPath,
       cwd: targetDir,
-      strip: 1, // Remove the top-level directory (e.g., chatgpt-app-studio-starter-main/)
+      strip: 1, // Remove the top-level directory (e.g., mcp-app-studio-starter-main/)
     });
   } finally {
     // Cleanup temp directory
@@ -400,7 +405,7 @@ async function main() {
 
   const argProjectName = args.find((arg) => !arg.startsWith("-"));
 
-  p.intro(pc.bgCyan(pc.black(" chatgpt-app-studio ")));
+  p.intro(pc.bgCyan(pc.black(" mcp-app-studio ")));
 
   if (argProjectName) {
     const pathCheck = isValidProjectPath(argProjectName);
@@ -550,19 +555,65 @@ async function main() {
     nextSteps.push(pc.dim("# This starts both Next.js and MCP server"));
   }
 
-  p.note(nextSteps.join("\n"), "Next steps");
+  p.note(nextSteps.join("\n"), "Get started");
 
+  // Project structure guide
+  const structureGuide = [
+    `${pc.cyan("components/examples/")}  ${pc.dim("← Your widget components")}`,
+    `${pc.cyan("lib/workbench/")}        ${pc.dim("← SDK wrappers for workbench")}`,
+  ];
   if (config.includeServer) {
-    p.log.info(
-      `${pc.dim("Test your MCP server with:")} ${pc.cyan(`cd server && ${runCmd} inspect`)}`,
+    structureGuide.push(
+      `${pc.cyan("server/")}               ${pc.dim("← MCP server for Claude Desktop")}`,
     );
   }
+  p.note(structureGuide.join("\n"), "Project structure");
 
-  p.log.info(
-    `${pc.dim("Export for production:")} ${pc.cyan(`${runCmd} export`)}`,
+  // Key commands
+  const keyCommands: string[] = [];
+  keyCommands.push(
+    `${pc.cyan(`${runCmd} dev`)}      ${pc.dim("Start the development workbench")}`,
   );
+  keyCommands.push(
+    `${pc.cyan(`${runCmd} export`)}   ${pc.dim("Build & export for ChatGPT")}`,
+  );
+  if (config.includeServer) {
+    keyCommands.push(
+      `${pc.cyan(`cd server && ${runCmd} inspect`)}  ${pc.dim("Test MCP server locally")}`,
+    );
+  }
+  p.note(keyCommands.join("\n"), "Key commands");
 
-  p.outro(pc.green("Happy building!"));
+  // Platform-specific tips
+  p.log.message("");
+  p.log.step(pc.bold("Building for multiple platforms:"));
+  p.log.message(
+    `  ${pc.dim("•")} Use ${pc.cyan("useFeature('widgetState')")} to check for ChatGPT features`,
+  );
+  p.log.message(
+    `  ${pc.dim("•")} Use ${pc.cyan("useFeature('modelContext')")} to check for MCP features`,
+  );
+  p.log.message(
+    `  ${pc.dim("•")} Call ${pc.cyan("enableDebugMode()")} in browser console to debug platform detection`,
+  );
+  p.log.message("");
+
+  // Documentation links
+  p.log.step(pc.bold("Learn more:"));
+  p.log.message(
+    `  ${pc.dim("•")} SDK Docs:   ${pc.cyan("https://github.com/assistant-ui/mcp-app-studio#sdk")}`,
+  );
+  p.log.message(
+    `  ${pc.dim("•")} Examples:   ${pc.cyan("https://github.com/assistant-ui/mcp-app-studio-starter")}`,
+  );
+  if (config.includeServer) {
+    p.log.message(
+      `  ${pc.dim("•")} MCP Guide:  ${pc.cyan("https://modelcontextprotocol.io/quickstart")}`,
+    );
+  }
+  p.log.message("");
+
+  p.outro(pc.green("Happy building! 🚀"));
 }
 
 main().catch((err) => {

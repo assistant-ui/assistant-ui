@@ -1,13 +1,13 @@
 #!/bin/bash
 set -e
 
-# Test scaffold script for chatgpt-app-studio
+# Test scaffold script for mcp-app-studio
 # Usage: ./scripts/test-scaffold.sh [project-name]
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PACKAGE_DIR="$(dirname "$SCRIPT_DIR")"
 PROJECT_NAME="${1:-test-chatgpt-app}"
-TEST_DIR="/tmp/chatgpt-app-studio-test"
+TEST_DIR="/tmp/mcp-app-studio-test"
 
 echo "🧹 Cleaning up previous test..."
 rm -rf "$TEST_DIR"
