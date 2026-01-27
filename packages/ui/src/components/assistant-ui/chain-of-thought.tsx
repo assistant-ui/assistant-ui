@@ -558,21 +558,16 @@ function ChainOfThoughtTimeline({
   const childrenArray = Children.toArray(children);
   const stepCount = childrenArray.filter(isValidElement).length;
 
-  // Inject step indices for staggered animations and connector metadata
+  // Inject step indices for staggered animations
   let stepIndex = 0;
   const staggeredChildren = childrenArray.map((child) => {
     if (!isValidElement(child)) return child;
-
-    const isFirst = stepIndex === 0;
-    const isLast = stepIndex === stepCount - 1;
 
     const cloned = cloneElement(child, {
       style: {
         ...((child.props as { style?: React.CSSProperties }).style || {}),
         "--step-index": stepIndex,
       } as React.CSSProperties,
-      "data-first-step": isFirst ? "true" : undefined,
-      "data-last-step": isLast ? "true" : undefined,
     } as React.HTMLAttributes<HTMLElement>);
 
     stepIndex += 1;
@@ -736,12 +731,6 @@ function ChainOfThoughtStep({
   const isActive = effectiveStatus === "active";
   const isError = effectiveStatus === "error";
 
-  // Read first/last step markers injected by Timeline
-  const isFirstStep =
-    (props as Record<string, unknown>)["data-first-step"] === "true";
-  const isLastStep =
-    (props as Record<string, unknown>)["data-last-step"] === "true";
-
   const renderIndicator = () => {
     // Error state shows error icon
     if (effectiveStatus === "error") {
@@ -802,25 +791,27 @@ function ChainOfThoughtStep({
       data-slot="chain-of-thought-step"
       data-status={effectiveStatus}
       data-type={type}
-      className={cn(stepVariants({ status: effectiveStatus, className }))}
+      className={cn(
+        stepVariants({ status: effectiveStatus, className }),
+        // Hide connectors at first/last positions using CSS selectors
+        // Uses first-of-type/last-of-type for compatibility with dynamically rendered children
+        "first-of-type:[&>[data-slot=chain-of-thought-step-connector-above]]:hidden",
+        "last-of-type:[&>[data-slot=chain-of-thought-step-connector-below]]:hidden",
+      )}
       {...props}
     >
       {/* Connector from previous step - renders from step top to icon top */}
-      {!isFirstStep && (
-        <div
-          aria-hidden="true"
-          data-slot="chain-of-thought-step-connector-above"
-          className="pointer-events-none absolute top-0 left-3 h-1.5 w-px bg-foreground/15"
-        />
-      )}
+      <div
+        aria-hidden="true"
+        data-slot="chain-of-thought-step-connector-above"
+        className="pointer-events-none absolute top-0 left-3 h-1.5 w-px bg-foreground/15"
+      />
       {/* Connector to next step - renders from icon bottom to step bottom */}
-      {!isLastStep && (
-        <div
-          aria-hidden="true"
-          data-slot="chain-of-thought-step-connector-below"
-          className="pointer-events-none absolute top-[30px] bottom-0 left-3 w-px bg-foreground/15"
-        />
-      )}
+      <div
+        aria-hidden="true"
+        data-slot="chain-of-thought-step-connector-below"
+        className="pointer-events-none absolute top-[30px] bottom-0 left-3 w-px bg-foreground/15"
+      />
 
       <div className="aui-chain-of-thought-step-indicator-wrapper relative z-10">
         {renderIndicator()}
