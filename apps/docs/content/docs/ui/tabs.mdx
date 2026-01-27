@@ -123,6 +123,15 @@ All variants feature smooth animated indicators that slide between tabs:
 
 ## API Reference
 
+### Composable API
+
+| Component | Description |
+|-----------|-------------|
+| `Tabs` | The root component that manages tab state. |
+| `TabsList` | The container for tab triggers. Accepts `variant` and `size` props. |
+| `TabsTrigger` | An individual tab button. Inherits `variant` and `size` from `TabsList`. |
+| `TabsContent` | The content panel for a tab. |
+
 ### Tabs
 
 The root component that manages tab state.
@@ -243,12 +252,20 @@ The content panel for a tab.
   ]}
 />
 
-### tabsListVariants / tabsTriggerVariants
+### Style Variants (CVA)
 
-CVA function exports for using tab styles outside the components.
+| Export | Description |
+|--------|-------------|
+| `tabsListVariants` | Styles for the tabs list container. |
+| `tabsTriggerVariants` | Styles for individual tab triggers. |
+| `tabsActiveIndicatorVariants` | Styles for the animated active indicator. |
 
 ```tsx
-import { tabsListVariants, tabsTriggerVariants } from "@/components/assistant-ui/tabs";
+import {
+  tabsListVariants,
+  tabsTriggerVariants,
+  tabsActiveIndicatorVariants,
+} from "@/components/assistant-ui/tabs";
 
 <div className={tabsListVariants({ variant: "ghost", size: "sm" })}>
   <button className={tabsTriggerVariants({ variant: "ghost", size: "sm" })}>

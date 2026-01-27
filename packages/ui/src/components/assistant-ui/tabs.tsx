@@ -1,6 +1,15 @@
 "use client";
 
-import * as React from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentProps,
+} from "react";
 import * as TabsPrimitive from "@radix-ui/react-tabs";
 import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
@@ -19,10 +28,10 @@ type TabsListContextValue = {
   activeValue: string | null;
 };
 
-const TabsListContext = React.createContext<TabsListContextValue | null>(null);
+const TabsListContext = createContext<TabsListContextValue | null>(null);
 
 function useTabsListContext() {
-  const context = React.useContext(TabsListContext);
+  const context = useContext(TabsListContext);
   if (!context) {
     return null;
   }
@@ -32,7 +41,7 @@ function useTabsListContext() {
 function Tabs({
   className,
   ...props
-}: React.ComponentProps<typeof TabsPrimitive.Root>) {
+}: ComponentProps<typeof TabsPrimitive.Root>) {
   return (
     <TabsPrimitive.Root
       data-slot="tabs"
@@ -91,24 +100,25 @@ function TabsList({
   size,
   children,
   ...props
-}: React.ComponentProps<typeof TabsPrimitive.List> &
+}: ComponentProps<typeof TabsPrimitive.List> &
   VariantProps<typeof tabsListVariants>) {
   const resolvedVariant = variant ?? "default";
   const resolvedSize = size ?? "default";
 
-  const triggerRefs = React.useRef<Map<string, HTMLElement>>(new Map());
-  const [hoveredValue, setHoveredValue] = React.useState<string | null>(null);
-  const [activeValue, setActiveValue] = React.useState<string | null>(null);
-  const [activeStyle, setActiveStyle] = React.useState<IndicatorStyle>({
+  const triggerRefs = useRef<Map<string, HTMLElement>>(new Map());
+  const listRef = useRef<HTMLDivElement>(null);
+  const [hoveredValue, setHoveredValue] = useState<string | null>(null);
+  const [activeValue, setActiveValue] = useState<string | null>(null);
+  const [activeStyle, setActiveStyle] = useState<IndicatorStyle>({
     left: "0px",
     width: "0px",
   });
-  const [hoverStyle, setHoverStyle] = React.useState<IndicatorStyle>({
+  const [hoverStyle, setHoverStyle] = useState<IndicatorStyle>({
     left: "0px",
     width: "0px",
   });
 
-  const registerTrigger = React.useCallback(
+  const registerTrigger = useCallback(
     (value: string, element: HTMLElement | null) => {
       if (element) {
         triggerRefs.current.set(value, element);
@@ -119,8 +129,7 @@ function TabsList({
     [],
   );
 
-  // Update active style when active value changes
-  React.useEffect(() => {
+  useEffect(() => {
     if (activeValue) {
       const element = triggerRefs.current.get(activeValue);
       if (element) {
@@ -132,8 +141,7 @@ function TabsList({
     }
   }, [activeValue]);
 
-  // Update hover style when hovered value changes
-  React.useEffect(() => {
+  useEffect(() => {
     if (hoveredValue) {
       const element = triggerRefs.current.get(hoveredValue);
       if (element) {
@@ -145,10 +153,7 @@ function TabsList({
     }
   }, [hoveredValue]);
 
-  // Observe active tab changes via MutationObserver
-  const listRef = React.useRef<HTMLDivElement>(null);
-
-  React.useEffect(() => {
+  useEffect(() => {
     const listElement = listRef.current;
     if (!listElement) return;
 
@@ -161,7 +166,6 @@ function TabsList({
         if (value && value !== activeValue) {
           setActiveValue(value);
         }
-        // Also update style directly for initial render
         setActiveStyle({
           left: `${activeElement.offsetLeft}px`,
           width: `${activeElement.offsetWidth}px`,
@@ -169,10 +173,8 @@ function TabsList({
       }
     };
 
-    // Initial update
     requestAnimationFrame(updateActiveFromDOM);
 
-    // Watch for attribute changes
     const observer = new MutationObserver(updateActiveFromDOM);
     observer.observe(listElement, {
       attributes: true,
@@ -183,10 +185,9 @@ function TabsList({
     return () => observer.disconnect();
   }, [activeValue]);
 
-  // Show hover background only for ghost variant
   const showHoverBackground = resolvedVariant === "ghost";
 
-  const contextValue = React.useMemo(
+  const contextValue = useMemo(
     () => ({
       variant: resolvedVariant,
       size: resolvedSize,
@@ -210,7 +211,6 @@ function TabsList({
         )}
         {...props}
       >
-        {/* Hover background indicator for ghost variant */}
         {showHoverBackground &&
           hoveredValue !== null &&
           hoverStyle.width !== "0px" && (
@@ -221,7 +221,6 @@ function TabsList({
             />
           )}
 
-        {/* Active indicator - rendered for all variants */}
         {activeStyle.width !== "0px" && (
           <div
             data-slot="tabs-active-indicator"
@@ -265,7 +264,7 @@ const tabsTriggerVariants = cva(
 );
 
 type TabsTriggerProps = Omit<
-  React.ComponentProps<typeof TabsPrimitive.Trigger>,
+  ComponentProps<typeof TabsPrimitive.Trigger>,
   "asChild"
 > &
   VariantProps<typeof tabsTriggerVariants> & {
@@ -284,19 +283,18 @@ function TabsTrigger({
   const resolvedVariant = variant ?? context?.variant ?? "default";
   const resolvedSize = size ?? context?.size ?? "default";
 
-  const ref = React.useRef<HTMLButtonElement>(null);
+  const ref = useRef<HTMLButtonElement>(null);
 
-  // Register this trigger with the parent TabsList
-  React.useEffect(() => {
+  useEffect(() => {
     context?.registerTrigger(value, ref.current);
     return () => context?.registerTrigger(value, null);
   }, [context, value]);
 
-  const handleMouseEnter = React.useCallback(() => {
+  const handleMouseEnter = useCallback(() => {
     context?.setHoveredValue(value);
   }, [context, value]);
 
-  const handleMouseLeave = React.useCallback(() => {
+  const handleMouseLeave = useCallback(() => {
     context?.setHoveredValue(null);
   }, [context]);
 
@@ -324,7 +322,7 @@ function TabsTrigger({
 function TabsContent({
   className,
   ...props
-}: React.ComponentProps<typeof TabsPrimitive.Content>) {
+}: ComponentProps<typeof TabsPrimitive.Content>) {
   return (
     <TabsPrimitive.Content
       data-slot="tabs-content"
