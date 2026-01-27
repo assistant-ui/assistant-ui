@@ -83,14 +83,13 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
 
   async append({ parentId, message }: ExportedMessageRepositoryItem) {
     const { remoteId } = await this.aui.threadListItem().initialize();
-    const encoded = auiV0Encode(message);
     const task = this.cloudRef.current.threads.messages
       .create(remoteId, {
         parent_id: parentId
           ? ((await this._getIdForLocalId[parentId]) ?? parentId)
           : null,
         format: "aui/v0",
-        content: encoded,
+        content: auiV0Encode(message),
       })
       .then(({ message_id }) => {
         this._getIdForLocalId[message.id] = message_id;
@@ -98,14 +97,6 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
       });
 
     this._getIdForLocalId[message.id] = task;
-
-    if (this.cloudRef.current.telemetry.enabled) {
-      task
-        .then(() => {
-          this._maybeReportRun(remoteId, "aui/v0", encoded);
-        })
-        .catch(() => {});
-    }
 
     return task.then(() => {});
   }

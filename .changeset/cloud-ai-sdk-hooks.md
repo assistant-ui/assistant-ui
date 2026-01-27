@@ -1,5 +1,5 @@
 ---
-"assistant-cloud": minor
+"assistant-cloud": patch
 ---
 
-feat: Add standalone AI SDK hooks (useSync, useThreads) for cloud persistence without assistant-ui
+feat: Add standalone AI SDK hooks (useCloudChat, useThreads) for cloud persistence without assistant-ui
