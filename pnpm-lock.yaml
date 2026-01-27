@@ -2250,6 +2250,9 @@ importers:
       '@streamdown/code':
         specifier: ^1.0.0
         version: 1.0.1(react@19.2.4)
+      '@testing-library/react':
+        specifier: ^16.3.0
+        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.9))(@types/react@19.2.9)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@types/hast':
         specifier: ^3.0.4
         version: 3.0.4

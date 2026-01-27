@@ -4,6 +4,7 @@ import { INTERNAL, useMessagePartText } from "@assistant-ui/react";
 import { Streamdown } from "streamdown";
 import { type ComponentRef, forwardRef, useMemo } from "react";
 import { useAdaptedComponents } from "../adapters/components-adapter";
+import { DEFAULT_SHIKI_THEME, mergePlugins } from "../defaults";
 import type { StreamdownTextPrimitiveProps } from "../types";
 
 const { useSmoothStatus } = INTERNAL;
@@ -33,6 +34,9 @@ type StreamdownTextPrimitiveElement = ComponentRef<"div">;
  *   shikiTheme={["github-light", "github-dark"]}
  * />
  *
+ * // Disable a specific plugin
+ * <StreamdownTextPrimitive plugins={{ code: false }} />
+ *
  * // Migration from react-markdown (compatibility mode)
  * <StreamdownTextPrimitive
  *   components={{
@@ -56,6 +60,9 @@ export const StreamdownTextPrimitive = forwardRef<
       componentsByLanguage,
       preprocess,
 
+      // plugin configuration
+      plugins: userPlugins,
+
       // container props
       containerProps,
       containerClassName,
@@ -63,6 +70,7 @@ export const StreamdownTextPrimitive = forwardRef<
       // streamdown props
       mode = "streaming",
       className,
+      shikiTheme,
       ...streamdownProps
     },
     ref,
@@ -78,6 +86,19 @@ export const StreamdownTextPrimitive = forwardRef<
       if (!preprocess) return text;
       return preprocess(text);
     }, [text, preprocess]);
+
+    // Merge user plugins (filter out false values)
+    const resolvedPlugins = useMemo(() => {
+      const merged = mergePlugins(userPlugins, {});
+      return Object.keys(merged).length > 0 ? merged : undefined;
+    }, [userPlugins]);
+
+    // Use default shiki theme if code plugin is active and no theme provided
+    const resolvedShikiTheme = useMemo(() => {
+      if (shikiTheme) return shikiTheme;
+      if (resolvedPlugins?.code) return DEFAULT_SHIKI_THEME;
+      return undefined;
+    }, [shikiTheme, resolvedPlugins?.code]);
 
     // Adapt components API (SyntaxHighlighter, CodeHeader, componentsByLanguage)
     const adaptedComponents = useAdaptedComponents({
@@ -103,24 +124,11 @@ export const StreamdownTextPrimitive = forwardRef<
       };
     }, [components, adaptedComponents]);
 
-    // Auto-detect isAnimating from message status
-    const isAnimating = status.type === "running";
-
     // Merge container class names
-    const containerClass = containerClassName
-      ? containerProps?.className
-        ? `${containerClassName} ${containerProps.className}`
-        : containerClassName
-      : containerProps?.className;
-
-    // Build streamdown props conditionally to avoid undefined values
-    const conditionalProps: Record<string, unknown> = {};
-    if (mergedComponents) {
-      conditionalProps["components"] = mergedComponents;
-    }
-    if (className) {
-      conditionalProps["className"] = className;
-    }
+    const containerClass =
+      [containerClassName, containerProps?.className]
+        .filter(Boolean)
+        .join(" ") || undefined;
 
     return (
       <div
@@ -131,8 +139,11 @@ export const StreamdownTextPrimitive = forwardRef<
       >
         <Streamdown
           mode={mode}
-          isAnimating={isAnimating}
-          {...conditionalProps}
+          isAnimating={status.type === "running"}
+          components={mergedComponents}
+          className={className}
+          plugins={resolvedPlugins}
+          shikiTheme={resolvedShikiTheme}
           {...streamdownProps}
         >
           {processedText}

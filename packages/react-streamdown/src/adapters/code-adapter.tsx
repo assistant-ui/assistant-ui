@@ -13,6 +13,7 @@ import type {
   ComponentsByLanguage,
   SyntaxHighlighterProps,
 } from "../types";
+import { useIsStreamdownCodeBlock } from "./PreOverride";
 
 const LANGUAGE_REGEX = /language-([^\s]+)/;
 
@@ -45,27 +46,13 @@ function extractCode(children: unknown): string {
   return "";
 }
 
-/**
- * Default Pre component.
- */
-const DefaultPre = ({
-  node: _,
-  ...props
-}: { node?: Element | undefined } & DetailedHTMLProps<
-  HTMLAttributes<HTMLPreElement>,
-  HTMLPreElement
->) => <pre {...props} />;
+function DefaultPre({ node: _, ...props }: CodeProps): JSX.Element {
+  return <pre {...props} />;
+}
 
-/**
- * Default Code component.
- */
-const DefaultCode = ({
-  node: _,
-  ...props
-}: { node?: Element | undefined } & DetailedHTMLProps<
-  HTMLAttributes<HTMLElement>,
-  HTMLElement
->) => <code {...props} />;
+function DefaultCode({ node: _, ...props }: CodeProps): JSX.Element {
+  return <code {...props} />;
+}
 
 /**
  * Creates a code component adapter that bridges the assistant-ui
@@ -78,65 +65,72 @@ export function createCodeAdapter(options: CodeAdapterOptions) {
     componentsByLanguage = {},
   } = options;
 
-  const AdaptedCode = memo(
-    function AdaptedCode({ node, className, children, ...props }: CodeProps) {
-      // Detect inline vs block code
-      const isInline = node?.position?.start.line === node?.position?.end.line;
+  /**
+   * Inner component that uses the hook for inline/block detection.
+   */
+  function AdaptedCodeInner({
+    node,
+    className,
+    children,
+    ...props
+  }: CodeProps) {
+    // Use context-based detection for inline vs block code
+    const isCodeBlock = useIsStreamdownCodeBlock();
 
-      if (isInline) {
-        // Inline code - render as simple code element
-        return (
-          <code
-            className={`aui-streamdown-inline-code ${className ?? ""}`.trim()}
-            {...props}
-          >
-            {children}
-          </code>
-        );
-      }
-
-      // Block code - extract language and code content
-      const match = className?.match(LANGUAGE_REGEX);
-      const language = match?.[1] ?? "";
-      const code = extractCode(children);
-
-      // Get language-specific or fallback components
-      const SyntaxHighlighter =
-        componentsByLanguage[language]?.SyntaxHighlighter ??
-        UserSyntaxHighlighter;
-
-      const CodeHeader =
-        componentsByLanguage[language]?.CodeHeader ?? UserCodeHeader;
-
-      // If user provided custom SyntaxHighlighter, use it
-      if (SyntaxHighlighter) {
-        return (
-          <>
-            {CodeHeader && (
-              <CodeHeader node={node} language={language} code={code} />
-            )}
-            <SyntaxHighlighter
-              node={node}
-              components={{ Pre: DefaultPre, Code: DefaultCode }}
-              language={language}
-              code={code}
-            />
-          </>
-        );
-      }
-
-      // No custom SyntaxHighlighter - return null to let streamdown handle it
-      // This signals to the adapter that we should use streamdown's default
-      return null;
-    },
-    (prev, next) => {
+    if (!isCodeBlock) {
+      // Inline code - render as simple code element
       return (
-        prev.className === next.className &&
-        prev.node?.position?.start.line === next.node?.position?.start.line &&
-        prev.node?.position?.end.line === next.node?.position?.end.line
+        <code
+          className={`aui-streamdown-inline-code ${className ?? ""}`.trim()}
+          {...props}
+        >
+          {children}
+        </code>
       );
-    },
-  );
+    }
+
+    // Block code - extract language and code content
+    const match = className?.match(LANGUAGE_REGEX);
+    const language = match?.[1] ?? "";
+    const code = extractCode(children);
+
+    // Get language-specific or fallback components
+    const SyntaxHighlighter =
+      componentsByLanguage[language]?.SyntaxHighlighter ??
+      UserSyntaxHighlighter;
+
+    const CodeHeader =
+      componentsByLanguage[language]?.CodeHeader ?? UserCodeHeader;
+
+    // If user provided custom SyntaxHighlighter, use it
+    if (SyntaxHighlighter) {
+      return (
+        <>
+          {CodeHeader && (
+            <CodeHeader node={node} language={language} code={code} />
+          )}
+          <SyntaxHighlighter
+            node={node}
+            components={{ Pre: DefaultPre, Code: DefaultCode }}
+            language={language}
+            code={code}
+          />
+        </>
+      );
+    }
+
+    // No custom SyntaxHighlighter - return null to let streamdown handle it
+    // This signals to the adapter that we should use streamdown's default
+    return null;
+  }
+
+  const AdaptedCode = memo(AdaptedCodeInner, (prev, next) => {
+    return (
+      prev.className === next.className &&
+      prev.node?.position?.start.line === next.node?.position?.start.line &&
+      prev.node?.position?.end.line === next.node?.position?.end.line
+    );
+  });
 
   return AdaptedCode;
 }

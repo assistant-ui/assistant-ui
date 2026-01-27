@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { shouldUseCodeAdapter } from "./code-adapter";
+import { shouldUseCodeAdapter } from "../adapters/code-adapter";
 
 describe("shouldUseCodeAdapter", () => {
   it("returns false when no custom components provided", () => {

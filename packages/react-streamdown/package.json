@@ -67,6 +67,7 @@
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@streamdown/code": "^1.0.0",
+    "@testing-library/react": "^16.3.0",
     "@types/hast": "^3.0.4",
     "@types/react": "^19.2.7",
     "react": "^19.2.3",

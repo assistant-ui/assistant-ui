@@ -51,6 +51,8 @@ const StreamdownText = () => (
 );
 ```
 
+When `@streamdown/code` is provided, the default theme is `["github-light", "github-dark"]` for light/dark mode support.
+
 ## Migration from react-markdown
 
 If you're migrating from `@assistant-ui/react-markdown`, your existing `SyntaxHighlighter` and `CodeHeader` components still work:
@@ -77,7 +79,7 @@ const StreamdownText = () => (
 |------|------|---------|-------------|
 | `mode` | `"streaming" \| "static"` | `"streaming"` | Rendering mode |
 | `plugins` | `PluginConfig` | - | Streamdown plugins (code, math, mermaid, cjk) |
-| `shikiTheme` | `[string, string]` | - | Light and dark theme for Shiki |
+| `shikiTheme` | `[string, string]` | `["github-light", "github-dark"]` | Light and dark theme for Shiki |
 | `components` | `object` | - | Custom components including `SyntaxHighlighter` and `CodeHeader` |
 | `componentsByLanguage` | `object` | - | Language-specific component overrides |
 | `preprocess` | `(text: string) => string` | - | Text preprocessing function |
@@ -121,6 +123,24 @@ import { mermaid } from "@streamdown/mermaid";
 import { cjk } from "@streamdown/cjk";
 
 <StreamdownTextPrimitive plugins={{ cjk }} />
+```
+
+## Detecting Inline vs Block Code
+
+When building custom code components, you can use `useIsStreamdownCodeBlock` to detect whether you're inside a code block or inline code:
+
+```tsx
+import { useIsStreamdownCodeBlock } from "@assistant-ui/react-streamdown";
+
+function MyCodeComponent({ children, ...props }) {
+  const isCodeBlock = useIsStreamdownCodeBlock();
+
+  if (!isCodeBlock) {
+    return <code className="inline-code" {...props}>{children}</code>;
+  }
+
+  return <pre><code {...props}>{children}</code></pre>;
+}
 ```
 
 ## Comparison with react-markdown

@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import type { StreamdownProps } from "streamdown";
 import { createCodeAdapter, shouldUseCodeAdapter } from "./code-adapter";
+import { PreOverride } from "./PreOverride";
 import type { ComponentsByLanguage, StreamdownTextComponents } from "../types";
 
 interface UseAdaptedComponentsOptions {
@@ -17,6 +18,7 @@ interface UseAdaptedComponentsOptions {
  * - SyntaxHighlighter → custom code component
  * - CodeHeader → custom code component
  * - componentsByLanguage → custom code component with language dispatch
+ * - PreOverride → context-based inline/block code detection
  */
 export function useAdaptedComponents({
   components,
@@ -42,11 +44,12 @@ export function useAdaptedComponents({
 
       return {
         ...htmlComponents,
+        pre: PreOverride,
         code: (props) => {
           const result = AdaptedCode(props);
-          // If adapter returns null, let streamdown handle it with default
+          // If adapter returns null, return undefined to let streamdown handle it
           if (result === null) {
-            return <code {...props} />;
+            return undefined;
           }
           return result;
         },
