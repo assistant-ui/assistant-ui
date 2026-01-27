@@ -24,7 +24,7 @@ const badgeVariants = cva(
         success:
           "bg-emerald-100 text-emerald-700 hover:bg-emerald-100/80 dark:bg-emerald-900/50 dark:text-emerald-300",
         destructive:
-          "bg-destructive text-destructive-foreground hover:bg-destructive/80",
+          "bg-red-100 text-red-700 hover:bg-red-100/80 dark:bg-red-900/50 dark:text-red-300",
       },
       size: {
         sm: "px-1.5 py-0.5",

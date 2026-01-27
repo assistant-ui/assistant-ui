@@ -325,12 +325,8 @@ export const registry: RegistryItem[] = [
         sourcePath: "../../packages/ui/src/components/assistant-ui/sources.tsx",
       },
     ],
-    dependencies: [
-      "@assistant-ui/react",
-      "@radix-ui/react-slot",
-      "class-variance-authority",
-    ],
-    registryDependencies: [],
+    dependencies: ["@assistant-ui/react"],
+    registryDependencies: ["https://r.assistant-ui.com/badge.json"],
   },
   {
     name: "image",
