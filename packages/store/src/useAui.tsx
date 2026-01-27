@@ -355,10 +355,23 @@ export namespace useAui {
 
 export function useAui(): AssistantClient;
 export function useAui(clients: useAui.Props): AssistantClient;
-export function useAui(clients?: useAui.Props): AssistantClient {
+export function useAui(
+  clients: useAui.Props,
+  config: { root: true },
+): AssistantClient;
+/** @deprecated This API is highly experimental and may be changed in a minor release */
+export function useAui(
+  clients?: useAui.Props,
+  { root }: { root: boolean } = { root: false },
+): AssistantClient {
   const parent = useAssistantContextValue();
   if (clients) {
-    return useResource(AssistantClientResource({ parent: parent, clients }));
+    return useResource(
+      AssistantClientResource({
+        parent: root ? DefaultAssistantClient : parent,
+        clients,
+      }),
+    );
   }
   return parent;
 }

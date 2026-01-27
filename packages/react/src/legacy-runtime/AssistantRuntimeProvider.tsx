@@ -23,9 +23,7 @@ const getRenderComponent = (runtime: AssistantRuntime) => {
 export const AssistantRuntimeProviderImpl: FC<
   AssistantRuntimeProvider.Props
 > = ({ children, runtime }) => {
-  const aui = useAui({
-    threads: RuntimeAdapter(runtime),
-  });
+  const aui = useAui({ threads: RuntimeAdapter(runtime) }, { root: true });
 
   const RenderComponent = getRenderComponent(runtime);
 
