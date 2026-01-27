@@ -1,6 +1,6 @@
 "use client";
 
-import { PropsWithChildren, useMemo, memo } from "react";
+import { PropsWithChildren, useMemo, memo, useEffect } from "react";
 import {
   ToolUIRendererManager,
   ToolUIRuntimeImpl,
@@ -19,10 +19,14 @@ export namespace ToolUIProvider {
     runtime?: ToolUIRuntime;
     /**
      * Required when runtime is not provided
+     * IMPORTANT:
+     * This must be a stable reference (useMemo / defined outside component).
      */
     registry?: ToolUIRegistry;
     /**
      * Required when runtime is not provided
+     * IMPORTANT:
+     * This must be a stable reference (useMemo / defined outside component).
      */
     createSandbox?: () => ToolUISandbox;
   }>;
@@ -89,6 +93,18 @@ export const ToolUIProvider = memo(
 
       return { runtime, renderer };
     }, [externalRuntime, registry, createSandbox]);
+
+    useEffect(() => {
+      return () => {
+        if (externalRuntime === undefined && "dispose" in runtime) {
+          try {
+            (runtime as any).dispose();
+          } catch (error) {
+            console.error("[ToolUIProvider] Failed to dispose runtime:", error);
+          }
+        }
+      };
+    }, [runtime, externalRuntime]);
 
     return (
       <ToolUIContext.Provider value={{ runtime, renderer }}>

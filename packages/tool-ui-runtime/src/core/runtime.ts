@@ -19,6 +19,7 @@ export type ToolUIRuntime = {
   close(instanceId: string): void;
   get(instanceId: string): ToolUIInstance;
   list(): readonly ToolUIInstance[];
+  dispose(): void;
 };
 
 /**
@@ -65,7 +66,7 @@ export class ToolUIRuntimeImpl implements ToolUIRuntime {
     const instance = this._host.get(instanceId);
     const state = instance.getState();
 
-    if (state.lifecycle !== "active") {
+    if (state.lifecycle !== "active" && state.lifecycle !== "updating") {
       throw new Error(`Cannot update Tool UI in state: ${state.lifecycle}`);
     }
 
@@ -89,6 +90,20 @@ export class ToolUIRuntimeImpl implements ToolUIRuntime {
 
   public list(): readonly ToolUIInstance[] {
     return this._host.list();
+  }
+
+  public dispose(): void {
+    const instances = this.list();
+    for (const instance of instances) {
+      try {
+        this.close(instance.id);
+      } catch (error) {
+        console.error(
+          `[ToolUIRuntime] Failed to close instance ${instance.id}:`,
+          error,
+        );
+      }
+    }
   }
 
   /**
