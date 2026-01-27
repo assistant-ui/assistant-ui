@@ -42,19 +42,19 @@ const FEATURES = [
   {
     title: "Production Export",
     description:
-      "Export your widgets as self-contained HTML bundles with all dependencies inlined, ready for ChatGPT.",
+      "Export your widgets as self-contained HTML bundles with all dependencies inlined, ready for deployment.",
     icon: Package,
   },
   {
     title: "Display Modes",
     description:
-      "Preview inline, popup, and fullscreen modes. See exactly how your app will appear inside ChatGPT.",
+      "Preview inline, popup, and fullscreen modes. See exactly how your app will appear in ChatGPT or Claude.",
     icon: Monitor,
   },
   {
-    title: "SDK Guide Assistant",
+    title: "Universal SDK",
     description:
-      "Built-in AI assistant that knows the OpenAI Apps SDK docs. Get help with configuration and debugging.",
+      "Write once, run everywhere. Auto-detects the host platform (ChatGPT or MCP) and uses the appropriate APIs.",
     icon: Sparkles,
   },
 ] as const;
@@ -68,7 +68,7 @@ const STEPS = [
   {
     title: "Develop your widgets",
     description:
-      "Build React components that use the window.openai SDK. The workbench provides live preview and hot reload.",
+      "Build React components using the universal SDK. It auto-detects the platform and adapts to ChatGPT or MCP hosts.",
   },
   {
     title: "Test with mock data",
@@ -78,7 +78,7 @@ const STEPS = [
   {
     title: "Export for production",
     description:
-      "Generate self-contained HTML bundles with all dependencies inlined. Deploy to ChatGPT with confidence.",
+      "Generate self-contained HTML bundles with all dependencies inlined. Deploy to ChatGPT or MCP hosts.",
   },
 ] as const;
 
@@ -153,7 +153,7 @@ export default function McpAppStudioPage() {
             <span className="inline-flex items-center gap-1.5 rounded-full bg-background px-4 py-1.5">
               <Sparkles className="size-3.5 text-violet-500" />
               <span className="font-medium text-foreground/80">
-                OpenAI Apps SDK
+                ChatGPT Apps + MCP Apps
               </span>
             </span>
           </div>
@@ -161,8 +161,8 @@ export default function McpAppStudioPage() {
           <div className="flex flex-col gap-1">
             <h1 className="font-medium text-2xl">MCP App Studio</h1>
             <p className="max-w-lg text-lg text-muted-foreground">
-              Build and preview MCP Apps locally. A development workbench with
-              live preview, mock tool responses, and production export.
+              Build interactive apps for AI assistants. One SDK that works with
+              both ChatGPT and MCP hosts like Claude Desktop.
             </p>
           </div>
 
@@ -170,10 +170,17 @@ export default function McpAppStudioPage() {
 
           <div className="flex flex-wrap items-center gap-x-5 gap-y-3 text-[13px] text-muted-foreground">
             <Link
+              href="https://modelcontextprotocol.io/docs/extensions/apps"
+              className="font-medium text-foreground/60 transition-colors hover:text-foreground"
+            >
+              MCP Apps Docs →
+            </Link>
+            <span className="hidden size-1 rounded-full bg-muted-foreground/20 sm:block" />
+            <Link
               href="https://platform.openai.com/docs/guides/building-apps/introduction"
               className="font-medium text-foreground/60 transition-colors hover:text-foreground"
             >
-              OpenAI Apps SDK Docs →
+              ChatGPT Apps Docs →
             </Link>
             <span className="hidden size-1 rounded-full bg-muted-foreground/20 sm:block" />
             <Link
@@ -190,7 +197,7 @@ export default function McpAppStudioPage() {
         <div className="space-y-6 md:space-y-8">
           <div className="text-center">
             <h2 className="mb-2 font-medium text-2xl md:text-3xl">
-              Everything you need to build MCP Apps
+              Everything you need to build apps for AI assistants
             </h2>
             <p className="text-base text-muted-foreground md:text-xl">
               Local development workbench with production-ready export
@@ -244,14 +251,22 @@ export default function McpAppStudioPage() {
 
         <div className="flex flex-col items-center space-y-4 py-6 text-center md:space-y-6 md:py-8">
           <p className="font-medium text-xl tracking-tight md:text-2xl">
-            Start building your MCP App today.
+            Start building your app today.
           </p>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center justify-center gap-4">
             <Button asChild>
-              <Link href="https://platform.openai.com/docs/guides/building-apps/introduction">
-                Read the Docs <ArrowRight />
+              <Link href="https://modelcontextprotocol.io/docs/extensions/apps">
+                MCP Apps Docs <ArrowRight />
               </Link>
             </Button>
+            <Link
+              href="https://platform.openai.com/docs/guides/building-apps/introduction"
+              className={buttonVariants({
+                variant: "outline",
+              })}
+            >
+              ChatGPT Apps Docs
+            </Link>
             <Link
               href="https://github.com/assistant-ui/assistant-ui/tree/main/packages/mcp-app-studio"
               className={buttonVariants({
