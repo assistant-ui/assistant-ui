@@ -42,6 +42,8 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Create GitHub Releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git fetch --tags
 
@@ -54,25 +56,21 @@ jobs:
 
             tag="${name}@${version}"
 
-            # Check if tag exists
             git rev-parse "$tag" >/dev/null 2>&1 || continue
-
-            # Check if release already exists
             gh release view "$tag" >/dev/null 2>&1 && continue
 
-            # Extract changelog notes
             changelog_dir=$(dirname "$pkg")
             changelog="$changelog_dir/CHANGELOG.md"
 
+            notes=""
             if [[ -f "$changelog" ]]; then
               notes=$(awk "/^## ${version//./\\.}\$/,/^## [0-9]/" "$changelog" | head -n -1 | tail -n +2)
-            else
-              notes="Release ${tag}"
             fi
+            [[ -z "$notes" ]] && notes="Release ${tag}"
 
             echo "Creating release: $tag"
             gh release create "$tag" \
               --title "$tag" \
               --notes "$notes" \
-              --verify-tag
+              --verify-tag || echo "Warning: Failed to create release for $tag"
           done
