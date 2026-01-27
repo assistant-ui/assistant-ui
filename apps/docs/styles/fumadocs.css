@@ -242,7 +242,7 @@ html:has(#nd-docs-layout) {
   }
 
   & :where(table):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
-    font-size: 0.8125rem !important;
+    font-size: 0.75rem !important;
     margin-top: 0rem !important;
     margin-bottom: 0rem !important;
     width: 100% !important;
@@ -257,7 +257,7 @@ html:has(#nd-docs-layout) {
     }
 
     & th {
-      padding: 0.75rem 1rem !important;
+      padding: 0.5rem 0.75rem !important;
       text-align: left !important;
       font-weight: 500 !important;
       color: var(--muted-foreground) !important;
@@ -265,7 +265,7 @@ html:has(#nd-docs-layout) {
     }
 
     & td {
-      padding: 0.75rem 1rem !important;
+      padding: 0.5rem 0.75rem !important;
       border: none !important;
       vertical-align: top !important;
     }
