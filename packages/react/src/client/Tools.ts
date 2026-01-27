@@ -1,9 +1,14 @@
 import { resource, tapState, tapEffect, tapCallback } from "@assistant-ui/tap";
-import { tapAssistantClientRef, type ClientOutput } from "@assistant-ui/store";
+import {
+  tapAssistantClientRef,
+  type ClientOutput,
+  attachDefaultPeers,
+} from "@assistant-ui/store";
 import { ToolsState } from "../types/scopes";
 import type { Tool } from "assistant-stream";
 import { type Toolkit } from "../model-context/toolbox";
 import { ToolCallMessagePartComponent } from "../types";
+import { ModelContext } from "./ModelContextClient";
 
 export const Tools = resource(
   ({ toolkit }: { toolkit?: Toolkit }): ClientOutput<"tools"> => {
@@ -86,3 +91,7 @@ export const Tools = resource(
     };
   },
 );
+
+attachDefaultPeers(Tools, {
+  modelContext: ModelContext(),
+});

@@ -48,17 +48,52 @@ function splitClients(clients: useAui.Props, baseClient: AssistantClient) {
     }
   }
 
-  for (const [clientKey, clientElement] of Object.entries(rootClients) as [
-    ClientNames,
-    ClientElement<ClientNames>,
-  ][]) {
+  // Recursively gather all default peers, flattening nested ones
+  const gatherDefaultPeers = (
+    clientElement: ClientElement<ClientNames>,
+    visited = new Set<ClientElement<ClientNames>>(),
+  ): Array<
+    [ClientNames, ClientElement<ClientNames> | DerivedElement<ClientNames>]
+  > => {
+    // Prevent infinite loops
+    if (visited.has(clientElement)) return [];
+    visited.add(clientElement);
+
     const defaultPeers = getDefaultPeers(clientElement.type);
-    if (!defaultPeers) continue;
+    if (!defaultPeers) return [];
+
+    const result: Array<
+      [ClientNames, ClientElement<ClientNames> | DerivedElement<ClientNames>]
+    > = [];
 
     for (const [key, peerElement] of Object.entries(defaultPeers) as [
       ClientNames,
       ClientElement<ClientNames> | DerivedElement<ClientNames>,
     ][]) {
+      result.push([key, peerElement]);
+
+      // If this peer is a root client with its own default peers, recursively gather them
+      if (peerElement.type !== Derived<ClientNames>) {
+        const nestedPeers = gatherDefaultPeers(
+          peerElement as ClientElement<ClientNames>,
+          visited,
+        );
+        result.push(...nestedPeers);
+      }
+    }
+
+    return result;
+  };
+
+  // Apply flattened default peers for each root client
+  for (const [_clientKey, clientElement] of Object.entries(rootClients) as [
+    ClientNames,
+    ClientElement<ClientNames>,
+  ][]) {
+    const allPeers = gatherDefaultPeers(clientElement);
+
+    for (const [key, peerElement] of allPeers) {
+      // Skip if already exists (first wins)
       if (
         key in rootClients ||
         key in derivedClients ||
@@ -70,11 +105,6 @@ function splitClients(clients: useAui.Props, baseClient: AssistantClient) {
         derivedClients[key] = peerElement as DerivedElement<ClientNames>;
       } else {
         rootClients[key] = peerElement as ClientElement<ClientNames>;
-        const subDefaultPeers = getDefaultPeers(peerElement.type);
-        if (subDefaultPeers)
-          throw new Error(
-            `Nested default peers are not supported. Client "${clientKey}" has default peers, but its peer "${key}" also has default peers.`,
-          );
       }
     }
   }
