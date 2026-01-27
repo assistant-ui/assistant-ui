@@ -1908,8 +1908,8 @@ importers:
         specifier: ^0.1.1
         version: link:../store
       '@assistant-ui/tap':
-        specifier: ^0.3.6
-        version: 0.3.6(@types/react@19.2.9)(react@19.2.4)
+        specifier: ^0.4.1
+        version: link:../tap
       '@assistant-ui/tool-ui-runtime':
         specifier: workspace:*
         version: link:../tool-ui-runtime
@@ -1941,10 +1941,10 @@ importers:
         specifier: ^1.1.1
         version: 1.1.1(@types/react@19.2.9)(react@19.2.4)
       assistant-cloud:
-        specifier: ^0.1.13
+        specifier: ^0.1.14
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.2.47
+        specifier: ^0.2.48
         version: link:../assistant-stream
       nanoid:
         specifier: ^5.1.6
@@ -1953,7 +1953,7 @@ importers:
         specifier: ^8.5.9
         version: 8.5.9(@types/react@19.2.9)(react@19.2.4)
       zod:
-        specifier: ^4.3.5
+        specifier: ^4.3.6
         version: 4.3.6
       zustand:
         specifier: ^5.0.10
@@ -1966,7 +1966,7 @@ importers:
         specifier: ^7.0.15
         version: 7.0.15
       '@types/node':
-        specifier: ^25.0.9
+        specifier: ^25.0.10
         version: 25.0.10
       '@types/react':
         specifier: ^19.2.9
@@ -1975,13 +1975,13 @@ importers:
         specifier: ^19.2.3
         version: 19.2.3(@types/react@19.2.9)
       react:
-        specifier: ^19.2.3
+        specifier: ^19.2.4
         version: 19.2.4
       react-dom:
-        specifier: ^19.2.3
+        specifier: ^19.2.4
         version: 19.2.4(react@19.2.4)
       vitest:
-        specifier: ^4.0.17
+        specifier: ^4.0.18
         version: 4.0.18(@opentelemetry/api@1.9.0)(@types/node@25.0.10)(@vitest/ui@4.0.18)(jiti@2.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(tsx@4.21.0)(yaml@2.8.2)
 
   packages/react-a2a:
@@ -2689,17 +2689,6 @@ packages:
 
   '@asamuzakjp/nwsapi@2.3.9':
     resolution: {integrity: sha512-n8GuYSrI9bF7FFZ/SjhwevlHc8xaVlb/7HmHelnc/PZXBD2ZR49NnN9sMMuDdEGPeeRQ5d0hqlSlEpgCX3Wl0Q==}
-
-  '@assistant-ui/tap@0.3.6':
-    resolution: {integrity: sha512-4IAN32J9820qbwdc7DeR5HxJVTj+cRPVSMwa9Fv2oP2eMFPAV1eZ8+/co6mgtuM9jSc38vYtZntPsGSHwL7rTg==}
-    peerDependencies:
-      '@types/react': '*'
-      react: ^18 || ^19
-    peerDependenciesMeta:
-      '@types/react':
-        optional: true
-      react:
-        optional: true
 
   '@babel/code-frame@7.27.1':
     resolution: {integrity: sha512-cjQ7ZlQ0Mv3b47hABuTevyTuYN4i+loJKGeV9flcCgIK37cCXRh+L1bd3iBHlynerhQ7BhCkn2BPbQUL+rGqFg==}
@@ -9741,11 +9730,6 @@ snapshots:
       lru-cache: 11.2.5
 
   '@asamuzakjp/nwsapi@2.3.9': {}
-
-  '@assistant-ui/tap@0.3.6(@types/react@19.2.9)(react@19.2.4)':
-    optionalDependencies:
-      '@types/react': 19.2.9
-      react: 19.2.4
 
   '@babel/code-frame@7.27.1':
     dependencies:
