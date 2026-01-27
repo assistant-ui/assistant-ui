@@ -35,7 +35,13 @@ export const contextColors = {
 
 - [`useDataStreamRuntime`](#use-data-stream-runtime)
 - [`useCloudRuntime`](#use-cloud-runtime)
-- [`toLanguageModelMessages`](#to-language-model-messages)
+- [`toLanguageModelMessages`](#to-language-model-messages) (AI SDK specific)
+
+### assistant-stream (Framework-Agnostic)
+
+- [`toGenericMessages`](#to-generic-messages)
+- [`toToolsJSONSchema`](#to-tools-json-schema)
+- [`GenericMessage`](#generic-message)
 
 ### LangGraph
 
@@ -239,7 +245,7 @@ A conversation thread.
       tooltip="Displayed when the thread is empty"
     />
     <Component
-      name="AssistantIf"
+      name="AuiIf"
       docsLink="#assistant-if"
       tooltip="Conditional rendering based on assistant state"
     />
@@ -383,7 +389,7 @@ Manages the state and actions for individual messages
     tooltip="Displays attachments in the message"
   />
   <Component
-    name="AssistantIf"
+    name="AuiIf"
     docsLink="#assistant-if"
     tooltip="Conditional rendering based on assistant state"
   />

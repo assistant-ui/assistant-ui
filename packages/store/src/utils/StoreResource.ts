@@ -11,7 +11,7 @@ export interface Store<TState> {
   /**
    * Get the current state of the store.
    */
-  getState(): TState;
+  getValue(): TState;
 
   /**
    * Subscribe to the store.
@@ -23,13 +23,11 @@ export const StoreResource = resource(
   <TState>(element: ResourceElement<TState>): Store<TState> => {
     const [handle] = tapState(() => createResource(element, { mount: false }));
 
-    tapEffect(() => {
-      return handle.unmount;
-    }, [handle]);
+    tapEffect(() => handle.unmount, [handle]);
 
     tapEffect(() => {
       handle.render(element);
-    }, [handle, element]);
+    });
 
     return handle;
   },

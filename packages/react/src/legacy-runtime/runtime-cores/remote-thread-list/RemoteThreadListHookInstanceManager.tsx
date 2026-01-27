@@ -8,12 +8,19 @@ import {
   memo,
   PropsWithChildren,
   ComponentType,
+  useMemo,
 } from "react";
 import { UseBoundStore, StoreApi, create } from "zustand";
-import { useAssistantApi, ThreadListItemByIdProvider } from "../../../context";
-import { ThreadRuntimeCore, ThreadRuntimeImpl } from "../../../internal";
+import { useAui } from "@assistant-ui/store";
+import { ThreadListItemRuntimeProvider } from "../../../context/providers";
+import {
+  ThreadListRuntimeCore,
+  ThreadRuntimeCore,
+  ThreadRuntimeImpl,
+} from "../../../internal";
 import { BaseSubscribable } from "./BaseSubscribable";
 import { AssistantRuntime } from "../../runtime";
+import { ThreadListRuntimeImpl } from "../../runtime/ThreadListRuntime";
 
 type RemoteThreadListHook = () => AssistantRuntime;
 
@@ -26,9 +33,14 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
   >;
   private instances = new Map<string, RemoteThreadListHookInstance>();
   private useAliveThreadsKeysChanged = create(() => ({}));
+  private parent: ThreadListRuntimeCore;
 
-  constructor(runtimeHook: RemoteThreadListHook) {
+  constructor(
+    runtimeHook: RemoteThreadListHook,
+    parent: ThreadListRuntimeCore,
+  ) {
     super();
+    this.parent = parent;
     this.useRuntimeHook = create(() => ({ useRuntime: runtimeHook }));
   }
 
@@ -103,7 +115,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
       return threadBinding.outerSubscribe(updateRuntime);
     }, [threadBinding, updateRuntime]);
 
-    const api = useAssistantApi();
+    const aui = useAui();
     const initPromiseRef = useRef<Promise<unknown> | undefined>(undefined);
 
     useEffect(() => {
@@ -112,24 +124,24 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
         "__internal_setGetInitializePromise"
       ];
       if (typeof setGetInitializePromise === "function") {
-        setGetInitializePromise(() => initPromiseRef.current);
+        setGetInitializePromise.call(runtimeCore, () => initPromiseRef.current);
       }
     }, [threadBinding]);
 
     useEffect(() => {
       return runtime.threads.main.unstable_on("initialize", () => {
-        const state = api.threadListItem().getState();
+        const state = aui.threadListItem().getState();
         if (state.status === "new") {
-          initPromiseRef.current = api.threadListItem().initialize();
+          initPromiseRef.current = aui.threadListItem().initialize();
 
-          const dispose = runtime.thread.unstable_on("run-end", () => {
+          const dispose = runtime.thread.unstable_on("runEnd", () => {
             dispose();
 
-            api.threadListItem().generateTitle();
+            aui.threadListItem().generateTitle();
           });
         }
       });
-    }, [runtime, api]);
+    }, [runtime, aui]);
 
     return null;
   };
@@ -138,14 +150,17 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     threadId: string;
     provider: ComponentType<PropsWithChildren>;
   }> = memo(({ threadId, provider: Provider }) => {
-    // Runtime is provided by ThreadListItemByIdProvider
+    const runtime = useMemo(
+      () => new ThreadListRuntimeImpl(this.parent).getItemById(threadId),
+      [threadId],
+    );
 
     return (
-      <ThreadListItemByIdProvider id={threadId}>
+      <ThreadListItemRuntimeProvider runtime={runtime}>
         <Provider>
           <this._InnerActiveThreadProvider threadId={threadId} />
         </Provider>
-      </ThreadListItemByIdProvider>
+      </ThreadListItemRuntimeProvider>
     );
   });
 

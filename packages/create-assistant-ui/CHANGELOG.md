@@ -1,5 +1,17 @@
 # create-assistant-ui
 
+## 0.0.38
+
+### Patch Changes
+
+- 605d825: chore: update dependencies
+
+## 0.0.37
+
+### Patch Changes
+
+- 3719567: chore: update deps
+
 ## 0.0.36
 
 ### Patch Changes

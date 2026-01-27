@@ -7,7 +7,7 @@ import {
 } from "@/components/assistant-ui/attachment";
 import {
   ActionBarPrimitive,
-  AssistantIf,
+  AuiIf,
   BranchPickerPrimitive,
   ComposerPrimitive,
   ErrorPrimitive,
@@ -85,8 +85,8 @@ const ThreadScrollToBottom: FC = () => {
 const ThreadWelcome: FC = () => {
   return (
     <ThreadPrimitive.Empty>
-      <div className="aui-thread-welcome-root mx-auto mb-16 flex w-full max-w-[var(--thread-max-width)] flex-grow flex-col">
-        <div className="aui-thread-welcome-center flex w-full flex-grow flex-col items-center justify-center">
+      <div className="aui-thread-welcome-root mx-auto mb-16 flex w-full max-w-(--thread-max-width) grow flex-col">
+        <div className="aui-thread-welcome-center flex w-full grow flex-col items-center justify-center">
           <div className="aui-thread-welcome-message flex size-full flex-col justify-center px-8 md:mt-20">
             <div className="aui-thread-welcome-message-motion-1 font-semibold text-2xl">
               Hello there!
@@ -118,12 +118,12 @@ const ThreadWelcomeSuggestions: FC = () => {
       ].map((suggestedAction, index) => (
         <div
           key={`suggested-action-${suggestedAction.title}-${index}`}
-          className="aui-thread-welcome-suggestion-display @md:[&:nth-child(n+3)]:block [&:nth-child(n+3)]:hidden"
+          className="aui-thread-welcome-suggestion-display @md:nth-[n+3]:block nth-[n+3]:hidden"
         >
           <ThreadPrimitive.Suggestion
             prompt={suggestedAction.action}
-            method="replace"
-            autoSend
+            clearComposer
+            send
             asChild
           >
             <Button
@@ -147,7 +147,7 @@ const ThreadWelcomeSuggestions: FC = () => {
 
 const Composer: FC = () => {
   return (
-    <div className="aui-composer-wrapper sticky bottom-0 mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-4 overflow-visible rounded-t-3xl bg-background pb-4 md:pb-6">
+    <div className="aui-composer-wrapper sticky bottom-0 mx-auto flex w-full max-w-(--thread-max-width) flex-col gap-4 overflow-visible rounded-t-3xl bg-background pb-4 md:pb-6">
       <ThreadScrollToBottom />
       <ThreadPrimitive.Empty>
         <ThreadWelcomeSuggestions />
@@ -172,7 +172,7 @@ const ComposerAction: FC = () => {
     <div className="aui-composer-action-wrapper relative mx-1 mt-2 mb-2 flex items-center justify-between">
       <ComposerAddAttachment />
 
-      <AssistantIf condition={({ thread }) => !thread.isRunning}>
+      <AuiIf condition={({ thread }) => !thread.isRunning}>
         <ComposerPrimitive.Send asChild>
           <TooltipIconButton
             tooltip="Send message"
@@ -180,27 +180,27 @@ const ComposerAction: FC = () => {
             type="submit"
             variant="default"
             size="icon"
-            className="aui-composer-send size-[34px] rounded-full p-1"
+            className="aui-composer-send size-8.5 rounded-full p-1"
             aria-label="Send message"
           >
             <ArrowUpIcon className="aui-composer-send-icon size-5" />
           </TooltipIconButton>
         </ComposerPrimitive.Send>
-      </AssistantIf>
+      </AuiIf>
 
-      <AssistantIf condition={({ thread }) => thread.isRunning}>
+      <AuiIf condition={({ thread }) => thread.isRunning}>
         <ComposerPrimitive.Cancel asChild>
           <Button
             type="button"
             variant="default"
             size="icon"
-            className="aui-composer-cancel size-[34px] rounded-full border border-muted-foreground/60 hover:bg-primary/75 dark:border-muted-foreground/90"
+            className="aui-composer-cancel size-8.5 rounded-full border border-muted-foreground/60 hover:bg-primary/75 dark:border-muted-foreground/90"
             aria-label="Stop generating"
           >
             <Square className="aui-composer-cancel-icon size-3.5 fill-white dark:fill-black" />
           </Button>
         </ComposerPrimitive.Cancel>
-      </AssistantIf>
+      </AuiIf>
     </div>
   );
 };
@@ -218,10 +218,10 @@ const MessageError: FC = () => {
 const AssistantMessage: FC = () => {
   return (
     <MessagePrimitive.Root
-      className="aui-assistant-message-root relative mx-auto w-full max-w-[var(--thread-max-width)] py-4 last:mb-24"
+      className="aui-assistant-message-root relative mx-auto w-full max-w-(--thread-max-width) py-4 last:mb-24"
       data-role="assistant"
     >
-      <div className="aui-assistant-message-content mx-2 break-words text-foreground leading-7">
+      <div className="aui-assistant-message-content wrap-break-word mx-2 text-foreground leading-7">
         <MessagePrimitive.Parts
           components={{
             Text: MarkdownText,
@@ -247,28 +247,28 @@ const AssistantActionBar: FC = () => {
       autohideFloat="single-branch"
       className="aui-assistant-action-bar-root col-start-3 row-start-2 -ml-1 flex gap-1 text-muted-foreground data-floating:absolute data-floating:rounded-md data-floating:border data-floating:bg-background data-floating:p-1 data-floating:shadow-sm"
     >
-      <AssistantIf condition={({ message }) => message.speech == null}>
+      <AuiIf condition={({ message }) => message.speech == null}>
         <ActionBarPrimitive.Speak asChild>
           <TooltipIconButton tooltip="Read aloud">
             <AudioLinesIcon />
           </TooltipIconButton>
         </ActionBarPrimitive.Speak>
-      </AssistantIf>
-      <AssistantIf condition={({ message }) => message.speech != null}>
+      </AuiIf>
+      <AuiIf condition={({ message }) => message.speech != null}>
         <ActionBarPrimitive.StopSpeaking asChild>
           <TooltipIconButton tooltip="Stop">
             <StopCircleIcon />
           </TooltipIconButton>
         </ActionBarPrimitive.StopSpeaking>
-      </AssistantIf>
+      </AuiIf>
       <ActionBarPrimitive.Copy asChild>
         <TooltipIconButton tooltip="Copy">
-          <AssistantIf condition={({ message }) => message.isCopied}>
+          <AuiIf condition={({ message }) => message.isCopied}>
             <CheckIcon />
-          </AssistantIf>
-          <AssistantIf condition={({ message }) => !message.isCopied}>
+          </AuiIf>
+          <AuiIf condition={({ message }) => !message.isCopied}>
             <CopyIcon />
-          </AssistantIf>
+          </AuiIf>
         </TooltipIconButton>
       </ActionBarPrimitive.Copy>
       <ActionBarPrimitive.Reload asChild>
@@ -284,7 +284,7 @@ const UserMessage: FC = () => {
   return (
     <MessagePrimitive.Root asChild>
       <div
-        className="aui-user-message-root mx-auto grid w-full max-w-[var(--thread-max-width)] auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] gap-y-2 px-2 py-4 first:mt-3 last:mb-5 [&:where(>*)]:col-start-2"
+        className="aui-user-message-root mx-auto grid w-full max-w-(--thread-max-width) auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] gap-y-2 px-2 py-4 first:mt-3 last:mb-5 [&:where(>*)]:col-start-2"
         data-role="user"
       >
         <UserMessageAttachments />
@@ -322,10 +322,10 @@ const UserActionBar: FC = () => {
 
 const EditComposer: FC = () => {
   return (
-    <div className="aui-edit-composer-wrapper mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-4 px-2 first:mt-4">
+    <div className="aui-edit-composer-wrapper mx-auto flex w-full max-w-(--thread-max-width) flex-col gap-4 px-2 first:mt-4">
       <ComposerPrimitive.Root className="aui-edit-composer-root ml-auto flex w-full max-w-7/8 flex-col rounded-xl bg-muted">
         <ComposerPrimitive.Input
-          className="aui-edit-composer-input flex min-h-[60px] w-full resize-none bg-transparent p-4 text-foreground outline-none"
+          className="aui-edit-composer-input flex min-h-15 w-full resize-none bg-transparent p-4 text-foreground outline-none"
           autoFocus
         />
 

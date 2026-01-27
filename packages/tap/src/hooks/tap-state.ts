@@ -1,3 +1,4 @@
+import { isDevelopment } from "../core/env";
 import { getCurrentResourceFiber } from "../core/execution-context";
 import { Cell, ResourceFiber } from "../core/types";
 
@@ -5,17 +6,22 @@ export namespace tapState {
   export type StateUpdater<S> = S | ((prev: S) => S);
 }
 
-const rerender = (fiber: ResourceFiber<any, any>) => {
+const dispatchOnFiber = (
+  fiber: ResourceFiber<any, any>,
+  callback: () => boolean,
+) => {
   if (fiber.renderContext) {
     throw new Error("Resource updated during render");
   }
 
   if (fiber.isMounted) {
     // Only schedule rerender if currently mounted
-    fiber.scheduleRerender();
+    fiber.dispatchUpdate(callback);
   } else if (fiber.isNeverMounted) {
     throw new Error("Resource updated before mount");
   }
+
+  // TODO mark dirty
 };
 
 function getStateCell<T>(
@@ -32,39 +38,56 @@ function getStateCell<T>(
     );
   }
 
-  if (!fiber.cells[index]) {
-    // Initialize the value immediately
-    const value =
-      typeof initialValue === "function"
-        ? (initialValue as () => T)()
-        : initialValue;
+  const cell = fiber.cells[index];
+  if (cell) {
+    if (cell.type !== "state")
+      throw new Error("Hook order changed between renders");
 
-    const cell: Cell & { type: "state" } = {
-      type: "state",
-      value,
-      set: (updater: tapState.StateUpdater<T>) => {
-        const currentValue = cell.value;
+    return cell as Cell & { type: "state" };
+  }
+
+  const value =
+    typeof initialValue === "function"
+      ? (initialValue as () => T)()
+      : initialValue;
+
+  if (
+    isDevelopment &&
+    fiber.devStrictMode &&
+    typeof initialValue === "function"
+  ) {
+    void (initialValue as () => T)();
+  }
+
+  const newCell: Cell & { type: "state" } = {
+    type: "state",
+    value,
+    set: (updater: tapState.StateUpdater<T>) => {
+      dispatchOnFiber(fiber, () => {
+        const currentValue = newCell.value;
         const nextValue =
           typeof updater === "function"
             ? (updater as (prev: T) => T)(currentValue)
             : updater;
 
-        if (!Object.is(currentValue, nextValue)) {
-          cell.value = nextValue;
-          rerender(fiber);
+        if (
+          isDevelopment &&
+          fiber.devStrictMode &&
+          typeof updater === "function"
+        ) {
+          void (updater as (prev: T) => T)(currentValue);
         }
-      },
-    };
 
-    fiber.cells[index] = cell;
-  }
+        if (Object.is(currentValue, nextValue)) return false;
 
-  const cell = fiber.cells[index];
-  if (cell.type !== "state") {
-    throw new Error("Hook order changed between renders");
-  }
+        newCell.value = nextValue;
+        return true;
+      });
+    },
+  };
 
-  return cell as Cell & { type: "state" };
+  fiber.cells[index] = newCell;
+  return newCell;
 }
 
 export function tapState<S = undefined>(): [

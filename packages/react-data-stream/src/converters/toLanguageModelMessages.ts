@@ -1,187 +1,133 @@
-import {
-  LanguageModelV1FilePart,
-  LanguageModelV1ImagePart,
-  LanguageModelV1Message,
-  LanguageModelV1TextPart,
-  LanguageModelV1ToolCallPart,
-  LanguageModelV1ToolResultPart,
+import type {
+  JSONValue,
+  LanguageModelV2FilePart,
+  LanguageModelV2Message,
+  LanguageModelV2TextPart,
+  LanguageModelV2ToolCallPart,
+  LanguageModelV2ToolResultPart,
 } from "@ai-sdk/provider";
+import type { ThreadMessage } from "@assistant-ui/react";
 import {
-  TextMessagePart,
-  ThreadMessage,
-  ToolCallMessagePart,
-} from "@assistant-ui/react";
+  toGenericMessages,
+  type GenericMessage,
+  type GenericTextPart,
+  type GenericToolCallPart,
+  type GenericToolResultPart,
+} from "assistant-stream";
 
-const assistantMessageSplitter = () => {
-  const stash: LanguageModelV1Message[] = [];
-  let assistantMessage = {
-    role: "assistant" as const,
-    content: [] as (LanguageModelV1TextPart | LanguageModelV1ToolCallPart)[],
-  };
-  let toolMessage = {
-    role: "tool" as const,
-    content: [] as LanguageModelV1ToolResultPart[],
-  };
+function toUrl(value: string | URL): URL {
+  if (value instanceof URL) return value;
+  try {
+    return new URL(value);
+  } catch {
+    // For relative URLs, create URL with a dummy base
+    return new URL(value, "file://");
+  }
+}
 
-  return {
-    addTextMessagePart: (part: TextMessagePart) => {
-      if (toolMessage.content.length > 0) {
-        stash.push(assistantMessage);
-        stash.push(toolMessage);
+function convertUserContent(
+  content: GenericMessage & { role: "user" },
+): (LanguageModelV2TextPart | LanguageModelV2FilePart)[] {
+  return content.content.map((part) => {
+    if (part.type === "text") {
+      return part;
+    }
+    return {
+      type: "file",
+      data: toUrl(part.data),
+      mediaType: part.mediaType,
+    };
+  });
+}
 
-        assistantMessage = {
-          role: "assistant" as const,
-          content: [] as (
-            | LanguageModelV1TextPart
-            | LanguageModelV1ToolCallPart
-          )[],
-        };
+function convertAssistantContent(
+  content: (GenericTextPart | GenericToolCallPart)[],
+): (LanguageModelV2TextPart | LanguageModelV2ToolCallPart)[] {
+  return content.map((part) => {
+    if (part.type === "text") {
+      return part;
+    }
+    return {
+      type: "tool-call",
+      toolCallId: part.toolCallId,
+      toolName: part.toolName,
+      input: part.args,
+    };
+  });
+}
 
-        toolMessage = {
-          role: "tool" as const,
-          content: [] as LanguageModelV1ToolResultPart[],
-        };
-      }
+function convertToolContent(
+  content: GenericToolResultPart[],
+): LanguageModelV2ToolResultPart[] {
+  return content.map((part) => ({
+    type: "tool-result",
+    toolCallId: part.toolCallId,
+    toolName: part.toolName,
+    output: part.isError
+      ? { type: "error-json", value: part.result as JSONValue }
+      : { type: "json", value: part.result as JSONValue },
+  }));
+}
 
-      assistantMessage.content.push(part);
-    },
-    addToolCallPart: (part: ToolCallMessagePart) => {
-      assistantMessage.content.push({
-        type: "tool-call",
-        toolCallId: part.toolCallId,
-        toolName: part.toolName,
-        args: part.args,
-      });
-
-      toolMessage.content.push({
-        type: "tool-result",
-        toolCallId: part.toolCallId,
-        toolName: part.toolName,
-        ...("artifact" in part ? { artifact: part.artifact } : {}),
-        result:
-          part.result === undefined
-            ? "Error: tool is has no configured code to run"
-            : part.result,
-        isError: part.isError ?? part.result === undefined,
-      });
-    },
-    getMessages: () => {
-      if (toolMessage.content.length > 0) {
-        return [...stash, assistantMessage, toolMessage];
-      }
-
-      return [...stash, assistantMessage];
-    },
-  };
-};
+function convertGenericToLanguageModel(
+  generic: GenericMessage,
+): LanguageModelV2Message {
+  switch (generic.role) {
+    case "system":
+      return { role: "system", content: generic.content };
+    case "user":
+      return { role: "user", content: convertUserContent(generic) };
+    case "assistant":
+      return {
+        role: "assistant",
+        content: convertAssistantContent(generic.content),
+      };
+    case "tool":
+      return { role: "tool", content: convertToolContent(generic.content) };
+  }
+}
 
 /**
- * @deprecated This is an internal API and may change without notice.
+ * @deprecated Use `toGenericMessages` from `assistant-stream` for framework-agnostic conversion.
+ * This function is kept for AI SDK compatibility.
  */
 export function toLanguageModelMessages(
-  message: readonly ThreadMessage[],
+  messages: readonly ThreadMessage[],
   options: { unstable_includeId?: boolean | undefined } = {},
-): LanguageModelV1Message[] {
+): LanguageModelV2Message[] {
   const includeId = options.unstable_includeId ?? false;
-  return message.flatMap((message) => {
-    const role = message.role;
-    switch (role) {
-      case "system": {
-        return [
-          {
-            ...(includeId
-              ? { unstable_id: (message as ThreadMessage).id }
-              : {}),
-            role: "system",
-            content: message.content[0].text,
-          },
-        ];
+  const genericMessages = toGenericMessages(messages as any);
+
+  if (!includeId) {
+    return genericMessages.map(convertGenericToLanguageModel);
+  }
+
+  // When includeId is true, we need to map back to original message IDs
+  const result: LanguageModelV2Message[] = [];
+  let messageIndex = 0;
+
+  for (const generic of genericMessages) {
+    const converted = convertGenericToLanguageModel(generic);
+
+    // Tool messages are synthesized from assistant message tool calls,
+    // they don't have a corresponding original message
+    if (generic.role !== "tool") {
+      // Find the corresponding original message for ID
+      while (
+        messageIndex < messages.length &&
+        messages[messageIndex]!.role !== generic.role
+      ) {
+        messageIndex++;
       }
 
-      case "user": {
-        const attachments = "attachments" in message ? message.attachments : [];
-        const content = [
-          ...message.content,
-          ...attachments.map((a) => a.content).flat(),
-        ];
-        const msg: LanguageModelV1Message = {
-          ...(includeId ? { unstable_id: (message as ThreadMessage).id } : {}),
-          role: "user",
-          content: content.map(
-            (
-              part,
-            ):
-              | LanguageModelV1TextPart
-              | LanguageModelV1ImagePart
-              | LanguageModelV1FilePart => {
-              const type = part.type;
-              switch (type) {
-                case "text": {
-                  return part;
-                }
-
-                case "image": {
-                  return {
-                    type: "image",
-                    image: new URL(part.image),
-                  };
-                }
-
-                case "file": {
-                  return {
-                    type: "file",
-                    data: new URL(part.data),
-                    mimeType: part.mimeType,
-                  };
-                }
-
-                default: {
-                  const unhandledType: "audio" = type;
-                  throw new Error(
-                    `Unspported message part type: ${unhandledType}`,
-                  );
-                }
-              }
-            },
-          ),
-        };
-        return [msg];
-      }
-
-      case "assistant": {
-        const splitter = assistantMessageSplitter();
-        for (const part of message.content) {
-          const type = part.type;
-          switch (type) {
-            case "reasoning":
-            case "source":
-            case "file":
-            case "data":
-            case "image": {
-              break; // reasoning, source, file, and image parts are omitted
-            }
-
-            case "text": {
-              splitter.addTextMessagePart(part);
-              break;
-            }
-            case "tool-call": {
-              splitter.addToolCallPart(part);
-              break;
-            }
-            default: {
-              const unhandledType: never = type;
-              throw new Error(`Unhandled message part type: ${unhandledType}`);
-            }
-          }
-        }
-        return splitter.getMessages();
-      }
-
-      default: {
-        const unhandledRole: never = role;
-        throw new Error(`Unknown message role: ${unhandledRole}`);
+      if (messageIndex < messages.length) {
+        (converted as any).unstable_id = messages[messageIndex]!.id;
+        messageIndex++;
       }
     }
-  });
+
+    result.push(converted);
+  }
+
+  return result;
 }

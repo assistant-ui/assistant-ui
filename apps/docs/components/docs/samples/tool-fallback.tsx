@@ -107,7 +107,7 @@ function ToolFallbackStreamingDemo() {
     }, 30);
 
     return () => clearInterval(argsInterval);
-  }, [isRunning]);
+  }, [isRunning, fullArgs.length, fullArgs.slice]);
 
   const handleStart = () => {
     setStreamedArgs("");

@@ -11,7 +11,7 @@ import {
   createContext,
   useContext,
 } from "react";
-import { useAssistantApi } from "../context/react/AssistantApiContext";
+import { useAui } from "@assistant-ui/store";
 import { useComposedRefs } from "@radix-ui/react-compose-refs";
 import { tool } from "./tool";
 
@@ -83,11 +83,11 @@ export const makeAssistantVisible = <T extends ComponentType<any>>(
       const clickId = useId();
       const componentRef = useRef<HTMLElement>(null);
 
-      const api = useAssistantApi();
+      const aui = useAui();
 
       const { clickable, editable } = config ?? {};
       useEffect(() => {
-        return api.modelContext().register({
+        return aui.modelContext().register({
           getModelContext: () => {
             return {
               tools: {
@@ -100,7 +100,7 @@ export const makeAssistantVisible = <T extends ComponentType<any>>(
             };
           },
         });
-      }, [isNestedReadable, api, clickable, editable]);
+      }, [isNestedReadable, aui, clickable, editable]);
 
       const ref = useComposedRefs(componentRef, outerRef);
 

@@ -19,20 +19,20 @@ describe("assistantUIExamples", () => {
     expect(result.examples).toBeDefined();
     expect(Array.isArray(result.examples)).toBe(true);
     expect(result.examples.length).toBeGreaterThan(0);
-    expect(result.examples).toContain("with-ai-sdk-v5");
+    expect(result.examples).toContain("with-ai-sdk-v6");
     expect(result.examples).toContain("with-langgraph");
     expect(result.total).toBe(result.examples.length);
   });
 
   it("should retrieve specific example code", async () => {
     const result = await testContext.callTool("assistantUIExamples", {
-      example: "with-ai-sdk-v5",
+      example: "with-ai-sdk-v6",
     });
 
     expect(result.type).toBe("example");
-    expect(result.name).toBe("with-ai-sdk-v5");
+    expect(result.name).toBe("with-ai-sdk-v6");
     expect(result.content).toBeDefined();
-    expect(result.content).toContain("# Example: with-ai-sdk-v5");
+    expect(result.content).toContain("# Example: with-ai-sdk-v6");
     expect(result.content).toContain("app/api/chat/route.ts");
     expect(result.content).toContain("streamText");
   });
@@ -50,11 +50,11 @@ describe("assistantUIExamples", () => {
 
   it("should include all files in example", async () => {
     const result = await testContext.callTool("assistantUIExamples", {
-      example: "with-ai-sdk-v5",
+      example: "with-ai-sdk-v6",
     });
 
     expect(result.content).toContain("package.json");
-    expect(result.content).toContain("components/assistant-ui/thread.tsx");
+    expect(result.content).toContain("app/page.tsx");
   });
 
   it("should handle empty example parameter", async () => {

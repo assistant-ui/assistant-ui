@@ -11,6 +11,8 @@ import { getAutoStatus, isAutoStatus } from "./auto-status";
 import { ThreadMessage, ToolCallMessagePart } from "../../../types";
 import { ToolExecutionStatus } from "../assistant-transport/useToolInvocations";
 import { ReadonlyJSONValue } from "assistant-stream/utils";
+import { generateErrorMessageId } from "../../../utils/idUtils";
+import { ThreadAssistantMessage } from "../../../types/AssistantTypes";
 
 export namespace useExternalMessageConverter {
   export type Message =
@@ -185,7 +187,7 @@ const joinExternalMessages = (
                 ] as typeof part;
                 assistantMessage.content[existingIdx] = {
                   ...existing,
-                  text: existing.text + "\n\n" + part.text,
+                  text: `${existing.text}\n\n${part.text}`,
                   ...{
                     [symbolInnerMessage]: [
                       ...((existing as any)[symbolInnerMessage] ?? []),
@@ -262,6 +264,28 @@ const chunkExternalMessages = <T,>(
   return results;
 };
 
+function createErrorAssistantMessage(
+  error: ReadonlyJSONValue,
+): ThreadAssistantMessage {
+  return Object.assign<ThreadAssistantMessage, { [symbolInnerMessage]: [] }>(
+    {
+      id: generateErrorMessageId(),
+      role: "assistant",
+      content: [],
+      status: { type: "incomplete", reason: "error", error },
+      createdAt: new Date(),
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        custom: {},
+        steps: [],
+      },
+    },
+    { [symbolInnerMessage]: [] },
+  );
+}
+
 export const convertExternalMessages = <T extends WeakKey>(
   messages: T[],
   callback: useExternalMessageConverter.Callback<T>,
@@ -278,14 +302,9 @@ export const convertExternalMessages = <T extends WeakKey>(
 
   const chunks = chunkExternalMessages(callbackResults);
 
-  return chunks.map((message, idx) => {
+  const result = chunks.map((message, idx) => {
     const isLast = idx === chunks.length - 1;
     const joined = joinExternalMessages(message.outputs);
-    const hasSuspendedToolCalls =
-      typeof joined.content === "object" &&
-      joined.content.some(
-        (c) => c.type === "tool-call" && c.result === undefined,
-      );
     const hasPendingToolCalls =
       typeof joined.content === "object" &&
       joined.content.some(
@@ -294,7 +313,7 @@ export const convertExternalMessages = <T extends WeakKey>(
     const autoStatus = getAutoStatus(
       isLast,
       isRunning,
-      hasSuspendedToolCalls,
+      hasPendingToolCalls,
       hasPendingToolCalls,
       isLast ? metadata.error : undefined,
     );
@@ -306,6 +325,15 @@ export const convertExternalMessages = <T extends WeakKey>(
     (newMessage as any)[symbolInnerMessage] = message.inputs;
     return newMessage;
   });
+
+  if (metadata.error) {
+    const lastMessage = result.at(-1);
+    if (!lastMessage || lastMessage.role !== "assistant") {
+      result.push(createErrorAssistantMessage(metadata.error));
+    }
+  }
+
+  return result;
 };
 
 export const useExternalMessageConverter = <T extends WeakKey>({
@@ -410,6 +438,13 @@ export const useExternalMessageConverter = <T extends WeakKey>({
     (threadMessages as unknown as { [symbolInnerMessage]: T[] })[
       symbolInnerMessage
     ] = messages;
+
+    if (state.metadata.error) {
+      const lastMessage = threadMessages.at(-1);
+      if (!lastMessage || lastMessage.role !== "assistant") {
+        threadMessages.push(createErrorAssistantMessage(state.metadata.error));
+      }
+    }
 
     return threadMessages;
   }, [state, messages, isRunning, joinStrategy]);

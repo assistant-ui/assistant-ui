@@ -5,14 +5,10 @@ import { ThreadRuntime } from "../runtime/ThreadRuntime";
 import { ModelContext } from "../../model-context";
 import { createStateHookForRuntime } from "../../context/react/utils/createStateHookForRuntime";
 import { ThreadComposerRuntime } from "../runtime";
-import {
-  useAssistantApi,
-  useAssistantEvent,
-  useAssistantState,
-} from "../../context/react";
+import { useAui, useAuiEvent, useAuiState } from "@assistant-ui/store";
 
 /**
- * @deprecated Use `useAssistantApi()` with `api.thread()` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
+ * @deprecated Use `useAui()` with `aui.thread()` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
  *
  * Hook to access the ThreadRuntime from the current context.
  *
@@ -36,9 +32,9 @@ import {
  *
  * // After:
  * function MyComponent() {
- *   const api = useAssistantApi();
+ *   const aui = useAui();
  *   const handleSendMessage = (text: string) => {
- *     api.thread().append({ role: "user", content: [{ type: "text", text }] });
+ *     aui.thread().append({ role: "user", content: [{ type: "text", text }] });
  *   };
  *   return <button onClick={() => handleSendMessage("Hello!")}>Send</button>;
  * }
@@ -51,9 +47,9 @@ export function useThreadRuntime(options?: {
   optional?: boolean | undefined;
 }): ThreadRuntime | null;
 export function useThreadRuntime(options?: { optional?: boolean | undefined }) {
-  const api = useAssistantApi();
-  const runtime = useAssistantState(() =>
-    api.thread.source ? (api.thread().__internal_getRuntime?.() ?? null) : null,
+  const aui = useAui();
+  const runtime = useAuiState(() =>
+    aui.thread.source ? (aui.thread().__internal_getRuntime?.() ?? null) : null,
   );
   if (!runtime && !options?.optional) {
     throw new Error("ThreadRuntime is not available");
@@ -62,7 +58,7 @@ export function useThreadRuntime(options?: { optional?: boolean | undefined }) {
 }
 
 /**
- * @deprecated Use `useAssistantState(({ thread }) => thread)` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
+ * @deprecated Use `useAuiState(({ thread }) => thread)` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
  *
  * Hook to access the current thread state.
  *
@@ -83,8 +79,8 @@ export function useThreadRuntime(options?: { optional?: boolean | undefined }) {
  *
  * // After:
  * function ThreadStatus() {
- *   const isRunning = useAssistantState(({ thread }) => thread.isRunning);
- *   const messageCount = useAssistantState(({ thread }) => thread.messages.length);
+ *   const isRunning = useAuiState(({ thread }) => thread.isRunning);
+ *   const messageCount = useAuiState(({ thread }) => thread.messages.length);
  *   return <div>Running: {isRunning}, Messages: {messageCount}</div>;
  * }
  * ```
@@ -96,14 +92,14 @@ const useThreadComposerRuntime = (opt: {
 }): ThreadComposerRuntime | null => useThreadRuntime(opt)?.composer ?? null;
 
 /**
- * @deprecated Use `useAssistantState(({ thread }) => thread.composer)` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
+ * @deprecated Use `useAuiState(({ thread }) => thread.composer)` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
  */
 export const useThreadComposer = createStateHookForRuntime(
   useThreadComposerRuntime,
 );
 
 /**
- * @deprecated Use `useAssistantState(({ thread }) => thread.modelContext)` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
+ * @deprecated Use `useAuiState(({ thread }) => thread.modelContext)` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
  */
 export function useThreadModelContext(options?: {
   optional?: false | undefined;
@@ -117,7 +113,7 @@ export function useThreadModelContext(options?: {
   const [, rerender] = useState({});
 
   const runtime = useThreadRuntime(options);
-  useAssistantEvent("thread.model-context-update", () => rerender({}));
+  useAuiEvent("thread.modelContextUpdate", () => rerender({}));
 
   if (!runtime) return null;
   return runtime?.getModelContext();

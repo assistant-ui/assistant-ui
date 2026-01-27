@@ -1,0 +1,260 @@
+---
+title: Select
+description: A dropdown select component with composable sub-components.
+---
+
+import { InstallCommand } from "@/components/docs/fumadocs/install/install-command";
+import { ParametersTable } from "@/components/docs/tables/ParametersTable";
+import {
+  SelectSample,
+  SelectDisabledItemsSample,
+  SelectPlaceholderSample,
+  SelectDisabledSample,
+  SelectGroupsSample,
+  SelectVariantsSample,
+  SelectSizesSample,
+  SelectScrollableSample,
+} from "@/components/docs/samples/select";
+
+A styled select component built on Radix UI Select primitives. Provides a convenient options-based API and composable sub-components for custom layouts.
+
+<Callout>
+  This is a **standalone component** that does not depend on the assistant-ui runtime. Use it anywhere in your application.
+</Callout>
+
+<SelectSample />
+
+## Installation
+
+<InstallCommand shadcn={["select"]} />
+
+## Usage
+
+```tsx
+import { Select } from "@/components/assistant-ui/select";
+
+const options = [
+  { value: "apple", label: "Apple" },
+  { value: "banana", label: "Banana" },
+  { value: "orange", label: "Orange" },
+];
+
+export function FruitPicker() {
+  const [value, setValue] = useState("apple");
+
+  return (
+    <Select
+      value={value}
+      onValueChange={setValue}
+      options={options}
+      placeholder="Select a fruit..."
+    />
+  );
+}
+```
+
+## Examples
+
+### Variants
+
+Use the `variant` prop on `SelectTrigger` to change the visual style.
+
+<SelectVariantsSample />
+
+```tsx
+<SelectTrigger variant="outline" /> // Border (default)
+<SelectTrigger variant="ghost" />   // No border
+<SelectTrigger variant="muted" />   // Solid background
+```
+
+### Sizes
+
+Use the `size` prop on `SelectTrigger` to change the height.
+
+<SelectSizesSample />
+
+```tsx
+<SelectTrigger size="default" /> // 36px (default)
+<SelectTrigger size="sm" />      // 32px
+```
+
+### Scrollable
+
+Long lists automatically become scrollable.
+
+<SelectScrollableSample />
+
+### Groups
+
+Use the composable API for grouped options:
+
+<SelectGroupsSample />
+
+```tsx
+import {
+  SelectRoot,
+  SelectTrigger,
+  SelectContent,
+  SelectItem,
+  SelectGroup,
+  SelectLabel,
+  SelectSeparator,
+  SelectValue,
+} from "@/components/assistant-ui/select";
+
+export function FrameworkPicker() {
+  const [value, setValue] = useState("react");
+
+  return (
+    <SelectRoot value={value} onValueChange={setValue}>
+      <SelectTrigger className="w-48">
+        <SelectValue placeholder="Select a framework..." />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectGroup>
+          <SelectLabel>Frontend</SelectLabel>
+          <SelectItem value="react">React</SelectItem>
+          <SelectItem value="vue">Vue</SelectItem>
+          <SelectItem value="svelte">Svelte</SelectItem>
+        </SelectGroup>
+        <SelectSeparator />
+        <SelectGroup>
+          <SelectLabel>Backend</SelectLabel>
+          <SelectItem value="node">Node.js</SelectItem>
+          <SelectItem value="python">Python</SelectItem>
+        </SelectGroup>
+      </SelectContent>
+    </SelectRoot>
+  );
+}
+```
+
+### Disabled Items
+
+<SelectDisabledItemsSample />
+
+```tsx
+<Select
+  value={value}
+  onValueChange={setValue}
+  options={[
+    { value: "free", label: "Free" },
+    { value: "pro", label: "Pro" },
+    { value: "enterprise", label: "Enterprise", disabled: true },
+  ]}
+/>
+```
+
+### With Placeholder
+
+<SelectPlaceholderSample />
+
+```tsx
+<Select
+  value={value}
+  onValueChange={setValue}
+  options={options}
+  placeholder="Choose an option..."
+/>
+```
+
+### Disabled Select
+
+<SelectDisabledSample />
+
+```tsx
+<Select
+  value={value}
+  onValueChange={setValue}
+  options={options}
+  disabled
+/>
+```
+
+## API Reference
+
+### Select
+
+<ParametersTable
+  type="SelectProps"
+  parameters={[
+    {
+      name: "value",
+      type: "string",
+      required: true,
+      description: "The controlled value of the select.",
+    },
+    {
+      name: "onValueChange",
+      type: "(value: string) => void",
+      required: true,
+      description: "Callback when the selected value changes.",
+    },
+    {
+      name: "options",
+      type: "SelectOption[]",
+      required: true,
+      description: "Array of options to display.",
+    },
+    {
+      name: "placeholder",
+      type: "string",
+      description: "Placeholder text when no value is selected.",
+    },
+    {
+      name: "className",
+      type: "string",
+      description: "Additional CSS classes for the trigger.",
+    },
+    {
+      name: "disabled",
+      type: "boolean",
+      description: "Whether the select is disabled.",
+    },
+  ]}
+/>
+
+### SelectOption
+
+<ParametersTable
+  type="SelectOption"
+  parameters={[
+    {
+      name: "value",
+      type: "string",
+      required: true,
+      description: "The value of the option.",
+    },
+    {
+      name: "label",
+      type: "ReactNode",
+      required: true,
+      description: "The display label for the option.",
+    },
+    {
+      name: "textValue",
+      type: "string",
+      description: "Optional text value for typeahead. Defaults to label if it's a string.",
+    },
+    {
+      name: "disabled",
+      type: "boolean",
+      description: "Whether the option is disabled.",
+    },
+  ]}
+/>
+
+### Composable API
+
+| Component | Description |
+|-----------|-------------|
+| `SelectRoot` | The root component that manages state. |
+| `SelectTrigger` | The button that opens the dropdown. Accepts `variant` (`"outline"` \| `"ghost"` \| `"muted"`) and `size` (`"default"` \| `"sm"` \| `"lg"`). |
+| `SelectValue` | Renders the selected value or placeholder. |
+| `SelectContent` | The dropdown content container with animations. |
+| `SelectItem` | An individual selectable item. |
+| `SelectGroup` | Groups related items together. |
+| `SelectLabel` | A label for a group of items. |
+| `SelectSeparator` | A visual separator between items or groups. |
+| `SelectScrollUpButton` | Scroll indicator for long lists. |
+| `SelectScrollDownButton` | Scroll indicator for long lists. |

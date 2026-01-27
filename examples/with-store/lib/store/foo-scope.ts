@@ -1,3 +1,5 @@
+import "@assistant-ui/store";
+
 type FooState = { id: string; bar: string };
 type FooMethods = {
   getState: () => FooState;
@@ -38,5 +40,3 @@ declare module "@assistant-ui/store" {
     };
   }
 }
-
-export default {};

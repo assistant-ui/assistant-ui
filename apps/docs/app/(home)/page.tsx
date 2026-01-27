@@ -1,5 +1,6 @@
 "use client";
 
+import { analytics } from "@/lib/analytics";
 import { Button, buttonVariants } from "@/components/ui/button";
 import Link from "next/link";
 import { TESTIMONIALS } from "@/components/home/testimonials/data";
@@ -32,12 +33,16 @@ export default function HomePage() {
         </p>
         <div className="flex items-center gap-6">
           <Button asChild>
-            <Link href="/docs">
+            <Link
+              href="/docs"
+              onClick={() => analytics.cta.clicked("get_started", "footer")}
+            >
               Get Started <ArrowRight />
             </Link>
           </Button>
           <Link
             href="https://cal.com/simon-farshid/assistant-ui"
+            onClick={() => analytics.cta.clicked("contact_sales", "footer")}
             className={buttonVariants({
               variant: "outline",
             })}

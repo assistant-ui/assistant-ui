@@ -176,17 +176,17 @@ The button to send or cancel the message.
 
 ```tsx
 import { Composer } from "@assistant-ui/react-ui";
-import { AssistantIf } from "@assistant-ui/react";
+import { AuiIf } from "@assistant-ui/react";
 
 const MyComposerAction: FC = () => {
   return (
     <>
-      <AssistantIf condition={({ thread }) => !thread.isRunning}>
+      <AuiIf condition={({ thread }) => !thread.isRunning}>
         <Composer.Send />
-      </AssistantIf>
-      <AssistantIf condition={({ thread }) => thread.isRunning}>
+      </AuiIf>
+      <AuiIf condition={({ thread }) => thread.isRunning}>
         <Composer.Cancel />
-      </AssistantIf>
+      </AuiIf>
     </>
   );
 };

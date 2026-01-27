@@ -57,7 +57,38 @@
             "ignoreRestSiblings": true
           }
         },
-        "useExhaustiveDependencies": "off",
+        "useExhaustiveDependencies": {
+          "level": "error",
+          "options": {
+            "hooks": [
+              {
+                "name": "tapEffect",
+                "closureIndex": 0,
+                "dependenciesIndex": 1
+              },
+              { "name": "tapMemo", "closureIndex": 0, "dependenciesIndex": 1 },
+              {
+                "name": "tapCallback",
+                "closureIndex": 0,
+                "dependenciesIndex": 1
+              },
+              { "name": "tapRef", "stableResult": true },
+              { "name": "tapState", "stableResult": [1] },
+              { "name": "tapEffectEvent", "stableResult": true },
+              {
+                "name": "tapConst",
+                "closureIndex": 0,
+                "dependenciesIndex": 1,
+                "stableResult": true
+              },
+              {
+                "name": "tapResources",
+                "closureIndex": 0,
+                "dependenciesIndex": 1
+              }
+            ]
+          }
+        },
         "useHookAtTopLevel": "off",
         "noSwitchDeclarations": "off",
         "noUnsafeOptionalChaining": "off",
@@ -79,7 +110,8 @@
         "noStaticElementInteractions": "off",
         "useFocusableInteractive": "off",
         "useButtonType": "off",
-        "useSemanticElements": "off"
+        "useSemanticElements": "off",
+        "noRedundantAlt": "off"
       },
       "security": {
         "noDangerouslySetInnerHtml": "off"
@@ -138,6 +170,23 @@
       "enabled": false
     }
   },
+  "overrides": [
+    {
+      "includes": ["packages/ui/src/components/ui/**"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "useExhaustiveDependencies": "off",
+            "noNestedComponentDefinitions": "off"
+          },
+          "a11y": {
+            "useAriaPropsForRole": "off",
+            "noRedundantRoles": "off"
+          }
+        }
+      }
+    }
+  ],
   "files": {
     "includes": [
       "**",

@@ -1,5 +1,26 @@
 # @assistant-ui/react-a2a
 
+## 0.2.1
+
+### Patch Changes
+
+- 605d825: chore: update dependencies
+- Updated dependencies [1ea3e28]
+- Updated dependencies [8cbf686]
+- Updated dependencies [a8be364]
+- Updated dependencies [605d825]
+  - @assistant-ui/react@0.12.2
+  - assistant-stream@0.2.48
+
+## 0.1.6
+
+### Patch Changes
+
+- 3719567: chore: update deps
+- Updated dependencies [3719567]
+  - assistant-stream@0.2.47
+  - @assistant-ui/react@0.11.58
+
 ## 0.1.5
 
 ### Patch Changes

@@ -37,6 +37,16 @@ type AuiV0MessageMessagePart =
       readonly argsText: string;
       readonly result?: ReadonlyJSONValue;
       readonly isError?: true;
+    }
+  | {
+      readonly type: "image";
+      readonly image: string;
+    }
+  | {
+      readonly type: "file";
+      readonly data: string;
+      readonly mimeType: string;
+      readonly filename?: string;
     };
 
 type AuiV0Message = {
@@ -111,8 +121,24 @@ export const auiV0Encode = (message: ThreadMessage): AuiV0Message => {
           };
         }
 
+        case "image": {
+          return {
+            type: "image",
+            image: part.image,
+          };
+        }
+
+        case "file": {
+          return {
+            type: "file",
+            data: part.data,
+            mimeType: part.mimeType,
+            ...(part.filename ? { filename: part.filename } : undefined),
+          };
+        }
+
         default: {
-          const unhandledType: "image" | "file" | "audio" | "data" = type;
+          const unhandledType: "audio" | "data" = type;
           throw new Error(
             `Message part type not supported by aui/v0: ${unhandledType}`,
           );

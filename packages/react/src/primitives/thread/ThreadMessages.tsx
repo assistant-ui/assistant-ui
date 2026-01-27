@@ -1,7 +1,8 @@
 "use client";
 
 import { type ComponentType, type FC, memo, useMemo } from "react";
-import { useAssistantState, MessageByIndexProvider } from "../../context";
+import { useAuiState } from "@assistant-ui/store";
+import { MessageByIndexProvider } from "../../context/providers";
 import { ThreadMessage as ThreadMessageType } from "../../types";
 
 export namespace ThreadPrimitiveMessages {
@@ -128,10 +129,8 @@ type ThreadMessageComponentProps = {
 const ThreadMessageComponent: FC<ThreadMessageComponentProps> = ({
   components,
 }) => {
-  const role = useAssistantState(({ message }) => message.role);
-  const isEditing = useAssistantState(
-    ({ message }) => message.composer.isEditing,
-  );
+  const role = useAuiState(({ message }) => message.role);
+  const isEditing = useAuiState(({ message }) => message.composer.isEditing);
   const Component = getComponent(components, role, isEditing);
 
   return <Component />;
@@ -197,9 +196,7 @@ ThreadPrimitiveMessageByIndex.displayName = "ThreadPrimitive.MessageByIndex";
 export const ThreadPrimitiveMessagesImpl: FC<ThreadPrimitiveMessages.Props> = ({
   components,
 }) => {
-  const messagesLength = useAssistantState(
-    ({ thread }) => thread.messages.length,
-  );
+  const messagesLength = useAuiState(({ thread }) => thread.messages.length);
 
   const messageElements = useMemo(() => {
     if (messagesLength === 0) return null;

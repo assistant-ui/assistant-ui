@@ -5,11 +5,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type * as PageTree from "fumadocs-core/page-tree";
 import { ChevronDown } from "lucide-react";
-import { DiscordIcon } from "@/components/icons/discord";
-import { GitHubIcon } from "@/components/icons/github";
-import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { cn } from "@/lib/utils";
 import { useDocsSidebar } from "@/components/docs/contexts/sidebar";
+import { analytics } from "@/lib/analytics";
 
 interface SidebarContentProps {
   tree?: PageTree.Root;
@@ -72,12 +70,36 @@ function PageTreeItem({
 
   if (item.type === "folder") {
     const isActive = item.index && pathname === item.index.url;
+
+    const handleFolderLinkClick = () => {
+      if (item.index) {
+        analytics.docs.navigationClicked(
+          String(item.name),
+          item.index.url,
+          depth,
+        );
+      }
+      onNavigate();
+    };
+
+    const handleFolderToggle = (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      analytics.docs.folderToggled(String(item.name), !open, depth);
+      setOpen(!open);
+    };
+
+    const handleFolderButtonClick = () => {
+      analytics.docs.folderToggled(String(item.name), !open, depth);
+      setOpen(!open);
+    };
+
     return (
       <div>
         {item.index ? (
           <Link
             href={item.index.url}
-            onClick={onNavigate}
+            onClick={handleFolderLinkClick}
             className={cn(
               "flex w-full items-center gap-2 py-2 transition-colors",
               depth > 0 && "pl-4",
@@ -90,11 +112,7 @@ function PageTreeItem({
             <span className="flex-1">{item.name}</span>
             {item.children.length > 0 && (
               <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setOpen(!open);
-                }}
+                onClick={handleFolderToggle}
                 className="p-1 text-muted-foreground"
               >
                 <ChevronDown
@@ -108,7 +126,7 @@ function PageTreeItem({
           </Link>
         ) : (
           <button
-            onClick={() => setOpen(!open)}
+            onClick={handleFolderButtonClick}
             className={cn(
               "flex w-full items-center gap-2 py-2 text-muted-foreground transition-colors",
               depth > 0 && "pl-4",
@@ -141,10 +159,16 @@ function PageTreeItem({
   }
 
   const isActive = pathname === item.url;
+
+  const handlePageClick = () => {
+    analytics.docs.navigationClicked(String(item.name), item.url, depth);
+    onNavigate();
+  };
+
   return (
     <Link
       href={item.url}
-      onClick={onNavigate}
+      onClick={handlePageClick}
       className={cn(
         "flex items-center gap-2 py-2 transition-colors",
         depth > 0 && "pl-4",
@@ -181,30 +205,6 @@ export function SidebarContent({ tree, banner }: SidebarContentProps) {
           ))}
         </nav>
       )}
-
-      <div className="flex shrink-0 items-center gap-4 px-4 py-6">
-        <a
-          href="https://github.com/assistant-ui/assistant-ui"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
-          aria-label="GitHub"
-        >
-          <GitHubIcon className="size-5" />
-        </a>
-        <a
-          href="https://discord.gg/S9dwgCNEFs"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
-          aria-label="Discord"
-        >
-          <DiscordIcon className="size-5" />
-        </a>
-        <div className="ml-auto">
-          <ThemeToggle />
-        </div>
-      </div>
     </div>
   );
 }

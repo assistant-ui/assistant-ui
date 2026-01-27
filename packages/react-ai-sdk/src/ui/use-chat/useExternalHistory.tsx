@@ -9,7 +9,7 @@ import {
   MessageFormatRepository,
   ExportedMessageRepository,
   INTERNAL,
-  useAssistantApi,
+  useAui,
 } from "@assistant-ui/react";
 import { useRef, useEffect, useState, RefObject, useCallback } from "react";
 
@@ -40,10 +40,10 @@ export const useExternalHistory = <TMessage,>(
 ) => {
   const loadedRef = useRef(false);
 
-  const api = useAssistantApi();
+  const aui = useAui();
   const optionalThreadListItem = useCallback(
-    () => (api.threadListItem.source ? api.threadListItem() : null),
-    [api],
+    () => (aui.threadListItem.source ? aui.threadListItem() : null),
+    [aui],
   );
 
   const [isLoading, setIsLoading] = useState(false);
@@ -98,7 +98,6 @@ export const useExternalHistory = <TMessage,>(
       loadHistory();
     }
   }, [
-    api,
     historyAdapter,
     storageFormatAdapter,
     toThreadMessages,

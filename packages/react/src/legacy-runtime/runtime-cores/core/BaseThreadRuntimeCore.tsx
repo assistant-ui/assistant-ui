@@ -216,7 +216,7 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
   >();
 
   public unstable_on(event: ThreadRuntimeEventType, callback: () => void) {
-    if (event === "model-context-update") {
+    if (event === "modelContextUpdate") {
       return this._contextProvider.subscribe?.(callback) ?? (() => {});
     }
 

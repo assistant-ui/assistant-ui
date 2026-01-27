@@ -11,7 +11,7 @@ import {
   OnInfoEventCallback,
   OnMetadataEventCallback,
 } from "./types";
-import { useAssistantApi } from "@assistant-ui/react";
+import { useAui } from "@assistant-ui/react";
 
 export type LangGraphCommand = {
   resume: string;
@@ -93,7 +93,7 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
     [eventHandlers],
   );
 
-  const api = useAssistantApi();
+  const aui = useAui();
   const sendMessage = useCallback(
     async (newMessages: TMessage[], config: LangGraphSendMessageConfig) => {
       // ensure all messages have an ID
@@ -113,7 +113,7 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
         ...config,
         abortSignal: abortController.signal,
         initialize: async () => {
-          return await api.threadListItem().initialize();
+          return await aui.threadListItem().initialize();
         },
       });
 
@@ -187,7 +187,7 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
       }
     },
     [
-      api,
+      aui,
       messages,
       appendMessage,
       stream,
@@ -202,7 +202,7 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
-  }, [abortControllerRef]);
+  }, []);
 
   return {
     interrupt,

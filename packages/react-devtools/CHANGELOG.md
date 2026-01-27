@@ -1,5 +1,36 @@
 # @assistant-ui/react-devtools
 
+## 0.2.1
+
+### Patch Changes
+
+- 605d825: chore: update dependencies
+- Updated dependencies [1ea3e28]
+- Updated dependencies [8cbf686]
+- Updated dependencies [a8be364]
+- Updated dependencies [605d825]
+- Updated dependencies [fe15232]
+  - @assistant-ui/react@0.12.2
+  - @assistant-ui/tap@0.4.1
+
+## 0.1.14
+
+### Patch Changes
+
+- Updated dependencies [fe06c7c]
+- Updated dependencies
+  - @assistant-ui/react@0.11.59
+  - @assistant-ui/tap@0.4.0
+
+## 0.1.13
+
+### Patch Changes
+
+- 3719567: chore: update deps
+- Updated dependencies [3719567]
+  - @assistant-ui/react@0.11.58
+  - @assistant-ui/tap@0.3.6
+
 ## 0.1.12
 
 ### Patch Changes

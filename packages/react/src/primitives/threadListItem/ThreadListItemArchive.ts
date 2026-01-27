@@ -5,14 +5,14 @@ import {
   ActionButtonProps,
   createActionButton,
 } from "../../utils/createActionButton";
-import { useAssistantApi } from "../../context";
+import { useAui } from "@assistant-ui/store";
 import { useCallback } from "react";
 
 const useThreadListItemArchive = () => {
-  const api = useAssistantApi();
+  const aui = useAui();
   return useCallback(() => {
-    api.threadListItem().archive();
-  }, [api]);
+    aui.threadListItem().archive();
+  }, [aui]);
 };
 
 export namespace ThreadListItemPrimitiveArchive {

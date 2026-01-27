@@ -157,7 +157,12 @@ const MyRuntimeProvider = ({ children }: { children: React.ReactNode }) => {
 
 ### `toLanguageModelMessages`
 
-Convert assistant-ui messages to language model format.
+Convert assistant-ui messages to AI SDK's `LanguageModelV2Message` format.
+
+<Callout type="info">
+For custom integrations, consider using `toGenericMessages` from `assistant-stream` instead.
+This function is specific to the AI SDK format.
+</Callout>
 
 ```tsx
 import { toLanguageModelMessages } from "@assistant-ui/react-data-stream";
@@ -193,3 +198,44 @@ const languageModelMessages = toLanguageModelMessages(messages, {
     },
   ]}
 />
+
+---
+
+## Framework-Agnostic Utilities
+
+For custom integrations that don't use the AI SDK, use these utilities from `assistant-stream`:
+
+### `toGenericMessages`
+
+Convert thread messages to a framework-agnostic format.
+
+```tsx
+import { toGenericMessages } from "assistant-stream";
+
+const genericMessages = toGenericMessages(messages);
+```
+
+Returns an array of `GenericMessage` which can be one of:
+- `{ role: "system"; content: string }`
+- `{ role: "user"; content: (GenericTextPart | GenericFilePart)[] }`
+- `{ role: "assistant"; content: (GenericTextPart | GenericToolCallPart)[] }`
+- `{ role: "tool"; content: GenericToolResultPart[] }`
+
+### `toToolsJSONSchema`
+
+Convert tool definitions to JSON Schema format.
+
+```tsx
+import { toToolsJSONSchema } from "assistant-stream";
+
+const toolSchemas = toToolsJSONSchema(tools);
+// Returns: Record<string, { description?: string; parameters: JSONSchema7 }>
+```
+
+By default, filters out disabled tools and backend-only tools. Use the `filter` option to customize:
+
+```tsx
+const allTools = toToolsJSONSchema(tools, {
+  filter: () => true, // Include all tools
+});
+```

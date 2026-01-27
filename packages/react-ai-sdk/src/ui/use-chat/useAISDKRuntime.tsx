@@ -22,7 +22,7 @@ import { getVercelAIMessages } from "../getVercelAIMessages";
 import { AISDKMessageConverter } from "../utils/convertMessage";
 import {
   type AISDKStorageFormat,
-  aiSDKV5FormatAdapter,
+  aiSDKV6FormatAdapter,
 } from "../adapters/aiSDKFormatAdapter";
 import { useExternalHistory } from "./useExternalHistory";
 
@@ -113,7 +113,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     AISDKMessageConverter.toThreadMessages as (
       messages: UI_MESSAGE[],
     ) => ThreadMessage[],
-    aiSDKV5FormatAdapter as MessageFormatAdapter<
+    aiSDKV6FormatAdapter as MessageFormatAdapter<
       UI_MESSAGE,
       AISDKStorageFormat
     >,

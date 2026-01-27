@@ -4,7 +4,7 @@ import {
   type ModelContext,
   tool,
   type ToolCallMessagePartComponent,
-  useAssistantApi,
+  useAui,
   useAssistantToolUI,
 } from "@assistant-ui/react";
 import { useEffect } from "react";
@@ -82,7 +82,7 @@ export const useAssistantForm = <
     formState: { isSubmitting },
   } = form;
 
-  const api = useAssistantApi();
+  const aui = useAui();
   useEffect(() => {
     const value: ModelContext = {
       system: `Form State:\n${JSON.stringify(getValues())}`,
@@ -144,10 +144,10 @@ export const useAssistantForm = <
         }),
       },
     };
-    return api.modelContext().register({
+    return aui.modelContext().register({
       getModelContext: () => value,
     });
-  }, [control, setValue, getValues, api, reset, isSubmitting]);
+  }, [control, setValue, getValues, aui, reset, isSubmitting]);
 
   const renderFormFieldTool = props?.assistant?.tools?.set_form_field?.render;
   useAssistantToolUI(

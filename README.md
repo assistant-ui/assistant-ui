@@ -13,11 +13,12 @@
 [![npm version](https://img.shields.io/npm/v/assistant-ui)](https://www.npmjs.com/package/@assistant-ui/react)
 [![npm downloads](https://img.shields.io/npm/dm/@assistant-ui/react)](https://www.npmjs.com/package/@assistant-ui/react)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/assistant-ui/assistant-ui)
-[![Manta Graph badge](https://getmanta.ai/api/badges?text=Manta%20Graph&link=assistant-ui)](https://getmanta.ai/assistant-ui)
 [![Weave Badge](https://img.shields.io/endpoint?url=https%3A%2F%2Fapp.workweave.ai%2Fapi%2Frepository%2Fbadge%2Forg_GhSIrtWo37b5B3Mv0At3wQ1Q%2F722184017&cacheSeconds=3600)](https://app.workweave.ai/reports/repository/org_GhSIrtWo37b5B3Mv0At3wQ1Q/722184017)
+![GitHub License](https://img.shields.io/github/license/assistant-ui/assistant-ui)
 ![Backed by Y Combinator](https://img.shields.io/badge/Backed_by-Y_Combinator-orange)
+<!-- [![Manta Graph badge](https://getmanta.ai/api/badges?text=Manta%20Graph&link=assistant-ui)](https://getmanta.ai/assistant-ui) -->
 
-- [⭐️ Star us on GitHub](https://github.com/assistant-ui/assistant-ui)
+[⭐️ Star us on GitHub](https://github.com/assistant-ui/assistant-ui)
 
 ## The UX of ChatGPT in your React app 💬🚀
 
@@ -78,19 +79,30 @@ Sample customization to make a Perplexity lookalike:
 
 ![Perplexity clone created with assistant-ui](https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/.github/assets/perplexity.gif)
 
-## Demos
-
-[![Short Demo](https://img.youtube.com/vi/ZW56UHlqTCQ/hqdefault.jpg)](https://youtu.be/ZW56UHlqTCQ)
-
-[![Long Demo](https://img.youtube.com/vi/9eLKs9AM4tU/hqdefault.jpg)](https://youtu.be/9eLKs9AM4tU)
-
 ## Traction
 
-Hundreds of projects use assistant-ui to build in-app AI assistants, including companies like LangChain, AthenaIntelligence, Browser Use, and more.
+assistant-ui is the most popular UI library for building AI chat.
 
-With >700k monthly downloads, assistant-ui is one of the most popular UI libraries for building AI chat.
+Hundreds of companies and projects use assistant-ui to build in-app AI assistants, including <a href="https://langchain.com/?ref=assistant-ui"><img src="https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/.github/assets/logos/LangChain.svg" height="16" alt="LangChain"></a>, <a href="https://athenaintelligence.ai/?ref=assistant-ui"><img src="https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/.github/assets/logos/Athena-Intelligence.svg" height="16" alt="Athena Intelligence"></a>, <a href="https://browser-use.com/?ref=assistant-ui"><img src="https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/.github/assets/logos/Browser-Use.svg" height="16" alt="Browser Use"></a>, <a href="https://stack-ai.com/?ref=assistant-ui"><img src="https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/.github/assets/logos/Stack.svg" height="16" alt="Stack"></a>, <a href="https://inconvo.com/?ref=assistant-ui"><img src="https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/.github/assets/logos/Inconvo.svg" height="16" alt="Inconvo"></a>, <a href="https://helicone.ai/?ref=assistant-ui"><img src="https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/.github/assets/logos/helicone.svg" height="16" alt="Helicone"></a>, <a href="https://getgram.ai/?ref=assistant-ui"><img src="https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/.github/assets/logos/gram.svg" height="16" alt="Gram"></a>, <a href="https://coreviz.io/?ref=assistant-ui"><img src="https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/.github/assets/logos/Coreviz.svg" height="16" alt="Coreviz"></a>, and more. 
 
-<img width="382" height="266" alt="image" src="https://github.com/user-attachments/assets/20d66a58-25c3-4b3d-b169-0cbb34c725a9" />
+![Chart of assistant-ui's traction](https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/.github/assets/traction.png)
+
+## Demos
+
+<table>
+  <tr>
+    <td align="center">
+      <a href="https://youtu.be/ZW56UHlqTCQ">
+        <img src="https://img.youtube.com/vi/ZW56UHlqTCQ/hqdefault.jpg" alt="Short Demo" />
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://youtu.be/9eLKs9AM4tU">
+        <img src="https://img.youtube.com/vi/9eLKs9AM4tU/hqdefault.jpg" alt="Long Demo" />
+      </a>
+    </td>
+  </tr>
+</table>
 
 ## Community & Support
 

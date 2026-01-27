@@ -1,6 +1,6 @@
 {
   "name": "chatgpt-app-studio",
-  "version": "0.3.1",
+  "version": "0.3.3",
   "description": "Create ChatGPT App projects with one command",
   "keywords": [
     "chatgpt",
@@ -42,17 +42,17 @@
   "dependencies": {
     "@clack/prompts": "^0.11.0",
     "picocolors": "^1.1.1",
-    "tar": "^7.4.3"
+    "tar": "^7.5.6"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^22.10.0",
+    "@types/node": "^25.0.10",
     "@types/tar": "^6.1.13",
-    "@vitest/coverage-v8": "^4.0.16",
-    "tsup": "^8.4.0",
+    "@vitest/coverage-v8": "^4.0.18",
+    "tsup": "^8.5.1",
     "tsx": "^4.21.0",
-    "typescript": "^5.8.3",
-    "vitest": "^4.0.16"
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
   },
   "publishConfig": {
     "access": "public"

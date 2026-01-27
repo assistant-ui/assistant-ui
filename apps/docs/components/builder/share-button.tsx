@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import { Check, Link2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { analytics } from "@/lib/analytics";
 
 interface ShareButtonProps {
   className?: string;
@@ -12,6 +13,7 @@ export function ShareButton({ className }: ShareButtonProps) {
   const [copied, setCopied] = useState(false);
 
   const handleShare = useCallback(async () => {
+    analytics.builder.shareClicked();
     const url = window.location.href;
 
     // Try Web Share API on mobile
@@ -63,12 +65,12 @@ export function ShareButton({ className }: ShareButtonProps) {
       {copied ? (
         <>
           <Check className="size-3.5" />
-          Copied!
+          <span className="hidden sm:inline">Copied!</span>
         </>
       ) : (
         <>
           <Link2 className="size-3.5" />
-          Share
+          <span className="hidden sm:inline">Share</span>
         </>
       )}
     </button>

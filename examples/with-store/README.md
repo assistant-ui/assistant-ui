@@ -95,14 +95,14 @@ const FooListResource = resource(
 
 ```typescript
 const FooProvider = ({ index, children }) => {
-  const aui = useAssistantClient({
+  const aui = useAui({
     foo: Derived({
       source: "fooList",
       query: { index },
       get: (aui) => aui.fooList().foo({ index }),
     }),
   });
-  return <AssistantProvider client={aui}>{children}</AssistantProvider>;
+  return <AuiProvider value={aui}>{children}</AuiProvider>;
 };
 ```
 
@@ -110,12 +110,12 @@ const FooProvider = ({ index, children }) => {
 
 ```typescript
 // Subscribe to specific events within a scope
-useAssistantEvent("foo.updated", (payload) => {
+useAuiEvent("foo.updated", (payload) => {
   console.log(`Updated to: ${payload.newValue}`);
 });
 
 // Subscribe to all events using wildcard
-useAssistantEvent("*", (data) => {
+useAuiEvent("*", (data) => {
   console.log(data.event, data.payload);
 });
 ```

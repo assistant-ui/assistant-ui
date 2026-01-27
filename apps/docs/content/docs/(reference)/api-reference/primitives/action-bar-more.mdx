@@ -284,22 +284,22 @@ You can combine the dropdown menu items with action hooks from ActionBarPrimitiv
 import {
   ActionBarPrimitive,
   ActionBarMorePrimitive,
-  useAssistantApi,
-  useAssistantState,
+  useAui,
+  useAuiState,
 } from "@assistant-ui/react";
 import { useCallback } from "react";
 
 const useEditAction = () => {
-  const api = useAssistantApi();
-  const disabled = useAssistantState(({ composer }) => composer.isEditing);
-  const callback = useCallback(() => api.composer().beginEdit(), [api]);
+  const aui = useAui();
+  const disabled = useAuiState(({ composer }) => composer.isEditing);
+  const callback = useCallback(() => aui.composer().beginEdit(), [aui]);
   if (disabled) return null;
   return callback;
 };
 
 const useSpeakAction = () => {
-  const api = useAssistantApi();
-  return useCallback(() => api.message().speak(), [api]);
+  const aui = useAui();
+  return useCallback(() => aui.message().speak(), [aui]);
 };
 
 const MoreActionsWithHooks = () => {

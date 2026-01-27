@@ -207,9 +207,9 @@ export default function PlaygroundPage() {
               container={previewContainerRef}
               onOpenCodeView={() => setShowCode(true)}
             >
-              <button className="flex items-center gap-1.5 rounded-md bg-foreground px-3 py-1.5 font-medium text-background text-xs transition-colors hover:bg-foreground/90">
+              <button className="flex items-center gap-1.5 rounded-md bg-foreground px-2.5 py-1 font-medium text-background text-xs transition-colors hover:bg-foreground/90">
                 <SquareTerminal className="size-3.5" />
-                Create Project
+                <span className="hidden sm:inline">Create Project</span>
               </button>
             </CreateDialog>
           </div>

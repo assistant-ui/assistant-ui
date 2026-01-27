@@ -1,22 +1,21 @@
 "use client";
 
 import { useCallback } from "react";
-import { useAssistantState, useAssistantApi } from "../../context";
+import { useAui } from "@assistant-ui/store";
 import type {
   ActionButtonElement,
   ActionButtonProps,
 } from "../../utils/createActionButton";
 import { createActionButton } from "../../utils/createActionButton";
+import { useAuiState } from "@assistant-ui/store";
 
 const useComposerStopDictation = () => {
-  const api = useAssistantApi();
-  const isDictating = useAssistantState(
-    ({ composer }) => composer.dictation != null,
-  );
+  const aui = useAui();
+  const isDictating = useAuiState(({ composer }) => composer.dictation != null);
 
   const callback = useCallback(() => {
-    api.composer().stopDictation();
-  }, [api]);
+    aui.composer().stopDictation();
+  }, [aui]);
 
   if (!isDictating) return null;
   return callback;

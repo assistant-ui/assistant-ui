@@ -89,11 +89,13 @@ function Tab({
   defaultActiveIndex = 0,
   variant = "ghost",
   orientation,
+  onTabChange,
   ...props
 }: React.ComponentProps<"div"> & {
   tabs: TabItem[];
   defaultActiveIndex?: number;
   variant?: "ghost" | "default" | "outline" | "secondary" | "link";
+  onTabChange?: (label: string, index: number) => void;
 } & VariantProps<typeof tabSwitcherVariants>) {
   const pathname = usePathname();
   const [hoveredIndex, setHoveredIndex] = React.useState<number | null>(null);
@@ -178,6 +180,9 @@ function Tab({
     // Only handle key events for content tabs (tabs with value)
     if (tab?.value !== undefined && (e.key === "Enter" || e.key === " ")) {
       e.preventDefault();
+      if (index !== contentActiveIndex) {
+        onTabChange?.(tab.label, index);
+      }
       setContentActiveIndex(index);
     }
   };
@@ -186,6 +191,9 @@ function Tab({
     const tab = tabs[index];
     // Only set active index for content tabs (tabs with value)
     if (tab?.value !== undefined) {
+      if (index !== contentActiveIndex) {
+        onTabChange?.(tab.label, index);
+      }
       setContentActiveIndex(index);
     }
   };

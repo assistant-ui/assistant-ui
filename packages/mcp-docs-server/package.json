@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/mcp-docs-server",
-  "version": "0.1.18",
+  "version": "0.1.20",
   "description": "MCP server for assistant-ui documentation and examples",
   "keywords": [
     "mcp",
@@ -41,15 +41,15 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.25.2",
+    "@modelcontextprotocol/sdk": "^1.25.3",
     "gray-matter": "^4.0.3",
-    "zod": "^4.3.5"
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^25.0.3",
+    "@types/node": "^25.0.10",
     "tsx": "^4.21.0",
-    "vitest": "^4.0.16"
+    "vitest": "^4.0.18"
   },
   "publishConfig": {
     "access": "public",

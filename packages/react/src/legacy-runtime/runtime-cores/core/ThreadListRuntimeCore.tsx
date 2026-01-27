@@ -21,7 +21,7 @@ export type ThreadListRuntimeCore = {
   threadIds: readonly string[];
   archivedThreadIds: readonly string[];
 
-  readonly threadData: Readonly<Record<string, ThreadListItemCoreState>>;
+  readonly threadItems: Readonly<Record<string, ThreadListItemCoreState>>;
 
   getMainThreadRuntimeCore(): ThreadRuntimeCore;
   getThreadRuntimeCore(threadId: string): ThreadRuntimeCore;

@@ -15,6 +15,7 @@ import {
   DataStreamDecoder,
   AssistantTransportDecoder,
   unstable_createInitialMessage as createInitialMessage,
+  toToolsJSONSchema,
 } from "assistant-stream";
 import {
   AssistantTransportOptions,
@@ -28,10 +29,10 @@ import { useCommandQueue } from "./commandQueue";
 import { useRunManager } from "./runManager";
 import { useConvertedState } from "./useConvertedState";
 import { ToolExecutionStatus, useToolInvocations } from "./useToolInvocations";
-import { toAISDKTools, getEnabledTools, createRequestHeaders } from "./utils";
+import { createRequestHeaders } from "./utils";
 import { useRemoteThreadListRuntime } from "../remote-thread-list/useRemoteThreadListRuntime";
 import { InMemoryThreadListAdapter } from "../remote-thread-list/adapter/in-memory";
-import { useAssistantApi, useAssistantState } from "../../../context/react";
+import { useAui, useAuiState } from "@assistant-ui/store";
 import { UserExternalState } from "../../../augmentations";
 
 const symbolAssistantTransportExtras = Symbol("assistant-transport-extras");
@@ -57,10 +58,10 @@ const asAssistantTransportExtras = (
 };
 
 export const useAssistantTransportSendCommand = () => {
-  const api = useAssistantApi();
+  const aui = useAui();
 
   return (command: AssistantTransportCommand) => {
-    const extras = api.thread().getState().extras;
+    const extras = aui.thread().getState().extras;
     const transportExtras = asAssistantTransportExtras(extras);
     transportExtras.sendCommand(command);
   };
@@ -73,7 +74,7 @@ export function useAssistantTransportState<T>(
 export function useAssistantTransportState<T>(
   selector: (state: UserExternalState) => T = (t) => t as T,
 ): T | UserExternalState {
-  return useAssistantState(({ thread }) =>
+  return useAuiState(({ thread }) =>
     selector(asAssistantTransportExtras(thread.extras).state),
   );
 }
@@ -89,9 +90,7 @@ const useAssistantTransportThreadRuntime = <T,>(
     onQueue: () => runManager.schedule(),
   });
 
-  const threadId = useAssistantState(
-    ({ threadListItem }) => threadListItem.remoteId,
-  );
+  const threadId = useAuiState(({ threadListItem }) => threadListItem.remoteId);
 
   const runManager = useRunManager({
     onRun: async (signal: AbortSignal) => {
@@ -117,9 +116,7 @@ const useAssistantTransportThreadRuntime = <T,>(
             commands,
             state: agentStateRef.current,
             system: context.system,
-            tools: context.tools
-              ? toAISDKTools(getEnabledTools(context.tools))
-              : undefined,
+            tools: context.tools ? toToolsJSONSchema(context.tools) : undefined,
             threadId,
             ...(parentIdRef.current !== undefined && {
               parentId: parentIdRef.current,

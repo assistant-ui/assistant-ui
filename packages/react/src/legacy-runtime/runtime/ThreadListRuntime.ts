@@ -18,9 +18,9 @@ import { NestedSubscriptionSubject } from "./subscribable/NestedSubscriptionSubj
 
 export type ThreadListState = {
   readonly mainThreadId: string;
-  readonly newThread: string | undefined;
-  readonly threads: readonly string[];
-  readonly archivedThreads: readonly string[];
+  readonly newThreadId: string | undefined;
+  readonly threadIds: readonly string[];
+  readonly archivedThreadIds: readonly string[];
   readonly isLoading: boolean;
   readonly threadItems: Readonly<
     Record<string, Omit<ThreadListItemState, "isMain" | "threadId">>
@@ -49,11 +49,11 @@ const getThreadListState = (
 ): ThreadListState => {
   return {
     mainThreadId: threadList.mainThreadId,
-    newThread: threadList.newThreadId,
-    threads: threadList.threadIds,
-    archivedThreads: threadList.archivedThreadIds,
+    newThreadId: threadList.newThreadId,
+    threadIds: threadList.threadIds,
+    archivedThreadIds: threadList.archivedThreadIds,
     isLoading: threadList.isLoading,
-    threadItems: threadList.threadData,
+    threadItems: threadList.threadItems,
   };
 };
 
@@ -67,7 +67,6 @@ const getThreadListItemState = (
   if (!threadData) return SKIP_UPDATE;
   return {
     id: threadData.id,
-    threadId: threadData.id, // TODO remove in 0.12.0
     remoteId: threadData.remoteId,
     externalId: threadData.externalId,
     title: threadData.title,

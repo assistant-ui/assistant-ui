@@ -20,7 +20,7 @@ export function useAgUiRuntime(
   options: UseAgUiRuntimeOptions,
 ): AssistantRuntime {
   const logger = useMemo(() => makeLogger(options.logger), [options.logger]);
-  const [version, setVersion] = useState(0);
+  const [_version, setVersion] = useState(0);
   const notifyUpdate = useCallback(() => setVersion((v) => v + 1), []);
   const coreRef = useRef<AgUiThreadRuntimeCore | null>(null);
   const runtimeAdapters = useRuntimeAdapters();
@@ -65,8 +65,11 @@ export function useAgUiRuntime(
   }, [attachmentsAdapter, speechAdapter, dictationAdapter, feedbackAdapter]);
 
   const store = useMemo(
-    () =>
-      ({
+    () => {
+      void _version; // rerender on version change
+
+      return {
+        isLoading: core.isLoading,
         messages: core.getMessages(),
         state: core.getState(),
         isRunning: core.isRunning(),
@@ -84,9 +87,10 @@ export function useAgUiRuntime(
         onLoadExternalState: (state: ReadonlyJSONValue) =>
           core.loadExternalState(state),
         adapters: adapterAdapters,
-      }) satisfies ExternalStoreAdapter<ThreadMessage>,
-    // version is intentionally included to trigger re-computation when core state changes via notifyUpdate
-    [adapterAdapters, core, version],
+      } satisfies ExternalStoreAdapter<ThreadMessage>;
+    },
+    // _version is intentionally included to trigger re-computation when core state changes via notifyUpdate
+    [adapterAdapters, core, _version],
   );
 
   const runtime = useExternalStoreRuntime(store);
@@ -97,6 +101,10 @@ export function useAgUiRuntime(
       core.detachRuntime();
     };
   }, [core, runtime]);
+
+  useEffect(() => {
+    core.__internal_load();
+  }, [core]);
 
   return runtime;
 }

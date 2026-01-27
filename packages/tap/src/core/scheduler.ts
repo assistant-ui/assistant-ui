@@ -68,6 +68,9 @@ const flushScheduled = () => {
       if (errors.length === 1) {
         throw errors[0];
       } else {
+        for (const error of errors) {
+          console.error(error);
+        }
         throw new AggregateError(errors, "Errors occurred during flushSync");
       }
     }
@@ -77,7 +80,7 @@ const flushScheduled = () => {
   }
 };
 
-export const flushSync = <T>(callback: () => T): T => {
+export const flushResourcesSync = <T>(callback: () => T): T => {
   const prev = flushState;
   flushState = {
     schedulers: new Set([]),

@@ -306,6 +306,10 @@ html:has(#nd-docs-layout) {
     margin-top: 0 !important;
   }
 
+  & :where(h2 + ul, h3 + ul, h4 + ul, h2 + ol, h3 + ol, h4 + ol):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    margin-top: 0.5rem !important;
+  }
+
   & :where(img):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
     margin-left: auto !important;
     margin-right: auto !important;
@@ -423,16 +427,13 @@ figure.shiki {
   }
 }
 
-/* Code blocks inside tabs */
-[role="tabpanel"] > figure.shiki {
-  &:first-child {
+/* Content inside tabs */
+[role="tabpanel"] {
+  & > :first-child {
     margin-top: 0 !important;
   }
-  &:last-child {
+  & > :last-child {
     margin-bottom: 0 !important;
-  }
-  &:only-child {
-    margin: 0 !important;
   }
 }
 

@@ -1,0 +1,99 @@
+---
+title: Image
+description: Display image message parts with preview, loading states, and fullscreen dialog.
+---
+
+import { InstallCommand } from "@/components/docs/fumadocs/install/install-command";
+import { ImageSample } from "@/components/docs/samples/image";
+
+<ImageSample />
+
+## Getting Started
+
+<Steps>
+  <Step>
+
+### Add `image`
+
+<InstallCommand shadcn={["image"]} />
+
+  </Step>
+  <Step>
+
+### Use in your application
+
+Pass `Image` to `MessagePrimitive.Parts`:
+
+```tsx title="/components/assistant-ui/thread.tsx" {1,8}
+import { Image } from "@/components/assistant-ui/image";
+
+const AssistantMessage: FC = () => {
+  return (
+    <MessagePrimitive.Root className="...">
+      <MessagePrimitive.Parts
+        components={{
+          Image,
+        }}
+      />
+    </MessagePrimitive.Root>
+  );
+};
+```
+
+  </Step>
+</Steps>
+
+## Variants
+
+Use the `variant` prop to change the visual style.
+
+```tsx
+<Image.Root variant="outline" /> // Border (default)
+<Image.Root variant="ghost" />   // No border
+<Image.Root variant="muted" />   // Background fill
+```
+
+## Sizes
+
+Use the `size` prop to control the maximum width.
+
+```tsx
+<Image.Root size="sm" />      // max-w-64 (256px)
+<Image.Root size="default" /> // max-w-96 (384px)
+<Image.Root size="lg" />      // max-w-[512px]
+<Image.Root size="full" />    // w-full
+```
+
+## Composable API
+
+The component exports composable sub-components:
+
+```tsx
+import {
+  Image,
+  ImageRoot,
+  ImagePreview,
+  ImageFilename,
+  ImageZoom,
+} from "@/components/assistant-ui/image";
+
+<ImageRoot variant="muted" size="lg">
+  <ImageZoom src="https://example.com/photo.jpg" alt="Photo">
+    <ImagePreview src="https://example.com/photo.jpg" alt="Photo" />
+  </ImageZoom>
+  <ImageFilename>photo.jpg</ImageFilename>
+</ImageRoot>
+```
+
+| Component | Description |
+|-----------|-------------|
+| `Image` | Default export, renders complete image part |
+| `Image.Root` | Container with variant and size styling |
+| `Image.Preview` | Image container with loading/error states |
+| `Image.Filename` | Optional filename display below image |
+| `Image.Zoom` | Medium-style zoom overlay (click to expand, ESC to close) |
+
+## Related
+
+- [Attachment](/docs/ui/attachment) - File attachments in composer and messages
+- [File](/docs/ui/file) - Non-image file message parts

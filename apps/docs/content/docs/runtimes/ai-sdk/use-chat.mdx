@@ -38,7 +38,7 @@ cd my-app
 
 ```tsx
 import { openai } from "@ai-sdk/openai";
-import { streamText, UIMessage, convertToModelMessages, tool } from "ai";
+import { streamText, UIMessage, convertToModelMessages, tool, zodSchema } from "ai";
 import { frontendTools } from "@assistant-ui/react-ai-sdk";
 import { z } from "zod";
 
@@ -66,9 +66,11 @@ export async function POST(req: Request) {
       // Backend tools
       get_current_weather: tool({
         description: "Get the current weather",
-        inputSchema: z.object({
-          city: z.string(),
-        }),
+        inputSchema: zodSchema(
+          z.object({
+            city: z.string(),
+          }),
+        ),
         execute: async ({ city }) => {
           return `The weather in ${city} is sunny`;
         },
@@ -214,4 +216,4 @@ const runtime = useAISDKRuntime(chat);
 
 ## Example
 
-For a complete example, check out the [AI SDK v5 example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-ai-sdk-v5) in our repository.
+For a complete example, check out the [AI SDK v6 example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-ai-sdk-v6) in our repository.

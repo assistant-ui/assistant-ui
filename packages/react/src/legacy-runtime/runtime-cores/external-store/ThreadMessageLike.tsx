@@ -85,12 +85,10 @@ export const fromThreadMessageLike = (
     image,
     ...rest
   }: ImageMessagePart): ImageMessagePart | null => {
-    // Accept base64 data URIs
-    const isBase64 = /^data:image\/(png|jpeg|jpg|gif|webp);base64,/.test(image);
-    // Accept HTTP/HTTPS URLs (e.g., from cloud storage)
-    const isUrl = /^https?:\/\//.test(image);
-
-    if (isBase64 || isUrl) {
+    const match = image.match(
+      /^data:image\/(png|jpeg|jpg|gif|webp);base64,(.*)$/,
+    );
+    if (match) {
       return { ...rest, image };
     }
     console.warn(`Invalid image data format detected`);

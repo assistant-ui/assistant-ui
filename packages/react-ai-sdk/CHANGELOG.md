@@ -1,5 +1,53 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.3.2
+
+### Patch Changes
+
+- 605d825: chore: update dependencies
+- Updated dependencies [1ea3e28]
+- Updated dependencies [8cbf686]
+- Updated dependencies [a8be364]
+- Updated dependencies [605d825]
+  - @assistant-ui/react@0.12.2
+  - assistant-cloud@0.1.14
+
+## 1.3.1
+
+### Patch Changes
+
+- 5876c0f: feat(react-ai-sdk): propagate ModelContext config (modelName) through AssistantChatTransport
+- Updated dependencies [8672695]
+  - @assistant-ui/react@0.12.1
+
+## 1.2.1
+
+### Patch Changes
+
+- 083ed83: fix(cloud): serialize image and file parts across all formats
+- Updated dependencies [6eab31e]
+- Updated dependencies [9314b36]
+- Updated dependencies [083ed83]
+- Updated dependencies [6511990]
+- Updated dependencies [a526e63]
+  - @assistant-ui/react@0.11.60
+
+## 1.2.0
+
+### Minor Changes
+
+- 6fd744a: Upgrade to Vercel AI SDK v6
+  - Updated peer dependencies: `ai@^6.0.0`, `@ai-sdk/react@^3.0.0`
+  - Renamed format adapter from `aiSDKV5FormatAdapter` to `aiSDKV6FormatAdapter`
+  - Updated `@ai-sdk/provider` to use LanguageModelV2 types
+
+### Patch Changes
+
+- 3719567: chore: update deps
+- Updated dependencies [3719567]
+  - assistant-cloud@0.1.13
+  - @assistant-ui/react@0.11.58
+
 ## 1.1.21
 
 ### Patch Changes

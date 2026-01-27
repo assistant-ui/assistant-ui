@@ -11,8 +11,8 @@ import {
   AssistantCloud,
   unstable_useCloudThreadListAdapter,
   unstable_useRemoteThreadListRuntime,
-  useAssistantApi,
-  useAssistantState,
+  useAui,
+  useAuiState,
   useExternalMessageConverter,
   useExternalStoreRuntime,
 } from "@assistant-ui/react";
@@ -115,7 +115,7 @@ const asLangGraphRuntimeExtras = (extras: unknown): LangGraphRuntimeExtras => {
 };
 
 export const useLangGraphInterruptState = () => {
-  const interrupt = useAssistantState(({ thread }) => {
+  const interrupt = useAuiState(({ thread }) => {
     const extras = thread.extras;
     if (!extras) return undefined;
     return asLangGraphRuntimeExtras(extras).interrupt;
@@ -124,10 +124,10 @@ export const useLangGraphInterruptState = () => {
 };
 
 export const useLangGraphSend = () => {
-  const api = useAssistantApi();
+  const aui = useAui();
 
   return (messages: LangChainMessage[], config: LangGraphSendMessageConfig) => {
-    const extras = api.thread().getState().extras;
+    const extras = aui.thread().getState().extras;
     const { send } = asLangGraphRuntimeExtras(extras);
     return send(messages, config);
   };
@@ -217,8 +217,6 @@ const useLangGraphRuntimeImpl = ({
     try {
       setIsRunning(true);
       await sendMessage(messages, config);
-    } catch (error) {
-      console.error("Error streaming messages:", error);
     } finally {
       setIsRunning(false);
     }
@@ -302,7 +300,7 @@ const useLangGraphRuntimeImpl = ({
   });
 
   {
-    const api = useAssistantApi();
+    const aui = useAui();
 
     const loadRef = useRef(load);
     useEffect(() => {
@@ -313,14 +311,14 @@ const useLangGraphRuntimeImpl = ({
       const load = loadRef.current;
       if (!load) return;
 
-      const externalId = api.threadListItem().getState().externalId;
+      const externalId = aui.threadListItem().getState().externalId;
       if (externalId == null) return;
 
       load(externalId).then(({ messages, interrupts }) => {
         setMessages(messages);
         setInterrupt(interrupts?.[0]);
       });
-    }, [api, setMessages, setInterrupt]);
+    }, [aui, setMessages, setInterrupt]);
   }
 
   return runtime;
@@ -332,7 +330,7 @@ export const useLangGraphRuntime = ({
   delete: deleteFn,
   ...options
 }: UseLangGraphRuntimeOptions) => {
-  const api = useAssistantApi();
+  const aui = useAui();
   const cloudAdapter = unstable_useCloudThreadListAdapter({
     cloud,
     create: async () => {
@@ -340,8 +338,8 @@ export const useLangGraphRuntime = ({
         return create();
       }
 
-      if (api.threadListItem.source) {
-        return api.threadListItem().initialize();
+      if (aui.threadListItem.source) {
+        return aui.threadListItem().initialize();
       }
 
       throw new Error(

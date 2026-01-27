@@ -1,5 +1,39 @@
 # @assistant-ui/react-ag-ui
 
+## 0.0.11
+
+### Patch Changes
+
+- 605d825: chore: update dependencies
+- Updated dependencies [1ea3e28]
+- Updated dependencies [8cbf686]
+- Updated dependencies [a8be364]
+- Updated dependencies [605d825]
+  - @assistant-ui/react@0.12.2
+  - assistant-stream@0.2.48
+
+## 0.0.10
+
+### Patch Changes
+
+- c7b7897: fix(react-ag-ui): load history on runtime initialization
+- 7073ccc: fix(react-ag-ui): use `threadId` instead of hardcoded `main`
+- Updated dependencies [6eab31e]
+- Updated dependencies [9314b36]
+- Updated dependencies [083ed83]
+- Updated dependencies [6511990]
+- Updated dependencies [a526e63]
+  - @assistant-ui/react@0.11.60
+
+## 0.0.9
+
+### Patch Changes
+
+- 3719567: chore: update deps
+- Updated dependencies [3719567]
+  - assistant-stream@0.2.47
+  - @assistant-ui/react@0.11.58
+
 ## 0.0.8
 
 ### Patch Changes

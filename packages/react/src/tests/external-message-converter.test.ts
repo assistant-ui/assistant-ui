@@ -1,16 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { convertExternalMessages } from "../legacy-runtime/runtime-cores/external-store/external-message-converter";
 import type { useExternalMessageConverter } from "../legacy-runtime/runtime-cores/external-store/external-message-converter";
+import { isErrorMessageId } from "../utils/idUtils";
 
-/**
- * Tests for the external message converter, specifically the joinExternalMessages logic.
- */
 describe("convertExternalMessages", () => {
   describe("reasoning part merging", () => {
-    /**
-     * Tests that reasoning parts with the same parentId are merged together.
-     * The text should be concatenated with a double newline separator.
-     */
     it("should merge reasoning parts with the same parentId", () => {
       const messages = [
         {
@@ -56,9 +50,6 @@ describe("convertExternalMessages", () => {
       expect((reasoningParts[0] as any).parentId).toBe("parent1");
     });
 
-    /**
-     * Tests that reasoning parts without parentId remain separate.
-     */
     it("should keep reasoning parts without parentId separate", () => {
       const messages = [
         {
@@ -89,9 +80,6 @@ describe("convertExternalMessages", () => {
       expect((reasoningParts[1] as any).text).toBe("Second reasoning");
     });
 
-    /**
-     * Tests that reasoning parts with different parentIds remain separate.
-     */
     it("should keep reasoning parts with different parentIds separate", () => {
       const messages = [
         {
@@ -134,9 +122,6 @@ describe("convertExternalMessages", () => {
       expect((reasoningParts[1] as any).parentId).toBe("parent2");
     });
 
-    /**
-     * Tests that tool result merging still works correctly alongside reasoning merging.
-     */
     it("should still merge tool results with matching tool calls", () => {
       const messages = [
         {
@@ -172,6 +157,110 @@ describe("convertExternalMessages", () => {
       );
       expect(toolCallParts).toHaveLength(1);
       expect((toolCallParts[0] as any).result).toEqual({ data: "result" });
+    });
+  });
+
+  describe("synthetic error message", () => {
+    it("should create synthetic error message when error exists and no messages", () => {
+      const messages: never[] = [];
+      const callback: useExternalMessageConverter.Callback<never> = (msg) =>
+        msg;
+
+      const result = convertExternalMessages(messages, callback, false, {
+        error: "API key is missing",
+      });
+
+      expect(result).toHaveLength(1);
+      expect(result[0]!.role).toBe("assistant");
+      expect(result[0]!.content).toHaveLength(0);
+      expect(result[0]!.status).toEqual({
+        type: "incomplete",
+        reason: "error",
+        error: "API key is missing",
+      });
+      expect(isErrorMessageId(result[0]!.id)).toBe(true);
+    });
+
+    it("should create synthetic error message when error exists and last message is user", () => {
+      const messages = [
+        {
+          id: "user1",
+          role: "user" as const,
+          content: "Hello",
+        },
+      ];
+
+      const callback: useExternalMessageConverter.Callback<
+        (typeof messages)[number]
+      > = (msg) => msg;
+
+      const result = convertExternalMessages(messages, callback, false, {
+        error: { message: "Invalid API key" },
+      });
+
+      expect(result).toHaveLength(2);
+      expect(result[0]!.role).toBe("user");
+      expect(result[1]!.role).toBe("assistant");
+      expect(result[1]!.content).toHaveLength(0);
+      expect(result[1]!.status).toEqual({
+        type: "incomplete",
+        reason: "error",
+        error: { message: "Invalid API key" },
+      });
+      expect(isErrorMessageId(result[1]!.id)).toBe(true);
+    });
+
+    it("should not create synthetic error message when last message is assistant", () => {
+      const messages = [
+        {
+          id: "user1",
+          role: "user" as const,
+          content: "Hello",
+        },
+        {
+          id: "assistant1",
+          role: "assistant" as const,
+          content: "Hi there",
+        },
+      ];
+
+      const callback: useExternalMessageConverter.Callback<
+        (typeof messages)[number]
+      > = (msg) => msg;
+
+      const result = convertExternalMessages(messages, callback, false, {
+        error: "Connection error",
+      });
+
+      expect(result).toHaveLength(2);
+      expect(result[0]!.role).toBe("user");
+      expect(result[1]!.role).toBe("assistant");
+      expect(result[1]!.id).toBe("assistant1");
+      expect(result[1]!.status).toMatchObject({
+        type: "incomplete",
+        reason: "error",
+        error: "Connection error",
+      });
+      expect(isErrorMessageId(result[1]!.id)).toBe(false);
+    });
+
+    it("should not create synthetic message when no error", () => {
+      const messages = [
+        {
+          id: "user1",
+          role: "user" as const,
+          content: "Hello",
+        },
+      ];
+
+      const callback: useExternalMessageConverter.Callback<
+        (typeof messages)[number]
+      > = (msg) => msg;
+
+      const result = convertExternalMessages(messages, callback, false, {});
+
+      expect(result).toHaveLength(1);
+      expect(result[0]!.role).toBe("user");
     });
   });
 });

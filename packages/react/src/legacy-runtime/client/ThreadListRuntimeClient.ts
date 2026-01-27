@@ -1,14 +1,19 @@
-import { tapApi } from "../../utils/tap-store";
-import { resource, tapInlineResource, tapMemo } from "@assistant-ui/tap";
+import {
+  withKey,
+  resource,
+  tapInlineResource,
+  tapMemo,
+} from "@assistant-ui/tap";
+import {
+  type ClientOutput,
+  tapClientLookup,
+  tapClientResource,
+} from "@assistant-ui/store";
 import { ThreadListRuntime } from "../runtime/ThreadListRuntime";
 import { tapSubscribable } from "../util-hooks/tapSubscribable";
 import { ThreadListItemClient } from "./ThreadListItemRuntimeClient";
 import { ThreadClient } from "./ThreadRuntimeClient";
-import { tapLookupResources } from "../../client/util-hooks/tapLookupResources";
-import {
-  ThreadListClientState,
-  ThreadListClientApi,
-} from "../../client/types/ThreadList";
+import { ThreadsState } from "../../types/scopes";
 import type { AssistantRuntime } from "../runtime/AssistantRuntime";
 
 const ThreadListItemClientById = resource(
@@ -32,64 +37,64 @@ export const ThreadListClient = resource(
   }: {
     runtime: ThreadListRuntime;
     __internal_assistantRuntime: AssistantRuntime;
-  }) => {
+  }): ClientOutput<"threads"> => {
     const runtimeState = tapSubscribable(runtime);
 
-    const main = tapInlineResource(
+    const main = tapClientResource(
       ThreadClient({
         runtime: runtime.main,
       }),
     );
 
-    const threadItems = tapLookupResources(
-      Object.keys(runtimeState.threadItems).map((id) => [
-        id,
-        ThreadListItemClientById({ runtime, id }),
-      ]),
+    const threadItems = tapClientLookup(
+      () =>
+        Object.keys(runtimeState.threadItems).map((id) =>
+          withKey(id, ThreadListItemClientById({ runtime, id })),
+        ),
+      [runtimeState.threadItems, runtime],
     );
 
-    const state = tapMemo<ThreadListClientState>(() => {
+    const state = tapMemo<ThreadsState>(() => {
       return {
         mainThreadId: runtimeState.mainThreadId,
-        newThreadId: runtimeState.newThread ?? null,
+        newThreadId: runtimeState.newThreadId ?? null,
         isLoading: runtimeState.isLoading,
-        threadIds: runtimeState.threads,
-        archivedThreadIds: runtimeState.archivedThreads,
+        threadIds: runtimeState.threadIds,
+        archivedThreadIds: runtimeState.archivedThreadIds,
         threadItems: threadItems.state,
 
         main: main.state,
       };
     }, [runtimeState, threadItems.state, main.state]);
 
-    return tapApi<ThreadListClientApi>({
-      getState: () => state,
+    return {
+      state,
+      methods: {
+        getState: () => state,
+        thread: () => main.methods,
+        item: (threadIdOrOptions) => {
+          if (threadIdOrOptions === "main") {
+            return threadItems.get({ key: state.mainThreadId });
+          }
 
-      thread: () => main.api,
+          if ("id" in threadIdOrOptions) {
+            return threadItems.get({ key: threadIdOrOptions.id });
+          }
 
-      item: (threadIdOrOptions) => {
-        if (threadIdOrOptions === "main") {
-          return threadItems.api({ key: state.mainThreadId });
-        }
-
-        if ("id" in threadIdOrOptions) {
-          return threadItems.api({ key: threadIdOrOptions.id });
-        }
-
-        const { index, archived = false } = threadIdOrOptions;
-        const id = archived
-          ? state.archivedThreadIds[index]!
-          : state.threadIds[index]!;
-        return threadItems.api({ key: id });
+          const { index, archived = false } = threadIdOrOptions;
+          const id = archived
+            ? state.archivedThreadIds[index]!
+            : state.threadIds[index]!;
+          return threadItems.get({ key: id });
+        },
+        switchToThread: async (threadId) => {
+          await runtime.switchToThread(threadId);
+        },
+        switchToNewThread: async () => {
+          await runtime.switchToNewThread();
+        },
+        __internal_getAssistantRuntime: () => __internal_assistantRuntime,
       },
-
-      switchToThread: (threadId) => {
-        runtime.switchToThread(threadId);
-      },
-      switchToNewThread: () => {
-        runtime.switchToNewThread();
-      },
-
-      __internal_getAssistantRuntime: () => __internal_assistantRuntime,
-    });
+    };
   },
 );

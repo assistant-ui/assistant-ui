@@ -233,7 +233,7 @@ function generateWrappersIndex(components: string[]): string {
   if (components.includes("poi-map")) {
     exports.push('export { POIMapSDK } from "./poi-map-sdk";');
   }
-  return exports.length > 0 ? exports.join("\n") + "\n" : "// No components\n";
+  return exports.length > 0 ? `${exports.join("\n")}\n` : "// No components\n";
 }
 
 function generateExamplesIndex(components: string[]): string {
@@ -244,7 +244,7 @@ function generateExamplesIndex(components: string[]): string {
   if (components.includes("poi-map")) {
     exports.push('export * from "./poi-map";');
   }
-  return exports.length > 0 ? exports.join("\n") + "\n" : "// No examples\n";
+  return exports.length > 0 ? `${exports.join("\n")}\n` : "// No examples\n";
 }
 
 function updateExportScriptDefaults(

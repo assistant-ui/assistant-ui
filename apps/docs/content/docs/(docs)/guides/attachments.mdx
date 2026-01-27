@@ -485,14 +485,14 @@ class ValidatedImageAdapter implements AttachmentAdapter {
 Enable multi-file selection with custom limits:
 
 ```tsx
-const api = useAssistantApi();
+const aui = useAui();
 
 const handleMultipleFiles = async (files: FileList) => {
   const maxFiles = 5;
   const filesToAdd = Array.from(files).slice(0, maxFiles);
 
   for (const file of filesToAdd) {
-    await api.composer().addAttachment({ file });
+    await aui.composer().addAttachment({ file });
   }
 };
 ```

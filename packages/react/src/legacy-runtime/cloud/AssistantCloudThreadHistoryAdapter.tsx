@@ -11,15 +11,12 @@ import {
 } from "../runtime-cores/adapters/thread-history/MessageFormatAdapter";
 import { GenericThreadHistoryAdapter } from "../runtime-cores/adapters/thread-history/ThreadHistoryAdapter";
 import { ReadonlyJSONObject } from "assistant-stream/utils";
-import {
-  AssistantApi,
-  useAssistantApi,
-} from "../../context/react/AssistantApiContext";
-import { ThreadListItemClientApi } from "../../client/types/ThreadListItem";
+import { AssistantClient, useAui } from "@assistant-ui/store";
+import { ThreadListItemMethods } from "../../types/scopes";
 
 // Global WeakMap to store message ID mappings across adapter instances
 const globalMessageIdMapping = new WeakMap<
-  ThreadListItemClientApi,
+  ThreadListItemMethods,
   Record<string, string | Promise<string>>
 >();
 
@@ -58,14 +55,14 @@ class FormattedThreadHistoryAdapter<TMessage, TStorageFormat>
 class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   constructor(
     private cloudRef: RefObject<AssistantCloud>,
-    private store: AssistantApi,
+    private aui: AssistantClient,
   ) {}
 
   private get _getIdForLocalId(): Record<string, string | Promise<string>> {
-    if (!globalMessageIdMapping.has(this.store.threadListItem())) {
-      globalMessageIdMapping.set(this.store.threadListItem(), {});
+    if (!globalMessageIdMapping.has(this.aui.threadListItem())) {
+      globalMessageIdMapping.set(this.aui.threadListItem(), {});
     }
-    return globalMessageIdMapping.get(this.store.threadListItem())!;
+    return globalMessageIdMapping.get(this.aui.threadListItem())!;
   }
 
   withFormat<TMessage, TStorageFormat>(
@@ -75,7 +72,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   }
 
   async append({ parentId, message }: ExportedMessageRepositoryItem) {
-    const { remoteId } = await this.store.threadListItem().initialize();
+    const { remoteId } = await this.aui.threadListItem().initialize();
     const task = this.cloudRef.current.threads.messages
       .create(remoteId, {
         parent_id: parentId
@@ -95,7 +92,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   }
 
   async load() {
-    const remoteId = this.store.threadListItem().getState().remoteId;
+    const remoteId = this.aui.threadListItem().getState().remoteId;
     if (!remoteId) return { messages: [] };
     const { messages } = await this.cloudRef.current.threads.messages.list(
       remoteId,
@@ -121,7 +118,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     format: string,
     content: T,
   ) {
-    const { remoteId } = await this.store.threadListItem().initialize();
+    const { remoteId } = await this.aui.threadListItem().initialize();
 
     const task = this.cloudRef.current.threads.messages
       .create(remoteId, {
@@ -147,7 +144,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
       message: MessageStorageEntry<TStorageFormat>,
     ) => MessageFormatItem<TMessage>,
   ): Promise<MessageFormatRepository<TMessage>> {
-    const remoteId = this.store.threadListItem().getState().remoteId;
+    const remoteId = this.aui.threadListItem().getState().remoteId;
     if (!remoteId) return { messages: [] };
 
     const { messages } = await this.cloudRef.current.threads.messages.list(
@@ -176,9 +173,9 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
 export const useAssistantCloudThreadHistoryAdapter = (
   cloudRef: RefObject<AssistantCloud>,
 ): ThreadHistoryAdapter => {
-  const store = useAssistantApi();
+  const aui = useAui();
   const [adapter] = useState(
-    () => new AssistantCloudThreadHistoryAdapter(cloudRef, store),
+    () => new AssistantCloudThreadHistoryAdapter(cloudRef, aui),
   );
 
   return adapter;

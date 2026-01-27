@@ -4,21 +4,20 @@ import {
   tapEffect,
   tapInlineResource,
   type tapRef,
+  withKey,
 } from "@assistant-ui/tap";
+import {
+  type ClientOutput,
+  tapAssistantEmit,
+  tapClientLookup,
+} from "@assistant-ui/store";
 import {
   ComposerRuntime,
   EditComposerRuntime,
 } from "../runtime/ComposerRuntime";
 import { Unsubscribe } from "../../types";
-
-import { tapApi } from "../../utils/tap-store";
 import { ComposerRuntimeEventType } from "../runtime-cores/core/ComposerRuntimeCore";
-import { tapEvents } from "../../client/EventContext";
-import {
-  ComposerClientState,
-  ComposerClientApi,
-} from "../../client/types/Composer";
-import { tapLookupResources } from "../../client/util-hooks/tapLookupResources";
+import { ComposerState } from "../../types/scopes";
 import { AttachmentRuntimeClient } from "./AttachmentRuntimeClient";
 import { tapSubscribable } from "../util-hooks/tapSubscribable";
 
@@ -46,9 +45,9 @@ export const ComposerClient = resource(
     threadIdRef: tapRef.RefObject<string>;
     messageIdRef?: tapRef.RefObject<string>;
     runtime: ComposerRuntime;
-  }) => {
+  }): ClientOutput<"composer"> => {
     const runtimeState = tapSubscribable(runtime);
-    const events = tapEvents();
+    const emit = tapAssistantEmit();
 
     // Bind composer events to event manager
     tapEffect(() => {
@@ -57,12 +56,12 @@ export const ComposerClient = resource(
       // Subscribe to composer events
       const composerEvents: ComposerRuntimeEventType[] = [
         "send",
-        "attachment-add",
+        "attachmentAdd",
       ];
 
       for (const event of composerEvents) {
         const unsubscribe = runtime.unstable_on(event, () => {
-          events.emit(`composer.${event}`, {
+          emit(`composer.${event}`, {
             threadId: threadIdRef.current,
             ...(messageIdRef && { messageId: messageIdRef.current }),
           });
@@ -73,16 +72,23 @@ export const ComposerClient = resource(
       return () => {
         for (const unsub of unsubscribers) unsub();
       };
-    }, [runtime, events, threadIdRef, messageIdRef]);
+    }, [runtime, emit, threadIdRef, messageIdRef]);
 
-    const attachments = tapLookupResources(
-      runtimeState.attachments.map((attachment, idx) => [
-        attachment.id,
-        ComposerAttachmentClientByIndex({ runtime: runtime, index: idx }),
-      ]),
+    const attachments = tapClientLookup(
+      () =>
+        runtimeState.attachments.map((attachment, idx) =>
+          withKey(
+            attachment.id,
+            ComposerAttachmentClientByIndex({
+              runtime,
+              index: idx,
+            }),
+          ),
+        ),
+      [runtimeState.attachments, runtime],
     );
 
-    const state = tapMemo<ComposerClientState>(() => {
+    const state = tapMemo<ComposerState>(() => {
       return {
         text: runtimeState.text,
         role: runtimeState.role,
@@ -97,36 +103,34 @@ export const ComposerClient = resource(
       };
     }, [runtimeState, attachments.state]);
 
-    return tapApi<ComposerClientApi>({
-      getState: () => state,
-
-      setText: runtime.setText,
-      setRole: runtime.setRole,
-      setRunConfig: runtime.setRunConfig,
-      addAttachment: runtime.addAttachment,
-      reset: runtime.reset,
-
-      clearAttachments: runtime.clearAttachments,
-      send: runtime.send,
-      cancel: runtime.cancel,
-      beginEdit:
-        (runtime as EditComposerRuntime).beginEdit ??
-        (() => {
-          throw new Error("beginEdit is not supported in this runtime");
-        }),
-
-      startDictation: runtime.startDictation,
-      stopDictation: runtime.stopDictation,
-
-      attachment: (selector) => {
-        if ("id" in selector) {
-          return attachments.api({ key: selector.id });
-        } else {
-          return attachments.api(selector);
-        }
+    return {
+      state,
+      methods: {
+        getState: () => state,
+        setText: runtime.setText,
+        setRole: runtime.setRole,
+        setRunConfig: runtime.setRunConfig,
+        addAttachment: runtime.addAttachment,
+        reset: runtime.reset,
+        clearAttachments: runtime.clearAttachments,
+        send: runtime.send,
+        cancel: runtime.cancel,
+        beginEdit:
+          (runtime as EditComposerRuntime).beginEdit ??
+          (() => {
+            throw new Error("beginEdit is not supported in this runtime");
+          }),
+        startDictation: runtime.startDictation,
+        stopDictation: runtime.stopDictation,
+        attachment: (selector) => {
+          if ("id" in selector) {
+            return attachments.get({ key: selector.id });
+          } else {
+            return attachments.get(selector);
+          }
+        },
+        __internal_getRuntime: () => runtime,
       },
-
-      __internal_getRuntime: () => runtime,
-    });
+    };
   },
 );

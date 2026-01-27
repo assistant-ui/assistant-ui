@@ -20,6 +20,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { analytics } from "@/lib/analytics";
 
 interface HighlightSegment {
   type: "text";
@@ -149,17 +150,19 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
     return groups;
   }, [results]);
 
+  const lastTrackedQuery = useRef("");
   useEffect(() => {
     if (open) {
       setInputValue("");
       setSearch("");
       setSelectedIndex(0);
+      lastTrackedQuery.current = "";
     }
   }, [open, setSearch]);
 
   useEffect(() => {
     setSelectedIndex(0);
-  }, [results]);
+  }, []);
 
   useEffect(() => {
     if (listRef.current && results.length > 0) {
@@ -172,11 +175,25 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
 
   const handleSelect = useCallback(
     (url: string) => {
+      const position = results.findIndex((r) => r.url === url);
+      analytics.search.resultClicked(inputValue, url, position);
       onOpenChange(false);
       router.push(url);
     },
-    [onOpenChange, router],
+    [onOpenChange, router, results, inputValue],
   );
+
+  useEffect(() => {
+    if (
+      !inputValue ||
+      query.isLoading ||
+      inputValue === lastTrackedQuery.current
+    )
+      return;
+    lastTrackedQuery.current = inputValue;
+    if (results.length === 0) analytics.search.noResults(inputValue);
+    else analytics.search.querySubmitted(inputValue, results.length);
+  }, [inputValue, results.length, query.isLoading]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {

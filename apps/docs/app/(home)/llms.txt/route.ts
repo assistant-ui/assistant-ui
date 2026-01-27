@@ -4,8 +4,13 @@ import { BASE_URL } from "@/lib/constants";
 export const revalidate = false;
 
 export async function GET() {
-  const scanned: string[] = [];
-  scanned.push("# Docs");
+  const lines: string[] = [];
+  lines.push("# assistant-ui");
+  lines.push("");
+  lines.push("> React components for AI chat interfaces");
+  lines.push("");
+  lines.push("## Table of Contents");
+
   const map = new Map<string, string[]>();
 
   for (const page of source.getPages()) {
@@ -18,9 +23,11 @@ export async function GET() {
   }
 
   for (const [key, value] of map) {
-    scanned.push(`## ${key}`);
-    scanned.push(value.join("\n"));
+    lines.push("");
+    lines.push(`### ${key}`);
+    lines.push("");
+    lines.push(value.join("\n"));
   }
 
-  return new Response(scanned.join("\n\n"));
+  return new Response(lines.join("\n"));
 }

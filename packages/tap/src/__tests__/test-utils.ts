@@ -18,7 +18,9 @@ import { tapState } from "../hooks/tap-state";
  * Sets up a rerender callback that automatically re-renders when state changes.
  */
 export function createTestResource<R, P>(fn: (props: P) => R) {
-  const rerenderCallback = () => {
+  const rerenderCallback = (callback: () => boolean) => {
+    if (!callback()) return;
+
     // Re-render when state changes
     if (activeResources.has(fiber)) {
       const lastProps = propsMap.get(fiber);
@@ -59,7 +61,7 @@ export function renderTest<R, P>(fiber: ResourceFiber<R, P>, props: P): R {
 
   // Return the committed state from the result
   // This accounts for any re-renders that happened during commit
-  return result.state;
+  return result.output;
 }
 
 /**
@@ -84,14 +86,14 @@ export function cleanupAllResources() {
  * Gets the current committed state of a resource fiber.
  * Returns the state from the last render/commit cycle.
  */
-export function getCommittedState<R, P>(fiber: ResourceFiber<R, P>): R {
+export function getCommittedOutput<R, P>(fiber: ResourceFiber<R, P>): R {
   const lastResult = lastRenderResultMap.get(fiber);
   if (!lastResult) {
     throw new Error(
       "No render result found for fiber. Make sure to call renderResource first.",
     );
   }
-  return lastResult.state;
+  return lastResult.output;
 }
 
 // ============================================================================
@@ -113,7 +115,7 @@ export class TestSubscriber<T> {
     const lastProps = propsMap.get(fiber) ?? undefined;
     const initialResult = renderResourceFiber(fiber, lastProps as any);
     commitResourceFiber(fiber, initialResult);
-    this.lastState = initialResult.state;
+    this.lastState = initialResult.output;
     lastRenderResultMap.set(fiber, initialResult);
     activeResources.add(fiber);
   }
@@ -146,7 +148,7 @@ export class TestResourceManager<R, P> {
     const result = renderResourceFiber(this.fiber, props);
     commitResourceFiber(this.fiber, result);
     lastRenderResultMap.set(this.fiber, result);
-    return result.state;
+    return result.output;
   }
 
   cleanup() {

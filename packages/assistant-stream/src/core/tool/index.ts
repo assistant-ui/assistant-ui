@@ -7,3 +7,9 @@ export {
   unstable_runPendingTools,
   type ToolResultStreamOptions,
 } from "./toolResultStream";
+export {
+  toJSONSchema,
+  toToolsJSONSchema,
+  type ToolJSONSchema,
+  type ToToolsJSONSchemaOptions,
+} from "./schema-utils";

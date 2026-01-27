@@ -5,6 +5,7 @@ import {
   convertToModelMessages,
   tool,
   stepCountIs,
+  zodSchema,
 } from "ai";
 import { z } from "zod";
 
@@ -16,15 +17,16 @@ export async function POST(req: Request) {
 
   const result = streamText({
     model: openai("gpt-4o"),
-    messages: convertToModelMessages(messages),
+    messages: await convertToModelMessages(messages),
     stopWhen: stepCountIs(10),
     tools: {
       get_current_weather: tool({
-        name: "",
         description: "Get the current weather",
-        inputSchema: z.object({
-          city: z.string(),
-        }),
+        inputSchema: zodSchema(
+          z.object({
+            city: z.string(),
+          }),
+        ),
         execute: async ({ city }) => {
           return `The weather in ${city} is sunny`;
         },

@@ -16,8 +16,8 @@ import TextareaAutosize, {
 } from "react-textarea-autosize";
 import { useEscapeKeydown } from "@radix-ui/react-use-escape-keydown";
 import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
-import { useAssistantState, useAssistantApi } from "../../context";
-import { flushSync } from "@assistant-ui/tap";
+import { useAuiState, useAui } from "@assistant-ui/store";
+import { flushResourcesSync } from "@assistant-ui/tap";
 
 export namespace ComposerPrimitiveInput {
   export type Element = HTMLTextAreaElement;
@@ -98,9 +98,9 @@ export const ComposerPrimitiveInput = forwardRef<
     },
     forwardedRef,
   ) => {
-    const api = useAssistantApi();
+    const aui = useAui();
 
-    const value = useAssistantState(({ composer }) => {
+    const value = useAuiState(({ composer }) => {
       if (!composer.isEditing) return "";
       return composer.text;
     });
@@ -108,7 +108,7 @@ export const ComposerPrimitiveInput = forwardRef<
     const Component = asChild ? Slot : TextareaAutosize;
 
     const isDisabled =
-      useAssistantState(
+      useAuiState(
         ({ thread, composer }) =>
           thread.isDisabled || composer.dictation?.inputDisabled,
       ) || disabledProp;
@@ -121,7 +121,7 @@ export const ComposerPrimitiveInput = forwardRef<
       // Only handle ESC if it originated from within this input
       if (!textareaRef.current?.contains(e.target as Node)) return;
 
-      const composer = api.composer();
+      const composer = aui.composer();
       if (composer.getState().canCancel) {
         composer.cancel();
         e.preventDefault();
@@ -135,7 +135,7 @@ export const ComposerPrimitiveInput = forwardRef<
       if (e.nativeEvent.isComposing) return;
 
       if (e.key === "Enter" && e.shiftKey === false) {
-        const isRunning = api.thread().getState().isRunning;
+        const isRunning = aui.thread().getState().isRunning;
 
         if (!isRunning) {
           e.preventDefault();
@@ -147,14 +147,14 @@ export const ComposerPrimitiveInput = forwardRef<
 
     const handlePaste = async (e: ClipboardEvent<HTMLTextAreaElement>) => {
       if (!addAttachmentOnPaste) return;
-      const threadCapabilities = api.thread().getState().capabilities;
+      const threadCapabilities = aui.thread().getState().capabilities;
       const files = Array.from(e.clipboardData?.files || []);
 
       if (threadCapabilities.attachments && files.length > 0) {
         try {
           e.preventDefault();
           await Promise.all(
-            files.map((file) => api.composer().addAttachment(file)),
+            files.map((file) => aui.composer().addAttachment(file)),
           );
         } catch (error) {
           console.error("Error adding attachment:", error);
@@ -175,7 +175,7 @@ export const ComposerPrimitiveInput = forwardRef<
 
     useOnScrollToBottom(() => {
       if (
-        api.composer().getState().type === "thread" &&
+        aui.composer().getState().type === "thread" &&
         unstable_focusOnScrollToBottom
       ) {
         focus();
@@ -184,23 +184,23 @@ export const ComposerPrimitiveInput = forwardRef<
 
     useEffect(() => {
       if (
-        api.composer().getState().type !== "thread" ||
+        aui.composer().getState().type !== "thread" ||
         !unstable_focusOnRunStart
       )
         return undefined;
 
-      return api.on("thread.run-start", focus);
-    }, [unstable_focusOnRunStart, focus, api]);
+      return aui.on("thread.runStart", focus);
+    }, [unstable_focusOnRunStart, focus, aui]);
 
     useEffect(() => {
       if (
-        api.composer().getState().type !== "thread" ||
+        aui.composer().getState().type !== "thread" ||
         !unstable_focusOnThreadSwitched
       )
         return undefined;
 
-      return api.on("thread-list-item.switched-to", focus);
-    }, [unstable_focusOnThreadSwitched, focus, api]);
+      return aui.on("threadListItem.switchedTo", focus);
+    }, [unstable_focusOnThreadSwitched, focus, aui]);
 
     return (
       <Component
@@ -210,9 +210,9 @@ export const ComposerPrimitiveInput = forwardRef<
         ref={ref as React.ForwardedRef<HTMLTextAreaElement>}
         disabled={isDisabled}
         onChange={composeEventHandlers(onChange, (e) => {
-          if (!api.composer().getState().isEditing) return;
-          flushSync(() => {
-            api.composer().setText(e.target.value);
+          if (!aui.composer().getState().isEditing) return;
+          flushResourcesSync(() => {
+            aui.composer().setText(e.target.value);
           });
         })}
         onKeyDown={composeEventHandlers(onKeyDown, handleKeyPress)}
