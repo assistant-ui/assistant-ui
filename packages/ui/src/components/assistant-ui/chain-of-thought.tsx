@@ -336,15 +336,6 @@ function ChainOfThoughtContent({
       )}
       {...props}
     >
-      <div
-        data-slot="chain-of-thought-content-connector"
-        className={cn(
-          "aui-chain-of-thought-content-connector absolute top-0 left-3 h-4 w-px",
-          // Gradient fade at top of connector line
-          "bg-gradient-to-b from-transparent via-foreground/15 to-foreground/15",
-        )}
-        aria-hidden="true"
-      />
       {children}
       <ChainOfThoughtFade />
     </CollapsibleContent>
@@ -564,23 +555,35 @@ function ChainOfThoughtTimeline({
     autoScroll,
   );
 
-  // Inject step indices for staggered animations
-  const staggeredChildren = Children.map(children, (child, index) => {
-    if (isValidElement(child)) {
-      return cloneElement(child, {
-        style: {
-          ...((child.props as { style?: React.CSSProperties }).style || {}),
-          "--step-index": index,
-        } as React.CSSProperties,
-      } as React.HTMLAttributes<HTMLElement>);
-    }
-    return child;
+  const childrenArray = Children.toArray(children);
+  const stepCount = childrenArray.filter(isValidElement).length;
+
+  // Inject step indices for staggered animations and connector metadata
+  let stepIndex = 0;
+  const staggeredChildren = childrenArray.map((child) => {
+    if (!isValidElement(child)) return child;
+
+    const isFirst = stepIndex === 0;
+    const isLast = stepIndex === stepCount - 1;
+
+    const cloned = cloneElement(child, {
+      style: {
+        ...((child.props as { style?: React.CSSProperties }).style || {}),
+        "--step-index": stepIndex,
+      } as React.CSSProperties,
+      "data-first-step": isFirst ? "true" : undefined,
+      "data-last-step": isLast ? "true" : undefined,
+    } as React.HTMLAttributes<HTMLElement>);
+
+    stepIndex += 1;
+    return cloned;
   });
 
   return (
     <ul
       ref={(el) => setScrollEl(el)}
       data-slot="chain-of-thought-timeline"
+      data-step-count={stepCount}
       className={cn(
         "aui-chain-of-thought-timeline",
         "relative z-0 max-h-64 overflow-y-auto",
@@ -602,15 +605,6 @@ function ChainOfThoughtTimeline({
       )}
       {...props}
     >
-      <div
-        data-slot="chain-of-thought-timeline-line"
-        className={cn(
-          "aui-chain-of-thought-timeline-line absolute top-5 bottom-4 left-3 w-px",
-          // Gradient fade at both ends of the timeline line
-          "bg-gradient-to-b from-foreground/5 via-foreground/15 to-foreground/5",
-        )}
-        aria-hidden="true"
-      />
       {staggeredChildren}
       {autoScroll && (
         <JumpToLatestButton onClick={scrollToBottom} visible={isScrolledUp} />
@@ -742,6 +736,12 @@ function ChainOfThoughtStep({
   const isActive = effectiveStatus === "active";
   const isError = effectiveStatus === "error";
 
+  // Read first/last step markers injected by Timeline
+  const isFirstStep =
+    (props as Record<string, unknown>)["data-first-step"] === "true";
+  const isLastStep =
+    (props as Record<string, unknown>)["data-last-step"] === "true";
+
   const renderIndicator = () => {
     // Error state shows error icon
     if (effectiveStatus === "error") {
@@ -805,21 +805,25 @@ function ChainOfThoughtStep({
       className={cn(stepVariants({ status: effectiveStatus, className }))}
       {...props}
     >
+      {/* Connector from previous step - renders from step top to icon top */}
+      {!isFirstStep && (
+        <div
+          aria-hidden="true"
+          data-slot="chain-of-thought-step-connector-above"
+          className="pointer-events-none absolute top-0 left-3 h-1.5 w-px bg-foreground/15"
+        />
+      )}
+      {/* Connector to next step - renders from icon bottom to step bottom */}
+      {!isLastStep && (
+        <div
+          aria-hidden="true"
+          data-slot="chain-of-thought-step-connector-below"
+          className="pointer-events-none absolute top-[30px] bottom-0 left-3 w-px bg-foreground/15"
+        />
+      )}
+
       <div className="aui-chain-of-thought-step-indicator-wrapper relative z-10">
         {renderIndicator()}
-        {/* Line terminator - blocks timeline line below active/error steps */}
-        {(isActive || isError) && (
-          <div
-            data-slot="chain-of-thought-step-line-terminator"
-            className={cn(
-              "aui-chain-of-thought-step-line-terminator absolute top-full left-1/2 h-8 w-3 -translate-x-1/2",
-              "bg-background",
-              "group-data-[variant=muted]/chain-of-thought-root:bg-muted",
-              "group-data-[variant=muted]/chain-of-thought-root:dark:bg-card",
-            )}
-            aria-hidden="true"
-          />
-        )}
       </div>
 
       <div
