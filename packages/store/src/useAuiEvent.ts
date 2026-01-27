@@ -16,5 +16,8 @@ export const useAuiEvent = <TEvent extends AssistantEventName>(
   const callbackRef = useEffectEvent(callback);
 
   const { scope, event } = normalizeEventSelector(selector);
-  useEffect(() => aui.on({ scope, event }, callbackRef), [aui, scope, event]);
+  useEffect(
+    () => aui.on({ scope, event }, callbackRef),
+    [aui, scope, event, callbackRef],
+  );
 };
