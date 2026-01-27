@@ -35,17 +35,12 @@ interface CodeAdapterOptions {
  * Extracts code string from children.
  */
 function extractCode(children: unknown): string {
-  if (typeof children === "string") {
-    return children;
-  }
-  if (
-    isValidElement(children) &&
-    children.props &&
-    typeof children.props === "object" &&
-    "children" in children.props &&
-    typeof children.props.children === "string"
-  ) {
-    return children.props.children;
+  if (typeof children === "string") return children;
+  if (!isValidElement(children)) return "";
+
+  const props = children.props as Record<string, unknown> | null;
+  if (props && typeof props.children === "string") {
+    return props.children;
   }
   return "";
 }

@@ -29,20 +29,17 @@ export function mergePlugins(
 ): ResolvedPluginConfig {
   const result: Record<string, unknown> = {};
 
-  // Handle code, math, cjk plugins (support auto-detection)
   for (const key of PLUGIN_KEYS) {
     const userValue = userPlugins?.[key];
     if (userValue === false) continue;
-    if (userValue) {
-      result[key] = userValue;
-    } else if (defaultPlugins[key]) {
-      result[key] = defaultPlugins[key];
-    }
+    const value = userValue || defaultPlugins[key];
+    if (value) result[key] = value;
   }
 
-  // Handle mermaid plugin - must be explicitly provided (not auto-detected)
-  if (userPlugins?.mermaid && userPlugins.mermaid !== false) {
-    result["mermaid"] = userPlugins.mermaid;
+  // Mermaid requires explicit enabling (not auto-detected)
+  const mermaid = userPlugins?.mermaid;
+  if (mermaid && mermaid !== false) {
+    result.mermaid = mermaid;
   }
 
   return result as ResolvedPluginConfig;

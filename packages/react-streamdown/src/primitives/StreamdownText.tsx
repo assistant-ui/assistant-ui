@@ -15,12 +15,11 @@ const { useSmoothStatus } = INTERNAL;
 type StreamdownTextPrimitiveElement = ComponentRef<"div">;
 
 /**
- * Builds custom rehypePlugins array with security configuration.
- * This overrides streamdown's default allow-all policy.
+ * Builds rehypePlugins array with security configuration.
  */
-const buildSecurityRehypePlugins = (
+function buildSecurityRehypePlugins(
   security: SecurityConfig,
-): NonNullable<StreamdownProps["rehypePlugins"]> => {
+): NonNullable<StreamdownProps["rehypePlugins"]> {
   return [
     rehypeRaw,
     [rehypeSanitize, {}],
@@ -37,7 +36,7 @@ const buildSecurityRehypePlugins = (
       },
     ],
   ];
-};
+}
 
 /**
  * A primitive component for rendering markdown text using Streamdown.
@@ -116,67 +115,51 @@ export const StreamdownTextPrimitive = forwardRef<
     },
     ref,
   ) => {
-    // Get message part text from context
     const { text } = useMessagePartText();
-
-    // Get smooth status to determine if streaming
     const status = useSmoothStatus();
 
-    // Preprocess text if function provided
-    const processedText = useMemo(() => {
-      if (!preprocess) return text;
-      return preprocess(text);
-    }, [text, preprocess]);
+    const processedText = useMemo(
+      () => (preprocess ? preprocess(text) : text),
+      [text, preprocess],
+    );
 
-    // Merge user plugins (filter out false values)
     const resolvedPlugins = useMemo(() => {
       const merged = mergePlugins(userPlugins, {});
       return Object.keys(merged).length > 0 ? merged : undefined;
     }, [userPlugins]);
 
-    // Use default shiki theme if code plugin is active and no theme provided
-    const resolvedShikiTheme = useMemo(() => {
-      if (shikiTheme) return shikiTheme;
-      if (resolvedPlugins?.code) return DEFAULT_SHIKI_THEME;
-      return undefined;
-    }, [shikiTheme, resolvedPlugins?.code]);
+    const resolvedShikiTheme = useMemo(
+      () =>
+        shikiTheme ?? (resolvedPlugins?.code ? DEFAULT_SHIKI_THEME : undefined),
+      [shikiTheme, resolvedPlugins?.code],
+    );
 
-    // Adapt components API (SyntaxHighlighter, CodeHeader, componentsByLanguage)
     const adaptedComponents = useAdaptedComponents({
       components,
       componentsByLanguage,
     });
 
-    // Merge user components with adapted ones (adaptedComponents always includes PreOverride)
     const mergedComponents = useMemo(() => {
       const {
         SyntaxHighlighter: _,
         CodeHeader: __,
         ...userHtmlComponents
       } = components ?? {};
-
-      return {
-        ...userHtmlComponents,
-        ...adaptedComponents,
-      };
+      return { ...userHtmlComponents, ...adaptedComponents };
     }, [components, adaptedComponents]);
 
-    // Merge container class names
     const containerClass = useMemo(() => {
-      return (
-        [containerClassName, containerProps?.className]
-          .filter(Boolean)
-          .join(" ") || undefined
-      );
+      const classes = [containerClassName, containerProps?.className]
+        .filter(Boolean)
+        .join(" ");
+      return classes || undefined;
     }, [containerClassName, containerProps?.className]);
 
-    // Build custom rehypePlugins when security config is provided
-    const rehypePlugins = useMemo(() => {
-      if (!security) return undefined;
-      return buildSecurityRehypePlugins(security);
-    }, [security]);
+    const rehypePlugins = useMemo(
+      () => (security ? buildSecurityRehypePlugins(security) : undefined),
+      [security],
+    );
 
-    // Build optional props object (filter out undefined for exactOptionalPropertyTypes)
     const optionalProps = {
       ...(className && { className }),
       ...(caret && { caret }),

@@ -94,6 +94,8 @@ const StreamdownText = () => (
 | `remarkRehypeOptions` | `object` | - | Options passed to remark-rehype |
 | `BlockComponent` | `ComponentType` | - | Custom component for rendering blocks |
 | `parseMarkdownIntoBlocksFn` | `(md: string) => string[]` | - | Custom block parsing function |
+| `parseIncompleteMarkdown` | `boolean` | `false` | Parse incomplete markdown as-is (skip remend) |
+| `security` | `SecurityConfig` | - | URL/image security restrictions |
 
 ## Plugin Configuration
 
@@ -209,6 +211,28 @@ Allow specific HTML tags in markdown content:
 />
 ```
 
+### Security Configuration
+
+Restrict allowed URLs for links and images. This overrides streamdown's default allow-all policy:
+
+```tsx
+<StreamdownTextPrimitive
+  security={{
+    // Only allow links to trusted domains
+    allowedLinkPrefixes: ["https://example.com", "https://docs.example.com"],
+    // Only allow images from your CDN
+    allowedImagePrefixes: ["https://cdn.example.com"],
+    // Restrict protocols
+    allowedProtocols: ["https", "mailto"],
+    // Disable base64 data images
+    allowDataImages: false,
+    // CSS class for blocked elements
+    blockedLinkClass: "blocked-link",
+    blockedImageClass: "blocked-image",
+  }}
+/>
+```
+
 ## Detecting Inline vs Block Code
 
 When building custom code components, you can use `useIsStreamdownCodeBlock` to detect whether you're inside a code block or inline code:
@@ -271,6 +295,8 @@ import {
   useStreamdownPreProps,
   // Memo comparison utility for custom components
   memoCompareNodes,
+  // Default Shiki theme: ["github-light", "github-dark"]
+  DEFAULT_SHIKI_THEME,
 } from "@assistant-ui/react-streamdown";
 ```
 
@@ -278,7 +304,16 @@ import {
 
 ```tsx
 import type {
+  // Component props
+  StreamdownTextPrimitiveProps,
+  SyntaxHighlighterProps,
+  CodeHeaderProps,
+  ComponentsByLanguage,
+  StreamdownTextComponents,
+  StreamdownProps,
   // Plugin types
+  PluginConfig,
+  ResolvedPluginConfig,
   CodeHighlighterPlugin,
   DiagramPlugin,
   MathPlugin,
@@ -288,13 +323,18 @@ import type {
   BundledTheme,
   BundledLanguage,
   // Configuration types
+  CaretStyle,
+  ControlsConfig,
   MermaidOptions,
   MermaidErrorComponentProps,
   LinkSafetyConfig,
+  LinkSafetyModalProps,
   RemendConfig,
+  RemendHandler,
   AllowedTags,
   RemarkRehypeOptions,
   BlockProps,
+  SecurityConfig,
 } from "@assistant-ui/react-streamdown";
 ```
 

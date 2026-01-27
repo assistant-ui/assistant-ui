@@ -15,10 +15,10 @@ interface UseAdaptedComponentsOptions {
  * Hook that adapts assistant-ui component API to streamdown's component API.
  *
  * Handles:
- * - SyntaxHighlighter → custom code component
- * - CodeHeader → custom code component
- * - componentsByLanguage → custom code component with language dispatch
- * - PreOverride → context-based inline/block code detection
+ * - SyntaxHighlighter -> custom code component
+ * - CodeHeader -> custom code component
+ * - componentsByLanguage -> custom code component with language dispatch
+ * - PreOverride -> context-based inline/block code detection
  */
 export function useAdaptedComponents({
   components,
@@ -34,31 +34,18 @@ export function useAdaptedComponents({
       componentsByLanguage,
     };
 
-    // Always include PreOverride for inline/block code detection
     const baseComponents = { pre: PreOverride };
 
-    // If user provided custom code-related components, create adapter
-    if (shouldUseCodeAdapter(codeAdapterOptions)) {
-      const AdaptedCode = createCodeAdapter(codeAdapterOptions);
-
-      return {
-        ...htmlComponents,
-        ...baseComponents,
-        code: (props) => {
-          const result = AdaptedCode(props);
-          // If adapter returns null, return undefined to let streamdown handle it
-          if (result === null) {
-            return undefined;
-          }
-          return result;
-        },
-      };
+    if (!shouldUseCodeAdapter(codeAdapterOptions)) {
+      return { ...htmlComponents, ...baseComponents };
     }
 
-    // Always return PreOverride even without custom code components
+    const AdaptedCode = createCodeAdapter(codeAdapterOptions);
+
     return {
       ...htmlComponents,
       ...baseComponents,
+      code: (props) => AdaptedCode(props) ?? undefined,
     };
   }, [components, componentsByLanguage]);
 }
