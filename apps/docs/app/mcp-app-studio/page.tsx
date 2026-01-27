@@ -147,7 +147,7 @@ export default function McpAppStudioPage() {
 
   return (
     <>
-      <div className="mx-auto w-full max-w-7xl space-y-10 px-4 pt-14 pb-8 md:space-y-16">
+      <div className="mx-auto w-full max-w-7xl space-y-10 px-4 pt-14 pb-8 md:space-y-20">
         <div className="flex flex-col gap-6">
           <div className="rainbow-border relative inline-flex w-fit rounded-full p-px text-sm after:absolute after:inset-0 after:-z-10 after:block after:rounded-full">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-background px-4 py-1.5">
@@ -194,17 +194,17 @@ export default function McpAppStudioPage() {
 
         <HeroShowcase onFullscreen={() => setIsFullscreen(true)} />
 
-        <div className="space-y-6 md:space-y-8">
-          <div className="text-center">
-            <h2 className="mb-2 font-medium text-2xl md:text-3xl">
+        <div className="flex flex-col gap-8">
+          <div className="flex flex-col items-center gap-2 text-center">
+            <h2 className="font-medium text-3xl tracking-tight">
               Everything you need to build apps for AI assistants
             </h2>
-            <p className="text-base text-muted-foreground md:text-xl">
+            <p className="text-muted-foreground">
               Local development workbench with production-ready export
             </p>
           </div>
 
-          <div className="grid gap-6 sm:grid-cols-2 md:gap-8 lg:grid-cols-3">
+          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
             {FEATURES.map((feature) => {
               const Icon = feature.icon;
               return (
@@ -222,17 +222,17 @@ export default function McpAppStudioPage() {
           </div>
         </div>
 
-        <div className="space-y-6 md:space-y-8">
-          <div className="text-center">
-            <h2 className="mb-2 font-medium text-2xl md:text-3xl">
+        <div className="flex flex-col gap-8">
+          <div className="flex flex-col items-center gap-2 text-center">
+            <h2 className="font-medium text-3xl tracking-tight">
               How It Works
             </h2>
-            <p className="text-base text-muted-foreground md:text-xl">
+            <p className="text-muted-foreground">
               From scaffold to production in four steps.
             </p>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2 md:gap-6">
+          <div className="grid gap-6 sm:grid-cols-2">
             {STEPS.map((step, index) => (
               <div key={step.title} className="flex gap-4">
                 <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted font-medium text-muted-foreground text-sm">
@@ -249,11 +249,11 @@ export default function McpAppStudioPage() {
           </div>
         </div>
 
-        <div className="flex flex-col items-center space-y-4 py-6 text-center md:space-y-6 md:py-8">
-          <p className="font-medium text-xl tracking-tight md:text-2xl">
+        <div className="flex flex-col items-center gap-6 py-16 text-center">
+          <p className="font-medium text-2xl tracking-tight">
             Start building your app today.
           </p>
-          <div className="flex flex-wrap items-center justify-center gap-4">
+          <div className="flex items-center gap-6">
             <Button asChild>
               <Link href="https://modelcontextprotocol.io/docs/extensions/apps">
                 MCP Apps Docs <ArrowRight />
