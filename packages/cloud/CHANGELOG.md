@@ -1,5 +1,12 @@
 # assistant-cloud
 
+## 0.1.15
+
+### Patch Changes
+
+- Updated dependencies [acbaf07]
+  - assistant-stream@0.3.0
+
 ## 0.1.14
 
 ### Patch Changes

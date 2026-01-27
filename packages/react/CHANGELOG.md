@@ -1,5 +1,25 @@
 # @assistant-ui/react
 
+## 0.12.3
+
+### Patch Changes
+
+- 07d1c65: fix: nesting assistant providers
+- b591d72: feat: new tools API
+- 59a338a: feat: åshowEmptyOnNonTextEnd
+- acbaf07: feat: add framework-agnostic `toToolsJSONSchema` and `toGenericMessages` utilities to `assistant-stream`
+- c665612: fix: do not capture handleSendMessage errors
+- 0371d72: feat: AssistantRuntimeProvider aui prop
+- e8b3f34: feat: Suggestions API and Primitives
+- Updated dependencies [07d1c65]
+- Updated dependencies [acbaf07]
+- Updated dependencies [5ab3690]
+- Updated dependencies [0371d72]
+  - @assistant-ui/store@0.1.2
+  - assistant-stream@0.3.0
+  - @assistant-ui/tap@0.4.2
+  - assistant-cloud@0.1.15
+
 ## 0.12.2
 
 ### Patch Changes

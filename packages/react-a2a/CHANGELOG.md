@@ -1,5 +1,19 @@
 # @assistant-ui/react-a2a
 
+## 0.2.2
+
+### Patch Changes
+
+- Updated dependencies [07d1c65]
+- Updated dependencies [b591d72]
+- Updated dependencies [59a338a]
+- Updated dependencies [acbaf07]
+- Updated dependencies [c665612]
+- Updated dependencies [0371d72]
+- Updated dependencies [e8b3f34]
+  - @assistant-ui/react@0.12.3
+  - assistant-stream@0.3.0
+
 ## 0.2.1
 
 ### Patch Changes

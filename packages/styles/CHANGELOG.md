@@ -1,5 +1,11 @@
 # @assistant-ui/styles
 
+## 0.3.5
+
+### Patch Changes
+
+- 7b9267a: fix: avoid polluting :root CSS class
+
 ## 0.3.4
 
 ### Patch Changes

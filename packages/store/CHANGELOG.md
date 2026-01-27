@@ -1,5 +1,14 @@
 # @assistant-ui/store
 
+## 0.1.2
+
+### Patch Changes
+
+- 07d1c65: fix: nesting assistant providers
+- 0371d72: feat: AssistantRuntimeProvider aui prop
+- Updated dependencies [5ab3690]
+  - @assistant-ui/tap@0.4.2
+
 ## 0.1.1
 
 ### Patch Changes
