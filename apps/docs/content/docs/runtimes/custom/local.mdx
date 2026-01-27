@@ -302,36 +302,45 @@ const MyModelAdapter: ChatModelAdapter = {
 
 ### Basic Tool Definition
 
+Tools should be registered using the `Tools()` API with `useAui()`:
+
 ```tsx
-const tools = [
-  {
-    type: "function",
-    function: {
-      name: "get_weather",
-      description: "Get the current weather in a location",
-      parameters: {
-        type: "object",
-        properties: {
-          location: {
-            type: "string",
-            description: "The city and state, e.g. San Francisco, CA",
-          },
-          unit: {
-            type: "string",
-            enum: ["celsius", "fahrenheit"],
-          },
-        },
-        required: ["location"],
-      },
+import { useAui, Tools, type Toolkit } from "@assistant-ui/react";
+import { z } from "zod";
+
+// Define your toolkit
+const myToolkit: Toolkit = {
+  getWeather: {
+    description: "Get the current weather in a location",
+    parameters: z.object({
+      location: z.string().describe("The city and state, e.g. San Francisco, CA"),
+      unit: z.enum(["celsius", "fahrenheit"]).default("celsius"),
+    }),
+    execute: async ({ location, unit }) => {
+      const weather = await fetchWeatherAPI(location, unit);
+      return weather;
     },
   },
-];
+};
 
-const runtime = useLocalRuntime(MyModelAdapter, {
-  // Tools are passed via context
-  context: { tools },
-});
+// Register tools in your runtime provider
+function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
+  const runtime = useLocalRuntime(MyModelAdapter);
+
+  // Register all tools
+  const aui = useAui({
+    tools: Tools({ toolkit: myToolkit }),
+  });
+
+  return (
+    <AssistantRuntimeProvider aui={aui} runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
 ```
+
+The tools will be available to your adapter via the `context` parameter in the `run` function. See the [Tools guide](/docs/guides/tools) for more details on tool registration and advanced features.
 
 ### Human-in-the-Loop Approval
 
