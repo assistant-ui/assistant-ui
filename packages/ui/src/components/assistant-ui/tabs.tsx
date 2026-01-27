@@ -163,8 +163,8 @@ function TabsList({
       ) as HTMLElement | null;
       if (activeElement) {
         const value = activeElement.getAttribute("data-value");
-        if (value && value !== activeValue) {
-          setActiveValue(value);
+        if (value) {
+          setActiveValue((prev) => (prev === value ? prev : value));
         }
         setActiveStyle({
           left: `${activeElement.offsetLeft}px`,
@@ -183,7 +183,7 @@ function TabsList({
     });
 
     return () => observer.disconnect();
-  }, [activeValue]);
+  }, []);
 
   const showHoverBackground = resolvedVariant === "ghost";
 
