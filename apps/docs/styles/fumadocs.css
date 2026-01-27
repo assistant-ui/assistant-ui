@@ -450,7 +450,17 @@ figure.shiki {
   content: counter(step);
 }
 
-/* PreviewCode component */
+/* PreviewCode component - remove nested SampleFrame styling */
+.preview-code-preview > .not-prose {
+  margin: 0 !important;
+}
+
+.preview-code-preview > .not-prose > div {
+  border: none !important;
+  border-radius: 0 !important;
+  height: auto !important;
+}
+
 .preview-code-block {
   & pre {
     margin: 0 !important;

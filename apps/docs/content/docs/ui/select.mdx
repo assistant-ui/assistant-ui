@@ -94,88 +94,27 @@ Long lists automatically become scrollable.
 
 Use the composable API for grouped options:
 
-<SelectGroupsSample />
-
-```tsx
-import {
-  SelectRoot,
-  SelectTrigger,
-  SelectContent,
-  SelectItem,
-  SelectGroup,
-  SelectLabel,
-  SelectSeparator,
-  SelectValue,
-} from "@/components/assistant-ui/select";
-
-export function FrameworkPicker() {
-  const [value, setValue] = useState("react");
-
-  return (
-    <SelectRoot value={value} onValueChange={setValue}>
-      <SelectTrigger className="w-48">
-        <SelectValue placeholder="Select a framework..." />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectGroup>
-          <SelectLabel>Frontend</SelectLabel>
-          <SelectItem value="react">React</SelectItem>
-          <SelectItem value="vue">Vue</SelectItem>
-          <SelectItem value="svelte">Svelte</SelectItem>
-        </SelectGroup>
-        <SelectSeparator />
-        <SelectGroup>
-          <SelectLabel>Backend</SelectLabel>
-          <SelectItem value="node">Node.js</SelectItem>
-          <SelectItem value="python">Python</SelectItem>
-        </SelectGroup>
-      </SelectContent>
-    </SelectRoot>
-  );
-}
-```
+<PreviewCode file="components/docs/samples/select" name="SelectGroupsSample">
+  <SelectGroupsSample />
+</PreviewCode>
 
 ### Disabled Items
 
-<SelectDisabledItemsSample />
-
-```tsx
-<Select
-  value={value}
-  onValueChange={setValue}
-  options={[
-    { value: "free", label: "Free" },
-    { value: "pro", label: "Pro" },
-    { value: "enterprise", label: "Enterprise", disabled: true },
-  ]}
-/>
-```
+<PreviewCode file="components/docs/samples/select" name="SelectDisabledItemsSample">
+  <SelectDisabledItemsSample />
+</PreviewCode>
 
 ### With Placeholder
 
-<SelectPlaceholderSample />
-
-```tsx
-<Select
-  value={value}
-  onValueChange={setValue}
-  options={options}
-  placeholder="Choose an option..."
-/>
-```
+<PreviewCode file="components/docs/samples/select" name="SelectPlaceholderSample">
+  <SelectPlaceholderSample />
+</PreviewCode>
 
 ### Disabled Select
 
-<SelectDisabledSample />
-
-```tsx
-<Select
-  value={value}
-  onValueChange={setValue}
-  options={options}
-  disabled
-/>
-```
+<PreviewCode file="components/docs/samples/select" name="SelectDisabledSample">
+  <SelectDisabledSample />
+</PreviewCode>
 
 ## API Reference
 

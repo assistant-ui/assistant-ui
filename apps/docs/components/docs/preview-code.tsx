@@ -71,7 +71,7 @@ export function PreviewCodeClient({
       {tab === "preview" ? (
         <div
           className={cn(
-            "flex items-center justify-center rounded-xl border border-border/50 p-6",
+            "preview-code-preview flex items-center justify-center rounded-xl border border-border/50 p-6",
             className,
           )}
         >

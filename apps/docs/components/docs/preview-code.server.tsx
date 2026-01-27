@@ -160,11 +160,31 @@ function filterRelevantImports(imports: string[], code: string): string[] {
   });
 }
 
+function dedentSampleFrameContent(code: string): string {
+  const lines = code.split("\n");
+  const result: string[] = [];
+  let inSampleFrame = false;
+
+  for (const line of lines) {
+    if (line.includes("<SampleFrame")) {
+      inSampleFrame = true;
+      continue;
+    }
+    if (line.includes("</SampleFrame>")) {
+      inSampleFrame = false;
+      continue;
+    }
+    if (inSampleFrame && line.startsWith("  ")) {
+      result.push(line.slice(2));
+    } else {
+      result.push(line);
+    }
+  }
+  return result.join("\n");
+}
+
 function cleanupCode(code: string): string {
-  return code
-    .replace(/<SampleFrame[^>]*>\s*/g, "")
-    .replace(/\s*<\/SampleFrame>/g, "")
-    .replace(/^export\s+/, "");
+  return dedentSampleFrameContent(code).replace(/^export\s+/, "");
 }
 
 function cleanupImports(imports: string[]): string[] {
