@@ -102,28 +102,51 @@ export function BadgeAnimatedSample() {
         variant={status === "loading" ? "muted" : "success"}
         className="overflow-hidden"
       >
-        <span className="relative flex h-4 items-center">
+        <span className="relative inline-flex h-4 overflow-hidden">
           <span
             className={cn(
-              "flex items-center gap-1 transition-all duration-300",
-              status === "loading"
-                ? "opacity-100"
-                : "-translate-y-full opacity-0",
+              "invisible overflow-hidden transition-[max-width] duration-500",
+              status === "loading" ? "max-w-24" : "max-w-0",
             )}
           >
-            <Loader2 className="animate-spin" />
+            <span className="flex items-center gap-1 whitespace-nowrap">
+              <Loader2 className="shrink-0" />
+              Loading
+            </span>
+          </span>
+          <span
+            className={cn(
+              "invisible overflow-hidden transition-[max-width] duration-500",
+              status === "success" ? "max-w-40" : "max-w-0",
+            )}
+          >
+            <span className="flex items-center gap-1 whitespace-nowrap">
+              <Check className="shrink-0" />
+              Mission Success
+            </span>
+          </span>
+
+          <span
+            className={cn(
+              "absolute inset-y-0 left-0 flex items-center gap-1 whitespace-nowrap transition-all duration-500",
+              status === "loading"
+                ? "translate-y-0 opacity-100"
+                : "-translate-y-4 opacity-0",
+            )}
+          >
+            <Loader2 className="shrink-0 animate-spin" />
             Loading
           </span>
           <span
             className={cn(
-              "absolute inset-0 flex items-center gap-1 transition-all duration-300",
+              "absolute inset-y-0 left-0 flex items-center gap-1 whitespace-nowrap transition-all duration-500",
               status === "success"
                 ? "translate-y-0 opacity-100"
-                : "translate-y-full opacity-0",
+                : "translate-y-4 opacity-0",
             )}
           >
-            <Check />
-            Success
+            <Check className="shrink-0" />
+            Mission Success
           </span>
         </span>
       </Badge>
