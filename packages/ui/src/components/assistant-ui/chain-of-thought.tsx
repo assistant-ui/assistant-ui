@@ -151,6 +151,7 @@ function ChainOfThoughtRoot({
 
   const isControlled = controlledOpen !== undefined;
   const isOpen = isControlled ? controlledOpen : uncontrolledOpen;
+  const previousOpenRef = useRef(isOpen);
 
   const handleOpenChange = useCallback(
     (open: boolean) => {
@@ -160,6 +161,14 @@ function ChainOfThoughtRoot({
     },
     [lockScroll, isControlled, controlledOnOpenChange],
   );
+
+  // Ensure scroll lock applies to programmatic closes (controlled mode) too.
+  useLayoutEffect(() => {
+    if (previousOpenRef.current && !isOpen) {
+      lockScroll();
+    }
+    previousOpenRef.current = isOpen;
+  }, [isOpen, lockScroll]);
 
   return (
     <Collapsible
@@ -346,13 +355,17 @@ function ChainOfThoughtContent({
  * Hook to manage auto-scroll behavior for streaming content.
  * Auto-scrolls to bottom when new content arrives, unless user has scrolled up.
  */
-function useAutoScroll(scrollEl: HTMLElement | null, contentKey: unknown) {
+function useAutoScroll(
+  scrollEl: HTMLElement | null,
+  contentKey: unknown,
+  enabled: boolean,
+) {
   const [isScrolledUp, setIsScrolledUp] = useState(false);
   const isUserScrollingRef = useRef(false);
 
   // Track if user has scrolled up from the bottom
   const handleScroll = useCallback(() => {
-    if (!scrollEl) return;
+    if (!enabled || !scrollEl) return;
 
     const { scrollTop, scrollHeight, clientHeight } = scrollEl;
     const isAtBottom = scrollHeight - scrollTop - clientHeight < 20;
@@ -363,14 +376,19 @@ function useAutoScroll(scrollEl: HTMLElement | null, contentKey: unknown) {
     }
 
     setIsScrolledUp(!isAtBottom);
-  }, [scrollEl]);
+  }, [enabled, scrollEl]);
+
+  // Reset state when disabled (avoid stale "scrolled up" state).
+  useEffect(() => {
+    if (!enabled) setIsScrolledUp(false);
+  }, [enabled]);
 
   // Auto-scroll to bottom when content changes, unless the user scrolled up.
   useLayoutEffect(() => {
     // Ensure the effect re-runs when the caller's content changes.
     void contentKey;
 
-    if (!scrollEl || isScrolledUp) return;
+    if (!enabled || !scrollEl || isScrolledUp) return;
 
     isUserScrollingRef.current = false;
     scrollEl.scrollTop = scrollEl.scrollHeight;
@@ -378,16 +396,16 @@ function useAutoScroll(scrollEl: HTMLElement | null, contentKey: unknown) {
     requestAnimationFrame(() => {
       isUserScrollingRef.current = true;
     });
-  }, [contentKey, isScrolledUp, scrollEl]);
+  }, [contentKey, enabled, isScrolledUp, scrollEl]);
 
   // Set up scroll listener
   useEffect(() => {
-    if (!scrollEl) return;
+    if (!enabled || !scrollEl) return;
 
     isUserScrollingRef.current = true;
     scrollEl.addEventListener("scroll", handleScroll, { passive: true });
     return () => scrollEl.removeEventListener("scroll", handleScroll);
-  }, [scrollEl, handleScroll]);
+  }, [enabled, scrollEl, handleScroll]);
 
   const scrollToBottom = useCallback(() => {
     if (!scrollEl) return;
@@ -456,7 +474,11 @@ function ChainOfThoughtText({
   ...props
 }: ChainOfThoughtTextProps) {
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
-  const { isScrolledUp, scrollToBottom } = useAutoScroll(scrollEl, children);
+  const { isScrolledUp, scrollToBottom } = useAutoScroll(
+    scrollEl,
+    children,
+    autoScroll,
+  );
 
   return (
     <div
@@ -520,7 +542,7 @@ function ChainOfThoughtPlaceholder({
 }
 
 export type ChainOfThoughtTimelineProps = React.ComponentProps<"ul"> & {
-  /** Enable auto-scroll when steps change (for streaming) */
+  /** Enable auto-scroll when content changes (for streaming) */
   autoScroll?: boolean;
 };
 
@@ -536,8 +558,11 @@ function ChainOfThoughtTimeline({
   ...props
 }: ChainOfThoughtTimelineProps) {
   const [scrollEl, setScrollEl] = useState<HTMLUListElement | null>(null);
-  const childCount = Children.count(children);
-  const { isScrolledUp, scrollToBottom } = useAutoScroll(scrollEl, childCount);
+  const { isScrolledUp, scrollToBottom } = useAutoScroll(
+    scrollEl,
+    children,
+    autoScroll,
+  );
 
   // Inject step indices for staggered animations
   const staggeredChildren = Children.map(children, (child, index) => {
@@ -1217,6 +1242,10 @@ const ChainOfThoughtGroupImpl: ReasoningGroupComponent = ({
 }) => {
   const [userDismissed, setUserDismissed] = useState(false);
 
+  const isMessageRunning = useAuiState(
+    ({ message }) => message.status?.type === "running",
+  );
+
   const isReasoningStreaming = useAuiState(({ message }) => {
     if (message.status?.type !== "running") return false;
     const lastIndex = message.parts.length - 1;
@@ -1225,6 +1254,8 @@ const ChainOfThoughtGroupImpl: ReasoningGroupComponent = ({
     if (lastType !== "reasoning") return false;
     return lastIndex >= startIndex && lastIndex <= endIndex;
   });
+
+  const [open, setOpen] = useState(isReasoningStreaming);
 
   const hasContent = useAuiState(({ message }) => {
     for (let i = startIndex; i <= endIndex && i < message.parts.length; i++) {
@@ -1236,27 +1267,30 @@ const ChainOfThoughtGroupImpl: ReasoningGroupComponent = ({
     return false;
   });
 
-  const shouldBeOpen = isReasoningStreaming && !userDismissed;
+  useEffect(() => {
+    if (isReasoningStreaming && !userDismissed) {
+      setOpen(true);
+    }
+  }, [isReasoningStreaming, userDismissed]);
 
   const handleOpenChange = useCallback(
-    (open: boolean) => {
-      if (!open && isReasoningStreaming) {
+    (nextOpen: boolean) => {
+      setOpen(nextOpen);
+      if (!nextOpen && isMessageRunning) {
         setUserDismissed(true);
       }
     },
-    [isReasoningStreaming],
+    [isMessageRunning],
   );
 
   return (
-    <ChainOfThoughtRoot
-      defaultOpen={false}
-      {...(shouldBeOpen ? { open: true } : {})}
-      onOpenChange={handleOpenChange}
-    >
+    <ChainOfThoughtRoot open={open} onOpenChange={handleOpenChange}>
       <ChainOfThoughtTrigger active={isReasoningStreaming} />
       <ChainOfThoughtContent aria-busy={isReasoningStreaming}>
         {hasContent ? (
-          <ChainOfThoughtText>{children}</ChainOfThoughtText>
+          <ChainOfThoughtText autoScroll={isReasoningStreaming}>
+            {children}
+          </ChainOfThoughtText>
         ) : (
           <ChainOfThoughtPlaceholder />
         )}
