@@ -10,6 +10,7 @@ import {
   ChainOfThoughtTimelineSample,
   ChainOfThoughtNumberedStepsSample,
   ChainOfThoughtTimelineStreamingSample,
+  ChainOfThoughtPartsGroupedSample,
   ChainOfThoughtAgentTraceSample,
   ChainOfThoughtToolCallsSample,
 } from "@/components/docs/samples/chain-of-thought";
@@ -51,6 +52,18 @@ export default function ChainOfThoughtPreviewPage() {
           pulses and shows a shimmer.
         </p>
         <ChainOfThoughtTimelineStreamingSample />
+      </section>
+
+      <section>
+        <h2 className="mb-4 font-semibold text-xl">
+          PartsGrouped Trace (parentId)
+        </h2>
+        <p className="mb-4 text-muted-foreground text-sm">
+          Demonstrates <code>MessagePrimitive.Unstable_PartsGrouped</code> with{" "}
+          <code>parentId</code> grouping, rendered as timeline steps via{" "}
+          <code>ChainOfThought.Trace</code>.
+        </p>
+        <ChainOfThoughtPartsGroupedSample />
       </section>
 
       <section>

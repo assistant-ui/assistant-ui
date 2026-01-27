@@ -3,14 +3,21 @@
 import { useEffect, useState, useCallback } from "react";
 import type { VariantProps } from "class-variance-authority";
 import { PlayIcon, RotateCcwIcon, EyeOffIcon } from "lucide-react";
+import {
+  MessageProvider,
+  type ThreadAssistantMessage,
+} from "@assistant-ui/react";
 import { SampleFrame } from "@/components/docs/samples/sample-frame";
 import { Button } from "@/components/ui/button";
+import { MarkdownText } from "@/components/assistant-ui/markdown-text";
+import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import {
   ChainOfThoughtRoot,
   ChainOfThoughtTrigger,
   ChainOfThoughtContent,
   ChainOfThoughtText,
   ChainOfThoughtPlaceholder,
+  ChainOfThoughtTrace,
   ChainOfThoughtTimeline,
   ChainOfThoughtStep,
   ChainOfThoughtStepHeader,
@@ -696,6 +703,168 @@ export function ChainOfThoughtTimelineStreamingSample() {
   return (
     <SampleFrame className="h-auto p-4">
       <TimelineStreamingDemo />
+    </SampleFrame>
+  );
+}
+
+// ============================================================================
+// PartsGrouped Trace Demo - parentId grouping + timeline rendering
+// ============================================================================
+
+const TRACE_PARENT_IDS = {
+  search: "trace:search",
+  image: "trace:image",
+  summary: "trace:summary",
+} as const;
+
+type TraceActiveStep = keyof typeof TRACE_PARENT_IDS | "complete";
+
+function PartsGroupedTraceDemo() {
+  const [activeStep, setActiveStep] = useState<TraceActiveStep>("search");
+  const isRunning = activeStep !== "complete";
+
+  const activeParentId =
+    activeStep === "complete"
+      ? TRACE_PARENT_IDS.summary
+      : TRACE_PARENT_IDS[activeStep];
+
+  const message: ThreadAssistantMessage = {
+    id: "cot-trace-message",
+    createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    role: "assistant",
+    status: isRunning
+      ? { type: "running" }
+      : { type: "complete", reason: "stop" },
+    content: [
+      {
+        type: "tool-call",
+        toolCallId: "tc-search-1",
+        toolName: "search",
+        args: { query: "profiles for Hayden Bleasel" },
+        argsText: JSON.stringify({ query: "profiles for Hayden Bleasel" }),
+        result: {
+          results: ["x.com", "instagram.com", "github.com"],
+        },
+        parentId: TRACE_PARENT_IDS.search,
+      },
+      {
+        type: "text",
+        text: "Found profiles on x.com, instagram.com, and github.com.",
+        parentId: TRACE_PARENT_IDS.search,
+      },
+      {
+        type: "tool-call",
+        toolCallId: "tc-image-1",
+        toolName: "image",
+        args: { prompt: "Create a profile avatar preview" },
+        argsText: JSON.stringify({ prompt: "Create a profile avatar preview" }),
+        result: { ok: true },
+        parentId: TRACE_PARENT_IDS.image,
+      },
+      {
+        type: "text",
+        text: "Generated an avatar image preview.",
+        parentId: TRACE_PARENT_IDS.image,
+      },
+      {
+        type: "text",
+        text: "Summary: Hayden Bleasel is a product designer and engineer.",
+        parentId: TRACE_PARENT_IDS.summary,
+      },
+      ...(isRunning
+        ? ([
+            {
+              type: "text",
+              text: "Working…",
+              parentId: activeParentId,
+            },
+          ] as const)
+        : []),
+    ],
+    metadata: {
+      unstable_state: null,
+      unstable_annotations: [],
+      unstable_data: [],
+      steps: [],
+      custom: {},
+    },
+  };
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-muted-foreground text-xs">Active step:</span>
+        <Button
+          size="sm"
+          variant={activeStep === "search" ? "default" : "outline"}
+          onClick={() => setActiveStep("search")}
+        >
+          Search
+        </Button>
+        <Button
+          size="sm"
+          variant={activeStep === "image" ? "default" : "outline"}
+          onClick={() => setActiveStep("image")}
+        >
+          Image
+        </Button>
+        <Button
+          size="sm"
+          variant={activeStep === "summary" ? "default" : "outline"}
+          onClick={() => setActiveStep("summary")}
+        >
+          Summary
+        </Button>
+        <Button
+          size="sm"
+          variant={activeStep === "complete" ? "default" : "outline"}
+          onClick={() => setActiveStep("complete")}
+        >
+          Complete
+        </Button>
+      </div>
+
+      <MessageProvider message={message} index={0} isLast>
+        <ChainOfThoughtRoot variant="muted" defaultOpen className="mb-0">
+          <ChainOfThoughtTrigger label="Trace" active={isRunning} />
+          <ChainOfThoughtContent aria-busy={isRunning}>
+            <ChainOfThoughtTrace
+              inferStep={({ groupKey, parts }) => {
+                const tool = parts.find((p) => p?.type === "tool-call") as
+                  | { toolName?: string }
+                  | undefined;
+                const toolName = tool?.toolName;
+
+                if (toolName === "search") {
+                  return { label: "Searching for profiles", type: "search" };
+                }
+
+                if (toolName === "image") {
+                  return { label: "Generating image", type: "image" };
+                }
+
+                if (groupKey === TRACE_PARENT_IDS.summary) {
+                  return { label: "Summary", type: "text" };
+                }
+
+                return { label: "Step", type: "default" };
+              }}
+              components={{
+                Text: MarkdownText,
+                tools: { Fallback: ToolFallback },
+              }}
+            />
+          </ChainOfThoughtContent>
+        </ChainOfThoughtRoot>
+      </MessageProvider>
+    </div>
+  );
+}
+
+export function ChainOfThoughtPartsGroupedSample() {
+  return (
+    <SampleFrame className="h-auto p-4">
+      <PartsGroupedTraceDemo />
     </SampleFrame>
   );
 }
