@@ -87,7 +87,7 @@ describe("ToolUIRuntime", () => {
       },
     });
 
-    const instance = runtime.mount(makeContext("call-3"));
+    const _instance = runtime.mount(makeContext("call-3"));
 
     runtime.close("call-3");
 

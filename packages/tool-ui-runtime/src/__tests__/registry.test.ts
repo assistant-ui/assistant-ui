@@ -3,7 +3,7 @@ import { ToolUIRegistryImpl } from "../registry/registry";
 import type { ToolUIFactory, ToolUIFactoryProps } from "../registry/types";
 
 describe("ToolUIRegistry", () => {
-  const makeFactory = (name: string): ToolUIFactory => {
+  const makeFactory = (_name: string): ToolUIFactory => {
     return (_props: ToolUIFactoryProps) => ({
       kind: "empty",
     });
