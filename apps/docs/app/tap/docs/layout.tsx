@@ -1,6 +1,6 @@
 import { DocsLayout } from "fumadocs-ui/layouts/docs";
 import type { ReactNode } from "react";
-import { source, tapDocs } from "@/lib/source";
+import { tapDocs } from "@/lib/source";
 import { getSidebarTabs } from "@/components/docs/layout/sidebar-tabs.server";
 import { AssistantPanelProvider } from "@/components/docs/assistant/context";
 import { DocsRuntimeProvider } from "@/contexts/DocsRuntimeProvider";
@@ -44,7 +44,7 @@ export default function Layout({ children }: { children: ReactNode }) {
             </DocsContent>
             <DocsSidebar>
               <SidebarContent
-                tree={source.pageTree}
+                tree={tapDocs.pageTree}
                 banner={<SidebarTabs tabs={tabs} />}
               />
             </DocsSidebar>

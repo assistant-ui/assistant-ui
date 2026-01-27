@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { getMDXComponents } from "@/mdx-components";
 import { tapDocs } from "@/lib/source";
 import { findNeighbour, getPageTreePeers } from "fumadocs-core/page-tree";
-import { Card, Cards } from "fumadocs-ui/components/card";
+import { Card, Cards } from "@/components/docs/fumadocs/card";
 import { TableOfContents } from "@/components/docs/layout/table-of-contents";
 import { DocsPager } from "@/components/docs/layout/docs-pager";
 import { DocsFooter } from "@/components/docs/layout/docs-footer";
@@ -37,7 +37,7 @@ export default async function Page(props: {
     DocsCategory,
   });
 
-  const path = `apps/docs/content/docs/${page.path}`;
+  const path = `apps/docs/content/tap-docs/${page.path}`;
   const markdownUrl = `${page.url}.mdx`;
   const githubEditUrl = `https://github.com/assistant-ui/assistant-ui/edit/main/${path}`;
 
