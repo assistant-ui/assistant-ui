@@ -1,12 +1,13 @@
 "use client";
 
+import type { BundledTheme } from "streamdown";
 import type { PluginConfig, ResolvedPluginConfig } from "./types";
 
 /**
  * Default Shiki theme for code highlighting.
  * First value is light theme, second is dark theme.
  */
-export const DEFAULT_SHIKI_THEME: [string, string] = [
+export const DEFAULT_SHIKI_THEME: [BundledTheme, BundledTheme] = [
   "github-light",
   "github-dark",
 ];
@@ -26,7 +27,7 @@ export function mergePlugins(
   userPlugins: PluginConfig | undefined,
   defaultPlugins: ResolvedPluginConfig,
 ): ResolvedPluginConfig {
-  const result: ResolvedPluginConfig = {};
+  const result: Record<string, unknown> = {};
 
   // Handle code, math, cjk plugins (support auto-detection)
   for (const key of PLUGIN_KEYS) {
@@ -41,8 +42,8 @@ export function mergePlugins(
 
   // Handle mermaid plugin - must be explicitly provided (not auto-detected)
   if (userPlugins?.mermaid && userPlugins.mermaid !== false) {
-    result.mermaid = userPlugins.mermaid;
+    result["mermaid"] = userPlugins.mermaid;
   }
 
-  return result;
+  return result as ResolvedPluginConfig;
 }

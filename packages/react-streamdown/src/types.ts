@@ -1,6 +1,77 @@
 import type { Element } from "hast";
-import type { ComponentPropsWithoutRef, ComponentType } from "react";
+import type { ComponentPropsWithoutRef, ComponentType, ReactNode } from "react";
 import type { StreamdownProps } from "streamdown";
+
+/**
+ * Caret style for streaming indicator.
+ */
+export type CaretStyle = "block" | "circle";
+
+/**
+ * Controls configuration for interactive elements.
+ */
+export type ControlsConfig =
+  | boolean
+  | {
+      table?: boolean;
+      code?: boolean;
+      mermaid?:
+        | boolean
+        | {
+            download?: boolean;
+            copy?: boolean;
+            fullscreen?: boolean;
+            panZoom?: boolean;
+          };
+    };
+
+/**
+ * Props passed to the link safety modal component.
+ */
+export type LinkSafetyModalProps = {
+  url: string;
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+};
+
+/**
+ * Configuration for link safety confirmation.
+ */
+export type LinkSafetyConfig = {
+  /** Whether link safety is enabled. */
+  enabled: boolean;
+  /** Custom function to check if a link is safe. */
+  onLinkCheck?: (url: string) => Promise<boolean> | boolean;
+  /** Custom modal component for link confirmation. */
+  renderModal?: (props: LinkSafetyModalProps) => ReactNode;
+};
+
+/**
+ * Configuration for incomplete markdown auto-completion.
+ */
+export type RemendConfig = {
+  /** Complete links (e.g., `[text](url` → `[text](streamdown:incomplete-link)`) */
+  links?: boolean;
+  /** Complete images (e.g., `![alt](url` → removed) */
+  images?: boolean;
+  /** How to handle incomplete links: 'protocol' or 'text-only' */
+  linkMode?: "protocol" | "text-only";
+  /** Complete bold formatting (e.g., `**text` → `**text**`) */
+  bold?: boolean;
+  /** Complete italic formatting (e.g., `*text` → `*text*`) */
+  italic?: boolean;
+  /** Complete bold-italic formatting (e.g., `***text` → `***text***`) */
+  boldItalic?: boolean;
+  /** Complete inline code formatting (e.g., `` `code `` → `` `code` ``) */
+  inlineCode?: boolean;
+  /** Complete strikethrough formatting (e.g., `~~text` → `~~text~~`) */
+  strikethrough?: boolean;
+  /** Complete block KaTeX math (e.g., `$$equation` → `$$equation$$`) */
+  katex?: boolean;
+  /** Handle incomplete setext headings to prevent misinterpretation */
+  setextHeadings?: boolean;
+};
 
 /**
  * Props for the SyntaxHighlighter component.
@@ -70,20 +141,22 @@ export type PluginConfig = {
 
 /**
  * Resolved plugin configuration (without false values).
+ * This is the type passed to streamdown after processing.
  */
-export type ResolvedPluginConfig = {
-  code?: unknown;
-  math?: unknown;
-  cjk?: unknown;
-  mermaid?: unknown;
-};
+export type ResolvedPluginConfig = NonNullable<StreamdownProps["plugins"]>;
 
 /**
  * Props for StreamdownTextPrimitive.
  */
 export type StreamdownTextPrimitiveProps = Omit<
   StreamdownProps,
-  "children" | "components" | "plugins"
+  | "children"
+  | "components"
+  | "plugins"
+  | "caret"
+  | "controls"
+  | "linkSafety"
+  | "remend"
 > & {
   /**
    * Custom components for rendering markdown elements.
@@ -129,6 +202,59 @@ export type StreamdownTextPrimitiveProps = Omit<
    * Additional class name for the container.
    */
   containerClassName?: string | undefined;
+
+  /**
+   * Streaming caret style.
+   * - "block": Block cursor (▋)
+   * - "circle": Circle cursor (●)
+   */
+  caret?: CaretStyle | undefined;
+
+  /**
+   * Interactive controls configuration.
+   * Set to `true` to enable all controls, `false` to disable all,
+   * or provide an object to configure specific controls.
+   *
+   * @example
+   * // Enable all controls
+   * controls={true}
+   *
+   * @example
+   * // Configure specific controls
+   * controls={{ code: true, table: false, mermaid: { fullscreen: true } }}
+   */
+  controls?: ControlsConfig | undefined;
+
+  /**
+   * Link safety configuration.
+   * Shows a confirmation dialog before opening external links.
+   *
+   * @example
+   * // Disable link safety
+   * linkSafety={{ enabled: false }}
+   *
+   * @example
+   * // Custom link check
+   * linkSafety={{
+   *   enabled: true,
+   *   onLinkCheck: (url) => url.startsWith('https://trusted.com')
+   * }}
+   */
+  linkSafety?: LinkSafetyConfig | undefined;
+
+  /**
+   * Incomplete markdown auto-completion configuration.
+   * Controls how streaming markdown with incomplete syntax is handled.
+   *
+   * @example
+   * // Disable link completion
+   * remend={{ links: false }}
+   *
+   * @example
+   * // Use text-only mode for incomplete links
+   * remend={{ linkMode: "text-only" }}
+   */
+  remend?: RemendConfig | undefined;
 };
 
 export type { StreamdownProps };

@@ -10,6 +10,11 @@ export type {
   StreamdownTextComponents,
   PluginConfig,
   ResolvedPluginConfig,
+  CaretStyle,
+  ControlsConfig,
+  LinkSafetyConfig,
+  LinkSafetyModalProps,
+  RemendConfig,
 } from "./types";
 
 // Re-export useful streamdown types

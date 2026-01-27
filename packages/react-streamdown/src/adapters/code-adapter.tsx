@@ -2,11 +2,11 @@
 
 import type { Element } from "hast";
 import {
+  type ComponentPropsWithoutRef,
   type ComponentType,
-  type DetailedHTMLProps,
-  type HTMLAttributes,
   isValidElement,
   memo,
+  type ReactNode,
 } from "react";
 import type {
   CodeHeaderProps,
@@ -17,7 +17,11 @@ import { useIsStreamdownCodeBlock } from "./PreOverride";
 
 const LANGUAGE_REGEX = /language-([^\s]+)/;
 
-type CodeProps = DetailedHTMLProps<HTMLAttributes<HTMLElement>, HTMLElement> & {
+type CodeProps = ComponentPropsWithoutRef<"code"> & {
+  node?: Element | undefined;
+};
+
+type PreProps = ComponentPropsWithoutRef<"pre"> & {
   node?: Element | undefined;
 };
 
@@ -46,11 +50,11 @@ function extractCode(children: unknown): string {
   return "";
 }
 
-function DefaultPre({ node: _, ...props }: CodeProps): JSX.Element {
+function DefaultPre({ node: _, ...props }: PreProps): ReactNode {
   return <pre {...props} />;
 }
 
-function DefaultCode({ node: _, ...props }: CodeProps): JSX.Element {
+function DefaultCode({ node: _, ...props }: CodeProps): ReactNode {
   return <code {...props} />;
 }
 

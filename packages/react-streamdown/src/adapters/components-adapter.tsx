@@ -25,10 +25,6 @@ export function useAdaptedComponents({
   componentsByLanguage,
 }: UseAdaptedComponentsOptions): StreamdownProps["components"] {
   return useMemo(() => {
-    if (!components && !componentsByLanguage) {
-      return undefined;
-    }
-
     const { SyntaxHighlighter, CodeHeader, ...htmlComponents } =
       components ?? {};
 
@@ -38,13 +34,16 @@ export function useAdaptedComponents({
       componentsByLanguage,
     };
 
+    // Always include PreOverride for inline/block code detection
+    const baseComponents = { pre: PreOverride };
+
     // If user provided custom code-related components, create adapter
     if (shouldUseCodeAdapter(codeAdapterOptions)) {
       const AdaptedCode = createCodeAdapter(codeAdapterOptions);
 
       return {
         ...htmlComponents,
-        pre: PreOverride,
+        ...baseComponents,
         code: (props) => {
           const result = AdaptedCode(props);
           // If adapter returns null, return undefined to let streamdown handle it
@@ -56,7 +55,10 @@ export function useAdaptedComponents({
       };
     }
 
-    // No custom code components, just pass through HTML components
-    return htmlComponents as StreamdownProps["components"];
+    // Always return PreOverride even without custom code components
+    return {
+      ...htmlComponents,
+      ...baseComponents,
+    };
   }, [components, componentsByLanguage]);
 }

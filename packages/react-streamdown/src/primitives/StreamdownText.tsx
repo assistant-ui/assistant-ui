@@ -67,6 +67,12 @@ export const StreamdownTextPrimitive = forwardRef<
       containerProps,
       containerClassName,
 
+      // streamdown native props (explicitly listed for documentation)
+      caret,
+      controls,
+      linkSafety,
+      remend,
+
       // streamdown props
       mode = "streaming",
       className,
@@ -106,17 +112,13 @@ export const StreamdownTextPrimitive = forwardRef<
       componentsByLanguage,
     });
 
-    // Merge user components with adapted ones
+    // Merge user components with adapted ones (adaptedComponents always includes PreOverride)
     const mergedComponents = useMemo(() => {
       const {
         SyntaxHighlighter: _,
         CodeHeader: __,
         ...userHtmlComponents
       } = components ?? {};
-
-      if (!adaptedComponents && Object.keys(userHtmlComponents).length === 0) {
-        return undefined;
-      }
 
       return {
         ...userHtmlComponents,
@@ -130,6 +132,17 @@ export const StreamdownTextPrimitive = forwardRef<
         .filter(Boolean)
         .join(" ") || undefined;
 
+    // Build optional props object (filter out undefined for exactOptionalPropertyTypes)
+    const optionalProps = {
+      ...(className && { className }),
+      ...(caret && { caret }),
+      ...(controls !== undefined && { controls }),
+      ...(linkSafety && { linkSafety }),
+      ...(remend && { remend }),
+      ...(resolvedPlugins && { plugins: resolvedPlugins }),
+      ...(resolvedShikiTheme && { shikiTheme: resolvedShikiTheme }),
+    };
+
     return (
       <div
         ref={ref}
@@ -141,9 +154,7 @@ export const StreamdownTextPrimitive = forwardRef<
           mode={mode}
           isAnimating={status.type === "running"}
           components={mergedComponents}
-          className={className}
-          plugins={resolvedPlugins}
-          shikiTheme={resolvedShikiTheme}
+          {...optionalProps}
           {...streamdownProps}
         >
           {processedText}
