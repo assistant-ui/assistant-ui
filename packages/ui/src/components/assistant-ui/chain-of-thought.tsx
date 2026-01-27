@@ -1,6 +1,14 @@
 "use client";
 
-import { memo, useCallback, useRef, useState, type ReactNode } from "react";
+import {
+  createContext,
+  memo,
+  useCallback,
+  useContext,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import {
   BrainIcon,
@@ -14,6 +22,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import {
+  MessagePrimitive,
   useScrollLock,
   useAuiState,
   type ReasoningMessagePartComponent,
@@ -480,7 +489,7 @@ function ChainOfThoughtStep({
             <IconRenderer
               Icon={icon as LucideIcon}
               status={effectiveStatus}
-              pulse={active}
+              pulse={active === true}
             />
           ) : (
             icon
@@ -493,7 +502,11 @@ function ChainOfThoughtStep({
     const TypeIcon = stepTypeIcons[type];
     return (
       <StepIndicatorWrapper status={effectiveStatus}>
-        <IconRenderer Icon={TypeIcon} status={effectiveStatus} pulse={active} />
+        <IconRenderer
+          Icon={TypeIcon}
+          status={effectiveStatus}
+          pulse={active === true}
+        />
       </StepIndicatorWrapper>
     );
   };
@@ -669,6 +682,175 @@ function ChainOfThoughtStepImage({
   );
 }
 
+type MessagePartGroup = {
+  groupKey: string | undefined;
+  indices: number[];
+};
+
+const groupMessagePartsByParentId = (
+  parts: readonly any[],
+): MessagePartGroup[] => {
+  // Map maintains insertion order, so groups appear in order of first occurrence
+  const groupMap = new Map<string, number[]>();
+
+  // Process each part in order
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    const parentId = part?.parentId as string | undefined;
+
+    // For parts without parentId, assign a unique group ID to maintain their position
+    const groupId = parentId ?? `__ungrouped_${i}`;
+
+    const indices = groupMap.get(groupId) ?? [];
+    indices.push(i);
+    groupMap.set(groupId, indices);
+  }
+
+  const groups: MessagePartGroup[] = [];
+  for (const [groupId, indices] of groupMap) {
+    const groupKey = groupId.startsWith("__ungrouped_") ? undefined : groupId;
+    groups.push({ groupKey, indices });
+  }
+
+  return groups;
+};
+
+export type ChainOfThoughtTraceStepMeta = {
+  label?: ReactNode;
+  type?: StepType;
+  status?: StepStatus;
+  stepLabel?: string | number;
+  icon?: LucideIcon | ReactNode;
+};
+
+export type ChainOfThoughtTraceProps = Omit<
+  React.ComponentProps<typeof ChainOfThoughtTimeline>,
+  "children"
+> & {
+  groupingFunction?: React.ComponentProps<
+    typeof MessagePrimitive.Unstable_PartsGrouped
+  >["groupingFunction"];
+  components?: React.ComponentProps<
+    typeof MessagePrimitive.Unstable_PartsGrouped
+  >["components"];
+  /**
+   * Customize how a grouped step is labeled and styled.
+   *
+   * - `parts` are the message parts within the group (in order)
+   * - `isActive` is true when the message is running and this group contains the newest part
+   */
+  inferStep?: (args: {
+    groupKey: string | undefined;
+    indices: number[];
+    parts: readonly any[];
+    isActive: boolean;
+  }) => ChainOfThoughtTraceStepMeta;
+};
+
+const defaultInferStep: NonNullable<ChainOfThoughtTraceProps["inferStep"]> = ({
+  groupKey,
+  parts,
+}) => {
+  const tool = parts.find((p) => p?.type === "tool-call") as
+    | { toolName?: string }
+    | undefined;
+  const toolName = tool?.toolName;
+
+  const type: StepType = toolName
+    ? toolName.includes("search")
+      ? "search"
+      : toolName.includes("image")
+        ? "image"
+        : "tool"
+    : "default";
+
+  if (toolName) return { label: `Tool: ${toolName}`, type };
+  if (!groupKey) return { type };
+  return { label: "Step", type };
+};
+
+type ChainOfThoughtTraceContextValue = {
+  inferStep: NonNullable<ChainOfThoughtTraceProps["inferStep"]>;
+};
+
+const ChainOfThoughtTraceContext =
+  createContext<ChainOfThoughtTraceContextValue | null>(null);
+
+function ChainOfThoughtTraceGroup({
+  groupKey,
+  indices,
+  children,
+}: {
+  groupKey: string | undefined;
+  indices: number[];
+  children?: ReactNode;
+}) {
+  const context = useContext(ChainOfThoughtTraceContext);
+  const inferStep = context?.inferStep ?? defaultInferStep;
+
+  const { groupParts, isActive } = useAuiState(({ message }) => {
+    const groupParts = indices.map((i) => message.parts[i]).filter(Boolean);
+    const lastIndex = message.parts.length - 1;
+    const isActive =
+      message.status?.type === "running" &&
+      lastIndex >= 0 &&
+      indices.includes(lastIndex);
+
+    return { groupParts, isActive };
+  });
+
+  const meta = inferStep({
+    groupKey,
+    indices,
+    parts: groupParts,
+    isActive,
+  });
+
+  return (
+    <ChainOfThoughtStep
+      active={isActive}
+      {...(meta.type ? { type: meta.type } : {})}
+      {...(meta.status ? { status: meta.status } : {})}
+      {...(meta.stepLabel !== undefined ? { stepLabel: meta.stepLabel } : {})}
+      {...(meta.icon !== undefined ? { icon: meta.icon } : {})}
+    >
+      {meta.label !== undefined ? (
+        <ChainOfThoughtStepHeader>{meta.label}</ChainOfThoughtStepHeader>
+      ) : null}
+      <ChainOfThoughtStepBody>{children}</ChainOfThoughtStepBody>
+    </ChainOfThoughtStep>
+  );
+}
+
+/**
+ * Trace/timeline renderer for message parts grouped via `MessagePrimitive.Unstable_PartsGrouped`.
+ *
+ * This enables a v2 "agent trace" UI without inventing a new message-part schema:
+ * - parts that share the same `parentId` render as a single step
+ * - ungrouped parts render as individual steps in chronological order
+ */
+function ChainOfThoughtTrace({
+  className,
+  groupingFunction = groupMessagePartsByParentId,
+  components,
+  inferStep = defaultInferStep,
+  ...timelineProps
+}: ChainOfThoughtTraceProps) {
+  return (
+    <ChainOfThoughtTimeline className={className} {...timelineProps}>
+      <ChainOfThoughtTraceContext.Provider value={{ inferStep }}>
+        <MessagePrimitive.Unstable_PartsGrouped
+          groupingFunction={groupingFunction}
+          components={{
+            ...components,
+            Group: ChainOfThoughtTraceGroup,
+          }}
+        />
+      </ChainOfThoughtTraceContext.Provider>
+    </ChainOfThoughtTimeline>
+  );
+}
+
 /**
  * Default implementation for rendering reasoning message parts.
  */
@@ -744,6 +926,7 @@ const ChainOfThought = memo(
   Text: typeof ChainOfThoughtText;
   Fade: typeof ChainOfThoughtFade;
   Placeholder: typeof ChainOfThoughtPlaceholder;
+  Trace: typeof ChainOfThoughtTrace;
   Timeline: typeof ChainOfThoughtTimeline;
   Step: typeof ChainOfThoughtStep;
   StepHeader: typeof ChainOfThoughtStepHeader;
@@ -760,6 +943,7 @@ ChainOfThought.Content = ChainOfThoughtContent;
 ChainOfThought.Text = ChainOfThoughtText;
 ChainOfThought.Fade = ChainOfThoughtFade;
 ChainOfThought.Placeholder = ChainOfThoughtPlaceholder;
+ChainOfThought.Trace = ChainOfThoughtTrace;
 ChainOfThought.Timeline = ChainOfThoughtTimeline;
 ChainOfThought.Step = ChainOfThoughtStep;
 ChainOfThought.StepHeader = ChainOfThoughtStepHeader;
@@ -780,6 +964,7 @@ export {
   ChainOfThoughtText,
   ChainOfThoughtFade,
   ChainOfThoughtPlaceholder,
+  ChainOfThoughtTrace,
   ChainOfThoughtTimeline,
   ChainOfThoughtStep,
   ChainOfThoughtStepHeader,
