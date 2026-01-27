@@ -1,16 +1,18 @@
 import { RefObject, useState } from "react";
 import { ThreadHistoryAdapter } from "../runtime-cores/adapters/thread-history/ThreadHistoryAdapter";
 import { ExportedMessageRepositoryItem } from "../runtime-cores/utils/MessageRepository";
-import { AssistantCloud, CloudMessagePersistence } from "assistant-cloud";
+import {
+  AssistantCloud,
+  CloudMessagePersistence,
+  createFormattedPersistence,
+} from "assistant-cloud";
 import { auiV0Decode, auiV0Encode } from "./auiV0";
 import {
   MessageFormatAdapter,
   MessageFormatItem,
   MessageFormatRepository,
-  MessageStorageEntry,
 } from "../runtime-cores/adapters/thread-history/MessageFormatAdapter";
 import { GenericThreadHistoryAdapter } from "../runtime-cores/adapters/thread-history/ThreadHistoryAdapter";
-import { ReadonlyJSONObject } from "assistant-stream/utils";
 import { AssistantClient, useAui } from "@assistant-ui/store";
 import { ThreadListItemMethods } from "../../types/scopes";
 
@@ -19,38 +21,6 @@ const globalPersistenceMap = new WeakMap<
   ThreadListItemMethods,
   CloudMessagePersistence
 >();
-
-class FormattedThreadHistoryAdapter<TMessage, TStorageFormat>
-  implements GenericThreadHistoryAdapter<TMessage>
-{
-  constructor(
-    private parent: AssistantCloudThreadHistoryAdapter,
-    private formatAdapter: MessageFormatAdapter<TMessage, TStorageFormat>,
-  ) {}
-
-  async append(item: MessageFormatItem<TMessage>) {
-    // Encode the message using the format adapter
-    const encoded = this.formatAdapter.encode(item);
-    const messageId = this.formatAdapter.getId(item.message);
-
-    // Delegate to parent's internal append method with the encoded format
-    return this.parent._appendWithFormat(
-      item.parentId,
-      messageId,
-      this.formatAdapter.format,
-      encoded,
-    );
-  }
-
-  async load(): Promise<MessageFormatRepository<TMessage>> {
-    // Delegate to parent's internal load method with format filter
-    return this.parent._loadWithFormat(
-      this.formatAdapter.format,
-      (message: MessageStorageEntry<TStorageFormat>) =>
-        this.formatAdapter.decode(message),
-    );
-  }
-}
 
 class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   constructor(
@@ -72,7 +42,26 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   withFormat<TMessage, TStorageFormat>(
     formatAdapter: MessageFormatAdapter<TMessage, TStorageFormat>,
   ): GenericThreadHistoryAdapter<TMessage> {
-    return new FormattedThreadHistoryAdapter(this, formatAdapter);
+    const self = this;
+    return {
+      async append(item: MessageFormatItem<TMessage>) {
+        const { remoteId } = await self.aui.threadListItem().initialize();
+        const formatted = createFormattedPersistence(
+          self.persistence,
+          formatAdapter,
+        );
+        await formatted.append(remoteId, item);
+      },
+      async load(): Promise<MessageFormatRepository<TMessage>> {
+        const remoteId = self.aui.threadListItem().getState().remoteId;
+        if (!remoteId) return { messages: [] };
+        const formatted = createFormattedPersistence(
+          self.persistence,
+          formatAdapter,
+        );
+        return formatted.load(remoteId);
+      },
+    };
   }
 
   async append({ parentId, message }: ExportedMessageRepositoryItem) {
@@ -97,49 +86,6 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
           (m): m is typeof m & { format: "aui/v0" } => m.format === "aui/v0",
         )
         .map(auiV0Decode)
-        .reverse(),
-    };
-  }
-
-  // Internal methods for FormattedThreadHistoryAdapter
-  async _appendWithFormat<T>(
-    parentId: string | null,
-    messageId: string,
-    format: string,
-    content: T,
-  ) {
-    const { remoteId } = await this.aui.threadListItem().initialize();
-    await this.persistence.append(
-      remoteId,
-      messageId,
-      parentId,
-      format,
-      content as ReadonlyJSONObject,
-    );
-  }
-
-  async _loadWithFormat<TMessage, TStorageFormat>(
-    format: string,
-    decoder: (
-      message: MessageStorageEntry<TStorageFormat>,
-    ) => MessageFormatItem<TMessage>,
-  ): Promise<MessageFormatRepository<TMessage>> {
-    const remoteId = this.aui.threadListItem().getState().remoteId;
-    if (!remoteId) return { messages: [] };
-
-    const messages = await this.persistence.load(remoteId, format);
-
-    return {
-      messages: messages
-        .filter((m) => m.format === format)
-        .map((m) =>
-          decoder({
-            id: m.id,
-            parent_id: m.parent_id,
-            format: m.format,
-            content: m.content as TStorageFormat,
-          }),
-        )
         .reverse(),
     };
   }

@@ -2,9 +2,25 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { UIMessage, UseChatHelpers } from "@ai-sdk/react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type ChatInit } from "ai";
+import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import type { AssistantCloud } from "../AssistantCloud";
 import { CloudMessagePersistence } from "../CloudMessagePersistence";
-import { encode, decode, MESSAGE_FORMAT } from "./format";
+import {
+  createFormattedPersistence,
+  type MessageFormatAdapter,
+} from "../FormattedCloudPersistence";
+import { encode, MESSAGE_FORMAT } from "./format";
+
+const aiSdkFormatAdapter: MessageFormatAdapter<UIMessage, ReadonlyJSONObject> =
+  {
+    format: MESSAGE_FORMAT,
+    encode: ({ message }) => encode(message),
+    decode: (stored) => ({
+      parentId: stored.parent_id,
+      message: { id: stored.id, ...stored.content } as UIMessage,
+    }),
+    getId: (message) => message.id,
+  };
 
 export type UseCloudChatOptions = Omit<ChatInit<UIMessage>, "transport"> & {
   /** API endpoint for chat. Defaults to "/api/chat" */
@@ -69,6 +85,9 @@ export function useCloudChat(
     options ?? {};
 
   const [persistence] = useState(() => new CloudMessagePersistence(cloud));
+  const [formatted] = useState(() =>
+    createFormattedPersistence(persistence, aiSdkFormatAdapter),
+  );
   const [threadId, setThreadId] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<Error | null>(null);
 
@@ -124,7 +143,7 @@ export function useCloudChat(
         if (!tid) return; // Should never happen - thread created on sendMessage
 
         const assistantMsg = event.message;
-        if (persistence.isPersisted(assistantMsg.id)) return;
+        if (formatted.isPersisted(assistantMsg.id)) return;
 
         // Find parent (the user message before this assistant message)
         const msgIndex = event.messages.findIndex(
@@ -132,13 +151,7 @@ export function useCloudChat(
         );
         const parentId = msgIndex > 0 ? event.messages[msgIndex - 1]!.id : null;
 
-        await persistence.append(
-          tid,
-          assistantMsg.id,
-          parentId,
-          MESSAGE_FORMAT,
-          encode(assistantMsg),
-        );
+        await formatted.append(tid, { parentId, message: assistantMsg });
       } catch (err) {
         if (mountedRef.current) {
           setSyncError(err instanceof Error ? err : new Error(String(err)));
@@ -190,20 +203,18 @@ export function useCloudChat(
     const messages = chat.messages;
     for (const msg of messages) {
       if (msg.role !== "user") continue;
-      if (persistence.isPersisted(msg.id)) continue;
+      if (formatted.isPersisted(msg.id)) continue;
 
       const idx = messages.indexOf(msg);
       const parentId = idx > 0 ? messages[idx - 1]!.id : null;
 
-      persistence
-        .append(tid, msg.id, parentId, MESSAGE_FORMAT, encode(msg))
-        .catch((err) => {
-          if (mountedRef.current) {
-            setSyncError(err instanceof Error ? err : new Error(String(err)));
-          }
-        });
+      formatted.append(tid, { parentId, message: msg }).catch((err) => {
+        if (mountedRef.current) {
+          setSyncError(err instanceof Error ? err : new Error(String(err)));
+        }
+      });
     }
-  }, [chat.messages, persistence]);
+  }, [chat.messages, formatted]);
 
   // Load messages when threadId changes (explicit action, not observation)
   useEffect(() => {
@@ -216,14 +227,20 @@ export function useCloudChat(
       return;
     }
 
+    // Skip loading for newly created threads — the optimistic messages
+    // from sendMessage are already in chat state. Loading from the cloud
+    // would return an empty array and wipe them out.
+    if (isNewThreadRef.current) {
+      return;
+    }
+
     let cancelled = false;
 
-    persistence
-      .load(threadId, MESSAGE_FORMAT)
-      .then((messages) => {
+    formatted
+      .load(threadId)
+      .then(({ messages }) => {
         if (cancelled) return;
-        const sorted = [...messages].sort((a, b) => a.height - b.height);
-        setMessagesRef.current(sorted.map(decode));
+        setMessagesRef.current(messages.map((item) => item.message));
       })
       .catch((err) => {
         if (cancelled) return;
@@ -233,7 +250,7 @@ export function useCloudChat(
     return () => {
       cancelled = true;
     };
-  }, [threadId, persistence]);
+  }, [threadId, persistence, formatted]);
 
   const selectThread = useCallback(
     (id: string | null) => {
