@@ -47,20 +47,63 @@ import { cn } from "@/lib/utils";
 const ANIMATION_DURATION = 200;
 
 /**
- * Spring-like easing curve with subtle overshoot for natural motion.
- * Gentle spring that settles smoothly without excessive bounce.
+ * Smooth ease-out curve for refined, professional feel.
+ * No overshoot - clean and crisp.
  */
-const SPRING_EASING = "cubic-bezier(0.62, -0.05, 0.71, 1.15)";
+const SPRING_EASING = "cubic-bezier(0.22, 0.61, 0.36, 1)";
 
 /**
- * Smooth deceleration curve for collapsing motions.
+ * Material Design standard easing for crisp close animations.
  */
-const EASE_OUT_EXPO = "cubic-bezier(0.16, 1, 0.3, 1)";
+const EASE_OUT_EXPO = "cubic-bezier(0.4, 0, 0.2, 1)";
 
 /**
  * Stagger delay between timeline steps (in ms).
  */
 const STEP_STAGGER_DELAY = 40;
+
+/**
+ * Step animation keyframes - injected once per document.
+ * Uses clip-path for connector "line extension" and blur for focus effect.
+ */
+const STEP_KEYFRAMES = `
+@keyframes aui-connector-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes aui-icon-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+    filter: blur(3px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0);
+  }
+}
+@keyframes aui-content-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+`;
+
+let keyframesInjected = false;
+function injectStepKeyframes() {
+  if (typeof document === "undefined" || keyframesInjected) return;
+  const style = document.createElement("style");
+  style.id = "aui-chain-of-thought-keyframes";
+  style.textContent = STEP_KEYFRAMES;
+  document.head.appendChild(style);
+  keyframesInjected = true;
+}
 
 /**
  * Map of step types to their default icons.
@@ -112,16 +155,10 @@ const chainOfThoughtVariants = cva("aui-chain-of-thought-root mb-4 w-full", {
 const stepVariants = cva(
   cn(
     "aui-chain-of-thought-step relative flex items-start gap-3 py-1.5",
-    // Staggered reveal animation
-    "translate-y-1 opacity-0",
-    "group-data-[state=open]/collapsible-content:opacity-100",
-    "group-data-[state=open]/collapsible-content:translate-y-0",
-    "transition-[opacity,transform] duration-(--animation-duration) ease-(--spring-easing)",
-    // Stagger delay based on step index
-    "[transition-delay:calc(var(--step-index,0)*var(--step-stagger-delay,40ms))]",
-    // Skip stagger when closing (all steps hide together)
-    "group-data-[state=closed]/collapsible-content:[transition-delay:0ms]",
-    "group-data-[state=closed]/collapsible-content:duration-[100ms]",
+    // Prevent blur filter clipping during entrance animation
+    "overflow-visible",
+    // Stagger delay passed to children via CSS variable
+    "[--step-delay:calc(var(--step-index,0)*var(--step-stagger-delay,40ms))]",
   ),
   {
     variants: {
@@ -241,7 +278,7 @@ function ChainOfThoughtTrigger({
       data-slot="chain-of-thought-trigger"
       className={cn(
         "aui-chain-of-thought-trigger",
-        "group/trigger flex max-w-full items-start gap-3 py-1 text-left",
+        "group/trigger flex w-full items-start gap-3 py-1 text-left",
         "text-muted-foreground text-sm transition-colors hover:text-foreground",
         className,
       )}
@@ -283,7 +320,7 @@ function ChainOfThoughtTrigger({
           data-slot="chain-of-thought-trigger-chevron"
           className={cn(
             "aui-chain-of-thought-trigger-chevron size-4",
-            // Spring easing for natural rotation with slight overshoot
+            // Smooth ease-out for refined rotation
             "transition-transform duration-(--animation-duration) ease-(--spring-easing)",
             "group-data-[state=closed]/trigger:-rotate-90",
             "group-data-[state=open]/trigger:rotate-0",
@@ -431,7 +468,7 @@ function useAutoScroll(
 }
 
 /**
- * "Jump to latest" button for scrollable containers.
+ * "Latest" button for scrollable containers - affixed to bottom of container.
  */
 function JumpToLatestButton({
   onClick,
@@ -448,7 +485,7 @@ function JumpToLatestButton({
       onClick={onClick}
       data-slot="chain-of-thought-jump-to-latest"
       className={cn(
-        "aui-chain-of-thought-jump-to-latest absolute right-2 bottom-10 z-20",
+        "aui-chain-of-thought-jump-to-latest absolute right-2 bottom-2 z-20",
         "inline-flex items-center gap-1 rounded-full px-2.5 py-1",
         "bg-primary text-primary-foreground text-xs shadow-md",
         "transition-all duration-200 ease-(--spring-easing)",
@@ -460,7 +497,7 @@ function JumpToLatestButton({
       )}
     >
       <ArrowDownIcon aria-hidden />
-      Jump to latest
+      Latest
     </button>
   );
 }
@@ -490,38 +527,40 @@ function ChainOfThoughtText({
   );
 
   return (
-    <div
-      ref={(el) => setScrollEl(el)}
-      data-slot="chain-of-thought-text"
-      className={cn(
-        "aui-chain-of-thought-text",
-        "relative z-0 max-h-64 overflow-y-auto overflow-x-hidden pt-2 pb-2 pl-9 leading-relaxed",
-        // Handle long unbreakable content (URLs, code, etc.)
-        "break-words [overflow-wrap:anywhere]",
-        "transform-gpu",
-        // Open animation: spring easing, staggered fade+slide
-        "group-data-[state=open]/collapsible-content:animate-in",
-        "group-data-[state=open]/collapsible-content:fade-in-0",
-        "group-data-[state=open]/collapsible-content:slide-in-from-top-3",
-        "group-data-[state=open]/collapsible-content:duration-(--animation-duration)",
-        "group-data-[state=open]/collapsible-content:ease-(--spring-easing)",
-        // Close animation: opacity leads, then slide
-        "group-data-[state=closed]/collapsible-content:animate-out",
-        "group-data-[state=closed]/collapsible-content:fade-out-0",
-        "group-data-[state=closed]/collapsible-content:slide-out-to-top-2",
-        "group-data-[state=closed]/collapsible-content:duration-[calc(var(--animation-duration)*0.8)]",
-        "group-data-[state=closed]/collapsible-content:ease-(--ease-out-expo)",
-        className,
-      )}
-      {...props}
-    >
-      {children}
-      {showCursor && (
-        <span
-          aria-hidden
-          className="aui-chain-of-thought-cursor ml-0.5 inline-block h-4 w-0.5 animate-pulse bg-foreground/70 align-text-bottom"
-        />
-      )}
+    <div className="aui-chain-of-thought-text-wrapper relative">
+      <div
+        ref={(el) => setScrollEl(el)}
+        data-slot="chain-of-thought-text"
+        className={cn(
+          "aui-chain-of-thought-text",
+          "relative z-0 max-h-64 overflow-y-auto overflow-x-hidden pt-2 pb-2 pl-9 leading-relaxed",
+          // Handle long unbreakable content (URLs, code, etc.)
+          "break-words [overflow-wrap:anywhere]",
+          "transform-gpu",
+          // Open animation: spring easing, staggered fade+slide
+          "group-data-[state=open]/collapsible-content:animate-in",
+          "group-data-[state=open]/collapsible-content:fade-in-0",
+          "group-data-[state=open]/collapsible-content:slide-in-from-top-3",
+          "group-data-[state=open]/collapsible-content:duration-(--animation-duration)",
+          "group-data-[state=open]/collapsible-content:ease-(--spring-easing)",
+          // Close animation: opacity leads, then slide
+          "group-data-[state=closed]/collapsible-content:animate-out",
+          "group-data-[state=closed]/collapsible-content:fade-out-0",
+          "group-data-[state=closed]/collapsible-content:slide-out-to-top-2",
+          "group-data-[state=closed]/collapsible-content:duration-[calc(var(--animation-duration)*0.8)]",
+          "group-data-[state=closed]/collapsible-content:ease-(--ease-out-expo)",
+          className,
+        )}
+        {...props}
+      >
+        {children}
+        {showCursor && (
+          <span
+            aria-hidden
+            className="aui-chain-of-thought-cursor ml-1 inline-block size-2 animate-pulse rounded-full bg-foreground/70 align-middle"
+          />
+        )}
+      </div>
       {autoScroll && (
         <JumpToLatestButton onClick={scrollToBottom} visible={isScrolledUp} />
       )}
@@ -564,10 +603,15 @@ export type ChainOfThoughtTimelineProps = React.ComponentProps<"ul"> & {
  */
 function ChainOfThoughtTimeline({
   className,
-  autoScroll = false,
+  autoScroll = true,
   children,
   ...props
 }: ChainOfThoughtTimelineProps) {
+  // Inject step animation keyframes once
+  useLayoutEffect(() => {
+    injectStepKeyframes();
+  }, []);
+
   const [scrollEl, setScrollEl] = useState<HTMLUListElement | null>(null);
   const { isScrolledUp, scrollToBottom } = useAutoScroll(
     scrollEl,
@@ -595,36 +639,38 @@ function ChainOfThoughtTimeline({
   });
 
   return (
-    <ul
-      ref={(el) => setScrollEl(el)}
-      data-slot="chain-of-thought-timeline"
-      data-step-count={stepCount}
-      className={cn(
-        "aui-chain-of-thought-timeline",
-        "relative z-0 max-h-64 overflow-y-auto",
-        "flex flex-col pt-1 pb-2",
-        "transform-gpu",
-        // Open animation: spring easing, staggered fade+slide
-        "group-data-[state=open]/collapsible-content:animate-in",
-        "group-data-[state=open]/collapsible-content:fade-in-0",
-        "group-data-[state=open]/collapsible-content:slide-in-from-top-3",
-        "group-data-[state=open]/collapsible-content:duration-(--animation-duration)",
-        "group-data-[state=open]/collapsible-content:ease-(--spring-easing)",
-        // Close animation: opacity leads, then slide
-        "group-data-[state=closed]/collapsible-content:animate-out",
-        "group-data-[state=closed]/collapsible-content:fade-out-0",
-        "group-data-[state=closed]/collapsible-content:slide-out-to-top-2",
-        "group-data-[state=closed]/collapsible-content:duration-[calc(var(--animation-duration)*0.8)]",
-        "group-data-[state=closed]/collapsible-content:ease-(--ease-out-expo)",
-        className,
-      )}
-      {...props}
-    >
-      {staggeredChildren}
+    <div className="aui-chain-of-thought-timeline-wrapper relative">
+      <ul
+        ref={(el) => setScrollEl(el)}
+        data-slot="chain-of-thought-timeline"
+        data-step-count={stepCount}
+        className={cn(
+          "aui-chain-of-thought-timeline",
+          "relative z-0 max-h-64 overflow-y-auto",
+          "flex flex-col pt-1 pb-2",
+          "transform-gpu",
+          // Open animation: spring easing, staggered fade+slide
+          "group-data-[state=open]/collapsible-content:animate-in",
+          "group-data-[state=open]/collapsible-content:fade-in-0",
+          "group-data-[state=open]/collapsible-content:slide-in-from-top-3",
+          "group-data-[state=open]/collapsible-content:duration-(--animation-duration)",
+          "group-data-[state=open]/collapsible-content:ease-(--spring-easing)",
+          // Close animation: opacity leads, then slide
+          "group-data-[state=closed]/collapsible-content:animate-out",
+          "group-data-[state=closed]/collapsible-content:fade-out-0",
+          "group-data-[state=closed]/collapsible-content:slide-out-to-top-2",
+          "group-data-[state=closed]/collapsible-content:duration-[calc(var(--animation-duration)*0.8)]",
+          "group-data-[state=closed]/collapsible-content:ease-(--ease-out-expo)",
+          className,
+        )}
+        {...props}
+      >
+        {staggeredChildren}
+      </ul>
       {autoScroll && (
         <JumpToLatestButton onClick={scrollToBottom} visible={isScrolledUp} />
       )}
-    </ul>
+    </div>
   );
 }
 
@@ -646,7 +692,7 @@ export type ChainOfThoughtStepProps = React.ComponentProps<"li"> &
 
 /**
  * Render a step indicator icon with consistent wrapper styling.
- * Includes pulsing ring animation for active status and scale pop for completion.
+ * Includes pulsing animation on contents for active status.
  */
 function StepIndicatorWrapper({
   status,
@@ -657,27 +703,10 @@ function StepIndicatorWrapper({
   hasBorder?: boolean;
   children: ReactNode;
 }) {
-  const [isCompleting, setIsCompleting] = useState(false);
-  const previousStatusRef = useRef<StepStatus | undefined>(status);
-
   const isActive = status === "active";
   const isComplete = status === "complete";
   const isPending = status === "pending";
   const isError = status === "error";
-
-  // Trigger a subtle "pop" when the status transitions into complete.
-  useEffect(() => {
-    const previousStatus = previousStatusRef.current;
-    previousStatusRef.current = status;
-
-    if (isComplete && previousStatus !== "complete") {
-      setIsCompleting(true);
-      const timer = setTimeout(() => setIsCompleting(false), 200);
-      return () => clearTimeout(timer);
-    }
-
-    return undefined;
-  }, [isComplete, status]);
 
   return (
     <span
@@ -691,10 +720,7 @@ function StepIndicatorWrapper({
         "group-data-[variant=muted]/chain-of-thought-root:bg-muted",
         "group-data-[variant=muted]/chain-of-thought-root:dark:bg-card",
         // Smooth transitions for status changes
-        "transition-[border-color,background-color,box-shadow,transform] duration-200 ease-(--spring-easing)",
-        // Pop micro-interaction (no custom keyframes)
-        "scale-100",
-        isCompleting && "scale-[1.08] motion-reduce:scale-100",
+        "transition-[border-color,background-color,box-shadow] duration-200 ease-(--spring-easing)",
         hasBorder && "border",
         hasBorder &&
           isActive &&
@@ -709,18 +735,16 @@ function StepIndicatorWrapper({
           "data-[status=active]:text-primary data-[status=complete]:text-muted-foreground data-[status=error]:text-destructive data-[status=pending]:text-muted-foreground/50",
       )}
     >
-      {/* Pulsing ring for active status */}
-      {isActive && (
-        <span
-          aria-hidden
-          className={cn(
-            "aui-chain-of-thought-step-indicator-ring absolute inset-0 rounded-full bg-primary/20",
-            "animate-ping [animation-duration:1.5s]",
-            "motion-reduce:animate-none",
-          )}
-        />
-      )}
-      {children}
+      {/* Wrap children with pulse animation when active */}
+      <span
+        className={cn(
+          "flex items-center justify-center",
+          isActive &&
+            "animate-pulse [animation-duration:1.5s] motion-reduce:animate-none",
+        )}
+      >
+        {children}
+      </span>
     </span>
   );
 }
@@ -827,20 +851,32 @@ function ChainOfThoughtStep({
       )}
       {...props}
     >
-      {/* Connector from previous step - renders from step top to icon top */}
+      {/* Connector from previous step */}
       <div
         aria-hidden="true"
         data-slot="chain-of-thought-step-connector-above"
-        className="pointer-events-none absolute top-0 left-3 h-1.5 w-px bg-foreground/15"
+        className="pointer-events-none absolute top-0 left-3 h-1.5 w-px bg-foreground/15 motion-reduce:animate-none"
+        style={{
+          animation: `aui-connector-fade ${ANIMATION_DURATION}ms ${SPRING_EASING} var(--step-delay) both`,
+        }}
       />
-      {/* Connector to next step - renders from icon bottom to step bottom */}
+      {/* Connector to next step */}
       <div
         aria-hidden="true"
         data-slot="chain-of-thought-step-connector-below"
-        className="pointer-events-none absolute top-[30px] bottom-0 left-3 w-px bg-foreground/15"
+        className="pointer-events-none absolute top-[30px] bottom-0 left-3 w-px bg-foreground/15 motion-reduce:animate-none"
+        style={{
+          animation: `aui-connector-fade ${ANIMATION_DURATION}ms ${SPRING_EASING} var(--step-delay) both`,
+        }}
       />
 
-      <div className="aui-chain-of-thought-step-indicator-wrapper relative z-10">
+      <div
+        className="aui-chain-of-thought-step-indicator-wrapper relative z-10 overflow-visible motion-reduce:animate-none"
+        style={{
+          animation: `aui-icon-enter ${ANIMATION_DURATION}ms ${SPRING_EASING} var(--step-delay) both`,
+          willChange: "transform, opacity, filter",
+        }}
+      >
         {renderIndicator()}
       </div>
 
@@ -853,7 +889,11 @@ function ChainOfThoughtStep({
           "transition-colors duration-200",
           isActive && "text-foreground",
           isError && "text-destructive",
+          "motion-reduce:animate-none",
         )}
+        style={{
+          animation: `aui-content-enter ${ANIMATION_DURATION}ms ${SPRING_EASING} var(--step-delay) both`,
+        }}
       >
         {children}
         {/* Error message and retry button */}
