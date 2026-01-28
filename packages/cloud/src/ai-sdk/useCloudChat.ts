@@ -84,9 +84,39 @@ export function useCloudChat(
   const { api, onThreadCreated, onTitleGenerated, ...chatOptions } =
     options ?? {};
 
-  const [persistence] = useState(() => new CloudMessagePersistence(cloud));
-  const [formatted] = useState(() =>
-    createFormattedPersistence(persistence, aiSdkFormatAdapter),
+  const persistenceByThreadRef = useRef(
+    new Map<string, CloudMessagePersistence>(),
+  );
+  const formattedByThreadRef = useRef(
+    new Map<
+      string,
+      ReturnType<
+        typeof createFormattedPersistence<UIMessage, ReadonlyJSONObject>
+      >
+    >(),
+  );
+  const getPersistence = useCallback(
+    (id: string) => {
+      const existing = persistenceByThreadRef.current.get(id);
+      if (existing) return existing;
+      const created = new CloudMessagePersistence(cloud);
+      persistenceByThreadRef.current.set(id, created);
+      return created;
+    },
+    [cloud],
+  );
+  const getFormatted = useCallback(
+    (id: string) => {
+      const existing = formattedByThreadRef.current.get(id);
+      if (existing) return existing;
+      const created = createFormattedPersistence(
+        getPersistence(id),
+        aiSdkFormatAdapter,
+      );
+      formattedByThreadRef.current.set(id, created);
+      return created;
+    },
+    [getPersistence],
   );
   const [threadId, setThreadId] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<Error | null>(null);
@@ -99,6 +129,7 @@ export function useCloudChat(
   // Refs for latest values (avoid stale closures)
   const threadIdRef = useRef<string | null>(null);
   const isNewThreadRef = useRef(false);
+  const loadedThreadsRef = useRef(new Set<string>());
   const onThreadCreatedRef = useRef(onThreadCreated);
   onThreadCreatedRef.current = onThreadCreated;
   const onTitleGeneratedRef = useRef(onTitleGenerated);
@@ -127,6 +158,7 @@ export function useCloudChat(
     const tid = res.thread_id;
     threadIdRef.current = tid;
     isNewThreadRef.current = true;
+    loadedThreadsRef.current.add(tid);
     if (mountedRef.current) setThreadId(tid);
     onThreadCreatedRef.current?.(tid);
 
@@ -136,36 +168,7 @@ export function useCloudChat(
   const chat = useChat({
     ...chatOptions,
     transport,
-    onFinish: async (event) => {
-      // Persist assistant message when response completes.
-      try {
-        const tid = threadIdRef.current;
-        if (!tid) return; // Should never happen - thread created on sendMessage
-
-        const assistantMsg = event.message;
-        if (formatted.isPersisted(assistantMsg.id)) return;
-
-        // Find parent (the user message before this assistant message)
-        const msgIndex = event.messages.findIndex(
-          (m) => m.id === assistantMsg.id,
-        );
-        const parentId = msgIndex > 0 ? event.messages[msgIndex - 1]!.id : null;
-
-        await formatted.append(tid, { parentId, message: assistantMsg });
-      } catch (err) {
-        if (mountedRef.current) {
-          setSyncError(err instanceof Error ? err : new Error(String(err)));
-        }
-      }
-
-      // Auto-generate title for new threads after first assistant response.
-      if (isNewThreadRef.current) {
-        isNewThreadRef.current = false;
-        generateTitleInternal(event.messages).catch(() => {
-          // Title generation is best-effort; don't fail the persistence flow
-        });
-      }
-
+    onFinish: (event) => {
       onFinishRef.current?.(event);
     },
   });
@@ -194,18 +197,19 @@ export function useCloudChat(
     [chat.sendMessage, ensureThread],
   );
 
-  // Persist user messages immediately; assistant message persists in onFinish.
-  // Promise-based mapping ensures correct parent/child ordering.
+  const isRunning = chat.status === "submitted" || chat.status === "streaming";
+
+  // Persist messages when not running, matching assistant-ui history semantics.
   useEffect(() => {
     const tid = threadIdRef.current;
-    if (!tid) return;
+    if (!tid || isRunning) return;
 
+    const formatted = getFormatted(tid);
     const messages = chat.messages;
-    for (const msg of messages) {
-      if (msg.role !== "user") continue;
-      if (formatted.isPersisted(msg.id)) continue;
 
-      const idx = messages.indexOf(msg);
+    messages.forEach((msg, idx) => {
+      if (formatted.isPersisted(msg.id)) return;
+
       const parentId = idx > 0 ? messages[idx - 1]!.id : null;
 
       formatted.append(tid, { parentId, message: msg }).catch((err) => {
@@ -213,103 +217,109 @@ export function useCloudChat(
           setSyncError(err instanceof Error ? err : new Error(String(err)));
         }
       });
-    }
-  }, [chat.messages, formatted]);
+    });
+  }, [chat.messages, getFormatted, isRunning]);
 
-  // Load messages when threadId changes (explicit action, not observation)
+  const loadThreadMessages = useCallback(
+    async (id: string, cancelledRef: { cancelled: boolean }) => {
+      const formatted = getFormatted(id);
+
+      try {
+        const { messages } = await formatted.load(id);
+        if (cancelledRef.cancelled) return;
+
+        setMessagesRef.current(messages.map((item) => item.message));
+      } catch (err) {
+        if (cancelledRef.cancelled) return;
+        setSyncError(err instanceof Error ? err : new Error(String(err)));
+      }
+    },
+    [getFormatted],
+  );
+
+  // Load messages when threadId changes (explicit action, not observation).
+  // Only fires on thread switch, not on isRunning transitions — matching
+  // useExternalHistory's load-once-per-thread semantics.
   useEffect(() => {
     threadIdRef.current = threadId;
 
     if (!threadId) {
       setMessagesRef.current([]);
-      persistence.reset();
       setSyncError(null);
       return;
     }
 
-    // Skip loading for newly created threads — the optimistic messages
-    // from sendMessage are already in chat state. Loading from the cloud
-    // would return an empty array and wipe them out.
-    if (isNewThreadRef.current) {
+    // Skip threads we've already loaded or created in this session.
+    if (loadedThreadsRef.current.has(threadId)) {
       return;
     }
 
-    let cancelled = false;
+    // Mark loaded before the async call to prevent re-entry.
+    loadedThreadsRef.current.add(threadId);
 
-    formatted
-      .load(threadId)
-      .then(({ messages }) => {
-        if (cancelled) return;
-        setMessagesRef.current(messages.map((item) => item.message));
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        setSyncError(err instanceof Error ? err : new Error(String(err)));
-      });
+    const cancelledRef = { cancelled: false };
+    loadThreadMessages(threadId, cancelledRef);
 
     return () => {
-      cancelled = true;
+      cancelledRef.cancelled = true;
     };
-  }, [threadId, persistence, formatted]);
+  }, [threadId, loadThreadMessages]);
 
-  const selectThread = useCallback(
-    (id: string | null) => {
-      setThreadId(id);
-      setSyncError(null);
-      persistence.reset();
-      isNewThreadRef.current = false;
-    },
-    [persistence],
-  );
+  const selectThread = useCallback((id: string | null) => {
+    setThreadId(id);
+    setSyncError(null);
+    isNewThreadRef.current = false;
+  }, []);
 
   /**
    * Internal title generation that accepts messages directly.
    * Used by both the auto-trigger in onFinish and the public generateTitle().
    */
-  async function generateTitleInternal(
-    messages: UIMessage[],
-  ): Promise<string | null> {
-    const tid = threadIdRef.current;
-    if (!tid || messages.length === 0) return null;
+  const generateTitleInternal = useCallback(
+    async (messages: UIMessage[]): Promise<string | null> => {
+      const tid = threadIdRef.current;
+      if (!tid || messages.length === 0) return null;
 
-    // Convert to title generator format (text parts only).
-    const convertedMessages = messages.map((msg) => ({
-      role: msg.role,
-      content: msg.parts
-        .filter((part) => part.type === "text")
-        .map((part) => ({
-          type: "text" as const,
-          text: (part as { type: "text"; text: string }).text,
-        })),
-    }));
+      // Convert to title generator format (text parts only).
+      const convertedMessages = messages.map((msg) => ({
+        role: msg.role,
+        content: msg.parts
+          .filter((part) => part.type === "text")
+          .map((part) => ({
+            type: "text" as const,
+            text: (part as { type: "text"; text: string }).text,
+          })),
+      }));
 
-    const stream = await cloud.runs.stream({
-      thread_id: tid,
-      assistant_id: "system/thread_title",
-      messages: convertedMessages,
-    });
+      const stream = await cloud.runs.stream({
+        thread_id: tid,
+        assistant_id: "system/thread_title",
+        messages: convertedMessages,
+      });
 
-    let title = "";
-    const reader = stream.getReader();
-    try {
-      while (true) {
-        const { done, value: chunk } = await reader.read();
-        if (done) break;
-        if (chunk.type === "text-delta") {
-          title += chunk.textDelta;
+      let title = "";
+      const reader = stream.getReader();
+      try {
+        while (true) {
+          const { done, value: chunk } = await reader.read();
+          if (done) break;
+          if (chunk.type === "text-delta") {
+            title += chunk.textDelta;
+          }
         }
+      } finally {
+        reader.releaseLock();
       }
-    } finally {
-      reader.releaseLock();
-    }
 
-    if (title) {
-      await cloud.threads.update(tid, { title });
-      onTitleGeneratedRef.current?.(tid, title);
-    }
+      if (title) {
+        await cloud.threads.update(tid, { title });
+        onTitleGeneratedRef.current?.(tid, title);
+      }
 
-    return title || null;
-  }
+      return title || null;
+    },
+    [cloud],
+  );
 
   /**
    * Generate a title for the current thread using AI.
@@ -327,7 +337,19 @@ export function useCloudChat(
       }
       return null;
     }
-  }, [cloud]);
+  }, [generateTitleInternal]);
+
+  // Auto-generate title for new threads after the first run completes.
+  useEffect(() => {
+    if (isRunning) return;
+
+    if (isNewThreadRef.current) {
+      isNewThreadRef.current = false;
+      generateTitleInternal(chatRef.current.messages).catch(() => {
+        // Title generation is best-effort; don't fail the persistence flow
+      });
+    }
+  }, [generateTitleInternal, isRunning]);
 
   return {
     ...chat,
