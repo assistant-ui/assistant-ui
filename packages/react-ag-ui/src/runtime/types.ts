@@ -4,9 +4,29 @@ import type {
   FeedbackAdapter,
   SpeechSynthesisAdapter,
   ThreadHistoryAdapter,
+  ThreadMessage,
 } from "@assistant-ui/react";
 import type { HttpAgent } from "@ag-ui/client";
 import type { Logger } from "./logger";
+import type { ReadonlyJSONValue } from "assistant-stream/utils";
+
+export type UseAgUiThreadListAdapter = {
+  /**
+   * @deprecated This API is still under active development and might change without notice.
+   */
+  threadId?: string | undefined;
+  /**
+   * @deprecated This API is still under active development and might change without notice.
+   */
+  onSwitchToNewThread?: (() => Promise<void> | void) | undefined;
+  onSwitchToThread?:
+    | ((
+        threadId: string,
+      ) =>
+        | Promise<{ messages: ThreadMessage[]; state?: ReadonlyJSONValue }>
+        | { messages: ThreadMessage[]; state?: ReadonlyJSONValue })
+    | undefined;
+};
 
 export type UseAgUiRuntimeAdapters = {
   attachments?: AttachmentAdapter;
@@ -14,6 +34,10 @@ export type UseAgUiRuntimeAdapters = {
   dictation?: DictationAdapter;
   feedback?: FeedbackAdapter;
   history?: ThreadHistoryAdapter;
+  /**
+   * @deprecated This API is still under active development and might change without notice.
+   */
+  threadList?: UseAgUiThreadListAdapter;
 };
 
 export type UseAgUiRuntimeOptions = {
