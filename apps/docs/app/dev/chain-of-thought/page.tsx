@@ -27,6 +27,7 @@ import {
   ChainOfThoughtAutoScrollSample,
   ChainOfThoughtStreamingCursorSample,
   ChainOfThoughtAccessibilitySample,
+  ChainOfThoughtEasingComparisonSample,
 } from "@/components/docs/samples/chain-of-thought";
 
 export default function ChainOfThoughtPreviewPage() {
@@ -63,6 +64,15 @@ export default function ChainOfThoughtPreviewPage() {
             completion effects, and diagonal shimmer.
           </p>
           <ChainOfThoughtMotionShowcaseSample />
+        </section>
+
+        <section>
+          <h3 className="mb-2 font-medium text-lg">Easing Curve Comparison</h3>
+          <p className="mb-4 text-muted-foreground text-sm">
+            Compare different easing curves for open/close animations. Test each
+            to find the right feel.
+          </p>
+          <ChainOfThoughtEasingComparisonSample />
         </section>
       </div>
 

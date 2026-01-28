@@ -2226,3 +2226,99 @@ export function ChainOfThoughtAccessibilitySample() {
     </SampleFrame>
   );
 }
+
+// =============================================================================
+// Easing Comparison Sample
+// =============================================================================
+
+const EASING_OPTIONS = {
+  // Opening (Spring) options
+  springCurrent: {
+    label: "Current Spring",
+    spring: "cubic-bezier(0.62, -0.05, 0.71, 1.15)",
+    easeOut: "cubic-bezier(0.16, 1, 0.3, 1)",
+  },
+  springIOS: {
+    label: "A) iOS Spring",
+    spring: "cubic-bezier(0.34, 1.56, 0.64, 1)",
+    easeOut: "cubic-bezier(0.33, 1, 0.68, 1)",
+  },
+  springGentle: {
+    label: "B) Gentle Spring",
+    spring: "cubic-bezier(0.175, 0.885, 0.32, 1.1)",
+    easeOut: "cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+  },
+  noOvershoot: {
+    label: "C) No Overshoot",
+    spring: "cubic-bezier(0.22, 0.61, 0.36, 1)",
+    easeOut: "cubic-bezier(0.4, 0, 0.2, 1)",
+  },
+  // Additional refined options
+  appleMusic: {
+    label: "Apple Music",
+    spring: "cubic-bezier(0.42, 0, 0.58, 1)",
+    easeOut: "cubic-bezier(0.25, 0.1, 0.25, 1)",
+  },
+  snappy: {
+    label: "Snappy",
+    spring: "cubic-bezier(0.19, 1, 0.22, 1)",
+    easeOut: "cubic-bezier(0.19, 1, 0.22, 1)",
+  },
+} as const;
+
+function EasingComparisonDemo() {
+  return (
+    <div className="space-y-6">
+      <p className="text-muted-foreground text-sm">
+        Click each accordion to compare how different easing curves feel. Pay
+        attention to both opening and closing animations.
+      </p>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        {Object.entries(EASING_OPTIONS).map(([key, config]) => (
+          <div key={key} className="space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="font-medium text-sm">{config.label}</span>
+              {key === "springCurrent" && (
+                <span className="rounded bg-yellow-500/20 px-1.5 py-0.5 text-xs text-yellow-600 dark:text-yellow-400">
+                  Current
+                </span>
+              )}
+            </div>
+            <ChainOfThoughtRoot
+              variant="outline"
+              style={
+                {
+                  "--spring-easing": config.spring,
+                  "--ease-out-expo": config.easeOut,
+                } as React.CSSProperties
+              }
+            >
+              <ChainOfThoughtTrigger label="Reasoning" />
+              <ChainOfThoughtContent>
+                <ChainOfThoughtText>
+                  This is sample content to demonstrate the easing curve. Toggle
+                  open and closed multiple times to get a feel for the
+                  animation. The opening uses the spring easing, while the
+                  closing uses the ease-out curve.
+                </ChainOfThoughtText>
+              </ChainOfThoughtContent>
+            </ChainOfThoughtRoot>
+            <div className="font-mono text-muted-foreground text-xs">
+              <div>Open: {config.spring.replace("cubic-bezier", "")}</div>
+              <div>Close: {config.easeOut.replace("cubic-bezier", "")}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function ChainOfThoughtEasingComparisonSample() {
+  return (
+    <SampleFrame className="h-auto p-4">
+      <EasingComparisonDemo />
+    </SampleFrame>
+  );
+}
