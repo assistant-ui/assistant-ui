@@ -35,6 +35,7 @@ export const registry: RegistryItem[] = [
       "https://r.assistant-ui.com/ai-sdk-backend.json",
       "https://r.assistant-ui.com/thread.json",
     ],
+    dependencies: ["@assistant-ui/react-ai-sdk"],
     meta: {
       importSpecifier: "Assistant",
       moduleSpecifier: "@/app/assistant",
