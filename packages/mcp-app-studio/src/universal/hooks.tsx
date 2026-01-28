@@ -77,8 +77,21 @@ export function useHostContext(): HostContext | null {
  * ```
  */
 export function useTheme(): "light" | "dark" {
-  const context = useHostContext();
-  return context?.theme ?? "light";
+  const bridge = useUniversalBridge();
+  const [theme, setTheme] = useState<"light" | "dark">(
+    () => bridge?.getHostContext()?.theme ?? "light",
+  );
+
+  useEffect(() => {
+    if (!bridge) return;
+    return bridge.onHostContextChanged((ctx) => {
+      if (ctx.theme !== undefined) {
+        setTheme(ctx.theme);
+      }
+    });
+  }, [bridge]);
+
+  return theme;
 }
 
 /**
@@ -250,8 +263,18 @@ export function useDisplayMode(): [
   (mode: DisplayMode) => Promise<void>,
 ] {
   const bridge = useUniversalBridge();
-  const context = useHostContext();
-  const mode = context?.displayMode ?? "inline";
+  const [mode, setModeState] = useState<DisplayMode>(
+    () => bridge?.getHostContext()?.displayMode ?? "inline",
+  );
+
+  useEffect(() => {
+    if (!bridge) return;
+    return bridge.onHostContextChanged((ctx) => {
+      if (ctx.displayMode !== undefined) {
+        setModeState(ctx.displayMode);
+      }
+    });
+  }, [bridge]);
 
   const setMode = useCallback(
     async (newMode: DisplayMode) => {

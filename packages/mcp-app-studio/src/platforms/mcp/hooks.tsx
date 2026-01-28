@@ -4,8 +4,10 @@ import {
   createContext,
   useContext,
   useEffect,
+  useLayoutEffect,
   useState,
   useCallback,
+  useRef,
   type ReactNode,
 } from "react";
 import { MCPBridge, type AppCapabilities } from "./bridge";
@@ -67,8 +69,20 @@ export function useHostContext(): HostContext | null {
 }
 
 export function useTheme(): "light" | "dark" {
-  const context = useHostContext();
-  return context?.theme ?? "light";
+  const bridge = useMCPBridge();
+  const [theme, setTheme] = useState<"light" | "dark">(
+    () => bridge.getHostContext()?.theme ?? "light",
+  );
+
+  useEffect(() => {
+    return bridge.onHostContextChanged((ctx) => {
+      if (ctx.theme !== undefined) {
+        setTheme(ctx.theme);
+      }
+    });
+  }, [bridge]);
+
+  return theme;
 }
 
 export function useToolInput<T = Record<string, unknown>>(): T | null {
@@ -106,18 +120,28 @@ export function useToolResult(): ToolResult | null {
 
 export function useToolCancellation(callback: (reason: string) => void): void {
   const bridge = useMCPBridge();
+  const callbackRef = useRef(callback);
+
+  useLayoutEffect(() => {
+    callbackRef.current = callback;
+  });
 
   useEffect(() => {
-    return bridge.onToolCancelled(callback);
-  }, [bridge, callback]);
+    return bridge.onToolCancelled((reason) => callbackRef.current(reason));
+  }, [bridge]);
 }
 
 export function useTeardown(callback: () => Promise<void> | void): void {
   const bridge = useMCPBridge();
+  const callbackRef = useRef(callback);
+
+  useLayoutEffect(() => {
+    callbackRef.current = callback;
+  });
 
   useEffect(() => {
-    return bridge.onTeardown(callback);
-  }, [bridge, callback]);
+    return bridge.onTeardown(() => callbackRef.current());
+  }, [bridge]);
 }
 
 export function useDisplayMode(): [
@@ -125,20 +149,34 @@ export function useDisplayMode(): [
   (mode: DisplayMode) => Promise<void>,
 ] {
   const bridge = useMCPBridge();
-  const context = useHostContext();
-  const mode = context?.displayMode ?? "inline";
+  const [mode, setModeState] = useState<DisplayMode>(
+    () => bridge.getHostContext()?.displayMode ?? "inline",
+  );
+  const [availableModes, setAvailableModes] = useState<DisplayMode[]>(
+    () => bridge.getHostContext()?.availableDisplayModes ?? [],
+  );
+
+  useEffect(() => {
+    return bridge.onHostContextChanged((ctx) => {
+      if (ctx.displayMode !== undefined) {
+        setModeState(ctx.displayMode);
+      }
+      if (ctx.availableDisplayModes !== undefined) {
+        setAvailableModes(ctx.availableDisplayModes);
+      }
+    });
+  }, [bridge]);
 
   const setMode = useCallback(
     async (newMode: DisplayMode) => {
-      const available = context?.availableDisplayModes ?? [];
-      if (available.length > 0 && !available.includes(newMode)) {
+      if (availableModes.length > 0 && !availableModes.includes(newMode)) {
         console.warn(
-          `Display mode "${newMode}" not available. Available: ${available.join(", ")}`,
+          `Display mode "${newMode}" not available. Available: ${availableModes.join(", ")}`,
         );
       }
       await bridge.requestDisplayMode(newMode);
     },
-    [bridge, context?.availableDisplayModes],
+    [bridge, availableModes],
   );
 
   return [mode, setMode];

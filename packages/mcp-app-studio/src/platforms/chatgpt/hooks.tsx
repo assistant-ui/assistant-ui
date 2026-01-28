@@ -52,8 +52,20 @@ export function useHostContext(): HostContext | null {
 }
 
 export function useTheme(): "light" | "dark" {
-  const context = useHostContext();
-  return context?.theme ?? "light";
+  const bridge = useChatGPTBridge();
+  const [theme, setTheme] = useState<"light" | "dark">(
+    () => bridge.getHostContext()?.theme ?? "light",
+  );
+
+  useEffect(() => {
+    return bridge.onHostContextChanged((ctx) => {
+      if (ctx.theme !== undefined) {
+        setTheme(ctx.theme);
+      }
+    });
+  }, [bridge]);
+
+  return theme;
 }
 
 export function useToolInput<T = Record<string, unknown>>(): T | null {
@@ -83,8 +95,17 @@ export function useDisplayMode(): [
   (mode: DisplayMode) => Promise<void>,
 ] {
   const bridge = useChatGPTBridge();
-  const context = useHostContext();
-  const mode = context?.displayMode ?? "inline";
+  const [mode, setModeState] = useState<DisplayMode>(
+    () => bridge.getHostContext()?.displayMode ?? "inline",
+  );
+
+  useEffect(() => {
+    return bridge.onHostContextChanged((ctx) => {
+      if (ctx.displayMode !== undefined) {
+        setModeState(ctx.displayMode);
+      }
+    });
+  }, [bridge]);
 
   const setMode = useCallback(
     async (newMode: DisplayMode) => {
@@ -102,7 +123,7 @@ export function useWidgetState<T = Record<string, unknown>>(): [
 ] {
   const bridge = useChatGPTBridge();
   const [state, setState] = useState<T | null>(
-    bridge.getWidgetState() as T | null,
+    () => bridge.getWidgetState() as T | null,
   );
 
   const setWidgetState = useCallback(
