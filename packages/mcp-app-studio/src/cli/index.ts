@@ -85,13 +85,18 @@ ${pc.bold("Usage:")}
   npx mcp-app-studio [project-name] [options]
 
 ${pc.bold("Options:")}
-  --help, -h     Show this help message
-  --version, -v  Show version number
+  --help, -h              Show this help message
+  --version, -v           Show version number
+  -y, --yes               Non-interactive mode (use defaults or flag values)
+  --template <name>       Template to use: minimal, poi-map (default: minimal)
+  --include-server        Include MCP server (default when not using -y)
+  --no-server             Do not include MCP server
+  --description <text>    App description
 
 ${pc.bold("Examples:")}
   npx mcp-app-studio my-app
   npx mcp-app-studio .          ${pc.dim("# Use current directory")}
-  npx mcp-app-studio
+  npx mcp-app-studio my-app -y --template poi-map --include-server
 
 ${pc.bold("Learn more:")}
   Documentation: https://github.com/assistant-ui/mcp-app-studio
@@ -125,6 +130,11 @@ const TEMPLATE_EXPORT_CONFIG: Record<
     entryPoint: "lib/workbench/wrappers/poi-map-sdk.tsx",
     exportName: "POIMapSDK",
   },
+};
+
+const TEMPLATE_DEFAULT_COMPONENT: Record<TemplateType, string> = {
+  minimal: "welcome",
+  "poi-map": "poi-map",
 };
 
 function generateComponentRegistry(components: string[]): string {
@@ -285,6 +295,53 @@ function updateExportScriptDefaults(
   fs.writeFileSync(exportScriptPath, content);
 }
 
+function generateWorkbenchIndexExport(components: string[]): string {
+  const exports: string[] = [];
+  if (components.includes("welcome")) {
+    exports.push("WelcomeCardSDK");
+  }
+  if (components.includes("poi-map")) {
+    exports.push("POIMapSDK");
+  }
+  return exports.length > 0
+    ? `export { ${exports.join(", ")} } from "./wrappers";`
+    : "// No SDK exports";
+}
+
+function updateWorkbenchIndex(targetDir: string, components: string[]): void {
+  const indexPath = path.join(targetDir, "lib/workbench/index.ts");
+  let content = fs.readFileSync(indexPath, "utf-8");
+
+  // Replace the wrappers export line (or add if missing)
+  const wrappersExportRegex = /export \{[^}]*\} from "\.\/wrappers";/;
+  const newExport = generateWorkbenchIndexExport(components);
+
+  if (wrappersExportRegex.test(content)) {
+    content = content.replace(wrappersExportRegex, newExport);
+  } else {
+    // If no wrappers export exists, add it at the end
+    content = content.trimEnd() + "\n\n" + newExport + "\n";
+  }
+
+  fs.writeFileSync(indexPath, content);
+}
+
+function updateWorkbenchStoreDefault(
+  targetDir: string,
+  defaultComponent: string,
+): void {
+  const storePath = path.join(targetDir, "lib/workbench/store.ts");
+  let content = fs.readFileSync(storePath, "utf-8");
+
+  // Replace the default selectedComponent
+  content = content.replace(
+    /selectedComponent: "[^"]+"/,
+    `selectedComponent: "${defaultComponent}"`,
+  );
+
+  fs.writeFileSync(storePath, content);
+}
+
 function applyTemplate(targetDir: string, template: TemplateType): void {
   const components = TEMPLATE_COMPONENTS[template];
 
@@ -308,6 +365,13 @@ function applyTemplate(targetDir: string, template: TemplateType): void {
     "components/examples/index.ts",
   );
   fs.writeFileSync(examplesIndexPath, generateExamplesIndex(components));
+
+  // Update main workbench index to export correct wrappers
+  updateWorkbenchIndex(targetDir, components);
+
+  // Update workbench store default selected component
+  const defaultComponent = TEMPLATE_DEFAULT_COMPONENT[template];
+  updateWorkbenchStoreDefault(targetDir, defaultComponent);
 
   // Remove unused example directories
   const examplesDir = path.join(targetDir, "components/examples");
@@ -388,91 +452,169 @@ async function downloadTemplate(targetDir: string): Promise<void> {
   }
 }
 
+interface ParsedArgs {
+  projectName?: string;
+  yes: boolean;
+  template?: TemplateType;
+  includeServer?: boolean;
+  description?: string;
+}
+
+function parseArgs(args: string[]): ParsedArgs {
+  const parsed: ParsedArgs = {
+    yes: false,
+  };
+
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    const next = args[i + 1];
+
+    switch (arg) {
+      case "-y":
+      case "--yes":
+        parsed.yes = true;
+        break;
+      case "--template":
+        if (next && (next === "minimal" || next === "poi-map")) {
+          parsed.template = next as TemplateType;
+          i++;
+        }
+        break;
+      case "--include-server":
+        parsed.includeServer = true;
+        break;
+      case "--no-server":
+        parsed.includeServer = false;
+        break;
+      case "--description":
+        if (next && !next.startsWith("-")) {
+          parsed.description = next;
+          i++;
+        }
+        break;
+      default:
+        if (arg && !arg.startsWith("-") && !parsed.projectName) {
+          parsed.projectName = arg;
+        }
+    }
+  }
+
+  return parsed;
+}
+
 async function main() {
   ensureSupportedNodeVersion();
 
-  const args = process.argv.slice(2);
+  const rawArgs = process.argv.slice(2);
 
-  if (args.includes("--help") || args.includes("-h")) {
+  if (rawArgs.includes("--help") || rawArgs.includes("-h")) {
     showHelp();
     process.exit(0);
   }
 
-  if (args.includes("--version") || args.includes("-v")) {
+  if (rawArgs.includes("--version") || rawArgs.includes("-v")) {
     console.log(getVersion());
     process.exit(0);
   }
 
-  const argProjectName = args.find((arg) => !arg.startsWith("-"));
+  const parsedArgs = parseArgs(rawArgs);
+  const nonInteractive = parsedArgs.yes;
 
   p.intro(pc.bgCyan(pc.black(" mcp-app-studio ")));
 
-  if (argProjectName) {
-    const pathCheck = isValidProjectPath(argProjectName);
+  if (parsedArgs.projectName) {
+    const pathCheck = isValidProjectPath(parsedArgs.projectName);
     if (!pathCheck.valid) {
       p.log.error(pathCheck.error ?? "Invalid project path");
       process.exit(1);
     }
   }
 
-  const projectName = argProjectName
-    ? argProjectName
-    : await p.text({
-        message: "Project name:",
-        placeholder: "my-chatgpt-app",
-        validate: (value): string | undefined => {
-          if (!value) return "Project name is required";
-          const pathCheck = isValidProjectPath(value);
-          if (!pathCheck.valid) return pathCheck.error;
-          if (!isValidPackageName(toValidPackageName(value))) {
-            return "Invalid project name";
-          }
-          return undefined;
-        },
-      });
+  let projectName: string | symbol;
+  if (parsedArgs.projectName) {
+    projectName = parsedArgs.projectName;
+  } else if (nonInteractive) {
+    p.log.error("Project name is required in non-interactive mode");
+    process.exit(1);
+  } else {
+    projectName = await p.text({
+      message: "Project name:",
+      placeholder: "my-chatgpt-app",
+      validate: (value): string | undefined => {
+        if (!value) return "Project name is required";
+        const pathCheck = isValidProjectPath(value);
+        if (!pathCheck.valid) return pathCheck.error;
+        if (!isValidPackageName(toValidPackageName(value))) {
+          return "Invalid project name";
+        }
+        return undefined;
+      },
+    });
+  }
 
   if (p.isCancel(projectName)) {
     p.cancel("Operation cancelled.");
     process.exit(0);
   }
 
-  const description = await p.text({
-    message: "App description:",
-    placeholder: "A ChatGPT app that helps users...",
-    initialValue: "",
-  });
+  let description: string | symbol;
+  if (parsedArgs.description !== undefined) {
+    description = parsedArgs.description;
+  } else if (nonInteractive) {
+    description = "";
+  } else {
+    description = await p.text({
+      message: "App description:",
+      placeholder: "A ChatGPT app that helps users...",
+      initialValue: "",
+    });
+  }
 
   if (p.isCancel(description)) {
     p.cancel("Operation cancelled.");
     process.exit(0);
   }
 
-  const template = await p.select({
-    message: "Choose a starter template:",
-    options: [
-      {
-        value: "minimal",
-        label: "Minimal",
-        hint: "Simple welcome card - perfect starting point",
-      },
-      {
-        value: "poi-map",
-        label: "Locations App",
-        hint: "Interactive map demo with full SDK features",
-      },
-    ],
-    initialValue: "minimal",
-  });
+  let template: TemplateType | symbol;
+  if (parsedArgs.template !== undefined) {
+    template = parsedArgs.template;
+  } else if (nonInteractive) {
+    template = "minimal";
+  } else {
+    template = await p.select({
+      message: "Choose a starter template:",
+      options: [
+        {
+          value: "minimal",
+          label: "Minimal",
+          hint: "Simple welcome card - perfect starting point",
+        },
+        {
+          value: "poi-map",
+          label: "Locations App",
+          hint: "Interactive map demo with full SDK features",
+        },
+      ],
+      initialValue: "minimal",
+    });
+  }
 
   if (p.isCancel(template)) {
     p.cancel("Operation cancelled.");
     process.exit(0);
   }
 
-  const includeServer = await p.confirm({
-    message: "Include MCP server?",
-    initialValue: true,
-  });
+  let includeServer: boolean | symbol;
+  if (parsedArgs.includeServer !== undefined) {
+    includeServer = parsedArgs.includeServer;
+  } else if (nonInteractive) {
+    includeServer = true;
+  } else {
+    includeServer = await p.confirm({
+      message: "Include MCP server?",
+      initialValue: true,
+    });
+  }
 
   if (p.isCancel(includeServer)) {
     p.cancel("Operation cancelled.");
@@ -494,19 +636,24 @@ async function main() {
   };
 
   if (!isEmpty(targetDir)) {
-    const overwrite = await p.confirm({
-      message: `Directory "${projectName}" is not empty. Remove existing files?`,
-      initialValue: false,
-    });
+    if (nonInteractive) {
+      // In non-interactive mode, overwrite without prompting
+      emptyDir(targetDir);
+    } else {
+      const overwrite = await p.confirm({
+        message: `Directory "${projectName}" is not empty. Remove existing files?`,
+        initialValue: false,
+      });
 
-    if (p.isCancel(overwrite) || !overwrite) {
-      p.cancel("Operation cancelled.");
-      process.exit(0);
+      if (p.isCancel(overwrite) || !overwrite) {
+        p.cancel("Operation cancelled.");
+        process.exit(0);
+      }
+
+      // Avoid deleting the directory itself (especially dangerous for `.`).
+      // Instead, remove its contents while preserving `.git/`.
+      emptyDir(targetDir);
     }
-
-    // Avoid deleting the directory itself (especially dangerous for `.`).
-    // Instead, remove its contents while preserving `.git/`.
-    emptyDir(targetDir);
   }
 
   const s = p.spinner();
