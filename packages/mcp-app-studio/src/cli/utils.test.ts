@@ -6,9 +6,51 @@ import {
   isValidPackageName,
   toValidPackageName,
   isEmpty,
+  emptyDir,
   updatePackageJson,
   detectPackageManager,
+  isValidProjectPath,
 } from "./utils";
+
+describe("isValidProjectPath", () => {
+  it("accepts valid project names", () => {
+    expect(isValidProjectPath("my-app")).toEqual({ valid: true });
+    expect(isValidProjectPath("my-mcp-app")).toEqual({ valid: true });
+    expect(isValidProjectPath("app123")).toEqual({ valid: true });
+  });
+
+  it("rejects empty names", () => {
+    const result = isValidProjectPath("");
+    expect(result.valid).toBe(false);
+    expect(result.error).toBe("Project name is required");
+  });
+
+  it("rejects whitespace-only names", () => {
+    const result = isValidProjectPath("   ");
+    expect(result.valid).toBe(false);
+    expect(result.error).toBe("Project name is required");
+  });
+
+  it("rejects absolute paths", () => {
+    const result = isValidProjectPath("/absolute/path");
+    expect(result.valid).toBe(false);
+    expect(result.error).toContain("Absolute paths");
+  });
+
+  it("rejects path traversal attempts", () => {
+    const result1 = isValidProjectPath("../escape");
+    expect(result1.valid).toBe(false);
+    expect(result1.error).toContain("Path traversal");
+
+    const result2 = isValidProjectPath("foo/../bar");
+    expect(result2.valid).toBe(false);
+    expect(result2.error).toContain("Path traversal");
+  });
+
+  it("accepts nested relative paths within cwd", () => {
+    expect(isValidProjectPath("apps/my-app")).toEqual({ valid: true });
+  });
+});
 
 describe("isValidPackageName", () => {
   it("accepts valid package names", () => {
@@ -88,6 +130,54 @@ describe("isEmpty", () => {
   });
 });
 
+describe("emptyDir", () => {
+  let tempDir: string;
+
+  beforeEach(() => {
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "emptydir-"));
+  });
+
+  afterEach(() => {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  });
+
+  it("removes all files except .git", () => {
+    fs.writeFileSync(path.join(tempDir, "file.txt"), "content");
+    fs.mkdirSync(path.join(tempDir, ".git"));
+    fs.writeFileSync(path.join(tempDir, ".git", "config"), "config");
+
+    emptyDir(tempDir);
+
+    expect(fs.existsSync(path.join(tempDir, "file.txt"))).toBe(false);
+    expect(fs.existsSync(path.join(tempDir, ".git"))).toBe(true);
+    expect(fs.existsSync(path.join(tempDir, ".git", "config"))).toBe(true);
+  });
+
+  it("removes subdirectories", () => {
+    fs.mkdirSync(path.join(tempDir, "subdir"));
+    fs.writeFileSync(path.join(tempDir, "subdir", "nested.txt"), "content");
+
+    emptyDir(tempDir);
+
+    expect(fs.existsSync(path.join(tempDir, "subdir"))).toBe(false);
+  });
+
+  it("handles non-existent directory gracefully", () => {
+    const nonExistentPath = path.join(os.tmpdir(), "non-existent-dir-12345");
+    expect(() => emptyDir(nonExistentPath)).not.toThrow();
+  });
+
+  it("removes hidden files except .git", () => {
+    fs.writeFileSync(path.join(tempDir, ".env"), "SECRET=value");
+    fs.writeFileSync(path.join(tempDir, ".gitignore"), "node_modules");
+
+    emptyDir(tempDir);
+
+    expect(fs.existsSync(path.join(tempDir, ".env"))).toBe(false);
+    expect(fs.existsSync(path.join(tempDir, ".gitignore"))).toBe(false);
+  });
+});
+
 describe("updatePackageJson", () => {
   let tempDir: string;
 
@@ -122,6 +212,30 @@ describe("updatePackageJson", () => {
     expect(() => updatePackageJson(tempDir, "my-app")).toThrow(
       "Failed to update package.json",
     );
+  });
+
+  it("updates description when provided", () => {
+    fs.writeFileSync(
+      path.join(tempDir, "package.json"),
+      JSON.stringify({ name: "template" }),
+    );
+    updatePackageJson(tempDir, "my-app", "My app description");
+    const pkg = JSON.parse(
+      fs.readFileSync(path.join(tempDir, "package.json"), "utf-8"),
+    );
+    expect(pkg.description).toBe("My app description");
+  });
+
+  it("does not add description when not provided", () => {
+    fs.writeFileSync(
+      path.join(tempDir, "package.json"),
+      JSON.stringify({ name: "template" }),
+    );
+    updatePackageJson(tempDir, "my-app");
+    const pkg = JSON.parse(
+      fs.readFileSync(path.join(tempDir, "package.json"), "utf-8"),
+    );
+    expect(pkg.description).toBeUndefined();
   });
 });
 

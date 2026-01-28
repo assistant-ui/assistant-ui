@@ -1,10 +1,11 @@
 /**
  * @vitest-environment jsdom
  *
- * Tests for universal SDK hooks - validates exports, types, and basic behavior.
+ * Tests for universal SDK hooks - validates exports, types, and hook signatures.
+ * Platform detection tests are in detect.test.ts.
  * Full React rendering tests would require additional test dependencies.
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect } from "vitest";
 
 import {
   UniversalProvider,
@@ -74,49 +75,6 @@ describe("Universal Hooks - Export Validation", () => {
     expect(typeof detectPlatform).toBe("function");
     expect(typeof isChatGPT).toBe("function");
     expect(typeof isMCP).toBe("function");
-  });
-});
-
-describe("Platform Detection Logic", () => {
-  beforeEach(() => {
-    delete (window as any).openai;
-    delete (window as any).__MCP_HOST__;
-  });
-
-  afterEach(() => {
-    delete (window as any).openai;
-    delete (window as any).__MCP_HOST__;
-  });
-
-  it("detects unknown platform when no markers present", () => {
-    expect(detectPlatform()).toBe("unknown");
-    expect(isChatGPT()).toBe(false);
-    expect(isMCP()).toBe(false);
-  });
-
-  it("detects ChatGPT when window.openai exists", () => {
-    (window as any).openai = {
-      callTool: vi.fn(),
-    };
-
-    expect(detectPlatform()).toBe("chatgpt");
-    expect(isChatGPT()).toBe(true);
-    expect(isMCP()).toBe(false);
-  });
-
-  it("detects MCP when __MCP_HOST__ window property exists", () => {
-    (window as any).__MCP_HOST__ = true;
-
-    expect(detectPlatform()).toBe("mcp");
-    expect(isMCP()).toBe(true);
-    expect(isChatGPT()).toBe(false);
-  });
-
-  it("prioritizes ChatGPT detection over MCP", () => {
-    (window as any).openai = { callTool: vi.fn() };
-    (window as any).__MCP_HOST__ = true;
-
-    expect(detectPlatform()).toBe("chatgpt");
   });
 });
 
@@ -201,11 +159,26 @@ describe("Cross-Platform API Compatibility", () => {
       expect(typeof hook).toBe("function");
     }
   });
+});
 
-  it("platform-specific hooks are available", () => {
+describe("Platform-Specific Hooks", () => {
+  it("exports ChatGPT-only hooks for state persistence and file handling", () => {
+    // useWidgetState - ChatGPT only: persists state across refreshes
     expect(useWidgetState).toBeDefined();
+    expect(typeof useWidgetState).toBe("function");
+  });
+
+  it("exports MCP-only hooks for model context and streaming", () => {
+    // useUpdateModelContext - MCP only: dynamically update AI's context
     expect(useUpdateModelContext).toBeDefined();
+    expect(typeof useUpdateModelContext).toBe("function");
+
+    // useLog - MCP only: structured logging to host
     expect(useLog).toBeDefined();
+    expect(typeof useLog).toBe("function");
+
+    // useToolInputPartial - MCP only: streaming input as user types
     expect(useToolInputPartial).toBeDefined();
+    expect(typeof useToolInputPartial).toBe("function");
   });
 });

@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { CHATGPT_CAPABILITIES, MCP_CAPABILITIES } from "./capabilities";
+import {
+  CHATGPT_CAPABILITIES,
+  MCP_CAPABILITIES,
+  hasFeature,
+} from "./capabilities";
 
 describe("CHATGPT_CAPABILITIES", () => {
   it("should have chatgpt platform", () => {
@@ -73,5 +77,43 @@ describe("capability parity", () => {
     const mcpKeys = Object.keys(MCP_CAPABILITIES).sort();
 
     expect(chatgptKeys).toEqual(mcpKeys);
+  });
+});
+
+describe("hasFeature", () => {
+  it("returns true for available ChatGPT features", () => {
+    expect(hasFeature(CHATGPT_CAPABILITIES, "widgetState")).toBe(true);
+    expect(hasFeature(CHATGPT_CAPABILITIES, "fileUpload")).toBe(true);
+    expect(hasFeature(CHATGPT_CAPABILITIES, "fileDownload")).toBe(true);
+    expect(hasFeature(CHATGPT_CAPABILITIES, "modal")).toBe(true);
+    expect(hasFeature(CHATGPT_CAPABILITIES, "closeWidget")).toBe(true);
+  });
+
+  it("returns true for available MCP features", () => {
+    expect(hasFeature(MCP_CAPABILITIES, "modelContext")).toBe(true);
+    expect(hasFeature(MCP_CAPABILITIES, "logging")).toBe(true);
+    expect(hasFeature(MCP_CAPABILITIES, "partialToolInput")).toBe(true);
+    expect(hasFeature(MCP_CAPABILITIES, "toolCancellation")).toBe(true);
+    expect(hasFeature(MCP_CAPABILITIES, "teardown")).toBe(true);
+  });
+
+  it("returns true for common features on both platforms", () => {
+    expect(hasFeature(CHATGPT_CAPABILITIES, "callTool")).toBe(true);
+    expect(hasFeature(CHATGPT_CAPABILITIES, "openLink")).toBe(true);
+    expect(hasFeature(MCP_CAPABILITIES, "callTool")).toBe(true);
+    expect(hasFeature(MCP_CAPABILITIES, "openLink")).toBe(true);
+  });
+
+  it("returns false for unavailable features", () => {
+    expect(hasFeature(CHATGPT_CAPABILITIES, "modelContext")).toBe(false);
+    expect(hasFeature(CHATGPT_CAPABILITIES, "logging")).toBe(false);
+    expect(hasFeature(MCP_CAPABILITIES, "widgetState")).toBe(false);
+    expect(hasFeature(MCP_CAPABILITIES, "fileUpload")).toBe(false);
+  });
+
+  it("returns false for null capabilities", () => {
+    expect(hasFeature(null, "callTool")).toBe(false);
+    expect(hasFeature(null, "widgetState")).toBe(false);
+    expect(hasFeature(null, "modelContext")).toBe(false);
   });
 });

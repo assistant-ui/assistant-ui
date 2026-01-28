@@ -1,7 +1,10 @@
 /**
  * @vitest-environment jsdom
+ *
+ * Tests for SDK exports and type compatibility.
+ * Platform detection tests are in detect.test.ts.
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect } from "vitest";
 
 import {
   UniversalProvider,
@@ -96,45 +99,6 @@ describe("SDK Exports", () => {
     expect(CHATGPT_CAPABILITIES.modelContext).toBe(false);
     expect(MCP_CAPABILITIES.callTool).toBe(true);
     expect(MCP_CAPABILITIES.modelContext).toBe(true);
-  });
-});
-
-describe("Platform Detection", () => {
-  let originalOpenai: unknown;
-
-  beforeEach(() => {
-    originalOpenai = (window as any).openai;
-    delete (window as any).openai;
-  });
-
-  afterEach(() => {
-    if (originalOpenai !== undefined) {
-      (window as any).openai = originalOpenai;
-    } else {
-      delete (window as any).openai;
-    }
-  });
-
-  it("returns 'unknown' when no platform markers exist", () => {
-    expect(detectPlatform()).toBe("unknown");
-  });
-
-  it("detects ChatGPT when window.openai exists", () => {
-    (window as any).openai = { callTool: vi.fn() };
-
-    expect(detectPlatform()).toBe("chatgpt");
-    expect(isChatGPT()).toBe(true);
-    expect(isMCP()).toBe(false);
-  });
-
-  it("detects MCP when __MCP_HOST__ window property exists", () => {
-    (window as any).__MCP_HOST__ = true;
-
-    expect(detectPlatform()).toBe("mcp");
-    expect(isMCP()).toBe(true);
-    expect(isChatGPT()).toBe(false);
-
-    delete (window as any).__MCP_HOST__;
   });
 });
 
