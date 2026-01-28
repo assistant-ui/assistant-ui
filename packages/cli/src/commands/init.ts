@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { logger } from "../lib/utils/logger";
 import { hasConfig } from "../lib/utils/config";
+import { TEMPLATES, TEMPLATE_NAMES, type TemplateName } from "../lib/constants";
 
 const DEFAULT_REGISTRY_URL =
   "https://r.assistant-ui.com/chat/b/ai-sdk-quick-start/json";
@@ -11,6 +12,7 @@ const DEFAULT_REGISTRY_URL =
 export const init = new Command()
   .name("init")
   .description("initialize assistant-ui in a new or existing project")
+  .argument("[project-directory]", "directory for the new project")
   .option(
     "-c, --cwd <cwd>",
     "the working directory. defaults to the current directory.",
@@ -20,7 +22,17 @@ export const init = new Command()
     "-p, --preset <url>",
     "preset URL from playground (e.g., https://www.assistant-ui.com/playground/init?preset=chatgpt)",
   )
-  .action(async (opts) => {
+  .option(
+    "-t, --template <template>",
+    `template to use (${TEMPLATE_NAMES.join(", ")})`,
+    "minimal",
+  )
+  .option("--use-npm", "explicitly use npm")
+  .option("--use-pnpm", "explicitly use pnpm")
+  .option("--use-yarn", "explicitly use yarn")
+  .option("--use-bun", "explicitly use bun")
+  .option("--skip-install", "skip installing packages")
+  .action(async (projectDirectory, opts) => {
     const cwd = opts.cwd;
     const presetUrl = opts.preset;
 
@@ -66,18 +78,33 @@ export const init = new Command()
         }
       });
     } else {
-      logger.info("Creating a new assistant-ui project...");
+      const templateName = opts.template as TemplateName;
+      const templateUrl = TEMPLATES[templateName];
+
+      if (!templateUrl) {
+        logger.error(`Unknown template: ${opts.template}`);
+        logger.info(`Available templates: ${TEMPLATE_NAMES.join(", ")}`);
+        process.exit(1);
+      }
+
+      logger.info(
+        `Creating a new assistant-ui project (template: ${templateName})...`,
+      );
       logger.break();
 
-      const child = spawn(
-        "npx",
-        [
-          "create-next-app@latest",
-          "-e",
-          "https://github.com/assistant-ui/assistant-ui-starter-minimal",
-        ],
-        { stdio: "inherit", cwd },
-      );
+      const cnaArgs: string[] = ["create-next-app@latest"];
+      if (projectDirectory) {
+        cnaArgs.push(projectDirectory);
+      }
+      cnaArgs.push("-e", templateUrl);
+
+      if (opts.useNpm) cnaArgs.push("--use-npm");
+      if (opts.usePnpm) cnaArgs.push("--use-pnpm");
+      if (opts.useYarn) cnaArgs.push("--use-yarn");
+      if (opts.useBun) cnaArgs.push("--use-bun");
+      if (opts.skipInstall) cnaArgs.push("--skip-install");
+
+      const child = spawn("npx", cnaArgs, { stdio: "inherit", cwd });
 
       child.on("error", (error) => {
         logger.error(`Failed to create project: ${error.message}`);
@@ -91,7 +118,6 @@ export const init = new Command()
         } else {
           logger.break();
           logger.success("Project created successfully!");
-          logger.info("Run 'npm run dev' to get started.");
         }
       });
     }
