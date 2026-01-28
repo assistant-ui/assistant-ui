@@ -7,7 +7,7 @@ export type ToolUIRendererSession = {
   readonly instance: ToolUIInstance;
   output: ToolUIRenderOutput;
   container: HTMLElement;
-  sandbox?: ToolUISandbox;
+  sandbox?: ToolUISandbox | undefined;
 };
 
 /**
@@ -34,11 +34,9 @@ export class ToolUIRendererManager {
     }
 
     const output = this._resolveOutput(instance);
+    if (!output) return;
 
-    if (!output || output.kind === "empty") {
-      return;
-    }
-
+    // Always create a session (even for empty output)
     const session: ToolUIRendererSession = {
       instance,
       output,
@@ -47,23 +45,23 @@ export class ToolUIRendererManager {
 
     this._sessions.set(id, session);
 
-    this._renderSession(session);
+    if (output.kind !== "empty") {
+      this._renderSession(session);
+    }
   }
 
   public update(instance: ToolUIInstance): void {
     const session = this._sessions.get(instance.id);
     if (!session) return;
 
-    const newOutput = this._resolveOutput(instance);
-    if (!newOutput) return;
+    const nextOutput = this._resolveOutput(instance);
+    if (!nextOutput) return;
 
-    // Prevent unnecessary re-renders by comparing outputs
-    if (this._isSameOutput(session.output, newOutput)) {
+    if (this._isSameOutput(session.output, nextOutput)) {
       return;
     }
 
-    session.output = newOutput;
-
+    session.output = nextOutput;
     this._renderSession(session);
   }
 
@@ -72,11 +70,17 @@ export class ToolUIRendererManager {
     if (!session) return;
 
     if (session.sandbox) {
-      session.sandbox.unmount();
+      try {
+        session.sandbox.unmount();
+      } catch (error) {
+        console.error(
+          `Failed to unmount Tool UI sandbox for ${instance.id}:`,
+          error,
+        );
+      }
     }
 
     session.container.innerHTML = "";
-
     this._sessions.delete(instance.id);
   }
 
@@ -89,7 +93,6 @@ export class ToolUIRendererManager {
   ): ToolUIRenderOutput | undefined {
     const state = instance.getState();
     const factory = this._registry.resolve(state.context.toolName);
-
     if (!factory) return undefined;
 
     return factory({
@@ -111,7 +114,7 @@ export class ToolUIRendererManager {
       return a.element === b.element;
     }
 
-    return a.kind === "empty" && b.kind === "empty";
+    return a.kind === "empty";
   }
 
   private _renderSession(session: ToolUIRendererSession): void {
@@ -119,44 +122,56 @@ export class ToolUIRendererManager {
 
     switch (output.kind) {
       case "empty": {
+        if (session.sandbox) {
+          session.sandbox.unmount();
+          session.sandbox = undefined;
+          container.innerHTML = "";
+        }
         return;
       }
 
       case "react": {
-        /**
-         * React rendering is handled by React layer
-         * only the output is stored here
-         */
+        if (session.sandbox) {
+          session.sandbox.unmount();
+          session.sandbox = undefined;
+          container.innerHTML = "";
+        }
+        // React rendering handled by React layer
         return;
       }
 
       case "html": {
-        if (!this._createSandbox) {
-          throw new Error(
-            "Tool UI output requires a sandbox, but no sandbox factory was provided",
-          );
-        }
-
         if (!session.sandbox) {
           const sandbox = this._createSandbox();
           session.sandbox = sandbox;
 
-          const mountResult = sandbox.mount(instance, output, container);
-          if (mountResult instanceof Promise) {
-            mountResult.catch((error) => {
-              console.error(
-                `Failed to mount Tool UI sandbox for ${instance.id}:`,
-                error,
-              );
-              session.sandbox?.unmount();
-              container.innerHTML = "";
-              this._sessions.delete(instance.id);
-            });
+          try {
+            const result = sandbox.mount(instance, output, container);
+            if (result instanceof Promise) {
+              result.catch((error) => {
+                console.error(
+                  `Failed to mount Tool UI sandbox for ${instance.id}:`,
+                  error,
+                );
+                try {
+                  sandbox.unmount();
+                } catch {}
+                container.innerHTML = "";
+                this._sessions.delete(instance.id);
+              });
+            }
+          } catch (error) {
+            console.error(
+              `Failed to mount Tool UI sandbox for ${instance.id}:`,
+              error,
+            );
+            container.innerHTML = "";
+            this._sessions.delete(instance.id);
           }
         } else {
-          const updateResult = session.sandbox.update(instance, output);
-          if (updateResult instanceof Promise) {
-            updateResult.catch((error) => {
+          const result = session.sandbox.update(instance, output);
+          if (result instanceof Promise) {
+            result.catch((error) => {
               console.error(
                 `Failed to update Tool UI sandbox for ${instance.id}:`,
                 error,
@@ -164,7 +179,6 @@ export class ToolUIRendererManager {
             });
           }
         }
-
         return;
       }
 

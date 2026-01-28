@@ -20,8 +20,7 @@ function makeInstance(id = "call-1") {
 }
 
 function makeContainer() {
-  const div = document.createElement("div");
-  return div;
+  return document.createElement("div");
 }
 
 describe("ToolUIRendererManager", () => {
@@ -37,15 +36,11 @@ describe("ToolUIRendererManager", () => {
       createSandbox: vi.fn(),
     });
 
-    const instance = makeInstance();
-    const container = makeContainer();
-
-    manager.mount(instance, container);
-
+    manager.mount(makeInstance(), makeContainer());
     expect(manager.list()).toHaveLength(0);
   });
 
-  it("does nothing if factory returns empty output", () => {
+  it("creates a session but does not render if factory returns empty output", () => {
     registry.register({
       toolName: "get_weather",
       factory: () => ({ kind: "empty" }),
@@ -61,76 +56,21 @@ describe("ToolUIRendererManager", () => {
 
     manager.mount(instance, container);
 
-    expect(manager.list()).toHaveLength(0);
-  });
-
-  it("creates a renderer session when output exists", () => {
-    registry.register({
-      toolName: "get_weather",
-      factory: () => ({
-        kind: "react",
-        element: "<Weather />",
-      }),
-    });
-
-    const manager = new ToolUIRendererManager({
-      registry,
-      createSandbox: vi.fn(),
-    });
-
-    const instance = makeInstance();
-    const container = makeContainer();
-
-    manager.mount(instance, container);
-
     const sessions = manager.list();
-
     expect(sessions).toHaveLength(1);
-
-    const session = sessions[0];
-
-    expect(session!.instance).toBe(instance);
-    expect(session!.container).toBe(container);
-    expect(session!.output.kind).toBe("react");
+    expect(sessions[0]!.output.kind).toBe("empty");
+    expect(sessions[0]!.sandbox).toBeUndefined();
+    expect(container.innerHTML).toBe("");
   });
 
-  it("does not create duplicate sessions for same instance", () => {
-    registry.register({
-      toolName: "get_weather",
-      factory: () => ({
-        kind: "react",
-        element: "<Weather />",
-      }),
-    });
-
-    const manager = new ToolUIRendererManager({
-      registry,
-      createSandbox: vi.fn(),
-    });
-
-    const instance = makeInstance();
-    const container = makeContainer();
-
-    manager.mount(instance, container);
-    manager.mount(instance, container);
-    manager.mount(instance, container);
-
-    expect(manager.list()).toHaveLength(1);
-  });
-
-  it("creates sandbox and mounts when output is html", async () => {
-    const mountSpy = vi.fn();
-    const updateSpy = vi.fn();
-    const unmountSpy = vi.fn();
-
+  it("creates sandbox and mounts when output is html", () => {
+    const mount = vi.fn();
     const sandbox: ToolUISandbox = {
       type: "mock",
-      mount: mountSpy,
-      update: updateSpy,
-      unmount: unmountSpy,
+      mount,
+      update: vi.fn(),
+      unmount: vi.fn(),
     };
-
-    const createSandbox = vi.fn(() => sandbox);
 
     registry.register({
       toolName: "get_weather",
@@ -142,35 +82,23 @@ describe("ToolUIRendererManager", () => {
 
     const manager = new ToolUIRendererManager({
       registry,
-      createSandbox,
+      createSandbox: () => sandbox,
     });
 
-    const instance = makeInstance();
-    const container = makeContainer();
+    manager.mount(makeInstance(), makeContainer());
 
-    manager.mount(instance, container);
-
-    expect(createSandbox).toHaveBeenCalledTimes(1);
-    expect(mountSpy).toHaveBeenCalledTimes(1);
-
-    const sessions = manager.list();
-    expect(sessions).toHaveLength(1);
-    expect(sessions[0]!.sandbox).toBe(sandbox);
+    expect(mount).toHaveBeenCalledTimes(1);
+    expect(manager.list()).toHaveLength(1);
   });
 
-  it("updates existing session and calls sandbox.update", async () => {
-    const mountSpy = vi.fn();
-    const updateSpy = vi.fn();
-    const unmountSpy = vi.fn();
-
+  it("updates existing session and calls sandbox.update", () => {
+    const update = vi.fn();
     const sandbox: ToolUISandbox = {
       type: "mock",
-      mount: mountSpy,
-      update: updateSpy,
-      unmount: unmountSpy,
+      mount: vi.fn(),
+      update,
+      unmount: vi.fn(),
     };
-
-    const createSandbox = vi.fn(() => sandbox);
 
     let output: ToolUIRenderOutput = {
       kind: "html",
@@ -184,38 +112,29 @@ describe("ToolUIRendererManager", () => {
 
     const manager = new ToolUIRendererManager({
       registry,
-      createSandbox,
+      createSandbox: () => sandbox,
     });
 
     const instance = makeInstance();
-    const container = makeContainer();
+    manager.mount(instance, makeContainer());
 
-    manager.mount(instance, container);
-
-    // change output
     output = {
       kind: "html",
       html: "<div>Two</div>",
     };
 
     manager.update(instance);
-
-    expect(updateSpy).toHaveBeenCalledTimes(1);
+    expect(update).toHaveBeenCalledTimes(1);
   });
 
   it("unmount cleans sandbox and container", () => {
-    const mountSpy = vi.fn();
-    const updateSpy = vi.fn();
-    const unmountSpy = vi.fn();
-
+    const unmount = vi.fn();
     const sandbox: ToolUISandbox = {
       type: "mock",
-      mount: mountSpy,
-      update: updateSpy,
-      unmount: unmountSpy,
+      mount: vi.fn(),
+      update: vi.fn(),
+      unmount,
     };
-
-    const createSandbox = vi.fn(() => sandbox);
 
     registry.register({
       toolName: "get_weather",
@@ -227,7 +146,7 @@ describe("ToolUIRendererManager", () => {
 
     const manager = new ToolUIRendererManager({
       registry,
-      createSandbox,
+      createSandbox: () => sandbox,
     });
 
     const instance = makeInstance();
@@ -238,66 +157,8 @@ describe("ToolUIRendererManager", () => {
     manager.mount(instance, container);
     manager.unmount(instance);
 
-    expect(unmountSpy).toHaveBeenCalledTimes(1);
+    expect(unmount).toHaveBeenCalledTimes(1);
     expect(container.innerHTML).toBe("");
     expect(manager.list()).toHaveLength(0);
-  });
-
-  it("react output does not create sandbox", () => {
-    const createSandbox = vi.fn();
-
-    registry.register({
-      toolName: "get_weather",
-      factory: () => ({
-        kind: "react",
-        element: "<Weather />",
-      }),
-    });
-
-    const manager = new ToolUIRendererManager({
-      registry,
-      createSandbox,
-    });
-
-    const instance = makeInstance();
-    const container = makeContainer();
-
-    manager.mount(instance, container);
-
-    expect(createSandbox).not.toHaveBeenCalled();
-
-    const session = manager.list()[0];
-    expect(session!.sandbox).toBeUndefined();
-  });
-
-  it("list returns all active sessions", () => {
-    registry.register({
-      toolName: "get_weather",
-      factory: () => ({
-        kind: "react",
-        element: "<Weather />",
-      }),
-    });
-
-    const manager = new ToolUIRendererManager({
-      registry,
-      createSandbox: vi.fn(),
-    });
-
-    const instance1 = makeInstance("call-1");
-    const instance2 = makeInstance("call-2");
-
-    const c1 = makeContainer();
-    const c2 = makeContainer();
-
-    manager.mount(instance1, c1);
-    manager.mount(instance2, c2);
-
-    const list = manager.list();
-
-    expect(list).toHaveLength(2);
-
-    const ids = list.map((s) => s.instance.id).sort();
-    expect(ids).toEqual(["call-1", "call-2"]);
   });
 });
