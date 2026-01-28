@@ -70,21 +70,25 @@ const STEPS = [
     title: "Scaffold your project",
     description:
       "Run the CLI to create a new project with the workbench, example widgets, and optionally an MCP server.",
+    visual: "scaffold",
   },
   {
     title: "Develop your widgets",
     description:
       "Build React components using the universal SDK. It auto-detects the platform and adapts to ChatGPT or MCP hosts.",
+    visual: "develop",
   },
   {
     title: "Test with mock data",
     description:
       "Configure mock tool responses to test different scenarios. Simulate user interactions and edge cases.",
+    visual: "test",
   },
   {
     title: "Export for production",
     description:
       "Generate self-contained HTML bundles with all dependencies inlined. Deploy to ChatGPT or MCP hosts.",
+    visual: "export",
   },
 ] as const;
 
@@ -243,15 +247,23 @@ export default function McpAppStudioPage() {
 
           <div className="grid gap-6 sm:grid-cols-2">
             {STEPS.map((step, index) => (
-              <div key={step.title} className="flex gap-4">
-                <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted font-medium text-muted-foreground text-sm">
-                  {index + 1}
+              <div
+                key={step.title}
+                className="group overflow-hidden rounded-xl border border-border/50 bg-muted/30 transition-colors hover:border-border/80"
+              >
+                <div className="p-1">
+                  <StepVisual type={step.visual} />
                 </div>
-                <div className="flex flex-col gap-1 pt-0.5">
-                  <h3 className="font-medium">{step.title}</h3>
-                  <p className="text-muted-foreground text-sm leading-relaxed">
-                    {step.description}
-                  </p>
+                <div className="flex gap-3 p-4 pt-3">
+                  <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-violet-500/10 font-medium text-violet-400 text-xs">
+                    {index + 1}
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <h3 className="font-medium text-sm">{step.title}</h3>
+                    <p className="text-muted-foreground text-xs leading-relaxed">
+                      {step.description}
+                    </p>
+                  </div>
                 </div>
               </div>
             ))}
@@ -445,5 +457,242 @@ function CopyCommandButton() {
         />
       </div>
     </button>
+  );
+}
+
+function StepVisual({ type }: { type: string }) {
+  switch (type) {
+    case "scaffold":
+      return <ScaffoldVisual />;
+    case "develop":
+      return <DevelopVisual />;
+    case "test":
+      return <TestVisual />;
+    case "export":
+      return <ExportVisual />;
+    default:
+      return null;
+  }
+}
+
+function ScaffoldVisual() {
+  return (
+    <div className="relative aspect-[4/3] w-full overflow-hidden rounded-lg bg-zinc-950 p-3 font-mono text-[10px] leading-relaxed">
+      <div className="absolute inset-0 bg-gradient-to-br from-violet-500/5 via-transparent to-blue-500/5" />
+      <div className="relative space-y-1.5">
+        <div className="flex items-center gap-1.5 text-zinc-500">
+          <span className="text-emerald-400">~</span>
+          <span>npx mcp-app-studio my-app</span>
+        </div>
+        <div className="text-zinc-400">
+          <span className="text-violet-400">Creating</span> my-app...
+        </div>
+        <div className="space-y-0.5 pl-2 text-zinc-500">
+          <div className="flex items-center gap-1.5">
+            <span className="text-emerald-400">✓</span>
+            <span>package.json</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-emerald-400">✓</span>
+            <span>src/widgets/</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-emerald-400">✓</span>
+            <span>workbench/</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-blue-400">✓</span>
+            <span>mcp-server/</span>
+          </div>
+        </div>
+        <div className="pt-1 text-emerald-400">
+          Done! Run: cd my-app && pnpm dev
+        </div>
+      </div>
+      <div className="absolute right-3 bottom-3 flex gap-1">
+        <div className="size-1.5 rounded-full bg-zinc-700" />
+        <div className="size-1.5 rounded-full bg-zinc-700" />
+        <div className="size-1.5 rounded-full bg-zinc-700" />
+      </div>
+    </div>
+  );
+}
+
+function DevelopVisual() {
+  return (
+    <div className="relative aspect-[4/3] w-full overflow-hidden rounded-lg bg-zinc-950">
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-transparent to-violet-500/5" />
+      <div className="flex h-full">
+        <div className="w-1/2 border-zinc-800 border-r p-2">
+          <div className="mb-1.5 flex items-center gap-1 text-[9px] text-zinc-500">
+            <div className="size-2 rounded-sm bg-blue-500/60" />
+            <span>Widget.tsx</span>
+          </div>
+          <div className="space-y-0.5 font-mono text-[8px] leading-relaxed">
+            <div>
+              <span className="text-violet-400">export</span>{" "}
+              <span className="text-blue-400">function</span>{" "}
+              <span className="text-amber-300">Widget</span>
+              <span className="text-zinc-500">() {"{"}</span>
+            </div>
+            <div className="pl-2">
+              <span className="text-violet-400">const</span>{" "}
+              <span className="text-zinc-300">result</span>{" "}
+              <span className="text-zinc-500">=</span>{" "}
+              <span className="text-blue-400">useToolResult</span>
+              <span className="text-zinc-500">();</span>
+            </div>
+            <div className="pl-2">
+              <span className="text-violet-400">return</span>{" "}
+              <span className="text-zinc-500">(</span>
+            </div>
+            <div className="pl-4">
+              <span className="text-emerald-400">{"<Map"}</span>{" "}
+              <span className="text-amber-300">data</span>
+              <span className="text-zinc-500">=</span>
+              <span className="text-zinc-500">{"{"}</span>
+              <span className="text-zinc-300">result</span>
+              <span className="text-zinc-500">{"}"}</span>{" "}
+              <span className="text-emerald-400">/{">"}</span>
+            </div>
+            <div className="pl-2">
+              <span className="text-zinc-500">);</span>
+            </div>
+            <div>
+              <span className="text-zinc-500">{"}"}</span>
+            </div>
+          </div>
+        </div>
+        <div className="flex w-1/2 flex-col">
+          <div className="flex items-center gap-1 border-zinc-800 border-b px-2 py-1 text-[9px] text-zinc-500">
+            <div className="size-2 rounded-full bg-emerald-500/60" />
+            <span>Preview</span>
+          </div>
+          <div className="relative flex-1 bg-zinc-900/50 p-2">
+            <div className="h-full rounded bg-zinc-800/50">
+              <div className="flex h-full items-center justify-center">
+                <div className="relative size-12 rounded-md bg-gradient-to-br from-blue-500/20 to-violet-500/20">
+                  <div className="absolute top-1/2 left-1/2 size-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-violet-400" />
+                  <div className="absolute top-2 right-2 size-1 rounded-full bg-blue-400/60" />
+                  <div className="absolute bottom-2 left-3 size-1 rounded-full bg-emerald-400/60" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TestVisual() {
+  return (
+    <div className="relative aspect-[4/3] w-full overflow-hidden rounded-lg bg-zinc-950 p-3">
+      <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 via-transparent to-emerald-500/5" />
+      <div className="relative space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="font-medium text-[9px] text-zinc-400">
+            Mock Response
+          </span>
+          <div className="flex gap-1">
+            <div className="rounded bg-emerald-500/20 px-1.5 py-0.5 font-mono text-[8px] text-emerald-400">
+              200
+            </div>
+          </div>
+        </div>
+        <div className="rounded-md bg-zinc-900/80 p-2 font-mono text-[8px] leading-relaxed">
+          <div>
+            <span className="text-zinc-500">{"{"}</span>
+          </div>
+          <div className="pl-2">
+            <span className="text-violet-400">&quot;locations&quot;</span>
+            <span className="text-zinc-500">: [</span>
+          </div>
+          <div className="pl-4">
+            <span className="text-zinc-500">{"{"}</span>{" "}
+            <span className="text-blue-400">&quot;name&quot;</span>
+            <span className="text-zinc-500">:</span>{" "}
+            <span className="text-amber-300">&quot;Paris&quot;</span>
+            <span className="text-zinc-500">,</span>{" "}
+            <span className="text-zinc-500">...</span>{" "}
+            <span className="text-zinc-500">{"}"}</span>
+          </div>
+          <div className="pl-2">
+            <span className="text-zinc-500">],</span>
+          </div>
+          <div className="pl-2">
+            <span className="text-violet-400">&quot;status&quot;</span>
+            <span className="text-zinc-500">:</span>{" "}
+            <span className="text-amber-300">&quot;success&quot;</span>
+          </div>
+          <div>
+            <span className="text-zinc-500">{"}"}</span>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <div className="flex-1 rounded bg-zinc-800/50 px-2 py-1">
+            <div className="mb-0.5 text-[7px] text-zinc-600">Delay</div>
+            <div className="font-mono text-[9px] text-zinc-400">250ms</div>
+          </div>
+          <div className="flex-1 rounded bg-zinc-800/50 px-2 py-1">
+            <div className="mb-0.5 text-[7px] text-zinc-600">Calls</div>
+            <div className="font-mono text-[9px] text-zinc-400">12</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ExportVisual() {
+  return (
+    <div className="relative aspect-[4/3] w-full overflow-hidden rounded-lg bg-zinc-950 p-3">
+      <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-violet-500/5" />
+      <div className="relative flex h-full flex-col">
+        <div className="mb-2 flex items-center justify-between">
+          <span className="font-medium text-[9px] text-zinc-400">
+            Production Bundle
+          </span>
+          <div className="rounded bg-violet-500/20 px-1.5 py-0.5 font-mono text-[8px] text-violet-400">
+            Ready
+          </div>
+        </div>
+        <div className="flex-1 space-y-1.5">
+          <div className="flex items-center gap-2 rounded-md bg-zinc-900/80 px-2 py-1.5">
+            <div className="flex size-5 items-center justify-center rounded bg-gradient-to-br from-violet-500/30 to-blue-500/30">
+              <Package className="size-3 text-violet-300" />
+            </div>
+            <div className="flex-1">
+              <div className="font-mono text-[9px] text-zinc-300">
+                widget.html
+              </div>
+              <div className="text-[7px] text-zinc-600">
+                Self-contained bundle
+              </div>
+            </div>
+            <div className="font-mono text-[8px] text-zinc-500">42kb</div>
+          </div>
+          <div className="flex items-center justify-center gap-4 py-1">
+            <div className="text-center">
+              <div className="mb-0.5 flex size-6 items-center justify-center rounded-md border border-zinc-800 bg-zinc-900/50">
+                <span className="font-mono text-[8px] text-emerald-400">C</span>
+              </div>
+              <div className="text-[7px] text-zinc-600">ChatGPT</div>
+            </div>
+            <div className="h-px w-4 bg-zinc-800" />
+            <div className="text-center">
+              <div className="mb-0.5 flex size-6 items-center justify-center rounded-md border border-zinc-800 bg-zinc-900/50">
+                <span className="font-mono text-[8px] text-violet-400">M</span>
+              </div>
+              <div className="text-[7px] text-zinc-600">MCP</div>
+            </div>
+          </div>
+        </div>
+        <div className="mt-auto flex items-center gap-1 rounded bg-emerald-500/10 px-2 py-1">
+          <CheckIcon className="size-2.5 text-emerald-400" />
+          <span className="text-[8px] text-emerald-400">Exported to dist/</span>
+        </div>
+      </div>
+    </div>
   );
 }
