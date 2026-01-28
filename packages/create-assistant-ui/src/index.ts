@@ -54,6 +54,7 @@ const create = new Command()
   .action((_, opts) => {
     const templates = {
       default: "https://github.com/assistant-ui/assistant-ui-starter",
+      minimal: "https://github.com/assistant-ui/assistant-ui-starter-minimal",
       langgraph:
         "https://github.com/assistant-ui/assistant-ui-starter-langgraph",
     };

@@ -2,7 +2,6 @@ import { Command } from "commander";
 import { spawn } from "cross-spawn";
 import fs from "node:fs";
 import path from "node:path";
-import { create } from "./create";
 import { logger } from "../lib/utils/logger";
 import { hasConfig } from "../lib/utils/config";
 
@@ -69,6 +68,31 @@ export const init = new Command()
     } else {
       logger.info("Creating a new assistant-ui project...");
       logger.break();
-      await create.parseAsync([]);
+
+      const child = spawn(
+        "npx",
+        [
+          "create-next-app@latest",
+          "-e",
+          "https://github.com/assistant-ui/assistant-ui-starter-minimal",
+        ],
+        { stdio: "inherit", cwd },
+      );
+
+      child.on("error", (error) => {
+        logger.error(`Failed to create project: ${error.message}`);
+        process.exit(1);
+      });
+
+      child.on("close", (code) => {
+        if (code !== 0) {
+          logger.error(`Project creation failed with code ${code}`);
+          process.exit(code || 1);
+        } else {
+          logger.break();
+          logger.success("Project created successfully!");
+          logger.info("Run 'npm run dev' to get started.");
+        }
+      });
     }
   });

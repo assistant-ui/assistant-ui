@@ -34,7 +34,6 @@ export const registry: RegistryItem[] = [
     registryDependencies: [
       "https://r.assistant-ui.com/ai-sdk-backend.json",
       "https://r.assistant-ui.com/thread.json",
-      "https://r.assistant-ui.com/thread-list.json",
     ],
     meta: {
       importSpecifier: "Assistant",
@@ -52,7 +51,7 @@ export const registry: RegistryItem[] = [
         target: "app/api/chat/route.ts",
       },
     ],
-    dependencies: ["@assistant-ui/react-ai-sdk", "ai", "@ai-sdk/openai"],
+    dependencies: ["ai", "@ai-sdk/openai"],
   },
   {
     name: "thread",

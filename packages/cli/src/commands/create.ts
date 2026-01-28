@@ -11,7 +11,7 @@ export const create = new Command()
   .usage(`${chalk.green("[project-directory]")} [options]`)
   .option(
     "-t, --template <template>",
-    "template to use (default, cloud, langgraph, mcp)",
+    "template to use (default, minimal, cloud, langgraph, mcp)",
   )
   .option(
     "-e, --example <example>",
@@ -43,6 +43,7 @@ export const create = new Command()
     // Handle --template option (existing logic)
     const templates = {
       default: "https://github.com/assistant-ui/assistant-ui-starter",
+      minimal: "https://github.com/assistant-ui/assistant-ui-starter-minimal",
       cloud: "https://github.com/assistant-ui/assistant-ui-starter-cloud",
       langgraph:
         "https://github.com/assistant-ui/assistant-ui-starter-langgraph",
