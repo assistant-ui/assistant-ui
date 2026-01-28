@@ -4,10 +4,20 @@ import fs from "node:fs";
 import path from "node:path";
 import { logger } from "../lib/utils/logger";
 import { hasConfig } from "../lib/utils/config";
-import { TEMPLATES, TEMPLATE_NAMES, type TemplateName } from "../lib/constants";
 
 const DEFAULT_REGISTRY_URL =
   "https://r.assistant-ui.com/chat/b/ai-sdk-quick-start/json";
+
+// Keep in sync with packages/create-assistant-ui/src/index.ts
+const templates = {
+  default: "https://github.com/assistant-ui/assistant-ui-starter",
+  minimal: "https://github.com/assistant-ui/assistant-ui-starter-minimal",
+  cloud: "https://github.com/assistant-ui/assistant-ui-starter-cloud",
+  langgraph: "https://github.com/assistant-ui/assistant-ui-starter-langgraph",
+  mcp: "https://github.com/assistant-ui/assistant-ui-starter-mcp",
+};
+
+const templateNames = Object.keys(templates);
 
 export const init = new Command()
   .name("init")
@@ -24,7 +34,7 @@ export const init = new Command()
   )
   .option(
     "-t, --template <template>",
-    `template to use (${TEMPLATE_NAMES.join(", ")})`,
+    `template to use (${templateNames.join(", ")})`,
     "minimal",
   )
   .option("--use-npm", "explicitly use npm")
@@ -34,15 +44,18 @@ export const init = new Command()
   .option("--skip-install", "skip installing packages")
   .action(async (projectDirectory, opts) => {
     const cwd = opts.cwd;
+    const targetDir = projectDirectory
+      ? path.resolve(cwd, projectDirectory)
+      : cwd;
     const presetUrl = opts.preset;
 
-    if (hasConfig(cwd)) {
+    if (hasConfig(targetDir)) {
       logger.warn("Project is already initialized.");
       logger.info("Use 'assistant-ui add' to add more components.");
       return;
     }
 
-    const packageJsonPath = path.join(cwd, "package.json");
+    const packageJsonPath = path.join(targetDir, "package.json");
     const packageJsonExists = fs.existsSync(packageJsonPath);
 
     if (packageJsonExists) {
@@ -57,7 +70,7 @@ export const init = new Command()
 
       const child = spawn("npx", [`shadcn@latest`, "add", registryUrl], {
         stdio: "inherit",
-        cwd,
+        cwd: targetDir,
       });
 
       child.on("error", (error) => {
@@ -78,12 +91,12 @@ export const init = new Command()
         }
       });
     } else {
-      const templateName = opts.template as TemplateName;
-      const templateUrl = TEMPLATES[templateName];
+      const templateName = opts.template as keyof typeof templates;
+      const templateUrl = templates[templateName];
 
       if (!templateUrl) {
         logger.error(`Unknown template: ${opts.template}`);
-        logger.info(`Available templates: ${TEMPLATE_NAMES.join(", ")}`);
+        logger.info(`Available templates: ${templateNames.join(", ")}`);
         process.exit(1);
       }
 
@@ -93,9 +106,7 @@ export const init = new Command()
       logger.break();
 
       const cnaArgs: string[] = ["create-next-app@latest"];
-      if (projectDirectory) {
-        cnaArgs.push(projectDirectory);
-      }
+      cnaArgs.push(projectDirectory || ".");
       cnaArgs.push("-e", templateUrl);
 
       if (opts.useNpm) cnaArgs.push("--use-npm");

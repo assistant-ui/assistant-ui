@@ -3,7 +3,17 @@ import chalk from "chalk";
 import { spawn } from "cross-spawn";
 import { logger } from "../lib/utils/logger";
 import { createFromExample } from "../lib/create-from-example";
-import { TEMPLATES, TEMPLATE_NAMES, type TemplateName } from "../lib/constants";
+
+// Keep in sync with packages/create-assistant-ui/src/index.ts
+const templates = {
+  default: "https://github.com/assistant-ui/assistant-ui-starter",
+  minimal: "https://github.com/assistant-ui/assistant-ui-starter-minimal",
+  cloud: "https://github.com/assistant-ui/assistant-ui-starter-cloud",
+  langgraph: "https://github.com/assistant-ui/assistant-ui-starter-langgraph",
+  mcp: "https://github.com/assistant-ui/assistant-ui-starter-mcp",
+};
+
+const templateNames = Object.keys(templates);
 
 export const create = new Command()
   .name("create")
@@ -12,7 +22,7 @@ export const create = new Command()
   .usage(`${chalk.green("[project-directory]")} [options]`)
   .option(
     "-t, --template <template>",
-    `template to use (${TEMPLATE_NAMES.join(", ")})`,
+    `template to use (${templateNames.join(", ")})`,
   )
   .option(
     "-e, --example <example>",
@@ -42,12 +52,12 @@ export const create = new Command()
     }
 
     // Handle --template option
-    const templateName = (opts.template as TemplateName) ?? "default";
-    const templateUrl = TEMPLATES[templateName];
+    const templateName = (opts.template as keyof typeof templates) ?? "default";
+    const templateUrl = templates[templateName];
 
     if (!templateUrl) {
       logger.error(`Unknown template: ${opts.template}`);
-      logger.info(`Available templates: ${TEMPLATE_NAMES.join(", ")}`);
+      logger.info(`Available templates: ${templateNames.join(", ")}`);
       process.exit(1);
     }
 
