@@ -33,24 +33,27 @@ export function useAgUiRuntime(
   const feedbackAdapter = options.adapters?.feedback;
   const threadListAdapter = options.adapters?.threadList;
 
-  const coreOptions = {
-    agent: options.agent,
-    logger,
-    showThinking: options.showThinking ?? true,
-    onError: options.onError,
-    onCancel: options.onCancel,
-    history: historyAdapter,
-  };
-
   if (!coreRef.current) {
     coreRef.current = new AgUiThreadRuntimeCore({
-      ...coreOptions,
+      agent: options.agent,
+      logger,
+      showThinking: options.showThinking ?? true,
+      ...(options.onError && { onError: options.onError }),
+      ...(options.onCancel && { onCancel: options.onCancel }),
+      ...(historyAdapter && { history: historyAdapter }),
       notifyUpdate,
     });
   }
 
   const core = coreRef.current;
-  core.updateOptions(coreOptions);
+  core.updateOptions({
+    agent: options.agent,
+    logger,
+    showThinking: options.showThinking ?? true,
+    ...(options.onError && { onError: options.onError }),
+    ...(options.onCancel && { onCancel: options.onCancel }),
+    ...(historyAdapter && { history: historyAdapter }),
+  });
 
   const threadList = useMemo(() => {
     if (!threadListAdapter) return undefined;
