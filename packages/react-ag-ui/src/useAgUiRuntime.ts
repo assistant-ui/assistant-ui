@@ -25,12 +25,7 @@ export function useAgUiRuntime(
   const coreRef = useRef<AgUiThreadRuntimeCore | null>(null);
   const runtimeAdapters = useRuntimeAdapters();
 
-  const attachmentsAdapter =
-    options.adapters?.attachments ?? runtimeAdapters?.attachments;
   const historyAdapter = options.adapters?.history ?? runtimeAdapters?.history;
-  const speechAdapter = options.adapters?.speech;
-  const dictationAdapter = options.adapters?.dictation;
-  const feedbackAdapter = options.adapters?.feedback;
   const threadListAdapter = options.adapters?.threadList;
 
   if (!coreRef.current) {
@@ -80,22 +75,17 @@ export function useAgUiRuntime(
     };
   }, [threadListAdapter, core]);
 
-  const adapterAdapters = useMemo(() => {
-    const value: NonNullable<ExternalStoreAdapter<ThreadMessage>["adapters"]> =
-      {};
-    if (attachmentsAdapter) value.attachments = attachmentsAdapter;
-    if (speechAdapter) value.speech = speechAdapter;
-    if (dictationAdapter) value.dictation = dictationAdapter;
-    if (feedbackAdapter) value.feedback = feedbackAdapter;
-    if (threadList) value.threadList = threadList;
-    return Object.keys(value).length ? value : undefined;
-  }, [
-    attachmentsAdapter,
-    speechAdapter,
-    dictationAdapter,
-    feedbackAdapter,
-    threadList,
-  ]);
+  const adapters = options.adapters;
+  const adapterAdapters = useMemo(
+    () => ({
+      attachments: adapters?.attachments ?? runtimeAdapters?.attachments,
+      speech: adapters?.speech,
+      dictation: adapters?.dictation,
+      feedback: adapters?.feedback,
+      threadList,
+    }),
+    [adapters, runtimeAdapters, threadList],
+  );
 
   const store = useMemo(
     () => {

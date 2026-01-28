@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   AssistantRuntimeProvider,
   type ThreadMessage,
@@ -10,7 +10,7 @@ import { useAgUiRuntime } from "@assistant-ui/react-ag-ui";
 
 type StoredThread = {
   id: string;
-  messages: ThreadMessage[];
+  messages: readonly ThreadMessage[];
 };
 
 /**
@@ -73,6 +73,16 @@ export function MyRuntimeProvider({
       threadList: threadListAdapter,
     },
   });
+
+  // Persist messages to threadsRef when they change
+  useEffect(() => {
+    return runtime.thread.subscribe(() => {
+      threadsRef.current.set(currentThreadId, {
+        id: currentThreadId,
+        messages: runtime.thread.getState().messages,
+      });
+    });
+  }, [runtime, currentThreadId]);
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>

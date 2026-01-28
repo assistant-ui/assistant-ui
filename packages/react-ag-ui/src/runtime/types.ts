@@ -17,11 +17,12 @@ export type UseAgUiThreadListAdapter = {
   threadId?: string | undefined;
   onSwitchToNewThread?: (() => Promise<void> | void) | undefined;
   onSwitchToThread?:
-    | ((
-        threadId: string,
-      ) =>
-        | Promise<{ messages: ThreadMessage[]; state?: ReadonlyJSONValue }>
-        | { messages: ThreadMessage[]; state?: ReadonlyJSONValue })
+    | ((threadId: string) =>
+        | Promise<{
+            messages: readonly ThreadMessage[];
+            state?: ReadonlyJSONValue;
+          }>
+        | { messages: readonly ThreadMessage[]; state?: ReadonlyJSONValue })
     | undefined;
 };
 
