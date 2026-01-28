@@ -33,6 +33,7 @@ export interface HostBridge {
 }
 
 export interface ExtendedBridge extends HostBridge {
+  disconnect?(): void;
   onToolInputPartial?(callback: ToolInputPartialCallback): () => void;
   onToolCancelled?(callback: ToolCancelledCallback): () => void;
   onTeardown?(callback: TeardownCallback): () => void;

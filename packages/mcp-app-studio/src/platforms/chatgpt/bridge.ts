@@ -77,6 +77,15 @@ export class ChatGPTBridge implements ExtendedBridge {
     this.connected = true;
   }
 
+  disconnect(): void {
+    if (!this.connected) return;
+    window.removeEventListener("openai:set_globals", this.handleGlobalsChange);
+    this.connected = false;
+    this.toolInputCallbacks.clear();
+    this.toolResultCallbacks.clear();
+    this.contextCallbacks.clear();
+  }
+
   private buildHostContext(): HostContext {
     const g = this.openai;
     return {
@@ -135,7 +144,13 @@ export class ChatGPTBridge implements ExtendedBridge {
   onToolResult(callback: ToolResultCallback): () => void {
     this.toolResultCallbacks.add(callback);
     if (this.connected && this.openai.toolOutput) {
-      callback({ structuredContent: this.openai.toolOutput });
+      const result: ToolResult = {
+        structuredContent: this.openai.toolOutput,
+      };
+      if (this.openai.toolResponseMetadata) {
+        result._meta = this.openai.toolResponseMetadata;
+      }
+      callback(result);
     }
     return () => this.toolResultCallbacks.delete(callback);
   }

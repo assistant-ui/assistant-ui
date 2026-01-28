@@ -32,6 +32,8 @@ export function UniversalProvider({
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
+
     const detected = detectPlatform();
     setPlatform(detected);
 
@@ -48,14 +50,22 @@ export function UniversalProvider({
     newBridge
       .connect()
       .then(() => {
+        if (cancelled) return;
         setBridge(newBridge);
         setReady(true);
       })
       .catch((error) => {
+        if (cancelled) return;
         console.error("[mcp-app-studio] Bridge connection failed:", error);
-        // Allow render with null bridge so the app can show a fallback UI
         setReady(true);
       });
+
+    return () => {
+      cancelled = true;
+      if (newBridge && "disconnect" in newBridge) {
+        (newBridge as { disconnect: () => void }).disconnect();
+      }
+    };
   }, [appInfo, appCapabilities]);
 
   if (!ready) return null;
