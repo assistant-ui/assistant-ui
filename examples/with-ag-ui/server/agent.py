@@ -40,9 +40,9 @@ def create_event(event_type: str, **kwargs) -> str:
     return f"data: {json.dumps(data)}\n\n"
 
 
-async def echo_agent(messages: list, run_id: str) -> AsyncGenerator[str, None]:
+async def echo_agent(messages: list, run_id: str, thread_id: str) -> AsyncGenerator[str, None]:
     """Simple echo agent that responds to user messages."""
-    yield create_event("RUN_STARTED", runId=run_id)
+    yield create_event("RUN_STARTED", runId=run_id, threadId=thread_id)
 
     # Get the last user message
     last_message = ""
@@ -70,16 +70,16 @@ async def echo_agent(messages: list, run_id: str) -> AsyncGenerator[str, None]:
         await asyncio.sleep(0.01)
 
     yield create_event("TEXT_MESSAGE_END", messageId=message_id)
-    yield create_event("RUN_FINISHED", runId=run_id)
+    yield create_event("RUN_FINISHED", runId=run_id, threadId=thread_id)
 
 
-async def openai_agent(messages: list, run_id: str) -> AsyncGenerator[str, None]:
+async def openai_agent(messages: list, run_id: str, thread_id: str) -> AsyncGenerator[str, None]:
     """OpenAI-powered agent with streaming."""
     from openai import AsyncOpenAI
 
     client = AsyncOpenAI()
 
-    yield create_event("RUN_STARTED", runId=run_id)
+    yield create_event("RUN_STARTED", runId=run_id, threadId=thread_id)
 
     # Convert AG-UI messages to OpenAI format
     openai_messages = []
@@ -114,12 +114,12 @@ async def openai_agent(messages: list, run_id: str) -> AsyncGenerator[str, None]
                 yield create_event("TEXT_MESSAGE_CONTENT", messageId=message_id, delta=delta)
 
         yield create_event("TEXT_MESSAGE_END", messageId=message_id)
-        yield create_event("RUN_FINISHED", runId=run_id)
+        yield create_event("RUN_FINISHED", runId=run_id, threadId=thread_id)
 
     except Exception as e:
         yield create_event("TEXT_MESSAGE_CONTENT", messageId=message_id, delta=f"Error: {e}")
         yield create_event("TEXT_MESSAGE_END", messageId=message_id)
-        yield create_event("RUN_ERROR", message=str(e))
+        yield create_event("RUN_ERROR", message=str(e), threadId=thread_id)
 
 
 @app.post("/agent")
@@ -135,9 +135,9 @@ async def agent_endpoint(request: Request):
 
     # Choose agent based on API key availability
     if os.getenv("OPENAI_API_KEY"):
-        generator = openai_agent(messages, run_id)
+        generator = openai_agent(messages, run_id, thread_id)
     else:
-        generator = echo_agent(messages, run_id)
+        generator = echo_agent(messages, run_id, thread_id)
 
     return StreamingResponse(
         generator,

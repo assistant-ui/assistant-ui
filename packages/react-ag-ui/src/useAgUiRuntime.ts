@@ -33,47 +33,47 @@ export function useAgUiRuntime(
   const feedbackAdapter = options.adapters?.feedback;
   const threadListAdapter = options.adapters?.threadList;
 
+  const coreOptions = {
+    agent: options.agent,
+    logger,
+    showThinking: options.showThinking ?? true,
+    onError: options.onError,
+    onCancel: options.onCancel,
+    history: historyAdapter,
+  };
+
   if (!coreRef.current) {
     coreRef.current = new AgUiThreadRuntimeCore({
-      agent: options.agent,
-      logger,
-      showThinking: options.showThinking ?? true,
-      ...(options.onError ? { onError: options.onError } : {}),
-      ...(options.onCancel ? { onCancel: options.onCancel } : {}),
-      ...(historyAdapter ? { history: historyAdapter } : {}),
+      ...coreOptions,
       notifyUpdate,
     });
   }
 
   const core = coreRef.current;
-  core.updateOptions({
-    agent: options.agent,
-    logger,
-    showThinking: options.showThinking ?? true,
-    ...(options.onError ? { onError: options.onError } : {}),
-    ...(options.onCancel ? { onCancel: options.onCancel } : {}),
-    ...(historyAdapter ? { history: historyAdapter } : {}),
-  });
+  core.updateOptions(coreOptions);
 
   const threadList = useMemo(() => {
     if (!threadListAdapter) return undefined;
+
+    const { onSwitchToNewThread, onSwitchToThread } = threadListAdapter;
+
     return {
       threadId: threadListAdapter.threadId,
-      onSwitchToNewThread: !threadListAdapter.onSwitchToNewThread
-        ? undefined
-        : async () => {
-            await threadListAdapter.onSwitchToNewThread?.();
+      onSwitchToNewThread: onSwitchToNewThread
+        ? async () => {
+            await onSwitchToNewThread();
             core.applyExternalMessages([]);
-          },
-      onSwitchToThread: !threadListAdapter.onSwitchToThread
-        ? undefined
-        : async (threadId: string) => {
-            const result = await threadListAdapter.onSwitchToThread!(threadId);
+          }
+        : undefined,
+      onSwitchToThread: onSwitchToThread
+        ? async (threadId: string) => {
+            const result = await onSwitchToThread(threadId);
             core.applyExternalMessages(result.messages);
             if (result.state) {
               core.loadExternalState(result.state);
             }
-          },
+          }
+        : undefined,
     };
   }, [threadListAdapter, core]);
 

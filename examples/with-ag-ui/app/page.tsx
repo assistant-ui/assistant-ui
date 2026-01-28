@@ -1,9 +1,10 @@
 "use client";
 
-import { useAssistantTool } from "@assistant-ui/react";
+import { useAssistantRuntime, useAssistantTool } from "@assistant-ui/react";
 import { Thread } from "@/components/assistant-ui/thread";
+import { PlusIcon } from "lucide-react";
 
-const BrowserAlertTool = () => {
+function BrowserAlertTool() {
   useAssistantTool<{ message: string }, { status: string }>({
     toolName: "browser_alert",
     description: "Display a native browser alert dialog to the user.",
@@ -40,11 +41,26 @@ const BrowserAlertTool = () => {
   });
 
   return null;
-};
+}
+
+function NewThreadButton() {
+  const runtime = useAssistantRuntime();
+
+  return (
+    <button
+      onClick={() => runtime.switchToNewThread()}
+      className="absolute top-4 right-4 z-10 flex items-center gap-2 rounded-lg border bg-background px-3 py-2 font-medium text-sm shadow-sm transition-colors hover:bg-accent"
+    >
+      <PlusIcon className="size-4" />
+      New Thread
+    </button>
+  );
+}
 
 export default function Home() {
   return (
-    <main className="h-dvh">
+    <main className="relative h-dvh">
+      <NewThreadButton />
       <Thread />
       <BrowserAlertTool />
     </main>
