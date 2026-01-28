@@ -10,14 +10,11 @@ import type { HttpAgent } from "@ag-ui/client";
 import type { Logger } from "./logger";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
 
+/**
+ * @experimental This API is still under active development and might change without notice.
+ */
 export type UseAgUiThreadListAdapter = {
-  /**
-   * @deprecated This API is still under active development and might change without notice.
-   */
   threadId?: string | undefined;
-  /**
-   * @deprecated This API is still under active development and might change without notice.
-   */
   onSwitchToNewThread?: (() => Promise<void> | void) | undefined;
   onSwitchToThread?:
     | ((
@@ -35,7 +32,7 @@ export type UseAgUiRuntimeAdapters = {
   feedback?: FeedbackAdapter;
   history?: ThreadHistoryAdapter;
   /**
-   * @deprecated This API is still under active development and might change without notice.
+   * @experimental This API is still under active development and might change without notice.
    */
   threadList?: UseAgUiThreadListAdapter;
 };
