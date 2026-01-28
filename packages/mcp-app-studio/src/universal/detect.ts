@@ -10,10 +10,10 @@ const MCP_MARKERS = {
 } as const;
 
 /**
- * Debug mode flag. Set `window.__CHATGPT_APP_DEBUG__ = true` to enable
+ * Debug mode flag. Set `window.__MCP_APP_STUDIO_DEBUG__ = true` to enable
  * verbose logging of platform detection.
  */
-const DEBUG_KEY = "__CHATGPT_APP_DEBUG__";
+const DEBUG_KEY = "__MCP_APP_STUDIO_DEBUG__";
 
 function isDebugMode(): boolean {
   if (typeof window === "undefined") return false;
@@ -140,7 +140,7 @@ export function detectPlatformDetailed(): DetectionResult {
  * 4. iframe has `data-mcp-host` attribute → MCP
  * 5. None of the above → unknown
  *
- * **Debugging tip:** Set `window.__CHATGPT_APP_DEBUG__ = true` before
+ * **Debugging tip:** Set `window.__MCP_APP_STUDIO_DEBUG__ = true` before
  * loading your widget to see detailed detection logs in the console.
  *
  * @returns The detected platform: "chatgpt", "mcp", or "unknown"

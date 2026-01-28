@@ -242,7 +242,7 @@ describe("debug mode", () => {
     enableDebugMode();
     expect(
       (globalThis.window as unknown as Record<string, unknown>)[
-        "__CHATGPT_APP_DEBUG__"
+        "__MCP_APP_STUDIO_DEBUG__"
       ],
     ).toBe(true);
   });
@@ -252,7 +252,7 @@ describe("debug mode", () => {
     disableDebugMode();
     expect(
       (globalThis.window as unknown as Record<string, unknown>)[
-        "__CHATGPT_APP_DEBUG__"
+        "__MCP_APP_STUDIO_DEBUG__"
       ],
     ).toBe(false);
   });
