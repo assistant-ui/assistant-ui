@@ -41,7 +41,8 @@ export default function Home() {
   const chat = useCloudChat(cloud, {
     api: "/api/chat",
     onThreadCreated: () => threads.refresh(),
-    onTitleGenerated: () => threads.refresh(),
+    onTitleGenerated: (threadId: string, title: string) =>
+      threads.rename(threadId, title),
   });
 
   // Local input state (manual since we're not using assistant-ui primitives)
@@ -55,7 +56,7 @@ export default function Home() {
   };
 
   const isRunning = chat.status === "streaming" || chat.status === "submitted";
-  const currentThread = threads.threads.find((t) => t.id === chat.threadId);
+  const isLoading = chat.status === "submitted";
 
   return (
     <div className="flex h-full">
@@ -67,16 +68,8 @@ export default function Home() {
         isLoading={threads.isLoading}
       />
 
-      <div className="flex flex-1 flex-col">
-        {chat.threadId && (
-          <div className="flex items-center justify-between border-b p-2">
-            <span className="font-medium">
-              {currentThread?.title || "New conversation"}
-            </span>
-          </div>
-        )}
-
-        <Thread messages={chat.messages} isRunning={isRunning}>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <Thread messages={chat.messages} isLoading={isLoading}>
           <Composer
             value={input}
             onChange={setInput}

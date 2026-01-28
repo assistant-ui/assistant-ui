@@ -36,14 +36,14 @@ export function Composer({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="border-t bg-background p-4">
-      <div className="flex items-end gap-2 rounded-2xl border bg-background p-2">
+    <form onSubmit={handleSubmit} className="p-4 pt-2">
+      <div className="flex items-end gap-2 rounded-2xl border bg-background px-3 py-2 shadow-sm">
         <textarea
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Send a message..."
-          className="max-h-32 min-h-[2.5rem] flex-1 resize-none bg-transparent px-2 py-1.5 text-sm outline-none placeholder:text-muted-foreground"
+          className="max-h-32 min-h-8 flex-1 resize-none bg-transparent py-1 text-sm leading-normal outline-none placeholder:text-muted-foreground"
           rows={1}
           // biome-ignore lint/a11y/noAutofocus: chat input should autofocus
           autoFocus
@@ -52,7 +52,7 @@ export function Composer({
           <button
             type="button"
             onClick={onCancel}
-            className="flex size-8 items-center justify-center rounded-full bg-destructive text-destructive-foreground transition-colors hover:bg-destructive/90"
+            className="flex size-8 shrink-0 items-center justify-center rounded-full bg-destructive text-destructive-foreground transition-colors hover:bg-destructive/90"
             aria-label="Stop generating"
           >
             <Square className="size-3 fill-current" />
@@ -62,7 +62,7 @@ export function Composer({
             type="submit"
             disabled={!value.trim()}
             className={cn(
-              "flex size-8 items-center justify-center rounded-full transition-colors",
+              "flex size-8 shrink-0 items-center justify-center rounded-full transition-colors",
               value.trim()
                 ? "bg-primary text-primary-foreground hover:bg-primary/90"
                 : "bg-muted text-muted-foreground",
