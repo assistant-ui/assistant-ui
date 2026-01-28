@@ -26,36 +26,42 @@ const FEATURES = [
     description:
       "See your widgets render in real-time. Test across desktop, tablet, and mobile viewports with hot reload.",
     icon: Play,
+    iconColor: "text-green-400",
   },
   {
     title: "Mock Tool Responses",
     description:
       "Simulate tool calls with configurable JSON responses. Test success, error, and edge cases without a backend.",
     icon: Wrench,
+    iconColor: "text-orange-400",
   },
   {
     title: "MCP Server Scaffold",
     description:
       "Optional MCP server template included. Run both frontend widget and backend tools with a single command.",
     icon: Terminal,
+    iconColor: "text-blue-400",
   },
   {
     title: "Production Export",
     description:
       "Export your widgets as self-contained HTML bundles with all dependencies inlined, ready for deployment.",
     icon: Package,
+    iconColor: "text-purple-400",
   },
   {
     title: "Display Modes",
     description:
       "Preview inline, popup, and fullscreen modes. See exactly how your app will appear in ChatGPT or Claude.",
     icon: Monitor,
+    iconColor: "text-cyan-400",
   },
   {
     title: "Universal SDK",
     description:
       "Write once, run everywhere. Auto-detects the host platform (ChatGPT or MCP) and uses the appropriate APIs.",
     icon: Sparkles,
+    iconColor: "text-violet-400",
   },
 ] as const;
 
@@ -204,18 +210,21 @@ export default function McpAppStudioPage() {
             </p>
           </div>
 
-          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {FEATURES.map((feature) => {
               const Icon = feature.icon;
               return (
-                <div key={feature.title} className="flex flex-col gap-3">
-                  <Icon className="size-5 text-muted-foreground" />
-                  <div className="flex flex-col gap-1">
-                    <h3 className="font-medium">{feature.title}</h3>
-                    <p className="text-muted-foreground text-sm leading-relaxed">
-                      {feature.description}
-                    </p>
-                  </div>
+                <div
+                  key={feature.title}
+                  className="flex flex-col gap-2 rounded-lg bg-muted/50 p-4"
+                >
+                  <span className="flex items-center gap-2 font-medium">
+                    <Icon className={cn("size-4", feature.iconColor)} />
+                    {feature.title}
+                  </span>
+                  <p className="text-muted-foreground text-sm leading-relaxed">
+                    {feature.description}
+                  </p>
                 </div>
               );
             })}
