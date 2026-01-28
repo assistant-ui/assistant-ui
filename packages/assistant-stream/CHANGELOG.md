@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.3.0
+
+### Minor Changes
+
+- acbaf07: feat: add framework-agnostic `toToolsJSONSchema` and `toGenericMessages` utilities to `assistant-stream`
+
 ## 0.2.48
 
 ### Patch Changes

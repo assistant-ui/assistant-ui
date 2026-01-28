@@ -1,6 +1,6 @@
 {
   "name": "assistant-stream",
-  "version": "0.2.48",
+  "version": "0.3.0",
   "description": "Streaming utilities for AI assistants",
   "keywords": [
     "ai",

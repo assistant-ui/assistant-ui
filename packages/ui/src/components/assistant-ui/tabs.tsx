@@ -15,28 +15,14 @@ import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
-type TabsVariant = "default" | "line" | "ghost" | "pills" | "outline";
-type TabsSize = "sm" | "default" | "lg";
-
 type IndicatorStyle = { left: string; width: string };
 
 type TabsListContextValue = {
-  variant: TabsVariant;
-  size: TabsSize;
   registerTrigger: (value: string, element: HTMLElement | null) => void;
   setHoveredValue: (value: string | null) => void;
-  activeValue: string | null;
 };
 
 const TabsListContext = createContext<TabsListContextValue | null>(null);
-
-function useTabsListContext() {
-  const context = useContext(TabsListContext);
-  if (!context) {
-    return null;
-  }
-  return context;
-}
 
 function Tabs({
   className,
@@ -108,7 +94,6 @@ function TabsList({
   const triggerRefs = useRef<Map<string, HTMLElement>>(new Map());
   const listRef = useRef<HTMLDivElement>(null);
   const [hoveredValue, setHoveredValue] = useState<string | null>(null);
-  const [activeValue, setActiveValue] = useState<string | null>(null);
   const [activeStyle, setActiveStyle] = useState<IndicatorStyle>({
     left: "0px",
     width: "0px",
@@ -128,18 +113,6 @@ function TabsList({
     },
     [],
   );
-
-  useEffect(() => {
-    if (activeValue) {
-      const element = triggerRefs.current.get(activeValue);
-      if (element) {
-        setActiveStyle({
-          left: `${element.offsetLeft}px`,
-          width: `${element.offsetWidth}px`,
-        });
-      }
-    }
-  }, [activeValue]);
 
   useEffect(() => {
     if (hoveredValue) {
@@ -162,10 +135,6 @@ function TabsList({
         '[data-state="active"]',
       ) as HTMLElement | null;
       if (activeElement) {
-        const value = activeElement.getAttribute("data-value");
-        if (value) {
-          setActiveValue((prev) => (prev === value ? prev : value));
-        }
         setActiveStyle({
           left: `${activeElement.offsetLeft}px`,
           width: `${activeElement.offsetWidth}px`,
@@ -185,17 +154,9 @@ function TabsList({
     return () => observer.disconnect();
   }, []);
 
-  const showHoverBackground = resolvedVariant === "ghost";
-
   const contextValue = useMemo(
-    () => ({
-      variant: resolvedVariant,
-      size: resolvedSize,
-      registerTrigger,
-      setHoveredValue,
-      activeValue,
-    }),
-    [resolvedVariant, resolvedSize, registerTrigger, activeValue],
+    () => ({ registerTrigger, setHoveredValue }),
+    [registerTrigger],
   );
 
   return (
@@ -211,7 +172,7 @@ function TabsList({
         )}
         {...props}
       >
-        {showHoverBackground &&
+        {resolvedVariant === "ghost" &&
           hoveredValue !== null &&
           hoverStyle.width !== "0px" && (
             <div
@@ -224,10 +185,9 @@ function TabsList({
         {activeStyle.width !== "0px" && (
           <div
             data-slot="tabs-active-indicator"
-            data-variant={resolvedVariant}
-            className={cn(
-              tabsActiveIndicatorVariants({ variant: resolvedVariant }),
-            )}
+            className={tabsActiveIndicatorVariants({
+              variant: resolvedVariant,
+            })}
             style={activeStyle}
           />
         )}
@@ -238,51 +198,15 @@ function TabsList({
   );
 }
 
-const tabsTriggerVariants = cva(
-  "relative z-10 inline-flex flex-1 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap font-medium text-foreground/60 transition-[color] duration-300 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:font-medium data-[state=active]:text-foreground dark:text-muted-foreground dark:hover:text-foreground [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
-  {
-    variants: {
-      variant: {
-        default: "rounded-md",
-        line: "rounded-md bg-transparent",
-        ghost: "rounded-md bg-transparent",
-        pills:
-          "rounded-full data-[state=active]:text-primary-foreground dark:data-[state=active]:text-primary-foreground",
-        outline: "rounded-md",
-      },
-      size: {
-        sm: "h-[calc(100%-8px)] px-2 py-0.5 text-xs",
-        default: "h-[calc(100%-8px)] px-3 py-1 text-sm",
-        lg: "h-[calc(100%-8px)] px-4 py-1.5 text-sm",
-      },
-    },
-    defaultVariants: {
-      variant: "default",
-      size: "default",
-    },
-  },
-);
-
-type TabsTriggerProps = Omit<
-  ComponentProps<typeof TabsPrimitive.Trigger>,
-  "asChild"
-> &
-  VariantProps<typeof tabsTriggerVariants> & {
-    asChild?: boolean;
-  };
-
 function TabsTrigger({
   className,
-  variant,
-  size,
-  asChild = false,
   value,
+  asChild = false,
   ...props
-}: TabsTriggerProps) {
-  const context = useTabsListContext();
-  const resolvedVariant = variant ?? context?.variant ?? "default";
-  const resolvedSize = size ?? context?.size ?? "default";
-
+}: Omit<ComponentProps<typeof TabsPrimitive.Trigger>, "asChild"> & {
+  asChild?: boolean;
+}) {
+  const context = useContext(TabsListContext);
   const ref = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -305,11 +229,17 @@ function TabsTrigger({
       ref={ref}
       value={value}
       data-slot="tabs-trigger"
-      data-variant={resolvedVariant}
-      data-size={resolvedSize}
       data-value={value}
       className={cn(
-        tabsTriggerVariants({ variant: resolvedVariant, size: resolvedSize }),
+        "relative z-10 inline-flex flex-1 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap font-medium text-foreground/60 transition-[color] duration-300 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:font-medium data-[state=active]:text-foreground dark:text-muted-foreground dark:hover:text-foreground [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+        "group-data-[variant=default]/tabs-list:rounded-md",
+        "group-data-[variant=line]/tabs-list:rounded-md group-data-[variant=line]/tabs-list:bg-transparent",
+        "group-data-[variant=ghost]/tabs-list:rounded-md group-data-[variant=ghost]/tabs-list:bg-transparent",
+        "group-data-[variant=pills]/tabs-list:rounded-full group-data-[variant=pills]/tabs-list:data-[state=active]:text-primary-foreground dark:group-data-[variant=pills]/tabs-list:data-[state=active]:text-primary-foreground",
+        "group-data-[variant=outline]/tabs-list:rounded-md",
+        "group-data-[size=sm]/tabs-list:h-[calc(100%-8px)] group-data-[size=sm]/tabs-list:px-2 group-data-[size=sm]/tabs-list:py-0.5 group-data-[size=sm]/tabs-list:text-xs",
+        "group-data-[size=default]/tabs-list:h-[calc(100%-8px)] group-data-[size=default]/tabs-list:px-3 group-data-[size=default]/tabs-list:py-1 group-data-[size=default]/tabs-list:text-sm",
+        "group-data-[size=lg]/tabs-list:h-[calc(100%-8px)] group-data-[size=lg]/tabs-list:px-4 group-data-[size=lg]/tabs-list:py-1.5 group-data-[size=lg]/tabs-list:text-sm",
         className,
       )}
       onMouseEnter={handleMouseEnter}
@@ -338,6 +268,5 @@ export {
   TabsTrigger,
   TabsContent,
   tabsListVariants,
-  tabsTriggerVariants,
   tabsActiveIndicatorVariants,
 };

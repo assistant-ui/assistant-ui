@@ -3,7 +3,15 @@ import { Command } from "commander";
 import chalk from "chalk";
 import { spawn } from "cross-spawn";
 
-// Create a standalone version of the create command instead of importing from CLI package
+// Keep in sync with packages/cli/src/lib/constants.ts
+const templates = {
+  default: "https://github.com/assistant-ui/assistant-ui-starter",
+  minimal: "https://github.com/assistant-ui/assistant-ui-starter-minimal",
+  cloud: "https://github.com/assistant-ui/assistant-ui-starter-cloud",
+  langgraph: "https://github.com/assistant-ui/assistant-ui-starter-langgraph",
+  mcp: "https://github.com/assistant-ui/assistant-ui-starter-mcp",
+};
+
 const create = new Command()
   .name("create-assistant-ui")
   .description("create a new assistant-ui project")
@@ -12,8 +20,7 @@ const create = new Command()
   .option(
     "-t, --template <template>",
     `
-
-  The template to use for the project, e.g. default, langgraph
+  The template to use (${Object.keys(templates).join(", ")})
 `,
   )
   .option(
@@ -52,12 +59,6 @@ const create = new Command()
 `,
   )
   .action((_, opts) => {
-    const templates = {
-      default: "https://github.com/assistant-ui/assistant-ui-starter",
-      langgraph:
-        "https://github.com/assistant-ui/assistant-ui-starter-langgraph",
-    };
-
     const templateUrl =
       templates[(opts.template as keyof typeof templates) ?? "default"];
     if (!templateUrl) {
@@ -86,11 +87,13 @@ const create = new Command()
 
     child.on("error", (error) => {
       console.error(`Error: ${error.message}`);
+      process.exit(1);
     });
 
     child.on("close", (code) => {
       if (code !== 0) {
-        console.log(`create-next-app process exited with code ${code}`);
+        console.error(`create-next-app process exited with code ${code}`);
+        process.exit(code || 1);
       }
     });
   });

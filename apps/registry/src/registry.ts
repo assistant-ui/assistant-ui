@@ -34,8 +34,8 @@ export const registry: RegistryItem[] = [
     registryDependencies: [
       "https://r.assistant-ui.com/ai-sdk-backend.json",
       "https://r.assistant-ui.com/thread.json",
-      "https://r.assistant-ui.com/thread-list.json",
     ],
+    dependencies: ["@assistant-ui/react-ai-sdk"],
     meta: {
       importSpecifier: "Assistant",
       moduleSpecifier: "@/app/assistant",
@@ -52,7 +52,7 @@ export const registry: RegistryItem[] = [
         target: "app/api/chat/route.ts",
       },
     ],
-    dependencies: ["@assistant-ui/react-ai-sdk", "ai", "@ai-sdk/openai"],
+    dependencies: ["ai", "@ai-sdk/openai"],
   },
   {
     name: "thread",
@@ -423,6 +423,24 @@ export const registry: RegistryItem[] = [
     dependencies: [
       "@radix-ui/react-tabs",
       "@radix-ui/react-slot",
+      "class-variance-authority",
+    ],
+    registryDependencies: [],
+  },
+  {
+    name: "accordion",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/accordion.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/accordion.tsx",
+      },
+    ],
+    dependencies: [
+      "@radix-ui/react-accordion",
+      "lucide-react",
       "class-variance-authority",
     ],
     registryDependencies: [],

@@ -116,7 +116,25 @@ Use the composable API for grouped options:
 
 ## API Reference
 
+### Composable API
+
+| Component | Description |
+|-----------|-------------|
+| `Select` | A convenience component that renders a complete select with options. |
+| `SelectRoot` | The root component that manages state. |
+| `SelectTrigger` | The button that opens the dropdown. Accepts `variant` and `size` props. |
+| `SelectValue` | Renders the selected value or placeholder. |
+| `SelectContent` | The dropdown content container with animations. |
+| `SelectItem` | An individual selectable item. |
+| `SelectGroup` | Groups related items together. |
+| `SelectLabel` | A label for a group of items. |
+| `SelectSeparator` | A visual separator between items or groups. |
+| `SelectScrollUpButton` | Scroll indicator for long lists. |
+| `SelectScrollDownButton` | Scroll indicator for long lists. |
+
 ### Select
+
+A convenience component that renders a complete select with options.
 
 <ParametersTable
   type="SelectProps"
@@ -187,17 +205,43 @@ Use the composable API for grouped options:
   ]}
 />
 
-### Composable API
+### SelectTrigger
 
-| Component | Description |
-|-----------|-------------|
-| `SelectRoot` | The root component that manages state. |
-| `SelectTrigger` | The button that opens the dropdown. Accepts `variant` (`"outline"` \| `"ghost"` \| `"muted"`) and `size` (`"default"` \| `"sm"` \| `"lg"`). |
-| `SelectValue` | Renders the selected value or placeholder. |
-| `SelectContent` | The dropdown content container with animations. |
-| `SelectItem` | An individual selectable item. |
-| `SelectGroup` | Groups related items together. |
-| `SelectLabel` | A label for a group of items. |
-| `SelectSeparator` | A visual separator between items or groups. |
-| `SelectScrollUpButton` | Scroll indicator for long lists. |
-| `SelectScrollDownButton` | Scroll indicator for long lists. |
+The button that opens the dropdown.
+
+<ParametersTable
+  type="SelectTriggerProps"
+  parameters={[
+    {
+      name: "variant",
+      type: '"outline" | "ghost" | "muted"',
+      default: '"outline"',
+      description: "The visual style of the trigger.",
+    },
+    {
+      name: "size",
+      type: '"sm" | "default" | "lg"',
+      default: '"default"',
+      description: "The size of the trigger.",
+    },
+    {
+      name: "className",
+      type: "string",
+      description: "Additional CSS classes.",
+    },
+  ]}
+/>
+
+### Style Variants (CVA)
+
+| Export | Description |
+|--------|-------------|
+| `selectTriggerVariants` | Styles for the select trigger button. |
+
+```tsx
+import { selectTriggerVariants } from "@/components/assistant-ui/select";
+
+<button className={selectTriggerVariants({ variant: "ghost", size: "sm" })}>
+  Custom Trigger
+</button>
+```

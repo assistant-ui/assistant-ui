@@ -1,5 +1,20 @@
 # @assistant-ui/react-ag-ui
 
+## 0.0.12
+
+### Patch Changes
+
+- acbaf07: feat: add framework-agnostic `toToolsJSONSchema` and `toGenericMessages` utilities to `assistant-stream`
+- Updated dependencies [07d1c65]
+- Updated dependencies [b591d72]
+- Updated dependencies [59a338a]
+- Updated dependencies [acbaf07]
+- Updated dependencies [c665612]
+- Updated dependencies [0371d72]
+- Updated dependencies [e8b3f34]
+  - @assistant-ui/react@0.12.3
+  - assistant-stream@0.3.0
+
 ## 0.0.11
 
 ### Patch Changes

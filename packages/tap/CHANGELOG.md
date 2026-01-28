@@ -1,5 +1,11 @@
 # @assistant-ui/tap
 
+## 0.4.2
+
+### Patch Changes
+
+- 5ab3690: fix: allow optional props in resources
+
 ## 0.4.1
 
 ### Patch Changes
