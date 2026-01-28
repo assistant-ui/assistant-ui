@@ -9,6 +9,9 @@ node_modules
 
 # debug
 .pnpm-debug.log*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # env files
 .env*.local
@@ -30,6 +33,12 @@ reports/mutation/
 .next/
 out/
 
+# nitro
+.output/
+
+# build
+build/
+
 # fumadocs
 .source
 
@@ -42,7 +51,18 @@ packages/*/generated
 .turbo
 
 # python
-__pycache__
+__pycache__/
+.venv/
+venv/
+.eggs/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+htmlcov/
+.coverage
 
 .langgraph_api
 

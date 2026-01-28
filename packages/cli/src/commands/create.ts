@@ -4,6 +4,17 @@ import { spawn } from "cross-spawn";
 import { logger } from "../lib/utils/logger";
 import { createFromExample } from "../lib/create-from-example";
 
+// Keep in sync with packages/create-assistant-ui/src/index.ts
+const templates = {
+  default: "https://github.com/assistant-ui/assistant-ui-starter",
+  minimal: "https://github.com/assistant-ui/assistant-ui-starter-minimal",
+  cloud: "https://github.com/assistant-ui/assistant-ui-starter-cloud",
+  langgraph: "https://github.com/assistant-ui/assistant-ui-starter-langgraph",
+  mcp: "https://github.com/assistant-ui/assistant-ui-starter-mcp",
+};
+
+const templateNames = Object.keys(templates);
+
 export const create = new Command()
   .name("create")
   .description("create a new project")
@@ -11,7 +22,7 @@ export const create = new Command()
   .usage(`${chalk.green("[project-directory]")} [options]`)
   .option(
     "-t, --template <template>",
-    "template to use (default, cloud, langgraph, mcp)",
+    `template to use (${templateNames.join(", ")})`,
   )
   .option(
     "-e, --example <example>",
@@ -40,21 +51,13 @@ export const create = new Command()
       return;
     }
 
-    // Handle --template option (existing logic)
-    const templates = {
-      default: "https://github.com/assistant-ui/assistant-ui-starter",
-      cloud: "https://github.com/assistant-ui/assistant-ui-starter-cloud",
-      langgraph:
-        "https://github.com/assistant-ui/assistant-ui-starter-langgraph",
-      mcp: "https://github.com/assistant-ui/assistant-ui-starter-mcp",
-    };
-
+    // Handle --template option
     const templateName = (opts.template as keyof typeof templates) ?? "default";
     const templateUrl = templates[templateName];
 
     if (!templateUrl) {
       logger.error(`Unknown template: ${opts.template}`);
-      logger.info(`Available templates: ${Object.keys(templates).join(", ")}`);
+      logger.info(`Available templates: ${templateNames.join(", ")}`);
       process.exit(1);
     }
 
