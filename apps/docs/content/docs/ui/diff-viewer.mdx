@@ -1,6 +1,11 @@
 ---
 title: "Diff Viewer"
 description: Render code diffs with syntax highlighting for additions and deletions.
+links:
+  - label: parse-diff
+    url: https://github.com/sergeyt/parse-diff
+  - label: diff
+    url: https://github.com/kpdecker/jsdiff
 ---
 
 import { InstallCommand } from "@/components/docs/fumadocs/install/install-command";
@@ -99,6 +104,30 @@ Shows old content on the left, new content on the right side-by-side.
 ### Sizes
 
 <DiffViewerSizesSample />
+
+### Theming
+
+DiffViewer uses CSS variables for colors. Override them in your CSS:
+
+```css
+[data-slot="diff-viewer"] {
+  --diff-add-bg: rgba(46, 160, 67, 0.15);
+  --diff-add-text: #1a7f37;
+  --diff-add-text-dark: #3fb950;
+  --diff-del-bg: rgba(248, 81, 73, 0.15);
+  --diff-del-text: #cf222e;
+  --diff-del-text-dark: #f85149;
+}
+```
+
+| Variable | Description |
+|----------|-------------|
+| `--diff-add-bg` | Background for added lines |
+| `--diff-add-text` | Text color for added lines (light mode) |
+| `--diff-add-text-dark` | Text color for added lines (dark mode) |
+| `--diff-del-bg` | Background for deleted lines |
+| `--diff-del-text` | Text color for deleted lines (light mode) |
+| `--diff-del-text-dark` | Text color for deleted lines (dark mode) |
 
 ## API Reference
 

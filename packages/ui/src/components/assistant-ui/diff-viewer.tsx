@@ -167,8 +167,8 @@ const diffViewerVariants = cva(
 const diffLineVariants = cva("flex", {
   variants: {
     type: {
-      add: "bg-green-500/20",
-      del: "bg-red-500/20",
+      add: "bg-[var(--diff-add-bg,_rgba(46,160,67,0.15))]",
+      del: "bg-[var(--diff-del-bg,_rgba(248,81,73,0.15))]",
       normal: "",
       empty: "",
     },
@@ -181,8 +181,8 @@ const diffLineVariants = cva("flex", {
 const diffLineTextVariants = cva("", {
   variants: {
     type: {
-      add: "text-green-700 dark:text-green-400",
-      del: "text-red-700 dark:text-red-400",
+      add: "text-[var(--diff-add-text,_#1a7f37)] dark:text-[var(--diff-add-text-dark,_#3fb950)]",
+      del: "text-[var(--diff-del-text,_#cf222e)] dark:text-[var(--diff-del-text-dark,_#f85149)]",
       normal: "",
       empty: "",
     },
