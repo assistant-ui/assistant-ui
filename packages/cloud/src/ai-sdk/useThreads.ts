@@ -1,3 +1,5 @@
+"use client";
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { AssistantCloud } from "../AssistantCloud";
 
@@ -39,6 +41,8 @@ export type UseThreadsOptions = {
   cloud: AssistantCloud;
   /** Include archived threads in the list. Default: false */
   includeArchived?: boolean;
+  /** Skip initial fetch. Use when another hook manages threads. Default: true */
+  enabled?: boolean;
 };
 
 export type UseThreadsResult = {
@@ -106,7 +110,7 @@ export type UseThreadsResult = {
  * ```
  */
 export function useThreads(options: UseThreadsOptions): UseThreadsResult {
-  const { cloud, includeArchived = false } = options;
+  const { cloud, includeArchived = false, enabled = true } = options;
 
   const [threads, setThreads] = useState<CloudThread[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -139,10 +143,11 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
     }
   }, [cloud, includeArchived]);
 
-  // Load threads on mount
+  // Load threads on mount (only if enabled)
   useEffect(() => {
+    if (!enabled) return;
     refresh();
-  }, [refresh]);
+  }, [refresh, enabled]);
 
   const get = useCallback(
     async (id: string): Promise<CloudThread | null> => {
