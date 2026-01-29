@@ -7,11 +7,17 @@ import {
   type DataMessagePart,
   type SourceMessagePart,
   type useExternalMessageConverter,
+  type MessageTiming,
   type ThreadMessageLike,
 } from "@assistant-ui/react";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
 
 type MessageMetadata = ThreadMessageLike["metadata"];
+
+export type AISDKMessageConverterMetadata =
+  useExternalMessageConverter.Metadata & {
+    readonly messageTiming?: Record<string, MessageTiming>;
+  };
 
 function stripClosingDelimiters(json: string) {
   return json.replace(/[}\]"]+$/, "");
@@ -19,7 +25,7 @@ function stripClosingDelimiters(json: string) {
 
 const convertParts = (
   message: UIMessage,
-  metadata: useExternalMessageConverter.Metadata,
+  metadata: AISDKMessageConverterMetadata,
 ) => {
   if (!message.parts || message.parts.length === 0) {
     return [];
@@ -135,7 +141,7 @@ const convertParts = (
 };
 
 export const AISDKMessageConverter = unstable_createMessageConverter(
-  (message: UIMessage, metadata: useExternalMessageConverter.Metadata) => {
+  (message: UIMessage, metadata: AISDKMessageConverterMetadata) => {
     // UIMessage doesn't have createdAt, so we'll use current date or undefined
     const createdAt = new Date();
     switch (message.role) {
@@ -182,14 +188,25 @@ export const AISDKMessageConverter = unstable_createMessageConverter(
           metadata: message.metadata as MessageMetadata,
         };
 
-      case "assistant":
+      case "assistant": {
+        const timing = metadata.messageTiming?.[message.id];
         return {
           role: "assistant",
           id: message.id,
           createdAt,
           content: convertParts(message, metadata),
-          metadata: message.metadata as MessageMetadata,
+          metadata: {
+            unstable_annotations: (message as any).annotations,
+            unstable_data: Array.isArray((message as any).data)
+              ? (message as any).data
+              : (message as any).data
+                ? [(message as any).data]
+                : undefined,
+            custom: {},
+            ...(timing && { timing }),
+          },
         };
+      }
 
       default:
         console.warn(`Unsupported message role: ${message.role}`);

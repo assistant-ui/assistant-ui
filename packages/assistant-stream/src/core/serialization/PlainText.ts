@@ -28,6 +28,7 @@ export class PlainTextEncoder
             case "step-finish":
             case "message-finish":
             case "error":
+            case "timing":
               break;
 
             default:

@@ -98,4 +98,12 @@ export type AssistantStreamChunk = { readonly path: readonly number[] } & (
       readonly type: "update-state";
       readonly operations: ObjectStreamOperation[];
     }
+  | {
+      readonly type: "timing";
+      readonly timing: {
+        readonly processingTime?: number;
+        readonly queueTime?: number;
+        readonly custom?: Record<string, unknown>;
+      };
+    }
 );

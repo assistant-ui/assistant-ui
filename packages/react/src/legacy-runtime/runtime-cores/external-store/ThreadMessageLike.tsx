@@ -16,6 +16,7 @@ import {
   Unstable_AudioMessagePart,
 } from "../../../types";
 import {
+  MessageTiming,
   ReasoningMessagePart,
   SourceMessagePart,
   ThreadStep,
@@ -59,6 +60,7 @@ export type ThreadMessageLike = {
           | undefined;
         readonly unstable_data?: readonly ReadonlyJSONValue[] | undefined;
         readonly steps?: readonly ThreadStep[] | undefined;
+        readonly timing?: MessageTiming | undefined;
         readonly submittedFeedback?: { readonly type: "positive" | "negative" };
         readonly custom?: Record<string, unknown> | undefined;
       }
@@ -167,6 +169,7 @@ export const fromThreadMessageLike = (
           unstable_data: metadata?.unstable_data ?? [],
           custom: metadata?.custom ?? {},
           steps: metadata?.steps ?? [],
+          ...(metadata?.timing && { timing: metadata.timing }),
           ...(metadata?.submittedFeedback && {
             submittedFeedback: metadata.submittedFeedback,
           }),
