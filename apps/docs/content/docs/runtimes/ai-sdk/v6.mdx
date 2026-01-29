@@ -1,0 +1,198 @@
+---
+title: AI SDK v6
+description: Integrate Vercel AI SDK v6 with assistant-ui for streaming chat.
+---
+
+
+## Overview
+
+Integration with the Vercel AI SDK v6 using the `useChatRuntime` hook from `@assistant-ui/react-ai-sdk`.
+
+## Getting Started
+
+<Steps>
+  <Step>
+  ### Create a Next.js project
+
+```sh
+npx create-next-app@latest my-app
+cd my-app
+```
+
+  </Step>
+  <Step>
+
+### Install dependencies
+
+<InstallCommand npm={["@assistant-ui/react", "@assistant-ui/react-ai-sdk", "ai@^6", "@ai-sdk/react@^3", "@ai-sdk/openai", "zod"]} />
+
+  </Step>
+  <Step>
+
+### Setup a backend route under `/api/chat`
+
+`@/app/api/chat/route.ts`
+
+```tsx
+import { openai } from "@ai-sdk/openai";
+import {
+  streamText,
+  convertToModelMessages,
+  tool,
+  zodSchema,
+} from "ai";
+import type { UIMessage } from "ai";
+import { z } from "zod";
+
+export const maxDuration = 30;
+
+export async function POST(req: Request) {
+  const { messages }: { messages: UIMessage[] } = await req.json();
+
+  const result = streamText({
+    model: openai("gpt-4o"),
+    messages: await convertToModelMessages(messages), // Note: async in v6
+    tools: {
+      get_current_weather: tool({
+        description: "Get the current weather",
+        inputSchema: zodSchema(
+          z.object({
+            city: z.string(),
+          }),
+        ),
+        execute: async ({ city }) => {
+          return `The weather in ${city} is sunny`;
+        },
+      }),
+    },
+  });
+
+  return result.toUIMessageStreamResponse();
+}
+```
+
+  </Step>
+  <Step>
+
+### Setup the frontend
+
+`@/app/page.tsx`
+
+```tsx
+"use client";
+
+import { Thread } from "@/components/assistant-ui/thread";
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+
+export default function Home() {
+  const runtime = useChatRuntime();
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <div className="h-full">
+        <Thread />
+      </div>
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+  </Step>
+</Steps>
+
+## Key Changes from v5
+
+| Feature | v5 | v6 |
+|---------|----|----|
+| **ai package** | `ai@^5` | `ai@^6` |
+| **@ai-sdk/react** | `@ai-sdk/react@^2` | `@ai-sdk/react@^3` |
+| **convertToModelMessages** | Sync | Async (`await`) |
+| **Tool schema** | `parameters: z.object({...})` | `inputSchema: zodSchema(z.object({...}))` |
+
+## API Reference
+
+### useChatRuntime
+
+Creates a runtime integrated with AI SDK's `useChat` hook.
+
+```tsx
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+
+const runtime = useChatRuntime({
+  api: "/api/chat", // optional, defaults to "/api/chat"
+});
+```
+
+### Custom API URL
+
+```tsx
+const runtime = useChatRuntime({
+  api: "/my-custom-api/chat",
+});
+```
+
+### Forwarding System Messages and Frontend Tools
+
+Use `AssistantChatTransport` to automatically forward system messages and frontend tools to your backend:
+
+```tsx
+"use client";
+
+import { useChatRuntime, AssistantChatTransport } from "@assistant-ui/react-ai-sdk";
+
+const runtime = useChatRuntime({
+  transport: new AssistantChatTransport({
+    api: "/api/chat",
+  }),
+});
+```
+
+Backend route with system/tools forwarding:
+
+```tsx
+import { openai } from "@ai-sdk/openai";
+import { streamText, convertToModelMessages, zodSchema } from "ai";
+import type { UIMessage } from "ai";
+import { frontendTools } from "@assistant-ui/react-ai-sdk";
+
+export async function POST(req: Request) {
+  const {
+    messages,
+    system,
+    tools,
+  }: {
+    messages: UIMessage[];
+    system?: string;
+    tools?: any;
+  } = await req.json();
+
+  const result = streamText({
+    model: openai("gpt-4o"),
+    system,
+    messages: await convertToModelMessages(messages),
+    tools: {
+      ...frontendTools(tools),
+      // your backend tools...
+    },
+  });
+
+  return result.toUIMessageStreamResponse();
+}
+```
+
+### useAISDKRuntime (Advanced)
+
+For advanced use cases where you need direct access to the `useChat` hook:
+
+```tsx
+import { useChat } from "@ai-sdk/react";
+import { useAISDKRuntime } from "@assistant-ui/react-ai-sdk";
+
+const chat = useChat();
+const runtime = useAISDKRuntime(chat);
+```
+
+## Example
+
+For a complete example, check out the [AI SDK v6 example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-ai-sdk-v6) in our repository.
