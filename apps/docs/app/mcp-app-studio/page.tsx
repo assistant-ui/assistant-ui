@@ -98,7 +98,7 @@ const WORKBENCH_URL =
 
 export default function McpAppStudioPage() {
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const iframeSrc = `${WORKBENCH_URL}?component=poi-map`;
+  const iframeSrc = `${WORKBENCH_URL}?component=poi-map&demo=true`;
 
   // Listen for fullscreen messages from workbench iframe
   useEffect(() => {
@@ -340,7 +340,7 @@ function HeroShowcase({ onFullscreen }: { onFullscreen: () => void }) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
 
-  const iframeSrc = `${WORKBENCH_URL}?component=poi-map`;
+  const iframeSrc = `${WORKBENCH_URL}?component=poi-map&demo=true`;
 
   return (
     <div className="hero-showcase-section relative">
