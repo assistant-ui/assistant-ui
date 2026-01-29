@@ -242,6 +242,18 @@ A button to archive the thread.
 
 A button to restore an archived thread.
 
+<ParametersTable
+  type="ThreadListItemPrimitiveUnarchiveProps"
+  parameters={[
+    {
+      name: "asChild",
+      type: "boolean",
+      default: "false",
+      description: "Merge props with child element instead of rendering a wrapper button.",
+    },
+  ]}
+/>
+
 ### ThreadListItemPrimitive.Delete
 
 A button to permanently delete the thread.
@@ -258,15 +270,89 @@ A button to permanently delete the thread.
   ]}
 />
 
-### ThreadListItemMore
+### ThreadListItemMorePrimitive
 
-A dropdown menu for additional thread actions, built on Radix UI DropdownMenu:
+A dropdown menu for additional thread actions, built on Radix UI DropdownMenu.
 
-- `ThreadListItemMorePrimitive.Root` - Menu container
-- `ThreadListItemMorePrimitive.Trigger` - Button to open the menu
-- `ThreadListItemMorePrimitive.Content` - Menu content container
-- `ThreadListItemMorePrimitive.Item` - Individual menu item
-- `ThreadListItemMorePrimitive.Separator` - Visual separator between items
+#### ThreadListItemMorePrimitive.Root
+
+Menu container that manages dropdown state.
+
+<ParametersTable
+  type="ThreadListItemMorePrimitiveRootProps"
+  parameters={[
+    {
+      name: "asChild",
+      type: "boolean",
+      default: "false",
+      description: "Merge props with child element instead of rendering a wrapper div.",
+    },
+  ]}
+/>
+
+#### ThreadListItemMorePrimitive.Trigger
+
+Button to open the menu.
+
+<ParametersTable
+  type="ThreadListItemMorePrimitiveTriggerProps"
+  parameters={[
+    {
+      name: "asChild",
+      type: "boolean",
+      default: "false",
+      description: "Merge props with child element instead of rendering a wrapper button.",
+    },
+  ]}
+/>
+
+#### ThreadListItemMorePrimitive.Content
+
+Menu content container.
+
+<ParametersTable
+  type="ThreadListItemMorePrimitiveContentProps"
+  parameters={[
+    {
+      name: "asChild",
+      type: "boolean",
+      default: "false",
+      description: "Merge props with child element instead of rendering a wrapper div.",
+    },
+  ]}
+/>
+
+#### ThreadListItemMorePrimitive.Item
+
+Individual menu item.
+
+<ParametersTable
+  type="ThreadListItemMorePrimitiveItemProps"
+  parameters={[
+    {
+      name: "asChild",
+      type: "boolean",
+      default: "false",
+      description: "Merge props with child element instead of rendering a wrapper div.",
+    },
+  ]}
+/>
+
+#### ThreadListItemMorePrimitive.Separator
+
+Visual separator between items.
+
+<ParametersTable
+  type="ThreadListItemMorePrimitiveSeparatorProps"
+  parameters={[
+    {
+      name: "asChild",
+      type: "boolean",
+      default: "false",
+      description: "Merge props with child element instead of rendering a wrapper div.",
+    },
+  ]}
+/>
 
 ## Related Components
 
