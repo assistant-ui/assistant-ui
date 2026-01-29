@@ -35,10 +35,10 @@ const COMMON_PARAMS: Record<string, ParameterDef> = {
   },
 };
 
-const Parameter: FC<{ parameter: ParameterDef; isNested?: boolean }> = ({
-  parameter: partialParameter,
-  isNested,
-}) => {
+const Parameter: FC<{
+  parameter: ParameterDef;
+  isNested?: boolean | undefined;
+}> = ({ parameter: partialParameter, isNested }) => {
   const parameter = {
     ...COMMON_PARAMS[partialParameter.name],
     ...partialParameter,
@@ -53,7 +53,6 @@ const Parameter: FC<{ parameter: ParameterDef; isNested?: boolean }> = ({
         isNested && "bg-muted/30",
       )}
     >
-      {/* Parameter signature */}
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
         <code className="font-mono font-semibold text-foreground text-sm">
           {parameter.name}
@@ -77,12 +76,10 @@ const Parameter: FC<{ parameter: ParameterDef; isNested?: boolean }> = ({
         )}
       </div>
 
-      {/* Description */}
       <p className="text-muted-foreground text-sm leading-relaxed">
         {parameter.description}
       </p>
 
-      {/* Nested children */}
       {parameter.children?.map((child) => (
         <div key={child.type} className="mt-2">
           <ParametersBox {...child} isNested />
@@ -92,11 +89,9 @@ const Parameter: FC<{ parameter: ParameterDef; isNested?: boolean }> = ({
   );
 };
 
-const ParametersBox: FC<ParametersTableProps & { isNested?: boolean }> = ({
-  type,
-  parameters,
-  isNested,
-}) => {
+const ParametersBox: FC<
+  ParametersTableProps & { isNested?: boolean | undefined }
+> = ({ type, parameters, isNested }) => {
   return (
     <div
       className={cn(

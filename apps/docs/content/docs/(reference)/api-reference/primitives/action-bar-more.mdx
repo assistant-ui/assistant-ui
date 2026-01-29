@@ -5,8 +5,6 @@ title: ActionBarMorePrimitive
 A dropdown menu for additional actions that don't fit in the main action bar.
 
 import { ParametersTable } from "@/components/docs/tables/ParametersTable";
-import { DataAttributesTable } from "@/components/docs/tables/DataAttributesTable";
-import { Code } from "@radix-ui/themes";
 
 ## Anatomy
 
@@ -97,18 +95,10 @@ This primitive renders a `<button>` element unless `asChild` is set.
   ]}
 />
 
-<DataAttributesTable
-  data={[
-    {
-      attribute: "[data-state]",
-      values: <Code>"open" | "closed"</Code>,
-    },
-    {
-      attribute: "[data-disabled]",
-      values: "Present when disabled",
-    },
-  ]}
-/>
+| Data attribute | Values |
+| --- | --- |
+| `[data-state]` | `"open" \| "closed"` |
+| `[data-disabled]` | Present when disabled |
 
 ### Content
 
@@ -154,22 +144,11 @@ This primitive renders a `<div>` element unless `asChild` is set.
   ]}
 />
 
-<DataAttributesTable
-  data={[
-    {
-      attribute: "[data-state]",
-      values: <Code>"open" | "closed"</Code>,
-    },
-    {
-      attribute: "[data-side]",
-      values: <Code>"top" | "right" | "bottom" | "left"</Code>,
-    },
-    {
-      attribute: "[data-align]",
-      values: <Code>"start" | "center" | "end"</Code>,
-    },
-  ]}
-/>
+| Data attribute | Values |
+| --- | --- |
+| `[data-state]` | `"open" \| "closed"` |
+| `[data-side]` | `"top" \| "right" \| "bottom" \| "left"` |
+| `[data-align]` | `"start" \| "center" \| "end"` |
 
 Refer to Radix UI's Documentation for [DropdownMenu.Content](https://www.radix-ui.com/primitives/docs/components/dropdown-menu#content) for more details.
 
@@ -205,18 +184,10 @@ This primitive renders a `<div>` element unless `asChild` is set.
   ]}
 />
 
-<DataAttributesTable
-  data={[
-    {
-      attribute: "[data-disabled]",
-      values: "Present when disabled",
-    },
-    {
-      attribute: "[data-highlighted]",
-      values: "Present when highlighted",
-    },
-  ]}
-/>
+| Data attribute | Values |
+| --- | --- |
+| `[data-disabled]` | Present when disabled |
+| `[data-highlighted]` | Present when highlighted |
 
 Refer to Radix UI's Documentation for [DropdownMenu.Item](https://www.radix-ui.com/primitives/docs/components/dropdown-menu#item) for more details.
 
