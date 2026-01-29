@@ -3,5 +3,11 @@
   "description": "AssistantCloud services",
   "icon": "Cloud",
   "root": true,
-  "pages": ["overview", "authorization", "persistence"]
+  "pages": [
+    "overview",
+    "ai-sdk",
+    "ai-sdk-assistant-ui",
+    "langgraph",
+    "authorization"
+  ]
 }
