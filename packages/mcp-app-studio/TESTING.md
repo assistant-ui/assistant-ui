@@ -96,8 +96,10 @@ node /path/to/bin/mcp-app-studio.js my-app
 - [x] Completes without errors (5.6s, 637 packages)
 - [x] `node_modules/` created
 - [x] No blocking peer dependency warnings
+- [ ] If server included: `server/node_modules/` auto-created via postinstall
+- [ ] If server included: `@modelcontextprotocol/sdk` installed in server
 
-**Notes:** Warning about ignored build scripts (esbuild, sharp) is expected and non-blocking.
+**Notes:** Warning about ignored build scripts (esbuild, sharp) is expected and non-blocking. Server dependencies should auto-install via postinstall hook added to package.json.
 
 ### 3.2 Start dev server
 
@@ -112,6 +114,19 @@ node /path/to/bin/mcp-app-studio.js my-app
 - [ ] _(Skipped - requires browser automation)_
 
 **Notes:** Page title confirmed: "Create ChatGPT App"
+
+### 3.6 MCP Server (when included)
+
+- [ ] `server/node_modules/` created automatically via postinstall
+- [ ] `server/node_modules/@modelcontextprotocol/sdk` exists
+- [ ] `npm run dev` starts both Next.js AND MCP server
+- [ ] MCP server responds at `http://localhost:3001/mcp`
+- [ ] `cd server && npm run inspect` launches MCP inspector
+- [ ] Inspector connects successfully to MCP server
+- [ ] Stopping dev server (Ctrl+C) cleanly kills all child processes
+- [ ] No zombie processes left on ports 6277, 6274 after stopping
+
+**Notes:** Server dependencies should install automatically via postinstall hook.
 
 ---
 
@@ -242,6 +257,10 @@ rm -rf ~/Code/tests/test-scaffold/*
 | Step | Issue                                    | Severity | Status    |
 | ---- | ---------------------------------------- | -------- | --------- |
 | 9.3  | Scaffold with `.` set empty package name | Low      | **FIXED** |
+| 3.1  | Server deps not auto-installed (required manual `cd server && npm install`) | High | **FIXED** |
+| 3.2  | `appComponent` import doesn't exist in generated `component-registry.tsx` | Critical | **FIXED** |
+| 3.2  | Peer dependency mismatch between assistant-ui packages | High | **FIXED** |
+| 3.6  | Zombie processes on ports 6277, 6274 after stopping dev server | Medium | **FIXED** (starter repo) |
 
 ---
 
@@ -252,7 +271,7 @@ rm -rf ~/Code/tests/test-scaffold/*
 - [x] Ready for release
 
 **Tested by:** Claude (automated)
-**Date:** 2024-12-30
+**Date:** 2026-01-28
 
 ---
 

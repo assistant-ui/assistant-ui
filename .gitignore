@@ -72,3 +72,4 @@ htmlcov/
 # GitHub Spec Kit - https://github.com/github/spec-kit
 .specify/
 specs/*
+.test-output/

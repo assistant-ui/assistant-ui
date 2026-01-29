@@ -70,10 +70,18 @@ export function emptyDir(dir: string): void {
   }
 }
 
+// Dependency versions to ensure compatibility
+const DEPENDENCY_OVERRIDES: Record<string, string> = {
+  "@assistant-ui/react": "^0.12.3",
+  "@assistant-ui/react-ai-sdk": "^1.3.3",
+  "@assistant-ui/react-markdown": "^0.12.1",
+};
+
 export function updatePackageJson(
   dir: string,
   name: string,
   description?: string,
+  includeServer?: boolean,
 ): void {
   const pkgPath = path.join(dir, "package.json");
   if (!fs.existsSync(pkgPath)) return;
@@ -87,6 +95,19 @@ export function updatePackageJson(
     if (description) {
       pkg["description"] = description;
     }
+    if (includeServer) {
+      const scripts = (pkg["scripts"] as Record<string, string>) ?? {};
+      scripts["postinstall"] = "cd server && npm install";
+      pkg["scripts"] = scripts;
+    }
+    // Update dependencies to compatible versions
+    const deps = (pkg["dependencies"] as Record<string, string>) ?? {};
+    for (const [dep, version] of Object.entries(DEPENDENCY_OVERRIDES)) {
+      if (deps[dep]) {
+        deps[dep] = version;
+      }
+    }
+    pkg["dependencies"] = deps;
     fs.writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`);
   } catch (error) {
     throw new Error(

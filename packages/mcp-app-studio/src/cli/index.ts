@@ -230,6 +230,9 @@ export const workbenchComponents: WorkbenchComponentEntry[] = [
 ${entries.join(",\n")}
 ];
 
+// The main app component (first in the list)
+export const appComponent = workbenchComponents[0]!;
+
 export function getComponent(id: string): WorkbenchComponentEntry | undefined {
   return workbenchComponents.find((c) => c.id === id);
 }
@@ -670,7 +673,12 @@ async function main() {
   }
 
   s.message("Creating project...");
-  updatePackageJson(targetDir, config.packageName, config.description);
+  updatePackageJson(
+    targetDir,
+    config.packageName,
+    config.description,
+    config.includeServer,
+  );
 
   s.message("Applying template...");
   applyTemplate(targetDir, config.template);
@@ -688,14 +696,7 @@ async function main() {
   const devCmd = `${runCmd} dev`;
 
   const quotedName = quotePath(projectName as string);
-  const nextSteps = [`cd ${quotedName}`, installCmd];
-
-  if (config.includeServer) {
-    nextSteps.push(`cd server && ${installCmd}`);
-    nextSteps.push("cd ..");
-  }
-
-  nextSteps.push(devCmd);
+  const nextSteps = [`cd ${quotedName}`, installCmd, devCmd];
 
   if (config.includeServer) {
     nextSteps.push("");
