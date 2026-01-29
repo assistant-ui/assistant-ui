@@ -1,5 +1,14 @@
 # @assistant-ui/react
 
+## 0.12.4
+
+### Patch Changes
+
+- 86baaee: fix(react): devtools not register
+- 3bbe318: fix: allow destructuring proxy methods (e.g. `addToolResult`, `resumeToolCall`)
+- Updated dependencies [3bbe318]
+  - @assistant-ui/store@0.1.3
+
 ## 0.12.3
 
 ### Patch Changes
