@@ -3,7 +3,7 @@ title: ThreadList
 description: Switch between conversations. Supports sidebar or dropdown layouts.
 ---
 
-import { ParametersTable } from "@/components/docs/tables/parameters-table";
+import { ParametersTable } from "@/components/docs/parameters-table";
 import { InstallCommand } from "@/components/docs/fumadocs/install/install-command";
 import { ThreadListSample } from "@/components/docs/samples/threadlist";
 
@@ -40,10 +40,10 @@ Use `threadlist-sidebar` for a complete sidebar layout or `thread-list` for cust
     ```tsx title="/app/assistant.tsx"
     import { Thread } from "@/components/assistant-ui/thread";
     import { ThreadListSidebar } from "@/components/assistant-ui/threadlist-sidebar";
-    import { 
-      SidebarProvider, 
+    import {
+      SidebarProvider,
       SidebarInset,
-      SidebarTrigger 
+      SidebarTrigger
     } from "@/components/ui/sidebar";
 
     export default function Assistant() {
@@ -357,5 +357,3 @@ Visual separator between items.
 ## Related Components
 
 - [Thread](/docs/ui/thread) - The main chat interface displayed alongside the list
-
-

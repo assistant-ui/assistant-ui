@@ -5,7 +5,7 @@ description: Runtime for programmatically controlling the message composer.
 
 The composer runtime allows you to view or edit anything related to how new information is added and sent. For instance you can use the composer runtime to read the state, add attachments, update text, send a message, etc.
 
-import { ParametersTable } from "@/components/docs/tables/parameters-table";
+import { ParametersTable } from "@/components/docs/parameters-table";
 import { ComposerRuntime, ThreadComposerRuntime, ThreadComposerState, EditComposerState } from "@/generated/typeDocs";
 
 ### `useComposerRuntime`
@@ -21,7 +21,7 @@ const composerRuntime = useComposerRuntime();
 // set the text
 composerRuntime.setText("Hello from the composer runtime");
 
-// send whatever is in the composer 
+// send whatever is in the composer
 composerRuntime.send();
 
 // get the current text in the composer state
@@ -45,7 +45,7 @@ const threadComposerRuntime = useThreadComposer();
 // set the text
 threadComposerRuntime.setText("Hello from the thread composer runtime");
 
-// send whatever is in the thread composer 
+// send whatever is in the thread composer
 threadComposerRuntime.send();
 
 // get the current text in the composer state
