@@ -25,12 +25,28 @@ const DIFF_LINES: DiffLine[] = [
   { type: "add", content: 'greet("TypeScript");', new: 7 },
 ];
 
+function DiffHeader({ lines }: { lines: DiffLine[] }) {
+  const additions = lines.filter((l) => l.type === "add").length;
+  const deletions = lines.filter((l) => l.type === "del").length;
+
+  return (
+    <div className="flex items-center gap-2 border-b bg-muted px-3 py-2 text-muted-foreground">
+      <span className="inline-flex size-5 shrink-0 items-end justify-end rounded-sm border bg-background font-bold text-[8px] leading-none">
+        <span className="p-0.5">TS</span>
+      </span>
+      <span className="flex-1">example.ts</span>
+      <span className="flex gap-2 text-xs">
+        <span className="text-green-600 dark:text-green-400">+{additions}</span>
+        <span className="text-red-600 dark:text-red-400">-{deletions}</span>
+      </span>
+    </div>
+  );
+}
+
 function UnifiedDiffView({ lines }: { lines: DiffLine[] }) {
   return (
     <div className="w-full overflow-hidden rounded-lg border bg-background font-mono text-sm">
-      <div className="border-b bg-muted px-4 py-2 text-muted-foreground">
-        example.ts
-      </div>
+      <DiffHeader lines={lines} />
       <div className="overflow-x-auto">
         {lines.map((line, i) => {
           const indicator =
@@ -118,9 +134,7 @@ function SplitDiffView({ lines }: { lines: DiffLine[] }) {
 
   return (
     <div className="w-full overflow-hidden rounded-lg border bg-background font-mono text-sm">
-      <div className="border-b bg-muted px-4 py-2 text-muted-foreground">
-        example.ts
-      </div>
+      <DiffHeader lines={lines} />
       <div className="overflow-x-auto">
         {pairs.map((pair, i) => {
           const { left, right } = pair;

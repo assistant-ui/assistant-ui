@@ -21,6 +21,8 @@ interface ParsedFile {
   oldName?: string;
   newName?: string;
   lines: ParsedLine[];
+  additions: number;
+  deletions: number;
 }
 
 interface SplitLinePair {
@@ -32,17 +34,21 @@ function parsePatch(patch: string): ParsedFile[] {
   const files = parseDiff(patch);
   return files.map((file) => {
     const lines: ParsedLine[] = [];
+    let additions = 0;
+    let deletions = 0;
     for (const chunk of file.chunks) {
       let oldLine = chunk.oldStart;
       let newLine = chunk.newStart;
       for (const change of chunk.changes) {
         if (change.type === "add") {
+          additions++;
           lines.push({
             type: "add",
             content: change.content.slice(1),
             newLineNumber: newLine++,
           });
         } else if (change.type === "del") {
+          deletions++;
           lines.push({
             type: "del",
             content: change.content.slice(1),
@@ -62,22 +68,31 @@ function parsePatch(patch: string): ParsedFile[] {
       oldName: file.from,
       newName: file.to,
       lines,
+      additions,
+      deletions,
     };
   });
 }
 
-function computeDiff(oldContent: string, newContent: string): ParsedLine[] {
+function computeDiff(
+  oldContent: string,
+  newContent: string,
+): { lines: ParsedLine[]; additions: number; deletions: number } {
   const changes = diffLines(oldContent, newContent);
   const lines: ParsedLine[] = [];
   let oldLine = 1;
   let newLine = 1;
+  let additions = 0;
+  let deletions = 0;
 
   for (const change of changes) {
     const contentLines = change.value.replace(/\n$/, "").split("\n");
     for (const content of contentLines) {
       if (change.added) {
+        additions++;
         lines.push({ type: "add", content, newLineNumber: newLine++ });
       } else if (change.removed) {
+        deletions++;
         lines.push({ type: "del", content, oldLineNumber: oldLine++ });
       } else {
         lines.push({
@@ -89,7 +104,7 @@ function computeDiff(oldContent: string, newContent: string): ParsedLine[] {
       }
     }
   }
-  return lines;
+  return { lines, additions, deletions };
 }
 
 function pairLinesForSplit(lines: ParsedLine[]): SplitLinePair[] {
@@ -177,36 +192,89 @@ const diffLineTextVariants = cva("", {
   },
 });
 
+function getFileExtension(filename?: string): string {
+  const ext = filename?.split(".").pop()?.toLowerCase();
+  if (!ext) return "";
+  return ext.toUpperCase();
+}
+
+function FileExtensionBadge({ filename }: { filename?: string }) {
+  const ext = getFileExtension(filename);
+  if (!ext) return null;
+
+  return (
+    <span
+      data-slot="diff-viewer-file-badge"
+      className="inline-flex size-5 shrink-0 items-end justify-end rounded-sm border bg-background font-bold text-[8px] leading-none"
+    >
+      <span className="p-0.5">{ext}</span>
+    </span>
+  );
+}
+
+function DiffStats({
+  additions,
+  deletions,
+}: {
+  additions: number;
+  deletions: number;
+}) {
+  return (
+    <span data-slot="diff-viewer-stats" className="flex gap-2 text-xs">
+      <span className="text-green-600 dark:text-green-400">+{additions}</span>
+      <span className="text-red-600 dark:text-red-400">-{deletions}</span>
+    </span>
+  );
+}
+
 interface DiffViewerHeaderProps extends ComponentProps<"div"> {
   oldName?: string;
   newName?: string;
+  additions?: number;
+  deletions?: number;
+  showIcon?: boolean;
+  showStats?: boolean;
 }
 
 function DiffViewerHeader({
   oldName,
   newName,
+  additions = 0,
+  deletions = 0,
+  showIcon = true,
+  showStats = true,
   className,
   ...props
 }: DiffViewerHeaderProps) {
   if (!oldName && !newName) return null;
 
+  const displayName = newName || oldName;
+
   return (
     <div
       data-slot="diff-viewer-header"
       className={cn(
-        "border-b bg-muted px-4 py-2 text-muted-foreground",
+        "flex items-center gap-2 border-b bg-muted px-4 py-2 text-muted-foreground",
         className,
       )}
       {...props}
     >
-      {oldName && newName && oldName !== newName ? (
-        <>
-          <span className="text-red-600 dark:text-red-400">{oldName}</span>
-          {" → "}
-          <span className="text-green-600 dark:text-green-400">{newName}</span>
-        </>
-      ) : (
-        newName || oldName
+      {showIcon && <FileExtensionBadge filename={displayName} />}
+      <span className="flex-1">
+        {oldName && newName && oldName !== newName ? (
+          <>
+            <span className="text-red-600 dark:text-red-400">{oldName}</span>
+            {" → "}
+            <span className="text-green-600 dark:text-green-400">
+              {newName}
+            </span>
+          </>
+        ) : (
+          displayName
+        )}
+      </span>
+      {showStats && (additions > 0 || deletions > 0) && (
+        <DiffStats additions={additions} deletions={deletions} />
       )}
     </div>
   );
@@ -356,6 +424,8 @@ export type DiffViewerProps = Partial<SyntaxHighlighterProps> &
     newFile?: { content: string; name?: string };
     viewMode?: "split" | "unified";
     showLineNumbers?: boolean;
+    showIcon?: boolean;
+    showStats?: boolean;
     className?: string;
   };
 
@@ -366,6 +436,8 @@ function DiffViewer({
   newFile,
   viewMode = "unified",
   showLineNumbers = true,
+  showIcon = true,
+  showStats = true,
   variant,
   size,
   className,
@@ -377,11 +449,17 @@ function DiffViewer({
       return parsePatch(diffPatch);
     }
     if (oldFile && newFile) {
+      const { lines, additions, deletions } = computeDiff(
+        oldFile.content,
+        newFile.content,
+      );
       return [
         {
           oldName: oldFile.name,
           newName: newFile.name,
-          lines: computeDiff(oldFile.content, newFile.content),
+          lines,
+          additions,
+          deletions,
         },
       ];
     }
@@ -409,7 +487,14 @@ function DiffViewer({
     >
       {parsedFiles.map((file, fileIndex) => (
         <div key={fileIndex} data-slot="diff-viewer-file">
-          <DiffViewerHeader oldName={file.oldName} newName={file.newName} />
+          <DiffViewerHeader
+            oldName={file.oldName}
+            newName={file.newName}
+            additions={file.additions}
+            deletions={file.deletions}
+            showIcon={showIcon}
+            showStats={showStats}
+          />
           <div data-slot="diff-viewer-content" className="overflow-x-auto">
             {viewMode === "split"
               ? pairLinesForSplit(file.lines).map((pair, pairIndex) => (
