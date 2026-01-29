@@ -1,11 +1,12 @@
 "use client";
 
-import { FC, memo, PropsWithChildren } from "react";
+import { FC, memo, PropsWithChildren, useEffect } from "react";
 import { useAui, AuiProvider, AssistantClient } from "@assistant-ui/store";
 import { AssistantRuntime } from "./runtime/AssistantRuntime";
 import { AssistantRuntimeCore } from "./runtime-cores/core/AssistantRuntimeCore";
 import { RuntimeAdapter } from "./RuntimeAdapter";
 import { ThreadPrimitiveViewportProvider } from "../context/providers/ThreadViewportProvider";
+import { DevToolsProviderApi } from "../devtools";
 
 export namespace AssistantRuntimeProvider {
   export type Props = PropsWithChildren<{
@@ -29,6 +30,11 @@ export const AssistantRuntimeProviderImpl: FC<
   AssistantRuntimeProvider.Props
 > = ({ children, aui: parent = null, runtime }) => {
   const aui = useAui({ threads: RuntimeAdapter(runtime) }, { parent: parent });
+
+  useEffect(() => {
+    if (process.env.NODE_ENV === "production") return;
+    return DevToolsProviderApi.register(aui);
+  }, [aui]);
 
   const RenderComponent = getRenderComponent(runtime);
 
