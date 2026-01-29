@@ -113,6 +113,7 @@ export function useCloudChat(options: UseCloudChatOptions): UseCloudChatResult {
   threadIdRef.current = threadId;
   const createdThreadRef = useRef<string | null>(null);
   const loadedThreadsRef = useRef(new Set<string>());
+  const messagesByThreadRef = useRef(new Map<string, UIMessage[]>());
   const onThreadCreatedRef = useRef(onThreadCreated);
   onThreadCreatedRef.current = onThreadCreated;
   const onFinishRef = useRef(chatOptions?.onFinish);
@@ -139,7 +140,6 @@ export function useCloudChat(options: UseCloudChatOptions): UseCloudChatResult {
             });
             createdThreadRef.current = res.thread_id;
             threadIdRef.current = res.thread_id;
-            loadedThreadsRef.current.add(res.thread_id);
             onThreadCreatedRef.current?.(res.thread_id);
           }
           // Return proper structure with body including messages
@@ -211,7 +211,10 @@ export function useCloudChat(options: UseCloudChatOptions): UseCloudChatResult {
         const { messages } = await formatted.load(id);
         if (cancelledRef.cancelled) return;
 
-        setMessagesRef.current(messages.map((item) => item.message));
+        const loaded = messages.map((item) => item.message);
+        messagesByThreadRef.current.set(id, loaded);
+        loadedThreadsRef.current.add(id);
+        setMessagesRef.current(loaded);
       } catch (err) {
         if (cancelledRef.cancelled) return;
         setSyncError(err instanceof Error ? err : new Error(String(err)));
@@ -220,12 +223,20 @@ export function useCloudChat(options: UseCloudChatOptions): UseCloudChatResult {
     [getFormatted],
   );
 
+  useEffect(() => {
+    const activeThreadId = threadIdRef.current ?? createdThreadRef.current;
+    if (!activeThreadId) return;
+    messagesByThreadRef.current.set(activeThreadId, chat.messages);
+  }, [chat.messages]);
+
   // Load messages when threadId changes (explicit action, not observation).
   // Only fires on thread switch, not on isRunning transitions — matching
   // useExternalHistory's load-once-per-thread semantics.
   useEffect(() => {
-    // Reset createdThreadRef when threadId changes externally
-    if (threadId !== createdThreadRef.current) {
+    // Check if this is a thread we just created BEFORE any reset
+    const justCreated = threadId === createdThreadRef.current;
+
+    if (!justCreated) {
       createdThreadRef.current = null;
     }
 
@@ -235,13 +246,20 @@ export function useCloudChat(options: UseCloudChatOptions): UseCloudChatResult {
       return;
     }
 
-    // Skip threads we've already loaded or created in this session.
+    const cached = messagesByThreadRef.current.get(threadId);
+    if (cached) {
+      setMessagesRef.current(cached);
+      return;
+    }
+
     if (loadedThreadsRef.current.has(threadId)) {
       return;
     }
 
-    // Mark loaded before the async call to prevent re-entry.
-    loadedThreadsRef.current.add(threadId);
+    // Skip only for threads we just created (messages already in sync from send)
+    if (justCreated) {
+      return;
+    }
 
     const cancelledRef = { cancelled: false };
     loadThreadMessages(threadId, cancelledRef);
