@@ -4,25 +4,37 @@ description: Render code diffs with syntax highlighting for additions and deleti
 ---
 
 import { InstallCommand } from "@/components/docs/fumadocs/install/install-command";
-import { DiffViewerSample } from "@/components/docs/samples/diff-viewer";
+import { PreviewCode } from "@/components/docs/preview-code.server";
+import {
+  DiffViewerSample,
+  DiffViewerSplitSample,
+  DiffViewerViewModesSample,
+} from "@/components/docs/samples/diff-viewer";
 
-<DiffViewerSample />
+<DiffViewerViewModesSample />
 
-## Getting Started
-
-<Steps>
-  <Step>
-
-### Add `diff-viewer` component
+## Installation
 
 <InstallCommand shadcn={["diff-viewer"]} />
 
-This will install the required dependencies and add the component to your project.
+## Usage
 
-  </Step>
-  <Step>
+```tsx
+import { DiffViewer } from "@/components/assistant-ui/diff-viewer";
 
-### Add it to `componentsByLanguage` in `markdown-text.tsx`
+// With a unified diff patch
+<DiffViewer patch={diffString} />
+
+// With file comparison
+<DiffViewer
+  oldFile={{ content: "old content", name: "file.txt" }}
+  newFile={{ content: "new content", name: "file.txt" }}
+/>
+```
+
+### As Markdown Language Override
+
+Integrate with `MarkdownTextPrimitive` to render diff code blocks:
 
 ```tsx title="/components/assistant-ui/markdown-text.tsx"
 import { DiffViewer } from "@/components/assistant-ui/diff-viewer"; // [!code ++]
@@ -45,39 +57,37 @@ const MarkdownTextImpl = () => {
 export const MarkdownText = memo(MarkdownTextImpl);
 ```
 
-  </Step>
-</Steps>
+## Examples
 
-## Usage
+### Unified View
 
-### With Unified Diff Patch
+Shows all changes in a single column with `+`/`-` indicators. This is the default mode.
 
-The most common use case is rendering a unified diff string:
-
-```tsx
-<DiffViewer patch={diffString} />
-```
-
-### File Comparison
-
-Compare two strings directly:
+<DiffViewerSample />
 
 ```tsx
-<DiffViewer
-  oldFile={{ content: "old content", name: "file.txt" }}
-  newFile={{ content: "new content", name: "file.txt" }}
-/>
+<DiffViewer patch={diffString} viewMode="unified" />
 ```
 
-### Split View Mode
+### Split View
 
-Display old and new content side by side:
+Shows old content on the left, new content on the right side-by-side.
+
+<DiffViewerSplitSample />
 
 ```tsx
 <DiffViewer patch={diffString} viewMode="split" />
 ```
 
-## Props
+### Interactive Mode Toggle
+
+<PreviewCode file="components/docs/samples/diff-viewer" name="DiffViewerViewModesSample">
+  <DiffViewerViewModesSample />
+</PreviewCode>
+
+## API Reference
+
+### Props
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
@@ -89,15 +99,28 @@ Display old and new content side by side:
 | `showLineNumbers` | `boolean` | `true` | Show line numbers |
 | `className` | `string` | - | Additional CSS classes |
 
+### Input Sources
+
+You must provide one of the following:
+
+| Source | Description |
+|--------|-------------|
+| `patch` / `code` | A unified diff string (e.g., output from `git diff`) |
+| `oldFile` + `newFile` | Two files to compare directly |
+
 ## Styling
 
 The component uses Tailwind CSS classes with sensible defaults:
 
-- **Additions**: `bg-green-500/20` background with green text
-- **Deletions**: `bg-red-500/20` background with red text
-- **Context lines**: Default background
+| Line Type | Background | Text Color |
+|-----------|------------|------------|
+| Addition | `bg-green-500/20` | `text-green-700` / `dark:text-green-400` |
+| Deletion | `bg-red-500/20` | `text-red-700` / `dark:text-red-400` |
+| Context | - | - |
 
-You can customize styling using the `data-type` attribute on each line:
+### Custom Styling
+
+Use the `data-type` attribute on each line for custom styling:
 
 ```css
 .aui-diff-viewer [data-type="add"] {
@@ -106,6 +129,10 @@ You can customize styling using the `data-type` attribute on each line:
 
 .aui-diff-viewer [data-type="del"] {
   /* custom deletion styles */
+}
+
+.aui-diff-viewer [data-type="normal"] {
+  /* custom context line styles */
 }
 ```
 

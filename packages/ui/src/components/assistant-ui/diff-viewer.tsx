@@ -93,17 +93,58 @@ function computeDiff(oldContent: string, newContent: string): ParsedLine[] {
   return lines;
 }
 
-interface DiffLineComponentProps {
-  line: ParsedLine;
-  showLineNumbers: boolean;
-  viewMode: "split" | "unified";
+interface SplitLinePair {
+  left: ParsedLine | null;
+  right: ParsedLine | null;
 }
 
-const DiffLineComponent: FC<DiffLineComponentProps> = ({
-  line,
-  showLineNumbers,
-  viewMode,
-}) => {
+function pairLinesForSplit(lines: ParsedLine[]): SplitLinePair[] {
+  const pairs: SplitLinePair[] = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+
+    if (line.type === "normal") {
+      pairs.push({ left: line, right: line });
+      i++;
+    } else if (line.type === "del") {
+      // Collect consecutive deletions
+      const deletions: ParsedLine[] = [];
+      while (i < lines.length && lines[i].type === "del") {
+        deletions.push(lines[i]);
+        i++;
+      }
+      // Collect consecutive additions
+      const additions: ParsedLine[] = [];
+      while (i < lines.length && lines[i].type === "add") {
+        additions.push(lines[i]);
+        i++;
+      }
+      // Pair them up
+      const maxLen = Math.max(deletions.length, additions.length);
+      for (let j = 0; j < maxLen; j++) {
+        pairs.push({
+          left: deletions[j] ?? null,
+          right: additions[j] ?? null,
+        });
+      }
+    } else if (line.type === "add") {
+      // Additions without preceding deletions
+      pairs.push({ left: null, right: line });
+      i++;
+    }
+  }
+
+  return pairs;
+}
+
+interface UnifiedLineProps {
+  line: ParsedLine;
+  showLineNumbers: boolean;
+}
+
+const UnifiedLine: FC<UnifiedLineProps> = ({ line, showLineNumbers }) => {
   const indicator = line.type === "add" ? "+" : line.type === "del" ? "-" : " ";
 
   const bgClass =
@@ -119,29 +160,6 @@ const DiffLineComponent: FC<DiffLineComponentProps> = ({
       : line.type === "del"
         ? "text-red-700 dark:text-red-400"
         : "";
-
-  if (viewMode === "split") {
-    return (
-      <div className={cn("flex", bgClass)} data-type={line.type}>
-        {showLineNumbers && (
-          <>
-            <span className="w-12 shrink-0 select-none px-2 text-right text-muted-foreground">
-              {line.oldLineNumber ?? ""}
-            </span>
-            <span className="w-12 shrink-0 select-none px-2 text-right text-muted-foreground">
-              {line.newLineNumber ?? ""}
-            </span>
-          </>
-        )}
-        <span className={cn("w-4 shrink-0 select-none text-center", textClass)}>
-          {indicator}
-        </span>
-        <span className={cn("flex-1 whitespace-pre-wrap break-all", textClass)}>
-          {line.content}
-        </span>
-      </div>
-    );
-  }
 
   return (
     <div className={cn("flex", bgClass)} data-type={line.type}>
@@ -160,6 +178,61 @@ const DiffLineComponent: FC<DiffLineComponentProps> = ({
       <span className={cn("flex-1 whitespace-pre-wrap break-all", textClass)}>
         {line.content}
       </span>
+    </div>
+  );
+};
+
+interface SplitLineProps {
+  pair: SplitLinePair;
+  showLineNumbers: boolean;
+}
+
+const SplitLine: FC<SplitLineProps> = ({ pair, showLineNumbers }) => {
+  const { left, right } = pair;
+
+  const leftBg = left?.type === "del" ? "bg-red-500/20" : "";
+  const rightBg = right?.type === "add" ? "bg-green-500/20" : "";
+
+  const leftText = left?.type === "del" ? "text-red-700 dark:text-red-400" : "";
+  const rightText =
+    right?.type === "add" ? "text-green-700 dark:text-green-400" : "";
+
+  return (
+    <div className="flex">
+      {/* Left side (old) */}
+      <div
+        className={cn("flex w-1/2 border-r", leftBg)}
+        data-type={left?.type ?? "empty"}
+      >
+        {showLineNumbers && (
+          <span className="w-12 shrink-0 select-none px-2 text-right text-muted-foreground">
+            {left?.oldLineNumber ?? ""}
+          </span>
+        )}
+        <span className={cn("w-4 shrink-0 select-none text-center", leftText)}>
+          {left ? (left.type === "del" ? "-" : " ") : ""}
+        </span>
+        <span className={cn("flex-1 whitespace-pre-wrap break-all", leftText)}>
+          {left?.content ?? ""}
+        </span>
+      </div>
+      {/* Right side (new) */}
+      <div
+        className={cn("flex w-1/2", rightBg)}
+        data-type={right?.type ?? "empty"}
+      >
+        {showLineNumbers && (
+          <span className="w-12 shrink-0 select-none px-2 text-right text-muted-foreground">
+            {right?.newLineNumber ?? ""}
+          </span>
+        )}
+        <span className={cn("w-4 shrink-0 select-none text-center", rightText)}>
+          {right ? (right.type === "add" ? "+" : " ") : ""}
+        </span>
+        <span className={cn("flex-1 whitespace-pre-wrap break-all", rightText)}>
+          {right?.content ?? ""}
+        </span>
+      </div>
     </div>
   );
 };
@@ -266,14 +339,21 @@ export const DiffViewer: FC<DiffViewerProps> = ({
             </div>
           )}
           <div className="overflow-x-auto">
-            {file.lines.map((line, lineIndex) => (
-              <DiffLineComponent
-                key={lineIndex}
-                line={line}
-                showLineNumbers={showLineNumbers}
-                viewMode={viewMode}
-              />
-            ))}
+            {viewMode === "split"
+              ? pairLinesForSplit(file.lines).map((pair, pairIndex) => (
+                  <SplitLine
+                    key={pairIndex}
+                    pair={pair}
+                    showLineNumbers={showLineNumbers}
+                  />
+                ))
+              : file.lines.map((line, lineIndex) => (
+                  <UnifiedLine
+                    key={lineIndex}
+                    line={line}
+                    showLineNumbers={showLineNumbers}
+                  />
+                ))}
           </div>
         </div>
       ))}
