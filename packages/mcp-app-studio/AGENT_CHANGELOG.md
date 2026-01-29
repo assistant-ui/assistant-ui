@@ -1,11 +1,11 @@
 # Agent Changelog
 
 > This file helps coding agents understand project evolution, key decisions,
-> and deprecated patterns. Updated: 2026-01-28
+> and deprecated patterns. Updated: 2026-01-29
 
 ## Current State Summary
 
-**mcp-app-studio** is a platform-agnostic SDK and CLI for building interactive apps that run on both ChatGPT and MCP hosts (like Claude Desktop). The package provides a unified bridge API with automatic platform detection, letting developers write apps once and deploy everywhere. Current version: 0.4.0.
+**mcp-app-studio** is a platform-agnostic SDK and CLI for building interactive apps that run on both ChatGPT and MCP hosts (like Claude Desktop). The package provides a unified bridge API with automatic platform detection, letting developers write apps once and deploy everywhere. Current version: 0.5.0.
 
 ## Stale Information Detected
 
