@@ -1,6 +1,8 @@
-# AI SDK + Assistant Cloud
+# Cloud Persistence for AI SDK (Standalone)
 
-Persist AI SDK chat messages to the cloud with two hooks.
+Lightweight cloud persistence for AI SDK apps without assistant-ui components.
+
+> **Want the full assistant-ui experience?** See [with-cloud](../with-cloud) instead, which uses `useChatRuntime` with `<Thread />` and other primitives.
 
 ## Setup
 
@@ -14,21 +16,25 @@ Persist AI SDK chat messages to the cloud with two hooks.
 ## Usage
 
 ```tsx
+import { AssistantCloud } from "assistant-cloud";
+import { useCloudChat, useThreads } from "assistant-cloud/ai-sdk";
+
 const cloud = new AssistantCloud({
   baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
   anonymous: true,
 });
 
 function Chat() {
-  // your existing AI SDK chat
-  const chat = useChat();
-
-  // syncs chat.messages to cloud, returns current thread ID + switcher
-  const [threadId, selectThread] = useSync(cloud, chat);
-
-  // thread history — threads.list, threads.delete(id), threads.rename(id, title)
   const threads = useThreads(cloud);
+
+  const chat = useCloudChat(cloud, {
+    api: "/api/chat",
+    onThreadCreated: () => threads.refresh(),
+    onTitleGenerated: (id, title) => threads.rename(id, title),
+  });
+
+  // chat.messages, chat.sendMessage, chat.threadId, chat.selectThread, etc.
 }
 ```
 
-Messages persist automatically. Call `selectThread(id)` to switch threads, `selectThread(null)` for a new chat.
+Messages persist automatically. Call `chat.selectThread(id)` to switch threads, `chat.selectThread(null)` for a new chat.
