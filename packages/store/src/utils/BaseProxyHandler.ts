@@ -17,7 +17,7 @@ export const handleIntrospectionProp = (
 };
 
 export abstract class BaseProxyHandler implements ProxyHandler<object> {
-  abstract get(_: unknown, prop: string | symbol): unknown;
+  abstract get(_: unknown, prop: string | symbol, receiver?: unknown): unknown;
   abstract ownKeys(): ArrayLike<string | symbol>;
   abstract has(_: unknown, prop: string | symbol): boolean;
 

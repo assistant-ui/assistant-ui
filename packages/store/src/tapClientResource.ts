@@ -42,21 +42,21 @@ export const getClientState = (client: ClientMethods) => {
 // Global cache for function templates by field name
 const fieldAccessFns = new Map<
   string | symbol,
-  (this: ClientInternal, ...args: unknown[]) => unknown
+  (this: unknown, ...args: unknown[]) => unknown
 >();
 
 function getOrCreateProxyFn(prop: string | symbol) {
   let template = fieldAccessFns.get(prop);
   if (!template) {
-    template = function (this: ClientInternal, ...args: unknown[]) {
-      if (!this) {
+    template = function (this: unknown, ...args: unknown[]) {
+      if (!this || typeof this !== "object") {
         throw new Error(
           `Method "${String(prop)}" called without proper context. ` +
             `This may indicate the function was called incorrectly.`,
         );
       }
 
-      const output = this[SYMBOL_GET_OUTPUT];
+      const output = (this as ClientInternal)[SYMBOL_GET_OUTPUT];
       if (!output) {
         throw new Error(
           `Method "${String(prop)}" called on invalid client proxy. ` +
