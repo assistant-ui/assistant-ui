@@ -15,6 +15,7 @@ import { create } from "zustand";
 import { AssistantMessageStream } from "assistant-stream";
 import { ModelContextProvider } from "../../../model-context";
 import { RuntimeAdapterProvider } from "../adapters/RuntimeAdapterProvider";
+import { ThreadRuntimeCore } from "../core/ThreadRuntimeCore";
 
 type RemoteThreadData =
   | {
@@ -147,6 +148,7 @@ export class RemoteThreadListThreadListRuntimeCore
   private _loadThreadsPromise: Promise<void> | undefined;
 
   private _mainThreadId!: string;
+  private _pendingComposerText: string | undefined;
   private readonly _state = new OptimisticState<RemoteThreadState>({
     isLoading: false,
     newThreadId: undefined,
@@ -290,8 +292,31 @@ export class RemoteThreadListThreadListRuntimeCore
 
   public getMainThreadRuntimeCore() {
     const result = this._hookManager.getThreadRuntimeCore(this._mainThreadId);
-    if (!result) return EMPTY_THREAD_CORE;
-    return result;
+
+    if (result) {
+      if (this._pendingComposerText !== undefined) {
+        result.composer.setText(this._pendingComposerText);
+        this._pendingComposerText = undefined;
+      }
+      return result;
+    }
+
+    if (this._mainThreadId && this._pendingComposerText !== undefined) {
+      const pendingCore: ThreadRuntimeCore = {
+        ...EMPTY_THREAD_CORE,
+        composer: {
+          ...EMPTY_THREAD_CORE.composer,
+          text: this._pendingComposerText,
+          setText: (newText: string) => {
+            this._pendingComposerText = newText;
+            this._notifySubscribers();
+          },
+        },
+      };
+      return pendingCore;
+    }
+
+    return EMPTY_THREAD_CORE;
   }
 
   public getThreadRuntimeCore(threadIdOrRemoteId: string) {
@@ -361,7 +386,7 @@ export class RemoteThreadListThreadListRuntimeCore
     if (this._mainThreadId === data.id) return;
 
     const task = this._hookManager.startThreadRuntime(data.id);
-    if (this.mainThreadId !== undefined) {
+    if (this._mainThreadId !== undefined) {
       await task;
     } else {
       task.then(() => this._notifySubscribers());
@@ -408,6 +433,8 @@ export class RemoteThreadListThreadListRuntimeCore
           } satisfies RemoteThreadData,
         },
       });
+
+      this._pendingComposerText = "";
     }
 
     return this.switchToThread(id);
