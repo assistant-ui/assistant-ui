@@ -3,7 +3,7 @@ import { ReactNode } from "react";
 import { SubProjectLayout } from "@/components/shared/sub-project-layout";
 import { createOgMetadata } from "@/lib/og";
 
-const title = "MCP App Studio by assistant-ui";
+const title = "MCP App Studio";
 const description =
   "Build and preview MCP Apps locally. A development workbench with live preview, mock tool responses, and production export.";
 
