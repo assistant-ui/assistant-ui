@@ -1,4 +1,4 @@
-import type { ParametersTableProps } from "../ParametersTable";
+import type { ParametersTableProps } from "@/components/docs/tables/parameters-table";
 
 const BaseComposerState: ParametersTableProps = {
   type: "BaseComposerState",
