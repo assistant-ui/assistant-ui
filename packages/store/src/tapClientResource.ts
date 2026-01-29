@@ -49,7 +49,22 @@ function getOrCreateProxyFn(prop: string | symbol) {
   let template = fieldAccessFns.get(prop);
   if (!template) {
     template = function (this: ClientInternal, ...args: unknown[]) {
-      const method = this[SYMBOL_GET_OUTPUT].methods[prop];
+      if (!this) {
+        throw new Error(
+          `Method "${String(prop)}" called without proper context. ` +
+            `This may indicate the function was called incorrectly.`,
+        );
+      }
+
+      const output = this[SYMBOL_GET_OUTPUT];
+      if (!output) {
+        throw new Error(
+          `Method "${String(prop)}" called on invalid client proxy. ` +
+            `Ensure you are calling this method on a valid client instance.`,
+        );
+      }
+
+      const method = output.methods[prop];
       if (!method)
         throw new Error(`Method "${String(prop)}" is not implemented.`);
       if (typeof method !== "function")
