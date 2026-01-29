@@ -299,6 +299,19 @@ export const registry: RegistryItem[] = [
     ],
   },
   {
+    name: "diff-viewer",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/diff-viewer.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/diff-viewer.tsx",
+      },
+    ],
+    dependencies: ["diff", "parse-diff", "@assistant-ui/react-markdown"],
+  },
+  {
     name: "threadlist-sidebar",
     type: "registry:component",
     files: [

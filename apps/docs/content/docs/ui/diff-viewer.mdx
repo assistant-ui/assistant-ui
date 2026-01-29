@@ -1,0 +1,115 @@
+---
+title: "Diff Viewer"
+description: Render code diffs with syntax highlighting for additions and deletions.
+---
+
+import { InstallCommand } from "@/components/docs/fumadocs/install/install-command";
+import { DiffViewerSample } from "@/components/docs/samples/diff-viewer";
+
+<DiffViewerSample />
+
+## Getting Started
+
+<Steps>
+  <Step>
+
+### Add `diff-viewer` component
+
+<InstallCommand shadcn={["diff-viewer"]} />
+
+This will install the required dependencies and add the component to your project.
+
+  </Step>
+  <Step>
+
+### Add it to `componentsByLanguage` in `markdown-text.tsx`
+
+```tsx title="/components/assistant-ui/markdown-text.tsx"
+import { DiffViewer } from "@/components/assistant-ui/diff-viewer"; // [!code ++]
+
+const MarkdownTextImpl = () => {
+  return (
+    <MarkdownTextPrimitive
+      remarkPlugins={[remarkGfm]}
+      className="aui-md"
+      components={defaultComponents}
+      componentsByLanguage={{                                       // [!code ++]
+        diff: {                                                     // [!code ++]
+          SyntaxHighlighter: ({ code }) => <DiffViewer patch={code} /> // [!code ++]
+        },                                                          // [!code ++]
+      }}                                                            // [!code ++]
+    />
+  );
+};
+
+export const MarkdownText = memo(MarkdownTextImpl);
+```
+
+  </Step>
+</Steps>
+
+## Usage
+
+### With Unified Diff Patch
+
+The most common use case is rendering a unified diff string:
+
+```tsx
+<DiffViewer patch={diffString} />
+```
+
+### File Comparison
+
+Compare two strings directly:
+
+```tsx
+<DiffViewer
+  oldFile={{ content: "old content", name: "file.txt" }}
+  newFile={{ content: "new content", name: "file.txt" }}
+/>
+```
+
+### Split View Mode
+
+Display old and new content side by side:
+
+```tsx
+<DiffViewer patch={diffString} viewMode="split" />
+```
+
+## Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `patch` | `string` | - | Unified diff string |
+| `code` | `string` | - | Alias for `patch` (for markdown integration) |
+| `oldFile` | `{ content: string; name?: string }` | - | Old file for comparison |
+| `newFile` | `{ content: string; name?: string }` | - | New file for comparison |
+| `viewMode` | `"unified" \| "split"` | `"unified"` | Display mode |
+| `showLineNumbers` | `boolean` | `true` | Show line numbers |
+| `className` | `string` | - | Additional CSS classes |
+
+## Styling
+
+The component uses Tailwind CSS classes with sensible defaults:
+
+- **Additions**: `bg-green-500/20` background with green text
+- **Deletions**: `bg-red-500/20` background with red text
+- **Context lines**: Default background
+
+You can customize styling using the `data-type` attribute on each line:
+
+```css
+.aui-diff-viewer [data-type="add"] {
+  /* custom addition styles */
+}
+
+.aui-diff-viewer [data-type="del"] {
+  /* custom deletion styles */
+}
+```
+
+## Related Components
+
+- [Markdown](/docs/ui/markdown) - Rich text rendering where diff viewer can be integrated
+- [Syntax Highlighting](/docs/ui/syntax-highlighting) - Code highlighting for other languages
