@@ -93,7 +93,8 @@ const STEPS = [
 ] as const;
 
 const WORKBENCH_URL =
-  process.env["NEXT_PUBLIC_WORKBENCH_URL"] ?? "http://localhost:3002";
+  process.env["NEXT_PUBLIC_WORKBENCH_URL"] ??
+  "https://mcp-app-studio-starter.vercel.app";
 
 export default function McpAppStudioPage() {
   const [isFullscreen, setIsFullscreen] = useState(false);
