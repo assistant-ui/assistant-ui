@@ -1,11 +1,16 @@
 import type { Metadata } from "next";
 import { ReactNode } from "react";
 import { SubProjectLayout } from "@/components/shared/sub-project-layout";
+import { createOgMetadata } from "@/lib/og";
+
+const title = "MCP App Studio by assistant-ui";
+const description =
+  "Build and preview MCP Apps locally. A development workbench with live preview, mock tool responses, and production export.";
 
 export const metadata: Metadata = {
-  title: "MCP App Studio by assistant-ui",
-  description:
-    "Build and preview MCP Apps locally. A development workbench with live preview, mock tool responses, and production export.",
+  title,
+  description,
+  ...createOgMetadata(title, description),
 };
 
 export default function McpAppStudioLayout({
