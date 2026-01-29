@@ -13,6 +13,10 @@ import {
   Pre,
 } from "fumadocs-ui/components/codeblock";
 import * as Twoslash from "fumadocs-twoslash/ui";
+import { InstallCommand } from "@/components/docs/fumadocs/install/install-command";
+import { ParametersTable } from "@/components/docs/parameters-table";
+import { SourceLink } from "@/components/docs/source-link";
+import { Code } from "@radix-ui/themes";
 
 import "@/styles/twoslash.css";
 
@@ -47,6 +51,10 @@ export function getMDXComponents(components: MDXComponents): MDXComponents {
     Accordion,
     Accordions,
     Kbd,
+    InstallCommand,
+    ParametersTable,
+    SourceLink,
+    Code,
     blockquote: (props) => <Callout>{props.children}</Callout>,
     ...components,
   };
