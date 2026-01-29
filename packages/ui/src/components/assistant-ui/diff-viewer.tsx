@@ -1,9 +1,11 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import type { SyntaxHighlighterProps } from "@assistant-ui/react-markdown";
+import { cva, type VariantProps } from "class-variance-authority";
 import { diffLines } from "diff";
 import parseDiff from "parse-diff";
-import { FC, useMemo } from "react";
+import { useMemo } from "react";
 import { cn } from "@/lib/utils";
 
 type DiffLineType = "add" | "del" | "normal";
@@ -19,6 +21,11 @@ interface ParsedFile {
   oldName?: string;
   newName?: string;
   lines: ParsedLine[];
+}
+
+interface SplitLinePair {
+  left: ParsedLine | null;
+  right: ParsedLine | null;
 }
 
 function parsePatch(patch: string): ParsedFile[] {
@@ -69,17 +76,9 @@ function computeDiff(oldContent: string, newContent: string): ParsedLine[] {
     const contentLines = change.value.replace(/\n$/, "").split("\n");
     for (const content of contentLines) {
       if (change.added) {
-        lines.push({
-          type: "add",
-          content,
-          newLineNumber: newLine++,
-        });
+        lines.push({ type: "add", content, newLineNumber: newLine++ });
       } else if (change.removed) {
-        lines.push({
-          type: "del",
-          content,
-          oldLineNumber: oldLine++,
-        });
+        lines.push({ type: "del", content, oldLineNumber: oldLine++ });
       } else {
         lines.push({
           type: "normal",
@@ -93,35 +92,26 @@ function computeDiff(oldContent: string, newContent: string): ParsedLine[] {
   return lines;
 }
 
-interface SplitLinePair {
-  left: ParsedLine | null;
-  right: ParsedLine | null;
-}
-
 function pairLinesForSplit(lines: ParsedLine[]): SplitLinePair[] {
   const pairs: SplitLinePair[] = [];
   let i = 0;
 
   while (i < lines.length) {
-    const line = lines[i];
-
+    const line = lines[i]!;
     if (line.type === "normal") {
       pairs.push({ left: line, right: line });
       i++;
     } else if (line.type === "del") {
-      // Collect consecutive deletions
       const deletions: ParsedLine[] = [];
-      while (i < lines.length && lines[i].type === "del") {
-        deletions.push(lines[i]);
+      while (i < lines.length && lines[i]!.type === "del") {
+        deletions.push(lines[i]!);
         i++;
       }
-      // Collect consecutive additions
       const additions: ParsedLine[] = [];
-      while (i < lines.length && lines[i].type === "add") {
-        additions.push(lines[i]);
+      while (i < lines.length && lines[i]!.type === "add") {
+        additions.push(lines[i]!);
         i++;
       }
-      // Pair them up
       const maxLen = Math.max(deletions.length, additions.length);
       for (let j = 0; j < maxLen; j++) {
         pairs.push({
@@ -129,42 +119,124 @@ function pairLinesForSplit(lines: ParsedLine[]): SplitLinePair[] {
           right: additions[j] ?? null,
         });
       }
-    } else if (line.type === "add") {
-      // Additions without preceding deletions
+    } else {
       pairs.push({ left: null, right: line });
       i++;
     }
   }
-
   return pairs;
 }
 
-interface UnifiedLineProps {
-  line: ParsedLine;
-  showLineNumbers: boolean;
+const diffViewerVariants = cva(
+  "aui-diff-viewer overflow-hidden rounded-lg border bg-background font-mono text-sm",
+  {
+    variants: {
+      variant: {
+        default: "",
+        ghost: "border-0 bg-transparent",
+        muted: "bg-muted/50",
+      },
+      size: {
+        sm: "text-xs",
+        default: "text-sm",
+        lg: "text-base",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+      size: "default",
+    },
+  },
+);
+
+const diffLineVariants = cva("flex", {
+  variants: {
+    type: {
+      add: "bg-green-500/20",
+      del: "bg-red-500/20",
+      normal: "",
+      empty: "",
+    },
+  },
+  defaultVariants: {
+    type: "normal",
+  },
+});
+
+const diffLineTextVariants = cva("", {
+  variants: {
+    type: {
+      add: "text-green-700 dark:text-green-400",
+      del: "text-red-700 dark:text-red-400",
+      normal: "",
+      empty: "",
+    },
+  },
+  defaultVariants: {
+    type: "normal",
+  },
+});
+
+interface DiffViewerHeaderProps extends ComponentProps<"div"> {
+  oldName?: string;
+  newName?: string;
 }
 
-const UnifiedLine: FC<UnifiedLineProps> = ({ line, showLineNumbers }) => {
-  const indicator = line.type === "add" ? "+" : line.type === "del" ? "-" : " ";
-
-  const bgClass =
-    line.type === "add"
-      ? "bg-green-500/20"
-      : line.type === "del"
-        ? "bg-red-500/20"
-        : "";
-
-  const textClass =
-    line.type === "add"
-      ? "text-green-700 dark:text-green-400"
-      : line.type === "del"
-        ? "text-red-700 dark:text-red-400"
-        : "";
+function DiffViewerHeader({
+  oldName,
+  newName,
+  className,
+  ...props
+}: DiffViewerHeaderProps) {
+  if (!oldName && !newName) return null;
 
   return (
-    <div className={cn("flex", bgClass)} data-type={line.type}>
+    <div
+      data-slot="diff-viewer-header"
+      className={cn(
+        "border-b bg-muted px-4 py-2 text-muted-foreground",
+        className,
+      )}
+      {...props}
+    >
+      {oldName && newName && oldName !== newName ? (
+        <>
+          <span className="text-red-600 dark:text-red-400">{oldName}</span>
+          {" → "}
+          <span className="text-green-600 dark:text-green-400">{newName}</span>
+        </>
+      ) : (
+        newName || oldName
+      )}
+    </div>
+  );
+}
+
+interface DiffViewerLineProps extends ComponentProps<"div"> {
+  line: ParsedLine;
+  showLineNumbers?: boolean;
+}
+
+function DiffViewerLine({
+  line,
+  showLineNumbers = true,
+  className,
+  ...props
+}: DiffViewerLineProps) {
+  const indicator = line.type === "add" ? "+" : line.type === "del" ? "-" : " ";
+
+  return (
+    <div
+      data-slot="diff-viewer-line"
+      data-type={line.type}
+      className={cn(diffLineVariants({ type: line.type }), className)}
+      {...props}
+    >
       {showLineNumbers && (
-        <span className="w-12 shrink-0 select-none px-2 text-right text-muted-foreground">
+        <span
+          data-slot="diff-viewer-line-number"
+          className="w-12 shrink-0 select-none px-2 text-right text-muted-foreground"
+        >
           {line.type === "del"
             ? line.oldLineNumber
             : line.type === "add"
@@ -172,120 +244,132 @@ const UnifiedLine: FC<UnifiedLineProps> = ({ line, showLineNumbers }) => {
               : line.oldLineNumber}
         </span>
       )}
-      <span className={cn("w-4 shrink-0 select-none text-center", textClass)}>
+      <span
+        data-slot="diff-viewer-indicator"
+        className={cn(
+          "w-4 shrink-0 select-none text-center",
+          diffLineTextVariants({ type: line.type }),
+        )}
+      >
         {indicator}
       </span>
-      <span className={cn("flex-1 whitespace-pre-wrap break-all", textClass)}>
+      <span
+        data-slot="diff-viewer-content"
+        className={cn(
+          "flex-1 whitespace-pre-wrap break-all",
+          diffLineTextVariants({ type: line.type }),
+        )}
+      >
         {line.content}
       </span>
     </div>
   );
-};
-
-interface SplitLineProps {
-  pair: SplitLinePair;
-  showLineNumbers: boolean;
 }
 
-const SplitLine: FC<SplitLineProps> = ({ pair, showLineNumbers }) => {
+interface DiffViewerSplitLineProps extends ComponentProps<"div"> {
+  pair: SplitLinePair;
+  showLineNumbers?: boolean;
+}
+
+function DiffViewerSplitLine({
+  pair,
+  showLineNumbers = true,
+  className,
+  ...props
+}: DiffViewerSplitLineProps) {
   const { left, right } = pair;
 
-  const leftBg = left?.type === "del" ? "bg-red-500/20" : "";
-  const rightBg = right?.type === "add" ? "bg-green-500/20" : "";
-
-  const leftText = left?.type === "del" ? "text-red-700 dark:text-red-400" : "";
-  const rightText =
-    right?.type === "add" ? "text-green-700 dark:text-green-400" : "";
-
   return (
-    <div className="flex">
-      {/* Left side (old) */}
+    <div
+      data-slot="diff-viewer-split-line"
+      className={cn("flex", className)}
+      {...props}
+    >
       <div
-        className={cn("flex w-1/2 border-r", leftBg)}
+        data-slot="diff-viewer-split-left"
         data-type={left?.type ?? "empty"}
+        className={cn(
+          "flex w-1/2 border-r",
+          diffLineVariants({ type: left?.type ?? "empty" }),
+        )}
       >
         {showLineNumbers && (
           <span className="w-12 shrink-0 select-none px-2 text-right text-muted-foreground">
             {left?.oldLineNumber ?? ""}
           </span>
         )}
-        <span className={cn("w-4 shrink-0 select-none text-center", leftText)}>
+        <span
+          className={cn(
+            "w-4 shrink-0 select-none text-center",
+            diffLineTextVariants({ type: left?.type ?? "empty" }),
+          )}
+        >
           {left ? (left.type === "del" ? "-" : " ") : ""}
         </span>
-        <span className={cn("flex-1 whitespace-pre-wrap break-all", leftText)}>
+        <span
+          className={cn(
+            "flex-1 whitespace-pre-wrap break-all",
+            diffLineTextVariants({ type: left?.type ?? "empty" }),
+          )}
+        >
           {left?.content ?? ""}
         </span>
       </div>
-      {/* Right side (new) */}
       <div
-        className={cn("flex w-1/2", rightBg)}
+        data-slot="diff-viewer-split-right"
         data-type={right?.type ?? "empty"}
+        className={cn(
+          "flex w-1/2",
+          diffLineVariants({ type: right?.type ?? "empty" }),
+        )}
       >
         {showLineNumbers && (
           <span className="w-12 shrink-0 select-none px-2 text-right text-muted-foreground">
             {right?.newLineNumber ?? ""}
           </span>
         )}
-        <span className={cn("w-4 shrink-0 select-none text-center", rightText)}>
+        <span
+          className={cn(
+            "w-4 shrink-0 select-none text-center",
+            diffLineTextVariants({ type: right?.type ?? "empty" }),
+          )}
+        >
           {right ? (right.type === "add" ? "+" : " ") : ""}
         </span>
-        <span className={cn("flex-1 whitespace-pre-wrap break-all", rightText)}>
+        <span
+          className={cn(
+            "flex-1 whitespace-pre-wrap break-all",
+            diffLineTextVariants({ type: right?.type ?? "empty" }),
+          )}
+        >
           {right?.content ?? ""}
         </span>
       </div>
     </div>
   );
-};
+}
 
-export type DiffViewerProps = Partial<SyntaxHighlighterProps> & {
-  patch?: string;
-  oldFile?: { content: string; name?: string };
-  newFile?: { content: string; name?: string };
-  viewMode?: "split" | "unified";
-  showLineNumbers?: boolean;
-  className?: string;
-};
+export type DiffViewerProps = Partial<SyntaxHighlighterProps> &
+  VariantProps<typeof diffViewerVariants> & {
+    patch?: string;
+    oldFile?: { content: string; name?: string };
+    newFile?: { content: string; name?: string };
+    viewMode?: "split" | "unified";
+    showLineNumbers?: boolean;
+    className?: string;
+  };
 
-/**
- * DiffViewer component for rendering diffs
- * Use it by passing to `componentsByLanguage` for diff in `markdown-text.tsx`
- *
- * @example
- * const MarkdownTextImpl = () => {
- *   return (
- *     <MarkdownTextPrimitive
- *       remarkPlugins={[remarkGfm]}
- *       className="aui-md"
- *       components={defaultComponents}
- *       componentsByLanguage={{
- *         diff: {
- *           SyntaxHighlighter: ({ code }) => <DiffViewer patch={code} />
- *         },
- *       }}
- *     />
- *   );
- * };
- *
- * @example
- * // Standalone usage with patch
- * <DiffViewer patch={diffString} viewMode="split" />
- *
- * @example
- * // File comparison
- * <DiffViewer
- *   oldFile={{ content: "old content", name: "file.txt" }}
- *   newFile={{ content: "new content", name: "file.txt" }}
- * />
- */
-export const DiffViewer: FC<DiffViewerProps> = ({
+function DiffViewer({
   code,
   patch,
   oldFile,
   newFile,
   viewMode = "unified",
   showLineNumbers = true,
+  variant,
+  size,
   className,
-}) => {
+}: DiffViewerProps) {
   const diffPatch = patch ?? code;
 
   const parsedFiles = useMemo(() => {
@@ -306,7 +390,10 @@ export const DiffViewer: FC<DiffViewerProps> = ({
 
   if (parsedFiles.length === 0) {
     return (
-      <pre className={cn("rounded-lg bg-muted p-4", className)}>
+      <pre
+        data-slot="diff-viewer"
+        className={cn("rounded-lg bg-muted p-4", className)}
+      >
         No diff content provided
       </pre>
     );
@@ -314,41 +401,26 @@ export const DiffViewer: FC<DiffViewerProps> = ({
 
   return (
     <div
-      className={cn(
-        "aui-diff-viewer overflow-hidden rounded-lg border bg-background font-mono text-sm",
-        className,
-      )}
+      data-slot="diff-viewer"
+      data-view-mode={viewMode}
+      data-variant={variant ?? "default"}
+      data-size={size ?? "default"}
+      className={cn(diffViewerVariants({ variant, size }), className)}
     >
       {parsedFiles.map((file, fileIndex) => (
-        <div key={fileIndex}>
-          {(file.oldName || file.newName) && (
-            <div className="border-b bg-muted px-4 py-2 text-muted-foreground">
-              {file.oldName && file.newName && file.oldName !== file.newName ? (
-                <>
-                  <span className="text-red-600 dark:text-red-400">
-                    {file.oldName}
-                  </span>
-                  {" → "}
-                  <span className="text-green-600 dark:text-green-400">
-                    {file.newName}
-                  </span>
-                </>
-              ) : (
-                file.newName || file.oldName
-              )}
-            </div>
-          )}
-          <div className="overflow-x-auto">
+        <div key={fileIndex} data-slot="diff-viewer-file">
+          <DiffViewerHeader oldName={file.oldName} newName={file.newName} />
+          <div data-slot="diff-viewer-content" className="overflow-x-auto">
             {viewMode === "split"
               ? pairLinesForSplit(file.lines).map((pair, pairIndex) => (
-                  <SplitLine
+                  <DiffViewerSplitLine
                     key={pairIndex}
                     pair={pair}
                     showLineNumbers={showLineNumbers}
                   />
                 ))
               : file.lines.map((line, lineIndex) => (
-                  <UnifiedLine
+                  <DiffViewerLine
                     key={lineIndex}
                     line={line}
                     showLineNumbers={showLineNumbers}
@@ -359,6 +431,16 @@ export const DiffViewer: FC<DiffViewerProps> = ({
       ))}
     </div>
   );
-};
+}
 
 DiffViewer.displayName = "DiffViewer";
+
+export {
+  DiffViewer,
+  DiffViewerHeader,
+  DiffViewerLine,
+  DiffViewerSplitLine,
+  diffViewerVariants,
+  diffLineVariants,
+  diffLineTextVariants,
+};

@@ -4,6 +4,7 @@ description: Render code diffs with syntax highlighting for additions and deleti
 ---
 
 import { InstallCommand } from "@/components/docs/fumadocs/install/install-command";
+import { ParametersTable } from "@/components/docs/tables/ParametersTable";
 import { PreviewCode } from "@/components/docs/preview-code.server";
 import {
   DiffViewerSample,
@@ -85,54 +86,143 @@ Shows old content on the left, new content on the right side-by-side.
   <DiffViewerViewModesSample />
 </PreviewCode>
 
+### Variants
+
+Use the `variant` prop to change the visual style:
+
+```tsx
+<DiffViewer patch={diffString} variant="default" /> // Border with background
+<DiffViewer patch={diffString} variant="ghost" />   // No border, transparent
+<DiffViewer patch={diffString} variant="muted" />   // Muted background
+```
+
+### Sizes
+
+Use the `size` prop to change the font size:
+
+```tsx
+<DiffViewer patch={diffString} size="sm" />      // Extra small text
+<DiffViewer patch={diffString} size="default" /> // Default text
+<DiffViewer patch={diffString} size="lg" />      // Large text
+```
+
 ## API Reference
 
-### Props
+### DiffViewer
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `patch` | `string` | - | Unified diff string |
-| `code` | `string` | - | Alias for `patch` (for markdown integration) |
-| `oldFile` | `{ content: string; name?: string }` | - | Old file for comparison |
-| `newFile` | `{ content: string; name?: string }` | - | New file for comparison |
-| `viewMode` | `"unified" \| "split"` | `"unified"` | Display mode |
-| `showLineNumbers` | `boolean` | `true` | Show line numbers |
-| `className` | `string` | - | Additional CSS classes |
+The main component for rendering diffs.
 
-### Input Sources
+<ParametersTable
+  type="DiffViewerProps"
+  parameters={[
+    {
+      name: "patch",
+      type: "string",
+      description: "Unified diff string (e.g., output from git diff).",
+    },
+    {
+      name: "code",
+      type: "string",
+      description: "Alias for patch (for markdown integration).",
+    },
+    {
+      name: "oldFile",
+      type: "{ content: string; name?: string }",
+      description: "Old file for direct comparison.",
+    },
+    {
+      name: "newFile",
+      type: "{ content: string; name?: string }",
+      description: "New file for direct comparison.",
+    },
+    {
+      name: "viewMode",
+      type: '"unified" | "split"',
+      default: '"unified"',
+      description: "Display mode for the diff.",
+    },
+    {
+      name: "variant",
+      type: '"default" | "ghost" | "muted"',
+      default: '"default"',
+      description: "Visual style variant.",
+    },
+    {
+      name: "size",
+      type: '"sm" | "default" | "lg"',
+      default: '"default"',
+      description: "Font size.",
+    },
+    {
+      name: "showLineNumbers",
+      type: "boolean",
+      default: "true",
+      description: "Show line numbers.",
+    },
+    {
+      name: "className",
+      type: "string",
+      description: "Additional CSS classes.",
+    },
+  ]}
+/>
 
-You must provide one of the following:
+### Composable API
 
-| Source | Description |
+| Component | Description |
+|-----------|-------------|
+| `DiffViewer` | The main component that renders the diff. |
+| `DiffViewerHeader` | File name header with rename detection. |
+| `DiffViewerLine` | Individual line in unified mode. |
+| `DiffViewerSplitLine` | Side-by-side line pair in split mode. |
+
+### Style Variants (CVA)
+
+| Export | Description |
 |--------|-------------|
-| `patch` / `code` | A unified diff string (e.g., output from `git diff`) |
-| `oldFile` + `newFile` | Two files to compare directly |
+| `diffViewerVariants` | Styles for the root container. |
+| `diffLineVariants` | Background styles for diff lines. |
+| `diffLineTextVariants` | Text color styles for diff lines. |
+
+```tsx
+import {
+  diffViewerVariants,
+  diffLineVariants,
+  diffLineTextVariants,
+} from "@/components/assistant-ui/diff-viewer";
+
+// Use variants directly
+<div className={diffViewerVariants({ variant: "ghost", size: "sm" })}>
+  Custom diff container
+</div>
+```
 
 ## Styling
 
-The component uses Tailwind CSS classes with sensible defaults:
+### Data Attributes
 
-| Line Type | Background | Text Color |
-|-----------|------------|------------|
-| Addition | `bg-green-500/20` | `text-green-700` / `dark:text-green-400` |
-| Deletion | `bg-red-500/20` | `text-red-700` / `dark:text-red-400` |
-| Context | - | - |
+Use data attributes for custom styling:
 
-### Custom Styling
+| Attribute | Values | Description |
+|-----------|--------|-------------|
+| `data-slot` | `"diff-viewer"`, `"diff-viewer-header"`, `"diff-viewer-line"`, etc. | Component identification |
+| `data-type` | `"add"`, `"del"`, `"normal"`, `"empty"` | Line type |
+| `data-view-mode` | `"unified"`, `"split"` | Current view mode |
+| `data-variant` | `"default"`, `"ghost"`, `"muted"` | Current variant |
 
-Use the `data-type` attribute on each line for custom styling:
+### Custom CSS Example
 
 ```css
-.aui-diff-viewer [data-type="add"] {
-  /* custom addition styles */
+[data-slot="diff-viewer"][data-view-mode="split"] {
+  /* Custom split view styles */
 }
 
-.aui-diff-viewer [data-type="del"] {
-  /* custom deletion styles */
+[data-slot="diff-viewer-line"][data-type="add"] {
+  /* Custom addition styles */
 }
 
-.aui-diff-viewer [data-type="normal"] {
-  /* custom context line styles */
+[data-slot="diff-viewer-line"][data-type="del"] {
+  /* Custom deletion styles */
 }
 ```
 

@@ -75,7 +75,7 @@ export function PreviewCodeClient({
             className,
           )}
         >
-          {children}
+          <div className="w-full">{children}</div>
         </div>
       ) : (
         <div className="preview-code-block relative overflow-hidden rounded-xl">

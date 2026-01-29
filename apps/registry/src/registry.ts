@@ -309,7 +309,12 @@ export const registry: RegistryItem[] = [
           "../../packages/ui/src/components/assistant-ui/diff-viewer.tsx",
       },
     ],
-    dependencies: ["diff", "parse-diff", "@assistant-ui/react-markdown"],
+    dependencies: [
+      "diff",
+      "parse-diff",
+      "@assistant-ui/react-markdown",
+      "class-variance-authority",
+    ],
   },
   {
     name: "threadlist-sidebar",

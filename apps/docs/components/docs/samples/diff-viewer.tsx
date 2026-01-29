@@ -27,7 +27,7 @@ const DIFF_LINES: DiffLine[] = [
 
 function UnifiedDiffView({ lines }: { lines: DiffLine[] }) {
   return (
-    <div className="overflow-hidden rounded-lg border bg-background font-mono text-sm">
+    <div className="w-full overflow-hidden rounded-lg border bg-background font-mono text-sm">
       <div className="border-b bg-muted px-4 py-2 text-muted-foreground">
         example.ts
       </div>
@@ -117,7 +117,7 @@ function SplitDiffView({ lines }: { lines: DiffLine[] }) {
   const pairs = pairLines(lines);
 
   return (
-    <div className="overflow-hidden rounded-lg border bg-background font-mono text-sm">
+    <div className="w-full overflow-hidden rounded-lg border bg-background font-mono text-sm">
       <div className="border-b bg-muted px-4 py-2 text-muted-foreground">
         example.ts
       </div>
@@ -133,7 +133,6 @@ function SplitDiffView({ lines }: { lines: DiffLine[] }) {
 
           return (
             <div key={i} className="flex">
-              {/* Left side */}
               <div className={`flex w-1/2 border-r ${leftBg}`}>
                 <span className="w-10 shrink-0 select-none px-2 text-right text-muted-foreground">
                   {left?.old ?? ""}
@@ -147,7 +146,6 @@ function SplitDiffView({ lines }: { lines: DiffLine[] }) {
                   {left?.content ?? ""}
                 </span>
               </div>
-              {/* Right side */}
               <div className={`flex w-1/2 ${rightBg}`}>
                 <span className="w-10 shrink-0 select-none px-2 text-right text-muted-foreground">
                   {right?.new ?? ""}
@@ -189,34 +187,38 @@ export function DiffViewerViewModesSample() {
   const [viewMode, setViewMode] = useState<"unified" | "split">("unified");
 
   return (
-    <SampleFrame className="flex h-auto flex-col gap-4 overflow-hidden bg-muted/40 p-4">
-      <div className="flex gap-2">
-        <button
-          onClick={() => setViewMode("unified")}
-          className={`rounded-md px-3 py-1.5 text-sm transition-colors ${
-            viewMode === "unified"
-              ? "bg-primary text-primary-foreground"
-              : "bg-muted hover:bg-muted/80"
-          }`}
-        >
-          Unified
-        </button>
-        <button
-          onClick={() => setViewMode("split")}
-          className={`rounded-md px-3 py-1.5 text-sm transition-colors ${
-            viewMode === "split"
-              ? "bg-primary text-primary-foreground"
-              : "bg-muted hover:bg-muted/80"
-          }`}
-        >
-          Split
-        </button>
+    <SampleFrame className="h-auto overflow-hidden bg-muted/40">
+      <div className="flex h-full w-full flex-col items-center justify-center gap-4 p-4">
+        <div className="flex gap-2">
+          <button
+            onClick={() => setViewMode("unified")}
+            className={`rounded-md px-3 py-1.5 text-sm transition-colors ${
+              viewMode === "unified"
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted hover:bg-muted/80"
+            }`}
+          >
+            Unified
+          </button>
+          <button
+            onClick={() => setViewMode("split")}
+            className={`rounded-md px-3 py-1.5 text-sm transition-colors ${
+              viewMode === "split"
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted hover:bg-muted/80"
+            }`}
+          >
+            Split
+          </button>
+        </div>
+        <div className="w-full max-w-3xl">
+          {viewMode === "unified" ? (
+            <UnifiedDiffView lines={DIFF_LINES} />
+          ) : (
+            <SplitDiffView lines={DIFF_LINES} />
+          )}
+        </div>
       </div>
-      {viewMode === "unified" ? (
-        <UnifiedDiffView lines={DIFF_LINES} />
-      ) : (
-        <SplitDiffView lines={DIFF_LINES} />
-      )}
     </SampleFrame>
   );
 }
