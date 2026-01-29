@@ -1,18 +1,22 @@
 ---
 title: AI SDK
-description: Add cloud persistence to any AI SDK app with two hooks — no UI library required.
+description: Add cloud persistence to your existing AI SDK app with two hooks.
 ---
 
 import { InstallCommand } from "@/components/docs/fumadocs/install/install-command";
 
 ## Overview
 
-The `assistant-cloud` package provides two hooks that add full thread persistence to any [AI SDK](https://sdk.vercel.ai/) application:
+The `assistant-cloud` package provides two hooks that add full message and thread persistence to any [AI SDK](https://sdk.vercel.ai/) application:
 
 - **`useCloudChat`** — wraps `useChat` with automatic cloud persistence, thread management, and title generation
 - **`useThreads`** — provides a thread list with delete, rename, archive, and unarchive operations
 
 These hooks work with any React UI. You keep full control of your components.
+
+<Callout type="tip">
+  Want pre-built UI components? See [AI SDK + assistant-ui](/docs/cloud/ai-sdk-assistant-ui) for the full integration with `<Thread />` and `<ThreadList />`.
+</Callout>
 
 ## Prerequisites
 

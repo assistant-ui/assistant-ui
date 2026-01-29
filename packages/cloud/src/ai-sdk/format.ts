@@ -12,23 +12,10 @@ export const MESSAGE_FORMAT = "ai-sdk/v6";
 
 /**
  * Encode a UIMessage for cloud storage.
- * Strips the id (stored separately) and filters out file parts (not yet supported).
+ * Strips the id (stored separately in CloudMessage.id).
  */
-export function encode({ id, parts, ...rest }: UIMessage): ReadonlyJSONObject {
-  return {
-    ...rest,
-    parts: parts?.filter((part) => {
-      if (part.type === "file") {
-        if (process.env["NODE_ENV"] === "development") {
-          console.warn(
-            "[useSync] File attachments are not yet supported and will not be persisted to cloud",
-          );
-        }
-        return false;
-      }
-      return true;
-    }),
-  } as ReadonlyJSONObject;
+export function encode({ id, ...rest }: UIMessage): ReadonlyJSONObject {
+  return rest as ReadonlyJSONObject;
 }
 
 /**
