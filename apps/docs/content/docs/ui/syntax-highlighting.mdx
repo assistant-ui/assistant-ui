@@ -50,68 +50,14 @@ export const defaultComponents = memoizeMarkdownComponents({
 
 ### Options
 
-<TypeTable
-  type={Object.fromEntries(
-    Object.entries({
-      theme: {
-        description:
-          "Shiki built-in or custom textmate themes. Accepts a single theme or an object of themes mapped to theme mode strings.",
-        type: "Theme | Themes",
-        typeDescriptionLink:
-          "https://github.com/AVGVSTVS96/react-shiki/blob/694433ef697c9791b3816cf94d12d571e8abbb3a/package/src/types.ts#L51",
-        default: "github-dark",
-        required: true,
-      },
-      language: {
-        description:
-          "Shiki built-in or custom textmate grammar object for highlighting",
-        type: "Language (string | object)",
-        typeDescriptionLink:
-          "https://github.com/AVGVSTVS96/react-shiki/blob/694433ef697c9791b3816cf94d12d571e8abbb3a/package/src/types.ts#L24",
-        default: "text",
-        required: true,
-      },
-      as: {
-        description: "The code block container element type",
-        type: "React.ElementType",
-        default: "pre",
-      },
-      className: {
-        description: "Custom CSS classes for the code block container element",
-        type: "string",
-        default: "",
-      },
-      style: {
-        description: "Inline styles for the code block container element",
-        type: "React.CSSProperties",
-        default: undefined,
-      },
-      delay: {
-        description:
-          "Delay in milliseconds between consecutive highlights, useful for streamed code responses.",
-        type: "number",
-        default: 0,
-      },
-      customLanguages: {
-        description: "Custom languages to preload for highlighting",
-        type: "Language[]",
-        typeDescriptionLink:
-          "https://github.com/AVGVSTVS96/react-shiki/blob/694433ef697c9791b3816cf94d12d571e8abbb3a/package/src/types.ts#L24",
-        default: "",
-      },
-      codeToHastOptions: {
-        description: "All other options supported by Shiki's `codeToHast`",
-        type: "CodeToHastOptions",
-        typeDescriptionLink:
-          "https://github.com/shikijs/shiki/blob/main/packages/types/src/options.ts#L121",
-        default: "{}",
-        required: true,
-      },
-      // This reverts the order of the type table, fumadocs reversed the order on 4/22/25 in:
-      // https://github.com/fuma-nama/fumadocs/commit/3a5595aa65acfa5c20be2377d09c03fbb1de72a6
-    }).reverse(),
-  )}
-/>
+See [react-shiki documentation](https://github.com/AVGVSTVS96/react-shiki#props) for all available options.
+
+Key options:
+- `theme` - Shiki theme (default: `"github-dark"`)
+- `language` - Language for highlighting (default: `"text"`)
+- `delay` - Delay between highlights, useful for streaming (default: `0`)
+- `customLanguages` - Custom languages to preload
+- `codeToHastOptions` - Options passed to Shiki's `codeToHast`
 
 ### Bundle Optimization
 
