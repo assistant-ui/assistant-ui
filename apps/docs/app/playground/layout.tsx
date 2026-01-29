@@ -2,11 +2,16 @@ import type { Metadata } from "next";
 import { ReactNode, Suspense } from "react";
 import { SubProjectLayout } from "@/components/shared/sub-project-layout";
 import { PlaygroundRuntimeProvider } from "@/contexts/PlaygroundRuntimeProvider";
+import { createOgMetadata } from "@/lib/og";
+
+const title = "Playground";
+const description =
+  "Experiment with different configurations and settings using the Assistant UI Playground.";
 
 export const metadata: Metadata = {
-  title: "Playground",
-  description:
-    "Experiment with different configurations and settings using the Assistant UI Playground.",
+  title,
+  description,
+  ...createOgMetadata(title, description),
 };
 
 export default function PlaygroundLayout({
