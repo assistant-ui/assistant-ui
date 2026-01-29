@@ -1,5 +1,11 @@
 # @assistant-ui/store
 
+## 0.1.3
+
+### Patch Changes
+
+- 3bbe318: fix: allow destructuring proxy methods (e.g. `addToolResult`, `resumeToolCall`)
+
 ## 0.1.2
 
 ### Patch Changes
