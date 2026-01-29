@@ -3,19 +3,28 @@ title: Custom Scrollbar
 description: Replace the default scrollbar with a custom Radix UI scroll area.
 ---
 
-import { InstallCommand } from "@/components/docs/fumadocs/install/install-command";
 import { ScrollbarSample } from "@/components/docs/samples/scrollbar";
 
 <ScrollbarSample />
 
-If you want to show a custom scrollbar UI of the Thread.Viewport in place of the system default, you can integrate `@radix-ui/react-scroll-area`.
+If you want to show a custom scrollbar UI of the `ThreadPrimitive.Viewport` in place of the system default, you can integrate `@radix-ui/react-scroll-area`.
 An example implementation of this is [shadcn/ui's Scroll Area](https://ui.shadcn.com/docs/components/scroll-area).
 
-## Add shadcn Scroll Area
+<Steps>
 
-<InstallCommand shadcn={["scroll-area"]} />
+<Step>
 
-## Additional Styles
+### Add shadcn Scroll Area
+
+```bash
+npx shadcn@latest add scroll-area
+```
+
+</Step>
+
+<Step>
+
+### Add Additional Styles
 
 The Radix UI Viewport component adds an intermediate `<div data-radix-scroll-area-content>` element.
 Add the following CSS to your `globals.css`:
@@ -26,11 +35,15 @@ Add the following CSS to your `globals.css`:
 }
 ```
 
-## Integration
+</Step>
 
-- Wrap `Thread.Root` with `<ScrollAreaPrimitive.Root asChild>`
-- Wrap `Thread.Viewport` with `<ScrollAreaPrimitive.Viewport className="thread-viewport" asChild>`
-- Add shadcn's `<ScrollBar />` to `Thread.Root`
+<Step>
+
+### Integrate with Thread
+
+- Wrap `ThreadPrimitive.Root` with `<ScrollAreaPrimitive.Root asChild>`
+- Wrap `ThreadPrimitive.Viewport` with `<ScrollAreaPrimitive.Viewport className="thread-viewport" asChild>`
+- Add shadcn's `<ScrollBar />` to `ThreadPrimitive.Root`
 
 The resulting MyThread component should look like this:
 
@@ -53,6 +66,10 @@ const MyThread: FC = () => {
   );
 };
 ```
+
+</Step>
+
+</Steps>
 
 ## Related Components
 
