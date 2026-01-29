@@ -24,6 +24,15 @@ const PRESERVE_PATHS = [
   "server/.env.local",
 ] as const;
 
+async function safeRm(dir: string, label: string): Promise<void> {
+  try {
+    await fs.rm(dir, { recursive: true, force: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.warn(`⚠ Failed to remove ${label}: ${message}`);
+  }
+}
+
 async function exists(p: string): Promise<boolean> {
   try {
     await fs.access(p);
@@ -75,7 +84,11 @@ async function restorePreviewArtifacts(
   for (const relativePath of movedPaths) {
     const from = path.join(preserveDir, relativePath);
     const to = path.join(PREVIEW_DIR, relativePath);
+    if (!(await exists(from))) continue;
     await ensureDir(path.dirname(to));
+
+    // If the template extraction created any of these paths, intentionally
+    // overwrite them so local caches/env files are preserved across syncs.
     if (await exists(to)) {
       await fs.rm(to, { recursive: true, force: true });
     }
@@ -94,7 +107,7 @@ async function downloadAndExtractTemplate(): Promise<void> {
     const response = await fetch(tarballUrl);
     if (!response.ok) {
       throw new Error(
-        `Failed to download template: ${response.status} ${response.statusText}`,
+        `Failed to download template from ${tarballUrl}: ${response.status} ${response.statusText}`,
       );
     }
 
@@ -115,7 +128,7 @@ async function downloadAndExtractTemplate(): Promise<void> {
       strip: 1, // Remove top-level directory in tarball
     });
   } finally {
-    await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {});
+    await safeRm(tempDir, `temp directory (${tempDir})`);
   }
 }
 
@@ -141,15 +154,37 @@ async function main() {
   const { preserveDir, movedPaths } = await preservePreviewArtifacts();
 
   // Reset preview dir to template contents.
-  await fs.rm(PREVIEW_DIR, { recursive: true, force: true });
+  await safeRm(PREVIEW_DIR, `.preview directory (${PREVIEW_DIR})`);
   await ensureDir(PREVIEW_DIR);
 
+  let syncError: unknown;
   try {
     await downloadAndExtractTemplate();
     await patchPreviewPackageJson();
-    await restorePreviewArtifacts(preserveDir, movedPaths);
+  } catch (err) {
+    syncError = err;
+    console.error(
+      "[mcp-app-studio] Sync failed. Attempting to restore preserved artifacts...",
+    );
   } finally {
-    await fs.rm(preserveDir, { recursive: true, force: true }).catch(() => {});
+    let restored = false;
+    try {
+      await restorePreviewArtifacts(preserveDir, movedPaths);
+      restored = true;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.warn(
+        `⚠ Failed to restore preserved artifacts. Backup kept at ${preserveDir}. (${message})`,
+      );
+    }
+
+    if (restored) {
+      await safeRm(preserveDir, `backup directory (${preserveDir})`);
+    }
+  }
+
+  if (syncError) {
+    throw syncError;
   }
 
   console.log("Done.");
