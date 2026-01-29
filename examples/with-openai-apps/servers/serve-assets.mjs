@@ -24,6 +24,13 @@ function injectBridgeScript(html) {
 
 const app = express();
 
+// WARNING: Wildcard CORS is for local development only.
+// In production, configure ALLOWED_ORIGINS environment variable:
+//   ALLOWED_ORIGINS=https://your-app.com,https://another-app.com
+// Example production code:
+//   const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [];
+//   const origin = req.headers.origin;
+//   if (allowedOrigins.includes(origin)) res.header("Access-Control-Allow-Origin", origin);
 app.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Methods", "GET, OPTIONS");
