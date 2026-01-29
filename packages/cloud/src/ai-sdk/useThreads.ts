@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { AssistantCloud } from "../AssistantCloud";
 
 export type ThreadStatus = "regular" | "archived";
@@ -35,6 +35,8 @@ export type CloudThread = {
 };
 
 export type UseThreadsOptions = {
+  /** AssistantCloud instance */
+  cloud: AssistantCloud;
   /** Include archived threads in the list. Default: false */
   includeArchived?: boolean;
 };
@@ -60,6 +62,18 @@ export type UseThreadsResult = {
   archive: (id: string) => Promise<boolean>;
   /** Unarchive a thread (restores to active list) */
   unarchive: (id: string) => Promise<boolean>;
+
+  /** Current thread ID (null for new conversation) */
+  threadId: string | null;
+  /** Switch to a different thread or start new (null) */
+  selectThread: (id: string | null) => void;
+  /**
+   * Generate a title for the specified thread using AI.
+   * Loads messages from cloud and uses the built-in title generation assistant.
+   * @param threadId - The thread ID to generate a title for
+   * @returns The generated title, or null if generation failed
+   */
+  generateTitle: (threadId: string) => Promise<string | null>;
 };
 
 /**
@@ -74,13 +88,21 @@ export type UseThreadsResult = {
  *
  * @example
  * ```tsx
- * const threads = useThreads(cloud);
- * const chat = useCloudChat(cloud, { api: "/api/chat" });
+ * const threads = useThreads({ cloud });
+ * const chat = useCloudChat({
+ *   cloud,
+ *   threadId: threads.threadId,
+ *   api: "/api/chat",
+ *   onThreadCreated: (id) => {
+ *     threads.refresh();
+ *     threads.selectThread(id);
+ *   },
+ * });
  *
  * return (
  *   <ul>
  *     {threads.threads.map((thread) => (
- *       <li key={thread.id} onClick={() => chat.selectThread(thread.id)}>
+ *       <li key={thread.id} onClick={() => threads.selectThread(thread.id)}>
  *         {thread.title || "New conversation"}
  *         <button onClick={() => threads.archive(thread.id)}>Archive</button>
  *       </li>
@@ -89,15 +111,21 @@ export type UseThreadsResult = {
  * );
  * ```
  */
-export function useThreads(
-  cloud: AssistantCloud,
-  options?: UseThreadsOptions,
-): UseThreadsResult {
+export function useThreads(options: UseThreadsOptions): UseThreadsResult {
+  const { cloud, includeArchived = false } = options;
+
   const [threads, setThreads] = useState<CloudThread[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const [threadId, setThreadId] = useState<string | null>(null);
 
-  const includeArchived = options?.includeArchived ?? false;
+  // Track mounted state
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   const refresh = useCallback(async (): Promise<boolean> => {
     setIsLoading(true);
@@ -228,6 +256,81 @@ export function useThreads(
     [cloud],
   );
 
+  const selectThread = useCallback((id: string | null) => {
+    setThreadId(id);
+  }, []);
+
+  const generateTitle = useCallback(
+    async (tid: string): Promise<string | null> => {
+      try {
+        const loadMessages = async () => {
+          for (let attempt = 0; attempt < 2; attempt += 1) {
+            const { messages } = await cloud.threads.messages.list(tid);
+            if (messages.length > 0) return messages;
+            await new Promise((resolve) => setTimeout(resolve, 300));
+          }
+          const { messages } = await cloud.threads.messages.list(tid);
+          return messages;
+        };
+
+        const messages = await loadMessages();
+        if (messages.length === 0) return null;
+
+        // Convert to title generator format (text parts only)
+        const convertedMessages = messages.map((msg) => ({
+          role: msg.content["role"] as string,
+          content: (
+            msg.content["parts"] as Array<{ type: string; text?: string }>
+          )
+            .filter((part) => part.type === "text")
+            .map((part) => ({
+              type: "text" as const,
+              text: part.text!,
+            })),
+        }));
+
+        // Call cloud title generation
+        const stream = await cloud.runs.stream({
+          thread_id: tid,
+          assistant_id: "system/thread_title",
+          messages: convertedMessages,
+        });
+
+        let title = "";
+        const reader = stream.getReader();
+        try {
+          while (true) {
+            const { done, value: chunk } = await reader.read();
+            if (done) break;
+            if (chunk.type === "text-delta") {
+              title += chunk.textDelta;
+            }
+          }
+        } finally {
+          reader.releaseLock();
+        }
+
+        if (title) {
+          await cloud.threads.update(tid, { title });
+          // Update local state
+          if (mountedRef.current) {
+            setThreads((prev) =>
+              prev.map((t) => (t.id === tid ? { ...t, title } : t)),
+            );
+          }
+        }
+
+        return title || null;
+      } catch (err) {
+        if (mountedRef.current) {
+          setError(err instanceof Error ? err : new Error(String(err)));
+        }
+        return null;
+      }
+    },
+    [cloud],
+  );
+
   return {
     threads,
     isLoading,
@@ -239,6 +342,9 @@ export function useThreads(
     rename,
     archive,
     unarchive,
+    threadId,
+    selectThread,
+    generateTitle,
   };
 }
 
