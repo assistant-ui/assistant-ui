@@ -23,32 +23,19 @@ const aiSdkFormatAdapter: MessageFormatAdapter<UIMessage, ReadonlyJSONObject> =
   };
 
 export type UseCloudChatOptions = Omit<ChatInit<UIMessage>, "transport"> & {
+  /** AssistantCloud instance */
+  cloud: AssistantCloud;
+  /** Current thread ID - controlled externally (e.g., from useThreads) */
+  threadId: string | null;
   /** API endpoint for chat. Defaults to "/api/chat" */
   api?: string;
-  /** Called when a new thread is created */
+  /** Called when a new thread is created during send */
   onThreadCreated?: (threadId: string) => void;
-  /** Called when a title is automatically generated for a new thread */
-  onTitleGenerated?: (threadId: string, title: string) => void;
 };
 
-export type UseCloudChatResult = Omit<
-  UseChatHelpers<UIMessage>,
-  "sendMessage"
-> & {
-  /** Current thread ID (null for new conversation) */
-  threadId: string | null;
-  /** Switch to a different thread or start new (null) */
-  selectThread: (id: string | null) => void;
+export type UseCloudChatResult = UseChatHelpers<UIMessage> & {
   /** Sync error state */
   syncError: Error | null;
-  /** Wrapped sendMessage that persists to cloud */
-  sendMessage: UseChatHelpers<UIMessage>["sendMessage"];
-  /**
-   * Generate a title for the current thread using AI.
-   * Uses the cloud's built-in title generation assistant.
-   * @returns The generated title, or null if generation failed
-   */
-  generateTitle: () => Promise<string | null>;
 };
 
 /**
@@ -63,10 +50,15 @@ export type UseCloudChatResult = Omit<
  *
  * @example
  * ```tsx
- * const threads = useThreads(cloud);
- * const chat = useCloudChat(cloud, {
+ * const threads = useThreads({ cloud });
+ * const chat = useCloudChat({
+ *   cloud,
+ *   threadId: threads.threadId,
  *   api: "/api/chat",
- *   onThreadCreated: () => threads.refresh(),
+ *   onThreadCreated: (id) => {
+ *     threads.refresh();
+ *     threads.selectThread(id);
+ *   },
  * });
  *
  * return (
@@ -77,12 +69,8 @@ export type UseCloudChatResult = Omit<
  * );
  * ```
  */
-export function useCloudChat(
-  cloud: AssistantCloud,
-  options?: UseCloudChatOptions,
-): UseCloudChatResult {
-  const { api, onThreadCreated, onTitleGenerated, ...chatOptions } =
-    options ?? {};
+export function useCloudChat(options: UseCloudChatOptions): UseCloudChatResult {
+  const { cloud, threadId, api, onThreadCreated, ...chatOptions } = options;
 
   const persistenceByThreadRef = useRef(
     new Map<string, CloudMessagePersistence>(),
@@ -118,22 +106,15 @@ export function useCloudChat(
     },
     [getPersistence],
   );
-  const [threadId, setThreadId] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<Error | null>(null);
 
-  const transport = useMemo(
-    () => new DefaultChatTransport({ api: api ?? "/api/chat" }),
-    [api],
-  );
-
   // Refs for latest values (avoid stale closures)
-  const threadIdRef = useRef<string | null>(null);
-  const isNewThreadRef = useRef(false);
+  const threadIdRef = useRef<string | null>(threadId);
+  threadIdRef.current = threadId;
+  const createdThreadRef = useRef<string | null>(null);
   const loadedThreadsRef = useRef(new Set<string>());
   const onThreadCreatedRef = useRef(onThreadCreated);
   onThreadCreatedRef.current = onThreadCreated;
-  const onTitleGeneratedRef = useRef(onTitleGenerated);
-  onTitleGeneratedRef.current = onTitleGenerated;
   const onFinishRef = useRef(chatOptions?.onFinish);
   onFinishRef.current = chatOptions?.onFinish;
 
@@ -145,25 +126,47 @@ export function useCloudChat(
     };
   }, []);
 
-  /**
-   * Ensure a thread exists, creating one if needed.
-   */
-  const ensureThread = useCallback(async (): Promise<string> => {
-    if (threadIdRef.current) return threadIdRef.current;
-
-    const res = await cloud.threads.create({
-      last_message_at: new Date(),
-    });
-
-    const tid = res.thread_id;
-    threadIdRef.current = tid;
-    isNewThreadRef.current = true;
-    loadedThreadsRef.current.add(tid);
-    if (mountedRef.current) setThreadId(tid);
-    onThreadCreatedRef.current?.(tid);
-
-    return tid;
-  }, [cloud]);
+  // Internal transport with ensureThread via prepareSendMessagesRequest
+  const transport = useMemo(
+    () =>
+      new DefaultChatTransport({
+        api: api ?? "/api/chat",
+        prepareSendMessagesRequest: async (opts) => {
+          // Ensure thread exists before sending
+          if (!threadIdRef.current && !createdThreadRef.current) {
+            const res = await cloud.threads.create({
+              last_message_at: new Date(),
+            });
+            createdThreadRef.current = res.thread_id;
+            threadIdRef.current = res.thread_id;
+            loadedThreadsRef.current.add(res.thread_id);
+            onThreadCreatedRef.current?.(res.thread_id);
+          }
+          // Return proper structure with body including messages
+          const result: {
+            body: object;
+            headers?: HeadersInit;
+            credentials?: RequestCredentials;
+            api?: string;
+          } = {
+            body: {
+              ...opts.body,
+              id: opts.id,
+              messages: opts.messages,
+              trigger: opts.trigger,
+              messageId: opts.messageId,
+              metadata: opts.requestMetadata,
+            },
+          };
+          if (opts.headers !== undefined) result.headers = opts.headers;
+          if (opts.credentials !== undefined)
+            result.credentials = opts.credentials;
+          if (opts.api !== undefined) result.api = opts.api;
+          return result;
+        },
+      }),
+    [api, cloud],
+  );
 
   const chat = useChat({
     ...chatOptions,
@@ -174,34 +177,14 @@ export function useCloudChat(
   });
 
   // Store ref for chat state access in callbacks
-  const chatRef = useRef(chat);
-  chatRef.current = chat;
   const setMessagesRef = useRef(chat.setMessages);
   setMessagesRef.current = chat.setMessages;
-
-  /**
-   * Wrapped sendMessage that ensures thread exists and persists messages.
-   */
-  const sendMessage: UseChatHelpers<UIMessage>["sendMessage"] = useCallback(
-    async (message, requestOptions) => {
-      try {
-        await ensureThread();
-        return await chat.sendMessage(message, requestOptions);
-      } catch (err) {
-        if (mountedRef.current) {
-          setSyncError(err instanceof Error ? err : new Error(String(err)));
-        }
-        throw err;
-      }
-    },
-    [chat.sendMessage, ensureThread],
-  );
 
   const isRunning = chat.status === "submitted" || chat.status === "streaming";
 
   // Persist messages when not running, matching assistant-ui history semantics.
   useEffect(() => {
-    const tid = threadIdRef.current;
+    const tid = threadIdRef.current ?? createdThreadRef.current;
     if (!tid || isRunning) return;
 
     const formatted = getFormatted(tid);
@@ -241,7 +224,10 @@ export function useCloudChat(
   // Only fires on thread switch, not on isRunning transitions — matching
   // useExternalHistory's load-once-per-thread semantics.
   useEffect(() => {
-    threadIdRef.current = threadId;
+    // Reset createdThreadRef when threadId changes externally
+    if (threadId !== createdThreadRef.current) {
+      createdThreadRef.current = null;
+    }
 
     if (!threadId) {
       setMessagesRef.current([]);
@@ -265,98 +251,8 @@ export function useCloudChat(
     };
   }, [threadId, loadThreadMessages]);
 
-  const selectThread = useCallback((id: string | null) => {
-    setThreadId(id);
-    setSyncError(null);
-    isNewThreadRef.current = false;
-  }, []);
-
-  /**
-   * Internal title generation that accepts messages directly.
-   * Used by both the auto-trigger in onFinish and the public generateTitle().
-   */
-  const generateTitleInternal = useCallback(
-    async (messages: UIMessage[]): Promise<string | null> => {
-      const tid = threadIdRef.current;
-      if (!tid || messages.length === 0) return null;
-
-      // Convert to title generator format (text parts only).
-      const convertedMessages = messages.map((msg) => ({
-        role: msg.role,
-        content: msg.parts
-          .filter((part) => part.type === "text")
-          .map((part) => ({
-            type: "text" as const,
-            text: (part as { type: "text"; text: string }).text,
-          })),
-      }));
-
-      const stream = await cloud.runs.stream({
-        thread_id: tid,
-        assistant_id: "system/thread_title",
-        messages: convertedMessages,
-      });
-
-      let title = "";
-      const reader = stream.getReader();
-      try {
-        while (true) {
-          const { done, value: chunk } = await reader.read();
-          if (done) break;
-          if (chunk.type === "text-delta") {
-            title += chunk.textDelta;
-          }
-        }
-      } finally {
-        reader.releaseLock();
-      }
-
-      if (title) {
-        await cloud.threads.update(tid, { title });
-        onTitleGeneratedRef.current?.(tid, title);
-      }
-
-      return title || null;
-    },
-    [cloud],
-  );
-
-  /**
-   * Generate a title for the current thread using AI.
-   * Called automatically for new threads after the first response.
-   * Can also be called manually for existing threads.
-   */
-  const generateTitle = useCallback(async (): Promise<string | null> => {
-    try {
-      const result = await generateTitleInternal(chatRef.current.messages);
-      setSyncError(null);
-      return result;
-    } catch (err) {
-      if (mountedRef.current) {
-        setSyncError(err instanceof Error ? err : new Error(String(err)));
-      }
-      return null;
-    }
-  }, [generateTitleInternal]);
-
-  // Auto-generate title for new threads after the first run completes.
-  useEffect(() => {
-    if (isRunning) return;
-
-    if (isNewThreadRef.current) {
-      isNewThreadRef.current = false;
-      generateTitleInternal(chatRef.current.messages).catch(() => {
-        // Title generation is best-effort; don't fail the persistence flow
-      });
-    }
-  }, [generateTitleInternal, isRunning]);
-
   return {
     ...chat,
-    sendMessage, // Override with our wrapped version
-    threadId,
-    selectThread,
     syncError,
-    generateTitle,
   };
 }
