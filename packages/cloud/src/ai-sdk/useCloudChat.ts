@@ -3,13 +3,13 @@ import type { UIMessage, UseChatHelpers } from "@ai-sdk/react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type ChatInit } from "ai";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
-import type { AssistantCloud } from "../AssistantCloud";
 import { CloudMessagePersistence } from "../CloudMessagePersistence";
 import {
   createFormattedPersistence,
   type MessageFormatAdapter,
 } from "../FormattedCloudPersistence";
 import { encode, MESSAGE_FORMAT } from "./format";
+import type { UseThreadsResult } from "./useThreads";
 
 const aiSdkFormatAdapter: MessageFormatAdapter<UIMessage, ReadonlyJSONObject> =
   {
@@ -23,14 +23,10 @@ const aiSdkFormatAdapter: MessageFormatAdapter<UIMessage, ReadonlyJSONObject> =
   };
 
 export type UseCloudChatOptions = Omit<ChatInit<UIMessage>, "transport"> & {
-  /** AssistantCloud instance */
-  cloud: AssistantCloud;
-  /** Current thread ID - controlled externally (e.g., from useThreads) */
-  threadId: string | null;
-  /** API endpoint for chat. Defaults to "/api/chat" */
-  api?: string;
-  /** Called when a new thread is created during send */
-  onThreadCreated?: (threadId: string) => void;
+  /** Thread management from useThreads - provides cloud instance and thread state */
+  threads: UseThreadsResult;
+  /** Auto-generate title after first response on new threads. Default: true */
+  autoGenerateTitle?: boolean;
 };
 
 export type UseCloudChatResult = UseChatHelpers<UIMessage> & {
@@ -51,15 +47,7 @@ export type UseCloudChatResult = UseChatHelpers<UIMessage> & {
  * @example
  * ```tsx
  * const threads = useThreads({ cloud });
- * const chat = useCloudChat({
- *   cloud,
- *   threadId: threads.threadId,
- *   api: "/api/chat",
- *   onThreadCreated: (id) => {
- *     threads.refresh();
- *     threads.selectThread(id);
- *   },
- * });
+ * const chat = useCloudChat({ threads });
  *
  * return (
  *   <div>
@@ -70,7 +58,12 @@ export type UseCloudChatResult = UseChatHelpers<UIMessage> & {
  * ```
  */
 export function useCloudChat(options: UseCloudChatOptions): UseCloudChatResult {
-  const { cloud, threadId, api, onThreadCreated, ...chatOptions } = options;
+  const { threads, autoGenerateTitle = true, ...chatOptions } = options;
+  const { cloud, threadId } = threads;
+
+  // Keep a ref to threads for use in callbacks
+  const threadsRef = useRef(threads);
+  threadsRef.current = threads;
 
   const persistenceByThreadRef = useRef(
     new Map<string, CloudMessagePersistence>(),
@@ -114,10 +107,12 @@ export function useCloudChat(options: UseCloudChatOptions): UseCloudChatResult {
   const createdThreadRef = useRef<string | null>(null);
   const loadedThreadsRef = useRef(new Set<string>());
   const messagesByThreadRef = useRef(new Map<string, UIMessage[]>());
-  const onThreadCreatedRef = useRef(onThreadCreated);
-  onThreadCreatedRef.current = onThreadCreated;
   const onFinishRef = useRef(chatOptions?.onFinish);
   onFinishRef.current = chatOptions?.onFinish;
+
+  // For auto-title generation: track newly created threads
+  const newlyCreatedThreadRef = useRef<string | null>(null);
+  const titleGeneratedRef = useRef(new Set<string>());
 
   // Track mounted state
   const mountedRef = useRef(true);
@@ -131,16 +126,20 @@ export function useCloudChat(options: UseCloudChatOptions): UseCloudChatResult {
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
-        api: api ?? "/api/chat",
         prepareSendMessagesRequest: async (opts) => {
           // Ensure thread exists before sending
           if (!threadIdRef.current && !createdThreadRef.current) {
-            const res = await cloud.threads.create({
+            const res = await threadsRef.current.cloud.threads.create({
               last_message_at: new Date(),
             });
             createdThreadRef.current = res.thread_id;
             threadIdRef.current = res.thread_id;
-            onThreadCreatedRef.current?.(res.thread_id);
+            loadedThreadsRef.current.add(res.thread_id);
+            // Track for auto-title generation
+            newlyCreatedThreadRef.current = res.thread_id;
+            // Auto-select the new thread and refresh the list
+            threadsRef.current.selectThread(res.thread_id);
+            threadsRef.current.refresh();
           }
           // Return proper structure with body including messages
           const result: {
@@ -165,7 +164,7 @@ export function useCloudChat(options: UseCloudChatOptions): UseCloudChatResult {
           return result;
         },
       }),
-    [api, cloud],
+    [],
   );
 
   const chat = useChat({
@@ -187,21 +186,46 @@ export function useCloudChat(options: UseCloudChatOptions): UseCloudChatResult {
     const tid = threadIdRef.current ?? createdThreadRef.current;
     if (!tid || isRunning) return;
 
-    const formatted = getFormatted(tid);
-    const messages = chat.messages;
+    const persist = async () => {
+      const formatted = getFormatted(tid);
+      const messages = chat.messages;
 
-    messages.forEach((msg, idx) => {
-      if (formatted.isPersisted(msg.id)) return;
+      const appendTasks = messages.map((msg, idx) => {
+        if (formatted.isPersisted(msg.id)) return null;
 
-      const parentId = idx > 0 ? messages[idx - 1]!.id : null;
+        const parentId = idx > 0 ? messages[idx - 1]!.id : null;
 
-      formatted.append(tid, { parentId, message: msg }).catch((err) => {
-        if (mountedRef.current) {
-          setSyncError(err instanceof Error ? err : new Error(String(err)));
-        }
+        return formatted
+          .append(tid, { parentId, message: msg })
+          .catch((err) => {
+            if (mountedRef.current) {
+              setSyncError(err instanceof Error ? err : new Error(String(err)));
+            }
+            return null;
+          });
       });
-    });
-  }, [chat.messages, getFormatted, isRunning]);
+
+      const pending = appendTasks.filter(
+        (task): task is Promise<string | null> => task !== null,
+      );
+      if (pending.length > 0) {
+        await Promise.all(pending);
+      }
+
+      if (
+        autoGenerateTitle &&
+        newlyCreatedThreadRef.current === tid &&
+        !titleGeneratedRef.current.has(tid) &&
+        messages.some((msg) => msg.role === "assistant")
+      ) {
+        titleGeneratedRef.current.add(tid);
+        newlyCreatedThreadRef.current = null;
+        void threadsRef.current.generateTitle(tid);
+      }
+    };
+
+    void persist();
+  }, [autoGenerateTitle, chat.messages, getFormatted, isRunning]);
 
   const loadThreadMessages = useCallback(
     async (id: string, cancelledRef: { cancelled: boolean }) => {

@@ -9,8 +9,8 @@ import { InstallCommand } from "@/components/docs/fumadocs/install/install-comma
 
 The `assistant-cloud` package provides two hooks that add full message and thread persistence to any [AI SDK](https://sdk.vercel.ai/) application:
 
-- **`useCloudChat`** — wraps `useChat` with automatic cloud persistence, thread management, and title generation
-- **`useThreads`** — provides a thread list with delete, rename, archive, and unarchive operations
+- **`useThreads`** — manages thread list, selection, and title generation
+- **`useCloudChat`** — wraps `useChat` with automatic cloud persistence
 
 These hooks work with any React UI. You keep full control of your components.
 
@@ -71,13 +71,8 @@ const cloud = new AssistantCloud({
 });
 
 export default function Chat() {
-  const threads = useThreads(cloud);
-
-  const chat = useCloudChat(cloud, {
-    api: "/api/chat",
-    onThreadCreated: () => threads.refresh(),
-    onTitleGenerated: (threadId, title) => threads.rename(threadId, title),
-  });
+  const threads = useThreads({ cloud });
+  const chat = useCloudChat({ threads });
 
   const [input, setInput] = useState("");
   const handleSubmit = async () => {
@@ -92,11 +87,11 @@ export default function Chat() {
       {/* Thread list */}
       <ul>
         {threads.threads.map((t) => (
-          <li key={t.id} onClick={() => chat.selectThread(t.id)}>
+          <li key={t.id} onClick={() => threads.selectThread(t.id)}>
             {t.title || "New conversation"}
           </li>
         ))}
-        <li onClick={() => chat.selectThread(null)}>New chat</li>
+        <li onClick={() => threads.selectThread(null)}>New chat</li>
       </ul>
 
       {/* Chat messages */}
@@ -122,22 +117,50 @@ export default function Chat() {
 
 </Steps>
 
-That's it. Messages persist automatically as they complete, and switching threads loads the full history. Titles are generated automatically after the first response.
+That's it. Messages persist automatically as they complete, and switching threads loads the full history.
 
 ## API Reference
 
-### `useCloudChat(cloud, options?)`
+### `useThreads(options)`
 
-Wraps AI SDK's `useChat` with automatic cloud persistence. Messages are persisted as they finish streaming. Thread creation is automatic on the first message.
+Manages the thread list, thread selection, and title generation.
 
 **Parameters:**
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `cloud` | `AssistantCloud` | Cloud client instance |
-| `options.api` | `string` | API endpoint for chat (default: `"/api/chat"`) |
-| `options.onThreadCreated` | `(id: string) => void` | Called when a new thread is auto-created |
-| `options.onTitleGenerated` | `(threadId: string, title: string) => void` | Called when a title is generated for a new thread |
+| `options.cloud` | `AssistantCloud` | Cloud client instance |
+| `options.includeArchived` | `boolean` | Include archived threads (default: `false`) |
+
+**Returns:** `UseThreadsResult`
+
+| Value | Type | Description |
+|-------|------|-------------|
+| `cloud` | `AssistantCloud` | The cloud instance used by this hook |
+| `threads` | `CloudThread[]` | Active (non-archived) threads sorted by recency |
+| `isLoading` | `boolean` | `true` during initial load or refresh |
+| `error` | `Error \| null` | Last error, if any |
+| `refresh` | `() => Promise<boolean>` | Re-fetch the thread list |
+| `get` | `(id: string) => Promise<CloudThread \| null>` | Get a single thread by ID |
+| `create` | `(options?) => Promise<CloudThread \| null>` | Create a new thread |
+| `delete` | `(id: string) => Promise<boolean>` | Delete a thread |
+| `rename` | `(id: string, title: string) => Promise<boolean>` | Rename a thread |
+| `archive` | `(id: string) => Promise<boolean>` | Archive a thread (removes from list) |
+| `unarchive` | `(id: string) => Promise<boolean>` | Unarchive a thread (restores to list) |
+| `threadId` | `string \| null` | Current thread ID (`null` for a new unsaved chat) |
+| `selectThread` | `(id: string \| null) => void` | Switch threads or pass `null` for a new chat |
+| `generateTitle` | `(threadId: string) => Promise<string \| null>` | Generate a title for a thread using AI |
+
+### `useCloudChat(options)`
+
+Wraps AI SDK's `useChat` with automatic cloud persistence. Messages are persisted as they finish streaming. Thread creation is automatic on the first message — the hook will auto-create the thread, select it, refresh the thread list, and generate a title after the first response.
+
+**Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `options.threads` | `UseThreadsResult` | The result from `useThreads()` — provides cloud instance and thread state |
+| `options.autoGenerateTitle` | `boolean` | Auto-generate title after first response on new threads (default: `true`) |
 
 All other [AI SDK `useChat` options](https://sdk.vercel.ai/docs/reference/ai-sdk-ui/use-chat) (except `transport`) are also accepted.
 
@@ -149,38 +172,9 @@ All other [AI SDK `useChat` options](https://sdk.vercel.ai/docs/reference/ai-sdk
 | `status` | `string` | Chat status: `"ready"`, `"submitted"`, `"streaming"`, or `"error"` |
 | `sendMessage` | `(message, options?) => Promise<void>` | Send a message (auto-creates thread if needed) |
 | `stop` | `() => void` | Stop the current stream |
-| `threadId` | `string \| null` | Current thread ID (`null` for a new unsaved chat) |
-| `selectThread` | `(id: string \| null) => void` | Switch threads or pass `null` for a new chat |
 | `syncError` | `Error \| null` | Last sync error, if any |
-| `generateTitle` | `() => Promise<string \| null>` | Manually generate a title for the current thread |
 
 Plus all other properties from AI SDK's [`UseChatHelpers`](https://sdk.vercel.ai/docs/reference/ai-sdk-ui/use-chat).
-
-### `useThreads(cloud, options?)`
-
-Fetches and manages the thread list.
-
-**Parameters:**
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `cloud` | `AssistantCloud` | Cloud client instance |
-| `options.includeArchived` | `boolean` | Include archived threads (default: `false`) |
-
-**Returns:** `UseThreadsResult`
-
-| Value | Type | Description |
-|-------|------|-------------|
-| `threads` | `CloudThread[]` | Active (non-archived) threads sorted by recency |
-| `isLoading` | `boolean` | `true` during initial load or refresh |
-| `error` | `Error \| null` | Last error, if any |
-| `refresh` | `() => Promise<boolean>` | Re-fetch the thread list |
-| `get` | `(id: string) => Promise<CloudThread \| null>` | Get a single thread by ID |
-| `create` | `(options?) => Promise<CloudThread \| null>` | Create a new thread |
-| `delete` | `(id: string) => Promise<boolean>` | Delete a thread |
-| `rename` | `(id: string, title: string) => Promise<boolean>` | Rename a thread |
-| `archive` | `(id: string) => Promise<boolean>` | Archive a thread (removes from list) |
-| `unarchive` | `(id: string) => Promise<boolean>` | Unarchive a thread (restores to list) |
 
 ## Authentication
 
