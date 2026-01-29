@@ -1,5 +1,11 @@
 # assistant-ui
 
+## 0.0.76
+
+### Patch Changes
+
+- 96cb0fe: feat: use minimal template for init command
+
 ## 0.0.75
 
 ### Patch Changes

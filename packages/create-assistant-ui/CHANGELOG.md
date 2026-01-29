@@ -1,5 +1,11 @@
 # create-assistant-ui
 
+## 0.0.39
+
+### Patch Changes
+
+- 96cb0fe: feat: use minimal template for init command
+
 ## 0.0.38
 
 ### Patch Changes

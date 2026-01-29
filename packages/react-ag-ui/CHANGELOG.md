@@ -1,5 +1,11 @@
 # @assistant-ui/react-ag-ui
 
+## 0.0.13
+
+### Patch Changes
+
+- a888c9b: feat(react-ag-ui): add experimental switch new thread
+
 ## 0.0.12
 
 ### Patch Changes

@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-ag-ui",
-  "version": "0.0.12",
+  "version": "0.0.13",
   "description": "AG-UI protocol adapter for assistant-ui",
   "keywords": [
     "ag-ui",
