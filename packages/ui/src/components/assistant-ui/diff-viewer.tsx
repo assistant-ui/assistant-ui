@@ -143,13 +143,13 @@ function pairLinesForSplit(lines: ParsedLine[]): SplitLinePair[] {
 }
 
 const diffViewerVariants = cva(
-  "aui-diff-viewer overflow-hidden rounded-lg border bg-background font-mono text-sm",
+  "aui-diff-viewer overflow-hidden rounded-lg font-mono text-sm",
   {
     variants: {
       variant: {
-        default: "",
-        ghost: "border-0 bg-transparent",
-        muted: "bg-muted/50",
+        default: "border bg-background",
+        ghost: "bg-transparent",
+        muted: "border border-muted-foreground/20 bg-muted",
       },
       size: {
         sm: "text-xs",
@@ -198,7 +198,7 @@ function getFileExtension(filename?: string): string {
   return ext.toUpperCase();
 }
 
-function FileExtensionBadge({ filename }: { filename?: string }) {
+function DiffViewerFileBadge({ filename }: { filename?: string }) {
   const ext = getFileExtension(filename);
   if (!ext) return null;
 
@@ -212,7 +212,7 @@ function FileExtensionBadge({ filename }: { filename?: string }) {
   );
 }
 
-function DiffStats({
+function DiffViewerStats({
   additions,
   deletions,
 }: {
@@ -224,6 +224,22 @@ function DiffStats({
       <span className="text-green-600 dark:text-green-400">+{additions}</span>
       <span className="text-red-600 dark:text-red-400">-{deletions}</span>
     </span>
+  );
+}
+
+function DiffViewerFile({ className, ...props }: ComponentProps<"div">) {
+  return (
+    <div data-slot="diff-viewer-file" className={cn(className)} {...props} />
+  );
+}
+
+function DiffViewerContent({ className, ...props }: ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="diff-viewer-content"
+      className={cn("overflow-x-auto", className)}
+      {...props}
+    />
   );
 }
 
@@ -259,7 +275,7 @@ function DiffViewerHeader({
       )}
       {...props}
     >
-      {showIcon && <FileExtensionBadge filename={displayName} />}
+      {showIcon && <DiffViewerFileBadge filename={displayName} />}
       <span className="flex-1">
         {oldName && newName && oldName !== newName ? (
           <>
@@ -274,7 +290,7 @@ function DiffViewerHeader({
         )}
       </span>
       {showStats && (additions > 0 || deletions > 0) && (
-        <DiffStats additions={additions} deletions={deletions} />
+        <DiffViewerStats additions={additions} deletions={deletions} />
       )}
     </div>
   );
@@ -520,12 +536,20 @@ function DiffViewer({
 
 DiffViewer.displayName = "DiffViewer";
 
+export type { ParsedLine, ParsedFile, SplitLinePair };
+
 export {
   DiffViewer,
+  DiffViewerFile,
   DiffViewerHeader,
+  DiffViewerContent,
   DiffViewerLine,
   DiffViewerSplitLine,
+  DiffViewerFileBadge,
+  DiffViewerStats,
   diffViewerVariants,
   diffLineVariants,
   diffLineTextVariants,
+  parsePatch,
+  computeDiff,
 };

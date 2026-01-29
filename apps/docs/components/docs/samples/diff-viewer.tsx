@@ -2,189 +2,32 @@
 
 import { useState } from "react";
 import { SampleFrame } from "@/components/docs/samples/sample-frame";
+import { DiffViewer } from "@/components/assistant-ui/diff-viewer";
 
-type DiffLineType = "add" | "del" | "normal";
+const SAMPLE_PATCH = `--- a/example.ts
++++ b/example.ts
+@@ -1,5 +1,7 @@
+-function greet(name) {
+-  console.log("Hello, " + name);
++function greet(name: string): void {
++  console.log(\`Hello, \${name}!\`);
+ }
 
-interface DiffLine {
-  type: DiffLineType;
-  content: string;
-  old?: number;
-  new?: number;
-}
+-greet("World");
++// Call the function
++greet("World");
++greet("TypeScript");`;
 
-const DIFF_LINES: DiffLine[] = [
-  { type: "del", content: "function greet(name) {", old: 1 },
-  { type: "del", content: '  console.log("Hello, " + name);', old: 2 },
-  { type: "add", content: "function greet(name: string): void {", new: 1 },
-  { type: "add", content: "  console.log(`Hello, ${" + "name}!`);", new: 2 },
-  { type: "normal", content: "}", old: 3, new: 3 },
-  { type: "normal", content: "", old: 4, new: 4 },
-  { type: "del", content: 'greet("World");', old: 5 },
-  { type: "add", content: "// Call the function", new: 5 },
-  { type: "add", content: 'greet("World");', new: 6 },
-  { type: "add", content: 'greet("TypeScript");', new: 7 },
-];
-
-function DiffHeader({ lines }: { lines: DiffLine[] }) {
-  const additions = lines.filter((l) => l.type === "add").length;
-  const deletions = lines.filter((l) => l.type === "del").length;
-
-  return (
-    <div className="flex items-center gap-2 border-b bg-muted px-3 py-2 text-muted-foreground">
-      <span className="inline-flex size-5 shrink-0 items-end justify-end rounded-sm border bg-background font-bold text-[8px] leading-none">
-        <span className="p-0.5">TS</span>
-      </span>
-      <span className="flex-1">example.ts</span>
-      <span className="flex gap-2 text-xs">
-        <span className="text-green-600 dark:text-green-400">+{additions}</span>
-        <span className="text-red-600 dark:text-red-400">-{deletions}</span>
-      </span>
-    </div>
-  );
-}
-
-function UnifiedDiffView({ lines }: { lines: DiffLine[] }) {
-  return (
-    <div className="w-full overflow-hidden rounded-lg border bg-background font-mono text-sm">
-      <DiffHeader lines={lines} />
-      <div className="overflow-x-auto">
-        {lines.map((line, i) => {
-          const indicator =
-            line.type === "add" ? "+" : line.type === "del" ? "-" : " ";
-          const bgClass =
-            line.type === "add"
-              ? "bg-green-500/20"
-              : line.type === "del"
-                ? "bg-red-500/20"
-                : "";
-          const textClass =
-            line.type === "add"
-              ? "text-green-700 dark:text-green-400"
-              : line.type === "del"
-                ? "text-red-700 dark:text-red-400"
-                : "";
-
-          return (
-            <div key={i} className={`flex ${bgClass}`}>
-              <span className="w-12 shrink-0 select-none px-2 text-right text-muted-foreground">
-                {line.type === "del"
-                  ? line.old
-                  : line.type === "add"
-                    ? line.new
-                    : line.old}
-              </span>
-              <span
-                className={`w-4 shrink-0 select-none text-center ${textClass}`}
-              >
-                {indicator}
-              </span>
-              <span className={`flex-1 whitespace-pre ${textClass}`}>
-                {line.content}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-interface SplitPair {
-  left: DiffLine | null;
-  right: DiffLine | null;
-}
-
-function pairLines(lines: DiffLine[]): SplitPair[] {
-  const pairs: SplitPair[] = [];
-  let i = 0;
-
-  while (i < lines.length) {
-    const line = lines[i]!;
-    if (line.type === "normal") {
-      pairs.push({ left: line, right: line });
-      i++;
-    } else if (line.type === "del") {
-      const deletions: DiffLine[] = [];
-      while (i < lines.length && lines[i]!.type === "del") {
-        deletions.push(lines[i]!);
-        i++;
-      }
-      const additions: DiffLine[] = [];
-      while (i < lines.length && lines[i]!.type === "add") {
-        additions.push(lines[i]!);
-        i++;
-      }
-      const maxLen = Math.max(deletions.length, additions.length);
-      for (let j = 0; j < maxLen; j++) {
-        pairs.push({
-          left: deletions[j] ?? null,
-          right: additions[j] ?? null,
-        });
-      }
-    } else if (line.type === "add") {
-      pairs.push({ left: null, right: line });
-      i++;
-    }
-  }
-  return pairs;
-}
-
-function SplitDiffView({ lines }: { lines: DiffLine[] }) {
-  const pairs = pairLines(lines);
-
-  return (
-    <div className="w-full overflow-hidden rounded-lg border bg-background font-mono text-sm">
-      <DiffHeader lines={lines} />
-      <div className="overflow-x-auto">
-        {pairs.map((pair, i) => {
-          const { left, right } = pair;
-          const leftBg = left?.type === "del" ? "bg-red-500/20" : "";
-          const rightBg = right?.type === "add" ? "bg-green-500/20" : "";
-          const leftText =
-            left?.type === "del" ? "text-red-700 dark:text-red-400" : "";
-          const rightText =
-            right?.type === "add" ? "text-green-700 dark:text-green-400" : "";
-
-          return (
-            <div key={i} className="flex">
-              <div className={`flex w-1/2 border-r ${leftBg}`}>
-                <span className="w-10 shrink-0 select-none px-2 text-right text-muted-foreground">
-                  {left?.old ?? ""}
-                </span>
-                <span
-                  className={`w-4 shrink-0 select-none text-center ${leftText}`}
-                >
-                  {left ? (left.type === "del" ? "-" : " ") : ""}
-                </span>
-                <span className={`flex-1 whitespace-pre ${leftText}`}>
-                  {left?.content ?? ""}
-                </span>
-              </div>
-              <div className={`flex w-1/2 ${rightBg}`}>
-                <span className="w-10 shrink-0 select-none px-2 text-right text-muted-foreground">
-                  {right?.new ?? ""}
-                </span>
-                <span
-                  className={`w-4 shrink-0 select-none text-center ${rightText}`}
-                >
-                  {right ? (right.type === "add" ? "+" : " ") : ""}
-                </span>
-                <span className={`flex-1 whitespace-pre ${rightText}`}>
-                  {right?.content ?? ""}
-                </span>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
+const SMALL_PATCH = `--- a/example.ts
++++ b/example.ts
+@@ -1 +1 @@
+-let x = 1;
++const x = 1;`;
 
 export function DiffViewerSample() {
   return (
     <SampleFrame className="h-auto overflow-hidden bg-muted/40 p-4">
-      <UnifiedDiffView lines={DIFF_LINES} />
+      <DiffViewer patch={SAMPLE_PATCH} />
     </SampleFrame>
   );
 }
@@ -192,7 +35,7 @@ export function DiffViewerSample() {
 export function DiffViewerSplitSample() {
   return (
     <SampleFrame className="h-auto overflow-hidden bg-muted/40 p-4">
-      <SplitDiffView lines={DIFF_LINES} />
+      <DiffViewer patch={SAMPLE_PATCH} viewMode="split" />
     </SampleFrame>
   );
 }
@@ -226,11 +69,73 @@ export function DiffViewerViewModesSample() {
           </button>
         </div>
         <div className="w-full max-w-3xl">
-          {viewMode === "unified" ? (
-            <UnifiedDiffView lines={DIFF_LINES} />
-          ) : (
-            <SplitDiffView lines={DIFF_LINES} />
-          )}
+          <DiffViewer patch={SAMPLE_PATCH} viewMode={viewMode} />
+        </div>
+      </div>
+    </SampleFrame>
+  );
+}
+
+export function DiffViewerVariantsSample() {
+  return (
+    <SampleFrame className="h-auto overflow-hidden bg-muted/40 p-4">
+      <div className="grid w-full max-w-3xl gap-4 md:grid-cols-3">
+        <div className="flex flex-col gap-2">
+          <span className="font-medium text-muted-foreground text-xs">
+            default
+          </span>
+          <DiffViewer
+            patch={SMALL_PATCH}
+            variant="default"
+            showLineNumbers={false}
+          />
+        </div>
+        <div className="flex flex-col gap-2">
+          <span className="font-medium text-muted-foreground text-xs">
+            ghost
+          </span>
+          <DiffViewer
+            patch={SMALL_PATCH}
+            variant="ghost"
+            showLineNumbers={false}
+          />
+        </div>
+        <div className="flex flex-col gap-2">
+          <span className="font-medium text-muted-foreground text-xs">
+            muted
+          </span>
+          <DiffViewer
+            patch={SMALL_PATCH}
+            variant="muted"
+            showLineNumbers={false}
+          />
+        </div>
+      </div>
+    </SampleFrame>
+  );
+}
+
+export function DiffViewerSizesSample() {
+  return (
+    <SampleFrame className="h-auto overflow-hidden bg-muted/40 p-4">
+      <div className="flex w-full max-w-3xl flex-col gap-4">
+        <div className="flex flex-col gap-2">
+          <span className="font-medium text-muted-foreground text-xs">sm</span>
+          <DiffViewer patch={SMALL_PATCH} size="sm" showLineNumbers={false} />
+        </div>
+        <div className="flex flex-col gap-2">
+          <span className="font-medium text-muted-foreground text-xs">
+            default
+          </span>
+          <DiffViewer
+            patch={SMALL_PATCH}
+            size="default"
+            showLineNumbers={false}
+          />
+        </div>
+        <div className="flex flex-col gap-2">
+          <span className="font-medium text-muted-foreground text-xs">lg</span>
+          <DiffViewer patch={SMALL_PATCH} size="lg" showLineNumbers={false} />
         </div>
       </div>
     </SampleFrame>

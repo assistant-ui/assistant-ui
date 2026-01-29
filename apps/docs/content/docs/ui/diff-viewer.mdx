@@ -10,7 +10,13 @@ import {
   DiffViewerSample,
   DiffViewerSplitSample,
   DiffViewerViewModesSample,
+  DiffViewerVariantsSample,
+  DiffViewerSizesSample,
 } from "@/components/docs/samples/diff-viewer";
+
+<Callout>
+  This is a **standalone component** that does not depend on the assistant-ui runtime.
+</Callout>
 
 <DiffViewerViewModesSample />
 
@@ -88,23 +94,11 @@ Shows old content on the left, new content on the right side-by-side.
 
 ### Variants
 
-Use the `variant` prop to change the visual style:
-
-```tsx
-<DiffViewer patch={diffString} variant="default" /> // Border with background
-<DiffViewer patch={diffString} variant="ghost" />   // No border, transparent
-<DiffViewer patch={diffString} variant="muted" />   // Muted background
-```
+<DiffViewerVariantsSample />
 
 ### Sizes
 
-Use the `size` prop to change the font size:
-
-```tsx
-<DiffViewer patch={diffString} size="sm" />      // Extra small text
-<DiffViewer patch={diffString} size="default" /> // Default text
-<DiffViewer patch={diffString} size="lg" />      // Large text
-```
+<DiffViewerSizesSample />
 
 ## API Reference
 
@@ -160,6 +154,18 @@ The main component for rendering diffs.
       description: "Show line numbers.",
     },
     {
+      name: "showIcon",
+      type: "boolean",
+      default: "true",
+      description: "Show file extension badge in header.",
+    },
+    {
+      name: "showStats",
+      type: "boolean",
+      default: "true",
+      description: "Show addition/deletion counts in header.",
+    },
+    {
       name: "className",
       type: "string",
       description: "Additional CSS classes.",
@@ -171,10 +177,14 @@ The main component for rendering diffs.
 
 | Component | Description |
 |-----------|-------------|
-| `DiffViewer` | The main component that renders the diff. |
-| `DiffViewerHeader` | File name header with rename detection. |
+| `DiffViewer` | Main component that renders the diff. |
+| `DiffViewerFile` | Wrapper for each file in multi-file diffs. |
+| `DiffViewerHeader` | File name header with icon and stats. |
+| `DiffViewerContent` | Scrollable content area. |
 | `DiffViewerLine` | Individual line in unified mode. |
 | `DiffViewerSplitLine` | Side-by-side line pair in split mode. |
+| `DiffViewerFileBadge` | File extension badge (e.g., "TS"). |
+| `DiffViewerStats` | Addition/deletion count display. |
 
 ### Style Variants (CVA)
 
@@ -196,6 +206,16 @@ import {
   Custom diff container
 </div>
 ```
+
+### Utilities
+
+| Export | Description |
+|--------|-------------|
+| `parsePatch(patch)` | Parse unified diff string into structured data. |
+| `computeDiff(old, new)` | Compute diff between two strings. |
+| `ParsedLine` | Type for a single diff line. |
+| `ParsedFile` | Type for a parsed file with lines and stats. |
+| `SplitLinePair` | Type for a side-by-side line pair. |
 
 ## Styling
 
