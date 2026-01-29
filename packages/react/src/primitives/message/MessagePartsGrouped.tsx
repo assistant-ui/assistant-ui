@@ -265,7 +265,7 @@ const MessagePartComponent: FC<MessagePartComponentProps> = ({
 
   const type = part.type;
   if (type === "tool-call") {
-    const addResult = (result: any) => aui.part().addToolResult(result);
+    const addResult = aui.part().addToolResult;
     const resume = aui.part().resumeToolCall;
     if ("Override" in tools)
       return <tools.Override {...part} addResult={addResult} resume={resume} />;
