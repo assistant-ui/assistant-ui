@@ -1,18 +1,17 @@
 ---
 title: AI SDK
-description: Add cloud persistence to your existing AI SDK app with two hooks.
+description: Add cloud persistence to your existing AI SDK app with a single hook.
 ---
 
 import { InstallCommand } from "@/components/docs/fumadocs/install/install-command";
 
 ## Overview
 
-The `assistant-cloud` package provides two hooks that add full message and thread persistence to any [AI SDK](https://sdk.vercel.ai/) application:
+The `assistant-cloud` package provides a single hook that adds full message and thread persistence to any [AI SDK](https://sdk.vercel.ai/) application:
 
-- **`useCloudChat`** — wraps `useChat` with automatic cloud persistence, thread management, and title generation
-- **`useThreads`** — provides a thread list with delete, rename, archive, and unarchive operations
+- **`useCloudChat`** — wraps `useChat` with automatic cloud persistence and built-in thread management
 
-These hooks work with any React UI. You keep full control of your components.
+This hook works with any React UI. You keep full control of your components.
 
 <Callout type="tip">
   Want pre-built UI components? See [AI SDK + assistant-ui](/docs/cloud/ai-sdk-assistant-ui) for the full integration with `<Thread />` and `<ThreadList />`.
@@ -62,29 +61,18 @@ NEXT_PUBLIC_ASSISTANT_BASE_URL=https://proj-[YOUR-ID].assistant-api.com
 "use client";
 
 import { useState } from "react";
-import { AssistantCloud } from "assistant-cloud";
-import { useCloudChat, useThreads } from "assistant-cloud/ai-sdk";
-
-const cloud = new AssistantCloud({
-  baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
-  anonymous: true,
-});
+import { useCloudChat } from "assistant-cloud/ai-sdk";
 
 export default function Chat() {
-  const threads = useThreads(cloud);
-
-  const chat = useCloudChat(cloud, {
-    api: "/api/chat",
-    onThreadCreated: () => threads.refresh(),
-    onTitleGenerated: (threadId, title) => threads.rename(threadId, title),
-  });
+  // That's it! Thread management is included automatically.
+  const { messages, sendMessage, threads } = useCloudChat();
 
   const [input, setInput] = useState("");
   const handleSubmit = async () => {
     const text = input.trim();
     if (!text) return;
     setInput("");
-    await chat.sendMessage({ parts: [{ type: "text", text }] });
+    await sendMessage({ parts: [{ type: "text", text }] });
   };
 
   return (
@@ -92,16 +80,16 @@ export default function Chat() {
       {/* Thread list */}
       <ul>
         {threads.threads.map((t) => (
-          <li key={t.id} onClick={() => chat.selectThread(t.id)}>
+          <li key={t.id} onClick={() => threads.selectThread(t.id)}>
             {t.title || "New conversation"}
           </li>
         ))}
-        <li onClick={() => chat.selectThread(null)}>New chat</li>
+        <li onClick={() => threads.selectThread(null)}>New chat</li>
       </ul>
 
       {/* Chat messages */}
       <div>
-        {chat.messages.map((m) => (
+        {messages.map((m) => (
           <div key={m.id}>
             {m.parts.map((p) => p.type === "text" && p.text)}
           </div>
@@ -122,22 +110,22 @@ export default function Chat() {
 
 </Steps>
 
-That's it. Messages persist automatically as they complete, and switching threads loads the full history. Titles are generated automatically after the first response.
+That's it. Messages persist automatically as they complete, and switching threads loads the full history.
 
 ## API Reference
 
-### `useCloudChat(cloud, options?)`
+### `useCloudChat(options?)`
 
-Wraps AI SDK's `useChat` with automatic cloud persistence. Messages are persisted as they finish streaming. Thread creation is automatic on the first message.
+Wraps AI SDK's `useChat` with automatic cloud persistence and built-in thread management. Messages are persisted as they finish streaming. Thread creation is automatic on the first message — the hook will auto-create the thread, select it, refresh the thread list, and generate a title after the first response.
 
 **Parameters:**
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `cloud` | `AssistantCloud` | Cloud client instance |
-| `options.api` | `string` | API endpoint for chat (default: `"/api/chat"`) |
-| `options.onThreadCreated` | `(id: string) => void` | Called when a new thread is auto-created |
-| `options.onTitleGenerated` | `(threadId: string, title: string) => void` | Called when a title is generated for a new thread |
+| `options.cloud` | `AssistantCloud` | Cloud instance (optional — falls back to `NEXT_PUBLIC_ASSISTANT_BASE_URL` env var) |
+| `options.threads` | `UseThreadsResult` | External thread management from `useThreads()` (optional — for advanced control) |
+| `options.includeArchived` | `boolean` | Include archived threads (default: `false`) |
+| `options.autoGenerateTitle` | `boolean` | Auto-generate title after first response on new threads (default: `true`) |
 
 All other [AI SDK `useChat` options](https://sdk.vercel.ai/docs/reference/ai-sdk-ui/use-chat) (except `transport`) are also accepted.
 
@@ -149,52 +137,67 @@ All other [AI SDK `useChat` options](https://sdk.vercel.ai/docs/reference/ai-sdk
 | `status` | `string` | Chat status: `"ready"`, `"submitted"`, `"streaming"`, or `"error"` |
 | `sendMessage` | `(message, options?) => Promise<void>` | Send a message (auto-creates thread if needed) |
 | `stop` | `() => void` | Stop the current stream |
-| `threadId` | `string \| null` | Current thread ID (`null` for a new unsaved chat) |
-| `selectThread` | `(id: string \| null) => void` | Switch threads or pass `null` for a new chat |
 | `syncError` | `Error \| null` | Last sync error, if any |
-| `generateTitle` | `() => Promise<string \| null>` | Manually generate a title for the current thread |
+| `threads` | `UseThreadsResult` | Thread management (see below) |
 
 Plus all other properties from AI SDK's [`UseChatHelpers`](https://sdk.vercel.ai/docs/reference/ai-sdk-ui/use-chat).
 
-### `useThreads(cloud, options?)`
+**Thread management (`threads`):**
 
-Fetches and manages the thread list.
+| Value | Type | Description |
+|-------|------|-------------|
+| `threads.threads` | `CloudThread[]` | Active threads sorted by recency |
+| `threads.threadId` | `string \| null` | Current thread ID (`null` for a new unsaved chat) |
+| `threads.selectThread` | `(id: string \| null) => void` | Switch threads or pass `null` for a new chat |
+| `threads.isLoading` | `boolean` | `true` during initial load or refresh |
+| `threads.error` | `Error \| null` | Last error, if any |
+| `threads.refresh` | `() => Promise<boolean>` | Re-fetch the thread list |
+| `threads.delete` | `(id: string) => Promise<boolean>` | Delete a thread |
+| `threads.rename` | `(id: string, title: string) => Promise<boolean>` | Rename a thread |
+| `threads.archive` | `(id: string) => Promise<boolean>` | Archive a thread |
+| `threads.unarchive` | `(id: string) => Promise<boolean>` | Unarchive a thread |
+| `threads.generateTitle` | `(threadId: string) => Promise<string \| null>` | Generate a title using AI |
+
+### `useThreads(options)` (Advanced)
+
+For advanced use cases where you need separate control over thread management. Most users should use `useCloudChat()` instead, which includes thread management automatically.
+
+```tsx
+// Advanced: External thread control
+const myThreads = useThreads({ cloud: myCloud });
+const { messages, sendMessage } = useCloudChat({ threads: myThreads });
+```
 
 **Parameters:**
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `cloud` | `AssistantCloud` | Cloud client instance |
+| `options.cloud` | `AssistantCloud` | Cloud client instance |
 | `options.includeArchived` | `boolean` | Include archived threads (default: `false`) |
+| `options.enabled` | `boolean` | Enable thread fetching (default: `true`) |
 
-**Returns:** `UseThreadsResult`
-
-| Value | Type | Description |
-|-------|------|-------------|
-| `threads` | `CloudThread[]` | Active (non-archived) threads sorted by recency |
-| `isLoading` | `boolean` | `true` during initial load or refresh |
-| `error` | `Error \| null` | Last error, if any |
-| `refresh` | `() => Promise<boolean>` | Re-fetch the thread list |
-| `get` | `(id: string) => Promise<CloudThread \| null>` | Get a single thread by ID |
-| `create` | `(options?) => Promise<CloudThread \| null>` | Create a new thread |
-| `delete` | `(id: string) => Promise<boolean>` | Delete a thread |
-| `rename` | `(id: string, title: string) => Promise<boolean>` | Rename a thread |
-| `archive` | `(id: string) => Promise<boolean>` | Archive a thread (removes from list) |
-| `unarchive` | `(id: string) => Promise<boolean>` | Unarchive a thread (restores to list) |
+**Returns:** `UseThreadsResult` — same shape as `threads` from `useCloudChat()`.
 
 ## Authentication
 
-The example above uses `anonymous: true` which creates a browser session-based user ID. For production apps with user accounts:
+The example above uses anonymous mode (browser session-based user ID) via the env var. For production apps with user accounts, pass an explicit cloud instance:
 
 ```tsx
 import { useAuth } from "@clerk/nextjs";
+import { AssistantCloud } from "assistant-cloud";
+import { useCloudChat } from "assistant-cloud/ai-sdk";
 
-const { getToken } = useAuth();
+function Chat() {
+  const { getToken } = useAuth();
 
-const cloud = new AssistantCloud({
-  baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
-  authToken: async () => getToken({ template: "assistant-ui" }),
-});
+  const cloud = useMemo(() => new AssistantCloud({
+    baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
+    authToken: async () => getToken({ template: "assistant-ui" }),
+  }), [getToken]);
+
+  const { messages, sendMessage, threads } = useCloudChat({ cloud });
+  // ...
+}
 ```
 
 See the [Cloud Authorization](/docs/cloud/authorization) guide for other auth providers.

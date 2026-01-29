@@ -1,3 +1,5 @@
+"use client";
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { AssistantCloud } from "../AssistantCloud";
 
@@ -39,9 +41,13 @@ export type UseThreadsOptions = {
   cloud: AssistantCloud;
   /** Include archived threads in the list. Default: false */
   includeArchived?: boolean;
+  /** Skip initial fetch. Use when another hook manages threads. Default: true */
+  enabled?: boolean;
 };
 
 export type UseThreadsResult = {
+  /** The cloud instance used by this hook */
+  cloud: AssistantCloud;
   /** List of threads */
   threads: CloudThread[];
   /** Loading state */
@@ -89,15 +95,7 @@ export type UseThreadsResult = {
  * @example
  * ```tsx
  * const threads = useThreads({ cloud });
- * const chat = useCloudChat({
- *   cloud,
- *   threadId: threads.threadId,
- *   api: "/api/chat",
- *   onThreadCreated: (id) => {
- *     threads.refresh();
- *     threads.selectThread(id);
- *   },
- * });
+ * const chat = useCloudChat({ threads });
  *
  * return (
  *   <ul>
@@ -112,7 +110,7 @@ export type UseThreadsResult = {
  * ```
  */
 export function useThreads(options: UseThreadsOptions): UseThreadsResult {
-  const { cloud, includeArchived = false } = options;
+  const { cloud, includeArchived = false, enabled = true } = options;
 
   const [threads, setThreads] = useState<CloudThread[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -145,10 +143,11 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
     }
   }, [cloud, includeArchived]);
 
-  // Load threads on mount
+  // Load threads on mount (only if enabled)
   useEffect(() => {
+    if (!enabled) return;
     refresh();
-  }, [refresh]);
+  }, [refresh, enabled]);
 
   const get = useCallback(
     async (id: string): Promise<CloudThread | null> => {
@@ -243,9 +242,19 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
     async (id: string): Promise<boolean> => {
       try {
         await cloud.threads.update(id, { is_archived: false });
-        setThreads((prev) =>
-          prev.map((t) => (t.id === id ? { ...t, status: "regular" } : t)),
-        );
+        // Fetch the thread to ensure we have latest data and handle case where
+        // thread was filtered out (when includeArchived: false)
+        const thread = await cloud.threads.get(id);
+        const cloudThread = toCloudThread(thread);
+
+        if (mountedRef.current) {
+          setThreads((prev) => {
+            // Remove if exists, then prepend to ensure it's in the list
+            const filtered = prev.filter((t) => t.id !== id);
+            return [cloudThread, ...filtered];
+          });
+        }
+
         setError(null);
         return true;
       } catch (err) {
@@ -276,18 +285,33 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
         const messages = await loadMessages();
         if (messages.length === 0) return null;
 
+        // Filter to ai-sdk/v6 format messages (have content.parts array)
+        const aiSdkMessages = messages.filter(
+          (msg) =>
+            msg.format === "ai-sdk/v6" ||
+            (msg.content && Array.isArray(msg.content["parts"])),
+        );
+        if (aiSdkMessages.length === 0) return null;
+
         // Convert to title generator format (text parts only)
-        const convertedMessages = messages.map((msg) => ({
-          role: msg.content["role"] as string,
-          content: (
-            msg.content["parts"] as Array<{ type: string; text?: string }>
-          )
-            .filter((part) => part.type === "text")
-            .map((part) => ({
-              type: "text" as const,
-              text: part.text!,
-            })),
-        }));
+        const convertedMessages = aiSdkMessages
+          .map((msg) => {
+            const parts = msg.content["parts"] as
+              | Array<{ type: string; text?: string }>
+              | undefined;
+            if (!parts) return null;
+            const textParts = parts
+              .filter((part) => part.type === "text" && part.text)
+              .map((part) => ({ type: "text" as const, text: part.text! }));
+            if (textParts.length === 0) return null;
+            return {
+              role: msg.content["role"] as string,
+              content: textParts,
+            };
+          })
+          .filter((msg): msg is NonNullable<typeof msg> => msg !== null);
+
+        if (convertedMessages.length === 0) return null;
 
         // Call cloud title generation
         const stream = await cloud.runs.stream({
@@ -332,6 +356,7 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
   );
 
   return {
+    cloud,
     threads,
     isLoading,
     error,

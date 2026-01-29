@@ -8,6 +8,26 @@
  * - Want minimal dependencies (just `assistant-cloud`, no `@assistant-ui/react`)
  * - Need direct control over the AI SDK chat state
  *
+ * ## Quick Start
+ *
+ * Set the `NEXT_PUBLIC_ASSISTANT_BASE_URL` environment variable and use:
+ *
+ * ```tsx
+ * import { useCloudChat } from "assistant-cloud/ai-sdk";
+ *
+ * function Chat() {
+ *   const { messages, sendMessage, threads } = useCloudChat({ api: "/api/chat" });
+ *
+ *   return (
+ *     <div>
+ *       <ThreadList threads={threads.threads} onSelect={threads.selectThread} />
+ *       {messages.map(m => <Message key={m.id} message={m} />)}
+ *       <button onClick={() => sendMessage({ text: "Hello" })}>Send</button>
+ *     </div>
+ *   );
+ * }
+ * ```
+ *
  * **For the full assistant-ui experience with AI SDK**, use `useChatRuntime`
  * from `@assistant-ui/react-ai-sdk` instead:
  *
