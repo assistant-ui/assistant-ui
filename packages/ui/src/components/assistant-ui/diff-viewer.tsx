@@ -18,8 +18,8 @@ interface ParsedLine {
 }
 
 interface ParsedFile {
-  oldName?: string;
-  newName?: string;
+  oldName?: string | undefined;
+  newName?: string | undefined;
   lines: ParsedLine[];
   additions: number;
   deletions: number;
@@ -198,7 +198,7 @@ function getFileExtension(filename?: string): string {
   return ext.toUpperCase();
 }
 
-function DiffViewerFileBadge({ filename }: { filename?: string }) {
+function DiffViewerFileBadge({ filename }: { filename?: string | undefined }) {
   const ext = getFileExtension(filename);
   if (!ext) return null;
 
@@ -244,8 +244,8 @@ function DiffViewerContent({ className, ...props }: ComponentProps<"div">) {
 }
 
 interface DiffViewerHeaderProps extends ComponentProps<"div"> {
-  oldName?: string;
-  newName?: string;
+  oldName?: string | undefined;
+  newName?: string | undefined;
   additions?: number;
   deletions?: number;
   showIcon?: boolean;
