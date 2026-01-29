@@ -16,20 +16,14 @@ Lightweight cloud persistence for AI SDK apps without assistant-ui components.
 ## Usage
 
 ```tsx
-import { AssistantCloud } from "assistant-cloud";
-import { useCloudChat, useThreads } from "assistant-cloud/ai-sdk";
-
-const cloud = new AssistantCloud({
-  baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
-  anonymous: true,
-});
+import { useCloudChat } from "assistant-cloud/ai-sdk";
 
 function Chat() {
-  const threads = useThreads({ cloud });
-  const chat = useCloudChat({ threads });
+  // That's it! Thread management is included automatically.
+  const { messages, sendMessage, threads } = useCloudChat();
 
-  // chat.messages, chat.sendMessage, etc.
-  // threads.threadId, threads.selectThread, threads.generateTitle, etc.
+  // messages, sendMessage, stop, status, etc.
+  // threads.threads, threads.threadId, threads.selectThread, etc.
 }
 ```
 

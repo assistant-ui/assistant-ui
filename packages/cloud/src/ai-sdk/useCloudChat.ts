@@ -1,15 +1,27 @@
+"use client";
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { UIMessage, UseChatHelpers } from "@ai-sdk/react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type ChatInit } from "ai";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
+import { AssistantCloud } from "../AssistantCloud";
 import { CloudMessagePersistence } from "../CloudMessagePersistence";
 import {
   createFormattedPersistence,
   type MessageFormatAdapter,
 } from "../FormattedCloudPersistence";
 import { encode, MESSAGE_FORMAT } from "./format";
-import type { UseThreadsResult } from "./useThreads";
+import { useThreads, type UseThreadsResult } from "./useThreads";
+
+// Module-level singleton for auto-cloud to ensure all components share the same instance
+const autoCloudBaseUrl =
+  typeof process !== "undefined"
+    ? process?.env?.["NEXT_PUBLIC_ASSISTANT_BASE_URL"]
+    : undefined;
+const autoCloud = autoCloudBaseUrl
+  ? new AssistantCloud({ baseUrl: autoCloudBaseUrl, anonymous: true })
+  : undefined;
 
 const aiSdkFormatAdapter: MessageFormatAdapter<UIMessage, ReadonlyJSONObject> =
   {
@@ -23,8 +35,12 @@ const aiSdkFormatAdapter: MessageFormatAdapter<UIMessage, ReadonlyJSONObject> =
   };
 
 export type UseCloudChatOptions = Omit<ChatInit<UIMessage>, "transport"> & {
-  /** Thread management from useThreads - provides cloud instance and thread state */
-  threads: UseThreadsResult;
+  /** External thread management. If provided, internal threads are disabled. */
+  threads?: UseThreadsResult;
+  /** Cloud instance. Ignored if threads provided. Falls back to NEXT_PUBLIC_ASSISTANT_BASE_URL env var. */
+  cloud?: AssistantCloud;
+  /** Include archived threads when managing internally. Default: false */
+  includeArchived?: boolean;
   /** Auto-generate title after first response on new threads. Default: true */
   autoGenerateTitle?: boolean;
 };
@@ -32,6 +48,8 @@ export type UseCloudChatOptions = Omit<ChatInit<UIMessage>, "transport"> & {
 export type UseCloudChatResult = UseChatHelpers<UIMessage> & {
   /** Sync error state */
   syncError: Error | null;
+  /** Thread management (internal or passed-through) */
+  threads: UseThreadsResult;
 };
 
 /**
@@ -46,19 +64,52 @@ export type UseCloudChatResult = UseChatHelpers<UIMessage> & {
  *
  * @example
  * ```tsx
- * const threads = useThreads({ cloud });
- * const chat = useCloudChat({ threads });
+ * // Simplest usage - just set NEXT_PUBLIC_ASSISTANT_BASE_URL env var
+ * const { messages, sendMessage, threads } = useCloudChat({ api: "/api/chat" });
  *
- * return (
- *   <div>
- *     {chat.messages.map(m => <Message key={m.id} message={m} />)}
- *     <button onClick={() => chat.sendMessage({ text: "Hello" })}>Send</button>
- *   </div>
- * );
+ * // With explicit cloud instance
+ * const { messages, sendMessage, threads } = useCloudChat({ cloud: myCloud, api: "/api/chat" });
+ *
+ * // With external thread control (backwards compatible)
+ * const myThreads = useThreads({ cloud: myCloud });
+ * const { messages, sendMessage } = useCloudChat({ threads: myThreads, api: "/api/chat" });
  * ```
  */
-export function useCloudChat(options: UseCloudChatOptions): UseCloudChatResult {
-  const { threads, autoGenerateTitle = true, ...chatOptions } = options;
+export function useCloudChat(
+  options: UseCloudChatOptions = {},
+): UseCloudChatResult {
+  const {
+    threads: externalThreads,
+    cloud: cloudOption,
+    includeArchived,
+    autoGenerateTitle = true,
+    ...chatOptions
+  } = options;
+
+  // Resolve cloud: external threads' cloud > cloudOption > env var auto-cloud (singleton)
+  const resolvedCloud = useMemo(() => {
+    if (externalThreads) return externalThreads.cloud;
+    if (cloudOption) return cloudOption;
+    if (!autoCloud) {
+      throw new Error(
+        "useCloudChat: No cloud configured. Either:\n" +
+          "1. Set NEXT_PUBLIC_ASSISTANT_BASE_URL environment variable, or\n" +
+          "2. Pass a cloud instance: useCloudChat({ cloud }), or\n" +
+          "3. Pass threads from useThreads: useCloudChat({ threads })",
+      );
+    }
+    return autoCloud;
+  }, [externalThreads, cloudOption]);
+
+  // Always call useThreads (Rules of Hooks) but disable when external provided
+  const internalThreads = useThreads({
+    cloud: resolvedCloud,
+    includeArchived: includeArchived ?? false,
+    enabled: !externalThreads, // Skip fetch if user manages threads
+  });
+
+  // Use external if provided, otherwise internal
+  const threads = externalThreads ?? internalThreads;
   const { cloud, threadId } = threads;
 
   // Keep a ref to threads for use in callbacks
@@ -296,5 +347,6 @@ export function useCloudChat(options: UseCloudChatOptions): UseCloudChatResult {
   return {
     ...chat,
     syncError,
+    threads,
   };
 }
