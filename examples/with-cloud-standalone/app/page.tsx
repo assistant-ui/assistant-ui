@@ -22,7 +22,7 @@
  * ```
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { AssistantCloud } from "assistant-cloud";
 import { useCloudChat, useThreads } from "assistant-cloud/ai-sdk";
 import { Thread } from "@/components/chat/Thread";
@@ -37,17 +37,7 @@ const cloud = new AssistantCloud({
 
 export default function Home() {
   const threads = useThreads({ cloud });
-
-  const chat = useCloudChat({
-    cloud,
-    threadId: threads.threadId,
-    api: "/api/chat",
-    onThreadCreated: (id) => {
-      threads.refresh();
-      threads.selectThread(id);
-      newThreadIdRef.current = id;
-    },
-  });
+  const chat = useCloudChat({ threads });
 
   // Local input state (manual since we're not using assistant-ui primitives)
   const [input, setInput] = useState("");
@@ -61,20 +51,6 @@ export default function Home() {
 
   const isRunning = chat.status === "streaming" || chat.status === "submitted";
   const isLoading = chat.status === "submitted";
-
-  // Auto-generate title after first response on new threads
-  const prevRunningRef = useRef(isRunning);
-  const newThreadIdRef = useRef<string | null>(null);
-
-  // Generate title when run completes on new thread
-  useEffect(() => {
-    if (prevRunningRef.current && !isRunning && newThreadIdRef.current) {
-      const tid = newThreadIdRef.current;
-      newThreadIdRef.current = null;
-      threads.generateTitle(tid);
-    }
-    prevRunningRef.current = isRunning;
-  }, [isRunning, threads]);
 
   return (
     <div className="flex h-full">

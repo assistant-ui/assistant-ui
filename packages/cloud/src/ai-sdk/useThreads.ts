@@ -42,6 +42,8 @@ export type UseThreadsOptions = {
 };
 
 export type UseThreadsResult = {
+  /** The cloud instance used by this hook */
+  cloud: AssistantCloud;
   /** List of threads */
   threads: CloudThread[];
   /** Loading state */
@@ -89,15 +91,7 @@ export type UseThreadsResult = {
  * @example
  * ```tsx
  * const threads = useThreads({ cloud });
- * const chat = useCloudChat({
- *   cloud,
- *   threadId: threads.threadId,
- *   api: "/api/chat",
- *   onThreadCreated: (id) => {
- *     threads.refresh();
- *     threads.selectThread(id);
- *   },
- * });
+ * const chat = useCloudChat({ threads });
  *
  * return (
  *   <ul>
@@ -332,6 +326,7 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
   );
 
   return {
+    cloud,
     threads,
     isLoading,
     error,
