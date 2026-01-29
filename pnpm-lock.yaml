@@ -966,7 +966,7 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
-  examples/with-cloud-ai-sdk:
+  examples/with-cloud-standalone:
     dependencies:
       '@ai-sdk/openai':
         specifier: ^3.0.13
