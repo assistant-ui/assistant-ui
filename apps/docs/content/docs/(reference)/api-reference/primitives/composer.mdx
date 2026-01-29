@@ -7,7 +7,6 @@ The user interface to add new messages or edit existing ones.
 
 
 import { ParametersTable } from "@/components/docs/tables/ParametersTable";
-import { KeyboardTable } from "@/components/docs/tables/KeyboardTable";
 import { Code } from "@radix-ui/themes";
 
 <Callout>
@@ -88,18 +87,10 @@ This primitive renders a `<textarea>` element unless `asChild` is set.
 
 #### Keyboard Shortcuts
 
-<KeyboardTable
-  data={[
-    {
-      keys: ["Enter"],
-      description: "Sends the message.",
-    },
-    {
-      keys: ["Escape"],
-      description: "Sends a cancel action.",
-    },
-  ]}
-/>
+| Key | Description |
+| --- | --- |
+| <Kbd>Enter</Kbd> | Sends the message. |
+| <Kbd>Escape</Kbd> | Sends a cancel action. |
 
 ### Send
 

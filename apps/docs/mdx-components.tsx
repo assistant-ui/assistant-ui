@@ -1,4 +1,5 @@
 import type { MDXComponents } from "mdx/types";
+import type { ComponentProps } from "react";
 import { Accordion, Accordions } from "fumadocs-ui/components/accordion";
 import { Callout } from "@/components/docs/fumadocs/callout";
 import { Card, Cards } from "@/components/docs/fumadocs/card";
@@ -14,6 +15,17 @@ import {
 import * as Twoslash from "fumadocs-twoslash/ui";
 
 import "@/styles/twoslash.css";
+
+function Kbd({ children, ...props }: ComponentProps<"kbd">) {
+  return (
+    <kbd
+      className="inline-flex h-5 min-w-5 items-center justify-center rounded-sm bg-muted px-1.5 font-mono text-muted-foreground text-xs"
+      {...props}
+    >
+      {children}
+    </kbd>
+  );
+}
 
 export function getMDXComponents(components: MDXComponents): MDXComponents {
   return {
@@ -34,6 +46,7 @@ export function getMDXComponents(components: MDXComponents): MDXComponents {
     TypeTable,
     Accordion,
     Accordions,
+    Kbd,
     blockquote: (props) => <Callout>{props.children}</Callout>,
     ...components,
   };

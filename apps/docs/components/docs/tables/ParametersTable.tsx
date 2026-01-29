@@ -11,11 +11,6 @@ type ParameterDef = {
   children?: Array<ParametersTableProps>;
 };
 
-type ParameterProps = {
-  parameter: ParameterDef;
-  isLast: boolean;
-};
-
 const COMMON_PARAMS: Record<string, ParameterDef> = {
   asChild: {
     name: "asChild",
@@ -29,7 +24,7 @@ const COMMON_PARAMS: Record<string, ParameterDef> = {
         <br />
         Read the{" "}
         <Link
-          className="font-semibold underline"
+          className="font-medium text-foreground underline underline-offset-2"
           href="/docs/api-reference/primitives/composition"
         >
           Composition
@@ -40,67 +35,96 @@ const COMMON_PARAMS: Record<string, ParameterDef> = {
   },
 };
 
-const Parameter: FC<ParameterProps> = ({
+const Parameter: FC<{ parameter: ParameterDef; isNested?: boolean }> = ({
   parameter: partialParameter,
-  isLast,
+  isNested,
 }) => {
   const parameter = {
     ...COMMON_PARAMS[partialParameter.name],
     ...partialParameter,
   };
 
+  const isOptional = !parameter.required && !parameter.default;
+
   return (
     <div
-      className={cn("flex flex-col gap-1 px-3.5 py-3.5", !isLast && "border-b")}
+      className={cn(
+        "group flex flex-col gap-2 border-border/50 border-b px-4 py-3 last:border-b-0",
+        isNested && "bg-muted/30",
+      )}
     >
-      <div className="relative flex gap-2">
-        <h3 className="font-mono font-semibold text-sm">
+      {/* Parameter signature */}
+      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+        <code className="font-mono font-semibold text-foreground text-sm">
           {parameter.name}
-          {!parameter.required && !parameter.default && "?"}
-          {!!parameter.type && ":"}
-        </h3>
-        <div className="w-full font-mono text-foreground/70 text-sm">
-          {parameter.type}
-          {parameter.default && ` = ${parameter.default}`}
+        </code>
+        {parameter.required && (
+          <span className="rounded bg-red-500/10 px-1.5 py-0.5 font-medium text-red-600 text-xs dark:text-red-400">
+            required
+          </span>
+        )}
+        {parameter.type && (
+          <code className="font-mono text-muted-foreground text-xs">
+            {isOptional && "?"}
+            {": "}
+            {parameter.type}
+          </code>
+        )}
+        {parameter.default && (
+          <span className="font-mono text-muted-foreground text-xs">
+            = {parameter.default}
+          </span>
+        )}
+      </div>
+
+      {/* Description */}
+      <p className="text-muted-foreground text-sm leading-relaxed">
+        {parameter.description}
+      </p>
+
+      {/* Nested children */}
+      {parameter.children?.map((child) => (
+        <div key={child.type} className="mt-2">
+          <ParametersBox {...child} isNested />
         </div>
-      </div>
-      <div>
-        <p className="text-foreground/70 text-sm">{parameter.description}</p>
-      </div>
-      {parameter.children?.map((property) => (
-        <ParametersBox key={property.type} {...property} />
       ))}
     </div>
   );
 };
 
-const ParametersList = ({
+const ParametersBox: FC<ParametersTableProps & { isNested?: boolean }> = ({
+  type,
   parameters,
-}: {
-  parameters: Array<ParameterDef>;
+  isNested,
 }) => {
-  return parameters.map((parameter, idx) => (
-    <Parameter
-      key={parameter.name}
-      parameter={parameter}
-      isLast={idx === parameters.length - 1}
-    />
-  ));
-};
-const ParametersBox: FC<ParametersTableProps> = ({ type, parameters }) => {
   return (
     <div
       className={cn(
-        "relative m-2 mb-1 flex flex-col rounded-lg border",
-        type && "mt-4 pt-3",
+        "overflow-hidden rounded-lg border border-border/60",
+        isNested && "border-border/40",
       )}
     >
-      {!!type && (
-        <h3 className="absolute top-0 right-3 z-50 -translate-y-1/2 rounded-md border bg-background px-4 py-2 font-mono font-semibold text-foreground/70 text-xs">
-          {type}
-        </h3>
+      {type && (
+        <div
+          className={cn(
+            "border-border/60 border-b bg-muted/50 px-4 py-2",
+            isNested && "border-border/40 bg-muted/30",
+          )}
+        >
+          <code className="font-medium font-mono text-muted-foreground text-xs">
+            {type}
+          </code>
+        </div>
       )}
-      <ParametersList parameters={parameters} />
+      <div>
+        {parameters.map((parameter) => (
+          <Parameter
+            key={parameter.name}
+            parameter={parameter}
+            isNested={isNested}
+          />
+        ))}
+      </div>
     </div>
   );
 };
@@ -115,7 +139,7 @@ export const ParametersTable: FC<ParametersTableProps> = ({
   parameters,
 }) => {
   return (
-    <div className={cn("not-prose -mx-2 mt-4", type && "mt-6")}>
+    <div className="not-prose my-4">
       <ParametersBox type={type} parameters={parameters} />
     </div>
   );
