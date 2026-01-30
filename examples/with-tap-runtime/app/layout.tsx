@@ -5,7 +5,8 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Tap-Native Runtime Example",
-  description: "Example of tap-native runtime with ExternalThread and InMemoryThreadList",
+  description:
+    "Example of tap-native runtime with ExternalThread and InMemoryThreadList",
 };
 
 export default function RootLayout({

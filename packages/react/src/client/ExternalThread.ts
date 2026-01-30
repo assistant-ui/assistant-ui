@@ -46,7 +46,12 @@ type MessageClientProps = {
 
 // Message Client - minimal implementation
 const MessageClient = resource(
-  ({ message, index, onEdit, onReload }: MessageClientProps): ClientOutput<"message"> => {
+  ({
+    message,
+    index,
+    onEdit,
+    onReload,
+  }: MessageClientProps): ClientOutput<"message"> => {
     const [isCopied, setIsCopied] = tapState(false);
     const [isHovering, setIsHovering] = tapState(false);
     const [isEditing, setIsEditing] = tapState(false);
@@ -102,26 +107,30 @@ const MessageClient = resource(
       }),
     );
 
-    const state = tapMemo(
-      () => {
-        return {
-          ...message,
-          attachments: message.attachments ?? [],
-          parentId: null,
-          isLast: false, // Will be set by thread
-          branchNumber: 1,
-          branchCount: 1,
-          speech: undefined,
-          submittedFeedback: undefined,
-          parts: partClients.state,
-          isCopied,
-          isHovering,
-          index,
-          composer: composerClient.state,
-        };
-      },
-      [message, isCopied, isHovering, index, composerClient.state, partClients.state],
-    );
+    const state = tapMemo(() => {
+      return {
+        ...message,
+        attachments: message.attachments ?? [],
+        parentId: null,
+        isLast: false, // Will be set by thread
+        branchNumber: 1,
+        branchCount: 1,
+        speech: undefined,
+        submittedFeedback: undefined,
+        parts: partClients.state,
+        isCopied,
+        isHovering,
+        index,
+        composer: composerClient.state,
+      };
+    }, [
+      message,
+      isCopied,
+      isHovering,
+      index,
+      composerClient.state,
+      partClients.state,
+    ]);
 
     return {
       state,
@@ -193,7 +202,10 @@ type AttachmentResourceProps = {
 
 // Attachment Client - minimal implementation
 const AttachmentResource = resource(
-  ({ attachment, onRemove }: AttachmentResourceProps): ClientOutput<"attachment"> => {
+  ({
+    attachment,
+    onRemove,
+  }: AttachmentResourceProps): ClientOutput<"attachment"> => {
     return {
       state: attachment,
       methods: {
@@ -236,7 +248,9 @@ const ComposerClientResource = resource(
     const updateFromMessage = tapEffectEvent(() => {
       if (message) {
         // Extract text from message content (text parts only)
-        const textParts = message.content.filter((part) => part.type === "text");
+        const textParts = message.content.filter(
+          (part) => part.type === "text",
+        );
         const messageText = textParts
           .map((part) => ("text" in part ? part.text : ""))
           .join("\n\n");
@@ -282,7 +296,16 @@ const ComposerClientResource = resource(
         type,
         dictation: undefined,
       }),
-      [text, role, attachmentClients.state, runConfig, isEditing, canCancel, type, attachments.length],
+      [
+        text,
+        role,
+        attachmentClients.state,
+        runConfig,
+        isEditing,
+        canCancel,
+        type,
+        attachments.length,
+      ],
     );
 
     return {
@@ -353,7 +376,6 @@ export const ExternalThread = resource(
     onStartRun,
     onCancel,
   }: ExternalThreadProps): ClientOutput<"thread"> => {
-
     const handleReload = (messageId: string) => {
       const messageIndex = messages.findIndex((m) => m.id === messageId);
       if (messageIndex === -1) return;

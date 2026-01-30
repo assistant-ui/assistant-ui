@@ -30,9 +30,17 @@ export default function Home() {
             <Thread />
             <div className="mx-auto mt-4 max-w-2xl space-y-2">
               <div className="rounded-lg border bg-card p-4">
-                <h3 className="mb-2 font-semibold text-sm">About This Example</h3>
+                <h3 className="mb-2 font-semibold text-sm">
+                  About This Example
+                </h3>
                 <ul className="space-y-1 text-muted-foreground text-sm">
-                  <li>• Uses <code className="rounded bg-muted px-1">ExternalThread</code> to display messages</li>
+                  <li>
+                    • Uses{" "}
+                    <code className="rounded bg-muted px-1">
+                      ExternalThread
+                    </code>{" "}
+                    to display messages
+                  </li>
                   <li>• Messages are stored in React state</li>
                   <li>• Fully reactive - updates automatically</li>
                   <li>• No backend needed - pure client-side</li>
@@ -40,7 +48,8 @@ export default function Home() {
               </div>
 
               <div className="text-center text-muted-foreground text-xs">
-                This is a minimal implementation. Features like editing, branching, and attachments can be added.
+                This is a minimal implementation. Features like editing,
+                branching, and attachments can be added.
               </div>
             </div>
           </>

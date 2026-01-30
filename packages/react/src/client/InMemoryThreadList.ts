@@ -66,7 +66,11 @@ const ThreadListItemClient = resource(
 // InMemoryThreadList Client
 export const InMemoryThreadList = resource(
   (props: InMemoryThreadListProps): ClientOutput<"threads"> => {
-    const { thread: threadFactory, onSwitchToThread, onSwitchToNewThread } = props;
+    const {
+      thread: threadFactory,
+      onSwitchToThread,
+      onSwitchToNewThread,
+    } = props;
 
     const [mainThreadId, setMainThreadId] = tapState("main");
     const [threads, setThreads] = tapState<readonly ThreadData[]>(() => [
@@ -80,13 +84,17 @@ export const InMemoryThreadList = resource(
 
     const handleArchive = (threadId: string) => {
       setThreads((prev) =>
-        prev.map((t) => (t.id === threadId ? { ...t, status: "archived" as const } : t)),
+        prev.map((t) =>
+          t.id === threadId ? { ...t, status: "archived" as const } : t,
+        ),
       );
     };
 
     const handleUnarchive = (threadId: string) => {
       setThreads((prev) =>
-        prev.map((t) => (t.id === threadId ? { ...t, status: "regular" as const } : t)),
+        prev.map((t) =>
+          t.id === threadId ? { ...t, status: "regular" as const } : t,
+        ),
       );
     };
 
@@ -100,7 +108,10 @@ export const InMemoryThreadList = resource(
 
     const handleSwitchToNewThread = () => {
       const newId = `thread-${Date.now()}`;
-      setThreads((prev) => [...prev, { id: newId, title: "New Thread", status: "regular" }]);
+      setThreads((prev) => [
+        ...prev,
+        { id: newId, title: "New Thread", status: "regular" },
+      ]);
       setMainThreadId(newId);
       onSwitchToNewThread?.();
     };
