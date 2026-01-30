@@ -5,12 +5,18 @@ import { cn } from "@/lib/utils";
 import { CheckIcon, CopyIcon } from "lucide-react";
 import { useState } from "react";
 
+type AnalyticsContext = {
+  page?: string;
+  section?: string;
+  [key: string]: string | number | boolean | undefined;
+};
+
 export function CopyCommandButton({
   command = "npx assistant-ui init",
   analyticsContext,
 }: {
   command?: string;
-  analyticsContext?: Record<string, string | number | boolean>;
+  analyticsContext?: AnalyticsContext;
 }) {
   const [copied, setCopied] = useState(false);
 

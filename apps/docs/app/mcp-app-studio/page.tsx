@@ -632,6 +632,7 @@ function HeroShowcase({
               <button
                 onClick={onFullscreen}
                 className="hidden size-7 items-center justify-center rounded-md text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-zinc-300 md:flex"
+                aria-label="Open fullscreen demo"
                 title="Fullscreen demo"
               >
                 <Maximize2 className="size-3.5" />
