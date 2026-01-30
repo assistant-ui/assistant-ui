@@ -105,6 +105,7 @@ const models = [
     name: "GPT-5",         // Display name in trigger and items
     description: "Most capable", // Optional subtitle in items only
     icon: <SparklesIcon />,      // Optional icon (any ReactNode)
+    disabled: false,             // Optional: disable this option
   },
 ];
 ```
@@ -219,6 +220,11 @@ import {
       name: "icon",
       type: "React.ReactNode",
       description: "Optional icon displayed before the model name.",
+    },
+    {
+      name: "disabled",
+      type: "boolean",
+      description: "Whether the model option is disabled and cannot be selected.",
     },
   ]}
 />
