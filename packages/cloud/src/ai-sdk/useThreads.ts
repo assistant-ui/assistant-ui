@@ -275,18 +275,33 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
         const messages = await loadMessages();
         if (messages.length === 0) return null;
 
+        // Filter to ai-sdk/v6 format messages (have content.parts array)
+        const aiSdkMessages = messages.filter(
+          (msg) =>
+            msg.format === "ai-sdk/v6" ||
+            (msg.content && Array.isArray(msg.content["parts"])),
+        );
+        if (aiSdkMessages.length === 0) return null;
+
         // Convert to title generator format (text parts only)
-        const convertedMessages = messages.map((msg) => ({
-          role: msg.content["role"] as string,
-          content: (
-            msg.content["parts"] as Array<{ type: string; text?: string }>
-          )
-            .filter((part) => part.type === "text")
-            .map((part) => ({
-              type: "text" as const,
-              text: part.text!,
-            })),
-        }));
+        const convertedMessages = aiSdkMessages
+          .map((msg) => {
+            const parts = msg.content["parts"] as
+              | Array<{ type: string; text?: string }>
+              | undefined;
+            if (!parts) return null;
+            const textParts = parts
+              .filter((part) => part.type === "text" && part.text)
+              .map((part) => ({ type: "text" as const, text: part.text! }));
+            if (textParts.length === 0) return null;
+            return {
+              role: msg.content["role"] as string,
+              content: textParts,
+            };
+          })
+          .filter((msg): msg is NonNullable<typeof msg> => msg !== null);
+
+        if (convertedMessages.length === 0) return null;
 
         // Call cloud title generation
         const stream = await cloud.runs.stream({
