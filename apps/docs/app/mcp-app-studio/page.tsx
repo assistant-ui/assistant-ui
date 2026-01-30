@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowRight,
   CheckIcon,
@@ -16,12 +16,61 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import ShikiHighlighter from "react-shiki";
+import { analytics } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 import { CopyCommandButton } from "@/components/home/copy-command-button";
 import { Button, buttonVariants } from "@/components/ui/button";
 import "react-shiki/css";
 
 import "./hero-showcase.css";
+
+const ANALYTICS_PAGE = "mcp-app-studio" as const;
+
+const MCP_APP_STUDIO_SECTIONS = {
+  workbench: "workbench",
+  capabilities: "capabilities",
+  export: "export",
+} as const;
+
+type McpAppStudioSection =
+  (typeof MCP_APP_STUDIO_SECTIONS)[keyof typeof MCP_APP_STUDIO_SECTIONS];
+
+const OUTBOUND_URLS = {
+  mcpAppsDocs: "https://modelcontextprotocol.io/docs/extensions/apps",
+  chatgptAppsSdk: "https://developers.openai.com/apps-sdk/",
+  cliSource:
+    "https://github.com/assistant-ui/assistant-ui/tree/main/packages/mcp-app-studio",
+  workbenchTemplate: "https://github.com/assistant-ui/mcp-app-studio-starter",
+} as const;
+
+const OUTBOUND_LINKS = {
+  hero: {
+    mcpAppsDocs: { label: "MCP Apps Docs", href: OUTBOUND_URLS.mcpAppsDocs },
+    chatgptAppsSdk: {
+      label: "ChatGPT Apps SDK",
+      href: OUTBOUND_URLS.chatgptAppsSdk,
+    },
+    cliSource: { label: "CLI source", href: OUTBOUND_URLS.cliSource },
+    workbenchTemplate: {
+      label: "Workbench template",
+      href: OUTBOUND_URLS.workbenchTemplate,
+    },
+  },
+  footer: {
+    mcpAppsDocs: { label: "MCP Apps Docs", href: OUTBOUND_URLS.mcpAppsDocs },
+    chatgptAppsSdk: {
+      label: "ChatGPT Apps SDK",
+      href: OUTBOUND_URLS.chatgptAppsSdk,
+    },
+    workbenchTemplate: {
+      label: "Workbench template",
+      href: OUTBOUND_URLS.workbenchTemplate,
+    },
+    viewSource: { label: "View source", href: OUTBOUND_URLS.cliSource },
+  },
+} as const;
+
+const QUICKSTART_COMMAND = "npx mcp-app-studio my-app";
 
 const FEATURES = [
   {
@@ -116,6 +165,19 @@ const WORKBENCH_URL =
 export default function McpAppStudioPage() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const iframeSrc = `${WORKBENCH_URL}?component=poi-map&demo=true`;
+  const workbenchSectionRef = useRef<HTMLElement | null>(null);
+  const capabilitiesSectionRef = useRef<HTMLDivElement | null>(null);
+  const exportSectionRef = useRef<HTMLDivElement | null>(null);
+
+  const trackOutboundLinkClick = (
+    section: "hero" | "footer",
+    link: { label: string; href: string },
+  ) => {
+    analytics.outbound.linkClicked(link.href, link.label, {
+      page: ANALYTICS_PAGE,
+      section,
+    });
+  };
 
   useEffect(() => {
     if (!isFullscreen) return;
@@ -131,6 +193,49 @@ export default function McpAppStudioPage() {
       document.body.style.overflow = previousBodyOverflow;
     };
   }, [isFullscreen]);
+
+  useEffect(() => {
+    if (typeof IntersectionObserver === "undefined") return;
+
+    const tracked = new Set<McpAppStudioSection>();
+    const observers: IntersectionObserver[] = [];
+
+    const observeOnce = (
+      element: Element | null,
+      section: McpAppStudioSection,
+    ) => {
+      if (!element) return;
+      if (tracked.has(section)) return;
+
+      const observer = new IntersectionObserver(
+        (entries) => {
+          for (const entry of entries) {
+            if (!entry.isIntersecting) continue;
+            if (tracked.has(section)) continue;
+
+            tracked.add(section);
+            analytics.mcpAppStudio.sectionViewed(section);
+            observer.disconnect();
+          }
+        },
+        { threshold: 0.4 },
+      );
+
+      observer.observe(element);
+      observers.push(observer);
+    };
+
+    observeOnce(workbenchSectionRef.current, MCP_APP_STUDIO_SECTIONS.workbench);
+    observeOnce(
+      capabilitiesSectionRef.current,
+      MCP_APP_STUDIO_SECTIONS.capabilities,
+    );
+    observeOnce(exportSectionRef.current, MCP_APP_STUDIO_SECTIONS.export);
+
+    return () => {
+      for (const observer of observers) observer.disconnect();
+    };
+  }, []);
 
   return (
     <>
@@ -153,32 +258,53 @@ export default function McpAppStudioPage() {
             </p>
           </div>
 
-          <CopyCommandButton command="npx mcp-app-studio my-app" />
+          <CopyCommandButton
+            command={QUICKSTART_COMMAND}
+            analyticsContext={{ page: ANALYTICS_PAGE, section: "hero" }}
+          />
 
           <div className="flex flex-wrap items-center gap-x-5 gap-y-3 text-[13px] text-muted-foreground">
             <Link
-              href="https://modelcontextprotocol.io/docs/extensions/apps"
+              href={OUTBOUND_LINKS.hero.mcpAppsDocs.href}
+              onClick={() =>
+                trackOutboundLinkClick("hero", OUTBOUND_LINKS.hero.mcpAppsDocs)
+              }
               className="font-medium text-foreground/60 transition-colors hover:text-foreground"
             >
               MCP Apps Docs →
             </Link>
             <span className="hidden size-1 rounded-full bg-muted-foreground/20 sm:block" />
             <Link
-              href="https://developers.openai.com/apps-sdk/"
+              href={OUTBOUND_LINKS.hero.chatgptAppsSdk.href}
+              onClick={() =>
+                trackOutboundLinkClick(
+                  "hero",
+                  OUTBOUND_LINKS.hero.chatgptAppsSdk,
+                )
+              }
               className="font-medium text-foreground/60 transition-colors hover:text-foreground"
             >
               ChatGPT Apps SDK →
             </Link>
             <span className="hidden size-1 rounded-full bg-muted-foreground/20 sm:block" />
             <Link
-              href="https://github.com/assistant-ui/assistant-ui/tree/main/packages/mcp-app-studio"
+              href={OUTBOUND_LINKS.hero.cliSource.href}
+              onClick={() =>
+                trackOutboundLinkClick("hero", OUTBOUND_LINKS.hero.cliSource)
+              }
               className="font-medium text-foreground/60 transition-colors hover:text-foreground"
             >
               CLI source →
             </Link>
             <span className="hidden size-1 rounded-full bg-muted-foreground/20 sm:block" />
             <Link
-              href="https://github.com/assistant-ui/mcp-app-studio-starter"
+              href={OUTBOUND_LINKS.hero.workbenchTemplate.href}
+              onClick={() =>
+                trackOutboundLinkClick(
+                  "hero",
+                  OUTBOUND_LINKS.hero.workbenchTemplate,
+                )
+              }
               className="font-medium text-foreground/60 transition-colors hover:text-foreground"
             >
               Workbench template →
@@ -186,7 +312,7 @@ export default function McpAppStudioPage() {
           </div>
         </div>
 
-        <section className="space-y-4">
+        <section ref={workbenchSectionRef} className="space-y-4">
           <div className="space-y-1">
             <h2 className="font-medium text-2xl tracking-tight">
               Try the workbench
@@ -200,11 +326,14 @@ export default function McpAppStudioPage() {
 
           <HeroShowcase
             iframeSrc={iframeSrc}
-            onFullscreen={() => setIsFullscreen(true)}
+            onFullscreen={() => {
+              analytics.mcpAppStudio.workbenchFullscreenToggled(true);
+              setIsFullscreen(true);
+            }}
           />
         </section>
 
-        <div className="flex flex-col gap-8">
+        <div ref={capabilitiesSectionRef} className="flex flex-col gap-8">
           <div className="flex flex-col items-center gap-2 text-center">
             <h2 className="font-medium text-3xl tracking-tight">
               Know what ships where
@@ -288,7 +417,7 @@ export default function McpAppStudioPage() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-8">
+        <div ref={exportSectionRef} className="flex flex-col gap-8">
           <div className="flex flex-col items-center gap-2 text-center">
             <h2 className="font-medium text-3xl tracking-tight">
               Export output
@@ -317,24 +446,50 @@ export default function McpAppStudioPage() {
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3">
             <Button asChild>
-              <Link href="https://modelcontextprotocol.io/docs/extensions/apps">
+              <Link
+                href={OUTBOUND_LINKS.footer.mcpAppsDocs.href}
+                onClick={() =>
+                  trackOutboundLinkClick(
+                    "footer",
+                    OUTBOUND_LINKS.footer.mcpAppsDocs,
+                  )
+                }
+              >
                 MCP Apps Docs <ArrowRight />
               </Link>
             </Button>
             <Link
-              href="https://developers.openai.com/apps-sdk/"
+              href={OUTBOUND_LINKS.footer.chatgptAppsSdk.href}
+              onClick={() =>
+                trackOutboundLinkClick(
+                  "footer",
+                  OUTBOUND_LINKS.footer.chatgptAppsSdk,
+                )
+              }
               className={buttonVariants({ variant: "outline" })}
             >
               ChatGPT Apps SDK
             </Link>
             <Link
-              href="https://github.com/assistant-ui/mcp-app-studio-starter"
+              href={OUTBOUND_LINKS.footer.workbenchTemplate.href}
+              onClick={() =>
+                trackOutboundLinkClick(
+                  "footer",
+                  OUTBOUND_LINKS.footer.workbenchTemplate,
+                )
+              }
               className={buttonVariants({ variant: "outline" })}
             >
               Workbench template
             </Link>
             <Link
-              href="https://github.com/assistant-ui/assistant-ui/tree/main/packages/mcp-app-studio"
+              href={OUTBOUND_LINKS.footer.viewSource.href}
+              onClick={() =>
+                trackOutboundLinkClick(
+                  "footer",
+                  OUTBOUND_LINKS.footer.viewSource,
+                )
+              }
               className={buttonVariants({ variant: "outline" })}
             >
               View source
@@ -358,7 +513,10 @@ export default function McpAppStudioPage() {
                 </span>
               </div>
               <button
-                onClick={() => setIsFullscreen(false)}
+                onClick={() => {
+                  analytics.mcpAppStudio.workbenchFullscreenToggled(false);
+                  setIsFullscreen(false);
+                }}
                 className="flex size-8 items-center justify-center rounded-md text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
                 title="Close fullscreen"
               >
@@ -368,6 +526,12 @@ export default function McpAppStudioPage() {
             <iframe
               src={iframeSrc}
               className="size-full border-0"
+              onLoad={() =>
+                analytics.mcpAppStudio.workbenchIframeLoaded("fullscreen")
+              }
+              onError={() =>
+                analytics.mcpAppStudio.workbenchIframeFailed("fullscreen")
+              }
               title="MCP App Studio Workbench (Fullscreen)"
               allow="clipboard-read; clipboard-write"
             />
@@ -387,6 +551,7 @@ function HeroShowcase({
 }) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const loadStartTimeMsRef = useRef<number>(performance.now());
 
   return (
     <div className="hero-showcase-section relative">
@@ -458,8 +623,20 @@ function HeroShowcase({
                   "size-full border-0 transition-opacity duration-300",
                   isLoaded && !hasError ? "opacity-100" : "opacity-0",
                 )}
-                onLoad={() => setIsLoaded(true)}
-                onError={() => setHasError(true)}
+                onLoad={() => {
+                  setIsLoaded(true);
+                  analytics.mcpAppStudio.workbenchIframeLoaded(
+                    "inline",
+                    Math.round(performance.now() - loadStartTimeMsRef.current),
+                  );
+                }}
+                onError={() => {
+                  setHasError(true);
+                  analytics.mcpAppStudio.workbenchIframeFailed(
+                    "inline",
+                    Math.round(performance.now() - loadStartTimeMsRef.current),
+                  );
+                }}
                 title="MCP App Studio Workbench"
                 allow="clipboard-read; clipboard-write"
               />

@@ -7,14 +7,16 @@ import { useState } from "react";
 
 export function CopyCommandButton({
   command = "npx assistant-ui init",
+  analyticsContext,
 }: {
   command?: string;
+  analyticsContext?: Record<string, string | number | boolean>;
 }) {
   const [copied, setCopied] = useState(false);
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(command);
-    analytics.cta.npmCommandCopied(command);
+    analytics.cta.npmCommandCopied(command, analyticsContext);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };

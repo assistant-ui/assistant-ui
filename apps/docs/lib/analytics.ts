@@ -33,8 +33,18 @@ export const analytics = {
     clicked: (cta: "get_started" | "contact_sales", location: string) =>
       trackEvent("cta_clicked", { cta, location }),
 
-    npmCommandCopied: (command = "npx assistant-ui init") =>
-      trackEvent("npm_command_copied", { command }),
+    npmCommandCopied: (
+      command = "npx assistant-ui init",
+      properties?: Record<string, string | number | boolean>,
+    ) => trackEvent("npm_command_copied", { ...properties, command }),
+  },
+
+  outbound: {
+    linkClicked: (
+      href: string,
+      label: string,
+      properties?: Record<string, string | number | boolean>,
+    ) => trackEvent("outbound_link_clicked", { ...properties, href, label }),
   },
 
   search: {
@@ -108,5 +118,31 @@ export const analytics = {
   install: {
     packageManagerSelected: (pm: string) =>
       trackEvent("package_manager_selected", { package_manager: pm }),
+  },
+
+  mcpAppStudio: {
+    sectionViewed: (section: string) =>
+      trackEvent("mcp_app_studio_section_viewed", { section }),
+
+    workbenchFullscreenToggled: (open: boolean) =>
+      trackEvent("mcp_app_studio_workbench_fullscreen_toggled", { open }),
+
+    workbenchIframeLoaded: (
+      variant: "inline" | "fullscreen",
+      elapsedMs?: number,
+    ) =>
+      trackEvent("mcp_app_studio_workbench_iframe_loaded", {
+        variant,
+        ...(elapsedMs === undefined ? {} : { elapsed_ms: elapsedMs }),
+      }),
+
+    workbenchIframeFailed: (
+      variant: "inline" | "fullscreen",
+      elapsedMs?: number,
+    ) =>
+      trackEvent("mcp_app_studio_workbench_iframe_failed", {
+        variant,
+        ...(elapsedMs === undefined ? {} : { elapsed_ms: elapsedMs }),
+      }),
   },
 };
