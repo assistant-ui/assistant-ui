@@ -81,7 +81,9 @@ export function updatePackageJson(
   dir: string,
   name: string,
   description?: string,
-  includeServer?: boolean,
+  opts?: {
+    mcpAppStudioVersion?: string;
+  },
 ): void {
   const pkgPath = path.join(dir, "package.json");
   if (!fs.existsSync(pkgPath)) return;
@@ -95,13 +97,12 @@ export function updatePackageJson(
     if (description) {
       pkg["description"] = description;
     }
-    if (includeServer) {
-      const scripts = (pkg["scripts"] as Record<string, string>) ?? {};
-      scripts["postinstall"] = "cd server && npm install";
-      pkg["scripts"] = scripts;
-    }
+
     // Update dependencies to compatible versions
     const deps = (pkg["dependencies"] as Record<string, string>) ?? {};
+    if (opts?.mcpAppStudioVersion && opts.mcpAppStudioVersion !== "0.0.0") {
+      deps["mcp-app-studio"] = `^${opts.mcpAppStudioVersion}`;
+    }
     for (const [dep, version] of Object.entries(DEPENDENCY_OVERRIDES)) {
       if (deps[dep]) {
         deps[dep] = version;

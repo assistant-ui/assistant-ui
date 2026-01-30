@@ -237,6 +237,23 @@ describe("updatePackageJson", () => {
     );
     expect(pkg.description).toBeUndefined();
   });
+
+  it("pins mcp-app-studio dependency to the CLI version when provided", () => {
+    fs.writeFileSync(
+      path.join(tempDir, "package.json"),
+      JSON.stringify({
+        name: "template",
+        dependencies: { "mcp-app-studio": "^0.1.0" },
+      }),
+    );
+    updatePackageJson(tempDir, "my-app", undefined, {
+      mcpAppStudioVersion: "0.5.0",
+    });
+    const pkg = JSON.parse(
+      fs.readFileSync(path.join(tempDir, "package.json"), "utf-8"),
+    );
+    expect(pkg.dependencies["mcp-app-studio"]).toBe("^0.5.0");
+  });
 });
 
 describe("detectPackageManager", () => {

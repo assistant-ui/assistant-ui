@@ -146,6 +146,43 @@ const TEMPLATE_DEFAULT_COMPONENT: Record<TemplateType, string> = {
   "poi-map": "poi-map",
 };
 
+function writeStudioConfig(
+  targetDir: string,
+  template: TemplateType,
+  appName: string,
+): void {
+  const exportConfig = TEMPLATE_EXPORT_CONFIG[template];
+  const config = {
+    widget: {
+      entryPoint: exportConfig.entryPoint,
+      exportName: exportConfig.exportName,
+      name: appName,
+    },
+  };
+  fs.writeFileSync(
+    path.join(targetDir, "mcp-app-studio.config.json"),
+    `${JSON.stringify(config, null, 2)}\n`,
+  );
+}
+
+function updateServerPackageName(
+  targetDir: string,
+  projectPackageName: string,
+): void {
+  const serverPkgPath = path.join(targetDir, "server", "package.json");
+  if (!fs.existsSync(serverPkgPath)) return;
+
+  const raw = fs.readFileSync(serverPkgPath, "utf-8");
+  const pkg = JSON.parse(raw) as Record<string, unknown>;
+
+  const baseName = projectPackageName.includes("/")
+    ? projectPackageName.split("/").pop()!
+    : projectPackageName;
+
+  pkg["name"] = `${baseName}-mcp-server`;
+  fs.writeFileSync(serverPkgPath, `${JSON.stringify(pkg, null, 2)}\n`, "utf-8");
+}
+
 function generateComponentRegistry(components: string[]): string {
   const imports: string[] = [];
   const entries: string[] = [];
@@ -803,17 +840,18 @@ async function main() {
     }
   }
 
-  updatePackageJson(
-    targetDir,
-    config.packageName,
-    config.description,
-    config.includeServer,
-  );
+  updatePackageJson(targetDir, config.packageName, config.description, {
+    mcpAppStudioVersion: getVersion(),
+  });
 
   s.message("Applying template...");
   applyTemplate(targetDir, config.template);
 
-  if (!config.includeServer) {
+  writeStudioConfig(targetDir, config.template, path.basename(targetDir));
+
+  if (config.includeServer) {
+    updateServerPackageName(targetDir, config.packageName);
+  } else {
     fs.rmSync(path.join(targetDir, "server"), { recursive: true, force: true });
   }
 
