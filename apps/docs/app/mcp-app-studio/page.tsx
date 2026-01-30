@@ -72,6 +72,10 @@ const OUTBOUND_LINKS = {
 
 const QUICKSTART_COMMAND = "npx mcp-app-studio my-app";
 
+const FULLSCREEN_OVERLAY_Z_INDEX_CLASS = "z-[9999]" as const;
+const WORKBENCH_IFRAME_SANDBOX =
+  "allow-scripts allow-same-origin allow-forms" as const;
+
 const FEATURES = [
   {
     title: "Live Preview",
@@ -162,12 +166,22 @@ const WORKBENCH_URL =
   process.env["NEXT_PUBLIC_WORKBENCH_URL"] ??
   "https://mcp-app-studio-starter.vercel.app";
 
+const WORKBENCH_HOST = (() => {
+  try {
+    return new URL(WORKBENCH_URL).host;
+  } catch {
+    return WORKBENCH_URL;
+  }
+})();
+
 export default function McpAppStudioPage() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const iframeSrc = `${WORKBENCH_URL}?component=poi-map&demo=true`;
   const workbenchSectionRef = useRef<HTMLElement | null>(null);
   const capabilitiesSectionRef = useRef<HTMLDivElement | null>(null);
   const exportSectionRef = useRef<HTMLDivElement | null>(null);
+  const fullscreenCloseButtonRef = useRef<HTMLButtonElement | null>(null);
+  const fullscreenRestoreFocusRef = useRef<HTMLElement | null>(null);
 
   const trackOutboundLinkClick = (
     section: "hero" | "footer",
@@ -191,6 +205,28 @@ export default function McpAppStudioPage() {
     return () => {
       document.documentElement.style.overflow = previousHtmlOverflow;
       document.body.style.overflow = previousBodyOverflow;
+    };
+  }, [isFullscreen]);
+
+  useEffect(() => {
+    if (!isFullscreen) {
+      fullscreenRestoreFocusRef.current?.focus?.();
+      fullscreenRestoreFocusRef.current = null;
+      return;
+    }
+
+    fullscreenCloseButtonRef.current?.focus();
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      analytics.mcpAppStudio.workbenchFullscreenToggled(false);
+      setIsFullscreen(false);
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
     };
   }, [isFullscreen]);
 
@@ -328,6 +364,10 @@ export default function McpAppStudioPage() {
             iframeSrc={iframeSrc}
             onFullscreen={() => {
               analytics.mcpAppStudio.workbenchFullscreenToggled(true);
+              fullscreenRestoreFocusRef.current =
+                document.activeElement instanceof HTMLElement
+                  ? document.activeElement
+                  : null;
               setIsFullscreen(true);
             }}
           />
@@ -499,7 +539,15 @@ export default function McpAppStudioPage() {
       </div>
 
       {isFullscreen && (
-        <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/90 backdrop-blur-sm">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="workbench-fullscreen-title"
+          className={cn(
+            "fixed inset-0 flex items-center justify-center bg-black/90 backdrop-blur-sm",
+            FULLSCREEN_OVERLAY_Z_INDEX_CLASS,
+          )}
+        >
           <div className="relative h-[95vh] w-[95vw] overflow-hidden rounded-xl bg-zinc-950 shadow-2xl">
             <div className="flex h-12 items-center justify-between border-zinc-800 border-b bg-zinc-900 px-4">
               <div className="flex items-center gap-3">
@@ -508,11 +556,15 @@ export default function McpAppStudioPage() {
                   <div className="size-3 rounded-full bg-yellow-500/80" />
                   <div className="size-3 rounded-full bg-green-500/80" />
                 </div>
-                <span className="font-mono text-sm text-zinc-400">
+                <span
+                  id="workbench-fullscreen-title"
+                  className="font-mono text-sm text-zinc-400"
+                >
                   MCP App Studio Workbench
                 </span>
               </div>
               <button
+                ref={fullscreenCloseButtonRef}
                 onClick={() => {
                   analytics.mcpAppStudio.workbenchFullscreenToggled(false);
                   setIsFullscreen(false);
@@ -534,6 +586,7 @@ export default function McpAppStudioPage() {
               }
               title="MCP App Studio Workbench (Fullscreen)"
               allow="clipboard-read; clipboard-write"
+              sandbox={WORKBENCH_IFRAME_SANDBOX}
             />
           </div>
         </div>
@@ -570,7 +623,7 @@ function HeroShowcase({
               </div>
               <div className="ml-4 flex-1">
                 <div className="mx-auto w-fit rounded-md bg-zinc-800/60 px-3 py-1 font-mono text-xs text-zinc-400">
-                  {new URL(WORKBENCH_URL).host}
+                  {WORKBENCH_HOST}
                 </div>
               </div>
               <button
@@ -639,6 +692,7 @@ function HeroShowcase({
                 }}
                 title="MCP App Studio Workbench"
                 allow="clipboard-read; clipboard-write"
+                sandbox={WORKBENCH_IFRAME_SANDBOX}
               />
             </div>
           </div>
