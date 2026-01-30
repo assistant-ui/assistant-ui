@@ -373,6 +373,37 @@ export default function McpAppStudioPage() {
           />
         </section>
 
+        <div className="flex flex-col gap-8">
+          <div className="flex flex-col items-center gap-2 text-center">
+            <h2 className="font-medium text-3xl tracking-tight">
+              Everything you need to ship assistant apps
+            </h2>
+            <p className="text-muted-foreground">
+              A local workbench with a production-ready export flow.
+            </p>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {FEATURES.map((feature) => {
+              const Icon = feature.icon;
+              return (
+                <div
+                  key={feature.title}
+                  className="flex flex-col gap-2 rounded-xl border border-border/50 bg-muted/30 p-4 transition-colors hover:border-border/80"
+                >
+                  <span className="flex items-center gap-2 font-medium">
+                    <Icon className={cn("size-4", feature.iconColor)} />
+                    {feature.title}
+                  </span>
+                  <p className="text-muted-foreground text-sm leading-relaxed">
+                    {feature.description}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
         <div ref={capabilitiesSectionRef} className="flex flex-col gap-8">
           <div className="flex flex-col items-center gap-2 text-center">
             <h2 className="font-medium text-3xl tracking-tight">
@@ -385,12 +416,8 @@ export default function McpAppStudioPage() {
           </div>
 
           <div className="mx-auto grid w-full max-w-6xl gap-4 lg:grid-cols-2">
-            <div className="min-w-0 overflow-hidden rounded-xl border border-border/50 bg-muted/30">
-              <CodeBlock language="tsx" code={FEATURE_GATE_SNIPPET} />
-            </div>
-
-            <div className="min-w-0 overflow-hidden rounded-xl border border-border/50 bg-muted/30">
-              <div className="grid grid-cols-[1fr_88px_88px] items-center gap-3 border-border/50 border-b bg-background/40 px-4 py-2 text-muted-foreground text-xs">
+            <div className="min-w-0">
+              <div className="grid grid-cols-[1fr_88px_88px] items-center gap-3 border-border/50 border-b px-4 py-2 text-muted-foreground text-xs">
                 <div>Capability</div>
                 <div className="text-center">ChatGPT</div>
                 <div className="text-center">Claude</div>
@@ -425,37 +452,10 @@ export default function McpAppStudioPage() {
                 ))}
               </div>
             </div>
-          </div>
-        </div>
 
-        <div className="flex flex-col gap-8">
-          <div className="flex flex-col items-center gap-2 text-center">
-            <h2 className="font-medium text-3xl tracking-tight">
-              Everything you need to ship assistant apps
-            </h2>
-            <p className="text-muted-foreground">
-              A local workbench with a production-ready export flow.
-            </p>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {FEATURES.map((feature) => {
-              const Icon = feature.icon;
-              return (
-                <div
-                  key={feature.title}
-                  className="flex flex-col gap-2 rounded-xl border border-border/50 bg-muted/30 p-4 transition-colors hover:border-border/80"
-                >
-                  <span className="flex items-center gap-2 font-medium">
-                    <Icon className={cn("size-4", feature.iconColor)} />
-                    {feature.title}
-                  </span>
-                  <p className="text-muted-foreground text-sm leading-relaxed">
-                    {feature.description}
-                  </p>
-                </div>
-              );
-            })}
+            <div className="min-w-0 overflow-hidden rounded-xl border border-border/50 bg-muted/30">
+              <CodeBlock language="tsx" code={FEATURE_GATE_SNIPPET} />
+            </div>
           </div>
         </div>
 
