@@ -4,3 +4,133 @@ description: Get started with tap - hooks for reactive resources
 ---
 
 Welcome to **tap** - Hooks for Reactive Resources.
+
+**tap** is a zero-dependency reactive state management library that brings **React's hooks mental model to state management outside of React components**.
+
+Instead of limiting hooks to React components, tap lets you use the same familiar hooks pattern (`useState`, `useEffect`, `useMemo`, etc.) to create self-contained, reusable units of reactive state and logic called **Resources** that can be used anywhere - in vanilla JavaScript, servers, or outside of React.
+
+## Installation
+
+```bash
+npm install @assistant-ui/tap
+```
+
+## Why tap?
+
+- **Reuse React knowledge**: Developers already familiar with hooks can immediately work with tap
+- **Framework flexibility**: Core logic can work outside React components
+- **Automatic cleanup**: No memory leaks from forgotten unsubscribes
+- **Composability**: Resources can nest and combine naturally
+- **Type safety**: Full TypeScript inference for state and APIs
+- **Zero dependencies**: Lightweight and portable
+
+## Quick Start
+
+Create a resource using familiar hook patterns:
+
+```typescript
+import { createResource, resource, tapState, tapEffect } from "@assistant-ui/tap";
+
+// Define a resource
+const Counter = resource(({ incrementBy = 1 }: { incrementBy?: number }) => {
+  const [count, setCount] = tapState(0);
+
+  tapEffect(() => {
+    console.log(`Count is now: ${count}`);
+  }, [count]);
+
+  return {
+    count,
+    increment: () => setCount((c) => c + incrementBy),
+    decrement: () => setCount((c) => c - incrementBy),
+  };
+});
+
+// Create an instance
+const counter = createResource(new Counter({ incrementBy: 2 }));
+
+// Subscribe to changes
+const unsubscribe = counter.subscribe(() => {
+  console.log("Counter value:", counter.getState().count);
+});
+
+// Use the resource
+counter.getState().increment();
+
+// Cleanup
+counter.dispose();
+unsubscribe();
+```
+
+## React Integration
+
+Use resources directly in React components with the `useResource` hook:
+
+```typescript
+import { useResource } from "@assistant-ui/tap/react";
+
+function MyComponent() {
+  const state = useResource(new Counter({ incrementBy: 1 }));
+  return (
+    <div>
+      <p>Count: {state.count}</p>
+      <button onClick={state.increment}>Increment</button>
+    </div>
+  );
+}
+```
+
+## Core Concepts
+
+### Resources
+
+Resources are self-contained units of reactive state and logic. They follow the same rules as React hooks:
+
+- **Hook Order**: Hooks must be called in the same order in every render
+- **No Conditional Hooks**: Can't call hooks inside conditionals or loops
+- **No Async Hooks**: Hooks must be called synchronously during render
+- Resources automatically handle cleanup and lifecycle
+
+### Available Hooks
+
+tap provides equivalents to React's core hooks:
+
+| React Hook    | tap Hook      | Behavior  |
+| ------------- | ------------- | --------- |
+| `useState`    | `tapState`    | Identical |
+| `useEffect`   | `tapEffect`   | Identical |
+| `useMemo`     | `tapMemo`     | Identical |
+| `useCallback` | `tapCallback` | Identical |
+| `useRef`      | `tapRef`      | Identical |
+
+Plus additional hooks for resource composition:
+- `tapResource` - Compose resources together
+- `tapResources` - Render multiple resources from an array
+- `tap` - Access context values
+
+## How It Works
+
+tap implements a **render-commit pattern** similar to React:
+
+### Render Phase
+1. Each resource instance has a "fiber" that tracks state and effects
+2. When a resource function runs, hooks record their data in the fiber
+3. The library maintains an execution context to track which fiber's hooks are being called
+4. Each hook stores its data in cells indexed by call order (enforcing React's rules)
+
+### Commit Phase
+1. After render, collected effect tasks are processed
+2. Effects check if dependencies changed using shallow equality
+3. Old effects are cleaned up before new ones run
+4. Updates are batched using microtasks to prevent excessive re-renders
+
+## Use Cases
+
+tap is used throughout assistant-ui for:
+
+1. **State Management**: Application-wide state without Redux/Zustand
+2. **Event Handling**: Managing event subscriptions and cleanup
+3. **Resource Lifecycle**: Auto-cleanup of WebSockets, timers, subscriptions
+4. **Composition**: Nested resource management (threads, messages, tools)
+5. **Context Injection**: Passing values through resource boundaries without prop drilling
+6. **API Wrapping**: Creating reactive API objects with `getState()` and `subscribe()`
