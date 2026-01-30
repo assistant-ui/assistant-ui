@@ -9,6 +9,10 @@ import * as p from "@clack/prompts";
 import pc from "picocolors";
 import { extract } from "tar";
 import {
+  filterTemplateTarEntry,
+  getGithubArchiveTarballUrl,
+} from "./template-utils";
+import {
   isValidPackageName,
   isValidProjectPath,
   toValidPackageName,
@@ -176,11 +180,56 @@ function updateServerPackageName(
   const pkg = JSON.parse(raw) as Record<string, unknown>;
 
   const baseName = projectPackageName.includes("/")
-    ? projectPackageName.split("/").pop()!
+    ? projectPackageName.split("/").pop()
     : projectPackageName;
 
+  if (!baseName) return;
   pkg["name"] = `${baseName}-mcp-server`;
   fs.writeFileSync(serverPkgPath, `${JSON.stringify(pkg, null, 2)}\n`, "utf-8");
+}
+
+function ensureServerPostinstall(targetDir: string): void {
+  const pkgPath = path.join(targetDir, "package.json");
+  const serverPkgPath = path.join(targetDir, "server", "package.json");
+  if (!fs.existsSync(pkgPath) || !fs.existsSync(serverPkgPath)) return;
+
+  const raw = fs.readFileSync(pkgPath, "utf-8");
+  const pkg = JSON.parse(raw) as Record<string, unknown>;
+  const scripts = (pkg["scripts"] as Record<string, string>) ?? {};
+
+  // If the template already defines a postinstall hook, don't override it.
+  if (scripts["postinstall"]) return;
+
+  const scriptPath = path.join(
+    targetDir,
+    "scripts",
+    "mcp-app-studio-postinstall.cjs",
+  );
+  fs.mkdirSync(path.dirname(scriptPath), { recursive: true });
+  fs.writeFileSync(
+    scriptPath,
+    `/* eslint-disable */\n` +
+      `const { spawnSync } = require("node:child_process");\n` +
+      `const { existsSync } = require("node:fs");\n` +
+      `const { join } = require("node:path");\n\n` +
+      `const ROOT = process.cwd();\n` +
+      `const SERVER_DIR = join(ROOT, "server");\n\n` +
+      `if (!existsSync(join(SERVER_DIR, "package.json"))) process.exit(0);\n` +
+      `if (existsSync(join(SERVER_DIR, "node_modules")) || existsSync(join(SERVER_DIR, ".pnp.cjs"))) process.exit(0);\n\n` +
+      `const ua = process.env.npm_config_user_agent || "";\n` +
+      `let pm = "npm";\n` +
+      `if (ua.includes("pnpm")) pm = "pnpm";\n` +
+      `else if (ua.includes("yarn")) pm = "yarn";\n` +
+      `else if (ua.includes("bun")) pm = "bun";\n\n` +
+      `console.log("\\n\\x1b[2mInstalling server dependencies (" + pm + ")...\\x1b[0m\\n");\n` +
+      `const result = spawnSync(pm, ["install"], { cwd: SERVER_DIR, stdio: "inherit", shell: process.platform === "win32" });\n` +
+      `process.exit(result.status == null ? 1 : result.status);\n`,
+    "utf-8",
+  );
+
+  scripts["postinstall"] = "node scripts/mcp-app-studio-postinstall.cjs";
+  pkg["scripts"] = scripts;
+  fs.writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`, "utf-8");
 }
 
 function generateComponentRegistry(components: string[]): string {
@@ -317,7 +366,13 @@ function updateExportScriptDefaults(
   exportName: string,
 ): void {
   const exportScriptPath = path.join(targetDir, "scripts/export.ts");
+  if (!fs.existsSync(exportScriptPath)) return;
+
   let content = fs.readFileSync(exportScriptPath, "utf-8");
+
+  // Newer templates read defaults from `mcp-app-studio.config.json`.
+  // Avoid brittle regex patching when the export script is config-driven.
+  if (content.includes("mcp-app-studio.config.json")) return;
 
   // Update the default entryPoint
   content = content.replace(
@@ -478,7 +533,11 @@ function validateTemplateDir(templateDir: string): void {
   );
   if (missing.length > 0) {
     throw new Error(
-      `Template structure changed. Missing expected files:\n${missing.map((p) => `- ${p}`).join("\n")}`,
+      `Template validation failed. Missing expected files:\n${missing
+        .map((p) => `- ${p}`)
+        .join(
+          "\n",
+        )}\n\nThis may indicate the starter template has changed. Try updating mcp-app-studio or set MCP_APP_STUDIO_TEMPLATE_REPO / MCP_APP_STUDIO_TEMPLATE_REF to a compatible template.`,
     );
   }
 }
@@ -511,7 +570,7 @@ async function downloadTemplateToTemp(): Promise<{
   tempDir: string;
   templateDir: string;
 }> {
-  const tarballUrl = `https://github.com/${TEMPLATE_REPO}/archive/refs/heads/${TEMPLATE_REF}.tar.gz`;
+  const tarballUrl = getGithubArchiveTarballUrl(TEMPLATE_REPO, TEMPLATE_REF);
   const tempDir = fs.mkdtempSync(
     path.join(os.tmpdir(), "mcp-app-studio-template-"),
   );
@@ -545,32 +604,8 @@ async function downloadTemplateToTemp(): Promise<{
       file: tarballPath,
       cwd: extractDir,
       strip: 0,
-      filter: (entryPath, entry) => {
-        if (
-          "type" in entry &&
-          (entry.type === "SymbolicLink" || entry.type === "Link")
-        ) {
-          return false;
-        }
-
-        // Basic path traversal defense: ensure this entry stays within `extractDir`.
-        if (path.isAbsolute(entryPath)) {
-          throw new Error(
-            `Template tarball contains an absolute path: ${entryPath}`,
-          );
-        }
-        const resolved = path.resolve(extractDir, entryPath);
-        if (
-          resolved !== extractDir &&
-          !resolved.startsWith(`${extractDir}${path.sep}`)
-        ) {
-          throw new Error(
-            `Template tarball contains an unsafe path: ${entryPath}`,
-          );
-        }
-
-        return true;
-      },
+      filter: (entryPath, entry) =>
+        filterTemplateTarEntry(extractDir, entryPath, entry),
     });
 
     const topLevelDirs = fs
@@ -582,7 +617,14 @@ async function downloadTemplateToTemp(): Promise<{
       );
     }
 
-    const templateDir = path.join(extractDir, topLevelDirs[0]!.name);
+    const topLevelDir = topLevelDirs[0];
+    if (!topLevelDir) {
+      throw new Error(
+        "Unexpected template archive layout. No top-level directory found.",
+      );
+    }
+
+    const templateDir = path.join(extractDir, topLevelDir.name);
     validateTemplateDir(templateDir);
     return { tempDir, templateDir };
   } catch (err) {
@@ -843,6 +885,9 @@ async function main() {
   updatePackageJson(targetDir, config.packageName, config.description, {
     mcpAppStudioVersion: getVersion(),
   });
+  if (config.includeServer) {
+    ensureServerPostinstall(targetDir);
+  }
 
   s.message("Applying template...");
   applyTemplate(targetDir, config.template);
