@@ -4,8 +4,8 @@ Step through this checklist to validate the complete user journey.
 
 ## Prerequisites
 
-- [x] Node.js 20+ installed (v25.2.1)
-- [x] pnpm installed globally (v10.11.0)
+- [x] Node.js >=20.9.0 installed (tested on v25.2.1)
+- [x] pnpm installed globally (tested on v10.x)
 - [x] Clean test directory (`~/Code/tests/test-scaffold`)
 
 ---
@@ -51,6 +51,19 @@ node /path/to/bin/mcp-app-studio.js my-app
 
 **Notes:** Works correctly. Directory with only `.git` is treated as empty.
 
+### 1.5 Template selection
+
+- [ ] `--template minimal` generates only the Welcome example + wrapper
+- [ ] `--template poi-map` generates only the POI Map example + wrapper
+- [ ] `mcp-app-studio.config.json` defaults match the selected template:
+  - minimal → `lib/workbench/wrappers/welcome-card-sdk.tsx` / `WelcomeCardSDK`
+  - poi-map → `lib/workbench/wrappers/poi-map-sdk.tsx` / `POIMapSDK`
+
+### 1.6 Server toggle
+
+- [ ] `--include-server` includes `server/` (default behavior)
+- [ ] `--no-server` does not create `server/` and does not attempt server postinstall
+
 ---
 
 ## 2. Scaffolded Project Structure
@@ -59,7 +72,8 @@ node /path/to/bin/mcp-app-studio.js my-app
 
 - [x] `package.json`
 - [x] `.gitignore` (not `_gitignore`)
-- [x] `.env.local` (not `_env.local`)
+- [x] `.env.example`
+- [ ] `.env.local` _(optional - user-created, not scaffolded)_
 - [x] `tsconfig.json`
 - [x] `next.config.ts`
 - [x] CSS config (`postcss.config.mjs`)
@@ -78,14 +92,17 @@ node /path/to/bin/mcp-app-studio.js my-app
 - [x] `name` matches project name (sanitized) → `"my-app"`
 - [x] `version` is `0.1.0`
 - [x] `private` is `true`
-- [x] Has `scripts.dev` → `"next dev"`
+- [x] Has `scripts.dev` → `"tsx scripts/dev.ts"`
+- [x] Has `scripts.dev:next` → `"next dev -p 3002"`
 - [x] Has `scripts.build` → `"next build"`
 - [x] Has `scripts.export` → `"tsx scripts/export.ts"`
 
 ### 2.4 Example widget exists
 
-- [x] `components/examples/poi-map/` directory exists
-- [x] Contains `index.tsx`, `schema.ts`, `poi-map.tsx` (11 files total)
+- [ ] For `--template poi-map`: `components/examples/poi-map/` directory exists
+- [ ] For `--template poi-map`: contains `index.tsx`, `schema.ts`, `poi-map.tsx`
+- [ ] For `--template minimal`: `components/examples/welcome-card/` directory exists
+- [ ] For `--template minimal`: contains `index.tsx`, `schema.ts`, `welcome-card.tsx`
 
 ---
 
@@ -96,18 +113,19 @@ node /path/to/bin/mcp-app-studio.js my-app
 - [x] Completes without errors (5.6s, 637 packages)
 - [x] `node_modules/` created
 - [x] No blocking peer dependency warnings
-- [ ] If server included: `server/node_modules/` auto-created via postinstall
-- [ ] If server included: `@modelcontextprotocol/sdk` installed in server
+- [x] If server included: `server/node_modules/` auto-created via postinstall
+- [x] If server included: `@modelcontextprotocol/sdk` installed in server
 
-**Notes:** Warning about ignored build scripts (esbuild, sharp) is expected and non-blocking. Server dependencies should auto-install via postinstall hook added to package.json.
+**Notes:** Warning about ignored build scripts (esbuild, sharp) is expected and non-blocking. `npm audit` warnings may appear depending on your environment.
 
 ### 3.2 Start dev server
 
-- [x] Server starts (port 3001, since 3000 was in use)
+- [x] Next.js starts (default: `http://localhost:3002`)
+- [x] MCP server starts (default: `http://localhost:3001/mcp`, auto-selects a free port if 3001 is in use)
 - [x] No console errors on startup
 - [x] Ready in 1218ms with Turbopack
 
-**Notes:** Next.js automatically finds available port.
+**Notes:** The root `dev` script starts both Next.js and the MCP server (when included). The MCP server port is printed on startup and written to `server/.mcp-port` for tooling.
 
 ### 3.3-3.5 Workbench UI & POI Map
 
@@ -117,16 +135,18 @@ node /path/to/bin/mcp-app-studio.js my-app
 
 ### 3.6 MCP Server (when included)
 
-- [ ] `server/node_modules/` created automatically via postinstall
-- [ ] `server/node_modules/@modelcontextprotocol/sdk` exists
-- [ ] `npm run dev` starts both Next.js AND MCP server
-- [ ] MCP server responds at `http://localhost:3001/mcp`
+- [x] `server/node_modules/` created automatically via postinstall
+- [x] `server/node_modules/@modelcontextprotocol/sdk` exists
+- [x] `npm run dev` starts both Next.js AND MCP server
+- [x] MCP server responds at `GET http://localhost:<port>/` with 200
+- [x] MCP server responds at `http://localhost:<port>/mcp` (note: a bare GET may return 406; use MCP Inspector for full validation)
 - [ ] `cd server && npm run inspect` launches MCP inspector
 - [ ] Inspector connects successfully to MCP server
-- [ ] Stopping dev server (Ctrl+C) cleanly kills all child processes
-- [ ] No zombie processes left on ports 6277, 6274 after stopping
+- [x] Stopping dev server (Ctrl+C) cleanly kills all child processes
+- [x] No zombie processes left on ports 3002 (Next.js) and the resolved MCP port after stopping
+- [ ] If inspector was launched: no zombie processes left on ports 6277, 6274 after stopping inspector
 
-**Notes:** Server dependencies should install automatically via postinstall hook.
+**Notes:** `cd server && npm run inspect` reads `PORT` if set; otherwise it uses `server/.mcp-port` written by the running server.
 
 ---
 
@@ -152,20 +172,22 @@ node /path/to/bin/mcp-app-studio.js my-app
 ### 5.1 Run export
 
 - [x] Completes without errors
-- [x] `export/` directory created (5 files)
+- [x] `export/` directory created
 
 ### 5.2 Export contents
 
-- [x] `export/manifest.json` exists (148 bytes)
-- [x] `export/widget/widget.js` exists (823KB)
-- [x] `export/widget/index.html` exists (718 bytes)
-- [x] `export/widget/widget.css` exists (11KB)
+- [x] `export/manifest.json` exists
+- [x] `export/widget/widget.js` exists
+- [x] `export/widget/index.html` exists
+- [x] `export/widget/widget.css` exists
 - [x] `export/README.md` exists
+- [x] If using POI Map template: `export/widget/assets/` contains required Leaflet assets
 
 ### 5.3 Manifest validation
 
 - [x] Valid JSON
 - [x] Contains: `schema_version`, `name`, `widget.url`, `version`
+- [ ] Contains recommended: `description`
 - [x] Widget URL placeholder present for deployment
 
 ### 5.4 Widget bundle validation
@@ -215,8 +237,8 @@ node /path/to/bin/mcp-app-studio.js my-app
 
 ### 8.3 Port already in use
 
-- [x] Next.js detects port conflict automatically
-- [x] Uses next available port with message
+- [x] MCP server avoids port conflicts by selecting the next available port
+- [ ] If Next.js port (3002) is already in use, verify it either auto-selects a new port or exits with a clear message
 
 ### 8.4 Missing .env.local values
 
@@ -254,44 +276,35 @@ rm -rf ~/Code/tests/test-scaffold/*
 
 ## Issues Found
 
-| Step | Issue                                    | Severity | Status    |
-| ---- | ---------------------------------------- | -------- | --------- |
-| 9.3  | Scaffold with `.` set empty package name | Low      | **FIXED** |
+| Step | Issue | Severity | Status |
+| ---- | ----- | -------- | ------ |
+| 2.1  | Test plan incorrectly expected `.env.local` to be scaffolded | Low | **FIXED** (docs) |
+| 9.3  | Scaffold with `.` set empty package name | Low | **FIXED** |
 | 3.1  | Server deps not auto-installed (required manual `cd server && npm install`) | High | **FIXED** |
 | 3.2  | `appComponent` import doesn't exist in generated `component-registry.tsx` | Critical | **FIXED** |
 | 3.2  | Peer dependency mismatch between assistant-ui packages | High | **FIXED** |
-| 3.6  | Zombie processes on ports 6277, 6274 after stopping dev server | Medium | **FIXED** (starter repo) |
+| 3.6  | MCP server crashes on `EADDRINUSE` (port 3001) | Medium | **FIXED** (starter repo) |
+| 3.6  | `cd server && npm run inspect` hardcoded port 3001 | Low | **FIXED** (starter repo) |
+| 3.6  | Stopping `npm run dev` left child processes on ports 3002 / 300x | High | **FIXED** (starter repo) |
+| 5.3  | Export manifest missing recommended `description` field | Low | **FIXED** (starter repo) |
 
 ---
 
 ## Sign-off
 
-- [x] All critical paths tested
-- [x] No blocking issues found
-- [x] Ready for release
+- [ ] All critical paths tested
+- [ ] No blocking issues found
+- [ ] Ready for release
 
-**Tested by:** Claude (automated)
-**Date:** 2026-01-28
+**Tested by:** _<name>_
+**Date:** _YYYY-MM-DD_
 
 ---
 
-## Summary
+## Skipped tests
 
-| Category              | Passed | Skipped | Failed |
-| --------------------- | ------ | ------- | ------ |
-| 1. CLI Invocation     | 7      | 7       | 0      |
-| 2. Scaffolded Project | 14     | 0       | 0      |
-| 3. Development Flow   | 6      | 8       | 0      |
-| 4. Build Flow         | 4      | 4       | 0      |
-| 5. Export Flow        | 10     | 0       | 0      |
-| 6. Package Manager    | 1      | 2       | 0      |
-| 7. Name Sanitization  | 4      | 0       | 0      |
-| 8. Error Scenarios    | 4      | 4       | 0      |
-| 9. Edge Cases         | 3      | 1       | 0      |
-| **TOTAL**             | **53** | **26**  | **0**  |
-
-**Skipped tests** require:
+Skipped tests usually require:
 
 - Interactive TTY input (prompts, Ctrl+C)
-- Browser automation (workbench UI)
-- Specific package managers (yarn, pnpm dlx)
+- Browser validation (workbench UI)
+- Specific package managers (yarn, `pnpm dlx`)
