@@ -67,14 +67,15 @@ Use the `variant` prop on `Reasoning.Root` to change the visual style:
 
 ```tsx
 <Reasoning.Root variant="outline">...</Reasoning.Root>
+<Reasoning.Root variant="ghost">...</Reasoning.Root>
 <Reasoning.Root variant="muted">...</Reasoning.Root>
 ```
 
 | Variant   | Description                        |
 | --------- | ---------------------------------- |
-| `default` | No additional styling              |
+| `outline` | Rounded border (default)           |
+| `ghost`   | No additional styling              |
 | `muted`   | Muted background                   |
-| `outline` | Rounded border                     |
 
 ## ReasoningGroup
 
@@ -123,6 +124,15 @@ All sub-components are exported for custom layouts:
 | `Reasoning.Content`   | Animated collapsible content wrapper       |
 | `Reasoning.Text`      | Text wrapper with slide/fade animation     |
 | `Reasoning.Fade`      | Gradient fade overlay at bottom            |
+
+### Props
+
+**ReasoningTrigger**
+
+| Prop       | Type      | Description                                      |
+| ---------- | --------- | ------------------------------------------------ |
+| `active`   | `boolean` | Shows shimmer animation when streaming           |
+| `duration` | `number`  | Optional duration in seconds to display (e.g. 3s)|
 
 ```tsx
 import {
