@@ -1,0 +1,21 @@
+{
+  "extends": "@assistant-ui/x-buildutils/ts/next",
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["./*"],
+      "@/components/assistant-ui/*": [
+        "../../packages/ui/src/components/assistant-ui/*"
+      ],
+      "@/components/ui/*": ["../../packages/ui/src/components/ui/*"],
+      "@assistant-ui/ui/*": ["../../packages/ui/src/*"],
+      "@assistant-ui/*": ["../../packages/*/src"],
+      "@assistant-ui/react/*": ["../../packages/react/src/*"],
+      "@assistant-ui/tap": ["../../packages/tap/src"],
+      "@assistant-ui/tap/*": ["../../packages/tap/src/*"],
+      "@assistant-ui/store": ["../../packages/store/src"],
+      "@assistant-ui/store/*": ["../../packages/store/src/*"]
+    }
+  },
+  "include": ["**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": ["node_modules"]
+}
