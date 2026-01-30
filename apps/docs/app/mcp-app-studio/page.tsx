@@ -192,8 +192,9 @@ export default function McpAppStudioPage() {
               Try the workbench
             </h2>
             <p className="text-muted-foreground">
-              The workbench is a local dev UI: live preview, mocked tool calls,
-              and export-ready output.
+              A local host simulator for chat-style platforms like ChatGPT and
+              Claude. Preview your app, mock tool calls, and export for
+              production.
             </p>
           </div>
 
