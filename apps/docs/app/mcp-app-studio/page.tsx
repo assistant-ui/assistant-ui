@@ -116,7 +116,7 @@ const FEATURES = [
   {
     title: "Universal SDK",
     description:
-      "Write once, run everywhere. It detects ChatGPT vs MCP and uses the right APIs.",
+      "Write once, run everywhere. Detects ChatGPT vs MCP and uses the right APIs.",
     icon: Sparkles,
     iconColor: "text-violet-400",
   },
@@ -124,8 +124,8 @@ const FEATURES = [
 
 const PLATFORM_CAPABILITIES = [
   {
-    feature: "Widget state",
-    description: "Persist and restore widget state through host APIs.",
+    feature: "App state",
+    description: "Persist and restore app state through host APIs.",
     chatgpt: true,
     mcp: false,
   },
@@ -290,8 +290,8 @@ export default function McpAppStudioPage() {
               Build MCP apps once, run them anywhere
             </h1>
             <p className="max-w-xl text-lg text-muted-foreground">
-              Local-first, hot-reloading workflow. Export bundles for ChatGPT,
-              Claude, and any compatible MCP host.
+              Build locally with hot reload. Export bundles for ChatGPT, Claude,
+              and any compatible MCP host.
             </p>
           </div>
 
