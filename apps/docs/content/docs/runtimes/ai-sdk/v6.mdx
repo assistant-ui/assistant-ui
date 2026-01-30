@@ -24,7 +24,7 @@ cd my-app
 
 ### Install dependencies
 
-<InstallCommand npm={["@assistant-ui/react", "@assistant-ui/react-ai-sdk", "ai@^6", "@ai-sdk/react@^3", "@ai-sdk/openai", "zod"]} />
+<InstallCommand npm={["@assistant-ui/react", "@assistant-ui/react-ai-sdk", "ai@^6", "@ai-sdk/openai", "zod"]} />
 
   </Step>
   <Step>
@@ -106,7 +106,7 @@ export default function Home() {
 | Feature | v5 | v6 |
 |---------|----|----|
 | **ai package** | `ai@^5` | `ai@^6` |
-| **@ai-sdk/react** | `@ai-sdk/react@^2` | `@ai-sdk/react@^3` |
+| **@ai-sdk/openai** | `@ai-sdk/openai@^1` | `@ai-sdk/openai@^3` |
 | **convertToModelMessages** | Sync | Async (`await`) |
 | **Tool schema** | `parameters: z.object({...})` | `inputSchema: zodSchema(z.object({...}))` |
 
