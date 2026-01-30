@@ -34,7 +34,7 @@ const aiSdkFormatAdapter: MessageFormatAdapter<UIMessage, ReadonlyJSONObject> =
     getId: (message) => message.id,
   };
 
-export type UseCloudChatOptions = Omit<ChatInit<UIMessage>, "transport"> & {
+export type UseCloudChatOptions = ChatInit<UIMessage> & {
   /** External thread management. If provided, internal threads are disabled. */
   threads?: UseThreadsResult;
   /** Cloud instance. Ignored if threads provided. Falls back to NEXT_PUBLIC_ASSISTANT_BASE_URL env var. */
@@ -65,14 +65,19 @@ export type UseCloudChatResult = UseChatHelpers<UIMessage> & {
  * @example
  * ```tsx
  * // Simplest usage - just set NEXT_PUBLIC_ASSISTANT_BASE_URL env var
- * const { messages, sendMessage, threads } = useCloudChat({ api: "/api/chat" });
+ * const { messages, sendMessage, threads } = useCloudChat();
+ *
+ * // With custom API endpoint via transport
+ * const { messages, sendMessage, threads } = useCloudChat({
+ *   transport: new DefaultChatTransport({ api: "/api/chat" }),
+ * });
  *
  * // With explicit cloud instance
- * const { messages, sendMessage, threads } = useCloudChat({ cloud: myCloud, api: "/api/chat" });
+ * const { messages, sendMessage, threads } = useCloudChat({ cloud: myCloud });
  *
  * // With external thread control (backwards compatible)
  * const myThreads = useThreads({ cloud: myCloud });
- * const { messages, sendMessage } = useCloudChat({ threads: myThreads, api: "/api/chat" });
+ * const { messages, sendMessage } = useCloudChat({ threads: myThreads });
  * ```
  */
 export function useCloudChat(
@@ -83,6 +88,7 @@ export function useCloudChat(
     cloud: cloudOption,
     includeArchived,
     autoGenerateTitle = true,
+    transport: userTransport,
     ...chatOptions
   } = options;
 
@@ -165,6 +171,9 @@ export function useCloudChat(
   const newlyCreatedThreadRef = useRef<string | null>(null);
   const titleGeneratedRef = useRef(new Set<string>());
 
+  // Mutex for thread creation to prevent race conditions on concurrent sends
+  const creatingThreadRef = useRef<Promise<string> | null>(null);
+
   // Track mounted state
   const mountedRef = useRef(true);
   useEffect(() => {
@@ -173,53 +182,65 @@ export function useCloudChat(
     };
   }, []);
 
-  // Internal transport with ensureThread via prepareSendMessagesRequest
-  const transport = useMemo(
+  // Use user's transport if provided, otherwise create default with cloud persistence
+  const defaultTransport = useMemo(
     () =>
       new DefaultChatTransport({
         prepareSendMessagesRequest: async (opts) => {
-          // Ensure thread exists before sending
+          // Ensure thread exists before sending (with mutex to prevent race conditions)
           if (!threadIdRef.current && !createdThreadRef.current) {
-            const res = await threadsRef.current.cloud.threads.create({
-              last_message_at: new Date(),
-            });
-            createdThreadRef.current = res.thread_id;
-            threadIdRef.current = res.thread_id;
-            loadedThreadsRef.current.add(res.thread_id);
-            // Track for auto-title generation
-            newlyCreatedThreadRef.current = res.thread_id;
-            // Auto-select the new thread and refresh the list
-            threadsRef.current.selectThread(res.thread_id);
-            threadsRef.current.refresh();
+            if (!creatingThreadRef.current) {
+              creatingThreadRef.current = (async () => {
+                try {
+                  const res = await threadsRef.current.cloud.threads.create({
+                    last_message_at: new Date(),
+                  });
+                  createdThreadRef.current = res.thread_id;
+                  threadIdRef.current = res.thread_id;
+                  loadedThreadsRef.current.add(res.thread_id);
+                  // Track for auto-title generation
+                  newlyCreatedThreadRef.current = res.thread_id;
+                  // Auto-select the new thread and refresh the list
+                  threadsRef.current.selectThread(res.thread_id);
+                  threadsRef.current.refresh();
+                  return res.thread_id;
+                } catch (err) {
+                  // Reset mutex so future sends can retry thread creation
+                  creatingThreadRef.current = null;
+                  throw err;
+                }
+              })();
+            }
+            await creatingThreadRef.current;
           }
-          // Return proper structure with body including messages
-          const result: {
-            body: object;
-            headers?: HeadersInit;
-            credentials?: RequestCredentials;
-            api?: string;
-          } = {
+          // Use the resolved thread ID in the body for server routing
+          // This is important because opts.id could be "__new__" before thread creation
+          const resolvedThreadId =
+            threadIdRef.current ?? createdThreadRef.current;
+
+          return {
             body: {
               ...opts.body,
-              id: opts.id,
+              id: resolvedThreadId ?? opts.id,
               messages: opts.messages,
               trigger: opts.trigger,
               messageId: opts.messageId,
               metadata: opts.requestMetadata,
             },
           };
-          if (opts.headers !== undefined) result.headers = opts.headers;
-          if (opts.credentials !== undefined)
-            result.credentials = opts.credentials;
-          if (opts.api !== undefined) result.api = opts.api;
-          return result;
         },
       }),
     [],
   );
 
+  const transport = userTransport ?? defaultTransport;
+
+  // Use threadId as chat ID for proper routing; fallback for new conversations
+  const chatId = threadId ?? "__new__";
+
   const chat = useChat({
     ...chatOptions,
+    id: chatId,
     transport,
     onFinish: (event) => {
       onFinishRef.current?.(event);
@@ -301,6 +322,13 @@ export function useCloudChat(
   useEffect(() => {
     const activeThreadId = threadIdRef.current ?? createdThreadRef.current;
     if (!activeThreadId) return;
+    // Don't overwrite cached messages with empty array (race condition from chatId switch)
+    if (
+      chat.messages.length === 0 &&
+      messagesByThreadRef.current.has(activeThreadId)
+    ) {
+      return;
+    }
     messagesByThreadRef.current.set(activeThreadId, chat.messages);
   }, [chat.messages]);
 
@@ -308,16 +336,20 @@ export function useCloudChat(
   // Only fires on thread switch, not on isRunning transitions — matching
   // useExternalHistory's load-once-per-thread semantics.
   useEffect(() => {
+    // Clear sync error on any thread change
+    setSyncError(null);
+
     // Check if this is a thread we just created BEFORE any reset
     const justCreated = threadId === createdThreadRef.current;
 
     if (!justCreated) {
       createdThreadRef.current = null;
+      // Reset creation mutex when switching away from new thread
+      creatingThreadRef.current = null;
     }
 
     if (!threadId) {
       setMessagesRef.current([]);
-      setSyncError(null);
       return;
     }
 
@@ -331,7 +363,8 @@ export function useCloudChat(
       return;
     }
 
-    // Skip only for threads we just created (messages already in sync from send)
+    // Skip loading for threads we just created (messages already in sync from send)
+    // Cache restoration already handled above if useChat reset on id change
     if (justCreated) {
       return;
     }
