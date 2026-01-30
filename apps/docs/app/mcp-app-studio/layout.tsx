@@ -5,7 +5,7 @@ import { createOgMetadata } from "@/lib/og";
 
 const title = "MCP App Studio";
 const description =
-  "Build and preview MCP Apps locally. A development workbench with live preview, mock tool responses, and production export.";
+  "Universal SDK and local-first workbench for MCP App development. Hot reload, mock tools, and export for ChatGPT, Claude, and other MCP hosts.";
 
 export const metadata: Metadata = {
   title,

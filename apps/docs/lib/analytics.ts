@@ -33,8 +33,8 @@ export const analytics = {
     clicked: (cta: "get_started" | "contact_sales", location: string) =>
       trackEvent("cta_clicked", { cta, location }),
 
-    npmCommandCopied: () =>
-      trackEvent("npm_command_copied", { command: "npx assistant-ui init" }),
+    npmCommandCopied: (command = "npx assistant-ui init") =>
+      trackEvent("npm_command_copied", { command }),
   },
 
   search: {
