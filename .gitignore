@@ -73,3 +73,9 @@ htmlcov/
 .specify/
 specs/*
 .test-output/
+
+# Gas Town
+.runtime/
+.claude/
+.beads/
+.logs/
