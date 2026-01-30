@@ -164,10 +164,24 @@ export default function McpAppStudioPage() {
             </Link>
             <span className="hidden size-1 rounded-full bg-muted-foreground/20 sm:block" />
             <Link
+              href="https://developers.openai.com/apps-sdk/"
+              className="font-medium text-foreground/60 transition-colors hover:text-foreground"
+            >
+              ChatGPT Apps SDK →
+            </Link>
+            <span className="hidden size-1 rounded-full bg-muted-foreground/20 sm:block" />
+            <Link
+              href="https://github.com/assistant-ui/assistant-ui/tree/main/packages/mcp-app-studio"
+              className="font-medium text-foreground/60 transition-colors hover:text-foreground"
+            >
+              CLI source →
+            </Link>
+            <span className="hidden size-1 rounded-full bg-muted-foreground/20 sm:block" />
+            <Link
               href="https://github.com/assistant-ui/mcp-app-studio-starter"
               className="font-medium text-foreground/60 transition-colors hover:text-foreground"
             >
-              Starter repo →
+              Demo template →
             </Link>
           </div>
         </div>
@@ -316,7 +330,7 @@ export default function McpAppStudioPage() {
               href="https://github.com/assistant-ui/mcp-app-studio-starter"
               className={buttonVariants({ variant: "outline" })}
             >
-              Starter repo
+              Demo template
             </Link>
             <Link
               href="https://github.com/assistant-ui/assistant-ui/tree/main/packages/mcp-app-studio"
