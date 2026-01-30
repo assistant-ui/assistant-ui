@@ -8,6 +8,7 @@ import {
   Monitor,
   Package,
   Play,
+  Plug,
   Sparkles,
   Terminal,
   Wrench,
@@ -137,7 +138,7 @@ export default function McpAppStudioPage() {
         <div className="flex flex-col gap-6">
           <div className="rainbow-border relative inline-flex w-fit rounded-full p-px text-sm after:absolute after:inset-0 after:-z-10 after:block after:rounded-full">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-background px-4 py-1.5">
-              <Sparkles className="size-3.5 text-violet-500" />
+              <Plug className="size-3.5 text-violet-500" />
               <span className="font-medium text-foreground/80">MCP Apps</span>
             </span>
           </div>
