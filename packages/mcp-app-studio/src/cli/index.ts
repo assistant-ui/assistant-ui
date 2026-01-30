@@ -20,8 +20,17 @@ import {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const TEMPLATE_REPO = "assistant-ui/mcp-app-studio-starter";
-const TEMPLATE_BRANCH = "main";
+const TEMPLATE_REPO =
+  process.env["MCP_APP_STUDIO_TEMPLATE_REPO"] ??
+  "assistant-ui/mcp-app-studio-starter";
+const TEMPLATE_REF =
+  process.env["MCP_APP_STUDIO_TEMPLATE_REF"] ??
+  process.env["MCP_APP_STUDIO_TEMPLATE_BRANCH"] ??
+  "main";
+
+const DOCS_URL =
+  "https://github.com/assistant-ui/assistant-ui/tree/main/packages/mcp-app-studio";
+const EXAMPLES_URL = "https://github.com/assistant-ui/mcp-app-studio-starter";
 
 const REQUIRED_NODE_VERSION = { major: 20, minor: 9, patch: 0 } as const;
 
@@ -89,7 +98,7 @@ ${pc.bold("Options:")}
   --version, -v           Show version number
   -y, --yes               Non-interactive mode (use defaults or flag values)
   --template <name>       Template to use: minimal, poi-map (default: minimal)
-  --include-server        Include MCP server (default when not using -y)
+  --include-server        Include MCP server (default: true)
   --no-server             Do not include MCP server
   --description <text>    App description
 
@@ -99,8 +108,8 @@ ${pc.bold("Examples:")}
   npx mcp-app-studio my-app -y --template poi-map --include-server
 
 ${pc.bold("Learn more:")}
-  Documentation: https://github.com/assistant-ui/mcp-app-studio
-  Examples:      https://github.com/assistant-ui/mcp-app-studio-starter
+  Documentation: ${DOCS_URL}
+  Examples:      ${EXAMPLES_URL}
 `);
 }
 
@@ -415,19 +424,71 @@ interface ProjectConfig {
   includeServer: boolean;
 }
 
-async function downloadTemplate(targetDir: string): Promise<void> {
-  const tarballUrl = `https://github.com/${TEMPLATE_REPO}/archive/refs/heads/${TEMPLATE_BRANCH}.tar.gz`;
-  const tempDir = path.join(os.tmpdir(), `mcp-app-studio-${Date.now()}`);
+const REQUIRED_TEMPLATE_PATHS = [
+  "package.json",
+  "scripts/dev.ts",
+  "scripts/export.ts",
+  "lib/workbench/component-registry.tsx",
+  "lib/workbench/wrappers/index.ts",
+  "components/examples/index.ts",
+  "lib/workbench/index.ts",
+  "lib/workbench/store.ts",
+] as const;
+
+function validateTemplateDir(templateDir: string): void {
+  const missing = REQUIRED_TEMPLATE_PATHS.filter(
+    (p) => !fs.existsSync(path.join(templateDir, p)),
+  );
+  if (missing.length > 0) {
+    throw new Error(
+      `Template structure changed. Missing expected files:\n${missing.map((p) => `- ${p}`).join("\n")}`,
+    );
+  }
+}
+
+function copyDirContents(srcDir: string, destDir: string): void {
+  fs.mkdirSync(destDir, { recursive: true });
+
+  const entries = fs.readdirSync(srcDir, { withFileTypes: true });
+  for (const entry of entries) {
+    if (entry.name === ".git") continue;
+
+    const srcPath = path.join(srcDir, entry.name);
+    const destPath = path.join(destDir, entry.name);
+
+    if (entry.isDirectory()) {
+      copyDirContents(srcPath, destPath);
+      continue;
+    }
+
+    if (entry.isFile()) {
+      fs.mkdirSync(path.dirname(destPath), { recursive: true });
+      fs.copyFileSync(srcPath, destPath);
+    }
+
+    // Skip symlinks and other special file types for safety.
+  }
+}
+
+async function downloadTemplateToTemp(): Promise<{
+  tempDir: string;
+  templateDir: string;
+}> {
+  const tarballUrl = `https://github.com/${TEMPLATE_REPO}/archive/refs/heads/${TEMPLATE_REF}.tar.gz`;
+  const tempDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), "mcp-app-studio-template-"),
+  );
   const tarballPath = path.join(tempDir, "template.tar.gz");
+  const extractDir = path.join(tempDir, "extract");
 
   try {
-    fs.mkdirSync(tempDir, { recursive: true });
+    fs.mkdirSync(extractDir, { recursive: true });
 
     // Download the tarball
     const response = await fetch(tarballUrl);
     if (!response.ok) {
       throw new Error(
-        `Failed to download template: ${response.status} ${response.statusText}`,
+        `Failed to download template from ${tarballUrl}: ${response.status} ${response.statusText}`,
       );
     }
 
@@ -443,15 +504,58 @@ async function downloadTemplate(targetDir: string): Promise<void> {
     await pipeline(nodeStream, fileStream);
 
     // Extract the tarball
-    fs.mkdirSync(targetDir, { recursive: true });
     await extract({
       file: tarballPath,
-      cwd: targetDir,
-      strip: 1, // Remove the top-level directory (e.g., mcp-app-studio-starter-main/)
+      cwd: extractDir,
+      strip: 0,
+      filter: (entryPath, entry) => {
+        if (
+          "type" in entry &&
+          (entry.type === "SymbolicLink" || entry.type === "Link")
+        ) {
+          return false;
+        }
+
+        // Basic path traversal defense: ensure this entry stays within `extractDir`.
+        if (path.isAbsolute(entryPath)) {
+          throw new Error(
+            `Template tarball contains an absolute path: ${entryPath}`,
+          );
+        }
+        const resolved = path.resolve(extractDir, entryPath);
+        if (
+          resolved !== extractDir &&
+          !resolved.startsWith(`${extractDir}${path.sep}`)
+        ) {
+          throw new Error(
+            `Template tarball contains an unsafe path: ${entryPath}`,
+          );
+        }
+
+        return true;
+      },
     });
-  } finally {
-    // Cleanup temp directory
-    fs.rmSync(tempDir, { recursive: true, force: true });
+
+    const topLevelDirs = fs
+      .readdirSync(extractDir, { withFileTypes: true })
+      .filter((d) => d.isDirectory());
+    if (topLevelDirs.length !== 1) {
+      throw new Error(
+        `Unexpected template archive layout. Expected a single top-level directory, found ${topLevelDirs.length}.`,
+      );
+    }
+
+    const templateDir = path.join(extractDir, topLevelDirs[0]!.name);
+    validateTemplateDir(templateDir);
+    return { tempDir, templateDir };
+  } catch (err) {
+    // Best-effort cleanup on failure; on success the caller cleans up after copy.
+    try {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    } catch {
+      // ignore
+    }
+    throw err;
   }
 }
 
@@ -638,10 +742,13 @@ async function main() {
     includeServer: includeServer as boolean,
   };
 
-  if (!isEmpty(targetDir)) {
+  const targetNotEmpty = !isEmpty(targetDir);
+  let shouldOverwrite = false;
+
+  if (targetNotEmpty) {
     if (nonInteractive) {
       // In non-interactive mode, overwrite without prompting
-      emptyDir(targetDir);
+      shouldOverwrite = true;
     } else {
       const overwrite = await p.confirm({
         message: `Directory "${projectName}" is not empty. Remove existing files?`,
@@ -653,17 +760,17 @@ async function main() {
         process.exit(0);
       }
 
-      // Avoid deleting the directory itself (especially dangerous for `.`).
-      // Instead, remove its contents while preserving `.git/`.
-      emptyDir(targetDir);
+      shouldOverwrite = true;
     }
   }
 
   const s = p.spinner();
   s.start("Downloading template...");
 
+  let downloaded: { tempDir: string; templateDir: string } | undefined;
+
   try {
-    await downloadTemplate(targetDir);
+    downloaded = await downloadTemplateToTemp();
   } catch (error) {
     s.stop("Download failed");
     p.log.error(
@@ -673,6 +780,29 @@ async function main() {
   }
 
   s.message("Creating project...");
+
+  try {
+    if (!downloaded) {
+      throw new Error(
+        "Internal error: template download did not return a result",
+      );
+    }
+
+    // Only modify the target directory after we have a fully downloaded & validated template.
+    if (shouldOverwrite) {
+      // Avoid deleting the directory itself (especially dangerous for `.`).
+      // Instead, remove its contents while preserving `.git/`.
+      emptyDir(targetDir);
+    }
+
+    fs.mkdirSync(targetDir, { recursive: true });
+    copyDirContents(downloaded.templateDir, targetDir);
+  } finally {
+    if (downloaded?.tempDir) {
+      fs.rmSync(downloaded.tempDir, { recursive: true, force: true });
+    }
+  }
+
   updatePackageJson(
     targetDir,
     config.packageName,
@@ -748,12 +878,8 @@ async function main() {
 
   // Documentation links
   p.log.step(pc.bold("Learn more:"));
-  p.log.message(
-    `  ${pc.dim("•")} SDK Docs:   ${pc.cyan("https://github.com/assistant-ui/mcp-app-studio#sdk")}`,
-  );
-  p.log.message(
-    `  ${pc.dim("•")} Examples:   ${pc.cyan("https://github.com/assistant-ui/mcp-app-studio-starter")}`,
-  );
+  p.log.message(`  ${pc.dim("•")} SDK Docs:   ${pc.cyan(DOCS_URL)}`);
+  p.log.message(`  ${pc.dim("•")} Examples:   ${pc.cyan(EXAMPLES_URL)}`);
   if (config.includeServer) {
     p.log.message(
       `  ${pc.dim("•")} MCP Guide:  ${pc.cyan("https://modelcontextprotocol.io/quickstart")}`,

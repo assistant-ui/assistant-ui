@@ -20,7 +20,7 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:3000 — you're in the workbench.
+Open http://localhost:3002 — you're in the workbench.
 
 ## Universal SDK
 
