@@ -21,8 +21,15 @@ export function CopyCommandButton({
   const [copied, setCopied] = useState(false);
 
   const copyToClipboard = () => {
+    const context =
+      analyticsContext &&
+      (Object.fromEntries(
+        Object.entries(analyticsContext).filter(
+          ([, value]) => value !== undefined,
+        ),
+      ) as Record<string, string | number | boolean>);
     navigator.clipboard.writeText(command);
-    analytics.cta.npmCommandCopied(command, analyticsContext);
+    analytics.cta.npmCommandCopied(command, context);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
