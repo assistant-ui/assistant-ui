@@ -81,42 +81,42 @@ const FEATURES = [
   {
     title: "Live Preview",
     description:
-      "See your apps render in real-time. Test across desktop, tablet, and mobile viewports with hot reload.",
+      "See changes instantly. Test desktop, tablet, and mobile viewports with hot reload.",
     icon: Play,
     iconColor: "text-green-400",
   },
   {
     title: "Mock Tool Responses",
     description:
-      "Simulate tool calls with configurable JSON responses. Test success, error, and edge cases without a backend.",
+      "Simulate tool calls with configurable JSON. Cover success, error, and edge cases without a backend.",
     icon: Wrench,
     iconColor: "text-orange-400",
   },
   {
     title: "MCP Server Scaffold",
     description:
-      "Optional MCP server template included. Run both frontend app and backend tools with a single command.",
+      "Optional MCP server template included. Run frontend and tools with a single command.",
     icon: Terminal,
     iconColor: "text-blue-400",
   },
   {
     title: "Production Export",
     description:
-      "Export your apps as self-contained HTML bundles with all dependencies inlined, ready for deployment.",
+      "Export a self-contained HTML bundle with dependencies inlined, ready to deploy.",
     icon: Package,
     iconColor: "text-purple-400",
   },
   {
     title: "Display Modes",
     description:
-      "Preview inline, popup, and fullscreen modes. See exactly how your apps appear in ChatGPT or Claude.",
+      "Preview inline, popup, and fullscreen. See exactly how it looks in ChatGPT or Claude.",
     icon: Monitor,
     iconColor: "text-cyan-400",
   },
   {
     title: "Universal SDK",
     description:
-      "Write once, run everywhere. Auto-detects the host platform (ChatGPT or MCP) and uses the appropriate APIs.",
+      "Write once, run everywhere. It detects ChatGPT vs MCP and uses the right APIs.",
     icon: Sparkles,
     iconColor: "text-violet-400",
   },
@@ -125,19 +125,19 @@ const FEATURES = [
 const PLATFORM_CAPABILITIES = [
   {
     feature: "Widget state",
-    description: "Persist and restore widget state via host APIs.",
+    description: "Persist and restore widget state through host APIs.",
     chatgpt: true,
     mcp: false,
   },
   {
     feature: "Model context",
-    description: "Read/write model context via MCP (Claude support).",
+    description: "Read and write model context via MCP (Claude support).",
     chatgpt: false,
     mcp: true,
   },
   {
     feature: "Tool mocking",
-    description: "Mock tool responses locally while you develop.",
+    description: "Mock tool responses locally while you build.",
     chatgpt: true,
     mcp: true,
   },
@@ -287,11 +287,11 @@ export default function McpAppStudioPage() {
 
           <div className="flex flex-col gap-2">
             <h1 className="max-w-xl font-medium text-3xl tracking-tight">
-              Universal SDK for MCP App Development
+              Build MCP apps once, run them anywhere
             </h1>
             <p className="max-w-xl text-lg text-muted-foreground">
-              Local first, hot-reloading DX for rapid iteration. Export for
-              ChatGPT, Claude, and any other compatible MCP host.
+              Local-first, hot-reloading workflow. Export bundles for ChatGPT,
+              Claude, and any compatible MCP host.
             </p>
           </div>
 
@@ -355,9 +355,8 @@ export default function McpAppStudioPage() {
               Try the workbench
             </h2>
             <p className="text-muted-foreground">
-              A local host simulator for chat-style platforms like ChatGPT and
-              Claude. Preview your app, mock tool calls, and export for
-              production.
+              A local host simulator for ChatGPT- and Claude-style UIs. Preview
+              your app, mock tool calls, and export for production.
             </p>
           </div>
 
@@ -377,11 +376,11 @@ export default function McpAppStudioPage() {
         <div ref={capabilitiesSectionRef} className="flex flex-col gap-8">
           <div className="flex flex-col items-center gap-2 text-center">
             <h2 className="font-medium text-3xl tracking-tight">
-              Know what ships where
+              Know what works where
             </h2>
             <p className="text-muted-foreground">
-              One API surface, with platform-specific capabilities for ChatGPT
-              and Claude that you can feature-gate.
+              One API surface with platform-specific capabilities for ChatGPT
+              and Claude, ready to feature-gate.
             </p>
           </div>
 
@@ -432,10 +431,10 @@ export default function McpAppStudioPage() {
         <div className="flex flex-col gap-8">
           <div className="flex flex-col items-center gap-2 text-center">
             <h2 className="font-medium text-3xl tracking-tight">
-              Everything you need to build apps for AI assistants
+              Everything you need to ship assistant apps
             </h2>
             <p className="text-muted-foreground">
-              Local development workbench with a production-ready export flow.
+              A local workbench with a production-ready export flow.
             </p>
           </div>
 
@@ -463,10 +462,10 @@ export default function McpAppStudioPage() {
         <div ref={exportSectionRef} className="flex flex-col gap-8">
           <div className="flex flex-col items-center gap-2 text-center">
             <h2 className="font-medium text-3xl tracking-tight">
-              Export output
+              Export bundle
             </h2>
             <p className="text-muted-foreground">
-              What <code>npm run export</code> generates.
+              What <code>npm run export</code> produces.
             </p>
           </div>
 
@@ -485,7 +484,7 @@ export default function McpAppStudioPage() {
 
         <div className="flex flex-col items-center gap-6 py-16 text-center">
           <p className="font-medium text-2xl tracking-tight">
-            Start building your app today
+            Start building today
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3">
             <Button asChild>
@@ -645,11 +644,9 @@ function HeroShowcase({
                   <Monitor className="size-7 text-zinc-400" />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <p className="font-medium text-zinc-300">
-                    Desktop browser required
-                  </p>
+                  <p className="font-medium text-zinc-300">Best on desktop</p>
                   <p className="max-w-xs text-sm text-zinc-500">
-                    Open this page on a desktop browser to use the demo.
+                    Open this page on a larger screen to run the demo.
                   </p>
                 </div>
               </div>
@@ -658,9 +655,7 @@ function HeroShowcase({
                 <div className="absolute inset-0 z-10 hidden items-center justify-center bg-zinc-950 md:flex">
                   <div className="flex flex-col items-center gap-3">
                     <div className="size-6 animate-spin rounded-full border-2 border-zinc-700 border-t-zinc-400" />
-                    <p className="text-sm text-zinc-500">
-                      Loading workbench...
-                    </p>
+                    <p className="text-sm text-zinc-500">Loading demo...</p>
                   </div>
                 </div>
               )}
@@ -674,14 +669,14 @@ function HeroShowcase({
                     </div>
                     <div className="flex flex-col gap-1">
                       <p className="font-medium text-zinc-300">
-                        Workbench not running
+                        Could not reach the workbench
                       </p>
                       <p className="max-w-xs text-sm text-zinc-500">
                         Run{" "}
                         <code className="rounded bg-zinc-800 px-1.5 py-0.5 font-mono text-xs">
                           npx mcp-app-studio
                         </code>{" "}
-                        to start
+                        to start it
                       </p>
                     </div>
                   </div>
