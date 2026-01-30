@@ -6,14 +6,12 @@
 .hero-showcase-container {
   margin: 0 auto;
   width: 100%;
-  max-width: 1100px;
 }
 
 .hero-showcase-glow {
   position: absolute;
   inset: 0;
   margin: 0 auto;
-  max-width: 1100px;
   pointer-events: none;
   background: radial-gradient(
     ellipse 60% 40% at 50% 30%,

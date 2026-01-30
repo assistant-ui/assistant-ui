@@ -75,6 +75,7 @@ const QUICKSTART_COMMAND = "npx mcp-app-studio my-app";
 const FULLSCREEN_OVERLAY_Z_INDEX_CLASS = "z-[9999]" as const;
 const WORKBENCH_IFRAME_SANDBOX =
   "allow-scripts allow-same-origin allow-forms" as const;
+const DESKTOP_DEMO_MEDIA_QUERY = "(min-width: 768px)" as const;
 
 const FEATURES = [
   {
@@ -384,44 +385,46 @@ export default function McpAppStudioPage() {
             </p>
           </div>
 
-          <div className="mx-auto w-full max-w-3xl overflow-hidden rounded-xl border border-border/50 bg-muted/30">
-            <CodeBlock language="tsx" code={FEATURE_GATE_SNIPPET} />
-          </div>
-
-          <div className="overflow-hidden rounded-xl border border-border/50 bg-muted/30">
-            <div className="grid grid-cols-[1fr_88px_88px] items-center gap-3 border-border/50 border-b bg-background/40 px-4 py-2 text-muted-foreground text-xs">
-              <div>Capability</div>
-              <div className="text-center">ChatGPT</div>
-              <div className="text-center">Claude</div>
+          <div className="mx-auto grid w-full max-w-6xl gap-4 lg:grid-cols-2">
+            <div className="min-w-0 overflow-hidden rounded-xl border border-border/50 bg-muted/30">
+              <CodeBlock language="tsx" code={FEATURE_GATE_SNIPPET} />
             </div>
-            <div className="divide-y divide-border/50">
-              {PLATFORM_CAPABILITIES.map((row) => (
-                <div
-                  key={row.feature}
-                  className="grid grid-cols-[1fr_88px_88px] items-center gap-3 px-4 py-3"
-                >
-                  <div className="min-w-0">
-                    <div className="font-medium text-sm">{row.feature}</div>
-                    <div className="mt-0.5 text-muted-foreground text-xs">
-                      {row.description}
+
+            <div className="min-w-0 overflow-hidden rounded-xl border border-border/50 bg-muted/30">
+              <div className="grid grid-cols-[1fr_88px_88px] items-center gap-3 border-border/50 border-b bg-background/40 px-4 py-2 text-muted-foreground text-xs">
+                <div>Capability</div>
+                <div className="text-center">ChatGPT</div>
+                <div className="text-center">Claude</div>
+              </div>
+              <div className="divide-y divide-border/50">
+                {PLATFORM_CAPABILITIES.map((row) => (
+                  <div
+                    key={row.feature}
+                    className="grid grid-cols-[1fr_88px_88px] items-center gap-3 px-4 py-3"
+                  >
+                    <div className="min-w-0">
+                      <div className="font-medium text-sm">{row.feature}</div>
+                      <div className="mt-0.5 text-muted-foreground text-xs">
+                        {row.description}
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-center">
+                      {row.chatgpt ? (
+                        <CheckIcon className="size-4 text-emerald-400" />
+                      ) : (
+                        <X className="size-4 text-zinc-500" />
+                      )}
+                    </div>
+                    <div className="flex items-center justify-center">
+                      {row.mcp ? (
+                        <CheckIcon className="size-4 text-emerald-400" />
+                      ) : (
+                        <X className="size-4 text-zinc-500" />
+                      )}
                     </div>
                   </div>
-                  <div className="flex items-center justify-center">
-                    {row.chatgpt ? (
-                      <CheckIcon className="size-4 text-emerald-400" />
-                    ) : (
-                      <X className="size-4 text-zinc-500" />
-                    )}
-                  </div>
-                  <div className="flex items-center justify-center">
-                    {row.mcp ? (
-                      <CheckIcon className="size-4 text-emerald-400" />
-                    ) : (
-                      <X className="size-4 text-zinc-500" />
-                    )}
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -628,7 +631,7 @@ function HeroShowcase({
               </div>
               <button
                 onClick={onFullscreen}
-                className="flex size-7 items-center justify-center rounded-md text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-zinc-300"
+                className="hidden size-7 items-center justify-center rounded-md text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-zinc-300 md:flex"
                 title="Fullscreen demo"
               >
                 <Maximize2 className="size-3.5" />
@@ -636,8 +639,22 @@ function HeroShowcase({
             </div>
 
             <div className="hero-showcase-content relative aspect-16/10 w-full">
+              <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-4 bg-zinc-950 px-6 text-center md:hidden">
+                <div className="rounded-full bg-zinc-800/50 p-4">
+                  <Monitor className="size-7 text-zinc-400" />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <p className="font-medium text-zinc-300">
+                    Desktop browser required
+                  </p>
+                  <p className="max-w-xs text-sm text-zinc-500">
+                    Open this page on a desktop browser to use the demo.
+                  </p>
+                </div>
+              </div>
+
               {!isLoaded && !hasError && (
-                <div className="absolute inset-0 z-10 flex items-center justify-center bg-zinc-950">
+                <div className="absolute inset-0 z-10 hidden items-center justify-center bg-zinc-950 md:flex">
                   <div className="flex flex-col items-center gap-3">
                     <div className="size-6 animate-spin rounded-full border-2 border-zinc-700 border-t-zinc-400" />
                     <p className="text-sm text-zinc-500">
@@ -648,7 +665,7 @@ function HeroShowcase({
               )}
 
               {hasError && (
-                <div className="absolute inset-0 z-10 flex items-center justify-center bg-linear-to-br from-zinc-900 via-zinc-950 to-black">
+                <div className="absolute inset-0 z-10 hidden items-center justify-center bg-linear-to-br from-zinc-900 via-zinc-950 to-black md:flex">
                   <div className="hero-showcase-grid" />
                   <div className="relative z-10 flex flex-col items-center gap-4 text-center">
                     <div className="rounded-full bg-zinc-800/50 p-4">
@@ -673,10 +690,12 @@ function HeroShowcase({
               <iframe
                 src={iframeSrc}
                 className={cn(
-                  "size-full border-0 transition-opacity duration-300",
+                  "hidden size-full border-0 transition-opacity duration-300 md:block",
                   isLoaded && !hasError ? "opacity-100" : "opacity-0",
                 )}
                 onLoad={() => {
+                  if (!window.matchMedia(DESKTOP_DEMO_MEDIA_QUERY).matches)
+                    return;
                   setIsLoaded(true);
                   analytics.mcpAppStudio.workbenchIframeLoaded(
                     "inline",
@@ -684,6 +703,8 @@ function HeroShowcase({
                   );
                 }}
                 onError={() => {
+                  if (!window.matchMedia(DESKTOP_DEMO_MEDIA_QUERY).matches)
+                    return;
                   setHasError(true);
                   analytics.mcpAppStudio.workbenchIframeFailed(
                     "inline",
