@@ -181,7 +181,7 @@ export default function McpAppStudioPage() {
               href="https://github.com/assistant-ui/mcp-app-studio-starter"
               className="font-medium text-foreground/60 transition-colors hover:text-foreground"
             >
-              Demo template →
+              Workbench template →
             </Link>
           </div>
         </div>
@@ -330,7 +330,7 @@ export default function McpAppStudioPage() {
               href="https://github.com/assistant-ui/mcp-app-studio-starter"
               className={buttonVariants({ variant: "outline" })}
             >
-              Demo template
+              Workbench template
             </Link>
             <Link
               href="https://github.com/assistant-ui/assistant-ui/tree/main/packages/mcp-app-studio"
