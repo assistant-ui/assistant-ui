@@ -14,6 +14,13 @@ import {
 import { encode, MESSAGE_FORMAT } from "./format";
 import { useThreads, type UseThreadsResult } from "./useThreads";
 
+const createSessionId = (): string => {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `aui_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+};
+
 // Module-level singleton for auto-cloud to ensure all components share the same instance
 const autoCloudBaseUrl =
   typeof process !== "undefined"
@@ -173,7 +180,6 @@ export function useCloudChat(
 
   // Mutex for thread creation to prevent race conditions on concurrent sends
   const creatingThreadRef = useRef<Promise<string> | null>(null);
-  const pendingSelectThreadRef = useRef<string | null>(null);
 
   // Track mounted state
   const mountedRef = useRef(true);
@@ -201,7 +207,8 @@ export function useCloudChat(
                 threadIdRef.current = res.thread_id;
                 loadedThreadsRef.current.add(res.thread_id);
                 newlyCreatedThreadRef.current = res.thread_id;
-                pendingSelectThreadRef.current = res.thread_id;
+                threadsRef.current.selectThread(res.thread_id);
+                threadsRef.current.refresh();
                 return res.thread_id;
               } catch (err) {
                 creatingThreadRef.current = null;
@@ -215,7 +222,7 @@ export function useCloudChat(
         const resolvedThreadId =
           threadIdRef.current ?? createdThreadRef.current;
 
-        return baseTransportRef.current.sendMessages({
+        return await baseTransportRef.current.sendMessages({
           ...opts,
           body: {
             ...opts.body,
@@ -229,12 +236,15 @@ export function useCloudChat(
     [],
   );
 
-  // Use threadId as chat ID for proper routing; fallback for new conversations
-  const chatId = threadId ?? "__new__";
+  // Keep a stable chat session ID for the lifetime of this hook instance.
+  const chatSessionIdRef = useRef<string | null>(null);
+  if (!chatSessionIdRef.current) {
+    chatSessionIdRef.current = createSessionId();
+  }
 
   const chat = useChat({
     ...chatOptions,
-    id: chatId,
+    id: chatSessionIdRef.current,
     transport,
     onFinish: (event) => {
       onFinishRef.current?.(event);
@@ -247,18 +257,6 @@ export function useCloudChat(
 
   const isRunning = chat.status === "submitted" || chat.status === "streaming";
 
-  // Avoid switching chat ID mid-send; select the new thread after the send completes.
-  useEffect(() => {
-    if (isRunning) return;
-    const pending = pendingSelectThreadRef.current;
-    if (!pending) return;
-    if (threadsRef.current.threadId !== null) return;
-    if (threadIdRef.current !== pending) return;
-
-    pendingSelectThreadRef.current = null;
-    threadsRef.current.selectThread(pending);
-    threadsRef.current.refresh();
-  }, [isRunning]);
 
   // Persist messages when not running, matching assistant-ui history semantics.
   useEffect(() => {
