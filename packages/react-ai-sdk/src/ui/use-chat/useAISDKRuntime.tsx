@@ -18,13 +18,13 @@ import {
 import { sliceMessagesUntil } from "../utils/sliceMessagesUntil";
 import { toCreateMessage } from "../utils/toCreateMessage";
 import { vercelAttachmentAdapter } from "../utils/vercelAttachmentAdapter";
-import { getVercelAIMessages } from "../getVercelAIMessages";
 import { AISDKMessageConverter } from "../utils/convertMessage";
 import {
   type AISDKStorageFormat,
   aiSDKV6FormatAdapter,
 } from "../adapters/aiSDKFormatAdapter";
 import { useExternalHistory } from "./useExternalHistory";
+import { threadMessageToUIMessage } from "../utils/threadMessageToUIMessage";
 
 export type CustomToCreateMessageFunction = <
   UI_MESSAGE extends UIMessage = UIMessage,
@@ -156,17 +156,11 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     messages,
     setMessages: (messages) =>
       chatHelpers.setMessages(
-        messages
-          .map(getVercelAIMessages<UI_MESSAGE>)
-          .filter(Boolean)
-          .flat(),
+        messages.map(threadMessageToUIMessage) as UI_MESSAGE[],
       ),
     onImport: (messages) =>
       chatHelpers.setMessages(
-        messages
-          .map(getVercelAIMessages<UI_MESSAGE>)
-          .filter(Boolean)
-          .flat(),
+        messages.map(threadMessageToUIMessage) as UI_MESSAGE[],
       ),
     onCancel: async () => {
       chatHelpers.stop();
