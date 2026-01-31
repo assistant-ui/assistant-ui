@@ -17,6 +17,11 @@
       "aui-source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./ai-sdk": {
+      "aui-source": "./src/ai-sdk/index.ts",
+      "types": "./dist/ai-sdk/index.d.ts",
+      "default": "./dist/ai-sdk/index.js"
     }
   },
   "main": "./dist/index.js",
@@ -35,9 +40,33 @@
   "dependencies": {
     "assistant-stream": "^0.3.0"
   },
+  "peerDependencies": {
+    "@ai-sdk/react": "^3.0.0",
+    "@types/react": "*",
+    "ai": "^6.0.0",
+    "react": "^18 || ^19"
+  },
+  "peerDependenciesMeta": {
+    "@ai-sdk/react": {
+      "optional": true
+    },
+    "@types/react": {
+      "optional": true
+    },
+    "ai": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    }
+  },
   "devDependencies": {
+    "@ai-sdk/react": "^3.0.44",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/node": "^25.0.10",
+    "@types/react": "^19.2.7",
+    "ai": "^6.0.42",
+    "react": "^19.2.3",
     "vitest": "^4.0.18"
   },
   "publishConfig": {
