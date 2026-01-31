@@ -17,7 +17,7 @@ import { useThreads, type UseThreadsResult } from "./useThreads";
 // Module-level singleton for auto-cloud to ensure all components share the same instance
 const autoCloudBaseUrl =
   typeof process !== "undefined"
-    ? process?.env?.["NEXT_PUBLIC_ASSISTANT_BASE_URL"]
+    ? process.env["NEXT_PUBLIC_ASSISTANT_BASE_URL"]
     : undefined;
 const autoCloud = autoCloudBaseUrl
   ? new AssistantCloud({ baseUrl: autoCloudBaseUrl, anonymous: true })
@@ -173,6 +173,7 @@ export function useCloudChat(
 
   // Mutex for thread creation to prevent race conditions on concurrent sends
   const creatingThreadRef = useRef<Promise<string> | null>(null);
+  const pendingSelectThreadRef = useRef<string | null>(null);
 
   // Track mounted state
   const mountedRef = useRef(true);
@@ -200,8 +201,7 @@ export function useCloudChat(
                 threadIdRef.current = res.thread_id;
                 loadedThreadsRef.current.add(res.thread_id);
                 newlyCreatedThreadRef.current = res.thread_id;
-                threadsRef.current.selectThread(res.thread_id);
-                threadsRef.current.refresh();
+                pendingSelectThreadRef.current = res.thread_id;
                 return res.thread_id;
               } catch (err) {
                 creatingThreadRef.current = null;
@@ -246,6 +246,19 @@ export function useCloudChat(
   setMessagesRef.current = chat.setMessages;
 
   const isRunning = chat.status === "submitted" || chat.status === "streaming";
+
+  // Avoid switching chat ID mid-send; select the new thread after the send completes.
+  useEffect(() => {
+    if (isRunning) return;
+    const pending = pendingSelectThreadRef.current;
+    if (!pending) return;
+    if (threadsRef.current.threadId !== null) return;
+    if (threadIdRef.current !== pending) return;
+
+    pendingSelectThreadRef.current = null;
+    threadsRef.current.selectThread(pending);
+    threadsRef.current.refresh();
+  }, [isRunning]);
 
   // Persist messages when not running, matching assistant-ui history semantics.
   useEffect(() => {
