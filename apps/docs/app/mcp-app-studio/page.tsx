@@ -415,7 +415,7 @@ export default function McpAppStudioPage() {
             </p>
           </div>
 
-          <div className="mx-auto grid w-full max-w-6xl gap-4 lg:grid-cols-2">
+          <div className="mx-auto grid w-full max-w-6xl gap-4 lg:grid-cols-2 lg:items-center">
             <div className="min-w-0">
               <div className="grid grid-cols-[1fr_88px_88px] items-center gap-3 border-border/50 border-b px-4 py-2 text-muted-foreground text-xs">
                 <div>Capability</div>
@@ -462,10 +462,11 @@ export default function McpAppStudioPage() {
         <div ref={exportSectionRef} className="flex flex-col gap-8">
           <div className="flex flex-col items-center gap-2 text-center">
             <h2 className="font-medium text-3xl tracking-tight">
-              Export bundle
+              Export and ship
             </h2>
             <p className="text-muted-foreground">
-              What <code>npm run export</code> produces.
+              Your production-ready bundle, ready for ChatGPT, Claude, and other
+              MCP hosts.
             </p>
           </div>
 
@@ -476,9 +477,12 @@ export default function McpAppStudioPage() {
             <CodeBlock language="text" code={EXPORT_TREE_SNIPPET} />
           </div>
 
-          <p className="text-center text-muted-foreground text-xs">
-            Deploy the <code>widget/</code> folder to any static host, then
-            point <code>manifest.json</code> at its URL.
+          <p className="mx-auto max-w-2xl text-center text-muted-foreground text-sm">
+            Deploy <code>export/widget/</code> to any static host, then update
+            <code> export/manifest.json</code> with the hosted URL. Use that
+            manifest wherever you register the app (ChatGPT or any MCP host like
+            Claude). It’s the same bundle either way—the host controls which
+            capabilities are available.
           </p>
         </div>
 
