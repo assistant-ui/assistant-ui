@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { UIMessage, UseChatHelpers } from "@ai-sdk/react";
 import { useChat } from "@ai-sdk/react";
-import { DefaultChatTransport, type ChatInit } from "ai";
+import { DefaultChatTransport, type ChatInit, type ChatTransport } from "ai";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import { AssistantCloud } from "../AssistantCloud";
 import { CloudMessagePersistence } from "../CloudMessagePersistence";
@@ -182,58 +182,52 @@ export function useCloudChat(
     };
   }, []);
 
-  // Use user's transport if provided, otherwise create default with cloud persistence
-  const defaultTransport = useMemo(
-    () =>
-      new DefaultChatTransport({
-        prepareSendMessagesRequest: async (opts) => {
-          // Ensure thread exists before sending (with mutex to prevent race conditions)
-          if (!threadIdRef.current && !createdThreadRef.current) {
-            if (!creatingThreadRef.current) {
-              creatingThreadRef.current = (async () => {
-                try {
-                  const res = await threadsRef.current.cloud.threads.create({
-                    last_message_at: new Date(),
-                  });
-                  createdThreadRef.current = res.thread_id;
-                  threadIdRef.current = res.thread_id;
-                  loadedThreadsRef.current.add(res.thread_id);
-                  // Track for auto-title generation
-                  newlyCreatedThreadRef.current = res.thread_id;
-                  // Auto-select the new thread and refresh the list
-                  threadsRef.current.selectThread(res.thread_id);
-                  threadsRef.current.refresh();
-                  return res.thread_id;
-                } catch (err) {
-                  // Reset mutex so future sends can retry thread creation
-                  creatingThreadRef.current = null;
-                  throw err;
-                }
-              })();
-            }
-            await creatingThreadRef.current;
-          }
-          // Use the resolved thread ID in the body for server routing
-          // This is important because opts.id could be "__new__" before thread creation
-          const resolvedThreadId =
-            threadIdRef.current ?? createdThreadRef.current;
+  const baseTransportRef = useRef(userTransport ?? new DefaultChatTransport({}));
+  baseTransportRef.current = userTransport ?? new DefaultChatTransport({});
 
-          return {
-            body: {
-              ...opts.body,
-              id: resolvedThreadId ?? opts.id,
-              messages: opts.messages,
-              trigger: opts.trigger,
-              messageId: opts.messageId,
-              metadata: opts.requestMetadata,
-            },
-          };
-        },
-      }),
+  const transport = useMemo<ChatTransport<UIMessage>>(
+    () => ({
+      sendMessages: async (opts) => {
+        // Ensure thread exists before sending (with mutex to prevent race conditions)
+        if (!threadIdRef.current && !createdThreadRef.current) {
+          if (!creatingThreadRef.current) {
+            creatingThreadRef.current = (async () => {
+              try {
+                const res = await threadsRef.current.cloud.threads.create({
+                  last_message_at: new Date(),
+                });
+                createdThreadRef.current = res.thread_id;
+                threadIdRef.current = res.thread_id;
+                loadedThreadsRef.current.add(res.thread_id);
+                newlyCreatedThreadRef.current = res.thread_id;
+                threadsRef.current.selectThread(res.thread_id);
+                threadsRef.current.refresh();
+                return res.thread_id;
+              } catch (err) {
+                creatingThreadRef.current = null;
+                throw err;
+              }
+            })();
+          }
+          await creatingThreadRef.current;
+        }
+
+        const resolvedThreadId =
+          threadIdRef.current ?? createdThreadRef.current;
+
+        return baseTransportRef.current.sendMessages({
+          ...opts,
+          body: {
+            ...opts.body,
+            id: resolvedThreadId ?? opts.chatId,
+          },
+        });
+      },
+      reconnectToStream: (opts) =>
+        baseTransportRef.current.reconnectToStream(opts),
+    }),
     [],
   );
-
-  const transport = userTransport ?? defaultTransport;
 
   // Use threadId as chat ID for proper routing; fallback for new conversations
   const chatId = threadId ?? "__new__";
