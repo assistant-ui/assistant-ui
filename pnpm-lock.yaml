@@ -2534,13 +2534,14 @@ importers:
         version: 4.0.18(@opentelemetry/api@1.9.0)(@types/node@25.0.10)(@vitest/ui@4.0.18)(jiti@2.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(tsx@4.21.0)(yaml@2.8.2)
 
   packages/tool-ui-runtime:
+    dependencies:
+      safe-content-frame:
+        specifier: workspace:*
+        version: link:../safe-content-frame
     devDependencies:
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils
-      safe-content-frame:
-        specifier: workspace:*
-        version: link:../safe-content-frame
       vitest:
         specifier: ^4.0.16
         version: 4.0.18(@opentelemetry/api@1.9.0)(@types/node@25.0.10)(@vitest/ui@4.0.18)(jiti@2.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(tsx@4.21.0)(yaml@2.8.2)
