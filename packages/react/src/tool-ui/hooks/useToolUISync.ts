@@ -12,6 +12,12 @@ export function useToolUISync(
   const processedToolCallsRef = useRef<Set<string>>(new Set());
   const resultsSentRef = useRef<Set<string>>(new Set());
 
+  useEffect(() => {
+    if (!controller) return;
+    processedToolCallsRef.current = new Set();
+    resultsSentRef.current = new Set();
+  }, [controller]);
+
   const messages = useAssistantState(({ thread }) => thread.messages);
 
   useEffect(() => {
