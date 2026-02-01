@@ -21,8 +21,6 @@ export const ToolUIInline = memo(({ toolCallIds }: ToolUIInlineProps) => {
   const renderer = useToolUIRenderer();
   const [instances, setInstances] = useState<readonly ToolUIInstance[]>([]);
 
-  const [_updateTrigger, setUpdateTrigger] = useState(0);
-
   const controller = useMemo(() => {
     if (!runtime) return null;
     return new ToolUIController(runtime);
@@ -43,7 +41,6 @@ export const ToolUIInline = memo(({ toolCallIds }: ToolUIInlineProps) => {
       }
 
       setInstances(filteredInstances);
-      setUpdateTrigger((t) => t + 1);
     }
   }, [runtime, toolCallIds]);
 
@@ -94,7 +91,6 @@ export const ToolUIInline = memo(({ toolCallIds }: ToolUIInlineProps) => {
           key={instance.id}
           instance={instance}
           renderer={renderer}
-          _updateTrigger={_updateTrigger}
         />
       ))}
     </>
@@ -107,15 +103,7 @@ ToolUIInline.displayName = "ToolUIInline";
  * Individual tool UI item - handles rendering for a single instance
  */
 const ToolUIInlineItem = memo(
-  ({
-    instance,
-    renderer,
-    _updateTrigger,
-  }: {
-    instance: ToolUIInstance;
-    renderer: any;
-    _updateTrigger: number;
-  }) => {
+  ({ instance, renderer }: { instance: ToolUIInstance; renderer: any }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const reactRootRef = useRef<Root | null>(null);
     const lastOutputRef = useRef<string | null>(null);
@@ -133,6 +121,8 @@ const ToolUIInlineItem = memo(
     useEffect(() => {
       const container = containerRef.current;
       if (!container) return;
+
+      void _resultKey;
 
       renderer.mount(instance, container);
 
@@ -191,7 +181,7 @@ const ToolUIInlineItem = memo(
       return () => {
         // Don't unmount here - only on full unmount
       };
-    }, [instance, renderer]);
+    }, [instance, renderer, _resultKey]);
 
     useEffect(() => {
       return () => {
