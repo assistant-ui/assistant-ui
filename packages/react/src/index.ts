@@ -25,6 +25,7 @@ export * from "./model-context";
 export * from "./primitives";
 export * from "./types";
 export * from "./devtools";
+export * from "./tool-ui";
 
 export * as INTERNAL from "./internal";
 export type { ToolExecutionStatus } from "./internal";
