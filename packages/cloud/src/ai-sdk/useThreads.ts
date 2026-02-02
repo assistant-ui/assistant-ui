@@ -242,9 +242,19 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
     async (id: string): Promise<boolean> => {
       try {
         await cloud.threads.update(id, { is_archived: false });
-        setThreads((prev) =>
-          prev.map((t) => (t.id === id ? { ...t, status: "regular" } : t)),
-        );
+        // Fetch the thread to ensure we have latest data and handle case where
+        // thread was filtered out (when includeArchived: false)
+        const thread = await cloud.threads.get(id);
+        const cloudThread = toCloudThread(thread);
+
+        if (mountedRef.current) {
+          setThreads((prev) => {
+            // Remove if exists, then prepend to ensure it's in the list
+            const filtered = prev.filter((t) => t.id !== id);
+            return [cloudThread, ...filtered];
+          });
+        }
+
         setError(null);
         return true;
       } catch (err) {

@@ -35,7 +35,7 @@ export const createFormattedPersistence = <TMessage, TStorageFormat>(
       parentId: string | null,
       format: string,
       content: ReadonlyJSONObject,
-    ) => Promise<string>;
+    ) => Promise<void>;
     load: (threadId: string, format?: string) => Promise<any[]>;
     isPersisted: (messageId: string) => boolean;
   },
@@ -44,7 +44,7 @@ export const createFormattedPersistence = <TMessage, TStorageFormat>(
   append: async (
     threadId: string,
     item: { parentId: string | null; message: TMessage },
-  ) => {
+  ): Promise<void> => {
     const messageId = adapter.getId(item.message);
     const encoded = adapter.encode(item);
     return persistence.append(

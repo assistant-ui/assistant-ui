@@ -189,14 +189,20 @@ export function useCloudChat(
     };
   }, []);
 
-  const baseTransportRef = useRef(userTransport ?? new DefaultChatTransport({}));
+  const baseTransportRef = useRef(
+    userTransport ?? new DefaultChatTransport({}),
+  );
   baseTransportRef.current = userTransport ?? new DefaultChatTransport({});
 
   const transport = useMemo<ChatTransport<UIMessage>>(
     () => ({
       sendMessages: async (opts) => {
+        // Use threadsRef for most up-to-date threadId (handles rapid selectThread -> sendMessage)
+        const currentThreadId =
+          threadsRef.current.threadId ?? threadIdRef.current;
+
         // Ensure thread exists before sending (with mutex to prevent race conditions)
-        if (!threadIdRef.current && !createdThreadRef.current) {
+        if (!currentThreadId && !createdThreadRef.current) {
           if (!creatingThreadRef.current) {
             creatingThreadRef.current = (async () => {
               try {
@@ -219,8 +225,7 @@ export function useCloudChat(
           await creatingThreadRef.current;
         }
 
-        const resolvedThreadId =
-          threadIdRef.current ?? createdThreadRef.current;
+        const resolvedThreadId = currentThreadId ?? createdThreadRef.current;
 
         return await baseTransportRef.current.sendMessages({
           ...opts,
@@ -257,7 +262,6 @@ export function useCloudChat(
 
   const isRunning = chat.status === "submitted" || chat.status === "streaming";
 
-
   // Persist messages when not running, matching assistant-ui history semantics.
   useEffect(() => {
     const tid = threadIdRef.current ?? createdThreadRef.current;
@@ -283,7 +287,7 @@ export function useCloudChat(
       });
 
       const pending = appendTasks.filter(
-        (task): task is Promise<string | null> => task !== null,
+        (task): task is Promise<void | null> => task !== null,
       );
       if (pending.length > 0) {
         await Promise.all(pending);

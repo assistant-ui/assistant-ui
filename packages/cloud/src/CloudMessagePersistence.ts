@@ -25,7 +25,6 @@ export class CloudMessagePersistence {
    * @param parentId - Local parent message ID (or null for first message)
    * @param format - Message format (e.g., "aui/v0", "ai-sdk/v6")
    * @param content - Message content (format-specific)
-   * @returns Promise resolving to the remote message ID
    */
   async append(
     threadId: string,
@@ -33,7 +32,7 @@ export class CloudMessagePersistence {
     parentId: string | null,
     format: string,
     content: ReadonlyJSONObject,
-  ): Promise<string> {
+  ): Promise<void> {
     // Resolve parent's remote ID if it exists (may be a promise if concurrent)
     const resolvedParentId = parentId
       ? ((await this.idMapping[parentId]) ?? parentId)
@@ -52,7 +51,7 @@ export class CloudMessagePersistence {
 
     // Store the promise immediately so concurrent appends can await it
     this.idMapping[messageId] = task;
-    return task;
+    return task.then(() => {});
   }
 
   /**
