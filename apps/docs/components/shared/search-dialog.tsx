@@ -151,6 +151,10 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
   }, [results]);
 
   const lastTrackedQuery = useRef("");
+  const searchTrackingTimeout = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+
   useEffect(() => {
     if (open) {
       setInputValue("");
@@ -183,16 +187,31 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
     [onOpenChange, router, results, inputValue],
   );
 
+  // Debounced search analytics - only track after 500ms of no typing
   useEffect(() => {
+    if (searchTrackingTimeout.current) {
+      clearTimeout(searchTrackingTimeout.current);
+    }
+
     if (
       !inputValue ||
       query.isLoading ||
       inputValue === lastTrackedQuery.current
     )
       return;
-    lastTrackedQuery.current = inputValue;
-    if (results.length === 0) analytics.search.noResults(inputValue);
-    else analytics.search.querySubmitted(inputValue, results.length);
+
+    searchTrackingTimeout.current = setTimeout(() => {
+      if (inputValue.length < 2) return; // Don't track single characters
+      lastTrackedQuery.current = inputValue;
+      if (results.length === 0) analytics.search.noResults(inputValue);
+      else analytics.search.querySubmitted(inputValue, results.length);
+    }, 500);
+
+    return () => {
+      if (searchTrackingTimeout.current) {
+        clearTimeout(searchTrackingTimeout.current);
+      }
+    };
   }, [inputValue, results.length, query.isLoading]);
 
   const handleKeyDown = useCallback(
