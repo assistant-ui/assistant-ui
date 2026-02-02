@@ -154,6 +154,9 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
   const searchTrackingTimeout = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
+  // Use ref to avoid stale closure issues in timeout callbacks
+  const resultsLengthRef = useRef(0);
+  resultsLengthRef.current = results.length;
 
   useEffect(() => {
     if (open) {
@@ -184,8 +187,9 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
         clearTimeout(searchTrackingTimeout.current);
         if (inputValue.length >= 2 && inputValue !== lastTrackedQuery.current) {
           lastTrackedQuery.current = inputValue;
-          if (results.length === 0) analytics.search.noResults(inputValue);
-          else analytics.search.querySubmitted(inputValue, results.length);
+          const resultCount = resultsLengthRef.current;
+          if (resultCount === 0) analytics.search.noResults(inputValue);
+          else analytics.search.querySubmitted(inputValue, resultCount);
         }
       }
 
@@ -214,8 +218,9 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
 
     searchTrackingTimeout.current = setTimeout(() => {
       lastTrackedQuery.current = inputValue;
-      if (results.length === 0) analytics.search.noResults(inputValue);
-      else analytics.search.querySubmitted(inputValue, results.length);
+      const resultCount = resultsLengthRef.current;
+      if (resultCount === 0) analytics.search.noResults(inputValue);
+      else analytics.search.querySubmitted(inputValue, resultCount);
     }, 500);
 
     return () => {
@@ -223,7 +228,7 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
         clearTimeout(searchTrackingTimeout.current);
       }
     };
-  }, [inputValue, results, query.isLoading]);
+  }, [inputValue, query.isLoading]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
