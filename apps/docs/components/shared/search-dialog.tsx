@@ -156,7 +156,9 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
   );
   // Use ref to avoid stale closure issues in timeout callbacks
   const resultsLengthRef = useRef(0);
-  resultsLengthRef.current = results.length;
+  useEffect(() => {
+    resultsLengthRef.current = results.length;
+  }, [results.length]);
 
   useEffect(() => {
     if (open) {
