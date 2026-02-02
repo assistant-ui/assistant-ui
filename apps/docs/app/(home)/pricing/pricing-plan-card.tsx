@@ -19,13 +19,12 @@ interface PricingPlan {
 export function PricingPlanCard({ plan }: { plan: PricingPlan }) {
   const handleClick = () => {
     // Track pricing plan clicks with plan name for attribution
+    // Sanitize plan.name to prevent analytics pollution if component is reused with dynamic data
+    const safePlanName = plan.name.toLowerCase().replace(/[^a-z0-9_]/g, "_");
     if (plan.name === "Enterprise") {
       analytics.cta.clicked("contact_sales", "pricing");
     } else {
-      analytics.cta.clicked(
-        "get_started",
-        `pricing_${plan.name.toLowerCase()}`,
-      );
+      analytics.cta.clicked("get_started", `pricing_${safePlanName}`);
     }
   };
 
