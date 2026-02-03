@@ -1703,7 +1703,7 @@ const DefaultTraceGroupSummary: ComponentType<
       )}
       aria-expanded={isOpen}
     >
-      <div className="flex h-6 items-center gap-2 text-sm">
+      <div className="flex h-6 items-center gap-1.5 text-sm">
         <span
           aria-hidden
           className="inline-flex size-6 shrink-0 items-center justify-center"

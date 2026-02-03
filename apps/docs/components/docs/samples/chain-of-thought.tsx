@@ -1807,6 +1807,21 @@ function useNestedTraceSample() {
         },
         children: [
           {
+            kind: "step",
+            id: "brief",
+            label: "Reviewing task brief",
+            type: "text",
+            status: "complete",
+          },
+          {
+            kind: "step",
+            id: "sources",
+            label: "Collecting sources",
+            type: "search",
+            toolName: "search",
+            status: "complete",
+          },
+          {
             kind: "group",
             id: "agent-web",
             label: "Web Scout",
@@ -1820,7 +1835,28 @@ function useNestedTraceSample() {
                 toolName: "browser",
                 status: "complete",
               },
+              {
+                kind: "step",
+                id: "extract",
+                label: "Extracting key points",
+                type: "text",
+                status: "complete",
+              },
+              {
+                kind: "step",
+                id: "verify",
+                label: "Verifying citations",
+                type: "text",
+                status: "complete",
+              },
             ],
+          },
+          {
+            kind: "step",
+            id: "outline",
+            label: "Drafting outline",
+            type: "text",
+            status: "complete",
           },
           {
             kind: "step",
