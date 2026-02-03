@@ -1846,42 +1846,46 @@ function CustomTraceGroupSummary({
   const isSubagent = group.variant === "subagent";
 
   return (
-    <button
+    <Button
       type="button"
+      variant="ghost"
+      size="sm"
       onClick={onToggle}
       disabled={!canExpand}
-      className="w-full rounded-md px-2 py-1 text-left transition-colors hover:bg-muted/60 disabled:cursor-default disabled:hover:bg-transparent"
       aria-expanded={isOpen}
+      className="h-auto w-full justify-start px-2 py-2 text-left"
     >
-      <div className="flex items-center gap-2 text-sm">
-        {canExpand ? (
-          <ChevronDownIcon
-            aria-hidden
-            className={`size-4 text-muted-foreground transition-transform ${
-              isOpen ? "rotate-0" : "-rotate-90"
+      <div className="flex w-full flex-col gap-1">
+        <div className="flex items-center gap-2 text-sm">
+          {canExpand ? (
+            <ChevronDownIcon
+              aria-hidden
+              className={`size-4 text-muted-foreground transition-transform ${
+                isOpen ? "rotate-0" : "-rotate-90"
+              }`}
+            />
+          ) : (
+            <span className="size-4" aria-hidden />
+          )}
+          <span
+            className={`rounded-full px-2 py-0.5 text-[10px] uppercase tracking-wide ${
+              isSubagent
+                ? "bg-muted text-muted-foreground"
+                : "bg-primary/10 text-primary"
             }`}
-          />
-        ) : (
-          <span className="size-4" aria-hidden />
-        )}
-        <span
-          className={`rounded-full px-2 py-0.5 text-[10px] uppercase tracking-wide ${
-            isSubagent
-              ? "bg-muted text-muted-foreground"
-              : "bg-primary/10 text-primary"
-          }`}
-        >
-          {isSubagent ? "Subagent" : "Agent"}
-        </span>
-        <span className="font-medium text-foreground">{group.label}</span>
+          >
+            {isSubagent ? "Subagent" : "Agent"}
+          </span>
+          <span className="font-medium text-foreground">{group.label}</span>
+        </div>
+        <div className="flex items-center gap-2 text-muted-foreground text-xs">
+          {toolName ? (
+            <ChainOfThoughtToolBadge toolName={toolName} status={badgeStatus} />
+          ) : null}
+          <span className="truncate">{summaryLabel}</span>
+        </div>
       </div>
-      <div className="mt-1 flex items-center gap-2 text-muted-foreground text-xs">
-        {toolName ? (
-          <ChainOfThoughtToolBadge toolName={toolName} status={badgeStatus} />
-        ) : null}
-        <span className="truncate">{summaryLabel}</span>
-      </div>
-    </button>
+    </Button>
   );
 }
 
