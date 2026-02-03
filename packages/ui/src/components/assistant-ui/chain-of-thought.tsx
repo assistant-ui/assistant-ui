@@ -107,23 +107,6 @@ function injectStepKeyframes() {
   keyframesInjected = true;
 }
 
-const TRACE_KEYFRAMES = `
-@keyframes aui-trace-marquee {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
-}
-`;
-
-let traceKeyframesInjected = false;
-function injectTraceKeyframes() {
-  if (typeof document === "undefined" || traceKeyframesInjected) return;
-  const style = document.createElement("style");
-  style.id = "aui-chain-of-thought-trace-keyframes";
-  style.textContent = TRACE_KEYFRAMES;
-  document.head.appendChild(style);
-  traceKeyframesInjected = true;
-}
-
 /**
  * Map of step types to their default icons.
  * Extend this record to add custom step types.
@@ -1585,37 +1568,82 @@ const DefaultTraceStepBody: NonNullable<
   return <ChainOfThoughtStepBody>{step.detail}</ChainOfThoughtStepBody>;
 };
 
-function ChainOfThoughtTraceMarquee({ children }: { children?: ReactNode }) {
-  useLayoutEffect(() => {
-    injectTraceKeyframes();
-  }, []);
+const TRACE_SUMMARY_TRANSITION_MS = 220;
 
-  if (children == null) return null;
+function ChainOfThoughtTraceSummaryTransition({
+  label,
+  active,
+}: {
+  label?: ReactNode;
+  active?: boolean;
+}) {
+  const [currentLabel, setCurrentLabel] = useState(label);
+  const [previousLabel, setPreviousLabel] = useState<ReactNode | null>(null);
+  const labelRef = useRef(label);
+  const timeoutRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (Object.is(labelRef.current, label)) return;
+
+    setPreviousLabel(labelRef.current ?? null);
+    setCurrentLabel(label);
+    labelRef.current = label;
+
+    if (timeoutRef.current) {
+      window.clearTimeout(timeoutRef.current);
+    }
+    timeoutRef.current = window.setTimeout(() => {
+      setPreviousLabel(null);
+    }, TRACE_SUMMARY_TRANSITION_MS);
+
+    return () => {
+      if (timeoutRef.current) {
+        window.clearTimeout(timeoutRef.current);
+      }
+    };
+  }, [label]);
+
+  if (currentLabel == null && previousLabel == null) return null;
 
   return (
-    <div className="aui-chain-of-thought-trace-marquee relative overflow-hidden">
-      <div
-        className="aui-chain-of-thought-trace-marquee-track inline-flex min-w-full items-center gap-6 whitespace-nowrap"
-        style={{
-          animation: "aui-trace-marquee 10s linear infinite",
-        }}
-      >
-        <span className="aui-chain-of-thought-trace-marquee-text">
-          {children}
-        </span>
-        <span aria-hidden className="aui-chain-of-thought-trace-marquee-text">
-          {children}
-        </span>
-      </div>
-      <div
-        aria-hidden
-        className={cn(
-          "aui-chain-of-thought-trace-marquee-fade pointer-events-none absolute inset-y-0 right-0 w-8",
-          "bg-gradient-to-l from-background to-transparent",
-          "group-data-[variant=muted]/chain-of-thought-root:from-muted",
-          "dark:group-data-[variant=muted]/chain-of-thought-root:from-card",
+    <div className="aui-chain-of-thought-trace-summary relative min-h-[1.25rem] overflow-hidden">
+      <div className="relative h-5">
+        {previousLabel != null && (
+          <span
+            className={cn(
+              "aui-chain-of-thought-trace-summary-prev absolute inset-0 flex items-center",
+              "truncate text-left",
+              "fade-out-0 slide-out-to-top-1 animate-out duration-200 ease-out",
+              "motion-reduce:animate-none",
+            )}
+          >
+            {previousLabel}
+          </span>
         )}
-      />
+        {currentLabel != null && (
+          <span
+            className={cn(
+              "aui-chain-of-thought-trace-summary-current absolute inset-0 flex items-center",
+              "truncate text-left",
+              "fade-in-0 slide-in-from-bottom-1 animate-in duration-200 ease-out",
+              "motion-reduce:animate-none",
+            )}
+          >
+            {currentLabel}
+          </span>
+        )}
+      </div>
+      {active && (
+        <span
+          aria-hidden
+          data-slot="chain-of-thought-trace-summary-shimmer"
+          className={cn(
+            "aui-chain-of-thought-trace-summary-shimmer shimmer shimmer-invert pointer-events-none absolute inset-0",
+            "shimmer-angle-30",
+            "motion-reduce:animate-none",
+          )}
+        />
+      )}
     </div>
   );
 }
@@ -1628,6 +1656,7 @@ const DefaultTraceGroupSummary: ComponentType<
     (latestStep ? getTraceStepLabel(latestStep) : undefined) ??
     "Working...";
   const toolName = group.summary?.toolName ?? latestStep?.toolName;
+  const isActive = (latestStep?.status ?? group.status) === "running";
   const badgeStatus = mapTraceStatusToToolBadge(
     latestStep?.status ?? group.status,
   );
@@ -1665,7 +1694,10 @@ const DefaultTraceGroupSummary: ComponentType<
         {toolName && (
           <ChainOfThoughtToolBadge toolName={toolName} status={badgeStatus} />
         )}
-        <ChainOfThoughtTraceMarquee>{summaryLabel}</ChainOfThoughtTraceMarquee>
+        <ChainOfThoughtTraceSummaryTransition
+          label={summaryLabel}
+          active={isActive}
+        />
       </div>
     </button>
   );
