@@ -7,8 +7,11 @@ import { Composer } from "@/components/chat/Composer";
 import { ThreadList } from "@/components/chat/ThreadList";
 
 export default function Home() {
-  // That's it! No cloud instance, no useThreads call needed.
-  // Just set NEXT_PUBLIC_ASSISTANT_BASE_URL env var.
+  // Zero-config mode: auto-initializes anonymous cloud from NEXT_PUBLIC_ASSISTANT_BASE_URL.
+  // For custom configuration, pass options:
+  //   - { cloud: myCloud } for authenticated users
+  //   - { threads: { includeArchived: true } } for thread config
+  //   - { onSyncError: (err) => ... } for error handling
   const { messages, sendMessage, stop, status, threads } = useCloudChat();
 
   const [input, setInput] = useState("");

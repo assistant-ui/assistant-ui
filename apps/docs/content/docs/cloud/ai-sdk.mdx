@@ -64,7 +64,8 @@ import { useState } from "react";
 import { useCloudChat } from "assistant-cloud/ai-sdk";
 
 export default function Chat() {
-  // Thread management included — auto-creates anonymous cloud from env var
+  // Zero-config: auto-initializes anonymous cloud from env var with built-in threads.
+  // For custom config, pass: { cloud, threads: { includeArchived, autoGenerateTitle }, onSyncError }
   const { messages, sendMessage, threads } = useCloudChat();
 
   const [input, setInput] = useState("");
@@ -117,14 +118,52 @@ That's it. Messages persist automatically as they complete, and switching thread
 
 Wraps AI SDK's `useChat` with automatic cloud persistence and built-in thread management. Messages are persisted as they finish streaming. Thread creation is automatic on the first message — the hook will auto-create the thread, select it, refresh the thread list, and generate a title after the first response.
 
-**Parameters:**
+#### Configuration Modes
+
+**1. Zero-config** — Set `NEXT_PUBLIC_ASSISTANT_BASE_URL` env var, call with no args:
+
+```tsx
+const chat = useCloudChat();
+```
+
+**2. Custom cloud instance** — For authenticated users or custom configuration:
+
+```tsx
+const cloud = new AssistantCloud({ baseUrl, authToken });
+const chat = useCloudChat({ cloud });
+```
+
+**3. Thread config** — Configure thread behavior:
+
+```tsx
+const chat = useCloudChat({
+  threads: {
+    includeArchived: true,      // Show archived threads
+    autoGenerateTitle: false,   // Disable auto-title
+  },
+  onSyncError: (err) => toast.error(err.message),
+});
+```
+
+**4. External thread management** — When threads need to be accessed from a separate component:
+
+```tsx
+// In a context provider or parent component
+const myThreads = useThreads({ cloud });
+
+// Pass to useCloudChat - it will use your thread state
+const chat = useCloudChat({ threads: myThreads });
+```
+
+#### Parameters
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `options.cloud` | `AssistantCloud` | Cloud instance (optional — auto-creates anonymous instance from `NEXT_PUBLIC_ASSISTANT_BASE_URL` env var if not provided) |
-| `options.threads` | `UseThreadsResult` | Pass result from `useThreads()` when you need thread operations in a separate component |
-| `options.includeArchived` | `boolean` | Include archived threads (default: `false`) |
-| `options.autoGenerateTitle` | `boolean` | Auto-generate title after first response on new threads (default: `true`) |
+| `options.threads` | `UseThreadsResult \| ThreadsConfig` | Thread configuration or external thread management. Pass `UseThreadsResult` from `useThreads()` when you need thread operations in a separate component, or pass `ThreadsConfig` to configure internal thread management |
+| `options.threads.includeArchived` | `boolean` | Include archived threads (default: `false`) |
+| `options.threads.autoGenerateTitle` | `boolean` | Auto-generate title after first response on new threads (default: `true`) |
+| `options.onSyncError` | `(error: Error) => void` | Callback invoked when a sync error occurs |
 
 All other [AI SDK `useChat` options](https://sdk.vercel.ai/docs/reference/ai-sdk-ui/use-chat) (except `transport`) are also accepted.
 
@@ -136,7 +175,6 @@ All other [AI SDK `useChat` options](https://sdk.vercel.ai/docs/reference/ai-sdk
 | `status` | `string` | Chat status: `"ready"`, `"submitted"`, `"streaming"`, or `"error"` |
 | `sendMessage` | `(message, options?) => Promise<void>` | Send a message (auto-creates thread if needed) |
 | `stop` | `() => void` | Stop the current stream |
-| `syncError` | `Error \| null` | Last sync error, if any |
 | `threads` | `UseThreadsResult` | Thread management (see below) |
 
 Plus all other properties from AI SDK's [`UseChatHelpers`](https://sdk.vercel.ai/docs/reference/ai-sdk-ui/use-chat).

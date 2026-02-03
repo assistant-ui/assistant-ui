@@ -11,6 +11,7 @@ export {
   useCloudChat,
   type UseCloudChatResult,
   type UseCloudChatOptions,
+  type ThreadsConfig,
 } from "./useCloudChat";
 export {
   useThreads,
