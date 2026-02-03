@@ -1568,7 +1568,7 @@ const DefaultTraceStepBody: NonNullable<
   return <ChainOfThoughtStepBody>{step.detail}</ChainOfThoughtStepBody>;
 };
 
-const TRACE_SUMMARY_TRANSITION_MS = 240;
+const TRACE_SUMMARY_TRANSITION_MS = 300;
 
 function ChainOfThoughtTraceSummaryTransition({
   label,
@@ -1579,6 +1579,7 @@ function ChainOfThoughtTraceSummaryTransition({
 }) {
   const [currentLabel, setCurrentLabel] = useState(label);
   const [previousLabel, setPreviousLabel] = useState<ReactNode | null>(null);
+  const [labelKey, setLabelKey] = useState(0);
   const labelRef = useRef(label);
   const timeoutRef = useRef<number | null>(null);
 
@@ -1587,6 +1588,7 @@ function ChainOfThoughtTraceSummaryTransition({
 
     setPreviousLabel(labelRef.current ?? null);
     setCurrentLabel(label);
+    setLabelKey((value) => value + 1);
     labelRef.current = label;
 
     if (timeoutRef.current) {
@@ -1610,10 +1612,11 @@ function ChainOfThoughtTraceSummaryTransition({
       <div className="relative h-5">
         {previousLabel != null && (
           <span
+            key={`prev-${labelKey}`}
             className={cn(
               "aui-chain-of-thought-trace-summary-prev absolute inset-0 flex items-center",
               "truncate text-left",
-              "fade-out-0 slide-out-to-top-2 animate-out fill-mode-both duration-200 ease-out",
+              "fade-out-0 slide-out-to-top-2 animation-duration-300 animate-out fill-mode-both ease-out",
               "motion-reduce:animate-none",
             )}
           >
@@ -1622,10 +1625,11 @@ function ChainOfThoughtTraceSummaryTransition({
         )}
         {currentLabel != null && (
           <span
+            key={`current-${labelKey}`}
             className={cn(
               "aui-chain-of-thought-trace-summary-current absolute inset-0 flex items-center",
               "truncate text-left",
-              "fade-in-0 slide-in-from-bottom-2 animate-in fill-mode-both duration-200 ease-out",
+              "fade-in-0 slide-in-from-bottom-2 animation-duration-300 animate-in fill-mode-both ease-out",
               "motion-reduce:animate-none",
             )}
           >
@@ -1660,10 +1664,12 @@ const DefaultTraceGroupSummary: ComponentType<
   const badgeStatus = mapTraceStatusToToolBadge(
     latestStep?.status ?? group.status,
   );
-  const toolBadge = toolName ? (
-    <ChainOfThoughtToolBadge toolName={toolName} status={badgeStatus} />
-  ) : (
-    <span aria-hidden className="inline-flex h-5 w-[4.5rem] shrink-0" />
+  const toolBadge = (
+    <span className="inline-flex h-5 w-[7rem] shrink-0 items-center">
+      {toolName ? (
+        <ChainOfThoughtToolBadge toolName={toolName} status={badgeStatus} />
+      ) : null}
+    </span>
   );
 
   return (
