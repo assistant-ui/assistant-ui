@@ -67,11 +67,13 @@ export class ChatGPTBridge implements ExtendedBridge {
     }
 
     if (this.openai.toolOutput) {
-      this.toolResultCallbacks.forEach((cb) =>
-        cb({
-          structuredContent: this.openai.toolOutput!,
-        }),
-      );
+      const result: ToolResult = {
+        structuredContent: this.openai.toolOutput!,
+      };
+      if (this.openai.toolResponseMetadata) {
+        result._meta = this.openai.toolResponseMetadata;
+      }
+      this.toolResultCallbacks.forEach((cb) => cb(result));
     }
 
     this.connected = true;
