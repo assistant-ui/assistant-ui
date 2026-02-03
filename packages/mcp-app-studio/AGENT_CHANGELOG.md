@@ -1,7 +1,7 @@
 # Agent Changelog
 
 > This file helps coding agents understand project evolution, key decisions,
-> and deprecated patterns. Updated: 2026-01-29
+> and deprecated patterns. Updated: 2026-02-03
 
 ## Current State Summary
 
@@ -14,6 +14,20 @@
 | None detected | — | — | — |
 
 ## Timeline
+
+### 2026-02-03 — ChatGPT Tool Metadata Emitted on Initial Connect
+
+**What changed:** `ChatGPTBridge.connect()` now includes `toolResponseMetadata` when emitting the initial tool result, and a regression test covers the behavior.
+
+**Why:** The initial tool output previously omitted `_meta`, making the first tool result inconsistent with subsequent updates.
+
+**Agent impact:**
+- If you depend on `toolResponseMetadata` (e.g. request IDs), it is now available immediately after `connect()` when `toolOutput` is present.
+- A focused test exists at `src/platforms/chatgpt/bridge.test.ts` for this contract.
+
+**Deprecated:** None.
+
+---
 
 ### 2026-01-27 — Package Renamed to mcp-app-studio
 
