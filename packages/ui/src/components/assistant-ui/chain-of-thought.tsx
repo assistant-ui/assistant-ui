@@ -24,6 +24,7 @@ import {
   ImageIcon,
   FileTextIcon,
   WrenchIcon,
+  UsersIcon,
   CheckCircleIcon,
   AlertCircleIcon,
   ArrowDownIcon,
@@ -1105,6 +1106,8 @@ export type ChainOfThoughtToolBadgeProps = React.ComponentProps<"span"> & {
   toolName: string;
   /** Tool status */
   status?: "running" | "complete" | "error";
+  /** Apply text shimmer to the tool name */
+  shimmer?: boolean;
 };
 
 /**
@@ -1114,6 +1117,7 @@ export type ChainOfThoughtToolBadgeProps = React.ComponentProps<"span"> & {
 function ChainOfThoughtToolBadge({
   toolName,
   status = "complete",
+  shimmer = false,
   className,
   ...props
 }: ChainOfThoughtToolBadgeProps) {
@@ -1154,7 +1158,14 @@ function ChainOfThoughtToolBadge({
           className="aui-chain-of-thought-tool-badge-icon size-3"
         />
       )}
-      <span className="aui-chain-of-thought-tool-badge-name">{toolName}</span>
+      <span
+        className={cn(
+          "aui-chain-of-thought-tool-badge-name truncate",
+          shimmer && "shimmer shimmer-invert shimmer-angle-30",
+        )}
+      >
+        {toolName}
+      </span>
     </span>
   );
 }
@@ -1606,6 +1617,9 @@ function ChainOfThoughtTraceSummaryTransition({
   }, [label]);
 
   if (currentLabel == null && previousLabel == null) return null;
+  const shimmerClass = active
+    ? "shimmer shimmer-invert shimmer-angle-30"
+    : undefined;
 
   return (
     <div className="aui-chain-of-thought-trace-summary relative min-h-[1.25rem] overflow-hidden">
@@ -1617,6 +1631,7 @@ function ChainOfThoughtTraceSummaryTransition({
               "aui-chain-of-thought-trace-summary-prev absolute inset-0 flex items-center",
               "truncate text-left",
               "fade-out-0 slide-out-to-top-2 animation-duration-300 animate-out fill-mode-both ease-out",
+              shimmerClass,
               "motion-reduce:animate-none",
             )}
           >
@@ -1630,6 +1645,7 @@ function ChainOfThoughtTraceSummaryTransition({
               "aui-chain-of-thought-trace-summary-current absolute inset-0 flex items-center",
               "truncate text-left",
               "fade-in-0 slide-in-from-bottom-2 animation-duration-300 animate-in fill-mode-both ease-out",
+              shimmerClass,
               "motion-reduce:animate-none",
             )}
           >
@@ -1637,17 +1653,6 @@ function ChainOfThoughtTraceSummaryTransition({
           </span>
         )}
       </div>
-      {active && (
-        <span
-          aria-hidden
-          data-slot="chain-of-thought-trace-summary-shimmer"
-          className={cn(
-            "aui-chain-of-thought-trace-summary-shimmer shimmer shimmer-invert pointer-events-none absolute inset-0",
-            "shimmer-angle-30",
-            "motion-reduce:animate-none",
-          )}
-        />
-      )}
     </div>
   );
 }
@@ -1661,13 +1666,24 @@ const DefaultTraceGroupSummary: ComponentType<
     "Working...";
   const toolName = group.summary?.toolName ?? latestStep?.toolName;
   const isActive = (latestStep?.status ?? group.status) === "running";
+  const isSubagent = group.variant === "subagent";
+  const summaryType: StepType =
+    group.summary?.latestType ??
+    latestStep?.type ??
+    (toolName ? "tool" : "default");
+  const SummaryIcon = stepTypeIcons[summaryType] ?? null;
   const badgeStatus = mapTraceStatusToToolBadge(
     latestStep?.status ?? group.status,
   );
   const toolBadge = (
     <span className="inline-flex h-5 w-[7rem] shrink-0 items-center">
       {toolName ? (
-        <ChainOfThoughtToolBadge toolName={toolName} status={badgeStatus} />
+        <ChainOfThoughtToolBadge
+          toolName={toolName}
+          status={badgeStatus}
+          shimmer={isActive}
+          className="min-w-0 max-w-[7rem]"
+        />
       ) : null}
     </span>
   );
@@ -1687,7 +1703,7 @@ const DefaultTraceGroupSummary: ComponentType<
       )}
       aria-expanded={isOpen}
     >
-      <div className="flex items-center gap-2 text-sm">
+      <div className="flex min-h-9 items-center gap-2 text-sm">
         {canExpand ? (
           <ChevronDownIcon
             aria-hidden
@@ -1700,15 +1716,30 @@ const DefaultTraceGroupSummary: ComponentType<
           <span className="size-4" aria-hidden />
         )}
         <span className="font-medium text-foreground">{group.label}</span>
-      </div>
-      <div className="mt-1 flex items-center gap-2 text-muted-foreground text-xs">
-        {toolBadge}
-        <div className="min-w-0 flex-1">
-          <ChainOfThoughtTraceSummaryTransition
-            label={summaryLabel}
-            active={isActive}
-          />
-        </div>
+        <span className="text-muted-foreground/60">•</span>
+        {isSubagent ? (
+          <div className="flex min-w-0 flex-1 items-center gap-1 text-muted-foreground text-xs">
+            {SummaryIcon ? (
+              <SummaryIcon aria-hidden className="size-3 shrink-0" />
+            ) : null}
+            <div className="min-w-0 flex-1">
+              <ChainOfThoughtTraceSummaryTransition
+                label={summaryLabel}
+                active={isActive}
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="flex min-w-0 flex-1 items-center gap-2 text-muted-foreground text-xs">
+            {toolBadge}
+            <div className="min-w-0 flex-1">
+              <ChainOfThoughtTraceSummaryTransition
+                label={summaryLabel}
+                active={isActive}
+              />
+            </div>
+          </div>
+        )}
       </div>
     </button>
   );
@@ -1767,12 +1798,15 @@ function ChainOfThoughtTraceGroupNode({
   const latestStep = useMemo(() => getLatestTraceStep(group), [group]);
   const canExpand = depth < maxDepth && group.children.length > 0;
   const GroupSummary = nodeComponents?.GroupSummary ?? DefaultTraceGroupSummary;
+  const isSubagent = group.variant === "subagent";
 
   const groupStatus = group.status ?? latestStep?.status;
   const type =
     group.summary?.latestType ??
     latestStep?.type ??
     (latestStep?.toolName ? "tool" : "default");
+  const icon = isSubagent ? <IconRenderer Icon={UsersIcon} /> : undefined;
+  const indicatorType = isSubagent ? "default" : type;
 
   return (
     <ChainOfThoughtStep
@@ -1780,7 +1814,8 @@ function ChainOfThoughtTraceGroupNode({
       data-variant={group.variant ?? "default"}
       status={mapTraceStatusToStepStatus(groupStatus)}
       active={groupStatus === "running"}
-      type={type}
+      type={indicatorType}
+      icon={icon}
       className={className}
       style={style}
     >
