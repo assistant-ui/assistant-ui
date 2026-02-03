@@ -721,6 +721,8 @@ export type ChainOfThoughtStepProps = React.ComponentProps<"li"> &
     error?: string;
     /** Callback when retry is clicked (shows retry button when provided) */
     onRetry?: () => void;
+    /** Visual density for nested steps */
+    density?: "regular" | "compact";
   };
 
 /**
@@ -730,10 +732,12 @@ export type ChainOfThoughtStepProps = React.ComponentProps<"li"> &
 function StepIndicatorWrapper({
   status,
   hasBorder = false,
+  compact = false,
   children,
 }: {
   status: StepStatus | undefined;
   hasBorder?: boolean;
+  compact?: boolean;
   children: ReactNode;
 }) {
   const isActive = status === "active";
@@ -748,6 +752,7 @@ function StepIndicatorWrapper({
       className={cn(
         "aui-chain-of-thought-step-indicator transform-gpu",
         "relative flex size-6 shrink-0 items-center justify-center rounded-full",
+        compact && "scale-[0.6]",
         // Background should match the parent variant so the timeline line does not show through
         "bg-background",
         "group-data-[variant=muted]/chain-of-thought-root:bg-muted",
@@ -795,6 +800,7 @@ function ChainOfThoughtStep({
   icon,
   error,
   onRetry,
+  density = "regular",
   children,
   ...props
 }: ChainOfThoughtStepProps) {
@@ -807,12 +813,17 @@ function ChainOfThoughtStep({
 
   const isActive = effectiveStatus === "active";
   const isError = effectiveStatus === "error";
+  const isCompact = density === "compact";
 
   const renderIndicator = () => {
     // Error state shows error icon
     if (effectiveStatus === "error") {
       return (
-        <StepIndicatorWrapper status={effectiveStatus} hasBorder={!!stepLabel}>
+        <StepIndicatorWrapper
+          status={effectiveStatus}
+          hasBorder={!!stepLabel}
+          compact={isCompact}
+        >
           {stepLabel !== undefined ? (
             <span className="aui-chain-of-thought-step-indicator-error-label font-medium text-[10px] text-destructive">
               !
@@ -827,7 +838,11 @@ function ChainOfThoughtStep({
     // Numbered/labeled indicator
     if (stepLabel !== undefined) {
       return (
-        <StepIndicatorWrapper status={effectiveStatus} hasBorder>
+        <StepIndicatorWrapper
+          status={effectiveStatus}
+          hasBorder
+          compact={isCompact}
+        >
           <span
             className={cn(
               "aui-chain-of-thought-step-indicator-label font-medium text-[10px]",
@@ -844,7 +859,7 @@ function ChainOfThoughtStep({
     if (icon) {
       const isComponent = typeof icon === "function";
       return (
-        <StepIndicatorWrapper status={effectiveStatus}>
+        <StepIndicatorWrapper status={effectiveStatus} compact={isCompact}>
           {isComponent ? (
             <IconRenderer Icon={icon as LucideIcon} pulse={active === true} />
           ) : (
@@ -858,7 +873,7 @@ function ChainOfThoughtStep({
     const TypeIcon = stepTypeIcons[type];
     if (TypeIcon === null) {
       return (
-        <StepIndicatorWrapper status={effectiveStatus}>
+        <StepIndicatorWrapper status={effectiveStatus} compact={isCompact}>
           <BulletDot />
         </StepIndicatorWrapper>
       );
@@ -875,8 +890,10 @@ function ChainOfThoughtStep({
       data-slot="chain-of-thought-step"
       data-status={effectiveStatus}
       data-type={type}
+      data-density={density}
       className={cn(
         stepVariants({ status: effectiveStatus, className }),
+        isCompact && "gap-2 py-1",
         // Hide connectors at first/last positions using CSS selectors
         // Uses first-of-type/last-of-type for compatibility with dynamically rendered children
         "first-of-type:[&>[data-slot=chain-of-thought-step-connector-above]]:hidden",
@@ -922,6 +939,7 @@ function ChainOfThoughtStep({
           "transition-colors duration-200",
           isActive && "text-foreground",
           isError && "text-destructive",
+          isCompact && "text-xs leading-snug",
           "motion-reduce:animate-none",
         )}
         style={{
@@ -1323,6 +1341,7 @@ export type ChainOfThoughtTraceGroupSummaryProps = {
   isOpen: boolean;
   canExpand: boolean;
   onToggle: () => void;
+  depth?: number;
 };
 
 export type ChainOfThoughtTraceNodeComponents = {
@@ -1660,7 +1679,7 @@ function ChainOfThoughtTraceSummaryTransition({
 
 const DefaultTraceGroupSummary: ComponentType<
   ChainOfThoughtTraceGroupSummaryProps
-> = ({ group, latestStep, isOpen, canExpand, onToggle }) => {
+> = ({ group, latestStep, isOpen, canExpand, onToggle, depth = 0 }) => {
   const summaryLabel =
     group.summary?.latestLabel ??
     (latestStep ? getTraceStepLabel(latestStep) : undefined) ??
@@ -1668,6 +1687,7 @@ const DefaultTraceGroupSummary: ComponentType<
   const toolName = group.summary?.toolName ?? latestStep?.toolName;
   const isActive = (latestStep?.status ?? group.status) === "running";
   const isSubagent = group.variant === "subagent";
+  const isCompact = depth > 0;
   const summaryType: StepType =
     group.summary?.latestType ??
     latestStep?.type ??
@@ -1703,7 +1723,12 @@ const DefaultTraceGroupSummary: ComponentType<
       )}
       aria-expanded={isOpen}
     >
-      <div className="flex h-6 items-center gap-1.5 text-sm">
+      <div
+        className={cn(
+          "flex h-6 items-center gap-1.5 text-sm",
+          isCompact && "gap-1 text-xs",
+        )}
+      >
         <span
           aria-hidden
           className="inline-flex size-6 shrink-0 items-center justify-center"
@@ -1713,6 +1738,7 @@ const DefaultTraceGroupSummary: ComponentType<
               aria-hidden
               className={cn(
                 "size-4 text-muted-foreground transition-transform",
+                isCompact && "size-3",
                 isOpen ? "rotate-0" : "-rotate-90",
               )}
             />
@@ -1723,9 +1749,12 @@ const DefaultTraceGroupSummary: ComponentType<
         <span className="font-medium text-foreground">{group.label}</span>
         <span className="text-muted-foreground/60">•</span>
         {isSubagent ? (
-          <div className="flex min-w-0 flex-1 items-center gap-1 text-muted-foreground text-xs">
+          <div className="flex min-w-0 flex-1 items-center gap-1 text-muted-foreground">
             {SummaryIcon ? (
-              <SummaryIcon aria-hidden className="size-3 shrink-0" />
+              <SummaryIcon
+                aria-hidden
+                className={cn("size-3 shrink-0", isCompact && "scale-[0.7]")}
+              />
             ) : null}
             <div className="min-w-0 flex-1">
               <ChainOfThoughtTraceSummaryTransition
@@ -1752,11 +1781,13 @@ const DefaultTraceGroupSummary: ComponentType<
 
 function ChainOfThoughtTraceStepNode({
   step,
+  depth,
   style,
   className,
   nodeComponents,
 }: {
   step: TraceStep;
+  depth: number;
   style?: React.CSSProperties;
   className?: string;
   nodeComponents?: ChainOfThoughtTraceNodeComponents;
@@ -1773,6 +1804,7 @@ function ChainOfThoughtTraceStepNode({
       status={status}
       active={isActive}
       type={type}
+      density={depth > 0 ? "compact" : "regular"}
       className={className}
       style={style}
     >
@@ -1821,6 +1853,7 @@ function ChainOfThoughtTraceGroupNode({
       active={groupStatus === "running"}
       type={indicatorType}
       icon={icon}
+      density={depth > 0 ? "compact" : "regular"}
       className={className}
       style={style}
     >
@@ -1830,6 +1863,7 @@ function ChainOfThoughtTraceGroupNode({
           latestStep={latestStep}
           isOpen={isOpen}
           canExpand={canExpand}
+          depth={depth}
           onToggle={() => {
             if (!canExpand) return;
             setIsOpen((prev) => !prev);
@@ -1851,6 +1885,7 @@ function ChainOfThoughtTraceGroupNode({
                   <ChainOfThoughtTraceStepNode
                     key={node.id}
                     step={node}
+                    depth={depth + 1}
                     nodeComponents={nodeComponents}
                   />
                 ),
@@ -1885,6 +1920,7 @@ function ChainOfThoughtTraceNodes({
           <ChainOfThoughtTraceStepNode
             key={node.id}
             step={node}
+            depth={0}
             nodeComponents={nodeComponents}
           />
         ),
