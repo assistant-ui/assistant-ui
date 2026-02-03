@@ -197,7 +197,8 @@ export default function ChainOfThoughtPreviewPage() {
           <h3 className="mb-2 font-medium text-lg">Nested Subagent Trace</h3>
           <p className="mb-4 text-muted-foreground text-sm">
             Opinionated v1 nested trace with subagent groups. Collapsed view
-            shows the most recent step with a marquee summary and tool badge.
+            auto-cycles the summary to demonstrate the transition between steps
+            and active shimmer.
           </p>
           <ChainOfThoughtNestedTraceSample />
         </section>

@@ -1761,63 +1761,98 @@ export function ChainOfThoughtPartsGroupedSample() {
 // Nested Trace Demo - Subagent groups with latest-step marquee
 // ============================================================================
 
-const NESTED_TRACE_SAMPLE: TraceNode[] = [
-  {
-    kind: "step",
-    id: "plan",
-    label: "Planning approach",
-    type: "text",
-    status: "complete",
-  },
-  {
-    kind: "group",
-    id: "agent-research",
-    label: "Researcher",
-    status: "running",
-    variant: "subagent",
-    children: [
+const NESTED_TRACE_SUMMARIES = [
+  { label: "Searching docs", type: "search", toolName: "search" },
+  { label: "Summarizing findings", type: "text", toolName: "summarize" },
+  { label: "Drafting response", type: "text" },
+] as const;
+
+function useNestedTraceSample() {
+  const [summaryIndex, setSummaryIndex] = useState(0);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setSummaryIndex((current) =>
+        current === NESTED_TRACE_SUMMARIES.length - 1 ? 0 : current + 1,
+      );
+    }, 2400);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, []);
+
+  const currentSummary =
+    NESTED_TRACE_SUMMARIES[summaryIndex] ?? NESTED_TRACE_SUMMARIES[0];
+
+  return useMemo<TraceNode[]>(
+    () => [
+      {
+        kind: "step",
+        id: "plan",
+        label: "Planning approach",
+        type: "text",
+        status: "complete",
+      },
       {
         kind: "group",
-        id: "agent-web",
-        label: "Web Scout",
+        id: "agent-research",
+        label: "Researcher",
+        status: "running",
         variant: "subagent",
+        summary: {
+          latestLabel: currentSummary.label,
+          latestType: currentSummary.type,
+          toolName: currentSummary.toolName,
+        },
         children: [
           {
+            kind: "group",
+            id: "agent-web",
+            label: "Web Scout",
+            variant: "subagent",
+            children: [
+              {
+                kind: "step",
+                id: "crawl",
+                label: "Crawling sources",
+                type: "tool",
+                toolName: "browser",
+                status: "complete",
+              },
+            ],
+          },
+          {
             kind: "step",
-            id: "crawl",
-            label: "Crawling sources",
-            type: "tool",
-            toolName: "browser",
-            status: "complete",
+            id: "active-step",
+            label: currentSummary.label,
+            type: currentSummary.type,
+            toolName: currentSummary.toolName,
+            status: "running",
           },
         ],
       },
       {
         kind: "step",
-        id: "search",
-        label: "Searching docs",
-        type: "search",
-        toolName: "search",
-        status: "running",
+        id: "draft",
+        label: "Drafting response",
+        type: "text",
+        status: "complete",
       },
     ],
-  },
-  {
-    kind: "step",
-    id: "draft",
-    label: "Drafting response",
-    type: "text",
-    status: "complete",
-  },
-];
+    [currentSummary],
+  );
+}
 
 export function ChainOfThoughtNestedTraceSample() {
+  const trace = useNestedTraceSample();
+
   return (
     <SampleFrame className="flex h-auto flex-col gap-4 p-4">
       <ChainOfThoughtRoot variant="muted" defaultOpen className="mb-0">
         <ChainOfThoughtTrigger label="Nested Trace" />
         <ChainOfThoughtContent>
-          <ChainOfThoughtTrace trace={NESTED_TRACE_SAMPLE} maxDepth={2} />
+          <ChainOfThoughtTrace trace={trace} maxDepth={2} />
         </ChainOfThoughtContent>
       </ChainOfThoughtRoot>
     </SampleFrame>
@@ -1888,13 +1923,14 @@ function CustomTraceGroupSummary({
 }
 
 export function ChainOfThoughtCustomGroupSummarySample() {
+  const trace = useNestedTraceSample();
   return (
     <SampleFrame className="flex h-auto flex-col gap-4 p-4">
       <ChainOfThoughtRoot variant="muted" defaultOpen className="mb-0">
         <ChainOfThoughtTrigger label="Custom Group Summary" />
         <ChainOfThoughtContent>
           <ChainOfThoughtTrace
-            trace={NESTED_TRACE_SAMPLE}
+            trace={trace}
             maxDepth={2}
             nodeComponents={{ GroupSummary: CustomTraceGroupSummary }}
           />
