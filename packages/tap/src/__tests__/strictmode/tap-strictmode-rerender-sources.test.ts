@@ -263,7 +263,7 @@ describe("Tap Strict Mode - Rerender Sources", () => {
 
       // Wait for setTimeout
       await new Promise((resolve) => setTimeout(resolve, 50));
- 
+
       // React behavior: setTimeout callbacks run TWICE, then renders double
       expect(events).toEqual([
         "render count=0",
