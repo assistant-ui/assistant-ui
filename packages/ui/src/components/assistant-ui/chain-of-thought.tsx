@@ -36,6 +36,7 @@ import {
   useAuiState,
   type ReasoningMessagePartComponent,
   type ReasoningGroupComponent,
+  type ThreadMessage,
 } from "@assistant-ui/react";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import {
@@ -1435,6 +1436,15 @@ export const traceFromMessageParts = (
   });
 };
 
+export type TraceFromThreadMessageOptions = TraceFromMessagePartsOptions;
+
+export const traceFromThreadMessage = (
+  message: ThreadMessage,
+  options: TraceFromThreadMessageOptions = {},
+): TraceNode[] => {
+  return traceFromMessageParts(message.content, options);
+};
+
 type ChainOfThoughtTraceContextValue = {
   inferStep: NonNullable<ChainOfThoughtTracePartsProps["inferStep"]>;
 };
@@ -1990,6 +2000,7 @@ export type {
   ChainOfThoughtTraceGroupSummaryProps,
   ChainOfThoughtTraceNodeComponents,
   TraceFromMessagePartsOptions,
+  TraceFromThreadMessageOptions,
   TraceGroup,
   TraceNode,
   TraceStatus,

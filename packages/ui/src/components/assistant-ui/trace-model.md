@@ -53,3 +53,9 @@ type TraceNode = TraceStep | TraceGroup;
 - `ChainOfThought.Trace` accepts explicit `TraceNode[]` for v1.
 - Legacy message-part grouping is still supported through `groupingFunction`
   and `inferStep`.
+- `traceFromThreadMessage(message)` converts a `ThreadMessage` into trace nodes.
+
+### AI SDK (example)
+If you use `@assistant-ui/react-ai-sdk`, convert `UIMessage` → `ThreadMessage`
+with `AISDKMessageConverter.toThreadMessages`, then call
+`traceFromThreadMessage` on the resulting assistant message.
