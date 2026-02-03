@@ -2001,46 +2001,80 @@ function useStreamingNestedTrace() {
   const webSteps = buildSteps(STREAMING_WEB_STEPS, "web");
   const rootSteps = buildSteps(STREAMING_ROOT_STEPS, "root");
 
+  const groupStarted = researcherSteps.length > 0 || webSteps.length > 0;
+  const rootPivotIndex = (() => {
+    const firstNonRoot = STREAMING_SEQUENCE.findIndex(
+      (entry, index) => index <= progress && entry.scope !== "root",
+    );
+    if (firstNonRoot === -1) return rootSteps.length - 1;
+    let maxRootIndex = -1;
+    for (let i = 0; i < firstNonRoot; i += 1) {
+      const entry = STREAMING_SEQUENCE[i];
+      if (entry?.scope === "root") {
+        maxRootIndex = Math.max(maxRootIndex, entry.index);
+      }
+    }
+    return maxRootIndex;
+  })();
+  const rootBeforeGroup =
+    rootPivotIndex >= 0 ? rootSteps.slice(0, rootPivotIndex + 1) : [];
+  const rootAfterGroup =
+    rootPivotIndex >= 0 ? rootSteps.slice(rootPivotIndex + 1) : rootSteps;
+
   const researcherLatest = researcherSteps[researcherSteps.length - 1] ?? null;
   const webLatest = webSteps[webSteps.length - 1] ?? null;
 
   return useMemo<TraceNode[]>(
     () => [
-      ...rootSteps,
-      {
-        kind: "group",
-        id: "agent-research-stream",
-        label: "Researcher",
-        status: active?.scope === "researcher" ? "running" : "complete",
-        variant: "subagent",
-        summary: researcherLatest
-          ? {
-              latestLabel: researcherLatest.label,
-              latestType: researcherLatest.type,
-              toolName: researcherLatest.toolName,
-            }
-          : undefined,
-        children: [
-          {
-            kind: "group",
-            id: "agent-web-stream",
-            label: "Web Scout",
-            status: active?.scope === "web" ? "running" : "complete",
-            variant: "subagent",
-            summary: webLatest
-              ? {
-                  latestLabel: webLatest.label,
-                  latestType: webLatest.type,
-                  toolName: webLatest.toolName,
-                }
-              : undefined,
-            children: webSteps,
-          },
-          ...researcherSteps,
-        ],
-      },
+      ...rootBeforeGroup,
+      ...(groupStarted
+        ? ([
+            {
+              kind: "group",
+              id: "agent-research-stream",
+              label: "Researcher",
+              status: active?.scope === "researcher" ? "running" : "complete",
+              variant: "subagent",
+              summary: researcherLatest
+                ? {
+                    latestLabel: researcherLatest.label,
+                    latestType: researcherLatest.type,
+                    toolName: researcherLatest.toolName,
+                  }
+                : undefined,
+              children: [
+                {
+                  kind: "group",
+                  id: "agent-web-stream",
+                  label: "Web Scout",
+                  status: active?.scope === "web" ? "running" : "complete",
+                  variant: "subagent",
+                  summary: webLatest
+                    ? {
+                        latestLabel: webLatest.label,
+                        latestType: webLatest.type,
+                        toolName: webLatest.toolName,
+                      }
+                    : undefined,
+                  children: webSteps,
+                },
+                ...researcherSteps,
+              ],
+            },
+          ] as TraceNode[])
+        : []),
+      ...rootAfterGroup,
     ],
-    [rootSteps, researcherSteps, webSteps, researcherLatest, webLatest, active],
+    [
+      rootBeforeGroup,
+      rootAfterGroup,
+      groupStarted,
+      researcherSteps,
+      webSteps,
+      researcherLatest,
+      webLatest,
+      active,
+    ],
   );
 }
 
