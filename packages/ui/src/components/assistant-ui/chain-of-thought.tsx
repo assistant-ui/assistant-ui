@@ -1697,13 +1697,13 @@ const DefaultTraceGroupSummary: ComponentType<
       data-variant={group.variant ?? "default"}
       className={cn(
         "aui-chain-of-thought-trace-group-summary group/trace-summary w-full text-left",
-        "rounded-md px-2 py-1 transition-colors",
+        "rounded-md px-2 py-0 transition-colors",
         "hover:bg-muted/60",
         "disabled:cursor-default disabled:hover:bg-transparent",
       )}
       aria-expanded={isOpen}
     >
-      <div className="flex min-h-9 items-center gap-2 text-sm">
+      <div className="flex h-6 items-center gap-2 text-sm">
         <span
           aria-hidden
           className="inline-flex size-6 shrink-0 items-center justify-center"
