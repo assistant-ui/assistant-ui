@@ -70,18 +70,29 @@ export const MessageClient = resource(
       }),
     );
 
-    const parts = tapClientLookup(
-      () =>
-        runtimeState.content.map((part, idx) =>
-          withKey(
-            "toolCallId" in part && part.toolCallId != null
-              ? `toolCallId-${part.toolCallId}`
-              : `index-${idx}`,
-            MessagePartByIndex({ runtime, index: idx }),
-          ),
-        ),
-      [runtimeState.content, runtime],
-    );
+    const parts = tapClientLookup(() => {
+      // Track seen toolCallIds to skip duplicates entirely
+      // This prevents duplicate tool call UI rendering during HITL flows
+      const seenToolCallIds = new Set<string>();
+      const results: ReturnType<typeof withKey>[] = [];
+      runtimeState.content.forEach((part, idx) => {
+        let key: string;
+        if ("toolCallId" in part && part.toolCallId != null) {
+          const toolCallId = part.toolCallId;
+          if (seenToolCallIds.has(toolCallId)) {
+            // Skip duplicate toolCallId entirely to prevent duplicate UI rendering
+            return;
+          }
+          seenToolCallIds.add(toolCallId);
+          key = `toolCallId-${toolCallId}`;
+        } else {
+          key = `index-${idx}`;
+        }
+        // Use original idx to preserve correct runtime index mapping
+        results.push(withKey(key, MessagePartByIndex({ runtime, index: idx })));
+      });
+      return results;
+    }, [runtimeState.content, runtime]);
 
     const attachments = tapClientLookup(
       () =>

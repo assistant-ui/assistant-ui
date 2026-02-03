@@ -191,7 +191,7 @@ export function useToolInvocations({
                     );
                   }
                 } else {
-                  if (!content.argsText.startsWith(lastState.argsText)) {
+                    if (!content.argsText.startsWith(lastState.argsText)) {
                     // Check if this is key reordering (both are complete JSON)
                     // This happens when transitioning from streaming to complete state
                     // and the provider returns keys in a different order
@@ -208,9 +208,47 @@ export function useToolInvocations({
                       };
                       return; // Continue to next content part
                     }
-                    throw new Error(
-                      `Tool call argsText can only be appended, not updated: ${content.argsText} does not start with ${lastState.argsText}`,
-                    );
+
+                    // Handle case where old argsText was incomplete (streaming interrupted)
+                    // and new argsText is complete - accept the new complete argsText
+                    // This can happen during multi-step tool calls or HITL flows
+                    if (
+                      !isArgsTextComplete(lastState.argsText) &&
+                      isArgsTextComplete(content.argsText)
+                    ) {
+                      if (process.env["NODE_ENV"] !== "production") {
+                        console.warn(
+                          "argsText reset from incomplete to complete (likely multi-step or HITL flow):",
+                          {
+                            previous: lastState.argsText,
+                            next: content.argsText,
+                          },
+                        );
+                      }
+                      lastState.controller.argsText.close();
+                      lastToolStates.current[content.toolCallId] = {
+                        argsText: content.argsText,
+                        hasResult: lastState.hasResult,
+                        argsComplete: true,
+                        controller: lastState.controller,
+                      };
+                      return; // Continue to next content part
+                    }
+
+                    // Gracefully handle other argsText mismatches to prevent UI crash
+                    if (process.env["NODE_ENV"] !== "production") {
+                      console.error(
+                        `Tool call argsText mismatch: ${content.argsText} does not start with ${lastState.argsText}`,
+                      );
+                    }
+                    lastState.controller.argsText.close();
+                    lastToolStates.current[content.toolCallId] = {
+                      argsText: content.argsText,
+                      hasResult: lastState.hasResult,
+                      argsComplete: isArgsTextComplete(content.argsText),
+                      controller: lastState.controller,
+                    };
+                    return;
                   }
 
                   const argsTextDelta = content.argsText.slice(
