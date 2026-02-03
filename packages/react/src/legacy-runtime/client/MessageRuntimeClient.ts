@@ -74,24 +74,27 @@ export const MessageClient = resource(
       // Track seen toolCallIds to skip duplicates entirely
       // This prevents duplicate tool call UI rendering during HITL flows
       const seenToolCallIds = new Set<string>();
-      const results: ReturnType<typeof withKey>[] = [];
-      runtimeState.content.forEach((part, idx) => {
-        let key: string;
-        if ("toolCallId" in part && part.toolCallId != null) {
-          const toolCallId = part.toolCallId;
-          if (seenToolCallIds.has(toolCallId)) {
-            // Skip duplicate toolCallId entirely to prevent duplicate UI rendering
-            return;
+      return runtimeState.content
+        .map((part, idx) => {
+          if ("toolCallId" in part && part.toolCallId != null) {
+            const toolCallId = part.toolCallId;
+            if (seenToolCallIds.has(toolCallId)) {
+              // Skip duplicate toolCallId entirely to prevent duplicate UI rendering
+              return null;
+            }
+            seenToolCallIds.add(toolCallId);
+            // Use original idx to preserve correct runtime index mapping
+            return withKey(
+              `toolCallId-${toolCallId}`,
+              MessagePartByIndex({ runtime, index: idx }),
+            );
           }
-          seenToolCallIds.add(toolCallId);
-          key = `toolCallId-${toolCallId}`;
-        } else {
-          key = `index-${idx}`;
-        }
-        // Use original idx to preserve correct runtime index mapping
-        results.push(withKey(key, MessagePartByIndex({ runtime, index: idx })));
-      });
-      return results;
+          return withKey(
+            `index-${idx}`,
+            MessagePartByIndex({ runtime, index: idx }),
+          );
+        })
+        .filter((item) => item !== null);
     }, [runtimeState.content, runtime]);
 
     const attachments = tapClientLookup(

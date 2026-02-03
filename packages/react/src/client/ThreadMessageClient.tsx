@@ -80,23 +80,23 @@ export const ThreadMessageClient = resource(
       // Track seen toolCallIds to skip duplicates entirely
       // This prevents duplicate tool call UI rendering during HITL flows
       const seenToolCallIds = new Set<string>();
-      const results: ReturnType<typeof withKey>[] = [];
-      message.content.forEach((part, idx) => {
-        let key: string;
-        if ("toolCallId" in part && part.toolCallId != null) {
-          const toolCallId = part.toolCallId;
-          if (seenToolCallIds.has(toolCallId)) {
-            // Skip duplicate toolCallId entirely to prevent duplicate UI rendering
-            return;
+      return message.content
+        .map((part, idx) => {
+          if ("toolCallId" in part && part.toolCallId != null) {
+            const toolCallId = part.toolCallId;
+            if (seenToolCallIds.has(toolCallId)) {
+              // Skip duplicate toolCallId entirely to prevent duplicate UI rendering
+              return null;
+            }
+            seenToolCallIds.add(toolCallId);
+            return withKey(
+              `toolCallId-${toolCallId}`,
+              ThreadMessagePartClient({ part }),
+            );
           }
-          seenToolCallIds.add(toolCallId);
-          key = `toolCallId-${toolCallId}`;
-        } else {
-          key = `index-${idx}`;
-        }
-        results.push(withKey(key, ThreadMessagePartClient({ part })));
-      });
-      return results;
+          return withKey(`index-${idx}`, ThreadMessagePartClient({ part }));
+        })
+        .filter((item) => item !== null);
     }, [message.content]);
 
     const attachments = tapClientLookup(

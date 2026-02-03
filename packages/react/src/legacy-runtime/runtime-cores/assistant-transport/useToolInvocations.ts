@@ -191,7 +191,7 @@ export function useToolInvocations({
                     );
                   }
                 } else {
-                    if (!content.argsText.startsWith(lastState.argsText)) {
+                  if (!content.argsText.startsWith(lastState.argsText)) {
                     // Check if this is key reordering (both are complete JSON)
                     // This happens when transitioning from streaming to complete state
                     // and the provider returns keys in a different order
