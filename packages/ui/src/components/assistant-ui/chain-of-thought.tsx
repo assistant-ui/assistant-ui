@@ -1639,6 +1639,7 @@ const DefaultTraceGroupSummary: ComponentType<
       onClick={onToggle}
       disabled={!canExpand}
       data-slot="chain-of-thought-trace-group-summary"
+      data-variant={group.variant ?? "default"}
       className={cn(
         "aui-chain-of-thought-trace-group-summary group/trace-summary w-full text-left",
         "rounded-md px-2 py-1 transition-colors",
