@@ -1623,6 +1623,7 @@ function ChainOfThoughtTraceMarquee({ children }: { children?: ReactNode }) {
 const DefaultTraceGroupSummary: ComponentType<
   ChainOfThoughtTraceGroupSummaryProps
 > = ({ group, latestStep, isOpen, canExpand, onToggle }) => {
+  const isSubagent = group.variant === "subagent";
   const summaryLabel =
     group.summary?.latestLabel ??
     (latestStep ? getTraceStepLabel(latestStep) : undefined) ??
@@ -1642,11 +1643,17 @@ const DefaultTraceGroupSummary: ComponentType<
         "aui-chain-of-thought-trace-group-summary group/trace-summary w-full text-left",
         "rounded-md px-2 py-1 transition-colors",
         "hover:bg-muted/60",
+        isSubagent && "border border-muted-foreground/10 bg-muted/40",
         "disabled:cursor-default disabled:hover:bg-transparent",
       )}
       aria-expanded={isOpen}
     >
-      <div className="flex items-center gap-2 text-sm">
+      <div
+        className={cn(
+          "flex items-center gap-2 text-sm",
+          isSubagent && "text-xs",
+        )}
+      >
         {canExpand ? (
           <ChevronDownIcon
             aria-hidden
@@ -1658,9 +1665,21 @@ const DefaultTraceGroupSummary: ComponentType<
         ) : (
           <span className="size-4" aria-hidden />
         )}
-        <span className="font-medium text-foreground">{group.label}</span>
+        <span
+          className={cn(
+            "font-medium text-foreground",
+            isSubagent && "text-muted-foreground",
+          )}
+        >
+          {group.label}
+        </span>
       </div>
-      <div className="mt-1 flex items-center gap-2 text-muted-foreground text-xs">
+      <div
+        className={cn(
+          "mt-1 flex items-center gap-2 text-muted-foreground text-xs",
+          isSubagent && "text-[11px]",
+        )}
+      >
         {toolName && (
           <ChainOfThoughtToolBadge toolName={toolName} status={badgeStatus} />
         )}
