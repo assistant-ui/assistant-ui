@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import type { VariantProps } from "class-variance-authority";
 import { PlayIcon, RotateCcwIcon, EyeOffIcon } from "lucide-react";
+import { AISDKMessageConverter } from "@assistant-ui/react-ai-sdk";
 import {
   MessageProvider,
   type ThreadAssistantMessage,
 } from "@assistant-ui/react";
+import type { UIMessage } from "ai";
 import { SampleFrame } from "@/components/docs/samples/sample-frame";
 import { Button } from "@/components/ui/button";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
@@ -26,6 +28,7 @@ import {
   ChainOfThoughtBadge,
   ChainOfThoughtAnnouncer,
   ChainOfThoughtTraceTool,
+  traceFromThreadMessage,
   type TraceNode,
   chainOfThoughtVariants,
 } from "@/components/assistant-ui/chain-of-thought";
@@ -1809,6 +1812,84 @@ export function ChainOfThoughtNestedTraceSample() {
           <ChainOfThoughtTrace trace={NESTED_TRACE_SAMPLE} maxDepth={2} />
         </ChainOfThoughtContent>
       </ChainOfThoughtRoot>
+    </SampleFrame>
+  );
+}
+
+// ============================================================================
+// AI SDK Adapter Demo - Convert UIMessage -> ThreadMessage -> Trace
+// ============================================================================
+
+const AISDK_MESSAGES: UIMessage[] = [
+  {
+    id: "user-1",
+    role: "user",
+    parts: [
+      {
+        type: "text",
+        text: "Find the latest release notes for Next.js",
+      },
+    ],
+  },
+  {
+    id: "assistant-1",
+    role: "assistant",
+    parts: [
+      {
+        type: "dynamic-tool",
+        toolName: "search",
+        toolCallId: "tool-search-1",
+        state: "input-available",
+        input: { query: "Next.js latest release notes" },
+      },
+      {
+        type: "text",
+        text: "Found the latest release notes and summarized the key changes.",
+      },
+    ],
+  },
+];
+
+function AISDKAdapterDemo() {
+  const threadMessages = useMemo(
+    () => AISDKMessageConverter.toThreadMessages(AISDK_MESSAGES, true),
+    [],
+  );
+  const assistantMessage = threadMessages.find(
+    (message) => message.role === "assistant",
+  );
+
+  const trace = useMemo(
+    () => (assistantMessage ? traceFromThreadMessage(assistantMessage) : []),
+    [assistantMessage],
+  );
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="rounded-md bg-muted/50 p-3 font-mono text-[11px] text-muted-foreground leading-relaxed">
+        {
+          "const threadMessages = AISDKMessageConverter.toThreadMessages(uiMessages, true)"
+        }
+        {"\n"}
+        {"const trace = traceFromThreadMessage(threadMessages[1])"}
+        {"\n"}
+        {"return <ChainOfThought.Trace trace={trace} />"}
+      </div>
+
+      <ChainOfThoughtRoot variant="outline" defaultOpen className="mb-0">
+        <ChainOfThoughtTrigger label="AI SDK Trace Adapter" />
+        <ChainOfThoughtContent>
+          <ChainOfThoughtTrace trace={trace} />
+        </ChainOfThoughtContent>
+      </ChainOfThoughtRoot>
+    </div>
+  );
+}
+
+export function ChainOfThoughtAISDKAdapterSample() {
+  return (
+    <SampleFrame className="flex h-auto flex-col gap-4 p-4">
+      <AISDKAdapterDemo />
     </SampleFrame>
   );
 }

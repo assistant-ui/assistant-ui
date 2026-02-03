@@ -11,6 +11,7 @@ import {
   ChainOfThoughtTimelineStreamingSample,
   ChainOfThoughtPartsGroupedSample,
   ChainOfThoughtNestedTraceSample,
+  ChainOfThoughtAISDKAdapterSample,
   ChainOfThoughtAgentTraceSample,
   ChainOfThoughtToolCallsSample,
   ChainOfThoughtErrorStateSample,
@@ -198,6 +199,16 @@ export default function ChainOfThoughtPreviewPage() {
             shows the most recent step with a marquee summary and tool badge.
           </p>
           <ChainOfThoughtNestedTraceSample />
+        </section>
+
+        <section>
+          <h3 className="mb-2 font-medium text-lg">AI SDK Trace Adapter</h3>
+          <p className="mb-4 text-muted-foreground text-sm">
+            Converts AI SDK <code>UIMessage</code> data into Assistant UI thread
+            messages, then derives trace nodes for
+            <code>ChainOfThought.Trace</code>.
+          </p>
+          <ChainOfThoughtAISDKAdapterSample />
         </section>
 
         <section>
