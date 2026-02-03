@@ -20,6 +20,7 @@ type TraceStep = {
   status?: TraceStatus;
   toolName?: string;
   detail?: ReactNode;
+  meta?: Record<string, unknown>;
 };
 
 type TraceGroup = {
@@ -34,6 +35,7 @@ type TraceGroup = {
   };
   children: TraceNode[];
   variant?: "subagent" | "default";
+  meta?: Record<string, unknown>;
 };
 
 type TraceNode = TraceStep | TraceGroup;
@@ -43,11 +45,19 @@ type TraceNode = TraceStep | TraceGroup;
 - Group summaries default to the most recent child step (depth-first, last leaf).
 - If `summary.latestLabel` is provided, it overrides the computed label.
 - Tool calls are surfaced whenever a `toolName` is present.
+- V1 shows the most recent step in the summary row; expand to see all steps.
 
 ## Nesting
 - Nested timelines are supported by rendering `TraceGroup` children as another
   `ChainOfThoughtTimeline`.
 - `maxDepth` defaults to 2. Deeper nesting can be enabled per use-case.
+
+## Styling + Custom UI
+- Use `variant` (e.g. `"subagent"`) to differentiate top-level vs. subagent
+  styling. `ChainOfThought.Trace` sets `data-variant` on trace groups.
+- For custom summaries, pass `nodeComponents.GroupSummary`.
+- For richer step layouts, pass `nodeComponents.StepBody`.
+- Store adapter-specific IDs in `meta` (e.g. `agentId`, `runId`, `toolCallId`).
 
 ## Adapters
 - `ChainOfThought.Trace` accepts explicit `TraceNode[]` for v1.
