@@ -13,11 +13,10 @@ export default function Home() {
 
   const [input, setInput] = useState("");
 
-  const handleSubmit = async () => {
-    const text = input.trim();
-    if (!text) return;
+  const handleSubmit = () => {
+    if (!input.trim()) return;
+    sendMessage({ text: input });
     setInput("");
-    await sendMessage({ parts: [{ type: "text", text }] });
   };
 
   const isRunning = status === "streaming" || status === "submitted";

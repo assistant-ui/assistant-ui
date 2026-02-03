@@ -60,32 +60,13 @@ export type UseCloudChatResult = UseChatHelpers<UIMessage> & {
 };
 
 /**
- * Lightweight chat hook with automatic cloud persistence.
+ * Wraps AI SDK's `useChat` with automatic cloud persistence.
  *
- * This is a thin wrapper around AI SDK's `useChat` that adds cloud sync.
- * Use this when building custom UIs without assistant-ui components.
+ * Messages are persisted as they complete. Threads are created automatically
+ * on first message. Includes built-in thread management via the `threads` return value.
  *
- * **For the full assistant-ui experience**, use `useChatRuntime` from
- * `@assistant-ui/react-ai-sdk` instead - it provides optimistic updates,
- * integrated thread management, and all assistant-ui primitives.
- *
- * @example
- * ```tsx
- * // Simplest usage - just set NEXT_PUBLIC_ASSISTANT_BASE_URL env var
- * const { messages, sendMessage, threads } = useCloudChat();
- *
- * // With custom API endpoint via transport
- * const { messages, sendMessage, threads } = useCloudChat({
- *   transport: new DefaultChatTransport({ api: "/api/chat" }),
- * });
- *
- * // With explicit cloud instance
- * const { messages, sendMessage, threads } = useCloudChat({ cloud: myCloud });
- *
- * // With external thread control (backwards compatible)
- * const myThreads = useThreads({ cloud: myCloud });
- * const { messages, sendMessage } = useCloudChat({ threads: myThreads });
- * ```
+ * Falls back to an anonymous cloud instance from `NEXT_PUBLIC_ASSISTANT_BASE_URL`
+ * if no `cloud` option is provided.
  */
 export function useCloudChat(
   options: UseCloudChatOptions = {},

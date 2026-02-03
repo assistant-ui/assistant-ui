@@ -64,15 +64,14 @@ import { useState } from "react";
 import { useCloudChat } from "assistant-cloud/ai-sdk";
 
 export default function Chat() {
-  // That's it! Thread management is included automatically.
+  // Thread management included — auto-creates anonymous cloud from env var
   const { messages, sendMessage, threads } = useCloudChat();
 
   const [input, setInput] = useState("");
-  const handleSubmit = async () => {
-    const text = input.trim();
-    if (!text) return;
+  const handleSubmit = () => {
+    if (!input.trim()) return;
+    sendMessage({ text: input });
     setInput("");
-    await sendMessage({ parts: [{ type: "text", text }] });
   };
 
   return (
@@ -122,7 +121,7 @@ Wraps AI SDK's `useChat` with automatic cloud persistence and built-in thread ma
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `options.cloud` | `AssistantCloud` | Cloud instance (optional — falls back to `NEXT_PUBLIC_ASSISTANT_BASE_URL` env var) |
+| `options.cloud` | `AssistantCloud` | Cloud instance (optional — auto-creates anonymous instance from `NEXT_PUBLIC_ASSISTANT_BASE_URL` env var if not provided) |
 | `options.threads` | `UseThreadsResult` | External thread management from `useThreads()` (optional — for advanced control) |
 | `options.includeArchived` | `boolean` | Include archived threads (default: `false`) |
 | `options.autoGenerateTitle` | `boolean` | Auto-generate title after first response on new threads (default: `true`) |
@@ -158,12 +157,11 @@ Plus all other properties from AI SDK's [`UseChatHelpers`](https://sdk.vercel.ai
 | `threads.unarchive` | `(id: string) => Promise<boolean>` | Unarchive a thread |
 | `threads.generateTitle` | `(threadId: string) => Promise<string \| null>` | Generate a title using AI |
 
-### `useThreads(options)` (Advanced)
+### `useThreads(options)`
 
-For advanced use cases where you need separate control over thread management. Most users should use `useCloudChat()` instead, which includes thread management automatically.
+Standalone thread list management. Can be used independently or passed to `useCloudChat({ threads })` for separate control over thread state.
 
 ```tsx
-// Advanced: External thread control
 const myThreads = useThreads({ cloud: myCloud });
 const { messages, sendMessage } = useCloudChat({ threads: myThreads });
 ```
