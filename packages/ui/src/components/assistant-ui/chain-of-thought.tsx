@@ -1704,17 +1704,22 @@ const DefaultTraceGroupSummary: ComponentType<
       aria-expanded={isOpen}
     >
       <div className="flex min-h-9 items-center gap-2 text-sm">
-        {canExpand ? (
-          <ChevronDownIcon
-            aria-hidden
-            className={cn(
-              "size-4 text-muted-foreground transition-transform",
-              isOpen ? "rotate-0" : "-rotate-90",
-            )}
-          />
-        ) : (
-          <span className="size-4" aria-hidden />
-        )}
+        <span
+          aria-hidden
+          className="inline-flex size-6 shrink-0 items-center justify-center"
+        >
+          {canExpand ? (
+            <ChevronDownIcon
+              aria-hidden
+              className={cn(
+                "size-4 text-muted-foreground transition-transform",
+                isOpen ? "rotate-0" : "-rotate-90",
+              )}
+            />
+          ) : (
+            <span className="size-4" aria-hidden />
+          )}
+        </span>
         <span className="font-medium text-foreground">{group.label}</span>
         <span className="text-muted-foreground/60">•</span>
         {isSubagent ? (
