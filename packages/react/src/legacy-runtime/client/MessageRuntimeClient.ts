@@ -71,19 +71,22 @@ export const MessageClient = resource(
     );
 
     const parts = tapClientLookup(() => {
-      // Track seen toolCallIds to skip duplicates entirely
-      // This prevents duplicate tool call UI rendering during HITL flows
+      // Track seen toolCallIds to skip duplicates entirely.
+      // This prevents duplicate tool call UI rendering during HITL flows where
+      // the same toolCallId may appear multiple times in runtimeState.content.
+      // Note: After filtering, part({ index: N }) returns the Nth non-duplicate part,
+      // not necessarily content[N]. Use part({ toolCallId }) for tool calls.
+      // The original idx is preserved for runtime methods that need content array position.
       const seenToolCallIds = new Set<string>();
       return runtimeState.content
         .map((part, idx) => {
           if ("toolCallId" in part && part.toolCallId != null) {
             const toolCallId = part.toolCallId;
             if (seenToolCallIds.has(toolCallId)) {
-              // Skip duplicate toolCallId entirely to prevent duplicate UI rendering
+              // Skip duplicate toolCallId - only render the first occurrence
               return null;
             }
             seenToolCallIds.add(toolCallId);
-            // Use original idx to preserve correct runtime index mapping
             return withKey(
               `toolCallId-${toolCallId}`,
               MessagePartByIndex({ runtime, index: idx }),
