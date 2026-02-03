@@ -6,6 +6,7 @@ import {
   createContext,
   isValidElement,
   memo,
+  type ComponentType,
   useCallback,
   useContext,
   useEffect,
@@ -105,6 +106,23 @@ function injectStepKeyframes() {
   keyframesInjected = true;
 }
 
+const TRACE_KEYFRAMES = `
+@keyframes aui-trace-marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+`;
+
+let traceKeyframesInjected = false;
+function injectTraceKeyframes() {
+  if (typeof document === "undefined" || traceKeyframesInjected) return;
+  const style = document.createElement("style");
+  style.id = "aui-chain-of-thought-trace-keyframes";
+  style.textContent = TRACE_KEYFRAMES;
+  document.head.appendChild(style);
+  traceKeyframesInjected = true;
+}
+
 /**
  * Map of step types to their default icons.
  * Extend this record to add custom step types.
@@ -138,6 +156,36 @@ function BulletDot({ className }: { className?: string }) {
 
 export type StepType = keyof typeof stepTypeIcons;
 export type StepStatus = "pending" | "active" | "complete" | "error";
+
+export type TraceStatus = "running" | "complete" | "incomplete" | "error";
+
+export type TraceStep = {
+  kind: "step";
+  id: string;
+  label?: ReactNode;
+  type?: StepType;
+  status?: TraceStatus;
+  toolName?: string;
+  detail?: ReactNode;
+  meta?: Record<string, unknown>;
+};
+
+export type TraceGroup = {
+  kind: "group";
+  id: string;
+  label: string;
+  status?: TraceStatus;
+  summary?: {
+    latestLabel?: ReactNode;
+    latestType?: StepType;
+    toolName?: string;
+  };
+  children: TraceNode[];
+  variant?: "subagent" | "default";
+  meta?: Record<string, unknown>;
+};
+
+export type TraceNode = TraceStep | TraceGroup;
 
 const chainOfThoughtVariants = cva("aui-chain-of-thought-root mb-4 w-full", {
   variants: {
@@ -1198,6 +1246,73 @@ const groupMessagePartsByParentId: PartsGroupedGroupingFunction = (
   return groups;
 };
 
+const isTraceGroup = (node: TraceNode): node is TraceGroup =>
+  node.kind === "group";
+
+const isTraceStep = (node: TraceNode): node is TraceStep =>
+  node.kind === "step";
+
+const mapTraceStatusToStepStatus = (status?: TraceStatus): StepStatus => {
+  switch (status) {
+    case "running":
+      return "active";
+    case "incomplete":
+    case "error":
+      return "error";
+    case "complete":
+    default:
+      return "complete";
+  }
+};
+
+const mapStepStatusToTraceStatus = (
+  status?: StepStatus,
+): TraceStatus | undefined => {
+  switch (status) {
+    case "active":
+      return "running";
+    case "complete":
+      return "complete";
+    case "error":
+      return "error";
+    case "pending":
+      return "incomplete";
+    default:
+      return undefined;
+  }
+};
+
+const mapTraceStatusToToolBadge = (
+  status?: TraceStatus,
+): "running" | "complete" | "error" => {
+  switch (status) {
+    case "running":
+      return "running";
+    case "incomplete":
+    case "error":
+      return "error";
+    case "complete":
+    default:
+      return "complete";
+  }
+};
+
+const getLatestTraceStep = (node: TraceNode): TraceStep | undefined => {
+  if (isTraceStep(node)) return node;
+  for (let i = node.children.length - 1; i >= 0; i--) {
+    const child = node.children[i]!;
+    const latest = getLatestTraceStep(child);
+    if (latest) return latest;
+  }
+  return undefined;
+};
+
+const getTraceStepLabel = (step: TraceStep): ReactNode | undefined => {
+  if (step.label !== undefined) return step.label;
+  if (step.toolName) return `Tool: ${step.toolName}`;
+  return undefined;
+};
+
 export type ChainOfThoughtTraceStepMeta = {
   label?: ReactNode;
   type?: StepType;
@@ -1206,10 +1321,33 @@ export type ChainOfThoughtTraceStepMeta = {
   icon?: LucideIcon | ReactNode;
 };
 
-export type ChainOfThoughtTraceProps = Omit<
+export type ChainOfThoughtTraceGroupSummaryProps = {
+  group: TraceGroup;
+  latestStep?: TraceStep;
+  isOpen: boolean;
+  canExpand: boolean;
+  onToggle: () => void;
+};
+
+export type ChainOfThoughtTraceNodeComponents = {
+  GroupSummary?: ComponentType<ChainOfThoughtTraceGroupSummaryProps>;
+  StepBody?: ComponentType<{ step: TraceStep }>;
+};
+
+type ChainOfThoughtTraceNodesProps = Omit<
   React.ComponentProps<typeof ChainOfThoughtTimeline>,
   "children"
 > & {
+  trace: TraceNode[];
+  maxDepth?: number;
+  nodeComponents?: ChainOfThoughtTraceNodeComponents;
+};
+
+type ChainOfThoughtTracePartsProps = Omit<
+  React.ComponentProps<typeof ChainOfThoughtTimeline>,
+  "children"
+> & {
+  trace?: undefined;
   groupingFunction?: PartsGroupedGroupingFunction;
   components?: React.ComponentProps<
     typeof MessagePrimitive.Unstable_PartsGrouped
@@ -1228,6 +1366,10 @@ export type ChainOfThoughtTraceProps = Omit<
   }) => ChainOfThoughtTraceStepMeta;
 };
 
+export type ChainOfThoughtTraceProps =
+  | ChainOfThoughtTraceNodesProps
+  | ChainOfThoughtTracePartsProps;
+
 type ToolCallPartLike = {
   type: "tool-call";
   toolName?: string;
@@ -1236,10 +1378,9 @@ type ToolCallPartLike = {
 const isToolCallPart = (part: unknown): part is ToolCallPartLike =>
   isRecord(part) && part["type"] === "tool-call";
 
-const defaultInferStep: NonNullable<ChainOfThoughtTraceProps["inferStep"]> = ({
-  groupKey,
-  parts,
-}) => {
+const defaultInferStep: NonNullable<
+  ChainOfThoughtTracePartsProps["inferStep"]
+> = ({ groupKey, parts }) => {
   const tool = parts.find(isToolCallPart);
   const toolName = tool?.toolName;
 
@@ -1256,14 +1397,59 @@ const defaultInferStep: NonNullable<ChainOfThoughtTraceProps["inferStep"]> = ({
   return { label: "Step", type };
 };
 
+export type TraceFromMessagePartsOptions = {
+  groupingFunction?: PartsGroupedGroupingFunction;
+  inferStep?: ChainOfThoughtTracePartsProps["inferStep"];
+};
+
+export const traceFromMessageParts = (
+  parts: readonly any[],
+  options: TraceFromMessagePartsOptions = {},
+): TraceNode[] => {
+  const groupingFunction =
+    options.groupingFunction ?? groupMessagePartsByParentId;
+  const inferStep = options.inferStep ?? defaultInferStep;
+  const groups = groupingFunction(parts);
+
+  return groups.map((group, index) => {
+    const groupParts = group.indices
+      .map((i) => parts[i])
+      .filter((part): part is (typeof parts)[number] => Boolean(part));
+    const meta = inferStep({
+      groupKey: group.groupKey,
+      indices: group.indices,
+      parts: groupParts,
+      isActive: false,
+    });
+    const tool = groupParts.find(isToolCallPart);
+    const toolName = tool?.toolName;
+
+    return {
+      kind: "step",
+      id: group.groupKey ?? `step-${index}`,
+      label: meta.label,
+      type: meta.type,
+      status: mapStepStatusToTraceStatus(meta.status),
+      toolName,
+    } satisfies TraceStep;
+  });
+};
+
 type ChainOfThoughtTraceContextValue = {
-  inferStep: NonNullable<ChainOfThoughtTraceProps["inferStep"]>;
+  inferStep: NonNullable<ChainOfThoughtTracePartsProps["inferStep"]>;
 };
 
 const ChainOfThoughtTraceContext =
   createContext<ChainOfThoughtTraceContextValue | null>(null);
 
-function ChainOfThoughtTraceGroup({
+type ChainOfThoughtTraceStepIndexContextValue = {
+  getStepIndex: (indices: number[]) => number | undefined;
+};
+
+const ChainOfThoughtTraceStepIndexContext =
+  createContext<ChainOfThoughtTraceStepIndexContextValue | null>(null);
+
+function ChainOfThoughtTracePartsGroup({
   groupKey,
   indices,
   children,
@@ -1274,6 +1460,11 @@ function ChainOfThoughtTraceGroup({
 }) {
   const context = useContext(ChainOfThoughtTraceContext);
   const inferStep = context?.inferStep ?? defaultInferStep;
+  const stepIndexContext = useContext(ChainOfThoughtTraceStepIndexContext);
+  const stepIndex = useMemo(
+    () => stepIndexContext?.getStepIndex(indices),
+    [indices, stepIndexContext],
+  );
 
   const messageParts = useAuiState(({ message }) => message.parts);
   const isRunning = useAuiState(
@@ -1303,6 +1494,11 @@ function ChainOfThoughtTraceGroup({
   return (
     <ChainOfThoughtStep
       active={isActive}
+      style={
+        stepIndex !== undefined
+          ? ({ "--step-index": stepIndex } as React.CSSProperties)
+          : undefined
+      }
       {...(meta.type ? { type: meta.type } : {})}
       {...(meta.status ? { status: meta.status } : {})}
       {...(meta.stepLabel !== undefined ? { stepLabel: meta.stepLabel } : {})}
@@ -1323,18 +1519,35 @@ function ChainOfThoughtTraceGroup({
  * - parts that share the same `parentId` render as a single step
  * - ungrouped parts render as individual steps in chronological order
  */
-function ChainOfThoughtTrace({
+function ChainOfThoughtTraceParts({
   className,
   groupingFunction = groupMessagePartsByParentId,
   components,
   inferStep = defaultInferStep,
   ...timelineProps
-}: ChainOfThoughtTraceProps) {
+}: ChainOfThoughtTracePartsProps) {
+  const messageParts = useAuiState(({ message }) => message.parts);
+  const groupIndexMap = useMemo(() => {
+    if (messageParts.length === 0) return new Map<string, number>();
+    const groups = groupingFunction(messageParts);
+    const map = new Map<string, number>();
+    for (const [index, group] of groups.entries()) {
+      map.set(group.indices.join("|"), index);
+    }
+    return map;
+  }, [groupingFunction, messageParts]);
+
   const contextValue = useMemo(() => ({ inferStep }), [inferStep]);
+  const stepIndexContextValue = useMemo(
+    () => ({
+      getStepIndex: (indices: number[]) => groupIndexMap.get(indices.join("|")),
+    }),
+    [groupIndexMap],
+  );
   const groupedComponents = useMemo(
     () => ({
       ...components,
-      Group: ChainOfThoughtTraceGroup,
+      Group: ChainOfThoughtTracePartsGroup,
     }),
     [components],
   );
@@ -1342,13 +1555,267 @@ function ChainOfThoughtTrace({
   return (
     <ChainOfThoughtTimeline className={className} {...timelineProps}>
       <ChainOfThoughtTraceContext.Provider value={contextValue}>
-        <MessagePrimitive.Unstable_PartsGrouped
-          groupingFunction={groupingFunction}
-          components={groupedComponents}
-        />
+        <ChainOfThoughtTraceStepIndexContext.Provider
+          value={stepIndexContextValue}
+        >
+          <MessagePrimitive.Unstable_PartsGrouped
+            groupingFunction={groupingFunction}
+            components={groupedComponents}
+          />
+        </ChainOfThoughtTraceStepIndexContext.Provider>
       </ChainOfThoughtTraceContext.Provider>
     </ChainOfThoughtTimeline>
   );
+}
+
+const DefaultTraceStepBody: NonNullable<
+  ChainOfThoughtTraceNodeComponents["StepBody"]
+> = ({ step }) => {
+  if (step.detail == null) return null;
+  return <ChainOfThoughtStepBody>{step.detail}</ChainOfThoughtStepBody>;
+};
+
+function ChainOfThoughtTraceMarquee({ children }: { children?: ReactNode }) {
+  useLayoutEffect(() => {
+    injectTraceKeyframes();
+  }, []);
+
+  if (children == null) return null;
+
+  return (
+    <div className="aui-chain-of-thought-trace-marquee relative overflow-hidden">
+      <div
+        className="aui-chain-of-thought-trace-marquee-track inline-flex min-w-full items-center gap-6 whitespace-nowrap"
+        style={{
+          animation: "aui-trace-marquee 10s linear infinite",
+        }}
+      >
+        <span className="aui-chain-of-thought-trace-marquee-text">
+          {children}
+        </span>
+        <span aria-hidden className="aui-chain-of-thought-trace-marquee-text">
+          {children}
+        </span>
+      </div>
+      <div
+        aria-hidden
+        className={cn(
+          "aui-chain-of-thought-trace-marquee-fade pointer-events-none absolute inset-y-0 right-0 w-8",
+          "bg-gradient-to-l from-background to-transparent",
+          "group-data-[variant=muted]/chain-of-thought-root:from-muted",
+          "dark:group-data-[variant=muted]/chain-of-thought-root:from-card",
+        )}
+      />
+    </div>
+  );
+}
+
+const DefaultTraceGroupSummary: ComponentType<
+  ChainOfThoughtTraceGroupSummaryProps
+> = ({ group, latestStep, isOpen, canExpand, onToggle }) => {
+  const summaryLabel =
+    group.summary?.latestLabel ??
+    (latestStep ? getTraceStepLabel(latestStep) : undefined) ??
+    "Working...";
+  const toolName = group.summary?.toolName ?? latestStep?.toolName;
+  const badgeStatus = mapTraceStatusToToolBadge(
+    latestStep?.status ?? group.status,
+  );
+
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      disabled={!canExpand}
+      data-slot="chain-of-thought-trace-group-summary"
+      className={cn(
+        "aui-chain-of-thought-trace-group-summary group/trace-summary w-full text-left",
+        "rounded-md px-2 py-1 transition-colors",
+        "hover:bg-muted/60",
+        "disabled:cursor-default disabled:hover:bg-transparent",
+      )}
+      aria-expanded={isOpen}
+    >
+      <div className="flex items-center gap-2 text-sm">
+        {canExpand ? (
+          <ChevronDownIcon
+            aria-hidden
+            className={cn(
+              "size-4 text-muted-foreground transition-transform",
+              isOpen ? "rotate-0" : "-rotate-90",
+            )}
+          />
+        ) : (
+          <span className="size-4" aria-hidden />
+        )}
+        <span className="font-medium text-foreground">{group.label}</span>
+      </div>
+      <div className="mt-1 flex items-center gap-2 text-muted-foreground text-xs">
+        {toolName && (
+          <ChainOfThoughtToolBadge toolName={toolName} status={badgeStatus} />
+        )}
+        <ChainOfThoughtTraceMarquee>{summaryLabel}</ChainOfThoughtTraceMarquee>
+      </div>
+    </button>
+  );
+};
+
+function ChainOfThoughtTraceStepNode({
+  step,
+  style,
+  className,
+  nodeComponents,
+}: {
+  step: TraceStep;
+  style?: React.CSSProperties;
+  className?: string;
+  nodeComponents?: ChainOfThoughtTraceNodeComponents;
+}) {
+  const StepBody = nodeComponents?.StepBody ?? DefaultTraceStepBody;
+  const label = getTraceStepLabel(step);
+  const status = mapTraceStatusToStepStatus(step.status);
+  const type = step.type ?? (step.toolName ? "tool" : "default");
+  const isActive = step.status === "running";
+
+  return (
+    <ChainOfThoughtStep
+      data-role="trace-step"
+      status={status}
+      active={isActive}
+      type={type}
+      className={className}
+      style={style}
+    >
+      {label !== undefined ? (
+        <ChainOfThoughtStepHeader>{label}</ChainOfThoughtStepHeader>
+      ) : null}
+      <StepBody step={step} />
+    </ChainOfThoughtStep>
+  );
+}
+
+function ChainOfThoughtTraceGroupNode({
+  group,
+  depth,
+  maxDepth,
+  style,
+  className,
+  nodeComponents,
+}: {
+  group: TraceGroup;
+  depth: number;
+  maxDepth: number;
+  style?: React.CSSProperties;
+  className?: string;
+  nodeComponents?: ChainOfThoughtTraceNodeComponents;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const latestStep = useMemo(() => getLatestTraceStep(group), [group]);
+  const canExpand = depth < maxDepth && group.children.length > 0;
+  const GroupSummary = nodeComponents?.GroupSummary ?? DefaultTraceGroupSummary;
+
+  const groupStatus = group.status ?? latestStep?.status;
+  const type =
+    group.summary?.latestType ??
+    latestStep?.type ??
+    (latestStep?.toolName ? "tool" : "default");
+
+  return (
+    <ChainOfThoughtStep
+      data-role="trace-group"
+      data-variant={group.variant ?? "default"}
+      status={mapTraceStatusToStepStatus(groupStatus)}
+      active={groupStatus === "running"}
+      type={type}
+      className={className}
+      style={style}
+    >
+      <ChainOfThoughtStepBody>
+        <GroupSummary
+          group={group}
+          latestStep={latestStep}
+          isOpen={isOpen}
+          canExpand={canExpand}
+          onToggle={() => {
+            if (!canExpand) return;
+            setIsOpen((prev) => !prev);
+          }}
+        />
+        {isOpen && canExpand && (
+          <div className="mt-2 pl-4">
+            <ChainOfThoughtTimeline autoScroll={false}>
+              {group.children.map((node) =>
+                isTraceGroup(node) ? (
+                  <ChainOfThoughtTraceGroupNode
+                    key={node.id}
+                    group={node}
+                    depth={depth + 1}
+                    maxDepth={maxDepth}
+                    nodeComponents={nodeComponents}
+                  />
+                ) : (
+                  <ChainOfThoughtTraceStepNode
+                    key={node.id}
+                    step={node}
+                    nodeComponents={nodeComponents}
+                  />
+                ),
+              )}
+            </ChainOfThoughtTimeline>
+          </div>
+        )}
+      </ChainOfThoughtStepBody>
+    </ChainOfThoughtStep>
+  );
+}
+
+function ChainOfThoughtTraceNodes({
+  className,
+  trace,
+  maxDepth = 2,
+  nodeComponents,
+  ...timelineProps
+}: ChainOfThoughtTraceNodesProps) {
+  return (
+    <ChainOfThoughtTimeline className={className} {...timelineProps}>
+      {trace.map((node) =>
+        isTraceGroup(node) ? (
+          <ChainOfThoughtTraceGroupNode
+            key={node.id}
+            group={node}
+            depth={0}
+            maxDepth={maxDepth}
+            nodeComponents={nodeComponents}
+          />
+        ) : (
+          <ChainOfThoughtTraceStepNode
+            key={node.id}
+            step={node}
+            nodeComponents={nodeComponents}
+          />
+        ),
+      )}
+    </ChainOfThoughtTimeline>
+  );
+}
+
+/**
+ * Trace renderer that supports both legacy message-part grouping and explicit trace nodes.
+ */
+function ChainOfThoughtTrace(props: ChainOfThoughtTraceProps) {
+  if ("trace" in props && props.trace !== undefined) {
+    const { trace, nodeComponents, maxDepth, ...timelineProps } = props;
+    return (
+      <ChainOfThoughtTraceNodes
+        trace={trace}
+        nodeComponents={nodeComponents}
+        maxDepth={maxDepth ?? 2}
+        {...timelineProps}
+      />
+    );
+  }
+
+  return <ChainOfThoughtTraceParts {...props} />;
 }
 
 /**
@@ -1517,4 +1984,14 @@ export {
   chainOfThoughtVariants,
   stepVariants,
   stepTypeIcons,
+};
+
+export type {
+  ChainOfThoughtTraceGroupSummaryProps,
+  ChainOfThoughtTraceNodeComponents,
+  TraceFromMessagePartsOptions,
+  TraceGroup,
+  TraceNode,
+  TraceStatus,
+  TraceStep,
 };

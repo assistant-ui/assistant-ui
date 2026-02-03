@@ -1,0 +1,55 @@
+# Trace Model (v1)
+
+This document defines the v1 trace data model used by `ChainOfThought.Trace`.
+The goal is quick-scan observability with an opinionated, nested timeline UI.
+
+## Goals
+- Fast visual scan of what the agent is doing.
+- Support nested subagent traces with a concise summary row.
+- Keep adapters flexible for different SDKs.
+
+## Data Types
+```ts
+type TraceStatus = "running" | "complete" | "incomplete" | "error";
+
+type TraceStep = {
+  kind: "step";
+  id: string;
+  label?: ReactNode;
+  type?: "tool" | "search" | "image" | "text" | "default";
+  status?: TraceStatus;
+  toolName?: string;
+  detail?: ReactNode;
+};
+
+type TraceGroup = {
+  kind: "group";
+  id: string;        // agentId (stable)
+  label: string;     // agent name (display)
+  status?: TraceStatus;
+  summary?: {
+    latestLabel?: ReactNode;
+    latestType?: TraceStep["type"];
+    toolName?: string;
+  };
+  children: TraceNode[];
+  variant?: "subagent" | "default";
+};
+
+type TraceNode = TraceStep | TraceGroup;
+```
+
+## Summary Behavior
+- Group summaries default to the most recent child step (depth-first, last leaf).
+- If `summary.latestLabel` is provided, it overrides the computed label.
+- Tool calls are surfaced whenever a `toolName` is present.
+
+## Nesting
+- Nested timelines are supported by rendering `TraceGroup` children as another
+  `ChainOfThoughtTimeline`.
+- `maxDepth` defaults to 2. Deeper nesting can be enabled per use-case.
+
+## Adapters
+- `ChainOfThought.Trace` accepts explicit `TraceNode[]` for v1.
+- Legacy message-part grouping is still supported through `groupingFunction`
+  and `inferStep`.

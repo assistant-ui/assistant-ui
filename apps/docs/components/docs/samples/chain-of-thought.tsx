@@ -1052,26 +1052,35 @@ function ConcurrentStreamingInstance({
   const fullText = `This is instance ${id} streaming its content. Each instance operates independently with its own timing and state. The delay was ${delay}ms.`;
 
   useEffect(() => {
+    let interval: ReturnType<typeof setInterval> | undefined;
+
     const startTimeout = setTimeout(() => {
       setIsStreaming(true);
       setText("");
       let i = 0;
-      const interval = setInterval(
+      interval = setInterval(
         () => {
           if (i < fullText.length) {
             setText(fullText.slice(0, i + 1));
             i++;
           } else {
             setIsStreaming(false);
-            clearInterval(interval);
+            if (interval) {
+              clearInterval(interval);
+              interval = undefined;
+            }
           }
         },
         20 + Math.random() * 20,
       );
-      return () => clearInterval(interval);
     }, delay);
 
-    return () => clearTimeout(startTimeout);
+    return () => {
+      clearTimeout(startTimeout);
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
   }, [delay, fullText]);
 
   return (
