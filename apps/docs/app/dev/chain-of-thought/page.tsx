@@ -6,7 +6,6 @@ import {
   ChainOfThoughtLabelsSample,
   ChainOfThoughtPlaceholderSample,
   ChainOfThoughtUserDismissSample,
-  ChainOfThoughtStressTestSample,
   ChainOfThoughtTimelineSample,
   ChainOfThoughtNumberedStepsSample,
   ChainOfThoughtTimelineStreamingSample,
@@ -14,21 +13,10 @@ import {
   ChainOfThoughtNestedTraceSample,
   ChainOfThoughtAgentTraceSample,
   ChainOfThoughtToolCallsSample,
-  ChainOfThoughtLongContentSample,
-  ChainOfThoughtOverflowSample,
-  ChainOfThoughtUnicodeSample,
-  ChainOfThoughtManyStepsSample,
-  ChainOfThoughtManyBadgesSample,
-  ChainOfThoughtRapidToggleSample,
-  ChainOfThoughtNestedStructureSample,
-  ChainOfThoughtConcurrentStreamingSample,
-  ChainOfThoughtEdgeCasesSample,
-  ChainOfThoughtMotionShowcaseSample,
   ChainOfThoughtErrorStateSample,
   ChainOfThoughtAutoScrollSample,
   ChainOfThoughtStreamingCursorSample,
   ChainOfThoughtAccessibilitySample,
-  ChainOfThoughtEasingComparisonSample,
 } from "@/components/docs/samples/chain-of-thought";
 
 export default function ChainOfThoughtPreviewPage() {
@@ -38,44 +26,10 @@ export default function ChainOfThoughtPreviewPage() {
       <header>
         <h1 className="mb-2 font-bold text-3xl">ChainOfThought Component</h1>
         <p className="text-muted-foreground">
-          Preview and stress test the ChainOfThought primitive. This page covers
-          variants, streaming behavior, timeline rendering, and edge cases.
+          Preview the ChainOfThought primitive with v1 trace behavior, nested
+          subagent groups, and core streaming/timeline features.
         </p>
       </header>
-
-      {/* ================================================================== */}
-      {/* SECTION: Motion Showcase */}
-      {/* ================================================================== */}
-      <div className="space-y-8">
-        <div className="border-muted-foreground/20 border-b pb-2">
-          <h2 className="font-semibold text-primary text-xl">
-            Motion Showcase
-          </h2>
-          <p className="text-muted-foreground text-sm">
-            Premium motion design with spring physics, staggered reveals, and
-            micro-interactions.
-          </p>
-        </div>
-
-        <section>
-          <h3 className="mb-2 font-medium text-lg">Interactive Demo</h3>
-          <p className="mb-4 text-muted-foreground text-sm">
-            Watch all motion refinements in action: spring-based easing,
-            staggered step reveals, pulsing ring indicators, scale-pop
-            completion effects, and diagonal shimmer.
-          </p>
-          <ChainOfThoughtMotionShowcaseSample />
-        </section>
-
-        <section>
-          <h3 className="mb-2 font-medium text-lg">Easing Curve Comparison</h3>
-          <p className="mb-4 text-muted-foreground text-sm">
-            Compare different easing curves for open/close animations. Test each
-            to find the right feel.
-          </p>
-          <ChainOfThoughtEasingComparisonSample />
-        </section>
-      </div>
 
       {/* ================================================================== */}
       {/* SECTION: Basic Usage */}
@@ -274,15 +228,6 @@ export default function ChainOfThoughtPreviewPage() {
           </p>
           <ChainOfThoughtErrorStateSample />
         </section>
-
-        <section>
-          <h3 className="mb-2 font-medium text-lg">Complex Nested Structure</h3>
-          <p className="mb-4 text-muted-foreground text-sm">
-            A realistic agent trace with mixed content: planning, search
-            results, images, code output, and active synthesis.
-          </p>
-          <ChainOfThoughtNestedStructureSample />
-        </section>
       </div>
 
       {/* ================================================================== */}
@@ -306,100 +251,6 @@ export default function ChainOfThoughtPreviewPage() {
             <code>ChainOfThought.Announcer</code> with dynamic messages.
           </p>
           <ChainOfThoughtAccessibilitySample />
-        </section>
-      </div>
-
-      {/* ================================================================== */}
-      {/* SECTION: Stress Tests */}
-      {/* ================================================================== */}
-      <div className="space-y-8">
-        <div className="border-muted-foreground/20 border-b pb-2">
-          <h2 className="font-semibold text-primary text-xl">Stress Tests</h2>
-          <p className="text-muted-foreground text-sm">
-            Edge cases and performance tests to verify the component handles
-            extreme scenarios gracefully.
-          </p>
-        </div>
-
-        <section>
-          <h3 className="mb-2 font-medium text-lg">Very Long Content</h3>
-          <p className="mb-4 text-muted-foreground text-sm">
-            Tests the max-h-64 scroll container with extensive markdown content
-            including headers, lists, and code blocks.
-          </p>
-          <ChainOfThoughtLongContentSample />
-        </section>
-
-        <section>
-          <h3 className="mb-2 font-medium text-lg">Horizontal Overflow</h3>
-          <p className="mb-4 text-muted-foreground text-sm">
-            Tests handling of unbreakable content: extremely long words, URLs
-            without spaces, and inline code.
-          </p>
-          <ChainOfThoughtOverflowSample />
-        </section>
-
-        <section>
-          <h3 className="mb-2 font-medium text-lg">Unicode & Emoji</h3>
-          <p className="mb-4 text-muted-foreground text-sm">
-            Tests rendering with emoji (including ZWJ sequences and skin tones),
-            mathematical symbols, RTL text, and special characters.
-          </p>
-          <ChainOfThoughtUnicodeSample />
-        </section>
-
-        <section>
-          <h3 className="mb-2 font-medium text-lg">Many Steps (Performance)</h3>
-          <p className="mb-4 text-muted-foreground text-sm">
-            Tests rendering performance with a large number of timeline steps.
-            Adjust the count to stress test the component.
-          </p>
-          <ChainOfThoughtManyStepsSample />
-        </section>
-
-        <section>
-          <h3 className="mb-2 font-medium text-lg">Many Badges</h3>
-          <p className="mb-4 text-muted-foreground text-sm">
-            Tests badge layout and wrapping behavior when a step has many source
-            badges or parameter tags.
-          </p>
-          <ChainOfThoughtManyBadgesSample />
-        </section>
-
-        <section>
-          <h3 className="mb-2 font-medium text-lg">Many Instances</h3>
-          <p className="mb-4 text-muted-foreground text-sm">
-            Multiple instances with shimmer effects. Tests scroll behavior and
-            rendering performance with concurrent components.
-          </p>
-          <ChainOfThoughtStressTestSample />
-        </section>
-
-        <section>
-          <h3 className="mb-2 font-medium text-lg">Concurrent Streaming</h3>
-          <p className="mb-4 text-muted-foreground text-sm">
-            Multiple instances streaming simultaneously with staggered start
-            times. Tests independent state management.
-          </p>
-          <ChainOfThoughtConcurrentStreamingSample />
-        </section>
-
-        <section>
-          <h3 className="mb-2 font-medium text-lg">Rapid Toggle</h3>
-          <p className="mb-4 text-muted-foreground text-sm">
-            Rapidly toggles the disclosure open/closed to test animation
-            performance and scroll lock behavior.
-          </p>
-          <ChainOfThoughtRapidToggleSample />
-        </section>
-
-        <section>
-          <h3 className="mb-2 font-medium text-lg">Edge Cases</h3>
-          <p className="mb-4 text-muted-foreground text-sm">
-            Various edge cases: empty content, single character,
-            whitespace-only, very long labels, and single-step timelines.
-          </p>
-          <ChainOfThoughtEdgeCasesSample />
         </section>
       </div>
     </div>
