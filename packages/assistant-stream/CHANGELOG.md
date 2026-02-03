@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.3.1
+
+### Patch Changes
+
+- d45b893: chore: update dependencies
+
 ## 0.3.0
 
 ### Minor Changes

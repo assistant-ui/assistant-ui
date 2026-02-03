@@ -1,6 +1,6 @@
 {
   "name": "mcp-app-studio",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Build interactive apps for AI assistants (ChatGPT, Claude, MCP hosts)",
   "keywords": [
     "chatgpt",

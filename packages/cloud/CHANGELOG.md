@@ -1,5 +1,13 @@
 # assistant-cloud
 
+## 0.1.16
+
+### Patch Changes
+
+- d45b893: chore: update dependencies
+- Updated dependencies [d45b893]
+  - assistant-stream@0.3.1
+
 ## 0.1.15
 
 ### Patch Changes

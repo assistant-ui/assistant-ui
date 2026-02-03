@@ -1,5 +1,12 @@
 # @assistant-ui/tap
 
+## 0.4.3
+
+### Patch Changes
+
+- d45b893: chore: update dependencies
+- fe71bfc: feat: tapSubscribableResource hook
+
 ## 0.4.2
 
 ### Patch Changes

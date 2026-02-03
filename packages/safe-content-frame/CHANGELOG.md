@@ -1,5 +1,11 @@
 # safe-content-frame
 
+## 0.0.8
+
+### Patch Changes
+
+- d45b893: chore: update dependencies
+
 ## 0.0.7
 
 ### Patch Changes

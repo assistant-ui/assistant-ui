@@ -1,5 +1,11 @@
 # assistant-ui
 
+## 0.0.77
+
+### Patch Changes
+
+- d45b893: chore: update dependencies
+
 ## 0.0.76
 
 ### Patch Changes

@@ -1,5 +1,14 @@
 # mcp-app-studio
 
+## 0.5.1
+
+### Patch Changes
+
+- d45b893: chore: update dependencies
+- e587399: Improve CLI scaffolding safety and template wiring (config-driven export defaults, version alignment, and server package naming).
+- 6fedeab: Fix `preview:sync` by adding the missing template sync script and making it resilient to failures.
+- a2e2450: docs: update testing checklist
+
 ## 0.5.0
 
 ### Minor Changes

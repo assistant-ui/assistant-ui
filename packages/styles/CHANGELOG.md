@@ -1,5 +1,11 @@
 # @assistant-ui/styles
 
+## 0.3.6
+
+### Patch Changes
+
+- d45b893: chore: update dependencies
+
 ## 0.3.5
 
 ### Patch Changes

@@ -1,5 +1,15 @@
 # @assistant-ui/react-ag-ui
 
+## 0.0.14
+
+### Patch Changes
+
+- d45b893: chore: update dependencies
+- Updated dependencies [d45b893]
+- Updated dependencies [fe71bfc]
+  - assistant-stream@0.3.1
+  - @assistant-ui/react@0.12.5
+
 ## 0.0.13
 
 ### Patch Changes

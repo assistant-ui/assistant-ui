@@ -1,5 +1,19 @@
 # @assistant-ui/react
 
+## 0.12.5
+
+### Patch Changes
+
+- d45b893: chore: update dependencies
+- fe71bfc: feat: use enhanced tapSubscribableResource hook
+- Updated dependencies [d45b893]
+- Updated dependencies [fe71bfc]
+- Updated dependencies [fe71bfc]
+  - assistant-stream@0.3.1
+  - assistant-cloud@0.1.16
+  - @assistant-ui/store@0.1.4
+  - @assistant-ui/tap@0.4.3
+
 ## 0.12.4
 
 ### Patch Changes

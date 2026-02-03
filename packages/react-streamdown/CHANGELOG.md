@@ -1,5 +1,14 @@
 # @assistant-ui/react-streamdown
 
+## 0.1.1
+
+### Patch Changes
+
+- d45b893: chore: update dependencies
+- Updated dependencies [d45b893]
+- Updated dependencies [fe71bfc]
+  - @assistant-ui/react@0.12.5
+
 ## 0.1.0
 
 ### Minor Changes

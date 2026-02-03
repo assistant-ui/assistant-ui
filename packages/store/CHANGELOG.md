@@ -1,5 +1,15 @@
 # @assistant-ui/store
 
+## 0.1.4
+
+### Patch Changes
+
+- d45b893: chore: update dependencies
+- fe71bfc: feat: use enhanced tapSubscribableResource hook
+- Updated dependencies [d45b893]
+- Updated dependencies [fe71bfc]
+  - @assistant-ui/tap@0.4.3
+
 ## 0.1.3
 
 ### Patch Changes
