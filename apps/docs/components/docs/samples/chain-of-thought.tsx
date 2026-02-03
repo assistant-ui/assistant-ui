@@ -1767,6 +1767,56 @@ const NESTED_TRACE_SUMMARIES = [
   { label: "Drafting response", type: "text" },
 ] as const;
 
+const STREAMING_ROOT_STEPS = [
+  { id: "plan", label: "Planning approach", type: "text" },
+  { id: "synthesize", label: "Synthesizing outputs", type: "text" },
+  { id: "finalize", label: "Finalizing response", type: "text" },
+] as const;
+
+const STREAMING_RESEARCHER_STEPS = [
+  { id: "brief", label: "Reviewing task brief", type: "text" },
+  {
+    id: "sources",
+    label: "Collecting sources",
+    type: "search",
+    toolName: "search",
+  },
+  { id: "outline", label: "Drafting outline", type: "text" },
+  { id: "crosscheck", label: "Cross-checking citations", type: "text" },
+  { id: "synthesize", label: "Synthesizing findings", type: "text" },
+  { id: "polish", label: "Polishing draft", type: "text" },
+] as const;
+
+const STREAMING_WEB_STEPS = [
+  { id: "crawl", label: "Crawling sources", type: "tool", toolName: "browser" },
+  { id: "extract", label: "Extracting key points", type: "text" },
+  { id: "verify", label: "Verifying citations", type: "text" },
+  {
+    id: "archive",
+    label: "Archiving sources",
+    type: "tool",
+    toolName: "archive",
+  },
+  { id: "summarize", label: "Summarizing references", type: "text" },
+] as const;
+
+const STREAMING_SEQUENCE = [
+  { scope: "root", index: 0 },
+  { scope: "researcher", index: 0 },
+  { scope: "web", index: 0 },
+  { scope: "web", index: 1 },
+  { scope: "web", index: 2 },
+  { scope: "researcher", index: 1 },
+  { scope: "web", index: 3 },
+  { scope: "researcher", index: 2 },
+  { scope: "web", index: 4 },
+  { scope: "researcher", index: 3 },
+  { scope: "researcher", index: 4 },
+  { scope: "root", index: 1 },
+  { scope: "researcher", index: 5 },
+  { scope: "root", index: 2 },
+] as const;
+
 function useNestedTraceSample() {
   const [summaryIndex, setSummaryIndex] = useState(0);
 
@@ -1889,6 +1939,120 @@ export function ChainOfThoughtNestedTraceSample() {
         <ChainOfThoughtTrigger label="Nested Trace" />
         <ChainOfThoughtContent>
           <ChainOfThoughtTrace trace={trace} maxDepth={2} />
+        </ChainOfThoughtContent>
+      </ChainOfThoughtRoot>
+    </SampleFrame>
+  );
+}
+
+function useStreamingNestedTrace() {
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setProgress((current) =>
+        current >= STREAMING_SEQUENCE.length - 1 ? 0 : current + 1,
+      );
+    }, 1600);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, []);
+
+  const active = STREAMING_SEQUENCE[progress];
+
+  const latestIndexFor = (
+    scope: (typeof STREAMING_SEQUENCE)[number]["scope"],
+  ) => {
+    for (let i = progress; i >= 0; i -= 1) {
+      if (STREAMING_SEQUENCE[i]?.scope === scope) {
+        return STREAMING_SEQUENCE[i]!.index;
+      }
+    }
+    return -1;
+  };
+
+  const buildSteps = (
+    steps: readonly {
+      id: string;
+      label: string;
+      type: string;
+      toolName?: string;
+    }[],
+    scope: (typeof STREAMING_SEQUENCE)[number]["scope"],
+  ) => {
+    const latestIndex = latestIndexFor(scope);
+    if (latestIndex < 0) return [];
+    return steps.slice(0, latestIndex + 1).map((step, index) => ({
+      kind: "step" as const,
+      id: step.id,
+      label: step.label,
+      type: step.type as any,
+      toolName: step.toolName,
+      status:
+        active?.scope === scope && active.index === index
+          ? "running"
+          : "complete",
+    }));
+  };
+
+  const researcherSteps = buildSteps(STREAMING_RESEARCHER_STEPS, "researcher");
+  const webSteps = buildSteps(STREAMING_WEB_STEPS, "web");
+  const rootSteps = buildSteps(STREAMING_ROOT_STEPS, "root");
+
+  const researcherLatest = researcherSteps[researcherSteps.length - 1] ?? null;
+  const webLatest = webSteps[webSteps.length - 1] ?? null;
+
+  return useMemo<TraceNode[]>(
+    () => [
+      ...rootSteps,
+      {
+        kind: "group",
+        id: "agent-research-stream",
+        label: "Researcher",
+        status: active?.scope === "researcher" ? "running" : "complete",
+        variant: "subagent",
+        summary: researcherLatest
+          ? {
+              latestLabel: researcherLatest.label,
+              latestType: researcherLatest.type,
+              toolName: researcherLatest.toolName,
+            }
+          : undefined,
+        children: [
+          {
+            kind: "group",
+            id: "agent-web-stream",
+            label: "Web Scout",
+            status: active?.scope === "web" ? "running" : "complete",
+            variant: "subagent",
+            summary: webLatest
+              ? {
+                  latestLabel: webLatest.label,
+                  latestType: webLatest.type,
+                  toolName: webLatest.toolName,
+                }
+              : undefined,
+            children: webSteps,
+          },
+          ...researcherSteps,
+        ],
+      },
+    ],
+    [rootSteps, researcherSteps, webSteps, researcherLatest, webLatest, active],
+  );
+}
+
+export function ChainOfThoughtNestedTraceStreamingSample() {
+  const trace = useStreamingNestedTrace();
+
+  return (
+    <SampleFrame className="flex h-auto flex-col gap-4 p-4">
+      <ChainOfThoughtRoot variant="muted" defaultOpen className="mb-0">
+        <ChainOfThoughtTrigger label="Nested Trace (Streaming)" active />
+        <ChainOfThoughtContent>
+          <ChainOfThoughtTrace trace={trace} maxDepth={3} />
         </ChainOfThoughtContent>
       </ChainOfThoughtRoot>
     </SampleFrame>
