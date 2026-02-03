@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { UIMessage, UseChatHelpers } from "@ai-sdk/react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type ChatInit, type ChatTransport } from "ai";
@@ -41,63 +41,64 @@ const aiSdkFormatAdapter: MessageFormatAdapter<UIMessage, ReadonlyJSONObject> =
     getId: (message) => message.id,
   };
 
-export type UseCloudChatOptions = ChatInit<UIMessage> & {
-  /** External thread management. If provided, internal threads are disabled. */
-  threads?: UseThreadsResult;
-  /** Cloud instance. Ignored if threads provided. Falls back to NEXT_PUBLIC_ASSISTANT_BASE_URL env var. */
-  cloud?: AssistantCloud;
-  /** Include archived threads when managing internally. Default: false */
+export type ThreadsConfig = {
+  /** Include archived threads in the list. Default: false */
   includeArchived?: boolean;
   /** Auto-generate title after first response on new threads. Default: true */
   autoGenerateTitle?: boolean;
 };
 
+export type UseCloudChatOptions = ChatInit<UIMessage> & {
+  /** Thread configuration or external thread management. If UseThreadsResult provided, internal threads are disabled. */
+  threads?: UseThreadsResult | ThreadsConfig;
+  /** Cloud instance. Ignored if threads is UseThreadsResult. Falls back to NEXT_PUBLIC_ASSISTANT_BASE_URL env var. */
+  cloud?: AssistantCloud;
+  /** Callback invoked when a sync error occurs. */
+  onSyncError?: (error: Error) => void;
+};
+
 export type UseCloudChatResult = UseChatHelpers<UIMessage> & {
-  /** Sync error state */
-  syncError: Error | null;
   /** Thread management (internal or passed-through) */
   threads: UseThreadsResult;
 };
 
+function isUseThreadsResult(
+  value: UseThreadsResult | ThreadsConfig | undefined,
+): value is UseThreadsResult {
+  return (
+    value !== undefined &&
+    typeof (value as UseThreadsResult).selectThread === "function"
+  );
+}
+
 /**
- * Lightweight chat hook with automatic cloud persistence.
+ * Wraps AI SDK's `useChat` with automatic cloud persistence and thread management.
  *
- * This is a thin wrapper around AI SDK's `useChat` that adds cloud sync.
- * Use this when building custom UIs without assistant-ui components.
+ * Messages are persisted as they complete. Threads are created automatically on first message.
  *
- * **For the full assistant-ui experience**, use `useChatRuntime` from
- * `@assistant-ui/react-ai-sdk` instead - it provides optimistic updates,
- * integrated thread management, and all assistant-ui primitives.
- *
- * @example
- * ```tsx
- * // Simplest usage - just set NEXT_PUBLIC_ASSISTANT_BASE_URL env var
- * const { messages, sendMessage, threads } = useCloudChat();
- *
- * // With custom API endpoint via transport
- * const { messages, sendMessage, threads } = useCloudChat({
- *   transport: new DefaultChatTransport({ api: "/api/chat" }),
- * });
- *
- * // With explicit cloud instance
- * const { messages, sendMessage, threads } = useCloudChat({ cloud: myCloud });
- *
- * // With external thread control (backwards compatible)
- * const myThreads = useThreads({ cloud: myCloud });
- * const { messages, sendMessage } = useCloudChat({ threads: myThreads });
- * ```
+ * Supports zero-config (via `NEXT_PUBLIC_ASSISTANT_BASE_URL` env var), custom cloud instances,
+ * thread configuration, and external thread management via `useThreads()`.
  */
 export function useCloudChat(
   options: UseCloudChatOptions = {},
 ): UseCloudChatResult {
   const {
-    threads: externalThreads,
+    threads: threadsOption,
     cloud: cloudOption,
-    includeArchived,
-    autoGenerateTitle = true,
+    onSyncError,
     transport: userTransport,
     ...chatOptions
   } = options;
+
+  const externalThreads = isUseThreadsResult(threadsOption)
+    ? threadsOption
+    : undefined;
+  const threadsConfig = !isUseThreadsResult(threadsOption)
+    ? threadsOption
+    : undefined;
+
+  const includeArchived = threadsConfig?.includeArchived ?? false;
+  const autoGenerateTitle = threadsConfig?.autoGenerateTitle ?? true;
 
   // Resolve cloud: external threads' cloud > cloudOption > env var auto-cloud (singleton)
   const resolvedCloud = useMemo(() => {
@@ -163,8 +164,6 @@ export function useCloudChat(
     },
     [getPersistence],
   );
-  const [syncError, setSyncError] = useState<Error | null>(null);
-
   // Refs for latest values (avoid stale closures)
   const threadIdRef = useRef<string | null>(threadId);
   threadIdRef.current = threadId;
@@ -173,6 +172,14 @@ export function useCloudChat(
   const messagesByThreadRef = useRef(new Map<string, UIMessage[]>());
   const onFinishRef = useRef(chatOptions?.onFinish);
   onFinishRef.current = chatOptions?.onFinish;
+
+  const onSyncErrorRef = useRef(onSyncError);
+  onSyncErrorRef.current = onSyncError;
+
+  const handleSyncError = useCallback((err: unknown) => {
+    const error = err instanceof Error ? err : new Error(String(err));
+    onSyncErrorRef.current?.(error);
+  }, []);
 
   // For auto-title generation: track newly created threads
   const newlyCreatedThreadRef = useRef<string | null>(null);
@@ -280,7 +287,7 @@ export function useCloudChat(
           .append(tid, { parentId, message: msg })
           .catch((err) => {
             if (mountedRef.current) {
-              setSyncError(err instanceof Error ? err : new Error(String(err)));
+              handleSyncError(err);
             }
             return null;
           });
@@ -306,7 +313,13 @@ export function useCloudChat(
     };
 
     void persist();
-  }, [autoGenerateTitle, chat.messages, getFormatted, isRunning]);
+  }, [
+    autoGenerateTitle,
+    chat.messages,
+    getFormatted,
+    handleSyncError,
+    isRunning,
+  ]);
 
   const loadThreadMessages = useCallback(
     async (id: string, cancelledRef: { cancelled: boolean }) => {
@@ -322,10 +335,10 @@ export function useCloudChat(
         setMessagesRef.current(loaded);
       } catch (err) {
         if (cancelledRef.cancelled) return;
-        setSyncError(err instanceof Error ? err : new Error(String(err)));
+        handleSyncError(err);
       }
     },
-    [getFormatted],
+    [getFormatted, handleSyncError],
   );
 
   useEffect(() => {
@@ -345,9 +358,6 @@ export function useCloudChat(
   // Only fires on thread switch, not on isRunning transitions — matching
   // useExternalHistory's load-once-per-thread semantics.
   useEffect(() => {
-    // Clear sync error on any thread change
-    setSyncError(null);
-
     // Check if this is a thread we just created BEFORE any reset
     const justCreated = threadId === createdThreadRef.current;
 
@@ -388,7 +398,6 @@ export function useCloudChat(
 
   return {
     ...chat,
-    syncError,
     threads,
   };
 }

@@ -74,6 +74,9 @@ export class CloudMessagePersistence {
   /**
    * Load messages from the cloud and populate the ID mapping.
    *
+   * The ID mapping is populated so that `isPersisted()` returns true for
+   * loaded messages, preventing re-persistence of already-stored messages.
+   *
    * @param threadId - Remote thread ID
    * @param format - Optional format filter
    * @returns Array of cloud messages
@@ -83,7 +86,7 @@ export class CloudMessagePersistence {
       threadId,
       format ? { format } : undefined,
     );
-    // Populate ID mapping with loaded messages (remote ID → remote ID)
+    // Populate ID mapping so isPersisted() recognizes loaded messages
     for (const m of messages) {
       this.idMapping[m.id] = m.id;
     }

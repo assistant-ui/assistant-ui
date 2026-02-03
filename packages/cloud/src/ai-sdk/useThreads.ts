@@ -41,7 +41,7 @@ export type UseThreadsOptions = {
   cloud: AssistantCloud;
   /** Include archived threads in the list. Default: false */
   includeArchived?: boolean;
-  /** Skip initial fetch. Use when another hook manages threads. Default: true */
+  /** Enable thread fetching. Set to false when passing to useCloudChat which manages this internally. Default: true */
   enabled?: boolean;
 };
 
@@ -83,31 +83,15 @@ export type UseThreadsResult = {
 };
 
 /**
- * Lightweight thread list management for Assistant Cloud.
+ * Thread list management for Assistant Cloud.
  *
- * Use this when building custom UIs without assistant-ui components.
- * Pair with `useCloudChat` for a minimal cloud-synced chat experience.
+ * Provides thread listing, selection, and CRUD operations (create, delete,
+ * rename, archive, unarchive). Also includes AI-powered title generation.
  *
- * **For the full assistant-ui experience**, use `useChatRuntime` from
- * `@assistant-ui/react-ai-sdk` instead - it provides optimistic updates,
- * integrated thread management, and all assistant-ui primitives.
- *
- * @example
- * ```tsx
- * const threads = useThreads({ cloud });
- * const chat = useCloudChat({ threads });
- *
- * return (
- *   <ul>
- *     {threads.threads.map((thread) => (
- *       <li key={thread.id} onClick={() => threads.selectThread(thread.id)}>
- *         {thread.title || "New conversation"}
- *         <button onClick={() => threads.archive(thread.id)}>Archive</button>
- *       </li>
- *     ))}
- *   </ul>
- * );
- * ```
+ * Use with `useCloudChat` either by letting it manage threads internally,
+ * or by calling `useThreads` explicitly and passing the result to
+ * `useCloudChat({ threads })` when you need access to thread operations
+ * outside the chat context.
  */
 export function useThreads(options: UseThreadsOptions): UseThreadsResult {
   const { cloud, includeArchived = false, enabled = true } = options;

@@ -1,58 +1,8 @@
 /**
- * Lightweight AI SDK integration for Assistant Cloud.
+ * AI SDK hooks for Assistant Cloud persistence.
  *
- * These hooks provide cloud persistence for AI SDK's `useChat` without
- * requiring the full assistant-ui runtime. Use these when:
- *
- * - Building completely custom UIs (not using assistant-ui components)
- * - Want minimal dependencies (just `assistant-cloud`, no `@assistant-ui/react`)
- * - Need direct control over the AI SDK chat state
- *
- * ## Quick Start
- *
- * Set the `NEXT_PUBLIC_ASSISTANT_BASE_URL` environment variable and use:
- *
- * ```tsx
- * import { useCloudChat } from "assistant-cloud/ai-sdk";
- *
- * function Chat() {
- *   const { messages, sendMessage, threads } = useCloudChat({ api: "/api/chat" });
- *
- *   return (
- *     <div>
- *       <ThreadList threads={threads.threads} onSelect={threads.selectThread} />
- *       {messages.map(m => <Message key={m.id} message={m} />)}
- *       <button onClick={() => sendMessage({ text: "Hello" })}>Send</button>
- *     </div>
- *   );
- * }
- * ```
- *
- * **For the full assistant-ui experience with AI SDK**, use `useChatRuntime`
- * from `@assistant-ui/react-ai-sdk` instead:
- *
- * ```tsx
- * import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
- * import { AssistantRuntimeProvider, Thread } from "@assistant-ui/react";
- * import { AssistantCloud } from "assistant-cloud";
- *
- * const cloud = new AssistantCloud({ baseUrl: "...", anonymous: true });
- *
- * function App() {
- *   const runtime = useChatRuntime({ cloud, api: "/api/chat" });
- *   return (
- *     <AssistantRuntimeProvider runtime={runtime}>
- *       <Thread />
- *     </AssistantRuntimeProvider>
- *   );
- * }
- * ```
- *
- * This gives you:
- * - Full thread list management with optimistic updates
- * - All assistant-ui primitives (Thread, Composer, Messages, etc.)
- * - Integrated title generation
- * - Unified state management
+ * - `useCloudChat` - Wraps AI SDK's `useChat` with automatic message persistence and thread management
+ * - `useThreads` - Thread list management with CRUD operations (used with `useCloudChat`)
  *
  * @module assistant-cloud/ai-sdk
  */
@@ -61,6 +11,7 @@ export {
   useCloudChat,
   type UseCloudChatResult,
   type UseCloudChatOptions,
+  type ThreadsConfig,
 } from "./useCloudChat";
 export {
   useThreads,
