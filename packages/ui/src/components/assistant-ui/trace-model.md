@@ -59,6 +59,16 @@ type TraceNode = TraceStep | TraceGroup;
 - For richer step layouts, pass `nodeComponents.StepBody`.
 - Store adapter-specific IDs in `meta` (e.g. `agentId`, `runId`, `toolCallId`).
 
+### Tailwind Hook (minimal)
+Use a Tailwind `@apply` rule to target subagent summaries without changing
+component logic:
+
+```css
+[data-slot="chain-of-thought-trace-group-summary"][data-variant="subagent"] {
+  @apply bg-muted/40 text-muted-foreground;
+}
+```
+
 ## Adapters
 - `ChainOfThought.Trace` accepts explicit `TraceNode[]` for v1.
 - Legacy message-part grouping is still supported through `groupingFunction`
