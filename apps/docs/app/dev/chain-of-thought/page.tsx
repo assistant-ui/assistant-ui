@@ -11,6 +11,7 @@ import {
   ChainOfThoughtTimelineStreamingSample,
   ChainOfThoughtPartsGroupedSample,
   ChainOfThoughtNestedTraceSample,
+  ChainOfThoughtCustomGroupSummarySample,
   ChainOfThoughtAISDKAdapterSample,
   ChainOfThoughtAgentTraceSample,
   ChainOfThoughtToolCallsSample,
@@ -199,6 +200,15 @@ export default function ChainOfThoughtPreviewPage() {
             shows the most recent step with a marquee summary and tool badge.
           </p>
           <ChainOfThoughtNestedTraceSample />
+        </section>
+
+        <section>
+          <h3 className="mb-2 font-medium text-lg">Custom Group Summary</h3>
+          <p className="mb-4 text-muted-foreground text-sm">
+            Override the group summary to differentiate top-level agents and
+            subagents while keeping the same trace data.
+          </p>
+          <ChainOfThoughtCustomGroupSummarySample />
         </section>
 
         <section>

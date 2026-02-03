@@ -2,7 +2,12 @@
 
 import { useEffect, useState, useCallback, useMemo } from "react";
 import type { VariantProps } from "class-variance-authority";
-import { PlayIcon, RotateCcwIcon, EyeOffIcon } from "lucide-react";
+import {
+  PlayIcon,
+  RotateCcwIcon,
+  EyeOffIcon,
+  ChevronDownIcon,
+} from "lucide-react";
 import { AISDKMessageConverter } from "@assistant-ui/react-ai-sdk";
 import {
   MessageProvider,
@@ -28,8 +33,10 @@ import {
   ChainOfThoughtBadge,
   ChainOfThoughtAnnouncer,
   ChainOfThoughtTraceTool,
+  ChainOfThoughtToolBadge,
   traceFromThreadMessage,
   type TraceNode,
+  type ChainOfThoughtTraceGroupSummaryProps,
   chainOfThoughtVariants,
 } from "@/components/assistant-ui/chain-of-thought";
 
@@ -1810,6 +1817,85 @@ export function ChainOfThoughtNestedTraceSample() {
         <ChainOfThoughtTrigger label="Nested Trace" />
         <ChainOfThoughtContent>
           <ChainOfThoughtTrace trace={NESTED_TRACE_SAMPLE} maxDepth={2} />
+        </ChainOfThoughtContent>
+      </ChainOfThoughtRoot>
+    </SampleFrame>
+  );
+}
+
+function CustomTraceGroupSummary({
+  group,
+  latestStep,
+  isOpen,
+  canExpand,
+  onToggle,
+}: ChainOfThoughtTraceGroupSummaryProps) {
+  const summaryLabel =
+    group.summary?.latestLabel ??
+    latestStep?.label ??
+    (latestStep?.toolName ? `Tool: ${latestStep.toolName}` : undefined) ??
+    "Working...";
+  const toolName = group.summary?.toolName ?? latestStep?.toolName;
+  const status = latestStep?.status ?? group.status;
+  const badgeStatus =
+    status === "running"
+      ? "running"
+      : status === "error" || status === "incomplete"
+        ? "error"
+        : "complete";
+  const isSubagent = group.variant === "subagent";
+
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      disabled={!canExpand}
+      className="w-full rounded-md px-2 py-1 text-left transition-colors hover:bg-muted/60 disabled:cursor-default disabled:hover:bg-transparent"
+      aria-expanded={isOpen}
+    >
+      <div className="flex items-center gap-2 text-sm">
+        {canExpand ? (
+          <ChevronDownIcon
+            aria-hidden
+            className={`size-4 text-muted-foreground transition-transform ${
+              isOpen ? "rotate-0" : "-rotate-90"
+            }`}
+          />
+        ) : (
+          <span className="size-4" aria-hidden />
+        )}
+        <span
+          className={`rounded-full px-2 py-0.5 text-[10px] uppercase tracking-wide ${
+            isSubagent
+              ? "bg-muted text-muted-foreground"
+              : "bg-primary/10 text-primary"
+          }`}
+        >
+          {isSubagent ? "Subagent" : "Agent"}
+        </span>
+        <span className="font-medium text-foreground">{group.label}</span>
+      </div>
+      <div className="mt-1 flex items-center gap-2 text-muted-foreground text-xs">
+        {toolName ? (
+          <ChainOfThoughtToolBadge toolName={toolName} status={badgeStatus} />
+        ) : null}
+        <span className="truncate">{summaryLabel}</span>
+      </div>
+    </button>
+  );
+}
+
+export function ChainOfThoughtCustomGroupSummarySample() {
+  return (
+    <SampleFrame className="flex h-auto flex-col gap-4 p-4">
+      <ChainOfThoughtRoot variant="muted" defaultOpen className="mb-0">
+        <ChainOfThoughtTrigger label="Custom Group Summary" />
+        <ChainOfThoughtContent>
+          <ChainOfThoughtTrace
+            trace={NESTED_TRACE_SAMPLE}
+            maxDepth={2}
+            nodeComponents={{ GroupSummary: CustomTraceGroupSummary }}
+          />
         </ChainOfThoughtContent>
       </ChainOfThoughtRoot>
     </SampleFrame>
