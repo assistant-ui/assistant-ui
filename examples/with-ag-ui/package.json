@@ -9,7 +9,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "@ag-ui/client": "^0.0.43",
+    "@ag-ui/client": "^0.0.44",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-ag-ui": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
@@ -30,7 +30,7 @@
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@tailwindcss/postcss": "^4.1.18",
-    "@types/node": "^25.0.10",
+    "@types/node": "^25.2.0",
     "@types/react": "^19.2.10",
     "@types/react-dom": "^19.2.3",
     "postcss": "^8.5.6",

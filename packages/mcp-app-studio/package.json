@@ -77,9 +77,9 @@
     "prepack": "pnpm run build"
   },
   "dependencies": {
-    "@clack/prompts": "^0.11.0",
+    "@clack/prompts": "^1.0.0",
     "picocolors": "^1.1.1",
-    "tar": "^7.5.6"
+    "tar": "^7.5.7"
   },
   "peerDependencies": {
     "@modelcontextprotocol/ext-apps": ">=0.4.0",
@@ -94,13 +94,13 @@
     }
   },
   "devDependencies": {
-    "@modelcontextprotocol/ext-apps": "^0.4.0",
+    "@modelcontextprotocol/ext-apps": "^1.0.1",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^25.0.10",
-    "@types/react": "^19.1.6",
+    "@types/node": "^25.2.0",
+    "@types/react": "^19.2.10",
     "@types/tar": "^6.1.13",
     "@vitest/coverage-v8": "^4.0.18",
-    "react": "^19.1.0",
+    "react": "^19.2.4",
     "tsup": "^8.5.1",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",

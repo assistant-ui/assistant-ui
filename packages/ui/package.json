@@ -51,7 +51,7 @@
     "parse-diff": "^0.11.1",
     "react-day-picker": "^9.13.0",
     "react-hook-form": "^7.71.1",
-    "react-resizable-panels": "^4.5.2",
+    "react-resizable-panels": "^4.5.9",
     "react-shiki": "^0.9.1",
     "react-syntax-highlighter": "^16.1.0",
     "recharts": "3.7.0",
@@ -60,11 +60,11 @@
     "tailwind-merge": "^3.4.0",
     "tw-shimmer": "workspace:*",
     "vaul": "^1.1.2",
-    "zustand": "^5.0.10"
+    "zustand": "^5.0.11"
   },
   "devDependencies": {
-    "@types/node": "^25.0.10",
-    "@types/react": "^19.2.9",
+    "@types/node": "^25.2.0",
+    "@types/react": "^19.2.10",
     "@types/react-dom": "^19.2.3",
     "@types/react-syntax-highlighter": "^15.5.13",
     "react": "^19.2.4",

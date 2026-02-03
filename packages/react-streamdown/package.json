@@ -38,7 +38,7 @@
     "rehype-harden": "^1.1.7",
     "rehype-raw": "^7.0.0",
     "rehype-sanitize": "^6.0.0",
-    "streamdown": "^2.0.0"
+    "streamdown": "^2.1.0"
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.12.4",
@@ -69,14 +69,14 @@
   "devDependencies": {
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@streamdown/code": "^1.0.0",
-    "@testing-library/react": "^16.3.0",
+    "@streamdown/code": "^1.0.1",
+    "@testing-library/react": "^16.3.2",
     "@types/hast": "^3.0.4",
-    "@types/react": "^19.2.7",
-    "react": "^19.2.3",
-    "react-dom": "^19.2.3",
+    "@types/react": "^19.2.10",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
     "remark-rehype": "^11.1.2",
-    "vitest": "^4.0.16"
+    "vitest": "^4.0.18"
   },
   "publishConfig": {
     "access": "public",

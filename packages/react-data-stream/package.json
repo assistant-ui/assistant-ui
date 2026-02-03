@@ -32,7 +32,7 @@
     "build": "aui-build"
   },
   "dependencies": {
-    "@ai-sdk/provider": "^3.0.5",
+    "@ai-sdk/provider": "^3.0.7",
     "assistant-stream": "^0.3.0",
     "zod": "^4.3.6"
   },
@@ -50,7 +50,7 @@
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/json-schema": "^7.0.15",
-    "@types/react": "^19.2.9",
+    "@types/react": "^19.2.10",
     "react": "^19.2.4"
   },
   "publishConfig": {

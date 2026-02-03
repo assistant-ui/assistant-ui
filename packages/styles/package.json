@@ -34,9 +34,9 @@
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@tailwindcss/postcss": "^4.1.18",
-    "@types/node": "^25.0.10",
+    "@types/node": "^25.2.0",
     "chalk": "^5.6.2",
-    "commander": "^14.0.2",
+    "commander": "^14.0.3",
     "postcss": "^8.5.6",
     "postcss-nested": "^7.0.2",
     "postcss-prefix-selector": "^2.1.1",
