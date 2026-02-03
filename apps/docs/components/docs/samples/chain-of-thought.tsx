@@ -1859,10 +1859,22 @@ function AISDKAdapterDemo() {
     (message) => message.role === "assistant",
   );
 
-  const trace = useMemo(
+  const baseTrace = useMemo(
     () => (assistantMessage ? traceFromThreadMessage(assistantMessage) : []),
     [assistantMessage],
   );
+  const trace = useMemo<TraceNode[]>(() => {
+    if (baseTrace.length === 0) return [];
+    return [
+      {
+        kind: "group",
+        id: "agent-ai-sdk",
+        label: "AI SDK Agent",
+        variant: "subagent",
+        children: baseTrace,
+      },
+    ];
+  }, [baseTrace]);
 
   return (
     <div className="flex flex-col gap-3">
@@ -1873,7 +1885,11 @@ function AISDKAdapterDemo() {
         {"\n"}
         {"const trace = traceFromThreadMessage(threadMessages[1])"}
         {"\n"}
-        {"return <ChainOfThought.Trace trace={trace} />"}
+        {
+          "const nested = [{ kind: 'group', id: 'agent', label: 'AI SDK Agent', children: trace }]"
+        }
+        {"\n"}
+        {"return <ChainOfThought.Trace trace={nested} />"}
       </div>
 
       <ChainOfThoughtRoot variant="outline" defaultOpen className="mb-0">
