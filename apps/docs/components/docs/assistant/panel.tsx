@@ -86,7 +86,7 @@ export function AssistantPanelContent(): React.ReactNode {
         )}
         aria-label="Open AI Chat"
       >
-        <SparklesIcon className="absolute top-1/2 left-1/2 z-10 size-4 -translate-x-1/2 -translate-y-1/2 text-muted-foreground transition-colors group-hover:text-foreground" />
+        <SparklesIcon className="absolute top-1/2 left-1/2 z-10 size-4 -translate-x-1/2 -translate-y-1/2 text-pink-600 transition-colors group-hover:text-pink-500 dark:text-pink-400" />
       </button>
 
       <div
