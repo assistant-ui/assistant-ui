@@ -11,6 +11,7 @@ import {
   ChainOfThoughtNumberedStepsSample,
   ChainOfThoughtTimelineStreamingSample,
   ChainOfThoughtPartsGroupedSample,
+  ChainOfThoughtNestedTraceSample,
   ChainOfThoughtAgentTraceSample,
   ChainOfThoughtToolCallsSample,
   ChainOfThoughtLongContentSample,
@@ -234,6 +235,15 @@ export default function ChainOfThoughtPreviewPage() {
             <code>ChainOfThought.Trace</code>.
           </p>
           <ChainOfThoughtPartsGroupedSample />
+        </section>
+
+        <section>
+          <h3 className="mb-2 font-medium text-lg">Nested Subagent Trace</h3>
+          <p className="mb-4 text-muted-foreground text-sm">
+            Opinionated v1 nested trace with subagent groups. Collapsed view
+            shows the most recent step with a marquee summary and tool badge.
+          </p>
+          <ChainOfThoughtNestedTraceSample />
         </section>
 
         <section>
