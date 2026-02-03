@@ -41,7 +41,7 @@ export type UseThreadsOptions = {
   cloud: AssistantCloud;
   /** Include archived threads in the list. Default: false */
   includeArchived?: boolean;
-  /** Skip initial fetch. Use when another hook manages threads. Default: true */
+  /** Enable thread fetching. Set to false when passing to useCloudChat which manages this internally. Default: true */
   enabled?: boolean;
 };
 
@@ -88,8 +88,10 @@ export type UseThreadsResult = {
  * Provides thread listing, selection, and CRUD operations (create, delete,
  * rename, archive, unarchive). Also includes AI-powered title generation.
  *
- * Can be used standalone or passed to `useCloudChat({ threads })` for
- * separate control over thread state.
+ * Use with `useCloudChat` either by letting it manage threads internally,
+ * or by calling `useThreads` explicitly and passing the result to
+ * `useCloudChat({ threads })` when you need access to thread operations
+ * outside the chat context.
  */
 export function useThreads(options: UseThreadsOptions): UseThreadsResult {
   const { cloud, includeArchived = false, enabled = true } = options;

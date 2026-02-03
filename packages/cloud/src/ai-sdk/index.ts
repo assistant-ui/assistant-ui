@@ -2,7 +2,7 @@
  * AI SDK hooks for Assistant Cloud persistence.
  *
  * - `useCloudChat` - Wraps AI SDK's `useChat` with automatic message persistence and thread management
- * - `useThreads` - Standalone thread list management with CRUD operations
+ * - `useThreads` - Thread list management with CRUD operations (used with `useCloudChat`)
  *
  * @module assistant-cloud/ai-sdk
  */
