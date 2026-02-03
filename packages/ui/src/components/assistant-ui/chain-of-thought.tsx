@@ -1568,7 +1568,7 @@ const DefaultTraceStepBody: NonNullable<
   return <ChainOfThoughtStepBody>{step.detail}</ChainOfThoughtStepBody>;
 };
 
-const TRACE_SUMMARY_TRANSITION_MS = 220;
+const TRACE_SUMMARY_TRANSITION_MS = 240;
 
 function ChainOfThoughtTraceSummaryTransition({
   label,
@@ -1613,7 +1613,7 @@ function ChainOfThoughtTraceSummaryTransition({
             className={cn(
               "aui-chain-of-thought-trace-summary-prev absolute inset-0 flex items-center",
               "truncate text-left",
-              "fade-out-0 slide-out-to-top-1 animate-out duration-200 ease-out",
+              "fade-out-0 slide-out-to-top-2 animate-out fill-mode-both duration-200 ease-out",
               "motion-reduce:animate-none",
             )}
           >
@@ -1625,7 +1625,7 @@ function ChainOfThoughtTraceSummaryTransition({
             className={cn(
               "aui-chain-of-thought-trace-summary-current absolute inset-0 flex items-center",
               "truncate text-left",
-              "fade-in-0 slide-in-from-bottom-1 animate-in duration-200 ease-out",
+              "fade-in-0 slide-in-from-bottom-2 animate-in fill-mode-both duration-200 ease-out",
               "motion-reduce:animate-none",
             )}
           >
@@ -1660,6 +1660,11 @@ const DefaultTraceGroupSummary: ComponentType<
   const badgeStatus = mapTraceStatusToToolBadge(
     latestStep?.status ?? group.status,
   );
+  const toolBadge = toolName ? (
+    <ChainOfThoughtToolBadge toolName={toolName} status={badgeStatus} />
+  ) : (
+    <span aria-hidden className="inline-flex h-5 w-[4.5rem] shrink-0" />
+  );
 
   return (
     <button
@@ -1691,13 +1696,13 @@ const DefaultTraceGroupSummary: ComponentType<
         <span className="font-medium text-foreground">{group.label}</span>
       </div>
       <div className="mt-1 flex items-center gap-2 text-muted-foreground text-xs">
-        {toolName && (
-          <ChainOfThoughtToolBadge toolName={toolName} status={badgeStatus} />
-        )}
-        <ChainOfThoughtTraceSummaryTransition
-          label={summaryLabel}
-          active={isActive}
-        />
+        {toolBadge}
+        <div className="min-w-0 flex-1">
+          <ChainOfThoughtTraceSummaryTransition
+            label={summaryLabel}
+            active={isActive}
+          />
+        </div>
       </div>
     </button>
   );
