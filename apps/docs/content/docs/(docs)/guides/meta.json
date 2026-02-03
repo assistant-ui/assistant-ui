@@ -10,6 +10,7 @@
     "speech",
     "suggestions",
     "tool-ui",
-    "tools"
+    "tools",
+    "tool-ui-runtime"
   ]
 }

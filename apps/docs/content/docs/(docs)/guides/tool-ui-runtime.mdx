@@ -1,0 +1,464 @@
+---
+title: Tool UI Runtime
+description: Advanced runtime for rendering tool UIs with HTML sandboxing, lifecycle management, and streaming updates.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+import { Steps, Step } from "fumadocs-ui/components/steps";
+import { Tabs, Tab } from "fumadocs-ui/components/tabs";
+
+# Tool UI Runtime
+
+The Tool UI Runtime (`@assistant-ui/tool-ui-runtime`) provides an advanced system for rendering tool UIs. Unlike `makeAssistantToolUI` which only supports React components, the runtime supports **HTML sandboxing**, **lifecycle management**, and **streaming updates from the server**.
+
+<Callout type="info">
+  **When to use Tool UI Runtime vs makeAssistantToolUI:**
+  
+  - Use `makeAssistantToolUI` for simple React-only tool UIs
+  - Use Tool UI Runtime when you need:
+    - HTML content in sandboxed iframes (for security)
+    - Server-streamed partial results (MCP servers)
+    - Lifecycle hooks (mounting, updating, closing)
+    - Rendering untrusted/LLM-generated HTML
+</Callout>
+
+## Overview
+
+Tool UI Runtime introduces three key concepts:
+
+| Concept | Description |
+|---------|-------------|
+| **Registry** | Maps tool names to UI factory functions |
+| **Runtime** | Manages tool UI instances with lifecycle control |
+| **Renderer** | Handles output rendering (React, sandboxed HTML) |
+
+## Installation
+
+```bash
+npm install @assistant-ui/tool-ui-runtime
+```
+
+## Quick Start
+
+<Steps>
+<Step>
+### Create a Tool UI Registry
+
+Define how each tool should render its UI:
+
+```tsx title="lib/registry.tsx"
+"use client";
+
+import { ToolUIRegistryImpl } from "@assistant-ui/tool-ui-runtime";
+import type { ToolUIFactoryProps } from "@assistant-ui/tool-ui-runtime";
+
+export const toolUIRegistry = new ToolUIRegistryImpl();
+
+// Register a weather tool UI
+toolUIRegistry.register({
+  toolName: "get_weather",
+  factory: (props: ToolUIFactoryProps) => {
+    const { context, lifecycle, result } = props;
+    const location = (context.args as any)?.location ?? "Unknown";
+
+    // Show loading state while tool is executing
+    if (lifecycle === "mounting" || !result) {
+      return {
+        kind: "html",
+        html: `
+          <div style="padding: 16px; background: #4a90d9; color: white; border-radius: 8px;">
+            Loading weather for ${location}...
+          </div>
+        `,
+        height: 100,
+      };
+    }
+
+    // Show result as React component
+    const data = result as { location: string; temperature: number };
+    return {
+      kind: "react",
+      element: <WeatherWidget data={data} />,
+    };
+  },
+});
+```
+</Step>
+
+<Step>
+### Set Up the Runtime and Provider
+
+Create the runtime and wrap your app:
+
+```tsx title="components/assistant.tsx"
+"use client";
+
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { ToolUIProvider } from "@assistant-ui/react";
+import { 
+  ToolUIRuntimeImpl, 
+  SafeContentFrameSandbox 
+} from "@assistant-ui/tool-ui-runtime";
+import { toolUIRegistry } from "@/lib/registry";
+import { useRef } from "react";
+
+function useToolUIRuntime() {
+  const runtimeRef = useRef<ToolUIRuntimeImpl | null>(null);
+  
+  if (!runtimeRef.current) {
+    runtimeRef.current = new ToolUIRuntimeImpl({
+      registry: toolUIRegistry,
+      createSandbox: () => new SafeContentFrameSandbox(),
+    });
+  }
+  
+  return runtimeRef.current;
+}
+
+export function Assistant() {
+  const chatRuntime = useChatRuntime({ /* ... */ });
+  const toolUIRuntime = useToolUIRuntime();
+
+  return (
+    <AssistantRuntimeProvider runtime={chatRuntime}>
+      <ToolUIProvider runtime={toolUIRuntime}>
+        <Thread />
+      </ToolUIProvider>
+    </AssistantRuntimeProvider>
+  );
+}
+```
+</Step>
+
+<Step>
+### Add ToolUIInline to Messages
+
+Include `ToolUIInline` in your assistant message component:
+
+```tsx title="components/thread.tsx"
+import { ToolUIInline, useMessage } from "@assistant-ui/react";
+import { useMemo } from "react";
+
+const AssistantMessage = () => {
+  const message = useMessage();
+  
+  // Extract tool call IDs from the message
+  const toolCallIds = useMemo(() => {
+    const ids: string[] = [];
+    const parts = (message as any).parts;
+    if (Array.isArray(parts)) {
+      for (const part of parts) {
+        if (part.type === "tool-call" && part.toolCallId) {
+          ids.push(part.toolCallId);
+        }
+      }
+    }
+    return ids;
+  }, [message]);
+
+  return (
+    <div>
+      <MessageContent />
+      <ToolUIInline toolCallIds={toolCallIds} />
+    </div>
+  );
+};
+```
+</Step>
+</Steps>
+
+## Output Types
+
+The factory function can return different output types:
+
+### React Elements
+
+Render React components directly:
+
+```tsx
+toolUIRegistry.register({
+  toolName: "get_stock_price",
+  factory: (props) => {
+    if (!props.result) {
+      return { kind: "react", element: <LoadingSpinner /> };
+    }
+    
+    // React components can use hooks for live client-side updates!
+    return {
+      kind: "react",
+      element: <LiveStockTicker initialData={props.result} />,
+    };
+  },
+});
+```
+
+### HTML (Sandboxed)
+
+Render HTML in a secure sandboxed iframe - ideal for untrusted content:
+
+```tsx
+toolUIRegistry.register({
+  toolName: "render_preview",
+  factory: (props) => ({
+    kind: "html",
+    html: `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <style>body { font-family: system-ui; padding: 16px; }</style>
+        </head>
+        <body>
+          ${props.result.htmlContent}
+        </body>
+      </html>
+    `,
+    height: 300,
+  }),
+});
+```
+
+<Callout type="warning">
+  HTML content runs in a sandboxed iframe with restricted permissions. This is ideal for:
+  - LLM-generated UI content
+  - MCP server HTML responses  
+  - Third-party or untrusted content
+</Callout>
+
+### Empty Output
+
+Return empty to render nothing:
+
+```tsx
+factory: (props) => {
+  if (!props.result) return { kind: "empty" };
+  // ... render result
+}
+```
+
+## ToolUIFactoryProps
+
+Props passed to your factory function:
+
+```tsx
+type ToolUIFactoryProps = {
+  /** Unique instance ID */
+  id: string;
+  
+  /** Tool call context */
+  context: {
+    toolCallId: string;
+    toolName: string;
+    args: unknown;
+  };
+  
+  /** Current lifecycle state */
+  lifecycle: "created" | "resolved" | "mounting" | "active" | "updating" | "closing" | "closed";
+  
+  /** Tool result (undefined until tool completes) */
+  result?: unknown;
+};
+```
+
+## Lifecycle States
+
+Each tool UI instance goes through a defined lifecycle:
+
+```
+created → resolved → mounting → active → updating → closing → closed
+```
+
+| State | Description |
+|-------|-------------|
+| `created` | Instance created, not yet resolved |
+| `resolved` | Factory has produced output |
+| `mounting` | Being attached to DOM |
+| `active` | Fully mounted and interactive |
+| `updating` | New result arrived, re-rendering |
+| `closing` | Being removed |
+| `closed` | Fully cleaned up |
+
+Use the lifecycle in your factory:
+
+```tsx
+factory: (props) => {
+  const { lifecycle, result, context } = props;
+  
+  // Show loading during mounting or while waiting for result
+  if (lifecycle === "mounting" || !result) {
+    return {
+      kind: "html",
+      html: `<div>Loading ${context.toolName}...</div>`,
+    };
+  }
+
+  // Render final result
+  return {
+    kind: "react",
+    element: <ResultComponent data={result} />,
+  };
+}
+```
+
+## API Reference
+
+### ToolUIRegistryImpl
+
+```tsx
+import { ToolUIRegistryImpl } from "@assistant-ui/tool-ui-runtime";
+
+const registry = new ToolUIRegistryImpl();
+
+// Register a tool UI
+registry.register({
+  toolName: string,
+  factory: (props: ToolUIFactoryProps) => ToolUIRenderOutput,
+});
+
+// Unregister a tool UI
+registry.unregister("toolName");
+
+// Get factory for a tool
+const factory = registry.resolve("toolName");
+
+// List all registered entries
+const entries = registry.list();
+```
+
+### ToolUIRuntimeImpl
+
+```tsx
+import { ToolUIRuntimeImpl, SafeContentFrameSandbox } from "@assistant-ui/tool-ui-runtime";
+
+const runtime = new ToolUIRuntimeImpl({
+  registry: toolUIRegistry,
+  createSandbox: () => new SafeContentFrameSandbox(),
+});
+
+// Mount a new tool UI instance
+const instance = runtime.mount({
+  toolCallId: "call_123",
+  toolName: "get_weather",
+  args: { location: "Tokyo" },
+});
+
+// Update with result
+runtime.update("call_123", { temperature: 72, condition: "sunny" });
+
+// Close instance
+runtime.close("call_123");
+
+// List all instances
+const instances = runtime.list();
+
+// Get specific instance
+const instance = runtime.get("call_123");
+```
+
+### ToolUIRenderOutput
+
+```tsx
+type ToolUIRenderOutput =
+  | { kind: "react"; element: React.ReactElement }
+  | { kind: "html"; html: string; height?: number }
+  | { kind: "empty" };
+```
+
+## Comparison with makeAssistantToolUI
+
+| Feature | makeAssistantToolUI | Tool UI Runtime |
+|---------|---------------------|-----------------|
+| React components | YES | YES |
+| HTML sandboxing | NO | YES |
+| Lifecycle hooks | NO | YES |
+| Server-streamed updates | NO | YES |
+| MCP HTML responses | NO | YES |
+| Setup complexity | Simple | More setup |
+
+**When makeAssistantToolUI is sufficient:**
+- Simple React components
+- No untrusted content
+- No need for server-streamed partial results
+
+**When Tool UI Runtime is needed:**
+- MCP servers returning HTML
+- LLM-generated UI content
+- Streaming partial results
+- Lifecycle-aware cleanup
+
+## Examples
+
+### Live Stock Ticker
+
+A React component with client-side live updates:
+
+```tsx
+function LiveStockTicker({ initialData, symbol }: Props) {
+  const [price, setPrice] = useState(initialData.price);
+  
+  // Client-side updates every 500ms
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setPrice(prev => prev + (Math.random() - 0.5) * 2);
+    }, 500);
+    return () => clearInterval(interval);
+  }, []);
+
+  return <div>${price.toFixed(2)}</div>;
+}
+
+toolUIRegistry.register({
+  toolName: "get_stock_price",
+  factory: (props) => {
+    if (!props.result) {
+      return { kind: "react", element: <LoadingSpinner /> };
+    }
+    return {
+      kind: "react",
+      element: <LiveStockTicker initialData={props.result} symbol={props.context.args.symbol} />,
+    };
+  },
+});
+```
+
+### Sandboxed Code Preview
+
+Safe rendering of user/LLM-generated HTML:
+
+```tsx
+toolUIRegistry.register({
+  toolName: "preview_html",
+  factory: (props) => {
+    if (!props.result) return { kind: "empty" };
+    
+    return {
+      kind: "html",
+      html: props.result.html, // Safely sandboxed!
+      height: 400,
+    };
+  },
+});
+```
+
+## Troubleshooting
+
+### Tool UI not appearing
+
+1. Ensure tool name in registry matches exactly with backend
+2. Verify `ToolUIProvider` wraps your thread component
+3. Check `toolCallIds` is correctly passed to `ToolUIInline`
+
+### HTML not rendering
+
+1. Check browser console for sandbox errors
+2. Ensure HTML is valid
+3. Try increasing the `height` property
+
+### Updates not reflecting
+
+1. Verify `runtime.update()` is called with correct `toolCallId`
+2. Check that your factory handles all lifecycle states
+3. Ensure result data structure matches factory expectations
+
+## Related
+
+- [Example: with-tool-ui](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-tool-ui) - Complete working example
