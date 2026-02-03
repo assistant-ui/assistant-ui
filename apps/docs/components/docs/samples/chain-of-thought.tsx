@@ -16,6 +16,7 @@ import {
 import type { UIMessage } from "ai";
 import { SampleFrame } from "@/components/docs/samples/sample-frame";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import {
   ChainOfThoughtRoot,
@@ -1867,15 +1868,12 @@ function CustomTraceGroupSummary({
           ) : (
             <span className="size-4" aria-hidden />
           )}
-          <span
-            className={`rounded-full px-2 py-0.5 text-[10px] uppercase tracking-wide ${
-              isSubagent
-                ? "bg-muted text-muted-foreground"
-                : "bg-primary/10 text-primary"
-            }`}
+          <Badge
+            variant={isSubagent ? "secondary" : "default"}
+            className="uppercase tracking-wide"
           >
             {isSubagent ? "Subagent" : "Agent"}
-          </span>
+          </Badge>
           <span className="font-medium text-foreground">{group.label}</span>
         </div>
         <div className="flex items-center gap-2 text-muted-foreground text-xs">
