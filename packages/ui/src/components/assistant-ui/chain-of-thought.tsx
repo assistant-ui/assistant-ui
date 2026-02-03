@@ -1161,7 +1161,8 @@ function ChainOfThoughtToolBadge({
       <span
         className={cn(
           "aui-chain-of-thought-tool-badge-name truncate",
-          shimmer && "shimmer shimmer-invert shimmer-angle-30",
+          shimmer &&
+            "shimmer shimmer-invert shimmer-angle-30 text-muted-foreground/70",
         )}
       >
         {toolName}
@@ -1618,7 +1619,7 @@ function ChainOfThoughtTraceSummaryTransition({
 
   if (currentLabel == null && previousLabel == null) return null;
   const shimmerClass = active
-    ? "shimmer shimmer-invert shimmer-angle-30"
+    ? "shimmer shimmer-invert shimmer-angle-30 text-muted-foreground/70"
     : undefined;
 
   return (
@@ -1698,8 +1699,7 @@ const DefaultTraceGroupSummary: ComponentType<
       className={cn(
         "aui-chain-of-thought-trace-group-summary group/trace-summary w-full text-left",
         "rounded-md px-2 py-0 transition-colors",
-        "hover:bg-muted/60",
-        "disabled:cursor-default disabled:hover:bg-transparent",
+        "disabled:cursor-default",
       )}
       aria-expanded={isOpen}
     >
