@@ -12,6 +12,7 @@ import {
   ChainOfThoughtPartsGroupedSample,
   ChainOfThoughtNestedTraceSample,
   ChainOfThoughtCustomGroupSummarySample,
+  ChainOfThoughtNestedTraceStreamingSample,
   ChainOfThoughtAISDKAdapterSample,
   ChainOfThoughtAgentTraceSample,
   ChainOfThoughtToolCallsSample,
@@ -201,6 +202,16 @@ export default function ChainOfThoughtPreviewPage() {
             and active shimmer.
           </p>
           <ChainOfThoughtNestedTraceSample />
+        </section>
+
+        <section>
+          <h3 className="mb-2 font-medium text-lg">Nested Trace (Streaming)</h3>
+          <p className="mb-4 text-muted-foreground text-sm">
+            Simulates a long-running nested trace with multiple steps across
+            Researcher and Web Scout. Steps stream in with status updates to
+            show how the UI behaves under continuous progress.
+          </p>
+          <ChainOfThoughtNestedTraceStreamingSample />
         </section>
 
         <section>
