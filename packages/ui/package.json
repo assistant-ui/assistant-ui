@@ -3,6 +3,9 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "scripts": {
+    "test": "vitest run"
+  },
   "exports": {
     "./components/assistant-ui/*": "./src/components/assistant-ui/*",
     "./components/ui/*": "./src/components/ui/*",
@@ -69,7 +72,8 @@
     "@types/react-syntax-highlighter": "^15.5.13",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
   },
   "peerDependencies": {
     "react": "^18 || ^19",
