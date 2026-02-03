@@ -424,7 +424,7 @@ function updateWorkbenchIndex(targetDir: string, components: string[]): void {
     content = content.replace(wrappersExportRegex, newExport);
   } else {
     // If no wrappers export exists, add it at the end
-    content = content.trimEnd() + "\n\n" + newExport + "\n";
+    content = `${content.trimEnd()}\n\n${newExport}\n`;
   }
 
   fs.writeFileSync(indexPath, content);
