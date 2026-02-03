@@ -26,6 +26,7 @@ import {
   ChainOfThoughtBadge,
   ChainOfThoughtAnnouncer,
   ChainOfThoughtTraceTool,
+  type TraceNode,
   chainOfThoughtVariants,
 } from "@/components/assistant-ui/chain-of-thought";
 
@@ -1741,6 +1742,73 @@ export function ChainOfThoughtPartsGroupedSample() {
   return (
     <SampleFrame className="h-auto p-4">
       <PartsGroupedTraceDemo />
+    </SampleFrame>
+  );
+}
+
+// ============================================================================
+// Nested Trace Demo - Subagent groups with latest-step marquee
+// ============================================================================
+
+const NESTED_TRACE_SAMPLE: TraceNode[] = [
+  {
+    kind: "step",
+    id: "plan",
+    label: "Planning approach",
+    type: "text",
+    status: "complete",
+  },
+  {
+    kind: "group",
+    id: "agent-research",
+    label: "Researcher",
+    status: "running",
+    variant: "subagent",
+    children: [
+      {
+        kind: "group",
+        id: "agent-web",
+        label: "Web Scout",
+        variant: "subagent",
+        children: [
+          {
+            kind: "step",
+            id: "crawl",
+            label: "Crawling sources",
+            type: "tool",
+            toolName: "browser",
+            status: "complete",
+          },
+        ],
+      },
+      {
+        kind: "step",
+        id: "search",
+        label: "Searching docs",
+        type: "search",
+        toolName: "search",
+        status: "running",
+      },
+    ],
+  },
+  {
+    kind: "step",
+    id: "draft",
+    label: "Drafting response",
+    type: "text",
+    status: "complete",
+  },
+];
+
+export function ChainOfThoughtNestedTraceSample() {
+  return (
+    <SampleFrame className="flex h-auto flex-col gap-4 p-4">
+      <ChainOfThoughtRoot variant="muted" defaultOpen className="mb-0">
+        <ChainOfThoughtTrigger label="Nested Trace" />
+        <ChainOfThoughtContent>
+          <ChainOfThoughtTrace trace={NESTED_TRACE_SAMPLE} maxDepth={2} />
+        </ChainOfThoughtContent>
+      </ChainOfThoughtRoot>
     </SampleFrame>
   );
 }
