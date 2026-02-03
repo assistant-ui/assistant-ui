@@ -11,6 +11,7 @@ import {
   tapRef,
   tapResource,
   withKey,
+  tapSubscribableResource,
 } from "@assistant-ui/tap";
 import type {
   AssistantClient,
@@ -20,7 +21,6 @@ import type {
   ClientMeta,
 } from "./types/client";
 import { Derived, DerivedElement } from "./Derived";
-import { StoreResource } from "./utils/StoreResource";
 import {
   useAssistantContextValue,
   DefaultAssistantClient,
@@ -76,10 +76,8 @@ const RootClientAccessorResource = resource(
     clientRef: { parent: AssistantClient; current: AssistantClient | null };
     name: K;
   }): AssistantClientAccessor<K> => {
-    const store = tapInlineResource(
-      StoreResource(
-        RootClientResource({ element, emit: notifications.emit, clientRef }),
-      ),
+    const store = tapSubscribableResource(
+      RootClientResource({ element, emit: notifications.emit, clientRef }),
     );
 
     tapEffect(() => {
