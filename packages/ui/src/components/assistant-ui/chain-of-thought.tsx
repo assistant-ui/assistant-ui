@@ -217,7 +217,7 @@ const STEP_KEYFRAMES = `
 }
 .aui-chain-of-thought-timeline[data-windowed="true"][data-window-active="true"] [data-slot="chain-of-thought-step"] {
   height: var(--aui-window-row, 56px);
-  align-items: flex-start;
+  align-items: center;
   overflow: hidden;
 }
 .aui-chain-of-thought-timeline[data-windowed="true"]:has([data-slot="chain-of-thought-trace-group-summary"][aria-expanded="true"]) [data-slot="chain-of-thought-step"] {
@@ -918,6 +918,7 @@ function ChainOfThoughtTimeline({
     | React.ReactElement[]
     | [];
   const totalCount = childrenArray.length;
+  const stepCount = childrenArray.length;
   const hasWindow = typeof windowSize === "number" && windowSize > 0;
   const isWindowed = hasWindow;
   const isWindowActive =
@@ -926,9 +927,33 @@ function ChainOfThoughtTimeline({
     hasWindow && windowSize ? Math.min(windowSize, totalCount) : totalCount;
   const shiftCount =
     isWindowActive && windowSize ? Math.max(0, totalCount - windowSize) : 0;
-  const windowRow = windowDensity === "compact" ? 44 : 56;
+  const baseWindowRow = windowDensity === "compact" ? 44 : 56;
   // Matches list padding (pt-1 pb-2) so the window height stays accurate.
   const windowPadding = 12;
+  const [measuredRow, setMeasuredRow] = useState<number | null>(null);
+  const windowRow = measuredRow ?? baseWindowRow;
+
+  useLayoutEffect(() => {
+    if (!hasWindow || !scrollEl || isWindowActive || stepCount === 0) return;
+    const step = scrollEl.querySelector(
+      '[data-slot="chain-of-thought-step"]',
+    ) as HTMLElement | null;
+    if (!step) return;
+    const height = step.getBoundingClientRect().height;
+    if (!height) return;
+    const nextRow = Math.round(height);
+    setMeasuredRow((current) =>
+      current != null && Math.abs(current - nextRow) < 1 ? current : nextRow,
+    );
+  }, [hasWindow, isWindowActive, scrollEl, stepCount]);
+
+  useEffect(() => {
+    if (!hasWindow) {
+      setMeasuredRow(null);
+    } else {
+      setMeasuredRow((current) => current ?? baseWindowRow);
+    }
+  }, [baseWindowRow, hasWindow]);
   const buildStaggeredChildren = (items: React.ReactElement[]) => {
     let stepIndex = 0;
     return items.map((child) => {
@@ -945,7 +970,6 @@ function ChainOfThoughtTimeline({
     });
   };
 
-  const stepCount = childrenArray.length;
   const staggeredChildren = buildStaggeredChildren(childrenArray);
 
   const allowScroll = scrollable && !isWindowActive && !isExpanded;

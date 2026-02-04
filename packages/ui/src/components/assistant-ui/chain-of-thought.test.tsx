@@ -477,7 +477,7 @@ describe("ChainOfThought.Trace", () => {
     });
   });
 
-  it("does not center step rows when windowing is active", () => {
+  it("centers step rows when windowing is active", () => {
     const container = document.createElement("div");
     const root = createRoot(container);
 
@@ -499,7 +499,7 @@ describe("ChainOfThought.Trace", () => {
     );
 
     expect(ruleMatch).not.toBeNull();
-    expect(ruleMatch?.[0]).not.toContain("align-items: center");
+    expect(ruleMatch?.[0]).toContain("align-items: center");
 
     act(() => {
       root.unmount();
