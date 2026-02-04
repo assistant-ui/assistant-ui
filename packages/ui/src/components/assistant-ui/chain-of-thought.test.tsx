@@ -299,7 +299,7 @@ describe("ChainOfThought.Trace", () => {
     });
   });
 
-  it("clamps step rows only when the window is active", () => {
+  it("clamps step rows whenever windowing is enabled", () => {
     const container = document.createElement("div");
     const root = createRoot(container);
 
@@ -318,10 +318,10 @@ describe("ChainOfThought.Trace", () => {
     const cssText = styleEl?.textContent ?? "";
 
     expect(cssText).toContain(
-      'data-window-active="true"] [data-slot="chain-of-thought-step"]',
+      'data-windowed="true"] [data-slot="chain-of-thought-step"]',
     );
     expect(cssText).toContain(
-      'data-window-active="true"] [data-slot="chain-of-thought-step-content"]',
+      'data-windowed="true"] [data-slot="chain-of-thought-step-content"]',
     );
     expect(cssText).toContain('data-expand-animating="false"]');
     expect(cssText).toContain("max-height: none");
@@ -477,7 +477,7 @@ describe("ChainOfThought.Trace", () => {
     });
   });
 
-  it("centers step rows when windowing is active", () => {
+  it("keeps step rows aligned to the top when windowing is active", () => {
     const container = document.createElement("div");
     const root = createRoot(container);
 
@@ -495,11 +495,11 @@ describe("ChainOfThought.Trace", () => {
     const styleEl = document.querySelector("#aui-chain-of-thought-keyframes");
     const cssText = styleEl?.textContent ?? "";
     const ruleMatch = cssText.match(
-      /data-window-active="true"\]\s*\[data-slot="chain-of-thought-step"\]\s*\{[^}]*\}/,
+      /data-windowed="true"\]\s*\[data-slot="chain-of-thought-step"\]\s*\{[^}]*\}/,
     );
 
     expect(ruleMatch).not.toBeNull();
-    expect(ruleMatch?.[0]).toContain("align-items: center");
+    expect(ruleMatch?.[0]).toContain("align-items: flex-start");
 
     act(() => {
       root.unmount();
