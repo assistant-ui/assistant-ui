@@ -1,12 +1,20 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import {
+  useEffect,
+  useState,
+  useCallback,
+  useMemo,
+  useRef,
+  type ReactNode,
+} from "react";
 import type { VariantProps } from "class-variance-authority";
 import {
   PlayIcon,
   RotateCcwIcon,
   EyeOffIcon,
   ChevronDownIcon,
+  BrainIcon,
 } from "lucide-react";
 import { AISDKMessageConverter } from "@assistant-ui/react-ai-sdk";
 import {
@@ -18,6 +26,7 @@ import { SampleFrame } from "@/components/docs/samples/sample-frame";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
+import { cn } from "@/lib/utils";
 import {
   ChainOfThoughtRoot,
   ChainOfThoughtTrigger,
@@ -41,6 +50,7 @@ import {
   type ChainOfThoughtTraceGroupSummaryProps,
   chainOfThoughtVariants,
 } from "@/components/assistant-ui/chain-of-thought";
+import { CollapsibleTrigger } from "@/components/ui/collapsible";
 
 // ============================================================================
 // Basic Variant Demo
@@ -1768,12 +1778,59 @@ const NESTED_TRACE_SUMMARIES = [
   { label: "Drafting response", type: "text" },
 ] as const;
 
+const WEB_SEARCH_RESULTS_OUTPUT: ReactNode = (
+  <div className="space-y-2">
+    <div className="text-muted-foreground/70">Top results (5)</div>
+    <ul className="ml-4 list-disc space-y-1">
+      <li>Streaming trace UI patterns — assistant-ui docs</li>
+      <li>Windowed timelines &amp; auto-scroll UX notes</li>
+      <li>Nested agent trace rendering techniques</li>
+      <li>Shimmer + transition timing references</li>
+      <li>Collapsed reasoning disclosure behaviors</li>
+    </ul>
+  </div>
+);
+
+const RESULT_SCORING_OUTPUT: ReactNode = (
+  <div className="space-y-2">
+    <div className="text-muted-foreground/70">
+      Scoring results for relevance before summarizing.
+    </div>
+    <pre className="rounded-md bg-muted/60 p-2 font-mono text-[11px] text-foreground/80 leading-relaxed">
+      <code>{`const scored = results
+  .map((r) => ({ ...r, score: score(r, intent) }))
+  .sort((a, b) => b.score - a.score)
+  .slice(0, 3);`}</code>
+    </pre>
+  </div>
+);
+
 const STREAMING_ROOT_STEPS = [
   {
     id: "plan",
     label: "Planning approach",
     type: "text",
     output: "Drafting a response strategy tailored to the user request.",
+  },
+  {
+    id: "search",
+    label: "Searching for references",
+    type: "search",
+    toolName: "search",
+    output: WEB_SEARCH_RESULTS_OUTPUT,
+  },
+  {
+    id: "score",
+    label: "Scoring sources",
+    type: "text",
+    output: RESULT_SCORING_OUTPUT,
+  },
+  {
+    id: "narrate-1",
+    label: "Thinking out loud",
+    type: "text",
+    output:
+      "I've gathered and ranked the sources. Next I'll synthesize the key points before drafting.",
   },
   {
     id: "synthesize",
@@ -1792,6 +1849,13 @@ const STREAMING_ROOT_STEPS = [
     label: "Reviewing constraints",
     type: "text",
     output: "Re-checking requirements, tone, and edge cases.",
+  },
+  {
+    id: "narrate-2",
+    label: "Thinking out loud",
+    type: "text",
+    output:
+      "The structure looks solid. I'll compose the response, then do a quick quality pass.",
   },
   {
     id: "compose",
@@ -1819,13 +1883,13 @@ const STREAMING_RESEARCHER_STEPS = [
     label: "Collecting sources",
     type: "search",
     toolName: "search",
-    output: "Searching docs for relevant references and prior art.",
+    output: WEB_SEARCH_RESULTS_OUTPUT,
   },
   {
     id: "outline",
-    label: "Drafting outline",
+    label: "Ranking results",
     type: "text",
-    output: "Organizing findings into a clear response structure.",
+    output: RESULT_SCORING_OUTPUT,
   },
   {
     id: "crosscheck",
@@ -1850,10 +1914,10 @@ const STREAMING_RESEARCHER_STEPS = [
 const STREAMING_WEB_STEPS = [
   {
     id: "crawl",
-    label: "Crawling sources",
-    type: "tool",
-    toolName: "browser",
-    output: "Fetching key pages and gathering raw source material.",
+    label: "Searching the web",
+    type: "search",
+    toolName: "search",
+    output: WEB_SEARCH_RESULTS_OUTPUT,
   },
   {
     id: "extract",
@@ -1895,11 +1959,15 @@ const STREAMING_SEQUENCE = [
   { scope: "researcher", index: 3 },
   { scope: "researcher", index: 4 },
   { scope: "root", index: 1 },
-  { scope: "researcher", index: 5 },
   { scope: "root", index: 2 },
   { scope: "root", index: 3 },
   { scope: "root", index: 4 },
+  { scope: "researcher", index: 5 },
   { scope: "root", index: 5 },
+  { scope: "root", index: 6 },
+  { scope: "root", index: 7 },
+  { scope: "root", index: 8 },
+  { scope: "root", index: 9 },
 ] as const;
 
 const STREAMING_ROOT_DELAY_MS = 1600;
@@ -1930,13 +1998,13 @@ const PARALLEL_AGENTS = [
         id: "sources",
         label: "Collecting sources",
         type: "search",
-        output: "Searching internal docs for relevant context.",
+        output: WEB_SEARCH_RESULTS_OUTPUT,
       },
       {
         id: "outline",
         label: "Drafting outline",
         type: "text",
-        output: "Sketching the outline for the response.",
+        output: RESULT_SCORING_OUTPUT,
       },
       {
         id: "synthesize",
@@ -2316,7 +2384,7 @@ function useStreamingNestedTrace() {
       label: string;
       type: string;
       toolName?: string;
-      output?: string;
+      output?: ReactNode;
     }[],
     scope: (typeof STREAMING_SEQUENCE)[number]["scope"],
   ) => {
@@ -2890,6 +2958,214 @@ export function ChainOfThoughtParallelTraceStreamingSample({
         label="Coordinating subagents..."
         rootProps={{ variant: "muted", className: "mb-0" }}
       />
+    </SampleFrame>
+  );
+}
+
+const HEADLINE_OUT_MS = 200;
+const HEADLINE_IN_MS = 320;
+const HEADLINE_TRANSITION_MS = HEADLINE_IN_MS;
+
+function TraceHeadlineTransition({
+  label,
+  active,
+}: {
+  label?: ReactNode;
+  active?: boolean;
+}) {
+  const [currentLabel, setCurrentLabel] = useState(label);
+  const [previousLabel, setPreviousLabel] = useState<ReactNode | null>(null);
+  const [labelKey, setLabelKey] = useState(0);
+  const labelRef = useRef(label);
+  const timeoutRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (Object.is(labelRef.current, label)) return;
+
+    setPreviousLabel(labelRef.current ?? null);
+    setCurrentLabel(label);
+    setLabelKey((value) => value + 1);
+    labelRef.current = label;
+
+    if (timeoutRef.current) {
+      window.clearTimeout(timeoutRef.current);
+    }
+    timeoutRef.current = window.setTimeout(() => {
+      setPreviousLabel(null);
+    }, HEADLINE_TRANSITION_MS);
+
+    return () => {
+      if (timeoutRef.current) {
+        window.clearTimeout(timeoutRef.current);
+      }
+    };
+  }, [label]);
+
+  if (currentLabel == null && previousLabel == null) return null;
+  const isTransitioning = previousLabel != null;
+  const shimmerClass = active
+    ? "shimmer shimmer-invert shimmer-angle-30"
+    : undefined;
+  const baseTextClass = "text-muted-foreground/70";
+
+  return (
+    <div className="aui-chain-of-thought-trace-summary shimmer-container relative min-h-[1.25rem] overflow-hidden">
+      <div className="relative h-5">
+        {previousLabel != null && (
+          <span
+            key={`prev-${labelKey}`}
+            className={cn(
+              "aui-chain-of-thought-trace-summary-prev absolute inset-0 flex items-center",
+              "truncate text-left",
+              isTransitioning &&
+                "fade-out-0 slide-out-to-top-2 animate-out fill-mode-both ease-out",
+              "motion-reduce:animate-none",
+            )}
+            style={{ animationDuration: `${HEADLINE_OUT_MS}ms` }}
+          >
+            <span className={cn("inline-flex", baseTextClass, shimmerClass)}>
+              {previousLabel}
+            </span>
+          </span>
+        )}
+        {currentLabel != null && (
+          <span
+            key={`current-${labelKey}`}
+            className={cn(
+              "aui-chain-of-thought-trace-summary-current absolute inset-0 flex items-center",
+              "truncate text-left",
+              isTransitioning &&
+                "fade-in-0 slide-in-from-bottom-2 animate-in fill-mode-both ease-out",
+              "motion-reduce:animate-none",
+            )}
+            style={{ animationDuration: `${HEADLINE_IN_MS}ms` }}
+          >
+            <span className={cn("inline-flex", baseTextClass, shimmerClass)}>
+              {currentLabel}
+            </span>
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ChainOfThoughtCyclingTrigger({
+  label,
+  active,
+}: {
+  label?: ReactNode;
+  active?: boolean;
+}) {
+  return (
+    <CollapsibleTrigger
+      data-slot="chain-of-thought-trigger"
+      className={cn(
+        "aui-chain-of-thought-trigger",
+        "group/trigger flex w-full items-start gap-3 py-1 text-left",
+        "text-muted-foreground text-sm transition-colors hover:text-foreground",
+      )}
+    >
+      <span
+        data-slot="chain-of-thought-trigger-icon-wrapper"
+        className="aui-chain-of-thought-trigger-icon-wrapper flex size-6 shrink-0 items-center justify-center"
+      >
+        <BrainIcon
+          data-slot="chain-of-thought-trigger-icon"
+          className={cn(
+            "aui-chain-of-thought-trigger-icon size-4",
+            active &&
+              "animate-pulse text-muted-foreground/70 motion-reduce:animate-none",
+          )}
+        />
+      </span>
+
+      <span
+        data-slot="chain-of-thought-trigger-label"
+        className="aui-chain-of-thought-trigger-label-wrapper min-w-0 flex-1 leading-6"
+      >
+        <TraceHeadlineTransition label={label} active={active} />
+      </span>
+
+      <span className="flex h-6 shrink-0 items-center">
+        <ChevronDownIcon
+          data-slot="chain-of-thought-trigger-chevron"
+          className={cn(
+            "aui-chain-of-thought-trigger-chevron size-4",
+            "transition-transform duration-(--animation-duration) ease-(--spring-easing)",
+            "group-data-[state=closed]/trigger:-rotate-90",
+            "group-data-[state=open]/trigger:rotate-0",
+          )}
+        />
+      </span>
+    </CollapsibleTrigger>
+  );
+}
+
+function getLatestTraceStepLabel(trace: TraceNode[]): ReactNode | undefined {
+  const visit = (node: TraceNode): ReactNode | undefined => {
+    if (node.kind === "step") {
+      if (node.label != null) return node.label;
+      if (node.toolName) return `Tool: ${node.toolName}`;
+      return undefined;
+    }
+    for (let i = node.children.length - 1; i >= 0; i -= 1) {
+      const label = visit(node.children[i]!);
+      if (label != null) return label;
+    }
+    return undefined;
+  };
+
+  for (let i = trace.length - 1; i >= 0; i -= 1) {
+    const label = visit(trace[i]!);
+    if (label != null) return label;
+  }
+  return undefined;
+}
+
+export function ChainOfThoughtHeadlineStreamingSample() {
+  const { trace, isStreaming, isManual, start, stepOnce, reset } =
+    useStreamingParallelTrace();
+  const headline = useMemo(
+    () => getLatestTraceStepLabel(trace) ?? "Reasoning",
+    [trace],
+  );
+
+  return (
+    <SampleFrame className="flex h-auto flex-col gap-4 p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <Button type="button" size="sm" onClick={start} disabled={isStreaming}>
+          {isStreaming ? "Streaming..." : "Start"}
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="secondary"
+          onClick={stepOnce}
+          disabled={isStreaming}
+        >
+          Step
+        </Button>
+        <Button type="button" size="sm" variant="outline" onClick={reset}>
+          Reset
+        </Button>
+        {isManual ? (
+          <span className="text-muted-foreground text-xs">Manual mode</span>
+        ) : null}
+      </div>
+      <ChainOfThoughtRoot variant="muted" defaultOpen={false} className="mb-0">
+        <ChainOfThoughtCyclingTrigger label={headline} active={isStreaming} />
+        <ChainOfThoughtContent aria-busy={isStreaming}>
+          <ChainOfThoughtTrace
+            trace={trace}
+            maxDepth={3}
+            autoScroll={false}
+            scrollable={false}
+            windowSize={0}
+            allowGroupExpand
+          />
+        </ChainOfThoughtContent>
+      </ChainOfThoughtRoot>
     </SampleFrame>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  ChainOfThoughtHeadlineStreamingSample,
   ChainOfThoughtNestedTraceStreamingSample,
   ChainOfThoughtParallelTraceStreamingSample,
 } from "@/components/docs/samples/chain-of-thought";
@@ -25,6 +26,11 @@ export default function ChainOfThoughtStreamingPreviewPage() {
       <section className="space-y-4">
         <h2 className="font-semibold text-xl">Parallel Subagents</h2>
         <ChainOfThoughtParallelTraceStreamingSample windowSize={3} />
+      </section>
+
+      <section className="space-y-4">
+        <h2 className="font-semibold text-xl">Cycling Headline</h2>
+        <ChainOfThoughtHeadlineStreamingSample />
       </section>
     </div>
   );
