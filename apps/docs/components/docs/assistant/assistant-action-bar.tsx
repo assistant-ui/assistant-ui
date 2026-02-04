@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { ActionBarPrimitive } from "@assistant-ui/react";
-import { useAui, useAuiState } from "@assistant-ui/store";
+import { useAuiState } from "@assistant-ui/store";
 import { ThumbsUpIcon, ThumbsDownIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { analytics } from "@/lib/analytics";
@@ -33,18 +33,17 @@ function getToolCalls(
 
 export function AssistantActionBar(): ReactNode {
   const [popoverOpen, setPopoverOpen] = useState(false);
+  const [submittedFeedback, setSubmittedFeedback] = useState<
+    "positive" | "negative" | null
+  >(null);
 
-  const aui = useAui();
   const messageId = useAuiState(({ message }) => message.id);
   const parentId = useAuiState(({ message }) => message.parentId);
   const content = useAuiState(({ message }) => message.content);
   const threadId = useAuiState(({ threadListItem }) => threadListItem.id);
   const messages = useAuiState(({ thread }) => thread.messages);
-  const isPositiveSubmitted = useAuiState(
-    ({ message }) => message.metadata?.submittedFeedback?.type === "positive",
-  );
-  const isNegativeSubmitted = useAuiState(
-    ({ message }) => message.metadata?.submittedFeedback?.type === "negative",
+  const isRunning = useAuiState(
+    ({ message }) => message.status?.type === "running",
   );
 
   const userMessage = messages.find((m) => m.id === parentId);
@@ -52,8 +51,14 @@ export function AssistantActionBar(): ReactNode {
   const assistantResponse = getMessageText(content);
   const toolCalls = getToolCalls(content);
 
+  // Don't show feedback buttons while message is still streaming
+  if (isRunning) {
+    return null;
+  }
+
   const handlePositiveFeedback = () => {
-    aui.message().submitFeedback({ type: "positive" });
+    if (submittedFeedback) return;
+    setSubmittedFeedback("positive");
     analytics.assistant.feedbackSubmitted({
       threadId,
       messageId,
@@ -68,7 +73,8 @@ export function AssistantActionBar(): ReactNode {
     category: FeedbackCategory,
     comment?: string,
   ) => {
-    aui.message().submitFeedback({ type: "negative" });
+    if (submittedFeedback) return;
+    setSubmittedFeedback("negative");
     analytics.assistant.feedbackSubmitted({
       threadId,
       messageId,
@@ -83,34 +89,40 @@ export function AssistantActionBar(): ReactNode {
 
   return (
     <ActionBarPrimitive.Root className="mt-2 flex items-center gap-1">
-      <ActionBarPrimitive.FeedbackPositive
+      <button
+        type="button"
         onClick={handlePositiveFeedback}
+        disabled={submittedFeedback !== null}
         className={cn(
           "rounded p-1 text-muted-foreground transition-colors",
           "hover:bg-muted hover:text-foreground",
           "disabled:cursor-not-allowed disabled:opacity-50",
-          isPositiveSubmitted && "text-green-600 dark:text-green-400",
+          submittedFeedback === "positive" &&
+            "text-green-600 dark:text-green-400",
         )}
       >
         <ThumbsUpIcon className="size-4" />
-      </ActionBarPrimitive.FeedbackPositive>
+      </button>
 
       <FeedbackPopover
         open={popoverOpen}
         onOpenChange={setPopoverOpen}
         onSubmit={handleNegativeFeedback}
       >
-        <ActionBarPrimitive.FeedbackNegative
+        <button
+          type="button"
           onClick={() => setPopoverOpen(true)}
+          disabled={submittedFeedback !== null}
           className={cn(
             "rounded p-1 text-muted-foreground transition-colors",
             "hover:bg-muted hover:text-foreground",
             "disabled:cursor-not-allowed disabled:opacity-50",
-            isNegativeSubmitted && "text-red-600 dark:text-red-400",
+            submittedFeedback === "negative" &&
+              "text-red-600 dark:text-red-400",
           )}
         >
           <ThumbsDownIcon className="size-4" />
-        </ActionBarPrimitive.FeedbackNegative>
+        </button>
       </FeedbackPopover>
     </ActionBarPrimitive.Root>
   );
