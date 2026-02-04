@@ -26,7 +26,7 @@ export {
   type UIMessageStreamDecoderOptions,
 } from "./serialization/ui-message-stream/UIMessageStream";
 export { AssistantMessageStream } from "./accumulators/AssistantMessageStream";
-export type { AssistantMessage } from "./utils/types";
+export type { AssistantMessage, AssistantMessageTiming } from "./utils/types";
 
 export * from "./tool";
 export type { TextStreamController } from "./modules/text";

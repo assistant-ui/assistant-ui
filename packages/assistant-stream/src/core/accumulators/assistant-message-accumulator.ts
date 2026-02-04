@@ -4,6 +4,7 @@ import { parsePartialJsonObject } from "../../utils/json/parse-partial-json-obje
 import {
   AssistantMessage,
   AssistantMessageStatus,
+  AssistantMessageTiming,
   TextPart,
   ToolCallPart,
   SourcePart,
@@ -13,6 +14,7 @@ import {
 } from "../utils/types";
 import { ObjectStreamAccumulator } from "../object/ObjectStreamAccumulator";
 import { ReadonlyJSONValue } from "../../utils";
+import { TimingTracker } from "./TimingTracker";
 
 export const createInitialMessage = ({
   unstable_state = null,
@@ -355,6 +357,19 @@ const handleUpdateState = (
   };
 };
 
+const updateMessageTiming = (
+  message: AssistantMessage,
+  timing: AssistantMessageTiming,
+): AssistantMessage => {
+  return {
+    ...message,
+    metadata: {
+      ...message.metadata,
+      timing,
+    },
+  };
+};
+
 const throttleCallback = (callback: () => void) => {
   let hasScheduled = false;
   return () => {
@@ -384,6 +399,9 @@ export class AssistantMessageAccumulator extends TransformStream<
     let controller:
       | TransformStreamDefaultController<AssistantMessage>
       | undefined;
+    const timingTracker = new TimingTracker();
+    let lastUsage: { completionTokens: number } | undefined;
+
     const emitChunk = throttle
       ? throttleCallback(() => {
           controller?.enqueue(message);
@@ -396,10 +414,17 @@ export class AssistantMessageAccumulator extends TransformStream<
         controller = c;
       },
       transform(chunk) {
+        // Record timing for every chunk
+        timingTracker.recordChunk();
+
         const type = chunk.type;
         switch (type) {
           case "part-start":
             message = handlePartStart(message, chunk);
+            // Track tool call start time
+            if (chunk.part.type === "tool-call") {
+              timingTracker.recordToolCallStart(chunk.part.toolCallId);
+            }
             break;
 
           case "tool-call-args-text-finish":
@@ -411,12 +436,24 @@ export class AssistantMessageAccumulator extends TransformStream<
             break;
 
           case "text-delta":
+            // Record first token time
+            timingTracker.recordFirstToken();
             message = handleTextDelta(message, chunk);
             break;
-          case "result":
+          case "result": {
+            // Track tool call end time
+            const partIndex = chunk.path[0];
+            if (partIndex !== undefined) {
+              const part = message.parts[partIndex];
+              if (part?.type === "tool-call") {
+                timingTracker.recordToolCallEnd(part.toolCallId);
+              }
+            }
             message = handleResult(message, chunk);
             break;
+          }
           case "message-finish":
+            lastUsage = chunk.usage;
             message = handleMessageFinish(message, chunk);
             break;
           case "annotations":
@@ -429,6 +466,7 @@ export class AssistantMessageAccumulator extends TransformStream<
             message = handleStepStart(message, chunk);
             break;
           case "step-finish":
+            lastUsage = chunk.usage;
             message = handleStepFinish(message, chunk);
             break;
           case "error":
@@ -438,11 +476,21 @@ export class AssistantMessageAccumulator extends TransformStream<
           case "update-state":
             message = handleUpdateState(message, chunk);
             break;
+          case "timing":
+            timingTracker.setServerTiming(chunk.timing);
+            break;
           default: {
             const unhandledType: never = type;
             throw new Error(`Unsupported chunk type: ${unhandledType}`);
           }
         }
+
+        // Update timing in message
+        message = updateMessageTiming(
+          message,
+          timingTracker.getTiming(lastUsage?.completionTokens),
+        );
+
         emitChunk();
       },
       flush(controller) {
@@ -464,6 +512,13 @@ export class AssistantMessageAccumulator extends TransformStream<
               completionTokens: 0,
             },
           });
+
+          // Final timing update for unexpectedly ended streams
+          message = updateMessageTiming(
+            message,
+            timingTracker.getTiming(lastUsage?.completionTokens),
+          );
+
           controller.enqueue(message);
         }
       },

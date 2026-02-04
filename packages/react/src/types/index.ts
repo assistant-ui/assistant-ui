@@ -18,6 +18,7 @@ export type {
   MessageStatus,
   MessagePartStatus,
   ToolCallMessagePartStatus,
+  MessageTiming,
   // thread message types
   ThreadUserMessagePart,
   ThreadAssistantMessagePart,

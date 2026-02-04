@@ -3,6 +3,7 @@ import { ToolCallStreamController } from "../../modules/tool-call";
 import { AssistantTransformStream } from "../../utils/stream/AssistantTransformStream";
 import { PipeableTransformStream } from "../../utils/stream/PipeableTransformStream";
 import { DataStreamChunk, DataStreamStreamChunkType } from "./chunk-types";
+import { ReadonlyJSONValue } from "../../../utils/json/json-value";
 import { LineDecoderStream } from "../../utils/stream/LineDecoderStream";
 import {
   DataStreamChunkDecoder,
@@ -177,6 +178,19 @@ export class DataStreamEncoder
               });
               break;
             }
+
+            case "timing":
+              controller.enqueue({
+                type: DataStreamStreamChunkType.AuiTiming,
+                value: chunk.timing,
+              });
+              controller.enqueue({
+                type: DataStreamStreamChunkType.Annotation,
+                value: [
+                  { type: "aui-timing", ...chunk.timing },
+                ] as ReadonlyJSONValue[],
+              });
+              break;
 
             // TODO ignore for now
             // in the future, we should create a handler that waits for text parts to finish before continuing
@@ -387,6 +401,14 @@ export class DataStreamDecoder extends PipeableTransformStream<
                 type: "update-state",
                 path: [],
                 operations: value,
+              });
+              break;
+
+            case DataStreamStreamChunkType.AuiTiming:
+              controller.enqueue({
+                type: "timing",
+                path: [],
+                timing: value,
               });
               break;
 
