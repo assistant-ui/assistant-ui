@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useMemo, type ReactNode } from "react";
+import { useState, useMemo, type ReactNode } from "react";
 import { ActionBarPrimitive } from "@assistant-ui/react";
-import { useAuiState } from "@assistant-ui/store";
+import { useAui, useAuiState } from "@assistant-ui/store";
 import { ThumbsUpIcon, ThumbsDownIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { analytics } from "@/lib/analytics";
@@ -31,16 +31,10 @@ function getToolCalls(
     }));
 }
 
-function getFeedbackKey(threadId: string, messageId: string): string {
-  return `aui-feedback-${threadId}-${messageId}`;
-}
-
 export function AssistantActionBar(): ReactNode {
   const [popoverOpen, setPopoverOpen] = useState(false);
-  const [submittedFeedback, setSubmittedFeedback] = useState<
-    "positive" | "negative" | null
-  >(null);
 
+  const aui = useAui();
   const messageId = useAuiState(({ message }) => message.id);
   const parentId = useAuiState(({ message }) => message.parentId);
   const content = useAuiState(({ message }) => message.content);
@@ -49,29 +43,13 @@ export function AssistantActionBar(): ReactNode {
   const isRunning = useAuiState(
     ({ message }) => message.status?.type === "running",
   );
-
-  // Restore feedback state from localStorage and sync across tabs
-  // Note: We use localStorage instead of runtime.submitFeedback() because
-  // the docs assistant doesn't have a feedback adapter configured.
-  useEffect(() => {
-    const key = getFeedbackKey(threadId, messageId);
-    const stored = localStorage.getItem(key);
-    if (stored === "positive" || stored === "negative") {
-      setSubmittedFeedback(stored);
-    }
-
-    const handleStorageChange = (e: StorageEvent) => {
-      if (
-        e.key === key &&
-        (e.newValue === "positive" || e.newValue === "negative")
-      ) {
-        setSubmittedFeedback(e.newValue);
-      }
-    };
-
-    window.addEventListener("storage", handleStorageChange);
-    return () => window.removeEventListener("storage", handleStorageChange);
-  }, [threadId, messageId]);
+  const submittedFeedback = useAuiState(
+    ({ message }) =>
+      message.metadata?.submittedFeedback?.type as
+        | "positive"
+        | "negative"
+        | undefined,
+  );
 
   const userMessage = useMemo(
     () => messages.find((m) => m.id === parentId),
@@ -88,8 +66,7 @@ export function AssistantActionBar(): ReactNode {
 
   const handlePositiveFeedback = () => {
     if (submittedFeedback) return;
-    setSubmittedFeedback("positive");
-    localStorage.setItem(getFeedbackKey(threadId, messageId), "positive");
+    aui.message().submitFeedback({ type: "positive" });
     analytics.assistant.feedbackSubmitted({
       threadId,
       messageId,
@@ -105,8 +82,7 @@ export function AssistantActionBar(): ReactNode {
     comment?: string,
   ) => {
     if (submittedFeedback) return;
-    setSubmittedFeedback("negative");
-    localStorage.setItem(getFeedbackKey(threadId, messageId), "negative");
+    aui.message().submitFeedback({ type: "negative" });
     analytics.assistant.feedbackSubmitted({
       threadId,
       messageId,
@@ -124,7 +100,7 @@ export function AssistantActionBar(): ReactNode {
       <button
         type="button"
         onClick={handlePositiveFeedback}
-        disabled={submittedFeedback !== null}
+        disabled={!!submittedFeedback}
         aria-label={
           submittedFeedback === "positive"
             ? "Positive feedback submitted"
@@ -149,7 +125,7 @@ export function AssistantActionBar(): ReactNode {
         <button
           type="button"
           onClick={() => setPopoverOpen(true)}
-          disabled={submittedFeedback !== null}
+          disabled={!!submittedFeedback}
           aria-label={
             submittedFeedback === "negative"
               ? "Negative feedback submitted"

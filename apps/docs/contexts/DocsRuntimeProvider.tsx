@@ -8,6 +8,7 @@ import {
   useAui,
   Tools,
   Suggestions,
+  type FeedbackAdapter,
 } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import { DevToolsModal } from "@assistant-ui/react-devtools";
@@ -24,11 +25,20 @@ export function DocsRuntimeProvider({
     anonymous: true,
   });
 
+  // Simple feedback adapter - the runtime handles storing feedback in message metadata
+  const feedbackAdapter: FeedbackAdapter = {
+    submit: () => {
+      // Feedback is tracked via analytics in AssistantActionBar
+      // The runtime automatically updates message.metadata.submittedFeedback
+    },
+  };
+
   const runtime = useChatRuntime({
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
     adapters: {
       speech: new WebSpeechSynthesisAdapter(),
       dictation: new WebSpeechDictationAdapter(),
+      feedback: feedbackAdapter,
     },
     cloud: assistantCloud,
   });
