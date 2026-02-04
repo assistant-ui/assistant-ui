@@ -628,8 +628,42 @@ function ChainOfThoughtFade({
 function ChainOfThoughtContent({
   className,
   children,
+  style,
   ...props
 }: React.ComponentProps<typeof CollapsibleContent>) {
+  const [contentEl, setContentEl] = useState<HTMLDivElement | null>(null);
+  const [maxHeight, setMaxHeight] = useState<number | null>(null);
+
+  useLayoutEffect(() => {
+    if (!contentEl) {
+      setMaxHeight(null);
+      return;
+    }
+
+    const measure = () => {
+      const next = Math.ceil(contentEl.getBoundingClientRect().height);
+      setMaxHeight((current) =>
+        current != null && Math.abs(current - next) < 1 ? current : next,
+      );
+    };
+
+    measure();
+
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => measure());
+    observer.observe(contentEl);
+    return () => observer.disconnect();
+  }, [contentEl]);
+
+  useLayoutEffect(() => {
+    if (typeof ResizeObserver !== "undefined") return;
+    if (!contentEl) return;
+    const next = Math.ceil(contentEl.getBoundingClientRect().height);
+    setMaxHeight((current) =>
+      current != null && Math.abs(current - next) < 1 ? current : next,
+    );
+  }, [contentEl]);
+
   return (
     <CollapsibleContent
       data-slot="chain-of-thought-content"
@@ -637,6 +671,10 @@ function ChainOfThoughtContent({
         "aui-chain-of-thought-content",
         "relative overflow-hidden text-muted-foreground text-sm outline-none",
         "group/collapsible-content",
+        "data-[state=open]:transition-[max-height]",
+        "data-[state=open]:duration-(--animation-duration)",
+        "data-[state=open]:ease-(--spring-easing)",
+        "motion-reduce:data-[state=open]:transition-none",
         // Open: spring easing for natural expansion
         "data-[state=open]:animate-collapsible-down",
         "data-[state=open]:duration-(--animation-duration)",
@@ -650,8 +688,14 @@ function ChainOfThoughtContent({
         className,
       )}
       {...props}
+      style={{
+        ...(maxHeight ? { maxHeight: `${maxHeight}px` } : {}),
+        ...style,
+      }}
     >
-      {children}
+      <div data-slot="chain-of-thought-content-inner" ref={setContentEl}>
+        {children}
+      </div>
       <ChainOfThoughtFade />
     </CollapsibleContent>
   );
@@ -2454,7 +2498,7 @@ function ChainOfThoughtTraceNodes({
     <ChainOfThoughtTimeline
       className={className}
       windowSize={windowSize}
-      scrollable
+      scrollable={scrollable}
       windowTransition
       {...timelineProps}
     >
@@ -2490,15 +2534,38 @@ function useTraceDisclosureState({
   collapseOnComplete: boolean;
 }) {
   const [open, setOpen] = useState(isStreaming);
+  const [isClosing, setIsClosing] = useState(false);
   const wasStreamingRef = useRef(isStreaming);
+  const closeTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
+    if (closeTimeoutRef.current) {
+      window.clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+    }
+
     if (isStreaming) {
       setOpen(true);
+      setIsClosing(false);
     } else if (wasStreamingRef.current && collapseOnComplete) {
       setOpen(false);
+      setIsClosing(true);
+      closeTimeoutRef.current = window.setTimeout(() => {
+        setIsClosing(false);
+        closeTimeoutRef.current = null;
+      }, ANIMATION_DURATION);
+    } else {
+      setIsClosing(false);
     }
+
     wasStreamingRef.current = isStreaming;
+
+    return () => {
+      if (closeTimeoutRef.current) {
+        window.clearTimeout(closeTimeoutRef.current);
+        closeTimeoutRef.current = null;
+      }
+    };
   }, [collapseOnComplete, isStreaming]);
 
   const handleOpenChange = useCallback(
@@ -2509,7 +2576,7 @@ function useTraceDisclosureState({
     [isStreaming],
   );
 
-  return { open, handleOpenChange };
+  return { open, handleOpenChange, isClosing };
 }
 
 function ChainOfThoughtTraceDisclosureNodes({
@@ -2536,10 +2603,11 @@ function ChainOfThoughtTraceDisclosureNodes({
     return summarizeTraceStats(stats, durationSec);
   }, [durationSec, stats, summary]);
 
-  const { open, handleOpenChange } = useTraceDisclosureState({
+  const { open, handleOpenChange, isClosing } = useTraceDisclosureState({
     isStreaming,
     collapseOnComplete,
   });
+  const windowingEnabled = isStreaming || isClosing;
 
   const allowGroupExpand = !disableGroupExpansionWhileStreaming || !isStreaming;
 
@@ -2557,8 +2625,8 @@ function ChainOfThoughtTraceDisclosureNodes({
       <ChainOfThoughtContent aria-busy={isStreaming} {...contentProps}>
         <ChainOfThoughtTraceNodes
           trace={trace}
-          windowSize={isStreaming ? windowSize : 0}
-          windowTransition={isStreaming && windowTransition}
+          windowSize={windowingEnabled ? windowSize : 0}
+          windowTransition={windowingEnabled && windowTransition}
           allowGroupExpand={allowGroupExpand}
           {...timelineProps}
         />
@@ -2606,10 +2674,11 @@ function ChainOfThoughtTraceDisclosureParts({
     return summarizeTraceStats(stats, durationSec);
   }, [durationSec, stats, summary]);
 
-  const { open, handleOpenChange } = useTraceDisclosureState({
+  const { open, handleOpenChange, isClosing } = useTraceDisclosureState({
     isStreaming,
     collapseOnComplete,
   });
+  const windowingEnabled = isStreaming || isClosing;
 
   return (
     <ChainOfThoughtRoot
@@ -2626,8 +2695,8 @@ function ChainOfThoughtTraceDisclosureParts({
         <ChainOfThoughtTraceParts
           groupingFunction={groupingFunction}
           inferStep={inferStep}
-          windowSize={isStreaming ? windowSize : 0}
-          windowTransition={isStreaming && windowTransition}
+          windowSize={windowingEnabled ? windowSize : 0}
+          windowTransition={windowingEnabled && windowTransition}
           {...timelineProps}
         />
       </ChainOfThoughtContent>

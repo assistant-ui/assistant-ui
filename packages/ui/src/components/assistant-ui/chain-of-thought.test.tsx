@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { createRoot } from "react-dom/client";
 import { act } from "react";
 import {
@@ -299,6 +299,31 @@ describe("ChainOfThought.Trace", () => {
     });
   });
 
+  it("respects scrollable={false} for trace nodes", () => {
+    const container = document.createElement("div");
+    const root = createRoot(container);
+
+    const trace = [
+      { kind: "step", id: "step-1", label: "Step 1", status: "complete" },
+      { kind: "step", id: "step-2", label: "Step 2", status: "complete" },
+    ];
+
+    act(() => {
+      root.render(<ChainOfThought.Trace trace={trace} scrollable={false} />);
+    });
+
+    const timeline = container.querySelector(
+      '[data-slot=chain-of-thought-timeline]:not([aria-hidden="true"])',
+    ) as HTMLElement | null;
+
+    expect(timeline?.className).not.toContain("max-h-64");
+    expect(timeline?.className).not.toContain("overflow-y-auto");
+
+    act(() => {
+      root.unmount();
+    });
+  });
+
   it("clamps step rows whenever windowing is enabled", () => {
     const container = document.createElement("div");
     const root = createRoot(container);
@@ -559,6 +584,67 @@ describe("ChainOfThought.Trace", () => {
 });
 
 describe("ChainOfThought.TraceDisclosure", () => {
+  it("keeps windowing enabled through the auto-collapse transition", () => {
+    vi.useFakeTimers();
+
+    const container = document.createElement("div");
+    const root = createRoot(container);
+
+    const runningTrace = [
+      { kind: "step", id: "step-1", label: "Step 1", status: "running" },
+      { kind: "step", id: "step-2", label: "Step 2", status: "complete" },
+    ];
+
+    act(() => {
+      root.render(
+        <ChainOfThought.TraceDisclosure
+          trace={runningTrace}
+          windowSize={2}
+          contentProps={{ forceMount: true }}
+        />,
+      );
+    });
+
+    const windowBefore = container.querySelector(
+      ".aui-chain-of-thought-timeline-window",
+    ) as HTMLElement | null;
+    expect(windowBefore?.dataset.windowed).toBe("true");
+
+    const completeTrace = [
+      { kind: "step", id: "step-1", label: "Step 1", status: "complete" },
+      { kind: "step", id: "step-2", label: "Step 2", status: "complete" },
+    ];
+
+    act(() => {
+      root.render(
+        <ChainOfThought.TraceDisclosure
+          trace={completeTrace}
+          windowSize={2}
+          contentProps={{ forceMount: true }}
+        />,
+      );
+    });
+
+    const windowDuringClose = container.querySelector(
+      ".aui-chain-of-thought-timeline-window",
+    ) as HTMLElement | null;
+    expect(windowDuringClose?.dataset.windowed).toBe("true");
+
+    act(() => {
+      vi.advanceTimersByTime(250);
+    });
+
+    const windowAfter = container.querySelector(
+      ".aui-chain-of-thought-timeline-window",
+    ) as HTMLElement | null;
+    expect(windowAfter?.dataset.windowed).toBe("false");
+
+    act(() => {
+      root.unmount();
+    });
+    vi.useRealTimers();
+  });
+
   it("auto-collapses after streaming completes and swaps the summary label", () => {
     const container = document.createElement("div");
     const root = createRoot(container);
