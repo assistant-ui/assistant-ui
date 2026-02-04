@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import { ActionBarPrimitive } from "@assistant-ui/react";
 import { useAuiState } from "@assistant-ui/store";
 import { ThumbsUpIcon, ThumbsDownIcon } from "lucide-react";
@@ -31,6 +31,10 @@ function getToolCalls(
     }));
 }
 
+function getFeedbackKey(threadId: string, messageId: string): string {
+  return `aui-feedback-${threadId}-${messageId}`;
+}
+
 export function AssistantActionBar(): ReactNode {
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [submittedFeedback, setSubmittedFeedback] = useState<
@@ -46,19 +50,29 @@ export function AssistantActionBar(): ReactNode {
     ({ message }) => message.status?.type === "running",
   );
 
+  // Restore feedback state from localStorage on mount
+  useEffect(() => {
+    const key = getFeedbackKey(threadId, messageId);
+    const stored = localStorage.getItem(key);
+    if (stored === "positive" || stored === "negative") {
+      setSubmittedFeedback(stored);
+    }
+  }, [threadId, messageId]);
+
   const userMessage = messages.find((m) => m.id === parentId);
   const userQuestion = userMessage ? getMessageText(userMessage.content) : "";
   const assistantResponse = getMessageText(content);
   const toolCalls = getToolCalls(content);
 
-  // Don't show feedback buttons while message is still streaming
-  if (isRunning) {
+  // Don't show feedback buttons while message is still streaming or if no content
+  if (isRunning || !assistantResponse.trim()) {
     return null;
   }
 
   const handlePositiveFeedback = () => {
     if (submittedFeedback) return;
     setSubmittedFeedback("positive");
+    localStorage.setItem(getFeedbackKey(threadId, messageId), "positive");
     analytics.assistant.feedbackSubmitted({
       threadId,
       messageId,
@@ -75,6 +89,7 @@ export function AssistantActionBar(): ReactNode {
   ) => {
     if (submittedFeedback) return;
     setSubmittedFeedback("negative");
+    localStorage.setItem(getFeedbackKey(threadId, messageId), "negative");
     analytics.assistant.feedbackSubmitted({
       threadId,
       messageId,
@@ -93,6 +108,11 @@ export function AssistantActionBar(): ReactNode {
         type="button"
         onClick={handlePositiveFeedback}
         disabled={submittedFeedback !== null}
+        aria-label={
+          submittedFeedback === "positive"
+            ? "Positive feedback submitted"
+            : "Good response"
+        }
         className={cn(
           "rounded p-1 text-muted-foreground transition-colors",
           "hover:bg-muted hover:text-foreground",
@@ -113,6 +133,11 @@ export function AssistantActionBar(): ReactNode {
           type="button"
           onClick={() => setPopoverOpen(true)}
           disabled={submittedFeedback !== null}
+          aria-label={
+            submittedFeedback === "negative"
+              ? "Negative feedback submitted"
+              : "Report issue with response"
+          }
           className={cn(
             "rounded p-1 text-muted-foreground transition-colors",
             "hover:bg-muted hover:text-foreground",
