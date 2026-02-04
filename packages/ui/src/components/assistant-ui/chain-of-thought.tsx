@@ -215,9 +215,9 @@ const STEP_KEYFRAMES = `
 .aui-chain-of-thought-timeline-window[data-windowed="true"][data-window-transition="false"]::after {
   transition: none;
 }
-.aui-chain-of-thought-timeline[data-windowed="true"][data-window-active="true"] [data-slot="chain-of-thought-step"] {
+.aui-chain-of-thought-timeline[data-windowed="true"] [data-slot="chain-of-thought-step"] {
   height: var(--aui-window-row, 56px);
-  align-items: center;
+  align-items: flex-start;
   overflow: hidden;
 }
 .aui-chain-of-thought-timeline[data-windowed="true"]:has([data-slot="chain-of-thought-trace-group-summary"][aria-expanded="true"]) [data-slot="chain-of-thought-step"] {
@@ -225,7 +225,7 @@ const STEP_KEYFRAMES = `
   align-items: flex-start;
   overflow: visible;
 }
-.aui-chain-of-thought-timeline[data-windowed="true"][data-window-active="true"] [data-slot="chain-of-thought-step-content"] {
+.aui-chain-of-thought-timeline[data-windowed="true"] [data-slot="chain-of-thought-step-content"] {
   max-height: calc(var(--aui-window-row, 56px) - 12px);
   overflow: hidden;
 }
