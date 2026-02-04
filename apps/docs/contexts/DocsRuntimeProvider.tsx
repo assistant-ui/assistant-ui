@@ -16,16 +16,13 @@ import { DevToolsModal } from "@assistant-ui/react-devtools";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { docsToolkit } from "@/lib/docs-toolkit";
 
-// Stable adapter instances - created once outside the component
+// Stateless adapter - safe to share across instances
 const feedbackAdapter: FeedbackAdapter = {
   submit: () => {
     // Feedback is tracked via analytics in AssistantActionBar
     // The runtime automatically updates message.metadata.submittedFeedback
   },
 };
-
-const speechAdapter = new WebSpeechSynthesisAdapter();
-const dictationAdapter = new WebSpeechDictationAdapter();
 
 export function DocsRuntimeProvider({
   children,
@@ -41,10 +38,11 @@ export function DocsRuntimeProvider({
     [],
   );
 
+  // Speech/dictation adapters have internal state - create per component instance
   const adapters = useMemo(
     () => ({
-      speech: speechAdapter,
-      dictation: dictationAdapter,
+      speech: new WebSpeechSynthesisAdapter(),
+      dictation: new WebSpeechDictationAdapter(),
       feedback: feedbackAdapter,
     }),
     [],
