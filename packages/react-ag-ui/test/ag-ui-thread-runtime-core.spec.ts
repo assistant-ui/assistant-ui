@@ -364,4 +364,62 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(onError).toHaveBeenCalledWith(expect.any(Error));
     expect(onError.mock.calls[0][0].message).toBe("string error");
   });
+
+  describe("Explicit threadId configuration #3207", () => {
+    it("should use explicit threadId when provided", async () => {
+      const runAgent = vi.fn(async (_input, subscriber) => {
+        subscriber.onRunFinalized?.();
+      });
+      const agent = { runAgent } as unknown as HttpAgent;
+
+      // Try to create core with explicit threadId
+      const core = new AgUiThreadRuntimeCore({
+        agent,
+        threadId: "custom-thread-123",
+        logger: noopLogger,
+        showThinking: true,
+        notifyUpdate: () => {},
+      });
+
+      await core.append(createAppendMessage());
+
+      const input = runAgent.mock.calls[0][0];
+
+      expect(input.threadId).toBe("custom-thread-123");
+    });
+
+    it("should allow multiple cores with different threadIds", async () => {
+      const runAgent1 = vi.fn(async (_input, subscriber) => {
+        subscriber.onRunFinalized?.();
+      });
+      const runAgent2 = vi.fn(async (_input, subscriber) => {
+        subscriber.onRunFinalized?.();
+      });
+
+      const agent1 = { runAgent: runAgent1 } as unknown as HttpAgent;
+      const agent2 = { runAgent: runAgent2 } as unknown as HttpAgent;
+
+      const core1 = new AgUiThreadRuntimeCore({
+        agent: agent1,
+        threadId: "session-abc",
+        logger: noopLogger,
+        showThinking: true,
+        notifyUpdate: () => {},
+      });
+
+      const core2 = new AgUiThreadRuntimeCore({
+        agent: agent2,
+        threadId: "session-xyz",
+        logger: noopLogger,
+        showThinking: true,
+        notifyUpdate: () => {},
+      });
+
+      await core1.append(createAppendMessage());
+      await core2.append(createAppendMessage());
+
+      expect(runAgent1.mock.calls[0][0].threadId).toBe("session-abc");
+      expect(runAgent2.mock.calls[0][0].threadId).toBe("session-xyz");
+    });
+  });
 });

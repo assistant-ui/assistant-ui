@@ -29,6 +29,7 @@ type ResumeRunConfig = {
 
 type CoreOptions = {
   agent: HttpAgent;
+  threadId?: string;
   logger: Logger;
   showThinking: boolean;
   onError?: (error: Error) => void;
@@ -41,6 +42,7 @@ const FALLBACK_USER_STATUS = { type: "complete", reason: "unknown" } as const;
 
 export class AgUiThreadRuntimeCore {
   private agent: HttpAgent;
+  private threadId: string;
   private logger: Logger;
   private showThinking: boolean;
   private onError: ((error: Error) => void) | undefined;
@@ -62,6 +64,7 @@ export class AgUiThreadRuntimeCore {
 
   constructor(options: CoreOptions) {
     this.agent = options.agent;
+    this.threadId = options.threadId ?? this.agent.threadId ?? "main";
     this.logger = options.logger;
     this.showThinking = options.showThinking;
     this.onError = options.onError;
@@ -72,6 +75,9 @@ export class AgUiThreadRuntimeCore {
 
   updateOptions(options: Omit<CoreOptions, "notifyUpdate">) {
     this.agent = options.agent;
+    if (options.threadId !== undefined) {
+      this.threadId = options.threadId;
+    }
     this.logger = options.logger;
     this.showThinking = options.showThinking;
     this.onError = options.onError;
@@ -320,7 +326,7 @@ export class AgUiThreadRuntimeCore {
     runConfig: RunConfig | undefined,
     historyMessages: readonly ThreadMessage[] | undefined,
   ) {
-    const threadId = this.agent.threadId || "main";
+    const threadId = this.threadId;
     const messages = toAgUiMessages(historyMessages ?? this.messages);
     const context = this.runtime?.thread.getModelContext();
     return {
