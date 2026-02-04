@@ -1,6 +1,9 @@
 "use client";
 
-import { ChainOfThoughtNestedTraceStreamingSample } from "@/components/docs/samples/chain-of-thought";
+import {
+  ChainOfThoughtNestedTraceStreamingSample,
+  ChainOfThoughtParallelTraceStreamingSample,
+} from "@/components/docs/samples/chain-of-thought";
 
 export default function ChainOfThoughtStreamingPreviewPage() {
   return (
@@ -14,8 +17,14 @@ export default function ChainOfThoughtStreamingPreviewPage() {
         </p>
       </header>
 
-      <section>
-        <ChainOfThoughtNestedTraceStreamingSample />
+      <section className="space-y-4">
+        <h2 className="font-semibold text-xl">Nested Trace</h2>
+        <ChainOfThoughtNestedTraceStreamingSample windowSize={3} />
+      </section>
+
+      <section className="space-y-4">
+        <h2 className="font-semibold text-xl">Parallel Subagents</h2>
+        <ChainOfThoughtParallelTraceStreamingSample windowSize={3} />
       </section>
     </div>
   );

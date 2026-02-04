@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import type { VariantProps } from "class-variance-authority";
 import {
   PlayIcon,
@@ -25,6 +25,7 @@ import {
   ChainOfThoughtText,
   ChainOfThoughtPlaceholder,
   ChainOfThoughtTrace,
+  ChainOfThoughtTraceDisclosure,
   ChainOfThoughtTimeline,
   ChainOfThoughtStep,
   ChainOfThoughtStepHeader,
@@ -1768,36 +1769,117 @@ const NESTED_TRACE_SUMMARIES = [
 ] as const;
 
 const STREAMING_ROOT_STEPS = [
-  { id: "plan", label: "Planning approach", type: "text" },
-  { id: "synthesize", label: "Synthesizing outputs", type: "text" },
-  { id: "finalize", label: "Finalizing response", type: "text" },
+  {
+    id: "plan",
+    label: "Planning approach",
+    type: "text",
+    output: "Drafting a response strategy tailored to the user request.",
+  },
+  {
+    id: "synthesize",
+    label: "Synthesizing outputs",
+    type: "text",
+    output: "Merging subagent findings into a cohesive answer.",
+  },
+  {
+    id: "finalize",
+    label: "Finalizing response",
+    type: "text",
+    output: "Polishing wording and checking constraints before sending.",
+  },
+  {
+    id: "review",
+    label: "Reviewing constraints",
+    type: "text",
+    output: "Re-checking requirements, tone, and edge cases.",
+  },
+  {
+    id: "compose",
+    label: "Composing final answer",
+    type: "text",
+    output: "Stitching the final response from the collected pieces.",
+  },
+  {
+    id: "quality",
+    label: "Quality pass",
+    type: "text",
+    output: "Final clarity and completeness check.",
+  },
 ] as const;
 
 const STREAMING_RESEARCHER_STEPS = [
-  { id: "brief", label: "Reviewing task brief", type: "text" },
+  {
+    id: "brief",
+    label: "Reviewing task brief",
+    type: "text",
+    output: "Noting the key asks and success criteria from the prompt.",
+  },
   {
     id: "sources",
     label: "Collecting sources",
     type: "search",
     toolName: "search",
+    output: "Searching docs for relevant references and prior art.",
   },
-  { id: "outline", label: "Drafting outline", type: "text" },
-  { id: "crosscheck", label: "Cross-checking citations", type: "text" },
-  { id: "synthesize", label: "Synthesizing findings", type: "text" },
-  { id: "polish", label: "Polishing draft", type: "text" },
+  {
+    id: "outline",
+    label: "Drafting outline",
+    type: "text",
+    output: "Organizing findings into a clear response structure.",
+  },
+  {
+    id: "crosscheck",
+    label: "Cross-checking citations",
+    type: "text",
+    output: "Validating citations against the collected sources.",
+  },
+  {
+    id: "synthesize",
+    label: "Synthesizing findings",
+    type: "text",
+    output: "Summarizing the most relevant points for the main thread.",
+  },
+  {
+    id: "polish",
+    label: "Polishing draft",
+    type: "text",
+    output: "Editing for clarity and removing redundant details.",
+  },
 ] as const;
 
 const STREAMING_WEB_STEPS = [
-  { id: "crawl", label: "Crawling sources", type: "tool", toolName: "browser" },
-  { id: "extract", label: "Extracting key points", type: "text" },
-  { id: "verify", label: "Verifying citations", type: "text" },
+  {
+    id: "crawl",
+    label: "Crawling sources",
+    type: "tool",
+    toolName: "browser",
+    output: "Fetching key pages and gathering raw source material.",
+  },
+  {
+    id: "extract",
+    label: "Extracting key points",
+    type: "text",
+    output: "Pulling the most relevant snippets from each source.",
+  },
+  {
+    id: "verify",
+    label: "Verifying citations",
+    type: "text",
+    output: "Confirming quoted details match the original sources.",
+  },
   {
     id: "archive",
     label: "Archiving sources",
     type: "tool",
     toolName: "archive",
+    output: "Storing citations and URLs for later reference.",
   },
-  { id: "summarize", label: "Summarizing references", type: "text" },
+  {
+    id: "summarize",
+    label: "Summarizing references",
+    type: "text",
+    output: "Summarizing findings for the researcher agent.",
+  },
 ] as const;
 
 const STREAMING_SEQUENCE = [
@@ -1815,6 +1897,235 @@ const STREAMING_SEQUENCE = [
   { scope: "root", index: 1 },
   { scope: "researcher", index: 5 },
   { scope: "root", index: 2 },
+  { scope: "root", index: 3 },
+  { scope: "root", index: 4 },
+  { scope: "root", index: 5 },
+] as const;
+
+const STREAMING_ROOT_DELAY_MS = 1600;
+const STREAMING_SUBAGENT_DELAY_MS = 900;
+
+const PARALLEL_ROOT_DELAY_MS = 2000;
+const PARALLEL_AGENT_DELAYS: Record<string, number> = {
+  researcher: 900,
+  planner: 1050,
+  critic: 850,
+  verifier: 980,
+  writer: 920,
+};
+const PARALLEL_AGENT_START_DELAY_MS = 600;
+
+const PARALLEL_AGENTS = [
+  {
+    id: "researcher",
+    label: "Researcher",
+    steps: [
+      {
+        id: "brief",
+        label: "Reviewing task brief",
+        type: "text",
+        output: "Summarizing the task scope and expected output.",
+      },
+      {
+        id: "sources",
+        label: "Collecting sources",
+        type: "search",
+        output: "Searching internal docs for relevant context.",
+      },
+      {
+        id: "outline",
+        label: "Drafting outline",
+        type: "text",
+        output: "Sketching the outline for the response.",
+      },
+      {
+        id: "synthesize",
+        label: "Synthesizing findings",
+        type: "text",
+        output: "Condensing the findings into concise points.",
+      },
+      {
+        id: "validate",
+        label: "Validating sources",
+        type: "text",
+        output: "Checking sources for accuracy and recency.",
+      },
+      {
+        id: "handoff",
+        label: "Handoff notes",
+        type: "text",
+        output: "Packaging findings for the main response.",
+      },
+    ],
+  },
+  {
+    id: "planner",
+    label: "Planner",
+    steps: [
+      {
+        id: "intent",
+        label: "Clarifying user intent",
+        type: "text",
+        output: "Confirming the desired outcome and audience.",
+      },
+      {
+        id: "constraints",
+        label: "Capturing constraints",
+        type: "text",
+        output: "Listing key constraints that must be respected.",
+      },
+      {
+        id: "sequence",
+        label: "Sequencing tasks",
+        type: "text",
+        output: "Ordering tasks for efficient execution.",
+      },
+      {
+        id: "handoff",
+        label: "Preparing handoff",
+        type: "text",
+        output: "Packaging instructions for the execution phase.",
+      },
+      {
+        id: "timeline",
+        label: "Estimating timeline",
+        type: "text",
+        output: "Estimating effort and pacing for the response.",
+      },
+      {
+        id: "fallbacks",
+        label: "Defining fallbacks",
+        type: "text",
+        output: "Adding fallback plans for missing data.",
+      },
+    ],
+  },
+  {
+    id: "critic",
+    label: "Critic",
+    steps: [
+      {
+        id: "scan",
+        label: "Scanning for gaps",
+        type: "text",
+        output: "Looking for missing details or assumptions.",
+      },
+      {
+        id: "risks",
+        label: "Flagging risks",
+        type: "text",
+        output: "Highlighting potential issues to address.",
+      },
+      {
+        id: "verify",
+        label: "Verifying output",
+        type: "text",
+        output: "Cross-checking output for consistency.",
+      },
+      {
+        id: "notes",
+        label: "Drafting notes",
+        type: "text",
+        output: "Drafting review notes for the main response.",
+      },
+      {
+        id: "consistency",
+        label: "Consistency scan",
+        type: "text",
+        output: "Checking for conflicting statements.",
+      },
+      {
+        id: "rewrite",
+        label: "Rewrite suggestions",
+        type: "text",
+        output: "Suggesting tightened or clearer phrasing.",
+      },
+    ],
+  },
+  {
+    id: "verifier",
+    label: "Verifier",
+    steps: [
+      {
+        id: "consistency",
+        label: "Checking consistency",
+        type: "text",
+        output: "Ensuring reasoning matches stated constraints.",
+      },
+      {
+        id: "edge-cases",
+        label: "Reviewing edge cases",
+        type: "text",
+        output: "Looking for gaps in handling edge scenarios.",
+      },
+      {
+        id: "coverage",
+        label: "Coverage check",
+        type: "text",
+        output: "Confirming all requested points are addressed.",
+      },
+      {
+        id: "confidence",
+        label: "Confidence pass",
+        type: "text",
+        output: "Summarizing confidence and caveats.",
+      },
+      {
+        id: "fact-check",
+        label: "Fact check",
+        type: "text",
+        output: "Confirming factual claims and references.",
+      },
+      {
+        id: "final-check",
+        label: "Final verification",
+        type: "text",
+        output: "Ensuring the answer matches the request.",
+      },
+    ],
+  },
+  {
+    id: "writer",
+    label: "Writer",
+    steps: [
+      {
+        id: "tone",
+        label: "Setting tone",
+        type: "text",
+        output: "Choosing an appropriate tone for the response.",
+      },
+      {
+        id: "draft",
+        label: "Drafting copy",
+        type: "text",
+        output: "Writing the response based on the outline.",
+      },
+      {
+        id: "trim",
+        label: "Trimming verbosity",
+        type: "text",
+        output: "Removing redundant phrasing and tightening.",
+      },
+      {
+        id: "polish",
+        label: "Final polish",
+        type: "text",
+        output: "Final grammatical and clarity sweep.",
+      },
+      {
+        id: "structure",
+        label: "Structure pass",
+        type: "text",
+        output: "Ensuring headings and flow read cleanly.",
+      },
+      {
+        id: "tone-align",
+        label: "Tone alignment",
+        type: "text",
+        output: "Aligning tone with the target audience.",
+      },
+    ],
+  },
 ] as const;
 
 function useNestedTraceSample() {
@@ -1946,19 +2257,45 @@ export function ChainOfThoughtNestedTraceSample() {
 }
 
 function useStreamingNestedTrace() {
-  const [progress, setProgress] = useState(0);
+  const [progress, setProgress] = useState(-1);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [isManual, setIsManual] = useState(false);
+  const [hasStarted, setHasStarted] = useState(false);
+  const timeoutRef = useRef<number | null>(null);
+  const isProgressing = isStreaming || isManual;
 
   useEffect(() => {
-    const intervalId = window.setInterval(() => {
-      setProgress((current) =>
-        current >= STREAMING_SEQUENCE.length - 1 ? 0 : current + 1,
-      );
-    }, 1600);
+    if (!isStreaming) {
+      if (timeoutRef.current !== null) {
+        window.clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+      return;
+    }
+
+    if (progress >= STREAMING_SEQUENCE.length - 1) {
+      setIsStreaming(false);
+      return;
+    }
+
+    const nextIndex = progress + 1;
+    const nextScope = STREAMING_SEQUENCE[nextIndex]?.scope;
+    const delay =
+      nextScope === "root"
+        ? STREAMING_ROOT_DELAY_MS
+        : STREAMING_SUBAGENT_DELAY_MS;
+
+    timeoutRef.current = window.setTimeout(() => {
+      setProgress(nextIndex);
+    }, delay);
 
     return () => {
-      window.clearInterval(intervalId);
+      if (timeoutRef.current !== null) {
+        window.clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
     };
-  }, []);
+  }, [isStreaming, progress]);
 
   const active = STREAMING_SEQUENCE[progress];
 
@@ -1979,6 +2316,7 @@ function useStreamingNestedTrace() {
       label: string;
       type: string;
       toolName?: string;
+      output?: string;
     }[],
     scope: (typeof STREAMING_SEQUENCE)[number]["scope"],
   ) => {
@@ -1990,8 +2328,17 @@ function useStreamingNestedTrace() {
       label: step.label,
       type: step.type as any,
       toolName: step.toolName,
+      output: step.output
+        ? {
+            content: step.output,
+            status:
+              isProgressing && active?.scope === scope && active.index === index
+                ? "streaming"
+                : "complete",
+          }
+        : undefined,
       status:
-        active?.scope === scope && active.index === index
+        isProgressing && active?.scope === scope && active.index === index
           ? "running"
           : "complete",
     }));
@@ -2023,72 +2370,526 @@ function useStreamingNestedTrace() {
 
   const researcherLatest = researcherSteps[researcherSteps.length - 1] ?? null;
   const webLatest = webSteps[webSteps.length - 1] ?? null;
+  const latestSequenceIndexFor = (
+    scope: (typeof STREAMING_SEQUENCE)[number]["scope"],
+  ) => {
+    for (let i = progress; i >= 0; i -= 1) {
+      if (STREAMING_SEQUENCE[i]?.scope === scope) {
+        return i;
+      }
+    }
+    return -1;
+  };
+  const latestResearcherSequenceIndex = latestSequenceIndexFor("researcher");
+  const latestWebSequenceIndex = latestSequenceIndexFor("web");
+  const latestSubagentStep = (() => {
+    if (latestResearcherSequenceIndex < 0 && latestWebSequenceIndex < 0) {
+      return null;
+    }
+    if (latestWebSequenceIndex > latestResearcherSequenceIndex) {
+      return webLatest;
+    }
+    return researcherLatest ?? webLatest;
+  })();
+  const groupDone =
+    researcherSteps.length >= STREAMING_RESEARCHER_STEPS.length &&
+    webSteps.length >= STREAMING_WEB_STEPS.length;
+  const groupStatus =
+    groupStarted && !groupDone && isProgressing ? "running" : "complete";
+  const webStatus =
+    webSteps.length === 0
+      ? undefined
+      : webSteps.length >= STREAMING_WEB_STEPS.length
+        ? "complete"
+        : "running";
+  const firstWebSequenceIndex = (() => {
+    for (let i = 0; i <= progress; i += 1) {
+      if (STREAMING_SEQUENCE[i]?.scope === "web") {
+        return i;
+      }
+    }
+    return -1;
+  })();
+  const researcherBeforeWebCount =
+    firstWebSequenceIndex < 0
+      ? 0
+      : STREAMING_SEQUENCE.slice(0, firstWebSequenceIndex).filter(
+          (entry) => entry.scope === "researcher",
+        ).length;
+  const webInsertIndex =
+    webSteps.length > 0
+      ? Math.min(researcherBeforeWebCount, researcherSteps.length)
+      : -1;
+  const webGroup =
+    webSteps.length > 0
+      ? ({
+          kind: "group",
+          id: "agent-web-stream",
+          label: "Web Scout",
+          status: webStatus,
+          variant: "subagent",
+          summary: webLatest
+            ? {
+                latestLabel: webLatest.label,
+                latestType: webLatest.type,
+                toolName: webLatest.toolName,
+              }
+            : undefined,
+          children: webSteps,
+        } satisfies TraceNode)
+      : null;
+  const researcherChildren = (() => {
+    if (!webGroup || webInsertIndex < 0) {
+      return researcherSteps;
+    }
+    return [
+      ...researcherSteps.slice(0, webInsertIndex),
+      webGroup,
+      ...researcherSteps.slice(webInsertIndex),
+    ];
+  })();
 
-  return useMemo<TraceNode[]>(
-    () => [
-      ...rootBeforeGroup,
-      ...(groupStarted
-        ? ([
-            {
-              kind: "group",
-              id: "agent-research-stream",
-              label: "Researcher",
-              status: active?.scope === "researcher" ? "running" : "complete",
-              variant: "subagent",
-              summary: researcherLatest
-                ? {
-                    latestLabel: researcherLatest.label,
-                    latestType: researcherLatest.type,
-                    toolName: researcherLatest.toolName,
-                  }
-                : undefined,
-              children: [
-                {
-                  kind: "group",
-                  id: "agent-web-stream",
-                  label: "Web Scout",
-                  status: active?.scope === "web" ? "running" : "complete",
-                  variant: "subagent",
-                  summary: webLatest
-                    ? {
-                        latestLabel: webLatest.label,
-                        latestType: webLatest.type,
-                        toolName: webLatest.toolName,
-                      }
-                    : undefined,
-                  children: webSteps,
-                },
-                ...researcherSteps,
-              ],
-            },
-          ] as TraceNode[])
-        : []),
-      ...rootAfterGroup,
-    ],
+  const trace = useMemo<TraceNode[]>(
+    () =>
+      hasStarted
+        ? [
+            ...rootBeforeGroup,
+            ...(groupStarted
+              ? ([
+                  {
+                    kind: "group",
+                    id: "agent-research-stream",
+                    label: "Researcher",
+                    status: groupStatus,
+                    variant: "subagent",
+                    summary: latestSubagentStep
+                      ? {
+                          latestLabel: latestSubagentStep.label,
+                          latestType: latestSubagentStep.type,
+                          toolName: latestSubagentStep.toolName,
+                        }
+                      : undefined,
+                    children: researcherChildren,
+                  },
+                ] as TraceNode[])
+              : []),
+            ...rootAfterGroup,
+          ]
+        : [],
     [
       rootBeforeGroup,
       rootAfterGroup,
       groupStarted,
-      researcherSteps,
-      webSteps,
-      researcherLatest,
-      webLatest,
-      active,
+      latestSubagentStep,
+      groupStatus,
+      researcherChildren,
+      hasStarted,
     ],
   );
+
+  const start = useCallback(() => {
+    setIsManual(false);
+    setProgress(0);
+    setIsStreaming(true);
+    setHasStarted(true);
+  }, []);
+
+  const stepOnce = useCallback(() => {
+    setIsStreaming(false);
+    setIsManual(true);
+    setHasStarted(true);
+    setProgress((current) =>
+      Math.min(current + 1, STREAMING_SEQUENCE.length - 1),
+    );
+  }, []);
+
+  const reset = useCallback(() => {
+    setIsStreaming(false);
+    setIsManual(false);
+    setHasStarted(false);
+    setProgress(-1);
+  }, []);
+
+  return {
+    trace,
+    isStreaming,
+    isManual,
+    start,
+    stepOnce,
+    reset,
+  };
 }
 
-export function ChainOfThoughtNestedTraceStreamingSample() {
-  const trace = useStreamingNestedTrace();
+export function ChainOfThoughtNestedTraceStreamingSample({
+  windowSize,
+}: {
+  windowSize?: number;
+} = {}) {
+  const { trace, isStreaming, isManual, start, stepOnce, reset } =
+    useStreamingNestedTrace();
+  const traceKey = useMemo(
+    () => trace.map((node) => node.id).join("|"),
+    [trace],
+  );
+  const isWindowed = typeof windowSize === "number" && windowSize > 0;
 
   return (
     <SampleFrame className="flex h-auto flex-col gap-4 p-4">
-      <ChainOfThoughtRoot variant="muted" defaultOpen className="mb-0">
-        <ChainOfThoughtTrigger label="Nested Trace (Streaming)" active />
-        <ChainOfThoughtContent>
-          <ChainOfThoughtTrace trace={trace} maxDepth={3} />
-        </ChainOfThoughtContent>
-      </ChainOfThoughtRoot>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button type="button" size="sm" onClick={start} disabled={isStreaming}>
+          {isStreaming ? "Streaming..." : "Start"}
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="secondary"
+          onClick={stepOnce}
+          disabled={isStreaming}
+        >
+          Step
+        </Button>
+        <Button type="button" size="sm" variant="outline" onClick={reset}>
+          Reset
+        </Button>
+        {isManual ? (
+          <span className="text-muted-foreground text-xs">Manual mode</span>
+        ) : null}
+      </div>
+      <ChainOfThoughtTraceDisclosure
+        trace={trace}
+        maxDepth={3}
+        autoScroll={!isWindowed}
+        autoScrollKey={traceKey}
+        autoScrollBehavior="smooth"
+        windowSize={windowSize}
+        windowTransition={isWindowed}
+        disableGroupExpansionWhileStreaming={false}
+        label="Researching..."
+        rootProps={{ variant: "muted", className: "mb-0" }}
+      />
+    </SampleFrame>
+  );
+}
+
+function useStreamingParallelTrace() {
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [isManual, setIsManual] = useState(false);
+  const [hasStarted, setHasStarted] = useState(false);
+  const [rootProgress, setRootProgress] = useState(-1);
+  const [agentProgress, setAgentProgress] = useState(() =>
+    Object.fromEntries(PARALLEL_AGENTS.map((agent) => [agent.id, -1])),
+  );
+  const rootIntervalRef = useRef<number | null>(null);
+  const agentIntervalsRef = useRef<Record<string, number | null>>({});
+  const agentStartTimeoutRef = useRef<number | null>(null);
+  const isProgressing = isStreaming || isManual;
+  const rootLastIndex = STREAMING_ROOT_STEPS.length - 1;
+  const allAgentsDone = PARALLEL_AGENTS.every(
+    (agent) => (agentProgress[agent.id] ?? -1) >= agent.steps.length - 1,
+  );
+  const rootDone = rootProgress >= rootLastIndex && rootProgress >= 0;
+
+  useEffect(() => {
+    if (!isStreaming) {
+      if (rootIntervalRef.current !== null) {
+        window.clearInterval(rootIntervalRef.current);
+        rootIntervalRef.current = null;
+      }
+      if (agentStartTimeoutRef.current !== null) {
+        window.clearTimeout(agentStartTimeoutRef.current);
+        agentStartTimeoutRef.current = null;
+      }
+      Object.values(agentIntervalsRef.current).forEach((intervalId) => {
+        if (intervalId !== null) {
+          window.clearInterval(intervalId);
+        }
+      });
+      agentIntervalsRef.current = {};
+      return;
+    }
+
+    rootIntervalRef.current = window.setInterval(() => {
+      setRootProgress((current) => {
+        if (current >= rootLastIndex) {
+          if (rootIntervalRef.current !== null) {
+            window.clearInterval(rootIntervalRef.current);
+            rootIntervalRef.current = null;
+          }
+          return current;
+        }
+        return current + 1;
+      });
+    }, PARALLEL_ROOT_DELAY_MS);
+
+    agentStartTimeoutRef.current = window.setTimeout(() => {
+      setAgentProgress((current) => {
+        const next = { ...current };
+        PARALLEL_AGENTS.forEach((agent) => {
+          if (next[agent.id] < 0) {
+            next[agent.id] = 0;
+          }
+        });
+        return next;
+      });
+
+      PARALLEL_AGENTS.forEach((agent) => {
+        const delay = PARALLEL_AGENT_DELAYS[agent.id] ?? 1000;
+        agentIntervalsRef.current[agent.id] = window.setInterval(() => {
+          setAgentProgress((current) => {
+            const currentIndex = current[agent.id] ?? -1;
+            if (currentIndex >= agent.steps.length - 1) {
+              const intervalId = agentIntervalsRef.current[agent.id];
+              if (intervalId !== null) {
+                window.clearInterval(intervalId);
+                agentIntervalsRef.current[agent.id] = null;
+              }
+              return current;
+            }
+            return { ...current, [agent.id]: currentIndex + 1 };
+          });
+        }, delay);
+      });
+    }, PARALLEL_AGENT_START_DELAY_MS);
+
+    return () => {
+      if (rootIntervalRef.current !== null) {
+        window.clearInterval(rootIntervalRef.current);
+        rootIntervalRef.current = null;
+      }
+      if (agentStartTimeoutRef.current !== null) {
+        window.clearTimeout(agentStartTimeoutRef.current);
+        agentStartTimeoutRef.current = null;
+      }
+      Object.values(agentIntervalsRef.current).forEach((intervalId) => {
+        if (intervalId !== null) {
+          window.clearInterval(intervalId);
+        }
+      });
+      agentIntervalsRef.current = {};
+    };
+  }, [isStreaming, rootLastIndex]);
+
+  useEffect(() => {
+    if (!isStreaming) return;
+    if (rootDone && allAgentsDone) {
+      setIsStreaming(false);
+    }
+  }, [allAgentsDone, isStreaming, rootDone]);
+
+  const buildRootSteps = useCallback(() => {
+    if (!hasStarted || rootProgress < 0) return [];
+    return STREAMING_ROOT_STEPS.slice(0, rootProgress + 1).map(
+      (step, index) => ({
+        kind: "step" as const,
+        id: step.id,
+        label: step.label,
+        type: step.type as any,
+        output: step.output
+          ? {
+              content: step.output,
+              status:
+                isProgressing && index === rootProgress
+                  ? "streaming"
+                  : "complete",
+            }
+          : undefined,
+        status:
+          isProgressing && index === rootProgress ? "running" : "complete",
+      }),
+    );
+  }, [hasStarted, isProgressing, rootProgress]);
+
+  const buildAgentSteps = useCallback(
+    (agent: (typeof PARALLEL_AGENTS)[number]) => {
+      const latestIndex = agentProgress[agent.id] ?? -1;
+      if (!hasStarted || latestIndex < 0) return [];
+      return agent.steps.slice(0, latestIndex + 1).map((step, index) => ({
+        kind: "step" as const,
+        id: step.id,
+        label: step.label,
+        type: step.type as any,
+        output: step.output
+          ? {
+              content: step.output,
+              status:
+                isProgressing && index === latestIndex
+                  ? "streaming"
+                  : "complete",
+            }
+          : undefined,
+        status: isProgressing && index === latestIndex ? "running" : "complete",
+      }));
+    },
+    [agentProgress, hasStarted, isProgressing],
+  );
+
+  const rootSteps = buildRootSteps();
+  const rootBefore = rootSteps.length > 0 ? [rootSteps[0]!] : [];
+  const rootAfter = rootSteps.length > 1 ? rootSteps.slice(1) : [];
+
+  const anyAgentStarted = Object.values(agentProgress).some(
+    (value) => value >= 0,
+  );
+  const showParallelGroup = hasStarted && anyAgentStarted;
+  const anyAgentRunning = isProgressing && showParallelGroup && !allAgentsDone;
+
+  const trace = useMemo<TraceNode[]>(() => {
+    if (!hasStarted) return [];
+    return [
+      ...rootBefore,
+      ...(showParallelGroup
+        ? ([
+            {
+              kind: "group",
+              id: "agent-parallel",
+              label: "Parallel Subagents",
+              status: anyAgentRunning ? "running" : "complete",
+              children: PARALLEL_AGENTS.map((agent) => {
+                const steps = buildAgentSteps(agent);
+                const latestStep = steps[steps.length - 1];
+                return {
+                  kind: "group",
+                  id: `agent-${agent.id}-parallel`,
+                  label: agent.label,
+                  status: latestStep?.status ?? "complete",
+                  variant: "subagent",
+                  summary: latestStep
+                    ? {
+                        latestLabel: latestStep.label,
+                        latestType: latestStep.type,
+                      }
+                    : undefined,
+                  children: steps,
+                } as TraceNode;
+              }),
+            },
+          ] as TraceNode[])
+        : []),
+      ...rootAfter,
+    ];
+  }, [
+    rootBefore,
+    rootAfter,
+    showParallelGroup,
+    anyAgentRunning,
+    buildAgentSteps,
+    hasStarted,
+  ]);
+
+  const start = useCallback(() => {
+    setIsManual(false);
+    setRootProgress(0);
+    setAgentProgress(
+      Object.fromEntries(PARALLEL_AGENTS.map((agent) => [agent.id, -1])),
+    );
+    setHasStarted(true);
+    setIsStreaming(true);
+  }, []);
+
+  const stepOnce = useCallback(() => {
+    setIsStreaming(false);
+    setIsManual(true);
+    setHasStarted(true);
+
+    if (rootProgress < 0) {
+      setRootProgress(0);
+      return;
+    }
+
+    const anyAgentsStarted = Object.values(agentProgress).some(
+      (value) => value >= 0,
+    );
+
+    if (!anyAgentsStarted) {
+      setAgentProgress(
+        Object.fromEntries(PARALLEL_AGENTS.map((agent) => [agent.id, 0])),
+      );
+      return;
+    }
+
+    setRootProgress((current) =>
+      current >= rootLastIndex ? current : current + 1,
+    );
+    setAgentProgress((current) => {
+      const next = { ...current };
+      PARALLEL_AGENTS.forEach((agent) => {
+        const currentIndex = next[agent.id] ?? -1;
+        next[agent.id] =
+          currentIndex >= agent.steps.length - 1
+            ? currentIndex
+            : currentIndex + 1;
+      });
+      return next;
+    });
+  }, [agentProgress, rootLastIndex, rootProgress]);
+
+  const reset = useCallback(() => {
+    setIsStreaming(false);
+    setIsManual(false);
+    setHasStarted(false);
+    setRootProgress(-1);
+    setAgentProgress(
+      Object.fromEntries(PARALLEL_AGENTS.map((agent) => [agent.id, -1])),
+    );
+  }, []);
+
+  return {
+    trace,
+    isStreaming,
+    isManual,
+    start,
+    stepOnce,
+    reset,
+  };
+}
+
+export function ChainOfThoughtParallelTraceStreamingSample({
+  windowSize,
+}: {
+  windowSize?: number;
+} = {}) {
+  const { trace, isStreaming, isManual, start, stepOnce, reset } =
+    useStreamingParallelTrace();
+  const traceKey = useMemo(
+    () => trace.map((node) => node.id).join("|"),
+    [trace],
+  );
+  const isWindowed = typeof windowSize === "number" && windowSize > 0;
+
+  return (
+    <SampleFrame className="flex h-auto flex-col gap-4 p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <Button type="button" size="sm" onClick={start} disabled={isStreaming}>
+          {isStreaming ? "Streaming..." : "Start"}
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="secondary"
+          onClick={stepOnce}
+          disabled={isStreaming}
+        >
+          Step
+        </Button>
+        <Button type="button" size="sm" variant="outline" onClick={reset}>
+          Reset
+        </Button>
+        {isManual ? (
+          <span className="text-muted-foreground text-xs">Manual mode</span>
+        ) : null}
+      </div>
+      <ChainOfThoughtTraceDisclosure
+        trace={trace}
+        maxDepth={3}
+        autoScroll={!isWindowed}
+        autoScrollKey={traceKey}
+        autoScrollBehavior="smooth"
+        windowSize={windowSize}
+        windowTransition={isWindowed}
+        disableGroupExpansionWhileStreaming={false}
+        label="Coordinating subagents..."
+        rootProps={{ variant: "muted", className: "mb-0" }}
+      />
     </SampleFrame>
   );
 }
