@@ -127,8 +127,28 @@ export type ThreadRuntimeCore = Readonly<{
   import(repository: ExportedMessageRepository): void;
   export(): ExportedMessageRepository;
 
+  /**
+   * Export the thread state in the external store format.
+   * For AI SDK runtimes, this returns the AI SDK message format.
+   * For other runtimes, this may return different formats or throw an error.
+   * @returns The thread state in the external format (typed as any)
+   */
+  exportExternalState(): any;
+
+  /**
+   * Import thread state from the external store format.
+   * For AI SDK runtimes, this accepts AI SDK messages.
+   * For other runtimes, this may accept different formats or throw an error.
+   * @param state The thread state in the external format (typed as any)
+   */
+  importExternalState(state: any): void;
+
   reset(initialMessages?: readonly ThreadMessageLike[]): void;
 
   unstable_on(event: ThreadRuntimeEventType, callback: () => void): Unsubscribe;
+
+  /**
+   * @deprecated Use importExternalState instead. This method will be removed in 0.12.0.
+   */
   unstable_loadExternalState: (state: any) => void;
 }>;

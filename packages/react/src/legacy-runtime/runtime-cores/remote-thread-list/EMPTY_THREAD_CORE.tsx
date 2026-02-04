@@ -56,6 +56,14 @@ export const EMPTY_THREAD_CORE: ThreadRuntimeCore = {
     return {};
   },
 
+  exportExternalState() {
+    throw EMPTY_THREAD_ERROR;
+  },
+
+  importExternalState() {
+    throw EMPTY_THREAD_ERROR;
+  },
+
   unstable_loadExternalState() {
     throw EMPTY_THREAD_ERROR;
   },

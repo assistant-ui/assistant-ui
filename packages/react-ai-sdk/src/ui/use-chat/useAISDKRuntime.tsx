@@ -10,10 +10,12 @@ import {
   type AssistantRuntime,
   type ThreadMessage,
   type MessageFormatAdapter,
+  type MessageFormatRepository,
   useRuntimeAdapters,
   INTERNAL,
   type ToolExecutionStatus,
   type AppendMessage,
+  getExternalStoreMessages,
 } from "@assistant-ui/react";
 import { sliceMessagesUntil } from "../utils/sliceMessagesUntil";
 import { toCreateMessage } from "../utils/toCreateMessage";
@@ -24,7 +26,10 @@ import {
   type AISDKStorageFormat,
   aiSDKV6FormatAdapter,
 } from "../adapters/aiSDKFormatAdapter";
-import { useExternalHistory } from "./useExternalHistory";
+import {
+  useExternalHistory,
+  toExportedMessageRepository,
+} from "./useExternalHistory";
 
 export type CustomToCreateMessageFunction = <
   UI_MESSAGE extends UIMessage = UIMessage,
@@ -168,6 +173,35 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
           .filter(Boolean)
           .flat(),
       ),
+    onExportExternalState: (): MessageFormatRepository<UI_MESSAGE> => {
+      // Export the thread's MessageRepository
+      const exported = runtimeRef.current.thread.export();
+
+      // Convert each ThreadMessage back to its original UI_MESSAGE format
+      const result: MessageFormatRepository<UI_MESSAGE> = {
+        messages: exported.messages.map((item) => ({
+          parentId: item.parentId,
+          message: getExternalStoreMessages<UI_MESSAGE>(item.message)[0]!,
+        })),
+      };
+
+      // Only include headId if it's defined
+      if (exported.headId !== undefined) {
+        result.headId = exported.headId;
+      }
+
+      return result;
+    },
+    onLoadExternalState: (repo: MessageFormatRepository<UI_MESSAGE>) => {
+      // Convert MessageFormatRepository to ExportedMessageRepository
+      const exportedRepo = toExportedMessageRepository(
+        AISDKMessageConverter.toThreadMessages,
+        repo,
+      );
+
+      // Import into the thread's MessageRepository
+      runtimeRef.current.thread.import(exportedRepo);
+    },
     onCancel: async () => {
       chatHelpers.stop();
       await toolInvocations.abort();

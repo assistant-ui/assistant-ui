@@ -203,6 +203,14 @@ export class LocalThreadRuntimeCore
     return this.startRun(startConfig, stream);
   }
 
+  public exportExternalState(): any {
+    throw new Error("Runtime does not support exporting external states.");
+  }
+
+  public importExternalState(): void {
+    throw new Error("Runtime does not support importing external states.");
+  }
+
   public unstable_loadExternalState(): void {
     throw new Error("Runtime does not support importing external states.");
   }
