@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.12.6
+
+### Patch Changes
+
+- 39fefec: feat: importExternalState API
+
 ## 0.12.5
 
 ### Patch Changes
