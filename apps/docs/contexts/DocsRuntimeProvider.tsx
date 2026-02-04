@@ -23,6 +23,10 @@ const feedbackAdapter: FeedbackAdapter = {
     // The runtime automatically updates message.metadata.submittedFeedback
   },
 };
+// Browser API adapters - share instances to avoid recreation on remounts.
+// If per-session speech/dictation settings are required, create them per instance instead.
+const speechAdapter = new WebSpeechSynthesisAdapter();
+const dictationAdapter = new WebSpeechDictationAdapter();
 
 export function DocsRuntimeProvider({
   children,
@@ -38,11 +42,10 @@ export function DocsRuntimeProvider({
     [],
   );
 
-  // Speech/dictation adapters have internal state - create per component instance
   const adapters = useMemo(
     () => ({
-      speech: new WebSpeechSynthesisAdapter(),
-      dictation: new WebSpeechDictationAdapter(),
+      speech: speechAdapter,
+      dictation: dictationAdapter,
       feedback: feedbackAdapter,
     }),
     [],

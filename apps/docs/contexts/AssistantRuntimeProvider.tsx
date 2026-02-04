@@ -3,6 +3,7 @@
 import {
   AssistantRuntimeProvider,
   useAssistantInstructions,
+  type FeedbackAdapter,
 } from "@assistant-ui/react";
 import {
   useChatRuntime,
@@ -11,6 +12,14 @@ import {
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import type { ReactNode } from "react";
 import { useCurrentPage } from "@/components/docs/contexts/current-page";
+
+// Stateless adapter - safe to share across instances
+const feedbackAdapter: FeedbackAdapter = {
+  submit: () => {
+    // Feedback is tracked via analytics in AssistantActionBar
+    // The runtime automatically updates message.metadata.submittedFeedback
+  },
+};
 
 function AssistantPageContext() {
   const currentPage = useCurrentPage();
@@ -36,6 +45,9 @@ export function DocsAssistantRuntimeProvider({
       api: "/api/doc/chat",
     }),
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
+    adapters: {
+      feedback: feedbackAdapter,
+    },
   });
 
   return (
