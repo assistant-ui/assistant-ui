@@ -145,4 +145,28 @@ export const analytics = {
         ...(elapsedMs === undefined ? {} : { elapsed_ms: elapsedMs }),
       }),
   },
+
+  assistant: {
+    feedbackSubmitted: (props: {
+      threadId: string;
+      messageId: string;
+      type: "positive" | "negative";
+      category?:
+        | "wrong_information"
+        | "outdated"
+        | "didnt_answer"
+        | "too_vague"
+        | "other";
+      comment?: string;
+      userQuestion: string;
+      assistantResponse: string;
+      toolCalls: Array<{ toolName: string; args: Record<string, unknown> }>;
+    }) => {
+      const { toolCalls, ...rest } = props;
+      trackEvent("assistant_feedback_submitted", {
+        ...rest,
+        toolCalls: JSON.stringify(toolCalls),
+      });
+    },
+  },
 };
