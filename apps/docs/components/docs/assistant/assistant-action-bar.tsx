@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, type ReactNode } from "react";
+import { useState, useEffect, useMemo, type ReactNode } from "react";
 import { ActionBarPrimitive } from "@assistant-ui/react";
 import { useAuiState } from "@assistant-ui/store";
 import { ThumbsUpIcon, ThumbsDownIcon } from "lucide-react";
@@ -50,16 +50,33 @@ export function AssistantActionBar(): ReactNode {
     ({ message }) => message.status?.type === "running",
   );
 
-  // Restore feedback state from localStorage on mount
+  // Restore feedback state from localStorage and sync across tabs
+  // Note: We use localStorage instead of runtime.submitFeedback() because
+  // the docs assistant doesn't have a feedback adapter configured.
   useEffect(() => {
     const key = getFeedbackKey(threadId, messageId);
     const stored = localStorage.getItem(key);
     if (stored === "positive" || stored === "negative") {
       setSubmittedFeedback(stored);
     }
+
+    const handleStorageChange = (e: StorageEvent) => {
+      if (
+        e.key === key &&
+        (e.newValue === "positive" || e.newValue === "negative")
+      ) {
+        setSubmittedFeedback(e.newValue);
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
   }, [threadId, messageId]);
 
-  const userMessage = messages.find((m) => m.id === parentId);
+  const userMessage = useMemo(
+    () => messages.find((m) => m.id === parentId),
+    [messages, parentId],
+  );
   const userQuestion = userMessage ? getMessageText(userMessage.content) : "";
   const assistantResponse = getMessageText(content);
   const toolCalls = getToolCalls(content);

@@ -38,8 +38,17 @@ export function FeedbackPopover({
     onOpenChange(false);
   };
 
+  const handleOpenChange = (isOpen: boolean) => {
+    if (!isOpen) {
+      // Reset state when closing without submitting
+      setCategory(null);
+      setComment("");
+    }
+    onOpenChange(isOpen);
+  };
+
   return (
-    <Popover.Root open={open} onOpenChange={onOpenChange}>
+    <Popover.Root open={open} onOpenChange={handleOpenChange}>
       <Popover.Trigger asChild>{children}</Popover.Trigger>
       <Popover.Portal>
         <Popover.Content
