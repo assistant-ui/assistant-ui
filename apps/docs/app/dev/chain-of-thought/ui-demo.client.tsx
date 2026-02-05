@@ -2,6 +2,6 @@
 
 import { ChainOfThoughtHeadlineStreamingFullBleedSample } from "@/components/docs/samples/chain-of-thought";
 
-export default function ChainOfThoughtStreamingPreviewPage() {
+export function ChainOfThoughtUiDemoClient() {
   return <ChainOfThoughtHeadlineStreamingFullBleedSample />;
 }

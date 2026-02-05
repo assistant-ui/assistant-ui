@@ -1778,16 +1778,44 @@ const NESTED_TRACE_SUMMARIES = [
   { label: "Drafting response", type: "text" },
 ] as const;
 
+function CitationBadge({
+  favicon,
+  domain,
+  path,
+}: {
+  favicon: string;
+  domain: string;
+  path?: string;
+}) {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-md bg-muted px-2 py-1 text-xs">
+      <span className="flex size-4 items-center justify-center rounded bg-background text-[10px]">
+        {favicon}
+      </span>
+      <span className="text-muted-foreground">
+        {domain}
+        {path ? (
+          <span className="text-muted-foreground/60">/{path}</span>
+        ) : null}
+      </span>
+    </span>
+  );
+}
+
 const WEB_SEARCH_RESULTS_OUTPUT: ReactNode = (
   <div className="space-y-2">
-    <div className="text-muted-foreground/70">Top results (5)</div>
-    <ul className="ml-4 list-disc space-y-1">
-      <li>Streaming trace UI patterns — assistant-ui docs</li>
-      <li>Windowed timelines &amp; auto-scroll UX notes</li>
-      <li>Nested agent trace rendering techniques</li>
-      <li>Shimmer + transition timing references</li>
-      <li>Collapsed reasoning disclosure behaviors</li>
-    </ul>
+    <div className="text-muted-foreground/70">Selected 5 top results</div>
+    <div className="flex flex-wrap gap-1.5">
+      <CitationBadge
+        favicon="📚"
+        domain="assistant-ui.com"
+        path="docs/streaming"
+      />
+      <CitationBadge favicon="📝" domain="ux-patterns.dev" path="timelines" />
+      <CitationBadge favicon="🔧" domain="react-traces.io" path="nested" />
+      <CitationBadge favicon="✨" domain="motion.design" path="shimmer" />
+      <CitationBadge favicon="📖" domain="disclosure-ux.org" />
+    </div>
   </div>
 );
 
@@ -1822,7 +1850,8 @@ const STREAMING_ROOT_STEPS = [
   {
     id: "score",
     label: "Scoring sources",
-    type: "text",
+    type: "code",
+    toolName: "code",
     output: RESULT_SCORING_OUTPUT,
   },
   {
@@ -1834,40 +1863,37 @@ const STREAMING_ROOT_STEPS = [
   },
   {
     id: "synthesize",
-    label: "Synthesizing outputs",
-    type: "text",
-    output: "Merging subagent findings into a cohesive answer.",
+    label: "Merging subagent findings",
+    type: "tool",
+    toolName: "merge",
+    output: "Combined 5 research threads into a unified brief.",
   },
   {
-    id: "finalize",
-    label: "Finalizing response",
-    type: "text",
-    output: "Polishing wording and checking constraints before sending.",
-  },
-  {
-    id: "review",
-    label: "Reviewing constraints",
-    type: "text",
-    output: "Re-checking requirements, tone, and edge cases.",
+    id: "compose",
+    label: "Drafting response",
+    type: "tool",
+    toolName: "write",
+    output: "Generated a 3-paragraph summary with inline citations.",
   },
   {
     id: "narrate-2",
     label: "Thinking out loud",
     type: "text",
     output:
-      "The structure looks solid. I'll compose the response, then do a quick quality pass.",
-  },
-  {
-    id: "compose",
-    label: "Composing final answer",
-    type: "text",
-    output: "Stitching the final response from the collected pieces.",
+      "The structure looks solid. Running a final quality pass before sending.",
   },
   {
     id: "quality",
-    label: "Quality pass",
+    label: "Validating output",
+    type: "code",
+    toolName: "validate",
+    output: "All assertions passed: length, tone, citation coverage.",
+  },
+  {
+    id: "done",
+    label: "Audited onboarding",
     type: "text",
-    output: "Final clarity and completeness check.",
+    output: "Response verified and ready to deliver.",
   },
 ] as const;
 
@@ -1888,7 +1914,8 @@ const STREAMING_RESEARCHER_STEPS = [
   {
     id: "outline",
     label: "Ranking results",
-    type: "text",
+    type: "code",
+    toolName: "code",
     output: RESULT_SCORING_OUTPUT,
   },
   {
@@ -1998,12 +2025,14 @@ const PARALLEL_AGENTS = [
         id: "sources",
         label: "Collecting sources",
         type: "search",
+        toolName: "search",
         output: WEB_SEARCH_RESULTS_OUTPUT,
       },
       {
         id: "outline",
         label: "Drafting outline",
-        type: "text",
+        type: "code",
+        toolName: "code",
         output: RESULT_SCORING_OUTPUT,
       },
       {
@@ -2752,6 +2781,7 @@ function useStreamingParallelTrace() {
         id: step.id,
         label: step.label,
         type: step.type as any,
+        toolName: "toolName" in step ? step.toolName : undefined,
         output: step.output
           ? {
               content: step.output,
@@ -2801,6 +2831,12 @@ function useStreamingParallelTrace() {
   const showParallelGroup = hasStarted && anyAgentStarted;
   const anyAgentRunning = isProgressing && showParallelGroup && !allAgentsDone;
 
+  // Count how many subagents are complete
+  const completedAgentCount = PARALLEL_AGENTS.filter(
+    (agent) => (agentProgress[agent.id] ?? -1) >= agent.steps.length - 1,
+  ).length;
+  const totalAgentCount = PARALLEL_AGENTS.length;
+
   const trace = useMemo<TraceNode[]>(() => {
     if (!hasStarted) return [];
     return [
@@ -2810,8 +2846,15 @@ function useStreamingParallelTrace() {
             {
               kind: "group",
               id: "agent-parallel",
-              label: "Parallel Subagents",
+              label: "Gathering research from multiple perspectives",
               status: anyAgentRunning ? "running" : "complete",
+              summary: {
+                latestLabel: anyAgentRunning
+                  ? `${completedAgentCount} of ${totalAgentCount} subagents complete`
+                  : `${totalAgentCount} subagents complete`,
+                latestType: "tool" as const,
+                toolName: `${totalAgentCount} subagents`,
+              },
               children: PARALLEL_AGENTS.map((agent) => {
                 const steps = buildAgentSteps(agent);
                 const latestStep = steps[steps.length - 1];
@@ -2842,6 +2885,7 @@ function useStreamingParallelTrace() {
     anyAgentRunning,
     buildAgentSteps,
     hasStarted,
+    completedAgentCount,
   ]);
 
   const start = useCallback(() => {
@@ -2969,9 +3013,11 @@ const HEADLINE_TRANSITION_MS = HEADLINE_IN_MS;
 function TraceHeadlineTransition({
   label,
   active,
+  isOpen,
 }: {
   label?: ReactNode;
   active?: boolean;
+  isOpen?: boolean;
 }) {
   const [currentLabel, setCurrentLabel] = useState(label);
   const [previousLabel, setPreviousLabel] = useState<ReactNode | null>(null);
@@ -3006,7 +3052,17 @@ function TraceHeadlineTransition({
   const shimmerClass = active
     ? "shimmer shimmer-invert shimmer-angle-30"
     : undefined;
-  const baseTextClass = "text-muted-foreground/70";
+
+  // Inline chevron that transitions with each headline
+  const inlineChevron = (
+    <ChevronDownIcon
+      className={cn(
+        "ml-1.5 inline-block size-4 shrink-0 align-middle",
+        "transition-transform duration-200",
+        isOpen ? "rotate-0" : "-rotate-90",
+      )}
+    />
+  );
 
   return (
     <div className="aui-chain-of-thought-trace-summary shimmer-container relative min-h-[1.25rem] overflow-hidden">
@@ -3018,13 +3074,14 @@ function TraceHeadlineTransition({
               "aui-chain-of-thought-trace-summary-prev absolute inset-0 flex items-center",
               "truncate text-left",
               isTransitioning &&
-                "fade-out-0 slide-out-to-top-2 animate-out fill-mode-both ease-out",
+                "fade-out-0 animate-out fill-mode-both ease-out",
               "motion-reduce:animate-none",
             )}
             style={{ animationDuration: `${HEADLINE_OUT_MS}ms` }}
           >
-            <span className={cn("inline-flex", baseTextClass, shimmerClass)}>
+            <span className={cn("inline-flex items-center", shimmerClass)}>
               {previousLabel}
+              {inlineChevron}
             </span>
           </span>
         )}
@@ -3034,14 +3091,14 @@ function TraceHeadlineTransition({
             className={cn(
               "aui-chain-of-thought-trace-summary-current absolute inset-0 flex items-center",
               "truncate text-left",
-              isTransitioning &&
-                "fade-in-0 slide-in-from-bottom-2 animate-in fill-mode-both ease-out",
+              isTransitioning && "fade-in-0 animate-in fill-mode-both ease-out",
               "motion-reduce:animate-none",
             )}
             style={{ animationDuration: `${HEADLINE_IN_MS}ms` }}
           >
-            <span className={cn("inline-flex", baseTextClass, shimmerClass)}>
+            <span className={cn("inline-flex items-center", shimmerClass)}>
               {currentLabel}
+              {inlineChevron}
             </span>
           </span>
         )}
@@ -3057,18 +3114,42 @@ function ChainOfThoughtCyclingTrigger({
   label?: ReactNode;
   active?: boolean;
 }) {
+  // Track open state from parent Collapsible via data attribute
+  const [isOpen, setIsOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    const trigger = triggerRef.current;
+    if (!trigger) return;
+
+    const observer = new MutationObserver(() => {
+      const state = trigger.getAttribute("data-state");
+      setIsOpen(state === "open");
+    });
+
+    observer.observe(trigger, {
+      attributes: true,
+      attributeFilter: ["data-state"],
+    });
+    // Initial state
+    setIsOpen(trigger.getAttribute("data-state") === "open");
+
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <CollapsibleTrigger
+      ref={triggerRef}
       data-slot="chain-of-thought-trigger"
       className={cn(
         "aui-chain-of-thought-trigger",
-        "group/trigger flex w-full items-start gap-3 py-1 text-left",
+        "group/trigger flex w-full items-center gap-2 py-1 text-left",
         "text-muted-foreground text-sm transition-colors hover:text-foreground",
       )}
     >
       <span
         data-slot="chain-of-thought-trigger-icon-wrapper"
-        className="aui-chain-of-thought-trigger-icon-wrapper flex size-6 shrink-0 items-center justify-center"
+        className="aui-chain-of-thought-trigger-icon-wrapper flex size-5 shrink-0 items-center justify-center"
       >
         <BrainIcon
           data-slot="chain-of-thought-trigger-icon"
@@ -3082,20 +3163,12 @@ function ChainOfThoughtCyclingTrigger({
 
       <span
         data-slot="chain-of-thought-trigger-label"
-        className="aui-chain-of-thought-trigger-label-wrapper min-w-0 flex-1 leading-6"
+        className="aui-chain-of-thought-trigger-label-wrapper min-w-0 flex-1 leading-5"
       >
-        <TraceHeadlineTransition label={label} active={active} />
-      </span>
-
-      <span className="flex h-6 shrink-0 items-center">
-        <ChevronDownIcon
-          data-slot="chain-of-thought-trigger-chevron"
-          className={cn(
-            "aui-chain-of-thought-trigger-chevron size-4",
-            "transition-transform duration-(--animation-duration) ease-(--spring-easing)",
-            "group-data-[state=closed]/trigger:-rotate-90",
-            "group-data-[state=open]/trigger:rotate-0",
-          )}
+        <TraceHeadlineTransition
+          label={label}
+          active={active}
+          isOpen={isOpen}
         />
       </span>
     </CollapsibleTrigger>
@@ -3108,6 +3181,12 @@ function getLatestTraceStepLabel(trace: TraceNode[]): ReactNode | undefined {
       if (node.label != null) return node.label;
       if (node.toolName) return `Tool: ${node.toolName}`;
       return undefined;
+    }
+    // For groups, prefer using the summary label if available
+    // This allows parent groups (like subagent containers) to show
+    // aggregate status like "3 of 5 subagents complete"
+    if (node.summary?.latestLabel != null) {
+      return node.summary.latestLabel;
     }
     for (let i = node.children.length - 1; i >= 0; i -= 1) {
       const label = visit(node.children[i]!);
@@ -3167,6 +3246,195 @@ export function ChainOfThoughtHeadlineStreamingSample() {
         </ChainOfThoughtContent>
       </ChainOfThoughtRoot>
     </SampleFrame>
+  );
+}
+
+/**
+ * Full-bleed sample with mock chat thread shell and right sidebar for controls.
+ * Flow: User message -> Assistant text streams -> CoT appears below with headline
+ * Features: Duration tracking, crossfade headlines, "Audited onboarding (Ns)" final label
+ */
+export function ChainOfThoughtHeadlineStreamingFullBleedSample() {
+  const { trace, isStreaming, isManual, start, stepOnce, reset } =
+    useStreamingParallelTrace();
+  const hasStarted = trace.length > 0 || isStreaming;
+
+  // Track streaming duration
+  const [durationSec, setDurationSec] = useState<number | undefined>(undefined);
+  const startTimeRef = useRef<number | null>(null);
+  const wasStreamingRef = useRef(isStreaming);
+
+  useEffect(() => {
+    if (isStreaming) {
+      if (!wasStreamingRef.current) {
+        startTimeRef.current = Date.now();
+        setDurationSec(undefined);
+      }
+    } else if (wasStreamingRef.current && startTimeRef.current != null) {
+      const elapsedMs = Date.now() - startTimeRef.current;
+      const elapsedSec = Math.max(1, Math.round(elapsedMs / 1000));
+      setDurationSec(elapsedSec);
+      startTimeRef.current = null;
+    }
+    wasStreamingRef.current = isStreaming;
+  }, [isStreaming]);
+
+  // Reset duration when resetting
+  const handleReset = useCallback(() => {
+    reset();
+    setDurationSec(undefined);
+    startTimeRef.current = null;
+    wasStreamingRef.current = false;
+  }, [reset]);
+
+  // Build headline with duration suffix when complete
+  const baseHeadline = useMemo(
+    () => getLatestTraceStepLabel(trace) ?? "Reasoning",
+    [trace],
+  );
+  const headline = useMemo(() => {
+    if (isStreaming || durationSec == null) return baseHeadline;
+    // Append duration to final headline
+    if (typeof baseHeadline === "string") {
+      return `${baseHeadline} (${durationSec}s)`;
+    }
+    return baseHeadline;
+  }, [baseHeadline, durationSec, isStreaming]);
+
+  return (
+    <div className="flex h-full min-h-screen bg-background">
+      {/* Thread container - main area */}
+      <div className="flex flex-1 flex-col overflow-hidden">
+        <div className="flex-1 overflow-y-auto">
+          <div className="mx-auto max-w-3xl space-y-6 p-4 pt-8">
+            {/* User message (with bubble) */}
+            <div className="flex justify-end">
+              <div className="max-w-[80%] rounded-2xl rounded-br-md bg-primary px-4 py-2.5 text-primary-foreground">
+                <p>
+                  Can you research the latest developments in quantum computing
+                  and summarize the key breakthroughs from multiple sources?
+                </p>
+              </div>
+            </div>
+
+            {/* Assistant message (no bubble) */}
+            <div className="flex justify-start">
+              <div className="max-w-[80%] space-y-3">
+                {/* Assistant text response - streams in first */}
+                <p className="text-sm leading-relaxed">
+                  Based on my research across multiple sources, here are the key
+                  breakthroughs in quantum computing: IBM recently achieved a
+                  1,000+ qubit processor, Google demonstrated quantum error
+                  correction advances, and several startups are making progress
+                  on room-temperature quantum systems.
+                </p>
+
+                {/* CoT component - appears after text, always has headline */}
+                {hasStarted ? (
+                  <ChainOfThoughtRoot
+                    defaultOpen={false}
+                    className="mb-0 border-0 p-0"
+                  >
+                    <ChainOfThoughtCyclingTrigger
+                      label={headline}
+                      active={isStreaming}
+                    />
+                    <ChainOfThoughtContent aria-busy={isStreaming}>
+                      <ChainOfThoughtTrace
+                        trace={trace}
+                        maxDepth={3}
+                        autoScroll={false}
+                        scrollable={false}
+                        windowSize={0}
+                        allowGroupExpand
+                      />
+                    </ChainOfThoughtContent>
+                  </ChainOfThoughtRoot>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Right sidebar with controls */}
+      <div className="flex w-56 shrink-0 flex-col gap-4 border-l bg-muted/30 p-4">
+        <div className="space-y-1">
+          <h3 className="font-medium text-foreground text-sm">
+            Simulation Controls
+          </h3>
+          <p className="text-muted-foreground text-xs">
+            Control the trace streaming demo
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <Button
+            type="button"
+            size="sm"
+            onClick={start}
+            disabled={isStreaming}
+            className="w-full"
+          >
+            {isStreaming ? "Streaming..." : "Start"}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            onClick={stepOnce}
+            disabled={isStreaming}
+            className="w-full"
+          >
+            Step
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={handleReset}
+            className="w-full"
+          >
+            Reset
+          </Button>
+        </div>
+
+        {isManual ? (
+          <div className="rounded-md bg-muted px-2 py-1.5">
+            <span className="text-muted-foreground text-xs">Manual mode</span>
+          </div>
+        ) : null}
+
+        {durationSec != null && !isStreaming ? (
+          <div className="rounded-md bg-muted px-2 py-1.5">
+            <span className="text-muted-foreground text-xs">
+              Completed in {durationSec}s
+            </span>
+          </div>
+        ) : null}
+
+        {isStreaming && startTimeRef.current != null ? (
+          <StreamingTimer startTime={startTimeRef.current} />
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function StreamingTimer({ startTime }: { startTime: number }) {
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setElapsed(Math.floor((Date.now() - startTime) / 1000));
+    }, 1000);
+    return () => window.clearInterval(interval);
+  }, [startTime]);
+
+  return (
+    <div className="rounded-md bg-muted px-2 py-1.5">
+      <span className="text-muted-foreground text-xs">Elapsed: {elapsed}s</span>
+    </div>
   );
 }
 
