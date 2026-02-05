@@ -85,6 +85,10 @@ function withExtensionsCapabilities(
  * The returned bridge:
  * - Delegates all MCP behavior to `bridge`
  * - Adds ChatGPT-only helpers (widget state, file APIs, modals) when available
+ *
+ * @param bridge - Base MCP bridge to extend.
+ * @returns The same `bridge` instance with ChatGPT-only extensions attached
+ * when available.
  */
 export function withChatGPTExtensions(bridge: ExtendedBridge): ExtendedBridge {
   const openai = getChatGPTExtensions();

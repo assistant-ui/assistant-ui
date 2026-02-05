@@ -66,6 +66,44 @@ function App() {
 }
 ```
 
+## Migrating from 0.5.x
+
+### Platform detection
+
+`detectPlatform()` now reports host family (`"mcp"` or `"unknown"`). It no
+longer returns `"chatgpt"` directly.
+
+```tsx
+// Before (0.5.x)
+import { detectPlatform } from "mcp-app-studio";
+
+if (detectPlatform() === "chatgpt") {
+  // ChatGPT-specific behavior
+}
+
+// After (MCP-first)
+import { hasChatGPTExtensions, useFeature } from "mcp-app-studio";
+
+if (hasChatGPTExtensions()) {
+  // ChatGPT extension layer is available (window.openai)
+}
+
+const hasWidgetState = useFeature("widgetState");
+```
+
+### Provider imports
+
+Use `UniversalProvider` from the main package export. The
+`mcp-app-studio/chatgpt` entrypoint is removed.
+
+```tsx
+// Before (0.5.x)
+import { ChatGPTProvider } from "mcp-app-studio/chatgpt";
+
+// After (MCP-first)
+import { UniversalProvider } from "mcp-app-studio";
+```
+
 ## Platform Capabilities
 
 | Feature | MCP Apps bridge | ChatGPT extensions (`window.openai`) |
