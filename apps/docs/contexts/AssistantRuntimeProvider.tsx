@@ -15,6 +15,7 @@ import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { useEffect, useRef, type ReactNode } from "react";
 import { useCurrentPage } from "@/components/docs/contexts/current-page";
 import { analytics } from "@/lib/analytics";
+import { queueMicrotaskSafe } from "@/lib/assistant-analytics-helpers";
 import {
   countToolCalls,
   getAssistantMessageTokenUsage,
@@ -25,20 +26,6 @@ type ThreadMessagePart = { type: string; text?: string };
 
 const RUN_STARTED_AT_STALE_THRESHOLD_MS = 30 * 60_000;
 const RUN_STARTED_AT_CLEANUP_INTERVAL_MS = 60_000;
-
-function getLastUserMessage(
-  messages: readonly {
-    role?: string;
-    content?: readonly ThreadMessagePart[];
-    attachments?: readonly unknown[];
-  }[],
-) {
-  for (let idx = messages.length - 1; idx >= 0; idx -= 1) {
-    const message = messages[idx];
-    if (message?.role === "user") return message;
-  }
-  return undefined;
-}
 
 function getLastAssistantMessage(
   messages: readonly {
@@ -88,37 +75,6 @@ function AssistantAnalyticsTracker() {
     pathnameRef.current = pathname;
   }, [pathname]);
 
-  useAuiEvent("composer.send", (event) => {
-    const messages = (() => {
-      try {
-        return aui.thread().getState().messages;
-      } catch {
-        return [];
-      }
-    })();
-
-    const lastUser = getLastUserMessage(messages);
-    const messageLength = getTextLength(lastUser?.content ?? []);
-    const attachmentsCount = lastUser?.attachments?.length ?? 0;
-
-    let modelName: string | undefined;
-    try {
-      modelName = aui.thread().getModelContext()?.config?.modelName;
-    } catch {
-      // ignore
-    }
-
-    analytics.assistant.messageSent({
-      threadId: event.threadId,
-      ...(event.messageId ? { messageId: event.messageId } : {}),
-      source: "composer",
-      message_length: messageLength,
-      attachments_count: attachmentsCount,
-      ...(pathnameRef.current ? { pathname: pathnameRef.current } : {}),
-      ...(modelName ? { model_name: modelName } : {}),
-    });
-  });
-
   const runStartedAtRef = useRef(new Map<string, number>());
 
   useEffect(() => {
@@ -143,29 +99,31 @@ function AssistantAnalyticsTracker() {
     const latencyMs =
       startedAt === undefined ? undefined : Date.now() - startedAt;
 
-    const messages = (() => {
+    queueMicrotaskSafe(() => {
+      const messages = (() => {
+        try {
+          return aui.thread().getState().messages;
+        } catch {
+          return [];
+        }
+      })();
+
+      const lastAssistant = getLastAssistantMessage(messages);
+      const responseLength = getTextLength(lastAssistant?.content ?? []);
+      const toolCallsCount = countToolCalls(lastAssistant?.content ?? []);
+      const status = lastAssistant?.status;
+      const tokenUsage = getAssistantMessageTokenUsage(lastAssistant);
+
+      let modelName: string | undefined;
       try {
-        return aui.thread().getState().messages;
+        modelName = aui.thread().getModelContext()?.config?.modelName;
       } catch {
-        return [];
+        // ignore
       }
-    })();
 
-    const lastAssistant = getLastAssistantMessage(messages);
-    const responseLength = getTextLength(lastAssistant?.content ?? []);
-    const toolCallsCount = countToolCalls(lastAssistant?.content ?? []);
-    const status = lastAssistant?.status;
-    const tokenUsage = getAssistantMessageTokenUsage(lastAssistant);
-
-    let modelName: string | undefined;
-    try {
-      modelName = aui.thread().getModelContext()?.config?.modelName;
-    } catch {
-      // ignore
-    }
-
-    const payload: Parameters<typeof analytics.assistant.responseCompleted>[0] =
-      {
+      const payload: Parameters<
+        typeof analytics.assistant.responseCompleted
+      >[0] = {
         threadId: event.threadId,
         response_length: responseLength,
         tool_calls_count: toolCallsCount,
@@ -184,12 +142,13 @@ function AssistantAnalyticsTracker() {
         ...(modelName ? { model_name: modelName } : {}),
       };
 
-    if (status?.type === "incomplete") {
-      analytics.assistant.responseFailed(payload);
-      return;
-    }
+      if (status?.type === "incomplete") {
+        analytics.assistant.responseFailed(payload);
+        return;
+      }
 
-    analytics.assistant.responseCompleted(payload);
+      analytics.assistant.responseCompleted(payload);
+    });
   });
 
   return null;

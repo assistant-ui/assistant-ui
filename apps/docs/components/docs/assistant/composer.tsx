@@ -1,9 +1,17 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { useCurrentPage } from "@/components/docs/contexts/current-page";
 import { ModelSelector } from "@/components/assistant-ui/model-selector";
 import { MODELS } from "@/constants/model";
-import { AuiIf, ComposerPrimitive } from "@assistant-ui/react";
+import { analytics } from "@/lib/analytics";
+import { getComposerMessageMetrics } from "@/lib/assistant-analytics-helpers";
+import {
+  AuiIf,
+  ComposerPrimitive,
+  useAui,
+  useAuiState,
+} from "@assistant-ui/react";
 import { ArrowUpIcon, SquareIcon } from "lucide-react";
 import Image from "next/image";
 import type { ReactNode } from "react";
@@ -24,8 +32,37 @@ const models = MODELS.map((m) => ({
 }));
 
 export function AssistantComposer(): ReactNode {
+  const aui = useAui();
+  const threadId = useAuiState(({ threadListItem }) => threadListItem.id);
+  const currentPage = useCurrentPage();
+  const pathname = currentPage?.pathname;
+
+  const handleSubmit = () => {
+    const metrics = getComposerMessageMetrics(aui.composer().getState());
+    if (!metrics) return;
+
+    let modelName: string | undefined;
+    try {
+      modelName = aui.thread().getModelContext()?.config?.modelName;
+    } catch {
+      // ignore
+    }
+
+    analytics.assistant.messageSent({
+      threadId,
+      source: "composer",
+      message_length: metrics.messageLength,
+      attachments_count: metrics.attachmentsCount,
+      ...(pathname ? { pathname } : {}),
+      ...(modelName ? { model_name: modelName } : {}),
+    });
+  };
+
   return (
-    <ComposerPrimitive.Root className="bg-background py-2">
+    <ComposerPrimitive.Root
+      onSubmit={handleSubmit}
+      className="bg-background py-2"
+    >
       <div className="rounded-xl border border-border bg-muted/50 focus-within:border-ring/50 focus-within:ring-1 focus-within:ring-ring/20">
         <ComposerPrimitive.Input asChild>
           <textarea
