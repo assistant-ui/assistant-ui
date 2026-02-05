@@ -47,6 +47,10 @@ export class CloudMessagePersistence {
       .then(({ message_id }) => {
         this.idMapping[messageId] = message_id;
         return message_id;
+      })
+      .catch((err) => {
+        delete this.idMapping[messageId];
+        throw err;
       });
 
     // Store the promise immediately so concurrent appends can await it
