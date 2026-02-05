@@ -28,6 +28,20 @@ function countToolCalls(parts: readonly { type: string }[]): number {
   return parts.filter((p) => p.type === "tool-call").length;
 }
 
+function getLastUserMessage(
+  messages: readonly {
+    role?: string;
+    content?: readonly ThreadMessagePart[];
+    attachments?: readonly unknown[];
+  }[],
+) {
+  for (let idx = messages.length - 1; idx >= 0; idx -= 1) {
+    const message = messages[idx];
+    if (message?.role === "user") return message;
+  }
+  return undefined;
+}
+
 function getLastAssistantMessage(
   messages: readonly {
     role?: string;
@@ -129,15 +143,17 @@ function AssistantAnalyticsTracker() {
   }, [pathname]);
 
   useAuiEvent("composer.send", (event) => {
-    let messageLength = 0;
-    let attachmentsCount = 0;
-    try {
-      const composerState = aui.composer().getState();
-      messageLength = composerState.text.length;
-      attachmentsCount = composerState.attachments.length;
-    } catch {
-      // ignore
-    }
+    const messages = (() => {
+      try {
+        return aui.thread().getState().messages;
+      } catch {
+        return [];
+      }
+    })();
+
+    const lastUser = getLastUserMessage(messages);
+    const messageLength = getTextLength(lastUser?.content ?? []);
+    const attachmentsCount = lastUser?.attachments?.length ?? 0;
 
     let modelName: string | undefined;
     try {

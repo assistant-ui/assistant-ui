@@ -9,4 +9,8 @@ if (apiKey) {
     defaults: "2025-11-30",
     capture_exceptions: true,
   });
+
+  if (typeof window !== "undefined") {
+    window.posthog = posthog;
+  }
 }

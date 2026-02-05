@@ -17,18 +17,15 @@ function getMessageText(
     .join("");
 }
 
-function getToolCalls(
-  content: readonly { type: string; toolName?: string; args?: unknown }[],
-): Array<{ toolName: string; args: Record<string, unknown> }> {
+function getToolCallToolNames(
+  content: readonly { type: string; toolName?: string }[],
+): string[] {
   return content
     .filter(
-      (p): p is { type: "tool-call"; toolName: string; args: unknown } =>
-        p.type === "tool-call",
+      (p): p is { type: "tool-call"; toolName: string } =>
+        p.type === "tool-call" && typeof p.toolName === "string",
     )
-    .map((p) => ({
-      toolName: p.toolName,
-      args: (p.args as Record<string, unknown>) ?? {},
-    }));
+    .map((p) => p.toolName);
 }
 
 export function AssistantActionBar(): ReactNode {
@@ -57,8 +54,8 @@ export function AssistantActionBar(): ReactNode {
   );
   const userQuestion = userMessage ? getMessageText(userMessage.content) : "";
   const assistantResponse = getMessageText(content);
-  const toolCalls = getToolCalls(content);
-  const toolNames = toolCalls.map((t) => t.toolName);
+  const toolNames = getToolCallToolNames(content);
+  const toolCallsCount = toolNames.length;
 
   // Don't show feedback buttons while message is still streaming or if no content
   if (isRunning || !assistantResponse.trim()) {
@@ -74,7 +71,7 @@ export function AssistantActionBar(): ReactNode {
       type: "positive",
       user_question_length: userQuestion.length,
       assistant_response_length: assistantResponse.length,
-      tool_calls_count: toolCalls.length,
+      tool_calls_count: toolCallsCount,
       ...(toolNames.length > 0 ? { tool_names: toolNames.join(",") } : {}),
     });
   };
@@ -93,7 +90,7 @@ export function AssistantActionBar(): ReactNode {
       ...(comment ? { comment_length: comment.length } : {}),
       user_question_length: userQuestion.length,
       assistant_response_length: assistantResponse.length,
-      tool_calls_count: toolCalls.length,
+      tool_calls_count: toolCallsCount,
       ...(toolNames.length > 0 ? { tool_names: toolNames.join(",") } : {}),
     });
   };
