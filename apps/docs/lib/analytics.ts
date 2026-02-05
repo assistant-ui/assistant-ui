@@ -46,7 +46,7 @@ const trackEvent = (
   void getVercelTrack().then((track) => track?.(event, properties));
 
   // Umami
-  window.umami?.track(event, properties);
+  window.umami?.track?.(event, properties);
 };
 
 export const analytics = {

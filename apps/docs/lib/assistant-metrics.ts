@@ -82,17 +82,12 @@ export function getAssistantMessageTokenUsage(
           ? totalTokensFromParts
           : 0;
 
-    if (
-      totalTokens > 0 ||
-      inputTokens !== undefined ||
-      outputTokens !== undefined
-    ) {
-      return {
-        ...(totalTokens > 0 ? { totalTokens } : {}),
-        ...(inputTokens !== undefined ? { inputTokens } : {}),
-        ...(outputTokens !== undefined ? { outputTokens } : {}),
-      };
-    }
+    if (totalTokens <= 0) return {};
+    return {
+      totalTokens,
+      ...(inputTokens !== undefined ? { inputTokens } : {}),
+      ...(outputTokens !== undefined ? { outputTokens } : {}),
+    };
   }
 
   const steps = metadata?.["steps"];
