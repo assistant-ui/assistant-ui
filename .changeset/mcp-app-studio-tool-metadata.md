@@ -1,5 +1,5 @@
 ---
-"mcp-app-studio": patch
+"mcp-app-studio": major
 ---
 
-Fix initial ChatGPT tool metadata emission.
+Adopt MCP-first breaking changes: remove the dedicated ChatGPT platform/entrypoint, treat ChatGPT as an MCP host, and align runtime metadata/extensions on the MCP bridge.

@@ -35,7 +35,22 @@ export function MCPProvider({
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    bridge.connect().then(() => setReady(true));
+    let cancelled = false;
+
+    bridge
+      .connect()
+      .catch((error) => {
+        if (cancelled) return;
+        console.error("[mcp-app-studio] Bridge connection failed:", error);
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setReady(true);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [bridge]);
 
   if (!ready) return null;

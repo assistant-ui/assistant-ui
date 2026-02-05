@@ -11,6 +11,7 @@ import { MCPBridge, type AppCapabilities } from "../platforms/mcp/bridge";
 import { withChatGPTExtensions } from "../extensions/chatgpt";
 import type { ExtendedBridge } from "../core/bridge";
 import type { Platform } from "../core/types";
+import { detectPlatform } from "./detect";
 
 const UniversalContext = createContext<ExtendedBridge | null>(null);
 const PlatformContext = createContext<Platform>("unknown");
@@ -33,11 +34,14 @@ export function UniversalProvider({
   useEffect(() => {
     let cancelled = false;
 
-    // Always attempt the MCP Apps bridge. If we're not inside a host, the
-    // MCPBridge connect() call is guarded by a timeout to avoid hanging.
-    //
-    // If ChatGPT-only extensions are available (`window.openai`), layer them
-    // on top of the MCP bridge via feature detection.
+    const detectedPlatform = detectPlatform();
+    if (detectedPlatform !== "mcp") {
+      setBridge(null);
+      setPlatform("unknown");
+      setReady(true);
+      return;
+    }
+
     const newBridge = withChatGPTExtensions(
       new MCPBridge(appInfo, appCapabilities),
     );

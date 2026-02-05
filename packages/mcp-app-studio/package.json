@@ -1,7 +1,7 @@
 {
   "name": "mcp-app-studio",
-  "version": "0.6.0",
-  "description": "Build interactive apps for MCP Apps hosts (ChatGPT, Claude Desktop, etc.)"
+  "version": "0.5.2",
+  "description": "Build interactive apps for MCP Apps hosts (ChatGPT, Claude Desktop, etc.)",
   "keywords": [
     "chatgpt",
     "openai",
@@ -92,9 +92,11 @@
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/node": "^25.2.0",
     "@types/react": "^19.2.10",
+    "@types/react-dom": "^19.2.0",
     "@types/tar": "^6.1.13",
     "@vitest/coverage-v8": "^4.0.18",
     "react": "^19.2.4",
+    "react-dom": "^19.2.4",
     "tsup": "^8.5.1",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
