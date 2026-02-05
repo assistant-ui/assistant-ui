@@ -11,11 +11,16 @@ import { AssistantMessage, UserMessage } from "./messages";
 import { AssistantComposer } from "./composer";
 import { useAssistantPanel } from "@/components/docs/assistant/context";
 import { AssistantFooter } from "@/components/docs/assistant/footer";
+import { analytics } from "@/lib/analytics";
+import { useCurrentPage } from "@/components/docs/contexts/current-page";
 
 function PendingMessageHandler() {
   const { pendingMessage, clearPendingMessage } = useAssistantPanel();
   const aui = useAui();
   const isRunning = useAuiState(({ thread }) => thread.isRunning);
+  const threadId = useAuiState(({ threadListItem }) => threadListItem.id);
+  const currentPage = useCurrentPage();
+  const pathname = currentPage?.pathname;
   const processedRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -24,8 +29,23 @@ function PendingMessageHandler() {
 
     processedRef.current = pendingMessage;
     clearPendingMessage();
+    analytics.assistant.messageSent({
+      threadId,
+      source: "ask_ai",
+      message_length: pendingMessage.length,
+      attachments_count: 0,
+      ...(pathname ? { pathname } : {}),
+      ...(() => {
+        try {
+          const modelName = aui.thread().getModelContext()?.config?.modelName;
+          return modelName ? { model_name: modelName } : {};
+        } catch {
+          return {};
+        }
+      })(),
+    });
     aui.thread().append(pendingMessage);
-  }, [pendingMessage, clearPendingMessage, aui, isRunning]);
+  }, [pendingMessage, clearPendingMessage, aui, isRunning, threadId, pathname]);
 
   return null;
 }

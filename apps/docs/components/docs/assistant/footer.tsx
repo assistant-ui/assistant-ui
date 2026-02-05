@@ -4,6 +4,8 @@ import { useAuiState, useAui } from "@assistant-ui/react";
 import { PlusIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { analytics } from "@/lib/analytics";
+import { useCurrentPage } from "@/components/docs/contexts/current-page";
 
 const CONTEXT_WINDOW = 400_000;
 
@@ -15,7 +17,10 @@ function getUsageColorClass(percent: number): string {
 
 export function AssistantFooter(): ReactNode {
   const aui = useAui();
+  const threadId = useAuiState(({ threadListItem }) => threadListItem.id);
   const messages = useAuiState(({ thread }) => thread.messages);
+  const currentPage = useCurrentPage();
+  const pathname = currentPage?.pathname;
 
   const totalTokens = messages.reduce((acc, message) => {
     if (message.role !== "assistant") return acc;
@@ -51,7 +56,18 @@ export function AssistantFooter(): ReactNode {
     <div className="flex items-center justify-between px-3 py-1.5">
       <button
         type="button"
-        onClick={() => aui.threads().switchToNewThread()}
+        onClick={() => {
+          const modelName = aui.thread().getModelContext()?.config?.modelName;
+          analytics.assistant.newThreadClicked({
+            threadId,
+            previous_message_count: messages.length,
+            context_total_tokens: totalTokens,
+            context_usage_percent: usagePercent,
+            ...(pathname ? { pathname } : {}),
+            ...(modelName ? { model_name: modelName } : {}),
+          });
+          aui.threads().switchToNewThread();
+        }}
         className="flex items-center gap-1.5 rounded-md px-2 py-1 text-muted-foreground text-xs transition-colors hover:bg-muted hover:text-foreground"
       >
         <PlusIcon className="size-3.5" />

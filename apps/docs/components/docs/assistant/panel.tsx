@@ -4,6 +4,7 @@ import { AssistantThread } from "@/components/docs/assistant/thread";
 import { Button } from "@/components/ui/button";
 import { useAssistantPanel } from "@/components/docs/assistant/context";
 import { cn } from "@/lib/utils";
+import { analytics } from "@/lib/analytics";
 import { PanelRightCloseIcon, SparklesIcon } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 
@@ -54,11 +55,16 @@ function ResizeHandle() {
 export function AssistantPanelToggle(): React.ReactNode {
   const { open, toggle } = useAssistantPanel();
 
+  const handleClick = () => {
+    analytics.assistant.panelToggled({ open: !open, source: "toggle" });
+    toggle();
+  };
+
   return (
     <Button
       variant="ghost"
       size="icon"
-      onClick={toggle}
+      onClick={handleClick}
       className={cn(
         "absolute top-1/2 left-0 z-10 size-6 -translate-x-1/2 -translate-y-1/2 rounded-full border bg-background shadow-sm transition-opacity duration-300",
         open ? "opacity-100" : "pointer-events-none opacity-0",
@@ -73,11 +79,16 @@ export function AssistantPanelToggle(): React.ReactNode {
 export function AssistantPanelContent(): React.ReactNode {
   const { open, toggle } = useAssistantPanel();
 
+  const handleTriggerClick = () => {
+    analytics.assistant.panelToggled({ open: !open, source: "trigger" });
+    toggle();
+  };
+
   return (
     <div className="relative h-full w-(--panel-content-width) bg-background before:absolute before:top-0 before:bottom-0 before:left-0 before:w-px before:bg-linear-to-b before:from-transparent before:via-border before:to-transparent">
       <button
         type="button"
-        onClick={toggle}
+        onClick={handleTriggerClick}
         className={cn(
           "group absolute inset-y-0 left-0 z-20 w-[44px] cursor-pointer bg-background transition-opacity duration-300",
           "before:absolute before:top-0 before:bottom-0 before:left-0 before:w-px before:bg-linear-to-b before:from-transparent before:via-border before:to-transparent",

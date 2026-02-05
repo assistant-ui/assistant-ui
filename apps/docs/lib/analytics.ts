@@ -147,6 +147,63 @@ export const analytics = {
   },
 
   assistant: {
+    panelToggled: (props: { open: boolean; source: "trigger" | "toggle" }) => {
+      trackEvent("assistant_panel_toggled", props);
+    },
+
+    messageSent: (props: {
+      threadId: string;
+      messageId?: string;
+      source: "composer" | "ask_ai";
+      message_length: number;
+      attachments_count: number;
+      pathname?: string;
+      model_name?: string;
+    }) => {
+      trackEvent("assistant_message_sent", props);
+    },
+
+    responseCompleted: (props: {
+      threadId: string;
+      latency_ms?: number;
+      status_reason?: string;
+      response_length: number;
+      tool_calls_count: number;
+      response_total_tokens?: number;
+      response_input_tokens?: number;
+      response_output_tokens?: number;
+      pathname?: string;
+      model_name?: string;
+    }) => {
+      trackEvent("assistant_response_completed", props);
+    },
+
+    responseFailed: (props: {
+      threadId: string;
+      latency_ms?: number;
+      status_reason?: string;
+      response_length: number;
+      tool_calls_count: number;
+      response_total_tokens?: number;
+      response_input_tokens?: number;
+      response_output_tokens?: number;
+      pathname?: string;
+      model_name?: string;
+    }) => {
+      trackEvent("assistant_response_failed", props);
+    },
+
+    newThreadClicked: (props: {
+      threadId?: string;
+      previous_message_count: number;
+      context_total_tokens: number;
+      context_usage_percent: number;
+      pathname?: string;
+      model_name?: string;
+    }) => {
+      trackEvent("assistant_new_thread_clicked", props);
+    },
+
     feedbackSubmitted: (props: {
       threadId: string;
       messageId: string;
