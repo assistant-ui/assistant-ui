@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  consumeRunStartedAt,
   getComposerMessageMetrics,
+  pruneStaleRunStarts,
   queueMicrotaskSafe,
+  recordRunStartedAt,
 } from "./assistant-analytics-helpers";
 
 test("getComposerMessageMetrics returns undefined for empty composer", () => {
@@ -50,4 +53,28 @@ test("queueMicrotaskSafe reads state after synchronous updates", async () => {
   });
 
   assert.equal(captured, 2);
+});
+
+test("run-start tracking keeps separate start times per thread run", () => {
+  const runStarts = new Map<string, number[]>();
+
+  recordRunStartedAt(runStarts, "thread-1", 100);
+  recordRunStartedAt(runStarts, "thread-1", 200);
+
+  assert.equal(consumeRunStartedAt(runStarts, "thread-1"), 100);
+  assert.equal(consumeRunStartedAt(runStarts, "thread-1"), 200);
+  assert.equal(consumeRunStartedAt(runStarts, "thread-1"), undefined);
+});
+
+test("run-start cleanup removes only stale entries", () => {
+  const runStarts = new Map<string, number[]>();
+
+  recordRunStartedAt(runStarts, "thread-1", 100);
+  recordRunStartedAt(runStarts, "thread-1", 300);
+  recordRunStartedAt(runStarts, "thread-2", 350);
+
+  pruneStaleRunStarts(runStarts, 400, 150);
+
+  assert.deepEqual(runStarts.get("thread-1"), [300]);
+  assert.deepEqual(runStarts.get("thread-2"), [350]);
 });

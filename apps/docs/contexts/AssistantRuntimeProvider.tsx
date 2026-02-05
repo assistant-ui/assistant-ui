@@ -15,7 +15,12 @@ import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { useEffect, useRef, type ReactNode } from "react";
 import { useCurrentPage } from "@/components/docs/contexts/current-page";
 import { analytics } from "@/lib/analytics";
-import { queueMicrotaskSafe } from "@/lib/assistant-analytics-helpers";
+import {
+  consumeRunStartedAt,
+  pruneStaleRunStarts,
+  queueMicrotaskSafe,
+  recordRunStartedAt,
+} from "@/lib/assistant-analytics-helpers";
 import {
   countToolCalls,
   getAssistantMessageTokenUsage,
@@ -75,27 +80,29 @@ function AssistantAnalyticsTracker() {
     pathnameRef.current = pathname;
   }, [pathname]);
 
-  const runStartedAtRef = useRef(new Map<string, number>());
+  const runStartedAtRef = useRef(new Map<string, number[]>());
 
   useEffect(() => {
     const interval = setInterval(() => {
-      const now = Date.now();
-      for (const [threadId, startedAt] of runStartedAtRef.current.entries()) {
-        if (now - startedAt <= RUN_STARTED_AT_STALE_THRESHOLD_MS) continue;
-        runStartedAtRef.current.delete(threadId);
-      }
+      pruneStaleRunStarts(
+        runStartedAtRef.current,
+        Date.now(),
+        RUN_STARTED_AT_STALE_THRESHOLD_MS,
+      );
     }, RUN_STARTED_AT_CLEANUP_INTERVAL_MS);
 
     return () => clearInterval(interval);
   }, []);
 
   useAuiEvent("thread.runStart", (event) => {
-    runStartedAtRef.current.set(event.threadId, Date.now());
+    recordRunStartedAt(runStartedAtRef.current, event.threadId, Date.now());
   });
 
   useAuiEvent("thread.runEnd", (event) => {
-    const startedAt = runStartedAtRef.current.get(event.threadId);
-    runStartedAtRef.current.delete(event.threadId);
+    const startedAt = consumeRunStartedAt(
+      runStartedAtRef.current,
+      event.threadId,
+    );
     const latencyMs =
       startedAt === undefined ? undefined : Date.now() - startedAt;
 
