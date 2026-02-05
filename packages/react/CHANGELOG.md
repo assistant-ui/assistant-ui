@@ -1,5 +1,16 @@
 # @assistant-ui/react
 
+## 0.12.7
+
+### Patch Changes
+
+- 77af8c3: fix: runtime not responsive if loaded under React StrictMode (critial bug)
+- 9ef966a: fix(store): memoize the aui client instance
+- Updated dependencies [77af8c3]
+- Updated dependencies [9ef966a]
+  - @assistant-ui/tap@0.4.4
+  - @assistant-ui/store@0.1.5
+
 ## 0.12.6
 
 ### Patch Changes

@@ -1,5 +1,11 @@
 # @assistant-ui/tap
 
+## 0.4.4
+
+### Patch Changes
+
+- 77af8c3: fix: runtime not responsive if loaded under React StrictMode (critial bug)
+
 ## 0.4.3
 
 ### Patch Changes
