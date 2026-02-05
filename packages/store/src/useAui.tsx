@@ -46,6 +46,11 @@ import {
   createProxiedAssistantState,
 } from "./utils/proxied-assistant-state";
 
+const tapShallowMemoArray = <T,>(array: readonly T[]) => {
+  // biome-ignore lint/correctness/useExhaustiveDependencies: shallow memo
+  return tapMemo(() => array, array);
+};
+
 const RootClientResource = resource(
   <K extends ClientNames>({
     element,
@@ -131,20 +136,22 @@ const RootClientsAccessorsResource = resource(
       [clientRef, notifications],
     );
 
-    const results = tapResources(
-      () =>
-        Object.keys(inputClients).map((key) =>
-          withKey(
-            key,
-            RootClientAccessorResource({
-              element: inputClients[key as keyof typeof inputClients]!,
-              notifications,
-              clientRef,
-              name: key as keyof typeof inputClients,
-            }),
+    const results = tapShallowMemoArray(
+      tapResources(
+        () =>
+          Object.keys(inputClients).map((key) =>
+            withKey(
+              key,
+              RootClientAccessorResource({
+                element: inputClients[key as keyof typeof inputClients]!,
+                notifications,
+                clientRef,
+                name: key as keyof typeof inputClients,
+              }),
+            ),
           ),
-        ),
-      [inputClients, notifications, clientRef],
+        [inputClients, notifications, clientRef],
+      ),
     );
 
     return tapMemo(() => {
@@ -261,19 +268,21 @@ const DerivedClientsAccessorsResource = resource(
     clients: DerivedClients;
     clientRef: { parent: AssistantClient; current: AssistantClient | null };
   }) => {
-    return tapResources(
-      () =>
-        Object.keys(clients).map((key) =>
-          withKey(
-            key,
-            DerivedClientAccessorResource({
-              element: clients[key as keyof typeof clients]!,
-              clientRef,
-              name: key as keyof typeof clients,
-            }),
+    return tapShallowMemoArray(
+      tapResources(
+        () =>
+          Object.keys(clients).map((key) =>
+            withKey(
+              key,
+              DerivedClientAccessorResource({
+                element: clients[key as keyof typeof clients]!,
+                clientRef,
+                name: key as keyof typeof clients,
+              }),
+            ),
           ),
-        ),
-      [clients, clientRef],
+        [clients, clientRef],
+      ),
     );
   },
 );
