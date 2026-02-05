@@ -1,5 +1,11 @@
 # mcp-app-studio
 
+## 0.6.0
+
+### Minor Changes
+
+- acb2e3c: Adopt MCP-first breaking changes: remove the dedicated ChatGPT platform/entrypoint, treat ChatGPT as an MCP host, and align runtime metadata/extensions on the MCP bridge.
+
 ## 0.5.2
 
 ### Patch Changes
