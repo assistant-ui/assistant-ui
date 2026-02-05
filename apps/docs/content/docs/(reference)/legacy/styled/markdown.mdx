@@ -20,7 +20,7 @@ Allow the assistant to display rich text using markdown.
 
 ### Setup styles
 
-<Tabs items={["Tailwind", "Tailwind + shadcn-ui", "Not using Tailwind"]}>
+<Tabs items={["Tailwind", "Tailwind + shadcn-ui"]}>
 
 ```ts {3} title="/tailwind.config.ts" tab="Tailwind"
 {
@@ -38,11 +38,6 @@ Allow the assistant to display rich text using markdown.
     require("@assistant-ui/react-ui/tailwindcss")({ shadcn: true })
   ],
 }
-```
-
-```ts title="/app/layout.tsx" tab="Not using Tailwind"
-import "@assistant-ui/react-ui/styles/index.css";
-import "@assistant-ui/react-ui/styles/markdown.css";
 ```
 
 </Tabs>
