@@ -3,19 +3,22 @@ import test from "node:test";
 import { analytics } from "./analytics";
 
 test("analytics does not throw when umami exists without track", () => {
-  const previousWindow = (globalThis as { window?: unknown }).window;
+  const globalObject = globalThis as { window?: unknown };
+  const previousWindow = globalObject.window;
 
-  (globalThis as { window?: unknown }).window = {
-    umami: {},
-  };
+  try {
+    globalObject.window = {
+      umami: {},
+    };
 
-  assert.doesNotThrow(() => {
-    analytics.cta.clicked("get_started", "header");
-  });
-
-  if (previousWindow === undefined) {
-    delete (globalThis as { window?: unknown }).window;
-  } else {
-    (globalThis as { window?: unknown }).window = previousWindow;
+    assert.doesNotThrow(() => {
+      analytics.cta.clicked("get_started", "header");
+    });
+  } finally {
+    if (previousWindow === undefined) {
+      delete globalObject.window;
+    } else {
+      globalObject.window = previousWindow;
+    }
   }
 });
