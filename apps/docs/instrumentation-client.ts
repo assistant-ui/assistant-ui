@@ -11,6 +11,8 @@ if (apiKey) {
   });
 
   if (typeof window !== "undefined") {
-    window.posthog = posthog;
+    window.posthog = {
+      capture: (event, properties) => posthog.capture(event, properties),
+    };
   }
 }
