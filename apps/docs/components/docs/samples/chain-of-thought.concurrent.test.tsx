@@ -4,7 +4,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { createRoot } from "react-dom/client";
 import { act } from "react";
-import { ChainOfThoughtConcurrentStreamingSample } from "./chain-of-thought";
+import { ChainOfThoughtConcurrentStreamingSample } from "./chain-of-thought-demo";
 
 const globalWithAct = globalThis as typeof globalThis & {
   IS_REACT_ACT_ENVIRONMENT?: boolean;
