@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import {
   detectPlatform,
   detectPlatformDetailed,
-  isChatGPT,
   isMCP,
+  hasChatGPTExtensions,
   enableDebugMode,
   disableDebugMode,
 } from "./detect";
@@ -36,7 +36,7 @@ describe("detectPlatform", () => {
     expect(detectPlatform()).toBe("unknown");
   });
 
-  it("should return chatgpt when window.openai exists", () => {
+  it("should return unknown when window.openai exists (extensions ≠ host)", () => {
     const mockWindow: MockWindow = {
       location: { search: "" },
       frameElement: null,
@@ -44,7 +44,7 @@ describe("detectPlatform", () => {
     };
     globalThis.window = mockWindow as unknown as Window & typeof globalThis;
 
-    expect(detectPlatform()).toBe("chatgpt");
+    expect(detectPlatform()).toBe("unknown");
   });
 
   it("should return mcp when mcp-host URL param exists", () => {
@@ -72,7 +72,7 @@ describe("detectPlatform", () => {
     expect(detectPlatform()).toBe("unknown");
   });
 
-  it("should prioritize ChatGPT over MCP markers", () => {
+  it("should treat MCP markers as host detection even if window.openai exists", () => {
     const mockWindow: MockWindow = {
       location: { search: "" },
       frameElement: null,
@@ -81,11 +81,11 @@ describe("detectPlatform", () => {
     };
     globalThis.window = mockWindow as unknown as Window & typeof globalThis;
 
-    expect(detectPlatform()).toBe("chatgpt");
+    expect(detectPlatform()).toBe("mcp");
   });
 });
 
-describe("isChatGPT", () => {
+describe("hasChatGPTExtensions", () => {
   const originalWindow = globalThis.window;
 
   beforeEach(() => {
@@ -100,7 +100,7 @@ describe("isChatGPT", () => {
     globalThis.window = originalWindow;
   });
 
-  it("should return true when on ChatGPT", () => {
+  it("should return true when window.openai exists", () => {
     const mockWindow: MockWindow = {
       location: { search: "" },
       frameElement: null,
@@ -108,11 +108,11 @@ describe("isChatGPT", () => {
     };
     globalThis.window = mockWindow as unknown as Window & typeof globalThis;
 
-    expect(isChatGPT()).toBe(true);
+    expect(hasChatGPTExtensions()).toBe(true);
   });
 
-  it("should return false when not on ChatGPT", () => {
-    expect(isChatGPT()).toBe(false);
+  it("should return false when window.openai is missing", () => {
+    expect(hasChatGPTExtensions()).toBe(false);
   });
 });
 
@@ -162,7 +162,7 @@ describe("detectPlatformDetailed", () => {
     globalThis.window = originalWindow;
   });
 
-  it("should return detailed result with detection method for ChatGPT", () => {
+  it("should record window.openai in checks (extensions)", () => {
     const mockWindow: MockWindow = {
       location: { search: "" },
       frameElement: null,
@@ -171,8 +171,8 @@ describe("detectPlatformDetailed", () => {
     globalThis.window = mockWindow as unknown as Window & typeof globalThis;
 
     const result = detectPlatformDetailed();
-    expect(result.platform).toBe("chatgpt");
-    expect(result.detectedBy).toBe("window.openai");
+    expect(result.platform).toBe("unknown");
+    expect(result.detectedBy).toBeNull();
     expect(result.checks.windowOpenai).toBe(true);
   });
 

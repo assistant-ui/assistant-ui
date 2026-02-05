@@ -1,7 +1,7 @@
 {
   "name": "mcp-app-studio",
-  "version": "0.5.2",
-  "description": "Build interactive apps for AI assistants (ChatGPT, Claude, MCP hosts)",
+  "version": "0.6.0",
+  "description": "Build interactive apps for MCP Apps hosts (ChatGPT, Claude Desktop, etc.)"
   "keywords": [
     "chatgpt",
     "openai",
@@ -40,12 +40,6 @@
       "import": {
         "types": "./dist/core/index.d.ts",
         "default": "./dist/core/index.js"
-      }
-    },
-    "./chatgpt": {
-      "import": {
-        "types": "./dist/platforms/chatgpt/index.d.ts",
-        "default": "./dist/platforms/chatgpt/index.js"
       }
     },
     "./mcp": {

@@ -6,7 +6,6 @@ export default defineConfig([
       index: "src/sdk.ts",
       "cli/index": "src/cli/index.ts",
       "core/index": "src/core/index.ts",
-      "platforms/chatgpt/index": "src/platforms/chatgpt/index.ts",
       "platforms/mcp/index": "src/platforms/mcp/index.ts",
     },
     format: ["esm"],

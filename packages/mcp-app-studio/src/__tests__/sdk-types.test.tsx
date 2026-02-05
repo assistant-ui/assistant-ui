@@ -11,8 +11,8 @@ import {
   useUniversalBridge,
   usePlatform,
   detectPlatform,
-  isChatGPT,
   isMCP,
+  hasChatGPTExtensions,
   useHostContext,
   useTheme,
   useCapabilities,
@@ -28,7 +28,6 @@ import {
   useLog,
   textBlock,
   imageBlock,
-  CHATGPT_CAPABILITIES,
   MCP_CAPABILITIES,
 } from "../sdk";
 
@@ -52,11 +51,11 @@ describe("SDK Exports", () => {
 
   it("exports platform detection functions", () => {
     expect(detectPlatform).toBeDefined();
-    expect(isChatGPT).toBeDefined();
     expect(isMCP).toBeDefined();
+    expect(hasChatGPTExtensions).toBeDefined();
     expect(typeof detectPlatform).toBe("function");
-    expect(typeof isChatGPT).toBe("function");
     expect(typeof isMCP).toBe("function");
+    expect(typeof hasChatGPTExtensions).toBe("function");
   });
 
   it("exports all universal hooks", () => {
@@ -92,11 +91,8 @@ describe("SDK Exports", () => {
   });
 
   it("exports capability constants", () => {
-    expect(CHATGPT_CAPABILITIES).toBeDefined();
     expect(MCP_CAPABILITIES).toBeDefined();
 
-    expect(CHATGPT_CAPABILITIES.callTool).toBe(true);
-    expect(CHATGPT_CAPABILITIES.modelContext).toBe(false);
     expect(MCP_CAPABILITIES.callTool).toBe(true);
     expect(MCP_CAPABILITIES.modelContext).toBe(true);
   });
@@ -104,8 +100,8 @@ describe("SDK Exports", () => {
 
 describe("Type Compatibility", () => {
   it("Platform type includes expected values", () => {
-    const platforms: Platform[] = ["chatgpt", "mcp", "unknown"];
-    expect(platforms).toHaveLength(3);
+    const platforms: Platform[] = ["mcp", "unknown"];
+    expect(platforms).toHaveLength(2);
   });
 
   it("DisplayMode type includes expected values", () => {
@@ -139,7 +135,7 @@ describe("Type Compatibility", () => {
   });
 
   it("HostCapabilities type matches expected shape", () => {
-    const caps: HostCapabilities = CHATGPT_CAPABILITIES;
+    const caps: HostCapabilities = MCP_CAPABILITIES;
     expect(caps.callTool).toBeDefined();
     expect(caps.openLink).toBeDefined();
     expect(caps.displayModes).toBeDefined();

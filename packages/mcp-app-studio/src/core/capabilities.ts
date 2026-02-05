@@ -28,7 +28,7 @@ export type FeatureKey =
  * ```tsx
  * const capabilities = useCapabilities();
  * if (capabilities?.widgetState) {
- *   // ChatGPT-specific feature
+ *   // ChatGPT extensions (window.openai)
  * }
  * ```
  */
@@ -53,12 +53,12 @@ export interface HostCapabilities {
   /** Can request modal dialogs */
   modal: boolean;
 
-  /** Can upload files (ChatGPT only) */
+  /** Can upload files (ChatGPT extensions only) */
   fileUpload: boolean;
-  /** Can download files (ChatGPT only) */
+  /** Can download files (ChatGPT extensions only) */
   fileDownload: boolean;
 
-  /** Can persist widget state (ChatGPT only) */
+  /** Can persist widget state (ChatGPT extensions only) */
   widgetState: boolean;
   /** Can update model context (MCP only) */
   modelContext: boolean;
@@ -72,40 +72,6 @@ export interface HostCapabilities {
   /** Teardown notification support (MCP only) */
   teardown: boolean;
 }
-
-/**
- * Capabilities available on ChatGPT.
- *
- * Notable features:
- * - `widgetState`: Persistent state across refreshes
- * - `fileUpload`/`fileDownload`: File handling
- * - `modal`: Modal dialog support
- * - `pip`: Picture-in-picture display mode
- */
-export const CHATGPT_CAPABILITIES: HostCapabilities = {
-  platform: "chatgpt",
-
-  callTool: true,
-  openLink: true,
-
-  displayModes: ["pip", "inline", "fullscreen"],
-  sizeReporting: true,
-  closeWidget: true,
-
-  sendMessage: true,
-  modal: true,
-
-  fileUpload: true,
-  fileDownload: true,
-
-  widgetState: true,
-  modelContext: false,
-
-  logging: false,
-  partialToolInput: false,
-  toolCancellation: false,
-  teardown: false,
-};
 
 /**
  * Capabilities available on MCP hosts (e.g., Claude Desktop).

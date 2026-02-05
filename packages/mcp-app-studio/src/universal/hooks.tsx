@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useUniversalBridge, usePlatform } from "./provider";
+import { useUniversalBridge } from "./provider";
 import type {
   HostContext,
   ToolResult,
@@ -159,10 +159,10 @@ export function useToolInput<T = Record<string, unknown>>(): T | null {
 }
 
 /**
- * Returns partial tool input as it's being streamed (MCP only).
+ * Returns partial tool input as it's being streamed (host-dependent).
  * Useful for showing real-time feedback as the user types.
  *
- * **Platform support:** MCP only. Returns null on ChatGPT.
+ * **Host support:** MCP Apps hosts that stream partial input. Returns null otherwise.
  *
  * @typeParam T - The expected shape of the tool input
  * @returns Partial tool input, or null
@@ -184,14 +184,12 @@ export function useToolInput<T = Record<string, unknown>>(): T | null {
  */
 export function useToolInputPartial<T = Record<string, unknown>>(): T | null {
   const bridge = useUniversalBridge();
-  const platform = usePlatform();
   const [input, setInput] = useState<T | null>(null);
 
   useEffect(() => {
-    if (!bridge || platform !== "mcp") return;
-    if (!bridge.onToolInputPartial) return;
+    if (!bridge?.onToolInputPartial) return;
     return bridge.onToolInputPartial((args) => setInput(args as T));
-  }, [bridge, platform]);
+  }, [bridge]);
 
   return input;
 }
@@ -417,10 +415,8 @@ export function useSendMessage() {
 }
 
 /**
- * Returns a function to update the model's context (MCP only).
+ * Returns a function to update the model-visible context.
  * Use this to provide additional context to the AI model.
- *
- * **Platform support:** MCP only. Logs a warning on ChatGPT.
  *
  * @returns Async function to update model context
  *
@@ -428,15 +424,10 @@ export function useSendMessage() {
  * ```tsx
  * function DataViewer({ data }: { data: object }) {
  *   const updateContext = useUpdateModelContext();
- *   const platform = usePlatform();
  *
  *   useEffect(() => {
- *     if (platform === 'mcp') {
- *       updateContext({
- *         structuredContent: { currentData: data }
- *       });
- *     }
- *   }, [data, platform, updateContext]);
+ *     updateContext({ structuredContent: { currentData: data } });
+ *   }, [data, updateContext]);
  *
  *   return <pre>{JSON.stringify(data, null, 2)}</pre>;
  * }
@@ -444,36 +435,28 @@ export function useSendMessage() {
  */
 export function useUpdateModelContext() {
   const bridge = useUniversalBridge();
-  const platform = usePlatform();
 
   return useCallback(
     async (ctx: {
       content?: ContentBlock[];
       structuredContent?: Record<string, unknown>;
     }): Promise<void> => {
-      if (platform !== "mcp") {
+      if (!bridge?.updateModelContext) {
         console.warn(
-          "useUpdateModelContext: This feature is only available on MCP hosts. " +
-            "On ChatGPT, consider using useWidgetState instead.",
+          "useUpdateModelContext: updateModelContext not available on the current host.",
         );
         return;
       }
-      if (!bridge?.updateModelContext) {
-        throw new Error(
-          "updateModelContext not available on the current bridge.",
-        );
-      }
       return bridge.updateModelContext(ctx);
     },
-    [bridge, platform],
+    [bridge],
   );
 }
 
 /**
- * Returns persisted widget state and a setter (ChatGPT only).
+ * Returns persisted widget state and a setter (ChatGPT extensions only).
  * State is preserved across page refreshes and conversation turns.
- *
- * **Platform support:** ChatGPT only. Logs a warning on MCP.
+ * Requires `window.openai` (feature-detected by the SDK).
  *
  * @typeParam T - The shape of your widget state
  * @returns Tuple of [state, setState]
@@ -508,36 +491,31 @@ export function useWidgetState<T = Record<string, unknown>>(): [
   (state: T | null) => void,
 ] {
   const bridge = useUniversalBridge();
-  const platform = usePlatform();
   const [state, setState] = useState<T | null>(() => {
-    if (platform !== "chatgpt" || !bridge?.getWidgetState) return null;
+    if (!bridge?.getWidgetState) return null;
     return bridge.getWidgetState() as T | null;
   });
 
   const setWidgetState = useCallback(
     (newState: T | null) => {
-      if (platform !== "chatgpt") {
+      if (!bridge?.setWidgetState) {
         console.warn(
-          "useWidgetState: This feature is only available on ChatGPT. " +
-            "On MCP hosts, consider using useUpdateModelContext instead.",
+          "useWidgetState: widget state is not available on the current host.",
         );
         return;
       }
-      if (!bridge?.setWidgetState) return;
       bridge.setWidgetState(newState as Record<string, unknown> | null);
       setState(newState);
     },
-    [bridge, platform],
+    [bridge],
   );
 
   return [state, setWidgetState];
 }
 
 /**
- * Returns a function for structured logging (MCP only).
- * Logs are sent to the MCP host for debugging and monitoring.
- *
- * **Platform support:** MCP only. Falls back to console.log on other platforms.
+ * Returns a function for structured logging when the current host supports it.
+ * Falls back to `console.log` otherwise.
  *
  * @returns Log function that accepts level and message
  *
@@ -562,22 +540,16 @@ export function useWidgetState<T = Record<string, unknown>>(): [
  */
 export function useLog() {
   const bridge = useUniversalBridge();
-  const platform = usePlatform();
 
   return useCallback(
     (level: "debug" | "info" | "warning" | "error", data: string): void => {
-      if (platform !== "mcp") {
-        console.warn(
-          "useLog: Structured logging is only available on MCP hosts. " +
-            "Falling back to console.log.",
-        );
-        console.log(`[${level}]`, data);
+      if (bridge?.sendLog) {
+        bridge.sendLog(level, data);
         return;
       }
-      if (!bridge?.sendLog) return;
-      bridge.sendLog(level, data);
+      console.log(`[${level}]`, data);
     },
-    [bridge, platform],
+    [bridge],
   );
 }
 

@@ -12,8 +12,7 @@ export type Theme = "light" | "dark";
 
 /**
  * Platform your app is running on.
- * - `"chatgpt"` - Running inside ChatGPT (window.openai API available)
- * - `"mcp"` - Running inside an MCP host like Claude Desktop
+ * - `"mcp"` - Running inside an MCP Apps host (including ChatGPT)
  * - `"unknown"` - Platform not detected (development mode or unsupported host)
  *
  * Use `usePlatform()` hook or `detectPlatform()` to check at runtime.
@@ -21,12 +20,10 @@ export type Theme = "light" | "dark";
  * @example
  * ```tsx
  * const platform = usePlatform();
- * if (platform === 'chatgpt') {
- *   // Use ChatGPT-specific features like widgetState
- * }
+ * if (platform === 'unknown') return null;
  * ```
  */
-export type Platform = "chatgpt" | "mcp" | "unknown";
+export type Platform = "mcp" | "unknown";
 
 /**
  * Display mode for the widget.

@@ -15,7 +15,7 @@ export type HostContextChangedCallback = (ctx: Partial<HostContext>) => void;
 export type TeardownCallback = () => Promise<void> | void;
 
 export interface HostBridge {
-  readonly platform: "chatgpt" | "mcp";
+  readonly platform: "mcp";
   readonly capabilities: HostCapabilities;
 
   connect(): Promise<void>;
@@ -53,9 +53,9 @@ export interface ExtendedBridge extends HostBridge {
 
   requestClose?(): void;
   requestModal?(options: {
-    title?: string;
     params?: Record<string, unknown>;
-    anchor?: { x: number; y: number; width: number; height: number };
+    template?: string;
+    [key: string]: unknown;
   }): Promise<void>;
 
   sendLog?(level: "debug" | "info" | "warning" | "error", data: string): void;

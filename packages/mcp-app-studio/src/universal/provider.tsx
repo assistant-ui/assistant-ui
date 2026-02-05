@@ -7,9 +7,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { detectPlatform } from "./detect";
-import { ChatGPTBridge } from "../platforms/chatgpt/bridge";
 import { MCPBridge, type AppCapabilities } from "../platforms/mcp/bridge";
+import { withChatGPTExtensions } from "../extensions/chatgpt";
 import type { ExtendedBridge } from "../core/bridge";
 import type { Platform } from "../core/types";
 
@@ -34,29 +33,27 @@ export function UniversalProvider({
   useEffect(() => {
     let cancelled = false;
 
-    const detected = detectPlatform();
-    setPlatform(detected);
-
-    let newBridge: ExtendedBridge;
-    if (detected === "chatgpt") {
-      newBridge = new ChatGPTBridge();
-    } else if (detected === "mcp") {
-      newBridge = new MCPBridge(appInfo, appCapabilities);
-    } else {
-      setReady(true);
-      return;
-    }
+    // Always attempt the MCP Apps bridge. If we're not inside a host, the
+    // MCPBridge connect() call is guarded by a timeout to avoid hanging.
+    //
+    // If ChatGPT-only extensions are available (`window.openai`), layer them
+    // on top of the MCP bridge via feature detection.
+    const newBridge = withChatGPTExtensions(
+      new MCPBridge(appInfo, appCapabilities),
+    );
 
     newBridge
       .connect()
       .then(() => {
         if (cancelled) return;
         setBridge(newBridge);
+        setPlatform("mcp");
         setReady(true);
       })
       .catch((error) => {
         if (cancelled) return;
         console.error("[mcp-app-studio] Bridge connection failed:", error);
+        setPlatform("unknown");
         setReady(true);
       });
 

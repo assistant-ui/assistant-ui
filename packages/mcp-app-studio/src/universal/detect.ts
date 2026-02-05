@@ -69,11 +69,10 @@ export function detectPlatformDetailed(): DetectionResult {
     return { platform: "unknown", detectedBy: null, checks };
   }
 
-  // Check for ChatGPT
+  // ChatGPT-only extension surface. Useful for diagnostics, but *not* a host marker.
   if ((window as unknown as Record<string, unknown>)["openai"]) {
     checks.windowOpenai = true;
-    debugLog("detectPlatform: Found window.openai", { platform: "chatgpt" });
-    return { platform: "chatgpt", detectedBy: "window.openai", checks };
+    debugLog("detectPlatform: Found window.openai (extensions)");
   }
 
   // Check for MCP markers
@@ -133,17 +132,18 @@ export function detectPlatformDetailed(): DetectionResult {
 /**
  * Detects the current platform the widget is running on.
  *
- * Detection priority:
- * 1. `window.openai` exists → ChatGPT
- * 2. URL has `?mcp-host` param → MCP
- * 3. `window.__MCP_HOST__` exists → MCP
- * 4. iframe has `data-mcp-host` attribute → MCP
- * 5. None of the above → unknown
+ * Host detection:
+ * - URL has `?mcp-host` param → MCP
+ * - `window.__MCP_HOST__` exists → MCP
+ * - iframe has `data-mcp-host` attribute → MCP
+ * - None of the above → unknown
+ *
+ * Note: `window.openai` is a ChatGPT-only *extensions* layer, not the MCP host protocol.
  *
  * **Debugging tip:** Set `window.__MCP_APP_STUDIO_DEBUG__ = true` before
  * loading your widget to see detailed detection logs in the console.
  *
- * @returns The detected platform: "chatgpt", "mcp", or "unknown"
+ * @returns The detected platform: "mcp" or "unknown"
  *
  * @example
  * ```ts
@@ -158,17 +158,18 @@ export function detectPlatform(): Platform {
 }
 
 /**
- * Returns true if running inside ChatGPT.
+ * Returns true if ChatGPT-only extensions are available (`window.openai`).
  *
  * @example
  * ```ts
- * if (isChatGPT()) {
- *   // Use ChatGPT-specific features
+ * if (hasChatGPTExtensions()) {
+ *   // Use ChatGPT-only extensions (e.g. widgetState, file upload)
  * }
  * ```
  */
-export function isChatGPT(): boolean {
-  return detectPlatform() === "chatgpt";
+export function hasChatGPTExtensions(): boolean {
+  if (typeof window === "undefined") return false;
+  return Boolean((window as unknown as Record<string, unknown>)["openai"]);
 }
 
 /**

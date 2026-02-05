@@ -1,5 +1,16 @@
 # mcp-app-studio
 
+## 0.6.0
+
+### Major Changes
+
+- MCP-first SDK: ChatGPT is treated as an MCP Apps host (not a separate platform).
+  - `Platform` is now `"mcp" | "unknown"`; `detectPlatform()` no longer returns `"chatgpt"`.
+  - Removed the `mcp-app-studio/chatgpt` entrypoint and deleted the ChatGPT platform implementation.
+  - `UniversalProvider` always uses the MCP Apps bridge and optionally layers ChatGPT-only extensions when `window.openai` exists.
+  - Added an MCP connect timeout guard so apps don't hang forever when rendered outside a host.
+  - Added explicit ChatGPT extensions module (`src/extensions/chatgpt.ts`) with tests.
+
 ## 0.5.2
 
 ### Patch Changes

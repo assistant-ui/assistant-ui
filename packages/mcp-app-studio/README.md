@@ -1,14 +1,16 @@
 # MCP App Studio
 
-**Build interactive apps for AI assistants (ChatGPT, Claude, MCP hosts).**
+**Build interactive apps for MCP Apps hosts (ChatGPT, Claude Desktop, etc.).**
 
-Create widgets that work across multiple platforms with a single codebase. The SDK auto-detects whether you're running in ChatGPT, Claude Desktop, or another MCP-compatible host.
+ChatGPT is an **MCP Apps host**. This SDK is MCP-first: it uses the standard
+`ui/*` bridge everywhere, and treats `window.openai` as **optional ChatGPT-only
+extensions** layered on top.
 
 ## What You Get
 
 - **Local workbench** — Preview widgets without deploying
-- **Universal SDK** — Single API works on ChatGPT and MCP hosts
-- **Platform detection** — Auto-adapts to the host environment
+- **Universal SDK** — Single API works across MCP Apps hosts
+- **Optional ChatGPT extensions** — Feature-detected `window.openai` helpers
 - **One-command export** — Generate production bundle + MCP server
 
 ## Quick Start
@@ -33,18 +35,19 @@ import {
   useToolInput,
   useCallTool,
   useTheme,
-  useFeature
+  useFeature,
+  hasChatGPTExtensions,
 } from "mcp-app-studio";
 
 function MyWidget() {
-  const platform = usePlatform(); // "chatgpt" | "mcp" | "unknown"
+  const platform = usePlatform(); // "mcp" | "unknown"
   const input = useToolInput<{ query: string }>();
   const callTool = useCallTool();
   const theme = useTheme();
 
-  // Platform-specific features
-  const hasWidgetState = useFeature('widgetState'); // ChatGPT only
-  const hasModelContext = useFeature('modelContext'); // MCP only
+  // Optional ChatGPT extensions (window.openai)
+  const hasWidgetState = useFeature("widgetState");
+  const canUseOpenAIExtensions = hasChatGPTExtensions();
 
   return (
     <div className={theme === 'dark' ? 'bg-gray-900' : 'bg-white'}>
@@ -65,15 +68,16 @@ function App() {
 
 ## Platform Capabilities
 
-| Feature | ChatGPT | MCP |
-|---------|---------|-----|
-| `callTool` | ✅ | ✅ |
-| `openLink` | ✅ | ✅ |
-| `sendMessage` | ✅ | ✅ |
-| `widgetState` (persistence) | ✅ | ❌ |
-| `modelContext` (dynamic context) | ❌ | ✅ |
-| `fileUpload` / `fileDownload` | ✅ | ❌ |
-| `partialToolInput` (streaming) | ❌ | ✅ |
+| Feature | MCP Apps bridge | ChatGPT extensions (`window.openai`) |
+|---------|----------------|-------------------------------------|
+| `callTool` | ✅ | ✅ (`callTool`) |
+| `openLink` | ✅ | ✅ (`openExternal`) |
+| `sendMessage` | ✅ | ✅ (`sendFollowUpMessage`) |
+| `modelContext` (`ui/update-model-context`) | ✅ | — |
+| `widgetState` (persistence) | — | ✅ |
+| `fileUpload` / `fileDownload` | — | ✅ |
+| `requestModal` | — | ✅ |
+| `partialToolInput` (streaming) | Host-dependent | — |
 
 ## Workflow
 
@@ -129,6 +133,12 @@ console.log('Platform:', result.platform);
 console.log('Detected by:', result.detectedBy);
 console.log('Checks:', result.checks);
 ```
+
+## Tool metadata (`_meta.ui.resourceUri`)
+
+For tools that render UI, OpenAI recommends using `_meta.ui.resourceUri` (with
+legacy support for `_meta["openai/outputTemplate"]`). See the starter template
+and MCP server generator for a working example.
 
 ## MCP Server
 

@@ -25,8 +25,8 @@ import {
   useHostContext,
   useUniversalBridge,
   detectPlatform,
-  isChatGPT,
   isMCP,
+  hasChatGPTExtensions,
 } from "../sdk";
 
 import type { UniversalProviderProps } from "../universal/provider";
@@ -70,11 +70,11 @@ describe("Universal Hooks - Export Validation", () => {
 
   it("exports platform detection utilities", () => {
     expect(detectPlatform).toBeDefined();
-    expect(isChatGPT).toBeDefined();
     expect(isMCP).toBeDefined();
+    expect(hasChatGPTExtensions).toBeDefined();
     expect(typeof detectPlatform).toBe("function");
-    expect(typeof isChatGPT).toBe("function");
     expect(typeof isMCP).toBe("function");
+    expect(typeof hasChatGPTExtensions).toBe("function");
   });
 });
 
@@ -162,22 +162,22 @@ describe("Cross-Platform API Compatibility", () => {
 });
 
 describe("Platform-Specific Hooks", () => {
-  it("exports ChatGPT-only hooks for state persistence and file handling", () => {
-    // useWidgetState - ChatGPT only: persists state across refreshes
+  it("exports optional extension hooks for state persistence", () => {
+    // useWidgetState - ChatGPT extensions (window.openai): persists state across refreshes
     expect(useWidgetState).toBeDefined();
     expect(typeof useWidgetState).toBe("function");
   });
 
-  it("exports MCP-only hooks for model context and streaming", () => {
-    // useUpdateModelContext - MCP only: dynamically update AI's context
+  it("exports MCP bridge hooks for model context and streaming", () => {
+    // useUpdateModelContext - MCP Apps bridge: dynamically update AI's context
     expect(useUpdateModelContext).toBeDefined();
     expect(typeof useUpdateModelContext).toBe("function");
 
-    // useLog - MCP only: structured logging to host
+    // useLog - MCP Apps bridge: structured logging to host (when supported)
     expect(useLog).toBeDefined();
     expect(typeof useLog).toBe("function");
 
-    // useToolInputPartial - MCP only: streaming input as user types
+    // useToolInputPartial - MCP Apps bridge: streaming input as user types (when supported)
     expect(useToolInputPartial).toBeDefined();
     expect(typeof useToolInputPartial).toBe("function");
   });

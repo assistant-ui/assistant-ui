@@ -1,11 +1,11 @@
 # Agent Changelog
 
 > This file helps coding agents understand project evolution, key decisions,
-> and deprecated patterns. Updated: 2026-02-03
+> and deprecated patterns. Updated: 2026-02-05
 
 ## Current State Summary
 
-**mcp-app-studio** is a platform-agnostic SDK and CLI for building interactive apps that run on both ChatGPT and MCP hosts (like Claude Desktop). The package provides a unified bridge API with automatic platform detection, letting developers write apps once and deploy everywhere. Current version: 0.5.0.
+**mcp-app-studio** is an MCP-first SDK and CLI for building interactive apps that run in any **MCP Apps host** (including ChatGPT). The SDK uses the standard `ui/*` bridge everywhere, and can optionally layer **ChatGPT-only extensions** from `window.openai` (widget state, file APIs, host modals, etc.) when available. Current version: 0.6.0.
 
 ## Stale Information Detected
 
@@ -15,15 +15,19 @@
 
 ## Timeline
 
-### 2026-02-03 — ChatGPT Tool Metadata Emitted on Initial Connect
+### 2026-02-05 — MCP-first + ChatGPT Extensions (window.openai)
 
-**What changed:** `ChatGPTBridge.connect()` now includes `toolResponseMetadata` when emitting the initial tool result, and a regression test covers the behavior.
+**What changed:** Major shift to match OpenAI’s “MCP Apps in ChatGPT” guidance:
+- Removed the ChatGPT “platform” implementation (`src/platforms/chatgpt/*`) and the `mcp-app-studio/chatgpt` export.
+- `Platform` is now `"mcp" | "unknown"`; `detectPlatform()` no longer returns `"chatgpt"`.
+- `UniversalProvider` always uses the MCP Apps bridge and optionally layers ChatGPT-only extensions via `withChatGPTExtensions()` when `window.openai` exists.
+- Added a connect timeout guard in the MCP bridge to avoid hanging forever outside a host.
 
-**Why:** The initial tool output previously omitted `_meta`, making the first tool result inconsistent with subsequent updates.
+**Why:** ChatGPT is an MCP Apps host; `window.openai` is an optional extensions layer (not a separate platform/protocol). Aligning to this makes the SDK “MCP-first” and portable across hosts.
 
 **Agent impact:**
-- If you depend on `toolResponseMetadata` (e.g. request IDs), it is now available immediately after `connect()` when `toolOutput` is present.
-- A focused test exists at `src/platforms/chatgpt/bridge.test.ts` for this contract.
+- If you were importing `mcp-app-studio/chatgpt`, switch to the universal SDK (`mcp-app-studio`) and use `hasChatGPTExtensions()` / `useFeature()` for extension-only features.
+- If you were checking `platform === "chatgpt"`, switch to `hasChatGPTExtensions()` or `useFeature("widgetState")`.
 
 **Deprecated:** None.
 
@@ -53,15 +57,13 @@
 **Why:** Enable single codebase to run on both ChatGPT and MCP platforms without conditional code.
 
 **Agent impact:**
-- Use `UniversalProvider` for auto-detection (recommended)
-- Platform-specific providers (`ChatGPTProvider`, `MCPProvider`) still available for direct use
+- Use `UniversalProvider` (recommended)
 - Use `useFeature()` hook to check capability availability at runtime
-- Bridge pattern: `HostBridge` interface with `ChatGPTBridge` and `MCPBridge` implementations
+- Bridge pattern: `HostBridge` interface with MCP bridge + optional ChatGPT extensions
 
 **Key files:**
 - `src/core/` — Types, bridge interface, capabilities
 - `src/universal/` — Platform detection, provider, hooks
-- `src/platforms/chatgpt/` — ChatGPT implementation
 - `src/platforms/mcp/` — MCP implementation
 
 ---
@@ -95,14 +97,14 @@
 |-------|------------|------------------|
 | `npx chatgpt-app-studio` | `npx mcp-app-studio` | 2026-01-27 |
 | `import from "chatgpt-app-studio"` | `import from "mcp-app-studio"` | 2026-01-27 |
-| Direct `window.openai` access | Use `ChatGPTBridge` or universal hooks | 2026-01-27 |
+| Treat ChatGPT as a separate “platform” | Treat ChatGPT as an MCP host; use `hasChatGPTExtensions()` for `window.openai` | 2026-02-05 |
 | Platform-specific conditional code | Use `useFeature()` for capability checks | 2026-01-27 |
 
 ## Trajectory
 
 The package is evolving toward a fully platform-agnostic SDK. Recent work has focused on:
-1. Unifying the API surface across ChatGPT and MCP platforms
-2. Improving type safety and error handling
-3. Documentation updates for the dual-platform support
+1. MCP-first behavior across hosts (including ChatGPT)
+2. Keeping `window.openai` as optional extensions with clear boundaries
+3. Improved error handling when rendered outside a host
 
-Future development will likely continue abstracting platform differences and expanding the universal hook API as both ChatGPT Apps and MCP ext-apps ecosystems mature.
+Future development will likely continue refining MCP bridge compatibility and selectively wrapping additional `window.openai` extensions when it benefits developers without harming portability.

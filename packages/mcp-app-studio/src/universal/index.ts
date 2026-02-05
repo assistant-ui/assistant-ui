@@ -1,8 +1,8 @@
 export {
   detectPlatform,
   detectPlatformDetailed,
-  isChatGPT,
   isMCP,
+  hasChatGPTExtensions,
   enableDebugMode,
   disableDebugMode,
   type DetectionResult,

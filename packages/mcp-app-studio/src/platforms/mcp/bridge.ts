@@ -35,6 +35,18 @@ export interface AppCapabilities {
 
 export interface MCPBridgeOptions {
   autoResize?: boolean;
+  /**
+   * Guard against hanging forever when rendered outside a host.
+   *
+   * `@modelcontextprotocol/ext-apps` connects via `postMessage` to the parent
+   * host. In a plain browser environment (no host), that handshake may never
+   * complete unless we time out.
+   *
+   * Set to `0` or a negative value to disable.
+   *
+   * @default 1500
+   */
+  connectTimeoutMs?: number;
 }
 
 type CallToolHandler = (
@@ -50,6 +62,7 @@ export class MCPBridge implements ExtendedBridge {
   readonly capabilities: HostCapabilities = MCP_CAPABILITIES;
 
   private app: App;
+  private connectTimeoutMs: number;
   private toolInputCallbacks = new Set<ToolInputCallback>();
   private toolInputPartialCallbacks = new Set<ToolInputPartialCallback>();
   private toolResultCallbacks = new Set<ToolResultCallback>();
@@ -63,6 +76,7 @@ export class MCPBridge implements ExtendedBridge {
     options?: MCPBridgeOptions,
   ) {
     const autoResize = options?.autoResize ?? true;
+    this.connectTimeoutMs = options?.connectTimeoutMs ?? 1500;
 
     this.app = new App(
       appInfo ?? { name: "MCP App", version: "1.0.0" },
@@ -118,7 +132,26 @@ export class MCPBridge implements ExtendedBridge {
   }
 
   async connect(): Promise<void> {
-    await this.app.connect();
+    const timeoutMs = this.connectTimeoutMs;
+    if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+      await this.app.connect();
+      return;
+    }
+
+    await new Promise<void>((resolve, reject) => {
+      const timeoutId = setTimeout(() => {
+        reject(
+          new Error(
+            `MCP bridge connect timed out after ${timeoutMs}ms (no host responded).`,
+          ),
+        );
+      }, timeoutMs);
+
+      this.app
+        .connect()
+        .then(resolve, reject)
+        .finally(() => clearTimeout(timeoutId));
+    });
   }
 
   getHostContext(): HostContext | null {
