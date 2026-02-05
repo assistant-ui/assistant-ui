@@ -43,9 +43,9 @@ type TraceNode = TraceStep | TraceGroup;
 
 ## Summary Behavior
 - Group summaries default to the most recent child step (depth-first, last leaf).
-- If `summary.latestLabel` is provided, it overrides the computed label.
+- If `summary.latestLabel` is provided, it overrides the computed latest-step label.
 - Tool calls are surfaced whenever a `toolName` is present.
-- V1 shows the most recent step in the summary row; expand to see all steps.
+- V1 shows the most recent step in the summary row only while running.
 
 ## Nesting
 - Nested timelines are supported by rendering `TraceGroup` children as another
