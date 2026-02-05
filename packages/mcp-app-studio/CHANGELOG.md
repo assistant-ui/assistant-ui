@@ -1,5 +1,11 @@
 # mcp-app-studio
 
+## 0.5.2
+
+### Patch Changes
+
+- e3a9a6f: Fix initial ChatGPT tool metadata emission.
+
 ## 0.5.1
 
 ### Patch Changes

@@ -32,7 +32,11 @@ export const tapSubscribableResource = <TState>(
   element: ResourceElement<TState>,
 ): tapSubscribableResource.SubscribableResource<TState> => {
   const scheduler = tapConst(
-    () => new UpdateScheduler(() => handleUpdate()),
+    () =>
+      new UpdateScheduler(() => {
+        lastRenderRef.current = null;
+        handleUpdate();
+      }),
     [],
   );
   const fiber = tapMemo(() => {
@@ -40,7 +44,6 @@ export const tapSubscribableResource = <TState>(
 
     return createResourceFiber(element.type, (callback) => {
       if (callback()) {
-        lastRenderRef.current = null;
         scheduler.markDirty();
       }
     });
@@ -49,13 +52,14 @@ export const tapSubscribableResource = <TState>(
   const lastRenderRef = tapRef<RenderResult | null>(null);
   lastRenderRef.current = renderResourceFiber(fiber, element.props);
 
+  const isMountedRef = tapRef(false);
   const committedPropsRef = tapRef(element.props);
   const valueRef = tapRef<TState>(lastRenderRef.current.output);
   const subscribers = tapConst(() => new Set<() => void>(), []);
   const handleUpdate = tapEffectEvent(() => {
-    if (lastRenderRef.current === null) {
-      if (!fiber.isMounted) return; // skip
+    if (!isMountedRef.current) return; // skip update if not mounted
 
+    if (lastRenderRef.current === null) {
       lastRenderRef.current = renderResourceFiber(
         fiber,
         committedPropsRef.current,
@@ -66,16 +70,22 @@ export const tapSubscribableResource = <TState>(
     committedPropsRef.current = lastRenderRef.current.props;
     commitResourceFiber(fiber, lastRenderRef.current);
 
-    if (scheduler.isDirty) return;
+    if (scheduler.isDirty || valueRef.current === lastRenderRef.current.output)
+      return;
     valueRef.current = lastRenderRef.current.output;
     subscribers.forEach((callback) => callback());
   });
 
-  tapEffect(() => () => unmountResourceFiber(fiber), [fiber]);
   tapEffect(() => {
-    flushResourcesSync(() => {
-      scheduler.markDirty();
-    });
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      unmountResourceFiber(fiber);
+    };
+  }, [fiber]);
+
+  tapEffect(() => {
+    flushResourcesSync(handleUpdate);
   });
 
   return tapMemo(

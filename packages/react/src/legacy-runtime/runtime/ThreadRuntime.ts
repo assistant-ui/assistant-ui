@@ -257,7 +257,24 @@ export type ThreadRuntime = {
   unstable_resumeRun(config: CreateResumeRunConfig): void;
 
   /**
+   * Export the thread state in the external store format.
+   * For AI SDK runtimes, this returns the AI SDK message format.
+   * For other runtimes, this may return different formats or throw an error.
+   * @returns The thread state in the external format (typed as any)
+   */
+  exportExternalState(): any;
+
+  /**
+   * Import thread state from the external store format.
+   * For AI SDK runtimes, this accepts AI SDK messages.
+   * For other runtimes, this may accept different formats or throw an error.
+   * @param state The thread state in the external format (typed as any)
+   */
+  importExternalState(state: any): void;
+
+  /**
    * Load external state into the thread.
+   * @deprecated Use importExternalState instead. This method will be removed in 0.12.0.
    * @param state The state to load into the thread
    */
   unstable_loadExternalState(state: any): void;
@@ -354,6 +371,8 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
     this.unstable_resumeRun = this.unstable_resumeRun.bind(this);
     this.unstable_loadExternalState =
       this.unstable_loadExternalState.bind(this);
+    this.importExternalState = this.importExternalState.bind(this);
+    this.exportExternalState = this.exportExternalState.bind(this);
     this.startRun = this.startRun.bind(this);
     this.cancelRun = this.cancelRun.bind(this);
     this.stopSpeaking = this.stopSpeaking.bind(this);
@@ -405,6 +424,14 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
 
   public unstable_resumeRun(config: CreateResumeRunConfig) {
     return this._threadBinding.getState().resumeRun(toResumeRunConfig(config));
+  }
+
+  public exportExternalState() {
+    return this._threadBinding.getState().exportExternalState();
+  }
+
+  public importExternalState(state: any) {
+    this._threadBinding.getState().importExternalState(state);
   }
 
   public unstable_loadExternalState(state: any) {

@@ -41,7 +41,7 @@
     "streamdown": "^2.1.0"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.12.5",
+    "@assistant-ui/react": "^0.12.7",
     "@streamdown/code": "^1.0.0",
     "@streamdown/cjk": "^1.0.0",
     "@streamdown/math": "^1.0.0",

@@ -69,6 +69,7 @@ type ExternalStoreAdapterBase<T> = {
 
   setMessages?: ((messages: readonly T[]) => void) | undefined;
   onImport?: ((messages: readonly ThreadMessage[]) => void) | undefined;
+  onExportExternalState?: (() => any) | undefined;
   onLoadExternalState?: ((state: any) => void) | undefined;
   onNew: (message: AppendMessage) => Promise<void>;
   onEdit?: ((message: AppendMessage) => Promise<void>) | undefined;

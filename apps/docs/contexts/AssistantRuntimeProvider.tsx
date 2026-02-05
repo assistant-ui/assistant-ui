@@ -2,6 +2,7 @@
 
 import {
   AssistantRuntimeProvider,
+  type FeedbackAdapter,
   useAssistantInstructions,
   useAui,
   useAuiEvent,
@@ -106,6 +107,14 @@ function getAssistantMessageTokenUsage(
     outputTokens: completionTokens,
   };
 }
+
+// Stateless adapter - safe to share across instances
+const feedbackAdapter: FeedbackAdapter = {
+  submit: () => {
+    // Feedback is tracked via analytics in AssistantActionBar
+    // The runtime automatically updates message.metadata.submittedFeedback
+  },
+};
 
 function AssistantPageContext() {
   const currentPage = useCurrentPage();
@@ -237,6 +246,9 @@ export function DocsAssistantRuntimeProvider({
       api: "/api/doc/chat",
     }),
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
+    adapters: {
+      feedback: feedbackAdapter,
+    },
   });
 
   return (

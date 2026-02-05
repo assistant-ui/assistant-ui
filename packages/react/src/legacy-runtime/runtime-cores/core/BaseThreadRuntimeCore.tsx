@@ -48,6 +48,8 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
   public abstract addToolResult(options: AddToolResultOptions): void;
   public abstract resumeToolCall(options: ResumeToolCallOptions): void;
   public abstract cancelRun(): void;
+  public abstract exportExternalState(): any;
+  public abstract importExternalState(state: any): void;
   public abstract unstable_loadExternalState(state: any): void;
 
   public get messages() {

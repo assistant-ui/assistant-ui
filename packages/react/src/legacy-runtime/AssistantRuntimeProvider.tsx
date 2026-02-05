@@ -32,7 +32,11 @@ export const AssistantRuntimeProviderImpl: FC<
   const aui = useAui({ threads: RuntimeAdapter(runtime) }, { parent: parent });
 
   useEffect(() => {
-    if (process.env["NODE_ENV"] === "production") return;
+    if (
+      typeof process === "undefined" ||
+      process.env["NODE_ENV"] === "production"
+    )
+      return;
     return DevToolsProviderApi.register(aui);
   }, [aui]);
 

@@ -275,11 +275,22 @@ export class ExternalStoreThreadRuntimeCore
     await this._store.onResume(config);
   }
 
-  public unstable_loadExternalState(state: any): void {
+  public exportExternalState(): any {
+    if (!this._store.onExportExternalState)
+      throw new Error("Runtime does not support exporting external states.");
+
+    return this._store.onExportExternalState();
+  }
+
+  public importExternalState(state: any): void {
     if (!this._store.onLoadExternalState)
-      throw new Error("Runtime does not support importing states.");
+      throw new Error("Runtime does not support importing external states.");
 
     this._store.onLoadExternalState(state);
+  }
+
+  public unstable_loadExternalState(state: any): void {
+    this.importExternalState(state);
   }
 
   public cancelRun(): void {
