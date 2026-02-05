@@ -356,10 +356,3 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
     generateTitle,
   };
 }
-
-// Re-export old name for backwards compatibility
-/** @deprecated Use `threads` instead of `list` */
-export type UseThreadsResultLegacy = UseThreadsResult & {
-  /** @deprecated Use `threads` instead */
-  list: CloudThread[];
-};
