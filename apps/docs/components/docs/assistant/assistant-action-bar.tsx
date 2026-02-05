@@ -6,18 +6,10 @@ import { useAui, useAuiState } from "@assistant-ui/store";
 import { ThumbsUpIcon, ThumbsDownIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { analytics } from "@/lib/analytics";
+import { getTextLength, getToolCallToolNames } from "@/lib/assistant-metrics";
 import { FeedbackPopover, type FeedbackCategory } from "./feedback-popover";
 
 const NON_WHITESPACE_RE = /\S/;
-
-function getTextLength(parts: readonly { type: string; text?: string }[]) {
-  let length = 0;
-  for (const part of parts) {
-    if (part.type !== "text" || !part.text) continue;
-    length += part.text.length;
-  }
-  return length;
-}
 
 function hasNonWhitespaceText(
   parts: readonly { type: string; text?: string }[],
@@ -27,17 +19,6 @@ function hasNonWhitespaceText(
     if (NON_WHITESPACE_RE.test(part.text)) return true;
   }
   return false;
-}
-
-function getToolCallToolNames(
-  content: readonly { type: string; toolName?: string }[],
-): string[] {
-  return content
-    .filter(
-      (p): p is { type: "tool-call"; toolName: string } =>
-        p.type === "tool-call" && typeof p.toolName === "string",
-    )
-    .map((p) => p.toolName);
 }
 
 export function AssistantActionBar(): ReactNode {

@@ -14,21 +14,9 @@ import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { useEffect, useRef, type ReactNode } from "react";
 import { useCurrentPage } from "@/components/docs/contexts/current-page";
 import { analytics } from "@/lib/analytics";
+import { countToolCalls, getTextLength } from "@/lib/assistant-metrics";
 
 type ThreadMessagePart = { type: string; text?: string };
-
-function getTextLength(parts: readonly ThreadMessagePart[]): number {
-  let length = 0;
-  for (const part of parts) {
-    if (part.type !== "text" || !part.text) continue;
-    length += part.text.length;
-  }
-  return length;
-}
-
-function countToolCalls(parts: readonly { type: string }[]): number {
-  return parts.filter((p) => p.type === "tool-call").length;
-}
 
 function getLastUserMessage(
   messages: readonly {
