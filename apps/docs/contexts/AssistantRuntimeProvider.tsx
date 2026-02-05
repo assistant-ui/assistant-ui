@@ -18,10 +18,12 @@ import { analytics } from "@/lib/analytics";
 type ThreadMessagePart = { type: string; text?: string };
 
 function getTextLength(parts: readonly ThreadMessagePart[]): number {
-  return parts
-    .filter((p): p is { type: "text"; text: string } => p.type === "text")
-    .map((p) => p.text)
-    .join("").length;
+  let length = 0;
+  for (const part of parts) {
+    if (part.type !== "text" || !part.text) continue;
+    length += part.text.length;
+  }
+  return length;
 }
 
 function countToolCalls(parts: readonly { type: string }[]): number {

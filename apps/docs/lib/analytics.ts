@@ -37,20 +37,16 @@ const trackEvent = (
   event: string,
   properties?: Record<string, string | number | boolean>,
 ) => {
+  if (typeof window === "undefined") return;
+
   // PostHog
-  if (typeof window !== "undefined") {
-    window.posthog?.capture?.(event, properties);
-  }
+  window.posthog?.capture?.(event, properties);
 
   // Vercel Analytics
-  if (typeof window !== "undefined") {
-    void getVercelTrack().then((track) => track?.(event, properties));
-  }
+  void getVercelTrack().then((track) => track?.(event, properties));
 
   // Umami
-  if (typeof window !== "undefined") {
-    window.umami?.track(event, properties);
-  }
+  window.umami?.track(event, properties);
 };
 
 export const analytics = {
