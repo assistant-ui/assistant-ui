@@ -1,6 +1,6 @@
-import type { UIMessage } from "ai";
+import type { UIMessage } from "@ai-sdk/react";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
-import type { CloudMessage } from "../AssistantCloudThreadMessages";
+import type { CloudMessage } from "../../AssistantCloudThreadMessages";
 
 /**
  * Storage format for AI SDK v6 messages - UIMessage without the id field.

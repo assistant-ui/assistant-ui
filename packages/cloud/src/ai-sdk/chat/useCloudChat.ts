@@ -2,26 +2,24 @@
 
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { Chat, useChat } from "@ai-sdk/react";
-import type { UIMessage, UseChatHelpers } from "@ai-sdk/react";
-import { DefaultChatTransport, type ChatInit, type ChatTransport } from "ai";
-import type { ReadonlyJSONObject } from "assistant-stream/utils";
-import { AssistantCloud } from "../AssistantCloud";
-import { CloudMessagePersistence } from "../CloudMessagePersistence";
-import {
-  createFormattedPersistence,
-  type MessageFormatAdapter,
-} from "../FormattedCloudPersistence";
-import { encode, MESSAGE_FORMAT } from "./format";
-import { useThreads, type UseThreadsResult } from "./useThreads";
+import type { UIMessage } from "@ai-sdk/react";
+import { DefaultChatTransport, type ChatTransport } from "ai";
+import type {
+  UseCloudChatOptions,
+  UseCloudChatResult,
+  UseThreadsResult,
+  ThreadsConfig,
+} from "../types";
+import { useThreads } from "../threads/useThreads";
+import { AssistantCloud } from "../../AssistantCloud";
+import { ChatMultiplexer } from "./internal/ChatMultiplexer";
+import { MessagePersistence } from "./internal/MessagePersistence";
 
-const createSessionId = (): string => {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return crypto.randomUUID();
-  }
-  return `aui_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-};
+// ============================================================================
+// Module Singletons
+// ============================================================================
 
-// Module-level singleton for auto-cloud to ensure all components share the same instance
+// Module-level singleton cloud instance for zero-config mode (from NEXT_PUBLIC_ASSISTANT_BASE_URL)
 const autoCloudBaseUrl =
   typeof process !== "undefined"
     ? process.env["NEXT_PUBLIC_ASSISTANT_BASE_URL"]
@@ -30,37 +28,17 @@ const autoCloud = autoCloudBaseUrl
   ? new AssistantCloud({ baseUrl: autoCloudBaseUrl, anonymous: true })
   : undefined;
 
-const aiSdkFormatAdapter: MessageFormatAdapter<UIMessage, ReadonlyJSONObject> =
-  {
-    format: MESSAGE_FORMAT,
-    encode: ({ message }) => encode(message),
-    decode: (stored) => ({
-      parentId: stored.parent_id,
-      message: { id: stored.id, ...stored.content } as UIMessage,
-    }),
-    getId: (message) => message.id,
-  };
+// Generate unique chat session IDs
+function createSessionId(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `aui_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+}
 
-export type ThreadsConfig = {
-  /** Include archived threads in the list. Default: false */
-  includeArchived?: boolean;
-  /** Auto-generate title after first response on new threads. Default: true */
-  autoGenerateTitle?: boolean;
-};
-
-export type UseCloudChatOptions = ChatInit<UIMessage> & {
-  /** Thread configuration or external thread management. If UseThreadsResult provided, internal threads are disabled. */
-  threads?: UseThreadsResult | ThreadsConfig;
-  /** Cloud instance. Ignored if threads is UseThreadsResult. Falls back to NEXT_PUBLIC_ASSISTANT_BASE_URL env var. */
-  cloud?: AssistantCloud;
-  /** Callback invoked when a sync error occurs. */
-  onSyncError?: (error: Error) => void;
-};
-
-export type UseCloudChatResult = UseChatHelpers<UIMessage> & {
-  /** Thread management (internal or passed-through) */
-  threads: UseThreadsResult;
-};
+// ============================================================================
+// Type Guards
+// ============================================================================
 
 function isUseThreadsResult(
   value: UseThreadsResult | ThreadsConfig | undefined,
@@ -70,6 +48,10 @@ function isUseThreadsResult(
     typeof (value as UseThreadsResult).selectThread === "function"
   );
 }
+
+// ============================================================================
+// Main Hook
+// ============================================================================
 
 /**
  * Wraps AI SDK's `useChat` with automatic cloud persistence and thread management.
@@ -89,6 +71,10 @@ export function useCloudChat(
     transport: userTransport,
     ...chatOptions
   } = options;
+
+  // ============================================================================
+  // 1. Resolve Configuration
+  // ============================================================================
 
   const externalThreads = isUseThreadsResult(threadsOption)
     ? threadsOption
@@ -126,44 +112,13 @@ export function useCloudChat(
   const threads = externalThreads ?? internalThreads;
   const { cloud, threadId } = threads;
 
-  // Keep a ref to threads for use in callbacks
+  // ============================================================================
+  // 2. Refs for Stable References
+  // ============================================================================
+
   const threadsRef = useRef(threads);
   threadsRef.current = threads;
 
-  const persistenceByThreadRef = useRef(
-    new Map<string, CloudMessagePersistence>(),
-  );
-  const formattedByThreadRef = useRef(
-    new Map<
-      string,
-      ReturnType<
-        typeof createFormattedPersistence<UIMessage, ReadonlyJSONObject>
-      >
-    >(),
-  );
-  const getPersistence = useCallback(
-    (id: string) => {
-      const existing = persistenceByThreadRef.current.get(id);
-      if (existing) return existing;
-      const created = new CloudMessagePersistence(cloud);
-      persistenceByThreadRef.current.set(id, created);
-      return created;
-    },
-    [cloud],
-  );
-  const getFormatted = useCallback(
-    (id: string) => {
-      const existing = formattedByThreadRef.current.get(id);
-      if (existing) return existing;
-      const created = createFormattedPersistence(
-        getPersistence(id),
-        aiSdkFormatAdapter,
-      );
-      formattedByThreadRef.current.set(id, created);
-      return created;
-    },
-    [getPersistence],
-  );
   const chatInitRef = useRef(chatOptions);
   chatInitRef.current = chatOptions;
 
@@ -184,39 +139,6 @@ export function useCloudChat(
   const autoGenerateTitleRef = useRef(autoGenerateTitle);
   autoGenerateTitleRef.current = autoGenerateTitle;
 
-  const handleSyncError = useCallback((err: unknown) => {
-    const error = err instanceof Error ? err : new Error(String(err));
-    onSyncErrorRef.current?.(error);
-  }, []);
-
-  // For auto-title generation: track newly created threads
-  const newlyCreatedThreadIdsRef = useRef(new Set<string>());
-  const titleGeneratedRef = useRef(new Set<string>());
-
-  type ChatMeta = {
-    threadId: string | null;
-    creatingThread: Promise<string> | null;
-    loading: Promise<void> | null;
-    loaded: boolean;
-  };
-
-  const chatByKeyRef = useRef(new Map<string, Chat<UIMessage>>());
-  const chatMetaByKeyRef = useRef(new Map<string, ChatMeta>());
-  const chatKeyByThreadIdRef = useRef(new Map<string, string>());
-
-  const newChatKeyRef = useRef<string | null>(null);
-  if (!newChatKeyRef.current) {
-    newChatKeyRef.current = createSessionId();
-  }
-
-  const lastThreadIdRef = useRef<string | null>(threadId);
-  useEffect(() => {
-    if (threadId === null && lastThreadIdRef.current !== null) {
-      newChatKeyRef.current = createSessionId();
-    }
-    lastThreadIdRef.current = threadId;
-  }, [threadId]);
-
   // Track mounted state
   const mountedRef = useRef(true);
   useEffect(() => {
@@ -224,6 +146,25 @@ export function useCloudChat(
       mountedRef.current = false;
     };
   }, []);
+
+  // For auto-title generation: track newly created threads
+  const newlyCreatedThreadIdsRef = useRef(new Set<string>());
+  const titleGeneratedRef = useRef(new Set<string>());
+
+  // ============================================================================
+  // 3. Initialize Core Services
+  // ============================================================================
+
+  const handleSyncError = useCallback((err: unknown) => {
+    const error = err instanceof Error ? err : new Error(String(err));
+    onSyncErrorRef.current?.(error);
+  }, []);
+
+  const persistenceRef = useRef<MessagePersistence | null>(null);
+  if (!persistenceRef.current) {
+    persistenceRef.current = new MessagePersistence(cloud, handleSyncError);
+  }
+  const persistence = persistenceRef.current;
 
   const defaultTransportRef = useRef<ChatTransport<UIMessage> | null>(null);
   if (!defaultTransportRef.current) {
@@ -234,62 +175,23 @@ export function useCloudChat(
   );
   baseTransportRef.current = userTransport ?? defaultTransportRef.current;
 
-  const ensureChatMeta = useCallback(
-    (chatKey: string, threadIdHint?: string | null) => {
-      const existing = chatMetaByKeyRef.current.get(chatKey);
-      if (existing) {
-        if (threadIdHint && !existing.threadId) {
-          existing.threadId = threadIdHint;
-        }
-        return existing;
-      }
-
-      const created: ChatMeta = {
-        threadId: threadIdHint ?? null,
-        creatingThread: null,
-        loading: null,
-        loaded: false,
-      };
-      chatMetaByKeyRef.current.set(chatKey, created);
-      return created;
-    },
-    [],
-  );
+  // ============================================================================
+  // 4. Chat Factory and Multiplexer
+  // ============================================================================
 
   const persistChatMessages = useCallback(
-    async (chatKey: string) => {
-      const meta = chatMetaByKeyRef.current.get(chatKey);
+    async (chatKey: string, multiplexer: ChatMultiplexer) => {
+      const meta = multiplexer.getMeta(chatKey);
       const tid = meta?.threadId;
       if (!tid) return;
 
-      const chatInstance = chatByKeyRef.current.get(chatKey);
+      const chatInstance = multiplexer.get(chatKey);
       if (!chatInstance) return;
 
-      const formatted = getFormatted(tid);
       const messages = chatInstance.messages;
+      await persistence.persistMessages(tid, messages, mountedRef);
 
-      const appendTasks = messages.map((msg, idx) => {
-        if (formatted.isPersisted(msg.id)) return null;
-
-        const parentId = idx > 0 ? messages[idx - 1]!.id : null;
-
-        return formatted
-          .append(tid, { parentId, message: msg })
-          .catch((err) => {
-            if (mountedRef.current) {
-              handleSyncError(err);
-            }
-            return null;
-          });
-      });
-
-      const pending = appendTasks.filter(
-        (task): task is Promise<void | null> => task !== null,
-      );
-      if (pending.length > 0) {
-        await Promise.all(pending);
-      }
-
+      // Auto-generate title after first assistant response
       if (
         autoGenerateTitleRef.current &&
         newlyCreatedThreadIdsRef.current.has(tid) &&
@@ -301,13 +203,16 @@ export function useCloudChat(
         void threadsRef.current.generateTitle(tid);
       }
     },
-    [getFormatted, handleSyncError],
+    [persistence],
   );
 
   const createTransport = useCallback(
-    (chatKey: string): ChatTransport<UIMessage> => ({
+    (
+      chatKey: string,
+      multiplexer: ChatMultiplexer,
+    ): ChatTransport<UIMessage> => ({
       sendMessages: async (opts) => {
-        const meta = ensureChatMeta(chatKey);
+        const meta = multiplexer.ensureMeta(chatKey);
         let currentThreadId = meta.threadId;
 
         if (!currentThreadId) {
@@ -321,7 +226,7 @@ export function useCloudChat(
                 meta.loaded = true;
                 meta.loading = null;
                 newlyCreatedThreadIdsRef.current.add(res.thread_id);
-                chatKeyByThreadIdRef.current.set(res.thread_id, chatKey);
+                multiplexer.setThreadId(chatKey, res.thread_id);
                 threadsRef.current.selectThread(res.thread_id);
                 threadsRef.current.refresh();
                 return res.thread_id;
@@ -347,11 +252,11 @@ export function useCloudChat(
       reconnectToStream: (opts) =>
         baseTransportRef.current.reconnectToStream(opts),
     }),
-    [ensureChatMeta],
+    [],
   );
 
   const createChat = useCallback(
-    (chatKey: string) => {
+    (chatKey: string, multiplexer: ChatMultiplexer) => {
       const {
         onFinish: _onFinish,
         onData: _onData,
@@ -365,12 +270,12 @@ export function useCloudChat(
       return new Chat<UIMessage>({
         ...chatInit,
         id: chatKey,
-        transport: createTransport(chatKey),
+        transport: createTransport(chatKey, multiplexer),
         onFinish: async (event) => {
           try {
             await onFinishRef.current?.(event);
           } finally {
-            await persistChatMessages(chatKey);
+            await persistChatMessages(chatKey, multiplexer);
           }
         },
         onError: (error) => {
@@ -389,31 +294,42 @@ export function useCloudChat(
     [createTransport, persistChatMessages],
   );
 
-  const getOrCreateChat = useCallback(
-    (chatKey: string, threadIdHint?: string | null) => {
-      const existing = chatByKeyRef.current.get(chatKey);
-      if (existing) {
-        if (threadIdHint) {
-          ensureChatMeta(chatKey, threadIdHint);
-        }
-        return existing;
-      }
+  const multiplexerRef = useRef<ChatMultiplexer | null>(null);
+  if (!multiplexerRef.current) {
+    // Circular reference: multiplexer needs createChat which needs multiplexer
+    // We solve this by passing multiplexer to createChat at call time
+    multiplexerRef.current = new ChatMultiplexer((chatKey) =>
+      createChat(chatKey, multiplexerRef.current!),
+    );
+  }
+  const multiplexer = multiplexerRef.current;
 
-      const chatInstance = createChat(chatKey);
-      chatByKeyRef.current.set(chatKey, chatInstance);
-      ensureChatMeta(chatKey, threadIdHint);
-      return chatInstance;
-    },
-    [createChat, ensureChatMeta],
-  );
+  // ============================================================================
+  // 5. Determine Active Chat
+  // ============================================================================
+
+  const newChatKeyRef = useRef<string | null>(null);
+  if (!newChatKeyRef.current) {
+    newChatKeyRef.current = createSessionId();
+  }
+
+  const lastThreadIdRef = useRef<string | null>(threadId);
+  useEffect(() => {
+    if (threadId === null && lastThreadIdRef.current !== null) {
+      newChatKeyRef.current = createSessionId();
+    }
+    lastThreadIdRef.current = threadId;
+  }, [threadId]);
 
   const activeChatKey = threadId
-    ? (chatKeyByThreadIdRef.current.get(threadId) ?? threadId)
+    ? (multiplexer.getChatKeyForThread(threadId) ?? threadId)
     : (newChatKeyRef.current ?? (newChatKeyRef.current = createSessionId()));
 
-  const activeChat = getOrCreateChat(activeChatKey, threadId);
+  const activeChat = multiplexer.getOrCreate(activeChatKey, threadId);
 
-  const chat = useChat({ chat: activeChat });
+  // ============================================================================
+  // 6. Load Messages Effect
+  // ============================================================================
 
   const loadThreadMessages = useCallback(
     async (
@@ -421,35 +337,32 @@ export function useCloudChat(
       chatKey: string,
       cancelledRef: { cancelled: boolean },
     ) => {
-      const formatted = getFormatted(id);
-
       try {
-        const { messages } = await formatted.load(id);
+        const messages = await persistence.loadMessages(id);
         if (cancelledRef.cancelled) return;
 
-        const loaded = messages.map((item) => item.message);
-        const chatInstance = getOrCreateChat(chatKey, id);
-        chatInstance.messages = loaded;
+        const chatInstance = multiplexer.getOrCreate(chatKey, id);
+        chatInstance.messages = messages;
 
-        const meta = ensureChatMeta(chatKey, id);
+        const meta = multiplexer.ensureMeta(chatKey, id);
         meta.loaded = true;
         meta.loading = null;
       } catch (err) {
-        const meta = ensureChatMeta(chatKey, id);
+        const meta = multiplexer.ensureMeta(chatKey, id);
         meta.loading = null;
         if (cancelledRef.cancelled) return;
         handleSyncError(err);
       }
     },
-    [ensureChatMeta, getFormatted, getOrCreateChat, handleSyncError],
+    [persistence, multiplexer, handleSyncError],
   );
 
   useEffect(() => {
     if (!threadId) return;
 
-    const chatKey = chatKeyByThreadIdRef.current.get(threadId) ?? threadId;
-    const chatInstance = getOrCreateChat(chatKey, threadId);
-    const meta = ensureChatMeta(chatKey, threadId);
+    const chatKey = multiplexer.getChatKeyForThread(threadId) ?? threadId;
+    const chatInstance = multiplexer.getOrCreate(chatKey, threadId);
+    const meta = multiplexer.ensureMeta(chatKey, threadId);
 
     if (meta.loaded || meta.loading || chatInstance.messages.length > 0) {
       meta.loaded = true;
@@ -462,7 +375,13 @@ export function useCloudChat(
     return () => {
       cancelledRef.cancelled = true;
     };
-  }, [threadId, ensureChatMeta, getOrCreateChat, loadThreadMessages]);
+  }, [threadId, multiplexer, loadThreadMessages]);
+
+  // ============================================================================
+  // 7. Return Composed Result
+  // ============================================================================
+
+  const chat = useChat({ chat: activeChat });
 
   return {
     ...chat,

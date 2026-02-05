@@ -7,16 +7,16 @@
  * @module assistant-cloud/ai-sdk
  */
 
-export {
-  useCloudChat,
-  type UseCloudChatResult,
-  type UseCloudChatOptions,
-  type ThreadsConfig,
-} from "./useCloudChat";
-export {
-  useThreads,
-  type UseThreadsResult,
-  type UseThreadsOptions,
-  type CloudThread,
-  type ThreadStatus,
-} from "./useThreads";
+export { useCloudChat } from "./chat/useCloudChat";
+
+export { useThreads } from "./threads/useThreads";
+
+export type {
+  UseCloudChatResult,
+  UseCloudChatOptions,
+  ThreadsConfig,
+  UseThreadsResult,
+  UseThreadsOptions,
+  CloudThread,
+  ThreadStatus,
+} from "./types";

@@ -1,9 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { AssistantCloud } from "../AssistantCloud";
-
-export type ThreadStatus = "regular" | "archived";
+import type {
+  CloudThread,
+  UseThreadsOptions,
+  UseThreadsResult,
+} from "../types";
+import { generateThreadTitle } from "./generateThreadTitle";
 
 /** Convert API response to CloudThread */
 function toCloudThread(t: {
@@ -25,62 +28,6 @@ function toCloudThread(t: {
     updatedAt: new Date(t.updated_at),
   };
 }
-
-export type CloudThread = {
-  id: string;
-  title: string;
-  status: ThreadStatus;
-  externalId: string | null;
-  lastMessageAt: Date;
-  createdAt: Date;
-  updatedAt: Date;
-};
-
-export type UseThreadsOptions = {
-  /** AssistantCloud instance */
-  cloud: AssistantCloud;
-  /** Include archived threads in the list. Default: false */
-  includeArchived?: boolean;
-  /** Enable thread fetching. Set to false when passing to useCloudChat which manages this internally. Default: true */
-  enabled?: boolean;
-};
-
-export type UseThreadsResult = {
-  /** The cloud instance used by this hook */
-  cloud: AssistantCloud;
-  /** List of threads */
-  threads: CloudThread[];
-  /** Loading state */
-  isLoading: boolean;
-  /** Error state */
-  error: Error | null;
-  /** Refresh the thread list */
-  refresh: () => Promise<boolean>;
-  /** Get a single thread by ID */
-  get: (id: string) => Promise<CloudThread | null>;
-  /** Create a new thread */
-  create: (options?: { externalId?: string }) => Promise<CloudThread | null>;
-  /** Delete a thread */
-  delete: (id: string) => Promise<boolean>;
-  /** Rename a thread */
-  rename: (id: string, title: string) => Promise<boolean>;
-  /** Archive a thread (removes from active list) */
-  archive: (id: string) => Promise<boolean>;
-  /** Unarchive a thread (restores to active list) */
-  unarchive: (id: string) => Promise<boolean>;
-
-  /** Current thread ID (null for new conversation) */
-  threadId: string | null;
-  /** Switch to a different thread or start new (null) */
-  selectThread: (id: string | null) => void;
-  /**
-   * Generate a title for the specified thread using AI.
-   * Loads messages from cloud and uses the built-in title generation assistant.
-   * @param threadId - The thread ID to generate a title for
-   * @returns The generated title, or null if generation failed
-   */
-  generateTitle: (threadId: string) => Promise<string | null>;
-};
 
 /**
  * Thread list management for Assistant Cloud.
@@ -108,6 +55,10 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
       mountedRef.current = false;
     };
   }, []);
+
+  // ============================================================================
+  // CRUD Operations
+  // ============================================================================
 
   const refresh = useCallback(async (): Promise<boolean> => {
     setIsLoading(true);
@@ -249,86 +200,31 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
     [cloud],
   );
 
+  // ============================================================================
+  // Thread Selection
+  // ============================================================================
+
   const selectThread = useCallback((id: string | null) => {
     setThreadId(id);
   }, []);
 
+  // ============================================================================
+  // Title Generation
+  // ============================================================================
+
   const generateTitle = useCallback(
     async (tid: string): Promise<string | null> => {
       try {
-        const loadMessages = async () => {
-          for (let attempt = 0; attempt < 2; attempt += 1) {
-            const { messages } = await cloud.threads.messages.list(tid);
-            if (messages.length > 0) return messages;
-            await new Promise((resolve) => setTimeout(resolve, 300));
-          }
-          const { messages } = await cloud.threads.messages.list(tid);
-          return messages;
-        };
+        const title = await generateThreadTitle(cloud, tid);
 
-        const messages = await loadMessages();
-        if (messages.length === 0) return null;
-
-        // Filter to ai-sdk/v6 format messages (have content.parts array)
-        const aiSdkMessages = messages.filter(
-          (msg) =>
-            msg.format === "ai-sdk/v6" ||
-            (msg.content && Array.isArray(msg.content["parts"])),
-        );
-        if (aiSdkMessages.length === 0) return null;
-
-        // Convert to title generator format (text parts only)
-        const convertedMessages = aiSdkMessages
-          .map((msg) => {
-            const parts = msg.content["parts"] as
-              | Array<{ type: string; text?: string }>
-              | undefined;
-            if (!parts) return null;
-            const textParts = parts
-              .filter((part) => part.type === "text" && part.text)
-              .map((part) => ({ type: "text" as const, text: part.text! }));
-            if (textParts.length === 0) return null;
-            return {
-              role: msg.content["role"] as string,
-              content: textParts,
-            };
-          })
-          .filter((msg): msg is NonNullable<typeof msg> => msg !== null);
-
-        if (convertedMessages.length === 0) return null;
-
-        // Call cloud title generation
-        const stream = await cloud.runs.stream({
-          thread_id: tid,
-          assistant_id: "system/thread_title",
-          messages: convertedMessages,
-        });
-
-        let title = "";
-        const reader = stream.getReader();
-        try {
-          while (true) {
-            const { done, value: chunk } = await reader.read();
-            if (done) break;
-            if (chunk.type === "text-delta") {
-              title += chunk.textDelta;
-            }
-          }
-        } finally {
-          reader.releaseLock();
+        // Update local state if title was generated
+        if (title && mountedRef.current) {
+          setThreads((prev) =>
+            prev.map((t) => (t.id === tid ? { ...t, title } : t)),
+          );
         }
 
-        if (title) {
-          await cloud.threads.update(tid, { title });
-          // Update local state
-          if (mountedRef.current) {
-            setThreads((prev) =>
-              prev.map((t) => (t.id === tid ? { ...t, title } : t)),
-            );
-          }
-        }
-
-        return title || null;
+        return title;
       } catch (err) {
         if (mountedRef.current) {
           setError(err instanceof Error ? err : new Error(String(err)));
