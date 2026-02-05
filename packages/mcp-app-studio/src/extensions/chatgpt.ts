@@ -79,6 +79,9 @@ function withExtensionsCapabilities(
  * Wraps an MCP-first bridge with ChatGPT-only extensions when `window.openai`
  * exists.
  *
+ * Note: this function mutates `bridge` in-place so class instances preserve
+ * prototype methods.
+ *
  * The returned bridge:
  * - Delegates all MCP behavior to `bridge`
  * - Adds ChatGPT-only helpers (widget state, file APIs, modals) when available

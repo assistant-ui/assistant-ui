@@ -139,7 +139,11 @@ export class MCPBridge implements ExtendedBridge {
     }
 
     await new Promise<void>((resolve, reject) => {
+      let settled = false;
+
       const timeoutId = setTimeout(() => {
+        if (settled) return;
+        settled = true;
         reject(
           new Error(
             `MCP bridge connect timed out after ${timeoutMs}ms (no host responded).`,
@@ -147,10 +151,20 @@ export class MCPBridge implements ExtendedBridge {
         );
       }, timeoutMs);
 
-      this.app
-        .connect()
-        .then(resolve, reject)
-        .finally(() => clearTimeout(timeoutId));
+      this.app.connect().then(
+        () => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeoutId);
+          resolve();
+        },
+        (error) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeoutId);
+          reject(error);
+        },
+      );
     });
   }
 

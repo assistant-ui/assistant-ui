@@ -25,8 +25,11 @@ function createTemplateLayout(root: string): void {
 describe("validateTemplateDir", () => {
   it("accepts template layouts that do not include lib/workbench/index.ts", () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-template-"));
-    createTemplateLayout(root);
-
-    expect(() => validateTemplateDir(root)).not.toThrow();
+    try {
+      createTemplateLayout(root);
+      expect(() => validateTemplateDir(root)).not.toThrow();
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
   });
 });
