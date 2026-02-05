@@ -12,6 +12,7 @@ import {
   filterTemplateTarEntry,
   getGithubArchiveTarballUrl,
 } from "./template-utils";
+import { validateTemplateDir } from "./template-validation";
 import {
   isValidPackageName,
   isValidProjectPath,
@@ -21,6 +22,8 @@ import {
   updatePackageJson,
   detectPackageManager,
 } from "./utils";
+import { getVersionFromCliDir } from "./version";
+import { updateWorkbenchIndex } from "./workbench-index";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -76,13 +79,7 @@ function ensureSupportedNodeVersion(): void {
 }
 
 function getVersion(): string {
-  try {
-    const pkgPath = path.resolve(__dirname, "../package.json");
-    const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
-    return pkg.version || "0.0.0";
-  } catch {
-    return "0.0.0";
-  }
+  return getVersionFromCliDir(__dirname);
 }
 
 function showHelp(): void {
@@ -399,37 +396,6 @@ function updateExportScriptDefaults(
   fs.writeFileSync(exportScriptPath, content);
 }
 
-function generateWorkbenchIndexExport(components: string[]): string {
-  const exports: string[] = [];
-  if (components.includes("welcome")) {
-    exports.push("WelcomeCardSDK");
-  }
-  if (components.includes("poi-map")) {
-    exports.push("POIMapSDK");
-  }
-  return exports.length > 0
-    ? `export { ${exports.join(", ")} } from "./wrappers";`
-    : "// No SDK exports";
-}
-
-function updateWorkbenchIndex(targetDir: string, components: string[]): void {
-  const indexPath = path.join(targetDir, "lib/workbench/index.ts");
-  let content = fs.readFileSync(indexPath, "utf-8");
-
-  // Replace the wrappers export line (or add if missing)
-  const wrappersExportRegex = /export \{[^}]*\} from "\.\/wrappers";/;
-  const newExport = generateWorkbenchIndexExport(components);
-
-  if (wrappersExportRegex.test(content)) {
-    content = content.replace(wrappersExportRegex, newExport);
-  } else {
-    // If no wrappers export exists, add it at the end
-    content = `${content.trimEnd()}\n\n${newExport}\n`;
-  }
-
-  fs.writeFileSync(indexPath, content);
-}
-
 function updateWorkbenchStoreDefault(
   targetDir: string,
   defaultComponent: string,
@@ -514,32 +480,6 @@ interface ProjectConfig {
   description: string;
   template: TemplateType;
   includeServer: boolean;
-}
-
-const REQUIRED_TEMPLATE_PATHS = [
-  "package.json",
-  "scripts/dev.ts",
-  "scripts/export.ts",
-  "lib/workbench/component-registry.tsx",
-  "lib/workbench/wrappers/index.ts",
-  "components/examples/index.ts",
-  "lib/workbench/index.ts",
-  "lib/workbench/store.ts",
-] as const;
-
-function validateTemplateDir(templateDir: string): void {
-  const missing = REQUIRED_TEMPLATE_PATHS.filter(
-    (p) => !fs.existsSync(path.join(templateDir, p)),
-  );
-  if (missing.length > 0) {
-    throw new Error(
-      `Template validation failed. Missing expected files:\n${missing
-        .map((p) => `- ${p}`)
-        .join(
-          "\n",
-        )}\n\nThis may indicate the starter template has changed. Try updating mcp-app-studio or set MCP_APP_STUDIO_TEMPLATE_REPO / MCP_APP_STUDIO_TEMPLATE_REF to a compatible template.`,
-    );
-  }
 }
 
 function copyDirContents(srcDir: string, destDir: string): void {
