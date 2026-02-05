@@ -1,6 +1,12 @@
 type TextPartLike = { type: string; text?: string };
 type ToolCallPartLike = { type: string; toolName?: string };
 
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  if (Array.isArray(value)) return undefined;
+  return value as Record<string, unknown>;
+}
+
 export function getTextLength(parts: readonly TextPartLike[]): number {
   let length = 0;
   for (const part of parts) {
@@ -44,16 +50,37 @@ export function getAssistantMessageTokenUsage(
 } {
   if (!message || message.role !== "assistant") return {};
 
-  const metadata = message.metadata as Record<string, unknown> | undefined;
-  const custom = metadata?.["custom"] as Record<string, unknown> | undefined;
-  const usage = custom?.["usage"] as Record<string, number> | undefined;
+  const metadata = asRecord(message.metadata);
+  const custom = asRecord(metadata?.["custom"]);
+  const usage = asRecord(custom?.["usage"]);
 
   if (usage) {
+    const rawTotalTokens = usage["totalTokens"];
+    const rawInputTokens = usage["inputTokens"];
+    const rawOutputTokens = usage["outputTokens"];
+
+    const inputTokens =
+      typeof rawInputTokens === "number" &&
+      Number.isFinite(rawInputTokens) &&
+      rawInputTokens >= 0
+        ? rawInputTokens
+        : undefined;
+    const outputTokens =
+      typeof rawOutputTokens === "number" &&
+      Number.isFinite(rawOutputTokens) &&
+      rawOutputTokens >= 0
+        ? rawOutputTokens
+        : undefined;
+
+    const totalTokensFromParts = (inputTokens ?? 0) + (outputTokens ?? 0);
     const totalTokens =
-      usage["totalTokens"] ??
-      (usage["inputTokens"] ?? 0) + (usage["outputTokens"] ?? 0);
-    const inputTokens = usage["inputTokens"];
-    const outputTokens = usage["outputTokens"];
+      typeof rawTotalTokens === "number" &&
+      Number.isFinite(rawTotalTokens) &&
+      rawTotalTokens > 0
+        ? rawTotalTokens
+        : totalTokensFromParts > 0
+          ? totalTokensFromParts
+          : 0;
 
     if (
       totalTokens > 0 ||
@@ -68,16 +95,30 @@ export function getAssistantMessageTokenUsage(
     }
   }
 
-  const steps = (metadata?.["steps"] ?? []) as Array<{
-    usage?: { promptTokens: number; completionTokens: number };
-  }>;
+  const steps = metadata?.["steps"];
+  if (!Array.isArray(steps)) return {};
 
   let promptTokens = 0;
   let completionTokens = 0;
   for (const step of steps) {
-    if (!step.usage) continue;
-    promptTokens += step.usage.promptTokens;
-    completionTokens += step.usage.completionTokens;
+    const usage = asRecord(asRecord(step)?.["usage"]);
+    if (!usage) continue;
+    const rawPromptTokens = usage["promptTokens"];
+    const rawCompletionTokens = usage["completionTokens"];
+    if (
+      typeof rawPromptTokens === "number" &&
+      Number.isFinite(rawPromptTokens) &&
+      rawPromptTokens >= 0
+    ) {
+      promptTokens += rawPromptTokens;
+    }
+    if (
+      typeof rawCompletionTokens === "number" &&
+      Number.isFinite(rawCompletionTokens) &&
+      rawCompletionTokens >= 0
+    ) {
+      completionTokens += rawCompletionTokens;
+    }
   }
 
   const totalTokens = promptTokens + completionTokens;

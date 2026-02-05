@@ -23,6 +23,9 @@ import {
 
 type ThreadMessagePart = { type: string; text?: string };
 
+const RUN_STARTED_AT_STALE_THRESHOLD_MS = 30 * 60_000;
+const RUN_STARTED_AT_CLEANUP_INTERVAL_MS = 60_000;
+
 function getLastUserMessage(
   messages: readonly {
     role?: string;
@@ -117,6 +120,18 @@ function AssistantAnalyticsTracker() {
   });
 
   const runStartedAtRef = useRef(new Map<string, number>());
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Date.now();
+      for (const [threadId, startedAt] of runStartedAtRef.current.entries()) {
+        if (now - startedAt <= RUN_STARTED_AT_STALE_THRESHOLD_MS) continue;
+        runStartedAtRef.current.delete(threadId);
+      }
+    }, RUN_STARTED_AT_CLEANUP_INTERVAL_MS);
+
+    return () => clearInterval(interval);
+  }, []);
 
   useAuiEvent("thread.runStart", (event) => {
     runStartedAtRef.current.set(event.threadId, Date.now());
