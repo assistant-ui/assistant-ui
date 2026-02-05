@@ -1,0 +1,162 @@
+---
+title: Chain of Thought
+description: Group reasoning and tool calls into a collapsible accordion UI.
+---
+
+LLMs often produce reasoning steps and tool calls in succession. Chain of Thought lets you visually group these consecutive parts into a single collapsible accordion, giving users a clean "thinking" UI.
+
+## Overview
+
+When a model like OpenAI's `o4-mini` responds, it may emit a sequence of reasoning tokens and tool calls before producing its final text answer. By default, these parts render individually. `ChainOfThoughtPrimitive` groups consecutive reasoning + tool-call parts together and renders them through a single component.
+
+Key benefits:
+
+- **Cleaner UI** — Collapse intermediate steps behind a "Thinking" toggle
+- **Better context** — Users see that reasoning and tool calls are related
+- **Built-in accordion** — Expand/collapse with a single click; collapsed by default
+
+## Quick Start
+
+<Steps>
+  <Step>
+
+### Pass a ChainOfThought component to MessagePrimitive.Parts
+
+`MessagePrimitive.Parts` accepts a `ChainOfThought` component. When provided, consecutive reasoning and tool-call parts are automatically grouped and rendered through it.
+
+```tsx
+import {
+  AuiIf,
+  ChainOfThoughtPrimitive,
+  MessagePrimitive,
+} from "@assistant-ui/react";
+import type { FC } from "react";
+
+const Reasoning: FC<{ text: string }> = ({ text }) => {
+  return (
+    <p className="whitespace-pre-wrap px-4 py-2 text-muted-foreground text-sm italic">
+      {text}
+    </p>
+  );
+};
+
+const ChainOfThought: FC = () => {
+  return (
+    <ChainOfThoughtPrimitive.Root className="my-2 rounded-lg border">
+      <ChainOfThoughtPrimitive.AccordionTrigger className="flex w-full cursor-pointer items-center gap-2 px-4 py-2 font-medium text-sm hover:bg-muted/50">
+        Thinking
+      </ChainOfThoughtPrimitive.AccordionTrigger>
+      <AuiIf condition={({ chainOfThought }) => !chainOfThought.collapsed}>
+        <ChainOfThoughtPrimitive.Parts
+          components={{ Reasoning, tools: { Fallback: ToolFallback } }}
+        />
+      </AuiIf>
+    </ChainOfThoughtPrimitive.Root>
+  );
+};
+
+const AssistantMessage: FC = () => {
+  return (
+    <MessagePrimitive.Root>
+      <MessagePrimitive.Parts
+        components={{
+          Text: MarkdownText,
+          ChainOfThought, // groups reasoning + tool parts
+        }}
+      />
+    </MessagePrimitive.Root>
+  );
+};
+```
+
+  </Step>
+  <Step>
+
+### Use a reasoning model
+
+Chain of Thought is most useful with models that produce reasoning tokens (e.g. OpenAI `o4-mini`). Here's an example backend route using the Vercel AI SDK:
+
+```tsx title="app/api/chat/route.ts"
+import { openai } from "@ai-sdk/openai";
+import { streamText, convertToModelMessages } from "ai";
+
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+
+  const result = streamText({
+    model: openai("o4-mini"),
+    messages: await convertToModelMessages(messages),
+  });
+
+  return result.toUIMessageStreamResponse();
+}
+```
+
+  </Step>
+</Steps>
+
+## API Reference
+
+### ChainOfThoughtPrimitive.Root
+
+Container element for the chain of thought group. Renders a `<div>`.
+
+### ChainOfThoughtPrimitive.AccordionTrigger
+
+A button that toggles the collapsed/expanded state. Collapsed by default.
+
+### ChainOfThoughtPrimitive.Parts
+
+Renders the grouped parts when expanded (nothing when collapsed).
+
+```tsx
+<AuiIf condition={({ chainOfThought }) => !chainOfThought.collapsed}>
+  <ChainOfThoughtPrimitive.Parts
+    components={{
+      Reasoning,
+      tools: { Fallback: ToolFallback },
+      Layout: ({ children }) => (
+        <div className="border-l-2 border-muted pl-4">{children}</div>
+      ),
+    }}
+  />
+</AuiIf>
+```
+
+| Prop | Type | Description |
+| --- | --- | --- |
+| `components.Reasoning` | `FC<{ text: string }>` | Component to render reasoning parts |
+| `components.tools.Fallback` | `ToolCallMessagePartComponent` | Fallback component for tool-call parts |
+| `components.Layout` | `ComponentType<PropsWithChildren>` | Wrapper component around each rendered part when expanded |
+
+## Reading Collapsed State
+
+Use `AuiIf` to conditionally render based on the accordion state:
+
+```tsx
+import { AuiIf, ChainOfThoughtPrimitive } from "@assistant-ui/react";
+import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
+
+const ChainOfThoughtAccordionTrigger = () => {
+  return (
+    <ChainOfThoughtPrimitive.AccordionTrigger className="flex w-full cursor-pointer items-center gap-2 px-4 py-2 text-sm">
+      <AuiIf condition={({ chainOfThought }) => chainOfThought.collapsed}>
+        <ChevronRightIcon className="size-4" />
+      </AuiIf>
+      <AuiIf condition={({ chainOfThought }) => !chainOfThought.collapsed}>
+        <ChevronDownIcon className="size-4" />
+      </AuiIf>
+      Thinking
+    </ChainOfThoughtPrimitive.AccordionTrigger>
+  );
+};
+```
+
+## Full Example
+
+See the complete [with-chain-of-thought example](https://github.com/Yonom/assistant-ui/tree/main/examples/with-chain-of-thought) for a working implementation with tool calls and reasoning.
+
+## Related Guides
+
+- [Generative UI](/docs/guides/tool-ui) — Custom UI for tool calls
+- [Tools](/docs/guides/tools) — Defining and using tools

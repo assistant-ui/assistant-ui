@@ -1,6 +1,11 @@
 "use client";
 
-import { type FC, useMemo } from "react";
+import {
+  type ComponentType,
+  type FC,
+  type PropsWithChildren,
+  useMemo,
+} from "react";
 import { useAuiState } from "@assistant-ui/store";
 import { ChainOfThoughtPartByIndexProvider } from "../../context/providers/ChainOfThoughtPartByIndexProvider";
 import { MessagePartComponent } from "../message/MessageParts";
@@ -21,6 +26,8 @@ export namespace ChainOfThoughtPrimitiveParts {
       tools?: {
         Fallback?: ToolCallMessagePartComponent | undefined;
       };
+      /** Layout component to wrap the rendered parts when expanded */
+      Layout?: ComponentType<PropsWithChildren> | undefined;
     };
   };
 }
@@ -46,9 +53,6 @@ export namespace ChainOfThoughtPrimitiveParts {
 export const ChainOfThoughtPrimitiveParts: FC<
   ChainOfThoughtPrimitiveParts.Props
 > = ({ components }) => {
-  const collapsed = useAuiState(
-    ({ chainOfThought }) => chainOfThought.collapsed,
-  );
   const partsLength = useAuiState(
     ({ chainOfThought }) => chainOfThought.parts.length,
   );
@@ -63,15 +67,21 @@ export const ChainOfThoughtPrimitiveParts: FC<
     [components?.Reasoning, components?.tools?.Fallback],
   );
 
-  const elements = useMemo(() => {
-    if (collapsed) return null;
+  const Layout = components?.Layout;
 
+  const elements = useMemo(() => {
     return Array.from({ length: partsLength }, (_, index) => (
       <ChainOfThoughtPartByIndexProvider key={index} index={index}>
-        <MessagePartComponent components={messageComponents} />
+        {Layout ? (
+          <Layout>
+            <MessagePartComponent components={messageComponents} />
+          </Layout>
+        ) : (
+          <MessagePartComponent components={messageComponents} />
+        )}
       </ChainOfThoughtPartByIndexProvider>
     ));
-  }, [collapsed, partsLength, messageComponents]);
+  }, [partsLength, messageComponents, Layout]);
 
   return <>{elements}</>;
 };

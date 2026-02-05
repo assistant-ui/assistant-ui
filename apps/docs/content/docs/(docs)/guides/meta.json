@@ -3,6 +3,7 @@
   "pages": [
     "attachments",
     "branching",
+    "chain-of-thought",
     "context-api",
     "dictation",
     "editing",
