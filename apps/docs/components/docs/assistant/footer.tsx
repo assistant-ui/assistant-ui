@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { analytics } from "@/lib/analytics";
 import { useCurrentPage } from "@/components/docs/contexts/current-page";
+import { getAssistantMessageTokenUsage } from "@/lib/assistant-metrics";
 
 const CONTEXT_WINDOW = 400_000;
 
@@ -23,30 +24,8 @@ export function AssistantFooter(): ReactNode {
   const pathname = currentPage?.pathname;
 
   const totalTokens = messages.reduce((acc, message) => {
-    if (message.role !== "assistant") return acc;
-
-    const metadata = message.metadata as Record<string, unknown>;
-    const custom = metadata["custom"] as Record<string, unknown> | undefined;
-    if (!custom) return acc;
-    const usage = custom["usage"] as Record<string, number> | undefined;
-    if (usage) {
-      const total =
-        usage["totalTokens"] ??
-        (usage["inputTokens"] ?? 0) + (usage["outputTokens"] ?? 0);
-      if (total > 0) return acc + total;
-    }
-
-    const steps = (metadata["steps"] ?? []) as Array<{
-      usage?: { promptTokens: number; completionTokens: number };
-    }>;
-    return (
-      acc +
-      steps.reduce((stepAcc, step) => {
-        const stepUsage = step.usage;
-        if (!stepUsage) return stepAcc;
-        return stepAcc + stepUsage.promptTokens + stepUsage.completionTokens;
-      }, 0)
-    );
+    const usage = getAssistantMessageTokenUsage(message);
+    return acc + (usage.totalTokens ?? 0);
   }, 0);
 
   const usagePercent = Math.min((totalTokens / CONTEXT_WINDOW) * 100, 100);

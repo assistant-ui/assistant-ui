@@ -15,7 +15,11 @@ import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { useEffect, useRef, type ReactNode } from "react";
 import { useCurrentPage } from "@/components/docs/contexts/current-page";
 import { analytics } from "@/lib/analytics";
-import { countToolCalls, getTextLength } from "@/lib/assistant-metrics";
+import {
+  countToolCalls,
+  getAssistantMessageTokenUsage,
+  getTextLength,
+} from "@/lib/assistant-metrics";
 
 type ThreadMessagePart = { type: string; text?: string };
 
@@ -46,66 +50,6 @@ function getLastAssistantMessage(
     if (message?.role === "assistant") return message;
   }
   return undefined;
-}
-
-function getAssistantMessageTokenUsage(
-  message:
-    | {
-        role?: string;
-        metadata?: unknown;
-      }
-    | undefined,
-): {
-  totalTokens?: number;
-  inputTokens?: number;
-  outputTokens?: number;
-} {
-  if (!message || message.role !== "assistant") return {};
-
-  const metadata = message.metadata as Record<string, unknown> | undefined;
-  const custom = metadata?.["custom"] as Record<string, unknown> | undefined;
-  const usage = custom?.["usage"] as Record<string, number> | undefined;
-
-  if (usage) {
-    const totalTokens =
-      usage["totalTokens"] ??
-      (usage["inputTokens"] ?? 0) + (usage["outputTokens"] ?? 0);
-    const inputTokens = usage["inputTokens"];
-    const outputTokens = usage["outputTokens"];
-
-    if (
-      totalTokens > 0 ||
-      inputTokens !== undefined ||
-      outputTokens !== undefined
-    ) {
-      return {
-        ...(totalTokens > 0 ? { totalTokens } : {}),
-        ...(inputTokens !== undefined ? { inputTokens } : {}),
-        ...(outputTokens !== undefined ? { outputTokens } : {}),
-      };
-    }
-  }
-
-  const steps = (metadata?.["steps"] ?? []) as Array<{
-    usage?: { promptTokens: number; completionTokens: number };
-  }>;
-
-  let promptTokens = 0;
-  let completionTokens = 0;
-  for (const step of steps) {
-    if (!step.usage) continue;
-    promptTokens += step.usage.promptTokens;
-    completionTokens += step.usage.completionTokens;
-  }
-
-  const totalTokens = promptTokens + completionTokens;
-  if (totalTokens <= 0) return {};
-
-  return {
-    totalTokens,
-    inputTokens: promptTokens,
-    outputTokens: completionTokens,
-  };
 }
 
 // Stateless adapter - safe to share across instances
