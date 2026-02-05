@@ -58,6 +58,7 @@ export function AssistantActionBar(): ReactNode {
   const userQuestion = userMessage ? getMessageText(userMessage.content) : "";
   const assistantResponse = getMessageText(content);
   const toolCalls = getToolCalls(content);
+  const toolNames = toolCalls.map((t) => t.toolName);
 
   // Don't show feedback buttons while message is still streaming or if no content
   if (isRunning || !assistantResponse.trim()) {
@@ -71,9 +72,10 @@ export function AssistantActionBar(): ReactNode {
       threadId,
       messageId,
       type: "positive",
-      userQuestion,
-      assistantResponse,
-      toolCalls,
+      user_question_length: userQuestion.length,
+      assistant_response_length: assistantResponse.length,
+      tool_calls_count: toolCalls.length,
+      ...(toolNames.length > 0 ? { tool_names: toolNames.join(",") } : {}),
     });
   };
 
@@ -88,10 +90,11 @@ export function AssistantActionBar(): ReactNode {
       messageId,
       type: "negative",
       category,
-      ...(comment ? { comment } : {}),
-      userQuestion,
-      assistantResponse,
-      toolCalls,
+      ...(comment ? { comment_length: comment.length } : {}),
+      user_question_length: userQuestion.length,
+      assistant_response_length: assistantResponse.length,
+      tool_calls_count: toolCalls.length,
+      ...(toolNames.length > 0 ? { tool_names: toolNames.join(",") } : {}),
     });
   };
 

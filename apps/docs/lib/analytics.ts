@@ -1,8 +1,11 @@
-import posthog from "posthog-js";
-import { track as vercelTrack } from "@vercel/analytics";
-
 declare global {
   interface Window {
+    posthog?: {
+      capture?: (
+        event: string,
+        properties?: Record<string, string | number | boolean>,
+      ) => void;
+    };
     umami?: {
       track: (
         event: string,
@@ -12,15 +15,37 @@ declare global {
   }
 }
 
+let vercelTrackPromise:
+  | Promise<
+      | ((
+          event: string,
+          properties?: Record<string, string | number | boolean>,
+        ) => void)
+      | null
+    >
+  | undefined;
+
+const getVercelTrack = () => {
+  if (vercelTrackPromise) return vercelTrackPromise;
+  vercelTrackPromise = import("@vercel/analytics")
+    .then(({ track }) => track)
+    .catch(() => null);
+  return vercelTrackPromise;
+};
+
 const trackEvent = (
   event: string,
   properties?: Record<string, string | number | boolean>,
 ) => {
   // PostHog
-  posthog.capture?.(event, properties);
+  if (typeof window !== "undefined") {
+    window.posthog?.capture?.(event, properties);
+  }
 
   // Vercel Analytics
-  vercelTrack(event, properties);
+  if (typeof window !== "undefined") {
+    void getVercelTrack().then((track) => track?.(event, properties));
+  }
 
   // Umami
   if (typeof window !== "undefined") {
@@ -214,16 +239,13 @@ export const analytics = {
         | "didnt_answer"
         | "too_vague"
         | "other";
-      comment?: string;
-      userQuestion: string;
-      assistantResponse: string;
-      toolCalls: Array<{ toolName: string; args: Record<string, unknown> }>;
+      comment_length?: number;
+      user_question_length: number;
+      assistant_response_length: number;
+      tool_calls_count: number;
+      tool_names?: string;
     }) => {
-      const { toolCalls, ...rest } = props;
-      trackEvent("assistant_feedback_submitted", {
-        ...rest,
-        toolCalls: JSON.stringify(toolCalls),
-      });
+      trackEvent("assistant_feedback_submitted", props);
     },
   },
 };

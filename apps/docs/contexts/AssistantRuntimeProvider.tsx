@@ -5,7 +5,6 @@ import {
   useAssistantInstructions,
   useAui,
   useAuiEvent,
-  useAuiState,
 } from "@assistant-ui/react";
 import {
   useChatRuntime,
@@ -123,82 +122,73 @@ function AssistantAnalyticsTracker() {
   const currentPage = useCurrentPage();
   const pathname = currentPage?.pathname;
 
-  const composerText = useAuiState(({ thread }) => thread.composer.text);
-  const composerAttachmentsCount = useAuiState(
-    ({ thread }) => thread.composer.attachments.length,
-  );
-  const messages = useAuiState(({ thread }) => thread.messages);
-
   const pathnameRef = useRef<string | undefined>(pathname);
-  const composerTextRef = useRef(composerText);
-  const composerAttachmentsCountRef = useRef(composerAttachmentsCount);
-  const messagesRef = useRef(messages);
-
-  const modelNameRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     pathnameRef.current = pathname;
   }, [pathname]);
 
-  useEffect(() => {
-    composerTextRef.current = composerText;
-  }, [composerText]);
-
-  useEffect(() => {
-    composerAttachmentsCountRef.current = composerAttachmentsCount;
-  }, [composerAttachmentsCount]);
-
-  useEffect(() => {
-    messagesRef.current = messages;
-  }, [messages]);
-
-  useEffect(() => {
+  useAuiEvent("composer.send", (event) => {
+    let messageLength = 0;
+    let attachmentsCount = 0;
     try {
-      const modelName = aui.thread().getModelContext()?.config?.modelName;
-      modelNameRef.current = modelName;
+      const composerState = aui.composer().getState();
+      messageLength = composerState.text.length;
+      attachmentsCount = composerState.attachments.length;
     } catch {
       // ignore
     }
-  }, [aui]);
 
-  useAuiEvent({ scope: "*", event: "thread.modelContextUpdate" }, () => {
+    let modelName: string | undefined;
     try {
-      const modelName = aui.thread().getModelContext()?.config?.modelName;
-      modelNameRef.current = modelName;
+      modelName = aui.thread().getModelContext()?.config?.modelName;
     } catch {
       // ignore
     }
-  });
 
-  useAuiEvent({ scope: "*", event: "composer.send" }, (event) => {
     analytics.assistant.messageSent({
       threadId: event.threadId,
       ...(event.messageId ? { messageId: event.messageId } : {}),
       source: "composer",
-      message_length: composerTextRef.current.length,
-      attachments_count: composerAttachmentsCountRef.current,
+      message_length: messageLength,
+      attachments_count: attachmentsCount,
       ...(pathnameRef.current ? { pathname: pathnameRef.current } : {}),
-      ...(modelNameRef.current ? { model_name: modelNameRef.current } : {}),
+      ...(modelName ? { model_name: modelName } : {}),
     });
   });
 
   const runStartedAtRef = useRef(new Map<string, number>());
 
-  useAuiEvent({ scope: "*", event: "thread.runStart" }, (event) => {
+  useAuiEvent("thread.runStart", (event) => {
     runStartedAtRef.current.set(event.threadId, Date.now());
   });
 
-  useAuiEvent({ scope: "*", event: "thread.runEnd" }, (event) => {
+  useAuiEvent("thread.runEnd", (event) => {
     const startedAt = runStartedAtRef.current.get(event.threadId);
     runStartedAtRef.current.delete(event.threadId);
     const latencyMs =
       startedAt === undefined ? undefined : Date.now() - startedAt;
 
-    const lastAssistant = getLastAssistantMessage(messagesRef.current);
+    const messages = (() => {
+      try {
+        return aui.thread().getState().messages;
+      } catch {
+        return [];
+      }
+    })();
+
+    const lastAssistant = getLastAssistantMessage(messages);
     const responseLength = getTextLength(lastAssistant?.content ?? []);
     const toolCallsCount = countToolCalls(lastAssistant?.content ?? []);
     const status = lastAssistant?.status;
     const tokenUsage = getAssistantMessageTokenUsage(lastAssistant);
+
+    let modelName: string | undefined;
+    try {
+      modelName = aui.thread().getModelContext()?.config?.modelName;
+    } catch {
+      // ignore
+    }
 
     const payload: Parameters<typeof analytics.assistant.responseCompleted>[0] =
       {
@@ -217,7 +207,7 @@ function AssistantAnalyticsTracker() {
           ? {}
           : { response_output_tokens: tokenUsage.outputTokens }),
         ...(pathnameRef.current ? { pathname: pathnameRef.current } : {}),
-        ...(modelNameRef.current ? { model_name: modelNameRef.current } : {}),
+        ...(modelName ? { model_name: modelName } : {}),
       };
 
     if (status?.type === "incomplete") {
