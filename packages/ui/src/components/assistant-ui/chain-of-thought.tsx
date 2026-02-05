@@ -47,223 +47,12 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
+import "./chain-of-thought.css";
 
 const ANIMATION_DURATION = 200;
-
-/**
- * Smooth ease-out curve for refined, professional feel.
- * No overshoot - clean and crisp.
- */
 const SPRING_EASING = "cubic-bezier(0.22, 0.61, 0.36, 1)";
-
-/**
- * Material Design standard easing for crisp close animations.
- */
 const EASE_OUT_EXPO = "cubic-bezier(0.4, 0, 0.2, 1)";
-
-/**
- * Stagger delay between timeline steps (in ms).
- */
 const STEP_STAGGER_DELAY = 40;
-const WINDOW_TRANSITION_MS = 450;
-
-/**
- * Step animation keyframes - injected once per document.
- * Uses clip-path for connector "line extension" and blur for focus effect.
- */
-const STEP_KEYFRAMES = `
-@keyframes aui-connector-fade {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-@keyframes aui-icon-enter {
-  from {
-    opacity: 0;
-    transform: scale(0.85);
-    filter: blur(3px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-    filter: blur(0);
-  }
-}
-@keyframes aui-content-enter {
-  from {
-    opacity: 0;
-    transform: translateY(-8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-@keyframes aui-window-enter {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-.aui-chain-of-thought-timeline[data-windowed="true"][data-window-shift="true"][data-window-transition="true"]
-  [data-slot="chain-of-thought-step"]:last-child {
-  animation: aui-window-enter 240ms ease-out both;
-}
-.aui-chain-of-thought-timeline-window[data-windowed="true"] {
-  position: relative;
-  overflow: hidden;
-  max-height: calc(
-    (var(--aui-window-row, 56px) * var(--aui-window-count, 3)) +
-      var(--aui-window-padding, 0px)
-  );
-  transition: max-height ${WINDOW_TRANSITION_MS}ms ${SPRING_EASING};
-}
-.aui-chain-of-thought-timeline-window[data-windowed="true"][data-window-active="true"] {
-  -webkit-mask-image: linear-gradient(
-    to bottom,
-    transparent,
-    black 14%,
-    black 86%,
-    transparent
-  );
-  mask-image: linear-gradient(
-    to bottom,
-    transparent,
-    black 14%,
-    black 86%,
-    transparent
-  );
-}
-.aui-chain-of-thought-timeline-window[data-windowed="true"]::before,
-.aui-chain-of-thought-timeline-window[data-windowed="true"]::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 24px;
-  pointer-events: none;
-  z-index: 1;
-  opacity: 0;
-  transition: opacity ${WINDOW_TRANSITION_MS}ms ${SPRING_EASING};
-}
-.aui-chain-of-thought-timeline-window[data-windowed="true"][data-window-active="true"]::before,
-.aui-chain-of-thought-timeline-window[data-windowed="true"][data-window-active="true"]::after {
-  opacity: 1;
-}
-.aui-chain-of-thought-timeline-window[data-windowed="true"]::before {
-  top: 0;
-  background: linear-gradient(
-    to bottom,
-    hsl(var(--background)),
-    transparent
-  );
-}
-.aui-chain-of-thought-timeline-window[data-windowed="true"]::after {
-  bottom: 0;
-  background: linear-gradient(
-    to top,
-    hsl(var(--background)),
-    transparent
-  );
-}
-.aui-chain-of-thought-timeline-window[data-windowed="true"][data-expanded="true"] {
-  max-height: calc(
-    (var(--aui-window-row, 56px) * var(--aui-window-total, 3)) +
-      var(--aui-window-padding, 0px)
-  );
-  -webkit-mask-image: none;
-  mask-image: none;
-}
-.aui-chain-of-thought-timeline-window[data-windowed="true"][data-expanded="true"][data-expand-animating="false"] {
-  max-height: none;
-  overflow: visible;
-}
-.aui-chain-of-thought-timeline-window[data-windowed="true"]:has([data-slot="chain-of-thought-trace-group-summary"][aria-expanded="true"]) {
-  max-height: none;
-  overflow: visible;
-  -webkit-mask-image: none;
-  mask-image: none;
-  transition: none;
-}
-.aui-chain-of-thought-timeline-window[data-windowed="true"]:has([data-slot="chain-of-thought-trace-group-summary"][aria-expanded="true"])::before,
-.aui-chain-of-thought-timeline-window[data-windowed="true"]:has([data-slot="chain-of-thought-trace-group-summary"][aria-expanded="true"])::after {
-  opacity: 0;
-}
-.aui-chain-of-thought-timeline[data-windowed="true"] {
-  transform: translateY(
-    calc(var(--aui-window-shift, 0) * -1 * var(--aui-window-row, 56px))
-  );
-  transition: transform ${WINDOW_TRANSITION_MS}ms ${SPRING_EASING};
-  will-change: transform;
-}
-.aui-chain-of-thought-timeline[data-windowed="true"]:has([data-slot="chain-of-thought-trace-group-summary"][aria-expanded="true"]) {
-  transform: none;
-  transition: none;
-}
-.aui-chain-of-thought-timeline[data-windowed="true"][data-expanded="true"] {
-  transform: none;
-}
-.aui-chain-of-thought-timeline[data-windowed="true"][data-window-transition="false"] {
-  transition: none;
-}
-.aui-chain-of-thought-timeline-window[data-windowed="true"][data-window-transition="false"] {
-  transition: none;
-}
-.aui-chain-of-thought-timeline-window[data-windowed="true"][data-window-transition="false"]::before,
-.aui-chain-of-thought-timeline-window[data-windowed="true"][data-window-transition="false"]::after {
-  transition: none;
-}
-.aui-chain-of-thought-timeline[data-windowed="true"] [data-slot="chain-of-thought-step"] {
-  height: var(--aui-window-row, 56px);
-  align-items: flex-start;
-  overflow: hidden;
-}
-.aui-chain-of-thought-timeline[data-windowed="true"]:has([data-slot="chain-of-thought-trace-group-summary"][aria-expanded="true"]) [data-slot="chain-of-thought-step"] {
-  height: auto;
-  align-items: flex-start;
-  overflow: visible;
-}
-.aui-chain-of-thought-timeline[data-windowed="true"] [data-slot="chain-of-thought-step-content"] {
-  max-height: calc(var(--aui-window-row, 56px) - 12px);
-  overflow: hidden;
-}
-.aui-chain-of-thought-timeline[data-windowed="true"]:has([data-slot="chain-of-thought-trace-group-summary"][aria-expanded="true"]) [data-slot="chain-of-thought-step-content"] {
-  max-height: none;
-  overflow: visible;
-}
-@media (prefers-reduced-motion: reduce) {
-  .aui-chain-of-thought-timeline[data-windowed="true"][data-window-shift="true"][data-window-transition="true"]
-    [data-slot="chain-of-thought-step"]:last-child,
-  .aui-chain-of-thought-timeline,
-  .aui-chain-of-thought-timeline-window,
-  .aui-chain-of-thought-timeline-wrapper {
-    animation: none !important;
-    transition: none !important;
-  }
-}
-`;
-
-let keyframesInjected = false;
-function injectStepKeyframes() {
-  if (typeof document === "undefined") return;
-  const existing = document.getElementById("aui-chain-of-thought-keyframes");
-  if (existing) {
-    if (existing.textContent !== STEP_KEYFRAMES) {
-      existing.textContent = STEP_KEYFRAMES;
-    }
-    keyframesInjected = true;
-    return;
-  }
-  if (keyframesInjected) return;
-  const style = document.createElement("style");
-  style.id = "aui-chain-of-thought-keyframes";
-  style.textContent = STEP_KEYFRAMES;
-  document.head.appendChild(style);
-  keyframesInjected = true;
-}
 
 /**
  * Map of step types to their default icons.
@@ -933,11 +722,6 @@ function ChainOfThoughtTimeline({
   children,
   ...props
 }: ChainOfThoughtTimelineProps) {
-  // Inject step animation keyframes once
-  useLayoutEffect(() => {
-    injectStepKeyframes();
-  }, []);
-
   const [scrollEl, setScrollEl] = useState<HTMLUListElement | null>(null);
   const { isScrolledUp, scrollToBottom } = useAutoScroll(
     scrollEl,
@@ -951,8 +735,6 @@ function ChainOfThoughtTimeline({
   }, []);
 
   const { style: listStyle, ...listProps } = props;
-  const isExpanded = false;
-  const isExpandAnimating = false;
   const childrenArray = Children.toArray(children).filter(isValidElement) as
     | React.ReactElement[]
     | [];
@@ -961,7 +743,7 @@ function ChainOfThoughtTimeline({
   const hasWindow = typeof windowSize === "number" && windowSize > 0;
   const isWindowed = hasWindow;
   const isWindowActive =
-    hasWindow && windowSize ? totalCount > windowSize && !isExpanded : false;
+    hasWindow && windowSize ? totalCount > windowSize : false;
   const windowCount =
     hasWindow && windowSize ? Math.min(windowSize, totalCount) : totalCount;
   const shiftCount =
@@ -1011,7 +793,7 @@ function ChainOfThoughtTimeline({
 
   const staggeredChildren = buildStaggeredChildren(childrenArray);
 
-  const allowScroll = scrollable && !isWindowActive && !isExpanded;
+  const allowScroll = scrollable && !isWindowActive;
   const listClassName = cn(
     "aui-chain-of-thought-timeline",
     "relative z-0",
@@ -1052,8 +834,7 @@ function ChainOfThoughtTimeline({
         data-windowed={isWindowed ? "true" : "false"}
         data-window-active={isWindowActive ? "true" : "false"}
         data-window-transition={windowTransition ? "true" : "false"}
-        data-expanded={isExpanded ? "true" : "false"}
-        data-expand-animating={isExpandAnimating ? "true" : "false"}
+        data-expanded="false"
         style={windowStyles}
       >
         <ul
@@ -1064,7 +845,7 @@ function ChainOfThoughtTimeline({
           data-window-active={isWindowActive ? "true" : "false"}
           data-window-transition={windowTransition ? "true" : "false"}
           data-window-shift={shiftCount > 0 ? "true" : "false"}
-          data-expanded={isExpanded ? "true" : "false"}
+          data-expanded="false"
           className={listClassName}
           style={listStyle}
           {...listProps}
@@ -1652,21 +1433,11 @@ const mapTraceStatusToStepStatus = (status?: TraceStatus): StepStatus => {
   }
 };
 
-const mapStepStatusToTraceStatus = (
-  status?: StepStatus,
-): TraceStatus | undefined => {
-  switch (status) {
-    case "active":
-      return "running";
-    case "complete":
-      return "complete";
-    case "error":
-      return "error";
-    case "pending":
-      return "incomplete";
-    default:
-      return undefined;
-  }
+const STEP_TO_TRACE_STATUS: Record<StepStatus, TraceStatus> = {
+  active: "running",
+  complete: "complete",
+  error: "error",
+  pending: "incomplete",
 };
 
 const mapTraceStatusToToolBadge = (
@@ -1843,7 +1614,7 @@ export const traceFromMessageParts = (
       id: group.groupKey ?? `step-${index}`,
       label: meta.label,
       type: meta.type,
-      status: mapStepStatusToTraceStatus(meta.status),
+      status: meta.status ? STEP_TO_TRACE_STATUS[meta.status] : undefined,
       toolName,
     } satisfies TraceStep;
   });
@@ -2040,35 +1811,22 @@ const DefaultTraceStepBody: NonNullable<
   const output = (() => {
     if (step.output == null) return null;
     if (isRecord(step.output) && "content" in step.output) {
-      const content = step.output.content as ReactNode;
-      const status =
-        step.output.status ??
-        (step.status === "running" ? "streaming" : "complete");
-      return { content, status };
+      return step.output.content as ReactNode;
     }
-    return {
-      content: step.output as ReactNode,
-      status: step.status === "running" ? "streaming" : "complete",
-    };
+    return step.output as ReactNode;
   })();
 
   if (output == null && step.detail == null) return null;
 
   return (
     <ChainOfThoughtStepBody className="space-y-1">
-      {output ? (
-        <ChainOfThoughtTraceOutput
-          content={output.content}
-          streaming={output.status === "streaming"}
-        />
+      {output != null ? (
+        <div className="text-muted-foreground/80 text-sm">{output}</div>
       ) : null}
       {step.detail != null ? <div>{step.detail}</div> : null}
     </ChainOfThoughtStepBody>
   );
 };
-
-const TRACE_SUMMARY_TRANSITION_MS = 300;
-const TRACE_OUTPUT_STREAM_INTERVAL_MS = 22;
 
 function useTraceDuration(isStreaming: boolean) {
   const [durationSec, setDurationSec] = useState<number | undefined>(undefined);
@@ -2093,178 +1851,21 @@ function useTraceDuration(isStreaming: boolean) {
   return durationSec;
 }
 
-function ChainOfThoughtTraceOutput({
-  content,
-  streaming,
-}: {
-  content: ReactNode;
-  streaming: boolean;
-}) {
-  if (typeof content !== "string") {
-    return <div className="text-muted-foreground/80 text-sm">{content}</div>;
-  }
-
-  const [visibleText, setVisibleText] = useState("");
-  const [showCursor, setShowCursor] = useState(streaming);
-  const [cursorVisible, setCursorVisible] = useState(false);
-
-  useEffect(() => {
-    if (!streaming) return;
-
-    setVisibleText("");
-    let index = 0;
-    const interval = window.setInterval(() => {
-      index += 1;
-      if (index >= content.length) {
-        setVisibleText(content);
-        window.clearInterval(interval);
-        return;
-      }
-      setVisibleText(content.slice(0, index));
-    }, TRACE_OUTPUT_STREAM_INTERVAL_MS);
-
-    return () => {
-      window.clearInterval(interval);
-    };
-  }, [content, streaming]);
-
-  useEffect(() => {
-    if (streaming) {
-      setShowCursor(true);
-      setCursorVisible(false);
-      const raf = requestAnimationFrame(() => {
-        setCursorVisible(true);
-      });
-      return () => cancelAnimationFrame(raf);
-    }
-
-    if (showCursor) {
-      setCursorVisible(false);
-      const timeout = window.setTimeout(() => {
-        setShowCursor(false);
-      }, 200);
-      return () => window.clearTimeout(timeout);
-    }
-
-    return undefined;
-  }, [streaming, showCursor]);
-
-  return (
-    <div className="text-muted-foreground/80 text-sm leading-relaxed">
-      <span>{streaming ? visibleText : content}</span>
-      {showCursor && (
-        <span
-          aria-hidden
-          className={cn(
-            "aui-chain-of-thought-cursor ml-1 inline-block size-2 rounded-full bg-foreground/70 align-middle",
-            "transition-[opacity,filter] duration-200 ease-out",
-            cursorVisible ? "opacity-100 blur-0" : "opacity-0 blur-sm",
-          )}
-        />
-      )}
-    </div>
-  );
-}
-
-function ChainOfThoughtTraceSummaryTransition({
-  label,
-  active,
-}: {
-  label?: ReactNode;
-  active?: boolean;
-}) {
-  const [currentLabel, setCurrentLabel] = useState(label);
-  const [previousLabel, setPreviousLabel] = useState<ReactNode | null>(null);
-  const [labelKey, setLabelKey] = useState(0);
-  const labelRef = useRef(label);
-  const timeoutRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    if (Object.is(labelRef.current, label)) return;
-
-    setPreviousLabel(labelRef.current ?? null);
-    setCurrentLabel(label);
-    setLabelKey((value) => value + 1);
-    labelRef.current = label;
-
-    if (timeoutRef.current) {
-      window.clearTimeout(timeoutRef.current);
-    }
-    timeoutRef.current = window.setTimeout(() => {
-      setPreviousLabel(null);
-    }, TRACE_SUMMARY_TRANSITION_MS);
-
-    return () => {
-      if (timeoutRef.current) {
-        window.clearTimeout(timeoutRef.current);
-      }
-    };
-  }, [label]);
-
-  if (currentLabel == null && previousLabel == null) return null;
-  const shimmerClass = active
-    ? "shimmer shimmer-invert shimmer-angle-30 text-muted-foreground/70"
-    : undefined;
-
-  return (
-    <div className="aui-chain-of-thought-trace-summary relative min-h-[1.25rem] overflow-hidden">
-      <div className="relative h-5">
-        {previousLabel != null && (
-          <span
-            key={`prev-${labelKey}`}
-            className={cn(
-              "aui-chain-of-thought-trace-summary-prev absolute inset-0 flex items-center",
-              "truncate text-left",
-              "fade-out-0 slide-out-to-top-2 animation-duration-300 animate-out fill-mode-both ease-out",
-              shimmerClass,
-              "motion-reduce:animate-none",
-            )}
-          >
-            {previousLabel}
-          </span>
-        )}
-        {currentLabel != null && (
-          <span
-            key={`current-${labelKey}`}
-            className={cn(
-              "aui-chain-of-thought-trace-summary-current absolute inset-0 flex items-center",
-              "truncate text-left",
-              "fade-in-0 slide-in-from-bottom-2 animation-duration-300 animate-in fill-mode-both ease-out",
-              shimmerClass,
-              "motion-reduce:animate-none",
-            )}
-          >
-            {currentLabel}
-          </span>
-        )}
-      </div>
-    </div>
-  );
-}
-
 const DefaultTraceGroupSummary: ComponentType<
   ChainOfThoughtTraceGroupSummaryProps
-> = ({ group, latestStep, isOpen, canExpand, onToggle, depth: _depth = 0 }) => {
+> = ({ group, latestStep, isOpen, canExpand, onToggle }) => {
   const summaryLabel =
     group.summary?.latestLabel ??
     (latestStep ? getTraceStepLabel(latestStep) : undefined) ??
     "Working...";
   const toolName = group.summary?.toolName ?? latestStep?.toolName;
   const isActive = (latestStep?.status ?? group.status) === "running";
-  const isSubagent = group.variant === "subagent";
   const badgeStatus = mapTraceStatusToToolBadge(
     latestStep?.status ?? group.status,
   );
-  const toolBadge = toolName ? (
-    <span className="inline-flex h-5 shrink-0 items-center">
-      <ChainOfThoughtToolBadge
-        toolName={toolName}
-        status={badgeStatus}
-        shimmer={isActive}
-        className="min-w-0 max-w-[7rem]"
-      />
-    </span>
-  ) : null;
+  const shimmerClass = isActive
+    ? "shimmer shimmer-invert shimmer-angle-30 text-muted-foreground/70"
+    : undefined;
 
   return (
     <button
@@ -2280,28 +1881,23 @@ const DefaultTraceGroupSummary: ComponentType<
       )}
       aria-expanded={isOpen}
     >
-      <div className={cn("flex h-6 items-center gap-2 text-sm")}>
+      <div className="flex h-6 items-center gap-2 text-sm">
         <span className="font-medium text-foreground">{group.label}</span>
-        {isSubagent ? (
-          <div className="flex min-w-0 flex-1 items-center gap-2 text-muted-foreground">
-            <div className="min-w-0 flex-1">
-              <ChainOfThoughtTraceSummaryTransition
-                label={summaryLabel}
-                active={isActive}
+        <div className="flex min-w-0 flex-1 items-center gap-2 text-muted-foreground">
+          {toolName ? (
+            <span className="inline-flex h-5 shrink-0 items-center">
+              <ChainOfThoughtToolBadge
+                toolName={toolName}
+                status={badgeStatus}
+                shimmer={isActive}
+                className="min-w-0 max-w-[7rem]"
               />
-            </div>
-          </div>
-        ) : (
-          <div className="flex min-w-0 flex-1 items-center gap-2 text-muted-foreground">
-            {toolBadge}
-            <div className="min-w-0 flex-1">
-              <ChainOfThoughtTraceSummaryTransition
-                label={summaryLabel}
-                active={isActive}
-              />
-            </div>
-          </div>
-        )}
+            </span>
+          ) : null}
+          <span className={cn("min-w-0 flex-1 truncate", shimmerClass)}>
+            {summaryLabel}
+          </span>
+        </div>
       </div>
     </button>
   );
@@ -2975,16 +2571,4 @@ export {
   chainOfThoughtVariants,
   stepVariants,
   stepTypeIcons,
-};
-
-export type {
-  ChainOfThoughtTraceDisclosureProps,
-  ChainOfThoughtTraceGroupSummaryProps,
-  ChainOfThoughtTraceNodeComponents,
-  TraceFromMessagePartsOptions,
-  TraceFromThreadMessageOptions,
-  TraceGroup,
-  TraceNode,
-  TraceStatus,
-  TraceStep,
 };
