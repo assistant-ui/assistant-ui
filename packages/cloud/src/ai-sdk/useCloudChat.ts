@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef } from "react";
+import { Chat, useChat } from "@ai-sdk/react";
 import type { UIMessage, UseChatHelpers } from "@ai-sdk/react";
-import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type ChatInit, type ChatTransport } from "ai";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import { AssistantCloud } from "../AssistantCloud";
@@ -164,17 +164,25 @@ export function useCloudChat(
     },
     [getPersistence],
   );
-  // Refs for latest values (avoid stale closures)
-  const threadIdRef = useRef<string | null>(threadId);
-  threadIdRef.current = threadId;
-  const createdThreadRef = useRef<string | null>(null);
-  const loadedThreadsRef = useRef(new Set<string>());
-  const messagesByThreadRef = useRef(new Map<string, UIMessage[]>());
+  const chatInitRef = useRef(chatOptions);
+  chatInitRef.current = chatOptions;
+
   const onFinishRef = useRef(chatOptions?.onFinish);
   onFinishRef.current = chatOptions?.onFinish;
+  const onDataRef = useRef(chatOptions?.onData);
+  onDataRef.current = chatOptions?.onData;
+  const onToolCallRef = useRef(chatOptions?.onToolCall);
+  onToolCallRef.current = chatOptions?.onToolCall;
+  const onErrorRef = useRef(chatOptions?.onError);
+  onErrorRef.current = chatOptions?.onError;
+  const sendAutomaticallyWhenRef = useRef(chatOptions?.sendAutomaticallyWhen);
+  sendAutomaticallyWhenRef.current = chatOptions?.sendAutomaticallyWhen;
 
   const onSyncErrorRef = useRef(onSyncError);
   onSyncErrorRef.current = onSyncError;
+
+  const autoGenerateTitleRef = useRef(autoGenerateTitle);
+  autoGenerateTitleRef.current = autoGenerateTitle;
 
   const handleSyncError = useCallback((err: unknown) => {
     const error = err instanceof Error ? err : new Error(String(err));
@@ -182,11 +190,32 @@ export function useCloudChat(
   }, []);
 
   // For auto-title generation: track newly created threads
-  const newlyCreatedThreadRef = useRef<string | null>(null);
+  const newlyCreatedThreadIdsRef = useRef(new Set<string>());
   const titleGeneratedRef = useRef(new Set<string>());
 
-  // Mutex for thread creation to prevent race conditions on concurrent sends
-  const creatingThreadRef = useRef<Promise<string> | null>(null);
+  type ChatMeta = {
+    threadId: string | null;
+    creatingThread: Promise<string> | null;
+    loading: Promise<void> | null;
+    loaded: boolean;
+  };
+
+  const chatByKeyRef = useRef(new Map<string, Chat<UIMessage>>());
+  const chatMetaByKeyRef = useRef(new Map<string, ChatMeta>());
+  const chatKeyByThreadIdRef = useRef(new Map<string, string>());
+
+  const newChatKeyRef = useRef<string | null>(null);
+  if (!newChatKeyRef.current) {
+    newChatKeyRef.current = createSessionId();
+  }
+
+  const lastThreadIdRef = useRef<string | null>(threadId);
+  useEffect(() => {
+    if (threadId === null && lastThreadIdRef.current !== null) {
+      newChatKeyRef.current = createSessionId();
+    }
+    lastThreadIdRef.current = threadId;
+  }, [threadId]);
 
   // Track mounted state
   const mountedRef = useRef(true);
@@ -196,87 +225,48 @@ export function useCloudChat(
     };
   }, []);
 
-  const baseTransportRef = useRef(
-    userTransport ?? new DefaultChatTransport({}),
+  const defaultTransportRef = useRef<ChatTransport<UIMessage> | null>(null);
+  if (!defaultTransportRef.current) {
+    defaultTransportRef.current = new DefaultChatTransport({});
+  }
+  const baseTransportRef = useRef<ChatTransport<UIMessage>>(
+    userTransport ?? defaultTransportRef.current,
   );
-  baseTransportRef.current = userTransport ?? new DefaultChatTransport({});
+  baseTransportRef.current = userTransport ?? defaultTransportRef.current;
 
-  const transport = useMemo<ChatTransport<UIMessage>>(
-    () => ({
-      sendMessages: async (opts) => {
-        // Use threadsRef for most up-to-date threadId (handles rapid selectThread -> sendMessage)
-        const currentThreadId =
-          threadsRef.current.threadId ?? threadIdRef.current;
-
-        // Ensure thread exists before sending (with mutex to prevent race conditions)
-        if (!currentThreadId && !createdThreadRef.current) {
-          if (!creatingThreadRef.current) {
-            creatingThreadRef.current = (async () => {
-              try {
-                const res = await threadsRef.current.cloud.threads.create({
-                  last_message_at: new Date(),
-                });
-                createdThreadRef.current = res.thread_id;
-                threadIdRef.current = res.thread_id;
-                loadedThreadsRef.current.add(res.thread_id);
-                newlyCreatedThreadRef.current = res.thread_id;
-                threadsRef.current.selectThread(res.thread_id);
-                threadsRef.current.refresh();
-                return res.thread_id;
-              } catch (err) {
-                creatingThreadRef.current = null;
-                throw err;
-              }
-            })();
-          }
-          await creatingThreadRef.current;
+  const ensureChatMeta = useCallback(
+    (chatKey: string, threadIdHint?: string | null) => {
+      const existing = chatMetaByKeyRef.current.get(chatKey);
+      if (existing) {
+        if (threadIdHint && !existing.threadId) {
+          existing.threadId = threadIdHint;
         }
+        return existing;
+      }
 
-        const resolvedThreadId = currentThreadId ?? createdThreadRef.current;
-
-        return await baseTransportRef.current.sendMessages({
-          ...opts,
-          body: {
-            ...opts.body,
-            id: resolvedThreadId ?? opts.chatId,
-          },
-        });
-      },
-      reconnectToStream: (opts) =>
-        baseTransportRef.current.reconnectToStream(opts),
-    }),
+      const created: ChatMeta = {
+        threadId: threadIdHint ?? null,
+        creatingThread: null,
+        loading: null,
+        loaded: false,
+      };
+      chatMetaByKeyRef.current.set(chatKey, created);
+      return created;
+    },
     [],
   );
 
-  // Keep a stable chat session ID for the lifetime of this hook instance.
-  const chatSessionIdRef = useRef<string | null>(null);
-  if (!chatSessionIdRef.current) {
-    chatSessionIdRef.current = createSessionId();
-  }
+  const persistChatMessages = useCallback(
+    async (chatKey: string) => {
+      const meta = chatMetaByKeyRef.current.get(chatKey);
+      const tid = meta?.threadId;
+      if (!tid) return;
 
-  const chat = useChat({
-    ...chatOptions,
-    id: chatSessionIdRef.current,
-    transport,
-    onFinish: (event) => {
-      onFinishRef.current?.(event);
-    },
-  });
+      const chatInstance = chatByKeyRef.current.get(chatKey);
+      if (!chatInstance) return;
 
-  // Store ref for chat state access in callbacks
-  const setMessagesRef = useRef(chat.setMessages);
-  setMessagesRef.current = chat.setMessages;
-
-  const isRunning = chat.status === "submitted" || chat.status === "streaming";
-
-  // Persist messages when not running, matching assistant-ui history semantics.
-  useEffect(() => {
-    const tid = threadIdRef.current ?? createdThreadRef.current;
-    if (!tid || isRunning) return;
-
-    const persist = async () => {
       const formatted = getFormatted(tid);
-      const messages = chat.messages;
+      const messages = chatInstance.messages;
 
       const appendTasks = messages.map((msg, idx) => {
         if (formatted.isPersisted(msg.id)) return null;
@@ -301,28 +291,136 @@ export function useCloudChat(
       }
 
       if (
-        autoGenerateTitle &&
-        newlyCreatedThreadRef.current === tid &&
+        autoGenerateTitleRef.current &&
+        newlyCreatedThreadIdsRef.current.has(tid) &&
         !titleGeneratedRef.current.has(tid) &&
         messages.some((msg) => msg.role === "assistant")
       ) {
         titleGeneratedRef.current.add(tid);
-        newlyCreatedThreadRef.current = null;
+        newlyCreatedThreadIdsRef.current.delete(tid);
         void threadsRef.current.generateTitle(tid);
       }
-    };
+    },
+    [getFormatted, handleSyncError],
+  );
 
-    void persist();
-  }, [
-    autoGenerateTitle,
-    chat.messages,
-    getFormatted,
-    handleSyncError,
-    isRunning,
-  ]);
+  const createTransport = useCallback(
+    (chatKey: string): ChatTransport<UIMessage> => ({
+      sendMessages: async (opts) => {
+        const meta = ensureChatMeta(chatKey);
+        let currentThreadId = meta.threadId;
+
+        if (!currentThreadId) {
+          if (!meta.creatingThread) {
+            meta.creatingThread = (async () => {
+              try {
+                const res = await threadsRef.current.cloud.threads.create({
+                  last_message_at: new Date(),
+                });
+                meta.threadId = res.thread_id;
+                meta.loaded = true;
+                meta.loading = null;
+                newlyCreatedThreadIdsRef.current.add(res.thread_id);
+                chatKeyByThreadIdRef.current.set(res.thread_id, chatKey);
+                threadsRef.current.selectThread(res.thread_id);
+                threadsRef.current.refresh();
+                return res.thread_id;
+              } catch (err) {
+                meta.creatingThread = null;
+                throw err;
+              } finally {
+                meta.creatingThread = null;
+              }
+            })();
+          }
+          currentThreadId = await meta.creatingThread;
+        }
+
+        return await baseTransportRef.current.sendMessages({
+          ...opts,
+          body: {
+            ...opts.body,
+            id: currentThreadId ?? opts.chatId,
+          },
+        });
+      },
+      reconnectToStream: (opts) =>
+        baseTransportRef.current.reconnectToStream(opts),
+    }),
+    [ensureChatMeta],
+  );
+
+  const createChat = useCallback(
+    (chatKey: string) => {
+      const {
+        onFinish: _onFinish,
+        onData: _onData,
+        onError: _onError,
+        onToolCall: _onToolCall,
+        sendAutomaticallyWhen: _sendAutomaticallyWhen,
+        id: _id,
+        ...chatInit
+      } = chatInitRef.current;
+
+      return new Chat<UIMessage>({
+        ...chatInit,
+        id: chatKey,
+        transport: createTransport(chatKey),
+        onFinish: async (event) => {
+          try {
+            await onFinishRef.current?.(event);
+          } finally {
+            await persistChatMessages(chatKey);
+          }
+        },
+        onError: (error) => {
+          onErrorRef.current?.(error);
+        },
+        onData: (data) => {
+          onDataRef.current?.(data);
+        },
+        onToolCall: (toolCall) => {
+          onToolCallRef.current?.(toolCall);
+        },
+        sendAutomaticallyWhen: (arg) =>
+          sendAutomaticallyWhenRef.current?.(arg) ?? false,
+      });
+    },
+    [createTransport, persistChatMessages],
+  );
+
+  const getOrCreateChat = useCallback(
+    (chatKey: string, threadIdHint?: string | null) => {
+      const existing = chatByKeyRef.current.get(chatKey);
+      if (existing) {
+        if (threadIdHint) {
+          ensureChatMeta(chatKey, threadIdHint);
+        }
+        return existing;
+      }
+
+      const chatInstance = createChat(chatKey);
+      chatByKeyRef.current.set(chatKey, chatInstance);
+      ensureChatMeta(chatKey, threadIdHint);
+      return chatInstance;
+    },
+    [createChat, ensureChatMeta],
+  );
+
+  const activeChatKey = threadId
+    ? (chatKeyByThreadIdRef.current.get(threadId) ?? threadId)
+    : (newChatKeyRef.current ?? (newChatKeyRef.current = createSessionId()));
+
+  const activeChat = getOrCreateChat(activeChatKey, threadId);
+
+  const chat = useChat({ chat: activeChat });
 
   const loadThreadMessages = useCallback(
-    async (id: string, cancelledRef: { cancelled: boolean }) => {
+    async (
+      id: string,
+      chatKey: string,
+      cancelledRef: { cancelled: boolean },
+    ) => {
       const formatted = getFormatted(id);
 
       try {
@@ -330,71 +428,41 @@ export function useCloudChat(
         if (cancelledRef.cancelled) return;
 
         const loaded = messages.map((item) => item.message);
-        messagesByThreadRef.current.set(id, loaded);
-        loadedThreadsRef.current.add(id);
-        setMessagesRef.current(loaded);
+        const chatInstance = getOrCreateChat(chatKey, id);
+        chatInstance.messages = loaded;
+
+        const meta = ensureChatMeta(chatKey, id);
+        meta.loaded = true;
+        meta.loading = null;
       } catch (err) {
+        const meta = ensureChatMeta(chatKey, id);
+        meta.loading = null;
         if (cancelledRef.cancelled) return;
         handleSyncError(err);
       }
     },
-    [getFormatted, handleSyncError],
+    [ensureChatMeta, getFormatted, getOrCreateChat, handleSyncError],
   );
 
   useEffect(() => {
-    const activeThreadId = threadIdRef.current ?? createdThreadRef.current;
-    if (!activeThreadId) return;
-    // Don't overwrite cached messages with empty array (race condition from chatId switch)
-    if (
-      chat.messages.length === 0 &&
-      messagesByThreadRef.current.has(activeThreadId)
-    ) {
-      return;
-    }
-    messagesByThreadRef.current.set(activeThreadId, chat.messages);
-  }, [chat.messages]);
+    if (!threadId) return;
 
-  // Load messages when threadId changes (explicit action, not observation).
-  // Only fires on thread switch, not on isRunning transitions — matching
-  // useExternalHistory's load-once-per-thread semantics.
-  useEffect(() => {
-    // Check if this is a thread we just created BEFORE any reset
-    const justCreated = threadId === createdThreadRef.current;
+    const chatKey = chatKeyByThreadIdRef.current.get(threadId) ?? threadId;
+    const chatInstance = getOrCreateChat(chatKey, threadId);
+    const meta = ensureChatMeta(chatKey, threadId);
 
-    if (!justCreated) {
-      createdThreadRef.current = null;
-      // Reset creation mutex when switching away from new thread
-      creatingThreadRef.current = null;
-    }
-
-    if (!threadId) {
-      setMessagesRef.current([]);
-      return;
-    }
-
-    const cached = messagesByThreadRef.current.get(threadId);
-    if (cached) {
-      setMessagesRef.current(cached);
-      return;
-    }
-
-    if (loadedThreadsRef.current.has(threadId)) {
-      return;
-    }
-
-    // Skip loading for threads we just created (messages already in sync from send)
-    // Cache restoration already handled above if useChat reset on id change
-    if (justCreated) {
+    if (meta.loaded || meta.loading || chatInstance.messages.length > 0) {
+      meta.loaded = true;
       return;
     }
 
     const cancelledRef = { cancelled: false };
-    loadThreadMessages(threadId, cancelledRef);
+    meta.loading = loadThreadMessages(threadId, chatKey, cancelledRef);
 
     return () => {
       cancelledRef.cancelled = true;
     };
-  }, [threadId, loadThreadMessages]);
+  }, [threadId, ensureChatMeta, getOrCreateChat, loadThreadMessages]);
 
   return {
     ...chat,
