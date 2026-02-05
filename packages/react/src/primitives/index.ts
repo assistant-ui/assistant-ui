@@ -3,6 +3,7 @@ export * as ActionBarMorePrimitive from "./actionBarMore";
 export * as AssistantModalPrimitive from "./assistantModal";
 export * as AttachmentPrimitive from "./attachment";
 export * as BranchPickerPrimitive from "./branchPicker";
+export * as ChainOfThoughtPrimitive from "./chainOfThought";
 export * as ComposerPrimitive from "./composer";
 export * as MessagePartPrimitive from "./messagePart";
 export * as ErrorPrimitive from "./error";

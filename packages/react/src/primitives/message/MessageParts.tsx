@@ -12,6 +12,7 @@ import {
   PartByIndexProvider,
   TextMessagePartProvider,
 } from "../../context/providers";
+import { ChainOfThoughtByIndicesProvider } from "../../context/providers/ChainOfThoughtByIndicesProvider";
 import { MessagePartPrimitiveText } from "../messagePart/MessagePartText";
 import { MessagePartPrimitiveImage } from "../messagePart/MessagePartImage";
 import type {
@@ -33,13 +34,16 @@ import { useShallow } from "zustand/shallow";
 type MessagePartRange =
   | { type: "single"; index: number }
   | { type: "toolGroup"; startIndex: number; endIndex: number }
-  | { type: "reasoningGroup"; startIndex: number; endIndex: number };
+  | { type: "reasoningGroup"; startIndex: number; endIndex: number }
+  | { type: "chainOfThoughtGroup"; startIndex: number; endIndex: number };
 
 /**
  * Creates a group state manager for a specific part type.
  * Returns functions to start, end, and finalize groups.
  */
-const createGroupState = <T extends "toolGroup" | "reasoningGroup">(
+const createGroupState = <
+  T extends "toolGroup" | "reasoningGroup" | "chainOfThoughtGroup",
+>(
   groupType: T,
 ) => {
   let start = -1;
@@ -75,37 +79,59 @@ const createGroupState = <T extends "toolGroup" | "reasoningGroup">(
 /**
  * Groups consecutive tool-call and reasoning message parts into ranges.
  * Always groups tool calls and reasoning parts, even if there's only one.
+ * When useChainOfThought is true, groups tool-call and reasoning parts together.
  */
 const groupMessageParts = (
   messageTypes: readonly string[],
+  useChainOfThought: boolean,
 ): MessagePartRange[] => {
   const ranges: MessagePartRange[] = [];
-  const toolGroup = createGroupState("toolGroup");
-  const reasoningGroup = createGroupState("reasoningGroup");
 
-  for (let i = 0; i < messageTypes.length; i++) {
-    const type = messageTypes[i];
+  if (useChainOfThought) {
+    const chainOfThoughtGroup = createGroupState("chainOfThoughtGroup");
 
-    if (type === "tool-call") {
-      reasoningGroup.endGroup(i - 1, ranges);
-      toolGroup.startGroup(i);
-    } else if (type === "reasoning") {
-      toolGroup.endGroup(i - 1, ranges);
-      reasoningGroup.startGroup(i);
-    } else {
-      toolGroup.endGroup(i - 1, ranges);
-      reasoningGroup.endGroup(i - 1, ranges);
-      ranges.push({ type: "single", index: i });
+    for (let i = 0; i < messageTypes.length; i++) {
+      const type = messageTypes[i];
+
+      if (type === "tool-call" || type === "reasoning") {
+        chainOfThoughtGroup.startGroup(i);
+      } else {
+        chainOfThoughtGroup.endGroup(i - 1, ranges);
+        ranges.push({ type: "single", index: i });
+      }
     }
-  }
 
-  toolGroup.finalize(messageTypes.length - 1, ranges);
-  reasoningGroup.finalize(messageTypes.length - 1, ranges);
+    chainOfThoughtGroup.finalize(messageTypes.length - 1, ranges);
+  } else {
+    const toolGroup = createGroupState("toolGroup");
+    const reasoningGroup = createGroupState("reasoningGroup");
+
+    for (let i = 0; i < messageTypes.length; i++) {
+      const type = messageTypes[i];
+
+      if (type === "tool-call") {
+        reasoningGroup.endGroup(i - 1, ranges);
+        toolGroup.startGroup(i);
+      } else if (type === "reasoning") {
+        toolGroup.endGroup(i - 1, ranges);
+        reasoningGroup.startGroup(i);
+      } else {
+        toolGroup.endGroup(i - 1, ranges);
+        reasoningGroup.endGroup(i - 1, ranges);
+        ranges.push({ type: "single", index: i });
+      }
+    }
+
+    toolGroup.finalize(messageTypes.length - 1, ranges);
+    reasoningGroup.finalize(messageTypes.length - 1, ranges);
+  }
 
   return ranges;
 };
 
-const useMessagePartsGroups = (): MessagePartRange[] => {
+const useMessagePartsGroups = (
+  useChainOfThought: boolean,
+): MessagePartRange[] => {
   const messageTypes = useAuiState(
     useShallow((s) => s.message.parts.map((c: any) => c.type)),
   );
@@ -114,8 +140,8 @@ const useMessagePartsGroups = (): MessagePartRange[] => {
     if (messageTypes.length === 0) {
       return [];
     }
-    return groupMessageParts(messageTypes);
-  }, [messageTypes]);
+    return groupMessageParts(messageTypes, useChainOfThought);
+  }, [messageTypes, useChainOfThought]);
 };
 
 export namespace MessagePrimitiveParts {
@@ -240,6 +266,31 @@ export namespace MessagePrimitiveParts {
            * @param children - Rendered reasoning part components
            */
           ReasoningGroup?: ReasoningGroupComponent;
+
+          /**
+           * Component for rendering chain of thought (reasoning + tool-call) parts.
+           *
+           * When provided, this component takes control of rendering ALL reasoning and
+           * tool-call parts in the message. The Reasoning, tools, ReasoningGroup, and
+           * ToolGroup components are completely ignored when ChainOfThought is set.
+           *
+           * The component is automatically wrapped in a ChainOfThoughtByIndicesProvider
+           * that sets up the chainOfThought client scope with the correct parts.
+           *
+           * @example
+           * ```tsx
+           * // Chain of thought with accordion
+           * ChainOfThought: () => (
+           *   <ChainOfThoughtPrimitive.Root>
+           *     <ChainOfThoughtPrimitive.AccordionTrigger>
+           *       Toggle reasoning
+           *     </ChainOfThoughtPrimitive.AccordionTrigger>
+           *     <ChainOfThoughtPrimitive.Parts />
+           *   </ChainOfThoughtPrimitive.Root>
+           * )
+           * ```
+           */
+          ChainOfThought?: ComponentType;
         }
       | undefined;
     /**
@@ -293,7 +344,7 @@ type MessagePartComponentProps = {
   components: MessagePrimitiveParts.Props["components"];
 };
 
-const MessagePartComponent: FC<MessagePartComponentProps> = ({
+export const MessagePartComponent: FC<MessagePartComponentProps> = ({
   components: {
     Text = defaultComponents.Text,
     Reasoning = defaultComponents.Reasoning,
@@ -493,7 +544,8 @@ export const MessagePrimitiveParts: FC<MessagePrimitiveParts.Props> = ({
   unstable_showEmptyOnNonTextEnd = true,
 }) => {
   const contentLength = useAuiState(({ message }) => message.parts.length);
-  const messageRanges = useMessagePartsGroups();
+  const useChainOfThought = !!components?.ChainOfThought;
+  const messageRanges = useMessagePartsGroups(useChainOfThought);
 
   const partsElements = useMemo(() => {
     if (contentLength === 0) {
@@ -508,6 +560,18 @@ export const MessagePrimitiveParts: FC<MessagePrimitiveParts.Props> = ({
             index={range.index}
             components={components}
           />
+        );
+      } else if (range.type === "chainOfThoughtGroup") {
+        const ChainOfThoughtComponent = components?.ChainOfThought;
+        if (!ChainOfThoughtComponent) return null;
+        return (
+          <ChainOfThoughtByIndicesProvider
+            key={`chainOfThought-${range.startIndex}`}
+            startIndex={range.startIndex}
+            endIndex={range.endIndex}
+          >
+            <ChainOfThoughtComponent />
+          </ChainOfThoughtByIndicesProvider>
         );
       } else if (range.type === "toolGroup") {
         const ToolGroupComponent =

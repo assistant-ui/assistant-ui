@@ -10,3 +10,4 @@ export {
   InMemoryThreadList,
   type InMemoryThreadListProps,
 } from "./InMemoryThreadList";
+export { ChainOfThoughtClient } from "./ChainOfThoughtClient";

@@ -11,6 +11,7 @@ import type { ToolsClientSchema } from "./scopes/tools";
 import type { ModelContextClientSchema } from "./scopes/modelContext";
 import type { SuggestionsClientSchema } from "./scopes/suggestions";
 import type { SuggestionClientSchema } from "./scopes/suggestion";
+import type { ChainOfThoughtClientSchema } from "./scopes/chainOfThought";
 
 declare module "@assistant-ui/store" {
   interface ClientRegistry {
@@ -25,5 +26,6 @@ declare module "@assistant-ui/store" {
     modelContext: ModelContextClientSchema;
     suggestions: SuggestionsClientSchema;
     suggestion: SuggestionClientSchema;
+    chainOfThought: ChainOfThoughtClientSchema;
   }
 }

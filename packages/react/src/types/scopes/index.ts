@@ -60,3 +60,10 @@ export type {
   ModelContextMethods,
   ModelContextClientSchema,
 } from "./modelContext";
+export type {
+  ChainOfThoughtState,
+  ChainOfThoughtMethods,
+  ChainOfThoughtMeta,
+  ChainOfThoughtClientSchema,
+  ChainOfThoughtPart,
+} from "./chainOfThought";

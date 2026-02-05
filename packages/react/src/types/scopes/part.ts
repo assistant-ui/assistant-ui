@@ -30,12 +30,17 @@ export type PartMethods = {
   __internal_getRuntime?(): MessagePartRuntime;
 };
 
-export type PartMeta = {
-  source: "message";
-  query:
-    | { type: "index"; index: number }
-    | { type: "toolCallId"; toolCallId: string };
-};
+export type PartMeta =
+  | {
+      source: "message";
+      query:
+        | { type: "index"; index: number }
+        | { type: "toolCallId"; toolCallId: string };
+    }
+  | {
+      source: "chainOfThought";
+      query: { type: "index"; index: number };
+    };
 
 export type PartClientSchema = {
   state: PartState;
