@@ -21,7 +21,6 @@
     "@assistant-ui/react-markdown": "workspace:*",
     "@assistant-ui/react-streamdown": "workspace:*",
     "@assistant-ui/react-syntax-highlighter": "workspace:*",
-    "@assistant-ui/styles": "workspace:*",
     "@assistant-ui/ui": "workspace:*",
     "@hookform/resolvers": "^5.2.2",
     "@langchain/langgraph-sdk": "^1.5.6",
