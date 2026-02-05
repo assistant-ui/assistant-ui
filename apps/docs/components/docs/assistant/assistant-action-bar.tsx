@@ -8,13 +8,25 @@ import { cn } from "@/lib/utils";
 import { analytics } from "@/lib/analytics";
 import { FeedbackPopover, type FeedbackCategory } from "./feedback-popover";
 
-function getMessageText(
-  content: readonly { type: string; text?: string }[],
-): string {
-  return content
-    .filter((p): p is { type: "text"; text: string } => p.type === "text")
-    .map((p) => p.text)
-    .join("");
+const NON_WHITESPACE_RE = /\S/;
+
+function getTextLength(parts: readonly { type: string; text?: string }[]) {
+  let length = 0;
+  for (const part of parts) {
+    if (part.type !== "text" || !part.text) continue;
+    length += part.text.length;
+  }
+  return length;
+}
+
+function hasNonWhitespaceText(
+  parts: readonly { type: string; text?: string }[],
+): boolean {
+  for (const part of parts) {
+    if (part.type !== "text" || !part.text) continue;
+    if (NON_WHITESPACE_RE.test(part.text)) return true;
+  }
+  return false;
 }
 
 function getToolCallToolNames(
@@ -52,13 +64,16 @@ export function AssistantActionBar(): ReactNode {
     () => messages.find((m) => m.id === parentId),
     [messages, parentId],
   );
-  const userQuestion = userMessage ? getMessageText(userMessage.content) : "";
-  const assistantResponse = getMessageText(content);
+  const userQuestionLength = userMessage
+    ? getTextLength(userMessage.content)
+    : 0;
+  const assistantResponseLength = getTextLength(content);
   const toolNames = getToolCallToolNames(content);
   const toolCallsCount = toolNames.length;
+  const assistantHasText = hasNonWhitespaceText(content);
 
   // Don't show feedback buttons while message is still streaming or if no content
-  if (isRunning || !assistantResponse.trim()) {
+  if (isRunning || !assistantHasText) {
     return null;
   }
 
@@ -69,8 +84,8 @@ export function AssistantActionBar(): ReactNode {
       threadId,
       messageId,
       type: "positive",
-      user_question_length: userQuestion.length,
-      assistant_response_length: assistantResponse.length,
+      user_question_length: userQuestionLength,
+      assistant_response_length: assistantResponseLength,
       tool_calls_count: toolCallsCount,
       ...(toolNames.length > 0 ? { tool_names: toolNames.join(",") } : {}),
     });
@@ -88,8 +103,8 @@ export function AssistantActionBar(): ReactNode {
       type: "negative",
       category,
       ...(comment ? { comment_length: comment.length } : {}),
-      user_question_length: userQuestion.length,
-      assistant_response_length: assistantResponse.length,
+      user_question_length: userQuestionLength,
+      assistant_response_length: assistantResponseLength,
       tool_calls_count: toolCallsCount,
       ...(toolNames.length > 0 ? { tool_names: toolNames.join(",") } : {}),
     });
