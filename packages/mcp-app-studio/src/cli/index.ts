@@ -86,7 +86,7 @@ function showHelp(): void {
   console.log(`
 mcp-app-studio v${getVersion()}
 
-Create interactive apps for ChatGPT and MCP hosts (like Claude Desktop).
+Create interactive apps for MCP hosts (including ChatGPT and Claude Desktop).
 
 ${pc.bold("Requirements:")}
   Node.js >=${REQUIRED_NODE_VERSION.major}.${REQUIRED_NODE_VERSION.minor}.${REQUIRED_NODE_VERSION.patch}
@@ -244,7 +244,7 @@ function generateComponentRegistry(components: string[]): string {
     defaultProps: {
       title: "Welcome!",
       message:
-        "This is your ChatGPT App. Edit this component to build something amazing.",
+        "This is your MCP App. Edit this component to build something amazing.",
     },
     exportConfig: {
       entryPoint: "lib/workbench/wrappers/welcome-card-sdk.tsx",
@@ -691,7 +691,7 @@ async function main() {
   } else {
     description = await p.text({
       message: "App description:",
-      placeholder: "A ChatGPT app that helps users...",
+      placeholder: "An MCP app that helps users...",
       initialValue: "",
     });
   }
@@ -865,7 +865,7 @@ async function main() {
   ];
   if (config.includeServer) {
     structureGuide.push(
-      `${pc.cyan("server/")}               ${pc.dim("← MCP server for Claude Desktop")}`,
+      `${pc.cyan("server/")}               ${pc.dim("← MCP server for Claude Desktop and other MCP hosts")}`,
     );
   }
   p.note(structureGuide.join("\n"), "Project structure");
@@ -876,7 +876,7 @@ async function main() {
     `${pc.cyan(`${runCmd} dev`)}      ${pc.dim("Start the development workbench")}`,
   );
   keyCommands.push(
-    `${pc.cyan(`${runCmd} export`)}   ${pc.dim("Build & export for ChatGPT")}`,
+    `${pc.cyan(`${runCmd} export`)}   ${pc.dim("Build & export app bundle + manifest")}`,
   );
   if (config.includeServer) {
     keyCommands.push(
@@ -889,7 +889,7 @@ async function main() {
   p.log.message("");
   p.log.step(pc.bold("Building for multiple platforms:"));
   p.log.message(
-    `  ${pc.dim("•")} Use ${pc.cyan("useFeature('widgetState')")} to check for ChatGPT features`,
+    `  ${pc.dim("•")} Use ${pc.cyan("useFeature('widgetState')")} to check for optional ChatGPT extensions`,
   );
   p.log.message(
     `  ${pc.dim("•")} Use ${pc.cyan("useFeature('modelContext')")} to check for MCP features`,
@@ -906,6 +906,12 @@ async function main() {
   if (config.includeServer) {
     p.log.message(
       `  ${pc.dim("•")} MCP Guide:  ${pc.cyan("https://modelcontextprotocol.io/quickstart")}`,
+    );
+    p.log.message(
+      `  ${pc.dim("•")} ChatGPT Submission: ${pc.cyan("https://platform.openai.com/apps")}`,
+    );
+    p.log.message(
+      `  ${pc.dim("•")} Claude Submission:  ${pc.cyan("https://support.claude.com/en/articles/12922490-remote-mcp-server-submission-guide")}`,
     );
   }
   p.log.message("");
