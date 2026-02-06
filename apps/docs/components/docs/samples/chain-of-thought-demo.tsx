@@ -10,7 +10,6 @@ import {
   type ReactNode,
 } from "react";
 import {
-  ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   PlayIcon,
@@ -27,7 +26,6 @@ import {
   ChainOfThoughtTrace,
   type TraceNode,
 } from "@/components/assistant-ui/chain-of-thought-v2";
-import { CollapsibleTrigger } from "@/components/ui/collapsible";
 
 // ============================================================================
 // Shared data constants
@@ -879,167 +877,6 @@ function useStreamingParallelTrace() {
 }
 
 // ============================================================================
-// Headline transition components
-// ============================================================================
-
-const HEADLINE_OUT_MS = 200;
-const HEADLINE_IN_DELAY_MS = Math.round(HEADLINE_OUT_MS * 0.35); // incoming starts when outgoing is ~35%
-const HEADLINE_IN_MS = 320;
-const HEADLINE_TRANSITION_MS = HEADLINE_IN_DELAY_MS + HEADLINE_IN_MS;
-
-function TraceHeadlineTransition({
-  label,
-  active,
-  isOpen,
-}: {
-  label?: ReactNode;
-  active?: boolean;
-  isOpen?: boolean;
-}) {
-  const [currentLabel, setCurrentLabel] = useState(label);
-  const [previousLabel, setPreviousLabel] = useState<ReactNode | null>(null);
-  const [labelKey, setLabelKey] = useState(0);
-  const labelRef = useRef(label);
-  const timeoutRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    if (Object.is(labelRef.current, label)) return;
-
-    setPreviousLabel(labelRef.current ?? null);
-    setCurrentLabel(label);
-    setLabelKey((value) => value + 1);
-    labelRef.current = label;
-
-    if (timeoutRef.current) {
-      window.clearTimeout(timeoutRef.current);
-    }
-    timeoutRef.current = window.setTimeout(() => {
-      setPreviousLabel(null);
-    }, HEADLINE_TRANSITION_MS);
-
-    return () => {
-      if (timeoutRef.current) {
-        window.clearTimeout(timeoutRef.current);
-      }
-    };
-  }, [label]);
-
-  if (currentLabel == null && previousLabel == null) return null;
-  const isTransitioning = previousLabel != null;
-  const shimmerClass = active ? "shimmer" : undefined;
-
-  // Inline chevron that transitions with each headline
-  const inlineChevron = (
-    <ChevronDownIcon
-      className={cn(
-        "ml-1.5 inline-block size-4 shrink-0 align-middle",
-        "transition-transform duration-200",
-        isOpen ? "rotate-0" : "-rotate-90",
-      )}
-    />
-  );
-
-  return (
-    <div className="aui-chain-of-thought-trace-summary shimmer-container relative min-h-[1.25rem] overflow-hidden">
-      <div className="relative h-5">
-        {previousLabel != null && (
-          <span
-            key={`prev-${labelKey}`}
-            className={cn(
-              "aui-chain-of-thought-trace-summary-prev absolute inset-0 flex items-center",
-              "truncate text-left",
-              isTransitioning &&
-                "fade-out-0 animate-out fill-mode-both ease-out",
-              "motion-reduce:animate-none",
-            )}
-            style={{ animationDuration: `${HEADLINE_OUT_MS}ms` }}
-          >
-            <span className={cn("inline-flex items-center", shimmerClass)}>
-              {previousLabel}
-              {inlineChevron}
-            </span>
-          </span>
-        )}
-        {currentLabel != null && (
-          <span
-            key={`current-${labelKey}`}
-            className={cn(
-              "aui-chain-of-thought-trace-summary-current absolute inset-0 flex items-center",
-              "truncate text-left",
-              isTransitioning && "fade-in-0 animate-in fill-mode-both ease-out",
-              "motion-reduce:animate-none",
-            )}
-            style={{
-              animationDuration: `${HEADLINE_IN_MS}ms`,
-              animationDelay: `${HEADLINE_IN_DELAY_MS}ms`,
-            }}
-          >
-            <span className={cn("inline-flex items-center", shimmerClass)}>
-              {currentLabel}
-              {inlineChevron}
-            </span>
-          </span>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function ChainOfThoughtCyclingTrigger({
-  label,
-  active,
-}: {
-  label?: ReactNode;
-  active?: boolean;
-}) {
-  // Track open state from parent Collapsible via data attribute
-  const [isOpen, setIsOpen] = useState(false);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    const trigger = triggerRef.current;
-    if (!trigger) return;
-
-    const observer = new MutationObserver(() => {
-      const state = trigger.getAttribute("data-state");
-      setIsOpen(state === "open");
-    });
-
-    observer.observe(trigger, {
-      attributes: true,
-      attributeFilter: ["data-state"],
-    });
-    // Initial state
-    setIsOpen(trigger.getAttribute("data-state") === "open");
-
-    return () => observer.disconnect();
-  }, []);
-
-  return (
-    <CollapsibleTrigger
-      ref={triggerRef}
-      data-slot="chain-of-thought-trigger"
-      className={cn(
-        "aui-chain-of-thought-trigger",
-        "group/trigger flex w-full items-center gap-2 py-1 text-left",
-        "text-muted-foreground text-sm transition-colors hover:text-foreground",
-      )}
-    >
-      <span
-        data-slot="chain-of-thought-trigger-label"
-        className="aui-chain-of-thought-trigger-label-wrapper min-w-0 flex-1 leading-5"
-      >
-        <TraceHeadlineTransition
-          label={label}
-          {...(active != null ? { active } : {})}
-          isOpen={isOpen}
-        />
-      </span>
-    </CollapsibleTrigger>
-  );
-}
-
-// ============================================================================
 // Utilities
 // ============================================================================
 
@@ -1174,8 +1011,10 @@ export function ChainOfThoughtHeadlineStreamingFullBleedSample() {
                     onOpenChange={setCotOpen}
                     className="mb-0 border-0 p-0"
                   >
-                    <ChainOfThoughtCyclingTrigger
-                      label={headline}
+                    <ChainOfThoughtTrigger
+                      label={
+                        typeof headline === "string" ? headline : "Reasoning"
+                      }
                       active={isStreaming}
                     />
                     <ChainOfThoughtContent aria-busy={isStreaming}>
