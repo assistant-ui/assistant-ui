@@ -23,6 +23,8 @@ export const init = new Command()
   .name("init")
   .description("initialize assistant-ui in a new or existing project")
   .argument("[project-directory]", "directory for the new project")
+  .option("-y, --yes", "skip confirmation prompt.", true)
+  .option("-o, --overwrite", "overwrite existing files.", false)
   .option(
     "-c, --cwd <cwd>",
     "the working directory. defaults to the current directory.",
@@ -68,7 +70,12 @@ export const init = new Command()
       }
       logger.break();
 
-      const child = spawn("npx", [`shadcn@latest`, "add", registryUrl], {
+      const args = [`shadcn@latest`, "init", "--defaults"];
+      if (opts.yes) args.push("--yes");
+      if (opts.overwrite) args.push("--overwrite");
+      args.push(registryUrl);
+
+      const child = spawn("npx", args, {
         stdio: "inherit",
         cwd: targetDir,
       });
