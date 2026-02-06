@@ -920,69 +920,196 @@ function StreamingTimer({ startTime }: { startTime: number }) {
 // Full-bleed demo sample
 // ============================================================================
 
+const PREAMBLE_TEXT =
+  "I'll research the latest quantum computing developments for you. Let me search across multiple sources and synthesize the key breakthroughs.";
+
+const RESPONSE_TEXT =
+  "Based on my research across multiple sources, here are the key breakthroughs in quantum computing: IBM recently achieved a 1,000+ qubit processor, Google demonstrated quantum error correction advances, and several startups are making progress on room-temperature quantum systems.";
+
+type DemoPhase = "idle" | "preamble" | "thinking" | "response" | "done";
+
 /**
  * Full-bleed sample with mock chat thread shell and right sidebar for controls.
- * Flow: User message -> Assistant text streams -> CoT appears below with headline
- * Features: Duration tracking, crossfade headlines, "Audited onboarding (Ns)" final label
+ * Flow: User message → Preamble streams → CoT runs → Final response streams
  */
 export function ChainOfThoughtHeadlineStreamingFullBleedSample() {
-  const { trace, isStreaming, start, stepBack, stepOnce, reset } =
-    useStreamingParallelTrace();
-  const hasStarted = trace.length > 0 || isStreaming;
+  const {
+    trace,
+    isStreaming: cotStreaming,
+    isManual: cotManual,
+    start: cotStart,
+    stepBack: cotStepBack,
+    stepOnce: cotStepOnce,
+    reset: cotReset,
+  } = useStreamingParallelTrace();
 
-  // Keep disclosure expanded by default
-  const [keepExpanded, setKeepExpanded] = useState(true);
-  const [cotOpen, setCotOpen] = useState(true);
-
-  // Track streaming duration
+  const [phase, setPhase] = useState<DemoPhase>("idle");
+  const [autoMode, setAutoMode] = useState(false);
+  const [keepExpanded, setKeepExpanded] = useState(false);
+  const [cotOpen, setCotOpen] = useState(false);
+  const userExpandedRef = useRef(false);
   const [durationSec, setDurationSec] = useState<number | undefined>(undefined);
   const startTimeRef = useRef<number | null>(null);
-  const wasStreamingRef = useRef(isStreaming);
+  const wasCotStreamingRef = useRef(false);
 
+  // Derived state
+  const preambleStreaming = phase === "preamble";
+  const responseStreaming = phase === "response";
+  const cotActive = phase === "thinking" && cotStreaming;
+  const showCot = phase !== "idle" && phase !== "preamble" && trace.length > 0;
+  const showResponse = phase === "response" || phase === "done";
+
+  // --- Auto-play transitions ---
+
+  // Preamble → Thinking
   useEffect(() => {
-    if (isStreaming) {
-      if (!wasStreamingRef.current) {
-        startTimeRef.current = Date.now();
-        setDurationSec(undefined);
-      }
-    } else if (wasStreamingRef.current && startTimeRef.current != null) {
-      const elapsedMs = Date.now() - startTimeRef.current;
-      const elapsedSec = Math.max(1, Math.round(elapsedMs / 1000));
-      setDurationSec(elapsedSec);
+    if (!autoMode || phase !== "preamble") return;
+    const ms = (PREAMBLE_TEXT.length / STREAM_CHARS_PER_SEC) * 1000;
+    const timer = setTimeout(() => {
+      setPhase("thinking");
+      cotStart();
+    }, ms + 300);
+    return () => clearTimeout(timer);
+  }, [autoMode, phase, cotStart]);
+
+  // Thinking → Response (detect CoT completion)
+  useEffect((): (() => void) | void => {
+    if (!autoMode || phase !== "thinking") return;
+    if (cotStreaming) {
+      wasCotStreamingRef.current = true;
+      return;
+    }
+    if (wasCotStreamingRef.current) {
+      wasCotStreamingRef.current = false;
+      const timer = setTimeout(() => setPhase("response"), 400);
+      return () => clearTimeout(timer);
+    }
+  }, [autoMode, phase, cotStreaming]);
+
+  // Response → Done
+  useEffect(() => {
+    if (!autoMode || phase !== "response") return;
+    const ms = (RESPONSE_TEXT.length / STREAM_CHARS_PER_SEC) * 1000;
+    const timer = setTimeout(() => {
+      setPhase("done");
+      setAutoMode(false);
+    }, ms + 300);
+    return () => clearTimeout(timer);
+  }, [autoMode, phase]);
+
+  // Fallback: if hook resets while manually in thinking, revert to preamble
+  useEffect(() => {
+    if (
+      phase === "thinking" &&
+      !autoMode &&
+      trace.length === 0 &&
+      !cotStreaming &&
+      !cotManual
+    ) {
+      setPhase("preamble");
+    }
+  }, [phase, autoMode, trace.length, cotStreaming, cotManual]);
+
+  // Auto-collapse CoT when streaming completes (unless user manually expanded)
+  useEffect(() => {
+    if (
+      (phase === "response" || phase === "done") &&
+      !keepExpanded &&
+      !userExpandedRef.current
+    ) {
+      setCotOpen(false);
+    }
+  }, [phase, keepExpanded]);
+
+  // Duration: record when done
+  useEffect(() => {
+    if (phase === "done" && startTimeRef.current != null) {
+      const ms = Date.now() - startTimeRef.current;
+      setDurationSec(Math.max(1, Math.round(ms / 1000)));
       startTimeRef.current = null;
     }
-    wasStreamingRef.current = isStreaming;
-  }, [isStreaming]);
+  }, [phase]);
 
-  // Reset duration when resetting
-  const handleReset = useCallback(() => {
-    reset();
+  // --- Controls ---
+
+  const handleStart = useCallback(() => {
+    cotReset();
+    wasCotStreamingRef.current = false;
+    userExpandedRef.current = false;
+    startTimeRef.current = Date.now();
     setDurationSec(undefined);
-    startTimeRef.current = null;
-    wasStreamingRef.current = false;
-  }, [reset]);
+    setCotOpen(false);
+    setAutoMode(true);
+    setPhase("preamble");
+  }, [cotReset]);
 
-  // Build headline with duration suffix when complete
+  const handleNext = useCallback(() => {
+    if (phase === "idle") {
+      setAutoMode(false);
+      setPhase("preamble");
+    } else if (phase === "preamble") {
+      setPhase("thinking");
+      cotStepOnce();
+    } else if (phase === "thinking") {
+      const fullyAdvanced = trace.some(
+        (n) => n.kind === "step" && n.id === "done",
+      );
+      if (fullyAdvanced) {
+        setPhase("response");
+      } else {
+        cotStepOnce();
+      }
+    } else if (phase === "response") {
+      setPhase("done");
+    }
+  }, [phase, trace, cotStepOnce]);
+
+  const handlePrev = useCallback(() => {
+    if (phase === "done" || phase === "response") {
+      setPhase("thinking");
+    } else if (phase === "thinking") {
+      if (trace.length <= 1) {
+        cotReset();
+        setPhase("preamble");
+      } else {
+        cotStepBack();
+      }
+    } else if (phase === "preamble") {
+      setPhase("idle");
+    }
+  }, [phase, trace.length, cotReset, cotStepBack]);
+
+  const handleReset = useCallback(() => {
+    cotReset();
+    setAutoMode(false);
+    setPhase("idle");
+    setDurationSec(undefined);
+    setCotOpen(false);
+    startTimeRef.current = null;
+    wasCotStreamingRef.current = false;
+    userExpandedRef.current = false;
+  }, [cotReset]);
+
+  // Headline
   const baseHeadline = useMemo(
     () => getLatestTraceStepLabel(trace) ?? "Reasoning",
     [trace],
   );
   const headline = useMemo(() => {
-    if (isStreaming || durationSec == null) return baseHeadline;
-    // Append duration to final headline
+    if (phase !== "done" || durationSec == null) return baseHeadline;
     if (typeof baseHeadline === "string") {
       return `${baseHeadline} (${durationSec}s)`;
     }
     return baseHeadline;
-  }, [baseHeadline, durationSec, isStreaming]);
+  }, [baseHeadline, durationSec, phase]);
 
   return (
     <div className="flex h-full min-h-screen bg-background">
-      {/* Thread container - main area */}
+      {/* Thread container */}
       <div className="flex flex-1 flex-col overflow-hidden">
         <div className="flex-1 overflow-y-auto">
           <div className="mx-auto max-w-3xl space-y-6 p-4 pt-8 pb-32">
-            {/* User message (with bubble) */}
+            {/* User message */}
             <div className="flex justify-end">
               <div className="max-w-[80%] rounded-2xl rounded-br-md bg-primary px-4 py-2.5 text-primary-foreground">
                 <p className="text-sm leading-relaxed">
@@ -992,49 +1119,63 @@ export function ChainOfThoughtHeadlineStreamingFullBleedSample() {
               </div>
             </div>
 
-            {/* Assistant message (no bubble) */}
-            <div className="flex justify-start">
-              <div className="max-w-[80%] space-y-3">
-                {/* Assistant text response - streams in first */}
-                <p className="text-sm leading-relaxed">
-                  Based on my research across multiple sources, here are the key
-                  breakthroughs in quantum computing: IBM recently achieved a
-                  1,000+ qubit processor, Google demonstrated quantum error
-                  correction advances, and several startups are making progress
-                  on room-temperature quantum systems.
-                </p>
-
-                {/* CoT component - appears after text, always has headline */}
-                {hasStarted ? (
-                  <ChainOfThoughtRoot
-                    open={cotOpen}
-                    onOpenChange={setCotOpen}
-                    className="mb-0 border-0 p-0"
-                  >
-                    <ChainOfThoughtTrigger
-                      label={
-                        typeof headline === "string" ? headline : "Reasoning"
-                      }
-                      active={isStreaming}
+            {/* Assistant message — appears after idle */}
+            {phase !== "idle" && (
+              <div className="flex justify-start">
+                <div className="max-w-[80%] space-y-3">
+                  {/* Preamble */}
+                  <p className="text-sm leading-relaxed">
+                    <StreamingText
+                      text={PREAMBLE_TEXT}
+                      isStreaming={preambleStreaming}
                     />
-                    <ChainOfThoughtContent aria-busy={isStreaming}>
-                      <ChainOfThoughtTrace
-                        trace={trace}
-                        maxDepth={3}
-                        autoScroll={false}
-                        scrollable={false}
-                        allowGroupExpand
+                  </p>
+
+                  {/* Chain of thought */}
+                  {showCot && (
+                    <ChainOfThoughtRoot
+                      open={cotOpen}
+                      onOpenChange={(open) => {
+                        setCotOpen(open);
+                        if (open) userExpandedRef.current = true;
+                      }}
+                      className="mb-0 border-0 p-0"
+                    >
+                      <ChainOfThoughtTrigger
+                        label={
+                          typeof headline === "string" ? headline : "Reasoning"
+                        }
+                        active={cotActive}
                       />
-                    </ChainOfThoughtContent>
-                  </ChainOfThoughtRoot>
-                ) : null}
+                      <ChainOfThoughtContent aria-busy={phase === "thinking"}>
+                        <ChainOfThoughtTrace
+                          trace={trace}
+                          maxDepth={3}
+                          autoScroll={false}
+                          scrollable={false}
+                          allowGroupExpand
+                        />
+                      </ChainOfThoughtContent>
+                    </ChainOfThoughtRoot>
+                  )}
+
+                  {/* Final response */}
+                  {showResponse && (
+                    <p className="mt-6 text-sm leading-relaxed">
+                      <StreamingText
+                        text={RESPONSE_TEXT}
+                        isStreaming={responseStreaming}
+                      />
+                    </p>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Right sidebar with controls — sticky so only the thread scrolls */}
+      {/* Sidebar controls */}
       <div className="sticky top-0 flex h-screen w-56 shrink-0 flex-col gap-4 border-l bg-muted/30 p-4">
         <div className="space-y-1">
           <h3 className="font-medium text-foreground text-sm">
@@ -1049,20 +1190,20 @@ export function ChainOfThoughtHeadlineStreamingFullBleedSample() {
           <Button
             type="button"
             size="sm"
-            onClick={start}
-            disabled={isStreaming}
+            onClick={handleStart}
+            disabled={autoMode}
             className="w-full"
           >
             <PlayIcon className="mr-1.5 size-3" />
-            {isStreaming ? "Streaming..." : "Start"}
+            {autoMode ? "Streaming..." : "Start"}
           </Button>
           <div className="flex gap-2">
             <Button
               type="button"
               size="sm"
               variant="secondary"
-              onClick={stepBack}
-              disabled={isStreaming}
+              onClick={handlePrev}
+              disabled={autoMode || phase === "idle"}
               className="flex-1"
             >
               <ChevronLeftIcon className="mr-1 size-3" />
@@ -1072,8 +1213,8 @@ export function ChainOfThoughtHeadlineStreamingFullBleedSample() {
               type="button"
               size="sm"
               variant="secondary"
-              onClick={stepOnce}
-              disabled={isStreaming}
+              onClick={handleNext}
+              disabled={autoMode || phase === "done"}
               className="flex-1"
             >
               Next
@@ -1085,6 +1226,7 @@ export function ChainOfThoughtHeadlineStreamingFullBleedSample() {
             size="sm"
             variant="outline"
             onClick={handleReset}
+            disabled={phase === "idle"}
             className="w-full"
           >
             Reset
@@ -1097,14 +1239,20 @@ export function ChainOfThoughtHeadlineStreamingFullBleedSample() {
             checked={keepExpanded}
             onChange={(e) => {
               setKeepExpanded(e.target.checked);
-              setCotOpen(e.target.checked);
+              if (
+                !e.target.checked &&
+                (phase === "response" || phase === "done") &&
+                !userExpandedRef.current
+              ) {
+                setCotOpen(false);
+              }
             }}
             className="accent-primary"
           />
           Keep expanded
         </label>
 
-        {durationSec != null && !isStreaming ? (
+        {durationSec != null && phase === "done" ? (
           <div className="rounded-md bg-muted px-2 py-1.5">
             <span className="text-muted-foreground text-xs">
               Completed in {durationSec}s
@@ -1112,7 +1260,7 @@ export function ChainOfThoughtHeadlineStreamingFullBleedSample() {
           </div>
         ) : null}
 
-        {isStreaming && startTimeRef.current != null ? (
+        {autoMode && startTimeRef.current != null ? (
           <StreamingTimer startTime={startTimeRef.current} />
         ) : null}
       </div>
