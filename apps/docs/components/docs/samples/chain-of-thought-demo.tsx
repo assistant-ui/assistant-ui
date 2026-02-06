@@ -25,7 +25,7 @@ import {
   ChainOfThoughtText,
   ChainOfThoughtTrace,
   type TraceNode,
-} from "@/components/assistant-ui/chain-of-thought-v2";
+} from "@/components/assistant-ui/chain-of-thought";
 
 // ============================================================================
 // Shared data constants

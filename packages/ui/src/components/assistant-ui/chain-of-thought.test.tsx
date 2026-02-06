@@ -8,11 +8,7 @@ import {
   MessageProvider,
   type ThreadAssistantMessage,
 } from "@assistant-ui/react";
-import {
-  ChainOfThought,
-  Crossfade,
-  type TraceNode,
-} from "./chain-of-thought-v2";
+import { ChainOfThought, Crossfade, type TraceNode } from "./chain-of-thought";
 
 const globalWithAct = globalThis as typeof globalThis & {
   IS_REACT_ACT_ENVIRONMENT?: boolean;
