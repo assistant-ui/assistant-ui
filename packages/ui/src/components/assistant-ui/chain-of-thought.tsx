@@ -18,7 +18,6 @@ import {
 } from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import {
-  BrainIcon,
   ChevronDownIcon,
   SearchIcon,
   ImageIcon,
@@ -312,7 +311,7 @@ export type ChainOfThoughtTriggerProps = React.ComponentProps<
 
 /**
  * Clickable trigger that toggles the chain-of-thought disclosure.
- * Displays a brain icon, label, and chevron indicator.
+ * Displays a label and chevron indicator.
  */
 function ChainOfThoughtTrigger({
   active,
@@ -334,16 +333,6 @@ function ChainOfThoughtTrigger({
       )}
       {...props}
     >
-      <span
-        data-slot="chain-of-thought-trigger-icon-wrapper"
-        className="aui-chain-of-thought-trigger-icon-wrapper flex size-6 shrink-0 items-center justify-center"
-      >
-        <BrainIcon
-          data-slot="chain-of-thought-trigger-icon"
-          className="aui-chain-of-thought-trigger-icon size-5"
-        />
-      </span>
-
       <span
         data-slot="chain-of-thought-trigger-label"
         className="aui-chain-of-thought-trigger-label-wrapper relative inline-block leading-6"
@@ -750,7 +739,7 @@ function ChainOfThoughtTimeline({
   const listClassName = cn(
     "aui-chain-of-thought-timeline",
     "relative z-0",
-    "flex flex-col pt-1 pb-2",
+    "flex flex-col py-1",
     "transform-gpu",
     // Open animation: spring easing, staggered fade+slide
     "group-data-[state=open]/collapsible-content:animate-in",
@@ -804,8 +793,6 @@ export type ChainOfThoughtStepProps = React.ComponentProps<"li"> &
     error?: string;
     /** Callback when retry is clicked (shows retry button when provided) */
     onRetry?: () => void;
-    /** Visual density for nested steps */
-    density?: "regular" | "compact";
   };
 
 /**
@@ -815,12 +802,10 @@ export type ChainOfThoughtStepProps = React.ComponentProps<"li"> &
 function StepIndicatorWrapper({
   status,
   hasBorder = false,
-  compact = false,
   children,
 }: {
   status: StepStatus | undefined;
   hasBorder?: boolean;
-  compact?: boolean;
   children: ReactNode;
 }) {
   const isActive = status === "active";
@@ -834,8 +819,7 @@ function StepIndicatorWrapper({
       data-status={status}
       className={cn(
         "aui-chain-of-thought-step-indicator transform-gpu",
-        "relative flex size-6 shrink-0 items-center justify-center rounded-full",
-        compact && "scale-[0.6]",
+        "relative flex size-5 shrink-0 items-center justify-center rounded-full",
         // Background should match the parent variant so the timeline line does not show through
         "bg-background",
         "group-data-[variant=muted]/chain-of-thought-root:bg-muted",
@@ -883,7 +867,6 @@ function ChainOfThoughtStep({
   icon,
   error,
   onRetry,
-  density = "regular",
   children,
   ...props
 }: ChainOfThoughtStepProps) {
@@ -896,17 +879,12 @@ function ChainOfThoughtStep({
 
   const isActive = effectiveStatus === "active";
   const isError = effectiveStatus === "error";
-  const isCompact = density === "compact";
 
   const renderIndicator = () => {
     // Error state shows error icon
     if (effectiveStatus === "error") {
       return (
-        <StepIndicatorWrapper
-          status={effectiveStatus}
-          hasBorder={!!stepLabel}
-          compact={isCompact}
-        >
+        <StepIndicatorWrapper status={effectiveStatus} hasBorder={!!stepLabel}>
           {stepLabel !== undefined ? (
             <span className="aui-chain-of-thought-step-indicator-error-label font-medium text-[10px] text-destructive">
               !
@@ -921,11 +899,7 @@ function ChainOfThoughtStep({
     // Numbered/labeled indicator
     if (stepLabel !== undefined) {
       return (
-        <StepIndicatorWrapper
-          status={effectiveStatus}
-          hasBorder
-          compact={isCompact}
-        >
+        <StepIndicatorWrapper status={effectiveStatus} hasBorder>
           <span
             className={cn(
               "aui-chain-of-thought-step-indicator-label font-medium text-[10px]",
@@ -942,7 +916,7 @@ function ChainOfThoughtStep({
     if (icon) {
       const isComponent = typeof icon === "function";
       return (
-        <StepIndicatorWrapper status={effectiveStatus} compact={isCompact}>
+        <StepIndicatorWrapper status={effectiveStatus}>
           {isComponent ? (
             <IconRenderer Icon={icon as LucideIcon} pulse={active === true} />
           ) : (
@@ -956,7 +930,7 @@ function ChainOfThoughtStep({
     const TypeIcon = stepTypeIcons[type];
     if (TypeIcon === null) {
       return (
-        <StepIndicatorWrapper status={effectiveStatus} compact={isCompact}>
+        <StepIndicatorWrapper status={effectiveStatus}>
           <BulletDot />
         </StepIndicatorWrapper>
       );
@@ -973,10 +947,8 @@ function ChainOfThoughtStep({
       data-slot="chain-of-thought-step"
       data-status={effectiveStatus}
       data-type={type}
-      data-density={density}
       className={cn(
         stepVariants({ status: effectiveStatus, className }),
-        isCompact && "gap-2 py-1",
         // Hide connectors at first/last positions using CSS selectors
         // Uses first-of-type/last-of-type for compatibility with dynamically rendered children
         "first-of-type:[&>[data-slot=chain-of-thought-step-connector-above]]:hidden",
@@ -988,16 +960,16 @@ function ChainOfThoughtStep({
       <div
         aria-hidden="true"
         data-slot="chain-of-thought-step-connector-above"
-        className="fade-in-0 pointer-events-none absolute top-0 left-3 h-1.5 w-px animate-in bg-foreground/15 fill-mode-both delay-[var(--step-delay)] duration-(--animation-duration) ease-(--spring-easing) motion-reduce:animate-none"
+        className="fade-in-0 pointer-events-none absolute top-0 left-2.5 h-1.5 w-px animate-in bg-foreground/15 fill-mode-both delay-[var(--step-delay)] duration-(--animation-duration) ease-(--spring-easing) motion-reduce:animate-none"
       />
       {/* Connector to next step */}
       <div
         aria-hidden="true"
         data-slot="chain-of-thought-step-connector-below"
-        className="fade-in-0 pointer-events-none absolute top-[30px] bottom-0 left-3 w-px animate-in bg-foreground/15 fill-mode-both delay-[var(--step-delay)] duration-(--animation-duration) ease-(--spring-easing) motion-reduce:animate-none"
+        className="fade-in-0 pointer-events-none absolute top-[30px] bottom-0 left-2.5 w-px animate-in bg-foreground/15 fill-mode-both delay-[var(--step-delay)] duration-(--animation-duration) ease-(--spring-easing) motion-reduce:animate-none"
       />
 
-      <div className="aui-chain-of-thought-step-indicator-wrapper fade-in-0 zoom-in-85 relative z-10 animate-in overflow-visible fill-mode-both blur-in-[3px] delay-[var(--step-delay)] duration-(--animation-duration) ease-(--spring-easing) will-change-[transform,opacity,filter] motion-reduce:animate-none">
+      <div className="aui-chain-of-thought-step-indicator-wrapper fade-in-0 zoom-in-85 relative z-10 mt-0.5 animate-in overflow-visible fill-mode-both blur-in-[3px] delay-[var(--step-delay)] duration-(--animation-duration) ease-(--spring-easing) will-change-[transform,opacity,filter] motion-reduce:animate-none">
         {renderIndicator()}
       </div>
 
@@ -1069,7 +1041,7 @@ function IconRenderer({
   return (
     <Icon
       className={cn(
-        "aui-chain-of-thought-step-icon relative z-10 size-5",
+        "aui-chain-of-thought-step-icon relative z-10 size-4",
         "transition-[color,transform] duration-200 ease-(--spring-easing)",
       )}
     />
@@ -1827,7 +1799,6 @@ function ChainOfThoughtTraceStepNode({
   style?: React.CSSProperties;
   className?: string;
 }) {
-  const depth = useContext(TraceDepthContext);
   const { nodeComponents } = useContext(TraceTreeConfigContext);
   const StepBody = nodeComponents?.StepBody ?? DefaultTraceStepBody;
   const label = getTraceStepLabel(step);
@@ -1861,7 +1832,6 @@ function ChainOfThoughtTraceStepNode({
       status={status}
       active={isActive}
       type={isMonologue ? "default" : type}
-      density={depth > 0 ? "compact" : "regular"}
       className={className}
       style={style}
     >
@@ -1946,7 +1916,7 @@ function ChainOfThoughtTraceGroupNode({
     return <IconRenderer Icon={TypeIcon} />;
   })();
   const showChevron = canExpand && (isHoveringSummary || isOpen);
-  const chevronSizeClass = depth > 0 ? "size-5" : "size-4";
+  const chevronSizeClass = "size-4";
   const icon = (
     <span className="relative inline-flex size-5 items-center justify-center">
       <span
@@ -1978,7 +1948,6 @@ function ChainOfThoughtTraceGroupNode({
       active={groupStatus === "running"}
       type={indicatorType}
       icon={icon}
-      density={depth > 0 ? "compact" : "regular"}
       className={cn(className, "group/trace-group")}
       style={style}
     >

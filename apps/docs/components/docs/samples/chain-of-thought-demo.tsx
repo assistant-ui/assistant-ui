@@ -2,6 +2,7 @@
 
 import {
   useEffect,
+  useLayoutEffect,
   useState,
   useCallback,
   useMemo,
@@ -10,8 +11,9 @@ import {
 } from "react";
 import {
   ChevronDownIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
   PlayIcon,
-  SkipForwardIcon,
   RotateCcwIcon,
 } from "lucide-react";
 import { SampleFrame } from "@/components/docs/samples/sample-frame";
@@ -41,7 +43,7 @@ function CitationBadge({
   path?: string;
 }) {
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-md bg-muted px-2 py-1 text-xs">
+    <span className="inline-flex items-center gap-1.5 rounded-md bg-muted/50 px-2 py-1 text-xs">
       <span className="flex size-4 items-center justify-center rounded bg-background text-[10px]">
         {favicon}
       </span>
@@ -55,36 +57,101 @@ function CitationBadge({
   );
 }
 
-const WEB_SEARCH_RESULTS_OUTPUT: ReactNode = (
-  <div className="space-y-2">
-    <div className="text-muted-foreground/70">Selected 5 top results</div>
-    <div className="flex flex-wrap gap-1.5">
-      <CitationBadge
-        favicon="📚"
-        domain="assistant-ui.com"
-        path="docs/streaming"
-      />
-      <CitationBadge favicon="📝" domain="ux-patterns.dev" path="timelines" />
-      <CitationBadge favicon="🔧" domain="react-traces.io" path="nested" />
-      <CitationBadge favicon="✨" domain="motion.design" path="shimmer" />
-      <CitationBadge favicon="📖" domain="disclosure-ux.org" />
-    </div>
-  </div>
-);
+const WEB_SEARCH_HEADER = "Selected 5 top results";
+const WEB_SEARCH_CHIPS = [
+  { favicon: "📚", domain: "assistant-ui.com", path: "docs/streaming" },
+  { favicon: "📝", domain: "ux-patterns.dev", path: "timelines" },
+  { favicon: "🔧", domain: "react-traces.io", path: "nested" },
+  { favicon: "✨", domain: "motion.design", path: "shimmer" },
+  { favicon: "📖", domain: "disclosure-ux.org" },
+] as const;
+const CHIP_STAGGER_MS = 80;
 
-const RESULT_SCORING_OUTPUT: ReactNode = (
-  <div className="space-y-2">
-    <div className="text-muted-foreground/70">
-      Scoring results for relevance before summarizing.
+function WebSearchResultsOutput({ isStreaming }: { isStreaming: boolean }) {
+  const headerDurationMs =
+    (WEB_SEARCH_HEADER.length / STREAM_CHARS_PER_SEC) * 1000;
+
+  const [chipsVisible, setChipsVisible] = useState(!isStreaming);
+  useEffect(() => {
+    if (!isStreaming) {
+      setChipsVisible(true);
+      return;
+    }
+    setChipsVisible(false);
+    const timeout = setTimeout(() => setChipsVisible(true), headerDurationMs);
+    return () => clearTimeout(timeout);
+  }, [isStreaming, headerDurationMs]);
+
+  return (
+    <div className="space-y-2">
+      <div className="text-muted-foreground/70">
+        <StreamingText text={WEB_SEARCH_HEADER} isStreaming={isStreaming} />
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {WEB_SEARCH_CHIPS.map((chip, i) => (
+          <span
+            key={chip.domain}
+            className={cn(
+              "transition-[opacity,filter] duration-300 ease-out",
+              chipsVisible ? "opacity-100 blur-0" : "opacity-0 blur-[2px]",
+            )}
+            style={{
+              transitionDelay: chipsVisible
+                ? `${i * CHIP_STAGGER_MS}ms`
+                : "0ms",
+            }}
+          >
+            <CitationBadge
+              favicon={chip.favicon}
+              domain={chip.domain}
+              {...("path" in chip ? { path: chip.path as string } : {})}
+            />
+          </span>
+        ))}
+      </div>
     </div>
-    <pre className="rounded-md bg-muted/60 p-2 font-mono text-[11px] text-foreground/80 leading-relaxed">
-      <code>{`const scored = results
+  );
+}
+
+const SCORING_HEADER = "Scoring results for relevance before summarizing.";
+const SCORING_CODE = `const scored = results
   .map((r) => ({ ...r, score: score(r, intent) }))
   .sort((a, b) => b.score - a.score)
-  .slice(0, 3);`}</code>
-    </pre>
-  </div>
-);
+  .slice(0, 3);`;
+
+function ResultScoringOutput({ isStreaming }: { isStreaming: boolean }) {
+  const headerDurationMs =
+    (SCORING_HEADER.length / STREAM_CHARS_PER_SEC) * 1000;
+
+  const [codeReady, setCodeReady] = useState(!isStreaming);
+  useEffect(() => {
+    if (!isStreaming) {
+      setCodeReady(true);
+      return;
+    }
+    setCodeReady(false);
+    const timeout = setTimeout(() => setCodeReady(true), headerDurationMs);
+    return () => clearTimeout(timeout);
+  }, [isStreaming, headerDurationMs]);
+
+  return (
+    <div className="space-y-2">
+      <div className="text-muted-foreground/70">
+        <StreamingText text={SCORING_HEADER} isStreaming={isStreaming} />
+      </div>
+      {codeReady && (
+        <pre className="rounded-md bg-muted/50 p-2 font-mono text-[11px] text-foreground/80 leading-relaxed">
+          <code>
+            <StreamingText
+              text={SCORING_CODE}
+              isStreaming={isStreaming && codeReady}
+            />
+          </code>
+        </pre>
+      )}
+    </div>
+  );
+}
 
 const STREAMING_ROOT_STEPS = [
   {
@@ -98,14 +165,18 @@ const STREAMING_ROOT_STEPS = [
     label: "Searching for references",
     type: "search",
     toolName: "search",
-    output: WEB_SEARCH_RESULTS_OUTPUT,
+    output: (isStreaming: boolean) => (
+      <WebSearchResultsOutput isStreaming={isStreaming} />
+    ),
   },
   {
     id: "score",
     label: "Scoring sources",
     type: "javascript",
     toolName: "code",
-    output: RESULT_SCORING_OUTPUT,
+    output: (isStreaming: boolean) => (
+      <ResultScoringOutput isStreaming={isStreaming} />
+    ),
   },
   {
     id: "narrate-1",
@@ -147,7 +218,7 @@ const STREAMING_ROOT_STEPS = [
     type: "complete",
     output: "Done in 43s",
   },
-] as const;
+];
 
 // ============================================================================
 // Parallel agent data
@@ -173,14 +244,18 @@ const PARALLEL_AGENTS = [
         label: "Collecting sources",
         type: "search",
         toolName: "search",
-        output: WEB_SEARCH_RESULTS_OUTPUT,
+        output: (isStreaming: boolean) => (
+          <WebSearchResultsOutput isStreaming={isStreaming} />
+        ),
       },
       {
         id: "score",
         label: "Scoring results",
         type: "javascript",
         toolName: "code",
-        output: RESULT_SCORING_OUTPUT,
+        output: (isStreaming: boolean) => (
+          <ResultScoringOutput isStreaming={isStreaming} />
+        ),
       },
       {
         id: "synthesize",
@@ -262,7 +337,162 @@ const PARALLEL_AGENTS = [
       },
     ],
   },
-] as const;
+];
+
+// ============================================================================
+// Streaming text simulation
+// ============================================================================
+
+const STREAM_CHARS_PER_SEC = 100;
+
+/**
+ * Simulates character-by-character text streaming with a pulsing orb
+ * that follows the text cursor and fades out when streaming completes.
+ */
+/** Exponential ease factor — 0.3 means the orb covers 30% of the remaining
+ *  distance each frame (~85ms to 95% at 60fps). */
+const ORB_EASE = 0.3;
+
+function StreamingText({
+  text,
+  isStreaming,
+}: {
+  text: string;
+  isStreaming: boolean;
+}) {
+  const [charIndex, setCharIndex] = useState(isStreaming ? 0 : text.length);
+  const textRef = useRef<HTMLSpanElement>(null);
+  const orbRef = useRef<HTMLSpanElement>(null);
+
+  // Smoothing refs — position is driven entirely outside React state
+  // to avoid extra re-renders and keep the loop in pure rAF land.
+  const targetX = useRef(0);
+  const currentX = useRef(0);
+  const smoothRaf = useRef<number | null>(null);
+  const initialized = useRef(false);
+
+  // Drive the typewriter effect with rAF for frame-synced smoothness
+  useEffect(() => {
+    if (!isStreaming) {
+      setCharIndex(text.length);
+      return;
+    }
+
+    setCharIndex(0);
+    initialized.current = false;
+    const start = performance.now();
+    let raf: number;
+
+    const tick = () => {
+      const elapsed = performance.now() - start;
+      const target = Math.min(
+        Math.floor((elapsed / 1000) * STREAM_CHARS_PER_SEC),
+        text.length,
+      );
+      setCharIndex(target);
+      if (target < text.length) {
+        raf = requestAnimationFrame(tick);
+      }
+    };
+
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [isStreaming, text]);
+
+  // Kick-start the smoothing loop (idempotent — won't double-schedule).
+  const startSmoothing = useCallback(() => {
+    if (smoothRaf.current !== null) return;
+
+    const animate = () => {
+      if (!orbRef.current) return;
+      const dx = targetX.current - currentX.current;
+      if (Math.abs(dx) > 0.1) {
+        currentX.current += dx * ORB_EASE;
+      } else {
+        currentX.current = targetX.current;
+      }
+      orbRef.current.style.transform = `translate(${currentX.current}px, -50%)`;
+      if (Math.abs(targetX.current - currentX.current) > 0.1) {
+        smoothRaf.current = requestAnimationFrame(animate);
+      } else {
+        smoothRaf.current = null; // at rest — will restart on next charIndex change
+      }
+    };
+
+    smoothRaf.current = requestAnimationFrame(animate);
+  }, []);
+
+  // Measure revealed text width synchronously before paint, update target,
+  // and start the smoothing loop if it isn't running.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: charIndex is intentionally listed to re-measure on each character change
+  useLayoutEffect(() => {
+    if (!textRef.current) return;
+    const width = textRef.current.getBoundingClientRect().width;
+    targetX.current = width;
+    if (!initialized.current) {
+      // First measurement — snap instantly (no animation from 0).
+      currentX.current = width;
+      initialized.current = true;
+      if (orbRef.current) {
+        orbRef.current.style.transform = `translate(${width}px, -50%)`;
+      }
+    } else {
+      startSmoothing();
+    }
+  }, [charIndex, startSmoothing]);
+
+  // Cleanup
+  useEffect(() => {
+    return () => {
+      if (smoothRaf.current !== null) cancelAnimationFrame(smoothRaf.current);
+    };
+  }, []);
+
+  // Orb is "active" while characters are still revealing.
+  // After reveal finishes, hold for 300ms then deactivate (exit transition).
+  const textRevealing = isStreaming && charIndex < text.length;
+  const [orbActive, setOrbActive] = useState(false);
+  useEffect(() => {
+    if (textRevealing) {
+      setOrbActive(true);
+      return;
+    }
+    const timeout = window.setTimeout(() => setOrbActive(false), 300);
+    return () => window.clearTimeout(timeout);
+  }, [textRevealing]);
+
+  return (
+    <span className="relative">
+      <span ref={textRef}>{text.slice(0, charIndex)}</span>
+      {/* Orb: absolutely positioned, JS-driven exponential ease for smooth
+           sub-pixel movement. Outer span owns position + opacity/blur.
+           Inner span owns pulse (separated so animate-pulse doesn't fight
+           the exit opacity transition). */}
+      <span
+        ref={orbRef}
+        aria-hidden
+        className="pointer-events-none absolute top-1/2 left-0"
+        style={{ transform: "translate(0px, -50%)" }}
+      >
+        <span
+          className={cn(
+            "ml-1.5 flex items-center justify-center",
+            "transition-[opacity,filter] duration-[400ms] ease-out",
+            orbActive ? "opacity-100 blur-0" : "opacity-0 blur-[3px]",
+          )}
+        >
+          <span
+            className={cn(
+              "size-2.5 rounded-full bg-white shadow-[0_0_6px_rgba(255,255,255,0.5)]",
+              orbActive &&
+                "animate-pulse [animation-duration:1.5s] motion-reduce:animate-none",
+            )}
+          />
+        </span>
+      </span>
+    </span>
+  );
+}
 
 // ============================================================================
 // useStreamingParallelTrace hook
@@ -322,7 +552,7 @@ function useStreamingParallelTrace() {
       setAgentProgress((current) => {
         const next = { ...current };
         PARALLEL_AGENTS.forEach((agent) => {
-          if (next[agent.id] < 0) {
+          if ((next[agent.id] ?? 0) < 0) {
             next[agent.id] = 0;
           }
         });
@@ -389,7 +619,17 @@ function useStreamingParallelTrace() {
           ...(toolName ? { toolName } : {}),
           output: step.output
             ? {
-                content: step.output,
+                content:
+                  typeof step.output === "string" ? (
+                    <StreamingText
+                      text={step.output}
+                      isStreaming={isLatest && !isTerminal}
+                    />
+                  ) : typeof step.output === "function" ? (
+                    step.output(isLatest && !isTerminal)
+                  ) : (
+                    step.output
+                  ),
                 status:
                   isLatest && !isTerminal
                     ? ("streaming" as const)
@@ -420,7 +660,14 @@ function useStreamingParallelTrace() {
           ...(toolName ? { toolName } : {}),
           output: step.output
             ? {
-                content: step.output,
+                content:
+                  typeof step.output === "string" ? (
+                    <StreamingText text={step.output} isStreaming={isLatest} />
+                  ) : typeof step.output === "function" ? (
+                    step.output(isLatest)
+                  ) : (
+                    step.output
+                  ),
                 status: isLatest
                   ? ("streaming" as const)
                   : ("complete" as const),
@@ -479,7 +726,10 @@ function useStreamingParallelTrace() {
                   summary: latestStep
                     ? {
                         latestLabel: latestStep.label,
-                        latestType: latestStep.type,
+                        latestType:
+                          latestStep.kind === "step"
+                            ? latestStep.type
+                            : undefined,
                       }
                     : undefined,
                   children: steps,
@@ -547,6 +797,49 @@ function useStreamingParallelTrace() {
     });
   }, [agentProgress, rootLastIndex, rootProgress]);
 
+  const stepBack = useCallback(() => {
+    setIsStreaming(false);
+    setIsManual(true);
+
+    // If agents are started, step them all back (and root)
+    const anyAgentsStarted = Object.values(agentProgress).some(
+      (value) => value >= 0,
+    );
+
+    if (anyAgentsStarted) {
+      // Check if all agents are at step 0 — if so, retract agents entirely
+      const allAgentsAtZero = PARALLEL_AGENTS.every(
+        (agent) => (agentProgress[agent.id] ?? -1) <= 0,
+      );
+      if (allAgentsAtZero) {
+        setAgentProgress(
+          Object.fromEntries(PARALLEL_AGENTS.map((agent) => [agent.id, -1])),
+        );
+        return;
+      }
+
+      setRootProgress((current) => Math.max(0, current - 1));
+      setAgentProgress((current) => {
+        const next = { ...current };
+        PARALLEL_AGENTS.forEach((agent) => {
+          const currentIndex = next[agent.id] ?? -1;
+          next[agent.id] = Math.max(0, currentIndex - 1);
+        });
+        return next;
+      });
+      return;
+    }
+
+    // No agents yet — step root back
+    if (rootProgress <= 0) {
+      setRootProgress(-1);
+      setHasStarted(false);
+      setIsManual(false);
+      return;
+    }
+    setRootProgress((current) => current - 1);
+  }, [agentProgress, rootProgress]);
+
   const reset = useCallback(() => {
     setIsStreaming(false);
     setIsManual(false);
@@ -562,6 +855,7 @@ function useStreamingParallelTrace() {
     isStreaming,
     isManual,
     start,
+    stepBack,
     stepOnce,
     reset,
   };
@@ -720,7 +1014,7 @@ function ChainOfThoughtCyclingTrigger({
       >
         <TraceHeadlineTransition
           label={label}
-          active={active}
+          {...(active != null ? { active } : {})}
           isOpen={isOpen}
         />
       </span>
@@ -778,7 +1072,7 @@ function StreamingTimer({ startTime }: { startTime: number }) {
  * Features: Duration tracking, crossfade headlines, "Audited onboarding (Ns)" final label
  */
 export function ChainOfThoughtHeadlineStreamingFullBleedSample() {
-  const { trace, isStreaming, start, stepOnce, reset } =
+  const { trace, isStreaming, start, stepBack, stepOnce, reset } =
     useStreamingParallelTrace();
   const hasStarted = trace.length > 0 || isStreaming;
 
@@ -906,17 +1200,30 @@ export function ChainOfThoughtHeadlineStreamingFullBleedSample() {
             <PlayIcon className="mr-1.5 size-3" />
             {isStreaming ? "Streaming..." : "Start"}
           </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="secondary"
-            onClick={stepOnce}
-            disabled={isStreaming}
-            className="w-full"
-          >
-            <SkipForwardIcon className="mr-1.5 size-3" />
-            Next step
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              onClick={stepBack}
+              disabled={isStreaming}
+              className="flex-1"
+            >
+              <ChevronLeftIcon className="mr-1 size-3" />
+              Prev
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              onClick={stepOnce}
+              disabled={isStreaming}
+              className="flex-1"
+            >
+              Next
+              <ChevronRightIcon className="ml-1 size-3" />
+            </Button>
+          </div>
           <Button
             type="button"
             size="sm"

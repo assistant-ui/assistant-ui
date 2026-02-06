@@ -783,6 +783,8 @@ export type ChainOfThoughtStepProps = React.ComponentProps<"li"> &
     error?: string;
     /** Callback when retry is clicked (shows retry button when provided) */
     onRetry?: () => void;
+    /** Whether to pulse the icon when active. Defaults to true. Set to false when the icon handles its own animation. */
+    iconPulse?: boolean;
   };
 
 // ---------------------------------------------------------------------------
@@ -862,6 +864,7 @@ function ChainOfThoughtStep({
   icon,
   error,
   onRetry,
+  iconPulse,
   children,
   ...props
 }: ChainOfThoughtStepProps) {
@@ -965,6 +968,7 @@ function ChainOfThoughtStep({
             // removed mid-cycle (opacity could be at 0.5 → returns to 1).
             "transition-opacity duration-300",
             isActive &&
+              iconPulse !== false &&
               "animate-pulse [animation-duration:1.5s] motion-reduce:animate-none",
           )}
         >
@@ -1875,20 +1879,54 @@ function ChainOfThoughtTraceGroupNode({
   const GroupSummary = nodeComponents?.GroupSummary ?? DefaultTraceGroupSummary;
   const isSubagent = group.variant === "subagent";
 
+  const [isSummaryHovered, setIsSummaryHovered] = useState(false);
+
   const groupStatus = group.status ?? latestStep?.status;
   const type =
     group.summary?.latestType ??
     latestStep?.type ??
     (latestStep?.toolName ? "tool" : "default");
   const icon = canExpand ? (
-    <ChevronDownIcon
-      aria-hidden
-      className={cn(
-        STEP_ICON_CLASS,
-        "text-muted-foreground transition-transform duration-150 ease-out",
-        isOpen ? "rotate-0" : "-rotate-90",
-      )}
-    />
+    isSubagent ? (
+      // Subagent: BotIcon by default, crossfade to ChevronDown on hover.
+      // Timing mirrors the headline crossfade (out 200ms, in 320ms + 70ms delay).
+      // Uses React pointer state (not CSS group-hover) so only the summary
+      // row triggers the crossfade, not nested child groups.
+      // The BotIcon pulses independently (parent pulse is disabled via iconPulse={false}).
+      <span className="relative flex size-4 items-center justify-center">
+        <BotIcon
+          aria-hidden
+          className={cn(
+            "size-4 transition-opacity ease-out",
+            isSummaryHovered
+              ? "opacity-0 delay-0 duration-200"
+              : "opacity-100 delay-[70ms] duration-[320ms]",
+            !isSummaryHovered &&
+              groupStatus === "running" &&
+              "animate-pulse [animation-duration:1.5s] motion-reduce:animate-none",
+          )}
+        />
+        <ChevronDownIcon
+          aria-hidden
+          className={cn(
+            "absolute size-4 text-muted-foreground transition-[opacity,transform] ease-out",
+            isSummaryHovered
+              ? "opacity-100 delay-[70ms] duration-[320ms]"
+              : "opacity-0 delay-0 duration-200",
+            isOpen ? "rotate-0" : "-rotate-90",
+          )}
+        />
+      </span>
+    ) : (
+      <ChevronDownIcon
+        aria-hidden
+        className={cn(
+          STEP_ICON_CLASS,
+          "text-muted-foreground transition-transform duration-150 ease-out",
+          isOpen ? "rotate-0" : "-rotate-90",
+        )}
+      />
+    )
   ) : (
     (() => {
       if (isSubagent) return <BotIcon className={STEP_ICON_CLASS} />;
@@ -1908,11 +1946,15 @@ function ChainOfThoughtTraceGroupNode({
       active={groupStatus === "running"}
       type={indicatorType}
       icon={icon}
-      className={cn(className, "group/trace-group")}
+      iconPulse={!(isSubagent && canExpand)}
+      className={className}
       style={style}
     >
       <ChainOfThoughtStepBody>
-        <div>
+        <div
+          onPointerEnter={() => setIsSummaryHovered(true)}
+          onPointerLeave={() => setIsSummaryHovered(false)}
+        >
           <GroupSummary
             group={group}
             latestStep={latestStep}
