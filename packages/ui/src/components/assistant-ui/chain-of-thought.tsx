@@ -47,7 +47,6 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
-import "./chain-of-thought.css";
 
 const ANIMATION_DURATION = 200;
 const SPRING_EASING = "cubic-bezier(0.22, 0.61, 0.36, 1)";
@@ -695,14 +694,8 @@ export type ChainOfThoughtTimelineProps = React.ComponentProps<"ul"> & {
   autoScrollKey?: unknown;
   /** Control scroll behavior when auto-scrolling */
   autoScrollBehavior?: ScrollBehavior;
-  /** Limit the visible steps to the last N */
-  windowSize?: number;
-  /** Animate window transitions (slide out top / slide in bottom) */
-  windowTransition?: boolean;
   /** Enable timeline scrolling (disable for nested timelines) */
   scrollable?: boolean;
-  /** Row density for CSS windowing calculations */
-  windowDensity?: "regular" | "compact";
 };
 
 /**
@@ -715,10 +708,7 @@ function ChainOfThoughtTimeline({
   autoScroll = true,
   autoScrollKey,
   autoScrollBehavior = "auto",
-  windowSize,
-  windowTransition = true,
   scrollable = true,
-  windowDensity = "regular",
   children,
   ...props
 }: ChainOfThoughtTimelineProps) {
@@ -738,43 +728,7 @@ function ChainOfThoughtTimeline({
   const childrenArray = Children.toArray(children).filter(isValidElement) as
     | React.ReactElement[]
     | [];
-  const totalCount = childrenArray.length;
-  const stepCount = childrenArray.length;
-  const hasWindow = typeof windowSize === "number" && windowSize > 0;
-  const isWindowed = hasWindow;
-  const isWindowActive =
-    hasWindow && windowSize ? totalCount > windowSize : false;
-  const windowCount =
-    hasWindow && windowSize ? Math.min(windowSize, totalCount) : totalCount;
-  const shiftCount =
-    isWindowActive && windowSize ? Math.max(0, totalCount - windowSize) : 0;
-  const baseWindowRow = windowDensity === "compact" ? 44 : 56;
-  // Matches list padding (pt-1 pb-2) so the window height stays accurate.
-  const windowPadding = 12;
-  const [measuredRow, setMeasuredRow] = useState<number | null>(null);
-  const windowRow = measuredRow ?? baseWindowRow;
 
-  useLayoutEffect(() => {
-    if (!hasWindow || !scrollEl || isWindowActive || stepCount === 0) return;
-    const step = scrollEl.querySelector(
-      '[data-slot="chain-of-thought-step"]',
-    ) as HTMLElement | null;
-    if (!step) return;
-    const height = step.getBoundingClientRect().height;
-    if (!height) return;
-    const nextRow = Math.round(height);
-    setMeasuredRow((current) =>
-      current != null && Math.abs(current - nextRow) < 1 ? current : nextRow,
-    );
-  }, [hasWindow, isWindowActive, scrollEl, stepCount]);
-
-  useEffect(() => {
-    if (!hasWindow) {
-      setMeasuredRow(null);
-    } else {
-      setMeasuredRow((current) => current ?? baseWindowRow);
-    }
-  }, [baseWindowRow, hasWindow]);
   const buildStaggeredChildren = (items: React.ReactElement[]) => {
     let stepIndex = 0;
     return items.map((child) => {
@@ -793,7 +747,6 @@ function ChainOfThoughtTimeline({
 
   const staggeredChildren = buildStaggeredChildren(childrenArray);
 
-  const allowScroll = scrollable && !isWindowActive;
   const listClassName = cn(
     "aui-chain-of-thought-timeline",
     "relative z-0",
@@ -811,48 +764,25 @@ function ChainOfThoughtTimeline({
     "group-data-[state=closed]/collapsible-content:slide-out-to-top-2",
     "group-data-[state=closed]/collapsible-content:duration-[calc(var(--animation-duration)*0.8)]",
     "group-data-[state=closed]/collapsible-content:ease-(--ease-out-expo)",
-    allowScroll
+    "motion-reduce:![animation:none] motion-reduce:![transition:none]",
+    scrollable
       ? "max-h-64 overflow-y-auto overflow-x-hidden"
       : "overflow-visible",
     className,
   );
 
-  const windowStyles = hasWindow
-    ? ({
-        "--aui-window-row": `${windowRow}px`,
-        "--aui-window-count": `${windowCount}`,
-        "--aui-window-shift": `${shiftCount}`,
-        "--aui-window-total": `${totalCount}`,
-        "--aui-window-padding": `${windowPadding}px`,
-      } as React.CSSProperties)
-    : undefined;
-
   return (
-    <div className="aui-chain-of-thought-timeline-wrapper relative">
-      <div
-        className="aui-chain-of-thought-timeline-window relative"
-        data-windowed={isWindowed ? "true" : "false"}
-        data-window-active={isWindowActive ? "true" : "false"}
-        data-window-transition={windowTransition ? "true" : "false"}
-        data-expanded="false"
-        style={windowStyles}
+    <div className="aui-chain-of-thought-timeline-wrapper motion-reduce:![animation:none] motion-reduce:![transition:none] relative">
+      <ul
+        ref={setScrollRef}
+        data-slot="chain-of-thought-timeline"
+        data-step-count={childrenArray.length}
+        className={listClassName}
+        style={listStyle}
+        {...listProps}
       >
-        <ul
-          ref={setScrollRef}
-          data-slot="chain-of-thought-timeline"
-          data-step-count={stepCount}
-          data-windowed={isWindowed ? "true" : "false"}
-          data-window-active={isWindowActive ? "true" : "false"}
-          data-window-transition={windowTransition ? "true" : "false"}
-          data-window-shift={shiftCount > 0 ? "true" : "false"}
-          data-expanded="false"
-          className={listClassName}
-          style={listStyle}
-          {...listProps}
-        >
-          {staggeredChildren}
-        </ul>
-      </div>
+        {staggeredChildren}
+      </ul>
       {autoScroll && (
         <JumpToLatestButton onClick={scrollToBottom} visible={isScrolledUp} />
       )}
@@ -1058,28 +988,16 @@ function ChainOfThoughtStep({
       <div
         aria-hidden="true"
         data-slot="chain-of-thought-step-connector-above"
-        className="pointer-events-none absolute top-0 left-3 h-1.5 w-px bg-foreground/15 motion-reduce:animate-none"
-        style={{
-          animation: `aui-connector-fade ${ANIMATION_DURATION}ms ${SPRING_EASING} var(--step-delay) both`,
-        }}
+        className="fade-in-0 pointer-events-none absolute top-0 left-3 h-1.5 w-px animate-in bg-foreground/15 fill-mode-both delay-[var(--step-delay)] duration-(--animation-duration) ease-(--spring-easing) motion-reduce:animate-none"
       />
       {/* Connector to next step */}
       <div
         aria-hidden="true"
         data-slot="chain-of-thought-step-connector-below"
-        className="pointer-events-none absolute top-[30px] bottom-0 left-3 w-px bg-foreground/15 motion-reduce:animate-none"
-        style={{
-          animation: `aui-connector-fade ${ANIMATION_DURATION}ms ${SPRING_EASING} var(--step-delay) both`,
-        }}
+        className="fade-in-0 pointer-events-none absolute top-[30px] bottom-0 left-3 w-px animate-in bg-foreground/15 fill-mode-both delay-[var(--step-delay)] duration-(--animation-duration) ease-(--spring-easing) motion-reduce:animate-none"
       />
 
-      <div
-        className="aui-chain-of-thought-step-indicator-wrapper relative z-10 overflow-visible motion-reduce:animate-none"
-        style={{
-          animation: `aui-icon-enter ${ANIMATION_DURATION}ms ${SPRING_EASING} var(--step-delay) both`,
-          willChange: "transform, opacity, filter",
-        }}
-      >
+      <div className="aui-chain-of-thought-step-indicator-wrapper fade-in-0 zoom-in-85 relative z-10 animate-in overflow-visible fill-mode-both blur-in-[3px] delay-[var(--step-delay)] duration-(--animation-duration) ease-(--spring-easing) will-change-[transform,opacity,filter] motion-reduce:animate-none">
         {renderIndicator()}
       </div>
 
@@ -1090,13 +1008,11 @@ function ChainOfThoughtStep({
           "min-w-0 flex-1 text-muted-foreground leading-relaxed",
           "break-words [overflow-wrap:anywhere]",
           "transition-colors duration-200",
+          "fade-in-0 slide-in-from-top-[8px] animate-in fill-mode-both delay-[var(--step-delay)] duration-(--animation-duration) ease-(--spring-easing)",
           isActive && "text-foreground",
           isError && "text-destructive",
           "motion-reduce:animate-none",
         )}
-        style={{
-          animation: `aui-content-enter ${ANIMATION_DURATION}ms ${SPRING_EASING} var(--step-delay) both`,
-        }}
       >
         {children}
         {/* Error message and retry button */}
@@ -1499,7 +1415,6 @@ type ChainOfThoughtTraceNodesProps = Omit<
   trace: TraceNode[];
   maxDepth?: number;
   nodeComponents?: ChainOfThoughtTraceNodeComponents;
-  windowSize?: number;
   scrollable?: boolean;
   allowGroupExpand?: boolean;
 };
@@ -2128,10 +2043,7 @@ function ChainOfThoughtTraceGroupNode({
               <TraceDepthContext.Provider value={depth + 1}>
                 <ChainOfThoughtTimeline
                   autoScroll={false}
-                  windowSize={0}
-                  windowTransition={false}
                   scrollable={false}
-                  windowDensity="compact"
                   style={
                     {
                       "--step-stagger-delay": "24ms",
@@ -2167,7 +2079,6 @@ function ChainOfThoughtTraceNodes({
   trace,
   maxDepth = 2,
   nodeComponents,
-  windowSize = 3,
   scrollable = true,
   allowGroupExpand = true,
   ...timelineProps
@@ -2182,9 +2093,7 @@ function ChainOfThoughtTraceNodes({
       <TraceDepthContext.Provider value={0}>
         <ChainOfThoughtTimeline
           className={className}
-          windowSize={windowSize}
           scrollable={scrollable}
-          windowTransition
           {...timelineProps}
         >
           {trace.map((node) => (
@@ -2204,38 +2113,16 @@ function useTraceDisclosureState({
   collapseOnComplete: boolean;
 }) {
   const [open, setOpen] = useState(isStreaming);
-  const [isClosing, setIsClosing] = useState(false);
   const wasStreamingRef = useRef(isStreaming);
-  const closeTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (closeTimeoutRef.current) {
-      window.clearTimeout(closeTimeoutRef.current);
-      closeTimeoutRef.current = null;
-    }
-
     if (isStreaming) {
       setOpen(true);
-      setIsClosing(false);
     } else if (wasStreamingRef.current && collapseOnComplete) {
       setOpen(false);
-      setIsClosing(true);
-      closeTimeoutRef.current = window.setTimeout(() => {
-        setIsClosing(false);
-        closeTimeoutRef.current = null;
-      }, ANIMATION_DURATION);
-    } else {
-      setIsClosing(false);
     }
 
     wasStreamingRef.current = isStreaming;
-
-    return () => {
-      if (closeTimeoutRef.current) {
-        window.clearTimeout(closeTimeoutRef.current);
-        closeTimeoutRef.current = null;
-      }
-    };
   }, [collapseOnComplete, isStreaming]);
 
   const handleOpenChange = useCallback(
@@ -2246,15 +2133,13 @@ function useTraceDisclosureState({
     [isStreaming],
   );
 
-  return { open, handleOpenChange, isClosing };
+  return { open, handleOpenChange };
 }
 
 function ChainOfThoughtTraceDisclosureNodes({
   trace,
   label = "Working...",
   summary,
-  windowSize = 3,
-  windowTransition = true,
   collapseOnComplete = true,
   disableGroupExpansionWhileStreaming = true,
   rootProps,
@@ -2273,11 +2158,10 @@ function ChainOfThoughtTraceDisclosureNodes({
     return summarizeTraceStats(stats, durationSec);
   }, [durationSec, stats, summary]);
 
-  const { open, handleOpenChange, isClosing } = useTraceDisclosureState({
+  const { open, handleOpenChange } = useTraceDisclosureState({
     isStreaming,
     collapseOnComplete,
   });
-  const windowingEnabled = isStreaming || isClosing;
 
   const allowGroupExpand = !disableGroupExpansionWhileStreaming || !isStreaming;
 
@@ -2295,8 +2179,6 @@ function ChainOfThoughtTraceDisclosureNodes({
       <ChainOfThoughtContent aria-busy={isStreaming} {...contentProps}>
         <ChainOfThoughtTraceNodes
           trace={trace}
-          windowSize={windowingEnabled ? windowSize : 0}
-          windowTransition={windowingEnabled && windowTransition}
           allowGroupExpand={allowGroupExpand}
           {...timelineProps}
         />
@@ -2308,8 +2190,6 @@ function ChainOfThoughtTraceDisclosureNodes({
 function ChainOfThoughtTraceDisclosureParts({
   label = "Working...",
   summary,
-  windowSize = 3,
-  windowTransition = true,
   collapseOnComplete = true,
   disableGroupExpansionWhileStreaming = true,
   rootProps,
@@ -2344,11 +2224,10 @@ function ChainOfThoughtTraceDisclosureParts({
     return summarizeTraceStats(stats, durationSec);
   }, [durationSec, stats, summary]);
 
-  const { open, handleOpenChange, isClosing } = useTraceDisclosureState({
+  const { open, handleOpenChange } = useTraceDisclosureState({
     isStreaming,
     collapseOnComplete,
   });
-  const windowingEnabled = isStreaming || isClosing;
 
   return (
     <ChainOfThoughtRoot
@@ -2365,8 +2244,6 @@ function ChainOfThoughtTraceDisclosureParts({
         <ChainOfThoughtTraceParts
           groupingFunction={groupingFunction}
           inferStep={inferStep}
-          windowSize={windowingEnabled ? windowSize : 0}
-          windowTransition={windowingEnabled && windowTransition}
           {...timelineProps}
         />
       </ChainOfThoughtContent>
