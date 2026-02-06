@@ -8,7 +8,7 @@ import {
   useRef,
   type ReactNode,
 } from "react";
-import { ChevronDownIcon, BrainIcon, RotateCcwIcon } from "lucide-react";
+import { ChevronDownIcon, RotateCcwIcon } from "lucide-react";
 import { SampleFrame } from "@/components/docs/samples/sample-frame";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -19,7 +19,7 @@ import {
   ChainOfThoughtText,
   ChainOfThoughtTrace,
   type TraceNode,
-} from "@/components/assistant-ui/chain-of-thought";
+} from "@/components/assistant-ui/chain-of-thought-v2";
 import { CollapsibleTrigger } from "@/components/ui/collapsible";
 
 // ============================================================================
@@ -811,20 +811,6 @@ function ChainOfThoughtCyclingTrigger({
       )}
     >
       <span
-        data-slot="chain-of-thought-trigger-icon-wrapper"
-        className="aui-chain-of-thought-trigger-icon-wrapper flex size-5 shrink-0 items-center justify-center"
-      >
-        <BrainIcon
-          data-slot="chain-of-thought-trigger-icon"
-          className={cn(
-            "aui-chain-of-thought-trigger-icon size-4",
-            active &&
-              "animate-pulse text-muted-foreground/70 motion-reduce:animate-none",
-          )}
-        />
-      </span>
-
-      <span
         data-slot="chain-of-thought-trigger-label"
         className="aui-chain-of-thought-trigger-label-wrapper min-w-0 flex-1 leading-5"
       >
@@ -986,7 +972,6 @@ export function ChainOfThoughtHeadlineStreamingFullBleedSample() {
                         maxDepth={3}
                         autoScroll={false}
                         scrollable={false}
-                        windowSize={0}
                         allowGroupExpand
                       />
                     </ChainOfThoughtContent>
