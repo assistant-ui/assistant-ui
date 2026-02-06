@@ -164,32 +164,34 @@ const PLATFORM_CAPABILITIES = [
 const FEATURE_GATE_SNIPPET = `import { useState } from "react";
 import { openModal, useFeature } from "mcp-app-studio";
 
-const hasWidgetState = useFeature("widgetState"); // ChatGPT-only
-const hasModelContext = useFeature("modelContext"); // Host-dependent
-const [localModal, setLocalModal] = useState<{ id: string } | null>(null);
+export function MyApp() {
+  const hasWidgetState = useFeature("widgetState"); // ChatGPT-only
+  const hasModelContext = useFeature("modelContext"); // Host-dependent
+  const [localModal, setLocalModal] = useState<{ id: string } | null>(null);
 
-return (
-  <>
-    {hasWidgetState && <p>Widget state APIs are available.</p>}
-    {hasModelContext && <p>Model context APIs are available.</p>}
-    <button
-      onClick={() =>
-        openModal(
-          { title: "Details", params: { id: "123" } },
-          () => setLocalModal({ id: "123" }),
-        )
-      }
-    >
-      Open details
-    </button>
-    {localModal && (
-      <div role="dialog" aria-modal="true">
-        <p>Local modal fallback for ID: {localModal.id}</p>
-        <button onClick={() => setLocalModal(null)}>Close</button>
-      </div>
-    )}
-  </>
-);`;
+  return (
+    <>
+      {hasWidgetState && <p>Widget state APIs are available.</p>}
+      {hasModelContext && <p>Model context APIs are available.</p>}
+      <button
+        onClick={() =>
+          openModal(
+            { title: "Details", params: { id: "123" } },
+            () => setLocalModal({ id: "123" }),
+          )
+        }
+      >
+        Open details
+      </button>
+      {localModal && (
+        <div role="dialog" aria-modal="true">
+          <p>Local modal fallback for ID: {localModal.id}</p>
+          <button onClick={() => setLocalModal(null)}>Close</button>
+        </div>
+      )}
+    </>
+  );
+}`;
 
 const EXPORT_TREE_SNIPPET = `export/
 ├── manifest.json
@@ -326,8 +328,8 @@ export default function McpAppStudioPage() {
               Build MCP apps once, run them anywhere
             </h1>
             <p className="max-w-xl text-lg text-muted-foreground">
-              Build locally with hot reload. Export once for MCP hosts, with
-              optional ChatGPT extensions feature-detected at runtime.
+              Build locally with hot reload. Export once for any MCP host.
+              Optional ChatGPT extension features are detected at runtime.
             </p>
           </div>
 
