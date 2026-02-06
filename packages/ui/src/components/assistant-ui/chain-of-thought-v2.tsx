@@ -26,6 +26,8 @@ import {
   ArrowDownIcon,
   RotateCcwIcon,
   TerminalIcon,
+  GlobeIcon,
+  GitMergeIcon,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -56,9 +58,13 @@ const STEP_STAGGER_DELAY = 25;
  */
 const stepTypeIcons = {
   search: SearchIcon,
+  web_search: GlobeIcon,
   image: ImageIcon,
   text: FileTextIcon,
   code: TerminalIcon,
+  javascript: TerminalIcon,
+  merge: GitMergeIcon,
+  write: FileTextIcon,
   tool: WrenchIcon,
   complete: CheckCircleIcon,
   error: AlertCircleIcon,
@@ -78,7 +84,7 @@ function BulletDot({ className }: { className?: string }) {
     <span
       aria-hidden
       className={cn(
-        "aui-chain-of-thought-bullet-dot size-1.5 rounded-full bg-current",
+        "aui-chain-of-thought-bullet-dot size-1.5 rounded-full bg-current opacity-50",
         className,
       )}
     />
@@ -204,7 +210,7 @@ const chainOfThoughtVariants = cva("aui-chain-of-thought-root mb-4 w-full", {
 
 const stepVariants = cva(
   cn(
-    "aui-chain-of-thought-step relative flex items-start gap-3 py-1",
+    "aui-chain-of-thought-step relative flex items-start gap-3 py-1.5",
     // Prevent blur filter clipping during entrance animation
     "overflow-visible",
     // Stagger delay passed to children via CSS variable
@@ -328,7 +334,7 @@ function ChainOfThoughtTrigger({
       data-slot="chain-of-thought-trigger"
       className={cn(
         "aui-chain-of-thought-trigger",
-        "group/trigger flex w-full items-start gap-3 py-1 text-left",
+        "group/trigger flex w-full items-start gap-3 py-1.5 text-left",
         "text-muted-foreground text-sm transition-colors hover:text-foreground",
         className,
       )}
@@ -717,7 +723,6 @@ function ChainOfThoughtTimeline({
   }, []);
 
   const { style: listStyle, ...listProps } = props;
-  const depth = useContext(TraceDepthContext);
 
   // v2: No cloneElement. Children are rendered as-is; stagger indices are
   // applied directly in the trace renderers via inline style.
@@ -726,9 +731,6 @@ function ChainOfThoughtTimeline({
     "aui-chain-of-thought-timeline",
     "relative z-0",
     "flex flex-col",
-    // Top-level timelines get left margin so icons sit in the gutter.
-    // Nested timelines omit it so child icons align with the parent step's text.
-    depth === 0 && "ml-2.5",
     "transform-gpu",
     // Open animation: spring easing, staggered fade+slide
     "group-data-[state=open]/collapsible-content:animate-in",
@@ -902,7 +904,7 @@ function ChainOfThoughtStep({
         data-slot="chain-of-thought-step-connector-above"
         aria-hidden
         className={cn(
-          "absolute top-0 left-[9px] h-[5px] w-px bg-foreground/15",
+          "absolute top-0 left-[9px] h-[7px] w-px bg-foreground/15",
           "fade-in-0 animate-in fill-mode-both delay-[var(--step-delay)] duration-(--animation-duration) ease-(--spring-easing) motion-reduce:animate-none",
           "group-data-[state=closed]/collapsible-content:fade-out-0 group-data-[state=closed]/collapsible-content:animate-out group-data-[state=closed]/collapsible-content:fill-mode-both group-data-[state=closed]/collapsible-content:delay-0 group-data-[state=closed]/collapsible-content:duration-[calc(var(--animation-duration)*0.4)] group-data-[state=closed]/collapsible-content:ease-(--ease-out-expo)",
         )}
@@ -912,7 +914,7 @@ function ChainOfThoughtStep({
         data-slot="chain-of-thought-step-connector-below"
         aria-hidden
         className={cn(
-          "absolute top-[25px] bottom-0 left-[9px] w-px bg-foreground/15",
+          "absolute top-[27px] bottom-0 left-[9px] w-px bg-foreground/15",
           "fade-in-0 animate-in fill-mode-both delay-[var(--step-delay)] duration-(--animation-duration) ease-(--spring-easing) motion-reduce:animate-none",
           "group-data-[state=closed]/collapsible-content:fade-out-0 group-data-[state=closed]/collapsible-content:animate-out group-data-[state=closed]/collapsible-content:fill-mode-both group-data-[state=closed]/collapsible-content:delay-0 group-data-[state=closed]/collapsible-content:duration-[calc(var(--animation-duration)*0.4)] group-data-[state=closed]/collapsible-content:ease-(--ease-out-expo)",
         )}
@@ -924,7 +926,7 @@ function ChainOfThoughtStep({
         className={cn(
           "aui-chain-of-thought-step-indicator transform-gpu",
           // Position: left-0 in the padding zone, vertically aligned with first line of text
-          "absolute top-[5px] left-0 flex size-5 shrink-0 items-center justify-center rounded-full",
+          "absolute top-[7px] left-0 flex size-5 shrink-0 items-center justify-center rounded-full",
           "bg-background",
           "group-data-[variant=muted]/chain-of-thought-root:bg-muted",
           "group-data-[variant=muted]/chain-of-thought-root:dark:bg-card",
@@ -959,6 +961,9 @@ function ChainOfThoughtStep({
         <span
           className={cn(
             "flex items-center justify-center",
+            // transition-opacity smooths the snap when animate-pulse is
+            // removed mid-cycle (opacity could be at 0.5 → returns to 1).
+            "transition-opacity duration-300",
             isActive &&
               "animate-pulse [animation-duration:1.5s] motion-reduce:animate-none",
           )}
@@ -1092,7 +1097,7 @@ function ChainOfThoughtStepBody({
       className={cn(
         "aui-chain-of-thought-step-body",
         // Consistent line-height for nested lists and content
-        "[&_li]:leading-relaxed [&_ol]:my-1 [&_ul]:my-1",
+        "[&_li]:leading-relaxed",
         className,
       )}
       {...props}
@@ -1158,7 +1163,7 @@ export type ChainOfThoughtToolBadgeProps = React.ComponentProps<"span"> & {
 function ChainOfThoughtToolBadge({
   toolName,
   status = "complete",
-  shimmer = false,
+  shimmer: _shimmer,
   showIcon = true,
   className,
   ...props
@@ -1172,12 +1177,12 @@ function ChainOfThoughtToolBadge({
       data-status={status}
       className={cn(
         "aui-chain-of-thought-tool-badge",
-        "inline-flex items-center gap-1.5 rounded-md px-2 py-0.5",
-        "font-mono text-xs",
+        "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5",
+        "text-xs",
         // Status-based styling
         isError
-          ? "bg-destructive/10 text-destructive"
-          : "bg-muted text-muted-foreground",
+          ? "border-destructive/30 text-destructive"
+          : "border-border text-muted-foreground",
         className,
       )}
       {...props}
@@ -1200,12 +1205,7 @@ function ChainOfThoughtToolBadge({
           className="aui-chain-of-thought-tool-badge-icon size-3"
         />
       )}
-      <span
-        className={cn(
-          "aui-chain-of-thought-tool-badge-name truncate",
-          shimmer && "shimmer text-muted-foreground/70",
-        )}
-      >
+      <span className="aui-chain-of-thought-tool-badge-name truncate">
         {toolName}
       </span>
     </span>
@@ -1719,19 +1719,10 @@ function useTraceDuration(isStreaming: boolean) {
 const DefaultTraceGroupSummary: ComponentType<
   ChainOfThoughtTraceGroupSummaryProps
 > = ({ group, latestStep, isOpen, canExpand, onToggle }) => {
-  const summaryLabel =
-    group.summary?.latestLabel ??
-    (latestStep ? getTraceStepLabel(latestStep) : undefined) ??
-    "Working...";
   const toolName = group.summary?.toolName ?? latestStep?.toolName;
-  const isActive = (latestStep?.status ?? group.status) === "running";
   const badgeStatus = mapTraceStatusToToolBadge(
     latestStep?.status ?? group.status,
   );
-  const shimmerClass = isActive
-    ? "shimmer text-muted-foreground/70"
-    : undefined;
-
   return (
     <button
       type="button"
@@ -1754,14 +1745,10 @@ const DefaultTraceGroupSummary: ComponentType<
               <ChainOfThoughtToolBadge
                 toolName={toolName}
                 status={badgeStatus}
-                shimmer={isActive}
-                className="min-w-0 max-w-[7rem]"
+                showIcon={false}
               />
             </span>
           ) : null}
-          <span className={cn("min-w-0 flex-1 truncate", shimmerClass)}>
-            {summaryLabel}
-          </span>
         </div>
       </div>
     </button>
@@ -1794,7 +1781,6 @@ function ChainOfThoughtTraceStepNode({
       <ChainOfThoughtToolBadge
         toolName={step.toolName}
         status={mapTraceStatusToToolBadge(step.status)}
-        shimmer={isActive}
         showIcon={false}
         className="min-w-0 max-w-[7rem]"
       />
@@ -1883,7 +1869,6 @@ function ChainOfThoughtTraceGroupNode({
     TraceTreeConfigContext,
   );
   const { isOpen, setIsOpen } = useTraceGroupState(allowGroupExpand);
-  const [isHoveringSummary, setIsHoveringSummary] = useState(false);
   const latestStep = useMemo(() => getLatestTraceStep(group), [group]);
   const canExpand =
     allowGroupExpand && depth < maxDepth && group.children.length > 0;
@@ -1895,35 +1880,23 @@ function ChainOfThoughtTraceGroupNode({
     group.summary?.latestType ??
     latestStep?.type ??
     (latestStep?.toolName ? "tool" : "default");
-  const baseIcon = (() => {
-    if (isSubagent) return <BotIcon className={STEP_ICON_CLASS} />;
-    const TypeIcon = stepTypeIcons[type];
-    if (TypeIcon === null) return <BulletDot />;
-    if (!TypeIcon) return <BulletDot />;
-    return <TypeIcon className={STEP_ICON_CLASS} />;
-  })();
-  const showChevron = canExpand && (isHoveringSummary || isOpen);
-  const chevronSizeClass = "size-4";
-  const icon = (
-    <span className="relative inline-flex size-5 items-center justify-center">
-      <span
-        className={cn(
-          "transition-opacity duration-150 ease-out",
-          showChevron ? "opacity-0" : "opacity-100",
-        )}
-      >
-        {baseIcon}
-      </span>
-      <ChevronDownIcon
-        aria-hidden
-        className={cn(
-          "absolute text-muted-foreground transition-opacity duration-150 ease-out",
-          chevronSizeClass,
-          showChevron ? "opacity-100" : "opacity-0",
-          isOpen ? "rotate-0" : "-rotate-90",
-        )}
-      />
-    </span>
+  const icon = canExpand ? (
+    <ChevronDownIcon
+      aria-hidden
+      className={cn(
+        STEP_ICON_CLASS,
+        "text-muted-foreground transition-transform duration-150 ease-out",
+        isOpen ? "rotate-0" : "-rotate-90",
+      )}
+    />
+  ) : (
+    (() => {
+      if (isSubagent) return <BotIcon className={STEP_ICON_CLASS} />;
+      const TypeIcon = stepTypeIcons[type];
+      if (TypeIcon === null) return <BulletDot />;
+      if (!TypeIcon) return <BulletDot />;
+      return <TypeIcon className={STEP_ICON_CLASS} />;
+    })()
   );
   const indicatorType = isSubagent ? "default" : type;
 
@@ -1939,12 +1912,7 @@ function ChainOfThoughtTraceGroupNode({
       style={style}
     >
       <ChainOfThoughtStepBody>
-        <div
-          onMouseEnter={() => setIsHoveringSummary(true)}
-          onMouseLeave={() => setIsHoveringSummary(false)}
-          onFocusCapture={() => setIsHoveringSummary(true)}
-          onBlurCapture={() => setIsHoveringSummary(false)}
-        >
+        <div>
           <GroupSummary
             group={group}
             latestStep={latestStep}

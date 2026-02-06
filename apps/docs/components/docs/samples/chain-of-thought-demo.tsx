@@ -8,7 +8,12 @@ import {
   useRef,
   type ReactNode,
 } from "react";
-import { ChevronDownIcon, RotateCcwIcon } from "lucide-react";
+import {
+  ChevronDownIcon,
+  PlayIcon,
+  SkipForwardIcon,
+  RotateCcwIcon,
+} from "lucide-react";
 import { SampleFrame } from "@/components/docs/samples/sample-frame";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -98,7 +103,7 @@ const STREAMING_ROOT_STEPS = [
   {
     id: "score",
     label: "Scoring sources",
-    type: "code",
+    type: "javascript",
     toolName: "code",
     output: RESULT_SCORING_OUTPUT,
   },
@@ -112,14 +117,14 @@ const STREAMING_ROOT_STEPS = [
   {
     id: "synthesize",
     label: "Merging subagent findings",
-    type: "tool",
+    type: "merge",
     toolName: "merge",
     output: "Combined 5 research threads into a unified brief.",
   },
   {
     id: "compose",
     label: "Drafting response",
-    type: "tool",
+    type: "write",
     toolName: "write",
     output: "Generated a 3-paragraph summary with inline citations.",
   },
@@ -139,9 +144,8 @@ const STREAMING_ROOT_STEPS = [
   },
   {
     id: "done",
-    label: "Audited onboarding",
-    type: "text",
-    output: "Response verified and ready to deliver.",
+    type: "complete",
+    output: "Done in 43s",
   },
 ] as const;
 
@@ -165,12 +169,6 @@ const PARALLEL_AGENTS = [
     label: "Researcher",
     steps: [
       {
-        id: "brief",
-        label: "Reviewing task brief",
-        type: "text",
-        output: "Summarizing the task scope and expected output.",
-      },
-      {
         id: "sources",
         label: "Collecting sources",
         type: "search",
@@ -178,9 +176,9 @@ const PARALLEL_AGENTS = [
         output: WEB_SEARCH_RESULTS_OUTPUT,
       },
       {
-        id: "outline",
-        label: "Drafting outline",
-        type: "code",
+        id: "score",
+        label: "Scoring results",
+        type: "javascript",
         toolName: "code",
         output: RESULT_SCORING_OUTPUT,
       },
@@ -189,18 +187,6 @@ const PARALLEL_AGENTS = [
         label: "Synthesizing findings",
         type: "text",
         output: "Condensing the findings into concise points.",
-      },
-      {
-        id: "validate",
-        label: "Validating sources",
-        type: "text",
-        output: "Checking sources for accuracy and recency.",
-      },
-      {
-        id: "handoff",
-        label: "Handoff notes",
-        type: "text",
-        output: "Packaging findings for the main response.",
       },
     ],
   },
@@ -215,34 +201,10 @@ const PARALLEL_AGENTS = [
         output: "Confirming the desired outcome and audience.",
       },
       {
-        id: "constraints",
-        label: "Capturing constraints",
-        type: "text",
-        output: "Listing key constraints that must be respected.",
-      },
-      {
         id: "sequence",
         label: "Sequencing tasks",
         type: "text",
         output: "Ordering tasks for efficient execution.",
-      },
-      {
-        id: "handoff",
-        label: "Preparing handoff",
-        type: "text",
-        output: "Packaging instructions for the execution phase.",
-      },
-      {
-        id: "timeline",
-        label: "Estimating timeline",
-        type: "text",
-        output: "Estimating effort and pacing for the response.",
-      },
-      {
-        id: "fallbacks",
-        label: "Defining fallbacks",
-        type: "text",
-        output: "Adding fallback plans for missing data.",
       },
     ],
   },
@@ -257,34 +219,10 @@ const PARALLEL_AGENTS = [
         output: "Looking for missing details or assumptions.",
       },
       {
-        id: "risks",
-        label: "Flagging risks",
-        type: "text",
-        output: "Highlighting potential issues to address.",
-      },
-      {
         id: "verify",
         label: "Verifying output",
         type: "text",
         output: "Cross-checking output for consistency.",
-      },
-      {
-        id: "notes",
-        label: "Drafting notes",
-        type: "text",
-        output: "Drafting review notes for the main response.",
-      },
-      {
-        id: "consistency",
-        label: "Consistency scan",
-        type: "text",
-        output: "Checking for conflicting statements.",
-      },
-      {
-        id: "rewrite",
-        label: "Rewrite suggestions",
-        type: "text",
-        output: "Suggesting tightened or clearer phrasing.",
       },
     ],
   },
@@ -293,40 +231,16 @@ const PARALLEL_AGENTS = [
     label: "Verifier",
     steps: [
       {
-        id: "consistency",
-        label: "Checking consistency",
-        type: "text",
-        output: "Ensuring reasoning matches stated constraints.",
-      },
-      {
-        id: "edge-cases",
-        label: "Reviewing edge cases",
-        type: "text",
-        output: "Looking for gaps in handling edge scenarios.",
-      },
-      {
         id: "coverage",
         label: "Coverage check",
         type: "text",
         output: "Confirming all requested points are addressed.",
       },
       {
-        id: "confidence",
-        label: "Confidence pass",
-        type: "text",
-        output: "Summarizing confidence and caveats.",
-      },
-      {
         id: "fact-check",
         label: "Fact check",
         type: "text",
         output: "Confirming factual claims and references.",
-      },
-      {
-        id: "final-check",
-        label: "Final verification",
-        type: "text",
-        output: "Ensuring the answer matches the request.",
       },
     ],
   },
@@ -335,40 +249,16 @@ const PARALLEL_AGENTS = [
     label: "Writer",
     steps: [
       {
-        id: "tone",
-        label: "Setting tone",
-        type: "text",
-        output: "Choosing an appropriate tone for the response.",
-      },
-      {
         id: "draft",
         label: "Drafting copy",
         type: "text",
         output: "Writing the response based on the outline.",
       },
       {
-        id: "trim",
-        label: "Trimming verbosity",
-        type: "text",
-        output: "Removing redundant phrasing and tightening.",
-      },
-      {
         id: "polish",
         label: "Final polish",
         type: "text",
         output: "Final grammatical and clarity sweep.",
-      },
-      {
-        id: "structure",
-        label: "Structure pass",
-        type: "text",
-        output: "Ensuring headings and flow read cleanly.",
-      },
-      {
-        id: "tone-align",
-        label: "Tone alignment",
-        type: "text",
-        output: "Aligning tone with the target audience.",
       },
     ],
   },
@@ -486,47 +376,59 @@ function useStreamingParallelTrace() {
   const buildRootSteps = useCallback(() => {
     if (!hasStarted || rootProgress < 0) return [];
     return STREAMING_ROOT_STEPS.slice(0, rootProgress + 1).map(
-      (step, index) => ({
-        kind: "step" as const,
-        id: step.id,
-        label: step.label,
-        type: step.type as any,
-        toolName: "toolName" in step ? step.toolName : undefined,
-        output: step.output
-          ? {
-              content: step.output,
-              status:
-                isProgressing && index === rootProgress
-                  ? "streaming"
-                  : "complete",
-            }
-          : undefined,
-        status:
-          isProgressing && index === rootProgress ? "running" : "complete",
-      }),
-    );
+      (step, index) => {
+        // Terminal step is always "complete" (no pulse)
+        const isTerminal = step.id === "done";
+        const isLatest = isProgressing && index === rootProgress;
+        const toolName = "toolName" in step ? step.toolName : undefined;
+        return {
+          kind: "step" as const,
+          id: step.id,
+          ...("label" in step ? { label: step.label } : {}),
+          type: step.type as any,
+          ...(toolName ? { toolName } : {}),
+          output: step.output
+            ? {
+                content: step.output,
+                status:
+                  isLatest && !isTerminal
+                    ? ("streaming" as const)
+                    : ("complete" as const),
+              }
+            : undefined,
+          status:
+            isLatest && !isTerminal
+              ? ("running" as const)
+              : ("complete" as const),
+        };
+      },
+    ) as TraceNode[];
   }, [hasStarted, isProgressing, rootProgress]);
 
   const buildAgentSteps = useCallback(
     (agent: (typeof PARALLEL_AGENTS)[number]) => {
       const latestIndex = agentProgress[agent.id] ?? -1;
       if (!hasStarted || latestIndex < 0) return [];
-      return agent.steps.slice(0, latestIndex + 1).map((step, index) => ({
-        kind: "step" as const,
-        id: step.id,
-        label: step.label,
-        type: step.type as any,
-        output: step.output
-          ? {
-              content: step.output,
-              status:
-                isProgressing && index === latestIndex
-                  ? "streaming"
-                  : "complete",
-            }
-          : undefined,
-        status: isProgressing && index === latestIndex ? "running" : "complete",
-      }));
+      return agent.steps.slice(0, latestIndex + 1).map((step, index) => {
+        const isLatest = isProgressing && index === latestIndex;
+        const toolName = "toolName" in step ? step.toolName : undefined;
+        return {
+          kind: "step" as const,
+          id: step.id,
+          label: step.label,
+          type: step.type as any,
+          ...(toolName ? { toolName } : {}),
+          output: step.output
+            ? {
+                content: step.output,
+                status: isLatest
+                  ? ("streaming" as const)
+                  : ("complete" as const),
+              }
+            : undefined,
+          status: isLatest ? ("running" as const) : ("complete" as const),
+        };
+      }) as TraceNode[];
     },
     [agentProgress, hasStarted, isProgressing],
   );
@@ -670,8 +572,9 @@ function useStreamingParallelTrace() {
 // ============================================================================
 
 const HEADLINE_OUT_MS = 200;
+const HEADLINE_IN_DELAY_MS = Math.round(HEADLINE_OUT_MS * 0.35); // incoming starts when outgoing is ~35%
 const HEADLINE_IN_MS = 320;
-const HEADLINE_TRANSITION_MS = HEADLINE_IN_MS;
+const HEADLINE_TRANSITION_MS = HEADLINE_IN_DELAY_MS + HEADLINE_IN_MS;
 
 function TraceHeadlineTransition({
   label,
@@ -712,9 +615,7 @@ function TraceHeadlineTransition({
 
   if (currentLabel == null && previousLabel == null) return null;
   const isTransitioning = previousLabel != null;
-  const shimmerClass = active
-    ? "shimmer shimmer-invert shimmer-angle-30"
-    : undefined;
+  const shimmerClass = active ? "shimmer" : undefined;
 
   // Inline chevron that transitions with each headline
   const inlineChevron = (
@@ -757,7 +658,10 @@ function TraceHeadlineTransition({
               isTransitioning && "fade-in-0 animate-in fill-mode-both ease-out",
               "motion-reduce:animate-none",
             )}
-            style={{ animationDuration: `${HEADLINE_IN_MS}ms` }}
+            style={{
+              animationDuration: `${HEADLINE_IN_MS}ms`,
+              animationDelay: `${HEADLINE_IN_DELAY_MS}ms`,
+            }}
           >
             <span className={cn("inline-flex items-center", shimmerClass)}>
               {currentLabel}
@@ -835,17 +739,9 @@ function getLatestTraceStepLabel(trace: TraceNode[]): ReactNode | undefined {
       if (node.toolName) return `Tool: ${node.toolName}`;
       return undefined;
     }
-    // For groups, prefer using the summary label if available
-    // This allows parent groups (like subagent containers) to show
-    // aggregate status like "3 of 5 subagents complete"
-    if (node.summary?.latestLabel != null) {
-      return node.summary.latestLabel;
-    }
-    for (let i = node.children.length - 1; i >= 0; i -= 1) {
-      const label = visit(node.children[i]!);
-      if (label != null) return label;
-    }
-    return undefined;
+    // For groups, use the group's own label rather than drilling into
+    // individual child steps — avoids headline churn as subagents progress.
+    return node.label ?? undefined;
   };
 
   for (let i = trace.length - 1; i >= 0; i -= 1) {
@@ -882,9 +778,13 @@ function StreamingTimer({ startTime }: { startTime: number }) {
  * Features: Duration tracking, crossfade headlines, "Audited onboarding (Ns)" final label
  */
 export function ChainOfThoughtHeadlineStreamingFullBleedSample() {
-  const { trace, isStreaming, isManual, start, stepOnce, reset } =
+  const { trace, isStreaming, start, stepOnce, reset } =
     useStreamingParallelTrace();
   const hasStarted = trace.length > 0 || isStreaming;
+
+  // Keep disclosure expanded by default
+  const [keepExpanded, setKeepExpanded] = useState(true);
+  const [cotOpen, setCotOpen] = useState(true);
 
   // Track streaming duration
   const [durationSec, setDurationSec] = useState<number | undefined>(undefined);
@@ -933,11 +833,11 @@ export function ChainOfThoughtHeadlineStreamingFullBleedSample() {
       {/* Thread container - main area */}
       <div className="flex flex-1 flex-col overflow-hidden">
         <div className="flex-1 overflow-y-auto">
-          <div className="mx-auto max-w-3xl space-y-6 p-4 pt-8">
+          <div className="mx-auto max-w-3xl space-y-6 p-4 pt-8 pb-32">
             {/* User message (with bubble) */}
             <div className="flex justify-end">
               <div className="max-w-[80%] rounded-2xl rounded-br-md bg-primary px-4 py-2.5 text-primary-foreground">
-                <p>
+                <p className="text-sm leading-relaxed">
                   Can you research the latest developments in quantum computing
                   and summarize the key breakthroughs from multiple sources?
                 </p>
@@ -959,7 +859,8 @@ export function ChainOfThoughtHeadlineStreamingFullBleedSample() {
                 {/* CoT component - appears after text, always has headline */}
                 {hasStarted ? (
                   <ChainOfThoughtRoot
-                    defaultOpen={false}
+                    open={cotOpen}
+                    onOpenChange={setCotOpen}
                     className="mb-0 border-0 p-0"
                   >
                     <ChainOfThoughtCyclingTrigger
@@ -983,8 +884,8 @@ export function ChainOfThoughtHeadlineStreamingFullBleedSample() {
         </div>
       </div>
 
-      {/* Right sidebar with controls */}
-      <div className="flex w-56 shrink-0 flex-col gap-4 border-l bg-muted/30 p-4">
+      {/* Right sidebar with controls — sticky so only the thread scrolls */}
+      <div className="sticky top-0 flex h-screen w-56 shrink-0 flex-col gap-4 border-l bg-muted/30 p-4">
         <div className="space-y-1">
           <h3 className="font-medium text-foreground text-sm">
             Simulation Controls
@@ -1002,6 +903,7 @@ export function ChainOfThoughtHeadlineStreamingFullBleedSample() {
             disabled={isStreaming}
             className="w-full"
           >
+            <PlayIcon className="mr-1.5 size-3" />
             {isStreaming ? "Streaming..." : "Start"}
           </Button>
           <Button
@@ -1012,7 +914,8 @@ export function ChainOfThoughtHeadlineStreamingFullBleedSample() {
             disabled={isStreaming}
             className="w-full"
           >
-            Step
+            <SkipForwardIcon className="mr-1.5 size-3" />
+            Next step
           </Button>
           <Button
             type="button"
@@ -1025,11 +928,18 @@ export function ChainOfThoughtHeadlineStreamingFullBleedSample() {
           </Button>
         </div>
 
-        {isManual ? (
-          <div className="rounded-md bg-muted px-2 py-1.5">
-            <span className="text-muted-foreground text-xs">Manual mode</span>
-          </div>
-        ) : null}
+        <label className="flex items-center gap-2 text-muted-foreground text-xs">
+          <input
+            type="checkbox"
+            checked={keepExpanded}
+            onChange={(e) => {
+              setKeepExpanded(e.target.checked);
+              setCotOpen(e.target.checked);
+            }}
+            className="accent-primary"
+          />
+          Keep expanded
+        </label>
 
         {durationSec != null && !isStreaming ? (
           <div className="rounded-md bg-muted px-2 py-1.5">
