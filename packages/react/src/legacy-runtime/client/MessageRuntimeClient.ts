@@ -69,7 +69,6 @@ export const MessageClient = resource(
         messageIdRef,
       }),
     );
-
     const parts = tapClientLookup(
       () =>
         runtimeState.content.map((part, idx) =>
@@ -113,39 +112,36 @@ export const MessageClient = resource(
     ]);
 
     return {
-      state,
-      methods: {
-        getState: () => state,
+      getState: () => state,
 
-        composer: composer.methods,
+      composer: () => composer.methods,
 
-        reload: (config) => runtime.reload(config),
-        speak: () => runtime.speak(),
-        stopSpeaking: () => runtime.stopSpeaking(),
-        submitFeedback: (feedback) => runtime.submitFeedback(feedback),
-        switchToBranch: (options) => runtime.switchToBranch(options),
-        getCopyText: () => runtime.unstable_getCopyText(),
-        part: (selector) => {
-          if ("index" in selector) {
-            return parts.get({ index: selector.index });
-          } else {
-            return parts.get({ key: `toolCallId-${selector.toolCallId}` });
-          }
-        },
-
-        attachment: (selector) => {
-          if ("id" in selector) {
-            return attachments.get({ key: selector.id });
-          } else {
-            return attachments.get(selector);
-          }
-        },
-
-        setIsCopied,
-        setIsHovering,
-
-        __internal_getRuntime: () => runtime,
+      reload: (config) => runtime.reload(config),
+      speak: () => runtime.speak(),
+      stopSpeaking: () => runtime.stopSpeaking(),
+      submitFeedback: (feedback) => runtime.submitFeedback(feedback),
+      switchToBranch: (options) => runtime.switchToBranch(options),
+      getCopyText: () => runtime.unstable_getCopyText(),
+      part: (selector) => {
+        if ("index" in selector) {
+          return parts.get({ index: selector.index });
+        } else {
+          return parts.get({ key: `toolCallId-${selector.toolCallId}` });
+        }
       },
+
+      attachment: (selector) => {
+        if ("id" in selector) {
+          return attachments.get({ key: selector.id });
+        } else {
+          return attachments.get(selector);
+        }
+      },
+
+      setIsCopied,
+      setIsHovering,
+
+      __internal_getRuntime: () => runtime,
     };
   },
 );

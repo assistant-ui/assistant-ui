@@ -8,7 +8,7 @@ import {
 } from "@assistant-ui/store";
 import { withKey } from "@assistant-ui/tap";
 import type { ResourceElement } from "@assistant-ui/tap";
-import type { ThreadState } from "../types/scopes/thread";
+
 import { Suggestions } from "./Suggestions";
 import { ModelContext } from "./ModelContextClient";
 import { Tools } from "./Tools";
@@ -47,18 +47,15 @@ const ThreadListItemClient = resource(
     );
 
     return {
-      state,
-      methods: {
-        getState: () => state,
-        switchTo: onSwitchTo,
-        rename: () => {},
-        archive: onArchive,
-        unarchive: onUnarchive,
-        delete: onDelete,
-        generateTitle: () => {},
-        initialize: async () => ({ remoteId: data.id, externalId: undefined }),
-        detach: () => {},
-      },
+      getState: () => state,
+      switchTo: onSwitchTo,
+      rename: () => {},
+      archive: onArchive,
+      unarchive: onUnarchive,
+      delete: onDelete,
+      generateTitle: () => {},
+      initialize: async () => ({ remoteId: data.id, externalId: undefined }),
+      detach: () => {},
     };
   },
 );
@@ -139,7 +136,6 @@ export const InMemoryThreadList = resource(
     const state = tapMemo(() => {
       const regularThreads = threads.filter((t) => t.status === "regular");
       const archivedThreads = threads.filter((t) => t.status === "archived");
-      const mainThreadState = mainThreadClient.state as ThreadState;
 
       return {
         mainThreadId,
@@ -148,29 +144,26 @@ export const InMemoryThreadList = resource(
         threadIds: regularThreads.map((t) => t.id),
         archivedThreadIds: archivedThreads.map((t) => t.id),
         threadItems: threadListItems.state,
-        main: mainThreadState,
+        main: mainThreadClient.state,
       };
     }, [mainThreadId, threads, threadListItems.state, mainThreadClient.state]);
 
     return {
-      state,
-      methods: {
-        getState: () => state,
-        switchToThread: handleSwitchToThread,
-        switchToNewThread: handleSwitchToNewThread,
-        item: (selector) => {
-          if (selector === "main") {
-            const index = threads.findIndex((t) => t.id === mainThreadId);
-            return threadListItems.get({ index: index === -1 ? 0 : index });
-          }
-          if ("id" in selector) {
-            const index = threads.findIndex((t) => t.id === selector.id);
-            return threadListItems.get({ index });
-          }
-          return threadListItems.get(selector);
-        },
-        thread: () => mainThreadClient.methods,
+      getState: () => state,
+      switchToThread: handleSwitchToThread,
+      switchToNewThread: handleSwitchToNewThread,
+      item: (selector) => {
+        if (selector === "main") {
+          const index = threads.findIndex((t) => t.id === mainThreadId);
+          return threadListItems.get({ index: index === -1 ? 0 : index });
+        }
+        if ("id" in selector) {
+          const index = threads.findIndex((t) => t.id === selector.id);
+          return threadListItems.get({ index });
+        }
+        return threadListItems.get(selector);
       },
+      thread: () => mainThreadClient.methods,
     };
   },
 );
@@ -189,7 +182,7 @@ attachDefaultPeers(InMemoryThreadList, {
   composer: Derived({
     source: "thread",
     query: {},
-    get: (aui) => aui.threads().thread("main").composer,
+    get: (aui) => aui.threads().thread("main").composer(),
   }),
   modelContext: ModelContext(),
   tools: Tools({}),

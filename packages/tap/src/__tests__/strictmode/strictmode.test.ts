@@ -1,11 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { resource } from "../../core/resource";
-import { isDevelopment } from "../../core/env";
+import { isDevelopment } from "../../core/helpers/env";
 import { tapRef } from "../../hooks/tap-ref";
 import { tapState } from "../../hooks/tap-state";
 import { tapEffect } from "../../hooks/tap-effect";
 import { tapResource } from "../../hooks/tap-resource";
-import { createResource } from "../../core/createResource";
+import { createResourceRoot } from "../../core/createResourceRoot";
 import { withKey } from "../../core/withKey";
 
 describe("Strict Mode", () => {
@@ -21,8 +21,9 @@ describe("Strict Mode", () => {
       return { renderCount };
     });
 
-    const handle = createResource(TestResource(), { devStrictMode: true });
-    const output = handle.getValue();
+    const root = createResourceRoot();
+    const sub = root.render(TestResource());
+    const output = sub.getValue();
 
     expect(renderCount).toBe(2);
     expect(output.renderCount).toBe(2);
@@ -47,7 +48,8 @@ describe("Strict Mode", () => {
       expect(ref.current).toBe(4);
     });
 
-    createResource(TestResource(), { devStrictMode: true });
+    const root = createResourceRoot();
+    root.render(TestResource());
 
     expect(renderCount).toBe(4);
   });
@@ -86,7 +88,8 @@ describe("Strict Mode", () => {
       }, [count]);
     });
 
-    createResource(TestResource(), { devStrictMode: true });
+    const root = createResourceRoot();
+    root.render(TestResource());
 
     expect(events).toEqual([
       "mount-1",
@@ -113,8 +116,9 @@ describe("Strict Mode", () => {
       return tapResource(TestChildResource());
     });
 
-    const handle = createResource(TestResource(), { devStrictMode: true });
-    const output = handle.getValue();
+    const root = createResourceRoot();
+    const sub = root.render(TestResource());
+    const output = sub.getValue();
 
     expect(renderCount).toBe(2);
     expect(output.renderCount).toBe(2);
@@ -134,10 +138,8 @@ describe("Strict Mode", () => {
       });
     });
 
-    createResource(TestResource(), {
-      mount: true,
-      devStrictMode: true,
-    });
+    const root = createResourceRoot();
+    root.render(TestResource());
 
     expect(events).toEqual([
       "render-0",
@@ -189,11 +191,9 @@ describe("Strict Mode", () => {
       return tapResource(withKey(id, TestChildResource()));
     });
 
-    const handle = createResource(TestResource(), {
-      mount: true,
-      devStrictMode: true,
-    });
-    const output = handle.getValue();
+    const root = createResourceRoot();
+    const sub = root.render(TestResource());
+    const output = sub.getValue();
 
     expect(renderCount).toBe(4);
     expect(fnCount).toBe(4);
@@ -238,10 +238,8 @@ describe("Strict Mode", () => {
       return tapResource(withKey(id, TestChildResource()));
     });
 
-    createResource(TestResource(), {
-      mount: true,
-      devStrictMode: true,
-    });
+    const root = createResourceRoot();
+    root.render(TestResource());
 
     expect(events).toEqual([
       "outer-render-0",

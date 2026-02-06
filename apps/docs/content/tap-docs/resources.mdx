@@ -41,7 +41,7 @@ Just like in React, a `ResourceElement` is inert. It doesn't do anything on its 
 
 Resources can accept props, just like React components. In the example above, `Counter` takes an `initialValue` prop.
 
-Props are passed to a resource instance by its owner — which can be another resource (via `tapResource`), a React component (via `useResource`), or imperative code (via `createResource`).
+Props are passed to a resource instance by its owner — which can be another resource (via `tapResource`), a React component (via `useResource`), or imperative code (via `createResourceRoot`).
 
 When a resource re-renders with new props, hooks like `tapEffect` and `tapMemo` can react to the changes through their dependency arrays.
 
@@ -49,7 +49,7 @@ When a resource re-renders with new props, hooks like `tapEffect` and `tapMemo` 
 
 Resources can return a value. This is how you expose state and methods to the outside world. Unlike React components which return JSX nodes, resources can return any JavaScript value — objects, arrays, numbers, strings, or anything else.
 
-The return value is what you get when you read from an instance — directly from `useResource` in React, or via `handle.getValue()` with `createResource`.
+The return value is what you get when you read from an instance — directly from `useResource` in React, or via `handle.getValue()` with `createResourceRoot`.
 
 ## Keys
 
@@ -89,14 +89,15 @@ function CounterComponent() {
 
 The component re-renders whenever the resource's state changes.
 
-### createResource
+### createResourceRoot
 
-Use `createResource` for imperative, framework-agnostic usage.
+Use `createResourceRoot` for imperative, framework-agnostic usage.
 
 ```ts
-import { createResource } from "@assistant-ui/tap";
+import { createResourceRoot } from "@assistant-ui/tap";
 
-const handle = createResource(Counter({ initialValue: 10 }));
+const root = createResourceRoot();
+const handle = root.render(Counter({ initialValue: 10 }));
 
 // read state
 handle.getValue().count; // 10
@@ -110,12 +111,9 @@ handle.subscribe(() => {
 handle.getValue().increment();
 
 // update props
-handle.render(Counter({ initialValue: 20 }));
+root.render(Counter({ initialValue: 20 }));
 
 // cleanup
-handle.unmount();
+root.unmount();
 ```
 
-<Callout type="warn">
-The `createResource` API is still under active development and will change.
-</Callout>

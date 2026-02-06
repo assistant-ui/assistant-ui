@@ -3,6 +3,7 @@ export { withKey } from "./core/withKey";
 
 // primitive hooks
 export { tapState } from "./hooks/tap-state";
+export { tapReducer, tapReducerWithDerivedState } from "./hooks/tap-reducer";
 export { tapEffect } from "./hooks/tap-effect";
 
 // utility hooks
@@ -18,10 +19,10 @@ export { tapInlineResource } from "./hooks/tap-inline-resource";
 export { tapResources } from "./hooks/tap-resources";
 
 // subscribable
-export { tapSubscribableResource } from "./tapSubscribableResource";
+export { tapResourceRoot } from "./tapResourceRoot";
 
 // imperative
-export { createResource } from "./core/createResource";
+export { createResourceRoot } from "./core/createResourceRoot";
 export { flushResourcesSync } from "./core/scheduler";
 
 // context

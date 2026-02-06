@@ -1,7 +1,7 @@
-import { getCurrentResourceFiber } from "../../core/execution-context";
+import { getCurrentResourceFiber } from "../../core/helpers/execution-context";
 import { Cell } from "../../core/types";
 
-export const tapHook = <T extends "effect" | "memo">(
+export const tapHook = <T extends Cell["type"]>(
   type: T,
   init: () => Cell,
 ): Cell & { type: T } => {
@@ -31,5 +31,5 @@ export const tapHook = <T extends "effect" | "memo">(
 
 export const registerRenderMountTask = (task: () => void) => {
   const fiber = getCurrentResourceFiber();
-  fiber.renderContext!.commitTasks.push(task);
+  fiber.renderContext!.effectTasks.push(task);
 };

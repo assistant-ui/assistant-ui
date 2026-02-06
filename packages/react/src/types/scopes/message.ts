@@ -46,7 +46,7 @@ export type MessageMethods = {
    * Get the current state of the message.
    */
   getState(): MessageState;
-  composer: ComposerMethods;
+  composer(): ComposerMethods;
   reload(config?: { runConfig?: RunConfig }): void;
   /** @deprecated This API is still under active development and might change without notice. */
   speak(): void;
@@ -72,7 +72,6 @@ export type MessageMeta = {
 };
 
 export type MessageClientSchema = {
-  state: MessageState;
   methods: MessageMethods;
   meta: MessageMeta;
 };

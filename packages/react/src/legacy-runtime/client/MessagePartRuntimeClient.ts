@@ -8,13 +8,10 @@ export const MessagePartClient = resource(
     const state = tapSubscribable(runtime);
 
     return {
-      state,
-      methods: {
-        getState: () => state,
-        addToolResult: (result) => runtime.addToolResult(result),
-        resumeToolCall: (payload) => runtime.resumeToolCall(payload),
-        __internal_getRuntime: () => runtime,
-      },
+      getState: () => state,
+      addToolResult: (result) => runtime.addToolResult(result),
+      resumeToolCall: (payload) => runtime.resumeToolCall(payload),
+      __internal_getRuntime: () => runtime,
     };
   },
 );

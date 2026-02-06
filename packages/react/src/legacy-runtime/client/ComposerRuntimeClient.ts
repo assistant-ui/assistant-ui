@@ -105,34 +105,31 @@ export const ComposerClient = resource(
     }, [runtimeState, attachments.state]);
 
     return {
-      state,
-      methods: {
-        getState: () => state,
-        setText: runtime.setText,
-        setRole: runtime.setRole,
-        setRunConfig: runtime.setRunConfig,
-        addAttachment: runtime.addAttachment,
-        reset: runtime.reset,
-        clearAttachments: runtime.clearAttachments,
-        send: runtime.send,
-        cancel: runtime.cancel,
-        beginEdit:
-          (runtime as EditComposerRuntime).beginEdit ??
-          (() => {
-            throw new Error("beginEdit is not supported in this runtime");
-          }),
-        startDictation: runtime.startDictation,
-        stopDictation: runtime.stopDictation,
-        setQuote: runtime.setQuote,
-        attachment: (selector) => {
-          if ("id" in selector) {
-            return attachments.get({ key: selector.id });
-          } else {
-            return attachments.get(selector);
-          }
-        },
-        __internal_getRuntime: () => runtime,
+      getState: () => state,
+      setText: runtime.setText,
+      setRole: runtime.setRole,
+      setRunConfig: runtime.setRunConfig,
+      addAttachment: runtime.addAttachment,
+      reset: runtime.reset,
+      clearAttachments: runtime.clearAttachments,
+      send: runtime.send,
+      cancel: runtime.cancel,
+      beginEdit:
+        (runtime as EditComposerRuntime).beginEdit ??
+        (() => {
+          throw new Error("beginEdit is not supported in this runtime");
+        }),
+      startDictation: runtime.startDictation,
+      stopDictation: runtime.stopDictation,
+      setQuote: runtime.setQuote,
+      attachment: (selector) => {
+        if ("id" in selector) {
+          return attachments.get({ key: selector.id });
+        } else {
+          return attachments.get(selector);
+        }
       },
+      __internal_getRuntime: () => runtime,
     };
   },
 );

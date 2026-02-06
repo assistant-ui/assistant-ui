@@ -1,9 +1,9 @@
-import { ResourceFiber, RenderResult } from "./types";
+import { ResourceFiber, RenderResult } from "../types";
 
-export function commitRender(renderResult: RenderResult): void {
+export function commitAllEffects(renderResult: RenderResult): void {
   const errors: unknown[] = [];
 
-  for (const task of renderResult.commitTasks) {
+  for (const task of renderResult.effectTasks) {
     try {
       task();
     } catch (error) {

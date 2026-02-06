@@ -48,7 +48,7 @@ attachDefaultPeers()         ClientOutput<K>  ClientRegistry
 ```typescript
 declare module "@assistant-ui/store" {
   interface ClientRegistry {
-    foo: { state: { bar: string }; methods: { update: (b: string) => void } };
+    foo: { methods: { getState: () => { bar: string }; update: (b: string) => void } };
   }
 }
 ```
@@ -57,7 +57,7 @@ declare module "@assistant-ui/store" {
 ```typescript
 const FooClient = resource((): ClientOutput<"foo"> => {
   const [state, setState] = tapState({ bar: "" });
-  return { state, methods: { update: (b) => setState({ bar: b }) } };
+  return { getState: () => state, update: (b) => setState({ bar: b }) };
 });
 ```
 
@@ -67,7 +67,7 @@ const FooClient = resource((): ClientOutput<"foo"> => {
 const ItemClient = resource((props: tapClientList.ResourceProps<Data>): ClientOutput<"item"> => {
   const data = props.getInitialData();
   const [state, setState] = tapState({ id: props.key, value: data.value });
-  return { state, methods: { update, remove: props.remove } };
+  return { getState: () => state, update, remove: props.remove };
 });
 
 // List using tapClientList
@@ -86,7 +86,7 @@ splitClients → gather default peers → mount root clients → create derived 
 
 ## Invariants
 
-1. Resources return `{ state, methods }` as `ClientOutput<K>`
+1. Resources return methods (including `getState()`) as `ClientOutput<K>`
 2. `useAuiState` requires selector (throws if returning whole state)
 3. Event names: `"clientName.eventName"`
 4. Derived needs `source`, `query`, `get` (or `getMeta`)

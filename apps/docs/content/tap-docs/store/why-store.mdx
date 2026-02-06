@@ -1,0 +1,52 @@
+---
+title: Why Store
+description: The problem Store solves.
+---
+
+With Tap's `useResource`, a component owns its resource directly:
+
+```tsx
+const Counter = () => {
+  const { count, increment } = useResource(CounterResource());
+  return <button onClick={increment}>{count}</button>;
+};
+```
+
+This works when the component that creates the state is the same one that displays it. But what happens when they're far apart?
+
+## The gap
+
+In most apps, state is created near the top of the tree and consumed deep inside it. A chat app creates its thread state at the root, but individual messages render many layers down.
+
+```
+App              ← owns the thread
+  └ Layout
+    └ Sidebar
+      └ ChatPanel
+        └ MessageList
+          └ Message  ← needs the thread's data
+```
+
+You could prop-drill or set up your own React Context. Store does this for you.
+
+## How Store bridges the gap
+
+```tsx
+// At the top — create and provide
+const App = () => {
+  const aui = useAui({ thread: ThreadResource() });
+  return (
+    <AuiProvider value={aui}>
+      <Layout />
+    </AuiProvider>
+  );
+};
+
+// Anywhere below — consume
+const Message = () => {
+  const status = useAuiState((s) => s.thread.status);
+  return <p>{status}</p>;
+};
+```
+
+`useAui` creates the state. `AuiProvider` makes it available to the tree. `useAuiState` reads from it — the component re-renders only when the selected value changes.

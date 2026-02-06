@@ -1,5 +1,5 @@
 import { ExtractResourceReturnType, ResourceElement } from "../core/types";
-import { callResourceFn } from "../core/callResourceFn";
+import { callResourceFn } from "../core/helpers/callResourceFn";
 
 export function tapInlineResource<E extends ResourceElement<any, any>>(
   element: E,

@@ -40,7 +40,7 @@ export const SelectionToolbarPrimitiveQuote = forwardRef<
   const handleClick = useCallback(() => {
     if (!info) return;
 
-    aui.thread().composer.setQuote({
+    aui.thread().composer().setQuote({
       text: info.text,
       messageId: info.messageId,
     });

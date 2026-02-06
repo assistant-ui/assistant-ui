@@ -69,7 +69,7 @@ export type ThreadMethods = {
   /**
    * The thread composer runtime.
    */
-  composer: ComposerMethods;
+  composer(): ComposerMethods;
   /**
    * Append a new message to the thread.
    *
@@ -134,7 +134,6 @@ export type ThreadEvents = {
 };
 
 export type ThreadClientSchema = {
-  state: ThreadState;
   methods: ThreadMethods;
   meta: ThreadMeta;
   events: ThreadEvents;

@@ -14,6 +14,5 @@ export type ToolsMethods = {
 };
 
 export type ToolsClientSchema = {
-  state: ToolsState;
   methods: ToolsMethods;
 };

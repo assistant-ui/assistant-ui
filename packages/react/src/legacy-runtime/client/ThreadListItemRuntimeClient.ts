@@ -41,19 +41,16 @@ export const ThreadListItemClient = resource(
     }, [runtime, emit]);
 
     return {
-      state,
-      methods: {
-        getState: () => state,
-        switchTo: runtime.switchTo,
-        rename: runtime.rename,
-        archive: runtime.archive,
-        unarchive: runtime.unarchive,
-        delete: runtime.delete,
-        generateTitle: runtime.generateTitle,
-        initialize: runtime.initialize,
-        detach: runtime.detach,
-        __internal_getRuntime: () => runtime,
-      },
+      getState: () => state,
+      switchTo: runtime.switchTo,
+      rename: runtime.rename,
+      archive: runtime.archive,
+      unarchive: runtime.unarchive,
+      delete: runtime.delete,
+      generateTitle: runtime.generateTitle,
+      initialize: runtime.initialize,
+      detach: runtime.detach,
+      __internal_getRuntime: () => runtime,
     };
   },
 );

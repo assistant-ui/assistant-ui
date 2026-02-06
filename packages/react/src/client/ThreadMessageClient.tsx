@@ -30,15 +30,12 @@ const ThreadMessagePartClient = resource(
     }, [part]);
 
     return {
-      state,
-      methods: {
-        getState: () => state,
-        addToolResult: () => {
-          throw new Error("Not supported");
-        },
-        resumeToolCall: () => {
-          throw new Error("Not supported");
-        },
+      getState: () => state,
+      addToolResult: () => {
+        throw new Error("Not supported");
+      },
+      resumeToolCall: () => {
+        throw new Error("Not supported");
       },
     };
   },
@@ -47,12 +44,9 @@ const ThreadMessagePartClient = resource(
 const ThreadMessageAttachmentClient = resource(
   ({ attachment }: { attachment: Attachment }): ClientOutput<"attachment"> => {
     return {
-      state: attachment,
-      methods: {
-        getState: () => attachment,
-        remove: () => {
-          throw new Error("Not supported");
-        },
+      getState: () => attachment,
+      remove: () => {
+        throw new Error("Not supported");
       },
     };
   },
@@ -98,12 +92,13 @@ export const ThreadMessageClient = resource(
     );
 
     const composer = tapInlineResource(NoOpComposerClient({ type: "edit" }));
+    const composerState = composer.getState();
 
     const state = tapMemo<MessageState>(() => {
       return {
         ...message,
         parts: parts.state,
-        composer: composer.state,
+        composer: composerState,
         parentId: null,
         index,
         isLast,
@@ -121,58 +116,55 @@ export const ThreadMessageClient = resource(
       isHoveringState,
       isLast,
       parts.state,
-      composer.state,
+      composerState,
       branchNumber,
       branchCount,
     ]);
 
     return {
-      state,
-      methods: {
-        getState: () => state,
-        composer: composer.methods,
-        part: (selector) => {
-          if ("index" in selector) {
-            return parts.get({ index: selector.index });
-          } else {
-            return parts.get({ key: `toolCallId-${selector.toolCallId}` });
-          }
-        },
-        attachment: (selector) => {
-          if ("id" in selector) {
-            return attachments.get({ key: selector.id });
-          } else {
-            return attachments.get(selector);
-          }
-        },
-        reload: () => {
-          throw new Error("Not supported in ThreadMessageProvider");
-        },
-        speak: () => {
-          throw new Error("Not supported in ThreadMessageProvider");
-        },
-        stopSpeaking: () => {
-          throw new Error("Not supported in ThreadMessageProvider");
-        },
-        submitFeedback: () => {
-          throw new Error("Not supported in ThreadMessageProvider");
-        },
-        switchToBranch: () => {
-          throw new Error("Not supported in ThreadMessageProvider");
-        },
-        getCopyText: () => {
-          return message.content
-            .map((part) => {
-              if ("text" in part && typeof part.text === "string") {
-                return part.text;
-              }
-              return "";
-            })
-            .join("\n");
-        },
-        setIsCopied,
-        setIsHovering,
+      getState: () => state,
+      composer: () => composer,
+      part: (selector) => {
+        if ("index" in selector) {
+          return parts.get({ index: selector.index });
+        } else {
+          return parts.get({ key: `toolCallId-${selector.toolCallId}` });
+        }
       },
+      attachment: (selector) => {
+        if ("id" in selector) {
+          return attachments.get({ key: selector.id });
+        } else {
+          return attachments.get(selector);
+        }
+      },
+      reload: () => {
+        throw new Error("Not supported in ThreadMessageProvider");
+      },
+      speak: () => {
+        throw new Error("Not supported in ThreadMessageProvider");
+      },
+      stopSpeaking: () => {
+        throw new Error("Not supported in ThreadMessageProvider");
+      },
+      submitFeedback: () => {
+        throw new Error("Not supported in ThreadMessageProvider");
+      },
+      switchToBranch: () => {
+        throw new Error("Not supported in ThreadMessageProvider");
+      },
+      getCopyText: () => {
+        return message.content
+          .map((part) => {
+            if ("text" in part && typeof part.text === "string") {
+              return part.text;
+            }
+            return "";
+          })
+          .join("\n");
+      },
+      setIsCopied,
+      setIsHovering,
     };
   },
 );

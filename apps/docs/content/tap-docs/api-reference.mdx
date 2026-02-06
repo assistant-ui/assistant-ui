@@ -43,6 +43,28 @@ const [value, setValue] = tapState(() => expensiveDefault());
 
 Local state. `setValue` accepts a value or an updater function `(prev) => next`.
 
+### tapReducer
+
+```ts
+const [state, dispatch] = tapReducer(reducer, initialState);
+const [state, dispatch] = tapReducer(reducer, initialArg, init);
+```
+
+State management with a reducer function. `dispatch` has a stable identity. Bails out (no re-render) when the reducer returns the same state via `Object.is`.
+
+### tapReducerWithDerivedState
+
+<Callout type="warn">
+This API is experimental and may change.
+</Callout>
+
+```ts
+const [state, dispatch] = tapReducerWithDerivedState(reducer, getDerivedState, initialState);
+const [state, dispatch] = tapReducerWithDerivedState(reducer, getDerivedState, initialArg, init);
+```
+
+Like `tapReducer`, but accepts a `getDerivedState` function as the second argument. After every reducer update, `getDerivedState(state)` is called. If it returns a new value (by `Object.is`), the derived value becomes the current state and triggers a re-render. The return type is inferred from `getDerivedState`, allowing you to narrow or extend the state type.
+
 ### tapEffect
 
 ```ts
@@ -121,10 +143,22 @@ const values = tapResources(
 
 Renders a dynamic list of child resources. Every element must have a key via `withKey`.
 
-### tapSubscribableResource
+### tapInlineResource
+
+<Callout type="warn">
+This API is subject to change or removal.
+</Callout>
 
 ```ts
-const handle = tapSubscribableResource(Counter({ initialValue: 0 }));
+const value = tapInlineResource(Counter({ initialValue: 0 }));
+```
+
+Calls a resource function inline within the parent's fiber — no child fiber is created. The child's hooks run as if they were the parent's own hooks. This is a low-level escape hatch; prefer `tapResource` unless you specifically need to avoid a fiber boundary.
+
+### tapResourceRoot
+
+```ts
+const handle = tapResourceRoot(Counter({ initialValue: 0 }));
 
 handle.getValue();  // current value
 handle.subscribe(() => { /* on change */ });
@@ -136,35 +170,30 @@ Renders a child as a subscribable store. The parent doesn't re-render when the c
 
 ## Imperative API
 
-### createResource
+### createResourceRoot
 
 Creates a resource instance outside of React.
 
 ```ts
-import { createResource } from "@assistant-ui/tap";
+import { createResourceRoot } from "@assistant-ui/tap";
 
-const handle = createResource(Counter({ initialValue: 0 }));
+const root = createResourceRoot();
+const handle = root.render(Counter({ initialValue: 0 }));
 ```
 
-**Handle methods:**
+**Root methods:**
+
+| Method | Description |
+| --- | --- |
+| `root.render(element)` | Render (or re-render) with a resource element. Returns a subscribable handle. |
+| `root.unmount()` | Unmount and clean up |
+
+**Subscribable handle methods** (returned by `root.render()`):
 
 | Method | Description |
 | --- | --- |
 | `handle.getValue()` | Read the current return value |
 | `handle.subscribe(callback)` | Subscribe to changes |
-| `handle.render(element)` | Re-render with a new element |
-| `handle.unmount()` | Unmount and clean up |
-
-**Options:**
-
-| Option | Description |
-| --- | --- |
-| `mount` | Whether to mount immediately (default: `true`) |
-| `devStrictMode` | Enable double-rendering in development |
-
-<Callout type="warn">
-This API is still under active development and will change.
-</Callout>
 
 ### flushResourcesSync
 
@@ -179,7 +208,7 @@ flushResourcesSync(() => {
 // state is already updated here
 ```
 
-Only applies to tap-scheduled trees (`createResource` / `tapSubscribableResource`). For `useResource` trees, use `flushSync` from `react-dom`.
+Only applies to tap-scheduled trees (`createResourceRoot` / `tapResourceRoot`). For `useResource` trees, use `flushSync` from `react-dom`.
 
 ---
 
@@ -258,7 +287,7 @@ A lightweight `{ type, props }` description of a resource to render.
 ### ContravariantResource
 
 ```ts
-type ContravariantResource<R, P> = Resource<R, P>;
+type ContravariantResource<R, P> = (props: P) => ResourceElement<R>;
 ```
 
-A contravariant version of `Resource` for type-level flexibility when accepting resources as parameters.
+A contravariant version of `Resource` for type-level flexibility when accepting resources as parameters. The difference from `Resource` is that the returned `ResourceElement` omits the `P` type parameter, allowing broader assignability.

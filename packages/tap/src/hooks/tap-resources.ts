@@ -6,7 +6,6 @@ import {
 } from "../core/types";
 import { tapEffect } from "./tap-effect";
 import { tapMemo } from "./tap-memo";
-import { tapState } from "./tap-state";
 import { tapCallback } from "./tap-callback";
 import {
   createResourceFiber,
@@ -15,6 +14,8 @@ import {
   commitResourceFiber,
 } from "../core/ResourceFiber";
 import { tapConst } from "./tap-const";
+import { tapRef } from "./tap-ref";
+import { getCurrentResourceFiber } from "../core/helpers/execution-context";
 
 type FiberState = {
   fiber: ResourceFiber<unknown, unknown>;
@@ -28,9 +29,17 @@ export function tapResources<E extends ResourceElement<any, any>>(
   getElements: () => readonly E[],
   getElementsDeps?: readonly unknown[],
 ): ExtractResourceReturnType<E>[] {
-  const [version, setVersion] = tapState(0);
-  const rerender = tapConst(() => () => setVersion((v) => v + 1), []);
+  const versionRef = tapRef(0);
+  const version = versionRef.current;
 
+  const parentFiber = tapConst(getCurrentResourceFiber, []);
+  const markDirty = tapConst(
+    () => () => {
+      versionRef.current++;
+      parentFiber.markDirty?.();
+    },
+    [],
+  );
   const fibers = tapConst(() => new Map<string | number, FiberState>(), []);
 
   const getElementsMemo = getElementsDeps
@@ -65,9 +74,11 @@ export function tapResources<E extends ResourceElement<any, any>>(
 
       let state = fibers.get(elementKey);
       if (!state) {
-        const fiber = createResourceFiber(element.type, (callback) => {
-          if (callback()) rerender();
-        });
+        const fiber = createResourceFiber(
+          element.type,
+          parentFiber.root,
+          markDirty,
+        );
         const result = renderResourceFiber(fiber, element.props);
         state = {
           fiber,
@@ -77,9 +88,11 @@ export function tapResources<E extends ResourceElement<any, any>>(
         fibers.set(elementKey, state);
         results.push(result.output);
       } else if (state.fiber.type !== element.type) {
-        const fiber = createResourceFiber(element.type, (callback) => {
-          if (callback()) rerender();
-        });
+        const fiber = createResourceFiber(
+          element.type,
+          parentFiber.root,
+          markDirty,
+        );
         const result = renderResourceFiber(fiber, element.props);
         state.next = [fiber, result];
         results.push(result.output);

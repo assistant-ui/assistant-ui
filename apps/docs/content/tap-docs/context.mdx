@@ -51,5 +51,5 @@ const App = resource(() => {
 Any resource rendered inside the callback — including deeply nested children — will read `"dark"` from `ThemeContext`.
 
 <Callout type="warn">
-Context is not properly persisted across `tapSubscribableResource` boundaries. If a child resource is wrapped with `tapSubscribableResource`, it may not see context values provided by its ancestors. This is a known bug.
+Context is not properly persisted across `tapResourceRoot` boundaries. If a child resource is wrapped with `tapResourceRoot`, it may not see context values provided by its ancestors. This is a known bug.
 </Callout>

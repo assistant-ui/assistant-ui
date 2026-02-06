@@ -43,6 +43,6 @@ attachDefaultPeers(RuntimeAdapter, {
   composer: Derived({
     source: "thread",
     query: {},
-    get: (aui) => aui.threads().thread("main").composer,
+    get: (aui) => aui.threads().thread("main").composer(),
   }),
 });

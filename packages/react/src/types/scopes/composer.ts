@@ -73,7 +73,6 @@ export type ComposerEvents = {
 };
 
 export type ComposerClientSchema = {
-  state: ComposerState;
   methods: ComposerMethods;
   meta: ComposerMeta;
   events: ComposerEvents;

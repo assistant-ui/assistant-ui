@@ -17,7 +17,7 @@ export const MessageByIndexProvider: FC<
     composer: Derived({
       source: "message",
       query: {},
-      get: (aui) => aui.thread().message({ index }).composer,
+      get: (aui) => aui.thread().message({ index }).composer(),
     }),
   });
 

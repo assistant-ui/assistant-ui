@@ -1,0 +1,110 @@
+---
+title: Quickstart
+description: Install Store and connect your first Tap resource to React.
+---
+
+Store (`@assistant-ui/store`) connects Tap resources to React with scoped, type-safe state management.
+
+## Installation
+
+```sh
+npm install @assistant-ui/store @assistant-ui/tap
+```
+
+## Define your client types
+
+Register your clients by augmenting the `ClientRegistry` interface. This gives you type safety across all Store hooks.
+
+```ts title="lib/store/counter-scope.ts"
+import "@assistant-ui/store";
+
+declare module "@assistant-ui/store" {
+  interface ClientRegistry {
+    counter: {
+      methods: {
+        getState: () => { count: number };
+        increment: () => void;
+      };
+    };
+  }
+}
+```
+
+## Create a resource
+
+Define a Tap resource that returns `ClientOutput<"counter">`. This connects the resource's methods to the client type you just registered.
+
+```ts title="lib/store/counter-store.ts"
+import { resource, tapState, tapMemo } from "@assistant-ui/tap";
+import type { ClientOutput } from "@assistant-ui/store";
+
+export const CounterResource = resource(
+  ({ initialCount = 0 }: { initialCount?: number }): ClientOutput<"counter"> => {
+    const [count, setCount] = tapState(initialCount);
+
+    const state = tapMemo(() => ({ count }), [count]);
+
+    return {
+      getState: () => state,
+      increment: () => setCount((c) => c + 1),
+    };
+  },
+);
+```
+
+## Use it in React
+
+Use `useAui` to create a client, `AuiProvider` to provide it to the tree, and `useAuiState` to subscribe to state.
+
+```tsx title="app/CounterApp.tsx"
+"use client";
+
+import { useAui, AuiProvider } from "@assistant-ui/store";
+import { CounterResource } from "@/lib/store/counter-store";
+import { CounterDisplay } from "./CounterDisplay";
+
+export const CounterApp = () => {
+  const aui = useAui({
+    counter: CounterResource({ initialCount: 0 }),
+  });
+
+  return (
+    <AuiProvider value={aui}>
+      <CounterDisplay />
+    </AuiProvider>
+  );
+};
+```
+
+```tsx title="app/CounterDisplay.tsx"
+"use client";
+
+import { useAui, useAuiState } from "@assistant-ui/store";
+
+export const CounterDisplay = () => {
+  const count = useAuiState((s) => s.counter.count);
+  const aui = useAui();
+
+  return (
+    <div>
+      <p>Count: {count}</p>
+      <button onClick={() => aui.counter().increment()}>+</button>
+    </div>
+  );
+};
+```
+
+`useAuiState((s) => s.counter.count)` subscribes to just the `count` value — the component only re-renders when it changes.
+
+`aui.counter()` returns the methods object, so `aui.counter().increment()` calls the `increment` method you defined in the resource.
+
+## Next steps
+
+<Cards>
+  <Card title="Scopes" href="/tap/docs/store/scopes">
+    Nest clients with Derived and AuiProvider.
+  </Card>
+  <Card title="Events" href="/tap/docs/store/events">
+    Emit and subscribe to typed events.
+  </Card>
+</Cards>

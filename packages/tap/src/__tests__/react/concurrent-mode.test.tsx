@@ -10,10 +10,7 @@ const ShouldNeverFallback = () => {
 };
 
 describe("Concurrent Mode with useResource", () => {
-  // TODO: tapState updates are not rolled back when React discards a concurrent render
-  // This requires architectural changes to make tapState updates "tentative" until React commits
-  // For now, tapState behaves like external state (Zustand, Jotai) which has the same limitation
-  it.skip("should not commit tapState updates when render is discarded", async () => {
+  it("should not commit tapState updates when render is discarded", async () => {
     const TestResource = resource(() => {
       return tapState(false);
     });

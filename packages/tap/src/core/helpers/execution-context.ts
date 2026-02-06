@@ -1,5 +1,5 @@
 import { isDevelopment } from "./env";
-import { ResourceFiber } from "./types";
+import { ResourceFiber } from "../types";
 
 let currentResourceFiber: ResourceFiber<any, any> | null = null;
 

@@ -9,8 +9,7 @@ React integration for tap. Type-safe client-based state via module augmentation.
 declare module "@assistant-ui/store" {
   interface ClientRegistry {
     name: {
-      state: StateType;
-      methods: MethodsType;
+      methods: MethodsType; // must include getState(): StateType
       meta?: { source: ClientNames; query: QueryType };
       events?: { "name.event": PayloadType };
     };
@@ -20,12 +19,11 @@ declare module "@assistant-ui/store" {
 
 ### Core Types
 ```typescript
-type ClientOutput<K> = { state: ClientSchemas[K]["state"]; methods: ClientSchemas[K]["methods"] };
-type ClientOutputOf<TState, TMethods> = { state: TState; methods: TMethods };
+type ClientOutput<K> = ClientSchemas[K]["methods"] & ClientMethods;
 type ClientMethods = { [key: string]: (...args: any[]) => any };
 type AssistantClientAccessor<K> = (() => Methods<K>) & ({ source; query } | { source: "root"; query: {} } | { source: null; query: null });
 type AssistantClient = { [K]: AssistantClientAccessor<K>; subscribe(cb): Unsubscribe; on(selector, cb): Unsubscribe };
-type AssistantState = { [K]: ClientSchemas[K]["state"] };
+type AssistantState = { [K]: ReturnType<ClientSchemas[K]["methods"]["getState"]> };
 ```
 
 ## API
@@ -78,27 +76,26 @@ tapAssistantEmit(): <E>(event: E, payload) => void;  // Stable via tapEffectEven
 
 ### tapClientResource
 ```typescript
-tapClientResource(element: ResourceElement<ClientOutputOf<TState, TMethods>>): ClientOutputOf<TState, TMethods>;
+tapClientResource(element: ResourceElement<TMethods>): { state: InferClientState<TMethods>; methods: TMethods; key: string | number | undefined };
 ```
-Wraps resource element to create stable client proxy. Adds client to stack for event scoping. Use for 1:1 client mappings.
+Wraps resource element to create stable client proxy. Adds client to stack for event scoping. Use for 1:1 client mappings. State is inferred from the `getState()` method if present.
 
 ### tapClientLookup
 ```typescript
-tapClientLookup<TState, TMethods, M extends Record<string|number|symbol, any>>(
-  map: M,
-  getElement: (t: M[keyof M], key: keyof M) => ResourceElement<ClientOutputOf<TState, TMethods>>,
-  getElementDeps: any[]
-): { state: TState[]; get: (lookup: { index: number } | { key: keyof M }) => TMethods };
+tapClientLookup<TMethods extends ClientMethods>(
+  getElements: () => readonly ResourceElement<TMethods>[],
+  getElementsDeps: readonly unknown[]
+): { state: InferClientState<TMethods>[]; get: (lookup: { index: number } | { key: string }) => TMethods };
 ```
 Wraps each element with `tapClientResource`. Throws on lookup miss.
 
 ### tapClientList
 ```typescript
-tapClientList<TData, TState, TMethods extends ClientMethods>({
+tapClientList<TData, TMethods extends ClientMethods>({
   initialValues: TData[];
   getKey: (data: TData) => string;
-  resource: ContravariantResource<ClientOutputOf<TState, TMethods>, ResourceProps<TData>>;
-}): { state: TState[]; get: (lookup: { index: number } | { key: string }) => TMethods; add: (data: TData) => void };
+  resource: ContravariantResource<TMethods, ResourceProps<TData>>;
+}): { state: InferClientState<TMethods>[]; get: (lookup: { index: number } | { key: string }) => TMethods; add: (data: TData) => void };
 
 type ResourceProps<TData> = { key: string; getInitialData: () => TData; remove: () => void };
 ```
@@ -136,7 +133,7 @@ Flow: `tapAssistantEmit` captures client stack → `emit` queues via microtask �
 ## Invariants
 
 1. `ClientRegistry` must have ≥1 client (compile error otherwise)
-2. Resources return `{ state, methods }` matching `ClientOutput<K>`
+2. Resources return methods object matching `ClientOutput<K>` (with `getState()` for state access)
 3. Events: `"clientName.eventName"` format
 4. `meta.source` must be valid `ClientNames`
 5. `useAuiState` selector cannot return whole state

@@ -14,7 +14,6 @@ export type SuggestionMeta = {
 };
 
 export type SuggestionClientSchema = {
-  state: SuggestionState;
   methods: SuggestionMethods;
   meta: SuggestionMeta;
 };

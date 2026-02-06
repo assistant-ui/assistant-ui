@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { createResource } from "../../core/createResource";
+import { createResourceRoot } from "../../core/createResourceRoot";
 import { resource } from "../../core/resource";
 
 describe("ResourceHandle - Basic Usage", () => {
@@ -10,41 +10,44 @@ describe("ResourceHandle - Basic Usage", () => {
         propsUsed: props,
       };
     });
-    const handle = createResource(TestResource(5));
+    const root = createResourceRoot();
+    const sub = root.render(TestResource(5));
 
-    // The handle provides a const API
-    expect(typeof handle.getValue).toBe("function");
-    expect(typeof handle.subscribe).toBe("function");
-    expect(typeof handle.render).toBe("function");
+    // The subscribable provides getValue and subscribe
+    expect(typeof sub.getValue).toBe("function");
+    expect(typeof sub.subscribe).toBe("function");
+    expect(typeof root.render).toBe("function");
 
     // Initial state
-    expect(handle.getValue().value).toBe(10);
-    expect(handle.getValue().propsUsed).toBe(5);
+    expect(sub.getValue().value).toBe(10);
+    expect(sub.getValue().propsUsed).toBe(5);
   });
 
   it("should allow updating props", () => {
     const TestResource = resource((props: { multiplier: number }) => {
       return { result: 10 * props.multiplier };
     });
-    const handle = createResource(TestResource({ multiplier: 2 }));
+    const root = createResourceRoot();
+    const sub = root.render(TestResource({ multiplier: 2 }));
 
     // Initial state
-    expect(handle.getValue().result).toBe(20);
+    expect(sub.getValue().result).toBe(20);
 
     // Can call render to update props
-    expect(() => handle.render(TestResource({ multiplier: 3 }))).not.toThrow();
+    expect(() => root.render(TestResource({ multiplier: 3 }))).not.toThrow();
   });
 
   it("should support subscribing and unsubscribing", () => {
     const TestResource = resource(() => ({ timestamp: Date.now() }));
-    const handle = createResource(TestResource());
+    const root = createResourceRoot();
+    const sub = root.render(TestResource());
 
     const subscriber1 = vi.fn();
     const subscriber2 = vi.fn();
 
     // Can subscribe multiple callbacks
-    const unsub1 = handle.subscribe(subscriber1);
-    const unsub2 = handle.subscribe(subscriber2);
+    const unsub1 = sub.subscribe(subscriber1);
+    const unsub2 = sub.subscribe(subscriber2);
 
     // Can unsubscribe individually
     expect(typeof unsub1).toBe("function");

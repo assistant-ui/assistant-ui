@@ -43,7 +43,6 @@ export type PartMeta =
     };
 
 export type PartClientSchema = {
-  state: PartState;
   methods: PartMethods;
   meta: PartMeta;
 };

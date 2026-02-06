@@ -6,7 +6,7 @@ import {
   tapResource,
   tapInlineResource,
 } from "@assistant-ui/tap";
-import type { ClientMethods, ClientOutputOf } from "./types/client";
+import type { ClientMethods } from "./types/client";
 import {
   tapClientStack,
   tapWithClientStack,
@@ -25,7 +25,7 @@ import { wrapperResource } from "./wrapperResource";
 const SYMBOL_GET_OUTPUT = Symbol("assistant-ui.store.getValue");
 
 type ClientInternal = {
-  [SYMBOL_GET_OUTPUT]: ClientOutputOf<unknown, ClientMethods>;
+  [SYMBOL_GET_OUTPUT]: ClientMethods;
 };
 
 export const getClientState = (client: ClientMethods) => {
@@ -36,7 +36,7 @@ export const getClientState = (client: ClientMethods) => {
         "Ensure your Derived get() returns a client created with tapClientResource(), not a plain resource.",
     );
   }
-  return output.state;
+  return (output as any).getState?.();
 };
 
 // Global cache for function templates by field name
@@ -64,7 +64,7 @@ function getOrCreateProxyFn(prop: string | symbol) {
         );
       }
 
-      const method = output.methods[prop];
+      const method = output[prop];
       if (!method)
         throw new Error(`Method "${String(prop)}" is not implemented.`);
       if (typeof method !== "function")
@@ -85,7 +85,7 @@ class ClientProxyHandler
 
   constructor(
     private readonly outputRef: {
-      current: ClientOutputOf<unknown, ClientMethods>;
+      current: ClientMethods;
     },
     private readonly index: number,
   ) {
@@ -97,7 +97,7 @@ class ClientProxyHandler
     if (prop === SYMBOL_CLIENT_INDEX) return this.index;
     const introspection = handleIntrospectionProp(prop, "ClientProxy");
     if (introspection !== false) return introspection;
-    const value = this.outputRef.current.methods[prop];
+    const value = this.outputRef.current[prop];
     if (typeof value === "function") {
       if (this.cachedReceiver !== receiver) {
         this.boundFns = new Map();
@@ -114,43 +114,34 @@ class ClientProxyHandler
   }
 
   ownKeys(): ArrayLike<string | symbol> {
-    return Object.keys(this.outputRef.current.methods);
+    return Object.keys(this.outputRef.current);
   }
 
   has(_: unknown, prop: string | symbol) {
     if (prop === SYMBOL_GET_OUTPUT) return true;
     if (prop === SYMBOL_CLIENT_INDEX) return true;
-    return prop in this.outputRef.current.methods;
+    return prop in this.outputRef.current;
   }
 }
 
 /**
  * Resource that wraps a plain resource element to create a stable client proxy.
  *
- * Takes a ResourceElement that returns { state, methods } and
+ * Takes a ResourceElement that returns methods (with optional getState()) and
  * wraps it to produce a stable client proxy. This adds the client to the
  * client stack, enabling event scoping.
  *
- * Use this for 1:1 client mappings where you want event scoping to work correctly.
- *
- * @example
- * ```typescript
- * const MessageResource = resource(({ messageId }: { messageId: string }) => {
- *   return tapInlineResource(
- *     tapClientResource(InnerMessageResource({ messageId }))
- *   );
- * });
- * ```
+ * @internal
  */
 export const ClientResource = wrapperResource(
-  <TState, TMethods extends ClientMethods>(
-    element: ResourceElement<ClientOutputOf<TState, TMethods>>,
-  ): ClientOutputOf<TState, TMethods> & {
+  <TMethods extends ClientMethods>(
+    element: ResourceElement<TMethods>,
+  ): {
+    methods: TMethods;
+    state: unknown;
     key: string | number | undefined;
   } => {
-    const valueRef = tapRef(
-      null as unknown as ClientOutputOf<TState, TMethods>,
-    );
+    const valueRef = tapRef(null as unknown as TMethods);
 
     const index = tapClientStack().length;
     const methods = tapMemo(
@@ -171,12 +162,27 @@ export const ClientResource = wrapperResource(
       valueRef.current = value;
     });
 
-    return { methods, state: value.state, key: element.key };
+    const state = (value as any).getState?.();
+    return { methods, state, key: element.key };
   },
 );
 
-export const tapClientResource = <TState, TMethods extends ClientMethods>(
-  element: ResourceElement<ClientOutputOf<TState, TMethods>>,
-) => {
-  return tapInlineResource(ClientResource(element));
+type InferClientState<TMethods> = TMethods extends {
+  getState: () => infer S;
+}
+  ? S
+  : undefined;
+
+export const tapClientResource = <TMethods extends ClientMethods>(
+  element: ResourceElement<TMethods>,
+): {
+  state: InferClientState<TMethods>;
+  methods: TMethods;
+  key: string | number | undefined;
+} => {
+  return tapInlineResource(ClientResource(element)) as {
+    state: InferClientState<TMethods>;
+    methods: TMethods;
+    key: string | number | undefined;
+  };
 };

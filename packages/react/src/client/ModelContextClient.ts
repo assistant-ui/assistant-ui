@@ -12,12 +12,9 @@ export const ModelContext = resource((): ClientOutput<"modelContext"> => {
   const composite = tapMemo(() => new CompositeContextProvider(), []);
 
   return {
-    state,
-    methods: {
-      getState: () => state,
-      getModelContext: () => composite.getModelContext(),
-      subscribe: (callback) => composite.subscribe(callback),
-      register: (provider) => composite.registerModelContextProvider(provider),
-    },
+    getState: () => state,
+    getModelContext: () => composite.getModelContext(),
+    subscribe: (callback) => composite.subscribe(callback),
+    register: (provider) => composite.registerModelContextProvider(provider),
   };
 });

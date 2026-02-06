@@ -8,12 +8,9 @@ export const AttachmentRuntimeClient = resource(
     const state = tapSubscribable(runtime);
 
     return {
-      state,
-      methods: {
-        getState: () => state,
-        remove: runtime.remove,
-        __internal_getRuntime: () => runtime,
-      },
+      getState: () => state,
+      remove: runtime.remove,
+      __internal_getRuntime: () => runtime,
     };
   },
 );

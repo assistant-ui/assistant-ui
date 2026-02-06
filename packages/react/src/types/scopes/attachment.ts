@@ -16,7 +16,6 @@ export type AttachmentMeta = {
 };
 
 export type AttachmentClientSchema = {
-  state: AttachmentState;
   methods: AttachmentMethods;
   meta: AttachmentMeta;
 };

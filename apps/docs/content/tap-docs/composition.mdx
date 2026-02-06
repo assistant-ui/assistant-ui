@@ -1,6 +1,6 @@
 ---
 title: Composition
-description: Nest and compose resources with tapResource, tapResources, and tapSubscribableResource.
+description: Nest and compose resources with tapResource, tapResources, and tapResourceRoot.
 ---
 
 Resources can render other resources. Child resources get their own fiber, lifecycle, and state — just like React components rendering other components.
@@ -78,12 +78,12 @@ Every element passed to `tapResources` must have a key. Keys must be unique with
 
 This is the same model as React's `key` prop on list elements.
 
-## tapSubscribableResource
+## tapResourceRoot
 
-`tapSubscribableResource` returns a stable `{ getValue, subscribe }` handle instead of the child's value directly. The parent doesn't re-render when the child updates — consumers subscribe to changes instead. See [Trees & Re-renders](/tap/docs/trees-and-rerenders) for why this matters.
+`tapResourceRoot` returns a stable `{ getValue, subscribe }` handle instead of the child's value directly. The parent doesn't re-render when the child updates — consumers subscribe to changes instead. See [Trees & Re-renders](/tap/docs/trees-and-rerenders) for why this matters.
 
 ```ts
-const counter = tapSubscribableResource(Counter());
+const counter = tapResourceRoot(Counter());
 
 // read current value
 counter.getValue(); // { count: 0, increment: ... }
@@ -102,4 +102,4 @@ The returned object has a stable identity and won't change across renders. This 
 | --- | --- |
 | `tapResource` | You need an independent child with its own state and lifecycle |
 | `tapResources` | You have a dynamic list of children |
-| `tapSubscribableResource` | You need to expose a child as a subscribable store |
+| `tapResourceRoot` | You need to expose a child as a subscribable store |

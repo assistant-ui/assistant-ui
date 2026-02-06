@@ -9,6 +9,5 @@ export type ModelContextMethods = ModelContextProvider & {
 };
 
 export type ModelContextClientSchema = {
-  state: ModelContextState;
   methods: ModelContextMethods;
 };

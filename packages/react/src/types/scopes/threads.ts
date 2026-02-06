@@ -31,6 +31,5 @@ export type ThreadsMethods = {
 };
 
 export type ThreadsClientSchema = {
-  state: ThreadsState;
   methods: ThreadsMethods;
 };

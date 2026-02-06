@@ -9,10 +9,7 @@ export type SuggestionConfig =
 const SuggestionClient = resource(
   (state: SuggestionState): ClientOutput<"suggestion"> => {
     return {
-      state,
-      methods: {
-        getState: () => state,
-      },
+      getState: () => state,
     };
   },
 );
@@ -49,12 +46,9 @@ const SuggestionsResource = resource(
     );
 
     return {
-      state,
-      methods: {
-        getState: () => state,
-        suggestion: ({ index }: { index: number }) => {
-          return suggestionClients.get({ index });
-        },
+      getState: () => state,
+      suggestion: ({ index }: { index: number }) => {
+        return suggestionClients.get({ index });
       },
     };
   },

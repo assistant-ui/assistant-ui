@@ -11,14 +11,14 @@ import { useAui, useAuiState, AuiProvider, type ClientOutput } from "@assistant-
 // 1. Define client type
 declare module "@assistant-ui/store" {
   interface ClientRegistry {
-    counter: { state: { count: number }; methods: { increment: () => void } };
+    counter: { methods: { getState: () => { count: number }; increment: () => void } };
   }
 }
 
 // 2. Create resource
 const CounterClient = resource((): ClientOutput<"counter"> => {
   const [state, setState] = tapState({ count: 0 });
-  return { state, methods: { increment: () => setState({ count: state.count + 1 }) } };
+  return { getState: () => state, increment: () => setState({ count: state.count + 1 }) };
 });
 
 // 3. Use in React
@@ -41,8 +41,7 @@ function Counter() {
 declare module "@assistant-ui/store" {
   interface ClientRegistry {
     myClient: {
-      state: MyState;
-      methods: MyMethods;
+      methods: MyMethods; // must include getState(): MyState
       meta?: { source: "parent"; query: { id: string } };
       events?: { "myClient.updated": { id: string } };
     };
@@ -87,6 +86,6 @@ useAuiEvent("myClient.updated", (p) => console.log(p.id));
 
 | Type | Description |
 |------|-------------|
-| `ClientOutput<K>` | Resource return type: `{ state, methods }` |
+| `ClientOutput<K>` | Resource return type (methods object) |
 | `ClientRegistry` | Module augmentation interface |
 | `AssistantClient` | Full client type |

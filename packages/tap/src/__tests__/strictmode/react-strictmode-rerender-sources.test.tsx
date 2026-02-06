@@ -389,4 +389,83 @@ describe("React Strict Mode - Rerender Sources", () => {
       ]);
     });
   });
+
+  describe("Source 9: Effect with dependencies calling setState (derived state)", () => {
+    it("should handle effect with dependencies and setState", () => {
+      const events: string[] = [];
+
+      function TestComponent() {
+        const [count] = useState(0);
+        const [doubled, setDoubled] = useState(0);
+        events.push(`render count=${count} doubled=${doubled}`);
+
+        useEffect(() => {
+          events.push(`effect count=${count}`);
+          setDoubled(count * 2);
+          return () => {
+            events.push(`cleanup count=${count}`);
+          };
+        }, [count]);
+
+        return <div>{doubled}</div>;
+      }
+
+      render(
+        <StrictMode>
+          <TestComponent />
+        </StrictMode>,
+      );
+
+      // setDoubled(0*2) = setDoubled(0) is a no-op, so no extra render
+      expect(events).toEqual([
+        "render count=0 doubled=0",
+        "render count=0 doubled=0",
+        "effect count=0",
+        "cleanup count=0",
+        "effect count=0",
+      ]);
+    });
+
+    it("should handle effect with dependencies and setState after state change", () => {
+      const events: string[] = [];
+
+      function TestComponent() {
+        const [count, setCount] = useState(0);
+        const [doubled, setDoubled] = useState(0);
+        events.push(`render count=${count} doubled=${doubled}`);
+
+        useEffect(() => {
+          events.push(`effect count=${count}`);
+          setDoubled(count * 2);
+          return () => {
+            events.push(`cleanup count=${count}`);
+          };
+        }, [count]);
+
+        return (
+          <button onClick={() => setCount((c) => c + 1)}>Click</button>
+        );
+      }
+
+      const { getByRole } = render(
+        <StrictMode>
+          <TestComponent />
+        </StrictMode>,
+      );
+
+      events.length = 0;
+
+      fireEvent.click(getByRole("button"));
+
+      // Double-render with new count, effect sets doubled=2, triggers another double-render
+      expect(events).toEqual([
+        "render count=1 doubled=0",
+        "render count=1 doubled=0",
+        "cleanup count=0",
+        "effect count=1",
+        "render count=1 doubled=2",
+        "render count=1 doubled=2",
+      ]);
+    });
+  });
 });

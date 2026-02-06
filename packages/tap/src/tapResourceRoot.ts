@@ -4,15 +4,18 @@ import {
   renderResourceFiber,
   unmountResourceFiber,
 } from "./core/ResourceFiber";
-import { flushResourcesSync, UpdateScheduler } from "./core/scheduler";
+import { UpdateScheduler } from "./core/scheduler";
 import { tapConst } from "./hooks/tap-const";
 import { tapMemo } from "./hooks/tap-memo";
 import { tapEffect } from "./hooks/tap-effect";
 import { tapEffectEvent } from "./hooks/tap-effect-event";
 import { tapRef } from "./hooks/tap-ref";
 import { RenderResult, ResourceElement } from "./core/types";
+import { isDevelopment } from "./core/helpers/env";
+import { getCurrentResourceFiber } from "./core/helpers/execution-context";
+import { commitRoot } from "./core/helpers/root";
 
-export namespace tapSubscribableResource {
+export namespace tapResourceRoot {
   export type Unsubscribe = () => void;
 
   export interface SubscribableResource<TState> {
@@ -28,51 +31,57 @@ export namespace tapSubscribableResource {
   }
 }
 
-export const tapSubscribableResource = <TState>(
+// currently we never reset the root, because rollbakcs are not supported in tapResourceRoot
+
+export const tapResourceRoot = <TState>(
   element: ResourceElement<TState>,
-): tapSubscribableResource.SubscribableResource<TState> => {
+): tapResourceRoot.SubscribableResource<TState> => {
   const scheduler = tapConst(
-    () =>
-      new UpdateScheduler(() => {
-        lastRenderRef.current = null;
-        handleUpdate();
-      }),
+    () => new UpdateScheduler(() => handleUpdate(null)),
     [],
   );
+  const outerFiber = getCurrentResourceFiber();
   const fiber = tapMemo(() => {
     void element.key;
 
-    return createResourceFiber(element.type, (callback) => {
-      if (callback()) {
-        scheduler.markDirty();
-      }
+    return createResourceFiber(element.type, {
+      dispatchUpdate: (callback) => {
+        outerFiber.root.dispatchUpdate(() => {
+          if (callback()) {
+            scheduler.markDirty();
+          }
+          return false;
+        });
+      },
+      dirtyCells: [],
     });
-  }, [element.type, element.key]);
+  }, [outerFiber, element.type, element.key]);
 
-  const lastRenderRef = tapRef<RenderResult | null>(null);
-  lastRenderRef.current = renderResourceFiber(fiber, element.props);
+  const render = renderResourceFiber(fiber, element.props);
 
   const isMountedRef = tapRef(false);
   const committedPropsRef = tapRef(element.props);
-  const valueRef = tapRef<TState>(lastRenderRef.current.output);
+  const valueRef = tapRef<TState>(render.output);
   const subscribers = tapConst(() => new Set<() => void>(), []);
-  const handleUpdate = tapEffectEvent(() => {
+  const handleUpdate = tapEffectEvent((render: RenderResult | null) => {
     if (!isMountedRef.current) return; // skip update if not mounted
 
-    if (lastRenderRef.current === null) {
-      lastRenderRef.current = renderResourceFiber(
-        fiber,
-        committedPropsRef.current,
-      );
+    if (render === null) {
+      if (isDevelopment && fiber.devStrictMode) {
+        void renderResourceFiber(fiber, committedPropsRef.current);
+      }
+
+      render = renderResourceFiber(fiber, committedPropsRef.current);
     }
 
     if (scheduler.isDirty) return;
-    committedPropsRef.current = lastRenderRef.current.props;
-    commitResourceFiber(fiber, lastRenderRef.current);
+    committedPropsRef.current = render.props;
 
-    if (scheduler.isDirty || valueRef.current === lastRenderRef.current.output)
-      return;
-    valueRef.current = lastRenderRef.current.output;
+    commitRoot(fiber.root);
+    commitResourceFiber(fiber, render);
+
+    if (scheduler.isDirty || valueRef.current === render.output) return;
+    valueRef.current = render.output;
     subscribers.forEach((callback) => callback());
   });
 
@@ -85,7 +94,7 @@ export const tapSubscribableResource = <TState>(
   }, [fiber]);
 
   tapEffect(() => {
-    flushResourcesSync(handleUpdate);
+    handleUpdate(render);
   });
 
   return tapMemo(

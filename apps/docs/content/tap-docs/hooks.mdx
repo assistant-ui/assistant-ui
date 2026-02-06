@@ -32,6 +32,76 @@ setCount(5);
 setCount((prev) => prev + 1);
 ```
 
+## tapReducer
+
+Manage complex state with a reducer function. Identical to React's `useReducer`.
+
+```ts
+type Action = { type: "increment" } | { type: "decrement" };
+
+const [count, dispatch] = tapReducer(
+  (state: number, action: Action) => {
+    switch (action.type) {
+      case "increment": return state + 1;
+      case "decrement": return state - 1;
+    }
+  },
+  0,
+);
+
+dispatch({ type: "increment" });
+```
+
+With a lazy initializer:
+
+```ts
+const [state, dispatch] = tapReducer(reducer, initialArg, (arg) => createInitialState(arg));
+```
+
+## tapReducerWithDerivedState
+
+<Callout type="warn">
+This API is experimental and may change.
+</Callout>
+
+Like `tapReducer`, but with a `getDerivedState` function that transforms the state after every reducer update. If `getDerivedState` returns a new value (by `Object.is`), the derived value becomes the current state and triggers a re-render.
+
+```ts
+type Todo = { id: string; text: string; done: boolean };
+type State = { todos: Todo[]; doneCount: number };
+type Action = { type: "toggle"; id: string };
+
+const [state, dispatch] = tapReducerWithDerivedState(
+  (state: State, action: Action): State => {
+    switch (action.type) {
+      case "toggle":
+        return {
+          ...state,
+          todos: state.todos.map((t) =>
+            t.id === action.id ? { ...t, done: !t.done } : t,
+          ),
+        };
+    }
+  },
+  (state) => ({
+    ...state,
+    doneCount: state.todos.filter((t) => t.done).length,
+  }),
+  { todos: initialTodos, doneCount: 0 },
+);
+```
+
+With a lazy initializer:
+
+```ts
+const [state, dispatch] = tapReducerWithDerivedState(
+  reducer,
+  getDerivedState,
+  initialArg,
+  (arg) => createInitialState(arg),
+);
+```
+
 ## tapEffect
 
 Side effects with automatic cleanup.
@@ -123,7 +193,7 @@ Resources can render other resources. These hooks manage child resource lifecycl
 
 - **`tapResource`** — render a single child resource
 - **`tapResources`** — render a keyed list of child resources
-- **`tapSubscribableResource`** — wrap a child resource with `getValue`/`subscribe`
+- **`tapResourceRoot`** — wrap a child resource with `getValue`/`subscribe`
 
 <Cards>
   <Card title="Resource Composition" href="/tap/docs/composition">
@@ -136,6 +206,8 @@ Resources can render other resources. These hooks manage child resource lifecycl
 | React | tap | Behavior |
 | --- | --- | --- |
 | `useState` | `tapState` | Identical |
+| `useReducer` | `tapReducer` | Identical |
+| — | `tapReducerWithDerivedState` | Reducer with derived state |
 | `useEffect` | `tapEffect` | Identical |
 | `useMemo` | `tapMemo` | Identical |
 | `useCallback` | `tapCallback` | Identical |

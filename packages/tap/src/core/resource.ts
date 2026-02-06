@@ -1,5 +1,5 @@
 import { ResourceElement } from "./types";
-import { fnSymbol } from "./callResourceFn";
+import { fnSymbol } from "./helpers/callResourceFn";
 
 export function resource<R>(fn: () => R): () => ResourceElement<R, undefined>;
 export function resource<R, P>(

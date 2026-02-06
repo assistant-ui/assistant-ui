@@ -37,7 +37,6 @@ export type ThreadListItemEvents = {
 };
 
 export type ThreadListItemClientSchema = {
-  state: ThreadListItemState;
   methods: ThreadListItemMethods;
   meta: ThreadListItemMeta;
   events: ThreadListItemEvents;

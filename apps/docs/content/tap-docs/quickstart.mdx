@@ -32,12 +32,13 @@ const Counter = resource(() => {
 
 ## Use it
 
-Create an instance with `createResource`, then read state and call methods on it.
+Create an instance with `createResourceRoot`, then read state and call methods on it.
 
 ```ts
-import { createResource } from "@assistant-ui/tap";
+import { createResourceRoot } from "@assistant-ui/tap";
 
-const handle = createResource(Counter());
+const root = createResourceRoot();
+const handle = root.render(Counter());
 
 // subscribe to changes
 handle.subscribe(() => {
@@ -49,7 +50,7 @@ handle.getValue().increment(); // logs: "Count: 1"
 handle.getValue().increment(); // logs: "Count: 2"
 
 // cleanup
-handle.unmount();
+root.unmount();
 ```
 
 ## Use it in React

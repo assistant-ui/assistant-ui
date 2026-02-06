@@ -133,38 +133,34 @@ const MessageClient = resource(
     ]);
 
     return {
-      state,
-      methods: {
-        getState: () => state,
-        composer: composerClient.methods,
-        reload: () => {
-          onReload?.();
-        },
-        speak: () => {},
-        stopSpeaking: () => {},
-        submitFeedback: () => {},
-        switchToBranch: () => {},
-        getCopyText: () =>
-          message.content.map((c) => ("text" in c ? c.text : "")).join(""),
-        part: (selector) => {
-          if ("index" in selector) {
-            return partClients.get(selector);
-          }
-          const partIndex = state.parts.findIndex(
-            (p) =>
-              p.type === "tool-call" && p.toolCallId === selector.toolCallId,
-          );
-          return partClients.get({ index: partIndex });
-        },
-        attachment: (selector) => {
-          if ("id" in selector) {
-            return attachmentClients.get({ key: selector.id });
-          }
-          return attachmentClients.get(selector);
-        },
-        setIsCopied,
-        setIsHovering,
+      getState: () => state,
+      composer: () => composerClient.methods,
+      reload: () => {
+        onReload?.();
       },
+      speak: () => {},
+      stopSpeaking: () => {},
+      submitFeedback: () => {},
+      switchToBranch: () => {},
+      getCopyText: () =>
+        message.content.map((c) => ("text" in c ? c.text : "")).join(""),
+      part: (selector) => {
+        if ("index" in selector) {
+          return partClients.get(selector);
+        }
+        const partIndex = state.parts.findIndex(
+          (p) => p.type === "tool-call" && p.toolCallId === selector.toolCallId,
+        );
+        return partClients.get({ index: partIndex });
+      },
+      attachment: (selector) => {
+        if ("id" in selector) {
+          return attachmentClients.get({ key: selector.id });
+        }
+        return attachmentClients.get(selector);
+      },
+      setIsCopied,
+      setIsHovering,
     };
   },
 );
@@ -185,12 +181,9 @@ const PartResource = resource(
     );
 
     return {
-      state,
-      methods: {
-        getState: () => state,
-        addToolResult: () => {},
-        resumeToolCall: () => {},
-      },
+      getState: () => state,
+      addToolResult: () => {},
+      resumeToolCall: () => {},
     };
   },
 );
@@ -207,12 +200,9 @@ const AttachmentResource = resource(
     onRemove,
   }: AttachmentResourceProps): ClientOutput<"attachment"> => {
     return {
-      state: attachment,
-      methods: {
-        getState: () => attachment,
-        remove: async () => {
-          onRemove?.();
-        },
+      getState: () => attachment,
+      remove: async () => {
+        onRemove?.();
       },
     };
   },
@@ -314,65 +304,62 @@ const ComposerClientResource = resource(
     );
 
     return {
-      state,
-      methods: {
-        getState: () => state,
-        setText,
-        setRole,
-        setRunConfig,
-        addAttachment: async (file: File) => {
-          const newAttachment: Attachment = {
-            id: Math.random().toString(36).substring(7),
-            type: "file",
-            name: file.name,
-            contentType: file.type,
-            file,
-            status: { type: "complete" },
-            content: [],
-          };
-          setAttachments([...attachments, newAttachment]);
-        },
-        clearAttachments: async () => {
-          setAttachments([]);
-        },
-        attachment: (selector) => {
-          if ("id" in selector) {
-            return attachmentClients.get({ key: selector.id });
-          }
-          return attachmentClients.get(selector);
-        },
-        reset: async () => {
-          setText("");
-          setRole("user");
-          setRunConfig({});
-          setAttachments([]);
-          setQuote(undefined);
-        },
-        send: () => {
-          const currentQuote = quote;
-          const message = {
-            role,
-            content: text ? [{ type: "text" as const, text }] : [],
-            attachments: attachments as any,
-            createdAt: new Date(),
-            runConfig,
-            metadata: {
-              custom: { ...(currentQuote ? { quote: currentQuote } : {}) },
-            },
-          };
-          onSend?.(message);
-          setText("");
-          setAttachments([]);
-          setQuote(undefined);
-        },
-        cancel: onCancel,
-        beginEdit: () => {
-          onBeginEdit?.();
-        },
-        startDictation: () => {},
-        stopDictation: () => {},
-        setQuote,
+      getState: () => state,
+      setText,
+      setRole,
+      setRunConfig,
+      addAttachment: async (file: File) => {
+        const newAttachment: Attachment = {
+          id: Math.random().toString(36).substring(7),
+          type: "file",
+          name: file.name,
+          contentType: file.type,
+          file,
+          status: { type: "complete" },
+          content: [],
+        };
+        setAttachments([...attachments, newAttachment]);
       },
+      clearAttachments: async () => {
+        setAttachments([]);
+      },
+      attachment: (selector) => {
+        if ("id" in selector) {
+          return attachmentClients.get({ key: selector.id });
+        }
+        return attachmentClients.get(selector);
+      },
+      reset: async () => {
+        setText("");
+        setRole("user");
+        setRunConfig({});
+        setAttachments([]);
+        setQuote(undefined);
+      },
+      send: () => {
+        const currentQuote = quote;
+        const message = {
+          role,
+          content: text ? [{ type: "text" as const, text }] : [],
+          attachments: attachments as any,
+          createdAt: new Date(),
+          runConfig,
+          metadata: {
+            custom: { ...(currentQuote ? { quote: currentQuote } : {}) },
+          },
+        };
+        onSend?.(message);
+        setText("");
+        setAttachments([]);
+        setQuote(undefined);
+      },
+      cancel: onCancel,
+      beginEdit: () => {
+        onBeginEdit?.();
+      },
+      startDictation: () => {},
+      stopDictation: () => {},
+      setQuote,
     };
   },
 );
@@ -461,32 +448,29 @@ export const ExternalThread = resource(
     }, [messages, isRunning, messageClients.state, composerClient.state]);
 
     return {
-      state,
-      methods: {
-        getState: () => state,
-        composer: composerClient.methods,
-        append: (message) => {
-          onNew?.(message);
-        },
-        startRun: () => {
-          onStartRun?.();
-        },
-        unstable_resumeRun: () => {},
-        cancelRun: handleCancelRun,
-        getModelContext: () => ({ tools: {}, config: {} }),
-        export: () => ({ messages: [] }),
-        import: () => {},
-        reset: () => {},
-        message: (selector) => {
-          if ("id" in selector) {
-            return messageClients.get({ key: selector.id });
-          }
-          return messageClients.get(selector);
-        },
-        stopSpeaking: () => {},
-        startVoice: async () => {},
-        stopVoice: async () => {},
+      getState: () => state,
+      composer: () => composerClient.methods,
+      append: (message) => {
+        onNew?.(message);
       },
+      startRun: () => {
+        onStartRun?.();
+      },
+      unstable_resumeRun: () => {},
+      cancelRun: handleCancelRun,
+      getModelContext: () => ({ tools: {}, config: {} }),
+      export: () => ({ messages: [] }),
+      import: () => {},
+      reset: () => {},
+      message: (selector) => {
+        if ("id" in selector) {
+          return messageClients.get({ key: selector.id });
+        }
+        return messageClients.get(selector);
+      },
+      stopSpeaking: () => {},
+      startVoice: async () => {},
+      stopVoice: async () => {},
     };
   },
 );
@@ -498,6 +482,6 @@ attachDefaultPeers(ExternalThread, {
   composer: Derived({
     source: "thread",
     query: {},
-    get: (aui) => aui.thread().composer,
+    get: (aui) => aui.thread().composer(),
   }),
 });

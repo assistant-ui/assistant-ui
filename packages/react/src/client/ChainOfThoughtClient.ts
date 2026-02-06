@@ -32,12 +32,9 @@ export const ChainOfThoughtClient = resource(
     );
 
     return {
-      state,
-      methods: {
-        getState: () => state,
-        setCollapsed,
-        part: getMessagePart,
-      },
+      getState: () => state,
+      setCollapsed,
+      part: getMessagePart,
     };
   },
 );

@@ -11,7 +11,7 @@ import {
   tapRef,
   tapResource,
   withKey,
-  tapSubscribableResource,
+  tapResourceRoot,
 } from "@assistant-ui/tap";
 import type {
   AssistantClient,
@@ -81,7 +81,7 @@ const RootClientAccessorResource = resource(
     clientRef: { parent: AssistantClient; current: AssistantClient | null };
     name: K;
   }): AssistantClientAccessor<K> => {
-    const store = tapSubscribableResource(
+    const store = tapResourceRoot(
       RootClientResource({ element, emit: notifications.emit, clientRef }),
     );
 

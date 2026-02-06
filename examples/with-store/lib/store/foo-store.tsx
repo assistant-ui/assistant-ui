@@ -36,12 +36,9 @@ export const FooItemResource = resource(
     };
 
     return {
-      state,
-      methods: {
-        getState: () => state,
-        updateBar,
-        remove: handleRemove,
-      },
+      getState: () => state,
+      updateBar,
+      remove: handleRemove,
     };
   },
 );
@@ -72,12 +69,9 @@ export const FooListResource = resource(
     const state = tapMemo(() => ({ foos: foos.state }), [foos.state]);
 
     return {
-      state,
-      methods: {
-        getState: () => state,
-        foo: foos.get,
-        addFoo,
-      },
+      getState: () => state,
+      foo: foos.get,
+      addFoo,
     };
   },
 );

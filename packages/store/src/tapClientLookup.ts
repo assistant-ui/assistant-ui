@@ -4,31 +4,34 @@ import {
   tapResources,
   type ResourceElement,
 } from "@assistant-ui/tap";
-import type { ClientMethods, ClientOutputOf } from "./types/client";
+import type { ClientMethods } from "./types/client";
 import { ClientResource } from "./tapClientResource";
 import { wrapperResource } from "./wrapperResource";
 
+type InferClientState<TMethods> = TMethods extends {
+  getState: () => infer S;
+}
+  ? S
+  : unknown;
+
 const ClientResourceWithKey = wrapperResource(
-  <TState, TMethods extends ClientMethods>(
-    el: ResourceElement<ClientOutputOf<TState, TMethods>>,
-  ) => {
+  <TMethods extends ClientMethods>(el: ResourceElement<TMethods>) => {
     if (el.key === undefined) {
       throw new Error("tapClientResource: Element has no key");
     }
-    return tapInlineResource(ClientResource(el)) as ClientOutputOf<
-      TState,
-      TMethods
-    > & { key: string | number };
+    return tapInlineResource(ClientResource(el)) as {
+      methods: TMethods;
+      state: InferClientState<TMethods>;
+      key: string | number;
+    };
   },
 );
 
-export function tapClientLookup<TState, TMethods extends ClientMethods>(
-  getElements: () => readonly ResourceElement<
-    ClientOutputOf<TState, TMethods>
-  >[],
+export function tapClientLookup<TMethods extends ClientMethods>(
+  getElements: () => readonly ResourceElement<TMethods>[],
   getElementsDeps: readonly unknown[],
 ): {
-  state: TState[];
+  state: InferClientState<TMethods>[];
   get: (lookup: { index: number } | { key: string }) => TMethods;
 } {
   const resources = tapResources(

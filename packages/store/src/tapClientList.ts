@@ -1,7 +1,13 @@
 import { tapConst, tapState, withKey } from "@assistant-ui/tap";
 import type { ContravariantResource } from "@assistant-ui/tap";
 import { tapClientLookup } from "./tapClientLookup";
-import type { ClientMethods, ClientOutputOf } from "./types/client";
+import type { ClientMethods } from "./types/client";
+
+type InferClientState<TMethods> = TMethods extends {
+  getState: () => infer S;
+}
+  ? S
+  : unknown;
 
 type DataHandle<TData> = { data: TData | undefined; hasData: boolean };
 
@@ -24,10 +30,10 @@ const createProps = <TData>(
   };
 };
 
-export const tapClientList = <TData, TState, TMethods extends ClientMethods>(
-  props: tapClientList.Props<TData, TState, TMethods>,
+export const tapClientList = <TData, TMethods extends ClientMethods>(
+  props: tapClientList.Props<TData, TMethods>,
 ): {
-  state: TState[];
+  state: InferClientState<TMethods>[];
   get: (lookup: { index: number } | { key: string }) => TMethods;
   add: (initialData: TData) => void;
 } => {
@@ -57,7 +63,7 @@ export const tapClientList = <TData, TState, TMethods extends ClientMethods>(
     return Object.fromEntries(entries);
   });
 
-  const lookup = tapClientLookup<TState, TMethods>(
+  const lookup = tapClientLookup<TMethods>(
     () =>
       Object.values(items).map((props) => withKey(props.key, Resource(props))),
     [items, Resource],
@@ -107,12 +113,9 @@ export namespace tapClientList {
     remove: () => void;
   };
 
-  export type Props<TData, TState, TMethods extends ClientMethods> = {
+  export type Props<TData, TMethods extends ClientMethods> = {
     initialValues: TData[];
     getKey: (data: TData) => string;
-    resource: ContravariantResource<
-      ClientOutputOf<TState, TMethods>,
-      ResourceProps<TData>
-    >;
+    resource: ContravariantResource<TMethods, ResourceProps<TData>>;
   };
 }

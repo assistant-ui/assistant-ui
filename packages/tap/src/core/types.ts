@@ -1,6 +1,5 @@
 import type { tapEffect } from "../hooks/tap-effect";
-import type { tapState } from "../hooks/tap-state";
-import type { fnSymbol } from "./callResourceFn";
+import type { fnSymbol } from "./helpers/callResourceFn";
 
 export type ResourceElement<R, P = any> = {
   readonly type: Resource<R, P> & { [fnSymbol]: (props: P) => R };
@@ -18,11 +17,22 @@ export type ExtractResourceReturnType<T> =
       ? R
       : never;
 
+export interface ReducerQueueEntry {
+  readonly action: any;
+  hasEagerState: boolean;
+  eagerState: any;
+}
+
 export type Cell =
   | {
-      readonly type: "state";
-      value: any;
-      set: (updater: tapState.StateUpdater<any>) => void;
+      readonly type: "reducer";
+      readonly dispatch: (action: any) => void;
+
+      readonly queue: ReducerQueueEntry[];
+      dirty: boolean;
+      workInProgress: any;
+      current: any;
+      reducer: (state: any, action: any) => any;
     }
   | {
       readonly type: "effect";
@@ -39,12 +49,18 @@ export interface EffectTask {
 export interface RenderResult {
   readonly output: any;
   readonly props: any;
-  readonly commitTasks: (() => void)[];
+  readonly effectTasks: (() => void)[];
+}
+
+export interface ResourceFiberRoot {
+  readonly dispatchUpdate: (callback: () => boolean) => void;
+  readonly dirtyCells: (Cell & { type: "reducer" })[];
 }
 
 export interface ResourceFiber<R, P> {
-  readonly dispatchUpdate: (callback: () => boolean) => void;
+  readonly root: ResourceFiberRoot;
   readonly type: Resource<R, P>;
+  readonly markDirty: (() => void) | undefined;
   readonly devStrictMode: "root" | "child" | null;
 
   cells: Cell[];

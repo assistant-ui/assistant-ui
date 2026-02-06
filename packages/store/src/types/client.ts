@@ -9,7 +9,7 @@ import type {
  * Base type for methods that can be called on a client.
  */
 export interface ClientMethods {
-  [key: string | symbol]: ((...args: any[]) => any) | ClientMethods;
+  [key: string | symbol]: (...args: any[]) => any;
 }
 
 type ClientMetaType = { source: ClientNames; query: Record<string, unknown> };
@@ -23,12 +23,10 @@ type ClientMetaType = { source: ClientNames; query: Record<string, unknown> };
  * @internal
  */
 export type ClientSchema<
-  TState = unknown,
   TMethods extends ClientMethods = ClientMethods,
   TMeta extends ClientMetaType = never,
   TEvents extends Record<string, unknown> = never,
 > = {
-  state: TState;
   methods: TMethods;
   meta?: TMeta;
   events?: TEvents;
@@ -43,13 +41,17 @@ export type ClientSchema<
  *   interface ClientRegistry {
  *     // Simple client (meta and events are optional)
  *     foo: {
- *       state: { bar: string };
- *       methods: { updateBar: (bar: string) => void };
+ *       methods: {
+ *         getState: () => { bar: string };
+ *         updateBar: (bar: string) => void;
+ *       };
  *     };
  *     // Full client with meta and events
  *     bar: {
- *       state: { id: string };
- *       methods: { update: () => void };
+ *       methods: {
+ *         getState: () => { id: string };
+ *         update: () => void;
+ *       };
  *       meta: { source: "fooList"; query: { index: number } };
  *       events: {
  *         "bar.updated": { id: string };
@@ -67,7 +69,6 @@ type ClientEventsType<K extends ClientNames> = Record<
 >;
 
 type ClientError<E extends string> = {
-  state: E;
   methods: Record<E, () => E>;
   meta: { source: ClientNames; query: Record<E, E> };
   events: Record<`${E}.`, E>;
@@ -97,33 +98,21 @@ type ClientSchemas = keyof ClientRegistry extends never
   : { [K in keyof ClientRegistry]: ValidateClient<K> };
 
 /**
- * Output type that client resources return with state and methods.
+ * Output type that client resources return (just methods).
  *
  * @example
  * ```typescript
  * const FooResource = resource((): ClientResourceOutput<"foo"> => {
  *   const [state, setState] = tapState({ bar: "hello" });
  *   return {
- *     state,
- *     methods: {
- *       updateBar: (b) => setState({ bar: b })
- *     }
+ *     getState: () => state,
+ *     updateBar: (b) => setState({ bar: b }),
  *   };
  * });
  * ```
  */
-export type ClientOutput<K extends ClientNames> = ClientOutputOf<
-  ClientSchemas[K]["state"],
-  ClientSchemas[K]["methods"] & ClientMethods
->;
-
-/**
- * Generic version of ClientResourceOutput for library code.
- */
-export type ClientOutputOf<TState, TMethods extends ClientMethods> = {
-  state: TState;
-  methods: TMethods;
-};
+export type ClientOutput<K extends ClientNames> = ClientSchemas[K]["methods"] &
+  ClientMethods;
 
 export type ClientNames = keyof ClientSchemas extends infer U ? U : never;
 
@@ -154,10 +143,14 @@ export type ClientElement<K extends ClientNames> = ResourceElement<
 export type Unsubscribe = () => void;
 
 /**
- * State type extracted from all clients.
+ * State type extracted from all clients via their getState() methods.
  */
 export type AssistantState = {
-  [K in ClientNames]: ClientSchemas[K]["state"];
+  [K in ClientNames]: ClientSchemas[K]["methods"] extends {
+    getState: () => infer S;
+  }
+    ? S
+    : never;
 };
 
 /**

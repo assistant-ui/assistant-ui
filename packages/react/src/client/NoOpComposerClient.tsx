@@ -22,48 +22,45 @@ export const NoOpComposerClient = resource(
     }, [type]);
 
     return {
-      state,
-      methods: {
-        getState: () => state,
-        setText: () => {
-          throw new Error("Not supported");
-        },
-        setRole: () => {
-          throw new Error("Not supported");
-        },
-        setRunConfig: () => {
-          throw new Error("Not supported");
-        },
-        addAttachment: () => {
-          throw new Error("Not supported");
-        },
-        clearAttachments: () => {
-          throw new Error("Not supported");
-        },
-        attachment: () => {
-          throw new Error("Not supported");
-        },
-        reset: () => {
-          throw new Error("Not supported");
-        },
-        send: () => {
-          throw new Error("Not supported");
-        },
-        cancel: () => {
-          throw new Error("Not supported");
-        },
-        startDictation: () => {
-          throw new Error("Not supported");
-        },
-        stopDictation: () => {
-          throw new Error("Not supported");
-        },
-        beginEdit: () => {
-          throw new Error("Not supported");
-        },
-        setQuote: () => {
-          throw new Error("Not supported");
-        },
+      getState: () => state,
+      setText: () => {
+        throw new Error("Not supported");
+      },
+      setRole: () => {
+        throw new Error("Not supported");
+      },
+      setRunConfig: () => {
+        throw new Error("Not supported");
+      },
+      addAttachment: () => {
+        throw new Error("Not supported");
+      },
+      clearAttachments: () => {
+        throw new Error("Not supported");
+      },
+      attachment: () => {
+        throw new Error("Not supported");
+      },
+      reset: () => {
+        throw new Error("Not supported");
+      },
+      send: () => {
+        throw new Error("Not supported");
+      },
+      cancel: () => {
+        throw new Error("Not supported");
+      },
+      startDictation: () => {
+        throw new Error("Not supported");
+      },
+      stopDictation: () => {
+        throw new Error("Not supported");
+      },
+      beginEdit: () => {
+        throw new Error("Not supported");
+      },
+      setQuote: () => {
+        throw new Error("Not supported");
       },
     };
   },

@@ -66,7 +66,7 @@ A resource is **unmounted** when its owner removes it — all effect cleanups ru
 
 - A parent resource stops rendering the child via `tapResource`
 - A React component using `useResource` unmounts
-- `handle.unmount()` is called on a `createResource` handle
+- `root.unmount()` is called on a `createResourceRoot` root
 
 ## Concurrent mode
 
@@ -79,10 +79,6 @@ Concurrent mode support is coming soon.
 In development, tap supports React-style strict mode. When enabled, resources render twice on mount to help detect side effects in the render phase.
 
 - **`useResource`** inherits React's strict mode setting automatically — if your component is inside `<StrictMode>`, the resource runs in strict mode too.
-- **`createResource`** lets you opt in explicitly via the `devStrictMode` option:
-
-```ts
-const handle = createResource(Counter(), { devStrictMode: true });
-```
+- **`createResourceRoot`** automatically enables strict mode in development.
 
 This is the same behavior as React's `<StrictMode>` — double-rendering helps surface unintentional side effects during the render phase.

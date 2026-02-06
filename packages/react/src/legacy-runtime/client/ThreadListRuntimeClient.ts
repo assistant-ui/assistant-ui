@@ -45,7 +45,6 @@ export const ThreadListClient = resource(
         runtime: runtime.main,
       }),
     );
-
     const threadItems = tapClientLookup(
       () =>
         Object.keys(runtimeState.threadItems).map((id) =>
@@ -68,33 +67,30 @@ export const ThreadListClient = resource(
     }, [runtimeState, threadItems.state, main.state]);
 
     return {
-      state,
-      methods: {
-        getState: () => state,
-        thread: () => main.methods,
-        item: (threadIdOrOptions) => {
-          if (threadIdOrOptions === "main") {
-            return threadItems.get({ key: state.mainThreadId });
-          }
+      getState: () => state,
+      thread: () => main.methods,
+      item: (threadIdOrOptions) => {
+        if (threadIdOrOptions === "main") {
+          return threadItems.get({ key: state.mainThreadId });
+        }
 
-          if ("id" in threadIdOrOptions) {
-            return threadItems.get({ key: threadIdOrOptions.id });
-          }
+        if ("id" in threadIdOrOptions) {
+          return threadItems.get({ key: threadIdOrOptions.id });
+        }
 
-          const { index, archived = false } = threadIdOrOptions;
-          const id = archived
-            ? state.archivedThreadIds[index]!
-            : state.threadIds[index]!;
-          return threadItems.get({ key: id });
-        },
-        switchToThread: async (threadId) => {
-          await runtime.switchToThread(threadId);
-        },
-        switchToNewThread: async () => {
-          await runtime.switchToNewThread();
-        },
-        __internal_getAssistantRuntime: () => __internal_assistantRuntime,
+        const { index, archived = false } = threadIdOrOptions;
+        const id = archived
+          ? state.archivedThreadIds[index]!
+          : state.threadIds[index]!;
+        return threadItems.get({ key: id });
       },
+      switchToThread: async (threadId) => {
+        await runtime.switchToThread(threadId);
+      },
+      switchToNewThread: async () => {
+        await runtime.switchToNewThread();
+      },
+      __internal_getAssistantRuntime: () => __internal_assistantRuntime,
     };
   },
 );

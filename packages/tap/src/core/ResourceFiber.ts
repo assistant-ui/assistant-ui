@@ -1,17 +1,27 @@
-import { ResourceFiber, RenderResult, Resource } from "./types";
-import { commitRender, cleanupAllEffects } from "./commit";
-import { getDevStrictMode, withResourceFiber } from "./execution-context";
-import { callResourceFn } from "./callResourceFn";
-import { isDevelopment } from "./env";
+import {
+  ResourceFiber,
+  RenderResult,
+  Resource,
+  ResourceFiberRoot,
+} from "./types";
+import { commitAllEffects, cleanupAllEffects } from "./helpers/commit";
+import {
+  getDevStrictMode,
+  withResourceFiber,
+} from "./helpers/execution-context";
+import { callResourceFn } from "./helpers/callResourceFn";
+import { isDevelopment } from "./helpers/env";
 
 export function createResourceFiber<R, P>(
   type: Resource<R, P>,
-  dispatchUpdate: (callback: () => boolean) => void,
+  root: ResourceFiberRoot,
+  markDirty: (() => void) | undefined = undefined,
   strictMode: "root" | "child" | null = getDevStrictMode(false),
 ): ResourceFiber<R, P> {
   return {
     type,
-    dispatchUpdate,
+    root,
+    markDirty,
     devStrictMode: strictMode,
     cells: [],
     currentIndex: 0,
@@ -35,7 +45,7 @@ export function renderResourceFiber<R, P>(
   props: P,
 ): RenderResult {
   const result = {
-    commitTasks: [],
+    effectTasks: [],
     props,
     output: undefined as R | undefined,
   };
@@ -59,10 +69,10 @@ export function commitResourceFiber<R, P>(
   fiber.isMounted = true;
 
   if (isDevelopment && fiber.isNeverMounted && fiber.devStrictMode === "root") {
-    commitRender(result);
+    commitAllEffects(result);
     cleanupAllEffects(fiber);
   }
 
   fiber.isNeverMounted = false;
-  commitRender(result);
+  commitAllEffects(result);
 }

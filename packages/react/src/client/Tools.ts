@@ -83,11 +83,8 @@ export const Tools = resource(
     }, [toolkit, setToolUI, clientRef]);
 
     return {
-      state,
-      methods: {
-        getState: () => state,
-        setToolUI,
-      },
+      getState: () => state,
+      setToolUI,
     };
   },
 );

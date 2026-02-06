@@ -36,7 +36,6 @@ export type ChainOfThoughtMeta = {
 };
 
 export type ChainOfThoughtClientSchema = {
-  state: ChainOfThoughtState;
   methods: ChainOfThoughtMethods;
   meta: ChainOfThoughtMeta;
 };

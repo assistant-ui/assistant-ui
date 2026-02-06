@@ -23,15 +23,12 @@ const TextMessagePartClient = resource(
     );
 
     return {
-      state,
-      methods: {
-        getState: () => state,
-        addToolResult: () => {
-          throw new Error("Not supported");
-        },
-        resumeToolCall: () => {
-          throw new Error("Not supported");
-        },
+      getState: () => state,
+      addToolResult: () => {
+        throw new Error("Not supported");
+      },
+      resumeToolCall: () => {
+        throw new Error("Not supported");
       },
     };
   },
