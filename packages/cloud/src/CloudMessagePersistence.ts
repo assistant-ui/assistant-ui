@@ -49,7 +49,10 @@ export class CloudMessagePersistence {
         return message_id;
       })
       .catch((err) => {
-        delete this.idMapping[messageId];
+        // Only delete if we're still the active task (avoids clobbering a retry)
+        if (this.idMapping[messageId] === task) {
+          delete this.idMapping[messageId];
+        }
         throw err;
       });
 

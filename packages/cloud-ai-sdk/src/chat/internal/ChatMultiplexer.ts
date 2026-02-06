@@ -10,8 +10,6 @@ import type { ChatMeta } from "../../types";
  * - Thread IDs (cloud-persisted thread identifiers)
  * - Chat instances (AI SDK Chat objects)
  * - Metadata (loading state, thread creation promises, etc.)
- *
- * This encapsulates what was previously spread across multiple refs.
  */
 export class ChatMultiplexer {
   private chatByKey = new Map<string, Chat<UIMessage>>();
