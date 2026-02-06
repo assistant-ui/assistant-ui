@@ -1,6 +1,6 @@
 import type { UIMessage, UseChatHelpers } from "@ai-sdk/react";
 import type { ChatInit } from "ai";
-import type { AssistantCloud } from "../AssistantCloud";
+import type { AssistantCloud } from "assistant-cloud";
 
 // ============================================================================
 // Thread Types

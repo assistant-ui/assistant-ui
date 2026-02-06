@@ -6,7 +6,7 @@ import type { UIMessage } from "@ai-sdk/react";
 import { DefaultChatTransport, type ChatTransport } from "ai";
 import type { UseCloudChatOptions, UseCloudChatResult } from "../types";
 import { useThreads } from "../threads/useThreads";
-import { AssistantCloud } from "../../AssistantCloud";
+import { AssistantCloud } from "assistant-cloud";
 import { ChatMultiplexer } from "./internal/ChatMultiplexer";
 import { MessagePersistence } from "./internal/MessagePersistence";
 
@@ -199,8 +199,6 @@ export function useCloudChat(
                 threadsRef.current.selectThread(res.thread_id);
                 threadsRef.current.refresh();
                 return res.thread_id;
-              } catch (err) {
-                throw err;
               } finally {
                 meta.creatingThread = null;
               }

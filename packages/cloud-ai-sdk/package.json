@@ -1,13 +1,14 @@
 {
-  "name": "assistant-cloud",
-  "version": "0.1.17",
-  "description": "Cloud integration for assistant-ui",
+  "name": "@assistant-ui/cloud-ai-sdk",
+  "version": "0.1.0",
+  "description": "AI SDK hooks for assistant-cloud persistence",
   "keywords": [
     "assistant",
     "cloud",
     "ai",
     "chat",
-    "assistant-ui"
+    "assistant-ui",
+    "ai-sdk"
   ],
   "author": "AgentbaseAI Inc.",
   "license": "MIT",
@@ -28,17 +29,30 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "aui-build",
-    "test": "vitest run",
-    "test:watch": "vitest"
+    "build": "aui-build"
   },
   "dependencies": {
-    "assistant-stream": "^0.3.2"
+    "assistant-cloud": "workspace:^0.1.17"
+  },
+  "peerDependencies": {
+    "@ai-sdk/react": "^3.0.0",
+    "@types/react": "*",
+    "ai": "^6.0.0",
+    "react": "^18 || ^19"
+  },
+  "peerDependenciesMeta": {
+    "@types/react": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
+    "@ai-sdk/react": "^3.0.44",
+    "assistant-stream": "^0.3.2",
     "@types/node": "^25.2.1",
-    "vitest": "^4.0.18"
+    "@types/react": "^19.2.7",
+    "ai": "^6.0.42",
+    "react": "^19.2.3"
   },
   "publishConfig": {
     "access": "public",
@@ -48,7 +62,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/assistant-ui/assistant-ui.git",
-    "directory": "packages/cloud"
+    "directory": "packages/cloud-ai-sdk"
   },
   "bugs": {
     "url": "https://github.com/assistant-ui/assistant-ui/issues"

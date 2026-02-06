@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useCloudChat } from "assistant-cloud/ai-sdk";
+import { useCloudChat } from "@assistant-ui/cloud-ai-sdk";
 import { Thread } from "@/components/chat/Thread";
 import { Composer } from "@/components/chat/Composer";
 import { ThreadList } from "@/components/chat/ThreadList";

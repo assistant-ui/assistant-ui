@@ -1,6 +1,6 @@
 "use client";
 
-import type { CloudThread } from "assistant-cloud/ai-sdk";
+import type { CloudThread } from "@assistant-ui/cloud-ai-sdk";
 import { cn } from "@/lib/utils";
 import { Plus, Trash2, MessageSquare } from "lucide-react";
 

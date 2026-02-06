@@ -1,5 +1,5 @@
-import type { AssistantCloud } from "../../AssistantCloud";
-import { MESSAGE_FORMAT } from "../chat/messageFormat";
+import type { AssistantCloud } from "assistant-cloud";
+import { MESSAGE_FORMAT } from "../chat/internal/messageFormat";
 
 /**
  * Generate a title for a thread using AI.
