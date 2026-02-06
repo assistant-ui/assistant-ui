@@ -530,12 +530,12 @@ export default function McpAppStudioPage() {
 
           <p className="mx-auto max-w-2xl text-center text-muted-foreground text-sm">
             Deploy <code>export/widget/</code> to any static host, then update
-            <code> export/manifest.json</code> with the hosted URL. Use that
-            manifest wherever you register the app (ChatGPT or any MCP host like
-            Claude). By default export emits <code>index.html</code>,{" "}
-            <code>widget.js</code>, and <code>widget.css</code>, with optional{" "}
-            <code>--inline</code> for single-file HTML. It’s the same app either
-            way—the host controls which capabilities are available.
+            <code> export/manifest.json</code> with the hosted URL and register
+            it with your MCP host (including ChatGPT and Claude). By default
+            export emits <code>index.html</code>, <code>widget.js</code>, and{" "}
+            <code>widget.css</code>, with optional <code>--inline</code> for
+            single-file HTML. It’s the same app either way; the host controls
+            which capabilities are available.
           </p>
         </div>
 
