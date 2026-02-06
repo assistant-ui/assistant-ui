@@ -1488,9 +1488,11 @@ export const traceFromMessageParts = (
       kind: "step",
       id: group.groupKey ?? `step-${index}`,
       label: meta.label,
-      type: meta.type,
-      status: meta.status ? STEP_TO_TRACE_STATUS[meta.status] : undefined,
-      toolName,
+      ...(meta.type != null ? { type: meta.type } : {}),
+      ...(meta.status != null
+        ? { status: STEP_TO_TRACE_STATUS[meta.status] }
+        : {}),
+      ...(toolName != null ? { toolName } : {}),
     } satisfies TraceStep;
   });
 };
@@ -1827,16 +1829,16 @@ function ChainOfThoughtTraceNode({
     return (
       <ChainOfThoughtTraceGroupNode
         group={node}
-        style={style}
-        className={className}
+        {...(style != null ? { style } : {})}
+        {...(className != null ? { className } : {})}
       />
     );
   }
   return (
     <ChainOfThoughtTraceStepNode
       step={node}
-      style={style}
-      className={className}
+      {...(style != null ? { style } : {})}
+      {...(className != null ? { className } : {})}
     />
   );
 }
@@ -1957,7 +1959,7 @@ function ChainOfThoughtTraceGroupNode({
         >
           <GroupSummary
             group={group}
-            latestStep={latestStep}
+            {...(latestStep != null ? { latestStep } : {})}
             isOpen={isOpen}
             canExpand={canExpand}
             depth={depth}
@@ -2006,7 +2008,11 @@ function ChainOfThoughtTraceNodes({
   ...timelineProps
 }: ChainOfThoughtTraceNodesProps) {
   const treeConfig = useMemo<TraceTreeConfig>(
-    () => ({ maxDepth, nodeComponents, allowGroupExpand }),
+    () => ({
+      maxDepth,
+      ...(nodeComponents != null ? { nodeComponents } : {}),
+      allowGroupExpand,
+    }),
     [maxDepth, nodeComponents, allowGroupExpand],
   );
 
@@ -2080,7 +2086,10 @@ function ChainOfThoughtTraceDisclosureNodes({
   const summaryLabel = useMemo(() => {
     if (typeof summary === "string") return summary;
     if (typeof summary === "function") {
-      return summary({ ...stats, durationSec });
+      return summary({
+        ...stats,
+        ...(durationSec != null ? { durationSec } : {}),
+      });
     }
     return summarizeTraceStats(stats, durationSec);
   }, [durationSec, stats, summary]);
@@ -2147,7 +2156,10 @@ function ChainOfThoughtTraceDisclosureParts({
   const summaryLabel = useMemo(() => {
     if (typeof summary === "string") return summary;
     if (typeof summary === "function") {
-      return summary({ ...stats, durationSec });
+      return summary({
+        ...stats,
+        ...(durationSec != null ? { durationSec } : {}),
+      });
     }
     return summarizeTraceStats(stats, durationSec);
   }, [durationSec, stats, summary]);
@@ -2197,7 +2209,7 @@ function ChainOfThoughtTrace(props: ChainOfThoughtTraceProps) {
     return (
       <ChainOfThoughtTraceNodes
         trace={trace}
-        nodeComponents={nodeComponents}
+        {...(nodeComponents != null ? { nodeComponents } : {})}
         maxDepth={maxDepth ?? 2}
         {...timelineProps}
       />
