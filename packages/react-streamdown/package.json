@@ -72,7 +72,7 @@
     "@streamdown/code": "^1.0.1",
     "@testing-library/react": "^16.3.2",
     "@types/hast": "^3.0.4",
-    "@types/react": "^19.2.10",
+    "@types/react": "^19.2.13",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "remark-rehype": "^11.1.2",

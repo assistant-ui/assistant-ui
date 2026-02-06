@@ -34,8 +34,8 @@
     "build": "aui-build"
   },
   "dependencies": {
-    "@ai-sdk/react": "^3.0.71",
-    "ai": "^6.0.69",
+    "@ai-sdk/react": "^3.0.75",
+    "ai": "^6.0.73",
     "zod": "^4.3.6"
   },
   "peerDependencies": {
@@ -56,7 +56,7 @@
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/json-schema": "^7.0.15",
-    "@types/react": "^19.2.10",
+    "@types/react": "^19.2.13",
     "assistant-stream": "workspace:*",
     "react": "^19.2.4"
   },

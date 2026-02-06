@@ -58,7 +58,7 @@
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/react": "^19.2.10",
+    "@types/react": "^19.2.13",
     "@types/react-syntax-highlighter": "^15.5.13",
     "react": "^19.2.4",
     "react-syntax-highlighter": "^16.1.0"
