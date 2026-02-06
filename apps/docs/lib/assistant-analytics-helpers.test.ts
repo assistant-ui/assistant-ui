@@ -1,5 +1,4 @@
-import assert from "node:assert/strict";
-import test from "node:test";
+import { expect, it } from "vitest";
 import {
   consumeRunStartedAt,
   getComposerMessageMetrics,
@@ -8,43 +7,43 @@ import {
   recordRunStartedAt,
 } from "./assistant-analytics-helpers";
 
-test("getComposerMessageMetrics returns undefined for empty composer", () => {
+it("getComposerMessageMetrics returns undefined for empty composer", () => {
   const metrics = getComposerMessageMetrics({
     isEmpty: true,
     text: "ignored",
     attachments: [{}, {}],
   });
 
-  assert.equal(metrics, undefined);
+  expect(metrics).toBeUndefined();
 });
 
-test("getComposerMessageMetrics returns message and attachment sizes", () => {
+it("getComposerMessageMetrics returns message and attachment sizes", () => {
   const metrics = getComposerMessageMetrics({
     isEmpty: false,
     text: "Hello",
     attachments: [{ id: "a" }, { id: "b" }],
   });
 
-  assert.deepEqual(metrics, {
+  expect(metrics).toEqual({
     messageLength: 5,
     attachmentsCount: 2,
   });
 });
 
-test("getComposerMessageMetrics keeps attachment-only sends", () => {
+it("getComposerMessageMetrics keeps attachment-only sends", () => {
   const metrics = getComposerMessageMetrics({
     isEmpty: false,
     text: "",
     attachments: [{ id: "attachment" }],
   });
 
-  assert.deepEqual(metrics, {
+  expect(metrics).toEqual({
     messageLength: 0,
     attachmentsCount: 1,
   });
 });
 
-test("queueMicrotaskSafe reads state after synchronous updates", async () => {
+it("queueMicrotaskSafe reads state after synchronous updates", async () => {
   let value = 1;
 
   const captured = await new Promise<number>((resolve) => {
@@ -52,21 +51,21 @@ test("queueMicrotaskSafe reads state after synchronous updates", async () => {
     value = 2;
   });
 
-  assert.equal(captured, 2);
+  expect(captured).toBe(2);
 });
 
-test("run-start tracking keeps separate start times per thread run", () => {
+it("run-start tracking keeps separate start times per thread run", () => {
   const runStarts = new Map<string, number[]>();
 
   recordRunStartedAt(runStarts, "thread-1", 100);
   recordRunStartedAt(runStarts, "thread-1", 200);
 
-  assert.equal(consumeRunStartedAt(runStarts, "thread-1"), 100);
-  assert.equal(consumeRunStartedAt(runStarts, "thread-1"), 200);
-  assert.equal(consumeRunStartedAt(runStarts, "thread-1"), undefined);
+  expect(consumeRunStartedAt(runStarts, "thread-1")).toBe(100);
+  expect(consumeRunStartedAt(runStarts, "thread-1")).toBe(200);
+  expect(consumeRunStartedAt(runStarts, "thread-1")).toBeUndefined();
 });
 
-test("run-start cleanup removes only stale entries", () => {
+it("run-start cleanup removes only stale entries", () => {
   const runStarts = new Map<string, number[]>();
 
   recordRunStartedAt(runStarts, "thread-1", 100);
@@ -75,6 +74,6 @@ test("run-start cleanup removes only stale entries", () => {
 
   pruneStaleRunStarts(runStarts, 400, 150);
 
-  assert.deepEqual(runStarts.get("thread-1"), [300]);
-  assert.deepEqual(runStarts.get("thread-2"), [350]);
+  expect(runStarts.get("thread-1")).toEqual([300]);
+  expect(runStarts.get("thread-2")).toEqual([350]);
 });

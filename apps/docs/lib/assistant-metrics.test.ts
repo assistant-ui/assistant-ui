@@ -1,8 +1,7 @@
-import assert from "node:assert/strict";
-import test from "node:test";
+import { expect, it } from "vitest";
 import { getAssistantMessageTokenUsage } from "./assistant-metrics";
 
-test("getAssistantMessageTokenUsage returns empty for zero-token custom usage", () => {
+it("getAssistantMessageTokenUsage returns empty for zero-token custom usage", () => {
   const usage = getAssistantMessageTokenUsage({
     role: "assistant",
     metadata: {
@@ -14,10 +13,10 @@ test("getAssistantMessageTokenUsage returns empty for zero-token custom usage", 
     },
   });
 
-  assert.deepEqual(usage, {});
+  expect(usage).toEqual({});
 });
 
-test("getAssistantMessageTokenUsage returns totals for positive usage", () => {
+it("getAssistantMessageTokenUsage returns totals for positive usage", () => {
   const usage = getAssistantMessageTokenUsage({
     role: "assistant",
     metadata: {
@@ -30,7 +29,7 @@ test("getAssistantMessageTokenUsage returns totals for positive usage", () => {
     },
   });
 
-  assert.deepEqual(usage, {
+  expect(usage).toEqual({
     totalTokens: 10,
     inputTokens: 4,
     outputTokens: 6,
