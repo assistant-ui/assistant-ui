@@ -9,10 +9,12 @@ ignoredBuiltDependencies:
 onlyBuiltDependencies:
   - '@tailwindcss/oxide@4.1.17'
   - core-js
+  - core-js-pure
   - esbuild
   - protobufjs
   - sharp@0.34.5
   - unrs-resolver@1.11.1
+  - workerd
 
 strictDepBuilds: true
 
