@@ -12,6 +12,7 @@
     "@ai-sdk/openai": "^3.0.13",
     "@ai-sdk/react": "^3.0.44",
     "ai": "^6.0.42",
+    "@assistant-ui/cloud-ai-sdk": "workspace:*",
     "assistant-cloud": "workspace:*",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

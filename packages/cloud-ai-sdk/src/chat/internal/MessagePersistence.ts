@@ -1,12 +1,12 @@
 import type { UIMessage } from "@ai-sdk/react";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
-import { CloudMessagePersistence } from "../../../CloudMessagePersistence";
 import {
+  CloudMessagePersistence,
   createFormattedPersistence,
   type MessageFormatAdapter,
-} from "../../../FormattedCloudPersistence";
-import type { AssistantCloud } from "../../../AssistantCloud";
-import { encode, MESSAGE_FORMAT } from "../messageFormat";
+} from "assistant-cloud";
+import type { AssistantCloud } from "assistant-cloud";
+import { encode, MESSAGE_FORMAT } from "../internal/messageFormat";
 
 /**
  * Format adapter for AI SDK v6 messages.

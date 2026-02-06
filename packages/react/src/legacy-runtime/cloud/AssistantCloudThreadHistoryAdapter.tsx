@@ -1,7 +1,11 @@
 import { RefObject, useState } from "react";
 import { ThreadHistoryAdapter } from "../runtime-cores/adapters/thread-history/ThreadHistoryAdapter";
 import { ExportedMessageRepositoryItem } from "../runtime-cores/utils/MessageRepository";
-import { AssistantCloud, CloudMessagePersistence } from "assistant-cloud";
+import {
+  AssistantCloud,
+  CloudMessagePersistence,
+  createFormattedPersistence,
+} from "assistant-cloud";
 import { auiV0Decode, auiV0Encode } from "./auiV0";
 import {
   MessageFormatAdapter,
@@ -9,7 +13,6 @@ import {
   MessageFormatRepository,
 } from "../runtime-cores/adapters/thread-history/MessageFormatAdapter";
 import { GenericThreadHistoryAdapter } from "../runtime-cores/adapters/thread-history/ThreadHistoryAdapter";
-import { ReadonlyJSONObject } from "assistant-stream/utils";
 import { AssistantClient, useAui } from "@assistant-ui/store";
 import { ThreadListItemMethods } from "../../types/scopes";
 
@@ -39,37 +42,19 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     formatAdapter: MessageFormatAdapter<TMessage, TStorageFormat>,
   ): GenericThreadHistoryAdapter<TMessage> {
     const adapter = this;
+    const formatted = createFormattedPersistence(
+      this._persistence,
+      formatAdapter,
+    );
     return {
       async append(item: MessageFormatItem<TMessage>) {
         const { remoteId } = await adapter.aui.threadListItem().initialize();
-        return adapter._persistence.append(
-          remoteId,
-          formatAdapter.getId(item.message),
-          item.parentId,
-          formatAdapter.format,
-          formatAdapter.encode(item) as ReadonlyJSONObject,
-        );
+        return formatted.append(remoteId, item);
       },
       async load(): Promise<MessageFormatRepository<TMessage>> {
         const remoteId = adapter.aui.threadListItem().getState().remoteId;
         if (!remoteId) return { messages: [] };
-        const messages = await adapter._persistence.load(
-          remoteId,
-          formatAdapter.format,
-        );
-        return {
-          messages: messages
-            .filter((m) => m.format === formatAdapter.format)
-            .map((m) =>
-              formatAdapter.decode({
-                id: m.id,
-                parent_id: m.parent_id,
-                format: m.format,
-                content: m.content as TStorageFormat,
-              }),
-            )
-            .reverse(),
-        };
+        return formatted.load(remoteId);
       },
     };
   }

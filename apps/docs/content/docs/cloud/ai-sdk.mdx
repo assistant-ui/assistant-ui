@@ -7,7 +7,7 @@ import { InstallCommand } from "@/components/docs/fumadocs/install/install-comma
 
 ## Overview
 
-The `assistant-cloud` package provides a single hook that adds full message and thread persistence to any [AI SDK](https://sdk.vercel.ai/) application:
+The `@assistant-ui/cloud-ai-sdk` package provides a single hook that adds full message and thread persistence to any [AI SDK](https://sdk.vercel.ai/) application:
 
 - **`useCloudChat`** — wraps `useChat` with automatic cloud persistence and built-in thread management
 
@@ -49,7 +49,7 @@ NEXT_PUBLIC_ASSISTANT_BASE_URL=https://proj-[YOUR-ID].assistant-api.com
 
 ### Install Dependencies
 
-<InstallCommand npm={["assistant-cloud", "@ai-sdk/react", "ai"]} />
+<InstallCommand npm={["@assistant-ui/cloud-ai-sdk", "assistant-cloud", "@ai-sdk/react", "ai"]} />
 
 </Step>
 
@@ -61,7 +61,7 @@ NEXT_PUBLIC_ASSISTANT_BASE_URL=https://proj-[YOUR-ID].assistant-api.com
 "use client";
 
 import { useState } from "react";
-import { useCloudChat } from "assistant-cloud/ai-sdk";
+import { useCloudChat } from "@assistant-ui/cloud-ai-sdk";
 
 export default function Chat() {
   // Zero-config: auto-initializes anonymous cloud from env var with built-in threads.
@@ -207,7 +207,7 @@ The example above uses anonymous mode (browser session-based user ID) via the en
 ```tsx
 import { useAuth } from "@clerk/nextjs";
 import { AssistantCloud } from "assistant-cloud";
-import { useCloudChat } from "assistant-cloud/ai-sdk";
+import { useCloudChat } from "@assistant-ui/cloud-ai-sdk";
 
 function Chat() {
   const { getToken } = useAuth();
