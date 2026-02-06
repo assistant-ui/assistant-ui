@@ -37,7 +37,9 @@ type McpAppStudioSection =
 
 const OUTBOUND_URLS = {
   mcpAppsDocs: "https://modelcontextprotocol.io/docs/extensions/apps",
-  chatgptAppsSdk: "https://developers.openai.com/apps-sdk/",
+  openaiAppsSdk: "https://developers.openai.com/apps-sdk/",
+  claudeSubmissionGuide:
+    "https://support.claude.com/en/articles/12922490-remote-mcp-server-submission-guide",
   cliSource:
     "https://github.com/assistant-ui/assistant-ui/tree/main/packages/mcp-app-studio",
   workbenchTemplate: "https://github.com/assistant-ui/mcp-app-studio-starter",
@@ -46,9 +48,13 @@ const OUTBOUND_URLS = {
 const OUTBOUND_LINKS = {
   hero: {
     mcpAppsDocs: { label: "MCP Apps Docs", href: OUTBOUND_URLS.mcpAppsDocs },
-    chatgptAppsSdk: {
-      label: "ChatGPT Apps SDK",
-      href: OUTBOUND_URLS.chatgptAppsSdk,
+    openaiAppsSdk: {
+      label: "OpenAI Apps SDK",
+      href: OUTBOUND_URLS.openaiAppsSdk,
+    },
+    claudeSubmissionGuide: {
+      label: "Claude MCP Submission Guide",
+      href: OUTBOUND_URLS.claudeSubmissionGuide,
     },
     cliSource: { label: "CLI source", href: OUTBOUND_URLS.cliSource },
     workbenchTemplate: {
@@ -58,9 +64,13 @@ const OUTBOUND_LINKS = {
   },
   footer: {
     mcpAppsDocs: { label: "MCP Apps Docs", href: OUTBOUND_URLS.mcpAppsDocs },
-    chatgptAppsSdk: {
-      label: "ChatGPT Apps SDK",
-      href: OUTBOUND_URLS.chatgptAppsSdk,
+    openaiAppsSdk: {
+      label: "OpenAI Apps SDK",
+      href: OUTBOUND_URLS.openaiAppsSdk,
+    },
+    claudeSubmissionGuide: {
+      label: "Claude MCP Submission Guide",
+      href: OUTBOUND_URLS.claudeSubmissionGuide,
     },
     workbenchTemplate: {
       label: "Workbench template",
@@ -102,21 +112,21 @@ const FEATURES = [
   {
     title: "Production Export",
     description:
-      "Export a self-contained HTML bundle with dependencies inlined, ready to deploy.",
+      "Export a deployable widget bundle (index.html + widget.js/widget.css) with optional --inline output.",
     icon: Package,
     iconColor: "text-purple-400",
   },
   {
     title: "Display Modes",
     description:
-      "Preview inline, popup, and fullscreen. See exactly how it looks in ChatGPT or Claude.",
+      "Preview inline, PiP, and fullscreen. See exactly how it looks in target hosts.",
     icon: Monitor,
     iconColor: "text-cyan-400",
   },
   {
     title: "Universal SDK",
     description:
-      "Write once, run everywhere. Detects ChatGPT vs MCP and uses the right APIs.",
+      "MCP-first bridge with optional ChatGPT extensions, feature-detected at runtime.",
     icon: Sparkles,
     iconColor: "text-violet-400",
   },
@@ -125,33 +135,51 @@ const FEATURES = [
 const PLATFORM_CAPABILITIES = [
   {
     feature: "App state",
-    description: "Persist and restore app state through host APIs.",
-    chatgpt: true,
-    mcp: false,
+    description: "Persist and restore app state via ChatGPT widget state APIs.",
+    chatgptExtensions: true,
+    mcpHost: false,
   },
   {
     feature: "Model context",
-    description: "Read and write model context via MCP (Claude support).",
-    chatgpt: false,
-    mcp: true,
+    description:
+      "Read and write model context via MCP (`ui/update-model-context`) on hosts that implement it.",
+    chatgptExtensions: false,
+    mcpHost: true,
+  },
+  {
+    feature: "Host modal",
+    description:
+      "Use `window.openai.requestModal` in ChatGPT when available; fallback to local modals elsewhere.",
+    chatgptExtensions: true,
+    mcpHost: false,
   },
   {
     feature: "Tool mocking",
     description: "Mock tool responses locally while you build.",
-    chatgpt: true,
-    mcp: true,
+    chatgptExtensions: true,
+    mcpHost: true,
   },
 ] as const;
 
-const FEATURE_GATE_SNIPPET = `import { useFeature } from "mcp-app-studio";
+const FEATURE_GATE_SNIPPET = `import { openModal, useFeature } from "mcp-app-studio";
 
 const hasWidgetState = useFeature("widgetState");  // ChatGPT-only
-const hasModelContext = useFeature("modelContext"); // MCP-only
+const hasModelContext = useFeature("modelContext"); // Host-dependent
 
 return (
   <>
     {hasWidgetState && <StatePersistence />}
     {hasModelContext && <ContextPanel />}
+    <button
+      onClick={() =>
+        openModal(
+          { title: "Details", params: { id: "123" } },
+          () => setLocalView({ mode: "modal", params: { id: "123" } }),
+        )
+      }
+    >
+      Open details
+    </button>
   </>
 );`;
 
@@ -312,16 +340,29 @@ export default function McpAppStudioPage() {
             </Link>
             <span className="hidden size-1 rounded-full bg-muted-foreground/20 sm:block" />
             <Link
-              href={OUTBOUND_LINKS.hero.chatgptAppsSdk.href}
+              href={OUTBOUND_LINKS.hero.openaiAppsSdk.href}
               onClick={() =>
                 trackOutboundLinkClick(
                   "hero",
-                  OUTBOUND_LINKS.hero.chatgptAppsSdk,
+                  OUTBOUND_LINKS.hero.openaiAppsSdk,
                 )
               }
               className="font-medium text-foreground/60 transition-colors hover:text-foreground"
             >
-              ChatGPT Apps SDK →
+              OpenAI Apps SDK →
+            </Link>
+            <span className="hidden size-1 rounded-full bg-muted-foreground/20 sm:block" />
+            <Link
+              href={OUTBOUND_LINKS.hero.claudeSubmissionGuide.href}
+              onClick={() =>
+                trackOutboundLinkClick(
+                  "hero",
+                  OUTBOUND_LINKS.hero.claudeSubmissionGuide,
+                )
+              }
+              className="font-medium text-foreground/60 transition-colors hover:text-foreground"
+            >
+              Claude MCP Submission Guide →
             </Link>
             <span className="hidden size-1 rounded-full bg-muted-foreground/20 sm:block" />
             <Link
@@ -355,8 +396,8 @@ export default function McpAppStudioPage() {
               Try the workbench
             </h2>
             <p className="text-muted-foreground">
-              A local host simulator for ChatGPT- and Claude-style UIs. Preview
-              your app, mock tool calls, and export for production.
+              A local simulator for MCP apps and optional ChatGPT extensions.
+              Preview your app, mock tool calls, and export for production.
             </p>
           </div>
 
@@ -410,8 +451,8 @@ export default function McpAppStudioPage() {
               Know what works where
             </h2>
             <p className="text-muted-foreground">
-              One API surface with platform-specific capabilities for ChatGPT
-              and Claude, ready to feature-gate.
+              One API surface with capability gating across MCP hosts and
+              optional ChatGPT extensions.
             </p>
           </div>
 
@@ -419,8 +460,8 @@ export default function McpAppStudioPage() {
             <div className="min-w-0">
               <div className="grid grid-cols-[1fr_88px_88px] items-center gap-3 border-border/50 border-b px-4 py-2 text-muted-foreground text-xs">
                 <div>Capability</div>
-                <div className="text-center">ChatGPT</div>
-                <div className="text-center">Claude</div>
+                <div className="text-center">ChatGPT ext.</div>
+                <div className="text-center">MCP host</div>
               </div>
               <div className="divide-y divide-border/50">
                 {PLATFORM_CAPABILITIES.map((row) => (
@@ -435,14 +476,14 @@ export default function McpAppStudioPage() {
                       </div>
                     </div>
                     <div className="flex items-center justify-center">
-                      {row.chatgpt ? (
+                      {row.chatgptExtensions ? (
                         <CheckIcon className="size-4 text-emerald-400" />
                       ) : (
                         <X className="size-4 text-zinc-500" />
                       )}
                     </div>
                     <div className="flex items-center justify-center">
-                      {row.mcp ? (
+                      {row.mcpHost ? (
                         <CheckIcon className="size-4 text-emerald-400" />
                       ) : (
                         <X className="size-4 text-zinc-500" />
@@ -481,8 +522,10 @@ export default function McpAppStudioPage() {
             Deploy <code>export/widget/</code> to any static host, then update
             <code> export/manifest.json</code> with the hosted URL. Use that
             manifest wherever you register the app (ChatGPT or any MCP host like
-            Claude). It’s the same bundle either way—the host controls which
-            capabilities are available.
+            Claude). By default export emits <code>index.html</code>,{" "}
+            <code>widget.js</code>, and <code>widget.css</code>, with optional{" "}
+            <code>--inline</code> for single-file HTML. It’s the same app either
+            way—the host controls which capabilities are available.
           </p>
         </div>
 
@@ -505,16 +548,28 @@ export default function McpAppStudioPage() {
               </Link>
             </Button>
             <Link
-              href={OUTBOUND_LINKS.footer.chatgptAppsSdk.href}
+              href={OUTBOUND_LINKS.footer.openaiAppsSdk.href}
               onClick={() =>
                 trackOutboundLinkClick(
                   "footer",
-                  OUTBOUND_LINKS.footer.chatgptAppsSdk,
+                  OUTBOUND_LINKS.footer.openaiAppsSdk,
                 )
               }
               className={buttonVariants({ variant: "outline" })}
             >
-              ChatGPT Apps SDK
+              OpenAI Apps SDK
+            </Link>
+            <Link
+              href={OUTBOUND_LINKS.footer.claudeSubmissionGuide.href}
+              onClick={() =>
+                trackOutboundLinkClick(
+                  "footer",
+                  OUTBOUND_LINKS.footer.claudeSubmissionGuide,
+                )
+              }
+              className={buttonVariants({ variant: "outline" })}
+            >
+              Claude MCP Submission
             </Link>
             <Link
               href={OUTBOUND_LINKS.footer.workbenchTemplate.href}
@@ -676,11 +731,15 @@ function HeroShowcase({
                         Could not reach the workbench
                       </p>
                       <p className="max-w-xs text-sm text-zinc-500">
-                        Run{" "}
+                        Check connectivity to{" "}
                         <code className="rounded bg-zinc-800 px-1.5 py-0.5 font-mono text-xs">
-                          npx mcp-app-studio
+                          {WORKBENCH_HOST}
                         </code>{" "}
-                        to start it
+                        or run{" "}
+                        <code className="rounded bg-zinc-800 px-1.5 py-0.5 font-mono text-xs">
+                          npx mcp-app-studio my-app
+                        </code>{" "}
+                        for a local workbench.
                       </p>
                     </div>
                   </div>
