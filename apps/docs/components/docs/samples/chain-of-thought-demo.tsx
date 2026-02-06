@@ -442,8 +442,10 @@ function StreamingText({
     const containerRect = containerRef.current.getBoundingClientRect();
     const markerRect = markerRef.current.getBoundingClientRect();
     const x = markerRect.left - containerRect.left;
-    // Center vertically on the text line (nudged up 3px for optical alignment)
-    const y = markerRect.top - containerRect.top + markerRect.height / 2 - 3;
+    // Derive line center from computed line-height (marker is zero-height)
+    const lh = parseFloat(getComputedStyle(containerRef.current).lineHeight);
+    const lineHeight = Number.isFinite(lh) ? lh : 20;
+    const y = markerRect.top - containerRect.top + lineHeight / 2;
     targetX.current = x;
     targetY.current = y;
     const lineChanged = Math.abs(y - currentY.current) > 1;
@@ -474,10 +476,7 @@ function StreamingText({
     <span ref={containerRef} className="relative">
       <span>
         {text.slice(0, charIndex)}
-        <span
-          ref={markerRef}
-          className="inline-block h-[1lh] w-0 align-text-bottom"
-        />
+        <span ref={markerRef} className="inline-block h-px w-0 align-top" />
       </span>
       {/* Orb: absolutely positioned, JS-driven exponential ease for smooth
            sub-pixel movement. Tracks the inline marker at the end of revealed
@@ -492,7 +491,7 @@ function StreamingText({
       >
         <span
           className={cn(
-            "ml-1.5 flex items-center justify-center",
+            "ml-1.5 flex -translate-y-1/2 items-center justify-center",
             "transition-[opacity,filter] ease-out",
             orbActive
               ? "opacity-100 blur-none duration-150"
@@ -501,7 +500,7 @@ function StreamingText({
         >
           <span
             className={cn(
-              "size-2.5 rounded-full bg-white shadow-[0_0_6px_rgba(255,255,255,0.5)]",
+              "h-[0.55em] w-[0.55em] rounded-full bg-white shadow-[0_0_0.35em_rgba(255,255,255,0.45)]",
               orbActive &&
                 "animate-pulse [animation-duration:1.5s] motion-reduce:animate-none",
             )}
