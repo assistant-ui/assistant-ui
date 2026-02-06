@@ -1,0 +1,83 @@
+---
+title: Quickstart
+description: Install tap and create your first resource.
+---
+
+## Installation
+
+```sh
+npm install @assistant-ui/tap
+```
+
+## Define a resource
+
+Resources are the building blocks of tap. They use hooks you already know from React — but run outside of React components.
+
+```ts
+import { resource, tapState, tapEffect } from "@assistant-ui/tap";
+
+const Counter = resource(() => {
+  const [count, setCount] = tapState(0);
+
+  tapEffect(() => {
+    console.log(`Count: ${count}`);
+  }, [count]);
+
+  return {
+    count,
+    increment: () => setCount((c) => c + 1),
+  };
+});
+```
+
+## Use it
+
+Create an instance with `createResource`, then read state and call methods on it.
+
+```ts
+import { createResource } from "@assistant-ui/tap";
+
+const handle = createResource(Counter());
+
+// subscribe to changes
+handle.subscribe(() => {
+  console.log(handle.getValue().count);
+});
+
+// call methods
+handle.getValue().increment(); // logs: "Count: 1"
+handle.getValue().increment(); // logs: "Count: 2"
+
+// cleanup
+handle.unmount();
+```
+
+## Use it in React
+
+Use `useResource` to bind a resource to a React component's lifecycle.
+
+```tsx
+import { useResource } from "@assistant-ui/tap/react";
+
+function CounterComponent() {
+  const { count, increment } = useResource(Counter());
+
+  return (
+    <div>
+      <p>Count: {count}</p>
+      <button onClick={increment}>Increment</button>
+    </div>
+  );
+}
+```
+
+## Next steps
+
+<Cards>
+  <Card title="Hooks" href="/tap/docs/hooks">
+    tapState, tapEffect, tapMemo, and more.
+  </Card>
+  <Card title="Composition" href="/tap/docs/composition">
+    Nest resources with tapResource and tapResources.
+  </Card>
+</Cards>

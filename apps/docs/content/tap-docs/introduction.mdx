@@ -1,6 +1,45 @@
 ---
 title: Introduction
-description: Get started with tap - hooks for reactive resources
+description: "tap: Hooks for Reactive Resources"
 ---
 
-Welcome to **tap** - Hooks for Reactive Resources.
+<div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] items-center rounded-xl bg-fd-secondary overflow-hidden">
+<div className="not-prose flex flex-col gap-1 pl-6 lg:pl-8 pt-4 lg:pt-0">
+  <p className="text-lg font-semibold">Quickstart</p>
+  <p className="text-fd-muted-foreground">Learn how to build your first resource with tap.</p>
+  <a href="/tap/docs/quickstart" className="text-fd-primary font-medium mt-1 group inline-flex items-center gap-1">Get started <span className="inline-block transition-transform group-hover:translate-x-1">&rarr;</span></a>
+</div>
+<div className="mr-2 lg:mr-5 -my-5 lg:-my-2 lg:[&_pre]:pr-6">
+
+```ts
+const Counter = resource(() => {
+  const [count, setCount] = tapState(0);
+
+  return {
+    count,
+    increment: () => setCount((c) => c + 1),
+  };
+});
+```
+
+</div>
+</div>
+
+## Why we built this
+
+<Cards>
+  <Card title="Motivation" href="/tap/docs/motivation">
+    The philosophy behind tap.
+  </Card>
+</Cards>
+
+## How does it work?
+
+<Cards>
+  <Card title="Learn the basics" href="/tap/docs/resources">
+    Core hooks and resource patterns.
+  </Card>
+  <Card title="API Reference" href="/tap/docs/api-reference">
+    Full API documentation.
+  </Card>
+</Cards>

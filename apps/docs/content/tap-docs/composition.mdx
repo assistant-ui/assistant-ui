@@ -1,0 +1,105 @@
+---
+title: Composition
+description: Nest and compose resources with tapResource, tapResources, and tapSubscribableResource.
+---
+
+Resources can render other resources. Child resources get their own fiber, lifecycle, and state — just like React components rendering other components.
+
+<Callout type="info">
+**Key difference from React:** parent resources can directly access the return values of their children. In React, a parent component never sees what its children render. In tap, `tapResource` returns the child's value directly, making composition a tool for building up state and logic, not just trees.
+</Callout>
+
+## tapResource
+
+Render a single child resource. The child has its own state and effects, and is automatically cleaned up when the parent unmounts.
+
+```ts
+const Timer = resource(() => {
+  const counter = tapResource(Counter());
+
+  tapEffect(() => {
+    const interval = setInterval(() => {
+      counter.increment();
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return { count: counter.count };
+});
+```
+
+### Props dependencies
+
+By default, the child re-renders whenever the parent re-renders. You can pass a dependency array to control when the child receives new props.
+
+```ts
+const result = tapResource(Counter({ incrementBy }), [incrementBy]);
+```
+
+<Callout type="warn">
+We aren't so sure about this approach yet. This API may change in a future release.
+</Callout>
+
+## tapResources
+
+Render a dynamic list of child resources. Each element **must** have a key via `withKey`. Resources are preserved across renders when their key stays the same.
+
+```ts
+import { withKey } from "@assistant-ui/tap";
+
+const TodoList = resource(() => {
+  const [items, setItems] = tapState([
+    { id: "1", text: "Learn tap" },
+    { id: "2", text: "Build something" },
+  ]);
+
+  const todos = tapResources(
+    () => items.map((item) => withKey(item.id, TodoItem({ text: item.text }))),
+    [items],
+  );
+
+  return {
+    todos,
+    add: (text: string) =>
+      setItems((prev) => [...prev, { id: crypto.randomUUID(), text }]),
+  };
+});
+```
+
+<Callout type="warn">
+Every element passed to `tapResources` must have a key. Keys must be unique within the list. Missing or duplicate keys will throw an error.
+</Callout>
+
+### Key behavior
+
+- **Same key, same type** — the existing fiber is reused and re-rendered with new props
+- **Same key, different type** — the old fiber is unmounted and a new one is created
+- **Removed key** — the fiber is unmounted and cleaned up
+
+This is the same model as React's `key` prop on list elements.
+
+## tapSubscribableResource
+
+`tapSubscribableResource` returns a stable `{ getValue, subscribe }` handle instead of the child's value directly. The parent doesn't re-render when the child updates — consumers subscribe to changes instead. See [Trees & Re-renders](/tap/docs/trees-and-rerenders) for why this matters.
+
+```ts
+const counter = tapSubscribableResource(Counter());
+
+// read current value
+counter.getValue(); // { count: 0, increment: ... }
+
+// subscribe to changes
+const unsub = counter.subscribe(() => {
+  console.log(counter.getValue().count);
+});
+```
+
+The returned object has a stable identity and won't change across renders. This is the pattern used to build store libraries on top of tap.
+
+## When to use which
+
+| Hook | Use when |
+| --- | --- |
+| `tapResource` | You need an independent child with its own state and lifecycle |
+| `tapResources` | You have a dynamic list of children |
+| `tapSubscribableResource` | You need to expose a child as a subscribable store |

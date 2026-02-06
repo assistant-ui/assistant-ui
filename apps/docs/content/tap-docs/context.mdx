@@ -1,0 +1,55 @@
+---
+title: Context
+description: Pass values through resource boundaries without prop drilling.
+---
+
+<Callout type="warn">
+The context API is experimental and not yet stable. It may change significantly in a future version.
+</Callout>
+
+Context lets you pass values through the resource tree without threading props through every level — the same idea as React's `createContext` / `useContext`.
+
+## createResourceContext
+
+Create a context with a default value.
+
+```ts
+import { createResourceContext } from "@assistant-ui/tap";
+
+const ThemeContext = createResourceContext("light");
+```
+
+## Reading context
+
+Read the current value of a context inside a resource with `tap`.
+
+```ts
+import { tap } from "@assistant-ui/tap";
+
+const Button = resource(() => {
+  const theme = tap(ThemeContext);
+  // ...
+});
+```
+
+## withContextProvider
+
+Provide a context value to all resources rendered within the callback.
+
+```ts
+import { withContextProvider } from "@assistant-ui/tap";
+
+const App = resource(() => {
+  const child = withContextProvider(ThemeContext, "dark", () => {
+    return tapResource(Button());
+  });
+
+  return child;
+});
+```
+
+Any resource rendered inside the callback — including deeply nested children — will read `"dark"` from `ThemeContext`.
+
+<Callout type="warn">
+Context is not properly persisted across `tapSubscribableResource` boundaries. If a child resource is wrapped with `tapSubscribableResource`, it may not see context values provided by its ancestors. This is a known bug.
+</Callout>

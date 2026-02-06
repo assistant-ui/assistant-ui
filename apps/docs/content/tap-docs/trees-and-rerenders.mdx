@@ -1,0 +1,68 @@
+---
+title: Trees & Re-renders
+description: How resource trees form, re-render, and get scheduled.
+---
+
+## Resource trees
+
+When resources render other resources via `tapResource` or `tapResources`, they form a **tree**:
+
+```
+createResource(App)           <- tree root
+  ├─ tapResource(Sidebar)
+  │    └─ tapResource(NavItem)
+  └─ tapResource(Main)
+       ├─ tapResource(Header)
+       └─ tapResources([...Items])
+```
+
+## Re-renders
+
+This is the biggest difference from React.
+
+In React, a state change re-renders only the component that changed and its children. Parents are unaffected.
+
+In tap, **the entire resource tree re-renders from the root**. Because `tapResource` returns the child's value directly to the parent, the parent must re-run to receive the updated value — which means its parent must re-run too, all the way up to the tree root.
+
+`tapSubscribableResource` breaks this chain — it creates a **subtree boundary**. Everything below it becomes a separate tree that re-renders independently. The parent doesn't re-render when the subtree updates.
+
+## Tree roots and scheduling
+
+Every tree has a **root** that determines how updates are scheduled and delivered:
+
+| Root | Scheduler | Updates delivered via |
+| --- | --- | --- |
+| `useResource` | React | React re-render |
+| `createResource` | Tap | `handle.subscribe()` |
+| `tapSubscribableResource` | Tap | `.subscribe()` |
+
+**React scheduler** — batching, priority, and timing are all controlled by React.
+
+**Tap scheduler** — state changes are batched using microtasks. Multiple `setState` calls in the same synchronous block result in a single re-render.
+
+```ts
+// tap scheduler: only one re-render, not two
+setCount(1);
+setName("hello");
+```
+
+If updates keep triggering more updates (e.g. a `tapEffect` that calls `setState`), tap will flush up to 50 times before throwing a maximum update depth error.
+
+### flushResourcesSync
+
+`flushResourcesSync` lets you flush pending tap scheduler updates synchronously.
+
+```ts
+import { flushResourcesSync } from "@assistant-ui/tap";
+
+flushResourcesSync(() => {
+  handle.getValue().increment();
+});
+
+// state is already updated here
+console.log(handle.getValue().count);
+```
+
+This only applies to tap-scheduled trees (`createResource` / `tapSubscribableResource`). For `useResource` trees, use `flushSync` from `react-dom` instead.
+
+This is useful when a library expects a result synchronously — for example, React's controlled inputs need the store to update within the `onChange` handler, otherwise React reverts the input.

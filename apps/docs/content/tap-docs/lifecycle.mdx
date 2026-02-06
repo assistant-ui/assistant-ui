@@ -1,0 +1,88 @@
+---
+title: Lifecycle
+description: How resources render, mount, update, and unmount.
+---
+
+## Render and commit
+
+Like React, tap splits work into two phases:
+
+1. **Render** — the resource function runs, hooks record their data, and a return value is produced. This phase has no side effects.
+2. **Commit** — effects whose dependencies changed run. If an effect is re-running, its previous cleanup executes first. The resource is considered mounted after this phase.
+
+```ts
+const App = resource(() => {
+  // --- render phase ---
+  const [count, setCount] = tapState(0);
+
+  tapEffect(() => {
+    // --- commit phase ---
+    console.log(`Mounted with count: ${count}`);
+    return () => console.log("Cleaned up");
+  }, [count]);
+
+  return { count };
+});
+```
+
+### Effect ordering
+
+In React, effects run children-first, then parents (inside-out). This is because components can only render children by returning them — there's no way to run an effect after a child's effects.
+
+In tap, **effects run in the exact order they are called during the render pass**. Since `tapResource` is just another hook, you can place `tapEffect` calls before or after it:
+
+```ts
+const Parent = resource(() => {
+  tapEffect(() => {
+    console.log("1: before child");
+  });
+
+  const child = tapResource(Child());
+
+  tapEffect(() => {
+    console.log("3: after child");
+  });
+
+  return child;
+});
+
+const Child = resource(() => {
+  tapEffect(() => {
+    console.log("2: child");
+  });
+});
+// Mount order: 1, 2, 3
+```
+
+This is intentional — it lets you run setup logic both before and after children, which is useful when a parent needs to react to data provided by a child.
+
+Cleanup on unmount runs in the same order as mount (FIFO), matching the order effects were originally registered.
+
+## Mount and unmount
+
+A resource is **mounted** after its first commit. At this point, effects have run and the resource is live.
+
+A resource is **unmounted** when its owner removes it — all effect cleanups run and the resource is disposed. This happens automatically when:
+
+- A parent resource stops rendering the child via `tapResource`
+- A React component using `useResource` unmounts
+- `handle.unmount()` is called on a `createResource` handle
+
+## Concurrent mode
+
+<Callout type="warn">
+Concurrent mode support is coming soon.
+</Callout>
+
+## Strict mode
+
+In development, tap supports React-style strict mode. When enabled, resources render twice on mount to help detect side effects in the render phase.
+
+- **`useResource`** inherits React's strict mode setting automatically — if your component is inside `<StrictMode>`, the resource runs in strict mode too.
+- **`createResource`** lets you opt in explicitly via the `devStrictMode` option:
+
+```ts
+const handle = createResource(Counter(), { devStrictMode: true });
+```
+
+This is the same behavior as React's `<StrictMode>` — double-rendering helps surface unintentional side effects during the render phase.

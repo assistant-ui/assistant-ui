@@ -1,5 +1,18 @@
 {
   "title": "Tap Documentation",
   "root": true,
-  "pages": ["introduction", "design-docs"]
+  "pages": [
+    "introduction",
+    "quickstart",
+    "motivation",
+    "---Learn the Basics---",
+    "resources",
+    "hooks",
+    "composition",
+    "trees-and-rerenders",
+    "lifecycle",
+    "context",
+    "---Reference---",
+    "api-reference"
+  ]
 }

@@ -1,0 +1,144 @@
+---
+title: Hooks
+description: The core hooks for building resources in tap.
+---
+
+tap hooks work like React hooks, but start with `tap` instead of `use`. The same rules of hooks apply.
+
+## Rules of hooks
+
+<div className="not-prose flex flex-col gap-1.5 text-sm">
+<p><span className="text-emerald-400/80">&#x2713;</span> Call hooks at the top level of a resource body</p>
+<p><span className="text-emerald-400/80">&#x2713;</span> Call hooks at the top level of a custom `tap*` function</p>
+<p><span className="text-rose-400/80">&#x2717;</span> **Don't** call hooks in conditions, loops, or nested functions</p>
+<p><span className="text-rose-400/80">&#x2717;</span> **Don't** call hooks in event handlers or `try`/`catch`/`finally`</p>
+<p><span className="text-rose-400/80">&#x2717;</span> **Don't** call hooks in functions passed to `tapState`, `tapMemo`, or `tapEffect`</p>
+</div>
+
+## tapState
+
+Local state within a resource.
+
+```ts
+const [count, setCount] = tapState(0);
+
+// with lazy initializer
+const [data, setData] = tapState(() => expensiveComputation());
+
+// set directly
+setCount(5);
+
+// or with an updater function
+setCount((prev) => prev + 1);
+```
+
+## tapEffect
+
+Side effects with automatic cleanup.
+
+```ts
+tapEffect(() => {
+  const ws = new WebSocket("ws://localhost:8080");
+
+  ws.onmessage = (event) => {
+    setMessages((prev) => [...prev, event.data]);
+  };
+
+  return () => ws.close();
+}, []);
+```
+
+Without a dependency array, the effect runs after every render.
+
+```ts
+tapEffect(() => {
+  console.log("rendered");
+});
+```
+
+## tapMemo
+
+Memoize expensive computations.
+
+```ts
+const sorted = tapMemo(() => {
+  return items.toSorted((a, b) => a.name.localeCompare(b.name));
+}, [items]);
+```
+
+## tapCallback
+
+Memoize a callback.
+
+```ts
+const handleClick = tapCallback(() => {
+  setCount((c) => c + 1);
+}, []);
+```
+
+## tapRef
+
+A mutable reference that persists across renders.
+
+```ts
+const ref = tapRef(0);
+ref.current = 42;
+
+// without initial value
+const ref = tapRef<HTMLElement>();
+```
+
+## tapConst
+
+A value computed once on mount that never changes. Useful for creating stable instances.
+
+```ts
+const id = tapConst(() => crypto.randomUUID(), []);
+const emitter = tapConst(() => new EventEmitter(), []);
+```
+
+<Callout type="note">
+The second parameter must always be an empty array `[]`. It exists so that linters can validate that no dependencies are accidentally captured.
+</Callout>
+
+## tapEffectEvent
+
+A stable function reference that always calls the latest closure. Useful for event handlers passed to effects.
+
+```ts
+const onMessage = tapEffectEvent((msg: string) => {
+  // always has access to latest state
+  setMessages((prev) => [...prev, msg]);
+});
+
+tapEffect(() => {
+  socket.addEventListener("message", onMessage);
+  return () => socket.removeEventListener("message", onMessage);
+}, [socket]);
+```
+
+## Composition hooks
+
+Resources can render other resources. These hooks manage child resource lifecycles — mounting, updating, and cleaning up automatically.
+
+- **`tapResource`** — render a single child resource
+- **`tapResources`** — render a keyed list of child resources
+- **`tapSubscribableResource`** — wrap a child resource with `getValue`/`subscribe`
+
+<Cards>
+  <Card title="Resource Composition" href="/tap/docs/composition">
+    Learn how to compose resources together.
+  </Card>
+</Cards>
+
+## Comparison with React
+
+| React | tap | Behavior |
+| --- | --- | --- |
+| `useState` | `tapState` | Identical |
+| `useEffect` | `tapEffect` | Identical |
+| `useMemo` | `tapMemo` | Identical |
+| `useCallback` | `tapCallback` | Identical |
+| `useRef` | `tapRef` | Identical |
+| `useEffectEvent` | `tapEffectEvent` | Identical |
+| — | `tapConst` | Computed once, never changes |
