@@ -973,10 +973,13 @@ importers:
         version: 3.0.25(zod@4.3.6)
       '@ai-sdk/react':
         specifier: ^3.0.44
-        version: 3.0.71(react@19.2.4)(zod@4.3.6)
+        version: 3.0.75(react@19.2.4)(zod@4.3.6)
+      '@assistant-ui/cloud-ai-sdk':
+        specifier: workspace:*
+        version: link:../../packages/cloud-ai-sdk
       ai:
         specifier: ^6.0.42
-        version: 6.0.69(zod@4.3.6)
+        version: 6.0.73(zod@4.3.6)
       assistant-cloud:
         specifier: workspace:*
         version: link:../../packages/cloud
@@ -1010,13 +1013,13 @@ importers:
         version: 4.1.18
       '@types/node':
         specifier: ^25.0.9
-        version: 25.2.0
+        version: 25.2.1
       '@types/react':
         specifier: ^19.2.9
-        version: 19.2.10
+        version: 19.2.13
       '@types/react-dom':
         specifier: ^19.2.3
-        version: 19.2.3(@types/react@19.2.10)
+        version: 19.2.3(@types/react@19.2.13)
       postcss:
         specifier: ^8.5.6
         version: 8.5.6
@@ -2030,9 +2033,28 @@ importers:
         specifier: ^0.3.2
         version: link:../assistant-stream
     devDependencies:
+      '@assistant-ui/x-buildutils':
+        specifier: workspace:*
+        version: link:../x-buildutils
+      '@types/node':
+        specifier: ^25.2.1
+        version: 25.2.1
+      vitest:
+        specifier: ^4.0.18
+        version: 4.0.18(@opentelemetry/api@1.9.0)(@types/node@25.2.1)(@vitest/ui@4.0.18)(jiti@2.6.1)(jsdom@28.0.0)(lightningcss@1.30.2)(tsx@4.21.0)(yaml@2.8.2)
+
+  packages/cloud-ai-sdk:
+    dependencies:
+      assistant-cloud:
+        specifier: workspace:^0.1.17
+        version: link:../cloud
+      assistant-stream:
+        specifier: ^0.3.2
+        version: link:../assistant-stream
+    devDependencies:
       '@ai-sdk/react':
         specifier: ^3.0.44
-        version: 3.0.71(react@19.2.4)(zod@4.3.6)
+        version: 3.0.75(react@19.2.4)(zod@4.3.6)
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils
@@ -2041,16 +2063,13 @@ importers:
         version: 25.2.1
       '@types/react':
         specifier: ^19.2.7
-        version: 19.2.10
+        version: 19.2.13
       ai:
         specifier: ^6.0.42
-        version: 6.0.69(zod@4.3.6)
+        version: 6.0.73(zod@4.3.6)
       react:
         specifier: ^19.2.3
         version: 19.2.4
-      vitest:
-        specifier: ^4.0.18
-        version: 4.0.18(@opentelemetry/api@1.9.0)(@types/node@25.2.1)(@vitest/ui@4.0.18)(jiti@2.6.1)(jsdom@28.0.0)(lightningcss@1.30.2)(tsx@4.21.0)(yaml@2.8.2)
 
   packages/create-assistant-ui:
     dependencies:
@@ -2578,45 +2597,6 @@ importers:
       react:
         specifier: ^19.2.4
         version: 19.2.4
-
-  packages/styles:
-    devDependencies:
-      '@assistant-ui/x-buildutils':
-        specifier: workspace:*
-        version: link:../x-buildutils
-      '@tailwindcss/postcss':
-        specifier: ^4.1.18
-        version: 4.1.18
-      '@types/node':
-        specifier: ^25.2.1
-        version: 25.2.1
-      chalk:
-        specifier: ^5.6.2
-        version: 5.6.2
-      commander:
-        specifier: ^14.0.3
-        version: 14.0.3
-      postcss:
-        specifier: ^8.5.6
-        version: 8.5.6
-      postcss-nested:
-        specifier: ^7.0.2
-        version: 7.0.2(postcss@8.5.6)
-      postcss-prefix-selector:
-        specifier: ^2.1.1
-        version: 2.1.1(postcss@8.5.6)
-      tailwindcss:
-        specifier: ^4.1.18
-        version: 4.1.18
-      tsx:
-        specifier: ^4.21.0
-        version: 4.21.0
-      tw-animate-css:
-        specifier: ^1.4.0
-        version: 1.4.0
-      tw-shimmer:
-        specifier: workspace:*
-        version: link:../tw-shimmer
 
   packages/tap:
     devDependencies:
@@ -8502,17 +8482,6 @@ packages:
         optional: true
       yaml:
         optional: true
-
-  postcss-nested@7.0.2:
-    resolution: {integrity: sha512-5osppouFc0VR9/VYzYxO03VaDa3e8F23Kfd6/9qcZTUI8P58GIYlArOET2Wq0ywSl2o2PjELhYOFI4W7l5QHKw==}
-    engines: {node: '>=18.0'}
-    peerDependencies:
-      postcss: ^8.2.14
-
-  postcss-prefix-selector@2.1.1:
-    resolution: {integrity: sha512-ZBgf427Et6+XnrnJ9VXtJEKCjJwTvn2wn/qMg+wvvlRhIeFIAxdbrlZZ0CSsWYMJfcyPLBh8ogj5O1kb/Mcx3g==}
-    peerDependencies:
-      postcss: ^8.0.0
 
   postcss-selector-parser@7.1.1:
     resolution: {integrity: sha512-orRsuYpJVw8LdAwqqLykBj9ecS5/cRHlI5+nvTo8LcCKmzDmqVORXtOIYEEQuL9D4BxtA1lm5isAqzQZCoQ6Eg==}
@@ -16111,15 +16080,6 @@ snapshots:
       postcss: 8.5.6
       tsx: 4.21.0
       yaml: 2.8.2
-
-  postcss-nested@7.0.2(postcss@8.5.6):
-    dependencies:
-      postcss: 8.5.6
-      postcss-selector-parser: 7.1.1
-
-  postcss-prefix-selector@2.1.1(postcss@8.5.6):
-    dependencies:
-      postcss: 8.5.6
 
   postcss-selector-parser@7.1.1:
     dependencies:
