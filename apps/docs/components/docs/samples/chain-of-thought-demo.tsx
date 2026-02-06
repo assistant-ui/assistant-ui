@@ -1096,11 +1096,10 @@ export function ChainOfThoughtHeadlineStreamingFullBleedSample() {
     [trace],
   );
   const headline = useMemo(() => {
-    if (phase !== "done" || durationSec == null) return baseHeadline;
-    if (typeof baseHeadline === "string") {
-      return `${baseHeadline} (${durationSec}s)`;
-    }
-    return baseHeadline;
+    if (phase !== "done") return baseHeadline;
+    const summary = "Researched quantum computing developments";
+    if (durationSec != null) return `${summary} (${durationSec}s)`;
+    return summary;
   }, [baseHeadline, durationSec, phase]);
 
   return (
@@ -1122,7 +1121,7 @@ export function ChainOfThoughtHeadlineStreamingFullBleedSample() {
             {/* Assistant message — appears after idle */}
             {phase !== "idle" && (
               <div className="flex justify-start">
-                <div className="max-w-[80%] space-y-3">
+                <div className="flex max-w-[80%] flex-col gap-3">
                   {/* Preamble */}
                   <p className="text-sm leading-relaxed">
                     <StreamingText
@@ -1139,7 +1138,7 @@ export function ChainOfThoughtHeadlineStreamingFullBleedSample() {
                         setCotOpen(open);
                         if (open) userExpandedRef.current = true;
                       }}
-                      className="mb-0 border-0 p-0"
+                      className="fade-in mb-0 animate-in border-0 p-0 duration-300"
                     >
                       <ChainOfThoughtTrigger
                         label={
@@ -1161,7 +1160,7 @@ export function ChainOfThoughtHeadlineStreamingFullBleedSample() {
 
                   {/* Final response */}
                   {showResponse && (
-                    <p className="mt-6 text-sm leading-relaxed">
+                    <p className="text-sm leading-relaxed">
                       <StreamingText
                         text={RESPONSE_TEXT}
                         isStreaming={responseStreaming}
