@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-streamdown",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Streamdown-based markdown rendering for assistant-ui",
   "keywords": [
     "markdown",
@@ -41,7 +41,7 @@
     "streamdown": "^2.1.0"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.12.8",
+    "@assistant-ui/react": "^0.12.9",
     "@streamdown/code": "^1.0.0",
     "@streamdown/cjk": "^1.0.0",
     "@streamdown/math": "^1.0.0",

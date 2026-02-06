@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/mcp-docs-server",
-  "version": "0.1.21",
+  "version": "0.1.22",
   "description": "MCP server for assistant-ui documentation and examples",
   "keywords": [
     "mcp",

@@ -1,6 +1,6 @@
 {
   "name": "safe-content-frame",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "description": "Secure iframe rendering for untrusted content using SafeContentFrame",
   "keywords": [
     "iframe",

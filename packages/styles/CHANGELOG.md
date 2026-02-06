@@ -1,5 +1,11 @@
 # @assistant-ui/styles
 
+## 0.3.7
+
+### Patch Changes
+
+- a088518: chore: update dependencies
+
 ## 0.3.6
 
 ### Patch Changes

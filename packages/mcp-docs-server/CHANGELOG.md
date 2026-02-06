@@ -1,5 +1,11 @@
 # @assistant-ui/mcp-docs-server
 
+## 0.1.22
+
+### Patch Changes
+
+- a088518: chore: update dependencies
+
 ## 0.1.21
 
 ### Patch Changes

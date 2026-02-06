@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/styles",
-  "version": "0.3.6",
+  "version": "0.3.7",
   "description": "Styles for @assistant-ui/react for non-Tailwind users",
   "keywords": [
     "styles",

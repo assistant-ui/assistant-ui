@@ -1,5 +1,13 @@
 # @assistant-ui/store
 
+## 0.1.6
+
+### Patch Changes
+
+- a088518: chore: update dependencies
+- Updated dependencies [a088518]
+  - @assistant-ui/tap@0.4.5
+
 ## 0.1.5
 
 ### Patch Changes

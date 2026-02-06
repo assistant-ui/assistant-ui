@@ -1,5 +1,15 @@
 # @assistant-ui/react-data-stream
 
+## 0.12.4
+
+### Patch Changes
+
+- a088518: chore: update dependencies
+- Updated dependencies [a088518]
+- Updated dependencies [d8122cc]
+  - assistant-stream@0.3.2
+  - @assistant-ui/react@0.12.9
+
 ## 0.12.3
 
 ### Patch Changes

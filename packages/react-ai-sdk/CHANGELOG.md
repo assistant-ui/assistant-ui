@@ -1,5 +1,15 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.3.6
+
+### Patch Changes
+
+- a088518: chore: update dependencies
+- Updated dependencies [a088518]
+- Updated dependencies [d8122cc]
+  - assistant-cloud@0.1.17
+  - @assistant-ui/react@0.12.9
+
 ## 1.3.5
 
 ### Patch Changes

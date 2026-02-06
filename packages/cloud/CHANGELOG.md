@@ -1,5 +1,13 @@
 # assistant-cloud
 
+## 0.1.17
+
+### Patch Changes
+
+- a088518: chore: update dependencies
+- Updated dependencies [a088518]
+  - assistant-stream@0.3.2
+
 ## 0.1.16
 
 ### Patch Changes

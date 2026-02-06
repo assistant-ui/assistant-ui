@@ -1,5 +1,11 @@
 # mcp-app-studio
 
+## 0.6.1
+
+### Patch Changes
+
+- a088518: chore: update dependencies
+
 ## 0.6.0
 
 ### Minor Changes

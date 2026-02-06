@@ -1,5 +1,11 @@
 # tw-shimmer
 
+## 0.4.6
+
+### Patch Changes
+
+- a088518: chore: update dependencies
+
 ## 0.4.5
 
 ### Patch Changes

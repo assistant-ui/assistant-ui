@@ -1,5 +1,17 @@
 # @assistant-ui/react
 
+## 0.12.9
+
+### Patch Changes
+
+- a088518: chore: update dependencies
+- d8122cc: feat: ChainOfThought Layout API
+- Updated dependencies [a088518]
+  - assistant-stream@0.3.2
+  - assistant-cloud@0.1.17
+  - @assistant-ui/store@0.1.6
+  - @assistant-ui/tap@0.4.5
+
 ## 0.12.8
 
 ### Patch Changes

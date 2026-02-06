@@ -1,5 +1,11 @@
 # safe-content-frame
 
+## 0.0.9
+
+### Patch Changes
+
+- a088518: chore: update dependencies
+
 ## 0.0.8
 
 ### Patch Changes
