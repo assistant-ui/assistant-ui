@@ -361,13 +361,16 @@ function StreamingText({
   isStreaming: boolean;
 }) {
   const [charIndex, setCharIndex] = useState(isStreaming ? 0 : text.length);
-  const textRef = useRef<HTMLSpanElement>(null);
+  const containerRef = useRef<HTMLSpanElement>(null);
+  const markerRef = useRef<HTMLSpanElement>(null);
   const orbRef = useRef<HTMLSpanElement>(null);
 
   // Smoothing refs — position is driven entirely outside React state
   // to avoid extra re-renders and keep the loop in pure rAF land.
   const targetX = useRef(0);
+  const targetY = useRef(0);
   const currentX = useRef(0);
+  const currentY = useRef(0);
   const smoothRaf = useRef<number | null>(null);
   const initialized = useRef(false);
 
@@ -406,35 +409,51 @@ function StreamingText({
     const animate = () => {
       if (!orbRef.current) return;
       const dx = targetX.current - currentX.current;
+      const dy = targetY.current - currentY.current;
       if (Math.abs(dx) > 0.1) {
         currentX.current += dx * ORB_EASE;
       } else {
         currentX.current = targetX.current;
       }
-      orbRef.current.style.transform = `translate(${currentX.current}px, -50%)`;
-      if (Math.abs(targetX.current - currentX.current) > 0.1) {
+      if (Math.abs(dy) > 0.1) {
+        currentY.current += dy * ORB_EASE;
+      } else {
+        currentY.current = targetY.current;
+      }
+      orbRef.current.style.transform = `translate(${currentX.current}px, ${currentY.current}px)`;
+      if (
+        Math.abs(targetX.current - currentX.current) > 0.1 ||
+        Math.abs(targetY.current - currentY.current) > 0.1
+      ) {
         smoothRaf.current = requestAnimationFrame(animate);
       } else {
-        smoothRaf.current = null; // at rest — will restart on next charIndex change
+        smoothRaf.current = null;
       }
     };
 
     smoothRaf.current = requestAnimationFrame(animate);
   }, []);
 
-  // Measure revealed text width synchronously before paint, update target,
-  // and start the smoothing loop if it isn't running.
+  // Measure marker position relative to container synchronously before paint,
+  // update targets, and start the smoothing loop if it isn't running.
   // biome-ignore lint/correctness/useExhaustiveDependencies: charIndex is intentionally listed to re-measure on each character change
   useLayoutEffect(() => {
-    if (!textRef.current) return;
-    const width = textRef.current.getBoundingClientRect().width;
-    targetX.current = width;
-    if (!initialized.current) {
-      // First measurement — snap instantly (no animation from 0).
-      currentX.current = width;
+    if (!markerRef.current || !containerRef.current) return;
+    const containerRect = containerRef.current.getBoundingClientRect();
+    const markerRect = markerRef.current.getBoundingClientRect();
+    const x = markerRect.left - containerRect.left;
+    // Center vertically on the text line (nudged up 3px for optical alignment)
+    const y = markerRect.top - containerRect.top + markerRect.height / 2 - 3;
+    targetX.current = x;
+    targetY.current = y;
+    const lineChanged = Math.abs(y - currentY.current) > 1;
+    if (!initialized.current || lineChanged) {
+      // First measurement or line wrap — snap instantly.
+      currentX.current = x;
+      currentY.current = y;
       initialized.current = true;
       if (orbRef.current) {
-        orbRef.current.style.transform = `translate(${width}px, -50%)`;
+        orbRef.current.style.transform = `translate(${x}px, ${y}px)`;
       }
     } else {
       startSmoothing();
@@ -448,37 +467,36 @@ function StreamingText({
     };
   }, []);
 
-  // Orb is "active" while characters are still revealing.
-  // After reveal finishes, hold for 300ms then deactivate (exit transition).
-  const textRevealing = isStreaming && charIndex < text.length;
-  const [orbActive, setOrbActive] = useState(false);
-  useEffect(() => {
-    if (textRevealing) {
-      setOrbActive(true);
-      return;
-    }
-    const timeout = window.setTimeout(() => setOrbActive(false), 300);
-    return () => window.clearTimeout(timeout);
-  }, [textRevealing]);
+  // Orb visible while characters are revealing; fades out immediately after.
+  const orbActive = isStreaming && charIndex < text.length;
 
   return (
-    <span className="relative">
-      <span ref={textRef}>{text.slice(0, charIndex)}</span>
+    <span ref={containerRef} className="relative">
+      <span>
+        {text.slice(0, charIndex)}
+        <span
+          ref={markerRef}
+          className="inline-block h-[1lh] w-0 align-text-bottom"
+        />
+      </span>
       {/* Orb: absolutely positioned, JS-driven exponential ease for smooth
-           sub-pixel movement. Outer span owns position + opacity/blur.
-           Inner span owns pulse (separated so animate-pulse doesn't fight
-           the exit opacity transition). */}
+           sub-pixel movement. Tracks the inline marker at the end of revealed
+           text so it handles line wraps correctly. Outer span owns position +
+           opacity/blur. Inner span owns pulse (separated so animate-pulse
+           doesn't fight the exit opacity transition). */}
       <span
         ref={orbRef}
         aria-hidden
-        className="pointer-events-none absolute top-1/2 left-0"
-        style={{ transform: "translate(0px, -50%)" }}
+        className="pointer-events-none absolute top-0 left-0"
+        style={{ transform: "translate(0px, 0px)" }}
       >
         <span
           className={cn(
             "ml-1.5 flex items-center justify-center",
-            "transition-[opacity,filter] duration-[400ms] ease-out",
-            orbActive ? "opacity-100 blur-0" : "opacity-0 blur-[3px]",
+            "transition-[opacity,filter] ease-out",
+            orbActive
+              ? "opacity-100 blur-none duration-150"
+              : "opacity-0 blur-[2px] duration-300",
           )}
         >
           <span
