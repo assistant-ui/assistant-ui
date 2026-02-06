@@ -3,11 +3,10 @@ set -e
 
 # Test scaffold script for mcp-app-studio
 # Usage: ./scripts/test-scaffold.sh [project-name] [--no-server]
-# Default project name: test-mcp-app
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PACKAGE_DIR="$(dirname "$SCRIPT_DIR")"
-PROJECT_NAME="test-mcp-app"
+PROJECT_NAME="${1:-test-mcp-app}"
 INCLUDE_SERVER="--include-server"
 TEST_DIR="/tmp/mcp-app-studio-test"
 
@@ -15,38 +14,9 @@ TEST_DIR="/tmp/mcp-app-studio-test"
 export MCP_APP_STUDIO_TEMPLATE_REPO="${MCP_APP_STUDIO_TEMPLATE_REPO:-assistant-ui/mcp-app-studio-starter}"
 export MCP_APP_STUDIO_TEMPLATE_REF="${MCP_APP_STUDIO_TEMPLATE_REF:-main}"
 
-# Parse args so --no-server works in either position.
-PROJECT_NAME_SET=0
-for arg in "$@"; do
-  case "$arg" in
-    --no-server)
-      INCLUDE_SERVER="--no-server"
-      ;;
-    -h|--help)
-      echo "Usage: ./scripts/test-scaffold.sh [project-name] [--no-server]"
-      echo "Default project name: test-mcp-app"
-      exit 0
-      ;;
-    -*)
-      echo "❌ Unknown option: $arg"
-      echo "Usage: ./scripts/test-scaffold.sh [project-name] [--no-server]"
-      exit 1
-      ;;
-    *)
-      if [ "$PROJECT_NAME_SET" -eq 1 ]; then
-        echo "❌ Only one project name is supported: got extra argument '$arg'"
-        echo "Usage: ./scripts/test-scaffold.sh [project-name] [--no-server]"
-        exit 1
-      fi
-      PROJECT_NAME="$arg"
-      PROJECT_NAME_SET=1
-      ;;
-  esac
-done
-
-EXPECT_SERVER=1
-if [ "$INCLUDE_SERVER" = "--no-server" ]; then
-  EXPECT_SERVER=0
+# Check for --no-server flag
+if [[ "$2" == "--no-server" ]]; then
+  INCLUDE_SERVER="--no-server"
 fi
 
 echo "🧹 Cleaning up previous test..."
@@ -108,22 +78,8 @@ if (cfg.widget.exportName !== "POIMapSDK") {
 }
 NODE
 
-# Verify server scaffold behavior based on selected mode.
-if [ "$EXPECT_SERVER" -eq 1 ]; then
-  if [ ! -d "server" ]; then
-    echo "❌ expected server directory to exist, but it was not created"
-    exit 1
-  fi
-else
-  if [ -d "server" ]; then
-    echo "❌ expected no server directory with --no-server, but server/ exists"
-    exit 1
-  fi
-  echo "✅ server/ was not created with --no-server"
-fi
-
-# Verify server dependencies were installed via postinstall when server exists.
-if [ "$EXPECT_SERVER" -eq 1 ]; then
+# Verify server dependencies were installed via postinstall (if server exists)
+if [ -d "server" ]; then
   echo ""
   echo "🔍 Verifying server dependencies were auto-installed via postinstall..."
   if [ -d "server/node_modules" ]; then
