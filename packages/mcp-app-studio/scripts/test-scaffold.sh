@@ -6,7 +6,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PACKAGE_DIR="$(dirname "$SCRIPT_DIR")"
-PROJECT_NAME="${1:-test-chatgpt-app}"
+PROJECT_NAME="${1:-test-mcp-app}"
 INCLUDE_SERVER="--include-server"
 TEST_DIR="/tmp/mcp-app-studio-test"
 
@@ -36,7 +36,9 @@ node "$PACKAGE_DIR/dist/cli/index.js" "$PROJECT_NAME" -y --template poi-map $INC
 echo ""
 echo "📥 Installing dependencies..."
 cd "$TEST_DIR/$PROJECT_NAME"
-npm install
+# This script is often invoked through pnpm workspace scripts. Clear pnpm-style
+# user-agent env so the generated postinstall script exercises the npm path.
+env -u npm_config_user_agent -u npm_config_useragent npm install
 
 # Verify export defaults are written to config file
 echo ""
