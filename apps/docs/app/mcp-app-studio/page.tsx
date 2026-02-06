@@ -164,6 +164,7 @@ const PLATFORM_CAPABILITIES = [
 const FEATURE_GATE_SNIPPET = `import { useState } from "react";
 import { openModal, useFeature } from "mcp-app-studio";
 
+// Example component; adapt export conventions to your project.
 export function MyApp() {
   const hasWidgetState = useFeature("widgetState"); // ChatGPT-only
   const hasModelContext = useFeature("modelContext"); // Host-dependent
@@ -516,8 +517,8 @@ export default function McpAppStudioPage() {
               Export and ship
             </h2>
             <p className="text-muted-foreground">
-              Your production-ready bundle, ready for ChatGPT, Claude, and other
-              MCP hosts.
+              Your production-ready bundle, ready for MCP hosts like Claude,
+              with optional ChatGPT extensions.
             </p>
           </div>
 
@@ -531,11 +532,11 @@ export default function McpAppStudioPage() {
           <p className="mx-auto max-w-2xl text-center text-muted-foreground text-sm">
             Deploy <code>export/widget/</code> to any static host, then update
             <code> export/manifest.json</code> with the hosted URL and register
-            it with your target host (Claude, ChatGPT, or other MCP hosts). By
-            default export emits <code>index.html, widget.js, widget.css</code>,
-            with optional <code>--inline</code> for single-file HTML. It’s the
-            same app either way; the host controls which capabilities are
-            available.
+            it with your target host. The same widget works across MCP hosts
+            (for example, Claude) and ChatGPT extensions. By default export
+            emits <code>index.html, widget.js, widget.css</code>, with optional{" "}
+            <code>--inline</code> for single-file HTML. It’s the same app either
+            way; the host controls which capabilities are available.
           </p>
         </div>
 
