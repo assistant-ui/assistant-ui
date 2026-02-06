@@ -8,7 +8,11 @@ import {
   MessageProvider,
   type ThreadAssistantMessage,
 } from "@assistant-ui/react";
-import { ChainOfThought, type TraceNode } from "./chain-of-thought-v2";
+import {
+  ChainOfThought,
+  Crossfade,
+  type TraceNode,
+} from "./chain-of-thought-v2";
 
 const globalWithAct = globalThis as typeof globalThis & {
   IS_REACT_ACT_ENVIRONMENT?: boolean;
@@ -285,6 +289,99 @@ describe("ChainOfThought.TraceDisclosure", () => {
       "[data-slot=chain-of-thought-trace-group-summary]",
     ) as HTMLButtonElement | null;
     expect(summaryAfter?.hasAttribute("disabled")).toBe(false);
+
+    act(() => {
+      root.unmount();
+    });
+  });
+});
+
+describe("Crossfade", () => {
+  it("renders the current value on mount without transition", () => {
+    const container = document.createElement("div");
+    const root = createRoot(container);
+
+    act(() => {
+      root.render(
+        <Crossfade value="hello">{(v) => <span>{v}</span>}</Crossfade>,
+      );
+    });
+
+    expect(container.textContent).toBe("hello");
+    // No exit span (no transition)
+    const exitSpan = container.querySelector("[aria-hidden]");
+    expect(exitSpan).toBeNull();
+
+    act(() => {
+      root.unmount();
+    });
+  });
+
+  it("shows both old and new values during transition", () => {
+    const container = document.createElement("div");
+    const root = createRoot(container);
+
+    act(() => {
+      root.render(
+        <Crossfade value="alpha">{(v) => <span>{v}</span>}</Crossfade>,
+      );
+    });
+
+    expect(container.textContent).toBe("alpha");
+
+    // Change value
+    act(() => {
+      root.render(
+        <Crossfade value="beta">{(v) => <span>{v}</span>}</Crossfade>,
+      );
+    });
+
+    // During transition, both values should be in the DOM
+    expect(container.textContent).toContain("alpha");
+    expect(container.textContent).toContain("beta");
+
+    // The exit span should exist (aria-hidden, absolute)
+    const exitSpan = container.querySelector("[aria-hidden]");
+    expect(exitSpan).not.toBeNull();
+    expect(exitSpan?.textContent).toBe("alpha");
+
+    act(() => {
+      root.unmount();
+    });
+  });
+
+  it("cleans up previous value after transition completes", async () => {
+    const container = document.createElement("div");
+    const root = createRoot(container);
+
+    act(() => {
+      root.render(
+        <Crossfade value="first" exitDuration={50} enterDuration={50}>
+          {(v) => <span>{v}</span>}
+        </Crossfade>,
+      );
+    });
+
+    act(() => {
+      root.render(
+        <Crossfade value="second" exitDuration={50} enterDuration={50}>
+          {(v) => <span>{v}</span>}
+        </Crossfade>,
+      );
+    });
+
+    // Both values present during transition
+    expect(container.textContent).toContain("first");
+    expect(container.textContent).toContain("second");
+
+    // Wait for cleanup timeout (50ms total)
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 100));
+    });
+
+    // After cleanup, only the new value should remain
+    expect(container.textContent).toBe("second");
+    expect(container.querySelector("[aria-hidden]")).toBeNull();
 
     act(() => {
       root.unmount();

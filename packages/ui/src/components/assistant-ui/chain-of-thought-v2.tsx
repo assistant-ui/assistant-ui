@@ -75,6 +75,49 @@ const stepTypeIcons = {
 const STEP_ICON_CLASS =
   "aui-chain-of-thought-step-icon relative z-10 size-4 transition-[color,transform] duration-200 ease-(--spring-easing)";
 
+/** Shared entrance animation for containers (Timeline, Text) inside CollapsibleContent. */
+const CONTAINER_ENTER_ANIM = [
+  "group-data-[state=open]/collapsible-content:animate-in",
+  "group-data-[state=open]/collapsible-content:fade-in-0",
+  "group-data-[state=open]/collapsible-content:slide-in-from-top-3",
+  "group-data-[state=open]/collapsible-content:duration-(--animation-duration)",
+  "group-data-[state=open]/collapsible-content:ease-(--spring-easing)",
+].join(" ");
+
+/** Shared exit animation for containers (Timeline, Text) inside CollapsibleContent. */
+const CONTAINER_EXIT_ANIM = [
+  "group-data-[state=closed]/collapsible-content:animate-out",
+  "group-data-[state=closed]/collapsible-content:fade-out-0",
+  "group-data-[state=closed]/collapsible-content:slide-out-to-top-2",
+  "group-data-[state=closed]/collapsible-content:duration-[calc(var(--animation-duration)*0.6)]",
+  "group-data-[state=closed]/collapsible-content:ease-(--ease-out-expo)",
+].join(" ");
+
+/** Shared entrance animation for step connectors (staggered fade-in). */
+const CONNECTOR_ENTER_ANIM =
+  "fade-in-0 animate-in fill-mode-both delay-[var(--step-delay)] duration-(--animation-duration) ease-(--spring-easing) motion-reduce:animate-none";
+
+/** Shared exit animation for step connectors (fade only, no slide). */
+const CONNECTOR_EXIT_ANIM = [
+  "group-data-[state=closed]/collapsible-content:fade-out-0",
+  "group-data-[state=closed]/collapsible-content:animate-out",
+  "group-data-[state=closed]/collapsible-content:fill-mode-both",
+  "group-data-[state=closed]/collapsible-content:delay-0",
+  "group-data-[state=closed]/collapsible-content:duration-[calc(var(--animation-duration)*0.4)]",
+  "group-data-[state=closed]/collapsible-content:ease-(--ease-out-expo)",
+].join(" ");
+
+/** Shared exit animation for step elements (fade + slide, simultaneous). */
+const STEP_EXIT_ANIM = [
+  "group-data-[state=closed]/collapsible-content:animate-out",
+  "group-data-[state=closed]/collapsible-content:fade-out-0",
+  "group-data-[state=closed]/collapsible-content:slide-out-to-top-2",
+  "group-data-[state=closed]/collapsible-content:fill-mode-both",
+  "group-data-[state=closed]/collapsible-content:delay-0",
+  "group-data-[state=closed]/collapsible-content:duration-[calc(var(--animation-duration)*0.4)]",
+  "group-data-[state=closed]/collapsible-content:ease-(--ease-out-expo)",
+].join(" ");
+
 /**
  * Small muted bullet dot for default/non-tool steps.
  * More subtle than the full icons used for tool calls.
@@ -208,27 +251,12 @@ const chainOfThoughtVariants = cva("aui-chain-of-thought-root mb-4 w-full", {
   },
 });
 
-const stepVariants = cva(
-  cn(
-    "aui-chain-of-thought-step relative flex items-start gap-3 py-1.5",
-    // Prevent blur filter clipping during entrance animation
-    "overflow-visible",
-    // Stagger delay passed to children via CSS variable
-    "[--step-delay:calc(var(--step-index,0)*var(--step-stagger-delay,25ms))]",
-  ),
-  {
-    variants: {
-      status: {
-        pending: "",
-        active: "",
-        complete: "",
-        error: "",
-      },
-    },
-    defaultVariants: {
-      status: "complete",
-    },
-  },
+const STEP_BASE_CLASS = cn(
+  "aui-chain-of-thought-step relative flex items-start gap-3 py-1.5",
+  // Prevent blur filter clipping during entrance animation
+  "overflow-visible",
+  // Stagger delay passed to children via CSS variable
+  "[--step-delay:calc(var(--step-index,0)*var(--step-stagger-delay,25ms))]",
 );
 
 export type ChainOfThoughtRootProps = Omit<
@@ -721,18 +749,8 @@ function ChainOfThoughtText({
           // Handle long unbreakable content (URLs, code, etc.)
           "break-words [overflow-wrap:anywhere]",
           "transform-gpu",
-          // Open animation: spring easing, staggered fade+slide
-          "group-data-[state=open]/collapsible-content:animate-in",
-          "group-data-[state=open]/collapsible-content:fade-in-0",
-          "group-data-[state=open]/collapsible-content:slide-in-from-top-3",
-          "group-data-[state=open]/collapsible-content:duration-(--animation-duration)",
-          "group-data-[state=open]/collapsible-content:ease-(--spring-easing)",
-          // Close animation: opacity leads, then slide
-          "group-data-[state=closed]/collapsible-content:animate-out",
-          "group-data-[state=closed]/collapsible-content:fade-out-0",
-          "group-data-[state=closed]/collapsible-content:slide-out-to-top-2",
-          "group-data-[state=closed]/collapsible-content:duration-[calc(var(--animation-duration)*0.6)]",
-          "group-data-[state=closed]/collapsible-content:ease-(--ease-out-expo)",
+          CONTAINER_ENTER_ANIM,
+          CONTAINER_EXIT_ANIM,
           className,
         )}
         {...props}
@@ -835,18 +853,8 @@ function ChainOfThoughtTimeline({
     "relative z-0",
     "flex flex-col",
     "transform-gpu",
-    // Open animation: spring easing, staggered fade+slide
-    "group-data-[state=open]/collapsible-content:animate-in",
-    "group-data-[state=open]/collapsible-content:fade-in-0",
-    "group-data-[state=open]/collapsible-content:slide-in-from-top-3",
-    "group-data-[state=open]/collapsible-content:duration-(--animation-duration)",
-    "group-data-[state=open]/collapsible-content:ease-(--spring-easing)",
-    // Close animation: opacity leads, then slide
-    "group-data-[state=closed]/collapsible-content:animate-out",
-    "group-data-[state=closed]/collapsible-content:fade-out-0",
-    "group-data-[state=closed]/collapsible-content:slide-out-to-top-2",
-    "group-data-[state=closed]/collapsible-content:duration-[calc(var(--animation-duration)*0.6)]",
-    "group-data-[state=closed]/collapsible-content:ease-(--ease-out-expo)",
+    CONTAINER_ENTER_ANIM,
+    CONTAINER_EXIT_ANIM,
     "motion-reduce:![animation:none] motion-reduce:![transition:none]",
     scrollable
       ? "max-h-64 overflow-y-auto overflow-x-hidden"
@@ -872,23 +880,23 @@ function ChainOfThoughtTimeline({
   );
 }
 
-export type ChainOfThoughtStepProps = React.ComponentProps<"li"> &
-  VariantProps<typeof stepVariants> & {
-    /** Whether this step is currently active/streaming */
-    active?: boolean;
-    /** Step number or label (shown inside bullet) */
-    stepLabel?: string | number;
-    /** Step type - determines the default icon */
-    type?: StepType;
-    /** Custom icon (overrides type-based icon) */
-    icon?: LucideIcon | ReactNode;
-    /** Error message to display (sets status to error) */
-    error?: string;
-    /** Callback when retry is clicked (shows retry button when provided) */
-    onRetry?: () => void;
-    /** Whether to pulse the icon when active. Defaults to true. Set to false when the icon handles its own animation. */
-    iconPulse?: boolean;
-  };
+export type ChainOfThoughtStepProps = React.ComponentProps<"li"> & {
+  status?: StepStatus;
+  /** Whether this step is currently active/streaming */
+  active?: boolean;
+  /** Step number or label (shown inside bullet) */
+  stepLabel?: string | number;
+  /** Step type - determines the default icon */
+  type?: StepType;
+  /** Custom icon (overrides type-based icon) */
+  icon?: LucideIcon | ReactNode;
+  /** Error message to display (sets status to error) */
+  error?: string;
+  /** Callback when retry is clicked (shows retry button when provided) */
+  onRetry?: () => void;
+  /** Whether to pulse the icon when active. Defaults to true. Set to false when the icon handles its own animation. */
+  iconPulse?: boolean;
+};
 
 // ---------------------------------------------------------------------------
 // Simplification #6: Flattened step indicator (no StepIndicatorWrapper / IconRenderer)
@@ -902,7 +910,6 @@ function resolveStepIcon(
   type: StepType,
   icon: LucideIcon | ReactNode | undefined,
   stepLabel: string | number | undefined,
-  _active: boolean | undefined,
 ): ReactNode {
   // Error state
   if (effectiveStatus === "error") {
@@ -953,9 +960,9 @@ function resolveStepIcon(
  * Individual step in a chain-of-thought timeline.
  *
  * v2 simplifications:
- * - No connector divs (the parent `<ul>` has `border-left`).
- * - Icon is positioned with `absolute -left-2.5` and `bg-background` to
- *   visually "break" the border-left line.
+ * - Icon is positioned absolutely in the left padding zone.
+ * - Two connector `<span>`s (above/below the icon) form vertical lines
+ *   between adjacent steps; hidden on first/last via CSS.
  * - No separate StepIndicatorWrapper/IconRenderer components.
  */
 function ChainOfThoughtStep({
@@ -982,13 +989,7 @@ function ChainOfThoughtStep({
   const isError = effectiveStatus === "error";
   const hasBorder = !!stepLabel || effectiveStatus === "error";
 
-  const iconElement = resolveStepIcon(
-    effectiveStatus,
-    type,
-    icon,
-    stepLabel,
-    active,
-  );
+  const iconElement = resolveStepIcon(effectiveStatus, type, icon, stepLabel);
 
   return (
     <li
@@ -996,12 +997,13 @@ function ChainOfThoughtStep({
       data-status={effectiveStatus}
       data-type={type}
       className={cn(
-        stepVariants({ status: effectiveStatus, className }),
+        STEP_BASE_CLASS,
         // v2: padding to accommodate icon (20px) + gap
         "pl-8",
         // Hide connector-above on first step, connector-below on last step
         "first-of-type:[&>[data-slot=chain-of-thought-step-connector-above]]:hidden",
         "last-of-type:[&>[data-slot=chain-of-thought-step-connector-below]]:hidden",
+        className,
       )}
       {...props}
     >
@@ -1011,8 +1013,8 @@ function ChainOfThoughtStep({
         aria-hidden
         className={cn(
           "absolute top-0 left-[9px] h-[7px] w-px bg-foreground/15",
-          "fade-in-0 animate-in fill-mode-both delay-[var(--step-delay)] duration-(--animation-duration) ease-(--spring-easing) motion-reduce:animate-none",
-          "group-data-[state=closed]/collapsible-content:fade-out-0 group-data-[state=closed]/collapsible-content:animate-out group-data-[state=closed]/collapsible-content:fill-mode-both group-data-[state=closed]/collapsible-content:delay-0 group-data-[state=closed]/collapsible-content:duration-[calc(var(--animation-duration)*0.4)] group-data-[state=closed]/collapsible-content:ease-(--ease-out-expo)",
+          CONNECTOR_ENTER_ANIM,
+          CONNECTOR_EXIT_ANIM,
         )}
       />
       {/* Connector line below icon */}
@@ -1021,8 +1023,8 @@ function ChainOfThoughtStep({
         aria-hidden
         className={cn(
           "absolute top-[27px] bottom-0 left-[9px] w-px bg-foreground/15",
-          "fade-in-0 animate-in fill-mode-both delay-[var(--step-delay)] duration-(--animation-duration) ease-(--spring-easing) motion-reduce:animate-none",
-          "group-data-[state=closed]/collapsible-content:fade-out-0 group-data-[state=closed]/collapsible-content:animate-out group-data-[state=closed]/collapsible-content:fill-mode-both group-data-[state=closed]/collapsible-content:delay-0 group-data-[state=closed]/collapsible-content:duration-[calc(var(--animation-duration)*0.4)] group-data-[state=closed]/collapsible-content:ease-(--ease-out-expo)",
+          CONNECTOR_ENTER_ANIM,
+          CONNECTOR_EXIT_ANIM,
         )}
       />
       {/* Icon indicator */}
@@ -1055,13 +1057,7 @@ function ChainOfThoughtStep({
           // Entrance animation
           "fade-in-0 zoom-in-85 animate-in overflow-visible fill-mode-both blur-in-[3px] delay-[var(--step-delay)] duration-(--animation-duration) ease-(--spring-easing) will-change-[transform,opacity,filter] motion-reduce:animate-none",
           // Exit animation — delay-0 resets the entrance stagger so all steps fade simultaneously
-          "group-data-[state=closed]/collapsible-content:animate-out",
-          "group-data-[state=closed]/collapsible-content:fade-out-0",
-          "group-data-[state=closed]/collapsible-content:slide-out-to-top-2",
-          "group-data-[state=closed]/collapsible-content:fill-mode-both",
-          "group-data-[state=closed]/collapsible-content:delay-0",
-          "group-data-[state=closed]/collapsible-content:duration-[calc(var(--animation-duration)*0.4)]",
-          "group-data-[state=closed]/collapsible-content:ease-(--ease-out-expo)",
+          STEP_EXIT_ANIM,
         )}
       >
         <span
@@ -1089,13 +1085,7 @@ function ChainOfThoughtStep({
           // Entrance animation
           "fade-in-0 slide-in-from-top-[8px] animate-in fill-mode-both delay-[var(--step-delay)] duration-(--animation-duration) ease-(--spring-easing)",
           // Exit animation — delay-0 resets the entrance stagger so all steps fade simultaneously
-          "group-data-[state=closed]/collapsible-content:animate-out",
-          "group-data-[state=closed]/collapsible-content:fade-out-0",
-          "group-data-[state=closed]/collapsible-content:slide-out-to-top-2",
-          "group-data-[state=closed]/collapsible-content:fill-mode-both",
-          "group-data-[state=closed]/collapsible-content:delay-0",
-          "group-data-[state=closed]/collapsible-content:duration-[calc(var(--animation-duration)*0.4)]",
-          "group-data-[state=closed]/collapsible-content:ease-(--ease-out-expo)",
+          STEP_EXIT_ANIM,
           isActive && "text-foreground",
           isError && "text-destructive",
           "motion-reduce:animate-none",
@@ -1257,8 +1247,6 @@ export type ChainOfThoughtToolBadgeProps = React.ComponentProps<"span"> & {
   toolName: string;
   /** Tool status */
   status?: "running" | "complete" | "error";
-  /** Apply text shimmer to the tool name */
-  shimmer?: boolean;
   /** Whether to show the icon (spinner/error/wrench). Defaults to true. */
   showIcon?: boolean;
 };
@@ -1270,7 +1258,6 @@ export type ChainOfThoughtToolBadgeProps = React.ComponentProps<"span"> & {
 function ChainOfThoughtToolBadge({
   toolName,
   status = "complete",
-  shimmer: _shimmer,
   showIcon = true,
   className,
   ...props
@@ -1412,12 +1399,8 @@ const mapTraceStatusToStepStatus = (status?: TraceStatus): StepStatus => {
   }
 };
 
-const STEP_TO_TRACE_STATUS: Record<StepStatus, TraceStatus> = {
-  active: "running",
-  complete: "complete",
-  error: "error",
-  pending: "incomplete",
-};
+const stepStatusToTrace = (s: StepStatus): TraceStatus =>
+  s === "active" ? "running" : s === "pending" ? "incomplete" : s;
 
 const mapTraceStatusToToolBadge = (
   status?: TraceStatus,
@@ -1593,7 +1576,7 @@ export const traceFromMessageParts = (
       label: meta.label,
       ...(meta.type != null ? { type: meta.type } : {}),
       ...(meta.status != null
-        ? { status: STEP_TO_TRACE_STATUS[meta.status] }
+        ? { status: stepStatusToTrace(meta.status) }
         : {}),
       ...(toolName != null ? { toolName } : {}),
     } satisfies TraceStep;
@@ -1611,17 +1594,11 @@ export const traceFromThreadMessage = (
 
 type ChainOfThoughtTraceContextValue = {
   inferStep: NonNullable<ChainOfThoughtTracePartsProps["inferStep"]>;
+  getStepIndex: (indices: number[]) => number | undefined;
 };
 
 const ChainOfThoughtTraceContext =
   createContext<ChainOfThoughtTraceContextValue | null>(null);
-
-type ChainOfThoughtTraceStepIndexContextValue = {
-  getStepIndex: (indices: number[]) => number | undefined;
-};
-
-const ChainOfThoughtTraceStepIndexContext =
-  createContext<ChainOfThoughtTraceStepIndexContextValue | null>(null);
 
 type TraceTreeConfig = {
   maxDepth: number;
@@ -1647,10 +1624,9 @@ function ChainOfThoughtTracePartsGroup({
 }) {
   const context = useContext(ChainOfThoughtTraceContext);
   const inferStep = context?.inferStep ?? defaultInferStep;
-  const stepIndexContext = useContext(ChainOfThoughtTraceStepIndexContext);
   const stepIndex = useMemo(
-    () => stepIndexContext?.getStepIndex(indices),
-    [indices, stepIndexContext],
+    () => context?.getStepIndex(indices),
+    [indices, context],
   );
 
   const messageParts = useAuiState(({ message }) => message.parts);
@@ -1722,12 +1698,12 @@ function ChainOfThoughtTraceParts({
     return map;
   }, [groups]);
 
-  const contextValue = useMemo(() => ({ inferStep }), [inferStep]);
-  const stepIndexContextValue = useMemo(
+  const contextValue = useMemo(
     () => ({
+      inferStep,
       getStepIndex: (indices: number[]) => groupIndexMap.get(indices.join("|")),
     }),
-    [groupIndexMap],
+    [inferStep, groupIndexMap],
   );
   const groupedComponents = useMemo(
     () => ({
@@ -1768,13 +1744,9 @@ function ChainOfThoughtTraceParts({
 
   return (
     <ChainOfThoughtTraceContext.Provider value={contextValue}>
-      <ChainOfThoughtTraceStepIndexContext.Provider
-        value={stepIndexContextValue}
-      >
-        <ChainOfThoughtTimeline className={className} {...timelineProps}>
-          {renderedGroups}
-        </ChainOfThoughtTimeline>
-      </ChainOfThoughtTraceStepIndexContext.Provider>
+      <ChainOfThoughtTimeline className={className} {...timelineProps}>
+        {renderedGroups}
+      </ChainOfThoughtTimeline>
     </ChainOfThoughtTraceContext.Provider>
   );
 }
@@ -1846,7 +1818,7 @@ const DefaultTraceGroupSummary: ComponentType<
       )}
       aria-expanded={isOpen}
     >
-      <div className="flex h-6 items-center gap-2 text-sm">
+      <div className="flex items-center gap-2 text-sm">
         <span className="font-medium text-foreground">{group.label}</span>
         <div className="flex min-w-0 flex-1 items-center gap-2 text-muted-foreground">
           {toolName ? (
@@ -2175,20 +2147,26 @@ function useTraceDisclosureState({
   return { open, handleOpenChange };
 }
 
-function ChainOfThoughtTraceDisclosureNodes({
-  trace,
+/**
+ * Shared disclosure shell used by both Nodes and Parts variants.
+ * Handles open/close state, duration tracking, summary label, and layout.
+ */
+function ChainOfThoughtTraceDisclosureShell({
+  isStreaming,
+  stats,
   label = "Working...",
   summary,
   collapseOnComplete = true,
-  disableGroupExpansionWhileStreaming = true,
   rootProps,
   triggerProps,
   contentProps,
-  ...timelineProps
-}: ChainOfThoughtTraceNodesProps & ChainOfThoughtTraceDisclosureSharedProps) {
-  const isStreaming = useMemo(() => traceHasRunning(trace), [trace]);
+  children,
+}: ChainOfThoughtTraceDisclosureSharedProps & {
+  isStreaming: boolean;
+  stats: TraceSummaryStats;
+  children: ReactNode;
+}) {
   const durationSec = useTraceDuration(isStreaming);
-  const stats = useMemo(() => collectTraceStats(trace), [trace]);
   const summaryLabel = useMemo(() => {
     if (typeof summary === "string") return summary;
     if (typeof summary === "function") {
@@ -2205,8 +2183,6 @@ function ChainOfThoughtTraceDisclosureNodes({
     collapseOnComplete,
   });
 
-  const allowGroupExpand = !disableGroupExpansionWhileStreaming || !isStreaming;
-
   return (
     <ChainOfThoughtRoot
       open={open}
@@ -2219,20 +2195,51 @@ function ChainOfThoughtTraceDisclosureNodes({
         {...triggerProps}
       />
       <ChainOfThoughtContent aria-busy={isStreaming} {...contentProps}>
-        <ChainOfThoughtTraceNodes
-          trace={trace}
-          allowGroupExpand={allowGroupExpand}
-          {...timelineProps}
-        />
+        {children}
       </ChainOfThoughtContent>
     </ChainOfThoughtRoot>
   );
 }
 
-function ChainOfThoughtTraceDisclosureParts({
-  label = "Working...",
+function ChainOfThoughtTraceDisclosureNodes({
+  trace,
+  label,
   summary,
-  collapseOnComplete = true,
+  collapseOnComplete,
+  disableGroupExpansionWhileStreaming = true,
+  rootProps,
+  triggerProps,
+  contentProps,
+  ...timelineProps
+}: ChainOfThoughtTraceNodesProps & ChainOfThoughtTraceDisclosureSharedProps) {
+  const isStreaming = useMemo(() => traceHasRunning(trace), [trace]);
+  const stats = useMemo(() => collectTraceStats(trace), [trace]);
+  const allowGroupExpand = !disableGroupExpansionWhileStreaming || !isStreaming;
+
+  return (
+    <ChainOfThoughtTraceDisclosureShell
+      isStreaming={isStreaming}
+      stats={stats}
+      label={label}
+      summary={summary}
+      collapseOnComplete={collapseOnComplete}
+      rootProps={rootProps}
+      triggerProps={triggerProps}
+      contentProps={contentProps}
+    >
+      <ChainOfThoughtTraceNodes
+        trace={trace}
+        allowGroupExpand={allowGroupExpand}
+        {...timelineProps}
+      />
+    </ChainOfThoughtTraceDisclosureShell>
+  );
+}
+
+function ChainOfThoughtTraceDisclosureParts({
+  label,
+  summary,
+  collapseOnComplete,
   disableGroupExpansionWhileStreaming = true,
   rootProps,
   triggerProps,
@@ -2258,42 +2265,23 @@ function ChainOfThoughtTraceDisclosureParts({
     return collectTraceStats(inferredTrace);
   }, [groupingFunction, inferStep, messageParts]);
 
-  const durationSec = useTraceDuration(isStreaming);
-  const summaryLabel = useMemo(() => {
-    if (typeof summary === "string") return summary;
-    if (typeof summary === "function") {
-      return summary({
-        ...stats,
-        ...(durationSec != null ? { durationSec } : {}),
-      });
-    }
-    return summarizeTraceStats(stats, durationSec);
-  }, [durationSec, stats, summary]);
-
-  const { open, handleOpenChange } = useTraceDisclosureState({
-    isStreaming,
-    collapseOnComplete,
-  });
-
   return (
-    <ChainOfThoughtRoot
-      open={open}
-      onOpenChange={handleOpenChange}
-      {...rootProps}
+    <ChainOfThoughtTraceDisclosureShell
+      isStreaming={isStreaming}
+      stats={stats}
+      label={label}
+      summary={summary}
+      collapseOnComplete={collapseOnComplete}
+      rootProps={rootProps}
+      triggerProps={triggerProps}
+      contentProps={contentProps}
     >
-      <ChainOfThoughtTrigger
-        active={isStreaming}
-        label={isStreaming ? label : summaryLabel}
-        {...triggerProps}
+      <ChainOfThoughtTraceParts
+        groupingFunction={groupingFunction}
+        inferStep={inferStep}
+        {...timelineProps}
       />
-      <ChainOfThoughtContent aria-busy={isStreaming} {...contentProps}>
-        <ChainOfThoughtTraceParts
-          groupingFunction={groupingFunction}
-          inferStep={inferStep}
-          {...timelineProps}
-        />
-      </ChainOfThoughtContent>
-    </ChainOfThoughtRoot>
+    </ChainOfThoughtTraceDisclosureShell>
   );
 }
 
@@ -2501,6 +2489,6 @@ export {
   ChainOfThoughtAnnouncer,
   Crossfade,
   chainOfThoughtVariants,
-  stepVariants,
+  STEP_BASE_CLASS,
   stepTypeIcons,
 };
