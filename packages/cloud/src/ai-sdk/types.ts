@@ -68,16 +68,9 @@ export type UseThreadsResult = {
 // Chat Types
 // ============================================================================
 
-export type ThreadsConfig = {
-  /** Include archived threads in the list. Default: false */
-  includeArchived?: boolean;
-  /** Auto-generate title after first response on new threads. Default: true */
-  autoGenerateTitle?: boolean;
-};
-
 export type UseCloudChatOptions = ChatInit<UIMessage> & {
-  /** Thread configuration or external thread management. If UseThreadsResult provided, internal threads are disabled. */
-  threads?: UseThreadsResult | ThreadsConfig;
+  /** External thread management from useThreads(). If provided, internal threads are disabled. */
+  threads?: UseThreadsResult;
   /** Cloud instance. Ignored if threads is UseThreadsResult. Falls back to NEXT_PUBLIC_ASSISTANT_BASE_URL env var. */
   cloud?: AssistantCloud;
   /** Callback invoked when a sync error occurs. */

@@ -14,7 +14,6 @@ export { useThreads } from "./threads/useThreads";
 export type {
   UseCloudChatResult,
   UseCloudChatOptions,
-  ThreadsConfig,
   UseThreadsResult,
   UseThreadsOptions,
   CloudThread,

@@ -10,7 +10,7 @@ export default function Home() {
   // Zero-config mode: auto-initializes anonymous cloud from NEXT_PUBLIC_ASSISTANT_BASE_URL.
   // For custom configuration, pass options:
   //   - { cloud: myCloud } for authenticated users
-  //   - { threads: { includeArchived: true } } for thread config
+  //   - { threads: useThreads(...) } for external thread management
   //   - { onSyncError: (err) => ... } for error handling
   const { messages, sendMessage, stop, status, threads } = useCloudChat();
 
@@ -25,13 +25,18 @@ export default function Home() {
   const isRunning = status === "streaming" || status === "submitted";
   const isLoading = status === "submitted";
 
+  const handleDelete = async (id: string) => {
+    if (threads.threadId === id) threads.selectThread(null);
+    await threads.delete(id);
+  };
+
   return (
     <div className="flex h-full">
       <ThreadList
         threads={threads.threads}
         selectedId={threads.threadId}
         onSelect={threads.selectThread}
-        onDelete={threads.delete}
+        onDelete={handleDelete}
         isLoading={threads.isLoading}
       />
 

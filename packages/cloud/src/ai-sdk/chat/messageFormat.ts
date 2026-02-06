@@ -1,12 +1,5 @@
 import type { UIMessage } from "@ai-sdk/react";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
-import type { CloudMessage } from "../../AssistantCloudThreadMessages";
-
-/**
- * Storage format for AI SDK v6 messages - UIMessage without the id field.
- * The id is stored separately in CloudMessage.id.
- */
-export type AISDKStorageFormat = Omit<UIMessage, "id">;
 
 export const MESSAGE_FORMAT = "ai-sdk/v6";
 
@@ -16,15 +9,4 @@ export const MESSAGE_FORMAT = "ai-sdk/v6";
  */
 export function encode({ id, ...rest }: UIMessage): ReadonlyJSONObject {
   return rest as ReadonlyJSONObject;
-}
-
-/**
- * Decode a CloudMessage back to UIMessage format.
- */
-export function decode(stored: CloudMessage): UIMessage {
-  const content = stored.content as AISDKStorageFormat;
-  return {
-    id: stored.id,
-    ...content,
-  };
 }

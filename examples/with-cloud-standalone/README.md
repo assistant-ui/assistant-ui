@@ -44,25 +44,13 @@ function Chat() {
 }
 ```
 
-### With thread configuration
-
-```tsx
-const { messages, sendMessage, threads } = useCloudChat({
-  threads: {
-    includeArchived: true,      // Show archived threads in list
-    autoGenerateTitle: false,   // Disable auto-title generation
-  },
-  onSyncError: (err) => console.error("Sync failed:", err),
-});
-```
-
 ### With external thread management
 
-When you need thread operations in a separate component (e.g., a sidebar):
+When you need thread operations in a separate component (e.g., a sidebar) or custom options like `includeArchived`:
 
 ```tsx
 // In parent or context
-const myThreads = useThreads({ cloud });
+const myThreads = useThreads({ cloud, includeArchived: true });
 
 // In chat component - uses your thread state
 const { messages, sendMessage } = useCloudChat({ threads: myThreads });

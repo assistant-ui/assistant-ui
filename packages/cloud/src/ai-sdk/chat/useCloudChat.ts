@@ -4,12 +4,7 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import { Chat, useChat } from "@ai-sdk/react";
 import type { UIMessage } from "@ai-sdk/react";
 import { DefaultChatTransport, type ChatTransport } from "ai";
-import type {
-  UseCloudChatOptions,
-  UseCloudChatResult,
-  UseThreadsResult,
-  ThreadsConfig,
-} from "../types";
+import type { UseCloudChatOptions, UseCloudChatResult } from "../types";
 import { useThreads } from "../threads/useThreads";
 import { AssistantCloud } from "../../AssistantCloud";
 import { ChatMultiplexer } from "./internal/ChatMultiplexer";
@@ -34,19 +29,6 @@ function createSessionId(): string {
     return crypto.randomUUID();
   }
   return `aui_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-}
-
-// ============================================================================
-// Type Guards
-// ============================================================================
-
-function isUseThreadsResult(
-  value: UseThreadsResult | ThreadsConfig | undefined,
-): value is UseThreadsResult {
-  return (
-    value !== undefined &&
-    typeof (value as UseThreadsResult).selectThread === "function"
-  );
 }
 
 // ============================================================================
@@ -76,15 +58,7 @@ export function useCloudChat(
   // 1. Resolve Configuration
   // ============================================================================
 
-  const externalThreads = isUseThreadsResult(threadsOption)
-    ? threadsOption
-    : undefined;
-  const threadsConfig = !isUseThreadsResult(threadsOption)
-    ? threadsOption
-    : undefined;
-
-  const includeArchived = threadsConfig?.includeArchived ?? false;
-  const autoGenerateTitle = threadsConfig?.autoGenerateTitle ?? true;
+  const externalThreads = threadsOption;
 
   // Resolve cloud: external threads' cloud > cloudOption > env var auto-cloud (singleton)
   const resolvedCloud = useMemo(() => {
@@ -104,7 +78,6 @@ export function useCloudChat(
   // Always call useThreads (Rules of Hooks) but disable when external provided
   const internalThreads = useThreads({
     cloud: resolvedCloud,
-    includeArchived: includeArchived ?? false,
     enabled: !externalThreads, // Skip fetch if user manages threads
   });
 
@@ -135,9 +108,6 @@ export function useCloudChat(
 
   const onSyncErrorRef = useRef(onSyncError);
   onSyncErrorRef.current = onSyncError;
-
-  const autoGenerateTitleRef = useRef(autoGenerateTitle);
-  autoGenerateTitleRef.current = autoGenerateTitle;
 
   // Track mounted state
   const mountedRef = useRef(true);
@@ -193,7 +163,6 @@ export function useCloudChat(
 
       // Auto-generate title after first assistant response
       if (
-        autoGenerateTitleRef.current &&
         newlyCreatedThreadIdsRef.current.has(tid) &&
         !titleGeneratedRef.current.has(tid) &&
         messages.some((msg) => msg.role === "assistant")
@@ -231,7 +200,6 @@ export function useCloudChat(
                 threadsRef.current.refresh();
                 return res.thread_id;
               } catch (err) {
-                meta.creatingThread = null;
                 throw err;
               } finally {
                 meta.creatingThread = null;
