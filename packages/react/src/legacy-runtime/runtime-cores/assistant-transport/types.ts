@@ -31,6 +31,8 @@ export type AssistantMessage = {
 export type AddMessageCommand = {
   readonly type: "add-message";
   readonly message: UserMessage | AssistantMessage;
+  readonly parentId: string | null;
+  readonly sourceId: string | null;
 };
 
 export type AddToolResultCommand = {
@@ -109,6 +111,9 @@ export type AssistantTransportOptions<T> = {
     updateState: (updater: (state: T) => T) => void;
     error?: Error;
   }) => void;
+  capabilities?: {
+    edit?: boolean;
+  };
   adapters?: {
     attachments?: AttachmentAdapter | undefined;
     history?: ThreadHistoryAdapter | undefined;

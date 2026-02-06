@@ -35,6 +35,36 @@ import { InMemoryThreadListAdapter } from "../remote-thread-list/adapter/in-memo
 import { useAui, useAuiState } from "@assistant-ui/store";
 import { UserExternalState } from "../../../augmentations";
 
+const convertAppendMessageToCommand = (
+  message: AppendMessage,
+): AddMessageCommand => {
+  if (message.role !== "user")
+    throw new Error("Only user messages are supported");
+
+  const parts: UserMessagePart[] = [];
+  const content = [
+    ...message.content,
+    ...(message.attachments?.flatMap((a) => a.content) ?? []),
+  ];
+  for (const contentPart of content) {
+    if (contentPart.type === "text") {
+      parts.push({ type: "text", text: contentPart.text });
+    } else if (contentPart.type === "image") {
+      parts.push({ type: "image", image: contentPart.image });
+    }
+  }
+
+  return {
+    type: "add-message",
+    message: {
+      role: "user",
+      parts,
+    },
+    parentId: message.parentId,
+    sourceId: message.sourceId,
+  };
+};
+
 const symbolAssistantTransportExtras = Symbol("assistant-transport-extras");
 type AssistantTransportExtras = {
   [symbolAssistantTransportExtras]: true;
@@ -254,37 +284,17 @@ const useAssistantTransportThreadRuntime = <T,>(
       state: agentStateRef.current as UserExternalState,
     } satisfies AssistantTransportExtras,
     onNew: async (message: AppendMessage): Promise<void> => {
-      if (message.role !== "user")
-        throw new Error("Only user messages are supported");
-
-      // Store parentId for the request
       parentIdRef.current = message.parentId;
-
-      // Convert AppendMessage to AddMessageCommand
-      const parts: UserMessagePart[] = [];
-
-      const content = [
-        ...message.content,
-        ...(message.attachments?.flatMap((a) => a.content) ?? []),
-      ];
-      for (const contentPart of content) {
-        if (contentPart.type === "text") {
-          parts.push({ type: "text", text: contentPart.text });
-        } else if (contentPart.type === "image") {
-          parts.push({ type: "image", image: contentPart.image });
-        }
-      }
-
-      const command: AddMessageCommand = {
-        type: "add-message",
-        message: {
-          role: "user",
-          parts,
-        },
-      };
-
+      const command = convertAppendMessageToCommand(message);
       commandQueue.enqueue(command);
     },
+    ...(options.capabilities?.edit && {
+      onEdit: async (message: AppendMessage): Promise<void> => {
+        parentIdRef.current = message.parentId;
+        const command = convertAppendMessageToCommand(message);
+        commandQueue.enqueue(command);
+      },
+    }),
     onCancel: async () => {
       runManager.cancel();
       await toolInvocations.abort();

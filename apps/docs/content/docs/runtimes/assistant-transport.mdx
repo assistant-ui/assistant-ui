@@ -314,6 +314,7 @@ The `useAssistantTransportRuntime` hook is used to configure the runtime. It acc
   converter: (state: T, connectionMetadata: ConnectionMetadata) => AssistantTransportState,
   headers?: Record<string, string> | (() => Promise<Record<string, string>>),
   body?: object,
+  capabilities?: { edit?: boolean },
   onResponse?: (response: Response) => void,
   onFinish?: () => void,
   onError?: (error: Error) => void,
@@ -489,6 +490,55 @@ const runtime = useAssistantTransportRuntime({
   }),
 });
 ```
+
+## Editing Messages
+
+By default, editing messages is disabled. To enable it, set `capabilities.edit` to `true`:
+
+```typescript
+const runtime = useAssistantTransportRuntime({
+  // ... other options
+  capabilities: {
+    edit: true,
+  },
+});
+```
+
+`add-message` commands always include `parentId` and `sourceId` fields:
+
+```typescript
+{
+  type: "add-message",
+  message: { role: "user", parts: [...] },
+  parentId: "msg-3",  // The message after which this message should be inserted
+  sourceId: "msg-4",  // The ID of the message being replaced (null for new messages)
+}
+```
+
+### Backend Handling
+
+When the backend receives an `add-message` command with a `parentId`, it should:
+
+1. Truncate all messages after the message with `parentId`
+2. Append the new message
+3. Stream the updated state back to the frontend
+
+```python
+for command in request.commands:
+    if command.type == "add-message":
+        if hasattr(command, "parentId") and command.parentId is not None:
+            # Find the parent message index and truncate
+            parent_idx = next(
+                i for i, m in enumerate(messages) if m.id == command.parentId
+            )
+            messages = messages[:parent_idx + 1]
+        # Append the new message
+        messages.append(command.message)
+```
+
+<Callout type="info">
+  `parentId` and `sourceId` are always included on `add-message` commands. For new messages, `sourceId` will be `null`.
+</Callout>
 
 ## Resuming from a Sync Server
 
