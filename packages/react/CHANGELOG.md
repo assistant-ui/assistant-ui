@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.12.8
+
+### Patch Changes
+
+- 38f4a32: feat: ChainOfThoughtPrimitive
+
 ## 0.12.7
 
 ### Patch Changes

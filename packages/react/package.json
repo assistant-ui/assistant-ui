@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react",
-  "version": "0.12.7",
+  "version": "0.12.8",
   "description": "TypeScript/React library for AI Chat",
   "keywords": [
     "radix-ui",

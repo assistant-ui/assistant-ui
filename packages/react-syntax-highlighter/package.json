@@ -39,7 +39,7 @@
     "build": "aui-build"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.12.7",
+    "@assistant-ui/react": "^0.12.8",
     "@assistant-ui/react-markdown": "^0.12.2",
     "@types/react": "*",
     "@types/react-syntax-highlighter": "*",

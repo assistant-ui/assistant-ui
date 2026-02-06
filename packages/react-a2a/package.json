@@ -37,7 +37,7 @@
     "uuid": "^13.0.0"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.12.7",
+    "@assistant-ui/react": "^0.12.8",
     "@types/react": "*",
     "react": "^18 || ^19"
   },
