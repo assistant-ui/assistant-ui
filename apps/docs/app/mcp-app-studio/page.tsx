@@ -161,25 +161,33 @@ const PLATFORM_CAPABILITIES = [
   },
 ] as const;
 
-const FEATURE_GATE_SNIPPET = `import { openModal, useFeature } from "mcp-app-studio";
+const FEATURE_GATE_SNIPPET = `import { useState } from "react";
+import { openModal, useFeature } from "mcp-app-studio";
 
-const hasWidgetState = useFeature("widgetState");  // ChatGPT-only
+const hasWidgetState = useFeature("widgetState"); // ChatGPT-only
 const hasModelContext = useFeature("modelContext"); // Host-dependent
+const [localModal, setLocalModal] = useState<{ id: string } | null>(null);
 
 return (
   <>
-    {hasWidgetState && <StatePersistence />}
-    {hasModelContext && <ContextPanel />}
+    {hasWidgetState && <p>Widget state APIs are available.</p>}
+    {hasModelContext && <p>Model context APIs are available.</p>}
     <button
       onClick={() =>
         openModal(
           { title: "Details", params: { id: "123" } },
-          () => setLocalView({ mode: "modal", params: { id: "123" } }),
+          () => setLocalModal({ id: "123" }),
         )
       }
     >
       Open details
     </button>
+    {localModal && (
+      <div role="dialog" aria-modal="true">
+        <p>Local modal fallback for ID: {localModal.id}</p>
+        <button onClick={() => setLocalModal(null)}>Close</button>
+      </div>
+    )}
   </>
 );`;
 
