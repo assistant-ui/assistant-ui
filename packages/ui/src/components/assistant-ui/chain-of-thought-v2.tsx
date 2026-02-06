@@ -305,6 +305,101 @@ function ChainOfThoughtRoot({
   );
 }
 
+// ---------------------------------------------------------------------------
+// Crossfade – animates between two values with opacity transitions.
+// The outgoing value is overlaid absolutely; the incoming value flows normally
+// so the container sizes to the new content.
+// ---------------------------------------------------------------------------
+
+export type CrossfadeProps<T> = {
+  /** The current value. When it changes (by `Object.is`), a crossfade fires. */
+  value: T;
+  /** Render function — receives the value to display. */
+  children: (value: T) => ReactNode;
+  /** Duration of the entrance fade (ms). @default 300 */
+  enterDuration?: number;
+  /** Duration of the exit fade (ms). @default 200 */
+  exitDuration?: number;
+  /** Delay before the entrance starts (ms). Tune this to control the gap
+   *  between the outgoing and incoming elements. 0 = full overlap,
+   *  `exitDuration` = sequential (old fully gone before new appears). @default 0 */
+  enterDelay?: number;
+  className?: string;
+};
+
+function Crossfade<T>({
+  value,
+  children,
+  enterDuration = 300,
+  exitDuration = 200,
+  enterDelay = 0,
+  className,
+}: CrossfadeProps<T>) {
+  const [currentValue, setCurrentValue] = useState(value);
+  const [previousValue, setPreviousValue] = useState<T | null>(null);
+  const [generation, setGeneration] = useState(0);
+  const valueRef = useRef(value);
+  const cleanupRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (Object.is(valueRef.current, value)) return;
+
+    setPreviousValue(valueRef.current);
+    setCurrentValue(value);
+    setGeneration((g) => g + 1);
+    valueRef.current = value;
+
+    if (cleanupRef.current) window.clearTimeout(cleanupRef.current);
+
+    const totalMs = Math.max(exitDuration, enterDelay + enterDuration);
+    cleanupRef.current = window.setTimeout(() => {
+      setPreviousValue(null);
+      cleanupRef.current = null;
+    }, totalMs);
+
+    return () => {
+      if (cleanupRef.current) window.clearTimeout(cleanupRef.current);
+    };
+  }, [value, enterDuration, exitDuration, enterDelay]);
+
+  const isTransitioning = previousValue != null;
+
+  return (
+    <span
+      data-slot="chain-of-thought-crossfade"
+      className={cn("relative inline-flex", className)}
+      style={
+        isTransitioning
+          ? ({
+              "--crossfade-exit-duration": `${exitDuration}ms`,
+              "--crossfade-enter-duration": `${enterDuration}ms`,
+              "--crossfade-enter-delay": `${enterDelay}ms`,
+            } as React.CSSProperties)
+          : undefined
+      }
+    >
+      {isTransitioning && (
+        <span
+          key={`exit-${generation}`}
+          aria-hidden
+          className="fade-out-0 pointer-events-none absolute inset-0 animate-out fill-mode-both duration-[var(--crossfade-exit-duration)]"
+        >
+          {children(previousValue as T)}
+        </span>
+      )}
+      <span
+        key={`enter-${generation}`}
+        className={cn(
+          isTransitioning &&
+            "fade-in-0 animate-in fill-mode-both delay-[var(--crossfade-enter-delay)] duration-[var(--crossfade-enter-duration)]",
+        )}
+      >
+        {children(currentValue)}
+      </span>
+    </span>
+  );
+}
+
 export type ChainOfThoughtTriggerProps = React.ComponentProps<
   typeof CollapsibleTrigger
 > & {
@@ -342,34 +437,42 @@ function ChainOfThoughtTrigger({
     >
       <span
         data-slot="chain-of-thought-trigger-label"
-        className="aui-chain-of-thought-trigger-label-wrapper relative inline-block leading-6"
+        className="aui-chain-of-thought-trigger-label-wrapper min-w-0 flex-1 leading-6"
       >
-        <span>{displayLabel}</span>
-        {active && (
-          <span
-            aria-hidden
-            data-slot="chain-of-thought-trigger-shimmer"
-            className={cn(
-              "aui-chain-of-thought-trigger-shimmer shimmer pointer-events-none absolute inset-0",
-              "motion-reduce:animate-none",
-            )}
-          >
-            {displayLabel}
-          </span>
-        )}
-      </span>
-
-      <span className="flex h-6 shrink-0 items-center">
-        <ChevronDownIcon
-          data-slot="chain-of-thought-trigger-chevron"
-          className={cn(
-            "aui-chain-of-thought-trigger-chevron size-4",
-            // Smooth ease-out for refined rotation
-            "transition-transform duration-(--animation-duration) ease-(--spring-easing)",
-            "group-data-[state=closed]/trigger:-rotate-90",
-            "group-data-[state=open]/trigger:rotate-0",
+        <Crossfade
+          value={displayLabel}
+          exitDuration={200}
+          enterDuration={320}
+          enterDelay={70}
+          className="h-6 items-center"
+        >
+          {(text) => (
+            <span className="relative inline-flex items-center truncate">
+              {text}
+              <ChevronDownIcon
+                data-slot="chain-of-thought-trigger-chevron"
+                className={cn(
+                  "aui-chain-of-thought-trigger-chevron ml-1.5 inline-block size-4 shrink-0",
+                  "transition-transform duration-(--animation-duration) ease-(--spring-easing)",
+                  "group-data-[state=closed]/trigger:-rotate-90",
+                  "group-data-[state=open]/trigger:rotate-0",
+                )}
+              />
+              {active && (
+                <span
+                  aria-hidden
+                  data-slot="chain-of-thought-trigger-shimmer"
+                  className={cn(
+                    "aui-chain-of-thought-trigger-shimmer shimmer pointer-events-none absolute inset-0",
+                    "motion-reduce:animate-none",
+                  )}
+                >
+                  {text}
+                </span>
+              )}
+            </span>
           )}
-        />
+        </Crossfade>
       </span>
     </CollapsibleTrigger>
   );
@@ -1891,34 +1994,37 @@ function ChainOfThoughtTraceGroupNode({
   const icon = canExpand ? (
     isSubagent ? (
       // Subagent: BotIcon by default, crossfade to ChevronDown on hover.
-      // Timing mirrors the headline crossfade (out 200ms, in 320ms + 70ms delay).
       // Uses React pointer state (not CSS group-hover) so only the summary
       // row triggers the crossfade, not nested child groups.
       // The BotIcon pulses independently (parent pulse is disabled via iconPulse={false}).
-      <span className="relative flex size-4 items-center justify-center">
-        <BotIcon
-          aria-hidden
-          className={cn(
-            "size-4 transition-opacity ease-out",
-            isSummaryHovered
-              ? "opacity-0 delay-0 duration-200"
-              : "opacity-100 delay-[70ms] duration-[320ms]",
-            !isSummaryHovered &&
-              groupStatus === "running" &&
-              "animate-pulse [animation-duration:1.5s] motion-reduce:animate-none",
-          )}
-        />
-        <ChevronDownIcon
-          aria-hidden
-          className={cn(
-            "absolute size-4 text-muted-foreground transition-[opacity,transform] ease-out",
-            isSummaryHovered
-              ? "opacity-100 delay-[70ms] duration-[320ms]"
-              : "opacity-0 delay-0 duration-200",
-            isOpen ? "rotate-0" : "-rotate-90",
-          )}
-        />
-      </span>
+      <Crossfade
+        value={isSummaryHovered ? "chevron" : "bot"}
+        exitDuration={120}
+        enterDuration={150}
+        enterDelay={30}
+        className="size-4 items-center justify-center"
+      >
+        {(v) =>
+          v === "chevron" ? (
+            <ChevronDownIcon
+              aria-hidden
+              className={cn(
+                "size-4 text-muted-foreground",
+                isOpen ? "rotate-0" : "-rotate-90",
+              )}
+            />
+          ) : (
+            <BotIcon
+              aria-hidden
+              className={cn(
+                "size-4",
+                groupStatus === "running" &&
+                  "animate-pulse [animation-duration:1.5s] motion-reduce:animate-none",
+              )}
+            />
+          )
+        }
+      </Crossfade>
     ) : (
       <ChevronDownIcon
         aria-hidden
@@ -2393,6 +2499,7 @@ export {
   ChainOfThoughtToolBadge,
   ChainOfThoughtTraceTool,
   ChainOfThoughtAnnouncer,
+  Crossfade,
   chainOfThoughtVariants,
   stepVariants,
   stepTypeIcons,
