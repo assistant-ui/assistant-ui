@@ -318,8 +318,8 @@ export default function McpAppStudioPage() {
               Build MCP apps once, run them anywhere
             </h1>
             <p className="max-w-xl text-lg text-muted-foreground">
-              Build locally with hot reload. Export bundles for ChatGPT, Claude,
-              and any compatible MCP host.
+              Build locally with hot reload. Export once for MCP hosts, with
+              optional ChatGPT extensions feature-detected at runtime.
             </p>
           </div>
 
