@@ -136,9 +136,11 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
   }, [query.data]);
 
   const staleResultsRef = useRef<SearchResult[]>([]);
-  if (latestResults.length > 0) {
-    staleResultsRef.current = latestResults;
-  }
+  useEffect(() => {
+    if (latestResults.length > 0) {
+      staleResultsRef.current = latestResults;
+    }
+  }, [latestResults]);
   const results =
     latestResults.length > 0 ? latestResults : staleResultsRef.current;
 
@@ -174,12 +176,11 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
   useEffect(() => {
     if (open) {
       setInputValue("");
-      setSearch("");
       setSelectedIndex(0);
       lastTrackedQuery.current = "";
       staleResultsRef.current = [];
     }
-  }, [open, setSearch]);
+  }, [open]);
 
   useEffect(() => {
     if (inputValue.length === 0) {
@@ -194,8 +195,9 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
   }, [inputValue, setSearch]);
 
   useEffect(() => {
+    void latestResults;
     setSelectedIndex(0);
-  }, []);
+  }, [latestResults]);
 
   useEffect(() => {
     if (listRef.current && results.length > 0) {

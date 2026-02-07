@@ -39,10 +39,6 @@ export function useAssistantPanel() {
   return ctx;
 }
 
-export function useAssistantPanelOptional() {
-  return useContext(AssistantPanelContext);
-}
-
 type AskAIFn = (message: string) => void;
 const askAIListeners = new Set<() => void>();
 let globalAskAI: AskAIFn | null = null;
