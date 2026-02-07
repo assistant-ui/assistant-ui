@@ -3,7 +3,6 @@ import { spawn } from "cross-spawn";
 import fs from "node:fs";
 import path from "node:path";
 import { logger } from "../lib/utils/logger";
-import { hasConfig } from "../lib/utils/config";
 
 const DEFAULT_REGISTRY_URL =
   "https://r.assistant-ui.com/chat/b/ai-sdk-quick-start/json";
@@ -19,11 +18,77 @@ const templates = {
 
 const templateNames = Object.keys(templates);
 
+class SpawnExitError extends Error {
+  code: number;
+
+  constructor(code: number) {
+    super(`Process exited with code ${code}`);
+    this.code = code;
+  }
+}
+
+interface ExistingProjectInitPlan {
+  initArgs: string[] | null;
+  addArgs: string[];
+}
+
+export function createExistingProjectInitPlan(params: {
+  yes: boolean;
+  overwrite: boolean;
+  registryUrl: string;
+}): ExistingProjectInitPlan {
+  const { yes, overwrite, registryUrl } = params;
+
+  if (!yes) {
+    const addArgs = [`shadcn@latest`, "add"];
+    if (overwrite) addArgs.push("--overwrite");
+    addArgs.push(registryUrl);
+    return { initArgs: null, addArgs };
+  }
+
+  const initArgs = [`shadcn@latest`, "init", "--defaults", "--yes"];
+
+  const addArgs = [`shadcn@latest`, "add", "--yes"];
+  if (overwrite) addArgs.push("--overwrite");
+  addArgs.push(registryUrl);
+
+  return { initArgs, addArgs };
+}
+
+export function isNonInteractiveShell(): boolean {
+  return !process.stdin.isTTY || !process.stdout.isTTY;
+}
+
+async function runSpawn(
+  command: string,
+  args: string[],
+  cwd: string,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args, {
+      stdio: "inherit",
+      cwd,
+    });
+
+    child.on("error", (error) => {
+      reject(error);
+    });
+
+    child.on("close", (code) => {
+      if (code !== 0) {
+        reject(new SpawnExitError(code || 1));
+      } else {
+        resolve();
+      }
+    });
+  });
+}
+
 export const init = new Command()
   .name("init")
   .description("initialize assistant-ui in a new or existing project")
   .argument("[project-directory]", "directory for the new project")
-  .option("-y, --yes", "skip confirmation prompt.", true)
+  .option("-y, --yes", "skip confirmation prompt.", false)
   .option("-o, --overwrite", "overwrite existing files.", false)
   .option(
     "-c, --cwd <cwd>",
@@ -51,7 +116,9 @@ export const init = new Command()
       : cwd;
     const presetUrl = opts.preset;
 
-    if (hasConfig(targetDir)) {
+    const componentsConfigPath = path.join(targetDir, "components.json");
+
+    if (fs.existsSync(componentsConfigPath)) {
       logger.warn("Project is already initialized.");
       logger.info("Use 'assistant-ui add' to add more components.");
       return;
@@ -70,33 +137,41 @@ export const init = new Command()
       }
       logger.break();
 
-      const args = [`shadcn@latest`, "init", "--defaults"];
-      if (opts.yes) args.push("--yes");
-      if (opts.overwrite) args.push("--overwrite");
-      args.push(registryUrl);
-
-      const child = spawn("npx", args, {
-        stdio: "inherit",
-        cwd: targetDir,
-      });
-
-      child.on("error", (error) => {
-        logger.error(`Failed to initialize: ${error.message}`);
+      if (!opts.yes && isNonInteractiveShell()) {
+        logger.error(
+          [
+            "Detected a non-interactive shell, but 'assistant-ui init' needs interactive prompts by default.",
+            "To run this in CI/agent mode, re-run with '--yes' so shadcn initialization and component install run non-interactively.",
+            "Example: assistant-ui init --yes",
+          ].join("\n"),
+        );
         process.exit(1);
-      });
+      }
 
-      child.on("close", (code) => {
-        if (code !== 0) {
-          logger.error(`Initialization failed with code ${code}`);
-          process.exit(code || 1);
-        } else {
-          logger.break();
-          logger.success("Project initialized successfully!");
-          logger.info(
-            "You can now add more components with 'assistant-ui add'",
-          );
+      try {
+        const { initArgs, addArgs } = createExistingProjectInitPlan({
+          yes: opts.yes,
+          overwrite: opts.overwrite,
+          registryUrl,
+        });
+
+        if (initArgs) {
+          await runSpawn("npx", initArgs, targetDir);
         }
-      });
+        await runSpawn("npx", addArgs, targetDir);
+
+        logger.break();
+        logger.success("Project initialized successfully!");
+        logger.info("You can now add more components with 'assistant-ui add'");
+      } catch (error) {
+        if (error instanceof SpawnExitError) {
+          logger.error(`Initialization failed with code ${error.code}`);
+          process.exit(error.code);
+        }
+        const message = error instanceof Error ? error.message : String(error);
+        logger.error(`Failed to initialize: ${message}`);
+        process.exit(1);
+      }
     } else {
       const templateName = opts.template as keyof typeof templates;
       const templateUrl = templates[templateName];
@@ -122,21 +197,18 @@ export const init = new Command()
       if (opts.useBun) cnaArgs.push("--use-bun");
       if (opts.skipInstall) cnaArgs.push("--skip-install");
 
-      const child = spawn("npx", cnaArgs, { stdio: "inherit", cwd });
-
-      child.on("error", (error) => {
-        logger.error(`Failed to create project: ${error.message}`);
-        process.exit(1);
-      });
-
-      child.on("close", (code) => {
-        if (code !== 0) {
-          logger.error(`Project creation failed with code ${code}`);
-          process.exit(code || 1);
-        } else {
-          logger.break();
-          logger.success("Project created successfully!");
+      try {
+        await runSpawn("npx", cnaArgs, cwd);
+        logger.break();
+        logger.success("Project created successfully!");
+      } catch (error) {
+        if (error instanceof SpawnExitError) {
+          logger.error(`Project creation failed with code ${error.code}`);
+          process.exit(error.code);
         }
-      });
+        const message = error instanceof Error ? error.message : String(error);
+        logger.error(`Failed to create project: ${message}`);
+        process.exit(1);
+      }
     }
   });
