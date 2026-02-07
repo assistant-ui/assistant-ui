@@ -53,9 +53,7 @@ export namespace ChainOfThoughtPrimitiveParts {
 export const ChainOfThoughtPrimitiveParts: FC<
   ChainOfThoughtPrimitiveParts.Props
 > = ({ components }) => {
-  const partsLength = useAuiState(
-    (s) => s.chainOfThought.parts.length,
-  );
+  const partsLength = useAuiState((s) => s.chainOfThought.parts.length);
 
   const messageComponents = useMemo(
     () => ({

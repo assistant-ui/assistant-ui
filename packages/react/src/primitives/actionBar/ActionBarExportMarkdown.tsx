@@ -16,7 +16,8 @@ const useActionBarExportMarkdown = ({
   const aui = useAui();
   const hasExportableContent = useAuiState((s) => {
     return (
-      (s.message.role !== "assistant" || s.message.status?.type !== "running") &&
+      (s.message.role !== "assistant" ||
+        s.message.status?.type !== "running") &&
       s.message.parts.some((c) => c.type === "text" && c.text.length > 0)
     );
   });

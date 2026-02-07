@@ -11,7 +11,8 @@ export const useMessagePartText = () => {
         "MessagePartText can only be used inside text or reasoning message parts.",
       );
 
-    return s.part as MessagePartState & (TextMessagePart | ReasoningMessagePart);
+    return s.part as MessagePartState &
+      (TextMessagePart | ReasoningMessagePart);
   });
 
   return text;

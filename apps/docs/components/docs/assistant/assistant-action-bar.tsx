@@ -30,9 +30,7 @@ export function AssistantActionBar(): ReactNode {
   const content = useAuiState((s) => s.message.content);
   const threadId = useAuiState((s) => s.threadListItem.id);
   const messages = useAuiState((s) => s.thread.messages);
-  const isRunning = useAuiState(
-    (s) => s.message.status?.type === "running",
-  );
+  const isRunning = useAuiState((s) => s.message.status?.type === "running");
   const submittedFeedback = useAuiState(
     (s) =>
       s.message.metadata?.submittedFeedback?.type as
