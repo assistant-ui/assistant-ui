@@ -14,10 +14,10 @@ const useActionBarSpeak = () => {
     aui.message().speak();
   }, [aui]);
 
-  const hasSpeakableContent = useAuiState(({ message }) => {
+  const hasSpeakableContent = useAuiState((s) => {
     return (
-      (message.role !== "assistant" || message.status?.type !== "running") &&
-      message.parts.some((c) => c.type === "text" && c.text.length > 0)
+      (s.message.role !== "assistant" || s.message.status?.type !== "running") &&
+      s.message.parts.some((c) => c.type === "text" && c.text.length > 0)
     );
   });
 

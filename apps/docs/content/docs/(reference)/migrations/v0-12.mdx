@@ -63,7 +63,7 @@ import { useAui, useAuiState, useAuiEvent } from "@assistant-ui/react";
 
 function MyComponent() {
   const aui = useAui();
-  const isRunning = useAuiState(({ thread }) => thread.isRunning);
+  const isRunning = useAuiState((s) => s.thread.isRunning);
 
   useAuiEvent("thread.started", () => {
     console.log("Thread started");
@@ -116,30 +116,30 @@ The following hooks have been removed:
 
 **Removed Hooks:**
 
-- `useMessageUtils` → Use `useAuiState(({ message }) => message.isHovering)` / `useAuiState(({ message }) => message.isCopied)`
+- `useMessageUtils` → Use `useAuiState((s) => s.message.isHovering)` / `useAuiState((s) => s.message.isCopied)`
 - `useMessageUtilsStore` → Use `useAui()` with `aui.message().setIsHovering()` / `aui.message().setIsCopied()`
-- `useToolUIs` → Use `useAuiState(({ tools }) => tools)` and `useAui()` with `aui.tools()`
+- `useToolUIs` → Use `useAuiState((s) => s.tools)` and `useAui()` with `aui.tools()`
 - `useToolUIsStore` → Use `useAui()` with `aui.tools()`
 
 **Deprecated Hooks:**
 
 - `useAssistantRuntime` → Use `useAui()`
-- `useThread` → Use `useAuiState(({ thread }) => thread)`
+- `useThread` → Use `useAuiState((s) => s.thread)`
 - `useThreadRuntime` → Use `useAui()` with `aui.thread()`
-- `useMessage` → Use `useAuiState(({ message }) => message)`
+- `useMessage` → Use `useAuiState((s) => s.message)`
 - `useMessageRuntime` → Use `useAui()` with `aui.message()`
-- `useComposer` → Use `useAuiState(({ composer }) => composer)`
+- `useComposer` → Use `useAuiState((s) => s.composer)`
 - `useComposerRuntime` → Use `useAui()` with `aui.composer()`
-- `useEditComposer` → Use `useAuiState(({ message }) => message.composer)`
-- `useThreadListItem` → Use `useAuiState(({ threadListItem }) => threadListItem)`
+- `useEditComposer` → Use `useAuiState((s) => s.message.composer)`
+- `useThreadListItem` → Use `useAuiState((s) => s.threadListItem)`
 - `useThreadListItemRuntime` → Use `useAui()` with `aui.threadListItem()`
-- `useMessagePart` → Use `useAuiState(({ part }) => part)`
+- `useMessagePart` → Use `useAuiState((s) => s.part)`
 - `useMessagePartRuntime` → Use `useAui()` with `aui.part()`
-- `useAttachment` → Use `useAuiState(({ attachment }) => attachment)`
+- `useAttachment` → Use `useAuiState((s) => s.attachment)`
 - `useAttachmentRuntime` → Use `useAui()` with `aui.attachment()`
-- `useThreadModelContext` / `useThreadModelConfig` → Use `useAuiState(({ thread }) => thread.modelContext)`
-- `useThreadComposer` → Use `useAuiState(({ thread }) => thread.composer)`
-- `useThreadList` → Use `useAuiState(({ threads }) => threads)`
+- `useThreadModelContext` / `useThreadModelConfig` → Use `useAuiState((s) => s.thread.modelContext)`
+- `useThreadComposer` → Use `useAuiState((s) => s.thread.composer)`
+- `useThreadList` → Use `useAuiState((s) => s.threads)`
 
 #### Migration Examples
 
@@ -190,10 +190,10 @@ import { useAuiState, useAui } from "@assistant-ui/react";
 
 function MyComponent() {
   // Reading state - all through single hook
-  const messages = useAuiState(({ thread }) => thread.messages);
-  const isRunning = useAuiState(({ thread }) => thread.isRunning);
-  const composerText = useAuiState(({ composer }) => composer.text);
-  const messageRole = useAuiState(({ message }) => message.role);
+  const messages = useAuiState((s) => s.thread.messages);
+  const isRunning = useAuiState((s) => s.thread.isRunning);
+  const composerText = useAuiState((s) => s.composer.text);
+  const messageRole = useAuiState((s) => s.message.role);
 
   // Using client for actions
   const aui = useAui();

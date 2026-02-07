@@ -104,8 +104,8 @@ export function useAssistantTransportState<T>(
 export function useAssistantTransportState<T>(
   selector: (state: UserExternalState) => T = (t) => t as T,
 ): T | UserExternalState {
-  return useAuiState(({ thread }) =>
-    selector(asAssistantTransportExtras(thread.extras).state),
+  return useAuiState((s) =>
+    selector(asAssistantTransportExtras(s.thread.extras).state),
   );
 }
 
@@ -120,7 +120,7 @@ const useAssistantTransportThreadRuntime = <T,>(
     onQueue: () => runManager.schedule(),
   });
 
-  const threadId = useAuiState(({ threadListItem }) => threadListItem.remoteId);
+  const threadId = useAuiState((s) => s.threadListItem.remoteId);
 
   const runManager = useRunManager({
     onRun: async (signal: AbortSignal) => {

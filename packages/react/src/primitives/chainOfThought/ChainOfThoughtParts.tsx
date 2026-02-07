@@ -54,7 +54,7 @@ export const ChainOfThoughtPrimitiveParts: FC<
   ChainOfThoughtPrimitiveParts.Props
 > = ({ components }) => {
   const partsLength = useAuiState(
-    ({ chainOfThought }) => chainOfThought.parts.length,
+    (s) => s.chainOfThought.parts.length,
   );
 
   const messageComponents = useMemo(

@@ -50,10 +50,10 @@ assistant-ui organizes state into **scopes** - logical boundaries that provide a
 // Inside a message component
 function MessageButton() {
   // ✅ Available: message scope (current message)
-  const role = useAuiState(({ message }) => message.role);
+  const role = useAuiState((s) => s.message.role);
 
   // ✅ Available: thread scope (parent)
-  const isRunning = useAuiState(({ thread }) => thread.isRunning);
+  const isRunning = useAuiState((s) => s.thread.isRunning);
 }
 ```
 
@@ -76,14 +76,14 @@ Read state reactively with automatic re-renders when values change. This hook wo
 import { useAuiState } from "@assistant-ui/react";
 
 // Basic usage - extract a single property
-const role = useAuiState(({ message }) => message.role); // "user" | "assistant"
-const isRunning = useAuiState(({ thread }) => thread.isRunning); // boolean
+const role = useAuiState((s) => s.message.role); // "user" | "assistant"
+const isRunning = useAuiState((s) => s.thread.isRunning); // boolean
 
 // Access nested data
 const attachmentCount = useAuiState(
-  ({ composer }) => composer.attachments.length,
+  (s) => s.composer.attachments.length,
 );
-const lastMessage = useAuiState(({ thread }) => thread.messages.at(-1));
+const lastMessage = useAuiState((s) => s.thread.messages.at(-1));
 ```
 
 The selector function receives all available scopes for your component's location and should return a specific value. The component re-renders only when that returned value changes.
@@ -93,25 +93,25 @@ The selector function receives all available scopes for your component's locatio
 ```tsx
 // Access multiple scopes
 const canSend = useAuiState(
-  ({ thread, composer }) => !thread.isRunning && composer.text.length > 0,
+  (s) => !s.thread.isRunning && s.composer.text.length > 0,
 );
 
 // Compute derived state
-const messageCount = useAuiState(({ thread }) => thread.messages.length);
+const messageCount = useAuiState((s) => s.thread.messages.length);
 ```
 
 **Important:** Never create new objects in selectors. Return primitive values or stable references to avoid infinite re-renders.
 
 ```tsx
 // ❌ Bad - creates new object every time
-const data = useAuiState(({ message }) => ({
-  role: message.role,
-  content: message.content,
+const data = useAuiState((s) => ({
+  role: s.message.role,
+  content: s.message.content,
 }));
 
 // ✅ Good - returns stable values
-const role = useAuiState(({ message }) => message.role);
-const content = useAuiState(({ message }) => message.content);
+const role = useAuiState((s) => s.message.role);
+const content = useAuiState((s) => s.message.content);
 ```
 
 ### useAui
@@ -335,7 +335,7 @@ const threadItem = aui.threads().item({ id: "thread_123" });
 
 ```tsx
 function RunIndicator() {
-  const isRunning = useAuiState(({ thread }) => thread.isRunning);
+  const isRunning = useAuiState((s) => s.thread.isRunning);
 
   if (!isRunning) return null;
   return <div>Assistant is thinking...</div>;
@@ -361,8 +361,8 @@ function CopyButton() {
 ```tsx
 function SmartComposer() {
   const aui = useAui();
-  const isRunning = useAuiState(({ thread }) => thread.isRunning);
-  const text = useAuiState(({ composer }) => composer.text);
+  const isRunning = useAuiState((s) => s.thread.isRunning);
+  const text = useAuiState((s) => s.composer.text);
 
   const canSend = !isRunning && text.length > 0;
 
@@ -424,11 +424,11 @@ For most use cases, this behavior is intuitive. In advanced scenarios where you 
 ```tsx
 // ❌ Expensive computation in selector (runs on every store update)
 const result = useAuiState(
-  ({ thread }) => thread.messages.filter((m) => m.role === "user").length,
+  (s) => s.thread.messages.filter((m) => m.role === "user").length,
 );
 
 // ✅ Memoize expensive computations
-const messages = useAuiState(({ thread }) => thread.messages);
+const messages = useAuiState((s) => s.thread.messages);
 const userCount = useMemo(
   () => messages.filter((m) => m.role === "user").length,
   [messages],
@@ -439,10 +439,10 @@ const userCount = useMemo(
 
 ```tsx
 // ❌ Subscribes to entire thread state
-const thread = useAuiState(({ thread }) => thread);
+const thread = useAuiState((s) => s.thread);
 
 // ✅ Subscribe only to needed values
-const isRunning = useAuiState(({ thread }) => thread.isRunning);
+const isRunning = useAuiState((s) => s.thread.isRunning);
 ```
 
 ## API Reference
@@ -500,14 +500,14 @@ const isRunning = useAuiState(({ thread }) => thread.isRunning);
 
 ```tsx
 // ❌ This will throw if not inside a message component
-const role = useAuiState(({ message }) => message.role);
+const role = useAuiState((s) => s.message.role);
 
 // ✅ Check scope availability first
 function SafeMessageButton() {
   const aui = useAui();
 
-  const role = useAuiState(({ message }) =>
-    api.message.source !== undefined ? message.role : "none",
+  const role = useAuiState((s) =>
+    api.message.source !== undefined ? s.message.role : "none",
   );
 
   return <div>Role: {role}</div>;
@@ -518,14 +518,14 @@ function SafeMessageButton() {
 
 ```tsx
 // ❌ Creating new objects in selectors causes infinite re-renders
-const data = useAuiState(({ message }) => ({
-  role: message.role,
-  content: message.content, // New object every time!
+const data = useAuiState((s) => ({
+  role: s.message.role,
+  content: s.message.content, // New object every time!
 }));
 
 // ✅ Return primitive values or use separate selectors
-const role = useAuiState(({ message }) => message.role);
-const content = useAuiState(({ message }) => message.content);
+const role = useAuiState((s) => s.message.role);
+const content = useAuiState((s) => s.message.content);
 ```
 
 **"Scope resolution failed" / Stale scope references**
@@ -553,7 +553,7 @@ useEffect(() => {
 
 ```tsx
 // Read state
-const value = useAuiState(({ scope }) => scope.property);
+const value = useAuiState((s) => s.scope.property);
 
 // Perform action
 const aui = useAui();

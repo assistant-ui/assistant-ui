@@ -105,7 +105,7 @@ export const FooList = ({
 }: {
   components: { Foo: React.ComponentType };
 }) => {
-  const fooListState = useAuiState(({ fooList }) => fooList.foos.length);
+  const fooListState = useAuiState((s) => s.fooList.foos.length);
 
   return (
     <>

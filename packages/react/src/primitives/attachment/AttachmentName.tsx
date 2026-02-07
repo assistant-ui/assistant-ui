@@ -10,7 +10,7 @@ export namespace AttachmentPrimitiveName {
 export const AttachmentPrimitiveName: FC<
   AttachmentPrimitiveName.Props
 > = () => {
-  const name = useAuiState(({ attachment }) => attachment.name);
+  const name = useAuiState((s) => s.attachment.name);
   return <>{name}</>;
 };
 

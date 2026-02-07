@@ -129,8 +129,8 @@ type ThreadMessageComponentProps = {
 const ThreadMessageComponent: FC<ThreadMessageComponentProps> = ({
   components,
 }) => {
-  const role = useAuiState(({ message }) => message.role);
-  const isEditing = useAuiState(({ message }) => message.composer.isEditing);
+  const role = useAuiState((s) => s.message.role);
+  const isEditing = useAuiState((s) => s.message.composer.isEditing);
   const Component = getComponent(components, role, isEditing);
 
   return <Component />;
@@ -196,7 +196,7 @@ ThreadPrimitiveMessageByIndex.displayName = "ThreadPrimitive.MessageByIndex";
 export const ThreadPrimitiveMessagesImpl: FC<ThreadPrimitiveMessages.Props> = ({
   components,
 }) => {
-  const messagesLength = useAuiState(({ thread }) => thread.messages.length);
+  const messagesLength = useAuiState((s) => s.thread.messages.length);
 
   const messageElements = useMemo(() => {
     if (messagesLength === 0) return null;

@@ -61,7 +61,7 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     transportOptions ?? new AssistantChatTransport(),
   );
 
-  const id = useAuiState(({ threadListItem }) => threadListItem.id);
+  const id = useAuiState((s) => s.threadListItem.id);
   const chat = useChat({
     ...chatOptions,
     id,

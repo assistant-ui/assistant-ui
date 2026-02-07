@@ -12,7 +12,7 @@ export const MessagePartPrimitiveInProgress: FC<
   MessagePartPrimitiveInProgress.Props
 > = ({ children }) => {
   const isInProgress = useAuiState(
-    ({ part }) => part.status.type === "running",
+    (s) => s.part.status.type === "running",
   );
 
   return isInProgress ? children : null;

@@ -40,7 +40,7 @@ const useThreadSuggestion = ({
   method?: "replace";
 }) => {
   const aui = useAui();
-  const disabled = useAuiState(({ thread }) => thread.isDisabled);
+  const disabled = useAuiState((s) => s.thread.isDisabled);
 
   // ========== Deprecation Mapping ==========
   const resolvedSend = send ?? autoSend ?? false;

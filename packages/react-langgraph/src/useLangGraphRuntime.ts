@@ -115,8 +115,8 @@ const asLangGraphRuntimeExtras = (extras: unknown): LangGraphRuntimeExtras => {
 };
 
 export const useLangGraphInterruptState = () => {
-  const interrupt = useAuiState(({ thread }) => {
-    const extras = thread.extras;
+  const interrupt = useAuiState((s) => {
+    const extras = s.thread.extras;
     if (!extras) return undefined;
     return asLangGraphRuntimeExtras(extras).interrupt;
   });

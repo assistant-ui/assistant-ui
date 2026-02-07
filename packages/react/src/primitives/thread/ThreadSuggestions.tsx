@@ -84,7 +84,7 @@ export const ThreadPrimitiveSuggestionsImpl: FC<
   ThreadPrimitiveSuggestions.Props
 > = ({ components }) => {
   const suggestionsLength = useAuiState(
-    ({ suggestions }) => suggestions.suggestions.length,
+    (s) => s.suggestions.suggestions.length,
   );
 
   const suggestionElements = useMemo(() => {

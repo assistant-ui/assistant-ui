@@ -321,8 +321,8 @@ const ToolUIDisplay = ({
 }: {
   Fallback: ToolCallMessagePartComponent | undefined;
 } & ToolCallMessagePartProps) => {
-  const Render = useAuiState(({ tools }) => {
-    const Render = tools.tools[props.toolName] ?? Fallback;
+  const Render = useAuiState((s) => {
+    const Render = s.tools.tools[props.toolName] ?? Fallback;
     if (Array.isArray(Render)) return Render[0] ?? Fallback;
     return Render;
   });
@@ -364,7 +364,7 @@ export const MessagePartComponent: FC<MessagePartComponentProps> = ({
   } = {},
 }) => {
   const aui = useAui();
-  const part = useAuiState(({ part }) => part);
+  const part = useAuiState((s) => s.part);
 
   const type = part.type;
   if (type === "tool-call") {
@@ -503,11 +503,11 @@ const ConditionalEmptyImpl: FC<{
   components: MessagePrimitiveParts.Props["components"];
   enabled: boolean;
 }> = ({ components, enabled }) => {
-  const shouldShowEmpty = useAuiState(({ message }) => {
+  const shouldShowEmpty = useAuiState((s) => {
     if (!enabled) return false;
-    if (message.parts.length === 0) return false;
+    if (s.message.parts.length === 0) return false;
 
-    const lastPart = message.parts[message.parts.length - 1];
+    const lastPart = s.message.parts[s.message.parts.length - 1];
     return lastPart?.type !== "text" && lastPart?.type !== "reasoning";
   });
 
@@ -551,7 +551,7 @@ export const MessagePrimitiveParts: FC<MessagePrimitiveParts.Props> = ({
   components,
   unstable_showEmptyOnNonTextEnd = true,
 }) => {
-  const contentLength = useAuiState(({ message }) => message.parts.length);
+  const contentLength = useAuiState((s) => s.message.parts.length);
   const useChainOfThought = !!components?.ChainOfThought;
   const messageRanges = useMessagePartsGroups(useChainOfThought);
 

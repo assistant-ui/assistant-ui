@@ -46,7 +46,8 @@ const useFileSrc = (file: File | undefined) => {
 
 const useAttachmentSrc = () => {
   const { file, src } = useAuiState(
-    useShallow(({ attachment: a }): { file?: File; src?: string } => {
+    useShallow((s): { file?: File; src?: string } => {
+      const a = s.attachment;
       if (a.type !== "image") return {};
       if (a.file) return { file: a.file };
       const src = a.content?.filter((c) => c.type === "image")[0]?.image;
@@ -106,7 +107,7 @@ const AttachmentPreviewDialog: FC<PropsWithChildren> = ({ children }) => {
 };
 
 const AttachmentThumb: FC = () => {
-  const isImage = useAuiState(({ attachment }) => attachment.type === "image");
+  const isImage = useAuiState((s) => s.attachment.type === "image");
   const src = useAttachmentSrc();
   return (
     <Avatar className="flex size-10 items-center justify-center rounded border bg-muted text-sm">
@@ -121,8 +122,8 @@ const AttachmentThumb: FC = () => {
 const AttachmentUI: FC = () => {
   const aui = useAui();
   const canRemove = aui.attachment.source !== "message";
-  const typeLabel = useAuiState(({ attachment }) => {
-    const type = attachment.type;
+  const typeLabel = useAuiState((s) => {
+    const type = s.attachment.type;
     switch (type) {
       case "image":
         return "Image";

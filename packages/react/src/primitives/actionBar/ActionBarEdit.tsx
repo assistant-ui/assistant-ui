@@ -31,7 +31,7 @@ import { useAuiState, useAui } from "@assistant-ui/store";
  */
 const useActionBarEdit = () => {
   const aui = useAui();
-  const disabled = useAuiState(({ composer }) => composer.isEditing);
+  const disabled = useAuiState((s) => s.composer.isEditing);
 
   const callback = useCallback(() => {
     aui.composer().beginEdit();

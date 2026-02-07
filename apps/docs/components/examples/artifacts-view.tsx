@@ -4,8 +4,8 @@ import type { ToolCallMessagePart } from "@assistant-ui/react";
 import * as TabsPrimitive from "@radix-ui/react-tabs";
 
 export const ArtifactsView = () => {
-  const artifact = useAuiState(({ thread }) => {
-    const messages = thread.messages || [];
+  const artifact = useAuiState((s) => {
+    const messages = s.thread.messages || [];
     return messages
       .flatMap((m) =>
         m.content.filter(

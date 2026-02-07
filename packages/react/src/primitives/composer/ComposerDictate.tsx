@@ -11,10 +11,10 @@ import { createActionButton } from "../../utils/createActionButton";
 const useComposerDictate = () => {
   const aui = useAui();
   const disabled = useAuiState(
-    ({ thread, composer }) =>
-      composer.dictation != null ||
-      !thread.capabilities.dictation ||
-      !composer.isEditing,
+    (s) =>
+      s.composer.dictation != null ||
+      !s.thread.capabilities.dictation ||
+      !s.composer.isEditing,
   );
 
   const callback = useCallback(() => {

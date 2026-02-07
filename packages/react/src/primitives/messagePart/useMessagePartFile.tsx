@@ -5,13 +5,13 @@ import { useAuiState } from "@assistant-ui/store";
 import { FileMessagePart } from "../../types";
 
 export const useMessagePartFile = () => {
-  const file = useAuiState(({ part }) => {
-    if (part.type !== "file")
+  const file = useAuiState((s) => {
+    if (s.part.type !== "file")
       throw new Error(
         "MessagePartFile can only be used inside file message parts.",
       );
 
-    return part as MessagePartState & FileMessagePart;
+    return s.part as MessagePartState & FileMessagePart;
   });
 
   return file;

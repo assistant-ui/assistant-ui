@@ -261,7 +261,7 @@ import { useCallback } from "react";
 
 const useEditAction = () => {
   const aui = useAui();
-  const disabled = useAuiState(({ composer }) => composer.isEditing);
+  const disabled = useAuiState((s) => s.composer.isEditing);
   const callback = useCallback(() => aui.composer().beginEdit(), [aui]);
   if (disabled) return null;
   return callback;

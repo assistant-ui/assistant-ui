@@ -27,6 +27,6 @@ export function useMessagePartRuntime(options?: {
 }
 
 /**
- * @deprecated Use `useAuiState(({ part }) => part)` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
+ * @deprecated Use `useAuiState((s) => s.part)` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
  */
 export const useMessagePart = createStateHookForRuntime(useMessagePartRuntime);

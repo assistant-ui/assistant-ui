@@ -44,8 +44,8 @@ import { createStateHookForRuntime } from "../../context/react/utils/createState
  * // After:
  * function ComposerActions() {
  *   const aui = useAui();
- *   const canSend = useAuiState(({ composer }) => composer.canSend);
- *   const canCancel = useAuiState(({ composer }) => composer.canCancel);
+ *   const canSend = useAuiState((s) => s.composer.canSend);
+ *   const canCancel = useAuiState((s) => s.composer.canCancel);
  *   const handleSend = () => {
  *     if (canSend) {
  *       aui.composer().send();
@@ -87,7 +87,7 @@ export function useComposerRuntime(options?: {
 }
 
 /**
- * @deprecated Use `useAuiState(({ composer }) => composer)` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
+ * @deprecated Use `useAuiState((s) => s.composer)` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
  *
  * Hook to access the current composer state.
  *
@@ -115,9 +115,9 @@ export function useComposerRuntime(options?: {
  *
  * // After:
  * function ComposerStatus() {
- *   const text = useAuiState(({ composer }) => composer.text);
- *   const canSend = useAuiState(({ composer }) => composer.canSend);
- *   const attachmentCount = useAuiState(({ composer }) => composer.attachments.length);
+ *   const text = useAuiState((s) => s.composer.text);
+ *   const canSend = useAuiState((s) => s.composer.canSend);
+ *   const attachmentCount = useAuiState((s) => s.composer.attachments.length);
  *   return (
  *     <div>
  *       Text: {text.length} chars,

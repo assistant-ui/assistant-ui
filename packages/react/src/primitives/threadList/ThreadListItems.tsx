@@ -60,8 +60,8 @@ export const ThreadListPrimitiveItems: FC<ThreadListPrimitiveItems.Props> = ({
   archived = false,
   components,
 }) => {
-  const contentLength = useAuiState(({ threads }) =>
-    archived ? threads.archivedThreadIds.length : threads.threadIds.length,
+  const contentLength = useAuiState((s) =>
+    archived ? s.threads.archivedThreadIds.length : s.threads.threadIds.length,
   );
 
   const listElements = useMemo(() => {

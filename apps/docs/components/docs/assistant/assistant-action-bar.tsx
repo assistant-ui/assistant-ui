@@ -25,17 +25,17 @@ export function AssistantActionBar(): ReactNode {
   const [popoverOpen, setPopoverOpen] = useState(false);
 
   const aui = useAui();
-  const messageId = useAuiState(({ message }) => message.id);
-  const parentId = useAuiState(({ message }) => message.parentId);
-  const content = useAuiState(({ message }) => message.content);
-  const threadId = useAuiState(({ threadListItem }) => threadListItem.id);
-  const messages = useAuiState(({ thread }) => thread.messages);
+  const messageId = useAuiState((s) => s.message.id);
+  const parentId = useAuiState((s) => s.message.parentId);
+  const content = useAuiState((s) => s.message.content);
+  const threadId = useAuiState((s) => s.threadListItem.id);
+  const messages = useAuiState((s) => s.thread.messages);
   const isRunning = useAuiState(
-    ({ message }) => message.status?.type === "running",
+    (s) => s.message.status?.type === "running",
   );
   const submittedFeedback = useAuiState(
-    ({ message }) =>
-      message.metadata?.submittedFeedback?.type as
+    (s) =>
+      s.message.metadata?.submittedFeedback?.type as
         | "positive"
         | "negative"
         | undefined,

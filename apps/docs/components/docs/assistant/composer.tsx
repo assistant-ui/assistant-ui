@@ -33,7 +33,7 @@ const models = MODELS.map((m) => ({
 
 export function AssistantComposer(): ReactNode {
   const aui = useAui();
-  const threadId = useAuiState(({ threadListItem }) => threadListItem.id);
+  const threadId = useAuiState((s) => s.threadListItem.id);
   const currentPage = useCurrentPage();
   const pathname = currentPage?.pathname;
 
