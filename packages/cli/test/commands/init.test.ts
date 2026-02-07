@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { init, createExistingProjectInitPlan } from "../../src/commands/init";
+import {
+  init,
+  createExistingProjectInitPlan,
+  isNonInteractiveShell,
+} from "../../src/commands/init";
 
 describe("init command", () => {
   it("defaults --yes to false for interactive human flow", () => {
@@ -42,5 +46,10 @@ describe("init command", () => {
       "--overwrite",
       "https://example.com/preset.json",
     ]);
+  });
+
+  it("detects non-interactive mode from stdin TTY only", () => {
+    expect(isNonInteractiveShell(false)).toBe(true);
+    expect(isNonInteractiveShell(true)).toBe(false);
   });
 });

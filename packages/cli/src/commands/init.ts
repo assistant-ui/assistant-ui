@@ -55,8 +55,8 @@ export function createExistingProjectInitPlan(params: {
   return { initArgs, addArgs };
 }
 
-export function isNonInteractiveShell(): boolean {
-  return !process.stdin.isTTY || !process.stdout.isTTY;
+export function isNonInteractiveShell(stdinIsTTY = process.stdin.isTTY): boolean {
+  return !stdinIsTTY;
 }
 
 async function runSpawn(
