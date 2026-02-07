@@ -34,7 +34,7 @@ export const AssistantRuntimeProviderImpl: FC<
   useEffect(() => {
     if (
       typeof process === "undefined" ||
-      process.env["NODE_ENV"] === "production"
+      process.env.NODE_ENV === "production"
     )
       return;
     return DevToolsProviderApi.register(aui);

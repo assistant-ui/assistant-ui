@@ -181,7 +181,7 @@ export function useToolInvocations({
 
               if (content.argsText !== lastState.argsText) {
                 if (lastState.argsComplete) {
-                  if (process.env["NODE_ENV"] !== "production") {
+                  if (process.env.NODE_ENV !== "production") {
                     console.warn(
                       "argsText updated after controller was closed:",
                       {
