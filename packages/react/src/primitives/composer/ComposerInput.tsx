@@ -57,6 +57,13 @@ export namespace ComposerPrimitiveInput {
      * @default true
      */
     addAttachmentOnPaste?: boolean | undefined;
+    /**
+     * Whether to submit only with Ctrl/Cmd+Enter instead of plain Enter.
+     * When true, plain Enter inserts a newline and Ctrl/Cmd+Enter submits.
+     * When false (default), behavior is controlled by submitOnEnter prop.
+     * @default false
+     */
+    submitOnCtrlEnter?: boolean | undefined;
   };
 }
 
@@ -72,6 +79,7 @@ export namespace ComposerPrimitiveInput {
  * <ComposerPrimitive.Input
  *   placeholder="Type your message..."
  *   submitOnEnter={true}
+ *   submitOnCtrlEnter={false}
  *   addAttachmentOnPaste={true}
  * />
  * ```
@@ -89,6 +97,7 @@ export const ComposerPrimitiveInput = forwardRef<
       onKeyDown,
       onPaste,
       submitOnEnter = true,
+      submitOnCtrlEnter = false,
       cancelOnEscape = true,
       unstable_focusOnRunStart = true,
       unstable_focusOnScrollToBottom = true,
@@ -129,17 +138,30 @@ export const ComposerPrimitiveInput = forwardRef<
     });
 
     const handleKeyPress = (e: KeyboardEvent) => {
-      if (isDisabled || !submitOnEnter) return;
+      if (isDisabled) return;
 
       // ignore IME composition events
       if (e.nativeEvent.isComposing) return;
 
-      if (e.key === "Enter" && e.shiftKey === false) {
-        const isRunning = aui.thread().getState().isRunning;
+      const isRunning = aui.thread().getState().isRunning;
+      if (isRunning) return;
 
-        if (!isRunning) {
+      if (e.key === "Enter") {
+        // Check if shift is pressed - always newline
+        if (e.shiftKey) return;
+
+        let shouldSubmit = false;
+
+        if (submitOnCtrlEnter) {
+          // Ctrl+Enter mode: only submit with Ctrl/Cmd+Enter
+          shouldSubmit = e.ctrlKey || e.metaKey;
+        } else {
+          // Traditional mode: submit on plain Enter (controlled by submitOnEnter)
+          shouldSubmit = submitOnEnter && !e.ctrlKey && !e.metaKey;
+        }
+
+        if (shouldSubmit) {
           e.preventDefault();
-
           textareaRef.current?.closest("form")?.requestSubmit();
         }
       }
