@@ -43,8 +43,6 @@ export function useAssistantPanelOptional() {
   return useContext(AssistantPanelContext);
 }
 
-// Global askAI store — allows SearchDialog (rendered outside the provider by fumadocs)
-// to call askAI when AssistantPanelProvider is mounted on the current page.
 type AskAIFn = (message: string) => void;
 const askAIListeners = new Set<() => void>();
 let globalAskAI: AskAIFn | null = null;
@@ -84,7 +82,6 @@ export function AssistantPanelProvider({ children }: { children: ReactNode }) {
     setOpen(true);
   }, []);
 
-  // Publish askAI globally so components outside this provider (e.g. SearchDialog) can use it
   useEffect(() => {
     globalAskAI = askAI;
     for (const l of askAIListeners) l();

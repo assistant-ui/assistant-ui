@@ -130,10 +130,17 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
   const listRef = useRef<HTMLDivElement>(null);
   const askAIFn = useGlobalAskAI();
 
-  const results = useMemo((): SearchResult[] => {
+  const latestResults = useMemo((): SearchResult[] => {
     if (!query.data || query.data === "empty") return [];
     return query.data as SearchResult[];
   }, [query.data]);
+
+  const staleResultsRef = useRef<SearchResult[]>([]);
+  if (latestResults.length > 0) {
+    staleResultsRef.current = latestResults;
+  }
+  const results =
+    latestResults.length > 0 ? latestResults : staleResultsRef.current;
 
   const groupedResults = useMemo((): GroupedResult[] => {
     const groups: GroupedResult[] = [];
@@ -159,7 +166,6 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
   const searchTrackingTimeout = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
-  // Use ref to avoid stale closure issues in timeout callbacks
   const resultsLengthRef = useRef(0);
   useEffect(() => {
     resultsLengthRef.current = results.length;
@@ -171,8 +177,21 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
       setSearch("");
       setSelectedIndex(0);
       lastTrackedQuery.current = "";
+      staleResultsRef.current = [];
     }
   }, [open, setSearch]);
+
+  useEffect(() => {
+    if (inputValue.length === 0) {
+      setSearch("");
+      staleResultsRef.current = [];
+      return;
+    }
+    const timer = setTimeout(() => {
+      setSearch(inputValue);
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [inputValue, setSearch]);
 
   useEffect(() => {
     setSelectedIndex(0);
@@ -196,7 +215,6 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
 
   const handleSelect = useCallback(
     (url: string) => {
-      // Flush pending search analytics before navigating
       if (searchTrackingTimeout.current) {
         clearTimeout(searchTrackingTimeout.current);
         if (inputValue.length >= 2 && inputValue !== lastTrackedQuery.current) {
@@ -215,13 +233,11 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
     [onOpenChange, router, results, inputValue],
   );
 
-  // Debounced search analytics - only track after 500ms of no typing
   useEffect(() => {
     if (searchTrackingTimeout.current) {
       clearTimeout(searchTrackingTimeout.current);
     }
 
-    // Don't track single characters, empty input, or duplicate queries
     if (
       !inputValue ||
       inputValue.length < 2 ||
@@ -271,7 +287,6 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
           <DialogDescription>Search documentation</DialogDescription>
         </DialogHeader>
         <div className="overflow-hidden rounded-2xl border">
-          {/* Search Input */}
           <div className="flex items-center gap-2.5 border-border/50 border-b px-3">
             <Search className="size-4 text-muted-foreground" />
             <input
@@ -280,7 +295,6 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
               value={inputValue}
               onChange={(e) => {
                 setInputValue(e.target.value);
-                setSearch(e.target.value);
               }}
               onKeyDown={handleKeyDown}
               className="h-11 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
@@ -298,7 +312,6 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
             )}
           </div>
 
-          {/* Results */}
           <div
             ref={listRef}
             className="h-[min(400px,90vh)] overflow-y-auto overflow-x-hidden overscroll-contain"
@@ -317,7 +330,7 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
                   </span>
                 </div>
               </div>
-            ) : query.isLoading ? (
+            ) : query.isLoading && results.length === 0 ? (
               <div className="flex h-full items-center justify-center">
                 <div className="flex items-center gap-2 text-muted-foreground/60">
                   <div className="size-1 animate-pulse rounded-full bg-current" />
