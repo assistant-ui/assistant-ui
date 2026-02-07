@@ -165,8 +165,8 @@ export const ComposerPrimitiveInput = forwardRef<
           // Ctrl+Enter mode: only submit with Ctrl/Cmd+Enter
           shouldSubmit = e.ctrlKey || e.metaKey;
         } else {
-          // Traditional mode: submit on plain Enter (controlled by submitOnEnter)
-          shouldSubmit = submitOnEnter && !e.ctrlKey && !e.metaKey;
+          // Traditional mode: submit on plain Enter
+          shouldSubmit = submitOnEnter;
         }
 
         if (shouldSubmit) {
