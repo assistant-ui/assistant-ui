@@ -55,7 +55,9 @@ export function createExistingProjectInitPlan(params: {
   return { initArgs, addArgs };
 }
 
-export function isNonInteractiveShell(stdinIsTTY = process.stdin.isTTY): boolean {
+export function isNonInteractiveShell(
+  stdinIsTTY = process.stdin.isTTY,
+): boolean {
   return !stdinIsTTY;
 }
 
