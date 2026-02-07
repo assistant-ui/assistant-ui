@@ -33,6 +33,13 @@ export namespace ComposerPrimitiveInput {
      */
     submitOnEnter?: boolean | undefined;
     /**
+     * Whether to submit only with Ctrl/Cmd+Enter instead of plain Enter.
+     * When true, plain Enter inserts a newline and Ctrl/Cmd+Enter submits.
+     * When false (default), behavior is controlled by submitOnEnter prop.
+     * @default false
+     */
+    submitOnCtrlEnter?: boolean | undefined;
+    /**
      * Whether to cancel message composition when Escape is pressed.
      * @default true
      */
@@ -57,13 +64,6 @@ export namespace ComposerPrimitiveInput {
      * @default true
      */
     addAttachmentOnPaste?: boolean | undefined;
-    /**
-     * Whether to submit only with Ctrl/Cmd+Enter instead of plain Enter.
-     * When true, plain Enter inserts a newline and Ctrl/Cmd+Enter submits.
-     * When false (default), behavior is controlled by submitOnEnter prop.
-     * @default false
-     */
-    submitOnCtrlEnter?: boolean | undefined;
   };
 }
 
