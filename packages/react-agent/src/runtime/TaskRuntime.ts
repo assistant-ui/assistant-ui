@@ -11,21 +11,31 @@ import type { ApprovalStatus, TaskHandle, TaskState } from "./types";
 export class TaskRuntime {
   private state: TaskState;
   private client: AgentClientInterface;
+  private permissionStore: import("./PermissionStore").PermissionStoreInterface;
   private agents: Map<string, AgentRuntime> = new Map();
   private approvals: Map<string, ApprovalRuntime> = new Map();
   private listeners: Set<() => void> = new Set();
   private isStreaming = false;
+  private permissionModeOverride:
+    | import("./PermissionStore").PermissionMode
+    | undefined;
 
-  constructor(handle: TaskHandle, client: AgentClientInterface) {
+  constructor(
+    handle: TaskHandle,
+    client: AgentClientInterface,
+    permissionStore: import("./PermissionStore").PermissionStoreInterface,
+  ) {
     this.client = client;
+    this.permissionStore = permissionStore;
     this.state = {
       id: handle.id,
       title: handle.prompt.slice(0, 100),
-      status: "queued",
+      status: "starting",
       cost: 0,
       agents: [],
       pendingApprovals: [],
       createdAt: new Date(),
+      completedAt: undefined,
     };
 
     this.startStreaming();
@@ -47,12 +57,43 @@ export class TaskRuntime {
     return this.approvals.get(approvalId);
   }
 
+  setPermissionMode(
+    mode: import("./PermissionStore").PermissionMode | undefined,
+  ): void {
+    this.permissionModeOverride = mode;
+    this.notify();
+  }
+
+  getPermissionMode(): import("./PermissionStore").PermissionMode | undefined {
+    return this.permissionModeOverride;
+  }
+
   async cancel(): Promise<void> {
-    if (this.state.status !== "running" && this.state.status !== "queued") {
+    if (!["starting", "running", "waiting_input"].includes(this.state.status)) {
       return;
     }
 
     await this.client.cancelTask(this.state.id);
+  }
+
+  async retry(): Promise<void> {
+    if (this.state.status !== "failed" && this.state.status !== "completed") {
+      return;
+    }
+
+    const handle = await this.client.createTask({
+      prompt: this.state.title,
+    });
+
+    this.state = {
+      ...this.state,
+      id: handle.id,
+      status: "starting",
+      cost: 0,
+      completedAt: undefined,
+    };
+
+    this.startStreaming();
   }
 
   subscribe(callback: () => void): () => void {
@@ -147,6 +188,7 @@ export class TaskRuntime {
         this.client,
         (status: ApprovalStatus) =>
           this.onApprovalResolved(result.newApproval!.id, status),
+        this.permissionStore,
       );
       this.approvals.set(result.newApproval.id, approvalRuntime);
       this.state = {

@@ -9,16 +9,19 @@ import {
 } from "../sdk/HttpAgentClient";
 import { TaskRuntime } from "./TaskRuntime";
 import type { AgentClientConfig, CreateTaskOptions } from "./types";
+import type { PermissionStoreInterface } from "./PermissionStore";
+import { LocalStoragePermissionStore } from "./PermissionStore";
 
 export interface WorkspaceConfig {
   apiKey: string;
   baseUrl?: string | undefined;
-  /** Provide a custom client instance (e.g., for server-side use) */
   client?: AgentClientInterface | undefined;
+  permissionStore?: PermissionStoreInterface | undefined;
 }
 
 export class WorkspaceRuntime {
   private client: AgentClientInterface;
+  private permissionStore: PermissionStoreInterface;
   private tasks: Map<string, TaskRuntime> = new Map();
   private listeners: Set<() => void> = new Set();
   private cachedTasksArray: TaskRuntime[] = [];
@@ -33,6 +36,9 @@ export class WorkspaceRuntime {
       };
       this.client = new HttpAgentClient(clientConfig);
     }
+
+    this.permissionStore =
+      config.permissionStore ?? new LocalStoragePermissionStore();
   }
 
   async createTask(
@@ -45,7 +51,7 @@ export class WorkspaceRuntime {
     };
 
     const handle = await this.client.createTask(taskOptions);
-    const task = new TaskRuntime(handle, this.client);
+    const task = new TaskRuntime(handle, this.client, this.permissionStore);
 
     this.tasks.set(task.id, task);
 
@@ -67,6 +73,10 @@ export class WorkspaceRuntime {
   removeTask(taskId: string): void {
     this.tasks.delete(taskId);
     this.notify();
+  }
+
+  getPermissionStore(): PermissionStoreInterface {
+    return this.permissionStore;
   }
 
   subscribe(callback: () => void): () => void {

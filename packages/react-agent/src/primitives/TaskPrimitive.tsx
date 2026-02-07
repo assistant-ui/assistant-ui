@@ -1,8 +1,10 @@
 "use client";
 
 import type { ComponentPropsWithoutRef, ReactNode } from "react";
-import { TaskProvider, useTask, useTaskState } from "../hooks";
+import { TaskProvider, useTaskState } from "../hooks";
 import type { TaskStatus } from "../runtime";
+import { createActionButton } from "../actions/createActionButton";
+import { useTaskCancel, useTaskRetry } from "./task/useTaskActions";
 
 export interface TaskRootProps {
   taskId: string;
@@ -27,10 +29,15 @@ export interface TaskStatusProps extends ComponentPropsWithoutRef<"span"> {
 }
 
 const statusIcons: Record<TaskStatus, string> = {
-  queued: "\u23F3",
-  running: "\uD83D\uDD04",
-  completed: "\u2705",
-  failed: "\u274C",
+  draft: "📝",
+  starting: "⏳",
+  running: "🔄",
+  waiting_input: "⏸️",
+  completed: "✅",
+  failed: "❌",
+  interrupting: "⏹️",
+  interrupted: "⏹️",
+  discarded: "🗑️",
 };
 
 const TaskStatus = Object.assign(
@@ -56,23 +63,6 @@ function TaskCost({ precision = 4, ...props }: TaskCostProps) {
 }
 
 TaskCost.displayName = "TaskPrimitive.Cost";
-
-function TaskCancel(props: ComponentPropsWithoutRef<"button">) {
-  const task = useTask();
-  const status = useTaskState((s) => s.status);
-
-  if (status !== "running" && status !== "queued") {
-    return null;
-  }
-
-  return (
-    <button type="button" onClick={() => task.cancel()} {...props}>
-      {props.children ?? "Cancel"}
-    </button>
-  );
-}
-
-TaskCancel.displayName = "TaskPrimitive.Cancel";
 
 export interface TaskAgentsProps {
   children: (agents: Array<{ id: string }>) => ReactNode;
@@ -116,13 +106,34 @@ function TaskIf({ status, children }: TaskIfProps) {
 
 TaskIf.displayName = "TaskPrimitive.If";
 
+function TaskCreatedAt(props: ComponentPropsWithoutRef<"span">) {
+  const createdAt = useTaskState((s) => s.createdAt);
+  return <span {...props}>{createdAt.toISOString()}</span>;
+}
+
+TaskCreatedAt.displayName = "TaskPrimitive.CreatedAt";
+
+function TaskCompletedAt(props: ComponentPropsWithoutRef<"span">) {
+  const completedAt = useTaskState((s) => s.completedAt);
+  if (!completedAt) return null;
+  return <span {...props}>{completedAt.toISOString()}</span>;
+}
+
+TaskCompletedAt.displayName = "TaskPrimitive.CompletedAt";
+
+const TaskCancel = createActionButton("TaskPrimitive.Cancel", useTaskCancel);
+const TaskRetry = createActionButton("TaskPrimitive.Retry", useTaskRetry);
+
 export const TaskPrimitive = {
   Root: TaskRoot,
   Title: TaskTitle,
   Status: TaskStatus,
   Cost: TaskCost,
-  Cancel: TaskCancel,
+  CreatedAt: TaskCreatedAt,
+  CompletedAt: TaskCompletedAt,
   Agents: TaskAgents,
   Approvals: TaskApprovals,
   If: TaskIf,
+  Cancel: TaskCancel,
+  Retry: TaskRetry,
 };
