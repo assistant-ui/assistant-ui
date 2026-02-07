@@ -10,6 +10,7 @@ import {
   FileText,
   Hash,
   Text,
+  Sparkles,
 } from "lucide-react";
 import { useDocsSearch } from "fumadocs-core/search/client";
 import {
@@ -21,6 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { analytics } from "@/lib/analytics";
+import { useGlobalAskAI } from "@/components/docs/assistant/context";
 
 interface HighlightSegment {
   type: "text";
@@ -126,6 +128,7 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
   const [inputValue, setInputValue] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
+  const askAIFn = useGlobalAskAI();
 
   const results = useMemo((): SearchResult[] => {
     if (!query.data || query.data === "empty") return [];
@@ -149,6 +152,8 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
 
     return groups;
   }, [results]);
+
+  const showAskAI = !!askAIFn && inputValue.length > 0;
 
   const lastTrackedQuery = useRef("");
   const searchTrackingTimeout = useRef<ReturnType<typeof setTimeout> | null>(
@@ -181,6 +186,13 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
       selectedElement?.scrollIntoView({ block: "nearest" });
     }
   }, [selectedIndex, results.length]);
+
+  const handleAskAI = useCallback(() => {
+    if (!askAIFn) return;
+    analytics.search.askAITriggered(inputValue);
+    onOpenChange(false);
+    askAIFn(inputValue);
+  }, [askAIFn, inputValue, onOpenChange]);
 
   const handleSelect = useCallback(
     (url: string) => {
@@ -274,6 +286,16 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
               className="h-11 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
               autoFocus
             />
+            {showAskAI && (
+              <button
+                type="button"
+                onClick={handleAskAI}
+                className="flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1 text-pink-500 transition-colors hover:bg-accent"
+              >
+                <Sparkles className="size-3.5" />
+                <span className="font-medium text-xs">Ask AI</span>
+              </button>
+            )}
           </div>
 
           {/* Results */}
@@ -306,7 +328,7 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
             ) : results.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center gap-1 px-4">
                 <p className="text-muted-foreground/60 text-sm">
-                  No results for "{inputValue}"
+                  No results for &ldquo;{inputValue}&rdquo;
                 </p>
               </div>
             ) : (

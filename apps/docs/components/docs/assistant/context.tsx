@@ -4,7 +4,9 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useState,
+  useSyncExternalStore,
   type ReactNode,
 } from "react";
 
@@ -37,6 +39,29 @@ export function useAssistantPanel() {
   return ctx;
 }
 
+export function useAssistantPanelOptional() {
+  return useContext(AssistantPanelContext);
+}
+
+// Global askAI store — allows SearchDialog (rendered outside the provider by fumadocs)
+// to call askAI when AssistantPanelProvider is mounted on the current page.
+type AskAIFn = (message: string) => void;
+const askAIListeners = new Set<() => void>();
+let globalAskAI: AskAIFn | null = null;
+
+function subscribeAskAI(listener: () => void) {
+  askAIListeners.add(listener);
+  return () => askAIListeners.delete(listener);
+}
+
+function getAskAISnapshot() {
+  return globalAskAI;
+}
+
+export function useGlobalAskAI(): AskAIFn | null {
+  return useSyncExternalStore(subscribeAskAI, getAskAISnapshot, () => null);
+}
+
 export function AssistantPanelProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const [width, setWidthState] = useState(DEFAULT_WIDTH);
@@ -58,6 +83,16 @@ export function AssistantPanelProvider({ children }: { children: ReactNode }) {
     setPendingMessage(message);
     setOpen(true);
   }, []);
+
+  // Publish askAI globally so components outside this provider (e.g. SearchDialog) can use it
+  useEffect(() => {
+    globalAskAI = askAI;
+    for (const l of askAIListeners) l();
+    return () => {
+      globalAskAI = null;
+      for (const l of askAIListeners) l();
+    };
+  }, [askAI]);
 
   return (
     <AssistantPanelContext.Provider
