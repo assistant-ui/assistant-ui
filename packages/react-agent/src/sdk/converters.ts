@@ -28,9 +28,19 @@ export function processSDKEvent(
 
   switch (event.type) {
     case "task_started": {
+      const data = event.data as { prompt?: string };
       result.taskUpdate = {
         status: "running",
       };
+      if (event.agentId) {
+        result.newEvent = {
+          id: `evt_${nanoid()}`,
+          type: "task_started",
+          timestamp: event.timestamp,
+          content: { prompt: data.prompt ?? "" },
+          agentId: event.agentId,
+        };
+      }
       break;
     }
 
@@ -41,6 +51,15 @@ export function processSDKEvent(
         cost: data.totalCost ?? currentState.cost,
         completedAt: new Date(),
       };
+      if (event.agentId) {
+        result.newEvent = {
+          id: `evt_${nanoid()}`,
+          type: "task_completed",
+          timestamp: event.timestamp,
+          content: { totalCost: data.totalCost },
+          agentId: event.agentId,
+        };
+      }
       break;
     }
 
@@ -75,19 +94,44 @@ export function processSDKEvent(
           childAgentIds: [],
           taskId: event.taskId,
         };
+        result.newEvent = {
+          id: `evt_${nanoid()}`,
+          type: "agent_spawned",
+          timestamp: event.timestamp,
+          content: { name: data.name, parentAgentId: data.parentAgentId },
+          agentId: event.agentId,
+        };
       }
       break;
     }
 
     case "agent_completed": {
-      const data = event.data as { finalCost?: number };
+      const data = event.data as {
+        finalCost?: number;
+        status?: string;
+        summary?: string;
+      };
       if (event.agentId) {
+        const update: Partial<AgentState> = {
+          status: "completed",
+        };
+        if (data.finalCost !== undefined && data.finalCost !== 0) {
+          update.cost = data.finalCost;
+        }
         result.agentUpdate = {
           id: event.agentId,
-          update: {
-            status: "completed",
-            cost: data.finalCost ?? 0,
+          update,
+        };
+        result.newEvent = {
+          id: `evt_${nanoid()}`,
+          type: "agent_completed",
+          timestamp: event.timestamp,
+          content: {
+            finalCost: data.finalCost,
+            status: data.status,
+            summary: data.summary,
           },
+          agentId: event.agentId,
         };
       }
       break;
@@ -121,6 +165,10 @@ export function processSDKEvent(
         toolInput: unknown;
         reason: string;
       };
+      // Change task status to waiting_input when approval is requested
+      result.taskUpdate = {
+        status: "waiting_input",
+      };
       if (event.agentId) {
         result.newApproval = {
           id: data.approvalId,
@@ -148,14 +196,40 @@ export function processSDKEvent(
     }
 
     case "tool_use_approved": {
-      const data = event.data as { approvalId: string };
+      const data = event.data as { approvalId: string; toolCallId?: string };
       result.resolvedApprovalId = data.approvalId;
+      // Change task status back to running when approval is resolved
+      result.taskUpdate = {
+        status: "running",
+      };
+      if (event.agentId) {
+        result.newEvent = {
+          id: `evt_${nanoid()}`,
+          type: "tool_approved",
+          timestamp: event.timestamp,
+          content: { approvalId: data.approvalId, toolCallId: data.toolCallId },
+          agentId: event.agentId,
+        };
+      }
       break;
     }
 
     case "tool_use_denied": {
-      const data = event.data as { approvalId: string };
+      const data = event.data as { approvalId: string; toolCallId?: string };
       result.resolvedApprovalId = data.approvalId;
+      // Change task status back to running when approval is resolved
+      result.taskUpdate = {
+        status: "running",
+      };
+      if (event.agentId) {
+        result.newEvent = {
+          id: `evt_${nanoid()}`,
+          type: "tool_denied",
+          timestamp: event.timestamp,
+          content: { approvalId: data.approvalId, toolCallId: data.toolCallId },
+          agentId: event.agentId,
+        };
+      }
       break;
     }
 
@@ -196,6 +270,41 @@ export function processSDKEvent(
     }
 
     case "message": {
+      const data = event.data as {
+        text: string;
+        isWaitingForInput?: boolean;
+        isUserMessage?: boolean;
+      };
+      // Set status to waiting_input when agent is waiting for user input
+      if (data.isWaitingForInput) {
+        result.taskUpdate = {
+          status: "waiting_input",
+        };
+      }
+      // Set status back to running when user sends a message
+      if (data.isUserMessage) {
+        result.taskUpdate = {
+          status: "running",
+        };
+      }
+      if (event.agentId) {
+        result.newEvent = {
+          id: `evt_${nanoid()}`,
+          type: "message",
+          timestamp: event.timestamp,
+          content: {
+            text: data.text,
+            isWaitingForInput: data.isWaitingForInput,
+            isUserMessage: data.isUserMessage,
+          },
+          agentId: event.agentId,
+        };
+      }
+      break;
+    }
+
+    case "message_delta": {
+      // Streaming text delta - append to ongoing message or create new
       const data = event.data as { text: string };
       if (event.agentId) {
         result.newEvent = {
@@ -203,6 +312,51 @@ export function processSDKEvent(
           type: "message",
           timestamp: event.timestamp,
           content: { text: data.text },
+          agentId: event.agentId,
+        };
+      }
+      break;
+    }
+
+    case "tool_use": {
+      // Direct tool use event (without approval flow)
+      const data = event.data as {
+        toolCallId: string;
+        toolName: string;
+        toolInput: unknown;
+      };
+      if (event.agentId) {
+        result.newEvent = {
+          id: `evt_${nanoid()}`,
+          type: "tool_call",
+          timestamp: event.timestamp,
+          content: {
+            toolName: data.toolName,
+            toolInput: data.toolInput,
+            toolCallId: data.toolCallId,
+          },
+          agentId: event.agentId,
+        };
+      }
+      break;
+    }
+
+    case "tool_progress": {
+      const data = event.data as {
+        toolUseId: string;
+        toolName: string;
+        elapsedSeconds: number;
+      };
+      if (event.agentId) {
+        result.newEvent = {
+          id: `evt_${nanoid()}`,
+          type: "tool_progress",
+          timestamp: event.timestamp,
+          content: {
+            toolUseId: data.toolUseId,
+            toolName: data.toolName,
+            elapsedSeconds: data.elapsedSeconds,
+          },
           agentId: event.agentId,
         };
       }
@@ -222,6 +376,29 @@ export function processSDKEvent(
       if (data.totalCost !== undefined) {
         result.taskUpdate = {
           cost: data.totalCost,
+        };
+      }
+      if (event.agentId) {
+        result.newEvent = {
+          id: `evt_${nanoid()}`,
+          type: "cost_update",
+          timestamp: event.timestamp,
+          content: { cost: data.cost, totalCost: data.totalCost },
+          agentId: event.agentId,
+        };
+      }
+      break;
+    }
+
+    case "system_init": {
+      const data = event.data as { sessionId?: string; tools?: string[] };
+      if (event.agentId) {
+        result.newEvent = {
+          id: `evt_${nanoid()}`,
+          type: "system_init",
+          timestamp: event.timestamp,
+          content: { sessionId: data.sessionId, tools: data.tools },
+          agentId: event.agentId,
         };
       }
       break;

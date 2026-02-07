@@ -2,7 +2,29 @@
  * Core types for the Agent UI runtime.
  */
 
-export type TaskStatus = "queued" | "running" | "completed" | "failed";
+/**
+ * Task/Session statuses:
+ * - draft: Session in configuration state (before launch)
+ * - starting: Session is starting up
+ * - running: Session is actively running
+ * - waiting_input: Session is waiting for tool approval or user input
+ * - completed: Session has completed successfully
+ * - failed: Session encountered an error and failed
+ * - interrupting: Session received interrupt signal and is shutting down
+ * - interrupted: Session was interrupted but can be resumed
+ * - discarded: Draft session was discarded by the user
+ */
+export type TaskStatus =
+  | "draft"
+  | "starting"
+  | "running"
+  | "waiting_input"
+  | "completed"
+  | "failed"
+  | "interrupting"
+  | "interrupted"
+  | "discarded";
+
 export type AgentStatus = "running" | "paused" | "completed" | "failed";
 export type ApprovalStatus = "pending" | "approved" | "denied";
 
@@ -14,7 +36,7 @@ export interface TaskState {
   agents: AgentState[];
   pendingApprovals: ApprovalState[];
   createdAt: Date;
-  completedAt?: Date;
+  completedAt: Date | undefined;
 }
 
 export interface AgentState {
@@ -44,7 +66,16 @@ export type AgentEventType =
   | "tool_result"
   | "reasoning"
   | "message"
-  | "error";
+  | "error"
+  | "task_started"
+  | "task_completed"
+  | "agent_spawned"
+  | "agent_completed"
+  | "tool_approved"
+  | "tool_denied"
+  | "tool_progress"
+  | "cost_update"
+  | "system_init";
 
 export interface AgentEvent {
   id: string;
@@ -116,8 +147,10 @@ export type SDKEventType =
   | "tool_use_denied"
   | "tool_use"
   | "tool_result"
+  | "tool_progress"
   | "reasoning"
   | "message"
+  | "message_delta"
   | "cost_update"
   | "system_init";
 

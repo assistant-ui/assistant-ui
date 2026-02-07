@@ -97,6 +97,24 @@ function AgentIf({ status, children }: AgentIfProps) {
 
 AgentIf.displayName = "AgentPrimitive.If";
 
+function AgentPause() {
+  return null;
+}
+
+AgentPause.displayName = "AgentPrimitive.Pause";
+
+function AgentResume() {
+  return null;
+}
+
+AgentResume.displayName = "AgentPrimitive.Resume";
+
+function AgentCancel() {
+  return null;
+}
+
+AgentCancel.displayName = "AgentPrimitive.Cancel";
+
 export const AgentPrimitive = {
   Root: AgentRoot,
   Name: AgentName,
@@ -105,4 +123,7 @@ export const AgentPrimitive = {
   Events: AgentEvents,
   Children: AgentChildren,
   If: AgentIf,
+  Pause: AgentPause,
+  Resume: AgentResume,
+  Cancel: AgentCancel,
 };

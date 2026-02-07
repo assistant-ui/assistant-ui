@@ -31,3 +31,14 @@ export {
   useApprovalStateById,
 } from "./useApprovalState";
 export type { ApprovalProviderProps } from "./useApprovalState";
+
+export { usePermissionMode, useSetPermissionMode } from "./usePermissionMode";
+
+export { useTaskTree, useAgentTree } from "../primitives/task/useTaskTree";
+export type {
+  TaskNode,
+  AgentTreeNode,
+  AgentTreeData,
+} from "../primitives/task/useTaskTree";
+
+export { useApprovalQueue } from "../primitives/approval/useApprovalQueue";

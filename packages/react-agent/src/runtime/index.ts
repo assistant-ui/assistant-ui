@@ -4,6 +4,14 @@ export type { WorkspaceConfig } from "./WorkspaceRuntime";
 export { TaskRuntime } from "./TaskRuntime";
 export { AgentRuntime } from "./AgentRuntime";
 export { ApprovalRuntime } from "./ApprovalRuntime";
+export {
+  LocalStoragePermissionStore,
+  type PermissionStoreInterface,
+} from "./PermissionStore";
+export type {
+  PermissionMode,
+  ToolPermission,
+} from "./PermissionStore";
 
 export type {
   TaskState,

@@ -35,18 +35,23 @@ export function useApprovalId(): string {
   return approvalId;
 }
 
-export function useApproval(): ApprovalRuntime {
+export function useApproval(): ApprovalRuntime | null {
   const task = useTask();
   const approvalId = useApprovalId();
   const approval = task.getApproval(approvalId);
-  if (!approval) {
-    throw new Error(`Approval not found: ${approvalId}`);
-  }
-  return approval;
+  // Return null instead of throwing - approval may be resolved/removed during render
+  return approval ?? null;
 }
 
-export function useApprovalState<T>(selector: (state: ApprovalState) => T): T {
+export function useApprovalState<T>(
+  selector: (state: ApprovalState) => T,
+): T | null {
   const approval = useApproval();
+
+  // If approval is not found (resolved/removed), return null
+  if (!approval) {
+    return null;
+  }
 
   return useSyncExternalStore(
     (callback) => approval.subscribe(callback),
