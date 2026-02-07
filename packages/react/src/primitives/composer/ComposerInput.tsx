@@ -124,6 +124,15 @@ export const ComposerPrimitiveInput = forwardRef<
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const ref = useComposedRefs(forwardedRef, textareaRef);
 
+    // Warn if both submitOnEnter and submitOnCtrlEnter are true
+    useEffect(() => {
+      if (submitOnEnter && submitOnCtrlEnter) {
+        console.warn(
+          "ComposerInput: Both submitOnEnter and submitOnCtrlEnter are set to true. submitOnCtrlEnter takes precedence.",
+        );
+      }
+    }, [submitOnEnter, submitOnCtrlEnter]);
+
     useEscapeKeydown((e) => {
       if (!cancelOnEscape) return;
 
