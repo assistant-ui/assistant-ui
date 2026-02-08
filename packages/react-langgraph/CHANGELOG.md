@@ -1,5 +1,17 @@
 # @assistant-ui/react-langgraph
 
+## 1.0.0
+
+### Patch Changes
+
+- d31a9dc: feat(react-langgraph): support frontend tool execution in LangGraph runtime
+- Updated dependencies [2eba036]
+- Updated dependencies [bf1a109]
+- Updated dependencies [cab9f9a]
+- Updated dependencies [6e5bdc9]
+- Updated dependencies [6a3b8d9]
+  - @assistant-ui/react@0.13.0
+
 ## 0.12.4
 
 ### Patch Changes

@@ -1,5 +1,17 @@
 # @assistant-ui/react-ai-sdk
 
+## 2.0.0
+
+### Patch Changes
+
+- bf1a109: fix: duplicate key toolCallId error in HITL tools (#3197)
+- Updated dependencies [2eba036]
+- Updated dependencies [bf1a109]
+- Updated dependencies [cab9f9a]
+- Updated dependencies [6e5bdc9]
+- Updated dependencies [6a3b8d9]
+  - @assistant-ui/react@0.13.0
+
 ## 1.3.6
 
 ### Patch Changes

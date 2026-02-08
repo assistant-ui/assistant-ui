@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-a2a",
-  "version": "0.2.4",
+  "version": "1.0.0",
   "description": "A2A protocol adapter for assistant-ui",
   "keywords": [
     "a2a",
@@ -37,7 +37,7 @@
     "uuid": "^13.0.0"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.12.9",
+    "@assistant-ui/react": "^0.13.0",
     "@types/react": "*",
     "react": "^18 || ^19"
   },

@@ -2078,7 +2078,7 @@ importers:
         specifier: ^0.1.6
         version: link:../store
       '@assistant-ui/tap':
-        specifier: ^0.4.5
+        specifier: ^0.4.6
         version: link:../tap
       '@radix-ui/primitive':
         specifier: ^1.1.3

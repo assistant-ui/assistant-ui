@@ -1,5 +1,17 @@
 # @assistant-ui/react-ag-ui
 
+## 1.0.0
+
+### Patch Changes
+
+- b1c8579: feat(react-ag-ui): support frontend tool execution in AG-UI runtime
+- Updated dependencies [2eba036]
+- Updated dependencies [bf1a109]
+- Updated dependencies [cab9f9a]
+- Updated dependencies [6e5bdc9]
+- Updated dependencies [6a3b8d9]
+  - @assistant-ui/react@0.13.0
+
 ## 0.0.15
 
 ### Patch Changes
