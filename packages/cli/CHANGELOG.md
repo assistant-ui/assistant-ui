@@ -1,5 +1,12 @@
 # assistant-ui
 
+## 0.0.79
+
+### Patch Changes
+
+- afaaf3b: fix(cli): make `init` command work in non-interactive environments
+- 4068df9: Strip `@/lib/utils.ts` workspace alias during example scaffolding
+
 ## 0.0.78
 
 ### Patch Changes
