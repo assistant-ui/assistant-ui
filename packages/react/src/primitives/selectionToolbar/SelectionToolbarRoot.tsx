@@ -19,9 +19,7 @@ type SelectionInfo = {
   rect: DOMRect;
 };
 
-export const SelectionToolbarContext = createContext<SelectionInfo | null>(
-  null,
-);
+const SelectionToolbarContext = createContext<SelectionInfo | null>(null);
 
 export const useSelectionToolbarInfo = () =>
   useContext(SelectionToolbarContext);
@@ -48,7 +46,7 @@ export namespace SelectionToolbarPrimitiveRoot {
 export const SelectionToolbarPrimitiveRoot = forwardRef<
   SelectionToolbarPrimitiveRoot.Element,
   SelectionToolbarPrimitiveRoot.Props
->(({ onMouseDown, style, ...props }, ref) => {
+>(({ onMouseDown, style, ...props }, forwardedRef) => {
   const [info, setInfo] = useState<SelectionInfo | null>(null);
 
   useEffect(() => {
@@ -117,7 +115,7 @@ export const SelectionToolbarPrimitiveRoot = forwardRef<
     <SelectionToolbarContext.Provider value={info}>
       <Primitive.div
         {...props}
-        ref={ref}
+        ref={forwardedRef}
         style={positionStyle}
         onMouseDown={(e) => {
           // Prevent mousedown from clearing the text selection

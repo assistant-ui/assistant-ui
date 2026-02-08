@@ -33,7 +33,7 @@ export namespace SelectionToolbarPrimitiveQuote {
 export const SelectionToolbarPrimitiveQuote = forwardRef<
   SelectionToolbarPrimitiveQuote.Element,
   SelectionToolbarPrimitiveQuote.Props
->(({ onClick, disabled, ...props }, ref) => {
+>(({ onClick, disabled, ...props }, forwardedRef) => {
   const aui = useAui();
   const info = useSelectionToolbarInfo();
 
@@ -52,7 +52,7 @@ export const SelectionToolbarPrimitiveQuote = forwardRef<
     <Primitive.button
       type="button"
       {...props}
-      ref={ref}
+      ref={forwardedRef}
       disabled={disabled || !info}
       onClick={composeEventHandlers(onClick, handleClick)}
     />
