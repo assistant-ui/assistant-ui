@@ -211,7 +211,7 @@ async function transformTsConfig(projectDir: string): Promise<void> {
   if (tsconfig.compilerOptions?.paths) {
     delete tsconfig.compilerOptions.paths["@/components/assistant-ui/*"];
     delete tsconfig.compilerOptions.paths["@/components/ui/*"];
-    delete tsconfig.compilerOptions.paths["@/lib/*"];
+    delete tsconfig.compilerOptions.paths["@/lib/utils"];
     delete tsconfig.compilerOptions.paths["@assistant-ui/ui/*"];
 
     // If paths is empty, remove it

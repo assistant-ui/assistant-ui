@@ -18,7 +18,7 @@
         "../../packages/ui/src/components/assistant-ui/*"
       ],
       "@/components/ui/*": ["../../packages/ui/src/components/ui/*"],
-      "@/lib/*": ["../../packages/ui/src/lib/*"],
+      "@/lib/utils": ["../../packages/ui/src/lib/utils"],
       "@assistant-ui/ui/*": ["../../packages/ui/src/*"],
       "@assistant-ui/*": ["../../packages/*/src"],
       "@assistant-ui/react/*": ["../../packages/react/src/*"],
