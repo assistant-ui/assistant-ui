@@ -37,7 +37,10 @@ const useSuggestionTrigger = ({
     const isRunning = aui.thread().getState().isRunning;
 
     if (resolvedSend && !isRunning) {
-      aui.thread().append(prompt);
+      aui.thread().append({
+        content: [{ type: "text", text: prompt }],
+        runConfig: aui.composer().getState().runConfig,
+      });
       if (clearComposer) {
         aui.composer().setText("");
       }
