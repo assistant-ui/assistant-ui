@@ -1,11 +1,5 @@
 # assistant-ui
 
-## 0.0.79
-
-### Patch Changes
-
-- b6bb85e: fix(cli): make `init` command work in non-interactive environments
-
 ## 0.0.78
 
 ### Patch Changes

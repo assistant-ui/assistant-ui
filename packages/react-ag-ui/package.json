@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-ag-ui",
-  "version": "1.0.0",
+  "version": "0.0.15",
   "description": "AG-UI protocol adapter for assistant-ui",
   "keywords": [
     "ag-ui",
@@ -40,7 +40,7 @@
     "zod": "^4.3.6"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.13.0",
+    "@assistant-ui/react": "^0.12.9",
     "@types/react": "*",
     "react": "^18 || ^19"
   },
