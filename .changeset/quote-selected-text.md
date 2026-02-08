@@ -6,7 +6,8 @@ feat: Quote Selected Text primitives
 
 Added new primitives and hooks for quoting selected text from messages:
 
-- `ActionBarPrimitive.Quote` - Button to capture selected text as a quote
+- `SelectionToolbarPrimitive.Root` - Floating toolbar that appears on text selection within a message
+- `SelectionToolbarPrimitive.Quote` - Button inside the floating toolbar to capture the selection as a quote
 - `ComposerPrimitive.Quote` - Container for quote preview (renders only when quote is set)
 - `ComposerPrimitive.QuoteText` - Displays the quoted text
 - `ComposerPrimitive.QuoteDismiss` - Button to clear the quote

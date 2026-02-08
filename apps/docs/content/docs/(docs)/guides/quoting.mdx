@@ -8,8 +8,8 @@ Allow users to select text in assistant messages and reply with a quote referenc
 ## How It Works
 
 1. User selects text in a message
-2. Clicks the **Quote** button in the action bar
-3. A quote preview appears in the composer
+2. A floating toolbar appears near the selection with a **Quote** button
+3. User clicks it — a quote preview appears in the composer
 4. User types their reply and sends
 5. The sent message displays the quoted text above the user's reply
 
@@ -17,34 +17,40 @@ Quote data is stored in `metadata.custom.quote` and is **not** injected into mes
 
 ## Quick Start
 
-### 1. Add the Quote Button
+### 1. Add the Floating Selection Toolbar
 
-Add `ActionBarPrimitive.Quote` to the assistant message action bar:
+Place `SelectionToolbarPrimitive` inside your `ThreadPrimitive.Root`. It renders a floating toolbar near the user's text selection — only when text is selected within a message.
 
-```tsx {1,3,11-15}
-import { ActionBarPrimitive } from "@assistant-ui/react";
+```tsx {1,13-20}
+import { SelectionToolbarPrimitive, ThreadPrimitive } from "@assistant-ui/react";
 import { QuoteIcon } from "lucide-react";
 
-const AssistantActionBar = () => {
+const Thread = () => {
   return (
-    <ActionBarPrimitive.Root>
-      <ActionBarPrimitive.Copy>
-        <CopyIcon />
-      </ActionBarPrimitive.Copy>
+    <ThreadPrimitive.Root>
+      <ThreadPrimitive.Viewport>
+        <ThreadPrimitive.Messages components={{ ... }} />
+        ...
+      </ThreadPrimitive.Viewport>
 
-      <ActionBarPrimitive.Quote>
-        <QuoteIcon />
-      </ActionBarPrimitive.Quote>
-
-      <ActionBarPrimitive.Reload>
-        <RefreshCwIcon />
-      </ActionBarPrimitive.Reload>
-    </ActionBarPrimitive.Root>
+      {/* Floating toolbar — appears on text selection */}
+      <SelectionToolbarPrimitive.Root className="flex items-center gap-1 rounded-lg border bg-popover px-1 py-1 shadow-md">
+        <SelectionToolbarPrimitive.Quote className="flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sm hover:bg-accent">
+          <QuoteIcon className="size-3.5" />
+          Quote
+        </SelectionToolbarPrimitive.Quote>
+      </SelectionToolbarPrimitive.Root>
+    </ThreadPrimitive.Root>
   );
 };
 ```
 
-The button captures the current text selection, stores it in the composer, and clears the selection. It is disabled when the message is still streaming or has no text content.
+The `Root` component:
+- Listens for `mouseup` and `keyup` events to detect text selections
+- Validates the selection is within a single message (cross-message selections are ignored)
+- Renders a portal positioned above the selection
+- Prevents `mousedown` from clearing the selection when clicking the toolbar
+- Hides automatically on scroll or when the selection is cleared
 
 ### 2. Show Quote Preview in Composer
 
@@ -107,7 +113,7 @@ The quote is stored in message metadata — **not** in message content. This giv
 
 ```typescript
 type QuoteInfo = {
-  readonly text: string;      // selected plain text
+  readonly text: string;       // selected plain text
   readonly messageId: string;  // source message ID
 };
 
@@ -162,9 +168,9 @@ function injectQuoteContext(messages: UIMessage[]): UIMessage[] {
 }
 ```
 
-### Example: Claude-Style Excerpt Attachment
+### Example: Claude-Style Citation Source
 
-For Claude's API, you can pass the quoted text as a citation source using the `source` block. This enables Claude to produce citations that link back to the quoted text:
+For Claude's API, you can pass the quoted text as a citation source. This enables Claude to produce citations that reference the quoted text:
 
 ```typescript title="app/api/chat/route.ts"
 import Anthropic from "@anthropic-ai/sdk";
@@ -258,15 +264,23 @@ function MyComponent() {
 
 ## API Reference
 
-### ActionBarPrimitive.Quote
+### SelectionToolbarPrimitive.Root
 
-A button that captures the current text selection as a quote.
+A floating container that appears when text is selected within a message. Renders as a portal positioned above the selection.
 
-- Reads `window.getSelection()` on click
-- Validates selection is within a single message (cross-message selection is rejected)
+- Listens for `mouseup` / `keyup` to detect selection
+- Validates selection is within a single message
+- Hides on scroll or when selection is cleared
+- Prevents `mousedown` from clearing the selection
+- Provides selection context to child components
+
+### SelectionToolbarPrimitive.Quote
+
+A button inside the floating toolbar that captures the selection as a quote.
+
+- Reads selection info from the toolbar context (not `window.getSelection()`)
 - Stores `{ text, messageId }` in the thread composer
-- Disabled when the message is streaming or has no text content
-- Supports `asChild` for custom rendering
+- Clears the text selection after quoting
 
 ### ComposerPrimitive.Quote
 
@@ -300,9 +314,10 @@ Set or clear the quote on the composer. The quote is automatically cleared when 
 
 - **Single quote** — `setQuote` replaces, not appends. Only one quote at a time.
 - **Snapshot text** — The selected text is captured at quote time, not linked to the source message.
-- **Cross-message selection** — Rejected. `ActionBarPrimitive.Quote` returns early if the selection spans multiple messages.
-- **Streaming messages** — Quote button is disabled while the message is still being generated.
+- **Cross-message selection** — Rejected. The toolbar only appears when the selection is within a single message.
+- **Streaming messages** — The floating toolbar works during streaming since it reads from the captured selection, not message status.
 - **`isEmpty` unchanged** — A quote alone doesn't make the composer non-empty. The user must type a reply.
+- **Scroll hides toolbar** — The floating toolbar hides when any scroll event occurs, since the position would become stale.
 
 ## Related
 

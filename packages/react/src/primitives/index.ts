@@ -13,6 +13,7 @@ export * as SuggestionPrimitive from "./suggestion";
 export * as ThreadListPrimitive from "./threadList";
 export * as ThreadListItemPrimitive from "./threadListItem";
 export * as ThreadListItemMorePrimitive from "./threadListItemMore";
+export * as SelectionToolbarPrimitive from "./selectionToolbar";
 
 export { useMessagePartText } from "./messagePart/useMessagePartText";
 export { useMessagePartReasoning } from "./messagePart/useMessagePartReasoning";

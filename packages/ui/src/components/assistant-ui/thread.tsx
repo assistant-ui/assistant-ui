@@ -16,6 +16,7 @@ import {
   ComposerPrimitive,
   ErrorPrimitive,
   MessagePrimitive,
+  SelectionToolbarPrimitive,
   SuggestionPrimitive,
   ThreadPrimitive,
   useMessageQuote,
@@ -66,6 +67,8 @@ export const Thread: FC = () => {
           <Composer />
         </ThreadPrimitive.ViewportFooter>
       </ThreadPrimitive.Viewport>
+
+      <FloatingSelectionToolbar />
     </ThreadPrimitive.Root>
   );
 };
@@ -240,6 +243,17 @@ const AssistantMessage: FC = () => {
   );
 };
 
+const FloatingSelectionToolbar: FC = () => {
+  return (
+    <SelectionToolbarPrimitive.Root className="aui-selection-toolbar-root flex items-center gap-1 rounded-lg border bg-popover px-1 py-1 shadow-md">
+      <SelectionToolbarPrimitive.Quote className="aui-selection-toolbar-quote flex items-center gap-1.5 rounded-md px-2.5 py-1 text-popover-foreground text-sm transition-colors hover:bg-accent">
+        <QuoteIcon className="size-3.5" />
+        Quote
+      </SelectionToolbarPrimitive.Quote>
+    </SelectionToolbarPrimitive.Root>
+  );
+};
+
 const AssistantActionBar: FC = () => {
   return (
     <ActionBarPrimitive.Root
@@ -258,11 +272,6 @@ const AssistantActionBar: FC = () => {
           </AuiIf>
         </TooltipIconButton>
       </ActionBarPrimitive.Copy>
-      <ActionBarPrimitive.Quote asChild>
-        <TooltipIconButton tooltip="Quote">
-          <QuoteIcon />
-        </TooltipIconButton>
-      </ActionBarPrimitive.Quote>
       <ActionBarPrimitive.Reload asChild>
         <TooltipIconButton tooltip="Refresh">
           <RefreshCwIcon />
