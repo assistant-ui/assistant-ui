@@ -10,6 +10,7 @@ import type {
 } from "../runtime-cores/core/ComposerRuntimeCore";
 import type { Unsubscribe } from "../../types";
 import type { MessageRole, RunConfig } from "../../types/AssistantTypes";
+import type { QuoteInfo } from "../../types/QuoteTypes";
 import type {
   ThreadComposerRuntimeCoreBinding,
   EditComposerRuntimeCoreBinding,
@@ -51,6 +52,12 @@ type BaseComposerState = {
    * Undefined when dictation is not active.
    */
   readonly dictation: DictationState | undefined;
+
+  /**
+   * The currently quoted text, if any.
+   * Undefined when no quote is set.
+   */
+  readonly quote: QuoteInfo | undefined;
 };
 
 export type ThreadComposerState = BaseComposerState & {
@@ -83,6 +90,7 @@ const getThreadComposerState = (
     runConfig: runtime?.runConfig ?? EMPTY_OBJECT,
     attachmentAccept: runtime?.attachmentAccept ?? "",
     dictation: runtime?.dictation,
+    quote: runtime?.quote,
 
     value: runtime?.text ?? "",
   });
@@ -104,6 +112,7 @@ const getEditComposerState = (
     runConfig: runtime?.runConfig ?? EMPTY_OBJECT,
     attachmentAccept: runtime?.attachmentAccept ?? "",
     dictation: runtime?.dictation,
+    quote: runtime?.quote,
 
     value: runtime?.text ?? "",
   });
@@ -193,6 +202,12 @@ export type ComposerRuntime = {
   stopDictation(): void;
 
   /**
+   * Set a quote for the next message. Pass undefined to clear.
+   * @param quote The quote info to set, or undefined to clear.
+   */
+  setQuote(quote: QuoteInfo | undefined): void;
+
+  /**
    * @deprecated This API is still under active development and might change without notice.
    */
   unstable_on(
@@ -224,6 +239,7 @@ export abstract class ComposerRuntimeImpl implements ComposerRuntime {
     this.getAttachmentByIndex = this.getAttachmentByIndex.bind(this);
     this.startDictation = this.startDictation.bind(this);
     this.stopDictation = this.stopDictation.bind(this);
+    this.setQuote = this.setQuote.bind(this);
     this.unstable_on = this.unstable_on.bind(this);
   }
 
@@ -287,6 +303,12 @@ export abstract class ComposerRuntimeImpl implements ComposerRuntime {
     const core = this._core.getState();
     if (!core) throw new Error("Composer is not available");
     core.stopDictation();
+  }
+
+  public setQuote(quote: QuoteInfo | undefined) {
+    const core = this._core.getState();
+    if (!core) throw new Error("Composer is not available");
+    core.setQuote(quote);
   }
 
   public subscribe(callback: () => void) {

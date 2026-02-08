@@ -243,6 +243,9 @@ const ComposerClientResource = resource(
     const [role, setRole] = tapState<"user" | "assistant" | "system">("user");
     const [runConfig, setRunConfig] = tapState<Record<string, unknown>>({});
     const [attachments, setAttachments] = tapState<readonly Attachment[]>([]);
+    const [quote, setQuote] = tapState<
+      { readonly text: string; readonly messageId: string } | undefined
+    >(undefined);
 
     // Update composer values when editing begins
     const updateFromMessage = tapEffectEvent(() => {
@@ -295,6 +298,7 @@ const ComposerClientResource = resource(
         isEmpty: !text.trim() && !attachments.length,
         type,
         dictation: undefined,
+        quote,
       }),
       [
         text,
@@ -305,6 +309,7 @@ const ComposerClientResource = resource(
         canCancel,
         type,
         attachments.length,
+        quote,
       ],
     );
 
@@ -341,18 +346,24 @@ const ComposerClientResource = resource(
           setRole("user");
           setRunConfig({});
           setAttachments([]);
+          setQuote(undefined);
         },
         send: () => {
+          const currentQuote = quote;
           const message = {
             role,
             content: text ? [{ type: "text" as const, text }] : [],
             attachments: attachments as any,
             createdAt: new Date(),
             runConfig,
+            metadata: {
+              custom: { ...(currentQuote ? { quote: currentQuote } : {}) },
+            },
           };
           onSend?.(message);
           setText("");
           setAttachments([]);
+          setQuote(undefined);
         },
         cancel: onCancel,
         beginEdit: () => {
@@ -360,6 +371,7 @@ const ComposerClientResource = resource(
         },
         startDictation: () => {},
         stopDictation: () => {},
+        setQuote,
       },
     };
   },

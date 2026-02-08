@@ -52,3 +52,5 @@ export type {
 export type { ThreadListItemStatus } from "../legacy-runtime/runtime/ThreadListItemRuntime";
 
 export type { Unsubscribe } from "./Unsubscribe";
+
+export type { QuoteInfo } from "./QuoteTypes";

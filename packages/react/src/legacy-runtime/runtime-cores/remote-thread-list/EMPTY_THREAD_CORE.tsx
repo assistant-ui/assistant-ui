@@ -129,6 +129,12 @@ export const EMPTY_THREAD_CORE: ThreadRuntimeCore = {
       // noop
     },
 
+    quote: undefined,
+
+    setQuote() {
+      throw EMPTY_THREAD_ERROR;
+    },
+
     subscribe() {
       return () => {};
     },

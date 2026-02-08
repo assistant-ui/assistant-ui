@@ -116,10 +116,11 @@ export const MessagePrimitiveRoot = forwardRef<
     isHoveringRef,
     anchorUserMessageRef,
   );
+  const messageId = useAuiState((s) => s.message.id);
 
   return (
     <ThreadPrimitiveViewportSlack>
-      <Primitive.div {...props} ref={ref} />
+      <Primitive.div {...props} ref={ref} data-message-id={messageId} />
     </ThreadPrimitiveViewportSlack>
   );
 });
