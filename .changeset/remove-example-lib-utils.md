@@ -2,4 +2,4 @@
 "assistant-ui": patch
 ---
 
-Strip `@/lib/*` workspace alias during example scaffolding
+Strip `@/lib/utils.ts` workspace alias during example scaffolding
