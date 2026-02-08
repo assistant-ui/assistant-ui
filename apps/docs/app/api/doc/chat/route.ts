@@ -1,5 +1,6 @@
 import { getLLMText } from "@/lib/get-llm-text";
 import { getDistinctId, posthogServer } from "@/lib/posthog-server";
+import { injectQuoteContext } from "@/lib/quote";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { source } from "@/lib/source";
 import { openai } from "@ai-sdk/openai";
@@ -121,7 +122,7 @@ export async function POST(req: Request): Promise<Response> {
   const { messages, tools } = await req.json();
 
   const prunedMessages = pruneMessages({
-    messages: await convertToModelMessages(messages),
+    messages: await convertToModelMessages(injectQuoteContext(messages)),
     toolCalls: "before-last-2-messages",
     reasoning: "none",
     emptyMessages: "remove",
