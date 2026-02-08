@@ -8,6 +8,7 @@
         "../../packages/ui/src/components/assistant-ui/*"
       ],
       "@/components/ui/*": ["../../packages/ui/src/components/ui/*"],
+      "@/lib/*": ["../../packages/ui/src/lib/*"],
       "@assistant-ui/ui/*": ["../../packages/ui/src/*"]
     }
   },
