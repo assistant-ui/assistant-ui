@@ -252,7 +252,7 @@ const useLangGraphRuntimeImpl = ({
     getTools: () => runtimeRef.current.thread.getModelContext().tools,
     onResult: (command) => {
       if (command.type === "add-tool-result") {
-        handleSendMessage(
+        void handleSendMessage(
           [
             {
               type: "tool",
