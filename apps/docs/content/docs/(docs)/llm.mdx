@@ -78,18 +78,20 @@ Once installed, your AI assistant will understand everything about assistant-ui 
 ### Quick Install (CLI)
 
 ```bash
-npx assistant-ui mcp
+npx add-mcp @assistant-ui/mcp-docs-server
 ```
 
 Or specify your IDE directly:
 
 ```bash
-npx assistant-ui mcp --cursor
-npx assistant-ui mcp --windsurf
-npx assistant-ui mcp --vscode
-npx assistant-ui mcp --zed
-npx assistant-ui mcp --claude-code
-npx assistant-ui mcp --claude-desktop
+npx add-mcp @assistant-ui/mcp-docs-server -a claude-code
+npx add-mcp @assistant-ui/mcp-docs-server -a claude-desktop
+npx add-mcp @assistant-ui/mcp-docs-server -a codex
+npx add-mcp @assistant-ui/mcp-docs-server -a cursor
+npx add-mcp @assistant-ui/mcp-docs-server -a gemini-cli
+npx add-mcp @assistant-ui/mcp-docs-server -a opencode
+npx add-mcp @assistant-ui/mcp-docs-server -a vscode
+npx add-mcp @assistant-ui/mcp-docs-server -a zed
 ```
 
 ### Manual Installation
