@@ -6,6 +6,7 @@
   "pages": [
     "pick-a-runtime",
     "ai-sdk",
+    "cloudflare-agents",
     "data-stream",
     "mastra",
     "langgraph",

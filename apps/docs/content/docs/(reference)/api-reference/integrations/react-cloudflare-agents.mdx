@@ -1,0 +1,348 @@
+---
+title: "@assistant-ui/react-cloudflare-agents"
+description: Cloudflare Agents integration with streaming chat and tool support.
+---
+
+Cloudflare Agents integration for assistant-ui providing real-time WebSocket chat.
+
+## API Reference
+
+### `useCloudflareAgentRuntime`
+
+Hook that creates an assistant-ui runtime connected to a Cloudflare Agent.
+
+```tsx
+import { useCloudflareAgentRuntime } from "@assistant-ui/react-cloudflare-agents";
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+
+const MyRuntimeProvider = ({ children }: { children: React.ReactNode }) => {
+  const runtime = useCloudflareAgentRuntime("chat", {
+    host: "http://localhost:8787",
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+};
+```
+
+<ParametersTable
+  parameters={[
+    {
+      name: "agentName",
+      type: "string",
+      description: "The name of the agent to connect to (e.g., 'chat').",
+      required: true,
+    },
+    {
+      name: "options",
+      type: "CloudflareAgentRuntimeOptions",
+      description: "Optional configuration for the runtime.",
+      children: [
+        {
+          type: "CloudflareAgentRuntimeOptions",
+          parameters: [
+            {
+              name: "host",
+              type: "string",
+              description:
+                "Host URL for the Cloudflare Worker running the agent. Required when running the worker separately (e.g., with wrangler dev). Example: 'http://localhost:8787'",
+            },
+            {
+              name: "adapters",
+              type: "ExternalStoreAdapter['adapters']",
+              description:
+                "Optional adapters for attachments, speech, feedback, etc.",
+            },
+          ],
+        },
+      ],
+    },
+  ]}
+/>
+
+#### Returns
+
+An `AssistantRuntime` instance that can be used with `AssistantRuntimeProvider`.
+
+#### Examples
+
+**Local Development**
+
+```typescript
+const runtime = useCloudflareAgentRuntime("chat", {
+  host: "http://localhost:8787",
+});
+```
+
+**Production (Deployed Worker)**
+
+```typescript
+const runtime = useCloudflareAgentRuntime("chat", {
+  host: "https://my-agent.example.workers.dev",
+});
+```
+
+**With Custom Adapters**
+
+```typescript
+const runtime = useCloudflareAgentRuntime("chat", {
+  host: "http://localhost:8787",
+  adapters: {
+    attachments: customAttachmentAdapter,
+    speech: customSpeechAdapter,
+  },
+});
+```
+
+## Backend: AIChatAgent
+
+On the Cloudflare Worker side, implement an `AIChatAgent` subclass:
+
+```typescript
+import { AIChatAgent } from "@cloudflare/ai-chat";
+import { createOpenAI } from "@ai-sdk/openai";
+import {
+  streamText,
+  tool,
+  convertToModelMessages,
+  createUIMessageStream,
+  createUIMessageStreamResponse,
+  zodSchema,
+  type StreamTextOnFinishCallback,
+  type ToolSet,
+} from "ai";
+import { z } from "zod";
+
+export class Chat extends AIChatAgent<Env> {
+  override async onChatMessage(
+    onFinish: StreamTextOnFinishCallback<ToolSet>,
+    options?: { abortSignal?: AbortSignal },
+  ) {
+    const openai = createOpenAI({
+      apiKey: this.env.OPENAI_API_KEY,
+    });
+
+    const tools = {
+      /* ... tool definitions ... */
+    };
+
+    const stream = createUIMessageStream({
+      execute: async ({ writer }) => {
+        const result = streamText({
+          model: openai("gpt-4o-mini"),
+          system: "You are a helpful assistant.",
+          messages: await convertToModelMessages(this.messages),
+          tools,
+          onFinish,
+        });
+
+        writer.merge(result.toUIMessageStream());
+      },
+    });
+
+    return createUIMessageStreamResponse({ stream });
+  }
+}
+```
+
+### Environment Setup
+
+Define the `Env` type for your worker:
+
+```typescript
+interface Env {
+  OPENAI_API_KEY: string;
+  Chat: DurableObjectNamespace;
+}
+```
+
+### Message Format
+
+Messages follow the Vercel AI SDK v6 `UIMessage` format:
+
+```typescript
+type UIMessage = {
+  id: string;
+  role: "user" | "assistant" | "system";
+  parts: Array<
+    | { type: "text"; text: string }
+    | { type: "tool-call"; toolCallId: string; toolName: string; args: unknown }
+    | { type: "tool-result"; toolCallId: string; result: unknown }
+  >;
+};
+```
+
+## Tool Definition
+
+Define tools using the Vercel AI SDK pattern:
+
+```typescript
+import { tool, zodSchema } from "ai";
+import { z } from "zod";
+
+const tools = {
+  calculator: tool({
+    description: "Perform mathematical calculations",
+    inputSchema: zodSchema(
+      z.object({
+        expression: z
+          .string()
+          .describe("Mathematical expression to evaluate"),
+      })
+    ),
+    execute: async ({ expression }) => {
+      try {
+        const result = eval(expression);
+        return `Result: ${result}`;
+      } catch (error) {
+        return `Error: ${error.message}`;
+      }
+    },
+  }),
+  fetch_content: tool({
+    description: "Fetch content from a URL",
+    inputSchema: zodSchema(
+      z.object({
+        url: z.string().url().describe("The URL to fetch"),
+      })
+    ),
+    execute: async ({ url }) => {
+      const response = await fetch(url);
+      return await response.text();
+    },
+  }),
+};
+```
+
+## Streaming
+
+The integration automatically handles streaming through:
+
+1. **`createUIMessageStream`** - Creates a UI-compatible message stream
+2. **`streamText`** - Streams text from the AI model
+3. **`writer.merge()`** - Merges the stream into the UI format
+
+```typescript
+const stream = createUIMessageStream({
+  execute: async ({ writer }) => {
+    const result = streamText({
+      model: openai("gpt-4o-mini"),
+      messages: await convertToModelMessages(this.messages),
+      tools,
+      onFinish,
+    });
+    // Merge the streamed text into UI format
+    writer.merge(result.toUIMessageStream());
+  },
+});
+```
+
+## Message History
+
+The `AIChatAgent` automatically manages conversation history through `this.messages`:
+
+```typescript
+export class Chat extends AIChatAgent<Env> {
+  override async onChatMessage(onFinish, options) {
+    // this.messages contains the full conversation history
+    const messages = await convertToModelMessages(this.messages);
+    // messages = [
+    //   { role: 'user', content: 'Hello' },
+    //   { role: 'assistant', content: 'Hi there!' },
+    //   { role: 'user', content: 'What is 2+2?' },
+    // ]
+  }
+}
+```
+
+## Error Handling
+
+Handle errors in tool execution:
+
+```typescript
+const tools = {
+  risky_tool: tool({
+    description: "A tool that might fail",
+    inputSchema: zodSchema(z.object({ id: z.string() })),
+    execute: async ({ id }) => {
+      try {
+        const result = await externalAPI(id);
+        return JSON.stringify(result);
+      } catch (error) {
+        return `Error: ${error instanceof Error ? error.message : "Unknown error"}`;
+      }
+    },
+  }),
+};
+```
+
+## Deployment
+
+### Build for Production
+
+```bash
+npm run build
+```
+
+### Set Production Secrets
+
+```bash
+npx wrangler secret put OPENAI_API_KEY
+```
+
+### Deploy the Worker
+
+```bash
+npx wrangler deploy
+```
+
+### Update Frontend
+
+Update the `host` parameter in your frontend:
+
+```typescript
+const runtime = useCloudflareAgentRuntime("chat", {
+  host: "https://my-agent.example.workers.dev",
+});
+```
+
+## Troubleshooting
+
+### API Key Missing
+
+**Error**: "OpenAI API key is missing"
+
+**Solution**: Use `createOpenAI({ apiKey: this.env.OPENAI_API_KEY })` instead of the default `openai()` import.
+
+### Connection Refused
+
+**Error**: "Failed to connect to worker"
+
+**Solution**: Verify wrangler dev is running:
+```bash
+npx wrangler dev
+```
+
+### WebSocket Errors
+
+**Error**: "Web Socket request did not return status 101"
+
+**Solution**: Ensure the worker returns WebSocket upgrade responses without modification:
+```typescript
+if (response.status === 101 || response.webSocket) {
+  return response;
+}
+```
+
+## Examples
+
+See the [full example application](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-cloudflare-agents) for a complete working setup.
+
+## Related
+
+- [Cloudflare Agents Documentation](https://developers.cloudflare.com/agents/)
+- [Vercel AI SDK Documentation](https://sdk.vercel.ai/)
+- [Assistant-UI Runtime Guide](/docs/runtimes/cloudflare-agents)

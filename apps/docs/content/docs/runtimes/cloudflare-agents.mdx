@@ -1,0 +1,353 @@
+---
+title: Cloudflare Agents
+description: Integrate Cloudflare Agents with assistant-ui for real-time serverless chat.
+---
+
+## Overview
+
+Cloudflare Agents provides a serverless environment for running AI agents with real-time WebSocket support. This integration uses the `useCloudflareAgentRuntime` hook from `@assistant-ui/react-cloudflare-agents` to connect to Cloudflare Workers.
+
+## Getting Started
+
+<Steps>
+  <Step>
+  ### Create a Next.js project
+
+```sh
+npx create-next-app@latest my-chat-app
+cd my-chat-app
+```
+
+  </Step>
+  <Step>
+
+### Install dependencies
+
+<InstallCommand npm={["@assistant-ui/react", "@assistant-ui/react-cloudflare-agents", "@cloudflare/ai-chat", "agents", "ai@^6", "@ai-sdk/openai", "zod"]} />
+
+  </Step>
+  <Step>
+
+### Create the Cloudflare Worker
+
+Create `worker/chat.ts`:
+
+```typescript
+import { AIChatAgent } from "@cloudflare/ai-chat";
+import { createOpenAI } from "@ai-sdk/openai";
+import {
+  streamText,
+  tool,
+  convertToModelMessages,
+  createUIMessageStream,
+  createUIMessageStreamResponse,
+  zodSchema,
+  type StreamTextOnFinishCallback,
+  type ToolSet,
+} from "ai";
+import { z } from "zod";
+
+export class Chat extends AIChatAgent<Env> {
+  override async onChatMessage(
+    onFinish: StreamTextOnFinishCallback<ToolSet>,
+    options?: { abortSignal?: AbortSignal },
+  ) {
+    const openai = createOpenAI({
+      apiKey: this.env.OPENAI_API_KEY,
+    });
+
+    const tools = {
+      get_weather: tool({
+        description: "Get the current weather",
+        inputSchema: zodSchema(
+          z.object({
+            location: z.string().describe("City name"),
+          })
+        ),
+        execute: async ({ location }) => {
+          return `Weather in ${location}: Sunny, 72°F`;
+        },
+      }),
+    };
+
+    const stream = createUIMessageStream({
+      execute: async ({ writer }) => {
+        const result = streamText({
+          model: openai("gpt-4o-mini"),
+          system: "You are a helpful assistant.",
+          messages: await convertToModelMessages(this.messages),
+          tools,
+          onFinish,
+          ...(options?.abortSignal && { abortSignal: options.abortSignal }),
+        });
+
+        writer.merge(result.toUIMessageStream());
+      },
+    });
+
+    return createUIMessageStreamResponse({ stream });
+  }
+}
+```
+
+  </Step>
+  <Step>
+
+### Create the Worker entry point
+
+Create `worker/index.ts`:
+
+```typescript
+import { routeAgentRequest } from "agents";
+import { Chat } from "./chat";
+
+export { Chat };
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+};
+
+export default {
+  async fetch(request: Request, env: Env, _ctx: ExecutionContext) {
+    if (request.method === "OPTIONS") {
+      return new Response(null, {
+        status: 204,
+        headers: corsHeaders,
+      });
+    }
+
+    const response =
+      (await routeAgentRequest(request, env)) ||
+      new Response("Not found", { status: 404 });
+
+    // Don't modify WebSocket upgrade responses
+    if (response.status === 101 || response.webSocket) {
+      return response;
+    }
+
+    const newHeaders = new Headers(response.headers);
+    Object.entries(corsHeaders).forEach(([key, value]) => {
+      newHeaders.set(key, value);
+    });
+
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: newHeaders,
+    });
+  },
+} satisfies ExportedHandler<Env>;
+```
+
+  </Step>
+  <Step>
+
+### Configure the worker
+
+Create `wrangler.jsonc`:
+
+```jsonc
+{
+  "name": "my-agent",
+  "main": "worker/index.ts",
+  "compatibility_date": "2025-01-31",
+  "compatibility_flags": ["nodejs_compat"],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "Chat",
+        "class_name": "Chat"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["Chat"]
+    }
+  ]
+}
+```
+
+Create `.dev.vars`:
+
+```
+OPENAI_API_KEY=sk-your-key-here
+```
+
+  </Step>
+  <Step>
+
+### Setup the frontend
+
+`@/app/page.tsx`
+
+```tsx
+"use client";
+
+import { Thread } from "@/components/assistant-ui/thread";
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useCloudflareAgentRuntime } from "@assistant-ui/react-cloudflare-agents";
+
+export default function Home() {
+  const runtime = useCloudflareAgentRuntime("chat", {
+    host: "http://localhost:8787",
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <div className="h-full">
+        <Thread />
+      </div>
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Run the development servers
+
+Terminal 1 - Worker:
+
+```bash
+npx wrangler dev
+```
+
+Terminal 2 - Frontend:
+
+```bash
+npm run dev
+```
+
+Open `http://localhost:3000`
+
+  </Step>
+</Steps>
+
+## Architecture
+
+The integration consists of:
+
+1. **Frontend Hook** (`useCloudflareAgentRuntime`):
+   - Establishes WebSocket connection to the worker
+   - Manages message state
+   - Converts between formats
+
+2. **Backend Worker** (`AIChatAgent`):
+   - Receives messages via WebSocket
+   - Calls the AI model
+   - Streams responses back
+   - Handles tool execution
+
+3. **Message Flow**:
+   ```
+   User Input → Hook → WebSocket → Worker → AI Model
+   ↓                                   ↓
+   Runtime ← ThreadMessage ← UIMessageStream
+   ```
+
+## Key Features
+
+- **Real-time streaming** via WebSocket
+- **Tool calling** support
+- **Message history** management
+- **Type-safe** TypeScript interfaces
+- **Serverless** deployment on Cloudflare Workers
+
+## Adding Tools
+
+Extend the tools object in your agent:
+
+```typescript
+const tools = {
+  calculator: tool({
+    description: "Perform calculations",
+    inputSchema: zodSchema(
+      z.object({
+        expression: z.string(),
+      })
+    ),
+    execute: async ({ expression }) => {
+      return eval(expression).toString();
+    },
+  }),
+  fetch_url: tool({
+    description: "Fetch content from a URL",
+    inputSchema: zodSchema(
+      z.object({
+        url: z.string().url(),
+      })
+    ),
+    execute: async ({ url }) => {
+      const response = await fetch(url);
+      return await response.text();
+    },
+  }),
+};
+```
+
+## Deployment
+
+### Deploy to Cloudflare Workers
+
+1. Update frontend host in `app/page.tsx`:
+
+```typescript
+const runtime = useCloudflareAgentRuntime("chat", {
+  host: "https://my-agent.example.workers.dev",
+});
+```
+
+2. Deploy the worker:
+
+```bash
+npx wrangler deploy
+```
+
+3. Set the production API key:
+
+```bash
+npx wrangler secret put OPENAI_API_KEY
+```
+
+4. Deploy the frontend to your preferred hosting (Vercel, Netlify, etc.)
+
+## Using Different AI Providers
+
+### Claude (Anthropic)
+
+```typescript
+import { createAnthropic } from "@ai-sdk/anthropic";
+
+export class Chat extends AIChatAgent<Env> {
+  override async onChatMessage(onFinish, options) {
+    const anthropic = createAnthropic({
+      apiKey: this.env.ANTHROPIC_API_KEY,
+    });
+
+    const stream = createUIMessageStream({
+      execute: async ({ writer }) => {
+        const result = streamText({
+          model: anthropic("claude-3-5-sonnet-20241022"),
+          messages: await convertToModelMessages(this.messages),
+          tools,
+          onFinish,
+        });
+        writer.merge(result.toUIMessageStream());
+      },
+    });
+
+    return createUIMessageStreamResponse({ stream });
+  }
+}
+```
+
+## Next Steps
+
+- See the [full example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-cloudflare-agents)
+- Check the [API Reference](/docs/reference/api-reference/integrations/react-cloudflare-agents)
+- Explore [Cloudflare Agents documentation](https://developers.cloudflare.com/agents/)
