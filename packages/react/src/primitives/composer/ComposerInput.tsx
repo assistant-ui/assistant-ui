@@ -33,6 +33,13 @@ export namespace ComposerPrimitiveInput {
      */
     submitOnEnter?: boolean | undefined;
     /**
+     * Whether to submit only with Ctrl/Cmd+Enter instead of plain Enter.
+     * When true, plain Enter inserts a newline and Ctrl/Cmd+Enter submits.
+     * When false (default), behavior is controlled by submitOnEnter prop.
+     * @default false
+     */
+    submitOnCtrlEnter?: boolean | undefined;
+    /**
      * Whether to cancel message composition when Escape is pressed.
      * @default true
      */
@@ -72,6 +79,7 @@ export namespace ComposerPrimitiveInput {
  * <ComposerPrimitive.Input
  *   placeholder="Type your message..."
  *   submitOnEnter={true}
+ *   submitOnCtrlEnter={false}
  *   addAttachmentOnPaste={true}
  * />
  * ```
@@ -89,6 +97,7 @@ export const ComposerPrimitiveInput = forwardRef<
       onKeyDown,
       onPaste,
       submitOnEnter = true,
+      submitOnCtrlEnter = false,
       cancelOnEscape = true,
       unstable_focusOnRunStart = true,
       unstable_focusOnScrollToBottom = true,
@@ -114,6 +123,15 @@ export const ComposerPrimitiveInput = forwardRef<
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const ref = useComposedRefs(forwardedRef, textareaRef);
 
+    // Warn if both submitOnEnter and submitOnCtrlEnter are true
+    useEffect(() => {
+      if (submitOnEnter && submitOnCtrlEnter) {
+        console.warn(
+          "ComposerInput: Both submitOnEnter and submitOnCtrlEnter are set to true. submitOnCtrlEnter takes precedence.",
+        );
+      }
+    }, [submitOnEnter, submitOnCtrlEnter]);
+
     useEscapeKeydown((e) => {
       if (!cancelOnEscape) return;
 
@@ -128,17 +146,30 @@ export const ComposerPrimitiveInput = forwardRef<
     });
 
     const handleKeyPress = (e: KeyboardEvent) => {
-      if (isDisabled || !submitOnEnter) return;
+      if (isDisabled) return;
 
       // ignore IME composition events
       if (e.nativeEvent.isComposing) return;
 
-      if (e.key === "Enter" && e.shiftKey === false) {
-        const isRunning = aui.thread().getState().isRunning;
+      const isRunning = aui.thread().getState().isRunning;
+      if (isRunning) return;
 
-        if (!isRunning) {
+      if (e.key === "Enter") {
+        // Check if shift is pressed - always newline
+        if (e.shiftKey) return;
+
+        let shouldSubmit = false;
+
+        if (submitOnCtrlEnter) {
+          // Ctrl+Enter mode: only submit with Ctrl/Cmd+Enter
+          shouldSubmit = e.ctrlKey || e.metaKey;
+        } else {
+          // Traditional mode: submit on plain Enter
+          shouldSubmit = submitOnEnter;
+        }
+
+        if (shouldSubmit) {
           e.preventDefault();
-
           textareaRef.current?.closest("form")?.requestSubmit();
         }
       }
