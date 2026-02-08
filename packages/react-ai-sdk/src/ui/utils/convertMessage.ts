@@ -25,7 +25,7 @@ const convertParts = (
     return [];
   }
 
-  return message.parts
+  const converted = message.parts
     .filter((p) => p.type !== "step-start" && p.type !== "file")
     .map((part) => {
       const type = part.type;
@@ -132,6 +132,15 @@ const convertParts = (
       return null;
     })
     .filter(Boolean) as any[];
+
+  const seenToolCallIds = new Set<string>();
+  return converted.filter((part: any) => {
+    if (part.type === "tool-call" && part.toolCallId != null) {
+      if (seenToolCallIds.has(part.toolCallId)) return false;
+      seenToolCallIds.add(part.toolCallId);
+    }
+    return true;
+  });
 };
 
 export const AISDKMessageConverter = unstable_createMessageConverter(
