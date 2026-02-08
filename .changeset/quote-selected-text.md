@@ -1,8 +1,8 @@
 ---
-"@assistant-ui/react": minor
+"@assistant-ui/react": patch
 ---
 
-feat: Quote Selected Text primitives
+feat(react): Quote Selected Text primitives
 
 Added new primitives and hooks for quoting selected text from messages:
 
