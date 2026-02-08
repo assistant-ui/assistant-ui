@@ -966,6 +966,73 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
+  examples/with-cloud-standalone:
+    dependencies:
+      '@ai-sdk/openai':
+        specifier: ^3.0.13
+        version: 3.0.25(zod@4.3.6)
+      '@ai-sdk/react':
+        specifier: ^3.0.44
+        version: 3.0.75(react@19.2.4)(zod@4.3.6)
+      '@assistant-ui/cloud-ai-sdk':
+        specifier: workspace:*
+        version: link:../../packages/cloud-ai-sdk
+      ai:
+        specifier: ^6.0.42
+        version: 6.0.73(zod@4.3.6)
+      assistant-cloud:
+        specifier: workspace:*
+        version: link:../../packages/cloud
+      class-variance-authority:
+        specifier: ^0.7.1
+        version: 0.7.1
+      clsx:
+        specifier: ^2.1.1
+        version: 2.1.1
+      lucide-react:
+        specifier: ^0.562.0
+        version: 0.562.0(react@19.2.4)
+      next:
+        specifier: ^16.1.4
+        version: 16.1.6(@opentelemetry/api@1.9.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      react:
+        specifier: ^19.2.3
+        version: 19.2.4
+      react-dom:
+        specifier: ^19.2.3
+        version: 19.2.4(react@19.2.4)
+      tailwind-merge:
+        specifier: ^3.4.0
+        version: 3.4.0
+    devDependencies:
+      '@assistant-ui/x-buildutils':
+        specifier: workspace:*
+        version: link:../../packages/x-buildutils
+      '@tailwindcss/postcss':
+        specifier: ^4.1.18
+        version: 4.1.18
+      '@types/node':
+        specifier: ^25.0.9
+        version: 25.2.1
+      '@types/react':
+        specifier: ^19.2.9
+        version: 19.2.13
+      '@types/react-dom':
+        specifier: ^19.2.3
+        version: 19.2.3(@types/react@19.2.13)
+      postcss:
+        specifier: ^8.5.6
+        version: 8.5.6
+      tailwindcss:
+        specifier: ^4.1.18
+        version: 4.1.18
+      tw-animate-css:
+        specifier: ^1.4.0
+        version: 1.4.0
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
   examples/with-custom-thread-list:
     dependencies:
       '@ai-sdk/openai':
@@ -1975,6 +2042,34 @@ importers:
       vitest:
         specifier: ^4.0.18
         version: 4.0.18(@opentelemetry/api@1.9.0)(@types/node@25.2.1)(@vitest/ui@4.0.18)(jiti@2.6.1)(jsdom@28.0.0)(lightningcss@1.30.2)(tsx@4.21.0)(yaml@2.8.2)
+
+  packages/cloud-ai-sdk:
+    dependencies:
+      assistant-cloud:
+        specifier: workspace:^0.1.17
+        version: link:../cloud
+      assistant-stream:
+        specifier: ^0.3.2
+        version: link:../assistant-stream
+    devDependencies:
+      '@ai-sdk/react':
+        specifier: ^3.0.44
+        version: 3.0.75(react@19.2.4)(zod@4.3.6)
+      '@assistant-ui/x-buildutils':
+        specifier: workspace:*
+        version: link:../x-buildutils
+      '@types/node':
+        specifier: ^25.2.1
+        version: 25.2.1
+      '@types/react':
+        specifier: ^19.2.7
+        version: 19.2.13
+      ai:
+        specifier: ^6.0.42
+        version: 6.0.73(zod@4.3.6)
+      react:
+        specifier: ^19.2.3
+        version: 19.2.4
 
   packages/create-assistant-ui:
     dependencies:
@@ -7696,6 +7791,11 @@ packages:
 
   lru-cache@5.1.1:
     resolution: {integrity: sha512-KpNARQA3Iwv+jTA0utUVVbrh+Jlrr1Fv0e56GGzAFOXN7dk/FviaDW8LHmK52DlcH4WP2n6gI8vN1aesBFgo9w==}
+
+  lucide-react@0.562.0:
+    resolution: {integrity: sha512-82hOAu7y0dbVuFfmO4bYF1XEwYk/mEbM5E+b1jgci/udUBEE/R7LF5Ip0CCEmXe8AybRM8L+04eP+LGZeDvkiw==}
+    peerDependencies:
+      react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
   lucide-react@0.563.0:
     resolution: {integrity: sha512-8dXPB2GI4dI8jV4MgUDGBeLdGk8ekfqVZ0BdLcrRzocGgG75ltNEmWS+gE7uokKF/0oSUuczNDT+g9hFJ23FkA==}
@@ -15019,6 +15119,10 @@ snapshots:
   lru-cache@5.1.1:
     dependencies:
       yallist: 3.1.1
+
+  lucide-react@0.562.0(react@19.2.4):
+    dependencies:
+      react: 19.2.4
 
   lucide-react@0.563.0(react@19.2.4):
     dependencies:
