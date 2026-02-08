@@ -139,16 +139,16 @@ const ThreadSuggestionItem: FC = () => {
 
 const ComposerQuotePreview: FC = () => {
   return (
-    <ComposerPrimitive.Quote className="aui-composer-quote mx-3 mt-2 flex items-start gap-2 rounded-lg border-primary/40 border-l-4 bg-muted/50 px-3 py-2 text-sm">
-      <ComposerPrimitive.QuoteText className="aui-composer-quote-text line-clamp-2 flex-1 text-muted-foreground italic" />
+    <ComposerPrimitive.Quote className="aui-composer-quote mx-3 mt-2 flex items-start gap-2 rounded-lg bg-muted/60 px-3 py-2">
+      <QuoteIcon className="aui-composer-quote-icon mt-0.5 size-3.5 shrink-0 text-muted-foreground/70" />
+      <ComposerPrimitive.QuoteText className="aui-composer-quote-text line-clamp-2 min-w-0 flex-1 text-muted-foreground text-sm" />
       <ComposerPrimitive.QuoteDismiss asChild>
-        <TooltipIconButton
-          tooltip="Remove quote"
-          variant="ghost"
-          className="aui-composer-quote-dismiss size-6 shrink-0"
+        <button
+          type="button"
+          className="aui-composer-quote-dismiss shrink-0 rounded-sm p-0.5 text-muted-foreground/70 transition-colors hover:bg-accent hover:text-foreground"
         >
-          <XIcon className="size-3" />
-        </TooltipIconButton>
+          <XIcon className="size-3.5" />
+        </button>
       </ComposerPrimitive.QuoteDismiss>
     </ComposerPrimitive.Quote>
   );
@@ -308,8 +308,11 @@ const MessageQuoteBlock: FC = () => {
   if (!quote) return null;
 
   return (
-    <div className="aui-message-quote mb-1 border-primary/40 border-l-4 pl-3 text-muted-foreground text-xs italic">
-      {quote.text}
+    <div className="aui-message-quote mb-2 flex items-start gap-1.5">
+      <QuoteIcon className="aui-message-quote-icon mt-0.5 size-3 shrink-0 text-muted-foreground/60" />
+      <p className="aui-message-quote-text line-clamp-2 min-w-0 text-muted-foreground/80 text-sm italic">
+        {quote.text}
+      </p>
     </div>
   );
 };

@@ -259,6 +259,38 @@ Renders a single attachment at the specified index within the message.
   ]}
 />
 
+### useMessageQuote()
+
+A hook that returns the quote info attached to the current message, if any. Reads from `message.metadata.custom.quote`.
+
+```tsx
+import { useMessageQuote } from "@assistant-ui/react";
+
+const QuoteBlock = () => {
+  const quote = useMessageQuote();
+  if (!quote) return null;
+
+  return (
+    <div className="mb-2 flex items-start gap-1.5 text-sm italic text-muted-foreground">
+      {quote.text}
+    </div>
+  );
+};
+```
+
+**Returns:** `QuoteInfo | undefined`
+
+```typescript
+type QuoteInfo = {
+  readonly text: string;       // the quoted plain text
+  readonly messageId: string;  // the source message ID
+};
+```
+
+<Callout type="info">
+See the [Quoting guide](/docs/guides/quoting) for a complete walkthrough.
+</Callout>
+
 ### Error
 
 Renders children only if the message has an error status.

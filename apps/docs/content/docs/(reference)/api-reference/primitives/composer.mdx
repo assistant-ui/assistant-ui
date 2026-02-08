@@ -20,6 +20,10 @@ import { ComposerPrimitive } from "@assistant-ui/react";
 // creating a new message
 const Composer = () => (
   <ComposerPrimitive.Root>
+    <ComposerPrimitive.Quote>
+      <ComposerPrimitive.QuoteText />
+      <ComposerPrimitive.QuoteDismiss />
+    </ComposerPrimitive.Quote>
     <ComposerPrimitive.Attachments />
     <ComposerPrimitive.AddAttachment />
     <ComposerPrimitive.Input />
@@ -273,6 +277,44 @@ This primitive renders a `<span>` element.
   </div>
 </ComposerPrimitive.If>
 ```
+
+### Quote
+
+A container for displaying a quote preview in the composer. Only renders when a quote is set via `composer.setQuote()`.
+
+This primitive renders a `<div>` element.
+
+```tsx
+<ComposerPrimitive.Quote className="flex items-start gap-2 bg-muted/60 px-3 py-2">
+  <ComposerPrimitive.QuoteText className="line-clamp-2 flex-1 text-sm" />
+  <ComposerPrimitive.QuoteDismiss>×</ComposerPrimitive.QuoteDismiss>
+</ComposerPrimitive.Quote>
+```
+
+### QuoteText
+
+Renders the quoted text content. Only renders when a quote is set.
+
+This primitive renders a `<span>` element.
+
+### QuoteDismiss
+
+A button that clears the current quote from the composer by calling `setQuote(undefined)`.
+
+This primitive renders a `<button>` element unless `asChild` is set.
+
+<ParametersTable
+  type="ComposerPrimitiveQuoteDismissProps"
+  parameters={[
+    {
+      name: "asChild",
+    },
+  ]}
+/>
+
+<Callout type="info">
+See the [Quoting guide](/docs/guides/quoting) for a complete walkthrough including the floating selection toolbar and backend handling.
+</Callout>
 
 ### If
 
