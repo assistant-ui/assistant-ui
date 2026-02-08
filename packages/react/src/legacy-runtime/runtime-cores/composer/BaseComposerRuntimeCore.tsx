@@ -168,8 +168,9 @@ export abstract class BaseComposerRuntimeCore
 
     const text = this.text;
     const quote = this._quote;
-    this._emptyTextAndAttachments();
     this._quote = undefined;
+    this._emptyTextAndAttachments();
+
     const message: Omit<AppendMessage, "parentId" | "sourceId"> = {
       createdAt: new Date(),
       role: this.role,

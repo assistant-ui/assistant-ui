@@ -18,6 +18,7 @@ import {
   MessagePrimitive,
   SuggestionPrimitive,
   ThreadPrimitive,
+  useMessageQuote,
 } from "@assistant-ui/react";
 import {
   ArrowDownIcon,
@@ -29,8 +30,10 @@ import {
   DownloadIcon,
   MoreHorizontalIcon,
   PencilIcon,
+  QuoteIcon,
   RefreshCwIcon,
   SquareIcon,
+  XIcon,
 } from "lucide-react";
 import type { FC } from "react";
 
@@ -131,10 +134,28 @@ const ThreadSuggestionItem: FC = () => {
   );
 };
 
+const ComposerQuotePreview: FC = () => {
+  return (
+    <ComposerPrimitive.Quote className="aui-composer-quote mx-3 mt-2 flex items-start gap-2 rounded-lg border-primary/40 border-l-4 bg-muted/50 px-3 py-2 text-sm">
+      <ComposerPrimitive.QuoteText className="aui-composer-quote-text line-clamp-2 flex-1 text-muted-foreground italic" />
+      <ComposerPrimitive.QuoteDismiss asChild>
+        <TooltipIconButton
+          tooltip="Remove quote"
+          variant="ghost"
+          className="aui-composer-quote-dismiss size-6 shrink-0"
+        >
+          <XIcon className="size-3" />
+        </TooltipIconButton>
+      </ComposerPrimitive.QuoteDismiss>
+    </ComposerPrimitive.Quote>
+  );
+};
+
 const Composer: FC = () => {
   return (
     <ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col">
       <ComposerPrimitive.AttachmentDropzone className="aui-composer-attachment-dropzone flex w-full flex-col rounded-2xl border border-input bg-background px-1 pt-2 outline-none transition-shadow has-[textarea:focus-visible]:border-ring has-[textarea:focus-visible]:ring-2 has-[textarea:focus-visible]:ring-ring/20 data-[dragging=true]:border-ring data-[dragging=true]:border-dashed data-[dragging=true]:bg-accent/50">
+        <ComposerQuotePreview />
         <ComposerAttachments />
         <ComposerPrimitive.Input
           placeholder="Send a message..."
@@ -237,6 +258,11 @@ const AssistantActionBar: FC = () => {
           </AuiIf>
         </TooltipIconButton>
       </ActionBarPrimitive.Copy>
+      <ActionBarPrimitive.Quote asChild>
+        <TooltipIconButton tooltip="Quote">
+          <QuoteIcon />
+        </TooltipIconButton>
+      </ActionBarPrimitive.Quote>
       <ActionBarPrimitive.Reload asChild>
         <TooltipIconButton tooltip="Refresh">
           <RefreshCwIcon />
@@ -268,6 +294,17 @@ const AssistantActionBar: FC = () => {
   );
 };
 
+const MessageQuoteBlock: FC = () => {
+  const quote = useMessageQuote();
+  if (!quote) return null;
+
+  return (
+    <div className="aui-message-quote mb-1 border-primary/40 border-l-4 pl-3 text-muted-foreground text-xs italic">
+      {quote.text}
+    </div>
+  );
+};
+
 const UserMessage: FC = () => {
   return (
     <MessagePrimitive.Root
@@ -278,6 +315,7 @@ const UserMessage: FC = () => {
 
       <div className="aui-user-message-content-wrapper relative col-start-2 min-w-0">
         <div className="aui-user-message-content wrap-break-word rounded-2xl bg-muted px-4 py-2.5 text-foreground">
+          <MessageQuoteBlock />
           <MessagePrimitive.Parts />
         </div>
         <div className="aui-user-action-bar-wrapper absolute top-1/2 left-0 -translate-x-full -translate-y-1/2 pr-2">

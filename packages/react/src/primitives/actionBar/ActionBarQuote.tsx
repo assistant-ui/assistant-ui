@@ -26,7 +26,7 @@ const useActionBarQuote = () => {
     const messageId = getSelectionMessageId(selection);
     if (!messageId) return;
 
-    aui.composer().setQuote({ text, messageId });
+    aui.thread().composer.setQuote({ text, messageId });
     selection.removeAllRanges();
   }, [aui]);
 
