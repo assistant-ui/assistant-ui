@@ -84,14 +84,32 @@ This primitive renders a `<textarea>` element unless `asChild` is set.
     {
       name: "asChild",
     },
+    {
+      name: "submitMode",
+      type: '"enter" | "ctrlEnter" | "none"',
+      default: '"enter"',
+      description:
+        'Controls how the Enter key submits messages. "enter": plain Enter submits (Shift+Enter for newline). "ctrlEnter": Ctrl/Cmd+Enter submits (plain Enter for newline). "none": keyboard submission disabled.',
+    },
   ]}
 />
 
 #### Keyboard Shortcuts
 
+Default (`submitMode="enter"`):
+
 | Key | Description |
 | --- | --- |
 | <Kbd>Enter</Kbd> | Sends the message. |
+| <Kbd>Shift + Enter</Kbd> | Inserts a newline. |
+| <Kbd>Escape</Kbd> | Sends a cancel action. |
+
+With `submitMode="ctrlEnter"`:
+
+| Key | Description |
+| --- | --- |
+| <Kbd>Ctrl/Cmd + Enter</Kbd> | Sends the message. |
+| <Kbd>Enter</Kbd> | Inserts a newline. |
 | <Kbd>Escape</Kbd> | Sends a cancel action. |
 
 ### Send

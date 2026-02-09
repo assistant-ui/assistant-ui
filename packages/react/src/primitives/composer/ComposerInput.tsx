@@ -9,7 +9,6 @@ import {
   forwardRef,
   useCallback,
   useEffect,
-  useMemo,
   useRef,
 } from "react";
 import TextareaAutosize, {
@@ -62,9 +61,10 @@ export namespace ComposerPrimitiveInput {
          * Controls how the Enter key submits messages.
          * - "enter": Plain Enter submits (Shift+Enter for newline)
          * - "ctrlEnter": Ctrl/Cmd+Enter submits (plain Enter for newline)
+         * - "none": Keyboard submission disabled
          * @default "enter"
          */
-        submitMode?: "enter" | "ctrlEnter" | undefined;
+        submitMode?: "enter" | "ctrlEnter" | "none" | undefined;
         /**
          * @deprecated Use `submitMode` instead
          * @ignore
@@ -93,11 +93,10 @@ export namespace ComposerPrimitiveInput {
  *
  * @example
  * ```tsx
- * // New API (recommended)
+ * // Ctrl/Cmd+Enter to submit (plain Enter inserts newline)
  * <ComposerPrimitive.Input
  *   placeholder="Type your message..."
- *   submitMode="enter"
- *   addAttachmentOnPaste={true}
+ *   submitMode="ctrlEnter"
  * />
  *
  * // Old API (deprecated, still supported)
@@ -132,20 +131,8 @@ export const ComposerPrimitiveInput = forwardRef<
   ) => {
     const aui = useAui();
 
-    // Backward compatibility: map deprecated submitOnEnter prop to submitMode
-    const effectiveSubmitMode = useMemo(
-      () => submitMode ?? (submitOnEnter === false ? "none" : "enter"),
-      [submitMode, submitOnEnter],
-    );
-
-    useEffect(() => {
-      if (process.env["NODE_ENV"] === "production") return;
-      if (submitMode === undefined || submitOnEnter === undefined) return;
-
-      console.warn(
-        "ComposerInput: Both submitMode and submitOnEnter (deprecated) are provided. submitMode takes precedence. Use submitMode only.",
-      );
-    }, [submitMode, submitOnEnter]);
+    const effectiveSubmitMode =
+      submitMode ?? (submitOnEnter === false ? "none" : "enter");
 
     const value = useAuiState((s) => {
       if (!s.composer.isEditing) return "";
@@ -180,22 +167,16 @@ export const ComposerPrimitiveInput = forwardRef<
       // ignore IME composition events
       if (e.nativeEvent.isComposing) return;
 
-      const isRunning = aui.thread().getState().isRunning;
-      if (isRunning) return;
-
-      if (e.key === "Enter") {
-        // Check if shift is pressed - always newline
-        if (e.shiftKey) return;
+      if (e.key === "Enter" && !e.shiftKey) {
+        const isRunning = aui.thread().getState().isRunning;
+        if (isRunning) return;
 
         let shouldSubmit = false;
         if (effectiveSubmitMode === "ctrlEnter") {
-          // ctrlEnter mode: only submit with Ctrl/Cmd+Enter
           shouldSubmit = e.ctrlKey || e.metaKey;
         } else if (effectiveSubmitMode === "enter") {
-          // enter mode: submit on Enter (original behavior)
           shouldSubmit = true;
         }
-        // effectiveSubmitMode === "none": never submit
 
         if (shouldSubmit) {
           e.preventDefault();
