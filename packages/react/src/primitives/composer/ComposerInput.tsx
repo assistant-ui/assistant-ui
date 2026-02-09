@@ -9,6 +9,7 @@ import {
   forwardRef,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
 } from "react";
 import TextareaAutosize, {
@@ -21,24 +22,13 @@ import { flushResourcesSync } from "@assistant-ui/tap";
 
 export namespace ComposerPrimitiveInput {
   export type Element = HTMLTextAreaElement;
-  export type Props = TextareaAutosizeProps & {
+
+  type BaseProps = {
     /**
      * Whether to render as a child component using Slot.
      * When true, the component will merge its props with its child.
      */
     asChild?: boolean | undefined;
-    /**
-     * Whether to submit the message when Enter is pressed (without Shift).
-     * @default true
-     */
-    submitOnEnter?: boolean | undefined;
-    /**
-     * Whether to submit only with Ctrl/Cmd+Enter instead of plain Enter.
-     * When true, plain Enter inserts a newline and Ctrl/Cmd+Enter submits.
-     * When false (default), behavior is controlled by submitOnEnter prop.
-     * @default false
-     */
-    submitOnCtrlEnter?: boolean | undefined;
     /**
      * Whether to cancel message composition when Escape is pressed.
      * @default true
@@ -65,6 +55,37 @@ export namespace ComposerPrimitiveInput {
      */
     addAttachmentOnPaste?: boolean | undefined;
   };
+
+  type SubmitModeProps =
+    | {
+        /**
+         * Controls how the Enter key submits messages.
+         * - "enter": Plain Enter submits (Shift+Enter for newline)
+         * - "ctrlEnter": Ctrl/Cmd+Enter submits (plain Enter for newline)
+         * - "none": Enter key never submits
+         * @default "enter"
+         */
+        submitMode?: "enter" | "ctrlEnter" | "none" | undefined;
+        /**
+         * @deprecated Use `submitMode` instead
+         * @ignore
+         */
+        submitOnEnter?: never;
+      }
+    | {
+        /**
+         * @deprecated Use `submitMode` instead
+         */
+        submitMode?: never;
+        /**
+         * Whether to submit the message when Enter is pressed (without Shift).
+         * @default true
+         * @deprecated Use `submitMode` instead. Will be removed in a future version.
+         */
+        submitOnEnter?: boolean | undefined;
+      };
+
+  export type Props = TextareaAutosizeProps & BaseProps & SubmitModeProps;
 }
 
 /**
@@ -76,11 +97,17 @@ export namespace ComposerPrimitiveInput {
  *
  * @example
  * ```tsx
+ * // New API (recommended)
+ * <ComposerPrimitive.Input
+ *   placeholder="Type your message..."
+ *   submitMode="enter"
+ *   addAttachmentOnPaste={true}
+ * />
+ *
+ * // Old API (deprecated, still supported)
  * <ComposerPrimitive.Input
  *   placeholder="Type your message..."
  *   submitOnEnter={true}
- *   submitOnCtrlEnter={false}
- *   addAttachmentOnPaste={true}
  * />
  * ```
  */
@@ -96,8 +123,8 @@ export const ComposerPrimitiveInput = forwardRef<
       onChange,
       onKeyDown,
       onPaste,
-      submitOnEnter = true,
-      submitOnCtrlEnter = false,
+      submitOnEnter,
+      submitMode,
       cancelOnEscape = true,
       unstable_focusOnRunStart = true,
       unstable_focusOnScrollToBottom = true,
@@ -108,6 +135,20 @@ export const ComposerPrimitiveInput = forwardRef<
     forwardedRef,
   ) => {
     const aui = useAui();
+
+    const effectiveSubmitMode = useMemo(
+      () => submitMode ?? (submitOnEnter === false ? "none" : "enter"),
+      [submitMode, submitOnEnter],
+    );
+
+    useEffect(() => {
+      if (process.env["NODE_ENV"] === "production") return;
+      if (submitMode === undefined || submitOnEnter === undefined) return;
+
+      console.warn(
+        "ComposerInput: Both submitMode and submitOnEnter (deprecated) are provided. submitMode takes precedence. Use submitMode only.",
+      );
+    }, [submitMode, submitOnEnter]);
 
     const value = useAuiState(({ composer }) => {
       if (!composer.isEditing) return "";
@@ -123,15 +164,6 @@ export const ComposerPrimitiveInput = forwardRef<
       ) || disabledProp;
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const ref = useComposedRefs(forwardedRef, textareaRef);
-
-    // Warn if both submitOnEnter and submitOnCtrlEnter are true
-    useEffect(() => {
-      if (submitOnEnter && submitOnCtrlEnter) {
-        console.warn(
-          "ComposerInput: Both submitOnEnter and submitOnCtrlEnter are set to true. submitOnCtrlEnter takes precedence.",
-        );
-      }
-    }, [submitOnEnter, submitOnCtrlEnter]);
 
     useEscapeKeydown((e) => {
       if (!cancelOnEscape) return;
@@ -161,13 +193,14 @@ export const ComposerPrimitiveInput = forwardRef<
 
         let shouldSubmit = false;
 
-        if (submitOnCtrlEnter) {
-          // Ctrl+Enter mode: only submit with Ctrl/Cmd+Enter
+        if (effectiveSubmitMode === "ctrlEnter") {
+          // ctrlEnter mode: only submit with Ctrl/Cmd+Enter
           shouldSubmit = e.ctrlKey || e.metaKey;
-        } else {
-          // Traditional mode: submit on plain Enter
-          shouldSubmit = submitOnEnter;
+        } else if (effectiveSubmitMode === "enter") {
+          // enter mode: submit on plain Enter (Ctrl+Enter inserts newline)
+          shouldSubmit = !e.ctrlKey && !e.metaKey;
         }
+        // effectiveSubmitMode === "none": never submit
 
         if (shouldSubmit) {
           e.preventDefault();
