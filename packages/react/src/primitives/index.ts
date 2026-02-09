@@ -24,3 +24,12 @@ export { useMessagePartData } from "./messagePart/useMessagePartData";
 export { useThreadViewportAutoScroll } from "./thread/useThreadViewportAutoScroll";
 export { useScrollLock } from "./reasoning";
 export { useMessageQuote } from "../hooks/useMessageQuote";
+
+export {
+  processTextWithInlineElements,
+  createInlineElementMarkdownComponents,
+  type InlineElementRenderer,
+  type InlineElementRegistry,
+  type InlineElementMatch,
+  type ProcessedTextPart,
+} from "./inlineElement";

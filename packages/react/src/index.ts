@@ -27,6 +27,27 @@ export * from "./types";
 export * from "./devtools";
 export * from "./client";
 
+// InlineElementPrimitive namespace
+import type {
+  InlineElementRenderer as InlineElementRendererType,
+  InlineElementRegistry as InlineElementRegistryType,
+  InlineElementMatch as InlineElementMatchType,
+  ProcessedTextPart as ProcessedTextPartType,
+} from "./primitives/inlineElement";
+
+export namespace InlineElementPrimitive {
+  export type Renderer<TPayload = unknown> =
+    InlineElementRendererType<TPayload>;
+  export type Registry = InlineElementRegistryType;
+  export type Match<TPayload = unknown> = InlineElementMatchType<TPayload>;
+  export type ProcessedPart = ProcessedTextPartType;
+}
+
+export {
+  createInlineElementMarkdownComponents,
+  processTextWithInlineElements,
+} from "./primitives/inlineElement";
+
 export * as INTERNAL from "./internal";
 export type { ToolExecutionStatus } from "./internal";
 
