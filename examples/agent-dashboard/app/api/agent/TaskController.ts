@@ -45,6 +45,13 @@ export class TaskController {
     this.isCancelled = true;
     this.isRunning = false;
     this.abortController?.abort();
+
+    // Reject all pending approval promises to prevent memory leaks
+    for (const [, pending] of this.pendingApprovals) {
+      pending.resolve("deny");
+    }
+    this.pendingApprovals.clear();
+
     logger.info("controller", "Task cancelled", { taskId: this.taskId });
     this.pushEvent({
       type: "task_failed",
@@ -362,9 +369,26 @@ export class TaskController {
 
         if (this.isCancelled) break;
 
-        // Store the assistant's response in history
-        // (We'll capture the final response from events)
+        // Store both sides of the conversation in history
         conversationHistory.push({ role: "user", content: currentPrompt });
+
+        // Collect assistant response text from events emitted during this turn
+        const assistantTexts = this.eventQueue
+          .filter(
+            (e) =>
+              e.type === "message" &&
+              e.agentId === agentId &&
+              !(e.data as any)?.isUserMessage &&
+              !(e.data as any)?.isWaitingForInput,
+          )
+          .map((e) => (e.data as any)?.text)
+          .filter(Boolean);
+        if (assistantTexts.length > 0) {
+          conversationHistory.push({
+            role: "assistant",
+            content: assistantTexts.join("\n"),
+          });
+        }
 
         logger.info("run", "Query turn completed, waiting for user message", {
           taskId: this.taskId,

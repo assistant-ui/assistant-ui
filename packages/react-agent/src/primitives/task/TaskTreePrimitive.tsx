@@ -3,6 +3,7 @@
 import {
   createContext,
   useContext,
+  useEffect,
   useState,
   useMemo,
   type ReactNode,
@@ -120,7 +121,7 @@ function AgentIdCollector({
 }) {
   const agents = useTaskState((s) => s.agents);
 
-  useMemo(() => {
+  useEffect(() => {
     onAgentIds(agents.map((a) => a.id));
   }, [agents, onAgentIds]);
 

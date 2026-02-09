@@ -23,6 +23,7 @@ export class WorkspaceRuntime {
   private client: AgentClientInterface;
   private permissionStore: PermissionStoreInterface;
   private tasks: Map<string, TaskRuntime> = new Map();
+  private taskUnsubscribes: Map<string, () => void> = new Map();
   private listeners: Set<() => void> = new Set();
   private cachedTasksArray: TaskRuntime[] = [];
 
@@ -56,7 +57,8 @@ export class WorkspaceRuntime {
     this.tasks.set(task.id, task);
 
     // Subscribe to task changes to propagate updates
-    task.subscribe(() => this.notify());
+    const unsubscribe = task.subscribe(() => this.notify());
+    this.taskUnsubscribes.set(task.id, unsubscribe);
 
     this.notify();
     return task;
@@ -71,6 +73,11 @@ export class WorkspaceRuntime {
   }
 
   removeTask(taskId: string): void {
+    const unsubscribe = this.taskUnsubscribes.get(taskId);
+    if (unsubscribe) {
+      unsubscribe();
+      this.taskUnsubscribes.delete(taskId);
+    }
     this.tasks.delete(taskId);
     this.notify();
   }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import {
   ApprovalPrimitive,
   useApproval,
@@ -83,6 +83,7 @@ function ApprovalContent({ className }: { className?: string }) {
   const state = useApprovalState((s) => s);
   const [elapsed, setElapsed] = useState(0);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const toolName = state.toolName;
   const riskLevel = toolRiskLevels[toolName] || "medium";
@@ -119,8 +120,15 @@ function ApprovalContent({ className }: { className?: string }) {
   );
 
   useEffect(() => {
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    const handler = (e: KeyboardEvent) => {
+      // Only handle if this component's container is focused
+      if (!containerRef.current?.contains(document.activeElement)) {
+        return;
+      }
+      handleKeyDown(e);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
   }, [handleKeyDown]);
 
   const formatElapsed = () => {
@@ -167,6 +175,8 @@ function ApprovalContent({ className }: { className?: string }) {
 
   return (
     <div
+      ref={containerRef}
+      tabIndex={-1}
       className={cn(
         "overflow-hidden rounded-xl border-2 shadow-lg transition-all",
         risk.bgColor,

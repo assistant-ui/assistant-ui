@@ -78,6 +78,14 @@ async function handleApproval({
     return NextResponse.json({ error: "Task not found" }, { status: 404 });
   }
 
+  if (decision !== "allow" && decision !== "deny") {
+    logger.error("approval", "Invalid decision value", { taskId, decision });
+    return NextResponse.json(
+      { error: "Invalid decision. Must be 'allow' or 'deny'." },
+      { status: 400 },
+    );
+  }
+
   controller.resolveApproval(approvalId, decision);
   logger.info("approval", "Approval resolved", {
     taskId,

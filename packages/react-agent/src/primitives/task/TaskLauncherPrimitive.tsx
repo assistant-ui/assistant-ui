@@ -41,27 +41,25 @@ function TaskLauncherRoot({ onSubmit, children }: TaskLauncherRootProps) {
   const [prompt, setPrompt] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const submit = async () => {
-    if (!prompt.trim() || isSubmitting) return;
-
-    setIsSubmitting(true);
-    try {
-      const task = await workspace.createTask(prompt);
-      setPrompt("");
-      onSubmit?.(task.id);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   const value = useMemo(
     () => ({
       prompt,
       setPrompt,
       isSubmitting,
-      submit,
+      submit: async () => {
+        if (!prompt.trim() || isSubmitting) return;
+
+        setIsSubmitting(true);
+        try {
+          const task = await workspace.createTask(prompt);
+          setPrompt("");
+          onSubmit?.(task.id);
+        } finally {
+          setIsSubmitting(false);
+        }
+      },
     }),
-    [prompt, isSubmitting],
+    [prompt, isSubmitting, workspace, onSubmit],
   );
 
   return (

@@ -15,6 +15,7 @@ export class TaskRuntime {
   private agents: Map<string, AgentRuntime> = new Map();
   private approvals: Map<string, ApprovalRuntime> = new Map();
   private listeners: Set<() => void> = new Set();
+  private originalPrompt: string;
   private streamingPromise: Promise<void> | null = null;
   private permissionModeOverride:
     | import("./PermissionStore").PermissionMode
@@ -27,6 +28,7 @@ export class TaskRuntime {
   ) {
     this.client = client;
     this.permissionStore = permissionStore;
+    this.originalPrompt = handle.prompt;
     this.state = {
       id: handle.id,
       title: handle.prompt.slice(0, 100),
@@ -82,7 +84,7 @@ export class TaskRuntime {
     }
 
     const handle = await this.client.createTask({
-      prompt: this.state.title,
+      prompt: this.originalPrompt,
     });
 
     this.state = {

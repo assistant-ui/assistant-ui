@@ -3,6 +3,7 @@
 import {
   createContext,
   useContext,
+  useCallback,
   useSyncExternalStore,
   type ReactNode,
 } from "react";
@@ -43,21 +44,27 @@ export function useApproval(): ApprovalRuntime | null {
   return approval ?? null;
 }
 
+const EMPTY_SUBSCRIBE = (_cb: () => void) => () => {};
+
 export function useApprovalState<T>(
   selector: (state: ApprovalState) => T,
 ): T | null {
   const approval = useApproval();
 
-  // If approval is not found (resolved/removed), return null
-  if (!approval) {
-    return null;
-  }
-
-  return useSyncExternalStore(
-    (callback) => approval.subscribe(callback),
-    () => selector(approval.getState()),
-    () => selector(approval.getState()),
+  const subscribe = useCallback(
+    (callback: () => void) => {
+      if (!approval) return EMPTY_SUBSCRIBE(callback);
+      return approval.subscribe(callback);
+    },
+    [approval],
   );
+
+  const getSnapshot = useCallback(() => {
+    if (!approval) return null;
+    return selector(approval.getState());
+  }, [approval, selector]);
+
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }
 
 export function useApprovalStateById<T>(

@@ -7,34 +7,34 @@ export function useApprovalApprove() {
   const approval = useApproval();
   const status = useApprovalState((s) => s.status);
 
-  return approval && status === "pending"
-    ? useCallback(() => approval.approve("once"), [approval])
-    : null;
+  const callback = useCallback(() => approval?.approve("once"), [approval]);
+
+  return approval && status === "pending" ? callback : null;
 }
 
 export function useApprovalApproveSession() {
   const approval = useApproval();
   const status = useApprovalState((s) => s.status);
 
-  return approval && status === "pending"
-    ? useCallback(() => approval.approve("session"), [approval])
-    : null;
+  const callback = useCallback(() => approval?.approve("session"), [approval]);
+
+  return approval && status === "pending" ? callback : null;
 }
 
 export function useApprovalApproveAlways() {
   const approval = useApproval();
   const status = useApprovalState((s) => s.status);
 
-  return approval && status === "pending"
-    ? useCallback(() => approval.approve("always"), [approval])
-    : null;
+  const callback = useCallback(() => approval?.approve("always"), [approval]);
+
+  return approval && status === "pending" ? callback : null;
 }
 
 export function useApprovalDeny() {
   const approval = useApproval();
   const status = useApprovalState((s) => s.status);
 
-  return approval && status === "pending"
-    ? useCallback(() => approval.deny(), [approval])
-    : null;
+  const callback = useCallback(() => approval?.deny(), [approval]);
+
+  return approval && status === "pending" ? callback : null;
 }

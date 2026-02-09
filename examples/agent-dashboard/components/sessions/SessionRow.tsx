@@ -192,8 +192,10 @@ export const SessionRow = forwardRef<HTMLButtonElement, SessionRowProps>(
 
         {/* Created */}
         <div className="w-24 shrink-0 text-right">
-          <span className="text-sm">{formatTime(task.createdAt)}</span>
-          <p className="text-muted-foreground text-xs">
+          <span className="text-sm" suppressHydrationWarning>
+            {formatTime(task.createdAt)}
+          </span>
+          <p className="text-muted-foreground text-xs" suppressHydrationWarning>
             {formatDate(task.createdAt)}
           </p>
         </div>

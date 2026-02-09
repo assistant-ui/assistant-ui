@@ -8,8 +8,9 @@ export function useTaskCancel() {
   const status = useTaskState((s) => s.status);
 
   const canCancel = ["starting", "running", "waiting_input"].includes(status);
+  const callback = useCallback(() => task.cancel(), [task]);
 
-  return canCancel ? useCallback(() => task.cancel(), [task]) : null;
+  return canCancel ? callback : null;
 }
 
 export function useTaskRetry() {
@@ -17,6 +18,7 @@ export function useTaskRetry() {
   const status = useTaskState((s) => s.status);
 
   const canRetry = status === "failed" || status === "completed";
+  const callback = useCallback(() => task.retry(), [task]);
 
-  return canRetry ? useCallback(() => task.retry(), [task]) : null;
+  return canRetry ? callback : null;
 }
