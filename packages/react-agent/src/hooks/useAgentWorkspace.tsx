@@ -22,11 +22,13 @@ export interface AgentWorkspaceProviderProps extends WorkspaceConfig {
 export function AgentWorkspaceProvider({
   apiKey,
   baseUrl,
+  client,
+  permissionStore,
   children,
 }: AgentWorkspaceProviderProps) {
   const runtime = useMemo(() => {
-    return new WorkspaceRuntime({ apiKey, baseUrl });
-  }, [apiKey, baseUrl]);
+    return new WorkspaceRuntime({ apiKey, baseUrl, client, permissionStore });
+  }, [apiKey, baseUrl, client, permissionStore]);
 
   return (
     <WorkspaceContext.Provider value={runtime}>

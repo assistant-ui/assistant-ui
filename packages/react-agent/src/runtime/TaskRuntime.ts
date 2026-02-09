@@ -87,13 +87,19 @@ export class TaskRuntime {
       prompt: this.originalPrompt,
     });
 
+    this.agents.clear();
+    this.approvals.clear();
     this.state = {
-      ...this.state,
       id: handle.id,
+      title: this.state.title,
       status: "starting",
       cost: 0,
+      agents: [],
+      pendingApprovals: [],
+      createdAt: new Date(),
       completedAt: undefined,
     };
+    this.notify();
 
     this.startStreaming();
   }

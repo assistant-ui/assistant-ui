@@ -30,64 +30,79 @@ function ApprovalInboxContent() {
     loop: true,
     onApprove: async (item) => {
       setResolving((prev) => new Set(prev).add(item.id));
-      const task = workspace.getTask(item.taskId);
-      const approvalRuntime = task?.getApproval(item.id);
-      if (approvalRuntime) {
-        await approvalRuntime.approve("once");
-      }
-      setResolving((prev) => {
-        const next = new Set(prev);
-        next.delete(item.id);
-        return next;
-      });
-    },
-    onDeny: async (item) => {
-      setResolving((prev) => new Set(prev).add(item.id));
-      const task = workspace.getTask(item.taskId);
-      const approvalRuntime = task?.getApproval(item.id);
-      if (approvalRuntime) {
-        await approvalRuntime.deny();
-      }
-      setResolving((prev) => {
-        const next = new Set(prev);
-        next.delete(item.id);
-        return next;
-      });
-    },
-    onApproveSession: async (item) => {
-      setResolving((prev) => new Set(prev).add(item.id));
-      const task = workspace.getTask(item.taskId);
-      const approvalRuntime = task?.getApproval(item.id);
-      if (approvalRuntime) {
-        await approvalRuntime.approve("session");
-      }
-      setResolving((prev) => {
-        const next = new Set(prev);
-        next.delete(item.id);
-        return next;
-      });
-    },
-    onApproveAll: async () => {
-      for (const approval of pendingApprovals) {
-        setResolving((prev) => new Set(prev).add(approval.id));
-        const task = workspace.getTask(approval.taskId);
-        const approvalRuntime = task?.getApproval(approval.id);
+      try {
+        const task = workspace.getTask(item.taskId);
+        const approvalRuntime = task?.getApproval(item.id);
         if (approvalRuntime) {
           await approvalRuntime.approve("once");
         }
+      } finally {
+        setResolving((prev) => {
+          const next = new Set(prev);
+          next.delete(item.id);
+          return next;
+        });
       }
-      setResolving(new Set());
     },
-    onDenyAll: async () => {
-      for (const approval of pendingApprovals) {
-        setResolving((prev) => new Set(prev).add(approval.id));
-        const task = workspace.getTask(approval.taskId);
-        const approvalRuntime = task?.getApproval(approval.id);
+    onDeny: async (item) => {
+      setResolving((prev) => new Set(prev).add(item.id));
+      try {
+        const task = workspace.getTask(item.taskId);
+        const approvalRuntime = task?.getApproval(item.id);
         if (approvalRuntime) {
           await approvalRuntime.deny();
         }
+      } finally {
+        setResolving((prev) => {
+          const next = new Set(prev);
+          next.delete(item.id);
+          return next;
+        });
       }
-      setResolving(new Set());
+    },
+    onApproveSession: async (item) => {
+      setResolving((prev) => new Set(prev).add(item.id));
+      try {
+        const task = workspace.getTask(item.taskId);
+        const approvalRuntime = task?.getApproval(item.id);
+        if (approvalRuntime) {
+          await approvalRuntime.approve("session");
+        }
+      } finally {
+        setResolving((prev) => {
+          const next = new Set(prev);
+          next.delete(item.id);
+          return next;
+        });
+      }
+    },
+    onApproveAll: async () => {
+      try {
+        for (const approval of pendingApprovals) {
+          setResolving((prev) => new Set(prev).add(approval.id));
+          const task = workspace.getTask(approval.taskId);
+          const approvalRuntime = task?.getApproval(approval.id);
+          if (approvalRuntime) {
+            await approvalRuntime.approve("once");
+          }
+        }
+      } finally {
+        setResolving(new Set());
+      }
+    },
+    onDenyAll: async () => {
+      try {
+        for (const approval of pendingApprovals) {
+          setResolving((prev) => new Set(prev).add(approval.id));
+          const task = workspace.getTask(approval.taskId);
+          const approvalRuntime = task?.getApproval(approval.id);
+          if (approvalRuntime) {
+            await approvalRuntime.deny();
+          }
+        }
+      } finally {
+        setResolving(new Set());
+      }
     },
     onActivate: (item) => {
       // Navigate to the session for this approval

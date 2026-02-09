@@ -46,6 +46,10 @@ export class ApprovalRuntime {
         mode: "allow",
       });
     } else if (mode === "always") {
+      this.permissionStore.setToolPermission(this.state.toolName, {
+        toolName: this.state.toolName,
+        mode: "allow",
+      });
       this.permissionStore.persistPermission(this.state.toolName);
     } else if (mode === "timed" && duration) {
       this.permissionStore.setToolPermission(this.state.toolName, {

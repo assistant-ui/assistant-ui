@@ -26,6 +26,7 @@ export class TaskController {
   private toolUseToAgent: Map<string, string> = new Map();
   private mainAgentId = "";
   private processedMessageIds = new Set<string>();
+  private lastTurnAssistantTexts: string[] = [];
 
   constructor(taskId: string, options: CreateTaskOptions) {
     this.taskId = taskId;
@@ -174,6 +175,8 @@ export class TaskController {
 
       // Conversational loop - keeps running until cancelled
       while (!this.isCancelled) {
+        // Reset assistant text buffer for this turn
+        this.lastTurnAssistantTexts = [];
         // Build the full prompt with conversation history
         let fullPrompt = currentPrompt;
         if (conversationHistory.length > 0) {
@@ -372,21 +375,10 @@ export class TaskController {
         // Store both sides of the conversation in history
         conversationHistory.push({ role: "user", content: currentPrompt });
 
-        // Collect assistant response text from events emitted during this turn
-        const assistantTexts = this.eventQueue
-          .filter(
-            (e) =>
-              e.type === "message" &&
-              e.agentId === agentId &&
-              !(e.data as any)?.isUserMessage &&
-              !(e.data as any)?.isWaitingForInput,
-          )
-          .map((e) => (e.data as any)?.text)
-          .filter(Boolean);
-        if (assistantTexts.length > 0) {
+        if (this.lastTurnAssistantTexts.length > 0) {
           conversationHistory.push({
             role: "assistant",
-            content: assistantTexts.join("\n"),
+            content: this.lastTurnAssistantTexts.join("\n"),
           });
         }
 
@@ -554,6 +546,10 @@ export class TaskController {
               taskId: this.taskId,
               textLength: block.text.length,
             });
+            // Track assistant text for conversation history
+            if (agentId === this.mainAgentId) {
+              this.lastTurnAssistantTexts.push(block.text);
+            }
             this.pushEvent({
               type: "message",
               taskId: this.taskId,
