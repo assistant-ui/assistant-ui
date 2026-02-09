@@ -72,9 +72,6 @@ export namespace ComposerPrimitiveInput {
         submitOnEnter?: never;
       }
     | {
-        /**
-         * @deprecated Use `submitMode` instead
-         */
         submitMode?: never;
         /**
          * Whether to submit the message when Enter is pressed (without Shift).
