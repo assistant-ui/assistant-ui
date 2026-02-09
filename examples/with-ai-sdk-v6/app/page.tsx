@@ -1,6 +1,6 @@
 "use client";
 
-import { Thread } from "@/components/assistant-ui/thread";
+import { SimpleThread } from "@/components/simple-thread";
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 
@@ -11,7 +11,7 @@ export default function Home() {
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       <div className="h-full">
-        <Thread />
+        <SimpleThread />
       </div>
     </AssistantRuntimeProvider>
   );
