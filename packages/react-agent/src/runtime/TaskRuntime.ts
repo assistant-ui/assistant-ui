@@ -18,6 +18,7 @@ export class TaskRuntime {
   private originalPrompt: string;
   private serverTaskId: string;
   private streamingPromise: Promise<void> | null = null;
+  private streamGeneration = 0;
   private permissionModeOverride:
     | import("./PermissionStore").PermissionMode
     | undefined;
@@ -85,6 +86,14 @@ export class TaskRuntime {
       return;
     }
 
+    // Increment generation to invalidate any in-flight stream events
+    this.streamGeneration++;
+
+    // Wait for old stream to finish before starting a new one
+    if (this.streamingPromise) {
+      await this.streamingPromise;
+    }
+
     const handle = await this.client.createTask({
       prompt: this.originalPrompt,
     });
@@ -123,11 +132,15 @@ export class TaskRuntime {
   }
 
   private async _doStream(): Promise<void> {
+    const generation = this.streamGeneration;
     try {
       for await (const event of this.client.streamEvents(this.serverTaskId)) {
+        // Discard events from a previous stream if retry() was called
+        if (this.streamGeneration !== generation) return;
         this.processEvent(event);
       }
     } catch (error) {
+      if (this.streamGeneration !== generation) return;
       console.error("Error streaming task events:", error);
       this.state = { ...this.state, status: "failed" };
       this.notify();

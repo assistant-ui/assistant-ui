@@ -259,7 +259,7 @@ export function EventStream({
             const config = eventConfig[event.type] ?? eventConfig["message"]!;
             const { summary, detail } = getEventContent(event);
             const isExpanded = expandedEvents.has(event.id);
-            const hasDetail = detail.length > summary.length;
+            const hasDetail = detail !== summary;
 
             return (
               <div

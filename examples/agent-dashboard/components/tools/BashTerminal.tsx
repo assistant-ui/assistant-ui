@@ -48,7 +48,7 @@ export function BashTerminal({
         <span className="text-green-400">$</span>
         <code className="flex-1 truncate text-zinc-100">{command}</code>
         {isRunning ? (
-          <span className="flex h-2 w-2">
+          <span className="relative flex h-2 w-2">
             <span className="absolute inline-flex h-2 w-2 animate-ping rounded-full bg-blue-400 opacity-75" />
             <span className="relative inline-flex h-2 w-2 rounded-full bg-blue-500" />
           </span>

@@ -1,6 +1,16 @@
 /**
  * SSE streaming route for task events.
  * Clients connect here to receive real-time task updates.
+ *
+ * Limitations (demo-quality, not production-ready):
+ * - Single-consumer: The event queue is drained on read, so only one client
+ *   can consume events per task. Multiple tabs/clients will compete for events.
+ * - Non-replayable: If a client disconnects and reconnects, missed events are
+ *   lost. There is no event history or replay mechanism.
+ * - No persistence: Events only exist in memory while the server is running.
+ *
+ * For production use, consider adding event history with replay (e.g. via
+ * ?since=<timestamp>), multicast support, or a proper pub/sub system.
  */
 
 import { NextRequest } from "next/server";

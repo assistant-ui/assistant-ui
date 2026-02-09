@@ -457,7 +457,7 @@ importers:
         specifier: ^5.0.10
         version: 5.0.10(@types/react@19.2.9)(react@19.2.3)(use-sync-external-store@1.6.0(react@19.2.3))
 
-  examples/agent-dashboard-mvp:
+  examples/agent-dashboard:
     dependencies:
       '@anthropic-ai/claude-agent-sdk':
         specifier: ^0.2.19

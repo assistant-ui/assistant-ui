@@ -12,9 +12,25 @@ import { TaskController } from "./TaskController";
 import { taskStore } from "./store";
 import { logger } from "./logger";
 
-// WARNING: This example has no authentication. In production, add
-// authentication middleware to prevent unauthorized access to API credits,
-// task management, and tool approval endpoints.
+// ⚠️ SECURITY WARNING ⚠️
+// This example has NO AUTHENTICATION and must NOT be deployed to production as-is.
+// Without authentication, anyone can:
+//   - Create tasks (consuming your Anthropic API credits)
+//   - Approve or deny tool executions for any task
+//   - Cancel any running task
+//   - Send messages to any task
+//
+// Before deploying, add authentication middleware. For example:
+//
+//   import { auth } from "@/lib/auth";
+//
+//   export async function POST(request: NextRequest) {
+//     const session = await auth();
+//     if (!session) {
+//       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+//     }
+//     // ... rest of handler
+//   }
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
