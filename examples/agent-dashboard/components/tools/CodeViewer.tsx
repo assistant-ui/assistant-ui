@@ -13,13 +13,24 @@ export interface CodeViewerProps {
   className?: string;
 }
 
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
 // Simple syntax highlighting for common patterns
-function highlightCode(code: string, _language?: string): React.ReactNode[] {
+function highlightCode(
+  code: string,
+  _language?: string,
+  showLineNumbers = true,
+): React.ReactNode[] {
   const lines = code.split("\n");
 
   return lines.map((line, i) => {
-    // Very basic highlighting - in production use a proper library like Prism
-    let highlighted = line;
+    // Escape HTML entities first to prevent XSS
+    let highlighted = escapeHtml(line);
 
     // Comments
     highlighted = highlighted.replace(
@@ -29,7 +40,7 @@ function highlightCode(code: string, _language?: string): React.ReactNode[] {
 
     // Strings
     highlighted = highlighted.replace(
-      /(".*?"|'.*?'|`.*?`)/g,
+      /(&quot;.*?&quot;|&#x27;.*?&#x27;|`.*?`)/g,
       '<span class="text-green-400">$1</span>',
     );
 
@@ -47,12 +58,16 @@ function highlightCode(code: string, _language?: string): React.ReactNode[] {
       '<span class="text-orange-400">$1</span>',
     );
 
+    const lineNumberHtml = showLineNumbers
+      ? `<span class="select-none pr-4 text-zinc-600 w-8 text-right shrink-0">${i + 1}</span>`
+      : "";
+
     return (
       <div
         key={i}
         className="flex"
         dangerouslySetInnerHTML={{
-          __html: `<span class="select-none pr-4 text-zinc-600 w-8 text-right shrink-0">${i + 1}</span><span class="flex-1">${highlighted}</span>`,
+          __html: `${lineNumberHtml}<span class="flex-1">${highlighted}</span>`,
         }}
       />
     );
@@ -63,6 +78,7 @@ export function CodeViewer({
   code,
   language = "typescript",
   filename,
+  showLineNumbers = true,
   maxLines = 20,
   className,
 }: CodeViewerProps) {
@@ -128,7 +144,7 @@ export function CodeViewer({
       {/* Code */}
       <div className="overflow-x-auto p-3">
         <pre className="text-zinc-300">
-          {highlightCode(displayCode, language)}
+          {highlightCode(displayCode, language, showLineNumbers)}
         </pre>
         {!isExpanded && hasMoreLines && (
           <button

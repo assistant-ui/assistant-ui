@@ -12,7 +12,6 @@ import {
   useAgentWorkspace,
   useWorkspaceTasks,
 } from "../../hooks/useAgentWorkspace";
-import { createActionButton } from "../../actions/createActionButton";
 import type { TaskRuntime } from "../../runtime/TaskRuntime";
 
 export type ViewMode = "table" | "split" | "detail";
@@ -153,39 +152,81 @@ function WorkspaceViewMode({ children, ...props }: WorkspaceViewModeProps) {
 
 WorkspaceViewMode.displayName = "WorkspacePrimitive.ViewMode";
 
-// View mode action hooks
-function useSetTableView() {
+// View mode buttons - always render (use data-active for styling), never return null
+function TableView({
+  children,
+  disabled,
+  onClick,
+  ...props
+}: ComponentPropsWithoutRef<"button">) {
   const { setViewMode, viewMode } = useWorkspaceContext();
-  if (viewMode === "table") return null;
-  return () => setViewMode("table");
+  const isActive = viewMode === "table";
+  return (
+    <button
+      type="button"
+      disabled={disabled || isActive}
+      data-active={isActive || undefined}
+      onClick={(e) => {
+        setViewMode("table");
+        onClick?.(e);
+      }}
+      {...props}
+    >
+      {children}
+    </button>
+  );
 }
+TableView.displayName = "WorkspacePrimitive.TableView";
 
-function useSetSplitView() {
+function SplitView({
+  children,
+  disabled,
+  onClick,
+  ...props
+}: ComponentPropsWithoutRef<"button">) {
   const { setViewMode, viewMode } = useWorkspaceContext();
-  if (viewMode === "split") return null;
-  return () => setViewMode("split");
+  const isActive = viewMode === "split";
+  return (
+    <button
+      type="button"
+      disabled={disabled || isActive}
+      data-active={isActive || undefined}
+      onClick={(e) => {
+        setViewMode("split");
+        onClick?.(e);
+      }}
+      {...props}
+    >
+      {children}
+    </button>
+  );
 }
+SplitView.displayName = "WorkspacePrimitive.SplitView";
 
-function useSetDetailView() {
+function DetailView({
+  children,
+  disabled,
+  onClick,
+  ...props
+}: ComponentPropsWithoutRef<"button">) {
   const { setViewMode, viewMode } = useWorkspaceContext();
-  if (viewMode === "detail") return null;
-  return () => setViewMode("detail");
+  const isActive = viewMode === "detail";
+  return (
+    <button
+      type="button"
+      disabled={disabled || isActive}
+      data-active={isActive || undefined}
+      onClick={(e) => {
+        setViewMode("detail");
+        onClick?.(e);
+      }}
+      {...props}
+    >
+      {children}
+    </button>
+  );
 }
-
-const TableView = createActionButton(
-  "WorkspacePrimitive.TableView",
-  useSetTableView,
-);
-
-const SplitView = createActionButton(
-  "WorkspacePrimitive.SplitView",
-  useSetSplitView,
-);
-
-const DetailView = createActionButton(
-  "WorkspacePrimitive.DetailView",
-  useSetDetailView,
-);
+DetailView.displayName = "WorkspacePrimitive.DetailView";
 
 export const WorkspacePrimitive = {
   Root: WorkspaceRoot,

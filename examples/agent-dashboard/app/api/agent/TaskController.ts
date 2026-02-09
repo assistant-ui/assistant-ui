@@ -185,8 +185,11 @@ export class TaskController {
           prompt: fullPrompt.slice(0, 100),
         });
 
-        // Tools that require human approval
-        const requiresApproval = ["Bash", "Write", "Edit"];
+        const defaultApprovalTools = ["Bash", "Write", "Edit"];
+        const requiresApproval = this.options.requiresApproval
+          ? (toolName: string, input: unknown) =>
+              this.options.requiresApproval!(toolName, input)
+          : (toolName: string) => defaultApprovalTools.includes(toolName);
 
         try {
           for await (const message of query({
@@ -231,7 +234,7 @@ export class TaskController {
                         });
 
                         // Auto-approve safe tools
-                        if (!requiresApproval.includes(toolName)) {
+                        if (!requiresApproval(toolName, toolInput)) {
                           logger.info("hook", "Auto-approving safe tool", {
                             toolName,
                           });

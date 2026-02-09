@@ -1,6 +1,6 @@
 "use client";
 
-import {
+import React, {
   createContext,
   useContext,
   useState,
@@ -9,7 +9,6 @@ import {
   type ComponentPropsWithoutRef,
 } from "react";
 import { useAgentWorkspace } from "../../hooks/useAgentWorkspace";
-import { createActionButton } from "../../actions/createActionButton";
 
 interface TaskLauncherContextValue {
   prompt: string;
@@ -98,30 +97,29 @@ function TaskLauncherInput({
 
 TaskLauncherInput.displayName = "TaskLauncherPrimitive.Input";
 
-function useTaskLauncherSubmit() {
+function TaskLauncherSubmit({
+  children,
+  disabled,
+  onClick,
+  ...props
+}: ComponentPropsWithoutRef<"button">) {
   const { prompt, isSubmitting, submit } = useTaskLauncher();
+  const isDisabled = disabled || !prompt.trim() || isSubmitting;
 
-  if (!prompt.trim() || isSubmitting) {
-    return null;
-  }
-
-  return () => {
+  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     submit();
+    onClick?.(e);
   };
-}
-
-const TaskLauncherSubmitButton = createActionButton(
-  "TaskLauncherPrimitive.Submit",
-  useTaskLauncherSubmit,
-);
-
-function TaskLauncherSubmit(props: ComponentPropsWithoutRef<"button">) {
-  const { isSubmitting } = useTaskLauncher();
 
   return (
-    <TaskLauncherSubmitButton {...props}>
-      {props.children ?? (isSubmitting ? "Launching..." : "Launch")}
-    </TaskLauncherSubmitButton>
+    <button
+      type="button"
+      disabled={isDisabled}
+      onClick={handleClick}
+      {...props}
+    >
+      {children ?? (isSubmitting ? "Launching..." : "Launch")}
+    </button>
   );
 }
 

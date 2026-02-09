@@ -15,7 +15,7 @@ export class TaskRuntime {
   private agents: Map<string, AgentRuntime> = new Map();
   private approvals: Map<string, ApprovalRuntime> = new Map();
   private listeners: Set<() => void> = new Set();
-  private isStreaming = false;
+  private streamingPromise: Promise<void> | null = null;
   private permissionModeOverride:
     | import("./PermissionStore").PermissionMode
     | undefined;
@@ -102,9 +102,17 @@ export class TaskRuntime {
   }
 
   private async startStreaming(): Promise<void> {
-    if (this.isStreaming) return;
-    this.isStreaming = true;
+    if (this.streamingPromise) return this.streamingPromise;
 
+    this.streamingPromise = this._doStream();
+    try {
+      await this.streamingPromise;
+    } finally {
+      this.streamingPromise = null;
+    }
+  }
+
+  private async _doStream(): Promise<void> {
     try {
       for await (const event of this.client.streamEvents(this.state.id)) {
         this.processEvent(event);
@@ -113,8 +121,6 @@ export class TaskRuntime {
       console.error("Error streaming task events:", error);
       this.state = { ...this.state, status: "failed" };
       this.notify();
-    } finally {
-      this.isStreaming = false;
     }
   }
 

@@ -184,7 +184,9 @@ export const SessionRow = forwardRef<HTMLButtonElement, SessionRowProps>(
 
         {/* Duration */}
         <div className="w-20 shrink-0 text-right">
-          <span className="font-mono text-sm">{formatDuration()}</span>
+          <span className="font-mono text-sm" suppressHydrationWarning>
+            {formatDuration()}
+          </span>
           <p className="text-muted-foreground text-xs">duration</p>
         </div>
 

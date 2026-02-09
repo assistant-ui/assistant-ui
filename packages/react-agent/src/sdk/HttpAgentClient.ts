@@ -103,10 +103,13 @@ export class HttpAgentClient implements AgentClientInterface {
               return;
             }
             try {
-              const event = JSON.parse(data) as SDKEvent;
-              // Convert timestamp back to Date
-              event.timestamp = new Date(event.timestamp);
-              yield event;
+              const parsed = JSON.parse(data);
+              if (!parsed || typeof parsed !== "object" || !parsed.type) {
+                console.error("Invalid event format:", data);
+                continue;
+              }
+              parsed.timestamp = new Date(parsed.timestamp);
+              yield parsed as SDKEvent;
             } catch (e) {
               console.error("Failed to parse event:", e);
             }

@@ -13,7 +13,7 @@ export default function DashboardLayout({
 }) {
   return (
     <AgentWorkspaceProvider
-      apiKey={process.env["NEXT_PUBLIC_ANTHROPIC_API_KEY"] ?? ""}
+      apiKey="" // Client uses server proxy at /api/agent; real key is server-side only
     >
       <WorkspacePrimitive.Root>
         <div className="flex h-screen overflow-hidden">

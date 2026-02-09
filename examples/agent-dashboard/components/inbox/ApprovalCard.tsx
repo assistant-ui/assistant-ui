@@ -120,6 +120,18 @@ const ApprovalCardContent = forwardRef<
   const [elapsed, setElapsed] = useState(0);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
+  // Timer - must be called before any conditional returns (Rules of Hooks)
+  useEffect(() => {
+    if (!state) return;
+    const interval = setInterval(() => {
+      const diff = Math.floor(
+        (Date.now() - new Date(state.createdAt).getTime()) / 1000,
+      );
+      setElapsed(diff);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [state?.createdAt, state]);
+
   // If approval was resolved/removed, don't render
   if (!state) {
     return null;
@@ -129,17 +141,6 @@ const ApprovalCardContent = forwardRef<
   const riskLevel = toolRiskLevels[toolName] || "medium";
   const risk = riskConfig[riskLevel];
   const toolIcon = toolIcons[toolName] || <Terminal className="h-5 w-5" />;
-
-  // Timer
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const diff = Math.floor(
-        (Date.now() - new Date(state.createdAt).getTime()) / 1000,
-      );
-      setElapsed(diff);
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [state.createdAt]);
 
   const formatElapsed = () => {
     if (elapsed < 60) return `${elapsed}s`;

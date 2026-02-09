@@ -89,9 +89,10 @@ function ToolExecutionOutput({
   children,
   ...props
 }: ToolExecutionOutputProps) {
-  const { output } = useToolExecution();
+  const { output, status } = useToolExecution();
 
-  if (output === null || output === undefined) return null;
+  // Use status to determine visibility: only hide when tool hasn't completed yet
+  if (status === "pending" || status === "running") return null;
 
   const content =
     typeof children === "function"

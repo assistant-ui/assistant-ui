@@ -30,6 +30,20 @@ export interface ToolWidgetProps {
   className?: string;
 }
 
+const extensionToLanguage: Record<string, string> = {
+  ts: "typescript",
+  tsx: "typescript",
+  js: "javascript",
+  jsx: "javascript",
+  py: "python",
+  rs: "rust",
+  go: "go",
+  json: "json",
+  md: "markdown",
+  css: "css",
+  html: "html",
+};
+
 const toolIcons: Record<string, React.ReactNode> = {
   Bash: <Terminal className="h-4 w-4" />,
   Read: <FileText className="h-4 w-4" />,
@@ -86,24 +100,11 @@ export function ToolWidget({
             typedInput["file_path"] ?? typedInput["path"] ?? "",
           );
           const extension = path.split(".").pop() ?? "";
-          const languageMap: Record<string, string> = {
-            ts: "typescript",
-            tsx: "typescript",
-            js: "javascript",
-            jsx: "javascript",
-            py: "python",
-            rs: "rust",
-            go: "go",
-            json: "json",
-            md: "markdown",
-            css: "css",
-            html: "html",
-          };
           return (
             <CodeViewer
               code={content}
               filename={path}
-              language={languageMap[extension] ?? "text"}
+              language={extensionToLanguage[extension] ?? "text"}
             />
           );
         }
@@ -127,20 +128,11 @@ export function ToolWidget({
             typedInput["file_path"] ?? typedInput["path"] ?? "",
           );
           const extension = path.split(".").pop() ?? "";
-          const languageMap: Record<string, string> = {
-            ts: "typescript",
-            tsx: "typescript",
-            js: "javascript",
-            jsx: "javascript",
-            py: "python",
-            json: "json",
-            md: "markdown",
-          };
           return (
             <CodeViewer
               code={String(typedInput["content"])}
               filename={path}
-              language={languageMap[extension] ?? "text"}
+              language={extensionToLanguage[extension] ?? "text"}
             />
           );
         }
