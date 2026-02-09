@@ -132,6 +132,7 @@ export const ComposerPrimitiveInput = forwardRef<
   ) => {
     const aui = useAui();
 
+    // Backward compatibility: map deprecated submitOnEnter prop to submitMode
     const effectiveSubmitMode = useMemo(
       () => submitMode ?? (submitOnEnter === false ? "none" : "enter"),
       [submitMode, submitOnEnter],
