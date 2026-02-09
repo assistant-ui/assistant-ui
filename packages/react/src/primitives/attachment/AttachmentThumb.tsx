@@ -15,8 +15,8 @@ export const AttachmentPrimitiveThumb = forwardRef<
   AttachmentPrimitiveThumb.Element,
   AttachmentPrimitiveThumb.Props
 >((props, ref) => {
-  const ext = useAuiState(({ attachment }) => {
-    const parts = attachment.name.split(".");
+  const ext = useAuiState((s) => {
+    const parts = s.attachment.name.split(".");
     return parts.length > 1 ? parts.pop()! : "";
   });
   return (

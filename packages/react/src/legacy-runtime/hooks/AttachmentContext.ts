@@ -84,7 +84,7 @@ export function useMessageAttachmentRuntime(options?: {
 }
 
 /**
- * @deprecated Use `useAuiState(({ attachment }) => attachment)` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
+ * @deprecated Use `useAuiState((s) => s.attachment)` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
  */
 export const useAttachment = createStateHookForRuntime(useAttachmentRuntime);
 

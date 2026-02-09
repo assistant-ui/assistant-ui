@@ -181,7 +181,7 @@ export function useToolInvocations({
 
               if (content.argsText !== lastState.argsText) {
                 if (lastState.argsComplete) {
-                  if (process.env["NODE_ENV"] !== "production") {
+                  if (process.env.NODE_ENV !== "production") {
                     console.warn(
                       "argsText updated after controller was closed:",
                       {
@@ -233,6 +233,13 @@ export function useToolInvocations({
               }
 
               if (content.result !== undefined && !lastState.hasResult) {
+                lastToolStates.current[content.toolCallId] = {
+                  hasResult: true,
+                  argsComplete: true,
+                  argsText: lastState.argsText,
+                  controller: lastState.controller,
+                };
+
                 lastState.controller.setResponse(
                   new ToolResponse({
                     result: content.result as ReadonlyJSONValue,
@@ -241,13 +248,6 @@ export function useToolInvocations({
                   }),
                 );
                 lastState.controller.close();
-
-                lastToolStates.current[content.toolCallId] = {
-                  hasResult: true,
-                  argsComplete: true,
-                  argsText: lastState.argsText,
-                  controller: lastState.controller,
-                };
               }
             }
 

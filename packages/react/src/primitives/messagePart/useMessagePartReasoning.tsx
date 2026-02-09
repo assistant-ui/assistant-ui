@@ -5,13 +5,13 @@ import { useAuiState } from "@assistant-ui/store";
 import { ReasoningMessagePart } from "../../types";
 
 export const useMessagePartReasoning = () => {
-  const text = useAuiState(({ part }) => {
-    if (part.type !== "reasoning")
+  const text = useAuiState((s) => {
+    if (s.part.type !== "reasoning")
       throw new Error(
         "MessagePartReasoning can only be used inside reasoning message parts.",
       );
 
-    return part as MessagePartState & ReasoningMessagePart;
+    return s.part as MessagePartState & ReasoningMessagePart;
   });
 
   return text;

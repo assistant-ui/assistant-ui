@@ -37,15 +37,16 @@ const useActionBarPrimitiveCopy = ({
   copiedDuration?: number | undefined;
 } = {}) => {
   const aui = useAui();
-  const hasCopyableContent = useAuiState(({ message }) => {
+  const hasCopyableContent = useAuiState((s) => {
     return (
-      (message.role !== "assistant" || message.status?.type !== "running") &&
-      message.parts.some((c) => c.type === "text" && c.text.length > 0)
+      (s.message.role !== "assistant" ||
+        s.message.status?.type !== "running") &&
+      s.message.parts.some((c) => c.type === "text" && c.text.length > 0)
     );
   });
 
-  const isEditing = useAuiState(({ composer }) => composer.isEditing);
-  const composerValue = useAuiState(({ composer }) => composer.text);
+  const isEditing = useAuiState((s) => s.composer.isEditing);
+  const composerValue = useAuiState((s) => s.composer.text);
 
   const callback = useCallback(() => {
     const valueToCopy = isEditing ? composerValue : aui.message().getCopyText();
@@ -89,7 +90,7 @@ export const ActionBarPrimitiveCopy = forwardRef<
   ActionBarPrimitiveCopy.Element,
   ActionBarPrimitiveCopy.Props
 >(({ copiedDuration, onClick, disabled, ...props }, forwardedRef) => {
-  const isCopied = useAuiState(({ message }) => message.isCopied);
+  const isCopied = useAuiState((s) => s.message.isCopied);
   const callback = useActionBarPrimitiveCopy({ copiedDuration });
   return (
     <Primitive.button

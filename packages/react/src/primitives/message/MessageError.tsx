@@ -5,9 +5,9 @@ import { useAuiState } from "@assistant-ui/store";
 
 export const MessagePrimitiveError: FC<PropsWithChildren> = ({ children }) => {
   const hasError = useAuiState(
-    ({ message }) =>
-      message.status?.type === "incomplete" &&
-      message.status.reason === "error",
+    (s) =>
+      s.message.status?.type === "incomplete" &&
+      s.message.status.reason === "error",
   );
   return hasError ? children : null;
 };

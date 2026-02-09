@@ -74,7 +74,7 @@ const groupMessagePartsByParentId: GroupingFunction = (
 const useMessagePartsGrouped = (
   groupingFunction: GroupingFunction,
 ): MessagePartGroup[] => {
-  const parts = useAuiState(({ message }) => message.parts);
+  const parts = useAuiState((s) => s.message.parts);
 
   return useMemo(() => {
     if (parts.length === 0) {
@@ -219,8 +219,8 @@ const ToolUIDisplay = ({
 }: {
   Fallback: ToolCallMessagePartComponent | undefined;
 } & ToolCallMessagePartProps) => {
-  const Render = useAuiState(({ tools }) => {
-    const Render = tools.tools[props.toolName] ?? Fallback;
+  const Render = useAuiState((s) => {
+    const Render = s.tools.tools[props.toolName] ?? Fallback;
     if (Array.isArray(Render)) return Render[0] ?? Fallback;
     return Render;
   });
@@ -261,7 +261,7 @@ const MessagePartComponent: FC<MessagePartComponentProps> = ({
   } = {},
 }) => {
   const aui = useAui();
-  const part = useAuiState(({ part }) => part);
+  const part = useAuiState((s) => s.part);
 
   const type = part.type;
   if (type === "tool-call") {
@@ -426,7 +426,7 @@ const EmptyParts = memo(
 export const MessagePrimitiveUnstable_PartsGrouped: FC<
   MessagePrimitiveUnstable_PartsGrouped.Props
 > = ({ groupingFunction, components }) => {
-  const contentLength = useAuiState(({ message }) => message.parts.length);
+  const contentLength = useAuiState((s) => s.message.parts.length);
   const messageGroups = useMessagePartsGrouped(groupingFunction);
 
   const partsElements = useMemo(() => {

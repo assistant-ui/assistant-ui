@@ -31,12 +31,12 @@ import { useAuiState, useAui } from "@assistant-ui/store";
  */
 const useBranchPickerPrevious = () => {
   const aui = useAui();
-  const disabled = useAuiState(({ thread, message }) => {
+  const disabled = useAuiState((s) => {
     // Disabled if no previous branch
-    if (message.branchNumber <= 1) return true;
+    if (s.message.branchNumber <= 1) return true;
 
     // Disabled if running and capability not supported
-    if (thread.isRunning && !thread.capabilities.switchBranchDuringRun) {
+    if (s.thread.isRunning && !s.thread.capabilities.switchBranchDuringRun) {
       return true;
     }
 

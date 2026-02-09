@@ -14,7 +14,7 @@ const useComposerAddAttachment = ({
   /** allow selecting multiple files */
   multiple?: boolean | undefined;
 } = {}) => {
-  const disabled = useAuiState(({ composer }) => !composer.isEditing);
+  const disabled = useAuiState((s) => !s.composer.isEditing);
   const aui = useAui();
 
   const callback = useCallback(() => {

@@ -87,10 +87,13 @@ export async function createFromExample(
   }
 
   // 9. Install shadcn UI components (standard shadcn components like button, tooltip, etc.)
-  if (shadcnUI.length > 0) {
-    logger.step(`Installing shadcn UI components: ${shadcnUI.join(", ")}...`);
-    await installShadcnComponents(absoluteProjectDir, shadcnUI);
+  //    Always include "utils" since assistant-ui components import cn from @/lib/utils
+  //    and shadcn does not declare it as a registryDependency of button/tooltip/etc.
+  if (!shadcnUI.includes("utils")) {
+    shadcnUI.push("utils");
   }
+  logger.step(`Installing shadcn UI components: ${shadcnUI.join(", ")}...`);
+  await installShadcnComponents(absoluteProjectDir, shadcnUI);
 
   // 10. Install assistant-ui components
   if (assistantUI.length > 0) {
@@ -211,6 +214,7 @@ async function transformTsConfig(projectDir: string): Promise<void> {
   if (tsconfig.compilerOptions?.paths) {
     delete tsconfig.compilerOptions.paths["@/components/assistant-ui/*"];
     delete tsconfig.compilerOptions.paths["@/components/ui/*"];
+    delete tsconfig.compilerOptions.paths["@/lib/utils"];
     delete tsconfig.compilerOptions.paths["@assistant-ui/ui/*"];
 
     // If paths is empty, remove it

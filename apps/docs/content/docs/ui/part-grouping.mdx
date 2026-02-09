@@ -517,7 +517,7 @@ import { useAuiState } from "@assistant-ui/react";
 const DynamicGroup: FC<
   PropsWithChildren<{ groupKey: string | undefined; indices: number[] }>
 > = ({ groupKey, indices, children }) => {
-  const parts = useAuiState(({ message }) => message.content);
+  const parts = useAuiState((s) => s.message.content);
   const groupParts = indices.map((i) => parts[i]);
 
   // Analyze group content

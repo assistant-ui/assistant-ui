@@ -16,7 +16,7 @@ export const ThreadListItemPrimitiveRoot = forwardRef<
   ThreadListItemPrimitiveRoot.Props
 >((props, ref) => {
   const isMain = useAuiState(
-    ({ threads, threadListItem }) => threads.mainThreadId === threadListItem.id,
+    (s) => s.threads.mainThreadId === s.threadListItem.id,
   );
 
   return (

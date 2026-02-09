@@ -14,11 +14,11 @@ type ComposerIfFilters = {
 export type UseComposerIfProps = RequireAtLeastOne<ComposerIfFilters>;
 
 const useComposerIf = (props: UseComposerIfProps) => {
-  return useAuiState(({ composer }) => {
-    if (props.editing === true && !composer.isEditing) return false;
-    if (props.editing === false && composer.isEditing) return false;
+  return useAuiState((s) => {
+    if (props.editing === true && !s.composer.isEditing) return false;
+    if (props.editing === false && s.composer.isEditing) return false;
 
-    const isDictating = composer.dictation != null;
+    const isDictating = s.composer.dictation != null;
     if (props.dictation === true && !isDictating) return false;
     if (props.dictation === false && isDictating) return false;
 

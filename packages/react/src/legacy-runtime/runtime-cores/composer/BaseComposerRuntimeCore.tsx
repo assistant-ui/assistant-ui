@@ -11,6 +11,7 @@ import type {
   DictationState,
 } from "../core/ComposerRuntimeCore";
 import type { MessageRole, RunConfig } from "../../../types/AssistantTypes";
+import type { QuoteInfo } from "../../../types/QuoteTypes";
 import { BaseSubscribable } from "../remote-thread-list/BaseSubscribable";
 import type { DictationAdapter } from "../adapters/speech/SpeechAdapterTypes";
 
@@ -64,6 +65,19 @@ export abstract class BaseComposerRuntimeCore
     return this._runConfig;
   }
 
+  private _quote: QuoteInfo | undefined = undefined;
+
+  get quote() {
+    return this._quote;
+  }
+
+  public setQuote(quote: QuoteInfo | undefined) {
+    if (this._quote === quote) return;
+
+    this._quote = quote;
+    this._notifySubscribers();
+  }
+
   public setText(value: string) {
     if (this._text === value) return;
 
@@ -112,13 +126,15 @@ export abstract class BaseComposerRuntimeCore
       this._attachments.length === 0 &&
       this._text === "" &&
       this._role === "user" &&
-      Object.keys(this._runConfig).length === 0
+      Object.keys(this._runConfig).length === 0 &&
+      this._quote === undefined
     ) {
       return;
     }
 
     this._role = "user";
     this._runConfig = {};
+    this._quote = undefined;
 
     const task = this._onClearAttachments();
     this._emptyTextAndAttachments();
@@ -151,14 +167,17 @@ export abstract class BaseComposerRuntimeCore
         : [];
 
     const text = this.text;
+    const quote = this._quote;
+    this._quote = undefined;
     this._emptyTextAndAttachments();
+
     const message: Omit<AppendMessage, "parentId" | "sourceId"> = {
       createdAt: new Date(),
       role: this.role,
       content: text ? [{ type: "text", text }] : [],
       attachments: await attachments,
       runConfig: this.runConfig,
-      metadata: { custom: {} },
+      metadata: { custom: { ...(quote ? { quote } : {}) } },
     };
 
     this.handleSend(message);

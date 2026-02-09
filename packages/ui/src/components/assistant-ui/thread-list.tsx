@@ -18,10 +18,10 @@ export const ThreadList: FC = () => {
   return (
     <ThreadListPrimitive.Root className="aui-root aui-thread-list-root flex flex-col gap-1">
       <ThreadListNew />
-      <AuiIf condition={({ threads }) => threads.isLoading}>
+      <AuiIf condition={(s) => s.threads.isLoading}>
         <ThreadListSkeleton />
       </AuiIf>
-      <AuiIf condition={({ threads }) => !threads.isLoading}>
+      <AuiIf condition={(s) => !s.threads.isLoading}>
         <ThreadListPrimitive.Items components={{ ThreadListItem }} />
       </AuiIf>
     </ThreadListPrimitive.Root>

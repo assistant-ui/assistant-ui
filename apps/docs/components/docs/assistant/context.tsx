@@ -4,7 +4,9 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useState,
+  useSyncExternalStore,
   type ReactNode,
 } from "react";
 
@@ -37,6 +39,23 @@ export function useAssistantPanel() {
   return ctx;
 }
 
+type AskAIFn = (message: string) => void;
+const askAIListeners = new Set<() => void>();
+let globalAskAI: AskAIFn | null = null;
+
+function subscribeAskAI(listener: () => void) {
+  askAIListeners.add(listener);
+  return () => askAIListeners.delete(listener);
+}
+
+function getAskAISnapshot() {
+  return globalAskAI;
+}
+
+export function useGlobalAskAI(): AskAIFn | null {
+  return useSyncExternalStore(subscribeAskAI, getAskAISnapshot, () => null);
+}
+
 export function AssistantPanelProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const [width, setWidthState] = useState(DEFAULT_WIDTH);
@@ -58,6 +77,15 @@ export function AssistantPanelProvider({ children }: { children: ReactNode }) {
     setPendingMessage(message);
     setOpen(true);
   }, []);
+
+  useEffect(() => {
+    globalAskAI = askAI;
+    for (const l of askAIListeners) l();
+    return () => {
+      globalAskAI = null;
+      for (const l of askAIListeners) l();
+    };
+  }, [askAI]);
 
   return (
     <AssistantPanelContext.Provider

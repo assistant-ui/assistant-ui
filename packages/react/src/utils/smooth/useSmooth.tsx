@@ -75,7 +75,7 @@ export const useSmooth = (
   smooth: boolean = false,
 ): MessagePartState & (TextMessagePart | ReasoningMessagePart) => {
   const { text } = state;
-  const id = useAuiState(({ message }) => message.id);
+  const id = useAuiState((s) => s.message.id);
 
   const idRef = useRef(id);
   const [displayedText, setDisplayedText] = useState(text);

@@ -14,7 +14,7 @@ html:has(#nd-docs-layout) {
   }
 
   @media (min-width: 1280px) {
-    scroll-padding-top: var(--docs-header-height);
+    scroll-padding-top: calc(var(--docs-header-height) + 2rem);
   }
 }
 

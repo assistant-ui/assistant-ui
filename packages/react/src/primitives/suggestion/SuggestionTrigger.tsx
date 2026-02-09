@@ -28,8 +28,8 @@ const useSuggestionTrigger = ({
   clearComposer?: boolean | undefined;
 }) => {
   const aui = useAui();
-  const disabled = useAuiState(({ thread }) => thread.isDisabled);
-  const prompt = useAuiState(({ suggestion }) => suggestion.prompt);
+  const disabled = useAuiState((s) => s.thread.isDisabled);
+  const prompt = useAuiState((s) => s.suggestion.prompt);
 
   const resolvedSend = send ?? false;
 
@@ -37,7 +37,10 @@ const useSuggestionTrigger = ({
     const isRunning = aui.thread().getState().isRunning;
 
     if (resolvedSend && !isRunning) {
-      aui.thread().append(prompt);
+      aui.thread().append({
+        content: [{ type: "text", text: prompt }],
+        runConfig: aui.composer().getState().runConfig,
+      });
       if (clearComposer) {
         aui.composer().setText("");
       }

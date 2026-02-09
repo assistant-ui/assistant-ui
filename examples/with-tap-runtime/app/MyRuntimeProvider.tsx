@@ -298,6 +298,6 @@ function ThreadListItem() {
 }
 
 function ThreadListItemId() {
-  const id = useAuiState(({ threadListItem }) => threadListItem.id);
+  const id = useAuiState((s) => s.threadListItem.id);
   return <>{id}</>;
 }

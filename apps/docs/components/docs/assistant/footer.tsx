@@ -18,8 +18,8 @@ function getUsageColorClass(percent: number): string {
 
 export function AssistantFooter(): ReactNode {
   const aui = useAui();
-  const threadId = useAuiState(({ threadListItem }) => threadListItem.id);
-  const messages = useAuiState(({ thread }) => thread.messages);
+  const threadId = useAuiState((s) => s.threadListItem.id);
+  const messages = useAuiState((s) => s.thread.messages);
   const currentPage = useCurrentPage();
   const pathname = currentPage?.pathname;
 

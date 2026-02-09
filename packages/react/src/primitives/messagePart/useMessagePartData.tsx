@@ -4,11 +4,11 @@ import { useAuiState } from "@assistant-ui/store";
 import { DataMessagePart } from "../../types";
 
 export const useMessagePartData = <T = any>(name?: string) => {
-  const part = useAuiState(({ part }) => {
-    if (part.type !== "data") {
+  const part = useAuiState((s) => {
+    if (s.part.type !== "data") {
       return null;
     }
-    return part as DataMessagePart<T>;
+    return s.part as DataMessagePart<T>;
   });
 
   if (!part) {

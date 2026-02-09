@@ -140,6 +140,7 @@
   }
   html {
     @apply overscroll-none scroll-smooth;
+    scroll-padding-top: calc(var(--docs-header-height, 48px) + 2rem);
   }
   body {
     @apply bg-background text-foreground;

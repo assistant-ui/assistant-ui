@@ -10,6 +10,7 @@ import {
   FileText,
   Hash,
   Text,
+  Sparkles,
 } from "lucide-react";
 import { useDocsSearch } from "fumadocs-core/search/client";
 import {
@@ -21,6 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { analytics } from "@/lib/analytics";
+import { useGlobalAskAI } from "@/components/docs/assistant/context";
 
 interface HighlightSegment {
   type: "text";
@@ -126,11 +128,21 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
   const [inputValue, setInputValue] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
+  const askAIFn = useGlobalAskAI();
 
-  const results = useMemo((): SearchResult[] => {
+  const latestResults = useMemo((): SearchResult[] => {
     if (!query.data || query.data === "empty") return [];
     return query.data as SearchResult[];
   }, [query.data]);
+
+  const staleResultsRef = useRef<SearchResult[]>([]);
+  useEffect(() => {
+    if (latestResults.length > 0) {
+      staleResultsRef.current = latestResults;
+    }
+  }, [latestResults]);
+  const results =
+    latestResults.length > 0 ? latestResults : staleResultsRef.current;
 
   const groupedResults = useMemo((): GroupedResult[] => {
     const groups: GroupedResult[] = [];
@@ -150,11 +162,12 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
     return groups;
   }, [results]);
 
+  const showAskAI = !!askAIFn && inputValue.length > 0;
+
   const lastTrackedQuery = useRef("");
   const searchTrackingTimeout = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
-  // Use ref to avoid stale closure issues in timeout callbacks
   const resultsLengthRef = useRef(0);
   useEffect(() => {
     resultsLengthRef.current = results.length;
@@ -163,15 +176,28 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
   useEffect(() => {
     if (open) {
       setInputValue("");
-      setSearch("");
       setSelectedIndex(0);
       lastTrackedQuery.current = "";
+      staleResultsRef.current = [];
     }
-  }, [open, setSearch]);
+  }, [open]);
 
   useEffect(() => {
+    if (inputValue.length === 0) {
+      setSearch("");
+      staleResultsRef.current = [];
+      return;
+    }
+    const timer = setTimeout(() => {
+      setSearch(inputValue);
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [inputValue, setSearch]);
+
+  useEffect(() => {
+    void latestResults;
     setSelectedIndex(0);
-  }, []);
+  }, [latestResults]);
 
   useEffect(() => {
     if (listRef.current && results.length > 0) {
@@ -182,9 +208,15 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
     }
   }, [selectedIndex, results.length]);
 
+  const handleAskAI = useCallback(() => {
+    if (!askAIFn) return;
+    analytics.search.askAITriggered(inputValue);
+    onOpenChange(false);
+    askAIFn(inputValue);
+  }, [askAIFn, inputValue, onOpenChange]);
+
   const handleSelect = useCallback(
     (url: string) => {
-      // Flush pending search analytics before navigating
       if (searchTrackingTimeout.current) {
         clearTimeout(searchTrackingTimeout.current);
         if (inputValue.length >= 2 && inputValue !== lastTrackedQuery.current) {
@@ -203,13 +235,11 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
     [onOpenChange, router, results, inputValue],
   );
 
-  // Debounced search analytics - only track after 500ms of no typing
   useEffect(() => {
     if (searchTrackingTimeout.current) {
       clearTimeout(searchTrackingTimeout.current);
     }
 
-    // Don't track single characters, empty input, or duplicate queries
     if (
       !inputValue ||
       inputValue.length < 2 ||
@@ -259,7 +289,6 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
           <DialogDescription>Search documentation</DialogDescription>
         </DialogHeader>
         <div className="overflow-hidden rounded-2xl border">
-          {/* Search Input */}
           <div className="flex items-center gap-2.5 border-border/50 border-b px-3">
             <Search className="size-4 text-muted-foreground" />
             <input
@@ -268,15 +297,23 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
               value={inputValue}
               onChange={(e) => {
                 setInputValue(e.target.value);
-                setSearch(e.target.value);
               }}
               onKeyDown={handleKeyDown}
               className="h-11 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
               autoFocus
             />
+            {showAskAI && (
+              <button
+                type="button"
+                onClick={handleAskAI}
+                className="flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1 text-pink-500 transition-colors hover:bg-accent"
+              >
+                <Sparkles className="size-3.5" />
+                <span className="font-medium text-xs">Ask AI</span>
+              </button>
+            )}
           </div>
 
-          {/* Results */}
           <div
             ref={listRef}
             className="h-[min(400px,90vh)] overflow-y-auto overflow-x-hidden overscroll-contain"
@@ -295,7 +332,7 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
                   </span>
                 </div>
               </div>
-            ) : query.isLoading ? (
+            ) : query.isLoading && results.length === 0 ? (
               <div className="flex h-full items-center justify-center">
                 <div className="flex items-center gap-2 text-muted-foreground/60">
                   <div className="size-1 animate-pulse rounded-full bg-current" />
@@ -306,7 +343,7 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
             ) : results.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center gap-1 px-4">
                 <p className="text-muted-foreground/60 text-sm">
-                  No results for "{inputValue}"
+                  No results for &ldquo;{inputValue}&rdquo;
                 </p>
               </div>
             ) : (

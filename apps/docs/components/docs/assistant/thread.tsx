@@ -17,8 +17,8 @@ import { useCurrentPage } from "@/components/docs/contexts/current-page";
 function PendingMessageHandler() {
   const { pendingMessage, clearPendingMessage } = useAssistantPanel();
   const aui = useAui();
-  const isRunning = useAuiState(({ thread }) => thread.isRunning);
-  const threadId = useAuiState(({ threadListItem }) => threadListItem.id);
+  const isRunning = useAuiState((s) => s.thread.isRunning);
+  const threadId = useAuiState((s) => s.threadListItem.id);
   const currentPage = useCurrentPage();
   const pathname = currentPage?.pathname;
   const processedRef = useRef<string | null>(null);

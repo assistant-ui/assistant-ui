@@ -1,5 +1,6 @@
 import type { Attachment } from "../AttachmentTypes";
 import type { MessageRole, RunConfig } from "../AssistantTypes";
+import type { QuoteInfo } from "../QuoteTypes";
 import type { ComposerRuntime } from "../../legacy-runtime/runtime";
 import type { AttachmentMethods } from "./attachment";
 import { DictationState } from "../../legacy-runtime/runtime-cores";
@@ -20,6 +21,12 @@ export type ComposerState = {
    * Undefined when dictation is not active.
    */
   readonly dictation: DictationState | undefined;
+
+  /**
+   * The currently quoted text, if any.
+   * Undefined when no quote is set.
+   */
+  readonly quote: QuoteInfo | undefined;
 };
 
 export type ComposerMethods = {
@@ -45,6 +52,11 @@ export type ComposerMethods = {
    * Stop the current dictation session.
    */
   stopDictation(): void;
+
+  /**
+   * Set a quote for the next message. Pass undefined to clear.
+   */
+  setQuote(quote: QuoteInfo | undefined): void;
 
   /** @internal */
   __internal_getRuntime?(): ComposerRuntime;

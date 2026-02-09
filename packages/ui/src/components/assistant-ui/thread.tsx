@@ -16,8 +16,10 @@ import {
   ComposerPrimitive,
   ErrorPrimitive,
   MessagePrimitive,
+  SelectionToolbarPrimitive,
   SuggestionPrimitive,
   ThreadPrimitive,
+  useMessageQuote,
 } from "@assistant-ui/react";
 import {
   ArrowDownIcon,
@@ -29,8 +31,10 @@ import {
   DownloadIcon,
   MoreHorizontalIcon,
   PencilIcon,
+  QuoteIcon,
   RefreshCwIcon,
   SquareIcon,
+  XIcon,
 } from "lucide-react";
 import type { FC } from "react";
 
@@ -46,7 +50,7 @@ export const Thread: FC = () => {
         turnAnchor="top"
         className="aui-thread-viewport relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll scroll-smooth px-4 pt-4"
       >
-        <AuiIf condition={({ thread }) => thread.isEmpty}>
+        <AuiIf condition={(s) => s.thread.isEmpty}>
           <ThreadWelcome />
         </AuiIf>
 
@@ -63,6 +67,8 @@ export const Thread: FC = () => {
           <Composer />
         </ThreadPrimitive.ViewportFooter>
       </ThreadPrimitive.Viewport>
+
+      <FloatingSelectionToolbar />
     </ThreadPrimitive.Root>
   );
 };
@@ -131,10 +137,28 @@ const ThreadSuggestionItem: FC = () => {
   );
 };
 
+const ComposerQuotePreview: FC = () => {
+  return (
+    <ComposerPrimitive.Quote className="aui-composer-quote mx-3 mt-2 flex items-start gap-2 rounded-lg bg-muted/60 px-3 py-2">
+      <QuoteIcon className="aui-composer-quote-icon mt-0.5 size-3.5 shrink-0 text-muted-foreground/70" />
+      <ComposerPrimitive.QuoteText className="aui-composer-quote-text line-clamp-2 min-w-0 flex-1 text-muted-foreground text-sm" />
+      <ComposerPrimitive.QuoteDismiss asChild>
+        <button
+          type="button"
+          className="aui-composer-quote-dismiss shrink-0 rounded-sm p-0.5 text-muted-foreground/70 transition-colors hover:bg-accent hover:text-foreground"
+        >
+          <XIcon className="size-3.5" />
+        </button>
+      </ComposerPrimitive.QuoteDismiss>
+    </ComposerPrimitive.Quote>
+  );
+};
+
 const Composer: FC = () => {
   return (
     <ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col">
       <ComposerPrimitive.AttachmentDropzone className="aui-composer-attachment-dropzone flex w-full flex-col rounded-2xl border border-input bg-background px-1 pt-2 outline-none transition-shadow has-[textarea:focus-visible]:border-ring has-[textarea:focus-visible]:ring-2 has-[textarea:focus-visible]:ring-ring/20 data-[dragging=true]:border-ring data-[dragging=true]:border-dashed data-[dragging=true]:bg-accent/50">
+        <ComposerQuotePreview />
         <ComposerAttachments />
         <ComposerPrimitive.Input
           placeholder="Send a message..."
@@ -153,7 +177,7 @@ const ComposerAction: FC = () => {
   return (
     <div className="aui-composer-action-wrapper relative mx-2 mb-2 flex items-center justify-between">
       <ComposerAddAttachment />
-      <AuiIf condition={({ thread }) => !thread.isRunning}>
+      <AuiIf condition={(s) => !s.thread.isRunning}>
         <ComposerPrimitive.Send asChild>
           <TooltipIconButton
             tooltip="Send message"
@@ -168,7 +192,7 @@ const ComposerAction: FC = () => {
           </TooltipIconButton>
         </ComposerPrimitive.Send>
       </AuiIf>
-      <AuiIf condition={({ thread }) => thread.isRunning}>
+      <AuiIf condition={(s) => s.thread.isRunning}>
         <ComposerPrimitive.Cancel asChild>
           <Button
             type="button"
@@ -219,6 +243,17 @@ const AssistantMessage: FC = () => {
   );
 };
 
+const FloatingSelectionToolbar: FC = () => {
+  return (
+    <SelectionToolbarPrimitive.Root className="aui-selection-toolbar-root flex items-center gap-1 rounded-lg border bg-popover px-1 py-1 shadow-md">
+      <SelectionToolbarPrimitive.Quote className="aui-selection-toolbar-quote flex items-center gap-1.5 rounded-md px-2.5 py-1 text-popover-foreground text-sm transition-colors hover:bg-accent">
+        <QuoteIcon className="size-3.5" />
+        Quote
+      </SelectionToolbarPrimitive.Quote>
+    </SelectionToolbarPrimitive.Root>
+  );
+};
+
 const AssistantActionBar: FC = () => {
   return (
     <ActionBarPrimitive.Root
@@ -229,10 +264,10 @@ const AssistantActionBar: FC = () => {
     >
       <ActionBarPrimitive.Copy asChild>
         <TooltipIconButton tooltip="Copy">
-          <AuiIf condition={({ message }) => message.isCopied}>
+          <AuiIf condition={(s) => s.message.isCopied}>
             <CheckIcon />
           </AuiIf>
-          <AuiIf condition={({ message }) => !message.isCopied}>
+          <AuiIf condition={(s) => !s.message.isCopied}>
             <CopyIcon />
           </AuiIf>
         </TooltipIconButton>
@@ -268,6 +303,20 @@ const AssistantActionBar: FC = () => {
   );
 };
 
+const MessageQuoteBlock: FC = () => {
+  const quote = useMessageQuote();
+  if (!quote) return null;
+
+  return (
+    <div className="aui-message-quote mb-2 flex items-start gap-1.5">
+      <QuoteIcon className="aui-message-quote-icon mt-0.5 size-3 shrink-0 text-muted-foreground/60" />
+      <p className="aui-message-quote-text line-clamp-2 min-w-0 text-muted-foreground/80 text-sm italic">
+        {quote.text}
+      </p>
+    </div>
+  );
+};
+
 const UserMessage: FC = () => {
   return (
     <MessagePrimitive.Root
@@ -278,6 +327,7 @@ const UserMessage: FC = () => {
 
       <div className="aui-user-message-content-wrapper relative col-start-2 min-w-0">
         <div className="aui-user-message-content wrap-break-word rounded-2xl bg-muted px-4 py-2.5 text-foreground">
+          <MessageQuoteBlock />
           <MessagePrimitive.Parts />
         </div>
         <div className="aui-user-action-bar-wrapper absolute top-1/2 left-0 -translate-x-full -translate-y-1/2 pr-2">

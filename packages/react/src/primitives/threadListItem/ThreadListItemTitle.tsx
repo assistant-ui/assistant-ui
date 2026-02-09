@@ -12,7 +12,7 @@ export namespace ThreadListItemPrimitiveTitle {
 export const ThreadListItemPrimitiveTitle: FC<
   ThreadListItemPrimitiveTitle.Props
 > = ({ fallback }) => {
-  const title = useAuiState(({ threadListItem }) => threadListItem.title);
+  const title = useAuiState((s) => s.threadListItem.title);
   return <>{title || fallback}</>;
 };
 

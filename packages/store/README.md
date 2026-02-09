@@ -28,7 +28,7 @@ function App() {
 }
 
 function Counter() {
-  const count = useAuiState(({ counter }) => counter.count);
+  const count = useAuiState((s) => s.counter.count);
   const aui = useAui();
   return <button onClick={() => aui.counter().increment()}>{count}</button>;
 }

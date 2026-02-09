@@ -90,11 +90,11 @@ const ReasoningGroupImpl: ReasoningGroupComponent = ({
   startIndex,
   endIndex,
 }) => {
-  const isReasoningStreaming = useAuiState(({ message }) => {
-    if (message.status?.type !== "running") return false;
-    const lastIndex = message.parts.length - 1;
+  const isReasoningStreaming = useAuiState((s) => {
+    if (s.message.status?.type !== "running") return false;
+    const lastIndex = s.message.parts.length - 1;
     if (lastIndex < 0) return false;
-    const lastType = message.parts[lastIndex]?.type;
+    const lastType = s.message.parts[lastIndex]?.type;
     if (lastType !== "reasoning") return false;
     return lastIndex >= startIndex && lastIndex <= endIndex;
   });

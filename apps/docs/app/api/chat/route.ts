@@ -1,4 +1,5 @@
 import { getDistinctId, posthogServer } from "@/lib/posthog-server";
+import { injectQuoteContext } from "@/lib/quote";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { openai } from "@ai-sdk/openai";
 import { frontendTools } from "@assistant-ui/react-ai-sdk";
@@ -32,7 +33,7 @@ export async function POST(req: Request) {
     : baseModel;
 
   const prunedMessages = pruneMessages({
-    messages: await convertToModelMessages(messages),
+    messages: await convertToModelMessages(injectQuoteContext(messages)),
     reasoning: "none",
   });
 

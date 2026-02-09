@@ -49,7 +49,7 @@ function MyComponent() {
 import { useAssistantState } from "@assistant-ui/react";
 
 function MyComponent() {
-  const isRunning = useAssistantState(({ thread }) => thread.isRunning);
+  const isRunning = useAssistantState((s) => s.thread.isRunning);
   return <div />;
 }
 `;
@@ -58,7 +58,7 @@ function MyComponent() {
 import { useAuiState } from "@assistant-ui/react";
 
 function MyComponent() {
-  const isRunning = useAuiState(({ thread }) => thread.isRunning);
+  const isRunning = useAuiState((s) => s.thread.isRunning);
   return <div />;
 }
 `;
@@ -129,7 +129,7 @@ import { useAssistantApi, useAssistantState } from "@assistant-ui/react";
 
 function MyComponent() {
   const api = useAssistantApi();
-  const isRunning = useAssistantState(({ thread }) => thread.isRunning);
+  const isRunning = useAssistantState((s) => s.thread.isRunning);
 
   const handleClick = () => {
     if (!isRunning) {
@@ -146,7 +146,7 @@ import { useAui, useAuiState } from "@assistant-ui/react";
 
 function MyComponent() {
   const aui = useAui();
-  const isRunning = useAuiState(({ thread }) => thread.isRunning);
+  const isRunning = useAuiState((s) => s.thread.isRunning);
 
   const handleClick = () => {
     if (!isRunning) {

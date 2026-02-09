@@ -100,6 +100,7 @@ export const ComposerClient = resource(
         isEmpty: runtimeState.isEmpty,
         type: runtimeState.type ?? "thread",
         dictation: runtimeState.dictation,
+        quote: runtimeState.quote,
       };
     }, [runtimeState, attachments.state]);
 
@@ -122,6 +123,7 @@ export const ComposerClient = resource(
           }),
         startDictation: runtime.startDictation,
         stopDictation: runtime.stopDictation,
+        setQuote: runtime.setQuote,
         attachment: (selector) => {
           if ("id" in selector) {
             return attachments.get({ key: selector.id });

@@ -16,7 +16,7 @@ attachments, and conditional UI states. Fully customizable and composable.
 The `Thread` component is built with the following primitives:
 
 ```tsx
-import { ThreadPrimitive, AuiIf } from "@assistant-ui/react";
+import { ThreadPrimitive, SelectionToolbarPrimitive, AuiIf } from "@assistant-ui/react";
 
 <ThreadPrimitive.Root>
   <ThreadPrimitive.Viewport>
@@ -32,6 +32,11 @@ import { ThreadPrimitive, AuiIf } from "@assistant-ui/react";
   </ThreadPrimitive.Viewport>
   <ThreadPrimitive.Suggestions />
   <AuiIf condition={...} />
+
+  {/* Floating toolbar — appears when text is selected in a message */}
+  <SelectionToolbarPrimitive.Root>
+    <SelectionToolbarPrimitive.Quote>Quote</SelectionToolbarPrimitive.Quote>
+  </SelectionToolbarPrimitive.Root>
 </ThreadPrimitive.Root>
 ```
 
@@ -382,3 +387,5 @@ The condition function receives an `AssistantState` object with access to `threa
 ## Related Components
 
 - [ThreadList](/docs/ui/thread-list) - List of threads, with or without sidebar
+- [Quoting guide](/docs/guides/quoting) - Quote selected text from messages
+- [SelectionToolbarPrimitive](/docs/reference/primitives/selection-toolbar) - Floating toolbar API reference

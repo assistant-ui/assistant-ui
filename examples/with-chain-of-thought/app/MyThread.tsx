@@ -96,15 +96,15 @@ const ChainOfThought: FC = () => {
   return (
     <ChainOfThoughtPrimitive.Root className="my-2 rounded-lg border">
       <ChainOfThoughtPrimitive.AccordionTrigger className="flex w-full cursor-pointer items-center gap-2 px-4 py-2 font-medium text-sm hover:bg-muted/50">
-        <AuiIf condition={({ chainOfThought }) => chainOfThought.collapsed}>
+        <AuiIf condition={(s) => s.chainOfThought.collapsed}>
           <ChevronRightIcon className="size-4 shrink-0" />
         </AuiIf>
-        <AuiIf condition={({ chainOfThought }) => !chainOfThought.collapsed}>
+        <AuiIf condition={(s) => !s.chainOfThought.collapsed}>
           <ChevronDownIcon className="size-4 shrink-0" />
         </AuiIf>
         Thinking
       </ChainOfThoughtPrimitive.AccordionTrigger>
-      <AuiIf condition={({ chainOfThought }) => !chainOfThought.collapsed}>
+      <AuiIf condition={(s) => !s.chainOfThought.collapsed}>
         <ChainOfThoughtPrimitive.Parts
           components={{
             Reasoning,
@@ -118,7 +118,7 @@ const ChainOfThought: FC = () => {
 };
 
 const PartLayout: FC<PropsWithChildren> = ({ children }) => {
-  const partType = useAuiState(({ part }) => part.type);
+  const partType = useAuiState((s) => s.part.type);
   const [open, setOpen] = useState(true);
 
   const label = partType === "reasoning" ? "Thinking" : "Taking action";
@@ -160,7 +160,7 @@ const Composer: FC = () => {
         autoFocus
       />
       <div className="relative mx-2 mb-2 flex items-center justify-end">
-        <AuiIf condition={({ thread }) => !thread.isRunning}>
+        <AuiIf condition={(s) => !s.thread.isRunning}>
           <ComposerPrimitive.Send asChild>
             <TooltipIconButton
               tooltip="Send"
@@ -173,7 +173,7 @@ const Composer: FC = () => {
             </TooltipIconButton>
           </ComposerPrimitive.Send>
         </AuiIf>
-        <AuiIf condition={({ thread }) => thread.isRunning}>
+        <AuiIf condition={(s) => s.thread.isRunning}>
           <ComposerPrimitive.Cancel asChild>
             <Button
               type="button"

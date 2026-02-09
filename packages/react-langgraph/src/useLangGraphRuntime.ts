@@ -9,6 +9,8 @@ import {
 } from "./types";
 import {
   AssistantCloud,
+  INTERNAL,
+  type ToolExecutionStatus,
   unstable_useCloudThreadListAdapter,
   unstable_useRemoteThreadListRuntime,
   useAui,
@@ -115,8 +117,8 @@ const asLangGraphRuntimeExtras = (extras: unknown): LangGraphRuntimeExtras => {
 };
 
 export const useLangGraphInterruptState = () => {
-  const interrupt = useAuiState(({ thread }) => {
-    const extras = thread.extras;
+  const interrupt = useAuiState((s) => {
+    const extras = s.thread.extras;
     if (!extras) return undefined;
     return asLangGraphRuntimeExtras(extras).interrupt;
   });
@@ -210,6 +212,14 @@ const useLangGraphRuntimeImpl = ({
   });
 
   const [isRunning, setIsRunning] = useState(false);
+  const [toolStatuses, setToolStatuses] = useState<
+    Record<string, ToolExecutionStatus>
+  >({});
+  const hasExecutingTools = Object.values(toolStatuses).some(
+    (s) => s?.type === "executing",
+  );
+  const effectiveIsRunning = isRunning || hasExecutingTools;
+
   const handleSendMessage = async (
     messages: LangChainMessage[],
     config: LangGraphSendMessageConfig,
@@ -225,11 +235,43 @@ const useLangGraphRuntimeImpl = ({
   const threadMessages = useExternalMessageConverter({
     callback: convertLangChainMessages,
     messages,
-    isRunning,
+    isRunning: effectiveIsRunning,
+  });
+
+  const [runtimeRef] = useState(() => ({
+    get current() {
+      return runtime;
+    },
+  }));
+
+  const toolInvocations = INTERNAL.useToolInvocations({
+    state: {
+      messages: threadMessages,
+      isRunning: effectiveIsRunning,
+    },
+    getTools: () => runtimeRef.current.thread.getModelContext().tools,
+    onResult: (command) => {
+      if (command.type === "add-tool-result") {
+        void handleSendMessage(
+          [
+            {
+              type: "tool",
+              name: command.toolName,
+              tool_call_id: command.toolCallId,
+              content: JSON.stringify(command.result),
+              artifact: command.artifact,
+              status: command.isError ? "error" : "success",
+            },
+          ],
+          {},
+        );
+      }
+    },
+    setToolStatuses,
   });
 
   const runtime = useExternalStoreRuntime({
-    isRunning,
+    isRunning: effectiveIsRunning,
     messages: threadMessages,
     adapters: {
       attachments,
@@ -241,7 +283,9 @@ const useLangGraphRuntimeImpl = ({
       interrupt,
       send: handleSendMessage,
     } satisfies LangGraphRuntimeExtras,
-    onNew: (msg) => {
+    onNew: async (msg) => {
+      await toolInvocations.abort();
+
       const cancellations =
         autoCancelPendingToolCalls !== false
           ? getPendingToolCalls(messages).map(
@@ -295,6 +339,7 @@ const useLangGraphRuntimeImpl = ({
     onCancel: unstable_allowCancellation
       ? async () => {
           cancel();
+          await toolInvocations.abort();
         }
       : undefined,
   });

@@ -10,7 +10,7 @@ cd "$ROOT_DIR"
 
 # Check for --force flag to skip confirmation
 if [[ "$1" != "--force" && "$1" != "-f" ]]; then
-    echo "This will remove all build artifacts, node_modules, and caches."
+    echo "This will remove all build artifacts, node_modules, caches, and empty directories."
     echo "Root: $ROOT_DIR"
     echo ""
     read -p "Are you sure? (y/N) " -n 1 -r
@@ -135,6 +135,17 @@ remove_dirs ".tox"
 remove_dirs ".nox"
 remove_dirs "htmlcov"
 remove_files ".coverage"
+
+echo ""
+echo -e "${YELLOW}=== Removing empty directories ===${NC}"
+empty_dir_count=0
+while IFS= read -r -d '' dir; do
+    echo -e "${RED}Removing${NC} $dir"
+    rmdir "$dir"
+    ((empty_dir_count++))
+    ((removed_count++))
+done < <(find . -type d -empty -not -path './.git/*' -print0 2>/dev/null)
+echo -e "Removed ${empty_dir_count} empty directories"
 
 echo ""
 echo -e "${GREEN}=== Clean complete ===${NC}"

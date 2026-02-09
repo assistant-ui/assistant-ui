@@ -152,7 +152,7 @@ const FfmpegTool: FC<{ file: File }> = ({ file }) => {
 
 export default function Home() {
   const [lastFile, setLastFile] = useState<File | null>(null);
-  const attachments = useAuiState(({ thread }) => thread.composer.attachments);
+  const attachments = useAuiState((s) => s.thread.composer.attachments);
   useEffect(() => {
     const lastAttachment = attachments[attachments.length - 1];
     if (!lastAttachment) return;

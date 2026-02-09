@@ -40,7 +40,7 @@ export const ensureBinding = (r: unknown) => {
   runtime.__internal_bindMethods?.();
   runtime.__isBound = true;
 
-  if (process.env["NODE_ENV"] !== "production") {
+  if (process.env.NODE_ENV !== "production") {
     debugVerifyPrototype(runtime, Object.getPrototypeOf(runtime));
   }
 };

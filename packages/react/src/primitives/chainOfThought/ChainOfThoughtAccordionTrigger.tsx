@@ -10,9 +10,7 @@ import { useAuiState, useAui } from "@assistant-ui/store";
 
 const useChainOfThoughtAccordionTrigger = () => {
   const aui = useAui();
-  const collapsed = useAuiState(
-    ({ chainOfThought }) => chainOfThought.collapsed,
-  );
+  const collapsed = useAuiState((s) => s.chainOfThought.collapsed);
 
   const callback = useCallback(() => {
     aui.chainOfThought().setCollapsed(!collapsed);

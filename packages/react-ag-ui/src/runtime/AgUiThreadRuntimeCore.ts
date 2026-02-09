@@ -185,6 +185,18 @@ export class AgUiThreadRuntimeCore {
     );
   }
 
+  findMessageIdForToolCall(toolCallId: string): string | undefined {
+    for (const message of this.messages) {
+      if (message.role !== "assistant") continue;
+      for (const part of message.content) {
+        if (part.type === "tool-call" && part.toolCallId === toolCallId) {
+          return message.id;
+        }
+      }
+    }
+    return undefined;
+  }
+
   addToolResult(options: AddToolResultOptions): void {
     let updated = false;
     this.messages = this.messages.map((message) => {

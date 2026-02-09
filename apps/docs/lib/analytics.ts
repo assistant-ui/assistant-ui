@@ -82,6 +82,9 @@ export const analytics = {
       trackEvent("search_result_clicked", { query, url, position }),
 
     noResults: (query: string) => trackEvent("search_no_results", { query }),
+
+    askAITriggered: (query: string) =>
+      trackEvent("search_ask_ai_triggered", { query }),
   },
 
   code: {

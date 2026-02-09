@@ -11,7 +11,7 @@ import { useAuiState } from "@assistant-ui/store";
 
 const useComposerStopDictation = () => {
   const aui = useAui();
-  const isDictating = useAuiState(({ composer }) => composer.dictation != null);
+  const isDictating = useAuiState((s) => s.composer.dictation != null);
 
   const callback = useCallback(() => {
     aui.composer().stopDictation();

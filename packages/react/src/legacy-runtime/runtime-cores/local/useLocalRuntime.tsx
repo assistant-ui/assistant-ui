@@ -27,9 +27,7 @@ const useLocalThreadRuntime = (
   const [runtime] = useState(() => new LocalRuntimeCore(opt, initialMessages));
 
   const threadIdRef = useRef<string | undefined>(undefined);
-  threadIdRef.current = useAuiState(
-    ({ threadListItem }) => threadListItem.remoteId,
-  );
+  threadIdRef.current = useAuiState((s) => s.threadListItem.remoteId);
 
   useEffect(() => {
     runtime.threads

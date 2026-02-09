@@ -19,22 +19,22 @@ export const useActionBarFloatStatus = ({
   autohide,
   autohideFloat,
 }: UseActionBarFloatStatusProps) => {
-  return useAuiState(({ thread, message }) => {
-    if (hideWhenRunning && thread.isRunning) return HideAndFloatStatus.Hidden;
+  return useAuiState((s) => {
+    if (hideWhenRunning && s.thread.isRunning) return HideAndFloatStatus.Hidden;
 
     const autohideEnabled =
-      autohide === "always" || (autohide === "not-last" && !message.isLast);
+      autohide === "always" || (autohide === "not-last" && !s.message.isLast);
 
     // normal status
     if (!autohideEnabled) return HideAndFloatStatus.Normal;
 
     // hidden status
-    if (!message.isHovering) return HideAndFloatStatus.Hidden;
+    if (!s.message.isHovering) return HideAndFloatStatus.Hidden;
 
     // floating status
     if (
       autohideFloat === "always" ||
-      (autohideFloat === "single-branch" && message.branchCount <= 1)
+      (autohideFloat === "single-branch" && s.message.branchCount <= 1)
     )
       return HideAndFloatStatus.Floating;
 

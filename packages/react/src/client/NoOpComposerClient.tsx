@@ -17,6 +17,7 @@ export const NoOpComposerClient = resource(
         canCancel: false,
         type: type,
         dictation: undefined,
+        quote: undefined,
       };
     }, [type]);
 
@@ -58,6 +59,9 @@ export const NoOpComposerClient = resource(
           throw new Error("Not supported");
         },
         beginEdit: () => {
+          throw new Error("Not supported");
+        },
+        setQuote: () => {
           throw new Error("Not supported");
         },
       },

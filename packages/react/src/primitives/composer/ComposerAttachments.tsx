@@ -39,7 +39,7 @@ const getComponent = (
 const AttachmentComponent: FC<{
   components: ComposerPrimitiveAttachments.Props["components"];
 }> = ({ components }) => {
-  const attachment = useAuiState(({ attachment }) => attachment);
+  const attachment = useAuiState((s) => s.attachment);
   if (!attachment) return null;
 
   const Component = getComponent(components, attachment);

@@ -11,7 +11,7 @@ export const ThreadPrimitiveEmpty: FC<ThreadPrimitiveEmpty.Props> = ({
   children,
 }) => {
   const empty = useAuiState(
-    ({ thread }) => thread.messages.length === 0 && !thread.isLoading,
+    (s) => s.thread.messages.length === 0 && !s.thread.isLoading,
   );
   return empty ? children : null;
 };

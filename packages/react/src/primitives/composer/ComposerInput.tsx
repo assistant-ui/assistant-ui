@@ -158,8 +158,7 @@ export const ComposerPrimitiveInput = forwardRef<
 
     const isDisabled =
       useAuiState(
-        ({ thread, composer }) =>
-          thread.isDisabled || composer.dictation?.inputDisabled,
+        (s) => s.thread.isDisabled || s.composer.dictation?.inputDisabled,
       ) || disabledProp;
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const ref = useComposedRefs(forwardedRef, textareaRef);

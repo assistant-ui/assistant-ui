@@ -5,6 +5,7 @@ import type {
 } from "../../../types";
 import type { MessageRole, RunConfig } from "../../../types/AssistantTypes";
 import type { DictationAdapter } from "../adapters/speech/SpeechAdapterTypes";
+import type { QuoteInfo } from "../../../types/QuoteTypes";
 
 export type ComposerRuntimeEventType = "send" | "attachmentAdd";
 
@@ -48,6 +49,9 @@ export type ComposerRuntimeCore = Readonly<{
 
   runConfig: RunConfig;
   setRunConfig: (runConfig: RunConfig) => void;
+
+  quote: QuoteInfo | undefined;
+  setQuote: (quote: QuoteInfo | undefined) => void;
 
   reset: () => Promise<void>;
   clearAttachments: () => Promise<void>;

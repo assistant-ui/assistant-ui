@@ -39,7 +39,7 @@ const getComponent = (
 const AttachmentComponent: FC<{
   components: MessagePrimitiveAttachments.Props["components"];
 }> = ({ components }) => {
-  const attachment = useAuiState(({ attachment }) => attachment);
+  const attachment = useAuiState((s) => s.attachment);
   if (!attachment) return null;
 
   const Component = getComponent(components, attachment as CompleteAttachment);
@@ -94,9 +94,9 @@ MessagePrimitiveAttachmentByIndex.displayName =
 export const MessagePrimitiveAttachments: FC<
   MessagePrimitiveAttachments.Props
 > = ({ components }) => {
-  const attachmentsCount = useAuiState(({ message }) => {
-    if (message.role !== "user") return 0;
-    return message.attachments.length;
+  const attachmentsCount = useAuiState((s) => {
+    if (s.message.role !== "user") return 0;
+    return s.message.attachments.length;
   });
 
   const attachmentElements = useMemo(() => {

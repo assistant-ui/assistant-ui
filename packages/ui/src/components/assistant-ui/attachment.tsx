@@ -47,10 +47,10 @@ const useFileSrc = (file: File | undefined) => {
 
 const useAttachmentSrc = () => {
   const { file, src } = useAuiState(
-    useShallow(({ attachment }): { file?: File; src?: string } => {
-      if (attachment.type !== "image") return {};
-      if (attachment.file) return { file: attachment.file };
-      const src = attachment.content?.filter((c) => c.type === "image")[0]
+    useShallow((s): { file?: File; src?: string } => {
+      if (s.attachment.type !== "image") return {};
+      if (s.attachment.file) return { file: s.attachment.file };
+      const src = s.attachment.content?.filter((c) => c.type === "image")[0]
         ?.image;
       if (!src) return {};
       return { src };
@@ -107,7 +107,7 @@ const AttachmentPreviewDialog: FC<PropsWithChildren> = ({ children }) => {
 };
 
 const AttachmentThumb: FC = () => {
-  const isImage = useAuiState(({ attachment }) => attachment.type === "image");
+  const isImage = useAuiState((s) => s.attachment.type === "image");
   const src = useAttachmentSrc();
 
   return (
@@ -128,9 +128,9 @@ const AttachmentUI: FC = () => {
   const aui = useAui();
   const isComposer = aui.attachment.source === "composer";
 
-  const isImage = useAuiState(({ attachment }) => attachment.type === "image");
-  const typeLabel = useAuiState(({ attachment }) => {
-    const type = attachment.type;
+  const isImage = useAuiState((s) => s.attachment.type === "image");
+  const typeLabel = useAuiState((s) => {
+    const type = s.attachment.type;
     switch (type) {
       case "image":
         return "Image";
