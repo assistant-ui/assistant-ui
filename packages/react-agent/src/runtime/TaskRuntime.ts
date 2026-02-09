@@ -16,6 +16,7 @@ export class TaskRuntime {
   private approvals: Map<string, ApprovalRuntime> = new Map();
   private listeners: Set<() => void> = new Set();
   private originalPrompt: string;
+  private serverTaskId: string;
   private streamingPromise: Promise<void> | null = null;
   private permissionModeOverride:
     | import("./PermissionStore").PermissionMode
@@ -29,6 +30,7 @@ export class TaskRuntime {
     this.client = client;
     this.permissionStore = permissionStore;
     this.originalPrompt = handle.prompt;
+    this.serverTaskId = handle.id;
     this.state = {
       id: handle.id,
       title: handle.prompt.slice(0, 100),
@@ -75,7 +77,7 @@ export class TaskRuntime {
       return;
     }
 
-    await this.client.cancelTask(this.state.id);
+    await this.client.cancelTask(this.serverTaskId);
   }
 
   async retry(): Promise<void> {
@@ -87,11 +89,11 @@ export class TaskRuntime {
       prompt: this.originalPrompt,
     });
 
+    this.serverTaskId = handle.id;
     this.agents.clear();
     this.approvals.clear();
     this.state = {
-      id: handle.id,
-      title: this.state.title,
+      ...this.state,
       status: "starting",
       cost: 0,
       agents: [],
@@ -122,7 +124,7 @@ export class TaskRuntime {
 
   private async _doStream(): Promise<void> {
     try {
-      for await (const event of this.client.streamEvents(this.state.id)) {
+      for await (const event of this.client.streamEvents(this.serverTaskId)) {
         this.processEvent(event);
       }
     } catch (error) {

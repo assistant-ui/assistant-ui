@@ -12,6 +12,9 @@ import { TaskController } from "./TaskController";
 import { taskStore } from "./store";
 import { logger } from "./logger";
 
+// WARNING: This example has no authentication. In production, add
+// authentication middleware to prevent unauthorized access to API credits,
+// task management, and tool approval endpoints.
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();

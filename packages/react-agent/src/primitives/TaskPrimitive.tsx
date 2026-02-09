@@ -1,6 +1,6 @@
 "use client";
 
-import type { ComponentPropsWithoutRef, ReactNode } from "react";
+import { useMemo, type ComponentPropsWithoutRef, type ReactNode } from "react";
 import { TaskProvider, useTaskState } from "../hooks";
 import type { TaskStatus } from "../runtime";
 import { createActionButton } from "../actions/createActionButton";
@@ -80,8 +80,10 @@ export interface TaskApprovalsProps {
 }
 
 function TaskApprovals({ children }: TaskApprovalsProps) {
-  const approvals = useTaskState((s) =>
-    s.pendingApprovals.filter((a) => a.status === "pending"),
+  const allApprovals = useTaskState((s) => s.pendingApprovals);
+  const approvals = useMemo(
+    () => allApprovals.filter((a) => a.status === "pending"),
+    [allApprovals],
   );
   return <>{children(approvals.map((a) => ({ id: a.id })))}</>;
 }

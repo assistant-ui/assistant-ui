@@ -185,6 +185,7 @@ export function useExtendedKeyboardNav<T>({
 
       switch (e.key) {
         case "a":
+        case "A":
           if (e.shiftKey && onApproveAll) {
             e.preventDefault();
             onApproveAll();
@@ -194,6 +195,7 @@ export function useExtendedKeyboardNav<T>({
           }
           break;
         case "d":
+        case "D":
           if (e.shiftKey && onDenyAll) {
             e.preventDefault();
             onDenyAll();

@@ -26,7 +26,7 @@ export class TaskController {
   private toolUseToAgent: Map<string, string> = new Map();
   private mainAgentId = "";
   private processedMessageIds = new Set<string>();
-  private lastTurnAssistantTexts: string[] = [];
+  private lastTurnAssistantParts: string[] = [];
 
   constructor(taskId: string, options: CreateTaskOptions) {
     this.taskId = taskId;
@@ -175,8 +175,8 @@ export class TaskController {
 
       // Conversational loop - keeps running until cancelled
       while (!this.isCancelled) {
-        // Reset assistant text buffer for this turn
-        this.lastTurnAssistantTexts = [];
+        // Reset assistant response buffer for this turn
+        this.lastTurnAssistantParts = [];
         // Build the full prompt with conversation history
         let fullPrompt = currentPrompt;
         if (conversationHistory.length > 0) {
@@ -375,10 +375,10 @@ export class TaskController {
         // Store both sides of the conversation in history
         conversationHistory.push({ role: "user", content: currentPrompt });
 
-        if (this.lastTurnAssistantTexts.length > 0) {
+        if (this.lastTurnAssistantParts.length > 0) {
           conversationHistory.push({
             role: "assistant",
-            content: this.lastTurnAssistantTexts.join("\n"),
+            content: this.lastTurnAssistantParts.join("\n"),
           });
         }
 
@@ -548,7 +548,7 @@ export class TaskController {
             });
             // Track assistant text for conversation history
             if (agentId === this.mainAgentId) {
-              this.lastTurnAssistantTexts.push(block.text);
+              this.lastTurnAssistantParts.push(block.text);
             }
             this.pushEvent({
               type: "message",
@@ -558,6 +558,17 @@ export class TaskController {
               timestamp: new Date(),
             });
           } else if ("name" in block) {
+            // Track tool calls for conversation history
+            if (agentId === this.mainAgentId) {
+              const inputStr = JSON.stringify(block.input);
+              const truncatedInput =
+                inputStr.length > 200
+                  ? `${inputStr.slice(0, 200)}...`
+                  : inputStr;
+              this.lastTurnAssistantParts.push(
+                `[Used tool ${block.name}: ${truncatedInput}]`,
+              );
+            }
             logger.info("tool", "Tool executed", {
               taskId: this.taskId,
               agentId,
@@ -700,6 +711,21 @@ export class TaskController {
               isError: block.is_error,
               hasChildAgent: !!childAgentId,
             });
+
+            // Track tool results for conversation history
+            if (agentId === this.mainAgentId) {
+              const resultStr =
+                typeof block.content === "string"
+                  ? block.content
+                  : JSON.stringify(block.content);
+              const truncatedResult =
+                resultStr.length > 300
+                  ? `${resultStr.slice(0, 300)}...`
+                  : resultStr;
+              this.lastTurnAssistantParts.push(
+                `[Tool result${block.is_error ? " (error)" : ""}: ${truncatedResult}]`,
+              );
+            }
 
             this.pushEvent({
               type: "tool_result",

@@ -30,6 +30,16 @@ export async function GET(request: NextRequest) {
     async start(streamController) {
       const encoder = new TextEncoder();
 
+      // Heartbeat to keep connection alive through proxies/load balancers
+      const heartbeat = setInterval(() => {
+        try {
+          streamController.enqueue(encoder.encode(": ping\n\n"));
+        } catch {
+          // Stream may have been closed
+          clearInterval(heartbeat);
+        }
+      }, 30000);
+
       try {
         let eventsSent = 0;
         for await (const event of controller.events()) {
@@ -55,6 +65,7 @@ export async function GET(request: NextRequest) {
         })}\n\n`;
         streamController.enqueue(encoder.encode(errorData));
       } finally {
+        clearInterval(heartbeat);
         logger.debug("stream", "Stream closed", { taskId });
         streamController.close();
       }

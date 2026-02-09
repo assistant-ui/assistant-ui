@@ -66,7 +66,7 @@ function WorkspaceRoot({
       selectedTaskId,
       selectTask,
     }),
-    [viewMode, selectedTaskId],
+    [viewMode, selectedTaskId, onSelectTask],
   );
 
   return (
