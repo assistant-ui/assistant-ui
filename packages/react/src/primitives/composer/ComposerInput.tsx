@@ -62,10 +62,9 @@ export namespace ComposerPrimitiveInput {
          * Controls how the Enter key submits messages.
          * - "enter": Plain Enter submits (Shift+Enter for newline)
          * - "ctrlEnter": Ctrl/Cmd+Enter submits (plain Enter for newline)
-         * - "none": Enter key never submits
          * @default "enter"
          */
-        submitMode?: "enter" | "ctrlEnter" | "none" | undefined;
+        submitMode?: "enter" | "ctrlEnter" | undefined;
         /**
          * @deprecated Use `submitMode` instead
          * @ignore
@@ -192,13 +191,12 @@ export const ComposerPrimitiveInput = forwardRef<
         if (e.shiftKey) return;
 
         let shouldSubmit = false;
-
         if (effectiveSubmitMode === "ctrlEnter") {
           // ctrlEnter mode: only submit with Ctrl/Cmd+Enter
           shouldSubmit = e.ctrlKey || e.metaKey;
         } else if (effectiveSubmitMode === "enter") {
-          // enter mode: submit on plain Enter (Ctrl+Enter inserts newline)
-          shouldSubmit = !e.ctrlKey && !e.metaKey;
+          // enter mode: submit on Enter (original behavior)
+          shouldSubmit = true;
         }
         // effectiveSubmitMode === "none": never submit
 
