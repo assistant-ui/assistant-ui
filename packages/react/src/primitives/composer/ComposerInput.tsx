@@ -149,9 +149,9 @@ export const ComposerPrimitiveInput = forwardRef<
       );
     }, [submitMode, submitOnEnter]);
 
-    const value = useAuiState(({ composer }) => {
-      if (!composer.isEditing) return "";
-      return composer.text;
+    const value = useAuiState((s) => {
+      if (!s.composer.isEditing) return "";
+      return s.composer.text;
     });
 
     const Component = asChild ? Slot : TextareaAutosize;
