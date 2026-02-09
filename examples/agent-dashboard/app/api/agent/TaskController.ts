@@ -372,7 +372,9 @@ export class TaskController {
 
         if (this.isCancelled) break;
 
-        // Store both sides of the conversation in history
+        // Store both sides of the conversation in history.
+        // Note: lastTurnAssistantParts includes text, tool calls (see line ~568),
+        // and tool results (see line ~725) — not just text responses.
         conversationHistory.push({ role: "user", content: currentPrompt });
 
         if (this.lastTurnAssistantParts.length > 0) {

@@ -174,6 +174,13 @@ export interface CreateTaskOptions {
   maxTokens?: number;
   maxTurns?: number;
   allowedTools?: string[];
-  /** Custom function to determine if a tool requires approval */
+  /**
+   * Custom function to determine if a tool requires approval.
+   *
+   * Only supported with server-side clients (e.g. AnthropicAgentClient).
+   * Ignored by HttpAgentClient since functions cannot be serialized over HTTP.
+   * For client-server architectures, implement approval logic server-side
+   * in your API route instead.
+   */
   requiresApproval?: (toolName: string, input: unknown) => boolean;
 }

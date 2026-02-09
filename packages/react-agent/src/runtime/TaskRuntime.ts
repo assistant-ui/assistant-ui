@@ -137,6 +137,9 @@ export class TaskRuntime {
       for await (const event of this.client.streamEvents(this.serverTaskId)) {
         // Discard events from a previous stream if retry() was called
         if (this.streamGeneration !== generation) return;
+        // Skip events that don't belong to the current server task
+        const e = event as { taskId?: string };
+        if (e.taskId && e.taskId !== this.serverTaskId) continue;
         this.processEvent(event);
       }
     } catch (error) {
