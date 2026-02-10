@@ -207,6 +207,19 @@ export function useCloudChat(
           currentThreadId = await meta.creatingThread;
         }
 
+        if (!currentThreadId) {
+          throw new Error("useCloudChat: Failed to resolve thread id");
+        }
+
+        const chatInstance = multiplexer.get(chatKey);
+        const messagesForDurableUserPersist =
+          chatInstance?.messages ?? opts.messages;
+        await persistence.persistUserMessagesStrict(
+          currentThreadId,
+          messagesForDurableUserPersist,
+          mountedRef,
+        );
+
         return await baseTransportRef.current.sendMessages({
           ...opts,
           body: {
@@ -218,7 +231,7 @@ export function useCloudChat(
       reconnectToStream: (opts) =>
         baseTransportRef.current.reconnectToStream(opts),
     }),
-    [],
+    [persistence],
   );
 
   const createChat = useCallback(

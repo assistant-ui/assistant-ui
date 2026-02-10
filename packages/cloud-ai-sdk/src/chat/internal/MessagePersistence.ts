@@ -81,9 +81,39 @@ export class MessagePersistence {
     messages: UIMessage[],
     mountedRef: { current: boolean },
   ): Promise<void> {
+    await this.persistMessagesByRole(threadId, messages, mountedRef);
+  }
+
+  /**
+   * Persist only user messages and fail if any message cannot be persisted.
+   * Used by the transport path to guarantee durable write-before-send.
+   */
+  async persistUserMessagesStrict(
+    threadId: string,
+    messages: UIMessage[],
+    mountedRef: { current: boolean },
+  ): Promise<void> {
+    await this.persistMessagesByRole(threadId, messages, mountedRef, {
+      roles: ["user"],
+      strict: true,
+    });
+  }
+
+  private async persistMessagesByRole(
+    threadId: string,
+    messages: UIMessage[],
+    mountedRef: { current: boolean },
+    options?: {
+      roles?: UIMessage["role"][];
+      strict?: boolean;
+    },
+  ): Promise<void> {
     const formatted = this.getFormattedPersistence(threadId);
+    const roles = options?.roles;
+    const strict = options?.strict ?? false;
 
     const appendTasks = messages.map((msg, idx) => {
+      if (roles && !roles.includes(msg.role)) return null;
       if (formatted.isPersisted(msg.id)) return null;
 
       const parentId = idx > 0 ? messages[idx - 1]!.id : null;
@@ -94,12 +124,14 @@ export class MessagePersistence {
           if (mountedRef.current) {
             this.onError(err);
           }
-          return null;
+          if (strict) {
+            throw err;
+          }
         });
     });
 
     const pending = appendTasks.filter(
-      (task): task is Promise<void | null> => task !== null,
+      (task): task is Promise<void> => task !== null,
     );
     if (pending.length > 0) {
       await Promise.all(pending);
