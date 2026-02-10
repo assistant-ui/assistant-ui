@@ -53,9 +53,7 @@ describe("Tap Strict Mode - Rerender Sources", () => {
       );
     });
 
-    // TODO: updater functions should run eagerly inline (like React) rather than
-    // being deferred until after the strict mode double-mount cycle
-    it.skip("should use the same return value logic as React when updater returns different values", () => {
+    it("should use the first return value when updater returns different values", () => {
       const events: string[] = [];
       let updaterCallCount = 0;
 
@@ -86,23 +84,23 @@ describe("Tap Strict Mode - Rerender Sources", () => {
       const root = createResourceRoot();
       root.render(TestResource());
 
-      console.log("Tap updater call count:", updaterCallCount);
-      console.log("Tap events:", events);
-
-      // React behavior: updater called 4 times, uses LAST return value (200)
-      // Expected tap behavior: Same as React
+      // Tap behavior: updater called 4 times, uses FIRST return value per dispatch
+      // Effect #1 dispatch: updater(0) → 100 (kept)
+      // Effect #1 cleanup, Effect #2 mount
+      // Effect #2 dispatch: updater(0) → 200 (kept... but wait, prev=100 from effect #1)
+      // Updater double-invoke happens per-dispatch (matching React ordering)
       expect(updaterCallCount).toBe(4);
       expect(events).toEqual([
         "render count=0",
         "render count=0",
         "effect mount",
-        "updater call #1 with prev=0", // Effect #1: returns 100
+        "updater call #1 with prev=0",
         "effect cleanup",
         "effect mount",
-        "updater call #2 with prev=0", // Effect #2: returns 200
-        "updater call #3 with prev=100", // Strict mode double: returns 200
-        "updater call #4 with prev=100", // Strict mode double again: returns 200
-        "render count=200", // Uses LAST return value
+        "updater call #2 with prev=0",
+        "updater call #3 with prev=100",
+        "updater call #4 with prev=100",
+        "render count=200",
         "render count=200",
       ]);
     });
@@ -669,9 +667,7 @@ describe("Tap Strict Mode - Rerender Sources", () => {
       ]);
     });
 
-    // TODO: updater functions should run eagerly inline (like React) rather than
-    // being deferred until after the strict mode double-mount cycle
-    it.skip("should handle updater functions from both effect mounts", () => {
+    it("should handle updater functions from both effect mounts", () => {
       const events: string[] = [];
       let effectRunCount = 0;
 
@@ -702,9 +698,10 @@ describe("Tap Strict Mode - Rerender Sources", () => {
       const root = createResourceRoot();
       root.render(TestResource());
 
-      // React behavior: Both updaters are queued and executed
-      // Effect #1: updater(0) => 0 + 1 = 1
-      // Effect #2: updater(0) => 0 + 2 = 2, but then runs TWICE more with prev=1
+      // Tap behavior: Both updaters are queued and executed, first value kept per dispatch
+      // Updater double-invoke happens per-dispatch (matching React ordering)
+      // Effect #1: updater(0) => 0 + 1 = 1 (kept)
+      // Effect #2: updater(0) => 0 + 2 = 2... but prev=1 from effect #1
       // Final: 3
       expect(events).toEqual([
         "render count=0",

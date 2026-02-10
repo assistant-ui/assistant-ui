@@ -4,6 +4,7 @@ import { isDevelopment } from "../../core/helpers/env";
 import { tapRef } from "../../hooks/tap-ref";
 import { tapState } from "../../hooks/tap-state";
 import { tapEffect } from "../../hooks/tap-effect";
+import { tapMemo } from "../../hooks/tap-memo";
 import { tapResource } from "../../hooks/tap-resource";
 import { createResourceRoot } from "../../core/createResourceRoot";
 import { withKey } from "../../core/withKey";
@@ -11,6 +12,68 @@ import { withKey } from "../../core/withKey";
 describe("Strict Mode", () => {
   it("should be in development", () => {
     expect(isDevelopment).toBe(true);
+  });
+
+  it("should persist tapMemo cache across strict mode double render", () => {
+    const events: string[] = [];
+    let outerCount = 0;
+    let memoCount = 0;
+
+    const TestResource = resource(() => {
+      const idx = outerCount++;
+      events.push(`outer-${idx}`);
+
+      tapMemo(() => {
+        events.push(`memo-${memoCount++}`);
+        return {};
+      }, []);
+
+      events.push(`outerend-${idx}`);
+    });
+
+    const root = createResourceRoot();
+    root.render(TestResource());
+
+    console.log("Events:", events);
+
+    // tapMemo factory runs twice during first render (strict mode double-call)
+    // but should NOT run during second render (cache should persist)
+    expect(events).toEqual([
+      "outer-0",
+      "memo-0",
+      "memo-1",
+      "outerend-0",
+      "outer-1",
+      // no memo call here — cache should be reused
+      "outerend-1",
+    ]);
+  });
+
+  it("should double-invoke tapMemo factory and use the first result", () => {
+    const events: string[] = [];
+    let memoCallCount = 0;
+
+    const TestResource = resource(() => {
+      const memoValue = tapMemo(() => {
+        memoCallCount++;
+        events.push(`memo-${memoCallCount}`);
+        return memoCallCount;
+      }, []);
+
+      events.push(`render memoValue=${memoValue}`);
+    });
+
+    const root = createResourceRoot();
+    root.render(TestResource());
+
+    // Matches React useMemo behavior: factory is double-invoked,
+    // first result is kept
+    expect(events).toEqual([
+      "memo-1",
+      "memo-2",
+      "render memoValue=1",
+      "render memoValue=1",
+    ]);
   });
 
   it("should double-render on first render", () => {

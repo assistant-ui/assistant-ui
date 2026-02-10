@@ -9,7 +9,6 @@ import { tapResourceRoot } from "../tapResourceRoot";
 import { resource } from "./resource";
 import { isDevelopment } from "./helpers/env";
 import { flushResourcesSync, UpdateScheduler } from "./scheduler";
-import { commitRoot, resetRoot } from "./helpers/root";
 
 const SubscribableResource = resource(tapResourceRoot);
 
@@ -20,6 +19,7 @@ export const createResourceRoot = () => {
   >(
     SubscribableResource,
     {
+      version: 0,
       dispatchUpdate: (callback) => {
         new UpdateScheduler(() => {
           if (callback()) {
@@ -38,8 +38,6 @@ export const createResourceRoot = () => {
 
   return {
     render: <R, P>(element: ResourceElement<R, P>) => {
-      resetRoot(fiber.root);
-
       // In strict mode, render twice to detect side effects
       if (isDevelopment && fiber.devStrictMode === "root") {
         void renderResourceFiber(fiber, element);
@@ -47,7 +45,6 @@ export const createResourceRoot = () => {
 
       const render = renderResourceFiber(fiber, element);
 
-      commitRoot(fiber.root);
       flushResourcesSync(() => commitResourceFiber(fiber, render));
 
       return render.output;

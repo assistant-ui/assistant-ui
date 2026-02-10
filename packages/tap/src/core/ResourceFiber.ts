@@ -69,6 +69,8 @@ export function commitResourceFiber<R, P>(
   fiber.isMounted = true;
 
   if (isDevelopment && fiber.isNeverMounted && fiber.devStrictMode === "root") {
+    fiber.isNeverMounted = false;
+
     commitAllEffects(result);
     cleanupAllEffects(fiber);
   }

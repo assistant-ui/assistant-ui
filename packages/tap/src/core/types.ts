@@ -28,7 +28,7 @@ export type Cell =
       readonly type: "reducer";
       readonly dispatch: (action: any) => void;
 
-      readonly queue: ReducerQueueEntry[];
+      readonly queue: Set<ReducerQueueEntry>;
       dirty: boolean;
       workInProgress: any;
       current: any;
@@ -53,6 +53,7 @@ export interface RenderResult {
 }
 
 export interface ResourceFiberRoot {
+  version: number;
   readonly dispatchUpdate: (callback: () => boolean) => void;
   readonly dirtyCells: (Cell & { type: "reducer" })[];
 }

@@ -11,7 +11,7 @@ import {
   commitResourceFiber,
 } from "../core/ResourceFiber";
 import { isDevelopment } from "../core/helpers/env";
-import { commitRoot, resetRoot } from "../core/helpers/root";
+import { commitRoot, setRootVersion } from "../core/helpers/root";
 
 const useDevStrictMode = () => {
   if (!isDevelopment) return null;
@@ -28,16 +28,17 @@ export function useResource<E extends ResourceElement<any, any>>(
 ): ExtractResourceReturnType<E> {
   const root = useMemo<ResourceFiberRoot>(() => {
     return {
+      version: 0,
       dispatchUpdate: (cb) => dispatch(cb),
       dirtyCells: [],
     };
   }, []);
 
-  resetRoot(root);
-  const [, dispatch] = useReducer(
-    (v: number, cb: () => boolean) => v + (cb() ? 1 : 0),
-    0,
-  );
+  const [version, dispatch] = useReducer((v: number, cb: () => boolean) => {
+    setRootVersion(root, v);
+    return v + (cb() ? 1 : 0);
+  }, 0);
+  setRootVersion(root, version);
 
   const devStrictMode = useDevStrictMode();
   const fiber = useMemo(() => {

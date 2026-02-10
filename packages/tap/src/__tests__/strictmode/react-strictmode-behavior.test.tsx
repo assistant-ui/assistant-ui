@@ -5,7 +5,15 @@
 
 import { describe, it, expect } from "vitest";
 import { render } from "@testing-library/react";
-import { StrictMode, useState, useEffect, useMemo, useRef } from "react";
+import { act } from "react";
+import {
+  StrictMode,
+  useState,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+} from "react";
 
 describe("React Strict Mode Behavior Verification", () => {
   describe("Test 1: Effect + setState behavior in strict mode", () => {
@@ -489,7 +497,222 @@ describe("React Strict Mode Behavior Verification", () => {
     });
   });
 
-  describe("Test 5: setState in effect - strict mode edge cases", () => {
+  describe("Test 5: useMemo strict mode behavior", () => {
+    it("should double-invoke useMemo factory and use the first result", () => {
+      const events: string[] = [];
+      let memoCallCount = 0;
+
+      function TestComponent() {
+        const memoValue = useMemo(() => {
+          memoCallCount++;
+          events.push(`memo-${memoCallCount}`);
+          return memoCallCount;
+        }, []);
+
+        events.push(`render memoValue=${memoValue}`);
+
+        return <div>{memoValue}</div>;
+      }
+
+      render(
+        <StrictMode>
+          <TestComponent />
+        </StrictMode>,
+      );
+
+      expect(events).toEqual([
+        "memo-1",
+        "memo-2",
+        "render memoValue=1",
+        "render memoValue=1",
+      ]);
+    });
+  });
+
+  describe("Test 6: useReducer strict mode behavior", () => {
+    it("should double-invoke useReducer initializer and use the first result", () => {
+      const events: string[] = [];
+      let initCallCount = 0;
+
+      function TestComponent() {
+        const [state] = useReducer(
+          (s: number, a: number) => s + a,
+          0,
+          (arg) => {
+            initCallCount++;
+            events.push(`init-${initCallCount}`);
+            return arg + initCallCount * 10;
+          },
+        );
+
+        events.push(`render state=${state}`);
+
+        return <div>{state}</div>;
+      }
+
+      render(
+        <StrictMode>
+          <TestComponent />
+        </StrictMode>,
+      );
+
+      expect(events).toEqual([
+        "init-1",
+        "init-2",
+        "render state=10",
+        "render state=10",
+      ]);
+    });
+
+    it("should double-invoke useReducer reducer on dispatch and use the first result", () => {
+      const events: string[] = [];
+      let reducerCallCount = 0;
+
+      function TestComponent() {
+        const [state, dispatch] = useReducer(
+          (s: number, _a: number) => {
+            reducerCallCount++;
+            const result = reducerCallCount * 100;
+            events.push(`reducer-${reducerCallCount} state=${s} -> ${result}`);
+            return result;
+          },
+          0,
+        );
+
+        events.push(`render state=${state}`);
+
+        useEffect(() => {
+          if (state === 0) {
+            events.push("dispatch");
+            dispatch(1);
+          }
+        }, [state]);
+
+        return <div>{state}</div>;
+      }
+
+      render(
+        <StrictMode>
+          <TestComponent />
+        </StrictMode>,
+      );
+
+      // React behavior: reducer is called 4 times (2 dispatches × 2 strict mode double-calls)
+      // Dispatch #1 (effect mount): reducer called twice, SECOND result (200) kept
+      // Dispatch #2 (effect remount): reducer called twice, SECOND result (400) kept
+      // Note: this is opposite to useMemo/useState which keep the FIRST result!
+      expect(reducerCallCount).toBe(4);
+      expect(events).toEqual([
+        "render state=0",
+        "render state=0",
+        "dispatch",
+        "dispatch",
+        "reducer-1 state=0 -> 100",
+        "reducer-2 state=0 -> 200",
+        "reducer-3 state=200 -> 300",
+        "reducer-4 state=200 -> 400",
+        "render state=400",
+        "render state=400",
+      ]);
+    });
+  });
+
+  describe("Test 7: useState/useReducer dispatch double-invoke (isolated from effects)", () => {
+    it("should double-invoke useState updater and use the first result", () => {
+      const events: string[] = [];
+      let updaterCallCount = 0;
+      let setCountRef: ((fn: (prev: number) => number) => void) | null = null;
+
+      function TestComponent() {
+        const [count, setCount] = useState(0);
+        setCountRef = setCount;
+
+        events.push(`render count=${count}`);
+
+        return <div>{count}</div>;
+      }
+
+      render(
+        <StrictMode>
+          <TestComponent />
+        </StrictMode>,
+      );
+
+      events.length = 0;
+      updaterCallCount = 0;
+
+      act(() => {
+        setCountRef!((prev) => {
+          updaterCallCount++;
+          const result = updaterCallCount * 100;
+          events.push(
+            `updater-${updaterCallCount} prev=${prev} -> ${result}`,
+          );
+          return result;
+        });
+      });
+
+      // useState updater is double-invoked, FIRST result kept
+      // (same as useMemo/useState init — NOT like useReducer dispatch!)
+      expect(updaterCallCount).toBe(2);
+      expect(events).toEqual([
+        "updater-1 prev=0 -> 100",
+        "updater-2 prev=0 -> 200",
+        "render count=100",
+        "render count=100",
+      ]);
+    });
+
+    it("should double-invoke useReducer reducer and use the first result", () => {
+      const events: string[] = [];
+      let reducerCallCount = 0;
+      let dispatchRef: ((a: number) => void) | null = null;
+
+      function TestComponent() {
+        const [state, dispatch] = useReducer(
+          (s: number, _a: number) => {
+            reducerCallCount++;
+            const result = reducerCallCount * 100;
+            events.push(
+              `reducer-${reducerCallCount} state=${s} -> ${result}`,
+            );
+            return result;
+          },
+          0,
+        );
+        dispatchRef = dispatch;
+
+        events.push(`render state=${state}`);
+
+        return <div>{state}</div>;
+      }
+
+      render(
+        <StrictMode>
+          <TestComponent />
+        </StrictMode>,
+      );
+
+      events.length = 0;
+      reducerCallCount = 0;
+
+      act(() => {
+        dispatchRef!(1);
+      });
+
+      // useReducer reducer is double-invoked, SECOND result kept!
+      // This differs from useState updater which keeps the FIRST result.
+      expect(reducerCallCount).toBe(2);
+      expect(events).toEqual([
+        "reducer-1 state=0 -> 100",
+        "reducer-2 state=0 -> 200",
+        "render state=200",
+        "render state=200",
+      ]);
+    });
+  });
+
+  describe("Test 8: setState in effect - strict mode edge cases", () => {
     it("should verify which setState is applied when effect calls setState only on first mount", () => {
       const events: string[] = [];
       let effectRunCount = 0;

@@ -13,13 +13,11 @@ export const dispatchOnFiber = (
   if (fiber.renderContext) {
     throw new Error("Resource updated during render");
   }
-
-  if (fiber.isMounted) {
-    // Only schedule rerender if currently mounted
-    fiber.root.dispatchUpdate(callback);
-  } else if (fiber.isNeverMounted) {
+  if (fiber.isNeverMounted) {
     throw new Error("Resource updated before mount");
   }
+
+  fiber.root.dispatchUpdate(callback);
 };
 
 function tapReducerImpl<S, A, I, R extends S>(
@@ -40,39 +38,28 @@ function tapReducerImpl<S, A, I, R extends S>(
 
     const newCell: Cell & { type: "reducer" } = {
       type: "reducer",
-      queue: [],
+      queue: new Set(),
       dirty: false,
       workInProgress: initialState,
       current: initialState,
       reducer: reducer,
       dispatch: (action: A) => {
-        dispatchOnFiber(fiber, () => {
-          const canRunEager = fiber.root.dirtyCells.length === 0;
-          if (canRunEager) {
-            if (
-              isDevelopment &&
-              fiber.devStrictMode &&
-              typeof action === "function"
-            ) {
-              void newCell.reducer(newCell.workInProgress, action);
-            }
-            const nextValue = newCell.reducer(newCell.workInProgress, action);
-            if (Object.is(newCell.current, nextValue)) return false;
+        const entry = {
+          action,
+          hasEagerState: false,
+          eagerState: undefined,
+        };
 
-            markCellDirty(fiber, newCell);
-            cell.queue.push({
-              action,
-              hasEagerState: true,
-              eagerState: nextValue as S,
-            });
-          } else {
-            markCellDirty(fiber, newCell);
-            cell.queue.push({
-              action,
-              hasEagerState: false,
-              eagerState: undefined,
-            });
+        dispatchOnFiber(fiber, () => {
+          if (fiber.root.dirtyCells.length === 0 && !entry.hasEagerState) {
+            entry.eagerState = newCell.reducer(newCell.workInProgress, action);
+            entry.hasEagerState = true;
+
+            if (Object.is(newCell.current, entry.eagerState)) return false;
           }
+
+          markCellDirty(fiber, newCell);
+          cell.queue.add(entry);
 
           return true;
         });
@@ -88,21 +75,17 @@ function tapReducerImpl<S, A, I, R extends S>(
 
   for (const item of cell.queue) {
     if (!item.hasEagerState || !sameReducer) {
-      if (
-        isDevelopment &&
-        fiber.devStrictMode &&
-        typeof item.action === "function"
-      ) {
-        void reducer(cell.workInProgress, item.action);
-      }
-
       item.eagerState = reducer(cell.workInProgress, item.action);
       item.hasEagerState = true;
     }
 
+    if (isDevelopment && fiber.devStrictMode) {
+      void reducer(cell.workInProgress, item.action);
+    }
+
     cell.workInProgress = item.eagerState;
   }
-  cell.queue.length = 0;
+  cell.queue.clear();
 
   if (getDerivedState) {
     const derived = getDerivedState(cell.workInProgress);
