@@ -1,10 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   init,
-  buildCreateArgsForInitFallback,
   createExistingProjectInitPlan,
   isNonInteractiveShell,
 } from "../../src/commands/init";
+import { create } from "../../src/commands/create";
 
 describe("init command", () => {
   it("defaults --yes to false for interactive human flow", () => {
@@ -64,35 +64,37 @@ describe("init command", () => {
     expect(isNonInteractiveShell(true)).toBe(false);
   });
 
-  it("builds forwarded create args when no existing project is found", () => {
-    const args = buildCreateArgsForInitFallback({
-      projectDirectory: "my-app",
-      usePnpm: true,
-      skipInstall: true,
+  it("delegates to create.parseAsync with correct args when no package.json exists", async () => {
+    const parseAsyncSpy = vi
+      .spyOn(create, "parseAsync")
+      .mockResolvedValue(create);
+
+    await init.parseAsync(["node", "init", "my-app", "--use-pnpm"], {
+      from: "node",
     });
 
-    expect(args).toEqual([
-      "assistant-ui@latest",
-      "create",
-      "my-app",
-      "--use-pnpm",
-      "--skip-install",
-    ]);
+    expect(parseAsyncSpy).toHaveBeenCalledWith(["my-app", "--use-pnpm"], {
+      from: "user",
+    });
+
+    parseAsyncSpy.mockRestore();
   });
 
-  it("forwards preset to create and defaults directory to current directory", () => {
-    const args = buildCreateArgsForInitFallback({
-      preset: "https://example.com/preset.json",
-      usePnpm: true,
-    });
+  it("delegates to create.parseAsync with preset args", async () => {
+    const parseAsyncSpy = vi
+      .spyOn(create, "parseAsync")
+      .mockResolvedValue(create);
 
-    expect(args).toEqual([
-      "assistant-ui@latest",
-      "create",
-      ".",
-      "--use-pnpm",
-      "--preset",
-      "https://example.com/preset.json",
-    ]);
+    await init.parseAsync(
+      ["node", "init", "--preset", "https://example.com/preset.json"],
+      { from: "node" },
+    );
+
+    expect(parseAsyncSpy).toHaveBeenCalledWith(
+      ["--preset", "https://example.com/preset.json"],
+      { from: "user" },
+    );
+
+    parseAsyncSpy.mockRestore();
   });
 });

@@ -3,6 +3,7 @@ import { spawn } from "cross-spawn";
 import fs from "node:fs";
 import path from "node:path";
 import { logger } from "../lib/utils/logger";
+import { create } from "./create";
 
 const DEFAULT_REGISTRY_URL =
   "https://r.assistant-ui.com/chat/b/ai-sdk-quick-start/json";
@@ -48,37 +49,6 @@ export function isNonInteractiveShell(
   stdinIsTTY = process.stdin.isTTY,
 ): boolean {
   return !stdinIsTTY;
-}
-
-export function buildCreateArgsForInitFallback(params: {
-  projectDirectory?: string;
-  preset?: string;
-  useNpm?: boolean;
-  usePnpm?: boolean;
-  useYarn?: boolean;
-  useBun?: boolean;
-  skipInstall?: boolean;
-}): string[] {
-  const {
-    projectDirectory,
-    preset,
-    useNpm,
-    usePnpm,
-    useYarn,
-    useBun,
-    skipInstall,
-  } = params;
-  const createArgs = ["assistant-ui@latest", "create"];
-  const forwardedProjectDirectory =
-    projectDirectory ?? (preset ? "." : undefined);
-  if (forwardedProjectDirectory) createArgs.push(forwardedProjectDirectory);
-  if (useNpm) createArgs.push("--use-npm");
-  if (usePnpm) createArgs.push("--use-pnpm");
-  if (useYarn) createArgs.push("--use-yarn");
-  if (useBun) createArgs.push("--use-bun");
-  if (skipInstall) createArgs.push("--skip-install");
-  if (preset) createArgs.push("--preset", preset);
-  return createArgs;
 }
 
 async function runSpawn(
@@ -147,28 +117,21 @@ export const init = new Command()
     const packageJsonExists = fs.existsSync(packageJsonPath);
 
     if (presetUrl || !packageJsonExists) {
-      if (presetUrl) {
-        logger.info(
-          "Detected '--preset' on 'assistant-ui init'. Forwarding to 'assistant-ui create'...",
-        );
-      } else {
-        logger.info(
-          "No existing project found. Running 'assistant-ui create' instead...",
-        );
+      if (!presetUrl) {
+        logger.info("No existing project found. Running 'create' instead...");
+        logger.break();
       }
-      logger.break();
 
-      const createArgs = buildCreateArgsForInitFallback({
-        projectDirectory,
-        ...(presetUrl ? { preset: presetUrl } : {}),
-        useNpm: opts.useNpm,
-        usePnpm: opts.usePnpm,
-        useYarn: opts.useYarn,
-        useBun: opts.useBun,
-        skipInstall: opts.skipInstall,
-      });
+      const createArgs: string[] = [];
+      if (projectDirectory) createArgs.push(projectDirectory);
+      if (presetUrl) createArgs.push("--preset", presetUrl);
+      if (opts.useNpm) createArgs.push("--use-npm");
+      if (opts.usePnpm) createArgs.push("--use-pnpm");
+      if (opts.useYarn) createArgs.push("--use-yarn");
+      if (opts.useBun) createArgs.push("--use-bun");
+      if (opts.skipInstall) createArgs.push("--skip-install");
 
-      await runSpawn("npx", createArgs, cwd);
+      await create.parseAsync(createArgs, { from: "user" });
       return;
     }
 
