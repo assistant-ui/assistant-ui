@@ -120,7 +120,7 @@ export const analytics = {
     createDialogOpened: () => trackEvent("builder_create_dialog_opened"),
 
     commandCopied: (
-      commandType: "init" | "shadcn" | "manual_init" | "manual_add",
+      commandType: "create" | "shadcn" | "manual_init" | "manual_add",
     ) => trackEvent("builder_command_copied", { command_type: commandType }),
 
     codeCopied: () => trackEvent("builder_code_copied"),

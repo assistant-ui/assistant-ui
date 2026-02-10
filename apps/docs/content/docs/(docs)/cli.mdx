@@ -51,10 +51,12 @@ This command uses `create-next-app` with assistant-ui starter templates.
 
 | Template | Description | Command |
 |----------|-------------|---------|
-| `default` | Basic setup with Vercel AI SDK | `npx assistant-ui create` |
-| `cloud` | With Assistant Cloud for persistence | `npx assistant-ui create -t cloud` |
-| `langgraph` | LangGraph integration | `npx assistant-ui create -t langgraph` |
-| `mcp` | Model Context Protocol support | `npx assistant-ui create -t mcp` |
+| `default` | Default template with Vercel AI SDK | `npx assistant-ui create` |
+| `minimal` | Bare-bones starting point | `npx assistant-ui create -t minimal` |
+| `cloud` | Cloud-backed persistence starter | `npx assistant-ui create -t cloud` |
+| `cloud-clerk` | Cloud-backed starter with Clerk auth | `npx assistant-ui create -t cloud-clerk` |
+| `langgraph` | LangGraph starter template | `npx assistant-ui create -t langgraph` |
+| `mcp` | MCP starter template | `npx assistant-ui create -t mcp` |
 
 **Available Examples**
 
@@ -85,6 +87,9 @@ npx assistant-ui@latest create my-app
 # Create with cloud template
 npx assistant-ui@latest create my-app -t cloud
 
+# Create with cloud + clerk template
+npx assistant-ui@latest create my-app -t cloud-clerk
+
 # Create from an example
 npx assistant-ui@latest create my-app --example with-langgraph
 
@@ -106,7 +111,7 @@ Arguments:
   project-directory         name of the project directory
 
 Options:
-  -t, --template <template>  template to use (default, cloud, langgraph, mcp)
+  -t, --template <template>  template to use (default, minimal, cloud, cloud-clerk, langgraph, mcp)
   -e, --example <example>    create from an example (e.g., with-langgraph)
   --use-npm                  explicitly use npm
   --use-pnpm                 explicitly use pnpm

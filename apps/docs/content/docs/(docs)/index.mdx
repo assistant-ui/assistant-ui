@@ -38,13 +38,19 @@ npx assistant-ui@latest create
 This creates a new project with everything configured. Or choose a template:
 
 ```sh
+# Minimal starter
+npx assistant-ui@latest create -t minimal
+
 # Assistant Cloud - with persistence and thread management
 npx assistant-ui@latest create -t cloud
 
-# LangGraph
+# Assistant Cloud + Clerk authentication
+npx assistant-ui@latest create -t cloud-clerk
+
+# LangGraph starter template
 npx assistant-ui@latest create -t langgraph
 
-# MCP support
+# MCP starter template
 npx assistant-ui@latest create -t mcp
 ```
 

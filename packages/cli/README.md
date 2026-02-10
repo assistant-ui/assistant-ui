@@ -4,13 +4,17 @@ The `assistant-ui` CLI for adding components and dependencies to your project.
 
 ## Usage
 
-Use the `init` command to initialize dependencies for a new or existing project.
+Use the `init` command to initialize assistant-ui in an existing project.
 
 The `init` command installs dependencies, adds components, and configures your project for assistant-ui.
 
 ```bash
 npx assistant-ui@latest init
+npx assistant-ui@latest init --yes  # non-interactive / CI / agent mode
 ```
+
+If no existing project is found (no `package.json`), `init` forwards to `create`.
+Passing `--preset` to `init` also forwards to `create` for compatibility.
 
 ## create
 
@@ -28,14 +32,23 @@ You can choose from multiple templates:
 # Default template with Vercel AI SDK
 npx assistant-ui@latest create my-app
 
+# Minimal starter
+npx assistant-ui@latest create my-app -t minimal
+
 # With Assistant Cloud for persistence
 npx assistant-ui@latest create my-app -t cloud
 
-# With LangGraph integration
+# With Assistant Cloud + Clerk auth
+npx assistant-ui@latest create my-app -t cloud-clerk
+
+# With LangGraph starter template
 npx assistant-ui@latest create my-app -t langgraph
 
-# With MCP support
+# With MCP starter template
 npx assistant-ui@latest create my-app -t mcp
+
+# With playground preset configuration
+npx assistant-ui@latest create my-app --preset "https://www.assistant-ui.com/playground/init?preset=chatgpt"
 ```
 
 ## add
