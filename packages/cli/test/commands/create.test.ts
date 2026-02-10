@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   buildCreateNextAppArgs,
   create,
+  resolveCreateProjectDirectory,
   resolveCreateTemplateName,
 } from "../../src/commands/create";
 
@@ -65,16 +66,10 @@ describe("create command template resolution", () => {
     ).resolves.toBeNull();
   });
 
-  it("strips template and preset flags before forwarding args to create-next-app", () => {
+  it("builds create-next-app args from parsed create options", () => {
     const args = buildCreateNextAppArgs({
-      commandArgs: [
-        "my-app",
-        "--use-pnpm",
-        "--template",
-        "cloud",
-        "--preset",
-        "https://example.com/preset.json",
-      ],
+      projectDirectory: "my-app",
+      usePnpm: true,
       templateUrl: "https://github.com/assistant-ui/assistant-cloud-starter",
     });
 
@@ -85,5 +80,30 @@ describe("create command template resolution", () => {
       "-e",
       "https://github.com/assistant-ui/assistant-cloud-starter",
     ]);
+  });
+
+  it("defaults project directory in non-interactive mode", () => {
+    expect(
+      resolveCreateProjectDirectory({
+        stdinIsTTY: false,
+      }),
+    ).toBe("my-aui-app");
+  });
+
+  it("does not force a project directory in interactive mode", () => {
+    expect(
+      resolveCreateProjectDirectory({
+        stdinIsTTY: true,
+      }),
+    ).toBeUndefined();
+  });
+
+  it("keeps provided project directory in non-interactive mode", () => {
+    expect(
+      resolveCreateProjectDirectory({
+        projectDirectory: "custom-app",
+        stdinIsTTY: false,
+      }),
+    ).toBe("custom-app");
   });
 });

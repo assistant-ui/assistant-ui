@@ -118,28 +118,45 @@ async function runSpawn(
 }
 
 export function buildCreateNextAppArgs(params: {
-  commandArgs: string[];
+  projectDirectory?: string;
+  useNpm?: boolean;
+  usePnpm?: boolean;
+  useYarn?: boolean;
+  useBun?: boolean;
+  skipInstall?: boolean;
   templateUrl: string;
 }): string[] {
-  const { commandArgs, templateUrl } = params;
+  const {
+    projectDirectory,
+    useNpm,
+    usePnpm,
+    useYarn,
+    useBun,
+    skipInstall,
+    templateUrl,
+  } = params;
 
-  const filteredArgs = commandArgs.filter((arg, index, arr) => {
-    const previousArg = arr[index - 1];
-    return !(
-      arg === "-t" ||
-      arg === "--template" ||
-      arg.startsWith("--template=") ||
-      previousArg === "-t" ||
-      previousArg === "--template" ||
-      arg === "-p" ||
-      arg === "--preset" ||
-      arg.startsWith("--preset=") ||
-      previousArg === "-p" ||
-      previousArg === "--preset"
-    );
-  });
+  const args = ["create-next-app@latest"];
+  if (projectDirectory) args.push(projectDirectory);
+  if (useNpm) args.push("--use-npm");
+  if (usePnpm) args.push("--use-pnpm");
+  if (useYarn) args.push("--use-yarn");
+  if (useBun) args.push("--use-bun");
+  if (skipInstall) args.push("--skip-install");
 
-  return ["create-next-app@latest", ...filteredArgs, "-e", templateUrl];
+  args.push("-e", templateUrl);
+  return args;
+}
+
+export function resolveCreateProjectDirectory(params: {
+  projectDirectory?: string;
+  stdinIsTTY?: boolean;
+}): string | undefined {
+  const { projectDirectory, stdinIsTTY = process.stdin.isTTY } = params;
+
+  if (projectDirectory) return projectDirectory;
+  if (!stdinIsTTY) return "my-aui-app";
+  return undefined;
 }
 
 function buildPresetAddArgs(presetUrl: string): string[] {
@@ -169,24 +186,28 @@ export const create = new Command()
   .option("--use-bun", "explicitly use bun")
   .option("--skip-install", "skip installing packages")
   .action(async (projectDirectory, opts) => {
+    const resolvedProjectDirectory = resolveCreateProjectDirectory({
+      projectDirectory,
+    });
+
     if (opts.example && opts.preset) {
       logger.error("Cannot use --preset with --example.");
       process.exit(1);
     }
 
-    if (opts.preset && !projectDirectory) {
+    if (opts.preset && !resolvedProjectDirectory) {
       logger.error("Project directory is required when using --preset.");
       process.exit(1);
     }
 
     // Handle --example option
     if (opts.example) {
-      if (!projectDirectory) {
+      if (!resolvedProjectDirectory) {
         logger.error("Project directory is required when using --example");
         process.exit(1);
       }
 
-      await createFromExample(projectDirectory, opts.example, {
+      await createFromExample(resolvedProjectDirectory, opts.example, {
         skipInstall: opts.skipInstall,
         useNpm: opts.useNpm,
         usePnpm: opts.usePnpm,
@@ -217,7 +238,14 @@ export const create = new Command()
     logger.break();
 
     const createNextAppArgs = buildCreateNextAppArgs({
-      commandArgs: process.argv.slice(3),
+      ...(resolvedProjectDirectory
+        ? { projectDirectory: resolvedProjectDirectory }
+        : {}),
+      ...(opts.useNpm ? { useNpm: true } : {}),
+      ...(opts.usePnpm ? { usePnpm: true } : {}),
+      ...(opts.useYarn ? { useYarn: true } : {}),
+      ...(opts.useBun ? { useBun: true } : {}),
+      ...(opts.skipInstall ? { skipInstall: true } : {}),
       templateUrl,
     });
 
@@ -225,12 +253,16 @@ export const create = new Command()
       await runSpawn("npx", createNextAppArgs);
 
       if (opts.preset) {
+        if (!resolvedProjectDirectory) {
+          logger.error("Project directory is required when using --preset.");
+          process.exit(1);
+        }
         logger.info("Applying preset configuration...");
         logger.break();
         await runSpawn(
           "npx",
           buildPresetAddArgs(opts.preset),
-          path.resolve(process.cwd(), projectDirectory),
+          path.resolve(process.cwd(), resolvedProjectDirectory),
         );
       }
 
