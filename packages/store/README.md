@@ -82,7 +82,7 @@ useAuiEvent("myClient.updated", (p) => console.log(p.id));
 | `tapClientResource(element)` | Wrap resource for event scoping (1:1 mappings) |
 | `tapClientLookup(map, fn, deps)` | Lookup by `{index}` or `{key}` |
 | `tapClientList(config)` | Dynamic list with add/remove |
-| `attachDefaultPeers(resource, peers)` | Attach default peers |
+| `attachTransformScopes(resource, fn)` | Attach scope transform |
 
 | Type | Description |
 |------|-------------|

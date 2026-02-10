@@ -2,7 +2,7 @@ import { resource, tapState, tapEffect, tapCallback } from "@assistant-ui/tap";
 import {
   tapAssistantClientRef,
   type ClientOutput,
-  attachDefaultPeers,
+  attachTransformScopes,
 } from "@assistant-ui/store";
 import { ToolsState } from "../types/scopes";
 import type { Tool } from "assistant-stream";
@@ -89,6 +89,9 @@ export const Tools = resource(
   },
 );
 
-attachDefaultPeers(Tools, {
-  modelContext: ModelContext(),
-});
+attachTransformScopes(Tools, (scopes, parent) => ({
+  ...scopes,
+  ...(scopes.modelContext || parent.modelContext.source !== null
+    ? {}
+    : { modelContext: ModelContext() }),
+}));

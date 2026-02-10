@@ -3,7 +3,7 @@ import {
   type ClientOutput,
   tapClientLookup,
   Derived,
-  attachDefaultPeers,
+  attachTransformScopes,
   tapClientResource,
 } from "@assistant-ui/store";
 import { withKey } from "@assistant-ui/tap";
@@ -168,23 +168,41 @@ export const InMemoryThreadList = resource(
   },
 );
 
-attachDefaultPeers(InMemoryThreadList, {
-  thread: Derived({
-    source: "threads",
-    query: { type: "main" },
-    get: (aui) => aui.threads().thread("main"),
-  }),
-  threadListItem: Derived({
-    source: "threads",
-    query: { type: "main" },
-    get: (aui) => aui.threads().item("main"),
-  }),
-  composer: Derived({
-    source: "thread",
-    query: {},
-    get: (aui) => aui.threads().thread("main").composer(),
-  }),
-  modelContext: ModelContext(),
-  tools: Tools({}),
-  suggestions: Suggestions(),
+attachTransformScopes(InMemoryThreadList, (scopes, parent) => {
+  const result = {
+    ...scopes,
+    thread:
+      scopes.thread ??
+      Derived({
+        source: "threads",
+        query: { type: "main" },
+        get: (aui) => aui.threads().thread("main"),
+      }),
+    threadListItem:
+      scopes.threadListItem ??
+      Derived({
+        source: "threads",
+        query: { type: "main" },
+        get: (aui) => aui.threads().item("main"),
+      }),
+    composer:
+      scopes.composer ??
+      Derived({
+        source: "thread",
+        query: {},
+        get: (aui) => aui.threads().thread("main").composer(),
+      }),
+  };
+
+  if (!result.modelContext && parent.modelContext.source === null) {
+    result.modelContext = ModelContext();
+  }
+  if (!result.tools && parent.tools.source === null) {
+    result.tools = Tools({});
+  }
+  if (!result.suggestions && parent.suggestions.source === null) {
+    result.suggestions = Suggestions();
+  }
+
+  return result;
 });

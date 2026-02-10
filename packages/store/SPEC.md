@@ -33,7 +33,7 @@ type AssistantState = { [K]: ReturnType<ClientSchemas[K]["methods"]["getState"]>
 useAui(): AssistantClient;
 useAui(clients: { [K]?: ClientElement<K> | DerivedElement<K> }): AssistantClient;
 ```
-Flow: splitClients → gather default peers → mount root clients → create derived accessors → merge with parent.
+Flow: splitClients → apply transformScopes → mount root clients → create derived accessors → merge with parent.
 
 ### useAuiState
 ```typescript
@@ -60,13 +60,11 @@ Derived<K>({ getMeta: (client) => { source, query }, get });
 ```
 Returns marker element. `get` uses `tapEffectEvent` - always calls latest closure.
 
-### attachDefaultPeers
+### attachTransformScopes
 ```typescript
-attachDefaultPeers(resource, { [K]: ClientElement<K> | DerivedElement<K> }): void;
+attachTransformScopes(resource, (scopes, parent) => newScopes): void;
 ```
-Applied if scope not in parent, user input, or previous peers. First wins; throws on duplicate attach.
-
-**Peer Flattening**: Nested default peers are automatically flattened. If a peer has its own default peers, they are recursively gathered and added at the same level. This prevents nesting issues while maintaining the "first wins" rule.
+Attaches a function that receives the current scopes config and the parent `AssistantClient`, and returns a new scopes config. The transform can inspect `parent[key].source` to check whether a scope exists in parent context (`null` = not provided). Transforms are collected from root elements and run iteratively (new root elements added by transforms are also processed). Single transform per resource; throws on duplicate attach.
 
 ### tapAssistantClientRef / tapAssistantEmit
 ```typescript
@@ -118,14 +116,14 @@ Flow: `tapAssistantEmit` captures client stack → `emit` queues via microtask �
 | **ProxiedState** | Proxy intercepts `state.foo` → `aui.foo()` → `SYMBOL_GET_OUTPUT` |
 | **Client Stack** | Context stack per level. Emit captures stack. Listeners filter by matching stack |
 | **NotificationManager** | Handles events (`on`/`emit`) and state subscriptions (`subscribe`/`notifySubscribers`) |
-| **splitClients** | Separate root/derived → recursively gather and flatten `getDefaultPeers` → filter by existence (first wins) |
+| **splitClients** | Separate root/derived → collect and run `transformScopes` iteratively → filter parent-provided scopes |
 
 ## Design
 
 | Audience | API Surface |
 |----------|-------------|
 | Users | `useAui`, `useAuiState`, `useAuiEvent`, `AuiProvider`, `AuiIf`, `Derived` |
-| Authors | Above + `tap*`, `attachDefaultPeers`, `ClientOutput`, `ScopeRegistry` |
+| Authors | Above + `tap*`, `attachTransformScopes`, `ClientOutput`, `ScopeRegistry` |
 | Internal | `utils/*` |
 
 **Terminology**: Client (React Query pattern), methods (not actions), meta (optional source/query), events (optional).
@@ -137,4 +135,4 @@ Flow: `tapAssistantEmit` captures client stack → `emit` queues via microtask �
 3. Events: `"clientName.eventName"` format
 4. `meta.source` must be valid `ClientNames`
 5. `useAuiState` selector cannot return whole state
-6. Default peers: first definition wins, no override
+6. Single transformScopes per resource; transform receives `(scopes, parent)` to inspect parent context

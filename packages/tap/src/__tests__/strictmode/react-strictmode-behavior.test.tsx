@@ -569,15 +569,12 @@ describe("React Strict Mode Behavior Verification", () => {
       let reducerCallCount = 0;
 
       function TestComponent() {
-        const [state, dispatch] = useReducer(
-          (s: number, _a: number) => {
-            reducerCallCount++;
-            const result = reducerCallCount * 100;
-            events.push(`reducer-${reducerCallCount} state=${s} -> ${result}`);
-            return result;
-          },
-          0,
-        );
+        const [state, dispatch] = useReducer((s: number, _a: number) => {
+          reducerCallCount++;
+          const result = reducerCallCount * 100;
+          events.push(`reducer-${reducerCallCount} state=${s} -> ${result}`);
+          return result;
+        }, 0);
 
         events.push(`render state=${state}`);
 
@@ -645,9 +642,7 @@ describe("React Strict Mode Behavior Verification", () => {
         setCountRef!((prev) => {
           updaterCallCount++;
           const result = updaterCallCount * 100;
-          events.push(
-            `updater-${updaterCallCount} prev=${prev} -> ${result}`,
-          );
+          events.push(`updater-${updaterCallCount} prev=${prev} -> ${result}`);
           return result;
         });
       });
@@ -669,17 +664,12 @@ describe("React Strict Mode Behavior Verification", () => {
       let dispatchRef: ((a: number) => void) | null = null;
 
       function TestComponent() {
-        const [state, dispatch] = useReducer(
-          (s: number, _a: number) => {
-            reducerCallCount++;
-            const result = reducerCallCount * 100;
-            events.push(
-              `reducer-${reducerCallCount} state=${s} -> ${result}`,
-            );
-            return result;
-          },
-          0,
-        );
+        const [state, dispatch] = useReducer((s: number, _a: number) => {
+          reducerCallCount++;
+          const result = reducerCallCount * 100;
+          events.push(`reducer-${reducerCallCount} state=${s} -> ${result}`);
+          return result;
+        }, 0);
         dispatchRef = dispatch;
 
         events.push(`render state=${state}`);

@@ -18,7 +18,7 @@ src/
 ├── useAuiEvent.ts                   # Event subscription
 ├── AuiIf.tsx                        # Conditional render
 ├── Derived.ts                       # Derived client marker
-├── attachDefaultPeers.ts            # Default peer attachment
+├── attachTransformScopes.ts          # Scope transforms (attachTransformScopes)
 ├── tapClientResource.ts             # Client proxy wrapper for event scoping
 ├── tapClientLookup.ts               # Index/key lookup: {state[], get()}
 ├── tapClientList.ts                 # Dynamic lists: {state[], get(), add()}
@@ -39,7 +39,7 @@ Above plus:
 tapAssistantClientRef()      tapAssistantEmit()
 tapClientResource(element)   tapClientLookup(getElements, deps)
 tapClientList({ initialValues, getKey, resource })
-attachDefaultPeers()         ClientOutput<K>  ScopeRegistry
+attachTransformScopes()  ClientOutput<K>  ScopeRegistry
 ```
 
 ## Patterns
@@ -81,7 +81,7 @@ const list = tapClientList({
 
 ### useAui Flow
 ```
-splitClients → gather default peers → mount root clients → create derived accessors → merge
+splitClients → apply transformScopes → mount root clients → create derived accessors → merge
 ```
 
 ## Invariants
@@ -90,7 +90,7 @@ splitClients → gather default peers → mount root clients → create derived 
 2. `useAuiState` requires selector (throws if returning whole state)
 3. Event names: `"clientName.eventName"`
 4. Derived needs `source`, `query`, `get` (or `getMeta`)
-5. Default peers: first definition wins
+5. Single transformScopes per resource; transform receives `(scopes, parent)` to inspect parent context
 
 ## Design
 

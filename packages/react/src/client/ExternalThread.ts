@@ -8,7 +8,7 @@ import {
 import {
   type ClientOutput,
   tapClientLookup,
-  attachDefaultPeers,
+  attachTransformScopes,
   tapClientResource,
   Derived,
 } from "@assistant-ui/store";
@@ -475,13 +475,27 @@ export const ExternalThread = resource(
   },
 );
 
-attachDefaultPeers(ExternalThread, {
-  modelContext: ModelContext(),
-  tools: Tools({}),
-  suggestions: Suggestions(),
-  composer: Derived({
-    source: "thread",
-    query: {},
-    get: (aui) => aui.thread().composer(),
-  }),
+attachTransformScopes(ExternalThread, (scopes, parent) => {
+  const result = {
+    ...scopes,
+    composer:
+      scopes.composer ??
+      Derived({
+        source: "thread",
+        query: {},
+        get: (aui) => aui.thread().composer(),
+      }),
+  };
+
+  if (!result.modelContext && parent.modelContext.source === null) {
+    result.modelContext = ModelContext();
+  }
+  if (!result.tools && parent.tools.source === null) {
+    result.tools = Tools({});
+  }
+  if (!result.suggestions && parent.suggestions.source === null) {
+    result.suggestions = Suggestions();
+  }
+
+  return result;
 });

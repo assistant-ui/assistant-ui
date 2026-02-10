@@ -9,7 +9,8 @@ export { AuiProvider } from "./utils/react-assistant-context";
 
 // resources
 export { Derived } from "./Derived";
-export { attachDefaultPeers } from "./attachDefaultPeers";
+export { attachTransformScopes } from "./attachTransformScopes";
+export type { ScopesConfig } from "./attachTransformScopes";
 
 // tap hooks
 export {
@@ -34,4 +35,3 @@ export type {
   AssistantEventSelector,
   AssistantEventScope,
 } from "./types/events";
-export type { DefaultPeers } from "./attachDefaultPeers";

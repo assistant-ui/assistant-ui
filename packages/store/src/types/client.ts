@@ -74,22 +74,23 @@ type ClientError<E extends string> = {
   events: Record<`${E}.`, E>;
 };
 
-type ValidateClient<K extends keyof ScopeRegistry> =
-  ScopeRegistry[K] extends { methods: ClientMethods }
-    ? "meta" extends keyof ScopeRegistry[K]
-      ? ScopeRegistry[K]["meta"] extends ClientMetaType
-        ? "events" extends keyof ScopeRegistry[K]
-          ? ScopeRegistry[K]["events"] extends ClientEventsType<K>
-            ? ScopeRegistry[K]
-            : ClientError<`ERROR: ${K & string} has invalid events type`>
-          : ScopeRegistry[K]
-        : ClientError<`ERROR: ${K & string} has invalid meta type`>
-      : "events" extends keyof ScopeRegistry[K]
+type ValidateClient<K extends keyof ScopeRegistry> = ScopeRegistry[K] extends {
+  methods: ClientMethods;
+}
+  ? "meta" extends keyof ScopeRegistry[K]
+    ? ScopeRegistry[K]["meta"] extends ClientMetaType
+      ? "events" extends keyof ScopeRegistry[K]
         ? ScopeRegistry[K]["events"] extends ClientEventsType<K>
           ? ScopeRegistry[K]
           : ClientError<`ERROR: ${K & string} has invalid events type`>
         : ScopeRegistry[K]
-    : ClientError<`ERROR: ${K & string} has invalid methods type`>;
+      : ClientError<`ERROR: ${K & string} has invalid meta type`>
+    : "events" extends keyof ScopeRegistry[K]
+      ? ScopeRegistry[K]["events"] extends ClientEventsType<K>
+        ? ScopeRegistry[K]
+        : ClientError<`ERROR: ${K & string} has invalid events type`>
+      : ScopeRegistry[K]
+  : ClientError<`ERROR: ${K & string} has invalid methods type`>;
 
 type ClientSchemas = keyof ScopeRegistry extends never
   ? {
