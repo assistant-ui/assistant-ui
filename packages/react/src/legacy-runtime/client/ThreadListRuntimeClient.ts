@@ -1,9 +1,4 @@
-import {
-  withKey,
-  resource,
-  tapInlineResource,
-  tapMemo,
-} from "@assistant-ui/tap";
+import { withKey, resource, tapResource, tapMemo } from "@assistant-ui/tap";
 import {
   type ClientOutput,
   tapClientLookup,
@@ -22,7 +17,7 @@ const ThreadListItemClientById = resource(
       () => runtime.getItemById(id),
       [runtime, id],
     );
-    return tapInlineResource(
+    return tapResource(
       ThreadListItemClient({
         runtime: threadListItemRuntime,
       }),

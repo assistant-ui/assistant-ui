@@ -2,7 +2,7 @@ import { ThreadRuntimeEventType } from "../runtime-cores/core/ThreadRuntimeCore"
 import { ThreadRuntime } from "../runtime/ThreadRuntime";
 import {
   resource,
-  tapInlineResource,
+  tapResource,
   tapMemo,
   tapEffect,
   type tapRef,
@@ -35,9 +35,7 @@ const MessageClientById = resource(
       [runtime, id],
     );
 
-    return tapInlineResource(
-      MessageClient({ runtime: messageRuntime, threadIdRef }),
-    );
+    return tapResource(MessageClient({ runtime: messageRuntime, threadIdRef }));
   },
 );
 

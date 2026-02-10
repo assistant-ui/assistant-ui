@@ -1,4 +1,4 @@
-import { resource, tapEffect, tapInlineResource } from "@assistant-ui/tap";
+import { resource, tapEffect, tapResource } from "@assistant-ui/tap";
 import type { AssistantRuntime } from "./runtime/AssistantRuntime";
 import { ThreadListClient } from "./client/ThreadListRuntimeClient";
 import {
@@ -18,7 +18,7 @@ export const RuntimeAdapter = resource((runtime: AssistantRuntime) => {
     );
   }, [runtime, clientRef]);
 
-  return tapInlineResource(
+  return tapResource(
     ThreadListClient({
       runtime: runtime.threads,
       __internal_assistantRuntime: runtime,

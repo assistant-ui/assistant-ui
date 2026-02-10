@@ -4,7 +4,6 @@ import {
   tapRef,
   type ResourceElement,
   tapResource,
-  tapInlineResource,
 } from "@assistant-ui/tap";
 import type { ClientMethods } from "./types/client";
 import {
@@ -180,7 +179,7 @@ export const tapClientResource = <TMethods extends ClientMethods>(
   methods: TMethods;
   key: string | number | undefined;
 } => {
-  return tapInlineResource(ClientResource(element)) as {
+  return tapResource(ClientResource(element)) as {
     state: InferClientState<TMethods>;
     methods: TMethods;
     key: string | number | undefined;

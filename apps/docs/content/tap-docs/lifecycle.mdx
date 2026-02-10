@@ -10,6 +10,8 @@ Like React, tap splits work into two phases:
 1. **Render** — the resource function runs, hooks record their data, and a return value is produced. This phase has no side effects.
 2. **Commit** — effects whose dependencies changed run. If an effect is re-running, its previous cleanup executes first. The resource is considered mounted after this phase.
 
+Unlike React, calling `set` or `dispatch` during the render phase throws an error. To adjust state in response to changing props, use `tapReducerWithDerivedState` instead (tap's equivalent of React's `getDerivedStateFromProps`).
+
 ```ts
 const App = resource(() => {
   // --- render phase ---
@@ -70,8 +72,10 @@ A resource is **unmounted** when its owner removes it — all effect cleanups ru
 
 ## Concurrent mode
 
+Tap has full interoperability with React's concurrent mode. Resources rendered via `useResource` work correctly with `startTransition`, `useDeferredValue`, `<Suspense>`, and other concurrent features — state updates are applied consistently without tearing.
+
 <Callout type="warn">
-Concurrent mode support is coming soon.
+The `@assistant-ui/store` layer currently relies on `useSyncExternalStore` to bridge tap resources into React. This means store subscriptions always trigger synchronous re-renders, opting out of concurrent scheduling for those reads. This may change in a future release.
 </Callout>
 
 ## Strict mode

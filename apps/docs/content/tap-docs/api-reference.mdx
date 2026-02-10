@@ -55,7 +55,7 @@ State management with a reducer function. `dispatch` has a stable identity. Bail
 ### tapReducerWithDerivedState
 
 <Callout type="warn">
-This API is experimental and may change.
+This API is experimental, intended for advanced use cases, and may change.
 </Callout>
 
 ```ts
@@ -63,7 +63,7 @@ const [state, dispatch] = tapReducerWithDerivedState(reducer, getDerivedState, i
 const [state, dispatch] = tapReducerWithDerivedState(reducer, getDerivedState, initialArg, init);
 ```
 
-Like `tapReducer`, but accepts a `getDerivedState` function as the second argument. After every reducer update, `getDerivedState(state)` is called. If it returns a new value (by `Object.is`), the derived value becomes the current state and triggers a re-render. The return type is inferred from `getDerivedState`, allowing you to narrow or extend the state type.
+Like `tapReducer`, but accepts a `getDerivedState` function as the second argument. During each render pass, `getDerivedState(state)` is called once after processing any queued actions. If it returns a new value (by `Object.is`), the derived value becomes the current state and triggers a re-render. The return type is inferred from `getDerivedState`, allowing you to narrow or extend the state type.
 
 ### tapEffect
 
@@ -130,9 +130,19 @@ const value = tapResource(Counter({ initialValue: 0 }));
 const value = tapResource(Counter({ initialValue }), [initialValue]);
 ```
 
-Renders a single child resource. Returns the child's return value. Optional dependency array controls when new props are applied.
+Renders a single child resource. Returns the child's return value.
+
+The optional dependency array controls when new props are applied.
+
+<Callout type="warn">
+The dependency array API is experimental and may change.
+</Callout>
 
 ### tapResources
+
+<Callout type="warn">
+This API is experimental and may change.
+</Callout>
 
 ```ts
 const values = tapResources(
@@ -142,18 +152,6 @@ const values = tapResources(
 ```
 
 Renders a dynamic list of child resources. Every element must have a key via `withKey`.
-
-### tapInlineResource
-
-<Callout type="warn">
-This API is subject to change or removal.
-</Callout>
-
-```ts
-const value = tapInlineResource(Counter({ initialValue: 0 }));
-```
-
-Calls a resource function inline within the parent's fiber — no child fiber is created. The child's hooks run as if they were the parent's own hooks. This is a low-level escape hatch; prefer `tapResource` unless you specifically need to avoid a fiber boundary.
 
 ### tapResourceRoot
 

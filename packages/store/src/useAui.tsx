@@ -6,7 +6,6 @@ import {
   tapMemo,
   tapResources,
   tapEffectEvent,
-  tapInlineResource,
   tapEffect,
   tapRef,
   tapResource,
@@ -129,7 +128,7 @@ const RootClientsAccessorsResource = resource(
     clients: RootClients;
     clientRef: { parent: AssistantClient; current: AssistantClient | null };
   }) => {
-    const notifications = tapInlineResource(NotificationManager());
+    const notifications = tapResource(NotificationManager());
 
     tapEffect(
       () => clientRef.parent.subscribe(notifications.notifySubscribers),
@@ -318,7 +317,7 @@ export const AssistantClientResource = resource(
         : NoOpRootClientsAccessorsResource(),
     );
 
-    const derivedFields = tapInlineResource(
+    const derivedFields = tapResource(
       DerivedClientsAccessorsResource({ clients: derivedClients, clientRef }),
     );
 

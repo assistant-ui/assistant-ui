@@ -442,9 +442,7 @@ describe("React Strict Mode - Rerender Sources", () => {
           };
         }, [count]);
 
-        return (
-          <button onClick={() => setCount((c) => c + 1)}>Click</button>
-        );
+        return <button onClick={() => setCount((c) => c + 1)}>Click</button>;
       }
 
       const { getByRole } = render(

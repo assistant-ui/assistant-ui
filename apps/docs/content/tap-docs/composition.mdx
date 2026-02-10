@@ -30,17 +30,21 @@ const Timer = resource(() => {
 
 ### Props dependencies
 
+<Callout type="warn">
+This API is experimental and may change.
+</Callout>
+
 By default, the child re-renders whenever the parent re-renders. You can pass a dependency array to control when the child receives new props.
 
 ```ts
 const result = tapResource(Counter({ incrementBy }), [incrementBy]);
 ```
 
-<Callout type="warn">
-We aren't so sure about this approach yet. This API may change in a future release.
-</Callout>
-
 ## tapResources
+
+<Callout type="warn">
+This API is experimental and may change.
+</Callout>
 
 Render a dynamic list of child resources. Each element **must** have a key via `withKey`. Resources are preserved across renders when their key stays the same.
 

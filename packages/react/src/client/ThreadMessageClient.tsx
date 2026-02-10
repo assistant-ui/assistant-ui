@@ -3,7 +3,7 @@ import {
   resource,
   tapMemo,
   tapState,
-  tapInlineResource,
+  tapResource,
   withKey,
 } from "@assistant-ui/tap";
 import { type ClientOutput, tapClientLookup } from "@assistant-ui/store";
@@ -91,7 +91,7 @@ export const ThreadMessageClient = resource(
       [message.attachments],
     );
 
-    const composer = tapInlineResource(NoOpComposerClient({ type: "edit" }));
+    const composer = tapResource(NoOpComposerClient({ type: "edit" }));
     const composerState = composer.getState();
 
     const state = tapMemo<MessageState>(() => {

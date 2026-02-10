@@ -32,6 +32,8 @@ setCount(5);
 setCount((prev) => prev + 1);
 ```
 
+Unlike React, calling `setCount` during render throws an error. Use `tapReducerWithDerivedState` for adjusting state in response to prop changes.
+
 ## tapReducer
 
 Manage complex state with a reducer function. Identical to React's `useReducer`.
@@ -52,6 +54,8 @@ const [count, dispatch] = tapReducer(
 dispatch({ type: "increment" });
 ```
 
+Unlike React, calling `dispatch` during render throws an error. Use `tapReducerWithDerivedState` for adjusting state in response to prop changes.
+
 With a lazy initializer:
 
 ```ts
@@ -61,33 +65,30 @@ const [state, dispatch] = tapReducer(reducer, initialArg, (arg) => createInitial
 ## tapReducerWithDerivedState
 
 <Callout type="warn">
-This API is experimental and may change.
+This API is experimental, intended for advanced use cases, and may change.
 </Callout>
 
-Like `tapReducer`, but with a `getDerivedState` function that transforms the state after every reducer update. If `getDerivedState` returns a new value (by `Object.is`), the derived value becomes the current state and triggers a re-render.
+Like `tapReducer`, but with a `getDerivedState` function that runs during render after processing queued actions. This serves the same use case as React's [`getDerivedStateFromProps`](https://react.dev/reference/react/Component#static-getderivedstatefromprops) — adjusting internal state in response to changing props without needing to call `set`/`dispatch` during render (which tap does not support).
+
+If `getDerivedState` returns a new value (by `Object.is`), the derived value becomes the current state and triggers a re-render.
 
 ```ts
-type Todo = { id: string; text: string; done: boolean };
-type State = { todos: Todo[]; doneCount: number };
-type Action = { type: "toggle"; id: string };
+type State = { items: string[]; selectedId: string | null; prevItems: string[] };
+type Action = { type: "select"; id: string };
 
 const [state, dispatch] = tapReducerWithDerivedState(
   (state: State, action: Action): State => {
     switch (action.type) {
-      case "toggle":
-        return {
-          ...state,
-          todos: state.todos.map((t) =>
-            t.id === action.id ? { ...t, done: !t.done } : t,
-          ),
-        };
+      case "select":
+        return { ...state, selectedId: action.id };
     }
   },
-  (state) => ({
-    ...state,
-    doneCount: state.todos.filter((t) => t.done).length,
-  }),
-  { todos: initialTodos, doneCount: 0 },
+  // reset selection when items change (getDerivedStateFromProps pattern)
+  (state) => {
+    if (state.prevItems === items) return state;
+    return { ...state, items, prevItems: items, selectedId: null };
+  },
+  { items, selectedId: null, prevItems: items },
 );
 ```
 

@@ -15,7 +15,6 @@ export { tapEffectEvent } from "./hooks/tap-effect-event";
 
 // resources
 export { tapResource } from "./hooks/tap-resource";
-export { tapInlineResource } from "./hooks/tap-inline-resource";
 export { tapResources } from "./hooks/tap-resources";
 
 // subscribable

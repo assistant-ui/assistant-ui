@@ -1,6 +1,6 @@
 import {
-  tapInlineResource,
   tapMemo,
+  tapResource,
   tapResources,
   type ResourceElement,
 } from "@assistant-ui/tap";
@@ -19,7 +19,7 @@ const ClientResourceWithKey = wrapperResource(
     if (el.key === undefined) {
       throw new Error("tapClientResource: Element has no key");
     }
-    return tapInlineResource(ClientResource(el)) as {
+    return tapResource(ClientResource(el)) as {
       methods: TMethods;
       state: InferClientState<TMethods>;
       key: string | number;

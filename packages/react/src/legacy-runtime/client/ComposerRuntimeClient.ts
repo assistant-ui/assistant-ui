@@ -2,7 +2,7 @@ import {
   resource,
   tapMemo,
   tapEffect,
-  tapInlineResource,
+  tapResource,
   type tapRef,
   withKey,
 } from "@assistant-ui/tap";
@@ -28,7 +28,7 @@ const ComposerAttachmentClientByIndex = resource(
       [runtime, index],
     );
 
-    return tapInlineResource(
+    return tapResource(
       AttachmentRuntimeClient({
         runtime: attachmentRuntime,
       }),

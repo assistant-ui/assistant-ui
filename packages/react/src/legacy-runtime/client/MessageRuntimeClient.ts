@@ -1,7 +1,7 @@
 import {
   withKey,
   resource,
-  tapInlineResource,
+  tapResource,
   tapMemo,
   tapState,
 } from "@assistant-ui/tap";
@@ -24,9 +24,7 @@ const MessageAttachmentClientByIndex = resource(
       () => runtime.getAttachmentByIndex(index),
       [runtime, index],
     );
-    return tapInlineResource(
-      AttachmentRuntimeClient({ runtime: attachmentRuntime }),
-    );
+    return tapResource(AttachmentRuntimeClient({ runtime: attachmentRuntime }));
   },
 );
 
@@ -36,7 +34,7 @@ const MessagePartByIndex = resource(
       () => runtime.getMessagePartByIndex(index),
       [runtime, index],
     );
-    return tapInlineResource(MessagePartClient({ runtime: partRuntime }));
+    return tapResource(MessagePartClient({ runtime: partRuntime }));
   },
 );
 
