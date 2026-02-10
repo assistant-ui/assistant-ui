@@ -85,7 +85,9 @@ const convertParts = (
           argsText = stripClosingDelimiters(argsText);
         }
 
-        const isApprovalRequested = part.state === "approval-requested";
+        // Two interrupt paths for tool approvals:
+        // 1. AI SDK server-side approval: approval-requested state with part.approval payload
+        // 2. Frontend tools: toolStatuses interrupt from context.human()
         const toolStatus = metadata.toolStatuses?.[toolCallId];
         return {
           type: "tool-call",
@@ -95,11 +97,11 @@ const convertParts = (
           args,
           result,
           isError,
-          ...(isApprovalRequested
+          ...(part.state === "approval-requested" && "approval" in part
             ? {
                 interrupt: {
                   type: "human" as const,
-                  payload: part.approval,
+                  payload: (part as { approval: unknown }).approval,
                 },
                 status: {
                   type: "requires-action" as const,
