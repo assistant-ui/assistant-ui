@@ -54,6 +54,9 @@ export interface RenderResult {
 
 export interface ResourceFiberRoot {
   version: number;
+  committedVersion: number;
+  readonly changelog: (() => void)[];
+
   readonly dispatchUpdate: (callback: () => boolean) => void;
   readonly dirtyCells: (Cell & { type: "reducer" })[];
 }

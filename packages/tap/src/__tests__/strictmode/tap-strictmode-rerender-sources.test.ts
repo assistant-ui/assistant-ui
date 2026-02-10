@@ -11,48 +11,7 @@ import { createResourceRoot } from "../../core/createResourceRoot";
 import { flushResourcesSync } from "../../core/scheduler";
 
 describe("Tap Strict Mode - Rerender Sources", () => {
-  describe("DEBUG: Callback invocation count", () => {
-    it("should show how many times the dispatchUpdate callback is invoked", () => {
-      let updaterInvocations = 0;
-      const events: string[] = [];
-
-      const TestResource = resource(() => {
-        const [count, setCount] = tapState(0);
-        events.push(`render count=${count}`);
-
-        return {
-          count,
-          increment: () => {
-            events.push("setState called");
-            setCount((prevCount) => {
-              updaterInvocations++;
-              events.push(
-                `updater invocation #${updaterInvocations} with prevCount=${prevCount}`,
-              );
-              return prevCount + 1;
-            });
-          },
-        };
-      });
-
-      const root = createResourceRoot();
-      const sub = root.render(TestResource());
-
-      events.length = 0;
-      updaterInvocations = 0;
-
-      flushResourcesSync(() => {
-        sub.getValue().increment();
-      });
-
-      console.log("Updater invocations:", updaterInvocations);
-      console.log("Events:", events);
-      console.log(
-        "Expected: updater called twice (React behavior), actual:",
-        updaterInvocations,
-      );
-    });
-
+  describe("Callback invocation count", () => {
     it("should use the first return value when updater returns different values", () => {
       const events: string[] = [];
       let updaterCallCount = 0;
@@ -546,7 +505,7 @@ describe("Tap Strict Mode - Rerender Sources", () => {
 
       // Create first instance
       const root1 = createResourceRoot();
-      const sub1 = root1.render(TestResource());
+      root1.render(TestResource());
 
       expect(events).toEqual(["render count=0", "render count=0"]);
 

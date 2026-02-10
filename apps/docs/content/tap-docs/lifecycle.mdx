@@ -78,6 +78,12 @@ Tap has full interoperability with React's concurrent mode. Resources rendered v
 The `@assistant-ui/store` layer currently relies on `useSyncExternalStore` to bridge tap resources into React. This means store subscriptions always trigger synchronous re-renders, opting out of concurrent scheduling for those reads. This may change in a future release.
 </Callout>
 
+## Offscreen / Activity
+
+Tap supports React's `<Activity>` (formerly "Offscreen") API. When a resource rendered via `useResource` is hidden by `<Activity mode="hidden">`, tap correctly handles the version gap that occurs when React commits without running effects. State updates that arrive while the resource is hidden are tracked in a changelog and replayed when the component becomes visible again, ensuring the resource stays consistent.
+
+No special configuration is needed — `useResource` handles this automatically.
+
 ## Strict mode
 
 In development, tap supports React-style strict mode. When enabled, resources render twice on mount to help detect side effects in the render phase.

@@ -7,7 +7,6 @@ import {
 import { useLangGraphRuntime, useLangGraphSend } from "./useLangGraphRuntime";
 import { mockStreamCallbackFactory } from "./testUtils";
 import { ReactNode } from "react";
-import { flushResourcesSync } from "../../tap/src/core/scheduler";
 
 const metadataEvent = {
   event: "metadata",

@@ -1,15 +1,15 @@
 import { isDevelopment } from "../core/helpers/env";
 import { getCurrentResourceFiber } from "../core/helpers/execution-context";
-import { Cell, ResourceFiber } from "../core/types";
+import { ReducerQueueEntry, ResourceFiber } from "../core/types";
 import { markCellDirty } from "../core/helpers/root";
 import { tapHook } from "./utils/tapHook";
 
 type Dispatch<A> = (action: A) => void;
 
-export const dispatchOnFiber = (
+const dispatchOnFiber = (
   fiber: ResourceFiber<any, any>,
-  callback: () => boolean,
-) => {
+  callback: () => (() => void) | null,
+): void => {
   if (fiber.renderContext) {
     throw new Error("Resource updated during render");
   }
@@ -17,7 +17,15 @@ export const dispatchOnFiber = (
     throw new Error("Resource updated before mount");
   }
 
-  fiber.root.dispatchUpdate(callback);
+  fiber.root.dispatchUpdate(() => {
+    const result = callback();
+    if (result) {
+      result();
+      fiber.root.changelog.push(result);
+      return true;
+    }
+    return false;
+  });
 };
 
 function tapReducerImpl<S, A, I, R extends S>(
@@ -36,15 +44,15 @@ function tapReducerImpl<S, A, I, R extends S>(
       void initFn(initialArg as I);
     }
 
-    const newCell: Cell & { type: "reducer" } = {
+    return {
       type: "reducer",
       queue: new Set(),
       dirty: false,
       workInProgress: initialState,
       current: initialState,
-      reducer: reducer,
+      reducer,
       dispatch: (action: A) => {
-        const entry = {
+        const entry: ReducerQueueEntry = {
           action,
           hasEagerState: false,
           eagerState: undefined,
@@ -52,21 +60,19 @@ function tapReducerImpl<S, A, I, R extends S>(
 
         dispatchOnFiber(fiber, () => {
           if (fiber.root.dirtyCells.length === 0 && !entry.hasEagerState) {
-            entry.eagerState = newCell.reducer(newCell.workInProgress, action);
+            entry.eagerState = reducer(cell.workInProgress, action);
             entry.hasEagerState = true;
 
-            if (Object.is(newCell.current, entry.eagerState)) return false;
+            if (Object.is(cell.current, entry.eagerState)) return null;
           }
 
-          markCellDirty(fiber, newCell);
-          cell.queue.add(entry);
-
-          return true;
+          return () => {
+            markCellDirty(fiber, cell);
+            cell.queue.add(entry);
+          };
         });
       },
     };
-
-    return newCell;
   });
 
   const fiber = getCurrentResourceFiber();

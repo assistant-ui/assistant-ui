@@ -12,7 +12,11 @@ import { tapEffectEvent } from "./hooks/tap-effect-event";
 import { tapRef } from "./hooks/tap-ref";
 import { RenderResult, ResourceElement } from "./core/types";
 import { isDevelopment } from "./core/helpers/env";
-import { commitRoot, setRootVersion } from "./core/helpers/root";
+import {
+  commitRoot,
+  createResourceFiberRoot,
+  setRootVersion,
+} from "./core/helpers/root";
 
 export namespace tapResourceRoot {
   export type Unsubscribe = () => void;
@@ -44,15 +48,14 @@ export const tapResourceRoot = <TState>(
   const fiber = tapMemo(() => {
     void element.key;
 
-    return createResourceFiber(element.type, {
-      version: 0,
-      dispatchUpdate: (callback) => {
+    return createResourceFiber(
+      element.type,
+      createResourceFiberRoot((callback) => {
         if (!scheduler.isDirty && !callback()) return;
         queue.push(callback);
         scheduler.markDirty();
-      },
-      dirtyCells: [],
-    });
+      }),
+    );
   }, [element.type, element.key]);
 
   setRootVersion(fiber.root, 0);

@@ -9,6 +9,7 @@ import { tapResourceRoot } from "../tapResourceRoot";
 import { resource } from "./resource";
 import { isDevelopment } from "./helpers/env";
 import { flushResourcesSync, UpdateScheduler } from "./scheduler";
+import { createResourceFiberRoot } from "./helpers/root";
 
 const SubscribableResource = resource(tapResourceRoot);
 
@@ -18,20 +19,16 @@ export const createResourceRoot = () => {
     ResourceElement<any>
   >(
     SubscribableResource,
-    {
-      version: 0,
-      dispatchUpdate: (callback) => {
-        new UpdateScheduler(() => {
-          if (callback()) {
-            throw new Error(
-              "Unexpected rerender of createResourceRoot outer fiber",
-            );
-          }
-          return false;
-        }).markDirty();
-      },
-      dirtyCells: [],
-    },
+    createResourceFiberRoot((callback) => {
+      new UpdateScheduler(() => {
+        if (callback()) {
+          throw new Error(
+            "Unexpected rerender of createResourceRoot outer fiber",
+          );
+        }
+        return false;
+      }).markDirty();
+    }),
     undefined,
     isDevelopment ? "root" : null,
   );
