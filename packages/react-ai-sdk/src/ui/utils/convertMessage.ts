@@ -70,6 +70,12 @@ const convertParts = (
           args = (part.input as ReadonlyJSONObject) || {};
           isError = true;
           result = { error: part.errorText };
+        } else if (
+          part.state === "approval-requested" ||
+          part.state === "approval-responded" ||
+          part.state === "output-denied"
+        ) {
+          args = (part.input as ReadonlyJSONObject) || {};
         }
 
         let argsText = JSON.stringify(args);
@@ -79,6 +85,7 @@ const convertParts = (
           argsText = stripClosingDelimiters(argsText);
         }
 
+        const isApprovalRequested = part.state === "approval-requested";
         const toolStatus = metadata.toolStatuses?.[toolCallId];
         return {
           type: "tool-call",
@@ -88,13 +95,26 @@ const convertParts = (
           args,
           result,
           isError,
-          ...(toolStatus?.type === "interrupt" && {
-            interrupt: toolStatus.payload,
-            status: {
-              type: "requires-action" as const,
-              reason: "interrupt",
-            },
-          }),
+          ...(isApprovalRequested
+            ? {
+                interrupt: {
+                  type: "human" as const,
+                  payload: part.approval,
+                },
+                status: {
+                  type: "requires-action" as const,
+                  reason: "interrupt" as const,
+                },
+              }
+            : toolStatus?.type === "interrupt"
+              ? {
+                  interrupt: toolStatus.payload,
+                  status: {
+                    type: "requires-action" as const,
+                    reason: "interrupt" as const,
+                  },
+                }
+              : {}),
         } satisfies ToolCallMessagePart;
       }
 
