@@ -26,7 +26,7 @@ type FooListEvents = {
 };
 
 declare module "@assistant-ui/store" {
-  interface ClientRegistry {
+  interface ScopeRegistry {
     foo: {
       methods: FooMethods;
       meta: FooMeta;

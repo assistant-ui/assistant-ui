@@ -10,7 +10,7 @@ import { useAui, useAuiState, AuiProvider, type ClientOutput } from "@assistant-
 
 // 1. Define client type
 declare module "@assistant-ui/store" {
-  interface ClientRegistry {
+  interface ScopeRegistry {
     counter: { methods: { getState: () => { count: number }; increment: () => void } };
   }
 }
@@ -39,7 +39,7 @@ function Counter() {
 **Clients**: Named state containers registered via module augmentation.
 ```typescript
 declare module "@assistant-ui/store" {
-  interface ClientRegistry {
+  interface ScopeRegistry {
     myClient: {
       methods: MyMethods; // must include getState(): MyState
       meta?: { source: "parent"; query: { id: string } };
@@ -87,5 +87,5 @@ useAuiEvent("myClient.updated", (p) => console.log(p.id));
 | Type | Description |
 |------|-------------|
 | `ClientOutput<K>` | Resource return type (methods object) |
-| `ClientRegistry` | Module augmentation interface |
+| `ScopeRegistry` | Module augmentation interface |
 | `AssistantClient` | Full client type |

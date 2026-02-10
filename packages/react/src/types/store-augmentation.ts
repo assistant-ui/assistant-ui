@@ -14,7 +14,7 @@ import type { SuggestionClientSchema } from "./scopes/suggestion";
 import type { ChainOfThoughtClientSchema } from "./scopes/chainOfThought";
 
 declare module "@assistant-ui/store" {
-  interface ClientRegistry {
+  interface ScopeRegistry {
     threads: ThreadsClientSchema;
     threadListItem: ThreadListItemClientSchema;
     thread: ThreadClientSchema;

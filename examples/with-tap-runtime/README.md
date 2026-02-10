@@ -118,7 +118,7 @@ Type-safe client definitions via module augmentation (defined in `@assistant-ui/
 
 ```typescript
 declare module "@assistant-ui/store" {
-  interface ClientRegistry {
+  interface ScopeRegistry {
     threads: ThreadsClientSchema;
     thread: ThreadClientSchema;
     message: MessageClientSchema;

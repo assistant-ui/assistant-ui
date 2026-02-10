@@ -38,7 +38,7 @@ export type ClientSchema<
  * @example
  * ```typescript
  * declare module "@assistant-ui/store" {
- *   interface ClientRegistry {
+ *   interface ScopeRegistry {
  *     // Simple client (meta and events are optional)
  *     foo: {
  *       methods: {
@@ -61,7 +61,7 @@ export type ClientSchema<
  * }
  * ```
  */
-export interface ClientRegistry {}
+export interface ScopeRegistry {}
 
 type ClientEventsType<K extends ClientNames> = Record<
   `${K}.${string}`,
@@ -74,28 +74,28 @@ type ClientError<E extends string> = {
   events: Record<`${E}.`, E>;
 };
 
-type ValidateClient<K extends keyof ClientRegistry> =
-  ClientRegistry[K] extends { methods: ClientMethods }
-    ? "meta" extends keyof ClientRegistry[K]
-      ? ClientRegistry[K]["meta"] extends ClientMetaType
-        ? "events" extends keyof ClientRegistry[K]
-          ? ClientRegistry[K]["events"] extends ClientEventsType<K>
-            ? ClientRegistry[K]
+type ValidateClient<K extends keyof ScopeRegistry> =
+  ScopeRegistry[K] extends { methods: ClientMethods }
+    ? "meta" extends keyof ScopeRegistry[K]
+      ? ScopeRegistry[K]["meta"] extends ClientMetaType
+        ? "events" extends keyof ScopeRegistry[K]
+          ? ScopeRegistry[K]["events"] extends ClientEventsType<K>
+            ? ScopeRegistry[K]
             : ClientError<`ERROR: ${K & string} has invalid events type`>
-          : ClientRegistry[K]
+          : ScopeRegistry[K]
         : ClientError<`ERROR: ${K & string} has invalid meta type`>
-      : "events" extends keyof ClientRegistry[K]
-        ? ClientRegistry[K]["events"] extends ClientEventsType<K>
-          ? ClientRegistry[K]
+      : "events" extends keyof ScopeRegistry[K]
+        ? ScopeRegistry[K]["events"] extends ClientEventsType<K>
+          ? ScopeRegistry[K]
           : ClientError<`ERROR: ${K & string} has invalid events type`>
-        : ClientRegistry[K]
+        : ScopeRegistry[K]
     : ClientError<`ERROR: ${K & string} has invalid methods type`>;
 
-type ClientSchemas = keyof ClientRegistry extends never
+type ClientSchemas = keyof ScopeRegistry extends never
   ? {
       "ERROR: No clients were defined": ClientError<"ERROR: No clients were defined">;
     }
-  : { [K in keyof ClientRegistry]: ValidateClient<K> };
+  : { [K in keyof ScopeRegistry]: ValidateClient<K> };
 
 /**
  * Output type that client resources return (just methods).

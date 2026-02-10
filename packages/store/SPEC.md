@@ -4,10 +4,10 @@ React integration for tap. Type-safe client-based state via module augmentation.
 
 ## Types
 
-### ClientRegistry
+### ScopeRegistry
 ```typescript
 declare module "@assistant-ui/store" {
-  interface ClientRegistry {
+  interface ScopeRegistry {
     name: {
       methods: MethodsType; // must include getState(): StateType
       meta?: { source: ClientNames; query: QueryType };
@@ -125,14 +125,14 @@ Flow: `tapAssistantEmit` captures client stack → `emit` queues via microtask �
 | Audience | API Surface |
 |----------|-------------|
 | Users | `useAui`, `useAuiState`, `useAuiEvent`, `AuiProvider`, `AuiIf`, `Derived` |
-| Authors | Above + `tap*`, `attachDefaultPeers`, `ClientOutput`, `ClientRegistry` |
+| Authors | Above + `tap*`, `attachDefaultPeers`, `ClientOutput`, `ScopeRegistry` |
 | Internal | `utils/*` |
 
 **Terminology**: Client (React Query pattern), methods (not actions), meta (optional source/query), events (optional).
 
 ## Invariants
 
-1. `ClientRegistry` must have ≥1 client (compile error otherwise)
+1. `ScopeRegistry` must have ≥1 client (compile error otherwise)
 2. Resources return methods object matching `ClientOutput<K>` (with `getState()` for state access)
 3. Events: `"clientName.eventName"` format
 4. `meta.source` must be valid `ClientNames`

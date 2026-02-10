@@ -17,13 +17,13 @@ Each level of the tree adds a scope. Components at any level can access the scop
 
 ## Registering scopes
 
-You declare what scopes exist by augmenting `ClientRegistry`:
+You declare what scopes exist by augmenting `ScopeRegistry`:
 
 ```ts title="lib/store/scopes.ts"
 import "@assistant-ui/store";
 
 declare module "@assistant-ui/store" {
-  interface ClientRegistry {
+  interface ScopeRegistry {
     threadList: {
       methods: {
         getState: () => { threadIds: string[] };
@@ -45,7 +45,7 @@ declare module "@assistant-ui/store" {
 
 This is a **type-level** declaration — no runtime code. It tells TypeScript what scopes exist and what shape each one has. Every Store hook uses this for autocomplete and type checking.
 
-Because `ClientRegistry` uses TypeScript module augmentation, different packages can each register their own scopes. A `@my-org/chat` package can register `thread` and `message`, while `@my-org/analytics` registers `analytics` — and your app can access all of them through the same `useAuiState` and `useAui` hooks.
+Because `ScopeRegistry` uses TypeScript module augmentation, different packages can each register their own scopes. A `@my-org/chat` package can register `thread` and `message`, while `@my-org/analytics` registers `analytics` — and your app can access all of them through the same `useAuiState` and `useAui` hooks.
 
 ## Filling scopes
 
@@ -57,7 +57,7 @@ const aui = useAui({
 });
 ```
 
-Each key matches a name from `ClientRegistry`. Each value is a Tap resource element that implements the scope's methods.
+Each key matches a name from `ScopeRegistry`. Each value is a Tap resource element that implements the scope's methods.
 
 You don't have to fill every scope at once. Each level of your tree can add its own:
 

@@ -22,7 +22,7 @@ export { tapClientList } from "./tapClientList";
 
 // types
 export type {
-  ClientRegistry,
+  ScopeRegistry,
   ClientOutput,
   AssistantClient,
   AssistantState,

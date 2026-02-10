@@ -13,13 +13,13 @@ npm install @assistant-ui/store @assistant-ui/tap
 
 ## Define your client types
 
-Register your clients by augmenting the `ClientRegistry` interface. This gives you type safety across all Store hooks.
+Register your clients by augmenting the `ScopeRegistry` interface. This gives you type safety across all Store hooks.
 
 ```ts title="lib/store/counter-scope.ts"
 import "@assistant-ui/store";
 
 declare module "@assistant-ui/store" {
-  interface ClientRegistry {
+  interface ScopeRegistry {
     counter: {
       methods: {
         getState: () => { count: number };

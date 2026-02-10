@@ -45,7 +45,7 @@ Open [http://localhost:3000](http://localhost:3000) to see the example.
 
 ```typescript
 declare module "@assistant-ui/store" {
-  interface ClientRegistry {
+  interface ScopeRegistry {
     foo: {
       state: { id: string; bar: string };
       methods: {

@@ -11,7 +11,7 @@ Built on `@assistant-ui/tap`. Client-based state containers with type-safe defin
 ```
 src/
 ├── index.ts                         # Public exports
-├── types/client.ts                  # ClientRegistry, ClientOutput, AssistantClient
+├── types/client.ts                  # ScopeRegistry, ClientOutput, AssistantClient
 ├── types/events.ts                  # Event types
 ├── useAui.tsx                       # Main hook
 ├── useAuiState.tsx                  # State subscription
@@ -39,7 +39,7 @@ Above plus:
 tapAssistantClientRef()      tapAssistantEmit()
 tapClientResource(element)   tapClientLookup(getElements, deps)
 tapClientList({ initialValues, getKey, resource })
-attachDefaultPeers()         ClientOutput<K>  ClientRegistry
+attachDefaultPeers()         ClientOutput<K>  ScopeRegistry
 ```
 
 ## Patterns
@@ -47,7 +47,7 @@ attachDefaultPeers()         ClientOutput<K>  ClientRegistry
 ### Client Definition
 ```typescript
 declare module "@assistant-ui/store" {
-  interface ClientRegistry {
+  interface ScopeRegistry {
     foo: { methods: { getState: () => { bar: string }; update: (b: string) => void } };
   }
 }
