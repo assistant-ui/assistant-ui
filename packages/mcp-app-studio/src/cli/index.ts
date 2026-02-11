@@ -24,6 +24,7 @@ import {
 } from "./utils";
 import { getVersionFromCliDir } from "./version";
 import { updateWorkbenchIndex } from "./workbench-index";
+import { hasOverlayTemplates, applyOverlayTemplate } from "./overlay-template";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -151,8 +152,9 @@ function writeStudioConfig(
   targetDir: string,
   template: TemplateType,
   appName: string,
+  exportConfigOverride?: { entryPoint: string; exportName: string },
 ): void {
-  const exportConfig = TEMPLATE_EXPORT_CONFIG[template];
+  const exportConfig = exportConfigOverride ?? TEMPLATE_EXPORT_CONFIG[template];
   const config = {
     widget: {
       entryPoint: exportConfig.entryPoint,
@@ -830,9 +832,19 @@ async function main() {
   }
 
   s.message("Applying template...");
-  applyTemplate(targetDir, config.template);
-
-  writeStudioConfig(targetDir, config.template, path.basename(targetDir));
+  if (hasOverlayTemplates(targetDir)) {
+    const manifest = applyOverlayTemplate(targetDir, config.template);
+    writeStudioConfig(
+      targetDir,
+      config.template,
+      path.basename(targetDir),
+      manifest.exportConfig,
+    );
+  } else {
+    // Legacy codegen path — kept for backward compat with older starter repos
+    applyTemplate(targetDir, config.template);
+    writeStudioConfig(targetDir, config.template, path.basename(targetDir));
+  }
 
   if (config.includeServer) {
     updateServerPackageName(targetDir, config.packageName);
