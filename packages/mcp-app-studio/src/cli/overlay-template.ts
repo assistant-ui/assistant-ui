@@ -8,9 +8,49 @@ export interface TemplateManifest {
   deleteGlobs: string[];
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function ensureRelativePathInsideRoot(
+  rootDir: string,
+  relativePath: string,
+  fieldName: string,
+): string {
+  if (path.isAbsolute(relativePath)) {
+    throw new Error(`${fieldName}: absolute paths are not allowed`);
+  }
+
+  const normalized = path.normalize(relativePath);
+  const resolved = path.resolve(rootDir, normalized);
+  if (resolved !== rootDir && !resolved.startsWith(`${rootDir}${path.sep}`)) {
+    throw new Error(`${fieldName}: path traversal is not allowed`);
+  }
+
+  return relativePath;
+}
+
 /** Check if the extracted starter repo contains template overlays. */
 export function hasOverlayTemplates(targetDir: string): boolean {
-  return fs.existsSync(path.join(targetDir, "templates"));
+  const templatesDir = path.join(targetDir, "templates");
+  return fs.existsSync(templatesDir) && fs.statSync(templatesDir).isDirectory();
+}
+
+/** List available overlay template IDs from templates/* directories. */
+export function listOverlayTemplateIds(targetDir: string): string[] {
+  const templatesDir = path.join(targetDir, "templates");
+  if (
+    !fs.existsSync(templatesDir) ||
+    !fs.statSync(templatesDir).isDirectory()
+  ) {
+    return [];
+  }
+
+  return fs
+    .readdirSync(templatesDir, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .sort();
 }
 
 /** Read and validate a template.json manifest. */
@@ -29,26 +69,61 @@ export function loadTemplateManifest(
       `Template overlay "${templateId}" not found. Expected ${manifestPath}`,
     );
   }
-  const raw = JSON.parse(fs.readFileSync(manifestPath, "utf-8")) as Record<
-    string,
-    unknown
-  >;
 
-  if (typeof raw.id !== "string")
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(fs.readFileSync(manifestPath, "utf-8"));
+  } catch {
+    throw new Error("template.json: invalid JSON");
+  }
+
+  if (!isRecord(parsed)) {
+    throw new Error("template.json: expected an object");
+  }
+
+  if (typeof parsed.id !== "string")
     throw new Error("template.json: missing 'id'");
-  if (typeof raw.defaultComponent !== "string")
+  if (parsed.id !== templateId) {
+    throw new Error(
+      `template.json: id "${parsed.id}" does not match template directory "${templateId}"`,
+    );
+  }
+
+  if (typeof parsed.defaultComponent !== "string")
     throw new Error("template.json: missing 'defaultComponent'");
-  if (!raw.exportConfig || typeof raw.exportConfig !== "object")
+  if (!parsed.exportConfig || typeof parsed.exportConfig !== "object")
     throw new Error("template.json: missing 'exportConfig'");
-  const ec = raw.exportConfig as Record<string, unknown>;
+  const ec = parsed.exportConfig as Record<string, unknown>;
   if (typeof ec.entryPoint !== "string")
     throw new Error("template.json: missing 'exportConfig.entryPoint'");
   if (typeof ec.exportName !== "string")
     throw new Error("template.json: missing 'exportConfig.exportName'");
-  if (!Array.isArray(raw.deleteGlobs))
+  if (!Array.isArray(parsed.deleteGlobs))
     throw new Error("template.json: missing 'deleteGlobs' array");
 
-  return raw as unknown as TemplateManifest;
+  const templatesRoot = path.join(targetDir);
+  const deleteGlobs = parsed.deleteGlobs.map((value, index) => {
+    if (typeof value !== "string") {
+      throw new Error(
+        `template.json: deleteGlobs[${index}] must be a string path`,
+      );
+    }
+    return ensureRelativePathInsideRoot(
+      templatesRoot,
+      value,
+      `template.json: deleteGlobs[${index}]`,
+    );
+  });
+
+  return {
+    id: parsed.id,
+    defaultComponent: parsed.defaultComponent,
+    exportConfig: {
+      entryPoint: ec.entryPoint,
+      exportName: ec.exportName,
+    },
+    deleteGlobs,
+  };
 }
 
 function copyOverlayFiles(overlayDir: string, targetDir: string): void {
@@ -82,8 +157,18 @@ export function applyOverlayTemplate(
 
   copyOverlayFiles(overlayDir, targetDir);
 
-  for (const glob of manifest.deleteGlobs) {
-    const target = path.join(targetDir, glob);
+  for (let index = 0; index < manifest.deleteGlobs.length; index++) {
+    const deletePath = manifest.deleteGlobs[index];
+    if (!deletePath) continue;
+
+    const target = path.resolve(
+      targetDir,
+      ensureRelativePathInsideRoot(
+        targetDir,
+        deletePath,
+        `template.json: deleteGlobs[${index}]`,
+      ),
+    );
     fs.rmSync(target, { recursive: true, force: true });
   }
 

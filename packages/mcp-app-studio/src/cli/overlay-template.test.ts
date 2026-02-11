@@ -4,6 +4,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   hasOverlayTemplates,
+  listOverlayTemplateIds,
   loadTemplateManifest,
   applyOverlayTemplate,
 } from "./overlay-template";
@@ -117,6 +118,37 @@ describe("hasOverlayTemplates", () => {
       fs.rmSync(root, { recursive: true, force: true });
     }
   });
+
+  it("returns false when templates path is not a directory", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-overlay-"));
+    try {
+      fs.writeFileSync(path.join(root, "templates"), "not-a-directory");
+      expect(hasOverlayTemplates(root)).toBe(false);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("listOverlayTemplateIds", () => {
+  it("returns sorted template IDs", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-overlay-"));
+    try {
+      fs.mkdirSync(path.join(root, "templates", "z-template"), {
+        recursive: true,
+      });
+      fs.mkdirSync(path.join(root, "templates", "a-template"), {
+        recursive: true,
+      });
+      fs.writeFileSync(path.join(root, "templates", "README.md"), "ignored");
+      expect(listOverlayTemplateIds(root)).toEqual([
+        "a-template",
+        "z-template",
+      ]);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
 });
 
 describe("loadTemplateManifest", () => {
@@ -218,6 +250,127 @@ describe("loadTemplateManifest", () => {
       fs.rmSync(root, { recursive: true, force: true });
     }
   });
+
+  it("throws on invalid JSON", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-overlay-"));
+    try {
+      const manifestDir = path.join(root, "templates", "bad");
+      fs.mkdirSync(manifestDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(manifestDir, "template.json"),
+        "{invalid-json",
+      );
+      expect(() => loadTemplateManifest(root, "bad")).toThrow(
+        "template.json: invalid JSON",
+      );
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("throws when template id doesn't match directory", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-overlay-"));
+    try {
+      const manifestDir = path.join(root, "templates", "minimal");
+      fs.mkdirSync(manifestDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(manifestDir, "template.json"),
+        JSON.stringify({
+          id: "other",
+          defaultComponent: "welcome",
+          exportConfig: {
+            entryPoint: "lib/workbench/wrappers/welcome-card-sdk.tsx",
+            exportName: "WelcomeCardSDK",
+          },
+          deleteGlobs: [],
+        }),
+      );
+
+      expect(() => loadTemplateManifest(root, "minimal")).toThrow(
+        'template.json: id "other" does not match template directory "minimal"',
+      );
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("throws when deleteGlobs entries are not strings", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-overlay-"));
+    try {
+      const manifestDir = path.join(root, "templates", "minimal");
+      fs.mkdirSync(manifestDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(manifestDir, "template.json"),
+        JSON.stringify({
+          id: "minimal",
+          defaultComponent: "welcome",
+          exportConfig: {
+            entryPoint: "lib/workbench/wrappers/welcome-card-sdk.tsx",
+            exportName: "WelcomeCardSDK",
+          },
+          deleteGlobs: [123],
+        }),
+      );
+
+      expect(() => loadTemplateManifest(root, "minimal")).toThrow(
+        "template.json: deleteGlobs[0] must be a string path",
+      );
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("throws when deleteGlobs contains path traversal", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-overlay-"));
+    try {
+      const manifestDir = path.join(root, "templates", "minimal");
+      fs.mkdirSync(manifestDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(manifestDir, "template.json"),
+        JSON.stringify({
+          id: "minimal",
+          defaultComponent: "welcome",
+          exportConfig: {
+            entryPoint: "lib/workbench/wrappers/welcome-card-sdk.tsx",
+            exportName: "WelcomeCardSDK",
+          },
+          deleteGlobs: ["../outside.txt"],
+        }),
+      );
+
+      expect(() => loadTemplateManifest(root, "minimal")).toThrow(
+        "template.json: deleteGlobs[0]: path traversal is not allowed",
+      );
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("throws when deleteGlobs contains absolute paths", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-overlay-"));
+    try {
+      const manifestDir = path.join(root, "templates", "minimal");
+      fs.mkdirSync(manifestDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(manifestDir, "template.json"),
+        JSON.stringify({
+          id: "minimal",
+          defaultComponent: "welcome",
+          exportConfig: {
+            entryPoint: "lib/workbench/wrappers/welcome-card-sdk.tsx",
+            exportName: "WelcomeCardSDK",
+          },
+          deleteGlobs: [path.resolve(root, "outside.txt")],
+        }),
+      );
+
+      expect(() => loadTemplateManifest(root, "minimal")).toThrow(
+        "template.json: deleteGlobs[0]: absolute paths are not allowed",
+      );
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
 });
 
 describe("applyOverlayTemplate", () => {
@@ -288,6 +441,41 @@ describe("applyOverlayTemplate", () => {
       ).toBe(true);
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("does not delete files outside the project root", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-overlay-"));
+    const outsideRoot = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-outside-"));
+    const outsideFile = path.join(outsideRoot, "keep.txt");
+
+    try {
+      fs.writeFileSync(outsideFile, "do not delete");
+      createMockProject(root);
+      const relativeOutside = path.relative(root, outsideFile);
+
+      const overlayDir = path.join(root, "templates", "minimal");
+      fs.mkdirSync(overlayDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(overlayDir, "template.json"),
+        JSON.stringify({
+          id: "minimal",
+          defaultComponent: "welcome",
+          exportConfig: {
+            entryPoint: "lib/workbench/wrappers/welcome-card-sdk.tsx",
+            exportName: "WelcomeCardSDK",
+          },
+          deleteGlobs: [relativeOutside],
+        }),
+      );
+
+      expect(() => applyOverlayTemplate(root, "minimal")).toThrow(
+        "template.json: deleteGlobs[0]: path traversal is not allowed",
+      );
+      expect(fs.existsSync(outsideFile)).toBe(true);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+      fs.rmSync(outsideRoot, { recursive: true, force: true });
     }
   });
 });

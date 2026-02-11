@@ -24,7 +24,11 @@ import {
 } from "./utils";
 import { getVersionFromCliDir } from "./version";
 import { updateWorkbenchIndex } from "./workbench-index";
-import { hasOverlayTemplates, applyOverlayTemplate } from "./overlay-template";
+import {
+  hasOverlayTemplates,
+  applyOverlayTemplate,
+  listOverlayTemplateIds,
+} from "./overlay-template";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -99,7 +103,7 @@ ${pc.bold("Options:")}
   --help, -h              Show this help message
   --version, -v           Show version number
   -y, --yes               Non-interactive mode (use defaults or flag values)
-  --template <name>       Template to use: minimal, poi-map (default: minimal)
+  --template <id>         Template ID from the starter repo (default: minimal)
   --include-server        Include MCP server (default: true)
   --no-server             Do not include MCP server
   --description <text>    App description
@@ -122,15 +126,21 @@ function quotePath(p: string): string {
   return `'${p.replace(/'/g, "'\\''")}'`;
 }
 
-type TemplateType = "minimal" | "poi-map";
+type LegacyTemplateType = "minimal" | "poi-map";
 
-const TEMPLATE_COMPONENTS: Record<TemplateType, string[]> = {
+const LEGACY_TEMPLATES = ["minimal", "poi-map"] as const;
+
+function isLegacyTemplate(template: string): template is LegacyTemplateType {
+  return (LEGACY_TEMPLATES as readonly string[]).includes(template);
+}
+
+const TEMPLATE_COMPONENTS: Record<LegacyTemplateType, string[]> = {
   minimal: ["welcome"],
   "poi-map": ["poi-map"],
 };
 
 const TEMPLATE_EXPORT_CONFIG: Record<
-  TemplateType,
+  LegacyTemplateType,
   { entryPoint: string; exportName: string }
 > = {
   minimal: {
@@ -143,18 +153,16 @@ const TEMPLATE_EXPORT_CONFIG: Record<
   },
 };
 
-const TEMPLATE_DEFAULT_COMPONENT: Record<TemplateType, string> = {
+const TEMPLATE_DEFAULT_COMPONENT: Record<LegacyTemplateType, string> = {
   minimal: "welcome",
   "poi-map": "poi-map",
 };
 
 function writeStudioConfig(
   targetDir: string,
-  template: TemplateType,
   appName: string,
-  exportConfigOverride?: { entryPoint: string; exportName: string },
+  exportConfig: { entryPoint: string; exportName: string },
 ): void {
-  const exportConfig = exportConfigOverride ?? TEMPLATE_EXPORT_CONFIG[template];
   const config = {
     widget: {
       entryPoint: exportConfig.entryPoint,
@@ -414,7 +422,7 @@ function updateWorkbenchStoreDefault(
   fs.writeFileSync(storePath, content);
 }
 
-function applyTemplate(targetDir: string, template: TemplateType): void {
+function applyTemplate(targetDir: string, template: LegacyTemplateType): void {
   const components = TEMPLATE_COMPONENTS[template];
 
   // Update component registry
@@ -480,7 +488,6 @@ interface ProjectConfig {
   name: string;
   packageName: string;
   description: string;
-  template: TemplateType;
   includeServer: boolean;
 }
 
@@ -583,7 +590,7 @@ async function downloadTemplateToTemp(): Promise<{
 interface ParsedArgs {
   projectName?: string;
   yes: boolean;
-  template?: TemplateType;
+  template?: string;
   includeServer?: boolean;
   description?: string;
 }
@@ -603,8 +610,8 @@ function parseArgs(args: string[]): ParsedArgs {
         parsed.yes = true;
         break;
       case "--template":
-        if (next && (next === "minimal" || next === "poi-map")) {
-          parsed.template = next as TemplateType;
+        if (next && !next.startsWith("-")) {
+          parsed.template = next;
           i++;
         }
         break;
@@ -703,27 +710,20 @@ async function main() {
     process.exit(0);
   }
 
-  let template: TemplateType | symbol;
+  let template: string | symbol;
   if (parsedArgs.template !== undefined) {
     template = parsedArgs.template;
   } else if (nonInteractive) {
     template = "minimal";
   } else {
-    template = await p.select({
-      message: "Choose a starter template:",
-      options: [
-        {
-          value: "minimal",
-          label: "Minimal",
-          hint: "Simple welcome card - perfect starting point",
-        },
-        {
-          value: "poi-map",
-          label: "Locations App",
-          hint: "Interactive map demo with full SDK features",
-        },
-      ],
+    template = await p.text({
+      message: "Template ID:",
+      placeholder: "minimal",
       initialValue: "minimal",
+      validate: (value): string | undefined => {
+        if (!value) return "Template ID is required";
+        return undefined;
+      },
     });
   }
 
@@ -759,9 +759,9 @@ async function main() {
     name: projectName as string,
     packageName,
     description: (description as string) || "",
-    template: template as TemplateType,
     includeServer: includeServer as boolean,
   };
+  const requestedTemplate = template as string;
 
   const targetNotEmpty = !isEmpty(targetDir);
   let shouldOverwrite = false;
@@ -833,17 +833,38 @@ async function main() {
 
   s.message("Applying template...");
   if (hasOverlayTemplates(targetDir)) {
-    const manifest = applyOverlayTemplate(targetDir, config.template);
+    const availableTemplates = listOverlayTemplateIds(targetDir);
+    if (availableTemplates.length === 0) {
+      throw new Error(
+        "Starter repo contains templates/ but no template overlays were found.",
+      );
+    }
+    if (!availableTemplates.includes(requestedTemplate)) {
+      throw new Error(
+        `Template "${requestedTemplate}" is not available in this starter repo. Available templates: ${availableTemplates.join(", ")}`,
+      );
+    }
+
+    const manifest = applyOverlayTemplate(targetDir, requestedTemplate);
     writeStudioConfig(
       targetDir,
-      config.template,
       path.basename(targetDir),
       manifest.exportConfig,
     );
   } else {
     // Legacy codegen path — kept for backward compat with older starter repos
-    applyTemplate(targetDir, config.template);
-    writeStudioConfig(targetDir, config.template, path.basename(targetDir));
+    if (!isLegacyTemplate(requestedTemplate)) {
+      throw new Error(
+        `Template "${requestedTemplate}" is not supported by this legacy starter repo. Supported templates: ${LEGACY_TEMPLATES.join(", ")}`,
+      );
+    }
+
+    applyTemplate(targetDir, requestedTemplate);
+    writeStudioConfig(
+      targetDir,
+      path.basename(targetDir),
+      TEMPLATE_EXPORT_CONFIG[requestedTemplate],
+    );
   }
 
   if (config.includeServer) {
