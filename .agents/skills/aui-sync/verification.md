@@ -4,7 +4,7 @@ Run after each template sync:
 
 ## File Integrity
 - [ ] Changed files exist and are non-empty
-- [ ] No syntax errors (lint passes)
+- [ ] No syntax errors (lint/build checks pass)
 - [ ] Imports resolve correctly
 
 ## Integration Preservation
@@ -18,10 +18,10 @@ Run after each template sync:
 - [ ] No unintended deletions
 - [ ] Changes are committable
 
-## Build Check (Optional)
+## Build and Type Check
+- [ ] `tsc --noEmit` succeeds
 - [ ] `pnpm install` succeeds (if deps changed)
 - [ ] `pnpm build` succeeds (except expected failures from missing env vars, local servers, etc.)
-- [ ] `tsc --noEmit` succeeds
 
 ## Commands to Run
 
@@ -29,6 +29,8 @@ Run after each template sync:
 # Per template:
 cd <template>
 git diff --stat
+pnpm format
 pnpm lint
 tsc --noEmit
+pnpm build
 ```

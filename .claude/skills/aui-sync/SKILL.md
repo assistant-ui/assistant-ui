@@ -55,8 +55,9 @@ For each template and each bucket:
    pnpx assistant-ui add <component> --yes --overwrite
    ```
 
-3. **Lint and format**
+3. **Format and lint**
    ```bash
+   cd <template-path>
    pnpm format
    pnpm lint:fix
    ```
@@ -70,6 +71,10 @@ For each template and each bucket:
    - Preserve registry changes while adding back template customizations
 
 5. **Lint again after integration restoration**
+   ```bash
+   cd <template-path>
+   pnpm lint:fix
+   ```
 
 6. **Update dependencies (separate commit)**
    ```bash
@@ -95,7 +100,7 @@ Present results:
 
 ## Additional Paths Handling
 
-When user specifies additional paths (e.g., "route.ts in cloud-starter"):
+When user specifies additional paths (e.g., "route.ts in assistant-ui-starter-cloud"):
 
 1. Parse the request to identify:
    - Source file/path
@@ -105,12 +110,12 @@ When user specifies additional paths (e.g., "route.ts in cloud-starter"):
 2. For each target template:
    - Determine appropriate destination path
    - Copy file, adjusting imports if needed
-   - Lint/format
+   - Run `pnpm format` and `pnpm lint:fix`
 
 ## Constraints
 
 - **Never push** - only local changes and commits
-- **Never merge** - leave PRs for human review
+- **Never merge unless explicitly requested/approved by the user**
 - **Stop on errors** - don't continue to next template if one fails badly
 - **Preserve git history** - one commit per bucket per template
 - **Ask before destructive ops** - confirm before overwriting files with uncommitted changes
@@ -119,13 +124,13 @@ When user specifies additional paths (e.g., "route.ts in cloud-starter"):
 
 - [ ] All targeted templates have synced components
 - [ ] Integration points preserved (verified by reading files)
-- [ ] Lint passes on all changed files
+- [ ] `pnpm format` and `pnpm lint:fix` pass on changed templates
 - [ ] Git status shows only expected changes
 - [ ] User informed of results and next steps
 
 ## Post-Workflow Commands
 
-If user requests merging the PRs after sync completion:
+If user explicitly requests merging the PRs after sync completion:
 ```bash
 gh pr merge <pr-url> --squash --delete-branch
 ```
