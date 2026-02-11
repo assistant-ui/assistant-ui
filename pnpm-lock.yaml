@@ -2048,9 +2048,6 @@ importers:
       assistant-cloud:
         specifier: workspace:^0.1.17
         version: link:../cloud
-      assistant-stream:
-        specifier: ^0.3.2
-        version: link:../assistant-stream
     devDependencies:
       '@ai-sdk/react':
         specifier: ^3.0.44
@@ -2067,6 +2064,9 @@ importers:
       ai:
         specifier: ^6.0.42
         version: 6.0.73(zod@4.3.6)
+      assistant-stream:
+        specifier: ^0.3.2
+        version: link:../assistant-stream
       react:
         specifier: ^19.2.3
         version: 19.2.4

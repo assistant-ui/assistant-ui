@@ -1,19 +1,11 @@
 import type { AssistantCloud } from "assistant-cloud";
 import { MESSAGE_FORMAT } from "../chat/internal/messageFormat";
 
-/**
- * Generate a title for a thread using AI.
- * Loads messages from cloud and uses the built-in title generation assistant.
- *
- * @param cloud - The AssistantCloud instance
- * @param threadId - The thread ID to generate a title for
- * @returns The generated title, or null if generation failed
- */
 export async function generateThreadTitle(
   cloud: AssistantCloud,
   threadId: string,
 ): Promise<string | null> {
-  // Load messages with retry (messages may not be persisted yet)
+  // Recent writes can lag behind thread creation, so retry briefly.
   const loadMessages = async () => {
     for (let attempt = 0; attempt < 2; attempt += 1) {
       const { messages } = await cloud.threads.messages.list(threadId);
@@ -27,7 +19,6 @@ export async function generateThreadTitle(
   const messages = await loadMessages();
   if (messages.length === 0) return null;
 
-  // Filter to ai-sdk/v6 format messages (have content.parts array)
   const aiSdkMessages = messages.filter(
     (msg) =>
       msg.format === MESSAGE_FORMAT ||
@@ -35,7 +26,6 @@ export async function generateThreadTitle(
   );
   if (aiSdkMessages.length === 0) return null;
 
-  // Convert to title generator format (text parts only)
   const convertedMessages = aiSdkMessages
     .map((msg) => {
       const parts = msg.content["parts"] as
@@ -55,7 +45,6 @@ export async function generateThreadTitle(
 
   if (convertedMessages.length === 0) return null;
 
-  // Stream title from cloud's built-in title generation assistant
   const stream = await cloud.runs.stream({
     thread_id: threadId,
     assistant_id: "system/thread_title",
@@ -76,7 +65,6 @@ export async function generateThreadTitle(
     reader.releaseLock();
   }
 
-  // Persist the title if generated
   if (title) {
     await cloud.threads.update(threadId, { title });
   }

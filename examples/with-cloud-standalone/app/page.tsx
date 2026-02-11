@@ -12,7 +12,7 @@ export default function Home() {
   //   - { cloud: myCloud } for authenticated users
   //   - { threads: useThreads(...) } for external thread management
   //   - { onSyncError: (err) => ... } for error handling
-  const { messages, sendMessage, stop, status, threads } = useCloudChat();
+  const { messages, sendMessage, stop, status, threadStore } = useCloudChat();
 
   const [input, setInput] = useState("");
 
@@ -26,18 +26,18 @@ export default function Home() {
   const isLoading = status === "submitted";
 
   const handleDelete = async (id: string) => {
-    if (threads.threadId === id) threads.selectThread(null);
-    await threads.delete(id);
+    if (threadStore.threadId === id) threadStore.selectThread(null);
+    await threadStore.delete(id);
   };
 
   return (
     <div className="flex h-full">
       <ThreadList
-        threads={threads.threads}
-        selectedId={threads.threadId}
-        onSelect={threads.selectThread}
+        threads={threadStore.threads}
+        selectedId={threadStore.threadId}
+        onSelect={threadStore.selectThread}
         onDelete={handleDelete}
-        isLoading={threads.isLoading}
+        isLoading={threadStore.isLoading}
       />
 
       <div className="flex min-w-0 flex-1 flex-col">

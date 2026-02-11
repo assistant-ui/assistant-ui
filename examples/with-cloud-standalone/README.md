@@ -22,7 +22,7 @@ import { useCloudChat } from "@assistant-ui/cloud-ai-sdk";
 
 function Chat() {
   // Auto-initializes anonymous cloud from NEXT_PUBLIC_ASSISTANT_BASE_URL
-  const { messages, sendMessage, threads } = useCloudChat();
+  const { messages, sendMessage, threadStore } = useCloudChat();
   // ...
 }
 ```
@@ -39,7 +39,7 @@ function Chat() {
     authToken: async () => getToken(),
   }), [getToken]);
 
-  const { messages, sendMessage, threads } = useCloudChat({ cloud });
+  const { messages, sendMessage, threadStore } = useCloudChat({ cloud });
   // ...
 }
 ```
@@ -61,4 +61,4 @@ const { messages, sendMessage } = useCloudChat({ threads: myThreads });
 
 ## How it works
 
-Messages persist automatically as they complete. Thread creation is handled automatically when you send the first message — the thread is created, selected, and the list is refreshed. Call `threads.selectThread(id)` to switch threads, `threads.selectThread(null)` for a new chat.
+Messages persist automatically as they complete. Thread creation is handled automatically when you send the first message — the thread is created, selected, and the list is refreshed. Call `threadStore.selectThread(id)` to switch threads, `threadStore.selectThread(null)` for a new chat.

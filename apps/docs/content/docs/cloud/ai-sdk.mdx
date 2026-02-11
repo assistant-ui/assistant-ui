@@ -66,7 +66,7 @@ import { useCloudChat } from "@assistant-ui/cloud-ai-sdk";
 export default function Chat() {
   // Zero-config: auto-initializes anonymous cloud from env var with built-in threads.
   // For custom config, pass: { cloud, threads: useThreads(...), onSyncError }
-  const { messages, sendMessage, threads } = useCloudChat();
+  const { messages, sendMessage, threadStore } = useCloudChat();
 
   const [input, setInput] = useState("");
   const handleSubmit = () => {
@@ -79,12 +79,12 @@ export default function Chat() {
     <div>
       {/* Thread list */}
       <ul>
-        {threads.threads.map((t) => (
-          <li key={t.id} onClick={() => threads.selectThread(t.id)}>
+        {threadStore.threads.map((t) => (
+          <li key={t.id} onClick={() => threadStore.selectThread(t.id)}>
             {t.title || "New conversation"}
           </li>
         ))}
-        <li onClick={() => threads.selectThread(null)}>New chat</li>
+        <li onClick={() => threadStore.selectThread(null)}>New chat</li>
       </ul>
 
       {/* Chat messages */}
@@ -161,25 +161,25 @@ All other [AI SDK `useChat` options](https://sdk.vercel.ai/docs/reference/ai-sdk
 | `status` | `string` | Chat status: `"ready"`, `"submitted"`, `"streaming"`, or `"error"` |
 | `sendMessage` | `(message, options?) => Promise<void>` | Send a message (auto-creates thread if needed) |
 | `stop` | `() => void` | Stop the current stream |
-| `threads` | `UseThreadsResult` | Thread management (see below) |
+| `threadStore` | `UseThreadsResult` | Thread management (see below) |
 
 Plus all other properties from AI SDK's [`UseChatHelpers`](https://sdk.vercel.ai/docs/reference/ai-sdk-ui/use-chat).
 
-**Thread management (`threads`):**
+**Thread management (`threadStore`):**
 
 | Value | Type | Description |
 |-------|------|-------------|
-| `threads.threads` | `CloudThread[]` | Active threads sorted by recency |
-| `threads.threadId` | `string \| null` | Current thread ID (`null` for a new unsaved chat) |
-| `threads.selectThread` | `(id: string \| null) => void` | Switch threads or pass `null` for a new chat |
-| `threads.isLoading` | `boolean` | `true` during initial load or refresh |
-| `threads.error` | `Error \| null` | Last error, if any |
-| `threads.refresh` | `() => Promise<boolean>` | Re-fetch the thread list |
-| `threads.delete` | `(id: string) => Promise<boolean>` | Delete a thread |
-| `threads.rename` | `(id: string, title: string) => Promise<boolean>` | Rename a thread |
-| `threads.archive` | `(id: string) => Promise<boolean>` | Archive a thread |
-| `threads.unarchive` | `(id: string) => Promise<boolean>` | Unarchive a thread |
-| `threads.generateTitle` | `(threadId: string) => Promise<string \| null>` | Generate a title using AI |
+| `threadStore.threads` | `CloudThread[]` | Active threads sorted by recency |
+| `threadStore.threadId` | `string \| null` | Current thread ID (`null` for a new unsaved chat) |
+| `threadStore.selectThread` | `(id: string \| null) => void` | Switch threads or pass `null` for a new chat |
+| `threadStore.isLoading` | `boolean` | `true` during initial load or refresh |
+| `threadStore.error` | `Error \| null` | Last error, if any |
+| `threadStore.refresh` | `() => Promise<boolean>` | Re-fetch the thread list |
+| `threadStore.delete` | `(id: string) => Promise<boolean>` | Delete a thread |
+| `threadStore.rename` | `(id: string, title: string) => Promise<boolean>` | Rename a thread |
+| `threadStore.archive` | `(id: string) => Promise<boolean>` | Archive a thread |
+| `threadStore.unarchive` | `(id: string) => Promise<boolean>` | Unarchive a thread |
+| `threadStore.generateTitle` | `(threadId: string) => Promise<string \| null>` | Generate a title using AI |
 
 ### `useThreads(options)`
 
@@ -198,7 +198,7 @@ const { messages, sendMessage } = useCloudChat({ threads: myThreads });
 | `options.includeArchived` | `boolean` | Include archived threads (default: `false`) |
 | `options.enabled` | `boolean` | Enable thread fetching (default: `true`) |
 
-**Returns:** `UseThreadsResult` — same shape as `threads` from `useCloudChat()`.
+**Returns:** `UseThreadsResult` — same shape as `threadStore` from `useCloudChat()`.
 
 ## Authentication
 
@@ -217,7 +217,7 @@ function Chat() {
     authToken: async () => getToken({ template: "assistant-ui" }),
   }), [getToken]);
 
-  const { messages, sendMessage, threads } = useCloudChat({ cloud });
+  const { messages, sendMessage, threadStore } = useCloudChat({ cloud });
   // ...
 }
 ```

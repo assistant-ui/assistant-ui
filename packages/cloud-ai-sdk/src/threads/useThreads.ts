@@ -8,7 +8,6 @@ import type {
 } from "../types";
 import { generateThreadTitle } from "./generateThreadTitle";
 
-/** Convert API response to CloudThread */
 function toCloudThread(t: {
   id: string;
   title: string;
@@ -29,17 +28,6 @@ function toCloudThread(t: {
   };
 }
 
-/**
- * Thread list management for Assistant Cloud.
- *
- * Provides thread listing, selection, and CRUD operations (create, delete,
- * rename, archive, unarchive). Also includes AI-powered title generation.
- *
- * Use with `useCloudChat` either by letting it manage threads internally,
- * or by calling `useThreads` explicitly and passing the result to
- * `useCloudChat({ threads })` when you need access to thread operations
- * outside the chat context.
- */
 export function useThreads(options: UseThreadsOptions): UseThreadsResult {
   const { cloud, includeArchived = false, enabled = true } = options;
 
@@ -48,17 +36,12 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
   const [error, setError] = useState<Error | null>(null);
   const [threadId, setThreadId] = useState<string | null>(null);
 
-  // Track mounted state
   const mountedRef = useRef(true);
   useEffect(() => {
     return () => {
       mountedRef.current = false;
     };
   }, []);
-
-  // ============================================================================
-  // CRUD Operations
-  // ============================================================================
 
   const refresh = useCallback(async (): Promise<boolean> => {
     setIsLoading(true);
@@ -78,7 +61,6 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
     }
   }, [cloud, includeArchived]);
 
-  // Load threads on mount (only if enabled)
   useEffect(() => {
     if (!enabled) return;
     refresh();
@@ -155,12 +137,10 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
       try {
         await cloud.threads.update(id, { is_archived: true });
         if (includeArchived) {
-          // Update status in list
           setThreads((prev) =>
             prev.map((t) => (t.id === id ? { ...t, status: "archived" } : t)),
           );
         } else {
-          // Remove from list
           setThreads((prev) => prev.filter((t) => t.id !== id));
         }
         setError(null);
@@ -177,14 +157,12 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
     async (id: string): Promise<boolean> => {
       try {
         await cloud.threads.update(id, { is_archived: false });
-        // Fetch the thread to ensure we have latest data and handle case where
-        // thread was filtered out (when includeArchived: false)
+        // Refetch so we restore canonical data even when this thread was hidden.
         const thread = await cloud.threads.get(id);
         const cloudThread = toCloudThread(thread);
 
         if (mountedRef.current) {
           setThreads((prev) => {
-            // Remove if exists, then prepend to ensure it's in the list
             const filtered = prev.filter((t) => t.id !== id);
             return [cloudThread, ...filtered];
           });
@@ -200,24 +178,15 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
     [cloud],
   );
 
-  // ============================================================================
-  // Thread Selection
-  // ============================================================================
-
   const selectThread = useCallback((id: string | null) => {
     setThreadId(id);
   }, []);
-
-  // ============================================================================
-  // Title Generation
-  // ============================================================================
 
   const generateTitle = useCallback(
     async (tid: string): Promise<string | null> => {
       try {
         const title = await generateThreadTitle(cloud, tid);
 
-        // Update local state if title was generated
         if (title && mountedRef.current) {
           setThreads((prev) =>
             prev.map((t) => (t.id === tid ? { ...t, title } : t)),

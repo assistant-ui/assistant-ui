@@ -8,9 +8,6 @@ import {
 import type { AssistantCloud } from "assistant-cloud";
 import { encode, MESSAGE_FORMAT } from "../internal/messageFormat";
 
-/**
- * Format adapter for AI SDK v6 messages.
- */
 const aiSdkFormatAdapter: MessageFormatAdapter<UIMessage, ReadonlyJSONObject> =
   {
     format: MESSAGE_FORMAT,
@@ -26,15 +23,6 @@ type FormattedPersistence = ReturnType<
   typeof createFormattedPersistence<UIMessage, ReadonlyJSONObject>
 >;
 
-/**
- * Handles message persistence for cloud-backed chats.
- *
- * Manages:
- * - Persistence instances per thread
- * - Message encoding/decoding
- * - Deduplication (via isPersisted checks)
- * - Error handling
- */
 export class MessagePersistence {
   private persistenceByThread = new Map<string, CloudMessagePersistence>();
   private formattedByThread = new Map<string, FormattedPersistence>();
@@ -44,9 +32,6 @@ export class MessagePersistence {
     private onError: (err: unknown) => void,
   ) {}
 
-  /**
-   * Get the raw persistence instance for a thread.
-   */
   private getPersistence(threadId: string): CloudMessagePersistence {
     const existing = this.persistenceByThread.get(threadId);
     if (existing) return existing;
@@ -56,10 +41,6 @@ export class MessagePersistence {
     return created;
   }
 
-  /**
-   * Get the formatted persistence wrapper for a thread.
-   * This handles encoding/decoding between UIMessage and cloud format.
-   */
   getFormattedPersistence(threadId: string): FormattedPersistence {
     const existing = this.formattedByThread.get(threadId);
     if (existing) return existing;
@@ -72,10 +53,6 @@ export class MessagePersistence {
     return created;
   }
 
-  /**
-   * Persist messages to cloud.
-   * Only persists messages that haven't been persisted yet.
-   */
   async persistMessages(
     threadId: string,
     messages: UIMessage[],
@@ -84,10 +61,7 @@ export class MessagePersistence {
     await this.persistMessagesByRole(threadId, messages, mountedRef);
   }
 
-  /**
-   * Persist only user messages and fail if any message cannot be persisted.
-   * Used by the transport path to guarantee durable write-before-send.
-   */
+  // Transport sends only after this succeeds to preserve user-message durability.
   async persistUserMessagesStrict(
     threadId: string,
     messages: UIMessage[],
@@ -138,9 +112,6 @@ export class MessagePersistence {
     }
   }
 
-  /**
-   * Load messages from cloud for a thread.
-   */
   async loadMessages(threadId: string): Promise<UIMessage[]> {
     const formatted = this.getFormattedPersistence(threadId);
     const { messages } = await formatted.load(threadId);

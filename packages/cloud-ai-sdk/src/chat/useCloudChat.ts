@@ -10,11 +10,7 @@ import { AssistantCloud } from "assistant-cloud";
 import { ChatMultiplexer } from "./internal/ChatMultiplexer";
 import { MessagePersistence } from "./internal/MessagePersistence";
 
-// ============================================================================
-// Module Singletons
-// ============================================================================
-
-// Module-level singleton cloud instance for zero-config mode (from NEXT_PUBLIC_ASSISTANT_BASE_URL)
+// Keep a single auto-configured client so zero-config mode stays stable.
 const autoCloudBaseUrl =
   typeof process !== "undefined"
     ? process.env["NEXT_PUBLIC_ASSISTANT_BASE_URL"]
@@ -23,7 +19,6 @@ const autoCloud = autoCloudBaseUrl
   ? new AssistantCloud({ baseUrl: autoCloudBaseUrl, anonymous: true })
   : undefined;
 
-// Generate unique chat session IDs
 function createSessionId(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
     return crypto.randomUUID();
@@ -31,18 +26,6 @@ function createSessionId(): string {
   return `aui_${Date.now()}_${Math.random().toString(36).slice(2)}`;
 }
 
-// ============================================================================
-// Main Hook
-// ============================================================================
-
-/**
- * Wraps AI SDK's `useChat` with automatic cloud persistence and thread management.
- *
- * Messages are persisted as they complete. Threads are created automatically on first message.
- *
- * Supports zero-config (via `NEXT_PUBLIC_ASSISTANT_BASE_URL` env var), custom cloud instances,
- * thread configuration, and external thread management via `useThreads()`.
- */
 export function useCloudChat(
   options: UseCloudChatOptions = {},
 ): UseCloudChatResult {
@@ -54,13 +37,8 @@ export function useCloudChat(
     ...chatOptions
   } = options;
 
-  // ============================================================================
-  // 1. Resolve Configuration
-  // ============================================================================
-
   const externalThreads = threadsOption;
 
-  // Resolve cloud: external threads' cloud > cloudOption > env var auto-cloud (singleton)
   const resolvedCloud = useMemo(() => {
     if (externalThreads) return externalThreads.cloud;
     if (cloudOption) return cloudOption;
@@ -75,22 +53,17 @@ export function useCloudChat(
     return autoCloud;
   }, [externalThreads, cloudOption]);
 
-  // Always call useThreads (Rules of Hooks) but disable when external provided
+  // Always call the hook; disable fetches when threads are managed externally.
   const internalThreads = useThreads({
     cloud: resolvedCloud,
-    enabled: !externalThreads, // Skip fetch if user manages threads
+    enabled: !externalThreads,
   });
 
-  // Use external if provided, otherwise internal
-  const threads = externalThreads ?? internalThreads;
-  const { cloud, threadId } = threads;
+  const threadStore = externalThreads ?? internalThreads;
+  const { cloud, threadId } = threadStore;
 
-  // ============================================================================
-  // 2. Refs for Stable References
-  // ============================================================================
-
-  const threadsRef = useRef(threads);
-  threadsRef.current = threads;
+  const threadsRef = useRef(threadStore);
+  threadsRef.current = threadStore;
 
   const chatInitRef = useRef(chatOptions);
   chatInitRef.current = chatOptions;
@@ -109,7 +82,6 @@ export function useCloudChat(
   const onSyncErrorRef = useRef(onSyncError);
   onSyncErrorRef.current = onSyncError;
 
-  // Track mounted state
   const mountedRef = useRef(true);
   useEffect(() => {
     return () => {
@@ -117,13 +89,8 @@ export function useCloudChat(
     };
   }, []);
 
-  // For auto-title generation: track newly created threads
   const newlyCreatedThreadIdsRef = useRef(new Set<string>());
   const titleGeneratedRef = useRef(new Set<string>());
-
-  // ============================================================================
-  // 3. Initialize Core Services
-  // ============================================================================
 
   const handleSyncError = useCallback((err: unknown) => {
     const error = err instanceof Error ? err : new Error(String(err));
@@ -145,10 +112,6 @@ export function useCloudChat(
   );
   baseTransportRef.current = userTransport ?? defaultTransportRef.current;
 
-  // ============================================================================
-  // 4. Chat Factory and Multiplexer
-  // ============================================================================
-
   const persistChatMessages = useCallback(
     async (chatKey: string, multiplexer: ChatMultiplexer) => {
       const meta = multiplexer.getMeta(chatKey);
@@ -161,7 +124,6 @@ export function useCloudChat(
       const messages = chatInstance.messages;
       await persistence.persistMessages(tid, messages, mountedRef);
 
-      // Auto-generate title after first assistant response
       if (
         newlyCreatedThreadIdsRef.current.has(tid) &&
         !titleGeneratedRef.current.has(tid) &&
@@ -275,17 +237,12 @@ export function useCloudChat(
 
   const multiplexerRef = useRef<ChatMultiplexer | null>(null);
   if (!multiplexerRef.current) {
-    // Circular reference: multiplexer needs createChat which needs multiplexer
-    // We solve this by passing multiplexer to createChat at call time
+    // createChat closes over multiplexer, so pass multiplexer at invocation time.
     multiplexerRef.current = new ChatMultiplexer((chatKey) =>
       createChat(chatKey, multiplexerRef.current!),
     );
   }
   const multiplexer = multiplexerRef.current;
-
-  // ============================================================================
-  // 5. Determine Active Chat
-  // ============================================================================
 
   const newChatKeyRef = useRef<string | null>(null);
   if (!newChatKeyRef.current) {
@@ -305,10 +262,6 @@ export function useCloudChat(
     : (newChatKeyRef.current ?? (newChatKeyRef.current = createSessionId()));
 
   const activeChat = multiplexer.getOrCreate(activeChatKey, threadId);
-
-  // ============================================================================
-  // 6. Load Messages Effect
-  // ============================================================================
 
   const loadThreadMessages = useCallback(
     async (
@@ -356,14 +309,10 @@ export function useCloudChat(
     };
   }, [threadId, multiplexer, loadThreadMessages]);
 
-  // ============================================================================
-  // 7. Return Composed Result
-  // ============================================================================
-
   const chat = useChat({ chat: activeChat });
 
   return {
     ...chat,
-    threads,
+    threadStore,
   };
 }
