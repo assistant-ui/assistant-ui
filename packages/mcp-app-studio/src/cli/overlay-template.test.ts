@@ -41,7 +41,7 @@ function addMinimalOverlay(root: string): void {
         entryPoint: "lib/workbench/wrappers/welcome-card-sdk.tsx",
         exportName: "WelcomeCardSDK",
       },
-      deleteGlobs: [
+      deletePaths: [
         "components/examples/poi-map",
         "lib/workbench/wrappers/poi-map-sdk.tsx",
         "lib/workbench/wrappers/poi-map-input.ts",
@@ -75,7 +75,7 @@ function addPoiMapOverlay(root: string): void {
         entryPoint: "lib/workbench/wrappers/poi-map-sdk.tsx",
         exportName: "POIMapSDK",
       },
-      deleteGlobs: [
+      deletePaths: [
         "components/examples/welcome-card",
         "lib/workbench/wrappers/welcome-card-sdk.tsx",
         "lib/workbench/demo/welcome-card-demo.tsx",
@@ -163,7 +163,7 @@ describe("loadTemplateManifest", () => {
         "lib/workbench/wrappers/welcome-card-sdk.tsx",
       );
       expect(manifest.exportConfig.exportName).toBe("WelcomeCardSDK");
-      expect(manifest.deleteGlobs).toEqual([
+      expect(manifest.deletePaths).toEqual([
         "components/examples/poi-map",
         "lib/workbench/wrappers/poi-map-sdk.tsx",
         "lib/workbench/wrappers/poi-map-input.ts",
@@ -197,7 +197,7 @@ describe("loadTemplateManifest", () => {
         JSON.stringify({
           defaultComponent: "x",
           exportConfig: {},
-          deleteGlobs: [],
+          deletePaths: [],
         }),
       );
       expect(() => loadTemplateManifest(root, "bad")).toThrow("missing 'id'");
@@ -205,7 +205,7 @@ describe("loadTemplateManifest", () => {
       // Missing defaultComponent
       fs.writeFileSync(
         path.join(manifestDir, "template.json"),
-        JSON.stringify({ id: "bad", exportConfig: {}, deleteGlobs: [] }),
+        JSON.stringify({ id: "bad", exportConfig: {}, deletePaths: [] }),
       );
       expect(() => loadTemplateManifest(root, "bad")).toThrow(
         "missing 'defaultComponent'",
@@ -214,7 +214,7 @@ describe("loadTemplateManifest", () => {
       // Missing exportConfig
       fs.writeFileSync(
         path.join(manifestDir, "template.json"),
-        JSON.stringify({ id: "bad", defaultComponent: "x", deleteGlobs: [] }),
+        JSON.stringify({ id: "bad", defaultComponent: "x", deletePaths: [] }),
       );
       expect(() => loadTemplateManifest(root, "bad")).toThrow(
         "missing 'exportConfig'",
@@ -227,14 +227,14 @@ describe("loadTemplateManifest", () => {
           id: "bad",
           defaultComponent: "x",
           exportConfig: { exportName: "X" },
-          deleteGlobs: [],
+          deletePaths: [],
         }),
       );
       expect(() => loadTemplateManifest(root, "bad")).toThrow(
         "missing 'exportConfig.entryPoint'",
       );
 
-      // Missing deleteGlobs
+      // Missing deletePaths
       fs.writeFileSync(
         path.join(manifestDir, "template.json"),
         JSON.stringify({
@@ -244,7 +244,7 @@ describe("loadTemplateManifest", () => {
         }),
       );
       expect(() => loadTemplateManifest(root, "bad")).toThrow(
-        "missing 'deleteGlobs' array",
+        "missing 'deletePaths' array",
       );
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
@@ -282,7 +282,7 @@ describe("loadTemplateManifest", () => {
             entryPoint: "lib/workbench/wrappers/welcome-card-sdk.tsx",
             exportName: "WelcomeCardSDK",
           },
-          deleteGlobs: [],
+          deletePaths: [],
         }),
       );
 
@@ -294,7 +294,7 @@ describe("loadTemplateManifest", () => {
     }
   });
 
-  it("throws when deleteGlobs entries are not strings", () => {
+  it("throws when deletePaths entries are not strings", () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-overlay-"));
     try {
       const manifestDir = path.join(root, "templates", "minimal");
@@ -308,19 +308,19 @@ describe("loadTemplateManifest", () => {
             entryPoint: "lib/workbench/wrappers/welcome-card-sdk.tsx",
             exportName: "WelcomeCardSDK",
           },
-          deleteGlobs: [123],
+          deletePaths: [123],
         }),
       );
 
       expect(() => loadTemplateManifest(root, "minimal")).toThrow(
-        "template.json: deleteGlobs[0] must be a string path",
+        "template.json: deletePaths[0] must be a string path",
       );
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
   });
 
-  it("throws when deleteGlobs contains path traversal", () => {
+  it("throws when deletePaths contains path traversal", () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-overlay-"));
     try {
       const manifestDir = path.join(root, "templates", "minimal");
@@ -334,19 +334,19 @@ describe("loadTemplateManifest", () => {
             entryPoint: "lib/workbench/wrappers/welcome-card-sdk.tsx",
             exportName: "WelcomeCardSDK",
           },
-          deleteGlobs: ["../outside.txt"],
+          deletePaths: ["../outside.txt"],
         }),
       );
 
       expect(() => loadTemplateManifest(root, "minimal")).toThrow(
-        "template.json: deleteGlobs[0]: path traversal is not allowed",
+        "template.json: deletePaths[0]: path traversal is not allowed",
       );
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
   });
 
-  it("throws when deleteGlobs contains absolute paths", () => {
+  it("throws when deletePaths contains absolute paths", () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-overlay-"));
     try {
       const manifestDir = path.join(root, "templates", "minimal");
@@ -360,12 +360,12 @@ describe("loadTemplateManifest", () => {
             entryPoint: "lib/workbench/wrappers/welcome-card-sdk.tsx",
             exportName: "WelcomeCardSDK",
           },
-          deleteGlobs: [path.resolve(root, "outside.txt")],
+          deletePaths: [path.resolve(root, "outside.txt")],
         }),
       );
 
       expect(() => loadTemplateManifest(root, "minimal")).toThrow(
-        "template.json: deleteGlobs[0]: absolute paths are not allowed",
+        "template.json: deletePaths[0]: absolute paths are not allowed",
       );
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
@@ -406,7 +406,7 @@ describe("applyOverlayTemplate", () => {
         ),
       ).toBe('export { WelcomeCardSDK } from "./welcome-card-sdk";\n');
 
-      // Verify deleteGlobs files were removed
+      // Verify deletePaths files were removed
       expect(
         fs.existsSync(path.join(root, "components/examples/poi-map")),
       ).toBe(false);
@@ -465,12 +465,12 @@ describe("applyOverlayTemplate", () => {
             entryPoint: "lib/workbench/wrappers/welcome-card-sdk.tsx",
             exportName: "WelcomeCardSDK",
           },
-          deleteGlobs: [relativeOutside],
+          deletePaths: [relativeOutside],
         }),
       );
 
       expect(() => applyOverlayTemplate(root, "minimal")).toThrow(
-        "template.json: deleteGlobs[0]: path traversal is not allowed",
+        "template.json: deletePaths[0]: path traversal is not allowed",
       );
       expect(fs.existsSync(outsideFile)).toBe(true);
     } finally {
