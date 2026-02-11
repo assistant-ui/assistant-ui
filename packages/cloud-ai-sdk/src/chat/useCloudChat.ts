@@ -214,7 +214,7 @@ export function useCloudChat(
         transport: createTransport(chatKey, multiplexer),
         onFinish: async (event) => {
           try {
-            await onFinishRef.current?.(event);
+            onFinishRef.current?.(event);
           } finally {
             await persistChatMessages(chatKey, multiplexer);
           }
