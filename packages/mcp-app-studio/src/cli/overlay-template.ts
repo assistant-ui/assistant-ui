@@ -5,7 +5,7 @@ export interface TemplateManifest {
   id: string;
   defaultComponent: string;
   exportConfig: { entryPoint: string; exportName: string };
-  deleteGlobs: string[];
+  deletePaths: string[];
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -98,20 +98,20 @@ export function loadTemplateManifest(
     throw new Error("template.json: missing 'exportConfig.entryPoint'");
   if (typeof ec.exportName !== "string")
     throw new Error("template.json: missing 'exportConfig.exportName'");
-  if (!Array.isArray(parsed.deleteGlobs))
-    throw new Error("template.json: missing 'deleteGlobs' array");
+  if (!Array.isArray(parsed.deletePaths))
+    throw new Error("template.json: missing 'deletePaths' array");
 
   const templatesRoot = path.join(targetDir);
-  const deleteGlobs = parsed.deleteGlobs.map((value, index) => {
+  const deletePaths = parsed.deletePaths.map((value, index) => {
     if (typeof value !== "string") {
       throw new Error(
-        `template.json: deleteGlobs[${index}] must be a string path`,
+        `template.json: deletePaths[${index}] must be a string path`,
       );
     }
     return ensureRelativePathInsideRoot(
       templatesRoot,
       value,
-      `template.json: deleteGlobs[${index}]`,
+      `template.json: deletePaths[${index}]`,
     );
   });
 
@@ -122,7 +122,7 @@ export function loadTemplateManifest(
       entryPoint: ec.entryPoint,
       exportName: ec.exportName,
     },
-    deleteGlobs,
+    deletePaths,
   };
 }
 
@@ -145,7 +145,7 @@ function copyOverlayFiles(overlayDir: string, targetDir: string): void {
  * Apply a template overlay:
  * 1. Read template.json
  * 2. Copy overlay files over base
- * 3. Delete files listed in deleteGlobs
+ * 3. Delete files listed in deletePaths
  * 4. Remove templates/ directory
  */
 export function applyOverlayTemplate(
@@ -157,8 +157,8 @@ export function applyOverlayTemplate(
 
   copyOverlayFiles(overlayDir, targetDir);
 
-  for (let index = 0; index < manifest.deleteGlobs.length; index++) {
-    const deletePath = manifest.deleteGlobs[index];
+  for (let index = 0; index < manifest.deletePaths.length; index++) {
+    const deletePath = manifest.deletePaths[index];
     if (!deletePath) continue;
 
     const target = path.resolve(
@@ -166,7 +166,7 @@ export function applyOverlayTemplate(
       ensureRelativePathInsideRoot(
         targetDir,
         deletePath,
-        `template.json: deleteGlobs[${index}]`,
+        `template.json: deletePaths[${index}]`,
       ),
     );
     fs.rmSync(target, { recursive: true, force: true });
