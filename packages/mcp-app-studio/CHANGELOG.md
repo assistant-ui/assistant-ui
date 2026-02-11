@@ -1,5 +1,13 @@
 # mcp-app-studio
 
+## 0.7.0
+
+### Minor Changes
+
+- a6a4e6d: feat: add overlay template system for project scaffolding
+
+  When the starter repo contains a `templates/` directory, the CLI now uses file overlays instead of codegen. Template-specific files are copied over the base, unwanted files are deleted per `deleteGlobs`, and the `templates/` directory is cleaned up. Falls back to legacy codegen for older starter repo versions.
+
 ## 0.6.1
 
 ### Patch Changes

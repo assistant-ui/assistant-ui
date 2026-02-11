@@ -1,5 +1,11 @@
 # create-assistant-ui
 
+## 0.0.42
+
+### Patch Changes
+
+- 91df50d: feat(cli): add template picker, preset support, and new templates
+
 ## 0.0.41
 
 ### Patch Changes

@@ -1,5 +1,11 @@
 # @assistant-ui/tap
 
+## 0.4.6
+
+### Patch Changes
+
+- afaaf3b: fix: use bracket notation for process.env
+
 ## 0.4.5
 
 ### Patch Changes
