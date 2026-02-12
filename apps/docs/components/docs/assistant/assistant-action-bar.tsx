@@ -28,7 +28,7 @@ function getErrorDetails(error: unknown): {
 } {
   if (error instanceof Error) {
     return {
-      error_name: error.name || "Error",
+      error_name: error.name,
       error_message: error.message || "Unknown error",
     };
   }
@@ -42,6 +42,7 @@ function getErrorDetails(error: unknown): {
 export function AssistantActionBar(): ReactNode {
   const [popoverOpen, setPopoverOpen] = useState(false);
   const feedbackShownForMessageRef = useRef<string | null>(null);
+  const feedbackSubmissionStartedRef = useRef<string | null>(null);
 
   const aui = useAui();
   const messageId = useAuiState((s) => s.message.id);
@@ -102,7 +103,10 @@ export function AssistantActionBar(): ReactNode {
   }
 
   const handlePositiveFeedback = () => {
-    if (submittedFeedback) return;
+    if (submittedFeedback || feedbackSubmissionStartedRef.current === messageId)
+      return;
+    feedbackSubmissionStartedRef.current = messageId;
+
     analytics.assistant.feedbackClicked({
       ...feedbackBaseProps,
       type: "positive",
@@ -111,6 +115,7 @@ export function AssistantActionBar(): ReactNode {
     try {
       aui.message().submitFeedback({ type: "positive" });
     } catch (error) {
+      feedbackSubmissionStartedRef.current = null;
       analytics.assistant.feedbackSubmitFailed({
         ...feedbackBaseProps,
         type: "positive",
@@ -130,7 +135,10 @@ export function AssistantActionBar(): ReactNode {
     category: FeedbackCategory,
     comment?: string,
   ) => {
-    if (submittedFeedback) return;
+    if (submittedFeedback || feedbackSubmissionStartedRef.current === messageId)
+      return;
+    feedbackSubmissionStartedRef.current = messageId;
+
     const negativeFeedbackProps = {
       ...feedbackBaseProps,
       type: "negative" as const,
@@ -143,6 +151,7 @@ export function AssistantActionBar(): ReactNode {
     try {
       aui.message().submitFeedback({ type: "negative" });
     } catch (error) {
+      feedbackSubmissionStartedRef.current = null;
       analytics.assistant.feedbackSubmitFailed({
         ...negativeFeedbackProps,
         ...getErrorDetails(error),
