@@ -171,6 +171,57 @@ export const analytics = {
   },
 
   assistant: {
+    feedbackShown: (props: {
+      threadId: string;
+      messageId: string;
+      user_question_length: number;
+      assistant_response_length: number;
+      tool_calls_count: number;
+      tool_names?: string;
+    }) => {
+      trackEvent("assistant_feedback_shown", props);
+    },
+
+    feedbackClicked: (props: {
+      threadId: string;
+      messageId: string;
+      type: "positive" | "negative";
+      category?:
+        | "wrong_information"
+        | "outdated"
+        | "didnt_answer"
+        | "too_vague"
+        | "other";
+      comment_length?: number;
+      user_question_length: number;
+      assistant_response_length: number;
+      tool_calls_count: number;
+      tool_names?: string;
+    }) => {
+      trackEvent("assistant_feedback_clicked", props);
+    },
+
+    feedbackSubmitFailed: (props: {
+      threadId: string;
+      messageId: string;
+      type: "positive" | "negative";
+      category?:
+        | "wrong_information"
+        | "outdated"
+        | "didnt_answer"
+        | "too_vague"
+        | "other";
+      comment_length?: number;
+      user_question_length: number;
+      assistant_response_length: number;
+      tool_calls_count: number;
+      tool_names?: string;
+      error_name: string;
+      error_message: string;
+    }) => {
+      trackEvent("assistant_feedback_submit_failed", props);
+    },
+
     panelToggled: (props: { open: boolean; source: "trigger" | "toggle" }) => {
       trackEvent("assistant_panel_toggled", props);
     },
