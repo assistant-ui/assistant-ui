@@ -136,7 +136,12 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   }
 
   async _updateWithFormat<T>(localMessageId: string, content: T) {
-    const remoteMessageId = await this._getIdForLocalId[localMessageId];
+    let remoteMessageId: string | undefined;
+    try {
+      remoteMessageId = await this._getIdForLocalId[localMessageId];
+    } catch {
+      return;
+    }
     if (!remoteMessageId) return;
 
     const threadRemoteId = this.aui.threadListItem().getState().remoteId;

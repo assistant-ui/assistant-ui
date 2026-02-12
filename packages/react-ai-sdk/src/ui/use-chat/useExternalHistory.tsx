@@ -144,14 +144,22 @@ export const useExternalHistory = <TMessage,>(
         }
 
         if (historyIds.current.has(message.id)) {
-          const formatAdapter =
-            historyAdapter?.withFormat?.(storageFormatAdapter);
-          for (const innerMessage of innerMessages) {
-            const localId = storageFormatAdapter.getId(innerMessage);
-            await formatAdapter?.update?.(
-              { parentId: lastInnerMessageId, message: innerMessage },
-              localId,
-            );
+          if (durationMs !== undefined) {
+            const formatAdapter =
+              historyAdapter?.withFormat?.(storageFormatAdapter);
+            let parentId = lastInnerMessageId;
+            for (const innerMessage of innerMessages) {
+              const localId = storageFormatAdapter.getId(innerMessage);
+              try {
+                await formatAdapter?.update?.(
+                  { parentId, message: innerMessage },
+                  localId,
+                );
+              } catch {
+                // ignore update failures to avoid breaking the message processing loop
+              }
+              parentId = storageFormatAdapter.getId(innerMessage);
+            }
           }
           if (innerMessages.length > 0) {
             lastInnerMessageId = storageFormatAdapter.getId(
