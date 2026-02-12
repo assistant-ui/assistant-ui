@@ -5,7 +5,7 @@ import {
   AssistantCloudAnonymousAuthStrategy,
 } from "./AssistantCloudAuthStrategy";
 
-export type AssistantCloudConfig =
+export type AssistantCloudConfig = (
   | {
       baseUrl: string;
       authToken: () => Promise<string | null>;
@@ -18,7 +18,19 @@ export type AssistantCloudConfig =
   | {
       baseUrl: string;
       anonymous: true;
-    };
+    }
+) & {
+  /**
+   * Enable client-side run telemetry reporting. Default: `true`.
+   *
+   * When enabled, the SDK automatically reports run metadata (status, step
+   * count, tool calls, and token usage) to Assistant Cloud after each
+   * assistant message is saved. No message content is sent.
+   *
+   * Set to `false` to disable.
+   */
+  telemetry?: boolean;
+};
 
 class CloudAPIError extends Error {
   constructor(message: string) {

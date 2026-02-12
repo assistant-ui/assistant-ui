@@ -73,13 +73,14 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
 
   async append({ parentId, message }: ExportedMessageRepositoryItem) {
     const { remoteId } = await this.aui.threadListItem().initialize();
+    const encoded = auiV0Encode(message);
     const task = this.cloudRef.current.threads.messages
       .create(remoteId, {
         parent_id: parentId
           ? ((await this._getIdForLocalId[parentId]) ?? parentId)
           : null,
         format: "aui/v0",
-        content: auiV0Encode(message),
+        content: encoded,
       })
       .then(({ message_id }) => {
         this._getIdForLocalId[message.id] = message_id;
@@ -87,6 +88,15 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
       });
 
     this._getIdForLocalId[message.id] = task;
+
+    // Fire-and-forget telemetry for assistant messages
+    if (this.cloudRef.current.telemetryEnabled) {
+      task
+        .then(() => {
+          this._maybeReportRun(remoteId, "aui/v0", encoded);
+        })
+        .catch(() => {});
+    }
 
     return task.then(() => {});
   }
@@ -135,7 +145,72 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
 
     this._getIdForLocalId[messageId] = task;
 
+    // Fire-and-forget telemetry for assistant messages
+    if (this.cloudRef.current.telemetryEnabled) {
+      task
+        .then(() => {
+          this._maybeReportRun(remoteId, format, content);
+        })
+        .catch(() => {});
+    }
+
     return task.then(() => {});
+  }
+
+  private _maybeReportRun<T>(remoteId: string, format: string, content: T) {
+    if (format !== "aui/v0") return;
+
+    const msg = content as {
+      role?: string;
+      status?: { type: string };
+      content?: readonly {
+        type: string;
+        toolName?: string;
+        toolCallId?: string;
+      }[];
+      metadata?: {
+        steps?: readonly {
+          usage?: { promptTokens?: number; completionTokens?: number };
+        }[];
+      };
+    };
+
+    if (msg.role !== "assistant") return;
+
+    const toolCalls = msg.content
+      ?.filter((p) => p.type === "tool-call" && p.toolName && p.toolCallId)
+      .map((p) => ({ tool_name: p.toolName!, tool_call_id: p.toolCallId! }));
+
+    const steps = msg.metadata?.steps;
+    let promptTokens: number | undefined;
+    let completionTokens: number | undefined;
+    if (steps && steps.length > 0) {
+      promptTokens = 0;
+      completionTokens = 0;
+      for (const step of steps) {
+        promptTokens += step.usage?.promptTokens ?? 0;
+        completionTokens += step.usage?.completionTokens ?? 0;
+      }
+    }
+
+    const statusType = msg.status?.type;
+    const status: "completed" | "incomplete" | "error" =
+      statusType === "error"
+        ? "error"
+        : statusType === "incomplete"
+          ? "incomplete"
+          : "completed";
+
+    this.cloudRef.current.runs
+      .report({
+        thread_id: remoteId,
+        status,
+        total_steps: steps?.length,
+        tool_calls: toolCalls?.length ? toolCalls : undefined,
+        prompt_tokens: promptTokens,
+        completion_tokens: completionTokens,
+      })
+      .catch(() => {}); // silent — telemetry must not break message saving
   }
 
   async _loadWithFormat<TMessage, TStorageFormat>(

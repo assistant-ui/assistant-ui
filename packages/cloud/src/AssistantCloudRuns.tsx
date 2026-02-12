@@ -7,6 +7,18 @@ type AssistantCloudRunsStreamBody = {
   messages: readonly unknown[]; // TODO type
 };
 
+type AssistantCloudRunsReportBody = {
+  thread_id: string;
+  status: "completed" | "incomplete" | "error";
+  total_steps?: number;
+  tool_calls?: { tool_name: string; tool_call_id: string }[];
+  prompt_tokens?: number;
+  completion_tokens?: number;
+  model_name?: string;
+  provider_type?: string;
+  duration_ms?: number;
+};
+
 export class AssistantCloudRuns {
   constructor(private cloud: AssistantCloudAPI) {}
 
@@ -40,5 +52,11 @@ export class AssistantCloudRuns {
       body,
     });
     return AssistantStream.fromResponse(response, new PlainTextDecoder());
+  }
+
+  public async report(
+    body: AssistantCloudRunsReportBody,
+  ): Promise<{ run_id: string }> {
+    return this.cloud.makeRequest("/runs", { method: "POST", body });
   }
 }

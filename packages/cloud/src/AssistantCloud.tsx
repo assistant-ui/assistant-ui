@@ -9,6 +9,7 @@ export class AssistantCloud {
   public readonly auth;
   public readonly runs;
   public readonly files;
+  public readonly telemetryEnabled: boolean;
 
   constructor(config: AssistantCloudConfig) {
     const api = new AssistantCloudAPI(config);
@@ -18,5 +19,6 @@ export class AssistantCloud {
     };
     this.runs = new AssistantCloudRuns(api);
     this.files = new AssistantCloudFiles(api);
+    this.telemetryEnabled = config.telemetry !== false;
   }
 }
