@@ -147,7 +147,7 @@ export class CloudChatCore {
           ...opts,
           body: {
             ...opts.body,
-            id: currentThreadId ?? opts.chatId,
+            id: currentThreadId,
           },
         });
       },
