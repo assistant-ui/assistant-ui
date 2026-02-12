@@ -148,16 +148,15 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     durationMs?: number,
     stepTimestamps?: StepTimestamp[],
   ) {
-    const finalSteps = mergeStepTimestamps(data.steps, stepTimestamps);
-
+    const mergedSteps = mergeStepTimestamps(data.steps, stepTimestamps);
     const initial: Parameters<typeof this.cloudRef.current.runs.report>[0] = {
       thread_id: remoteId,
       status: data.status,
       ...(data.totalSteps != null
         ? { total_steps: data.totalSteps }
         : undefined),
-      ...(data.toolCalls?.length ? { tool_calls: data.toolCalls } : undefined),
-      ...(finalSteps?.length ? { steps: finalSteps } : undefined),
+      ...(data.toolCalls ? { tool_calls: data.toolCalls } : undefined),
+      ...(mergedSteps ? { steps: mergedSteps } : undefined),
       ...(data.promptTokens != null
         ? { prompt_tokens: data.promptTokens }
         : undefined),
@@ -168,7 +167,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
       ...(data.outputText != null
         ? { output_text: data.outputText }
         : undefined),
-      ...(data.metadata != null ? { metadata: data.metadata } : undefined),
+      ...(data.metadata ? { metadata: data.metadata } : undefined),
     };
 
     const { beforeReport } = this.cloudRef.current.telemetry;
@@ -182,9 +181,8 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
 const MAX_SPAN_CONTENT = 50_000;
 
 function truncateStr(value: string): string {
-  return value.length > MAX_SPAN_CONTENT
-    ? value.slice(0, MAX_SPAN_CONTENT)
-    : value;
+  if (value.length <= MAX_SPAN_CONTENT) return value;
+  return value.slice(0, MAX_SPAN_CONTENT);
 }
 
 function safeStringify(value: unknown): string | undefined {
@@ -210,15 +208,15 @@ function buildToolCall(
   result: unknown,
   argsText?: string,
 ): TelemetryToolCall {
-  const tc: TelemetryToolCall = {
+  const call: TelemetryToolCall = {
     tool_name: toolName,
     tool_call_id: toolCallId,
   };
-  const a = argsText ?? safeStringify(args);
-  if (a !== undefined) tc.tool_args = a;
-  const r = safeStringify(result);
-  if (r !== undefined) tc.tool_result = r;
-  return tc;
+  const toolArgs = argsText ?? safeStringify(args);
+  if (toolArgs !== undefined) call.tool_args = toolArgs;
+  const toolResult = safeStringify(result);
+  if (toolResult !== undefined) call.tool_result = toolResult;
+  return call;
 }
 
 type TelemetryStepData = {
@@ -257,13 +255,14 @@ type TelemetryData = {
 };
 
 function extractTelemetry<T>(format: string, content: T): TelemetryData | null {
-  if (format === "aui/v0") {
-    return extractAuiV0(content);
+  switch (format) {
+    case "aui/v0":
+      return extractAuiV0(content);
+    case "ai-sdk/v6":
+      return extractAiSdkV6(content);
+    default:
+      return null;
   }
-  if (format === "ai-sdk/v6") {
-    return extractAiSdkV6(content);
-  }
-  return null;
 }
 
 function extractBatchTelemetry<T>(
@@ -279,6 +278,11 @@ function extractBatchTelemetry<T>(
   }
   return null;
 }
+
+const AUI_STATUS_MAP: Record<string, TelemetryData["status"]> = {
+  error: "error",
+  incomplete: "incomplete",
+};
 
 function extractAuiV0<T>(content: T): TelemetryData | null {
   const msg = content as {
@@ -303,7 +307,7 @@ function extractAuiV0<T>(content: T): TelemetryData | null {
 
   if (msg.role !== "assistant") return null;
 
-  const toolCalls: TelemetryToolCall[] | undefined = msg.content
+  const toolCalls = msg.content
     ?.filter((p) => p.type === "tool-call" && p.toolName && p.toolCallId)
     .map((p) =>
       buildToolCall(p.toolName!, p.toolCallId!, p.args, p.result, p.argsText),
@@ -328,9 +332,8 @@ function extractAuiV0<T>(content: T): TelemetryData | null {
   }
 
   const statusType = msg.status?.type;
-  let status: TelemetryData["status"] = "completed";
-  if (statusType === "error") status = "error";
-  else if (statusType === "incomplete") status = "incomplete";
+  const status: TelemetryData["status"] =
+    (statusType && AUI_STATUS_MAP[statusType]) || "completed";
 
   const metadata = msg.metadata?.custom as Record<string, unknown> | undefined;
 
@@ -348,13 +351,13 @@ function extractAuiV0<T>(content: T): TelemetryData | null {
 
   return {
     status,
-    ...(toolCalls?.length ? { toolCalls } : undefined),
+    ...(toolCalls && toolCalls.length > 0 ? { toolCalls } : undefined),
     ...(steps?.length ? { totalSteps: steps.length } : undefined),
     ...(promptTokens != null ? { promptTokens } : undefined),
     ...(completionTokens != null ? { completionTokens } : undefined),
     ...(outputText != null ? { outputText } : undefined),
-    ...(metadata != null ? { metadata } : undefined),
-    ...(telemetrySteps != null ? { steps: telemetrySteps } : undefined),
+    ...(metadata ? { metadata } : undefined),
+    ...(telemetrySteps ? { steps: telemetrySteps } : undefined),
   };
 }
 
@@ -438,13 +441,15 @@ function buildAiSdkV6Result(
   const steps: TelemetryStepData[] | undefined =
     stepsData && stepsData.length > 1
       ? stepsData.map((s) => ({
-          ...(s.tool_calls.length ? { tool_calls: s.tool_calls } : undefined),
+          ...(s.tool_calls.length > 0
+            ? { tool_calls: s.tool_calls }
+            : undefined),
         }))
       : undefined;
 
   return {
     status: hasText ? "completed" : "incomplete",
-    ...(toolCalls.length ? { toolCalls } : undefined),
+    ...(toolCalls.length > 0 ? { toolCalls } : undefined),
     ...(totalSteps > 0 ? { totalSteps } : undefined),
     ...(usage?.promptTokens != null
       ? { promptTokens: usage.promptTokens }
@@ -453,8 +458,8 @@ function buildAiSdkV6Result(
       ? { completionTokens: usage.completionTokens }
       : undefined),
     ...(outputText != null ? { outputText } : undefined),
-    ...(metadata != null ? { metadata } : undefined),
-    ...(steps != null ? { steps } : undefined),
+    ...(metadata ? { metadata } : undefined),
+    ...(steps ? { steps } : undefined),
   };
 }
 

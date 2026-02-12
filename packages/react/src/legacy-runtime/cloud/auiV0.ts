@@ -71,13 +71,10 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
   // TODO attachments are currently intentionally ignored
   // info: ID and createdAt are ignored (we use the server value instead)
 
-  let status: MessageStatus | undefined;
-  if (message.status) {
-    status =
-      message.status.type === "running"
-        ? { type: "incomplete", reason: "cancelled" }
-        : message.status;
-  }
+  const status: MessageStatus | undefined =
+    message.status?.type === "running"
+      ? { type: "incomplete", reason: "cancelled" }
+      : message.status;
 
   return {
     role: message.role,
