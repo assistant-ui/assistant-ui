@@ -14,7 +14,9 @@ Standalone AI SDK hooks for `assistant-cloud` persistence. No runtime surface â€
 1. **`useChatRegistry`**
    Tracks active `Chat` instances by thread/session and reuses them across switches.
 
-2. **Thread loading** (effect in `useCloudChat`)
+2. **`useCloudChatCore`** â€” React lifecycle wrapper that creates, syncs, and manages the `CloudChatCore` instance.
+
+3. **Thread loading** (`useThreadMessageLoader` helper in `useCloudChat`)
    Loads thread history when a thread is selected; delegates to `CloudChatCore.loadThreadMessages`.
 
 Supporting internals:
