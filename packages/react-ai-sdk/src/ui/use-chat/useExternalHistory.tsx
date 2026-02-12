@@ -128,8 +128,11 @@ export const useExternalHistory = <TMessage,>(
         return;
       }
 
-      // Record step boundary only on the true→false transition
-      if (wasRunning && runStartRef.current != null) {
+      // Only act on the true→false transition
+      if (!wasRunning) return;
+
+      // Record step boundary offset (synchronous for accuracy)
+      if (runStartRef.current != null) {
         stepBoundariesRef.current.push(Date.now() - runStartRef.current);
       }
 
