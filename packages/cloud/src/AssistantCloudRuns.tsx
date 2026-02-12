@@ -7,7 +7,7 @@ type AssistantCloudRunsStreamBody = {
   messages: readonly unknown[]; // TODO type
 };
 
-type AssistantCloudRunsReportBody = {
+export type AssistantCloudRunReport = {
   thread_id: string;
   status: "completed" | "incomplete" | "error";
   total_steps?: number;
@@ -55,7 +55,7 @@ export class AssistantCloudRuns {
   }
 
   public async report(
-    body: AssistantCloudRunsReportBody,
+    body: AssistantCloudRunReport,
   ): Promise<{ run_id: string }> {
     return this.cloud.makeRequest("/runs", { method: "POST", body });
   }

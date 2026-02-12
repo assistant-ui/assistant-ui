@@ -1,4 +1,8 @@
-import { AssistantCloudAPI, AssistantCloudConfig } from "./AssistantCloudAPI";
+import {
+  AssistantCloudAPI,
+  AssistantCloudConfig,
+  AssistantCloudTelemetryConfig,
+} from "./AssistantCloudAPI";
 import { AssistantCloudAuthTokens } from "./AssistantCloudAuthTokens";
 import { AssistantCloudRuns } from "./AssistantCloudRuns";
 import { AssistantCloudThreads } from "./AssistantCloudThreads";
@@ -9,7 +13,7 @@ export class AssistantCloud {
   public readonly auth;
   public readonly runs;
   public readonly files;
-  public readonly telemetryEnabled: boolean;
+  public readonly telemetry: AssistantCloudTelemetryConfig;
 
   constructor(config: AssistantCloudConfig) {
     const api = new AssistantCloudAPI(config);
@@ -19,6 +23,13 @@ export class AssistantCloud {
     };
     this.runs = new AssistantCloudRuns(api);
     this.files = new AssistantCloudFiles(api);
-    this.telemetryEnabled = config.telemetry !== false;
+
+    const t = config.telemetry;
+    this.telemetry =
+      t === false
+        ? { enabled: false }
+        : t === true || t === undefined
+          ? { enabled: true }
+          : { enabled: t.enabled !== false, ...t };
   }
 }

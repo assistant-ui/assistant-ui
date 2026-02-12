@@ -4,6 +4,19 @@ import {
   AssistantCloudAPIKeyAuthStrategy,
   AssistantCloudAnonymousAuthStrategy,
 } from "./AssistantCloudAuthStrategy";
+import type { AssistantCloudRunReport } from "./AssistantCloudRuns";
+
+export type AssistantCloudTelemetryConfig = {
+  enabled?: boolean;
+  /**
+   * Called before each telemetry report is sent.
+   * Return a modified report to enrich it (e.g. add `model_name`),
+   * or return `null` to skip the report.
+   */
+  beforeReport?: (
+    report: AssistantCloudRunReport,
+  ) => AssistantCloudRunReport | null;
+};
 
 export type AssistantCloudConfig = (
   | {
@@ -21,15 +34,17 @@ export type AssistantCloudConfig = (
     }
 ) & {
   /**
-   * Enable client-side run telemetry reporting. Default: `true`.
+   * Client-side run telemetry reporting. Default: `true`.
    *
    * When enabled, the SDK automatically reports run metadata (status, step
    * count, tool calls, and token usage) to Assistant Cloud after each
    * assistant message is saved. No message content is sent.
    *
-   * Set to `false` to disable.
+   * - `true` / `undefined` — enabled with defaults
+   * - `false` — disabled
+   * - `{ beforeReport }` — enabled with a hook to enrich or filter reports
    */
-  telemetry?: boolean;
+  telemetry?: boolean | AssistantCloudTelemetryConfig;
 };
 
 class CloudAPIError extends Error {

@@ -90,7 +90,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     this._getIdForLocalId[message.id] = task;
 
     // Fire-and-forget telemetry for assistant messages
-    if (this.cloudRef.current.telemetryEnabled) {
+    if (this.cloudRef.current.telemetry.enabled) {
       task
         .then(() => {
           this._maybeReportRun(remoteId, "aui/v0", encoded);
@@ -146,7 +146,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     this._getIdForLocalId[messageId] = task;
 
     // Fire-and-forget telemetry for assistant messages
-    if (this.cloudRef.current.telemetryEnabled) {
+    if (this.cloudRef.current.telemetry.enabled) {
       task
         .then(() => {
           this._maybeReportRun(remoteId, format, content);
@@ -201,16 +201,23 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
           ? "incomplete"
           : "completed";
 
-    this.cloudRef.current.runs
-      .report({
+    let report: Parameters<typeof this.cloudRef.current.runs.report>[0] | null =
+      {
         thread_id: remoteId,
         status,
         total_steps: steps?.length,
         tool_calls: toolCalls?.length ? toolCalls : undefined,
         prompt_tokens: promptTokens,
         completion_tokens: completionTokens,
-      })
-      .catch(() => {}); // silent — telemetry must not break message saving
+      };
+
+    const { beforeReport } = this.cloudRef.current.telemetry;
+    if (beforeReport) {
+      report = beforeReport(report);
+    }
+    if (!report) return;
+
+    this.cloudRef.current.runs.report(report).catch(() => {});
   }
 
   async _loadWithFormat<TMessage, TStorageFormat>(
