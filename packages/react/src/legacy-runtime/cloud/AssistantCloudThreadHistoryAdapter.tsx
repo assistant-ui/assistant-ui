@@ -19,8 +19,10 @@ const globalMessageIdMapping = new WeakMap<
   Record<string, string | Promise<string>>
 >();
 
-class FormattedThreadHistoryAdapter<TMessage, TStorageFormat>
-  implements GenericThreadHistoryAdapter<TMessage>
+class FormattedThreadHistoryAdapter<
+  TMessage,
+  TStorageFormat extends Record<string, unknown>,
+> implements GenericThreadHistoryAdapter<TMessage>
 {
   constructor(
     private parent: AssistantCloudThreadHistoryAdapter,
@@ -80,7 +82,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     return globalMessageIdMapping.get(this.aui.threadListItem())!;
   }
 
-  withFormat<TMessage, TStorageFormat>(
+  withFormat<TMessage, TStorageFormat extends Record<string, unknown>>(
     formatAdapter: MessageFormatAdapter<TMessage, TStorageFormat>,
   ): GenericThreadHistoryAdapter<TMessage> {
     return new FormattedThreadHistoryAdapter(this, formatAdapter);
@@ -135,7 +137,10 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     return payload;
   }
 
-  async _updateWithFormat<T>(localMessageId: string, content: T) {
+  async _updateWithFormat<T extends Record<string, unknown>>(
+    localMessageId: string,
+    content: T,
+  ) {
     let remoteMessageId: string | undefined;
     try {
       remoteMessageId = await this._getIdForLocalId[localMessageId];
@@ -156,7 +161,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     );
   }
 
-  async _appendWithFormat<T>(
+  async _appendWithFormat<T extends Record<string, unknown>>(
     parentId: string | null,
     messageId: string,
     format: string,

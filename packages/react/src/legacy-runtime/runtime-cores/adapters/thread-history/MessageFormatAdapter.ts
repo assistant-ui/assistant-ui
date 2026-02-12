@@ -15,7 +15,10 @@ export interface MessageFormatRepository<TMessage> {
   messages: MessageFormatItem<TMessage>[];
 }
 
-export interface MessageFormatAdapter<TMessage, TStorageFormat> {
+export interface MessageFormatAdapter<
+  TMessage,
+  TStorageFormat extends Record<string, unknown>,
+> {
   format: string;
   encode(item: MessageFormatItem<TMessage>): TStorageFormat;
   decode(
