@@ -50,7 +50,7 @@ export const useExternalHistory = <TMessage,>(
 
   const historyIds = useRef(new Set<string>());
 
-  const onSetMessagesRef = useRef<typeof onSetMessages>(() => onSetMessages);
+  const onSetMessagesRef = useRef(onSetMessages);
   useEffect(() => {
     onSetMessagesRef.current = onSetMessages;
   });
@@ -87,15 +87,14 @@ export const useExternalHistory = <TMessage,>(
       }
     };
 
-    if (!loadedRef.current) {
-      loadedRef.current = true;
-      if (!optionalThreadListItem()?.getState().remoteId) {
-        setIsLoading(false);
-        return;
-      }
+    loadedRef.current = true;
 
-      loadHistory();
+    if (!optionalThreadListItem()?.getState().remoteId) {
+      setIsLoading(false);
+      return;
     }
+
+    loadHistory();
   }, [
     historyAdapter,
     storageFormatAdapter,
@@ -148,7 +147,7 @@ export const useExternalHistory = <TMessage,>(
         // Derive durationMs from the last boundary (covers all steps)
         const boundaries = stepBoundariesRef.current;
         const durationMs =
-          boundaries.length > 0 ? boundaries[boundaries.length - 1] : undefined;
+          boundaries.length > 0 ? boundaries.at(-1) : undefined;
 
         // Build per-step timestamps when there are multiple steps
         const stepTimestamps =
@@ -170,8 +169,19 @@ export const useExternalHistory = <TMessage,>(
         const { messages } = latest;
         let lastInnerMessageId: string | null = null;
 
-        for (let i = 0; i < messages.length; i++) {
-          const message = messages[i]!;
+        const getLastInnerId = (msgs: TMessage[]): string | null =>
+          msgs.length > 0 ? storageFormatAdapter.getId(msgs.at(-1)!) : null;
+
+        const toBatchItems = (msgs: TMessage[]) =>
+          msgs.map((msg, idx) => ({
+            parentId:
+              idx === 0
+                ? lastInnerMessageId
+                : storageFormatAdapter.getId(msgs[idx - 1]!),
+            message: msg,
+          }));
+
+        for (const message of messages) {
           const innerMessages = getExternalStoreMessages<TMessage>(message);
 
           const isReady =
@@ -180,11 +190,8 @@ export const useExternalHistory = <TMessage,>(
             message.status.type === "incomplete";
 
           if (!isReady) {
-            if (innerMessages.length > 0) {
-              lastInnerMessageId = storageFormatAdapter.getId(
-                innerMessages[innerMessages.length - 1]!,
-              );
-            }
+            lastInnerMessageId =
+              getLastInnerId(innerMessages) ?? lastInnerMessageId;
             continue;
           }
 
@@ -194,11 +201,10 @@ export const useExternalHistory = <TMessage,>(
                 historyAdapter?.withFormat?.(storageFormatAdapter);
               let parentId = lastInnerMessageId;
               for (const innerMessage of innerMessages) {
-                const localId = storageFormatAdapter.getId(innerMessage);
                 try {
                   await formatAdapter?.update?.(
                     { parentId, message: innerMessage },
-                    localId,
+                    storageFormatAdapter.getId(innerMessage),
                   );
                 } catch {
                   // ignore update failures to avoid breaking the message processing loop
@@ -206,21 +212,13 @@ export const useExternalHistory = <TMessage,>(
                 parentId = storageFormatAdapter.getId(innerMessage);
               }
 
-              // Re-report telemetry with the updated (complete) data
-              const batchItems = innerMessages.map((msg, idx) => ({
-                parentId:
-                  idx === 0
-                    ? lastInnerMessageId
-                    : storageFormatAdapter.getId(innerMessages[idx - 1]!),
-                message: msg,
-              }));
-              formatAdapter?.reportTelemetry?.(batchItems, telemetryOptions);
-            }
-            if (innerMessages.length > 0) {
-              lastInnerMessageId = storageFormatAdapter.getId(
-                innerMessages[innerMessages.length - 1]!,
+              formatAdapter?.reportTelemetry?.(
+                toBatchItems(innerMessages),
+                telemetryOptions,
               );
             }
+            lastInnerMessageId =
+              getLastInnerId(innerMessages) ?? lastInnerMessageId;
             continue;
           }
           historyIds.current.add(message.id);
@@ -228,23 +226,13 @@ export const useExternalHistory = <TMessage,>(
           const formatAdapter =
             historyAdapter?.withFormat?.(storageFormatAdapter);
 
-          const batchItems: {
-            parentId: string | null;
-            message: TMessage;
-          }[] = [];
-          let parentId = lastInnerMessageId;
-          for (const innerMessage of innerMessages) {
-            const item = { parentId, message: innerMessage };
-            batchItems.push(item);
+          const batchItems = toBatchItems(innerMessages);
+          for (const item of batchItems) {
             await formatAdapter?.append(item);
-            parentId = storageFormatAdapter.getId(innerMessage);
           }
 
-          if (innerMessages.length > 0) {
-            lastInnerMessageId = storageFormatAdapter.getId(
-              innerMessages[innerMessages.length - 1]!,
-            );
-          }
+          lastInnerMessageId =
+            getLastInnerId(innerMessages) ?? lastInnerMessageId;
 
           formatAdapter?.reportTelemetry?.(batchItems, telemetryOptions);
         }
