@@ -1,5 +1,8 @@
 import { RefObject, useState } from "react";
-import { ThreadHistoryAdapter } from "../runtime-cores/adapters/thread-history/ThreadHistoryAdapter";
+import {
+  GenericThreadHistoryAdapter,
+  ThreadHistoryAdapter,
+} from "../runtime-cores/adapters/thread-history/ThreadHistoryAdapter";
 import { ExportedMessageRepositoryItem } from "../runtime-cores/utils/MessageRepository";
 import { AssistantCloud } from "assistant-cloud";
 import { auiV0Decode, auiV0Encode } from "./auiV0";
@@ -9,7 +12,6 @@ import {
   MessageFormatRepository,
   MessageStorageEntry,
 } from "../runtime-cores/adapters/thread-history/MessageFormatAdapter";
-import { GenericThreadHistoryAdapter } from "../runtime-cores/adapters/thread-history/ThreadHistoryAdapter";
 import { ReadonlyJSONObject } from "assistant-stream/utils";
 import { AssistantClient, useAui } from "@assistant-ui/store";
 import { ThreadListItemMethods } from "../../types/scopes";
@@ -75,7 +77,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     private aui: AssistantClient,
   ) {}
 
-  private get _getIdForLocalId(): Record<string, string | Promise<string>> {
+  private get _idMapping(): Record<string, string | Promise<string>> {
     const key = this.aui.threadListItem();
     let mapping = globalMessageIdMapping.get(key);
     if (!mapping) {
@@ -97,17 +99,17 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     const task = this.cloudRef.current.threads.messages
       .create(remoteId, {
         parent_id: parentId
-          ? ((await this._getIdForLocalId[parentId]) ?? parentId)
+          ? ((await this._idMapping[parentId]) ?? parentId)
           : null,
         format: "aui/v0",
         content: encoded,
       })
       .then(({ message_id }) => {
-        this._getIdForLocalId[message.id] = message_id;
+        this._idMapping[message.id] = message_id;
         return message_id;
       });
 
-    this._getIdForLocalId[message.id] = task;
+    this._idMapping[message.id] = task;
 
     if (this.cloudRef.current.telemetry.enabled) {
       task
@@ -143,7 +145,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   ) {
     let remoteMessageId: string | undefined;
     try {
-      remoteMessageId = await this._getIdForLocalId[localMessageId];
+      remoteMessageId = await this._idMapping[localMessageId];
     } catch {
       return;
     }
@@ -172,17 +174,17 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     const task = this.cloudRef.current.threads.messages
       .create(remoteId, {
         parent_id: parentId
-          ? ((await this._getIdForLocalId[parentId]) ?? parentId)
+          ? ((await this._idMapping[parentId]) ?? parentId)
           : null,
         format,
         content: content as ReadonlyJSONObject,
       })
       .then(({ message_id }) => {
-        this._getIdForLocalId[messageId] = message_id;
+        this._idMapping[messageId] = message_id;
         return message_id;
       });
 
-    this._getIdForLocalId[messageId] = task;
+    this._idMapping[messageId] = task;
 
     await task;
   }
@@ -289,7 +291,7 @@ function truncateStr(value: string): string {
 }
 
 function safeStringify(value: unknown): string | undefined {
-  if (value === undefined || value === null) return undefined;
+  if (value == null) return undefined;
   try {
     return truncateStr(JSON.stringify(value));
   } catch {
@@ -432,7 +434,7 @@ function extractAuiV0<T>(content: T): TelemetryData | null {
   return {
     status,
     ...(toolCalls?.length ? { toolCalls } : undefined),
-    ...(steps?.length != null ? { totalSteps: steps.length } : undefined),
+    ...(steps?.length ? { totalSteps: steps.length } : undefined),
     ...(promptTokens != null ? { promptTokens } : undefined),
     ...(completionTokens != null ? { completionTokens } : undefined),
     ...(outputText != null ? { outputText } : undefined),
@@ -457,10 +459,8 @@ type AiSdkV6Message = {
 };
 
 function isToolCallPart(p: AiSdkV6Part): boolean {
-  if (p.type === "tool-call" && p.toolName && p.toolCallId) return true;
-  if (p.type.startsWith("tool-") && p.type !== "tool-call" && p.toolCallId)
-    return true;
-  return false;
+  if (!p.toolCallId) return false;
+  return p.type === "tool-call" ? !!p.toolName : p.type.startsWith("tool-");
 }
 
 function partToToolCall(p: AiSdkV6Part): TelemetryToolCall {
@@ -475,7 +475,6 @@ function partToToolCall(p: AiSdkV6Part): TelemetryToolCall {
 function collectAiSdkV6Parts(parts: readonly AiSdkV6Part[]): {
   textParts: string[];
   toolCalls: TelemetryToolCall[];
-  stepCount: number;
   stepsData: { tool_calls: TelemetryToolCall[] }[];
 } {
   const textParts: string[] = [];
@@ -504,8 +503,7 @@ function collectAiSdkV6Parts(parts: readonly AiSdkV6Part[]): {
     stepsData.push({ tool_calls: currentStepToolCalls });
   }
 
-  const stepCount = stepsData.length;
-  return { textParts, toolCalls, stepCount, stepsData };
+  return { textParts, toolCalls, stepsData };
 }
 
 function buildAiSdkV6Result(
@@ -539,13 +537,13 @@ function extractAiSdkV6<T>(content: T): TelemetryData | null {
   const msg = content as AiSdkV6Message;
   if (msg.role !== "assistant") return null;
 
-  const { textParts, toolCalls, stepCount, stepsData } = collectAiSdkV6Parts(
+  const { textParts, toolCalls, stepsData } = collectAiSdkV6Parts(
     msg.parts ?? [],
   );
   return buildAiSdkV6Result(
     textParts,
     toolCalls,
-    stepCount,
+    stepsData.length,
     msg.metadata,
     stepsData,
   );
@@ -555,7 +553,6 @@ function extractAiSdkV6Batch<T>(contents: T[]): TelemetryData | null {
   const allTextParts: string[] = [];
   const allToolCalls: TelemetryToolCall[] = [];
   const allStepsData: { tool_calls: TelemetryToolCall[] }[] = [];
-  let totalStepCount = 0;
   let hasAssistant = false;
   let metadata: Record<string, unknown> | undefined;
 
@@ -564,13 +561,12 @@ function extractAiSdkV6Batch<T>(contents: T[]): TelemetryData | null {
     if (msg.role !== "assistant") continue;
     hasAssistant = true;
 
-    const { textParts, toolCalls, stepCount, stepsData } = collectAiSdkV6Parts(
+    const { textParts, toolCalls, stepsData } = collectAiSdkV6Parts(
       msg.parts ?? [],
     );
     allTextParts.push(...textParts);
     allToolCalls.push(...toolCalls);
     allStepsData.push(...stepsData);
-    totalStepCount += stepCount;
     if (msg.metadata) metadata = msg.metadata;
   }
 
@@ -578,7 +574,7 @@ function extractAiSdkV6Batch<T>(contents: T[]): TelemetryData | null {
   return buildAiSdkV6Result(
     allTextParts,
     allToolCalls,
-    totalStepCount,
+    allStepsData.length,
     metadata,
     allStepsData,
   );
