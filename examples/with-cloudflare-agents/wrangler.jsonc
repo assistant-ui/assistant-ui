@@ -1,0 +1,21 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "assistant-ui-cloudflare-agents-example",
+  "main": "worker/index.ts",
+  "compatibility_date": "2025-01-31",
+  "compatibility_flags": ["nodejs_compat"],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "Chat",
+        "class_name": "Chat"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["Chat"]
+    }
+  ]
+}
