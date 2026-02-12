@@ -36,7 +36,7 @@ function createCore() {
   } as never;
 
   const refs = {
-    threadStore: {
+    threads: {
       cloud,
       generateTitle,
       selectThread,

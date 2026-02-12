@@ -10,26 +10,26 @@ import { CloudChatCore } from "../core/CloudChatCore";
 export function useCloudChatCore(
   cloud: AssistantCloud,
   options: {
-    threadStore: UseThreadsResult;
+    threads: UseThreadsResult;
     chatConfig: CloudChatConfig;
     onSyncError?: ((error: Error) => void) | undefined;
     transport?: ChatTransport<UIMessage> | undefined;
   },
 ): CloudChatCore {
-  const { threadStore, chatConfig, onSyncError, transport } = options;
+  const { threads, chatConfig, onSyncError, transport } = options;
 
   // Recreate when cloud identity changes (prevents stale persistence client)
   const coreRef = useRef<CloudChatCore | null>(null);
   if (!coreRef.current || coreRef.current.cloud !== cloud) {
     coreRef.current = new CloudChatCore(cloud, {
-      threadStore,
+      threads,
       chatConfig,
       onSyncError,
     });
   }
   const core = coreRef.current;
 
-  core.options = { threadStore, chatConfig, onSyncError };
+  core.options = { threads, chatConfig, onSyncError };
 
   // Track component lifetime for safe async operations
   const mountedRef = useRef(true);

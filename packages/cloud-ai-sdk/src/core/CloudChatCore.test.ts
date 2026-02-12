@@ -33,7 +33,7 @@ function createCore(overrides?: {
   const onSyncError = overrides?.onSyncError;
 
   const refs = {
-    threadStore: { generateTitle } as never,
+    threads: { generateTitle } as never,
     callbacks: {} as never,
     onSyncError: onSyncError as ((error: Error) => void) | undefined,
   };

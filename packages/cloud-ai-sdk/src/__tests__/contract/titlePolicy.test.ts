@@ -26,7 +26,7 @@ function createCore() {
   const generateTitle = vi.fn();
 
   const refs = {
-    threadStore: { generateTitle } as never,
+    threads: { generateTitle } as never,
     callbacks: {} as never,
     onSyncError: undefined,
   };

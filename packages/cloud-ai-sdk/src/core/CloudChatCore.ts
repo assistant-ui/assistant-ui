@@ -14,7 +14,7 @@ export type CloudChatConfig = Omit<
 >;
 
 export type CloudChatCoreOptions = {
-  threadStore: UseThreadsResult;
+  threads: UseThreadsResult;
   chatConfig: CloudChatConfig;
   onSyncError?: ((error: Error) => void) | undefined;
 };
@@ -51,15 +51,15 @@ export class CloudChatCore {
       chatKey,
       registry,
       async () => {
-        const res = await this.options.threadStore.cloud.threads.create({
+        const res = await this.options.threads.cloud.threads.create({
           last_message_at: new Date(),
         });
         return res.thread_id;
       },
       (threadId) => {
         this.titlePolicy.markNewThread(threadId);
-        this.options.threadStore.selectThread(threadId);
-        void this.options.threadStore.refresh();
+        this.options.threads.selectThread(threadId);
+        void this.options.threads.refresh();
       },
     );
   }
@@ -97,7 +97,7 @@ export class CloudChatCore {
 
     if (this.titlePolicy.shouldGenerateTitle(threadId, messages)) {
       this.titlePolicy.markTitleGenerated(threadId);
-      void this.options.threadStore.generateTitle(threadId);
+      void this.options.threads.generateTitle(threadId);
     }
   }
 

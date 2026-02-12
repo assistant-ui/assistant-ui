@@ -12,7 +12,7 @@ export function ChatPageClient() {
   //   - { cloud: myCloud } for authenticated users
   //   - { threads: useThreads(...) } for external thread management
   //   - { onSyncError: (err) => ... } for error handling
-  const { messages, sendMessage, stop, status, threadStore } = useCloudChat();
+  const { messages, sendMessage, stop, status, threads } = useCloudChat();
 
   const [input, setInput] = useState("");
 
@@ -26,18 +26,18 @@ export function ChatPageClient() {
   const isLoading = status === "submitted";
 
   const handleDelete = async (id: string) => {
-    if (threadStore.threadId === id) threadStore.selectThread(null);
-    await threadStore.delete(id);
+    if (threads.threadId === id) threads.selectThread(null);
+    await threads.delete(id);
   };
 
   return (
     <div className="flex h-full">
       <ThreadList
-        threads={threadStore.threads}
-        selectedId={threadStore.threadId}
-        onSelect={threadStore.selectThread}
+        threads={threads.threads}
+        selectedId={threads.threadId}
+        onSelect={threads.selectThread}
         onDelete={handleDelete}
-        isLoading={threadStore.isLoading}
+        isLoading={threads.isLoading}
       />
 
       <div className="flex min-w-0 flex-1 flex-col">

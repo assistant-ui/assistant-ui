@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { UseThreadsResult } from "../types";
 import { useCloudChat } from "./useCloudChat";
 
-function createThreadStore(
+function createThreads(
   cloud: unknown,
   threadId: string | null,
 ): UseThreadsResult {
@@ -39,12 +39,12 @@ describe("useCloudChat thread switching", () => {
       },
     };
 
-    const threadStore = createThreadStore(mockCloud, "thread-1");
+    const threads = createThreads(mockCloud, "thread-1");
 
     const { result, rerender } = renderHook(
       ({ tid }) => {
-        threadStore.threadId = tid;
-        return useCloudChat({ threads: threadStore });
+        threads.threadId = tid;
+        return useCloudChat({ threads: threads });
       },
       { initialProps: { tid: "thread-1" as string | null } },
     );

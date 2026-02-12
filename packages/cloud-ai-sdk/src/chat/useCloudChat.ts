@@ -36,25 +36,25 @@ export function useCloudChat(
   const cloud = useResolvedCloud(externalThreads, explicitCloud);
 
   const ownThreads = useThreads({ cloud, enabled: !externalThreads });
-  const threadStore = externalThreads ?? ownThreads;
+  const threads = externalThreads ?? ownThreads;
 
-  const core = useCloudChatCore(threadStore.cloud, {
-    threadStore,
+  const core = useCloudChatCore(threads.cloud, {
+    threads,
     chatConfig,
     onSyncError,
     transport,
   });
 
   const { registry, activeChat } = useChatRegistry({
-    threadId: threadStore.threadId,
+    threadId: threads.threadId,
     createChat: (chatKey, reg) => core.createChat(chatKey, reg),
   });
 
-  useThreadMessageLoader(threadStore.threadId, registry, core);
+  useThreadMessageLoader(threads.threadId, registry, core);
 
   const chat = useChat({ chat: activeChat });
 
-  return { ...chat, threadStore };
+  return { ...chat, threads };
 }
 
 function useResolvedCloud(

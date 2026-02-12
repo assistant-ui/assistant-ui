@@ -105,8 +105,8 @@ describe("useCloudChat", () => {
       useCloudChat({ cloud: mockCloud as never }),
     );
 
-    expect(result.current.threadStore).toBeDefined();
-    expect(result.current.threadStore.cloud).toBe(mockCloud);
+    expect(result.current.threads).toBeDefined();
+    expect(result.current.threads.cloud).toBe(mockCloud);
   });
 
   it("returns chat helpers from useChat", () => {
@@ -132,7 +132,7 @@ describe("useCloudChat", () => {
   });
 
   it("selecting a thread triggers useChat with thread key", async () => {
-    const threadStore = {
+    const threads = {
       cloud: mockCloud,
       threads: [],
       isLoading: false,
@@ -151,8 +151,8 @@ describe("useCloudChat", () => {
 
     const { rerender } = renderHook(
       ({ tid }) => {
-        threadStore.threadId = tid;
-        return useCloudChat({ threads: threadStore as never });
+        threads.threadId = tid;
+        return useCloudChat({ threads: threads as never });
       },
       { initialProps: { tid: null as string | null } },
     );

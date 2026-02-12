@@ -27,7 +27,7 @@ vi.mock("../../chat/MessagePersistence", () => ({
 
 function createCore() {
   const refs = {
-    threadStore: { generateTitle: vi.fn() } as never,
+    threads: { generateTitle: vi.fn() } as never,
     callbacks: {} as never,
     onSyncError: undefined,
   };
@@ -77,7 +77,7 @@ describe("Contract: Persistence", () => {
   it("persist errors route to onSyncError via MessagePersistence constructor callback", () => {
     const onSyncError = vi.fn();
     const refs = {
-      threadStore: { generateTitle: vi.fn() } as never,
+      threads: { generateTitle: vi.fn() } as never,
       callbacks: {} as never,
       onSyncError,
     };

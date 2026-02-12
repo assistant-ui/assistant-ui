@@ -47,7 +47,7 @@ export type UseCloudChatOptions = ChatInit<UIMessage> & {
 };
 
 export type UseCloudChatResult = UseChatHelpers<UIMessage> & {
-  threadStore: UseThreadsResult;
+  threads: UseThreadsResult;
 };
 
 export type ChatMeta = {
