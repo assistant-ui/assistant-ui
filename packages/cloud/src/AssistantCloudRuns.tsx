@@ -11,12 +11,18 @@ export type AssistantCloudRunReport = {
   thread_id: string;
   status: "completed" | "incomplete" | "error";
   total_steps?: number;
-  tool_calls?: { tool_name: string; tool_call_id: string }[];
+  tool_calls?: {
+    tool_name: string;
+    tool_call_id: string;
+    tool_args?: string;
+    tool_result?: string;
+  }[];
   prompt_tokens?: number;
   completion_tokens?: number;
   model_name?: string;
   provider_type?: string;
   duration_ms?: number;
+  output_text?: string;
 };
 
 export class AssistantCloudRuns {

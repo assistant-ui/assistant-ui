@@ -215,8 +215,14 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     data: TelemetryData,
     durationMs?: number,
   ) {
-    const { toolCalls, promptTokens, completionTokens, status, totalSteps } =
-      data;
+    const {
+      toolCalls,
+      promptTokens,
+      completionTokens,
+      status,
+      totalSteps,
+      outputText,
+    } = data;
 
     const initial: Parameters<typeof this.cloudRef.current.runs.report>[0] = {
       thread_id: remoteId,
@@ -228,6 +234,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
         ? { completion_tokens: completionTokens }
         : undefined),
       ...(durationMs != null ? { duration_ms: durationMs } : undefined),
+      ...(outputText != null ? { output_text: outputText } : undefined),
     };
 
     const { beforeReport } = this.cloudRef.current.telemetry;
@@ -269,12 +276,72 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   }
 }
 
+const MAX_SPAN_CONTENT = 50_000;
+
+function truncateStr(value: string): string {
+  return value.length > MAX_SPAN_CONTENT
+    ? value.slice(0, MAX_SPAN_CONTENT)
+    : value;
+}
+
+function safeStringify(value: unknown): string | undefined {
+  if (value === undefined || value === null) return undefined;
+  try {
+    return truncateStr(JSON.stringify(value));
+  } catch {
+    return undefined;
+  }
+}
+
+type TelemetryToolCall = {
+  tool_name: string;
+  tool_call_id: string;
+  tool_args?: string;
+  tool_result?: string;
+};
+
+function buildToolCall(
+  toolName: string,
+  toolCallId: string,
+  args: unknown,
+  result: unknown,
+): TelemetryToolCall {
+  const tc: TelemetryToolCall = {
+    tool_name: toolName,
+    tool_call_id: toolCallId,
+  };
+  const a = safeStringify(args);
+  if (a !== undefined) tc.tool_args = a;
+  const r = safeStringify(result);
+  if (r !== undefined) tc.tool_result = r;
+  return tc;
+}
+
+function buildToolCallWithArgsText(
+  toolName: string,
+  toolCallId: string,
+  args: unknown,
+  argsText: string | undefined,
+  result: unknown,
+): TelemetryToolCall {
+  const tc: TelemetryToolCall = {
+    tool_name: toolName,
+    tool_call_id: toolCallId,
+  };
+  const a = argsText ?? safeStringify(args);
+  if (a !== undefined) tc.tool_args = a;
+  const r = safeStringify(result);
+  if (r !== undefined) tc.tool_result = r;
+  return tc;
+}
+
 type TelemetryData = {
   status: "completed" | "incomplete" | "error";
-  toolCalls?: { tool_name: string; tool_call_id: string }[];
+  toolCalls?: TelemetryToolCall[];
   totalSteps?: number;
   promptTokens?: number;
   completionTokens?: number;
+  outputText?: string;
 };
 
 function extractTelemetry<T>(format: string, content: T): TelemetryData | null {
@@ -307,8 +374,12 @@ function extractAuiV0<T>(content: T): TelemetryData | null {
     status?: { type: string };
     content?: readonly {
       type: string;
+      text?: string;
       toolName?: string;
       toolCallId?: string;
+      args?: unknown;
+      argsText?: string;
+      result?: unknown;
     }[];
     metadata?: {
       steps?: readonly {
@@ -319,9 +390,23 @@ function extractAuiV0<T>(content: T): TelemetryData | null {
 
   if (msg.role !== "assistant") return null;
 
-  const toolCalls = msg.content
+  const toolCalls: TelemetryToolCall[] | undefined = msg.content
     ?.filter((p) => p.type === "tool-call" && p.toolName && p.toolCallId)
-    .map((p) => ({ tool_name: p.toolName!, tool_call_id: p.toolCallId! }));
+    .map((p) =>
+      buildToolCallWithArgsText(
+        p.toolName!,
+        p.toolCallId!,
+        p.args,
+        p.argsText,
+        p.result,
+      ),
+    );
+
+  const textParts = msg.content?.filter((p) => p.type === "text" && p.text);
+  const outputText =
+    textParts && textParts.length > 0
+      ? truncateStr(textParts.map((p) => p.text).join(""))
+      : undefined;
 
   const steps = msg.metadata?.steps;
   let promptTokens: number | undefined;
@@ -348,6 +433,7 @@ function extractAuiV0<T>(content: T): TelemetryData | null {
     ...(steps?.length != null ? { totalSteps: steps.length } : undefined),
     ...(promptTokens != null ? { promptTokens } : undefined),
     ...(completionTokens != null ? { completionTokens } : undefined),
+    ...(outputText != null ? { outputText } : undefined),
   };
 }
 
@@ -356,8 +442,11 @@ function extractAiSdkV6<T>(content: T): TelemetryData | null {
     role?: string;
     parts?: readonly {
       type: string;
+      text?: string;
       toolName?: string;
       toolCallId?: string;
+      args?: unknown;
+      result?: unknown;
     }[];
   };
 
@@ -365,19 +454,27 @@ function extractAiSdkV6<T>(content: T): TelemetryData | null {
 
   const parts = msg.parts ?? [];
 
-  const hasText = parts.some((p) => p.type === "text");
+  const textParts = parts.filter((p) => p.type === "text" && p.text);
+  const hasText = textParts.length > 0;
+  const outputText = hasText
+    ? truncateStr(textParts.map((p) => p.text).join(""))
+    : undefined;
 
-  const toolCalls = parts
+  const toolCalls: TelemetryToolCall[] = parts
     .filter((p) => {
       if (p.type === "tool-call" && p.toolName && p.toolCallId) return true;
       if (p.type.startsWith("tool-") && p.type !== "tool-call" && p.toolCallId)
         return true;
       return false;
     })
-    .map((p) => ({
-      tool_name: p.toolName ?? p.type.slice(5),
-      tool_call_id: p.toolCallId!,
-    }));
+    .map((p) =>
+      buildToolCall(
+        p.toolName ?? p.type.slice(5),
+        p.toolCallId!,
+        p.args,
+        p.result,
+      ),
+    );
 
   const stepCount = parts.filter((p) => p.type === "step-start").length;
 
@@ -385,22 +482,26 @@ function extractAiSdkV6<T>(content: T): TelemetryData | null {
     status: hasText ? "completed" : "incomplete",
     ...(toolCalls.length ? { toolCalls } : undefined),
     ...(stepCount > 0 ? { totalSteps: stepCount } : undefined),
+    ...(outputText != null ? { outputText } : undefined),
   };
 }
 
 function extractAiSdkV6Batch<T>(contents: T[]): TelemetryData | null {
-  const allToolCalls: { tool_name: string; tool_call_id: string }[] = [];
+  const allToolCalls: TelemetryToolCall[] = [];
+  const allTextParts: string[] = [];
   let totalStepCount = 0;
   let hasAssistant = false;
-  let hasText = false;
 
   for (const content of contents) {
     const msg = content as {
       role?: string;
       parts?: readonly {
         type: string;
+        text?: string;
         toolName?: string;
         toolCallId?: string;
+        args?: unknown;
+        result?: unknown;
       }[];
     };
 
@@ -409,25 +510,26 @@ function extractAiSdkV6Batch<T>(contents: T[]): TelemetryData | null {
 
     const parts = msg.parts ?? [];
 
-    if (!hasText && parts.some((p) => p.type === "text")) {
-      hasText = true;
-    }
-
     for (const p of parts) {
-      if (p.type === "tool-call" && p.toolName && p.toolCallId) {
-        allToolCalls.push({
-          tool_name: p.toolName,
-          tool_call_id: p.toolCallId,
-        });
+      if (p.type === "text" && p.text) {
+        allTextParts.push(p.text);
+      } else if (p.type === "tool-call" && p.toolName && p.toolCallId) {
+        allToolCalls.push(
+          buildToolCall(p.toolName, p.toolCallId, p.args, p.result),
+        );
       } else if (
         p.type.startsWith("tool-") &&
         p.type !== "tool-call" &&
         p.toolCallId
       ) {
-        allToolCalls.push({
-          tool_name: p.toolName ?? p.type.slice(5),
-          tool_call_id: p.toolCallId,
-        });
+        allToolCalls.push(
+          buildToolCall(
+            p.toolName ?? p.type.slice(5),
+            p.toolCallId,
+            p.args,
+            p.result,
+          ),
+        );
       }
     }
 
@@ -436,10 +538,14 @@ function extractAiSdkV6Batch<T>(contents: T[]): TelemetryData | null {
 
   if (!hasAssistant) return null;
 
+  const hasText = allTextParts.length > 0;
+  const outputText = hasText ? truncateStr(allTextParts.join("")) : undefined;
+
   return {
     status: hasText ? "completed" : "incomplete",
     ...(allToolCalls.length ? { toolCalls: allToolCalls } : undefined),
     ...(totalStepCount > 0 ? { totalSteps: totalStepCount } : undefined),
+    ...(outputText != null ? { outputText } : undefined),
   };
 }
 
