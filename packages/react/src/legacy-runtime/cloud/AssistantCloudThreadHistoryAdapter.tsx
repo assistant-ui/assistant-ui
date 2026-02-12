@@ -14,7 +14,6 @@ import { ReadonlyJSONObject } from "assistant-stream/utils";
 import { AssistantClient, useAui } from "@assistant-ui/store";
 import { ThreadListItemMethods } from "../../types/scopes";
 
-// Global WeakMap to store message ID mappings across adapter instances
 const globalMessageIdMapping = new WeakMap<
   ThreadListItemMethods,
   Record<string, string | Promise<string>>
@@ -29,11 +28,9 @@ class FormattedThreadHistoryAdapter<TMessage, TStorageFormat>
   ) {}
 
   async append(item: MessageFormatItem<TMessage>) {
-    // Encode the message using the format adapter
     const encoded = this.formatAdapter.encode(item);
     const messageId = this.formatAdapter.getId(item.message);
 
-    // Delegate to parent's internal append method with the encoded format
     return this.parent._appendWithFormat(
       item.parentId,
       messageId,
@@ -57,7 +54,6 @@ class FormattedThreadHistoryAdapter<TMessage, TStorageFormat>
   }
 
   async load(): Promise<MessageFormatRepository<TMessage>> {
-    // Delegate to parent's internal load method with format filter
     return this.parent._loadWithFormat(
       this.formatAdapter.format,
       (message: MessageStorageEntry<TStorageFormat>) =>
@@ -103,7 +99,6 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
 
     this._getIdForLocalId[message.id] = task;
 
-    // Fire-and-forget telemetry for assistant messages
     if (this.cloudRef.current.telemetry.enabled) {
       task
         .then(() => {
@@ -135,7 +130,6 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     return payload;
   }
 
-  // Internal methods for FormattedThreadHistoryAdapter
   async _appendWithFormat<T>(
     parentId: string | null,
     messageId: string,
@@ -175,36 +169,23 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     const extracted = extractBatchTelemetry(format, contents);
     if (!extracted) return;
 
-    const { toolCalls, promptTokens, completionTokens, status, totalSteps } =
-      extracted;
-
-    const initial: Parameters<typeof this.cloudRef.current.runs.report>[0] = {
-      thread_id: remoteId,
-      status,
-      ...(totalSteps != null ? { total_steps: totalSteps } : undefined),
-      ...(toolCalls?.length ? { tool_calls: toolCalls } : undefined),
-      ...(promptTokens != null ? { prompt_tokens: promptTokens } : undefined),
-      ...(completionTokens != null
-        ? { completion_tokens: completionTokens }
-        : undefined),
-      ...(options?.durationMs != null
-        ? { duration_ms: options.durationMs }
-        : undefined),
-    };
-
-    const { beforeReport } = this.cloudRef.current.telemetry;
-    const report = beforeReport ? beforeReport(initial) : initial;
-    if (!report) return;
-
-    this.cloudRef.current.runs.report(report).catch(() => {});
+    this._sendReport(remoteId, extracted, options?.durationMs);
   }
 
   private _maybeReportRun<T>(remoteId: string, format: string, content: T) {
     const extracted = extractTelemetry(format, content);
     if (!extracted) return;
 
+    this._sendReport(remoteId, extracted);
+  }
+
+  private _sendReport(
+    remoteId: string,
+    data: TelemetryData,
+    durationMs?: number,
+  ) {
     const { toolCalls, promptTokens, completionTokens, status, totalSteps } =
-      extracted;
+      data;
 
     const initial: Parameters<typeof this.cloudRef.current.runs.report>[0] = {
       thread_id: remoteId,
@@ -215,6 +196,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
       ...(completionTokens != null
         ? { completion_tokens: completionTokens }
         : undefined),
+      ...(durationMs != null ? { duration_ms: durationMs } : undefined),
     };
 
     const { beforeReport } = this.cloudRef.current.telemetry;
@@ -281,8 +263,6 @@ function extractBatchTelemetry<T>(
   if (format === "ai-sdk/v6") {
     return extractAiSdkV6Batch(contents);
   }
-  // For other formats (aui/v0), messages are already joined into one.
-  // Fall back to single-message extraction on the last item.
   for (let i = contents.length - 1; i >= 0; i--) {
     const result = extractTelemetry(format, contents[i]!);
     if (result) return result;
@@ -354,12 +334,9 @@ function extractAiSdkV6<T>(content: T): TelemetryData | null {
 
   const parts = msg.parts ?? [];
 
-  // Only report telemetry for messages that contain a text part (final response).
-  // Intermediate tool-call-only messages are skipped to avoid duplicate runs.
   const hasText = parts.some((p) => p.type === "text");
   if (!hasText) return null;
 
-  // Handle both "tool-call" (v6 native) and "tool-{name}" (v5-style) parts
   const toolCalls = parts
     .filter((p) => {
       if (p.type === "tool-call" && p.toolName && p.toolCallId) return true;
@@ -401,7 +378,6 @@ function extractAiSdkV6Batch<T>(contents: T[]): TelemetryData | null {
 
     const parts = msg.parts ?? [];
 
-    // Collect tool calls from ALL messages in the batch
     for (const p of parts) {
       if (p.type === "tool-call" && p.toolName && p.toolCallId) {
         allToolCalls.push({

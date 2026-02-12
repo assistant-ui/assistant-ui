@@ -55,7 +55,6 @@ export const useExternalHistory = <TMessage,>(
     onSetMessagesRef.current = onSetMessages;
   });
 
-  // Load messages from history adapter on mount
   useEffect(() => {
     if (!historyAdapter || loadedRef.current) return;
 
@@ -124,6 +123,8 @@ export const useExternalHistory = <TMessage,>(
           : undefined;
       runStartRef.current = null;
 
+      let lastInnerMessageId: string | null = null;
+
       for (let i = 0; i < messages.length; i++) {
         const message = messages[i]!;
         if (
@@ -131,16 +132,24 @@ export const useExternalHistory = <TMessage,>(
           message.status.type === "complete" ||
           message.status.type === "incomplete"
         ) {
-          if (historyIds.current.has(message.id)) continue;
+          const innerMessages = getExternalStoreMessages<TMessage>(message);
+
+          if (historyIds.current.has(message.id)) {
+            if (innerMessages.length > 0) {
+              lastInnerMessageId = storageFormatAdapter.getId(
+                innerMessages[innerMessages.length - 1]!,
+              );
+            }
+            continue;
+          }
           historyIds.current.add(message.id);
 
-          const innerMessages = getExternalStoreMessages<TMessage>(message);
           const formatAdapter =
             historyAdapter?.withFormat?.(storageFormatAdapter);
 
           const batchItems: { parentId: string | null; message: TMessage }[] =
             [];
-          let parentId = i > 0 ? messages[i - 1]!.id : null;
+          let parentId = lastInnerMessageId;
           for (const innerMessage of innerMessages) {
             const item = { parentId, message: innerMessage };
             batchItems.push(item);
@@ -148,7 +157,12 @@ export const useExternalHistory = <TMessage,>(
             parentId = storageFormatAdapter.getId(innerMessage);
           }
 
-          // Report telemetry once for the entire batch of messages
+          if (innerMessages.length > 0) {
+            lastInnerMessageId = storageFormatAdapter.getId(
+              innerMessages[innerMessages.length - 1]!,
+            );
+          }
+
           formatAdapter?.reportTelemetry?.(batchItems, { durationMs });
         }
       }

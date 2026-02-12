@@ -175,20 +175,30 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
           .flat(),
       ),
     onExportExternalState: (): MessageFormatRepository<UI_MESSAGE> => {
-      // Export the thread's MessageRepository
       const exported = runtimeRef.current.thread.export();
 
-      // Convert each ThreadMessage back to its original UI_MESSAGE format,
-      // expanding joined messages into individual entries with parent chaining
       const expandedMessages: MessageFormatItem<UI_MESSAGE>[] = [];
+      const lastInnerIdMap = new Map<string, string>();
+
       for (const item of exported.messages) {
         const innerMessages = getExternalStoreMessages<UI_MESSAGE>(
           item.message,
         );
-        let parentId = item.parentId;
+        let parentId =
+          item.parentId != null
+            ? (lastInnerIdMap.get(item.parentId) ?? item.parentId)
+            : null;
         for (const innerMessage of innerMessages) {
           expandedMessages.push({ parentId, message: innerMessage });
           parentId = aiSDKV6FormatAdapter.getId(innerMessage as UIMessage);
+        }
+        if (innerMessages.length > 0) {
+          lastInnerIdMap.set(
+            item.message.id,
+            aiSDKV6FormatAdapter.getId(
+              innerMessages[innerMessages.length - 1]! as UIMessage,
+            ),
+          );
         }
       }
 
@@ -196,9 +206,8 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         messages: expandedMessages,
       };
 
-      // Only include headId if it's defined
       if (exported.headId !== undefined) {
-        result.headId = exported.headId;
+        result.headId = lastInnerIdMap.get(exported.headId) ?? exported.headId;
       }
 
       return result;
