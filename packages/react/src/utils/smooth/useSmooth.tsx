@@ -106,7 +106,7 @@ export const useSmooth = (
   }, [smoothStatusStore, smooth, text, displayedText, state.status]);
 
   const [animatorRef] = useState<TextStreamAnimator>(
-    new TextStreamAnimator(text, setText),
+    new TextStreamAnimator(displayedText, setText),
   );
 
   useEffect(() => {
