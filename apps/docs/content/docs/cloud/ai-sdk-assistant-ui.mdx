@@ -6,11 +6,31 @@ description: Integrate cloud persistence using assistant-ui runtime and pre-buil
 
 ## Overview
 
-This guide shows how to integrate Assistant Cloud with the [AI SDK](https://sdk.vercel.ai/) using assistant-ui's runtime system and pre-built UI components (`<Thread />`, `<ThreadList />`).
+This guide shows how to integrate Assistant Cloud with the [AI SDK](https://sdk.vercel.ai/) using assistant-ui's runtime system and pre-built UI components.
 
 <Callout type="tip">
-  Using the AI SDK with your own UI? See [AI SDK](/docs/cloud/ai-sdk) for a lighter integration with just two hooks.
+  Using the AI SDK with your own UI? See [AI SDK](/docs/cloud/ai-sdk) for a lighter integration with just one hook.
 </Callout>
+
+## What You Get
+
+This integration provides:
+
+- **`<Thread />`** — A complete chat interface with messages, composer, and status indicators
+- **`<ThreadList />`** — A sidebar showing all conversations with auto-generated titles, plus new/delete/manage actions
+- **Automatic Persistence** — Messages save as they stream. Threads are created automatically on first message.
+- **Runtime Integration** — The assistant-ui runtime handles all cloud synchronization behind the scenes.
+
+## How It Works
+
+The `useChatRuntime` hook from `@assistant-ui/react-ai-sdk` wraps AI SDK's `useChat` and adds cloud persistence via the `cloud` parameter. The runtime automatically:
+
+1. Creates a cloud thread on the first user message
+2. Persists messages as they complete streaming
+3. Generates a conversation title after the assistant's first response
+4. Loads historical messages when switching threads via `<ThreadList />`
+
+You provide the AI SDK endpoint (`api: "/api/chat"`) and the cloud configuration—everything else is handled.
 
 ## Prerequisites
 
@@ -107,6 +127,39 @@ For production apps with user accounts, see the [Cloud Authorization](/docs/clou
 
 ## Next Steps
 
-- Learn about [user authentication](/docs/cloud/authorization) for multi-user applications
-- Explore [runtime hooks](/docs/api-reference/integrations/vercel-ai-sdk) and integration options
-- Check out the [complete example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-cloud) on GitHub
+<Steps>
+<Step>
+
+### Add User Authentication
+
+For multi-user apps, integrate your auth provider (Clerk, Auth0, etc.) to scope threads per user. See the [Authorization guide](/docs/cloud/authorization) for setup details.
+
+</Step>
+<Step>
+
+### Customize the UI
+
+The `<Thread />` and `<ThreadList />` components are fully customizable via CSS and composition. See the [UI components docs](/docs/ui/thread) for styling options.
+
+</Step>
+<Step>
+
+### Explore Runtime Features
+
+Learn about [runtime hooks](/docs/api-reference/integrations/vercel-ai-sdk) for advanced use cases like custom message handling or tool streaming.
+
+</Step>
+</Steps>
+
+## When to Use This vs Standalone
+
+| Approach | Best For | Components |
+|----------|----------|------------|
+| **This guide** — `useChatRuntime` + assistant-ui | You want pre-built, polished UI components | `<Thread />`, `<ThreadList />` |
+| [AI SDK standalone](/docs/cloud/ai-sdk) — `useCloudChat` | You have custom UI, want minimal dependencies | Your own components |
+
+Both approaches use the same cloud backend and offer the same persistence features—choose based on your UI needs.
+
+## Complete Example
+
+Check out the [with-cloud example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-cloud) on GitHub for a fully working implementation.

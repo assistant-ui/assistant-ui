@@ -9,7 +9,7 @@ Standalone AI SDK hooks for `assistant-cloud` persistence. No runtime surface â€
 
 ## Internal Architecture
 
-`useCloudChat` is organized around two layers:
+`useCloudChat` is organized around three layers:
 
 1. **`useChatRegistry`**
    Tracks active `Chat` instances by thread/session and reuses them across switches.

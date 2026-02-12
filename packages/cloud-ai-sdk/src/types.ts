@@ -44,7 +44,6 @@ export type UseCloudChatOptions = ChatInit<UIMessage> & {
   // Ignored when `threads` is provided.
   cloud?: AssistantCloud;
   onSyncError?: (error: Error) => void;
-  // transport is inherited from ChatInit but handled separately by useCloudChat
 };
 
 export type UseCloudChatResult = UseChatHelpers<UIMessage> & {
