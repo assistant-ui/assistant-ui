@@ -201,20 +201,19 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
           ? "incomplete"
           : "completed";
 
-    let report: Parameters<typeof this.cloudRef.current.runs.report>[0] | null =
-      {
-        thread_id: remoteId,
-        status,
-        total_steps: steps?.length,
-        tool_calls: toolCalls?.length ? toolCalls : undefined,
-        prompt_tokens: promptTokens,
-        completion_tokens: completionTokens,
-      };
+    const initial: Parameters<typeof this.cloudRef.current.runs.report>[0] = {
+      thread_id: remoteId,
+      status,
+      ...(steps?.length != null ? { total_steps: steps.length } : undefined),
+      ...(toolCalls?.length ? { tool_calls: toolCalls } : undefined),
+      ...(promptTokens != null ? { prompt_tokens: promptTokens } : undefined),
+      ...(completionTokens != null
+        ? { completion_tokens: completionTokens }
+        : undefined),
+    };
 
     const { beforeReport } = this.cloudRef.current.telemetry;
-    if (beforeReport) {
-      report = beforeReport(report);
-    }
+    const report = beforeReport ? beforeReport(initial) : initial;
     if (!report) return;
 
     this.cloudRef.current.runs.report(report).catch(() => {});
