@@ -6,8 +6,16 @@ import {
   type MessageFormatAdapter,
 } from "assistant-cloud";
 import type { AssistantCloud } from "assistant-cloud";
-import { encode, MESSAGE_FORMAT } from "../internal/messageFormat";
 
+export const MESSAGE_FORMAT = "ai-sdk/v6";
+
+function encode({ id, ...rest }: UIMessage): ReadonlyJSONObject {
+  return rest as ReadonlyJSONObject;
+}
+
+// Intentionally duplicated in cloud-ai-sdk and react-ai-sdk.
+// We keep this local to avoid introducing cross-package coupling for a small adapter.
+// If behavior changes, update both adapters and their contract tests together.
 const aiSdkFormatAdapter: MessageFormatAdapter<UIMessage, ReadonlyJSONObject> =
   {
     format: MESSAGE_FORMAT,
@@ -53,27 +61,7 @@ export class MessagePersistence {
     return created;
   }
 
-  async persistMessages(
-    threadId: string,
-    messages: UIMessage[],
-    mountedRef: { current: boolean },
-  ): Promise<void> {
-    await this.persistMessagesByRole(threadId, messages, mountedRef);
-  }
-
-  // Transport sends only after this succeeds to preserve user-message durability.
-  async persistUserMessagesStrict(
-    threadId: string,
-    messages: UIMessage[],
-    mountedRef: { current: boolean },
-  ): Promise<void> {
-    await this.persistMessagesByRole(threadId, messages, mountedRef, {
-      roles: ["user"],
-      strict: true,
-    });
-  }
-
-  private async persistMessagesByRole(
+  async persist(
     threadId: string,
     messages: UIMessage[],
     mountedRef: { current: boolean },

@@ -29,10 +29,12 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "aui-build"
+    "build": "aui-build",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
-    "assistant-cloud": "workspace:^0.1.17"
+    "assistant-cloud": "workspace:*"
   },
   "peerDependencies": {
     "@ai-sdk/react": "^3.0.0",
@@ -52,7 +54,11 @@
     "@types/node": "^25.2.1",
     "@types/react": "^19.2.7",
     "ai": "^6.0.42",
-    "react": "^19.2.3"
+    "react": "^19.2.3",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/react": "^16.3.2",
+    "jsdom": "^28.0.0",
+    "vitest": "^4.0.18"
   },
   "publishConfig": {
     "access": "public",

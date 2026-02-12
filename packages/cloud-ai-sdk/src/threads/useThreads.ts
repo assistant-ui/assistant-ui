@@ -43,121 +43,130 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
     };
   }, []);
 
+  const withAction = useCallback(
+    async <T>(action: () => Promise<T>, fallback: T): Promise<T> => {
+      try {
+        const result = await action();
+        if (mountedRef.current) setError(null);
+        return result;
+      } catch (err) {
+        if (mountedRef.current)
+          setError(err instanceof Error ? err : new Error(String(err)));
+        return fallback;
+      }
+    },
+    [],
+  );
+
   const refresh = useCallback(async (): Promise<boolean> => {
     setIsLoading(true);
-    setError(null);
 
     try {
-      const response = await cloud.threads.list(
-        includeArchived ? undefined : { is_archived: false },
-      );
-      setThreads(response.threads.map(toCloudThread));
-      return true;
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error(String(err)));
-      return false;
+      return await withAction(async () => {
+        const response = await cloud.threads.list(
+          includeArchived ? undefined : { is_archived: false },
+        );
+        if (mountedRef.current) {
+          setThreads(() => response.threads.map(toCloudThread));
+        }
+        return true;
+      }, false);
     } finally {
-      setIsLoading(false);
+      if (mountedRef.current) {
+        setIsLoading(false);
+      }
     }
-  }, [cloud, includeArchived]);
+  }, [cloud, includeArchived, withAction]);
 
   useEffect(() => {
     if (!enabled) return;
-    refresh();
+    void refresh();
   }, [refresh, enabled]);
 
   const get = useCallback(
     async (id: string): Promise<CloudThread | null> => {
-      try {
+      return await withAction(async () => {
         const thread = await cloud.threads.get(id);
-        setError(null);
         return toCloudThread(thread);
-      } catch (err) {
-        setError(err instanceof Error ? err : new Error(String(err)));
-        return null;
-      }
+      }, null);
     },
-    [cloud],
+    [cloud, withAction],
   );
 
   const create = useCallback(
     async (opts?: { externalId?: string }): Promise<CloudThread | null> => {
-      try {
+      return await withAction(async () => {
         const response = await cloud.threads.create({
           last_message_at: new Date(),
           external_id: opts?.externalId,
         });
         const thread = await cloud.threads.get(response.thread_id);
         const cloudThread = toCloudThread(thread);
-        setThreads((prev) => [cloudThread, ...prev]);
-        setError(null);
+
+        if (mountedRef.current) {
+          setThreads((prev) => [cloudThread, ...prev]);
+        }
+
         return cloudThread;
-      } catch (err) {
-        setError(err instanceof Error ? err : new Error(String(err)));
-        return null;
-      }
+      }, null);
     },
-    [cloud],
+    [cloud, withAction],
   );
 
   const deleteThread = useCallback(
     async (id: string): Promise<boolean> => {
-      try {
+      return await withAction(async () => {
         await cloud.threads.delete(id);
-        setThreads((prev) => prev.filter((t) => t.id !== id));
-        setError(null);
+        if (mountedRef.current) {
+          setThreads((prev) => prev.filter((t) => t.id !== id));
+        }
         return true;
-      } catch (err) {
-        setError(err instanceof Error ? err : new Error(String(err)));
-        return false;
-      }
+      }, false);
     },
-    [cloud],
+    [cloud, withAction],
   );
 
   const rename = useCallback(
     async (id: string, title: string): Promise<boolean> => {
-      try {
+      return await withAction(async () => {
         await cloud.threads.update(id, { title });
-        setThreads((prev) =>
-          prev.map((t) => (t.id === id ? { ...t, title } : t)),
-        );
-        setError(null);
+        if (mountedRef.current) {
+          setThreads((prev) =>
+            prev.map((t) => (t.id === id ? { ...t, title } : t)),
+          );
+        }
         return true;
-      } catch (err) {
-        setError(err instanceof Error ? err : new Error(String(err)));
-        return false;
-      }
+      }, false);
     },
-    [cloud],
+    [cloud, withAction],
   );
 
   const archive = useCallback(
     async (id: string): Promise<boolean> => {
-      try {
+      return await withAction(async () => {
         await cloud.threads.update(id, { is_archived: true });
-        if (includeArchived) {
-          setThreads((prev) =>
-            prev.map((t) => (t.id === id ? { ...t, status: "archived" } : t)),
-          );
-        } else {
-          setThreads((prev) => prev.filter((t) => t.id !== id));
+
+        if (mountedRef.current) {
+          setThreads((prev) => {
+            if (includeArchived) {
+              return prev.map((t) =>
+                t.id === id ? { ...t, status: "archived" } : t,
+              );
+            }
+            return prev.filter((t) => t.id !== id);
+          });
         }
-        setError(null);
+
         return true;
-      } catch (err) {
-        setError(err instanceof Error ? err : new Error(String(err)));
-        return false;
-      }
+      }, false);
     },
-    [cloud, includeArchived],
+    [cloud, includeArchived, withAction],
   );
 
   const unarchive = useCallback(
     async (id: string): Promise<boolean> => {
-      try {
+      return await withAction(async () => {
         await cloud.threads.update(id, { is_archived: false });
-        // Refetch so we restore canonical data even when this thread was hidden.
         const thread = await cloud.threads.get(id);
         const cloudThread = toCloudThread(thread);
 
@@ -168,14 +177,10 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
           });
         }
 
-        setError(null);
         return true;
-      } catch (err) {
-        setError(err instanceof Error ? err : new Error(String(err)));
-        return false;
-      }
+      }, false);
     },
-    [cloud],
+    [cloud, withAction],
   );
 
   const selectThread = useCallback((id: string | null) => {
@@ -184,7 +189,7 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
 
   const generateTitle = useCallback(
     async (tid: string): Promise<string | null> => {
-      try {
+      return await withAction(async () => {
         const title = await generateThreadTitle(cloud, tid);
 
         if (title && mountedRef.current) {
@@ -194,14 +199,9 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
         }
 
         return title;
-      } catch (err) {
-        if (mountedRef.current) {
-          setError(err instanceof Error ? err : new Error(String(err)));
-        }
-        return null;
-      }
+      }, null);
     },
-    [cloud],
+    [cloud, withAction],
   );
 
   return {

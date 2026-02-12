@@ -1,26 +1,26 @@
 import type { Chat } from "@ai-sdk/react";
 import type { UIMessage } from "@ai-sdk/react";
-import type { ChatMeta } from "../../types";
+import type { ChatMeta } from "../types";
 
-export class ChatMultiplexer {
+export class ChatRegistry {
   private chatByKey = new Map<string, Chat<UIMessage>>();
   private metaByKey = new Map<string, ChatMeta>();
   private keyByThreadId = new Map<string, string>();
 
   constructor(private createChatFn: (chatKey: string) => Chat<UIMessage>) {}
 
-  getOrCreate(chatKey: string, threadIdHint?: string | null): Chat<UIMessage> {
+  getOrCreate(chatKey: string, threadId?: string | null): Chat<UIMessage> {
     const existing = this.chatByKey.get(chatKey);
     if (existing) {
-      if (threadIdHint) {
-        this.ensureMeta(chatKey, threadIdHint);
+      if (threadId) {
+        this.getOrCreateMeta(chatKey, threadId);
       }
       return existing;
     }
 
     const chatInstance = this.createChatFn(chatKey);
     this.chatByKey.set(chatKey, chatInstance);
-    this.ensureMeta(chatKey, threadIdHint);
+    this.getOrCreateMeta(chatKey, threadId);
     return chatInstance;
   }
 
@@ -32,17 +32,17 @@ export class ChatMultiplexer {
     return this.metaByKey.get(chatKey);
   }
 
-  ensureMeta(chatKey: string, threadIdHint?: string | null): ChatMeta {
+  getOrCreateMeta(chatKey: string, threadId?: string | null): ChatMeta {
     const existing = this.metaByKey.get(chatKey);
     if (existing) {
-      if (threadIdHint && !existing.threadId) {
-        existing.threadId = threadIdHint;
+      if (threadId && !existing.threadId) {
+        existing.threadId = threadId;
       }
       return existing;
     }
 
     const created: ChatMeta = {
-      threadId: threadIdHint ?? null,
+      threadId: threadId ?? null,
       creatingThread: null,
       loading: null,
       loaded: false,
@@ -52,7 +52,7 @@ export class ChatMultiplexer {
   }
 
   setThreadId(chatKey: string, threadId: string): void {
-    const meta = this.ensureMeta(chatKey);
+    const meta = this.getOrCreateMeta(chatKey);
     meta.threadId = threadId;
     this.keyByThreadId.set(threadId, chatKey);
   }

@@ -1,16 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef } from "react";
-import { Chat, useChat } from "@ai-sdk/react";
-import type { UIMessage } from "@ai-sdk/react";
-import { DefaultChatTransport, type ChatTransport } from "ai";
-import type { UseCloudChatOptions, UseCloudChatResult } from "../types";
-import { useThreads } from "../threads/useThreads";
+import { useEffect, useMemo } from "react";
+import { useChat } from "@ai-sdk/react";
 import { AssistantCloud } from "assistant-cloud";
-import { ChatMultiplexer } from "./internal/ChatMultiplexer";
-import { MessagePersistence } from "./internal/MessagePersistence";
+import type {
+  UseCloudChatOptions,
+  UseCloudChatResult,
+  UseThreadsResult,
+} from "../types";
+import { useThreads } from "../threads/useThreads";
+import { useChatRegistry } from "./useChatRegistry";
+import { useCloudChatCore } from "./useCloudChatCore";
+import type { ChatRegistry } from "./ChatRegistry";
+import type { CloudChatCore } from "../core/CloudChatCore";
 
-// Keep a single auto-configured client so zero-config mode stays stable.
 const autoCloudBaseUrl =
   typeof process !== "undefined"
     ? process.env["NEXT_PUBLIC_ASSISTANT_BASE_URL"]
@@ -19,29 +22,48 @@ const autoCloud = autoCloudBaseUrl
   ? new AssistantCloud({ baseUrl: autoCloudBaseUrl, anonymous: true })
   : undefined;
 
-function createSessionId(): string {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return crypto.randomUUID();
-  }
-  return `aui_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-}
-
 export function useCloudChat(
   options: UseCloudChatOptions = {},
 ): UseCloudChatResult {
   const {
-    threads: threadsOption,
-    cloud: cloudOption,
+    threads: externalThreads,
+    cloud: explicitCloud,
     onSyncError,
-    transport: userTransport,
-    ...chatOptions
+    transport,
+    ...chatConfig
   } = options;
 
-  const externalThreads = threadsOption;
+  const cloud = useResolvedCloud(externalThreads, explicitCloud);
 
-  const resolvedCloud = useMemo(() => {
+  const ownThreads = useThreads({ cloud, enabled: !externalThreads });
+  const threadStore = externalThreads ?? ownThreads;
+
+  const core = useCloudChatCore(threadStore.cloud, {
+    threadStore,
+    chatConfig,
+    onSyncError,
+    transport,
+  });
+
+  const { registry, activeChat } = useChatRegistry({
+    threadId: threadStore.threadId,
+    createChat: (chatKey, reg) => core.createChat(chatKey, reg),
+  });
+
+  useThreadMessageLoader(threadStore.threadId, registry, core);
+
+  const chat = useChat({ chat: activeChat });
+
+  return { ...chat, threadStore };
+}
+
+function useResolvedCloud(
+  externalThreads: UseThreadsResult | undefined,
+  explicitCloud: AssistantCloud | undefined,
+): AssistantCloud {
+  return useMemo(() => {
     if (externalThreads) return externalThreads.cloud;
-    if (cloudOption) return cloudOption;
+    if (explicitCloud) return explicitCloud;
     if (!autoCloud) {
       throw new Error(
         "useCloudChat: No cloud configured. Either:\n" +
@@ -51,250 +73,20 @@ export function useCloudChat(
       );
     }
     return autoCloud;
-  }, [externalThreads, cloudOption]);
+  }, [externalThreads, explicitCloud]);
+}
 
-  // Always call the hook; disable fetches when threads are managed externally.
-  const internalThreads = useThreads({
-    cloud: resolvedCloud,
-    enabled: !externalThreads,
-  });
-
-  const threadStore = externalThreads ?? internalThreads;
-  const { cloud, threadId } = threadStore;
-
-  const threadsRef = useRef(threadStore);
-  threadsRef.current = threadStore;
-
-  const chatInitRef = useRef(chatOptions);
-  chatInitRef.current = chatOptions;
-
-  const onFinishRef = useRef(chatOptions?.onFinish);
-  onFinishRef.current = chatOptions?.onFinish;
-  const onDataRef = useRef(chatOptions?.onData);
-  onDataRef.current = chatOptions?.onData;
-  const onToolCallRef = useRef(chatOptions?.onToolCall);
-  onToolCallRef.current = chatOptions?.onToolCall;
-  const onErrorRef = useRef(chatOptions?.onError);
-  onErrorRef.current = chatOptions?.onError;
-  const sendAutomaticallyWhenRef = useRef(chatOptions?.sendAutomaticallyWhen);
-  sendAutomaticallyWhenRef.current = chatOptions?.sendAutomaticallyWhen;
-
-  const onSyncErrorRef = useRef(onSyncError);
-  onSyncErrorRef.current = onSyncError;
-
-  const mountedRef = useRef(true);
-  useEffect(() => {
-    return () => {
-      mountedRef.current = false;
-    };
-  }, []);
-
-  const newlyCreatedThreadIdsRef = useRef(new Set<string>());
-  const titleGeneratedRef = useRef(new Set<string>());
-
-  const handleSyncError = useCallback((err: unknown) => {
-    const error = err instanceof Error ? err : new Error(String(err));
-    onSyncErrorRef.current?.(error);
-  }, []);
-
-  const persistenceRef = useRef<MessagePersistence | null>(null);
-  if (!persistenceRef.current) {
-    persistenceRef.current = new MessagePersistence(cloud, handleSyncError);
-  }
-  const persistence = persistenceRef.current;
-
-  const defaultTransportRef = useRef<ChatTransport<UIMessage> | null>(null);
-  if (!defaultTransportRef.current) {
-    defaultTransportRef.current = new DefaultChatTransport({});
-  }
-  const baseTransportRef = useRef<ChatTransport<UIMessage>>(
-    userTransport ?? defaultTransportRef.current,
-  );
-  baseTransportRef.current = userTransport ?? defaultTransportRef.current;
-
-  const persistChatMessages = useCallback(
-    async (chatKey: string, multiplexer: ChatMultiplexer) => {
-      const meta = multiplexer.getMeta(chatKey);
-      const tid = meta?.threadId;
-      if (!tid) return;
-
-      const chatInstance = multiplexer.get(chatKey);
-      if (!chatInstance) return;
-
-      const messages = chatInstance.messages;
-      await persistence.persistMessages(tid, messages, mountedRef);
-
-      if (
-        newlyCreatedThreadIdsRef.current.has(tid) &&
-        !titleGeneratedRef.current.has(tid) &&
-        messages.some((msg) => msg.role === "assistant")
-      ) {
-        titleGeneratedRef.current.add(tid);
-        newlyCreatedThreadIdsRef.current.delete(tid);
-        void threadsRef.current.generateTitle(tid);
-      }
-    },
-    [persistence],
-  );
-
-  const createTransport = useCallback(
-    (
-      chatKey: string,
-      multiplexer: ChatMultiplexer,
-    ): ChatTransport<UIMessage> => ({
-      sendMessages: async (opts) => {
-        const meta = multiplexer.ensureMeta(chatKey);
-        let currentThreadId = meta.threadId;
-
-        if (!currentThreadId) {
-          if (!meta.creatingThread) {
-            meta.creatingThread = (async () => {
-              try {
-                const res = await threadsRef.current.cloud.threads.create({
-                  last_message_at: new Date(),
-                });
-                meta.threadId = res.thread_id;
-                meta.loaded = true;
-                meta.loading = null;
-                newlyCreatedThreadIdsRef.current.add(res.thread_id);
-                multiplexer.setThreadId(chatKey, res.thread_id);
-                threadsRef.current.selectThread(res.thread_id);
-                threadsRef.current.refresh();
-                return res.thread_id;
-              } finally {
-                meta.creatingThread = null;
-              }
-            })();
-          }
-          currentThreadId = await meta.creatingThread;
-        }
-
-        if (!currentThreadId) {
-          throw new Error("useCloudChat: Failed to resolve thread id");
-        }
-
-        const chatInstance = multiplexer.get(chatKey);
-        const messagesForDurableUserPersist =
-          chatInstance?.messages ?? opts.messages;
-        await persistence.persistUserMessagesStrict(
-          currentThreadId,
-          messagesForDurableUserPersist,
-          mountedRef,
-        );
-
-        return await baseTransportRef.current.sendMessages({
-          ...opts,
-          body: {
-            ...opts.body,
-            id: currentThreadId ?? opts.chatId,
-          },
-        });
-      },
-      reconnectToStream: (opts) =>
-        baseTransportRef.current.reconnectToStream(opts),
-    }),
-    [persistence],
-  );
-
-  const createChat = useCallback(
-    (chatKey: string, multiplexer: ChatMultiplexer) => {
-      const {
-        onFinish: _onFinish,
-        onData: _onData,
-        onError: _onError,
-        onToolCall: _onToolCall,
-        sendAutomaticallyWhen: _sendAutomaticallyWhen,
-        id: _id,
-        ...chatInit
-      } = chatInitRef.current;
-
-      return new Chat<UIMessage>({
-        ...chatInit,
-        id: chatKey,
-        transport: createTransport(chatKey, multiplexer),
-        onFinish: async (event) => {
-          try {
-            onFinishRef.current?.(event);
-          } finally {
-            await persistChatMessages(chatKey, multiplexer);
-          }
-        },
-        onError: (error) => {
-          onErrorRef.current?.(error);
-        },
-        onData: (data) => {
-          onDataRef.current?.(data);
-        },
-        onToolCall: (toolCall) => {
-          onToolCallRef.current?.(toolCall);
-        },
-        sendAutomaticallyWhen: (arg) =>
-          sendAutomaticallyWhenRef.current?.(arg) ?? false,
-      });
-    },
-    [createTransport, persistChatMessages],
-  );
-
-  const multiplexerRef = useRef<ChatMultiplexer | null>(null);
-  if (!multiplexerRef.current) {
-    // createChat closes over multiplexer, so pass multiplexer at invocation time.
-    multiplexerRef.current = new ChatMultiplexer((chatKey) =>
-      createChat(chatKey, multiplexerRef.current!),
-    );
-  }
-  const multiplexer = multiplexerRef.current;
-
-  const newChatKeyRef = useRef<string | null>(null);
-  if (!newChatKeyRef.current) {
-    newChatKeyRef.current = createSessionId();
-  }
-
-  const lastThreadIdRef = useRef<string | null>(threadId);
-  useEffect(() => {
-    if (threadId === null && lastThreadIdRef.current !== null) {
-      newChatKeyRef.current = createSessionId();
-    }
-    lastThreadIdRef.current = threadId;
-  }, [threadId]);
-
-  const activeChatKey = threadId
-    ? (multiplexer.getChatKeyForThread(threadId) ?? threadId)
-    : (newChatKeyRef.current ?? (newChatKeyRef.current = createSessionId()));
-
-  const activeChat = multiplexer.getOrCreate(activeChatKey, threadId);
-
-  const loadThreadMessages = useCallback(
-    async (
-      id: string,
-      chatKey: string,
-      cancelledRef: { cancelled: boolean },
-    ) => {
-      try {
-        const messages = await persistence.loadMessages(id);
-        if (cancelledRef.cancelled) return;
-
-        const chatInstance = multiplexer.getOrCreate(chatKey, id);
-        chatInstance.messages = messages;
-
-        const meta = multiplexer.ensureMeta(chatKey, id);
-        meta.loaded = true;
-        meta.loading = null;
-      } catch (err) {
-        const meta = multiplexer.ensureMeta(chatKey, id);
-        meta.loading = null;
-        if (cancelledRef.cancelled) return;
-        handleSyncError(err);
-      }
-    },
-    [persistence, multiplexer, handleSyncError],
-  );
-
+function useThreadMessageLoader(
+  threadId: string | null,
+  registry: ChatRegistry,
+  core: CloudChatCore,
+): void {
   useEffect(() => {
     if (!threadId) return;
 
-    const chatKey = multiplexer.getChatKeyForThread(threadId) ?? threadId;
-    const chatInstance = multiplexer.getOrCreate(chatKey, threadId);
-    const meta = multiplexer.ensureMeta(chatKey, threadId);
+    const chatKey = registry.getChatKeyForThread(threadId) ?? threadId;
+    const chatInstance = registry.getOrCreate(chatKey, threadId);
+    const meta = registry.getOrCreateMeta(chatKey, threadId);
 
     if (meta.loaded || meta.loading || chatInstance.messages.length > 0) {
       meta.loaded = true;
@@ -302,17 +94,15 @@ export function useCloudChat(
     }
 
     const cancelledRef = { cancelled: false };
-    meta.loading = loadThreadMessages(threadId, chatKey, cancelledRef);
+    meta.loading = core.loadThreadMessages(
+      threadId,
+      chatKey,
+      registry,
+      cancelledRef,
+    );
 
     return () => {
       cancelledRef.cancelled = true;
     };
-  }, [threadId, multiplexer, loadThreadMessages]);
-
-  const chat = useChat({ chat: activeChat });
-
-  return {
-    ...chat,
-    threadStore,
-  };
+  }, [threadId, registry, core]);
 }

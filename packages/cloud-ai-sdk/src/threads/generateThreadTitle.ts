@@ -1,5 +1,5 @@
 import type { AssistantCloud } from "assistant-cloud";
-import { MESSAGE_FORMAT } from "../chat/internal/messageFormat";
+import { MESSAGE_FORMAT } from "../chat/MessagePersistence";
 
 export async function generateThreadTitle(
   cloud: AssistantCloud,
