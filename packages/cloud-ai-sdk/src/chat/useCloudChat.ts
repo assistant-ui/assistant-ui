@@ -85,11 +85,9 @@ function useThreadMessageLoader(
     if (!threadId) return;
 
     const chatKey = registry.getChatKeyForThread(threadId) ?? threadId;
-    const chatInstance = registry.getOrCreate(chatKey, threadId);
     const meta = registry.getOrCreateMeta(chatKey, threadId);
 
-    if (meta.loaded || meta.loading || chatInstance.messages.length > 0) {
-      meta.loaded = true;
+    if (meta.loaded || meta.loading) {
       return;
     }
 
