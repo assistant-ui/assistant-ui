@@ -206,7 +206,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         messages: expandedMessages,
       };
 
-      if (exported.headId !== undefined) {
+      if (exported.headId != null) {
         result.headId = lastInnerIdMap.get(exported.headId) ?? exported.headId;
       }
 

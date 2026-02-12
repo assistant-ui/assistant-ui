@@ -335,7 +335,6 @@ function extractAiSdkV6<T>(content: T): TelemetryData | null {
   const parts = msg.parts ?? [];
 
   const hasText = parts.some((p) => p.type === "text");
-  if (!hasText) return null;
 
   const toolCalls = parts
     .filter((p) => {
@@ -352,7 +351,7 @@ function extractAiSdkV6<T>(content: T): TelemetryData | null {
   const stepCount = parts.filter((p) => p.type === "step-start").length;
 
   return {
-    status: "completed",
+    status: hasText ? "completed" : "incomplete",
     ...(toolCalls.length ? { toolCalls } : undefined),
     ...(stepCount > 0 ? { totalSteps: stepCount } : undefined),
   };
@@ -404,10 +403,10 @@ function extractAiSdkV6Batch<T>(contents: T[]): TelemetryData | null {
     totalStepCount += parts.filter((p) => p.type === "step-start").length;
   }
 
-  if (!hasAssistant || !hasText) return null;
+  if (!hasAssistant) return null;
 
   return {
-    status: "completed",
+    status: hasText ? "completed" : "incomplete",
     ...(allToolCalls.length ? { toolCalls: allToolCalls } : undefined),
     ...(totalStepCount > 0 ? { totalSteps: totalStepCount } : undefined),
   };

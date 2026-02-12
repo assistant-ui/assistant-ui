@@ -162,7 +162,9 @@ export const useExternalHistory = <TMessage,>(
           );
         }
 
-        formatAdapter?.reportTelemetry?.(batchItems, { durationMs });
+        formatAdapter?.reportTelemetry?.(batchItems, {
+          ...(durationMs != null ? { durationMs } : undefined),
+        });
       }
     });
   }, [historyAdapter, storageFormatAdapter, runtimeRef]);
