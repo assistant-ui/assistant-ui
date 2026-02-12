@@ -42,6 +42,7 @@ function createCore() {
       selectThread,
       refresh,
     } as never,
+    chatConfig: {} as never,
     callbacks: {} as never,
     onSyncError: undefined,
   };

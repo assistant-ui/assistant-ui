@@ -34,6 +34,7 @@ function createCore(overrides?: {
 
   const refs = {
     threads: { generateTitle } as never,
+    chatConfig: {} as never,
     callbacks: {} as never,
     onSyncError: onSyncError as ((error: Error) => void) | undefined,
   };
