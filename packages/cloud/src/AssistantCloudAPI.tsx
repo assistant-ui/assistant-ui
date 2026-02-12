@@ -10,7 +10,7 @@ export type AssistantCloudTelemetryConfig = {
   enabled?: boolean;
   /**
    * Called before each telemetry report is sent.
-   * Return a modified report to enrich it (e.g. add `model_name`),
+   * Return a modified report to enrich it (e.g. add `model_id`),
    * or return `null` to skip the report.
    */
   beforeReport?: (

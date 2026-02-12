@@ -19,10 +19,11 @@ export type AssistantCloudRunReport = {
   }[];
   prompt_tokens?: number;
   completion_tokens?: number;
-  model_name?: string;
+  model_id?: string;
   provider_type?: string;
   duration_ms?: number;
   output_text?: string;
+  metadata?: Record<string, unknown>;
 };
 
 export class AssistantCloudRuns {

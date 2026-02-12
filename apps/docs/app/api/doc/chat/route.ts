@@ -226,6 +226,9 @@ export async function POST(req: Request): Promise<Response> {
   return result.toUIMessageStreamResponse({
     originalMessages: messages,
     messageMetadata: ({ part }) => {
+      if (part.type === "finish-step") {
+        return { modelId: part.response.modelId };
+      }
       if (part.type === "finish") {
         return { custom: { usage: part.totalUsage } };
       }
