@@ -4,72 +4,24 @@ import {
   ThreadHistoryAdapter,
 } from "../runtime-cores/adapters/thread-history/ThreadHistoryAdapter";
 import { ExportedMessageRepositoryItem } from "../runtime-cores/utils/MessageRepository";
-import { AssistantCloud } from "assistant-cloud";
+import {
+  AssistantCloud,
+  CloudMessagePersistence,
+  createFormattedPersistence,
+} from "assistant-cloud";
 import { auiV0Decode, auiV0Encode } from "./auiV0";
 import {
   MessageFormatAdapter,
   MessageFormatItem,
   MessageFormatRepository,
-  MessageStorageEntry,
 } from "../runtime-cores/adapters/thread-history/MessageFormatAdapter";
-import { ReadonlyJSONObject } from "assistant-stream/utils";
 import { AssistantClient, useAui } from "@assistant-ui/store";
 import { ThreadListItemMethods } from "../../types/scopes";
 
-const globalMessageIdMapping = new WeakMap<
+const globalPersistence = new WeakMap<
   ThreadListItemMethods,
-  Record<string, string | Promise<string>>
+  CloudMessagePersistence
 >();
-
-class FormattedThreadHistoryAdapter<
-  TMessage,
-  TStorageFormat extends Record<string, unknown>,
-> implements GenericThreadHistoryAdapter<TMessage>
-{
-  constructor(
-    private parent: AssistantCloudThreadHistoryAdapter,
-    private formatAdapter: MessageFormatAdapter<TMessage, TStorageFormat>,
-  ) {}
-
-  async append(item: MessageFormatItem<TMessage>) {
-    const encoded = this.formatAdapter.encode(item);
-    const messageId = this.formatAdapter.getId(item.message);
-
-    return this.parent._appendWithFormat(
-      item.parentId,
-      messageId,
-      this.formatAdapter.format,
-      encoded,
-    );
-  }
-
-  async update(item: MessageFormatItem<TMessage>, localMessageId: string) {
-    const encoded = this.formatAdapter.encode(item);
-    return this.parent._updateWithFormat(localMessageId, encoded);
-  }
-
-  reportTelemetry(
-    items: MessageFormatItem<TMessage>[],
-    options?: { durationMs?: number },
-  ) {
-    const encodedContents = items.map((item) =>
-      this.formatAdapter.encode(item),
-    );
-    this.parent._reportBatchTelemetry(
-      this.formatAdapter.format,
-      encodedContents,
-      options,
-    );
-  }
-
-  async load(): Promise<MessageFormatRepository<TMessage>> {
-    return this.parent._loadWithFormat(
-      this.formatAdapter.format,
-      (message: MessageStorageEntry<TStorageFormat>) =>
-        this.formatAdapter.decode(message),
-    );
-  }
-}
 
 class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   constructor(
@@ -77,58 +29,74 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     private aui: AssistantClient,
   ) {}
 
-  private get _idMapping(): Record<string, string | Promise<string>> {
+  private get _persistence(): CloudMessagePersistence {
     const key = this.aui.threadListItem();
-    let mapping = globalMessageIdMapping.get(key);
-    if (!mapping) {
-      mapping = {};
-      globalMessageIdMapping.set(key, mapping);
+    if (!globalPersistence.has(key)) {
+      globalPersistence.set(
+        key,
+        new CloudMessagePersistence(this.cloudRef.current),
+      );
     }
-    return mapping;
+    return globalPersistence.get(key)!;
   }
 
   withFormat<TMessage, TStorageFormat extends Record<string, unknown>>(
     formatAdapter: MessageFormatAdapter<TMessage, TStorageFormat>,
   ): GenericThreadHistoryAdapter<TMessage> {
-    return new FormattedThreadHistoryAdapter(this, formatAdapter);
+    const adapter = this;
+    const formatted = createFormattedPersistence(
+      this._persistence,
+      formatAdapter,
+    );
+    return {
+      async append(item: MessageFormatItem<TMessage>) {
+        const { remoteId } = await adapter.aui.threadListItem().initialize();
+        await formatted.append(remoteId, item);
+
+        if (adapter.cloudRef.current.telemetry.enabled) {
+          const encoded = formatAdapter.encode(item);
+          adapter._maybeReportRun(remoteId, formatAdapter.format, encoded);
+        }
+      },
+      reportTelemetry(
+        items: MessageFormatItem<TMessage>[],
+        options?: { durationMs?: number },
+      ) {
+        const encodedContents = items.map((item) => formatAdapter.encode(item));
+        adapter._reportBatchTelemetry(
+          formatAdapter.format,
+          encodedContents,
+          options,
+        );
+      },
+      async load(): Promise<MessageFormatRepository<TMessage>> {
+        const remoteId = adapter.aui.threadListItem().getState().remoteId;
+        if (!remoteId) return { messages: [] };
+        return formatted.load(remoteId);
+      },
+    };
   }
 
   async append({ parentId, message }: ExportedMessageRepositoryItem) {
     const { remoteId } = await this.aui.threadListItem().initialize();
     const encoded = auiV0Encode(message);
-    const task = this.cloudRef.current.threads.messages
-      .create(remoteId, {
-        parent_id: parentId
-          ? ((await this._idMapping[parentId]) ?? parentId)
-          : null,
-        format: "aui/v0",
-        content: encoded,
-      })
-      .then(({ message_id }) => {
-        this._idMapping[message.id] = message_id;
-        return message_id;
-      });
-
-    this._idMapping[message.id] = task;
+    await this._persistence.append(
+      remoteId,
+      message.id,
+      parentId,
+      "aui/v0",
+      encoded,
+    );
 
     if (this.cloudRef.current.telemetry.enabled) {
-      task
-        .then(() => this._maybeReportRun(remoteId, "aui/v0", encoded))
-        .catch(() => {});
+      this._maybeReportRun(remoteId, "aui/v0", encoded);
     }
-
-    await task;
   }
 
   async load() {
     const remoteId = this.aui.threadListItem().getState().remoteId;
     if (!remoteId) return { messages: [] };
-    const { messages } = await this.cloudRef.current.threads.messages.list(
-      remoteId,
-      {
-        format: "aui/v0",
-      },
-    );
+    const messages = await this._persistence.load(remoteId, "aui/v0");
     return {
       messages: messages
         .filter(
@@ -139,57 +107,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     };
   }
 
-  async _updateWithFormat<T extends Record<string, unknown>>(
-    localMessageId: string,
-    content: T,
-  ) {
-    let remoteMessageId: string | undefined;
-    try {
-      remoteMessageId = await this._idMapping[localMessageId];
-    } catch {
-      return;
-    }
-    if (!remoteMessageId) return;
-
-    const threadRemoteId = this.aui.threadListItem().getState().remoteId;
-    if (!threadRemoteId) return;
-
-    await this.cloudRef.current.threads.messages.update(
-      threadRemoteId,
-      remoteMessageId,
-      {
-        content: content as ReadonlyJSONObject,
-      },
-    );
-  }
-
-  async _appendWithFormat<T extends Record<string, unknown>>(
-    parentId: string | null,
-    messageId: string,
-    format: string,
-    content: T,
-  ) {
-    const { remoteId } = await this.aui.threadListItem().initialize();
-
-    const task = this.cloudRef.current.threads.messages
-      .create(remoteId, {
-        parent_id: parentId
-          ? ((await this._idMapping[parentId]) ?? parentId)
-          : null,
-        format,
-        content: content as ReadonlyJSONObject,
-      })
-      .then(({ message_id }) => {
-        this._idMapping[messageId] = message_id;
-        return message_id;
-      });
-
-    this._idMapping[messageId] = task;
-
-    await task;
-  }
-
-  _reportBatchTelemetry<T>(
+  private _reportBatchTelemetry<T>(
     format: string,
     contents: T[],
     options?: { durationMs?: number },
@@ -248,37 +166,6 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     if (!report) return;
 
     this.cloudRef.current.runs.report(report).catch(() => {});
-  }
-
-  async _loadWithFormat<TMessage, TStorageFormat>(
-    format: string,
-    decoder: (
-      message: MessageStorageEntry<TStorageFormat>,
-    ) => MessageFormatItem<TMessage>,
-  ): Promise<MessageFormatRepository<TMessage>> {
-    const remoteId = this.aui.threadListItem().getState().remoteId;
-    if (!remoteId) return { messages: [] };
-
-    const { messages } = await this.cloudRef.current.threads.messages.list(
-      remoteId,
-      {
-        format,
-      },
-    );
-
-    return {
-      messages: messages
-        .filter((m) => m.format === format)
-        .map((m) =>
-          decoder({
-            id: m.id,
-            parent_id: m.parent_id,
-            format: m.format,
-            content: m.content as TStorageFormat,
-          }),
-        )
-        .reverse(),
-    };
   }
 }
 

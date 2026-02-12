@@ -1,0 +1,231 @@
+---
+title: AI SDK
+description: Add cloud persistence to your existing AI SDK app with a single hook.
+---
+
+import { InstallCommand } from "@/components/docs/fumadocs/install/install-command";
+
+## Overview
+
+The `@assistant-ui/cloud-ai-sdk` package provides a single hook that adds full message and thread persistence to any [AI SDK](https://sdk.vercel.ai/) application:
+
+- **`useCloudChat`** — wraps `useChat` with automatic cloud persistence and built-in thread management
+
+This hook works with any React UI. You keep full control of your components.
+
+<Callout type="tip">
+  Want pre-built UI components? See [AI SDK + assistant-ui](/docs/cloud/ai-sdk-assistant-ui) for the full integration with `<Thread />` and `<ThreadList />`.
+</Callout>
+
+## Prerequisites
+
+<Callout type="info">
+  You need an assistant-cloud account to follow this guide. [Sign up here](https://cloud.assistant-ui.com/) to get started.
+</Callout>
+
+## Setup
+
+<Steps>
+
+<Step>
+
+### Create a Cloud Project
+
+Create a new project in the [assistant-cloud dashboard](https://cloud.assistant-ui.com/) and from the settings page, copy your **Frontend API URL** (`https://proj-[ID].assistant-api.com`).
+
+</Step>
+
+<Step>
+
+### Configure Environment Variables
+
+```bash title=".env.local"
+NEXT_PUBLIC_ASSISTANT_BASE_URL=https://proj-[YOUR-ID].assistant-api.com
+```
+
+</Step>
+
+<Step>
+
+### Install Dependencies
+
+<InstallCommand npm={["@assistant-ui/cloud-ai-sdk", "assistant-cloud", "@ai-sdk/react", "ai"]} />
+
+</Step>
+
+<Step>
+
+### Integrate
+
+```tsx title="app/page.tsx"
+"use client";
+
+import { useState } from "react";
+import { useCloudChat } from "@assistant-ui/cloud-ai-sdk";
+
+export default function Chat() {
+  // Zero-config: auto-initializes anonymous cloud from env var with built-in threads.
+  // For custom config, pass: { cloud, threads: useThreads(...), onSyncError }
+  const { messages, sendMessage, threads } = useCloudChat();
+
+  const [input, setInput] = useState("");
+  const handleSubmit = () => {
+    if (!input.trim()) return;
+    sendMessage({ text: input });
+    setInput("");
+  };
+
+  return (
+    <div>
+      {/* Thread list */}
+      <ul>
+        {threads.threads.map((t) => (
+          <li key={t.id} onClick={() => threads.selectThread(t.id)}>
+            {t.title || "New conversation"}
+          </li>
+        ))}
+        <li onClick={() => threads.selectThread(null)}>New chat</li>
+      </ul>
+
+      {/* Chat messages */}
+      <div>
+        {messages.map((m) => (
+          <div key={m.id}>
+            {m.parts.map((p) => p.type === "text" && p.text)}
+          </div>
+        ))}
+      </div>
+
+      {/* Composer */}
+      <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
+        <input value={input} onChange={(e) => setInput(e.target.value)} />
+        <button type="submit">Send</button>
+      </form>
+    </div>
+  );
+}
+```
+
+</Step>
+
+</Steps>
+
+That's it. Messages persist automatically as they complete, and switching threads loads the full history.
+
+## API Reference
+
+### `useCloudChat(options?)`
+
+Wraps AI SDK's `useChat` with automatic cloud persistence and built-in thread management. Messages are persisted as they finish streaming. Thread creation is automatic on the first message — the hook will auto-create the thread, select it, refresh the thread list, and generate a title after the first response.
+
+#### Configuration Modes
+
+**1. Zero-config** — Set `NEXT_PUBLIC_ASSISTANT_BASE_URL` env var, call with no args:
+
+```tsx
+const chat = useCloudChat();
+```
+
+**2. Custom cloud instance** — For authenticated users or custom configuration:
+
+```tsx
+const cloud = new AssistantCloud({ baseUrl, authToken });
+const chat = useCloudChat({ cloud });
+```
+
+**3. External thread management** — When threads need to be accessed from a separate component or you need custom thread options like `includeArchived`:
+
+```tsx
+// In a context provider or parent component
+const myThreads = useThreads({ cloud, includeArchived: true });
+
+// Pass to useCloudChat - it will use your thread state
+const chat = useCloudChat({ threads: myThreads });
+```
+
+#### Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `options.cloud` | `AssistantCloud` | Cloud instance (optional — auto-creates anonymous instance from `NEXT_PUBLIC_ASSISTANT_BASE_URL` env var if not provided) |
+| `options.threads` | `UseThreadsResult` | External thread management from `useThreads()`. Use when you need thread operations in a separate component or custom thread options like `includeArchived` |
+| `options.onSyncError` | `(error: Error) => void` | Callback invoked when a sync error occurs |
+
+All other [AI SDK `useChat` options](https://sdk.vercel.ai/docs/reference/ai-sdk-ui/use-chat) are also accepted.
+
+**Returns:** `UseCloudChatResult`
+
+| Value | Type | Description |
+|-------|------|-------------|
+| `messages` | `UIMessage[]` | Chat messages (from AI SDK) |
+| `status` | `string` | Chat status: `"ready"`, `"submitted"`, `"streaming"`, or `"error"` |
+| `sendMessage` | `(message, options?) => Promise<void>` | Send a message (auto-creates thread if needed) |
+| `stop` | `() => void` | Stop the current stream |
+| `threads` | `UseThreadsResult` | Thread management (see below) |
+
+Plus all other properties from AI SDK's [`UseChatHelpers`](https://sdk.vercel.ai/docs/reference/ai-sdk-ui/use-chat).
+
+**Thread management (`threads`):**
+
+| Value | Type | Description |
+|-------|------|-------------|
+| `threads.threads` | `CloudThread[]` | Active threads sorted by recency |
+| `threads.threadId` | `string \| null` | Current thread ID (`null` for a new unsaved chat) |
+| `threads.selectThread` | `(id: string \| null) => void` | Switch threads or pass `null` for a new chat |
+| `threads.isLoading` | `boolean` | `true` during initial load or refresh |
+| `threads.error` | `Error \| null` | Last error, if any |
+| `threads.refresh` | `() => Promise<boolean>` | Re-fetch the thread list |
+| `threads.delete` | `(id: string) => Promise<boolean>` | Delete a thread |
+| `threads.rename` | `(id: string, title: string) => Promise<boolean>` | Rename a thread |
+| `threads.archive` | `(id: string) => Promise<boolean>` | Archive a thread |
+| `threads.unarchive` | `(id: string) => Promise<boolean>` | Unarchive a thread |
+| `threads.generateTitle` | `(threadId: string) => Promise<string \| null>` | Generate a title using AI |
+
+### `useThreads(options)`
+
+Thread list management for use with `useCloudChat`. Call this explicitly and pass to `useCloudChat({ threads })` when you need access to thread operations outside the chat context (e.g., in a separate sidebar component).
+
+```tsx
+const myThreads = useThreads({ cloud: myCloud });
+const { messages, sendMessage } = useCloudChat({ threads: myThreads });
+```
+
+**Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `options.cloud` | `AssistantCloud` | Cloud client instance |
+| `options.includeArchived` | `boolean` | Include archived threads (default: `false`) |
+| `options.enabled` | `boolean` | Enable thread fetching (default: `true`) |
+
+**Returns:** `UseThreadsResult` — same shape as `threads` from `useCloudChat()`.
+
+## Authentication
+
+The example above uses anonymous mode (browser session-based user ID) via the env var. For production apps with user accounts, pass an explicit cloud instance:
+
+```tsx
+import { useAuth } from "@clerk/nextjs";
+import { AssistantCloud } from "assistant-cloud";
+import { useCloudChat } from "@assistant-ui/cloud-ai-sdk";
+
+function Chat() {
+  const { getToken } = useAuth();
+
+  const cloud = useMemo(() => new AssistantCloud({
+    baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
+    authToken: async () => getToken({ template: "assistant-ui" }),
+  }), [getToken]);
+
+  const { messages, sendMessage, threads } = useCloudChat({ cloud });
+  // ...
+}
+```
+
+See the [Cloud Authorization](/docs/cloud/authorization) guide for other auth providers.
+
+## Next Steps
+
+- If you want pre-built UI components, see [AI SDK + assistant-ui](/docs/cloud/ai-sdk-assistant-ui) for the full integration
+- Learn about [user authentication](/docs/cloud/authorization) for multi-user applications
+- Check out the [complete example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-cloud-standalone) on GitHub

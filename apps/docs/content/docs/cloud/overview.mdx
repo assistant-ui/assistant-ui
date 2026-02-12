@@ -1,56 +1,47 @@
 ---
 title: Overview
-description: Hosted service for thread management, chat history, and user authentication.
+description: Add thread persistence and chat history to your AI app in minutes.
 ---
 
-Assistant Cloud is a hosted service built for assistant-ui frontends that offers comprehensive thread management and message history. It automatically persists threads, supports human-in-the-loop workflows, and integrates with common auth providers to seamlessly allow users to resume conversations at any point.
+Assistant Cloud is a hosted service that adds thread management, message persistence, and user authorization to AI chat applications. It works with any React UI—whether you use assistant-ui components or your own.
 
+## What You Get
 
-## Features
+- **Thread Persistence** — Messages automatically save as conversations progress. Users can resume chats at any time, even across sessions.
+- **Thread List** — Built-in UI components (or hooks) for browsing, switching, and managing conversations.
+- **Auto-Generated Titles** — Conversations get meaningful titles based on the initial messages.
+- **Human-in-the-Loop** — Support for interrupted agent workflows where execution pauses for user input.
+- **User Authorization** — Integrates with your auth provider to scope threads per user or workspace.
 
-### Thread management
+## Supported Backends
 
-Using our `<ThreadList />` component, show the users a list of conversations. Allow the users to seamlessly switch between conversations and even let long running tasks run in the background.
-
-Assistant Cloud automatically persists a list of threads and corresponding metadata. It also automatically generates a title for conversations based on the initial messages.
-
-Supported backends:
-
-- AI SDK
-- LangGraph
-- Custom
-
-### Chat history
-
-For every conversation, Assistant Cloud can store the history of messages, allowing the user to resume the conversation at any point in time.
-This supports human in the loop workflows, where the execution of an agent is interrupted until user feedback is collected.
-
-Supported backends:
-
-- AI SDK
-- LangGraph
-- Custom (currently only Local Runtime)
-
-### Authorization
-
-Assistant Cloud integrates with your auth provider (Clerk, Auth0, Supabase, Firebase, ...) to identify your users and authorize them to access just the conversations they are allowed to see.
-
-Supported auth providers:
-
-- Clerk
-- Auth0
-- Supabase
-- Firebase
-- Your own
+| Backend | Standalone Mode | With assistant-ui |
+|---------|----------------|-------------------|
+| AI SDK | [`useCloudChat`](/docs/cloud/ai-sdk) | [`useChatRuntime`](/docs/cloud/ai-sdk-assistant-ui) |
+| LangGraph | — | [`useLangGraphRuntime`](/docs/cloud/langgraph) |
+| Custom | — | Local Runtime |
 
 ## Getting Started
 
-To get started, create an account at [Assistant Cloud Dashboard](https://cloud.assistant-ui.com/) and follow one of the walkthroughs for your preferred backend:
+<Callout type="info">
+  You'll need an Assistant Cloud account. [Sign up here](https://cloud.assistant-ui.com/) to create a project.
 
-- [AI SDK](/docs/cloud/persistence/ai-sdk)
-- [LangGraph](/docs/cloud/persistence/langgraph)
+  From your project settings, copy the **Frontend API URL** (`https://proj-[ID].assistant-api.com`)—you'll need it for the guides below.
+</Callout>
 
-You can also check out our example repositories to see how to integrate Assistant Cloud with your frontend:
+### Choose Your Integration Path
 
-- [With AI SDK](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-cloud)
-- [With LangGraph](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-langgraph)
+**Using AI SDK with your own UI?**  
+→ Follow the [AI SDK guide](/docs/cloud/ai-sdk) for the `useCloudChat` hook. One hook, minimal changes to your existing code.
+
+**Want pre-built components like `<Thread />` and `<ThreadList />`?**  
+→ Follow the [AI SDK + assistant-ui guide](/docs/cloud/ai-sdk-assistant-ui) for full UI components with cloud persistence.
+
+**Using LangGraph?**  
+→ Follow the [LangGraph guide](/docs/cloud/langgraph) for cloud-backed LangGraph Cloud integration.
+
+## Example Repositories
+
+- [AI SDK (standalone)](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-cloud-standalone) — Minimal `useCloudChat` setup
+- [AI SDK + assistant-ui](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-cloud) — Full component integration
+- [LangGraph + assistant-ui](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-langgraph) — LangGraph Cloud with persistence
