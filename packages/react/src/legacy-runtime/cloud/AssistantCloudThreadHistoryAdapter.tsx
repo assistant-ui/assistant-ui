@@ -365,6 +365,8 @@ type AiSdkV6Part = {
   toolCallId?: string;
   args?: unknown;
   result?: unknown;
+  input?: unknown;
+  output?: unknown;
 };
 
 type AiSdkV6Message = {
@@ -383,8 +385,8 @@ function partToToolCall(p: AiSdkV6Part): TelemetryToolCall {
   return buildToolCall(
     p.toolName ?? p.type.slice(5),
     p.toolCallId!,
-    p.args,
-    p.result,
+    p.args ?? p.input,
+    p.result ?? p.output,
   );
 }
 

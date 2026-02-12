@@ -107,6 +107,7 @@ export const useExternalHistory = <TMessage,>(
   const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stepBoundariesRef = useRef<number[]>([]);
   const wasRunningRef = useRef(false);
+  const toolCallCountRef = useRef(0);
 
   useEffect(() => {
     const unsubscribe = runtimeRef.current.thread.subscribe(() => {
@@ -114,10 +115,25 @@ export const useExternalHistory = <TMessage,>(
       const wasRunning = wasRunningRef.current;
       wasRunningRef.current = isRunning;
 
+      // Track step boundaries by content changes (more reliable than isRunning)
+      if (runStartRef.current != null) {
+        const lastMsg = runtimeRef.current.thread.getState().messages.at(-1);
+        if (lastMsg?.role === "assistant") {
+          const currentToolCallCount = lastMsg.content.filter(
+            (p) => p.type === "tool-call",
+          ).length;
+          while (toolCallCountRef.current < currentToolCallCount) {
+            stepBoundariesRef.current.push(Date.now() - runStartRef.current);
+            toolCallCountRef.current++;
+          }
+        }
+      }
+
       if (isRunning) {
         if (runStartRef.current == null) {
           runStartRef.current = Date.now();
           stepBoundariesRef.current = [];
+          toolCallCountRef.current = 0;
         }
         // Cancel any pending persist — isRunning went back to true
         if (persistTimerRef.current) {
@@ -148,6 +164,26 @@ export const useExternalHistory = <TMessage,>(
         const boundaries = stepBoundariesRef.current;
         const durationMs =
           boundaries.length > 0 ? boundaries.at(-1) : undefined;
+
+        // Fallback: if only 1 boundary but message has multiple steps, distribute evenly
+        if (boundaries.length === 1 && durationMs != null) {
+          const lastAssistant = latest.messages.findLast(
+            (m) => m.role === "assistant",
+          );
+          if (lastAssistant) {
+            const tcCount = lastAssistant.content.filter(
+              (p) => p.type === "tool-call",
+            ).length;
+            if (tcCount > 0) {
+              const totalSteps = tcCount + 1;
+              const stepDur = durationMs / totalSteps;
+              boundaries.length = 0;
+              for (let i = 0; i < totalSteps; i++) {
+                boundaries.push(Math.round((i + 1) * stepDur));
+              }
+            }
+          }
+        }
 
         // Build per-step timestamps when there are multiple steps
         const stepTimestamps =
@@ -211,11 +247,6 @@ export const useExternalHistory = <TMessage,>(
                 }
                 parentId = storageFormatAdapter.getId(innerMessage);
               }
-
-              formatAdapter?.reportTelemetry?.(
-                toBatchItems(innerMessages),
-                telemetryOptions,
-              );
             }
             lastInnerMessageId =
               getLastInnerId(innerMessages) ?? lastInnerMessageId;
