@@ -78,7 +78,9 @@ export const useSmooth = (
   const id = useAuiState((s) => s.message.id);
 
   const idRef = useRef(id);
-  const [displayedText, setDisplayedText] = useState(text);
+  const [displayedText, setDisplayedText] = useState(
+    state.status.type === "running" ? "" : text,
+  );
 
   const smoothStatusStore = useSmoothStatusStore({ optional: true });
   const setText = useCallbackRef((text: string) => {
