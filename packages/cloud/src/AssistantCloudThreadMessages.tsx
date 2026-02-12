@@ -29,6 +29,10 @@ type AssistantCloudMessageCreateResponse = {
   message_id: string;
 };
 
+type AssistantCloudThreadMessageUpdateBody = {
+  content: ReadonlyJSONObject;
+};
+
 export class AssistantCloudThreadMessages {
   constructor(private cloud: AssistantCloudAPI) {}
 
@@ -49,6 +53,17 @@ export class AssistantCloudThreadMessages {
     return this.cloud.makeRequest(
       `/threads/${encodeURIComponent(threadId)}/messages`,
       { method: "POST", body },
+    );
+  }
+
+  public async update(
+    threadId: string,
+    messageId: string,
+    body: AssistantCloudThreadMessageUpdateBody,
+  ): Promise<void> {
+    return this.cloud.makeRequest(
+      `/threads/${encodeURIComponent(threadId)}/messages/${encodeURIComponent(messageId)}`,
+      { method: "PUT", body },
     );
   }
 }

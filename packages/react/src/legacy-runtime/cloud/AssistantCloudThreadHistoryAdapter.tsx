@@ -39,6 +39,11 @@ class FormattedThreadHistoryAdapter<TMessage, TStorageFormat>
     );
   }
 
+  async update(item: MessageFormatItem<TMessage>, localMessageId: string) {
+    const encoded = this.formatAdapter.encode(item);
+    return this.parent._updateWithFormat(localMessageId, encoded);
+  }
+
   reportTelemetry(
     items: MessageFormatItem<TMessage>[],
     options?: { durationMs?: number },
@@ -128,6 +133,22 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
         .reverse(),
     };
     return payload;
+  }
+
+  async _updateWithFormat<T>(localMessageId: string, content: T) {
+    const remoteMessageId = await this._getIdForLocalId[localMessageId];
+    if (!remoteMessageId) return;
+
+    const threadRemoteId = this.aui.threadListItem().getState().remoteId;
+    if (!threadRemoteId) return;
+
+    await this.cloudRef.current.threads.messages.update(
+      threadRemoteId,
+      remoteMessageId,
+      {
+        content: content as ReadonlyJSONObject,
+      },
+    );
   }
 
   async _appendWithFormat<T>(

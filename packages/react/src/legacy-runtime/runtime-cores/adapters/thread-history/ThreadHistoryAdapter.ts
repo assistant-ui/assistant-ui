@@ -12,6 +12,10 @@ import {
 export type GenericThreadHistoryAdapter<TMessage> = {
   load(): Promise<MessageFormatRepository<TMessage>>;
   append(item: MessageFormatItem<TMessage>): Promise<void>;
+  update?(
+    item: MessageFormatItem<TMessage>,
+    localMessageId: string,
+  ): Promise<void>;
   reportTelemetry?(
     items: MessageFormatItem<TMessage>[],
     options?: { durationMs?: number },
