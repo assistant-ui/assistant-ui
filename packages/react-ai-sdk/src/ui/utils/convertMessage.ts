@@ -13,14 +13,53 @@ import type { ReadonlyJSONObject } from "assistant-stream/utils";
 
 type MessageMetadata = ThreadMessageLike["metadata"];
 
-function stripClosingDelimiters(json: string) {
+function stripClosingDelimiters(json: string): string {
   return json.replace(/[}\]"]+$/, "");
 }
 
-const convertParts = (
+/**
+ * Resolves the interrupt fields for a tool call part.
+ *
+ * Two interrupt paths for tool approvals:
+ * 1. AI SDK server-side approval: approval-requested state with part.approval payload
+ * 2. Frontend tools: toolStatuses interrupt from context.human()
+ */
+function getToolInterrupt(
+  part: { state: string; approval?: unknown },
+  toolStatus: { type: string; payload?: unknown } | undefined,
+): Record<string, unknown> {
+  if (part.state === "approval-requested" && "approval" in part) {
+    return {
+      interrupt: {
+        type: "human" as const,
+        payload: (part as { approval: unknown }).approval,
+      },
+      status: {
+        type: "requires-action" as const,
+        reason: "interrupt" as const,
+      },
+    };
+  }
+
+  if (toolStatus?.type === "interrupt") {
+    return {
+      interrupt: toolStatus.payload,
+      status: {
+        type: "requires-action" as const,
+        reason: "interrupt" as const,
+      },
+    };
+  }
+
+  return {};
+}
+
+type MessageContent = Exclude<ThreadMessageLike["content"], string>;
+
+function convertParts(
   message: UIMessage,
   metadata: useExternalMessageConverter.Metadata,
-) => {
+): MessageContent {
   if (!message.parts || message.parts.length === 0) {
     return [];
   }
@@ -28,66 +67,49 @@ const convertParts = (
   const converted = message.parts
     .filter((p) => p.type !== "step-start" && p.type !== "file")
     .map((part) => {
-      const type = part.type;
-
-      // Handle text parts
-      if (type === "text") {
+      if (part.type === "text") {
         return {
           type: "text",
           text: part.text,
         } satisfies TextMessagePart;
       }
 
-      // Handle reasoning parts
-      if (type === "reasoning") {
+      if (part.type === "reasoning") {
         return {
           type: "reasoning",
           text: part.text,
         } satisfies ReasoningMessagePart;
       }
 
-      // Handle tool parts (both static tool-* and dynamic-tool)
-      // In AI SDK v6, isToolUIPart returns true for both static and dynamic tools
       if (isToolUIPart(part)) {
-        // Use getToolName which works for both static and dynamic tools
         const toolName = getToolName(part);
         const toolCallId = part.toolCallId;
+        const args: ReadonlyJSONObject =
+          (part.input as ReadonlyJSONObject) || {};
 
-        // Extract args and result based on state
-        let args: ReadonlyJSONObject = {};
         let result: unknown;
         let isError = false;
 
-        if (
-          part.state === "input-streaming" ||
-          part.state === "input-available"
-        ) {
-          args = (part.input as ReadonlyJSONObject) || {};
-        } else if (part.state === "output-available") {
-          args = (part.input as ReadonlyJSONObject) || {};
+        if (part.state === "output-available") {
           result = part.output;
         } else if (part.state === "output-error") {
-          args = (part.input as ReadonlyJSONObject) || {};
           isError = true;
           result = { error: part.errorText };
-        } else if (
-          part.state === "approval-requested" ||
-          part.state === "approval-responded" ||
-          part.state === "output-denied"
-        ) {
-          args = (part.input as ReadonlyJSONObject) || {};
+        } else if (part.state === "output-denied") {
+          isError = true;
+          result = {
+            error:
+              (part as { approval: { reason?: string } }).approval.reason ||
+              "Tool approval denied",
+          };
         }
 
         let argsText = JSON.stringify(args);
         if (part.state === "input-streaming") {
-          // the argsText is not complete, so we need to strip the closing delimiters
-          // these are added by the AI SDK in fix-json
+          // strip closing delimiters added by the AI SDK's fix-json
           argsText = stripClosingDelimiters(argsText);
         }
 
-        // Two interrupt paths for tool approvals:
-        // 1. AI SDK server-side approval: approval-requested state with part.approval payload
-        // 2. Frontend tools: toolStatuses interrupt from context.human()
         const toolStatus = metadata.toolStatuses?.[toolCallId];
         return {
           type: "tool-call",
@@ -97,31 +119,11 @@ const convertParts = (
           args,
           result,
           isError,
-          ...(part.state === "approval-requested" && "approval" in part
-            ? {
-                interrupt: {
-                  type: "human" as const,
-                  payload: (part as { approval: unknown }).approval,
-                },
-                status: {
-                  type: "requires-action" as const,
-                  reason: "interrupt" as const,
-                },
-              }
-            : toolStatus?.type === "interrupt"
-              ? {
-                  interrupt: toolStatus.payload,
-                  status: {
-                    type: "requires-action" as const,
-                    reason: "interrupt" as const,
-                  },
-                }
-              : {}),
+          ...getToolInterrupt(part, toolStatus),
         } satisfies ToolCallMessagePart;
       }
 
-      // Handle source-url parts
-      if (type === "source-url") {
+      if (part.type === "source-url") {
         return {
           type: "source",
           sourceType: "url",
@@ -131,94 +133,81 @@ const convertParts = (
         } satisfies SourceMessagePart;
       }
 
-      // Handle source-document parts
-      if (type === "source-document") {
+      if (part.type === "source-document") {
         console.warn(
-          `Source document part type ${type} is not yet supported in conversion`,
+          "Source document parts are not yet supported in conversion",
         );
         return null;
       }
 
-      // Handle data-* parts (AI SDK v5 data parts)
-      if (type.startsWith("data-")) {
-        const name = type.substring(5);
+      if (part.type.startsWith("data-")) {
         return {
           type: "data",
-          name,
+          name: part.type.substring(5),
           data: (part as any).data,
         } satisfies DataMessagePart;
       }
 
-      // For unsupported types, we'll skip them instead of throwing
-      console.warn(`Unsupported message part type: ${type}`);
+      console.warn(`Unsupported message part type: ${part.type}`);
       return null;
     })
-    .filter(Boolean) as any[];
+    .filter(Boolean) as MessageContent[number][];
 
   const seenToolCallIds = new Set<string>();
-  return converted.filter((part: any) => {
+  return converted.filter((part) => {
     if (part.type === "tool-call" && part.toolCallId != null) {
       if (seenToolCallIds.has(part.toolCallId)) return false;
       seenToolCallIds.add(part.toolCallId);
     }
     return true;
   });
-};
+}
 
 export const AISDKMessageConverter = unstable_createMessageConverter(
   (message: UIMessage, metadata: useExternalMessageConverter.Metadata) => {
-    // UIMessage doesn't have createdAt, so we'll use current date or undefined
     const createdAt = new Date();
+    const content = convertParts(message, metadata);
+
     switch (message.role) {
       case "user":
         return {
           role: "user",
           id: message.id,
           createdAt,
-          content: convertParts(message, metadata),
+          content,
           attachments: message.parts
             ?.filter((p) => p.type === "file")
-            .map((part, idx) => {
-              return {
-                id: idx.toString(),
-                type: part.mediaType.startsWith("image/") ? "image" : "file",
-                name: part.filename ?? "file",
-                content: [
-                  part.mediaType.startsWith("image/")
-                    ? {
-                        type: "image",
-                        image: part.url,
-                        filename: part.filename!,
-                      }
-                    : {
-                        type: "file",
-                        filename: part.filename!,
-                        data: part.url,
-                        mimeType: part.mediaType,
-                      },
-                ],
-                contentType: part.mediaType ?? "unknown/unknown",
-                status: { type: "complete" as const },
-              };
-            }),
+            .map((part, idx) => ({
+              id: idx.toString(),
+              type: part.mediaType.startsWith("image/") ? "image" : "file",
+              name: part.filename ?? "file",
+              content: [
+                part.mediaType.startsWith("image/")
+                  ? {
+                      type: "image",
+                      image: part.url,
+                      filename: part.filename!,
+                    }
+                  : {
+                      type: "file",
+                      filename: part.filename!,
+                      data: part.url,
+                      mimeType: part.mediaType,
+                    },
+              ],
+              contentType: part.mediaType ?? "unknown/unknown",
+              status: { type: "complete" as const },
+            })),
           metadata: message.metadata as MessageMetadata,
         };
 
       case "system":
-        return {
-          role: "system",
-          id: message.id,
-          createdAt,
-          content: convertParts(message, metadata),
-          metadata: message.metadata as MessageMetadata,
-        };
-
       case "assistant":
         return {
-          role: "assistant",
+          role: message.role,
           id: message.id,
           createdAt,
-          content: convertParts(message, metadata),
+          content,
           metadata: message.metadata as MessageMetadata,
         };
 
