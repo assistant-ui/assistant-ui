@@ -42,6 +42,20 @@ class FormattedThreadHistoryAdapter<TMessage, TStorageFormat>
     );
   }
 
+  reportTelemetry(
+    items: MessageFormatItem<TMessage>[],
+    options?: { durationMs?: number },
+  ) {
+    const encodedContents = items.map((item) =>
+      this.formatAdapter.encode(item),
+    );
+    this.parent._reportBatchTelemetry(
+      this.formatAdapter.format,
+      encodedContents,
+      options,
+    );
+  }
+
   async load(): Promise<MessageFormatRepository<TMessage>> {
     // Delegate to parent's internal load method with format filter
     return this.parent._loadWithFormat(
@@ -145,16 +159,44 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
 
     this._getIdForLocalId[messageId] = task;
 
-    // Fire-and-forget telemetry for assistant messages
-    if (this.cloudRef.current.telemetry.enabled) {
-      task
-        .then(() => {
-          this._maybeReportRun(remoteId, format, content);
-        })
-        .catch(() => {});
-    }
-
     return task.then(() => {});
+  }
+
+  _reportBatchTelemetry<T>(
+    format: string,
+    contents: T[],
+    options?: { durationMs?: number },
+  ) {
+    if (!this.cloudRef.current.telemetry.enabled) return;
+
+    const remoteId = this.aui.threadListItem().getState().remoteId;
+    if (!remoteId) return;
+
+    const extracted = extractBatchTelemetry(format, contents);
+    if (!extracted) return;
+
+    const { toolCalls, promptTokens, completionTokens, status, totalSteps } =
+      extracted;
+
+    const initial: Parameters<typeof this.cloudRef.current.runs.report>[0] = {
+      thread_id: remoteId,
+      status,
+      ...(totalSteps != null ? { total_steps: totalSteps } : undefined),
+      ...(toolCalls?.length ? { tool_calls: toolCalls } : undefined),
+      ...(promptTokens != null ? { prompt_tokens: promptTokens } : undefined),
+      ...(completionTokens != null
+        ? { completion_tokens: completionTokens }
+        : undefined),
+      ...(options?.durationMs != null
+        ? { duration_ms: options.durationMs }
+        : undefined),
+    };
+
+    const { beforeReport } = this.cloudRef.current.telemetry;
+    const report = beforeReport ? beforeReport(initial) : initial;
+    if (!report) return;
+
+    this.cloudRef.current.runs.report(report).catch(() => {});
   }
 
   private _maybeReportRun<T>(remoteId: string, format: string, content: T) {
@@ -232,6 +274,22 @@ function extractTelemetry<T>(format: string, content: T): TelemetryData | null {
   return null;
 }
 
+function extractBatchTelemetry<T>(
+  format: string,
+  contents: T[],
+): TelemetryData | null {
+  if (format === "ai-sdk/v6") {
+    return extractAiSdkV6Batch(contents);
+  }
+  // For other formats (aui/v0), messages are already joined into one.
+  // Fall back to single-message extraction on the last item.
+  for (let i = contents.length - 1; i >= 0; i--) {
+    const result = extractTelemetry(format, contents[i]!);
+    if (result) return result;
+  }
+  return null;
+}
+
 function extractAuiV0<T>(content: T): TelemetryData | null {
   const msg = content as {
     role?: string;
@@ -296,9 +354,23 @@ function extractAiSdkV6<T>(content: T): TelemetryData | null {
 
   const parts = msg.parts ?? [];
 
+  // Only report telemetry for messages that contain a text part (final response).
+  // Intermediate tool-call-only messages are skipped to avoid duplicate runs.
+  const hasText = parts.some((p) => p.type === "text");
+  if (!hasText) return null;
+
+  // Handle both "tool-call" (v6 native) and "tool-{name}" (v5-style) parts
   const toolCalls = parts
-    .filter((p) => p.type === "tool-call" && p.toolName && p.toolCallId)
-    .map((p) => ({ tool_name: p.toolName!, tool_call_id: p.toolCallId! }));
+    .filter((p) => {
+      if (p.type === "tool-call" && p.toolName && p.toolCallId) return true;
+      if (p.type.startsWith("tool-") && p.type !== "tool-call" && p.toolCallId)
+        return true;
+      return false;
+    })
+    .map((p) => ({
+      tool_name: p.toolName ?? p.type.slice(5),
+      tool_call_id: p.toolCallId!,
+    }));
 
   const stepCount = parts.filter((p) => p.type === "step-start").length;
 
@@ -306,6 +378,58 @@ function extractAiSdkV6<T>(content: T): TelemetryData | null {
     status: "completed",
     ...(toolCalls.length ? { toolCalls } : undefined),
     ...(stepCount > 0 ? { totalSteps: stepCount } : undefined),
+  };
+}
+
+function extractAiSdkV6Batch<T>(contents: T[]): TelemetryData | null {
+  const allToolCalls: { tool_name: string; tool_call_id: string }[] = [];
+  let totalStepCount = 0;
+  let hasAssistant = false;
+
+  for (const content of contents) {
+    const msg = content as {
+      role?: string;
+      parts?: readonly {
+        type: string;
+        toolName?: string;
+        toolCallId?: string;
+      }[];
+    };
+
+    if (msg.role !== "assistant") continue;
+    hasAssistant = true;
+
+    const parts = msg.parts ?? [];
+
+    // Collect tool calls from ALL messages in the batch
+    for (const p of parts) {
+      if (p.type === "tool-call" && p.toolName && p.toolCallId) {
+        allToolCalls.push({
+          tool_name: p.toolName,
+          tool_call_id: p.toolCallId,
+        });
+      } else if (
+        p.type.startsWith("tool-") &&
+        p.type !== "tool-call" &&
+        p.toolCallId
+      ) {
+        allToolCalls.push({
+          tool_name: p.toolName ?? p.type.slice(5),
+          tool_call_id: p.toolCallId,
+        });
+      }
+    }
+
+    // Count steps from ALL messages
+    totalStepCount += parts.filter((p) => p.type === "step-start").length;
+  }
+
+  if (!hasAssistant) return null;
+
+  return {
+    status: "completed",
+    ...(allToolCalls.length ? { toolCalls: allToolCalls } : undefined),
+    ...(totalStepCount > 0 ? { totalSteps: totalStepCount } : undefined),
   };
 }
 

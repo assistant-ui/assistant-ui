@@ -10,6 +10,7 @@ import {
   type AssistantRuntime,
   type ThreadMessage,
   type MessageFormatAdapter,
+  type MessageFormatItem,
   type MessageFormatRepository,
   useRuntimeAdapters,
   INTERNAL,
@@ -177,12 +178,22 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       // Export the thread's MessageRepository
       const exported = runtimeRef.current.thread.export();
 
-      // Convert each ThreadMessage back to its original UI_MESSAGE format
+      // Convert each ThreadMessage back to its original UI_MESSAGE format,
+      // expanding joined messages into individual entries with parent chaining
+      const expandedMessages: MessageFormatItem<UI_MESSAGE>[] = [];
+      for (const item of exported.messages) {
+        const innerMessages = getExternalStoreMessages<UI_MESSAGE>(
+          item.message,
+        );
+        let parentId = item.parentId;
+        for (const innerMessage of innerMessages) {
+          expandedMessages.push({ parentId, message: innerMessage });
+          parentId = aiSDKV6FormatAdapter.getId(innerMessage as UIMessage);
+        }
+      }
+
       const result: MessageFormatRepository<UI_MESSAGE> = {
-        messages: exported.messages.map((item) => ({
-          parentId: item.parentId,
-          message: getExternalStoreMessages<UI_MESSAGE>(item.message)[0]!,
-        })),
+        messages: expandedMessages,
       };
 
       // Only include headId if it's defined
