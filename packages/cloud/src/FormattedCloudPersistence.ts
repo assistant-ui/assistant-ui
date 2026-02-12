@@ -38,6 +38,12 @@ export const createFormattedPersistence = <TMessage, TStorageFormat>(
     ) => Promise<void>;
     load: (threadId: string, format?: string) => Promise<any[]>;
     isPersisted: (messageId: string) => boolean;
+    update?: (
+      threadId: string,
+      messageId: string,
+      format: string,
+      content: ReadonlyJSONObject,
+    ) => Promise<void>;
   },
   adapter: MessageFormatAdapter<TMessage, TStorageFormat>,
 ) => ({
@@ -55,6 +61,21 @@ export const createFormattedPersistence = <TMessage, TStorageFormat>(
       encoded as ReadonlyJSONObject,
     );
   },
+  update: persistence.update
+    ? async (
+        threadId: string,
+        item: { parentId: string | null; message: TMessage },
+        messageId: string,
+      ): Promise<void> => {
+        const encoded = adapter.encode(item);
+        return persistence.update!(
+          threadId,
+          messageId,
+          adapter.format,
+          encoded as ReadonlyJSONObject,
+        );
+      }
+    : undefined,
   load: async (threadId: string) => {
     const messages = await persistence.load(threadId, adapter.format);
     return {

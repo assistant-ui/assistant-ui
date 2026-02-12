@@ -62,6 +62,20 @@ export class CloudMessagePersistence {
   }
 
   /**
+   * Update an already-persisted message in the cloud.
+   */
+  async update(
+    threadId: string,
+    messageId: string,
+    _format: string,
+    content: ReadonlyJSONObject,
+  ): Promise<void> {
+    const remoteId = await this.getRemoteId(messageId);
+    if (!remoteId) return; // not persisted yet, skip
+    await this.cloud.threads.messages.update(threadId, remoteId, { content });
+  }
+
+  /**
    * Check if a message has been persisted (or is currently being persisted).
    */
   isPersisted(messageId: string): boolean {

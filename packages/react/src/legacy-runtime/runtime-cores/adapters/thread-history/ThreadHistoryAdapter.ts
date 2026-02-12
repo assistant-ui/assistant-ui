@@ -18,7 +18,10 @@ export type GenericThreadHistoryAdapter<TMessage> = {
   ): Promise<void>;
   reportTelemetry?(
     items: MessageFormatItem<TMessage>[],
-    options?: { durationMs?: number },
+    options?: {
+      durationMs?: number;
+      stepTimestamps?: { start_ms: number; end_ms: number }[];
+    },
   ): void;
 };
 
