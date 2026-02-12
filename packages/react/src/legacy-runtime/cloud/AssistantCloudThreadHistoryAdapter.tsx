@@ -158,53 +158,16 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   }
 
   private _maybeReportRun<T>(remoteId: string, format: string, content: T) {
-    if (format !== "aui/v0") return;
+    const extracted = extractTelemetry(format, content);
+    if (!extracted) return;
 
-    const msg = content as {
-      role?: string;
-      status?: { type: string };
-      content?: readonly {
-        type: string;
-        toolName?: string;
-        toolCallId?: string;
-      }[];
-      metadata?: {
-        steps?: readonly {
-          usage?: { promptTokens?: number; completionTokens?: number };
-        }[];
-      };
-    };
-
-    if (msg.role !== "assistant") return;
-
-    const toolCalls = msg.content
-      ?.filter((p) => p.type === "tool-call" && p.toolName && p.toolCallId)
-      .map((p) => ({ tool_name: p.toolName!, tool_call_id: p.toolCallId! }));
-
-    const steps = msg.metadata?.steps;
-    let promptTokens: number | undefined;
-    let completionTokens: number | undefined;
-    if (steps && steps.length > 0) {
-      promptTokens = 0;
-      completionTokens = 0;
-      for (const step of steps) {
-        promptTokens += step.usage?.promptTokens ?? 0;
-        completionTokens += step.usage?.completionTokens ?? 0;
-      }
-    }
-
-    const statusType = msg.status?.type;
-    const status: "completed" | "incomplete" | "error" =
-      statusType === "error"
-        ? "error"
-        : statusType === "incomplete"
-          ? "incomplete"
-          : "completed";
+    const { toolCalls, promptTokens, completionTokens, status, totalSteps } =
+      extracted;
 
     const initial: Parameters<typeof this.cloudRef.current.runs.report>[0] = {
       thread_id: remoteId,
       status,
-      ...(steps?.length != null ? { total_steps: steps.length } : undefined),
+      ...(totalSteps != null ? { total_steps: totalSteps } : undefined),
       ...(toolCalls?.length ? { tool_calls: toolCalls } : undefined),
       ...(promptTokens != null ? { prompt_tokens: promptTokens } : undefined),
       ...(completionTokens != null
@@ -249,6 +212,101 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
         .reverse(),
     };
   }
+}
+
+type TelemetryData = {
+  status: "completed" | "incomplete" | "error";
+  toolCalls?: { tool_name: string; tool_call_id: string }[];
+  totalSteps?: number;
+  promptTokens?: number;
+  completionTokens?: number;
+};
+
+function extractTelemetry<T>(format: string, content: T): TelemetryData | null {
+  if (format === "aui/v0") {
+    return extractAuiV0(content);
+  }
+  if (format === "ai-sdk/v6") {
+    return extractAiSdkV6(content);
+  }
+  return null;
+}
+
+function extractAuiV0<T>(content: T): TelemetryData | null {
+  const msg = content as {
+    role?: string;
+    status?: { type: string };
+    content?: readonly {
+      type: string;
+      toolName?: string;
+      toolCallId?: string;
+    }[];
+    metadata?: {
+      steps?: readonly {
+        usage?: { promptTokens?: number; completionTokens?: number };
+      }[];
+    };
+  };
+
+  if (msg.role !== "assistant") return null;
+
+  const toolCalls = msg.content
+    ?.filter((p) => p.type === "tool-call" && p.toolName && p.toolCallId)
+    .map((p) => ({ tool_name: p.toolName!, tool_call_id: p.toolCallId! }));
+
+  const steps = msg.metadata?.steps;
+  let promptTokens: number | undefined;
+  let completionTokens: number | undefined;
+  if (steps && steps.length > 0) {
+    promptTokens = 0;
+    completionTokens = 0;
+    for (const step of steps) {
+      promptTokens += step.usage?.promptTokens ?? 0;
+      completionTokens += step.usage?.completionTokens ?? 0;
+    }
+  }
+
+  const statusType = msg.status?.type;
+
+  return {
+    status:
+      statusType === "error"
+        ? "error"
+        : statusType === "incomplete"
+          ? "incomplete"
+          : "completed",
+    ...(toolCalls?.length ? { toolCalls } : undefined),
+    ...(steps?.length != null ? { totalSteps: steps.length } : undefined),
+    ...(promptTokens != null ? { promptTokens } : undefined),
+    ...(completionTokens != null ? { completionTokens } : undefined),
+  };
+}
+
+function extractAiSdkV6<T>(content: T): TelemetryData | null {
+  const msg = content as {
+    role?: string;
+    parts?: readonly {
+      type: string;
+      toolName?: string;
+      toolCallId?: string;
+    }[];
+  };
+
+  if (msg.role !== "assistant") return null;
+
+  const parts = msg.parts ?? [];
+
+  const toolCalls = parts
+    .filter((p) => p.type === "tool-call" && p.toolName && p.toolCallId)
+    .map((p) => ({ tool_name: p.toolName!, tool_call_id: p.toolCallId! }));
+
+  const stepCount = parts.filter((p) => p.type === "step-start").length;
+
+  return {
+    status: "completed",
+    ...(toolCalls.length ? { toolCalls } : undefined),
+    ...(stepCount > 0 ? { totalSteps: stepCount } : undefined),
+  };
 }
 
 export const useAssistantCloudThreadHistoryAdapter = (
