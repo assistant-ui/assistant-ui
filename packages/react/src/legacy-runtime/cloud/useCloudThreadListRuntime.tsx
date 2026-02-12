@@ -18,16 +18,14 @@ type CloudThreadListAdapter = {
   delete?(threadId: string): Promise<void>;
 };
 
-export const useCloudThreadListRuntime = ({
+export function useCloudThreadListRuntime({
   runtimeHook,
   ...adapterOptions
-}: CloudThreadListAdapter) => {
+}: CloudThreadListAdapter) {
   const adapter = useCloudThreadListAdapter(adapterOptions);
-  const runtime = useRemoteThreadListRuntime({
-    runtimeHook: runtimeHook,
+  return useRemoteThreadListRuntime({
+    runtimeHook,
     adapter,
     allowNesting: true,
   });
-
-  return runtime;
-};
+}

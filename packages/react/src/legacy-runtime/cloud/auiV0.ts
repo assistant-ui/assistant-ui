@@ -6,7 +6,7 @@ import { isJSONValue } from "../../utils/json/is-json";
 import { ReadonlyJSONObject, ReadonlyJSONValue } from "assistant-stream/utils";
 import { ExportedMessageRepositoryItem } from "../runtime-cores/utils/MessageRepository";
 
-type AuiV0MessageMessagePart =
+type AuiV0MessagePart =
   | {
       readonly type: "text";
       readonly text: string;
@@ -52,7 +52,7 @@ type AuiV0MessageMessagePart =
 type AuiV0Message = {
   readonly role: "assistant" | "user" | "system";
   readonly status?: MessageStatus;
-  readonly content: readonly AuiV0MessageMessagePart[];
+  readonly content: readonly AuiV0MessagePart[];
   readonly metadata: {
     readonly unstable_state?: ReadonlyJSONValue;
     readonly unstable_annotations: readonly ReadonlyJSONValue[];
@@ -67,29 +67,30 @@ type AuiV0Message = {
   };
 };
 
-export const auiV0Encode = (message: ThreadMessage): AuiV0Message => {
+export function auiV0Encode(message: ThreadMessage): AuiV0Message {
   // TODO attachments are currently intentionally ignored
   // info: ID and createdAt are ignored (we use the server value instead)
+
+  let status: MessageStatus | undefined;
+  if (message.status) {
+    status =
+      message.status.type === "running"
+        ? { type: "incomplete", reason: "cancelled" }
+        : message.status;
+  }
+
   return {
     role: message.role,
     content: message.content.map((part) => {
       const type = part.type;
       switch (type) {
-        case "text": {
-          return {
-            type: "text",
-            text: part.text,
-          };
-        }
+        case "text":
+          return { type: "text", text: part.text };
 
-        case "reasoning": {
-          return {
-            type: "reasoning",
-            text: part.text,
-          };
-        }
+        case "reasoning":
+          return { type: "reasoning", text: part.text };
 
-        case "source": {
+        case "source":
           return {
             type: "source",
             sourceType: part.sourceType,
@@ -97,7 +98,6 @@ export const auiV0Encode = (message: ThreadMessage): AuiV0Message => {
             url: part.url,
             ...(part.title ? { title: part.title } : undefined),
           };
-        }
 
         case "tool-call": {
           if (!isJSONValue(part.result)) {
@@ -110,32 +110,25 @@ export const auiV0Encode = (message: ThreadMessage): AuiV0Message => {
             toolCallId: part.toolCallId,
             toolName: part.toolName,
             ...(JSON.stringify(part.args) === part.argsText
-              ? {
-                  args: part.args,
-                }
+              ? { args: part.args }
               : { argsText: part.argsText }),
             ...(part.result
               ? { result: part.result as ReadonlyJSONValue }
-              : {}),
-            ...(part.isError ? { isError: true } : {}),
+              : undefined),
+            ...(part.isError ? { isError: true } : undefined),
           };
         }
 
-        case "image": {
-          return {
-            type: "image",
-            image: part.image,
-          };
-        }
+        case "image":
+          return { type: "image", image: part.image };
 
-        case "file": {
+        case "file":
           return {
             type: "file",
             data: part.data,
             mimeType: part.mimeType,
             ...(part.filename ? { filename: part.filename } : undefined),
           };
-        }
 
         default: {
           const unhandledType: "audio" | "data" = type;
@@ -146,23 +139,13 @@ export const auiV0Encode = (message: ThreadMessage): AuiV0Message => {
       }
     }),
     metadata: message.metadata as AuiV0Message["metadata"],
-    ...(message.status
-      ? {
-          status:
-            message.status?.type === "running"
-              ? {
-                  type: "incomplete",
-                  reason: "cancelled",
-                }
-              : message.status,
-        }
-      : undefined),
+    ...(status ? { status } : undefined),
   };
-};
+}
 
-export const auiV0Decode = (
+export function auiV0Decode(
   cloudMessage: CloudMessage & { format: "aui/v0" },
-): ExportedMessageRepositoryItem => {
+): ExportedMessageRepositoryItem {
   const payload = cloudMessage.content as unknown as AuiV0Message;
   const message = fromThreadMessageLike(
     {
@@ -171,14 +154,11 @@ export const auiV0Decode = (
       ...payload,
     },
     cloudMessage.id,
-    {
-      type: "complete",
-      reason: "unknown",
-    },
+    { type: "complete", reason: "unknown" },
   );
 
   return {
     parentId: cloudMessage.parent_id,
     message,
   };
-};
+}

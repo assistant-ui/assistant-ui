@@ -76,10 +76,13 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   ) {}
 
   private get _getIdForLocalId(): Record<string, string | Promise<string>> {
-    if (!globalMessageIdMapping.has(this.aui.threadListItem())) {
-      globalMessageIdMapping.set(this.aui.threadListItem(), {});
+    const key = this.aui.threadListItem();
+    let mapping = globalMessageIdMapping.get(key);
+    if (!mapping) {
+      mapping = {};
+      globalMessageIdMapping.set(key, mapping);
     }
-    return globalMessageIdMapping.get(this.aui.threadListItem())!;
+    return mapping;
   }
 
   withFormat<TMessage, TStorageFormat extends Record<string, unknown>>(
@@ -108,13 +111,11 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
 
     if (this.cloudRef.current.telemetry.enabled) {
       task
-        .then(() => {
-          this._maybeReportRun(remoteId, "aui/v0", encoded);
-        })
+        .then(() => this._maybeReportRun(remoteId, "aui/v0", encoded))
         .catch(() => {});
     }
 
-    return task.then(() => {});
+    await task;
   }
 
   async load() {
@@ -126,7 +127,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
         format: "aui/v0",
       },
     );
-    const payload = {
+    return {
       messages: messages
         .filter(
           (m): m is typeof m & { format: "aui/v0" } => m.format === "aui/v0",
@@ -134,7 +135,6 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
         .map(auiV0Decode)
         .reverse(),
     };
-    return payload;
   }
 
   async _updateWithFormat<T extends Record<string, unknown>>(
@@ -184,7 +184,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
 
     this._getIdForLocalId[messageId] = task;
 
-    return task.then(() => {});
+    await task;
   }
 
   _reportBatchTelemetry<T>(
@@ -305,24 +305,7 @@ function buildToolCall(
   toolCallId: string,
   args: unknown,
   result: unknown,
-): TelemetryToolCall {
-  const tc: TelemetryToolCall = {
-    tool_name: toolName,
-    tool_call_id: toolCallId,
-  };
-  const a = safeStringify(args);
-  if (a !== undefined) tc.tool_args = a;
-  const r = safeStringify(result);
-  if (r !== undefined) tc.tool_result = r;
-  return tc;
-}
-
-function buildToolCallWithArgsText(
-  toolName: string,
-  toolCallId: string,
-  args: unknown,
-  argsText: string | undefined,
-  result: unknown,
+  argsText?: string,
 ): TelemetryToolCall {
   const tc: TelemetryToolCall = {
     tool_name: toolName,
@@ -393,13 +376,7 @@ function extractAuiV0<T>(content: T): TelemetryData | null {
   const toolCalls: TelemetryToolCall[] | undefined = msg.content
     ?.filter((p) => p.type === "tool-call" && p.toolName && p.toolCallId)
     .map((p) =>
-      buildToolCallWithArgsText(
-        p.toolName!,
-        p.toolCallId!,
-        p.args,
-        p.argsText,
-        p.result,
-      ),
+      buildToolCall(p.toolName!, p.toolCallId!, p.args, p.result, p.argsText),
     );
 
   const textParts = msg.content?.filter((p) => p.type === "text" && p.text);
@@ -421,14 +398,12 @@ function extractAuiV0<T>(content: T): TelemetryData | null {
   }
 
   const statusType = msg.status?.type;
+  let status: TelemetryData["status"] = "completed";
+  if (statusType === "error") status = "error";
+  else if (statusType === "incomplete") status = "incomplete";
 
   return {
-    status:
-      statusType === "error"
-        ? "error"
-        : statusType === "incomplete"
-          ? "incomplete"
-          : "completed",
+    status,
     ...(toolCalls?.length ? { toolCalls } : undefined),
     ...(steps?.length != null ? { totalSteps: steps.length } : undefined),
     ...(promptTokens != null ? { promptTokens } : undefined),
@@ -437,125 +412,109 @@ function extractAuiV0<T>(content: T): TelemetryData | null {
   };
 }
 
-function extractAiSdkV6<T>(content: T): TelemetryData | null {
-  const msg = content as {
-    role?: string;
-    parts?: readonly {
-      type: string;
-      text?: string;
-      toolName?: string;
-      toolCallId?: string;
-      args?: unknown;
-      result?: unknown;
-    }[];
-  };
+type AiSdkV6Part = {
+  type: string;
+  text?: string;
+  toolName?: string;
+  toolCallId?: string;
+  args?: unknown;
+  result?: unknown;
+};
 
-  if (msg.role !== "assistant") return null;
+type AiSdkV6Message = {
+  role?: string;
+  parts?: readonly AiSdkV6Part[];
+};
 
-  const parts = msg.parts ?? [];
+function isToolCallPart(p: AiSdkV6Part): boolean {
+  if (p.type === "tool-call" && p.toolName && p.toolCallId) return true;
+  if (p.type.startsWith("tool-") && p.type !== "tool-call" && p.toolCallId)
+    return true;
+  return false;
+}
 
-  const textParts = parts.filter((p) => p.type === "text" && p.text);
-  const hasText = textParts.length > 0;
-  const outputText = hasText
-    ? truncateStr(textParts.map((p) => p.text).join(""))
-    : undefined;
+function partToToolCall(p: AiSdkV6Part): TelemetryToolCall {
+  return buildToolCall(
+    p.toolName ?? p.type.slice(5),
+    p.toolCallId!,
+    p.args,
+    p.result,
+  );
+}
 
-  const toolCalls: TelemetryToolCall[] = parts
-    .filter((p) => {
-      if (p.type === "tool-call" && p.toolName && p.toolCallId) return true;
-      if (p.type.startsWith("tool-") && p.type !== "tool-call" && p.toolCallId)
-        return true;
-      return false;
-    })
-    .map((p) =>
-      buildToolCall(
-        p.toolName ?? p.type.slice(5),
-        p.toolCallId!,
-        p.args,
-        p.result,
-      ),
-    );
-
+function collectAiSdkV6Parts(parts: readonly AiSdkV6Part[]): {
+  textParts: string[];
+  toolCalls: TelemetryToolCall[];
+  stepCount: number;
+} {
+  const textParts: string[] = [];
+  const toolCalls: TelemetryToolCall[] = [];
+  for (const p of parts) {
+    if (p.type === "text" && p.text) {
+      textParts.push(p.text);
+    } else if (isToolCallPart(p)) {
+      toolCalls.push(partToToolCall(p));
+    }
+  }
   const stepCount = parts.filter((p) => p.type === "step-start").length;
+  return { textParts, toolCalls, stepCount };
+}
+
+function buildAiSdkV6Result(
+  textParts: string[],
+  toolCalls: TelemetryToolCall[],
+  totalSteps: number,
+): TelemetryData {
+  const hasText = textParts.length > 0;
+  const outputText = hasText ? truncateStr(textParts.join("")) : undefined;
 
   return {
     status: hasText ? "completed" : "incomplete",
     ...(toolCalls.length ? { toolCalls } : undefined),
-    ...(stepCount > 0 ? { totalSteps: stepCount } : undefined),
+    ...(totalSteps > 0 ? { totalSteps } : undefined),
     ...(outputText != null ? { outputText } : undefined),
   };
 }
 
+function extractAiSdkV6<T>(content: T): TelemetryData | null {
+  const msg = content as AiSdkV6Message;
+  if (msg.role !== "assistant") return null;
+
+  const { textParts, toolCalls, stepCount } = collectAiSdkV6Parts(
+    msg.parts ?? [],
+  );
+  return buildAiSdkV6Result(textParts, toolCalls, stepCount);
+}
+
 function extractAiSdkV6Batch<T>(contents: T[]): TelemetryData | null {
-  const allToolCalls: TelemetryToolCall[] = [];
   const allTextParts: string[] = [];
+  const allToolCalls: TelemetryToolCall[] = [];
   let totalStepCount = 0;
   let hasAssistant = false;
 
   for (const content of contents) {
-    const msg = content as {
-      role?: string;
-      parts?: readonly {
-        type: string;
-        text?: string;
-        toolName?: string;
-        toolCallId?: string;
-        args?: unknown;
-        result?: unknown;
-      }[];
-    };
-
+    const msg = content as AiSdkV6Message;
     if (msg.role !== "assistant") continue;
     hasAssistant = true;
 
-    const parts = msg.parts ?? [];
-
-    for (const p of parts) {
-      if (p.type === "text" && p.text) {
-        allTextParts.push(p.text);
-      } else if (p.type === "tool-call" && p.toolName && p.toolCallId) {
-        allToolCalls.push(
-          buildToolCall(p.toolName, p.toolCallId, p.args, p.result),
-        );
-      } else if (
-        p.type.startsWith("tool-") &&
-        p.type !== "tool-call" &&
-        p.toolCallId
-      ) {
-        allToolCalls.push(
-          buildToolCall(
-            p.toolName ?? p.type.slice(5),
-            p.toolCallId,
-            p.args,
-            p.result,
-          ),
-        );
-      }
-    }
-
-    totalStepCount += parts.filter((p) => p.type === "step-start").length;
+    const { textParts, toolCalls, stepCount } = collectAiSdkV6Parts(
+      msg.parts ?? [],
+    );
+    allTextParts.push(...textParts);
+    allToolCalls.push(...toolCalls);
+    totalStepCount += stepCount;
   }
 
   if (!hasAssistant) return null;
-
-  const hasText = allTextParts.length > 0;
-  const outputText = hasText ? truncateStr(allTextParts.join("")) : undefined;
-
-  return {
-    status: hasText ? "completed" : "incomplete",
-    ...(allToolCalls.length ? { toolCalls: allToolCalls } : undefined),
-    ...(totalStepCount > 0 ? { totalSteps: totalStepCount } : undefined),
-    ...(outputText != null ? { outputText } : undefined),
-  };
+  return buildAiSdkV6Result(allTextParts, allToolCalls, totalStepCount);
 }
 
-export const useAssistantCloudThreadHistoryAdapter = (
+export function useAssistantCloudThreadHistoryAdapter(
   cloudRef: RefObject<AssistantCloud>,
-): ThreadHistoryAdapter => {
+): ThreadHistoryAdapter {
   const aui = useAui();
   const [adapter] = useState(
     () => new AssistantCloudThreadHistoryAdapter(cloudRef, aui),
   );
-
   return adapter;
-};
+}
