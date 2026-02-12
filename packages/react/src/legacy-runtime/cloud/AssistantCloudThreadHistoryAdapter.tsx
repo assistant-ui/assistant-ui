@@ -362,6 +362,7 @@ function extractAiSdkV6Batch<T>(contents: T[]): TelemetryData | null {
   const allToolCalls: { tool_name: string; tool_call_id: string }[] = [];
   let totalStepCount = 0;
   let hasAssistant = false;
+  let hasText = false;
 
   for (const content of contents) {
     const msg = content as {
@@ -377,6 +378,10 @@ function extractAiSdkV6Batch<T>(contents: T[]): TelemetryData | null {
     hasAssistant = true;
 
     const parts = msg.parts ?? [];
+
+    if (!hasText && parts.some((p) => p.type === "text")) {
+      hasText = true;
+    }
 
     for (const p of parts) {
       if (p.type === "tool-call" && p.toolName && p.toolCallId) {
@@ -396,11 +401,10 @@ function extractAiSdkV6Batch<T>(contents: T[]): TelemetryData | null {
       }
     }
 
-    // Count steps from ALL messages
     totalStepCount += parts.filter((p) => p.type === "step-start").length;
   }
 
-  if (!hasAssistant) return null;
+  if (!hasAssistant || !hasText) return null;
 
   return {
     status: "completed",

@@ -127,44 +127,42 @@ export const useExternalHistory = <TMessage,>(
 
       for (let i = 0; i < messages.length; i++) {
         const message = messages[i]!;
-        if (
+        const innerMessages = getExternalStoreMessages<TMessage>(message);
+
+        const isReady =
           message.status === undefined ||
           message.status.type === "complete" ||
-          message.status.type === "incomplete"
-        ) {
-          const innerMessages = getExternalStoreMessages<TMessage>(message);
+          message.status.type === "incomplete";
 
-          if (historyIds.current.has(message.id)) {
-            if (innerMessages.length > 0) {
-              lastInnerMessageId = storageFormatAdapter.getId(
-                innerMessages[innerMessages.length - 1]!,
-              );
-            }
-            continue;
-          }
-          historyIds.current.add(message.id);
-
-          const formatAdapter =
-            historyAdapter?.withFormat?.(storageFormatAdapter);
-
-          const batchItems: { parentId: string | null; message: TMessage }[] =
-            [];
-          let parentId = lastInnerMessageId;
-          for (const innerMessage of innerMessages) {
-            const item = { parentId, message: innerMessage };
-            batchItems.push(item);
-            await formatAdapter?.append(item);
-            parentId = storageFormatAdapter.getId(innerMessage);
-          }
-
+        if (!isReady || historyIds.current.has(message.id)) {
           if (innerMessages.length > 0) {
             lastInnerMessageId = storageFormatAdapter.getId(
               innerMessages[innerMessages.length - 1]!,
             );
           }
-
-          formatAdapter?.reportTelemetry?.(batchItems, { durationMs });
+          continue;
         }
+        historyIds.current.add(message.id);
+
+        const formatAdapter =
+          historyAdapter?.withFormat?.(storageFormatAdapter);
+
+        const batchItems: { parentId: string | null; message: TMessage }[] = [];
+        let parentId = lastInnerMessageId;
+        for (const innerMessage of innerMessages) {
+          const item = { parentId, message: innerMessage };
+          batchItems.push(item);
+          await formatAdapter?.append(item);
+          parentId = storageFormatAdapter.getId(innerMessage);
+        }
+
+        if (innerMessages.length > 0) {
+          lastInnerMessageId = storageFormatAdapter.getId(
+            innerMessages[innerMessages.length - 1]!,
+          );
+        }
+
+        formatAdapter?.reportTelemetry?.(batchItems, { durationMs });
       }
     });
   }, [historyAdapter, storageFormatAdapter, runtimeRef]);
