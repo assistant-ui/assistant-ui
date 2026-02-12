@@ -49,6 +49,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
       formatAdapter,
     );
     return {
+      // Note: callers must also call reportTelemetry() for run tracking
       async append(item: MessageFormatItem<TMessage>) {
         const { remoteId } = await adapter.aui.threadListItem().initialize();
         await formatted.append(remoteId, item);
@@ -162,9 +163,11 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     let finalSteps = steps;
     if (stepTimestamps) {
       if (finalSteps) {
+        // Only apply timestamps where both arrays have entries
+        const len = Math.min(finalSteps.length, stepTimestamps.length);
         finalSteps = finalSteps.map((s, i) => ({
           ...s,
-          ...(stepTimestamps[i] ?? undefined),
+          ...(i < len ? stepTimestamps[i] : undefined),
         }));
       } else {
         finalSteps = stepTimestamps.map((t) => ({ ...t }));

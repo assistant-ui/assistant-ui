@@ -107,10 +107,13 @@ export const useExternalHistory = <TMessage,>(
   const runStartRef = useRef<number | null>(null);
   const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stepBoundariesRef = useRef<number[]>([]);
+  const wasRunningRef = useRef(false);
 
   useEffect(() => {
     const unsubscribe = runtimeRef.current.thread.subscribe(() => {
       const { isRunning } = runtimeRef.current.thread.getState();
+      const wasRunning = wasRunningRef.current;
+      wasRunningRef.current = isRunning;
 
       if (isRunning) {
         if (runStartRef.current == null) {
@@ -125,8 +128,8 @@ export const useExternalHistory = <TMessage,>(
         return;
       }
 
-      // Record step boundary offset (synchronous for accuracy)
-      if (runStartRef.current != null) {
+      // Record step boundary only on the true→false transition
+      if (wasRunning && runStartRef.current != null) {
         stepBoundariesRef.current.push(Date.now() - runStartRef.current);
       }
 
