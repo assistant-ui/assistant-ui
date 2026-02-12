@@ -17,6 +17,16 @@ export type AssistantCloudRunReport = {
     tool_args?: string;
     tool_result?: string;
   }[];
+  steps?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    tool_calls?: {
+      tool_name: string;
+      tool_call_id: string;
+      tool_args?: string;
+      tool_result?: string;
+    }[];
+  }[];
   prompt_tokens?: number;
   completion_tokens?: number;
   model_id?: string;

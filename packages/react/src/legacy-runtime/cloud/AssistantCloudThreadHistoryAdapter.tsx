@@ -223,6 +223,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
       totalSteps,
       outputText,
       metadata,
+      steps,
     } = data;
 
     const initial: Parameters<typeof this.cloudRef.current.runs.report>[0] = {
@@ -230,6 +231,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
       status,
       ...(totalSteps != null ? { total_steps: totalSteps } : undefined),
       ...(toolCalls?.length ? { tool_calls: toolCalls } : undefined),
+      ...(steps?.length ? { steps } : undefined),
       ...(promptTokens != null ? { prompt_tokens: promptTokens } : undefined),
       ...(completionTokens != null
         ? { completion_tokens: completionTokens }
@@ -320,6 +322,12 @@ function buildToolCall(
   return tc;
 }
 
+type TelemetryStepData = {
+  prompt_tokens?: number;
+  completion_tokens?: number;
+  tool_calls?: TelemetryToolCall[];
+};
+
 type TelemetryData = {
   status: "completed" | "incomplete" | "error";
   toolCalls?: TelemetryToolCall[];
@@ -328,6 +336,7 @@ type TelemetryData = {
   completionTokens?: number;
   outputText?: string;
   metadata?: Record<string, unknown>;
+  steps?: TelemetryStepData[];
 };
 
 function extractTelemetry<T>(format: string, content: T): TelemetryData | null {
@@ -408,6 +417,18 @@ function extractAuiV0<T>(content: T): TelemetryData | null {
 
   const metadata = msg.metadata?.custom as Record<string, unknown> | undefined;
 
+  const telemetrySteps: TelemetryStepData[] | undefined =
+    steps && steps.length > 1
+      ? steps.map((s) => ({
+          ...(s.usage?.promptTokens != null
+            ? { prompt_tokens: s.usage.promptTokens }
+            : undefined),
+          ...(s.usage?.completionTokens != null
+            ? { completion_tokens: s.usage.completionTokens }
+            : undefined),
+        }))
+      : undefined;
+
   return {
     status,
     ...(toolCalls?.length ? { toolCalls } : undefined),
@@ -416,6 +437,7 @@ function extractAuiV0<T>(content: T): TelemetryData | null {
     ...(completionTokens != null ? { completionTokens } : undefined),
     ...(outputText != null ? { outputText } : undefined),
     ...(metadata != null ? { metadata } : undefined),
+    ...(telemetrySteps != null ? { steps: telemetrySteps } : undefined),
   };
 }
 
@@ -454,18 +476,36 @@ function collectAiSdkV6Parts(parts: readonly AiSdkV6Part[]): {
   textParts: string[];
   toolCalls: TelemetryToolCall[];
   stepCount: number;
+  stepsData: { tool_calls: TelemetryToolCall[] }[];
 } {
   const textParts: string[] = [];
   const toolCalls: TelemetryToolCall[] = [];
+  const stepsData: { tool_calls: TelemetryToolCall[] }[] = [];
+  let currentStepToolCalls: TelemetryToolCall[] | null = null;
+
   for (const p of parts) {
-    if (p.type === "text" && p.text) {
+    if (p.type === "step-start") {
+      if (currentStepToolCalls !== null) {
+        stepsData.push({ tool_calls: currentStepToolCalls });
+      }
+      currentStepToolCalls = [];
+    } else if (p.type === "text" && p.text) {
       textParts.push(p.text);
     } else if (isToolCallPart(p)) {
-      toolCalls.push(partToToolCall(p));
+      const tc = partToToolCall(p);
+      toolCalls.push(tc);
+      if (currentStepToolCalls !== null) {
+        currentStepToolCalls.push(tc);
+      }
     }
   }
-  const stepCount = parts.filter((p) => p.type === "step-start").length;
-  return { textParts, toolCalls, stepCount };
+
+  if (currentStepToolCalls !== null) {
+    stepsData.push({ tool_calls: currentStepToolCalls });
+  }
+
+  const stepCount = stepsData.length;
+  return { textParts, toolCalls, stepCount, stepsData };
 }
 
 function buildAiSdkV6Result(
@@ -473,9 +513,17 @@ function buildAiSdkV6Result(
   toolCalls: TelemetryToolCall[],
   totalSteps: number,
   metadata?: Record<string, unknown>,
+  stepsData?: { tool_calls: TelemetryToolCall[] }[],
 ): TelemetryData {
   const hasText = textParts.length > 0;
   const outputText = hasText ? truncateStr(textParts.join("")) : undefined;
+
+  const steps: TelemetryStepData[] | undefined =
+    stepsData && stepsData.length > 1
+      ? stepsData.map((s) => ({
+          ...(s.tool_calls.length ? { tool_calls: s.tool_calls } : undefined),
+        }))
+      : undefined;
 
   return {
     status: hasText ? "completed" : "incomplete",
@@ -483,6 +531,7 @@ function buildAiSdkV6Result(
     ...(totalSteps > 0 ? { totalSteps } : undefined),
     ...(outputText != null ? { outputText } : undefined),
     ...(metadata != null ? { metadata } : undefined),
+    ...(steps != null ? { steps } : undefined),
   };
 }
 
@@ -490,15 +539,22 @@ function extractAiSdkV6<T>(content: T): TelemetryData | null {
   const msg = content as AiSdkV6Message;
   if (msg.role !== "assistant") return null;
 
-  const { textParts, toolCalls, stepCount } = collectAiSdkV6Parts(
+  const { textParts, toolCalls, stepCount, stepsData } = collectAiSdkV6Parts(
     msg.parts ?? [],
   );
-  return buildAiSdkV6Result(textParts, toolCalls, stepCount, msg.metadata);
+  return buildAiSdkV6Result(
+    textParts,
+    toolCalls,
+    stepCount,
+    msg.metadata,
+    stepsData,
+  );
 }
 
 function extractAiSdkV6Batch<T>(contents: T[]): TelemetryData | null {
   const allTextParts: string[] = [];
   const allToolCalls: TelemetryToolCall[] = [];
+  const allStepsData: { tool_calls: TelemetryToolCall[] }[] = [];
   let totalStepCount = 0;
   let hasAssistant = false;
   let metadata: Record<string, unknown> | undefined;
@@ -508,11 +564,12 @@ function extractAiSdkV6Batch<T>(contents: T[]): TelemetryData | null {
     if (msg.role !== "assistant") continue;
     hasAssistant = true;
 
-    const { textParts, toolCalls, stepCount } = collectAiSdkV6Parts(
+    const { textParts, toolCalls, stepCount, stepsData } = collectAiSdkV6Parts(
       msg.parts ?? [],
     );
     allTextParts.push(...textParts);
     allToolCalls.push(...toolCalls);
+    allStepsData.push(...stepsData);
     totalStepCount += stepCount;
     if (msg.metadata) metadata = msg.metadata;
   }
@@ -523,6 +580,7 @@ function extractAiSdkV6Batch<T>(contents: T[]): TelemetryData | null {
     allToolCalls,
     totalStepCount,
     metadata,
+    allStepsData,
   );
 }
 
