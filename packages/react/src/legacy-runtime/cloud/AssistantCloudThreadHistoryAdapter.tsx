@@ -63,7 +63,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
         items: MessageFormatItem<TMessage>[],
         options?: {
           durationMs?: number;
-          stepTimestamps?: { start_ms: number; end_ms: number }[];
+          stepTimestamps?: StepTimestamp[];
         },
       ) {
         const encodedContents = items.map((item) => formatAdapter.encode(item));
@@ -116,7 +116,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     contents: T[],
     options?: {
       durationMs?: number;
-      stepTimestamps?: { start_ms: number; end_ms: number }[];
+      stepTimestamps?: StepTimestamp[];
     },
   ) {
     if (!this.cloudRef.current.telemetry.enabled) return;
@@ -146,47 +146,29 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     remoteId: string,
     data: TelemetryData,
     durationMs?: number,
-    stepTimestamps?: { start_ms: number; end_ms: number }[],
+    stepTimestamps?: StepTimestamp[],
   ) {
-    const {
-      toolCalls,
-      promptTokens,
-      completionTokens,
-      status,
-      totalSteps,
-      outputText,
-      metadata,
-      steps,
-    } = data;
-
-    // Merge per-step timing into steps data when available
-    let finalSteps = steps;
-    if (stepTimestamps) {
-      if (finalSteps) {
-        // Only apply timestamps where both arrays have entries
-        const len = Math.min(finalSteps.length, stepTimestamps.length);
-        finalSteps = finalSteps.map((s, i) => ({
-          ...s,
-          ...(i < len ? stepTimestamps[i] : undefined),
-        }));
-      } else {
-        finalSteps = stepTimestamps.map((t) => ({ ...t }));
-      }
-    }
+    const finalSteps = mergeStepTimestamps(data.steps, stepTimestamps);
 
     const initial: Parameters<typeof this.cloudRef.current.runs.report>[0] = {
       thread_id: remoteId,
-      status,
-      ...(totalSteps != null ? { total_steps: totalSteps } : undefined),
-      ...(toolCalls?.length ? { tool_calls: toolCalls } : undefined),
+      status: data.status,
+      ...(data.totalSteps != null
+        ? { total_steps: data.totalSteps }
+        : undefined),
+      ...(data.toolCalls?.length ? { tool_calls: data.toolCalls } : undefined),
       ...(finalSteps?.length ? { steps: finalSteps } : undefined),
-      ...(promptTokens != null ? { prompt_tokens: promptTokens } : undefined),
-      ...(completionTokens != null
-        ? { completion_tokens: completionTokens }
+      ...(data.promptTokens != null
+        ? { prompt_tokens: data.promptTokens }
+        : undefined),
+      ...(data.completionTokens != null
+        ? { completion_tokens: data.completionTokens }
         : undefined),
       ...(durationMs != null ? { duration_ms: durationMs } : undefined),
-      ...(outputText != null ? { output_text: outputText } : undefined),
-      ...(metadata != null ? { metadata } : undefined),
+      ...(data.outputText != null
+        ? { output_text: data.outputText }
+        : undefined),
+      ...(data.metadata != null ? { metadata: data.metadata } : undefined),
     };
 
     const { beforeReport } = this.cloudRef.current.telemetry;
@@ -246,6 +228,22 @@ type TelemetryStepData = {
   start_ms?: number;
   end_ms?: number;
 };
+
+type StepTimestamp = { start_ms: number; end_ms: number };
+
+function mergeStepTimestamps(
+  steps: TelemetryStepData[] | undefined,
+  timestamps: StepTimestamp[] | undefined,
+): TelemetryStepData[] | undefined {
+  if (!timestamps) return steps;
+  if (!steps) return timestamps.map((t) => ({ ...t }));
+
+  const len = Math.min(steps.length, timestamps.length);
+  return steps.map((s, i) => ({
+    ...s,
+    ...(i < len ? timestamps[i] : undefined),
+  }));
+}
 
 type TelemetryData = {
   status: "completed" | "incomplete" | "error";
@@ -377,7 +375,8 @@ type AiSdkV6Message = {
 
 function isToolCallPart(p: AiSdkV6Part): boolean {
   if (!p.toolCallId) return false;
-  return p.type === "tool-call" ? !!p.toolName : p.type.startsWith("tool-");
+  if (p.type === "tool-call") return !!p.toolName;
+  return p.type.startsWith("tool-");
 }
 
 function partToToolCall(p: AiSdkV6Part): TelemetryToolCall {
