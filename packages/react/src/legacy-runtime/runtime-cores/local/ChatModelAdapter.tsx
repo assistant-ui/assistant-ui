@@ -1,6 +1,7 @@
 import type {
   FileMessagePart,
   MessageStatus,
+  MessageTiming,
   ReasoningMessagePart,
   RunConfig,
   SourceMessagePart,
@@ -26,6 +27,7 @@ export type ChatModelRunResult = {
     readonly unstable_annotations?: readonly ReadonlyJSONValue[] | undefined;
     readonly unstable_data?: readonly ReadonlyJSONValue[] | undefined;
     readonly steps?: readonly ThreadStep[] | undefined;
+    readonly timing?: MessageTiming | undefined;
     readonly custom?: Record<string, unknown> | undefined;
   };
 };

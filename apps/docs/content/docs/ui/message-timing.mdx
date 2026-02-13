@@ -1,0 +1,113 @@
+---
+title: Message Timing
+description: Display stream timing metadata like duration, tokens per second, and time to first token.
+---
+
+import { MessageTimingSample } from "@/components/docs/samples/message-timing";
+
+<MessageTimingSample />
+
+## Getting Started
+
+<Steps>
+  <Step>
+
+### Add `message-timing`
+
+<InstallCommand shadcn={["message-timing"]} />
+
+  </Step>
+  <Step>
+
+### Use in your application
+
+Add `MessageTiming` inside an assistant message:
+
+```tsx title="/components/assistant-ui/thread.tsx" {1,8}
+import { MessageTiming } from "@/components/assistant-ui/message-timing";
+
+const AssistantMessage: FC = () => {
+  return (
+    <MessagePrimitive.Root className="...">
+      <MessagePrimitive.Parts components={{ ... }} />
+      <ActionBarPrimitive.Root>...</ActionBarPrimitive.Root>
+      <MessageTiming />
+    </MessagePrimitive.Root>
+  );
+};
+```
+
+  </Step>
+</Steps>
+
+## How It Works
+
+Timing data is automatically tracked inside `AssistantMessageAccumulator` as chunks flow through the stream. The data is stored in `message.metadata.timing` and propagated through all runtimes that use the accumulator (e.g. DataStream).
+
+| Field | Description |
+|-------|-------------|
+| `totalStreamTime` | Total stream duration in milliseconds |
+| `tokensPerSecond` | Throughput (tokens/sec) |
+| `firstTokenTime` | Time to first text token (TTFT) in milliseconds |
+| `tokenCount` | Estimated or actual completion token count |
+| `toolCallCount` | Number of tool calls in the message |
+| `streamStartTime` | Unix timestamp when stream started |
+| `totalChunks` | Total number of stream chunks received |
+
+## Using the Hook Directly
+
+You can access timing data programmatically with `useMessageTiming()`:
+
+```tsx
+import { useMessageTiming } from "@assistant-ui/react";
+
+function CustomTimingDisplay() {
+  const timing = useMessageTiming();
+  if (!timing) return null;
+
+  return (
+    <div className="text-xs text-muted-foreground">
+      {timing.tokensPerSecond?.toFixed(1)} tok/s
+      {" · "}
+      {timing.tokenCount} tokens
+    </div>
+  );
+}
+```
+
+<Callout type="info">
+  `useMessageTiming()` must be used inside a `MessagePrimitive.Root` context. It returns `undefined` for non-assistant messages.
+</Callout>
+
+## Runtime Support
+
+| Runtime | Timing available? | Notes |
+|---------|:-:|-------|
+| DataStream | Yes | Automatic via accumulator |
+| Local (ChatModelAdapter) | Yes | If adapter uses the accumulator |
+| AI SDK (`useChat`) | No | Server must provide timing metadata |
+| LangGraph | No | Server must provide timing metadata |
+| AG-UI | No | Server must provide timing metadata |
+
+For runtimes that don't go through the accumulator, your server can include timing data in the message metadata, and it will be propagated to the hook.
+
+## API Reference
+
+### `MessageTiming`
+
+The root component. Only renders when timing data is available.
+
+<ParametersTable
+  type="MessageTimingProps"
+  parameters={[
+    {
+      name: "className",
+      type: "string",
+      description: "Additional CSS classes for the root container.",
+    },
+  ]}
+/>
+
+### `useMessageTiming()`
+
+Returns `MessageTiming | undefined`. Fields are all optional except `streamStartTime`, `totalChunks`, and `toolCallCount`.

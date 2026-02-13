@@ -150,6 +150,23 @@ export type AssistantMessageStatus =
       error?: ReadonlyJSONValue;
     };
 
+export type AssistantMessageTiming = {
+  /** Timestamp when the stream started (ms since epoch) */
+  streamStartTime: number;
+  /** Time to first text token (ms), undefined if no text was generated */
+  firstTokenTime?: number;
+  /** Total stream duration (ms) */
+  totalStreamTime?: number;
+  /** Estimated or actual completion token count */
+  tokenCount?: number;
+  /** Tokens per second throughput */
+  tokensPerSecond?: number;
+  /** Total number of chunks received */
+  totalChunks: number;
+  /** Number of tool calls in the message */
+  toolCallCount: number;
+};
+
 export type AssistantMessage = {
   role: "assistant";
   status: AssistantMessageStatus;
@@ -165,5 +182,6 @@ export type AssistantMessage = {
     unstable_annotations: ReadonlyJSONValue[];
     steps: AssistantMessageStepMetadata[];
     custom: Record<string, unknown>;
+    timing?: AssistantMessageTiming;
   };
 };

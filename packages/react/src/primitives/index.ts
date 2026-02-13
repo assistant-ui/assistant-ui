@@ -24,3 +24,4 @@ export { useMessagePartData } from "./messagePart/useMessagePartData";
 export { useThreadViewportAutoScroll } from "./thread/useThreadViewportAutoScroll";
 export { useScrollLock } from "./reasoning";
 export { useMessageQuote } from "../hooks/useMessageQuote";
+export { useMessageTiming } from "../hooks/useMessageTiming";

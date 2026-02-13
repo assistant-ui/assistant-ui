@@ -332,6 +332,9 @@ export class LocalThreadRuntimeCore
                   : undefined),
                 ...(data ? { unstable_data: data } : undefined),
                 ...(steps ? { steps } : undefined),
+                ...(m.metadata?.timing
+                  ? { timing: m.metadata.timing }
+                  : undefined),
                 ...(m.metadata?.custom
                   ? {
                       custom: { ...(initalCustom ?? {}), ...m.metadata.custom },

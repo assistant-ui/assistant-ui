@@ -4,6 +4,7 @@ import { parsePartialJsonObject } from "../../utils/json/parse-partial-json-obje
 import {
   AssistantMessage,
   AssistantMessageStatus,
+  AssistantMessageTiming,
   TextPart,
   ToolCallPart,
   SourcePart,
@@ -13,6 +14,7 @@ import {
 } from "../utils/types";
 import { ObjectStreamAccumulator } from "../object/ObjectStreamAccumulator";
 import { ReadonlyJSONValue } from "../../utils";
+import { TimingTracker } from "./TimingTracker";
 
 export const createInitialMessage = ({
   unstable_state = null,
@@ -355,6 +357,30 @@ const handleUpdateState = (
   };
 };
 
+const computeTiming = (
+  tracker: TimingTracker,
+  message: AssistantMessage,
+): AssistantMessageTiming => {
+  let completionTokens = 0;
+  for (const step of message.metadata.steps) {
+    if (step.state === "finished" && step.usage) {
+      completionTokens += step.usage.completionTokens;
+    }
+  }
+
+  let totalText = "";
+  for (const part of message.parts) {
+    if (part.type === "text" || part.type === "reasoning") {
+      totalText += part.text;
+    }
+  }
+
+  return tracker.getTiming(
+    completionTokens > 0 ? completionTokens : undefined,
+    totalText || undefined,
+  );
+};
+
 const throttleCallback = (callback: () => void) => {
   let hasScheduled = false;
   return () => {
@@ -381,6 +407,7 @@ export class AssistantMessageAccumulator extends TransformStream<
     onError?: (error: string) => void;
   } = {}) {
     let message = initialMessage ?? createInitialMessage();
+    const tracker = new TimingTracker();
     let controller:
       | TransformStreamDefaultController<AssistantMessage>
       | undefined;
@@ -396,10 +423,14 @@ export class AssistantMessageAccumulator extends TransformStream<
         controller = c;
       },
       transform(chunk) {
+        tracker.recordChunk();
         const type = chunk.type;
         switch (type) {
           case "part-start":
             message = handlePartStart(message, chunk);
+            if (chunk.part.type === "tool-call") {
+              tracker.recordToolCallStart(chunk.part.toolCallId);
+            }
             break;
 
           case "tool-call-args-text-finish":
@@ -412,6 +443,7 @@ export class AssistantMessageAccumulator extends TransformStream<
 
           case "text-delta":
             message = handleTextDelta(message, chunk);
+            tracker.recordFirstToken();
             break;
           case "result":
             message = handleResult(message, chunk);
@@ -443,6 +475,17 @@ export class AssistantMessageAccumulator extends TransformStream<
             throw new Error(`Unsupported chunk type: ${unhandledType}`);
           }
         }
+
+        if (message.status.type !== "running") {
+          message = {
+            ...message,
+            metadata: {
+              ...message.metadata,
+              timing: computeTiming(tracker, message),
+            },
+          };
+        }
+
         emitChunk();
       },
       flush(controller) {
@@ -464,6 +507,15 @@ export class AssistantMessageAccumulator extends TransformStream<
               completionTokens: 0,
             },
           });
+
+          message = {
+            ...message,
+            metadata: {
+              ...message.metadata,
+              timing: computeTiming(tracker, message),
+            },
+          };
+
           controller.enqueue(message);
         }
       },

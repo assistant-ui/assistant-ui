@@ -27,6 +27,16 @@ export type {
   ThreadAssistantMessagePart,
 };
 
+export type MessageTiming = {
+  readonly streamStartTime: number;
+  readonly firstTokenTime?: number;
+  readonly totalStreamTime?: number;
+  readonly tokenCount?: number;
+  readonly tokensPerSecond?: number;
+  readonly totalChunks: number;
+  readonly toolCallCount: number;
+};
+
 // Alias for the role of a thread message
 export type MessageRole = ThreadMessage["role"];
 
@@ -103,6 +113,7 @@ export type ThreadSystemMessage = MessageCommonProps & {
     readonly unstable_data?: undefined;
     readonly steps?: undefined;
     readonly submittedFeedback?: undefined;
+    readonly timing?: undefined;
     readonly custom: Record<string, unknown>;
   };
 };
@@ -117,6 +128,7 @@ export type ThreadUserMessage = MessageCommonProps & {
     readonly unstable_data?: undefined;
     readonly steps?: undefined;
     readonly submittedFeedback?: undefined;
+    readonly timing?: undefined;
     readonly custom: Record<string, unknown>;
   };
 };
@@ -131,6 +143,7 @@ export type ThreadAssistantMessage = MessageCommonProps & {
     readonly unstable_data: readonly ReadonlyJSONValue[];
     readonly steps: readonly ThreadStep[];
     readonly submittedFeedback?: { readonly type: "positive" | "negative" };
+    readonly timing?: MessageTiming;
     readonly custom: Record<string, unknown>;
   };
 };
@@ -157,6 +170,7 @@ type BaseThreadMessage = {
     readonly unstable_data?: readonly ReadonlyJSONValue[];
     readonly steps?: readonly ThreadStep[];
     readonly submittedFeedback?: { readonly type: "positive" | "negative" };
+    readonly timing?: MessageTiming;
     readonly custom: Record<string, unknown>;
   };
   readonly attachments?: ThreadUserMessage["attachments"];
