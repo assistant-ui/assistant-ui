@@ -306,7 +306,7 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
               <button
                 type="button"
                 onClick={handleAskAI}
-                className="flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1 text-pink-500 transition-colors hover:bg-accent"
+                className="hidden shrink-0 items-center gap-1.5 rounded-lg px-2 py-1 text-pink-500 transition-colors hover:bg-accent sm:flex"
               >
                 <Sparkles className="size-3.5" />
                 <span className="font-medium text-xs">Ask AI</span>
