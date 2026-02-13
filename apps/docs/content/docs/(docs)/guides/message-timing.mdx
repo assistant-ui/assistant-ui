@@ -5,23 +5,9 @@ description: Display stream timing metadata like duration, tokens per second, an
 
 Display stream performance metrics — duration, tokens per second, TTFT — on assistant messages.
 
-## How It Works
+## Reading Timing Data
 
-Timing data is automatically tracked inside `AssistantMessageAccumulator` as chunks flow through the stream. The data is stored in `message.metadata.timing` and available via the `useMessageTiming()` hook.
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `streamStartTime` | `number` | Unix timestamp when stream started |
-| `firstTokenTime` | `number?` | Time to first text token (ms) |
-| `totalStreamTime` | `number?` | Total stream duration (ms) |
-| `tokenCount` | `number?` | Estimated or actual token count |
-| `tokensPerSecond` | `number?` | Throughput (tokens/sec) |
-| `totalChunks` | `number` | Total stream chunks received |
-| `toolCallCount` | `number` | Number of tool calls |
-
-## Quick Start
-
-Use `useMessageTiming()` inside a message component to access timing data and build your own display:
+Use `useMessageTiming()` inside a message component to access timing data:
 
 ```tsx
 import { useMessageTiming } from "@assistant-ui/react";
@@ -36,6 +22,8 @@ const MessageTimingDisplay: FC = () => {
   return (
     <span className="text-xs text-muted-foreground">
       {formatMs(timing.totalStreamTime)}
+      {timing.tokensPerSecond !== undefined &&
+        ` · ${timing.tokensPerSecond.toFixed(1)} tok/s`}
     </span>
   );
 };
@@ -58,100 +46,107 @@ const AssistantMessage: FC = () => {
 };
 ```
 
-## Example: Hover Detail Popover
+### `MessageTiming` Fields
 
-A common pattern is showing the total time as a compact button, with a hover popover revealing detailed metrics:
-
-```tsx
-import { useMessageTiming } from "@assistant-ui/react";
-
-const formatMs = (ms: number | undefined) => {
-  if (ms === undefined) return "—";
-  if (ms < 1000) return `${Math.round(ms)}ms`;
-  return `${(ms / 1000).toFixed(2)}s`;
-};
-
-const MessageTimingDisplay: FC = () => {
-  const timing = useMessageTiming();
-  if (!timing?.totalStreamTime) return null;
-
-  const totalText =
-    timing.totalStreamTime < 1000
-      ? `${Math.round(timing.totalStreamTime)}ms`
-      : `${(timing.totalStreamTime / 1000).toFixed(1)}s`;
-
-  return (
-    <div className="group/timing relative">
-      {/* Compact button */}
-      <button
-        type="button"
-        className="rounded-md px-1.5 py-0.5 font-mono text-xs
-          text-muted-foreground tabular-nums
-          transition-colors hover:bg-accent hover:text-foreground"
-      >
-        {totalText}
-      </button>
-
-      {/* Hover popover */}
-      <div
-        className="pointer-events-none absolute bottom-full left-1/2 z-10
-          mb-2 -translate-x-1/2 scale-95 rounded-lg border bg-popover
-          px-3 py-2 opacity-0 shadow-lg transition-all
-          group-hover/timing:pointer-events-auto
-          group-hover/timing:scale-100
-          group-hover/timing:opacity-100"
-      >
-        <div className="grid min-w-[140px] gap-1.5 text-xs">
-          {timing.firstTokenTime !== undefined && (
-            <div className="flex items-center justify-between gap-4">
-              <span className="text-muted-foreground">First token</span>
-              <span className="font-mono tabular-nums">
-                {formatMs(timing.firstTokenTime)}
-              </span>
-            </div>
-          )}
-          <div className="flex items-center justify-between gap-4">
-            <span className="text-muted-foreground">Total</span>
-            <span className="font-mono tabular-nums">
-              {formatMs(timing.totalStreamTime)}
-            </span>
-          </div>
-          {timing.tokensPerSecond !== undefined && (
-            <div className="flex items-center justify-between gap-4">
-              <span className="text-muted-foreground">Speed</span>
-              <span className="font-mono tabular-nums">
-                {timing.tokensPerSecond.toFixed(1)} tok/s
-              </span>
-            </div>
-          )}
-          {timing.totalChunks !== undefined && (
-            <div className="flex items-center justify-between gap-4">
-              <span className="text-muted-foreground">Chunks</span>
-              <span className="font-mono tabular-nums">
-                {timing.totalChunks}
-              </span>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
-```
+| Field | Type | Description |
+|-------|------|-------------|
+| `streamStartTime` | `number` | Unix timestamp when stream started |
+| `firstTokenTime` | `number?` | Time to first text token (ms) |
+| `totalStreamTime` | `number?` | Total stream duration (ms) |
+| `tokenCount` | `number?` | Estimated or actual token count |
+| `tokensPerSecond` | `number?` | Throughput (tokens/sec) |
+| `totalChunks` | `number` | Total stream chunks received |
+| `toolCallCount` | `number` | Number of tool calls |
 
 ## Runtime Support
 
-Timing is automatically available for runtimes that use `AssistantMessageAccumulator`:
-
-| Runtime | Automatic timing? | Notes |
+| Runtime | Supported | Notes |
 |---------|:-:|-------|
-| DataStream | Yes | Via accumulator |
-| Local (ChatModelAdapter) | Yes | If adapter uses the accumulator |
-| AI SDK (`useChat`) | Yes | Client-side tracking via `useStreamingTiming` |
-| LangGraph | No | Server must provide timing in metadata |
-| AG-UI | No | Server must provide timing in metadata |
+| DataStream | Yes | Automatic via `AssistantMessageAccumulator` |
+| AI SDK (`useChatRuntime`) | Yes | Automatic via client-side tracking |
+| Local (`useLocalRuntime`) | Yes | Pass timing in `ChatModelRunResult.metadata` |
+| ExternalStore | Yes | Pass timing in `ThreadMessageLike.metadata` |
+| LangGraph | No | Not yet implemented |
+| AG-UI | No | Not yet implemented |
 
-For runtimes without automatic timing, include timing data in message metadata on the server side — it will propagate through the external store and be available via `useMessageTiming()`.
+### DataStream
+
+Timing is tracked automatically inside `AssistantMessageAccumulator`. No setup required.
+
+```tsx
+import { useDataStreamRuntime } from "@assistant-ui/react-data-stream";
+
+const runtime = useDataStreamRuntime({ api: "/api/chat" });
+// useMessageTiming() works out of the box
+```
+
+### AI SDK (`useChatRuntime`)
+
+Timing is tracked automatically on the client side by observing streaming state transitions and content changes. Timing is finalized when each stream completes. `tokenCount` and `tokensPerSecond` are estimated from text length.
+
+```tsx
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+
+const runtime = useChatRuntime({ api: "/api/chat" });
+// useMessageTiming() works out of the box
+```
+
+### Local (`useLocalRuntime`)
+
+Pass timing in the `metadata` field of your `ChatModelRunResult`:
+
+```tsx
+import type { ChatModelAdapter } from "@assistant-ui/react";
+
+const myAdapter: ChatModelAdapter = {
+  async run({ messages, abortSignal }) {
+    const startTime = Date.now();
+    const result = await callMyAPI(messages, abortSignal);
+    const totalStreamTime = Date.now() - startTime;
+
+    return {
+      content: [{ type: "text", text: result.text }],
+      metadata: {
+        timing: {
+          streamStartTime: startTime,
+          totalStreamTime,
+          tokenCount: result.usage?.completionTokens,
+          tokensPerSecond:
+            result.usage?.completionTokens
+              ? result.usage.completionTokens / (totalStreamTime / 1000)
+              : undefined,
+          totalChunks: 1,
+          toolCallCount: 0,
+        },
+      },
+    };
+  },
+};
+```
+
+### ExternalStore (`useExternalStoreRuntime`)
+
+Pass timing in the `metadata.timing` field of your `ThreadMessageLike` messages:
+
+```tsx
+import type { ThreadMessageLike } from "@assistant-ui/react";
+
+const message: ThreadMessageLike = {
+  role: "assistant",
+  content: [{ type: "text", text: fullText }],
+  metadata: {
+    timing: {
+      streamStartTime: startTime,
+      firstTokenTime,
+      totalStreamTime,
+      tokenCount,
+      tokensPerSecond,
+      totalChunks: chunks,
+      toolCallCount: 0,
+    },
+  },
+};
+```
 
 ## API Reference
 
