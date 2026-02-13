@@ -131,7 +131,8 @@ export class AssistantCloudAPI {
       try {
         const body = JSON.parse(text);
         throw new CloudAPIError(body.message);
-      } catch {
+      } catch (error) {
+        if (error instanceof CloudAPIError) throw error;
         throw new Error(
           `Request failed with status ${response.status}, ${text}`,
         );
