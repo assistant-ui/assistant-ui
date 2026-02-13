@@ -117,18 +117,27 @@ export const useSmooth = (
 
     if (idRef.current !== id || !text.startsWith(animatorRef.targetText)) {
       idRef.current = id;
-      setText(text);
 
-      animatorRef.currentText = text;
-      animatorRef.targetText = text;
-      animatorRef.stop();
+      if (state.status.type === "running") {
+        // New streaming message → animate from empty string
+        setText("");
+        animatorRef.currentText = "";
+        animatorRef.targetText = text;
+        animatorRef.start();
+      } else {
+        // Completed message → display immediately
+        setText(text);
+        animatorRef.currentText = text;
+        animatorRef.targetText = text;
+        animatorRef.stop();
+      }
 
       return;
     }
 
     animatorRef.targetText = text;
     animatorRef.start();
-  }, [setText, animatorRef, id, smooth, text]);
+  }, [setText, animatorRef, id, smooth, text, state.status.type]);
 
   useEffect(() => {
     return () => {
