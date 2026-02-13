@@ -58,7 +58,7 @@ describe("TimingTracker", () => {
     expect(timing.totalStreamTime).toBe(200);
   });
 
-  it("should use completionTokens when available", () => {
+  it("should use outputTokens when available", () => {
     const tracker = new TimingTracker();
     vi.advanceTimersByTime(1000);
     const timing = tracker.getTiming(42, "some text");
@@ -66,7 +66,7 @@ describe("TimingTracker", () => {
     expect(timing.tokensPerSecond).toBe(42);
   });
 
-  it("should estimate tokens from text when no completionTokens", () => {
+  it("should estimate tokens from text when no outputTokens", () => {
     const tracker = new TimingTracker();
     vi.advanceTimersByTime(1000);
     // 20 chars / 4 = 5 tokens
@@ -75,7 +75,7 @@ describe("TimingTracker", () => {
     expect(timing.tokensPerSecond).toBe(5);
   });
 
-  it("should handle zero completionTokens by falling back to text", () => {
+  it("should handle zero outputTokens by falling back to text", () => {
     const tracker = new TimingTracker();
     vi.advanceTimersByTime(1000);
     const timing = tracker.getTiming(0, "1234567890"); // 10 chars -> 3 tokens

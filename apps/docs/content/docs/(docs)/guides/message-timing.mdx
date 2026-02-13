@@ -147,7 +147,7 @@ Timing is automatically available for runtimes that use `AssistantMessageAccumul
 |---------|:-:|-------|
 | DataStream | Yes | Via accumulator |
 | Local (ChatModelAdapter) | Yes | If adapter uses the accumulator |
-| AI SDK (`useChat`) | No | Server must provide timing in metadata |
+| AI SDK (`useChat`) | Yes | Client-side tracking via `useStreamingTiming` |
 | LangGraph | No | Server must provide timing in metadata |
 | AG-UI | No | Server must provide timing in metadata |
 

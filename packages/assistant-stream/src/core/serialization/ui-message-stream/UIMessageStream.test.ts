@@ -44,7 +44,7 @@ describe("UIMessageStreamDecoder", () => {
       JSON.stringify({
         type: "finish",
         finishReason: "stop",
-        usage: { promptTokens: 10, completionTokens: 5 },
+        usage: { inputTokens: 10, outputTokens: 5 },
       }),
       "[DONE]",
     ];
@@ -72,7 +72,7 @@ describe("UIMessageStreamDecoder", () => {
       JSON.stringify({
         type: "finish",
         finishReason: "stop",
-        usage: { promptTokens: 10, completionTokens: 5 },
+        usage: { inputTokens: 10, outputTokens: 5 },
       }),
       "[DONE]",
     ];
@@ -109,7 +109,7 @@ describe("UIMessageStreamDecoder", () => {
       JSON.stringify({
         type: "finish",
         finishReason: "stop",
-        usage: { promptTokens: 10, completionTokens: 5 },
+        usage: { inputTokens: 10, outputTokens: 5 },
       }),
       "[DONE]",
     ];
@@ -153,7 +153,7 @@ describe("UIMessageStreamDecoder", () => {
       JSON.stringify({
         type: "finish",
         finishReason: "stop",
-        usage: { promptTokens: 10, completionTokens: 5 },
+        usage: { inputTokens: 10, outputTokens: 5 },
       }),
       "[DONE]",
     ];
@@ -186,7 +186,7 @@ describe("UIMessageStreamDecoder", () => {
       JSON.stringify({
         type: "finish",
         finishReason: "stop",
-        usage: { promptTokens: 10, completionTokens: 5 },
+        usage: { inputTokens: 10, outputTokens: 5 },
       }),
       "[DONE]",
     ];
@@ -217,7 +217,7 @@ describe("UIMessageStreamDecoder", () => {
       JSON.stringify({
         type: "finish",
         finishReason: "stop",
-        usage: { promptTokens: 10, completionTokens: 5 },
+        usage: { inputTokens: 10, outputTokens: 5 },
       }),
       "[DONE]",
     ];
@@ -248,7 +248,7 @@ describe("UIMessageStreamDecoder", () => {
       JSON.stringify({
         type: "finish",
         finishReason: "stop",
-        usage: { promptTokens: 10, completionTokens: 5 },
+        usage: { inputTokens: 10, outputTokens: 5 },
       }),
       "[DONE]",
     ];
@@ -282,13 +282,13 @@ describe("UIMessageStreamDecoder", () => {
       JSON.stringify({
         type: "finish-step",
         finishReason: "stop",
-        usage: { promptTokens: 10, completionTokens: 5 },
+        usage: { inputTokens: 10, outputTokens: 5 },
         isContinued: false,
       }),
       JSON.stringify({
         type: "finish",
         finishReason: "stop",
-        usage: { promptTokens: 10, completionTokens: 5 },
+        usage: { inputTokens: 10, outputTokens: 5 },
       }),
       "[DONE]",
     ];
@@ -355,7 +355,7 @@ describe("UIMessageStreamDecoder", () => {
       JSON.stringify({
         type: "finish",
         finishReason: "stop",
-        usage: { promptTokens: 10, completionTokens: 5 },
+        usage: { inputTokens: 10, outputTokens: 5 },
       }),
       "[DONE]",
     ];

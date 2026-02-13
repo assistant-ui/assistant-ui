@@ -49,8 +49,8 @@ export type ThreadStep = {
   readonly messageId?: string;
   readonly usage?:
     | {
-        readonly promptTokens: number;
-        readonly completionTokens: number;
+        readonly inputTokens: number;
+        readonly outputTokens: number;
       }
     | undefined;
 };

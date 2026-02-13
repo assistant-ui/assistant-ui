@@ -10,8 +10,8 @@ type FinishReason =
   | "unknown";
 
 type Usage = {
-  promptTokens: number;
-  completionTokens: number;
+  inputTokens: number;
+  outputTokens: number;
 };
 
 export type UIMessageStreamChunk =

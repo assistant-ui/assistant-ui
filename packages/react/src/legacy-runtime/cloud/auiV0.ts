@@ -59,8 +59,8 @@ type AuiV0Message = {
     readonly unstable_data: readonly ReadonlyJSONValue[];
     readonly steps: readonly {
       readonly usage?: {
-        readonly promptTokens: number;
-        readonly completionTokens: number;
+        readonly inputTokens: number;
+        readonly outputTokens: number;
       };
     }[];
     readonly custom: ReadonlyJSONObject;

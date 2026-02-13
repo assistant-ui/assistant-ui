@@ -93,35 +93,35 @@ export function getAssistantMessageTokenUsage(
   const steps = metadata?.["steps"];
   if (!Array.isArray(steps)) return {};
 
-  let promptTokens = 0;
-  let completionTokens = 0;
+  let inputTokens = 0;
+  let outputTokens = 0;
   for (const step of steps) {
     const usage = asRecord(asRecord(step)?.["usage"]);
     if (!usage) continue;
-    const rawPromptTokens = usage["promptTokens"];
-    const rawCompletionTokens = usage["completionTokens"];
+    const rawInputTokens = usage["inputTokens"];
+    const rawOutputTokens = usage["outputTokens"];
     if (
-      typeof rawPromptTokens === "number" &&
-      Number.isFinite(rawPromptTokens) &&
-      rawPromptTokens >= 0
+      typeof rawInputTokens === "number" &&
+      Number.isFinite(rawInputTokens) &&
+      rawInputTokens >= 0
     ) {
-      promptTokens += rawPromptTokens;
+      inputTokens += rawInputTokens;
     }
     if (
-      typeof rawCompletionTokens === "number" &&
-      Number.isFinite(rawCompletionTokens) &&
-      rawCompletionTokens >= 0
+      typeof rawOutputTokens === "number" &&
+      Number.isFinite(rawOutputTokens) &&
+      rawOutputTokens >= 0
     ) {
-      completionTokens += rawCompletionTokens;
+      outputTokens += rawOutputTokens;
     }
   }
 
-  const totalTokens = promptTokens + completionTokens;
+  const totalTokens = inputTokens + outputTokens;
   if (totalTokens <= 0) return {};
 
   return {
     totalTokens,
-    inputTokens: promptTokens,
-    outputTokens: completionTokens,
+    inputTokens,
+    outputTokens,
   };
 }

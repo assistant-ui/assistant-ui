@@ -102,8 +102,8 @@ export type AssistantMessagePart =
   | FilePart;
 
 type AssistantMessageStepUsage = {
-  promptTokens: number;
-  completionTokens: number;
+  inputTokens: number;
+  outputTokens: number;
 };
 
 type AssistantMessageStepMetadata =

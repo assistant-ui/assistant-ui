@@ -31,6 +31,7 @@ import {
   useExternalHistory,
   toExportedMessageRepository,
 } from "./useExternalHistory";
+import { useStreamingTiming } from "./useStreamingTiming";
 
 export type CustomToCreateMessageFunction = <
   UI_MESSAGE extends UIMessage = UIMessage,
@@ -77,15 +78,18 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     chatHelpers.status === "streaming" ||
     hasExecutingTools;
 
+  const messageTiming = useStreamingTiming(chatHelpers.messages, isRunning);
+
   const messages = AISDKMessageConverter.useThreadMessages({
     isRunning,
     messages: chatHelpers.messages,
     metadata: useMemo(
       () => ({
         toolStatuses,
+        messageTiming,
         ...(chatHelpers.error && { error: chatHelpers.error.message }),
       }),
-      [toolStatuses, chatHelpers.error],
+      [toolStatuses, messageTiming, chatHelpers.error],
     ),
   });
 

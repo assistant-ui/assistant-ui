@@ -12,7 +12,10 @@ import { ThreadMessage, ToolCallMessagePart } from "../../../types";
 import { ToolExecutionStatus } from "../assistant-transport/useToolInvocations";
 import { ReadonlyJSONValue } from "assistant-stream/utils";
 import { generateErrorMessageId } from "../../../utils/idUtils";
-import { ThreadAssistantMessage } from "../../../types/AssistantTypes";
+import {
+  MessageTiming,
+  ThreadAssistantMessage,
+} from "../../../types/AssistantTypes";
 
 export namespace useExternalMessageConverter {
   export type Message =
@@ -34,6 +37,7 @@ export namespace useExternalMessageConverter {
   export type Metadata = {
     readonly toolStatuses?: Record<string, ToolExecutionStatus>;
     readonly error?: ReadonlyJSONValue;
+    readonly messageTiming?: Record<string, MessageTiming>;
   };
 
   export type Callback<T> = (

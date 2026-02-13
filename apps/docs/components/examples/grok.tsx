@@ -8,6 +8,7 @@ import {
   MessagePrimitive,
   ThreadPrimitive,
   useAuiState,
+  useMessageTiming,
 } from "@assistant-ui/react";
 import {
   ArrowUpIcon,
@@ -163,11 +164,79 @@ const ChatMessage: FC = () => {
               <ActionBarPrimitive.FeedbackNegative className="flex h-8 w-8 items-center justify-center rounded-full text-[#6b6b6b] transition-colors hover:bg-[#e5e5e5] hover:text-[#0d0d0d] dark:text-[#9a9a9a] dark:hover:bg-[#2a2a2a] dark:hover:text-white">
                 <ThumbsDown width={16} height={16} />
               </ActionBarPrimitive.FeedbackNegative>
+              <MessageTimingDisplay />
             </ActionBarPrimitive.Root>
           </div>
         </div>
       </AuiIf>
     </MessagePrimitive.Root>
+  );
+};
+
+const formatTime = (ms: number | undefined) => {
+  if (ms === undefined) return null;
+  if (ms < 1000) return `${Math.round(ms)}ms`;
+  return `${(ms / 1000).toFixed(1)}s`;
+};
+
+const formatMs = (ms: number | undefined) => {
+  if (ms === undefined) return "\u2014";
+  if (ms < 1000) return `${Math.round(ms)}ms`;
+  return `${(ms / 1000).toFixed(2)}s`;
+};
+
+const MessageTimingDisplay: FC = () => {
+  const timing = useMessageTiming();
+  if (!timing?.totalStreamTime) return null;
+
+  const totalTimeText = formatTime(timing.totalStreamTime);
+  if (!totalTimeText) return null;
+
+  return (
+    <div className="group/timing relative">
+      <button
+        type="button"
+        className="ml-1 flex h-auto items-center justify-center rounded-md px-1.5 py-0.5 font-mono text-[#6b6b6b] text-xs tabular-nums transition-colors hover:bg-[#e5e5e5] hover:text-[#0d0d0d] dark:text-[#9a9a9a] dark:hover:bg-[#2a2a2a] dark:hover:text-white"
+      >
+        {totalTimeText}
+      </button>
+      <div className="pointer-events-none absolute top-1/2 left-full z-10 ml-2 -translate-y-1/2 scale-95 rounded-lg border border-[#e5e5e5] bg-white px-3 py-2 opacity-0 shadow-lg transition-all before:absolute before:top-0 before:-left-2 before:h-full before:w-2 before:content-[''] group-hover/timing:pointer-events-auto group-hover/timing:scale-100 group-hover/timing:opacity-100 dark:border-[#2a2a2a] dark:bg-[#1a1a1a]">
+        <div className="grid min-w-[140px] gap-1.5 text-xs">
+          {timing.firstTokenTime !== undefined && (
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-[#6b6b6b] dark:text-[#9a9a9a]">
+                First token
+              </span>
+              <span className="font-mono text-[#0d0d0d] tabular-nums dark:text-white">
+                {formatMs(timing.firstTokenTime)}
+              </span>
+            </div>
+          )}
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-[#6b6b6b] dark:text-[#9a9a9a]">Total</span>
+            <span className="font-mono text-[#0d0d0d] tabular-nums dark:text-white">
+              {formatMs(timing.totalStreamTime)}
+            </span>
+          </div>
+          {timing.tokensPerSecond !== undefined && (
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-[#6b6b6b] dark:text-[#9a9a9a]">Speed</span>
+              <span className="font-mono text-[#0d0d0d] tabular-nums dark:text-white">
+                {timing.tokensPerSecond.toFixed(1)} tok/s
+              </span>
+            </div>
+          )}
+          {timing.totalChunks > 0 && (
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-[#6b6b6b] dark:text-[#9a9a9a]">Chunks</span>
+              <span className="font-mono text-[#0d0d0d] tabular-nums dark:text-white">
+                {timing.totalChunks}
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 };
 

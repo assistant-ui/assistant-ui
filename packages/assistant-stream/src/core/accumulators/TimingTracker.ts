@@ -24,16 +24,13 @@ export class TimingTracker {
     this._toolCallIds.add(toolCallId);
   }
 
-  getTiming(
-    completionTokens?: number,
-    totalText?: string,
-  ): AssistantMessageTiming {
+  getTiming(outputTokens?: number, totalText?: string): AssistantMessageTiming {
     const now = Date.now();
     const totalStreamTime = now - this._streamStartTime;
 
     const tokenCount =
-      completionTokens && completionTokens > 0
-        ? completionTokens
+      outputTokens && outputTokens > 0
+        ? outputTokens
         : totalText
           ? Math.ceil(totalText.length / 4)
           : undefined;

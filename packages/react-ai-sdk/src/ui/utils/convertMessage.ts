@@ -202,14 +202,19 @@ export const AISDKMessageConverter = unstable_createMessageConverter(
         };
 
       case "system":
-      case "assistant":
+      case "assistant": {
+        const timing = metadata.messageTiming?.[message.id];
         return {
           role: message.role,
           id: message.id,
           createdAt,
           content,
-          metadata: message.metadata as MessageMetadata,
+          metadata: {
+            ...(message.metadata as MessageMetadata),
+            ...(timing && { timing }),
+          },
         };
+      }
 
       default:
         console.warn(`Unsupported message role: ${message.role}`);

@@ -21,8 +21,8 @@ type LanguageModelV1FinishReason =
   | "unknown";
 
 type LanguageModelV1Usage = {
-  promptTokens: number;
-  completionTokens: number;
+  inputTokens: number;
+  outputTokens: number;
 };
 
 export enum DataStreamStreamChunkType {

@@ -361,10 +361,10 @@ const computeTiming = (
   tracker: TimingTracker,
   message: AssistantMessage,
 ): AssistantMessageTiming => {
-  let completionTokens = 0;
+  let outputTokens = 0;
   for (const step of message.metadata.steps) {
     if (step.state === "finished" && step.usage) {
-      completionTokens += step.usage.completionTokens;
+      outputTokens += step.usage.outputTokens;
     }
   }
 
@@ -376,7 +376,7 @@ const computeTiming = (
   }
 
   return tracker.getTiming(
-    completionTokens > 0 ? completionTokens : undefined,
+    outputTokens > 0 ? outputTokens : undefined,
     totalText || undefined,
   );
 };
@@ -503,8 +503,8 @@ export class AssistantMessageAccumulator extends TransformStream<
             path: [],
             finishReason: requiresAction ? "tool-calls" : "unknown",
             usage: {
-              promptTokens: 0,
-              completionTokens: 0,
+              inputTokens: 0,
+              outputTokens: 0,
             },
           });
 

@@ -41,14 +41,14 @@ describe("AssistantMessageAccumulator timing", () => {
         type: "step-finish",
         path: [],
         finishReason: "stop",
-        usage: { promptTokens: 10, completionTokens: 5 },
+        usage: { inputTokens: 10, outputTokens: 5 },
         isContinued: false,
       },
       {
         type: "message-finish",
         path: [],
         finishReason: "stop",
-        usage: { promptTokens: 10, completionTokens: 5 },
+        usage: { inputTokens: 10, outputTokens: 5 },
       },
     ];
 
@@ -90,7 +90,7 @@ describe("AssistantMessageAccumulator timing", () => {
         type: "message-finish",
         path: [],
         finishReason: "stop",
-        usage: { promptTokens: 0, completionTokens: 0 },
+        usage: { inputTokens: 0, outputTokens: 0 },
       },
     ];
 
@@ -128,7 +128,7 @@ describe("AssistantMessageAccumulator timing", () => {
         type: "message-finish",
         path: [],
         finishReason: "stop",
-        usage: { promptTokens: 0, completionTokens: 0 },
+        usage: { inputTokens: 0, outputTokens: 0 },
       },
     ];
 
@@ -162,7 +162,7 @@ describe("AssistantMessageAccumulator timing", () => {
         type: "message-finish",
         path: [],
         finishReason: "stop",
-        usage: { promptTokens: 0, completionTokens: 0 },
+        usage: { inputTokens: 0, outputTokens: 0 },
       },
     ];
 

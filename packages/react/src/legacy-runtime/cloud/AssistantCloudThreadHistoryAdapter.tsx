@@ -157,11 +157,11 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
         : undefined),
       ...(data.toolCalls ? { tool_calls: data.toolCalls } : undefined),
       ...(mergedSteps ? { steps: mergedSteps } : undefined),
-      ...(data.promptTokens != null
-        ? { prompt_tokens: data.promptTokens }
+      ...(data.inputTokens != null
+        ? { input_tokens: data.inputTokens }
         : undefined),
-      ...(data.completionTokens != null
-        ? { completion_tokens: data.completionTokens }
+      ...(data.outputTokens != null
+        ? { output_tokens: data.outputTokens }
         : undefined),
       ...(durationMs != null ? { duration_ms: durationMs } : undefined),
       ...(data.outputText != null
@@ -220,8 +220,8 @@ function buildToolCall(
 }
 
 type TelemetryStepData = {
-  prompt_tokens?: number;
-  completion_tokens?: number;
+  input_tokens?: number;
+  output_tokens?: number;
   tool_calls?: TelemetryToolCall[];
   start_ms?: number;
   end_ms?: number;
@@ -247,8 +247,8 @@ type TelemetryData = {
   status: "completed" | "incomplete" | "error";
   toolCalls?: TelemetryToolCall[];
   totalSteps?: number;
-  promptTokens?: number;
-  completionTokens?: number;
+  inputTokens?: number;
+  outputTokens?: number;
   outputText?: string;
   metadata?: Record<string, unknown>;
   steps?: TelemetryStepData[];
@@ -299,7 +299,7 @@ function extractAuiV0<T>(content: T): TelemetryData | null {
     }[];
     metadata?: {
       steps?: readonly {
-        usage?: { promptTokens?: number; completionTokens?: number };
+        usage?: { inputTokens?: number; outputTokens?: number };
       }[];
       custom?: Record<string, unknown>;
     };
@@ -320,14 +320,14 @@ function extractAuiV0<T>(content: T): TelemetryData | null {
       : undefined;
 
   const steps = msg.metadata?.steps;
-  let promptTokens: number | undefined;
-  let completionTokens: number | undefined;
+  let inputTokens: number | undefined;
+  let outputTokens: number | undefined;
   if (steps && steps.length > 0) {
-    promptTokens = 0;
-    completionTokens = 0;
+    inputTokens = 0;
+    outputTokens = 0;
     for (const step of steps) {
-      promptTokens += step.usage?.promptTokens ?? 0;
-      completionTokens += step.usage?.completionTokens ?? 0;
+      inputTokens += step.usage?.inputTokens ?? 0;
+      outputTokens += step.usage?.outputTokens ?? 0;
     }
   }
 
@@ -340,11 +340,11 @@ function extractAuiV0<T>(content: T): TelemetryData | null {
   const telemetrySteps: TelemetryStepData[] | undefined =
     steps && steps.length > 1
       ? steps.map((s) => ({
-          ...(s.usage?.promptTokens != null
-            ? { prompt_tokens: s.usage.promptTokens }
+          ...(s.usage?.inputTokens != null
+            ? { input_tokens: s.usage.inputTokens }
             : undefined),
-          ...(s.usage?.completionTokens != null
-            ? { completion_tokens: s.usage.completionTokens }
+          ...(s.usage?.outputTokens != null
+            ? { output_tokens: s.usage.outputTokens }
             : undefined),
         }))
       : undefined;
@@ -353,8 +353,8 @@ function extractAuiV0<T>(content: T): TelemetryData | null {
     status,
     ...(toolCalls && toolCalls.length > 0 ? { toolCalls } : undefined),
     ...(steps?.length ? { totalSteps: steps.length } : undefined),
-    ...(promptTokens != null ? { promptTokens } : undefined),
-    ...(completionTokens != null ? { completionTokens } : undefined),
+    ...(inputTokens != null ? { inputTokens } : undefined),
+    ...(outputTokens != null ? { outputTokens } : undefined),
     ...(outputText != null ? { outputText } : undefined),
     ...(metadata ? { metadata } : undefined),
     ...(telemetrySteps ? { steps: telemetrySteps } : undefined),
@@ -433,7 +433,7 @@ function buildAiSdkV6Result(
   totalSteps: number,
   metadata?: Record<string, unknown>,
   stepsData?: { tool_calls: TelemetryToolCall[] }[],
-  usage?: { promptTokens?: number; completionTokens?: number },
+  usage?: { inputTokens?: number; outputTokens?: number },
 ): TelemetryData {
   const hasText = textParts.length > 0;
   const outputText = hasText ? truncateStr(textParts.join("")) : undefined;
@@ -451,11 +451,11 @@ function buildAiSdkV6Result(
     status: hasText ? "completed" : "incomplete",
     ...(toolCalls.length > 0 ? { toolCalls } : undefined),
     ...(totalSteps > 0 ? { totalSteps } : undefined),
-    ...(usage?.promptTokens != null
-      ? { promptTokens: usage.promptTokens }
+    ...(usage?.inputTokens != null
+      ? { inputTokens: usage.inputTokens }
       : undefined),
-    ...(usage?.completionTokens != null
-      ? { completionTokens: usage.completionTokens }
+    ...(usage?.outputTokens != null
+      ? { outputTokens: usage.outputTokens }
       : undefined),
     ...(outputText != null ? { outputText } : undefined),
     ...(metadata ? { metadata } : undefined),
@@ -472,19 +472,19 @@ type UsageFields = {
 
 function normalizeUsage(
   u: UsageFields,
-): { promptTokens: number; completionTokens: number } | undefined {
-  const prompt = u.inputTokens ?? u.promptTokens;
-  const completion = u.outputTokens ?? u.completionTokens;
-  if (prompt == null && completion == null) return undefined;
+): { inputTokens: number; outputTokens: number } | undefined {
+  const input = u.inputTokens ?? u.promptTokens;
+  const output = u.outputTokens ?? u.completionTokens;
+  if (input == null && output == null) return undefined;
   return {
-    promptTokens: prompt ?? 0,
-    completionTokens: completion ?? 0,
+    inputTokens: input ?? 0,
+    outputTokens: output ?? 0,
   };
 }
 
 function extractAiSdkV6Usage(
   metadata?: Record<string, unknown>,
-): { promptTokens?: number; completionTokens?: number } | undefined {
+): { inputTokens?: number; outputTokens?: number } | undefined {
   // Try top-level metadata.usage
   const usage = metadata?.usage as UsageFields | undefined;
   if (usage) {
@@ -497,19 +497,19 @@ function extractAiSdkV6Usage(
     | readonly { usage?: UsageFields }[]
     | undefined;
   if (steps && steps.length > 0) {
-    let promptTokens = 0;
-    let completionTokens = 0;
+    let inputTokens = 0;
+    let outputTokens = 0;
     let hasAny = false;
     for (const s of steps) {
       if (!s.usage) continue;
       const n = normalizeUsage(s.usage);
       if (n) {
-        promptTokens += n.promptTokens;
-        completionTokens += n.completionTokens;
+        inputTokens += n.inputTokens;
+        outputTokens += n.outputTokens;
         hasAny = true;
       }
     }
-    if (hasAny) return { promptTokens, completionTokens };
+    if (hasAny) return { inputTokens, outputTokens };
   }
 
   return undefined;
@@ -539,7 +539,7 @@ function extractAiSdkV6Batch<T>(contents: T[]): TelemetryData | null {
   let hasAssistant = false;
   let metadata: Record<string, unknown> | undefined;
   let aggregatedUsage:
-    | { promptTokens: number; completionTokens: number }
+    | { inputTokens: number; outputTokens: number }
     | undefined;
 
   for (const content of contents) {
@@ -558,9 +558,9 @@ function extractAiSdkV6Batch<T>(contents: T[]): TelemetryData | null {
     const usage = extractAiSdkV6Usage(msg.metadata);
     if (usage) {
       if (!aggregatedUsage)
-        aggregatedUsage = { promptTokens: 0, completionTokens: 0 };
-      aggregatedUsage.promptTokens += usage.promptTokens ?? 0;
-      aggregatedUsage.completionTokens += usage.completionTokens ?? 0;
+        aggregatedUsage = { inputTokens: 0, outputTokens: 0 };
+      aggregatedUsage.inputTokens += usage.inputTokens ?? 0;
+      aggregatedUsage.outputTokens += usage.outputTokens ?? 0;
     }
   }
 
