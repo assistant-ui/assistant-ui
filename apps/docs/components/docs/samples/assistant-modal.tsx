@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef } from "react";
+import { forwardRef, useState } from "react";
 import { BotIcon, ChevronDownIcon } from "lucide-react";
 import { AssistantModalPrimitive } from "@assistant-ui/react";
 import { Thread } from "@/components/assistant-ui/thread";
@@ -8,14 +8,17 @@ import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button
 import { SampleFrame } from "./sample-frame";
 
 export function AssistantModalSample() {
+  const [container, setContainer] = useState<HTMLDivElement | null>(null);
   return (
     <SampleFrame className="h-125 bg-muted/40 md:h-160">
-      <AssistantModal />
+      <div ref={setContainer} className="contain-[layout] absolute inset-0">
+        {container && <AssistantModal container={container} />}
+      </div>
     </SampleFrame>
   );
 }
 
-export function AssistantModal() {
+export function AssistantModal({ container }: { container?: HTMLElement }) {
   return (
     <AssistantModalPrimitive.Root defaultOpen>
       <AssistantModalPrimitive.Anchor className="absolute right-4 bottom-4 size-11">
@@ -26,6 +29,7 @@ export function AssistantModal() {
       <AssistantModalPrimitive.Content
         sideOffset={16}
         avoidCollisions={false}
+        portalProps={{ container }}
         className="data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-bottom-1/2 data-[state=closed]:slide-out-to-right-1/2 data-[state=closed]:zoom-out data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-bottom-1/2 data-[state=open]:slide-in-from-right-1/2 data-[state=open]:zoom-in z-50 h-100 w-72 overflow-clip rounded-xl border bg-popover p-0 text-popover-foreground shadow-md outline-none data-[state=closed]:animate-out data-[state=open]:animate-in md:h-137.5 md:w-105 [&>.aui-thread-root]:bg-inherit"
       >
         <Thread />
