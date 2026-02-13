@@ -1,16 +1,9 @@
 "use client";
 
-import { Check, ChevronDownIcon } from "lucide-react";
 import { useMemo } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/shared/dropdown-menu";
 import type { SidebarTab } from "./sidebar-tabs.server";
 
 export type { SidebarTab };
@@ -32,61 +25,75 @@ export function SidebarTabs({ tabs }: { tabs: SidebarTab[] }) {
     return tabs.findLast((item) => isTabActive(item, pathname));
   }, [tabs, pathname]);
 
-  if (!selected) return null;
+  if (tabs.length === 0) return null;
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        data-sidebar-control
-        className="flex h-9 w-full items-center gap-2 rounded-lg bg-muted px-3 text-sm transition-colors hover:bg-accent hover:text-foreground"
-      >
-        {selected.icon && (
-          <span className="size-4 shrink-0 text-muted-foreground [&_svg]:size-full">
-            {selected.icon}
-          </span>
-        )}
-        <span className="flex-1 text-left font-medium">{selected.title}</span>
-        <ChevronDownIcon className="size-4 shrink-0 text-muted-foreground" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent
-        align="start"
-        className="w-(--radix-dropdown-menu-trigger-width) min-w-56"
+    <div className="sidebar-tabs-container">
+      <nav
+        aria-label="Documentation sections"
+        className="flex flex-col gap-0.5 rounded-lg border border-border/50 bg-muted/20 p-1"
       >
         {tabs.map((tab) => {
           const isActive = selected && tab.url === selected.url;
 
           return (
-            <DropdownMenuItem key={tab.url} asChild>
-              <Link
-                href={tab.url}
-                className="flex items-start justify-between gap-2"
-              >
-                <span className="inline-flex items-start gap-2">
-                  {tab.icon && (
-                    <span className="mt-0.5 size-4 shrink-0 [&_svg]:size-full">
-                      {tab.icon}
-                    </span>
-                  )}
-                  <span className="flex flex-col">
-                    <span className="text-sm">{tab.title}</span>
-                    {tab.description && (
-                      <span className="text-muted-foreground text-xs">
-                        {tab.description}
-                      </span>
-                    )}
-                  </span>
-                </span>
-                <Check
-                  className={cn(
-                    "mt-0.5 size-4 shrink-0",
-                    isActive ? "opacity-100" : "opacity-0",
-                  )}
+            <Link
+              key={tab.url}
+              href={tab.url}
+              aria-current={isActive ? "true" : undefined}
+              className={cn(
+                "group relative flex items-start gap-2.5 overflow-hidden rounded-md px-3 py-2 outline-none transition-all duration-150",
+                "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background",
+                isActive
+                  ? "bg-accent/80 text-foreground"
+                  : "text-muted-foreground hover:bg-accent/30 hover:text-foreground",
+              )}
+            >
+              {/* Active indicator bar */}
+              {isActive && (
+                <span
+                  aria-hidden="true"
+                  className="absolute inset-y-1.5 left-0 w-[2.5px] rounded-r-full bg-foreground/40"
                 />
-              </Link>
-            </DropdownMenuItem>
+              )}
+              {tab.icon && (
+                <span
+                  className={cn(
+                    "mt-[3px] size-4 shrink-0 transition-colors duration-150 [&_svg]:size-full",
+                    isActive
+                      ? "text-foreground"
+                      : "text-muted-foreground/60 group-hover:text-muted-foreground",
+                  )}
+                >
+                  {tab.icon}
+                </span>
+              )}
+              <span className="flex min-w-0 flex-col gap-0.5">
+                <span
+                  className={cn(
+                    "truncate text-[13px] leading-tight tracking-[-0.01em] transition-all duration-150",
+                    isActive ? "font-semibold" : "font-medium",
+                  )}
+                >
+                  {tab.title}
+                </span>
+                {tab.description && (
+                  <span
+                    className={cn(
+                      "line-clamp-1 text-[11px] leading-snug transition-colors duration-150",
+                      isActive
+                        ? "text-muted-foreground"
+                        : "text-muted-foreground/60 group-hover:text-muted-foreground/80",
+                    )}
+                  >
+                    {tab.description}
+                  </span>
+                )}
+              </span>
+            </Link>
           );
         })}
-      </DropdownMenuContent>
-    </DropdownMenu>
+      </nav>
+    </div>
   );
 }
