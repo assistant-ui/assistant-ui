@@ -82,10 +82,9 @@ describe("useAISDKRuntime", () => {
     });
 
     await waitFor(() => {
-      expect(chat.sendMessage).toHaveBeenCalledWith(
-        expect.anything(),
-        { metadata: { model: "gpt-4.1" } },
-      );
+      expect(chat.sendMessage).toHaveBeenCalledWith(expect.anything(), {
+        metadata: { model: "gpt-4.1" },
+      });
     });
   });
 
