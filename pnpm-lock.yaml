@@ -541,6 +541,52 @@ importers:
         specifier: ^5.0.11
         version: 5.0.11(@types/react@19.2.14)(immer@11.1.4)(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4))
 
+  examples/waterfall:
+    dependencies:
+      '@assistant-ui/react-o11y':
+        specifier: workspace:*
+        version: link:../../packages/react-o11y
+      '@assistant-ui/store':
+        specifier: workspace:*
+        version: link:../../packages/store
+      '@assistant-ui/tap':
+        specifier: workspace:*
+        version: link:../../packages/tap
+      next:
+        specifier: ^16.1.6
+        version: 16.1.6(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      react:
+        specifier: ^19.2.4
+        version: 19.2.4
+      react-dom:
+        specifier: ^19.2.4
+        version: 19.2.4(react@19.2.4)
+    devDependencies:
+      '@assistant-ui/x-buildutils':
+        specifier: workspace:*
+        version: link:../../packages/x-buildutils
+      '@tailwindcss/postcss':
+        specifier: ^4.1.18
+        version: 4.2.0
+      '@types/node':
+        specifier: ^25.2.1
+        version: 25.3.0
+      '@types/react':
+        specifier: ^19.2.13
+        version: 19.2.14
+      '@types/react-dom':
+        specifier: ^19.2.3
+        version: 19.2.3(@types/react@19.2.14)
+      postcss:
+        specifier: ^8.5.6
+        version: 8.5.6
+      tailwindcss:
+        specifier: ^4.1.18
+        version: 4.2.0
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
   examples/with-ag-ui:
     dependencies:
       '@ag-ui/client':
@@ -2652,6 +2698,28 @@ importers:
       vitest:
         specifier: ^4.0.18
         version: 4.0.18(@opentelemetry/api@1.9.0)(@types/node@25.3.0)(@vitest/ui@4.0.18)(jiti@2.6.1)(jsdom@28.1.0)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
+
+  packages/react-o11y:
+    dependencies:
+      '@assistant-ui/store':
+        specifier: workspace:*
+        version: link:../store
+      '@assistant-ui/tap':
+        specifier: workspace:*
+        version: link:../tap
+      '@radix-ui/react-primitive':
+        specifier: ^2.1.4
+        version: 2.1.4(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+    devDependencies:
+      '@assistant-ui/x-buildutils':
+        specifier: workspace:*
+        version: link:../x-buildutils
+      '@types/react':
+        specifier: ^19.2.13
+        version: 19.2.14
+      react:
+        specifier: ^19.2.4
+        version: 19.2.4
 
   packages/react-streamdown:
     dependencies:

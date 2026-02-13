@@ -1,0 +1,66 @@
+{
+  "name": "@assistant-ui/react-o11y",
+  "version": "0.0.1",
+  "description": "Observability primitives for @assistant-ui",
+  "keywords": [
+    "observability",
+    "tracing",
+    "spans",
+    "waterfall",
+    "assistant-ui",
+    "react"
+  ],
+  "author": "AgentbaseAI Inc.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "aui-source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "aui-build"
+  },
+  "dependencies": {
+    "@assistant-ui/store": "workspace:*",
+    "@assistant-ui/tap": "workspace:*",
+    "@radix-ui/react-primitive": "^2.1.4"
+  },
+  "peerDependencies": {
+    "@types/react": "*",
+    "react": "^18 || ^19"
+  },
+  "peerDependenciesMeta": {
+    "@types/react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@assistant-ui/x-buildutils": "workspace:*",
+    "@types/react": "^19.2.13",
+    "react": "^19.2.4"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "homepage": "https://www.assistant-ui.com/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/assistant-ui/assistant-ui.git",
+    "directory": "packages/react-o11y"
+  },
+  "bugs": {
+    "url": "https://github.com/assistant-ui/assistant-ui/issues"
+  }
+}
