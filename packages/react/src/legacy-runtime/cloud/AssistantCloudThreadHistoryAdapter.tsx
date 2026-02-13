@@ -463,34 +463,49 @@ function buildAiSdkV6Result(
   };
 }
 
+type UsageFields = {
+  inputTokens?: number;
+  outputTokens?: number;
+  promptTokens?: number;
+  completionTokens?: number;
+};
+
+function normalizeUsage(
+  u: UsageFields,
+): { promptTokens: number; completionTokens: number } | undefined {
+  const prompt = u.inputTokens ?? u.promptTokens;
+  const completion = u.outputTokens ?? u.completionTokens;
+  if (prompt == null && completion == null) return undefined;
+  return {
+    promptTokens: prompt ?? 0,
+    completionTokens: completion ?? 0,
+  };
+}
+
 function extractAiSdkV6Usage(
   metadata?: Record<string, unknown>,
 ): { promptTokens?: number; completionTokens?: number } | undefined {
   // Try top-level metadata.usage
-  const usage = metadata?.usage as
-    | { promptTokens?: number; completionTokens?: number }
-    | undefined;
-  if (usage?.promptTokens != null || usage?.completionTokens != null) {
-    return usage;
+  const usage = metadata?.usage as UsageFields | undefined;
+  if (usage) {
+    const normalized = normalizeUsage(usage);
+    if (normalized) return normalized;
   }
 
   // Try aggregating from metadata.steps[].usage
   const steps = metadata?.steps as
-    | readonly {
-        usage?: { promptTokens?: number; completionTokens?: number };
-      }[]
+    | readonly { usage?: UsageFields }[]
     | undefined;
   if (steps && steps.length > 0) {
     let promptTokens = 0;
     let completionTokens = 0;
     let hasAny = false;
     for (const s of steps) {
-      if (s.usage?.promptTokens != null) {
-        promptTokens += s.usage.promptTokens;
-        hasAny = true;
-      }
-      if (s.usage?.completionTokens != null) {
-        completionTokens += s.usage.completionTokens;
+      if (!s.usage) continue;
+      const n = normalizeUsage(s.usage);
+      if (n) {
+        promptTokens += n.promptTokens;
+        completionTokens += n.completionTokens;
         hasAny = true;
       }
     }

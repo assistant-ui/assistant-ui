@@ -1,0 +1,166 @@
+---
+title: Message Timing
+description: Display stream timing metadata like duration, tokens per second, and time to first token.
+---
+
+Display stream performance metrics — duration, tokens per second, TTFT — on assistant messages.
+
+## How It Works
+
+Timing data is automatically tracked inside `AssistantMessageAccumulator` as chunks flow through the stream. The data is stored in `message.metadata.timing` and available via the `useMessageTiming()` hook.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `streamStartTime` | `number` | Unix timestamp when stream started |
+| `firstTokenTime` | `number?` | Time to first text token (ms) |
+| `totalStreamTime` | `number?` | Total stream duration (ms) |
+| `tokenCount` | `number?` | Estimated or actual token count |
+| `tokensPerSecond` | `number?` | Throughput (tokens/sec) |
+| `totalChunks` | `number` | Total stream chunks received |
+| `toolCallCount` | `number` | Number of tool calls |
+
+## Quick Start
+
+Use `useMessageTiming()` inside a message component to access timing data and build your own display:
+
+```tsx
+import { useMessageTiming } from "@assistant-ui/react";
+
+const MessageTimingDisplay: FC = () => {
+  const timing = useMessageTiming();
+  if (!timing?.totalStreamTime) return null;
+
+  const formatMs = (ms: number) =>
+    ms < 1000 ? `${Math.round(ms)}ms` : `${(ms / 1000).toFixed(1)}s`;
+
+  return (
+    <span className="text-xs text-muted-foreground">
+      {formatMs(timing.totalStreamTime)}
+    </span>
+  );
+};
+```
+
+Place it inside `MessagePrimitive.Root`, typically near the action bar:
+
+```tsx {8}
+const AssistantMessage: FC = () => {
+  return (
+    <MessagePrimitive.Root>
+      <MessagePrimitive.Parts components={{ ... }} />
+      <ActionBarPrimitive.Root>
+        <ActionBarPrimitive.Copy />
+        <ActionBarPrimitive.Reload />
+        <MessageTimingDisplay />
+      </ActionBarPrimitive.Root>
+    </MessagePrimitive.Root>
+  );
+};
+```
+
+## Example: Hover Detail Popover
+
+A common pattern is showing the total time as a compact button, with a hover popover revealing detailed metrics:
+
+```tsx
+import { useMessageTiming } from "@assistant-ui/react";
+
+const formatMs = (ms: number | undefined) => {
+  if (ms === undefined) return "—";
+  if (ms < 1000) return `${Math.round(ms)}ms`;
+  return `${(ms / 1000).toFixed(2)}s`;
+};
+
+const MessageTimingDisplay: FC = () => {
+  const timing = useMessageTiming();
+  if (!timing?.totalStreamTime) return null;
+
+  const totalText =
+    timing.totalStreamTime < 1000
+      ? `${Math.round(timing.totalStreamTime)}ms`
+      : `${(timing.totalStreamTime / 1000).toFixed(1)}s`;
+
+  return (
+    <div className="group/timing relative">
+      {/* Compact button */}
+      <button
+        type="button"
+        className="rounded-md px-1.5 py-0.5 font-mono text-xs
+          text-muted-foreground tabular-nums
+          transition-colors hover:bg-accent hover:text-foreground"
+      >
+        {totalText}
+      </button>
+
+      {/* Hover popover */}
+      <div
+        className="pointer-events-none absolute bottom-full left-1/2 z-10
+          mb-2 -translate-x-1/2 scale-95 rounded-lg border bg-popover
+          px-3 py-2 opacity-0 shadow-lg transition-all
+          group-hover/timing:pointer-events-auto
+          group-hover/timing:scale-100
+          group-hover/timing:opacity-100"
+      >
+        <div className="grid min-w-[140px] gap-1.5 text-xs">
+          {timing.firstTokenTime !== undefined && (
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-muted-foreground">First token</span>
+              <span className="font-mono tabular-nums">
+                {formatMs(timing.firstTokenTime)}
+              </span>
+            </div>
+          )}
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-muted-foreground">Total</span>
+            <span className="font-mono tabular-nums">
+              {formatMs(timing.totalStreamTime)}
+            </span>
+          </div>
+          {timing.tokensPerSecond !== undefined && (
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-muted-foreground">Speed</span>
+              <span className="font-mono tabular-nums">
+                {timing.tokensPerSecond.toFixed(1)} tok/s
+              </span>
+            </div>
+          )}
+          {timing.totalChunks !== undefined && (
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-muted-foreground">Chunks</span>
+              <span className="font-mono tabular-nums">
+                {timing.totalChunks}
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+```
+
+## Runtime Support
+
+Timing is automatically available for runtimes that use `AssistantMessageAccumulator`:
+
+| Runtime | Automatic timing? | Notes |
+|---------|:-:|-------|
+| DataStream | Yes | Via accumulator |
+| Local (ChatModelAdapter) | Yes | If adapter uses the accumulator |
+| AI SDK (`useChat`) | No | Server must provide timing in metadata |
+| LangGraph | No | Server must provide timing in metadata |
+| AG-UI | No | Server must provide timing in metadata |
+
+For runtimes without automatic timing, include timing data in message metadata on the server side — it will propagate through the external store and be available via `useMessageTiming()`.
+
+## API Reference
+
+### `useMessageTiming()`
+
+```tsx
+const timing: MessageTiming | undefined = useMessageTiming();
+```
+
+Returns timing metadata for the current assistant message, or `undefined` for non-assistant messages or when no timing data is available.
+
+Must be used inside a `MessagePrimitive.Root` context.

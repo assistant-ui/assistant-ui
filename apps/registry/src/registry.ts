@@ -446,20 +446,6 @@ export const registry: RegistryItem[] = [
     registryDependencies: [],
   },
   {
-    name: "message-timing",
-    type: "registry:component",
-    files: [
-      {
-        type: "registry:component",
-        path: "components/assistant-ui/message-timing.tsx",
-        sourcePath:
-          "../../packages/ui/src/components/assistant-ui/message-timing.tsx",
-      },
-    ],
-    dependencies: ["@assistant-ui/react"],
-    registryDependencies: [],
-  },
-  {
     name: "accordion",
     type: "registry:component",
     files: [
