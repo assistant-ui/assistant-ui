@@ -27,7 +27,7 @@ import {
   detectPlatform,
   isMCP,
   hasChatGPTExtensions,
-} from "../sdk";
+} from "../index";
 
 import type { UniversalProviderProps } from "../universal/provider";
 

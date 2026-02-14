@@ -25,39 +25,35 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": {
-        "types": "./dist/index.d.ts",
-        "default": "./dist/index.js"
-      }
+      "aui-source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
     },
     "./cli": {
-      "import": {
-        "types": "./dist/cli/index.d.ts",
-        "default": "./dist/cli/index.js"
-      }
+      "aui-source": "./src/cli/index.ts",
+      "types": "./dist/cli/index.d.ts",
+      "default": "./dist/cli/index.js"
     },
     "./core": {
-      "import": {
-        "types": "./dist/core/index.d.ts",
-        "default": "./dist/core/index.js"
-      }
+      "aui-source": "./src/core/index.ts",
+      "types": "./dist/core/index.d.ts",
+      "default": "./dist/core/index.js"
     },
     "./mcp": {
-      "import": {
-        "types": "./dist/platforms/mcp/index.d.ts",
-        "default": "./dist/platforms/mcp/index.js"
-      }
+      "aui-source": "./src/platforms/mcp/index.ts",
+      "types": "./dist/platforms/mcp/index.d.ts",
+      "default": "./dist/platforms/mcp/index.js"
     }
   },
   "files": [
     "bin",
     "dist",
+    "src",
     "README.md"
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "tsup",
-    "dev": "tsup --watch",
+    "build": "aui-build",
     "preview:sync": "tsx scripts/sync-template.ts",
     "preview:install": "cd .preview && npm install",
     "preview:dev": "cd .preview && npm run dev",
@@ -97,7 +93,6 @@
     "@vitest/coverage-v8": "^4.0.18",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
-    "tsup": "^8.5.1",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vitest": "^4.0.18"

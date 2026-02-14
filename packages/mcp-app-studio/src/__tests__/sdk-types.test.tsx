@@ -29,7 +29,7 @@ import {
   textBlock,
   imageBlock,
   MCP_CAPABILITIES,
-} from "../sdk";
+} from "../index";
 
 import type {
   Platform,

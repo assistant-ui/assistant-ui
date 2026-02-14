@@ -4,7 +4,7 @@ import {
   enableDebugMode,
   hasChatGPTExtensions,
   isMCP,
-} from "./sdk";
+} from "./index";
 
 describe("smoke", () => {
   it("exports core runtime helpers", () => {
