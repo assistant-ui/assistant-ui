@@ -46,7 +46,7 @@ function PageTreeItem({
 
   if (item.type === "separator") {
     return (
-      <p className="mt-5 mb-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground/60 first:mt-0">
+      <p className="mt-5 mb-1.5 font-medium text-[11px] text-muted-foreground/60 uppercase tracking-wider first:mt-0">
         {item.name}
       </p>
     );
