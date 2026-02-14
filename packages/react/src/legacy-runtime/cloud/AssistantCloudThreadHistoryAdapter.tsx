@@ -422,7 +422,7 @@ type AiSdkV6Message = {
 function isToolCallPart(p: AiSdkV6Part): boolean {
   if (!p.toolCallId) return false;
   if (p.type === "tool-call" || p.type === "dynamic-tool") return !!p.toolName;
-  return p.type.startsWith("tool-");
+  return p.type.startsWith("tool-") || p.type.startsWith("dynamic-tool-");
 }
 
 function isDynamicToolPart(p: AiSdkV6Part): boolean {
