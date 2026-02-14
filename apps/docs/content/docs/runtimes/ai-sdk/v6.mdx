@@ -110,6 +110,16 @@ export default function Home() {
 | **convertToModelMessages** | Sync | Async (`await`) |
 | **Tool schema** | `parameters: z.object({...})` | `inputSchema: zodSchema(z.object({...}))` |
 
+## Component Message Parts
+
+`@assistant-ui/react-ai-sdk` supports native component parts in two forms:
+
+- direct UI part: `{ type: "component", name, props, parentId? }`
+- data chunk form: `{ type: "data-component", data: { name, props, parentId? } }`
+
+Both are converted to assistant-ui `type: "component"` parts and rendered via
+`MessagePrimitive.Parts` `components.Component`.
+
 ## API Reference
 
 ### useChatRuntime

@@ -92,6 +92,36 @@ The content of the message. This renders a separate component for each content p
                 "The component to render for each audio content part.",
             },
             {
+              name: "Component",
+              type: "object",
+              description:
+                "Configuration for native component message parts (`type: \"component\"`).",
+              children: [
+                {
+                  parameters: [
+                    {
+                      name: "by_name",
+                      type: "Record<string, ComponentMessagePartComponent>",
+                      description:
+                        "A map of component names to renderer components.",
+                    },
+                    {
+                      name: "Fallback",
+                      type: "ComponentMessagePartComponent",
+                      description:
+                        "Fallback renderer used when no `by_name` entry exists.",
+                    },
+                    {
+                      name: "Override",
+                      type: "ComponentMessagePartComponent",
+                      description:
+                        "Single renderer that handles all component message parts.",
+                    },
+                  ],
+                },
+              ],
+            },
+            {
               name: "tools",
               type: "object",
               description:
@@ -185,6 +215,21 @@ Renders a single message part at the specified index.
     },
   ]}
 />
+
+```tsx
+<MessagePrimitive.Parts
+  components={{
+    Component: {
+      by_name: {
+        "status-chip": ({ props }) => (
+          <StatusChip label={String(props?.label ?? "")} />
+        ),
+      },
+      Fallback: ({ name }) => <div>Unknown component: {name}</div>,
+    },
+  }}
+/>
+```
 
 ### Attachments
 

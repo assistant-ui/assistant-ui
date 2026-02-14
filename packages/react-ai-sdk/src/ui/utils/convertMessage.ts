@@ -1,6 +1,7 @@
 import { isToolUIPart, getToolName, type UIMessage } from "ai";
 import {
   unstable_createMessageConverter,
+  type ComponentMessagePart,
   type ReasoningMessagePart,
   type ToolCallMessagePart,
   type TextMessagePart,
@@ -12,6 +13,57 @@ import {
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
 
 type MessageMetadata = ThreadMessageLike["metadata"];
+
+const isJSONObject = (value: unknown): value is ReadonlyJSONObject => {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+};
+
+const toComponentPart = (part: unknown): ComponentMessagePart | null => {
+  if (!part || typeof part !== "object") return null;
+
+  const source = part as {
+    type?: string;
+    name?: unknown;
+    props?: unknown;
+    parentId?: unknown;
+    data?: unknown;
+  };
+
+  if (source.type === "component") {
+    if (typeof source.name !== "string" || source.name.length === 0)
+      return null;
+    if (source.props !== undefined && !isJSONObject(source.props)) return null;
+    if (source.parentId !== undefined && typeof source.parentId !== "string")
+      return null;
+
+    return {
+      type: "component",
+      name: source.name,
+      ...(source.props !== undefined ? { props: source.props } : {}),
+      ...(source.parentId !== undefined ? { parentId: source.parentId } : {}),
+    } satisfies ComponentMessagePart;
+  }
+
+  if (source.type === "data-component") {
+    if (!isJSONObject(source.data)) return null;
+    const name = source.data.name;
+    const props = source.data.props;
+    const parentId = source.data.parentId;
+
+    if (typeof name !== "string" || name.length === 0) return null;
+    if (props !== undefined && !isJSONObject(props)) return null;
+    if (parentId !== undefined && typeof parentId !== "string") return null;
+
+    return {
+      type: "component",
+      name,
+      ...(props !== undefined ? { props } : {}),
+      ...(parentId !== undefined ? { parentId } : {}),
+    } satisfies ComponentMessagePart;
+  }
+
+  return null;
+};
 
 function stripClosingDelimiters(json: string): string {
   return json.replace(/[}\]"]+$/, "");
@@ -138,6 +190,11 @@ function convertParts(
           "Source document parts are not yet supported in conversion",
         );
         return null;
+      }
+
+      const component = toComponentPart(part);
+      if (component) {
+        return component;
       }
 
       if (part.type.startsWith("data-")) {
