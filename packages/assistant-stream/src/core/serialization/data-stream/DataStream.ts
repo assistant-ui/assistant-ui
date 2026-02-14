@@ -49,6 +49,13 @@ export class DataStreamEncoder
                   value,
                 });
               }
+              if (part.type === "component") {
+                const { type, ...value } = part;
+                controller.enqueue({
+                  type: DataStreamStreamChunkType.AuiComponent,
+                  value,
+                });
+              }
               break;
             }
             case "text-delta": {
@@ -212,6 +219,7 @@ const TOOL_CALL_ARGS_CLOSING_CHUNKS = [
   DataStreamStreamChunkType.FinishMessage,
   DataStreamStreamChunkType.AuiTextDelta,
   DataStreamStreamChunkType.AuiReasoningDelta,
+  DataStreamStreamChunkType.AuiComponent,
 ];
 
 export class DataStreamDecoder extends PipeableTransformStream<
@@ -313,6 +321,17 @@ export class DataStreamDecoder extends PipeableTransformStream<
                 });
                 toolCallControllers.set(toolCallId, toolCallController);
               }
+              break;
+            }
+
+            case DataStreamStreamChunkType.AuiComponent: {
+              const ctrl = value.parentId
+                ? controller.withParentId(value.parentId)
+                : controller;
+              ctrl.appendComponent({
+                name: value.name,
+                ...(value.props !== undefined ? { props: value.props } : {}),
+              });
               break;
             }
 

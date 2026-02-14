@@ -1,0 +1,257 @@
+---
+title: Tambo Bridge (ExternalStoreRuntime)
+description: Bridge Tambo thread state into assistant-ui with explicit compatibility boundaries.
+---
+
+<Callout type="warning">
+  This is a bridge recipe, not a first-class integration.
+</Callout>
+
+This guide is a manual mapping via `ExternalStoreRuntime`; only the listed
+capabilities below are guaranteed.
+
+## Overview
+
+If you're already using `@tambo-ai/react`, you can reuse Tambo's:
+
+- streaming thread state
+- thread list APIs
+- run cancellation
+- auth/session model
+
+and render it through assistant-ui by bridging Tambo message parts to
+`ThreadMessageLike`.
+
+## Install
+
+<InstallCommand npm={["@assistant-ui/react", "@tambo-ai/react"]} />
+
+## Build the bridge runtime
+
+```tsx title="app/tambo-runtime.tsx"
+"use client";
+
+import {
+  type AppendMessage,
+  type ThreadMessageLike,
+  AssistantRuntimeProvider,
+  useExternalMessageConverter,
+  useExternalStoreRuntime,
+} from "@assistant-ui/react";
+import {
+  TamboProvider,
+  type TamboThreadMessage,
+  useTambo,
+  useTamboThreadInput,
+  useTamboThreadList,
+} from "@tambo-ai/react";
+import type { ReactNode } from "react";
+import { useMemo } from "react";
+
+type MessageContentPart = Exclude<ThreadMessageLike["content"], string>[number];
+
+const toThreadMessageLike = (message: TamboThreadMessage): ThreadMessageLike => {
+  if (message.role === "system") {
+    const text = message.content
+      .filter((part) => part.type === "text")
+      .map((part) => part.text)
+      .join("\n");
+
+    return {
+      id: message.id,
+      role: "system",
+      content: [{ type: "text", text: text || "System message" }],
+      ...(message.createdAt ? { createdAt: new Date(message.createdAt) } : {}),
+    };
+  }
+
+  const content = message.content.flatMap<MessageContentPart>((part) => {
+    switch (part.type) {
+      case "text":
+        return [{ type: "text", text: part.text }];
+      case "tool_use":
+        if (message.role !== "assistant") {
+          return [{ type: "text", text: `Called ${part.name}` }];
+        }
+        return [
+          {
+            type: "tool-call",
+            toolCallId: part.id,
+            toolName: part.name,
+            args: part.input ?? {},
+            argsText: JSON.stringify(part.input ?? {}),
+          },
+        ];
+      case "tool_result":
+        return [{ type: "text", text: `Tool result received` }];
+      case "component":
+        return [
+          {
+            type: "component",
+            name: part.name,
+            props: (part.props ?? {}) as Record<string, unknown>,
+          },
+        ];
+      case "resource":
+        return [{ type: "text", text: `[Resource: ${part.resource.name}]` }];
+      default:
+        return [];
+    }
+  });
+
+  return {
+    id: message.id,
+    role: message.role,
+    content: content.length > 0 ? content : [{ type: "text", text: "" }],
+    ...(message.createdAt ? { createdAt: new Date(message.createdAt) } : {}),
+  };
+};
+
+function useTamboRuntimeBridge() {
+  const {
+    messages: tamboMessages,
+    isStreaming,
+    cancelRun,
+    currentThreadId,
+    switchThread,
+    startNewThread,
+    updateThreadName,
+  } = useTambo();
+  const { setValue, submit, isPending } = useTamboThreadInput();
+  const threadListQuery = useTamboThreadList({ limit: 50 });
+
+  const messages = useExternalMessageConverter({
+    messages: tamboMessages,
+    isRunning: isStreaming,
+    callback: toThreadMessageLike,
+  });
+
+  const threadList = useMemo(
+    () => ({
+      threadId: currentThreadId,
+      isLoading: threadListQuery.isLoading,
+      threads:
+        threadListQuery.data?.threads.map((thread) => ({
+          status: "regular" as const,
+          id: thread.id,
+          externalId: thread.id,
+          title: thread.name,
+        })) ?? [],
+      onSwitchToThread: async (threadId: string) => {
+        switchThread(threadId);
+      },
+      onSwitchToNewThread: async () => {
+        startNewThread();
+      },
+      onRename: async (threadId: string, newTitle: string) => {
+        await updateThreadName(threadId, newTitle);
+      },
+    }),
+    [
+      currentThreadId,
+      threadListQuery.data?.threads,
+      threadListQuery.isLoading,
+      startNewThread,
+      switchThread,
+      updateThreadName,
+    ],
+  );
+
+  const onNew = async (message: AppendMessage) => {
+    const text = message.content.find((part) => part.type === "text")?.text;
+    if (!text?.trim()) {
+      throw new Error("Tambo bridge currently supports text-only input.");
+    }
+
+    // Tambo's public submit API reads from shared input state.
+    setValue(text);
+    await Promise.resolve();
+    await submit();
+  };
+
+  return useExternalStoreRuntime({
+    messages,
+    isRunning: isStreaming || isPending,
+    onNew,
+    onCancel: cancelRun,
+    adapters: {
+      threadList,
+    },
+  });
+}
+
+export function TamboAssistantProvider({
+  children,
+  apiKey,
+  userKey,
+}: Readonly<{
+  children: ReactNode;
+  apiKey: string;
+  userKey: string;
+}>) {
+  return (
+    <TamboProvider apiKey={apiKey} userKey={userKey}>
+      <TamboAssistantRuntimeProvider>{children}</TamboAssistantRuntimeProvider>
+    </TamboProvider>
+  );
+}
+
+function TamboAssistantRuntimeProvider({
+  children,
+}: Readonly<{ children: ReactNode }>) {
+  const runtime = useTamboRuntimeBridge();
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+## Render your thread
+
+```tsx title="app/page.tsx"
+"use client";
+
+import { Thread } from "@/components/assistant-ui/thread";
+import { TamboAssistantProvider } from "./tambo-runtime";
+
+export default function Page() {
+  return (
+    <TamboAssistantProvider
+      apiKey={process.env.NEXT_PUBLIC_TAMBO_API_KEY!}
+      userKey="user_123"
+    >
+      <Thread />
+    </TamboAssistantProvider>
+  );
+}
+```
+
+## Compatibility Matrix
+
+| Capability | Status | Notes |
+| --- | --- | --- |
+| Text display | Supported | Standard text parts map directly. |
+| Tambo `component` -> assistant-ui `component` | Supported | Requires `MessagePrimitive.Parts` `components.Component` renderer registration. |
+| Tool use visualization (`tool_use` -> `tool-call`) | Partial | Tool call rows can render, but full lifecycle semantics are not guaranteed. |
+| Tool result fidelity (`tool_result`) | Unsupported | Currently mapped to text placeholder content. |
+| Resource fidelity (`resource`) | Unsupported/Partial | Currently mapped to text placeholder content. |
+| New user message input | Text-only supported | Bridge `onNew` submits only text payloads. |
+| Multimodal composer input | Unsupported | No multimodal input mapping in this bridge. |
+| Cancel run | Supported | Uses Tambo `cancelRun`. |
+| Thread list switch/new/rename | Supported | Uses Tambo thread list hooks. |
+| Edit / reload / branch switching parity | Unsupported by default | Requires additional `ExternalStoreRuntime` adapter handlers. |
+
+## Non-goals
+
+- This is not a `@assistant-ui/react-tambo` adapter package.
+- This does not provide parity with AI SDK or LangGraph integrations.
+- This does not provide complete tool lifecycle fidelity.
+- This does not provide multimodal parity.
+
+## Related References
+
+- [`ExternalStoreRuntime`](/docs/runtimes/custom/external-store)
+- [`MessagePrimitive.Parts`](/docs/api-reference/primitives/message)
+- [AI SDK v6 Runtime](/docs/runtimes/ai-sdk/v6)

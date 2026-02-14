@@ -1,4 +1,4 @@
 {
   "title": "Custom Backend",
-  "pages": ["local", "custom-thread-list", "external-store"]
+  "pages": ["local", "custom-thread-list", "external-store", "tambo-bridge"]
 }
