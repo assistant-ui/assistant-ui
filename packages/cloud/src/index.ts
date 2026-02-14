@@ -7,3 +7,9 @@ export {
   createFormattedPersistence,
   type MessageFormatAdapter,
 } from "./FormattedCloudPersistence";
+export {
+  wrapSamplingHandler,
+  createSamplingCollector,
+  type SamplingCallData,
+  type McpSamplingHandler,
+} from "./instrumentMcpSampling";

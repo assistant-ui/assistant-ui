@@ -16,6 +16,15 @@ export type AssistantCloudRunReport = {
     tool_call_id: string;
     tool_args?: string;
     tool_result?: string;
+    tool_source?: "mcp" | "frontend" | "backend";
+    start_ms?: number;
+    end_ms?: number;
+    sampling_calls?: {
+      model_id?: string;
+      input_tokens?: number;
+      output_tokens?: number;
+      duration_ms?: number;
+    }[];
   }[];
   steps?: {
     input_tokens?: number;
@@ -25,6 +34,15 @@ export type AssistantCloudRunReport = {
       tool_call_id: string;
       tool_args?: string;
       tool_result?: string;
+      tool_source?: "mcp" | "frontend" | "backend";
+      start_ms?: number;
+      end_ms?: number;
+      sampling_calls?: {
+        model_id?: string;
+        input_tokens?: number;
+        output_tokens?: number;
+        duration_ms?: number;
+      }[];
     }[];
     start_ms?: number;
     end_ms?: number;

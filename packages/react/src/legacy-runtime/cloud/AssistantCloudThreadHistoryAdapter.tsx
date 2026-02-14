@@ -168,6 +168,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
         ? { output_text: data.outputText }
         : undefined),
       ...(data.metadata ? { metadata: data.metadata } : undefined),
+      ...(data.modelId ? { model_id: data.modelId } : undefined),
     };
 
     const { beforeReport } = this.cloudRef.current.telemetry;
@@ -199,7 +200,36 @@ type TelemetryToolCall = {
   tool_call_id: string;
   tool_args?: string;
   tool_result?: string;
+  tool_source?: "mcp" | "frontend" | "backend";
 };
+
+const BASE64_PATTERN = /^[A-Za-z0-9+/]{100,}={0,2}$/;
+
+function summarizeMcpResult(value: unknown): string | undefined {
+  if (value == null) return undefined;
+  try {
+    const parsed = typeof value === "string" ? JSON.parse(value) : value;
+    if (Array.isArray(parsed)) {
+      const summarized = parsed.map((item) => {
+        if (item && typeof item === "object" && item.type) {
+          if (
+            (item.type === "image" || item.type === "audio") &&
+            typeof item.data === "string" &&
+            BASE64_PATTERN.test(item.data.slice(0, 200))
+          ) {
+            const sizeKB = ((item.data.length * 3) / 4 / 1024).toFixed(1);
+            return { ...item, data: `[${item.type}: ${sizeKB}KB]` };
+          }
+        }
+        return item;
+      });
+      return truncateStr(JSON.stringify(summarized));
+    }
+  } catch {
+    // not JSON array, fall through
+  }
+  return safeStringify(value);
+}
 
 function buildToolCall(
   toolName: string,
@@ -207,6 +237,7 @@ function buildToolCall(
   args: unknown,
   result: unknown,
   argsText?: string,
+  toolSource?: "mcp" | "frontend" | "backend",
 ): TelemetryToolCall {
   const call: TelemetryToolCall = {
     tool_name: toolName,
@@ -214,8 +245,10 @@ function buildToolCall(
   };
   const toolArgs = argsText ?? safeStringify(args);
   if (toolArgs !== undefined) call.tool_args = toolArgs;
-  const toolResult = safeStringify(result);
+  const toolResult =
+    toolSource === "mcp" ? summarizeMcpResult(result) : safeStringify(result);
   if (toolResult !== undefined) call.tool_result = toolResult;
+  if (toolSource) call.tool_source = toolSource;
   return call;
 }
 
@@ -252,6 +285,7 @@ type TelemetryData = {
   outputText?: string;
   metadata?: Record<string, unknown>;
   steps?: TelemetryStepData[];
+  modelId?: string;
 };
 
 function extractTelemetry<T>(format: string, content: T): TelemetryData | null {
@@ -298,10 +332,11 @@ function extractAuiV0<T>(content: T): TelemetryData | null {
       result?: unknown;
     }[];
     metadata?: {
+      modelId?: string;
       steps?: readonly {
         usage?: { inputTokens?: number; outputTokens?: number };
       }[];
-      custom?: Record<string, unknown>;
+      custom?: Record<string, unknown> & { modelId?: string };
     };
   };
 
@@ -336,6 +371,11 @@ function extractAuiV0<T>(content: T): TelemetryData | null {
     (statusType && AUI_STATUS_MAP[statusType]) || "completed";
 
   const metadata = msg.metadata?.custom as Record<string, unknown> | undefined;
+  const modelId =
+    msg.metadata?.modelId ??
+    (typeof msg.metadata?.custom?.modelId === "string"
+      ? msg.metadata.custom.modelId
+      : undefined);
 
   const telemetrySteps: TelemetryStepData[] | undefined =
     steps && steps.length > 1
@@ -358,6 +398,7 @@ function extractAuiV0<T>(content: T): TelemetryData | null {
     ...(outputText != null ? { outputText } : undefined),
     ...(metadata ? { metadata } : undefined),
     ...(telemetrySteps ? { steps: telemetrySteps } : undefined),
+    ...(modelId ? { modelId } : undefined),
   };
 }
 
@@ -380,16 +421,25 @@ type AiSdkV6Message = {
 
 function isToolCallPart(p: AiSdkV6Part): boolean {
   if (!p.toolCallId) return false;
-  if (p.type === "tool-call") return !!p.toolName;
+  if (p.type === "tool-call" || p.type === "dynamic-tool") return !!p.toolName;
   return p.type.startsWith("tool-");
 }
 
+function isDynamicToolPart(p: AiSdkV6Part): boolean {
+  return p.type === "dynamic-tool" || p.type.startsWith("dynamic-tool-");
+}
+
 function partToToolCall(p: AiSdkV6Part): TelemetryToolCall {
+  const toolSource: "mcp" | undefined = isDynamicToolPart(p)
+    ? "mcp"
+    : undefined;
   return buildToolCall(
     p.toolName ?? p.type.slice(5),
     p.toolCallId!,
     p.args ?? p.input,
     p.result ?? p.output,
+    undefined,
+    toolSource,
   );
 }
 
@@ -427,6 +477,16 @@ function collectAiSdkV6Parts(parts: readonly AiSdkV6Part[]): {
   return { textParts, toolCalls, stepsData };
 }
 
+function extractModelId(
+  metadata?: Record<string, unknown>,
+): string | undefined {
+  if (!metadata) return undefined;
+  if (typeof metadata.modelId === "string") return metadata.modelId;
+  const custom = metadata.custom as Record<string, unknown> | undefined;
+  if (typeof custom?.modelId === "string") return custom.modelId;
+  return undefined;
+}
+
 function buildAiSdkV6Result(
   textParts: string[],
   toolCalls: TelemetryToolCall[],
@@ -437,6 +497,7 @@ function buildAiSdkV6Result(
 ): TelemetryData {
   const hasText = textParts.length > 0;
   const outputText = hasText ? truncateStr(textParts.join("")) : undefined;
+  const modelId = extractModelId(metadata);
 
   const steps: TelemetryStepData[] | undefined =
     stepsData && stepsData.length > 1
@@ -460,6 +521,7 @@ function buildAiSdkV6Result(
     ...(outputText != null ? { outputText } : undefined),
     ...(metadata ? { metadata } : undefined),
     ...(steps ? { steps } : undefined),
+    ...(modelId ? { modelId } : undefined),
   };
 }
 
