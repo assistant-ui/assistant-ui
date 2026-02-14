@@ -1,6 +1,5 @@
 import type { ComponentType, PropsWithChildren } from "react";
 import type {
-  ComponentMessagePart,
   MessagePartStatus,
   FileMessagePart,
   ImageMessagePart,
@@ -58,7 +57,3 @@ export type ToolCallMessagePartComponent<
   TArgs = any,
   TResult = any,
 > = ComponentType<ToolCallMessagePartProps<TArgs, TResult>>;
-
-export type ComponentMessagePartProps = MessagePartState & ComponentMessagePart;
-export type ComponentMessagePartComponent =
-  ComponentType<ComponentMessagePartProps>;

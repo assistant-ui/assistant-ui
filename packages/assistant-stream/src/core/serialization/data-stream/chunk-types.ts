@@ -46,7 +46,6 @@ export enum DataStreamStreamChunkType {
   AuiUpdateStateOperations = "aui-state",
   AuiTextDelta = "aui-text-delta",
   AuiReasoningDelta = "aui-reasoning-delta",
-  AuiComponent = "aui-component",
 }
 type DataStreamStreamChunkValue = {
   [DataStreamStreamChunkType.TextDelta]: string;
@@ -108,10 +107,5 @@ type DataStreamStreamChunkValue = {
   [DataStreamStreamChunkType.AuiReasoningDelta]: {
     reasoningDelta: string;
     parentId: string;
-  };
-  [DataStreamStreamChunkType.AuiComponent]: {
-    name: string;
-    props?: ReadonlyJSONObject;
-    parentId?: string;
   };
 };

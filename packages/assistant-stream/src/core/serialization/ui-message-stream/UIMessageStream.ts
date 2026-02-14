@@ -175,19 +175,6 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
               });
               break;
 
-            case "component": {
-              const target = chunk.component.parentId
-                ? controller.withParentId(chunk.component.parentId)
-                : controller;
-              target.appendComponent({
-                name: chunk.component.name,
-                ...(chunk.component.props !== undefined
-                  ? { props: chunk.component.props }
-                  : {}),
-              });
-              break;
-            }
-
             case "tool-call-start": {
               activeToolCallArgsText?.close();
               activeToolCallArgsText = undefined;

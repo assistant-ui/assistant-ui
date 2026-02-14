@@ -24,37 +24,6 @@ When tools are executed, you can display custom generative UI components that pr
   creating your own Tool UI component for the tool's name.
 </Callout>
 
-## Tool UI vs Component Parts
-
-Use **Tool UI** when the model is calling a tool (`type: "tool-call"`), you
-need tool execution state (`running`, `requires-action`, `result`), or you want
-argument/result inspection.
-
-Use **component message parts** (`type: "component"`) when the server/runtime is
-sending a presentational UI block directly.
-
-```tsx
-<MessagePrimitive.Parts
-  components={{
-    tools: {
-      by_name: {
-        getWeather: WeatherToolUI,
-      },
-      Fallback: ToolFallback,
-    },
-    Component: {
-      by_name: {
-        "status-chip": StatusChipPart,
-      },
-      Fallback: UnknownComponentPart,
-    },
-  }}
-/>
-```
-
-Component part renderers receive the full part state (`name`, `props`,
-`parentId`, `status`) and should treat `props` as JSON-serializable payload.
-
 ## Recommended: Tools() API
 
 The `Tools()` API is the recommended way to register tools in assistant-ui. It provides centralized tool registration that prevents duplicate registrations and works seamlessly with all runtimes.
