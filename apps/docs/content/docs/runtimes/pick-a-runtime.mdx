@@ -14,7 +14,6 @@ graph TD
     B -->|LangGraph| D[Use LangGraph Runtime]
     B -->|LangServe| E[Use LangServe Runtime]
     B -->|Mastra| F[Use Mastra Runtime]
-    B -->|Tambo AI| J[Use Tambo Integration Guide]
     B -->|Custom Backend| G{State Management?}
     G -->|Let assistant-ui handle it| H[Use LocalRuntime]
     G -->|I'll manage it myself| I[Use ExternalStoreRuntime]
@@ -63,11 +62,6 @@ For popular frameworks, we provide ready-to-use integrations built on top of our
     href="/docs/runtimes/langserve"
   />
   <Card
-    title="Tambo AI"
-    description="Use Tambo thread state and streaming with assistant-ui components"
-    href="/docs/runtimes/tambo"
-  />
-  <Card
     title="Mastra"
     description="For workflow orchestration with Mastra's ecosystem"
     href="/docs/runtimes/mastra/overview"
@@ -84,7 +78,6 @@ The pre-built integrations (AI SDK, LangGraph, etc.) are **not separate runtime 
 - **LangGraph Runtime** → Built on `LocalRuntime` with graph execution adapter
 - **LangServe Runtime** → Built on `LocalRuntime` with LangServe client adapter
 - **Mastra Runtime** → Built on `LocalRuntime` with workflow adapter
-- **Tambo Integration** → Built on `ExternalStoreRuntime` with Tambo hooks/state
 
 This means you get all the benefits of `LocalRuntime` (automatic state management, built-in features) with zero configuration for your specific framework.
 
@@ -222,7 +215,6 @@ Explore our implementation examples:
    - [`LocalRuntime` Guide](/docs/runtimes/custom/local)
    - [`ExternalStoreRuntime` Guide](/docs/runtimes/custom/external-store)
    - [LangGraph Integration](/docs/runtimes/langgraph)
-   - [Tambo Integration](/docs/runtimes/tambo)
 3. **Start with an example** from our [examples repository](https://github.com/assistant-ui/assistant-ui/tree/main/examples)
 4. **Add features progressively** using adapters
 5. **Consider Assistant Cloud** for production persistence

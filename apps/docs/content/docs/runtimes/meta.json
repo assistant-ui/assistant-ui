@@ -7,7 +7,6 @@
     "pick-a-runtime",
     "ai-sdk",
     "data-stream",
-    "tambo",
     "mastra",
     "langgraph",
     "langserve",

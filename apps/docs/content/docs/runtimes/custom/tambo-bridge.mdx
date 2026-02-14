@@ -1,13 +1,14 @@
 ---
-title: Tambo AI
-description: Use Tambo thread state with assistant-ui components.
+title: Tambo Bridge (ExternalStoreRuntime)
+description: Bridge Tambo thread state into assistant-ui with explicit compatibility boundaries.
 ---
 
 <Callout type="warning">
-  This is a bridge integration. Tambo `component` blocks can now map to native
-  assistant-ui `type: "component"` parts, but you still need to register
-  renderers under `MessagePrimitive.Parts` `components.Component`.
+  This is a bridge recipe, not a first-class integration.
 </Callout>
+
+This guide is a manual mapping via `ExternalStoreRuntime`; only the listed
+capabilities below are guaranteed.
 
 ## Overview
 
@@ -18,13 +19,14 @@ If you're already using `@tambo-ai/react`, you can reuse Tambo's:
 - run cancellation
 - auth/session model
 
-and render it through assistant-ui by using `ExternalStoreRuntime`.
+and render it through assistant-ui by bridging Tambo message parts to
+`ThreadMessageLike`.
 
 ## Install
 
 <InstallCommand npm={["@assistant-ui/react", "@tambo-ai/react"]} />
 
-## 1. Build a runtime bridge
+## Build the bridge runtime
 
 ```tsx title="app/tambo-runtime.tsx"
 "use client";
@@ -206,7 +208,7 @@ function TamboAssistantRuntimeProvider({
 }
 ```
 
-## 2. Render your assistant-ui thread
+## Render your thread
 
 ```tsx title="app/page.tsx"
 "use client";
@@ -226,12 +228,30 @@ export default function Page() {
 }
 ```
 
-## Known gaps
+## Compatibility Matrix
 
-- The `onNew` bridge is text-first and does not support full multimodal payload mapping.
-- Thread branching/edit/reload requires additional adapter handlers.
+| Capability | Status | Notes |
+| --- | --- | --- |
+| Text display | Supported | Standard text parts map directly. |
+| Tambo `component` -> assistant-ui `component` | Supported | Requires `MessagePrimitive.Parts` `components.Component` renderer registration. |
+| Tool use visualization (`tool_use` -> `tool-call`) | Partial | Tool call rows can render, but full lifecycle semantics are not guaranteed. |
+| Tool result fidelity (`tool_result`) | Unsupported | Currently mapped to text placeholder content. |
+| Resource fidelity (`resource`) | Unsupported/Partial | Currently mapped to text placeholder content. |
+| New user message input | Text-only supported | Bridge `onNew` submits only text payloads. |
+| Multimodal composer input | Unsupported | No multimodal input mapping in this bridge. |
+| Cancel run | Supported | Uses Tambo `cancelRun`. |
+| Thread list switch/new/rename | Supported | Uses Tambo thread list hooks. |
+| Edit / reload / branch switching parity | Unsupported by default | Requires additional `ExternalStoreRuntime` adapter handlers. |
 
-If you want full-fidelity support (component blocks, richer tool/result mapping,
-and native composer behavior), consider building a dedicated
-`@assistant-ui/react-tambo` package modeled after
-`@assistant-ui/react-ag-ui` and `@assistant-ui/react-a2a`.
+## Non-goals
+
+- This is not a `@assistant-ui/react-tambo` adapter package.
+- This does not provide parity with AI SDK or LangGraph integrations.
+- This does not provide complete tool lifecycle fidelity.
+- This does not provide multimodal parity.
+
+## Related References
+
+- [`ExternalStoreRuntime`](/docs/runtimes/custom/external-store)
+- [`MessagePrimitive.Parts`](/docs/api-reference/primitives/message)
+- [AI SDK v6 Runtime](/docs/runtimes/ai-sdk/v6)

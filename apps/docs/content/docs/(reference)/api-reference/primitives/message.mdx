@@ -49,6 +49,14 @@ This primitive renders a `<div>` element unless `asChild` is set.
 
 The content of the message. This renders a separate component for each content part of the message.
 
+<Callout type="info">
+  Native `component` parts are first-class assistant message parts with shape
+  `{ type: "component", name, props?, parentId? }`. They render through
+  `MessagePrimitive.Parts` and `MessagePrimitive.Unstable_PartsGrouped` via
+  `components.Component` (`by_name`, `Fallback`, `Override`).
+  Legacy `aui/v0` serialization does not support `component` parts.
+</Callout>
+
 <ParametersTable
   type="MessagePrimitiveContentProps"
   parameters={[
