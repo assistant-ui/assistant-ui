@@ -14,6 +14,7 @@ export {
   type JsonRenderHostProps,
   type JsonRenderHostCatalog,
   type JsonRenderHostCatalogRenderer,
+  type JsonRenderHostCatalogTelemetryEvent,
   type JsonRenderHostRenderContext,
 } from "./JsonRenderHost";
 export {
