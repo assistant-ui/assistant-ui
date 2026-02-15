@@ -114,34 +114,6 @@ export const ComponentClient = resource(
 
     return {
       getState: () => state,
-      invoke: (action, payload) => {
-        const { instanceId } = state;
-        if (!instanceId)
-          throw new Error("component.invoke requires a component instanceId");
-
-        return new Promise((resolve, reject) => {
-          emit("component.invoke", {
-            messageId: state.messageId,
-            instanceId,
-            action,
-            payload,
-            ack: resolve,
-            reject,
-          });
-        });
-      },
-      emit: (event, payload) => {
-        const { instanceId } = state;
-        if (!instanceId)
-          throw new Error("component.emit requires a component instanceId");
-
-        emit("component.emit", {
-          messageId: state.messageId,
-          instanceId,
-          event,
-          payload,
-        });
-      },
     };
   },
 );

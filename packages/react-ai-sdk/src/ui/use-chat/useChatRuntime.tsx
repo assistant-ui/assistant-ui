@@ -22,11 +22,6 @@ export type UseChatRuntimeOptions<UI_MESSAGE extends UIMessage = UIMessage> =
     cloud?: AssistantCloud | undefined;
     adapters?: AISDKRuntimeAdapter["adapters"] | undefined;
     toCreateMessage?: CustomToCreateMessageFunction;
-    cancelPendingToolCallsOnSend?:
-      | AISDKRuntimeAdapter["cancelPendingToolCallsOnSend"]
-      | undefined;
-    onComponentInvoke?: AISDKRuntimeAdapter["onComponentInvoke"] | undefined;
-    onComponentEmit?: AISDKRuntimeAdapter["onComponentEmit"] | undefined;
   };
 
 const useDynamicChatTransport = <UI_MESSAGE extends UIMessage = UIMessage>(
@@ -59,9 +54,6 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     adapters,
     transport: transportOptions,
     toCreateMessage,
-    cancelPendingToolCallsOnSend,
-    onComponentInvoke,
-    onComponentEmit,
     ...chatOptions
   } = options ?? {};
 
@@ -79,11 +71,6 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   const runtime = useAISDKRuntime(chat, {
     adapters,
     ...(toCreateMessage && { toCreateMessage }),
-    ...(cancelPendingToolCallsOnSend !== undefined && {
-      cancelPendingToolCallsOnSend,
-    }),
-    ...(onComponentInvoke && { onComponentInvoke }),
-    ...(onComponentEmit && { onComponentEmit }),
   });
 
   if (transport instanceof AssistantChatTransport) {
