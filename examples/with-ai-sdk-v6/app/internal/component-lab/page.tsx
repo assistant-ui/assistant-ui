@@ -98,6 +98,39 @@ const SCENARIO_BY_ID = Object.fromEntries(
   SCENARIOS.map((scenario) => [scenario.id, scenario]),
 ) as Record<Scenario, ScenarioDefinition>;
 
+const STORY_AUDIENCE_NOTES = [
+  {
+    audience: "PM",
+    note: "Ship richer assistant moments with reliability guarantees (instance continuity, monotonic seq, stale guards).",
+  },
+  {
+    audience: "Design",
+    note: "Compose native and spec-driven blocks in one thread, with catalog fallback and override controls for safe iteration.",
+  },
+  {
+    audience: "Engineering",
+    note: "Adopt a deterministic runtime contract where every interactive node is addressable by instanceId and extendable via component mappings.",
+  },
+] as const;
+
+const STORY_WALKTHROUGH = [
+  {
+    step: "1",
+    scenario: "Component Part",
+    goal: "Show native component rendering and graceful fallback in the same response.",
+  },
+  {
+    step: "2",
+    scenario: "json-render Guards",
+    goal: "Show stale seq + malformed patch protection with telemetry counters proving dropped updates.",
+  },
+  {
+    step: "3",
+    scenario: "Mixed",
+    goal: "Show component parts and json-render specs coexisting in one deterministic interaction model.",
+  },
+] as const;
+
 const SNAPSHOT_STORAGE_KEY = "component-lab:thread-snapshot";
 const REHYDRATE_ON_RELOAD_KEY = "component-lab:rehydrate-on-reload";
 
@@ -1203,6 +1236,55 @@ export default function ComponentPartLabPage() {
             End-to-end pressure test for component-part substrate plus additive
             json-render lane.
           </p>
+          <div className="mt-3 grid gap-3 lg:grid-cols-3">
+            <section className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs">
+              <h2 className="font-semibold text-slate-900">
+                What this unlocks
+              </h2>
+              <p className="mt-1 text-slate-700">
+                Assistant responses become interactive UI graphs, not just text.
+                Each component instance is durable and targetable for invoke and
+                emit flows across streaming updates.
+              </p>
+            </section>
+            <section className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs">
+              <h2 className="font-semibold text-slate-900">
+                Component parts + Tool UIs
+              </h2>
+              <p className="mt-1 text-slate-700">
+                Use component parts for assistant-authored presentation and
+                progressive state updates. Use Tool UIs for explicit tool
+                invocation lifecycles. They compose in one thread without
+                competing runtime models.
+              </p>
+            </section>
+            <section className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs">
+              <h2 className="font-semibold text-slate-900">Audience framing</h2>
+              <ul className="mt-1 space-y-1 text-slate-700">
+                {STORY_AUDIENCE_NOTES.map((item) => (
+                  <li key={item.audience}>
+                    <span className="font-semibold">{item.audience}:</span>{" "}
+                    {item.note}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          </div>
+
+          <section className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs">
+            <h2 className="font-semibold text-slate-900">
+              90-second demo walkthrough
+            </h2>
+            <ol className="mt-1 space-y-1 text-slate-700">
+              {STORY_WALKTHROUGH.map((item) => (
+                <li key={item.step}>
+                  <span className="font-semibold">{item.step}.</span>{" "}
+                  <span className="font-semibold">{item.scenario}:</span>{" "}
+                  {item.goal}
+                </li>
+              ))}
+            </ol>
+          </section>
 
           <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
             {SCENARIOS.map((item) => (
