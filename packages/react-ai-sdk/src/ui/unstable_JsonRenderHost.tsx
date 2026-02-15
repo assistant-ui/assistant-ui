@@ -7,11 +7,11 @@ import {
 } from "react";
 import { useAui, type ComponentMessagePartProps } from "@assistant-ui/react";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
-import { AISDK_JSON_RENDER_COMPONENT_NAME } from "./utils/convertMessage";
+import { unstable_AISDK_JSON_RENDER_COMPONENT_NAME } from "./utils/convertMessage";
 
-export { AISDK_JSON_RENDER_COMPONENT_NAME };
+export { unstable_AISDK_JSON_RENDER_COMPONENT_NAME };
 
-export type JsonRenderHostRenderContext = {
+export type unstable_JsonRenderHostRenderContext = {
   instanceId: string | undefined;
   spec: unknown;
   specType: string | undefined;
@@ -20,21 +20,21 @@ export type JsonRenderHostRenderContext = {
   emit: (event: string, payload?: unknown) => void;
 };
 
-export type JsonRenderHostCatalogRenderer =
-  ComponentType<JsonRenderHostRenderContext>;
+export type unstable_JsonRenderHostCatalogRenderer =
+  ComponentType<unstable_JsonRenderHostRenderContext>;
 
-export type JsonRenderHostCatalog =
+export type unstable_JsonRenderHostCatalog =
   | {
       by_type?:
-        | Record<string, JsonRenderHostCatalogRenderer | undefined>
+        | Record<string, unstable_JsonRenderHostCatalogRenderer | undefined>
         | undefined;
-      Fallback?: JsonRenderHostCatalogRenderer | undefined;
+      Fallback?: unstable_JsonRenderHostCatalogRenderer | undefined;
     }
   | {
-      Override: JsonRenderHostCatalogRenderer;
+      Override: unstable_JsonRenderHostCatalogRenderer;
     };
 
-export type JsonRenderHostCatalogTelemetryEvent = {
+export type unstable_JsonRenderHostCatalogTelemetryEvent = {
   type:
     | "catalog-hit"
     | "catalog-fallback"
@@ -44,13 +44,19 @@ export type JsonRenderHostCatalogTelemetryEvent = {
   specType: string | undefined;
 };
 
-export type JsonRenderHostProps = ComponentMessagePartProps & {
+/**
+ * Experimental json-render host API.
+ * This API is unstable and may change without notice.
+ */
+export type unstable_JsonRenderHostProps = ComponentMessagePartProps & {
   className?: string | undefined;
   style?: CSSProperties | undefined;
-  render?: ((context: JsonRenderHostRenderContext) => ReactNode) | undefined;
-  catalog?: JsonRenderHostCatalog | undefined;
+  render?:
+    | ((context: unstable_JsonRenderHostRenderContext) => ReactNode)
+    | undefined;
+  catalog?: unstable_JsonRenderHostCatalog | undefined;
   onCatalogTelemetry?:
-    | ((event: JsonRenderHostCatalogTelemetryEvent) => void)
+    | ((event: unstable_JsonRenderHostCatalogTelemetryEvent) => void)
     | undefined;
 };
 
@@ -67,7 +73,7 @@ const getSpecType = (spec: unknown): string | undefined => {
   return type;
 };
 
-export const JsonRenderHost = ({
+export const unstable_JsonRenderHost = ({
   instanceId,
   props,
   render,
@@ -75,7 +81,7 @@ export const JsonRenderHost = ({
   onCatalogTelemetry,
   className,
   style,
-}: JsonRenderHostProps) => {
+}: unstable_JsonRenderHostProps) => {
   const aui = useAui();
   const component = instanceId
     ? aui.message().component({ instanceId })
@@ -88,7 +94,7 @@ export const JsonRenderHost = ({
     (action: string, payload?: unknown) => {
       if (!component) {
         return Promise.reject(
-          new Error("JsonRenderHost requires a component instanceId"),
+          new Error("unstable_JsonRenderHost requires a component instanceId"),
         );
       }
       return component.invoke(action, payload);
@@ -104,7 +110,7 @@ export const JsonRenderHost = ({
     [component],
   );
 
-  const renderContext: JsonRenderHostRenderContext = {
+  const renderContext: unstable_JsonRenderHostRenderContext = {
     instanceId,
     spec,
     specType,
@@ -118,9 +124,9 @@ export const JsonRenderHost = ({
   }
 
   let catalogTelemetryType:
-    | JsonRenderHostCatalogTelemetryEvent["type"]
+    | unstable_JsonRenderHostCatalogTelemetryEvent["type"]
     | undefined;
-  let catalogRenderer: JsonRenderHostCatalogRenderer | undefined;
+  let catalogRenderer: unstable_JsonRenderHostCatalogRenderer | undefined;
   if (catalog) {
     if ("Override" in catalog) {
       catalogTelemetryType = "catalog-override";

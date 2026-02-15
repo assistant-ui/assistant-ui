@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import type { AISDKDataSpecTelemetryEvent } from "./convertMessage";
-import { createAISDKDataSpecTelemetrySink } from "./dataSpecTelemetry";
+import type { unstable_AISDKDataSpecTelemetryEvent } from "./convertMessage";
+import { unstable_createAISDKDataSpecTelemetrySink } from "./dataSpecTelemetry";
 
-describe("createAISDKDataSpecTelemetrySink", () => {
+describe("unstable_createAISDKDataSpecTelemetrySink", () => {
   it("counts stale seq and malformed patch events", () => {
-    const sink = createAISDKDataSpecTelemetrySink();
+    const sink = unstable_createAISDKDataSpecTelemetrySink();
 
     sink.onTelemetry({
       type: "stale-seq-ignored",
@@ -26,9 +26,9 @@ describe("createAISDKDataSpecTelemetrySink", () => {
 
   it("forwards events with current counters", () => {
     const onEvent = vi.fn();
-    const sink = createAISDKDataSpecTelemetrySink({ onEvent });
+    const sink = unstable_createAISDKDataSpecTelemetrySink({ onEvent });
 
-    const event: AISDKDataSpecTelemetryEvent = {
+    const event: unstable_AISDKDataSpecTelemetryEvent = {
       type: "stale-seq-ignored",
       instanceId: "spec_2",
       seq: 4,
@@ -47,7 +47,7 @@ describe("createAISDKDataSpecTelemetrySink", () => {
   });
 
   it("resets counters", () => {
-    const sink = createAISDKDataSpecTelemetrySink();
+    const sink = unstable_createAISDKDataSpecTelemetrySink();
 
     sink.onTelemetry({
       type: "malformed-patch-dropped",

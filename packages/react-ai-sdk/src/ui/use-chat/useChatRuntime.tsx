@@ -27,7 +27,11 @@ export type UseChatRuntimeOptions<UI_MESSAGE extends UIMessage = UIMessage> =
       | undefined;
     onComponentInvoke?: AISDKRuntimeAdapter["onComponentInvoke"] | undefined;
     onComponentEmit?: AISDKRuntimeAdapter["onComponentEmit"] | undefined;
-    dataSpec?: AISDKRuntimeAdapter["dataSpec"] | undefined;
+    /**
+     * Experimental json-render compatibility lane.
+     * This option is unstable and may change without notice.
+     */
+    unstable_dataSpec?: AISDKRuntimeAdapter["unstable_dataSpec"] | undefined;
   };
 
 const useDynamicChatTransport = <UI_MESSAGE extends UIMessage = UIMessage>(
@@ -63,7 +67,7 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     cancelPendingToolCallsOnSend,
     onComponentInvoke,
     onComponentEmit,
-    dataSpec,
+    unstable_dataSpec,
     ...chatOptions
   } = options ?? {};
 
@@ -86,7 +90,7 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     }),
     ...(onComponentInvoke && { onComponentInvoke }),
     ...(onComponentEmit && { onComponentEmit }),
-    ...(dataSpec && { dataSpec }),
+    ...(unstable_dataSpec && { unstable_dataSpec }),
   });
 
   if (transport instanceof AssistantChatTransport) {

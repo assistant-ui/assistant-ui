@@ -4,22 +4,22 @@ export type { AISDKRuntimeAdapter } from "./use-chat/useAISDKRuntime";
 export type { UseChatRuntimeOptions } from "./use-chat/useChatRuntime";
 export { AssistantChatTransport } from "./use-chat/AssistantChatTransport";
 export type {
-  AISDKDataSpecOptions,
-  AISDKDataSpecTelemetryEvent,
-  AISDKDataSpecValidationContext,
+  unstable_AISDKDataSpecOptions,
+  unstable_AISDKDataSpecTelemetryEvent,
+  unstable_AISDKDataSpecValidationContext,
 } from "./utils/convertMessage";
 export {
-  JsonRenderHost,
-  AISDK_JSON_RENDER_COMPONENT_NAME,
-  type JsonRenderHostProps,
-  type JsonRenderHostCatalog,
-  type JsonRenderHostCatalogRenderer,
-  type JsonRenderHostCatalogTelemetryEvent,
-  type JsonRenderHostRenderContext,
-} from "./JsonRenderHost";
+  unstable_JsonRenderHost,
+  unstable_AISDK_JSON_RENDER_COMPONENT_NAME,
+  type unstable_JsonRenderHostProps,
+  type unstable_JsonRenderHostCatalog,
+  type unstable_JsonRenderHostCatalogRenderer,
+  type unstable_JsonRenderHostCatalogTelemetryEvent,
+  type unstable_JsonRenderHostRenderContext,
+} from "./unstable_JsonRenderHost";
 export {
-  createAISDKDataSpecTelemetrySink,
-  type AISDKDataSpecTelemetrySink,
-  type AISDKDataSpecTelemetryCounters,
-  type CreateAISDKDataSpecTelemetrySinkOptions,
+  unstable_createAISDKDataSpecTelemetrySink,
+  type unstable_AISDKDataSpecTelemetrySink,
+  type unstable_AISDKDataSpecTelemetryCounters,
+  type unstable_AISDKDataSpecTelemetrySinkOptions,
 } from "./utils/dataSpecTelemetry";
