@@ -14,6 +14,7 @@ import {
   ComponentPart,
 } from "../utils/types";
 import { ObjectStreamAccumulator } from "../object/ObjectStreamAccumulator";
+import { ObjectStreamOperation } from "../object/types";
 import { ReadonlyJSONValue } from "../../utils";
 import { TimingTracker } from "./TimingTracker";
 
@@ -392,11 +393,7 @@ const getComponentInstanceId = (operation: {
 
 const filterStaleComponentOperations = (
   state: ReadonlyJSONValue,
-  operations: readonly {
-    type: "set" | "append-text";
-    path: readonly string[];
-    value: ReadonlyJSONValue | string;
-  }[],
+  operations: readonly ObjectStreamOperation[],
 ) => {
   const incomingSeqByInstance = new Map<string, number>();
 
