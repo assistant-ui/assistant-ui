@@ -20,6 +20,8 @@ export type ComponentState = {
 
 export type ComponentMethods = {
   getState(): ComponentState;
+  invoke(action: string, payload?: unknown): Promise<unknown>;
+  emit(event: string, payload?: unknown): void;
 };
 
 export type ComponentMeta = {
@@ -41,6 +43,20 @@ export type ComponentEvents = {
     instanceId: string;
     seq: number;
     state: unknown;
+  };
+  "component.invoke": {
+    messageId: string;
+    instanceId: string;
+    action: string;
+    payload: unknown;
+    ack: (value: unknown) => void;
+    reject: (reason?: unknown) => void;
+  };
+  "component.emit": {
+    messageId: string;
+    instanceId: string;
+    event: string;
+    payload: unknown;
   };
 };
 

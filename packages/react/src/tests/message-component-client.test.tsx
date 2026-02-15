@@ -281,4 +281,91 @@ describe("message.component client", () => {
     expect(byIndex.instanceId).toBe("card_9");
     expect(byIndex.seq).toBe(3);
   });
+
+  it("routes component.invoke with scoped payload and resolves from ack", async () => {
+    const initialMessage = createAssistantMessage(
+      {
+        components: {
+          card_1: { seq: 1, lifecycle: "active", state: { phase: "ready" } },
+        },
+      },
+      [{ type: "component", name: "status-card", instanceId: "card_1" }],
+    );
+
+    const { result } = renderHook(
+      ({ currentMessage }) => {
+        return useAui({
+          message: ThreadMessageClient({ message: currentMessage, index: 0 }),
+        });
+      },
+      { initialProps: { currentMessage: initialMessage } },
+    );
+
+    const invokeListener = vi.fn((payload: { ack: (value: unknown) => void }) =>
+      payload.ack({ ok: true }),
+    );
+    const unsubscribe = result.current.on(
+      { scope: "message", event: "component.invoke" },
+      invokeListener,
+    );
+
+    const component = result.current
+      .message()
+      .component({ instanceId: "card_1" });
+    const invocation = component.invoke("refresh", { source: "test" });
+
+    await expect(invocation).resolves.toEqual({ ok: true });
+    expect(invokeListener).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messageId: "m1",
+        instanceId: "card_1",
+        action: "refresh",
+        payload: { source: "test" },
+      }),
+    );
+
+    unsubscribe();
+  });
+
+  it("routes component.emit as fire-and-forget scoped event", async () => {
+    const initialMessage = createAssistantMessage(
+      {
+        components: {
+          card_1: { seq: 1, lifecycle: "active", state: { phase: "ready" } },
+        },
+      },
+      [{ type: "component", name: "status-card", instanceId: "card_1" }],
+    );
+
+    const { result } = renderHook(
+      ({ currentMessage }) => {
+        return useAui({
+          message: ThreadMessageClient({ message: currentMessage, index: 0 }),
+        });
+      },
+      { initialProps: { currentMessage: initialMessage } },
+    );
+
+    const emitListener = vi.fn();
+    const unsubscribe = result.current.on(
+      { scope: "message", event: "component.emit" },
+      emitListener,
+    );
+
+    const component = result.current
+      .message()
+      .component({ instanceId: "card_1" });
+    component.emit("selected", { tab: "metrics" });
+
+    await flushMicrotaskQueue();
+
+    expect(emitListener).toHaveBeenCalledWith({
+      messageId: "m1",
+      instanceId: "card_1",
+      event: "selected",
+      payload: { tab: "metrics" },
+    });
+
+    unsubscribe();
+  });
 });

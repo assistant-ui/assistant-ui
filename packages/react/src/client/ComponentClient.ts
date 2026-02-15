@@ -52,7 +52,7 @@ export const ComponentClient = resource(
     part,
     componentState,
   }: ComponentClientProps): ClientOutput<"component"> => {
-    const emit = tapAssistantEmit();
+    const assistantEmit = tapAssistantEmit();
     const previousRef = tapRef<{
       seq: number;
       lifecycle: ComponentLifecycle;
@@ -95,7 +95,7 @@ export const ComponentClient = resource(
       if (!state.instanceId) return;
       if (state.seq <= previous.seq) return;
 
-      emit("component.state", {
+      assistantEmit("component.state", {
         messageId: state.messageId,
         instanceId: state.instanceId,
         seq: state.seq,
@@ -103,17 +103,45 @@ export const ComponentClient = resource(
       });
 
       if (state.lifecycle !== previous.lifecycle) {
-        emit("component.lifecycle", {
+        assistantEmit("component.lifecycle", {
           messageId: state.messageId,
           instanceId: state.instanceId,
           lifecycle: state.lifecycle,
           seq: state.seq,
         });
       }
-    }, [state, emit]);
+    }, [state, assistantEmit]);
 
     return {
       getState: () => state,
+      invoke: (action, payload) => {
+        const { instanceId } = state;
+        if (!instanceId)
+          throw new Error("component.invoke requires a component instanceId");
+
+        return new Promise((resolve, reject) => {
+          assistantEmit("component.invoke", {
+            messageId: state.messageId,
+            instanceId,
+            action,
+            payload,
+            ack: resolve,
+            reject,
+          });
+        });
+      },
+      emit: (event, payload) => {
+        const { instanceId } = state;
+        if (!instanceId)
+          throw new Error("component.emit requires a component instanceId");
+
+        assistantEmit("component.emit", {
+          messageId: state.messageId,
+          instanceId,
+          event,
+          payload,
+        });
+      },
     };
   },
 );
