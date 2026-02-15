@@ -27,6 +27,7 @@ export type UseChatRuntimeOptions<UI_MESSAGE extends UIMessage = UIMessage> =
       | undefined;
     onComponentInvoke?: AISDKRuntimeAdapter["onComponentInvoke"] | undefined;
     onComponentEmit?: AISDKRuntimeAdapter["onComponentEmit"] | undefined;
+    dataSpec?: AISDKRuntimeAdapter["dataSpec"] | undefined;
   };
 
 const useDynamicChatTransport = <UI_MESSAGE extends UIMessage = UIMessage>(
@@ -62,6 +63,7 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     cancelPendingToolCallsOnSend,
     onComponentInvoke,
     onComponentEmit,
+    dataSpec,
     ...chatOptions
   } = options ?? {};
 
@@ -84,6 +86,7 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     }),
     ...(onComponentInvoke && { onComponentInvoke }),
     ...(onComponentEmit && { onComponentEmit }),
+    ...(dataSpec && { dataSpec }),
   });
 
   if (transport instanceof AssistantChatTransport) {
