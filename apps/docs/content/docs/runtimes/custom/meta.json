@@ -5,7 +5,6 @@
     "custom-thread-list",
     "external-store",
     "component-state-hydration",
-    "component-actions-and-events",
-    "tambo-bridge"
+    "component-actions-and-events"
   ]
 }
