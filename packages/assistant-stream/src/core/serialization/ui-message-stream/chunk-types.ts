@@ -1,4 +1,7 @@
-import type { ReadonlyJSONValue } from "../../../utils/json/json-value";
+import type {
+  ReadonlyJSONObject,
+  ReadonlyJSONValue,
+} from "../../../utils/json/json-value";
 
 type FinishReason =
   | "stop"
@@ -27,6 +30,15 @@ export type UIMessageStreamChunk =
       source: { sourceType: "url"; id: string; url: string; title?: string };
     }
   | { type: "file"; file: { mimeType: string; data: string } }
+  | {
+      type: "component";
+      component: {
+        name: string;
+        instanceId?: string;
+        props?: ReadonlyJSONObject;
+        parentId?: string;
+      };
+    }
   | {
       type: "tool-call-start";
       id: string;

@@ -1,0 +1,41 @@
+---
+title: Stage 1 Component Parity
+description: Deterministic component lifecycle/state replay with instanceId + aui-state patch semantics.
+---
+
+import { Stage1ComponentParity } from "@/components/examples/stage1-component-parity";
+
+Stage 1 establishes deterministic read-path behavior for component lifecycle
+and state synchronization.
+
+## What this stage guarantees
+
+- `component.instanceId` is required and used as the state key.
+- `metadata.unstable_state.components[instanceId]` is the canonical storage
+  location.
+- Patch protocol is `aui-state` `v1` with only `set` and `append-text`.
+- Per-instance `seq` is monotonic. Updates apply only when
+  `incomingSeq > currentSeq`.
+- Stale patches are dropped deterministically.
+
+## Runnable replay demo
+
+The demo below replays a Stage 1 fixture sequence:
+
+1. mount component `card_1` (`seq=1`, `lifecycle=mounting`)
+2. apply `seq=2` patch (`lifecycle=active`, append `state.summary`)
+3. drop stale `seq=1` patch trying to set `lifecycle=complete`
+
+<Stage1ComponentParity />
+
+## Bridge migration notes
+
+When migrating existing external bridge runtime code to Stage 1 semantics:
+
+1. emit `instanceId` on every component part
+2. write component state under `components/<instanceId>/...`
+3. include numeric `seq` in each patch batch
+4. keep operation set limited to `set` and `append-text` for `aui-state` `v1`
+
+See the bridge guide for compatibility boundaries and caveats:
+[External Store Runtime](/docs/runtimes/custom/external-store).

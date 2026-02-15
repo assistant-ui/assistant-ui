@@ -8,6 +8,7 @@ import type { MessageRuntime } from "../../legacy-runtime/runtime";
 import type { ComposerMethods, ComposerState } from "./composer";
 import type { PartMethods, PartState } from "./part";
 import type { AttachmentMethods } from "./attachment";
+import type { ComponentMethods } from "./component";
 
 export type MessageState = ThreadMessage & {
   readonly parentId: string | null;
@@ -58,6 +59,9 @@ export type MessageMethods = {
     branchId?: string;
   }): void;
   getCopyText(): string;
+  component(
+    selector: { index: number } | { instanceId: string },
+  ): ComponentMethods;
   part(selector: { index: number } | { toolCallId: string }): PartMethods;
   attachment(selector: { index: number } | { id: string }): AttachmentMethods;
   setIsCopied(value: boolean): void;

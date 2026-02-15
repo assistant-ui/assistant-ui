@@ -1063,6 +1063,15 @@ export function TanStackQueryRuntimeProvider({ children }) {
 }
 ```
 
+### External Bridge (Partial Compatibility)
+
+If you already use a custom bridge runtime, use a mapping with
+`ExternalStoreRuntime` and treat compatibility as explicitly scoped.
+
+- Bridge guide: [External Store Runtime](/docs/runtimes/custom/external-store)
+- Native component parts: register renderers through `MessagePrimitive.Parts`
+  `components.Component`
+
 ## Key Features
 
 ### Automatic Optimistic Updates
