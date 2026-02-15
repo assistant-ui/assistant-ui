@@ -7,6 +7,14 @@ import { Stage2ComponentParity } from "@/components/examples/stage2-component-pa
 
 This page documents deterministic write-path behavior for component actions.
 
+## Audience
+
+- Primary: runtime integrators and assistant-ui maintainers implementing
+  `component.invoke` / `component.emit` handlers.
+- If you are implementing a standard AI SDK runtime integration, start with
+  [AI SDK v6 Runtime](/docs/runtimes/ai-sdk/v6). This page is the detailed
+  contract/reference guide.
+
 ## What this guarantees
 
 - `component.invoke` emits `{ messageId, instanceId, action, payload }`.
@@ -44,7 +52,7 @@ const runtime = useAISDKRuntime(chat, {
 });
 ```
 
-## End-to-end contract test plan
+## Maintainer verification checklist (internal)
 
 This repo typically uses focused unit/integration tests plus one targeted docs e2e path.
 To match that pattern, keep the required suite small and deterministic.

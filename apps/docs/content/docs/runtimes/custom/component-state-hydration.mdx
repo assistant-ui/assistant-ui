@@ -8,6 +8,14 @@ import { Stage1ComponentParity } from "@/components/examples/stage1-component-pa
 This page documents deterministic read-path behavior for component lifecycle
 and state synchronization.
 
+## Audience
+
+- Primary: runtime integrators and assistant-ui maintainers validating component
+  state semantics.
+- If you are implementing a standard AI SDK runtime integration, start with
+  [AI SDK v6 Runtime](/docs/runtimes/ai-sdk/v6) and use this page as a
+  reference for `instanceId` + patch behavior details.
+
 ## What this guarantees
 
 - `component.instanceId` is required and used as the state key.
