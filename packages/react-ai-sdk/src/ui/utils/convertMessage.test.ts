@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import type { AISDKDataSpecTelemetryEvent } from "./convertMessage";
 import { AISDKMessageConverter } from "./convertMessage";
 
 describe("AISDKMessageConverter", () => {
@@ -181,6 +182,531 @@ describe("AISDKMessageConverter", () => {
       name: "notice-banner",
       props: { level: "info" },
       parentId: "group-2",
+    });
+  });
+
+  it("converts data-spec chunks into a hosted component and applies patches", () => {
+    const result = AISDKMessageConverter.toThreadMessages(
+      [
+        {
+          id: "assistant-1",
+          role: "assistant",
+          parts: [
+            { type: "text", text: "before" },
+            {
+              type: "data-spec",
+              data: {
+                instanceId: "spec_1",
+                seq: 1,
+                spec: {
+                  type: "card",
+                  props: { title: "Draft", items: ["A"] },
+                },
+              },
+            },
+            {
+              type: "data-spec",
+              data: {
+                instanceId: "spec_1",
+                seq: 2,
+                patch: [
+                  { op: "replace", path: "/props/title", value: "Ready" },
+                  { op: "add", path: "/props/items/1", value: "B" },
+                ],
+              },
+            },
+            { type: "text", text: "after" },
+          ],
+          metadata: {},
+        } as any,
+      ],
+      false,
+      {},
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0]!.content.map((part) => part.type)).toEqual([
+      "text",
+      "component",
+      "text",
+    ]);
+
+    expect(result[0]!.content[1]).toMatchObject({
+      type: "component",
+      name: "json-render",
+      instanceId: "spec_1",
+      props: {
+        spec: {
+          type: "card",
+          props: { title: "Ready", items: ["A", "B"] },
+        },
+      },
+    });
+  });
+
+  it("ignores stale data-spec chunks when seq goes backwards", () => {
+    const result = AISDKMessageConverter.toThreadMessages(
+      [
+        {
+          id: "assistant-1",
+          role: "assistant",
+          parts: [
+            {
+              type: "data-spec",
+              data: {
+                instanceId: "spec_1",
+                seq: 2,
+                spec: {
+                  type: "card",
+                  props: { title: "Latest" },
+                },
+              },
+            },
+            {
+              type: "data-spec",
+              data: {
+                instanceId: "spec_1",
+                seq: 1,
+                patch: [
+                  { op: "replace", path: "/props/title", value: "Stale" },
+                ],
+              },
+            },
+          ],
+          metadata: {},
+        } as any,
+      ],
+      false,
+      {},
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0]!.content).toHaveLength(1);
+    expect(result[0]!.content[0]).toMatchObject({
+      type: "component",
+      name: "json-render",
+      instanceId: "spec_1",
+      props: {
+        spec: {
+          type: "card",
+          props: { title: "Latest" },
+        },
+      },
+    });
+  });
+
+  it("drops malformed data-spec patches and keeps the last valid spec", () => {
+    const result = AISDKMessageConverter.toThreadMessages(
+      [
+        {
+          id: "assistant-1",
+          role: "assistant",
+          parts: [
+            {
+              type: "data-spec",
+              data: {
+                instanceId: "spec_1",
+                seq: 1,
+                spec: {
+                  type: "card",
+                  props: { title: "Initial" },
+                },
+              },
+            },
+            {
+              type: "data-spec",
+              data: {
+                instanceId: "spec_1",
+                seq: 2,
+                patch: [
+                  { op: "replace", path: "props/title", value: "Broken" },
+                ],
+              },
+            },
+          ],
+          metadata: {},
+        } as any,
+      ],
+      false,
+      {},
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0]!.content).toHaveLength(1);
+    expect(result[0]!.content[0]).toMatchObject({
+      type: "component",
+      name: "json-render",
+      instanceId: "spec_1",
+      props: {
+        spec: {
+          type: "card",
+          props: { title: "Initial" },
+        },
+      },
+    });
+  });
+
+  it("repairs invalid specs with repairSpec when validateSpec fails", () => {
+    const validateSpec = vi.fn(
+      (
+        context,
+      ): context is { spec: { type: "card"; props: { title: string } } } =>
+        Boolean(
+          context &&
+            typeof context === "object" &&
+            context.spec &&
+            typeof context.spec === "object" &&
+            (context.spec as { type?: unknown }).type === "card",
+        ),
+    );
+    const repairSpec = vi.fn(() => ({
+      type: "card",
+      props: { title: "Repaired" },
+    }));
+
+    const result = AISDKMessageConverter.toThreadMessages(
+      [
+        {
+          id: "assistant-1",
+          role: "assistant",
+          parts: [
+            {
+              type: "data-spec",
+              data: {
+                instanceId: "spec_1",
+                seq: 1,
+                spec: {
+                  type: "unknown-layout",
+                  props: { title: "Draft" },
+                },
+              },
+            },
+          ],
+        } as any,
+      ],
+      false,
+      {
+        dataSpec: {
+          validateSpec,
+          repairSpec,
+        },
+      },
+    );
+
+    expect(validateSpec).toHaveBeenCalled();
+    expect(repairSpec).toHaveBeenCalled();
+    expect(result[0]!.content).toHaveLength(1);
+    expect(result[0]!.content[0]).toMatchObject({
+      type: "component",
+      name: "json-render",
+      instanceId: "spec_1",
+      props: {
+        spec: {
+          type: "card",
+          props: { title: "Repaired" },
+        },
+      },
+    });
+  });
+
+  it("emits telemetry events for stale seq updates and malformed patches", () => {
+    const events: AISDKDataSpecTelemetryEvent[] = [];
+    const onTelemetry = (event: AISDKDataSpecTelemetryEvent) => {
+      events.push(event);
+    };
+
+    AISDKMessageConverter.toThreadMessages(
+      [
+        {
+          id: "assistant-1",
+          role: "assistant",
+          parts: [
+            {
+              type: "data-spec",
+              data: {
+                instanceId: "spec_1",
+                seq: 2,
+                spec: {
+                  type: "card",
+                  props: { title: "Initial" },
+                },
+              },
+            },
+            {
+              type: "data-spec",
+              data: {
+                instanceId: "spec_1",
+                seq: 1,
+                patch: [
+                  { op: "replace", path: "/props/title", value: "Stale" },
+                ],
+              },
+            },
+            {
+              type: "data-spec",
+              data: {
+                instanceId: "spec_1",
+                seq: 3,
+                patch: [
+                  { op: "replace", path: "props/title", value: "Malformed" },
+                ],
+              },
+            },
+          ],
+        } as any,
+      ],
+      false,
+      {
+        dataSpec: {
+          onTelemetry,
+        },
+      },
+    );
+
+    expect(events).toContainEqual({
+      type: "stale-seq-ignored",
+      instanceId: "spec_1",
+      seq: 1,
+      latestSeq: 2,
+    });
+    expect(events).toContainEqual({
+      type: "malformed-patch-dropped",
+      instanceId: "spec_1",
+      seq: 3,
+    });
+  });
+
+  it("drops malformed data-spec envelopes with invalid props/spec payloads", () => {
+    const result = AISDKMessageConverter.toThreadMessages(
+      [
+        {
+          id: "assistant-1",
+          role: "assistant",
+          parts: [
+            {
+              type: "data-spec",
+              data: {
+                instanceId: "spec_1",
+                seq: 1,
+                spec: {
+                  type: "card",
+                  props: { title: "Initial" },
+                },
+              },
+            },
+            {
+              type: "data-spec",
+              data: {
+                instanceId: "spec_1",
+                seq: 2,
+                props: [],
+              },
+            },
+            {
+              type: "data-spec",
+              data: {
+                instanceId: "spec_1",
+                seq: 3,
+                spec: [],
+              },
+            },
+          ],
+        } as any,
+      ],
+      false,
+      {},
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0]!.content).toHaveLength(1);
+    expect(result[0]!.content[0]).toMatchObject({
+      type: "component",
+      name: "json-render",
+      instanceId: "spec_1",
+      props: {
+        spec: {
+          type: "card",
+          props: { title: "Initial" },
+        },
+      },
+    });
+  });
+
+  it("supports escaped JSON pointer tokens in data-spec patch paths", () => {
+    const result = AISDKMessageConverter.toThreadMessages(
+      [
+        {
+          id: "assistant-1",
+          role: "assistant",
+          parts: [
+            {
+              type: "data-spec",
+              data: {
+                instanceId: "spec_1",
+                seq: 1,
+                spec: {
+                  type: "card",
+                  props: {
+                    "a/b": "slash-old",
+                    "tilde~k": "tilde-old",
+                  },
+                },
+              },
+            },
+            {
+              type: "data-spec",
+              data: {
+                instanceId: "spec_1",
+                seq: 2,
+                patch: [
+                  { op: "replace", path: "/props/a~1b", value: "slash-new" },
+                  {
+                    op: "replace",
+                    path: "/props/tilde~0k",
+                    value: "tilde-new",
+                  },
+                ],
+              },
+            },
+          ],
+        } as any,
+      ],
+      false,
+      {},
+    );
+
+    expect(result[0]!.content[0]).toMatchObject({
+      type: "component",
+      name: "json-render",
+      instanceId: "spec_1",
+      props: {
+        spec: {
+          type: "card",
+          props: {
+            "a/b": "slash-new",
+            "tilde~k": "tilde-new",
+          },
+        },
+      },
+    });
+  });
+
+  it("drops add/replace data-spec patch ops without value payloads", () => {
+    const events: AISDKDataSpecTelemetryEvent[] = [];
+
+    const result = AISDKMessageConverter.toThreadMessages(
+      [
+        {
+          id: "assistant-1",
+          role: "assistant",
+          parts: [
+            {
+              type: "data-spec",
+              data: {
+                instanceId: "spec_1",
+                seq: 1,
+                spec: {
+                  type: "card",
+                  props: { title: "Initial" },
+                },
+              },
+            },
+            {
+              type: "data-spec",
+              data: {
+                instanceId: "spec_1",
+                seq: 2,
+                patch: [{ op: "replace", path: "/props/title" }],
+              },
+            },
+          ],
+        } as any,
+      ],
+      false,
+      {
+        dataSpec: {
+          onTelemetry: (event) => {
+            events.push(event);
+          },
+        },
+      },
+    );
+
+    expect(events).toContainEqual({
+      type: "malformed-patch-dropped",
+      instanceId: "spec_1",
+      seq: 2,
+    });
+    expect(result[0]!.content[0]).toMatchObject({
+      type: "component",
+      name: "json-render",
+      instanceId: "spec_1",
+      props: {
+        spec: {
+          type: "card",
+          props: { title: "Initial" },
+        },
+      },
+    });
+  });
+
+  it("drops data-spec updates with invalid seq values and empty component names", () => {
+    const result = AISDKMessageConverter.toThreadMessages(
+      [
+        {
+          id: "assistant-1",
+          role: "assistant",
+          parts: [
+            {
+              type: "data-spec",
+              data: {
+                instanceId: "spec_1",
+                seq: 1,
+                spec: {
+                  type: "card",
+                  props: { title: "Initial" },
+                },
+              },
+            },
+            {
+              type: "data-spec",
+              data: {
+                instanceId: "spec_1",
+                seq: Number.NaN,
+                patch: [{ op: "replace", path: "/props/title", value: "NaN" }],
+              },
+            },
+            {
+              type: "data-spec",
+              data: {
+                instanceId: "spec_2",
+                name: "",
+                seq: 1,
+                spec: {
+                  type: "card",
+                  props: { title: "Should Drop" },
+                },
+              },
+            },
+          ],
+        } as any,
+      ],
+      false,
+      {},
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0]!.content).toHaveLength(1);
+    expect(result[0]!.content[0]).toMatchObject({
+      type: "component",
+      name: "json-render",
+      instanceId: "spec_1",
+      props: {
+        spec: {
+          type: "card",
+          props: { title: "Initial" },
+        },
+      },
     });
   });
 });

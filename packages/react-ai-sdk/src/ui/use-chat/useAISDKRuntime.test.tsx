@@ -280,6 +280,188 @@ describe("useAISDKRuntime", () => {
     });
   });
 
+  it("converts data-spec parts into hosted component parts in runtime state", async () => {
+    const chat = createChatHelpers([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          { type: "text", text: "before" },
+          {
+            type: "data-spec",
+            data: {
+              instanceId: "spec_1",
+              seq: 1,
+              spec: { type: "card", props: { title: "Draft" } },
+            },
+          },
+          {
+            type: "data-spec",
+            data: {
+              instanceId: "spec_1",
+              seq: 2,
+              patch: [{ op: "replace", path: "/props/title", value: "Ready" }],
+            },
+          },
+        ],
+      },
+    ]);
+
+    const { result } = renderHook(() => useAISDKRuntime(chat));
+
+    await waitFor(() => {
+      expect(result.current.thread.getState().messages.length).toBe(1);
+    });
+
+    const assistant = result.current.thread.getState()
+      .messages[0] as ThreadAssistantMessage;
+    const componentPart = assistant.content.find(
+      (
+        part,
+      ): part is Extract<
+        (typeof assistant.content)[number],
+        { type: "component" }
+      > => part.type === "component",
+    );
+
+    expect(componentPart).toBeDefined();
+    expect(componentPart).toMatchObject({
+      type: "component",
+      name: "json-render",
+      instanceId: "spec_1",
+      props: {
+        spec: {
+          type: "card",
+          props: { title: "Ready" },
+        },
+      },
+    });
+  });
+
+  it("applies runtime dataSpec validate/repair hooks during conversion", async () => {
+    const chat = createChatHelpers([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "data-spec",
+            data: {
+              instanceId: "spec_1",
+              seq: 1,
+              spec: { type: "unknown-layout", props: { title: "Draft" } },
+            },
+          },
+        ],
+      },
+    ]);
+    const validateSpec = vi.fn(
+      (context) =>
+        (context.spec as { type?: unknown } | undefined)?.type === "card",
+    );
+    const repairSpec = vi.fn(() => ({
+      type: "card",
+      props: { title: "Repaired" },
+    }));
+
+    const { result } = renderHook(() =>
+      useAISDKRuntime(chat, {
+        dataSpec: {
+          validateSpec,
+          repairSpec,
+        },
+      }),
+    );
+
+    await waitFor(() => {
+      expect(result.current.thread.getState().messages.length).toBe(1);
+    });
+
+    const assistant = result.current.thread.getState()
+      .messages[0] as ThreadAssistantMessage;
+    const componentPart = assistant.content.find(
+      (
+        part,
+      ): part is Extract<
+        (typeof assistant.content)[number],
+        { type: "component" }
+      > => part.type === "component",
+    );
+
+    expect(validateSpec).toHaveBeenCalled();
+    expect(repairSpec).toHaveBeenCalled();
+    expect(componentPart).toMatchObject({
+      type: "component",
+      name: "json-render",
+      instanceId: "spec_1",
+      props: {
+        spec: {
+          type: "card",
+          props: { title: "Repaired" },
+        },
+      },
+    });
+  });
+
+  it("forwards runtime dataSpec telemetry callbacks from converter", async () => {
+    const chat = createChatHelpers([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "data-spec",
+            data: {
+              instanceId: "spec_1",
+              seq: 2,
+              spec: { type: "card", props: { title: "Initial" } },
+            },
+          },
+          {
+            type: "data-spec",
+            data: {
+              instanceId: "spec_1",
+              seq: 1,
+              patch: [{ op: "replace", path: "/props/title", value: "Stale" }],
+            },
+          },
+          {
+            type: "data-spec",
+            data: {
+              instanceId: "spec_1",
+              seq: 3,
+              patch: [{ op: "replace", path: "props/title", value: "Broken" }],
+            },
+          },
+        ],
+      },
+    ]);
+    const onTelemetry = vi.fn();
+
+    renderHook(() =>
+      useAISDKRuntime(chat, {
+        dataSpec: {
+          onTelemetry,
+        },
+      }),
+    );
+
+    await waitFor(() => {
+      expect(onTelemetry).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: "stale-seq-ignored",
+          instanceId: "spec_1",
+        }),
+      );
+    });
+    expect(onTelemetry).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "malformed-patch-dropped",
+        instanceId: "spec_1",
+      }),
+    );
+  });
+
   it("routes component.invoke through AI SDK adapter and resolves from ack", async () => {
     const chat = createChatHelpers();
     const onComponentInvoke = vi.fn(async (payload) => ({

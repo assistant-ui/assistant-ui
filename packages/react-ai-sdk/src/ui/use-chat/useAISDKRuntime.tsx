@@ -23,7 +23,10 @@ import { sliceMessagesUntil } from "../utils/sliceMessagesUntil";
 import { toCreateMessage } from "../utils/toCreateMessage";
 import { vercelAttachmentAdapter } from "../utils/vercelAttachmentAdapter";
 import { getVercelAIMessages } from "../getVercelAIMessages";
-import { AISDKMessageConverter } from "../utils/convertMessage";
+import {
+  AISDKMessageConverter,
+  type AISDKDataSpecOptions,
+} from "../utils/convertMessage";
 import {
   type AISDKStorageFormat,
   aiSDKV6FormatAdapter,
@@ -72,6 +75,7 @@ export type AISDKRuntimeAdapter = {
         payload: unknown;
       }) => Promise<void> | void)
     | undefined;
+  dataSpec?: AISDKDataSpecOptions | undefined;
 };
 
 export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
@@ -82,6 +86,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     cancelPendingToolCallsOnSend = true,
     onComponentInvoke,
     onComponentEmit,
+    dataSpec,
   }: AISDKRuntimeAdapter = {},
 ) => {
   const contextAdapters = useRuntimeAdapters();
@@ -107,8 +112,9 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         toolStatuses,
         messageTiming,
         ...(chatHelpers.error && { error: chatHelpers.error.message }),
+        ...(dataSpec !== undefined ? { dataSpec } : {}),
       }),
-      [toolStatuses, messageTiming, chatHelpers.error],
+      [toolStatuses, messageTiming, chatHelpers.error, dataSpec],
     ),
   });
 
