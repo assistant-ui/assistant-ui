@@ -15,6 +15,13 @@ type DockState = {
   confidence: number;
 };
 
+type DockAction =
+  | "raise-priority"
+  | "plan-next-step"
+  | "mark-blocked"
+  | "mark-ready"
+  | "increase-confidence";
+
 type ChatMessage = {
   id: string;
   role: "user" | "assistant";
@@ -111,6 +118,54 @@ const applyConversationUpdate = (
   return { next, updates };
 };
 
+const applyDockAction = (
+  action: DockAction,
+  current: DockState,
+): { next: DockState; updates: string[] } => {
+  const next = { ...current };
+  const updates: string[] = [];
+
+  if (action === "raise-priority") {
+    next.priority =
+      current.priority === "low"
+        ? "medium"
+        : current.priority === "medium"
+          ? "high"
+          : "high";
+    updates.push(`priority: ${next.priority}`);
+  }
+
+  if (action === "plan-next-step") {
+    next.status = "planning";
+    next.nextStep = "Draft rollout checklist";
+    updates.push("status: planning");
+    updates.push(`next step: ${next.nextStep}`);
+  }
+
+  if (action === "mark-blocked") {
+    next.status = "blocked";
+    next.risk = "Waiting on legal approval";
+    updates.push("status: blocked");
+    updates.push(`risk: ${next.risk}`);
+  }
+
+  if (action === "mark-ready") {
+    next.status = "ready";
+    next.risk = "None";
+    updates.push("status: ready");
+    updates.push("risk: None");
+  }
+
+  if (action === "increase-confidence") {
+    next.confidence = Math.min(100, current.confidence + 8);
+    updates.push(`confidence: ${next.confidence}%`);
+  } else if (updates.length > 0) {
+    next.confidence = Math.min(100, current.confidence + updates.length * 4);
+  }
+
+  return { next, updates };
+};
+
 const statusClassName: Record<WorkflowStatus, string> = {
   draft: "bg-muted text-muted-foreground",
   planning: "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-200",
@@ -201,6 +256,15 @@ export const DockedComposerComponentsDemo = () => {
     setInput("");
   };
 
+  const handleDockAction = (action: DockAction) => {
+    const result = applyDockAction(action, dock);
+    setDock(result.next);
+
+    appendAssistantMessage(
+      `Dock action applied (${action}): ${result.updates.join(", ")}.`,
+    );
+  };
+
   return (
     <div className="not-prose rounded-xl border bg-card">
       <div className="flex h-[32rem] flex-col">
@@ -223,7 +287,8 @@ export const DockedComposerComponentsDemo = () => {
           <p className="mb-2 font-medium text-sm">Docked components</p>
           <p className="mb-3 text-muted-foreground text-xs">
             These cards stay above the composer and evolve as the conversation
-            changes.
+            changes. You can update them from chat input or by clicking actions
+            inside the cards.
           </p>
 
           <div className="grid gap-2 md:grid-cols-3">
@@ -237,6 +302,24 @@ export const DockedComposerComponentsDemo = () => {
               >
                 {dock.priority}
               </span>
+              <div className="mt-3 flex flex-wrap gap-1">
+                <button
+                  type="button"
+                  data-testid="dock-action-raise-priority"
+                  onClick={() => handleDockAction("raise-priority")}
+                  className="rounded border px-2 py-1 text-xs hover:bg-muted"
+                >
+                  Raise Priority
+                </button>
+                <button
+                  type="button"
+                  data-testid="dock-action-plan-next-step"
+                  onClick={() => handleDockAction("plan-next-step")}
+                  className="rounded border px-2 py-1 text-xs hover:bg-muted"
+                >
+                  Plan Next Step
+                </button>
+              </div>
             </div>
 
             <div className="rounded-lg border p-3">
@@ -254,6 +337,24 @@ export const DockedComposerComponentsDemo = () => {
               >
                 {dock.status}
               </span>
+              <div className="mt-3 flex flex-wrap gap-1">
+                <button
+                  type="button"
+                  data-testid="dock-action-mark-blocked"
+                  onClick={() => handleDockAction("mark-blocked")}
+                  className="rounded border px-2 py-1 text-xs hover:bg-muted"
+                >
+                  Mark Blocked
+                </button>
+                <button
+                  type="button"
+                  data-testid="dock-action-mark-ready"
+                  onClick={() => handleDockAction("mark-ready")}
+                  className="rounded border px-2 py-1 text-xs hover:bg-muted"
+                >
+                  Mark Ready
+                </button>
+              </div>
             </div>
 
             <div className="rounded-lg border p-3">
@@ -275,6 +376,14 @@ export const DockedComposerComponentsDemo = () => {
               >
                 {dock.confidence}%
               </p>
+              <button
+                type="button"
+                data-testid="dock-action-increase-confidence"
+                onClick={() => handleDockAction("increase-confidence")}
+                className="mt-3 rounded border px-2 py-1 text-xs hover:bg-muted"
+              >
+                Increase Confidence
+              </button>
             </div>
           </div>
 

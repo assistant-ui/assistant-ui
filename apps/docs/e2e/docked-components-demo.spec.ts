@@ -42,4 +42,22 @@ test.describe("docked components demo", () => {
     );
     await expect(page.getByTestId("dock-confidence")).toHaveText("74%");
   });
+
+  test("supports direct interaction from docked component controls", async ({
+    page,
+  }) => {
+    await page.goto("/docs/runtimes/custom/component-actions-and-events");
+
+    await page.getByTestId("dock-action-raise-priority").click();
+    await expect(page.getByTestId("dock-priority")).toHaveText("high");
+
+    await page.getByTestId("dock-action-mark-blocked").click();
+    await expect(page.getByTestId("dock-status")).toHaveText("blocked");
+    await expect(page.getByTestId("dock-risk")).toHaveText(
+      "Waiting on legal approval",
+    );
+
+    await page.getByTestId("dock-action-increase-confidence").click();
+    await expect(page.getByTestId("dock-confidence")).toHaveText("52%");
+  });
 });
