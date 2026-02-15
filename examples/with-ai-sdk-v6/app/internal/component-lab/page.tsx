@@ -248,17 +248,24 @@ export default function ComponentPartLabPage() {
     setEventLog((prev) => [`[${timestamp}] ${line}`, ...prev].slice(0, 40));
   }, []);
 
+  const appendEventDeferred = useCallback(
+    (line: string) => {
+      queueMicrotask(() => appendEvent(line));
+    },
+    [appendEvent],
+  );
+
   const telemetrySink = useMemo(
     () =>
       createAISDKDataSpecTelemetrySink({
         onEvent: (event, counters) => {
-          setTelemetry(counters);
-          appendEvent(
+          queueMicrotask(() => setTelemetry(counters));
+          appendEventDeferred(
             `telemetry ${event.type} instance=${event.instanceId} ${"seq" in event ? `seq=${event.seq}` : ""}`,
           );
         },
       }),
-    [appendEvent],
+    [appendEventDeferred],
   );
 
   const onComponentInvoke = useCallback(
@@ -270,7 +277,7 @@ export default function ComponentPartLabPage() {
     }: Parameters<
       NonNullable<AISDKRuntimeAdapter["onComponentInvoke"]>
     >[0]) => {
-      appendEvent(
+      appendEventDeferred(
         `invoke action=${action} message=${messageId} instance=${instanceId}`,
       );
       if (action === "fail") {
@@ -285,7 +292,7 @@ export default function ComponentPartLabPage() {
         timestamp: new Date().toISOString(),
       };
     },
-    [appendEvent],
+    [appendEventDeferred],
   );
 
   const onComponentEmit = useCallback(
@@ -295,11 +302,11 @@ export default function ComponentPartLabPage() {
       event,
       payload,
     }: Parameters<NonNullable<AISDKRuntimeAdapter["onComponentEmit"]>>[0]) => {
-      appendEvent(
+      appendEventDeferred(
         `emit event=${event} message=${messageId} instance=${instanceId} payload=${JSON.stringify(payload)}`,
       );
     },
-    [appendEvent],
+    [appendEventDeferred],
   );
 
   const dataSpec = useMemo(
@@ -326,7 +333,7 @@ export default function ComponentPartLabPage() {
   const activeScenario = SCENARIOS.find((item) => item.id === scenario)!;
 
   return (
-    <AssistantRuntimeProvider key={scenario} runtime={runtime}>
+    <AssistantRuntimeProvider runtime={runtime}>
       <div className="mx-auto flex min-h-screen max-w-6xl flex-col gap-4 px-4 py-6">
         <header className="rounded-xl border border-slate-200 bg-white p-4">
           <h1 className="font-semibold text-xl">Internal Component Part Lab</h1>
