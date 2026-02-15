@@ -94,12 +94,21 @@ export type FilePart = {
   mimeType: string;
 };
 
+export type ComponentPart = {
+  type: "component";
+  name: string;
+  instanceId?: string;
+  props?: ReadonlyJSONObject;
+  parentId?: string;
+};
+
 export type AssistantMessagePart =
   | TextPart
   | ReasoningPart
   | ToolCallPart
   | SourcePart
-  | FilePart;
+  | FilePart
+  | ComponentPart;
 
 type AssistantMessageStepUsage = {
   inputTokens: number;

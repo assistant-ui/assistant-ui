@@ -12,7 +12,6 @@ import {
   AssistantMetaStreamChunk,
   AssistantMetaTransformStream,
 } from "../../utils/stream/AssistantMetaTransformStream";
-import { TextStreamController } from "../../modules/text";
 import { AssistantStreamEncoder } from "../../AssistantStream";
 
 export class DataStreamEncoder
@@ -46,6 +45,20 @@ export class DataStreamEncoder
                 const { type, ...value } = part;
                 controller.enqueue({
                   type: DataStreamStreamChunkType.Source,
+                  value,
+                });
+              }
+              if (part.type === "component") {
+                const { type, ...value } = part;
+                controller.enqueue({
+                  type: DataStreamStreamChunkType.AuiComponent,
+                  value,
+                });
+              }
+              if (part.type === "file") {
+                const { type, ...value } = part;
+                controller.enqueue({
+                  type: DataStreamStreamChunkType.File,
                   value,
                 });
               }
@@ -178,9 +191,15 @@ export class DataStreamEncoder
               break;
             }
 
-            // TODO ignore for now
-            // in the future, we should create a handler that waits for text parts to finish before continuing
             case "tool-call-args-text-finish":
+              controller.enqueue({
+                type: DataStreamStreamChunkType.FinishToolCallArgs,
+                value: {
+                  toolCallId: chunk.meta.toolCallId,
+                },
+              });
+              break;
+
             case "part-finish":
               break;
 
@@ -201,19 +220,6 @@ export class DataStreamEncoder
   }
 }
 
-const TOOL_CALL_ARGS_CLOSING_CHUNKS = [
-  DataStreamStreamChunkType.StartToolCall,
-  DataStreamStreamChunkType.ToolCall,
-  DataStreamStreamChunkType.TextDelta,
-  DataStreamStreamChunkType.ReasoningDelta,
-  DataStreamStreamChunkType.Source,
-  DataStreamStreamChunkType.Error,
-  DataStreamStreamChunkType.FinishStep,
-  DataStreamStreamChunkType.FinishMessage,
-  DataStreamStreamChunkType.AuiTextDelta,
-  DataStreamStreamChunkType.AuiReasoningDelta,
-];
-
 export class DataStreamDecoder extends PipeableTransformStream<
   Uint8Array<ArrayBuffer>,
   AssistantStreamChunk
@@ -221,15 +227,9 @@ export class DataStreamDecoder extends PipeableTransformStream<
   constructor() {
     super((readable) => {
       const toolCallControllers = new Map<string, ToolCallStreamController>();
-      let activeToolCallArgsText: TextStreamController | undefined;
       const transform = new AssistantTransformStream<DataStreamChunk>({
         transform(chunk, controller) {
           const { type, value } = chunk;
-
-          if (TOOL_CALL_ARGS_CLOSING_CHUNKS.includes(type)) {
-            activeToolCallArgsText?.close();
-            activeToolCallArgsText = undefined;
-          }
 
           switch (type) {
             case DataStreamStreamChunkType.ReasoningDelta:
@@ -268,8 +268,6 @@ export class DataStreamDecoder extends PipeableTransformStream<
                 toolName,
               });
               toolCallControllers.set(toolCallId, toolCallController);
-
-              activeToolCallArgsText = toolCallController.argsText;
               break;
             }
 
@@ -281,6 +279,17 @@ export class DataStreamDecoder extends PipeableTransformStream<
                   `Encountered tool call with unknown id: ${toolCallId}`,
                 );
               toolCallController.argsText.append(argsTextDelta);
+              break;
+            }
+
+            case DataStreamStreamChunkType.FinishToolCallArgs: {
+              const { toolCallId } = value;
+              const toolCallController = toolCallControllers.get(toolCallId);
+              if (!toolCallController)
+                throw new Error(
+                  `Encountered tool call args finish with unknown id: ${toolCallId}`,
+                );
+              toolCallController.argsText.close();
               break;
             }
 
@@ -313,6 +322,20 @@ export class DataStreamDecoder extends PipeableTransformStream<
                 });
                 toolCallControllers.set(toolCallId, toolCallController);
               }
+              break;
+            }
+
+            case DataStreamStreamChunkType.AuiComponent: {
+              const ctrl = value.parentId
+                ? controller.withParentId(value.parentId)
+                : controller;
+              ctrl.appendComponent({
+                name: value.name,
+                ...(value.instanceId !== undefined
+                  ? { instanceId: value.instanceId }
+                  : {}),
+                ...(value.props !== undefined ? { props: value.props } : {}),
+              });
               break;
             }
 
@@ -402,8 +425,6 @@ export class DataStreamDecoder extends PipeableTransformStream<
           }
         },
         flush() {
-          activeToolCallArgsText?.close();
-          activeToolCallArgsText = undefined;
           toolCallControllers.forEach((controller) => controller.close());
           toolCallControllers.clear();
         },
@@ -411,7 +432,9 @@ export class DataStreamDecoder extends PipeableTransformStream<
 
       return readable
         .pipeThrough(new TextDecoderStream())
-        .pipeThrough(new LineDecoderStream())
+        .pipeThrough(
+          new LineDecoderStream({ allowIncompleteLineOnFlush: true }),
+        )
         .pipeThrough(new DataStreamChunkDecoder())
         .pipeThrough(transform);
     });

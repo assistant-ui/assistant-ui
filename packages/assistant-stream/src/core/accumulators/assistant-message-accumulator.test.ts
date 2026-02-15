@@ -174,3 +174,184 @@ describe("AssistantMessageAccumulator timing", () => {
     expect(last.metadata.timing!.firstTokenTime).toBeTypeOf("number");
   });
 });
+
+describe("AssistantMessageAccumulator update-state sequencing", () => {
+  it("drops stale component updates when seq regresses", async () => {
+    const chunks: AssistantStreamChunk[] = [
+      {
+        type: "update-state",
+        path: [],
+        operations: [
+          {
+            type: "set",
+            path: ["components", "card_1", "seq"],
+            value: 2,
+          },
+          {
+            type: "set",
+            path: ["components", "card_1", "lifecycle"],
+            value: "active",
+          },
+        ],
+      },
+      {
+        type: "update-state",
+        path: [],
+        operations: [
+          {
+            type: "set",
+            path: ["components", "card_1", "seq"],
+            value: 1,
+          },
+          {
+            type: "set",
+            path: ["components", "card_1", "lifecycle"],
+            value: "complete",
+          },
+        ],
+      },
+      {
+        type: "message-finish",
+        path: [],
+        finishReason: "stop",
+        usage: { inputTokens: 0, outputTokens: 0 },
+      },
+    ];
+
+    const messages = await collectStream(chunks);
+    const last = messages.at(-1)!;
+
+    expect(last.metadata.unstable_state).toEqual({
+      components: {
+        card_1: {
+          seq: 2,
+          lifecycle: "active",
+        },
+      },
+    });
+  });
+
+  it("applies newer component instances while dropping stale ones in the same patch", async () => {
+    const chunks: AssistantStreamChunk[] = [
+      {
+        type: "update-state",
+        path: [],
+        operations: [
+          {
+            type: "set",
+            path: ["components", "card_1", "seq"],
+            value: 2,
+          },
+          {
+            type: "set",
+            path: ["components", "card_1", "lifecycle"],
+            value: "active",
+          },
+        ],
+      },
+      {
+        type: "update-state",
+        path: [],
+        operations: [
+          {
+            type: "set",
+            path: ["components", "card_1", "seq"],
+            value: 1,
+          },
+          {
+            type: "set",
+            path: ["components", "card_1", "lifecycle"],
+            value: "complete",
+          },
+          {
+            type: "set",
+            path: ["components", "card_2", "seq"],
+            value: 1,
+          },
+          {
+            type: "set",
+            path: ["components", "card_2", "lifecycle"],
+            value: "active",
+          },
+        ],
+      },
+      {
+        type: "message-finish",
+        path: [],
+        finishReason: "stop",
+        usage: { inputTokens: 0, outputTokens: 0 },
+      },
+    ];
+
+    const messages = await collectStream(chunks);
+    const last = messages.at(-1)!;
+
+    expect(last.metadata.unstable_state).toEqual({
+      components: {
+        card_1: {
+          seq: 2,
+          lifecycle: "active",
+        },
+        card_2: {
+          seq: 1,
+          lifecycle: "active",
+        },
+      },
+    });
+  });
+
+  it("drops stale append-text operations for regressed component seq", async () => {
+    const chunks: AssistantStreamChunk[] = [
+      {
+        type: "update-state",
+        path: [],
+        operations: [
+          {
+            type: "set",
+            path: ["components", "card_1", "seq"],
+            value: 2,
+          },
+          {
+            type: "set",
+            path: ["components", "card_1", "lifecycle"],
+            value: "active",
+          },
+        ],
+      },
+      {
+        type: "update-state",
+        path: [],
+        operations: [
+          {
+            type: "set",
+            path: ["components", "card_1", "seq"],
+            value: 1,
+          },
+          {
+            type: "append-text",
+            path: ["components", "card_1", "lifecycle"],
+            value: "-stale",
+          },
+        ],
+      },
+      {
+        type: "message-finish",
+        path: [],
+        finishReason: "stop",
+        usage: { inputTokens: 0, outputTokens: 0 },
+      },
+    ];
+
+    const messages = await collectStream(chunks);
+    const last = messages.at(-1)!;
+
+    expect(last.metadata.unstable_state).toEqual({
+      components: {
+        card_1: {
+          seq: 2,
+          lifecycle: "active",
+        },
+      },
+    });
+  });
+});

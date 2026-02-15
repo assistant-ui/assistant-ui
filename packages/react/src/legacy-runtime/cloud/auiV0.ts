@@ -127,6 +127,11 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
             ...(part.filename ? { filename: part.filename } : undefined),
           };
 
+        case "component":
+          throw new Error(
+            "Message part type not supported by aui/v0: component",
+          );
+
         default: {
           const unhandledType: "audio" | "data" = type;
           throw new Error(

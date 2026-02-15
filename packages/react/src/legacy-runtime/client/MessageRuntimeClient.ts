@@ -17,6 +17,10 @@ import { MessagePartClient } from "./MessagePartRuntimeClient";
 import { RefObject } from "react";
 import { MessageState } from "../../types/scopes";
 import { AttachmentRuntimeClient } from "./AttachmentRuntimeClient";
+import {
+  ComponentClient,
+  getComponentMetadataState,
+} from "../../client/ComponentClient";
 
 const MessageAttachmentClientByIndex = resource(
   ({ runtime, index }: { runtime: MessageRuntime; index: number }) => {
@@ -80,6 +84,46 @@ export const MessageClient = resource(
       [runtimeState.content, runtime],
     );
 
+    const components = tapClientLookup(() => {
+      const entries: {
+        part: MessageState["content"][number] & { type: "component" };
+        index: number;
+        key: string;
+      }[] = [];
+      let componentIndex = 0;
+
+      for (const part of runtimeState.content) {
+        if (part.type !== "component") continue;
+        const index = componentIndex++;
+        entries.push({
+          part,
+          index,
+          key:
+            part.instanceId !== undefined
+              ? `instanceId-${part.instanceId}`
+              : `index-${index}`,
+        });
+      }
+
+      return entries.map(({ part, key }) =>
+        withKey(
+          key,
+          ComponentClient({
+            messageId: runtimeState.id,
+            part,
+            componentState: getComponentMetadataState(
+              runtimeState.metadata.unstable_state,
+              part.instanceId,
+            ),
+          }),
+        ),
+      );
+    }, [
+      runtimeState.id,
+      runtimeState.content,
+      runtimeState.metadata.unstable_state,
+    ]);
+
     const attachments = tapClientLookup(
       () =>
         (runtimeState.attachments ?? []).map((attachment, idx) =>
@@ -125,6 +169,13 @@ export const MessageClient = resource(
           return parts.get({ index: selector.index });
         } else {
           return parts.get({ key: `toolCallId-${selector.toolCallId}` });
+        }
+      },
+      component: (selector) => {
+        if ("index" in selector) {
+          return components.get(selector);
+        } else {
+          return components.get({ key: `instanceId-${selector.instanceId}` });
         }
       },
 

@@ -21,6 +21,7 @@ import type {
   TextMessagePartComponent,
   ImageMessagePartComponent,
   SourceMessagePartComponent,
+  ComponentMessagePartComponent,
   ToolCallMessagePartComponent,
   ToolCallMessagePartProps,
   FileMessagePartComponent,
@@ -30,6 +31,7 @@ import type {
 import { MessagePartPrimitiveInProgress } from "../messagePart/MessagePartInProgress";
 import { MessagePartStatus } from "../../types/AssistantTypes";
 import { useShallow } from "zustand/shallow";
+import { warnMissingComponentRenderer } from "./warnMissingComponentRenderer";
 
 type MessagePartRange =
   | { type: "single"; index: number }
@@ -145,6 +147,20 @@ const useMessagePartsGroups = (
 };
 
 export namespace MessagePrimitiveParts {
+  type ComponentConfig =
+    | {
+        /** Map of component names to their specific component renderers */
+        by_name?:
+          | Record<string, ComponentMessagePartComponent | undefined>
+          | undefined;
+        /** Fallback component for unregistered component names */
+        Fallback?: ComponentMessagePartComponent | undefined;
+      }
+    | {
+        /** Override component that handles all component parts */
+        Override: ComponentMessagePartComponent;
+      };
+
   type BaseComponents = {
     /** Component for rendering empty messages */
     Empty?: EmptyMessagePartComponent | undefined;
@@ -158,6 +174,8 @@ export namespace MessagePrimitiveParts {
     File?: FileMessagePartComponent | undefined;
     /** Component for rendering audio content (experimental) */
     Unstable_Audio?: Unstable_AudioMessagePartComponent | undefined;
+    /** Configuration for native component part rendering */
+    Component?: ComponentConfig | undefined;
   };
 
   type ToolsConfig =
@@ -360,6 +378,7 @@ export const MessagePartComponent: FC<MessagePartComponentProps> = ({
     Source = defaultComponents.Source,
     File = defaultComponents.File,
     Unstable_Audio: Audio = defaultComponents.Unstable_Audio,
+    Component = {},
     tools = {},
   } = {},
 }) => {
@@ -408,6 +427,17 @@ export const MessagePartComponent: FC<MessagePartComponentProps> = ({
     case "data":
       return null;
 
+    case "component": {
+      if ("Override" in Component) return <Component.Override {...part} />;
+      const NativeComponent =
+        Component.by_name?.[part.name] ?? Component.Fallback;
+      if (!NativeComponent) {
+        warnMissingComponentRenderer(part.name);
+        return null;
+      }
+      return <NativeComponent {...part} />;
+    }
+
     default:
       const unhandledType: never = type;
       throw new Error(`Unknown message part type: ${unhandledType}`);
@@ -455,6 +485,7 @@ export const MessagePrimitivePartByIndex: FC<MessagePrimitivePartByIndex.Props> 
       prev.components?.Image === next.components?.Image &&
       prev.components?.File === next.components?.File &&
       prev.components?.Unstable_Audio === next.components?.Unstable_Audio &&
+      prev.components?.Component === next.components?.Component &&
       prev.components?.tools === next.components?.tools &&
       prev.components?.ToolGroup === next.components?.ToolGroup &&
       prev.components?.ReasoningGroup === next.components?.ReasoningGroup,
