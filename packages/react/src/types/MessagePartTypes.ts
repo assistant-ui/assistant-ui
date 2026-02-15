@@ -52,6 +52,7 @@ export type DataMessagePart<T = any> = {
 export type ComponentMessagePart = {
   readonly type: "component";
   readonly name: string;
+  readonly instanceId?: string;
   readonly props?: ReadonlyJSONObject;
   readonly parentId?: string;
 };

@@ -7,6 +7,7 @@ describe("AssistantMessageStream component integration", () => {
     const stream = createAssistantStream((controller) => {
       controller.withParentId("group-1").appendComponent({
         name: "status-chip",
+        instanceId: "status-chip-1",
         props: { label: "Ready" },
       });
     });
@@ -20,6 +21,7 @@ describe("AssistantMessageStream component integration", () => {
     expect(result.parts[0]).toMatchObject({
       type: "component",
       name: "status-chip",
+      instanceId: "status-chip-1",
       props: { label: "Ready" },
       parentId: "group-1",
     });
