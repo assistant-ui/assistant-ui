@@ -4,6 +4,7 @@ description: Deterministic component.invoke/component.emit routing for interacti
 ---
 
 import { Stage2ComponentParity } from "@/components/examples/stage2-component-parity";
+import { DockedComposerComponentsDemo } from "@/components/examples/docked-composer-components";
 
 ## Overview
 
@@ -36,7 +37,22 @@ For standard runtime setup, start with
 - `emit`:
   Use when the UI is just notifying your app that something happened.
 
-## Interactive Demo
+## Conversation-Driven Docked UI Demo
+
+This demo shows a thread where component cards stay docked above the composer.
+As you chat, those cards evolve in real time.
+
+<DockedComposerComponentsDemo />
+
+### Try this
+
+1. Click one of the suggestion chips.
+2. Watch priority/deadline/status update in the docked cards.
+3. Type your own goal, deadline, risk, or next step to drive new state changes.
+
+## Contract Replay Demo
+
+This second demo focuses on the low-level invoke/emit contract behavior.
 
 The demo below replays a fixture sequence:
 
