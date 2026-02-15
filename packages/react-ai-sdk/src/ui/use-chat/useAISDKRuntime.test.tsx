@@ -341,6 +341,56 @@ describe("useAISDKRuntime", () => {
     ).rejects.toBe(rejection);
   });
 
+  it("rejects component.invoke when onComponentInvoke throws synchronously", async () => {
+    const chat = createChatHelpers();
+    const rejection = new Error("sync invoke throw");
+    const onComponentInvoke = vi.fn(() => {
+      throw rejection;
+    });
+
+    const wrapper = createAuiWrapper(createComponentMessage());
+    const { result } = renderHook(
+      () => {
+        useAISDKRuntime(chat, {
+          onComponentInvoke,
+        });
+        return useAui();
+      },
+      { wrapper },
+    );
+
+    const component = result.current
+      .message()
+      .component({ instanceId: "card_1" });
+
+    await expect(
+      withTimeout(component.invoke("refresh", { source: "test" })),
+    ).rejects.toBe(rejection);
+  });
+
+  it("rejects component.invoke deterministically when onComponentInvoke is missing", async () => {
+    const chat = createChatHelpers();
+    const wrapper = createAuiWrapper(createComponentMessage());
+
+    const { result } = renderHook(
+      () => {
+        useAISDKRuntime(chat);
+        return useAui();
+      },
+      { wrapper },
+    );
+
+    const component = result.current
+      .message()
+      .component({ instanceId: "card_1" });
+
+    await expect(
+      withTimeout(component.invoke("refresh", { source: "test" })),
+    ).rejects.toThrow(
+      "component.invoke requires AISDK runtime onComponentInvoke handler",
+    );
+  });
+
   it("routes component.emit through AI SDK adapter as fire-and-forget", async () => {
     const chat = createChatHelpers();
     const onComponentEmit = vi.fn();
@@ -370,5 +420,24 @@ describe("useAISDKRuntime", () => {
         payload: { tab: "metrics" },
       });
     });
+  });
+
+  it("keeps component.emit as a no-op when onComponentEmit is missing", async () => {
+    const chat = createChatHelpers();
+    const wrapper = createAuiWrapper(createComponentMessage());
+
+    const { result } = renderHook(
+      () => {
+        useAISDKRuntime(chat);
+        return useAui();
+      },
+      { wrapper },
+    );
+
+    const component = result.current
+      .message()
+      .component({ instanceId: "card_1" });
+
+    expect(() => component.emit("selected", { tab: "metrics" })).not.toThrow();
   });
 });

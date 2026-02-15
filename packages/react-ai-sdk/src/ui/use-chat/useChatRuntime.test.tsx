@@ -112,4 +112,48 @@ describe("useChatRuntime", () => {
 
     expect(result.current).toEqual({ __type: "runtime" });
   });
+
+  it("keeps component handlers wired through rerenders", () => {
+    const transport = { sendMessages: vi.fn() };
+    const firstInvoke = vi.fn();
+    const firstEmit = vi.fn();
+    const secondInvoke = vi.fn();
+    const secondEmit = vi.fn();
+
+    const { rerender } = renderHook(
+      ({ onComponentInvoke, onComponentEmit }) =>
+        useChatRuntime({
+          transport: transport as never,
+          onComponentInvoke,
+          onComponentEmit,
+        }),
+      {
+        initialProps: {
+          onComponentInvoke: firstInvoke,
+          onComponentEmit: firstEmit,
+        },
+      },
+    );
+
+    expect(mockUseAISDKRuntime).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        onComponentInvoke: firstInvoke,
+        onComponentEmit: firstEmit,
+      }),
+    );
+
+    rerender({
+      onComponentInvoke: secondInvoke,
+      onComponentEmit: secondEmit,
+    });
+
+    expect(mockUseAISDKRuntime).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        onComponentInvoke: secondInvoke,
+        onComponentEmit: secondEmit,
+      }),
+    );
+  });
 });

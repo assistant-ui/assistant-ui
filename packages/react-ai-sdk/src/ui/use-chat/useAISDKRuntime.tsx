@@ -190,28 +190,32 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       return;
     }
 
-    void Promise.resolve(
-      onComponentInvoke({
-        messageId: command.messageId,
-        instanceId: command.instanceId,
-        action: command.action,
-        payload: command.payload,
-      }),
-    ).then(command.ack, command.reject);
+    void Promise.resolve()
+      .then(() =>
+        onComponentInvoke({
+          messageId: command.messageId,
+          instanceId: command.instanceId,
+          action: command.action,
+          payload: command.payload,
+        }),
+      )
+      .then(command.ack, command.reject);
   });
 
   useAuiEvent({ scope: "*", event: "component.emit" }, (command) => {
     if (!onComponentEmit) return;
-    void Promise.resolve(
-      onComponentEmit({
-        messageId: command.messageId,
-        instanceId: command.instanceId,
-        event: command.event,
-        payload: command.payload,
-      }),
-    ).catch(() => {
-      // Fire-and-forget emit commands should not throw into render/update loops.
-    });
+    void Promise.resolve()
+      .then(() =>
+        onComponentEmit({
+          messageId: command.messageId,
+          instanceId: command.instanceId,
+          event: command.event,
+          payload: command.payload,
+        }),
+      )
+      .catch(() => {
+        // Fire-and-forget emit commands should not throw into render/update loops.
+      });
   });
 
   const runtime = useExternalStoreRuntime({

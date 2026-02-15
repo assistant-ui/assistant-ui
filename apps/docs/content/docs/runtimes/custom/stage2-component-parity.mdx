@@ -43,3 +43,45 @@ const runtime = useAISDKRuntime(chat, {
   },
 });
 ```
+
+## End-to-end pressure test plan
+
+This repo typically uses focused unit/integration tests plus one targeted docs e2e path.
+To match that pattern, keep the required suite small and deterministic.
+
+### Required (CI-aligned)
+
+1. Runtime contract tests
+   - Add 4-6 focused cases in:
+     - `packages/react-ai-sdk/src/ui/use-chat/useAISDKRuntime.test.tsx`
+     - `packages/react/src/tests/message-component-client.test.tsx`
+   - Cover:
+     - async `invoke` resolve
+     - async `invoke` reject
+     - sync throw in `onComponentInvoke` -> rejected invoke promise
+     - missing `onComponentInvoke` -> deterministic rejection
+     - `emit` with missing handler remains no-op
+     - duplicate settle (`ack` + `reject`) settles once
+
+2. Wrapper pass-through test
+   - Keep `packages/react-ai-sdk/src/ui/use-chat/useChatRuntime.test.tsx` focused on option threading.
+   - Add one case for rerender stability (handlers remain wired after rerender).
+
+3. Docs e2e contract smoke
+   - Keep a single spec in `apps/docs/e2e/stage2-component-parity.spec.ts`.
+   - Extend existing test with one async `invoke` path assertion and one missing-handler/no-crash assertion.
+   - Run on current docs Playwright setup (Chromium project only):
+     - `pnpm --filter @assistant-ui/docs test:e2e -- stage2-component-parity.spec.ts`
+
+### Optional (manual / pre-release hardening)
+
+- Short soak (5-10 minutes) in docs demo for invoke/emit loops.
+- Multi-thread transition stress scenario (switch thread while invoke in-flight).
+- Additional browser coverage if docs Playwright config is expanded beyond Chromium.
+
+## Exit criteria
+
+- Required suite passes in `@assistant-ui/react`, `@assistant-ui/react-ai-sdk`, and docs e2e.
+- No unresolved invoke promises in required test scenarios.
+- No cross-instance invoke result leakage in covered cases.
+- `emit` remains fire-and-forget with no user-visible regressions in docs replay.

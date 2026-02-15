@@ -327,6 +327,51 @@ describe("message.component client", () => {
     unsubscribe();
   });
 
+  it("settles component.invoke only once when listeners call ack and reject", async () => {
+    const initialMessage = createAssistantMessage(
+      {
+        components: {
+          card_1: { seq: 1, lifecycle: "active", state: { phase: "ready" } },
+        },
+      },
+      [{ type: "component", name: "status-card", instanceId: "card_1" }],
+    );
+
+    const { result } = renderHook(
+      ({ currentMessage }) => {
+        return useAui({
+          message: ThreadMessageClient({ message: currentMessage, index: 0 }),
+        });
+      },
+      { initialProps: { currentMessage: initialMessage } },
+    );
+
+    const invokeListener = vi.fn(
+      (payload: {
+        ack: (value: unknown) => void;
+        reject: (reason?: unknown) => void;
+      }) => {
+        payload.ack({ ok: true });
+        payload.reject(new Error("ignored after ack"));
+      },
+    );
+    const unsubscribe = result.current.on(
+      { scope: "message", event: "component.invoke" },
+      invokeListener,
+    );
+
+    const component = result.current
+      .message()
+      .component({ instanceId: "card_1" });
+
+    await expect(
+      component.invoke("refresh", { source: "test" }),
+    ).resolves.toEqual({ ok: true });
+
+    expect(invokeListener).toHaveBeenCalledTimes(1);
+    unsubscribe();
+  });
+
   it("routes component.emit as fire-and-forget scoped event", async () => {
     const initialMessage = createAssistantMessage(
       {
