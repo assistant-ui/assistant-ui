@@ -52,7 +52,7 @@ export const ComponentClient = resource(
     part,
     componentState,
   }: ComponentClientProps): ClientOutput<"component"> => {
-    const assistantEmit = tapAssistantEmit();
+    const emit = tapAssistantEmit();
     const previousRef = tapRef<{
       seq: number;
       lifecycle: ComponentLifecycle;
@@ -95,7 +95,7 @@ export const ComponentClient = resource(
       if (!state.instanceId) return;
       if (state.seq <= previous.seq) return;
 
-      assistantEmit("component.state", {
+      emit("component.state", {
         messageId: state.messageId,
         instanceId: state.instanceId,
         seq: state.seq,
@@ -103,14 +103,14 @@ export const ComponentClient = resource(
       });
 
       if (state.lifecycle !== previous.lifecycle) {
-        assistantEmit("component.lifecycle", {
+        emit("component.lifecycle", {
           messageId: state.messageId,
           instanceId: state.instanceId,
           lifecycle: state.lifecycle,
           seq: state.seq,
         });
       }
-    }, [state, assistantEmit]);
+    }, [state, emit]);
 
     return {
       getState: () => state,
@@ -120,7 +120,7 @@ export const ComponentClient = resource(
           throw new Error("component.invoke requires a component instanceId");
 
         return new Promise((resolve, reject) => {
-          assistantEmit("component.invoke", {
+          emit("component.invoke", {
             messageId: state.messageId,
             instanceId,
             action,
@@ -135,7 +135,7 @@ export const ComponentClient = resource(
         if (!instanceId)
           throw new Error("component.emit requires a component instanceId");
 
-        assistantEmit("component.emit", {
+        emit("component.emit", {
           messageId: state.messageId,
           instanceId,
           event,

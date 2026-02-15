@@ -1,0 +1,45 @@
+---
+title: Stage 2 Component Parity
+description: Deterministic component.invoke/component.emit routing on the AI SDK runtime path.
+---
+
+import { Stage2ComponentParity } from "@/components/examples/stage2-component-parity";
+
+Stage 2 establishes deterministic write-path behavior for component actions.
+
+## What this stage guarantees
+
+- `component.invoke` emits `{ messageId, instanceId, action, payload }`.
+- AI SDK runtime handlers settle invoke promises via `ack` or `reject`.
+- Invoke paths are deterministic: no unresolved promises when handlers are configured.
+- `component.emit` forwards `{ messageId, instanceId, event, payload }` as
+  fire-and-forget.
+- AI SDK parity acceptance depends on this path; non-AI runtimes remain
+  best-effort.
+
+## Runnable replay demo
+
+The demo below replays a Stage 2 fixture sequence:
+
+1. invoke `refresh` and receive deterministic `ack`
+2. invoke `fail` and receive deterministic `reject`
+3. emit `selected` as fire-and-forget
+
+<Stage2ComponentParity />
+
+## Runtime wiring notes
+
+For AI SDK runtimes, bind Stage 2 handlers directly on `useAISDKRuntime`:
+
+```tsx
+const runtime = useAISDKRuntime(chat, {
+  onComponentInvoke: async ({ messageId, instanceId, action, payload }) => {
+    // execute action, then return ack payload
+    return { ok: true, messageId, instanceId, action, payload };
+  },
+  onComponentEmit: ({ messageId, instanceId, event, payload }) => {
+    // fire-and-forget event routing
+    console.log({ messageId, instanceId, event, payload });
+  },
+});
+```

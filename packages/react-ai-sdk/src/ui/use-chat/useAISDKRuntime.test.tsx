@@ -1,7 +1,14 @@
 // @vitest-environment jsdom
 
+import type { ReactNode } from "react";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  AuiProvider,
+  type ThreadAssistantMessage,
+  useAui,
+} from "@assistant-ui/react";
+import { ThreadMessageClient } from "../../../../react/src/client/ThreadMessageClient";
 
 // Mock only the sibling module that requires AUI store context (not available
 // in isolation). Every other dependency — useExternalStoreRuntime,
@@ -34,6 +41,56 @@ const createChatHelpers = (messages: any[] = []) => {
   };
 
   return chatHelpers;
+};
+
+const withTimeout = <T,>(promise: Promise<T>, ms = 150): Promise<T> => {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => {
+      setTimeout(() => reject(new Error(`Timed out after ${ms}ms`)), ms);
+    }),
+  ]);
+};
+
+const createComponentMessage = (): ThreadAssistantMessage => ({
+  id: "m1",
+  role: "assistant",
+  createdAt: new Date("2026-02-15T12:00:00Z"),
+  content: [
+    {
+      type: "component",
+      name: "status-card",
+      instanceId: "card_1",
+    },
+  ],
+  status: { type: "complete", reason: "stop" },
+  metadata: {
+    unstable_state: {
+      components: {
+        card_1: {
+          seq: 1,
+          lifecycle: "active",
+          state: { phase: "ready" },
+        },
+      },
+    },
+    unstable_annotations: [],
+    unstable_data: [],
+    steps: [],
+    custom: {},
+  },
+});
+
+const createAuiWrapper = (
+  message: ThreadAssistantMessage,
+): ((props: { children: ReactNode }) => ReactNode) => {
+  return function Wrapper({ children }: { children: ReactNode }) {
+    const aui = useAui({
+      message: ThreadMessageClient({ message, index: 0 }),
+    });
+
+    return <AuiProvider value={aui}>{children}</AuiProvider>;
+  };
 };
 
 describe("useAISDKRuntime", () => {
@@ -220,6 +277,98 @@ describe("useAISDKRuntime", () => {
     expect(chat.messages.map((m: any) => m.id)).toEqual(["u1", "a1"]);
     expect(chat.regenerate).toHaveBeenCalledWith({
       metadata: { maxTokens: 100 },
+    });
+  });
+
+  it("routes component.invoke through AI SDK adapter and resolves from ack", async () => {
+    const chat = createChatHelpers();
+    const onComponentInvoke = vi.fn(async (payload) => ({
+      ok: true,
+      action: payload.action,
+    }));
+
+    const wrapper = createAuiWrapper(createComponentMessage());
+    const { result } = renderHook(
+      () => {
+        useAISDKRuntime(chat, {
+          onComponentInvoke,
+        });
+        return useAui();
+      },
+      { wrapper },
+    );
+
+    const component = result.current
+      .message()
+      .component({ instanceId: "card_1" });
+
+    await expect(
+      withTimeout(component.invoke("refresh", { source: "test" })),
+    ).resolves.toEqual({ ok: true, action: "refresh" });
+
+    expect(onComponentInvoke).toHaveBeenCalledWith({
+      messageId: "m1",
+      instanceId: "card_1",
+      action: "refresh",
+      payload: { source: "test" },
+    });
+  });
+
+  it("routes component.invoke through AI SDK adapter and rejects on handler failure", async () => {
+    const chat = createChatHelpers();
+    const rejection = new Error("invoke failed");
+    const onComponentInvoke = vi.fn(async () => {
+      throw rejection;
+    });
+
+    const wrapper = createAuiWrapper(createComponentMessage());
+    const { result } = renderHook(
+      () => {
+        useAISDKRuntime(chat, {
+          onComponentInvoke,
+        });
+        return useAui();
+      },
+      { wrapper },
+    );
+
+    const component = result.current
+      .message()
+      .component({ instanceId: "card_1" });
+
+    await expect(
+      withTimeout(component.invoke("refresh", { source: "test" })),
+    ).rejects.toBe(rejection);
+  });
+
+  it("routes component.emit through AI SDK adapter as fire-and-forget", async () => {
+    const chat = createChatHelpers();
+    const onComponentEmit = vi.fn();
+
+    const wrapper = createAuiWrapper(createComponentMessage());
+    const { result } = renderHook(
+      () => {
+        useAISDKRuntime(chat, {
+          onComponentEmit,
+        });
+        return useAui();
+      },
+      { wrapper },
+    );
+
+    const component = result.current
+      .message()
+      .component({ instanceId: "card_1" });
+
+    component.emit("selected", { tab: "metrics" });
+
+    await waitFor(() => {
+      expect(onComponentEmit).toHaveBeenCalledWith({
+        messageId: "m1",
+        instanceId: "card_1",
+        event: "selected",
+        payload: { tab: "metrics" },
+      });
     });
   });
 });
