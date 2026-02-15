@@ -251,4 +251,96 @@ describe("JsonRenderHost", () => {
       });
     });
   });
+
+  it("emits catalog-hit telemetry when by_type renderer is selected", async () => {
+    const wrapper = createAuiWrapper(createComponentMessage());
+    const onCatalogTelemetry = vi.fn();
+
+    render(
+      <JsonRenderHost
+        type="component"
+        name="json-render"
+        status={{ type: "complete" }}
+        instanceId="spec_1"
+        props={{ spec: { type: "status-board" } }}
+        catalog={{
+          by_type: {
+            "status-board": () => <div data-testid="catalog-status-board" />,
+          },
+        }}
+        onCatalogTelemetry={onCatalogTelemetry}
+      />,
+      { wrapper },
+    );
+
+    await waitFor(() => {
+      expect(onCatalogTelemetry).toHaveBeenCalledWith({
+        type: "catalog-hit",
+        instanceId: "spec_1",
+        specType: "status-board",
+      });
+    });
+  });
+
+  it("emits fallback/override/miss catalog telemetry events", async () => {
+    const wrapper = createAuiWrapper(createComponentMessage());
+    const onFallbackTelemetry = vi.fn();
+    const onOverrideTelemetry = vi.fn();
+    const onMissTelemetry = vi.fn();
+
+    render(
+      <JsonRenderHost
+        type="component"
+        name="json-render"
+        status={{ type: "complete" }}
+        instanceId="spec_1"
+        props={{ spec: { type: "unknown-widget" } }}
+        catalog={{ Fallback: () => <div data-testid="fallback-renderer" /> }}
+        onCatalogTelemetry={onFallbackTelemetry}
+      />,
+      { wrapper },
+    );
+    render(
+      <JsonRenderHost
+        type="component"
+        name="json-render"
+        status={{ type: "complete" }}
+        instanceId="spec_1"
+        props={{ spec: { type: "unknown-widget" } }}
+        catalog={{ Override: () => <div data-testid="override-renderer" /> }}
+        onCatalogTelemetry={onOverrideTelemetry}
+      />,
+      { wrapper },
+    );
+    render(
+      <JsonRenderHost
+        type="component"
+        name="json-render"
+        status={{ type: "complete" }}
+        instanceId="spec_1"
+        props={{ spec: { type: "unknown-widget" } }}
+        catalog={{ by_type: { metrics: () => <div /> } }}
+        onCatalogTelemetry={onMissTelemetry}
+      />,
+      { wrapper },
+    );
+
+    await waitFor(() => {
+      expect(onFallbackTelemetry).toHaveBeenCalledWith({
+        type: "catalog-fallback",
+        instanceId: "spec_1",
+        specType: "unknown-widget",
+      });
+      expect(onOverrideTelemetry).toHaveBeenCalledWith({
+        type: "catalog-override",
+        instanceId: "spec_1",
+        specType: "unknown-widget",
+      });
+      expect(onMissTelemetry).toHaveBeenCalledWith({
+        type: "catalog-miss",
+        instanceId: "spec_1",
+        specType: "unknown-widget",
+      });
+    });
+  });
 });

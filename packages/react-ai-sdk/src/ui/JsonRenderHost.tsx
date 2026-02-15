@@ -1,5 +1,6 @@
 import {
   useCallback,
+  useEffect,
   type CSSProperties,
   type ComponentType,
   type ReactNode,
@@ -33,11 +34,24 @@ export type JsonRenderHostCatalog =
       Override: JsonRenderHostCatalogRenderer;
     };
 
+export type JsonRenderHostCatalogTelemetryEvent = {
+  type:
+    | "catalog-hit"
+    | "catalog-fallback"
+    | "catalog-override"
+    | "catalog-miss";
+  instanceId: string | undefined;
+  specType: string | undefined;
+};
+
 export type JsonRenderHostProps = ComponentMessagePartProps & {
   className?: string | undefined;
   style?: CSSProperties | undefined;
   render?: ((context: JsonRenderHostRenderContext) => ReactNode) | undefined;
   catalog?: JsonRenderHostCatalog | undefined;
+  onCatalogTelemetry?:
+    | ((event: JsonRenderHostCatalogTelemetryEvent) => void)
+    | undefined;
 };
 
 const isJSONObject = (value: unknown): value is ReadonlyJSONObject =>
@@ -58,6 +72,7 @@ export const JsonRenderHost = ({
   props,
   render,
   catalog,
+  onCatalogTelemetry,
   className,
   style,
 }: JsonRenderHostProps) => {
@@ -102,16 +117,42 @@ export const JsonRenderHost = ({
     return <>{render(renderContext)}</>;
   }
 
+  let catalogTelemetryType:
+    | JsonRenderHostCatalogTelemetryEvent["type"]
+    | undefined;
+  let catalogRenderer: JsonRenderHostCatalogRenderer | undefined;
   if (catalog) {
-    const CatalogRenderer =
-      "Override" in catalog
-        ? catalog.Override
-        : ((specType ? catalog.by_type?.[specType] : undefined) ??
-          catalog.Fallback);
-
-    if (CatalogRenderer) {
-      return <CatalogRenderer {...renderContext} />;
+    if ("Override" in catalog) {
+      catalogTelemetryType = "catalog-override";
+      catalogRenderer = catalog.Override;
+    } else {
+      const matchedRenderer = specType
+        ? catalog.by_type?.[specType]
+        : undefined;
+      if (matchedRenderer) {
+        catalogTelemetryType = "catalog-hit";
+        catalogRenderer = matchedRenderer;
+      } else if (catalog.Fallback) {
+        catalogTelemetryType = "catalog-fallback";
+        catalogRenderer = catalog.Fallback;
+      } else {
+        catalogTelemetryType = "catalog-miss";
+      }
     }
+  }
+
+  useEffect(() => {
+    if (!onCatalogTelemetry || !catalogTelemetryType) return;
+    onCatalogTelemetry({
+      type: catalogTelemetryType,
+      instanceId,
+      specType,
+    });
+  }, [catalogTelemetryType, instanceId, onCatalogTelemetry, specType]);
+
+  if (catalogRenderer) {
+    const CatalogRenderer = catalogRenderer;
+    return <CatalogRenderer {...renderContext} />;
   }
 
   return (

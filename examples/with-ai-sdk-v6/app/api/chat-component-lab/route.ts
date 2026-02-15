@@ -13,14 +13,22 @@ type Scenario =
   | "component-part"
   | "json-render-patch"
   | "json-render-guards"
-  | "mixed";
+  | "mixed"
+  | "chaos"
+  | "json-patch-semantics"
+  | "missing-instance"
+  | "parent-graph";
 
 const isScenario = (value: string | null): value is Scenario => {
   return (
     value === "component-part" ||
     value === "json-render-patch" ||
     value === "json-render-guards" ||
-    value === "mixed"
+    value === "mixed" ||
+    value === "chaos" ||
+    value === "json-patch-semantics" ||
+    value === "missing-instance" ||
+    value === "parent-graph"
   );
 };
 
@@ -52,7 +60,11 @@ const resolveScenario = (
 
   const lastUserText = getLastUserText(messages);
   if (lastUserText.includes("guard")) return "json-render-guards";
+  if (lastUserText.includes("semantics")) return "json-patch-semantics";
   if (lastUserText.includes("patch")) return "json-render-patch";
+  if (lastUserText.includes("chaos")) return "chaos";
+  if (lastUserText.includes("missing")) return "missing-instance";
+  if (lastUserText.includes("parent")) return "parent-graph";
   if (lastUserText.includes("mixed")) return "mixed";
 
   return "component-part";
@@ -280,6 +292,286 @@ const runMixedScenario = async (writer: UIMessageStreamWriter<UIMessage>) => {
   });
 };
 
+const runChaosScenario = async (writer: UIMessageStreamWriter<UIMessage>) => {
+  writeText(
+    writer,
+    "t-chaos-1",
+    "Chaos scenario: interleaved multi-instance updates with duplicate/out-of-order seq and malformed patches.",
+  );
+
+  writeData(writer, "spec", {
+    instanceId: "spec_chaos_a",
+    name: "json-render",
+    seq: 1,
+    spec: {
+      type: "metrics",
+      props: {
+        title: "Chaos Metrics A",
+        values: { p95: 220, errors: 0 },
+      },
+    },
+  });
+
+  await sleep(70);
+  writeData(writer, "spec", {
+    instanceId: "spec_chaos_b",
+    name: "json-render",
+    seq: 1,
+    spec: {
+      type: "status-board",
+      props: {
+        title: "Chaos Board B",
+        state: "queued",
+        items: ["Queue"],
+      },
+    },
+  });
+
+  await sleep(70);
+  writeData(writer, "spec", {
+    instanceId: "spec_chaos_a",
+    seq: 2,
+    patch: [{ op: "replace", path: "/props/values/p95", value: 180 }],
+  });
+
+  await sleep(70);
+  writeData(writer, "spec", {
+    instanceId: "spec_chaos_b",
+    seq: 3,
+    patch: [
+      { op: "replace", path: "/props/state", value: "running" },
+      { op: "add", path: "/props/items/1", value: "Build" },
+    ],
+  });
+
+  await sleep(70);
+  writeData(writer, "spec", {
+    instanceId: "spec_chaos_a",
+    seq: 2,
+    patch: [{ op: "replace", path: "/props/values/p95", value: 170 }],
+  });
+
+  await sleep(70);
+  writeData(writer, "spec", {
+    instanceId: "spec_chaos_b",
+    seq: 2,
+    patch: [{ op: "replace", path: "/props/state", value: "stale-running" }],
+  });
+
+  await sleep(70);
+  writeData(writer, "spec", {
+    instanceId: "spec_chaos_b",
+    seq: 4,
+    patch: [{ op: "replace", path: "props/state", value: "malformed" }],
+  });
+
+  await sleep(70);
+  writeData(writer, "spec", {
+    instanceId: "spec_chaos_a",
+    seq: 3,
+    patch: [{ op: "replace", path: "/props/values/errors", value: 2 }],
+  });
+
+  await sleep(70);
+  writeData(writer, "spec", {
+    instanceId: "spec_chaos_b",
+    seq: 5,
+    patch: [
+      { op: "replace", path: "/props/state", value: "complete" },
+      { op: "add", path: "/props/items/2", value: "Release" },
+    ],
+  });
+};
+
+const runJsonPatchSemanticsScenario = async (
+  writer: UIMessageStreamWriter<UIMessage>,
+) => {
+  writeText(
+    writer,
+    "t-json-semantics-1",
+    "JSON patch semantics scenario: add/replace/remove, array append, root replacement, escaped tokens.",
+  );
+
+  writeData(writer, "spec", {
+    instanceId: "spec_patch_semantics",
+    name: "json-render",
+    seq: 1,
+    spec: {
+      type: "patch-lab",
+      props: {
+        title: "Patch Semantics",
+        status: "phase-1",
+        entries: ["alpha"],
+        list: ["one"],
+        complex: {
+          "a/b": "slash-0",
+          "a~b": "tilde-0",
+        },
+      },
+    },
+  });
+
+  await sleep(100);
+  writeData(writer, "spec", {
+    instanceId: "spec_patch_semantics",
+    seq: 2,
+    patch: [
+      {
+        op: "replace",
+        path: "",
+        value: {
+          type: "patch-lab",
+          props: {
+            title: "Patch Semantics (Root Replaced)",
+            status: "phase-2",
+            entries: ["root"],
+            list: ["one"],
+            complex: {
+              "a/b": "slash-1",
+              "a~b": "tilde-1",
+            },
+          },
+        },
+      },
+    ],
+  });
+
+  await sleep(100);
+  writeData(writer, "spec", {
+    instanceId: "spec_patch_semantics",
+    seq: 3,
+    patch: [
+      { op: "add", path: "/props/list/-", value: "two" },
+      { op: "replace", path: "/props/complex/a~1b", value: "slash-2" },
+      { op: "replace", path: "/props/complex/a~0b", value: "tilde-2" },
+      { op: "add", path: "/props/entries/-", value: "appended" },
+      { op: "remove", path: "/props/list/0" },
+    ],
+  });
+
+  await sleep(100);
+  writeData(writer, "spec", {
+    instanceId: "spec_patch_semantics",
+    seq: 4,
+    patch: [
+      { op: "remove", path: "/props/entries/0" },
+      { op: "replace", path: "/props/status", value: "phase-3" },
+    ],
+  });
+};
+
+const runMissingInstanceScenario = async (
+  writer: UIMessageStreamWriter<UIMessage>,
+) => {
+  writeText(
+    writer,
+    "t-missing-instance-1",
+    "Missing-instance scenario: component-part and json-render actions should fail deterministically for invoke.",
+  );
+
+  await sleep(80);
+  writeData(writer, "component", {
+    name: "status-card",
+    props: {
+      title: "Missing instanceId (component-part)",
+      status: "degraded",
+      details:
+        "invoke should report 'Missing instanceId'; emit should stay disabled.",
+    },
+  });
+
+  await sleep(80);
+  writeData(writer, "component", {
+    name: "json-render",
+    props: {
+      spec: {
+        type: "status-board",
+        props: {
+          title: "Missing instanceId (json-render)",
+          state: "degraded",
+          items: ["Invoke should reject with explicit error"],
+        },
+      },
+    },
+  });
+
+  await sleep(80);
+  writeData(writer, "spec", {
+    name: "json-render",
+    seq: 1,
+    spec: {
+      type: "metrics",
+      props: {
+        title: "Malformed data-spec",
+      },
+    },
+  });
+};
+
+const runParentGraphScenario = async (
+  writer: UIMessageStreamWriter<UIMessage>,
+) => {
+  writeText(
+    writer,
+    "t-parent-graph-1",
+    "Parent graph scenario: parentId-linked components across native and json-render lanes.",
+  );
+
+  await sleep(70);
+  writeData(writer, "component", {
+    name: "status-card",
+    instanceId: "graph_parent",
+    props: {
+      title: "Graph Parent",
+      status: "active",
+      details: "Top-level component node",
+    },
+  });
+
+  await sleep(70);
+  writeData(writer, "component", {
+    name: "status-card",
+    instanceId: "graph_child",
+    parentId: "graph_parent",
+    props: {
+      title: "Graph Child",
+      status: "active",
+      details: "Child component referencing graph_parent",
+    },
+  });
+
+  await sleep(70);
+  writeData(writer, "spec", {
+    instanceId: "graph_spec",
+    parentId: "graph_child",
+    name: "json-render",
+    seq: 1,
+    spec: {
+      type: "metrics",
+      props: {
+        title: "Graph Metrics",
+        values: { p95: 201, errors: 0 },
+      },
+    },
+  });
+
+  await sleep(70);
+  writeData(writer, "spec", {
+    instanceId: "graph_spec_child",
+    parentId: "graph_spec",
+    name: "json-render",
+    seq: 1,
+    spec: {
+      type: "status-board",
+      props: {
+        title: "Graph Nested Status",
+        state: "running",
+        items: ["Graph Sync"],
+      },
+    },
+  });
+};
+
 export async function POST(req: Request) {
   const url = new URL(req.url);
   const requestedScenario = url.searchParams.get("scenario");
@@ -300,8 +592,16 @@ export async function POST(req: Request) {
         await runJsonRenderPatchScenario(writer);
       } else if (scenario === "json-render-guards") {
         await runJsonRenderGuardsScenario(writer);
-      } else {
+      } else if (scenario === "mixed") {
         await runMixedScenario(writer);
+      } else if (scenario === "chaos") {
+        await runChaosScenario(writer);
+      } else if (scenario === "json-patch-semantics") {
+        await runJsonPatchSemanticsScenario(writer);
+      } else if (scenario === "missing-instance") {
+        await runMissingInstanceScenario(writer);
+      } else {
+        await runParentGraphScenario(writer);
       }
 
       writer.write({
