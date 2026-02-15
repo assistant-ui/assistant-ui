@@ -5,42 +5,39 @@ description: Deterministic lifecycle and state replay for component message part
 
 import { Stage1ComponentParity } from "@/components/examples/stage1-component-parity";
 
-This page documents deterministic read-path behavior for component lifecycle
-and state synchronization.
+## Overview
 
-## Audience
+Interactive assistant components can keep their own state over time.
 
-- Primary: runtime integrators and assistant-ui maintainers validating component
-  state semantics.
-- If you are implementing a standard AI SDK runtime integration, start with
-  [AI SDK v6 Runtime](/docs/runtimes/ai-sdk/v6) and use this page as a
-  reference for `instanceId` + patch behavior details.
+This page covers how assistant-ui keeps that state stable when updates arrive
+out of order during streaming.
 
-## Plain-language mental model
+## What this enables
 
-Treat each component like a mini app with an ID.
+- A status card that updates from `loading` to `ready` without flicker.
+- A progress card that always shows the latest known value.
+- A UI that does not jump backwards if an older update arrives late.
 
-- `instanceId` tells you *which* mini app to update.
-- `state` is the mini app's current data.
-- `seq` is the update order number.
-- If an old update arrives late, ignore it.
+## When to use this
 
-This prevents flicker and "jumping backwards" when streaming updates arrive out
-of order.
+Use this pattern when your assistant returns component parts that update over
+time (for example: progress, queue position, long-running tasks, live data).
 
-## What this guarantees
+For standard runtime setup, start with
+[AI SDK v6 Runtime](/docs/runtimes/ai-sdk/v6).
 
-- `component.instanceId` is required and used as the state key.
-- `metadata.unstable_state.components[instanceId]` is the canonical storage
-  location.
-- Patch protocol is `aui-state` `v1` with only `set` and `append-text`.
-- Per-instance `seq` is monotonic. Updates apply only when
-  `incomingSeq > currentSeq`.
-- Stale patches are dropped deterministically.
+## How it works
 
-## Runnable replay demo
+1. Each component instance has a stable `instanceId`.
+2. Component state is stored under `metadata.unstable_state.components[instanceId]`.
+3. Every state patch has a numeric `seq`.
+4. assistant-ui only applies a patch when `incomingSeq > currentSeq`.
 
-The demo below replays a deterministic fixture sequence:
+That last rule is what prevents stale updates from overwriting newer state.
+
+## Interactive Demo
+
+The demo below replays a fixture sequence:
 
 1. mount component `card_1` (`seq=1`, `lifecycle=mounting`)
 2. apply `seq=2` patch (`lifecycle=active`, append `state.summary`)
@@ -57,14 +54,14 @@ The demo below replays a deterministic fixture sequence:
 If your product has streaming latency, this is the behavior that keeps UI state
 trustworthy.
 
-## Bridge migration notes
+## Using with external runtimes
 
-When migrating existing external bridge runtime code to these semantics:
+If you are mapping your own backend format into assistant-ui:
 
-1. emit `instanceId` on every component part
-2. write component state under `components/<instanceId>/...`
-3. include numeric `seq` in each patch batch
-4. keep operation set limited to `set` and `append-text` for `aui-state` `v1`
+1. Include `instanceId` on every component part.
+2. Store state under `components/<instanceId>/...`.
+3. Include numeric `seq` with each patch batch.
+4. Keep operations to `set` and `append-text` for `aui-state` `v1`.
 
 See the bridge guide for compatibility boundaries and caveats:
 [External Store Runtime](/docs/runtimes/custom/external-store).
