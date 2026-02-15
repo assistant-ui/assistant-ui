@@ -116,7 +116,7 @@ const runJsonRenderPatchScenario = async (
   writeText(
     writer,
     "t-json-patch-1",
-    "Streaming data-spec updates with monotonic seq + JSON patch operations.",
+    "Streaming catalog-targeted data-spec updates with monotonic seq + JSON patches.",
   );
 
   writeData(writer, "spec", {
@@ -128,7 +128,7 @@ const runJsonRenderPatchScenario = async (
       props: {
         title: "Deploy Pipeline",
         state: "running",
-        items: ["Lint", "Build"],
+        items: ["Lint", "Build", "Integration"],
       },
     },
   });
@@ -141,9 +141,10 @@ const runJsonRenderPatchScenario = async (
       {
         op: "replace",
         path: "/props/title",
-        value: "Deploy Pipeline (Updated)",
+        value: "Deploy Pipeline (Promotion)",
       },
-      { op: "add", path: "/props/items/2", value: "E2E" },
+      { op: "replace", path: "/props/state", value: "verifying" },
+      { op: "add", path: "/props/items/3", value: "E2E" },
     ],
   });
 
@@ -151,7 +152,10 @@ const runJsonRenderPatchScenario = async (
   writeData(writer, "spec", {
     instanceId: "spec_demo_1",
     seq: 3,
-    patch: [{ op: "replace", path: "/props/state", value: "complete" }],
+    patch: [
+      { op: "replace", path: "/props/state", value: "complete" },
+      { op: "add", path: "/props/items/4", value: "Release" },
+    ],
   });
 };
 
@@ -173,6 +177,7 @@ const runJsonRenderGuardsScenario = async (
       props: {
         title: "Guardrail Demo",
         status: "baseline",
+        entries: ["seq=2 baseline accepted"],
       },
     },
   });
@@ -181,7 +186,10 @@ const runJsonRenderGuardsScenario = async (
   writeData(writer, "spec", {
     instanceId: "spec_demo_2",
     seq: 1,
-    patch: [{ op: "replace", path: "/props/status", value: "stale-update" }],
+    patch: [
+      { op: "replace", path: "/props/status", value: "stale-update" },
+      { op: "add", path: "/props/entries/1", value: "seq=1 stale" },
+    ],
   });
 
   await sleep(120);
@@ -195,7 +203,10 @@ const runJsonRenderGuardsScenario = async (
   writeData(writer, "spec", {
     instanceId: "spec_demo_2",
     seq: 4,
-    patch: [{ op: "replace", path: "/props/status", value: "recovered" }],
+    patch: [
+      { op: "replace", path: "/props/status", value: "recovered" },
+      { op: "add", path: "/props/entries/1", value: "seq=4 recovered" },
+    ],
   });
 };
 
@@ -229,6 +240,43 @@ const runMixedScenario = async (writer: UIMessageStreamWriter<UIMessage>) => {
         values: { p95: 182, errors: 0 },
       },
     },
+  });
+
+  await sleep(80);
+  writeData(writer, "spec", {
+    instanceId: "spec_demo_3",
+    seq: 2,
+    patch: [
+      { op: "replace", path: "/props/values/p95", value: 147 },
+      { op: "replace", path: "/props/values/errors", value: 1 },
+    ],
+  });
+
+  await sleep(80);
+  writeData(writer, "spec", {
+    instanceId: "spec_demo_fallback",
+    name: "json-render",
+    seq: 1,
+    spec: {
+      type: "unknown-widget",
+      props: {
+        title: "Unregistered Spec Type",
+        detail: "This should route through catalog fallback.",
+      },
+    },
+  });
+
+  await sleep(80);
+  writeData(writer, "spec", {
+    instanceId: "spec_demo_fallback",
+    seq: 2,
+    patch: [
+      {
+        op: "replace",
+        path: "/props/detail",
+        value: "Fallback stayed active after patch update.",
+      },
+    ],
   });
 };
 
