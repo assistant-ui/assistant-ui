@@ -24,14 +24,6 @@ export type {
   MessageClientSchema,
 } from "./message";
 export type {
-  ComponentState,
-  ComponentLifecycle,
-  ComponentMethods,
-  ComponentMeta,
-  ComponentEvents,
-  ComponentClientSchema,
-} from "./component";
-export type {
   PartState,
   PartMethods,
   PartMeta,

@@ -4,7 +4,6 @@ import type { ThreadsClientSchema } from "./scopes/threads";
 import type { ThreadListItemClientSchema } from "./scopes/threadListItem";
 import type { ThreadClientSchema } from "./scopes/thread";
 import type { MessageClientSchema } from "./scopes/message";
-import type { ComponentClientSchema } from "./scopes/component";
 import type { PartClientSchema } from "./scopes/part";
 import type { ComposerClientSchema } from "./scopes/composer";
 import type { AttachmentClientSchema } from "./scopes/attachment";
@@ -20,7 +19,6 @@ declare module "@assistant-ui/store" {
     threadListItem: ThreadListItemClientSchema;
     thread: ThreadClientSchema;
     message: MessageClientSchema;
-    component: ComponentClientSchema;
     part: PartClientSchema;
     composer: ComposerClientSchema;
     attachment: AttachmentClientSchema;

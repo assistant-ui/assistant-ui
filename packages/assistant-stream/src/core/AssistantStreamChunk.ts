@@ -1,7 +1,4 @@
-import {
-  ReadonlyJSONObject,
-  ReadonlyJSONValue,
-} from "../utils/json/json-value";
+import { ReadonlyJSONValue } from "../utils/json/json-value";
 import { ObjectStreamOperation } from "./object/types";
 
 export type PartInit =
@@ -27,13 +24,6 @@ export type PartInit =
       readonly type: "file";
       readonly data: string;
       readonly mimeType: string;
-    }
-  | {
-      readonly type: "component";
-      readonly name: string;
-      readonly instanceId?: string;
-      readonly props?: ReadonlyJSONObject;
-      readonly parentId?: string;
     };
 
 export type AssistantStreamChunk = { readonly path: readonly number[] } & (

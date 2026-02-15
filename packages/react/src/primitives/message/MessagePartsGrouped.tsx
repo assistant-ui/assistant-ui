@@ -20,7 +20,6 @@ import type {
   TextMessagePartComponent,
   ImageMessagePartComponent,
   SourceMessagePartComponent,
-  ComponentMessagePartComponent,
   ToolCallMessagePartComponent,
   ToolCallMessagePartProps,
   FileMessagePartComponent,
@@ -28,7 +27,6 @@ import type {
 } from "../../types/MessagePartComponentTypes";
 import { MessagePartPrimitiveInProgress } from "../messagePart/MessagePartInProgress";
 import { MessagePartStatus } from "../../types/AssistantTypes";
-import { warnMissingComponentRenderer } from "./warnMissingComponentRenderer";
 
 type MessagePartGroup = {
   groupKey: string | undefined;
@@ -87,20 +85,6 @@ const useMessagePartsGrouped = (
 };
 
 export namespace MessagePrimitiveUnstable_PartsGrouped {
-  type ComponentConfig =
-    | {
-        /** Map of component names to their specific component renderers */
-        by_name?:
-          | Record<string, ComponentMessagePartComponent | undefined>
-          | undefined;
-        /** Fallback component for unregistered component names */
-        Fallback?: ComponentMessagePartComponent | undefined;
-      }
-    | {
-        /** Override component that handles all component parts */
-        Override: ComponentMessagePartComponent;
-      };
-
   export type Props = {
     /**
      * Function that takes an array of message parts and returns an array of groups.
@@ -169,8 +153,6 @@ export namespace MessagePrimitiveUnstable_PartsGrouped {
           File?: FileMessagePartComponent | undefined;
           /** Component for rendering audio content (experimental) */
           Unstable_Audio?: Unstable_AudioMessagePartComponent | undefined;
-          /** Configuration for native component part rendering */
-          Component?: ComponentConfig | undefined;
           /** Configuration for tool call rendering */
           tools?:
             | {
@@ -275,7 +257,6 @@ const MessagePartComponent: FC<MessagePartComponentProps> = ({
     Source = defaultComponents.Source,
     File = defaultComponents.File,
     Unstable_Audio: Audio = defaultComponents.Unstable_Audio,
-    Component = {},
     tools = {},
   } = {},
 }) => {
@@ -324,17 +305,6 @@ const MessagePartComponent: FC<MessagePartComponentProps> = ({
     case "data":
       return null;
 
-    case "component": {
-      if ("Override" in Component) return <Component.Override {...part} />;
-      const NativeComponent =
-        Component.by_name?.[part.name] ?? Component.Fallback;
-      if (!NativeComponent) {
-        warnMissingComponentRenderer(part.name);
-        return null;
-      }
-      return <NativeComponent {...part} />;
-    }
-
     default:
       const unhandledType: never = type;
       throw new Error(`Unknown message part type: ${unhandledType}`);
@@ -364,7 +334,6 @@ const MessagePart = memo(
     prev.components?.Image === next.components?.Image &&
     prev.components?.File === next.components?.File &&
     prev.components?.Unstable_Audio === next.components?.Unstable_Audio &&
-    prev.components?.Component === next.components?.Component &&
     prev.components?.tools === next.components?.tools &&
     prev.components?.Group === next.components?.Group,
 );

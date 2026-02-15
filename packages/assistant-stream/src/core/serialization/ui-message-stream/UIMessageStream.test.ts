@@ -206,43 +206,6 @@ describe("UIMessageStreamDecoder", () => {
     }
   });
 
-  it("should decode component parts", async () => {
-    const events = [
-      JSON.stringify({ type: "start", messageId: "msg_123" }),
-      JSON.stringify({
-        type: "component",
-        component: {
-          name: "status-chip",
-          instanceId: "status-chip-1",
-          props: { label: "Ready" },
-          parentId: "group-1",
-        },
-      }),
-      JSON.stringify({
-        type: "finish",
-        finishReason: "stop",
-        usage: { promptTokens: 10, completionTokens: 5 },
-      }),
-      "[DONE]",
-    ];
-
-    const stream = createUIMessageStream(events);
-    const decodedStream = stream.pipeThrough(new UIMessageStreamDecoder());
-    const chunks = await collectChunks(decodedStream);
-
-    const componentStart = chunks.find(
-      (c): c is AssistantStreamChunk & { type: "part-start" } =>
-        c.type === "part-start" && c.part.type === "component",
-    );
-    expect(componentStart).toBeDefined();
-    if (componentStart?.part.type === "component") {
-      expect(componentStart.part.name).toBe("status-chip");
-      expect(componentStart.part.instanceId).toBe("status-chip-1");
-      expect(componentStart.part.props).toEqual({ label: "Ready" });
-      expect(componentStart.part.parentId).toBe("group-1");
-    }
-  });
-
   it("should handle data-* chunks", async () => {
     const onData = vi.fn();
     const events = [

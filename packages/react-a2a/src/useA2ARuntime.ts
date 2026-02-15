@@ -65,8 +65,7 @@ const getMessageContent = (msg: AppendMessage) => {
           | "source"
           | "file"
           | "audio"
-          | "data"
-          | "component" = type;
+          | "data" = type;
         throw new Error(
           `Unsupported append message part type: ${_exhaustiveCheck}`,
         );

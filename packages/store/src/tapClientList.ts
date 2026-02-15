@@ -1,4 +1,4 @@
-import { tapEffect, tapState, withKey } from "@assistant-ui/tap";
+import { tapConst, tapState, withKey } from "@assistant-ui/tap";
 import type { ContravariantResource } from "@assistant-ui/tap";
 import { tapClientLookup } from "./tapClientLookup";
 import type { ClientMethods } from "./types/client";
@@ -10,7 +10,6 @@ type InferClientState<TMethods> = TMethods extends {
   : unknown;
 
 type DataHandle<TData> = { data: TData | undefined; hasData: boolean };
-type ListItem<TData> = { key: string; handle: DataHandle<TData> };
 
 const createProps = <TData>(
   key: string,
@@ -40,51 +39,63 @@ export const tapClientList = <TData, TMethods extends ClientMethods>(
 } => {
   const { initialValues, getKey, resource: Resource } = props;
 
-  const [items, setItems] = tapState<ListItem<TData>[]>(() => {
-    return initialValues.map((data) => ({
-      key: getKey(data),
-      handle: { data, hasData: true },
-    }));
+  type Props = tapClientList.ResourceProps<TData>;
+
+  const initialDataHandles: DataHandle<TData>[] = tapConst(() => [], []);
+
+  const [items, setItems] = tapState<Record<string, Props>>(() => {
+    const entries: [string, Props][] = [];
+    for (const data of initialValues) {
+      const key = getKey(data);
+      const handle = { data, hasData: true };
+      entries.push([
+        key,
+        createProps(key, handle, () => {
+          setItems((items) => {
+            const newItems = { ...items };
+            delete newItems[key];
+            return newItems;
+          });
+        }),
+      ]);
+      initialDataHandles.push(handle);
+    }
+    return Object.fromEntries(entries);
   });
 
   const lookup = tapClientLookup<TMethods>(
     () =>
-      items.map((item) =>
-        withKey(
-          item.key,
-          Resource(
-            createProps(item.key, item.handle, () => {
-              setItems((items) =>
-                items.filter((candidate) => candidate.key !== item.key),
-              );
-            }),
-          ),
-        ),
-      ),
+      Object.values(items).map((props) => withKey(props.key, Resource(props))),
     [items, Resource],
   );
 
-  tapEffect(() => {
-    for (const item of items) {
-      item.handle.data = undefined;
-      item.handle.hasData = false;
-    }
-  }, [items]);
+  initialDataHandles.forEach((handle) => {
+    handle.data = undefined;
+    handle.hasData = false;
+  });
 
   const add = (data: TData) => {
     const key = getKey(data);
-    const item: ListItem<TData> = {
-      key,
-      handle: { data, hasData: true },
-    };
-
     setItems((items) => {
-      if (items.some((item) => item.key === key)) {
+      if (key in items) {
         throw new Error(
           `Tried to add item with a key ${key} that already exists`,
         );
       }
-      return [...items, item];
+
+      const handle = { data, hasData: true };
+      initialDataHandles.push(handle);
+
+      return {
+        ...items,
+        [key]: createProps(key, handle, () => {
+          setItems((items) => {
+            const newItems = { ...items };
+            delete newItems[key];
+            return newItems;
+          });
+        }),
+      };
     });
   };
 

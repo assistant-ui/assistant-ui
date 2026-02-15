@@ -11,10 +11,8 @@ import {
   AssistantMessagePart,
   ReasoningPart,
   FilePart,
-  ComponentPart,
 } from "../utils/types";
 import { ObjectStreamAccumulator } from "../object/ObjectStreamAccumulator";
-import { ObjectStreamOperation } from "../object/types";
 import { ReadonlyJSONValue } from "../../utils";
 import { TimingTracker } from "./TimingTracker";
 
@@ -127,23 +125,6 @@ const handlePartStart = (
     return {
       ...message,
       parts: [...message.parts, newFilePart],
-      get content() {
-        return this.parts;
-      },
-    };
-  } else if (partInit.type === "component") {
-    const newComponentPart: ComponentPart = {
-      type: "component",
-      name: partInit.name,
-      ...(partInit.instanceId !== undefined
-        ? { instanceId: partInit.instanceId }
-        : {}),
-      ...(partInit.props !== undefined ? { props: partInit.props } : {}),
-      ...(partInit.parentId ? { parentId: partInit.parentId } : {}),
-    };
-    return {
-      ...message,
-      parts: [...message.parts, newComponentPart],
       get content() {
         return this.parts;
       },
@@ -360,87 +341,12 @@ const handleErrorChunk = (
   };
 };
 
-const isObjectRecord = (
-  value: ReadonlyJSONValue | undefined,
-): value is Record<string, ReadonlyJSONValue> =>
-  value !== null && typeof value === "object" && !Array.isArray(value);
-
-const getComponentSeq = (
-  state: ReadonlyJSONValue,
-  instanceId: string,
-): number | undefined => {
-  if (!isObjectRecord(state)) return undefined;
-
-  const components = state.components;
-  if (!isObjectRecord(components)) return undefined;
-
-  const componentState = components[instanceId];
-  if (!isObjectRecord(componentState)) return undefined;
-
-  const seq = componentState.seq;
-  return typeof seq === "number" ? seq : undefined;
-};
-
-const getComponentInstanceId = (operation: {
-  path: readonly string[];
-}): string | undefined => {
-  const [root, instanceId] = operation.path;
-  if (root !== "components") return undefined;
-  if (typeof instanceId !== "string" || instanceId.length === 0)
-    return undefined;
-  return instanceId;
-};
-
-const filterStaleComponentOperations = (
-  state: ReadonlyJSONValue,
-  operations: readonly ObjectStreamOperation[],
-) => {
-  const incomingSeqByInstance = new Map<string, number>();
-
-  for (const operation of operations) {
-    if (operation.type !== "set") continue;
-
-    const [root, instanceId, field] = operation.path;
-    if (root !== "components" || field !== "seq") continue;
-    if (typeof instanceId !== "string" || instanceId.length === 0) continue;
-    if (typeof operation.value !== "number") continue;
-
-    incomingSeqByInstance.set(instanceId, operation.value);
-  }
-
-  if (incomingSeqByInstance.size === 0) return operations;
-
-  const staleInstances = new Set<string>();
-  for (const [instanceId, incomingSeq] of incomingSeqByInstance) {
-    const currentSeq = getComponentSeq(state, instanceId);
-    if (currentSeq !== undefined && incomingSeq <= currentSeq) {
-      staleInstances.add(instanceId);
-    }
-  }
-
-  if (staleInstances.size === 0) return operations;
-
-  return operations.filter((operation) => {
-    const instanceId = getComponentInstanceId(operation);
-    if (instanceId === undefined) return true;
-    if (!incomingSeqByInstance.has(instanceId)) return true;
-    return !staleInstances.has(instanceId);
-  });
-};
-
 const handleUpdateState = (
   message: AssistantMessage,
   chunk: AssistantStreamChunk & { type: "update-state" },
 ): AssistantMessage => {
-  const operations = filterStaleComponentOperations(
-    message.metadata.unstable_state,
-    chunk.operations,
-  );
-
-  if (operations.length === 0) return message;
-
   const acc = new ObjectStreamAccumulator(message.metadata.unstable_state);
-  acc.append(operations);
+  acc.append(chunk.operations);
 
   return {
     ...message,

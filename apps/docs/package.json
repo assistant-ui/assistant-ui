@@ -8,8 +8,7 @@
     "build:docs": "tsx ./scripts/generate-docs.mts",
     "dev": "next dev",
     "start": "next start",
-    "postinstall": "fumadocs-mdx",
-    "test:e2e": "playwright test -c playwright.config.ts"
+    "postinstall": "fumadocs-mdx"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.25",
@@ -108,7 +107,6 @@
   "devDependencies": {
     "@assistant-ui/shadcn-registry": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@playwright/test": "^1.58.2",
     "@tailwindcss/postcss": "^4.1.18",
     "@types/mdx": "^2.0.13",
     "@types/node": "^25.2.1",

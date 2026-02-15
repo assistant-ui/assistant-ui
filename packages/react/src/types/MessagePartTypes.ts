@@ -49,14 +49,6 @@ export type DataMessagePart<T = any> = {
   readonly data: T;
 };
 
-export type ComponentMessagePart = {
-  readonly type: "component";
-  readonly name: string;
-  readonly instanceId?: string;
-  readonly props?: ReadonlyJSONObject;
-  readonly parentId?: string;
-};
-
 export type ToolCallMessagePart<
   TArgs = ReadonlyJSONObject,
   TResult = unknown,
@@ -87,5 +79,4 @@ export type ThreadAssistantMessagePart =
   | SourceMessagePart
   | FileMessagePart
   | ImageMessagePart
-  | DataMessagePart
-  | ComponentMessagePart;
+  | DataMessagePart;

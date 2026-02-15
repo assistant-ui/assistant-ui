@@ -12,11 +12,9 @@ import {
   ThreadAssistantMessagePart,
   ThreadUserMessagePart,
   Attachment,
-  ComponentMessagePart,
   ThreadMessage,
 } from "../types";
 import { NoOpComposerClient } from "./NoOpComposerClient";
-import { ComponentClient, getComponentMetadataState } from "./ComponentClient";
 
 const ThreadMessagePartClient = resource(
   ({
@@ -84,43 +82,6 @@ export const ThreadMessageClient = resource(
         ),
       [message.content],
     );
-
-    const components = tapClientLookup(() => {
-      const entries: {
-        part: ComponentMessagePart;
-        index: number;
-        key: string;
-      }[] = [];
-      let componentIndex = 0;
-
-      for (const part of message.content) {
-        if (part.type !== "component") continue;
-
-        const index = componentIndex++;
-        entries.push({
-          part,
-          index,
-          key:
-            part.instanceId !== undefined
-              ? `instanceId-${part.instanceId}`
-              : `index-${index}`,
-        });
-      }
-
-      return entries.map(({ part, key }) =>
-        withKey(
-          key,
-          ComponentClient({
-            messageId: message.id,
-            part,
-            componentState: getComponentMetadataState(
-              message.metadata.unstable_state,
-              part.instanceId,
-            ),
-          }),
-        ),
-      );
-    }, [message.id, message.content, message.metadata.unstable_state]);
 
     const attachments = tapClientLookup(
       () =>
@@ -201,13 +162,6 @@ export const ThreadMessageClient = resource(
             return "";
           })
           .join("\n");
-      },
-      component: (selector) => {
-        if ("index" in selector) {
-          return components.get(selector);
-        } else {
-          return components.get({ key: `instanceId-${selector.instanceId}` });
-        }
       },
       setIsCopied,
       setIsHovering,
