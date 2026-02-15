@@ -91,42 +91,42 @@ const FEATURES = [
   {
     title: "Live Preview",
     description:
-      "See changes instantly. Test desktop, tablet, and mobile viewports with hot reload.",
+      "Hot reload across every screen size — desktop, tablet, and mobile.",
     icon: Play,
     iconColor: "text-green-400",
   },
   {
     title: "Mock Tool Responses",
     description:
-      "Simulate tool calls with configurable JSON. Cover success, error, and edge cases without a backend.",
+      "Stub out tool calls with JSON responses. Test success paths, errors, and edge cases — no backend needed.",
     icon: Wrench,
     iconColor: "text-orange-400",
   },
   {
     title: "MCP Server Scaffold",
     description:
-      "Optional MCP server template included. Run frontend and tools with a single command.",
+      "Includes an MCP server template. Run frontend and tools with a single command.",
     icon: Terminal,
     iconColor: "text-blue-400",
   },
   {
     title: "Production Export",
     description:
-      "Export a deployable widget bundle (index.html + widget.js/widget.css) with optional --inline output.",
+      "Export a deployable widget bundle with one command. Use `--inline` for a single-file build.",
     icon: Package,
     iconColor: "text-purple-400",
   },
   {
     title: "Display Modes",
     description:
-      "Preview inline, PiP, and fullscreen. See exactly how it looks in target hosts.",
+      "Preview inline, picture-in-picture, and fullscreen — exactly as it appears in Claude or ChatGPT.",
     icon: Monitor,
     iconColor: "text-cyan-400",
   },
   {
     title: "Universal SDK",
     description:
-      "MCP-first bridge with optional ChatGPT extensions, feature-detected at runtime.",
+      "One API surface for MCP hosts and ChatGPT extensions, with capabilities detected at runtime.",
     icon: Sparkles,
     iconColor: "text-violet-400",
   },
@@ -135,21 +135,22 @@ const FEATURES = [
 const PLATFORM_CAPABILITIES = [
   {
     feature: "App state",
-    description: "Persist and restore app state via ChatGPT widget state APIs.",
+    description:
+      "Save and restore app state through ChatGPT's widget state APIs.",
     chatgptExtensions: true,
     mcpHost: false,
   },
   {
     feature: "Model context",
     description:
-      "Read and write model context via MCP (`ui/update-model-context`) on hosts that implement it.",
+      "Read and write model context via MCP on hosts that support it.",
     chatgptExtensions: false,
     mcpHost: true,
   },
   {
     feature: "Host modal",
     description:
-      "Use `window.openai.requestModal` in ChatGPT when available; fallback to local modals elsewhere.",
+      "Open native modals in ChatGPT when available; falls back to local modals elsewhere.",
     chatgptExtensions: true,
     mcpHost: false,
   },
@@ -329,8 +330,9 @@ export default function McpAppStudioPage() {
               Build MCP apps once, run them anywhere
             </h1>
             <p className="max-w-xl text-lg text-muted-foreground">
-              Build locally with hot reload. Export once for any MCP host.
-              Optional ChatGPT extension features are detected at runtime.
+              MCP apps let you put real UI inside AI conversations — not just
+              text, but things people can actually interact with. Build and
+              preview locally with hot reload, then export once for any host.
             </p>
           </div>
 
@@ -407,8 +409,8 @@ export default function McpAppStudioPage() {
               Try the workbench
             </h2>
             <p className="text-muted-foreground">
-              A local simulator for MCP apps and optional ChatGPT extensions.
-              Preview your app, mock tool calls, and export for production.
+              Preview your app in real time, mock tool calls, and export a
+              production-ready bundle — all from your browser.
             </p>
           </div>
 
@@ -428,10 +430,11 @@ export default function McpAppStudioPage() {
         <div className="flex flex-col gap-8">
           <div className="flex flex-col items-center gap-2 text-center">
             <h2 className="font-medium text-3xl tracking-tight">
-              Everything you need to ship assistant apps
+              Everything you need to ship MCP apps
             </h2>
             <p className="text-muted-foreground">
-              A local workbench with a production-ready export flow.
+              Build it, preview it, export it. One toolchain for whatever
+              you&apos;re shipping.
             </p>
           </div>
 
@@ -462,8 +465,9 @@ export default function McpAppStudioPage() {
               Know what works where
             </h2>
             <p className="text-muted-foreground">
-              One API surface with capability gating across MCP hosts and
-              optional ChatGPT extensions.
+              Your app runs inside the host&apos;s conversation window.
+              Different hosts support different things — detect what&apos;s
+              available and adapt.
             </p>
           </div>
 
@@ -517,8 +521,8 @@ export default function McpAppStudioPage() {
               Export and ship
             </h2>
             <p className="text-muted-foreground">
-              Your production-ready bundle, ready for MCP hosts like Claude,
-              with optional ChatGPT extensions.
+              Ship one bundle that works in Claude, ChatGPT, or any
+              MCP-compatible client.
             </p>
           </div>
 
@@ -530,13 +534,13 @@ export default function McpAppStudioPage() {
           </div>
 
           <p className="mx-auto max-w-2xl text-center text-muted-foreground text-sm">
-            Deploy <code>export/widget/</code> to any static host, then update
-            <code> export/manifest.json</code> with the hosted URL and register
-            it with your target host. The same widget works across MCP hosts
-            (for example, Claude) and ChatGPT extensions. By default export
-            emits <code>index.html, widget.js, widget.css</code>, with optional{" "}
-            <code>--inline</code> for single-file HTML. It’s the same app either
-            way; the host controls which capabilities are available.
+            Deploy <code>export/widget/</code> to any static host, then point{" "}
+            <code>export/manifest.json</code> at the hosted URL and register
+            with your target host. The same bundle runs on MCP hosts like Claude
+            and as a ChatGPT extension. Export emits <code>index.html</code>,{" "}
+            <code>widget.js</code>, and <code>widget.css</code> by default — add{" "}
+            <code>--inline</code> for single-file HTML. The host decides which
+            capabilities your app can use.
           </p>
         </div>
 
@@ -716,7 +720,8 @@ function HeroShowcase({
                 <div className="flex flex-col gap-1">
                   <p className="font-medium text-zinc-300">Best on desktop</p>
                   <p className="max-w-xs text-sm text-zinc-500">
-                    Open this page on a larger screen to run the demo.
+                    Open this page on a desktop browser to try the interactive
+                    demo.
                   </p>
                 </div>
               </div>
