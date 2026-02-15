@@ -134,6 +134,7 @@ describe("AISDKMessageConverter", () => {
             {
               type: "component",
               name: "status-chip",
+              instanceId: "status-chip-1",
               props: { label: "Ready" },
               parentId: "group-1",
             },
@@ -151,6 +152,7 @@ describe("AISDKMessageConverter", () => {
     expect(result[0]!.content[0]).toMatchObject({
       type: "component",
       name: "status-chip",
+      instanceId: "status-chip-1",
       props: { label: "Ready" },
       parentId: "group-1",
     });
@@ -167,6 +169,7 @@ describe("AISDKMessageConverter", () => {
               type: "data-component",
               data: {
                 name: "notice-banner",
+                instanceId: "notice-banner-1",
                 props: { level: "info" },
                 parentId: "group-2",
               },
@@ -184,6 +187,7 @@ describe("AISDKMessageConverter", () => {
     expect(result[0]!.content[0]).toMatchObject({
       type: "component",
       name: "notice-banner",
+      instanceId: "notice-banner-1",
       props: { level: "info" },
       parentId: "group-2",
     });

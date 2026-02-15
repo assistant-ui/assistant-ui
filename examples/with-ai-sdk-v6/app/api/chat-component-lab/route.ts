@@ -91,6 +91,7 @@ const runComponentPartScenario = async (
   await sleep(80);
   writeData(writer, "component", {
     name: "status-card",
+    instanceId: "component_demo_1",
     props: {
       title: "Component Part Smoke Test",
       status: "active",
@@ -208,6 +209,7 @@ const runMixedScenario = async (writer: UIMessageStreamWriter<UIMessage>) => {
   await sleep(80);
   writeData(writer, "component", {
     name: "status-card",
+    instanceId: "component_demo_2",
     props: {
       title: "Native Component",
       status: "ready",
