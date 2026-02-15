@@ -233,7 +233,8 @@ export default function Page() {
 | Capability | Status | Notes |
 | --- | --- | --- |
 | Text display | Supported | Standard text parts map directly. |
-| Tambo `component` -> assistant-ui `component` | Supported | Requires `MessagePrimitive.Parts` `components.Component` renderer registration. |
+| Tambo `component` -> assistant-ui `component` | Supported | Requires `MessagePrimitive.Parts` `components.Component` renderer registration and stable `instanceId`. |
+| Stage 1 component lifecycle/state patches (`aui-state` v1) | Supported | `set` + `append-text` operations under `components/<instanceId>/...` with monotonic `seq` stale-drop semantics. |
 | Tool use visualization (`tool_use` -> `tool-call`) | Partial | Tool call rows can render, but full lifecycle semantics are not guaranteed. |
 | Tool result fidelity (`tool_result`) | Unsupported | Currently mapped to text placeholder content. |
 | Resource fidelity (`resource`) | Unsupported/Partial | Currently mapped to text placeholder content. |
@@ -242,6 +243,19 @@ export default function Page() {
 | Cancel run | Supported | Uses Tambo `cancelRun`. |
 | Thread list switch/new/rename | Supported | Uses Tambo thread list hooks. |
 | Edit / reload / branch switching parity | Unsupported by default | Requires additional `ExternalStoreRuntime` adapter handlers. |
+
+## Stage 1 migration checklist
+
+To align with Stage 1 parity behavior:
+
+1. emit `instanceId` on every component part
+2. patch `metadata.unstable_state.components[instanceId]` only
+3. include numeric per-instance `seq` in each patch batch
+4. apply only `set` and `append-text` operations for `aui-state` `v1`
+5. ignore stale updates (`incomingSeq <= currentSeq`)
+
+For a runnable replay demo and expected final state contract, see:
+[Tambo Parity Stage 1](/docs/runtimes/custom/tambo-parity-stage-1).
 
 ## Non-goals
 
