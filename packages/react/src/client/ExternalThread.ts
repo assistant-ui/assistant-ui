@@ -17,11 +17,10 @@ import type {
   Attachment,
   ThreadAssistantMessagePart,
   ThreadUserMessagePart,
-  ThreadMessage,
-} from "@assistant-ui/core";
-import { ModelContext, Suggestions } from "@assistant-ui/core/store";
-import { Tools } from "./Tools";
-import { DataRenderers } from "./DataRenderers";
+  ComponentMessagePart,
+} from "../types/MessagePartTypes";
+import type { ThreadMessage } from "../types";
+import { ComponentClient, getComponentMetadataState } from "./ComponentClient";
 
 export type ExternalThreadMessage = ThreadMessage & {
   id: string;
@@ -63,6 +62,42 @@ const MessageClient = resource(
         ),
       [message.content],
     );
+
+    const componentClients = tapClientLookup(() => {
+      const entries: {
+        part: ComponentMessagePart;
+        index: number;
+        key: string;
+      }[] = [];
+      let componentIndex = 0;
+
+      for (const part of message.content) {
+        if (part.type !== "component") continue;
+        const index = componentIndex++;
+        entries.push({
+          part,
+          index,
+          key:
+            part.instanceId !== undefined
+              ? `instanceId-${part.instanceId}`
+              : `index-${index}`,
+        });
+      }
+
+      return entries.map(({ part, key }) =>
+        withKey(
+          key,
+          ComponentClient({
+            messageId: message.id,
+            part,
+            componentState: getComponentMetadataState(
+              message.metadata.unstable_state,
+              part.instanceId,
+            ),
+          }),
+        ),
+      );
+    }, [message.id, message.content, message.metadata.unstable_state]);
 
     const attachmentClients = tapClientLookup(
       () =>
@@ -144,6 +179,14 @@ const MessageClient = resource(
       switchToBranch: () => {},
       getCopyText: () =>
         message.content.map((c) => ("text" in c ? c.text : "")).join(""),
+      component: (selector) => {
+        if ("index" in selector) {
+          return componentClients.get(selector);
+        }
+        return componentClients.get({
+          key: `instanceId-${selector.instanceId}`,
+        });
+      },
       part: (selector) => {
         if ("index" in selector) {
           return partClients.get(selector);

@@ -1,17 +1,30 @@
 import type {
-  ReadonlyJSONObject,
-  ReadonlyJSONValue,
-} from "assistant-stream/utils";
-import type { CompleteAttachment } from "./attachment";
+  TextMessagePart,
+  ReasoningMessagePart,
+  SourceMessagePart,
+  ImageMessagePart,
+  FileMessagePart,
+  DataMessagePart,
+  ComponentMessagePart,
+  Unstable_AudioMessagePart,
+  ToolCallMessagePart,
+  ThreadUserMessagePart,
+  ThreadAssistantMessagePart,
+} from "./MessagePartTypes";
 
-// =============================================================================
-// Message Parts
-// =============================================================================
-
-export type TextMessagePart = {
-  readonly type: "text";
-  readonly text: string;
-  readonly parentId?: string;
+// Re-export message part types for convenience
+export type {
+  TextMessagePart,
+  ReasoningMessagePart,
+  SourceMessagePart,
+  ImageMessagePart,
+  FileMessagePart,
+  DataMessagePart,
+  ComponentMessagePart,
+  Unstable_AudioMessagePart,
+  ToolCallMessagePart,
+  ThreadUserMessagePart,
+  ThreadAssistantMessagePart,
 };
 
 export type ReasoningMessagePart = {

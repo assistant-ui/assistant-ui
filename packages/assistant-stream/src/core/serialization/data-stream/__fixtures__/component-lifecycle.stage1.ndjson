@@ -1,0 +1,4 @@
+aui-component:{"name":"status-card","instanceId":"card_1"}
+aui-state:[{"type":"set","path":["components","card_1","seq"],"value":2},{"type":"set","path":["components","card_1","lifecycle"],"value":"active"}]
+aui-state:[{"type":"set","path":["components","card_1","seq"],"value":1},{"type":"set","path":["components","card_1","lifecycle"],"value":"complete"}]
+d:{"finishReason":"stop","usage":{"inputTokens":0,"outputTokens":0}}

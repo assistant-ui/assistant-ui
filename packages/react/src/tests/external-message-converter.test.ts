@@ -158,6 +158,37 @@ describe("convertExternalMessages", () => {
       expect(toolCallParts).toHaveLength(1);
       expect((toolCallParts[0] as any).result).toEqual({ data: "result" });
     });
+
+    it("should preserve component parts from assistant messages", () => {
+      const messages = [
+        {
+          id: "msg1",
+          role: "assistant" as const,
+          content: [
+            {
+              type: "component" as const,
+              name: "status-chip",
+              props: { label: "Ready" },
+            },
+          ],
+        },
+      ];
+
+      const callback: useExternalMessageConverter.Callback<
+        (typeof messages)[number]
+      > = (msg) => msg;
+
+      const result = convertExternalMessages(messages, callback, false, {});
+
+      expect(result).toHaveLength(1);
+      expect(result[0]!.role).toBe("assistant");
+      expect(result[0]!.content).toHaveLength(1);
+      expect(result[0]!.content[0]).toMatchObject({
+        type: "component",
+        name: "status-chip",
+        props: { label: "Ready" },
+      });
+    });
   });
 
   describe("synthetic error message", () => {
