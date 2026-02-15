@@ -46,7 +46,7 @@ const formatError = (value: unknown) => {
 export const Stage2ComponentParity = () => {
   const [summary, setSummary] = useState(INITIAL_SUMMARY);
   const [logs, setLogs] = useState<string[]>([
-    "idle: click replay to run invoke/emit contracts",
+    "idle: click replay to run component invoke/emit contracts",
   ]);
   const [isRunning, setIsRunning] = useState(false);
   const replayIdRef = useRef(0);
@@ -155,7 +155,7 @@ export const Stage2ComponentParity = () => {
     <div className="not-prose rounded-xl border bg-card p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="font-medium text-sm">Stage 2 invoke/emit replay</p>
+          <p className="font-medium text-sm">Component invoke/emit replay</p>
           <p className="text-muted-foreground text-xs">
             Replays deterministic invoke ack/reject handling and fire-and-forget
             emit routing.
@@ -167,7 +167,7 @@ export const Stage2ComponentParity = () => {
           disabled={isRunning}
           className="inline-flex items-center rounded-md bg-primary px-3 py-1.5 font-medium text-primary-foreground text-sm disabled:cursor-not-allowed disabled:opacity-60"
         >
-          Run Stage 2 Replay
+          Run Replay
         </button>
       </div>
 

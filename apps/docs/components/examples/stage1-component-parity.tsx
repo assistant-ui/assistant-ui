@@ -186,7 +186,7 @@ const applyStage1Batch = (
 export const Stage1ComponentParity = () => {
   const [component, setComponent] = useState(INITIAL_COMPONENT);
   const [logs, setLogs] = useState<string[]>([
-    "idle: click replay to stream stage 1 patches",
+    "idle: click replay to stream deterministic component-state patches",
   ]);
   const [isRunning, setIsRunning] = useState(false);
   const replayIdRef = useRef(0);
@@ -229,7 +229,7 @@ export const Stage1ComponentParity = () => {
     <div className="not-prose rounded-xl border bg-card p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="font-medium text-sm">Stage 1 fixture replay</p>
+          <p className="font-medium text-sm">Component state replay fixture</p>
           <p className="text-muted-foreground text-xs">
             Applies `aui-state` v1 operations (`set`, `append-text`) with
             monotonic per-instance `seq`.
@@ -241,7 +241,7 @@ export const Stage1ComponentParity = () => {
           disabled={isRunning}
           className="inline-flex items-center rounded-md bg-primary px-3 py-1.5 font-medium text-primary-foreground text-sm disabled:cursor-not-allowed disabled:opacity-60"
         >
-          Run Stage 1 Replay
+          Run Replay
         </button>
       </div>
 

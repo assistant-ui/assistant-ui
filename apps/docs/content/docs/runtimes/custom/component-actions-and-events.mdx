@@ -1,25 +1,25 @@
 ---
-title: Stage 2 Component Parity
-description: Deterministic component.invoke/component.emit routing on the AI SDK runtime path.
+title: Component Actions and Events
+description: Deterministic component.invoke/component.emit routing for interactive component message parts.
 ---
 
 import { Stage2ComponentParity } from "@/components/examples/stage2-component-parity";
 
-Stage 2 establishes deterministic write-path behavior for component actions.
+This page documents deterministic write-path behavior for component actions.
 
-## What this stage guarantees
+## What this guarantees
 
 - `component.invoke` emits `{ messageId, instanceId, action, payload }`.
 - AI SDK runtime handlers settle invoke promises via `ack` or `reject`.
 - Invoke paths are deterministic: no unresolved promises when handlers are configured.
 - `component.emit` forwards `{ messageId, instanceId, event, payload }` as
   fire-and-forget.
-- AI SDK parity acceptance depends on this path; non-AI runtimes remain
-  best-effort.
+- AI SDK runtimes guarantee deterministic invoke settle semantics for this
+  path; non-AI runtimes depend on adapter implementations.
 
 ## Runnable replay demo
 
-The demo below replays a Stage 2 fixture sequence:
+The demo below replays a deterministic fixture sequence:
 
 1. invoke `refresh` and receive deterministic `ack`
 2. invoke `fail` and receive deterministic `reject`
@@ -29,7 +29,7 @@ The demo below replays a Stage 2 fixture sequence:
 
 ## Runtime wiring notes
 
-For AI SDK runtimes, bind Stage 2 handlers directly on `useAISDKRuntime`:
+For AI SDK runtimes, bind handlers directly on `useAISDKRuntime`:
 
 ```tsx
 const runtime = useAISDKRuntime(chat, {
@@ -44,7 +44,7 @@ const runtime = useAISDKRuntime(chat, {
 });
 ```
 
-## End-to-end pressure test plan
+## End-to-end contract test plan
 
 This repo typically uses focused unit/integration tests plus one targeted docs e2e path.
 To match that pattern, keep the required suite small and deterministic.

@@ -1,16 +1,18 @@
 import { expect, test } from "@playwright/test";
 
-test.describe("stage 1 component parity docs demo", () => {
+test.describe("component state hydration docs demo", () => {
   test("replays lifecycle/state transitions deterministically", async ({
     page,
   }) => {
-    await page.goto("/docs/runtimes/custom/stage1-component-parity");
+    await page.goto("/docs/runtimes/custom/component-state-hydration");
 
     await expect(
-      page.getByRole("heading", { name: "Stage 1 Component Parity" }),
+      page.getByRole("heading", {
+        name: "Component State Hydration and Replay",
+      }),
     ).toBeVisible();
 
-    await page.getByRole("button", { name: "Run Stage 1 Replay" }).click();
+    await page.getByRole("button", { name: "Run Replay" }).click();
 
     await expect(page.getByTestId("stage1-card-card_1-lifecycle")).toHaveText(
       "active",

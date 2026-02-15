@@ -1,14 +1,14 @@
 ---
-title: Stage 1 Component Parity
-description: Deterministic component lifecycle/state replay with instanceId + aui-state patch semantics.
+title: Component State Hydration and Replay
+description: Deterministic lifecycle and state replay for component message parts using instanceId-scoped patches.
 ---
 
 import { Stage1ComponentParity } from "@/components/examples/stage1-component-parity";
 
-Stage 1 establishes deterministic read-path behavior for component lifecycle
+This page documents deterministic read-path behavior for component lifecycle
 and state synchronization.
 
-## What this stage guarantees
+## What this guarantees
 
 - `component.instanceId` is required and used as the state key.
 - `metadata.unstable_state.components[instanceId]` is the canonical storage
@@ -20,7 +20,7 @@ and state synchronization.
 
 ## Runnable replay demo
 
-The demo below replays a Stage 1 fixture sequence:
+The demo below replays a deterministic fixture sequence:
 
 1. mount component `card_1` (`seq=1`, `lifecycle=mounting`)
 2. apply `seq=2` patch (`lifecycle=active`, append `state.summary`)
@@ -30,7 +30,7 @@ The demo below replays a Stage 1 fixture sequence:
 
 ## Bridge migration notes
 
-When migrating existing external bridge runtime code to Stage 1 semantics:
+When migrating existing external bridge runtime code to these semantics:
 
 1. emit `instanceId` on every component part
 2. write component state under `components/<instanceId>/...`
