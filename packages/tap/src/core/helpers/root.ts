@@ -41,9 +41,13 @@ export const setRootVersion = (
       root.changelog.length = 0;
     } else {
       // commit happened without a useEffect update (offscreen API)
-
-      if (root.committedVersion > version)
-        throw new Error("Version is less than committed version");
+      if (root.committedVersion > version) {
+        // We cannot reconstruct a pre-commit snapshot. Keep the committed state
+        // and continue instead of crashing on a recoverable render path.
+        root.version = root.committedVersion;
+        root.changelog.length = 0;
+        return;
+      }
 
       while (root.committedVersion + root.changelog.length > version) {
         root.changelog.pop();
