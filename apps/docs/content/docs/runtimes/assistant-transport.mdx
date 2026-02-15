@@ -290,6 +290,21 @@ aui-state:ObjectStreamOperation[]
 aui-state:[{"type":"set","path":["status"],"value":"completed"}]
 ```
 
+### `aui-state` Extension Contract (v1)
+
+`aui-state` is an assistant-ui wire extension. In v1, the payload is a JSON
+array of `ObjectStreamOperation` values with these supported operations:
+
+- `set`
+- `append-text`
+
+Conformance guidance for bridge/adapters:
+
+1. Treat `aui-state` as a versioned extension and pin behavior to `v1`.
+2. Emit only `set` and `append-text` operations for v1.
+3. If your backend introduces additional operations, treat that as a new
+   extension capability/version and update both producer and consumer in lockstep.
+
 **Error:**
 
 ```

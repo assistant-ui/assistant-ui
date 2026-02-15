@@ -34,6 +34,7 @@ export type UIMessageStreamChunk =
       type: "component";
       component: {
         name: string;
+        instanceId?: string;
         props?: ReadonlyJSONObject;
         parentId?: string;
       };
