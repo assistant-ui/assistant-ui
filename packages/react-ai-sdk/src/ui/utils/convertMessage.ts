@@ -49,6 +49,7 @@ const toComponentPart = (part: unknown): ComponentMessagePart | null => {
   const source = part as {
     type?: string;
     name?: unknown;
+    instanceId?: unknown;
     props?: unknown;
     parentId?: unknown;
     data?: unknown;
@@ -57,6 +58,11 @@ const toComponentPart = (part: unknown): ComponentMessagePart | null => {
   if (source.type === "component") {
     if (typeof source.name !== "string" || source.name.length === 0)
       return null;
+    if (
+      source.instanceId !== undefined &&
+      typeof source.instanceId !== "string"
+    )
+      return null;
     if (source.props !== undefined && !isJSONObject(source.props)) return null;
     if (source.parentId !== undefined && typeof source.parentId !== "string")
       return null;
@@ -64,6 +70,9 @@ const toComponentPart = (part: unknown): ComponentMessagePart | null => {
     return {
       type: "component",
       name: source.name,
+      ...(source.instanceId !== undefined
+        ? { instanceId: source.instanceId }
+        : {}),
       ...(source.props !== undefined ? { props: source.props } : {}),
       ...(source.parentId !== undefined ? { parentId: source.parentId } : {}),
     } satisfies ComponentMessagePart;
@@ -72,16 +81,19 @@ const toComponentPart = (part: unknown): ComponentMessagePart | null => {
   if (source.type === "data-component") {
     if (!isJSONObject(source.data)) return null;
     const name = source.data.name;
+    const instanceId = source.data.instanceId;
     const props = source.data.props;
     const parentId = source.data.parentId;
 
     if (typeof name !== "string" || name.length === 0) return null;
+    if (instanceId !== undefined && typeof instanceId !== "string") return null;
     if (props !== undefined && !isJSONObject(props)) return null;
     if (parentId !== undefined && typeof parentId !== "string") return null;
 
     return {
       type: "component",
       name,
+      ...(instanceId !== undefined ? { instanceId } : {}),
       ...(props !== undefined ? { props } : {}),
       ...(parentId !== undefined ? { parentId } : {}),
     } satisfies ComponentMessagePart;
