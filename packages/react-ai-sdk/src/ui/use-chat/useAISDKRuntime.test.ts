@@ -338,7 +338,7 @@ describe("useAISDKRuntime", () => {
     });
   });
 
-  it("applies runtime dataSpec validate/repair hooks during conversion", async () => {
+  it("applies runtime unstable_dataSpec validate/repair hooks during conversion", async () => {
     const chat = createChatHelpers([
       {
         id: "a1",
@@ -366,7 +366,7 @@ describe("useAISDKRuntime", () => {
 
     const { result } = renderHook(() =>
       useAISDKRuntime(chat, {
-        dataSpec: {
+        unstable_dataSpec: {
           validateSpec,
           repairSpec,
         },
@@ -403,7 +403,7 @@ describe("useAISDKRuntime", () => {
     });
   });
 
-  it("forwards runtime dataSpec telemetry callbacks from converter", async () => {
+  it("forwards runtime unstable_dataSpec telemetry callbacks from converter", async () => {
     const chat = createChatHelpers([
       {
         id: "a1",
@@ -440,7 +440,7 @@ describe("useAISDKRuntime", () => {
 
     renderHook(() =>
       useAISDKRuntime(chat, {
-        dataSpec: {
+        unstable_dataSpec: {
           onTelemetry,
         },
       }),

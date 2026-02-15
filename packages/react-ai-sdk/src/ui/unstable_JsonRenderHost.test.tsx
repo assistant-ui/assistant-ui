@@ -9,7 +9,7 @@ import {
   useAui,
 } from "@assistant-ui/react";
 import { ThreadMessageClient } from "../../../react/src/client/ThreadMessageClient";
-import { JsonRenderHost } from "./JsonRenderHost";
+import { unstable_JsonRenderHost as UnstableJsonRenderHost } from "./unstable_JsonRenderHost";
 
 const createComponentMessage = (): ThreadAssistantMessage => ({
   id: "m1",
@@ -52,11 +52,11 @@ const createAuiWrapper = (
   };
 };
 
-describe("JsonRenderHost", () => {
+describe("unstable_JsonRenderHost", () => {
   it("renders spec JSON by default", () => {
     const wrapper = createAuiWrapper(createComponentMessage());
     render(
-      <JsonRenderHost
+      <UnstableJsonRenderHost
         type="component"
         name="json-render"
         status={{ type: "complete" }}
@@ -74,7 +74,7 @@ describe("JsonRenderHost", () => {
   it("supports custom render callback", () => {
     const wrapper = createAuiWrapper(createComponentMessage());
     render(
-      <JsonRenderHost
+      <UnstableJsonRenderHost
         type="component"
         name="json-render"
         status={{ type: "complete" }}
@@ -95,7 +95,7 @@ describe("JsonRenderHost", () => {
   it("dispatches catalog renderer by spec.type", () => {
     const wrapper = createAuiWrapper(createComponentMessage());
     render(
-      <JsonRenderHost
+      <UnstableJsonRenderHost
         type="component"
         name="json-render"
         status={{ type: "complete" }}
@@ -122,7 +122,7 @@ describe("JsonRenderHost", () => {
   it("uses catalog fallback renderer when spec.type is unregistered", () => {
     const wrapper = createAuiWrapper(createComponentMessage());
     render(
-      <JsonRenderHost
+      <UnstableJsonRenderHost
         type="component"
         name="json-render"
         status={{ type: "complete" }}
@@ -210,7 +210,7 @@ describe("JsonRenderHost", () => {
     render(
       <>
         <EventBridge />
-        <JsonRenderHost
+        <UnstableJsonRenderHost
           type="component"
           name="json-render"
           status={{ type: "complete" }}
@@ -257,7 +257,7 @@ describe("JsonRenderHost", () => {
     const onCatalogTelemetry = vi.fn();
 
     render(
-      <JsonRenderHost
+      <UnstableJsonRenderHost
         type="component"
         name="json-render"
         status={{ type: "complete" }}
@@ -289,7 +289,7 @@ describe("JsonRenderHost", () => {
     const onMissTelemetry = vi.fn();
 
     render(
-      <JsonRenderHost
+      <UnstableJsonRenderHost
         type="component"
         name="json-render"
         status={{ type: "complete" }}
@@ -301,7 +301,7 @@ describe("JsonRenderHost", () => {
       { wrapper },
     );
     render(
-      <JsonRenderHost
+      <UnstableJsonRenderHost
         type="component"
         name="json-render"
         status={{ type: "complete" }}
@@ -313,7 +313,7 @@ describe("JsonRenderHost", () => {
       { wrapper },
     );
     render(
-      <JsonRenderHost
+      <UnstableJsonRenderHost
         type="component"
         name="json-render"
         status={{ type: "complete" }}

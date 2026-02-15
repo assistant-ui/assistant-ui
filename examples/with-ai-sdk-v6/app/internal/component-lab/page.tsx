@@ -10,14 +10,14 @@ import {
   type TextMessagePartComponent,
 } from "@assistant-ui/react";
 import {
-  AISDK_JSON_RENDER_COMPONENT_NAME,
+  unstable_AISDK_JSON_RENDER_COMPONENT_NAME,
   AssistantChatTransport,
-  JsonRenderHost,
-  createAISDKDataSpecTelemetrySink,
+  unstable_JsonRenderHost as UnstableJsonRenderHost,
+  unstable_createAISDKDataSpecTelemetrySink,
   type AISDKRuntimeAdapter,
-  type JsonRenderHostCatalog,
-  type JsonRenderHostCatalogRenderer,
-  type JsonRenderHostCatalogTelemetryEvent,
+  type unstable_JsonRenderHostCatalog,
+  type unstable_JsonRenderHostCatalogRenderer,
+  type unstable_JsonRenderHostCatalogTelemetryEvent,
 } from "@assistant-ui/react-ai-sdk";
 import { useCallback, useEffect, useMemo, useState, type FC } from "react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
@@ -314,7 +314,7 @@ const JsonRendererMeta: FC<{
   );
 };
 
-const StatusBoardRenderer: JsonRenderHostCatalogRenderer = ({
+const StatusBoardRenderer: unstable_JsonRenderHostCatalogRenderer = ({
   spec,
   specType,
   instanceId,
@@ -352,7 +352,7 @@ const StatusBoardRenderer: JsonRenderHostCatalogRenderer = ({
   );
 };
 
-const AuditLogRenderer: JsonRenderHostCatalogRenderer = ({
+const AuditLogRenderer: unstable_JsonRenderHostCatalogRenderer = ({
   spec,
   specType,
   instanceId,
@@ -389,7 +389,7 @@ const AuditLogRenderer: JsonRenderHostCatalogRenderer = ({
   );
 };
 
-const MetricsRenderer: JsonRenderHostCatalogRenderer = ({
+const MetricsRenderer: unstable_JsonRenderHostCatalogRenderer = ({
   spec,
   specType,
   instanceId,
@@ -424,7 +424,7 @@ const MetricsRenderer: JsonRenderHostCatalogRenderer = ({
   );
 };
 
-const JsonCatalogFallbackRenderer: JsonRenderHostCatalogRenderer = ({
+const JsonCatalogFallbackRenderer: unstable_JsonRenderHostCatalogRenderer = ({
   spec,
   specType,
   instanceId,
@@ -456,7 +456,7 @@ const JsonCatalogFallbackRenderer: JsonRenderHostCatalogRenderer = ({
   );
 };
 
-const JsonCatalogOverrideRenderer: JsonRenderHostCatalogRenderer = ({
+const JsonCatalogOverrideRenderer: unstable_JsonRenderHostCatalogRenderer = ({
   spec,
   specType,
   instanceId,
@@ -586,7 +586,8 @@ const formatSpecState = (parts: NormalizedComponentPart[]) => {
   const jsonSpecs = parts
     .filter(
       (part) =>
-        part.name === AISDK_JSON_RENDER_COMPONENT_NAME && part.instanceId,
+        part.name === unstable_AISDK_JSON_RENDER_COMPONENT_NAME &&
+        part.instanceId,
     )
     .map((part) => ({
       instanceId: part.instanceId,
@@ -698,7 +699,8 @@ const evaluateScenario = (
     );
     const missingJsonRender = parts.some(
       (part) =>
-        part.name === AISDK_JSON_RENDER_COMPONENT_NAME && !part.instanceId,
+        part.name === unstable_AISDK_JSON_RENDER_COMPONENT_NAME &&
+        !part.instanceId,
     );
     return {
       pass: missingStatusCard && missingJsonRender,
@@ -762,7 +764,7 @@ export default function ComponentPartLabPage() {
 
   const telemetrySink = useMemo(
     () =>
-      createAISDKDataSpecTelemetrySink({
+      unstable_createAISDKDataSpecTelemetrySink({
         onEvent: (event, counters) => {
           queueMicrotask(() => setTelemetry(counters));
           appendEventDeferred(
@@ -774,7 +776,7 @@ export default function ComponentPartLabPage() {
   );
 
   const onCatalogTelemetry = useCallback(
-    (event: JsonRenderHostCatalogTelemetryEvent) => {
+    (event: unstable_JsonRenderHostCatalogTelemetryEvent) => {
       setCatalogTelemetry((prev) => ({
         catalogHit: prev.catalogHit + (event.type === "catalog-hit" ? 1 : 0),
         catalogFallback:
@@ -847,7 +849,7 @@ export default function ComponentPartLabPage() {
     [appendEventDeferred, emitEnabled],
   );
 
-  const dataSpec = useMemo(
+  const unstable_dataSpec = useMemo(
     () => ({
       onTelemetry: telemetrySink.onTelemetry,
     }),
@@ -866,7 +868,7 @@ export default function ComponentPartLabPage() {
     transport,
     onComponentInvoke,
     onComponentEmit,
-    dataSpec,
+    unstable_dataSpec,
   });
 
   useEffect(() => {
@@ -928,7 +930,7 @@ export default function ComponentPartLabPage() {
 
   const activeScenario = SCENARIO_BY_ID[scenario];
 
-  const jsonRenderCatalog = useMemo<JsonRenderHostCatalog>(() => {
+  const jsonRenderCatalog = useMemo<unstable_JsonRenderHostCatalog>(() => {
     if (catalogMode === "override") {
       return {
         Override: JsonCatalogOverrideRenderer,
@@ -953,7 +955,7 @@ export default function ComponentPartLabPage() {
 
   const JsonRenderPart: ComponentMessagePartComponent = useCallback(
     (part) => (
-      <JsonRenderHost
+      <UnstableJsonRenderHost
         {...part}
         catalog={jsonRenderCatalog}
         onCatalogTelemetry={onCatalogTelemetry}
@@ -971,7 +973,7 @@ export default function ComponentPartLabPage() {
             Component: {
               by_name: {
                 "status-card": StatusCardPart,
-                [AISDK_JSON_RENDER_COMPONENT_NAME]: JsonRenderPart,
+                [unstable_AISDK_JSON_RENDER_COMPONENT_NAME]: JsonRenderPart,
               },
               Fallback: UnknownComponentPart,
             },

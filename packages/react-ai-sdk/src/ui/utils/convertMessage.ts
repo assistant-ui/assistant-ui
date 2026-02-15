@@ -13,7 +13,7 @@ import {
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
 
 type MessageMetadata = ThreadMessageLike["metadata"];
-export const AISDK_JSON_RENDER_COMPONENT_NAME = "json-render";
+export const unstable_AISDK_JSON_RENDER_COMPONENT_NAME = "json-render";
 
 const isJSONObject = (value: unknown): value is ReadonlyJSONObject => {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -132,7 +132,7 @@ type DataSpecState = {
   spec?: ReadonlyJSONObject;
 };
 
-export type AISDKDataSpecValidationContext = {
+export type unstable_AISDKDataSpecValidationContext = {
   instanceId: string;
   name: string;
   parentId?: string;
@@ -141,7 +141,7 @@ export type AISDKDataSpecValidationContext = {
   spec: ReadonlyJSONObject;
 };
 
-export type AISDKDataSpecTelemetryEvent =
+export type unstable_AISDKDataSpecTelemetryEvent =
   | {
       type: "malformed-patch-dropped";
       instanceId: string;
@@ -154,20 +154,22 @@ export type AISDKDataSpecTelemetryEvent =
       latestSeq: number;
     };
 
-export type AISDKDataSpecOptions = {
+export type unstable_AISDKDataSpecOptions = {
   validateSpec?:
-    | ((context: AISDKDataSpecValidationContext) => boolean)
+    | ((context: unstable_AISDKDataSpecValidationContext) => boolean)
     | undefined;
   repairSpec?:
     | ((
-        context: AISDKDataSpecValidationContext,
+        context: unstable_AISDKDataSpecValidationContext,
       ) => ReadonlyJSONObject | null | undefined)
     | undefined;
-  onTelemetry?: ((event: AISDKDataSpecTelemetryEvent) => void) | undefined;
+  onTelemetry?:
+    | ((event: unstable_AISDKDataSpecTelemetryEvent) => void)
+    | undefined;
 };
 
 type AISDKMessageConverterMetadata = useExternalMessageConverter.Metadata & {
-  readonly dataSpec?: AISDKDataSpecOptions;
+  readonly unstable_dataSpec?: unstable_AISDKDataSpecOptions;
 };
 
 const isDataSpecChunk = (part: unknown): part is DataSpecChunk => {
@@ -344,7 +346,7 @@ const toDataSpecUpdate = (part: unknown): DataSpecUpdate | null => {
 
   return {
     instanceId: data.instanceId,
-    name: data.name ?? AISDK_JSON_RENDER_COMPONENT_NAME,
+    name: data.name ?? unstable_AISDK_JSON_RENDER_COMPONENT_NAME,
     ...(data.parentId !== undefined ? { parentId: data.parentId } : {}),
     ...(seq !== undefined ? { seq } : {}),
     ...(data.props !== undefined ? { props: data.props } : {}),
@@ -366,7 +368,7 @@ const resolveDataSpecValidationContext = (
   current: DataSpecState,
   update: DataSpecUpdate,
   spec: ReadonlyJSONObject,
-): AISDKDataSpecValidationContext => {
+): unstable_AISDKDataSpecValidationContext => {
   return {
     instanceId: update.instanceId,
     name: update.name,
@@ -390,7 +392,7 @@ const resolveDataSpecValidationContext = (
 };
 
 const validateAndRepairSpec = (
-  options: AISDKDataSpecOptions | undefined,
+  options: unstable_AISDKDataSpecOptions | undefined,
   current: DataSpecState,
   update: DataSpecUpdate,
   spec: ReadonlyJSONObject,
@@ -433,7 +435,7 @@ const validateAndRepairSpec = (
 const applyDataSpecUpdate = (
   stateByInstanceId: Map<string, DataSpecState>,
   update: DataSpecUpdate,
-  options?: AISDKDataSpecOptions,
+  options?: unstable_AISDKDataSpecOptions,
 ): DataSpecApplyResult => {
   const current = stateByInstanceId.get(update.instanceId) ?? {
     instanceId: update.instanceId,
@@ -550,7 +552,7 @@ function convertParts(
     return [];
   }
 
-  const dataSpecOptions = metadata.dataSpec;
+  const dataSpecOptions = metadata.unstable_dataSpec;
   const stateByDataSpecInstanceId = new Map<string, DataSpecState>();
   const seenDataSpecInstanceIds = new Set<string>();
   const converted: (

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { AISDKDataSpecTelemetryEvent } from "./convertMessage";
+import type { unstable_AISDKDataSpecTelemetryEvent } from "./convertMessage";
 import { AISDKMessageConverter } from "./convertMessage";
 
 describe("AISDKMessageConverter", () => {
@@ -394,7 +394,7 @@ describe("AISDKMessageConverter", () => {
       ],
       false,
       {
-        dataSpec: {
+        unstable_dataSpec: {
           validateSpec,
           repairSpec,
         },
@@ -418,8 +418,8 @@ describe("AISDKMessageConverter", () => {
   });
 
   it("emits telemetry events for stale seq updates and malformed patches", () => {
-    const events: AISDKDataSpecTelemetryEvent[] = [];
-    const onTelemetry = (event: AISDKDataSpecTelemetryEvent) => {
+    const events: unstable_AISDKDataSpecTelemetryEvent[] = [];
+    const onTelemetry = (event: unstable_AISDKDataSpecTelemetryEvent) => {
       events.push(event);
     };
 
@@ -465,7 +465,7 @@ describe("AISDKMessageConverter", () => {
       ],
       false,
       {
-        dataSpec: {
+        unstable_dataSpec: {
           onTelemetry,
         },
       },
@@ -600,7 +600,7 @@ describe("AISDKMessageConverter", () => {
   });
 
   it("drops add/replace data-spec patch ops without value payloads", () => {
-    const events: AISDKDataSpecTelemetryEvent[] = [];
+    const events: unstable_AISDKDataSpecTelemetryEvent[] = [];
 
     const result = AISDKMessageConverter.toThreadMessages(
       [
@@ -632,7 +632,7 @@ describe("AISDKMessageConverter", () => {
       ],
       false,
       {
-        dataSpec: {
+        unstable_dataSpec: {
           onTelemetry: (event) => {
             events.push(event);
           },

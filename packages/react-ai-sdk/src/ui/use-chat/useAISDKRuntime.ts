@@ -25,7 +25,7 @@ import { vercelAttachmentAdapter } from "../utils/vercelAttachmentAdapter";
 import { getVercelAIMessages } from "../getVercelAIMessages";
 import {
   AISDKMessageConverter,
-  type AISDKDataSpecOptions,
+  type unstable_AISDKDataSpecOptions,
 } from "../utils/convertMessage";
 import {
   type AISDKStorageFormat,
@@ -75,7 +75,11 @@ export type AISDKRuntimeAdapter = {
         payload: unknown;
       }) => Promise<void> | void)
     | undefined;
-  dataSpec?: AISDKDataSpecOptions | undefined;
+  /**
+   * Experimental json-render compatibility lane.
+   * This option is unstable and may change without notice.
+   */
+  unstable_dataSpec?: unstable_AISDKDataSpecOptions | undefined;
 };
 
 export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
@@ -86,7 +90,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     cancelPendingToolCallsOnSend = true,
     onComponentInvoke,
     onComponentEmit,
-    dataSpec,
+    unstable_dataSpec,
   }: AISDKRuntimeAdapter = {},
 ) => {
   const contextAdapters = useRuntimeAdapters();
@@ -112,9 +116,9 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         toolStatuses,
         messageTiming,
         ...(chatHelpers.error && { error: chatHelpers.error.message }),
-        ...(dataSpec !== undefined ? { dataSpec } : {}),
+        ...(unstable_dataSpec !== undefined ? { unstable_dataSpec } : {}),
       }),
-      [toolStatuses, messageTiming, chatHelpers.error, dataSpec],
+      [toolStatuses, messageTiming, chatHelpers.error, unstable_dataSpec],
     ),
   });
 

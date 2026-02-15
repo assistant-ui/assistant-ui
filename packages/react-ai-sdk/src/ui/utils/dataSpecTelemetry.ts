@@ -1,29 +1,29 @@
-import type { AISDKDataSpecTelemetryEvent } from "./convertMessage";
+import type { unstable_AISDKDataSpecTelemetryEvent } from "./convertMessage";
 
-export type AISDKDataSpecTelemetryCounters = {
+export type unstable_AISDKDataSpecTelemetryCounters = {
   staleSeqIgnored: number;
   malformedPatchDropped: number;
 };
 
-export type AISDKDataSpecTelemetrySink = {
-  onTelemetry: (event: AISDKDataSpecTelemetryEvent) => void;
-  getCounters: () => AISDKDataSpecTelemetryCounters;
+export type unstable_AISDKDataSpecTelemetrySink = {
+  onTelemetry: (event: unstable_AISDKDataSpecTelemetryEvent) => void;
+  getCounters: () => unstable_AISDKDataSpecTelemetryCounters;
   reset: () => void;
 };
 
-export type CreateAISDKDataSpecTelemetrySinkOptions = {
+export type unstable_AISDKDataSpecTelemetrySinkOptions = {
   onEvent?:
     | ((
-        event: AISDKDataSpecTelemetryEvent,
-        counters: AISDKDataSpecTelemetryCounters,
+        event: unstable_AISDKDataSpecTelemetryEvent,
+        counters: unstable_AISDKDataSpecTelemetryCounters,
       ) => void)
     | undefined;
 };
 
-export const createAISDKDataSpecTelemetrySink = (
-  options: CreateAISDKDataSpecTelemetrySinkOptions = {},
-): AISDKDataSpecTelemetrySink => {
-  const counters: AISDKDataSpecTelemetryCounters = {
+export const unstable_createAISDKDataSpecTelemetrySink = (
+  options: unstable_AISDKDataSpecTelemetrySinkOptions = {},
+): unstable_AISDKDataSpecTelemetrySink => {
+  const counters: unstable_AISDKDataSpecTelemetryCounters = {
     staleSeqIgnored: 0,
     malformedPatchDropped: 0,
   };
