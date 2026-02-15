@@ -78,6 +78,7 @@ describe("useChatRuntime", () => {
   it("threads component handlers through useChatRuntime to useAISDKRuntime", () => {
     const onComponentInvoke = vi.fn();
     const onComponentEmit = vi.fn();
+    const dataSpec = { onTelemetry: vi.fn() };
     const toCreateMessage = vi.fn();
     const transport = { sendMessages: vi.fn() };
     const historyAdapter = { __type: "history-adapter" };
@@ -90,6 +91,7 @@ describe("useChatRuntime", () => {
         cancelPendingToolCallsOnSend: false,
         onComponentInvoke,
         onComponentEmit,
+        dataSpec,
       }),
     );
 
@@ -107,30 +109,35 @@ describe("useChatRuntime", () => {
         cancelPendingToolCallsOnSend: false,
         onComponentInvoke,
         onComponentEmit,
+        dataSpec,
       }),
     );
 
     expect(result.current).toEqual({ __type: "runtime" });
   });
 
-  it("keeps component handlers wired through rerenders", () => {
+  it("keeps component handlers and dataSpec wired through rerenders", () => {
     const transport = { sendMessages: vi.fn() };
     const firstInvoke = vi.fn();
     const firstEmit = vi.fn();
     const secondInvoke = vi.fn();
     const secondEmit = vi.fn();
+    const firstDataSpec = { onTelemetry: vi.fn() };
+    const secondDataSpec = { onTelemetry: vi.fn() };
 
     const { rerender } = renderHook(
-      ({ onComponentInvoke, onComponentEmit }) =>
+      ({ onComponentInvoke, onComponentEmit, dataSpec }) =>
         useChatRuntime({
           transport: transport as never,
           onComponentInvoke,
           onComponentEmit,
+          dataSpec,
         }),
       {
         initialProps: {
           onComponentInvoke: firstInvoke,
           onComponentEmit: firstEmit,
+          dataSpec: firstDataSpec,
         },
       },
     );
@@ -140,12 +147,14 @@ describe("useChatRuntime", () => {
       expect.objectContaining({
         onComponentInvoke: firstInvoke,
         onComponentEmit: firstEmit,
+        dataSpec: firstDataSpec,
       }),
     );
 
     rerender({
       onComponentInvoke: secondInvoke,
       onComponentEmit: secondEmit,
+      dataSpec: secondDataSpec,
     });
 
     expect(mockUseAISDKRuntime).toHaveBeenLastCalledWith(
@@ -153,6 +162,7 @@ describe("useChatRuntime", () => {
       expect.objectContaining({
         onComponentInvoke: secondInvoke,
         onComponentEmit: secondEmit,
+        dataSpec: secondDataSpec,
       }),
     );
   });
