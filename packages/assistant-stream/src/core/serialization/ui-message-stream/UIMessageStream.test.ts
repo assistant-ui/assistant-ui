@@ -213,6 +213,7 @@ describe("UIMessageStreamDecoder", () => {
         type: "component",
         component: {
           name: "status-chip",
+          instanceId: "status-chip-1",
           props: { label: "Ready" },
           parentId: "group-1",
         },
@@ -236,6 +237,7 @@ describe("UIMessageStreamDecoder", () => {
     expect(componentStart).toBeDefined();
     if (componentStart?.part.type === "component") {
       expect(componentStart.part.name).toBe("status-chip");
+      expect(componentStart.part.instanceId).toBe("status-chip-1");
       expect(componentStart.part.props).toEqual({ label: "Ready" });
       expect(componentStart.part.parentId).toBe("group-1");
     }

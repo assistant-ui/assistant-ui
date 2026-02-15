@@ -10,6 +10,7 @@ import { MessagePrimitiveUnstable_PartsGrouped } from "../primitives/message/Mes
 type MockPart = {
   type: "component";
   name: string;
+  instanceId?: string;
   props?: Record<string, unknown>;
   status: { type: "complete" };
   parentId?: string;
@@ -63,6 +64,7 @@ describe("MessagePrimitive component part rendering", () => {
     setMockParts({
       type: "component",
       name: "status-chip",
+      instanceId: "status-chip-1",
       props: { label: "Ready" },
       status: { type: "complete" },
     });
@@ -72,8 +74,8 @@ describe("MessagePrimitive component part rendering", () => {
         components={{
           Component: {
             by_name: {
-              "status-chip": ({ name, props, status }) => (
-                <span>{`${name}:${String(props?.label)}:${status.type}`}</span>
+              "status-chip": ({ name, instanceId, props, status }) => (
+                <span>{`${name}:${instanceId}:${String(props?.label)}:${status.type}`}</span>
               ),
             },
           },
@@ -81,7 +83,7 @@ describe("MessagePrimitive component part rendering", () => {
       />,
     );
 
-    expect(html).toContain("status-chip:Ready:complete");
+    expect(html).toContain("status-chip:status-chip-1:Ready:complete");
   });
 
   it("renders the component fallback when no by_name renderer exists", () => {

@@ -42,6 +42,7 @@ export enum DataStreamStreamChunkType {
   RedactedReasoning = "i",
   ReasoningSignature = "j",
   File = "k",
+  FinishToolCallArgs = "l",
 
   AuiUpdateStateOperations = "aui-state",
   AuiTextDelta = "aui-text-delta",
@@ -98,6 +99,9 @@ type DataStreamStreamChunkValue = {
   [DataStreamStreamChunkType.RedactedReasoning]: { data: string };
   [DataStreamStreamChunkType.ReasoningSignature]: { signature: string };
   [DataStreamStreamChunkType.File]: { data: string; mimeType: string };
+  [DataStreamStreamChunkType.FinishToolCallArgs]: {
+    toolCallId: string;
+  };
 
   // aui-extensions
   [DataStreamStreamChunkType.AuiUpdateStateOperations]: ObjectStreamOperation[];
@@ -111,6 +115,7 @@ type DataStreamStreamChunkValue = {
   };
   [DataStreamStreamChunkType.AuiComponent]: {
     name: string;
+    instanceId?: string;
     props?: ReadonlyJSONObject;
     parentId?: string;
   };

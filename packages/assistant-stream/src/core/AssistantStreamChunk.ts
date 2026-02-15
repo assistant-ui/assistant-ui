@@ -31,6 +31,7 @@ export type PartInit =
   | {
       readonly type: "component";
       readonly name: string;
+      readonly instanceId?: string;
       readonly props?: ReadonlyJSONObject;
       readonly parentId?: string;
     };

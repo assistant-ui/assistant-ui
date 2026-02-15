@@ -181,6 +181,9 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
                 : controller;
               target.appendComponent({
                 name: chunk.component.name,
+                ...(chunk.component.instanceId !== undefined
+                  ? { instanceId: chunk.component.instanceId }
+                  : {}),
                 ...(chunk.component.props !== undefined
                   ? { props: chunk.component.props }
                   : {}),
