@@ -15,6 +15,8 @@ import {
   JsonRenderHost,
   createAISDKDataSpecTelemetrySink,
   type AISDKRuntimeAdapter,
+  type JsonRenderHostCatalog,
+  type JsonRenderHostCatalogRenderer,
   useChatRuntime,
 } from "@assistant-ui/react-ai-sdk";
 import { useCallback, useMemo, useState, type FC } from "react";
@@ -50,6 +52,30 @@ const SCENARIOS: { id: Scenario; title: string; description: string }[] = [
 
 const DemoTextPart: TextMessagePartComponent = ({ text }) => {
   return <p className="whitespace-pre-wrap text-sm leading-6">{text}</p>;
+};
+
+const isObjectRecord = (value: unknown): value is Record<string, unknown> => {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+};
+
+const getSpecProps = (spec: unknown): Record<string, unknown> => {
+  if (!isObjectRecord(spec)) return {};
+  const props = spec.props;
+  return isObjectRecord(props) ? props : {};
+};
+
+const getStringArray = (value: unknown): string[] => {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === "string");
+};
+
+const getNumberRecord = (value: unknown): Record<string, number> => {
+  if (!isObjectRecord(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value).filter(
+      (entry): entry is [string, number] => typeof entry[1] === "number",
+    ),
+  );
 };
 
 const StatusCardPart: ComponentMessagePartComponent = ({
@@ -132,66 +158,204 @@ const StatusCardPart: ComponentMessagePartComponent = ({
   );
 };
 
-const JsonRenderPart: ComponentMessagePartComponent = (part) => {
+const JsonRenderActions: FC<{
+  source: string;
+  invoke: (action: string, payload?: unknown) => Promise<unknown>;
+  emit: (event: string, payload?: unknown) => void;
+}> = ({ source, invoke, emit }) => {
   const [invokeResult, setInvokeResult] = useState<string>("");
   const [invokeError, setInvokeError] = useState<string>("");
 
   return (
-    <JsonRenderHost
-      {...part}
-      render={({ spec, invoke, emit, instanceId }) => (
-        <div className="mt-2 rounded-xl border border-emerald-300 bg-emerald-50 p-3">
-          <div className="flex items-center justify-between">
-            <div className="font-semibold text-sm">json-render</div>
-            <div className="text-[11px] text-emerald-900">
-              {instanceId ?? "no-instance"}
-            </div>
-          </div>
-          <pre className="mt-2 overflow-x-auto rounded bg-white p-2 text-[11px]">
-            {JSON.stringify(spec, null, 2)}
-          </pre>
-          <div className="mt-3 flex gap-2">
-            <button
-              className="rounded-md border border-emerald-400 px-2 py-1 text-xs"
-              onClick={async () => {
-                setInvokeError("");
-                try {
-                  const result = await invoke("refresh", {
-                    source: "json-render",
-                  });
-                  setInvokeResult(JSON.stringify(result));
-                } catch (error) {
-                  setInvokeError(
-                    error instanceof Error ? error.message : "Unknown error",
-                  );
-                }
-              }}
-              type="button"
-            >
-              invoke(refresh)
-            </button>
-            <button
-              className="rounded-md border border-emerald-400 px-2 py-1 text-xs"
-              onClick={() => emit("selected", { source: "json-render" })}
-              type="button"
-            >
-              emit(selected)
-            </button>
-          </div>
-          {invokeResult ? (
-            <pre className="mt-2 overflow-x-auto rounded bg-white p-2 text-[11px]">
-              {invokeResult}
-            </pre>
-          ) : null}
-          {invokeError ? (
-            <div className="mt-2 rounded bg-red-50 p-2 text-[11px] text-red-700">
-              {invokeError}
-            </div>
-          ) : null}
+    <>
+      <div className="mt-3 flex gap-2">
+        <button
+          className="rounded-md border border-slate-400 px-2 py-1 text-xs"
+          onClick={async () => {
+            setInvokeError("");
+            try {
+              const result = await invoke("refresh", { source });
+              setInvokeResult(JSON.stringify(result));
+            } catch (error) {
+              setInvokeError(
+                error instanceof Error ? error.message : "Unknown error",
+              );
+            }
+          }}
+          type="button"
+        >
+          invoke(refresh)
+        </button>
+        <button
+          className="rounded-md border border-slate-400 px-2 py-1 text-xs"
+          onClick={() => emit("selected", { source })}
+          type="button"
+        >
+          emit(selected)
+        </button>
+      </div>
+      {invokeResult ? (
+        <pre className="mt-2 overflow-x-auto rounded bg-white p-2 text-[11px]">
+          {invokeResult}
+        </pre>
+      ) : null}
+      {invokeError ? (
+        <div className="mt-2 rounded bg-red-50 p-2 text-[11px] text-red-700">
+          {invokeError}
         </div>
-      )}
-    />
+      ) : null}
+    </>
   );
+};
+
+const StatusBoardRenderer: JsonRenderHostCatalogRenderer = ({
+  spec,
+  specType,
+  instanceId,
+  invoke,
+  emit,
+}) => {
+  const props = getSpecProps(spec);
+  const title =
+    typeof props.title === "string" ? props.title : "Untitled Status Board";
+  const state = typeof props.state === "string" ? props.state : "unknown";
+  const items = getStringArray(props.items);
+
+  return (
+    <div className="mt-2 rounded-xl border border-emerald-300 bg-emerald-50 p-3">
+      <div className="flex items-center justify-between">
+        <div className="font-semibold text-sm">{title}</div>
+        <div className="text-[11px] text-emerald-900">
+          {specType}:{instanceId ?? "no-instance"}
+        </div>
+      </div>
+      <div className="mt-1 text-emerald-900 text-xs">state: {state}</div>
+      {items.length > 0 ? (
+        <ul className="mt-2 list-disc pl-4 text-emerald-900 text-xs">
+          {items.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
+      ) : null}
+      <JsonRenderActions
+        source={specType ?? "status-board"}
+        invoke={invoke}
+        emit={emit}
+      />
+    </div>
+  );
+};
+
+const AuditLogRenderer: JsonRenderHostCatalogRenderer = ({
+  spec,
+  specType,
+  instanceId,
+  invoke,
+  emit,
+}) => {
+  const props = getSpecProps(spec);
+  const title = typeof props.title === "string" ? props.title : "Audit Log";
+  const status = typeof props.status === "string" ? props.status : "baseline";
+  const entries = getStringArray(props.entries);
+
+  return (
+    <div className="mt-2 rounded-xl border border-cyan-300 bg-cyan-50 p-3">
+      <div className="flex items-center justify-between">
+        <div className="font-semibold text-sm">{title}</div>
+        <div className="text-[11px] text-cyan-900">
+          {specType}:{instanceId ?? "no-instance"}
+        </div>
+      </div>
+      <div className="mt-1 text-cyan-900 text-xs">status: {status}</div>
+      {entries.length > 0 ? (
+        <ul className="mt-2 list-disc pl-4 text-cyan-900 text-xs">
+          {entries.map((entry) => (
+            <li key={entry}>{entry}</li>
+          ))}
+        </ul>
+      ) : null}
+      <JsonRenderActions
+        source={specType ?? "audit-log"}
+        invoke={invoke}
+        emit={emit}
+      />
+    </div>
+  );
+};
+
+const MetricsRenderer: JsonRenderHostCatalogRenderer = ({
+  spec,
+  specType,
+  instanceId,
+  invoke,
+  emit,
+}) => {
+  const props = getSpecProps(spec);
+  const title = typeof props.title === "string" ? props.title : "Metrics";
+  const metrics = getNumberRecord(props.values);
+
+  return (
+    <div className="mt-2 rounded-xl border border-violet-300 bg-violet-50 p-3">
+      <div className="flex items-center justify-between">
+        <div className="font-semibold text-sm">{title}</div>
+        <div className="text-[11px] text-violet-900">
+          {specType}:{instanceId ?? "no-instance"}
+        </div>
+      </div>
+      <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+        {Object.entries(metrics).map(([key, value]) => (
+          <div key={key} className="rounded bg-white px-2 py-1 text-violet-900">
+            <span className="font-semibold">{key}:</span> {value}
+          </div>
+        ))}
+      </div>
+      <JsonRenderActions
+        source={specType ?? "metrics"}
+        invoke={invoke}
+        emit={emit}
+      />
+    </div>
+  );
+};
+
+const JsonCatalogFallbackRenderer: JsonRenderHostCatalogRenderer = ({
+  spec,
+  specType,
+  instanceId,
+  invoke,
+  emit,
+}) => {
+  return (
+    <div className="mt-2 rounded-xl border border-amber-300 bg-amber-50 p-3">
+      <div className="font-semibold text-sm">
+        json-render fallback: {specType ?? "unknown"}
+      </div>
+      <div className="mt-1 text-[11px] text-amber-900">
+        instance: {instanceId ?? "no-instance"}
+      </div>
+      <pre className="mt-2 overflow-x-auto rounded bg-white p-2 text-[11px]">
+        {JSON.stringify(spec, null, 2)}
+      </pre>
+      <JsonRenderActions
+        source={`fallback:${specType ?? "unknown"}`}
+        invoke={invoke}
+        emit={emit}
+      />
+    </div>
+  );
+};
+
+const JSON_RENDER_CATALOG: JsonRenderHostCatalog = {
+  by_type: {
+    "status-board": StatusBoardRenderer,
+    "audit-log": AuditLogRenderer,
+    metrics: MetricsRenderer,
+  },
+  Fallback: JsonCatalogFallbackRenderer,
+};
+
+const JsonRenderPart: ComponentMessagePartComponent = (part) => {
+  return <JsonRenderHost {...part} catalog={JSON_RENDER_CATALOG} />;
 };
 
 const UnknownComponentPart: ComponentMessagePartComponent = ({

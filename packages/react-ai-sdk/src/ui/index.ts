@@ -12,6 +12,8 @@ export {
   JsonRenderHost,
   AISDK_JSON_RENDER_COMPONENT_NAME,
   type JsonRenderHostProps,
+  type JsonRenderHostCatalog,
+  type JsonRenderHostCatalogRenderer,
   type JsonRenderHostRenderContext,
 } from "./JsonRenderHost";
 export {
