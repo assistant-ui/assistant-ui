@@ -15,6 +15,19 @@ This page documents deterministic write-path behavior for component actions.
   [AI SDK v6 Runtime](/docs/runtimes/ai-sdk/v6). This page is the detailed
   contract/reference guide.
 
+## Plain-language mental model
+
+There are two ways a component can talk back to your app:
+
+- `invoke`: "I need a decision/result."  
+  Example: user clicks **Refresh quote** and waits for a success/error result.
+- `emit`: "FYI, something happened."  
+  Example: user switched tabs; log analytics or update local UI, no response
+  required.
+
+If you remember one thing: use `invoke` for request/response, use `emit` for
+fire-and-forget signals.
+
 ## What this guarantees
 
 - `component.invoke` emits `{ messageId, instanceId, action, payload }`.
@@ -34,6 +47,15 @@ The demo below replays a deterministic fixture sequence:
 3. emit `selected` as fire-and-forget
 
 <Stage2ComponentParity />
+
+### What to look for in the demo
+
+1. `refresh` resolves (`ack`) and updates the success field.
+2. `fail` rejects and surfaces an error message.
+3. `selected` emits an event without blocking UI.
+
+This mirrors common product flows like approvals, retries, and tab/filter
+changes inside assistant-rendered UI.
 
 ## Runtime wiring notes
 

@@ -16,6 +16,18 @@ and state synchronization.
   [AI SDK v6 Runtime](/docs/runtimes/ai-sdk/v6) and use this page as a
   reference for `instanceId` + patch behavior details.
 
+## Plain-language mental model
+
+Treat each component like a mini app with an ID.
+
+- `instanceId` tells you *which* mini app to update.
+- `state` is the mini app's current data.
+- `seq` is the update order number.
+- If an old update arrives late, ignore it.
+
+This prevents flicker and "jumping backwards" when streaming updates arrive out
+of order.
+
 ## What this guarantees
 
 - `component.instanceId` is required and used as the state key.
@@ -35,6 +47,15 @@ The demo below replays a deterministic fixture sequence:
 3. drop stale `seq=1` patch trying to set `lifecycle=complete`
 
 <Stage1ComponentParity />
+
+### What to look for in the demo
+
+1. The card starts in `mounting`.
+2. A newer update (`seq=2`) moves it to `active` and appends text.
+3. An older update (`seq=1`) is rejected as stale.
+
+If your product has streaming latency, this is the behavior that keeps UI state
+trustworthy.
 
 ## Bridge migration notes
 

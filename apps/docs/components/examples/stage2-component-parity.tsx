@@ -157,8 +157,8 @@ export const Stage2ComponentParity = () => {
         <div>
           <p className="font-medium text-sm">Component invoke/emit replay</p>
           <p className="text-muted-foreground text-xs">
-            Replays deterministic invoke ack/reject handling and fire-and-forget
-            emit routing.
+            Simulates user actions in a message card: one action returns a
+            result, one fails, and one sends an event.
           </p>
         </div>
         <button

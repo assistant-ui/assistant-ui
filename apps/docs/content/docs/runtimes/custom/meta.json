@@ -1,4 +1,11 @@
 {
   "title": "Custom Backend",
-  "pages": ["local", "custom-thread-list", "external-store", "tambo-bridge"]
+  "pages": [
+    "local",
+    "custom-thread-list",
+    "external-store",
+    "component-state-hydration",
+    "component-actions-and-events",
+    "tambo-bridge"
+  ]
 }

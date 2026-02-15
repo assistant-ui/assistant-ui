@@ -124,6 +124,17 @@ This is a core assistant-ui capability (not specific to any single backend
 bridge): component parts are first-class in assistant-ui message types,
 rendering primitives, and stream conversion paths.
 
+### In plain language
+
+Your assistant can return **real UI**, not just text. For example:
+
+- a booking card with selectable times
+- a pricing card with plan details and a "choose plan" action
+- a status card that updates as backend work completes
+
+These UI blocks are message parts that can keep state, react to user input,
+and send actions/events back to your app.
+
 ## Interactive Components: Start Here
 
 If you are building this feature in a product integration, this page is your
@@ -136,6 +147,17 @@ Recommended reading order:
    for `instanceId` + state patch semantics.
 3. Read [Component Actions and Events](/docs/runtimes/custom/component-actions-and-events)
    for `component.invoke` / `component.emit` runtime contracts.
+
+### What can I build with this?
+
+1. Guided workflows in chat:
+   Users click buttons in a message card instead of typing every step.
+2. Live operational UIs:
+   Show progress/status cards that update while work is running.
+3. Human-in-the-loop approvals:
+   Render approve/reject/retry controls directly in assistant responses.
+4. Structured data capture:
+   Collect form-like inputs inside a message and send them as invoke payloads.
 
 ## API Reference
 

@@ -231,8 +231,8 @@ export const Stage1ComponentParity = () => {
         <div>
           <p className="font-medium text-sm">Component state replay fixture</p>
           <p className="text-muted-foreground text-xs">
-            Applies `aui-state` v1 operations (`set`, `append-text`) with
-            monotonic per-instance `seq`.
+            Simulates a message card receiving streaming updates, then safely
+            ignoring an older out-of-order update.
           </p>
         </div>
         <button
