@@ -14,6 +14,7 @@ import {
   AssistantChatTransport,
   JsonRenderHost,
   createAISDKDataSpecTelemetrySink,
+  type AISDKRuntimeAdapter,
   useChatRuntime,
 } from "@assistant-ui/react-ai-sdk";
 import { useCallback, useMemo, useState, type FC } from "react";
@@ -260,16 +261,15 @@ export default function ComponentPartLabPage() {
     [appendEvent],
   );
 
-  const transport = useMemo(
-    () =>
-      new AssistantChatTransport({
-        api: `/api/chat-component-lab?scenario=${scenario}`,
-      }),
-    [scenario],
-  );
-  const runtime = useChatRuntime({
-    transport,
-    onComponentInvoke: async ({ messageId, instanceId, action, payload }) => {
+  const onComponentInvoke = useCallback(
+    async ({
+      messageId,
+      instanceId,
+      action,
+      payload,
+    }: Parameters<
+      NonNullable<AISDKRuntimeAdapter["onComponentInvoke"]>
+    >[0]) => {
       appendEvent(
         `invoke action=${action} message=${messageId} instance=${instanceId}`,
       );
@@ -285,20 +285,48 @@ export default function ComponentPartLabPage() {
         timestamp: new Date().toISOString(),
       };
     },
-    onComponentEmit: ({ messageId, instanceId, event, payload }) => {
+    [appendEvent],
+  );
+
+  const onComponentEmit = useCallback(
+    ({
+      messageId,
+      instanceId,
+      event,
+      payload,
+    }: Parameters<NonNullable<AISDKRuntimeAdapter["onComponentEmit"]>>[0]) => {
       appendEvent(
         `emit event=${event} message=${messageId} instance=${instanceId} payload=${JSON.stringify(payload)}`,
       );
     },
-    dataSpec: {
+    [appendEvent],
+  );
+
+  const dataSpec = useMemo(
+    () => ({
       onTelemetry: telemetrySink.onTelemetry,
-    },
+    }),
+    [telemetrySink],
+  );
+
+  const transport = useMemo(
+    () =>
+      new AssistantChatTransport({
+        api: `/api/chat-component-lab?scenario=${scenario}`,
+      }),
+    [scenario],
+  );
+  const runtime = useChatRuntime({
+    transport,
+    onComponentInvoke,
+    onComponentEmit,
+    dataSpec,
   });
 
   const activeScenario = SCENARIOS.find((item) => item.id === scenario)!;
 
   return (
-    <AssistantRuntimeProvider runtime={runtime}>
+    <AssistantRuntimeProvider key={scenario} runtime={runtime}>
       <div className="mx-auto flex min-h-screen max-w-6xl flex-col gap-4 px-4 py-6">
         <header className="rounded-xl border border-slate-200 bg-white p-4">
           <h1 className="font-semibold text-xl">Internal Component Part Lab</h1>
