@@ -91,14 +91,14 @@ const FEATURES = [
   {
     title: "Live Preview",
     description:
-      "Hot reload across every screen size — desktop, tablet, and mobile.",
+      "Hot reload across every screen size: desktop, tablet, and mobile.",
     icon: Play,
     iconColor: "text-green-400",
   },
   {
     title: "Mock Tool Responses",
     description:
-      "Stub out tool calls with JSON responses. Test success paths, errors, and edge cases — no backend needed.",
+      "Stub out tool calls with JSON responses so you can test success paths, errors, and edge cases without a backend.",
     icon: Wrench,
     iconColor: "text-orange-400",
   },
@@ -119,7 +119,7 @@ const FEATURES = [
   {
     title: "Display Modes",
     description:
-      "Preview inline, picture-in-picture, and fullscreen — exactly as it appears in Claude or ChatGPT.",
+      "Preview inline, picture-in-picture, and fullscreen, exactly as it appears in Claude or ChatGPT.",
     icon: Monitor,
     iconColor: "text-cyan-400",
   },
@@ -330,7 +330,7 @@ export default function McpAppStudioPage() {
               Build MCP apps once, run them anywhere
             </h1>
             <p className="max-w-xl text-lg text-muted-foreground">
-              MCP apps let you put real UI inside AI conversations — not just
+              MCP apps let you put real UI inside AI conversations. Not just
               text, but things people can actually interact with. Build and
               preview locally with hot reload, then export once for any host.
             </p>
@@ -410,7 +410,7 @@ export default function McpAppStudioPage() {
             </h2>
             <p className="text-muted-foreground">
               Preview your app in real time, mock tool calls, and export a
-              production-ready bundle — all from your browser.
+              production-ready bundle, all from your browser.
             </p>
           </div>
 
@@ -466,7 +466,7 @@ export default function McpAppStudioPage() {
             </h2>
             <p className="text-muted-foreground">
               Your app runs inside the host&apos;s conversation window.
-              Different hosts support different things — detect what&apos;s
+              Different hosts support different things. Detect what&apos;s
               available and adapt.
             </p>
           </div>
@@ -538,7 +538,7 @@ export default function McpAppStudioPage() {
             <code>export/manifest.json</code> at the hosted URL and register
             with your target host. The same bundle runs on MCP hosts like Claude
             and as a ChatGPT extension. Export emits <code>index.html</code>,{" "}
-            <code>widget.js</code>, and <code>widget.css</code> by default — add{" "}
+            <code>widget.js</code>, and <code>widget.css</code> by default. Add{" "}
             <code>--inline</code> for single-file HTML. The host decides which
             capabilities your app can use.
           </p>
