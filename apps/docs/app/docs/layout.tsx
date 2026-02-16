@@ -18,6 +18,7 @@ import {
 import { DocsRuntimeProvider } from "@/contexts/DocsRuntimeProvider";
 import { DocsAssistantRuntimeProvider } from "@/contexts/AssistantRuntimeProvider";
 import { CurrentPageProvider } from "@/components/docs/contexts/current-page";
+import { FloatingComposer } from "@/components/docs/assistant/floating-composer";
 
 export default function Layout({ children }: { children: ReactNode }) {
   const tabs = getSidebarTabs(source.pageTree);
@@ -52,6 +53,7 @@ export default function Layout({ children }: { children: ReactNode }) {
         </DocsRuntimeProvider>
         <DocsAssistantRuntimeProvider>
           <DocsAssistantPanel />
+          <FloatingComposer />
         </DocsAssistantRuntimeProvider>
       </AssistantPanelProvider>
     </CurrentPageProvider>

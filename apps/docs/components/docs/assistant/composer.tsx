@@ -12,6 +12,7 @@ import {
   useAui,
   useAuiState,
 } from "@assistant-ui/react";
+import { cn } from "@/lib/utils";
 import { ArrowUpIcon, SquareIcon } from "lucide-react";
 import Image from "next/image";
 import type { ReactNode } from "react";
@@ -31,7 +32,10 @@ const models = MODELS.map((m) => ({
   ...(m.disabled ? { disabled: true as const } : undefined),
 }));
 
-export function AssistantComposer(): ReactNode {
+export function AssistantComposer({
+  onSubmit: onSubmitProp,
+  className,
+}: { onSubmit?: () => void; className?: string } = {}): ReactNode {
   const aui = useAui();
   const threadId = useAuiState((s) => s.threadListItem.id);
   const currentPage = useCurrentPage();
@@ -56,14 +60,16 @@ export function AssistantComposer(): ReactNode {
       ...(pathname ? { pathname } : {}),
       ...(modelName ? { model_name: modelName } : {}),
     });
+
+    onSubmitProp?.();
   };
 
   return (
     <ComposerPrimitive.Root
       onSubmit={handleSubmit}
-      className="bg-background py-2"
+      className={cn("py-2", className)}
     >
-      <div className="rounded-xl border border-border bg-muted/50 focus-within:border-ring/50 focus-within:ring-1 focus-within:ring-ring/20">
+      <div className="rounded-xl border border-border bg-background focus-within:border-ring/50 focus-within:ring-1 focus-within:ring-ring/20">
         <ComposerPrimitive.Input asChild>
           <textarea
             placeholder="Ask a question..."

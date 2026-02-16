@@ -279,6 +279,13 @@ export const analytics = {
       trackEvent("assistant_new_thread_clicked", props);
     },
 
+    floatingComposerSubmitted: (props: {
+      message_length: number;
+      pathname?: string;
+    }) => {
+      trackEvent("assistant_floating_composer_submitted", props);
+    },
+
     feedbackSubmitted: (props: {
       threadId: string;
       messageId: string;
