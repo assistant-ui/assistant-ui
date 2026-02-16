@@ -70,6 +70,7 @@ export type ThreadUserMessagePart =
   | TextMessagePart
   | ImageMessagePart
   | FileMessagePart
+  | DataMessagePart
   | Unstable_AudioMessagePart;
 
 export type ThreadAssistantMessagePart =

@@ -187,14 +187,11 @@ export const fromThreadMessageLike = (
             case "image":
             case "audio":
             case "file":
+            case "data":
               return part;
 
             default: {
-              const unhandledType:
-                | "tool-call"
-                | "reasoning"
-                | "source"
-                | "data" = type;
+              const unhandledType: "tool-call" | "reasoning" | "source" = type;
               throw new Error(
                 `Unsupported user message part type: ${unhandledType}`,
               );
