@@ -17,9 +17,3 @@ export {
   type unstable_JsonRenderHostCatalogTelemetryEvent,
   type unstable_JsonRenderHostRenderContext,
 } from "./unstable_JsonRenderHost";
-export {
-  unstable_createAISDKDataSpecTelemetrySink,
-  type unstable_AISDKDataSpecTelemetrySink,
-  type unstable_AISDKDataSpecTelemetryCounters,
-  type unstable_AISDKDataSpecTelemetrySinkOptions,
-} from "./utils/dataSpecTelemetry";
