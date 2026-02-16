@@ -17,7 +17,7 @@ import { ArrowUpIcon, SquareIcon } from "lucide-react";
 import Image from "next/image";
 import type { ReactNode } from "react";
 
-const models = MODELS.map((m) => ({
+export const models = MODELS.map((m) => ({
   id: m.value,
   name: m.name,
   icon: (
@@ -32,16 +32,13 @@ const models = MODELS.map((m) => ({
   ...(m.disabled ? { disabled: true as const } : undefined),
 }));
 
-export function AssistantComposer({
-  onSubmit: onSubmitProp,
-  className,
-}: { onSubmit?: () => void; className?: string } = {}): ReactNode {
+export function useComposerSubmitHandler(onSubmitProp?: () => void) {
   const aui = useAui();
   const threadId = useAuiState((s) => s.threadListItem.id);
   const currentPage = useCurrentPage();
   const pathname = currentPage?.pathname;
 
-  const handleSubmit = () => {
+  return () => {
     const metrics = getComposerMessageMetrics(aui.composer().getState());
     if (!metrics) return;
 
@@ -63,6 +60,16 @@ export function AssistantComposer({
 
     onSubmitProp?.();
   };
+}
+
+export function AssistantComposer({
+  onSubmit: onSubmitProp,
+  className,
+}: {
+  onSubmit?: () => void;
+  className?: string;
+} = {}): ReactNode {
+  const handleSubmit = useComposerSubmitHandler(onSubmitProp);
 
   return (
     <ComposerPrimitive.Root
@@ -91,7 +98,7 @@ export function AssistantComposer({
   );
 }
 
-function AssistantComposerAction(): ReactNode {
+export function AssistantComposerAction(): ReactNode {
   return (
     <>
       <AuiIf condition={({ thread }) => !thread.isRunning}>
