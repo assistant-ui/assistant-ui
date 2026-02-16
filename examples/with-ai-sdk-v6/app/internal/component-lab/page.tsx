@@ -1460,7 +1460,7 @@ export default function ComponentPartLabPage() {
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
-      <div className="mx-auto flex min-h-screen max-w-7xl flex-col gap-4 px-4 py-6">
+      <div className="mx-auto flex min-h-screen max-w-7xl flex-col gap-4 bg-slate-50 px-4 py-6 text-slate-950 dark:bg-slate-950 dark:text-slate-100 dark:[&_.bg-slate-100]:bg-slate-800 dark:[&_.bg-slate-50]:bg-slate-800 dark:[&_.bg-white]:bg-slate-900 dark:[&_.border-slate-200]:border-slate-700 dark:[&_.border-slate-300]:border-slate-600 dark:[&_.border-slate-400]:border-slate-500 dark:[&_.text-slate-600]:text-slate-300 dark:[&_.text-slate-700]:text-slate-200 dark:[&_.text-slate-800]:text-slate-100 dark:[&_.text-slate-900]:text-slate-50 dark:[&_.via-white]:via-slate-900">
         <header className="rounded-xl border border-slate-200 bg-white p-4">
           <h1 className="font-semibold text-xl">Internal Component Part Lab</h1>
           <p className="mt-1 text-slate-600 text-sm">
