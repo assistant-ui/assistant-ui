@@ -1,7 +1,7 @@
 import {
   type ModelContextProvider,
   mergeModelContexts,
-} from "../model-context/ModelContextTypes";
+} from "@assistant-ui/core";
 
 export class CompositeContextProvider implements ModelContextProvider {
   private _providers = new Set<ModelContextProvider>();

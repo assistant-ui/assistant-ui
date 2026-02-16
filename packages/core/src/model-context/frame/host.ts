@@ -1,15 +1,12 @@
-import {
-  ModelContextProvider,
-  ModelContext,
-} from "../../model-context/ModelContextTypes";
-import type { Unsubscribe } from "@assistant-ui/core";
+import { ModelContextProvider, ModelContext } from "../types";
+import type { Unsubscribe } from "../../types";
 import { Tool } from "assistant-stream";
 import {
   FrameMessage,
   FRAME_MESSAGE_CHANNEL,
   SerializedModelContext,
   SerializedTool,
-} from "./AssistantFrameTypes";
+} from "./types";
 
 /**
  * Deserializes tools from JSON Schema format back to Tool objects
@@ -43,22 +40,6 @@ const deserializeModelContext = (
   }),
 });
 
-/**
- * AssistantFrameHost - Runs in the parent window and acts as a ModelContextProvider
- * that receives context from an iframe's AssistantFrameProvider.
- *
- * Usage example:
- * ```typescript
- * // In parent window
- * const frameHost = new AssistantFrameHost(iframeWindow);
- *
- * // Register with assistant runtime
- * const runtime = useAssistantRuntime();
- * runtime.registerModelContextProvider(frameHost);
- *
- * // The assistant now has access to tools from the iframe
- * ```
- */
 export class AssistantFrameHost implements ModelContextProvider {
   private _context: ModelContext = {};
   private _subscribers = new Set<() => void>();
@@ -80,12 +61,10 @@ export class AssistantFrameHost implements ModelContextProvider {
     this.handleMessage = this.handleMessage.bind(this);
     window.addEventListener("message", this.handleMessage);
 
-    // Request initial context
     this.requestContext();
   }
 
   private handleMessage(event: MessageEvent) {
-    // Security: Validate origin and source
     if (this._targetOrigin !== "*" && event.origin !== this._targetOrigin)
       return;
     if (event.source !== this._iframeWindow) return;
@@ -167,7 +146,6 @@ export class AssistantFrameHost implements ModelContextProvider {
         }
       }, timeout);
 
-      // Store original resolve/reject with timeout cleanup
       const originalResolve = this._pendingRequests.get(message.id)!.resolve;
       const originalReject = this._pendingRequests.get(message.id)!.reject;
 
@@ -185,7 +163,6 @@ export class AssistantFrameHost implements ModelContextProvider {
   }
 
   private requestContext() {
-    // Request current context from iframe
     this._iframeWindow.postMessage(
       {
         channel: FRAME_MESSAGE_CHANNEL,

@@ -6,6 +6,12 @@ import type {
   QuoteInfo,
   Unsubscribe,
 } from "@assistant-ui/core";
+import {
+  LazyMemoizeSubject,
+  ShallowMemoizeSubject,
+  SKIP_UPDATE,
+  EventSubscriptionSubject,
+} from "@assistant-ui/core/internal";
 import type {
   ComposerRuntimeCore,
   ComposerRuntimeEventType,
@@ -19,16 +25,12 @@ import type {
 } from "./RuntimeBindings";
 import type { ComposerRuntimePath } from "./RuntimePathTypes";
 
-import { LazyMemoizeSubject } from "./subscribable/LazyMemoizeSubject";
 import {
   type AttachmentRuntime,
   type AttachmentState,
   EditComposerAttachmentRuntimeImpl,
   ThreadComposerAttachmentRuntimeImpl,
 } from "./AttachmentRuntime";
-import { ShallowMemoizeSubject } from "./subscribable/ShallowMemoizeSubject";
-import { SKIP_UPDATE } from "./subscribable/SKIP_UPDATE";
-import { EventSubscriptionSubject } from "./subscribable/EventSubscriptionSubject";
 
 export type {
   ThreadComposerRuntimeCoreBinding,

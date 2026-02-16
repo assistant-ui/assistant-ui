@@ -2,9 +2,11 @@
  * @vitest-environment jsdom
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { AssistantFrameProvider } from "./AssistantFrameProvider";
-import { AssistantFrameHost } from "./AssistantFrameHost";
-import { ModelContextRegistry } from "../registry/ModelContextRegistry";
+import {
+  AssistantFrameProvider,
+  AssistantFrameHost,
+  ModelContextRegistry,
+} from "@assistant-ui/core";
 import z from "zod";
 
 describe("AssistantFrame Integration", () => {

@@ -1,8 +1,5 @@
-import {
-  ModelContextProvider,
-  ModelContext,
-} from "../../model-context/ModelContextTypes";
-import type { Unsubscribe } from "@assistant-ui/core";
+import { ModelContextProvider, ModelContext } from "../types";
+import type { Unsubscribe } from "../../types";
 import { Tool } from "assistant-stream";
 import { z } from "zod";
 import {
@@ -10,11 +7,8 @@ import {
   FRAME_MESSAGE_CHANNEL,
   SerializedModelContext,
   SerializedTool,
-} from "./AssistantFrameTypes";
+} from "./types";
 
-/**
- * Converts tools to JSON Schema format for serialization
- */
 const serializeTool = (tool: Tool<any, any>): SerializedTool => ({
   ...(tool.description && { description: tool.description }),
   parameters:
@@ -25,9 +19,6 @@ const serializeTool = (tool: Tool<any, any>): SerializedTool => ({
   ...(tool.type && { type: tool.type }),
 });
 
-/**
- * Serializes a ModelContext for transmission across iframe boundary
- */
 const serializeModelContext = (
   context: ModelContext,
 ): SerializedModelContext => ({
@@ -42,29 +33,6 @@ const serializeModelContext = (
   }),
 });
 
-/**
- * AssistantFrameProvider - Runs inside an iframe and provides ModelContextProviders
- * to the parent window's AssistantFrameHost.
- *
- * Usage example:
- * ```typescript
- * // Inside the iframe
- * // Add model context providers
- * const registry = new ModelContextRegistry();
- * AssistantFrameProvider.addModelContextProvider(registry);
- *
- * // Add tools to registry
- * registry.addTool({
- *   toolName: "search",
- *   description: "Search the web",
- *   parameters: z.object({ query: z.string() }),
- *   execute: async (args) => {
- *     // Tool implementation runs in iframe
- *     return { results: ["..."] };
- *   }
- * });
- * ```
- */
 export class AssistantFrameProvider {
   private static _instance: AssistantFrameProvider | null = null;
 
@@ -80,7 +48,6 @@ export class AssistantFrameProvider {
     this.handleMessage = this.handleMessage.bind(this);
     window.addEventListener("message", this.handleMessage);
 
-    // Send initial update on initialization
     setTimeout(() => this.broadcastUpdate(), 0);
   }
 
@@ -94,7 +61,6 @@ export class AssistantFrameProvider {
   }
 
   private handleMessage(event: MessageEvent) {
-    // Security: Validate origin if specified
     if (this._targetOrigin !== "*" && event.origin !== this._targetOrigin)
       return;
     if (event.data?.channel !== FRAME_MESSAGE_CHANNEL) return;
@@ -103,7 +69,6 @@ export class AssistantFrameProvider {
 
     switch (message.type) {
       case "model-context-request":
-        // Respond with current context
         this.sendMessage(event, {
           type: "model-context-update",
           context: serializeModelContext(this.getModelContext()),
@@ -178,7 +143,6 @@ export class AssistantFrameProvider {
   }
 
   private broadcastUpdate() {
-    // Always broadcast to parent window
     if (window.parent && window.parent !== window) {
       const updateMessage: FrameMessage = {
         type: "model-context-update",
@@ -219,7 +183,6 @@ export class AssistantFrameProvider {
       const instance = AssistantFrameProvider._instance;
       window.removeEventListener("message", instance.handleMessage);
 
-      // Unsubscribe from all providers
       instance._providerUnsubscribes.forEach((unsubscribe) => unsubscribe?.());
       instance._providerUnsubscribes.clear();
       instance._providers.clear();

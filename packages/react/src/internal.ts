@@ -4,7 +4,7 @@ export { DefaultThreadComposerRuntimeCore } from "./legacy-runtime/runtime-cores
 export { CompositeContextProvider } from "./utils/CompositeContextProvider";
 export { MessageRepository } from "./legacy-runtime/runtime-cores/utils/MessageRepository";
 export { BaseAssistantRuntimeCore } from "./legacy-runtime/runtime-cores/core/BaseAssistantRuntimeCore";
-export { generateId } from "./utils/idUtils";
+export { generateId } from "@assistant-ui/core/internal";
 export { AssistantRuntimeImpl } from "./legacy-runtime/runtime/AssistantRuntime";
 export {
   ThreadRuntimeImpl,

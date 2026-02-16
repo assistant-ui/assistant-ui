@@ -1,5 +1,5 @@
 import { parsePartialJsonObject } from "assistant-stream/utils";
-import { generateId } from "../../../utils/idUtils";
+import { generateId } from "@assistant-ui/core/internal";
 import type {
   MessageTiming,
   ReasoningMessagePart,

@@ -4,7 +4,7 @@ import type {
   PendingAttachment,
   Unsubscribe,
 } from "@assistant-ui/core";
-import { SubscribableWithState } from "./subscribable/Subscribable";
+import type { SubscribableWithState } from "@assistant-ui/core/internal";
 
 import type { ComposerRuntimeCoreBinding } from "./RuntimeBindings";
 import { AttachmentRuntimePath } from "./RuntimePathTypes";

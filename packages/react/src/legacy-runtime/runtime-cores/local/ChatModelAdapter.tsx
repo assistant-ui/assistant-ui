@@ -11,7 +11,7 @@ import type {
   ThreadStep,
   ToolCallMessagePart,
 } from "@assistant-ui/core";
-import type { ModelContext } from "../../../model-context/ModelContextTypes";
+import type { ModelContext } from "@assistant-ui/core";
 import { ReadonlyJSONValue } from "assistant-stream/utils";
 
 export type ChatModelRunUpdate = {

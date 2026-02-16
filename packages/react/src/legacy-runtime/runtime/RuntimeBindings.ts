@@ -1,11 +1,11 @@
 import type { ThreadMessage } from "@assistant-ui/core";
+import type { SubscribableWithState } from "@assistant-ui/core/internal";
 import type {
   ComposerRuntimeCore,
   ThreadComposerRuntimeCore,
 } from "../runtime-cores/core/ComposerRuntimeCore";
 import type { ThreadRuntimeCore } from "../runtime-cores/core/ThreadRuntimeCore";
 import type { ThreadListRuntimeCore } from "../runtime-cores/core/ThreadListRuntimeCore";
-import type { SubscribableWithState } from "./subscribable/Subscribable";
 import type {
   SpeechState,
   SubmittedFeedback,

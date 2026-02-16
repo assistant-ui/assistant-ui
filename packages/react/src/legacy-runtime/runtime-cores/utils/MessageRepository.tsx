@@ -1,5 +1,5 @@
 import type { RunConfig, ThreadMessage } from "@assistant-ui/core";
-import { generateId, generateOptimisticId } from "../../../utils/idUtils";
+import { generateId, generateOptimisticId } from "@assistant-ui/core/internal";
 import { ThreadMessageLike } from "../external-store";
 import { getAutoStatus } from "../external-store/auto-status";
 import { fromThreadMessageLike } from "../external-store/ThreadMessageLike";

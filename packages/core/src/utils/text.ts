@@ -1,8 +1,4 @@
-import type {
-  AppendMessage,
-  TextMessagePart,
-  ThreadMessage,
-} from "@assistant-ui/core";
+import type { AppendMessage, TextMessagePart, ThreadMessage } from "../types";
 
 export const getThreadMessageText = (
   message: ThreadMessage | AppendMessage,

@@ -13,11 +13,16 @@ const mockIsOptimisticId = vi.fn((id: string) =>
   id.startsWith("__optimistic__"),
 );
 
-vi.mock("../utils/idUtils", () => ({
-  generateId: () => mockGenerateId(),
-  generateOptimisticId: () => mockGenerateOptimisticId(),
-  isOptimisticId: (id: string) => mockIsOptimisticId(id),
-}));
+vi.mock("@assistant-ui/core/internal", async (importOriginal) => {
+  const original =
+    await importOriginal<typeof import("@assistant-ui/core/internal")>();
+  return {
+    ...original,
+    generateId: () => mockGenerateId(),
+    generateOptimisticId: () => mockGenerateOptimisticId(),
+    isOptimisticId: (id: string) => mockIsOptimisticId(id),
+  };
+});
 
 /**
  * Tests for the MessageRepository class, which manages message threads with branching capabilities.

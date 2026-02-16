@@ -18,7 +18,7 @@ import {
   fromThreadMessageLike,
   type ThreadMessageLike,
 } from "./ThreadMessageLike";
-import { getThreadMessageText } from "../../../utils/getThreadMessageText";
+import { getThreadMessageText } from "@assistant-ui/core/internal";
 import type {
   RuntimeCapabilities,
   ThreadRuntimeCore,

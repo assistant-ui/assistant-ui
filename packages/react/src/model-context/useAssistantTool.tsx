@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useAui } from "@assistant-ui/store";
 import type { ToolCallMessagePartComponent } from "../types/MessagePartComponentTypes";
-import type { AssistantToolProps as CoreAssistantToolProps } from "./ModelContextTypes";
+import type { AssistantToolProps as CoreAssistantToolProps } from "@assistant-ui/core";
 
 export type AssistantToolProps<
   TArgs extends Record<string, unknown>,

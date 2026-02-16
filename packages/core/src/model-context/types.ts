@@ -1,5 +1,9 @@
-import type { Unsubscribe } from "@assistant-ui/core";
+import type { Unsubscribe } from "../types";
 import { Tool } from "assistant-stream";
+
+// =============================================================================
+// Language Model Settings
+// =============================================================================
 
 export type LanguageModelV1CallSettings = {
   maxTokens?: number;
@@ -17,6 +21,10 @@ export type LanguageModelConfig = {
   modelName?: string;
 };
 
+// =============================================================================
+// Model Context
+// =============================================================================
+
 export type ModelContext = {
   priority?: number | undefined;
   system?: string | undefined;
@@ -29,6 +37,10 @@ export type ModelContextProvider = {
   getModelContext: () => ModelContext;
   subscribe?: (callback: () => void) => Unsubscribe;
 };
+
+// =============================================================================
+// Tool & Instruction Config
+// =============================================================================
 
 export type AssistantToolProps<
   TArgs extends Record<string, unknown>,
@@ -43,6 +55,10 @@ export type AssistantInstructionsConfig = {
   instruction: string;
 };
 
+// =============================================================================
+// Merging
+// =============================================================================
+
 export const mergeModelContexts = (
   configSet: Set<ModelContextProvider>,
 ): ModelContext => {
@@ -53,7 +69,6 @@ export const mergeModelContexts = (
   return configs.reduce((acc, config) => {
     if (config.system) {
       if (acc.system) {
-        // TODO should the separator be configurable?
         acc.system += `\n\n${config.system}`;
       } else {
         acc.system = config.system;

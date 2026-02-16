@@ -39,7 +39,16 @@
   },
   "dependencies": {
     "@assistant-ui/tap": "^0.4.6",
-    "assistant-stream": "^0.3.2"
+    "assistant-stream": "^0.3.2",
+    "nanoid": "^5.1.5"
+  },
+  "peerDependencies": {
+    "zod": "^4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "zod": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",

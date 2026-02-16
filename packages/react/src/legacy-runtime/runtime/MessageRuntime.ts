@@ -12,7 +12,12 @@ import type {
   ThreadUserMessagePart,
   Unsubscribe,
 } from "@assistant-ui/core";
-import { getThreadMessageText } from "../../utils/getThreadMessageText";
+import {
+  getThreadMessageText,
+  NestedSubscriptionSubject,
+  SKIP_UPDATE,
+  ShallowMemoizeSubject,
+} from "@assistant-ui/core/internal";
 import {
   AttachmentRuntime,
   AttachmentState,
@@ -29,9 +34,6 @@ import {
 } from "./MessagePartRuntime";
 import { MessageRuntimePath } from "./RuntimePathTypes";
 import { ThreadRuntimeCoreBinding } from "./ThreadRuntime";
-import { NestedSubscriptionSubject } from "./subscribable/NestedSubscriptionSubject";
-import { SKIP_UPDATE } from "./subscribable/SKIP_UPDATE";
-import { ShallowMemoizeSubject } from "./subscribable/ShallowMemoizeSubject";
 import type { MessageStateBinding } from "./RuntimeBindings";
 
 const COMPLETE_STATUS: MessagePartStatus = Object.freeze({

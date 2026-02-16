@@ -3,17 +3,15 @@ import {
   ModelContext,
   ModelContextProvider,
   mergeModelContexts,
-} from "../../model-context/ModelContextTypes";
-import type { Unsubscribe } from "@assistant-ui/core";
+  AssistantToolProps,
+  AssistantInstructionsConfig,
+} from "./types";
+import type { Unsubscribe } from "../types";
 import {
   ModelContextRegistryToolHandle,
   ModelContextRegistryInstructionHandle,
   ModelContextRegistryProviderHandle,
-} from "./ModelContextRegistryHandles";
-import type {
-  AssistantToolProps,
-  AssistantInstructionsConfig,
-} from "../../model-context/ModelContextTypes";
+} from "./registry-handles";
 
 export class ModelContextRegistry implements ModelContextProvider {
   private _tools = new Map<symbol, AssistantToolProps<any, any>>();
@@ -23,7 +21,6 @@ export class ModelContextRegistry implements ModelContextProvider {
   private _providerUnsubscribes = new Map<symbol, Unsubscribe | undefined>();
 
   getModelContext(): ModelContext {
-    // Merge instructions
     const instructions = Array.from(this._instructions.values()).filter(
       Boolean,
     );
@@ -31,25 +28,21 @@ export class ModelContextRegistry implements ModelContextProvider {
     const system =
       instructions.length > 0 ? instructions.join("\n\n") : undefined;
 
-    // Collect tools
     const tools: Record<string, Tool<any, any>> = {};
     for (const toolProps of this._tools.values()) {
       const { toolName, render, ...tool } = toolProps;
       tools[toolName] = tool;
     }
 
-    // Merge provider contexts
     const providerContexts = mergeModelContexts(
       new Set(this._providers.values()),
     );
 
-    // Combine everything
     const context: ModelContext = {
       system,
       tools: Object.keys(tools).length > 0 ? tools : undefined,
     };
 
-    // Merge with provider contexts
     if (providerContexts.system) {
       context.system = context.system
         ? `${context.system}\n\n${providerContexts.system}`
@@ -146,7 +139,6 @@ export class ModelContextRegistry implements ModelContextProvider {
 
     this._providers.set(id, provider);
 
-    // Subscribe to provider changes
     const unsubscribe = provider.subscribe?.(() => {
       this.notifySubscribers();
     });

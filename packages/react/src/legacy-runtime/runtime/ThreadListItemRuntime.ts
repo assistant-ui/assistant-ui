@@ -1,6 +1,6 @@
 import type { Unsubscribe } from "@assistant-ui/core";
+import type { SubscribableWithState } from "@assistant-ui/core/internal";
 import { ThreadListItemRuntimePath } from "./RuntimePathTypes";
-import { SubscribableWithState } from "./subscribable/Subscribable";
 import { ThreadListRuntimeCoreBinding } from "./ThreadListRuntime";
 
 export type ThreadListItemEventType = "switchedTo" | "switchedAway";

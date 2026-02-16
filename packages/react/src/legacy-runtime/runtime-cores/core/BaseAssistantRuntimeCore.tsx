@@ -1,4 +1,4 @@
-import { type ModelContextProvider } from "../../../model-context/ModelContextTypes";
+import { type ModelContextProvider } from "@assistant-ui/core";
 import type { Unsubscribe } from "@assistant-ui/core";
 import type { AssistantRuntimeCore } from "./AssistantRuntimeCore";
 import { CompositeContextProvider } from "../../../utils/CompositeContextProvider";

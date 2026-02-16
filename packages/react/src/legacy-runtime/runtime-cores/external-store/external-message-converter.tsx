@@ -10,7 +10,7 @@ import { fromThreadMessageLike, ThreadMessageLike } from "./ThreadMessageLike";
 import { getAutoStatus, isAutoStatus } from "./auto-status";
 import { ToolExecutionStatus } from "../assistant-transport/useToolInvocations";
 import { ReadonlyJSONValue } from "assistant-stream/utils";
-import { generateErrorMessageId } from "../../../utils/idUtils";
+import { generateErrorMessageId } from "@assistant-ui/core/internal";
 import type {
   MessageTiming,
   ThreadAssistantMessage,

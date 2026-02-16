@@ -5,9 +5,9 @@ import type {
   ToolCallMessagePartStatus,
   Unsubscribe,
 } from "@assistant-ui/core";
+import type { SubscribableWithState } from "@assistant-ui/core/internal";
 import { ThreadRuntimeCoreBinding } from "./ThreadRuntime";
 import type { MessageStateBinding } from "./RuntimeBindings";
-import { SubscribableWithState } from "./subscribable/Subscribable";
 import { MessagePartRuntimePath } from "./RuntimePathTypes";
 import { ToolResponse } from "assistant-stream";
 

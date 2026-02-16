@@ -24,8 +24,8 @@ import { DefaultEditComposerRuntimeCore } from "../composer/DefaultEditComposerR
 import { SpeechSynthesisAdapter } from "../adapters/speech/SpeechAdapterTypes";
 import { FeedbackAdapter } from "../adapters/feedback/FeedbackAdapter";
 import { AttachmentAdapter } from "../adapters/attachment";
-import { getThreadMessageText } from "../../../utils/getThreadMessageText";
-import { ModelContextProvider } from "../../../model-context";
+import { ModelContextProvider } from "@assistant-ui/core";
+import { getThreadMessageText } from "@assistant-ui/core/internal";
 import { ThreadMessageLike } from "../external-store";
 
 type BaseThreadAdapters = {

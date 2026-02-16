@@ -2,7 +2,7 @@
 
 import type { Unsubscribe } from "@assistant-ui/core";
 import { useEffect, RefObject } from "react";
-import { AssistantFrameHost } from "./AssistantFrameHost";
+import { AssistantFrameHost } from "@assistant-ui/core";
 
 type UseAssistantFrameHostOptions = {
   iframeRef: Readonly<RefObject<HTMLIFrameElement | null | undefined>>;
