@@ -11,11 +11,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MessageBubble } from "./MessageBubble";
 import { ChatComposer } from "./ChatComposer";
-import {
-  useThread,
-  useThreadRuntime,
-  type ThreadMessage,
-} from "@assistant-ui/react-native";
+import { useThread, type ThreadMessage } from "@assistant-ui/react-native";
 
 function ChatMessages() {
   const flatListRef = useRef<FlatList>(null);
@@ -79,8 +75,6 @@ export function ChatScreen() {
   const insets = useSafeAreaInsets();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
-  const threadRuntime = useThreadRuntime();
-
   return (
     <View
       style={[
@@ -96,7 +90,7 @@ export function ChatScreen() {
           <ChatMessages />
         </View>
         <View style={{ paddingBottom: insets.bottom }}>
-          <ChatComposer threadRuntime={threadRuntime} />
+          <ChatComposer />
         </View>
       </KeyboardAvoidingView>
     </View>

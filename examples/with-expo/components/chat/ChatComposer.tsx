@@ -1,4 +1,4 @@
-import { useCallback, useSyncExternalStore } from "react";
+import { useCallback } from "react";
 import {
   View,
   TextInput,
@@ -7,33 +7,23 @@ import {
   useColorScheme,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import type { ThreadRuntime } from "@assistant-ui/react-native";
+import {
+  useComposer,
+  useThread,
+  useComposerRuntime,
+  useThreadRuntime,
+} from "@assistant-ui/react-native";
 
-type ChatComposerProps = {
-  threadRuntime: ThreadRuntime;
-};
-
-export function ChatComposer({ threadRuntime }: ChatComposerProps) {
+export function ChatComposer() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
 
-  const composerRuntime = threadRuntime.composer;
+  const composerRuntime = useComposerRuntime();
+  const threadRuntime = useThreadRuntime();
 
-  const composerState = useSyncExternalStore(
-    (cb) => composerRuntime.subscribe(cb),
-    () => composerRuntime.getState(),
-    () => composerRuntime.getState(),
-  );
-
-  const threadState = useSyncExternalStore(
-    (cb) => threadRuntime.subscribe(cb),
-    () => threadRuntime.getState(),
-    () => threadRuntime.getState(),
-  );
-
-  const text = composerState.text;
-  const canSend = !composerState.isEmpty;
-  const isRunning = threadState.isRunning;
+  const text = useComposer((s) => s.text);
+  const canSend = useComposer((s) => !s.isEmpty);
+  const isRunning = useThread((s) => s.isRunning);
 
   const handleTextChange = useCallback(
     (newText: string) => {
@@ -43,16 +33,12 @@ export function ChatComposer({ threadRuntime }: ChatComposerProps) {
   );
 
   const handleSend = useCallback(() => {
-    if (canSend && !isRunning) {
-      composerRuntime.send();
-    }
-  }, [composerRuntime, canSend, isRunning]);
+    composerRuntime.send();
+  }, [composerRuntime]);
 
   const handleCancel = useCallback(() => {
-    if (isRunning) {
-      threadRuntime.cancelRun();
-    }
-  }, [threadRuntime, isRunning]);
+    threadRuntime.cancelRun();
+  }, [threadRuntime]);
 
   return (
     <View

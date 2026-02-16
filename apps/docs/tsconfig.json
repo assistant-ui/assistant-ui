@@ -11,6 +11,7 @@
       "@assistant-ui/ui/*": ["../../packages/ui/src/*"],
       "fumadocs-mdx:collections/*": ["./.source/*"],
       "@assistant-ui/*": ["../../packages/*/src"],
+      "@assistant-ui/core/*": ["../../packages/core/src/*"],
       "@assistant-ui/react/*": ["../../packages/react/src/*"],
       "@assistant-ui/tap/*": ["../../packages/tap/src/*"],
       "assistant-stream": ["../../packages/assistant-stream/src"],
