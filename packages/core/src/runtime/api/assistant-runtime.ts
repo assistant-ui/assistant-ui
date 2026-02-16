@@ -1,13 +1,13 @@
 import type { Unsubscribe } from "../../types";
 import type { ModelContextProvider } from "../../model-context";
-import type { AssistantRuntimeCore } from "../core/assistant-runtime-core";
+import type { AssistantRuntimeCore } from "../interfaces/assistant-runtime-core";
 import type { ThreadRuntime } from "./thread-runtime";
 import {
   ThreadListRuntime,
   ThreadListRuntimeImpl,
 } from "./thread-list-runtime";
-import { ExportedMessageRepository } from "../shared/message-repository";
-import type { ThreadMessageLike } from "../shared/thread-message-like";
+import { ExportedMessageRepository } from "../utils/message-repository";
+import type { ThreadMessageLike } from "../utils/thread-message-like";
 
 export type AssistantRuntime = {
   /**

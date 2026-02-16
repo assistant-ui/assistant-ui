@@ -2,7 +2,7 @@ import type {
   Attachment,
   PendingAttachment,
   CompleteAttachment,
-} from "../../types";
+} from "../types";
 
 // =============================================================================
 // Adapter Type

@@ -1,8 +1,8 @@
 import type { AppendMessage, ThreadMessage } from "../../types";
 import { getThreadMessageText } from "../../utils/text";
-import type { AttachmentAdapter } from "../adapters/attachment";
-import type { DictationAdapter } from "../adapters/speech";
-import type { ThreadRuntimeCore } from "../core/thread-runtime-core";
+import type { AttachmentAdapter } from "../../adapters/attachment";
+import type { DictationAdapter } from "../../adapters/speech";
+import type { ThreadRuntimeCore } from "../interfaces/thread-runtime-core";
 import { BaseComposerRuntimeCore } from "./base-composer-runtime-core";
 
 export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {

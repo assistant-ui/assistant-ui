@@ -4,7 +4,7 @@ import { getThreadMessageText } from "../../utils/text";
 import {
   ExportedMessageRepository,
   MessageRepository,
-} from "../shared/message-repository";
+} from "../utils/message-repository";
 import { DefaultThreadComposerRuntimeCore } from "./default-thread-composer-runtime-core";
 import type {
   AddToolResultOptions,
@@ -17,12 +17,12 @@ import type {
   ThreadRuntimeEventType,
   StartRunConfig,
   ResumeRunConfig,
-} from "../core/thread-runtime-core";
+} from "../interfaces/thread-runtime-core";
 import { DefaultEditComposerRuntimeCore } from "./default-edit-composer-runtime-core";
-import type { SpeechSynthesisAdapter } from "../adapters/speech";
-import type { FeedbackAdapter } from "../adapters/feedback";
-import type { AttachmentAdapter } from "../adapters/attachment";
-import type { ThreadMessageLike } from "../shared/thread-message-like";
+import type { SpeechSynthesisAdapter } from "../../adapters/speech";
+import type { FeedbackAdapter } from "../../adapters/feedback";
+import type { AttachmentAdapter } from "../../adapters/attachment";
+import type { ThreadMessageLike } from "../utils/thread-message-like";
 
 type BaseThreadAdapters = {
   speech?: SpeechSynthesisAdapter | undefined;

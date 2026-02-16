@@ -1,8 +1,8 @@
 import type { Unsubscribe } from "../../types";
 import type { ModelContextProvider } from "../../model-context";
 import { CompositeContextProvider } from "../../utils/composite-context-provider";
-import type { AssistantRuntimeCore } from "../core/assistant-runtime-core";
-import type { ThreadListRuntimeCore } from "../core/thread-list-runtime-core";
+import type { AssistantRuntimeCore } from "../interfaces/assistant-runtime-core";
+import type { ThreadListRuntimeCore } from "../interfaces/thread-list-runtime-core";
 
 export abstract class BaseAssistantRuntimeCore implements AssistantRuntimeCore {
   protected readonly _contextProvider = new CompositeContextProvider();

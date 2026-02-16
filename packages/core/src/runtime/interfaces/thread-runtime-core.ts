@@ -6,13 +6,13 @@ import type {
   AppendMessage,
   ThreadMessage,
 } from "../../types";
-import type { SpeechSynthesisAdapter } from "../adapters/speech";
+import type { SpeechSynthesisAdapter } from "../../adapters/speech";
 import type {
   ChatModelRunOptions,
   ChatModelRunResult,
-} from "../shared/chat-model-adapter";
-import type { ExportedMessageRepository } from "../shared/message-repository";
-import type { ThreadMessageLike } from "../shared/thread-message-like";
+} from "../utils/chat-model-adapter";
+import type { ExportedMessageRepository } from "../utils/message-repository";
+import type { ThreadMessageLike } from "../utils/thread-message-like";
 import type {
   ComposerRuntimeCore,
   ThreadComposerRuntimeCore,

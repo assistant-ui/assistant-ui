@@ -1,18 +1,18 @@
 import type { AppendMessage, ThreadMessage } from "../../types";
-import type { ThreadMessageLike } from "../shared/thread-message-like";
-import type { AttachmentAdapter } from "../adapters/attachment";
+import type { ThreadMessageLike } from "../../runtime/utils/thread-message-like";
+import type { AttachmentAdapter } from "../../adapters/attachment";
 import type {
   SpeechSynthesisAdapter,
   DictationAdapter,
-} from "../adapters/speech";
-import type { FeedbackAdapter } from "../adapters/feedback";
+} from "../../adapters/speech";
+import type { FeedbackAdapter } from "../../adapters/feedback";
 import type {
   AddToolResultOptions,
   StartRunConfig,
   ResumeRunConfig,
   ThreadSuggestion,
-} from "../core/thread-runtime-core";
-import type { ExportedMessageRepository } from "../shared/message-repository";
+} from "../../runtime/interfaces/thread-runtime-core";
+import type { ExportedMessageRepository } from "../../runtime/utils/message-repository";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
 
 export type ExternalStoreThreadData<TState extends "regular" | "archived"> = {

@@ -3,11 +3,11 @@ import type { SubscribableWithState } from "../../subscribable/subscribable";
 import type {
   ComposerRuntimeCore,
   ThreadComposerRuntimeCore,
-} from "../core/composer-runtime-core";
+} from "../interfaces/composer-runtime-core";
 import type {
   SpeechState,
   SubmittedFeedback,
-} from "../core/thread-runtime-core";
+} from "../interfaces/thread-runtime-core";
 import type { ComposerRuntimePath, MessageRuntimePath } from "./paths";
 
 export type ComposerRuntimeCoreBinding = SubscribableWithState<
@@ -44,6 +44,6 @@ export type ThreadListItemState = {
   readonly id: string;
   readonly remoteId: string | undefined;
   readonly externalId: string | undefined;
-  readonly status: import("../core/thread-list-runtime-core").ThreadListItemStatus;
+  readonly status: import("../interfaces/thread-list-runtime-core").ThreadListItemStatus;
   readonly title?: string | undefined;
 };

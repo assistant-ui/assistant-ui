@@ -1,12 +1,12 @@
-import type { ThreadHistoryAdapter } from "../adapters/thread-history";
-import type { AttachmentAdapter } from "../adapters/attachment";
-import type { FeedbackAdapter } from "../adapters/feedback";
+import type { ThreadHistoryAdapter } from "../../adapters/thread-history";
+import type { AttachmentAdapter } from "../../adapters/attachment";
+import type { FeedbackAdapter } from "../../adapters/feedback";
 import type {
   SpeechSynthesisAdapter,
   DictationAdapter,
-} from "../adapters/speech";
-import type { SuggestionAdapter } from "../adapters/suggestion";
-import type { ChatModelAdapter } from "../shared/chat-model-adapter";
+} from "../../adapters/speech";
+import type { SuggestionAdapter } from "../../adapters/suggestion";
+import type { ChatModelAdapter } from "../../runtime/utils/chat-model-adapter";
 
 export type LocalRuntimeOptionsBase = {
   maxSteps?: number | undefined;

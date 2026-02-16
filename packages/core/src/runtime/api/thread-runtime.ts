@@ -6,9 +6,9 @@ import {
   ThreadRuntimeEventType,
   StartRunConfig,
   ResumeRunConfig,
-} from "../core/thread-runtime-core";
-import { ExportedMessageRepository } from "../shared/message-repository";
-import { ThreadMessageLike } from "../shared/thread-message-like";
+} from "../interfaces/thread-runtime-core";
+import { ExportedMessageRepository } from "../utils/message-repository";
+import { ThreadMessageLike } from "../utils/thread-message-like";
 import {
   MessageRuntime,
   MessageRuntimeImpl,
@@ -37,12 +37,12 @@ import type {
   Unsubscribe,
 } from "../../types";
 import { EventSubscriptionSubject } from "../../subscribable";
-import { symbolInnerMessage } from "../shared/external-store-message";
+import { symbolInnerMessage } from "../utils/external-store-message";
 import { ModelContext } from "../../model-context";
 import {
   ChatModelRunOptions,
   ChatModelRunResult,
-} from "../shared/chat-model-adapter";
+} from "../utils/chat-model-adapter";
 import { ReadonlyJSONValue } from "assistant-stream/utils";
 
 export type CreateStartRunConfig = {

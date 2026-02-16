@@ -6,7 +6,7 @@ import type {
   PendingAttachment,
   Unsubscribe,
 } from "../../types";
-import type { DictationAdapter } from "../adapters/speech";
+import type { DictationAdapter } from "../../adapters/speech";
 
 export type ComposerRuntimeEventType = "send" | "attachmentAdd";
 

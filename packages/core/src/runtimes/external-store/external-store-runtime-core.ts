@@ -1,4 +1,4 @@
-import { BaseAssistantRuntimeCore } from "../base/base-assistant-runtime-core";
+import { BaseAssistantRuntimeCore } from "../../runtime/base/base-assistant-runtime-core";
 import { ExternalStoreThreadListRuntimeCore } from "./external-store-thread-list-runtime-core";
 import type { ExternalStoreAdapter } from "./external-store-adapter";
 import { ExternalStoreThreadRuntimeCore } from "./external-store-thread-runtime-core";

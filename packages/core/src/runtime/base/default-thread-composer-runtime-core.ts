@@ -1,8 +1,8 @@
 import type { AppendMessage, PendingAttachment } from "../../types";
-import type { AttachmentAdapter } from "../adapters/attachment";
-import type { DictationAdapter } from "../adapters/speech";
-import type { ThreadComposerRuntimeCore } from "../core/composer-runtime-core";
-import type { ThreadRuntimeCore } from "../core/thread-runtime-core";
+import type { AttachmentAdapter } from "../../adapters/attachment";
+import type { DictationAdapter } from "../../adapters/speech";
+import type { ThreadComposerRuntimeCore } from "../interfaces/composer-runtime-core";
+import type { ThreadRuntimeCore } from "../interfaces/thread-runtime-core";
 import { BaseComposerRuntimeCore } from "./base-composer-runtime-core";
 
 export class DefaultThreadComposerRuntimeCore

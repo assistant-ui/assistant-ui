@@ -6,7 +6,7 @@ import type { ThreadListRuntimeCoreBinding } from "./thread-list-runtime";
 export type ThreadListItemEventType = "switchedTo" | "switchedAway";
 
 import type { ThreadListItemState } from "./bindings";
-import type { ThreadListItemStatus } from "../core/thread-list-runtime-core";
+import type { ThreadListItemStatus } from "../interfaces/thread-list-runtime-core";
 
 export type { ThreadListItemState, ThreadListItemStatus };
 

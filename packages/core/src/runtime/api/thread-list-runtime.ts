@@ -5,7 +5,7 @@ import {
   ShallowMemoizeSubject,
   NestedSubscriptionSubject,
 } from "../../subscribable";
-import type { ThreadListRuntimeCore } from "../core/thread-list-runtime-core";
+import type { ThreadListRuntimeCore } from "../interfaces/thread-list-runtime-core";
 import {
   ThreadListItemRuntime,
   ThreadListItemRuntimeImpl,

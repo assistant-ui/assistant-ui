@@ -9,13 +9,13 @@ import type {
   Unsubscribe,
 } from "../../types";
 import { BaseSubscribable } from "../../subscribable";
-import type { AttachmentAdapter } from "../adapters/attachment";
+import type { AttachmentAdapter } from "../../adapters/attachment";
 import type {
   ComposerRuntimeCore,
   ComposerRuntimeEventType,
   DictationState,
-} from "../core/composer-runtime-core";
-import type { DictationAdapter } from "../adapters/speech";
+} from "../interfaces/composer-runtime-core";
+import type { DictationAdapter } from "../../adapters/speech";
 
 const isAttachmentComplete = (a: Attachment): a is CompleteAttachment =>
   a.status.type === "complete";

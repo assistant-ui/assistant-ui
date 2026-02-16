@@ -1,9 +1,9 @@
-import { BaseAssistantRuntimeCore } from "../base/base-assistant-runtime-core";
+import { BaseAssistantRuntimeCore } from "../../runtime/base/base-assistant-runtime-core";
 import { LocalThreadRuntimeCore } from "./local-thread-runtime-core";
 import type { LocalRuntimeOptionsBase } from "./local-runtime-options";
 import { LocalThreadListRuntimeCore } from "./local-thread-list-runtime-core";
-import { ExportedMessageRepository } from "../shared/message-repository";
-import type { ThreadMessageLike } from "../shared/thread-message-like";
+import { ExportedMessageRepository } from "../../runtime/utils/message-repository";
+import type { ThreadMessageLike } from "../../runtime/utils/thread-message-like";
 
 export class LocalRuntimeCore extends BaseAssistantRuntimeCore {
   public readonly threads;

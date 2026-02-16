@@ -5,30 +5,30 @@ import type {
   ResumeToolCallOptions,
   StartRunConfig,
   ThreadSuggestion,
-} from "../core/thread-runtime-core";
+} from "../../runtime/interfaces/thread-runtime-core";
 
 import type { ExternalStoreAdapter } from "./external-store-adapter";
 import {
   getExternalStoreMessage,
   symbolInnerMessage,
-} from "../shared/external-store-message";
+} from "../../runtime/utils/external-store-message";
 import { ThreadMessageConverter } from "./thread-message-converter";
-import { getAutoStatus, isAutoStatus } from "../shared/auto-status";
+import { getAutoStatus, isAutoStatus } from "../../runtime/utils/auto-status";
 import {
   fromThreadMessageLike,
   type ThreadMessageLike,
-} from "../shared/thread-message-like";
+} from "../../runtime/utils/thread-message-like";
 import { getThreadMessageText } from "../../utils/text";
 import type {
   RuntimeCapabilities,
   ThreadRuntimeCore,
-} from "../core/thread-runtime-core";
-import { BaseThreadRuntimeCore } from "../base/base-thread-runtime-core";
+} from "../../runtime/interfaces/thread-runtime-core";
+import { BaseThreadRuntimeCore } from "../../runtime/base/base-thread-runtime-core";
 import type { ModelContextProvider } from "../../model-context";
 import {
   ExportedMessageRepository,
   MessageRepository,
-} from "../shared/message-repository";
+} from "../../runtime/utils/message-repository";
 
 const EMPTY_ARRAY = Object.freeze([]);
 

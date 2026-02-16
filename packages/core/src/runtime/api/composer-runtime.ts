@@ -17,7 +17,7 @@ import type {
   ComposerRuntimeEventType,
   DictationState,
   ThreadComposerRuntimeCore,
-} from "../core/composer-runtime-core";
+} from "../interfaces/composer-runtime-core";
 import type {
   ThreadComposerRuntimeCoreBinding,
   EditComposerRuntimeCoreBinding,

@@ -1,9 +1,9 @@
-import { fromThreadMessageLike } from "../shared/thread-message-like";
+import { fromThreadMessageLike } from "../../runtime/utils/thread-message-like";
 import { generateId } from "../../utils/id";
 import type {
   ChatModelAdapter,
   ChatModelRunResult,
-} from "../shared/chat-model-adapter";
+} from "../../runtime/utils/chat-model-adapter";
 import { shouldContinue } from "./should-continue";
 import type { LocalRuntimeOptionsBase } from "./local-runtime-options";
 import type {
@@ -13,8 +13,8 @@ import type {
   ThreadRuntimeCore,
   StartRunConfig,
   ResumeRunConfig,
-} from "../core/thread-runtime-core";
-import { BaseThreadRuntimeCore } from "../base/base-thread-runtime-core";
+} from "../../runtime/interfaces/thread-runtime-core";
+import { BaseThreadRuntimeCore } from "../../runtime/base/base-thread-runtime-core";
 import type {
   RunConfig,
   AppendMessage,

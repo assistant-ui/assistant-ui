@@ -3,7 +3,7 @@ import type { ExternalStoreThreadRuntimeCore } from "./external-store-thread-run
 import type {
   ThreadListItemCoreState,
   ThreadListRuntimeCore,
-} from "../core/thread-list-runtime-core";
+} from "../../runtime/interfaces/thread-list-runtime-core";
 import type { ExternalStoreThreadListAdapter } from "./external-store-adapter";
 
 export type ExternalStoreThreadFactory = () => ExternalStoreThreadRuntimeCore;

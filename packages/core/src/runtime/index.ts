@@ -18,7 +18,7 @@ export type {
   ComposerRuntimeEventType,
   DictationState,
   ThreadComposerRuntimeCore,
-} from "./core/composer-runtime-core";
+} from "./interfaces/composer-runtime-core";
 
 export type {
   RuntimeCapabilities,
@@ -32,15 +32,15 @@ export type {
   StartRunConfig,
   ResumeRunConfig,
   ThreadRuntimeCore,
-} from "./core/thread-runtime-core";
+} from "./interfaces/thread-runtime-core";
 
 export type {
   ThreadListItemStatus,
   ThreadListItemCoreState,
   ThreadListRuntimeCore,
-} from "./core/thread-list-runtime-core";
+} from "./interfaces/thread-list-runtime-core";
 
-export type { AssistantRuntimeCore } from "./core/assistant-runtime-core";
+export type { AssistantRuntimeCore } from "./interfaces/assistant-runtime-core";
 
 // Public Runtime Types
 export type { AssistantRuntime } from "./api/assistant-runtime";
@@ -85,9 +85,6 @@ export type {
   AttachmentRuntime,
 } from "./api/attachment-runtime";
 
-// Adapters (types + implementations)
-export * from "./adapters";
-
 // ChatModel Types
 export type {
   ChatModelRunUpdate,
@@ -95,46 +92,17 @@ export type {
   CoreChatModelRunResult,
   ChatModelRunOptions,
   ChatModelAdapter,
-} from "./shared/chat-model-adapter";
+} from "./utils/chat-model-adapter";
 
 // ThreadMessageLike
-export type { ThreadMessageLike } from "./shared/thread-message-like";
+export type { ThreadMessageLike } from "./utils/thread-message-like";
 
 // External Store Message Utilities
 export {
   getExternalStoreMessage,
   getExternalStoreMessages,
-} from "./shared/external-store-message";
+} from "./utils/external-store-message";
 
 // ExportedMessageRepository
-export type { ExportedMessageRepositoryItem } from "./shared/message-repository";
-export { ExportedMessageRepository } from "./shared/message-repository";
-
-// Local Runtime Options
-export type { LocalRuntimeOptionsBase } from "./local/local-runtime-options";
-
-// External Store Adapter Types (user-facing)
-export type {
-  ExternalStoreAdapter,
-  ExternalStoreMessageConverter,
-  ExternalStoreThreadListAdapter,
-  ExternalStoreThreadData,
-} from "./external-store/external-store-adapter";
-
-// Remote Thread List (user-facing)
-export type {
-  RemoteThreadListAdapter,
-  RemoteThreadListOptions,
-  RemoteThreadInitializeResponse,
-  RemoteThreadMetadata,
-  RemoteThreadListResponse,
-} from "./remote-thread-list/types";
-
-export { InMemoryThreadListAdapter } from "./remote-thread-list/adapter/in-memory";
-
-// Assistant Transport Utilities
-export {
-  toAISDKTools,
-  getEnabledTools,
-  createRequestHeaders,
-} from "./assistant-transport/utils";
+export type { ExportedMessageRepositoryItem } from "./utils/message-repository";
+export { ExportedMessageRepository } from "./utils/message-repository";
