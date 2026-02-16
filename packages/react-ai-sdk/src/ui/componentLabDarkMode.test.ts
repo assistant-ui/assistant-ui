@@ -10,12 +10,16 @@ const componentLabPagePath = resolve(
 );
 
 describe("component lab dark mode", () => {
-  it("overrides light utility surfaces in dark mode", () => {
+  it("avoids hardcoded light surfaces and uses theme tokens", () => {
     const source = readFileSync(componentLabPagePath, "utf8");
 
-    expect(source).toContain("dark:[&_.bg-white]:bg-slate-900");
-    expect(source).toContain("dark:[&_.bg-slate-50]:bg-slate-800");
-    expect(source).toContain("dark:[&_.border-slate-300]:border-slate-600");
-    expect(source).toContain("dark:[&_.text-slate-700]:text-slate-200");
+    expect(source).not.toContain("bg-white");
+    expect(source).not.toContain("bg-slate-50");
+
+    expect(source).toContain("bg-background");
+    expect(source).toContain("bg-muted");
+    expect(source).toContain("border-border");
+    expect(source).toContain("text-foreground");
+    expect(source).toContain("text-muted-foreground");
   });
 });

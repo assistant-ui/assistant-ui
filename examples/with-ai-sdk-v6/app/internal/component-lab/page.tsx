@@ -227,26 +227,28 @@ const StatusCardPart: ComponentMessagePartComponent = ({
   };
 
   return (
-    <div className="mt-2 rounded-xl border border-slate-300 bg-slate-50 p-3">
+    <div className="mt-2 rounded-xl border border-border bg-muted p-3">
       <div className="flex items-center justify-between">
         <div className="font-semibold text-sm">
           {cardProps.title ?? "Status Card"}
         </div>
-        <div className="rounded-full border border-slate-400 px-2 py-[2px] text-[10px] uppercase">
+        <div className="rounded-full border border-border px-2 py-[2px] text-[10px] uppercase">
           native component
         </div>
       </div>
-      <div className="mt-1 text-slate-700 text-xs">
+      <div className="mt-1 text-muted-foreground text-xs">
         status: {cardProps.status ?? "unknown"}
       </div>
-      <div className="mt-1 text-[11px] text-slate-600">
+      <div className="mt-1 text-[11px] text-muted-foreground">
         instance={instanceId ?? "missing"} parent={parentId ?? "none"}
       </div>
       {cardProps.details ? (
-        <div className="mt-1 text-slate-600 text-xs">{cardProps.details}</div>
+        <div className="mt-1 text-muted-foreground text-xs">
+          {cardProps.details}
+        </div>
       ) : null}
       {Array.isArray(cardProps.checkList) ? (
-        <ul className="mt-2 list-disc pl-4 text-slate-700 text-xs">
+        <ul className="mt-2 list-disc pl-4 text-muted-foreground text-xs">
           {cardProps.checkList.map((item) => (
             <li key={item}>{item}</li>
           ))}
@@ -254,14 +256,14 @@ const StatusCardPart: ComponentMessagePartComponent = ({
       ) : null}
       <div className="mt-3 flex gap-2">
         <button
-          className="rounded-md border border-slate-300 px-2 py-1 text-xs"
+          className="rounded-md border border-border px-2 py-1 text-xs"
           onClick={runInvoke}
           type="button"
         >
           invoke(refresh)
         </button>
         <button
-          className="rounded-md border border-slate-300 px-2 py-1 text-xs disabled:opacity-40"
+          className="rounded-md border border-border px-2 py-1 text-xs disabled:opacity-40"
           onClick={() => component?.emit("selected", { source: "status-card" })}
           type="button"
           disabled={!component}
@@ -270,7 +272,7 @@ const StatusCardPart: ComponentMessagePartComponent = ({
         </button>
       </div>
       {invokeResult ? (
-        <pre className="mt-2 overflow-x-auto rounded bg-white p-2 text-[11px]">
+        <pre className="mt-2 overflow-x-auto rounded bg-background p-2 text-[11px]">
           {invokeResult}
         </pre>
       ) : null}
@@ -329,8 +331,8 @@ const JsonRenderActionDock: FC<{
             key={action.id}
             className={`rounded-md px-2.5 py-1.5 font-semibold text-[11px] ${
               action.type === "invoke"
-                ? "border border-slate-800 bg-slate-900 text-white"
-                : "border border-slate-300 bg-white text-slate-700"
+                ? "border border-foreground bg-foreground text-background"
+                : "border border-border bg-background text-muted-foreground"
             }`}
             onClick={() => {
               void runAction(action);
@@ -344,14 +346,14 @@ const JsonRenderActionDock: FC<{
       </div>
       {invokeResult ? (
         <pre
-          className="mt-2 overflow-x-auto rounded bg-white p-2 text-[11px]"
+          className="mt-2 overflow-x-auto rounded bg-background p-2 text-[11px]"
           data-testid={resultTestId}
         >
           {invokeResult}
         </pre>
       ) : null}
       {emitResult ? (
-        <div className="mt-2 rounded bg-slate-100 p-2 text-[11px] text-slate-700">
+        <div className="mt-2 rounded bg-muted p-2 text-[11px] text-muted-foreground">
           {emitResult}
         </div>
       ) : null}
@@ -374,14 +376,18 @@ const JsonRendererMeta: FC<{
   return (
     <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px]">
       <span
-        className="rounded-full border border-slate-400 px-2 py-[2px] uppercase"
+        className="rounded-full border border-border px-2 py-[2px] uppercase"
         data-testid="catalog-path-badge"
       >
         {badge}
       </span>
-      <span className="text-slate-700">type={specType ?? "unknown"}</span>
-      <span className="text-slate-700">instance={instanceId ?? "missing"}</span>
-      <span className="text-slate-700">parent={parentId ?? "none"}</span>
+      <span className="text-muted-foreground">
+        type={specType ?? "unknown"}
+      </span>
+      <span className="text-muted-foreground">
+        instance={instanceId ?? "missing"}
+      </span>
+      <span className="text-muted-foreground">parent={parentId ?? "none"}</span>
     </div>
   );
 };
@@ -407,7 +413,7 @@ const StatusBoardRenderer: unstable_JsonRenderHostCatalogRenderer = ({
 
   return (
     <div
-      className="mt-2 rounded-2xl border border-emerald-300 bg-gradient-to-br from-emerald-50 via-white to-teal-50 p-4 shadow-sm"
+      className="mt-2 rounded-2xl border border-emerald-300 bg-gradient-to-br from-emerald-50 via-background to-teal-50 p-4 shadow-sm"
       data-testid="json-render-status-board"
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -435,7 +441,7 @@ const StatusBoardRenderer: unstable_JsonRenderHostCatalogRenderer = ({
           {items.map((item, index) => (
             <div
               key={item}
-              className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-white px-2.5 py-2 text-emerald-900 text-xs"
+              className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-background px-2.5 py-2 text-emerald-900 text-xs"
             >
               <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-emerald-300 bg-emerald-100 font-semibold text-[10px]">
                 {index + 1}
@@ -490,7 +496,7 @@ const AuditLogRenderer: unstable_JsonRenderHostCatalogRenderer = ({
 
   return (
     <div
-      className="mt-2 rounded-2xl border border-cyan-300 bg-gradient-to-br from-cyan-50 via-white to-sky-50 p-4 shadow-sm"
+      className="mt-2 rounded-2xl border border-cyan-300 bg-gradient-to-br from-cyan-50 via-background to-sky-50 p-4 shadow-sm"
       data-testid="json-render-audit-log"
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -516,7 +522,7 @@ const AuditLogRenderer: unstable_JsonRenderHostCatalogRenderer = ({
           {entries.map((entry, index) => (
             <div
               key={`${entry}-${index}`}
-              className="relative rounded-xl border border-cyan-200 bg-white px-3 py-2 text-cyan-950 text-xs"
+              className="relative rounded-xl border border-cyan-200 bg-background px-3 py-2 text-cyan-950 text-xs"
             >
               <span className="absolute top-0 left-0 h-full w-1 rounded-l-xl bg-cyan-300" />
               <span className="pl-1">{entry}</span>
@@ -572,7 +578,7 @@ const MetricsRenderer: unstable_JsonRenderHostCatalogRenderer = ({
 
   return (
     <div
-      className="mt-2 rounded-2xl border border-violet-300 bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 p-4 shadow-sm"
+      className="mt-2 rounded-2xl border border-violet-300 bg-gradient-to-br from-violet-50 via-background to-fuchsia-50 p-4 shadow-sm"
       data-testid="json-render-metrics"
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -603,7 +609,7 @@ const MetricsRenderer: unstable_JsonRenderHostCatalogRenderer = ({
         {Object.entries(metrics).map(([key, value]) => (
           <div
             key={key}
-            className="rounded-xl border border-violet-200 bg-white px-2.5 py-2 text-violet-900"
+            className="rounded-xl border border-violet-200 bg-background px-2.5 py-2 text-violet-900"
           >
             <div className="font-semibold text-[10px] text-violet-600 uppercase tracking-wide">
               {key}
@@ -665,7 +671,7 @@ const JsonCatalogFallbackRenderer: unstable_JsonRenderHostCatalogRenderer = ({
         specType={specType}
         instanceId={instanceId}
       />
-      <pre className="mt-2 overflow-x-auto rounded bg-white p-2 text-[11px]">
+      <pre className="mt-2 overflow-x-auto rounded bg-background p-2 text-[11px]">
         {JSON.stringify(spec, null, 2)}
       </pre>
       <JsonRenderActionDock
@@ -717,7 +723,7 @@ const JsonCatalogOverrideRenderer: unstable_JsonRenderHostCatalogRenderer = ({
         specType={specType}
         instanceId={instanceId}
       />
-      <pre className="mt-2 overflow-x-auto rounded bg-white p-2 text-[11px]">
+      <pre className="mt-2 overflow-x-auto rounded bg-background p-2 text-[11px]">
         {JSON.stringify(spec, null, 2)}
       </pre>
       <JsonRenderActionDock
@@ -764,7 +770,7 @@ const UnknownComponentPart: ComponentMessagePartComponent = ({
       <div className="mt-1 text-[11px] text-amber-900">
         instance={instanceId ?? "missing"} parent={parentId ?? "none"}
       </div>
-      <pre className="mt-2 overflow-x-auto rounded bg-white p-2 text-[11px]">
+      <pre className="mt-2 overflow-x-auto rounded bg-background p-2 text-[11px]">
         {JSON.stringify(props ?? {}, null, 2)}
       </pre>
     </div>
@@ -1460,38 +1466,40 @@ export default function ComponentPartLabPage() {
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
-      <div className="mx-auto flex min-h-screen max-w-7xl flex-col gap-4 bg-slate-50 px-4 py-6 text-slate-950 dark:bg-slate-950 dark:text-slate-100 dark:[&_.bg-slate-100]:bg-slate-800 dark:[&_.bg-slate-50]:bg-slate-800 dark:[&_.bg-white]:bg-slate-900 dark:[&_.border-slate-200]:border-slate-700 dark:[&_.border-slate-300]:border-slate-600 dark:[&_.border-slate-400]:border-slate-500 dark:[&_.text-slate-600]:text-slate-300 dark:[&_.text-slate-700]:text-slate-200 dark:[&_.text-slate-800]:text-slate-100 dark:[&_.text-slate-900]:text-slate-50 dark:[&_.via-white]:via-slate-900">
-        <header className="rounded-xl border border-slate-200 bg-white p-4">
+      <div className="mx-auto flex min-h-screen max-w-7xl flex-col gap-4 bg-muted px-4 py-6 text-foreground">
+        <header className="rounded-xl border border-border bg-background p-4">
           <h1 className="font-semibold text-xl">Internal Component Part Lab</h1>
-          <p className="mt-1 text-slate-600 text-sm">
+          <p className="mt-1 text-muted-foreground text-sm">
             End-to-end pressure test for component-part substrate plus additive
             json-render lane.
           </p>
           <div className="mt-3 grid gap-3 lg:grid-cols-3">
-            <section className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs">
-              <h2 className="font-semibold text-slate-900">
+            <section className="rounded-lg border border-border bg-muted p-3 text-xs">
+              <h2 className="font-semibold text-foreground">
                 What this unlocks
               </h2>
-              <p className="mt-1 text-slate-700">
+              <p className="mt-1 text-muted-foreground">
                 Assistant responses become interactive UI graphs, not just text.
                 Each component instance is durable and targetable for invoke and
                 emit flows across streaming updates.
               </p>
             </section>
-            <section className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs">
-              <h2 className="font-semibold text-slate-900">
+            <section className="rounded-lg border border-border bg-muted p-3 text-xs">
+              <h2 className="font-semibold text-foreground">
                 Component parts + Tool UIs
               </h2>
-              <p className="mt-1 text-slate-700">
+              <p className="mt-1 text-muted-foreground">
                 Use component parts for assistant-authored presentation and
                 progressive state updates. Use Tool UIs for explicit tool
                 invocation lifecycles. They compose in one thread without
                 competing runtime models.
               </p>
             </section>
-            <section className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs">
-              <h2 className="font-semibold text-slate-900">Audience framing</h2>
-              <ul className="mt-1 space-y-1 text-slate-700">
+            <section className="rounded-lg border border-border bg-muted p-3 text-xs">
+              <h2 className="font-semibold text-foreground">
+                Audience framing
+              </h2>
+              <ul className="mt-1 space-y-1 text-muted-foreground">
                 {STORY_AUDIENCE_NOTES.map((item) => (
                   <li key={item.audience}>
                     <span className="font-semibold">{item.audience}:</span>{" "}
@@ -1502,11 +1510,11 @@ export default function ComponentPartLabPage() {
             </section>
           </div>
 
-          <section className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs">
-            <h2 className="font-semibold text-slate-900">
+          <section className="mt-3 rounded-lg border border-border bg-muted p-3 text-xs">
+            <h2 className="font-semibold text-foreground">
               90-second demo walkthrough
             </h2>
-            <ol className="mt-1 space-y-1 text-slate-700">
+            <ol className="mt-1 space-y-1 text-muted-foreground">
               {STORY_WALKTHROUGH.map((item) => (
                 <li key={item.step}>
                   <span className="font-semibold">{item.step}.</span>{" "}
@@ -1524,8 +1532,8 @@ export default function ComponentPartLabPage() {
                 type="button"
                 className={`rounded-lg border px-3 py-2 text-left text-xs ${
                   scenario === item.id
-                    ? "border-slate-900 bg-slate-900 text-white"
-                    : "border-slate-300 bg-white text-slate-800"
+                    ? "border-foreground bg-foreground text-background"
+                    : "border-border bg-background text-foreground"
                 }`}
                 onClick={() => setScenario(item.id)}
               >
@@ -1535,11 +1543,11 @@ export default function ComponentPartLabPage() {
             ))}
           </div>
 
-          <div className="mt-3 grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-3 grid gap-3 rounded-lg border border-border bg-muted p-3 sm:grid-cols-2 lg:grid-cols-4">
             <label className="flex flex-col gap-1 text-xs">
               <span className="font-semibold">Invoke Mode</span>
               <select
-                className="rounded border border-slate-300 bg-white px-2 py-1"
+                className="rounded border border-border bg-background px-2 py-1"
                 value={invokeMode}
                 onChange={(event) =>
                   setInvokeMode(event.target.value as InvokeMode)
@@ -1554,7 +1562,7 @@ export default function ComponentPartLabPage() {
             <label className="flex flex-col gap-1 text-xs">
               <span className="font-semibold">Emit Handler</span>
               <select
-                className="rounded border border-slate-300 bg-white px-2 py-1"
+                className="rounded border border-border bg-background px-2 py-1"
                 value={emitEnabled ? "enabled" : "disabled"}
                 onChange={(event) =>
                   setEmitEnabled(event.target.value === "enabled")
@@ -1568,7 +1576,7 @@ export default function ComponentPartLabPage() {
             <label className="flex flex-col gap-1 text-xs">
               <span className="font-semibold">Catalog Mode</span>
               <select
-                className="rounded border border-slate-300 bg-white px-2 py-1"
+                className="rounded border border-border bg-background px-2 py-1"
                 value={catalogMode}
                 onChange={(event) =>
                   setCatalogMode(event.target.value as CatalogMode)
@@ -1582,7 +1590,7 @@ export default function ComponentPartLabPage() {
 
             <div className="text-xs">
               <div className="font-semibold">Snapshot</div>
-              <div className="mt-1 text-[11px] text-slate-600">
+              <div className="mt-1 text-[11px] text-muted-foreground">
                 {snapshotMeta
                   ? `saved ${new Date(snapshotMeta.savedAt).toLocaleString()} (${snapshotMeta.messageCount} messages)`
                   : "none"}
@@ -1592,7 +1600,7 @@ export default function ComponentPartLabPage() {
 
           <div className="mt-3 flex flex-wrap gap-2 text-xs">
             <button
-              className="rounded-md border border-slate-300 px-2 py-1"
+              className="rounded-md border border-border px-2 py-1"
               onClick={() => {
                 void sendScenarioPrompt(scenario, "manual");
               }}
@@ -1602,7 +1610,7 @@ export default function ComponentPartLabPage() {
             </button>
             <button
               data-testid="run-matrix"
-              className="rounded-md border border-slate-300 px-2 py-1 disabled:opacity-40"
+              className="rounded-md border border-border px-2 py-1 disabled:opacity-40"
               onClick={() => {
                 void runScenarioMatrix();
               }}
@@ -1612,7 +1620,7 @@ export default function ComponentPartLabPage() {
               {isMatrixRunning ? "Running Matrix..." : "Run Scenario Matrix"}
             </button>
             <button
-              className="rounded-md border border-slate-300 px-2 py-1"
+              className="rounded-md border border-border px-2 py-1"
               onClick={() => {
                 runtime.thread.reset();
                 telemetryCountersRef.current = {
@@ -1636,28 +1644,28 @@ export default function ComponentPartLabPage() {
               Reset Thread + Telemetry + Log
             </button>
             <button
-              className="rounded-md border border-slate-300 px-2 py-1"
+              className="rounded-md border border-border px-2 py-1"
               onClick={saveSnapshot}
               type="button"
             >
               Save Snapshot
             </button>
             <button
-              className="rounded-md border border-slate-300 px-2 py-1"
+              className="rounded-md border border-border px-2 py-1"
               onClick={rehydrateSnapshot}
               type="button"
             >
               Rehydrate Snapshot
             </button>
             <button
-              className="rounded-md border border-slate-300 px-2 py-1"
+              className="rounded-md border border-border px-2 py-1"
               onClick={reloadWithRehydrate}
               type="button"
             >
               Reload + Rehydrate
             </button>
             <button
-              className="rounded-md border border-slate-300 px-2 py-1"
+              className="rounded-md border border-border px-2 py-1"
               onClick={clearSnapshot}
               type="button"
             >
@@ -1666,28 +1674,28 @@ export default function ComponentPartLabPage() {
           </div>
 
           <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2 lg:grid-cols-4">
-            <div className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1">
+            <div className="rounded-md border border-border bg-muted px-2 py-1">
               staleSeqIgnored={telemetry.staleSeqIgnored}
             </div>
-            <div className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1">
+            <div className="rounded-md border border-border bg-muted px-2 py-1">
               malformedPatchDropped={telemetry.malformedPatchDropped}
             </div>
-            <div className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1">
+            <div className="rounded-md border border-border bg-muted px-2 py-1">
               catalog(hit/fallback/override/miss)=
               {catalogTelemetry.catalogHit}/{catalogTelemetry.catalogFallback}/
               {catalogTelemetry.catalogOverride}/{catalogTelemetry.catalogMiss}
             </div>
-            <div className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1">
+            <div className="rounded-md border border-border bg-muted px-2 py-1">
               receipts(invoke/emit)={invokeReceipts}/{emitReceipts}
             </div>
           </div>
 
-          <div className="mt-2 text-[11px] text-slate-600">
+          <div className="mt-2 text-[11px] text-muted-foreground">
             Active scenario: {activeScenario.title}
           </div>
         </header>
 
-        <div className="h-[65vh] min-h-[60vh] overflow-hidden rounded-xl border border-slate-200 bg-white">
+        <div className="h-[65vh] min-h-[60vh] overflow-hidden rounded-xl border border-border bg-background">
           <Thread
             assistantMessagePartComponents={assistantMessagePartComponents}
           />
@@ -1695,24 +1703,24 @@ export default function ComponentPartLabPage() {
 
         {matrixSummary ? (
           <section
-            className="rounded-xl border border-slate-200 bg-white p-4"
+            className="rounded-xl border border-border bg-background p-4"
             data-testid="matrix-summary"
           >
             <h2 className="font-semibold text-sm">Scenario Matrix Summary</h2>
             <div className="mt-2 grid gap-2 text-xs sm:grid-cols-2 lg:grid-cols-4">
-              <div className="rounded bg-slate-50 px-2 py-1">
+              <div className="rounded bg-muted px-2 py-1">
                 runs={matrixSummary.runs} pass={matrixSummary.passes} fail=
                 {matrixSummary.failures}
               </div>
-              <div className="rounded bg-slate-50 px-2 py-1">
+              <div className="rounded bg-muted px-2 py-1">
                 receipts invoke/emit={matrixSummary.invokeReceipts}/
                 {matrixSummary.emitReceipts}
               </div>
-              <div className="rounded bg-slate-50 px-2 py-1">
+              <div className="rounded bg-muted px-2 py-1">
                 telemetry stale/malformed={matrixSummary.staleSeqIgnored}/
                 {matrixSummary.malformedPatchDropped}
               </div>
-              <div className="rounded bg-slate-50 px-2 py-1">
+              <div className="rounded bg-muted px-2 py-1">
                 catalog delta h/f/o/m={matrixSummary.catalogHit}/
                 {matrixSummary.catalogFallback}/{matrixSummary.catalogOverride}/
                 {matrixSummary.catalogMiss}
@@ -1722,7 +1730,7 @@ export default function ComponentPartLabPage() {
               {matrixSummary.results.map((result) => (
                 <details
                   key={result.scenario}
-                  className="rounded border border-slate-200 bg-slate-50 p-2"
+                  className="rounded border border-border bg-muted p-2"
                   data-testid={`matrix-${result.scenario}`}
                 >
                   <summary className="cursor-pointer text-xs">
@@ -1739,10 +1747,10 @@ export default function ComponentPartLabPage() {
                       {result.pass ? "PASS" : "FAIL"}
                     </span>
                   </summary>
-                  <div className="mt-2 text-[11px] text-slate-700">
+                  <div className="mt-2 text-[11px] text-muted-foreground">
                     {result.details}
                   </div>
-                  <pre className="mt-2 overflow-x-auto rounded bg-white p-2 text-[11px]">
+                  <pre className="mt-2 overflow-x-auto rounded bg-background p-2 text-[11px]">
                     {result.finalSpecState}
                   </pre>
                 </details>
@@ -1751,10 +1759,10 @@ export default function ComponentPartLabPage() {
           </section>
         ) : null}
 
-        <section className="rounded-xl border border-slate-200 bg-white p-4">
+        <section className="rounded-xl border border-border bg-background p-4">
           <h2 className="font-semibold text-sm">Event Log</h2>
           <pre
-            className="mt-2 max-h-72 overflow-y-auto rounded bg-slate-50 p-3 text-[11px] leading-5"
+            className="mt-2 max-h-72 overflow-y-auto rounded bg-muted p-3 text-[11px] leading-5"
             data-testid="event-log"
           >
             {eventLog.length > 0
