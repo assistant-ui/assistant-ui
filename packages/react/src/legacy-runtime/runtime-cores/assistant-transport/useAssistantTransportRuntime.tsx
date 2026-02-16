@@ -29,9 +29,9 @@ import { useCommandQueue } from "./commandQueue";
 import { useRunManager } from "./runManager";
 import { useConvertedState } from "./useConvertedState";
 import { ToolExecutionStatus, useToolInvocations } from "./useToolInvocations";
-import { createRequestHeaders } from "./utils";
+import { createRequestHeaders } from "@assistant-ui/core";
 import { useRemoteThreadListRuntime } from "../remote-thread-list/useRemoteThreadListRuntime";
-import { InMemoryThreadListAdapter } from "../remote-thread-list/adapter/in-memory";
+import { InMemoryThreadListAdapter } from "@assistant-ui/core";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import { UserExternalState } from "../../../augmentations";
 

@@ -10,7 +10,7 @@ export type {
   MessagePartRuntimePath,
   AttachmentRuntimePath,
   ComposerRuntimePath,
-} from "./paths";
+} from "./api/paths";
 
 // Runtime Core Interface Types
 export type {
@@ -18,7 +18,7 @@ export type {
   ComposerRuntimeEventType,
   DictationState,
   ThreadComposerRuntimeCore,
-} from "./composer-runtime-core";
+} from "./core/composer-runtime-core";
 
 export type {
   RuntimeCapabilities,
@@ -32,18 +32,18 @@ export type {
   StartRunConfig,
   ResumeRunConfig,
   ThreadRuntimeCore,
-} from "./thread-runtime-core";
+} from "./core/thread-runtime-core";
 
 export type {
   ThreadListItemStatus,
   ThreadListItemCoreState,
   ThreadListRuntimeCore,
-} from "./thread-list-runtime-core";
+} from "./core/thread-list-runtime-core";
 
-export type { AssistantRuntimeCore } from "./assistant-runtime-core";
+export type { AssistantRuntimeCore } from "./core/assistant-runtime-core";
 
 // Public Runtime Types
-export type { AssistantRuntime } from "./assistant-runtime";
+export type { AssistantRuntime } from "./api/assistant-runtime";
 
 export type {
   CreateStartRunConfig,
@@ -51,22 +51,25 @@ export type {
   CreateAppendMessage,
   ThreadState,
   ThreadRuntime,
-} from "./thread-runtime";
+} from "./api/thread-runtime";
 
-export type { ThreadListState, ThreadListRuntime } from "./thread-list-runtime";
+export type {
+  ThreadListState,
+  ThreadListRuntime,
+} from "./api/thread-list-runtime";
 
 export type {
   ThreadListItemEventType,
   ThreadListItemRuntime,
-} from "./thread-list-item-runtime";
+} from "./api/thread-list-item-runtime";
 
-export type { ThreadListItemState } from "./bindings";
+export type { ThreadListItemState } from "./api/bindings";
 
-export type { MessageState, MessageRuntime } from "./message-runtime";
+export type { MessageState, MessageRuntime } from "./api/message-runtime";
 export type {
   MessagePartState,
   MessagePartRuntime,
-} from "./message-part-runtime";
+} from "./api/message-part-runtime";
 
 export type {
   ThreadComposerState,
@@ -75,9 +78,12 @@ export type {
   ComposerRuntime,
   ThreadComposerRuntime,
   EditComposerRuntime,
-} from "./composer-runtime";
+} from "./api/composer-runtime";
 
-export type { AttachmentState, AttachmentRuntime } from "./attachment-runtime";
+export type {
+  AttachmentState,
+  AttachmentRuntime,
+} from "./api/attachment-runtime";
 
 // Adapters (types + implementations)
 export * from "./adapters";
@@ -89,17 +95,46 @@ export type {
   CoreChatModelRunResult,
   ChatModelRunOptions,
   ChatModelAdapter,
-} from "./chat-model-adapter";
+} from "./shared/chat-model-adapter";
 
 // ThreadMessageLike
-export type { ThreadMessageLike } from "./thread-message-like";
+export type { ThreadMessageLike } from "./shared/thread-message-like";
 
 // External Store Message Utilities
 export {
   getExternalStoreMessage,
   getExternalStoreMessages,
-} from "./external-store-message";
+} from "./shared/external-store-message";
 
 // ExportedMessageRepository
-export type { ExportedMessageRepositoryItem } from "./message-repository";
-export { ExportedMessageRepository } from "./message-repository";
+export type { ExportedMessageRepositoryItem } from "./shared/message-repository";
+export { ExportedMessageRepository } from "./shared/message-repository";
+
+// Local Runtime Options
+export type { LocalRuntimeOptionsBase } from "./local/local-runtime-options";
+
+// External Store Adapter Types (user-facing)
+export type {
+  ExternalStoreAdapter,
+  ExternalStoreMessageConverter,
+  ExternalStoreThreadListAdapter,
+  ExternalStoreThreadData,
+} from "./external-store/external-store-adapter";
+
+// Remote Thread List (user-facing)
+export type {
+  RemoteThreadListAdapter,
+  RemoteThreadListOptions,
+  RemoteThreadInitializeResponse,
+  RemoteThreadMetadata,
+  RemoteThreadListResponse,
+} from "./remote-thread-list/types";
+
+export { InMemoryThreadListAdapter } from "./remote-thread-list/adapter/in-memory";
+
+// Assistant Transport Utilities
+export {
+  toAISDKTools,
+  getEnabledTools,
+  createRequestHeaders,
+} from "./assistant-transport/utils";

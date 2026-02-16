@@ -1,5 +1,5 @@
 import type { ThreadMessage } from "../../types";
-import type { ThreadSuggestion } from "../thread-runtime-core";
+import type { ThreadSuggestion } from "../core/thread-runtime-core";
 
 type SuggestionAdapterGenerateOptions = {
   messages: readonly ThreadMessage[];

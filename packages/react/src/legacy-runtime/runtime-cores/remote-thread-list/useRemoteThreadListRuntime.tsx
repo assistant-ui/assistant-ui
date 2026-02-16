@@ -1,12 +1,16 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { BaseAssistantRuntimeCore } from "../core/BaseAssistantRuntimeCore";
+import {
+  BaseAssistantRuntimeCore,
+  AssistantRuntimeImpl,
+  type RemoteThreadListOptions,
+} from "@assistant-ui/core/internal";
+import type {
+  AssistantRuntimeCore,
+  AssistantRuntime,
+} from "@assistant-ui/core";
 import { RemoteThreadListThreadListRuntimeCore } from "./RemoteThreadListThreadListRuntimeCore";
-import { RemoteThreadListOptions } from "./types";
-import { AssistantRuntimeImpl } from "../../../internal";
-import { AssistantRuntimeCore } from "../core/AssistantRuntimeCore";
-import { AssistantRuntime } from "../../runtime/AssistantRuntime";
 import { useAui } from "@assistant-ui/store";
 
 class RemoteThreadListRuntimeCore

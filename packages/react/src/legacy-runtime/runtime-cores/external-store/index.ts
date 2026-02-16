@@ -4,14 +4,14 @@ export {
   getExternalStoreMessage,
   getExternalStoreMessages,
 } from "@assistant-ui/core";
-
-// React-specific (stay in react)
 export type {
   ExternalStoreAdapter,
   ExternalStoreMessageConverter,
   ExternalStoreThreadListAdapter,
   ExternalStoreThreadData,
-} from "./ExternalStoreAdapter";
+} from "@assistant-ui/core";
+
+// React-specific (stay in react)
 export { useExternalStoreRuntime } from "./useExternalStoreRuntime";
 export {
   useExternalMessageConverter,

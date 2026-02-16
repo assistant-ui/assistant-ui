@@ -9,10 +9,10 @@ import {
   useRef,
 } from "react";
 import { AssistantCloud } from "assistant-cloud";
-import { RemoteThreadListAdapter } from "../types";
+import type { RemoteThreadListAdapter } from "@assistant-ui/core";
+import { InMemoryThreadListAdapter } from "@assistant-ui/core";
 import { useAssistantCloudThreadHistoryAdapter } from "../../../cloud/AssistantCloudThreadHistoryAdapter";
 import { RuntimeAdapterProvider } from "../../adapters/RuntimeAdapterProvider";
-import { InMemoryThreadListAdapter } from "./in-memory";
 import { CloudFileAttachmentAdapter } from "../../adapters";
 
 type ThreadData = {

@@ -1,11 +1,11 @@
 import type {
   ChatModelRunOptions,
   ChatModelRunResult,
-} from "../chat-model-adapter";
+} from "../shared/chat-model-adapter";
 import type {
   ExportedMessageRepository,
   ExportedMessageRepositoryItem,
-} from "../message-repository";
+} from "../shared/message-repository";
 
 // =============================================================================
 // Message Format Adapter

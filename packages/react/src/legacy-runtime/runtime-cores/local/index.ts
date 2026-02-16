@@ -4,6 +4,7 @@ export type {
   ChatModelRunOptions,
   ChatModelRunResult,
   ChatModelRunUpdate,
+  LocalRuntimeOptionsBase,
 } from "@assistant-ui/core";
 
 // React-specific (stay in react)

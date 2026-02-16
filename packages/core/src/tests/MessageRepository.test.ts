@@ -2,9 +2,9 @@ import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import {
   MessageRepository,
   ExportedMessageRepository,
-} from "../runtime/message-repository";
+} from "../runtime/shared/message-repository";
 import type { ThreadMessage, TextMessagePart } from "../types";
-import type { ThreadMessageLike } from "../runtime/thread-message-like";
+import type { ThreadMessageLike } from "../runtime/shared/thread-message-like";
 
 // Mock generateId and generateOptimisticId to make tests deterministic
 const mockGenerateId = vi.fn();
