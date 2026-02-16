@@ -36,11 +36,11 @@ describe("MCP Server Integration", () => {
     const docsResult = await docsTools.execute({ paths: ["/"] });
     expect(docsResult).toBeDefined();
     expect(docsResult.content).toBeDefined();
-    expect(docsResult.content[0].type).toBe("text");
+    expect(docsResult.content[0]!.type).toBe("text");
 
     const examplesResult = await examplesTools.execute({});
     expect(examplesResult).toBeDefined();
     expect(examplesResult.content).toBeDefined();
-    expect(examplesResult.content[0].type).toBe("text");
+    expect(examplesResult.content[0]!.type).toBe("text");
   });
 });

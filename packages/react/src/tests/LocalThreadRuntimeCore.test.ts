@@ -104,7 +104,7 @@ describe("LocalThreadRuntimeCore", () => {
           content: [{ type: "text" as const, text: "partial" }],
         };
         // Wait until the abort signal fires
-        await new Promise<void>((resolve, reject) => {
+        await new Promise<void>((_resolve, reject) => {
           if (abortSignal.aborted) {
             reject(abortSignal.reason);
             return;
@@ -134,9 +134,10 @@ describe("LocalThreadRuntimeCore", () => {
     const messages = core.messages;
     expect(messages).toHaveLength(2);
     const assistant = messages[1]!;
-    expect(assistant.status.type).toBe("incomplete");
-    if (assistant.status.type === "incomplete") {
-      expect(assistant.status.reason).toBe("cancelled");
+    expect(assistant.status).toBeDefined();
+    expect(assistant.status!.type).toBe("incomplete");
+    if (assistant.status!.type === "incomplete") {
+      expect(assistant.status!.reason).toBe("cancelled");
     }
   });
 
@@ -156,10 +157,11 @@ describe("LocalThreadRuntimeCore", () => {
     const messages = core.messages;
     expect(messages).toHaveLength(2);
     const assistant = messages[1]!;
-    expect(assistant.status.type).toBe("incomplete");
-    if (assistant.status.type === "incomplete") {
-      expect(assistant.status.reason).toBe("error");
-      expect(assistant.status.error).toBe("Model unavailable");
+    expect(assistant.status).toBeDefined();
+    expect(assistant.status!.type).toBe("incomplete");
+    if (assistant.status!.type === "incomplete") {
+      expect(assistant.status!.reason).toBe("error");
+      expect(assistant.status!.error).toBe("Model unavailable");
     }
   });
 
@@ -202,8 +204,10 @@ describe("LocalThreadRuntimeCore", () => {
 
     core.addToolResult({
       messageId: assistantMsg.id,
+      toolName: "myTool",
       toolCallId: "tc1",
       result: "tool output",
+      isError: false,
     });
 
     // Wait for the second roundtrip to complete
@@ -253,8 +257,10 @@ describe("LocalThreadRuntimeCore", () => {
     const assistantMsg = core.messages[1]!;
     core.addToolResult({
       messageId: assistantMsg.id,
+      toolName: "myTool",
       toolCallId: "tc1",
       result: "result",
+      isError: false,
     });
 
     // Wait a bit to ensure no additional roundtrip happened
@@ -264,9 +270,10 @@ describe("LocalThreadRuntimeCore", () => {
     expect(adapter.run).toHaveBeenCalledTimes(1);
 
     const finalAssistant = core.messages[1]!;
-    expect(finalAssistant.status.type).toBe("incomplete");
-    if (finalAssistant.status.type === "incomplete") {
-      expect(finalAssistant.status.reason).toBe("tool-calls");
+    expect(finalAssistant.status).toBeDefined();
+    expect(finalAssistant.status!.type).toBe("incomplete");
+    if (finalAssistant.status!.type === "incomplete") {
+      expect(finalAssistant.status!.reason).toBe("tool-calls");
     }
   });
 

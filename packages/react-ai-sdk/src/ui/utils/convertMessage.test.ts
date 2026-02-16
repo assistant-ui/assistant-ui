@@ -77,7 +77,10 @@ describe("AISDKMessageConverter", () => {
       false,
       {
         toolStatuses: {
-          "tc-3": { type: "interrupt", payload: { kind: "human" } },
+          "tc-3": {
+            type: "interrupt",
+            payload: { type: "human", payload: { kind: "human" } },
+          },
         },
       },
     );
@@ -93,7 +96,8 @@ describe("AISDKMessageConverter", () => {
       reason: "interrupt",
     });
     expect(toolCalls?.find((p) => p.toolCallId === "tc-3")?.interrupt).toEqual({
-      kind: "human",
+      type: "human",
+      payload: { kind: "human" },
     });
   });
 

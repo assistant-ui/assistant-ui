@@ -134,7 +134,7 @@ describe("AssistantFrame Integration", () => {
       const context = host.getModelContext();
       expect(context.tools).toBeDefined();
       expect(context.tools?.search).toBeDefined();
-      expect(context.tools?.search.description).toBe("Search the web");
+      expect(context.tools?.search?.description).toBe("Search the web");
     });
 
     // Clean up

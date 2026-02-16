@@ -77,13 +77,13 @@ describe("useAISDKRuntime", () => {
       result.current.thread.append({
         role: "user",
         content: [{ type: "text", text: "hello" }],
-        runConfig: { model: "gpt-4.1" },
+        runConfig: { custom: { model: "gpt-4.1" } },
       });
     });
 
     await waitFor(() => {
       expect(chat.sendMessage).toHaveBeenCalledWith(expect.anything(), {
-        metadata: { model: "gpt-4.1" },
+        metadata: { custom: { model: "gpt-4.1" } },
       });
     });
   });
@@ -168,7 +168,7 @@ describe("useAISDKRuntime", () => {
         role: "user",
         parentId: "u1",
         content: [{ type: "text", text: "rewrite first" }],
-        runConfig: { temperature: 0.2 },
+        runConfig: { custom: { temperature: 0.2 } },
       });
     });
 
@@ -180,7 +180,7 @@ describe("useAISDKRuntime", () => {
     expect(chat.messages.map((m: any) => m.id)).toEqual(["u1", "a1"]);
     expect(chat.sendMessage).toHaveBeenCalledWith(
       expect.objectContaining({ role: "user" }),
-      { metadata: { temperature: 0.2 } },
+      { metadata: { custom: { temperature: 0.2 } } },
     );
   });
 
@@ -209,7 +209,7 @@ describe("useAISDKRuntime", () => {
     act(() => {
       result.current.thread.startRun({
         parentId: "u1",
-        runConfig: { maxTokens: 100 },
+        runConfig: { custom: { maxTokens: 100 } },
       });
     });
 
@@ -219,7 +219,7 @@ describe("useAISDKRuntime", () => {
 
     expect(chat.messages.map((m: any) => m.id)).toEqual(["u1", "a1"]);
     expect(chat.regenerate).toHaveBeenCalledWith({
-      metadata: { maxTokens: 100 },
+      metadata: { custom: { maxTokens: 100 } },
     });
   });
 });

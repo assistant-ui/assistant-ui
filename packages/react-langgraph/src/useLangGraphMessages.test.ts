@@ -60,9 +60,9 @@ describe("useLangGraphMessages", {}, () => {
 
     await waitFor(() => {
       expect(result.current.messages.length).toEqual(2);
-      expect(result.current.messages[0].type).toEqual("human");
-      expect(result.current.messages[1].type).toEqual("ai");
-      expect(result.current.messages[1].content).toEqual("");
+      expect(result.current.messages[0]!.type).toEqual("human");
+      expect(result.current.messages[1]!.type).toEqual("ai");
+      expect(result.current.messages[1]!.content).toEqual("");
     });
   });
 
@@ -149,13 +149,13 @@ describe("useLangGraphMessages", {}, () => {
 
     await waitFor(() => {
       expect(result.current.messages.length).toEqual(2);
-      expect(result.current.messages[0].type).toEqual("human");
-      expect(result.current.messages[1].type).toEqual("ai");
+      expect(result.current.messages[0]!.type).toEqual("human");
+      expect(result.current.messages[1]!.type).toEqual("ai");
       expect(
-        (result.current.messages[1].content[0] as MessageContentText).type,
+        (result.current.messages[1]!.content[0] as MessageContentText).type,
       ).toEqual("text");
       expect(
-        (result.current.messages[1].content[0] as MessageContentText).text,
+        (result.current.messages[1]!.content[0] as MessageContentText).text,
       ).toEqual("Hello! How may I assist you today?");
     });
   });
@@ -243,16 +243,16 @@ describe("useLangGraphMessages", {}, () => {
 
     await waitFor(() => {
       expect(result.current.messages.length).toEqual(3);
-      expect(result.current.messages[0].type).toEqual("human");
-      expect(result.current.messages[1].type).toEqual("ai");
-      expect(result.current.messages[2].type).toEqual("ai");
+      expect(result.current.messages[0]!.type).toEqual("human");
+      expect(result.current.messages[1]!.type).toEqual("ai");
+      expect(result.current.messages[2]!.type).toEqual("ai");
       expect(
-        (result.current.messages[1].content[0] as MessageContentText).type,
+        (result.current.messages[1]!.content[0] as MessageContentText).type,
       ).toEqual("text");
       expect(
-        (result.current.messages[1].content[0] as MessageContentText).text,
+        (result.current.messages[1]!.content[0] as MessageContentText).text,
       ).toEqual("Hello!");
-      expect(result.current.messages[2].content as string).toEqual(
+      expect(result.current.messages[2]!.content as string).toEqual(
         " How may I assist you today?",
       );
     });
@@ -363,23 +363,23 @@ describe("useLangGraphMessages", {}, () => {
 
     await waitFor(() => {
       expect(result.current.messages.length).toEqual(2);
-      expect(result.current.messages[0].type).toEqual("human");
-      expect(result.current.messages[1].type).toEqual("ai");
+      expect(result.current.messages[0]!.type).toEqual("human");
+      expect(result.current.messages[1]!.type).toEqual("ai");
       expect(
-        (result.current.messages[1].content[0] as MessageContentText).type,
+        (result.current.messages[1]!.content[0] as MessageContentText).type,
       ).toEqual("text");
       expect(
-        (result.current.messages[1].content[0] as MessageContentText).text,
+        (result.current.messages[1]!.content[0] as MessageContentText).text,
       ).toEqual("Hello! How may I assist you today?");
       expect(
-        (result.current.messages[1].content[1] as MessageContentImageUrl).type,
+        (result.current.messages[1]!.content[1] as MessageContentImageUrl).type,
       ).toEqual("image_url");
-      const imageChunkContent = result.current.messages[1]
+      const imageChunkContent = result.current.messages[1]!
         .content[1] as MessageContentImageUrl;
       expect(typeof imageChunkContent.image_url).toEqual("object");
       expect(
         (
-          (result.current.messages[1].content[1] as MessageContentImageUrl)
+          (result.current.messages[1]!.content[1] as MessageContentImageUrl)
             .image_url as { url: string }
         ).url,
       ).toEqual("https://example.com/image.png");
@@ -491,25 +491,25 @@ describe("useLangGraphMessages", {}, () => {
 
     await waitFor(() => {
       expect(result.current.messages.length).toEqual(2);
-      expect(result.current.messages[0].type).toEqual("human");
-      expect(result.current.messages[1].type).toEqual("ai");
+      expect(result.current.messages[0]!.type).toEqual("human");
+      expect(result.current.messages[1]!.type).toEqual("ai");
       expect(
-        (result.current.messages[1].content[0] as MessageContentImageUrl).type,
+        (result.current.messages[1]!.content[0] as MessageContentImageUrl).type,
       ).toEqual("image_url");
-      const imageChunkContent = result.current.messages[1]
+      const imageChunkContent = result.current.messages[1]!
         .content[0] as MessageContentImageUrl;
       expect(typeof imageChunkContent.image_url).toEqual("object");
       expect(
         (
-          (result.current.messages[1].content[0] as MessageContentImageUrl)
+          (result.current.messages[1]!.content[0] as MessageContentImageUrl)
             .image_url as { url: string }
         ).url,
       ).toEqual("https://example.com/image.png");
       expect(
-        (result.current.messages[1].content[1] as MessageContentText).type,
+        (result.current.messages[1]!.content[1] as MessageContentText).type,
       ).toEqual("text");
       expect(
-        (result.current.messages[1].content[1] as MessageContentText).text,
+        (result.current.messages[1]!.content[1] as MessageContentText).text,
       ).toEqual("Hello! How may I assist you today?");
     });
   });
@@ -594,17 +594,17 @@ describe("useLangGraphMessages", {}, () => {
 
     await waitFor(() => {
       expect(result.current.messages.length).toEqual(3);
-      expect(result.current.messages[0].type).toEqual("human");
-      expect(result.current.messages[1].type).toEqual("ai");
-      expect(result.current.messages[2].type).toEqual("ai");
+      expect(result.current.messages[0]!.type).toEqual("human");
+      expect(result.current.messages[1]!.type).toEqual("ai");
+      expect(result.current.messages[2]!.type).toEqual("ai");
       expect(
-        (result.current.messages[1].content[0] as MessageContentText).type,
+        (result.current.messages[1]!.content[0] as MessageContentText).type,
       ).toEqual("text");
       expect(
-        (result.current.messages[1].content[0] as MessageContentText).text,
+        (result.current.messages[1]!.content[0] as MessageContentText).text,
       ).toEqual("Hello!");
       expect(
-        (result.current.messages[2].content[0] as MessageContentText).text,
+        (result.current.messages[2]!.content[0] as MessageContentText).text,
       ).toEqual("How may I assist you today?");
     });
   });
@@ -653,14 +653,15 @@ describe("useLangGraphMessages", {}, () => {
     await waitFor(() => {
       expect(result.current.messages).toHaveLength(2);
 
-      const [humanMessage, aiMessage] = result.current.messages;
+      const humanMessage = result.current.messages[0]!;
+      const aiMessage = result.current.messages[1]!;
 
       expect(humanMessage.type).toBe("human");
 
       if (aiMessage.type === "ai") {
         expect(aiMessage.id).toBe("ai-msg-1");
 
-        expect(aiMessage.status).toEqual({
+        expect((aiMessage as Record<string, unknown>).status).toEqual({
           type: "incomplete",
           reason: "error",
           error: errorData,
@@ -699,7 +700,7 @@ describe("useLangGraphMessages", {}, () => {
 
     await waitFor(() => {
       expect(result.current.messages).toHaveLength(1);
-      const message = result.current.messages[0];
+      const message = result.current.messages[0]!;
       expect(message.id).toBeDefined();
       expect(message.id).toMatch(
         /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
@@ -759,13 +760,13 @@ describe("useLangGraphMessages", {}, () => {
 
     await waitFor(() => {
       expect(result.current.messages).toHaveLength(3);
-      expect(result.current.messages[0].id).toEqual("user-1");
-      expect(result.current.messages[1].id).toEqual("ai-1");
-      expect(result.current.messages[1].content).toEqual(
+      expect(result.current.messages[0]!.id).toEqual("user-1");
+      expect(result.current.messages[1]!.id).toEqual("ai-1");
+      expect(result.current.messages[1]!.content).toEqual(
         "This is a manually added message from an Updates event",
       );
-      expect(result.current.messages[2].id).toEqual("ai-2");
-      expect(result.current.messages[2].content).toEqual(
+      expect(result.current.messages[2]!.id).toEqual("ai-2");
+      expect(result.current.messages[2]!.content).toEqual(
         "This is a streamed AI response",
       );
     });

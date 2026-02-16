@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { renderHook } from "@testing-library/react";
 import { useAdaptedComponents } from "../adapters/components-adapter";
+import type { StreamdownTextComponents } from "../types";
 
 describe("useAdaptedComponents", () => {
   describe("basic behavior", () => {
@@ -115,7 +116,11 @@ describe("useAdaptedComponents", () => {
     it("returns new reference when components change", () => {
       const { result, rerender } = renderHook(
         ({ comps }) => useAdaptedComponents({ components: comps }),
-        { initialProps: { comps: { div: vi.fn(() => null) } } },
+        {
+          initialProps: {
+            comps: { div: vi.fn(() => null) } as StreamdownTextComponents,
+          },
+        },
       );
 
       const firstResult = result.current;
