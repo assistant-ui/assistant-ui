@@ -199,7 +199,7 @@ const StatusCardPart: ComponentMessagePartComponent = ({
         <div className="font-semibold text-sm">
           {cardProps.title ?? "Status Card"}
         </div>
-        <div className="rounded-full border border-border px-2 py-[2px] text-[10px] uppercase">
+        <div className="rounded-full border border-border bg-background/70 px-2 py-[2px] text-[10px] text-foreground uppercase dark:bg-background/50">
           native component
         </div>
       </div>
@@ -244,7 +244,7 @@ const StatusCardPart: ComponentMessagePartComponent = ({
         </pre>
       ) : null}
       {invokeError ? (
-        <div className="mt-2 rounded bg-red-50 p-2 text-[11px] text-red-700">
+        <div className="mt-2 rounded bg-red-50 p-2 text-[11px] text-red-700 dark:bg-red-950/40 dark:text-red-200">
           {invokeError}
         </div>
       ) : null}
@@ -325,7 +325,7 @@ const JsonRenderActionDock: FC<{
         </div>
       ) : null}
       {invokeError ? (
-        <div className="mt-2 rounded bg-red-50 p-2 text-[11px] text-red-700">
+        <div className="mt-2 rounded bg-red-50 p-2 text-[11px] text-red-700 dark:bg-red-950/40 dark:text-red-200">
           {invokeError}
         </div>
       ) : null}
@@ -343,18 +343,20 @@ const JsonRendererMeta: FC<{
   return (
     <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px]">
       <span
-        className="rounded-full border border-border px-2 py-[2px] uppercase"
+        className="rounded-full border border-border bg-background/70 px-2 py-[2px] text-foreground uppercase dark:bg-background/50"
         data-testid="catalog-path-badge"
       >
         {badge}
       </span>
-      <span className="text-muted-foreground">
+      <span className="text-muted-foreground dark:text-foreground/80">
         type={specType ?? "unknown"}
       </span>
-      <span className="text-muted-foreground">
+      <span className="text-muted-foreground dark:text-foreground/80">
         instance={instanceId ?? "missing"}
       </span>
-      <span className="text-muted-foreground">parent={parentId ?? "none"}</span>
+      <span className="text-muted-foreground dark:text-foreground/80">
+        parent={parentId ?? "none"}
+      </span>
     </div>
   );
 };
@@ -373,22 +375,22 @@ const StatusBoardRenderer: unstable_JsonRenderHostCatalogRenderer = ({
   const items = getStringArray(props.items);
   const stateTone =
     state === "complete"
-      ? "border-emerald-300 bg-emerald-100 text-emerald-900"
+      ? "border-emerald-300 bg-emerald-100 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200"
       : state === "verifying"
-        ? "border-amber-300 bg-amber-100 text-amber-900"
-        : "border-blue-300 bg-blue-100 text-blue-900";
+        ? "border-amber-300 bg-amber-100 text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200"
+        : "border-blue-300 bg-blue-100 text-blue-900 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200";
 
   return (
     <div
-      className="mt-2 rounded-2xl border border-emerald-300 bg-gradient-to-br from-emerald-50 via-background to-teal-50 p-4 shadow-sm"
+      className="mt-2 rounded-2xl border border-emerald-300 bg-gradient-to-br from-emerald-50 via-background to-teal-50 p-4 shadow-sm dark:border-emerald-800 dark:from-emerald-950/35 dark:to-teal-950/25"
       data-testid="json-render-status-board"
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <div className="font-semibold text-[10px] text-emerald-700 uppercase tracking-[0.12em]">
+          <div className="font-semibold text-[10px] text-emerald-700 uppercase tracking-[0.12em] dark:text-emerald-300">
             Release Control Center
           </div>
-          <div className="mt-1 font-semibold text-emerald-950 text-sm">
+          <div className="mt-1 font-semibold text-emerald-950 text-sm dark:text-emerald-100">
             {title}
           </div>
         </div>
@@ -408,9 +410,9 @@ const StatusBoardRenderer: unstable_JsonRenderHostCatalogRenderer = ({
           {items.map((item, index) => (
             <div
               key={item}
-              className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-background px-2.5 py-2 text-emerald-900 text-xs"
+              className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-background px-2.5 py-2 text-emerald-900 text-xs dark:border-emerald-900 dark:text-emerald-100"
             >
-              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-emerald-300 bg-emerald-100 font-semibold text-[10px]">
+              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-emerald-300 bg-emerald-100 font-semibold text-[10px] dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200">
                 {index + 1}
               </span>
               <span className="font-medium">{item}</span>
@@ -463,19 +465,19 @@ const AuditLogRenderer: unstable_JsonRenderHostCatalogRenderer = ({
 
   return (
     <div
-      className="mt-2 rounded-2xl border border-cyan-300 bg-gradient-to-br from-cyan-50 via-background to-sky-50 p-4 shadow-sm"
+      className="mt-2 rounded-2xl border border-cyan-300 bg-gradient-to-br from-cyan-50 via-background to-sky-50 p-4 shadow-sm dark:border-cyan-800 dark:from-cyan-950/35 dark:to-sky-950/25"
       data-testid="json-render-audit-log"
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <div className="font-semibold text-[10px] text-cyan-700 uppercase tracking-[0.12em]">
+          <div className="font-semibold text-[10px] text-cyan-700 uppercase tracking-[0.12em] dark:text-cyan-300">
             Compliance Timeline
           </div>
-          <div className="mt-1 font-semibold text-cyan-950 text-sm">
+          <div className="mt-1 font-semibold text-cyan-950 text-sm dark:text-cyan-100">
             {title}
           </div>
         </div>
-        <div className="rounded-full border border-cyan-300 bg-cyan-100 px-2.5 py-1 font-semibold text-[10px] text-cyan-900 uppercase">
+        <div className="rounded-full border border-cyan-300 bg-cyan-100 px-2.5 py-1 font-semibold text-[10px] text-cyan-900 uppercase dark:border-cyan-800 dark:bg-cyan-950/40 dark:text-cyan-200">
           {status}
         </div>
       </div>
@@ -489,9 +491,9 @@ const AuditLogRenderer: unstable_JsonRenderHostCatalogRenderer = ({
           {entries.map((entry, index) => (
             <div
               key={`${entry}-${index}`}
-              className="relative rounded-xl border border-cyan-200 bg-background px-3 py-2 text-cyan-950 text-xs"
+              className="relative rounded-xl border border-cyan-200 bg-background px-3 py-2 text-cyan-950 text-xs dark:border-cyan-900 dark:text-cyan-100"
             >
-              <span className="absolute top-0 left-0 h-full w-1 rounded-l-xl bg-cyan-300" />
+              <span className="absolute top-0 left-0 h-full w-1 rounded-l-xl bg-cyan-300 dark:bg-cyan-700" />
               <span className="pl-1">{entry}</span>
             </div>
           ))}
@@ -545,23 +547,23 @@ const MetricsRenderer: unstable_JsonRenderHostCatalogRenderer = ({
 
   return (
     <div
-      className="mt-2 rounded-2xl border border-violet-300 bg-gradient-to-br from-violet-50 via-background to-fuchsia-50 p-4 shadow-sm"
+      className="mt-2 rounded-2xl border border-violet-300 bg-gradient-to-br from-violet-50 via-background to-fuchsia-50 p-4 shadow-sm dark:border-violet-800 dark:from-violet-950/35 dark:to-fuchsia-950/25"
       data-testid="json-render-metrics"
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <div className="font-semibold text-[10px] text-violet-700 uppercase tracking-[0.12em]">
+          <div className="font-semibold text-[10px] text-violet-700 uppercase tracking-[0.12em] dark:text-violet-300">
             Health Monitor
           </div>
-          <div className="mt-1 font-semibold text-sm text-violet-950">
+          <div className="mt-1 font-semibold text-sm text-violet-950 dark:text-violet-100">
             {title}
           </div>
         </div>
         <div
           className={`rounded-full border px-2.5 py-1 font-semibold text-[10px] uppercase ${
             critical === "attention"
-              ? "border-rose-300 bg-rose-100 text-rose-900"
-              : "border-violet-300 bg-violet-100 text-violet-900"
+              ? "border-rose-300 bg-rose-100 text-rose-900 dark:border-rose-800 dark:bg-rose-950/30 dark:text-rose-200"
+              : "border-violet-300 bg-violet-100 text-violet-900 dark:border-violet-800 dark:bg-violet-950/40 dark:text-violet-200"
           }`}
         >
           {critical}
@@ -576,9 +578,9 @@ const MetricsRenderer: unstable_JsonRenderHostCatalogRenderer = ({
         {Object.entries(metrics).map(([key, value]) => (
           <div
             key={key}
-            className="rounded-xl border border-violet-200 bg-background px-2.5 py-2 text-violet-900"
+            className="rounded-xl border border-violet-200 bg-background px-2.5 py-2 text-violet-900 dark:border-violet-900 dark:text-violet-100"
           >
-            <div className="font-semibold text-[10px] text-violet-600 uppercase tracking-wide">
+            <div className="font-semibold text-[10px] text-violet-600 uppercase tracking-wide dark:text-violet-300">
               {key}
             </div>
             <div className="mt-1 font-semibold text-lg leading-none">
@@ -627,7 +629,7 @@ const JsonCatalogFallbackRenderer: unstable_JsonRenderHostCatalogRenderer = ({
 }) => {
   return (
     <div
-      className="mt-2 rounded-xl border border-amber-300 bg-amber-50 p-3"
+      className="mt-2 rounded-xl border border-amber-300 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950/30"
       data-testid="json-render-fallback"
     >
       <div className="font-semibold text-sm">
@@ -681,7 +683,7 @@ const JsonCatalogOverrideRenderer: unstable_JsonRenderHostCatalogRenderer = ({
 }) => {
   return (
     <div
-      className="mt-2 rounded-xl border border-rose-300 bg-rose-50 p-3"
+      className="mt-2 rounded-xl border border-rose-300 bg-rose-50 p-3 dark:border-rose-800 dark:bg-rose-950/30"
       data-testid="json-render-override"
     >
       <div className="font-semibold text-sm">json-render override renderer</div>
@@ -732,9 +734,9 @@ const UnknownComponentPart: ComponentMessagePartComponent = ({
   const parentId = useComponentParentId(instanceId);
 
   return (
-    <div className="mt-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs">
+    <div className="mt-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs dark:border-amber-800 dark:bg-amber-950/30">
       <div className="font-semibold">Fallback component renderer: {name}</div>
-      <div className="mt-1 text-[11px] text-amber-900">
+      <div className="mt-1 text-[11px] text-amber-900 dark:text-amber-200">
         instance={instanceId ?? "missing"} parent={parentId ?? "none"}
       </div>
       <pre className="mt-2 overflow-x-auto rounded bg-background p-2 text-[11px]">

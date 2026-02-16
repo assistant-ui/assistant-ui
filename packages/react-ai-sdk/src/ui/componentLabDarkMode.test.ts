@@ -22,4 +22,23 @@ describe("component lab dark mode", () => {
     expect(source).toContain("text-foreground");
     expect(source).toContain("text-muted-foreground");
   });
+
+  it("defines dark variants for colorized renderer states", () => {
+    const source = readFileSync(componentLabPagePath, "utf8");
+
+    expect(source).toContain("dark:bg-red-950/40");
+    expect(source).toContain("dark:border-emerald-800");
+    expect(source).toContain("dark:border-cyan-800");
+    expect(source).toContain("dark:border-violet-800");
+    expect(source).toContain("dark:bg-amber-950/30");
+    expect(source).toContain("dark:bg-rose-950/30");
+  });
+
+  it("keeps neutral badges legible in dark mode", () => {
+    const source = readFileSync(componentLabPagePath, "utf8");
+
+    expect(source).toContain("bg-background/70");
+    expect(source).toContain("text-foreground");
+    expect(source).toContain("dark:bg-background/50");
+  });
 });
