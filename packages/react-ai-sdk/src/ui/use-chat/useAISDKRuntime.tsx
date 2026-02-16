@@ -236,9 +236,22 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       const createMessage = (
         customToCreateMessage ?? toCreateMessage
       )<UI_MESSAGE>(message);
-      await chatHelpers.sendMessage(createMessage, {
-        metadata: message.runConfig,
-      });
+
+      if (message.startRun === false) {
+        chatHelpers.setMessages((messages) => [
+          ...messages,
+          {
+            ...createMessage,
+            id: crypto.randomUUID(),
+            role: createMessage.role ?? "user",
+            metadata: message.runConfig,
+          } as UI_MESSAGE,
+        ]);
+      } else {
+        await chatHelpers.sendMessage(createMessage, {
+          metadata: message.runConfig,
+        });
+      }
     },
     onEdit: async (message) => {
       const newMessages = sliceMessagesUntil(
