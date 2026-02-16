@@ -17,6 +17,11 @@
       "aui-source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./internal": {
+      "aui-source": "./src/internal.ts",
+      "types": "./dist/internal.d.ts",
+      "default": "./dist/internal.js"
     }
   },
   "main": "./dist/index.js",
@@ -28,7 +33,9 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "aui-build"
+    "build": "aui-build",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@assistant-ui/core": "workspace:*"
@@ -47,7 +54,8 @@
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/react": "^19.2.13",
     "react": "^19.1.0",
-    "react-native": "^0.76.0"
+    "react-native": "^0.76.0",
+    "vitest": "^4.0.18"
   },
   "publishConfig": {
     "access": "public",
