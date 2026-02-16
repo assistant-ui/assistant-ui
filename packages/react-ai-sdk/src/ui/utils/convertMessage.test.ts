@@ -252,6 +252,58 @@ describe("AISDKMessageConverter", () => {
     });
   });
 
+  it("preserves custom data-spec component names across patch-only updates", () => {
+    const result = AISDKMessageConverter.toThreadMessages(
+      [
+        {
+          id: "assistant-1",
+          role: "assistant",
+          parts: [
+            {
+              type: "data-spec",
+              data: {
+                instanceId: "spec_1",
+                name: "status-card",
+                seq: 1,
+                spec: {
+                  type: "card",
+                  props: { title: "Draft" },
+                },
+              },
+            },
+            {
+              type: "data-spec",
+              data: {
+                instanceId: "spec_1",
+                seq: 2,
+                patch: [
+                  { op: "replace", path: "/props/title", value: "Ready" },
+                ],
+              },
+            },
+          ],
+          metadata: {},
+        } as any,
+      ],
+      false,
+      {},
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0]!.content).toHaveLength(1);
+    expect(result[0]!.content[0]).toMatchObject({
+      type: "component",
+      name: "status-card",
+      instanceId: "spec_1",
+      props: {
+        spec: {
+          type: "card",
+          props: { title: "Ready" },
+        },
+      },
+    });
+  });
+
   it("ignores stale data-spec chunks when seq goes backwards", () => {
     const result = AISDKMessageConverter.toThreadMessages(
       [
