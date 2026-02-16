@@ -10,13 +10,20 @@ import {
   unstable_AISDK_JSON_RENDER_COMPONENT_NAME,
   AssistantChatTransport,
   unstable_JsonRenderHost as UnstableJsonRenderHost,
-  unstable_createAISDKDataSpecTelemetrySink,
   type AISDKRuntimeAdapter,
+  type unstable_AISDKDataSpecTelemetryEvent,
   type unstable_JsonRenderHostCatalog,
   type unstable_JsonRenderHostCatalogRenderer,
   type unstable_JsonRenderHostCatalogTelemetryEvent,
 } from "@assistant-ui/react-ai-sdk";
-import { useCallback, useEffect, useMemo, useState, type FC } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FC,
+} from "react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import { Thread } from "@/components/assistant-ui/thread";
 
@@ -976,9 +983,12 @@ const evaluateScenario = (
 export default function ComponentPartLabPage() {
   const [scenario, setScenario] = useState<Scenario>("component-part");
   const [eventLog, setEventLog] = useState<string[]>([]);
-  const [telemetry, setTelemetry] = useState({
+  const telemetryCountersRef = useRef({
     staleSeqIgnored: 0,
     malformedPatchDropped: 0,
+  });
+  const [telemetry, setTelemetry] = useState({
+    ...telemetryCountersRef.current,
   });
   const [catalogTelemetry, setCatalogTelemetry] = useState({
     catalogHit: 0,
@@ -1012,16 +1022,26 @@ export default function ComponentPartLabPage() {
     [appendEvent],
   );
 
-  const telemetrySink = useMemo(
-    () =>
-      unstable_createAISDKDataSpecTelemetrySink({
-        onEvent: (event, counters) => {
-          queueMicrotask(() => setTelemetry(counters));
-          appendEventDeferred(
-            `telemetry ${event.type} instance=${event.instanceId} ${"seq" in event ? `seq=${event.seq}` : ""}`,
-          );
-        },
-      }),
+  const onDataSpecTelemetry = useCallback(
+    (event: unstable_AISDKDataSpecTelemetryEvent) => {
+      const currentCounters = telemetryCountersRef.current;
+      const nextCounters =
+        event.type === "stale-seq-ignored"
+          ? {
+              ...currentCounters,
+              staleSeqIgnored: currentCounters.staleSeqIgnored + 1,
+            }
+          : {
+              ...currentCounters,
+              malformedPatchDropped: currentCounters.malformedPatchDropped + 1,
+            };
+
+      telemetryCountersRef.current = nextCounters;
+      queueMicrotask(() => setTelemetry(nextCounters));
+      appendEventDeferred(
+        `telemetry ${event.type} instance=${event.instanceId} ${"seq" in event ? `seq=${event.seq}` : ""}`,
+      );
+    },
     [appendEventDeferred],
   );
 
@@ -1101,9 +1121,9 @@ export default function ComponentPartLabPage() {
 
   const unstable_dataSpec = useMemo(
     () => ({
-      onTelemetry: telemetrySink.onTelemetry,
+      onTelemetry: onDataSpecTelemetry,
     }),
-    [telemetrySink],
+    [onDataSpecTelemetry],
   );
 
   const transport = useMemo(
@@ -1286,7 +1306,7 @@ export default function ComponentPartLabPage() {
     const results: MatrixScenarioResult[] = [];
 
     for (const scenarioDefinition of SCENARIOS) {
-      const beforeTelemetry = telemetrySink.getCounters();
+      const beforeTelemetry = telemetryCountersRef.current;
       const beforeAssistantCount = runtime.thread
         .getState()
         .messages.filter((message) => message.role === "assistant").length;
@@ -1320,7 +1340,7 @@ export default function ComponentPartLabPage() {
       }
 
       const parts = normalizeComponentParts(latestAssistant);
-      const afterTelemetry = telemetrySink.getCounters();
+      const afterTelemetry = telemetryCountersRef.current;
       const telemetryDelta = {
         staleSeqIgnored:
           afterTelemetry.staleSeqIgnored - beforeTelemetry.staleSeqIgnored,
@@ -1352,8 +1372,8 @@ export default function ComponentPartLabPage() {
       failures,
       invokeReceipts: invokeReceipts - startingInvokeReceipts,
       emitReceipts: emitReceipts - startingEmitReceipts,
-      staleSeqIgnored: telemetrySink.getCounters().staleSeqIgnored,
-      malformedPatchDropped: telemetrySink.getCounters().malformedPatchDropped,
+      staleSeqIgnored: telemetryCountersRef.current.staleSeqIgnored,
+      malformedPatchDropped: telemetryCountersRef.current.malformedPatchDropped,
       catalogHit:
         catalogTelemetry.catalogHit - startingCatalogTelemetry.catalogHit,
       catalogFallback:
@@ -1380,7 +1400,6 @@ export default function ComponentPartLabPage() {
     isMatrixRunning,
     scenario,
     sendScenarioPrompt,
-    telemetrySink,
     waitForScenarioCompletion,
     runtime,
   ]);
@@ -1596,8 +1615,11 @@ export default function ComponentPartLabPage() {
               className="rounded-md border border-slate-300 px-2 py-1"
               onClick={() => {
                 runtime.thread.reset();
-                telemetrySink.reset();
-                setTelemetry(telemetrySink.getCounters());
+                telemetryCountersRef.current = {
+                  staleSeqIgnored: 0,
+                  malformedPatchDropped: 0,
+                };
+                setTelemetry({ ...telemetryCountersRef.current });
                 setCatalogTelemetry({
                   catalogHit: 0,
                   catalogFallback: 0,
