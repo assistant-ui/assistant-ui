@@ -2,11 +2,9 @@
 
 import { useEffect } from "react";
 import { useAui } from "@assistant-ui/store";
+import type { AssistantInstructionsConfig } from "./AssistantToolTypes";
 
-export type AssistantInstructionsConfig = {
-  disabled?: boolean | undefined;
-  instruction: string;
-};
+export type { AssistantInstructionsConfig };
 
 const getInstructions = (
   instruction: string | AssistantInstructionsConfig,

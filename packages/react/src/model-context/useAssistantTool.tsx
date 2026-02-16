@@ -3,13 +3,12 @@
 import { useEffect } from "react";
 import { useAui } from "@assistant-ui/store";
 import type { ToolCallMessagePartComponent } from "../types/MessagePartComponentTypes";
-import type { Tool } from "assistant-stream";
+import type { AssistantToolProps as CoreAssistantToolProps } from "./AssistantToolTypes";
 
 export type AssistantToolProps<
   TArgs extends Record<string, unknown>,
   TResult,
-> = Tool<TArgs, TResult> & {
-  toolName: string;
+> = CoreAssistantToolProps<TArgs, TResult> & {
   render?: ToolCallMessagePartComponent<TArgs, TResult> | undefined;
 };
 

@@ -1,5 +1,5 @@
-import type { AssistantToolProps } from "../../model-context/useAssistantTool";
-import type { AssistantInstructionsConfig } from "../../model-context/useAssistantInstructions";
+import type { AssistantToolProps } from "../../model-context/AssistantToolTypes";
+import type { AssistantInstructionsConfig } from "../../model-context/AssistantToolTypes";
 
 export interface ModelContextRegistryToolHandle<
   TArgs extends Record<string, unknown> = any,

@@ -10,7 +10,14 @@ import { RemoteThreadListHookInstanceManager } from "./RemoteThreadListHookInsta
 import { BaseSubscribable } from "./BaseSubscribable";
 import { EMPTY_THREAD_CORE } from "./EMPTY_THREAD_CORE";
 import { OptimisticState } from "./OptimisticState";
-import { FC, Fragment, useEffect, useId } from "react";
+import {
+  ComponentType,
+  FC,
+  Fragment,
+  PropsWithChildren,
+  useEffect,
+  useId,
+} from "react";
 import { create } from "zustand";
 import { AssistantMessageStream } from "assistant-stream";
 import { ModelContextProvider } from "../../../model-context";
@@ -243,7 +250,8 @@ export class RemoteThreadListThreadListRuntimeCore
       this,
     );
     this.useProvider = create(() => ({
-      Provider: options.adapter.unstable_Provider ?? Fragment,
+      Provider: (options.adapter.unstable_Provider ??
+        Fragment) as ComponentType<PropsWithChildren>,
     }));
     this.__internal_setOptions(options);
     this.switchToNewThread();
@@ -256,7 +264,8 @@ export class RemoteThreadListThreadListRuntimeCore
 
     this._options = options;
 
-    const Provider = options.adapter.unstable_Provider ?? Fragment;
+    const Provider = (options.adapter.unstable_Provider ??
+      Fragment) as ComponentType<PropsWithChildren>;
     if (Provider !== this.useProvider.getState().Provider) {
       this.useProvider.setState({ Provider }, true);
     }
