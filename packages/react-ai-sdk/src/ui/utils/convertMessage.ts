@@ -115,7 +115,7 @@ type DataSpecChunk = {
 
 type DataSpecUpdate = {
   instanceId: string;
-  name: string;
+  name?: string;
   parentId?: string;
   seq?: number;
   props?: ReadonlyJSONObject;
@@ -346,7 +346,7 @@ const toDataSpecUpdate = (part: unknown): DataSpecUpdate | null => {
 
   return {
     instanceId: data.instanceId,
-    name: data.name ?? unstable_AISDK_JSON_RENDER_COMPONENT_NAME,
+    ...(data.name !== undefined ? { name: data.name } : {}),
     ...(data.parentId !== undefined ? { parentId: data.parentId } : {}),
     ...(seq !== undefined ? { seq } : {}),
     ...(data.props !== undefined ? { props: data.props } : {}),
@@ -371,7 +371,7 @@ const resolveDataSpecValidationContext = (
 ): unstable_AISDKDataSpecValidationContext => {
   return {
     instanceId: update.instanceId,
-    name: update.name,
+    name: update.name ?? current.name,
     ...(update.parentId !== undefined
       ? { parentId: update.parentId }
       : current.parentId !== undefined
@@ -439,7 +439,7 @@ const applyDataSpecUpdate = (
 ): DataSpecApplyResult => {
   const current = stateByInstanceId.get(update.instanceId) ?? {
     instanceId: update.instanceId,
-    name: update.name,
+    name: update.name ?? unstable_AISDK_JSON_RENDER_COMPONENT_NAME,
   };
 
   if (
@@ -479,7 +479,7 @@ const applyDataSpecUpdate = (
 
   stateByInstanceId.set(update.instanceId, {
     instanceId: update.instanceId,
-    name: update.name,
+    name: update.name ?? current.name,
     ...(update.parentId !== undefined
       ? { parentId: update.parentId }
       : current.parentId !== undefined
