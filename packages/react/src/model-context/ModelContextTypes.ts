@@ -30,6 +30,19 @@ export type ModelContextProvider = {
   subscribe?: (callback: () => void) => Unsubscribe;
 };
 
+export type AssistantToolProps<
+  TArgs extends Record<string, unknown>,
+  TResult,
+> = Tool<TArgs, TResult> & {
+  toolName: string;
+  render?: unknown;
+};
+
+export type AssistantInstructionsConfig = {
+  disabled?: boolean | undefined;
+  instruction: string;
+};
+
 export const mergeModelContexts = (
   configSet: Set<ModelContextProvider>,
 ): ModelContext => {

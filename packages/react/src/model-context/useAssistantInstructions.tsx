@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useAui } from "@assistant-ui/store";
-import type { AssistantInstructionsConfig } from "./AssistantToolTypes";
+import type { AssistantInstructionsConfig } from "./ModelContextTypes";
 
 export type { AssistantInstructionsConfig };
 

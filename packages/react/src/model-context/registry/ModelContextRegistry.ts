@@ -10,8 +10,10 @@ import {
   ModelContextRegistryInstructionHandle,
   ModelContextRegistryProviderHandle,
 } from "./ModelContextRegistryHandles";
-import type { AssistantToolProps } from "../../model-context/AssistantToolTypes";
-import type { AssistantInstructionsConfig } from "../../model-context/AssistantToolTypes";
+import type {
+  AssistantToolProps,
+  AssistantInstructionsConfig,
+} from "../../model-context/ModelContextTypes";
 
 export class ModelContextRegistry implements ModelContextProvider {
   private _tools = new Map<symbol, AssistantToolProps<any, any>>();
