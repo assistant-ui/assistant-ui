@@ -22,6 +22,18 @@ describe("component lab layout constraints", () => {
     const source = readFileSync(componentLabPagePath, "utf8");
 
     expect(source).toContain("h-full min-h-0 overflow-hidden");
-    expect(source).toContain("h-full min-h-0 flex-col gap-4 overflow-y-auto");
+    expect(source).toContain("flex h-full min-h-0 flex-col");
+    expect(source).toContain("min-h-0 flex-1 space-y-4 overflow-y-auto");
+  });
+
+  it("keeps only send and matrix actions anchored at the bottom", () => {
+    const source = readFileSync(componentLabPagePath, "utf8");
+
+    expect(source).not.toContain("Save Snapshot");
+    expect(source).not.toContain("Rehydrate");
+    expect(source).not.toContain("Reload + Rehydrate");
+    expect(source).toContain("mt-auto grid grid-cols-2 gap-2 border-t");
+    expect(source).toContain("Send Prompt");
+    expect(source).toContain("Run Matrix");
   });
 });

@@ -16,14 +16,7 @@ import {
   type unstable_JsonRenderHostCatalogRenderer,
   type unstable_JsonRenderHostCatalogTelemetryEvent,
 } from "@assistant-ui/react-ai-sdk";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type FC,
-} from "react";
+import { useCallback, useMemo, useRef, useState, type FC } from "react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import { Thread } from "@/components/assistant-ui/thread";
 
@@ -102,9 +95,6 @@ const SCENARIOS: ScenarioDefinition[] = [
 const SCENARIO_BY_ID = Object.fromEntries(
   SCENARIOS.map((scenario) => [scenario.id, scenario]),
 ) as Record<Scenario, ScenarioDefinition>;
-
-const SNAPSHOT_STORAGE_KEY = "component-lab:thread-snapshot";
-const REHYDRATE_ON_RELOAD_KEY = "component-lab:rehydrate-on-reload";
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -980,10 +970,6 @@ export default function ComponentPartLabPage() {
     null,
   );
   const [isMatrixRunning, setIsMatrixRunning] = useState(false);
-  const [snapshotMeta, setSnapshotMeta] = useState<{
-    savedAt: string;
-    messageCount: number;
-  } | null>(null);
 
   const appendEvent = useCallback((line: string) => {
     const timestamp = new Date().toLocaleTimeString();
@@ -1115,63 +1101,6 @@ export default function ComponentPartLabPage() {
     onComponentEmit,
     unstable_dataSpec,
   });
-
-  useEffect(() => {
-    const raw = window.localStorage.getItem(SNAPSHOT_STORAGE_KEY);
-    if (!raw) {
-      setSnapshotMeta(null);
-      return;
-    }
-    try {
-      const parsed = JSON.parse(raw) as {
-        savedAt?: unknown;
-        messageCount?: unknown;
-      };
-      if (
-        typeof parsed.savedAt === "string" &&
-        typeof parsed.messageCount === "number"
-      ) {
-        setSnapshotMeta({
-          savedAt: parsed.savedAt,
-          messageCount: parsed.messageCount,
-        });
-      }
-    } catch {
-      setSnapshotMeta(null);
-    }
-  }, []);
-
-  useEffect(() => {
-    const shouldRehydrate =
-      window.sessionStorage.getItem(REHYDRATE_ON_RELOAD_KEY) === "1";
-    if (!shouldRehydrate) return;
-
-    window.sessionStorage.removeItem(REHYDRATE_ON_RELOAD_KEY);
-    const raw = window.localStorage.getItem(SNAPSHOT_STORAGE_KEY);
-    if (!raw) {
-      appendEventDeferred("reload rehydrate skipped: no saved snapshot");
-      return;
-    }
-
-    try {
-      const parsed = JSON.parse(raw) as {
-        repository?: unknown;
-        messageCount?: unknown;
-      };
-      if (!parsed.repository) {
-        appendEventDeferred(
-          "reload rehydrate failed: malformed snapshot payload",
-        );
-        return;
-      }
-      runtime.thread.import(parsed.repository as any);
-      appendEventDeferred(
-        `reload rehydrate complete: restored ${String(parsed.messageCount ?? "?")} messages`,
-      );
-    } catch {
-      appendEventDeferred("reload rehydrate failed: snapshot parse error");
-    }
-  }, [appendEventDeferred, runtime]);
 
   const activeScenario = SCENARIO_BY_ID[scenario];
 
@@ -1379,60 +1308,6 @@ export default function ComponentPartLabPage() {
     runtime,
   ]);
 
-  const saveSnapshot = useCallback(() => {
-    const repository = runtime.thread.export();
-    const messageCount = runtime.thread.getState().messages.length;
-    const payload = {
-      savedAt: new Date().toISOString(),
-      scenario,
-      messageCount,
-      repository,
-    };
-    window.localStorage.setItem(SNAPSHOT_STORAGE_KEY, JSON.stringify(payload));
-    setSnapshotMeta({
-      savedAt: payload.savedAt,
-      messageCount,
-    });
-    appendEvent(`snapshot saved (${messageCount} messages)`);
-  }, [appendEvent, runtime, scenario]);
-
-  const rehydrateSnapshot = useCallback(() => {
-    const raw = window.localStorage.getItem(SNAPSHOT_STORAGE_KEY);
-    if (!raw) {
-      appendEvent("rehydrate failed: no saved snapshot");
-      return;
-    }
-
-    try {
-      const parsed = JSON.parse(raw) as {
-        repository?: unknown;
-        messageCount?: unknown;
-      };
-      if (!parsed.repository) {
-        appendEvent("rehydrate failed: malformed snapshot payload");
-        return;
-      }
-      runtime.thread.import(parsed.repository as any);
-      appendEvent(
-        `rehydrated snapshot (${String(parsed.messageCount ?? "?")} messages)`,
-      );
-    } catch {
-      appendEvent("rehydrate failed: snapshot parse error");
-    }
-  }, [appendEvent, runtime]);
-
-  const reloadWithRehydrate = useCallback(() => {
-    saveSnapshot();
-    window.sessionStorage.setItem(REHYDRATE_ON_RELOAD_KEY, "1");
-    window.location.reload();
-  }, [saveSnapshot]);
-
-  const clearSnapshot = useCallback(() => {
-    window.localStorage.removeItem(SNAPSHOT_STORAGE_KEY);
-    setSnapshotMeta(null);
-    appendEvent("snapshot cleared");
-  }, [appendEvent]);
-
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       <div
@@ -1449,79 +1324,142 @@ export default function ComponentPartLabPage() {
           />
         </section>
 
-        <aside className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto rounded-xl border border-border bg-background p-4">
-          <header>
-            <h1 className="font-semibold text-lg">Component Lab Controls</h1>
-            <p className="mt-1 text-muted-foreground text-xs">
-              Scenario and runtime testing options.
-            </p>
-          </header>
+        <aside className="flex h-full min-h-0 flex-col rounded-xl border border-border bg-background">
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
+            <header>
+              <h1 className="font-semibold text-lg">Component Lab Controls</h1>
+              <p className="mt-1 text-muted-foreground text-xs">
+                Scenario and runtime testing options.
+              </p>
+            </header>
 
-          <section className="grid gap-2">
-            {SCENARIOS.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                className={`rounded-lg border px-3 py-2 text-left text-xs ${
-                  scenario === item.id
-                    ? "border-foreground bg-foreground text-background"
-                    : "border-border bg-background text-foreground"
-                }`}
-                onClick={() => setScenario(item.id)}
+            <section className="grid gap-2">
+              {SCENARIOS.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={`rounded-lg border px-3 py-2 text-left text-xs ${
+                    scenario === item.id
+                      ? "border-foreground bg-foreground text-background"
+                      : "border-border bg-background text-foreground"
+                  }`}
+                  onClick={() => setScenario(item.id)}
+                >
+                  <div className="font-semibold">{item.title}</div>
+                  <div className="mt-1 opacity-80">{item.description}</div>
+                </button>
+              ))}
+            </section>
+
+            <section className="grid gap-3 rounded-lg border border-border bg-muted p-3">
+              <label className="flex flex-col gap-1 text-xs">
+                <span className="font-semibold">Invoke Mode</span>
+                <select
+                  className="rounded border border-border bg-background px-2 py-1"
+                  value={invokeMode}
+                  onChange={(event) =>
+                    setInvokeMode(event.target.value as InvokeMode)
+                  }
+                >
+                  <option value="success">success</option>
+                  <option value="fail">fail</option>
+                  <option value="timeout">timeout (no ack)</option>
+                </select>
+              </label>
+
+              <label className="flex flex-col gap-1 text-xs">
+                <span className="font-semibold">Emit Handler</span>
+                <select
+                  className="rounded border border-border bg-background px-2 py-1"
+                  value={emitEnabled ? "enabled" : "disabled"}
+                  onChange={(event) =>
+                    setEmitEnabled(event.target.value === "enabled")
+                  }
+                >
+                  <option value="enabled">enabled</option>
+                  <option value="disabled">disabled</option>
+                </select>
+              </label>
+
+              <label className="flex flex-col gap-1 text-xs">
+                <span className="font-semibold">Catalog Mode</span>
+                <select
+                  className="rounded border border-border bg-background px-2 py-1"
+                  value={catalogMode}
+                  onChange={(event) =>
+                    setCatalogMode(event.target.value as CatalogMode)
+                  }
+                >
+                  <option value="byType">byType + fallback</option>
+                  <option value="fallback-only">fallback-only</option>
+                  <option value="override">override</option>
+                </select>
+              </label>
+            </section>
+
+            <section className="grid gap-2 text-xs">
+              <div className="rounded-md border border-border bg-muted px-2 py-1">
+                staleSeqIgnored={telemetry.staleSeqIgnored}
+              </div>
+              <div className="rounded-md border border-border bg-muted px-2 py-1">
+                malformedPatchDropped={telemetry.malformedPatchDropped}
+              </div>
+              <div className="rounded-md border border-border bg-muted px-2 py-1">
+                catalog(hit/fallback/override/miss)=
+                {catalogTelemetry.catalogHit}/{catalogTelemetry.catalogFallback}
+                /{catalogTelemetry.catalogOverride}/
+                {catalogTelemetry.catalogMiss}
+              </div>
+              <div className="rounded-md border border-border bg-muted px-2 py-1">
+                receipts(invoke/emit)={invokeReceipts}/{emitReceipts}
+              </div>
+              <div className="text-[11px] text-muted-foreground">
+                Active scenario: {activeScenario.title}
+              </div>
+            </section>
+
+            {matrixSummary ? (
+              <section
+                className="rounded-xl border border-border bg-background p-3"
+                data-testid="matrix-summary"
               >
-                <div className="font-semibold">{item.title}</div>
-                <div className="mt-1 opacity-80">{item.description}</div>
-              </button>
-            ))}
-          </section>
+                <h2 className="font-semibold text-sm">Matrix Summary</h2>
+                <div className="mt-2 grid gap-2 text-xs">
+                  <div className="rounded bg-muted px-2 py-1">
+                    runs={matrixSummary.runs} pass={matrixSummary.passes} fail=
+                    {matrixSummary.failures}
+                  </div>
+                  <div className="rounded bg-muted px-2 py-1">
+                    receipts invoke/emit={matrixSummary.invokeReceipts}/
+                    {matrixSummary.emitReceipts}
+                  </div>
+                  <div className="rounded bg-muted px-2 py-1">
+                    telemetry stale/malformed={matrixSummary.staleSeqIgnored}/
+                    {matrixSummary.malformedPatchDropped}
+                  </div>
+                  <div className="rounded bg-muted px-2 py-1">
+                    catalog delta h/f/o/m={matrixSummary.catalogHit}/
+                    {matrixSummary.catalogFallback}/
+                    {matrixSummary.catalogOverride}/{matrixSummary.catalogMiss}
+                  </div>
+                </div>
+              </section>
+            ) : null}
 
-          <section className="grid gap-3 rounded-lg border border-border bg-muted p-3">
-            <label className="flex flex-col gap-1 text-xs">
-              <span className="font-semibold">Invoke Mode</span>
-              <select
-                className="rounded border border-border bg-background px-2 py-1"
-                value={invokeMode}
-                onChange={(event) =>
-                  setInvokeMode(event.target.value as InvokeMode)
-                }
+            <section className="rounded-xl border border-border bg-background p-3">
+              <h2 className="font-semibold text-sm">Event Log</h2>
+              <pre
+                className="mt-2 max-h-56 overflow-y-auto rounded bg-muted p-2 text-[11px] leading-5"
+                data-testid="event-log"
               >
-                <option value="success">success</option>
-                <option value="fail">fail</option>
-                <option value="timeout">timeout (no ack)</option>
-              </select>
-            </label>
+                {eventLog.length > 0
+                  ? eventLog.join("\n")
+                  : "No events yet. Trigger invoke/emit in the thread."}
+              </pre>
+            </section>
+          </div>
 
-            <label className="flex flex-col gap-1 text-xs">
-              <span className="font-semibold">Emit Handler</span>
-              <select
-                className="rounded border border-border bg-background px-2 py-1"
-                value={emitEnabled ? "enabled" : "disabled"}
-                onChange={(event) =>
-                  setEmitEnabled(event.target.value === "enabled")
-                }
-              >
-                <option value="enabled">enabled</option>
-                <option value="disabled">disabled</option>
-              </select>
-            </label>
-
-            <label className="flex flex-col gap-1 text-xs">
-              <span className="font-semibold">Catalog Mode</span>
-              <select
-                className="rounded border border-border bg-background px-2 py-1"
-                value={catalogMode}
-                onChange={(event) =>
-                  setCatalogMode(event.target.value as CatalogMode)
-                }
-              >
-                <option value="byType">byType + fallback</option>
-                <option value="fallback-only">fallback-only</option>
-                <option value="override">override</option>
-              </select>
-            </label>
-          </section>
-
-          <section className="grid grid-cols-2 gap-2 text-xs">
+          <section className="mt-auto grid grid-cols-2 gap-2 border-border border-t bg-background p-4 text-xs">
             <button
               className="rounded-md border border-border px-2 py-1"
               onClick={() => {
@@ -1542,123 +1480,6 @@ export default function ComponentPartLabPage() {
             >
               {isMatrixRunning ? "Running..." : "Run Matrix"}
             </button>
-            <button
-              className="rounded-md border border-border px-2 py-1"
-              onClick={() => {
-                runtime.thread.reset();
-                telemetryCountersRef.current = {
-                  staleSeqIgnored: 0,
-                  malformedPatchDropped: 0,
-                };
-                setTelemetry({ ...telemetryCountersRef.current });
-                setCatalogTelemetry({
-                  catalogHit: 0,
-                  catalogFallback: 0,
-                  catalogOverride: 0,
-                  catalogMiss: 0,
-                });
-                setInvokeReceipts(0);
-                setEmitReceipts(0);
-                setEventLog([]);
-                setMatrixSummary(null);
-              }}
-              type="button"
-            >
-              Reset All
-            </button>
-            <button
-              className="rounded-md border border-border px-2 py-1"
-              onClick={saveSnapshot}
-              type="button"
-            >
-              Save Snapshot
-            </button>
-            <button
-              className="rounded-md border border-border px-2 py-1"
-              onClick={rehydrateSnapshot}
-              type="button"
-            >
-              Rehydrate
-            </button>
-            <button
-              className="rounded-md border border-border px-2 py-1"
-              onClick={reloadWithRehydrate}
-              type="button"
-            >
-              Reload + Rehydrate
-            </button>
-            <button
-              className="rounded-md border border-border px-2 py-1"
-              onClick={clearSnapshot}
-              type="button"
-            >
-              Clear Snapshot
-            </button>
-            <div className="col-span-2 rounded-md border border-border bg-muted px-2 py-1 text-[11px] text-muted-foreground">
-              {snapshotMeta
-                ? `Snapshot: ${new Date(snapshotMeta.savedAt).toLocaleString()} (${snapshotMeta.messageCount} msgs)`
-                : "Snapshot: none"}
-            </div>
-          </section>
-
-          <section className="grid gap-2 text-xs">
-            <div className="rounded-md border border-border bg-muted px-2 py-1">
-              staleSeqIgnored={telemetry.staleSeqIgnored}
-            </div>
-            <div className="rounded-md border border-border bg-muted px-2 py-1">
-              malformedPatchDropped={telemetry.malformedPatchDropped}
-            </div>
-            <div className="rounded-md border border-border bg-muted px-2 py-1">
-              catalog(hit/fallback/override/miss)=
-              {catalogTelemetry.catalogHit}/{catalogTelemetry.catalogFallback}/
-              {catalogTelemetry.catalogOverride}/{catalogTelemetry.catalogMiss}
-            </div>
-            <div className="rounded-md border border-border bg-muted px-2 py-1">
-              receipts(invoke/emit)={invokeReceipts}/{emitReceipts}
-            </div>
-            <div className="text-[11px] text-muted-foreground">
-              Active scenario: {activeScenario.title}
-            </div>
-          </section>
-
-          {matrixSummary ? (
-            <section
-              className="rounded-xl border border-border bg-background p-3"
-              data-testid="matrix-summary"
-            >
-              <h2 className="font-semibold text-sm">Matrix Summary</h2>
-              <div className="mt-2 grid gap-2 text-xs">
-                <div className="rounded bg-muted px-2 py-1">
-                  runs={matrixSummary.runs} pass={matrixSummary.passes} fail=
-                  {matrixSummary.failures}
-                </div>
-                <div className="rounded bg-muted px-2 py-1">
-                  receipts invoke/emit={matrixSummary.invokeReceipts}/
-                  {matrixSummary.emitReceipts}
-                </div>
-                <div className="rounded bg-muted px-2 py-1">
-                  telemetry stale/malformed={matrixSummary.staleSeqIgnored}/
-                  {matrixSummary.malformedPatchDropped}
-                </div>
-                <div className="rounded bg-muted px-2 py-1">
-                  catalog delta h/f/o/m={matrixSummary.catalogHit}/
-                  {matrixSummary.catalogFallback}/
-                  {matrixSummary.catalogOverride}/{matrixSummary.catalogMiss}
-                </div>
-              </div>
-            </section>
-          ) : null}
-
-          <section className="rounded-xl border border-border bg-background p-3">
-            <h2 className="font-semibold text-sm">Event Log</h2>
-            <pre
-              className="mt-2 max-h-56 overflow-y-auto rounded bg-muted p-2 text-[11px] leading-5"
-              data-testid="event-log"
-            >
-              {eventLog.length > 0
-                ? eventLog.join("\n")
-                : "No events yet. Trigger invoke/emit in the thread."}
-            </pre>
           </section>
         </aside>
       </div>
