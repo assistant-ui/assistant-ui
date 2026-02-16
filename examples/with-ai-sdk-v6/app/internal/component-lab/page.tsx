@@ -1438,9 +1438,10 @@ export default function ComponentPartLabPage() {
         style={{
           height: "100dvh",
           gridTemplateColumns: "minmax(0, 1fr) 20rem",
+          gridTemplateRows: "minmax(0, 1fr)",
         }}
       >
-        <section className="min-h-0 overflow-hidden rounded-xl border border-border bg-background">
+        <section className="h-full min-h-0 overflow-hidden rounded-xl border border-border bg-background">
           <Thread
             assistantMessagePartComponents={assistantMessagePartComponents}
           />
