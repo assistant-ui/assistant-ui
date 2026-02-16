@@ -32,8 +32,22 @@ describe("component lab layout constraints", () => {
     expect(source).not.toContain("Save Snapshot");
     expect(source).not.toContain("Rehydrate");
     expect(source).not.toContain("Reload + Rehydrate");
-    expect(source).toContain("mt-auto grid grid-cols-2 gap-2 border-t");
+    expect(source).toContain("mt-auto grid grid-cols-2 gap-2");
+    expect(source).toContain("border-border border-t");
     expect(source).toContain("Send Prompt");
     expect(source).toContain("Run Matrix");
+  });
+
+  it("uses toggle controls instead of selects for runtime options", () => {
+    const source = readFileSync(componentLabPagePath, "utf8");
+
+    expect(source).not.toContain("<select");
+    expect(source).toContain("INVOKE_MODE_OPTIONS.map((option) =>");
+    expect(source).toContain("aria-pressed={invokeMode === option.value}");
+    expect(source).toContain('role="switch"');
+    expect(source).toContain("aria-checked={emitEnabled}");
+    expect(source).toContain("setEmitEnabled((prev) => !prev)");
+    expect(source).toContain("CATALOG_MODE_OPTIONS.map((option) =>");
+    expect(source).toContain("aria-pressed={catalogMode === option.value}");
   });
 });

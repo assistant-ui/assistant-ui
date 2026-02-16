@@ -40,6 +40,11 @@ type ScenarioDefinition = {
   matrixInvokeTarget?: string | undefined;
 };
 
+type ToggleOption<T extends string> = {
+  value: T;
+  label: string;
+};
+
 const SCENARIOS: ScenarioDefinition[] = [
   {
     id: "component-part",
@@ -90,6 +95,18 @@ const SCENARIOS: ScenarioDefinition[] = [
     description: "Validates parentId-linked component graph across both lanes.",
     matrixInvokeTarget: "graphChild",
   },
+];
+
+const INVOKE_MODE_OPTIONS: readonly ToggleOption<InvokeMode>[] = [
+  { value: "success", label: "success" },
+  { value: "fail", label: "fail" },
+  { value: "timeout", label: "timeout" },
+];
+
+const CATALOG_MODE_OPTIONS: readonly ToggleOption<CatalogMode>[] = [
+  { value: "byType", label: "byType + fallback" },
+  { value: "fallback-only", label: "fallback-only" },
+  { value: "override", label: "override" },
 ];
 
 const SCENARIO_BY_ID = Object.fromEntries(
@@ -1352,49 +1369,73 @@ export default function ComponentPartLabPage() {
             </section>
 
             <section className="grid gap-3 rounded-lg border border-border bg-muted p-3">
-              <label className="flex flex-col gap-1 text-xs">
+              <div className="grid gap-1 text-xs">
                 <span className="font-semibold">Invoke Mode</span>
-                <select
-                  className="rounded border border-border bg-background px-2 py-1"
-                  value={invokeMode}
-                  onChange={(event) =>
-                    setInvokeMode(event.target.value as InvokeMode)
-                  }
-                >
-                  <option value="success">success</option>
-                  <option value="fail">fail</option>
-                  <option value="timeout">timeout (no ack)</option>
-                </select>
-              </label>
+                <div className="grid grid-cols-3 gap-1">
+                  {INVOKE_MODE_OPTIONS.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      aria-pressed={invokeMode === option.value}
+                      className={`rounded-md border px-2 py-1 text-[11px] ${
+                        invokeMode === option.value
+                          ? "border-foreground bg-foreground text-background"
+                          : "border-border bg-background text-foreground"
+                      }`}
+                      onClick={() => setInvokeMode(option.value)}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-              <label className="flex flex-col gap-1 text-xs">
-                <span className="font-semibold">Emit Handler</span>
-                <select
-                  className="rounded border border-border bg-background px-2 py-1"
-                  value={emitEnabled ? "enabled" : "disabled"}
-                  onChange={(event) =>
-                    setEmitEnabled(event.target.value === "enabled")
-                  }
+              <div className="flex items-center justify-between rounded-md border border-border bg-background px-2 py-1.5 text-xs">
+                <div>
+                  <div className="font-semibold">Emit Handler</div>
+                  <div className="text-[11px] text-muted-foreground">
+                    {emitEnabled ? "enabled" : "disabled"}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={emitEnabled}
+                  onClick={() => setEmitEnabled((prev) => !prev)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full border transition ${
+                    emitEnabled
+                      ? "border-foreground bg-foreground"
+                      : "border-border bg-muted"
+                  }`}
                 >
-                  <option value="enabled">enabled</option>
-                  <option value="disabled">disabled</option>
-                </select>
-              </label>
+                  <span
+                    className={`inline-block h-4 w-4 rounded-full bg-background transition-transform ${
+                      emitEnabled ? "translate-x-5" : "translate-x-1"
+                    }`}
+                  />
+                </button>
+              </div>
 
-              <label className="flex flex-col gap-1 text-xs">
+              <div className="grid gap-1 text-xs">
                 <span className="font-semibold">Catalog Mode</span>
-                <select
-                  className="rounded border border-border bg-background px-2 py-1"
-                  value={catalogMode}
-                  onChange={(event) =>
-                    setCatalogMode(event.target.value as CatalogMode)
-                  }
-                >
-                  <option value="byType">byType + fallback</option>
-                  <option value="fallback-only">fallback-only</option>
-                  <option value="override">override</option>
-                </select>
-              </label>
+                <div className="grid grid-cols-3 gap-1">
+                  {CATALOG_MODE_OPTIONS.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      aria-pressed={catalogMode === option.value}
+                      className={`rounded-md border px-2 py-1 text-[11px] ${
+                        catalogMode === option.value
+                          ? "border-foreground bg-foreground text-background"
+                          : "border-border bg-background text-foreground"
+                      }`}
+                      onClick={() => setCatalogMode(option.value)}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </section>
 
             <section className="grid gap-2 text-xs">
