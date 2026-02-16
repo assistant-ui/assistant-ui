@@ -161,7 +161,7 @@ export class LocalThreadRuntimeCore
               runConfig: this._lastRunConfig,
             },
             resume,
-          );
+          ).catch(() => {});
         }
       })
       .finally(() => {
@@ -307,7 +307,7 @@ export class LocalThreadRuntimeCore
     const initialAnnotations = message.metadata?.unstable_annotations;
     const initialData = message.metadata?.unstable_data;
     const initialSteps = message.metadata?.steps;
-    const initalCustom = message.metadata?.custom;
+    const initialCustom = message.metadata?.custom;
     const updateMessage = (m: Partial<ChatModelRunResult>) => {
       const newSteps = m.metadata?.steps;
       const steps = newSteps
@@ -344,7 +344,10 @@ export class LocalThreadRuntimeCore
                   : undefined),
                 ...(m.metadata?.custom
                   ? {
-                      custom: { ...(initalCustom ?? {}), ...m.metadata.custom },
+                      custom: {
+                        ...(initialCustom ?? {}),
+                        ...m.metadata.custom,
+                      },
                     }
                   : undefined),
               },
@@ -519,7 +522,9 @@ export class LocalThreadRuntimeCore
       added &&
       shouldContinue(message, this._options.unstable_humanToolNames)
     ) {
-      this.performRoundtrip(parentId, message, this._lastRunConfig);
+      this.performRoundtrip(parentId, message, this._lastRunConfig).catch(
+        () => {},
+      );
     }
   }
 

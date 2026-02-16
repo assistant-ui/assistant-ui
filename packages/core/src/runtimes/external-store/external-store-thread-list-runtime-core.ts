@@ -163,7 +163,7 @@ export class ExternalStoreThreadListRuntimeCore
       throw new Error(
         "External store adapter does not support switching to thread",
       );
-    onSwitchToThread(threadId);
+    await onSwitchToThread(threadId);
   }
 
   public async switchToNewThread(): Promise<void> {
@@ -173,7 +173,7 @@ export class ExternalStoreThreadListRuntimeCore
         "External store adapter does not support switching to new thread",
       );
 
-    onSwitchToNewThread();
+    await onSwitchToNewThread();
   }
 
   public async rename(threadId: string, newTitle: string): Promise<void> {
@@ -181,7 +181,7 @@ export class ExternalStoreThreadListRuntimeCore
     if (!onRename)
       throw new Error("External store adapter does not support renaming");
 
-    onRename(threadId, newTitle);
+    await onRename(threadId, newTitle);
   }
 
   public async detach(): Promise<void> {
@@ -193,7 +193,7 @@ export class ExternalStoreThreadListRuntimeCore
     if (!onArchive)
       throw new Error("External store adapter does not support archiving");
 
-    onArchive(threadId);
+    await onArchive(threadId);
   }
 
   public async unarchive(threadId: string): Promise<void> {
@@ -201,7 +201,7 @@ export class ExternalStoreThreadListRuntimeCore
     if (!onUnarchive)
       throw new Error("External store adapter does not support unarchiving");
 
-    onUnarchive(threadId);
+    await onUnarchive(threadId);
   }
 
   public async delete(threadId: string): Promise<void> {
@@ -209,7 +209,7 @@ export class ExternalStoreThreadListRuntimeCore
     if (!onDelete)
       throw new Error("External store adapter does not support deleting");
 
-    onDelete(threadId);
+    await onDelete(threadId);
   }
 
   public initialize(

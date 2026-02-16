@@ -34,16 +34,16 @@ export class LocalThreadListRuntimeCore
     return this._mainThread;
   }
 
-  public get newThreadId(): string {
-    throw new Error("Method not implemented.");
+  public get newThreadId(): string | undefined {
+    return undefined;
   }
 
   public get threadIds(): readonly string[] {
-    throw EMPTY_ARRAY;
+    return EMPTY_ARRAY;
   }
 
   public get archivedThreadIds(): readonly string[] {
-    throw EMPTY_ARRAY;
+    return EMPTY_ARRAY;
   }
 
   public get mainThreadId(): string {
@@ -59,7 +59,7 @@ export class LocalThreadListRuntimeCore
   }
 
   public getLoadThreadsPromise(): Promise<void> {
-    throw new Error("Method not implemented.");
+    return Promise.resolve();
   }
 
   public getItemById(threadId: string) {
