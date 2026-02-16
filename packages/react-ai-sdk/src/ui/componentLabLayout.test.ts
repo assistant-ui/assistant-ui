@@ -53,4 +53,17 @@ describe("component lab layout constraints", () => {
     expect(source).toContain("onCheckedChange={setEmitEnabled}");
     expect(source).toContain("CATALOG_MODE_OPTIONS.map((option) =>");
   });
+
+  it("does not override shadcn toggle styles and keeps emit row unboxed", () => {
+    const source = readFileSync(componentLabPagePath, "utf8");
+
+    expect(source).not.toMatch(/<ToggleGroup[^>]*className=/);
+    expect(source).not.toMatch(/<ToggleGroupItem[^>]*className=/);
+    expect(source).toContain(
+      'className="flex items-center justify-between text-xs"',
+    );
+    expect(source).not.toContain(
+      'className="flex items-center justify-between rounded-md border border-border bg-background px-2 py-1.5 text-xs"',
+    );
+  });
 });

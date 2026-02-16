@@ -1379,23 +1379,16 @@ export default function ComponentPartLabPage() {
                   onValueChange={(value) => {
                     if (value) setInvokeMode(value as InvokeMode);
                   }}
-                  variant="outline"
-                  size="sm"
-                  className="grid w-full grid-cols-3"
                 >
                   {INVOKE_MODE_OPTIONS.map((option) => (
-                    <ToggleGroupItem
-                      key={option.value}
-                      value={option.value}
-                      className="justify-center px-2 text-[11px]"
-                    >
+                    <ToggleGroupItem key={option.value} value={option.value}>
                       {option.label}
                     </ToggleGroupItem>
                   ))}
                 </ToggleGroup>
               </div>
 
-              <div className="flex items-center justify-between rounded-md border border-border bg-background px-2 py-1.5 text-xs">
+              <div className="flex items-center justify-between text-xs">
                 <div>
                   <div className="font-semibold">Emit Handler</div>
                   <div className="text-[11px] text-muted-foreground">
@@ -1416,16 +1409,9 @@ export default function ComponentPartLabPage() {
                   onValueChange={(value) => {
                     if (value) setCatalogMode(value as CatalogMode);
                   }}
-                  variant="outline"
-                  size="sm"
-                  className="grid w-full grid-cols-3"
                 >
                   {CATALOG_MODE_OPTIONS.map((option) => (
-                    <ToggleGroupItem
-                      key={option.value}
-                      value={option.value}
-                      className="justify-center px-2 text-[11px]"
-                    >
+                    <ToggleGroupItem key={option.value} value={option.value}>
                       {option.label}
                     </ToggleGroupItem>
                   ))}
