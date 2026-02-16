@@ -5,10 +5,8 @@ import type {
   ThreadMessageLike,
 } from "@assistant-ui/core";
 import type { LocalRuntimeOptionsBase } from "@assistant-ui/core/internal";
-import {
-  AssistantRuntimeImpl,
-  LocalRuntimeCore,
-} from "@assistant-ui/core/internal";
+import { AssistantRuntimeImpl } from "@assistant-ui/core/internal";
+import { InMemoryRuntimeCore } from "./InMemoryRuntimeCore";
 
 export type LocalRuntimeOptions = Omit<LocalRuntimeOptionsBase, "adapters"> & {
   adapters?: Omit<LocalRuntimeOptionsBase["adapters"], "chatModel"> | undefined;
@@ -29,7 +27,7 @@ export const useLocalRuntime = (
     },
   };
 
-  const [core] = useState(() => new LocalRuntimeCore(opt, initialMessages));
+  const [core] = useState(() => new InMemoryRuntimeCore(opt, initialMessages));
 
   useEffect(() => {
     core.threads.getMainThreadRuntimeCore().__internal_setOptions(opt);
