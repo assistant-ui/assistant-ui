@@ -103,39 +103,6 @@ const SCENARIO_BY_ID = Object.fromEntries(
   SCENARIOS.map((scenario) => [scenario.id, scenario]),
 ) as Record<Scenario, ScenarioDefinition>;
 
-const STORY_AUDIENCE_NOTES = [
-  {
-    audience: "PM",
-    note: "Ship richer assistant moments with reliability guarantees (instance continuity, monotonic seq, stale guards).",
-  },
-  {
-    audience: "Design",
-    note: "Compose native and spec-driven blocks in one thread, with catalog fallback and override controls for safe iteration.",
-  },
-  {
-    audience: "Engineering",
-    note: "Adopt a deterministic runtime contract where every interactive node is addressable by instanceId and extendable via component mappings.",
-  },
-] as const;
-
-const STORY_WALKTHROUGH = [
-  {
-    step: "1",
-    scenario: "Component Part",
-    goal: "Show native component rendering and graceful fallback in the same response.",
-  },
-  {
-    step: "2",
-    scenario: "json-render Guards",
-    goal: "Show stale seq + malformed patch protection with telemetry counters proving dropped updates.",
-  },
-  {
-    step: "3",
-    scenario: "Mixed",
-    goal: "Show component parts and json-render specs coexisting in one deterministic interaction model.",
-  },
-] as const;
-
 const SNAPSHOT_STORAGE_KEY = "component-lab:thread-snapshot";
 const REHYDRATE_ON_RELOAD_KEY = "component-lab:rehydrate-on-reload";
 
@@ -1466,77 +1433,16 @@ export default function ComponentPartLabPage() {
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
-      <div className="mx-auto flex min-h-screen w-full max-w-[96rem] flex-col gap-4 bg-muted px-4 py-4 text-foreground lg:h-screen lg:min-h-0 lg:flex-row">
-        <div className="min-h-[65vh] overflow-hidden rounded-xl border border-border bg-background lg:h-full lg:flex-1">
-          <Thread
-            assistantMessagePartComponents={assistantMessagePartComponents}
-          />
-        </div>
-
-        <aside className="flex w-full flex-col gap-4 overflow-y-auto rounded-xl border border-border bg-background p-4 lg:h-full lg:w-[28rem] lg:min-w-[24rem]">
+      <div className="mx-auto grid min-h-screen w-full max-w-[110rem] gap-4 bg-muted p-4 text-foreground lg:h-screen lg:min-h-0 lg:grid-cols-[22rem_minmax(0,1fr)]">
+        <aside className="flex min-h-0 flex-col gap-4 overflow-y-auto rounded-xl border border-border bg-background p-4">
           <header>
-            <h1 className="font-semibold text-xl">
-              Internal Component Part Lab
-            </h1>
-            <p className="mt-1 text-muted-foreground text-sm">
-              End-to-end pressure test for component-part substrate plus
-              additive json-render lane.
+            <h1 className="font-semibold text-lg">Component Lab Controls</h1>
+            <p className="mt-1 text-muted-foreground text-xs">
+              Scenario and runtime testing options.
             </p>
           </header>
 
-          <section className="grid gap-3">
-            <section className="rounded-lg border border-border bg-muted p-3 text-xs">
-              <h2 className="font-semibold text-foreground">
-                What this unlocks
-              </h2>
-              <p className="mt-1 text-muted-foreground">
-                Assistant responses become interactive UI graphs, not just text.
-                Each component instance is durable and targetable for invoke and
-                emit flows across streaming updates.
-              </p>
-            </section>
-            <section className="rounded-lg border border-border bg-muted p-3 text-xs">
-              <h2 className="font-semibold text-foreground">
-                Component parts + Tool UIs
-              </h2>
-              <p className="mt-1 text-muted-foreground">
-                Use component parts for assistant-authored presentation and
-                progressive state updates. Use Tool UIs for explicit tool
-                invocation lifecycles. They compose in one thread without
-                competing runtime models.
-              </p>
-            </section>
-            <section className="rounded-lg border border-border bg-muted p-3 text-xs">
-              <h2 className="font-semibold text-foreground">
-                Audience framing
-              </h2>
-              <ul className="mt-1 space-y-1 text-muted-foreground">
-                {STORY_AUDIENCE_NOTES.map((item) => (
-                  <li key={item.audience}>
-                    <span className="font-semibold">{item.audience}:</span>{" "}
-                    {item.note}
-                  </li>
-                ))}
-              </ul>
-            </section>
-          </section>
-
-          <section className="rounded-lg border border-border bg-muted p-3 text-xs">
-            <h2 className="font-semibold text-foreground">
-              90-second demo walkthrough
-            </h2>
-            <ol className="mt-1 space-y-1 text-muted-foreground">
-              {STORY_WALKTHROUGH.map((item) => (
-                <li key={item.step}>
-                  <span className="font-semibold">{item.step}.</span>{" "}
-                  <span className="font-semibold">{item.scenario}:</span>{" "}
-                  {item.goal}
-                </li>
-              ))}
-            </ol>
-          </section>
-
-          <section className="grid gap-2 sm:grid-cols-2">
+          <section className="grid gap-2">
             {SCENARIOS.map((item) => (
               <button
                 key={item.id}
@@ -1554,7 +1460,7 @@ export default function ComponentPartLabPage() {
             ))}
           </section>
 
-          <section className="grid gap-3 rounded-lg border border-border bg-muted p-3 sm:grid-cols-2">
+          <section className="grid gap-3 rounded-lg border border-border bg-muted p-3">
             <label className="flex flex-col gap-1 text-xs">
               <span className="font-semibold">Invoke Mode</span>
               <select
@@ -1584,7 +1490,7 @@ export default function ComponentPartLabPage() {
               </select>
             </label>
 
-            <label className="flex flex-col gap-1 text-xs sm:col-span-2">
+            <label className="flex flex-col gap-1 text-xs">
               <span className="font-semibold">Catalog Mode</span>
               <select
                 className="rounded border border-border bg-background px-2 py-1"
@@ -1598,18 +1504,9 @@ export default function ComponentPartLabPage() {
                 <option value="override">override</option>
               </select>
             </label>
-
-            <div className="text-xs sm:col-span-2">
-              <div className="font-semibold">Snapshot</div>
-              <div className="mt-1 text-[11px] text-muted-foreground">
-                {snapshotMeta
-                  ? `saved ${new Date(snapshotMeta.savedAt).toLocaleString()} (${snapshotMeta.messageCount} messages)`
-                  : "none"}
-              </div>
-            </div>
           </section>
 
-          <section className="flex flex-wrap gap-2 text-xs">
+          <section className="grid grid-cols-2 gap-2 text-xs">
             <button
               className="rounded-md border border-border px-2 py-1"
               onClick={() => {
@@ -1617,7 +1514,7 @@ export default function ComponentPartLabPage() {
               }}
               type="button"
             >
-              Send Scenario Prompt
+              Send Prompt
             </button>
             <button
               data-testid="run-matrix"
@@ -1628,7 +1525,7 @@ export default function ComponentPartLabPage() {
               type="button"
               disabled={isMatrixRunning}
             >
-              {isMatrixRunning ? "Running Matrix..." : "Run Scenario Matrix"}
+              {isMatrixRunning ? "Running..." : "Run Matrix"}
             </button>
             <button
               className="rounded-md border border-border px-2 py-1"
@@ -1652,7 +1549,7 @@ export default function ComponentPartLabPage() {
               }}
               type="button"
             >
-              Reset Thread + Telemetry + Log
+              Reset All
             </button>
             <button
               className="rounded-md border border-border px-2 py-1"
@@ -1666,7 +1563,7 @@ export default function ComponentPartLabPage() {
               onClick={rehydrateSnapshot}
               type="button"
             >
-              Rehydrate Snapshot
+              Rehydrate
             </button>
             <button
               className="rounded-md border border-border px-2 py-1"
@@ -1682,9 +1579,14 @@ export default function ComponentPartLabPage() {
             >
               Clear Snapshot
             </button>
+            <div className="col-span-2 rounded-md border border-border bg-muted px-2 py-1 text-[11px] text-muted-foreground">
+              {snapshotMeta
+                ? `Snapshot: ${new Date(snapshotMeta.savedAt).toLocaleString()} (${snapshotMeta.messageCount} msgs)`
+                : "Snapshot: none"}
+            </div>
           </section>
 
-          <section className="grid gap-2 text-xs sm:grid-cols-2">
+          <section className="grid gap-2 text-xs">
             <div className="rounded-md border border-border bg-muted px-2 py-1">
               staleSeqIgnored={telemetry.staleSeqIgnored}
             </div>
@@ -1699,19 +1601,18 @@ export default function ComponentPartLabPage() {
             <div className="rounded-md border border-border bg-muted px-2 py-1">
               receipts(invoke/emit)={invokeReceipts}/{emitReceipts}
             </div>
+            <div className="text-[11px] text-muted-foreground">
+              Active scenario: {activeScenario.title}
+            </div>
           </section>
-
-          <div className="text-[11px] text-muted-foreground">
-            Active scenario: {activeScenario.title}
-          </div>
 
           {matrixSummary ? (
             <section
-              className="rounded-xl border border-border bg-background p-4"
+              className="rounded-xl border border-border bg-background p-3"
               data-testid="matrix-summary"
             >
-              <h2 className="font-semibold text-sm">Scenario Matrix Summary</h2>
-              <div className="mt-2 grid gap-2 text-xs sm:grid-cols-2">
+              <h2 className="font-semibold text-sm">Matrix Summary</h2>
+              <div className="mt-2 grid gap-2 text-xs">
                 <div className="rounded bg-muted px-2 py-1">
                   runs={matrixSummary.runs} pass={matrixSummary.passes} fail=
                   {matrixSummary.failures}
@@ -1730,51 +1631,27 @@ export default function ComponentPartLabPage() {
                   {matrixSummary.catalogOverride}/{matrixSummary.catalogMiss}
                 </div>
               </div>
-              <div className="mt-3 space-y-2">
-                {matrixSummary.results.map((result) => (
-                  <details
-                    key={result.scenario}
-                    className="rounded border border-border bg-muted p-2"
-                    data-testid={`matrix-${result.scenario}`}
-                  >
-                    <summary className="cursor-pointer text-xs">
-                      <span className="font-semibold">
-                        {SCENARIO_BY_ID[result.scenario].title}
-                      </span>{" "}
-                      <span
-                        className={`ml-2 rounded px-2 py-[2px] ${
-                          result.pass
-                            ? "bg-emerald-100 text-emerald-900"
-                            : "bg-rose-100 text-rose-900"
-                        }`}
-                      >
-                        {result.pass ? "PASS" : "FAIL"}
-                      </span>
-                    </summary>
-                    <div className="mt-2 text-[11px] text-muted-foreground">
-                      {result.details}
-                    </div>
-                    <pre className="mt-2 overflow-x-auto rounded bg-background p-2 text-[11px]">
-                      {result.finalSpecState}
-                    </pre>
-                  </details>
-                ))}
-              </div>
             </section>
           ) : null}
 
-          <section className="rounded-xl border border-border bg-background p-4">
+          <section className="rounded-xl border border-border bg-background p-3">
             <h2 className="font-semibold text-sm">Event Log</h2>
             <pre
-              className="mt-2 max-h-72 overflow-y-auto rounded bg-muted p-3 text-[11px] leading-5"
+              className="mt-2 max-h-56 overflow-y-auto rounded bg-muted p-2 text-[11px] leading-5"
               data-testid="event-log"
             >
               {eventLog.length > 0
                 ? eventLog.join("\n")
-                : "No events yet. Trigger invoke/emit buttons in component cards."}
+                : "No events yet. Trigger invoke/emit in the thread."}
             </pre>
           </section>
         </aside>
+
+        <section className="min-h-[70vh] overflow-hidden rounded-xl border border-border bg-background lg:h-full">
+          <Thread
+            assistantMessagePartComponents={assistantMessagePartComponents}
+          />
+        </section>
       </div>
     </AssistantRuntimeProvider>
   );
