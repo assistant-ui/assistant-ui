@@ -1,6 +1,7 @@
 import type { ComponentType, PropsWithChildren } from "react";
 import type {
   MessagePartStatus,
+  DataMessagePart,
   FileMessagePart,
   ImageMessagePart,
   ReasoningMessagePart,
@@ -43,6 +44,12 @@ export type Unstable_AudioMessagePartProps = MessagePartState &
   Unstable_AudioMessagePart;
 export type Unstable_AudioMessagePartComponent =
   ComponentType<Unstable_AudioMessagePartProps>;
+
+export type DataMessagePartProps<T = any> = MessagePartState &
+  DataMessagePart<T>;
+export type DataMessagePartComponent<T = any> = ComponentType<
+  DataMessagePartProps<T>
+>;
 
 export type ToolCallMessagePartProps<
   TArgs = any,

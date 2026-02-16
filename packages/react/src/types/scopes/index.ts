@@ -44,6 +44,11 @@ export type {
 } from "./attachment";
 export type { ToolsState, ToolsMethods, ToolsClientSchema } from "./tools";
 export type {
+  DataRenderersState,
+  DataRenderersMethods,
+  DataRenderersClientSchema,
+} from "./dataRenderers";
+export type {
   SuggestionsState,
   SuggestionsMethods,
   SuggestionsClientSchema,

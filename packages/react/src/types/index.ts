@@ -43,6 +43,8 @@ export type {
   FileMessagePartProps,
   Unstable_AudioMessagePartComponent,
   Unstable_AudioMessagePartProps,
+  DataMessagePartComponent,
+  DataMessagePartProps,
   ToolCallMessagePartComponent,
   ToolCallMessagePartProps,
   ReasoningGroupProps,

@@ -16,6 +16,7 @@ import { withKey } from "@assistant-ui/tap";
 import type { Attachment } from "../types/AttachmentTypes";
 import { ModelContext } from "./ModelContextClient";
 import { Tools } from "./Tools";
+import { DataRenderers } from "./DataRenderers";
 import { Suggestions } from "./Suggestions";
 import {
   ThreadAssistantMessagePart,
@@ -492,6 +493,9 @@ attachTransformScopes(ExternalThread, (scopes, parent) => {
   }
   if (!result.tools && parent.tools.source === null) {
     result.tools = Tools({});
+  }
+  if (!result.dataRenderers && parent.dataRenderers.source === null) {
+    result.dataRenderers = DataRenderers();
   }
   if (!result.suggestions && parent.suggestions.source === null) {
     result.suggestions = Suggestions();

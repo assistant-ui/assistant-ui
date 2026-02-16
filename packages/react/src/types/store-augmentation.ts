@@ -8,6 +8,7 @@ import type { PartClientSchema } from "./scopes/part";
 import type { ComposerClientSchema } from "./scopes/composer";
 import type { AttachmentClientSchema } from "./scopes/attachment";
 import type { ToolsClientSchema } from "./scopes/tools";
+import type { DataRenderersClientSchema } from "./scopes/dataRenderers";
 import type { ModelContextClientSchema } from "./scopes/modelContext";
 import type { SuggestionsClientSchema } from "./scopes/suggestions";
 import type { SuggestionClientSchema } from "./scopes/suggestion";
@@ -23,6 +24,7 @@ declare module "@assistant-ui/store" {
     composer: ComposerClientSchema;
     attachment: AttachmentClientSchema;
     tools: ToolsClientSchema;
+    dataRenderers: DataRenderersClientSchema;
     modelContext: ModelContextClientSchema;
     suggestions: SuggestionsClientSchema;
     suggestion: SuggestionClientSchema;

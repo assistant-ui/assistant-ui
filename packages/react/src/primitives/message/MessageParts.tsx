@@ -17,6 +17,8 @@ import { MessagePartPrimitiveText } from "../messagePart/MessagePartText";
 import { MessagePartPrimitiveImage } from "../messagePart/MessagePartImage";
 import type {
   Unstable_AudioMessagePartComponent,
+  DataMessagePartComponent,
+  DataMessagePartProps,
   EmptyMessagePartComponent,
   TextMessagePartComponent,
   ImageMessagePartComponent,
@@ -145,6 +147,13 @@ const useMessagePartsGroups = (
 };
 
 export namespace MessagePrimitiveParts {
+  type DataConfig = {
+    /** Map data event names to specific components */
+    by_name?: Record<string, DataMessagePartComponent | undefined> | undefined;
+    /** Fallback component for unmatched data events */
+    Fallback?: DataMessagePartComponent | undefined;
+  };
+
   type BaseComponents = {
     /** Component for rendering empty messages */
     Empty?: EmptyMessagePartComponent | undefined;
@@ -158,6 +167,8 @@ export namespace MessagePrimitiveParts {
     File?: FileMessagePartComponent | undefined;
     /** Component for rendering audio content (experimental) */
     Unstable_Audio?: Unstable_AudioMessagePartComponent | undefined;
+    /** Configuration for data part rendering */
+    data?: DataConfig | undefined;
   };
 
   type ToolsConfig =
@@ -330,6 +341,21 @@ const ToolUIDisplay = ({
   return <Render {...props} />;
 };
 
+const DataUIDisplay = ({
+  Fallback,
+  ...props
+}: {
+  Fallback: DataMessagePartComponent | undefined;
+} & DataMessagePartProps) => {
+  const Render = useAuiState((s) => {
+    const Render = s.dataRenderers.renderers[props.name] ?? Fallback;
+    if (Array.isArray(Render)) return Render[0] ?? Fallback;
+    return Render;
+  });
+  if (!Render) return null;
+  return <Render {...props} />;
+};
+
 const defaultComponents = {
   Text: () => (
     <p style={{ whiteSpace: "pre-line" }}>
@@ -361,6 +387,7 @@ export const MessagePartComponent: FC<MessagePartComponentProps> = ({
     File = defaultComponents.File,
     Unstable_Audio: Audio = defaultComponents.Unstable_Audio,
     tools = {},
+    data,
   } = {},
 }) => {
   const aui = useAui();
@@ -405,8 +432,10 @@ export const MessagePartComponent: FC<MessagePartComponentProps> = ({
     case "audio":
       return <Audio {...part} />;
 
-    case "data":
-      return null;
+    case "data": {
+      const Data = data?.by_name?.[part.name] ?? data?.Fallback;
+      return <DataUIDisplay {...part} Fallback={Data} />;
+    }
 
     default:
       const unhandledType: never = type;
@@ -456,6 +485,7 @@ export const MessagePrimitivePartByIndex: FC<MessagePrimitivePartByIndex.Props> 
       prev.components?.File === next.components?.File &&
       prev.components?.Unstable_Audio === next.components?.Unstable_Audio &&
       prev.components?.tools === next.components?.tools &&
+      prev.components?.data === next.components?.data &&
       prev.components?.ToolGroup === next.components?.ToolGroup &&
       prev.components?.ReasoningGroup === next.components?.ReasoningGroup,
   );
