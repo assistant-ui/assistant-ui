@@ -46,6 +46,17 @@ test.describe("internal component lab", () => {
     });
   });
 
+  test("uses stock assistant-ui thread and composer shell", async ({
+    page,
+  }) => {
+    await page.goto("/internal/component-lab");
+
+    await expect(page.getByPlaceholder("Send a message...")).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Send message" }),
+    ).toBeVisible();
+  });
+
   test("renders catalog components with actionable demo controls", async ({
     page,
   }) => {
