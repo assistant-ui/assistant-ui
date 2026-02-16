@@ -1,12 +1,5 @@
 export type {
-  Attachment,
-  PendingAttachment,
-  CompleteAttachment,
-  AttachmentStatus,
-} from "./AttachmentTypes";
-
-export type {
-  AppendMessage,
+  // Message parts
   TextMessagePart,
   ReasoningMessagePart,
   SourceMessagePart,
@@ -15,22 +8,32 @@ export type {
   DataMessagePart,
   Unstable_AudioMessagePart,
   ToolCallMessagePart,
-  MessageStatus,
-  MessagePartStatus,
-  ToolCallMessagePartStatus,
-  MessageTiming,
-  // thread message types
   ThreadUserMessagePart,
   ThreadAssistantMessagePart,
-  ThreadSystemMessage,
-  ThreadAssistantMessage,
-  ThreadUserMessage,
-  ThreadMessage,
-  RunConfig,
-  MessageRole,
+  // Message status
+  MessagePartStatus,
+  ToolCallMessagePartStatus,
+  MessageStatus,
+  // Thread messages
+  MessageTiming,
   ThreadStep,
-} from "./AssistantTypes";
+  ThreadSystemMessage,
+  ThreadUserMessage,
+  ThreadAssistantMessage,
+  ThreadMessage,
+  MessageRole,
+  // Config
+  RunConfig,
+  AppendMessage,
+} from "./message";
 
-export type { Unsubscribe } from "./Unsubscribe";
+export type {
+  Attachment,
+  PendingAttachment,
+  CompleteAttachment,
+  AttachmentStatus,
+} from "./attachment";
 
-export type { QuoteInfo } from "./QuoteTypes";
+export type { Unsubscribe } from "./unsubscribe";
+
+export type { QuoteInfo } from "./quote";
