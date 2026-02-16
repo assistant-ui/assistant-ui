@@ -1,0 +1,40 @@
+import { useEffect, useMemo, useState } from "react";
+import type {
+  AssistantRuntime,
+  ChatModelAdapter,
+  ThreadMessageLike,
+} from "@assistant-ui/core";
+import type { LocalRuntimeOptionsBase } from "@assistant-ui/core/internal";
+import {
+  AssistantRuntimeImpl,
+  LocalRuntimeCore,
+} from "@assistant-ui/core/internal";
+
+export type LocalRuntimeOptions = Omit<LocalRuntimeOptionsBase, "adapters"> & {
+  adapters?: Omit<LocalRuntimeOptionsBase["adapters"], "chatModel"> | undefined;
+  initialMessages?: readonly ThreadMessageLike[] | undefined;
+};
+
+export const useLocalRuntime = (
+  chatModel: ChatModelAdapter,
+  options: LocalRuntimeOptions = {},
+): AssistantRuntime => {
+  const { initialMessages, ...restOptions } = options;
+
+  const opt: LocalRuntimeOptionsBase = {
+    ...restOptions,
+    adapters: {
+      ...restOptions.adapters,
+      chatModel,
+    },
+  };
+
+  const [core] = useState(() => new LocalRuntimeCore(opt, initialMessages));
+
+  useEffect(() => {
+    core.threads.getMainThreadRuntimeCore().__internal_setOptions(opt);
+    core.threads.getMainThreadRuntimeCore().__internal_load();
+  });
+
+  return useMemo(() => new AssistantRuntimeImpl(core), [core]);
+};
