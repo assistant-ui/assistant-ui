@@ -236,10 +236,7 @@ export abstract class BaseComposerRuntimeCore
 
     await adapter.remove(attachment);
 
-    this._attachments = [
-      ...this._attachments.slice(0, index),
-      ...this._attachments.slice(index + 1),
-    ];
+    this._attachments = this._attachments.filter((a) => a.id !== attachmentId);
     this._notifySubscribers();
   }
 

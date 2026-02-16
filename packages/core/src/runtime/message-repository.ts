@@ -346,6 +346,8 @@ export class MessageRepository {
     ) {
       if (current.prev) {
         current.prev.next = current;
+      } else {
+        this.root.next = current;
       }
     }
 

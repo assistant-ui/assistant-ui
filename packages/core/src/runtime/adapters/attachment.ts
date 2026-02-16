@@ -138,12 +138,10 @@ function fileMatchesAccept(
       return true;
     }
 
-    if (type === "image/*" || type === "video/*" || type === "audio/*") {
-      if (type.endsWith("/*")) {
-        const generalType = type.split("/")[0]!;
-        if (fileMimeType.startsWith(`${generalType}/`)) {
-          return true;
-        }
+    if (type.endsWith("/*")) {
+      const generalType = type.split("/")[0]!;
+      if (fileMimeType.startsWith(`${generalType}/`)) {
+        return true;
       }
     }
   }
