@@ -686,9 +686,6 @@ importers:
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../../packages/x-buildutils
-      '@playwright/test':
-        specifier: ^1.51.1
-        version: 1.58.2
       '@tailwindcss/postcss':
         specifier: ^4.1.18
         version: 4.1.18
@@ -11286,6 +11283,7 @@ snapshots:
   '@playwright/test@1.58.2':
     dependencies:
       playwright: 1.58.2
+    optional: true
 
   '@polka/url@1.0.0-next.29': {}
 
@@ -16077,13 +16075,15 @@ snapshots:
       exsolve: 1.0.8
       pathe: 2.0.3
 
-  playwright-core@1.58.2: {}
+  playwright-core@1.58.2:
+    optional: true
 
   playwright@1.58.2:
     dependencies:
       playwright-core: 1.58.2
     optionalDependencies:
       fsevents: 2.3.2
+    optional: true
 
   points-on-curve@0.2.0: {}
 
