@@ -18,6 +18,11 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./internal": {
+      "aui-source": "./src/internal.ts",
+      "types": "./dist/internal.d.ts",
+      "default": "./dist/internal.js"
+    },
     "./*": {
       "aui-source": "./src/*.ts",
       "types": "./dist/*.d.ts",
