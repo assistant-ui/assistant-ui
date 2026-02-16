@@ -32,35 +32,9 @@ import {
   RefreshCwIcon,
   SquareIcon,
 } from "lucide-react";
-import { useCallback, useMemo, type ComponentProps, type FC } from "react";
+import type { FC } from "react";
 
-type AssistantMessagePartComponents = NonNullable<
-  ComponentProps<typeof MessagePrimitive.Parts>["components"]
->;
-
-type ThreadProps = {
-  assistantMessagePartComponents?: AssistantMessagePartComponents | undefined;
-};
-
-export const Thread: FC<ThreadProps> = ({ assistantMessagePartComponents }) => {
-  const AssistantMessageWithOverrides = useCallback(
-    () => (
-      <AssistantMessage
-        assistantMessagePartComponents={assistantMessagePartComponents}
-      />
-    ),
-    [assistantMessagePartComponents],
-  );
-
-  const messageComponents = useMemo(
-    () => ({
-      UserMessage,
-      EditComposer,
-      AssistantMessage: AssistantMessageWithOverrides,
-    }),
-    [AssistantMessageWithOverrides],
-  );
-
+export const Thread: FC = () => {
   return (
     <ThreadPrimitive.Root
       className="aui-root aui-thread-root @container flex h-full flex-col bg-background"
@@ -76,7 +50,13 @@ export const Thread: FC<ThreadProps> = ({ assistantMessagePartComponents }) => {
           <ThreadWelcome />
         </AuiIf>
 
-        <ThreadPrimitive.Messages components={messageComponents} />
+        <ThreadPrimitive.Messages
+          components={{
+            UserMessage,
+            EditComposer,
+            AssistantMessage,
+          }}
+        />
 
         <ThreadPrimitive.ViewportFooter className="aui-thread-viewport-footer sticky bottom-0 mx-auto mt-auto flex w-full max-w-(--thread-max-width) flex-col gap-4 overflow-visible rounded-t-3xl bg-background pb-4 md:pb-6">
           <ThreadScrollToBottom />
@@ -215,22 +195,19 @@ const MessageError: FC = () => {
   );
 };
 
-const AssistantMessage: FC<{
-  assistantMessagePartComponents?: AssistantMessagePartComponents | undefined;
-}> = ({ assistantMessagePartComponents }) => {
-  const mergedPartComponents = {
-    Text: MarkdownText,
-    tools: { Fallback: ToolFallback },
-    ...(assistantMessagePartComponents ?? {}),
-  } as ComponentProps<typeof MessagePrimitive.Parts>["components"];
-
+const AssistantMessage: FC = () => {
   return (
     <MessagePrimitive.Root
       className="aui-assistant-message-root fade-in slide-in-from-bottom-1 relative mx-auto w-full max-w-(--thread-max-width) animate-in py-3 duration-150"
       data-role="assistant"
     >
       <div className="aui-assistant-message-content wrap-break-word px-2 text-foreground leading-relaxed">
-        <MessagePrimitive.Parts components={mergedPartComponents} />
+        <MessagePrimitive.Parts
+          components={{
+            Text: MarkdownText,
+            tools: { Fallback: ToolFallback },
+          }}
+        />
         <MessageError />
       </div>
 
