@@ -1433,7 +1433,10 @@ export default function ComponentPartLabPage() {
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
-      <div className="mx-auto grid min-h-screen w-full max-w-[110rem] gap-4 bg-muted p-4 text-foreground lg:h-screen lg:min-h-0 lg:grid-cols-[22rem_minmax(0,1fr)]">
+      <div
+        className="mx-auto grid min-h-screen w-full max-w-[110rem] gap-4 bg-muted p-4 text-foreground"
+        style={{ gridTemplateColumns: "20rem minmax(0, 1fr)" }}
+      >
         <aside className="flex min-h-0 flex-col gap-4 overflow-y-auto rounded-xl border border-border bg-background p-4">
           <header>
             <h1 className="font-semibold text-lg">Component Lab Controls</h1>
@@ -1647,7 +1650,7 @@ export default function ComponentPartLabPage() {
           </section>
         </aside>
 
-        <section className="min-h-[70vh] overflow-hidden rounded-xl border border-border bg-background lg:h-full">
+        <section className="min-h-[70vh] overflow-hidden rounded-xl border border-border bg-background">
           <Thread
             assistantMessagePartComponents={assistantMessagePartComponents}
           />
