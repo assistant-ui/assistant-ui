@@ -6,9 +6,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
-    "test:e2e": "playwright test",
-    "test:e2e:headed": "playwright test --headed"
+    "start": "next start"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.30",
@@ -32,7 +30,6 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@playwright/test": "^1.51.1",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@tailwindcss/postcss": "^4.2.0",
     "@types/node": "^25.3.0",
