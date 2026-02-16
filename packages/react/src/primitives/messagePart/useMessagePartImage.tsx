@@ -1,7 +1,6 @@
 "use client";
 
-import type { ImageMessagePart } from "@assistant-ui/core";
-import { MessagePartState } from "../../legacy-runtime/runtime/MessagePartRuntime";
+import type { ImageMessagePart, MessagePartState } from "@assistant-ui/core";
 import { useAuiState } from "@assistant-ui/store";
 
 export const useMessagePartImage = () => {

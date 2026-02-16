@@ -1,7 +1,8 @@
 export {
   // Sentinel
   SKIP_UPDATE,
-  // Base class
+  // Base classes
+  BaseSubscribable,
   BaseSubject,
   // Subject implementations
   ShallowMemoizeSubject,

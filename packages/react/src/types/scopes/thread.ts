@@ -2,18 +2,14 @@ import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import type {
   RuntimeCapabilities,
   SpeechState,
-} from "../../legacy-runtime/runtime-cores/core/ThreadRuntimeCore";
-import type {
   ThreadSuggestion,
   ExportedMessageRepository,
   ThreadMessageLike,
-} from "../../legacy-runtime/runtime-cores";
-import type {
   CreateAppendMessage,
   CreateStartRunConfig,
+  CreateResumeRunConfig,
   ThreadRuntime,
-} from "../../legacy-runtime/runtime";
-import type { CreateResumeRunConfig } from "../../legacy-runtime/runtime/ThreadRuntime";
+} from "@assistant-ui/core";
 import type { ModelContext } from "../../model-context";
 import type { MessageMethods, MessageState } from "./message";
 import type { ComposerMethods, ComposerState } from "./composer";

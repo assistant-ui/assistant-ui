@@ -9,3 +9,6 @@ export {
 
 // Message utilities
 export { getThreadMessageText } from "./text";
+
+// Composite context provider
+export { CompositeContextProvider } from "./composite-context-provider";

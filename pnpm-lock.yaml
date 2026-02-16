@@ -2204,7 +2204,7 @@ importers:
   packages/react:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.0.0
+        specifier: workspace:*
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.1.6

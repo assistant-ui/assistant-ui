@@ -1,5 +1,7 @@
-import type { ThreadListItemRuntime } from "../../legacy-runtime/runtime";
-import type { ThreadListItemStatus } from "../../legacy-runtime/runtime/ThreadListItemRuntime";
+import type {
+  ThreadListItemRuntime,
+  ThreadListItemStatus,
+} from "@assistant-ui/core";
 
 export type ThreadListItemState = {
   readonly id: string;

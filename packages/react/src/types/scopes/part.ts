@@ -1,6 +1,6 @@
 import type { ToolResponse } from "assistant-stream";
-import type { MessagePartRuntime } from "../../legacy-runtime/runtime";
 import type {
+  MessagePartRuntime,
   ThreadUserMessagePart,
   ThreadAssistantMessagePart,
   MessagePartStatus,

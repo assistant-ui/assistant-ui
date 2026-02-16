@@ -6,11 +6,11 @@ import type {
   MessagePartStatus,
   ReasoningMessagePart,
   TextMessagePart,
+  MessagePartState,
 } from "@assistant-ui/core";
 import { useCallbackRef } from "@radix-ui/react-use-callback-ref";
 import { useSmoothStatusStore } from "./SmoothContext";
 import { writableStore } from "../../context/ReadonlyStore";
-import { MessagePartState } from "../../legacy-runtime/runtime/MessagePartRuntime";
 
 class TextStreamAnimator {
   private animationFrameId: number | null = null;

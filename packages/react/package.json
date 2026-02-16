@@ -55,7 +55,7 @@
   },
   "dependencies": {
     "assistant-cloud": "^0.1.17",
-    "@assistant-ui/core": "^0.0.0",
+    "@assistant-ui/core": "workspace:*",
     "@assistant-ui/tap": "^0.4.6",
     "@assistant-ui/store": "^0.1.6",
     "@radix-ui/primitive": "^1.1.3",

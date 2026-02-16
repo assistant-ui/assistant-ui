@@ -1,5 +1,10 @@
-export type { AttachmentAdapter } from "./AttachmentAdapter";
-export { SimpleImageAttachmentAdapter } from "./SimpleImageAttachmentAdapter";
-export { SimpleTextAttachmentAdapter } from "./SimpleTextAttachmentAdapter";
-export { CompositeAttachmentAdapter } from "./CompositeAttachmentAdapter";
+// Re-export from @assistant-ui/core
+export type { AttachmentAdapter } from "@assistant-ui/core";
+export {
+  SimpleImageAttachmentAdapter,
+  SimpleTextAttachmentAdapter,
+  CompositeAttachmentAdapter,
+} from "@assistant-ui/core";
+
+// React-specific (depends on assistant-cloud)
 export { CloudFileAttachmentAdapter } from "./CloudFileAttachmentAdapter";

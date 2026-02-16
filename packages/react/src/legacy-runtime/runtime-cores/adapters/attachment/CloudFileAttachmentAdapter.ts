@@ -4,8 +4,8 @@ import type {
   PendingAttachment,
   CompleteAttachment,
   ThreadUserMessagePart,
+  AttachmentAdapter,
 } from "@assistant-ui/core";
-import { AttachmentAdapter } from "./AttachmentAdapter";
 
 const guessAttachmentType = (
   contentType: string,

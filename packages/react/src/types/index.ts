@@ -52,4 +52,4 @@ export type {
 } from "./MessagePartComponentTypes";
 
 // Thread list item types
-export type { ThreadListItemStatus } from "../legacy-runtime/runtime/ThreadListItemRuntime";
+export type { ThreadListItemStatus } from "@assistant-ui/core";

@@ -1,7 +1,7 @@
+// Re-export from @assistant-ui/core
 export type {
   AddToolResultOptions,
   SubmitFeedbackOptions,
   ThreadSuggestion,
-} from "./ThreadRuntimeCore";
-
-export type { DictationState } from "./ComposerRuntimeCore";
+  DictationState,
+} from "@assistant-ui/core";

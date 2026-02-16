@@ -1,20 +1,18 @@
 import { RefObject, useState } from "react";
-import {
+import type {
   GenericThreadHistoryAdapter,
   ThreadHistoryAdapter,
-} from "../runtime-cores/adapters/thread-history/ThreadHistoryAdapter";
-import { ExportedMessageRepositoryItem } from "../runtime-cores/utils/MessageRepository";
+  ExportedMessageRepositoryItem,
+  MessageFormatAdapter,
+  MessageFormatItem,
+  MessageFormatRepository,
+} from "@assistant-ui/core";
 import {
   AssistantCloud,
   CloudMessagePersistence,
   createFormattedPersistence,
 } from "assistant-cloud";
 import { auiV0Decode, auiV0Encode } from "./auiV0";
-import {
-  MessageFormatAdapter,
-  MessageFormatItem,
-  MessageFormatRepository,
-} from "../runtime-cores/adapters/thread-history/MessageFormatAdapter";
 import { AssistantClient, useAui } from "@assistant-ui/store";
 import { ThreadListItemMethods } from "../../types/scopes";
 

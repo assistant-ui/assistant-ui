@@ -1,8 +1,120 @@
-import type { Unsubscribe } from "@assistant-ui/core";
-import type { DictationAdapter } from "./SpeechAdapterTypes";
+import type { Unsubscribe } from "../../types";
 
-// Type definitions for Web Speech API
-// Users can install @types/dom-speech-recognition for full type support
+// =============================================================================
+// Speech Synthesis Adapter
+// =============================================================================
+
+export namespace SpeechSynthesisAdapter {
+  export type Status =
+    | {
+        type: "starting" | "running";
+      }
+    | {
+        type: "ended";
+        reason: "finished" | "cancelled" | "error";
+        error?: unknown;
+      };
+
+  export type Utterance = {
+    status: Status;
+    cancel: () => void;
+    subscribe: (callback: () => void) => Unsubscribe;
+  };
+}
+
+export type SpeechSynthesisAdapter = {
+  speak: (text: string) => SpeechSynthesisAdapter.Utterance;
+};
+
+// =============================================================================
+// Dictation Adapter
+// =============================================================================
+
+export namespace DictationAdapter {
+  export type Status =
+    | {
+        type: "starting" | "running";
+      }
+    | {
+        type: "ended";
+        reason: "stopped" | "cancelled" | "error";
+      };
+
+  export type Result = {
+    transcript: string;
+    isFinal?: boolean;
+  };
+
+  export type Session = {
+    status: Status;
+    stop: () => Promise<void>;
+    cancel: () => void;
+    onSpeechStart: (callback: () => void) => Unsubscribe;
+    onSpeechEnd: (callback: (result: Result) => void) => Unsubscribe;
+    onSpeech: (callback: (result: Result) => void) => Unsubscribe;
+  };
+}
+
+export type DictationAdapter = {
+  listen: () => DictationAdapter.Session;
+  disableInputDuringDictation?: boolean;
+};
+
+// =============================================================================
+// Web Speech Synthesis Adapter
+// =============================================================================
+
+export class WebSpeechSynthesisAdapter implements SpeechSynthesisAdapter {
+  speak(text: string): SpeechSynthesisAdapter.Utterance {
+    const utterance = new SpeechSynthesisUtterance(text);
+
+    const subscribers = new Set<() => void>();
+    const handleEnd = (
+      reason: "finished" | "error" | "cancelled",
+      error?: unknown,
+    ) => {
+      if (res.status.type === "ended") return;
+
+      res.status = { type: "ended", reason, error };
+      subscribers.forEach((handler) => handler());
+    };
+
+    utterance.addEventListener("end", () => handleEnd("finished"));
+    utterance.addEventListener("error", (e) => handleEnd("error", e.error));
+
+    window.speechSynthesis.speak(utterance);
+
+    const res: SpeechSynthesisAdapter.Utterance = {
+      status: { type: "running" },
+      cancel: () => {
+        window.speechSynthesis.cancel();
+        handleEnd("cancelled");
+      },
+      subscribe: (callback) => {
+        if (res.status.type === "ended") {
+          let cancelled = false;
+          queueMicrotask(() => {
+            if (!cancelled) callback();
+          });
+          return () => {
+            cancelled = true;
+          };
+        } else {
+          subscribers.add(callback);
+          return () => {
+            subscribers.delete(callback);
+          };
+        }
+      },
+    };
+    return res;
+  }
+}
+
+// =============================================================================
+// Web Speech Dictation Adapter
+// =============================================================================
+
 interface SpeechRecognitionResultItem {
   transcript: string;
   confidence: number;
@@ -58,20 +170,6 @@ const getSpeechRecognitionAPI = ():
   return window.SpeechRecognition ?? window.webkitSpeechRecognition;
 };
 
-/**
- * WebSpeechDictationAdapter provides speech-to-text (dictation) functionality using
- * the browser's Web Speech API (SpeechRecognition).
- *
- * @example
- * ```tsx
- * const runtime = useChatRuntime({
- *   api: "/api/chat",
- *   adapters: {
- *     dictation: new WebSpeechDictationAdapter(),
- *   },
- * });
- * ```
- */
 export class WebSpeechDictationAdapter implements DictationAdapter {
   private _language: string;
   private _continuous: boolean;
@@ -79,20 +177,8 @@ export class WebSpeechDictationAdapter implements DictationAdapter {
 
   constructor(
     options: {
-      /**
-       * The language for dictation (e.g., "en-US", "zh-CN").
-       * Defaults to the browser's language.
-       */
       language?: string;
-      /**
-       * Whether to keep recording after the user stops speaking.
-       * Defaults to true.
-       */
       continuous?: boolean;
-      /**
-       * Whether to return interim (partial) results.
-       * Defaults to true for real-time feedback.
-       */
       interimResults?: boolean;
     } = {},
   ) {
@@ -105,9 +191,6 @@ export class WebSpeechDictationAdapter implements DictationAdapter {
     this._interimResults = options.interimResults ?? true;
   }
 
-  /**
-   * Check if the browser supports the Web Speech Recognition API.
-   */
   static isSupported(): boolean {
     return getSpeechRecognitionAPI() !== undefined;
   }
