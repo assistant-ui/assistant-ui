@@ -45,8 +45,9 @@ export function ChatComposer() {
       style={[
         styles.container,
         {
-          backgroundColor: isDark ? "#000000" : "#f2f2f7",
-          borderTopColor: isDark ? "#2c2c2e" : "#e5e5ea",
+          backgroundColor: isDark
+            ? "rgba(28, 28, 30, 0.8)"
+            : "rgba(242, 242, 247, 0.8)",
         },
       ]}
     >
@@ -112,7 +113,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 8,
-    borderTopWidth: 1,
   },
   inputWrapper: {
     flexDirection: "row",

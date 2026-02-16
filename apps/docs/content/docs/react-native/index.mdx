@@ -1,0 +1,356 @@
+---
+title: Getting Started
+description: Build AI chat interfaces for iOS and Android with @assistant-ui/react-native.
+---
+
+## Overview
+
+`@assistant-ui/react-native` brings assistant-ui to React Native. It provides composable primitives, reactive hooks, and a local runtime — the same layered architecture as the web package, built on native components (`View`, `TextInput`, `FlatList`, `Pressable`).
+
+**Key features:**
+
+- **Primitives** — `Thread`, `Composer`, `Message`, `ThreadList` components that compose with standard React Native props
+- **Reactive hooks** — `useThread`, `useComposer`, `useMessage` with selector support for fine-grained re-renders
+- **Local runtime** — `useLocalRuntime` with pluggable `ChatModelAdapter` for any LLM API
+- **Persistence** — Built-in `StorageAdapter` with AsyncStorage and in-memory implementations
+- **Thread management** — Multi-thread support with create, switch, rename, delete
+
+<Callout type="info">
+  `@assistant-ui/react-native` shares its runtime core with `@assistant-ui/react` via `@assistant-ui/core`. The type system, state management, and runtime logic are identical — only the UI layer differs.
+</Callout>
+
+## Getting Started
+
+This guide uses [Expo](https://expo.dev) with the OpenAI API. You can substitute any LLM provider.
+
+<Steps>
+  <Step>
+
+### Create an Expo project
+
+```sh
+npx create-expo-app@latest my-chat-app
+cd my-chat-app
+```
+
+  </Step>
+  <Step>
+
+### Install dependencies
+
+```sh
+npx expo install @assistant-ui/react-native
+```
+
+Also install peer dependencies if not already present:
+
+```sh
+npx expo install react-native-gesture-handler react-native-reanimated react-native-safe-area-context
+```
+
+  </Step>
+  <Step>
+
+### Create a ChatModelAdapter
+
+The adapter connects your LLM API to the runtime. Here's an example for the OpenAI chat completions API with streaming:
+
+```tsx title="adapters/openai-chat-adapter.ts"
+import type {
+  ChatModelAdapter,
+  ChatModelRunResult,
+} from "@assistant-ui/react-native";
+
+type OpenAIModelConfig = {
+  apiKey: string;
+  model?: string;
+  baseURL?: string;
+  fetch?: typeof globalThis.fetch;
+};
+
+export function createOpenAIChatModelAdapter(
+  config: OpenAIModelConfig,
+): ChatModelAdapter {
+  const {
+    apiKey,
+    model = "gpt-4o-mini",
+    baseURL = "https://api.openai.com/v1",
+    fetch: customFetch = globalThis.fetch,
+  } = config;
+
+  return {
+    async *run({ messages, abortSignal }) {
+      const openAIMessages = messages
+        .filter((m) => m.role !== "system")
+        .map((m) => ({
+          role: m.role as "user" | "assistant",
+          content: m.content
+            .filter((p) => p.type === "text")
+            .map((p) => ("text" in p ? p.text : ""))
+            .join("\n"),
+        }));
+
+      const response = await customFetch(
+        `${baseURL}/chat/completions`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model,
+            messages: openAIMessages,
+            stream: true,
+          }),
+          signal: abortSignal,
+        },
+      );
+
+      if (!response.ok) {
+        const body = await response.text().catch(() => "");
+        throw new Error(
+          `OpenAI API error: ${response.status} ${body}`,
+        );
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        const json = await response.json();
+        const text = json.choices?.[0]?.message?.content ?? "";
+        yield {
+          content: [{ type: "text" as const, text }],
+        } satisfies ChatModelRunResult;
+        return;
+      }
+
+      const decoder = new TextDecoder();
+      let fullText = "";
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const chunk = decoder.decode(value, { stream: true });
+          for (const line of chunk.split("\n")) {
+            if (!line.startsWith("data: ")) continue;
+            const data = line.slice(6);
+            if (data === "[DONE]") continue;
+            try {
+              const parsed = JSON.parse(data);
+              const content =
+                parsed.choices?.[0]?.delta?.content ?? "";
+              fullText += content;
+              yield {
+                content: [
+                  { type: "text" as const, text: fullText },
+                ],
+              } satisfies ChatModelRunResult;
+            } catch {
+              // skip invalid JSON
+            }
+          }
+        }
+      } finally {
+        reader.releaseLock();
+      }
+    },
+  };
+}
+```
+
+<Callout type="tip">
+  On Expo, import `fetch` from `expo/fetch` for streaming support and pass it as the `fetch` option.
+</Callout>
+
+  </Step>
+  <Step>
+
+### Set up the runtime
+
+```tsx title="hooks/use-app-runtime.ts"
+import { useMemo } from "react";
+import { fetch } from "expo/fetch";
+import { useLocalRuntime } from "@assistant-ui/react-native";
+import { createOpenAIChatModelAdapter } from "@/adapters/openai-chat-adapter";
+
+export function useAppRuntime() {
+  const chatModel = useMemo(
+    () =>
+      createOpenAIChatModelAdapter({
+        apiKey: process.env.EXPO_PUBLIC_OPENAI_API_KEY ?? "",
+        model: "gpt-4o-mini",
+        fetch,
+      }),
+    [],
+  );
+
+  return useLocalRuntime(chatModel);
+}
+```
+
+  </Step>
+  <Step>
+
+### Build the UI
+
+Wrap your app with `AssistantProvider`, then use `ThreadProvider` and `ComposerProvider` to scope the thread context:
+
+```tsx title="app/index.tsx"
+import {
+  AssistantProvider,
+  useAssistantRuntime,
+  useThreadList,
+  ThreadProvider,
+  ComposerProvider,
+  useThread,
+  useComposer,
+  useComposerRuntime,
+  useThreadRuntime,
+} from "@assistant-ui/react-native";
+import {
+  View,
+  Text,
+  TextInput,
+  FlatList,
+  Pressable,
+  KeyboardAvoidingView,
+  Platform,
+} from "react-native";
+import { useAppRuntime } from "@/hooks/use-app-runtime";
+import type { ThreadMessage } from "@assistant-ui/react-native";
+
+function MessageBubble({ message }: { message: ThreadMessage }) {
+  const isUser = message.role === "user";
+  const text = message.content
+    .filter((p) => p.type === "text")
+    .map((p) => ("text" in p ? p.text : ""))
+    .join("\n");
+
+  return (
+    <View
+      style={{
+        alignSelf: isUser ? "flex-end" : "flex-start",
+        backgroundColor: isUser ? "#007aff" : "#f0f0f0",
+        borderRadius: 16,
+        padding: 12,
+        marginVertical: 4,
+        marginHorizontal: 16,
+        maxWidth: "80%",
+      }}
+    >
+      <Text style={{ color: isUser ? "#fff" : "#000" }}>{text}</Text>
+    </View>
+  );
+}
+
+function Composer() {
+  const composerRuntime = useComposerRuntime();
+  const threadRuntime = useThreadRuntime();
+  const text = useComposer((s) => s.text);
+  const canSend = useComposer((s) => !s.isEmpty);
+
+  return (
+    <View
+      style={{
+        flexDirection: "row",
+        padding: 12,
+        alignItems: "flex-end",
+      }}
+    >
+      <TextInput
+        value={text}
+        onChangeText={(t) => composerRuntime.setText(t)}
+        placeholder="Message..."
+        multiline
+        style={{
+          flex: 1,
+          borderWidth: 1,
+          borderColor: "#ddd",
+          borderRadius: 20,
+          paddingHorizontal: 16,
+          paddingVertical: 10,
+          maxHeight: 120,
+        }}
+      />
+      <Pressable
+        onPress={() => composerRuntime.send()}
+        disabled={!canSend}
+        style={{
+          marginLeft: 8,
+          backgroundColor: canSend ? "#007aff" : "#ccc",
+          borderRadius: 20,
+          width: 36,
+          height: 36,
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        <Text style={{ color: "#fff", fontWeight: "bold" }}>↑</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+function ChatScreen() {
+  const messages = useThread((s) => s.messages) as ThreadMessage[];
+
+  return (
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    >
+      <FlatList
+        data={messages}
+        keyExtractor={(m) => m.id}
+        renderItem={({ item }) => <MessageBubble message={item} />}
+      />
+      <Composer />
+    </KeyboardAvoidingView>
+  );
+}
+
+function Main() {
+  const runtime = useAssistantRuntime();
+  const mainThreadId = useThreadList((s) => s.mainThreadId);
+
+  return (
+    <ThreadProvider key={mainThreadId} runtime={runtime.thread}>
+      <ComposerProvider runtime={runtime.thread.composer}>
+        <ChatScreen />
+      </ComposerProvider>
+    </ThreadProvider>
+  );
+}
+
+export default function App() {
+  const runtime = useAppRuntime();
+
+  return (
+    <AssistantProvider runtime={runtime}>
+      <Main />
+    </AssistantProvider>
+  );
+}
+```
+
+  </Step>
+</Steps>
+
+## Architecture
+
+```
+useLocalRuntime(chatModel, options?)
+  └─ AssistantProvider
+       └─ ThreadProvider + ComposerProvider
+            ├─ useThread()      → thread state (messages, isRunning, …)
+            ├─ useComposer()    → composer state (text, isEmpty, …)
+            ├─ useMessage()     → single message state (inside renderItem)
+            └─ Primitives       → ThreadRoot, ComposerInput, MessageContent, …
+```
+
+The runtime core is shared with `@assistant-ui/react` — only the UI primitives are React Native-specific.
+
+## Example
+
+For a complete Expo example with drawer navigation, thread list, and styled chat UI, see the [`with-expo` example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-expo).

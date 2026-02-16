@@ -15,7 +15,9 @@ export function ThreadListDrawer({ navigation }: DrawerContentComponentProps) {
       style={[
         styles.container,
         {
-          backgroundColor: isDark ? "#1c1c1e" : "#f2f2f7",
+          backgroundColor: isDark
+            ? "rgba(28, 28, 30, 0.85)"
+            : "rgba(242, 242, 247, 0.85)",
           paddingTop: insets.top,
         },
       ]}

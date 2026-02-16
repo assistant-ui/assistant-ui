@@ -1,0 +1,7 @@
+{
+  "title": "React Native",
+  "description": "Build AI chat UIs for iOS and Android",
+  "icon": "Smartphone",
+  "root": true,
+  "pages": ["index", "---API Reference---", "primitives", "hooks", "adapters"]
+}

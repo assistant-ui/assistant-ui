@@ -49,6 +49,7 @@ function DrawerLayout() {
           headerRight: () => <NewChatButton />,
           drawerType: "front",
           swipeEnabled: true,
+          drawerStyle: { backgroundColor: "transparent" },
         }}
       >
         <Drawer.Screen name="index" options={{ title: "Chat" }} />

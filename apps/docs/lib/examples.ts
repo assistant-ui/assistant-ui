@@ -88,6 +88,15 @@ const INTERNAL_EXAMPLES: ExampleItem[] = [
     link: "/examples/artifacts",
     githubLink: "https://github.com/Yonom/assistant-ui-artifacts",
   },
+  {
+    title: "Expo (React Native)",
+    image: "/screenshot/examples/expo.png",
+    description:
+      "Native iOS & Android chat app with drawer navigation and thread management.",
+    link: "/examples/expo",
+    githubLink:
+      "https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-expo",
+  },
 ];
 
 const COMMUNITY_EXAMPLES: ExampleItem[] = [

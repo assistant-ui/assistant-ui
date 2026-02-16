@@ -38,7 +38,11 @@ export function MessageBubble({ message }: MessageBubbleProps) {
         style={[
           styles.bubble,
           styles.assistantBubble,
-          { backgroundColor: isDark ? "#1c1c1e" : "#f0f0f0" },
+          {
+            backgroundColor: isDark
+              ? "rgba(44, 44, 46, 0.8)"
+              : "rgba(229, 229, 234, 0.8)",
+          },
         ]}
       >
         <ThemedText

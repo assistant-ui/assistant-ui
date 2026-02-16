@@ -1,0 +1,253 @@
+---
+title: Hooks
+description: Reactive hooks for accessing runtime state in React Native.
+---
+
+All hooks support an optional **selector** function for fine-grained re-renders. Without a selector, the component re-renders on every state change. With a selector, it only re-renders when the selected value changes (shallow equality).
+
+```tsx
+// Re-renders on every thread state change
+const thread = useThread();
+
+// Re-renders only when isRunning changes
+const isRunning = useThread((s) => s.isRunning);
+```
+
+## State Hooks
+
+### useThread
+
+Access thread state.
+
+```tsx
+import { useThread } from "@assistant-ui/react-native";
+
+const messages = useThread((s) => s.messages);
+const isRunning = useThread((s) => s.isRunning);
+```
+
+**ThreadState fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `messages` | `ThreadMessage[]` | All messages in the thread |
+| `isRunning` | `boolean` | Whether the model is generating |
+| `isDisabled` | `boolean` | Whether the thread is disabled |
+| `capabilities` | `RuntimeCapabilities` | What actions are supported |
+
+### useComposer
+
+Access composer state.
+
+```tsx
+import { useComposer } from "@assistant-ui/react-native";
+
+const text = useComposer((s) => s.text);
+const isEmpty = useComposer((s) => s.isEmpty);
+```
+
+**ComposerState fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `text` | `string` | Current input text |
+| `isEmpty` | `boolean` | Whether the input is empty |
+| `attachments` | `Attachment[]` | Current attachments |
+| `canCancel` | `boolean` | Whether a run can be cancelled |
+
+### useMessage
+
+Access the current message state. Must be used inside a `MessageProvider` or a `renderMessage` / `renderItem` callback.
+
+```tsx
+import { useMessage } from "@assistant-ui/react-native";
+
+const role = useMessage((s) => s.role);
+const isLast = useMessage((s) => s.isLast);
+```
+
+**MessageState fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `message` | `ThreadMessage` | The message object |
+| `role` | `MessageRole` | `"user"`, `"assistant"`, or `"system"` |
+| `isLast` | `boolean` | Whether this is the last message |
+| `branchNumber` | `number` | Current branch index |
+| `branchCount` | `number` | Total number of branches |
+
+### useContentPart
+
+Access a specific content part by index within a message.
+
+```tsx
+import { useContentPart } from "@assistant-ui/react-native";
+
+const part = useContentPart(0); // first content part
+```
+
+### useThreadList
+
+Access the thread list state.
+
+```tsx
+import { useThreadList } from "@assistant-ui/react-native";
+
+const { threadIds, mainThreadId, threadItems } = useThreadList();
+
+// With selector
+const mainThreadId = useThreadList((s) => s.mainThreadId);
+```
+
+**ThreadListState fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `threadIds` | `string[]` | All thread IDs |
+| `mainThreadId` | `string` | Currently active thread ID |
+| `threadItems` | `Record<string, ThreadListItemState>` | Thread metadata (title, etc.) |
+
+## Runtime Hooks
+
+### useAssistantRuntime
+
+Get the `AssistantRuntime` from context. This is the top-level runtime with access to thread management.
+
+```tsx
+import { useAssistantRuntime } from "@assistant-ui/react-native";
+
+const runtime = useAssistantRuntime();
+
+// Switch threads
+runtime.threads.switchToThread(threadId);
+runtime.threads.switchToNewThread();
+
+// Thread management
+runtime.threads.rename(threadId, "New Title");
+runtime.threads.delete(threadId);
+
+// Access the current thread runtime
+runtime.thread; // ThreadRuntime
+```
+
+### useThreadRuntime
+
+Get the `ThreadRuntime` for the current thread.
+
+```tsx
+import { useThreadRuntime } from "@assistant-ui/react-native";
+
+const threadRuntime = useThreadRuntime();
+
+threadRuntime.cancelRun();
+threadRuntime.appendMessage(message);
+```
+
+### useComposerRuntime
+
+Get the `ComposerRuntime` for the current composer.
+
+```tsx
+import { useComposerRuntime } from "@assistant-ui/react-native";
+
+const composerRuntime = useComposerRuntime();
+
+composerRuntime.setText("Hello");
+composerRuntime.send();
+```
+
+### useMessageRuntime
+
+Get the `MessageRuntime` for the current message.
+
+```tsx
+import { useMessageRuntime } from "@assistant-ui/react-native";
+
+const messageRuntime = useMessageRuntime();
+
+messageRuntime.reload();
+messageRuntime.switchToBranch({ position: "next" });
+```
+
+### useLocalRuntime
+
+Create an `AssistantRuntime` with an in-memory thread list and a `ChatModelAdapter`.
+
+```tsx
+import { useLocalRuntime } from "@assistant-ui/react-native";
+
+const runtime = useLocalRuntime(chatModel, {
+  initialMessages: [],
+  adapters: {
+    storage: myStorageAdapter,
+    titleGenerator: myTitleAdapter,
+  },
+});
+```
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `initialMessages` | `ThreadMessageLike[]` | Messages to pre-populate |
+| `adapters.storage` | `StorageAdapter` | Thread/message persistence |
+| `adapters.titleGenerator` | `TitleGenerationAdapter` | Auto-generate thread titles |
+
+## Primitive Hooks
+
+Low-level hooks for building custom components.
+
+### useThreadMessages
+
+```tsx
+import { useThreadMessages } from "@assistant-ui/react-native";
+
+const messages = useThreadMessages(); // ThreadMessage[]
+```
+
+### useThreadIsRunning
+
+```tsx
+import { useThreadIsRunning } from "@assistant-ui/react-native";
+
+const isRunning = useThreadIsRunning(); // boolean
+```
+
+### useThreadIsEmpty
+
+```tsx
+import { useThreadIsEmpty } from "@assistant-ui/react-native";
+
+const isEmpty = useThreadIsEmpty(); // boolean
+```
+
+### useComposerSend
+
+```tsx
+import { useComposerSend } from "@assistant-ui/react-native";
+
+const { send, canSend } = useComposerSend();
+```
+
+### useComposerCancel
+
+```tsx
+import { useComposerCancel } from "@assistant-ui/react-native";
+
+const { cancel, canCancel } = useComposerCancel();
+```
+
+### useMessageReload
+
+```tsx
+import { useMessageReload } from "@assistant-ui/react-native";
+
+const { reload, canReload } = useMessageReload();
+```
+
+### useMessageBranching
+
+```tsx
+import { useMessageBranching } from "@assistant-ui/react-native";
+
+const { branchNumber, branchCount, goToPrev, goToNext } =
+  useMessageBranching();
+```

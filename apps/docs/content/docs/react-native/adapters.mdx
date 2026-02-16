@@ -1,0 +1,125 @@
+---
+title: Adapters
+description: Storage and title generation adapters for React Native.
+---
+
+Adapters customize how the local runtime persists threads and generates titles. Pass them to `useLocalRuntime` via the `adapters` option.
+
+```tsx
+import { useLocalRuntime } from "@assistant-ui/react-native";
+
+const runtime = useLocalRuntime(chatModel, {
+  adapters: {
+    storage: myStorageAdapter,
+    titleGenerator: myTitleAdapter,
+  },
+});
+```
+
+## StorageAdapter
+
+Persists threads and messages across app restarts.
+
+```tsx
+interface StorageAdapter {
+  loadThreads(): Promise<{ threadIds: string[]; threadItems: Record<string, { title?: string }> }>;
+  saveThreads(data: { threadIds: string[]; threadItems: Record<string, { title?: string }> }): Promise<void>;
+  loadMessages(threadId: string): Promise<ThreadMessage[]>;
+  saveMessages(threadId: string, messages: ThreadMessage[]): Promise<void>;
+  deleteThread(threadId: string): Promise<void>;
+}
+```
+
+### Built-in implementations
+
+#### In-Memory (default)
+
+Data lives in memory only — lost on app restart.
+
+```tsx
+import { createInMemoryStorageAdapter } from "@assistant-ui/react-native";
+
+const storage = createInMemoryStorageAdapter();
+```
+
+#### AsyncStorage
+
+Persists to `@react-native-async-storage/async-storage`.
+
+```tsx
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { createAsyncStorageAdapter } from "@assistant-ui/react-native";
+
+const storage = createAsyncStorageAdapter(AsyncStorage);
+```
+
+An optional `prefix` parameter namespaces the keys:
+
+```tsx
+const storage = createAsyncStorageAdapter(AsyncStorage, "chat:");
+// Keys: "chat:threads", "chat:messages:<threadId>", ...
+```
+
+### Custom implementation
+
+```tsx
+import type { StorageAdapter } from "@assistant-ui/react-native";
+import * as SQLite from "expo-sqlite";
+
+const sqliteStorage: StorageAdapter = {
+  async loadThreads() {
+    // query your database
+  },
+  async saveThreads(data) {
+    // persist thread list
+  },
+  async loadMessages(threadId) {
+    // load messages for a thread
+  },
+  async saveMessages(threadId, messages) {
+    // persist messages
+  },
+  async deleteThread(threadId) {
+    // remove thread and its messages
+  },
+};
+```
+
+## TitleGenerationAdapter
+
+Generates a title for a thread based on its messages.
+
+```tsx
+interface TitleGenerationAdapter {
+  generateTitle(messages: ThreadMessage[]): Promise<string>;
+}
+```
+
+### Built-in implementations
+
+#### Simple title adapter (default)
+
+Returns the first 50 characters of the first user message.
+
+```tsx
+import { createSimpleTitleAdapter } from "@assistant-ui/react-native";
+
+const titleGenerator = createSimpleTitleAdapter();
+```
+
+### Custom implementation
+
+```tsx
+import type { TitleGenerationAdapter } from "@assistant-ui/react-native";
+
+const aiTitleGenerator: TitleGenerationAdapter = {
+  async generateTitle(messages) {
+    const response = await fetch("/api/generate-title", {
+      method: "POST",
+      body: JSON.stringify({ messages }),
+    });
+    const { title } = await response.json();
+    return title;
+  },
+};
+```
