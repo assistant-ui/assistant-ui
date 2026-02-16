@@ -19,6 +19,8 @@ import {
 import { useCallback, useMemo, useRef, useState, type FC } from "react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import { Thread } from "@/components/assistant-ui/thread";
+import { Switch } from "@/components/ui/switch";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 type Scenario =
   | "component-part"
@@ -1371,23 +1373,26 @@ export default function ComponentPartLabPage() {
             <section className="grid gap-3 rounded-lg border border-border bg-muted p-3">
               <div className="grid gap-1 text-xs">
                 <span className="font-semibold">Invoke Mode</span>
-                <div className="grid grid-cols-3 gap-1">
+                <ToggleGroup
+                  type="single"
+                  value={invokeMode}
+                  onValueChange={(value) => {
+                    if (value) setInvokeMode(value as InvokeMode);
+                  }}
+                  variant="outline"
+                  size="sm"
+                  className="grid w-full grid-cols-3"
+                >
                   {INVOKE_MODE_OPTIONS.map((option) => (
-                    <button
+                    <ToggleGroupItem
                       key={option.value}
-                      type="button"
-                      aria-pressed={invokeMode === option.value}
-                      className={`rounded-md border px-2 py-1 text-[11px] ${
-                        invokeMode === option.value
-                          ? "border-foreground bg-foreground text-background"
-                          : "border-border bg-background text-foreground"
-                      }`}
-                      onClick={() => setInvokeMode(option.value)}
+                      value={option.value}
+                      className="justify-center px-2 text-[11px]"
                     >
                       {option.label}
-                    </button>
+                    </ToggleGroupItem>
                   ))}
-                </div>
+                </ToggleGroup>
               </div>
 
               <div className="flex items-center justify-between rounded-md border border-border bg-background px-2 py-1.5 text-xs">
@@ -1397,44 +1402,34 @@ export default function ComponentPartLabPage() {
                     {emitEnabled ? "enabled" : "disabled"}
                   </div>
                 </div>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={emitEnabled}
-                  onClick={() => setEmitEnabled((prev) => !prev)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full border transition ${
-                    emitEnabled
-                      ? "border-foreground bg-foreground"
-                      : "border-border bg-muted"
-                  }`}
-                >
-                  <span
-                    className={`inline-block h-4 w-4 rounded-full bg-background transition-transform ${
-                      emitEnabled ? "translate-x-5" : "translate-x-1"
-                    }`}
-                  />
-                </button>
+                <Switch
+                  checked={emitEnabled}
+                  onCheckedChange={setEmitEnabled}
+                />
               </div>
 
               <div className="grid gap-1 text-xs">
                 <span className="font-semibold">Catalog Mode</span>
-                <div className="grid grid-cols-3 gap-1">
+                <ToggleGroup
+                  type="single"
+                  value={catalogMode}
+                  onValueChange={(value) => {
+                    if (value) setCatalogMode(value as CatalogMode);
+                  }}
+                  variant="outline"
+                  size="sm"
+                  className="grid w-full grid-cols-3"
+                >
                   {CATALOG_MODE_OPTIONS.map((option) => (
-                    <button
+                    <ToggleGroupItem
                       key={option.value}
-                      type="button"
-                      aria-pressed={catalogMode === option.value}
-                      className={`rounded-md border px-2 py-1 text-[11px] ${
-                        catalogMode === option.value
-                          ? "border-foreground bg-foreground text-background"
-                          : "border-border bg-background text-foreground"
-                      }`}
-                      onClick={() => setCatalogMode(option.value)}
+                      value={option.value}
+                      className="justify-center px-2 text-[11px]"
                     >
                       {option.label}
-                    </button>
+                    </ToggleGroupItem>
                   ))}
-                </div>
+                </ToggleGroup>
               </div>
             </section>
 

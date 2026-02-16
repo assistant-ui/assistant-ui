@@ -42,12 +42,15 @@ describe("component lab layout constraints", () => {
     const source = readFileSync(componentLabPagePath, "utf8");
 
     expect(source).not.toContain("<select");
+    expect(source).toContain('from "@/components/ui/switch"');
+    expect(source).toContain('from "@/components/ui/toggle-group"');
+    expect(source).toContain("<ToggleGroup");
+    expect(source).toContain("<ToggleGroupItem");
+    expect(source).toContain("<Switch");
     expect(source).toContain("INVOKE_MODE_OPTIONS.map((option) =>");
-    expect(source).toContain("aria-pressed={invokeMode === option.value}");
-    expect(source).toContain('role="switch"');
-    expect(source).toContain("aria-checked={emitEnabled}");
-    expect(source).toContain("setEmitEnabled((prev) => !prev)");
+    expect(source).toContain("onValueChange={(value) => {");
+    expect(source).toContain("checked={emitEnabled}");
+    expect(source).toContain("onCheckedChange={setEmitEnabled}");
     expect(source).toContain("CATALOG_MODE_OPTIONS.map((option) =>");
-    expect(source).toContain("aria-pressed={catalogMode === option.value}");
   });
 });
