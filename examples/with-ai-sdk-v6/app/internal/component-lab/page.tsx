@@ -2,9 +2,6 @@
 
 import {
   AssistantRuntimeProvider,
-  ComposerPrimitive,
-  MessagePrimitive,
-  ThreadPrimitive,
   useAui,
   type ComponentMessagePartComponent,
   type TextMessagePartComponent,
@@ -21,6 +18,7 @@ import {
 } from "@assistant-ui/react-ai-sdk";
 import { useCallback, useEffect, useMemo, useState, type FC } from "react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { Thread } from "@/components/assistant-ui/thread";
 
 type Scenario =
   | "component-part"
@@ -766,14 +764,6 @@ const UnknownComponentPart: ComponentMessagePartComponent = ({
   );
 };
 
-const UserMessage: FC = () => {
-  return (
-    <MessagePrimitive.Root className="mx-auto my-3 w-full max-w-4xl rounded-xl border border-slate-200 bg-slate-100 p-3">
-      <MessagePrimitive.Parts components={{ Text: DemoTextPart }} />
-    </MessagePrimitive.Root>
-  );
-};
-
 type MatrixScenarioResult = {
   scenario: Scenario;
   pass: boolean;
@@ -1224,24 +1214,19 @@ export default function ComponentPartLabPage() {
     [jsonRenderCatalog, onCatalogTelemetry],
   );
 
-  const AssistantMessage: FC = useCallback(() => {
-    return (
-      <MessagePrimitive.Root className="mx-auto my-3 w-full max-w-4xl rounded-xl border border-slate-200 bg-white p-3">
-        <MessagePrimitive.Parts
-          components={{
-            Text: DemoTextPart,
-            Component: {
-              by_name: {
-                "status-card": StatusCardPart,
-                [unstable_AISDK_JSON_RENDER_COMPONENT_NAME]: JsonRenderPart,
-              },
-              Fallback: UnknownComponentPart,
-            },
-          }}
-        />
-      </MessagePrimitive.Root>
-    );
-  }, [JsonRenderPart]);
+  const assistantMessagePartComponents = useMemo(
+    () => ({
+      Text: DemoTextPart,
+      Component: {
+        by_name: {
+          "status-card": StatusCardPart,
+          [unstable_AISDK_JSON_RENDER_COMPONENT_NAME]: JsonRenderPart,
+        },
+        Fallback: UnknownComponentPart,
+      },
+    }),
+    [JsonRenderPart],
+  );
 
   const sendScenarioPrompt = useCallback(
     async (targetScenario: Scenario, source: "manual" | "matrix") => {
@@ -1680,42 +1665,11 @@ export default function ComponentPartLabPage() {
           </div>
         </header>
 
-        <ThreadPrimitive.Root className="flex min-h-[60vh] flex-col rounded-xl border border-slate-200 bg-slate-50">
-          <ThreadPrimitive.Viewport className="flex-1 overflow-y-auto p-3">
-            <ThreadPrimitive.Messages
-              components={{
-                UserMessage,
-                AssistantMessage,
-              }}
-            />
-          </ThreadPrimitive.Viewport>
-
-          <ComposerPrimitive.Root className="border-slate-200 border-t bg-white p-3">
-            <ComposerPrimitive.Input
-              className="w-full resize-none rounded-md border border-slate-300 p-2 text-sm"
-              rows={2}
-              placeholder="Type a message, or use 'Send Scenario Prompt' above."
-            />
-            <div className="mt-2 flex justify-end gap-2">
-              <ComposerPrimitive.Cancel asChild>
-                <button
-                  className="rounded-md border border-slate-300 px-3 py-1 text-xs"
-                  type="button"
-                >
-                  Stop
-                </button>
-              </ComposerPrimitive.Cancel>
-              <ComposerPrimitive.Send asChild>
-                <button
-                  className="rounded-md bg-slate-900 px-3 py-1 text-white text-xs"
-                  type="submit"
-                >
-                  Send
-                </button>
-              </ComposerPrimitive.Send>
-            </div>
-          </ComposerPrimitive.Root>
-        </ThreadPrimitive.Root>
+        <div className="h-[65vh] min-h-[60vh] overflow-hidden rounded-xl border border-slate-200 bg-white">
+          <Thread
+            assistantMessagePartComponents={assistantMessagePartComponents}
+          />
+        </div>
 
         {matrixSummary ? (
           <section
