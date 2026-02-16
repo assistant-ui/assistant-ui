@@ -60,14 +60,14 @@ const createComponentMessage = (): ThreadAssistantMessage => ({
     {
       type: "component",
       name: "status-card",
-      instanceId: "card_1",
+      instanceId: "card1",
     },
   ],
   status: { type: "complete", reason: "stop" },
   metadata: {
     unstable_state: {
       components: {
-        card_1: {
+        card1: {
           seq: 1,
           lifecycle: "active",
           state: { phase: "ready" },
@@ -290,7 +290,7 @@ describe("useAISDKRuntime", () => {
           {
             type: "data-spec",
             data: {
-              instanceId: "spec_1",
+              instanceId: "spec1",
               seq: 1,
               spec: { type: "card", props: { title: "Draft" } },
             },
@@ -298,7 +298,7 @@ describe("useAISDKRuntime", () => {
           {
             type: "data-spec",
             data: {
-              instanceId: "spec_1",
+              instanceId: "spec1",
               seq: 2,
               patch: [{ op: "replace", path: "/props/title", value: "Ready" }],
             },
@@ -328,7 +328,7 @@ describe("useAISDKRuntime", () => {
     expect(componentPart).toMatchObject({
       type: "component",
       name: "json-render",
-      instanceId: "spec_1",
+      instanceId: "spec1",
       props: {
         spec: {
           type: "card",
@@ -347,7 +347,7 @@ describe("useAISDKRuntime", () => {
           {
             type: "data-spec",
             data: {
-              instanceId: "spec_1",
+              instanceId: "spec1",
               seq: 1,
               spec: { type: "unknown-layout", props: { title: "Draft" } },
             },
@@ -393,7 +393,7 @@ describe("useAISDKRuntime", () => {
     expect(componentPart).toMatchObject({
       type: "component",
       name: "json-render",
-      instanceId: "spec_1",
+      instanceId: "spec1",
       props: {
         spec: {
           type: "card",
@@ -412,7 +412,7 @@ describe("useAISDKRuntime", () => {
           {
             type: "data-spec",
             data: {
-              instanceId: "spec_1",
+              instanceId: "spec1",
               seq: 2,
               spec: { type: "card", props: { title: "Initial" } },
             },
@@ -420,7 +420,7 @@ describe("useAISDKRuntime", () => {
           {
             type: "data-spec",
             data: {
-              instanceId: "spec_1",
+              instanceId: "spec1",
               seq: 1,
               patch: [{ op: "replace", path: "/props/title", value: "Stale" }],
             },
@@ -428,7 +428,7 @@ describe("useAISDKRuntime", () => {
           {
             type: "data-spec",
             data: {
-              instanceId: "spec_1",
+              instanceId: "spec1",
               seq: 3,
               patch: [{ op: "replace", path: "props/title", value: "Broken" }],
             },
@@ -450,14 +450,14 @@ describe("useAISDKRuntime", () => {
       expect(onTelemetry).toHaveBeenCalledWith(
         expect.objectContaining({
           type: "stale-seq-ignored",
-          instanceId: "spec_1",
+          instanceId: "spec1",
         }),
       );
     });
     expect(onTelemetry).toHaveBeenCalledWith(
       expect.objectContaining({
         type: "malformed-patch-dropped",
-        instanceId: "spec_1",
+        instanceId: "spec1",
       }),
     );
   });
@@ -482,7 +482,7 @@ describe("useAISDKRuntime", () => {
 
     const component = result.current
       .message()
-      .component({ instanceId: "card_1" });
+      .component({ instanceId: "card1" });
 
     await expect(
       withTimeout(component.invoke("refresh", { source: "test" })),
@@ -490,7 +490,7 @@ describe("useAISDKRuntime", () => {
 
     expect(onComponentInvoke).toHaveBeenCalledWith({
       messageId: "m1",
-      instanceId: "card_1",
+      instanceId: "card1",
       action: "refresh",
       payload: { source: "test" },
     });
@@ -516,7 +516,7 @@ describe("useAISDKRuntime", () => {
 
     const component = result.current
       .message()
-      .component({ instanceId: "card_1" });
+      .component({ instanceId: "card1" });
 
     await expect(
       withTimeout(component.invoke("refresh", { source: "test" })),
@@ -543,7 +543,7 @@ describe("useAISDKRuntime", () => {
 
     const component = result.current
       .message()
-      .component({ instanceId: "card_1" });
+      .component({ instanceId: "card1" });
 
     await expect(
       withTimeout(component.invoke("refresh", { source: "test" })),
@@ -564,7 +564,7 @@ describe("useAISDKRuntime", () => {
 
     const component = result.current
       .message()
-      .component({ instanceId: "card_1" });
+      .component({ instanceId: "card1" });
 
     await expect(
       withTimeout(component.invoke("refresh", { source: "test" })),
@@ -590,14 +590,14 @@ describe("useAISDKRuntime", () => {
 
     const component = result.current
       .message()
-      .component({ instanceId: "card_1" });
+      .component({ instanceId: "card1" });
 
     component.emit("selected", { tab: "metrics" });
 
     await waitFor(() => {
       expect(onComponentEmit).toHaveBeenCalledWith({
         messageId: "m1",
-        instanceId: "card_1",
+        instanceId: "card1",
         event: "selected",
         payload: { tab: "metrics" },
       });
@@ -618,7 +618,7 @@ describe("useAISDKRuntime", () => {
 
     const component = result.current
       .message()
-      .component({ instanceId: "card_1" });
+      .component({ instanceId: "card1" });
 
     expect(() => component.emit("selected", { tab: "metrics" })).not.toThrow();
   });

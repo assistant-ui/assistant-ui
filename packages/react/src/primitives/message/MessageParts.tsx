@@ -152,7 +152,7 @@ export namespace MessagePrimitiveParts {
   type ComponentConfig =
     | {
         /** Map of component names to their specific component renderers */
-        by_name?:
+        byName?:
           | Record<string, ComponentMessagePartComponent | undefined>
           | undefined;
         /** Fallback component for unregistered component names */
@@ -183,7 +183,7 @@ export namespace MessagePrimitiveParts {
   type ToolsConfig =
     | {
         /** Map of tool names to their specific components */
-        by_name?:
+        byName?:
           | Record<string, ToolCallMessagePartComponent | undefined>
           | undefined;
         /** Fallback component for unregistered tools */
@@ -409,7 +409,7 @@ export const MessagePartComponent: FC<MessagePartComponentProps> = ({
     const resume = aui.part().resumeToolCall;
     if ("Override" in tools)
       return <tools.Override {...part} addResult={addResult} resume={resume} />;
-    const Tool = tools.by_name?.[part.toolName] ?? tools.Fallback;
+    const Tool = tools.byName?.[part.toolName] ?? tools.Fallback;
     return (
       <ToolUIDisplay
         {...part}
@@ -450,7 +450,7 @@ export const MessagePartComponent: FC<MessagePartComponentProps> = ({
     case "component": {
       if ("Override" in Component) return <Component.Override {...part} />;
       const NativeComponent =
-        Component.by_name?.[part.name] ?? Component.Fallback;
+        Component.byName?.[part.name] ?? Component.Fallback;
       if (!NativeComponent) {
         warnMissingComponentRenderer(part.name);
         return null;
@@ -589,7 +589,7 @@ const ConditionalEmpty = memo(
  *     Text: ({ text }) => <p className="message-text">{text}</p>,
  *     Image: ({ image }) => <img src={image} alt="Message image" />,
  *     tools: {
- *       by_name: {
+ *       byName: {
  *         calculator: CalculatorTool,
  *         weather: WeatherTool,
  *       },

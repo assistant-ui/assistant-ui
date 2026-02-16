@@ -38,7 +38,7 @@ type Scenario =
   | "parent-graph";
 
 type InvokeMode = "success" | "fail" | "timeout";
-type CatalogMode = "by_type" | "fallback-only" | "override";
+type CatalogMode = "byType" | "fallback-only" | "override";
 
 type ScenarioDefinition = {
   id: Scenario;
@@ -52,39 +52,39 @@ const SCENARIOS: ScenarioDefinition[] = [
     id: "component-part",
     title: "Component Part",
     description: "Validates data-component -> component rendering + fallback.",
-    matrixInvokeTarget: "component_demo_1",
+    matrixInvokeTarget: "componentDemo1",
   },
   {
     id: "json-render-patch",
     title: "json-render Patch",
     description: "Validates seq ordering and JSON patch application.",
-    matrixInvokeTarget: "spec_demo_1",
+    matrixInvokeTarget: "specDemo1",
   },
   {
     id: "json-render-guards",
     title: "json-render Guards",
     description: "Validates stale seq + malformed patch guardrails.",
-    matrixInvokeTarget: "spec_demo_2",
+    matrixInvokeTarget: "specDemo2",
   },
   {
     id: "mixed",
     title: "Mixed",
     description: "Runs both native component and json-render in one response.",
-    matrixInvokeTarget: "spec_demo_3",
+    matrixInvokeTarget: "specDemo3",
   },
   {
     id: "chaos",
     title: "Chaos",
     description:
       "Interleaved multi-instance updates with duplicate/out-of-order seq.",
-    matrixInvokeTarget: "spec_chaos_a",
+    matrixInvokeTarget: "specChaosA",
   },
   {
     id: "json-patch-semantics",
     title: "Patch Semantics",
     description:
       "Covers add/replace/remove, array -, root replace, escaped keys.",
-    matrixInvokeTarget: "spec_patch_semantics",
+    matrixInvokeTarget: "specPatchSemantics",
   },
   {
     id: "missing-instance",
@@ -95,7 +95,7 @@ const SCENARIOS: ScenarioDefinition[] = [
     id: "parent-graph",
     title: "Parent Graph",
     description: "Validates parentId-linked component graph across both lanes.",
-    matrixInvokeTarget: "graph_child",
+    matrixInvokeTarget: "graphChild",
   },
 ];
 
@@ -451,7 +451,7 @@ const StatusBoardRenderer: unstable_JsonRenderHostCatalogRenderer = ({
             id: "status-board-promote-release",
             label: "Promote Release",
             type: "invoke",
-            name: "promote_release",
+            name: "promoteRelease",
             payload: {
               source: "status-board",
               target: "production",
@@ -461,7 +461,7 @@ const StatusBoardRenderer: unstable_JsonRenderHostCatalogRenderer = ({
             id: "status-board-subscribe-updates",
             label: "Subscribe Updates",
             type: "emit",
-            name: "subscribe_updates",
+            name: "subscribeUpdates",
             payload: {
               source: "status-board",
               channel: "release-feed",
@@ -530,7 +530,7 @@ const AuditLogRenderer: unstable_JsonRenderHostCatalogRenderer = ({
             id: "audit-log-ack-latest",
             label: "Acknowledge Latest",
             type: "invoke",
-            name: "ack_latest",
+            name: "ackLatest",
             payload: {
               source: "audit-log",
               strategy: "latest-only",
@@ -540,7 +540,7 @@ const AuditLogRenderer: unstable_JsonRenderHostCatalogRenderer = ({
             id: "audit-log-escalate",
             label: "Escalate Incident",
             type: "emit",
-            name: "escalate_incident",
+            name: "escalateIncident",
             payload: {
               source: "audit-log",
               severity: "high",
@@ -620,7 +620,7 @@ const MetricsRenderer: unstable_JsonRenderHostCatalogRenderer = ({
             id: "metrics-refresh-live",
             label: "Refresh Live Metrics",
             type: "invoke",
-            name: "refresh_live_metrics",
+            name: "refreshLiveMetrics",
             payload: {
               source: "metrics",
               include: Object.keys(metrics),
@@ -630,7 +630,7 @@ const MetricsRenderer: unstable_JsonRenderHostCatalogRenderer = ({
             id: "metrics-watch-errors",
             label: "Watch Error Spike",
             type: "emit",
-            name: "watch_errors",
+            name: "watchErrors",
             payload: {
               source: "metrics",
               threshold: 1,
@@ -674,7 +674,7 @@ const JsonCatalogFallbackRenderer: unstable_JsonRenderHostCatalogRenderer = ({
             id: "fallback-inspect-spec",
             label: "Inspect Spec Contract",
             type: "invoke",
-            name: "inspect_spec_contract",
+            name: "inspectSpecContract",
             payload: {
               source: "fallback",
               specType: specType ?? "unknown",
@@ -684,7 +684,7 @@ const JsonCatalogFallbackRenderer: unstable_JsonRenderHostCatalogRenderer = ({
             id: "fallback-request-mapping",
             label: "Request Mapping",
             type: "emit",
-            name: "request_mapping",
+            name: "requestMapping",
             payload: {
               source: "fallback",
               specType: specType ?? "unknown",
@@ -726,7 +726,7 @@ const JsonCatalogOverrideRenderer: unstable_JsonRenderHostCatalogRenderer = ({
             id: "override-force-preview",
             label: "Force Preview Refresh",
             type: "invoke",
-            name: "override_force_preview",
+            name: "overrideForcePreview",
             payload: {
               source: "override",
               specType: specType ?? "unknown",
@@ -736,7 +736,7 @@ const JsonCatalogOverrideRenderer: unstable_JsonRenderHostCatalogRenderer = ({
             id: "override-track-selection",
             label: "Track Selection",
             type: "emit",
-            name: "override_track_selection",
+            name: "overrideTrackSelection",
             payload: {
               source: "override",
               specType: specType ?? "unknown",
@@ -866,7 +866,7 @@ const evaluateScenario = (
   if (scenario === "component-part") {
     const hasStatusCard = parts.some(
       (part) =>
-        part.name === "status-card" && part.instanceId === "component_demo_1",
+        part.name === "status-card" && part.instanceId === "componentDemo1",
     );
     const hasFallback = parts.some((part) => part.name === "unknown-demo");
     return {
@@ -876,7 +876,7 @@ const evaluateScenario = (
   }
 
   if (scenario === "json-render-patch") {
-    const spec = byInstance.get("spec_demo_1")?.specProps;
+    const spec = byInstance.get("specDemo1")?.specProps;
     const pass =
       spec?.state === "complete" &&
       getStringArray(spec.items).includes("Release");
@@ -889,7 +889,7 @@ const evaluateScenario = (
   }
 
   if (scenario === "json-render-guards") {
-    const spec = byInstance.get("spec_demo_2")?.specProps;
+    const spec = byInstance.get("specDemo2")?.specProps;
     const pass =
       spec?.status === "recovered" &&
       telemetryDelta.staleSeqIgnored >= 1 &&
@@ -901,8 +901,8 @@ const evaluateScenario = (
   }
 
   if (scenario === "mixed") {
-    const metrics = byInstance.get("spec_demo_3");
-    const fallback = byInstance.get("spec_demo_fallback");
+    const metrics = byInstance.get("specDemo3");
+    const fallback = byInstance.get("specDemoFallback");
     const pass =
       metrics?.specType === "metrics" &&
       fallback?.specType === "unknown-widget";
@@ -913,8 +913,8 @@ const evaluateScenario = (
   }
 
   if (scenario === "chaos") {
-    const specA = byInstance.get("spec_chaos_a")?.specProps;
-    const specB = byInstance.get("spec_chaos_b")?.specProps;
+    const specA = byInstance.get("specChaosA")?.specProps;
+    const specB = byInstance.get("specChaosB")?.specProps;
     const errors = getNumberRecord(specA?.values).errors;
     const pass =
       getNumberRecord(specA?.values).p95 === 180 &&
@@ -929,7 +929,7 @@ const evaluateScenario = (
   }
 
   if (scenario === "json-patch-semantics") {
-    const spec = byInstance.get("spec_patch_semantics")?.specProps;
+    const spec = byInstance.get("specPatchSemantics")?.specProps;
     const complex = isObjectRecord(spec?.complex) ? spec?.complex : {};
     const list = getStringArray(spec?.list);
     const entries = getStringArray(spec?.entries);
@@ -965,15 +965,15 @@ const evaluateScenario = (
     };
   }
 
-  const parent = byInstance.get("graph_parent");
-  const child = byInstance.get("graph_child");
-  const graphSpec = byInstance.get("graph_spec");
-  const nestedSpec = byInstance.get("graph_spec_child");
+  const parent = byInstance.get("graphParent");
+  const child = byInstance.get("graphChild");
+  const graphSpec = byInstance.get("graphSpec");
+  const nestedSpec = byInstance.get("graphSpecChild");
   const pass =
     !parent?.parentId &&
-    child?.parentId === "graph_parent" &&
-    graphSpec?.parentId === "graph_child" &&
-    nestedSpec?.parentId === "graph_spec";
+    child?.parentId === "graphParent" &&
+    graphSpec?.parentId === "graphChild" &&
+    nestedSpec?.parentId === "graphSpec";
   return {
     pass,
     details: `childParent=${child?.parentId ?? "none"} graphSpecParent=${graphSpec?.parentId ?? "none"} nestedParent=${nestedSpec?.parentId ?? "none"}`,
@@ -998,7 +998,7 @@ export default function ComponentPartLabPage() {
   });
   const [invokeMode, setInvokeMode] = useState<InvokeMode>("success");
   const [emitEnabled, setEmitEnabled] = useState(true);
-  const [catalogMode, setCatalogMode] = useState<CatalogMode>("by_type");
+  const [catalogMode, setCatalogMode] = useState<CatalogMode>("byType");
   const [invokeReceipts, setInvokeReceipts] = useState(0);
   const [emitReceipts, setEmitReceipts] = useState(0);
   const [matrixSummary, setMatrixSummary] = useState<MatrixSummary | null>(
@@ -1214,7 +1214,7 @@ export default function ComponentPartLabPage() {
     }
 
     return {
-      by_type: {
+      byType: {
         "status-board": StatusBoardRenderer,
         "audit-log": AuditLogRenderer,
         metrics: MetricsRenderer,
@@ -1238,7 +1238,7 @@ export default function ComponentPartLabPage() {
     () => ({
       Text: DemoTextPart,
       Component: {
-        by_name: {
+        byName: {
           "status-card": StatusCardPart,
           [unstable_AISDK_JSON_RENDER_COMPONENT_NAME]: JsonRenderPart,
         },
@@ -1574,7 +1574,7 @@ export default function ComponentPartLabPage() {
                   setCatalogMode(event.target.value as CatalogMode)
                 }
               >
-                <option value="by_type">by_type + fallback</option>
+                <option value="byType">byType + fallback</option>
                 <option value="fallback-only">fallback-only</option>
                 <option value="override">override</option>
               </select>

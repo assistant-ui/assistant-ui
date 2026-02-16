@@ -103,7 +103,7 @@ const runComponentPartScenario = async (
   await sleep(80);
   writeData(writer, "component", {
     name: "status-card",
-    instanceId: "component_demo_1",
+    instanceId: "componentDemo1",
     props: {
       title: "Component Part Smoke Test",
       status: "active",
@@ -132,7 +132,7 @@ const runJsonRenderPatchScenario = async (
   );
 
   writeData(writer, "spec", {
-    instanceId: "spec_demo_1",
+    instanceId: "specDemo1",
     name: "json-render",
     seq: 1,
     spec: {
@@ -147,7 +147,7 @@ const runJsonRenderPatchScenario = async (
 
   await sleep(120);
   writeData(writer, "spec", {
-    instanceId: "spec_demo_1",
+    instanceId: "specDemo1",
     seq: 2,
     patch: [
       {
@@ -162,7 +162,7 @@ const runJsonRenderPatchScenario = async (
 
   await sleep(120);
   writeData(writer, "spec", {
-    instanceId: "spec_demo_1",
+    instanceId: "specDemo1",
     seq: 3,
     patch: [
       { op: "replace", path: "/props/state", value: "complete" },
@@ -181,7 +181,7 @@ const runJsonRenderGuardsScenario = async (
   );
 
   writeData(writer, "spec", {
-    instanceId: "spec_demo_2",
+    instanceId: "specDemo2",
     name: "json-render",
     seq: 2,
     spec: {
@@ -196,7 +196,7 @@ const runJsonRenderGuardsScenario = async (
 
   await sleep(120);
   writeData(writer, "spec", {
-    instanceId: "spec_demo_2",
+    instanceId: "specDemo2",
     seq: 1,
     patch: [
       { op: "replace", path: "/props/status", value: "stale-update" },
@@ -206,14 +206,14 @@ const runJsonRenderGuardsScenario = async (
 
   await sleep(120);
   writeData(writer, "spec", {
-    instanceId: "spec_demo_2",
+    instanceId: "specDemo2",
     seq: 3,
     patch: [{ op: "replace", path: "props/status", value: "malformed-path" }],
   });
 
   await sleep(120);
   writeData(writer, "spec", {
-    instanceId: "spec_demo_2",
+    instanceId: "specDemo2",
     seq: 4,
     patch: [
       { op: "replace", path: "/props/status", value: "recovered" },
@@ -232,17 +232,17 @@ const runMixedScenario = async (writer: UIMessageStreamWriter<UIMessage>) => {
   await sleep(80);
   writeData(writer, "component", {
     name: "status-card",
-    instanceId: "component_demo_2",
+    instanceId: "componentDemo2",
     props: {
       title: "Native Component",
       status: "ready",
-      details: "Rendered through Component.by_name mapping.",
+      details: "Rendered through Component.byName mapping.",
     },
   });
 
   await sleep(80);
   writeData(writer, "spec", {
-    instanceId: "spec_demo_3",
+    instanceId: "specDemo3",
     name: "json-render",
     seq: 1,
     spec: {
@@ -256,7 +256,7 @@ const runMixedScenario = async (writer: UIMessageStreamWriter<UIMessage>) => {
 
   await sleep(80);
   writeData(writer, "spec", {
-    instanceId: "spec_demo_3",
+    instanceId: "specDemo3",
     seq: 2,
     patch: [
       { op: "replace", path: "/props/values/p95", value: 147 },
@@ -266,7 +266,7 @@ const runMixedScenario = async (writer: UIMessageStreamWriter<UIMessage>) => {
 
   await sleep(80);
   writeData(writer, "spec", {
-    instanceId: "spec_demo_fallback",
+    instanceId: "specDemoFallback",
     name: "json-render",
     seq: 1,
     spec: {
@@ -280,7 +280,7 @@ const runMixedScenario = async (writer: UIMessageStreamWriter<UIMessage>) => {
 
   await sleep(80);
   writeData(writer, "spec", {
-    instanceId: "spec_demo_fallback",
+    instanceId: "specDemoFallback",
     seq: 2,
     patch: [
       {
@@ -300,7 +300,7 @@ const runChaosScenario = async (writer: UIMessageStreamWriter<UIMessage>) => {
   );
 
   writeData(writer, "spec", {
-    instanceId: "spec_chaos_a",
+    instanceId: "specChaosA",
     name: "json-render",
     seq: 1,
     spec: {
@@ -314,7 +314,7 @@ const runChaosScenario = async (writer: UIMessageStreamWriter<UIMessage>) => {
 
   await sleep(70);
   writeData(writer, "spec", {
-    instanceId: "spec_chaos_b",
+    instanceId: "specChaosB",
     name: "json-render",
     seq: 1,
     spec: {
@@ -329,14 +329,14 @@ const runChaosScenario = async (writer: UIMessageStreamWriter<UIMessage>) => {
 
   await sleep(70);
   writeData(writer, "spec", {
-    instanceId: "spec_chaos_a",
+    instanceId: "specChaosA",
     seq: 2,
     patch: [{ op: "replace", path: "/props/values/p95", value: 180 }],
   });
 
   await sleep(70);
   writeData(writer, "spec", {
-    instanceId: "spec_chaos_b",
+    instanceId: "specChaosB",
     seq: 3,
     patch: [
       { op: "replace", path: "/props/state", value: "running" },
@@ -346,35 +346,35 @@ const runChaosScenario = async (writer: UIMessageStreamWriter<UIMessage>) => {
 
   await sleep(70);
   writeData(writer, "spec", {
-    instanceId: "spec_chaos_a",
+    instanceId: "specChaosA",
     seq: 2,
     patch: [{ op: "replace", path: "/props/values/p95", value: 170 }],
   });
 
   await sleep(70);
   writeData(writer, "spec", {
-    instanceId: "spec_chaos_b",
+    instanceId: "specChaosB",
     seq: 2,
     patch: [{ op: "replace", path: "/props/state", value: "stale-running" }],
   });
 
   await sleep(70);
   writeData(writer, "spec", {
-    instanceId: "spec_chaos_b",
+    instanceId: "specChaosB",
     seq: 4,
     patch: [{ op: "replace", path: "props/state", value: "malformed" }],
   });
 
   await sleep(70);
   writeData(writer, "spec", {
-    instanceId: "spec_chaos_a",
+    instanceId: "specChaosA",
     seq: 3,
     patch: [{ op: "replace", path: "/props/values/errors", value: 2 }],
   });
 
   await sleep(70);
   writeData(writer, "spec", {
-    instanceId: "spec_chaos_b",
+    instanceId: "specChaosB",
     seq: 5,
     patch: [
       { op: "replace", path: "/props/state", value: "complete" },
@@ -393,7 +393,7 @@ const runJsonPatchSemanticsScenario = async (
   );
 
   writeData(writer, "spec", {
-    instanceId: "spec_patch_semantics",
+    instanceId: "specPatchSemantics",
     name: "json-render",
     seq: 1,
     spec: {
@@ -413,7 +413,7 @@ const runJsonPatchSemanticsScenario = async (
 
   await sleep(100);
   writeData(writer, "spec", {
-    instanceId: "spec_patch_semantics",
+    instanceId: "specPatchSemantics",
     seq: 2,
     patch: [
       {
@@ -438,7 +438,7 @@ const runJsonPatchSemanticsScenario = async (
 
   await sleep(100);
   writeData(writer, "spec", {
-    instanceId: "spec_patch_semantics",
+    instanceId: "specPatchSemantics",
     seq: 3,
     patch: [
       { op: "add", path: "/props/list/-", value: "two" },
@@ -451,7 +451,7 @@ const runJsonPatchSemanticsScenario = async (
 
   await sleep(100);
   writeData(writer, "spec", {
-    instanceId: "spec_patch_semantics",
+    instanceId: "specPatchSemantics",
     seq: 4,
     patch: [
       { op: "remove", path: "/props/entries/0" },
@@ -520,7 +520,7 @@ const runParentGraphScenario = async (
   await sleep(70);
   writeData(writer, "component", {
     name: "status-card",
-    instanceId: "graph_parent",
+    instanceId: "graphParent",
     props: {
       title: "Graph Parent",
       status: "active",
@@ -531,19 +531,19 @@ const runParentGraphScenario = async (
   await sleep(70);
   writeData(writer, "component", {
     name: "status-card",
-    instanceId: "graph_child",
-    parentId: "graph_parent",
+    instanceId: "graphChild",
+    parentId: "graphParent",
     props: {
       title: "Graph Child",
       status: "active",
-      details: "Child component referencing graph_parent",
+      details: "Child component referencing graphParent",
     },
   });
 
   await sleep(70);
   writeData(writer, "spec", {
-    instanceId: "graph_spec",
-    parentId: "graph_child",
+    instanceId: "graphSpec",
+    parentId: "graphChild",
     name: "json-render",
     seq: 1,
     spec: {
@@ -557,8 +557,8 @@ const runParentGraphScenario = async (
 
   await sleep(70);
   writeData(writer, "spec", {
-    instanceId: "graph_spec_child",
-    parentId: "graph_spec",
+    instanceId: "graphSpecChild",
+    parentId: "graphSpec",
     name: "json-render",
     seq: 1,
     spec: {

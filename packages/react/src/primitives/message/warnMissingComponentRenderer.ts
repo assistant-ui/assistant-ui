@@ -9,6 +9,6 @@ export const warnMissingComponentRenderer = (name: string) => {
 
   console.warn(
     `No renderer registered for component message part "${name}". ` +
-      `Add components.Component.by_name["${name}"], components.Component.Fallback, or components.Component.Override.`,
+      `Add components.Component.byName["${name}"], components.Component.Fallback, or components.Component.Override.`,
   );
 };

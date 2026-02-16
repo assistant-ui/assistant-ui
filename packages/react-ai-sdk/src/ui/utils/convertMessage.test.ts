@@ -204,7 +204,7 @@ describe("AISDKMessageConverter", () => {
             {
               type: "data-spec",
               data: {
-                instanceId: "spec_1",
+                instanceId: "spec1",
                 seq: 1,
                 spec: {
                   type: "card",
@@ -215,7 +215,7 @@ describe("AISDKMessageConverter", () => {
             {
               type: "data-spec",
               data: {
-                instanceId: "spec_1",
+                instanceId: "spec1",
                 seq: 2,
                 patch: [
                   { op: "replace", path: "/props/title", value: "Ready" },
@@ -242,7 +242,7 @@ describe("AISDKMessageConverter", () => {
     expect(result[0]!.content[1]).toMatchObject({
       type: "component",
       name: "json-render",
-      instanceId: "spec_1",
+      instanceId: "spec1",
       props: {
         spec: {
           type: "card",
@@ -262,7 +262,7 @@ describe("AISDKMessageConverter", () => {
             {
               type: "data-spec",
               data: {
-                instanceId: "spec_1",
+                instanceId: "spec1",
                 seq: 2,
                 spec: {
                   type: "card",
@@ -273,7 +273,7 @@ describe("AISDKMessageConverter", () => {
             {
               type: "data-spec",
               data: {
-                instanceId: "spec_1",
+                instanceId: "spec1",
                 seq: 1,
                 patch: [
                   { op: "replace", path: "/props/title", value: "Stale" },
@@ -293,7 +293,7 @@ describe("AISDKMessageConverter", () => {
     expect(result[0]!.content[0]).toMatchObject({
       type: "component",
       name: "json-render",
-      instanceId: "spec_1",
+      instanceId: "spec1",
       props: {
         spec: {
           type: "card",
@@ -313,7 +313,7 @@ describe("AISDKMessageConverter", () => {
             {
               type: "data-spec",
               data: {
-                instanceId: "spec_1",
+                instanceId: "spec1",
                 seq: 1,
                 spec: {
                   type: "card",
@@ -324,7 +324,7 @@ describe("AISDKMessageConverter", () => {
             {
               type: "data-spec",
               data: {
-                instanceId: "spec_1",
+                instanceId: "spec1",
                 seq: 2,
                 patch: [
                   { op: "replace", path: "props/title", value: "Broken" },
@@ -344,7 +344,7 @@ describe("AISDKMessageConverter", () => {
     expect(result[0]!.content[0]).toMatchObject({
       type: "component",
       name: "json-render",
-      instanceId: "spec_1",
+      instanceId: "spec1",
       props: {
         spec: {
           type: "card",
@@ -381,7 +381,7 @@ describe("AISDKMessageConverter", () => {
             {
               type: "data-spec",
               data: {
-                instanceId: "spec_1",
+                instanceId: "spec1",
                 seq: 1,
                 spec: {
                   type: "unknown-layout",
@@ -407,7 +407,7 @@ describe("AISDKMessageConverter", () => {
     expect(result[0]!.content[0]).toMatchObject({
       type: "component",
       name: "json-render",
-      instanceId: "spec_1",
+      instanceId: "spec1",
       props: {
         spec: {
           type: "card",
@@ -432,7 +432,7 @@ describe("AISDKMessageConverter", () => {
             {
               type: "data-spec",
               data: {
-                instanceId: "spec_1",
+                instanceId: "spec1",
                 seq: 2,
                 spec: {
                   type: "card",
@@ -443,7 +443,7 @@ describe("AISDKMessageConverter", () => {
             {
               type: "data-spec",
               data: {
-                instanceId: "spec_1",
+                instanceId: "spec1",
                 seq: 1,
                 patch: [
                   { op: "replace", path: "/props/title", value: "Stale" },
@@ -453,7 +453,7 @@ describe("AISDKMessageConverter", () => {
             {
               type: "data-spec",
               data: {
-                instanceId: "spec_1",
+                instanceId: "spec1",
                 seq: 3,
                 patch: [
                   { op: "replace", path: "props/title", value: "Malformed" },
@@ -473,13 +473,13 @@ describe("AISDKMessageConverter", () => {
 
     expect(events).toContainEqual({
       type: "stale-seq-ignored",
-      instanceId: "spec_1",
+      instanceId: "spec1",
       seq: 1,
       latestSeq: 2,
     });
     expect(events).toContainEqual({
       type: "malformed-patch-dropped",
-      instanceId: "spec_1",
+      instanceId: "spec1",
       seq: 3,
     });
   });
@@ -494,7 +494,7 @@ describe("AISDKMessageConverter", () => {
             {
               type: "data-spec",
               data: {
-                instanceId: "spec_1",
+                instanceId: "spec1",
                 seq: 1,
                 spec: {
                   type: "card",
@@ -505,7 +505,7 @@ describe("AISDKMessageConverter", () => {
             {
               type: "data-spec",
               data: {
-                instanceId: "spec_1",
+                instanceId: "spec1",
                 seq: 2,
                 props: [],
               },
@@ -513,7 +513,7 @@ describe("AISDKMessageConverter", () => {
             {
               type: "data-spec",
               data: {
-                instanceId: "spec_1",
+                instanceId: "spec1",
                 seq: 3,
                 spec: [],
               },
@@ -530,7 +530,7 @@ describe("AISDKMessageConverter", () => {
     expect(result[0]!.content[0]).toMatchObject({
       type: "component",
       name: "json-render",
-      instanceId: "spec_1",
+      instanceId: "spec1",
       props: {
         spec: {
           type: "card",
@@ -550,7 +550,7 @@ describe("AISDKMessageConverter", () => {
             {
               type: "data-spec",
               data: {
-                instanceId: "spec_1",
+                instanceId: "spec1",
                 seq: 1,
                 spec: {
                   type: "card",
@@ -564,7 +564,7 @@ describe("AISDKMessageConverter", () => {
             {
               type: "data-spec",
               data: {
-                instanceId: "spec_1",
+                instanceId: "spec1",
                 seq: 2,
                 patch: [
                   { op: "replace", path: "/props/a~1b", value: "slash-new" },
@@ -586,7 +586,7 @@ describe("AISDKMessageConverter", () => {
     expect(result[0]!.content[0]).toMatchObject({
       type: "component",
       name: "json-render",
-      instanceId: "spec_1",
+      instanceId: "spec1",
       props: {
         spec: {
           type: "card",
@@ -611,7 +611,7 @@ describe("AISDKMessageConverter", () => {
             {
               type: "data-spec",
               data: {
-                instanceId: "spec_1",
+                instanceId: "spec1",
                 seq: 1,
                 spec: {
                   type: "card",
@@ -622,7 +622,7 @@ describe("AISDKMessageConverter", () => {
             {
               type: "data-spec",
               data: {
-                instanceId: "spec_1",
+                instanceId: "spec1",
                 seq: 2,
                 patch: [{ op: "replace", path: "/props/title" }],
               },
@@ -642,13 +642,13 @@ describe("AISDKMessageConverter", () => {
 
     expect(events).toContainEqual({
       type: "malformed-patch-dropped",
-      instanceId: "spec_1",
+      instanceId: "spec1",
       seq: 2,
     });
     expect(result[0]!.content[0]).toMatchObject({
       type: "component",
       name: "json-render",
-      instanceId: "spec_1",
+      instanceId: "spec1",
       props: {
         spec: {
           type: "card",
@@ -668,7 +668,7 @@ describe("AISDKMessageConverter", () => {
             {
               type: "data-spec",
               data: {
-                instanceId: "spec_1",
+                instanceId: "spec1",
                 seq: 1,
                 spec: {
                   type: "card",
@@ -679,7 +679,7 @@ describe("AISDKMessageConverter", () => {
             {
               type: "data-spec",
               data: {
-                instanceId: "spec_1",
+                instanceId: "spec1",
                 seq: Number.NaN,
                 patch: [{ op: "replace", path: "/props/title", value: "NaN" }],
               },
@@ -687,7 +687,7 @@ describe("AISDKMessageConverter", () => {
             {
               type: "data-spec",
               data: {
-                instanceId: "spec_2",
+                instanceId: "spec2",
                 name: "",
                 seq: 1,
                 spec: {
@@ -708,7 +708,7 @@ describe("AISDKMessageConverter", () => {
     expect(result[0]!.content[0]).toMatchObject({
       type: "component",
       name: "json-render",
-      instanceId: "spec_1",
+      instanceId: "spec1",
       props: {
         spec: {
           type: "card",

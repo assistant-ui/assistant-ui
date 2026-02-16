@@ -19,14 +19,14 @@ const createComponentMessage = (): ThreadAssistantMessage => ({
     {
       type: "component",
       name: "json-render",
-      instanceId: "spec_1",
+      instanceId: "spec1",
     },
   ],
   status: { type: "complete", reason: "stop" },
   metadata: {
     unstable_state: {
       components: {
-        spec_1: {
+        spec1: {
           seq: 1,
           lifecycle: "active",
           state: { phase: "ready" },
@@ -60,7 +60,7 @@ describe("unstable_JsonRenderHost", () => {
         type="component"
         name="json-render"
         status={{ type: "complete" }}
-        instanceId="spec_1"
+        instanceId="spec1"
         props={{ spec: { type: "card", props: { title: "Ready" } } }}
       />,
       { wrapper },
@@ -78,7 +78,7 @@ describe("unstable_JsonRenderHost", () => {
         type="component"
         name="json-render"
         status={{ type: "complete" }}
-        instanceId="spec_1"
+        instanceId="spec1"
         props={{ spec: { type: "card" } }}
         render={({ spec }) => (
           <div data-testid="custom-spec">
@@ -99,10 +99,10 @@ describe("unstable_JsonRenderHost", () => {
         type="component"
         name="json-render"
         status={{ type: "complete" }}
-        instanceId="spec_1"
+        instanceId="spec1"
         props={{ spec: { type: "status-board", props: { title: "Deploy" } } }}
         catalog={{
-          by_type: {
+          byType: {
             "status-board": ({ spec }) => (
               <div data-testid="catalog-status-board">
                 {(spec as { props?: { title?: string } }).props?.title}
@@ -126,12 +126,12 @@ describe("unstable_JsonRenderHost", () => {
         type="component"
         name="json-render"
         status={{ type: "complete" }}
-        instanceId="spec_1"
+        instanceId="spec1"
         props={{
           spec: { type: "unknown-widget", props: { title: "Unknown" } },
         }}
         catalog={{
-          by_type: {
+          byType: {
             "status-board": () => <div data-testid="catalog-status-board" />,
           },
           Fallback: ({ specType }) => (
@@ -214,10 +214,10 @@ describe("unstable_JsonRenderHost", () => {
           type="component"
           name="json-render"
           status={{ type: "complete" }}
-          instanceId="spec_1"
+          instanceId="spec1"
           props={{ spec: { type: "metrics" } }}
           catalog={{
-            by_type: {
+            byType: {
               metrics: InteractiveRenderer,
             },
           }}
@@ -235,7 +235,7 @@ describe("unstable_JsonRenderHost", () => {
     expect(invokeListener).toHaveBeenCalledWith(
       expect.objectContaining({
         messageId: "m1",
-        instanceId: "spec_1",
+        instanceId: "spec1",
         action: "refresh",
         payload: { source: "catalog" },
       }),
@@ -245,7 +245,7 @@ describe("unstable_JsonRenderHost", () => {
     await waitFor(() => {
       expect(emitListener).toHaveBeenCalledWith({
         messageId: "m1",
-        instanceId: "spec_1",
+        instanceId: "spec1",
         event: "selected",
         payload: { source: "catalog" },
       });
