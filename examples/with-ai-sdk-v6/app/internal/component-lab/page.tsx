@@ -172,11 +172,12 @@ const useComponentParentId = (instanceId: string | undefined) => {
 
 const invokeWithTimeout = async (
   invoke: (action: string, payload?: unknown) => Promise<unknown>,
-  source: string,
+  action: string,
+  payload: unknown,
   timeoutMs = 1600,
 ) => {
   return Promise.race([
-    invoke("refresh", { source }),
+    invoke(action, payload),
     new Promise<never>((_, reject) => {
       setTimeout(() => reject(new Error("Invoke timeout (no ack)")), timeoutMs);
     }),
@@ -211,7 +212,9 @@ const StatusCardPart: ComponentMessagePartComponent = ({
     setInvokeError("");
     try {
       if (!component) throw new Error("Missing instanceId");
-      const result = await invokeWithTimeout(component.invoke, "status-card");
+      const result = await invokeWithTimeout(component.invoke, "refresh", {
+        source: "status-card",
+      });
       setInvokeResult(JSON.stringify(result));
     } catch (error) {
       setInvokeError(error instanceof Error ? error.message : "Unknown error");
@@ -275,46 +278,77 @@ const StatusCardPart: ComponentMessagePartComponent = ({
   );
 };
 
-const JsonRenderActions: FC<{
-  source: string;
+type JsonRenderDemoAction = {
+  id: string;
+  label: string;
+  type: "invoke" | "emit";
+  name: string;
+  payload: unknown;
+};
+
+const JsonRenderActionDock: FC<{
+  actions: readonly JsonRenderDemoAction[];
   invoke: (action: string, payload?: unknown) => Promise<unknown>;
   emit: (event: string, payload?: unknown) => void;
-}> = ({ source, invoke, emit }) => {
+  resultTestId: string;
+}> = ({ actions, invoke, emit, resultTestId }) => {
   const [invokeResult, setInvokeResult] = useState<string>("");
   const [invokeError, setInvokeError] = useState<string>("");
+  const [emitResult, setEmitResult] = useState<string>("");
+
+  const runAction = async (action: JsonRenderDemoAction) => {
+    if (action.type === "emit") {
+      emit(action.name, action.payload);
+      setEmitResult(`${action.name} emitted`);
+      return;
+    }
+
+    setInvokeError("");
+    try {
+      const result = await invokeWithTimeout(
+        invoke,
+        action.name,
+        action.payload,
+      );
+      setInvokeResult(JSON.stringify(result));
+    } catch (error) {
+      setInvokeError(error instanceof Error ? error.message : "Unknown error");
+    }
+  };
 
   return (
     <>
-      <div className="mt-3 flex gap-2">
-        <button
-          className="rounded-md border border-slate-400 px-2 py-1 text-xs"
-          onClick={async () => {
-            setInvokeError("");
-            try {
-              const result = await invokeWithTimeout(invoke, source);
-              setInvokeResult(JSON.stringify(result));
-            } catch (error) {
-              setInvokeError(
-                error instanceof Error ? error.message : "Unknown error",
-              );
-            }
-          }}
-          type="button"
-        >
-          invoke(refresh)
-        </button>
-        <button
-          className="rounded-md border border-slate-400 px-2 py-1 text-xs"
-          onClick={() => emit("selected", { source })}
-          type="button"
-        >
-          emit(selected)
-        </button>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {actions.map((action) => (
+          <button
+            key={action.id}
+            className={`rounded-md px-2.5 py-1.5 font-semibold text-[11px] ${
+              action.type === "invoke"
+                ? "border border-slate-800 bg-slate-900 text-white"
+                : "border border-slate-300 bg-white text-slate-700"
+            }`}
+            onClick={() => {
+              void runAction(action);
+            }}
+            type="button"
+            data-testid={action.id}
+          >
+            {action.label}
+          </button>
+        ))}
       </div>
       {invokeResult ? (
-        <pre className="mt-2 overflow-x-auto rounded bg-white p-2 text-[11px]">
+        <pre
+          className="mt-2 overflow-x-auto rounded bg-white p-2 text-[11px]"
+          data-testid={resultTestId}
+        >
           {invokeResult}
         </pre>
+      ) : null}
+      {emitResult ? (
+        <div className="mt-2 rounded bg-slate-100 p-2 text-[11px] text-slate-700">
+          {emitResult}
+        </div>
       ) : null}
       {invokeError ? (
         <div className="mt-2 rounded bg-red-50 p-2 text-[11px] text-red-700">
@@ -359,27 +393,79 @@ const StatusBoardRenderer: unstable_JsonRenderHostCatalogRenderer = ({
     typeof props.title === "string" ? props.title : "Untitled Status Board";
   const state = typeof props.state === "string" ? props.state : "unknown";
   const items = getStringArray(props.items);
+  const stateTone =
+    state === "complete"
+      ? "border-emerald-300 bg-emerald-100 text-emerald-900"
+      : state === "verifying"
+        ? "border-amber-300 bg-amber-100 text-amber-900"
+        : "border-blue-300 bg-blue-100 text-blue-900";
 
   return (
-    <div className="mt-2 rounded-xl border border-emerald-300 bg-emerald-50 p-3">
-      <div className="font-semibold text-sm">{title}</div>
+    <div
+      className="mt-2 rounded-2xl border border-emerald-300 bg-gradient-to-br from-emerald-50 via-white to-teal-50 p-4 shadow-sm"
+      data-testid="json-render-status-board"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <div className="font-semibold text-[10px] text-emerald-700 uppercase tracking-[0.12em]">
+            Release Control Center
+          </div>
+          <div className="mt-1 font-semibold text-emerald-950 text-sm">
+            {title}
+          </div>
+        </div>
+        <div
+          className={`rounded-full border px-2.5 py-1 font-semibold text-[10px] uppercase ${stateTone}`}
+        >
+          {state}
+        </div>
+      </div>
       <JsonRendererMeta
         badge="catalog-hit"
         specType={specType}
         instanceId={instanceId}
       />
-      <div className="mt-1 text-emerald-900 text-xs">state: {state}</div>
       {items.length > 0 ? (
-        <ul className="mt-2 list-disc pl-4 text-emerald-900 text-xs">
-          {items.map((item) => (
-            <li key={item}>{item}</li>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          {items.map((item, index) => (
+            <div
+              key={item}
+              className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-white px-2.5 py-2 text-emerald-900 text-xs"
+            >
+              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-emerald-300 bg-emerald-100 font-semibold text-[10px]">
+                {index + 1}
+              </span>
+              <span className="font-medium">{item}</span>
+            </div>
           ))}
-        </ul>
+        </div>
       ) : null}
-      <JsonRenderActions
-        source={specType ?? "status-board"}
+      <JsonRenderActionDock
+        actions={[
+          {
+            id: "status-board-promote-release",
+            label: "Promote Release",
+            type: "invoke",
+            name: "promote_release",
+            payload: {
+              source: "status-board",
+              target: "production",
+            },
+          },
+          {
+            id: "status-board-subscribe-updates",
+            label: "Subscribe Updates",
+            type: "emit",
+            name: "subscribe_updates",
+            payload: {
+              source: "status-board",
+              channel: "release-feed",
+            },
+          },
+        ]}
         invoke={invoke}
         emit={emit}
+        resultTestId="status-board-invoke-result"
       />
     </div>
   );
@@ -398,25 +484,67 @@ const AuditLogRenderer: unstable_JsonRenderHostCatalogRenderer = ({
   const entries = getStringArray(props.entries);
 
   return (
-    <div className="mt-2 rounded-xl border border-cyan-300 bg-cyan-50 p-3">
-      <div className="font-semibold text-sm">{title}</div>
+    <div
+      className="mt-2 rounded-2xl border border-cyan-300 bg-gradient-to-br from-cyan-50 via-white to-sky-50 p-4 shadow-sm"
+      data-testid="json-render-audit-log"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <div className="font-semibold text-[10px] text-cyan-700 uppercase tracking-[0.12em]">
+            Compliance Timeline
+          </div>
+          <div className="mt-1 font-semibold text-cyan-950 text-sm">
+            {title}
+          </div>
+        </div>
+        <div className="rounded-full border border-cyan-300 bg-cyan-100 px-2.5 py-1 font-semibold text-[10px] text-cyan-900 uppercase">
+          {status}
+        </div>
+      </div>
       <JsonRendererMeta
         badge="catalog-hit"
         specType={specType}
         instanceId={instanceId}
       />
-      <div className="mt-1 text-cyan-900 text-xs">status: {status}</div>
       {entries.length > 0 ? (
-        <ul className="mt-2 list-disc pl-4 text-cyan-900 text-xs">
-          {entries.map((entry) => (
-            <li key={entry}>{entry}</li>
+        <div className="mt-3 space-y-2">
+          {entries.map((entry, index) => (
+            <div
+              key={`${entry}-${index}`}
+              className="relative rounded-xl border border-cyan-200 bg-white px-3 py-2 text-cyan-950 text-xs"
+            >
+              <span className="absolute top-0 left-0 h-full w-1 rounded-l-xl bg-cyan-300" />
+              <span className="pl-1">{entry}</span>
+            </div>
           ))}
-        </ul>
+        </div>
       ) : null}
-      <JsonRenderActions
-        source={specType ?? "audit-log"}
+      <JsonRenderActionDock
+        actions={[
+          {
+            id: "audit-log-ack-latest",
+            label: "Acknowledge Latest",
+            type: "invoke",
+            name: "ack_latest",
+            payload: {
+              source: "audit-log",
+              strategy: "latest-only",
+            },
+          },
+          {
+            id: "audit-log-escalate",
+            label: "Escalate Incident",
+            type: "emit",
+            name: "escalate_incident",
+            payload: {
+              source: "audit-log",
+              severity: "high",
+            },
+          },
+        ]}
         invoke={invoke}
         emit={emit}
+        resultTestId="audit-log-invoke-result"
       />
     </div>
   );
@@ -432,26 +560,81 @@ const MetricsRenderer: unstable_JsonRenderHostCatalogRenderer = ({
   const props = getSpecProps(spec);
   const title = typeof props.title === "string" ? props.title : "Metrics";
   const metrics = getNumberRecord(props.values);
+  const critical =
+    typeof metrics.errors === "number" && metrics.errors > 0
+      ? "attention"
+      : "healthy";
 
   return (
-    <div className="mt-2 rounded-xl border border-violet-300 bg-violet-50 p-3">
-      <div className="font-semibold text-sm">{title}</div>
+    <div
+      className="mt-2 rounded-2xl border border-violet-300 bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 p-4 shadow-sm"
+      data-testid="json-render-metrics"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <div className="font-semibold text-[10px] text-violet-700 uppercase tracking-[0.12em]">
+            Health Monitor
+          </div>
+          <div className="mt-1 font-semibold text-sm text-violet-950">
+            {title}
+          </div>
+        </div>
+        <div
+          className={`rounded-full border px-2.5 py-1 font-semibold text-[10px] uppercase ${
+            critical === "attention"
+              ? "border-rose-300 bg-rose-100 text-rose-900"
+              : "border-violet-300 bg-violet-100 text-violet-900"
+          }`}
+        >
+          {critical}
+        </div>
+      </div>
       <JsonRendererMeta
         badge="catalog-hit"
         specType={specType}
         instanceId={instanceId}
       />
-      <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+      <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
         {Object.entries(metrics).map(([key, value]) => (
-          <div key={key} className="rounded bg-white px-2 py-1 text-violet-900">
-            <span className="font-semibold">{key}:</span> {value}
+          <div
+            key={key}
+            className="rounded-xl border border-violet-200 bg-white px-2.5 py-2 text-violet-900"
+          >
+            <div className="font-semibold text-[10px] text-violet-600 uppercase tracking-wide">
+              {key}
+            </div>
+            <div className="mt-1 font-semibold text-lg leading-none">
+              {value}
+            </div>
           </div>
         ))}
       </div>
-      <JsonRenderActions
-        source={specType ?? "metrics"}
+      <JsonRenderActionDock
+        actions={[
+          {
+            id: "metrics-refresh-live",
+            label: "Refresh Live Metrics",
+            type: "invoke",
+            name: "refresh_live_metrics",
+            payload: {
+              source: "metrics",
+              include: Object.keys(metrics),
+            },
+          },
+          {
+            id: "metrics-watch-errors",
+            label: "Watch Error Spike",
+            type: "emit",
+            name: "watch_errors",
+            payload: {
+              source: "metrics",
+              threshold: 1,
+            },
+          },
+        ]}
         invoke={invoke}
         emit={emit}
+        resultTestId="metrics-invoke-result"
       />
     </div>
   );
@@ -480,10 +663,32 @@ const JsonCatalogFallbackRenderer: unstable_JsonRenderHostCatalogRenderer = ({
       <pre className="mt-2 overflow-x-auto rounded bg-white p-2 text-[11px]">
         {JSON.stringify(spec, null, 2)}
       </pre>
-      <JsonRenderActions
-        source={`fallback:${specType ?? "unknown"}`}
+      <JsonRenderActionDock
+        actions={[
+          {
+            id: "fallback-inspect-spec",
+            label: "Inspect Spec Contract",
+            type: "invoke",
+            name: "inspect_spec_contract",
+            payload: {
+              source: "fallback",
+              specType: specType ?? "unknown",
+            },
+          },
+          {
+            id: "fallback-request-mapping",
+            label: "Request Mapping",
+            type: "emit",
+            name: "request_mapping",
+            payload: {
+              source: "fallback",
+              specType: specType ?? "unknown",
+            },
+          },
+        ]}
         invoke={invoke}
         emit={emit}
+        resultTestId="fallback-invoke-result"
       />
     </div>
   );
@@ -510,10 +715,32 @@ const JsonCatalogOverrideRenderer: unstable_JsonRenderHostCatalogRenderer = ({
       <pre className="mt-2 overflow-x-auto rounded bg-white p-2 text-[11px]">
         {JSON.stringify(spec, null, 2)}
       </pre>
-      <JsonRenderActions
-        source={`override:${specType ?? "unknown"}`}
+      <JsonRenderActionDock
+        actions={[
+          {
+            id: "override-force-preview",
+            label: "Force Preview Refresh",
+            type: "invoke",
+            name: "override_force_preview",
+            payload: {
+              source: "override",
+              specType: specType ?? "unknown",
+            },
+          },
+          {
+            id: "override-track-selection",
+            label: "Track Selection",
+            type: "emit",
+            name: "override_track_selection",
+            payload: {
+              source: "override",
+              specType: specType ?? "unknown",
+            },
+          },
+        ]}
         invoke={invoke}
         emit={emit}
+        resultTestId="override-invoke-result"
       />
     </div>
   );
