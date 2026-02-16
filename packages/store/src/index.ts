@@ -1,7 +1,10 @@
 // hooks
 export { useAui } from "./useAui";
-export { useAuiState } from "./useAuiState";
+export { useAuiState, useAuiStateShallow } from "./useAuiState";
 export { useAuiEvent } from "./useAuiEvent";
+
+// utilities
+export { shallow } from "./shallow";
 
 // components
 export { AuiIf } from "./AuiIf";
