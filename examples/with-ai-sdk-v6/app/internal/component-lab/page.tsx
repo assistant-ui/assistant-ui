@@ -1466,14 +1466,25 @@ export default function ComponentPartLabPage() {
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
-      <div className="mx-auto flex min-h-screen max-w-7xl flex-col gap-4 bg-muted px-4 py-6 text-foreground">
-        <header className="rounded-xl border border-border bg-background p-4">
-          <h1 className="font-semibold text-xl">Internal Component Part Lab</h1>
-          <p className="mt-1 text-muted-foreground text-sm">
-            End-to-end pressure test for component-part substrate plus additive
-            json-render lane.
-          </p>
-          <div className="mt-3 grid gap-3 lg:grid-cols-3">
+      <div className="mx-auto flex min-h-screen w-full max-w-[96rem] flex-col gap-4 bg-muted px-4 py-4 text-foreground lg:h-screen lg:min-h-0 lg:flex-row">
+        <div className="min-h-[65vh] overflow-hidden rounded-xl border border-border bg-background lg:h-full lg:flex-1">
+          <Thread
+            assistantMessagePartComponents={assistantMessagePartComponents}
+          />
+        </div>
+
+        <aside className="flex w-full flex-col gap-4 overflow-y-auto rounded-xl border border-border bg-background p-4 lg:h-full lg:w-[28rem] lg:min-w-[24rem]">
+          <header>
+            <h1 className="font-semibold text-xl">
+              Internal Component Part Lab
+            </h1>
+            <p className="mt-1 text-muted-foreground text-sm">
+              End-to-end pressure test for component-part substrate plus
+              additive json-render lane.
+            </p>
+          </header>
+
+          <section className="grid gap-3">
             <section className="rounded-lg border border-border bg-muted p-3 text-xs">
               <h2 className="font-semibold text-foreground">
                 What this unlocks
@@ -1508,9 +1519,9 @@ export default function ComponentPartLabPage() {
                 ))}
               </ul>
             </section>
-          </div>
+          </section>
 
-          <section className="mt-3 rounded-lg border border-border bg-muted p-3 text-xs">
+          <section className="rounded-lg border border-border bg-muted p-3 text-xs">
             <h2 className="font-semibold text-foreground">
               90-second demo walkthrough
             </h2>
@@ -1525,7 +1536,7 @@ export default function ComponentPartLabPage() {
             </ol>
           </section>
 
-          <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          <section className="grid gap-2 sm:grid-cols-2">
             {SCENARIOS.map((item) => (
               <button
                 key={item.id}
@@ -1541,9 +1552,9 @@ export default function ComponentPartLabPage() {
                 <div className="mt-1 opacity-80">{item.description}</div>
               </button>
             ))}
-          </div>
+          </section>
 
-          <div className="mt-3 grid gap-3 rounded-lg border border-border bg-muted p-3 sm:grid-cols-2 lg:grid-cols-4">
+          <section className="grid gap-3 rounded-lg border border-border bg-muted p-3 sm:grid-cols-2">
             <label className="flex flex-col gap-1 text-xs">
               <span className="font-semibold">Invoke Mode</span>
               <select
@@ -1573,7 +1584,7 @@ export default function ComponentPartLabPage() {
               </select>
             </label>
 
-            <label className="flex flex-col gap-1 text-xs">
+            <label className="flex flex-col gap-1 text-xs sm:col-span-2">
               <span className="font-semibold">Catalog Mode</span>
               <select
                 className="rounded border border-border bg-background px-2 py-1"
@@ -1588,7 +1599,7 @@ export default function ComponentPartLabPage() {
               </select>
             </label>
 
-            <div className="text-xs">
+            <div className="text-xs sm:col-span-2">
               <div className="font-semibold">Snapshot</div>
               <div className="mt-1 text-[11px] text-muted-foreground">
                 {snapshotMeta
@@ -1596,9 +1607,9 @@ export default function ComponentPartLabPage() {
                   : "none"}
               </div>
             </div>
-          </div>
+          </section>
 
-          <div className="mt-3 flex flex-wrap gap-2 text-xs">
+          <section className="flex flex-wrap gap-2 text-xs">
             <button
               className="rounded-md border border-border px-2 py-1"
               onClick={() => {
@@ -1671,9 +1682,9 @@ export default function ComponentPartLabPage() {
             >
               Clear Snapshot
             </button>
-          </div>
+          </section>
 
-          <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2 lg:grid-cols-4">
+          <section className="grid gap-2 text-xs sm:grid-cols-2">
             <div className="rounded-md border border-border bg-muted px-2 py-1">
               staleSeqIgnored={telemetry.staleSeqIgnored}
             </div>
@@ -1688,88 +1699,82 @@ export default function ComponentPartLabPage() {
             <div className="rounded-md border border-border bg-muted px-2 py-1">
               receipts(invoke/emit)={invokeReceipts}/{emitReceipts}
             </div>
-          </div>
+          </section>
 
-          <div className="mt-2 text-[11px] text-muted-foreground">
+          <div className="text-[11px] text-muted-foreground">
             Active scenario: {activeScenario.title}
           </div>
-        </header>
 
-        <div className="h-[65vh] min-h-[60vh] overflow-hidden rounded-xl border border-border bg-background">
-          <Thread
-            assistantMessagePartComponents={assistantMessagePartComponents}
-          />
-        </div>
+          {matrixSummary ? (
+            <section
+              className="rounded-xl border border-border bg-background p-4"
+              data-testid="matrix-summary"
+            >
+              <h2 className="font-semibold text-sm">Scenario Matrix Summary</h2>
+              <div className="mt-2 grid gap-2 text-xs sm:grid-cols-2">
+                <div className="rounded bg-muted px-2 py-1">
+                  runs={matrixSummary.runs} pass={matrixSummary.passes} fail=
+                  {matrixSummary.failures}
+                </div>
+                <div className="rounded bg-muted px-2 py-1">
+                  receipts invoke/emit={matrixSummary.invokeReceipts}/
+                  {matrixSummary.emitReceipts}
+                </div>
+                <div className="rounded bg-muted px-2 py-1">
+                  telemetry stale/malformed={matrixSummary.staleSeqIgnored}/
+                  {matrixSummary.malformedPatchDropped}
+                </div>
+                <div className="rounded bg-muted px-2 py-1">
+                  catalog delta h/f/o/m={matrixSummary.catalogHit}/
+                  {matrixSummary.catalogFallback}/
+                  {matrixSummary.catalogOverride}/{matrixSummary.catalogMiss}
+                </div>
+              </div>
+              <div className="mt-3 space-y-2">
+                {matrixSummary.results.map((result) => (
+                  <details
+                    key={result.scenario}
+                    className="rounded border border-border bg-muted p-2"
+                    data-testid={`matrix-${result.scenario}`}
+                  >
+                    <summary className="cursor-pointer text-xs">
+                      <span className="font-semibold">
+                        {SCENARIO_BY_ID[result.scenario].title}
+                      </span>{" "}
+                      <span
+                        className={`ml-2 rounded px-2 py-[2px] ${
+                          result.pass
+                            ? "bg-emerald-100 text-emerald-900"
+                            : "bg-rose-100 text-rose-900"
+                        }`}
+                      >
+                        {result.pass ? "PASS" : "FAIL"}
+                      </span>
+                    </summary>
+                    <div className="mt-2 text-[11px] text-muted-foreground">
+                      {result.details}
+                    </div>
+                    <pre className="mt-2 overflow-x-auto rounded bg-background p-2 text-[11px]">
+                      {result.finalSpecState}
+                    </pre>
+                  </details>
+                ))}
+              </div>
+            </section>
+          ) : null}
 
-        {matrixSummary ? (
-          <section
-            className="rounded-xl border border-border bg-background p-4"
-            data-testid="matrix-summary"
-          >
-            <h2 className="font-semibold text-sm">Scenario Matrix Summary</h2>
-            <div className="mt-2 grid gap-2 text-xs sm:grid-cols-2 lg:grid-cols-4">
-              <div className="rounded bg-muted px-2 py-1">
-                runs={matrixSummary.runs} pass={matrixSummary.passes} fail=
-                {matrixSummary.failures}
-              </div>
-              <div className="rounded bg-muted px-2 py-1">
-                receipts invoke/emit={matrixSummary.invokeReceipts}/
-                {matrixSummary.emitReceipts}
-              </div>
-              <div className="rounded bg-muted px-2 py-1">
-                telemetry stale/malformed={matrixSummary.staleSeqIgnored}/
-                {matrixSummary.malformedPatchDropped}
-              </div>
-              <div className="rounded bg-muted px-2 py-1">
-                catalog delta h/f/o/m={matrixSummary.catalogHit}/
-                {matrixSummary.catalogFallback}/{matrixSummary.catalogOverride}/
-                {matrixSummary.catalogMiss}
-              </div>
-            </div>
-            <div className="mt-3 space-y-2">
-              {matrixSummary.results.map((result) => (
-                <details
-                  key={result.scenario}
-                  className="rounded border border-border bg-muted p-2"
-                  data-testid={`matrix-${result.scenario}`}
-                >
-                  <summary className="cursor-pointer text-xs">
-                    <span className="font-semibold">
-                      {SCENARIO_BY_ID[result.scenario].title}
-                    </span>{" "}
-                    <span
-                      className={`ml-2 rounded px-2 py-[2px] ${
-                        result.pass
-                          ? "bg-emerald-100 text-emerald-900"
-                          : "bg-rose-100 text-rose-900"
-                      }`}
-                    >
-                      {result.pass ? "PASS" : "FAIL"}
-                    </span>
-                  </summary>
-                  <div className="mt-2 text-[11px] text-muted-foreground">
-                    {result.details}
-                  </div>
-                  <pre className="mt-2 overflow-x-auto rounded bg-background p-2 text-[11px]">
-                    {result.finalSpecState}
-                  </pre>
-                </details>
-              ))}
-            </div>
+          <section className="rounded-xl border border-border bg-background p-4">
+            <h2 className="font-semibold text-sm">Event Log</h2>
+            <pre
+              className="mt-2 max-h-72 overflow-y-auto rounded bg-muted p-3 text-[11px] leading-5"
+              data-testid="event-log"
+            >
+              {eventLog.length > 0
+                ? eventLog.join("\n")
+                : "No events yet. Trigger invoke/emit buttons in component cards."}
+            </pre>
           </section>
-        ) : null}
-
-        <section className="rounded-xl border border-border bg-background p-4">
-          <h2 className="font-semibold text-sm">Event Log</h2>
-          <pre
-            className="mt-2 max-h-72 overflow-y-auto rounded bg-muted p-3 text-[11px] leading-5"
-            data-testid="event-log"
-          >
-            {eventLog.length > 0
-              ? eventLog.join("\n")
-              : "No events yet. Trigger invoke/emit buttons in component cards."}
-          </pre>
-        </section>
+        </aside>
       </div>
     </AssistantRuntimeProvider>
   );
