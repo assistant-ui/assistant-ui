@@ -1,13 +1,13 @@
-import {
+import type {
   ThreadAssistantMessagePart,
   ThreadUserMessagePart,
   MessagePartStatus,
   ToolCallMessagePartStatus,
-} from "../../types/AssistantTypes";
+  Unsubscribe,
+} from "@assistant-ui/core";
 import { ThreadRuntimeCoreBinding } from "./ThreadRuntime";
 import type { MessageStateBinding } from "./RuntimeBindings";
 import { SubscribableWithState } from "./subscribable/Subscribable";
-import { Unsubscribe } from "../../types";
 import { MessagePartRuntimePath } from "./RuntimePathTypes";
 import { ToolResponse } from "assistant-stream";
 

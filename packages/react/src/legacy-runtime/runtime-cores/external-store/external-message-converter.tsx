@@ -8,14 +8,15 @@ import {
 } from "./getExternalStoreMessage";
 import { fromThreadMessageLike, ThreadMessageLike } from "./ThreadMessageLike";
 import { getAutoStatus, isAutoStatus } from "./auto-status";
-import { ThreadMessage, ToolCallMessagePart } from "../../../types";
 import { ToolExecutionStatus } from "../assistant-transport/useToolInvocations";
 import { ReadonlyJSONValue } from "assistant-stream/utils";
 import { generateErrorMessageId } from "../../../utils/idUtils";
-import {
+import type {
   MessageTiming,
   ThreadAssistantMessage,
-} from "../../../types/AssistantTypes";
+  ThreadMessage,
+  ToolCallMessagePart,
+} from "@assistant-ui/core";
 
 export namespace useExternalMessageConverter {
   export type Message =

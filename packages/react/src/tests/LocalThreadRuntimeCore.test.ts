@@ -3,7 +3,7 @@ import { LocalThreadRuntimeCore } from "../legacy-runtime/runtime-cores/local/Lo
 import type { ChatModelAdapter } from "../legacy-runtime/runtime-cores/local/ChatModelAdapter";
 import type { LocalRuntimeOptionsBase } from "../legacy-runtime/runtime-cores/local/LocalRuntimeOptions";
 import type { ModelContextProvider } from "../model-context/ModelContextTypes";
-import type { AppendMessage } from "../types/AssistantTypes";
+import type { AppendMessage } from "@assistant-ui/core";
 
 const createMockContextProvider = (): ModelContextProvider => ({
   getModelContext: () => ({}),

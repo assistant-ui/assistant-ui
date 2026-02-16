@@ -1,7 +1,7 @@
 "use client";
 
 import { create } from "zustand";
-import type { Unsubscribe } from "../../types/Unsubscribe";
+import type { Unsubscribe } from "@assistant-ui/core";
 
 export type SizeHandle = {
   /** Update the height */

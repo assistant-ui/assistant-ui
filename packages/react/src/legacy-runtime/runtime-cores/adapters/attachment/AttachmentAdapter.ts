@@ -1,8 +1,8 @@
-import {
+import type {
   Attachment,
   PendingAttachment,
   CompleteAttachment,
-} from "../../../../types/AttachmentTypes";
+} from "@assistant-ui/core";
 
 /**
  * Interface for handling file attachments in the assistant runtime.

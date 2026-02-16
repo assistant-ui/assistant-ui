@@ -1,4 +1,4 @@
-import { Unsubscribe } from "../../../../types";
+import type { Unsubscribe } from "@assistant-ui/core";
 
 /**
  * Types and interfaces for speech synthesis (text-to-speech) functionality.

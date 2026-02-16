@@ -1,8 +1,11 @@
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import { ModelContext } from "../../../model-context";
-import { AppendMessage, ThreadMessage } from "../../../types";
-import { RunConfig } from "../../../types/AssistantTypes";
-import type { Unsubscribe } from "../../../types/Unsubscribe";
+import type {
+  RunConfig,
+  Unsubscribe,
+  AppendMessage,
+  ThreadMessage,
+} from "@assistant-ui/core";
 import { SpeechSynthesisAdapter } from "../adapters/speech/SpeechAdapterTypes";
 import { ChatModelRunOptions, ChatModelRunResult } from "../local";
 import { ExportedMessageRepository } from "../utils/MessageRepository";

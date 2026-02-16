@@ -1,6 +1,10 @@
 import { parsePartialJsonObject } from "assistant-stream/utils";
 import { generateId } from "../../../utils/idUtils";
-import {
+import type {
+  MessageTiming,
+  ReasoningMessagePart,
+  SourceMessagePart,
+  ThreadStep,
   MessageStatus,
   TextMessagePart,
   ImageMessagePart,
@@ -14,13 +18,7 @@ import {
   FileMessagePart,
   DataMessagePart,
   Unstable_AudioMessagePart,
-} from "../../../types";
-import {
-  MessageTiming,
-  ReasoningMessagePart,
-  SourceMessagePart,
-  ThreadStep,
-} from "../../../types/AssistantTypes";
+} from "@assistant-ui/core";
 import { ReadonlyJSONObject, ReadonlyJSONValue } from "assistant-stream/utils";
 
 export type ThreadMessageLike = {

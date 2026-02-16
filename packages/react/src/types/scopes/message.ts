@@ -1,9 +1,8 @@
-import type { ThreadMessage } from "../AssistantTypes";
+import type { ThreadMessage, RunConfig } from "@assistant-ui/core";
 import type {
   SpeechState,
   SubmittedFeedback,
 } from "../../legacy-runtime/runtime-cores/core/ThreadRuntimeCore";
-import type { RunConfig } from "../AssistantTypes";
 import type { MessageRuntime } from "../../legacy-runtime/runtime";
 import type { ComposerMethods, ComposerState } from "./composer";
 import type { PartMethods, PartState } from "./part";

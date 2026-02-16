@@ -10,7 +10,7 @@ import type {
   ThreadMessage,
   ThreadStep,
   ToolCallMessagePart,
-} from "../../../types/AssistantTypes";
+} from "@assistant-ui/core";
 import type { ModelContext } from "../../../model-context/ModelContextTypes";
 import { ReadonlyJSONValue } from "assistant-stream/utils";
 

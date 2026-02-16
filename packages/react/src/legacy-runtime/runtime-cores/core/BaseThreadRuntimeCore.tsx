@@ -1,4 +1,8 @@
-import type { AppendMessage, ThreadMessage, Unsubscribe } from "../../../types";
+import type {
+  AppendMessage,
+  ThreadMessage,
+  Unsubscribe,
+} from "@assistant-ui/core";
 import {
   ExportedMessageRepository,
   MessageRepository,

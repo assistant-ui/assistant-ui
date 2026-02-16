@@ -9,7 +9,7 @@ import type {
   TextMessagePart,
   ToolCallMessagePart,
   Unstable_AudioMessagePart,
-} from "./AssistantTypes";
+} from "@assistant-ui/core";
 import { MessagePartState } from "../legacy-runtime/runtime/MessagePartRuntime";
 import { ToolResponse } from "assistant-stream";
 

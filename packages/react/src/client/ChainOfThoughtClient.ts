@@ -4,7 +4,7 @@ import type {
   ChainOfThoughtState,
   ChainOfThoughtPart,
 } from "../types/scopes/chainOfThought";
-import type { MessagePartStatus } from "../types/AssistantTypes";
+import type { MessagePartStatus } from "@assistant-ui/core";
 import type { PartMethods } from "../types/scopes/part";
 
 const COMPLETE_STATUS: MessagePartStatus = Object.freeze({

@@ -1,7 +1,4 @@
-import {
-  Attachment,
-  PendingAttachment,
-} from "../../../../types/AttachmentTypes";
+import type { Attachment, PendingAttachment } from "@assistant-ui/core";
 import { AttachmentAdapter } from "./AttachmentAdapter";
 
 function fileMatchesAccept(

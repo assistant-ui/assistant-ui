@@ -1,8 +1,8 @@
 "use client";
 
+import type { FileMessagePart } from "@assistant-ui/core";
 import { MessagePartState } from "../../legacy-runtime/runtime/MessagePartRuntime";
 import { useAuiState } from "@assistant-ui/store";
-import { FileMessagePart } from "../../types";
 
 export const useMessagePartFile = () => {
   const file = useAuiState((s) => {

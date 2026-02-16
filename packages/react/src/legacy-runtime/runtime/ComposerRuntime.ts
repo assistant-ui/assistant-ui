@@ -1,16 +1,17 @@
 import type {
   Attachment,
   PendingAttachment,
-} from "../../types/AttachmentTypes";
+  MessageRole,
+  RunConfig,
+  QuoteInfo,
+  Unsubscribe,
+} from "@assistant-ui/core";
 import type {
   ComposerRuntimeCore,
   ComposerRuntimeEventType,
   DictationState,
   ThreadComposerRuntimeCore,
 } from "../runtime-cores/core/ComposerRuntimeCore";
-import type { Unsubscribe } from "../../types";
-import type { MessageRole, RunConfig } from "../../types/AssistantTypes";
-import type { QuoteInfo } from "../../types/QuoteTypes";
 import type {
   ThreadComposerRuntimeCoreBinding,
   EditComposerRuntimeCoreBinding,

@@ -30,7 +30,7 @@ import type {
   ReasoningGroupComponent,
 } from "../../types/MessagePartComponentTypes";
 import { MessagePartPrimitiveInProgress } from "../messagePart/MessagePartInProgress";
-import { MessagePartStatus } from "../../types/AssistantTypes";
+import type { MessagePartStatus } from "@assistant-ui/core";
 import { useShallow } from "zustand/shallow";
 
 type MessagePartRange =

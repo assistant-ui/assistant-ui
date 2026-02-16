@@ -1,5 +1,5 @@
 import type { ModelContextProvider } from "../../../model-context/ModelContextTypes";
-import type { Unsubscribe } from "../../../types/Unsubscribe";
+import type { Unsubscribe } from "@assistant-ui/core";
 import { ThreadListRuntimeCore } from "./ThreadListRuntimeCore";
 
 export type AssistantRuntimeCore = {

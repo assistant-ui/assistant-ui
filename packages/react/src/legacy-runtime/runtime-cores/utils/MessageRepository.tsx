@@ -1,5 +1,4 @@
-import type { ThreadMessage } from "../../../types";
-import { RunConfig } from "../../../types/AssistantTypes";
+import type { RunConfig, ThreadMessage } from "@assistant-ui/core";
 import { generateId, generateOptimisticId } from "../../../utils/idUtils";
 import { ThreadMessageLike } from "../external-store";
 import { getAutoStatus } from "../external-store/auto-status";

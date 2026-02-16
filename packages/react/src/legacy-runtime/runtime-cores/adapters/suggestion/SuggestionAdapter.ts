@@ -1,4 +1,4 @@
-import { ThreadMessage } from "../../../../types/AssistantTypes";
+import { ThreadMessage } from "@assistant-ui/core";
 import { ThreadSuggestion } from "../../core";
 
 type SuggestionAdapterGenerateOptions = {

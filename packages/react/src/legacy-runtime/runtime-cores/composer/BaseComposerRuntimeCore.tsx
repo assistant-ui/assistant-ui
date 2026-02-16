@@ -2,16 +2,18 @@ import type {
   Attachment,
   CompleteAttachment,
   PendingAttachment,
-} from "../../../types/AttachmentTypes";
-import type { AppendMessage, Unsubscribe } from "../../../types";
+  MessageRole,
+  RunConfig,
+  QuoteInfo,
+  AppendMessage,
+  Unsubscribe,
+} from "@assistant-ui/core";
 import type { AttachmentAdapter } from "../adapters/attachment";
 import type {
   ComposerRuntimeCore,
   ComposerRuntimeEventType,
   DictationState,
 } from "../core/ComposerRuntimeCore";
-import type { MessageRole, RunConfig } from "../../../types/AssistantTypes";
-import type { QuoteInfo } from "../../../types/QuoteTypes";
 import { BaseSubscribable } from "../remote-thread-list/BaseSubscribable";
 import type { DictationAdapter } from "../adapters/speech/SpeechAdapterTypes";
 

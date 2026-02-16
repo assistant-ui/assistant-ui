@@ -28,7 +28,7 @@ import type {
   ReasoningMessagePartComponent,
 } from "../../types/MessagePartComponentTypes";
 import { MessagePartPrimitiveInProgress } from "../messagePart/MessagePartInProgress";
-import { MessagePartStatus } from "../../types/AssistantTypes";
+import type { MessagePartStatus } from "@assistant-ui/core";
 
 type MessagePartGroup = {
   groupKey: string | undefined;

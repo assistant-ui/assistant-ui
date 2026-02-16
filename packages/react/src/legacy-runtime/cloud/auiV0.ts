@@ -1,5 +1,4 @@
-import { ThreadMessage } from "../../types";
-import { MessageStatus } from "../../types/AssistantTypes";
+import type { MessageStatus, ThreadMessage } from "@assistant-ui/core";
 import { fromThreadMessageLike } from "../runtime-cores/external-store/ThreadMessageLike";
 import { CloudMessage } from "assistant-cloud";
 import { isJSONValue } from "../../utils/json/is-json";

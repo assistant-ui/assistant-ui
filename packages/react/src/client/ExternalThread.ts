@@ -13,16 +13,16 @@ import {
   Derived,
 } from "@assistant-ui/store";
 import { withKey } from "@assistant-ui/tap";
-import type { Attachment } from "../types/AttachmentTypes";
+import type {
+  Attachment,
+  ThreadAssistantMessagePart,
+  ThreadUserMessagePart,
+  ThreadMessage,
+} from "@assistant-ui/core";
 import { ModelContext } from "./ModelContextClient";
 import { Tools } from "./Tools";
 import { DataRenderers } from "./DataRenderers";
 import { Suggestions } from "./Suggestions";
-import {
-  ThreadAssistantMessagePart,
-  ThreadUserMessagePart,
-} from "../types/MessagePartTypes";
-import type { ThreadMessage } from "../types";
 
 export type ExternalThreadMessage = ThreadMessage & {
   id: string;

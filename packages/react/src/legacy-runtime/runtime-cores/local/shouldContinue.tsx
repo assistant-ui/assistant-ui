@@ -1,4 +1,4 @@
-import type { ThreadAssistantMessage } from "../../../types";
+import type { ThreadAssistantMessage } from "@assistant-ui/core";
 
 export const shouldContinue = (
   result: ThreadAssistantMessage,

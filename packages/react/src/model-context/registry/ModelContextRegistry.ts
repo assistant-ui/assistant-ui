@@ -4,7 +4,7 @@ import {
   ModelContextProvider,
   mergeModelContexts,
 } from "../../model-context/ModelContextTypes";
-import { Unsubscribe } from "../../types/Unsubscribe";
+import type { Unsubscribe } from "@assistant-ui/core";
 import {
   ModelContextRegistryToolHandle,
   ModelContextRegistryInstructionHandle,

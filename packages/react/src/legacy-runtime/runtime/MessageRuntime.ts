@@ -3,17 +3,15 @@ import {
   SubmittedFeedback,
 } from "../runtime-cores/core/ThreadRuntimeCore";
 import { symbolInnerMessage } from "../runtime-cores/external-store/getExternalStoreMessage";
-import {
+import type {
+  MessagePartStatus,
+  RunConfig,
+  ToolCallMessagePartStatus,
   ThreadMessage,
   ThreadAssistantMessagePart,
   ThreadUserMessagePart,
   Unsubscribe,
-} from "../../types";
-import {
-  MessagePartStatus,
-  RunConfig,
-  ToolCallMessagePartStatus,
-} from "../../types/AssistantTypes";
+} from "@assistant-ui/core";
 import { getThreadMessageText } from "../../utils/getThreadMessageText";
 import {
   AttachmentRuntime,

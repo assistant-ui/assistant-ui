@@ -1,10 +1,10 @@
 import type { AssistantCloud } from "assistant-cloud";
-import {
+import type {
   Attachment,
   PendingAttachment,
   CompleteAttachment,
-} from "../../../../types/AttachmentTypes";
-import { ThreadUserMessagePart } from "../../../../types/MessagePartTypes";
+  ThreadUserMessagePart,
+} from "@assistant-ui/core";
 import { AttachmentAdapter } from "./AttachmentAdapter";
 
 const guessAttachmentType = (

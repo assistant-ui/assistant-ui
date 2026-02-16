@@ -1,3 +1,4 @@
+import type { AppendMessage, ThreadMessage } from "@assistant-ui/core";
 import type {
   AddToolResultOptions,
   ResumeRunConfig,
@@ -6,7 +7,6 @@ import type {
   ThreadSuggestion,
 } from "../core/ThreadRuntimeCore";
 
-import type { AppendMessage, ThreadMessage } from "../../../types";
 import type { ExternalStoreAdapter } from "./ExternalStoreAdapter";
 import {
   getExternalStoreMessage,

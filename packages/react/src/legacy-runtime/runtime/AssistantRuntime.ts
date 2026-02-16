@@ -1,7 +1,7 @@
+import type { Unsubscribe } from "@assistant-ui/core";
 import { AssistantRuntimeCore } from "../runtime-cores/core/AssistantRuntimeCore";
 import { ModelContextProvider } from "../../model-context/ModelContextTypes";
 import { ThreadRuntime } from "./ThreadRuntime";
-import { Unsubscribe } from "../../types";
 import { ThreadListRuntime, ThreadListRuntimeImpl } from "./ThreadListRuntime";
 import { ExportedMessageRepository, ThreadMessageLike } from "../runtime-cores";
 

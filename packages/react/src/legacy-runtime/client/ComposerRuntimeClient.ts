@@ -1,3 +1,4 @@
+import type { Unsubscribe } from "@assistant-ui/core";
 import {
   resource,
   tapMemo,
@@ -15,7 +16,6 @@ import {
   ComposerRuntime,
   EditComposerRuntime,
 } from "../runtime/ComposerRuntime";
-import { Unsubscribe } from "../../types";
 import { ComposerRuntimeEventType } from "../runtime-cores/core/ComposerRuntimeCore";
 import { ComposerState } from "../../types/scopes";
 import { AttachmentRuntimeClient } from "./AttachmentRuntimeClient";

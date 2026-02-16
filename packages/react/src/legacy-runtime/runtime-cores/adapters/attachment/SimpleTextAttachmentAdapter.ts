@@ -1,7 +1,4 @@
-import {
-  CompleteAttachment,
-  PendingAttachment,
-} from "../../../../types/AttachmentTypes";
+import type { CompleteAttachment, PendingAttachment } from "@assistant-ui/core";
 import { AttachmentAdapter } from "./AttachmentAdapter";
 
 export class SimpleTextAttachmentAdapter implements AttachmentAdapter {

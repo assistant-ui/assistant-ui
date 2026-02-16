@@ -1,4 +1,4 @@
-import type { AppendMessage, ThreadMessage } from "../../../types";
+import type { AppendMessage, ThreadMessage } from "@assistant-ui/core";
 import type { AttachmentAdapter } from "../adapters/attachment";
 import type {
   AddToolResultOptions,

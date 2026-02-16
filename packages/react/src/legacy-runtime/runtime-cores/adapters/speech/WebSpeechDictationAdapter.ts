@@ -1,4 +1,4 @@
-import type { Unsubscribe } from "../../../../types";
+import type { Unsubscribe } from "@assistant-ui/core";
 import type { DictationAdapter } from "./SpeechAdapterTypes";
 
 // Type definitions for Web Speech API

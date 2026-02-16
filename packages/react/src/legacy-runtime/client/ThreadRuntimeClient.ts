@@ -1,3 +1,4 @@
+import type { Unsubscribe } from "@assistant-ui/core";
 import { ThreadRuntimeEventType } from "../runtime-cores/core/ThreadRuntimeCore";
 import { ThreadRuntime } from "../runtime/ThreadRuntime";
 import {
@@ -17,7 +18,6 @@ import {
 import { ComposerClient } from "./ComposerRuntimeClient";
 import { MessageClient } from "./MessageRuntimeClient";
 import { tapSubscribable } from "../util-hooks/tapSubscribable";
-import { Unsubscribe } from "../../types";
 import { ThreadState } from "../../types/scopes";
 
 const MessageClientById = resource(

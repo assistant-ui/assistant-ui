@@ -2,8 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { BaseComposerRuntimeCore } from "../legacy-runtime/runtime-cores/composer/BaseComposerRuntimeCore";
 import type { AttachmentAdapter } from "../legacy-runtime/runtime-cores/adapters/attachment";
 import type { DictationAdapter } from "../legacy-runtime/runtime-cores/adapters/speech/SpeechAdapterTypes";
-import type { AppendMessage } from "../types/AssistantTypes";
-import type { PendingAttachment } from "../types/AttachmentTypes";
+import type { AppendMessage, PendingAttachment } from "@assistant-ui/core";
 
 class TestComposerCore extends BaseComposerRuntimeCore {
   private _attachmentAdapter: AttachmentAdapter | undefined;

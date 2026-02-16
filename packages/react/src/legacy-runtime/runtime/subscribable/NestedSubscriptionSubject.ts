@@ -1,4 +1,4 @@
-import { Unsubscribe } from "../../../types";
+import type { Unsubscribe } from "@assistant-ui/core";
 import { BaseSubject } from "./BaseSubject";
 import {
   NestedSubscribable,

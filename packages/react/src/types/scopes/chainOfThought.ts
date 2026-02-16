@@ -1,7 +1,7 @@
 import type {
   MessagePartStatus,
   ToolCallMessagePartStatus,
-} from "../AssistantTypes";
+} from "@assistant-ui/core";
 import type { PartMethods, PartState } from "./part";
 
 export type ChainOfThoughtPart = Extract<

@@ -5,7 +5,7 @@ import {
 } from "../legacy-runtime/runtime-cores/external-store/ExternalStoreThreadRuntimeCore";
 import type { ExternalStoreAdapter } from "../legacy-runtime/runtime-cores/external-store/ExternalStoreAdapter";
 import type { ModelContextProvider } from "../model-context/ModelContextTypes";
-import type { AppendMessage, ThreadMessage } from "../types/AssistantTypes";
+import type { AppendMessage, ThreadMessage } from "@assistant-ui/core";
 
 const createContextProvider = (): ModelContextProvider => ({
   getModelContext: () => ({}),

@@ -1,4 +1,4 @@
-import type { Unsubscribe } from "../Unsubscribe";
+import type { Unsubscribe } from "@assistant-ui/core";
 import type { ModelContextProvider } from "../../model-context/ModelContextTypes";
 
 export type ModelContextState = Record<string, never>;

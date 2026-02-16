@@ -1,4 +1,4 @@
-import type { AppendMessage, ThreadMessage } from "../../../types";
+import type { AppendMessage, ThreadMessage } from "@assistant-ui/core";
 import { getThreadMessageText } from "../../../utils/getThreadMessageText";
 import type { AttachmentAdapter } from "../adapters/attachment";
 import type { DictationAdapter } from "../adapters/speech/SpeechAdapterTypes";

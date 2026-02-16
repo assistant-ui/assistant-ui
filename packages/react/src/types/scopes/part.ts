@@ -5,7 +5,7 @@ import type {
   ThreadAssistantMessagePart,
   MessagePartStatus,
   ToolCallMessagePartStatus,
-} from "../AssistantTypes";
+} from "@assistant-ui/core";
 
 export type PartState = (ThreadUserMessagePart | ThreadAssistantMessagePart) & {
   readonly status: MessagePartStatus | ToolCallMessagePartStatus;

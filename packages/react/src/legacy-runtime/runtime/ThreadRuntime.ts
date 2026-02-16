@@ -8,7 +8,6 @@ import {
   ResumeRunConfig,
 } from "../runtime-cores/core/ThreadRuntimeCore";
 import { ExportedMessageRepository } from "../runtime-cores/utils/MessageRepository";
-import { AppendMessage, ThreadMessage, Unsubscribe } from "../../types";
 import { ThreadMessageLike } from "../runtime-cores/external-store";
 import {
   MessageRuntime,
@@ -29,7 +28,12 @@ import {
   ThreadRuntimePath,
 } from "./RuntimePathTypes";
 import type { ThreadListItemState } from "./RuntimeBindings";
-import { RunConfig } from "../../types/AssistantTypes";
+import type {
+  RunConfig,
+  AppendMessage,
+  ThreadMessage,
+  Unsubscribe,
+} from "@assistant-ui/core";
 import { EventSubscriptionSubject } from "./subscribable/EventSubscriptionSubject";
 import { symbolInnerMessage } from "../runtime-cores/external-store/getExternalStoreMessage";
 import { ModelContext } from "../../model-context";

@@ -1,4 +1,4 @@
-import type { AppendMessage, PendingAttachment } from "../../../types";
+import type { AppendMessage, PendingAttachment } from "@assistant-ui/core";
 import type { AttachmentAdapter } from "../adapters/attachment";
 import type { DictationAdapter } from "../adapters/speech/SpeechAdapterTypes";
 import type { ThreadComposerRuntimeCore } from "../core/ComposerRuntimeCore";

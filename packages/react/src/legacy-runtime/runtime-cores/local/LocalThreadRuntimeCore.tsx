@@ -1,5 +1,4 @@
 import { fromThreadMessageLike, generateId } from "../../../internal";
-import type { AppendMessage, ThreadAssistantMessage } from "../../../types";
 import type { ChatModelAdapter, ChatModelRunResult } from "./ChatModelAdapter";
 import { shouldContinue } from "./shouldContinue";
 import type { LocalRuntimeOptionsBase } from "./LocalRuntimeOptions";
@@ -12,7 +11,11 @@ import type {
   ResumeRunConfig,
 } from "../core/ThreadRuntimeCore";
 import { BaseThreadRuntimeCore } from "../core/BaseThreadRuntimeCore";
-import type { RunConfig } from "../../../types/AssistantTypes";
+import type {
+  RunConfig,
+  AppendMessage,
+  ThreadAssistantMessage,
+} from "@assistant-ui/core";
 import type { ModelContextProvider } from "../../../model-context";
 
 class AbortError extends Error {

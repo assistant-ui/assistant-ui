@@ -1,12 +1,12 @@
-import { SubscribableWithState } from "./subscribable/Subscribable";
-
-import type { ComposerRuntimeCoreBinding } from "./RuntimeBindings";
-import {
+import type {
   Attachment,
   CompleteAttachment,
   PendingAttachment,
   Unsubscribe,
-} from "../../types";
+} from "@assistant-ui/core";
+import { SubscribableWithState } from "./subscribable/Subscribable";
+
+import type { ComposerRuntimeCoreBinding } from "./RuntimeBindings";
 import { AttachmentRuntimePath } from "./RuntimePathTypes";
 
 type MessageAttachmentState = CompleteAttachment & {

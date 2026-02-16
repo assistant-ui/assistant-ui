@@ -1,4 +1,4 @@
-import { Unsubscribe } from "../../../types";
+import type { Unsubscribe } from "@assistant-ui/core";
 
 export type Subscribable = {
   subscribe: (callback: () => void) => Unsubscribe;
