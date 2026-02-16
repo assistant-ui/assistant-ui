@@ -45,4 +45,46 @@ test.describe("internal component lab", () => {
       timeout: 30_000,
     });
   });
+
+  test("renders catalog components with actionable demo controls", async ({
+    page,
+  }) => {
+    await page.goto("/internal/component-lab");
+
+    await page.getByRole("button", { name: "json-render Patch" }).click();
+    await page.getByRole("button", { name: "Send Scenario Prompt" }).click();
+    await expect(
+      page.getByTestId("json-render-status-board").first(),
+    ).toBeVisible({
+      timeout: 30_000,
+    });
+    await page.getByTestId("status-board-promote-release").first().click();
+    await page.getByTestId("status-board-subscribe-updates").first().click();
+
+    await page.getByRole("button", { name: "json-render Guards" }).click();
+    await page.getByRole("button", { name: "Send Scenario Prompt" }).click();
+    await expect(page.getByTestId("json-render-audit-log").first()).toBeVisible(
+      {
+        timeout: 30_000,
+      },
+    );
+    await page.getByTestId("audit-log-ack-latest").first().click();
+    await page.getByTestId("audit-log-escalate").first().click();
+
+    await page.getByRole("button", { name: "Mixed" }).click();
+    await page.getByRole("button", { name: "Send Scenario Prompt" }).click();
+    await expect(page.getByTestId("json-render-metrics").first()).toBeVisible({
+      timeout: 30_000,
+    });
+    await page.getByTestId("metrics-refresh-live").first().click();
+    await page.getByTestId("metrics-watch-errors").first().click();
+
+    const eventLog = page.getByTestId("event-log");
+    await expect(eventLog).toContainText("action=promote_release");
+    await expect(eventLog).toContainText("event=subscribe_updates");
+    await expect(eventLog).toContainText("action=ack_latest");
+    await expect(eventLog).toContainText("event=escalate_incident");
+    await expect(eventLog).toContainText("action=refresh_live_metrics");
+    await expect(eventLog).toContainText("event=watch_errors");
+  });
 });
