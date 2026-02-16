@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/core",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "Framework-agnostic core runtime for assistant-ui",
   "keywords": [
     "assistant",
