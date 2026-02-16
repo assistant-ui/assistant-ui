@@ -31,7 +31,7 @@ Practical rule: use component parts for assistant-led presentation and continuit
 
 - PM: Ship richer assistant capabilities with reliability guarantees (stable instance continuity, monotonic updates, stale/malformed guards).
 - Design: Compose native and spec-driven blocks in one thread, with catalog fallback and override paths to iterate safely.
-- Engineering: Implement against a deterministic runtime contract with clear extension points (`Component.by_name`, catalog, telemetry hooks).
+- Engineering: Implement against a deterministic runtime contract with clear extension points (`Component.byName`, catalog, telemetry hooks).
 
 ## 90-Second Demo Walkthrough
 

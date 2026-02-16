@@ -301,13 +301,13 @@ describe("DataStream component part support", () => {
       {
         type: "component",
         name: "status-card",
-        instanceId: "card_1",
+        instanceId: "card1",
       },
     ]);
 
     expect(last?.metadata.unstable_state).toEqual({
       components: {
-        card_1: {
+        card1: {
           seq: 2,
           lifecycle: "active",
         },

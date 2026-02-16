@@ -25,7 +25,7 @@ export type unstable_JsonRenderHostCatalogRenderer =
 
 export type unstable_JsonRenderHostCatalog =
   | {
-      by_type?:
+      byType?:
         | Record<string, unstable_JsonRenderHostCatalogRenderer | undefined>
         | undefined;
       Fallback?: unstable_JsonRenderHostCatalogRenderer | undefined;
@@ -132,9 +132,7 @@ export const unstable_JsonRenderHost = ({
       catalogTelemetryType = "catalog-override";
       catalogRenderer = catalog.Override;
     } else {
-      const matchedRenderer = specType
-        ? catalog.by_type?.[specType]
-        : undefined;
+      const matchedRenderer = specType ? catalog.byType?.[specType] : undefined;
       if (matchedRenderer) {
         catalogTelemetryType = "catalog-hit";
         catalogRenderer = matchedRenderer;

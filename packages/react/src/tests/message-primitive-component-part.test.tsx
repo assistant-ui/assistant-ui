@@ -73,7 +73,7 @@ describe("MessagePrimitive component part rendering", () => {
       <MessagePartComponent
         components={{
           Component: {
-            by_name: {
+            byName: {
               "status-chip": ({ name, instanceId, props, status }) => (
                 <span>{`${name}:${instanceId}:${String(props?.label)}:${status.type}`}</span>
               ),
@@ -86,7 +86,7 @@ describe("MessagePrimitive component part rendering", () => {
     expect(html).toContain("status-chip:status-chip-1:Ready:complete");
   });
 
-  it("renders the component fallback when no by_name renderer exists", () => {
+  it("renders the component fallback when no byName renderer exists", () => {
     setMockParts({
       type: "component",
       name: "missing-component",
@@ -167,7 +167,7 @@ describe("MessagePrimitive component part rendering", () => {
         index={0}
         components={{
           Component: {
-            by_name: {
+            byName: {
               "status-chip": ({ props }) => <span>{String(props?.label)}</span>,
             },
           },
@@ -194,7 +194,7 @@ describe("MessagePrimitive component part rendering", () => {
         }
         components={{
           Component: {
-            by_name: {
+            byName: {
               "status-chip": ({ props }) => <span>{String(props?.label)}</span>,
             },
           },

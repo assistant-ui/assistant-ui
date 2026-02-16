@@ -184,12 +184,12 @@ describe("AssistantMessageAccumulator update-state sequencing", () => {
         operations: [
           {
             type: "set",
-            path: ["components", "card_1", "seq"],
+            path: ["components", "card1", "seq"],
             value: 2,
           },
           {
             type: "set",
-            path: ["components", "card_1", "lifecycle"],
+            path: ["components", "card1", "lifecycle"],
             value: "active",
           },
         ],
@@ -200,12 +200,12 @@ describe("AssistantMessageAccumulator update-state sequencing", () => {
         operations: [
           {
             type: "set",
-            path: ["components", "card_1", "seq"],
+            path: ["components", "card1", "seq"],
             value: 1,
           },
           {
             type: "set",
-            path: ["components", "card_1", "lifecycle"],
+            path: ["components", "card1", "lifecycle"],
             value: "complete",
           },
         ],
@@ -223,7 +223,7 @@ describe("AssistantMessageAccumulator update-state sequencing", () => {
 
     expect(last.metadata.unstable_state).toEqual({
       components: {
-        card_1: {
+        card1: {
           seq: 2,
           lifecycle: "active",
         },
@@ -239,12 +239,12 @@ describe("AssistantMessageAccumulator update-state sequencing", () => {
         operations: [
           {
             type: "set",
-            path: ["components", "card_1", "seq"],
+            path: ["components", "card1", "seq"],
             value: 2,
           },
           {
             type: "set",
-            path: ["components", "card_1", "lifecycle"],
+            path: ["components", "card1", "lifecycle"],
             value: "active",
           },
         ],
@@ -255,22 +255,22 @@ describe("AssistantMessageAccumulator update-state sequencing", () => {
         operations: [
           {
             type: "set",
-            path: ["components", "card_1", "seq"],
+            path: ["components", "card1", "seq"],
             value: 1,
           },
           {
             type: "set",
-            path: ["components", "card_1", "lifecycle"],
+            path: ["components", "card1", "lifecycle"],
             value: "complete",
           },
           {
             type: "set",
-            path: ["components", "card_2", "seq"],
+            path: ["components", "card2", "seq"],
             value: 1,
           },
           {
             type: "set",
-            path: ["components", "card_2", "lifecycle"],
+            path: ["components", "card2", "lifecycle"],
             value: "active",
           },
         ],
@@ -288,11 +288,11 @@ describe("AssistantMessageAccumulator update-state sequencing", () => {
 
     expect(last.metadata.unstable_state).toEqual({
       components: {
-        card_1: {
+        card1: {
           seq: 2,
           lifecycle: "active",
         },
-        card_2: {
+        card2: {
           seq: 1,
           lifecycle: "active",
         },
@@ -308,12 +308,12 @@ describe("AssistantMessageAccumulator update-state sequencing", () => {
         operations: [
           {
             type: "set",
-            path: ["components", "card_1", "seq"],
+            path: ["components", "card1", "seq"],
             value: 2,
           },
           {
             type: "set",
-            path: ["components", "card_1", "lifecycle"],
+            path: ["components", "card1", "lifecycle"],
             value: "active",
           },
         ],
@@ -324,12 +324,12 @@ describe("AssistantMessageAccumulator update-state sequencing", () => {
         operations: [
           {
             type: "set",
-            path: ["components", "card_1", "seq"],
+            path: ["components", "card1", "seq"],
             value: 1,
           },
           {
             type: "append-text",
-            path: ["components", "card_1", "lifecycle"],
+            path: ["components", "card1", "lifecycle"],
             value: "-stale",
           },
         ],
@@ -347,7 +347,7 @@ describe("AssistantMessageAccumulator update-state sequencing", () => {
 
     expect(last.metadata.unstable_state).toEqual({
       components: {
-        card_1: {
+        card1: {
           seq: 2,
           lifecycle: "active",
         },
