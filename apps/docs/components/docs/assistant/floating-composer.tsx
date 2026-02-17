@@ -142,6 +142,10 @@ export function FloatingComposer(): ReactNode {
                   }
                 }}
                 onFocus={() => {
+                  if (!expanded && !threadIsEmpty) {
+                    setOpen(true);
+                    return;
+                  }
                   setExpanded(true);
                 }}
               />
