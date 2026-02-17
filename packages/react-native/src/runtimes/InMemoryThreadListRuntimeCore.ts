@@ -7,10 +7,15 @@ import type {
   LocalThreadRuntimeCore,
   LocalThreadFactory,
 } from "@assistant-ui/core/internal";
+import type { TitleGenerationAdapter } from "../adapters/TitleGenerationAdapter";
 
 let nextId = 0;
 const generateId = () => `thread_${++nextId}`;
 const EMPTY_ARRAY: readonly string[] = Object.freeze([]);
+
+export type InMemoryThreadListOptions = {
+  titleGenerator?: TitleGenerationAdapter | undefined;
+};
 
 export class InMemoryThreadListRuntimeCore
   extends BaseSubscribable
@@ -20,9 +25,16 @@ export class InMemoryThreadListRuntimeCore
   private _threadItems: Record<string, ThreadListItemCoreState> = {};
   private _threadIds: string[] = [];
   private _mainThreadId: string;
+  private _titleGenerator: TitleGenerationAdapter | undefined;
+  private _threadUnsubscribes = new Map<string, () => void>();
 
-  constructor(private _threadFactory: LocalThreadFactory) {
+  constructor(
+    private _threadFactory: LocalThreadFactory,
+    options?: InMemoryThreadListOptions,
+  ) {
     super();
+
+    this._titleGenerator = options?.titleGenerator;
 
     const id = generateId();
     const core = _threadFactory();
@@ -36,6 +48,18 @@ export class InMemoryThreadListRuntimeCore
     };
     this._threadIds = [id];
     this._mainThreadId = id;
+
+    this._subscribeToRunEnd(id, core);
+  }
+
+  private _subscribeToRunEnd(id: string, core: LocalThreadRuntimeCore) {
+    const unsubscribe = core.unstable_on("runEnd", () => {
+      const item = this._threadItems[id];
+      if (item && !item.title) {
+        void this.generateTitle(id);
+      }
+    });
+    this._threadUnsubscribes.set(id, unsubscribe);
   }
 
   public get isLoading() {
@@ -96,6 +120,9 @@ export class InMemoryThreadListRuntimeCore
     };
     this._threadIds = [id, ...this._threadIds];
     this._mainThreadId = id;
+
+    this._subscribeToRunEnd(id, core);
+
     this._notifySubscribers();
   }
 
@@ -118,6 +145,8 @@ export class InMemoryThreadListRuntimeCore
   }
 
   public async delete(threadId: string): Promise<void> {
+    this._threadUnsubscribes.get(threadId)?.();
+    this._threadUnsubscribes.delete(threadId);
     this._threads.delete(threadId);
     const { [threadId]: _, ...rest } = this._threadItems;
     this._threadItems = rest;
@@ -139,6 +168,13 @@ export class InMemoryThreadListRuntimeCore
     if (!core) return;
 
     const messages = core.messages;
+
+    if (this._titleGenerator) {
+      const title = await this._titleGenerator.generateTitle(messages);
+      await this.rename(threadId, title);
+      return;
+    }
+
     const firstUserMsg = messages.find((m) => m.role === "user");
     if (!firstUserMsg) return;
 

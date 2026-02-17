@@ -1,6 +1,9 @@
 import { useMemo } from "react";
 import { fetch } from "expo/fetch";
-import { useLocalRuntime } from "@assistant-ui/react-native";
+import {
+  useLocalRuntime,
+  createSimpleTitleAdapter,
+} from "@assistant-ui/react-native";
 import { createOpenAIChatModelAdapter } from "@/adapters/openai-chat-adapter";
 
 export function useAppRuntime() {
@@ -14,5 +17,7 @@ export function useAppRuntime() {
     [],
   );
 
-  return useLocalRuntime(chatModel);
+  const titleGenerator = useMemo(() => createSimpleTitleAdapter(), []);
+
+  return useLocalRuntime(chatModel, { titleGenerator });
 }

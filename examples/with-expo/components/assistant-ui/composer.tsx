@@ -13,7 +13,7 @@ import {
   useComposerCancel,
 } from "@assistant-ui/react-native";
 
-export function ChatComposer() {
+export function Composer() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
 

@@ -7,17 +7,19 @@ import type {
 import type { LocalRuntimeOptionsBase } from "@assistant-ui/core/internal";
 import { AssistantRuntimeImpl } from "@assistant-ui/core/internal";
 import { InMemoryRuntimeCore } from "./InMemoryRuntimeCore";
+import type { TitleGenerationAdapter } from "../adapters/TitleGenerationAdapter";
 
 export type LocalRuntimeOptions = Omit<LocalRuntimeOptionsBase, "adapters"> & {
   adapters?: Omit<LocalRuntimeOptionsBase["adapters"], "chatModel"> | undefined;
   initialMessages?: readonly ThreadMessageLike[] | undefined;
+  titleGenerator?: TitleGenerationAdapter | undefined;
 };
 
 export const useLocalRuntime = (
   chatModel: ChatModelAdapter,
   options: LocalRuntimeOptions = {},
 ): AssistantRuntime => {
-  const { initialMessages, ...restOptions } = options;
+  const { initialMessages, titleGenerator, ...restOptions } = options;
 
   const opt: LocalRuntimeOptionsBase = {
     ...restOptions,
@@ -27,7 +29,9 @@ export const useLocalRuntime = (
     },
   };
 
-  const [core] = useState(() => new InMemoryRuntimeCore(opt, initialMessages));
+  const [core] = useState(
+    () => new InMemoryRuntimeCore(opt, initialMessages, { titleGenerator }),
+  );
 
   useEffect(() => {
     core.threads.getMainThreadRuntimeCore().__internal_setOptions(opt);

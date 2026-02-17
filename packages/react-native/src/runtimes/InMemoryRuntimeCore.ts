@@ -5,7 +5,12 @@ import {
   LocalThreadRuntimeCore,
   ExportedMessageRepository,
 } from "@assistant-ui/core/internal";
-import { InMemoryThreadListRuntimeCore } from "./InMemoryThreadListRuntimeCore";
+import {
+  InMemoryThreadListRuntimeCore,
+  type InMemoryThreadListOptions,
+} from "./InMemoryThreadListRuntimeCore";
+
+export type InMemoryRuntimeOptions = InMemoryThreadListOptions;
 
 export class InMemoryRuntimeCore extends BaseAssistantRuntimeCore {
   public readonly threads: InMemoryThreadListRuntimeCore;
@@ -16,6 +21,7 @@ export class InMemoryRuntimeCore extends BaseAssistantRuntimeCore {
   constructor(
     options: LocalRuntimeOptionsBase,
     initialMessages: readonly ThreadMessageLike[] | undefined,
+    threadListOptions?: InMemoryRuntimeOptions,
   ) {
     super();
 
@@ -23,7 +29,7 @@ export class InMemoryRuntimeCore extends BaseAssistantRuntimeCore {
 
     this.threads = new InMemoryThreadListRuntimeCore(() => {
       return new LocalThreadRuntimeCore(this._contextProvider, this._options);
-    });
+    }, threadListOptions);
 
     if (initialMessages) {
       this.threads

@@ -1,5 +1,5 @@
-import { ChatScreen } from "@/components/chat/ChatScreen";
+import { Thread } from "@/components/assistant-ui/thread";
 
 export default function ChatPage() {
-  return <ChatScreen />;
+  return <Thread />;
 }

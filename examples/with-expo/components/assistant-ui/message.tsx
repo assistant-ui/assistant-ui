@@ -1,7 +1,8 @@
 import { View, StyleSheet, useColorScheme } from "react-native";
 import { ThemedText } from "@/components/themed-text";
 import { useMessage, MessageContent } from "@assistant-ui/react-native";
-import { MessageActionBar } from "./MessageActionBar";
+import { MessageActionBar } from "./message-action-bar";
+import { MessageBranchPicker } from "./message-branch-picker";
 
 function TextPart({ part }: { part: { type: "text"; text: string } }) {
   const role = useMessage((s) => s.role);
@@ -38,6 +39,7 @@ export function MessageBubble() {
         >
           <MessageContent renderText={({ part }) => <TextPart part={part} />} />
         </View>
+        <MessageBranchPicker />
       </View>
     );
   }
@@ -57,7 +59,12 @@ export function MessageBubble() {
       >
         <MessageContent renderText={({ part }) => <TextPart part={part} />} />
       </View>
-      {!isRunning && <MessageActionBar />}
+      {!isRunning && (
+        <View style={styles.actionsRow}>
+          <MessageBranchPicker />
+          <MessageActionBar />
+        </View>
+      )}
     </View>
   );
 }
@@ -81,6 +88,12 @@ const styles = StyleSheet.create({
   },
   userBubble: {
     borderBottomRightRadius: 6,
+  },
+  actionsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 4,
   },
   assistantBubble: {
     borderBottomLeftRadius: 6,
