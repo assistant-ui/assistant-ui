@@ -10,6 +10,10 @@
     "message",
     "action-bar",
     "branch-picker",
-    "thread-list"
+    "thread-list",
+    "assistant-modal",
+    "attachment",
+    "suggestion",
+    "selection-toolbar"
   ]
 }

@@ -1,0 +1,171 @@
+---
+title: Attachment
+description: File and image attachment rendering for the composer and messages.
+---
+
+import { AttachmentSample } from "@/components/docs/samples/attachment";
+
+The Attachment primitive renders file and image attachments. It appears in two places: inside the composer for pending uploads (with a remove button), and inside messages for sent attachments (read-only). You provide the layout and styling.
+
+<Tabs items={["Preview", "Code"]}>
+  <Tab>
+    <AttachmentSample />
+  </Tab>
+  <Tab>
+```tsx
+import {
+  AttachmentPrimitive,
+  ComposerPrimitive,
+} from "@assistant-ui/react";
+import { XIcon } from "lucide-react";
+
+function ComposerAttachment() {
+  return (
+    <AttachmentPrimitive.Root className="flex items-center gap-2 rounded-lg border p-2">
+      <AttachmentPrimitive.unstable_Thumb className="flex size-10 items-center justify-center rounded bg-muted text-xs" />
+      <span className="text-sm">
+        <AttachmentPrimitive.Name />
+      </span>
+      <AttachmentPrimitive.Remove className="ml-auto rounded-full p-1 hover:bg-muted">
+        <XIcon className="size-3" />
+      </AttachmentPrimitive.Remove>
+    </AttachmentPrimitive.Root>
+  );
+}
+```
+  </Tab>
+</Tabs>
+
+## Quick Start
+
+An attachment inside a composer:
+
+```tsx
+import { AttachmentPrimitive, ComposerPrimitive } from "@assistant-ui/react";
+
+<ComposerPrimitive.Root>
+  <ComposerPrimitive.Attachments
+    components={{ Fallback: MyAttachment }}
+  />
+  <ComposerPrimitive.Input placeholder="Ask anything..." />
+  <ComposerPrimitive.Send>Send</ComposerPrimitive.Send>
+</ComposerPrimitive.Root>
+```
+
+`Root` renders a `<div>`, `unstable_Thumb` renders a `<div>` showing the file extension, `Name` renders plain text, and `Remove` renders a `<button>`.
+
+## Core Concepts
+
+### Two Contexts
+
+Attachments appear in two different contexts:
+
+- **Composer** — via `ComposerPrimitive.Attachments`. These are pending uploads that can be removed before sending.
+- **Messages** — via `MessagePrimitive.Attachments`. These are sent attachments, displayed read-only.
+
+The same `AttachmentPrimitive` parts work in both contexts. The difference is behavioral — `Remove` only works in the composer context.
+
+### Iterator Pattern
+
+You don't loop over attachments yourself. Instead, pass your attachment component to the iterator:
+
+```tsx
+// Composer attachments
+<ComposerPrimitive.Attachments
+  components={{
+    Image: ImageAttachment,
+    Document: DocumentAttachment,
+    Fallback: GenericAttachment,
+  }}
+/>
+
+// Message attachments
+<MessagePrimitive.Attachments
+  components={{
+    Image: ImageAttachment,
+    Document: DocumentAttachment,
+    Fallback: GenericAttachment,
+  }}
+/>
+```
+
+Each component receives its attachment context automatically, with no props to pass.
+
+### Remove Button
+
+`Remove` calls the attachment's remove action. It only works inside a composer context — in a message context the hook returns `null`, effectively disabling the button. You can conditionally render it or let the primitive handle it.
+
+### Name as Text
+
+`Name` renders plain text with no wrapper element. Wrap it in a `<span>` or other element for styling:
+
+```tsx
+<span className="text-sm font-medium">
+  <AttachmentPrimitive.Name />
+</span>
+```
+
+## Parts
+
+| Part | Element | Purpose |
+|------|---------|---------|
+| `Root` | `<div>` | Container for a single attachment |
+| `unstable_Thumb` | `<div>` | Shows file extension as a visual thumbnail |
+| `Name` | text | Renders the attachment filename (no wrapper) |
+| `Remove` | `<button>` | Removes the attachment (composer only) |
+
+## Patterns
+
+### Composer Attachment with Remove
+
+```tsx
+function ComposerAttachment() {
+  return (
+    <AttachmentPrimitive.Root className="flex items-center gap-2 rounded-lg border p-2">
+      <AttachmentPrimitive.unstable_Thumb className="flex size-10 items-center justify-center rounded bg-muted text-xs font-mono" />
+      <span className="min-w-0 flex-1 truncate text-sm">
+        <AttachmentPrimitive.Name />
+      </span>
+      <AttachmentPrimitive.Remove className="rounded-full p-1 hover:bg-muted">
+        <XIcon className="size-3" />
+      </AttachmentPrimitive.Remove>
+    </AttachmentPrimitive.Root>
+  );
+}
+```
+
+### Message Attachment (Read-Only)
+
+```tsx
+function MessageAttachment() {
+  return (
+    <AttachmentPrimitive.Root className="flex items-center gap-2 rounded-lg border p-2">
+      <AttachmentPrimitive.unstable_Thumb className="flex size-10 items-center justify-center rounded bg-muted text-xs font-mono" />
+      <span className="text-sm">
+        <AttachmentPrimitive.Name />
+      </span>
+    </AttachmentPrimitive.Root>
+  );
+}
+```
+
+### Custom Layout with asChild
+
+```tsx
+<AttachmentPrimitive.Root asChild>
+  <li className="flex items-center gap-3 py-1">
+    <AttachmentPrimitive.unstable_Thumb className="size-8 rounded bg-muted text-xs" />
+    <span className="text-sm">
+      <AttachmentPrimitive.Name />
+    </span>
+  </li>
+</AttachmentPrimitive.Root>
+```
+
+## Relationship to Components
+
+The shadcn [Attachment](/docs/ui/attachment) component wraps these primitives with styled thumbnails, tooltip filenames, remove buttons, and image preview dialogs. Start there for a ready-made attachment UI.
+
+## API Reference
+
+For full prop details on every part, see the [AttachmentPrimitive API Reference](/docs/reference/primitives/attachment).
