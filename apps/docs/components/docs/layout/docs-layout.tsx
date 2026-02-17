@@ -7,7 +7,7 @@ import {
 } from "@/components/docs/assistant/panel";
 import { useAssistantPanel } from "@/components/docs/assistant/context";
 
-const COLLAPSED_WIDTH = "44px";
+const COLLAPSED_WIDTH = "12px";
 
 function getPanelWidth(open: boolean, width: number): string {
   return open ? `${width}px` : COLLAPSED_WIDTH;
