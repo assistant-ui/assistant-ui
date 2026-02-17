@@ -226,9 +226,9 @@ const ModelSelectorImpl = ({
       models={models}
       value={value}
       onValueChange={onValueChange}
-      open={open}
-      onOpenChange={onOpenChange}
-      defaultOpen={defaultOpen}
+      {...(open !== undefined ? { open } : {})}
+      {...(onOpenChange ? { onOpenChange } : {})}
+      {...(defaultOpen !== undefined ? { defaultOpen } : {})}
     >
       <ModelSelectorTrigger variant={variant} size={size} />
       <ModelSelectorContent className={contentClassName} />
