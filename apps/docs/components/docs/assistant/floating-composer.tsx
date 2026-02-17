@@ -171,6 +171,7 @@ export function FloatingComposer(): ReactNode {
                   models={models}
                   value={modelValue}
                   onValueChange={onModelChange}
+                  open={modelSelectorOpen}
                   onOpenChange={(nextOpen) => {
                     setModelSelectorOpen(nextOpen);
                     if (nextOpen && !expanded) {

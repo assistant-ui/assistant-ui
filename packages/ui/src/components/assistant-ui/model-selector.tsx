@@ -69,18 +69,18 @@ function ModelSelectorRoot({
   defaultOpen,
   children,
 }: ModelSelectorRootProps) {
-  const selectProps: ComponentPropsWithoutRef<typeof SelectRoot> = {};
-  if (value !== undefined) selectProps.value = value;
-  if (onValueChange) selectProps.onValueChange = onValueChange;
-  const resolvedDefault = defaultValue ?? models[0]?.id;
-  if (resolvedDefault) selectProps.defaultValue = resolvedDefault;
-  if (open !== undefined) selectProps.open = open;
-  if (onOpenChange) selectProps.onOpenChange = onOpenChange;
-  if (defaultOpen !== undefined) selectProps.defaultOpen = defaultOpen;
-
   return (
     <ModelSelectorContext.Provider value={{ models }}>
-      <SelectRoot {...selectProps}>{children}</SelectRoot>
+      <SelectRoot
+        value={value}
+        onValueChange={onValueChange}
+        defaultValue={defaultValue ?? models[0]?.id}
+        open={open}
+        onOpenChange={onOpenChange}
+        defaultOpen={defaultOpen}
+      >
+        {children}
+      </SelectRoot>
     </ModelSelectorContext.Provider>
   );
 }
@@ -221,17 +221,15 @@ const ModelSelectorImpl = ({
     });
   }, [api, value]);
 
-  const rootProps: Omit<ModelSelectorRootProps, "children"> = {
-    models,
-    value,
-    onValueChange,
-  };
-  if (open !== undefined) rootProps.open = open;
-  if (onOpenChange) rootProps.onOpenChange = onOpenChange;
-  if (defaultOpen !== undefined) rootProps.defaultOpen = defaultOpen;
-
   return (
-    <ModelSelectorRoot {...rootProps}>
+    <ModelSelectorRoot
+      models={models}
+      value={value}
+      onValueChange={onValueChange}
+      open={open}
+      onOpenChange={onOpenChange}
+      defaultOpen={defaultOpen}
+    >
       <ModelSelectorTrigger variant={variant} size={size} />
       <ModelSelectorContent className={contentClassName} />
     </ModelSelectorRoot>
