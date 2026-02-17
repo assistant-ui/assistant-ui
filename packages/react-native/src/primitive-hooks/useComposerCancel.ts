@@ -1,14 +1,13 @@
 import { useCallback } from "react";
-import { useThreadRuntime } from "../context";
-import { useThread } from "../hooks/useThread";
+import { useAui, useAuiState } from "@assistant-ui/store";
 
 export const useComposerCancel = () => {
-  const runtime = useThreadRuntime();
-  const canCancel = useThread((s) => s.isRunning);
+  const aui = useAui();
+  const canCancel = useAuiState((s) => s.thread.isRunning);
 
   const cancel = useCallback(() => {
-    runtime.cancelRun();
-  }, [runtime]);
+    aui.threads().thread("main").cancelRun();
+  }, [aui]);
 
   return { cancel, canCancel };
 };

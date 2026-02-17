@@ -1,6 +1,5 @@
-import type { MessageState } from "@assistant-ui/core";
-import { useMessageRuntime } from "../context";
-import { useRuntimeState } from "./useRuntimeState";
+import type { MessageState } from "@assistant-ui/core/store";
+import { useAuiState } from "@assistant-ui/store";
 
 export function useMessage(): MessageState;
 export function useMessage<TSelected>(
@@ -9,9 +8,7 @@ export function useMessage<TSelected>(
 export function useMessage<TSelected = MessageState>(
   selector?: (state: MessageState) => TSelected,
 ): TSelected {
-  const runtime = useMessageRuntime();
-  return useRuntimeState(
-    runtime,
-    selector as (state: MessageState) => TSelected,
+  return useAuiState((s) =>
+    selector ? selector(s.message) : (s.message as unknown as TSelected),
   );
 }

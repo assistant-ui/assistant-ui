@@ -1,17 +1,14 @@
-import type { ThreadListState } from "@assistant-ui/core";
-import { useAssistantRuntime } from "../context";
-import { useRuntimeState } from "./useRuntimeState";
+import type { ThreadsState } from "@assistant-ui/core/store";
+import { useAuiState } from "@assistant-ui/store";
 
-export function useThreadList(): ThreadListState;
+export function useThreadList(): ThreadsState;
 export function useThreadList<TSelected>(
-  selector: (state: ThreadListState) => TSelected,
+  selector: (state: ThreadsState) => TSelected,
 ): TSelected;
-export function useThreadList<TSelected = ThreadListState>(
-  selector?: (state: ThreadListState) => TSelected,
+export function useThreadList<TSelected = ThreadsState>(
+  selector?: (state: ThreadsState) => TSelected,
 ): TSelected {
-  const runtime = useAssistantRuntime();
-  return useRuntimeState(
-    runtime.threads,
-    selector as (state: ThreadListState) => TSelected,
+  return useAuiState((s) =>
+    selector ? selector(s.threads) : (s.threads as unknown as TSelected),
   );
 }

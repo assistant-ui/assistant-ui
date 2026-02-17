@@ -1,24 +1,30 @@
-import { createContext, useContext, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import type { ThreadRuntime } from "@assistant-ui/core";
+import { useAui } from "@assistant-ui/store";
 
-const ThreadContext = createContext<ThreadRuntime | null>(null);
-
+/**
+ * @deprecated Use AssistantProvider with the store system instead.
+ * The thread scope is automatically set up by the RuntimeAdapter.
+ */
 export const useThreadRuntime = (): ThreadRuntime => {
-  const runtime = useContext(ThreadContext);
+  const aui = useAui();
+  const runtime = aui.threads().thread("main").__internal_getRuntime?.();
   if (!runtime) {
-    throw new Error("useThreadRuntime must be used within a ThreadProvider");
+    throw new Error(
+      "useThreadRuntime must be used within an AssistantProvider",
+    );
   }
-  return runtime;
+  return runtime as ThreadRuntime;
 };
 
+/**
+ * @deprecated Use AssistantProvider with the store system instead.
+ */
 export const ThreadProvider = ({
-  runtime,
   children,
 }: {
   runtime: ThreadRuntime;
   children: ReactNode;
 }) => {
-  return (
-    <ThreadContext.Provider value={runtime}>{children}</ThreadContext.Provider>
-  );
+  return <>{children}</>;
 };

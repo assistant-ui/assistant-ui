@@ -20,19 +20,12 @@ export type {
   // Runtime types
   AssistantRuntime,
   ThreadRuntime,
-  ThreadState,
   MessageRuntime,
-  MessageState,
   ThreadComposerRuntime,
-  ThreadComposerState,
   EditComposerRuntime,
-  EditComposerState,
   ComposerRuntime,
-  ComposerState,
   ThreadListRuntime,
-  ThreadListState,
   ThreadListItemRuntime,
-  ThreadListItemState,
   // Runtime core types
   ChatModelAdapter,
   ChatModelRunOptions,
@@ -42,10 +35,27 @@ export type {
   Attachment,
   PendingAttachment,
   AttachmentRuntime,
-  AttachmentState,
   // Other
   Unsubscribe,
 } from "@assistant-ui/core";
+
+// Re-export store scope state types
+export type {
+  ThreadState,
+  ThreadsState,
+  MessageState,
+  ComposerState,
+  AttachmentState,
+  ThreadListItemState,
+} from "@assistant-ui/core/store";
+
+// Store hooks
+export {
+  useAui,
+  useAuiState,
+  useAuiEvent,
+  AuiProvider,
+} from "@assistant-ui/store";
 
 // Context providers and hooks
 export {
@@ -61,7 +71,6 @@ export {
 
 // State hooks
 export {
-  useRuntimeState,
   useThread,
   useMessage,
   useComposer,

@@ -1,26 +1,29 @@
-import { createContext, useContext, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import type { MessageRuntime } from "@assistant-ui/core";
+import { useAui } from "@assistant-ui/store";
 
-const MessageContext = createContext<MessageRuntime | null>(null);
-
+/**
+ * @deprecated Use useAuiState(s => s.message) instead.
+ */
 export const useMessageRuntime = (): MessageRuntime => {
-  const runtime = useContext(MessageContext);
+  const aui = useAui();
+  const runtime = aui.message().__internal_getRuntime?.();
   if (!runtime) {
-    throw new Error("useMessageRuntime must be used within a MessageProvider");
+    throw new Error(
+      "useMessageRuntime must be used within a message scope (e.g. ThreadMessages)",
+    );
   }
-  return runtime;
+  return runtime as MessageRuntime;
 };
 
+/**
+ * @deprecated Use the store system with AuiProvider for message scoping.
+ */
 export const MessageProvider = ({
-  runtime,
   children,
 }: {
   runtime: MessageRuntime;
   children: ReactNode;
 }) => {
-  return (
-    <MessageContext.Provider value={runtime}>
-      {children}
-    </MessageContext.Provider>
-  );
+  return <>{children}</>;
 };

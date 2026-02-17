@@ -1,14 +1,13 @@
 import { useCallback } from "react";
-import { useComposerRuntime } from "../context";
-import { useComposer } from "../hooks/useComposer";
+import { useAui, useAuiState } from "@assistant-ui/store";
 
 export const useComposerSend = () => {
-  const runtime = useComposerRuntime();
-  const canSend = useComposer((s) => !s.isEmpty);
+  const aui = useAui();
+  const canSend = useAuiState((s) => !s.composer.isEmpty);
 
   const send = useCallback(() => {
-    runtime.send();
-  }, [runtime]);
+    aui.composer().send();
+  }, [aui]);
 
   return { send, canSend };
 };

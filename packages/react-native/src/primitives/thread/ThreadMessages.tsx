@@ -1,9 +1,7 @@
 import { type ReactElement, useCallback } from "react";
 import { FlatList, type FlatListProps } from "react-native";
-import type { ThreadMessage, MessageRuntime } from "@assistant-ui/core";
-import { useThreadRuntime } from "../../context";
-import { MessageProvider } from "../../context";
-import { useThreadMessages } from "../../primitive-hooks/useThreadMessages";
+import type { ThreadMessage } from "@assistant-ui/core";
+import { useAui, useAuiState, AuiProvider, Derived } from "@assistant-ui/store";
 
 export type ThreadMessagesProps = Omit<
   FlatListProps<ThreadMessage>,
@@ -15,31 +13,46 @@ export type ThreadMessagesProps = Omit<
   }) => ReactElement;
 };
 
+const MessageScope = ({
+  index,
+  children,
+}: {
+  index: number;
+  children: ReactElement;
+}) => {
+  const aui = useAui({
+    message: Derived({
+      source: "thread",
+      query: { type: "index", index },
+      get: (aui) => aui.threads().thread("main").message({ index }),
+    }),
+  });
+
+  return <AuiProvider value={aui}>{children}</AuiProvider>;
+};
+
 export const ThreadMessages = ({
   renderMessage,
   ...flatListProps
 }: ThreadMessagesProps) => {
-  const messages = useThreadMessages();
-  const threadRuntime = useThreadRuntime();
+  const messages = useAuiState((s) => s.thread.messages);
 
   const renderItem = useCallback(
     ({ item, index }: { item: ThreadMessage; index: number }) => {
-      const messageRuntime: MessageRuntime =
-        threadRuntime.getMessageByIndex(index);
       return (
-        <MessageProvider runtime={messageRuntime}>
-          {renderMessage({ message: item, index })}
-        </MessageProvider>
+        <MessageScope index={index}>
+          {renderMessage({ message: item as ThreadMessage, index })}
+        </MessageScope>
       );
     },
-    [threadRuntime, renderMessage],
+    [renderMessage],
   );
 
   const keyExtractor = useCallback((item: ThreadMessage) => item.id, []);
 
   return (
     <FlatList
-      data={messages as ThreadMessage[]}
+      data={messages as unknown as ThreadMessage[]}
       renderItem={renderItem}
       keyExtractor={keyExtractor}
       {...flatListProps}

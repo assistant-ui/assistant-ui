@@ -1,5 +1,5 @@
-import { useThread } from "../hooks/useThread";
+import { useAuiState } from "@assistant-ui/store";
 
 export const useThreadIsEmpty = (): boolean => {
-  return useThread((s) => s.messages.length === 0);
+  return useAuiState((s) => s.thread.isEmpty);
 };

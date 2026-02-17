@@ -2624,6 +2624,12 @@ importers:
       '@assistant-ui/core':
         specifier: ^0.0.1
         version: link:../core
+      '@assistant-ui/store':
+        specifier: ^0.1.6
+        version: link:../store
+      '@assistant-ui/tap':
+        specifier: ^0.4.6
+        version: link:../tap
     devDependencies:
       '@assistant-ui/x-buildutils':
         specifier: workspace:*

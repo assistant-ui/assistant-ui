@@ -1,14 +1,13 @@
 import { useCallback } from "react";
-import { useMessageRuntime } from "../context";
-import { useMessage } from "../hooks/useMessage";
+import { useAui, useAuiState } from "@assistant-ui/store";
 
 export const useMessageReload = () => {
-  const runtime = useMessageRuntime();
-  const canReload = useMessage((s) => s.role === "assistant");
+  const aui = useAui();
+  const canReload = useAuiState((s) => s.message.role === "assistant");
 
   const reload = useCallback(() => {
-    runtime.reload();
-  }, [runtime]);
+    aui.message().reload();
+  }, [aui]);
 
   return { reload, canReload };
 };

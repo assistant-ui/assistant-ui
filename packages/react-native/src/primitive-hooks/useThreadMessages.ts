@@ -1,6 +1,6 @@
-import type { ThreadMessage } from "@assistant-ui/core";
-import { useThread } from "../hooks/useThread";
+import { useAuiState } from "@assistant-ui/store";
+import type { MessageState } from "@assistant-ui/core/store";
 
-export const useThreadMessages = (): readonly ThreadMessage[] => {
-  return useThread((s) => s.messages);
+export const useThreadMessages = (): readonly MessageState[] => {
+  return useAuiState((s) => s.thread.messages);
 };

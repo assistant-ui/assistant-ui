@@ -1,11 +1,5 @@
-import type { MessageState } from "@assistant-ui/core";
-import { useMessageRuntime } from "../context";
-import { useRuntimeState } from "./useRuntimeState";
+import { useAuiState } from "@assistant-ui/store";
 
 export function useContentPart(index: number) {
-  const runtime = useMessageRuntime();
-  return useRuntimeState(
-    runtime,
-    (state: MessageState) => state.content[index],
-  );
+  return useAuiState((s) => s.message.parts[index]);
 }

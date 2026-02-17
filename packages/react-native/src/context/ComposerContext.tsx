@@ -1,28 +1,33 @@
-import { createContext, useContext, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import type { ThreadComposerRuntime } from "@assistant-ui/core";
+import { useAui } from "@assistant-ui/store";
 
-const ComposerContext = createContext<ThreadComposerRuntime | null>(null);
-
+/**
+ * @deprecated Use useAuiState(s => s.composer) instead.
+ */
 export const useComposerRuntime = (): ThreadComposerRuntime => {
-  const runtime = useContext(ComposerContext);
+  const aui = useAui();
+  const runtime = aui
+    .threads()
+    .thread("main")
+    .composer()
+    .__internal_getRuntime?.();
   if (!runtime) {
     throw new Error(
-      "useComposerRuntime must be used within a ComposerProvider",
+      "useComposerRuntime must be used within an AssistantProvider",
     );
   }
-  return runtime;
+  return runtime as ThreadComposerRuntime;
 };
 
+/**
+ * @deprecated Use the store system with AuiProvider for composer scoping.
+ */
 export const ComposerProvider = ({
-  runtime,
   children,
 }: {
   runtime: ThreadComposerRuntime;
   children: ReactNode;
 }) => {
-  return (
-    <ComposerContext.Provider value={runtime}>
-      {children}
-    </ComposerContext.Provider>
-  );
+  return <>{children}</>;
 };
