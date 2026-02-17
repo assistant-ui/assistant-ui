@@ -221,15 +221,17 @@ const ModelSelectorImpl = ({
     });
   }, [api, value]);
 
+  const rootProps: Omit<ModelSelectorRootProps, "children"> = {
+    models,
+    value,
+    onValueChange,
+  };
+  if (open !== undefined) rootProps.open = open;
+  if (onOpenChange) rootProps.onOpenChange = onOpenChange;
+  if (defaultOpen !== undefined) rootProps.defaultOpen = defaultOpen;
+
   return (
-    <ModelSelectorRoot
-      models={models}
-      value={value}
-      onValueChange={onValueChange}
-      {...(open !== undefined ? { open } : {})}
-      {...(onOpenChange ? { onOpenChange } : {})}
-      {...(defaultOpen !== undefined ? { defaultOpen } : {})}
-    >
+    <ModelSelectorRoot {...rootProps}>
       <ModelSelectorTrigger variant={variant} size={size} />
       <ModelSelectorContent className={contentClassName} />
     </ModelSelectorRoot>
