@@ -91,22 +91,22 @@ export interface WeatherDataOverlayProps {
   temperature: number;
   tempHigh: number;
   tempLow: number;
-  forecast?: ForecastDay[] | undefined;
-  unit?: TemperatureUnit | undefined;
-  theme?: WeatherTheme | undefined;
+  forecast?: ForecastDay[];
+  unit?: TemperatureUnit;
+  theme?: WeatherTheme;
   /**
    * Provide either `timeOfDay` (0-1) or a `timestamp` ISO string.
    * If neither is provided, defaults to noon (0.5).
    */
-  timeOfDay?: number | undefined;
-  timestamp?: string | undefined;
-  className?: string | undefined;
-  reducedMotion?: boolean | undefined;
+  timeOfDay?: number;
+  timestamp?: string;
+  className?: string;
+  reducedMotion?: boolean;
   /**
    * Glass refraction effect parameters for the forecast card.
    * When enabled, applies SVG displacement filter for realistic glass distortion.
    */
-  glassParams?: GlassEffectParams | undefined;
+  glassParams?: GlassEffectParams;
 }
 
 interface GlowState {
@@ -420,7 +420,6 @@ export function WeatherDataOverlay({
                 fontFamily: forecastFontFamily,
                 fontFeatureSettings: '"tnum" 1, "case" 1',
               }}
-              aria-hidden="true"
             >
               °{unitSymbol}
             </span>
