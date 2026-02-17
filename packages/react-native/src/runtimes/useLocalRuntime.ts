@@ -15,6 +15,7 @@ import { useAuiState } from "@assistant-ui/store";
 import type { TitleGenerationAdapter } from "../adapters/TitleGenerationAdapter";
 import { useRemoteThreadListRuntime } from "./useRemoteThreadListRuntime";
 import { createLocalStorageAdapter } from "../adapters/LocalStorageThreadListAdapter";
+import { useRuntimeAdapters } from "../context/providers/RuntimeAdapterProvider";
 
 type AsyncStorageLike = {
   getItem(key: string): Promise<string | null>;
@@ -38,10 +39,12 @@ const useInnerLocalRuntime = (
   >,
 ): AssistantRuntime => {
   const { initialMessages, ...restOptions } = options;
+  const runtimeAdapters = useRuntimeAdapters();
 
   const opt: LocalRuntimeOptionsBase = {
     ...restOptions,
     adapters: {
+      ...runtimeAdapters,
       ...restOptions.adapters,
       chatModel,
     },

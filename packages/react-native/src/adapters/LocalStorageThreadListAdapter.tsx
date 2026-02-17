@@ -1,12 +1,19 @@
 import { type AssistantStream, createAssistantStream } from "assistant-stream";
+import { FC, PropsWithChildren, useMemo } from "react";
+import { useAui } from "@assistant-ui/store";
 import type {
   RemoteThreadInitializeResponse,
   RemoteThreadListAdapter,
   RemoteThreadListResponse,
   RemoteThreadMetadata,
+  ThreadHistoryAdapter,
   ThreadMessage,
 } from "@assistant-ui/core";
-import type { ExportedMessageRepository } from "@assistant-ui/core/internal";
+import type {
+  ExportedMessageRepository,
+  ExportedMessageRepositoryItem,
+} from "@assistant-ui/core/internal";
+import { RuntimeAdapterProvider } from "../context/providers/RuntimeAdapterProvider";
 import type { TitleGenerationAdapter } from "./TitleGenerationAdapter";
 
 type AsyncStorageLike = {
@@ -26,6 +33,70 @@ type StoredThreadMetadata = {
   externalId?: string;
   status: "regular" | "archived";
   title?: string;
+};
+
+class AsyncStorageHistoryAdapter implements ThreadHistoryAdapter {
+  constructor(
+    private storage: AsyncStorageLike,
+    private aui: ReturnType<typeof useAui>,
+    private prefix: string,
+  ) {}
+
+  private _messagesKey(remoteId: string) {
+    return `${this.prefix}messages:${remoteId}`;
+  }
+
+  async load(): Promise<ExportedMessageRepository> {
+    const remoteId = this.aui.threadListItem().getState().remoteId;
+    if (!remoteId) return { messages: [] };
+
+    const raw = await this.storage.getItem(this._messagesKey(remoteId));
+    if (!raw) return { messages: [] };
+    return JSON.parse(raw) as ExportedMessageRepository;
+  }
+
+  async append(item: ExportedMessageRepositoryItem): Promise<void> {
+    const { remoteId } = await this.aui.threadListItem().initialize();
+
+    const key = this._messagesKey(remoteId);
+    const raw = await this.storage.getItem(key);
+    const repo: ExportedMessageRepository = raw
+      ? (JSON.parse(raw) as ExportedMessageRepository)
+      : { messages: [] };
+
+    const idx = repo.messages.findIndex(
+      (m) => m.message.id === item.message.id,
+    );
+    if (idx >= 0) {
+      repo.messages[idx] = item;
+    } else {
+      repo.messages.push(item);
+    }
+    repo.headId = item.message.id;
+
+    await this.storage.setItem(key, JSON.stringify(repo));
+  }
+}
+
+const createHistoryProvider = (
+  storage: AsyncStorageLike,
+  prefix: string,
+): FC<PropsWithChildren> => {
+  const Provider: FC<PropsWithChildren> = ({ children }) => {
+    const aui = useAui();
+    const history = useMemo(
+      () => new AsyncStorageHistoryAdapter(storage, aui, prefix),
+      [aui],
+    );
+    const adapters = useMemo(() => ({ history }), [history]);
+
+    return (
+      <RuntimeAdapterProvider adapters={adapters}>
+        {children}
+      </RuntimeAdapterProvider>
+    );
+  };
+  return Provider;
 };
 
 export const createLocalStorageAdapter = (
@@ -48,6 +119,8 @@ export const createLocalStorageAdapter = (
   };
 
   const adapter: RemoteThreadListAdapter = {
+    unstable_Provider: createHistoryProvider(storage, prefix),
+
     async list(): Promise<RemoteThreadListResponse> {
       const threads = await loadThreadMetadata();
       return {
@@ -151,25 +224,4 @@ export const createLocalStorageAdapter = (
   };
 
   return adapter;
-};
-
-/** Save messages for a thread to local storage */
-export const saveThreadMessages = async (
-  storage: AsyncStorageLike,
-  remoteId: string,
-  data: ExportedMessageRepository,
-  prefix = "@assistant-ui:",
-): Promise<void> => {
-  await storage.setItem(`${prefix}messages:${remoteId}`, JSON.stringify(data));
-};
-
-/** Load messages for a thread from local storage */
-export const loadThreadMessages = async (
-  storage: AsyncStorageLike,
-  remoteId: string,
-  prefix = "@assistant-ui:",
-): Promise<ExportedMessageRepository | undefined> => {
-  const raw = await storage.getItem(`${prefix}messages:${remoteId}`);
-  if (!raw) return undefined;
-  return JSON.parse(raw) as ExportedMessageRepository;
 };
