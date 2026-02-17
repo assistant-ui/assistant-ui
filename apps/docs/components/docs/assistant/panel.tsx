@@ -96,7 +96,7 @@ export function AssistantPanelContent(): React.ReactNode {
         onClick={handleTriggerClick}
         className={cn(
           "absolute inset-y-0 left-0 z-20 w-3 cursor-pointer",
-          "before:absolute before:inset-y-0 before:left-0 before:w-px before:bg-border before:opacity-0 before:transition-opacity hover:before:opacity-100 focus-visible:before:opacity-100 focus-visible:outline-none",
+          "before:absolute before:inset-y-0 before:left-0 before:w-px before:bg-border before:opacity-0 before:transition-opacity hover:before:opacity-100 focus-visible:outline-none focus-visible:before:opacity-100",
           open ? "pointer-events-none opacity-0" : "opacity-100",
         )}
         title="Open AI Chat"

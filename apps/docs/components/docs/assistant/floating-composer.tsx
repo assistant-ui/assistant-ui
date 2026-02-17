@@ -79,8 +79,8 @@ export function FloatingComposer(): ReactNode {
           <div
             className={`relative rounded-xl border shadow-lg backdrop-blur-sm transition-all duration-200 ease-out ${
               expanded
-                ? "bg-background/90 border-ring/50 ring-1 ring-ring/20"
-                : "bg-background/80 border-border hover:ring-2 hover:ring-ring/30"
+                ? "border-ring/50 bg-background/90 ring-1 ring-ring/20"
+                : "border-border bg-background/80 hover:ring-2 hover:ring-ring/30"
             }`}
           >
             <ComposerPrimitive.Input
