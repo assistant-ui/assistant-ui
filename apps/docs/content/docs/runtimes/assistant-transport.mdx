@@ -114,6 +114,17 @@ async def chat_endpoint(request: ChatRequest):
 
 The state snapshots are automatically streamed to the frontend using the operations described in [Streaming Protocol](#streaming-protocol).
 
+> **Cancellation:** `create_run` exposes `controller.is_cancelled` and `controller.cancelled_event`.
+> If the response stream is closed early (for example user cancel or client disconnect),
+> these are set so your backend loop can exit cooperatively.
+>
+> ```python
+> async def run_callback(controller: RunController):
+>     while not controller.is_cancelled:
+>         # Long-running work / model loop
+>         await asyncio.sleep(0.05)
+> ```
+
 ### Backend Reference Implementation
 
 <Tabs items={["Minimal", "Example", "LangGraph"]}>
