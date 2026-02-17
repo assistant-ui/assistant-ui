@@ -219,12 +219,15 @@ async def create_run(
             controller._queue.task_done()
     finally:
         if ended_normally:
-            if task.done():
-                # The background task may already be complete when the sentinel is read.
-                # `result()` still surfaces callback exceptions on normal completion.
-                task.result()
-            else:
-                await task
+            # The `None` sentinel is queued at the end of `background_task`, so
+            # normal stream completion implies `task` is already done here.
+            if not task.done():
+                raise RuntimeError("background task should be done on normal completion")
+
+            # Preserve normal-path error propagation.
+            task_exception = task.exception()
+            if task_exception is not None:
+                raise task_exception
         else:
             controller._mark_cancelled()
             # Yield to the event loop to allow the cancel signal to propagate.
