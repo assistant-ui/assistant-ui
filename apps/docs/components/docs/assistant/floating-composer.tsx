@@ -92,6 +92,12 @@ export function FloatingComposer(): ReactNode {
     }
   }, [visible]);
 
+  useEffect(() => {
+    if (!visible || !expanded) {
+      setModelSelectorOpen(false);
+    }
+  }, [visible, expanded]);
+
   // Click outside to collapse (only when composer is empty)
   useClickOutside(
     containerRef,
@@ -165,7 +171,12 @@ export function FloatingComposer(): ReactNode {
                   models={models}
                   value={modelValue}
                   onValueChange={onModelChange}
-                  onOpenChange={setModelSelectorOpen}
+                  onOpenChange={(nextOpen) => {
+                    setModelSelectorOpen(nextOpen);
+                    if (nextOpen && !expanded) {
+                      setExpanded(true);
+                    }
+                  }}
                   variant="ghost"
                   size="sm"
                 />

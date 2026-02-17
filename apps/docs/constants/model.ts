@@ -1,3 +1,5 @@
+export const DEFAULT_DOCS_MODEL = "gpt-5-nano";
+
 export const MODELS = [
   {
     name: "GPT-5 Nano",
