@@ -1,4 +1,5 @@
 import asyncio
+from contextlib import suppress
 from typing import Any, AsyncGenerator, Callable, Coroutine, List, Optional
 from assistant_stream.assistant_stream_chunk import (
     AssistantStreamChunk,
@@ -18,6 +19,19 @@ from assistant_stream.modules.tool_call import (
 from assistant_stream.state_manager import StateManager
 
 
+class ReadOnlyCancellationSignal:
+    """Read-only view over an asyncio.Event used for cancellation."""
+
+    def __init__(self, event: asyncio.Event):
+        self._event = event
+
+    def is_set(self) -> bool:
+        return self._event.is_set()
+
+    async def wait(self) -> bool:
+        return await self._event.wait()
+
+
 class RunController:
     def __init__(self, queue, state_data, parent_id: Optional[str] = None):
         self._queue = queue
@@ -26,6 +40,8 @@ class RunController:
         self._stream_tasks = []
         self._state_manager = StateManager(self._put_chunk_nowait, state_data)
         self._parent_id = parent_id
+        self._cancelled_event = asyncio.Event()
+        self._cancelled_signal = ReadOnlyCancellationSignal(self._cancelled_event)
 
     def with_parent_id(self, parent_id: str) -> 'RunController':
         """Create a new RunController instance with the specified parent_id."""
@@ -34,6 +50,8 @@ class RunController:
         controller._dispose_callbacks = self._dispose_callbacks
         controller._stream_tasks = self._stream_tasks
         controller._state_manager = self._state_manager
+        controller._cancelled_event = self._cancelled_event
+        controller._cancelled_signal = self._cancelled_signal
         return controller
 
     def append_text(self, text_delta: str) -> None:
@@ -144,6 +162,21 @@ class RunController:
             [{"type": "set", "path": [], "value": value}]
         )
 
+    @property
+    def cancelled_event(self) -> ReadOnlyCancellationSignal:
+        """Expose cancellation signal for cooperative cancellation."""
+        return self._cancelled_signal
+
+    @property
+    def is_cancelled(self) -> bool:
+        """Return whether this run has been cancelled."""
+        return self._cancelled_event.is_set()
+
+    def _mark_cancelled(self) -> None:
+        """Set cancellation signal once."""
+        if not self._cancelled_event.is_set():
+            self._cancelled_event.set()
+
 
 async def create_run(
     callback: Callable[[RunController], Coroutine[Any, Any, None]],
@@ -172,12 +205,28 @@ async def create_run(
                 asyncio.get_running_loop().call_soon_threadsafe(queue.put_nowait, None)
 
     task = asyncio.create_task(background_task())
+    ended_normally = False
 
-    while True:
-        chunk = await controller._queue.get()
-        if chunk is None:
-            break
-        yield chunk
-        controller._queue.task_done()
-
-    await task
+    try:
+        while True:
+            chunk = await controller._queue.get()
+            if chunk is None:
+                ended_normally = True
+                break
+            yield chunk
+            controller._queue.task_done()
+    finally:
+        if ended_normally:
+            await task
+        else:
+            controller._mark_cancelled()
+            await asyncio.sleep(0)
+            if not task.done():
+                # Give callbacks a brief chance to observe `is_cancelled`
+                # and exit cooperatively before forcing cancellation.
+                with suppress(asyncio.TimeoutError, asyncio.CancelledError):
+                    await asyncio.wait_for(asyncio.shield(task), timeout=0.05)
+            if not task.done():
+                task.cancel()
+            with suppress(asyncio.CancelledError):
+                await task
