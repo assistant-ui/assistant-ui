@@ -19,10 +19,9 @@ import type {
   ThreadUserMessagePart,
   ThreadMessage,
 } from "@assistant-ui/core";
-import { ModelContext } from "./ModelContextClient";
+import { ModelContext, Suggestions } from "@assistant-ui/core/store";
 import { Tools } from "./Tools";
 import { DataRenderers } from "./DataRenderers";
-import { Suggestions } from "./Suggestions";
 
 export type ExternalThreadMessage = ThreadMessage & {
   id: string;

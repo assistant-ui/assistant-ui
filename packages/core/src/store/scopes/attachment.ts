@@ -1,11 +1,11 @@
-import type { Attachment, AttachmentRuntime } from "@assistant-ui/core";
+import type { Attachment } from "../../types";
+import type { AttachmentRuntime } from "../../runtime";
 
 export type AttachmentState = Attachment;
 
 export type AttachmentMethods = {
   getState(): AttachmentState;
   remove(): Promise<void>;
-  /** @internal */
   __internal_getRuntime?(): AttachmentRuntime;
 };
 

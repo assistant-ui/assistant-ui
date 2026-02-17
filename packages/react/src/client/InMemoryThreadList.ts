@@ -9,8 +9,7 @@ import {
 import { withKey } from "@assistant-ui/tap";
 import type { ResourceElement } from "@assistant-ui/tap";
 
-import { Suggestions } from "./Suggestions";
-import { ModelContext } from "./ModelContextClient";
+import { ModelContext, Suggestions } from "@assistant-ui/core/store";
 import { Tools } from "./Tools";
 import { DataRenderers } from "./DataRenderers";
 

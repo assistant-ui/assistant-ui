@@ -1,7 +1,7 @@
 import type {
   ThreadListItemRuntime,
   ThreadListItemStatus,
-} from "@assistant-ui/core";
+} from "../../runtime";
 
 export type ThreadListItemState = {
   readonly id: string;
@@ -21,7 +21,6 @@ export type ThreadListItemMethods = {
   generateTitle(): void;
   initialize(): Promise<{ remoteId: string; externalId: string | undefined }>;
   detach(): void;
-  /** @internal */
   __internal_getRuntime?(): ThreadListItemRuntime;
 };
 

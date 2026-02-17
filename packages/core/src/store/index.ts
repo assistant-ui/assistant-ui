@@ -37,6 +37,12 @@ export type {
 } from "./types/events";
 export { normalizeEventSelector } from "./types/events";
 
+// scopes
+export * from "./scopes";
+
+// clients
+export * from "./clients";
+
 // utils (re-exported for internal use by @assistant-ui/store)
 export {
   BaseProxyHandler,

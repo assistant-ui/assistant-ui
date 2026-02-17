@@ -1,10 +1,9 @@
+import type { ThreadMessage, RunConfig } from "../../types";
 import type {
-  ThreadMessage,
-  RunConfig,
   SpeechState,
   SubmittedFeedback,
   MessageRuntime,
-} from "@assistant-ui/core";
+} from "../../runtime";
 import type { ComposerMethods, ComposerState } from "./composer";
 import type { PartMethods, PartState } from "./part";
 import type { AttachmentMethods } from "./attachment";
@@ -62,7 +61,6 @@ export type MessageMethods = {
   attachment(selector: { index: number } | { id: string }): AttachmentMethods;
   setIsCopied(value: boolean): void;
   setIsHovering(value: boolean): void;
-  /** @internal */
   __internal_getRuntime?(): MessageRuntime;
 };
 

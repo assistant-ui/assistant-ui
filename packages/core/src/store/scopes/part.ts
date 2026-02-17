@@ -1,11 +1,11 @@
 import type { ToolResponse } from "assistant-stream";
 import type {
-  MessagePartRuntime,
   ThreadUserMessagePart,
   ThreadAssistantMessagePart,
   MessagePartStatus,
   ToolCallMessagePartStatus,
-} from "@assistant-ui/core";
+} from "../../types";
+import type { MessagePartRuntime } from "../../runtime";
 
 export type PartState = (ThreadUserMessagePart | ThreadAssistantMessagePart) & {
   readonly status: MessagePartStatus | ToolCallMessagePartStatus;
@@ -26,7 +26,6 @@ export type PartMethods = {
    * This is useful when a tool has requested human input and is waiting for a response.
    */
   resumeToolCall(payload: unknown): void;
-  /** @internal */
   __internal_getRuntime?(): MessagePartRuntime;
 };
 

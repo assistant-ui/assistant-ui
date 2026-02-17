@@ -1,8 +1,8 @@
-import type { AssistantRuntime } from "@assistant-ui/core";
+import type { AssistantRuntime } from "../../runtime";
 import type {
   ThreadListItemMethods,
   ThreadListItemState,
-} from "./threadListItem";
+} from "./thread-list-item";
 import type { ThreadMethods, ThreadState } from "./thread";
 
 export type ThreadsState = {
@@ -26,7 +26,6 @@ export type ThreadsMethods = {
       | { index: number; archived?: boolean },
   ): ThreadListItemMethods;
   thread(selector: "main"): ThreadMethods;
-  /** @internal */
   __internal_getAssistantRuntime?(): AssistantRuntime;
 };
 

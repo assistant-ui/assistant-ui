@@ -3,9 +3,8 @@ import type {
   MessageRole,
   RunConfig,
   QuoteInfo,
-  ComposerRuntime,
-  DictationState,
-} from "@assistant-ui/core";
+} from "../../types";
+import type { ComposerRuntime, DictationState } from "../../runtime";
 import type { AttachmentMethods } from "./attachment";
 
 export type ComposerState = {
@@ -61,7 +60,6 @@ export type ComposerMethods = {
    */
   setQuote(quote: QuoteInfo | undefined): void;
 
-  /** @internal */
   __internal_getRuntime?(): ComposerRuntime;
 };
 

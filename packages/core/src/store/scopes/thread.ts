@@ -9,7 +9,7 @@ import type {
   CreateStartRunConfig,
   CreateResumeRunConfig,
   ThreadRuntime,
-} from "@assistant-ui/core";
+} from "../../runtime";
 import type { ModelContext } from "../../model-context";
 import type { MessageMethods, MessageState } from "./message";
 import type { ComposerMethods, ComposerState } from "./composer";
@@ -113,7 +113,6 @@ export type ThreadMethods = {
    * Stop the currently active voice session.
    */
   stopVoice(): Promise<void>;
-  /** @internal */
   __internal_getRuntime?(): ThreadRuntime;
 };
 

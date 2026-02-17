@@ -1,10 +1,9 @@
-"use client";
 import type {
   ThreadAssistantMessagePart,
   ThreadUserMessagePart,
   Attachment,
   ThreadMessage,
-} from "@assistant-ui/core";
+} from "../../types";
 import {
   resource,
   tapMemo,
@@ -12,9 +11,10 @@ import {
   tapResource,
   withKey,
 } from "@assistant-ui/tap";
-import { type ClientOutput, tapClientLookup } from "@assistant-ui/store";
-import { MessageState, PartState } from "../types/scopes";
-import { NoOpComposerClient } from "./NoOpComposerClient";
+import type { ClientOutput } from "../types/client";
+import { tapClientLookup } from "../tap-client-lookup";
+import type { MessageState, PartState } from "../scopes";
+import { NoOpComposerClient } from "./no-op-composer-client";
 
 const ThreadMessagePartClient = resource(
   ({

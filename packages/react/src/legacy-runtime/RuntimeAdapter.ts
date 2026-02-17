@@ -6,7 +6,7 @@ import {
   Derived,
   attachTransformScopes,
 } from "@assistant-ui/store";
-import { ModelContext } from "../client/ModelContextClient";
+import { ModelContext } from "@assistant-ui/core/store";
 import { Tools, Suggestions } from "../model-context";
 
 export const RuntimeAdapter = resource((runtime: AssistantRuntime) => {

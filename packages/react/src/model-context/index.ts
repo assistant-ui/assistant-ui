@@ -32,7 +32,7 @@ export type { Toolkit, ToolDefinition } from "./toolbox";
 export { Tools } from "../client/Tools";
 export { DataRenderers } from "../client/DataRenderers";
 
-export { Suggestions, type SuggestionConfig } from "../client/Suggestions";
+export { Suggestions, type SuggestionConfig } from "@assistant-ui/core/store";
 
 export * from "./registry";
 export * from "./frame";
