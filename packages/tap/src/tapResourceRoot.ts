@@ -58,7 +58,7 @@ export const tapResourceRoot = <TState>(
     );
   }, [element.type, element.key]);
 
-  setRootVersion(fiber.root, 0);
+  setRootVersion(fiber.root, fiber.root.committedVersion);
   const render = renderResourceFiber(fiber, element.props);
 
   const isMountedRef = tapRef(false);
