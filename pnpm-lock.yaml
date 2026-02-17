@@ -1830,6 +1830,9 @@ importers:
 
   examples/with-store:
     dependencies:
+      '@assistant-ui/core':
+        specifier: workspace:*
+        version: link:../../packages/core
       '@assistant-ui/store':
         specifier: workspace:*
         version: link:../../packages/store
@@ -2622,7 +2625,7 @@ importers:
   packages/react-native:
     dependencies:
       '@assistant-ui/core':
-        specifier: workspace:*
+        specifier: ^0.0.1
         version: link:../core
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -2732,7 +2735,7 @@ importers:
   packages/store:
     dependencies:
       '@assistant-ui/core':
-        specifier: workspace:*
+        specifier: ^0.0.1
         version: link:../core
       '@assistant-ui/tap':
         specifier: ^0.4.5

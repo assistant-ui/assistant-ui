@@ -1,17 +1,17 @@
 // resources
-export { Derived } from "./Derived";
-export type { DerivedElement } from "./Derived";
-export { attachTransformScopes } from "./attachTransformScopes";
-export type { ScopesConfig } from "./attachTransformScopes";
+export { Derived } from "./derived";
+export type { DerivedElement } from "./derived";
+export { attachTransformScopes } from "./attach-transform-scopes";
+export type { ScopesConfig } from "./attach-transform-scopes";
 
 // tap hooks
 export {
   tapAssistantClientRef,
   tapAssistantEmit,
 } from "./utils/tap-assistant-context";
-export { tapClientResource } from "./tapClientResource";
-export { tapClientLookup } from "./tapClientLookup";
-export { tapClientList } from "./tapClientList";
+export { tapClientResource } from "./tap-client-resource";
+export { tapClientLookup } from "./tap-client-lookup";
+export { tapClientList } from "./tap-client-list";
 
 // types
 export type {
@@ -41,7 +41,7 @@ export { normalizeEventSelector } from "./types/events";
 export {
   BaseProxyHandler,
   handleIntrospectionProp,
-} from "./utils/BaseProxyHandler";
+} from "./utils/base-proxy-handler";
 export {
   SYMBOL_CLIENT_INDEX,
   getClientIndex,
@@ -53,7 +53,7 @@ export {
   type AssistantTapContextValue,
   withAssistantTapContextProvider,
 } from "./utils/tap-assistant-context";
-export { NotificationManager } from "./utils/NotificationManager";
+export { NotificationManager } from "./utils/notification-manager";
 export {
   PROXIED_ASSISTANT_STATE_SYMBOL,
   createProxiedAssistantState,
@@ -63,7 +63,7 @@ export {
   type RootClients,
   type DerivedClients,
   tapSplitClients,
-} from "./utils/splitClients";
-export { getClientState, ClientResource } from "./tapClientResource";
-export { wrapperResource } from "./wrapperResource";
-export { getTransformScopes } from "./attachTransformScopes";
+} from "./utils/split-clients";
+export { getClientState, ClientResource } from "./tap-client-resource";
+export { wrapperResource } from "./wrapper-resource";
+export { getTransformScopes } from "./attach-transform-scopes";

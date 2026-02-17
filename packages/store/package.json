@@ -33,7 +33,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "workspace:*",
+    "@assistant-ui/core": "^0.0.1",
     "@assistant-ui/tap": "^0.4.5",
     "use-effect-event": "^2.0.3"
   },

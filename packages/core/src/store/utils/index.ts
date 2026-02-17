@@ -1,7 +1,7 @@
 export {
   BaseProxyHandler,
   handleIntrospectionProp,
-} from "./BaseProxyHandler";
+} from "./base-proxy-handler";
 export {
   SYMBOL_CLIENT_INDEX,
   getClientIndex,
@@ -15,7 +15,7 @@ export {
   tapAssistantClientRef,
   tapAssistantEmit,
 } from "./tap-assistant-context";
-export { NotificationManager } from "./NotificationManager";
+export { NotificationManager } from "./notification-manager";
 export {
   PROXIED_ASSISTANT_STATE_SYMBOL,
   createProxiedAssistantState,
@@ -25,4 +25,4 @@ export {
   type RootClients,
   type DerivedClients,
   tapSplitClients,
-} from "./splitClients";
+} from "./split-clients";

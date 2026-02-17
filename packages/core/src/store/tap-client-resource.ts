@@ -14,8 +14,8 @@ import {
 import {
   BaseProxyHandler,
   handleIntrospectionProp,
-} from "./utils/BaseProxyHandler";
-import { wrapperResource } from "./wrapperResource";
+} from "./utils/base-proxy-handler";
+import { wrapperResource } from "./wrapper-resource";
 
 /**
  * Symbol used internally to get state from ClientProxy.

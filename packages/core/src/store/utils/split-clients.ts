@@ -1,4 +1,4 @@
-import { Derived, DerivedElement } from "../Derived";
+import { Derived, DerivedElement } from "../derived";
 import type {
   AssistantClient,
   ClientElement,
@@ -7,7 +7,7 @@ import type {
 import {
   getTransformScopes,
   type ScopesConfig,
-} from "../attachTransformScopes";
+} from "../attach-transform-scopes";
 import { tapMemo } from "@assistant-ui/tap";
 
 export type RootClients = Partial<

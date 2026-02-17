@@ -38,7 +38,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "workspace:*"
+    "@assistant-ui/core": "^0.0.1"
   },
   "peerDependencies": {
     "@types/react": "*",

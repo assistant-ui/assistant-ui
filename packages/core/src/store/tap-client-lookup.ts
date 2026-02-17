@@ -5,8 +5,8 @@ import {
   type ResourceElement,
 } from "@assistant-ui/tap";
 import type { ClientMethods } from "./types/client";
-import { ClientResource } from "./tapClientResource";
-import { wrapperResource } from "./wrapperResource";
+import { ClientResource } from "./tap-client-resource";
+import { wrapperResource } from "./wrapper-resource";
 
 type InferClientState<TMethods> = TMethods extends {
   getState: () => infer S;

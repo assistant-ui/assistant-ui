@@ -9,6 +9,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@assistant-ui/core": "workspace:*",
     "@assistant-ui/store": "workspace:*",
     "@assistant-ui/tap": "workspace:*",
     "next": "^16.1.6",
