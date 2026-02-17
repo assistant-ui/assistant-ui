@@ -1,3 +1,7 @@
+// Backwards-compatible ScopeRegistry augmentation target + forwarding to core
+export type { ScopeRegistry } from "./scope-registry";
+import "./scope-registry-forward";
+
 // Re-export framework-agnostic infrastructure from core
 export {
   Derived,
@@ -8,7 +12,6 @@ export {
   tapClientResource,
   tapClientLookup,
   tapClientList,
-  type ScopeRegistry,
   type ClientOutput,
   type AssistantClient,
   type AssistantState,

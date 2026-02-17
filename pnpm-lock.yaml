@@ -1830,9 +1830,6 @@ importers:
 
   examples/with-store:
     dependencies:
-      '@assistant-ui/core':
-        specifier: workspace:*
-        version: link:../../packages/core
       '@assistant-ui/store':
         specifier: workspace:*
         version: link:../../packages/store

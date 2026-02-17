@@ -1,4 +1,4 @@
-import "@assistant-ui/core/store";
+import "@assistant-ui/store";
 
 type FooState = { id: string; bar: string };
 type FooMethods = {
@@ -25,7 +25,7 @@ type FooListEvents = {
   "fooList.added": { id: string };
 };
 
-declare module "@assistant-ui/core/store" {
+declare module "@assistant-ui/store" {
   interface ScopeRegistry {
     foo: {
       methods: FooMethods;
