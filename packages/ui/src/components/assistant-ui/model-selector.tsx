@@ -192,11 +192,12 @@ const ModelSelectorImpl = ({
   size,
   contentClassName,
 }: ModelSelectorProps) => {
+  const isControlled = controlledValue !== undefined;
   const [internalValue, setInternalValue] = useState(
-    () => controlledValue ?? defaultValue ?? models[0]?.id ?? "",
+    () => defaultValue ?? models[0]?.id ?? "",
   );
 
-  const value = controlledValue ?? internalValue;
+  const value = isControlled ? controlledValue : internalValue;
   const onValueChange = controlledOnValueChange ?? setInternalValue;
 
   const api = useAssistantApi();

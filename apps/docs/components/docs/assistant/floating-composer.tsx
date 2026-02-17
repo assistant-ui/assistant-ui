@@ -3,6 +3,7 @@
 import {
   AssistantComposerAction,
   useComposerSubmitHandler,
+  useSharedDocsModelSelection,
 } from "@/components/docs/assistant/composer";
 import { useAssistantPanel } from "@/components/docs/assistant/context";
 import { ModelSelector } from "@/components/assistant-ui/model-selector";
@@ -76,6 +77,7 @@ export function FloatingComposer(): ReactNode {
   const { open, setOpen } = useAssistantPanel();
   const isEmpty = useAuiState((s) => s.composer.isEmpty);
   const threadIsEmpty = useAuiState((s) => s.thread.isEmpty);
+  const { modelValue, onModelChange } = useSharedDocsModelSelection();
   const [expanded, setExpanded] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -160,7 +162,8 @@ export function FloatingComposer(): ReactNode {
               <div className="flex items-center justify-between">
                 <ModelSelector
                   models={models}
-                  defaultValue={MODELS[0].value}
+                  value={modelValue}
+                  onValueChange={onModelChange}
                   variant="ghost"
                   size="sm"
                 />
