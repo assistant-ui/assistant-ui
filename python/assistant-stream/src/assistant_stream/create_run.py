@@ -225,6 +225,8 @@ async def create_run(
             if not task.done():
                 # Give callbacks a brief chance to observe `is_cancelled`
                 # and exit cooperatively before forcing cancellation.
+                # 50ms keeps disconnect cleanup responsive without immediately
+                # interrupting callbacks that can stop themselves quickly.
                 try:
                     await asyncio.wait_for(asyncio.shield(task), timeout=0.05)
                 except asyncio.TimeoutError:
