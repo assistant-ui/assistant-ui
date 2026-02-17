@@ -6,19 +6,23 @@ import {
   AssistantPanelToggle,
 } from "@/components/docs/assistant/panel";
 import { useAssistantPanel } from "@/components/docs/assistant/context";
+import { cn } from "@/lib/utils";
 
-const COLLAPSED_WIDTH = "12px";
+export const COLLAPSED_WIDTH = "12px";
 
 function getPanelWidth(open: boolean, width: number): string {
   return open ? `${width}px` : COLLAPSED_WIDTH;
 }
 
 export function DocsContent({ children }: { children: ReactNode }): ReactNode {
-  const { open, width } = useAssistantPanel();
+  const { open, width, isResizing } = useAssistantPanel();
 
   return (
     <div
-      className="@container transition-[margin] duration-300 ease-out md:mr-(--chat-panel-width)"
+      className={cn(
+        "@container md:mr-(--chat-panel-width)",
+        !isResizing && "transition-[margin] duration-300 ease-out",
+      )}
       style={
         {
           "--chat-panel-width": getPanelWidth(open, width),
@@ -31,11 +35,14 @@ export function DocsContent({ children }: { children: ReactNode }): ReactNode {
 }
 
 export function DocsAssistantPanel(): ReactNode {
-  const { open, width } = useAssistantPanel();
+  const { open, width, isResizing } = useAssistantPanel();
 
   return (
     <div
-      className="fixed top-12 right-0 bottom-0 hidden w-(--panel-width) transition-[width] duration-300 ease-out md:block"
+      className={cn(
+        "fixed top-12 right-0 bottom-0 hidden w-(--panel-width) md:block",
+        !isResizing && "transition-[width] duration-300 ease-out",
+      )}
       style={
         {
           "--panel-width": getPanelWidth(open, width),

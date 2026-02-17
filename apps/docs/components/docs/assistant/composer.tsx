@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { useCurrentPage } from "@/components/docs/contexts/current-page";
 import { ModelSelector } from "@/components/assistant-ui/model-selector";
-import { MODELS } from "@/constants/model";
+import { MODEL_OPTIONS, MODELS } from "@/constants/model";
 import { analytics } from "@/lib/analytics";
 import { getComposerMessageMetrics } from "@/lib/assistant-analytics-helpers";
 import {
@@ -14,23 +14,7 @@ import {
 } from "@assistant-ui/react";
 import { cn } from "@/lib/utils";
 import { ArrowUpIcon, SquareIcon } from "lucide-react";
-import Image from "next/image";
 import type { ReactNode } from "react";
-
-export const models = MODELS.map((m) => ({
-  id: m.value,
-  name: m.name,
-  icon: (
-    <Image
-      src={m.icon}
-      alt={m.name}
-      width={14}
-      height={14}
-      className="size-3.5"
-    />
-  ),
-  ...(m.disabled ? { disabled: true as const } : undefined),
-}));
 
 export function useComposerSubmitHandler(onSubmitProp?: () => void) {
   const aui = useAui();
@@ -86,7 +70,7 @@ export function AssistantComposer({
         </ComposerPrimitive.Input>
         <div className="flex items-center justify-between px-1.5 pb-1.5">
           <ModelSelector
-            models={models}
+            models={MODEL_OPTIONS}
             defaultValue={MODELS[0].value}
             variant="ghost"
             size="sm"

@@ -2,39 +2,69 @@
 
 import {
   AssistantComposerAction,
-  models,
   useComposerSubmitHandler,
 } from "@/components/docs/assistant/composer";
 import { useAssistantPanel } from "@/components/docs/assistant/context";
 import { ModelSelector } from "@/components/assistant-ui/model-selector";
-import { MODELS } from "@/constants/model";
+import { MODEL_OPTIONS, MODELS } from "@/constants/model";
 import { ComposerPrimitive, useAuiState } from "@assistant-ui/react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type RefObject,
+  type ReactNode,
+} from "react";
 
-export function FloatingComposer(): ReactNode {
-  const { open, setOpen } = useAssistantPanel();
-  const isEmpty = useAuiState((s) => s.composer.isEmpty);
-  const threadIsEmpty = useAuiState((s) => s.thread.isEmpty);
+function useHasScrolled(threshold: number): boolean {
   const [hasScrolled, setHasScrolled] = useState(false);
-  const [expanded, setExpanded] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleScroll = () => {
-      if (window.scrollY > 100) {
+      if (window.scrollY > threshold) {
         setHasScrolled(true);
       }
     };
     window.addEventListener("scroll", handleScroll, { passive: true });
     handleScroll();
     return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
+  }, [threshold]);
 
+  return hasScrolled;
+}
+
+function useClickOutside(
+  ref: RefObject<HTMLElement | null>,
+  handler: () => void,
+  enabled: boolean,
+): void {
+  const handlerRef = useRef(handler);
+  handlerRef.current = handler;
+
+  useEffect(() => {
+    if (!enabled) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        handlerRef.current();
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [ref, enabled]);
+}
+
+export function FloatingComposer(): ReactNode {
+  const { open, setOpen } = useAssistantPanel();
+  const isEmpty = useAuiState((s) => s.composer.isEmpty);
+  const threadIsEmpty = useAuiState((s) => s.thread.isEmpty);
+  const [expanded, setExpanded] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const hasScrolled = useHasScrolled(100);
   const visible = hasScrolled && !open;
-
-  // Track isEmpty in a ref so the click-outside handler always reads the latest value
-  const isEmptyRef = useRef(isEmpty);
-  isEmptyRef.current = isEmpty;
 
   // Reset expanded state when floating composer becomes hidden
   useEffect(() => {
@@ -44,22 +74,13 @@ export function FloatingComposer(): ReactNode {
   }, [visible]);
 
   // Click outside to collapse (only when composer is empty)
-  useEffect(() => {
-    if (!expanded) return;
-
-    const handleClickOutside = (e: MouseEvent) => {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(e.target as Node) &&
-        isEmptyRef.current
-      ) {
-        setExpanded(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [expanded]);
+  useClickOutside(
+    containerRef,
+    useCallback(() => {
+      if (isEmpty) setExpanded(false);
+    }, [isEmpty]),
+    expanded,
+  );
 
   const handleSubmit = useComposerSubmitHandler(() => setOpen(true));
 
@@ -98,12 +119,14 @@ export function FloatingComposer(): ReactNode {
                     : "max-h-[38px] overflow-hidden pb-2"
                 }`}
                 rows={1}
-                onFocus={() => {
+                onMouseDown={(e) => {
                   if (!expanded && !threadIsEmpty) {
+                    e.preventDefault();
                     setOpen(true);
-                  } else {
-                    setExpanded(true);
                   }
+                }}
+                onFocus={() => {
+                  setExpanded(true);
                 }}
               />
             </ComposerPrimitive.Input>
@@ -116,7 +139,7 @@ export function FloatingComposer(): ReactNode {
             >
               <div className="flex items-center justify-between">
                 <ModelSelector
-                  models={models}
+                  models={MODEL_OPTIONS}
                   defaultValue={MODELS[0].value}
                   variant="ghost"
                   size="sm"

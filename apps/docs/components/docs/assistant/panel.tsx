@@ -3,14 +3,14 @@
 import { AssistantThread } from "@/components/docs/assistant/thread";
 import { Button } from "@/components/ui/button";
 import { useAssistantPanel } from "@/components/docs/assistant/context";
+import { COLLAPSED_WIDTH } from "@/components/docs/layout/docs-layout";
 import { cn } from "@/lib/utils";
 import { analytics } from "@/lib/analytics";
 import { PanelRightCloseIcon } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef } from "react";
 
 function ResizeHandle() {
-  const { width, setWidth } = useAssistantPanel();
-  const [isResizing, setIsResizing] = useState(false);
+  const { width, setWidth, setIsResizing, isResizing } = useAssistantPanel();
   const startXRef = useRef(0);
   const startWidthRef = useRef(0);
 
@@ -35,7 +35,7 @@ function ResizeHandle() {
       document.addEventListener("mousemove", handleMouseMove);
       document.addEventListener("mouseup", handleMouseUp);
     },
-    [width, setWidth],
+    [width, setWidth, setIsResizing],
   );
 
   return (
@@ -95,10 +95,11 @@ export function AssistantPanelContent(): React.ReactNode {
         type="button"
         onClick={handleTriggerClick}
         className={cn(
-          "absolute inset-y-0 left-0 z-20 w-3 cursor-pointer",
+          "absolute inset-y-0 left-0 z-20 cursor-pointer",
           "before:absolute before:inset-y-0 before:left-0 before:w-px before:bg-border before:opacity-0 before:transition-opacity hover:before:opacity-100 focus-visible:outline-none focus-visible:before:opacity-100",
           open ? "pointer-events-none opacity-0" : "opacity-100",
         )}
+        style={{ width: COLLAPSED_WIDTH }}
         title="Open AI Chat"
         aria-label="Open AI Chat"
       />
