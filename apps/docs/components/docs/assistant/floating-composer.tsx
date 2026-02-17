@@ -14,6 +14,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 export function FloatingComposer(): ReactNode {
   const { open, setOpen } = useAssistantPanel();
   const isEmpty = useAuiState((s) => s.composer.isEmpty);
+  const threadIsEmpty = useAuiState((s) => s.thread.isEmpty);
   const [hasScrolled, setHasScrolled] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -97,7 +98,13 @@ export function FloatingComposer(): ReactNode {
                     : "max-h-[38px] overflow-hidden pb-2"
                 }`}
                 rows={1}
-                onFocus={() => setExpanded(true)}
+                onFocus={() => {
+                  if (!expanded && !threadIsEmpty) {
+                    setOpen(true);
+                  } else {
+                    setExpanded(true);
+                  }
+                }}
               />
             </ComposerPrimitive.Input>
             <div
