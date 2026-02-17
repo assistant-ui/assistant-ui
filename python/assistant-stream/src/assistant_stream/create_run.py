@@ -1,5 +1,5 @@
 import asyncio
-from contextlib import suppress
+import logging
 from typing import Any, AsyncGenerator, Callable, Coroutine, List, Optional
 from assistant_stream.assistant_stream_chunk import (
     AssistantStreamChunk,
@@ -17,6 +17,8 @@ from assistant_stream.modules.tool_call import (
     generate_openai_style_tool_call_id,
 )
 from assistant_stream.state_manager import StateManager
+
+logger = logging.getLogger(__name__)
 
 
 class ReadOnlyCancellationSignal:
@@ -230,10 +232,15 @@ async def create_run(
                 try:
                     await asyncio.wait_for(asyncio.shield(task), timeout=0.05)
                 except asyncio.TimeoutError:
+                    # Timeout means cooperative shutdown did not finish in time.
                     pass
                 except Exception:
-                    # The stream consumer already disconnected, so suppress callback errors.
-                    pass
+                    # The stream consumer already disconnected, so suppress callback errors
+                    # but keep a log signal for postmortem debugging.
+                    logger.warning(
+                        "Suppressed callback exception during early-close grace period",
+                        exc_info=True,
+                    )
             if not task.done():
                 task.cancel()
             try:
@@ -246,5 +253,9 @@ async def create_run(
                     # Preserve caller-initiated cancellation (e.g. wait_for timeout).
                     raise
             except Exception:
-                # The stream consumer already disconnected, so suppress callback errors.
-                pass
+                # The stream consumer already disconnected, so suppress callback errors
+                # but keep a log signal for postmortem debugging.
+                logger.warning(
+                    "Suppressed callback exception after forced early-close cancellation",
+                    exc_info=True,
+                )
