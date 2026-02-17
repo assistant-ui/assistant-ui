@@ -1,4 +1,3 @@
-import { useCallback } from "react";
 import {
   View,
   TextInput,
@@ -8,37 +7,20 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import {
+  useAui,
   useComposer,
-  useThread,
-  useComposerRuntime,
-  useThreadRuntime,
+  useComposerSend,
+  useComposerCancel,
 } from "@assistant-ui/react-native";
 
 export function ChatComposer() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
 
-  const composerRuntime = useComposerRuntime();
-  const threadRuntime = useThreadRuntime();
-
+  const aui = useAui();
   const text = useComposer((s) => s.text);
-  const canSend = useComposer((s) => !s.isEmpty);
-  const isRunning = useThread((s) => s.isRunning);
-
-  const handleTextChange = useCallback(
-    (newText: string) => {
-      composerRuntime.setText(newText);
-    },
-    [composerRuntime],
-  );
-
-  const handleSend = useCallback(() => {
-    composerRuntime.send();
-  }, [composerRuntime]);
-
-  const handleCancel = useCallback(() => {
-    threadRuntime.cancelRun();
-  }, [threadRuntime]);
+  const { send, canSend } = useComposerSend();
+  const { cancel, canCancel } = useComposerCancel();
 
   return (
     <View
@@ -65,15 +47,15 @@ export function ChatComposer() {
           placeholder="Message..."
           placeholderTextColor="#8e8e93"
           value={text}
-          onChangeText={handleTextChange}
+          onChangeText={(newText) => aui.composer().setText(newText)}
           multiline
           maxLength={4000}
-          editable={!isRunning}
+          editable={!canCancel}
         />
-        {isRunning ? (
+        {canCancel ? (
           <Pressable
             style={[styles.button, styles.stopButton]}
-            onPress={handleCancel}
+            onPress={cancel}
           >
             <View style={styles.stopIcon} />
           </Pressable>
@@ -83,18 +65,17 @@ export function ChatComposer() {
               styles.button,
               styles.sendButton,
               {
-                backgroundColor:
-                  canSend && !isRunning
-                    ? isDark
-                      ? "#0a84ff"
-                      : "#007aff"
-                    : isDark
-                      ? "#3a3a3c"
-                      : "#e5e5ea",
+                backgroundColor: canSend
+                  ? isDark
+                    ? "#0a84ff"
+                    : "#007aff"
+                  : isDark
+                    ? "#3a3a3c"
+                    : "#e5e5ea",
               },
             ]}
-            onPress={handleSend}
-            disabled={!canSend || isRunning}
+            onPress={send}
+            disabled={!canSend}
           >
             <Ionicons
               name="arrow-up"
