@@ -34,7 +34,19 @@ import {
 } from "lucide-react";
 import type { FC } from "react";
 
-export const Thread: FC = () => {
+type AssistantMessagePartComponents = {
+  Component?: {
+    byName?: Record<string, (props: { props: unknown }) => any>;
+  };
+};
+
+type ThreadProps = {
+  assistantMessagePartComponents?: AssistantMessagePartComponents;
+};
+
+export const Thread: FC<ThreadProps> = ({
+  assistantMessagePartComponents: _assistantMessagePartComponents,
+}) => {
   return (
     <ThreadPrimitive.Root
       className="aui-root aui-thread-root @container flex h-full flex-col bg-background"
