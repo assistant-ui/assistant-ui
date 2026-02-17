@@ -93,7 +93,18 @@ export {
 } from "./primitive-hooks";
 
 // Runtime
-export { useLocalRuntime, type LocalRuntimeOptions } from "./runtimes";
+export {
+  useLocalRuntime,
+  type LocalRuntimeOptions,
+  useRemoteThreadListRuntime,
+} from "./runtimes";
+
+// Re-export core remote thread list types
+export type {
+  RemoteThreadListAdapter,
+  RemoteThreadListOptions,
+} from "@assistant-ui/core";
+export { InMemoryThreadListAdapter } from "@assistant-ui/core";
 
 // Primitives
 export * from "./primitives/thread";
@@ -105,9 +116,7 @@ export * from "./primitives/branchPicker";
 
 // Adapters
 export {
-  type StorageAdapter,
-  createInMemoryStorageAdapter,
-  createAsyncStorageAdapter,
   type TitleGenerationAdapter,
   createSimpleTitleAdapter,
+  createLocalStorageAdapter,
 } from "./adapters";

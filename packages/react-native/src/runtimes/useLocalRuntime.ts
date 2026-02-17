@@ -1,25 +1,43 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   AssistantRuntime,
   ChatModelAdapter,
   ThreadMessageLike,
+  RemoteThreadListAdapter,
 } from "@assistant-ui/core";
+import { InMemoryThreadListAdapter } from "@assistant-ui/core";
 import type { LocalRuntimeOptionsBase } from "@assistant-ui/core/internal";
-import { AssistantRuntimeImpl } from "@assistant-ui/core/internal";
-import { InMemoryRuntimeCore } from "./InMemoryRuntimeCore";
+import {
+  AssistantRuntimeImpl,
+  LocalRuntimeCore,
+} from "@assistant-ui/core/internal";
+import { useAuiState } from "@assistant-ui/store";
 import type { TitleGenerationAdapter } from "../adapters/TitleGenerationAdapter";
+import { useRemoteThreadListRuntime } from "./useRemoteThreadListRuntime";
+import { createLocalStorageAdapter } from "../adapters/LocalStorageThreadListAdapter";
+
+type AsyncStorageLike = {
+  getItem(key: string): Promise<string | null>;
+  setItem(key: string, value: string): Promise<void>;
+  removeItem(key: string): Promise<void>;
+};
 
 export type LocalRuntimeOptions = Omit<LocalRuntimeOptionsBase, "adapters"> & {
   adapters?: Omit<LocalRuntimeOptionsBase["adapters"], "chatModel"> | undefined;
   initialMessages?: readonly ThreadMessageLike[] | undefined;
   titleGenerator?: TitleGenerationAdapter | undefined;
+  storage?: AsyncStorageLike | undefined;
+  storagePrefix?: string | undefined;
 };
 
-export const useLocalRuntime = (
+const useInnerLocalRuntime = (
   chatModel: ChatModelAdapter,
-  options: LocalRuntimeOptions = {},
+  options: Omit<
+    LocalRuntimeOptions,
+    "titleGenerator" | "storage" | "storagePrefix"
+  >,
 ): AssistantRuntime => {
-  const { initialMessages, titleGenerator, ...restOptions } = options;
+  const { initialMessages, ...restOptions } = options;
 
   const opt: LocalRuntimeOptionsBase = {
     ...restOptions,
@@ -29,14 +47,51 @@ export const useLocalRuntime = (
     },
   };
 
-  const [core] = useState(
-    () => new InMemoryRuntimeCore(opt, initialMessages, { titleGenerator }),
-  );
+  const [runtime] = useState(() => new LocalRuntimeCore(opt, initialMessages));
+
+  const threadIdRef = useRef<string | undefined>(undefined);
+  threadIdRef.current = useAuiState((s) => s.threadListItem.remoteId);
 
   useEffect(() => {
-    core.threads.getMainThreadRuntimeCore().__internal_setOptions(opt);
-    core.threads.getMainThreadRuntimeCore().__internal_load();
+    runtime.threads
+      .getMainThreadRuntimeCore()
+      .__internal_setGetThreadId(() => threadIdRef.current);
+  }, [runtime]);
+
+  useEffect(() => {
+    return () => {
+      runtime.threads.getMainThreadRuntimeCore().detach();
+    };
+  }, [runtime]);
+
+  useEffect(() => {
+    runtime.threads.getMainThreadRuntimeCore().__internal_setOptions(opt);
+    runtime.threads.getMainThreadRuntimeCore().__internal_load();
   });
 
-  return useMemo(() => new AssistantRuntimeImpl(core), [core]);
+  return useMemo(() => new AssistantRuntimeImpl(runtime), [runtime]);
+};
+
+export const useLocalRuntime = (
+  chatModel: ChatModelAdapter,
+  options: LocalRuntimeOptions = {},
+): AssistantRuntime => {
+  const { titleGenerator, storage, storagePrefix, ...innerOptions } = options;
+
+  const adapter: RemoteThreadListAdapter = useMemo(() => {
+    if (!storage) return new InMemoryThreadListAdapter();
+    return createLocalStorageAdapter({
+      storage,
+      prefix: storagePrefix,
+      titleGenerator,
+    });
+  }, [storage, storagePrefix, titleGenerator]);
+
+  return useRemoteThreadListRuntime({
+    runtimeHook: function RuntimeHook() {
+      return useInnerLocalRuntime(chatModel, innerOptions);
+    },
+    adapter,
+    allowNesting: true,
+  });
 };

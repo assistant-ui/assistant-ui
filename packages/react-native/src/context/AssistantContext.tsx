@@ -1,6 +1,9 @@
-import { type ReactNode, memo } from "react";
+import { type ComponentType, type ReactNode, memo } from "react";
 import { useAui, AuiProvider } from "@assistant-ui/store";
-import type { AssistantRuntime } from "@assistant-ui/core";
+import type {
+  AssistantRuntime,
+  AssistantRuntimeCore,
+} from "@assistant-ui/core";
 import { RuntimeAdapter } from "../runtimes/runtime-adapter";
 
 export const useAssistantRuntime = (): AssistantRuntime => {
@@ -14,6 +17,12 @@ export const useAssistantRuntime = (): AssistantRuntime => {
   return runtime;
 };
 
+const getRenderComponent = (runtime: AssistantRuntime) => {
+  return (runtime as { _core?: AssistantRuntimeCore })._core?.RenderComponent as
+    | ComponentType
+    | undefined;
+};
+
 export const AssistantProvider = memo(
   ({
     runtime,
@@ -23,6 +32,13 @@ export const AssistantProvider = memo(
     children: ReactNode;
   }) => {
     const aui = useAui({ threads: RuntimeAdapter(runtime) }, { parent: null });
-    return <AuiProvider value={aui}>{children}</AuiProvider>;
+    const RenderComponent = getRenderComponent(runtime);
+
+    return (
+      <AuiProvider value={aui}>
+        {RenderComponent && <RenderComponent />}
+        {children}
+      </AuiProvider>
+    );
   },
 );

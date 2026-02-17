@@ -3,86 +3,79 @@ title: Adapters
 description: Storage and title generation adapters for React Native.
 ---
 
-Adapters customize how the local runtime persists threads and generates titles. Pass them to `useLocalRuntime` via the `adapters` option.
-
-```tsx
-import { useLocalRuntime } from "@assistant-ui/react-native";
-
-const runtime = useLocalRuntime(chatModel, {
-  adapters: {
-    storage: myStorageAdapter,
-    titleGenerator: myTitleAdapter,
-  },
-});
-```
-
-## StorageAdapter
-
-Persists threads and messages across app restarts.
-
-```tsx
-interface StorageAdapter {
-  loadThreads(): Promise<{ threadIds: string[]; threadItems: Record<string, { title?: string }> }>;
-  saveThreads(data: { threadIds: string[]; threadItems: Record<string, { title?: string }> }): Promise<void>;
-  loadMessages(threadId: string): Promise<ThreadMessage[]>;
-  saveMessages(threadId: string, messages: ThreadMessage[]): Promise<void>;
-  deleteThread(threadId: string): Promise<void>;
-}
-```
-
-### Built-in implementations
-
-#### In-Memory (default)
-
-Data lives in memory only — lost on app restart.
-
-```tsx
-import { createInMemoryStorageAdapter } from "@assistant-ui/react-native";
-
-const storage = createInMemoryStorageAdapter();
-```
-
-#### AsyncStorage
-
-Persists to `@react-native-async-storage/async-storage`.
+Adapters customize how the local runtime persists threads and generates titles. Pass them to `useLocalRuntime` via options.
 
 ```tsx
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { createAsyncStorageAdapter } from "@assistant-ui/react-native";
+import {
+  useLocalRuntime,
+  createSimpleTitleAdapter,
+} from "@assistant-ui/react-native";
 
-const storage = createAsyncStorageAdapter(AsyncStorage);
+const runtime = useLocalRuntime(chatModel, {
+  storage: AsyncStorage,
+  titleGenerator: createSimpleTitleAdapter(),
+});
 ```
 
-An optional `prefix` parameter namespaces the keys:
+## Storage
+
+The `storage` option accepts any object with `getItem`, `setItem`, and `removeItem` methods (matching the `AsyncStorage` interface). When provided, threads and messages are persisted across app restarts.
 
 ```tsx
-const storage = createAsyncStorageAdapter(AsyncStorage, "chat:");
-// Keys: "chat:threads", "chat:messages:<threadId>", ...
-```
-
-### Custom implementation
-
-```tsx
-import type { StorageAdapter } from "@assistant-ui/react-native";
-import * as SQLite from "expo-sqlite";
-
-const sqliteStorage: StorageAdapter = {
-  async loadThreads() {
-    // query your database
-  },
-  async saveThreads(data) {
-    // persist thread list
-  },
-  async loadMessages(threadId) {
-    // load messages for a thread
-  },
-  async saveMessages(threadId, messages) {
-    // persist messages
-  },
-  async deleteThread(threadId) {
-    // remove thread and its messages
-  },
+type AsyncStorageLike = {
+  getItem(key: string): Promise<string | null>;
+  setItem(key: string, value: string): Promise<void>;
+  removeItem(key: string): Promise<void>;
 };
+```
+
+### AsyncStorage
+
+The most common choice for React Native:
+
+```tsx
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+const runtime = useLocalRuntime(chatModel, {
+  storage: AsyncStorage,
+});
+```
+
+An optional `storagePrefix` parameter namespaces the keys:
+
+```tsx
+const runtime = useLocalRuntime(chatModel, {
+  storage: AsyncStorage,
+  storagePrefix: "chat:",
+  // Keys: "chat:threads", "chat:messages:<threadId>", ...
+});
+```
+
+### No storage (default)
+
+When `storage` is omitted, threads live in memory only — lost on app restart.
+
+```tsx
+const runtime = useLocalRuntime(chatModel);
+```
+
+### Advanced: createLocalStorageAdapter
+
+For more control, use `createLocalStorageAdapter` directly to create a `RemoteThreadListAdapter`:
+
+```tsx
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import {
+  createLocalStorageAdapter,
+  useRemoteThreadListRuntime,
+} from "@assistant-ui/react-native";
+
+const adapter = createLocalStorageAdapter({
+  storage: AsyncStorage,
+  prefix: "chat:",
+  titleGenerator: createSimpleTitleAdapter(),
+});
 ```
 
 ## TitleGenerationAdapter
@@ -97,7 +90,7 @@ interface TitleGenerationAdapter {
 
 ### Built-in implementations
 
-#### Simple title adapter (default)
+#### Simple title adapter
 
 Returns the first 50 characters of the first user message.
 
