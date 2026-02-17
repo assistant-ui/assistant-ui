@@ -58,16 +58,7 @@ export {
 } from "@assistant-ui/store";
 
 // Context providers and hooks
-export {
-  AssistantProvider,
-  useAssistantRuntime,
-  ThreadProvider,
-  useThreadRuntime,
-  MessageProvider,
-  useMessageRuntime,
-  ComposerProvider,
-  useComposerRuntime,
-} from "./context";
+export { AssistantProvider, useAssistantRuntime } from "./context";
 
 // State hooks
 export {
