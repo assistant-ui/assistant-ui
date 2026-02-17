@@ -1,4 +1,3 @@
-"use client";
 import { getClientState } from "../tapClientResource";
 import type { AssistantClient, AssistantState } from "../types/client";
 import { BaseProxyHandler, handleIntrospectionProp } from "./BaseProxyHandler";

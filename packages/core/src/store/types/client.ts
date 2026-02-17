@@ -37,7 +37,7 @@ export type ClientSchema<
  *
  * @example
  * ```typescript
- * declare module "@assistant-ui/store" {
+ * declare module "@assistant-ui/core/store" {
  *   interface ScopeRegistry {
  *     // Simple client (meta and events are optional)
  *     foo: {

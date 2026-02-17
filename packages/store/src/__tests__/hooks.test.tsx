@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { AuiProvider } from "../utils/react-assistant-context";
 import { useAuiState } from "../useAuiState";
 import { useAuiEvent } from "../useAuiEvent";
-import { PROXIED_ASSISTANT_STATE_SYMBOL } from "../utils/proxied-assistant-state";
+import { PROXIED_ASSISTANT_STATE_SYMBOL } from "@assistant-ui/core/store";
 
 afterEach(() => {
   vi.restoreAllMocks();

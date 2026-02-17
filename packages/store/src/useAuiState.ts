@@ -1,7 +1,7 @@
 import { useSyncExternalStore, useDebugValue } from "react";
-import type { AssistantState } from "./types/client";
+import type { AssistantState } from "@assistant-ui/core/store";
+import { getProxiedAssistantState } from "@assistant-ui/core/store";
 import { useAui } from "./useAui";
-import { getProxiedAssistantState } from "./utils/proxied-assistant-state";
 
 /**
  * Hook to access a slice of the assistant state with automatic subscription

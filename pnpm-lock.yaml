@@ -2731,6 +2731,9 @@ importers:
 
   packages/store:
     dependencies:
+      '@assistant-ui/core':
+        specifier: workspace:*
+        version: link:../core
       '@assistant-ui/tap':
         specifier: ^0.4.5
         version: link:../tap

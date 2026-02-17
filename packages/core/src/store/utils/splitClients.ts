@@ -4,8 +4,10 @@ import type {
   ClientElement,
   ClientNames,
 } from "../types/client";
-import { getTransformScopes } from "../attachTransformScopes";
-import type { useAui } from "../useAui";
+import {
+  getTransformScopes,
+  type ScopesConfig,
+} from "../attachTransformScopes";
 import { tapMemo } from "@assistant-ui/tap";
 
 export type RootClients = Partial<
@@ -19,7 +21,7 @@ export type DerivedClients = Partial<
  * Splits a clients object into root clients and derived clients,
  * applying transformScopes from root client elements.
  */
-function splitClients(clients: useAui.Props, baseClient: AssistantClient) {
+function splitClients(clients: ScopesConfig, baseClient: AssistantClient) {
   // 1. Collect transforms from root elements and run them iteratively
   let scopes = { ...clients } as Record<
     string,
@@ -68,7 +70,7 @@ const tapShallowMemoObject = <T extends object>(object: T) => {
 };
 
 export const tapSplitClients = (
-  clients: useAui.Props,
+  clients: ScopesConfig,
   baseClient: AssistantClient,
 ) => {
   const { rootClients, derivedClients } = splitClients(clients, baseClient);

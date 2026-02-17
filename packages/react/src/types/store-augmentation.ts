@@ -1,4 +1,4 @@
-import "@assistant-ui/store";
+import "@assistant-ui/core/store";
 
 import type { ThreadsClientSchema } from "./scopes/threads";
 import type { ThreadListItemClientSchema } from "./scopes/threadListItem";
@@ -14,7 +14,7 @@ import type { SuggestionsClientSchema } from "./scopes/suggestions";
 import type { SuggestionClientSchema } from "./scopes/suggestion";
 import type { ChainOfThoughtClientSchema } from "./scopes/chainOfThought";
 
-declare module "@assistant-ui/store" {
+declare module "@assistant-ui/core/store" {
   interface ScopeRegistry {
     threads: ThreadsClientSchema;
     threadListItem: ThreadListItemClientSchema;
