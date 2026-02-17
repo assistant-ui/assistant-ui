@@ -61,23 +61,16 @@ export type ModelSelectorRootProps = {
 
 function ModelSelectorRoot({
   models,
-  value,
-  onValueChange,
-  defaultValue,
-  open,
-  onOpenChange,
-  defaultOpen,
+  defaultValue: defaultValueProp,
   children,
+  ...selectProps
 }: ModelSelectorRootProps) {
+  const defaultValue = defaultValueProp ?? models[0]?.id;
   return (
     <ModelSelectorContext.Provider value={{ models }}>
       <SelectRoot
-        value={value}
-        onValueChange={onValueChange}
-        defaultValue={defaultValue ?? models[0]?.id}
-        open={open}
-        onOpenChange={onOpenChange}
-        defaultOpen={defaultOpen}
+        {...(defaultValue !== undefined ? { defaultValue } : undefined)}
+        {...selectProps}
       >
         {children}
       </SelectRoot>
@@ -193,16 +186,14 @@ export type ModelSelectorProps = Omit<ModelSelectorRootProps, "children"> &
   };
 
 const ModelSelectorImpl = ({
-  models,
   value: controlledValue,
   onValueChange: controlledOnValueChange,
   defaultValue,
-  open,
-  onOpenChange,
-  defaultOpen,
+  models,
   variant,
   size,
   contentClassName,
+  ...forwardedProps
 }: ModelSelectorProps) => {
   const isControlled = controlledValue !== undefined;
   const [internalValue, setInternalValue] = useState(
@@ -226,9 +217,7 @@ const ModelSelectorImpl = ({
       models={models}
       value={value}
       onValueChange={onValueChange}
-      open={open}
-      onOpenChange={onOpenChange}
-      defaultOpen={defaultOpen}
+      {...forwardedProps}
     >
       <ModelSelectorTrigger variant={variant} size={size} />
       <ModelSelectorContent className={contentClassName} />
