@@ -1,0 +1,210 @@
+---
+title: Custom Backend
+description: Connect your React Native app to your own backend API.
+---
+
+By default, `useLocalRuntime` manages threads and messages on-device. You can connect to your own backend in two ways depending on your needs.
+
+## Option 1: ChatModelAdapter only
+
+The simplest approach — keep thread management local, but send messages to your backend for inference.
+
+```tsx title="adapters/my-chat-adapter.ts"
+import type { ChatModelAdapter } from "@assistant-ui/react-native";
+
+export const myChatAdapter: ChatModelAdapter = {
+  async *run({ messages, abortSignal }) {
+    const response = await fetch("https://my-api.com/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages }),
+      signal: abortSignal,
+    });
+
+    const reader = response.body?.getReader();
+    if (!reader) throw new Error("No response body");
+
+    const decoder = new TextDecoder();
+    let fullText = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value, { stream: true });
+      fullText += chunk;
+      yield { content: [{ type: "text", text: fullText }] };
+    }
+  },
+};
+```
+
+```tsx title="hooks/use-app-runtime.ts"
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useLocalRuntime } from "@assistant-ui/react-native";
+import { myChatAdapter } from "@/adapters/my-chat-adapter";
+
+export function useAppRuntime() {
+  return useLocalRuntime(myChatAdapter, {
+    storage: AsyncStorage, // threads + messages persisted locally
+  });
+}
+```
+
+This gives you:
+
+- Streaming chat responses from your API
+- Local thread list with persistence (AsyncStorage)
+- Message history saved across app restarts
+
+## Option 2: Full backend thread management
+
+When you want your backend to own thread state (e.g. for cross-device sync, team sharing, or server-side history), implement a `RemoteThreadListAdapter`.
+
+<Steps>
+  <Step>
+
+### Implement the adapter
+
+```tsx title="adapters/my-thread-list-adapter.ts"
+import type { RemoteThreadListAdapter } from "@assistant-ui/react-native";
+import { createAssistantStream } from "assistant-stream";
+
+const API_BASE = "https://my-api.com";
+
+export const myThreadListAdapter: RemoteThreadListAdapter = {
+  async list() {
+    const res = await fetch(`${API_BASE}/threads`);
+    const threads = await res.json();
+    return {
+      threads: threads.map((t: any) => ({
+        remoteId: t.id,
+        status: t.archived ? "archived" : "regular",
+        title: t.title,
+      })),
+    };
+  },
+
+  async initialize(localId) {
+    const res = await fetch(`${API_BASE}/threads`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ localId }),
+    });
+    const { id } = await res.json();
+    return { remoteId: id, externalId: undefined };
+  },
+
+  async rename(remoteId, title) {
+    await fetch(`${API_BASE}/threads/${remoteId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title }),
+    });
+  },
+
+  async archive(remoteId) {
+    await fetch(`${API_BASE}/threads/${remoteId}/archive`, {
+      method: "POST",
+    });
+  },
+
+  async unarchive(remoteId) {
+    await fetch(`${API_BASE}/threads/${remoteId}/unarchive`, {
+      method: "POST",
+    });
+  },
+
+  async delete(remoteId) {
+    await fetch(`${API_BASE}/threads/${remoteId}`, { method: "DELETE" });
+  },
+
+  async fetch(remoteId) {
+    const res = await fetch(`${API_BASE}/threads/${remoteId}`);
+    const t = await res.json();
+    return {
+      remoteId: t.id,
+      status: t.archived ? "archived" : "regular",
+      title: t.title,
+    };
+  },
+
+  async generateTitle(remoteId, messages) {
+    return createAssistantStream(async (controller) => {
+      const res = await fetch(`${API_BASE}/threads/${remoteId}/title`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages }),
+      });
+      const { title } = await res.json();
+      controller.appendText(title);
+    });
+  },
+};
+```
+
+  </Step>
+  <Step>
+
+### Compose the runtime
+
+```tsx title="hooks/use-app-runtime.ts"
+import {
+  useLocalRuntime,
+  useRemoteThreadListRuntime,
+} from "@assistant-ui/react-native";
+import { myChatAdapter } from "@/adapters/my-chat-adapter";
+import { myThreadListAdapter } from "@/adapters/my-thread-list-adapter";
+
+export function useAppRuntime() {
+  return useRemoteThreadListRuntime({
+    runtimeHook: () => useLocalRuntime(myChatAdapter),
+    adapter: myThreadListAdapter,
+  });
+}
+```
+
+  </Step>
+  <Step>
+
+### Use in your app
+
+```tsx title="app/index.tsx"
+import { AssistantProvider } from "@assistant-ui/react-native";
+import { useAppRuntime } from "@/hooks/use-app-runtime";
+
+export default function App() {
+  const runtime = useAppRuntime();
+  return (
+    <AssistantProvider runtime={runtime}>
+      {/* your chat UI */}
+    </AssistantProvider>
+  );
+}
+```
+
+  </Step>
+</Steps>
+
+## Adapter methods
+
+| Method | Description |
+|--------|-------------|
+| `list()` | Return all threads on mount |
+| `initialize(localId)` | Create a thread server-side, return `{ remoteId }` |
+| `rename(remoteId, title)` | Persist title changes |
+| `archive(remoteId)` | Mark thread as archived |
+| `unarchive(remoteId)` | Restore archived thread |
+| `delete(remoteId)` | Permanently remove thread |
+| `fetch(remoteId)` | Fetch single thread metadata |
+| `generateTitle(remoteId, messages)` | Return an `AssistantStream` with the generated title |
+
+## Which option to choose?
+
+| | Option 1: ChatModelAdapter | Option 2: RemoteThreadListAdapter |
+|---|---|---|
+| **Thread storage** | On-device (AsyncStorage) | Your backend |
+| **Message storage** | On-device (AsyncStorage) | On-device (can add history adapter for server-side) |
+| **Cross-device sync** | No | Yes |
+| **Setup complexity** | Minimal | Moderate |
+| **Best for** | Single-device apps, prototypes | Production apps with user accounts |

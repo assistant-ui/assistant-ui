@@ -171,25 +171,24 @@ messageRuntime.switchToBranch({ position: "next" });
 
 ### useLocalRuntime
 
-Create an `AssistantRuntime` with an in-memory thread list and a `ChatModelAdapter`.
+Create an `AssistantRuntime` with a `ChatModelAdapter`. Optionally pass `storage` for persistence.
 
 ```tsx
 import { useLocalRuntime } from "@assistant-ui/react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const runtime = useLocalRuntime(chatModel, {
-  initialMessages: [],
-  adapters: {
-    storage: myStorageAdapter,
-    titleGenerator: myTitleAdapter,
-  },
+  storage: AsyncStorage,
+  titleGenerator: createSimpleTitleAdapter(),
 });
 ```
 
 | Option | Type | Description |
 |--------|------|-------------|
 | `initialMessages` | `ThreadMessageLike[]` | Messages to pre-populate |
-| `adapters.storage` | `StorageAdapter` | Thread/message persistence |
-| `adapters.titleGenerator` | `TitleGenerationAdapter` | Auto-generate thread titles |
+| `storage` | `AsyncStorageLike` | Thread and message persistence |
+| `storagePrefix` | `string` | Key prefix for storage (default `"@assistant-ui:"`) |
+| `titleGenerator` | `TitleGenerationAdapter` | Auto-generate thread titles |
 
 ## Primitive Hooks
 

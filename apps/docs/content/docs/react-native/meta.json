@@ -3,5 +3,12 @@
   "description": "Build AI chat UIs for iOS and Android",
   "icon": "Smartphone",
   "root": true,
-  "pages": ["index", "---API Reference---", "primitives", "hooks", "adapters"]
+  "pages": [
+    "index",
+    "custom-backend",
+    "---API Reference---",
+    "primitives",
+    "hooks",
+    "adapters"
+  ]
 }
