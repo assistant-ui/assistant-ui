@@ -225,8 +225,13 @@ async def create_run(
             if not task.done():
                 # Give callbacks a brief chance to observe `is_cancelled`
                 # and exit cooperatively before forcing cancellation.
-                with suppress(asyncio.TimeoutError, asyncio.CancelledError):
+                try:
                     await asyncio.wait_for(asyncio.shield(task), timeout=0.05)
+                except asyncio.TimeoutError:
+                    pass
+                except Exception:
+                    # The stream consumer already disconnected, so suppress callback errors.
+                    pass
             if not task.done():
                 task.cancel()
             try:
