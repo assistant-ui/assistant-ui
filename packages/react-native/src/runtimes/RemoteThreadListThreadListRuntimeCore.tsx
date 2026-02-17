@@ -378,12 +378,14 @@ export class RemoteThreadListThreadListRuntimeCore
       const newTitle =
         textPart && "text" in textPart ? (textPart.text as string) : undefined;
       const state = this._state.baseValue;
+      const currentData = getThreadData(state, data.id);
+      if (!currentData) continue;
       this._state.update({
         ...state,
         threadData: {
           ...state.threadData,
           [data.id]: {
-            ...data,
+            ...currentData,
             title: newTitle,
           },
         },
