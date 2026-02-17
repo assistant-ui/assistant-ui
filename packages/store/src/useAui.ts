@@ -27,16 +27,18 @@ import {
   type AssistantEventName,
   type AssistantEventCallback,
   type AssistantEventSelector,
+  tapClientResource,
+} from "@assistant-ui/core/store";
+import {
   NotificationManager,
   withAssistantTapContextProvider,
-  tapClientResource,
   getClientIndex,
   PROXIED_ASSISTANT_STATE_SYMBOL,
   createProxiedAssistantState,
   type RootClients,
   type DerivedClients,
   tapSplitClients,
-} from "@assistant-ui/core/store";
+} from "@assistant-ui/core/store/internal";
 import {
   useAssistantContextValue,
   DefaultAssistantClient,

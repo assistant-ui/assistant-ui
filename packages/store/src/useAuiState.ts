@@ -1,6 +1,6 @@
 import { useSyncExternalStore, useDebugValue } from "react";
 import type { AssistantState } from "@assistant-ui/core/store";
-import { getProxiedAssistantState } from "@assistant-ui/core/store";
+import { getProxiedAssistantState } from "@assistant-ui/core/store/internal";
 import { useAui } from "./useAui";
 
 /**

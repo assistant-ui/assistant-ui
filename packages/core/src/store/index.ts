@@ -42,34 +42,3 @@ export * from "./scopes";
 
 // clients
 export * from "./clients";
-
-// utils (re-exported for internal use by @assistant-ui/store)
-export {
-  BaseProxyHandler,
-  handleIntrospectionProp,
-} from "./utils/base-proxy-handler";
-export {
-  SYMBOL_CLIENT_INDEX,
-  getClientIndex,
-  type ClientStack,
-  tapClientStack,
-  tapWithClientStack,
-} from "./utils/tap-client-stack-context";
-export {
-  type AssistantTapContextValue,
-  withAssistantTapContextProvider,
-} from "./utils/tap-assistant-context";
-export { NotificationManager } from "./utils/notification-manager";
-export {
-  PROXIED_ASSISTANT_STATE_SYMBOL,
-  createProxiedAssistantState,
-  getProxiedAssistantState,
-} from "./utils/proxied-assistant-state";
-export {
-  type RootClients,
-  type DerivedClients,
-  tapSplitClients,
-} from "./utils/split-clients";
-export { getClientState, ClientResource } from "./tap-client-resource";
-export { wrapperResource } from "./wrapper-resource";
-export { getTransformScopes } from "./attach-transform-scopes";

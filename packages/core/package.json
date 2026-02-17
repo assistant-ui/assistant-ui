@@ -28,6 +28,11 @@
       "types": "./dist/store/index.d.ts",
       "default": "./dist/store/index.js"
     },
+    "./store/internal": {
+      "aui-source": "./src/store/internal.ts",
+      "types": "./dist/store/internal.d.ts",
+      "default": "./dist/store/internal.js"
+    },
     "./*": {
       "aui-source": "./src/*.ts",
       "types": "./dist/*.d.ts",

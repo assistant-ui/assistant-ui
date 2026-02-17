@@ -8,7 +8,7 @@ import {
   PROXIED_ASSISTANT_STATE_SYMBOL,
   BaseProxyHandler,
   handleIntrospectionProp,
-} from "@assistant-ui/core/store";
+} from "@assistant-ui/core/store/internal";
 
 const NO_OP_SUBSCRIBE = () => () => {};
 
