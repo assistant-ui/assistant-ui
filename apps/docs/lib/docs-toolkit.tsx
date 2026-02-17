@@ -1,6 +1,12 @@
 "use client";
 import type { Toolkit } from "@assistant-ui/react";
 import { cn } from "@/lib/utils";
+import {
+  WeatherWidget,
+  type ForecastDay,
+  type PrecipitationLevel,
+  type WeatherConditionCode,
+} from "@/components/tool-ui/weather-widget/runtime";
 import { MapPin, CloudSun, AlertCircle } from "lucide-react";
 import { z } from "zod";
 
@@ -81,6 +87,88 @@ const geocodeLocationTool = {
   },
 };
 
+const mapOpenMeteoCodeToCondition = (
+  code: number,
+  windSpeed?: number,
+): WeatherConditionCode => {
+  if (windSpeed !== undefined && windSpeed >= 45 && code <= 3) return "windy";
+
+  switch (code) {
+    case 0:
+      return "clear";
+    case 1:
+    case 2:
+      return "partly-cloudy";
+    case 3:
+      return "overcast";
+    case 45:
+    case 48:
+      return "fog";
+    case 51:
+    case 53:
+    case 55:
+      return "drizzle";
+    case 56:
+    case 57:
+    case 66:
+    case 67:
+      return "sleet";
+    case 61:
+    case 63:
+    case 80:
+    case 81:
+      return "rain";
+    case 65:
+    case 82:
+      return "heavy-rain";
+    case 71:
+    case 73:
+    case 75:
+    case 77:
+    case 85:
+    case 86:
+      return "snow";
+    case 95:
+      return "thunderstorm";
+    case 96:
+    case 99:
+      return "hail";
+    default:
+      return "cloudy";
+  }
+};
+
+const mapPrecipitationLevel = (
+  precipitation?: number,
+): PrecipitationLevel | undefined => {
+  if (precipitation === undefined) return undefined;
+  if (precipitation <= 0) return "none";
+  if (precipitation < 1) return "light";
+  if (precipitation < 4) return "moderate";
+  return "heavy";
+};
+
+const getLocalTimeOfDay = (time?: string): number => {
+  if (!time) return new Date().getHours() / 24;
+  const [, rawClock = "12:00"] = time.split("T");
+  const [hours = "12", minutes = "0"] = rawClock.split(":");
+  const parsedHours = Number.parseInt(hours, 10);
+  const parsedMinutes = Number.parseInt(minutes, 10);
+  if (Number.isNaN(parsedHours) || Number.isNaN(parsedMinutes)) {
+    return new Date().getHours() / 24;
+  }
+  return (parsedHours + parsedMinutes / 60) / 24;
+};
+
+const formatForecastLabel = (date: string, index: number): string => {
+  if (index === 0) return "Today";
+  const parsedDate = new Date(`${date}T12:00:00`);
+  if (Number.isNaN(parsedDate.getTime())) return `Day ${index + 1}`;
+  return new Intl.DateTimeFormat("en-US", { weekday: "short" }).format(
+    parsedDate,
+  );
+};
+
 const weatherSearchTool = {
   description: "Find the weather in a location given a longitude and latitude",
   parameters: z.object({
@@ -95,7 +183,7 @@ const weatherSearchTool = {
   }) => {
     try {
       const response = await fetch(
-        `https://api.open-meteo.com/v1/forecast?latitude=${args.latitude}&longitude=${args.longitude}&hourly=temperature_2m&models=jma_seamless`,
+        `https://api.open-meteo.com/v1/forecast?latitude=${args.latitude}&longitude=${args.longitude}&timezone=auto&temperature_unit=fahrenheit&current=temperature_2m,weather_code,wind_speed_10m,precipitation,visibility&daily=weather_code,temperature_2m_max,temperature_2m_min&forecast_days=5`,
       );
 
       if (!response.ok) {
@@ -103,32 +191,58 @@ const weatherSearchTool = {
       }
 
       const data = await response.json();
+      const current = data.current;
+      const daily = data.daily;
 
-      if (data.hourly?.time && data.hourly.temperature_2m) {
-        const now = new Date();
-        const nowUtcString = `${now.toISOString().substring(0, 14)}00`;
-
-        let currentHourIndex = data.hourly.time.findIndex(
-          (t: string) => t >= nowUtcString,
-        );
-
-        currentHourIndex =
-          currentHourIndex > 0
-            ? currentHourIndex - 1
-            : currentHourIndex === -1
-              ? data.hourly.time.length - 1
-              : 0;
-
-        const currentTemp = data.hourly.temperature_2m[currentHourIndex];
-
-        return {
-          success: true,
-          temperature: currentTemp,
-          timestamp: data.hourly.time[currentHourIndex],
-        };
-      } else {
+      if (
+        !current ||
+        !daily?.time ||
+        !daily?.weather_code ||
+        !daily?.temperature_2m_max ||
+        !daily?.temperature_2m_min
+      ) {
         throw new Error("Invalid API response format");
       }
+
+      const forecast: ForecastDay[] = daily.time
+        .slice(0, 5)
+        .map((date: string, index: number) => ({
+          label: formatForecastLabel(date, index),
+          conditionCode: mapOpenMeteoCodeToCondition(daily.weather_code[index]),
+          tempMin: daily.temperature_2m_min[index],
+          tempMax: daily.temperature_2m_max[index],
+        }));
+
+      if (forecast.length === 0) {
+        throw new Error("No forecast data available");
+      }
+
+      return {
+        success: true,
+        widget: {
+          version: "3.1" as const,
+          id: `docs-weather-${args.query.toLowerCase().replaceAll(/\W+/g, "-")}`,
+          location: { name: args.query },
+          units: { temperature: "fahrenheit" as const },
+          current: {
+            conditionCode: mapOpenMeteoCodeToCondition(
+              current.weather_code,
+              current.wind_speed_10m,
+            ),
+            temperature: current.temperature_2m,
+            tempMin: daily.temperature_2m_min[0],
+            tempMax: daily.temperature_2m_max[0],
+            windSpeed: current.wind_speed_10m,
+            precipitationLevel: mapPrecipitationLevel(current.precipitation),
+            visibility: current.visibility,
+          },
+          forecast,
+          time: {
+            localTimeOfDay: getLocalTimeOfDay(current.time),
+          },
+          updatedAt: new Date().toISOString(),
+        },
+      };
     } catch (error) {
       return {
         success: false,
@@ -140,7 +254,6 @@ const weatherSearchTool = {
   render: ({ args, result }: any) => {
     const isLoading = !result;
     const error = result?.success === false ? result.error : null;
-    const temp = result?.success ? result.temperature : null;
 
     if (error) {
       return (
@@ -169,19 +282,23 @@ const weatherSearchTool = {
       );
     }
 
-    return (
-      <ToolCard>
-        <ToolCardIcon>
-          <CloudSun className="size-4" />
-        </ToolCardIcon>
-        <ToolCardContent>
-          <ToolCardTitle>{args?.query}</ToolCardTitle>
-          <ToolCardDescription>
-            {temp !== null ? `${temp}°C` : "N/A"}
-          </ToolCardDescription>
-        </ToolCardContent>
-      </ToolCard>
-    );
+    if (!result?.widget) {
+      return (
+        <ToolCard variant="error">
+          <ToolCardIcon>
+            <AlertCircle className="size-4" />
+          </ToolCardIcon>
+          <ToolCardContent>
+            <ToolCardTitle>Weather unavailable</ToolCardTitle>
+            <ToolCardDescription>
+              Missing weather widget payload for {args?.query}
+            </ToolCardDescription>
+          </ToolCardContent>
+        </ToolCard>
+      );
+    }
+
+    return <WeatherWidget {...result.widget} className="my-2" />;
   },
 };
 
