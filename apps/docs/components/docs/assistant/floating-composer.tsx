@@ -65,7 +65,7 @@ export function FloatingComposer(): ReactNode {
   return (
     <div
       className={`fixed bottom-6 left-1/2 z-40 hidden w-full -translate-x-1/2 px-4 transition-all duration-300 ease-out md:block ${
-        expanded ? "max-w-[32rem]" : "max-w-96"
+        expanded ? "max-w-[30rem]" : "max-w-[22rem]"
       } ${
         visible
           ? "translate-y-0 opacity-100"
@@ -77,7 +77,7 @@ export function FloatingComposer(): ReactNode {
       <div ref={containerRef}>
         <ComposerPrimitive.Root onSubmit={handleSubmit}>
           <div
-            className={`rounded-xl border shadow-lg backdrop-blur-sm transition-all duration-200 ease-out ${
+            className={`relative rounded-xl border shadow-lg backdrop-blur-sm transition-all duration-200 ease-out ${
               expanded
                 ? "bg-background/90 border-ring/50 ring-1 ring-ring/20"
                 : "bg-background/80 border-border hover:ring-2 hover:ring-ring/30"
@@ -91,30 +91,36 @@ export function FloatingComposer(): ReactNode {
             >
               <textarea
                 placeholder="Ask a question..."
-                className={`field-sizing-content w-full resize-none bg-transparent px-3 pt-2.5 pb-2 text-sm leading-5 transition-[max-height] duration-200 ease-out placeholder:text-muted-foreground focus:outline-none ${
-                  expanded ? "max-h-32" : "max-h-[38px] overflow-hidden"
+                className={`field-sizing-content w-full resize-none bg-transparent px-3 pt-2.5 text-sm leading-5 transition-[max-height,padding] duration-200 ease-out placeholder:text-muted-foreground focus:outline-none ${
+                  expanded
+                    ? "max-h-32 pb-10"
+                    : "max-h-[38px] overflow-hidden pb-2"
                 }`}
                 rows={1}
                 onFocus={() => setExpanded(true)}
               />
             </ComposerPrimitive.Input>
             <div
-              className={`grid transition-[grid-template-rows] duration-200 ease-out ${
-                expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+              className={`absolute inset-x-0 bottom-0 px-1.5 pb-1.5 transition-[opacity,transform] ease-out ${
+                expanded
+                  ? "pointer-events-auto translate-y-0 opacity-100 duration-200"
+                  : "pointer-events-none translate-y-1 opacity-0 duration-100"
               }`}
             >
-              <div className="overflow-hidden">
+              <div className="flex items-center justify-between">
+                <ModelSelector
+                  models={models}
+                  defaultValue={MODELS[0].value}
+                  variant="ghost"
+                  size="sm"
+                />
                 <div
-                  className={`flex items-center justify-between px-1.5 pb-1.5 transition-opacity duration-200 ${
-                    expanded ? "opacity-100" : "opacity-0"
+                  className={`transition-opacity ease-out ${
+                    expanded
+                      ? "opacity-100 duration-200"
+                      : "opacity-0 duration-100"
                   }`}
                 >
-                  <ModelSelector
-                    models={models}
-                    defaultValue={MODELS[0].value}
-                    variant="ghost"
-                    size="sm"
-                  />
                   <AssistantComposerAction />
                 </div>
               </div>
