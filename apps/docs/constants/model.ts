@@ -1,5 +1,3 @@
-import Image from "next/image";
-
 export const MODELS = [
   {
     name: "GPT-5 Nano",
@@ -32,18 +30,3 @@ export const MODELS = [
 ] as const;
 
 export type Model = (typeof MODELS)[number];
-
-export const MODEL_OPTIONS = MODELS.map((m) => ({
-  id: m.value,
-  name: m.name,
-  icon: (
-    <Image
-      src={m.icon}
-      alt={m.name}
-      width={14}
-      height={14}
-      className="size-3.5"
-    />
-  ),
-  ...(m.disabled ? { disabled: true as const } : undefined),
-}));

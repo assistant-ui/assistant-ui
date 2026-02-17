@@ -6,7 +6,8 @@ import {
 } from "@/components/docs/assistant/composer";
 import { useAssistantPanel } from "@/components/docs/assistant/context";
 import { ModelSelector } from "@/components/assistant-ui/model-selector";
-import { MODEL_OPTIONS, MODELS } from "@/constants/model";
+import { MODELS } from "@/constants/model";
+import Image from "next/image";
 import { ComposerPrimitive, useAuiState } from "@assistant-ui/react";
 import {
   useCallback,
@@ -16,6 +17,21 @@ import {
   type RefObject,
   type ReactNode,
 } from "react";
+
+const models = MODELS.map((m) => ({
+  id: m.value,
+  name: m.name,
+  icon: (
+    <Image
+      src={m.icon}
+      alt={m.name}
+      width={14}
+      height={14}
+      className="size-3.5"
+    />
+  ),
+  ...(m.disabled ? { disabled: true as const } : undefined),
+}));
 
 function useHasScrolled(threshold: number): boolean {
   const [hasScrolled, setHasScrolled] = useState(false);
@@ -139,7 +155,7 @@ export function FloatingComposer(): ReactNode {
             >
               <div className="flex items-center justify-between">
                 <ModelSelector
-                  models={MODEL_OPTIONS}
+                  models={models}
                   defaultValue={MODELS[0].value}
                   variant="ghost"
                   size="sm"
