@@ -21,6 +21,22 @@ export type MessageContentProps = {
     part: Extract<MessageContentPart, { type: "image" }>;
     index: number;
   }) => ReactElement;
+  renderReasoning?: (props: {
+    part: Extract<MessageContentPart, { type: "reasoning" }>;
+    index: number;
+  }) => ReactElement;
+  renderSource?: (props: {
+    part: Extract<MessageContentPart, { type: "source" }>;
+    index: number;
+  }) => ReactElement;
+  renderFile?: (props: {
+    part: Extract<MessageContentPart, { type: "file" }>;
+    index: number;
+  }) => ReactElement;
+  renderData?: (props: {
+    part: Extract<MessageContentPart, { type: "data" }>;
+    index: number;
+  }) => ReactElement;
 };
 
 const DefaultTextRenderer = ({
@@ -35,6 +51,10 @@ export const MessageContent = ({
   renderText,
   renderToolCall,
   renderImage,
+  renderReasoning,
+  renderSource,
+  renderFile,
+  renderData,
 }: MessageContentProps) => {
   const content = useMessage((s) => s.content);
 
@@ -63,6 +83,22 @@ export const MessageContent = ({
             return (
               <Fragment key={key}>{renderImage({ part, index })}</Fragment>
             );
+          case "reasoning":
+            if (!renderReasoning) return null;
+            return (
+              <Fragment key={key}>{renderReasoning({ part, index })}</Fragment>
+            );
+          case "source":
+            if (!renderSource) return null;
+            return (
+              <Fragment key={key}>{renderSource({ part, index })}</Fragment>
+            );
+          case "file":
+            if (!renderFile) return null;
+            return <Fragment key={key}>{renderFile({ part, index })}</Fragment>;
+          case "data":
+            if (!renderData) return null;
+            return <Fragment key={key}>{renderData({ part, index })}</Fragment>;
           default:
             return null;
         }

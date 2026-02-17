@@ -13,8 +13,12 @@ export type {
   // Message parts
   TextMessagePart,
   ReasoningMessagePart,
+  SourceMessagePart,
   ToolCallMessagePart,
   ImageMessagePart,
+  FileMessagePart,
+  DataMessagePart,
+  Unstable_AudioMessagePart,
   ThreadUserMessagePart,
   ThreadAssistantMessagePart,
   // Runtime types
@@ -78,6 +82,14 @@ export {
   useComposerCancel,
   useMessageReload,
   useMessageBranching,
+  useActionBarCopy,
+  type UseActionBarCopyOptions,
+  useActionBarEdit,
+  useActionBarReload,
+  useActionBarFeedbackPositive,
+  useActionBarFeedbackNegative,
+  useEditComposerSend,
+  useEditComposerCancel,
 } from "./primitive-hooks";
 
 // Runtime
@@ -88,6 +100,8 @@ export * from "./primitives/thread";
 export * from "./primitives/composer";
 export * from "./primitives/message";
 export * from "./primitives/threadList";
+export * from "./primitives/actionBar";
+export * from "./primitives/branchPicker";
 
 // Adapters
 export {
