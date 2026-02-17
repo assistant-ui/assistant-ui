@@ -9,7 +9,7 @@ import {
 } from "../../runtime/AssistantRuntime";
 import { useRuntimeAdapters } from "../adapters/RuntimeAdapterProvider";
 
-export const useExternalStoreRuntime = <T,>(
+export const useExternalStoreRuntime = <T>(
   store: ExternalStoreAdapter<T>,
 ): AssistantRuntime => {
   const [runtime] = useState(() => new ExternalStoreRuntimeCore(store));

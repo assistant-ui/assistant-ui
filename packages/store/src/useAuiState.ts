@@ -18,7 +18,7 @@ import { getProxiedAssistantState } from "./utils/proxied-assistant-state";
  * const bar = useAuiState((state) => state.foo.bar);
  * ```
  */
-export const useAuiState = <T,>(selector: (state: AssistantState) => T): T => {
+export const useAuiState = <T>(selector: (state: AssistantState) => T): T => {
   const aui = useAui();
   const proxiedState = getProxiedAssistantState(aui);
 

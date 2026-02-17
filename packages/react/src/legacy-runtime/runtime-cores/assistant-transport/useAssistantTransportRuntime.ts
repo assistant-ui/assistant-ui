@@ -109,7 +109,7 @@ export function useAssistantTransportState<T>(
   );
 }
 
-const useAssistantTransportThreadRuntime = <T,>(
+const useAssistantTransportThreadRuntime = <T>(
   options: AssistantTransportOptions<T>,
 ): AssistantRuntime => {
   const agentStateRef = useRef(options.initialState);
@@ -340,7 +340,7 @@ const useAssistantTransportThreadRuntime = <T,>(
 /**
  * @alpha This is an experimental API that is subject to change.
  */
-export const useAssistantTransportRuntime = <T,>(
+export const useAssistantTransportRuntime = <T>(
   options: AssistantTransportOptions<T>,
 ): AssistantRuntime => {
   const runtime = useRemoteThreadListRuntime({

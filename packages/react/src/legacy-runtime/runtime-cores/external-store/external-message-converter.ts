@@ -220,7 +220,7 @@ const joinExternalMessages = (
   return assistantMessage;
 };
 
-const chunkExternalMessages = <T,>(
+const chunkExternalMessages = <T>(
   callbackResults: CallbackResult<T>[],
   joinStrategy?: "concat-content" | "none",
 ) => {

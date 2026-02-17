@@ -190,7 +190,7 @@ export const registry: RegistryItem[] = [
         type: "registry:component",
         path: "components/assistant-ui/syntax-highlighter.tsx",
         sourcePath:
-          "../../packages/ui/src/components/assistant-ui/syntax-highlighter.tsx",
+          "../../packages/ui/src/components/assistant-ui/syntax-highlighter.ts",
       },
     ],
     dependencies: [

@@ -45,7 +45,7 @@ import {
   createProxiedAssistantState,
 } from "./utils/proxied-assistant-state";
 
-const tapShallowMemoArray = <T,>(array: readonly T[]) => {
+const tapShallowMemoArray = <T>(array: readonly T[]) => {
   // biome-ignore lint/correctness/useExhaustiveDependencies: shallow memo
   return tapMemo(() => array, array);
 };

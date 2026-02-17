@@ -15,7 +15,7 @@ import { useRef, useEffect, useState, RefObject, useCallback } from "react";
 
 const { MessageRepository } = INTERNAL;
 
-export const toExportedMessageRepository = <TMessage,>(
+export const toExportedMessageRepository = <TMessage>(
   toThreadMessages: (messages: TMessage[]) => ThreadMessage[],
   messages: MessageFormatRepository<TMessage>,
 ): ExportedMessageRepository => {
@@ -31,7 +31,7 @@ export const toExportedMessageRepository = <TMessage,>(
   };
 };
 
-export const useExternalHistory = <TMessage,>(
+export const useExternalHistory = <TMessage>(
   runtimeRef: RefObject<AssistantRuntime>,
   historyAdapter: ThreadHistoryAdapter | undefined,
   toThreadMessages: (messages: TMessage[]) => ThreadMessage[],
