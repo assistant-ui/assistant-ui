@@ -53,6 +53,9 @@ export type ModelSelectorRootProps = {
   value?: string;
   onValueChange?: (value: string) => void;
   defaultValue?: string;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  defaultOpen?: boolean;
   children: ReactNode;
 };
 
@@ -61,6 +64,9 @@ function ModelSelectorRoot({
   value,
   onValueChange,
   defaultValue,
+  open,
+  onOpenChange,
+  defaultOpen,
   children,
 }: ModelSelectorRootProps) {
   const selectProps: ComponentPropsWithoutRef<typeof SelectRoot> = {};
@@ -68,6 +74,9 @@ function ModelSelectorRoot({
   if (onValueChange) selectProps.onValueChange = onValueChange;
   const resolvedDefault = defaultValue ?? models[0]?.id;
   if (resolvedDefault) selectProps.defaultValue = resolvedDefault;
+  if (open !== undefined) selectProps.open = open;
+  if (onOpenChange) selectProps.onOpenChange = onOpenChange;
+  if (defaultOpen !== undefined) selectProps.defaultOpen = defaultOpen;
 
   return (
     <ModelSelectorContext.Provider value={{ models }}>
@@ -188,6 +197,9 @@ const ModelSelectorImpl = ({
   value: controlledValue,
   onValueChange: controlledOnValueChange,
   defaultValue,
+  open,
+  onOpenChange,
+  defaultOpen,
   variant,
   size,
   contentClassName,
@@ -214,6 +226,9 @@ const ModelSelectorImpl = ({
       models={models}
       value={value}
       onValueChange={onValueChange}
+      open={open}
+      onOpenChange={onOpenChange}
+      defaultOpen={defaultOpen}
     >
       <ModelSelectorTrigger variant={variant} size={size} />
       <ModelSelectorContent className={contentClassName} />

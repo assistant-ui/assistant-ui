@@ -79,6 +79,7 @@ export function FloatingComposer(): ReactNode {
   const threadIsEmpty = useAuiState((s) => s.thread.isEmpty);
   const { modelValue, onModelChange } = useSharedDocsModelSelection();
   const [expanded, setExpanded] = useState(false);
+  const [modelSelectorOpen, setModelSelectorOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const hasScrolled = useHasScrolled(100);
@@ -97,7 +98,7 @@ export function FloatingComposer(): ReactNode {
     useCallback(() => {
       if (isEmpty) setExpanded(false);
     }, [isEmpty]),
-    expanded,
+    expanded && !modelSelectorOpen,
   );
 
   const handleSubmit = useComposerSubmitHandler(() => setOpen(true));
@@ -164,6 +165,7 @@ export function FloatingComposer(): ReactNode {
                   models={models}
                   value={modelValue}
                   onValueChange={onModelChange}
+                  onOpenChange={setModelSelectorOpen}
                   variant="ghost"
                   size="sm"
                 />
