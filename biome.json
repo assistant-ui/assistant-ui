@@ -172,6 +172,17 @@
   },
   "overrides": [
     {
+      "includes": [
+        "apps/docs/components/tool-ui/weather-widget/generated/weather-runtime-core.generated.ts"
+      ],
+      "formatter": {
+        "enabled": false
+      },
+      "linter": {
+        "enabled": false
+      }
+    },
+    {
       "includes": ["packages/ui/src/components/ui/**"],
       "linter": {
         "rules": {

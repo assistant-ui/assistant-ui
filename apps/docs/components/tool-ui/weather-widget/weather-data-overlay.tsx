@@ -420,6 +420,7 @@ export function WeatherDataOverlay({
                 fontFamily: forecastFontFamily,
                 fontFeatureSettings: '"tnum" 1, "case" 1',
               }}
+              aria-hidden="true"
             >
               °{unitSymbol}
             </span>
