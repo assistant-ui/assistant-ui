@@ -77,10 +77,10 @@ export function FloatingComposer(): ReactNode {
       <div ref={containerRef}>
         <ComposerPrimitive.Root onSubmit={handleSubmit}>
           <div
-            className={`rounded-xl border bg-background shadow-lg transition-all duration-300 ease-out ${
+            className={`rounded-xl border shadow-lg backdrop-blur-sm transition-all duration-300 ease-out ${
               expanded
-                ? "border-ring/50 ring-1 ring-ring/20"
-                : "border-border hover:ring-2 hover:ring-ring/30"
+                ? "bg-background/90 border-ring/50 ring-1 ring-ring/20"
+                : "bg-background/80 border-border hover:ring-2 hover:ring-ring/30"
             }`}
           >
             <ComposerPrimitive.Input
