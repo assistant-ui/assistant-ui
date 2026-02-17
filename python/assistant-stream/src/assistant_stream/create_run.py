@@ -219,7 +219,12 @@ async def create_run(
             controller._queue.task_done()
     finally:
         if ended_normally:
-            await task
+            if task.done():
+                # The background task may already be complete when the sentinel is read.
+                # `result()` still surfaces callback exceptions on normal completion.
+                task.result()
+            else:
+                await task
         else:
             controller._mark_cancelled()
             # Yield to the event loop to allow the cancel signal to propagate.
@@ -244,6 +249,8 @@ async def create_run(
             if not task.done():
                 task.cancel()
             try:
+                # `shield()` lets caller-initiated cancellation interrupt `aclose()`
+                # without conflating it with our own forced `task.cancel()`.
                 await asyncio.shield(task)
             except asyncio.CancelledError:
                 if task.cancelled():

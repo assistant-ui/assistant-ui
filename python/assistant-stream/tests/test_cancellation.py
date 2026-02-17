@@ -88,6 +88,21 @@ async def test_normal_completion_does_not_set_cancel_signal():
 
 
 @pytest.mark.asyncio
+async def test_normal_completion_surfaces_callback_exception():
+    chunk_types: list[str] = []
+
+    async def run_callback(controller: RunController):
+        controller.append_text("start")
+        raise RuntimeError("boom")
+
+    with pytest.raises(RuntimeError, match="boom"):
+        async for chunk in create_run(run_callback):
+            chunk_types.append(chunk.type)
+
+    assert chunk_types == ["text-delta", "error"]
+
+
+@pytest.mark.asyncio
 async def test_early_stream_close_forces_background_task_cancellation():
     callback_cancelled = asyncio.Event()
     callback_finished = asyncio.Event()

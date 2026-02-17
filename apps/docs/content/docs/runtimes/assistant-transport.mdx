@@ -119,6 +119,8 @@ The state snapshots are automatically streamed to the frontend using the operati
 > these are set so your backend loop can exit cooperatively.
 > `controller.cancelled_event` is a read-only signal object with `wait()` and `is_set()`.
 > `create_run` gives callbacks a ~50ms cooperative shutdown window before forced task cancellation.
+> Callback exceptions that happen after an early disconnect are suppressed from `aclose()`,
+> but logged with traceback at warning level for debugging.
 >
 > ```python
 > async def run_callback(controller: RunController):
