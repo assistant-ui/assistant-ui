@@ -1,0 +1,7 @@
+{
+  "title": "Primitives",
+  "description": "Unstyled, accessible building blocks for AI chat interfaces",
+  "icon": "Blocks",
+  "root": true,
+  "pages": ["index", "composer"]
+}

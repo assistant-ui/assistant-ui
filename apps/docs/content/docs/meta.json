@@ -1,6 +1,7 @@
 {
   "pages": [
     "(docs)",
+    "primitives",
     "ui",
     "runtimes",
     "react-native",
