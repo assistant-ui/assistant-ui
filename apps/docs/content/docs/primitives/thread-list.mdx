@@ -64,7 +64,7 @@ function ThreadListItem() {
 
 ## Quick Start
 
-A working thread list in its simplest form:
+Minimal example:
 
 ```tsx
 import {
@@ -89,6 +89,10 @@ import {
 ```
 
 `Root` renders a `<div>`, `New` renders a `<button>` that creates a new thread, and `Items` iterates over the thread list. Each item is composed from `ThreadListItemPrimitive` parts.
+
+<Callout type="info">
+Runtime setup: primitives require runtime context. Wrap your UI in `AssistantRuntimeProvider` with a runtime (for example `useLocalRuntime(...)`). See [Pick a Runtime](/docs/runtimes/pick-a-runtime).
+</Callout>
 
 ## Core Concepts
 
@@ -141,7 +145,7 @@ Pass `archived` to `Items` to render archived threads separately:
 
 ### Thread Actions
 
-`Archive`, `Unarchive`, and `Delete` buttons auto-disable when the capability isn't available from the runtime. No manual checking required.
+`Archive`, `Unarchive`, and `Delete` buttons disable automatically when the runtime capability is unavailable.
 
 ### Composing Actions with Menu Items
 
@@ -248,7 +252,7 @@ In the `ArchivedItem` component, use `ThreadListItemPrimitive.Unarchive` instead
 
 ## Relationship to Components
 
-The shadcn [ThreadList](/docs/ui/thread-list) component wraps these primitives with Tailwind styling in a sidebar layout, including a skeleton loading state and a pre-built more menu with archive and delete actions. Start there for a working thread list out of the box. Reach for the primitives directly when you need a custom layout, different actions, or integration with your own sidebar or navigation system.
+The shadcn [ThreadList](/docs/ui/thread-list) component wraps these primitives with Tailwind styling in a sidebar layout, including a skeleton loading state and a prebuilt more menu with archive and delete actions. Start there for a default thread list implementation. Reach for the primitives directly when you need a custom layout, different actions, or integration with your own sidebar or navigation system.
 
 ## API Reference
 

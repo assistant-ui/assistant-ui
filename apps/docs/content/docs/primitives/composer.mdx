@@ -38,7 +38,7 @@ export function MinimalComposer() {
 
 ## Quick Start
 
-A working composer in its simplest form:
+Minimal example:
 
 ```tsx
 import { ComposerPrimitive } from "@assistant-ui/react";
@@ -49,7 +49,11 @@ import { ComposerPrimitive } from "@assistant-ui/react";
 </ComposerPrimitive.Root>
 ```
 
-`Root` renders a `<form>`, `Input` renders a `<textarea>`, `Send` renders a `<button>`. No wrappers, no extra DOM — add your classes directly or use `asChild` to replace the element entirely.
+`Root` renders a `<form>`, `Input` renders a `<textarea>`, and `Send` renders a `<button>`. Each part renders its native element by default, and supports `asChild` for element substitution.
+
+<Callout type="info">
+Runtime setup: primitives require runtime context. Wrap your UI in `AssistantRuntimeProvider` with a runtime (for example `useLocalRuntime(...)`). See [Pick a Runtime](/docs/runtimes/pick-a-runtime).
+</Callout>
 
 ## Core Concepts
 
@@ -114,6 +118,9 @@ The Composer has the following parts you can compose together:
 | `Quote` | `<div>` | Shows quoted text preview |
 | `QuoteText` | `<span>` | The quoted text content |
 | `QuoteDismiss` | `<button>` | Clears the quote |
+| `AttachmentByIndex` | — | Renders a single attachment at a specific index |
+| `AttachmentDropzone` | `<div>` | Drag-and-drop zone for file attachments (`data-dragging` when active) |
+| `DictationTranscript` | `<span>` | Shows real-time speech-to-text transcript during dictation |
 | `If` | — | Conditional rendering (editing, dictation state) |
 
 ## Patterns
@@ -126,7 +133,7 @@ The Composer has the following parts you can compose together:
     components={{
       Image: ImagePreview,
       Document: DocumentPreview,
-      Fallback: GenericPreview,
+      Attachment: GenericPreview,
     }}
   />
   <ComposerPrimitive.Input placeholder="Ask anything..." />
@@ -137,11 +144,33 @@ The Composer has the following parts you can compose together:
 </ComposerPrimitive.Root>
 ```
 
+### With Drag-and-Drop
+
+Wrap your composer with `AttachmentDropzone` to support dragging files directly onto the input area:
+
+```tsx
+<ComposerPrimitive.AttachmentDropzone className="rounded-xl border-2 border-dashed data-[dragging]:border-primary data-[dragging]:bg-primary/5">
+  <ComposerPrimitive.Root>
+    <ComposerPrimitive.Attachments
+      components={{ Attachment: MyAttachment }}
+    />
+    <ComposerPrimitive.Input placeholder="Drop files or type..." />
+    <ComposerPrimitive.AddAttachment>Attach</ComposerPrimitive.AddAttachment>
+    <ComposerPrimitive.Send>Send</ComposerPrimitive.Send>
+  </ComposerPrimitive.Root>
+</ComposerPrimitive.AttachmentDropzone>
+```
+
+The dropzone sets `data-dragging` when a file is being dragged over it, so you can style the active state with CSS.
+
 ### With Voice Input
 
 ```tsx
 <ComposerPrimitive.Root>
   <ComposerPrimitive.Input placeholder="Ask or speak..." />
+  <ComposerPrimitive.If dictation>
+    <ComposerPrimitive.DictationTranscript className="text-sm text-muted-foreground" />
+  </ComposerPrimitive.If>
   <ComposerPrimitive.If dictation={false}>
     <ComposerPrimitive.Dictate>Mic</ComposerPrimitive.Dictate>
   </ComposerPrimitive.If>
@@ -151,6 +180,8 @@ The Composer has the following parts you can compose together:
   <ComposerPrimitive.Send>Send</ComposerPrimitive.Send>
 </ComposerPrimitive.Root>
 ```
+
+`DictationTranscript` renders a `<span>` showing the interim speech-to-text transcript while the user is speaking.
 
 <Callout type="info">
 Voice input requires a `DictationAdapter` configured in your runtime. See [Speech & Dictation](/docs/guides/speech) for setup.
@@ -162,9 +193,10 @@ Use `onSubmit` on `Root` to intercept submission:
 
 ```tsx
 <ComposerPrimitive.Root
-  onSubmit={() => {
-    // Custom logic before/after send
-    // e.g., open a panel, track analytics, transform input
+  onSubmit={(e) => {
+    // Runs before the message is sent
+    // e.g., track analytics, transform input
+    // Call e.preventDefault() to cancel the send
   }}
 >
   <ComposerPrimitive.Input />
@@ -182,6 +214,27 @@ Use `onSubmit` on `Root` to intercept submission:
 ```
 
 With `submitMode="ctrlEnter"`, plain Enter inserts a newline and Ctrl/Cmd+Enter submits.
+
+### Input Behavior Props
+
+`ComposerPrimitive.Input` includes two behavior toggles enabled by default:
+
+- **`cancelOnEscape`** *(default: `true`)* — Pressing Escape cancels the current edit and clears the composer.
+- **`addAttachmentOnPaste`** *(default: `true`)* — Files pasted from the clipboard are automatically added as attachments.
+
+Set either to `false` to disable:
+
+```tsx
+<ComposerPrimitive.Input
+  cancelOnEscape={false}
+  addAttachmentOnPaste={false}
+/>
+```
+
+### Legacy and Unstable Input Props
+
+- `submitOnEnter` is deprecated. Prefer `submitMode` (`"enter" | "ctrlEnter" | "none"`).
+- `unstable_focusOnRunStart`, `unstable_focusOnScrollToBottom`, and `unstable_focusOnThreadSwitched` are unstable focus toggles for advanced behavior tuning.
 
 ### Floating Composer
 

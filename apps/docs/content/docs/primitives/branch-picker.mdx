@@ -45,7 +45,7 @@ function AssistantMessage() {
 
 ## Quick Start
 
-A working branch picker in its simplest form:
+Minimal example:
 
 ```tsx
 import { BranchPickerPrimitive } from "@assistant-ui/react";
@@ -61,6 +61,10 @@ import { BranchPickerPrimitive } from "@assistant-ui/react";
 
 <Callout type="info">
 BranchPicker must be placed inside a `MessagePrimitive.Root` because it reads branch state from the nearest message context.
+</Callout>
+
+<Callout type="info">
+Runtime setup: primitives require runtime context. Wrap your UI in `AssistantRuntimeProvider` with a runtime (for example `useLocalRuntime(...)`). See [Pick a Runtime](/docs/runtimes/pick-a-runtime).
 </Callout>
 
 ## Core Concepts
@@ -81,7 +85,7 @@ BranchPicker must be placed inside a `MessagePrimitive.Root` because it reads br
 
 ### hideWhenSingleBranch
 
-The `hideWhenSingleBranch` prop on `Root` hides the entire picker when there's only one branch. This is the common production pattern — most messages have a single branch, and showing "1 / 1" is noise:
+The `hideWhenSingleBranch` prop on `Root` hides the entire picker when there's only one branch. This is a common production pattern to reduce visual clutter:
 
 ```tsx
 <BranchPickerPrimitive.Root hideWhenSingleBranch>

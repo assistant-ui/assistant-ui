@@ -7,7 +7,7 @@ Primitives are the foundation of assistant-ui. They are unstyled, accessible Rea
 
 ## Why Primitives?
 
-Every assistant-ui [Component](/docs/ui/thread) is built from primitives. When you install a component like `Thread`, you get a pre-styled composition of primitives that works out of the box.
+Every assistant-ui [Component](/docs/ui/thread) is built from primitives. When you install a component like `Thread`, you get a pre-styled composition of primitives with default styling and behavior included.
 
 But when you need a UI that doesn't fit the defaults — a floating composer, a custom message layout, an inline editing experience — you reach for the primitives directly.
 
@@ -41,7 +41,7 @@ Every primitive follows the same pattern inspired by [Radix UI](https://www.radi
 - **`asChild`**: merge primitive behavior onto your own element instead of rendering a wrapper
 - **`Primitive.If`**: conditional rendering based on state
 
-Primitives read from the nearest runtime context. Place them inside an `AssistantRuntimeProvider` and they just work — no prop drilling, no state management boilerplate.
+Primitives read from the nearest runtime context. Place them inside an `AssistantRuntimeProvider` and they work without prop drilling or manual state wiring.
 
 ## Available Primitives
 
@@ -76,7 +76,29 @@ Primitives read from the nearest runtime context. Place them inside an `Assistan
   <Card title="SelectionToolbar" href="/docs/primitives/selection-toolbar">
     Floating toolbar for text selection actions like quoting.
   </Card>
+  <Card title="ChainOfThought" href="/docs/guides/chain-of-thought">
+    Collapsible reasoning accordion for thinking steps and tool calls.
+  </Card>
 </Cards>
+
+`MessagePartPrimitive` (for rendering individual text, image, and streaming parts) is documented within the [Message](/docs/primitives/message#messagepartprimitive) primitive page.
+
+## Related Primitive References
+
+Additional primitive references:
+
+- [MessagePartPrimitive](/docs/reference/primitives/message-part)
+- [ThreadListItemPrimitive](/docs/reference/primitives/thread-list-item)
+- [ThreadListItemMorePrimitive](/docs/reference/primitives/thread-list-item-more)
+- [ActionBarMorePrimitive](/docs/reference/primitives/action-bar-more)
+- [AssistantIf (`AuiIf`)](/docs/reference/primitives/assistant-if)
+
+## Common Mistakes
+
+- Forgetting to wrap primitives with runtime context (`AssistantRuntimeProvider` + runtime hook)
+- Mixing deprecated props with current APIs (`submitOnEnter`, `autoSend`, legacy `Suggestion`)
+- Mounting primitives in the wrong context (`ActionBarPrimitive` / `BranchPickerPrimitive` outside `MessagePrimitive.Root`)
+- Using unstable props unintentionally (`unstable_*` APIs)
 
 ## Next Steps
 

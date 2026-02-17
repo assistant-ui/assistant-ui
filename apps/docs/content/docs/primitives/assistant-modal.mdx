@@ -1,11 +1,11 @@
 ---
 title: AssistantModal
-description: A floating chat popover — fixed-position trigger button that opens a chat panel.
+description: A floating chat popover with a fixed-position trigger button that opens a chat panel.
 ---
 
 import { AssistantModalSample } from "@/components/docs/samples/assistant-modal";
 
-The AssistantModal primitive is a floating chat popover built on [Radix Popover](https://www.radix-ui.com/primitives/docs/components/popover). A trigger button opens a chat panel — the classic "assistant bubble" pattern. You control the trigger, content, positioning, and animations.
+The AssistantModal primitive is a floating chat popover built on [Radix Popover](https://www.radix-ui.com/primitives/docs/components/popover). A trigger button opens a chat panel, which is a common floating assistant launcher pattern. You control the trigger, content, positioning, and animations.
 
 <Tabs items={["Preview", "Code"]}>
   <Tab>
@@ -35,7 +35,7 @@ function MinimalAssistantModal() {
 
 ## Quick Start
 
-A working assistant modal in its simplest form:
+Minimal example:
 
 ```tsx
 import { AssistantModalPrimitive } from "@assistant-ui/react";
@@ -51,6 +51,10 @@ import { AssistantModalPrimitive } from "@assistant-ui/react";
 ```
 
 `Root` is a Radix Popover provider (no DOM), `Trigger` renders a `<button>`, `Anchor` renders a `<div>`, and `Content` renders a `<div>` inside a portal. Add your own classes, animations, and layout.
+
+<Callout type="info">
+Runtime setup: primitives require runtime context. Wrap your UI in `AssistantRuntimeProvider` with a runtime (for example `useLocalRuntime(...)`). See [Pick a Runtime](/docs/runtimes/pick-a-runtime).
+</Callout>
 
 ## Core Concepts
 
@@ -76,7 +80,7 @@ The `unstable_openOnRunStart` prop (default `true`) automatically opens the moda
 
 ### Dismiss Behavior
 
-`Content` has `dissmissOnInteractOutside` set to `false` by default — clicking outside the modal does **not** close it. This matches expected chat UX where users interact with the page while keeping the chat open. Set to `true` for standard popover dismiss behavior.
+`Content` uses `dissmissOnInteractOutside` *(intentional current API spelling, with the extra `s`)* and defaults it to `false`. Clicking outside the modal does **not** close it. This matches expected chat UX where users interact with the page while keeping the chat open. Set it to `true` for standard popover dismiss behavior.
 
 ### Open/Close Animations
 
@@ -119,16 +123,31 @@ The `unstable_openOnRunStart` prop (default `true`) automatically opens the moda
 
 ### Trigger Icon Swap
 
-Use `data-state` to swap icons between open and closed states:
+The `Trigger` button receives a `data-state` attribute from Radix (`"open"` or `"closed"`). To pass that state down to child icons, use `asChild` with a wrapper component that destructures and forwards it:
 
 ```tsx
-<AssistantModalPrimitive.Trigger className="size-11 rounded-full">
-  <BotIcon className="size-6 data-[state=open]:hidden" data-state={undefined} />
-  <XIcon className="size-6 data-[state=closed]:hidden" data-state={undefined} />
+import { forwardRef } from "react";
+
+const ModalButton = forwardRef<
+  HTMLButtonElement,
+  React.ComponentPropsWithoutRef<"button"> & { "data-state"?: string }
+>(({ "data-state": state, ...props }, ref) => (
+  <button ref={ref} {...props} className="relative size-11 rounded-full">
+    <BotIcon
+      data-state={state}
+      className="absolute size-6 transition-all data-[state=open]:rotate-90 data-[state=open]:scale-0"
+    />
+    <XIcon
+      data-state={state}
+      className="absolute size-6 transition-all data-[state=closed]:-rotate-90 data-[state=closed]:scale-0"
+    />
+  </button>
+));
+
+<AssistantModalPrimitive.Trigger asChild>
+  <ModalButton />
 </AssistantModalPrimitive.Trigger>
 ```
-
-Or use `asChild` with a component that reads the `data-state` prop for full control.
 
 ### Custom Portal Container
 
@@ -144,7 +163,7 @@ Render the content inside a specific container instead of `document.body`:
 
 ## Relationship to Components
 
-The shadcn [AssistantModal](/docs/ui/assistant-modal) component wraps these primitives with slide/fade animations, icon transitions between open and closed states, and responsive sizing. Start there for a ready-made floating chat widget.
+The shadcn [AssistantModal](/docs/ui/assistant-modal) component wraps these primitives with slide/fade animations, icon transitions between open and closed states, and responsive sizing. Start there for a prebuilt floating chat widget.
 
 ## API Reference
 

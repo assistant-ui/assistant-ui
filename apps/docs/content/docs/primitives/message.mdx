@@ -72,7 +72,11 @@ import { MessagePrimitive } from "@assistant-ui/react";
 </MessagePrimitive.Root>
 ```
 
-`Root` renders a `<div>` that provides message context and tracks hover state. `Parts` iterates over the message's content parts and renders each one. Without custom components, parts render with sensible defaults.
+`Root` renders a `<div>` that provides message context and tracks hover state. `Parts` iterates over the message's content parts and renders each one. Without custom components, parts render with sensible defaults: `Text` renders a `<p>` with `white-space: pre-line` and a streaming indicator, `Image` renders via `MessagePartPrimitive.Image`, and tool calls render nothing unless a tool UI is registered globally or inline. Reasoning, source, file, and audio parts render nothing by default.
+
+<Callout type="info">
+Runtime setup: primitives require runtime context. Wrap your UI in `AssistantRuntimeProvider` with a runtime (for example `useLocalRuntime(...)`). See [Pick a Runtime](/docs/runtimes/pick-a-runtime).
+</Callout>
 
 ## Core Concepts
 
@@ -97,12 +101,14 @@ Each component receives the part data via context. Use `MessagePartPrimitive.Tex
 
 ### Tool Resolution
 
-Tool call parts use a two-layer lookup:
+Tool call parts resolve in this order:
 
-1. **`tools.by_name`** — match a specific tool name to a component
-2. **`tools.Fallback`** — catch-all for unmatched tool calls
+1. **`tools.Override`** — if provided inline, handles **all** tool calls (skips everything below)
+2. **Globally registered tools** — tools registered via `makeAssistantTool` / `useAssistantTool` in runtime context
+3. **`tools.by_name[toolName]`** — per-`MessagePrimitive.Parts` inline overrides (used as fallback when no global exists)
+4. **`tools.Fallback`** — catch-all for unmatched tool calls
 
-Globally registered tools (via `makeAssistantTool` or `useAssistantTool`) are checked first. Inline `tools.by_name` takes priority when both exist.
+`Override` short-circuits the entire resolution chain — when set, no other tool components are consulted. Inline `by_name` components apply only when no globally registered tool exists for that name.
 
 ```tsx
 <MessagePrimitive.Parts
@@ -112,8 +118,55 @@ Globally registered tools (via `makeAssistantTool` or `useAssistantTool`) are ch
         weather: WeatherCard,
         search: SearchResults,
       },
-      Fallback: ({ name }) => <div>Running {name}...</div>,
+      Fallback: ({ toolName }) => <div>Running {toolName}...</div>,
     },
+  }}
+/>
+```
+
+### Advanced Parts Configuration
+
+`MessagePrimitive.Parts` supports advanced composition for tool, reasoning, and data parts:
+
+- `ToolGroup` wraps consecutive tool-call parts
+- `ReasoningGroup` wraps consecutive reasoning parts
+- `ChainOfThought` takes over all reasoning and tool-call rendering (mutually exclusive with `ToolGroup`, `ReasoningGroup`, `tools`, and `Reasoning`)
+- `data.by_name` and `data.Fallback` let you route custom data part types
+- `Empty` and `Unstable_Audio` are available for edge and experimental rendering paths
+
+```tsx
+<MessagePrimitive.Parts
+  components={{
+    Text: () => (
+      <p className="whitespace-pre-wrap">
+        <MessagePartPrimitive.Text />
+      </p>
+    ),
+    Image: () => <MessagePartPrimitive.Image className="max-w-sm rounded-xl" />,
+    File: () => <div className="rounded-md border px-2 py-1 text-xs">File part</div>,
+    tools: {
+      by_name: {
+        get_weather: () => <div>Weather tool</div>,
+      },
+      Fallback: ({ toolName }) => <div>Unknown tool: {toolName}</div>,
+    },
+    data: {
+      by_name: {
+        "my-event": ({ data }) => <pre>{JSON.stringify(data, null, 2)}</pre>,
+      },
+      Fallback: ({ name }) => <div>Unknown data event: {name}</div>,
+    },
+    ToolGroup: ({ children }) => (
+      <div className="space-y-2 rounded-lg border p-2">{children}</div>
+    ),
+    ReasoningGroup: ({ children }) => (
+      <details className="rounded-lg border p-2">
+        <summary>Reasoning</summary>
+        {children}
+      </details>
+    ),
+    Empty: () => <span className="text-muted-foreground">...</span>,
+    Unstable_Audio: () => null,
   }}
 />
 ```
@@ -149,11 +202,13 @@ function MyText() {
 |------|---------|---------|
 | `Root` | `<div>` | Container, provides message context, tracks hover state |
 | `Parts` | — | Renders each content part with type-based component resolution |
-| `Content` | — | Alias for `Parts` |
+| `Content` | — | Legacy alias for `Parts` |
 | `PartByIndex` | — | Renders a single part at a specific index |
 | `Attachments` | — | Renders all user message attachments |
 | `AttachmentByIndex` | — | Renders a single attachment at a specific index |
 | `Error` | — | Renders children only when the message has an error |
+| `Unstable_PartsGrouped` | — | Groups consecutive parts by a custom grouping function *(unstable)* |
+| `Unstable_PartsGroupedByParentId` | — | Groups parts by parent ID *(unstable, deprecated — use `Unstable_PartsGrouped`)* |
 | `If` | — | Conditional rendering *(deprecated — use `AuiIf`)* |
 
 ## Patterns
@@ -187,9 +242,9 @@ function MarkdownText() {
           </div>
         ),
       },
-      Fallback: ({ name, isLoading }) => (
+      Fallback: ({ toolName, isLoading }) => (
         <div className="text-muted-foreground text-sm">
-          {isLoading ? `Running ${name}...` : `${name} completed`}
+          {isLoading ? `Running ${toolName}...` : `${toolName} completed`}
         </div>
       ),
     },
@@ -209,6 +264,29 @@ function MarkdownText() {
   </MessagePrimitive.Error>
 </MessagePrimitive.Root>
 ```
+
+### Error Display with ErrorPrimitive
+
+For more control over error rendering, `ErrorPrimitive` provides a dedicated component that auto-reads the error string from the message status:
+
+```tsx
+import { ErrorPrimitive, MessagePrimitive } from "@assistant-ui/react";
+
+<MessagePrimitive.Root>
+  <MessagePrimitive.Parts />
+  <ErrorPrimitive.Root className="mt-2 rounded-md bg-destructive/10 p-2 text-sm text-destructive" role="alert">
+    <ErrorPrimitive.Message />
+  </ErrorPrimitive.Root>
+</MessagePrimitive.Root>
+```
+
+`ErrorPrimitive.Root` renders a `<div>` container and `ErrorPrimitive.Message` renders a `<span>` that displays the error text — both render only when the message has an error. See the [ErrorPrimitive API Reference](/docs/reference/primitives/error) for full details.
+
+### Legacy and Unstable APIs
+
+- `MessagePrimitive.If` is deprecated. Prefer `AuiIf`.
+- `MessagePrimitive.Unstable_PartsGrouped` and `MessagePrimitive.Unstable_PartsGroupedByParentId` are unstable APIs for custom grouping.
+- `Unstable_PartsGroupedByParentId` is deprecated in favor of `Unstable_PartsGrouped`.
 
 ### Role-Based Styling
 
@@ -255,6 +333,13 @@ function AssistantMessage() {
 
 The shadcn [Thread](/docs/ui/thread) component renders user and assistant messages built from these primitives. The pre-built `AssistantMessage` and `UserMessage` components handle text rendering, tool UIs, error display, and action bars — all using `MessagePrimitive` under the hood.
 
+Messages are commonly paired with [ActionBar](/docs/primitives/action-bar) for copy/reload/edit actions and [BranchPicker](/docs/primitives/branch-picker) for navigating between alternative responses.
+
 ## API Reference
 
 For full prop details on every part, see the [MessagePrimitive API Reference](/docs/reference/primitives/message).
+
+Related:
+- [MessagePartPrimitive API Reference](/docs/reference/primitives/message-part)
+- [ActionBarPrimitive API Reference](/docs/reference/primitives/action-bar)
+- [BranchPickerPrimitive API Reference](/docs/reference/primitives/branch-picker)

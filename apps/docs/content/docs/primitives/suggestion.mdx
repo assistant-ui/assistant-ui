@@ -69,6 +69,10 @@ function MySuggestionItem() {
 
 `ThreadPrimitive.Suggestions` iterates over available suggestions and renders your component for each one. Inside the component, `SuggestionPrimitive` parts read from the suggestion context automatically.
 
+<Callout type="info">
+Runtime setup: primitives require runtime context. Wrap your UI in `AssistantRuntimeProvider` with a runtime (for example `useLocalRuntime(...)`). See [Pick a Runtime](/docs/runtimes/pick-a-runtime).
+</Callout>
+
 ## Core Concepts
 
 ### Context-Based Rendering
@@ -135,6 +139,8 @@ When `send={false}`, the `clearComposer` prop controls whether the suggestion re
   components={{ Suggestion: MySuggestionItem }}
 />
 ```
+
+`ThreadPrimitive.Suggestion` also supports deprecated `autoSend` and `method` props for backwards compatibility. Prefer `send` and `clearComposer`.
 
 ## Parts
 
@@ -203,7 +209,7 @@ function SuggestionCard() {
 
 ## Relationship to Components
 
-The shadcn [Thread](/docs/ui/thread) component includes suggestions in its welcome screen using `ThreadPrimitive.Suggestions` with `SuggestionPrimitive` parts in a responsive grid. Start there for a ready-made welcome experience.
+The shadcn [Thread](/docs/ui/thread) component includes suggestions in its welcome screen using `ThreadPrimitive.Suggestions` with `SuggestionPrimitive` parts in a responsive grid. Start there for a prebuilt welcome experience.
 
 ## API Reference
 

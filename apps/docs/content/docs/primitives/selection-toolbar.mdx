@@ -5,7 +5,7 @@ description: A floating toolbar that appears when text is selected within a mess
 
 import { SelectionToolbarPrimitiveSample } from "@/components/docs/samples/selection-toolbar-primitive";
 
-The SelectionToolbar primitive is a floating toolbar that appears when the user selects text within a message. It lets users quote selected text into the composer. The toolbar positions itself automatically above the selection — you provide the styling and actions.
+The SelectionToolbar primitive is a floating toolbar that appears when the user selects text within a message. It lets users quote selected text into the composer. Styling and action layout are fully customizable.
 
 <Tabs items={["Preview", "Code"]}>
   <Tab>
@@ -46,15 +46,21 @@ import { SelectionToolbarPrimitive } from "@assistant-ui/react";
 
 `Root` renders a `<div>` inside a portal, positioned above the text selection. `Quote` renders a `<button>` that copies the selected text into the composer as a quote.
 
+<Callout type="info">
+Runtime setup: primitives require runtime context. Wrap your UI in `AssistantRuntimeProvider` with a runtime (for example `useLocalRuntime(...)`). See [Pick a Runtime](/docs/runtimes/pick-a-runtime).
+</Callout>
+
 ## Core Concepts
 
 ### Automatic Positioning
 
-`Root` renders via a portal to `document.body` and positions itself automatically — 8px above the selection, horizontally centered. No manual positioning is needed. The toolbar uses `position: fixed` with `z-index: 50`.
+`Root` renders via a portal to `document.body`. In the current implementation, it positions itself with `position: fixed`, `top: rect.top - 8px`, centered horizontally from the selection rect, and `z-index: 50`.
 
 ### Single-Message Validation
 
 The toolbar only appears when the selection is entirely within a single message. Cross-message selections are ignored. Detection works by checking for `data-message-id` attributes on ancestor elements, which `MessagePrimitive.Root` sets automatically.
+
+`Root` returns `null` when there is no valid selection (collapsed selection, empty text, or no single-message match).
 
 ### Quote Action
 

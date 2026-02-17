@@ -5,7 +5,7 @@ description: Build message action buttons with auto-hide, copy state, and intell
 
 import { ActionBarPrimitiveSample } from "@/components/docs/samples/action-bar-primitive";
 
-The ActionBar primitive provides message actions — copy, reload, edit, feedback, speech, and export. It handles intelligent visibility with auto-hide on hover, automatic disabling based on message state, and floating behavior. You wire the buttons, it manages the logic.
+The ActionBar primitive provides message actions: copy, reload, edit, feedback, speech, and export. It handles intelligent visibility with auto-hide on hover, automatic disabling based on message state, and floating behavior. You compose the buttons; the primitive handles action state and availability.
 
 <Tabs items={["Preview", "Code"]}>
   <Tab>
@@ -63,6 +63,10 @@ import { ActionBarPrimitive } from "@assistant-ui/react";
 
 <Callout type="info">
 ActionBar must be placed inside a `MessagePrimitive.Root` because it reads message state from the nearest message context.
+</Callout>
+
+<Callout type="info">
+Runtime setup: primitives require runtime context. Wrap your UI in `AssistantRuntimeProvider` with a runtime (for example `useLocalRuntime(...)`). See [Pick a Runtime](/docs/runtimes/pick-a-runtime).
 </Callout>
 
 ## Core Concepts
@@ -188,10 +192,64 @@ Speech requires a `SpeechSynthesisAdapter` configured in your runtime. See [Spee
 </ActionBarPrimitive.ExportMarkdown>
 ```
 
+## Overflow Menu (ActionBarMorePrimitive)
+
+`ActionBarMorePrimitive` is a Radix DropdownMenu for overflow actions, using the same pattern as `ThreadListItemMorePrimitive`. Use it to group secondary actions behind a "more" button.
+
+`ActionBarMorePrimitive.Item` maps to Radix `DropdownMenu.Item`, so it preserves menu keyboard/focus semantics. Prefer `asChild` when composing an `ActionBarPrimitive` button into a menu item.
+
+`ActionBarMorePrimitive.Content` defaults to `sideOffset={4}` so the menu has a small gap from the trigger.
+
+| Part | Element | Purpose |
+|------|---------|---------|
+| `Root` | N/A | Radix DropdownMenu provider |
+| `Trigger` | `<button>` | Opens the dropdown |
+| `Content` | `<div>` (portal) | The dropdown panel |
+| `Item` | `<div>` | A menu item |
+| `Separator` | `<div>` | Visual separator between items |
+
+```tsx
+import {
+  ActionBarPrimitive,
+  ActionBarMorePrimitive,
+} from "@assistant-ui/react";
+import { MoreHorizontalIcon } from "lucide-react";
+
+<ActionBarPrimitive.Root>
+  <ActionBarPrimitive.Copy>Copy</ActionBarPrimitive.Copy>
+  <ActionBarPrimitive.Reload>Regenerate</ActionBarPrimitive.Reload>
+  <ActionBarMorePrimitive.Root>
+    <ActionBarMorePrimitive.Trigger className="flex size-8 items-center justify-center rounded-lg hover:bg-muted">
+      <MoreHorizontalIcon className="size-4" />
+    </ActionBarMorePrimitive.Trigger>
+    <ActionBarMorePrimitive.Content side="bottom" align="end">
+      <ActionBarMorePrimitive.Item asChild>
+        <ActionBarPrimitive.ExportMarkdown>
+          Export Markdown
+        </ActionBarPrimitive.ExportMarkdown>
+      </ActionBarMorePrimitive.Item>
+      <ActionBarMorePrimitive.Separator />
+      <ActionBarMorePrimitive.Item asChild>
+        <ActionBarPrimitive.FeedbackPositive>
+          Helpful
+        </ActionBarPrimitive.FeedbackPositive>
+      </ActionBarMorePrimitive.Item>
+    </ActionBarMorePrimitive.Content>
+  </ActionBarMorePrimitive.Root>
+</ActionBarPrimitive.Root>
+```
+
+See the [ActionBarMorePrimitive API Reference](/docs/reference/primitives/action-bar-more) for full prop details.
+
 ## Relationship to Components
 
 The shadcn [Thread](/docs/ui/thread) component uses `ActionBarPrimitive` inside its `AssistantMessage` (with Copy, Reload, and an export dropdown) and `UserMessage` (with Edit). If those defaults work, use the component. Reach for `ActionBarPrimitive` directly when you need different actions, custom layout, or actions outside the standard thread UI.
 
+ActionBar is commonly paired with [BranchPicker](/docs/primitives/branch-picker) for navigating between alternative responses on assistant messages.
+
 ## API Reference
 
 For full prop details on every part, see the [ActionBarPrimitive API Reference](/docs/reference/primitives/action-bar).
+
+Related:
+- [ActionBarMorePrimitive API Reference](/docs/reference/primitives/action-bar-more)

@@ -45,7 +45,7 @@ import { AttachmentPrimitive, ComposerPrimitive } from "@assistant-ui/react";
 
 <ComposerPrimitive.Root>
   <ComposerPrimitive.Attachments
-    components={{ Fallback: MyAttachment }}
+    components={{ Attachment: MyAttachment }}
   />
   <ComposerPrimitive.Input placeholder="Ask anything..." />
   <ComposerPrimitive.Send>Send</ComposerPrimitive.Send>
@@ -54,16 +54,20 @@ import { AttachmentPrimitive, ComposerPrimitive } from "@assistant-ui/react";
 
 `Root` renders a `<div>`, `unstable_Thumb` renders a `<div>` showing the file extension, `Name` renders plain text, and `Remove` renders a `<button>`.
 
+<Callout type="info">
+Runtime setup: primitives require runtime context. Wrap your UI in `AssistantRuntimeProvider` with a runtime (for example `useLocalRuntime(...)`). See [Pick a Runtime](/docs/runtimes/pick-a-runtime).
+</Callout>
+
 ## Core Concepts
 
 ### Two Contexts
 
 Attachments appear in two different contexts:
 
-- **Composer** — via `ComposerPrimitive.Attachments`. These are pending uploads that can be removed before sending.
-- **Messages** — via `MessagePrimitive.Attachments`. These are sent attachments, displayed read-only.
+- **Composer**: via `ComposerPrimitive.Attachments`. These are pending uploads that can be removed before sending.
+- **Messages**: via `MessagePrimitive.Attachments`. These are sent attachments, displayed read-only (the iterator renders attachments for user messages).
 
-The same `AttachmentPrimitive` parts work in both contexts. The difference is behavioral — `Remove` only works in the composer context.
+The same `AttachmentPrimitive` parts work in both contexts. The difference is behavioral: `Remove` only works in the composer context.
 
 ### Iterator Pattern
 
@@ -75,7 +79,7 @@ You don't loop over attachments yourself. Instead, pass your attachment componen
   components={{
     Image: ImageAttachment,
     Document: DocumentAttachment,
-    Fallback: GenericAttachment,
+    Attachment: GenericAttachment,
   }}
 />
 
@@ -84,7 +88,7 @@ You don't loop over attachments yourself. Instead, pass your attachment componen
   components={{
     Image: ImageAttachment,
     Document: DocumentAttachment,
-    Fallback: GenericAttachment,
+    Attachment: GenericAttachment,
   }}
 />
 ```
@@ -93,7 +97,7 @@ Each component receives its attachment context automatically, with no props to p
 
 ### Remove Button
 
-`Remove` calls the attachment's remove action. It only works inside a composer context — in a message context the hook returns `null`, effectively disabling the button. You can conditionally render it or let the primitive handle it.
+`Remove` calls the attachment runtime remove action. In composer attachments it removes the attachment from the pending message. In message attachments, this action is not supported and clicking `Remove` will throw `"Message attachments cannot be removed"`. Only render `Remove` in composer UIs.
 
 ### Name as Text
 
@@ -119,7 +123,7 @@ Each component receives its attachment context automatically, with no props to p
 ### Composer Attachment with Remove
 
 ```tsx
-function ComposerAttachment() {
+function ComposerAttachmentItem() {
   return (
     <AttachmentPrimitive.Root className="flex items-center gap-2 rounded-lg border p-2">
       <AttachmentPrimitive.unstable_Thumb className="flex size-10 items-center justify-center rounded bg-muted text-xs font-mono" />
@@ -132,6 +136,14 @@ function ComposerAttachment() {
     </AttachmentPrimitive.Root>
   );
 }
+
+<ComposerPrimitive.Root>
+  <ComposerPrimitive.Attachments
+    components={{ Attachment: ComposerAttachmentItem }}
+  />
+  <ComposerPrimitive.Input placeholder="Ask anything..." />
+  <ComposerPrimitive.Send>Send</ComposerPrimitive.Send>
+</ComposerPrimitive.Root>
 ```
 
 ### Message Attachment (Read-Only)
@@ -164,7 +176,7 @@ function MessageAttachment() {
 
 ## Relationship to Components
 
-The shadcn [Attachment](/docs/ui/attachment) component wraps these primitives with styled thumbnails, tooltip filenames, remove buttons, and image preview dialogs. Start there for a ready-made attachment UI.
+The shadcn [Attachment](/docs/ui/attachment) component wraps these primitives with styled thumbnails, tooltip filenames, remove buttons, and image preview dialogs. Start there for a prebuilt attachment UI.
 
 ## API Reference
 

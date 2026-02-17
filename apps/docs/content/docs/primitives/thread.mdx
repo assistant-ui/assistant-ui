@@ -76,7 +76,7 @@ function AssistantMessage() {
 
 ## Quick Start
 
-A working thread in its simplest form:
+Minimal example:
 
 ```tsx
 import { ThreadPrimitive } from "@assistant-ui/react";
@@ -89,6 +89,10 @@ import { ThreadPrimitive } from "@assistant-ui/react";
 ```
 
 `Root` renders a `<div>`, `Viewport` renders a scrollable `<div>`, and `Messages` iterates over the thread's messages. Add your own styles and components; the primitive handles the rest.
+
+<Callout type="info">
+Runtime setup: primitives require runtime context. Wrap your UI in `AssistantRuntimeProvider` with a runtime (for example `useLocalRuntime(...)`). See [Pick a Runtime](/docs/runtimes/pick-a-runtime).
+</Callout>
 
 ## Core Concepts
 
@@ -112,7 +116,29 @@ By default, new messages appear at the bottom and scroll down. With `turnAnchor=
 </ThreadPrimitive.Viewport>
 ```
 
-This is what the shadcn Thread component uses by default.
+This is what the shadcn Thread component uses by default. For scroll anchoring to work correctly, `ViewportSlack` is needed on the last assistant message to provide enough min-height for the user message to anchor at the top. This is included automatically in the shadcn component.
+
+### Viewport Scroll Options
+
+`ThreadPrimitive.Viewport` has three event-specific scroll controls:
+
+- `scrollToBottomOnRunStart` (default `true`): scrolls when `thread.runStart` fires
+- `scrollToBottomOnInitialize` (default `true`): scrolls when `thread.initialize` fires
+- `scrollToBottomOnThreadSwitch` (default `true`): scrolls when `threadListItem.switchedTo` fires
+
+These work alongside `autoScroll`. If `autoScroll` is omitted, it defaults to `true` for `turnAnchor="bottom"` and `false` for `turnAnchor="top"`.
+
+```tsx
+<ThreadPrimitive.Viewport
+  turnAnchor="top"
+  autoScroll={false}
+  scrollToBottomOnRunStart={true}
+  scrollToBottomOnInitialize={false}
+  scrollToBottomOnThreadSwitch={true}
+>
+  <ThreadPrimitive.Messages components={{ UserMessage, AssistantMessage }} />
+</ThreadPrimitive.Viewport>
+```
 
 ### ViewportFooter
 
@@ -169,6 +195,9 @@ If you provide a single `Message` component, it's used for all roles. If you pro
 | `ScrollToBottom` | `<button>` | Scrolls viewport to bottom, disabled when already there |
 | `Suggestions` | — | Renders suggestion prompts via a component |
 | `SuggestionByIndex` | — | Renders a single suggestion at a specific index |
+| `Suggestion` | `<button>` | Self-contained suggestion button *(legacy — prefer `Suggestions` iterator)* |
+| `ViewportProvider` | — | Provides viewport context without a scrollable element (for custom scroll containers) |
+| `ViewportSlack` | — | Adds min-height for scroll anchoring with `turnAnchor="top"` |
 | `If` | — | Conditional rendering *(deprecated — use `AuiIf`)* |
 
 ## Patterns
@@ -236,8 +265,13 @@ The button is automatically disabled when the viewport is already scrolled to th
 
 ## Relationship to Components
 
-The [Thread](/docs/ui/thread) component is a full chat interface built from these primitives with Tailwind styling. Start there for a working UI out of the box. Reach for `ThreadPrimitive` when you need a custom layout, different scroll behavior, or a non-standard thread structure.
+The [Thread](/docs/ui/thread) component is a full chat interface built from these primitives with Tailwind styling. Start there for a default implementation. Reach for `ThreadPrimitive` when you need a custom layout, different scroll behavior, or a non-standard thread structure.
 
 ## API Reference
 
 For full prop details on every part, see the [ThreadPrimitive API Reference](/docs/reference/primitives/thread).
+
+Related:
+- [MessagePrimitive API Reference](/docs/reference/primitives/message)
+- [ComposerPrimitive API Reference](/docs/reference/primitives/composer)
+- [ThreadListPrimitive API Reference](/docs/reference/primitives/thread-list)
