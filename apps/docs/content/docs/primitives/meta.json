@@ -3,5 +3,13 @@
   "description": "Unstyled, accessible building blocks for AI chat interfaces",
   "icon": "Blocks",
   "root": true,
-  "pages": ["index", "composer", "thread", "message", "action-bar"]
+  "pages": [
+    "index",
+    "composer",
+    "thread",
+    "message",
+    "action-bar",
+    "branch-picker",
+    "thread-list"
+  ]
 }

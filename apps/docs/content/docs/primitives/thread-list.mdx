@@ -1,0 +1,259 @@
+---
+title: ThreadList
+description: Multi-thread management for listing, creating, switching, archiving, and deleting conversations.
+---
+
+import { ThreadListPrimitiveSample } from "@/components/docs/samples/thread-list-primitive";
+
+The ThreadList primitive manages multiple conversations by listing threads, creating new ones, switching between them, and archiving or deleting old ones. It's composed from three primitive namespaces: `ThreadListPrimitive`, `ThreadListItemPrimitive`, and `ThreadListItemMorePrimitive`.
+
+<Tabs items={["Preview", "Code"]}>
+  <Tab>
+    <ThreadListPrimitiveSample />
+  </Tab>
+  <Tab>
+```tsx
+import {
+  ThreadListPrimitive,
+  ThreadListItemPrimitive,
+  ThreadListItemMorePrimitive,
+} from "@assistant-ui/react";
+import { ArchiveIcon, MoreHorizontalIcon, PlusIcon, TrashIcon } from "lucide-react";
+
+function MyThreadList() {
+  return (
+    <ThreadListPrimitive.Root className="flex flex-col gap-1">
+      <ThreadListPrimitive.New className="flex h-9 items-center gap-2 rounded-lg border px-3 text-sm hover:bg-muted">
+        <PlusIcon className="size-4" />
+        New Thread
+      </ThreadListPrimitive.New>
+      <ThreadListPrimitive.Items components={{ ThreadListItem }} />
+    </ThreadListPrimitive.Root>
+  );
+}
+
+function ThreadListItem() {
+  return (
+    <ThreadListItemPrimitive.Root className="group flex h-9 items-center rounded-lg hover:bg-muted data-active:bg-muted">
+      <ThreadListItemPrimitive.Trigger className="flex-1 truncate px-3 text-sm">
+        <ThreadListItemPrimitive.Title fallback="New Chat" />
+      </ThreadListItemPrimitive.Trigger>
+      <ThreadListItemMorePrimitive.Root>
+        <ThreadListItemMorePrimitive.Trigger className="mr-2 size-7 rounded-md opacity-0 group-hover:opacity-100">
+          <MoreHorizontalIcon className="size-4" />
+        </ThreadListItemMorePrimitive.Trigger>
+        <ThreadListItemMorePrimitive.Content className="rounded-md border bg-popover p-1 shadow-md">
+          <ThreadListItemPrimitive.Archive asChild>
+            <ThreadListItemMorePrimitive.Item className="flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent">
+              <ArchiveIcon className="size-4" /> Archive
+            </ThreadListItemMorePrimitive.Item>
+          </ThreadListItemPrimitive.Archive>
+          <ThreadListItemPrimitive.Delete asChild>
+            <ThreadListItemMorePrimitive.Item className="flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-destructive hover:bg-destructive/10">
+              <TrashIcon className="size-4" /> Delete
+            </ThreadListItemMorePrimitive.Item>
+          </ThreadListItemPrimitive.Delete>
+        </ThreadListItemMorePrimitive.Content>
+      </ThreadListItemMorePrimitive.Root>
+    </ThreadListItemPrimitive.Root>
+  );
+}
+```
+  </Tab>
+</Tabs>
+
+## Quick Start
+
+A working thread list in its simplest form:
+
+```tsx
+import {
+  ThreadListPrimitive,
+  ThreadListItemPrimitive,
+} from "@assistant-ui/react";
+
+<ThreadListPrimitive.Root>
+  <ThreadListPrimitive.New>New Thread</ThreadListPrimitive.New>
+  <ThreadListPrimitive.Items
+    components={{
+      ThreadListItem: () => (
+        <ThreadListItemPrimitive.Root>
+          <ThreadListItemPrimitive.Trigger>
+            <ThreadListItemPrimitive.Title fallback="New Chat" />
+          </ThreadListItemPrimitive.Trigger>
+        </ThreadListItemPrimitive.Root>
+      ),
+    }}
+  />
+</ThreadListPrimitive.Root>
+```
+
+`Root` renders a `<div>`, `New` renders a `<button>` that creates a new thread, and `Items` iterates over the thread list. Each item is composed from `ThreadListItemPrimitive` parts.
+
+## Core Concepts
+
+### Three Namespaces
+
+ThreadList is split across three namespaces to keep each level of abstraction composable:
+
+- **`ThreadListPrimitive`**: The outer container. `Root` wraps the list, `New` creates threads, and `Items` iterates over them.
+- **`ThreadListItemPrimitive`**: An individual thread row. `Root` provides context, `Trigger` switches to the thread, `Title` shows the thread name, and action buttons (Archive, Unarchive, Delete) manage the thread lifecycle.
+- **`ThreadListItemMorePrimitive`**: An overflow dropdown menu (built on Radix DropdownMenu) for thread actions. Compose action buttons with menu items using `asChild`.
+
+### Active State
+
+Both `ThreadListPrimitive.New` and `ThreadListItemPrimitive.Root` get a `data-active` attribute when they represent the current thread. Use this for styling:
+
+```tsx
+<ThreadListItemPrimitive.Root className="hover:bg-muted data-active:bg-muted">
+  {/* ... */}
+</ThreadListItemPrimitive.Root>
+```
+
+The `New` button gets `data-active` when the user is on a fresh, unsaved thread.
+
+### Items Iterator
+
+`ThreadListPrimitive.Items` maps over thread IDs and renders a component for each thread — similar to how `ThreadPrimitive.Messages` works for messages:
+
+```tsx
+<ThreadListPrimitive.Items
+  components={{ ThreadListItem: MyThreadItem }}
+/>
+```
+
+### Archived Threads
+
+Pass `archived` to `Items` to render archived threads separately:
+
+```tsx
+<ThreadListPrimitive.Root>
+  <ThreadListPrimitive.New>New Thread</ThreadListPrimitive.New>
+  <ThreadListPrimitive.Items components={{ ThreadListItem }} />
+
+  <h3>Archived</h3>
+  <ThreadListPrimitive.Items
+    archived
+    components={{ ThreadListItem: ArchivedThreadItem }}
+  />
+</ThreadListPrimitive.Root>
+```
+
+### Thread Actions
+
+`Archive`, `Unarchive`, and `Delete` buttons auto-disable when the capability isn't available from the runtime. No manual checking required.
+
+### Composing Actions with Menu Items
+
+The canonical pattern composes `ThreadListItemPrimitive.Archive asChild` with `ThreadListItemMorePrimitive.Item` to get both the action behavior AND the menu item styling:
+
+```tsx
+<ThreadListItemPrimitive.Archive asChild>
+  <ThreadListItemMorePrimitive.Item>
+    <ArchiveIcon className="size-4" /> Archive
+  </ThreadListItemMorePrimitive.Item>
+</ThreadListItemPrimitive.Archive>
+```
+
+`Archive` provides the click handler and disabled logic. `Item` provides the menu item behavior and styling. `asChild` merges them into a single element.
+
+## Parts
+
+### ThreadListPrimitive
+
+| Part | Element | Purpose |
+|------|---------|---------|
+| `Root` | `<div>` | Container for the thread list |
+| `New` | `<button>` | Creates a new thread and switches to it |
+| `Items` | — | Renders a component per thread |
+| `ItemByIndex` | — | Renders a single thread at a specific index |
+
+### ThreadListItemPrimitive
+
+| Part | Element | Purpose |
+|------|---------|---------|
+| `Root` | `<div>` | Container for a thread item, provides context |
+| `Trigger` | `<button>` | Switches to this thread on click |
+| `Title` | `<span>` | Displays the thread title with a `fallback` prop |
+| `Archive` | `<button>` | Archives this thread |
+| `Unarchive` | `<button>` | Unarchives this thread |
+| `Delete` | `<button>` | Deletes this thread |
+
+### ThreadListItemMorePrimitive
+
+| Part | Element | Purpose |
+|------|---------|---------|
+| `Root` | — | Dropdown menu root (Radix DropdownMenu) |
+| `Trigger` | `<button>` | Opens the dropdown menu |
+| `Content` | `<div>` | The dropdown panel |
+| `Item` | `<div>` | A menu item within the dropdown |
+| `Separator` | `<div>` | Visual separator between menu items |
+
+## Patterns
+
+### Basic Thread List with New Button
+
+```tsx
+<ThreadListPrimitive.Root className="flex flex-col gap-1">
+  <ThreadListPrimitive.New className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm">
+    <PlusIcon className="size-4" /> New Thread
+  </ThreadListPrimitive.New>
+  <ThreadListPrimitive.Items components={{ ThreadListItem }} />
+</ThreadListPrimitive.Root>
+```
+
+### Thread Item with More Menu
+
+```tsx
+function ThreadListItem() {
+  return (
+    <ThreadListItemPrimitive.Root className="group flex items-center rounded-lg hover:bg-muted data-active:bg-muted">
+      <ThreadListItemPrimitive.Trigger className="flex-1 truncate px-3 py-2 text-sm">
+        <ThreadListItemPrimitive.Title fallback="New Chat" />
+      </ThreadListItemPrimitive.Trigger>
+      <ThreadListItemMorePrimitive.Root>
+        <ThreadListItemMorePrimitive.Trigger className="opacity-0 group-hover:opacity-100">
+          <MoreHorizontalIcon className="size-4" />
+        </ThreadListItemMorePrimitive.Trigger>
+        <ThreadListItemMorePrimitive.Content>
+          <ThreadListItemPrimitive.Archive asChild>
+            <ThreadListItemMorePrimitive.Item>Archive</ThreadListItemMorePrimitive.Item>
+          </ThreadListItemPrimitive.Archive>
+          <ThreadListItemMorePrimitive.Separator />
+          <ThreadListItemPrimitive.Delete asChild>
+            <ThreadListItemMorePrimitive.Item>Delete</ThreadListItemMorePrimitive.Item>
+          </ThreadListItemPrimitive.Delete>
+        </ThreadListItemMorePrimitive.Content>
+      </ThreadListItemMorePrimitive.Root>
+    </ThreadListItemPrimitive.Root>
+  );
+}
+```
+
+### Archived Threads Section
+
+```tsx
+<ThreadListPrimitive.Root>
+  <ThreadListPrimitive.New>New Thread</ThreadListPrimitive.New>
+
+  <h3 className="px-3 pt-4 text-xs font-medium text-muted-foreground">Recent</h3>
+  <ThreadListPrimitive.Items components={{ ThreadListItem }} />
+
+  <h3 className="px-3 pt-4 text-xs font-medium text-muted-foreground">Archived</h3>
+  <ThreadListPrimitive.Items archived components={{ ThreadListItem: ArchivedItem }} />
+</ThreadListPrimitive.Root>
+```
+
+In the `ArchivedItem` component, use `ThreadListItemPrimitive.Unarchive` instead of `Archive` to let users restore threads.
+
+## Relationship to Components
+
+The shadcn [ThreadList](/docs/ui/thread-list) component wraps these primitives with Tailwind styling in a sidebar layout, including a skeleton loading state and a pre-built more menu with archive and delete actions. Start there for a working thread list out of the box. Reach for the primitives directly when you need a custom layout, different actions, or integration with your own sidebar or navigation system.
+
+## API Reference
+
+For full prop details on every part, see the API reference for each namespace:
+
+- [ThreadListPrimitive](/docs/reference/primitives/thread-list)
+- [ThreadListItemPrimitive](/docs/reference/primitives/thread-list-item)
+- [ThreadListItemMorePrimitive](/docs/reference/primitives/thread-list-item-more)
