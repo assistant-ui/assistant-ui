@@ -3,7 +3,7 @@ import { getDistinctId, posthogServer } from "@/lib/posthog-server";
 import { injectQuoteContext } from "@/lib/quote";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { source } from "@/lib/source";
-import { openai } from "@ai-sdk/openai";
+import { getModel } from "@/lib/ai/provider";
 import { frontendTools } from "@assistant-ui/react-ai-sdk";
 import { withTracing } from "@posthog/ai";
 import {
@@ -120,7 +120,7 @@ export async function POST(req: Request): Promise<Response> {
   if (rateLimitResponse) return rateLimitResponse;
 
   const body = await req.json();
-  const { messages, tools, system: pageContext } = body;
+  const { messages, tools, system: pageContext, config } = body;
 
   const prunedMessages = pruneMessages({
     messages: await convertToModelMessages(injectQuoteContext(messages)),
@@ -129,7 +129,7 @@ export async function POST(req: Request): Promise<Response> {
     emptyMessages: "remove",
   });
 
-  const baseModel = openai("gpt-5-nano");
+  const baseModel = getModel(config?.modelName);
 
   const tracedModel = posthogServer
     ? withTracing(baseModel, posthogServer, {

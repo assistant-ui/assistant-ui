@@ -11,7 +11,6 @@
     "postinstall": "fumadocs-mdx"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^3.0.25",
     "@ai-sdk/react": "^3.0.75",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-ai-sdk": "workspace:*",

@@ -48,7 +48,7 @@ import Image from "next/image";
 import { useState, type FC } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ModelSelector } from "@/components/assistant-ui/model-selector";
-import { MODELS } from "@/constants/model";
+import { DEFAULT_MODEL_ID, MODELS } from "@/constants/model";
 
 const Logo: FC = () => {
   return (
@@ -125,7 +125,7 @@ const ModelPicker: FC = () => {
   return (
     <ModelSelector
       models={models}
-      defaultValue={MODELS[0].value}
+      defaultValue={DEFAULT_MODEL_ID}
       variant="outline"
     />
   );

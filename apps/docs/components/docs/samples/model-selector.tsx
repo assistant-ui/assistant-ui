@@ -7,28 +7,16 @@ import {
   ModelSelectorTrigger,
   ModelSelectorContent,
 } from "@/components/assistant-ui/model-selector";
+import { DEFAULT_MODEL_ID, MODELS } from "@/constants/model";
 import { SampleFrame } from "@/components/docs/samples/sample-frame";
 
-const models = [
-  {
-    id: "gpt-5-nano",
-    name: "GPT-5 Nano",
-    icon: <SparklesIcon />,
-    description: "Fast and efficient",
-  },
-  {
-    id: "gpt-5-mini",
-    name: "GPT-5 Mini",
-    icon: <SparklesIcon />,
-    description: "Balanced performance",
-  },
-  {
-    id: "gpt-5",
-    name: "GPT-5",
-    icon: <SparklesIcon />,
-    description: "Most capable",
-  },
-];
+const models = MODELS.map((model) => ({
+  id: model.value,
+  name: model.name,
+  icon: <SparklesIcon />,
+  description: `${model.disabled ? "Currently disabled" : "Available"} provider model`,
+  ...(model.disabled ? { disabled: true } : undefined),
+}));
 
 function VariantRow({
   label,
@@ -37,7 +25,7 @@ function VariantRow({
   label: string;
   variant?: "outline" | "ghost" | "muted";
 }) {
-  const [value, setValue] = useState("gpt-5-mini");
+  const [value, setValue] = useState(DEFAULT_MODEL_ID);
 
   return (
     <div className="flex flex-col gap-2">
