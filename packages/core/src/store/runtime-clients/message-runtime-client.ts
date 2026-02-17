@@ -4,19 +4,15 @@ import {
   tapResource,
   tapMemo,
   tapState,
+  type tapRef,
 } from "@assistant-ui/tap";
-import {
-  type ClientOutput,
-  tapClientLookup,
-  tapClientResource,
-} from "@assistant-ui/store";
-import { MessageRuntime } from "../runtime/MessageRuntime";
-import { tapSubscribable } from "../util-hooks/tapSubscribable";
-import { ComposerClient } from "./ComposerRuntimeClient";
-import { MessagePartClient } from "./MessagePartRuntimeClient";
-import { RefObject } from "react";
-import { MessageState } from "../../types/scopes";
-import { AttachmentRuntimeClient } from "./AttachmentRuntimeClient";
+import { type ClientOutput, tapClientLookup, tapClientResource } from "../";
+import { MessageRuntime } from "../../runtime";
+import { tapSubscribable } from "../utils/tap-subscribable";
+import { ComposerClient } from "./composer-runtime-client";
+import { MessagePartClient } from "./message-part-runtime-client";
+import { MessageState } from "../scopes";
+import { AttachmentRuntimeClient } from "./attachment-runtime-client";
 
 const MessageAttachmentClientByIndex = resource(
   ({ runtime, index }: { runtime: MessageRuntime; index: number }) => {
@@ -44,7 +40,7 @@ export const MessageClient = resource(
     threadIdRef,
   }: {
     runtime: MessageRuntime;
-    threadIdRef: RefObject<string>;
+    threadIdRef: tapRef.RefObject<string>;
   }): ClientOutput<"message"> => {
     const runtimeState = tapSubscribable(runtime);
 

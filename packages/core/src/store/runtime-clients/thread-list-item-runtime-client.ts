@@ -1,11 +1,8 @@
-import type { Unsubscribe } from "@assistant-ui/core";
+import type { Unsubscribe } from "../../types";
 import { resource, tapEffect } from "@assistant-ui/tap";
-import { type ClientOutput, tapAssistantEmit } from "@assistant-ui/store";
-import {
-  ThreadListItemEventType,
-  ThreadListItemRuntime,
-} from "../runtime/ThreadListItemRuntime";
-import { tapSubscribable } from "../util-hooks/tapSubscribable";
+import { type ClientOutput, tapAssistantEmit } from "../";
+import { ThreadListItemEventType, ThreadListItemRuntime } from "../../runtime";
+import { tapSubscribable } from "../utils/tap-subscribable";
 
 export const ThreadListItemClient = resource(
   ({

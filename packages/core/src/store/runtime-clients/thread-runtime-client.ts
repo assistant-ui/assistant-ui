@@ -1,6 +1,5 @@
-import type { Unsubscribe } from "@assistant-ui/core";
-import { ThreadRuntimeEventType } from "../runtime-cores/core/ThreadRuntimeCore";
-import { ThreadRuntime } from "../runtime/ThreadRuntime";
+import type { Unsubscribe } from "../../types";
+import { ThreadRuntimeEventType, ThreadRuntime } from "../../runtime";
 import {
   resource,
   tapResource,
@@ -14,11 +13,11 @@ import {
   tapAssistantEmit,
   tapClientLookup,
   tapClientResource,
-} from "@assistant-ui/store";
-import { ComposerClient } from "./ComposerRuntimeClient";
-import { MessageClient } from "./MessageRuntimeClient";
-import { tapSubscribable } from "../util-hooks/tapSubscribable";
-import { ThreadState } from "../../types/scopes";
+} from "../";
+import { ComposerClient } from "./composer-runtime-client";
+import { MessageClient } from "./message-runtime-client";
+import { tapSubscribable } from "../utils/tap-subscribable";
+import { ThreadState } from "../scopes";
 
 const MessageClientById = resource(
   ({

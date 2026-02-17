@@ -1,7 +1,7 @@
 import { resource } from "@assistant-ui/tap";
-import { type ClientOutput } from "@assistant-ui/store";
-import { AttachmentRuntime } from "../runtime";
-import { tapSubscribable } from "../util-hooks/tapSubscribable";
+import { type ClientOutput } from "../";
+import { AttachmentRuntime } from "../../runtime";
+import { tapSubscribable } from "../utils/tap-subscribable";
 
 export const AttachmentRuntimeClient = resource(
   ({ runtime }: { runtime: AttachmentRuntime }): ClientOutput<"attachment"> => {

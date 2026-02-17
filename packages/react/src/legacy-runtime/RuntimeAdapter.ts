@@ -1,6 +1,6 @@
 import { resource, tapEffect, tapResource } from "@assistant-ui/tap";
 import type { AssistantRuntime } from "./runtime/AssistantRuntime";
-import { ThreadListClient } from "./client/ThreadListRuntimeClient";
+import { ThreadListClient } from "@assistant-ui/core/store/internal";
 import {
   tapAssistantClientRef,
   Derived,

@@ -1,15 +1,10 @@
 import { withKey, resource, tapResource, tapMemo } from "@assistant-ui/tap";
-import {
-  type ClientOutput,
-  tapClientLookup,
-  tapClientResource,
-} from "@assistant-ui/store";
-import { ThreadListRuntime } from "../runtime/ThreadListRuntime";
-import { tapSubscribable } from "../util-hooks/tapSubscribable";
-import { ThreadListItemClient } from "./ThreadListItemRuntimeClient";
-import { ThreadClient } from "./ThreadRuntimeClient";
-import { ThreadsState } from "../../types/scopes";
-import type { AssistantRuntime } from "../runtime/AssistantRuntime";
+import { type ClientOutput, tapClientLookup, tapClientResource } from "../";
+import { ThreadListRuntime, AssistantRuntime } from "../../runtime";
+import { tapSubscribable } from "../utils/tap-subscribable";
+import { ThreadListItemClient } from "./thread-list-item-runtime-client";
+import { ThreadClient } from "./thread-runtime-client";
+import { ThreadsState } from "../scopes";
 
 const ThreadListItemClientById = resource(
   ({ runtime, id }: { runtime: ThreadListRuntime; id: string }) => {

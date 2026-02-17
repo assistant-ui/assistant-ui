@@ -29,3 +29,5 @@ export {
 export { getClientState, ClientResource } from "./tap-client-resource";
 export { wrapperResource } from "./wrapper-resource";
 export { getTransformScopes } from "./attach-transform-scopes";
+export { tapSubscribable } from "./utils/tap-subscribable";
+export * from "./runtime-clients";

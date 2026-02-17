@@ -1,5 +1,5 @@
 import { tapState, tapEffect } from "@assistant-ui/tap";
-import type { SubscribableWithState } from "@assistant-ui/core/internal";
+import type { SubscribableWithState } from "../../subscribable";
 
 export const tapSubscribable = <T>(
   subscribable: Omit<SubscribableWithState<T, any>, "path">,

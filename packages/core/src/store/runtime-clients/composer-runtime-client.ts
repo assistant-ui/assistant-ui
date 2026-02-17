@@ -1,4 +1,4 @@
-import type { Unsubscribe } from "@assistant-ui/core";
+import type { Unsubscribe } from "../../types";
 import {
   resource,
   tapMemo,
@@ -7,19 +7,15 @@ import {
   type tapRef,
   withKey,
 } from "@assistant-ui/tap";
-import {
-  type ClientOutput,
-  tapAssistantEmit,
-  tapClientLookup,
-} from "@assistant-ui/store";
+import { type ClientOutput, tapAssistantEmit, tapClientLookup } from "../";
 import {
   ComposerRuntime,
   EditComposerRuntime,
-} from "../runtime/ComposerRuntime";
-import { ComposerRuntimeEventType } from "../runtime-cores/core/ComposerRuntimeCore";
-import { ComposerState } from "../../types/scopes";
-import { AttachmentRuntimeClient } from "./AttachmentRuntimeClient";
-import { tapSubscribable } from "../util-hooks/tapSubscribable";
+  ComposerRuntimeEventType,
+} from "../../runtime";
+import { ComposerState } from "../scopes";
+import { AttachmentRuntimeClient } from "./attachment-runtime-client";
+import { tapSubscribable } from "../utils/tap-subscribable";
 
 const ComposerAttachmentClientByIndex = resource(
   ({ runtime, index }: { runtime: ComposerRuntime; index: number }) => {
