@@ -14,19 +14,21 @@ The Composer primitive is the interface for composing new messages or editing ex
   <Tab>
 ```tsx
 import { ComposerPrimitive } from "@assistant-ui/react";
-import { SendHorizontalIcon } from "lucide-react";
+import { ArrowUpIcon } from "lucide-react";
 
 export function MinimalComposer() {
   return (
-    <ComposerPrimitive.Root className="flex items-end gap-2 rounded-xl border bg-background p-2">
+    <ComposerPrimitive.Root className="flex w-full flex-col rounded-3xl border bg-muted">
       <ComposerPrimitive.Input
         placeholder="Ask anything..."
-        className="field-sizing-content min-h-9 flex-1 resize-none bg-transparent px-2 py-2 text-sm leading-5 focus:outline-none"
+        className="min-h-10 w-full resize-none bg-transparent px-5 pt-4 pb-3 text-sm focus:outline-none"
         rows={1}
       />
-      <ComposerPrimitive.Send className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-opacity disabled:opacity-30">
-        <SendHorizontalIcon className="size-4" />
-      </ComposerPrimitive.Send>
+      <div className="flex items-center justify-end px-3 pb-3">
+        <ComposerPrimitive.Send className="flex size-8 items-center justify-center rounded-full bg-primary text-primary-foreground disabled:opacity-30">
+          <ArrowUpIcon className="size-4" />
+        </ComposerPrimitive.Send>
+      </div>
     </ComposerPrimitive.Root>
   );
 }

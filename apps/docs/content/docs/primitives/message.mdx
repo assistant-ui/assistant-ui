@@ -1,0 +1,260 @@
+---
+title: Message
+description: Build custom message rendering with content parts, attachments, and hover state.
+---
+
+import { MessagePrimitiveSample } from "@/components/docs/samples/message-primitive";
+
+The Message primitive handles individual message rendering — content parts, attachments, hover state, and error display. It's the building block inside each message bubble, resolving text, images, tool calls, and more through a parts pipeline.
+
+<Tabs items={["Preview", "Code"]}>
+  <Tab>
+    <MessagePrimitiveSample />
+  </Tab>
+  <Tab>
+```tsx
+import {
+  MessagePrimitive,
+  MessagePartPrimitive,
+} from "@assistant-ui/react";
+
+function UserMessage() {
+  return (
+    <MessagePrimitive.Root className="flex justify-end">
+      <div className="max-w-[80%] rounded-2xl bg-primary px-4 py-2.5 text-sm text-primary-foreground">
+        <MessagePrimitive.Parts components={{ Text: UserText }} />
+      </div>
+    </MessagePrimitive.Root>
+  );
+}
+
+function AssistantMessage() {
+  return (
+    <MessagePrimitive.Root className="flex justify-start gap-3">
+      <div className="flex size-8 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
+        AI
+      </div>
+      <div className="max-w-[80%] rounded-2xl bg-muted px-4 py-2.5 text-sm">
+        <MessagePrimitive.Parts components={{ Text: AssistantText }} />
+      </div>
+    </MessagePrimitive.Root>
+  );
+}
+
+function UserText() {
+  return (
+    <p>
+      <MessagePartPrimitive.Text />
+    </p>
+  );
+}
+
+function AssistantText() {
+  return (
+    <p className="leading-relaxed">
+      <MessagePartPrimitive.Text />
+    </p>
+  );
+}
+```
+  </Tab>
+</Tabs>
+
+## Quick Start
+
+A minimal message with parts rendering:
+
+```tsx
+import { MessagePrimitive } from "@assistant-ui/react";
+
+<MessagePrimitive.Root>
+  <MessagePrimitive.Parts />
+</MessagePrimitive.Root>
+```
+
+`Root` renders a `<div>` that provides message context and tracks hover state. `Parts` iterates over the message's content parts and renders each one. Without custom components, parts render with sensible defaults.
+
+## Core Concepts
+
+### Parts Pipeline
+
+`MessagePrimitive.Parts` resolves a component for each content part by type. Pass custom components to control how each type renders:
+
+```tsx
+<MessagePrimitive.Parts
+  components={{
+    Text: MyTextRenderer,
+    Image: MyImageRenderer,
+    tools: {
+      by_name: { search: SearchToolUI },
+      Fallback: GenericToolUI,
+    },
+  }}
+/>
+```
+
+Each component receives the part data via context. Use `MessagePartPrimitive.Text` and `MessagePartPrimitive.Image` inside your custom components to access the content.
+
+### Tool Resolution
+
+Tool call parts use a two-layer lookup:
+
+1. **`tools.by_name`** — match a specific tool name to a component
+2. **`tools.Fallback`** — catch-all for unmatched tool calls
+
+Globally registered tools (via `makeAssistantTool` or `useAssistantTool`) are checked first. Inline `tools.by_name` takes priority when both exist.
+
+```tsx
+<MessagePrimitive.Parts
+  components={{
+    tools: {
+      by_name: {
+        weather: WeatherCard,
+        search: SearchResults,
+      },
+      Fallback: ({ name }) => <div>Running {name}...</div>,
+    },
+  }}
+/>
+```
+
+### Hover State
+
+`MessagePrimitive.Root` automatically tracks mouse enter/leave events. This hover state is consumed by `ActionBarPrimitive` to implement auto-hide behavior — no extra wiring needed.
+
+### MessagePartPrimitive
+
+Inside your custom part components, use these sub-primitives to access the actual content:
+
+- **`MessagePartPrimitive.Text`** — renders the text content of a text part
+- **`MessagePartPrimitive.Image`** — renders the image of an image part
+- **`MessagePartPrimitive.InProgress`** — renders only while the part is still streaming
+
+```tsx
+function MyText() {
+  return (
+    <p className="whitespace-pre-wrap">
+      <MessagePartPrimitive.Text />
+      <MessagePartPrimitive.InProgress>
+        <span className="animate-pulse">▊</span>
+      </MessagePartPrimitive.InProgress>
+    </p>
+  );
+}
+```
+
+## Parts
+
+| Part | Element | Purpose |
+|------|---------|---------|
+| `Root` | `<div>` | Container, provides message context, tracks hover state |
+| `Parts` | — | Renders each content part with type-based component resolution |
+| `Content` | — | Alias for `Parts` |
+| `PartByIndex` | — | Renders a single part at a specific index |
+| `Attachments` | — | Renders all user message attachments |
+| `AttachmentByIndex` | — | Renders a single attachment at a specific index |
+| `Error` | — | Renders children only when the message has an error |
+| `If` | — | Conditional rendering *(deprecated — use `AuiIf`)* |
+
+## Patterns
+
+### Custom Text Rendering
+
+```tsx
+function MarkdownText() {
+  return (
+    <div className="prose prose-sm">
+      <MessagePartPrimitive.Text />
+    </div>
+  );
+}
+
+<MessagePrimitive.Parts components={{ Text: MarkdownText }} />
+```
+
+### Tool UI with by_name
+
+```tsx
+<MessagePrimitive.Parts
+  components={{
+    Text: MyText,
+    tools: {
+      by_name: {
+        get_weather: ({ result }) => (
+          <div className="rounded-lg border p-3">
+            <p className="font-medium">Weather</p>
+            <p>{result?.temperature}°F — {result?.condition}</p>
+          </div>
+        ),
+      },
+      Fallback: ({ name, isLoading }) => (
+        <div className="text-muted-foreground text-sm">
+          {isLoading ? `Running ${name}...` : `${name} completed`}
+        </div>
+      ),
+    },
+  }}
+/>
+```
+
+### Error Display
+
+```tsx
+<MessagePrimitive.Root>
+  <MessagePrimitive.Parts />
+  <MessagePrimitive.Error>
+    <div className="mt-2 rounded-md bg-destructive/10 p-2 text-sm text-destructive">
+      Something went wrong. Please try again.
+    </div>
+  </MessagePrimitive.Error>
+</MessagePrimitive.Root>
+```
+
+### Role-Based Styling
+
+`MessagePrimitive.Root` does not set data attributes by default — style by role in your message components:
+
+```tsx
+// In your ThreadPrimitive.Messages components:
+function UserMessage() {
+  return (
+    <MessagePrimitive.Root data-role="user" className="flex justify-end">
+      <MessagePrimitive.Parts />
+    </MessagePrimitive.Root>
+  );
+}
+
+function AssistantMessage() {
+  return (
+    <MessagePrimitive.Root data-role="assistant" className="flex justify-start">
+      <MessagePrimitive.Parts />
+    </MessagePrimitive.Root>
+  );
+}
+```
+
+### Attachments
+
+```tsx
+<MessagePrimitive.Root>
+  <MessagePrimitive.Attachments
+    components={{
+      Image: ({ name }) => <img alt={name} className="max-w-xs rounded-lg" />,
+      Document: ({ name }) => (
+        <div className="flex items-center gap-2 rounded-lg border p-2 text-sm">
+          📄 {name}
+        </div>
+      ),
+    }}
+  />
+  <MessagePrimitive.Parts />
+</MessagePrimitive.Root>
+```
+
+## Relationship to Components
+
+The shadcn [Thread](/docs/ui/thread) component renders user and assistant messages built from these primitives. The pre-built `AssistantMessage` and `UserMessage` components handle text rendering, tool UIs, error display, and action bars — all using `MessagePrimitive` under the hood.
+
+## API Reference
+
+For full prop details on every part, see the [MessagePrimitive API Reference](/docs/reference/primitives/message).
