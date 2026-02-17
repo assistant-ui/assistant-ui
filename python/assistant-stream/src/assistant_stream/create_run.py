@@ -221,13 +221,8 @@ async def create_run(
         if ended_normally:
             # The `None` sentinel is queued at the end of `background_task`, so
             # normal stream completion implies `task` is already done here.
-            if not task.done():
-                raise RuntimeError("background task should be done on normal completion")
-
-            # Preserve normal-path error propagation.
-            task_exception = task.exception()
-            if task_exception is not None:
-                raise task_exception
+            # `result()` preserves normal-path error propagation.
+            task.result()
         else:
             controller._mark_cancelled()
             # Yield to the event loop to allow the cancel signal to propagate.
