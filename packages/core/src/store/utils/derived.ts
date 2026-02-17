@@ -4,7 +4,7 @@ import type {
   ClientNames,
   AssistantClientAccessor,
   ClientMeta,
-} from "./types/client";
+} from "../types/client";
 
 /**
  * Creates a derived client field that references a client from a parent scope.

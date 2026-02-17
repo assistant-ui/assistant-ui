@@ -26,8 +26,7 @@ export {
   type DerivedClients,
   tapSplitClients,
 } from "./utils/split-clients";
-export { getClientState, ClientResource } from "./tap-client-resource";
-export { wrapperResource } from "./wrapper-resource";
-export { getTransformScopes } from "./attach-transform-scopes";
-export { tapSubscribable } from "./utils/tap-subscribable";
+export { getClientState, ClientResource } from "./utils/tap-client-resource";
+export { wrapperResource } from "./utils/wrapper-resource";
+export { getTransformScopes } from "./utils/attach-transform-scopes";
 export * from "./runtime-clients";

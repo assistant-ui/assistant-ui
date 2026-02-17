@@ -8,7 +8,7 @@ import {
 } from "@assistant-ui/tap";
 import { type ClientOutput, tapClientLookup, tapClientResource } from "../";
 import { MessageRuntime } from "../../runtime";
-import { tapSubscribable } from "../utils/tap-subscribable";
+import { tapSubscribable } from "./tap-subscribable";
 import { ComposerClient } from "./composer-runtime-client";
 import { MessagePartClient } from "./message-part-runtime-client";
 import { MessageState } from "../scopes";

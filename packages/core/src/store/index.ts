@@ -1,17 +1,17 @@
 // resources
-export { Derived } from "./derived";
-export type { DerivedElement } from "./derived";
-export { attachTransformScopes } from "./attach-transform-scopes";
-export type { ScopesConfig } from "./attach-transform-scopes";
+export { Derived } from "./utils/derived";
+export type { DerivedElement } from "./utils/derived";
+export { attachTransformScopes } from "./utils/attach-transform-scopes";
+export type { ScopesConfig } from "./utils/attach-transform-scopes";
 
 // tap hooks
 export {
   tapAssistantClientRef,
   tapAssistantEmit,
 } from "./utils/tap-assistant-context";
-export { tapClientResource } from "./tap-client-resource";
-export { tapClientLookup } from "./tap-client-lookup";
-export { tapClientList } from "./tap-client-list";
+export { tapClientResource } from "./utils/tap-client-resource";
+export { tapClientLookup } from "./utils/tap-client-lookup";
+export { tapClientList } from "./utils/tap-client-list";
 
 // types
 export type {

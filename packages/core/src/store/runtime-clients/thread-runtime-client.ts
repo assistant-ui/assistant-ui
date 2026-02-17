@@ -16,7 +16,7 @@ import {
 } from "../";
 import { ComposerClient } from "./composer-runtime-client";
 import { MessageClient } from "./message-runtime-client";
-import { tapSubscribable } from "../utils/tap-subscribable";
+import { tapSubscribable } from "./tap-subscribable";
 import { ThreadState } from "../scopes";
 
 const MessageClientById = resource(

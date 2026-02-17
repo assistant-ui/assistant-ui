@@ -1,7 +1,7 @@
 import { withKey, resource, tapResource, tapMemo } from "@assistant-ui/tap";
 import { type ClientOutput, tapClientLookup, tapClientResource } from "../";
 import { ThreadListRuntime, AssistantRuntime } from "../../runtime";
-import { tapSubscribable } from "../utils/tap-subscribable";
+import { tapSubscribable } from "./tap-subscribable";
 import { ThreadListItemClient } from "./thread-list-item-runtime-client";
 import { ThreadClient } from "./thread-runtime-client";
 import { ThreadsState } from "../scopes";

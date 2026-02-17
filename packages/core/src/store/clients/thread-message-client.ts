@@ -12,7 +12,7 @@ import {
   withKey,
 } from "@assistant-ui/tap";
 import type { ClientOutput } from "../types/client";
-import { tapClientLookup } from "../tap-client-lookup";
+import { tapClientLookup } from "../utils/tap-client-lookup";
 import type { MessageState, PartState } from "../scopes";
 import { NoOpComposerClient } from "./no-op-composer-client";
 

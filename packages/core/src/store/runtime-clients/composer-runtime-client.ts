@@ -15,7 +15,7 @@ import {
 } from "../../runtime";
 import { ComposerState } from "../scopes";
 import { AttachmentRuntimeClient } from "./attachment-runtime-client";
-import { tapSubscribable } from "../utils/tap-subscribable";
+import { tapSubscribable } from "./tap-subscribable";
 
 const ComposerAttachmentClientByIndex = resource(
   ({ runtime, index }: { runtime: ComposerRuntime; index: number }) => {

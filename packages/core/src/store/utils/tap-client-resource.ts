@@ -5,16 +5,16 @@ import {
   type ResourceElement,
   tapResource,
 } from "@assistant-ui/tap";
-import type { ClientMethods } from "./types/client";
+import type { ClientMethods } from "../types/client";
 import {
   tapClientStack,
   tapWithClientStack,
   SYMBOL_CLIENT_INDEX,
-} from "./utils/tap-client-stack-context";
+} from "./tap-client-stack-context";
 import {
   BaseProxyHandler,
   handleIntrospectionProp,
-} from "./utils/base-proxy-handler";
+} from "./base-proxy-handler";
 import { wrapperResource } from "./wrapper-resource";
 
 /**

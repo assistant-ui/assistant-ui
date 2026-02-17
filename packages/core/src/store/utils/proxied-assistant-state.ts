@@ -1,4 +1,4 @@
-import { getClientState } from "../tap-client-resource";
+import { getClientState } from "./tap-client-resource";
 import type { AssistantClient, AssistantState } from "../types/client";
 import {
   BaseProxyHandler,

@@ -1,7 +1,7 @@
 import { tapConst, tapState, withKey } from "@assistant-ui/tap";
 import type { ContravariantResource } from "@assistant-ui/tap";
 import { tapClientLookup } from "./tap-client-lookup";
-import type { ClientMethods } from "./types/client";
+import type { ClientMethods } from "../types/client";
 
 type InferClientState<TMethods> = TMethods extends {
   getState: () => infer S;
