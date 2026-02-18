@@ -54,6 +54,7 @@ export function useToolInvocations({
         argsText: string;
         hasResult: boolean;
         argsComplete: boolean;
+        streamToolCallId: string;
         controller: ToolCallStreamController;
       }
     >
@@ -72,26 +73,61 @@ export function useToolInvocations({
   const acRef = useRef<AbortController>(new AbortController());
   const executingCountRef = useRef(0);
   const settledResolversRef = useRef<Array<() => void>>([]);
+  const toolCallIdAliasesRef = useRef<Map<string, string>>(new Map());
+  const rewriteCounterRef = useRef(0);
+
+  const getLogicalToolCallId = (toolCallId: string) => {
+    return toolCallIdAliasesRef.current.get(toolCallId) ?? toolCallId;
+  };
+
+  const getWrappedTools = () => {
+    const tools = getTools();
+    if (!tools) return undefined;
+
+    return Object.fromEntries(
+      Object.entries(tools).map(([name, tool]) => {
+        const wrappedTool: Tool = {
+          ...tool,
+          ...(tool.execute && {
+            execute: (args, context) =>
+              tool.execute?.(args, {
+                ...context,
+                toolCallId: getLogicalToolCallId(context.toolCallId),
+              }),
+          }),
+          ...(tool.streamCall && {
+            streamCall: (reader, context) =>
+              tool.streamCall?.(reader, {
+                ...context,
+                toolCallId: getLogicalToolCallId(context.toolCallId),
+              }),
+          }),
+        };
+        return [name, wrappedTool];
+      }),
+    ) as Record<string, Tool>;
+  };
 
   const [controller] = useState(() => {
     const [stream, controller] = createAssistantStreamController();
     const transform = unstable_toolResultStream(
-      getTools,
+      getWrappedTools,
       () => acRef.current?.signal ?? new AbortController().signal,
       (toolCallId: string, payload: unknown) => {
+        const logicalToolCallId = getLogicalToolCallId(toolCallId);
         return new Promise<unknown>((resolve, reject) => {
           // Reject previous human input request if it exists
-          const previous = humanInputRef.current.get(toolCallId);
+          const previous = humanInputRef.current.get(logicalToolCallId);
           if (previous) {
             previous.reject(
               new Error("Human input request was superseded by a new request"),
             );
           }
 
-          humanInputRef.current.set(toolCallId, { resolve, reject });
+          humanInputRef.current.set(logicalToolCallId, { resolve, reject });
           setToolStatuses((prev) => ({
             ...prev,
-            [toolCallId]: {
+            [logicalToolCallId]: {
               type: "interrupt",
               payload: { type: "human", payload },
             },
@@ -100,17 +136,19 @@ export function useToolInvocations({
       },
       {
         onExecutionStart: (toolCallId: string) => {
+          const logicalToolCallId = getLogicalToolCallId(toolCallId);
           executingCountRef.current++;
           setToolStatuses((prev) => ({
             ...prev,
-            [toolCallId]: { type: "executing" },
+            [logicalToolCallId]: { type: "executing" },
           }));
         },
         onExecutionEnd: (toolCallId: string) => {
+          const logicalToolCallId = getLogicalToolCallId(toolCallId);
           executingCountRef.current--;
           setToolStatuses((prev) => {
             const next = { ...prev };
-            delete next[toolCallId];
+            delete next[logicalToolCallId];
             return next;
           });
           // Resolve any waiting abort promises when all tools have settled
@@ -128,13 +166,15 @@ export function useToolInvocations({
         new WritableStream({
           write(chunk) {
             if (chunk.type === "result") {
+              const logicalToolCallId = getLogicalToolCallId(
+                chunk.meta.toolCallId,
+              );
               // the tool call result was already set by the backend
-              if (lastToolStates.current[chunk.meta.toolCallId]?.hasResult)
-                return;
+              if (lastToolStates.current[logicalToolCallId]?.hasResult) return;
 
               onResult({
                 type: "add-tool-result",
-                toolCallId: chunk.meta.toolCallId,
+                toolCallId: logicalToolCallId,
                 toolName: chunk.meta.toolName,
                 result: chunk.result,
                 isError: chunk.isError,
@@ -166,6 +206,10 @@ export function useToolInvocations({
               }
               let lastState = lastToolStates.current[content.toolCallId];
               if (!lastState) {
+                toolCallIdAliasesRef.current.set(
+                  content.toolCallId,
+                  content.toolCallId,
+                );
                 const toolCallController = controller.addToolCallPart({
                   toolName: content.toolName,
                   toolCallId: content.toolCallId,
@@ -174,6 +218,7 @@ export function useToolInvocations({
                   argsText: "",
                   hasResult: false,
                   argsComplete: false,
+                  streamToolCallId: content.toolCallId,
                   controller: toolCallController,
                 };
                 lastToolStates.current[content.toolCallId] = lastState;
@@ -204,13 +249,45 @@ export function useToolInvocations({
                         argsText: content.argsText,
                         hasResult: lastState.hasResult,
                         argsComplete: true,
+                        streamToolCallId: lastState.streamToolCallId,
                         controller: lastState.controller,
                       };
                       return; // Continue to next content part
                     }
-                    throw new Error(
-                      `Tool call argsText can only be appended, not updated: ${content.argsText} does not start with ${lastState.argsText}`,
+                    if (process.env.NODE_ENV !== "production") {
+                      console.warn(
+                        "argsText rewrote previous snapshot, restarting tool args stream:",
+                        {
+                          previous: lastState.argsText,
+                          next: content.argsText,
+                          toolCallId: content.toolCallId,
+                        },
+                      );
+                    }
+
+                    const streamToolCallId = `${content.toolCallId}:rewrite:${rewriteCounterRef.current++}`;
+                    toolCallIdAliasesRef.current.set(
+                      streamToolCallId,
+                      content.toolCallId,
                     );
+                    const toolCallController = controller.addToolCallPart({
+                      toolName: content.toolName,
+                      toolCallId: streamToolCallId,
+                    });
+                    if (process.env.NODE_ENV !== "production") {
+                      console.warn("started replacement stream tool call", {
+                        toolCallId: content.toolCallId,
+                        streamToolCallId,
+                      });
+                    }
+                    lastState = {
+                      argsText: "",
+                      hasResult: lastState.hasResult,
+                      argsComplete: false,
+                      streamToolCallId,
+                      controller: toolCallController,
+                    };
+                    lastToolStates.current[content.toolCallId] = lastState;
                   }
 
                   const argsTextDelta = content.argsText.slice(
@@ -227,6 +304,7 @@ export function useToolInvocations({
                     argsText: content.argsText,
                     hasResult: lastState.hasResult,
                     argsComplete: shouldClose,
+                    streamToolCallId: lastState.streamToolCallId,
                     controller: lastState.controller,
                   };
                 }
@@ -237,6 +315,7 @@ export function useToolInvocations({
                   hasResult: true,
                   argsComplete: true,
                   argsText: lastState.argsText,
+                  streamToolCallId: lastState.streamToolCallId,
                   controller: lastState.controller,
                 };
 
@@ -289,6 +368,8 @@ export function useToolInvocations({
     reset: () => {
       void abort();
       isInitialState.current = true;
+      toolCallIdAliasesRef.current.clear();
+      rewriteCounterRef.current = 0;
     },
     abort,
     resume: (toolCallId: string, payload: unknown) => {
