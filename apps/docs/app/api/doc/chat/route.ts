@@ -116,124 +116,132 @@ Use inline code (\`backticks\`) for:
 `;
 
 export async function POST(req: Request): Promise<Response> {
-  const rateLimitResponse = await checkRateLimit(req);
-  if (rateLimitResponse) return rateLimitResponse;
+  try {
+    const rateLimitResponse = await checkRateLimit(req);
+    if (rateLimitResponse) return rateLimitResponse;
 
-  const body = await req.json();
-  const { messages, tools, system: pageContext, config } = body;
+    const body = await req.json();
+    const { messages, tools, system: pageContext, config } = body;
 
-  const prunedMessages = pruneMessages({
-    messages: await convertToModelMessages(injectQuoteContext(messages)),
-    toolCalls: "before-last-2-messages",
-    reasoning: "none",
-    emptyMessages: "remove",
-  });
+    const prunedMessages = pruneMessages({
+      messages: await convertToModelMessages(injectQuoteContext(messages)),
+      toolCalls: "before-last-2-messages",
+      reasoning: "none",
+      emptyMessages: "remove",
+    });
 
-  const baseModel = getModel(config?.modelName);
+    const baseModel = getModel(config?.modelName);
 
-  const tracedModel = posthogServer
-    ? withTracing(baseModel, posthogServer, {
-        posthogDistinctId: getDistinctId(req),
-        posthogPrivacyMode: false,
-        posthogProperties: {
-          $ai_span_name: "docs_assistant_chat",
-          source: "docs_assistant",
-        },
-      })
-    : baseModel;
+    const tracedModel = posthogServer
+      ? withTracing(baseModel, posthogServer, {
+          posthogDistinctId: getDistinctId(req),
+          posthogPrivacyMode: false,
+          posthogProperties: {
+            $ai_span_name: "docs_assistant_chat",
+            source: "docs_assistant",
+          },
+        })
+      : baseModel;
 
-  const result = streamText({
-    model: tracedModel,
-    system: [SYSTEM_PROMPT, pageContext].filter(Boolean).join("\n\n"),
-    messages: prunedMessages,
-    stopWhen: stepCountIs(25),
-    tools: {
-      ...frontendTools(tools),
-      listDocs: tool({
-        description:
-          "List documentation pages. Use with no path for root categories, or specify path to browse a section.",
-        inputSchema: zodSchema(
-          z.object({
-            path: z
-              .string()
-              .optional()
-              .describe(
-                "Path to browse (e.g., 'ui', 'runtimes'). Empty for root.",
-              ),
-          }),
-        ),
-        execute: async ({ path }) => {
-          const pageTree = source.pageTree;
+    const result = streamText({
+      model: tracedModel,
+      system: [SYSTEM_PROMPT, pageContext].filter(Boolean).join("\n\n"),
+      messages: prunedMessages,
+      stopWhen: stepCountIs(25),
+      tools: {
+        ...frontendTools(tools),
+        listDocs: tool({
+          description:
+            "List documentation pages. Use with no path for root categories, or specify path to browse a section.",
+          inputSchema: zodSchema(
+            z.object({
+              path: z
+                .string()
+                .optional()
+                .describe(
+                  "Path to browse (e.g., 'ui', 'runtimes'). Empty for root.",
+                ),
+            }),
+          ),
+          execute: async ({ path }) => {
+            const pageTree = source.pageTree;
 
-          if (!path) {
-            // Return root categories
-            return pageTree.children
-              .filter((node): node is PageTree.Folder => node.type === "folder")
-              .map((folder) => ({
-                type: "folder",
-                name: folder.name,
-                ...(folder.index ? { url: folder.index.url } : {}),
-              }));
-          }
-
-          // Find folder at path, return children
-          const targetFolder = findFolderByPath(pageTree, path);
-          if (!targetFolder) return { error: "Path not found" };
-
-          return targetFolder.children.flatMap((node) => {
-            switch (node.type) {
-              case "page":
-                return { type: "page", title: node.name, url: node.url };
-              case "folder":
-                return {
+            if (!path) {
+              // Return root categories
+              return pageTree.children
+                .filter(
+                  (node): node is PageTree.Folder => node.type === "folder",
+                )
+                .map((folder) => ({
                   type: "folder",
-                  name: node.name,
-                  ...(node.index ? { url: node.index.url } : {}),
-                };
-              default:
-                return [];
+                  name: folder.name,
+                  ...(folder.index ? { url: folder.index.url } : {}),
+                }));
             }
-          });
-        },
-      }),
-      readDoc: tool({
-        description: "Read full content of a documentation page",
-        inputSchema: zodSchema(
-          z.object({
-            slugOrUrl: z
-              .string()
-              .describe("Page slug (e.g., 'ui/thread') or URL"),
-          }),
-        ),
-        execute: async ({ slugOrUrl }) => {
-          const path = slugOrUrl.startsWith("http")
-            ? new URL(slugOrUrl).pathname
-            : slugOrUrl;
 
-          const normalized = path.replace(/^(\/docs\/|docs\/)+/, "");
-          const slugs = normalized.split("/").filter(Boolean);
+            // Find folder at path, return children
+            const targetFolder = findFolderByPath(pageTree, path);
+            if (!targetFolder) return { error: "Path not found" };
 
-          const page = source.getPage(slugs);
-          if (!page) return { error: `Page not found: ${slugOrUrl}` };
+            return targetFolder.children.flatMap((node) => {
+              switch (node.type) {
+                case "page":
+                  return { type: "page", title: node.name, url: node.url };
+                case "folder":
+                  return {
+                    type: "folder",
+                    name: node.name,
+                    ...(node.index ? { url: node.index.url } : {}),
+                  };
+                default:
+                  return [];
+              }
+            });
+          },
+        }),
+        readDoc: tool({
+          description: "Read full content of a documentation page",
+          inputSchema: zodSchema(
+            z.object({
+              slugOrUrl: z
+                .string()
+                .describe("Page slug (e.g., 'ui/thread') or URL"),
+            }),
+          ),
+          execute: async ({ slugOrUrl }) => {
+            const path = slugOrUrl.startsWith("http")
+              ? new URL(slugOrUrl).pathname
+              : slugOrUrl;
 
-          const content = await getLLMText(page);
-          return { title: page.data.title, url: page.url, content };
-        },
-      }),
-    },
-    onError: console.error,
-  });
+            const normalized = path.replace(/^(\/docs\/|docs\/)+/, "");
+            const slugs = normalized.split("/").filter(Boolean);
 
-  return result.toUIMessageStreamResponse({
-    originalMessages: messages,
-    messageMetadata: ({ part }) => {
-      if (part.type === "finish-step") {
-        return { modelId: part.response.modelId };
-      }
-      if (part.type === "finish") {
-        return { custom: { usage: part.totalUsage } };
-      }
-      return undefined;
-    },
-  });
+            const page = source.getPage(slugs);
+            if (!page) return { error: `Page not found: ${slugOrUrl}` };
+
+            const content = await getLLMText(page);
+            return { title: page.data.title, url: page.url, content };
+          },
+        }),
+      },
+      onError: console.error,
+    });
+
+    return result.toUIMessageStreamResponse({
+      originalMessages: messages,
+      messageMetadata: ({ part }) => {
+        if (part.type === "finish-step") {
+          return { modelId: part.response.modelId };
+        }
+        if (part.type === "finish") {
+          return { custom: { usage: part.totalUsage } };
+        }
+        return undefined;
+      },
+    });
+  } catch (e) {
+    return new Response(e instanceof Error ? e.message : "Unknown error", {
+      status: 500,
+    });
+  }
 }
