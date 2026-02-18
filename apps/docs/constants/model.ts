@@ -47,6 +47,15 @@ export const MODELS = [
 
 export type Model = (typeof MODELS)[number];
 
+export const DEFAULT_CONTEXT_WINDOW = MODELS.find(
+  (m) => m.value === DEFAULT_MODEL_ID,
+)!.contextWindow;
+
+export function getContextWindow(modelId: string): number {
+  const model = MODELS.find((m) => m.value === modelId);
+  return model?.contextWindow ?? DEFAULT_CONTEXT_WINDOW;
+}
+
 const ACTIVE_MODELS = MODELS.filter((m) => !m.disabled);
 const VALID_MODEL_IDS = new Set<string>(ACTIVE_MODELS.map((m) => m.value));
 

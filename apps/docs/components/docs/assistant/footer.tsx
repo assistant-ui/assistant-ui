@@ -7,8 +7,8 @@ import { cn } from "@/lib/utils";
 import { analytics } from "@/lib/analytics";
 import { useCurrentPage } from "@/components/docs/contexts/current-page";
 import { getAssistantMessageTokenUsage } from "@/lib/assistant-metrics";
-
-const CONTEXT_WINDOW = 400_000;
+import { useSharedDocsModelSelection } from "./composer";
+import { getContextWindow } from "@/constants/model";
 
 function getUsageColorClass(percent: number): string {
   if (percent < 50) return "bg-emerald-500";
@@ -22,13 +22,15 @@ export function AssistantFooter(): ReactNode {
   const messages = useAuiState((s) => s.thread.messages);
   const currentPage = useCurrentPage();
   const pathname = currentPage?.pathname;
+  const { modelValue } = useSharedDocsModelSelection();
+  const contextWindow = getContextWindow(modelValue);
 
   const totalTokens = messages.reduce((acc, message) => {
     const usage = getAssistantMessageTokenUsage(message);
     return acc + (usage.totalTokens ?? 0);
   }, 0);
 
-  const usagePercent = Math.min((totalTokens / CONTEXT_WINDOW) * 100, 100);
+  const usagePercent = Math.min((totalTokens / contextWindow) * 100, 100);
   const usageK = (totalTokens / 1000).toFixed(1);
 
   return (
