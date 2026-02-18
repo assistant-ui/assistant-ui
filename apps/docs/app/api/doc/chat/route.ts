@@ -119,7 +119,8 @@ export async function POST(req: Request): Promise<Response> {
   const rateLimitResponse = await checkRateLimit(req);
   if (rateLimitResponse) return rateLimitResponse;
 
-  const { messages, tools } = await req.json();
+  const body = await req.json();
+  const { messages, tools, system: pageContext } = body;
 
   const prunedMessages = pruneMessages({
     messages: await convertToModelMessages(injectQuoteContext(messages)),
@@ -143,7 +144,7 @@ export async function POST(req: Request): Promise<Response> {
 
   const result = streamText({
     model: tracedModel,
-    system: SYSTEM_PROMPT,
+    system: [SYSTEM_PROMPT, pageContext].filter(Boolean).join("\n\n"),
     messages: prunedMessages,
     stopWhen: stepCountIs(25),
     tools: {
