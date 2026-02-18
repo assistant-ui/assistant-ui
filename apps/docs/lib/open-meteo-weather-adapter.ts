@@ -110,11 +110,12 @@ const getLocalTimeOfDay = (time?: string): number => {
 
 const formatForecastLabel = (date: string, index: number): string => {
   if (index === 0) return "Today";
-  const parsedDate = new Date(`${date}T12:00:00`);
+  const parsedDate = new Date(`${date}T12:00:00Z`);
   if (Number.isNaN(parsedDate.getTime())) return `Day ${index + 1}`;
-  return new Intl.DateTimeFormat("en-US", { weekday: "short" }).format(
-    parsedDate,
-  );
+  return new Intl.DateTimeFormat("en-US", {
+    weekday: "short",
+    timeZone: "UTC",
+  }).format(parsedDate);
 };
 
 export const geocodeLocationWithOpenMeteo = async (
@@ -122,8 +123,13 @@ export const geocodeLocationWithOpenMeteo = async (
 ): Promise<GeocodeResult> => {
   try {
     const response = await fetch(
-      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}`,
+      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=1`,
     );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
     const data = await response.json();
 
     if (!data.results || data.results.length === 0) {
