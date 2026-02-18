@@ -61,10 +61,7 @@ const isLangChainMessageChunk = (
 ): value is LangChainMessageChunk => {
   if (!value || typeof value !== "object") return false;
   const chunk = value as any;
-  const hasValidType =
-    !("type" in chunk) ||
-    chunk.type === "AIMessageChunk" ||
-    chunk.type === "ai";
+  const hasValidType = chunk.type === "AIMessageChunk" || chunk.type === "ai";
   return (
     hasValidType &&
     "id" in chunk &&
@@ -164,12 +161,12 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
               break;
             }
 
-            onMessageChunk?.(messageChunk, tupleMetadata ?? {});
-
             const normalizedChunk =
               messageChunk.type !== "AIMessageChunk"
                 ? { ...messageChunk, type: "AIMessageChunk" as const }
                 : messageChunk;
+
+            onMessageChunk?.(normalizedChunk, tupleMetadata ?? {});
 
             const updatedMessages = tupleMetadata
               ? accumulator.addMessageWithMetadata(

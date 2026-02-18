@@ -416,9 +416,7 @@ export const useLangGraphRuntime = ({
         return aui.threadListItem().initialize();
       }
 
-      throw new Error(
-        "initialize function requires you to pass a create function to the useLangGraphRuntime hook",
-      );
+      return { externalId: undefined };
     },
     delete: deleteFn,
   });
