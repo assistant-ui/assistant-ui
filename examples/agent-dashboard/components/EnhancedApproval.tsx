@@ -85,7 +85,7 @@ function ApprovalContent({ className }: { className?: string }) {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const toolName = state.toolName;
+  const toolName = state?.toolName ?? "Unknown";
   const riskLevel = toolRiskLevels[toolName] || "medium";
   const risk = riskConfig[riskLevel];
   const toolIcon = toolIcons[toolName] || <Terminal className="h-5 w-5" />;
@@ -94,29 +94,30 @@ function ApprovalContent({ className }: { className?: string }) {
   useEffect(() => {
     const interval = setInterval(() => {
       const diff = Math.floor(
-        (Date.now() - new Date(state.createdAt).getTime()) / 1000,
+        (Date.now() - new Date(state?.createdAt ?? Date.now()).getTime()) /
+          1000,
       );
       setElapsed(diff);
     }, 1000);
     return () => clearInterval(interval);
-  }, [state.createdAt]);
+  }, [state?.createdAt]);
 
   // Keyboard shortcuts
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
-      if (state.status !== "pending") return;
+      if (state?.status !== "pending") return;
       if (e.key === "y" || e.key === "Y") {
         e.preventDefault();
-        approval.approve();
+        approval?.approve();
       } else if (e.key === "n" || e.key === "N") {
         e.preventDefault();
-        approval.deny();
+        approval?.deny();
       } else if (e.key === "s" || e.key === "S") {
         e.preventDefault();
-        approval.approve("session");
+        approval?.approve("session");
       }
     },
-    [approval, state.status],
+    [approval, state?.status],
   );
 
   useEffect(() => {
@@ -139,7 +140,7 @@ function ApprovalContent({ className }: { className?: string }) {
   };
 
   const formatInput = () => {
-    const input = state.toolInput as Record<string, unknown>;
+    const input = (state?.toolInput ?? {}) as Record<string, unknown>;
     if (toolName === "Bash" && "command" in input && input["command"]) {
       return String(input["command"]);
     }
@@ -154,7 +155,7 @@ function ApprovalContent({ className }: { className?: string }) {
   };
 
   const getActionPreview = () => {
-    const input = state.toolInput as Record<string, unknown>;
+    const input = (state?.toolInput ?? {}) as Record<string, unknown>;
     switch (toolName) {
       case "Bash":
         return `Execute shell command: ${String(input["command"] || "").slice(0, 100)}`;
