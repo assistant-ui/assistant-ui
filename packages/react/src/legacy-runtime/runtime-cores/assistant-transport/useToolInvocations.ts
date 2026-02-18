@@ -41,24 +41,21 @@ export type ToolExecutionStatus =
   | { type: "executing" }
   | { type: "interrupt"; payload: { type: "human"; payload: unknown } };
 
+type ToolState = {
+  argsText: string;
+  hasResult: boolean;
+  argsComplete: boolean;
+  streamToolCallId: string;
+  controller: ToolCallStreamController;
+};
+
 export function useToolInvocations({
   state,
   getTools,
   onResult,
   setToolStatuses,
 }: UseToolInvocationsParams) {
-  const lastToolStates = useRef<
-    Record<
-      string,
-      {
-        argsText: string;
-        hasResult: boolean;
-        argsComplete: boolean;
-        streamToolCallId: string;
-        controller: ToolCallStreamController;
-      }
-    >
-  >({});
+  const lastToolStates = useRef<Record<string, ToolState>>({});
 
   const humanInputRef = useRef<
     Map<
@@ -79,6 +76,13 @@ export function useToolInvocations({
 
   const getLogicalToolCallId = (toolCallId: string) => {
     return toolCallIdAliasesRef.current.get(toolCallId) ?? toolCallId;
+  };
+
+  const shouldIgnoreAndCleanupResult = (toolCallId: string) => {
+    if (!ignoredResultToolCallIdsRef.current.has(toolCallId)) return false;
+    ignoredResultToolCallIdsRef.current.delete(toolCallId);
+    toolCallIdAliasesRef.current.delete(toolCallId);
+    return true;
   };
 
   const getWrappedTools = () => {
@@ -180,13 +184,7 @@ export function useToolInvocations({
         new WritableStream({
           write(chunk) {
             if (chunk.type === "result") {
-              if (
-                ignoredResultToolCallIdsRef.current.has(chunk.meta.toolCallId)
-              ) {
-                ignoredResultToolCallIdsRef.current.delete(
-                  chunk.meta.toolCallId,
-                );
-                toolCallIdAliasesRef.current.delete(chunk.meta.toolCallId);
+              if (shouldIgnoreAndCleanupResult(chunk.meta.toolCallId)) {
                 return;
               }
 
@@ -219,6 +217,33 @@ export function useToolInvocations({
   const isInitialState = useRef(true);
 
   useEffect(() => {
+    const createToolState = ({
+      controller,
+      streamToolCallId,
+    }: {
+      controller: ToolCallStreamController;
+      streamToolCallId: string;
+    }): ToolState => ({
+      argsText: "",
+      hasResult: false,
+      argsComplete: false,
+      streamToolCallId,
+      controller,
+    });
+
+    const setToolState = (toolCallId: string, state: ToolState) => {
+      lastToolStates.current[toolCallId] = state;
+      return state;
+    };
+
+    const patchToolState = (
+      toolCallId: string,
+      state: ToolState,
+      patch: Partial<ToolState>,
+    ) => {
+      return setToolState(toolCallId, { ...state, ...patch });
+    };
+
     const processMessages = (
       messages: readonly (typeof state.messages)[number][],
     ) => {
@@ -241,14 +266,13 @@ export function useToolInvocations({
                   toolName: content.toolName,
                   toolCallId: content.toolCallId,
                 });
-                lastState = {
-                  argsText: "",
-                  hasResult: false,
-                  argsComplete: false,
-                  streamToolCallId: content.toolCallId,
-                  controller: toolCallController,
-                };
-                lastToolStates.current[content.toolCallId] = lastState;
+                lastState = setToolState(
+                  content.toolCallId,
+                  createToolState({
+                    controller: toolCallController,
+                    streamToolCallId: content.toolCallId,
+                  }),
+                );
               }
 
               if (content.argsText !== lastState.argsText) {
@@ -272,13 +296,10 @@ export function useToolInvocations({
                       isArgsTextComplete(content.argsText)
                     ) {
                       lastState.controller.argsText.close();
-                      lastToolStates.current[content.toolCallId] = {
+                      patchToolState(content.toolCallId, lastState, {
                         argsText: content.argsText,
-                        hasResult: lastState.hasResult,
                         argsComplete: true,
-                        streamToolCallId: lastState.streamToolCallId,
-                        controller: lastState.controller,
-                      };
+                      });
                       return; // Continue to next content part
                     }
                     if (process.env.NODE_ENV !== "production") {
@@ -312,14 +333,13 @@ export function useToolInvocations({
                         streamToolCallId,
                       });
                     }
-                    lastState = {
-                      argsText: "",
+                    lastState = setToolState(content.toolCallId, {
+                      ...createToolState({
+                        controller: toolCallController,
+                        streamToolCallId,
+                      }),
                       hasResult: lastState.hasResult,
-                      argsComplete: false,
-                      streamToolCallId,
-                      controller: toolCallController,
-                    };
-                    lastToolStates.current[content.toolCallId] = lastState;
+                    });
                   }
 
                   const argsTextDelta = content.argsText.slice(
@@ -332,24 +352,18 @@ export function useToolInvocations({
                     lastState.controller.argsText.close();
                   }
 
-                  lastToolStates.current[content.toolCallId] = {
+                  patchToolState(content.toolCallId, lastState, {
                     argsText: content.argsText,
-                    hasResult: lastState.hasResult,
                     argsComplete: shouldClose,
-                    streamToolCallId: lastState.streamToolCallId,
-                    controller: lastState.controller,
-                  };
+                  });
                 }
               }
 
               if (content.result !== undefined && !lastState.hasResult) {
-                lastToolStates.current[content.toolCallId] = {
+                patchToolState(content.toolCallId, lastState, {
                   hasResult: true,
                   argsComplete: true,
-                  argsText: lastState.argsText,
-                  streamToolCallId: lastState.streamToolCallId,
-                  controller: lastState.controller,
-                };
+                });
 
                 lastState.controller.setResponse(
                   new ToolResponse({
