@@ -101,7 +101,7 @@ export function WeatherWidget({
     <article
       data-slot="weather-widget"
       data-tool-ui-id={id}
-      className={cn("w-full max-w-md", className)}
+      className={cn("isolate w-full max-w-md", className)}
     >
       <div
         data-slot="card"

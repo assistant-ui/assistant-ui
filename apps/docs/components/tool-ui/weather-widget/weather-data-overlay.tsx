@@ -99,14 +99,14 @@ export interface WeatherDataOverlayProps {
    * If neither is provided, defaults to noon (0.5).
    */
   timeOfDay?: number;
-  timestamp?: string;
+  timestamp?: string | undefined;
   className?: string;
   reducedMotion?: boolean;
   /**
    * Glass refraction effect parameters for the forecast card.
    * When enabled, applies SVG displacement filter for realistic glass distortion.
    */
-  glassParams?: GlassEffectParams;
+  glassParams?: GlassEffectParams | undefined;
 }
 
 interface GlowState {
