@@ -1,0 +1,126 @@
+---
+title: The Most Overbuilt Weather Widget You'll Ever See
+description: WebGL atmospheric effects, custom GLSL shaders, and Arnheim's visual composition theory. A weather widget built with coding agents that's more detailed than Apple's.
+author: Pete Petrash
+date: 2026-02-17T12:00:00
+---
+
+import { ShaderGrid } from "./shader-grid";
+
+Weather widgets are the "hello world" of generative UI. Vercel shows one in their docs. Every AI demo seems to start with one. It's the `get_weather` tool call, the first thing you reach for when you're wiring up tool calling for the first time.
+
+So I built the most absurdly detailed weather widget I could.
+
+Real-time WebGL atmospheric effects. Physically-based weather simulations. Celestial rendering with textured moon phases and prismatic sun rays. Dawn-to-midnight sky gradients. Thirteen condition codes, each hand-tuned across four time-of-day checkpoints. An SVG glass refraction panel. Multi-pass compositing with bloom, god rays, haze, and lightning exposure response. It's genuinely more detailed than Apple's iOS weather app.
+
+Starting to think there's something poetic about taking the most clichéd demo component in AI and overengineering it until it transcends the bit.
+
+{/* IMAGE: Hero shot of the weather widget. Thunderstorm preset at dusk, showing the full atmospheric scene with rain, lightning, clouds, and data overlay. */}
+
+## What it actually does
+
+It's a React component. You pass it a `get_weather` tool result (location, temperature, forecast, condition code) and it renders the appropriate atmospheric scene behind the data.
+
+Thirteen condition codes (clear, partly-cloudy, cloudy, overcast, fog, drizzle, rain, heavy-rain, thunderstorm, snow, sleet, hail, windy), each producing a distinct composition. Each one shifts across four time-of-day checkpoints (dawn, noon, dusk, midnight), so that's 52 unique visual states. All driven by a weather-semantic API. You never touch shader parameters. Pass `conditionCode: "thunderstorm"` and the composition system handles it.
+
+```tsx
+<WeatherWidget
+  version="3.1"
+  id="weather-widget-example"
+  location={{ name: "Kansas City, MO" }}
+  units={{ temperature: "fahrenheit" }}
+  current={{
+    temperature: 72,
+    tempMin: 65,
+    tempMax: 78,
+    conditionCode: "thunderstorm",
+  }}
+  forecast={[
+    { label: "Tue", tempMin: 62, tempMax: 75, conditionCode: "heavy-rain" },
+    { label: "Wed", tempMin: 58, tempMax: 70, conditionCode: "rain" },
+    { label: "Thu", tempMin: 55, tempMax: 68, conditionCode: "cloudy" },
+    { label: "Fri", tempMin: 52, tempMax: 72, conditionCode: "partly-cloudy" },
+    { label: "Sat", tempMin: 58, tempMax: 76, conditionCode: "clear" },
+  ]}
+  time={{ localTimeOfDay: 22 / 24 }}
+  updatedAt="2026-01-28T22:00:00Z"
+/>
+```
+
+{/* IMAGE: Grid showing 4 conditions at different times of day. Suggested: clear/noon, thunderstorm/dusk, snow/midnight, fog/dawn. Shows the range of the 52 visual states. */}
+
+## How it got built
+
+This started around the time Anthropic released Opus 4.5. That model was an inflection point for me and a lot of other developers. The limitations we'd gotten used to with coding agents started to dissipate. Context drift, brittleness with complex multi-file work, falling apart on anything beyond CRUD. For the first time it felt like you could aim for genuinely ambitious technical work and actually get there. Complex shader programming, for someone who doesn't write GLSL, went from "I'd need to learn this for weeks" to "I can describe what I want and iterate in real time."
+
+The weather widget came out of that feeling. I wanted to go totally over the top, take the most clichéd component in AI demos and push it as far as it could possibly go. Side project, chipped away at alongside my actual work. Which is another thing newer coding models have unlocked: you can go genuinely hands-off, trust the agent to come through, check back in when it's ready for your eyes.
+
+My hands were almost never in the code. Where I actually spent time was in dedicated tuning interfaces, adjusting individual weather effects in sandbox pages, composing them together, then tweaking each condition/time combination in a custom tuning studio I had the agent build for this purpose. Creative direction was mine. Implementation was the agent's.
+
+{/* IMAGE: Screenshot of one of the individual effect sandbox pages (rain, clouds, or lightning sandbox) showing the parameter sliders alongside the live preview. Shows what "dedicated tuning interfaces" actually looked like in practice. */}
+
+The development spanned about a month, mid-January to mid-February 2026. The git history tells a fun story.
+
+**Day 1 (Jan 17).** First commit: `feat(weather-widget): add weather widget component and rain effect sandbox`. A data card with a rain shader. Reasonable enough.
+
+**Day 2 (Jan 18).** Within 24 hours: celestial effects with a realistic moon, a preset system with per-condition persistence, horizon line controls, sun rays with glow parameters, and planning documents referencing Rudolf Arnheim's *Art and Visual Perception*. An Arnheim analysis. For a weather widget.
+
+Worth pausing on that one. The Arnheim doc maps compositional principles from visual art theory to a weather card's layout. Each condition gets a dominant visual theme: thunderstorm is "dramatic tension," snow is "peaceful accumulation," sleet is "conflict and discomfort." The celestial strategy accounts for atmospheric optics, noting that fog produces a 2x sun size multiplier because "moisture particles scatter light creating a large, soft disc... This is not artistic license; it's optical reality."
+
+I mean.
+
+{/* IMAGE: Screenshot of the Arnheim composition analysis document, or a side-by-side of the composition grid overlaid on the widget. */}
+
+**Days 3-4 (Jan 19).** Unified WebGL canvas with multi-pass compositing. Moon texture with equirectangular projection. Aerial perspective and cloud lighting with celestial backlighting. Five separate sandbox pages at this point for tuning rain, clouds, lightning, celestial effects, and the unified compositor.
+
+{/* IMAGE: Visual showing the compositing layers or a before/after of individual effects vs. the composed result. Could be a side-by-side of the celestial layer alone, clouds alone, rain alone, then the final composite. */}
+
+**Week 2 (Jan 22-24).** This is where things went truly sideways.
+
+Getting individual effects to look good in isolation turned out to be the easy part. What I didn't anticipate was how hard it would be to compose them and tune the results across every combination. Thirteen conditions, four times of day, dozens of parameters per layer: cloud coverage, rain intensity, lightning timing, snow behavior, celestial positioning, atmospheric haze. Each combination has its own character, and getting them to feel right required a volume of artistic judgment you can't shortcut.
+
+So the solution was to build a full parameter tuning application, built like a creative tool, with keyframe-based workflows, comparison modes, and per-checkpoint persistence.
+
+The studio made the work manageable, but it was still a ton of human judgment. Scrubbing between dawn and dusk on a thunderstorm, deciding the clouds need to sit lower and darker. Comparing snow at midnight versus noon and realizing the sparkle needs to be dialed way back in daylight. This was the part no agent could do for me. The artistic touch of locking each condition in just right. Honestly there are still adjustments I want to make.
+
+{/* IMAGE: Screenshot of the weather tuning studio interface showing the parameter panels, condition selector, and time-of-day scrubber. */}
+
+**Weeks 3-5 (Jan 28 - Feb 17).** Production polish, shipping, and architecture. Snow shader upgrade with hexagonal crystal shapes. SVG glass refraction panel. Post-processing atmosphere (bloom, god rays, lightning exposure response). Schema v3.1 with a `time` prop so LLMs can pass the local hour. And a clean authoring/runtime split: ~6,000 lines of tooling in `lib/weather-authoring/` compile down to lightweight generated artifacts in `components/tool-ui/weather-widget/`.
+
+{/* IMAGE: Close-up detail shots. Good candidates: the SVG glass refraction panel with rain drops, hexagonal snowflake crystals at larger sizes, or the god rays / bloom post-processing effect. */}
+
+## The shaders
+
+Five fragment shaders, GLSL ES 3.0, composited through a multi-pass pipeline. This is where most of the visual substance lives.
+
+<ShaderGrid />
+
+Each shader reads from the previous pass's framebuffer. A 630-line parameter-mapper translates weather-semantic concepts like "thunderstorm at dusk" into specific uniform values.
+
+{/* IMAGE: Diagram of the multi-pass shader pipeline: Celestial → Clouds → Rain/Snow → Composite, showing how each pass reads the previous framebuffer. Or a strip showing each pass's output side by side. */}
+
+## Why any of this matters
+
+I keep coming back to two things.
+
+First, what happens when you invest real design and engineering effort into AI tool results. Every assistant calls `get_weather`. The result is usually a JSON blob formatted into text. Tool UI turns that into a rendered component. And when you actually push the quality (Arnheim's compositional principles, custom WebGL, a dedicated tuning studio) the result genuinely delights people. If a weather card can look like this, I wonder what's possible for order confirmations, data tables, progress trackers.
+
+{/* IMAGE: Side-by-side or small grid of 3-4 other Tool UI components (order confirmation, data table, etc.) to show the broader library vision. */}
+
+Tool UI ships 20+ components and the weather widget is us seeing how high the ceiling goes.
+
+Second, what's now possible with coding agents. I don't write GLSL. Before this I couldn't have told you the difference between fractal Brownian motion and domain warping. But I could describe what I wanted ("clouds that feel like layered planes with aerial perspective and celestial backlighting") and iterate on the result in real time. The agent handled the math. I handled the taste.
+
+This was a side project. Chipped away at alongside real work, mostly in the tuning interfaces. The git history tells a story that would've been impossible a year ago: five custom WebGL shaders, an Arnheim composition analysis, a full parameter tuning studio, 6,000 lines of authoring infrastructure, built in a month by someone who doesn't write shaders. Not because the agent did everything, but because it collapsed the gap between vision and execution. I could focus on "does this thunderstorm look dramatic enough" instead of "how do I calculate a terminator line on a sphere."
+
+{/* IMAGE: Cropped screenshot of the git log showing the density and pace of commits over the month. The sheer volume of iteration tells the story visually. */}
+
+The whole point was to deliberately push past what would be a rational scope for a single component. That's the part I keep wanting to articulate. Coding agents don't just let you do more things. They let you go *deeper* on something if you choose to focus. The weather widget was never supposed to be reasonable. It was supposed to find out what happens when you throw away the budget and chase the thing you actually see in your head.
+
+There's a popular version of the AI-and-code story where everything trends toward slop. More output, lower quality. I'm starting to think the opposite case is at least as strong. When the ceiling on what you can accomplish goes up, quality can trend upward too. You can obsess over details that would've been cut for time before. The Arnheim composition analysis, the per-checkpoint tuning, the hexagonal snowflakes. None of that survives a normal prioritization exercise. All of it made the final result better.
+
+Even the skeptics seem to be noticing something. Linus Torvalds, not exactly an AI enthusiast, has been talking about LLMs as genuinely useful for finding bugs: "that's certainly one of the areas which I see them really being able to shine, to find the obvious stupid bugs." He's been using AI tools for his own AudioNoise side project. DHH recently wrote that he's "ready to give the current crop of AI agents a promotion. They're fully capable of producing production-grade contributions to real-life code bases." These aren't people who hype things. They're people who are grudgingly acknowledging that a threshold got crossed.
+
+I wonder how many other projects are sitting in that gap right now, things people can see clearly but couldn't build before. It's recalibrating your notions of what you're capable of.
+
+[Tool UI](https://tool-ui.com) | [Weather Widget Docs](https://tool-ui.com/docs/weather-widget) | [Gallery](https://tool-ui.com/docs/gallery)
