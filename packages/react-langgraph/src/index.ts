@@ -3,6 +3,7 @@ export {
   useLangGraphSend,
   useLangGraphSendCommand,
   useLangGraphInterruptState,
+  useLangGraphMessageMetadata,
 } from "./useLangGraphRuntime";
 
 export {
@@ -17,9 +18,18 @@ export { convertLangChainMessages } from "./convertLangChainMessages";
 
 export type {
   LangChainMessage,
+  LangChainMessageChunk,
   LangChainEvent,
   LangChainToolCall,
   LangChainToolCallChunk,
+  LangGraphTupleMetadata,
+  OnMessageChunkCallback,
+  OnValuesEventCallback,
+  OnUpdatesEventCallback,
+  OnMetadataEventCallback,
+  OnInfoEventCallback,
+  OnErrorEventCallback,
+  OnCustomEventCallback,
 } from "./types";
 
 export { LangGraphMessageAccumulator } from "./LangGraphMessageAccumulator";

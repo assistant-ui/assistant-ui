@@ -1,6 +1,6 @@
 "use client";
 
-import { FC, memo, PropsWithChildren, useEffect } from "react";
+import { ComponentType, FC, memo, PropsWithChildren, useEffect } from "react";
 import { useAui, AuiProvider, AssistantClient } from "@assistant-ui/store";
 import { AssistantRuntime } from "./runtime/AssistantRuntime";
 import { AssistantRuntimeCore } from "./runtime-cores/core/AssistantRuntimeCore";
@@ -23,7 +23,9 @@ export namespace AssistantRuntimeProvider {
 }
 
 const getRenderComponent = (runtime: AssistantRuntime) => {
-  return (runtime as { _core?: AssistantRuntimeCore })._core?.RenderComponent;
+  return (runtime as { _core?: AssistantRuntimeCore })._core?.RenderComponent as
+    | ComponentType
+    | undefined;
 };
 
 export const AssistantRuntimeProviderImpl: FC<

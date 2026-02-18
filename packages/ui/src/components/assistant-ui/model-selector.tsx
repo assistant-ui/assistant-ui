@@ -53,25 +53,27 @@ export type ModelSelectorRootProps = {
   value?: string;
   onValueChange?: (value: string) => void;
   defaultValue?: string;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  defaultOpen?: boolean;
   children: ReactNode;
 };
 
 function ModelSelectorRoot({
   models,
-  value,
-  onValueChange,
-  defaultValue,
+  defaultValue: defaultValueProp,
   children,
+  ...selectProps
 }: ModelSelectorRootProps) {
-  const selectProps: ComponentPropsWithoutRef<typeof SelectRoot> = {};
-  if (value !== undefined) selectProps.value = value;
-  if (onValueChange) selectProps.onValueChange = onValueChange;
-  const resolvedDefault = defaultValue ?? models[0]?.id;
-  if (resolvedDefault) selectProps.defaultValue = resolvedDefault;
-
+  const defaultValue = defaultValueProp ?? models[0]?.id;
   return (
     <ModelSelectorContext.Provider value={{ models }}>
-      <SelectRoot {...selectProps}>{children}</SelectRoot>
+      <SelectRoot
+        {...(defaultValue !== undefined ? { defaultValue } : undefined)}
+        {...selectProps}
+      >
+        {children}
+      </SelectRoot>
     </ModelSelectorContext.Provider>
   );
 }
@@ -184,19 +186,21 @@ export type ModelSelectorProps = Omit<ModelSelectorRootProps, "children"> &
   };
 
 const ModelSelectorImpl = ({
-  models,
   value: controlledValue,
   onValueChange: controlledOnValueChange,
   defaultValue,
+  models,
   variant,
   size,
   contentClassName,
+  ...forwardedProps
 }: ModelSelectorProps) => {
+  const isControlled = controlledValue !== undefined;
   const [internalValue, setInternalValue] = useState(
-    () => controlledValue ?? defaultValue ?? models[0]?.id ?? "",
+    () => defaultValue ?? models[0]?.id ?? "",
   );
 
-  const value = controlledValue ?? internalValue;
+  const value = isControlled ? controlledValue : internalValue;
   const onValueChange = controlledOnValueChange ?? setInternalValue;
 
   const api = useAssistantApi();
@@ -213,6 +217,7 @@ const ModelSelectorImpl = ({
       models={models}
       value={value}
       onValueChange={onValueChange}
+      {...forwardedProps}
     >
       <ModelSelectorTrigger variant={variant} size={size} />
       <ModelSelectorContent className={contentClassName} />

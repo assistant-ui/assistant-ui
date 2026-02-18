@@ -3,7 +3,7 @@
 import { type FC, type PropsWithChildren } from "react";
 import { useAui, AuiProvider, Derived } from "@assistant-ui/store";
 import type { ThreadListItemRuntime } from "../../legacy-runtime/runtime/ThreadListItemRuntime";
-import { ThreadListItemClient } from "../../legacy-runtime/client/ThreadListItemRuntimeClient";
+import { ThreadListItemClient } from "@assistant-ui/core/store/internal";
 
 export const ThreadListItemByIndexProvider: FC<
   PropsWithChildren<{

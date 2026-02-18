@@ -1,8 +1,10 @@
 "use client";
 
 import { createContext, FC, ReactNode, useContext } from "react";
-import { ThreadHistoryAdapter } from "./thread-history/ThreadHistoryAdapter";
-import { AttachmentAdapter } from "./attachment/AttachmentAdapter";
+import type {
+  ThreadHistoryAdapter,
+  AttachmentAdapter,
+} from "@assistant-ui/core";
 import { ModelContextProvider } from "../../../model-context";
 
 export type RuntimeAdapters = {

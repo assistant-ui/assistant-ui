@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { BaseSubscribable } from "../legacy-runtime/runtime-cores/remote-thread-list/BaseSubscribable";
+import { BaseSubscribable } from "@assistant-ui/core/internal";
 
 class TestSubscribable extends BaseSubscribable {
   public notify() {

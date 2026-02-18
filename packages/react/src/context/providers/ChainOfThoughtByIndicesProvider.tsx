@@ -2,8 +2,8 @@
 
 import { type FC, type PropsWithChildren } from "react";
 import { useAui, useAuiState, AuiProvider } from "@assistant-ui/store";
-import { ChainOfThoughtClient } from "../../client/ChainOfThoughtClient";
-import type { ChainOfThoughtPart } from "../../types/scopes/chainOfThought";
+import { ChainOfThoughtClient } from "@assistant-ui/core/store";
+import type { ChainOfThoughtPart } from "@assistant-ui/core/store";
 
 export const ChainOfThoughtByIndicesProvider: FC<
   PropsWithChildren<{

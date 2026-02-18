@@ -3,7 +3,12 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 
 import { useLangGraphMessages } from "./useLangGraphMessages";
 import { appendLangChainChunk } from "./appendLangChainChunk";
-import { MessageContentImageUrl, MessageContentText } from "./types";
+import {
+  LangChainMessageChunk,
+  LangGraphTupleMetadata,
+  MessageContentImageUrl,
+  MessageContentText,
+} from "./types";
 import { mockStreamCallbackFactory } from "./testUtils";
 
 const metadataEvent = {
@@ -769,6 +774,189 @@ describe("useLangGraphMessages", {}, () => {
       expect(result.current.messages[2]!.content).toEqual(
         "This is a streamed AI response",
       );
+    });
+  });
+
+  it("fires onMessageChunk callback with chunk and metadata", async () => {
+    const chunksCaptured: Array<{
+      chunk: LangChainMessageChunk;
+      metadata: LangGraphTupleMetadata;
+    }> = [];
+
+    const tupleMetadata = {
+      langgraph_step: 1,
+      langgraph_node: "agent",
+      ls_model_name: "claude-3-7-sonnet-latest",
+    };
+
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "messages",
+        data: [
+          {
+            id: "run-1",
+            content: "Hello!",
+            type: "AIMessageChunk",
+            tool_call_chunks: [],
+          },
+          tupleMetadata,
+        ],
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+        eventHandlers: {
+          onMessageChunk: (chunk, metadata) => {
+            chunksCaptured.push({ chunk, metadata });
+          },
+        },
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage([{ type: "human", content: "Hi" }], {});
+    });
+
+    await waitFor(() => {
+      expect(chunksCaptured).toHaveLength(1);
+      expect(chunksCaptured[0]!.chunk.type).toBe("AIMessageChunk");
+      expect(chunksCaptured[0]!.chunk.content).toBe("Hello!");
+      expect(chunksCaptured[0]!.metadata).toEqual(tupleMetadata);
+    });
+  });
+
+  it("accumulates metadata per message ID across chunks", async () => {
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "messages",
+        data: [
+          {
+            id: "run-1",
+            content: "Hello",
+            type: "AIMessageChunk",
+            tool_call_chunks: [],
+          },
+          {
+            langgraph_step: 1,
+            langgraph_node: "agent",
+          },
+        ],
+      },
+      {
+        event: "messages",
+        data: [
+          {
+            id: "run-1",
+            content: " world!",
+            type: "AIMessageChunk",
+            tool_call_chunks: [],
+          },
+          {
+            langgraph_step: 1,
+            ls_model_name: "claude-3-7-sonnet-latest",
+          },
+        ],
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage([{ type: "human", content: "Hi" }], {});
+    });
+
+    await waitFor(() => {
+      expect(result.current.messages).toHaveLength(2);
+      const metadata = result.current.messageMetadata.get("run-1");
+      expect(metadata).toBeDefined();
+      expect(metadata!.langgraph_step).toBe(1);
+      expect(metadata!.langgraph_node).toBe("agent");
+      expect(metadata!.ls_model_name).toBe("claude-3-7-sonnet-latest");
+    });
+  });
+
+  it("fires onUpdates callback", async () => {
+    let capturedUpdates: unknown;
+
+    const updatesData = {
+      messages: [
+        { id: "user-1", type: "human" as const, content: "hi" },
+        { id: "ai-1", type: "ai" as const, content: "hello" },
+      ],
+    };
+
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "updates",
+        data: updatesData,
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+        eventHandlers: {
+          onUpdates: (data) => {
+            capturedUpdates = data;
+          },
+        },
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage([{ type: "human", content: "hi" }], {});
+    });
+
+    await waitFor(() => {
+      expect(capturedUpdates).toEqual(updatesData);
+    });
+  });
+
+  it("fires onValues callback", async () => {
+    let capturedValues: unknown;
+
+    const valuesData = {
+      messages: [{ id: "ai-1", type: "ai", content: "result" }],
+    };
+
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "values",
+        data: valuesData,
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+        eventHandlers: {
+          onValues: (data) => {
+            capturedValues = data;
+          },
+        },
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage([{ type: "human", content: "hi" }], {});
+    });
+
+    await waitFor(() => {
+      expect(capturedValues).toEqual(valuesData);
     });
   });
 });

@@ -1,11 +1,9 @@
+// Re-export core types from @assistant-ui/core
 export type {
   Attachment,
   PendingAttachment,
   CompleteAttachment,
   AttachmentStatus,
-} from "./AttachmentTypes";
-
-export type {
   AppendMessage,
   TextMessagePart,
   ReasoningMessagePart,
@@ -19,15 +17,17 @@ export type {
   MessagePartStatus,
   ToolCallMessagePartStatus,
   MessageTiming,
-  // thread message types
   ThreadUserMessagePart,
   ThreadAssistantMessagePart,
   ThreadSystemMessage,
   ThreadAssistantMessage,
   ThreadUserMessage,
   ThreadMessage,
-} from "./AssistantTypes";
+  Unsubscribe,
+  QuoteInfo,
+} from "@assistant-ui/core";
 
+// React-specific component types (stay in react)
 export type {
   EmptyMessagePartComponent,
   EmptyMessagePartProps,
@@ -43,6 +43,8 @@ export type {
   FileMessagePartProps,
   Unstable_AudioMessagePartComponent,
   Unstable_AudioMessagePartProps,
+  DataMessagePartComponent,
+  DataMessagePartProps,
   ToolCallMessagePartComponent,
   ToolCallMessagePartProps,
   ReasoningGroupProps,
@@ -50,8 +52,4 @@ export type {
 } from "./MessagePartComponentTypes";
 
 // Thread list item types
-export type { ThreadListItemStatus } from "../legacy-runtime/runtime/ThreadListItemRuntime";
-
-export type { Unsubscribe } from "./Unsubscribe";
-
-export type { QuoteInfo } from "./QuoteTypes";
+export type { ThreadListItemStatus } from "@assistant-ui/core";

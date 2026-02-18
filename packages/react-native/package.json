@@ -1,0 +1,77 @@
+{
+  "name": "@assistant-ui/react-native",
+  "version": "0.0.1",
+  "description": "React Native bindings for assistant-ui",
+  "keywords": [
+    "assistant",
+    "ai",
+    "chat",
+    "react-native",
+    "mobile"
+  ],
+  "author": "AgentbaseAI Inc.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "aui-source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./internal": {
+      "aui-source": "./src/internal.ts",
+      "types": "./dist/internal.d.ts",
+      "default": "./dist/internal.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "aui-build",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@assistant-ui/core": "^0.0.1",
+    "@assistant-ui/store": "^0.1.6",
+    "@assistant-ui/tap": "^0.4.6",
+    "assistant-stream": "^0.3.2",
+    "zustand": "^5.0.11"
+  },
+  "peerDependencies": {
+    "@types/react": "*",
+    "react": "^18 || ^19",
+    "react-native": "*"
+  },
+  "peerDependenciesMeta": {
+    "@types/react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@assistant-ui/x-buildutils": "workspace:*",
+    "@types/react": "^19.2.13",
+    "react": "^19.1.0",
+    "react-native": "^0.76.0",
+    "vitest": "^4.0.18"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "homepage": "https://www.assistant-ui.com/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/assistant-ui/assistant-ui.git",
+    "directory": "packages/react-native"
+  },
+  "bugs": {
+    "url": "https://github.com/assistant-ui/assistant-ui/issues"
+  }
+}

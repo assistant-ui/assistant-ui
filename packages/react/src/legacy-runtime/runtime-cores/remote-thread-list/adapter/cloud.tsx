@@ -9,10 +9,10 @@ import {
   useRef,
 } from "react";
 import { AssistantCloud } from "assistant-cloud";
-import { RemoteThreadListAdapter } from "../types";
+import type { RemoteThreadListAdapter } from "@assistant-ui/core";
+import { InMemoryThreadListAdapter } from "@assistant-ui/core";
 import { useAssistantCloudThreadHistoryAdapter } from "../../../cloud/AssistantCloudThreadHistoryAdapter";
 import { RuntimeAdapterProvider } from "../../adapters/RuntimeAdapterProvider";
-import { InMemoryThreadListAdapter } from "./in-memory";
 import { CloudFileAttachmentAdapter } from "../../adapters";
 
 type ThreadData = {
@@ -72,7 +72,15 @@ export const useCloudThreadListAdapter = (
   );
 
   const cloud = adapter.cloud ?? autoCloud;
-  if (!cloud) return new InMemoryThreadListAdapter();
+  if (!cloud) {
+    const ref = adapterRef;
+    const inMemory = new InMemoryThreadListAdapter();
+    inMemory.initialize = async (threadId: string) => {
+      const result = await ref.current.create?.();
+      return { remoteId: threadId, externalId: result?.externalId };
+    };
+    return inMemory;
+  }
 
   return {
     list: async () => {

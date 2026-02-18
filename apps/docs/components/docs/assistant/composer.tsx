@@ -3,7 +3,8 @@
 import { Button } from "@/components/ui/button";
 import { useCurrentPage } from "@/components/docs/contexts/current-page";
 import { ModelSelector } from "@/components/assistant-ui/model-selector";
-import { MODELS } from "@/constants/model";
+import { DEFAULT_DOCS_MODEL, MODELS } from "@/constants/model";
+import Image from "next/image";
 import { analytics } from "@/lib/analytics";
 import { getComposerMessageMetrics } from "@/lib/assistant-analytics-helpers";
 import {
@@ -12,9 +13,32 @@ import {
   useAui,
   useAuiState,
 } from "@assistant-ui/react";
+import { cn } from "@/lib/utils";
 import { ArrowUpIcon, SquareIcon } from "lucide-react";
-import Image from "next/image";
-import type { ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
+
+type ModelStoreListener = () => void;
+
+let sharedDocsModelName: string | undefined;
+const modelStoreListeners = new Set<ModelStoreListener>();
+
+const subscribeModelStore = (listener: ModelStoreListener) => {
+  modelStoreListeners.add(listener);
+  return () => {
+    modelStoreListeners.delete(listener);
+  };
+};
+
+const setSharedDocsModelName = (modelName: string) => {
+  if (sharedDocsModelName === modelName) return;
+  sharedDocsModelName = modelName;
+  modelStoreListeners.forEach((listener) => listener());
+};
 
 const models = MODELS.map((m) => ({
   id: m.value,
@@ -31,13 +55,13 @@ const models = MODELS.map((m) => ({
   ...(m.disabled ? { disabled: true as const } : undefined),
 }));
 
-export function AssistantComposer(): ReactNode {
+export function useComposerSubmitHandler(onSubmitProp?: () => void) {
   const aui = useAui();
   const threadId = useAuiState((s) => s.threadListItem.id);
   const currentPage = useCurrentPage();
   const pathname = currentPage?.pathname;
 
-  const handleSubmit = () => {
+  return () => {
     const metrics = getComposerMessageMetrics(aui.composer().getState());
     if (!metrics) return;
 
@@ -56,14 +80,63 @@ export function AssistantComposer(): ReactNode {
       ...(pathname ? { pathname } : {}),
       ...(modelName ? { model_name: modelName } : {}),
     });
+
+    onSubmitProp?.();
   };
+}
+
+export function useSharedDocsModelSelection(): {
+  modelValue: string;
+  onModelChange: (value: string) => void;
+} {
+  const aui = useAui();
+  const threadId = useAuiState((s) => s.threadListItem.id);
+
+  useEffect(() => {
+    if (!threadId) return;
+
+    let nextModelName = DEFAULT_DOCS_MODEL;
+    try {
+      const modelName = aui.thread().getModelContext()?.config?.modelName;
+      if (typeof modelName === "string" && modelName.trim().length > 0) {
+        nextModelName = modelName.trim();
+      }
+    } catch {
+      // ignore
+    }
+
+    setSharedDocsModelName(nextModelName);
+  }, [aui, threadId]);
+
+  const modelValue = useSyncExternalStore(
+    subscribeModelStore,
+    () => sharedDocsModelName ?? DEFAULT_DOCS_MODEL,
+    () => DEFAULT_DOCS_MODEL,
+  );
+
+  const onModelChange = useCallback((value: string) => {
+    setSharedDocsModelName(value);
+  }, []);
+
+  return { modelValue, onModelChange };
+}
+
+export function AssistantComposer({
+  onSubmit: onSubmitProp,
+  className,
+}: {
+  onSubmit?: () => void;
+  className?: string;
+} = {}): ReactNode {
+  const handleSubmit = useComposerSubmitHandler(onSubmitProp);
+  const { modelValue, onModelChange } = useSharedDocsModelSelection();
 
   return (
     <ComposerPrimitive.Root
       onSubmit={handleSubmit}
-      className="bg-background py-2"
+      className={cn("py-2", className)}
     >
-      <div className="rounded-xl border border-border bg-muted/50 focus-within:border-ring/50 focus-within:ring-1 focus-within:ring-ring/20">
+      <div className="rounded-xl border border-border bg-background focus-within:border-ring/50 focus-within:ring-1 focus-within:ring-ring/20">
         <ComposerPrimitive.Input asChild>
           <textarea
             placeholder="Ask a question..."
@@ -74,7 +147,8 @@ export function AssistantComposer(): ReactNode {
         <div className="flex items-center justify-between px-1.5 pb-1.5">
           <ModelSelector
             models={models}
-            defaultValue={MODELS[0].value}
+            value={modelValue}
+            onValueChange={onModelChange}
             variant="ghost"
             size="sm"
           />
@@ -85,7 +159,7 @@ export function AssistantComposer(): ReactNode {
   );
 }
 
-function AssistantComposerAction(): ReactNode {
+export function AssistantComposerAction(): ReactNode {
   return (
     <>
       <AuiIf condition={({ thread }) => !thread.isRunning}>

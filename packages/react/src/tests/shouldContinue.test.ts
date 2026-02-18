@@ -1,6 +1,6 @@
+import type { ThreadAssistantMessage } from "@assistant-ui/core";
 import { describe, expect, it } from "vitest";
 import { shouldContinue } from "../legacy-runtime/runtime-cores/local/shouldContinue";
-import type { ThreadAssistantMessage } from "../types";
 
 const makeMessage = (
   overrides: Partial<ThreadAssistantMessage>,

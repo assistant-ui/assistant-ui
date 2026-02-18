@@ -1,0 +1,134 @@
+---
+title: Expo (React Native)
+description: Native iOS & Android chat app with drawer navigation and thread management.
+---
+
+## Overview
+
+A full-featured React Native chat application built with Expo and `@assistant-ui/react-native`. It demonstrates drawer-based thread management, streaming OpenAI responses, and a polished native UI with dark mode support.
+
+## Features
+
+- **Native UI**: Built with React Native primitives — no web views
+- **Drawer Navigation**: Swipeable sidebar for thread management
+- **Thread Management**: Create, switch, and browse conversations
+- **Streaming**: Real-time SSE streaming via OpenAI chat completions
+- **Dark Mode**: Automatic light/dark theme support
+- **Keyboard Handling**: Proper `KeyboardAvoidingView` integration
+
+## Quick Start
+
+```bash
+# Clone the repo
+git clone https://github.com/assistant-ui/assistant-ui.git
+cd assistant-ui
+
+# Install dependencies
+pnpm install
+
+# Set your API key
+echo 'EXPO_PUBLIC_OPENAI_API_KEY="sk-..."' > examples/with-expo/.env
+
+# Run the example
+pnpm --filter with-expo start
+```
+
+## Code
+
+### Runtime Setup
+
+The runtime uses `useLocalRuntime` with a custom `ChatModelAdapter` that calls the OpenAI API directly:
+
+```tsx title="hooks/use-app-runtime.ts"
+import { useMemo } from "react";
+import { fetch } from "expo/fetch";
+import { useLocalRuntime } from "@assistant-ui/react-native";
+import { createOpenAIChatModelAdapter } from "@/adapters/openai-chat-adapter";
+
+export function useAppRuntime() {
+  const chatModel = useMemo(
+    () =>
+      createOpenAIChatModelAdapter({
+        apiKey: process.env.EXPO_PUBLIC_OPENAI_API_KEY ?? "",
+        model: "gpt-4o-mini",
+        fetch, // expo/fetch for streaming support
+      }),
+    [],
+  );
+
+  return useLocalRuntime(chatModel);
+}
+```
+
+### App Layout
+
+`AssistantProvider` wraps the Expo Router drawer layout. Each screen gets `ThreadProvider` and `ComposerProvider` scoped to the active thread:
+
+```tsx title="app/_layout.tsx"
+import {
+  AssistantProvider,
+  useAssistantRuntime,
+} from "@assistant-ui/react-native";
+import { Drawer } from "expo-router/drawer";
+import { useAppRuntime } from "@/hooks/use-app-runtime";
+import { ThreadListDrawer } from "@/components/thread-list/ThreadListDrawer";
+
+function DrawerLayout() {
+  return (
+    <Drawer
+      drawerContent={(props) => <ThreadListDrawer {...props} />}
+      screenOptions={{
+        drawerType: "front",
+        swipeEnabled: true,
+      }}
+    >
+      <Drawer.Screen name="index" options={{ title: "Chat" }} />
+    </Drawer>
+  );
+}
+
+export default function RootLayout() {
+  const runtime = useAppRuntime();
+  return (
+    <AssistantProvider runtime={runtime}>
+      <DrawerLayout />
+    </AssistantProvider>
+  );
+}
+```
+
+```tsx title="app/index.tsx"
+import {
+  useAssistantRuntime,
+  useThreadList,
+  ThreadProvider,
+  ComposerProvider,
+} from "@assistant-ui/react-native";
+
+export default function ChatPage() {
+  const runtime = useAssistantRuntime();
+  const mainThreadId = useThreadList((s) => s.mainThreadId);
+
+  return (
+    <ThreadProvider key={mainThreadId} runtime={runtime.thread}>
+      <ComposerProvider runtime={runtime.thread.composer}>
+        <ChatScreen />
+      </ComposerProvider>
+    </ThreadProvider>
+  );
+}
+```
+
+### Key Architecture
+
+| Layer | Purpose |
+|-------|---------|
+| `useLocalRuntime` | Creates an in-memory runtime with the OpenAI adapter |
+| `AssistantProvider` | Provides the runtime to the entire app |
+| `ThreadProvider` | Scopes hooks like `useThread` to the active thread |
+| `ComposerProvider` | Scopes `useComposer` to the thread's composer |
+| `useThread((s) => ...)` | Reactive state access with selector for fine-grained re-renders |
+
+## Source
+
+<SourceLink href="https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-expo" />

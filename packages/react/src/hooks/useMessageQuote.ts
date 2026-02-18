@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuiState } from "@assistant-ui/store";
-import type { QuoteInfo } from "../types/QuoteTypes";
+import type { QuoteInfo } from "@assistant-ui/core";
 
 /**
  * Hook that returns the quote info for the current message, if any.

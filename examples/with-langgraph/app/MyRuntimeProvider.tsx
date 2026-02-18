@@ -34,6 +34,12 @@ export function MyRuntimeProvider({
         interrupts: state.tasks[0]?.interrupts ?? [],
       };
     },
+    eventHandlers: {
+      onMessageChunk: (chunk, metadata) => {
+        console.log("[messages-tuple] chunk:", chunk);
+        console.log("[messages-tuple] metadata:", metadata);
+      },
+    },
   });
 
   return (
