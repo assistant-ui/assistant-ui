@@ -74,6 +74,7 @@ export function useToolInvocations({
   const executingCountRef = useRef(0);
   const settledResolversRef = useRef<Array<() => void>>([]);
   const toolCallIdAliasesRef = useRef<Map<string, string>>(new Map());
+  const ignoredResultToolCallIdsRef = useRef<Set<string>>(new Set());
   const rewriteCounterRef = useRef(0);
 
   const getLogicalToolCallId = (toolCallId: string) => {
@@ -86,23 +87,30 @@ export function useToolInvocations({
 
     return Object.fromEntries(
       Object.entries(tools).map(([name, tool]) => {
-        const wrappedTool: Tool = {
+        const execute = tool.execute;
+        const streamCall = tool.streamCall;
+
+        const wrappedTool = {
           ...tool,
-          ...(tool.execute && {
-            execute: (args, context) =>
-              tool.execute?.(args, {
+          ...(execute !== undefined && {
+            execute: (
+              ...[args, context]: Parameters<NonNullable<typeof execute>>
+            ) =>
+              execute(args, {
                 ...context,
                 toolCallId: getLogicalToolCallId(context.toolCallId),
               }),
           }),
-          ...(tool.streamCall && {
-            streamCall: (reader, context) =>
-              tool.streamCall?.(reader, {
+          ...(streamCall !== undefined && {
+            streamCall: (
+              ...[reader, context]: Parameters<NonNullable<typeof streamCall>>
+            ) =>
+              streamCall(reader, {
                 ...context,
                 toolCallId: getLogicalToolCallId(context.toolCallId),
               }),
           }),
-        };
+        } as Tool;
         return [name, wrappedTool];
       }),
     ) as Record<string, Tool>;
@@ -136,6 +144,9 @@ export function useToolInvocations({
       },
       {
         onExecutionStart: (toolCallId: string) => {
+          if (ignoredResultToolCallIdsRef.current.has(toolCallId)) {
+            return;
+          }
           const logicalToolCallId = getLogicalToolCallId(toolCallId);
           executingCountRef.current++;
           setToolStatuses((prev) => ({
@@ -144,6 +155,9 @@ export function useToolInvocations({
           }));
         },
         onExecutionEnd: (toolCallId: string) => {
+          if (ignoredResultToolCallIdsRef.current.has(toolCallId)) {
+            return;
+          }
           const logicalToolCallId = getLogicalToolCallId(toolCallId);
           executingCountRef.current--;
           setToolStatuses((prev) => {
@@ -166,9 +180,22 @@ export function useToolInvocations({
         new WritableStream({
           write(chunk) {
             if (chunk.type === "result") {
+              if (
+                ignoredResultToolCallIdsRef.current.has(chunk.meta.toolCallId)
+              ) {
+                ignoredResultToolCallIdsRef.current.delete(
+                  chunk.meta.toolCallId,
+                );
+                toolCallIdAliasesRef.current.delete(chunk.meta.toolCallId);
+                return;
+              }
+
               const logicalToolCallId = getLogicalToolCallId(
                 chunk.meta.toolCallId,
               );
+              if (logicalToolCallId !== chunk.meta.toolCallId) {
+                toolCallIdAliasesRef.current.delete(chunk.meta.toolCallId);
+              }
               // the tool call result was already set by the backend
               if (lastToolStates.current[logicalToolCallId]?.hasResult) return;
 
@@ -264,6 +291,11 @@ export function useToolInvocations({
                         },
                       );
                     }
+
+                    ignoredResultToolCallIdsRef.current.add(
+                      lastState.streamToolCallId,
+                    );
+                    lastState.controller.argsText.close();
 
                     const streamToolCallId = `${content.toolCallId}:rewrite:${rewriteCounterRef.current++}`;
                     toolCallIdAliasesRef.current.set(
@@ -366,10 +398,12 @@ export function useToolInvocations({
 
   return {
     reset: () => {
-      void abort();
       isInitialState.current = true;
-      toolCallIdAliasesRef.current.clear();
-      rewriteCounterRef.current = 0;
+      void abort().finally(() => {
+        toolCallIdAliasesRef.current.clear();
+        ignoredResultToolCallIdsRef.current.clear();
+        rewriteCounterRef.current = 0;
+      });
     },
     abort,
     resume: (toolCallId: string, payload: unknown) => {

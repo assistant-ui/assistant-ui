@@ -4,7 +4,7 @@ import type { ThreadAssistantMessage } from "@assistant-ui/core";
 import type { Tool } from "assistant-stream";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type { AssistantTransportState } from "./types";
+import type { AssistantTransportState, ToolExecutionStatus } from "./types";
 import { useToolInvocations } from "./useToolInvocations";
 
 const createState = (
@@ -126,5 +126,98 @@ describe("useToolInvocations", () => {
         toolName: "weatherSearch",
       }),
     );
+  });
+
+  it("keeps logical toolCallId mapping through reset while abort settles", async () => {
+    const execute = vi.fn(
+      async () =>
+        await new Promise(() => {
+          // never resolves: reset() should cancel this call
+        }),
+    );
+    const getTools = () => ({
+      weatherSearch: {
+        execute,
+      } satisfies Tool,
+    });
+    const onResult = vi.fn();
+
+    let statuses: Record<string, ToolExecutionStatus> = {};
+    const setToolStatuses = vi.fn(
+      (
+        updater:
+          | Record<string, ToolExecutionStatus>
+          | ((
+              prev: Record<string, ToolExecutionStatus>,
+            ) => Record<string, ToolExecutionStatus>),
+      ) => {
+        statuses =
+          typeof updater === "function" ? updater(statuses) : { ...updater };
+      },
+    );
+
+    const { result, rerender } = renderHook(
+      ({ state }: { state: AssistantTransportState }) =>
+        useToolInvocations({
+          state,
+          getTools,
+          onResult,
+          setToolStatuses,
+        }),
+      {
+        initialProps: {
+          state: createState([]),
+        },
+      },
+    );
+
+    act(() => {
+      rerender({
+        state: createState([
+          createAssistantMessage('{"query":"London","longitude":0', {
+            query: "London",
+            longitude: 0,
+          }),
+        ]),
+      });
+    });
+
+    act(() => {
+      rerender({
+        state: createState([
+          createAssistantMessage('{"query":"London","longitude":-0.125', {
+            query: "London",
+            longitude: -0.125,
+          }),
+        ]),
+      });
+    });
+
+    act(() => {
+      rerender({
+        state: createState([
+          createAssistantMessage(
+            '{"query":"London","longitude":-0.125,"latitude":51.5072}',
+            { query: "London", longitude: -0.125, latitude: 51.5072 },
+          ),
+        ]),
+      });
+    });
+
+    await waitFor(() => {
+      expect(execute).toHaveBeenCalledTimes(1);
+    });
+    await waitFor(() => {
+      expect(statuses["tool-1"]).toEqual({ type: "executing" });
+    });
+
+    act(() => {
+      result.current.reset();
+    });
+
+    await waitFor(() => {
+      expect(statuses).toEqual({});
+    });
+    expect(Object.keys(statuses)).not.toContain("tool-1:rewrite:0");
   });
 });
