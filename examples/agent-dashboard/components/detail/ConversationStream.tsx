@@ -117,7 +117,7 @@ export function ConversationStream({
     if (autoScroll && containerRef.current) {
       containerRef.current.scrollTop = containerRef.current.scrollHeight;
     }
-  }, [events, autoScroll]);
+  }, [autoScroll]);
 
   const toggleExpand = (eventId: string) => {
     setExpandedEvents((prev) => {

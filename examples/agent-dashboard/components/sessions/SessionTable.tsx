@@ -95,6 +95,7 @@ export function SessionTable() {
   }, []);
 
   // Refresh stored sessions when tasks change
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally re-reads localStorage when tasks change
   useEffect(() => {
     // Small delay to let localStorage update
     const timer = setTimeout(() => {

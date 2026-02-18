@@ -2,6 +2,7 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useState,
   useMemo,
@@ -54,10 +55,13 @@ function WorkspaceRoot({
   const [viewMode, setViewMode] = useState<ViewMode>(defaultViewMode);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
-  const selectTask = (taskId: string | null) => {
-    setSelectedTaskId(taskId);
-    onSelectTask?.(taskId);
-  };
+  const selectTask = useCallback(
+    (taskId: string | null) => {
+      setSelectedTaskId(taskId);
+      onSelectTask?.(taskId);
+    },
+    [onSelectTask],
+  );
 
   const value = useMemo(
     () => ({
@@ -66,7 +70,7 @@ function WorkspaceRoot({
       selectedTaskId,
       selectTask,
     }),
-    [viewMode, selectedTaskId, onSelectTask],
+    [viewMode, selectedTaskId, selectTask],
   );
 
   return (

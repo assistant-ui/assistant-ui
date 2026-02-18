@@ -3,13 +3,14 @@
 import {
   useEffect,
   useState,
-  forwardRef,
   Component,
+  type Ref,
   type ReactNode,
 } from "react";
 import { ApprovalPrimitive, useApprovalState } from "@assistant-ui/react-agent";
 
 // Error boundary to handle missing approvals (race condition when approval is resolved)
+// biome-ignore lint/style/useReactFunctionComponents: error boundaries require class components
 class ApprovalErrorBoundary extends Component<
   { children: ReactNode; fallback?: ReactNode },
   { hasError: boolean }
@@ -106,16 +107,22 @@ export interface ApprovalCardProps {
   isFocused?: boolean;
   onViewSession?: () => void;
   className?: string;
+  ref?: Ref<HTMLDivElement>;
 }
 
-const ApprovalCardContent = forwardRef<
-  HTMLDivElement,
-  {
-    isFocused?: boolean;
-    onViewSession?: () => void;
-    className?: string;
-  }
->(({ isFocused = false, onViewSession, className }, ref) => {
+interface ApprovalCardContentProps {
+  isFocused?: boolean;
+  onViewSession?: () => void;
+  className?: string;
+  ref?: Ref<HTMLDivElement>;
+}
+
+const ApprovalCardContent = ({
+  isFocused = false,
+  onViewSession,
+  className,
+  ref,
+}: ApprovalCardContentProps) => {
   const state = useApprovalState((s) => s);
   const [elapsed, setElapsed] = useState(0);
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -331,28 +338,28 @@ const ApprovalCardContent = forwardRef<
       </div>
     </div>
   );
-});
+};
 
-ApprovalCardContent.displayName = "ApprovalCardContent";
+export const ApprovalCard = ({
+  approvalId,
+  isFocused = false,
+  onViewSession,
+  className,
+  ref,
+}: ApprovalCardProps) => {
+  const contentProps: {
+    isFocused: boolean;
+    onViewSession?: () => void;
+    className?: string;
+  } = { isFocused };
+  if (onViewSession) contentProps.onViewSession = onViewSession;
+  if (className) contentProps.className = className;
 
-export const ApprovalCard = forwardRef<HTMLDivElement, ApprovalCardProps>(
-  ({ approvalId, isFocused = false, onViewSession, className }, ref) => {
-    const contentProps: {
-      isFocused: boolean;
-      onViewSession?: () => void;
-      className?: string;
-    } = { isFocused };
-    if (onViewSession) contentProps.onViewSession = onViewSession;
-    if (className) contentProps.className = className;
-
-    return (
-      <ApprovalErrorBoundary>
-        <ApprovalPrimitive.Root approvalId={approvalId}>
-          <ApprovalCardContent ref={ref} {...contentProps} />
-        </ApprovalPrimitive.Root>
-      </ApprovalErrorBoundary>
-    );
-  },
-);
-
-ApprovalCard.displayName = "ApprovalCard";
+  return (
+    <ApprovalErrorBoundary>
+      <ApprovalPrimitive.Root approvalId={approvalId}>
+        <ApprovalCardContent ref={ref} {...contentProps} />
+      </ApprovalPrimitive.Root>
+    </ApprovalErrorBoundary>
+  );
+};

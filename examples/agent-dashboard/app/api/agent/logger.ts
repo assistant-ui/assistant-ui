@@ -39,7 +39,6 @@ class ServerLogger {
         return "\x1b[33m";
       case "debug":
         return "\x1b[36m";
-      case "info":
       default:
         return "\x1b[32m";
     }

@@ -165,7 +165,10 @@ function SessionDetailContent() {
           setViewMode("tree");
           break;
         case "c":
-          if (["starting", "running", "waiting_input"].includes(status) && task) {
+          if (
+            ["starting", "running", "waiting_input"].includes(status) &&
+            task
+          ) {
             e.preventDefault();
             task.cancel();
           }

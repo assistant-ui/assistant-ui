@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useImperativeHandle, forwardRef } from "react";
+import { useState, useRef, useImperativeHandle, type RefObject } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Search, Bell, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -22,16 +22,14 @@ export interface HeaderProps {
   searchPlaceholder?: string;
 }
 
-export const Header = forwardRef<HeaderHandle, HeaderProps>(function Header(
-  {
-    title = "Sessions",
-    showSearch = true,
-    showNewSession = true,
-    onSearch,
-    searchPlaceholder = "Search sessions... (press /)",
-  },
+export const Header = function Header({
+  title = "Sessions",
+  showSearch = true,
+  showNewSession = true,
+  onSearch,
+  searchPlaceholder = "Search sessions... (press /)",
   ref,
-) {
+}: HeaderProps & { ref?: RefObject<HeaderHandle | null> }) {
   const [isNewSessionOpen, setIsNewSessionOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -187,4 +185,4 @@ export const Header = forwardRef<HeaderHandle, HeaderProps>(function Header(
       )}
     </header>
   );
-});
+};

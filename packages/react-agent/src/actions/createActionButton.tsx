@@ -1,14 +1,19 @@
 "use client";
 
-import { forwardRef, type ComponentPropsWithoutRef } from "react";
+import { type ComponentPropsWithoutRef, type RefObject } from "react";
 
 type ActionHook = () => (() => void) | null;
 
 export function createActionButton(displayName: string, useAction: ActionHook) {
-  const ActionButton = forwardRef<
-    HTMLButtonElement,
-    ComponentPropsWithoutRef<"button">
-  >(({ children, disabled, onClick, ...props }, ref) => {
+  const ActionButton = ({
+    children,
+    disabled,
+    onClick,
+    ref,
+    ...props
+  }: ComponentPropsWithoutRef<"button"> & {
+    ref?: RefObject<HTMLButtonElement | null>;
+  }) => {
     const action = useAction();
 
     if (action === null) {
@@ -31,7 +36,7 @@ export function createActionButton(displayName: string, useAction: ActionHook) {
         {children}
       </button>
     );
-  });
+  };
 
   ActionButton.displayName = displayName;
   return ActionButton;
