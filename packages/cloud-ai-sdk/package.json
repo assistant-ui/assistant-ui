@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/cloud-ai-sdk",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "AI SDK hooks for assistant-cloud persistence",
   "keywords": [
     "assistant",
@@ -50,7 +50,7 @@
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@ai-sdk/react": "^3.0.44",
-    "assistant-stream": "^0.3.2",
+    "assistant-stream": "^0.3.3",
     "@types/node": "^25.2.1",
     "@types/react": "^19.2.7",
     "ai": "^6.0.42",

@@ -1,5 +1,40 @@
 # @assistant-ui/react-devtools
 
+## 1.0.0
+
+### Patch Changes
+
+- Updated dependencies [b65428e]
+- Updated dependencies [5bbe8a9]
+- Updated dependencies [5e304ea]
+- Updated dependencies [546c053]
+- Updated dependencies [a7039e3]
+- Updated dependencies [16c10fd]
+- Updated dependencies [98c3d54]
+- Updated dependencies [b65428e]
+- Updated dependencies [b181803]
+- Updated dependencies [b65428e]
+- Updated dependencies [6bd6419]
+- Updated dependencies [7836760]
+- Updated dependencies [9276547]
+- Updated dependencies [b65428e]
+- Updated dependencies [b65428e]
+- Updated dependencies [af5b085]
+- Updated dependencies [61b54e9]
+- Updated dependencies [a094c45]
+- Updated dependencies [4d7f712]
+- Updated dependencies [ecc29ec]
+- Updated dependencies [6e97999]
+- Updated dependencies [a247fc9]
+- Updated dependencies [b65428e]
+- Updated dependencies [f414af9]
+- Updated dependencies [b48912c]
+- Updated dependencies [93910bd]
+- Updated dependencies [58a8472]
+- Updated dependencies [b65428e]
+  - @assistant-ui/tap@0.5.0
+  - @assistant-ui/react@0.12.11
+
 ## 0.2.3
 
 ### Patch Changes

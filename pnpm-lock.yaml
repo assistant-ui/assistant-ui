@@ -2103,7 +2103,7 @@ importers:
   packages/cloud:
     dependencies:
       assistant-stream:
-        specifier: ^0.3.2
+        specifier: ^0.3.3
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -2144,7 +2144,7 @@ importers:
         specifier: ^6.0.42
         version: 6.0.73(zod@4.3.6)
       assistant-stream:
-        specifier: ^0.3.2
+        specifier: ^0.3.3
         version: link:../assistant-stream
       jsdom:
         specifier: ^28.0.0
@@ -2159,10 +2159,10 @@ importers:
   packages/core:
     dependencies:
       '@assistant-ui/tap':
-        specifier: ^0.4.6
+        specifier: ^0.5.0
         version: link:../tap
       assistant-stream:
-        specifier: ^0.3.2
+        specifier: ^0.3.3
         version: link:../assistant-stream
       nanoid:
         specifier: ^5.1.5
@@ -2277,13 +2277,13 @@ importers:
   packages/react:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.0.1
+        specifier: ^0.1.0
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.1.6
+        specifier: ^0.2.0
         version: link:../store
       '@assistant-ui/tap':
-        specifier: ^0.4.6
+        specifier: ^0.5.0
         version: link:../tap
       '@radix-ui/primitive':
         specifier: ^1.1.3
@@ -2313,10 +2313,10 @@ importers:
         specifier: ^1.1.1
         version: 1.1.1(@types/react@19.2.13)(react@19.2.4)
       assistant-cloud:
-        specifier: ^0.1.17
+        specifier: ^0.1.18
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.2
+        specifier: ^0.3.3
         version: link:../assistant-stream
       nanoid:
         specifier: ^5.1.6
@@ -2365,7 +2365,7 @@ importers:
   packages/react-a2a:
     dependencies:
       assistant-stream:
-        specifier: ^0.3.2
+        specifier: ^0.3.3
         version: link:../assistant-stream
       uuid:
         specifier: ^13.0.0
@@ -2393,7 +2393,7 @@ importers:
         specifier: ^0.0.44
         version: 0.0.44
       assistant-stream:
-        specifier: ^0.3.2
+        specifier: ^0.3.3
         version: link:../assistant-stream
       zod:
         specifier: ^4.3.6
@@ -2467,7 +2467,7 @@ importers:
         specifier: ^3.0.7
         version: 3.0.7
       assistant-stream:
-        specifier: ^0.3.2
+        specifier: ^0.3.3
         version: link:../assistant-stream
       zod:
         specifier: ^4.3.6
@@ -2545,7 +2545,7 @@ importers:
   packages/react-langgraph:
     dependencies:
       assistant-stream:
-        specifier: ^0.3.2
+        specifier: ^0.3.3
         version: link:../assistant-stream
       uuid:
         specifier: ^13.0.0
@@ -2622,16 +2622,16 @@ importers:
   packages/react-native:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.0.1
+        specifier: ^0.1.0
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.1.6
+        specifier: ^0.2.0
         version: link:../store
       '@assistant-ui/tap':
-        specifier: ^0.4.6
+        specifier: ^0.5.0
         version: link:../tap
       assistant-stream:
-        specifier: ^0.3.2
+        specifier: ^0.3.3
         version: link:../assistant-stream
       zustand:
         specifier: ^5.0.11
@@ -2744,10 +2744,10 @@ importers:
   packages/store:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.0.1
+        specifier: ^0.1.0
         version: link:../core
       '@assistant-ui/tap':
-        specifier: ^0.4.5
+        specifier: ^0.5.0
         version: link:../tap
       use-effect-event:
         specifier: ^2.0.3

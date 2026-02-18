@@ -33,11 +33,11 @@
     "build": "aui-build"
   },
   "dependencies": {
-    "assistant-stream": "^0.3.2",
+    "assistant-stream": "^0.3.3",
     "uuid": "^13.0.0"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.12.10",
+    "@assistant-ui/react": "^0.12.11",
     "@types/react": "*",
     "react": "^18 || ^19"
   },

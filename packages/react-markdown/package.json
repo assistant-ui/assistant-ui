@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-markdown",
-  "version": "0.12.3",
+  "version": "0.12.4",
   "description": "Markdown rendering for assistant-ui",
   "keywords": [
     "markdown",
@@ -45,7 +45,7 @@
     "react-markdown": "^10.1.0"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.12.10",
+    "@assistant-ui/react": "^0.12.11",
     "@types/react": "*",
     "react": "^18 || ^19"
   },

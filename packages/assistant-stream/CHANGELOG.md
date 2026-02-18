@@ -1,5 +1,12 @@
 # assistant-stream
 
+## 0.3.3
+
+### Patch Changes
+
+- 61b54e9: Add message timing metadata: `AssistantMessageTiming` type, automatic timing tracking in `AssistantMessageAccumulator`, `MessageTiming` type, `useMessageTiming()` hook, and client-side streaming timing for AI SDK runtime.
+- 93910bd: Rename .tsx files to .ts where no JSX syntax is used
+
 ## 0.3.2
 
 ### Patch Changes

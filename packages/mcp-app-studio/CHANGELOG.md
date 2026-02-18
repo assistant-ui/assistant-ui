@@ -1,5 +1,11 @@
 # mcp-app-studio
 
+## 0.7.1
+
+### Patch Changes
+
+- 93910bd: Rename .tsx files to .ts where no JSX syntax is used
+
 ## 0.7.0
 
 ### Minor Changes

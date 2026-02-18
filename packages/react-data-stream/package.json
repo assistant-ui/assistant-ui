@@ -33,11 +33,11 @@
   },
   "dependencies": {
     "@ai-sdk/provider": "^3.0.7",
-    "assistant-stream": "^0.3.2",
+    "assistant-stream": "^0.3.3",
     "zod": "^4.3.6"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.12.10",
+    "@assistant-ui/react": "^0.12.11",
     "@types/react": "*",
     "react": "^18 || ^19"
   },
