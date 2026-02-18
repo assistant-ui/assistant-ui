@@ -1,9 +1,9 @@
-export const DEFAULT_MODEL_ID = "google/gemini-3-flash";
+export const DEFAULT_MODEL_ID = "openai/gpt-5-nano";
 
 export const MODELS = [
   {
     name: "GPT-5 Nano",
-    value: "gpt-5-nano",
+    value: "openai/gpt-5-nano",
     icon: "/icons/openai.svg",
     disabled: false,
     contextWindow: 400_000,
@@ -12,21 +12,21 @@ export const MODELS = [
     name: "Gemini 3.0 Flash",
     value: "google/gemini-3-flash",
     icon: "/icons/google.svg",
-    disabled: false,
+    disabled: true, // temporarily disabled — OpenAI credits only
     contextWindow: 1_000_000,
   },
   {
     name: "Kimi K2.5",
     value: "moonshotai/kimi-k2.5",
     icon: "/icons/kimi.svg",
-    disabled: false,
+    disabled: true, // temporarily disabled — OpenAI credits only
     contextWindow: 256_000,
   },
   {
     name: "GLM 5",
     value: "zai/glm-5",
     icon: "/icons/zai.svg",
-    disabled: false,
+    disabled: true, // temporarily disabled — OpenAI credits only
     contextWindow: 202_752,
   },
   {
