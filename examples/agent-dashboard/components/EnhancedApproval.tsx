@@ -109,7 +109,7 @@ function ApprovalContent({ className }: { className?: string }) {
       if (e.key === "y" || e.key === "Y") {
         e.preventDefault();
         approval?.approve();
-      } else if (e.key === "n" || e.key === "N") {
+      } else if (e.key === "d" || e.key === "D") {
         e.preventDefault();
         approval?.deny();
       } else if (e.key === "s" || e.key === "S") {
@@ -251,9 +251,9 @@ function ApprovalContent({ className }: { className?: string }) {
           <div className="flex items-center gap-1 text-muted-foreground text-xs">
             <Keyboard className="h-3.5 w-3.5" />
             <span>
-              <kbd className="rounded bg-muted px-1.5 py-0.5">Y</kbd> approve{" "}
-              <kbd className="rounded bg-muted px-1.5 py-0.5">S</kbd> session{" "}
-              <kbd className="rounded bg-muted px-1.5 py-0.5">N</kbd> deny
+              <kbd className="rounded bg-muted px-1.5 py-0.5">y</kbd> approve{" "}
+              <kbd className="rounded bg-muted px-1.5 py-0.5">s</kbd> session{" "}
+              <kbd className="rounded bg-muted px-1.5 py-0.5">d</kbd> deny
             </span>
           </div>
           <div className="flex gap-2">

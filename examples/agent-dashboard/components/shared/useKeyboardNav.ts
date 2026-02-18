@@ -184,7 +184,7 @@ export function useExtendedKeyboardNav<T>({
       const item = items[nav.selectedIndex];
 
       switch (e.key) {
-        case "a":
+        case "y":
         case "A":
           if (e.shiftKey && onApproveAll) {
             e.preventDefault();

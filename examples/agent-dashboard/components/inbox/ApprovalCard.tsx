@@ -277,7 +277,7 @@ const ApprovalCardContent = forwardRef<
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1 text-muted-foreground text-xs">
             Press{" "}
-            <kbd className="rounded bg-muted px-1.5 py-0.5 font-medium">a</kbd>{" "}
+            <kbd className="rounded bg-muted px-1.5 py-0.5 font-medium">y</kbd>{" "}
             approve{" "}
             <kbd className="rounded bg-muted px-1.5 py-0.5 font-medium">s</kbd>{" "}
             session{" "}

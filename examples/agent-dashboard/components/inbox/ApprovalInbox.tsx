@@ -216,7 +216,7 @@ function ApprovalInboxContent() {
             <kbd className="rounded bg-muted px-1.5 py-0.5">k</kbd> navigate
           </span>
           <span>
-            <kbd className="rounded bg-muted px-1.5 py-0.5">a</kbd> approve
+            <kbd className="rounded bg-muted px-1.5 py-0.5">y</kbd> approve
           </span>
           <span>
             <kbd className="rounded bg-muted px-1.5 py-0.5">d</kbd> deny

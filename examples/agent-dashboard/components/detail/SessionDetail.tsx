@@ -165,13 +165,14 @@ function SessionDetailContent() {
           setViewMode("tree");
           break;
         case "c":
-          if (["starting", "running", "waiting_input"].includes(status)) {
-            // Cancel would be handled by the TaskPrimitive.Cancel
+          if (["starting", "running", "waiting_input"].includes(status) && task) {
+            e.preventDefault();
+            task.cancel();
           }
           break;
       }
     },
-    [router, status],
+    [router, status, task],
   );
 
   useEffect(() => {
@@ -281,7 +282,7 @@ function SessionDetailContent() {
               Press <kbd className="rounded bg-muted px-1.5 py-0.5">y</kbd> to
               approve, <kbd className="rounded bg-muted px-1.5 py-0.5">s</kbd>{" "}
               for session, or{" "}
-              <kbd className="rounded bg-muted px-1.5 py-0.5">n</kbd> to deny
+              <kbd className="rounded bg-muted px-1.5 py-0.5">d</kbd> to deny
             </span>
           </div>
           <div className="space-y-3">
@@ -376,7 +377,7 @@ function SessionDetailContent() {
             <kbd className="rounded bg-muted px-1.5 py-0.5">y</kbd> approve
           </span>
           <span>
-            <kbd className="rounded bg-muted px-1.5 py-0.5">n</kbd> deny
+            <kbd className="rounded bg-muted px-1.5 py-0.5">d</kbd> deny
           </span>
           <span>
             <kbd className="rounded bg-muted px-1.5 py-0.5">Esc</kbd> back
