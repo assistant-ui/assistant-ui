@@ -61,9 +61,13 @@ const isLangChainMessageChunk = (
 ): value is LangChainMessageChunk => {
   if (!value || typeof value !== "object") return false;
   const chunk = value as any;
+  const hasValidType =
+    !("type" in chunk) ||
+    chunk.type === "AIMessageChunk" ||
+    chunk.type === "ai";
   return (
-    "type" in chunk &&
-    chunk.type === "AIMessageChunk" &&
+    hasValidType &&
+    "id" in chunk &&
     (chunk.content === undefined ||
       typeof chunk.content === "string" ||
       Array.isArray(chunk.content)) &&
@@ -162,12 +166,19 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
 
             onMessageChunk?.(messageChunk, tupleMetadata ?? {});
 
+            const normalizedChunk =
+              messageChunk.type !== "AIMessageChunk"
+                ? { ...messageChunk, type: "AIMessageChunk" as const }
+                : messageChunk;
+
             const updatedMessages = tupleMetadata
               ? accumulator.addMessageWithMetadata(
-                  messageChunk as unknown as TMessage,
+                  normalizedChunk as unknown as TMessage,
                   tupleMetadata,
                 )
-              : accumulator.addMessages([messageChunk as unknown as TMessage]);
+              : accumulator.addMessages([
+                  normalizedChunk as unknown as TMessage,
+                ]);
             setMessages(updatedMessages);
             setMessageMetadata(new Map(accumulator.getMetadataMap()));
             break;

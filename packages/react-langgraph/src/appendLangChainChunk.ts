@@ -5,6 +5,11 @@ import {
 } from "./types";
 import { parsePartialJsonObject } from "assistant-stream/utils";
 
+/**
+ * Merges an AIMessageChunk into a previous message. Chunks must have
+ * `type: "AIMessageChunk"` — JS LangGraph servers send `type: "ai"`,
+ * so callers should normalize the type before passing chunks here.
+ */
 export const appendLangChainChunk = (
   prev: LangChainMessage | undefined,
   curr: LangChainMessage | LangChainMessageChunk,

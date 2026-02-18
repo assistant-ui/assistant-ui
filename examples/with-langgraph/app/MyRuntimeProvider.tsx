@@ -2,37 +2,34 @@
 
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useLangGraphRuntime } from "@assistant-ui/react-langgraph";
-import { createThread, getThreadState, sendMessage } from "@/lib/chatApi";
-import { LangChainMessage } from "@assistant-ui/react-langgraph";
+import { createThread, sendMessage } from "@/lib/chatApi";
+import { useRef } from "react";
 
 export function MyRuntimeProvider({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const threadIdRef = useRef<string | undefined>(undefined);
   const runtime = useLangGraphRuntime({
-    stream: async function* (messages, { initialize }) {
-      const { externalId } = await initialize();
-      if (!externalId) throw new Error("Thread not found");
+    stream: async function* (messages) {
+      if (!threadIdRef.current) {
+        const { thread_id } = await createThread();
+        threadIdRef.current = thread_id;
+      }
 
       const generator = sendMessage({
-        threadId: externalId,
+        threadId: threadIdRef.current,
         messages,
       });
 
       yield* generator;
     },
-    create: async () => {
-      const { thread_id } = await createThread();
-      return { externalId: thread_id };
-    },
-    load: async (externalId) => {
-      const state = await getThreadState(externalId);
-      return {
-        messages:
-          (state.values as { messages?: LangChainMessage[] }).messages ?? [],
-        interrupts: state.tasks[0]?.interrupts ?? [],
-      };
+    eventHandlers: {
+      onMessageChunk: (chunk, metadata) => {
+        console.log("[messages-tuple] chunk:", chunk);
+        console.log("[messages-tuple] metadata:", metadata);
+      },
     },
   });
 
