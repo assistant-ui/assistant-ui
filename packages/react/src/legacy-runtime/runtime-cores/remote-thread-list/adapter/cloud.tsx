@@ -72,15 +72,7 @@ export const useCloudThreadListAdapter = (
   );
 
   const cloud = adapter.cloud ?? autoCloud;
-  if (!cloud) {
-    const ref = adapterRef;
-    const inMemory = new InMemoryThreadListAdapter();
-    inMemory.initialize = async (threadId: string) => {
-      const result = await ref.current.create?.();
-      return { remoteId: threadId, externalId: result?.externalId };
-    };
-    return inMemory;
-  }
+  if (!cloud) return new InMemoryThreadListAdapter();
 
   return {
     list: async () => {

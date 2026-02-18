@@ -15,6 +15,7 @@ import {
   AssistantCloud,
   INTERNAL,
   type ToolExecutionStatus,
+  unstable_InMemoryThreadListAdapter,
   unstable_useCloudThreadListAdapter,
   unstable_useRemoteThreadListRuntime,
   useAui,
@@ -398,6 +399,26 @@ const useLangGraphRuntimeImpl = ({
   return runtime;
 };
 
+const useLocalThreadListAdapter = (
+  create: (() => Promise<{ externalId: string }>) | undefined,
+) => {
+  const createRef = useRef(create);
+  useEffect(() => {
+    createRef.current = create;
+  });
+
+  const [adapter] = useState(() => {
+    const inMemory = new unstable_InMemoryThreadListAdapter();
+    inMemory.initialize = async (threadId: string) => {
+      const result = await createRef.current?.();
+      return { remoteId: threadId, externalId: result?.externalId };
+    };
+    return inMemory;
+  });
+
+  return adapter;
+};
+
 export const useLangGraphRuntime = ({
   cloud,
   create,
@@ -422,11 +443,17 @@ export const useLangGraphRuntime = ({
     },
     delete: deleteFn,
   });
+  const localAdapter = useLocalThreadListAdapter(create);
+  const hasCloud = !!(
+    cloud ||
+    (typeof process !== "undefined" &&
+      process?.env?.["NEXT_PUBLIC_ASSISTANT_BASE_URL"])
+  );
   return unstable_useRemoteThreadListRuntime({
     runtimeHook: function RuntimeHook() {
       return useLangGraphRuntimeImpl(options);
     },
-    adapter: cloudAdapter,
+    adapter: hasCloud ? cloudAdapter : localAdapter,
     allowNesting: true,
   });
 };
