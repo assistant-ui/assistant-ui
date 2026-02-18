@@ -59,6 +59,7 @@ export enum LangGraphKnownEventTypes {
   MessagesComplete = "messages/complete",
   Metadata = "metadata",
   Updates = "updates",
+  Values = "values",
   Info = "info",
   Error = "error",
 }
@@ -141,13 +142,19 @@ export type LangChainEvent = {
   data: LangChainMessage[];
 };
 
-type LangGraphTupleMetadata = Record<string, unknown>;
+export type LangGraphTupleMetadata = Record<string, unknown>;
 
 export type LangChainMessageTupleEvent = {
   event: LangGraphKnownEventTypes.Messages;
   data: [LangChainMessageChunk, LangGraphTupleMetadata];
 };
 
+export type OnMessageChunkCallback = (
+  chunk: LangChainMessageChunk,
+  metadata: LangGraphTupleMetadata,
+) => void | Promise<void>;
+export type OnValuesEventCallback = (values: unknown) => void | Promise<void>;
+export type OnUpdatesEventCallback = (updates: unknown) => void | Promise<void>;
 export type OnMetadataEventCallback = (
   metadata: unknown,
 ) => void | Promise<void>;

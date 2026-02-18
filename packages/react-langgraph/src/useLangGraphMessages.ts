@@ -6,6 +6,10 @@ import {
   LangChainMessageTupleEvent,
   LangGraphKnownEventTypes,
   LangChainMessageChunk,
+  LangGraphTupleMetadata,
+  OnMessageChunkCallback,
+  OnValuesEventCallback,
+  OnUpdatesEventCallback,
   OnCustomEventCallback,
   OnErrorEventCallback,
   OnInfoEventCallback,
@@ -76,6 +80,9 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
   stream: LangGraphStreamCallback<TMessage>;
   appendMessage?: (prev: TMessage | undefined, curr: TMessage) => TMessage;
   eventHandlers?: {
+    onMessageChunk?: OnMessageChunkCallback;
+    onValues?: OnValuesEventCallback;
+    onUpdates?: OnUpdatesEventCallback;
     onMetadata?: OnMetadataEventCallback;
     onInfo?: OnInfoEventCallback;
     onError?: OnErrorEventCallback;
@@ -86,12 +93,20 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
     LangGraphInterruptState | undefined
   >();
   const [messages, setMessages] = useState<TMessage[]>([]);
+  const [messageMetadata, setMessageMetadata] = useState<
+    Map<string, LangGraphTupleMetadata>
+  >(new Map());
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  const { onMetadata, onInfo, onError, onCustomEvent } = useMemo(
-    () => eventHandlers ?? {},
-    [eventHandlers],
-  );
+  const {
+    onMessageChunk,
+    onValues,
+    onUpdates,
+    onMetadata,
+    onInfo,
+    onError,
+    onCustomEvent,
+  } = useMemo(() => eventHandlers ?? {}, [eventHandlers]);
 
   const aui = useAui();
   const sendMessage = useCallback(
@@ -124,13 +139,19 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
             setMessages(accumulator.addMessages(chunk.data));
             break;
           case LangGraphKnownEventTypes.Updates:
+            onUpdates?.(chunk.data);
             if (Array.isArray(chunk.data.messages)) {
               setMessages(accumulator.replaceMessages(chunk.data.messages));
             }
             setInterrupt(chunk.data.__interrupt__?.[0]);
             break;
+          case LangGraphKnownEventTypes.Values:
+            onValues?.(chunk.data);
+            break;
           case LangGraphKnownEventTypes.Messages: {
-            const [messageChunk] = (chunk as LangChainMessageTupleEvent).data;
+            const [messageChunk, tupleMetadata] = (
+              chunk as LangChainMessageTupleEvent
+            ).data;
             if (!isLangChainMessageChunk(messageChunk)) {
               console.warn(
                 "Received invalid message chunk format:",
@@ -138,10 +159,17 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
               );
               break;
             }
-            const updatedMessages = accumulator.addMessages([
-              messageChunk as unknown as TMessage,
-            ]);
+
+            onMessageChunk?.(messageChunk, tupleMetadata ?? {});
+
+            const updatedMessages = tupleMetadata
+              ? accumulator.addMessageWithMetadata(
+                  messageChunk as unknown as TMessage,
+                  tupleMetadata,
+                )
+              : accumulator.addMessages([messageChunk as unknown as TMessage]);
             setMessages(updatedMessages);
+            setMessageMetadata(new Map(accumulator.getMetadataMap()));
             break;
           }
           case LangGraphKnownEventTypes.Metadata:
@@ -191,6 +219,9 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
       messages,
       appendMessage,
       stream,
+      onMessageChunk,
+      onValues,
+      onUpdates,
       onMetadata,
       onInfo,
       onError,
@@ -207,6 +238,7 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
   return {
     interrupt,
     messages,
+    messageMetadata,
     sendMessage,
     cancel,
     setInterrupt,
