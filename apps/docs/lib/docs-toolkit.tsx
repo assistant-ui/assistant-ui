@@ -183,7 +183,7 @@ const weatherSearchTool = {
   }) => {
     try {
       const response = await fetch(
-        `https://api.open-meteo.com/v1/forecast?latitude=${args.latitude}&longitude=${args.longitude}&timezone=auto&temperature_unit=fahrenheit&current=temperature_2m,weather_code,wind_speed_10m,precipitation,visibility&daily=weather_code,temperature_2m_max,temperature_2m_min&forecast_days=5`,
+        `https://api.open-meteo.com/v1/forecast?latitude=${args.latitude}&longitude=${args.longitude}&timezone=auto&temperature_unit=fahrenheit&current=temperature_2m,weather_code,wind_speed_10m,precipitation&daily=weather_code,temperature_2m_max,temperature_2m_min&forecast_days=5`,
       );
 
       if (!response.ok) {
@@ -234,7 +234,6 @@ const weatherSearchTool = {
             tempMax: daily.temperature_2m_max[0],
             windSpeed: current.wind_speed_10m,
             precipitationLevel: mapPrecipitationLevel(current.precipitation),
-            visibility: current.visibility,
           },
           forecast,
           time: {
