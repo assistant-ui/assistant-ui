@@ -190,29 +190,8 @@ export function useToolInvocations({
                       },
                     );
                   }
-                } else {
-                  if (!content.argsText.startsWith(lastState.argsText)) {
-                    // Check if this is key reordering (both are complete JSON)
-                    // This happens when transitioning from streaming to complete state
-                    // and the provider returns keys in a different order
-                    if (
-                      isArgsTextComplete(lastState.argsText) &&
-                      isArgsTextComplete(content.argsText)
-                    ) {
-                      lastState.controller.argsText.close();
-                      lastToolStates.current[content.toolCallId] = {
-                        argsText: content.argsText,
-                        hasResult: lastState.hasResult,
-                        argsComplete: true,
-                        controller: lastState.controller,
-                      };
-                      return; // Continue to next content part
-                    }
-                    throw new Error(
-                      `Tool call argsText can only be appended, not updated: ${content.argsText} does not start with ${lastState.argsText}`,
-                    );
-                  }
-
+                } else if (content.argsText.startsWith(lastState.argsText)) {
+                  // Normal append path
                   const argsTextDelta = content.argsText.slice(
                     lastState.argsText.length,
                   );
@@ -223,12 +202,26 @@ export function useToolInvocations({
                     lastState.controller.argsText.close();
                   }
 
-                  lastToolStates.current[content.toolCallId] = {
+                  lastState = {
                     argsText: content.argsText,
                     hasResult: lastState.hasResult,
                     argsComplete: shouldClose,
                     controller: lastState.controller,
                   };
+                  lastToolStates.current[content.toolCallId] = lastState;
+                } else if (isArgsTextComplete(content.argsText)) {
+                  lastState.controller.argsText.close();
+                  lastState = {
+                    argsText: content.argsText,
+                    hasResult: lastState.hasResult,
+                    argsComplete: true,
+                    controller: lastState.controller,
+                  };
+                  lastToolStates.current[content.toolCallId] = lastState;
+                } else {
+                  throw new Error(
+                    `Tool call argsText can only be appended, not updated: ${content.argsText} does not start with ${lastState.argsText}`,
+                  );
                 }
               }
 
