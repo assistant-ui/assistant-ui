@@ -436,9 +436,10 @@ export class RemoteThreadListThreadListRuntimeCore
     if (data.status !== "regular")
       throw new Error("Thread is not yet initialized or already archived");
 
+    await this._ensureThreadIsNotMain(data.id);
+
     return this._state.optimisticUpdate({
       execute: async () => {
-        await this._ensureThreadIsNotMain(data.id);
         const { remoteId } = await data.initializeTask;
         return this._options.adapter.archive(remoteId);
       },
@@ -475,9 +476,10 @@ export class RemoteThreadListThreadListRuntimeCore
     if (data.status !== "regular" && data.status !== "archived")
       throw new Error("Thread is not yet initialized");
 
+    await this._ensureThreadIsNotMain(data.id);
+
     return this._state.optimisticUpdate({
       execute: async () => {
-        await this._ensureThreadIsNotMain(data.id);
         const { remoteId } = await data.initializeTask;
         return await this._options.adapter.delete(remoteId);
       },
