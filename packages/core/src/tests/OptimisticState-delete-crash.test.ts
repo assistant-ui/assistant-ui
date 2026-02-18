@@ -179,7 +179,7 @@ describe("OptimisticState delete crash (#3346)", () => {
     await promise;
   });
 
-  it("archive does NOT remove threadData (no crash even without fix)", () => {
+  it("archive does NOT remove threadData (no crash even without fix)", async () => {
     const state = new OptimisticState(createThreadState("thread-1"));
 
     let threadDataMissingDuringNotify = false;
@@ -191,7 +191,7 @@ describe("OptimisticState delete crash (#3346)", () => {
       }
     });
 
-    state.optimisticUpdate({
+    await state.optimisticUpdate({
       execute: async () => undefined,
       optimistic: (s) => {
         return updateStatusReducer(s, "thread-1", "archived");
