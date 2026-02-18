@@ -199,6 +199,7 @@ export class AgUiThreadRuntimeCore {
 
   addToolResult(options: AddToolResultOptions): void {
     let updated = false;
+    let shouldResume = false;
     this.messages = this.messages.map((message) => {
       if (message.id !== options.messageId || message.role !== "assistant")
         return message;
@@ -214,6 +215,24 @@ export class AgUiThreadRuntimeCore {
           isError: options.isError,
         };
       });
+
+      if (
+        assistant.status?.type === "requires-action" &&
+        assistant.status.reason === "tool-calls" &&
+        content.every(
+          (part) =>
+            part.type !== "tool-call" ||
+            ("result" in part && part.result !== undefined),
+        )
+      ) {
+        shouldResume = true;
+        return {
+          ...assistant,
+          content,
+          status: { type: "complete" as const, reason: "unknown" as const },
+        };
+      }
+
       return {
         ...assistant,
         content,
@@ -222,6 +241,20 @@ export class AgUiThreadRuntimeCore {
 
     if (updated) {
       this.notifyUpdate();
+
+      if (shouldResume) {
+        this.persistAssistantHistory(options.messageId);
+
+        if (!this.isRunningFlag) {
+          void this.startRun(options.messageId, this.lastRunConfig).catch(
+            (error) => {
+              this.onError?.(
+                error instanceof Error ? error : new Error(String(error)),
+              );
+            },
+          );
+        }
+      }
     }
   }
 

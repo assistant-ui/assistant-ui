@@ -26,6 +26,10 @@ export type {
   OnMessageChunkCallback,
   OnValuesEventCallback,
   OnUpdatesEventCallback,
+  OnMetadataEventCallback,
+  OnInfoEventCallback,
+  OnErrorEventCallback,
+  OnCustomEventCallback,
 } from "./types";
 
 export { LangGraphMessageAccumulator } from "./LangGraphMessageAccumulator";
