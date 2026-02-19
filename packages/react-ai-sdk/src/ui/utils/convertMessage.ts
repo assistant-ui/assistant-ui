@@ -8,12 +8,15 @@ import {
   type DataMessagePart,
   type SourceMessagePart,
   type useExternalMessageConverter,
+  type ThreadMessage,
   type ThreadMessageLike,
 } from "@assistant-ui/react";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
+import { useMemo } from "react";
 
 type MessageMetadata = ThreadMessageLike["metadata"];
 export const unstable_AISDK_JSON_RENDER_COMPONENT_NAME = "json-render";
+const INTERNAL_DATA_SPEC_PART_NAME = "__assistant_ui_internal_data_spec";
 
 const isJSONObject = (value: unknown): value is ReadonlyJSONObject => {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -130,6 +133,11 @@ type DataSpecState = {
   seq?: number;
   props?: ReadonlyJSONObject;
   spec?: ReadonlyJSONObject;
+};
+
+type InternalDataSpecPayload = {
+  __assistantUiDataSpec: true;
+  update: DataSpecUpdate;
 };
 
 export type unstable_AISDKDataSpecValidationContext = {
@@ -297,11 +305,10 @@ const applyJsonPatchOperations = (
   return next;
 };
 
-const toDataSpecUpdate = (part: unknown): DataSpecUpdate | null => {
-  if (!isDataSpecChunk(part)) return null;
-  if (!isJSONObject(part.data)) return null;
+const toDataSpecUpdateFromData = (source: unknown): DataSpecUpdate | null => {
+  if (!isJSONObject(source)) return null;
 
-  const data = part.data as {
+  const data = source as {
     instanceId?: unknown;
     name?: unknown;
     parentId?: unknown;
@@ -355,6 +362,36 @@ const toDataSpecUpdate = (part: unknown): DataSpecUpdate | null => {
   } satisfies DataSpecUpdate;
 };
 
+const toDataSpecUpdate = (part: unknown): DataSpecUpdate | null => {
+  if (!isDataSpecChunk(part)) return null;
+  return toDataSpecUpdateFromData(part.data);
+};
+
+const toInternalDataSpecPayload = (
+  update: DataSpecUpdate,
+): InternalDataSpecPayload => ({
+  __assistantUiDataSpec: true,
+  update,
+});
+
+const toInternalDataSpecPart = (
+  update: DataSpecUpdate,
+): DataMessagePart<InternalDataSpecPayload> => ({
+  type: "data",
+  name: INTERNAL_DATA_SPEC_PART_NAME,
+  data: toInternalDataSpecPayload(update),
+});
+
+const getInternalDataSpecUpdate = (
+  part: MessageContent[number],
+): DataSpecUpdate | null => {
+  if (part.type !== "data") return null;
+  if (part.name !== INTERNAL_DATA_SPEC_PART_NAME) return null;
+  if (!isMutableObject(part.data)) return null;
+  if (part.data.__assistantUiDataSpec !== true) return null;
+  return toDataSpecUpdateFromData(part.data.update);
+};
+
 type DataSpecApplyResult =
   | { type: "applied" }
   | {
@@ -364,13 +401,11 @@ type DataSpecApplyResult =
     }
   | { type: "invalid"; reason: "malformed-patch" | "invalid-spec" };
 
-const resolveDataSpecValidationContext = (
+const mergeDataSpecFields = (
   current: DataSpecState,
   update: DataSpecUpdate,
-  spec: ReadonlyJSONObject,
-): unstable_AISDKDataSpecValidationContext => {
+) => {
   return {
-    instanceId: update.instanceId,
     name: update.name ?? current.name,
     ...(update.parentId !== undefined
       ? { parentId: update.parentId }
@@ -387,6 +422,18 @@ const resolveDataSpecValidationContext = (
       : current.props !== undefined
         ? { props: current.props }
         : {}),
+  };
+};
+
+const resolveDataSpecValidationContext = (
+  current: DataSpecState,
+  update: DataSpecUpdate,
+  spec: ReadonlyJSONObject,
+): unstable_AISDKDataSpecValidationContext => {
+  const mergedFields = mergeDataSpecFields(current, update);
+  return {
+    instanceId: update.instanceId,
+    ...mergedFields,
     spec,
   };
 };
@@ -479,22 +526,7 @@ const applyDataSpecUpdate = (
 
   stateByInstanceId.set(update.instanceId, {
     instanceId: update.instanceId,
-    name: update.name ?? current.name,
-    ...(update.parentId !== undefined
-      ? { parentId: update.parentId }
-      : current.parentId !== undefined
-        ? { parentId: current.parentId }
-        : {}),
-    ...(update.seq !== undefined
-      ? { seq: update.seq }
-      : current.seq !== undefined
-        ? { seq: current.seq }
-        : {}),
-    ...(update.props !== undefined
-      ? { props: update.props }
-      : current.props !== undefined
-        ? { props: current.props }
-        : {}),
+    ...mergeDataSpecFields(current, update),
     ...(nextSpec !== undefined ? { spec: nextSpec } : {}),
   });
 
@@ -552,58 +584,18 @@ function convertParts(
     return [];
   }
 
-  const dataSpecOptions = metadata.unstable_dataSpec;
-  const stateByDataSpecInstanceId = new Map<string, DataSpecState>();
-  const seenDataSpecInstanceIds = new Set<string>();
-  const converted: (
-    | MessageContent[number]
-    | { __dataSpecInstanceId: string }
-  )[] = [];
+  const converted: MessageContent = [];
 
   for (const part of message.parts) {
     if (part.type === "step-start" || part.type === "file") continue;
 
     const dataSpecUpdate = toDataSpecUpdate(part);
     if (dataSpecUpdate) {
-      const result = applyDataSpecUpdate(
-        stateByDataSpecInstanceId,
-        dataSpecUpdate,
-        dataSpecOptions,
-      );
-      if (result.type === "invalid") {
-        if (result.reason === "malformed-patch") {
-          dataSpecOptions?.onTelemetry?.({
-            type: "malformed-patch-dropped",
-            instanceId: dataSpecUpdate.instanceId,
-            ...(dataSpecUpdate.seq !== undefined
-              ? { seq: dataSpecUpdate.seq }
-              : {}),
-          });
-          warn(
-            `Malformed data-spec patch dropped for instanceId: ${dataSpecUpdate.instanceId}`,
-          );
-        } else {
-          warn(
-            `Invalid data-spec dropped for instanceId: ${dataSpecUpdate.instanceId}`,
-          );
-        }
+      if (message.role !== "assistant") {
+        warn("data-spec chunks are only supported in assistant messages");
+        continue;
       }
-      if (result.type === "ignored-stale-seq") {
-        dataSpecOptions?.onTelemetry?.({
-          type: "stale-seq-ignored",
-          instanceId: dataSpecUpdate.instanceId,
-          seq: result.seq,
-          latestSeq: result.latestSeq,
-        });
-      }
-      if (
-        result.type === "applied" &&
-        !seenDataSpecInstanceIds.has(dataSpecUpdate.instanceId) &&
-        stateByDataSpecInstanceId.get(dataSpecUpdate.instanceId)?.spec
-      ) {
-        seenDataSpecInstanceIds.add(dataSpecUpdate.instanceId);
-        converted.push({ __dataSpecInstanceId: dataSpecUpdate.instanceId });
-      }
+      converted.push(toInternalDataSpecPart(dataSpecUpdate));
       continue;
     }
 
@@ -704,7 +696,83 @@ function convertParts(
     warn(`Unsupported message part type: ${part.type}`);
   }
 
-  const convertedWithDataSpecs = converted
+  const seenToolCallIds = new Set<string>();
+  return converted.filter((part) => {
+    if (part.type === "tool-call" && part.toolCallId != null) {
+      if (seenToolCallIds.has(part.toolCallId)) return false;
+      seenToolCallIds.add(part.toolCallId);
+    }
+    return true;
+  });
+}
+
+const emitDataSpecApplyDiagnostics = (
+  result: DataSpecApplyResult,
+  update: DataSpecUpdate,
+  options: unstable_AISDKDataSpecOptions | undefined,
+) => {
+  if (result.type === "invalid") {
+    if (result.reason === "malformed-patch") {
+      options?.onTelemetry?.({
+        type: "malformed-patch-dropped",
+        instanceId: update.instanceId,
+        ...(update.seq !== undefined ? { seq: update.seq } : {}),
+      });
+      warn(
+        `Malformed data-spec patch dropped for instanceId: ${update.instanceId}`,
+      );
+    } else {
+      warn(`Invalid data-spec dropped for instanceId: ${update.instanceId}`);
+    }
+    return;
+  }
+
+  if (result.type === "ignored-stale-seq") {
+    options?.onTelemetry?.({
+      type: "stale-seq-ignored",
+      instanceId: update.instanceId,
+      seq: result.seq,
+      latestSeq: result.latestSeq,
+    });
+  }
+};
+
+const materializeDataSpecParts = (
+  content: MessageContent,
+  options: unstable_AISDKDataSpecOptions | undefined,
+): MessageContent => {
+  const stateByDataSpecInstanceId = new Map<string, DataSpecState>();
+  const seenDataSpecInstanceIds = new Set<string>();
+  const converted: (
+    | MessageContent[number]
+    | { __dataSpecInstanceId: string }
+  )[] = [];
+
+  for (const part of content) {
+    const update = getInternalDataSpecUpdate(part);
+    if (!update) {
+      converted.push(part);
+      continue;
+    }
+
+    const result = applyDataSpecUpdate(
+      stateByDataSpecInstanceId,
+      update,
+      options,
+    );
+    emitDataSpecApplyDiagnostics(result, update, options);
+
+    if (
+      result.type === "applied" &&
+      !seenDataSpecInstanceIds.has(update.instanceId) &&
+      stateByDataSpecInstanceId.get(update.instanceId)?.spec
+    ) {
+      seenDataSpecInstanceIds.add(update.instanceId);
+      converted.push({ __dataSpecInstanceId: update.instanceId });
+    }
+  }
+
+  return converted
     .map((part) => {
       if (!("__dataSpecInstanceId" in part)) return part;
       const dataSpecState = stateByDataSpecInstanceId.get(
@@ -725,19 +793,27 @@ function convertParts(
         },
       } satisfies ComponentMessagePart;
     })
-    .filter(Boolean) as MessageContent[number][];
+    .filter(Boolean) as MessageContent;
+};
 
-  const seenToolCallIds = new Set<string>();
-  return convertedWithDataSpecs.filter((part) => {
-    if (part.type === "tool-call" && part.toolCallId != null) {
-      if (seenToolCallIds.has(part.toolCallId)) return false;
-      seenToolCallIds.add(part.toolCallId);
-    }
-    return true;
+const materializeDataSpecsInMessages = (
+  messages: readonly ThreadMessage[],
+  dataSpecOptions: AISDKMessageConverterMetadata["unstable_dataSpec"],
+) => {
+  return messages.map((message) => {
+    if (message.role !== "assistant") return message;
+    const content = materializeDataSpecParts(
+      message.content as MessageContent,
+      dataSpecOptions,
+    );
+    return {
+      ...message,
+      content,
+    };
   });
-}
+};
 
-export const AISDKMessageConverter = unstable_createMessageConverter(
+const AISDKMessageConverterBase = unstable_createMessageConverter(
   (message: UIMessage, metadata: useExternalMessageConverter.Metadata) => {
     const createdAt = new Date();
     const content = convertParts(
@@ -799,3 +875,36 @@ export const AISDKMessageConverter = unstable_createMessageConverter(
     }
   },
 );
+
+export const AISDKMessageConverter = {
+  ...AISDKMessageConverterBase,
+  useThreadMessages: (
+    args: Parameters<typeof AISDKMessageConverterBase.useThreadMessages>[0],
+  ) => {
+    const converted = AISDKMessageConverterBase.useThreadMessages(args);
+    const dataSpecOptions = (
+      args.metadata as AISDKMessageConverterMetadata | undefined
+    )?.unstable_dataSpec;
+    return useMemo(
+      () => materializeDataSpecsInMessages(converted, dataSpecOptions),
+      [converted, dataSpecOptions],
+    );
+  },
+  toThreadMessages: (
+    messages: Parameters<typeof AISDKMessageConverterBase.toThreadMessages>[0],
+    isRunning?: Parameters<
+      typeof AISDKMessageConverterBase.toThreadMessages
+    >[1],
+    metadata?: Parameters<typeof AISDKMessageConverterBase.toThreadMessages>[2],
+  ) => {
+    const converted = AISDKMessageConverterBase.toThreadMessages(
+      messages,
+      isRunning,
+      metadata,
+    );
+    const dataSpecOptions = (
+      metadata as AISDKMessageConverterMetadata | undefined
+    )?.unstable_dataSpec;
+    return materializeDataSpecsInMessages(converted, dataSpecOptions);
+  },
+};
