@@ -107,21 +107,21 @@ export interface ApprovalCardProps {
   isFocused?: boolean;
   onViewSession?: () => void;
   className?: string;
-  ref?: Ref<HTMLDivElement>;
+  cardRef?: Ref<HTMLDivElement>;
 }
 
 interface ApprovalCardContentProps {
   isFocused?: boolean;
   onViewSession?: () => void;
   className?: string;
-  ref?: Ref<HTMLDivElement>;
+  cardRef?: Ref<HTMLDivElement>;
 }
 
 const ApprovalCardContent = ({
   isFocused = false,
   onViewSession,
   className,
-  ref,
+  cardRef,
 }: ApprovalCardContentProps) => {
   const state = useApprovalState((s) => s);
   const [elapsed, setElapsed] = useState(0);
@@ -193,7 +193,7 @@ const ApprovalCardContent = ({
 
   return (
     <div
-      ref={ref}
+      ref={cardRef}
       className={cn(
         "overflow-hidden rounded-xl border-2 shadow-lg transition-all",
         risk.bgColor,
@@ -345,20 +345,22 @@ export const ApprovalCard = ({
   isFocused = false,
   onViewSession,
   className,
-  ref,
+  cardRef,
 }: ApprovalCardProps) => {
   const contentProps: {
     isFocused: boolean;
     onViewSession?: () => void;
     className?: string;
+    cardRef?: Ref<HTMLDivElement>;
   } = { isFocused };
   if (onViewSession) contentProps.onViewSession = onViewSession;
   if (className) contentProps.className = className;
+  if (cardRef) contentProps.cardRef = cardRef;
 
   return (
     <ApprovalErrorBoundary>
       <ApprovalPrimitive.Root approvalId={approvalId}>
-        <ApprovalCardContent ref={ref} {...contentProps} />
+        <ApprovalCardContent {...contentProps} />
       </ApprovalPrimitive.Root>
     </ApprovalErrorBoundary>
   );

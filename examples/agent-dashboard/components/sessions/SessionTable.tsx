@@ -280,7 +280,7 @@ export function SessionTable() {
           sortedSessions.map((session, index) => (
             <SessionRow
               key={session.id}
-              ref={(el) => {
+              rowRef={(el) => {
                 if (el) rowRefs.current.set(index, el);
                 else rowRefs.current.delete(index);
               }}

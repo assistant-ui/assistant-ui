@@ -118,12 +118,12 @@ export class TaskController {
   async *events(
     afterEventId: number = 0,
   ): AsyncGenerator<{ id: number; event: SDKEvent }> {
-    let cursor = this.findNextEventIndex(afterEventId);
+    let lastDeliveredEventId = afterEventId;
 
-    while (this.isRunning || cursor < this.eventHistory.length) {
-      if (cursor < this.eventHistory.length) {
-        const entry = this.eventHistory[cursor];
-        cursor++;
+    while (this.isRunning || this.hasEventsAfter(lastDeliveredEventId)) {
+      const entry = this.findNextEvent(lastDeliveredEventId);
+      if (entry) {
+        lastDeliveredEventId = entry.id;
         yield entry;
       } else {
         await this.waitForEvent();
@@ -157,12 +157,16 @@ export class TaskController {
     this.eventListeners.forEach((listener) => listener());
   }
 
-  private findNextEventIndex(afterEventId: number): number {
-    if (afterEventId <= 0) return 0;
-    const nextIndex = this.eventHistory.findIndex(
-      (entry) => entry.id > afterEventId,
-    );
-    return nextIndex === -1 ? this.eventHistory.length : nextIndex;
+  private findNextEvent(
+    afterEventId: number,
+  ): { id: number; event: SDKEvent } | undefined {
+    return this.eventHistory.find((entry) => entry.id > afterEventId);
+  }
+
+  private hasEventsAfter(afterEventId: number): boolean {
+    const latestEventId = this.eventHistory[this.eventHistory.length - 1]?.id;
+    if (!latestEventId) return false;
+    return latestEventId > afterEventId;
   }
 
   private async runTask(): Promise<void> {

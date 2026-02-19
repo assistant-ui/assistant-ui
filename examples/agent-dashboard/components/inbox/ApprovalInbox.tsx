@@ -188,7 +188,7 @@ function ApprovalInboxContent() {
             {pendingApprovals.map((approval, index) => (
               <TaskPrimitive.Root key={approval.id} taskId={approval.taskId}>
                 <ApprovalCard
-                  ref={(el) => {
+                  cardRef={(el) => {
                     if (el) cardRefs.current.set(index, el);
                     else cardRefs.current.delete(index);
                   }}

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { type RefObject } from "react";
+import React, { type Ref } from "react";
 import type { TaskState } from "@assistant-ui/react-agent";
 import {
   Loader2,
@@ -21,6 +21,7 @@ export interface SessionRowProps {
   isSelected: boolean;
   onClick?: () => void;
   className?: string;
+  rowRef?: Ref<HTMLButtonElement>;
 }
 
 const statusConfig: Record<
@@ -107,8 +108,8 @@ export const SessionRow = ({
   isSelected,
   onClick,
   className,
-  ref,
-}: SessionRowProps & { ref?: RefObject<HTMLButtonElement | null> }) => {
+  rowRef,
+}: SessionRowProps) => {
   const status = statusConfig[task.status] || defaultStatus;
   const pendingCount = task.pendingApprovals.filter(
     (a) => a.status === "pending",
@@ -150,7 +151,7 @@ export const SessionRow = ({
 
   return (
     <button
-      ref={ref}
+      ref={rowRef}
       type="button"
       onClick={onClick}
       className={cn(
