@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { useAgentWorkspace } from "../../hooks/useAgentWorkspace";
+import { useWorkspaceTasks } from "../../hooks/useAgentWorkspace";
 
 export type ApprovalFilterStatus = "all" | "pending" | "approved" | "denied";
 
@@ -13,8 +13,7 @@ export interface ApprovalFilterOptions {
 }
 
 export function useApprovalQueue(filter?: ApprovalFilterOptions) {
-  const workspace = useAgentWorkspace();
-  const tasks = workspace.getTasks();
+  const tasks = useWorkspaceTasks();
 
   return useMemo(() => {
     const allApprovals = tasks.flatMap((task) => {

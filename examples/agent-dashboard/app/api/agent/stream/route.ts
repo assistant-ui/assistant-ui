@@ -3,14 +3,12 @@
  * Clients connect here to receive real-time task updates.
  *
  * Limitations (demo-quality, not production-ready):
- * - Single-consumer: The event queue is drained on read, so only one client
- *   can consume events per task. Multiple tabs/clients will compete for events.
- * - Non-replayable: If a client disconnects and reconnects, missed events are
- *   lost. There is no event history or replay mechanism.
- * - No persistence: Events only exist in memory while the server is running.
+ * - In-memory only: Events only exist while the server process is alive.
+ * - Bounded replay: A fixed-size in-memory history is used for replay.
+ *   Reconnecting with stale Last-Event-ID values beyond that window can miss data.
  *
  * For production use, consider adding event history with replay (e.g. via
- * ?since=<timestamp>), multicast support, or a proper pub/sub system.
+ * durable storage), backpressure handling, and a proper pub/sub system.
  */
 
 import { NextRequest } from "next/server";
@@ -21,13 +19,18 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   const taskId = request.nextUrl.searchParams.get("taskId");
+  const lastEventIdHeader = request.headers.get("last-event-id");
+  const parsedLastEventId = Number.parseInt(lastEventIdHeader ?? "", 10);
+  const lastEventId = Number.isFinite(parsedLastEventId)
+    ? parsedLastEventId
+    : 0;
 
   if (!taskId) {
     logger.warn("stream", "Missing taskId parameter");
     return new Response("Missing taskId parameter", { status: 400 });
   }
 
-  logger.info("stream", "New stream connection", { taskId });
+  logger.info("stream", "New stream connection", { taskId, lastEventId });
 
   const controller = taskStore.get(taskId);
   if (!controller) {
@@ -52,8 +55,8 @@ export async function GET(request: NextRequest) {
 
       try {
         let eventsSent = 0;
-        for await (const event of controller.events()) {
-          const data = `data: ${JSON.stringify(event)}\n\n`;
+        for await (const { id, event } of controller.events(lastEventId)) {
+          const data = `id: ${id}\ndata: ${JSON.stringify(event)}\n\n`;
           streamController.enqueue(encoder.encode(data));
           eventsSent++;
         }

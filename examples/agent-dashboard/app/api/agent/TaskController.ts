@@ -9,9 +9,11 @@ import type { SDKEvent, CreateTaskOptions } from "@assistant-ui/react-agent";
 import { logger } from "./logger";
 
 export class TaskController {
+  private static readonly EVENT_HISTORY_LIMIT = 2000;
   private taskId: string;
   private options: CreateTaskOptions;
-  private eventQueue: SDKEvent[] = [];
+  private eventHistory: Array<{ id: number; event: SDKEvent }> = [];
+  private nextEventId = 1;
   private pendingApprovals: Map<
     string,
     { resolve: (decision: "allow" | "deny") => void }
@@ -113,10 +115,16 @@ export class TaskController {
     });
   }
 
-  async *events(): AsyncGenerator<SDKEvent> {
-    while (this.isRunning || this.eventQueue.length > 0) {
-      if (this.eventQueue.length > 0) {
-        yield this.eventQueue.shift()!;
+  async *events(
+    afterEventId: number = 0,
+  ): AsyncGenerator<{ id: number; event: SDKEvent }> {
+    let cursor = this.findNextEventIndex(afterEventId);
+
+    while (this.isRunning || cursor < this.eventHistory.length) {
+      if (cursor < this.eventHistory.length) {
+        const entry = this.eventHistory[cursor];
+        cursor++;
+        yield entry;
       } else {
         await this.waitForEvent();
       }
@@ -137,8 +145,24 @@ export class TaskController {
   }
 
   private pushEvent(event: SDKEvent): void {
-    this.eventQueue.push(event);
+    this.eventHistory.push({
+      id: this.nextEventId++,
+      event,
+    });
+
+    if (this.eventHistory.length > TaskController.EVENT_HISTORY_LIMIT) {
+      this.eventHistory.shift();
+    }
+
     this.eventListeners.forEach((listener) => listener());
+  }
+
+  private findNextEventIndex(afterEventId: number): number {
+    if (afterEventId <= 0) return 0;
+    const nextIndex = this.eventHistory.findIndex(
+      (entry) => entry.id > afterEventId,
+    );
+    return nextIndex === -1 ? this.eventHistory.length : nextIndex;
   }
 
   private async runTask(): Promise<void> {

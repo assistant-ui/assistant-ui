@@ -6,7 +6,13 @@ import type { AgentClientInterface } from "../sdk/HttpAgentClient";
 import { processSDKEvent } from "../sdk/converters";
 import { AgentRuntime } from "./AgentRuntime";
 import { ApprovalRuntime } from "./ApprovalRuntime";
-import type { ApprovalStatus, TaskHandle, TaskState } from "./types";
+import type {
+  AgentState,
+  ApprovalStatus,
+  CreateTaskOptions,
+  TaskHandle,
+  TaskState,
+} from "./types";
 
 export class TaskRuntime {
   private state: TaskState;
@@ -22,14 +28,19 @@ export class TaskRuntime {
   private permissionModeOverride:
     | import("./PermissionStore").PermissionMode
     | undefined;
+  private requiresApproval: CreateTaskOptions["requiresApproval"];
 
   constructor(
     handle: TaskHandle,
     client: AgentClientInterface,
     permissionStore: import("./PermissionStore").PermissionStoreInterface,
+    options?: {
+      requiresApproval?: CreateTaskOptions["requiresApproval"];
+    },
   ) {
     this.client = client;
     this.permissionStore = permissionStore;
+    this.requiresApproval = options?.requiresApproval;
     this.originalPrompt = handle.prompt;
     this.serverTaskId = handle.id;
     this.state = {
@@ -152,15 +163,19 @@ export class TaskRuntime {
 
   private processEvent(event: Parameters<typeof processSDKEvent>[0]): void {
     const result = processSDKEvent(event, this.state);
+    let shouldNotify = false;
 
     // Apply task updates
     if (result.taskUpdate) {
       this.state = { ...this.state, ...result.taskUpdate };
+      shouldNotify = true;
     }
 
     // Handle new agent
     if (result.newAgent) {
-      const agentRuntime = new AgentRuntime(result.newAgent);
+      const agentRuntime = new AgentRuntime(result.newAgent, (state) =>
+        this.syncAgentState(state),
+      );
       this.agents.set(result.newAgent.id, agentRuntime);
 
       // Update parent agent if exists
@@ -173,8 +188,9 @@ export class TaskRuntime {
 
       this.state = {
         ...this.state,
-        agents: [...this.state.agents, result.newAgent],
+        agents: [...this.state.agents, agentRuntime.getState()],
       };
+      shouldNotify = true;
     }
 
     // Handle agent updates
@@ -182,16 +198,6 @@ export class TaskRuntime {
       const agent = this.agents.get(result.agentUpdate.id);
       if (agent) {
         agent.updateState(result.agentUpdate.update);
-
-        // Update state array
-        this.state = {
-          ...this.state,
-          agents: this.state.agents.map((a) =>
-            a.id === result.agentUpdate!.id
-              ? { ...a, ...result.agentUpdate!.update }
-              : a,
-          ),
-        };
       }
     }
 
@@ -200,41 +206,58 @@ export class TaskRuntime {
       const agent = this.agents.get(result.newEvent.agentId);
       if (agent) {
         agent.addEvent(result.newEvent);
-
-        // Update state array
-        this.state = {
-          ...this.state,
-          agents: this.state.agents.map((a) =>
-            a.id === result.newEvent!.agentId
-              ? { ...a, events: [...a.events, result.newEvent!] }
-              : a,
-          ),
-        };
       }
     }
 
     // Handle new approval
     if (result.newApproval) {
-      const approvalRuntime = new ApprovalRuntime(
-        result.newApproval,
-        this.client,
-        (status: ApprovalStatus) =>
-          this.onApprovalResolved(result.newApproval!.id, status),
-        this.permissionStore,
+      const requiresApproval = this.shouldRequireApproval(
+        result.newApproval.toolName,
+        result.newApproval.toolInput,
       );
-      this.approvals.set(result.newApproval.id, approvalRuntime);
-      this.state = {
-        ...this.state,
-        pendingApprovals: [...this.state.pendingApprovals, result.newApproval],
-      };
+
+      if (!requiresApproval) {
+        void this.client
+          .approveToolUse(
+            result.newApproval.taskId,
+            result.newApproval.id,
+            "allow",
+          )
+          .catch((error) => {
+            console.error(
+              "Failed to auto-approve filtered tool request:",
+              error,
+            );
+          });
+      } else {
+        const approvalRuntime = new ApprovalRuntime(
+          result.newApproval,
+          this.client,
+          (status: ApprovalStatus) =>
+            this.onApprovalResolved(result.newApproval!.id, status),
+          this.permissionStore,
+        );
+        this.approvals.set(result.newApproval.id, approvalRuntime);
+        this.state = {
+          ...this.state,
+          pendingApprovals: [
+            ...this.state.pendingApprovals,
+            result.newApproval,
+          ],
+        };
+        shouldNotify = true;
+      }
     }
 
     // Handle resolved approval
     if (result.resolvedApprovalId) {
       this.removeApproval(result.resolvedApprovalId);
+      shouldNotify = true;
     }
 
-    this.notify();
+    if (shouldNotify) {
+      this.notify();
+    }
   }
 
   private onApprovalResolved(approvalId: string, status: ApprovalStatus): void {
@@ -256,6 +279,29 @@ export class TaskRuntime {
         (a) => a.id !== approvalId,
       ),
     };
+  }
+
+  private syncAgentState(state: AgentState): void {
+    this.state = {
+      ...this.state,
+      agents: this.state.agents.some((agent) => agent.id === state.id)
+        ? this.state.agents.map((agent) =>
+            agent.id === state.id ? state : agent,
+          )
+        : [...this.state.agents, state],
+    };
+    this.notify();
+  }
+
+  private shouldRequireApproval(toolName: string, toolInput: unknown): boolean {
+    if (!this.requiresApproval) return true;
+
+    try {
+      return this.requiresApproval(toolName, toolInput);
+    } catch (error) {
+      console.error("requiresApproval callback failed:", error);
+      return true;
+    }
   }
 
   private notify(): void {

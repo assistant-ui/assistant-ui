@@ -7,9 +7,11 @@ import type { AgentEvent, AgentState } from "./types";
 export class AgentRuntime {
   private state: AgentState;
   private listeners: Set<() => void> = new Set();
+  private onChange: ((state: AgentState) => void) | undefined;
 
-  constructor(state: AgentState) {
+  constructor(state: AgentState, onChange?: (state: AgentState) => void) {
     this.state = state;
+    this.onChange = onChange;
   }
 
   get id(): string {
@@ -47,6 +49,7 @@ export class AgentRuntime {
   }
 
   private notify(): void {
+    this.onChange?.(this.state);
     this.listeners.forEach((cb) => cb());
   }
 }

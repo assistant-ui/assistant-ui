@@ -80,9 +80,6 @@ export class LocalStoragePermissionStore implements PermissionStoreInterface {
   persistPermission(toolName: string): void {
     if (typeof window === "undefined") return;
 
-    const permission = this.sessionPermissions.get(toolName);
-    if (!permission) return;
-
     const persisted = this.getPersistedPermissions();
     const existingIndex = persisted.findIndex((p) => p.toolName === toolName);
 

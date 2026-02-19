@@ -52,7 +52,9 @@ export class WorkspaceRuntime {
     };
 
     const handle = await this.client.createTask(taskOptions);
-    const task = new TaskRuntime(handle, this.client, this.permissionStore);
+    const task = new TaskRuntime(handle, this.client, this.permissionStore, {
+      requiresApproval: taskOptions.requiresApproval,
+    });
 
     this.tasks.set(task.id, task);
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
   TaskPrimitive,
@@ -53,14 +53,19 @@ function SessionDetailContent() {
   const [isWaitingForInput, setIsWaitingForInput] = useState(false);
 
   // Filter events by selected agent or show all
-  const allEvents: AgentEvent[] = selectedAgentId
-    ? agents.find((a) => a.id === selectedAgentId)?.events || []
-    : agents
-        .flatMap((agent) => agent.events)
-        .sort(
-          (a, b) =>
-            new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
-        );
+  const allEvents: AgentEvent[] = useMemo(
+    () =>
+      selectedAgentId
+        ? agents.find((a) => a.id === selectedAgentId)?.events || []
+        : agents
+            .flatMap((agent) => agent.events)
+            .sort(
+              (a, b) =>
+                new Date(a.timestamp).getTime() -
+                new Date(b.timestamp).getTime(),
+            ),
+    [agents, selectedAgentId],
+  );
 
   const pendingApprovals = pendingApprovalsRaw.filter(
     (a) => a.status === "pending",
