@@ -11,6 +11,7 @@ export type {
   ImageMessagePart,
   FileMessagePart,
   DataMessagePart,
+  DataUIPart,
   Unstable_AudioMessagePart,
   ToolCallMessagePart,
   MessageStatus,

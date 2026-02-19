@@ -23,14 +23,28 @@ export type AttachmentStatus =
   | PendingAttachmentStatus
   | CompleteAttachmentStatus;
 
-type BaseAttachment = {
+type FileAttachmentType = "image" | "document" | "file";
+type DataAttachmentType = `data-${string}`;
+
+type BaseFileAttachment = {
   id: string;
-  type: "image" | "document" | "file";
+  type: FileAttachmentType;
   name: string;
   contentType: string;
   file?: File;
   content?: ThreadUserMessagePart[];
 };
+
+type BaseDataAttachment = {
+  id: string;
+  type: DataAttachmentType;
+  name: string;
+  contentType?: string;
+  file?: File;
+  content?: ThreadUserMessagePart[];
+};
+
+type BaseAttachment = BaseFileAttachment | BaseDataAttachment;
 
 export type PendingAttachment = BaseAttachment & {
   status: PendingAttachmentStatus;

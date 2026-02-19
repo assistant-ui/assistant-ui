@@ -26,14 +26,15 @@ export const vercelAttachmentAdapter: AttachmentAdapter = {
     };
   },
   async send(attachment) {
-    // noop
+    const contentType = attachment.contentType;
+    if (!contentType) throw new Error("Attachment missing contentType");
     return {
       ...attachment,
       status: { type: "complete" },
       content: [
         {
           type: "file",
-          mimeType: attachment.contentType,
+          mimeType: contentType,
           filename: attachment.name,
           data: await getFileDataURL(attachment.file),
         },

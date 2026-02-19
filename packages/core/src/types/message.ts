@@ -56,6 +56,12 @@ export type DataMessagePart<T = any> = {
   readonly data: T;
 };
 
+export type DataUIPart = {
+  readonly type: `data-${string}`;
+  readonly data: unknown;
+  readonly id?: string;
+};
+
 export type ToolCallMessagePart<
   TArgs = ReadonlyJSONObject,
   TResult = unknown,
@@ -78,7 +84,8 @@ export type ThreadUserMessagePart =
   | ImageMessagePart
   | FileMessagePart
   | DataMessagePart
-  | Unstable_AudioMessagePart;
+  | Unstable_AudioMessagePart
+  | DataUIPart;
 
 export type ThreadAssistantMessagePart =
   | TextMessagePart

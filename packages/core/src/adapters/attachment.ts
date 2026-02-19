@@ -190,13 +190,16 @@ export class CompositeAttachmentAdapter implements AttachmentAdapter {
   }
 
   public async remove(attachment: Attachment) {
+    if (attachment.type.startsWith("data-")) return;
+    const contentType = attachment.contentType;
+    if (!contentType) throw new Error("No matching adapter found for attachment");
     const adapters = this._adapters.slice();
     for (const adapter of adapters) {
       if (
         fileMatchesAccept(
           {
             name: attachment.name,
-            type: attachment.contentType,
+            type: contentType,
           },
           adapter.accept,
         )

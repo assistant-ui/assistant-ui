@@ -81,7 +81,7 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
     let content: ThreadUserMessagePart[];
     if (attachment.type === "image") {
       content = [{ type: "image", image: url, filename: attachment.name }];
-    } else {
+    } else if (attachment.contentType) {
       content = [
         {
           type: "file",
@@ -90,6 +90,8 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
           filename: attachment.name,
         },
       ];
+    } else {
+      content = [];
     }
 
     return {

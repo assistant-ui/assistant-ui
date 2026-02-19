@@ -127,13 +127,14 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
           };
 
         default: {
-          const unhandledType: "audio" | "data" = type;
+          if (type.startsWith("data-")) return null;
+          const unhandledType = type;
           throw new Error(
             `Message part type not supported by aui/v0: ${unhandledType}`,
           );
         }
       }
-    }),
+    }).filter((part): part is AuiV0MessagePart => part !== null),
     metadata: message.metadata as AuiV0Message["metadata"],
     ...(status ? { status } : undefined),
   };

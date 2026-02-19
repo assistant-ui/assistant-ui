@@ -31,7 +31,8 @@ const getComponent = (
     case "file":
       return components?.File ?? components?.Attachment;
     default:
-      const _exhaustiveCheck: never = type;
+      if (type.startsWith("data-")) return components?.Attachment;
+      const _exhaustiveCheck = type;
       throw new Error(`Unknown attachment type: ${_exhaustiveCheck}`);
   }
 };

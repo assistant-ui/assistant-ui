@@ -17,9 +17,13 @@ import type {
   CompleteAttachment,
   FileMessagePart,
   DataMessagePart,
+  DataUIPart,
   Unstable_AudioMessagePart,
 } from "../../types";
 import { ReadonlyJSONObject, ReadonlyJSONValue } from "assistant-stream/utils";
+
+const isDataUIPart = (part: { type: string }): part is DataUIPart =>
+  part.type.startsWith("data-");
 
 export type ThreadMessageLike = {
   readonly role: "assistant" | "user" | "system";
@@ -32,6 +36,7 @@ export type ThreadMessageLike = {
         | ImageMessagePart
         | FileMessagePart
         | DataMessagePart
+        | DataUIPart
         | Unstable_AudioMessagePart
         | {
             readonly type: "tool-call";
@@ -152,7 +157,8 @@ export const fromThreadMessageLike = (
               }
 
               default: {
-                const unhandledType: "audio" = type;
+                if (isDataUIPart(part)) return null;
+                const unhandledType = type;
                 throw new Error(
                   `Unsupported assistant message part type: ${unhandledType}`,
                 );
@@ -189,7 +195,8 @@ export const fromThreadMessageLike = (
               return part;
 
             default: {
-              const unhandledType: "tool-call" | "reasoning" | "source" = type;
+              if (isDataUIPart(part)) return part;
+              const unhandledType = type;
               throw new Error(
                 `Unsupported user message part type: ${unhandledType}`,
               );
