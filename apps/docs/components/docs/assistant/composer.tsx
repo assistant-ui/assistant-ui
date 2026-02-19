@@ -3,8 +3,8 @@
 import { Button } from "@/components/ui/button";
 import { useCurrentPage } from "@/components/docs/contexts/current-page";
 import { ModelSelector } from "@/components/assistant-ui/model-selector";
-import { DEFAULT_MODEL_ID, MODELS } from "@/constants/model";
-import Image from "next/image";
+import { docsModelOptions } from "@/components/assistant-ui/docs-model-options";
+import { DEFAULT_MODEL_ID } from "@/constants/model";
 import { analytics } from "@/lib/analytics";
 import { getComposerMessageMetrics } from "@/lib/assistant-analytics-helpers";
 import {
@@ -40,20 +40,7 @@ const setSharedDocsModelName = (modelName: string) => {
   modelStoreListeners.forEach((listener) => listener());
 };
 
-const models = MODELS.map((m) => ({
-  id: m.value,
-  name: m.name,
-  icon: (
-    <Image
-      src={m.icon}
-      alt={m.name}
-      width={14}
-      height={14}
-      className="size-3.5"
-    />
-  ),
-  ...(m.disabled ? { disabled: true as const } : undefined),
-}));
+const models = docsModelOptions();
 
 export function useComposerSubmitHandler(onSubmitProp?: () => void) {
   const aui = useAui();
