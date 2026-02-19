@@ -60,9 +60,7 @@ const getMessageContent = (msg: AppendMessage) => {
         throw new Error("Tool call appends are not supported.");
 
       default:
-        throw new Error(
-          `Unsupported append message part type: ${type}`,
-        );
+        throw new Error(`Unsupported append message part type: ${type}`);
     }
   });
 

@@ -192,9 +192,7 @@ export const fromThreadMessageLike = (
               if (type.startsWith("data-"))
                 return part as ThreadUserMessagePart;
 
-              throw new Error(
-                `Unsupported user message part type: ${type}`,
-              );
+              throw new Error(`Unsupported user message part type: ${type}`);
           }
         }),
         attachments: attachments ?? [],
