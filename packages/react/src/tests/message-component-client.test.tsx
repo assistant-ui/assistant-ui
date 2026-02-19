@@ -10,8 +10,8 @@ import type {
   MessageState as RuntimeMessageState,
 } from "../legacy-runtime/runtime/MessageRuntime";
 import type { MessagePartRuntime } from "../legacy-runtime/runtime/MessagePartRuntime";
-import { MessageClient } from "../legacy-runtime/client/MessageRuntimeClient";
-import { ThreadMessageClient } from "../client/ThreadMessageClient";
+import { MessageClient } from "../../dist/legacy-runtime/client/MessageRuntimeClient.js";
+import { ThreadMessageClient } from "../../dist/client/ThreadMessageClient.js";
 
 const flushMicrotaskQueue = async () => {
   await Promise.resolve();

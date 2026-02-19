@@ -1,14 +1,13 @@
 // @vitest-environment jsdom
 
-import type { ReactNode } from "react";
+import { createElement, type ReactNode } from "react";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  AuiProvider,
+  MessageProvider,
   type ThreadAssistantMessage,
   useAui,
 } from "@assistant-ui/react";
-import { ThreadMessageClient } from "../../../../react/src/client/ThreadMessageClient";
 
 // Mock only the sibling module that requires AUI store context (not available
 // in isolation). Every other dependency — useExternalStoreRuntime,
@@ -43,7 +42,7 @@ const createChatHelpers = (messages: any[] = []) => {
   return chatHelpers;
 };
 
-const withTimeout = <T,>(promise: Promise<T>, ms = 150): Promise<T> => {
+const withTimeout = <T>(promise: Promise<T>, ms = 150): Promise<T> => {
   return Promise.race([
     promise,
     new Promise<T>((_, reject) => {
@@ -85,11 +84,7 @@ const createAuiWrapper = (
   message: ThreadAssistantMessage,
 ): ((props: { children: ReactNode }) => ReactNode) => {
   return function Wrapper({ children }: { children: ReactNode }) {
-    const aui = useAui({
-      message: ThreadMessageClient({ message, index: 0 }),
-    });
-
-    return <AuiProvider value={aui}>{children}</AuiProvider>;
+    return createElement(MessageProvider, { message, index: 0 }, children);
   };
 };
 

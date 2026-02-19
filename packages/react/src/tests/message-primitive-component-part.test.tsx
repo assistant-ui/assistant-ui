@@ -59,6 +59,14 @@ vi.mock("@assistant-ui/store", async (importOriginal) => {
   };
 });
 
+vi.mock("@assistant-ui/core/store", () => ({
+  ThreadMessageClient: (props: unknown) => props,
+}));
+
+vi.mock("@assistant-ui/core/store/internal", () => ({
+  MessageClient: (props: unknown) => props,
+}));
+
 describe("MessagePrimitive component part rendering", () => {
   it("renders a named component with full part state", () => {
     setMockParts({
