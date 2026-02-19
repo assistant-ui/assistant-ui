@@ -44,6 +44,38 @@ function findFolderByPath(
   return currentFolder;
 }
 
+const DOCS_PATH_ERROR = "Only local docs paths are supported";
+
+function normalizeDocPath(slugOrUrl: string, routeUrl: string): string {
+  const raw = slugOrUrl.trim();
+  if (!raw) {
+    throw new Error("Slug/path is required");
+  }
+
+  const current = new URL(routeUrl);
+  const isAbsoluteUrl = /^https?:\/\//i.test(raw);
+
+  if (!isAbsoluteUrl) {
+    const cleaned = raw.replace(/^\/+/, "").replace(/^docs\//, "");
+    if (!cleaned || cleaned.includes("..")) {
+      throw new Error(DOCS_PATH_ERROR);
+    }
+    return cleaned;
+  }
+
+  const resolved = new URL(raw);
+  if (resolved.origin !== current.origin) {
+    throw new Error(DOCS_PATH_ERROR);
+  }
+
+  const cleaned = resolved.pathname.replace(/^\/+/, "").replace(/^docs\//, "");
+  if (!cleaned || cleaned.includes("..")) {
+    throw new Error(DOCS_PATH_ERROR);
+  }
+
+  return cleaned;
+}
+
 export const maxDuration = 300;
 
 const SYSTEM_PROMPT = `You are the assistant-ui docs assistant.
@@ -209,11 +241,16 @@ export async function POST(req: Request): Promise<Response> {
             }),
           ),
           execute: async ({ slugOrUrl }) => {
-            const path = slugOrUrl.startsWith("http")
-              ? new URL(slugOrUrl).pathname
-              : slugOrUrl;
+            let normalized: string;
+            try {
+              normalized = normalizeDocPath(slugOrUrl, req.url);
+            } catch (error) {
+              return {
+                error:
+                  error instanceof Error ? error.message : "Invalid docs path",
+              };
+            }
 
-            const normalized = path.replace(/^(\/docs\/|docs\/)+/, "");
             const slugs = normalized.split("/").filter(Boolean);
 
             const page = source.getPage(slugs);
