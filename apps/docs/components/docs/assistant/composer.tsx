@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { useCurrentPage } from "@/components/docs/contexts/current-page";
 import { ModelSelector } from "@/components/assistant-ui/model-selector";
-import { docsModelOptions } from "@/components/assistant-ui/docs-model-options";
+import { docsModelOptions } from "@/components/docs/assistant/docs-model-options";
 import { DEFAULT_MODEL_ID } from "@/constants/model";
 import { analytics } from "@/lib/analytics";
 import { getComposerMessageMetrics } from "@/lib/assistant-analytics-helpers";
