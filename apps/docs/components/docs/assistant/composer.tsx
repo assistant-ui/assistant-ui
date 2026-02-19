@@ -24,6 +24,9 @@ import {
 
 type ModelStoreListener = () => void;
 
+// Shared docs assistant model selection is intentionally global for current docs behavior,
+// where a single model picker state should stay in sync across composer surfaces.
+// If independent composer instances are introduced later, move this to a scoped React store.
 let sharedDocsModelName: string | undefined;
 const modelStoreListeners = new Set<ModelStoreListener>();
 
