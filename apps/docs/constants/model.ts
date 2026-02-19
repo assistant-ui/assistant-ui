@@ -1,5 +1,3 @@
-export const DEFAULT_MODEL_ID = "openai/gpt-5-nano";
-
 export const MODELS = [
   {
     name: "GPT-5 Nano",
@@ -47,9 +45,9 @@ export const MODELS = [
 
 export type Model = (typeof MODELS)[number];
 
-export const DEFAULT_CONTEXT_WINDOW = MODELS.find(
-  (m) => m.value === DEFAULT_MODEL_ID,
-)!.contextWindow;
+const DEFAULT_MODEL = MODELS[0];
+export const DEFAULT_MODEL_ID = DEFAULT_MODEL.value;
+export const DEFAULT_CONTEXT_WINDOW = DEFAULT_MODEL.contextWindow;
 
 export function getContextWindow(modelId: string): number {
   const model = MODELS.find((m) => m.value === modelId);
