@@ -31,7 +31,9 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "aui-build"
+    "build": "aui-build",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.19",
@@ -49,7 +51,8 @@
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/react": "^19.2.9",
-    "react": "^19.2.3"
+    "react": "^19.2.3",
+    "vitest": "^4.0.18"
   },
   "publishConfig": {
     "access": "public",
