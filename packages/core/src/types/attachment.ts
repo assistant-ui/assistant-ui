@@ -25,12 +25,13 @@ export type AttachmentStatus =
 
 type BaseAttachment = {
   id: string;
-  type: "image" | "document" | "file" | `data-${string}`;
   name: string;
-  contentType: string;
   file?: File;
   content?: ThreadUserMessagePart[];
-};
+} & (
+  | { type: "image" | "document" | "file"; contentType: string }
+  | { type: `data-${string}`; contentType?: never }
+);
 
 export type PendingAttachment = BaseAttachment & {
   status: PendingAttachmentStatus;

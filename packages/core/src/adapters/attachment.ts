@@ -196,7 +196,7 @@ export class CompositeAttachmentAdapter implements AttachmentAdapter {
         fileMatchesAccept(
           {
             name: attachment.name,
-            type: attachment.contentType,
+            type: attachment.contentType ?? "",
           },
           adapter.accept,
         )
