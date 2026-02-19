@@ -1,0 +1,186 @@
+/**
+ * Core types for the Agent UI runtime.
+ */
+
+/**
+ * Task/Session statuses:
+ * - draft: Session in configuration state (before launch)
+ * - starting: Session is starting up
+ * - running: Session is actively running
+ * - waiting_input: Session is waiting for tool approval or user input
+ * - completed: Session has completed successfully
+ * - failed: Session encountered an error and failed
+ * - interrupting: Session received interrupt signal and is shutting down
+ * - interrupted: Session was interrupted but can be resumed
+ * - discarded: Draft session was discarded by the user
+ */
+export type TaskStatus =
+  | "draft"
+  | "starting"
+  | "running"
+  | "waiting_input"
+  | "completed"
+  | "failed"
+  | "interrupting"
+  | "interrupted"
+  | "discarded";
+
+export type AgentStatus = "running" | "paused" | "completed" | "failed";
+export type ApprovalStatus = "pending" | "approved" | "denied";
+
+export interface TaskState {
+  id: string;
+  title: string;
+  status: TaskStatus;
+  cost: number;
+  agents: AgentState[];
+  pendingApprovals: ApprovalState[];
+  createdAt: Date;
+  completedAt: Date | undefined;
+}
+
+export interface AgentState {
+  id: string;
+  name: string;
+  status: AgentStatus;
+  cost: number;
+  events: AgentEvent[];
+  parentAgentId: string | null;
+  childAgentIds: string[];
+  taskId: string;
+}
+
+export interface ApprovalState {
+  id: string;
+  toolName: string;
+  toolInput: unknown;
+  reason: string;
+  status: ApprovalStatus;
+  agentId: string;
+  taskId: string;
+  createdAt: Date;
+}
+
+export type AgentEventType =
+  | "tool_call"
+  | "tool_result"
+  | "reasoning"
+  | "message"
+  | "error"
+  | "task_started"
+  | "task_completed"
+  | "agent_spawned"
+  | "agent_completed"
+  | "tool_approved"
+  | "tool_denied"
+  | "tool_progress"
+  | "cost_update"
+  | "system_init";
+
+export interface AgentEvent {
+  id: string;
+  type: AgentEventType;
+  timestamp: Date;
+  content: unknown;
+  agentId: string;
+}
+
+export interface ToolCallEvent extends AgentEvent {
+  type: "tool_call";
+  content: {
+    toolName: string;
+    toolInput: unknown;
+    toolCallId: string;
+  };
+}
+
+export interface ToolResultEvent extends AgentEvent {
+  type: "tool_result";
+  content: {
+    toolCallId: string;
+    result: unknown;
+    isError?: boolean;
+  };
+}
+
+export interface ReasoningEvent extends AgentEvent {
+  type: "reasoning";
+  content: {
+    text: string;
+  };
+}
+
+export interface MessageEvent extends AgentEvent {
+  type: "message";
+  content: {
+    text: string;
+  };
+}
+
+export interface ErrorEvent extends AgentEvent {
+  type: "error";
+  content: {
+    message: string;
+    code?: string;
+  };
+}
+
+/**
+ * SDK types - these represent the interface we expect from the Anthropic Agents SDK.
+ * When the actual SDK is available, these can be replaced with imports from the SDK.
+ */
+
+export interface TaskHandle {
+  id: string;
+  prompt: string;
+}
+
+export type SDKEventType =
+  | "task_started"
+  | "task_completed"
+  | "task_failed"
+  | "agent_spawned"
+  | "agent_completed"
+  | "agent_failed"
+  | "tool_use_requested"
+  | "tool_use_approved"
+  | "tool_use_denied"
+  | "tool_use"
+  | "tool_result"
+  | "tool_progress"
+  | "reasoning"
+  | "message"
+  | "message_delta"
+  | "cost_update"
+  | "system_init";
+
+export interface SDKEvent {
+  type: SDKEventType;
+  taskId: string;
+  agentId?: string;
+  data: unknown;
+  timestamp: Date;
+}
+
+export interface AgentClientConfig {
+  apiKey: string;
+  baseUrl?: string | undefined;
+  model?: string;
+}
+
+export interface CreateTaskOptions {
+  prompt: string;
+  model?: string;
+  maxTokens?: number;
+  maxTurns?: number;
+  allowedTools?: string[];
+  /**
+   * Custom function to determine if a tool requires approval.
+   *
+   * Only supported with server-side clients (e.g. AnthropicAgentClient).
+   * Ignored by HttpAgentClient since functions cannot be serialized over HTTP.
+   * For client-server architectures, implement approval logic server-side
+   * in your API route instead.
+   */
+  requiresApproval?: (toolName: string, input: unknown) => boolean;
+}
