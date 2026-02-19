@@ -80,7 +80,6 @@ function ToolFallbackStreamingDemo() {
   const [result, setResult] = useState<object | undefined>(undefined);
 
   const fullArgs = JSON.stringify({ location: "San Francisco" }, null, 2);
-  const fullResult = { temperature: 72, condition: "Sunny", humidity: 45 };
 
   const isRunning = status.type === "running";
 
@@ -100,6 +99,11 @@ function ToolFallbackStreamingDemo() {
         clearInterval(argsInterval);
         // Simulate tool execution delay
         setTimeout(() => {
+          const fullResult = {
+            temperature: 72,
+            condition: "Sunny",
+            humidity: 45,
+          };
           setResult(fullResult);
           setStatus({ type: "complete" });
         }, 500);

@@ -81,13 +81,13 @@ describe("tapResources - Basic Functionality", () => {
         return { count, double: count * 2 };
       });
 
-      const testFiber = createTestResource(() => {
-        const items = [
-          { key: "first", value: 5 },
-          { key: "second", value: 10 },
-          { key: "third", value: 15 },
-        ];
+      const items = [
+        { key: "first", value: 5 },
+        { key: "second", value: 10 },
+        { key: "third", value: 15 },
+      ];
 
+      const testFiber = createTestResource(() => {
         const results = tapResources(
           () =>
             items.map((item) =>

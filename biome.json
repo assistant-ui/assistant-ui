@@ -42,7 +42,8 @@
         },
         "noDoubleEquals": "off",
         "noPrototypeBuiltins": "off",
-        "noDocumentCookie": "off"
+        "noDocumentCookie": "off",
+        "noReactForwardRef": "off"
       },
       "style": {
         "noNamespace": "off",
