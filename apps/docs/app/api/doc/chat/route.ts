@@ -240,8 +240,7 @@ export async function POST(req: Request): Promise<Response> {
       },
     });
   } catch (e) {
-    return new Response(e instanceof Error ? e.message : "Unknown error", {
-      status: 500,
-    });
+    console.error("[api/doc/chat]", e);
+    return new Response("Request failed", { status: 500 });
   }
 }
