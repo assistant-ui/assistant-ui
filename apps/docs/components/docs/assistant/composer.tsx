@@ -4,7 +4,11 @@ import { Button } from "@/components/ui/button";
 import { useCurrentPage } from "@/components/docs/contexts/current-page";
 import { ModelSelector } from "@/components/assistant-ui/model-selector";
 import { docsModelOptions } from "@/components/docs/assistant/docs-model-options";
-import { DEFAULT_MODEL_ID } from "@/constants/model";
+import {
+  DEFAULT_MODEL_ID,
+  resolveModelId,
+  type KnownModelId,
+} from "@/constants/model";
 import { analytics } from "@/lib/analytics";
 import { getComposerMessageMetrics } from "@/lib/assistant-analytics-helpers";
 import {
@@ -27,7 +31,7 @@ type ModelStoreListener = () => void;
 // Shared docs assistant model selection is intentionally global for current docs behavior,
 // where a single model picker state should stay in sync across composer surfaces.
 // If independent composer instances are introduced later, move this to a scoped React store.
-let sharedDocsModelName: string | undefined;
+let sharedDocsModelName: KnownModelId | undefined;
 const modelStoreListeners = new Set<ModelStoreListener>();
 
 const subscribeModelStore = (listener: ModelStoreListener) => {
@@ -37,7 +41,7 @@ const subscribeModelStore = (listener: ModelStoreListener) => {
   };
 };
 
-const setSharedDocsModelName = (modelName: string) => {
+const setSharedDocsModelName = (modelName: KnownModelId) => {
   if (sharedDocsModelName === modelName) return;
   sharedDocsModelName = modelName;
   modelStoreListeners.forEach((listener) => listener());
@@ -87,10 +91,9 @@ export function useSharedDocsModelSelection(): {
 
     let nextModelName = DEFAULT_MODEL_ID;
     try {
-      const modelName = aui.thread().getModelContext()?.config?.modelName;
-      if (typeof modelName === "string" && modelName.trim().length > 0) {
-        nextModelName = modelName.trim();
-      }
+      nextModelName = resolveModelId(
+        aui.thread().getModelContext()?.config?.modelName,
+      );
     } catch {
       // ignore
     }
@@ -105,7 +108,7 @@ export function useSharedDocsModelSelection(): {
   );
 
   const onModelChange = useCallback((value: string) => {
-    setSharedDocsModelName(value);
+    setSharedDocsModelName(resolveModelId(value));
   }, []);
 
   return { modelValue, onModelChange };

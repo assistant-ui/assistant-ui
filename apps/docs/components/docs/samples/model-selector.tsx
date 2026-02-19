@@ -25,7 +25,7 @@ function VariantRow({
   label: string;
   variant?: "outline" | "ghost" | "muted";
 }) {
-  const [value, setValue] = useState(DEFAULT_MODEL_ID);
+  const [value, setValue] = useState<string>(DEFAULT_MODEL_ID);
 
   return (
     <div className="flex flex-col gap-2">

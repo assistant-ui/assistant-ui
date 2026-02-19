@@ -1,9 +1,9 @@
 import { gateway } from "ai";
-import { DEFAULT_MODEL_ID, isAvailableModelId } from "@/constants/model";
+import { resolveModelId } from "@/constants/model";
 
 export function getModel(modelId?: string) {
   const raw = typeof modelId === "string" ? modelId.trim() : undefined;
-  const id = raw && isAvailableModelId(raw) ? raw : DEFAULT_MODEL_ID;
+  const id = resolveModelId(raw);
 
   if (raw && raw !== id) {
     console.warn(
