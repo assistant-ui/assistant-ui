@@ -58,7 +58,7 @@
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/hast": "^3.0.4",
-    "@types/react": "^19.2.13",
+    "@types/react": "^19.2.14",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "vitest": "^4.0.18"

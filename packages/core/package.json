@@ -55,7 +55,7 @@
   "dependencies": {
     "@assistant-ui/tap": "^0.5.0",
     "assistant-stream": "^0.3.3",
-    "nanoid": "^5.1.5"
+    "nanoid": "^5.1.6"
   },
   "peerDependencies": {
     "zod": "^4.0.0"

@@ -35,10 +35,10 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "rehype-harden": "^1.1.7",
+    "rehype-harden": "^1.1.8",
     "rehype-raw": "^7.0.0",
     "rehype-sanitize": "^6.0.0",
-    "streamdown": "^2.1.0"
+    "streamdown": "^2.3.0"
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.12.11",
@@ -69,10 +69,10 @@
   "devDependencies": {
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@streamdown/code": "^1.0.1",
+    "@streamdown/code": "^1.0.3",
     "@testing-library/react": "^16.3.2",
     "@types/hast": "^3.0.4",
-    "@types/react": "^19.2.13",
+    "@types/react": "^19.2.14",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "remark-rehype": "^11.1.2",

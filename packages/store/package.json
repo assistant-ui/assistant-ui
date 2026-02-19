@@ -49,9 +49,9 @@
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@testing-library/react": "^16.3.2",
-    "@types/react": "^19.2.13",
+    "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
-    "jsdom": "^28.0.0",
+    "jsdom": "^28.1.0",
     "vitest": "^4.0.18",
     "react": "^19.2.4"
   },
