@@ -57,7 +57,10 @@ const getMessageContent = (msg: AppendMessage) => {
     ...msg.content,
     ...(msg.attachments?.flatMap((a) => a.content) ?? []),
   ];
-  const content = allContent.map((part) => {
+  const supported = allContent.filter(
+    (p) => p.type !== "data" && !p.type.startsWith("data-"),
+  );
+  const content = supported.map((part) => {
     const type = part.type;
     switch (type) {
       case "text":

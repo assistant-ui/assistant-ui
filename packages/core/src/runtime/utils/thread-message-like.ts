@@ -154,6 +154,7 @@ export const fromThreadMessageLike = (
               }
 
               default:
+                if (type.startsWith("data-")) return null;
                 throw new Error(
                   `Unsupported assistant message part type: ${type}`,
                 );

@@ -75,9 +75,13 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
       ? { type: "incomplete", reason: "cancelled" }
       : message.status;
 
+  const parts = message.content.filter(
+    (p) => p.type !== "data" && !p.type.startsWith("data-"),
+  );
+
   return {
     role: message.role,
-    content: message.content.map((part) => {
+    content: parts.map((part) => {
       const type = part.type;
       switch (type) {
         case "text":
@@ -127,7 +131,9 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
           };
 
         default:
-          throw new Error(`Message part type not supported by aui/v0: ${type}`);
+          throw new Error(
+            `Message part type not supported by aui/v0: ${type}`,
+          );
       }
     }),
     metadata: message.metadata as AuiV0Message["metadata"],
