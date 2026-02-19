@@ -131,9 +131,7 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
           };
 
         default:
-          throw new Error(
-            `Message part type not supported by aui/v0: ${type}`,
-          );
+          throw new Error(`Message part type not supported by aui/v0: ${type}`);
       }
     }),
     metadata: message.metadata as AuiV0Message["metadata"],
