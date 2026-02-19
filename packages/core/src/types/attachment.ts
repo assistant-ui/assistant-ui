@@ -25,7 +25,7 @@ export type AttachmentStatus =
 
 type BaseAttachment = {
   id: string;
-  type: "image" | "document" | "file";
+  type: "image" | "document" | "file" | `data-${string}`;
   name: string;
   contentType: string;
   file?: File;

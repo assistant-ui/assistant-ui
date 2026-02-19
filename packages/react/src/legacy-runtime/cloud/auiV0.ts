@@ -126,12 +126,10 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
             ...(part.filename ? { filename: part.filename } : undefined),
           };
 
-        default: {
-          const unhandledType: "audio" | "data" = type;
+        default:
           throw new Error(
-            `Message part type not supported by aui/v0: ${unhandledType}`,
+            `Message part type not supported by aui/v0: ${type}`,
           );
-        }
       }
     }),
     metadata: message.metadata as AuiV0Message["metadata"],

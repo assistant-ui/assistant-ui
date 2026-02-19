@@ -73,11 +73,18 @@ export type ToolCallMessagePart<
   readonly messages?: readonly ThreadMessage[];
 };
 
+export type DataUIPart = {
+  readonly type: `data-${string}`;
+  readonly data: unknown;
+  readonly id?: string;
+};
+
 export type ThreadUserMessagePart =
   | TextMessagePart
   | ImageMessagePart
   | FileMessagePart
   | DataMessagePart
+  | DataUIPart
   | Unstable_AudioMessagePart;
 
 export type ThreadAssistantMessagePart =
