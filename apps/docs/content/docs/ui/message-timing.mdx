@@ -1,0 +1,91 @@
+---
+title: Message Timing
+description: Display streaming performance stats — TTFT, total time, tok/s, and chunk count — as a badge with hover popover.
+---
+
+<Callout type="warn">
+  This component is experimental. The API and displayed metrics may change in future versions. When used with the Vercel AI SDK, token counts and tok/s are **estimated** client-side and may be inaccurate — see [Accuracy](#accuracy) below.
+</Callout>
+
+## Getting Started
+
+<Steps>
+  <Step>
+
+### Add `message-timing`
+
+<InstallCommand shadcn={["message-timing"]} />
+
+This adds a `/components/assistant-ui/message-timing.tsx` file to your project.
+
+  </Step>
+  <Step>
+
+### Use in your application
+
+Place `MessageTiming` inside `ActionBarPrimitive.Root` in your `thread.tsx`. It will inherit the action bar's auto-hide behaviour and only renders after the stream completes.
+
+```tsx title="/components/assistant-ui/thread.tsx" {2,9}
+import { ActionBarPrimitive } from "@assistant-ui/react";
+import { MessageTiming } from "@/components/assistant-ui/message-timing";
+
+const AssistantActionBar: FC = () => {
+  return (
+    <ActionBarPrimitive.Root
+      hideWhenRunning
+      autohide="not-last"
+    >
+      <ActionBarPrimitive.Copy />
+      <ActionBarPrimitive.Reload />
+      <MessageTiming />
+    </ActionBarPrimitive.Root>
+  );
+};
+```
+
+  </Step>
+</Steps>
+
+## What It Shows
+
+The badge displays `totalStreamTime` inline and reveals a popover on hover with the full breakdown:
+
+| Metric | Description |
+|--------|-------------|
+| **First token** | Time from request start to first text chunk (TTFT) |
+| **Total** | Total wall-clock time from start to stream end |
+| **Speed** | Output tokens per second (hidden for very short messages) |
+| **Chunks** | Number of stream chunks received |
+
+## Accuracy
+
+Timing accuracy depends on how your backend is connected.
+
+### assistant-stream (accurate)
+
+When using `assistant-stream` on the backend, token counts come directly from the model's usage data sent in `step-finish` chunks. The `tokensPerSecond` metric is exact whenever your backend reports `outputTokens`.
+
+### Vercel AI SDK (estimated)
+
+When using the AI SDK integration (`useChatRuntime`), token counts are **estimated** client-side using a 4 characters per token approximation. This can overcount significantly for short messages.
+
+<Callout type="info">
+  If you use the AI SDK but your backend sends real token counts via the `streamUsage` option, the character-based estimate is still used on the client — the AI SDK integration does not yet extract server-reported token counts from the stream.
+</Callout>
+
+## API Reference
+
+### `MessageTiming` component
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `className` | `string` | — | Additional class names on the root element |
+
+Renders `null` until `totalStreamTime` is available (i.e., while streaming or for user messages).
+
+For the underlying `useMessageTiming()` hook, field definitions, and runtime-specific setup (LocalRuntime, ExternalStore, etc.), see the [Message Timing guide](/docs/guides/message-timing).
+
+## Related
+
+- [Message Timing guide](/docs/guides/message-timing) — `useMessageTiming()` hook, runtime support table, and custom timing UI
+- [Thread](/docs/ui/thread) — The action bar context that `MessageTiming` is typically placed inside

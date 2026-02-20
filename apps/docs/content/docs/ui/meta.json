@@ -30,6 +30,7 @@
     "select",
     "tabs",
     "---Experimental---",
+    "message-timing",
     "part-grouping"
   ]
 }
