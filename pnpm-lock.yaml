@@ -2158,9 +2158,6 @@ importers:
 
   packages/core:
     dependencies:
-      '@assistant-ui/tap':
-        specifier: ^0.5.0
-        version: link:../tap
       assistant-stream:
         specifier: ^0.3.3
         version: link:../assistant-stream
@@ -2171,6 +2168,9 @@ importers:
         specifier: ^4.0.0
         version: 4.3.6
     devDependencies:
+      '@assistant-ui/tap':
+        specifier: workspace:*
+        version: link:../tap
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils
@@ -2743,16 +2743,16 @@ importers:
 
   packages/store:
     dependencies:
-      '@assistant-ui/core':
-        specifier: ^0.1.0
-        version: link:../core
-      '@assistant-ui/tap':
-        specifier: ^0.5.0
-        version: link:../tap
       use-effect-event:
         specifier: ^2.0.3
         version: 2.0.3(react@19.2.4)
     devDependencies:
+      '@assistant-ui/core':
+        specifier: workspace:*
+        version: link:../core
+      '@assistant-ui/tap':
+        specifier: workspace:*
+        version: link:../tap
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils

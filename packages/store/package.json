@@ -33,11 +33,11 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.1.0",
-    "@assistant-ui/tap": "^0.5.0",
     "use-effect-event": "^2.0.3"
   },
   "peerDependencies": {
+    "@assistant-ui/core": "^0.1.0",
+    "@assistant-ui/tap": "^0.5.0",
     "@types/react": "*",
     "react": "^18 || ^19"
   },
@@ -47,6 +47,8 @@
     }
   },
   "devDependencies": {
+    "@assistant-ui/core": "workspace:*",
+    "@assistant-ui/tap": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@testing-library/react": "^16.3.2",
     "@types/react": "^19.2.14",
