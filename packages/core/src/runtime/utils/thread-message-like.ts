@@ -66,6 +66,14 @@ export type ThreadMessageLike = {
     | undefined;
 };
 
+export const convertDataPrefixedPart = (
+  type: string,
+  data: unknown,
+): DataMessagePart | undefined => {
+  if (!type.startsWith("data-")) return undefined;
+  return { type: "data", name: type.substring(5), data };
+};
+
 export const fromThreadMessageLike = (
   like: ThreadMessageLike,
   fallbackId: string,
@@ -153,13 +161,11 @@ export const fromThreadMessageLike = (
               }
 
               default: {
-                if (typeof type === "string" && type.startsWith("data-")) {
-                  return {
-                    type: "data" as const,
-                    name: type.substring(5),
-                    data: (part as any).data,
-                  };
-                }
+                const converted = convertDataPrefixedPart(
+                  type,
+                  (part as any).data,
+                );
+                if (converted) return converted;
                 throw new Error(
                   `Unsupported assistant message part type: ${type}`,
                 );
@@ -196,13 +202,11 @@ export const fromThreadMessageLike = (
               return part;
 
             default: {
-              if (typeof type === "string" && type.startsWith("data-")) {
-                return {
-                  type: "data" as const,
-                  name: type.substring(5),
-                  data: (part as any).data,
-                };
-              }
+              const converted = convertDataPrefixedPart(
+                type,
+                (part as any).data,
+              );
+              if (converted) return converted;
               throw new Error(`Unsupported user message part type: ${type}`);
             }
           }

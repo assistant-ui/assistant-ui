@@ -14,6 +14,7 @@ export {
   AssistantRuntimeImpl,
   ThreadRuntimeImpl,
   fromThreadMessageLike,
+  convertDataPrefixedPart,
   getAutoStatus,
 } from "@assistant-ui/core/internal";
 export type {

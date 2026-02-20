@@ -438,6 +438,7 @@ export const MessagePartComponent: FC<MessagePartComponentProps> = ({
     }
 
     default:
+      console.warn(`Unknown message part type: ${type}`);
       return null;
   }
 };

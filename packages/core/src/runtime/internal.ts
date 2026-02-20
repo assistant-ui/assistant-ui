@@ -53,7 +53,10 @@ export {
 } from "./api/attachment-runtime";
 
 // Supporting Utilities
-export { fromThreadMessageLike } from "./utils/thread-message-like";
+export {
+  fromThreadMessageLike,
+  convertDataPrefixedPart,
+} from "./utils/thread-message-like";
 export { symbolInnerMessage } from "./utils/external-store-message";
 export { isAutoStatus, getAutoStatus } from "./utils/auto-status";
 
