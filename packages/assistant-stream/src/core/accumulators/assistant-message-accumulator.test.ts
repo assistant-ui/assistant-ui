@@ -231,6 +231,89 @@ describe("AssistantMessageAccumulator update-state sequencing", () => {
     });
   });
 
+  it("reports dropped component operations with reason counts", async () => {
+    const dropped: Array<{
+      droppedCount: number;
+      reasons: {
+        missingSequence: number;
+        invalidSequence: number;
+        staleSequence: number;
+      };
+    }> = [];
+
+    const accumulator = new AssistantMessageAccumulator({
+      onComponentOperationsDropped: (event) => {
+        dropped.push(event);
+      },
+    });
+
+    const source = new ReadableStream<AssistantStreamChunk>({
+      start(controller) {
+        controller.enqueue({
+          type: "update-state",
+          path: [],
+          operations: [
+            {
+              type: "set",
+              path: ["components", "card1", "sequence"],
+              value: 2,
+            },
+            {
+              type: "set",
+              path: ["components", "card1", "lifecycle"],
+              value: "active",
+            },
+          ],
+        });
+        controller.enqueue({
+          type: "update-state",
+          path: [],
+          operations: [
+            {
+              type: "set",
+              path: ["components", "card1", "sequence"],
+              value: 1,
+            },
+            {
+              type: "set",
+              path: ["components", "card1", "lifecycle"],
+              value: "complete",
+            },
+            {
+              type: "set",
+              path: ["components", "card2", "lifecycle"],
+              value: "active",
+            },
+            {
+              type: "set",
+              path: ["components", "card3", "sequence"],
+              value: "bad",
+            },
+            {
+              type: "set",
+              path: ["components", "card3", "lifecycle"],
+              value: "active",
+            },
+          ],
+        });
+        controller.close();
+      },
+    });
+
+    await source.pipeThrough(accumulator).pipeTo(new WritableStream());
+
+    expect(dropped).toEqual([
+      {
+        droppedCount: 5,
+        reasons: {
+          missingSequence: 1,
+          invalidSequence: 2,
+          staleSequence: 2,
+        },
+      },
+    ]);
+  });
+
   it("applies newer component instances while dropping stale ones in the same patch", async () => {
     const chunks: AssistantStreamChunk[] = [
       {

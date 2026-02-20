@@ -117,4 +117,37 @@ describe("auiCodec aui/v1 assistant part fidelity", () => {
       },
     ]);
   });
+
+  it("throws when assistant data part payload is not JSON", () => {
+    const message: ThreadMessage = {
+      id: "m-invalid-data",
+      role: "assistant",
+      createdAt: new Date("2025-02-20T00:00:00.000Z"),
+      status: { type: "complete", reason: "unknown" },
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+      content: [
+        {
+          type: "data",
+          name: "status",
+          data: {
+            ok: true,
+            invalid: () => "nope",
+          },
+        },
+      ] as ThreadMessage["content"],
+    };
+
+    expect(() =>
+      encodeAuiMessage(message, {
+        allowComponent: true,
+        formatLabel: "aui/v1",
+      }),
+    ).toThrow("Message data part is not JSON");
+  });
 });

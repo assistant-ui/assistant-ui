@@ -397,6 +397,15 @@ const isValidComponentSequence = (value: unknown): value is number =>
   Number.isInteger(value) &&
   value >= 0;
 
+type ComponentOperationsDropEvent = {
+  droppedCount: number;
+  reasons: {
+    missingSequence: number;
+    invalidSequence: number;
+    staleSequence: number;
+  };
+};
+
 const filterStaleComponentOperations = (
   state: ReadonlyJSONValue,
   operations: readonly ObjectStreamOperation[],
@@ -425,13 +434,23 @@ const filterStaleComponentOperations = (
     );
   }
 
-  if (touchedInstances.size === 0) return operations;
+  if (touchedInstances.size === 0) {
+    return { operations, dropped: null };
+  }
 
-  const dropInstances = new Set<string>();
+  const dropReasonByInstance = new Map<
+    string,
+    "missing-sequence" | "invalid-sequence" | "stale-sequence"
+  >();
   for (const instanceId of touchedInstances) {
     const incomingSequence = incomingSequenceByInstance.get(instanceId);
-    if (!incomingSequence || incomingSequence.type === "invalid") {
-      dropInstances.add(instanceId);
+    if (!incomingSequence) {
+      dropReasonByInstance.set(instanceId, "missing-sequence");
+      continue;
+    }
+
+    if (incomingSequence.type === "invalid") {
+      dropReasonByInstance.set(instanceId, "invalid-sequence");
       continue;
     }
 
@@ -440,27 +459,58 @@ const filterStaleComponentOperations = (
       currentSequence !== undefined &&
       incomingSequence.sequence <= currentSequence
     ) {
-      dropInstances.add(instanceId);
+      dropReasonByInstance.set(instanceId, "stale-sequence");
     }
   }
 
-  if (dropInstances.size === 0) return operations;
+  if (dropReasonByInstance.size === 0) {
+    return { operations, dropped: null };
+  }
 
-  return operations.filter((operation) => {
+  const droppedSummary: ComponentOperationsDropEvent = {
+    droppedCount: 0,
+    reasons: {
+      missingSequence: 0,
+      invalidSequence: 0,
+      staleSequence: 0,
+    },
+  };
+
+  const filtered = operations.filter((operation) => {
     const instanceId = getComponentInstanceId(operation);
     if (instanceId === undefined) return true;
-    return !dropInstances.has(instanceId);
+
+    const reason = dropReasonByInstance.get(instanceId);
+    if (!reason) return true;
+
+    droppedSummary.droppedCount += 1;
+    if (reason === "missing-sequence")
+      droppedSummary.reasons.missingSequence += 1;
+    else if (reason === "invalid-sequence")
+      droppedSummary.reasons.invalidSequence += 1;
+    else droppedSummary.reasons.staleSequence += 1;
+
+    return false;
   });
+
+  return {
+    operations: filtered,
+    dropped: droppedSummary.droppedCount > 0 ? droppedSummary : null,
+  };
 };
 
 const handleUpdateState = (
   message: AssistantMessage,
   chunk: AssistantStreamChunk & { type: "update-state" },
+  onComponentOperationsDropped:
+    | ((event: ComponentOperationsDropEvent) => void)
+    | undefined,
 ): AssistantMessage => {
-  const operations = filterStaleComponentOperations(
+  const { operations, dropped } = filterStaleComponentOperations(
     message.metadata.unstable_state,
     chunk.operations,
   );
+  if (dropped) onComponentOperationsDropped?.(dropped);
 
   if (operations.length === 0) return message;
 
@@ -520,10 +570,14 @@ export class AssistantMessageAccumulator extends TransformStream<
     initialMessage,
     throttle,
     onError,
+    onComponentOperationsDropped,
   }: {
     initialMessage?: AssistantMessage;
     throttle?: boolean;
     onError?: (error: string) => void;
+    onComponentOperationsDropped?: (
+      event: ComponentOperationsDropEvent,
+    ) => void;
   } = {}) {
     let message = initialMessage ?? createInitialMessage();
     const tracker = new TimingTracker();
@@ -587,7 +641,11 @@ export class AssistantMessageAccumulator extends TransformStream<
             onError?.(chunk.error);
             break;
           case "update-state":
-            message = handleUpdateState(message, chunk);
+            message = handleUpdateState(
+              message,
+              chunk,
+              onComponentOperationsDropped,
+            );
             break;
           default: {
             const unhandledType: never = type;

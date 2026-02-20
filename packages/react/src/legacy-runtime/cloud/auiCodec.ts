@@ -164,10 +164,13 @@ export const encodeAuiMessage = (
           };
 
         case "data":
+          if (!isJSONValue(part.data)) {
+            throw new Error("Message data part is not JSON");
+          }
           return {
             type: "data",
             name: part.name,
-            data: part.data as ReadonlyJSONValue,
+            data: part.data,
           };
 
         case "component":

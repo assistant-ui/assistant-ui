@@ -181,6 +181,47 @@ describe("DataStream component part support", () => {
     ]);
   });
 
+  it("reports unknown chunk types via hook", async () => {
+    const unknownChunks: Array<{ type: string; value: unknown }> = [];
+    const payload = [
+      { type: "unknown-chunk", value: { ignored: true } },
+      { type: "3", value: "still works" },
+    ]
+      .map((chunk) => `${chunk.type}:${JSON.stringify(chunk.value)}\n`)
+      .join("");
+
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode(payload));
+        controller.close();
+      },
+    });
+
+    const decodedChunks = await collectChunks(
+      stream.pipeThrough(
+        new DataStreamDecoder({
+          onUnknownChunkType: (type, value) => {
+            unknownChunks.push({ type, value });
+          },
+        }),
+      ),
+    );
+
+    expect(unknownChunks).toEqual([
+      {
+        type: "unknown-chunk",
+        value: { ignored: true },
+      },
+    ]);
+    expect(decodedChunks).toEqual([
+      {
+        type: "error",
+        path: [],
+        error: "still works",
+      },
+    ]);
+  });
+
   it("supports interleaved tool-call args deltas without implicit closure", async () => {
     const decodedChunks = await decodeDataStreamPayload([
       {
