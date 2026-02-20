@@ -11,7 +11,7 @@
     "postinstall": "fumadocs-mdx"
   },
   "dependencies": {
-    "@aui-x/prism": "^0.0.1",
+    "@aui-x/prism": "^0.0.2",
     "@ai-sdk/react": "^3.0.94",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-ai-sdk": "workspace:*",
