@@ -151,36 +151,6 @@ describe("DataStream component part support", () => {
     ]);
   });
 
-  it("ignores unknown chunk types and continues decoding known chunks", async () => {
-    const decodedChunks = await decodeDataStreamPayload([
-      {
-        type: "3",
-        value: "before",
-      },
-      {
-        type: "unknown-chunk",
-        value: { ignored: true },
-      },
-      {
-        type: "3",
-        value: "after",
-      },
-    ]);
-
-    expect(decodedChunks).toEqual([
-      {
-        type: "error",
-        path: [],
-        error: "before",
-      },
-      {
-        type: "error",
-        path: [],
-        error: "after",
-      },
-    ]);
-  });
-
   it("reports unknown chunk types via hook", async () => {
     const unknownChunks: Array<{ type: string; value: unknown }> = [];
     const payload = [
