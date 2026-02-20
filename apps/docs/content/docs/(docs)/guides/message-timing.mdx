@@ -5,6 +5,10 @@ description: Display stream timing metadata like duration, tokens per second, an
 
 Display stream performance metrics — duration, tokens per second, TTFT — on assistant messages.
 
+<Callout type="info">
+  The [`MessageTiming`](/docs/ui/message-timing) registry component provides a ready-made badge + popover UI. This guide covers the underlying `useMessageTiming()` hook for custom implementations and runtime-specific setup.
+</Callout>
+
 ## Reading Timing Data
 
 Use `useMessageTiming()` inside a message component to access timing data:
@@ -17,7 +21,7 @@ const MessageTimingDisplay: FC = () => {
   if (!timing?.totalStreamTime) return null;
 
   const formatMs = (ms: number) =>
-    ms < 1000 ? `${Math.round(ms)}ms` : `${(ms / 1000).toFixed(1)}s`;
+    ms < 1000 ? `${Math.round(ms)}ms` : `${(ms / 1000).toFixed(2)}s`;
 
   return (
     <span className="text-xs text-muted-foreground">
@@ -46,15 +50,15 @@ const AssistantMessage: FC = () => {
 };
 ```
 
-### `MessageTiming` Fields
+### `useMessageTiming()` Return Fields
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `streamStartTime` | `number` | Unix timestamp when stream started |
 | `firstTokenTime` | `number?` | Time to first text token (ms) |
 | `totalStreamTime` | `number?` | Total stream duration (ms) |
-| `tokenCount` | `number?` | Estimated or actual token count |
-| `tokensPerSecond` | `number?` | Throughput (tokens/sec) |
+| `tokenCount` | `number?` | Real or estimated output token count |
+| `tokensPerSecond` | `number?` | Throughput (tokens/sec); see [accuracy note](#ai-sdk-usechatruntime) |
 | `totalChunks` | `number` | Total stream chunks received |
 | `toolCallCount` | `number` | Number of tool calls |
 
@@ -82,7 +86,11 @@ const runtime = useDataStreamRuntime({ api: "/api/chat" });
 
 ### AI SDK (`useChatRuntime`)
 
-Timing is tracked automatically on the client side by observing streaming state transitions and content changes. Timing is finalized when each stream completes. `tokenCount` and `tokensPerSecond` are estimated from text length.
+Timing is tracked automatically on the client side by observing streaming state transitions and content changes. Timing is finalized when each stream completes.
+
+<Callout type="warn">
+  `tokenCount` and `tokensPerSecond` are **estimated** using a 4 characters per token approximation — real token counts from the server are not extracted. This can overcount significantly for short messages.
+</Callout>
 
 ```tsx
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";

@@ -1503,7 +1503,7 @@ A flexible message format that can be converted to assistant-ui's internal forma
     {
       name: "content",
       type: "string | readonly MessagePart[]",
-      description: "Message content as string or structured message parts",
+      description: "Message content as string or structured message parts. Supports `data-*` prefixed types (e.g. `{ type: \"data-workflow\", data: {...} }`) which are automatically converted to DataMessagePart.",
       required: true,
     },
     {
@@ -1525,7 +1525,7 @@ A flexible message format that can be converted to assistant-ui's internal forma
     {
       name: "attachments",
       type: "readonly CompleteAttachment[]",
-      description: "File attachments (user messages only)",
+      description: "File attachments (user messages only). Attachment `type` accepts custom strings beyond \"image\" | \"document\" | \"file\", and `contentType` is optional.",
     },
     {
       name: "metadata",

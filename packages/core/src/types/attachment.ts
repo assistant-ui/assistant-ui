@@ -25,9 +25,9 @@ export type AttachmentStatus =
 
 type BaseAttachment = {
   id: string;
-  type: "image" | "document" | "file";
+  type: "image" | "document" | "file" | (string & {});
   name: string;
-  contentType: string;
+  contentType?: string | undefined;
   file?: File;
   content?: ThreadUserMessagePart[];
 };

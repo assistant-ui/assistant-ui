@@ -356,8 +356,8 @@ const MessagePartComponent: FC<MessagePartComponentProps> = ({
     }
 
     default:
-      const unhandledType: never = type;
-      throw new Error(`Unknown message part type: ${unhandledType}`);
+      console.warn(`Unknown message part type: ${type}`);
+      return null;
   }
 };
 

@@ -1,8 +1,10 @@
 import { getDistinctId, posthogServer } from "@/lib/posthog-server";
+import { createPrismTracer } from "@/lib/prism-server";
 import { injectQuoteContext } from "@/lib/quote";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getModel } from "@/lib/ai/provider";
 import { frontendTools } from "@assistant-ui/react-ai-sdk";
+import { prismAISDK } from "@aui-x/prism";
 import { withTracing } from "@posthog/ai";
 import {
   convertToModelMessages,
@@ -22,10 +24,12 @@ export async function POST(req: Request) {
     const { messages, tools, config } = body;
 
     const baseModel = getModel(config?.modelName);
+    const distinctId = getDistinctId(req);
+    const prismTracer = createPrismTracer();
 
-    const tracedModel = posthogServer
+    const posthogModel = posthogServer
       ? withTracing(baseModel, posthogServer, {
-          posthogDistinctId: getDistinctId(req),
+          posthogDistinctId: distinctId,
           posthogPrivacyMode: false,
           posthogProperties: {
             $ai_span_name: "general_chat",
@@ -34,18 +38,34 @@ export async function POST(req: Request) {
         })
       : baseModel;
 
+    const prism = prismTracer
+      ? prismAISDK(prismTracer, posthogModel, {
+          name: "general_chat",
+          endUserId: distinctId,
+        })
+      : null;
+
     const prunedMessages = pruneMessages({
       messages: await convertToModelMessages(injectQuoteContext(messages)),
       reasoning: "none",
     });
 
     const result = streamText({
-      model: tracedModel,
+      model: prism?.model ?? posthogModel,
       messages: prunedMessages,
       maxOutputTokens: 15000,
       stopWhen: stepCountIs(10),
       tools: frontendTools(tools),
-      onError: console.error,
+      onFinish: async () => {
+        await prism?.end();
+      },
+      onError: async ({ error }) => {
+        console.error(error);
+        await prism?.end({ status: "error" });
+      },
+      onAbort: async () => {
+        await prism?.end();
+      },
     });
 
     return result.toUIMessageStreamResponse({

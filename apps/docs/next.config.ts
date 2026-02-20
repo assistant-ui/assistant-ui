@@ -1,6 +1,23 @@
 import { createMDX } from "fumadocs-mdx/next";
 import { NextConfig } from "next";
 
+const isDev = process.env.NODE_ENV === "development";
+
+const cspHeader = `
+    default-src 'self';
+    connect-src *;
+    frame-src *;
+    script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""};
+    style-src 'self' 'unsafe-inline';
+    img-src * blob: data:;
+    font-src 'self';
+    object-src 'none';
+    base-uri 'self';
+    form-action 'self';
+    frame-ancestors 'none';
+    upgrade-insecure-requests;
+`;
+
 const config: NextConfig = {
   transpilePackages: ["@assistant-ui/*", "shiki"],
   serverExternalPackages: ["twoslash"],
@@ -15,6 +32,17 @@ const config: NextConfig = {
       source: "/chatgpt-app-studio",
       destination: "/mcp-app-studio",
       permanent: true,
+    },
+  ],
+  headers: async () => [
+    {
+      source: "/(.*)",
+      headers: [
+        {
+          key: "Content-Security-Policy",
+          value: cspHeader.replace(/\n/g, ""),
+        },
+      ],
     },
   ],
   rewrites: async () => ({
