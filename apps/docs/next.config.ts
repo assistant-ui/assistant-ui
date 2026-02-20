@@ -1,3 +1,4 @@
+
 import { createMDX } from "fumadocs-mdx/next";
 import { NextConfig } from "next";
 
@@ -5,7 +6,8 @@ const isDev = process.env.NODE_ENV === "development";
 
 const cspHeader = `
     default-src 'self';
-    connect-src 'self' *;
+    connect-src *;
+    frame-src *;
     script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""};
     style-src 'self' 'unsafe-inline';
     img-src 'self' blob: data:;
