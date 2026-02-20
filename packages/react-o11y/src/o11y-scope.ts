@@ -11,34 +11,27 @@ export type SpanItemState = {
   latencyMs: number | null;
   depth: number;
   hasChildren: boolean;
+  isCollapsed: boolean;
+};
+
+export type SpanState = SpanItemState & {
+  children: SpanItemState[];
+  timeRange: { min: number; max: number };
 };
 
 type SpanMethods = {
-  getState: () => SpanItemState;
+  getState: () => SpanState;
+  child: (lookup: SpanMeta["query"]) => SpanMethods;
+  toggleCollapse: () => void;
 };
 
 type SpanMeta = {
-  source: "trace";
+  source: "span";
   query: { index: number } | { key: string };
-};
-
-export type TraceState = {
-  spans: SpanItemState[];
-  timeRange: { min: number; max: number };
-  collapsedIds: string[];
-};
-
-type TraceMethods = {
-  getState: () => TraceState;
-  span: (lookup: SpanMeta["query"]) => SpanMethods;
-  toggleCollapse: (spanId: string) => void;
 };
 
 declare module "@assistant-ui/store" {
   interface ScopeRegistry {
-    trace: {
-      methods: TraceMethods;
-    };
     span: {
       methods: SpanMethods;
       meta: SpanMeta;

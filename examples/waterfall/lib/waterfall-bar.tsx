@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
+import { useAuiState } from "@assistant-ui/store";
 import type { SpanItemState } from "@assistant-ui/react-o11y";
+import { useWaterfallLayout } from "./waterfall-timeline";
 
 const TYPE_COLORS: Record<string, string> = {
   action: "hsl(221 83% 53%)",
@@ -20,18 +22,27 @@ const STATUS_OPACITY: Record<SpanItemState["status"], number> = {
   skipped: 0.5,
 };
 
-interface WaterfallBarProps {
-  span: SpanItemState;
-  scale: (t: number) => number;
-  barHeight: number;
-}
+export function WaterfallBar() {
+  const { barWidth, timeRange, barHeight } = useWaterfallLayout();
+  const startedAt = useAuiState((s) => s.span.startedAt);
+  const endedAt = useAuiState((s) => s.span.endedAt) as number | null;
+  const status = useAuiState((s) => s.span.status) as SpanItemState["status"];
+  const type = useAuiState((s) => s.span.type);
 
-export function WaterfallBar({ span, scale, barHeight }: WaterfallBarProps) {
   const barRef = useRef<SVGRectElement>(null);
-  const x = scale(span.startedAt);
+
+  const scale = useCallback(
+    (t: number) => {
+      const range = timeRange.max - timeRange.min || 1;
+      return ((t - timeRange.min) / range) * barWidth;
+    },
+    [timeRange, barWidth],
+  );
+
+  const x = scale(startedAt);
 
   useEffect(() => {
-    if (span.status !== "running") return;
+    if (status !== "running") return;
 
     let frameId: number;
     const tick = () => {
@@ -41,12 +52,12 @@ export function WaterfallBar({ span, scale, barHeight }: WaterfallBarProps) {
     };
     frameId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frameId);
-  }, [span.status, x, scale]);
+  }, [status, x, scale]);
 
-  const rawWidth = span.endedAt ? scale(span.endedAt) - x : 0;
+  const rawWidth = endedAt ? scale(endedAt) - x : 0;
   const width = Math.max(rawWidth, 4);
-  const fill = TYPE_COLORS[span.type] ?? FALLBACK_COLOR;
-  const opacity = STATUS_OPACITY[span.status];
+  const fill = TYPE_COLORS[type] ?? FALLBACK_COLOR;
+  const opacity = STATUS_OPACITY[status];
 
   return (
     <g>
@@ -59,9 +70,9 @@ export function WaterfallBar({ span, scale, barHeight }: WaterfallBarProps) {
         rx={3}
         fill={fill}
         opacity={opacity}
-        className={span.status === "running" ? "animate-pulse" : ""}
+        className={status === "running" ? "animate-pulse" : ""}
       />
-      {span.status === "failed" && (
+      {status === "failed" && (
         <rect
           x={x}
           y={4}

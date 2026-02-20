@@ -2,7 +2,7 @@ import "../o11y-scope";
 
 import { resource, tapMemo, tapState, withKey } from "@assistant-ui/tap";
 import { tapClientLookup, type ClientOutput } from "@assistant-ui/store";
-import type { SpanItemState } from "../o11y-scope";
+import type { SpanItemState, SpanState } from "../o11y-scope";
 
 export type SpanData = {
   id: string;
@@ -14,14 +14,6 @@ export type SpanData = {
   endedAt: number | null;
   latencyMs: number | null;
 };
-
-const SpanItemResource = resource(
-  ({ span }: { span: SpanItemState }): ClientOutput<"span"> => {
-    return {
-      getState: () => span,
-    };
-  },
-);
 
 function calculateDepth(
   spanId: string,
@@ -69,7 +61,7 @@ function enrichSpans(rawSpans: SpanData[]): {
   for (const span of rawSpans) {
     const depth = calculateDepth(span.id, spanMap, depthCache);
     const hasChildren = (childrenCount.get(span.id) ?? 0) > 0;
-    allSpans.set(span.id, { ...span, depth, hasChildren });
+    allSpans.set(span.id, { ...span, depth, hasChildren, isCollapsed: false });
 
     if (span.startedAt < min) min = span.startedAt;
     const end = span.endedAt ?? Date.now();
@@ -107,7 +99,7 @@ function buildFlatList(
     const kids = children.get(parentId);
     if (!kids) return;
     for (const span of kids) {
-      result.push(span);
+      result.push({ ...span, isCollapsed: collapsedIds.has(span.id) });
       if (!collapsedIds.has(span.id)) {
         dfs(span.id);
       }
@@ -117,8 +109,35 @@ function buildFlatList(
   return result;
 }
 
-export const TraceResource = resource(
-  ({ spans }: { spans: SpanData[] }): ClientOutput<"trace"> => {
+const SpanChildResource = resource(
+  ({
+    span,
+    timeRange,
+    onToggleCollapse,
+  }: {
+    span: SpanItemState;
+    timeRange: { min: number; max: number };
+    onToggleCollapse: (spanId: string) => void;
+  }): ClientOutput<"span"> => {
+    const state: SpanState = {
+      ...span,
+      children: [],
+      timeRange,
+    };
+    return {
+      getState: () => state,
+      child: () => {
+        throw new Error("child spans do not have children in flat mode");
+      },
+      toggleCollapse: () => {
+        onToggleCollapse(span.id);
+      },
+    };
+  },
+);
+
+export const SpanResource = resource(
+  ({ spans }: { spans: SpanData[] }): ClientOutput<"span"> => {
     const { allSpans, timeRange } = tapMemo(() => enrichSpans(spans), [spans]);
 
     const [collapsedIds, setCollapsedIds] = tapState<Set<string>>(
@@ -129,16 +148,6 @@ export const TraceResource = resource(
       () => buildFlatList(allSpans, collapsedIds),
       [allSpans, collapsedIds],
     );
-
-    const lookup = tapClientLookup(
-      () =>
-        visibleSpans.map((span) =>
-          withKey(span.id, SpanItemResource({ span })),
-        ),
-      [visibleSpans],
-    );
-
-    const collapsedIdsList = tapMemo(() => [...collapsedIds], [collapsedIds]);
 
     const toggleCollapse = (spanId: string) => {
       setCollapsedIds((prev) => {
@@ -152,14 +161,43 @@ export const TraceResource = resource(
       });
     };
 
+    const lookup = tapClientLookup(
+      () =>
+        visibleSpans.map((span) =>
+          withKey(
+            span.id,
+            SpanChildResource({
+              span,
+              timeRange,
+              onToggleCollapse: toggleCollapse,
+            }),
+          ),
+        ),
+      [visibleSpans, timeRange, toggleCollapse],
+    );
+
+    const rootState: SpanState = {
+      id: "__root__",
+      parentSpanId: null,
+      name: "",
+      type: "root",
+      status: "completed",
+      startedAt: timeRange.min,
+      endedAt: timeRange.max,
+      latencyMs: timeRange.max - timeRange.min,
+      depth: -1,
+      hasChildren: lookup.state.length > 0,
+      isCollapsed: false,
+      children: lookup.state,
+      timeRange,
+    };
+
     return {
-      getState: () => ({
-        spans: lookup.state,
-        timeRange,
-        collapsedIds: collapsedIdsList,
-      }),
-      span: lookup.get,
-      toggleCollapse,
+      getState: () => rootState,
+      child: lookup.get,
+      toggleCollapse: () => {
+        // Root span collapse is a no-op
+      },
     };
   },
 );

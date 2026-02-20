@@ -1,8 +1,16 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useAuiState } from "@assistant-ui/store";
-import { SpanByIndexProvider, type TraceState } from "@assistant-ui/react-o11y";
+import { SpanPrimitive, type SpanState } from "@assistant-ui/react-o11y";
 import { WaterfallRow } from "./waterfall-row";
 
 const LABEL_WIDTH = 200;
@@ -10,6 +18,28 @@ const MAX_LIST_HEIGHT = 400;
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 20;
 const RIGHT_PADDING_RATIO = 0.08;
+
+export type WaterfallLayoutContextValue = {
+  barWidth: number;
+  timeRange: { min: number; max: number };
+  barHeight: number;
+  contentWidth: number;
+  selectedSpanId: string | null;
+  onSelectSpan: (spanId: string) => void;
+};
+
+export const WaterfallLayoutContext =
+  createContext<WaterfallLayoutContextValue | null>(null);
+
+export function useWaterfallLayout(): WaterfallLayoutContextValue {
+  const ctx = useContext(WaterfallLayoutContext);
+  if (!ctx) {
+    throw new Error(
+      "useWaterfallLayout must be used within WaterfallLayoutContext",
+    );
+  }
+  return ctx;
+}
 
 function formatTime(ms: number): string {
   if (ms < 1000) return `${Math.round(ms)} ms`;
@@ -74,12 +104,10 @@ export function WaterfallTimeline() {
 
   const barWidth = Math.max(200, Math.round(baseBarWidth * zoom));
 
-  const spansLength = useAuiState((s) => s.trace.spans.length);
+  const hasSpans = useAuiState((s) => s.span.hasChildren);
   const timeRange = useAuiState(
-    (s) => s.trace.timeRange,
-  ) as TraceState["timeRange"];
-
-  const hasSpans = spansLength > 0;
+    (s) => s.span.timeRange,
+  ) as SpanState["timeRange"];
 
   // Measure outer container width — re-attach when scroll container mounts
   // biome-ignore lint/correctness/useExhaustiveDependencies: hasSpans triggers re-attach when scroll container mounts
@@ -152,6 +180,18 @@ export function WaterfallTimeline() {
   const contentWidth = LABEL_WIDTH + barWidth;
   const scrollMaxHeight = MAX_LIST_HEIGHT + 28;
 
+  const layoutValue = useMemo(
+    () => ({
+      barWidth,
+      timeRange: renderTimeRange,
+      barHeight: 32,
+      contentWidth,
+      selectedSpanId,
+      onSelectSpan: setSelectedSpanId,
+    }),
+    [barWidth, renderTimeRange, contentWidth, selectedSpanId],
+  );
+
   if (!hasSpans) {
     return (
       <div className="rounded-lg border border-border py-12 text-center text-muted-foreground text-sm">
@@ -184,18 +224,20 @@ export function WaterfallTimeline() {
         </div>
 
         {/* Span rows */}
-        <div style={{ width: contentWidth }}>
-          {Array.from({ length: spansLength }, (_, index) => (
-            <SpanByIndexProvider key={index} index={index}>
-              <WaterfallRow
-                timeRange={renderTimeRange}
-                barWidth={barWidth}
-                selectedSpanId={selectedSpanId}
-                onSelectSpan={setSelectedSpanId}
-              />
-            </SpanByIndexProvider>
-          ))}
-        </div>
+        <WaterfallLayoutContext.Provider value={layoutValue}>
+          <div
+            style={{ width: contentWidth }}
+            onClick={(e) => {
+              const target = e.target as HTMLElement;
+              const el = target.closest("[data-span-id]") as HTMLElement | null;
+              if (el?.dataset.spanId) {
+                setSelectedSpanId(el.dataset.spanId);
+              }
+            }}
+          >
+            <SpanPrimitive.Children components={{ Span: WaterfallRow }} />
+          </div>
+        </WaterfallLayoutContext.Provider>
       </div>
 
       {/* Legend */}

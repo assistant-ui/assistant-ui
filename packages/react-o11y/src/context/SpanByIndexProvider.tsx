@@ -5,11 +5,13 @@ export const SpanByIndexProvider: FC<PropsWithChildren<{ index: number }>> = ({
   index,
   children,
 }) => {
+  const parentAui = useAui();
+
   const aui = useAui({
     span: Derived({
-      source: "trace",
+      source: "span",
       query: { index },
-      get: (aui) => aui.trace().span({ index }),
+      get: () => parentAui.span().child({ index }),
     }),
   });
 

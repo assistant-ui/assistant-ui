@@ -16,8 +16,22 @@ export const SpanPrimitiveRoot = forwardRef<
   SpanPrimitiveRoot.Props
 >((props, ref) => {
   const spanId = useAuiState((s) => s.span.id);
+  const status = useAuiState((s) => s.span.status);
+  const type = useAuiState((s) => s.span.type);
+  const depth = useAuiState((s) => s.span.depth);
+  const isCollapsed = useAuiState((s) => s.span.isCollapsed);
 
-  return <Primitive.div {...props} ref={ref} data-span-id={spanId} />;
+  return (
+    <Primitive.div
+      {...props}
+      ref={ref}
+      data-span-id={spanId}
+      data-span-status={status}
+      data-span-type={type}
+      data-span-depth={depth}
+      data-collapsed={isCollapsed}
+    />
+  );
 });
 
 SpanPrimitiveRoot.displayName = "SpanPrimitive.Root";
