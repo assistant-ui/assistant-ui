@@ -355,8 +355,10 @@ describe("AssistantMessageAccumulator update-state sequencing", () => {
     });
   });
 
-  it("drops component operations when sequence is missing in an update batch", async () => {
-    const chunks: AssistantStreamChunk[] = [
+  const expectDropsInvalidSequenceBatch = async (
+    operations: AssistantStreamChunk["operations"],
+  ) => {
+    const messages = await collectStream([
       {
         type: "update-state",
         path: [],
@@ -376,13 +378,7 @@ describe("AssistantMessageAccumulator update-state sequencing", () => {
       {
         type: "update-state",
         path: [],
-        operations: [
-          {
-            type: "set",
-            path: ["components", "card1", "lifecycle"],
-            value: "complete",
-          },
-        ],
+        operations,
       },
       {
         type: "message-finish",
@@ -390,12 +386,9 @@ describe("AssistantMessageAccumulator update-state sequencing", () => {
         finishReason: "stop",
         usage: { inputTokens: 0, outputTokens: 0 },
       },
-    ];
+    ] as AssistantStreamChunk[]);
 
-    const messages = await collectStream(chunks);
-    const last = messages.at(-1)!;
-
-    expect(last.metadata.unstable_state).toEqual({
+    expect(messages.at(-1)!.metadata.unstable_state).toEqual({
       components: {
         card1: {
           sequence: 1,
@@ -403,60 +396,30 @@ describe("AssistantMessageAccumulator update-state sequencing", () => {
         },
       },
     });
+  };
+
+  it("drops component operations when sequence is missing in an update batch", async () => {
+    await expectDropsInvalidSequenceBatch([
+      {
+        type: "set",
+        path: ["components", "card1", "lifecycle"],
+        value: "complete",
+      },
+    ]);
   });
 
   it("drops component operations when sequence is invalid in an update batch", async () => {
-    const chunks: AssistantStreamChunk[] = [
+    await expectDropsInvalidSequenceBatch([
       {
-        type: "update-state",
-        path: [],
-        operations: [
-          {
-            type: "set",
-            path: ["components", "card1", "sequence"],
-            value: 1,
-          },
-          {
-            type: "set",
-            path: ["components", "card1", "lifecycle"],
-            value: "active",
-          },
-        ],
+        type: "set",
+        path: ["components", "card1", "sequence"],
+        value: "2",
       },
       {
-        type: "update-state",
-        path: [],
-        operations: [
-          {
-            type: "set",
-            path: ["components", "card1", "sequence"],
-            value: "2",
-          },
-          {
-            type: "set",
-            path: ["components", "card1", "lifecycle"],
-            value: "complete",
-          },
-        ],
+        type: "set",
+        path: ["components", "card1", "lifecycle"],
+        value: "complete",
       },
-      {
-        type: "message-finish",
-        path: [],
-        finishReason: "stop",
-        usage: { inputTokens: 0, outputTokens: 0 },
-      },
-    ];
-
-    const messages = await collectStream(chunks);
-    const last = messages.at(-1)!;
-
-    expect(last.metadata.unstable_state).toEqual({
-      components: {
-        card1: {
-          sequence: 1,
-          lifecycle: "active",
-        },
-      },
-    });
+    ]);
   });
 });

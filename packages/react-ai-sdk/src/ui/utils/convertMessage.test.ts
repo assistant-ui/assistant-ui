@@ -584,99 +584,6 @@ describe("AISDKMessageConverter", () => {
     });
   });
 
-  it("drops data-spec updates missing sequence and emits telemetry", () => {
-    const events: unstable_AISDKDataSpecTelemetryEvent[] = [];
-
-    const result = AISDKMessageConverter.toThreadMessages(
-      [
-        assistantMessage("assistant-1", [
-          dataSpecPart({
-            instanceId: "spec1",
-            sequence: 1,
-            spec: cardSpec("Initial"),
-          }),
-          dataSpecPart({
-            instanceId: "spec1",
-            patch: [replacePatch("/props/title", "Missing Sequence")],
-          }),
-        ]),
-      ],
-      false,
-      {
-        unstable_dataSpec: {
-          onTelemetry: (event) => {
-            events.push(event);
-          },
-        },
-      },
-    );
-
-    expect(events).toContainEqual({
-      type: "missing-sequence-dropped",
-      instanceId: "spec1",
-    });
-    expect(result[0]!.content[0]).toMatchObject({
-      type: "component",
-      name: "json-render",
-      instanceId: "spec1",
-      props: {
-        spec: {
-          type: "card",
-          props: { title: "Initial" },
-        },
-      },
-    });
-  });
-
-  it("drops data-spec updates with invalid sequence values and emits telemetry", () => {
-    const events: unstable_AISDKDataSpecTelemetryEvent[] = [];
-
-    const result = AISDKMessageConverter.toThreadMessages(
-      [
-        assistantMessage("assistant-1", [
-          dataSpecPart({
-            instanceId: "spec1",
-            sequence: 1,
-            spec: cardSpec("Initial"),
-          }),
-          dataSpecPart({
-            instanceId: "spec1",
-            sequence: Number.NaN,
-            patch: [replacePatch("/props/title", "NaN Sequence")],
-          }),
-          dataSpecPart({
-            instanceId: "spec1",
-            sequence: -1,
-            patch: [replacePatch("/props/title", "Negative Sequence")],
-          }),
-        ]),
-      ],
-      false,
-      {
-        unstable_dataSpec: {
-          onTelemetry: (event) => {
-            events.push(event);
-          },
-        },
-      },
-    );
-
-    expect(
-      events.filter((event) => event.type === "invalid-sequence-dropped"),
-    ).toHaveLength(2);
-    expect(result[0]!.content[0]).toMatchObject({
-      type: "component",
-      name: "json-render",
-      instanceId: "spec1",
-      props: {
-        spec: {
-          type: "card",
-          props: { title: "Initial" },
-        },
-      },
-    });
-  });
-
   it("does not re-emit data-spec telemetry on rerender when inputs are unchanged", () => {
     const onTelemetry = vi.fn();
     const args = {
@@ -850,7 +757,8 @@ describe("AISDKMessageConverter", () => {
     });
   });
 
-  it("drops data-spec updates with invalid sequence values and empty component names", () => {
+  it("drops missing/invalid sequence updates and emits telemetry", () => {
+    const events: unstable_AISDKDataSpecTelemetryEvent[] = [];
     const result = AISDKMessageConverter.toThreadMessages(
       [
         assistantMessage("assistant-1", [
@@ -861,21 +769,35 @@ describe("AISDKMessageConverter", () => {
           }),
           dataSpecPart({
             instanceId: "spec1",
+            patch: [replacePatch("/props/title", "Missing")],
+          }),
+          dataSpecPart({
+            instanceId: "spec1",
             sequence: Number.NaN,
             patch: [replacePatch("/props/title", "NaN")],
           }),
           dataSpecPart({
-            instanceId: "spec2",
-            name: "",
-            sequence: 1,
-            spec: cardSpec("Should Drop"),
+            instanceId: "spec1",
+            sequence: -1,
+            patch: [replacePatch("/props/title", "Negative")],
           }),
         ]),
       ],
       false,
-      {},
+      {
+        unstable_dataSpec: {
+          onTelemetry: (event) => events.push(event),
+        },
+      },
     );
 
+    expect(events).toContainEqual({
+      type: "missing-sequence-dropped",
+      instanceId: "spec1",
+    });
+    expect(
+      events.filter((event) => event.type === "invalid-sequence-dropped"),
+    ).toHaveLength(2);
     expect(result).toHaveLength(1);
     expect(result[0]!.content).toHaveLength(1);
     expect(result[0]!.content[0]).toMatchObject({

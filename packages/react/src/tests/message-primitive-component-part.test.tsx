@@ -59,23 +59,13 @@ vi.mock("@assistant-ui/store", async (importOriginal) => {
   };
 });
 
-vi.mock("@assistant-ui/core/store", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@assistant-ui/core/store")>();
-  return {
-    ...actual,
-    ThreadMessageClient: (props: unknown) => props,
-  };
-});
+vi.mock("@assistant-ui/core/store", () => ({
+  ThreadMessageClient: (props: unknown) => props,
+}));
 
-vi.mock("@assistant-ui/core/store/internal", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@assistant-ui/core/store/internal")>();
-  return {
-    ...actual,
-    MessageClient: (props: unknown) => props,
-  };
-});
+vi.mock("@assistant-ui/core/store/internal", () => ({
+  MessageClient: (props: unknown) => props,
+}));
 
 describe("MessagePrimitive component part rendering", () => {
   it("renders a named component with full part state", () => {
