@@ -33,6 +33,7 @@ export type ThreadMessageLike = {
         | FileMessagePart
         | DataMessagePart
         | Unstable_AudioMessagePart
+        | { readonly type: `data-${string}`; readonly data: any }
         | {
             readonly type: "tool-call";
             readonly toolCallId?: string;
@@ -152,9 +153,15 @@ export const fromThreadMessageLike = (
               }
 
               default: {
-                const unhandledType: "audio" = type;
+                if (typeof type === "string" && type.startsWith("data-")) {
+                  return {
+                    type: "data" as const,
+                    name: type.substring(5),
+                    data: (part as any).data,
+                  };
+                }
                 throw new Error(
-                  `Unsupported assistant message part type: ${unhandledType}`,
+                  `Unsupported assistant message part type: ${type}`,
                 );
               }
             }
@@ -189,10 +196,14 @@ export const fromThreadMessageLike = (
               return part;
 
             default: {
-              const unhandledType: "tool-call" | "reasoning" | "source" = type;
-              throw new Error(
-                `Unsupported user message part type: ${unhandledType}`,
-              );
+              if (typeof type === "string" && type.startsWith("data-")) {
+                return {
+                  type: "data" as const,
+                  name: type.substring(5),
+                  data: (part as any).data,
+                };
+              }
+              throw new Error(`Unsupported user message part type: ${type}`);
             }
           }
         }),

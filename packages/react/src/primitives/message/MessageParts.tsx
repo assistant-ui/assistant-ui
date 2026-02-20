@@ -438,8 +438,7 @@ export const MessagePartComponent: FC<MessagePartComponentProps> = ({
     }
 
     default:
-      const unhandledType: never = type;
-      throw new Error(`Unknown message part type: ${unhandledType}`);
+      return null;
   }
 };
 

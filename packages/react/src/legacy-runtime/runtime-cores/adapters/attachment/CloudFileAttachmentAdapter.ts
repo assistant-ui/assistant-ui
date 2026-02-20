@@ -86,7 +86,7 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
         {
           type: "file",
           data: url,
-          mimeType: attachment.contentType,
+          mimeType: attachment.contentType ?? "",
           filename: attachment.name,
         },
       ];
