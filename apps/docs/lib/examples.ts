@@ -41,6 +41,15 @@ const INTERNAL_EXAMPLES: ExampleItem[] = [
       "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/examples/claude.tsx",
   },
   {
+    title: "Google Gemini Clone",
+    image: "/screenshot/examples/google-gemini.png",
+    description:
+      "Customized colors and styles for a Google Gemini look and feel.",
+    link: "/examples/google-gemini",
+    githubLink:
+      "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/example/google-gemini/Gemini.tsx",
+  },
+  {
     title: "Grok Clone",
     image: "/screenshot/examples/grok.png",
     description: "Customized colors and styles for a Grok look and feel.",
