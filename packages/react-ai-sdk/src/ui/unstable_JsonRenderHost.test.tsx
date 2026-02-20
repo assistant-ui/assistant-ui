@@ -4,11 +4,10 @@ import { useEffect, useState, type ReactNode } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import {
-  AuiProvider,
+  MessageProvider,
   type ThreadAssistantMessage,
   useAui,
 } from "@assistant-ui/react";
-import { ThreadMessageClient } from "../../../react/src/client/ThreadMessageClient";
 import { unstable_JsonRenderHost as UnstableJsonRenderHost } from "./unstable_JsonRenderHost";
 
 const createComponentMessage = (): ThreadAssistantMessage => ({
@@ -27,7 +26,7 @@ const createComponentMessage = (): ThreadAssistantMessage => ({
     unstable_state: {
       components: {
         spec1: {
-          seq: 1,
+          sequence: 1,
           lifecycle: "active",
           state: { phase: "ready" },
         },
@@ -44,11 +43,11 @@ const createAuiWrapper = (
   message: ThreadAssistantMessage,
 ): ((props: { children: ReactNode }) => ReactNode) => {
   return function Wrapper({ children }: { children: ReactNode }) {
-    const aui = useAui({
-      message: ThreadMessageClient({ message, index: 0 }),
-    });
-
-    return <AuiProvider value={aui}>{children}</AuiProvider>;
+    return (
+      <MessageProvider message={message} index={0}>
+        {children}
+      </MessageProvider>
+    );
   };
 };
 

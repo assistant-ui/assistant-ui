@@ -9,6 +9,7 @@ import {
   getSceneBrightnessFromTimeOfDay,
   getWeatherTheme,
   resolveWeatherTime,
+  snapTimeOfDayToNearestCheckpoint,
   TUNED_WEATHER_EFFECTS_CHECKPOINT_OVERRIDES,
 } from "./generated/weather-runtime-core.generated";
 import type { WeatherWidgetRuntimeProps } from "./schema-runtime";
@@ -78,7 +79,7 @@ export function WeatherWidget({
     time,
     updatedAt,
   });
-  const timeOfDay = resolvedTime.timeOfDay;
+  const timeOfDay = snapTimeOfDayToNearestCheckpoint(resolvedTime.timeOfDay);
   const tunedOverrides =
     TUNED_WEATHER_EFFECTS_CHECKPOINT_OVERRIDES[current.conditionCode];
   const checkpoint = getNearestCheckpoint(timeOfDay) as TimeCheckpoint;
@@ -101,7 +102,7 @@ export function WeatherWidget({
     <article
       data-slot="weather-widget"
       data-tool-ui-id={id}
-      className={cn("w-full max-w-md", className)}
+      className={cn("isolate w-full max-w-md", className)}
     >
       <div
         data-slot="card"

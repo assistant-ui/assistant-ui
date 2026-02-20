@@ -91,17 +91,17 @@ export interface WeatherDataOverlayProps {
   temperature: number;
   tempHigh: number;
   tempLow: number;
-  forecast?: ForecastDay[] | undefined;
-  unit?: TemperatureUnit | undefined;
-  theme?: WeatherTheme | undefined;
+  forecast?: ForecastDay[];
+  unit?: TemperatureUnit;
+  theme?: WeatherTheme;
   /**
    * Provide either `timeOfDay` (0-1) or a `timestamp` ISO string.
    * If neither is provided, defaults to noon (0.5).
    */
-  timeOfDay?: number | undefined;
+  timeOfDay?: number;
   timestamp?: string | undefined;
-  className?: string | undefined;
-  reducedMotion?: boolean | undefined;
+  className?: string;
+  reducedMotion?: boolean;
   /**
    * Glass refraction effect parameters for the forecast card.
    * When enabled, applies SVG displacement filter for realistic glass distortion.
@@ -187,11 +187,16 @@ export function WeatherDataOverlay({
       });
     }
   }, []);
+  const hasForecastStrip = forecast.length > 0;
 
   useEffect(() => {
+    if (!hasForecastStrip) {
+      return;
+    }
+
     updateCardDimensions();
     return observeCardDimensions(cardRef.current, updateCardDimensions);
-  }, [updateCardDimensions]);
+  }, [hasForecastStrip, updateCardDimensions]);
 
   const theme =
     themeProp ??
@@ -334,7 +339,9 @@ export function WeatherDataOverlay({
     cancelPendingGlowFrame,
   ]);
 
+  const roundedTemperature = Math.round(temperature);
   const unitSymbol = unit === "celsius" ? "C" : "F";
+  const spokenUnit = unit === "celsius" ? "Celsius" : "Fahrenheit";
   const peakIntensity = getPeakIntensity(timeOfDay);
 
   const isDark = theme === "dark";
@@ -410,8 +417,9 @@ export function WeatherDataOverlay({
                   ? "0 2px 20px rgba(0,0,0,0.25)"
                   : "0 2px 20px rgba(255,255,255,0.3)",
               }}
+              aria-hidden="true"
             >
-              {Math.round(temperature)}
+              {roundedTemperature}
             </span>
             <span
               className={cn("mt-2 font-[250] tabular-nums", textSecondary)}
@@ -423,6 +431,9 @@ export function WeatherDataOverlay({
               aria-hidden="true"
             >
               °{unitSymbol}
+            </span>
+            <span className="sr-only">
+              {roundedTemperature} degrees {spokenUnit}
             </span>
           </div>
 

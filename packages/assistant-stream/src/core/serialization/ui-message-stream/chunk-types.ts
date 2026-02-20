@@ -18,9 +18,10 @@ type Usage = {
 };
 
 export type UIMessageStreamChunk =
-  | { type: "start"; messageId: string }
+  | { type: "start"; messageId?: string }
   | { type: "text-start"; id: string }
-  | { type: "text-delta"; textDelta: string }
+  | { type: "text-delta"; textDelta: string; id?: string }
+  | { type: "text-delta"; delta: string; id: string }
   | { type: "text-end" }
   | { type: "reasoning-start"; id: string }
   | { type: "reasoning-delta"; delta: string }
@@ -29,7 +30,25 @@ export type UIMessageStreamChunk =
       type: "source";
       source: { sourceType: "url"; id: string; url: string; title?: string };
     }
+  | { type: "source-url"; sourceId: string; url: string; title?: string }
+  | {
+      type: "source-document";
+      sourceId: string;
+      mediaType: string;
+      title: string;
+      filename?: string;
+    }
   | { type: "file"; file: { mimeType: string; data: string } }
+  | { type: "file"; url: string; mediaType: string }
+  | {
+      type: "component";
+      component: {
+        name: string;
+        instanceId?: string;
+        props?: ReadonlyJSONObject;
+        parentId?: string;
+      };
+    }
   | {
       type: "component";
       component: {
@@ -47,6 +66,28 @@ export type UIMessageStreamChunk =
     }
   | { type: "tool-call-delta"; argsText: string }
   | { type: "tool-call-end" }
+  | { type: "tool-input-start"; toolCallId: string; toolName: string }
+  | { type: "tool-input-delta"; toolCallId: string; inputTextDelta: string }
+  | {
+      type: "tool-input-available";
+      toolCallId: string;
+      toolName: string;
+      input: ReadonlyJSONValue;
+    }
+  | {
+      type: "tool-input-error";
+      toolCallId: string;
+      toolName: string;
+      input: ReadonlyJSONValue;
+      errorText: string;
+    }
+  | {
+      type: "tool-output-available";
+      toolCallId: string;
+      output: ReadonlyJSONValue;
+    }
+  | { type: "tool-output-error"; toolCallId: string; errorText: string }
+  | { type: "tool-output-denied"; toolCallId: string }
   | {
       type: "tool-result";
       toolCallId: string;
@@ -56,11 +97,13 @@ export type UIMessageStreamChunk =
   | { type: "start-step"; messageId?: string }
   | {
       type: "finish-step";
-      finishReason: FinishReason;
-      usage: Usage;
-      isContinued: boolean;
+      finishReason?: FinishReason;
+      usage?: Usage;
+      isContinued?: boolean;
     }
-  | { type: "finish"; finishReason: FinishReason; usage: Usage }
+  | { type: "finish"; finishReason?: FinishReason; usage?: Usage }
+  | { type: "abort"; reason?: string }
+  | { type: "message-metadata"; messageMetadata: unknown }
   | { type: "error"; errorText: string }
   | UIMessageStreamDataChunk;
 

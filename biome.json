@@ -42,7 +42,8 @@
         },
         "noDoubleEquals": "off",
         "noPrototypeBuiltins": "off",
-        "noDocumentCookie": "off"
+        "noDocumentCookie": "off",
+        "noReactForwardRef": "off"
       },
       "style": {
         "noNamespace": "off",
@@ -171,6 +172,17 @@
     }
   },
   "overrides": [
+    {
+      "includes": [
+        "apps/docs/components/tool-ui/weather-widget/generated/weather-runtime-core.generated.ts"
+      ],
+      "formatter": {
+        "enabled": false
+      },
+      "linter": {
+        "enabled": false
+      }
+    },
     {
       "includes": ["packages/ui/src/components/ui/**"],
       "linter": {

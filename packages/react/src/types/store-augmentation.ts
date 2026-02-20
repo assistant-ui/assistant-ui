@@ -1,4 +1,4 @@
-import "@assistant-ui/store";
+import "@assistant-ui/core/store";
 
 import type { ThreadsClientSchema } from "./scopes/threads";
 import type { ThreadListItemClientSchema } from "./scopes/threadListItem";
@@ -9,12 +9,9 @@ import type { PartClientSchema } from "./scopes/part";
 import type { ComposerClientSchema } from "./scopes/composer";
 import type { AttachmentClientSchema } from "./scopes/attachment";
 import type { ToolsClientSchema } from "./scopes/tools";
-import type { ModelContextClientSchema } from "./scopes/modelContext";
-import type { SuggestionsClientSchema } from "./scopes/suggestions";
-import type { SuggestionClientSchema } from "./scopes/suggestion";
-import type { ChainOfThoughtClientSchema } from "./scopes/chainOfThought";
+import type { DataRenderersClientSchema } from "./scopes/dataRenderers";
 
-declare module "@assistant-ui/store" {
+declare module "@assistant-ui/core/store" {
   interface ScopeRegistry {
     threads: ThreadsClientSchema;
     threadListItem: ThreadListItemClientSchema;
@@ -25,9 +22,6 @@ declare module "@assistant-ui/store" {
     composer: ComposerClientSchema;
     attachment: AttachmentClientSchema;
     tools: ToolsClientSchema;
-    modelContext: ModelContextClientSchema;
-    suggestions: SuggestionsClientSchema;
-    suggestion: SuggestionClientSchema;
-    chainOfThought: ChainOfThoughtClientSchema;
+    dataRenderers: DataRenderersClientSchema;
   }
 }

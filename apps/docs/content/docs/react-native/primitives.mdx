@@ -1,0 +1,235 @@
+---
+title: Primitives
+description: Composable React Native components for building chat UIs.
+---
+
+Primitives are thin wrappers around React Native components (`View`, `TextInput`, `FlatList`, `Pressable`) that integrate with the assistant-ui runtime. They accept all standard React Native props and add runtime-aware behavior.
+
+## Thread
+
+### ThreadRoot
+
+Container `View` that sets up `ThreadProvider` and `ComposerProvider` contexts.
+
+```tsx
+import { ThreadRoot } from "@assistant-ui/react-native";
+
+<ThreadRoot runtime={threadRuntime} style={{ flex: 1 }}>
+  {children}
+</ThreadRoot>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `runtime` | `ThreadRuntime` | The thread runtime instance |
+| `...rest` | `ViewProps` | Standard React Native View props |
+
+### ThreadMessages
+
+`FlatList`-based message list with automatic runtime integration.
+
+```tsx
+import { ThreadMessages } from "@assistant-ui/react-native";
+
+<ThreadMessages
+  renderMessage={({ item }) => <MessageBubble message={item} />}
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `renderMessage` | `(info: { item: ThreadMessage }) => ReactElement` | Message renderer |
+| `...rest` | `FlatListProps` | Standard FlatList props (except `data`, `renderItem`) |
+
+### ThreadEmpty
+
+Renders children only when the thread has no messages.
+
+```tsx
+import { ThreadEmpty } from "@assistant-ui/react-native";
+
+<ThreadEmpty>
+  <Text>Send a message to get started</Text>
+</ThreadEmpty>
+```
+
+### ThreadIf
+
+Conditional rendering based on thread state.
+
+```tsx
+import { ThreadIf } from "@assistant-ui/react-native";
+
+<ThreadIf empty>
+  <Text>No messages yet</Text>
+</ThreadIf>
+
+<ThreadIf running>
+  <ActivityIndicator />
+</ThreadIf>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `empty` | `boolean` | Render when thread is empty |
+| `running` | `boolean` | Render when thread is running |
+
+## Composer
+
+### ComposerRoot
+
+Container `View` for the composer area.
+
+```tsx
+import { ComposerRoot } from "@assistant-ui/react-native";
+
+<ComposerRoot style={styles.composerContainer}>
+  {children}
+</ComposerRoot>
+```
+
+### ComposerInput
+
+`TextInput` wired to the composer runtime. Value and `onChangeText` are managed automatically.
+
+```tsx
+import { ComposerInput } from "@assistant-ui/react-native";
+
+<ComposerInput
+  placeholder="Message..."
+  multiline
+  style={styles.input}
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `...rest` | `TextInputProps` | Standard TextInput props (except `value`, `onChangeText`) |
+
+### ComposerSend
+
+`Pressable` that sends the current message. Automatically disabled when the composer is empty.
+
+```tsx
+import { ComposerSend } from "@assistant-ui/react-native";
+
+<ComposerSend style={styles.sendButton}>
+  <Text>Send</Text>
+</ComposerSend>
+```
+
+### ComposerCancel
+
+`Pressable` that cancels the current run. Automatically disabled when no run is active.
+
+```tsx
+import { ComposerCancel } from "@assistant-ui/react-native";
+
+<ComposerCancel style={styles.cancelButton}>
+  <Text>Stop</Text>
+</ComposerCancel>
+```
+
+## Message
+
+### MessageRoot
+
+Container `View` for a single message.
+
+```tsx
+import { MessageRoot } from "@assistant-ui/react-native";
+
+<MessageRoot style={styles.messageBubble}>
+  {children}
+</MessageRoot>
+```
+
+### MessageContent
+
+Renders message content parts with customizable renderers.
+
+```tsx
+import { MessageContent } from "@assistant-ui/react-native";
+
+<MessageContent
+  renderText={({ text }) => <Text>{text}</Text>}
+  renderToolCall={({ toolName, args }) => (
+    <Text>Tool: {toolName}</Text>
+  )}
+  renderImage={({ url }) => <Image source={{ uri: url }} />}
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `renderText` | `(props: { text: string }) => ReactElement` | Text part renderer |
+| `renderToolCall` | `(props: { toolName: string; args: any }) => ReactElement` | Tool call renderer |
+| `renderImage` | `(props: { url: string }) => ReactElement` | Image part renderer |
+
+### MessageIf
+
+Conditional rendering based on message properties.
+
+```tsx
+import { MessageIf } from "@assistant-ui/react-native";
+
+<MessageIf user>
+  <Text>You said:</Text>
+</MessageIf>
+
+<MessageIf assistant last>
+  <ActivityIndicator />
+</MessageIf>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `user` | `boolean` | Render for user messages |
+| `assistant` | `boolean` | Render for assistant messages |
+| `running` | `boolean` | Render when message is being generated |
+| `last` | `boolean` | Render for the last message |
+
+## ThreadList
+
+### ThreadListRoot
+
+Container `View` for the thread list.
+
+```tsx
+import { ThreadListRoot } from "@assistant-ui/react-native";
+
+<ThreadListRoot style={styles.threadList}>
+  {children}
+</ThreadListRoot>
+```
+
+### ThreadListItems
+
+`FlatList` of thread IDs with runtime integration.
+
+```tsx
+import { ThreadListItems } from "@assistant-ui/react-native";
+
+<ThreadListItems
+  renderItem={({ item: threadId }) => (
+    <ThreadListEntry threadId={threadId} />
+  )}
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `renderItem` | `(info: { item: string }) => ReactElement` | Thread item renderer |
+| `...rest` | `FlatListProps` | Standard FlatList props (except `data`, `renderItem`) |
+
+### ThreadListNew
+
+`Pressable` that creates a new thread.
+
+```tsx
+import { ThreadListNew } from "@assistant-ui/react-native";
+
+<ThreadListNew style={styles.newThreadButton}>
+  <Text>New Chat</Text>
+</ThreadListNew>
+```

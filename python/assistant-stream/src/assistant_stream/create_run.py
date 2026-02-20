@@ -1,5 +1,5 @@
 import asyncio
-from contextlib import suppress
+import logging
 from typing import Any, AsyncGenerator, Callable, Coroutine, List, Optional
 from assistant_stream.assistant_stream_chunk import (
     AssistantStreamChunk,
@@ -17,6 +17,8 @@ from assistant_stream.modules.tool_call import (
     generate_openai_style_tool_call_id,
 )
 from assistant_stream.state_manager import StateManager
+
+logger = logging.getLogger(__name__)
 
 
 class ReadOnlyCancellationSignal:
@@ -217,16 +219,48 @@ async def create_run(
             controller._queue.task_done()
     finally:
         if ended_normally:
-            await task
+            # The `None` sentinel is queued at the end of `background_task`, so
+            # normal stream completion implies `task` is already done here.
+            # `result()` preserves normal-path error propagation.
+            task.result()
         else:
             controller._mark_cancelled()
+            # Yield to the event loop to allow the cancel signal to propagate.
             await asyncio.sleep(0)
             if not task.done():
                 # Give callbacks a brief chance to observe `is_cancelled`
                 # and exit cooperatively before forcing cancellation.
-                with suppress(asyncio.TimeoutError, asyncio.CancelledError):
+                # 50ms keeps disconnect cleanup responsive without immediately
+                # interrupting callbacks that can stop themselves quickly.
+                try:
                     await asyncio.wait_for(asyncio.shield(task), timeout=0.05)
+                except asyncio.TimeoutError:
+                    # Timeout means cooperative shutdown did not finish in time.
+                    pass
+                except Exception:
+                    # The stream consumer already disconnected, so suppress callback errors
+                    # but keep a log signal for postmortem debugging.
+                    logger.warning(
+                        "Suppressed callback exception during early-close grace period",
+                        exc_info=True,
+                    )
             if not task.done():
                 task.cancel()
-            with suppress(asyncio.CancelledError):
-                await task
+            try:
+                # `shield()` lets caller-initiated cancellation interrupt `aclose()`
+                # without conflating it with our own forced `task.cancel()`.
+                await asyncio.shield(task)
+            except asyncio.CancelledError:
+                if task.cancelled():
+                    # Expected forced cancellation for early-close cleanup.
+                    pass
+                else:
+                    # Preserve caller-initiated cancellation (e.g. wait_for timeout).
+                    raise
+            except Exception:
+                # The stream consumer already disconnected, so suppress callback errors
+                # but keep a log signal for postmortem debugging.
+                logger.warning(
+                    "Suppressed callback exception after forced early-close cancellation",
+                    exc_info=True,
+                )

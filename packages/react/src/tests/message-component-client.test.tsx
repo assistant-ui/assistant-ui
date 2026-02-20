@@ -10,8 +10,8 @@ import type {
   MessageState as RuntimeMessageState,
 } from "../legacy-runtime/runtime/MessageRuntime";
 import type { MessagePartRuntime } from "../legacy-runtime/runtime/MessagePartRuntime";
-import { MessageClient } from "../legacy-runtime/client/MessageRuntimeClient";
-import { ThreadMessageClient } from "../client/ThreadMessageClient";
+import { MessageClient } from "../../dist/legacy-runtime/client/MessageRuntimeClient.js";
+import { ThreadMessageClient } from "../../dist/client/ThreadMessageClient.js";
 
 const flushMicrotaskQueue = async () => {
   await Promise.resolve();
@@ -133,9 +133,13 @@ describe("message.component client", () => {
     const message = createAssistantMessage(
       {
         components: {
-          card1: { seq: 5, lifecycle: "active", state: { title: "Primary" } },
+          card1: {
+            sequence: 5,
+            lifecycle: "active",
+            state: { title: "Primary" },
+          },
           card2: {
-            seq: 2,
+            sequence: 2,
             lifecycle: "mounting",
             state: { title: "Secondary" },
           },
@@ -171,27 +175,31 @@ describe("message.component client", () => {
       .getState();
 
     expect(firstByIndex.instanceId).toBe("card2");
-    expect(firstByIndex.seq).toBe(2);
+    expect(firstByIndex.sequence).toBe(2);
     expect(firstByIndex.lifecycle).toBe("mounting");
     expect(firstByIndex.state).toEqual({ title: "Secondary" });
 
     expect(secondByIndex.instanceId).toBe("card1");
-    expect(secondByIndex.seq).toBe(5);
+    expect(secondByIndex.sequence).toBe(5);
     expect(secondByIndex.lifecycle).toBe("active");
     expect(secondByIndex.state).toEqual({ title: "Primary" });
 
     expect(byInstanceId.instanceId).toBe("card1");
-    expect(byInstanceId.seq).toBe(5);
+    expect(byInstanceId.sequence).toBe(5);
   });
 
-  it("emits scoped component lifecycle/state events when seq advances", async () => {
+  it("emits scoped component lifecycle/state events when sequence advances", async () => {
     const lifecycleSpy = vi.fn();
     const stateSpy = vi.fn();
 
     const initialMessage = createAssistantMessage(
       {
         components: {
-          card1: { seq: 1, lifecycle: "mounting", state: { phase: "draft" } },
+          card1: {
+            sequence: 1,
+            lifecycle: "mounting",
+            state: { phase: "draft" },
+          },
         },
       },
       [{ type: "component", name: "status-card", instanceId: "card1" }],
@@ -223,7 +231,11 @@ describe("message.component client", () => {
       currentMessage: createAssistantMessage(
         {
           components: {
-            card1: { seq: 2, lifecycle: "active", state: { phase: "ready" } },
+            card1: {
+              sequence: 2,
+              lifecycle: "active",
+              state: { phase: "ready" },
+            },
           },
         },
         [{ type: "component", name: "status-card", instanceId: "card1" }],
@@ -236,12 +248,12 @@ describe("message.component client", () => {
       messageId: "m1",
       instanceId: "card1",
       lifecycle: "active",
-      seq: 2,
+      sequence: 2,
     });
     expect(stateSpy).toHaveBeenCalledWith({
       messageId: "m1",
       instanceId: "card1",
-      seq: 2,
+      sequence: 2,
       state: { phase: "ready" },
     });
 
@@ -253,7 +265,7 @@ describe("message.component client", () => {
     const initialState = createAssistantMessage(
       {
         components: {
-          card9: { seq: 3, lifecycle: "active", state: { label: "init" } },
+          card9: { sequence: 3, lifecycle: "active", state: { label: "init" } },
         },
       },
       [{ type: "component", name: "status-chip", instanceId: "card9" }],
@@ -274,19 +286,23 @@ describe("message.component client", () => {
       .getState();
 
     expect(componentState.instanceId).toBe("card9");
-    expect(componentState.seq).toBe(3);
+    expect(componentState.sequence).toBe(3);
     expect(componentState.state).toEqual({ label: "init" });
 
     const byIndex = result.current.message().component({ index: 0 }).getState();
     expect(byIndex.instanceId).toBe("card9");
-    expect(byIndex.seq).toBe(3);
+    expect(byIndex.sequence).toBe(3);
   });
 
   it("routes component.invoke with scoped payload and resolves from ack", async () => {
     const initialMessage = createAssistantMessage(
       {
         components: {
-          card1: { seq: 1, lifecycle: "active", state: { phase: "ready" } },
+          card1: {
+            sequence: 1,
+            lifecycle: "active",
+            state: { phase: "ready" },
+          },
         },
       },
       [{ type: "component", name: "status-card", instanceId: "card1" }],
@@ -331,7 +347,11 @@ describe("message.component client", () => {
     const initialMessage = createAssistantMessage(
       {
         components: {
-          card1: { seq: 1, lifecycle: "active", state: { phase: "ready" } },
+          card1: {
+            sequence: 1,
+            lifecycle: "active",
+            state: { phase: "ready" },
+          },
         },
       },
       [{ type: "component", name: "status-card", instanceId: "card1" }],
@@ -376,7 +396,11 @@ describe("message.component client", () => {
     const initialMessage = createAssistantMessage(
       {
         components: {
-          card1: { seq: 1, lifecycle: "active", state: { phase: "ready" } },
+          card1: {
+            sequence: 1,
+            lifecycle: "active",
+            state: { phase: "ready" },
+          },
         },
       },
       [{ type: "component", name: "status-card", instanceId: "card1" }],

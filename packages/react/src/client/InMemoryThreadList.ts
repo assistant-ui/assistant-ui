@@ -9,9 +9,9 @@ import {
 import { withKey } from "@assistant-ui/tap";
 import type { ResourceElement } from "@assistant-ui/tap";
 
-import { Suggestions } from "./Suggestions";
-import { ModelContext } from "./ModelContextClient";
+import { ModelContext, Suggestions } from "@assistant-ui/core/store";
 import { Tools } from "./Tools";
+import { DataRenderers } from "./DataRenderers";
 
 export type InMemoryThreadListProps = {
   thread: (threadId: string) => ResourceElement<ClientOutput<"thread">>;
@@ -199,6 +199,9 @@ attachTransformScopes(InMemoryThreadList, (scopes, parent) => {
   }
   if (!result.tools && parent.tools.source === null) {
     result.tools = Tools({});
+  }
+  if (!result.dataRenderers && parent.dataRenderers.source === null) {
+    result.dataRenderers = DataRenderers();
   }
   if (!result.suggestions && parent.suggestions.source === null) {
     result.suggestions = Suggestions();

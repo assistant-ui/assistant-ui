@@ -2,13 +2,13 @@
 
 import { useAuiState, useAui } from "@assistant-ui/react";
 import { PlusIcon } from "lucide-react";
-import type { ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { analytics } from "@/lib/analytics";
 import { useCurrentPage } from "@/components/docs/contexts/current-page";
 import { getAssistantMessageTokenUsage } from "@/lib/assistant-metrics";
-
-const CONTEXT_WINDOW = 400_000;
+import { useSharedDocsModelSelection } from "./composer";
+import { getContextWindow } from "@/constants/model";
 
 function getUsageColorClass(percent: number): string {
   if (percent < 50) return "bg-emerald-500";
@@ -22,14 +22,18 @@ export function AssistantFooter(): ReactNode {
   const messages = useAuiState((s) => s.thread.messages);
   const currentPage = useCurrentPage();
   const pathname = currentPage?.pathname;
+  const { modelValue } = useSharedDocsModelSelection();
+  const contextWindow = getContextWindow(modelValue);
 
-  const totalTokens = messages.reduce((acc, message) => {
-    const usage = getAssistantMessageTokenUsage(message);
-    return acc + (usage.totalTokens ?? 0);
-  }, 0);
+  const prevTokensRef = useRef(0);
+  const lastAssistant = messages.findLast((m) => m.role === "assistant");
+  const lastUsage = getAssistantMessageTokenUsage(lastAssistant);
+  const rawTokens = lastUsage.totalTokens ?? 0;
+  if (rawTokens > 0) prevTokensRef.current = rawTokens;
+  const contextTokens = prevTokensRef.current;
 
-  const usagePercent = Math.min((totalTokens / CONTEXT_WINDOW) * 100, 100);
-  const usageK = (totalTokens / 1000).toFixed(1);
+  const usagePercent = Math.min((contextTokens / contextWindow) * 100, 100);
+  const usageK = (contextTokens / 1000).toFixed(1);
 
   return (
     <div className="flex items-center justify-between px-3 py-1.5">
@@ -40,7 +44,7 @@ export function AssistantFooter(): ReactNode {
           analytics.assistant.newThreadClicked({
             threadId,
             previous_message_count: messages.length,
-            context_total_tokens: totalTokens,
+            context_total_tokens: contextTokens,
             context_usage_percent: usagePercent,
             ...(pathname ? { pathname } : {}),
             ...(modelName ? { model_name: modelName } : {}),

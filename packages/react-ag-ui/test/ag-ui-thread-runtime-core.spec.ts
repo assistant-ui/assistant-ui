@@ -165,6 +165,129 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(part.isError).toBe(false);
   });
 
+  it("auto-resumes run after all tool results are added", async () => {
+    const runInputs: any[] = [];
+    let runCount = 0;
+
+    const agent = {
+      runAgent: vi.fn(async (input, subscriber) => {
+        runInputs.push(JSON.parse(JSON.stringify(input)));
+        runCount++;
+
+        if (runCount === 1) {
+          subscriber.onToolCallStartEvent?.({
+            event: {
+              type: "TOOL_CALL_START",
+              toolCallId: "call-1",
+              toolCallName: "get_weather",
+            },
+          });
+          subscriber.onToolCallArgsEvent?.({
+            event: {
+              type: "TOOL_CALL_ARGS",
+              toolCallId: "call-1",
+              delta: '{"city":"Paris"}',
+            },
+          });
+          subscriber.onToolCallEndEvent?.({
+            event: { type: "TOOL_CALL_END", toolCallId: "call-1" },
+          });
+          subscriber.onRunFinalized?.();
+        } else {
+          subscriber.onTextMessageContentEvent?.({
+            event: { type: "TEXT_MESSAGE_CONTENT", delta: "It is sunny!" },
+          });
+          subscriber.onRunFinalized?.();
+        }
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    // Find the assistant message with the tool call
+    const assistantMsg = core
+      .getMessages()
+      .find((m) => m.role === "assistant") as ThreadAssistantMessage;
+    expect(assistantMsg).toBeTruthy();
+
+    // Simulate frontend tool execution completing
+    const resumePromise = new Promise<void>((resolve) => {
+      const origRunAgent = agent.runAgent;
+      agent.runAgent = vi.fn(async (...args: any[]) => {
+        await (origRunAgent as any)(...args);
+        resolve();
+      });
+    });
+
+    core.addToolResult({
+      messageId: assistantMsg.id,
+      toolCallId: "call-1",
+      toolName: "get_weather",
+      result: { temperature: "22C" },
+      isError: false,
+    });
+
+    await resumePromise;
+
+    // Verify a second run was triggered
+    expect(runCount).toBe(2);
+
+    // Verify the second run input includes the tool result
+    const run2Messages = runInputs[1]?.messages ?? [];
+    const toolResultMsg = run2Messages.find(
+      (m: { role: string }) => m.role === "tool",
+    );
+    expect(toolResultMsg).toBeTruthy();
+    expect(toolResultMsg.toolCallId).toBe("call-1");
+    expect(toolResultMsg.content).toContain("22C");
+  });
+
+  it("does not auto-resume when some tool calls still lack results", async () => {
+    const runAgent = vi.fn(async (_input, subscriber) => {
+      subscriber.onToolCallStartEvent?.({
+        event: {
+          type: "TOOL_CALL_START",
+          toolCallId: "call-1",
+          toolCallName: "tool_a",
+        },
+      });
+      subscriber.onToolCallEndEvent?.({
+        event: { type: "TOOL_CALL_END", toolCallId: "call-1" },
+      });
+      subscriber.onToolCallStartEvent?.({
+        event: {
+          type: "TOOL_CALL_START",
+          toolCallId: "call-2",
+          toolCallName: "tool_b",
+        },
+      });
+      subscriber.onToolCallEndEvent?.({
+        event: { type: "TOOL_CALL_END", toolCallId: "call-2" },
+      });
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    const assistantMsg = core
+      .getMessages()
+      .find((m) => m.role === "assistant") as ThreadAssistantMessage;
+
+    // Add result for only one tool call
+    core.addToolResult({
+      messageId: assistantMsg.id,
+      toolCallId: "call-1",
+      toolName: "tool_a",
+      result: "done",
+      isError: false,
+    });
+
+    // Should NOT have triggered a second run
+    expect(runAgent).toHaveBeenCalledTimes(1);
+  });
+
   it("resumes runs when requested", async () => {
     const runAgent = vi.fn(async (_input, subscriber) => {
       subscriber.onRunFinalized?.();

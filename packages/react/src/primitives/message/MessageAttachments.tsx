@@ -1,9 +1,9 @@
 "use client";
 
+import type { CompleteAttachment } from "@assistant-ui/core";
 import { ComponentType, type FC, memo, useMemo } from "react";
 import { useAuiState } from "@assistant-ui/store";
 import { MessageAttachmentByIndexProvider } from "../../context/providers";
-import { CompleteAttachment } from "../../types";
 
 export namespace MessagePrimitiveAttachments {
   export type Props = {

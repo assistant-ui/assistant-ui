@@ -20,6 +20,6 @@
   },
   "registries": {
     "@assistant-ui": "https://r.assistant-ui.com/{name}.json",
-    "@tool-ui": "https://www.tool-ui.com/r/{name}.json"
+    "@tool-ui": "https://tool-ui.com/r/{name}.json"
   }
 }

@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react",
-  "version": "0.12.10",
+  "version": "0.12.11",
   "description": "TypeScript/React library for AI Chat",
   "keywords": [
     "radix-ui",
@@ -54,9 +54,10 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "assistant-cloud": "^0.1.17",
-    "@assistant-ui/tap": "^0.4.6",
-    "@assistant-ui/store": "^0.1.6",
+    "assistant-cloud": "^0.1.18",
+    "@assistant-ui/core": "^0.1.0",
+    "@assistant-ui/tap": "^0.5.0",
+    "@assistant-ui/store": "^0.2.0",
     "@radix-ui/primitive": "^1.1.3",
     "@radix-ui/react-compose-refs": "^1.1.2",
     "@radix-ui/react-context": "^1.1.3",
@@ -66,7 +67,7 @@
     "@radix-ui/react-slot": "^1.2.4",
     "@radix-ui/react-use-callback-ref": "^1.1.1",
     "@radix-ui/react-use-escape-keydown": "^1.1.1",
-    "assistant-stream": "^0.3.2",
+    "assistant-stream": "^0.3.3",
     "nanoid": "^5.1.6",
     "react-textarea-autosize": "^8.5.9",
     "zod": "^4.3.6",
@@ -90,10 +91,10 @@
     "@assistant-ui/x-buildutils": "workspace:*",
     "@testing-library/react": "^16.3.2",
     "@types/json-schema": "^7.0.15",
-    "@types/node": "^25.2.1",
-    "@types/react": "^19.2.13",
+    "@types/node": "^25.3.0",
+    "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
-    "jsdom": "^28.0.0",
+    "jsdom": "^28.1.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "vitest": "^4.0.18"

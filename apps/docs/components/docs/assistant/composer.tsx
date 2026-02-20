@@ -3,7 +3,12 @@
 import { Button } from "@/components/ui/button";
 import { useCurrentPage } from "@/components/docs/contexts/current-page";
 import { ModelSelector } from "@/components/assistant-ui/model-selector";
-import { MODELS } from "@/constants/model";
+import { docsModelOptions } from "@/components/docs/assistant/docs-model-options";
+import {
+  DEFAULT_MODEL_ID,
+  resolveModelId,
+  type KnownModelId,
+} from "@/constants/model";
 import { analytics } from "@/lib/analytics";
 import { getComposerMessageMetrics } from "@/lib/assistant-analytics-helpers";
 import {
@@ -12,32 +17,45 @@ import {
   useAui,
   useAuiState,
 } from "@assistant-ui/react";
+import { cn } from "@/lib/utils";
 import { ArrowUpIcon, SquareIcon } from "lucide-react";
-import Image from "next/image";
-import type { ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
 
-const models = MODELS.map((m) => ({
-  id: m.value,
-  name: m.name,
-  icon: (
-    <Image
-      src={m.icon}
-      alt={m.name}
-      width={14}
-      height={14}
-      className="size-3.5"
-    />
-  ),
-  ...(m.disabled ? { disabled: true as const } : undefined),
-}));
+type ModelStoreListener = () => void;
 
-export function AssistantComposer(): ReactNode {
+// Shared docs assistant model selection is intentionally global for current docs behavior,
+// where a single model picker state should stay in sync across composer surfaces.
+// If independent composer instances are introduced later, move this to a scoped React store.
+let sharedDocsModelName: KnownModelId | undefined;
+const modelStoreListeners = new Set<ModelStoreListener>();
+
+const subscribeModelStore = (listener: ModelStoreListener) => {
+  modelStoreListeners.add(listener);
+  return () => {
+    modelStoreListeners.delete(listener);
+  };
+};
+
+const setSharedDocsModelName = (modelName: KnownModelId) => {
+  if (sharedDocsModelName === modelName) return;
+  sharedDocsModelName = modelName;
+  modelStoreListeners.forEach((listener) => listener());
+};
+
+const models = docsModelOptions();
+
+export function useComposerSubmitHandler(onSubmitProp?: () => void) {
   const aui = useAui();
   const threadId = useAuiState((s) => s.threadListItem.id);
   const currentPage = useCurrentPage();
   const pathname = currentPage?.pathname;
 
-  const handleSubmit = () => {
+  return () => {
     const metrics = getComposerMessageMetrics(aui.composer().getState());
     if (!metrics) return;
 
@@ -56,14 +74,62 @@ export function AssistantComposer(): ReactNode {
       ...(pathname ? { pathname } : {}),
       ...(modelName ? { model_name: modelName } : {}),
     });
+
+    onSubmitProp?.();
   };
+}
+
+export function useSharedDocsModelSelection(): {
+  modelValue: string;
+  onModelChange: (value: string) => void;
+} {
+  const aui = useAui();
+  const threadId = useAuiState((s) => s.threadListItem.id);
+
+  useEffect(() => {
+    if (!threadId) return;
+
+    let nextModelName = DEFAULT_MODEL_ID;
+    try {
+      nextModelName = resolveModelId(
+        aui.thread().getModelContext()?.config?.modelName,
+      );
+    } catch {
+      // ignore
+    }
+
+    setSharedDocsModelName(nextModelName);
+  }, [aui, threadId]);
+
+  const modelValue = useSyncExternalStore(
+    subscribeModelStore,
+    () => sharedDocsModelName ?? DEFAULT_MODEL_ID,
+    () => DEFAULT_MODEL_ID,
+  );
+
+  const onModelChange = useCallback((value: string) => {
+    setSharedDocsModelName(resolveModelId(value));
+  }, []);
+
+  return { modelValue, onModelChange };
+}
+
+export function AssistantComposer({
+  onSubmit: onSubmitProp,
+  className,
+}: {
+  onSubmit?: () => void;
+  className?: string;
+} = {}): ReactNode {
+  const handleSubmit = useComposerSubmitHandler(onSubmitProp);
+  const { modelValue, onModelChange } = useSharedDocsModelSelection();
 
   return (
     <ComposerPrimitive.Root
       onSubmit={handleSubmit}
-      className="bg-background py-2"
+      className={cn("py-2", className)}
     >
-      <div className="rounded-xl border border-border bg-muted/50 focus-within:border-ring/50 focus-within:ring-1 focus-within:ring-ring/20">
+      <div className="rounded-xl border border-border bg-background focus-within:border-ring/50 focus-within:ring-1 focus-within:ring-ring/20">
         <ComposerPrimitive.Input asChild>
           <textarea
             placeholder="Ask a question..."
@@ -74,7 +140,8 @@ export function AssistantComposer(): ReactNode {
         <div className="flex items-center justify-between px-1.5 pb-1.5">
           <ModelSelector
             models={models}
-            defaultValue={MODELS[0].value}
+            value={modelValue}
+            onValueChange={onModelChange}
             variant="ghost"
             size="sm"
           />
@@ -85,7 +152,7 @@ export function AssistantComposer(): ReactNode {
   );
 }
 
-function AssistantComposerAction(): ReactNode {
+export function AssistantComposerAction(): ReactNode {
   return (
     <>
       <AuiIf condition={({ thread }) => !thread.isRunning}>

@@ -16,6 +16,8 @@ import { MessagePartPrimitiveText } from "../messagePart/MessagePartText";
 import { MessagePartPrimitiveImage } from "../messagePart/MessagePartImage";
 import type {
   Unstable_AudioMessagePartComponent,
+  DataMessagePartComponent,
+  DataMessagePartProps,
   EmptyMessagePartComponent,
   TextMessagePartComponent,
   ImageMessagePartComponent,
@@ -246,6 +248,21 @@ const ToolUIDisplay = ({
   return <Render {...props} />;
 };
 
+const DataUIDisplay = ({
+  Fallback,
+  ...props
+}: {
+  Fallback: DataMessagePartComponent | undefined;
+} & DataMessagePartProps) => {
+  const Render = useAuiState((s) => {
+    const Render = s.dataRenderers.renderers[props.name] ?? Fallback;
+    if (Array.isArray(Render)) return Render[0] ?? Fallback;
+    return Render;
+  });
+  if (!Render) return null;
+  return <Render {...props} />;
+};
+
 const defaultComponents = {
   Text: () => (
     <p style={{ whiteSpace: "pre-line" }}>
@@ -277,6 +294,7 @@ const MessagePartComponent: FC<MessagePartComponentProps> = ({
     Unstable_Audio: Audio = defaultComponents.Unstable_Audio,
     Component = {},
     tools = {},
+    data,
   } = {},
 }) => {
   const aui = useAui();
@@ -321,8 +339,21 @@ const MessagePartComponent: FC<MessagePartComponentProps> = ({
     case "audio":
       return <Audio {...part} />;
 
-    case "data":
-      return null;
+    case "data": {
+      const Data = data?.by_name?.[part.name] ?? data?.Fallback;
+      return <DataUIDisplay {...part} Fallback={Data} />;
+    }
+
+    case "component": {
+      if ("Override" in Component) return <Component.Override {...part} />;
+      const NativeComponent =
+        Component.byName?.[part.name] ?? Component.Fallback;
+      if (!NativeComponent) {
+        warnMissingComponentRenderer(part.name);
+        return null;
+      }
+      return <NativeComponent {...part} />;
+    }
 
     case "component": {
       if ("Override" in Component) return <Component.Override {...part} />;
@@ -366,6 +397,7 @@ const MessagePart = memo(
     prev.components?.Unstable_Audio === next.components?.Unstable_Audio &&
     prev.components?.Component === next.components?.Component &&
     prev.components?.tools === next.components?.tools &&
+    prev.components?.data === next.components?.data &&
     prev.components?.Group === next.components?.Group,
 );
 

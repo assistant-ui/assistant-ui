@@ -62,8 +62,10 @@ const ThreadListSkeleton: FC = () => {
 const ThreadListItem: FC = () => {
   return (
     <ThreadListItemPrimitive.Root className="aui-thread-list-item group flex h-9 items-center gap-2 rounded-lg transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:outline-none data-active:bg-muted">
-      <ThreadListItemPrimitive.Trigger className="aui-thread-list-item-trigger flex h-full min-w-0 flex-1 items-center truncate px-3 text-start text-sm">
-        <ThreadListItemPrimitive.Title fallback="New Chat" />
+      <ThreadListItemPrimitive.Trigger className="aui-thread-list-item-trigger flex h-full min-w-0 flex-1 items-center px-3 text-start text-sm">
+        <span className="aui-thread-list-item-title min-w-0 flex-1 truncate">
+          <ThreadListItemPrimitive.Title fallback="New Chat" />
+        </span>
       </ThreadListItemPrimitive.Trigger>
       <ThreadListItemMore />
     </ThreadListItemPrimitive.Root>

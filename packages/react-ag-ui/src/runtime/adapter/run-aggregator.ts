@@ -76,7 +76,13 @@ export class RunAggregator {
         break;
       }
       case "RUN_FINISHED": {
-        this.status = { type: "complete", reason: "unknown" };
+        const hasUnresolvedToolCalls = Array.from(this.toolCalls.values()).some(
+          (tc) => tc.result === undefined,
+        );
+
+        this.status = hasUnresolvedToolCalls
+          ? { type: "requires-action", reason: "tool-calls" }
+          : { type: "complete", reason: "unknown" };
         this.emit();
         break;
       }

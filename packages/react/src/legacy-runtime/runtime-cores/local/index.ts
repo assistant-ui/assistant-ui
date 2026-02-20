@@ -1,3 +1,13 @@
+// Re-export from @assistant-ui/core
+export type {
+  ChatModelAdapter,
+  ChatModelRunOptions,
+  ChatModelRunResult,
+  ChatModelRunUpdate,
+  LocalRuntimeOptionsBase,
+} from "@assistant-ui/core";
+
+// React-specific (stay in react)
 export { useLocalRuntime } from "./useLocalRuntime";
 
 /**
@@ -6,9 +16,3 @@ export { useLocalRuntime } from "./useLocalRuntime";
 export { useLocalRuntime as useLocalThreadRuntime } from "./useLocalRuntime";
 
 export type { LocalRuntimeOptions } from "./LocalRuntimeOptions";
-export type {
-  ChatModelAdapter,
-  ChatModelRunOptions,
-  ChatModelRunResult,
-  ChatModelRunUpdate,
-} from "./ChatModelAdapter";

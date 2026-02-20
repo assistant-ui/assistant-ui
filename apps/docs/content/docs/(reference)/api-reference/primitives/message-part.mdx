@@ -11,7 +11,7 @@ import {
 } from "@/generated/typeDocs";
 
 Each message can have any number of message parts.
-Message parts are usually one of text, reasoning, audio or tool-call.
+Message parts are usually one of text, reasoning, audio, tool-call, or data.
 
 ## Message part Types
 
@@ -31,6 +31,10 @@ Audio content that can be played back.
 
 Interactive elements that represent tool operations.
 
+### Data
+
+Custom data events that can be rendered as UI at their position in the message stream. Each data part has a `name` and a `data` payload.
+
 ## Anatomy
 
 ```tsx
@@ -46,7 +50,7 @@ const TextMessagePart = () => {
 ### Plain Text
 
 ```tsx
-import { MessagePartPrimitive } from "@assistant/react";
+import { MessagePartPrimitive } from "@assistant-ui/react";
 
 <MessagePartPrimitive.Text />;
 ```
@@ -70,7 +74,7 @@ Coming soon.
 Renders children only if the message part is in progress.
 
 ```tsx
-import { MessagePartPrimitive } from "@assistant/react";
+import { MessagePartPrimitive } from "@assistant-ui/react";
 
 <MessagePartPrimitive.InProgress>
   <LoadingIndicator />
@@ -101,6 +105,68 @@ const MyWeatherToolUI = makeAssistantToolUI({
 });
 ```
 
+### Data UI
+
+You can map data events to UI components, similar to tool UIs. There are two approaches:
+
+#### Inline configuration
+
+Pass a `data` config to `MessagePrimitive.Parts`:
+
+```tsx
+<MessagePrimitive.Parts
+  components={{
+    data: {
+      by_name: {
+        my_chart: ({ name, data }) => <ChartComponent data={data} />,
+      },
+      Fallback: ({ name, data }) => (
+        <pre>{JSON.stringify(data, null, 2)}</pre>
+      ),
+    },
+  }}
+/>
+```
+
+#### Global registration
+
+Use `makeAssistantDataUI` or `useAssistantDataUI` to register data UIs globally. Global registrations take priority over inline configuration.
+
+```tsx
+import { makeAssistantDataUI } from "@assistant-ui/react";
+
+const MyChartUI = makeAssistantDataUI({
+  name: "my_chart",
+  render: ({ name, data }) => <ChartComponent data={data} />,
+});
+
+// Place inside AssistantRuntimeProvider
+function App() {
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Thread />
+      <MyChartUI />
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+The hook variant allows access to component state:
+
+```tsx
+import { useAssistantDataUI } from "@assistant-ui/react";
+
+function MyComponent() {
+  useAssistantDataUI({
+    name: "my_chart",
+    render: ({ name, data }) => <ChartComponent data={data} />,
+  });
+  return null;
+}
+```
+
+Each data component receives the full data part as props: `{ type: "data", name: string, data: T, status: MessagePartStatus }`.
+
 ## Context Provider
 
 Message part context is provided by `MessagePrimitive.Parts` or `TextMessagePartProvider`
@@ -108,7 +174,7 @@ Message part context is provided by `MessagePrimitive.Parts` or `TextMessagePart
 ### MessagePrimitive.Parts
 
 ```tsx
-import { MessagePrimitive } from "@assistant/react";
+import { MessagePrimitive } from "@assistant-ui/react";
 
 <MessagePrimitive.Parts
   components={{
@@ -120,6 +186,12 @@ import { MessagePrimitive } from "@assistant/react";
         get_weather: MyWeatherToolUI,
       },
       Fallback: MyFallbackToolUI,
+    },
+    data: {
+      by_name: {
+        my_chart: MyChartComponent,
+      },
+      Fallback: GenericDataComponent,
     },
   }}
 />;

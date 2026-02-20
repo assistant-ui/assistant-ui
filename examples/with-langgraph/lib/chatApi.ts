@@ -65,7 +65,7 @@ export const sendMessage = (params: {
     {
       input,
       config,
-      streamMode: "messages",
+      streamMode: "messages-tuple",
     },
   ) as AsyncGenerator<LangGraphMessagesEvent<LangChainMessage>>;
 };

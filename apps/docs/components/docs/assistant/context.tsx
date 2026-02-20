@@ -20,6 +20,8 @@ interface AssistantPanelContextValue {
   toggle: () => void;
   width: number;
   setWidth: (width: number) => void;
+  isResizing: boolean;
+  setIsResizing: (resizing: boolean) => void;
   pendingMessage: string | null;
   clearPendingMessage: () => void;
   askAI: (message: string) => void;
@@ -59,6 +61,7 @@ export function useGlobalAskAI(): AskAIFn | null {
 export function AssistantPanelProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const [width, setWidthState] = useState(DEFAULT_WIDTH);
+  const [isResizing, setIsResizing] = useState(false);
   const [pendingMessage, setPendingMessage] = useState<string | null>(null);
 
   const toggle = useCallback(() => {
@@ -95,6 +98,8 @@ export function AssistantPanelProvider({ children }: { children: ReactNode }) {
         toggle,
         width,
         setWidth,
+        isResizing,
+        setIsResizing,
         pendingMessage,
         clearPendingMessage,
         askAI,

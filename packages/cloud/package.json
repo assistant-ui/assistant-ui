@@ -1,6 +1,6 @@
 {
   "name": "assistant-cloud",
-  "version": "0.1.17",
+  "version": "0.1.18",
   "description": "Cloud integration for assistant-ui",
   "keywords": [
     "assistant",
@@ -33,11 +33,11 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "assistant-stream": "^0.3.2"
+    "assistant-stream": "^0.3.3"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^25.2.1",
+    "@types/node": "^25.3.0",
     "vitest": "^4.0.18"
   },
   "publishConfig": {

@@ -169,7 +169,7 @@ export const sendMessage = async (params: {
       input: {
         messages: params.messages,
       },
-      streamMode: "messages",
+      streamMode: "messages-tuple",
       ...params.config
     },
   );
@@ -298,6 +298,44 @@ Use `convertLangChainMessages` to transform LangChain messages to assistant-ui f
 import { convertLangChainMessages } from "@assistant-ui/react-langgraph";
 
 const threadMessage = convertLangChainMessages(langChainMessage);
+```
+
+### Event Handlers
+
+You can listen to streaming events by passing `eventHandlers` to `useLangGraphRuntime`:
+
+```typescript
+const runtime = useLangGraphRuntime({
+  stream: async (messages, { initialize, config }) => { /* ... */ },
+  eventHandlers: {
+    onMessageChunk: (chunk, metadata) => {
+      // Fired for each chunk in messages-tuple mode
+      // metadata contains langgraph_step, langgraph_node, ls_model_name, etc.
+    },
+    onValues: (values) => {
+      // Fired when a "values" event is received
+    },
+    onUpdates: (updates) => {
+      // Fired when an "updates" event is received
+    },
+    onMetadata: (metadata) => { /* thread metadata */ },
+    onError: (error) => { /* stream errors */ },
+    onCustomEvent: (type, data) => { /* custom events */ },
+  },
+});
+```
+
+### Message Metadata
+
+When using `streamMode: "messages-tuple"`, each chunk includes metadata from the LangGraph server. Access accumulated metadata per message with the `useLangGraphMessageMetadata` hook:
+
+```typescript
+import { useLangGraphMessageMetadata } from "@assistant-ui/react-langgraph";
+
+function MyComponent() {
+  const metadata = useLangGraphMessageMetadata();
+  // Map<string, LangGraphTupleMetadata> keyed by message ID
+}
 ```
 
 ## Thread Management

@@ -5,18 +5,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Build & Development Commands
 
 ```bash
-# Install dependencies (use pnpm, requires Node.js >=24)
+# Install dependencies (use pnpm, requires Node.js >=24, pnpm 10.28.2)
 pnpm install
 
 # Initial build (required before development - packages depend on each other's outputs)
 pnpm build
 
+# Build specific packages (includes upstream deps via ^build)
+pnpm turbo build --filter=@assistant-ui/react
+
 # Run docs site in development
 pnpm docs:dev
 
-# Run an example in development
-cd examples/<example-name>
-pnpm dev
+# Run an example in development (note: use PORT= not --port for Next.js)
+PORT=3001 pnpm --filter=example-name dev
 
 # Lint (uses Biome)
 pnpm lint
@@ -28,9 +30,6 @@ pnpm test
 # Run tests for a specific package
 pnpm --filter @assistant-ui/react test
 pnpm --filter @assistant-ui/react test:watch  # watch mode
-
-# Build specific packages
-pnpm turbo build --filter=@assistant-ui/react
 ```
 
 ## Changesets
@@ -41,7 +40,15 @@ Every PR that changes published packages must include a changeset:
 pnpm changeset
 ```
 
-This does NOT apply to private packages like `@assistant-ui/docs` or `@assistant-ui/shadcn-registry`.
+This does NOT apply to private packages like `@assistant-ui/docs`, `@assistant-ui/shadcn-registry`, or `@assistant-ui/x-buildutils`.
+
+## Code Style & Linting
+
+Biome enforces all formatting and linting. Key rules:
+- **Tailwind class sorting**: `useSortedClasses` is ERROR level — applies to `className`, `clsx`, `cva`, `tw`, `twMerge`, `cn`, `twJoin`, `tv`
+- **Exhaustive dependencies**: ERROR level — includes custom `tap*` hooks (`tapEffect`, `tapMemo`, `tapCallback`, etc.)
+- Double quotes, semicolons, trailing commas, 80-char line width
+- Pre-commit hook runs `biome check --fix` via lint-staged on all changed files
 
 ## Architecture Overview
 
@@ -77,11 +84,13 @@ This does NOT apply to private packages like `@assistant-ui/docs` or `@assistant
 - Bridges `@assistant-ui/tap` with React components
 - `useAui`, `useAuiState`, `useAuiEvent` hooks
 
+**`@assistant-ui/react-native`** - React Native bindings (new)
+- Mirrors the React package structure (primitives, hooks, context, runtimes)
+- Depends on `@assistant-ui/core` for shared logic
+
 ### Integration Packages
 
-- **`@assistant-ui/react-ai-sdk`**: Vercel AI SDK integration
-  - `useChatRuntime()`: Connect to AI SDK's useChat
-  - `useAISDKRuntime()`: Lower-level AI SDK runtime
+- **`@assistant-ui/react-ai-sdk`**: Vercel AI SDK integration (`useChatRuntime()`, `useAISDKRuntime()`)
 - **`@assistant-ui/react-langgraph`**: LangGraph integration
 - **`@assistant-ui/react-data-stream`**: Data stream protocol runtime
 - **`@assistant-ui/react-ag-ui`**: AG-UI protocol integration
@@ -108,8 +117,22 @@ Runtimes manage:
 
 ### Build System
 
-- **Turbo**: Monorepo task orchestration
+- **Turbo**: Monorepo task orchestration (`test` depends on `^build`)
 - **`@assistant-ui/x-buildutils`**: Internal build tool (`aui-build` command)
+  - TypeScript compiler-based, handles extension rewriting (→ `.js`) and package sub-path rewriting
 - **Biome**: Linting and formatting (replaces ESLint/Prettier)
-  - Tailwind class sorting enforced via `useSortedClasses` rule
-- **Vitest**: Testing framework
+- **Vitest**: Unit testing (globals enabled, `passWithNoTests` in some packages)
+
+### Package Exports Convention
+
+All packages use a custom `aui-source` export condition for monorepo development:
+```json
+"exports": {
+  ".": {
+    "aui-source": "./src/index.ts",
+    "types": "./dist/index.d.ts",
+    "default": "./dist/index.js"
+  }
+}
+```
+This lets packages reference source directly during development. The `aui-build` tool strips `aui-source` when building for publish.

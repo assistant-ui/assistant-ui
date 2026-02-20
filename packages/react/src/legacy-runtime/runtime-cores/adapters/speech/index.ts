@@ -1,6 +1,9 @@
+// Re-export from @assistant-ui/core
 export type {
   SpeechSynthesisAdapter,
   DictationAdapter,
-} from "./SpeechAdapterTypes";
-export { WebSpeechSynthesisAdapter } from "./WebSpeechSynthesisAdapter";
-export { WebSpeechDictationAdapter } from "./WebSpeechDictationAdapter";
+} from "@assistant-ui/core";
+export {
+  WebSpeechSynthesisAdapter,
+  WebSpeechDictationAdapter,
+} from "@assistant-ui/core";

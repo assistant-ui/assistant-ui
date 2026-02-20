@@ -32,12 +32,12 @@
     "build": "aui-build"
   },
   "dependencies": {
-    "@ai-sdk/provider": "^3.0.7",
-    "assistant-stream": "^0.3.2",
+    "@ai-sdk/provider": "^3.0.8",
+    "assistant-stream": "^0.3.3",
     "zod": "^4.3.6"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.12.10",
+    "@assistant-ui/react": "^0.12.11",
     "@types/react": "*",
     "react": "^18 || ^19"
   },
@@ -50,7 +50,7 @@
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/json-schema": "^7.0.15",
-    "@types/react": "^19.2.13",
+    "@types/react": "^19.2.14",
     "react": "^19.2.4"
   },
   "publishConfig": {

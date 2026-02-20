@@ -87,5 +87,6 @@ export type ThreadAssistantMessagePart =
   | SourceMessagePart
   | FileMessagePart
   | ImageMessagePart
+  | Unstable_AudioMessagePart
   | DataMessagePart
   | ComponentMessagePart;

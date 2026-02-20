@@ -224,7 +224,11 @@ export class DataStreamDecoder extends PipeableTransformStream<
   Uint8Array<ArrayBuffer>,
   AssistantStreamChunk
 > {
-  constructor() {
+  constructor({
+    onUnknownChunkType,
+  }: {
+    onUnknownChunkType?: (type: string, value: unknown) => void;
+  } = {}) {
     super((readable) => {
       const toolCallControllers = new Map<string, ToolCallStreamController>();
       const transform = new AssistantTransformStream<DataStreamChunk>({
@@ -419,8 +423,9 @@ export class DataStreamDecoder extends PipeableTransformStream<
               break;
 
             default: {
-              const exhaustiveCheck: never = type;
-              throw new Error(`unsupported chunk type: ${exhaustiveCheck}`);
+              onUnknownChunkType?.(type, value);
+              // Forward-compatible default: ignore unknown chunk types.
+              break;
             }
           }
         },

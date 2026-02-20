@@ -41,23 +41,21 @@ export type ToolExecutionStatus =
   | { type: "executing" }
   | { type: "interrupt"; payload: { type: "human"; payload: unknown } };
 
+type ToolState = {
+  argsText: string;
+  hasResult: boolean;
+  argsComplete: boolean;
+  streamToolCallId: string;
+  controller: ToolCallStreamController;
+};
+
 export function useToolInvocations({
   state,
   getTools,
   onResult,
   setToolStatuses,
 }: UseToolInvocationsParams) {
-  const lastToolStates = useRef<
-    Record<
-      string,
-      {
-        argsText: string;
-        hasResult: boolean;
-        argsComplete: boolean;
-        controller: ToolCallStreamController;
-      }
-    >
-  >({});
+  const lastToolStates = useRef<Record<string, ToolState>>({});
 
   const humanInputRef = useRef<
     Map<
@@ -72,26 +70,76 @@ export function useToolInvocations({
   const acRef = useRef<AbortController>(new AbortController());
   const executingCountRef = useRef(0);
   const settledResolversRef = useRef<Array<() => void>>([]);
+  const toolCallIdAliasesRef = useRef<Map<string, string>>(new Map());
+  const ignoredResultToolCallIdsRef = useRef<Set<string>>(new Set());
+  const rewriteCounterRef = useRef(0);
+
+  const getLogicalToolCallId = (toolCallId: string) => {
+    return toolCallIdAliasesRef.current.get(toolCallId) ?? toolCallId;
+  };
+
+  const shouldIgnoreAndCleanupResult = (toolCallId: string) => {
+    if (!ignoredResultToolCallIdsRef.current.has(toolCallId)) return false;
+    ignoredResultToolCallIdsRef.current.delete(toolCallId);
+    toolCallIdAliasesRef.current.delete(toolCallId);
+    return true;
+  };
+
+  const getWrappedTools = () => {
+    const tools = getTools();
+    if (!tools) return undefined;
+
+    return Object.fromEntries(
+      Object.entries(tools).map(([name, tool]) => {
+        const execute = tool.execute;
+        const streamCall = tool.streamCall;
+
+        const wrappedTool = {
+          ...tool,
+          ...(execute !== undefined && {
+            execute: (
+              ...[args, context]: Parameters<NonNullable<typeof execute>>
+            ) =>
+              execute(args, {
+                ...context,
+                toolCallId: getLogicalToolCallId(context.toolCallId),
+              }),
+          }),
+          ...(streamCall !== undefined && {
+            streamCall: (
+              ...[reader, context]: Parameters<NonNullable<typeof streamCall>>
+            ) =>
+              streamCall(reader, {
+                ...context,
+                toolCallId: getLogicalToolCallId(context.toolCallId),
+              }),
+          }),
+        } as Tool;
+        return [name, wrappedTool];
+      }),
+    ) as Record<string, Tool>;
+  };
 
   const [controller] = useState(() => {
     const [stream, controller] = createAssistantStreamController();
     const transform = unstable_toolResultStream(
-      getTools,
+      getWrappedTools,
       () => acRef.current?.signal ?? new AbortController().signal,
       (toolCallId: string, payload: unknown) => {
+        const logicalToolCallId = getLogicalToolCallId(toolCallId);
         return new Promise<unknown>((resolve, reject) => {
           // Reject previous human input request if it exists
-          const previous = humanInputRef.current.get(toolCallId);
+          const previous = humanInputRef.current.get(logicalToolCallId);
           if (previous) {
             previous.reject(
               new Error("Human input request was superseded by a new request"),
             );
           }
 
-          humanInputRef.current.set(toolCallId, { resolve, reject });
+          humanInputRef.current.set(logicalToolCallId, { resolve, reject });
           setToolStatuses((prev) => ({
             ...prev,
-            [toolCallId]: {
+            [logicalToolCallId]: {
               type: "interrupt",
               payload: { type: "human", payload },
             },
@@ -100,17 +148,25 @@ export function useToolInvocations({
       },
       {
         onExecutionStart: (toolCallId: string) => {
+          if (ignoredResultToolCallIdsRef.current.has(toolCallId)) {
+            return;
+          }
+          const logicalToolCallId = getLogicalToolCallId(toolCallId);
           executingCountRef.current++;
           setToolStatuses((prev) => ({
             ...prev,
-            [toolCallId]: { type: "executing" },
+            [logicalToolCallId]: { type: "executing" },
           }));
         },
         onExecutionEnd: (toolCallId: string) => {
+          if (ignoredResultToolCallIdsRef.current.has(toolCallId)) {
+            return;
+          }
+          const logicalToolCallId = getLogicalToolCallId(toolCallId);
           executingCountRef.current--;
           setToolStatuses((prev) => {
             const next = { ...prev };
-            delete next[toolCallId];
+            delete next[logicalToolCallId];
             return next;
           });
           // Resolve any waiting abort promises when all tools have settled
@@ -128,13 +184,22 @@ export function useToolInvocations({
         new WritableStream({
           write(chunk) {
             if (chunk.type === "result") {
-              // the tool call result was already set by the backend
-              if (lastToolStates.current[chunk.meta.toolCallId]?.hasResult)
+              if (shouldIgnoreAndCleanupResult(chunk.meta.toolCallId)) {
                 return;
+              }
+
+              const logicalToolCallId = getLogicalToolCallId(
+                chunk.meta.toolCallId,
+              );
+              if (logicalToolCallId !== chunk.meta.toolCallId) {
+                toolCallIdAliasesRef.current.delete(chunk.meta.toolCallId);
+              }
+              // the tool call result was already set by the backend
+              if (lastToolStates.current[logicalToolCallId]?.hasResult) return;
 
               onResult({
                 type: "add-tool-result",
-                toolCallId: chunk.meta.toolCallId,
+                toolCallId: logicalToolCallId,
                 toolName: chunk.meta.toolName,
                 result: chunk.result,
                 isError: chunk.isError,
@@ -152,6 +217,33 @@ export function useToolInvocations({
   const isInitialState = useRef(true);
 
   useEffect(() => {
+    const createToolState = ({
+      controller,
+      streamToolCallId,
+    }: {
+      controller: ToolCallStreamController;
+      streamToolCallId: string;
+    }): ToolState => ({
+      argsText: "",
+      hasResult: false,
+      argsComplete: false,
+      streamToolCallId,
+      controller,
+    });
+
+    const setToolState = (toolCallId: string, state: ToolState) => {
+      lastToolStates.current[toolCallId] = state;
+      return state;
+    };
+
+    const patchToolState = (
+      toolCallId: string,
+      state: ToolState,
+      patch: Partial<ToolState>,
+    ) => {
+      return setToolState(toolCallId, { ...state, ...patch });
+    };
+
     const processMessages = (
       messages: readonly (typeof state.messages)[number][],
     ) => {
@@ -166,17 +258,21 @@ export function useToolInvocations({
               }
               let lastState = lastToolStates.current[content.toolCallId];
               if (!lastState) {
+                toolCallIdAliasesRef.current.set(
+                  content.toolCallId,
+                  content.toolCallId,
+                );
                 const toolCallController = controller.addToolCallPart({
                   toolName: content.toolName,
                   toolCallId: content.toolCallId,
                 });
-                lastState = {
-                  argsText: "",
-                  hasResult: false,
-                  argsComplete: false,
-                  controller: toolCallController,
-                };
-                lastToolStates.current[content.toolCallId] = lastState;
+                lastState = setToolState(
+                  content.toolCallId,
+                  createToolState({
+                    controller: toolCallController,
+                    streamToolCallId: content.toolCallId,
+                  }),
+                );
               }
 
               if (content.argsText !== lastState.argsText) {
@@ -200,17 +296,50 @@ export function useToolInvocations({
                       isArgsTextComplete(content.argsText)
                     ) {
                       lastState.controller.argsText.close();
-                      lastToolStates.current[content.toolCallId] = {
+                      patchToolState(content.toolCallId, lastState, {
                         argsText: content.argsText,
-                        hasResult: lastState.hasResult,
                         argsComplete: true,
-                        controller: lastState.controller,
-                      };
+                      });
                       return; // Continue to next content part
                     }
-                    throw new Error(
-                      `Tool call argsText can only be appended, not updated: ${content.argsText} does not start with ${lastState.argsText}`,
+                    if (process.env.NODE_ENV !== "production") {
+                      console.warn(
+                        "argsText rewrote previous snapshot, restarting tool args stream:",
+                        {
+                          previous: lastState.argsText,
+                          next: content.argsText,
+                          toolCallId: content.toolCallId,
+                        },
+                      );
+                    }
+
+                    ignoredResultToolCallIdsRef.current.add(
+                      lastState.streamToolCallId,
                     );
+                    lastState.controller.argsText.close();
+
+                    const streamToolCallId = `${content.toolCallId}:rewrite:${rewriteCounterRef.current++}`;
+                    toolCallIdAliasesRef.current.set(
+                      streamToolCallId,
+                      content.toolCallId,
+                    );
+                    const toolCallController = controller.addToolCallPart({
+                      toolName: content.toolName,
+                      toolCallId: streamToolCallId,
+                    });
+                    if (process.env.NODE_ENV !== "production") {
+                      console.warn("started replacement stream tool call", {
+                        toolCallId: content.toolCallId,
+                        streamToolCallId,
+                      });
+                    }
+                    lastState = setToolState(content.toolCallId, {
+                      ...createToolState({
+                        controller: toolCallController,
+                        streamToolCallId,
+                      }),
+                      hasResult: lastState.hasResult,
+                    });
                   }
 
                   const argsTextDelta = content.argsText.slice(
@@ -223,22 +352,18 @@ export function useToolInvocations({
                     lastState.controller.argsText.close();
                   }
 
-                  lastToolStates.current[content.toolCallId] = {
+                  patchToolState(content.toolCallId, lastState, {
                     argsText: content.argsText,
-                    hasResult: lastState.hasResult,
                     argsComplete: shouldClose,
-                    controller: lastState.controller,
-                  };
+                  });
                 }
               }
 
               if (content.result !== undefined && !lastState.hasResult) {
-                lastToolStates.current[content.toolCallId] = {
+                patchToolState(content.toolCallId, lastState, {
                   hasResult: true,
                   argsComplete: true,
-                  argsText: lastState.argsText,
-                  controller: lastState.controller,
-                };
+                });
 
                 lastState.controller.setResponse(
                   new ToolResponse({
@@ -287,8 +412,12 @@ export function useToolInvocations({
 
   return {
     reset: () => {
-      void abort();
       isInitialState.current = true;
+      void abort().finally(() => {
+        toolCallIdAliasesRef.current.clear();
+        ignoredResultToolCallIdsRef.current.clear();
+        rewriteCounterRef.current = 0;
+      });
     },
     abort,
     resume: (toolCallId: string, payload: unknown) => {

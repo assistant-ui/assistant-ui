@@ -365,7 +365,7 @@ const isObjectRecord = (
 ): value is Record<string, ReadonlyJSONValue> =>
   value !== null && typeof value === "object" && !Array.isArray(value);
 
-const getComponentSeq = (
+const getComponentSequence = (
   state: ReadonlyJSONValue,
   instanceId: string,
 ): number | undefined => {
@@ -377,8 +377,8 @@ const getComponentSeq = (
   const componentState = components[instanceId];
   if (!isObjectRecord(componentState)) return undefined;
 
-  const seq = componentState.seq;
-  return typeof seq === "number" ? seq : undefined;
+  const sequence = componentState.sequence;
+  return typeof sequence === "number" ? sequence : undefined;
 };
 
 const getComponentInstanceId = (operation: {
@@ -391,51 +391,126 @@ const getComponentInstanceId = (operation: {
   return instanceId;
 };
 
+const isValidComponentSequence = (value: unknown): value is number =>
+  typeof value === "number" &&
+  Number.isFinite(value) &&
+  Number.isInteger(value) &&
+  value >= 0;
+
+type ComponentOperationsDropEvent = {
+  droppedCount: number;
+  reasons: {
+    missingSequence: number;
+    invalidSequence: number;
+    staleSequence: number;
+  };
+};
+
 const filterStaleComponentOperations = (
   state: ReadonlyJSONValue,
   operations: readonly ObjectStreamOperation[],
 ) => {
-  const incomingSeqByInstance = new Map<string, number>();
+  const touchedInstances = new Set<string>();
+  const incomingSequenceByInstance = new Map<
+    string,
+    { type: "valid"; sequence: number } | { type: "invalid" }
+  >();
 
   for (const operation of operations) {
+    const instanceId = getComponentInstanceId(operation);
+    if (!instanceId) continue;
+
+    touchedInstances.add(instanceId);
     if (operation.type !== "set") continue;
 
-    const [root, instanceId, field] = operation.path;
-    if (root !== "components" || field !== "seq") continue;
-    if (typeof instanceId !== "string" || instanceId.length === 0) continue;
-    if (typeof operation.value !== "number") continue;
+    const [, , field] = operation.path;
+    if (field !== "sequence") continue;
 
-    incomingSeqByInstance.set(instanceId, operation.value);
+    incomingSequenceByInstance.set(
+      instanceId,
+      isValidComponentSequence(operation.value)
+        ? { type: "valid", sequence: operation.value }
+        : { type: "invalid" },
+    );
   }
 
-  if (incomingSeqByInstance.size === 0) return operations;
+  if (touchedInstances.size === 0) {
+    return { operations, dropped: null };
+  }
 
-  const staleInstances = new Set<string>();
-  for (const [instanceId, incomingSeq] of incomingSeqByInstance) {
-    const currentSeq = getComponentSeq(state, instanceId);
-    if (currentSeq !== undefined && incomingSeq <= currentSeq) {
-      staleInstances.add(instanceId);
+  const dropReasonByInstance = new Map<
+    string,
+    "missing-sequence" | "invalid-sequence" | "stale-sequence"
+  >();
+  for (const instanceId of touchedInstances) {
+    const incomingSequence = incomingSequenceByInstance.get(instanceId);
+    if (!incomingSequence) {
+      dropReasonByInstance.set(instanceId, "missing-sequence");
+      continue;
+    }
+
+    if (incomingSequence.type === "invalid") {
+      dropReasonByInstance.set(instanceId, "invalid-sequence");
+      continue;
+    }
+
+    const currentSequence = getComponentSequence(state, instanceId);
+    if (
+      currentSequence !== undefined &&
+      incomingSequence.sequence <= currentSequence
+    ) {
+      dropReasonByInstance.set(instanceId, "stale-sequence");
     }
   }
 
-  if (staleInstances.size === 0) return operations;
+  if (dropReasonByInstance.size === 0) {
+    return { operations, dropped: null };
+  }
 
-  return operations.filter((operation) => {
+  const droppedSummary: ComponentOperationsDropEvent = {
+    droppedCount: 0,
+    reasons: {
+      missingSequence: 0,
+      invalidSequence: 0,
+      staleSequence: 0,
+    },
+  };
+
+  const filtered = operations.filter((operation) => {
     const instanceId = getComponentInstanceId(operation);
     if (instanceId === undefined) return true;
-    if (!incomingSeqByInstance.has(instanceId)) return true;
-    return !staleInstances.has(instanceId);
+
+    const reason = dropReasonByInstance.get(instanceId);
+    if (!reason) return true;
+
+    droppedSummary.droppedCount += 1;
+    if (reason === "missing-sequence")
+      droppedSummary.reasons.missingSequence += 1;
+    else if (reason === "invalid-sequence")
+      droppedSummary.reasons.invalidSequence += 1;
+    else droppedSummary.reasons.staleSequence += 1;
+
+    return false;
   });
+
+  return {
+    operations: filtered,
+    dropped: droppedSummary.droppedCount > 0 ? droppedSummary : null,
+  };
 };
 
 const handleUpdateState = (
   message: AssistantMessage,
   chunk: AssistantStreamChunk & { type: "update-state" },
+  onComponentOperationsDropped:
+    | ((event: ComponentOperationsDropEvent) => void)
+    | undefined,
 ): AssistantMessage => {
-  const operations = filterStaleComponentOperations(
+  const { operations, dropped } = filterStaleComponentOperations(
     message.metadata.unstable_state,
     chunk.operations,
   );
+  if (dropped) onComponentOperationsDropped?.(dropped);
 
   if (operations.length === 0) return message;
 
@@ -495,10 +570,14 @@ export class AssistantMessageAccumulator extends TransformStream<
     initialMessage,
     throttle,
     onError,
+    onComponentOperationsDropped,
   }: {
     initialMessage?: AssistantMessage;
     throttle?: boolean;
     onError?: (error: string) => void;
+    onComponentOperationsDropped?: (
+      event: ComponentOperationsDropEvent,
+    ) => void;
   } = {}) {
     let message = initialMessage ?? createInitialMessage();
     const tracker = new TimingTracker();
@@ -562,7 +641,11 @@ export class AssistantMessageAccumulator extends TransformStream<
             onError?.(chunk.error);
             break;
           case "update-state":
-            message = handleUpdateState(message, chunk);
+            message = handleUpdateState(
+              message,
+              chunk,
+              onComponentOperationsDropped,
+            );
             break;
           default: {
             const unhandledType: never = type;

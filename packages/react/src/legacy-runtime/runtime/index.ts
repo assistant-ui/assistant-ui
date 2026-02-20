@@ -1,28 +1,25 @@
-export type { AssistantRuntime } from "./AssistantRuntime";
+// Re-export public runtime types from @assistant-ui/core
 export type {
+  AssistantRuntime,
   ThreadRuntime,
   ThreadState,
   CreateAppendMessage,
   CreateStartRunConfig,
-} from "./ThreadRuntime";
-export type { MessageRuntime, MessageState } from "./MessageRuntime";
-
-export type {
+  CreateResumeRunConfig,
+  MessageRuntime,
+  MessageState,
   MessagePartRuntime,
   MessagePartState,
-} from "./MessagePartRuntime";
-
-export type {
   ComposerRuntime,
   ThreadComposerRuntime,
   EditComposerRuntime,
   EditComposerState,
   ThreadComposerState,
   ComposerState,
-} from "./ComposerRuntime";
-export type { AttachmentRuntime, AttachmentState } from "./AttachmentRuntime";
-export type { ThreadListRuntime, ThreadListState } from "./ThreadListRuntime";
-export type {
+  AttachmentRuntime,
+  AttachmentState,
+  ThreadListRuntime,
+  ThreadListState,
   ThreadListItemRuntime,
   ThreadListItemState,
-} from "./ThreadListItemRuntime";
+} from "@assistant-ui/core";

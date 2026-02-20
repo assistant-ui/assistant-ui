@@ -2,6 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import {
   LangChainMessage,
   LangChainToolCall,
+  LangGraphTupleMetadata,
+  OnMessageChunkCallback,
+  OnValuesEventCallback,
+  OnUpdatesEventCallback,
   OnCustomEventCallback,
   OnErrorEventCallback,
   OnInfoEventCallback,
@@ -56,6 +60,7 @@ type LangGraphRuntimeExtras = {
     config: LangGraphSendMessageConfig,
   ) => Promise<void>;
   interrupt: LangGraphInterruptState | undefined;
+  messageMetadata: Map<string, LangGraphTupleMetadata>;
 };
 
 const asLangGraphRuntimeExtras = (extras: unknown): LangGraphRuntimeExtras => {
@@ -95,6 +100,15 @@ export const useLangGraphSendCommand = () => {
   return (command: LangGraphCommand) => send([], { command });
 };
 
+export const useLangGraphMessageMetadata = () => {
+  const messageMetadata = useAuiState((s) => {
+    const extras = s.thread.extras;
+    if (!extras) return new Map<string, LangGraphTupleMetadata>();
+    return asLangGraphRuntimeExtras(extras).messageMetadata;
+  });
+  return messageMetadata;
+};
+
 type UseLangGraphRuntimeOptions = {
   autoCancelPendingToolCalls?: boolean | undefined;
   unstable_allowCancellation?: boolean | undefined;
@@ -123,6 +137,19 @@ type UseLangGraphRuntimeOptions = {
     | undefined;
   eventHandlers?:
     | {
+        /**
+         * Called for each message chunk received from messages-tuple streaming,
+         * with the chunk and its associated metadata
+         */
+        onMessageChunk?: OnMessageChunkCallback;
+        /**
+         * Called when values events are received from the LangGraph stream
+         */
+        onValues?: OnValuesEventCallback;
+        /**
+         * Called when updates events are received from the LangGraph stream
+         */
+        onUpdates?: OnUpdatesEventCallback;
         /**
          * Called when metadata is received from the LangGraph stream
          */
@@ -157,6 +184,7 @@ const useLangGraphRuntimeImpl = ({
     interrupt,
     setInterrupt,
     messages,
+    messageMetadata,
     sendMessage,
     cancel,
     setMessages,
@@ -236,6 +264,7 @@ const useLangGraphRuntimeImpl = ({
     extras: {
       [symbolLangGraphRuntimeExtras]: true,
       interrupt,
+      messageMetadata,
       send: handleSendMessage,
     } satisfies LangGraphRuntimeExtras,
     onNew: async (msg) => {
@@ -342,9 +371,7 @@ export const useLangGraphRuntime = ({
         return aui.threadListItem().initialize();
       }
 
-      throw new Error(
-        "initialize function requires you to pass a create function to the useLangGraphRuntime hook",
-      );
+      return { externalId: undefined };
     },
     delete: deleteFn,
   });

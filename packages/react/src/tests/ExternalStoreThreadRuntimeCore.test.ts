@@ -4,8 +4,8 @@ import {
   hasUpcomingMessage,
 } from "../legacy-runtime/runtime-cores/external-store/ExternalStoreThreadRuntimeCore";
 import type { ExternalStoreAdapter } from "../legacy-runtime/runtime-cores/external-store/ExternalStoreAdapter";
-import type { ModelContextProvider } from "../model-context/ModelContextTypes";
-import type { AppendMessage, ThreadMessage } from "../types/AssistantTypes";
+import type { ModelContextProvider } from "@assistant-ui/core";
+import type { AppendMessage, ThreadMessage } from "@assistant-ui/core";
 
 const createContextProvider = (): ModelContextProvider => ({
   getModelContext: () => ({}),
@@ -214,17 +214,21 @@ describe("ExternalStoreThreadRuntimeCore", () => {
       const adapter = createBaseAdapter({ onReload });
       const core = new ExternalStoreThreadRuntimeCore(contextProvider, adapter);
 
-      await core.startRun({ parentId: "msg-1" });
-      expect(onReload).toHaveBeenCalledWith("msg-1", { parentId: "msg-1" });
+      await core.startRun({ parentId: "msg-1", sourceId: null, runConfig: {} });
+      expect(onReload).toHaveBeenCalledWith("msg-1", {
+        parentId: "msg-1",
+        sourceId: null,
+        runConfig: {},
+      });
     });
 
     it("throws when adapter has no onReload", async () => {
       const adapter = createBaseAdapter();
       const core = new ExternalStoreThreadRuntimeCore(contextProvider, adapter);
 
-      await expect(core.startRun({ parentId: "msg-1" })).rejects.toThrow(
-        "Runtime does not support reloading messages.",
-      );
+      await expect(
+        core.startRun({ parentId: "msg-1", sourceId: null, runConfig: {} }),
+      ).rejects.toThrow("Runtime does not support reloading messages.");
     });
   });
 
@@ -468,7 +472,13 @@ describe("ExternalStoreThreadRuntimeCore", () => {
       const core = new ExternalStoreThreadRuntimeCore(contextProvider, adapter);
 
       expect(() =>
-        core.addToolResult({ messageId: "m1", toolCallId: "tc1", result: {} }),
+        core.addToolResult({
+          messageId: "m1",
+          toolName: "tool",
+          toolCallId: "tc1",
+          result: {},
+          isError: false,
+        }),
       ).toThrow("Runtime does not support tool results.");
     });
   });

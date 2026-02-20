@@ -8,12 +8,15 @@ import {
   type DataMessagePart,
   type SourceMessagePart,
   type useExternalMessageConverter,
+  type ThreadMessage,
   type ThreadMessageLike,
 } from "@assistant-ui/react";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
+import { useMemo } from "react";
 
 type MessageMetadata = ThreadMessageLike["metadata"];
 export const unstable_AISDK_JSON_RENDER_COMPONENT_NAME = "json-render";
+const INTERNAL_DATA_SPEC_PART_NAME = "__assistant_ui_internal_data_spec";
 
 const isJSONObject = (value: unknown): value is ReadonlyJSONObject => {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -117,7 +120,7 @@ type DataSpecUpdate = {
   instanceId: string;
   name?: string;
   parentId?: string;
-  seq?: number;
+  sequence: number;
   props?: ReadonlyJSONObject;
   spec?: ReadonlyJSONObject;
   patch?: readonly JsonPatchOperation[];
@@ -127,31 +130,44 @@ type DataSpecState = {
   instanceId: string;
   name: string;
   parentId?: string;
-  seq?: number;
+  sequence?: number;
   props?: ReadonlyJSONObject;
   spec?: ReadonlyJSONObject;
+};
+
+type InternalDataSpecPayload = {
+  __assistantUiDataSpec: true;
+  update: DataSpecUpdate;
 };
 
 export type unstable_AISDKDataSpecValidationContext = {
   instanceId: string;
   name: string;
   parentId?: string;
-  seq?: number;
+  sequence?: number;
   props?: ReadonlyJSONObject;
   spec: ReadonlyJSONObject;
 };
 
 export type unstable_AISDKDataSpecTelemetryEvent =
   | {
-      type: "malformed-patch-dropped";
+      type: "missing-sequence-dropped";
       instanceId: string;
-      seq?: number;
     }
   | {
-      type: "stale-seq-ignored";
+      type: "invalid-sequence-dropped";
       instanceId: string;
-      seq: number;
-      latestSeq: number;
+    }
+  | {
+      type: "malformed-patch-dropped";
+      instanceId: string;
+      sequence?: number;
+    }
+  | {
+      type: "stale-sequence-ignored";
+      instanceId: string;
+      sequence: number;
+      latestSequence: number;
     };
 
 export type unstable_AISDKDataSpecOptions = {
@@ -219,6 +235,20 @@ const readArrayIndex = (
   return index;
 };
 
+const FORBIDDEN_JSON_POINTER_KEYS = new Set([
+  "__proto__",
+  "prototype",
+  "constructor",
+]);
+
+const hasOwnKey = (container: Record<string, unknown>, key: string) => {
+  return Object.prototype.hasOwnProperty.call(container, key);
+};
+
+const isForbiddenJsonPointerKey = (key: string) => {
+  return FORBIDDEN_JSON_POINTER_KEYS.has(key);
+};
+
 const applyJsonPatchOperation = (
   current: ReadonlyJSONObject,
   operation: JsonPatchOperation,
@@ -237,6 +267,8 @@ const applyJsonPatchOperation = (
 
   for (let i = 0; i < segments.length - 1; i++) {
     const key = segments[i]!;
+    if (isForbiddenJsonPointerKey(key)) return null;
+
     if (Array.isArray(container)) {
       const index = readArrayIndex(key, container.length);
       if (index == null || index >= container.length) return null;
@@ -244,11 +276,13 @@ const applyJsonPatchOperation = (
       continue;
     }
 
-    if (!isMutableObject(container) || !(key in container)) return null;
+    if (!isMutableObject(container) || !hasOwnKey(container, key)) return null;
     container = container[key];
   }
 
   const finalKey = segments[segments.length - 1]!;
+  if (isForbiddenJsonPointerKey(finalKey)) return null;
+
   const value = operation.value;
   if (operation.op !== "remove" && value === undefined) return null;
 
@@ -270,13 +304,23 @@ const applyJsonPatchOperation = (
     }
   } else {
     if (!isMutableObject(container)) return null;
-    if (operation.op === "replace" && !(finalKey in container)) return null;
-    if (operation.op === "remove" && !(finalKey in container)) return null;
+    const hasOwnFinalKey = hasOwnKey(container, finalKey);
+    if (operation.op === "replace" && !hasOwnFinalKey) return null;
+    if (operation.op === "remove" && !hasOwnFinalKey) return null;
 
     if (operation.op === "remove") {
-      delete container[finalKey];
+      if (!Reflect.deleteProperty(container, finalKey)) return null;
     } else {
-      (container as Record<string, unknown>)[finalKey] = value;
+      try {
+        Object.defineProperty(container, finalKey, {
+          value,
+          writable: true,
+          enumerable: true,
+          configurable: true,
+        });
+      } catch {
+        return null;
+      }
     }
   }
 
@@ -297,15 +341,26 @@ const applyJsonPatchOperations = (
   return next;
 };
 
-const toDataSpecUpdate = (part: unknown): DataSpecUpdate | null => {
-  if (!isDataSpecChunk(part)) return null;
-  if (!isJSONObject(part.data)) return null;
+type DataSpecChunkDecodeResult =
+  | { type: "valid"; update: DataSpecUpdate }
+  | { type: "invalid" }
+  | { type: "missing-sequence"; instanceId: string }
+  | { type: "invalid-sequence"; instanceId: string };
 
-  const data = part.data as {
+const isValidSequence = (value: unknown): value is number =>
+  typeof value === "number" &&
+  Number.isFinite(value) &&
+  Number.isInteger(value) &&
+  value >= 0;
+
+const toDataSpecUpdateFromData = (source: unknown): DataSpecUpdate | null => {
+  if (!isJSONObject(source)) return null;
+
+  const data = source as {
     instanceId?: unknown;
     name?: unknown;
     parentId?: unknown;
-    seq?: unknown;
+    sequence?: unknown;
     props?: unknown;
     spec?: unknown;
     patch?: unknown;
@@ -324,18 +379,7 @@ const toDataSpecUpdate = (part: unknown): DataSpecUpdate | null => {
   if (data.parentId !== undefined && typeof data.parentId !== "string")
     return null;
 
-  let seq: number | undefined;
-  if (data.seq !== undefined) {
-    if (
-      typeof data.seq !== "number" ||
-      !Number.isFinite(data.seq) ||
-      !Number.isInteger(data.seq) ||
-      data.seq < 0
-    ) {
-      return null;
-    }
-    seq = data.seq;
-  }
+  if (!isValidSequence(data.sequence)) return null;
 
   if (data.props !== undefined && !isJSONObject(data.props)) return null;
   if (data.spec !== undefined && !isJSONObject(data.spec)) return null;
@@ -348,45 +392,102 @@ const toDataSpecUpdate = (part: unknown): DataSpecUpdate | null => {
     instanceId: data.instanceId,
     ...(data.name !== undefined ? { name: data.name } : {}),
     ...(data.parentId !== undefined ? { parentId: data.parentId } : {}),
-    ...(seq !== undefined ? { seq } : {}),
+    sequence: data.sequence,
     ...(data.props !== undefined ? { props: data.props } : {}),
     ...(data.spec !== undefined ? { spec: data.spec } : {}),
     ...(data.patch !== undefined ? { patch: data.patch } : {}),
   } satisfies DataSpecUpdate;
 };
 
+const decodeDataSpecChunk = (
+  part: unknown,
+): DataSpecChunkDecodeResult | null => {
+  if (!isDataSpecChunk(part)) return null;
+
+  const source = part.data;
+  if (!isJSONObject(source)) return { type: "invalid" };
+
+  const instanceId = source.instanceId;
+  if (typeof instanceId !== "string" || instanceId.length === 0) {
+    return { type: "invalid" };
+  }
+
+  if (source.sequence === undefined) {
+    return { type: "missing-sequence", instanceId };
+  }
+
+  if (!isValidSequence(source.sequence)) {
+    return { type: "invalid-sequence", instanceId };
+  }
+
+  const update = toDataSpecUpdateFromData(source);
+  if (!update) return { type: "invalid" };
+  return { type: "valid", update };
+};
+
+const toInternalDataSpecPayload = (
+  update: DataSpecUpdate,
+): InternalDataSpecPayload => ({
+  __assistantUiDataSpec: true,
+  update,
+});
+
+const toInternalDataSpecPart = (
+  update: DataSpecUpdate,
+): DataMessagePart<InternalDataSpecPayload> => ({
+  type: "data",
+  name: INTERNAL_DATA_SPEC_PART_NAME,
+  data: toInternalDataSpecPayload(update),
+});
+
+const getInternalDataSpecUpdate = (
+  part: MessageContent[number],
+): DataSpecUpdate | null => {
+  if (part.type !== "data") return null;
+  if (part.name !== INTERNAL_DATA_SPEC_PART_NAME) return null;
+  if (!isMutableObject(part.data)) return null;
+  if (part.data.__assistantUiDataSpec !== true) return null;
+  return toDataSpecUpdateFromData(part.data.update);
+};
+
 type DataSpecApplyResult =
   | { type: "applied" }
   | {
-      type: "ignored-stale-seq";
-      seq: number;
-      latestSeq: number;
+      type: "ignored-stale-sequence";
+      sequence: number;
+      latestSequence: number;
     }
   | { type: "invalid"; reason: "malformed-patch" | "invalid-spec" };
 
-const resolveDataSpecValidationContext = (
+const mergeDataSpecFields = (
   current: DataSpecState,
   update: DataSpecUpdate,
-  spec: ReadonlyJSONObject,
-): unstable_AISDKDataSpecValidationContext => {
+) => {
   return {
-    instanceId: update.instanceId,
     name: update.name ?? current.name,
     ...(update.parentId !== undefined
       ? { parentId: update.parentId }
       : current.parentId !== undefined
         ? { parentId: current.parentId }
         : {}),
-    ...(update.seq !== undefined
-      ? { seq: update.seq }
-      : current.seq !== undefined
-        ? { seq: current.seq }
-        : {}),
+    sequence: update.sequence,
     ...(update.props !== undefined
       ? { props: update.props }
       : current.props !== undefined
         ? { props: current.props }
         : {}),
+  };
+};
+
+const resolveDataSpecValidationContext = (
+  current: DataSpecState,
+  update: DataSpecUpdate,
+  spec: ReadonlyJSONObject,
+): unstable_AISDKDataSpecValidationContext => {
+  const mergedFields = mergeDataSpecFields(current, update);
+  return {
+    instanceId: update.instanceId,
+    ...mergedFields,
     spec,
   };
 };
@@ -442,15 +543,11 @@ const applyDataSpecUpdate = (
     name: update.name ?? unstable_AISDK_JSON_RENDER_COMPONENT_NAME,
   };
 
-  if (
-    update.seq !== undefined &&
-    current.seq !== undefined &&
-    update.seq <= current.seq
-  ) {
+  if (current.sequence !== undefined && update.sequence <= current.sequence) {
     return {
-      type: "ignored-stale-seq",
-      seq: update.seq,
-      latestSeq: current.seq,
+      type: "ignored-stale-sequence",
+      sequence: update.sequence,
+      latestSequence: current.sequence,
     };
   }
 
@@ -479,22 +576,7 @@ const applyDataSpecUpdate = (
 
   stateByInstanceId.set(update.instanceId, {
     instanceId: update.instanceId,
-    name: update.name ?? current.name,
-    ...(update.parentId !== undefined
-      ? { parentId: update.parentId }
-      : current.parentId !== undefined
-        ? { parentId: current.parentId }
-        : {}),
-    ...(update.seq !== undefined
-      ? { seq: update.seq }
-      : current.seq !== undefined
-        ? { seq: current.seq }
-        : {}),
-    ...(update.props !== undefined
-      ? { props: update.props }
-      : current.props !== undefined
-        ? { props: current.props }
-        : {}),
+    ...mergeDataSpecFields(current, update),
     ...(nextSpec !== undefined ? { spec: nextSpec } : {}),
   });
 
@@ -552,62 +634,45 @@ function convertParts(
     return [];
   }
 
-  const dataSpecOptions = metadata.unstable_dataSpec;
-  const stateByDataSpecInstanceId = new Map<string, DataSpecState>();
-  const seenDataSpecInstanceIds = new Set<string>();
-  const converted: (
-    | MessageContent[number]
-    | { __dataSpecInstanceId: string }
-  )[] = [];
+  const converted: MessageContent = [];
+  const dataSpecTelemetry = metadata.unstable_dataSpec?.onTelemetry;
 
   for (const part of message.parts) {
     if (part.type === "step-start" || part.type === "file") continue;
 
-    const dataSpecUpdate = toDataSpecUpdate(part);
-    if (dataSpecUpdate) {
-      const result = applyDataSpecUpdate(
-        stateByDataSpecInstanceId,
-        dataSpecUpdate,
-        dataSpecOptions,
-      );
-      if (result.type === "invalid") {
-        if (result.reason === "malformed-patch") {
-          dataSpecOptions?.onTelemetry?.({
-            type: "malformed-patch-dropped",
-            instanceId: dataSpecUpdate.instanceId,
-            ...(dataSpecUpdate.seq !== undefined
-              ? { seq: dataSpecUpdate.seq }
-              : {}),
-          });
-          warn(
-            `Malformed data-spec patch dropped for instanceId: ${dataSpecUpdate.instanceId}`,
-          );
-        } else {
-          warn(
-            `Invalid data-spec dropped for instanceId: ${dataSpecUpdate.instanceId}`,
-          );
-        }
+    const dataSpecResult = decodeDataSpecChunk(part);
+    if (dataSpecResult?.type === "valid") {
+      if (message.role !== "assistant") {
+        warn("data-spec chunks are only supported in assistant messages");
+        continue;
       }
-      if (result.type === "ignored-stale-seq") {
-        dataSpecOptions?.onTelemetry?.({
-          type: "stale-seq-ignored",
-          instanceId: dataSpecUpdate.instanceId,
-          seq: result.seq,
-          latestSeq: result.latestSeq,
-        });
-      }
-      if (
-        result.type === "applied" &&
-        !seenDataSpecInstanceIds.has(dataSpecUpdate.instanceId) &&
-        stateByDataSpecInstanceId.get(dataSpecUpdate.instanceId)?.spec
-      ) {
-        seenDataSpecInstanceIds.add(dataSpecUpdate.instanceId);
-        converted.push({ __dataSpecInstanceId: dataSpecUpdate.instanceId });
-      }
+      converted.push(toInternalDataSpecPart(dataSpecResult.update));
       continue;
     }
 
-    if (isDataSpecChunk(part)) {
+    if (dataSpecResult?.type === "missing-sequence") {
+      dataSpecTelemetry?.({
+        type: "missing-sequence-dropped",
+        instanceId: dataSpecResult.instanceId,
+      });
+      warn(
+        `Dropped data-spec chunk with missing sequence for instanceId: ${dataSpecResult.instanceId}`,
+      );
+      continue;
+    }
+
+    if (dataSpecResult?.type === "invalid-sequence") {
+      dataSpecTelemetry?.({
+        type: "invalid-sequence-dropped",
+        instanceId: dataSpecResult.instanceId,
+      });
+      warn(
+        `Dropped data-spec chunk with invalid sequence for instanceId: ${dataSpecResult.instanceId}`,
+      );
+      continue;
+    }
+
+    if (dataSpecResult?.type === "invalid") {
       warn("Malformed data-spec chunk dropped");
       continue;
     }
@@ -704,7 +769,86 @@ function convertParts(
     warn(`Unsupported message part type: ${part.type}`);
   }
 
-  const convertedWithDataSpecs = converted
+  const lastToolCallIndexById = new Map<string, number>();
+  for (let i = 0; i < converted.length; i++) {
+    const part = converted[i];
+    if (part?.type !== "tool-call" || part.toolCallId == null) continue;
+    lastToolCallIndexById.set(part.toolCallId, i);
+  }
+
+  return converted.filter((part, index) => {
+    if (part.type !== "tool-call" || part.toolCallId == null) return true;
+    return lastToolCallIndexById.get(part.toolCallId) === index;
+  });
+}
+
+const emitDataSpecApplyDiagnostics = (
+  result: DataSpecApplyResult,
+  update: DataSpecUpdate,
+  options: unstable_AISDKDataSpecOptions | undefined,
+) => {
+  if (result.type === "invalid") {
+    if (result.reason === "malformed-patch") {
+      options?.onTelemetry?.({
+        type: "malformed-patch-dropped",
+        instanceId: update.instanceId,
+        ...(update.sequence !== undefined ? { sequence: update.sequence } : {}),
+      });
+      warn(
+        `Malformed data-spec patch dropped for instanceId: ${update.instanceId}`,
+      );
+    } else {
+      warn(`Invalid data-spec dropped for instanceId: ${update.instanceId}`);
+    }
+    return;
+  }
+
+  if (result.type === "ignored-stale-sequence") {
+    options?.onTelemetry?.({
+      type: "stale-sequence-ignored",
+      instanceId: update.instanceId,
+      sequence: result.sequence,
+      latestSequence: result.latestSequence,
+    });
+  }
+};
+
+const materializeDataSpecParts = (
+  content: MessageContent,
+  options: unstable_AISDKDataSpecOptions | undefined,
+): MessageContent => {
+  const stateByDataSpecInstanceId = new Map<string, DataSpecState>();
+  const seenDataSpecInstanceIds = new Set<string>();
+  const converted: (
+    | MessageContent[number]
+    | { __dataSpecInstanceId: string }
+  )[] = [];
+
+  for (const part of content) {
+    const update = getInternalDataSpecUpdate(part);
+    if (!update) {
+      converted.push(part);
+      continue;
+    }
+
+    const result = applyDataSpecUpdate(
+      stateByDataSpecInstanceId,
+      update,
+      options,
+    );
+    emitDataSpecApplyDiagnostics(result, update, options);
+
+    if (
+      result.type === "applied" &&
+      !seenDataSpecInstanceIds.has(update.instanceId) &&
+      stateByDataSpecInstanceId.get(update.instanceId)?.spec
+    ) {
+      seenDataSpecInstanceIds.add(update.instanceId);
+      converted.push({ __dataSpecInstanceId: update.instanceId });
+    }
+  }
+
+  return converted
     .map((part) => {
       if (!("__dataSpecInstanceId" in part)) return part;
       const dataSpecState = stateByDataSpecInstanceId.get(
@@ -725,19 +869,27 @@ function convertParts(
         },
       } satisfies ComponentMessagePart;
     })
-    .filter(Boolean) as MessageContent[number][];
+    .filter(Boolean) as MessageContent;
+};
 
-  const seenToolCallIds = new Set<string>();
-  return convertedWithDataSpecs.filter((part) => {
-    if (part.type === "tool-call" && part.toolCallId != null) {
-      if (seenToolCallIds.has(part.toolCallId)) return false;
-      seenToolCallIds.add(part.toolCallId);
-    }
-    return true;
+const materializeDataSpecsInMessages = (
+  messages: readonly ThreadMessage[],
+  dataSpecOptions: AISDKMessageConverterMetadata["unstable_dataSpec"],
+) => {
+  return messages.map((message) => {
+    if (message.role !== "assistant") return message;
+    const content = materializeDataSpecParts(
+      message.content as MessageContent,
+      dataSpecOptions,
+    );
+    return {
+      ...message,
+      content,
+    };
   });
-}
+};
 
-export const AISDKMessageConverter = unstable_createMessageConverter(
+const AISDKMessageConverterBase = unstable_createMessageConverter(
   (message: UIMessage, metadata: useExternalMessageConverter.Metadata) => {
     const createdAt = new Date();
     const content = convertParts(
@@ -799,3 +951,36 @@ export const AISDKMessageConverter = unstable_createMessageConverter(
     }
   },
 );
+
+export const AISDKMessageConverter = {
+  ...AISDKMessageConverterBase,
+  useThreadMessages: (
+    args: Parameters<typeof AISDKMessageConverterBase.useThreadMessages>[0],
+  ) => {
+    const converted = AISDKMessageConverterBase.useThreadMessages(args);
+    const dataSpecOptions = (
+      args.metadata as AISDKMessageConverterMetadata | undefined
+    )?.unstable_dataSpec;
+    return useMemo(
+      () => materializeDataSpecsInMessages(converted, dataSpecOptions),
+      [converted, dataSpecOptions],
+    );
+  },
+  toThreadMessages: (
+    messages: Parameters<typeof AISDKMessageConverterBase.toThreadMessages>[0],
+    isRunning?: Parameters<
+      typeof AISDKMessageConverterBase.toThreadMessages
+    >[1],
+    metadata?: Parameters<typeof AISDKMessageConverterBase.toThreadMessages>[2],
+  ) => {
+    const converted = AISDKMessageConverterBase.toThreadMessages(
+      messages,
+      isRunning,
+      metadata,
+    );
+    const dataSpecOptions = (
+      metadata as AISDKMessageConverterMetadata | undefined
+    )?.unstable_dataSpec;
+    return materializeDataSpecsInMessages(converted, dataSpecOptions);
+  },
+};

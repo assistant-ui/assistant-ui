@@ -102,6 +102,49 @@ describe("RunAggregator", () => {
     expect((toolPart as any).result).toBe("result");
   });
 
+  it("sets requires-action status when tool calls lack results at RUN_FINISHED", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AGUIEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "tool1",
+      toolCallName: "search",
+    } as AGUIEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_ARGS",
+      toolCallId: "tool1",
+      delta: '{"q":"x"}',
+    } as AGUIEvent);
+    aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AGUIEvent);
+
+    const last = results.at(-1);
+    expect(last?.status).toMatchObject({
+      type: "requires-action",
+      reason: "tool-calls",
+    });
+  });
+
+  it("sets complete status when all tool calls have results at RUN_FINISHED", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AGUIEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "tool1",
+      toolCallName: "search",
+    } as AGUIEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_RESULT",
+      toolCallId: "tool1",
+      content: '"done"',
+    } as AGUIEvent);
+    aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AGUIEvent);
+
+    const last = results.at(-1);
+    expect(last?.status?.type).toBe("complete");
+  });
+
   it("respects event ordering between tool calls and text", () => {
     const aggregator = createAggregator(false);
 

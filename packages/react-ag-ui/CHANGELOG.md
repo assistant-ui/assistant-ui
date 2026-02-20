@@ -1,5 +1,34 @@
 # @assistant-ui/react-ag-ui
 
+## 0.0.17
+
+### Patch Changes
+
+- 88ec552: fix(react-ag-ui): auto-resume run after frontend tool execution completes
+- Updated dependencies [5bbe8a9]
+- Updated dependencies [5e304ea]
+- Updated dependencies [546c053]
+- Updated dependencies [a7039e3]
+- Updated dependencies [16c10fd]
+- Updated dependencies [98c3d54]
+- Updated dependencies [b181803]
+- Updated dependencies [7836760]
+- Updated dependencies [9276547]
+- Updated dependencies [b65428e]
+- Updated dependencies [af5b085]
+- Updated dependencies [61b54e9]
+- Updated dependencies [a094c45]
+- Updated dependencies [4d7f712]
+- Updated dependencies [ecc29ec]
+- Updated dependencies [6e97999]
+- Updated dependencies [a247fc9]
+- Updated dependencies [f414af9]
+- Updated dependencies [b48912c]
+- Updated dependencies [93910bd]
+- Updated dependencies [58a8472]
+  - @assistant-ui/react@0.12.11
+  - assistant-stream@0.3.3
+
 ## 0.0.16
 
 ### Patch Changes
