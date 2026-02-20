@@ -119,6 +119,19 @@ export const registry: RegistryItem[] = [
     },
   },
   {
+    name: "message-timing",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/message-timing.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/message-timing.tsx",
+      },
+    ],
+    dependencies: ["@assistant-ui/react"],
+  },
+  {
     name: "thread-list",
     type: "registry:component",
     files: [
