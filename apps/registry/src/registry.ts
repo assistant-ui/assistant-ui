@@ -130,6 +130,7 @@ export const registry: RegistryItem[] = [
       },
     ],
     dependencies: ["@assistant-ui/react"],
+    registryDependencies: ["tooltip"],
   },
   {
     name: "thread-list",
