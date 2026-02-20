@@ -1,5 +1,5 @@
 <a href="https://www.assistant-ui.com">
-  <img src="https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/.github/assets/header.svg" alt="assistant-ui Header" width="100%" style="width: 1000px" />
+  <img src="https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/.github/assets/header.svg" alt="assistant-ui Header" width="100%" />
 </a>
 
 <p align="center">
