@@ -26,7 +26,7 @@ const createComponentMessage = (): ThreadAssistantMessage => ({
     unstable_state: {
       components: {
         spec1: {
-          seq: 1,
+          sequence: 1,
           lifecycle: "active",
           state: { phase: "ready" },
         },

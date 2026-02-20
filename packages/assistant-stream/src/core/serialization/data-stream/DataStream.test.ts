@@ -308,7 +308,7 @@ describe("DataStream component part support", () => {
     expect(last?.metadata.unstable_state).toEqual({
       components: {
         card1: {
-          seq: 2,
+          sequence: 2,
           lifecycle: "active",
         },
       },

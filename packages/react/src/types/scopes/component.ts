@@ -15,7 +15,7 @@ export type ComponentState = {
   readonly props: ReadonlyJSONObject;
   readonly state: unknown;
   readonly lifecycle: ComponentLifecycle;
-  readonly seq: number;
+  readonly sequence: number;
 };
 
 export type ComponentMethods = {
@@ -36,12 +36,12 @@ export type ComponentEvents = {
     messageId: string;
     instanceId: string;
     lifecycle: ComponentLifecycle;
-    seq: number;
+    sequence: number;
   };
   "component.state": {
     messageId: string;
     instanceId: string;
-    seq: number;
+    sequence: number;
     state: unknown;
   };
   "component.invoke": {

@@ -67,7 +67,7 @@ const createComponentMessage = (): ThreadAssistantMessage => ({
     unstable_state: {
       components: {
         card1: {
-          seq: 1,
+          sequence: 1,
           lifecycle: "active",
           state: { phase: "ready" },
         },
@@ -286,7 +286,7 @@ describe("useAISDKRuntime", () => {
             type: "data-spec",
             data: {
               instanceId: "spec1",
-              seq: 1,
+              sequence: 1,
               spec: { type: "card", props: { title: "Draft" } },
             },
           },
@@ -294,7 +294,7 @@ describe("useAISDKRuntime", () => {
             type: "data-spec",
             data: {
               instanceId: "spec1",
-              seq: 2,
+              sequence: 2,
               patch: [{ op: "replace", path: "/props/title", value: "Ready" }],
             },
           },
@@ -343,7 +343,7 @@ describe("useAISDKRuntime", () => {
             type: "data-spec",
             data: {
               instanceId: "spec1",
-              seq: 1,
+              sequence: 1,
               spec: { type: "unknown-layout", props: { title: "Draft" } },
             },
           },
@@ -408,7 +408,7 @@ describe("useAISDKRuntime", () => {
             type: "data-spec",
             data: {
               instanceId: "spec1",
-              seq: 2,
+              sequence: 2,
               spec: { type: "card", props: { title: "Initial" } },
             },
           },
@@ -416,7 +416,7 @@ describe("useAISDKRuntime", () => {
             type: "data-spec",
             data: {
               instanceId: "spec1",
-              seq: 1,
+              sequence: 1,
               patch: [{ op: "replace", path: "/props/title", value: "Stale" }],
             },
           },
@@ -424,7 +424,7 @@ describe("useAISDKRuntime", () => {
             type: "data-spec",
             data: {
               instanceId: "spec1",
-              seq: 3,
+              sequence: 3,
               patch: [{ op: "replace", path: "props/title", value: "Broken" }],
             },
           },
@@ -444,7 +444,7 @@ describe("useAISDKRuntime", () => {
     await waitFor(() => {
       expect(onTelemetry).toHaveBeenCalledWith(
         expect.objectContaining({
-          type: "stale-seq-ignored",
+          type: "stale-sequence-ignored",
           instanceId: "spec1",
         }),
       );

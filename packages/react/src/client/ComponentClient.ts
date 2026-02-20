@@ -25,7 +25,7 @@ const isComponentLifecycle = (value: unknown): value is ComponentLifecycle => {
   );
 };
 
-const getComponentSeq = (value: unknown): number => {
+const getComponentSequence = (value: unknown): number => {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   return 0;
 };
@@ -54,7 +54,7 @@ export const ComponentClient = resource(
   }: ComponentClientProps): ClientOutput<"component"> => {
     const emit = tapAssistantEmit();
     const previousRef = tapRef<{
-      seq: number;
+      sequence: number;
       lifecycle: ComponentLifecycle;
     } | null>(null);
 
@@ -65,7 +65,7 @@ export const ComponentClient = resource(
       const lifecycle = isComponentLifecycle(metadataState.lifecycle)
         ? metadataState.lifecycle
         : "mounting";
-      const seq = getComponentSeq(metadataState.seq);
+      const sequence = getComponentSequence(metadataState.sequence);
 
       return {
         messageId,
@@ -80,25 +80,25 @@ export const ComponentClient = resource(
             ? (metadataState.state as unknown)
             : undefined,
         lifecycle,
-        seq,
+        sequence,
       };
     }, [messageId, part, componentState]);
 
     tapEffect(() => {
       const previous = previousRef.current;
       previousRef.current = {
-        seq: state.seq,
+        sequence: state.sequence,
         lifecycle: state.lifecycle,
       };
 
       if (!previous) return;
       if (!state.instanceId) return;
-      if (state.seq <= previous.seq) return;
+      if (state.sequence <= previous.sequence) return;
 
       emit("component.state", {
         messageId: state.messageId,
         instanceId: state.instanceId,
-        seq: state.seq,
+        sequence: state.sequence,
         state: state.state,
       });
 
@@ -107,7 +107,7 @@ export const ComponentClient = resource(
           messageId: state.messageId,
           instanceId: state.instanceId,
           lifecycle: state.lifecycle,
-          seq: state.seq,
+          sequence: state.sequence,
         });
       }
     }, [state, emit]);

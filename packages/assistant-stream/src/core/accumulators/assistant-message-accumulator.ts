@@ -365,7 +365,7 @@ const isObjectRecord = (
 ): value is Record<string, ReadonlyJSONValue> =>
   value !== null && typeof value === "object" && !Array.isArray(value);
 
-const getComponentSeq = (
+const getComponentSequence = (
   state: ReadonlyJSONValue,
   instanceId: string,
 ): number | undefined => {
@@ -377,8 +377,8 @@ const getComponentSeq = (
   const componentState = components[instanceId];
   if (!isObjectRecord(componentState)) return undefined;
 
-  const seq = componentState.seq;
-  return typeof seq === "number" ? seq : undefined;
+  const sequence = componentState.sequence;
+  return typeof sequence === "number" ? sequence : undefined;
 };
 
 const getComponentInstanceId = (operation: {
@@ -395,25 +395,25 @@ const filterStaleComponentOperations = (
   state: ReadonlyJSONValue,
   operations: readonly ObjectStreamOperation[],
 ) => {
-  const incomingSeqByInstance = new Map<string, number>();
+  const incomingSequenceByInstance = new Map<string, number>();
 
   for (const operation of operations) {
     if (operation.type !== "set") continue;
 
     const [root, instanceId, field] = operation.path;
-    if (root !== "components" || field !== "seq") continue;
+    if (root !== "components" || field !== "sequence") continue;
     if (typeof instanceId !== "string" || instanceId.length === 0) continue;
     if (typeof operation.value !== "number") continue;
 
-    incomingSeqByInstance.set(instanceId, operation.value);
+    incomingSequenceByInstance.set(instanceId, operation.value);
   }
 
-  if (incomingSeqByInstance.size === 0) return operations;
+  if (incomingSequenceByInstance.size === 0) return operations;
 
   const staleInstances = new Set<string>();
-  for (const [instanceId, incomingSeq] of incomingSeqByInstance) {
-    const currentSeq = getComponentSeq(state, instanceId);
-    if (currentSeq !== undefined && incomingSeq <= currentSeq) {
+  for (const [instanceId, incomingSequence] of incomingSequenceByInstance) {
+    const currentSequence = getComponentSequence(state, instanceId);
+    if (currentSequence !== undefined && incomingSequence <= currentSequence) {
       staleInstances.add(instanceId);
     }
   }
@@ -423,7 +423,7 @@ const filterStaleComponentOperations = (
   return operations.filter((operation) => {
     const instanceId = getComponentInstanceId(operation);
     if (instanceId === undefined) return true;
-    if (!incomingSeqByInstance.has(instanceId)) return true;
+    if (!incomingSequenceByInstance.has(instanceId)) return true;
     return !staleInstances.has(instanceId);
   });
 };

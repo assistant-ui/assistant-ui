@@ -270,7 +270,7 @@ describe("AISDKMessageConverter", () => {
           { type: "text", text: "hello" },
           dataSpecPart({
             instanceId: "spec1",
-            seq: 1,
+            sequence: 1,
             spec: cardSpec("Should Not Render"),
           }),
         ]),
@@ -295,12 +295,12 @@ describe("AISDKMessageConverter", () => {
           { type: "text", text: "before" },
           dataSpecPart({
             instanceId: "spec1",
-            seq: 1,
+            sequence: 1,
             spec: cardSpec("Draft", { items: ["A"] }),
           }),
           dataSpecPart({
             instanceId: "spec1",
-            seq: 2,
+            sequence: 2,
             patch: [
               replacePatch("/props/title", "Ready"),
               addPatch("/props/items/1", "B"),
@@ -340,12 +340,12 @@ describe("AISDKMessageConverter", () => {
           dataSpecPart({
             instanceId: "spec_1",
             name: "status-card",
-            seq: 1,
+            sequence: 1,
             spec: cardSpec("Draft"),
           }),
           dataSpecPart({
             instanceId: "spec_1",
-            seq: 2,
+            sequence: 2,
             patch: [replacePatch("/props/title", "Ready")],
           }),
         ]),
@@ -369,18 +369,18 @@ describe("AISDKMessageConverter", () => {
     });
   });
 
-  it("ignores stale data-spec chunks when seq goes backwards", () => {
+  it("ignores stale data-spec chunks when sequence goes backwards", () => {
     const result = AISDKMessageConverter.toThreadMessages(
       [
         assistantMessage("assistant-1", [
           dataSpecPart({
             instanceId: "spec1",
-            seq: 2,
+            sequence: 2,
             spec: cardSpec("Latest"),
           }),
           dataSpecPart({
             instanceId: "spec1",
-            seq: 1,
+            sequence: 1,
             patch: [replacePatch("/props/title", "Stale")],
           }),
         ]),
@@ -404,18 +404,57 @@ describe("AISDKMessageConverter", () => {
     });
   });
 
+  it("rejects prototype-polluting data-spec patches", () => {
+    try {
+      expectAcrossBothPaths(
+        [
+          assistantMessage("assistant-1", [
+            dataSpecPart({
+              instanceId: "spec1",
+              sequence: 1,
+              spec: cardSpec("Safe"),
+            }),
+            dataSpecPart({
+              instanceId: "spec1",
+              sequence: 2,
+              patch: [{ op: "add", path: "/__proto__/polluted", value: "yes" }],
+            }),
+          ]),
+        ],
+        (result) => {
+          expect(result).toHaveLength(1);
+          expect(result[0]!.content).toHaveLength(1);
+          expect(result[0]!.content[0]).toMatchObject({
+            type: "component",
+            instanceId: "spec1",
+            props: {
+              spec: {
+                type: "card",
+                props: { title: "Safe" },
+              },
+            },
+          });
+        },
+      );
+
+      expect(({} as { polluted?: unknown }).polluted).toBeUndefined();
+    } finally {
+      delete (Object.prototype as { polluted?: unknown }).polluted;
+    }
+  });
+
   it("drops malformed data-spec patches and keeps the last valid spec", () => {
     const result = AISDKMessageConverter.toThreadMessages(
       [
         assistantMessage("assistant-1", [
           dataSpecPart({
             instanceId: "spec1",
-            seq: 1,
+            sequence: 1,
             spec: cardSpec("Initial"),
           }),
           dataSpecPart({
             instanceId: "spec1",
-            seq: 2,
+            sequence: 2,
             patch: [replacePatch("props/title", "Broken")],
           }),
         ]),
@@ -462,7 +501,7 @@ describe("AISDKMessageConverter", () => {
         assistantMessage("assistant-1", [
           dataSpecPart({
             instanceId: "spec1",
-            seq: 1,
+            sequence: 1,
             spec: {
               type: "unknown-layout",
               props: { title: "Draft" },
@@ -495,7 +534,7 @@ describe("AISDKMessageConverter", () => {
     });
   });
 
-  it("emits telemetry events for stale seq updates and malformed patches", () => {
+  it("emits telemetry events for stale sequence updates and malformed patches", () => {
     const events: unstable_AISDKDataSpecTelemetryEvent[] = [];
     const onTelemetry = (event: unstable_AISDKDataSpecTelemetryEvent) => {
       events.push(event);
@@ -506,17 +545,17 @@ describe("AISDKMessageConverter", () => {
         assistantMessage("assistant-1", [
           dataSpecPart({
             instanceId: "spec1",
-            seq: 2,
+            sequence: 2,
             spec: cardSpec("Initial"),
           }),
           dataSpecPart({
             instanceId: "spec1",
-            seq: 1,
+            sequence: 1,
             patch: [replacePatch("/props/title", "Stale")],
           }),
           dataSpecPart({
             instanceId: "spec1",
-            seq: 3,
+            sequence: 3,
             patch: [replacePatch("props/title", "Malformed")],
           }),
         ]),
@@ -530,15 +569,15 @@ describe("AISDKMessageConverter", () => {
     );
 
     expect(events).toContainEqual({
-      type: "stale-seq-ignored",
+      type: "stale-sequence-ignored",
       instanceId: "spec1",
-      seq: 1,
-      latestSeq: 2,
+      sequence: 1,
+      latestSequence: 2,
     });
     expect(events).toContainEqual({
       type: "malformed-patch-dropped",
       instanceId: "spec1",
-      seq: 3,
+      sequence: 3,
     });
   });
 
@@ -549,12 +588,12 @@ describe("AISDKMessageConverter", () => {
         assistantMessage("assistant-1", [
           dataSpecPart({
             instanceId: "spec1",
-            seq: 2,
+            sequence: 2,
             spec: cardSpec("Initial"),
           }),
           dataSpecPart({
             instanceId: "spec1",
-            seq: 1,
+            sequence: 1,
             patch: [replacePatch("/props/title", "Stale")],
           }),
         ]),
@@ -577,10 +616,10 @@ describe("AISDKMessageConverter", () => {
     rerender(args);
     expect(onTelemetry).toHaveBeenCalledTimes(1);
     expect(onTelemetry).toHaveBeenCalledWith({
-      type: "stale-seq-ignored",
+      type: "stale-sequence-ignored",
       instanceId: "spec1",
-      seq: 1,
-      latestSeq: 2,
+      sequence: 1,
+      latestSequence: 2,
     });
   });
 
@@ -590,17 +629,17 @@ describe("AISDKMessageConverter", () => {
         assistantMessage("assistant-1", [
           dataSpecPart({
             instanceId: "spec1",
-            seq: 1,
+            sequence: 1,
             spec: cardSpec("Initial"),
           }),
           dataSpecPart({
             instanceId: "spec1",
-            seq: 2,
+            sequence: 2,
             props: [],
           }),
           dataSpecPart({
             instanceId: "spec1",
-            seq: 3,
+            sequence: 3,
             spec: [],
           }),
         ]),
@@ -630,7 +669,7 @@ describe("AISDKMessageConverter", () => {
         assistantMessage("assistant-1", [
           dataSpecPart({
             instanceId: "spec1",
-            seq: 1,
+            sequence: 1,
             spec: {
               type: "card",
               props: {
@@ -641,7 +680,7 @@ describe("AISDKMessageConverter", () => {
           }),
           dataSpecPart({
             instanceId: "spec1",
-            seq: 2,
+            sequence: 2,
             patch: [
               replacePatch("/props/a~1b", "slash-new"),
               replacePatch("/props/tilde~0k", "tilde-new"),
@@ -677,12 +716,12 @@ describe("AISDKMessageConverter", () => {
         assistantMessage("assistant-1", [
           dataSpecPart({
             instanceId: "spec1",
-            seq: 1,
+            sequence: 1,
             spec: cardSpec("Initial"),
           }),
           dataSpecPart({
             instanceId: "spec1",
-            seq: 2,
+            sequence: 2,
             patch: [replacePatch("/props/title")],
           }),
         ]),
@@ -700,7 +739,7 @@ describe("AISDKMessageConverter", () => {
     expect(events).toContainEqual({
       type: "malformed-patch-dropped",
       instanceId: "spec1",
-      seq: 2,
+      sequence: 2,
     });
     expect(result[0]!.content[0]).toMatchObject({
       type: "component",
@@ -715,24 +754,24 @@ describe("AISDKMessageConverter", () => {
     });
   });
 
-  it("drops data-spec updates with invalid seq values and empty component names", () => {
+  it("drops data-spec updates with invalid sequence values and empty component names", () => {
     const result = AISDKMessageConverter.toThreadMessages(
       [
         assistantMessage("assistant-1", [
           dataSpecPart({
             instanceId: "spec1",
-            seq: 1,
+            sequence: 1,
             spec: cardSpec("Initial"),
           }),
           dataSpecPart({
             instanceId: "spec1",
-            seq: Number.NaN,
+            sequence: Number.NaN,
             patch: [replacePatch("/props/title", "NaN")],
           }),
           dataSpecPart({
             instanceId: "spec2",
             name: "",
-            seq: 1,
+            sequence: 1,
             spec: cardSpec("Should Drop"),
           }),
         ]),
@@ -762,14 +801,14 @@ describe("AISDKMessageConverter", () => {
         { type: "text", text: "before" },
         dataSpecPart({
           instanceId: "spec_1",
-          seq: 1,
+          sequence: 1,
           spec: cardSpec("Draft"),
         }),
       ]),
       assistantMessage("assistant-2", [
         dataSpecPart({
           instanceId: "spec_1",
-          seq: 2,
+          sequence: 2,
           patch: [replacePatch("/props/title", "Ready")],
         }),
         { type: "text", text: "after" },
@@ -796,19 +835,19 @@ describe("AISDKMessageConverter", () => {
     });
   });
 
-  it("ignores stale seq data-spec updates from later assistant messages", () => {
+  it("ignores stale sequence data-spec updates from later assistant messages", () => {
     const messages = [
       assistantMessage("assistant-1", [
         dataSpecPart({
           instanceId: "spec_1",
-          seq: 2,
+          sequence: 2,
           spec: cardSpec("Latest"),
         }),
       ]),
       assistantMessage("assistant-2", [
         dataSpecPart({
           instanceId: "spec_1",
-          seq: 1,
+          sequence: 1,
           spec: cardSpec("Stale"),
         }),
       ]),
@@ -837,14 +876,14 @@ describe("AISDKMessageConverter", () => {
         dataSpecPart({
           instanceId: "spec_1",
           name: "status-card",
-          seq: 1,
+          sequence: 1,
           spec: cardSpec("Draft"),
         }),
       ]),
       assistantMessage("assistant-2", [
         dataSpecPart({
           instanceId: "spec_1",
-          seq: 2,
+          sequence: 2,
           spec: cardSpec("Ready"),
         }),
       ]),
@@ -872,19 +911,19 @@ describe("AISDKMessageConverter", () => {
       assistantMessage("assistant-1", [
         dataSpecPart({
           instanceId: "spec_1",
-          seq: 1,
+          sequence: 1,
           spec: cardSpec("Initial"),
         }),
       ]),
       assistantMessage("assistant-2", [
         dataSpecPart({
           instanceId: "spec_1",
-          seq: 2,
+          sequence: 2,
           spec: cardSpec("Latest"),
         }),
         dataSpecPart({
           instanceId: "spec_2",
-          seq: 1,
+          sequence: 1,
           spec: {
             type: "badge",
             props: { label: "Secondary" },
@@ -925,14 +964,14 @@ describe("AISDKMessageConverter", () => {
       assistantMessage("assistant-1", [
         dataSpecPart({
           instanceId: "spec_1",
-          seq: 1,
+          sequence: 1,
           spec: cardSpec("Initial"),
         }),
       ]),
       assistantMessage("assistant-2", [
         dataSpecPart({
           instanceId: "spec_1",
-          seq: 2,
+          sequence: 2,
           patch: [replacePatch("props/title", "Broken")],
         }),
       ]),
@@ -961,26 +1000,26 @@ describe("AISDKMessageConverter", () => {
       assistantMessage("assistant-1", [
         dataSpecPart({
           instanceId: "spec_1",
-          seq: 1,
+          sequence: 1,
           spec: cardSpec("Draft A"),
         }),
       ]),
       assistantMessage("assistant-2", [
         dataSpecPart({
           instanceId: "spec_2",
-          seq: 1,
+          sequence: 1,
           spec: { type: "badge", props: { label: "Draft B" } },
         }),
       ]),
       assistantMessage("assistant-3", [
         dataSpecPart({
           instanceId: "spec_1",
-          seq: 2,
+          sequence: 2,
           patch: [replacePatch("/props/title", "Ready A")],
         }),
         dataSpecPart({
           instanceId: "spec_2",
-          seq: 2,
+          sequence: 2,
           patch: [replacePatch("/props/label", "Ready B")],
         }),
       ]),

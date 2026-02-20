@@ -120,7 +120,7 @@ type DataSpecUpdate = {
   instanceId: string;
   name?: string;
   parentId?: string;
-  seq?: number;
+  sequence?: number;
   props?: ReadonlyJSONObject;
   spec?: ReadonlyJSONObject;
   patch?: readonly JsonPatchOperation[];
@@ -130,7 +130,7 @@ type DataSpecState = {
   instanceId: string;
   name: string;
   parentId?: string;
-  seq?: number;
+  sequence?: number;
   props?: ReadonlyJSONObject;
   spec?: ReadonlyJSONObject;
 };
@@ -144,7 +144,7 @@ export type unstable_AISDKDataSpecValidationContext = {
   instanceId: string;
   name: string;
   parentId?: string;
-  seq?: number;
+  sequence?: number;
   props?: ReadonlyJSONObject;
   spec: ReadonlyJSONObject;
 };
@@ -153,13 +153,13 @@ export type unstable_AISDKDataSpecTelemetryEvent =
   | {
       type: "malformed-patch-dropped";
       instanceId: string;
-      seq?: number;
+      sequence?: number;
     }
   | {
-      type: "stale-seq-ignored";
+      type: "stale-sequence-ignored";
       instanceId: string;
-      seq: number;
-      latestSeq: number;
+      sequence: number;
+      latestSequence: number;
     };
 
 export type unstable_AISDKDataSpecOptions = {
@@ -227,6 +227,20 @@ const readArrayIndex = (
   return index;
 };
 
+const FORBIDDEN_JSON_POINTER_KEYS = new Set([
+  "__proto__",
+  "prototype",
+  "constructor",
+]);
+
+const hasOwnKey = (container: Record<string, unknown>, key: string) => {
+  return Object.prototype.hasOwnProperty.call(container, key);
+};
+
+const isForbiddenJsonPointerKey = (key: string) => {
+  return FORBIDDEN_JSON_POINTER_KEYS.has(key);
+};
+
 const applyJsonPatchOperation = (
   current: ReadonlyJSONObject,
   operation: JsonPatchOperation,
@@ -245,6 +259,8 @@ const applyJsonPatchOperation = (
 
   for (let i = 0; i < segments.length - 1; i++) {
     const key = segments[i]!;
+    if (isForbiddenJsonPointerKey(key)) return null;
+
     if (Array.isArray(container)) {
       const index = readArrayIndex(key, container.length);
       if (index == null || index >= container.length) return null;
@@ -252,11 +268,13 @@ const applyJsonPatchOperation = (
       continue;
     }
 
-    if (!isMutableObject(container) || !(key in container)) return null;
+    if (!isMutableObject(container) || !hasOwnKey(container, key)) return null;
     container = container[key];
   }
 
   const finalKey = segments[segments.length - 1]!;
+  if (isForbiddenJsonPointerKey(finalKey)) return null;
+
   const value = operation.value;
   if (operation.op !== "remove" && value === undefined) return null;
 
@@ -278,13 +296,23 @@ const applyJsonPatchOperation = (
     }
   } else {
     if (!isMutableObject(container)) return null;
-    if (operation.op === "replace" && !(finalKey in container)) return null;
-    if (operation.op === "remove" && !(finalKey in container)) return null;
+    const hasOwnFinalKey = hasOwnKey(container, finalKey);
+    if (operation.op === "replace" && !hasOwnFinalKey) return null;
+    if (operation.op === "remove" && !hasOwnFinalKey) return null;
 
     if (operation.op === "remove") {
-      delete container[finalKey];
+      if (!Reflect.deleteProperty(container, finalKey)) return null;
     } else {
-      (container as Record<string, unknown>)[finalKey] = value;
+      try {
+        Object.defineProperty(container, finalKey, {
+          value,
+          writable: true,
+          enumerable: true,
+          configurable: true,
+        });
+      } catch {
+        return null;
+      }
     }
   }
 
@@ -312,7 +340,7 @@ const toDataSpecUpdateFromData = (source: unknown): DataSpecUpdate | null => {
     instanceId?: unknown;
     name?: unknown;
     parentId?: unknown;
-    seq?: unknown;
+    sequence?: unknown;
     props?: unknown;
     spec?: unknown;
     patch?: unknown;
@@ -331,17 +359,17 @@ const toDataSpecUpdateFromData = (source: unknown): DataSpecUpdate | null => {
   if (data.parentId !== undefined && typeof data.parentId !== "string")
     return null;
 
-  let seq: number | undefined;
-  if (data.seq !== undefined) {
+  let sequence: number | undefined;
+  if (data.sequence !== undefined) {
     if (
-      typeof data.seq !== "number" ||
-      !Number.isFinite(data.seq) ||
-      !Number.isInteger(data.seq) ||
-      data.seq < 0
+      typeof data.sequence !== "number" ||
+      !Number.isFinite(data.sequence) ||
+      !Number.isInteger(data.sequence) ||
+      data.sequence < 0
     ) {
       return null;
     }
-    seq = data.seq;
+    sequence = data.sequence;
   }
 
   if (data.props !== undefined && !isJSONObject(data.props)) return null;
@@ -355,7 +383,7 @@ const toDataSpecUpdateFromData = (source: unknown): DataSpecUpdate | null => {
     instanceId: data.instanceId,
     ...(data.name !== undefined ? { name: data.name } : {}),
     ...(data.parentId !== undefined ? { parentId: data.parentId } : {}),
-    ...(seq !== undefined ? { seq } : {}),
+    ...(sequence !== undefined ? { sequence } : {}),
     ...(data.props !== undefined ? { props: data.props } : {}),
     ...(data.spec !== undefined ? { spec: data.spec } : {}),
     ...(data.patch !== undefined ? { patch: data.patch } : {}),
@@ -395,9 +423,9 @@ const getInternalDataSpecUpdate = (
 type DataSpecApplyResult =
   | { type: "applied" }
   | {
-      type: "ignored-stale-seq";
-      seq: number;
-      latestSeq: number;
+      type: "ignored-stale-sequence";
+      sequence: number;
+      latestSequence: number;
     }
   | { type: "invalid"; reason: "malformed-patch" | "invalid-spec" };
 
@@ -412,10 +440,10 @@ const mergeDataSpecFields = (
       : current.parentId !== undefined
         ? { parentId: current.parentId }
         : {}),
-    ...(update.seq !== undefined
-      ? { seq: update.seq }
-      : current.seq !== undefined
-        ? { seq: current.seq }
+    ...(update.sequence !== undefined
+      ? { sequence: update.sequence }
+      : current.sequence !== undefined
+        ? { sequence: current.sequence }
         : {}),
     ...(update.props !== undefined
       ? { props: update.props }
@@ -490,14 +518,14 @@ const applyDataSpecUpdate = (
   };
 
   if (
-    update.seq !== undefined &&
-    current.seq !== undefined &&
-    update.seq <= current.seq
+    update.sequence !== undefined &&
+    current.sequence !== undefined &&
+    update.sequence <= current.sequence
   ) {
     return {
-      type: "ignored-stale-seq",
-      seq: update.seq,
-      latestSeq: current.seq,
+      type: "ignored-stale-sequence",
+      sequence: update.sequence,
+      latestSequence: current.sequence,
     };
   }
 
@@ -716,7 +744,7 @@ const emitDataSpecApplyDiagnostics = (
       options?.onTelemetry?.({
         type: "malformed-patch-dropped",
         instanceId: update.instanceId,
-        ...(update.seq !== undefined ? { seq: update.seq } : {}),
+        ...(update.sequence !== undefined ? { sequence: update.sequence } : {}),
       });
       warn(
         `Malformed data-spec patch dropped for instanceId: ${update.instanceId}`,
@@ -727,12 +755,12 @@ const emitDataSpecApplyDiagnostics = (
     return;
   }
 
-  if (result.type === "ignored-stale-seq") {
+  if (result.type === "ignored-stale-sequence") {
     options?.onTelemetry?.({
-      type: "stale-seq-ignored",
+      type: "stale-sequence-ignored",
       instanceId: update.instanceId,
-      seq: result.seq,
-      latestSeq: result.latestSeq,
+      sequence: result.sequence,
+      latestSequence: result.latestSequence,
     });
   }
 };

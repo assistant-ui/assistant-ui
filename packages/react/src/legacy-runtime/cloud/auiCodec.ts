@@ -127,7 +127,7 @@ export const encodeAuiMessage = (
             ...(JSON.stringify(part.args) === part.argsText
               ? { args: part.args }
               : { argsText: part.argsText }),
-            ...(part.result
+            ...(part.result !== undefined
               ? { result: part.result as ReadonlyJSONValue }
               : undefined),
             ...(part.isError ? { isError: true } : undefined),

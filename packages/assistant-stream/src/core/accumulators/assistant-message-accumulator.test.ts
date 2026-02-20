@@ -176,7 +176,7 @@ describe("AssistantMessageAccumulator timing", () => {
 });
 
 describe("AssistantMessageAccumulator update-state sequencing", () => {
-  it("drops stale component updates when seq regresses", async () => {
+  it("drops stale component updates when sequence regresses", async () => {
     const chunks: AssistantStreamChunk[] = [
       {
         type: "update-state",
@@ -184,7 +184,7 @@ describe("AssistantMessageAccumulator update-state sequencing", () => {
         operations: [
           {
             type: "set",
-            path: ["components", "card1", "seq"],
+            path: ["components", "card1", "sequence"],
             value: 2,
           },
           {
@@ -200,7 +200,7 @@ describe("AssistantMessageAccumulator update-state sequencing", () => {
         operations: [
           {
             type: "set",
-            path: ["components", "card1", "seq"],
+            path: ["components", "card1", "sequence"],
             value: 1,
           },
           {
@@ -224,7 +224,7 @@ describe("AssistantMessageAccumulator update-state sequencing", () => {
     expect(last.metadata.unstable_state).toEqual({
       components: {
         card1: {
-          seq: 2,
+          sequence: 2,
           lifecycle: "active",
         },
       },
@@ -239,7 +239,7 @@ describe("AssistantMessageAccumulator update-state sequencing", () => {
         operations: [
           {
             type: "set",
-            path: ["components", "card1", "seq"],
+            path: ["components", "card1", "sequence"],
             value: 2,
           },
           {
@@ -255,7 +255,7 @@ describe("AssistantMessageAccumulator update-state sequencing", () => {
         operations: [
           {
             type: "set",
-            path: ["components", "card1", "seq"],
+            path: ["components", "card1", "sequence"],
             value: 1,
           },
           {
@@ -265,7 +265,7 @@ describe("AssistantMessageAccumulator update-state sequencing", () => {
           },
           {
             type: "set",
-            path: ["components", "card2", "seq"],
+            path: ["components", "card2", "sequence"],
             value: 1,
           },
           {
@@ -289,18 +289,18 @@ describe("AssistantMessageAccumulator update-state sequencing", () => {
     expect(last.metadata.unstable_state).toEqual({
       components: {
         card1: {
-          seq: 2,
+          sequence: 2,
           lifecycle: "active",
         },
         card2: {
-          seq: 1,
+          sequence: 1,
           lifecycle: "active",
         },
       },
     });
   });
 
-  it("drops stale append-text operations for regressed component seq", async () => {
+  it("drops stale append-text operations for regressed component sequence", async () => {
     const chunks: AssistantStreamChunk[] = [
       {
         type: "update-state",
@@ -308,7 +308,7 @@ describe("AssistantMessageAccumulator update-state sequencing", () => {
         operations: [
           {
             type: "set",
-            path: ["components", "card1", "seq"],
+            path: ["components", "card1", "sequence"],
             value: 2,
           },
           {
@@ -324,7 +324,7 @@ describe("AssistantMessageAccumulator update-state sequencing", () => {
         operations: [
           {
             type: "set",
-            path: ["components", "card1", "seq"],
+            path: ["components", "card1", "sequence"],
             value: 1,
           },
           {
@@ -348,7 +348,7 @@ describe("AssistantMessageAccumulator update-state sequencing", () => {
     expect(last.metadata.unstable_state).toEqual({
       components: {
         card1: {
-          seq: 2,
+          sequence: 2,
           lifecycle: "active",
         },
       },
