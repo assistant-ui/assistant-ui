@@ -209,15 +209,17 @@ Attachments have the following structure:
 ```typescript
 type Attachment = {
   id: string;
-  type: "image" | "document" | "file";
+  type: "image" | "document" | "file" | (string & {});
   name: string;
-  contentType: string;
+  contentType?: string;
   file?: File;
   status:
     | { type: "running" | "requires-action" | "incomplete"; progress?: number }
     | { type: "complete" };
 };
 ```
+
+The `type` field accepts custom strings (e.g. `"data-workflow"`) beyond the built-in types. When an unknown type is encountered, the generic `Attachment` component is used as a fallback. The `contentType` field is optional — it can be omitted for non-file attachments where a MIME type is not meaningful.
 
 ## Related Components
 

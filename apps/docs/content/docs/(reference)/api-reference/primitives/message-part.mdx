@@ -35,6 +35,8 @@ Interactive elements that represent tool operations.
 
 Custom data events that can be rendered as UI at their position in the message stream. Each data part has a `name` and a `data` payload.
 
+You can use either the explicit format `{ type: "data", name: "workflow", data: {...} }` or the shorthand `data-*` prefixed format `{ type: "data-workflow", data: {...} }`. The prefixed format is automatically converted to a `DataMessagePart` (stripping the `data-` prefix as the `name`). Unknown message part types that don't match any built-in type are silently skipped with a console warning.
+
 ## Anatomy
 
 ```tsx
