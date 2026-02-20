@@ -1,10 +1,12 @@
 import { getLLMText } from "@/lib/get-llm-text";
 import { getDistinctId, posthogServer } from "@/lib/posthog-server";
+import { createPrismTracer } from "@/lib/prism-server";
 import { injectQuoteContext } from "@/lib/quote";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { source } from "@/lib/source";
 import { getModel } from "@/lib/ai/provider";
 import { frontendTools } from "@assistant-ui/react-ai-sdk";
+import { prismAISDK } from "@aui-x/prism";
 import { withTracing } from "@posthog/ai";
 import {
   convertToModelMessages,
@@ -148,6 +150,8 @@ Use inline code (\`backticks\`) for:
 `;
 
 export async function POST(req: Request): Promise<Response> {
+  const prismTracer = createPrismTracer();
+
   try {
     const rateLimitResponse = await checkRateLimit(req);
     if (rateLimitResponse) return rateLimitResponse;
@@ -163,10 +167,11 @@ export async function POST(req: Request): Promise<Response> {
     });
 
     const baseModel = getModel(config?.modelName);
+    const distinctId = getDistinctId(req);
 
-    const tracedModel = posthogServer
+    const posthogModel = posthogServer
       ? withTracing(baseModel, posthogServer, {
-          posthogDistinctId: getDistinctId(req),
+          posthogDistinctId: distinctId,
           posthogPrivacyMode: false,
           posthogProperties: {
             $ai_span_name: "docs_assistant_chat",
@@ -175,8 +180,15 @@ export async function POST(req: Request): Promise<Response> {
         })
       : baseModel;
 
+    const prism = prismTracer
+      ? prismAISDK(prismTracer, posthogModel, {
+          name: "docs_assistant",
+          endUserId: distinctId,
+        })
+      : null;
+
     const result = streamText({
-      model: tracedModel,
+      model: prism?.model ?? posthogModel,
       system: [SYSTEM_PROMPT, pageContext].filter(Boolean).join("\n\n"),
       messages: prunedMessages,
       stopWhen: stepCountIs(25),
@@ -261,7 +273,13 @@ export async function POST(req: Request): Promise<Response> {
           },
         }),
       },
-      onError: console.error,
+      onFinish: async () => {
+        await prism?.end();
+      },
+      onError: async ({ error }) => {
+        console.error(error);
+        await prism?.end({ status: "error" });
+      },
     });
 
     return result.toUIMessageStreamResponse({
@@ -278,6 +296,7 @@ export async function POST(req: Request): Promise<Response> {
     });
   } catch (e) {
     console.error("[api/doc/chat]", e);
+    prismTracer?.destroy();
     return new Response("Request failed", { status: 500 });
   }
 }

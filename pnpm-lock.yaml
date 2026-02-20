@@ -136,6 +136,9 @@ importers:
       '@assistant-ui/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      '@aui-x/prism':
+        specifier: ^0.0.1
+        version: 0.0.1(@ai-sdk/provider@3.0.8)(@anthropic-ai/sdk@0.74.0(zod@4.3.6))(ai@6.0.92(zod@4.3.6))(openai@6.22.0(ws@8.19.0)(zod@4.3.6))
       '@hookform/resolvers':
         specifier: ^5.2.2
         version: 5.2.2(react-hook-form@7.71.1(react@19.2.4))
@@ -3088,6 +3091,21 @@ packages:
 
   '@asamuzakjp/nwsapi@2.3.9':
     resolution: {integrity: sha512-n8GuYSrI9bF7FFZ/SjhwevlHc8xaVlb/7HmHelnc/PZXBD2ZR49NnN9sMMuDdEGPeeRQ5d0hqlSlEpgCX3Wl0Q==}
+
+  '@aui-x/prism@0.0.1':
+    resolution: {integrity: sha512-II6PHyrgATGqz0d6qsSfA9WMLir7QhZNtFpafZG3zjCgxxMsHkQY0mtSTiwIaU44mik6cCD7qJpB+0qoqzZKrQ==}
+    peerDependencies:
+      '@ai-sdk/provider': '>=2.0.0'
+      '@anthropic-ai/sdk': '>=0.30.0'
+      ai: '>=6.0.0'
+      openai: '>=4.0.0'
+    peerDependenciesMeta:
+      '@ai-sdk/provider':
+        optional: true
+      '@anthropic-ai/sdk':
+        optional: true
+      openai:
+        optional: true
 
   '@babel/code-frame@7.10.4':
     resolution: {integrity: sha512-vG6SvB6oYEhvgisZNFRmRCUkLz11c7rp+tbNTynGqc6mS1d5ATd/sGyV6W0KZZnXRKMTzZDRgQT3Ou9jhpAfUg==}
@@ -12110,6 +12128,14 @@ snapshots:
       lru-cache: 11.2.6
 
   '@asamuzakjp/nwsapi@2.3.9': {}
+
+  '@aui-x/prism@0.0.1(@ai-sdk/provider@3.0.8)(@anthropic-ai/sdk@0.74.0(zod@4.3.6))(ai@6.0.92(zod@4.3.6))(openai@6.22.0(ws@8.19.0)(zod@4.3.6))':
+    dependencies:
+      ai: 6.0.92(zod@4.3.6)
+    optionalDependencies:
+      '@ai-sdk/provider': 3.0.8
+      '@anthropic-ai/sdk': 0.74.0(zod@4.3.6)
+      openai: 6.22.0(ws@8.19.0)(zod@4.3.6)
 
   '@babel/code-frame@7.10.4':
     dependencies:
