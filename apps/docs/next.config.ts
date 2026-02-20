@@ -1,4 +1,3 @@
-
 import { createMDX } from "fumadocs-mdx/next";
 import { NextConfig } from "next";
 
