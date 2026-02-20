@@ -172,7 +172,7 @@ export const fromThreadMessageLike = (
               default: {
                 const converted = convertDataPrefixedPart(
                   type,
-                  (part as any).data,
+                  (part as DataPrefixedPart).data,
                 );
                 if (converted) return converted;
                 throw new Error(
@@ -213,7 +213,7 @@ export const fromThreadMessageLike = (
             default: {
               const converted = convertDataPrefixedPart(
                 type,
-                (part as any).data,
+                (part as DataPrefixedPart).data,
               );
               if (converted) return converted;
               throw new Error(`Unsupported user message part type: ${type}`);
@@ -225,7 +225,7 @@ export const fromThreadMessageLike = (
           content: att.content.map((part): ThreadUserMessagePart => {
             const converted = convertDataPrefixedPart(
               part.type,
-              (part as any).data,
+              (part as DataPrefixedPart).data,
             );
             return converted ?? (part as ThreadUserMessagePart);
           }),
