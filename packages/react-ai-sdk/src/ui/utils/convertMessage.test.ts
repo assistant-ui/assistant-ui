@@ -108,7 +108,7 @@ describe("AISDKMessageConverter", () => {
     expect(converted[0]?.attachments?.[1]?.type).toBe("file");
   });
 
-  it("deduplicates tool calls by toolCallId and maps interrupt states", () => {
+  it("deduplicates tool calls by toolCallId using the latest occurrence and maps interrupt states", () => {
     const converted = AISDKMessageConverter.toThreadMessages(
       [
         {
@@ -162,6 +162,9 @@ describe("AISDKMessageConverter", () => {
     expect(toolCalls).toHaveLength(3);
 
     expect(toolCalls?.filter((p) => p.toolCallId === "tc-1")).toHaveLength(1);
+    expect(toolCalls?.find((p) => p.toolCallId === "tc-1")?.result).toEqual({
+      temp: 73,
+    });
     expect(toolCalls?.find((p) => p.toolCallId === "tc-2")?.status).toEqual({
       type: "requires-action",
       reason: "interrupt",
@@ -578,6 +581,99 @@ describe("AISDKMessageConverter", () => {
       type: "malformed-patch-dropped",
       instanceId: "spec1",
       sequence: 3,
+    });
+  });
+
+  it("drops data-spec updates missing sequence and emits telemetry", () => {
+    const events: unstable_AISDKDataSpecTelemetryEvent[] = [];
+
+    const result = AISDKMessageConverter.toThreadMessages(
+      [
+        assistantMessage("assistant-1", [
+          dataSpecPart({
+            instanceId: "spec1",
+            sequence: 1,
+            spec: cardSpec("Initial"),
+          }),
+          dataSpecPart({
+            instanceId: "spec1",
+            patch: [replacePatch("/props/title", "Missing Sequence")],
+          }),
+        ]),
+      ],
+      false,
+      {
+        unstable_dataSpec: {
+          onTelemetry: (event) => {
+            events.push(event);
+          },
+        },
+      },
+    );
+
+    expect(events).toContainEqual({
+      type: "missing-sequence-dropped",
+      instanceId: "spec1",
+    });
+    expect(result[0]!.content[0]).toMatchObject({
+      type: "component",
+      name: "json-render",
+      instanceId: "spec1",
+      props: {
+        spec: {
+          type: "card",
+          props: { title: "Initial" },
+        },
+      },
+    });
+  });
+
+  it("drops data-spec updates with invalid sequence values and emits telemetry", () => {
+    const events: unstable_AISDKDataSpecTelemetryEvent[] = [];
+
+    const result = AISDKMessageConverter.toThreadMessages(
+      [
+        assistantMessage("assistant-1", [
+          dataSpecPart({
+            instanceId: "spec1",
+            sequence: 1,
+            spec: cardSpec("Initial"),
+          }),
+          dataSpecPart({
+            instanceId: "spec1",
+            sequence: Number.NaN,
+            patch: [replacePatch("/props/title", "NaN Sequence")],
+          }),
+          dataSpecPart({
+            instanceId: "spec1",
+            sequence: -1,
+            patch: [replacePatch("/props/title", "Negative Sequence")],
+          }),
+        ]),
+      ],
+      false,
+      {
+        unstable_dataSpec: {
+          onTelemetry: (event) => {
+            events.push(event);
+          },
+        },
+      },
+    );
+
+    expect(
+      events.filter((event) => event.type === "invalid-sequence-dropped"),
+    ).toHaveLength(2);
+    expect(result[0]!.content[0]).toMatchObject({
+      type: "component",
+      name: "json-render",
+      instanceId: "spec1",
+      props: {
+        spec: {
+          type: "card",
+          props: { title: "Initial" },
+        },
+      },
     });
   });
 

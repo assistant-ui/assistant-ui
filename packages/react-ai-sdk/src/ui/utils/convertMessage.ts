@@ -120,7 +120,7 @@ type DataSpecUpdate = {
   instanceId: string;
   name?: string;
   parentId?: string;
-  sequence?: number;
+  sequence: number;
   props?: ReadonlyJSONObject;
   spec?: ReadonlyJSONObject;
   patch?: readonly JsonPatchOperation[];
@@ -150,6 +150,14 @@ export type unstable_AISDKDataSpecValidationContext = {
 };
 
 export type unstable_AISDKDataSpecTelemetryEvent =
+  | {
+      type: "missing-sequence-dropped";
+      instanceId: string;
+    }
+  | {
+      type: "invalid-sequence-dropped";
+      instanceId: string;
+    }
   | {
       type: "malformed-patch-dropped";
       instanceId: string;
@@ -333,6 +341,18 @@ const applyJsonPatchOperations = (
   return next;
 };
 
+type DataSpecChunkDecodeResult =
+  | { type: "valid"; update: DataSpecUpdate }
+  | { type: "invalid" }
+  | { type: "missing-sequence"; instanceId: string }
+  | { type: "invalid-sequence"; instanceId: string };
+
+const isValidSequence = (value: unknown): value is number =>
+  typeof value === "number" &&
+  Number.isFinite(value) &&
+  Number.isInteger(value) &&
+  value >= 0;
+
 const toDataSpecUpdateFromData = (source: unknown): DataSpecUpdate | null => {
   if (!isJSONObject(source)) return null;
 
@@ -359,18 +379,7 @@ const toDataSpecUpdateFromData = (source: unknown): DataSpecUpdate | null => {
   if (data.parentId !== undefined && typeof data.parentId !== "string")
     return null;
 
-  let sequence: number | undefined;
-  if (data.sequence !== undefined) {
-    if (
-      typeof data.sequence !== "number" ||
-      !Number.isFinite(data.sequence) ||
-      !Number.isInteger(data.sequence) ||
-      data.sequence < 0
-    ) {
-      return null;
-    }
-    sequence = data.sequence;
-  }
+  if (!isValidSequence(data.sequence)) return null;
 
   if (data.props !== undefined && !isJSONObject(data.props)) return null;
   if (data.spec !== undefined && !isJSONObject(data.spec)) return null;
@@ -383,16 +392,37 @@ const toDataSpecUpdateFromData = (source: unknown): DataSpecUpdate | null => {
     instanceId: data.instanceId,
     ...(data.name !== undefined ? { name: data.name } : {}),
     ...(data.parentId !== undefined ? { parentId: data.parentId } : {}),
-    ...(sequence !== undefined ? { sequence } : {}),
+    sequence: data.sequence,
     ...(data.props !== undefined ? { props: data.props } : {}),
     ...(data.spec !== undefined ? { spec: data.spec } : {}),
     ...(data.patch !== undefined ? { patch: data.patch } : {}),
   } satisfies DataSpecUpdate;
 };
 
-const toDataSpecUpdate = (part: unknown): DataSpecUpdate | null => {
+const decodeDataSpecChunk = (
+  part: unknown,
+): DataSpecChunkDecodeResult | null => {
   if (!isDataSpecChunk(part)) return null;
-  return toDataSpecUpdateFromData(part.data);
+
+  const source = part.data;
+  if (!isJSONObject(source)) return { type: "invalid" };
+
+  const instanceId = source.instanceId;
+  if (typeof instanceId !== "string" || instanceId.length === 0) {
+    return { type: "invalid" };
+  }
+
+  if (source.sequence === undefined) {
+    return { type: "missing-sequence", instanceId };
+  }
+
+  if (!isValidSequence(source.sequence)) {
+    return { type: "invalid-sequence", instanceId };
+  }
+
+  const update = toDataSpecUpdateFromData(source);
+  if (!update) return { type: "invalid" };
+  return { type: "valid", update };
 };
 
 const toInternalDataSpecPayload = (
@@ -440,11 +470,7 @@ const mergeDataSpecFields = (
       : current.parentId !== undefined
         ? { parentId: current.parentId }
         : {}),
-    ...(update.sequence !== undefined
-      ? { sequence: update.sequence }
-      : current.sequence !== undefined
-        ? { sequence: current.sequence }
-        : {}),
+    sequence: update.sequence,
     ...(update.props !== undefined
       ? { props: update.props }
       : current.props !== undefined
@@ -517,11 +543,7 @@ const applyDataSpecUpdate = (
     name: update.name ?? unstable_AISDK_JSON_RENDER_COMPONENT_NAME,
   };
 
-  if (
-    update.sequence !== undefined &&
-    current.sequence !== undefined &&
-    update.sequence <= current.sequence
-  ) {
+  if (current.sequence !== undefined && update.sequence <= current.sequence) {
     return {
       type: "ignored-stale-sequence",
       sequence: update.sequence,
@@ -613,21 +635,44 @@ function convertParts(
   }
 
   const converted: MessageContent = [];
+  const dataSpecTelemetry = metadata.unstable_dataSpec?.onTelemetry;
 
   for (const part of message.parts) {
     if (part.type === "step-start" || part.type === "file") continue;
 
-    const dataSpecUpdate = toDataSpecUpdate(part);
-    if (dataSpecUpdate) {
+    const dataSpecResult = decodeDataSpecChunk(part);
+    if (dataSpecResult?.type === "valid") {
       if (message.role !== "assistant") {
         warn("data-spec chunks are only supported in assistant messages");
         continue;
       }
-      converted.push(toInternalDataSpecPart(dataSpecUpdate));
+      converted.push(toInternalDataSpecPart(dataSpecResult.update));
       continue;
     }
 
-    if (isDataSpecChunk(part)) {
+    if (dataSpecResult?.type === "missing-sequence") {
+      dataSpecTelemetry?.({
+        type: "missing-sequence-dropped",
+        instanceId: dataSpecResult.instanceId,
+      });
+      warn(
+        `Dropped data-spec chunk with missing sequence for instanceId: ${dataSpecResult.instanceId}`,
+      );
+      continue;
+    }
+
+    if (dataSpecResult?.type === "invalid-sequence") {
+      dataSpecTelemetry?.({
+        type: "invalid-sequence-dropped",
+        instanceId: dataSpecResult.instanceId,
+      });
+      warn(
+        `Dropped data-spec chunk with invalid sequence for instanceId: ${dataSpecResult.instanceId}`,
+      );
+      continue;
+    }
+
+    if (dataSpecResult?.type === "invalid") {
       warn("Malformed data-spec chunk dropped");
       continue;
     }
@@ -724,13 +769,16 @@ function convertParts(
     warn(`Unsupported message part type: ${part.type}`);
   }
 
-  const seenToolCallIds = new Set<string>();
-  return converted.filter((part) => {
-    if (part.type === "tool-call" && part.toolCallId != null) {
-      if (seenToolCallIds.has(part.toolCallId)) return false;
-      seenToolCallIds.add(part.toolCallId);
-    }
-    return true;
+  const lastToolCallIndexById = new Map<string, number>();
+  for (let i = 0; i < converted.length; i++) {
+    const part = converted[i];
+    if (part?.type !== "tool-call" || part.toolCallId == null) continue;
+    lastToolCallIndexById.set(part.toolCallId, i);
+  }
+
+  return converted.filter((part, index) => {
+    if (part.type !== "tool-call" || part.toolCallId == null) return true;
+    return lastToolCallIndexById.get(part.toolCallId) === index;
   });
 }
 

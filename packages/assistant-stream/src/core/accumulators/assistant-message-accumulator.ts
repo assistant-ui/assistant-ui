@@ -391,40 +391,65 @@ const getComponentInstanceId = (operation: {
   return instanceId;
 };
 
+const isValidComponentSequence = (value: unknown): value is number =>
+  typeof value === "number" &&
+  Number.isFinite(value) &&
+  Number.isInteger(value) &&
+  value >= 0;
+
 const filterStaleComponentOperations = (
   state: ReadonlyJSONValue,
   operations: readonly ObjectStreamOperation[],
 ) => {
-  const incomingSequenceByInstance = new Map<string, number>();
+  const touchedInstances = new Set<string>();
+  const incomingSequenceByInstance = new Map<
+    string,
+    { type: "valid"; sequence: number } | { type: "invalid" }
+  >();
 
   for (const operation of operations) {
+    const instanceId = getComponentInstanceId(operation);
+    if (!instanceId) continue;
+
+    touchedInstances.add(instanceId);
     if (operation.type !== "set") continue;
 
-    const [root, instanceId, field] = operation.path;
-    if (root !== "components" || field !== "sequence") continue;
-    if (typeof instanceId !== "string" || instanceId.length === 0) continue;
-    if (typeof operation.value !== "number") continue;
+    const [, , field] = operation.path;
+    if (field !== "sequence") continue;
 
-    incomingSequenceByInstance.set(instanceId, operation.value);
+    incomingSequenceByInstance.set(
+      instanceId,
+      isValidComponentSequence(operation.value)
+        ? { type: "valid", sequence: operation.value }
+        : { type: "invalid" },
+    );
   }
 
-  if (incomingSequenceByInstance.size === 0) return operations;
+  if (touchedInstances.size === 0) return operations;
 
-  const staleInstances = new Set<string>();
-  for (const [instanceId, incomingSequence] of incomingSequenceByInstance) {
+  const dropInstances = new Set<string>();
+  for (const instanceId of touchedInstances) {
+    const incomingSequence = incomingSequenceByInstance.get(instanceId);
+    if (!incomingSequence || incomingSequence.type === "invalid") {
+      dropInstances.add(instanceId);
+      continue;
+    }
+
     const currentSequence = getComponentSequence(state, instanceId);
-    if (currentSequence !== undefined && incomingSequence <= currentSequence) {
-      staleInstances.add(instanceId);
+    if (
+      currentSequence !== undefined &&
+      incomingSequence.sequence <= currentSequence
+    ) {
+      dropInstances.add(instanceId);
     }
   }
 
-  if (staleInstances.size === 0) return operations;
+  if (dropInstances.size === 0) return operations;
 
   return operations.filter((operation) => {
     const instanceId = getComponentInstanceId(operation);
     if (instanceId === undefined) return true;
-    if (!incomingSequenceByInstance.has(instanceId)) return true;
-    return !staleInstances.has(instanceId);
+    return !dropInstances.has(instanceId);
   });
 };
 

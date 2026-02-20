@@ -50,6 +50,18 @@ type AuiNonComponentMessagePart =
       readonly data: string;
       readonly mimeType: string;
       readonly filename?: string;
+    }
+  | {
+      readonly type: "audio";
+      readonly audio: {
+        readonly data: string;
+        readonly format: "mp3" | "wav";
+      };
+    }
+  | {
+      readonly type: "data";
+      readonly name: string;
+      readonly data: ReadonlyJSONValue;
     };
 
 type AuiComponentMessagePart = {
@@ -145,6 +157,19 @@ export const encodeAuiMessage = (
             ...(part.filename ? { filename: part.filename } : undefined),
           };
 
+        case "audio":
+          return {
+            type: "audio",
+            audio: part.audio,
+          };
+
+        case "data":
+          return {
+            type: "data",
+            name: part.name,
+            data: part.data as ReadonlyJSONValue,
+          };
+
         case "component":
           if (!options.allowComponent) {
             throw new Error(
@@ -162,7 +187,7 @@ export const encodeAuiMessage = (
           };
 
         default: {
-          const unhandledType: "audio" | "data" = type;
+          const unhandledType: never = type;
           throw new Error(
             `Message part type not supported by ${options.formatLabel}: ${unhandledType}`,
           );

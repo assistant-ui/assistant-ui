@@ -127,6 +127,9 @@ export const fromThreadMessageLike = (
               case "image":
                 return sanitizeImageContent(part);
 
+              case "audio":
+                return part;
+
               case "data":
                 return part;
 
@@ -157,7 +160,7 @@ export const fromThreadMessageLike = (
               }
 
               default: {
-                const unhandledType: "audio" = type;
+                const unhandledType: never = type;
                 throw new Error(
                   `Unsupported assistant message part type: ${unhandledType}`,
                 );

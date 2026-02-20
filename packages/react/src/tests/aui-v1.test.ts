@@ -127,6 +127,95 @@ describe("auiV1", () => {
     expect(decoded[1]?.parentId).toBeNull();
   });
 
+  it("preserves mixed v0/v1 parent linkage when v1 carries audio/data parts", () => {
+    const v0Parent = makeAssistantMessage("v0-parent-local", [
+      { type: "text", text: "v0 parent" },
+    ]);
+    const v1Parent = makeAssistantMessage("v1-parent-local", [
+      {
+        type: "audio",
+        audio: {
+          data: "UklGRgAAAQ==",
+          format: "wav",
+        },
+      } as any,
+      {
+        type: "data",
+        name: "status",
+        data: { ok: true },
+      },
+    ]);
+    const v1ChildOfV0 = makeAssistantMessage("v1-child-local", [
+      { type: "text", text: "child of v0" },
+    ]);
+    const v0ChildOfV1 = makeAssistantMessage("v0-child-local", [
+      { type: "text", text: "child of v1" },
+    ]);
+
+    const decoded = decodeAuiV1OrV0Messages([
+      {
+        id: "v1-child-remote",
+        parent_id: "v0-parent-remote",
+        height: 2,
+        created_at: new Date("2026-02-14T00:00:30.000Z"),
+        updated_at: new Date("2026-02-14T00:00:30.000Z"),
+        format: "aui/v1",
+        content: auiV1Encode(v1ChildOfV0) as CloudMessage["content"],
+      },
+      {
+        id: "v0-parent-remote",
+        parent_id: null,
+        height: 0,
+        created_at: new Date("2026-02-14T00:00:10.000Z"),
+        updated_at: new Date("2026-02-14T00:00:10.000Z"),
+        format: "aui/v0",
+        content: auiV0Encode(v0Parent) as CloudMessage["content"],
+      },
+      {
+        id: "v0-child-remote",
+        parent_id: "v1-parent-remote",
+        height: 2,
+        created_at: new Date("2026-02-14T00:00:40.000Z"),
+        updated_at: new Date("2026-02-14T00:00:40.000Z"),
+        format: "aui/v0",
+        content: auiV0Encode(v0ChildOfV1) as CloudMessage["content"],
+      },
+      {
+        id: "v1-parent-remote",
+        parent_id: null,
+        height: 0,
+        created_at: new Date("2026-02-14T00:00:20.000Z"),
+        updated_at: new Date("2026-02-14T00:00:20.000Z"),
+        format: "aui/v1",
+        content: auiV1Encode(v1Parent) as CloudMessage["content"],
+      },
+    ]);
+
+    expect(decoded).toHaveLength(4);
+    expect(decoded[0]?.message.id).toBe("v1-child-remote");
+    expect(decoded[0]?.parentId).toBe("v0-parent-remote");
+    expect(decoded[1]?.message.id).toBe("v0-parent-remote");
+    expect(decoded[1]?.parentId).toBeNull();
+    expect(decoded[2]?.message.id).toBe("v0-child-remote");
+    expect(decoded[2]?.parentId).toBe("v1-parent-remote");
+    expect(decoded[3]?.message.id).toBe("v1-parent-remote");
+    expect(decoded[3]?.parentId).toBeNull();
+    expect(decoded[3]?.message.content).toEqual([
+      {
+        type: "audio",
+        audio: {
+          data: "UklGRgAAAQ==",
+          format: "wav",
+        },
+      },
+      {
+        type: "data",
+        name: "status",
+        data: { ok: true },
+      },
+    ]);
+  });
+
   it("extracts telemetry from aui/v1 assistant content", () => {
     const message = makeAssistantMessage("assistant-v1", [
       { type: "text", text: "hello world" },
