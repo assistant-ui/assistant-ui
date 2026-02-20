@@ -74,3 +74,8 @@ The API route at `/api/chat` uses the new `streamText` function from AI SDK v6 t
 
 - [assistant-ui Documentation](https://www.assistant-ui.com/docs)
 - [AI SDK Integration Guide](https://www.assistant-ui.com/docs/runtimes/ai-sdk)
+
+## Internal Component-Part Storytelling
+
+- [Internal Component Part Lab Story Guide](./app/internal/component-lab/README.md)
+- Live demo surface: `/internal/component-lab`

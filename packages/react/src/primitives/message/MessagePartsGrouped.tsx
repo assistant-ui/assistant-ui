@@ -355,6 +355,17 @@ const MessagePartComponent: FC<MessagePartComponentProps> = ({
       return <NativeComponent {...part} />;
     }
 
+    case "component": {
+      if ("Override" in Component) return <Component.Override {...part} />;
+      const NativeComponent =
+        Component.byName?.[part.name] ?? Component.Fallback;
+      if (!NativeComponent) {
+        warnMissingComponentRenderer(part.name);
+        return null;
+      }
+      return <NativeComponent {...part} />;
+    }
+
     default:
       console.warn(`Unknown message part type: ${type}`);
       return null;
