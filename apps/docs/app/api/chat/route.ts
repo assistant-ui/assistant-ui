@@ -16,8 +16,6 @@ import {
 export const maxDuration = 30;
 
 export async function POST(req: Request) {
-  const prismTracer = createPrismTracer();
-
   try {
     const rateLimitResponse = await checkRateLimit(req);
     if (rateLimitResponse) return rateLimitResponse;
@@ -27,6 +25,7 @@ export async function POST(req: Request) {
 
     const baseModel = getModel(config?.modelName);
     const distinctId = getDistinctId(req);
+    const prismTracer = createPrismTracer();
 
     const posthogModel = posthogServer
       ? withTracing(baseModel, posthogServer, {
@@ -64,6 +63,9 @@ export async function POST(req: Request) {
         console.error(error);
         await prism?.end({ status: "error" });
       },
+      onAbort: async () => {
+        await prism?.end();
+      },
     });
 
     return result.toUIMessageStreamResponse({
@@ -79,7 +81,6 @@ export async function POST(req: Request) {
     });
   } catch (e) {
     console.error("[api/chat]", e);
-    prismTracer?.destroy();
     return new Response("Request failed", { status: 500 });
   }
 }

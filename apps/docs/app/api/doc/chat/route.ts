@@ -150,8 +150,6 @@ Use inline code (\`backticks\`) for:
 `;
 
 export async function POST(req: Request): Promise<Response> {
-  const prismTracer = createPrismTracer();
-
   try {
     const rateLimitResponse = await checkRateLimit(req);
     if (rateLimitResponse) return rateLimitResponse;
@@ -168,6 +166,7 @@ export async function POST(req: Request): Promise<Response> {
 
     const baseModel = getModel(config?.modelName);
     const distinctId = getDistinctId(req);
+    const prismTracer = createPrismTracer();
 
     const posthogModel = posthogServer
       ? withTracing(baseModel, posthogServer, {
@@ -280,6 +279,9 @@ export async function POST(req: Request): Promise<Response> {
         console.error(error);
         await prism?.end({ status: "error" });
       },
+      onAbort: async () => {
+        await prism?.end();
+      },
     });
 
     return result.toUIMessageStreamResponse({
@@ -296,7 +298,6 @@ export async function POST(req: Request): Promise<Response> {
     });
   } catch (e) {
     console.error("[api/doc/chat]", e);
-    prismTracer?.destroy();
     return new Response("Request failed", { status: 500 });
   }
 }
