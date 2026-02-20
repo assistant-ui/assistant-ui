@@ -67,6 +67,33 @@ describe("fromThreadMessageLike", () => {
       ).toThrow("Unsupported assistant message part type: unknown-type");
     });
 
+    it("converts data-* parts in attachment content", () => {
+      const result = fromThreadMessageLike(
+        {
+          role: "user",
+          content: [{ type: "text", text: "hello" }],
+          attachments: [
+            {
+              id: "att-1",
+              type: "data-workflow",
+              name: "My Workflow",
+              status: { type: "complete" },
+              content: [{ type: "data-workflow", data: { id: "wf-1" } }],
+            },
+          ],
+        },
+        fallbackId,
+        fallbackStatus,
+      );
+
+      expect(result.role).toBe("user");
+      const userMsg = result as any;
+      expect(userMsg.attachments[0].content).toEqual([
+        { type: "data", name: "workflow", data: { id: "wf-1" } },
+      ]);
+      expect(userMsg.attachments[0].type).toBe("data-workflow");
+    });
+
     it("throws on unknown non-data user part types", () => {
       expect(() =>
         fromThreadMessageLike(

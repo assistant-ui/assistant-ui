@@ -21,6 +21,11 @@ import type {
 } from "../../types";
 import { ReadonlyJSONObject, ReadonlyJSONValue } from "assistant-stream/utils";
 
+type DataPrefixedPart = {
+  readonly type: `data-${string}`;
+  readonly data: any;
+};
+
 export type ThreadMessageLike = {
   readonly role: "assistant" | "user" | "system";
   readonly content:
@@ -33,7 +38,7 @@ export type ThreadMessageLike = {
         | FileMessagePart
         | DataMessagePart
         | Unstable_AudioMessagePart
-        | { readonly type: `data-${string}`; readonly data: any }
+        | DataPrefixedPart
         | {
             readonly type: "tool-call";
             readonly toolCallId?: string;
@@ -50,7 +55,11 @@ export type ThreadMessageLike = {
   readonly id?: string | undefined;
   readonly createdAt?: Date | undefined;
   readonly status?: MessageStatus | undefined;
-  readonly attachments?: readonly CompleteAttachment[] | undefined;
+  readonly attachments?:
+    | readonly (Omit<CompleteAttachment, "content"> & {
+        readonly content: readonly (ThreadUserMessagePart | DataPrefixedPart)[];
+      })[]
+    | undefined;
   readonly metadata?:
     | {
         readonly unstable_state?: ReadonlyJSONValue;
@@ -66,7 +75,7 @@ export type ThreadMessageLike = {
     | undefined;
 };
 
-export const convertDataPrefixedPart = (
+const convertDataPrefixedPart = (
   type: string,
   data: unknown,
 ): DataMessagePart | undefined => {
@@ -211,7 +220,16 @@ export const fromThreadMessageLike = (
             }
           }
         }),
-        attachments: attachments ?? [],
+        attachments: (attachments ?? []).map((att) => ({
+          ...att,
+          content: att.content.map((part): ThreadUserMessagePart => {
+            const converted = convertDataPrefixedPart(
+              part.type,
+              (part as any).data,
+            );
+            return converted ?? (part as ThreadUserMessagePart);
+          }),
+        })),
         metadata: {
           custom: metadata?.custom ?? {},
         },
