@@ -6,22 +6,15 @@ import {
   tapState,
   type tapRef,
 } from "@assistant-ui/tap";
-import {
-  type ClientOutput,
-  tapClientLookup,
-  tapClientResource,
-} from "@assistant-ui/store";
-import { MessageRuntime } from "../runtime/MessageRuntime";
-import { tapSubscribable } from "../util-hooks/tapSubscribable";
-import { ComposerClient } from "./ComposerRuntimeClient";
-import { MessagePartClient } from "./MessagePartRuntimeClient";
-import { RefObject } from "react";
-import { MessageState } from "../../types/scopes";
-import { AttachmentRuntimeClient } from "./AttachmentRuntimeClient";
-import {
-  ComponentClient,
-  getComponentMetadataState,
-} from "../../client/ComponentClient";
+import { type ClientOutput, tapClientLookup, tapClientResource } from "../";
+import { MessageRuntime } from "../../runtime";
+import { ComponentClient, getComponentMetadataState } from "../clients";
+import { tapSubscribable } from "./tap-subscribable";
+import { ComposerClient } from "./composer-runtime-client";
+import { MessagePartClient } from "./message-part-runtime-client";
+import { MessageState } from "../scopes";
+import { AttachmentRuntimeClient } from "./attachment-runtime-client";
+import { tapAssistantEmit } from "../utils/tap-assistant-context";
 
 const MessageAttachmentClientByIndex = resource(
   ({ runtime, index }: { runtime: MessageRuntime; index: number }) => {
@@ -52,6 +45,7 @@ export const MessageClient = resource(
     threadIdRef: tapRef.RefObject<string>;
   }): ClientOutput<"message"> => {
     const runtimeState = tapSubscribable(runtime);
+    const emit = tapAssistantEmit();
 
     const [isCopiedState, setIsCopied] = tapState(false);
     const [isHoveringState, setIsHovering] = tapState(false);
@@ -116,6 +110,7 @@ export const MessageClient = resource(
               runtimeState.metadata.unstable_state,
               part.instanceId,
             ),
+            emit,
           }),
         ),
       );
@@ -123,6 +118,7 @@ export const MessageClient = resource(
       runtimeState.id,
       runtimeState.content,
       runtimeState.metadata.unstable_state,
+      emit,
     ]);
 
     const attachments = tapClientLookup(

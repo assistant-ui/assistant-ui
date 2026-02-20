@@ -1,30 +1,13 @@
 import type {
-  TextMessagePart,
-  ReasoningMessagePart,
-  SourceMessagePart,
-  ImageMessagePart,
-  FileMessagePart,
-  DataMessagePart,
-  ComponentMessagePart,
-  Unstable_AudioMessagePart,
-  ToolCallMessagePart,
-  ThreadUserMessagePart,
-  ThreadAssistantMessagePart,
-} from "./MessagePartTypes";
+  ReadonlyJSONObject,
+  ReadonlyJSONValue,
+} from "assistant-stream/utils";
+import type { CompleteAttachment } from "./attachment";
 
-// Re-export message part types for convenience
-export type {
-  TextMessagePart,
-  ReasoningMessagePart,
-  SourceMessagePart,
-  ImageMessagePart,
-  FileMessagePart,
-  DataMessagePart,
-  ComponentMessagePart,
-  Unstable_AudioMessagePart,
-  ToolCallMessagePart,
-  ThreadUserMessagePart,
-  ThreadAssistantMessagePart,
+export type TextMessagePart = {
+  readonly type: "text";
+  readonly text: string;
+  readonly parentId?: string;
 };
 
 export type ReasoningMessagePart = {
@@ -69,6 +52,14 @@ export type DataMessagePart<T = any> = {
   readonly data: T;
 };
 
+export type ComponentMessagePart = {
+  readonly type: "component";
+  readonly name: string;
+  readonly instanceId?: string;
+  readonly parentId?: string;
+  readonly props?: ReadonlyJSONObject;
+};
+
 export type ToolCallMessagePart<
   TArgs = ReadonlyJSONObject,
   TResult = unknown,
@@ -100,7 +91,8 @@ export type ThreadAssistantMessagePart =
   | SourceMessagePart
   | FileMessagePart
   | ImageMessagePart
-  | DataMessagePart;
+  | DataMessagePart
+  | ComponentMessagePart;
 
 // =============================================================================
 // Message Status

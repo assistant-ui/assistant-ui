@@ -138,6 +138,59 @@ describe("UIMessageStreamDecoder", () => {
     expect(result?.result).toEqual({ temp: 72 });
   });
 
+  it("should decode AI SDK v6 tool-input/tool-output events", async () => {
+    const events = [
+      JSON.stringify({ type: "start", messageId: "msg123" }),
+      JSON.stringify({
+        type: "tool-input-start",
+        toolCallId: "callAbc",
+        toolName: "weather",
+      }),
+      JSON.stringify({
+        type: "tool-input-delta",
+        toolCallId: "callAbc",
+        inputTextDelta: '{"city":"',
+      }),
+      JSON.stringify({
+        type: "tool-input-delta",
+        toolCallId: "callAbc",
+        inputTextDelta: 'NYC"}',
+      }),
+      JSON.stringify({
+        type: "tool-output-available",
+        toolCallId: "callAbc",
+        output: { temp: 72 },
+      }),
+      JSON.stringify({
+        type: "finish",
+        finishReason: "stop",
+        usage: { inputTokens: 10, outputTokens: 5 },
+      }),
+      "[DONE]",
+    ];
+
+    const stream = createUIMessageStream(events);
+    const decodedStream = stream.pipeThrough(new UIMessageStreamDecoder());
+    const chunks = await collectChunks(decodedStream);
+
+    const toolCallStart = chunks.find(
+      (c): c is AssistantStreamChunk & { type: "part-start" } =>
+        c.type === "part-start" && c.part.type === "tool-call",
+    );
+    expect(toolCallStart).toBeDefined();
+    if (toolCallStart?.part.type === "tool-call") {
+      expect(toolCallStart.part.toolName).toBe("weather");
+      expect(toolCallStart.part.toolCallId).toBe("callAbc");
+    }
+
+    const result = chunks.find(
+      (c): c is AssistantStreamChunk & { type: "result" } =>
+        c.type === "result",
+    );
+    expect(result).toBeDefined();
+    expect(result?.result).toEqual({ temp: 72 });
+  });
+
   it("should decode source parts", async () => {
     const events = [
       JSON.stringify({ type: "start", messageId: "msg123" }),
@@ -171,6 +224,54 @@ describe("UIMessageStreamDecoder", () => {
       expect(sourceStart.part.url).toBe("https://example.com");
       expect(sourceStart.part.title).toBe("Example");
     }
+  });
+
+  it("should decode AI SDK v6 source-url/source-document parts", async () => {
+    const events = [
+      JSON.stringify({ type: "start", messageId: "msg123" }),
+      JSON.stringify({
+        type: "source-url",
+        sourceId: "src-url-1",
+        url: "https://example.com",
+        title: "Example URL",
+      }),
+      JSON.stringify({
+        type: "source-document",
+        sourceId: "src-doc-1",
+        mediaType: "application/pdf",
+        title: "Quarterly Report",
+        filename: "report.pdf",
+      }),
+      JSON.stringify({
+        type: "finish",
+        finishReason: "stop",
+        usage: { inputTokens: 10, outputTokens: 5 },
+      }),
+      "[DONE]",
+    ];
+
+    const stream = createUIMessageStream(events);
+    const decodedStream = stream.pipeThrough(new UIMessageStreamDecoder());
+    const chunks = await collectChunks(decodedStream);
+
+    const sourceStarts = chunks.filter(
+      (c): c is AssistantStreamChunk & { type: "part-start" } =>
+        c.type === "part-start" && c.part.type === "source",
+    );
+
+    expect(sourceStarts).toHaveLength(2);
+    expect(sourceStarts[0]?.part).toMatchObject({
+      type: "source",
+      id: "src-url-1",
+      url: "https://example.com",
+      title: "Example URL",
+    });
+    expect(sourceStarts[1]?.part).toMatchObject({
+      type: "source",
+      id: "src-doc-1",
+      url: "urn:source-document:src-doc-1",
+      title: "Quarterly Report (report.pdf)",
+    });
   });
 
   it("should decode file parts", async () => {

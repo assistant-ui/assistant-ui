@@ -22,19 +22,47 @@ export type AssistantTapContextValue = {
   emit: EmitFn;
 };
 
+const ASSISTANT_TAP_CONTEXT_SYMBOL = Symbol.for(
+  "@assistant-ui/core/AssistantTapContext",
+);
+const ASSISTANT_TAP_CONTEXT_VALUE_SYMBOL = Symbol.for(
+  "@assistant-ui/core/AssistantTapContextValue",
+);
+
+const globalWithContext = globalThis as typeof globalThis & {
+  [ASSISTANT_TAP_CONTEXT_SYMBOL]?:
+    | ReturnType<typeof createResourceContext<AssistantTapContextValue | null>>
+    | undefined;
+  [ASSISTANT_TAP_CONTEXT_VALUE_SYMBOL]?: AssistantTapContextValue | null;
+};
+
 const AssistantTapContext =
+  globalWithContext[ASSISTANT_TAP_CONTEXT_SYMBOL] ??
   createResourceContext<AssistantTapContextValue | null>(null);
+
+globalWithContext[ASSISTANT_TAP_CONTEXT_SYMBOL] = AssistantTapContext;
 
 export const withAssistantTapContextProvider = <TResult>(
   value: AssistantTapContextValue,
   fn: () => TResult,
 ) => {
-  return withContextProvider(AssistantTapContext, value, fn);
+  const previous = globalWithContext[ASSISTANT_TAP_CONTEXT_VALUE_SYMBOL];
+  globalWithContext[ASSISTANT_TAP_CONTEXT_VALUE_SYMBOL] = value;
+
+  try {
+    return withContextProvider(AssistantTapContext, value, fn);
+  } finally {
+    globalWithContext[ASSISTANT_TAP_CONTEXT_VALUE_SYMBOL] = previous ?? null;
+  }
 };
 
 const tapAssistantTapContext = () => {
-  const ctx = tap(AssistantTapContext);
-  if (!ctx) throw new Error("AssistantTapContext is not available");
+  const ctx =
+    tap(AssistantTapContext) ??
+    globalWithContext[ASSISTANT_TAP_CONTEXT_VALUE_SYMBOL];
+  if (!ctx) {
+    throw new Error("AssistantTapContext is not available");
+  }
 
   return ctx;
 };

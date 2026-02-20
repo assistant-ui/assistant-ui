@@ -2,6 +2,7 @@ import type {
   ThreadAssistantMessagePart,
   ThreadUserMessagePart,
   Attachment,
+  ComponentMessagePart,
   ThreadMessage,
 } from "../../types";
 import {
@@ -11,17 +12,12 @@ import {
   tapResource,
   withKey,
 } from "@assistant-ui/tap";
-import { type ClientOutput, tapClientLookup } from "@assistant-ui/store";
-import { MessageState, PartState } from "../types/scopes";
-import {
-  ThreadAssistantMessagePart,
-  ThreadUserMessagePart,
-  Attachment,
-  ComponentMessagePart,
-  ThreadMessage,
-} from "../types";
-import { NoOpComposerClient } from "./NoOpComposerClient";
-import { ComponentClient, getComponentMetadataState } from "./ComponentClient";
+import type { ClientOutput } from "../types/client";
+import { tapClientLookup } from "../utils/tap-client-lookup";
+import { tapAssistantEmit } from "../utils/tap-assistant-context";
+import type { MessageState, PartState } from "../scopes";
+import { ComponentClient, getComponentMetadataState } from "./component-client";
+import { NoOpComposerClient } from "./no-op-composer-client";
 
 const ThreadMessagePartClient = resource(
   ({
@@ -58,6 +54,7 @@ const ThreadMessageAttachmentClient = resource(
     };
   },
 );
+
 export type ThreadMessageClientProps = {
   message: ThreadMessage;
   index: number;
@@ -76,6 +73,7 @@ export const ThreadMessageClient = resource(
   }: ThreadMessageClientProps): ClientOutput<"message"> => {
     const [isCopiedState, setIsCopied] = tapState(false);
     const [isHoveringState, setIsHovering] = tapState(false);
+    const emit = tapAssistantEmit();
 
     const parts = tapClientLookup(
       () =>
@@ -122,10 +120,11 @@ export const ThreadMessageClient = resource(
               message.metadata.unstable_state,
               part.instanceId,
             ),
+            emit,
           }),
         ),
       );
-    }, [message.id, message.content, message.metadata.unstable_state]);
+    }, [message.id, message.content, message.metadata.unstable_state, emit]);
 
     const attachments = tapClientLookup(
       () =>
@@ -175,6 +174,13 @@ export const ThreadMessageClient = resource(
           return parts.get({ key: `toolCallId-${selector.toolCallId}` });
         }
       },
+      component: (selector) => {
+        if ("index" in selector) {
+          return components.get(selector);
+        } else {
+          return components.get({ key: `instanceId-${selector.instanceId}` });
+        }
+      },
       attachment: (selector) => {
         if ("id" in selector) {
           return attachments.get({ key: selector.id });
@@ -206,13 +212,6 @@ export const ThreadMessageClient = resource(
             return "";
           })
           .join("\n");
-      },
-      component: (selector) => {
-        if ("index" in selector) {
-          return components.get(selector);
-        } else {
-          return components.get({ key: `instanceId-${selector.instanceId}` });
-        }
       },
       setIsCopied,
       setIsHovering,

@@ -1,4 +1,5 @@
 import type { AssistantStreamChunk } from "../../AssistantStreamChunk";
+import type { AssistantStreamController } from "../../modules/assistant-stream";
 import type { ToolCallStreamController } from "../../modules/tool-call";
 import type { TextStreamController } from "../../modules/text";
 import { AssistantTransformStream } from "../../utils/stream/AssistantTransformStream";
@@ -101,9 +102,54 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
   constructor(options: UIMessageStreamDecoderOptions = {}) {
     super((readable) => {
       const toolCallControllers = new Map<string, ToolCallStreamController>();
-      let activeToolCallArgsText: TextStreamController | undefined;
+      const toolCallArgsText = new Map<string, TextStreamController>();
+      const toolCallHasArgsDelta = new Map<string, boolean>();
+      let activeToolCallId: string | undefined;
       let currentMessageId: string | undefined;
       let receivedDone = false;
+
+      const getToolCallController = (
+        controller: AssistantStreamController,
+        toolCallId: string,
+        toolName = "unknown",
+      ) => {
+        const existing = toolCallControllers.get(toolCallId);
+        if (existing) return existing;
+
+        const toolCallController = controller.addToolCallPart({
+          toolCallId,
+          toolName,
+        });
+        toolCallControllers.set(toolCallId, toolCallController);
+        toolCallArgsText.set(toolCallId, toolCallController.argsText);
+        toolCallHasArgsDelta.set(toolCallId, false);
+        return toolCallController;
+      };
+
+      const startToolCallController = (
+        controller: AssistantStreamController,
+        toolCallId: string,
+        toolName: string,
+      ) => {
+        if (toolCallControllers.has(toolCallId)) {
+          throw new Error(`Encountered duplicate tool call id: ${toolCallId}`);
+        }
+        return getToolCallController(controller, toolCallId, toolName);
+      };
+
+      const closeToolCallArgs = (toolCallId: string) => {
+        const args = toolCallArgsText.get(toolCallId);
+        args?.close();
+        toolCallArgsText.delete(toolCallId);
+        if (activeToolCallId === toolCallId) activeToolCallId = undefined;
+      };
+
+      const appendToolCallArgs = (toolCallId: string, delta: string) => {
+        const args = toolCallArgsText.get(toolCallId);
+        if (!args) return;
+        toolCallHasArgsDelta.set(toolCallId, true);
+        args.append(delta);
+      };
 
       const transform = new AssistantTransformStream<UIMessageStreamChunk>({
         transform(chunk, controller) {
@@ -139,7 +185,7 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
               controller.enqueue({
                 type: "step-start",
                 path: [],
-                messageId: chunk.messageId,
+                messageId: chunk.messageId ?? generateId(),
               });
               break;
 
@@ -150,7 +196,9 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
               break;
 
             case "text-delta":
-              controller.appendText(chunk.textDelta);
+              controller.appendText(
+                "textDelta" in chunk ? chunk.textDelta : chunk.delta,
+              );
               break;
 
             case "reasoning-delta":
@@ -167,11 +215,37 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
               });
               break;
 
+            case "source-url":
+              controller.appendSource({
+                type: "source",
+                sourceType: "url",
+                id: chunk.sourceId,
+                url: chunk.url,
+                ...(chunk.title && { title: chunk.title }),
+              });
+              break;
+
+            case "source-document":
+              controller.appendSource({
+                type: "source",
+                sourceType: "url",
+                id: chunk.sourceId,
+                // Represent document sources in the URL-only source model.
+                url: `urn:source-document:${chunk.sourceId}`,
+                ...(chunk.title && {
+                  title: chunk.filename
+                    ? `${chunk.title} (${chunk.filename})`
+                    : chunk.title,
+                }),
+              });
+              break;
+
             case "file":
               controller.appendFile({
                 type: "file",
-                mimeType: chunk.file.mimeType,
-                data: chunk.file.data,
+                mimeType:
+                  "file" in chunk ? chunk.file.mimeType : chunk.mediaType,
+                data: "file" in chunk ? chunk.file.data : chunk.url,
               });
               break;
 
@@ -192,32 +266,107 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
             }
 
             case "tool-call-start": {
-              activeToolCallArgsText?.close();
-              activeToolCallArgsText = undefined;
-
-              if (toolCallControllers.has(chunk.toolCallId)) {
-                throw new Error(
-                  `Encountered duplicate tool call id: ${chunk.toolCallId}`,
-                );
-              }
-
-              const toolCallController = controller.addToolCallPart({
-                toolCallId: chunk.toolCallId,
-                toolName: chunk.toolName,
-              });
-              toolCallControllers.set(chunk.toolCallId, toolCallController);
-              activeToolCallArgsText = toolCallController.argsText;
+              if (activeToolCallId) closeToolCallArgs(activeToolCallId);
+              startToolCallController(
+                controller,
+                chunk.toolCallId,
+                chunk.toolName,
+              );
+              activeToolCallId = chunk.toolCallId;
               break;
             }
 
             case "tool-call-delta":
-              activeToolCallArgsText?.append(chunk.argsText);
+              if (!activeToolCallId) break;
+              appendToolCallArgs(activeToolCallId, chunk.argsText);
               break;
 
             case "tool-call-end":
-              activeToolCallArgsText?.close();
-              activeToolCallArgsText = undefined;
+              if (!activeToolCallId) break;
+              closeToolCallArgs(activeToolCallId);
               break;
+
+            case "tool-input-start":
+              startToolCallController(
+                controller,
+                chunk.toolCallId,
+                chunk.toolName,
+              );
+              activeToolCallId = chunk.toolCallId;
+              break;
+
+            case "tool-input-delta":
+              getToolCallController(controller, chunk.toolCallId);
+              appendToolCallArgs(chunk.toolCallId, chunk.inputTextDelta);
+              break;
+
+            case "tool-input-available": {
+              getToolCallController(
+                controller,
+                chunk.toolCallId,
+                chunk.toolName,
+              );
+              const hasDelta =
+                toolCallHasArgsDelta.get(chunk.toolCallId) === true;
+              if (!hasDelta) {
+                const serialized = JSON.stringify(chunk.input);
+                appendToolCallArgs(chunk.toolCallId, serialized ?? "null");
+              }
+              closeToolCallArgs(chunk.toolCallId);
+              break;
+            }
+
+            case "tool-input-error": {
+              const toolCallController = getToolCallController(
+                controller,
+                chunk.toolCallId,
+                chunk.toolName,
+              );
+              toolCallController.setResponse({
+                result: {
+                  error: chunk.errorText,
+                  input: chunk.input,
+                },
+                isError: true,
+              });
+              break;
+            }
+
+            case "tool-output-available": {
+              const toolCallController = getToolCallController(
+                controller,
+                chunk.toolCallId,
+              );
+              toolCallController.setResponse({
+                result: chunk.output,
+                isError: false,
+              });
+              break;
+            }
+
+            case "tool-output-error": {
+              const toolCallController = getToolCallController(
+                controller,
+                chunk.toolCallId,
+              );
+              toolCallController.setResponse({
+                result: chunk.errorText,
+                isError: true,
+              });
+              break;
+            }
+
+            case "tool-output-denied": {
+              const toolCallController = getToolCallController(
+                controller,
+                chunk.toolCallId,
+              );
+              toolCallController.setResponse({
+                result: "Tool output denied",
+                isError: true,
+              });
+              break;
+            }
 
             case "tool-result": {
               const toolCallController = toolCallControllers.get(
@@ -247,9 +396,9 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
               controller.enqueue({
                 type: "step-finish",
                 path: [],
-                finishReason: chunk.finishReason,
-                usage: chunk.usage,
-                isContinued: chunk.isContinued,
+                finishReason: chunk.finishReason ?? "unknown",
+                usage: chunk.usage ?? { inputTokens: 0, outputTokens: 0 },
+                isContinued: chunk.isContinued ?? false,
               });
               break;
 
@@ -257,8 +406,8 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
               controller.enqueue({
                 type: "message-finish",
                 path: [],
-                finishReason: chunk.finishReason,
-                usage: chunk.usage,
+                finishReason: chunk.finishReason ?? "unknown",
+                usage: chunk.usage ?? { inputTokens: 0, outputTokens: 0 },
               });
               break;
 
@@ -270,13 +419,18 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
               });
               break;
 
+            case "abort":
+            case "message-metadata":
+              break;
+
             default:
               // ignore unknown types for forward compatibility
               break;
           }
         },
         flush() {
-          activeToolCallArgsText?.close();
+          toolCallArgsText.forEach((args) => args.close());
+          toolCallArgsText.clear();
           toolCallControllers.forEach((ctrl) => ctrl.close());
           toolCallControllers.clear();
         },
