@@ -113,6 +113,13 @@ const primitiveMap: Record<
   ComposerPrimitive: composerPropMap,
 };
 
+// Map of XPrimitive.Component → fixed condition (no props needed)
+const fixedConditionMap: Record<string, Record<string, string>> = {
+  ThreadPrimitive: {
+    Empty: "s.thread.isEmpty",
+  },
+};
+
 /**
  * Extract the value of a JSX attribute.
  * - Boolean prop (no value): `<X.If user>` → `true`
@@ -168,7 +175,7 @@ const migratePrimitiveIfToAuiIf = createTransformer(
             const name = String(
               specifier.local?.name ?? specifier.imported.name,
             );
-            if (primitiveMap[name]) {
+            if (primitiveMap[name] || fixedConditionMap[name]) {
               importedPrimitives.add(name);
             }
           }
@@ -177,6 +184,58 @@ const migratePrimitiveIfToAuiIf = createTransformer(
     });
 
     if (importedPrimitives.size === 0) return;
+
+    // Process fixed-condition components: <ThreadPrimitive.Empty> → <AuiIf condition={...}>
+    root.find(j.JSXOpeningElement).forEach((path: any) => {
+      const name = path.value.name;
+      if (!j.JSXMemberExpression.check(name)) return;
+      if (!j.JSXIdentifier.check(name.object)) return;
+      if (!j.JSXIdentifier.check(name.property)) return;
+
+      const primitiveName = name.object.name as string;
+      const propertyName = name.property.name as string;
+      const fixedMap = fixedConditionMap[primitiveName];
+      if (!fixedMap) return;
+      const conditionBody = fixedMap[propertyName];
+      if (!conditionBody) return;
+      if (!importedPrimitives.has(primitiveName)) return;
+
+      // Only transform if there are no props (other than children, which are implicit)
+      const attrs: any[] = path.value.attributes || [];
+      if (attrs.length > 0) return;
+
+      const arrowFnAst = j(`(s) => ${conditionBody}`)
+        .find(j.ArrowFunctionExpression)
+        .paths()[0]!.value;
+
+      path.value.name = j.jsxIdentifier("AuiIf");
+      path.value.attributes = [
+        j.jsxAttribute(
+          j.jsxIdentifier("condition"),
+          j.jsxExpressionContainer(arrowFnAst),
+        ),
+      ];
+
+      needsAuiIfImport = true;
+      markAsChanged();
+    });
+
+    // Update closing elements for fixed-condition components
+    root.find(j.JSXClosingElement).forEach((path: any) => {
+      const name = path.value.name;
+      if (!j.JSXMemberExpression.check(name)) return;
+      if (!j.JSXIdentifier.check(name.object)) return;
+      if (!j.JSXIdentifier.check(name.property)) return;
+
+      const primitiveName = name.object.name as string;
+      const propertyName = name.property.name as string;
+      const fixedMap = fixedConditionMap[primitiveName];
+      if (!fixedMap || !fixedMap[propertyName]) return;
+      if (!importedPrimitives.has(primitiveName)) return;
+
+      path.value.name = j.jsxIdentifier("AuiIf");
+      markAsChanged();
+    });
 
     // Process JSX elements: <ThreadPrimitive.If ...> → <AuiIf condition={...}>
     root.find(j.JSXOpeningElement).forEach((path: any) => {

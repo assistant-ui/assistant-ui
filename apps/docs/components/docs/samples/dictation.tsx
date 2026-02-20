@@ -7,6 +7,7 @@ import {
 } from "@/components/assistant-ui/attachment";
 import {
   ActionBarPrimitive,
+  AuiIf,
   BranchPickerPrimitive,
   ComposerPrimitive,
   ErrorPrimitive,
@@ -82,7 +83,7 @@ const ThreadScrollToBottom: FC = () => {
 
 const ThreadWelcome: FC = () => {
   return (
-    <ThreadPrimitive.Empty>
+    <AuiIf condition={(s) => s.thread.isEmpty}>
       <div className="aui-thread-welcome-root mx-auto mb-16 flex w-full max-w-[var(--thread-max-width)] flex-grow flex-col">
         <div className="aui-thread-welcome-center flex w-full flex-grow flex-col items-center justify-center">
           <div className="aui-thread-welcome-message flex size-full flex-col justify-center px-8 md:mt-20">
@@ -95,7 +96,7 @@ const ThreadWelcome: FC = () => {
           </div>
         </div>
       </div>
-    </ThreadPrimitive.Empty>
+    </AuiIf>
   );
 };
 
@@ -147,9 +148,9 @@ const Composer: FC = () => {
   return (
     <div className="aui-composer-wrapper sticky bottom-0 mx-auto flex w-full max-w-(--thread-max-width) flex-col gap-4 overflow-visible rounded-t-3xl bg-background pb-4 md:pb-6">
       <ThreadScrollToBottom />
-      <ThreadPrimitive.Empty>
+      <AuiIf condition={(s) => s.thread.isEmpty}>
         <ThreadWelcomeSuggestions />
-      </ThreadPrimitive.Empty>
+      </AuiIf>
       <ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col rounded-3xl border border-border bg-muted px-1 pt-2 shadow-[0_9px_9px_0px_rgba(0,0,0,0.01),0_2px_5px_0px_rgba(0,0,0,0.06)] dark:border-muted-foreground/15">
         <ComposerAttachments />
         <ComposerPrimitive.Input

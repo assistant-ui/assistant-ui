@@ -20,7 +20,7 @@ import { ThreadPrimitive, SelectionToolbarPrimitive, AuiIf } from "@assistant-ui
 
 <ThreadPrimitive.Root>
   <ThreadPrimitive.Viewport>
-    <ThreadPrimitive.Empty />
+    <AuiIf condition={(s) => s.thread.isEmpty} />
     <ThreadPrimitive.Messages
       components={{
         EditComposer,

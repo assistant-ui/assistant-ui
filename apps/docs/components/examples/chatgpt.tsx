@@ -26,14 +26,14 @@ export const ChatGPT: FC = () => {
   return (
     <ThreadPrimitive.Root className="dark flex h-full flex-col items-stretch bg-[#212121] px-4 text-foreground">
       <ThreadPrimitive.Viewport className="flex grow flex-col gap-8 overflow-y-scroll pt-16">
-        <ThreadPrimitive.Empty>
+        <AuiIf condition={(s) => s.thread.isEmpty}>
           <div className="flex grow flex-col items-center justify-center">
             <Avatar.Root className="flex h-12 w-12 items-center justify-center rounded-3xl border border-white/15 shadow">
               <Avatar.AvatarFallback>C</Avatar.AvatarFallback>
             </Avatar.Root>
             <p className="mt-4 text-white text-xl">How can I help you today?</p>
           </div>
-        </ThreadPrimitive.Empty>
+        </AuiIf>
 
         <ThreadPrimitive.Messages
           components={{

@@ -39,9 +39,9 @@ export const Perplexity: FC = () => {
         ["--thread-max-width" as string]: "42rem",
       }}
     >
-      <ThreadPrimitive.Empty>
+      <AuiIf condition={(s) => s.thread.isEmpty}>
         <ThreadWelcome />
-      </ThreadPrimitive.Empty>
+      </AuiIf>
       <AuiIf condition={(s) => !s.thread.isEmpty}>
         <ThreadPrimitive.Viewport className="flex h-full flex-col items-center overflow-y-scroll scroll-smooth bg-inherit px-4 pt-8">
           <ThreadPrimitive.Messages

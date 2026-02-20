@@ -34,12 +34,12 @@ import { GrokIcon } from "@/components/icons/grok";
 export const Grok: FC = () => {
   return (
     <ThreadPrimitive.Root className="flex h-full flex-col items-stretch bg-[#fdfdfd] px-4 dark:bg-[#141414]">
-      <ThreadPrimitive.Empty>
+      <AuiIf condition={(s) => s.thread.isEmpty}>
         <div className="flex h-full flex-col items-center justify-center">
           <GrokIcon className="mb-6 h-10 text-[#0d0d0d] dark:text-white" />
           <Composer />
         </div>
-      </ThreadPrimitive.Empty>
+      </AuiIf>
 
       <AuiIf condition={(s) => s.thread.isEmpty === false}>
         <ThreadPrimitive.Viewport className="flex grow flex-col overflow-y-scroll pt-16">

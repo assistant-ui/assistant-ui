@@ -14,7 +14,7 @@ import { ThreadPrimitive } from "@assistant-ui/react";
 const Thread = () => (
   <ThreadPrimitive.Root>
     <ThreadPrimitive.Viewport>
-      <ThreadPrimitive.Empty>...</ThreadPrimitive.Empty>
+      <AuiIf condition={(s) => s.thread.isEmpty}>...</AuiIf>
       <ThreadPrimitive.Messages components={...} />
     </ThreadPrimitive.Viewport>
     <Composer />

@@ -42,12 +42,12 @@ import {
 export const Grok = () => {
   return (
     <ThreadPrimitive.Root className="flex h-full flex-col bg-[#fdfdfd] px-4 dark:bg-[#141414]">
-      <ThreadPrimitive.Empty>
+      <AuiIf condition={(s) => s.thread.isEmpty}>
         <div className="flex h-full flex-col items-center justify-center">
           <GrokLogo className="mb-6 h-10 text-[#0d0d0d] dark:text-white" />
           <Composer />
         </div>
-      </ThreadPrimitive.Empty>
+      </AuiIf>
 
       <ThreadPrimitive.Viewport className="flex grow flex-col overflow-y-scroll pt-16">
         <ThreadPrimitive.Messages components={{ Message: ChatMessage }} />

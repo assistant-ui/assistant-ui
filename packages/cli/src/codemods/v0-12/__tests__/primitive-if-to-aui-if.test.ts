@@ -585,6 +585,96 @@ function MyComponent() {
     });
   });
 
+  // ── ThreadPrimitive.Empty ───────────────────────────────────────────
+
+  describe("ThreadPrimitive.Empty", () => {
+    it("should migrate <ThreadPrimitive.Empty> to AuiIf", () => {
+      const input = `
+import { ThreadPrimitive } from "@assistant-ui/react";
+
+function MyComponent() {
+  return (
+    <ThreadPrimitive.Empty>
+      <div>Welcome</div>
+    </ThreadPrimitive.Empty>
+  );
+}
+`;
+
+      const expected = `
+import { ThreadPrimitive, AuiIf } from "@assistant-ui/react";
+
+function MyComponent() {
+  return (
+    <AuiIf condition={(s) => s.thread.isEmpty}>
+      <div>Welcome</div>
+    </AuiIf>
+  );
+}
+`;
+
+      expect(applyTransform(input)?.trim()).toBe(expected.trim());
+    });
+
+    it("should handle self-closing <ThreadPrimitive.Empty />", () => {
+      const input = `
+import { ThreadPrimitive } from "@assistant-ui/react";
+
+function MyComponent() {
+  return <ThreadPrimitive.Empty />;
+}
+`;
+
+      const expected = `
+import { ThreadPrimitive, AuiIf } from "@assistant-ui/react";
+
+function MyComponent() {
+  return <AuiIf condition={(s) => s.thread.isEmpty} />;
+}
+`;
+
+      expect(applyTransform(input)?.trim()).toBe(expected.trim());
+    });
+
+    it("should handle ThreadPrimitive.Empty alongside ThreadPrimitive.If", () => {
+      const input = `
+import { ThreadPrimitive } from "@assistant-ui/react";
+
+function MyComponent() {
+  return (
+    <>
+      <ThreadPrimitive.Empty>
+        <div>Welcome</div>
+      </ThreadPrimitive.Empty>
+      <ThreadPrimitive.If running>
+        <div>Running</div>
+      </ThreadPrimitive.If>
+    </>
+  );
+}
+`;
+
+      const expected = `
+import { ThreadPrimitive, AuiIf } from "@assistant-ui/react";
+
+function MyComponent() {
+  return (
+    <>
+      <AuiIf condition={(s) => s.thread.isEmpty}>
+        <div>Welcome</div>
+      </AuiIf>
+      <AuiIf condition={(s) => s.thread.isRunning}>
+        <div>Running</div>
+      </AuiIf>
+    </>
+  );
+}
+`;
+
+      expect(applyTransform(input)?.trim()).toBe(expected.trim());
+    });
+  });
+
   // ── Edge cases ─────────────────────────────────────────────────────
 
   describe("edge cases", () => {

@@ -7,12 +7,13 @@ export namespace ThreadPrimitiveEmpty {
   export type Props = PropsWithChildren;
 }
 
+/**
+ * @deprecated Use `<AuiIf condition={(s) => s.thread.isEmpty} />` instead.
+ */
 export const ThreadPrimitiveEmpty: FC<ThreadPrimitiveEmpty.Props> = ({
   children,
 }) => {
-  const empty = useAuiState(
-    (s) => s.thread.messages.length === 0 && !s.thread.isLoading,
-  );
+  const empty = useAuiState((s) => s.thread.isEmpty);
   return empty ? children : null;
 };
 
