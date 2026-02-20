@@ -2,4 +2,4 @@
 "@assistant-ui/react": patch
 ---
 
-Graceful fallback for unknown attachment and message part types instead of throwing
+Handle unknown attachment types with fallback component and unknown message part types with `console.warn` instead of throwing
