@@ -21,7 +21,7 @@ const MessageTimingDisplay: FC = () => {
   if (!timing?.totalStreamTime) return null;
 
   const formatMs = (ms: number) =>
-    ms < 1000 ? `${Math.round(ms)}ms` : `${(ms / 1000).toFixed(1)}s`;
+    ms < 1000 ? `${Math.round(ms)}ms` : `${(ms / 1000).toFixed(2)}s`;
 
   return (
     <span className="text-xs text-muted-foreground">
@@ -50,7 +50,7 @@ const AssistantMessage: FC = () => {
 };
 ```
 
-### `MessageTiming` Fields
+### `useMessageTiming()` Return Fields
 
 | Field | Type | Description |
 |-------|------|-------------|

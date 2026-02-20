@@ -3,6 +3,10 @@ title: Message Timing
 description: Display streaming performance stats — TTFT, total time, tok/s, and chunk count — as a badge with hover popover.
 ---
 
+import { MessageTimingSample } from "@/components/docs/samples/message-timing";
+
+<MessageTimingSample />
+
 <Callout type="warn">
   This component is experimental. The API and displayed metrics may change in future versions. When used with the Vercel AI SDK, token counts and tok/s are **estimated** client-side and may be inaccurate — see [Accuracy](#accuracy) below.
 </Callout>
@@ -25,7 +29,7 @@ This adds a `/components/assistant-ui/message-timing.tsx` file to your project.
 
 Place `MessageTiming` inside `ActionBarPrimitive.Root` in your `thread.tsx`. It will inherit the action bar's auto-hide behaviour and only renders after the stream completes.
 
-```tsx title="/components/assistant-ui/thread.tsx" {2,9}
+```tsx title="/components/assistant-ui/thread.tsx" {2,12}
 import { ActionBarPrimitive } from "@assistant-ui/react";
 import { MessageTiming } from "@/components/assistant-ui/message-timing";
 
@@ -69,10 +73,6 @@ When using `assistant-stream` on the backend, token counts come directly from th
 
 When using the AI SDK integration (`useChatRuntime`), token counts are **estimated** client-side using a 4 characters per token approximation. This can overcount significantly for short messages.
 
-<Callout type="info">
-  If you use the AI SDK but your backend sends real token counts via the `streamUsage` option, the character-based estimate is still used on the client — the AI SDK integration does not yet extract server-reported token counts from the stream.
-</Callout>
-
 ## API Reference
 
 ### `MessageTiming` component
@@ -80,6 +80,7 @@ When using the AI SDK integration (`useChatRuntime`), token counts are **estimat
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `className` | `string` | — | Additional class names on the root element |
+| `side` | `"top" \| "right" \| "bottom" \| "left"` | `"right"` | Side of the tooltip relative to the badge |
 
 Renders `null` until `totalStreamTime` is available (i.e., while streaming or for user messages).
 

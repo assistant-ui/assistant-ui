@@ -31,8 +31,13 @@ const formatTimingMs = (ms: number | undefined): string => {
  *   <MessageTiming />  // <-- add this
  * </ActionBarPrimitive.Root>
  * ```
+ *
+ * @param side - Side of the tooltip relative to the badge trigger. Defaults to `"right"`.
  */
-export const MessageTiming: FC<{ className?: string }> = ({ className }) => {
+export const MessageTiming: FC<{
+  className?: string;
+  side?: "top" | "right" | "bottom" | "left";
+}> = ({ className, side = "right" }) => {
   const timing = useMessageTiming();
   if (timing?.totalStreamTime === undefined) return null;
 
@@ -52,7 +57,7 @@ export const MessageTiming: FC<{ className?: string }> = ({ className }) => {
         </button>
       </TooltipTrigger>
       <TooltipContent
-        side="right"
+        side={side}
         sideOffset={8}
         data-slot="message-timing-popover"
         className="[&_svg]:!hidden rounded-lg border bg-popover px-3 py-2 text-popover-foreground shadow-md"
