@@ -49,12 +49,12 @@ export const ChatGPT: FC = () => {
           placeholder="Message ChatGPT"
           className="h-12 max-h-40 grow resize-none bg-transparent p-3.5 text-sm text-white outline-none placeholder:text-white/50"
         />
-        <AuiIf condition={({ thread }) => !thread.isRunning}>
+        <AuiIf condition={(s) => !s.thread.isRunning}>
           <ComposerPrimitive.Send className="m-2 flex size-8 items-center justify-center rounded-full bg-white transition-opacity disabled:opacity-10">
             <ArrowUpIcon className="size-5 text-black [&_path]:stroke-1 [&_path]:stroke-black" />
           </ComposerPrimitive.Send>
         </AuiIf>
-        <AuiIf condition={({ thread }) => thread.isRunning}>
+        <AuiIf condition={(s) => s.thread.isRunning}>
           <ComposerPrimitive.Cancel className="m-2 flex size-8 items-center justify-center rounded-full bg-white">
             <div className="size-2.5 bg-black" />
           </ComposerPrimitive.Cancel>
@@ -141,10 +141,10 @@ const AssistantMessage: FC = () => {
             </ActionBarPrimitive.Reload>
             <ActionBarPrimitive.Copy asChild>
               <TooltipIconButton tooltip="Copy" className="text-[#b4b4b4]">
-                <AuiIf condition={({ message }) => message.isCopied}>
+                <AuiIf condition={(s) => s.message.isCopied}>
                   <CheckIcon />
                 </AuiIf>
-                <AuiIf condition={({ message }) => !message.isCopied}>
+                <AuiIf condition={(s) => !s.message.isCopied}>
                   <CopyIcon />
                 </AuiIf>
               </TooltipIconButton>

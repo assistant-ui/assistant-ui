@@ -199,7 +199,7 @@ export function Thread() {
       >
         ${
           components.threadWelcome
-            ? `<AuiIf condition={({ thread }) => thread.isEmpty}>
+            ? `<AuiIf condition={(s) => s.thread.isEmpty}>
           <ThreadWelcome />
         </AuiIf>`
             : ""
@@ -366,7 +366,7 @@ function ComposerAction() {
     <div className="relative mx-2 mb-2 flex items-center justify-between">
       ${components.attachments ? "<ComposerAddAttachment />" : "<div />"}
 
-      <AuiIf condition={({ thread }) => !thread.isRunning}>
+      <AuiIf condition={(s) => !s.thread.isRunning}>
         <ComposerPrimitive.Send asChild>
           <TooltipIconButton
             tooltip="Send message"
@@ -386,7 +386,7 @@ function ComposerAction() {
         </ComposerPrimitive.Send>
       </AuiIf>
 
-      <AuiIf condition={({ thread }) => thread.isRunning}>
+      <AuiIf condition={(s) => s.thread.isRunning}>
         <ComposerPrimitive.Cancel asChild>
           <Button
             type="button"
@@ -554,7 +554,7 @@ function AssistantMessage() {
         <MessageError />${
           components.loadingIndicator !== "none"
             ? `
-        <AuiIf condition={({ thread, message }) => thread.isRunning && message.content.length === 0}>
+        <AuiIf condition={(s) => s.thread.isRunning && s.message.content.length === 0}>
           <div className="flex items-center gap-2 text-muted-foreground">
             <LoaderIcon className="size-4 animate-spin" />${
               components.loadingIndicator === "text"
@@ -575,7 +575,7 @@ function AssistantMessage() {
       ${
         components.followUpSuggestions
           ? `
-      <AuiIf condition={({ thread }) => !thread.isRunning}>
+      <AuiIf condition={(s) => !s.thread.isRunning}>
         <div className="mt-4 flex flex-wrap gap-2">
           <ThreadPrimitive.Suggestion
             prompt="Tell me more"
@@ -638,10 +638,10 @@ function AssistantActionBar() {
         components.actionBar.copy
           ? `<ActionBarPrimitive.Copy asChild>
         <TooltipIconButton tooltip="Copy">
-          <AuiIf condition={({ message }) => message.isCopied}>
+          <AuiIf condition={(s) => s.message.isCopied}>
             <CheckIcon />
           </AuiIf>
-          <AuiIf condition={({ message }) => !message.isCopied}>
+          <AuiIf condition={(s) => !s.message.isCopied}>
             <CopyIcon />
           </AuiIf>
         </TooltipIconButton>

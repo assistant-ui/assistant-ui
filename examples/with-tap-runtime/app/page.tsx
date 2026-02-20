@@ -4,7 +4,7 @@ import { Thread } from "@/components/assistant-ui/thread";
 import { useAuiState } from "@assistant-ui/react";
 
 export default function Home() {
-  const isEmpty = useAuiState((state) => state.threads.main.isEmpty);
+  const isEmpty = useAuiState((s) => s.threads.main.isEmpty);
 
   return (
     <div className="flex h-full flex-col">

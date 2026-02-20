@@ -31,7 +31,7 @@ export namespace ThreadPrimitiveIf {
 }
 
 /**
- * @deprecated Use `<AuiIf condition={({ thread }) => ...} />` instead.
+ * @deprecated Use `<AuiIf condition={(s) => s.thread...} />` instead.
  */
 export const ThreadPrimitiveIf: FC<ThreadPrimitiveIf.Props> = ({
   children,

@@ -31,7 +31,7 @@ export namespace ComposerPrimitiveIf {
 }
 
 /**
- * @deprecated Use `<AuiIf condition={({ composer }) => ...} />` instead.
+ * @deprecated Use `<AuiIf condition={(s) => s.composer...} />` instead.
  */
 export const ComposerPrimitiveIf: FC<ComposerPrimitiveIf.Props> = ({
   children,

@@ -50,7 +50,7 @@ Selectors: `"client.event"` | `{ scope: "parent", event }` | `{ scope: "*", even
 ### AuiProvider / AuiIf
 ```typescript
 <AuiProvider value={aui}>{children}</AuiProvider>
-<AuiIf condition={(state) => boolean}>{children}</AuiIf>
+<AuiIf condition={(s) => boolean}>{children}</AuiIf>
 ```
 
 ### Derived

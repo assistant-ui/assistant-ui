@@ -242,10 +242,10 @@ const MessageTimingDisplay: FC = () => {
 
 const useAttachmentSrc = () => {
   const { file, src } = useAuiState(
-    useShallow(({ attachment }): { file?: File; src?: string } => {
-      if (attachment.type !== "image") return {};
-      if (attachment.file) return { file: attachment.file };
-      const src = attachment.content?.filter((c) => c.type === "image")[0]
+    useShallow((s): { file?: File; src?: string } => {
+      if (s.attachment.type !== "image") return {};
+      if (s.attachment.file) return { file: s.attachment.file };
+      const src = s.attachment.content?.filter((c) => c.type === "image")[0]
         ?.image;
       if (!src) return {};
       return { src };
@@ -273,7 +273,7 @@ const GrokAttachment: FC = () => {
   return (
     <AttachmentPrimitive.Root className="group/attachment relative">
       <div className="flex h-12 items-center gap-2 overflow-hidden rounded-xl border border-[#e5e5e5] bg-[#f0f0f0] p-0.5 transition-colors hover:border-[#d0d0d0] dark:border-[#2a2a2a] dark:bg-[#252525] dark:hover:border-[#3a3a3a]">
-        <AuiIf condition={({ attachment }) => attachment.type === "image"}>
+        <AuiIf condition={(s) => s.attachment.type === "image"}>
           {src ? (
             <img
               className="h-full w-12 rounded-[9px] object-cover"
@@ -286,7 +286,7 @@ const GrokAttachment: FC = () => {
             </div>
           )}
         </AuiIf>
-        <AuiIf condition={({ attachment }) => attachment.type !== "image"}>
+        <AuiIf condition={(s) => s.attachment.type !== "image"}>
           <div className="flex h-full w-12 items-center justify-center rounded-[9px] bg-[#e5e5e5] text-[#6b6b6b] dark:bg-[#3a3a3a] dark:text-[#9a9a9a]">
             <AttachmentPrimitive.unstable_Thumb className="text-xs" />
           </div>

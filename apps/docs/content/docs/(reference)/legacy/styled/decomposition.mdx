@@ -181,10 +181,10 @@ import { AuiIf } from "@assistant-ui/react";
 const MyComposerAction: FC = () => {
   return (
     <>
-      <AuiIf condition={({ thread }) => !thread.isRunning}>
+      <AuiIf condition={(s) => !s.thread.isRunning}>
         <Composer.Send />
       </AuiIf>
-      <AuiIf condition={({ thread }) => thread.isRunning}>
+      <AuiIf condition={(s) => s.thread.isRunning}>
         <Composer.Cancel />
       </AuiIf>
     </>

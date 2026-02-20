@@ -76,7 +76,7 @@ export default function Chat() {
 ### Welcome Screen
 
 ```tsx
-<AuiIf condition={({ thread }) => thread.isEmpty}>
+<AuiIf condition={(s) => s.thread.isEmpty}>
   <ThreadWelcome />
 </AuiIf>
 ```
@@ -84,7 +84,7 @@ export default function Chat() {
 ### Viewport Spacer
 
 ```tsx
-<AuiIf condition={({ thread }) => !thread.isEmpty}>
+<AuiIf condition={(s) => !s.thread.isEmpty}>
   <div className="min-h-8 grow" />
 </AuiIf>
 ```
@@ -92,13 +92,13 @@ export default function Chat() {
 ### Conditional Send/Cancel Button
 
 ```tsx
-<AuiIf condition={({ thread }) => !thread.isRunning}>
+<AuiIf condition={(s) => !s.thread.isRunning}>
   <ComposerPrimitive.Send>
     Send
   </ComposerPrimitive.Send>
 </AuiIf>
 
-<AuiIf condition={({ thread }) => thread.isRunning}>
+<AuiIf condition={(s) => s.thread.isRunning}>
   <ComposerPrimitive.Cancel>
     Cancel
   </ComposerPrimitive.Cancel>
@@ -354,15 +354,15 @@ Conditionally renders children based on assistant state. This is a generic compo
 ```tsx
 import { AuiIf } from "@assistant-ui/react";
 
-<AuiIf condition={({ thread }) => thread.isEmpty}>
+<AuiIf condition={(s) => s.thread.isEmpty}>
   <WelcomeScreen />
 </AuiIf>
 
-<AuiIf condition={({ thread }) => thread.isRunning}>
+<AuiIf condition={(s) => s.thread.isRunning}>
   <LoadingIndicator />
 </AuiIf>
 
-<AuiIf condition={({ message }) => message.role === "assistant"}>
+<AuiIf condition={(s) => s.message.role === "assistant"}>
   <AssistantAvatar />
 </AuiIf>
 ```

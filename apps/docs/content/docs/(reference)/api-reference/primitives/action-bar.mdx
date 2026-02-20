@@ -156,10 +156,10 @@ Show a different icon for a few seconds after the message is copied.
 
 ```tsx
 <ActionBarPrimitive.Copy>
-  <AuiIf condition={({ message }) => !message.isCopied}>
+  <AuiIf condition={(s) => !s.message.isCopied}>
     <CopyIcon />
   </AuiIf>
-  <AuiIf condition={({ message }) => message.isCopied}>
+  <AuiIf condition={(s) => s.message.isCopied}>
     <CopySuccessIcon />
   </AuiIf>
 </ActionBarPrimitive.Copy>

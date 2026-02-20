@@ -172,7 +172,7 @@ const ComposerAction: FC = () => {
     <div className="aui-composer-action-wrapper relative mx-1 mt-2 mb-2 flex items-center justify-between">
       <ComposerAddAttachment />
 
-      <AuiIf condition={({ thread }) => !thread.isRunning}>
+      <AuiIf condition={(s) => !s.thread.isRunning}>
         <ComposerPrimitive.Send asChild>
           <TooltipIconButton
             tooltip="Send message"
@@ -188,7 +188,7 @@ const ComposerAction: FC = () => {
         </ComposerPrimitive.Send>
       </AuiIf>
 
-      <AuiIf condition={({ thread }) => thread.isRunning}>
+      <AuiIf condition={(s) => s.thread.isRunning}>
         <ComposerPrimitive.Cancel asChild>
           <Button
             type="button"
@@ -247,14 +247,14 @@ const AssistantActionBar: FC = () => {
       autohideFloat="single-branch"
       className="aui-assistant-action-bar-root col-start-3 row-start-2 -ml-1 flex gap-1 text-muted-foreground data-floating:absolute data-floating:rounded-md data-floating:border data-floating:bg-background data-floating:p-1 data-floating:shadow-sm"
     >
-      <AuiIf condition={({ message }) => message.speech == null}>
+      <AuiIf condition={(s) => s.message.speech == null}>
         <ActionBarPrimitive.Speak asChild>
           <TooltipIconButton tooltip="Read aloud">
             <AudioLinesIcon />
           </TooltipIconButton>
         </ActionBarPrimitive.Speak>
       </AuiIf>
-      <AuiIf condition={({ message }) => message.speech != null}>
+      <AuiIf condition={(s) => s.message.speech != null}>
         <ActionBarPrimitive.StopSpeaking asChild>
           <TooltipIconButton tooltip="Stop">
             <StopCircleIcon />
@@ -263,10 +263,10 @@ const AssistantActionBar: FC = () => {
       </AuiIf>
       <ActionBarPrimitive.Copy asChild>
         <TooltipIconButton tooltip="Copy">
-          <AuiIf condition={({ message }) => message.isCopied}>
+          <AuiIf condition={(s) => s.message.isCopied}>
             <CheckIcon />
           </AuiIf>
-          <AuiIf condition={({ message }) => !message.isCopied}>
+          <AuiIf condition={(s) => !s.message.isCopied}>
             <CopyIcon />
           </AuiIf>
         </TooltipIconButton>

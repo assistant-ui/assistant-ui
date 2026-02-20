@@ -11,7 +11,7 @@ Conditionally render children based on assistant state.
 ```tsx
 import { AuiIf } from "@assistant-ui/react";
 
-<AuiIf condition={({ thread }) => thread.isEmpty}>
+<AuiIf condition={(s) => s.thread.isEmpty}>
   <WelcomeScreen />
 </AuiIf>
 ```
@@ -80,20 +80,20 @@ The condition function receives an `AssistantState` object with the following pr
 
 ```tsx
 // Show welcome screen when thread is empty
-<AuiIf condition={({ thread }) => thread.isEmpty}>
+<AuiIf condition={(s) => s.thread.isEmpty}>
   <WelcomeScreen />
 </AuiIf>
 
 // Show loading indicator while running
-<AuiIf condition={({ thread }) => thread.isRunning}>
+<AuiIf condition={(s) => s.thread.isRunning}>
   <LoadingSpinner />
 </AuiIf>
 
 // Conditional send/cancel button
-<AuiIf condition={({ thread }) => !thread.isRunning}>
+<AuiIf condition={(s) => !s.thread.isRunning}>
   <ComposerPrimitive.Send>Send</ComposerPrimitive.Send>
 </AuiIf>
-<AuiIf condition={({ thread }) => thread.isRunning}>
+<AuiIf condition={(s) => s.thread.isRunning}>
   <ComposerPrimitive.Cancel>Cancel</ComposerPrimitive.Cancel>
 </AuiIf>
 ```
@@ -102,32 +102,32 @@ The condition function receives an `AssistantState` object with the following pr
 
 ```tsx
 // Show avatar only for assistant messages
-<AuiIf condition={({ message }) => message.role === "assistant"}>
+<AuiIf condition={(s) => s.message.role === "assistant"}>
   <AssistantAvatar />
 </AuiIf>
 
 // Show disclaimer on last message
-<AuiIf condition={({ message }) => message.isLast}>
+<AuiIf condition={(s) => s.message.isLast}>
   <Disclaimer />
 </AuiIf>
 
 // Toggle copy icon based on copied state
 <ActionBarPrimitive.Copy>
-  <AuiIf condition={({ message }) => !message.isCopied}>
+  <AuiIf condition={(s) => !s.message.isCopied}>
     <CopyIcon />
   </AuiIf>
-  <AuiIf condition={({ message }) => message.isCopied}>
+  <AuiIf condition={(s) => s.message.isCopied}>
     <CheckIcon />
   </AuiIf>
 </ActionBarPrimitive.Copy>
 
 // Show speak/stop button based on speech state
-<AuiIf condition={({ message }) => message.speech == null}>
+<AuiIf condition={(s) => s.message.speech == null}>
   <ActionBarPrimitive.Speak>
     <SpeakIcon />
   </ActionBarPrimitive.Speak>
 </AuiIf>
-<AuiIf condition={({ message }) => message.speech != null}>
+<AuiIf condition={(s) => s.message.speech != null}>
   <ActionBarPrimitive.StopSpeaking>
     <StopIcon />
   </ActionBarPrimitive.StopSpeaking>
@@ -138,12 +138,12 @@ The condition function receives an `AssistantState` object with the following pr
 
 ```tsx
 // Show placeholder when composer is empty
-<AuiIf condition={({ composer }) => composer.isEmpty}>
+<AuiIf condition={(s) => s.composer.isEmpty}>
   <PlaceholderText />
 </AuiIf>
 
 // Show attachment preview when editing
-<AuiIf condition={({ composer }) => composer.isEditing}>
+<AuiIf condition={(s) => s.composer.isEditing}>
   <EditingIndicator />
 </AuiIf>
 ```
@@ -152,15 +152,15 @@ The condition function receives an `AssistantState` object with the following pr
 
 ```tsx
 // Combine multiple conditions
-<AuiIf condition={({ thread, message }) =>
-  !thread.isRunning && message.role === "assistant"
+<AuiIf condition={(s) =>
+  !s.thread.isRunning && s.message.role === "assistant"
 }>
   <ActionBar />
 </AuiIf>
 
 // Custom logic
-<AuiIf condition={({ thread }) =>
-  thread.messages.length > 0 && !thread.isRunning
+<AuiIf condition={(s) =>
+  s.thread.messages.length > 0 && !s.thread.isRunning
 }>
   <FollowUpSuggestions />
 </AuiIf>
@@ -173,7 +173,7 @@ You can import the `AuiIf.Condition` type for typing your condition functions:
 ```tsx
 import { AuiIf } from "@assistant-ui/react";
 
-const isThreadEmpty: AuiIf.Condition = ({ thread }) => thread.isEmpty;
+const isThreadEmpty: AuiIf.Condition = (s) => s.thread.isEmpty;
 
 <AuiIf condition={isThreadEmpty}>
   <WelcomeScreen />
@@ -188,12 +188,12 @@ const isThreadEmpty: AuiIf.Condition = ({ thread }) => thread.isEmpty;
 
 | Before | After |
 |--------|-------|
-| `<ThreadPrimitive.If empty>` | `<AuiIf condition={({ thread }) => thread.isEmpty}>` |
-| `<ThreadPrimitive.If running>` | `<AuiIf condition={({ thread }) => thread.isRunning}>` |
-| `<ThreadPrimitive.If running={false}>` | `<AuiIf condition={({ thread }) => !thread.isRunning}>` |
-| `<MessagePrimitive.If user>` | `<AuiIf condition={({ message }) => message.role === "user"}>` |
-| `<MessagePrimitive.If assistant>` | `<AuiIf condition={({ message }) => message.role === "assistant"}>` |
-| `<MessagePrimitive.If copied>` | `<AuiIf condition={({ message }) => message.isCopied}>` |
-| `<MessagePrimitive.If speaking>` | `<AuiIf condition={({ message }) => message.speech != null}>` |
-| `<MessagePrimitive.If last>` | `<AuiIf condition={({ message }) => message.isLast}>` |
-| `<ComposerPrimitive.If editing>` | `<AuiIf condition={({ composer }) => composer.isEditing}>` |
+| `<ThreadPrimitive.If empty>` | `<AuiIf condition={(s) => s.thread.isEmpty}>` |
+| `<ThreadPrimitive.If running>` | `<AuiIf condition={(s) => s.thread.isRunning}>` |
+| `<ThreadPrimitive.If running={false}>` | `<AuiIf condition={(s) => !s.thread.isRunning}>` |
+| `<MessagePrimitive.If user>` | `<AuiIf condition={(s) => s.message.role === "user"}>` |
+| `<MessagePrimitive.If assistant>` | `<AuiIf condition={(s) => s.message.role === "assistant"}>` |
+| `<MessagePrimitive.If copied>` | `<AuiIf condition={(s) => s.message.isCopied}>` |
+| `<MessagePrimitive.If speaking>` | `<AuiIf condition={(s) => s.message.speech != null}>` |
+| `<MessagePrimitive.If last>` | `<AuiIf condition={(s) => s.message.isLast}>` |
+| `<ComposerPrimitive.If editing>` | `<AuiIf condition={(s) => s.composer.isEditing}>` |

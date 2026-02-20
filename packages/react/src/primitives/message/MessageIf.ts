@@ -78,7 +78,7 @@ export namespace MessagePrimitiveIf {
 }
 
 /**
- * @deprecated Use `<AuiIf condition={({ message }) => ...} />` instead.
+ * @deprecated Use `<AuiIf condition={(s) => s.message...} />` instead.
  */
 export const MessagePrimitiveIf: FC<MessagePrimitiveIf.Props> = ({
   children,

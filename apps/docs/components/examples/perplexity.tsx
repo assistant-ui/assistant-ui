@@ -42,7 +42,7 @@ export const Perplexity: FC = () => {
       <ThreadPrimitive.Empty>
         <ThreadWelcome />
       </ThreadPrimitive.Empty>
-      <AuiIf condition={({ thread }) => !thread.isEmpty}>
+      <AuiIf condition={(s) => !s.thread.isEmpty}>
         <ThreadPrimitive.Viewport className="flex h-full flex-col items-center overflow-y-scroll scroll-smooth bg-inherit px-4 pt-8">
           <ThreadPrimitive.Messages
             components={{
@@ -151,7 +151,7 @@ const Composer: FC = () => {
 const ComposerAction: FC = () => {
   return (
     <>
-      <AuiIf condition={({ thread }) => !thread.isRunning}>
+      <AuiIf condition={(s) => !s.thread.isRunning}>
         <ComposerPrimitive.Send asChild>
           <TooltipIconButton
             tooltip="Send"
@@ -162,7 +162,7 @@ const ComposerAction: FC = () => {
           </TooltipIconButton>
         </ComposerPrimitive.Send>
       </AuiIf>
-      <AuiIf condition={({ thread }) => thread.isRunning}>
+      <AuiIf condition={(s) => s.thread.isRunning}>
         <ComposerPrimitive.Cancel asChild>
           <TooltipIconButton
             tooltip="Cancel"
@@ -221,10 +221,10 @@ const AssistantActionBar: FC = () => {
           tooltip="Copy"
           className="text-[#808080] hover:bg-[#3a3a3a] hover:text-[#f5f5f5]"
         >
-          <AuiIf condition={({ message }) => message.isCopied}>
+          <AuiIf condition={(s) => s.message.isCopied}>
             <CheckIcon className="text-[#20b8cd]" />
           </AuiIf>
-          <AuiIf condition={({ message }) => !message.isCopied}>
+          <AuiIf condition={(s) => !s.message.isCopied}>
             <CopyIcon />
           </AuiIf>
         </TooltipIconButton>
