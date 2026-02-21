@@ -1,4 +1,5 @@
 "use client";
+
 import { Thread } from "@/components/assistant-ui/thread";
 import { ArtifactsView } from "./artifacts-view";
 

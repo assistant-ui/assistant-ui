@@ -1,4 +1,5 @@
 "use client";
+
 import { useAuiState } from "@assistant-ui/react";
 import type { ToolCallMessagePart } from "@assistant-ui/react";
 import * as TabsPrimitive from "@radix-ui/react-tabs";
