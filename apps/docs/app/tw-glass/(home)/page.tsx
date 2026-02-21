@@ -415,16 +415,16 @@ const GLASS_TEXT_DEFAULTS = {
   // Diffuse lighting
   diffSurfaceScale: 8,
   diffConstant: 1.4,
-  diffLightX: -230,
+  diffLightX: 0,
   diffLightY: -160,
-  diffLightZ: 0,
+  diffLightZ: 30,
   // Specular lighting
   specSurfaceScale: 9,
   specConstant: 3.2,
   specExponent: 17,
-  specLightX: 460,
+  specLightX: 0,
   specLightY: 160,
-  specLightZ: 0,
+  specLightZ: 50,
   // Compositing
   diffOpacity: 0.7,
   specOpacity: 0.6,
@@ -441,7 +441,7 @@ function GlassTextHero({ bg }: { bg: string }) {
 
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
-  const springConfig = { stiffness: 40, damping: 30, mass: 0.3 };
+  const springConfig = { stiffness: 200, damping: 30, mass: 0.3 };
   const sx = useSpring(mouseX, springConfig);
   const sy = useSpring(mouseY, springConfig);
 
@@ -606,7 +606,12 @@ function GlassTextHero({ bg }: { bg: string }) {
       {/* Inline SVG filter — every parameter is live */}
       <svg
         aria-hidden="true"
-        style={{ position: "absolute", width: 0, height: 0 }}
+        style={{
+          position: "absolute",
+          width: 0,
+          height: 0,
+          mixBlendMode: "screen",
+        }}
       >
         <defs>
           <filter
