@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ActionBarPrimitive } from "@assistant-ui/react";
+import { ActionBarPrimitive, AuiIf } from "@assistant-ui/react";
 import { useAui, useAuiState } from "@assistant-ui/store";
-import { ThumbsUpIcon, ThumbsDownIcon } from "lucide-react";
+import { ThumbsUpIcon, ThumbsDownIcon, CopyIcon, CheckIcon } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { analytics } from "@/lib/analytics";
@@ -167,6 +167,20 @@ export function AssistantActionBar(): ReactNode {
 
   return (
     <ActionBarPrimitive.Root className="mt-2 flex items-center gap-1">
+      <ActionBarPrimitive.Copy
+        aria-label="Copy response"
+        className={cn(
+          "rounded p-1 text-muted-foreground transition-colors",
+          "hover:bg-muted hover:text-foreground",
+        )}
+      >
+        <AuiIf condition={(s) => s.message.isCopied}>
+          <CheckIcon className="size-4" />
+        </AuiIf>
+        <AuiIf condition={(s) => !s.message.isCopied}>
+          <CopyIcon className="size-4" />
+        </AuiIf>
+      </ActionBarPrimitive.Copy>
       <button
         type="button"
         onClick={handlePositiveFeedback}
