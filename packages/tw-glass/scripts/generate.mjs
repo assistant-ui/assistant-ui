@@ -118,7 +118,17 @@ function buildChromaticFilter(scale) {
 }
 
 function toDataUri(svg) {
-  return `url("data:image/svg+xml,${encodeURIComponent(svg)}#f")`;
+  // Minimal encoding for SVG in CSS url("..."). Matches the approach
+  // used by mini-svg-data-uri: encode only the characters that are
+  // unsafe in data URIs or CSS strings, leave everything else literal.
+  const encoded = svg
+    .replace(/"/g, "'") // XML attrs: " → ' (avoids closing CSS string)
+    .replace(/%/g, "%25") // must be first (percent-encoding escape)
+    .replace(/#/g, "%23") // URI fragment delimiter
+    .replace(/</g, "%3C") // URI delimiter (RFC 3986)
+    .replace(/>/g, "%3E") // URI delimiter (RFC 3986)
+    .replace(/\s+/g, "%20"); // collapse whitespace
+  return `url("data:image/svg+xml,${encoded}#f")`;
 }
 
 // ─── Generate CSS ──────────────────────────────────────────────────
@@ -163,6 +173,9 @@ emit(
 );
 emit(
   ` *   <div class="glass glass-surface">                 <!-- frosted surface -->`,
+);
+emit(
+  ` *   <h1 class="glass-text">                              <!-- glass text effect -->`,
 );
 emit(` */`);
 emit();
@@ -292,6 +305,28 @@ emit(`}`);
 emit();
 emit(`@utility glass-bg-* {`);
 emit(`  --glass-bg-opacity: calc(--value(integer) * 0.01);`);
+emit(`}`);
+emit();
+emit(`/* ── Glass Text Effect ─────────────────────────────────────── */`);
+emit(`/*`);
+emit(
+  ` * Shows a background image through the text shape, like looking through`,
+);
+emit(` * glass letters. Set \`background-image\` on the element and use`);
+emit(` * \`background-attachment: fixed\` for a parallax-window effect.`);
+emit(` *`);
+emit(` * Usage:`);
+emit(` *   <h1 class="glass-text" style="background-image: url(photo.jpg)">`);
+emit(` *     tw-glass`);
+emit(` *   </h1>`);
+emit(` */`);
+emit();
+emit(`@utility glass-text {`);
+emit(`  color: transparent;`);
+emit(`  -webkit-background-clip: text;`);
+emit(`  background-clip: text;`);
+emit(`  background-size: cover;`);
+emit(`  background-position: center;`);
 emit(`}`);
 
 const css = lines.join("\n") + "\n";
