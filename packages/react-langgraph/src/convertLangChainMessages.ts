@@ -12,6 +12,11 @@ import {
   ReadonlyJSONObject,
 } from "assistant-stream/utils";
 
+const getCustomMetadata = (
+  additionalKwargs: Record<string, unknown> | undefined,
+): Record<string, unknown> =>
+  (additionalKwargs?.metadata as Record<string, unknown>) ?? {};
+
 const warnedMessagePartTypes = new Set<string>();
 const warnForUnknownMessagePartType = (type: string) => {
   if (
@@ -102,12 +107,14 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
         role: "system",
         id: message.id,
         content: [{ type: "text", text: message.content }],
+        metadata: { custom: getCustomMetadata(message.additional_kwargs) },
       };
     case "human":
       return {
         role: "user",
         id: message.id,
         content: contentToParts(message.content),
+        metadata: { custom: getCustomMetadata(message.additional_kwargs) },
       };
     case "ai":
       const toolCallParts =
@@ -143,6 +150,7 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
         role: "assistant",
         id: message.id,
         content: [...contentToParts(allContent), ...toolCallParts],
+        metadata: { custom: getCustomMetadata(message.additional_kwargs) },
         ...(message.status && { status: message.status }),
       };
     case "tool":

@@ -125,6 +125,7 @@ export type LangChainMessage =
       additional_kwargs?: {
         reasoning?: MessageContentReasoning;
         tool_outputs?: MessageContentComputerCall[];
+        metadata?: Record<string, unknown>;
       };
     };
 

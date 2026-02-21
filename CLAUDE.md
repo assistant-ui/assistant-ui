@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Build & Development Commands
 
 ```bash
-# Install dependencies (use pnpm, requires Node.js >=24, pnpm 10.28.2)
+# Install dependencies (use pnpm, requires Node.js >=24, pnpm >=10)
 pnpm install
 
 # Initial build (required before development - packages depend on each other's outputs)
@@ -30,6 +30,9 @@ pnpm test
 # Run tests for a specific package
 pnpm --filter @assistant-ui/react test
 pnpm --filter @assistant-ui/react test:watch  # watch mode
+
+# Clean all build artifacts, node_modules, and caches
+pnpm cleanup
 ```
 
 ## Changesets
@@ -46,9 +49,11 @@ This does NOT apply to private packages like `@assistant-ui/docs`, `@assistant-u
 
 Biome enforces all formatting and linting. Key rules:
 - **Tailwind class sorting**: `useSortedClasses` is ERROR level — applies to `className`, `clsx`, `cva`, `tw`, `twMerge`, `cn`, `twJoin`, `tv`
-- **Exhaustive dependencies**: ERROR level — includes custom `tap*` hooks (`tapEffect`, `tapMemo`, `tapCallback`, etc.)
-- Double quotes, semicolons, trailing commas, 80-char line width
+- **Exhaustive dependencies**: ERROR level — includes custom hooks: `tapEffect`, `tapMemo`, `tapCallback`, `tapConst`, `tapResources`; `tapEffectEvent` is marked as stable result
+- 2-space indentation, double quotes, semicolons, trailing commas, 80-char line width, LF line endings
+- `noExplicitAny` and all a11y rules are OFF
 - Pre-commit hook runs `biome check --fix` via lint-staged on all changed files
+- **Autofix CI**: PRs automatically get Biome lint fixes pushed via `autofix-ci/action`
 
 ## Architecture Overview
 
@@ -57,6 +62,7 @@ Biome enforces all formatting and linting. Key rules:
 - **packages/**: Published npm packages
 - **apps/**: Internal applications (docs, registry, devtools)
 - **examples/**: Example implementations for various integrations
+- **python/**: Python backend packages (`assistant-stream`, `assistant-transport-backend`, `langgraph-cloud-api`, etc.)
 
 ### Core Packages
 
@@ -84,7 +90,15 @@ Biome enforces all formatting and linting. Key rules:
 - Bridges `@assistant-ui/tap` with React components
 - `useAui`, `useAuiState`, `useAuiEvent` hooks
 
-**`@assistant-ui/react-native`** - React Native bindings (new)
+**`@assistant-ui/core`** - Shared logic used by both React and React Native packages
+
+**`@assistant-ui/cloud`** - Cloud persistence and thread management
+
+**`@assistant-ui/ui`** - Pre-built shadcn/ui component set (distinct from `@assistant-ui/styles`)
+
+**`@assistant-ui/cli`** (`create-assistant-ui`) - CLI scaffolding tool (`npx assistant-ui create` / `npx assistant-ui init`)
+
+**`@assistant-ui/react-native`** - React Native bindings
 - Mirrors the React package structure (primitives, hooks, context, runtimes)
 - Depends on `@assistant-ui/core` for shared logic
 
@@ -98,6 +112,9 @@ Biome enforces all formatting and linting. Key rules:
 - **`@assistant-ui/react-hook-form`**: React Hook Form integration
 - **`@assistant-ui/react-markdown`**: Markdown rendering
 - **`@assistant-ui/react-syntax-highlighter`**: Code highlighting
+- **`@assistant-ui/react-streamdown`**: Streaming markdown renderer
+- **`@assistant-ui/react-o11y`**: Observability and waterfall UI
+- **`@assistant-ui/react-devtools`**: Devtools panel
 - **`@assistant-ui/styles`**: Pre-built CSS for non-Tailwind users
 
 ### Runtime Architecture
