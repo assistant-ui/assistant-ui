@@ -1,0 +1,47 @@
+{
+  "name": "tw-glass",
+  "version": "0.0.1",
+  "description": "Tailwind CSS v4 plugin for glass refraction effects via SVG displacement maps",
+  "keywords": [
+    "tailwindcss",
+    "tailwind",
+    "glass",
+    "glassmorphism",
+    "refraction",
+    "displacement",
+    "backdrop-filter",
+    "css"
+  ],
+  "author": "AgentbaseAI Inc.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "default": "./src/index.css"
+    }
+  },
+  "main": "./src/index.css",
+  "files": [
+    "src",
+    "README.md"
+  ],
+  "sideEffects": [
+    "./src/index.css"
+  ],
+  "peerDependencies": {
+    "tailwindcss": ">=4.0.0-0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "homepage": "https://www.assistant-ui.com/tw-glass",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/assistant-ui/assistant-ui.git",
+    "directory": "packages/tw-glass"
+  },
+  "bugs": {
+    "url": "https://github.com/assistant-ui/assistant-ui/issues"
+  }
+}
