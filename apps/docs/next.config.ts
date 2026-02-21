@@ -24,6 +24,18 @@ const config: NextConfig = {
   skipTrailingSlashRedirect: true,
   redirects: async () => [
     {
+      source: "/",
+      has: [{ type: "header", key: "accept", value: "(?:.*text/markdown.*)" }],
+      destination: "/llms.txt",
+      permanent: false,
+    },
+    {
+      source: "/docs/:path*",
+      has: [{ type: "header", key: "accept", value: "(?:.*text/markdown.*)" }],
+      destination: "/llms.mdx/docs/:path*",
+      permanent: false,
+    },
+    {
       source: "/docs/getting-started",
       destination: "/docs",
       permanent: true,
