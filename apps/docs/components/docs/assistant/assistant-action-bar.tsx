@@ -3,7 +3,12 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ActionBarPrimitive, AuiIf } from "@assistant-ui/react";
 import { useAui, useAuiState } from "@assistant-ui/store";
-import { ThumbsUpIcon, ThumbsDownIcon, CopyIcon, CheckIcon } from "lucide-react";
+import {
+  ThumbsUpIcon,
+  ThumbsDownIcon,
+  CopyIcon,
+  CheckIcon,
+} from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { analytics } from "@/lib/analytics";
