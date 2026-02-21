@@ -75,7 +75,7 @@ export default function TwGlassPage() {
           <GlassTextHero bg={bg} />
 
           <p className="max-w-[520px] text-balance font-light text-lg text-muted-foreground">
-            Glass refraction via SVG displacement maps. Pure CSS, no JavaScript.
+            Glass refraction with a single class. Pure CSS, no JavaScript.
           </p>
         </div>
       </div>
@@ -740,6 +740,11 @@ const PATTERNS = [
   { name: "Abstract", id: "photo-1604871000636-074fa5117945" },
   { name: "Wave", id: "photo-1659762073691-e724db40f9d5" },
   { name: "Portrait", id: "photo-1599163666602-ef737d996c16" },
+  { name: "we", id: "photo-1549490316-686f9b5d359f" },
+  { name: "eee", id: "photo-1597071622990-3a4ed91035b0" },
+  { name: "ee44e", id: "photo-1640280882428-547d0afe0c8d" },
+  { name: "ee4e4e", id: "photo-1541661538396-53ba2d051eed" },
+  { name: "ee4344e4e", id: "photo-1761419647919-233829f0f469" },
 ];
 
 function DemoArea({

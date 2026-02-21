@@ -15,7 +15,7 @@
  *   <div class="glass glass-saturation-150">          <!-- 150% saturation -->
  *   <div class="glass glass-brightness-110">          <!-- 110% brightness -->
  *   <div class="glass glass-surface">                 <!-- frosted surface -->
- *   <h1 class="glass-text">                            <!-- glass text effect -->
+ *   <h1 class="glass-text">                              <!-- glass text effect -->
  */
 
 /* ── Custom Properties ──────────────────────────────────────── */
@@ -143,29 +143,20 @@
 
 /* ── Glass Text Effect ─────────────────────────────────────── */
 /*
- * Applies a high-end glass material look to text using an inline SVG filter.
- *
- * Technique: feDiffuseLighting + feSpecularLighting on a blurred alpha channel
- * to simulate light refracting through glass. The original text alpha is used
- * as a height map — edges catch specular highlights while the body stays
- * translucent.
- *
- * The filter uses primitiveUnits="objectBoundingBox" so all parameters —
- * blur radius, light positions, surface scale — are expressed as fractions
- * of the element's bounding box. This means the effect automatically scales
- * with font size: small text gets subtle highlights, large text gets dramatic
- * ones, without any per-size configuration.
- *
- * Pair with a background image or gradient; background-clip: text is applied
- * automatically.
+ * Shows a background image through the text shape, like looking through
+ * glass letters. Set `background-image` on the element and use
+ * `background-attachment: fixed` for a parallax-window effect.
  *
  * Usage:
- *   <h1 class="glass-text" style="background-image: ...">tw-glass</h1>
+ *   <h1 class="glass-text" style="background-image: url(photo.jpg)">
+ *     tw-glass
+ *   </h1>
  */
 
 @utility glass-text {
   color: transparent;
   -webkit-background-clip: text;
   background-clip: text;
-  filter: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cdefs%3E%3Cfilter%20id%3D%22glass-text%22%20filterUnits%3D%22objectBoundingBox%22%20primitiveUnits%3D%22objectBoundingBox%22%20x%3D%22-0.1%22%20y%3D%22-0.1%22%20width%3D%221.2%22%20height%3D%221.2%22%20color-interpolation-filters%3D%22sRGB%22%3E%3CfeGaussianBlur%20in%3D%22SourceAlpha%22%20stdDeviation%3D%220.002%200.008%22%20result%3D%22blur%22%2F%3E%3CfeDiffuseLighting%20in%3D%22blur%22%20surfaceScale%3D%220.05%22%20diffuseConstant%3D%221.4%22%20result%3D%22diffuse%22%3E%3CfePointLight%20x%3D%22-1%22%20y%3D%22-0.8%22%20z%3D%220%22%2F%3E%3C%2FfeDiffuseLighting%3E%3CfeSpecularLighting%20in%3D%22blur%22%20surfaceScale%3D%220.06%22%20specularConstant%3D%223.2%22%20specularExponent%3D%2217%22%20result%3D%22specular%22%3E%3CfePointLight%20x%3D%221.5%22%20y%3D%220.8%22%20z%3D%220%22%2F%3E%3C%2FfeSpecularLighting%3E%3CfeComposite%20in%3D%22specular%22%20in2%3D%22SourceAlpha%22%20operator%3D%22in%22%20result%3D%22specClip%22%2F%3E%3CfeComposite%20in%3D%22diffuse%22%20in2%3D%22SourceAlpha%22%20operator%3D%22in%22%20result%3D%22diffClip%22%2F%3E%3CfeColorMatrix%20in%3D%22diffClip%22%20type%3D%22matrix%22%20values%3D%221%200%200%200%200%200%201%200%200%200%200%200%201%200%200%200%200%200%200.7%200%22%20result%3D%22diffFade%22%2F%3E%3CfeColorMatrix%20in%3D%22specClip%22%20type%3D%22matrix%22%20values%3D%221%200%200%200%200%200%201%200%200%200%200%200%201%200%200%200%200%200%200.6%200%22%20result%3D%22specFade%22%2F%3E%3CfeMerge%3E%3CfeMergeNode%20in%3D%22SourceGraphic%22%2F%3E%3CfeMergeNode%20in%3D%22diffFade%22%2F%3E%3CfeMergeNode%20in%3D%22specFade%22%2F%3E%3C%2FfeMerge%3E%3C%2Ffilter%3E%3C%2Fdefs%3E%3C%2Fsvg%3E#glass-text");
+  background-size: cover;
+  background-position: center;
 }

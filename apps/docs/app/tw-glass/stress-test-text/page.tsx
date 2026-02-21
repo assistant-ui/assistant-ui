@@ -8,13 +8,6 @@ const unsplash = (id: string) =>
 
 const BG_IMAGE = unsplash(PHOTO_ID);
 
-const TEXT_BG: React.CSSProperties = {
-  backgroundImage: BG_IMAGE,
-  backgroundSize: "cover",
-  backgroundPosition: "center",
-  backgroundAttachment: "fixed",
-};
-
 export default function GlassTextStressTestPage() {
   return (
     <div className="min-h-screen bg-background">
@@ -143,7 +136,7 @@ function DemoArea({
 }) {
   return (
     <div
-      className={`relative overflow-hidden rounded-lg bg-muted p-6 shadow-[inset_0_1px_4px_rgba(0,0,0,0.08)] dark:shadow-[inset_0_1px_4px_rgba(0,0,0,0.4)] ${className}`}
+      className={`relative overflow-hidden rounded-lg bg-muted p-6 ${className}`}
     >
       {children}
     </div>
@@ -162,7 +155,11 @@ function GlassText({
   return (
     <span
       className={`glass-text ${className}`}
-      style={{ ...TEXT_BG, ...style }}
+      style={{
+        backgroundImage: BG_IMAGE,
+        backgroundAttachment: "fixed",
+        ...style,
+      }}
     >
       {children}
     </span>
@@ -292,7 +289,7 @@ function FontSizeSection() {
     >
       <TestCard
         title="text-sm through text-9xl"
-        description="The SVG filter uses SourceAlpha, so glyph dimensions directly affect the height map."
+        description="Background-clip: text at every scale. The photo shows through each glyph."
       >
         <DemoArea>
           <div className="space-y-6">
@@ -333,7 +330,7 @@ function FontWeightSection() {
     <Section
       id="font-weights"
       title="Font Weights"
-      description="Glyph stroke thickness affects the alpha channel height map. Thin strokes produce sharper highlights; heavy strokes broaden the diffuse area."
+      description="Stroke weight affects how much of the photo is visible through each glyph."
     >
       <TestCard
         title="font-thin through font-black"
@@ -395,11 +392,11 @@ const BG_VARIANTS: {
   },
   {
     label: "Solid color",
-    style: { backgroundColor: "#888" },
+    style: { backgroundImage: "none", backgroundColor: "#888" },
   },
   {
     label: "Dark solid",
-    style: { backgroundColor: "#222" },
+    style: { backgroundImage: "none", backgroundColor: "#222" },
   },
 ];
 
@@ -408,21 +405,21 @@ function BackgroundVariantsSection() {
     <Section
       id="backgrounds"
       title="Background Variants"
-      description="Glass text with different background sources clipped through the text. Tests visual quality across gradients, photos, and solids."
+      description="Different background sources clipped through the text shape. Photos, gradients, and solids."
     >
       <TestCard
         title="6 background styles"
         description="Each heading uses a different background-image/color with background-clip: text."
       >
         <DemoArea>
-          <div className="space-y-6">
+          <div className="grid gap-6 sm:grid-cols-2">
             {BG_VARIANTS.map(({ label, style }) => (
               <div key={label} className="space-y-1">
                 <code className="rounded bg-foreground/10 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
                   {label}
                 </code>
                 <div>
-                  <GlassText className="font-bold text-6xl" style={style}>
+                  <GlassText className="font-bold text-5xl" style={style}>
                     tw-glass
                   </GlassText>
                 </div>
@@ -509,41 +506,31 @@ function NestedContainersSection() {
         title="glass-text inside glass panels"
         description="Glass text headings rendered within glass glass-surface containers."
       >
-        <DemoArea className="p-0">
-          <div
-            className="p-6"
-            style={{
-              backgroundImage: BG_IMAGE,
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-              backgroundAttachment: "fixed",
-            }}
-          >
-            <div className="space-y-4">
-              <div className="glass glass-surface rounded-xl p-6">
-                <GlassText className="font-bold text-4xl">
-                  Heading inside glass
+        <DemoArea>
+          <div className="space-y-4">
+            <div className="glass glass-surface rounded-xl p-6">
+              <GlassText className="font-bold text-4xl">
+                Heading inside glass
+              </GlassText>
+              <p className="mt-2 text-muted-foreground text-sm">
+                Regular text below the glass heading.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="glass glass-surface glass-strength-30 rounded-xl p-6">
+                <GlassText className="font-bold text-2xl">Panel A</GlassText>
+              </div>
+              <div className="glass glass-surface glass-chromatic-20 rounded-xl p-6">
+                <GlassText className="font-bold text-2xl">Panel B</GlassText>
+              </div>
+            </div>
+
+            <div className="glass glass-surface rounded-xl p-6">
+              <div className="glass glass-surface rounded-lg p-4">
+                <GlassText className="font-bold text-3xl">
+                  Double nested
                 </GlassText>
-                <p className="mt-2 text-muted-foreground text-sm">
-                  Regular text below the glass heading.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="glass glass-surface glass-strength-30 rounded-xl p-6">
-                  <GlassText className="font-bold text-2xl">Panel A</GlassText>
-                </div>
-                <div className="glass glass-surface glass-chromatic-20 rounded-xl p-6">
-                  <GlassText className="font-bold text-2xl">Panel B</GlassText>
-                </div>
-              </div>
-
-              <div className="glass glass-surface rounded-xl p-6">
-                <div className="glass glass-surface rounded-lg p-4">
-                  <GlassText className="font-bold text-3xl">
-                    Double nested
-                  </GlassText>
-                </div>
               </div>
             </div>
           </div>
@@ -566,7 +553,7 @@ function ScrollStressSection() {
     >
       <TestCard
         title="Scroll through glass text headings"
-        description="Each heading uses glass-text with a fixed background."
+        description="Each heading uses background-clip: text with a fixed background. Tests performance during scroll."
       >
         <div className="relative h-[500px] overflow-y-auto rounded-lg bg-muted">
           <div className="space-y-4 p-4">

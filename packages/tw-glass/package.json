@@ -32,8 +32,7 @@
     "tailwindcss": ">=4.0.0-0"
   },
   "publishConfig": {
-    "access": "public",
-    "provenance": true
+    "access": "public"
   },
   "homepage": "https://www.assistant-ui.com/tw-glass",
   "repository": {
