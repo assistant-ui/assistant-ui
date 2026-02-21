@@ -58,12 +58,16 @@ export default function TwGlassPage() {
 
   return (
     <>
-      {/* Fixed full-viewport background with selected pattern */}
+      {/* Fixed full-viewport background with selected pattern + sine-eased vignette */}
       <div
         className="pointer-events-none fixed inset-0 z-0 bg-center bg-cover bg-fixed transition-[background-image] duration-500"
         style={{
           backgroundImage: unsplash(bg),
           opacity: 0.15,
+          maskImage:
+            "radial-gradient(ellipse at center, black 0%, rgba(0,0,0,0.987) 8.5%, rgba(0,0,0,0.951) 16.2%, rgba(0,0,0,0.891) 23.1%, rgba(0,0,0,0.809) 29.6%, rgba(0,0,0,0.707) 35.7%, rgba(0,0,0,0.588) 41.8%, rgba(0,0,0,0.454) 48%, rgba(0,0,0,0.309) 54.5%, rgba(0,0,0,0.191) 61.5%, rgba(0,0,0,0.098) 69.3%, rgba(0,0,0,0.038) 78.1%, transparent 100%)",
+          WebkitMaskImage:
+            "radial-gradient(ellipse at center, black 0%, rgba(0,0,0,0.987) 8.5%, rgba(0,0,0,0.951) 16.2%, rgba(0,0,0,0.891) 23.1%, rgba(0,0,0,0.809) 29.6%, rgba(0,0,0,0.707) 35.7%, rgba(0,0,0,0.588) 41.8%, rgba(0,0,0,0.454) 48%, rgba(0,0,0,0.309) 54.5%, rgba(0,0,0,0.191) 61.5%, rgba(0,0,0,0.098) 69.3%, rgba(0,0,0,0.038) 78.1%, transparent 100%)",
         }}
       />
       <div className="container relative z-10 mx-auto max-w-7xl space-y-16 px-4 pt-12 pb-28">
@@ -767,9 +771,10 @@ const PATTERNS = [
   { name: "ee44e", id: "photo-1640280882428-547d0afe0c8d" },
   { name: "ee4e4e", id: "photo-1541661538396-53ba2d051eed" },
   { name: "ee4344e4e", id: "photo-1761419647919-233829f0f469" },
-  { name: "ee4344e4e", id: "photo-1761419647919-233829f0f469" },
-  { name: "ee43444e4e", id: "photo-1517384084767-6bc118943770" },
+  { name: "ee4344ffe4e", id: "photo-1761419647919-233829f0f469" },
+  { name: "ee4345g44e4e", id: "photo-1517384084767-6bc118943770" },
   { name: "ee4343544e4e", id: "photo-1683513731191-34f4bd2ce16a" },
+  { name: "ee4343544e444e", id: "photo-1555069811-3fce6ac918e4" },
 ];
 
 function DemoArea({
@@ -781,7 +786,7 @@ function DemoArea({
 }) {
   return (
     <div
-      className="relative overflow-hidden bg-muted p-6 shadow-[inset_0_1px_4px_rgba(0,0,0,0.08)] dark:shadow-[inset_0_1px_4px_rgba(0,0,0,0.4)]"
+      className="relative overflow-hidden bg-muted p-6 shadow-[inset_0_1px_4px_rgba(0,0,0,0.08)] transition-[background-image] duration-500 dark:shadow-[inset_0_1px_4px_rgba(0,0,0,0.4)]"
       style={{
         backgroundImage: unsplash(pattern),
         backgroundAttachment: "fixed",
