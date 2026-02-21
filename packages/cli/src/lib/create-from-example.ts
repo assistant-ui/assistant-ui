@@ -16,7 +16,9 @@ export interface CreateFromExampleOptions {
 const VALID_EXAMPLES = [
   "with-ag-ui",
   "with-ai-sdk-v6",
+  "with-artifacts",
   "with-assistant-transport",
+  "with-chain-of-thought",
   "with-cloud",
   "with-custom-thread-list",
   "with-elevenlabs-scribe",
