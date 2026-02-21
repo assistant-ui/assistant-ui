@@ -134,11 +134,22 @@ export async function unstable_runPendingTools(
           }),
       );
       if (promiseOrUndefined) {
+        try {
         const result = await promiseOrUndefined;
         return {
           toolCallId: part.toolCallId,
           result,
-        };
+        }  
+        } catch (error) {
+          const result = new ToolResponse({
+            isError: true,
+            result: error instanceof Error ? error.message : String(error),
+          })
+           return {
+          toolCallId: part.toolCallId,
+          result,
+        } 
+        }
       }
       return null;
     });
