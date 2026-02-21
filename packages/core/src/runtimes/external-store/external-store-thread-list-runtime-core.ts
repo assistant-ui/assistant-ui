@@ -148,9 +148,11 @@ export class ExternalStoreThreadListRuntimeCore
         this.adapter.archivedThreads?.map((t) => t.id) ?? EMPTY_ARRAY;
     }
 
-    if (previousThreadId !== newThreadId) {
+    if (initialLoad || previousThreadId !== newThreadId) {
       this._mainThreadId = newThreadId;
-      this._mainThread = this.threadFactory();
+      if (!initialLoad) {
+        this._mainThread = this.threadFactory();
+      }
     }
 
     this._notifySubscribers();
