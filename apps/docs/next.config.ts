@@ -22,20 +22,6 @@ const config: NextConfig = {
   transpilePackages: ["@assistant-ui/*", "shiki"],
   serverExternalPackages: ["twoslash"],
   skipTrailingSlashRedirect: true,
-  redirects: async () => [
-    {
-      source: "/",
-      has: [{ type: "header", key: "accept", value: "(?:.*text/markdown.*)" }],
-      destination: "/llms.txt",
-      permanent: false,
-    },
-    {
-      source: "/docs/:path*",
-      has: [{ type: "header", key: "accept", value: "(?:.*text/markdown.*)" }],
-      destination: "/llms.mdx/docs/:path*",
-      permanent: false,
-    },
-  ],
   headers: async () => [
     {
       source: "/(.*)",
@@ -49,6 +35,20 @@ const config: NextConfig = {
   ],
   rewrites: async () => ({
     beforeFiles: [
+      {
+        source: "/",
+        has: [
+          { type: "header", key: "accept", value: "(?:.*text/markdown.*)" },
+        ],
+        destination: "/llms.txt",
+      },
+      {
+        source: "/docs/:path*",
+        has: [
+          { type: "header", key: "accept", value: "(?:.*text/markdown.*)" },
+        ],
+        destination: "/llms.mdx/:path*",
+      },
       {
         source: "/umami/:path*",
         destination: "https://assistant-ui-umami.vercel.app/:path*",
