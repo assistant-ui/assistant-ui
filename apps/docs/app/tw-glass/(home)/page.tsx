@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
+import { useScroll, useTransform, useMotionValueEvent } from "motion/react";
+import { useControls, folder, button, Leva } from "leva";
 import { Copy, Check, FileCode, Sparkle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SyntaxHighlighter } from "@/components/assistant-ui/shiki-highlighter";
@@ -52,10 +54,11 @@ export default function TwGlassPage() {
     } catch {}
   }, []);
 
-  const bg = PATTERNS[patternIndex].id;
+  const bg = PATTERNS[patternIndex]?.id ?? "";
 
   return (
     <div className="container mx-auto max-w-7xl space-y-16 px-4 pt-12 pb-28">
+      <Leva collapsed={false} titleBar={{ title: "Glass Text Effect" }} />
       <HighlightStyles />
       <PatternPicker active={patternIndex} onChange={setPatternIndex} />
 
@@ -69,9 +72,7 @@ export default function TwGlassPage() {
         </div>
 
         <div className="flex flex-col gap-5">
-          <div className="pointer-events-none select-none font-bold text-5xl tracking-tight lg:text-7xl">
-            <h1 className="inline text-foreground/50">tw-glass</h1>
-          </div>
+          <GlassTextHero bg={bg} />
 
           <p className="max-w-[520px] text-balance font-light text-lg text-muted-foreground">
             Glass refraction via SVG displacement maps. Pure CSS, no JavaScript.
@@ -405,6 +406,308 @@ export default function TwGlassPage() {
 }
 
 // =============================================================================
+// Glass Text Hero with Leva tuning panel
+// =============================================================================
+
+const GLASS_TEXT_DEFAULTS = {
+  // Blur (height map)
+  blurStdDev: 1.1,
+  // Diffuse lighting
+  diffSurfaceScale: 8,
+  diffConstant: 1.4,
+  diffLightX: -230,
+  diffLightY: -160,
+  diffLightZ: 0,
+  // Specular lighting
+  specSurfaceScale: 9,
+  specConstant: 3.2,
+  specExponent: 17,
+  specLightX: 460,
+  specLightY: 160,
+  specLightZ: 0,
+  // Compositing
+  diffOpacity: 0.7,
+  specOpacity: 0.6,
+  // Background
+  showBgImage: true,
+  bgOpacity: 1,
+};
+
+function GlassTextHero({ bg }: { bg: string }) {
+  const filterId = "glass-text-tunable";
+  const controlsRef = useRef<Record<string, unknown>>({});
+  const diffPointLightRef = useRef<SVGFEPointLightElement>(null);
+  const vhRef = useRef(800);
+
+  const { scrollY } = useScroll();
+  const scrollLightY = useTransform(scrollY, (v) =>
+    Math.max(0, Math.min(v, vhRef.current)),
+  );
+
+  useEffect(() => {
+    vhRef.current = window.innerHeight;
+    const onResize = () => {
+      vhRef.current = window.innerHeight;
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  useMotionValueEvent(scrollLightY, "change", (v) => {
+    diffPointLightRef.current?.setAttribute("y", String(v));
+  });
+
+  const controls = useControls({
+    "Blur (Height Map)": folder({
+      blurStdDev: {
+        value: GLASS_TEXT_DEFAULTS.blurStdDev,
+        min: 0,
+        max: 8,
+        step: 0.1,
+        label: "Std Deviation",
+      },
+    }),
+    "Diffuse Light": folder({
+      diffSurfaceScale: {
+        value: GLASS_TEXT_DEFAULTS.diffSurfaceScale,
+        min: 0,
+        max: 30,
+        step: 0.5,
+        label: "Surface Scale",
+      },
+      diffConstant: {
+        value: GLASS_TEXT_DEFAULTS.diffConstant,
+        min: 0,
+        max: 3,
+        step: 0.05,
+        label: "Intensity",
+      },
+      diffLightX: {
+        value: GLASS_TEXT_DEFAULTS.diffLightX,
+        min: -500,
+        max: 500,
+        step: 10,
+        label: "Light X",
+      },
+      diffLightY: {
+        value: GLASS_TEXT_DEFAULTS.diffLightY,
+        min: -500,
+        max: 500,
+        step: 10,
+        label: "Light Y",
+      },
+      diffLightZ: {
+        value: GLASS_TEXT_DEFAULTS.diffLightZ,
+        min: 0,
+        max: 800,
+        step: 10,
+        label: "Light Z",
+      },
+      diffOpacity: {
+        value: GLASS_TEXT_DEFAULTS.diffOpacity,
+        min: 0,
+        max: 1,
+        step: 0.05,
+        label: "Opacity",
+      },
+    }),
+    "Specular Highlight": folder({
+      specSurfaceScale: {
+        value: GLASS_TEXT_DEFAULTS.specSurfaceScale,
+        min: 0,
+        max: 30,
+        step: 0.5,
+        label: "Surface Scale",
+      },
+      specConstant: {
+        value: GLASS_TEXT_DEFAULTS.specConstant,
+        min: 0,
+        max: 5,
+        step: 0.1,
+        label: "Intensity",
+      },
+      specExponent: {
+        value: GLASS_TEXT_DEFAULTS.specExponent,
+        min: 1,
+        max: 128,
+        step: 1,
+        label: "Sharpness",
+      },
+      specLightX: {
+        value: GLASS_TEXT_DEFAULTS.specLightX,
+        min: -500,
+        max: 500,
+        step: 10,
+        label: "Light X",
+      },
+      specLightY: {
+        value: GLASS_TEXT_DEFAULTS.specLightY,
+        min: -500,
+        max: 500,
+        step: 10,
+        label: "Light Y",
+      },
+      specLightZ: {
+        value: GLASS_TEXT_DEFAULTS.specLightZ,
+        min: 0,
+        max: 800,
+        step: 10,
+        label: "Light Z",
+      },
+      specOpacity: {
+        value: GLASS_TEXT_DEFAULTS.specOpacity,
+        min: 0,
+        max: 1,
+        step: 0.05,
+        label: "Opacity",
+      },
+    }),
+    Background: folder(
+      {
+        showBgImage: {
+          value: GLASS_TEXT_DEFAULTS.showBgImage,
+          label: "Show Image",
+        },
+        bgOpacity: {
+          value: GLASS_TEXT_DEFAULTS.bgOpacity,
+          min: 0,
+          max: 1,
+          step: 0.05,
+          label: "Image Opacity",
+        },
+      },
+      { collapsed: true },
+    ),
+    "Export for LLM": button(() => {
+      const c = controlsRef.current;
+      const lines = Object.entries(GLASS_TEXT_DEFAULTS)
+        .filter(([, def]) => typeof def === "number")
+        .map(([key]) => {
+          const val = c[key];
+          return `- ${key}: ${val}`;
+        })
+        .join("\n");
+      const text = `## Glass Text Effect — Current Values\n\n${lines}`;
+      navigator.clipboard.writeText(text);
+    }),
+  });
+
+  controlsRef.current = controls;
+
+  return (
+    <div className="pointer-events-none select-none font-bold text-5xl tracking-tight lg:text-7xl">
+      {/* Inline SVG filter — every parameter is live */}
+      <svg
+        aria-hidden="true"
+        style={{ position: "absolute", width: 0, height: 0 }}
+      >
+        <defs>
+          <filter
+            id={filterId}
+            x="-10%"
+            y="-10%"
+            width="120%"
+            height="120%"
+            colorInterpolationFilters="sRGB"
+          >
+            {/* Blur source alpha to create a smooth height map */}
+            <feGaussianBlur
+              in="SourceAlpha"
+              stdDeviation={controls.blurStdDev}
+              result="blur"
+            />
+
+            {/* Diffuse lighting — broad surface illumination */}
+            <feDiffuseLighting
+              in="blur"
+              surfaceScale={controls.diffSurfaceScale}
+              diffuseConstant={controls.diffConstant}
+              result="diffuse"
+            >
+              <fePointLight
+                ref={diffPointLightRef}
+                x={controls.diffLightX}
+                y={0}
+                z={controls.diffLightZ}
+              />
+            </feDiffuseLighting>
+
+            {/* Specular lighting — sharp edge highlights */}
+            <feSpecularLighting
+              in="blur"
+              surfaceScale={controls.specSurfaceScale}
+              specularConstant={controls.specConstant}
+              specularExponent={controls.specExponent}
+              result="specular"
+            >
+              <fePointLight
+                x={controls.specLightX}
+                y={controls.specLightY}
+                z={controls.specLightZ}
+              />
+            </feSpecularLighting>
+
+            {/* Clip both to original text alpha */}
+            <feComposite
+              in="specular"
+              in2="SourceAlpha"
+              operator="in"
+              result="specClip"
+            />
+            <feComposite
+              in="diffuse"
+              in2="SourceAlpha"
+              operator="in"
+              result="diffClip"
+            />
+
+            {/* Fade diffuse/specular by their opacity sliders */}
+            <feColorMatrix
+              in="diffClip"
+              type="matrix"
+              values={`1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 ${controls.diffOpacity} 0`}
+              result="diffFade"
+            />
+            <feColorMatrix
+              in="specClip"
+              type="matrix"
+              values={`1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 ${controls.specOpacity} 0`}
+              result="specFade"
+            />
+
+            {/* Layer: background image, diffuse, specular */}
+            <feMerge>
+              <feMergeNode in="SourceGraphic" />
+              <feMergeNode in="diffFade" />
+              <feMergeNode in="specFade" />
+            </feMerge>
+          </filter>
+        </defs>
+      </svg>
+
+      <h1
+        className="pointer-events-auto inline text-9xl"
+        style={{
+          filter: `url(#${filterId})`,
+          color: "transparent",
+          backgroundImage: controls.showBgImage
+            ? `linear-gradient(rgba(255,255,255,${1 - controls.bgOpacity}),rgba(255,255,255,${1 - controls.bgOpacity})),${unsplash(bg)}`
+            : undefined,
+          backgroundColor: controls.showBgImage ? undefined : "#999",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundAttachment: "fixed",
+          backgroundClip: "text",
+          WebkitBackgroundClip: "text",
+        }}
+      >
+        tw-glass
+      </h1>
+    </div>
+  );
+}
+
+// =============================================================================
 // Demo components
 // =============================================================================
 
@@ -418,12 +721,12 @@ const unsplashThumb = (id: string) =>
   `url(https://images.unsplash.com/${id}?auto=format&fit=crop&w=88&h=88&q=60)`;
 
 const PATTERNS = [
-  { name: "Gradient", id: "photo-1557683316-973673baf926" },
-  { name: "Ocean", id: "photo-1507525428034-b723cf961d3e" },
-  { name: "Aurora", id: "photo-1531366936337-7c912a4589a7" },
-  { name: "Bokeh", id: "photo-1518882174711-1de40238921b" },
-  { name: "City", id: "photo-1519501025264-65ba15a82390" },
-  { name: "Mountains", id: "photo-1506905925346-21bda4d32df4" },
+  { name: "Waterfall", id: "photo-1626080308326-a6131ac180db" },
+  { name: "Fern", id: "photo-1557672172-298e090bd0f1" },
+  { name: "Hands", id: "photo-1541661538396-53ba2d051eed" },
+  { name: "Abstract", id: "photo-1604871000636-074fa5117945" },
+  { name: "Wave", id: "photo-1659762073691-e724db40f9d5" },
+  { name: "Portrait", id: "photo-1599163666602-ef737d996c16" },
 ];
 
 function DemoArea({
