@@ -4,7 +4,10 @@ import { Thread } from "@/components/assistant-ui/thread";
 import {
   AssistantRuntimeProvider,
   makeAssistantTool,
+  useAui,
   useAuiState,
+  AuiProvider,
+  Suggestions,
 } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import type { ToolCallMessagePart } from "@assistant-ui/react";
@@ -33,23 +36,24 @@ const RenderHTMLTool = makeAssistantTool({
 });
 
 function ArtifactsView() {
-  const [tab, setTab] = useState<"source" | "preview">("preview");
+  const [tab, setTab] = useState<"source" | "preview">("source");
 
-  const artifact = useAuiState((s) => {
+  const lastToolCall = useAuiState((s) => {
     const messages = s.thread.messages;
     return messages
       .flatMap((m) =>
         m.content.filter(
           (c): c is ToolCallMessagePart =>
-            c.type === "tool-call" &&
-            c.toolName === "render_html" &&
-            c.result !== undefined,
+            c.type === "tool-call" && c.toolName === "render_html",
         ),
       )
-      .at(-1)?.args["code"] as string | undefined;
+      .at(-1);
   });
 
-  if (!artifact) return null;
+  const code = lastToolCall?.args["code"] as string | undefined;
+  const isComplete = lastToolCall?.result !== undefined;
+
+  if (!code) return null;
 
   return (
     <div className="flex flex-grow basis-full justify-stretch p-3">
@@ -67,32 +71,59 @@ function ArtifactsView() {
             Source Code
           </button>
           <button
-            onClick={() => setTab("preview")}
+            onClick={() => isComplete && setTab("preview")}
+            disabled={!isComplete}
             className={`inline-flex flex-1 items-center justify-center gap-2 px-4 py-2.5 font-medium text-sm transition-colors ${
-              tab === "preview"
-                ? "bg-background text-foreground"
-                : "text-muted-foreground hover:text-foreground"
+              !isComplete
+                ? "cursor-not-allowed opacity-50"
+                : tab === "preview"
+                  ? "bg-background text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
             }`}
           >
             <EyeIcon className="size-4" />
             Preview
           </button>
         </div>
-        {tab === "source" ? (
+        {tab === "source" || !isComplete ? (
           <div className="h-full overflow-y-auto whitespace-pre-line break-words px-4 py-2 font-mono text-sm">
-            {artifact}
+            {code}
           </div>
         ) : (
           <div className="flex h-full flex-grow px-4 py-2">
             <iframe
               className="h-full w-full"
               title="Artifact Preview"
-              srcDoc={artifact}
+              srcDoc={code}
             />
           </div>
         )}
       </div>
     </div>
+  );
+}
+
+function ThreadWithSuggestions() {
+  const aui = useAui({
+    suggestions: Suggestions([
+      {
+        title: "Build a landing page",
+        label: "with modern styling",
+        prompt:
+          "Build a beautiful landing page for a coffee shop with modern CSS.",
+      },
+      {
+        title: "Create a calculator",
+        label: "with HTML and JavaScript",
+        prompt:
+          "Create a calculator app with HTML, CSS, and JavaScript that supports basic arithmetic.",
+      },
+    ]),
+  });
+  return (
+    <AuiProvider value={aui}>
+      <Thread />
+    </AuiProvider>
   );
 }
 
@@ -103,7 +134,7 @@ export default function Home() {
     <AssistantRuntimeProvider runtime={runtime}>
       <main className="flex h-full justify-stretch">
         <div className="flex-grow basis-full">
-          <Thread />
+          <ThreadWithSuggestions />
         </div>
         <RenderHTMLTool />
         <ArtifactsView />

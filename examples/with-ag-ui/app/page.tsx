@@ -1,6 +1,12 @@
 "use client";
 
-import { useAssistantRuntime, useAssistantTool } from "@assistant-ui/react";
+import {
+  useAssistantRuntime,
+  useAssistantTool,
+  useAui,
+  AuiProvider,
+  Suggestions,
+} from "@assistant-ui/react";
 import { Thread } from "@/components/assistant-ui/thread";
 import { PlusIcon } from "lucide-react";
 
@@ -57,11 +63,33 @@ function NewThreadButton() {
   );
 }
 
+function ThreadWithSuggestions() {
+  const aui = useAui({
+    suggestions: Suggestions([
+      {
+        title: "Run a web search",
+        label: "for recent AI news",
+        prompt: "Search the web for the latest AI news.",
+      },
+      {
+        title: "Show a browser alert",
+        label: "using the alert tool",
+        prompt: "Show me a browser alert saying hello!",
+      },
+    ]),
+  });
+  return (
+    <AuiProvider value={aui}>
+      <Thread />
+    </AuiProvider>
+  );
+}
+
 export default function Home() {
   return (
     <main className="relative h-dvh">
       <NewThreadButton />
-      <Thread />
+      <ThreadWithSuggestions />
       <BrowserAlertTool />
     </main>
   );
