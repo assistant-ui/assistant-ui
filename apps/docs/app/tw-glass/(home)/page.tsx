@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import { useScroll, useTransform, useMotionValueEvent } from "motion/react";
+import { useMotionValue, useSpring, useMotionValueEvent } from "motion/react";
 import { useControls, folder, button, Leva } from "leva";
 import { Copy, Check, FileCode, Sparkle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -437,25 +437,32 @@ function GlassTextHero({ bg }: { bg: string }) {
   const filterId = "glass-text-tunable";
   const controlsRef = useRef<Record<string, unknown>>({});
   const diffPointLightRef = useRef<SVGFEPointLightElement>(null);
-  const vhRef = useRef(800);
+  const specPointLightRef = useRef<SVGFEPointLightElement>(null);
 
-  const { scrollY } = useScroll();
-  const scrollLightY = useTransform(scrollY, (v) =>
-    Math.max(0, Math.min(v, vhRef.current)),
-  );
+  const mouseX = useMotionValue(0);
+  const mouseY = useMotionValue(0);
+  const springConfig = { stiffness: 40, damping: 30, mass: 0.3 };
+  const sx = useSpring(mouseX, springConfig);
+  const sy = useSpring(mouseY, springConfig);
+
+  useMotionValueEvent(sx, "change", (v) => {
+    diffPointLightRef.current?.setAttribute("x", String(v));
+    specPointLightRef.current?.setAttribute("x", String(-v));
+  });
+  useMotionValueEvent(sy, "change", (v) => {
+    diffPointLightRef.current?.setAttribute("y", String(v));
+    specPointLightRef.current?.setAttribute("y", String(-v));
+  });
 
   useEffect(() => {
-    vhRef.current = window.innerHeight;
-    const onResize = () => {
-      vhRef.current = window.innerHeight;
+    const range = 500;
+    const onMove = (e: MouseEvent) => {
+      mouseX.set(((e.clientX / window.innerWidth) * 2 - 1) * range);
+      mouseY.set(((e.clientY / window.innerHeight) * 2 - 1) * range);
     };
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
-
-  useMotionValueEvent(scrollLightY, "change", (v) => {
-    diffPointLightRef.current?.setAttribute("y", String(v));
-  });
+    window.addEventListener("mousemove", onMove);
+    return () => window.removeEventListener("mousemove", onMove);
+  }, [mouseX, mouseY]);
 
   const controls = useControls({
     "Blur (Height Map)": folder({
@@ -626,7 +633,7 @@ function GlassTextHero({ bg }: { bg: string }) {
             >
               <fePointLight
                 ref={diffPointLightRef}
-                x={controls.diffLightX}
+                x={0}
                 y={0}
                 z={controls.diffLightZ}
               />
@@ -641,8 +648,9 @@ function GlassTextHero({ bg }: { bg: string }) {
               result="specular"
             >
               <fePointLight
-                x={controls.specLightX}
-                y={controls.specLightY}
+                ref={specPointLightRef}
+                x={0}
+                y={0}
                 z={controls.specLightZ}
               />
             </feSpecularLighting>
