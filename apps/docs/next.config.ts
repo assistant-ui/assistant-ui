@@ -35,16 +35,6 @@ const config: NextConfig = {
       destination: "/llms.mdx/docs/:path*",
       permanent: false,
     },
-    {
-      source: "/docs/getting-started",
-      destination: "/docs",
-      permanent: true,
-    },
-    {
-      source: "/chatgpt-app-studio",
-      destination: "/mcp-app-studio",
-      permanent: true,
-    },
   ],
   headers: async () => [
     {
