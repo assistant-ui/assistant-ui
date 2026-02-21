@@ -52,30 +52,25 @@ export default function TwGlassPage() {
 
         {/* Hero */}
         <div className="mx-auto flex w-fit flex-col items-center space-y-6 text-center">
-          <div className="flex cursor-default rounded-full bg-border p-px">
-            <div className="flex items-center gap-2 rounded-full bg-background px-4 py-1.5 text-sm">
-              <Sparkle className="size-4 opacity-50" />
-              <span className="text-foreground/60">Tailwind CSS v4 Plugin</span>
-            </div>
+          <div className="glass-surface glass-strength-50 flex items-center gap-2 rounded-full px-4 py-1.5 text-sm">
+            <Sparkle className="size-4 opacity-50" />
+            <span className="text-foreground/60">Tailwind CSS v4 Plugin</span>
           </div>
 
           <div className="flex flex-col gap-5">
             <GlassTextHero bg={bg} />
 
-            <p className="max-w-[520px] text-balance font-light text-lg text-muted-foreground">
-              Glass refraction with a single class. Pure CSS, no JavaScript.
+            <p className="text-balance font-light text-lg text-muted-foreground">
+              Realistic glass refraction, with a single class. Pure CSS, no
+              JavaScript.
             </p>
           </div>
         </div>
 
         {/* Installation */}
         <div id="installation" className="space-y-8">
-          <div className="text-center">
-            <h2 className="font-medium text-3xl">Installation</h2>
-          </div>
-
           <div className="mx-auto max-w-3xl space-y-6">
-            <Box>
+            <Box className="glass">
               <BoxContent>
                 <div className="flex items-center justify-between">
                   <code className="text-sm">npm install tw-glass</code>
@@ -94,7 +89,7 @@ export default function TwGlassPage() {
               </BoxContent>
             </Box>
 
-            <Box>
+            <Box className="glass">
               <BoxCodeHeader fileName="styles/globals.css" />
               <BoxCode>
                 <CodeBlock
@@ -133,7 +128,7 @@ export default function TwGlassPage() {
                 />
               </BoxCode>
               <DemoArea pattern={bg}>
-                <GlassDemo className="glass" label="glass" />
+                <GlassDemo className="glass" />
               </DemoArea>
             </Box>
 
@@ -151,10 +146,7 @@ export default function TwGlassPage() {
                 />
               </BoxCode>
               <DemoArea pattern={bg}>
-                <GlassDemo
-                  className="glass glass-surface"
-                  label="glass glass-surface"
-                />
+                <GlassDemo className="glass glass-surface" />
               </DemoArea>
             </Box>
           </div>
@@ -394,10 +386,7 @@ export default function TwGlassPage() {
                 />
               </BoxCode>
               <DemoArea pattern={bg}>
-                <GlassDemo
-                  className="glass glass-strength-30 glass-blur-4 glass-saturation-150 glass-surface"
-                  label="glass glass-strength-30 glass-blur-4 glass-saturation-150 glass-surface"
-                />
+                <GlassDemo className="glass glass-strength-30 glass-blur-4 glass-saturation-150 glass-surface" />
               </DemoArea>
             </Box>
           </div>

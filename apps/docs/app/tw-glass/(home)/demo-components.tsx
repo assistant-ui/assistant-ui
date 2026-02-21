@@ -30,7 +30,7 @@ export function GlassDemo({
   compact = false,
 }: {
   className: string;
-  label: string;
+  label?: string;
   compact?: boolean;
 }) {
   return (
@@ -38,9 +38,11 @@ export function GlassDemo({
       className={`rounded-xl ${className} ${compact ? "px-4 py-6" : "p-6"}`}
       style={{ minHeight: compact ? 80 : 100 }}
     >
-      <code className="rounded bg-foreground/10 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
-        {label}
-      </code>
+      {label && (
+        <code className="flex items-center justify-center font-mono text-primary leading-8">
+          {label}
+        </code>
+      )}
     </div>
   );
 }

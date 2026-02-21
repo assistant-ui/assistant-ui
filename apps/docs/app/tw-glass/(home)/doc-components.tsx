@@ -104,9 +104,15 @@ export function CodeBlock({
   );
 }
 
-export function Box({ children }: { children: React.ReactNode }) {
+export function Box({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
-    <div className="rounded-md border border-dashed [&>*:not(:last-child)]:border-b [&>*:not(:last-child)]:border-dashed">
+    <div className={`overflow-clip rounded-xl border ${className ?? ""}`}>
       {children}
     </div>
   );
@@ -135,7 +141,7 @@ export function BoxContent({ children }: { children: React.ReactNode }) {
 
 export function BoxCodeHeader({ fileName }: { fileName: string }) {
   return (
-    <div className="flex items-center gap-2 px-6 py-4 font-medium font-mono text-sm">
+    <div className="flex items-center gap-2 px-6 py-4 font-mono font-semibold text-sm">
       <FileCode className="size-4 text-muted-foreground" />
       {fileName}
     </div>
