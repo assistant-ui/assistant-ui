@@ -152,7 +152,7 @@ export function DiffViewer({
               </span>
               <span
                 className={cn(
-                  "flex-1 px-2",
+                  "flex-1 whitespace-pre px-2",
                   line.type === "added" && "text-green-300",
                   line.type === "removed" && "text-red-300",
                   line.type === "unchanged" && "text-zinc-300",

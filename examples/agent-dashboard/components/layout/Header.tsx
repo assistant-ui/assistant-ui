@@ -1,12 +1,19 @@
 "use client";
 
-import { useState, useRef, useImperativeHandle, type RefObject } from "react";
+import {
+  useState,
+  useRef,
+  useImperativeHandle,
+  type RefObject,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Search, Bell, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   TaskLauncherPrimitive,
   ApprovalQueuePrimitive,
+  useTaskLauncher,
 } from "@assistant-ui/react-agent";
 
 export interface HeaderHandle {
@@ -20,6 +27,46 @@ export interface HeaderProps {
   showNewSession?: boolean;
   onSearch?: (query: string) => void;
   searchPlaceholder?: string;
+}
+
+function NewSessionLauncher({ onCancel }: { onCancel: () => void }) {
+  const { submit } = useTaskLauncher();
+
+  const handleInputKeyDown = (e: ReactKeyboardEvent<HTMLTextAreaElement>) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+      e.preventDefault();
+      void submit();
+    }
+  };
+
+  return (
+    <>
+      <TaskLauncherPrimitive.Input
+        placeholder="What would you like the agent to do?"
+        onKeyDown={handleInputKeyDown}
+        className="min-h-24 w-full resize-none rounded-lg border border-input bg-background p-4 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+      />
+      <div className="mt-4 flex items-center justify-between">
+        <p className="text-muted-foreground text-xs">
+          Press{" "}
+          <kbd className="rounded bg-muted px-1.5 py-0.5">Cmd + Enter</kbd> to
+          submit
+        </p>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-lg border border-border px-4 py-2 text-sm transition-colors hover:bg-muted"
+          >
+            Cancel
+          </button>
+          <TaskLauncherPrimitive.Submit className="rounded-lg bg-primary px-4 py-2 font-medium text-primary-foreground text-sm transition-colors hover:bg-primary/90">
+            Create Session
+          </TaskLauncherPrimitive.Submit>
+        </div>
+      </div>
+    </>
+  );
 }
 
 export const Header = function Header({
@@ -153,31 +200,9 @@ export const Header = function Header({
                   router.push(`/sessions/${taskId}`);
                 }}
               >
-                <TaskLauncherPrimitive.Input
-                  placeholder="What would you like the agent to do?"
-                  className="min-h-24 w-full resize-none rounded-lg border border-input bg-background p-4 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                <NewSessionLauncher
+                  onCancel={() => setIsNewSessionOpen(false)}
                 />
-                <div className="mt-4 flex items-center justify-between">
-                  <p className="text-muted-foreground text-xs">
-                    Press{" "}
-                    <kbd className="rounded bg-muted px-1.5 py-0.5">
-                      Cmd + Enter
-                    </kbd>{" "}
-                    to submit
-                  </p>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setIsNewSessionOpen(false)}
-                      className="rounded-lg border border-border px-4 py-2 text-sm transition-colors hover:bg-muted"
-                    >
-                      Cancel
-                    </button>
-                    <TaskLauncherPrimitive.Submit className="rounded-lg bg-primary px-4 py-2 font-medium text-primary-foreground text-sm transition-colors hover:bg-primary/90">
-                      Create Session
-                    </TaskLauncherPrimitive.Submit>
-                  </div>
-                </div>
               </TaskLauncherPrimitive.Root>
             </div>
           </div>

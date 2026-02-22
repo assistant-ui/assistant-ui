@@ -121,9 +121,7 @@ export function updateSessionFromEvents(
       hasPendingApproval = false;
     } else if (event.type === "message" && event.data) {
       const data = event.data as { isWaitingForInput?: boolean };
-      if (data.isWaitingForInput) {
-        isWaitingForInput = true;
-      }
+      isWaitingForInput = !!data.isWaitingForInput;
     }
   }
 

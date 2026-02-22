@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useTaskState } from "@assistant-ui/react-agent";
 import { DollarSign, TrendingUp, Cpu, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -12,6 +13,15 @@ export function CostDashboard({ className }: CostDashboardProps) {
   const totalCost = useTaskState((s) => s.cost);
   const agents = useTaskState((s) => s.agents);
   const createdAt = useTaskState((s) => s.createdAt);
+  const [now, setNow] = useState<number | null>(null);
+
+  useEffect(() => {
+    setNow(Date.now());
+    const intervalId = window.setInterval(() => {
+      setNow(Date.now());
+    }, 10_000);
+    return () => window.clearInterval(intervalId);
+  }, []);
 
   const agentCosts = agents.map((agent) => ({
     id: agent.id,
@@ -20,8 +30,11 @@ export function CostDashboard({ className }: CostDashboardProps) {
     events: agent.events.length,
   }));
 
-  const startTime = new Date(createdAt).getTime();
-  const elapsed = (Date.now() - startTime) / 1000 / 60; // minutes
+  const startTime = createdAt ? new Date(createdAt).getTime() : NaN;
+  const elapsed =
+    now !== null && Number.isFinite(startTime)
+      ? Math.max((now - startTime) / 1000 / 60, 0)
+      : 0; // minutes
   const safeTotalCost = totalCost ?? 0;
   const costPerMinute = elapsed > 0 ? safeTotalCost / elapsed : 0;
 

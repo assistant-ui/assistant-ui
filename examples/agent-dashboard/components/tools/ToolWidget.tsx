@@ -111,7 +111,10 @@ export function ToolWidget({
         break;
 
       case "Edit":
-        if (typedInput["old_string"] && typedInput["new_string"]) {
+        if (
+          typeof typedInput["old_string"] === "string" &&
+          typeof typedInput["new_string"] === "string"
+        ) {
           return (
             <DiffViewer
               oldContent={String(typedInput["old_string"])}
