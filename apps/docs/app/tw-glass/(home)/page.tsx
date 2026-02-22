@@ -52,7 +52,7 @@ export default function TwGlassPage() {
 
         {/* Hero */}
         <div className="mx-auto flex w-fit flex-col items-center space-y-6 text-center">
-          <div className="glass glass-surface glass-blur-0 glass-brightness-150 flex items-center gap-2 rounded-full px-4 py-1.5 text-sm">
+          <div className="glass glass-surface glass-bg-3 glass-chromatic-50 glass-blur-0 glass-saturation-200 glass-brightness-150 flex items-center gap-2 rounded-full px-4 py-1.5 text-sm">
             <Sparkle className="size-4 opacity-50" />
             <span className="text-foreground/60">Tailwind CSS v4 Plugin</span>
           </div>
