@@ -1,0 +1,89 @@
+name: Bug report
+description: Report an issue to help us improve assistant-ui
+labels: ["bug"]
+
+body:
+  - type: checkboxes
+    attributes:
+      label: Is this a bug report?
+      description: Please confirm this is a reproducible bug, not a usage question.
+      options:
+        - label: This is a reproducible bug
+      validations:
+        required: true
+
+  - type: dropdown
+    attributes:
+      label: Affected area(s)
+      multiple: true
+      options:
+        - Runtime / Streaming
+        - React / UI
+        - Store / Persistence
+        - Tooling / DevTools
+        - Apps / Examples
+        - Documentation
+        - Unsure
+
+  - type: input
+    attributes:
+      label: Specific package (optional)
+      placeholder: e.g. assistant-stream, @assistant-ui/react-langgraph, assistant-cloud
+
+  - type: dropdown
+    attributes:
+      label: Runtime in use
+      options:
+        - Local runtime
+        - External runtime
+        - Thread runtime
+        - Custom runtime
+        - Unsure
+
+  - type: textarea
+    attributes:
+      label: Steps to reproduce
+      description: Minimal steps or a small repo that reproduces the issue.
+      placeholder: |
+        1. Initialize assistant with X runtime
+        2. Call Y
+        3. Observe Z
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Expected vs actual behavior
+      placeholder: |
+        Expected: ...
+        Actual: ...
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: System information
+      description: |
+        Please provide relevant environment details.
+        Example:
+        - OS: macOS 14 / Windows 11 / Ubuntu 22.04
+        - Browser: Chrome 121 / Firefox 122 / Safari 17
+        - Node.js: v18.x / v20.x
+        - Package manager: pnpm / npm / yarn
+      placeholder: |
+        OS:
+        Browser (if applicable):
+        Node.js version:
+        Package manager:
+        Other relevant details:
+
+  - type: textarea
+    attributes:
+      label: Relevant code snippet (optional)
+      render: tsx
+      description: Please remove any secrets or tokens.
+
+  - type: textarea
+    attributes:
+      label: Additional context
+      description: Anything else that might help diagnose the issue.
