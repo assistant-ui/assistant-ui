@@ -12,7 +12,12 @@ import {
   CloudMessagePersistence,
   createFormattedPersistence,
 } from "assistant-cloud";
-import { auiV0Decode, auiV0Encode } from "./auiV0";
+import { auiV1Encode, decodeAuiV1OrV0Messages } from "./auiV1";
+import {
+  MessageFormatAdapter,
+  MessageFormatItem,
+  MessageFormatRepository,
+} from "../runtime-cores/adapters/thread-history/MessageFormatAdapter";
 import { AssistantClient, useAui } from "@assistant-ui/store";
 import { ThreadListItemMethods } from "../../types/scopes";
 
@@ -81,31 +86,26 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
 
   async append({ parentId, message }: ExportedMessageRepositoryItem) {
     const { remoteId } = await this.aui.threadListItem().initialize();
-    const encoded = auiV0Encode(message);
+    const encoded = auiV1Encode(message);
     await this._persistence.append(
       remoteId,
       message.id,
       parentId,
-      "aui/v0",
+      "aui/v1",
       encoded,
     );
 
     if (this.cloudRef.current.telemetry.enabled) {
-      this._maybeReportRun(remoteId, "aui/v0", encoded);
+      this._maybeReportRun(remoteId, "aui/v1", encoded);
     }
   }
 
   async load() {
     const remoteId = this.aui.threadListItem().getState().remoteId;
     if (!remoteId) return { messages: [] };
-    const messages = await this._persistence.load(remoteId, "aui/v0");
+    const messages = await this._persistence.load(remoteId);
     return {
-      messages: messages
-        .filter(
-          (m): m is typeof m & { format: "aui/v0" } => m.format === "aui/v0",
-        )
-        .map(auiV0Decode)
-        .reverse(),
+      messages: decodeAuiV1OrV0Messages(messages).reverse(),
     };
   }
 
@@ -289,6 +289,7 @@ type TelemetryData = {
 function extractTelemetry<T>(format: string, content: T): TelemetryData | null {
   switch (format) {
     case "aui/v0":
+    case "aui/v1":
       return extractAuiV0(content);
     case "ai-sdk/v6":
       return extractAiSdkV6(content);
@@ -634,6 +635,10 @@ function extractAiSdkV6Batch<T>(contents: T[]): TelemetryData | null {
     aggregatedUsage,
   );
 }
+
+export const __internal_AssistantCloudThreadHistoryAdapter = {
+  extractTelemetry,
+};
 
 export function useAssistantCloudThreadHistoryAdapter(
   cloudRef: RefObject<AssistantCloud>,

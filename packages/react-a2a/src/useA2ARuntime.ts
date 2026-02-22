@@ -21,11 +21,11 @@ import {
 import { convertA2AMessage } from "./convertA2AMessages";
 import { useA2AMessages } from "./useA2AMessages";
 import { AttachmentAdapter } from "@assistant-ui/react";
-import { AppendMessage } from "@assistant-ui/react";
 import { ExternalStoreAdapter } from "@assistant-ui/react";
 import { FeedbackAdapter } from "@assistant-ui/react";
 import { SpeechSynthesisAdapter } from "@assistant-ui/react";
 import { appendA2AChunk } from "./appendA2AChunk";
+import { getMessageContent } from "./getMessageContent";
 
 const getPendingToolCalls = (messages: A2AMessage[]) => {
   const pendingToolCalls = new Map<string, A2AToolCall>();
@@ -41,42 +41,6 @@ const getPendingToolCalls = (messages: A2AMessage[]) => {
   }
 
   return [...pendingToolCalls.values()];
-};
-
-const getMessageContent = (msg: AppendMessage) => {
-  const allContent = [
-    ...msg.content,
-    ...(msg.attachments?.flatMap((a) => a.content) ?? []),
-  ];
-  const content = allContent.map((part) => {
-    const type = part.type;
-    switch (type) {
-      case "text":
-        return { type: "text" as const, text: part.text };
-      case "image":
-        return { type: "image_url" as const, image_url: { url: part.image } };
-
-      case "tool-call":
-        throw new Error("Tool call appends are not supported.");
-
-      default:
-        const _exhaustiveCheck:
-          | "reasoning"
-          | "source"
-          | "file"
-          | "audio"
-          | "data" = type;
-        throw new Error(
-          `Unsupported append message part type: ${_exhaustiveCheck}`,
-        );
-    }
-  });
-
-  if (content.length === 1 && content[0]?.type === "text") {
-    return content[0].text ?? "";
-  }
-
-  return content;
 };
 
 const symbolA2ARuntimeExtras = Symbol("a2a-runtime-extras");

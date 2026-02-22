@@ -5,6 +5,7 @@ import type { UIMessage, useChat, CreateUIMessage } from "@ai-sdk/react";
 import { isToolUIPart } from "ai";
 import {
   useExternalStoreRuntime,
+  useAuiEvent,
   type ExternalStoreAdapter,
   type ThreadHistoryAdapter,
   type AssistantRuntime,
@@ -22,7 +23,10 @@ import { sliceMessagesUntil } from "../utils/sliceMessagesUntil";
 import { toCreateMessage } from "../utils/toCreateMessage";
 import { vercelAttachmentAdapter } from "../utils/vercelAttachmentAdapter";
 import { getVercelAIMessages } from "../getVercelAIMessages";
-import { AISDKMessageConverter } from "../utils/convertMessage";
+import {
+  AISDKMessageConverter,
+  type unstable_AISDKDataSpecOptions,
+} from "../utils/convertMessage";
 import {
   type AISDKStorageFormat,
   aiSDKV6FormatAdapter,
@@ -55,6 +59,27 @@ export type AISDKRuntimeAdapter = {
    * @default true
    */
   cancelPendingToolCallsOnSend?: boolean | undefined;
+  onComponentInvoke?:
+    | ((params: {
+        messageId: string;
+        instanceId: string;
+        action: string;
+        payload: unknown;
+      }) => Promise<unknown> | unknown)
+    | undefined;
+  onComponentEmit?:
+    | ((params: {
+        messageId: string;
+        instanceId: string;
+        event: string;
+        payload: unknown;
+      }) => Promise<void> | void)
+    | undefined;
+  /**
+   * Experimental json-render compatibility lane.
+   * This option is unstable and may change without notice.
+   */
+  unstable_dataSpec?: unstable_AISDKDataSpecOptions | undefined;
 };
 
 export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
@@ -63,6 +88,9 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     adapters,
     toCreateMessage: customToCreateMessage,
     cancelPendingToolCallsOnSend = true,
+    onComponentInvoke,
+    onComponentEmit,
+    unstable_dataSpec,
   }: AISDKRuntimeAdapter = {},
 ) => {
   const contextAdapters = useRuntimeAdapters();
@@ -88,8 +116,9 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         toolStatuses,
         messageTiming,
         ...(chatHelpers.error && { error: chatHelpers.error.message }),
+        ...(unstable_dataSpec !== undefined ? { unstable_dataSpec } : {}),
       }),
-      [toolStatuses, messageTiming, chatHelpers.error],
+      [toolStatuses, messageTiming, chatHelpers.error, unstable_dataSpec],
     ),
   });
 
@@ -160,6 +189,44 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       return [...messages.slice(0, -1), { ...lastMessage, parts }];
     });
   };
+
+  useAuiEvent({ scope: "*", event: "component.invoke" }, (command) => {
+    if (!onComponentInvoke) {
+      command.reject(
+        new Error(
+          "component.invoke requires AISDK runtime onComponentInvoke handler",
+        ),
+      );
+      return;
+    }
+
+    void Promise.resolve()
+      .then(() =>
+        onComponentInvoke({
+          messageId: command.messageId,
+          instanceId: command.instanceId,
+          action: command.action,
+          payload: command.payload,
+        }),
+      )
+      .then(command.ack, command.reject);
+  });
+
+  useAuiEvent({ scope: "*", event: "component.emit" }, (command) => {
+    if (!onComponentEmit) return;
+    void Promise.resolve()
+      .then(() =>
+        onComponentEmit({
+          messageId: command.messageId,
+          instanceId: command.instanceId,
+          event: command.event,
+          payload: command.payload,
+        }),
+      )
+      .catch(() => {
+        // Fire-and-forget emit commands should not throw into render/update loops.
+      });
+  });
 
   const runtime = useExternalStoreRuntime({
     isRunning,

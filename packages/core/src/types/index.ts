@@ -6,6 +6,7 @@ export type {
   ImageMessagePart,
   FileMessagePart,
   DataMessagePart,
+  ComponentMessagePart,
   Unstable_AudioMessagePart,
   ToolCallMessagePart,
   ThreadUserMessagePart,

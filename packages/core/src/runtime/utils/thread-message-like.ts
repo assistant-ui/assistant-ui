@@ -17,6 +17,7 @@ import type {
   CompleteAttachment,
   FileMessagePart,
   DataMessagePart,
+  ComponentMessagePart,
   Unstable_AudioMessagePart,
 } from "../../types";
 import { ReadonlyJSONObject, ReadonlyJSONValue } from "assistant-stream/utils";
@@ -37,6 +38,7 @@ export type ThreadMessageLike = {
         | ImageMessagePart
         | FileMessagePart
         | DataMessagePart
+        | ComponentMessagePart
         | Unstable_AudioMessagePart
         | DataPrefixedPart
         | {
@@ -143,7 +145,13 @@ export const fromThreadMessageLike = (
               case "image":
                 return sanitizeImageContent(part);
 
+              case "audio":
+                return part;
+
               case "data":
+                return part;
+
+              case "component":
                 return part;
 
               case "tool-call": {

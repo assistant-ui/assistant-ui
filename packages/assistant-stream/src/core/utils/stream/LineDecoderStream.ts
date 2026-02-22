@@ -1,7 +1,11 @@
 export class LineDecoderStream extends TransformStream<string, string> {
   private buffer = "";
 
-  constructor() {
+  constructor(
+    private readonly options: {
+      allowIncompleteLineOnFlush?: boolean;
+    } = {},
+  ) {
     super({
       transform: (chunk, controller) => {
         this.buffer += chunk;
@@ -18,7 +22,7 @@ export class LineDecoderStream extends TransformStream<string, string> {
       flush: () => {
         // If there's content in the buffer when the stream ends, it means
         // the stream ended with an incomplete line (no trailing newline)
-        if (this.buffer) {
+        if (this.buffer && !this.options.allowIncompleteLineOnFlush) {
           throw new Error(
             `Stream ended with an incomplete line: "${this.buffer}"`,
           );

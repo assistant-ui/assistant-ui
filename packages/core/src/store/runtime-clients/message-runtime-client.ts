@@ -8,11 +8,13 @@ import {
 } from "@assistant-ui/tap";
 import { type ClientOutput, tapClientLookup, tapClientResource } from "../";
 import { MessageRuntime } from "../../runtime";
+import { ComponentClient, getComponentMetadataState } from "../clients";
 import { tapSubscribable } from "./tap-subscribable";
 import { ComposerClient } from "./composer-runtime-client";
 import { MessagePartClient } from "./message-part-runtime-client";
 import { MessageState } from "../scopes";
 import { AttachmentRuntimeClient } from "./attachment-runtime-client";
+import { tapAssistantEmit } from "../utils/tap-assistant-context";
 
 const MessageAttachmentClientByIndex = resource(
   ({ runtime, index }: { runtime: MessageRuntime; index: number }) => {
@@ -43,6 +45,7 @@ export const MessageClient = resource(
     threadIdRef: tapRef.RefObject<string>;
   }): ClientOutput<"message"> => {
     const runtimeState = tapSubscribable(runtime);
+    const emit = tapAssistantEmit();
 
     const [isCopiedState, setIsCopied] = tapState(false);
     const [isHoveringState, setIsHovering] = tapState(false);
@@ -75,6 +78,48 @@ export const MessageClient = resource(
         ),
       [runtimeState.content, runtime],
     );
+
+    const components = tapClientLookup(() => {
+      const entries: {
+        part: MessageState["content"][number] & { type: "component" };
+        index: number;
+        key: string;
+      }[] = [];
+      let componentIndex = 0;
+
+      for (const part of runtimeState.content) {
+        if (part.type !== "component") continue;
+        const index = componentIndex++;
+        entries.push({
+          part,
+          index,
+          key:
+            part.instanceId !== undefined
+              ? `instanceId-${part.instanceId}`
+              : `index-${index}`,
+        });
+      }
+
+      return entries.map(({ part, key }) =>
+        withKey(
+          key,
+          ComponentClient({
+            messageId: runtimeState.id,
+            part,
+            componentState: getComponentMetadataState(
+              runtimeState.metadata.unstable_state,
+              part.instanceId,
+            ),
+            emit,
+          }),
+        ),
+      );
+    }, [
+      runtimeState.id,
+      runtimeState.content,
+      runtimeState.metadata.unstable_state,
+      emit,
+    ]);
 
     const attachments = tapClientLookup(
       () =>
@@ -121,6 +166,13 @@ export const MessageClient = resource(
           return parts.get({ index: selector.index });
         } else {
           return parts.get({ key: `toolCallId-${selector.toolCallId}` });
+        }
+      },
+      component: (selector) => {
+        if ("index" in selector) {
+          return components.get(selector);
+        } else {
+          return components.get({ key: `instanceId-${selector.instanceId}` });
         }
       },
 

@@ -4,10 +4,6 @@ import type {
 } from "assistant-stream/utils";
 import type { CompleteAttachment } from "./attachment";
 
-// =============================================================================
-// Message Parts
-// =============================================================================
-
 export type TextMessagePart = {
   readonly type: "text";
   readonly text: string;
@@ -56,6 +52,14 @@ export type DataMessagePart<T = any> = {
   readonly data: T;
 };
 
+export type ComponentMessagePart = {
+  readonly type: "component";
+  readonly name: string;
+  readonly instanceId?: string;
+  readonly parentId?: string;
+  readonly props?: ReadonlyJSONObject;
+};
+
 export type ToolCallMessagePart<
   TArgs = ReadonlyJSONObject,
   TResult = unknown,
@@ -87,7 +91,9 @@ export type ThreadAssistantMessagePart =
   | SourceMessagePart
   | FileMessagePart
   | ImageMessagePart
-  | DataMessagePart;
+  | DataMessagePart
+  | Unstable_AudioMessagePart
+  | ComponentMessagePart;
 
 // =============================================================================
 // Message Status

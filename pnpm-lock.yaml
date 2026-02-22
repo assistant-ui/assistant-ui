@@ -2523,6 +2523,9 @@ importers:
       react:
         specifier: ^19.2.4
         version: 19.2.4
+      vitest:
+        specifier: ^4.0.18
+        version: 4.0.18(@opentelemetry/api@1.9.0)(@types/node@25.3.0)(@vitest/ui@4.0.18)(jiti@2.6.1)(jsdom@28.1.0)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
 
   packages/react-ag-ui:
     dependencies:

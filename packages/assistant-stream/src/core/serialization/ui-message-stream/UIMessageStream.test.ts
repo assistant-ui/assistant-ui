@@ -36,8 +36,8 @@ function createUIMessageStream(events: string[]): ReadableStream<Uint8Array> {
 describe("UIMessageStreamDecoder", () => {
   it("should decode text deltas", async () => {
     const events = [
-      JSON.stringify({ type: "start", messageId: "msg_123" }),
-      JSON.stringify({ type: "text-start", id: "text_1" }),
+      JSON.stringify({ type: "start", messageId: "msg123" }),
+      JSON.stringify({ type: "text-start", id: "text1" }),
       JSON.stringify({ type: "text-delta", textDelta: "Hello" }),
       JSON.stringify({ type: "text-delta", textDelta: " world" }),
       JSON.stringify({ type: "text-end" }),
@@ -65,8 +65,8 @@ describe("UIMessageStreamDecoder", () => {
 
   it("should decode reasoning parts", async () => {
     const events = [
-      JSON.stringify({ type: "start", messageId: "msg_123" }),
-      JSON.stringify({ type: "reasoning-start", id: "reasoning_1" }),
+      JSON.stringify({ type: "start", messageId: "msg123" }),
+      JSON.stringify({ type: "reasoning-start", id: "reasoning1" }),
       JSON.stringify({ type: "reasoning-delta", delta: "Let me think..." }),
       JSON.stringify({ type: "reasoning-end" }),
       JSON.stringify({
@@ -91,11 +91,11 @@ describe("UIMessageStreamDecoder", () => {
 
   it("should decode tool calls", async () => {
     const events = [
-      JSON.stringify({ type: "start", messageId: "msg_123" }),
+      JSON.stringify({ type: "start", messageId: "msg123" }),
       JSON.stringify({
         type: "tool-call-start",
-        id: "tc_1",
-        toolCallId: "call_abc",
+        id: "tc1",
+        toolCallId: "callAbc",
         toolName: "weather",
       }),
       JSON.stringify({ type: "tool-call-delta", argsText: '{"city":' }),
@@ -103,7 +103,7 @@ describe("UIMessageStreamDecoder", () => {
       JSON.stringify({ type: "tool-call-end" }),
       JSON.stringify({
         type: "tool-result",
-        toolCallId: "call_abc",
+        toolCallId: "callAbc",
         result: { temp: 72 },
       }),
       JSON.stringify({
@@ -126,7 +126,7 @@ describe("UIMessageStreamDecoder", () => {
     expect(toolCallStart).toBeDefined();
     if (toolCallStart?.part.type === "tool-call") {
       expect(toolCallStart.part.toolName).toBe("weather");
-      expect(toolCallStart.part.toolCallId).toBe("call_abc");
+      expect(toolCallStart.part.toolCallId).toBe("callAbc");
     }
 
     // Find result
@@ -138,14 +138,67 @@ describe("UIMessageStreamDecoder", () => {
     expect(result?.result).toEqual({ temp: 72 });
   });
 
+  it("should decode AI SDK v6 tool-input/tool-output events", async () => {
+    const events = [
+      JSON.stringify({ type: "start", messageId: "msg123" }),
+      JSON.stringify({
+        type: "tool-input-start",
+        toolCallId: "callAbc",
+        toolName: "weather",
+      }),
+      JSON.stringify({
+        type: "tool-input-delta",
+        toolCallId: "callAbc",
+        inputTextDelta: '{"city":"',
+      }),
+      JSON.stringify({
+        type: "tool-input-delta",
+        toolCallId: "callAbc",
+        inputTextDelta: 'NYC"}',
+      }),
+      JSON.stringify({
+        type: "tool-output-available",
+        toolCallId: "callAbc",
+        output: { temp: 72 },
+      }),
+      JSON.stringify({
+        type: "finish",
+        finishReason: "stop",
+        usage: { inputTokens: 10, outputTokens: 5 },
+      }),
+      "[DONE]",
+    ];
+
+    const stream = createUIMessageStream(events);
+    const decodedStream = stream.pipeThrough(new UIMessageStreamDecoder());
+    const chunks = await collectChunks(decodedStream);
+
+    const toolCallStart = chunks.find(
+      (c): c is AssistantStreamChunk & { type: "part-start" } =>
+        c.type === "part-start" && c.part.type === "tool-call",
+    );
+    expect(toolCallStart).toBeDefined();
+    if (toolCallStart?.part.type === "tool-call") {
+      expect(toolCallStart.part.toolName).toBe("weather");
+      expect(toolCallStart.part.toolCallId).toBe("callAbc");
+    }
+
+    const result = chunks.find(
+      (c): c is AssistantStreamChunk & { type: "result" } =>
+        c.type === "result",
+    );
+    expect(result).toBeDefined();
+    expect(result?.result).toEqual({ temp: 72 });
+  });
+
   it("should decode source parts", async () => {
     const events = [
-      JSON.stringify({ type: "start", messageId: "msg_123" }),
+      JSON.stringify({ type: "start", messageId: "msg123" }),
       JSON.stringify({
         type: "source",
         source: {
           sourceType: "url",
-          id: "src_1",
+          id: "src1",
           url: "https://example.com",
           title: "Example",
         },
@@ -173,9 +226,57 @@ describe("UIMessageStreamDecoder", () => {
     }
   });
 
+  it("should decode AI SDK v6 source-url/source-document parts", async () => {
+    const events = [
+      JSON.stringify({ type: "start", messageId: "msg123" }),
+      JSON.stringify({
+        type: "source-url",
+        sourceId: "src-url-1",
+        url: "https://example.com",
+        title: "Example URL",
+      }),
+      JSON.stringify({
+        type: "source-document",
+        sourceId: "src-doc-1",
+        mediaType: "application/pdf",
+        title: "Quarterly Report",
+        filename: "report.pdf",
+      }),
+      JSON.stringify({
+        type: "finish",
+        finishReason: "stop",
+        usage: { inputTokens: 10, outputTokens: 5 },
+      }),
+      "[DONE]",
+    ];
+
+    const stream = createUIMessageStream(events);
+    const decodedStream = stream.pipeThrough(new UIMessageStreamDecoder());
+    const chunks = await collectChunks(decodedStream);
+
+    const sourceStarts = chunks.filter(
+      (c): c is AssistantStreamChunk & { type: "part-start" } =>
+        c.type === "part-start" && c.part.type === "source",
+    );
+
+    expect(sourceStarts).toHaveLength(2);
+    expect(sourceStarts[0]?.part).toMatchObject({
+      type: "source",
+      id: "src-url-1",
+      url: "https://example.com",
+      title: "Example URL",
+    });
+    expect(sourceStarts[1]?.part).toMatchObject({
+      type: "source",
+      id: "src-doc-1",
+      url: "urn:source-document:src-doc-1",
+      title: "Quarterly Report (report.pdf)",
+    });
+  });
+
   it("should decode file parts", async () => {
     const events = [
-      JSON.stringify({ type: "start", messageId: "msg_123" }),
+      JSON.stringify({ type: "start", messageId: "msg123" }),
       JSON.stringify({
         type: "file",
         file: {
@@ -206,10 +307,47 @@ describe("UIMessageStreamDecoder", () => {
     }
   });
 
+  it("should decode component parts", async () => {
+    const events = [
+      JSON.stringify({ type: "start", messageId: "msg123" }),
+      JSON.stringify({
+        type: "component",
+        component: {
+          name: "status-chip",
+          instanceId: "status-chip-1",
+          props: { label: "Ready" },
+          parentId: "group-1",
+        },
+      }),
+      JSON.stringify({
+        type: "finish",
+        finishReason: "stop",
+        usage: { promptTokens: 10, completionTokens: 5 },
+      }),
+      "[DONE]",
+    ];
+
+    const stream = createUIMessageStream(events);
+    const decodedStream = stream.pipeThrough(new UIMessageStreamDecoder());
+    const chunks = await collectChunks(decodedStream);
+
+    const componentStart = chunks.find(
+      (c): c is AssistantStreamChunk & { type: "part-start" } =>
+        c.type === "part-start" && c.part.type === "component",
+    );
+    expect(componentStart).toBeDefined();
+    if (componentStart?.part.type === "component") {
+      expect(componentStart.part.name).toBe("status-chip");
+      expect(componentStart.part.instanceId).toBe("status-chip-1");
+      expect(componentStart.part.props).toEqual({ label: "Ready" });
+      expect(componentStart.part.parentId).toBe("group-1");
+    }
+  });
+
   it("should handle data-* chunks", async () => {
     const onData = vi.fn();
     const events = [
-      JSON.stringify({ type: "start", messageId: "msg_123" }),
+      JSON.stringify({ type: "start", messageId: "msg123" }),
       JSON.stringify({
         type: "data-weather",
         data: { temp: 72, city: "NYC" },
@@ -239,7 +377,7 @@ describe("UIMessageStreamDecoder", () => {
   it("should handle transient data-* chunks", async () => {
     const onData = vi.fn();
     const events = [
-      JSON.stringify({ type: "start", messageId: "msg_123" }),
+      JSON.stringify({ type: "start", messageId: "msg123" }),
       JSON.stringify({
         type: "data-progress",
         transient: true,
@@ -274,9 +412,9 @@ describe("UIMessageStreamDecoder", () => {
 
   it("should handle step lifecycle", async () => {
     const events = [
-      JSON.stringify({ type: "start", messageId: "msg_123" }),
-      JSON.stringify({ type: "start-step", messageId: "step_1" }),
-      JSON.stringify({ type: "text-start", id: "text_1" }),
+      JSON.stringify({ type: "start", messageId: "msg123" }),
+      JSON.stringify({ type: "start-step", messageId: "step1" }),
+      JSON.stringify({ type: "text-start", id: "text1" }),
       JSON.stringify({ type: "text-delta", textDelta: "Hello" }),
       JSON.stringify({ type: "text-end" }),
       JSON.stringify({
@@ -312,7 +450,7 @@ describe("UIMessageStreamDecoder", () => {
 
   it("should handle errors", async () => {
     const events = [
-      JSON.stringify({ type: "start", messageId: "msg_123" }),
+      JSON.stringify({ type: "start", messageId: "msg123" }),
       JSON.stringify({ type: "error", errorText: "Something went wrong" }),
       "[DONE]",
     ];
@@ -350,7 +488,7 @@ describe("UIMessageStreamDecoder", () => {
 
   it("should ignore unknown chunk types for forward compatibility", async () => {
     const events = [
-      JSON.stringify({ type: "start", messageId: "msg_123" }),
+      JSON.stringify({ type: "start", messageId: "msg123" }),
       JSON.stringify({ type: "unknown-future-type", data: {} }),
       JSON.stringify({
         type: "finish",

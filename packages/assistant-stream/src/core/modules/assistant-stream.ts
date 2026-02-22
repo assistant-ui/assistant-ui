@@ -12,7 +12,7 @@ import {
   PathMergeEncoder,
 } from "../utils/stream/path-utils";
 import { DataStreamEncoder } from "../serialization/data-stream/DataStream";
-import { FilePart, SourcePart } from "../utils/types";
+import { ComponentPart, FilePart, SourcePart } from "../utils/types";
 import { generateId } from "../utils/generateId";
 import {
   ReadonlyJSONObject,
@@ -34,6 +34,7 @@ export type AssistantStreamController = {
   appendReasoning(reasoningDelta: string): void;
   appendSource(options: SourcePart): void;
   appendFile(options: FilePart): void;
+  appendComponent(options: Omit<ComponentPart, "type" | "parentId">): void;
   addTextPart(): TextStreamController;
   addToolCallPart(options: string): ToolCallStreamController;
   addToolCallPart(options: ToolCallPartInit): ToolCallStreamController;
@@ -186,6 +187,25 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
   appendFile(options: FilePart) {
     this._addPart(
       options,
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue({
+            type: "part-finish",
+            path: [],
+          });
+          controller.close();
+        },
+      }),
+    );
+  }
+
+  appendComponent(options: Omit<ComponentPart, "type" | "parentId">) {
+    this._addPart(
+      {
+        type: "component",
+        ...options,
+        ...(this._parentId && { parentId: this._parentId }),
+      },
       new ReadableStream({
         start(controller) {
           controller.enqueue({

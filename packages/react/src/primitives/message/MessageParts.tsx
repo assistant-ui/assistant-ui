@@ -23,6 +23,7 @@ import type {
   TextMessagePartComponent,
   ImageMessagePartComponent,
   SourceMessagePartComponent,
+  ComponentMessagePartComponent,
   ToolCallMessagePartComponent,
   ToolCallMessagePartProps,
   FileMessagePartComponent,
@@ -32,6 +33,7 @@ import type {
 import { MessagePartPrimitiveInProgress } from "../messagePart/MessagePartInProgress";
 import type { MessagePartStatus } from "@assistant-ui/core";
 import { useShallow } from "zustand/shallow";
+import { warnMissingComponentRenderer } from "./warnMissingComponentRenderer";
 
 type MessagePartRange =
   | { type: "single"; index: number }
@@ -147,12 +149,19 @@ const useMessagePartsGroups = (
 };
 
 export namespace MessagePrimitiveParts {
-  type DataConfig = {
-    /** Map data event names to specific components */
-    by_name?: Record<string, DataMessagePartComponent | undefined> | undefined;
-    /** Fallback component for unmatched data events */
-    Fallback?: DataMessagePartComponent | undefined;
-  };
+  type ComponentConfig =
+    | {
+        /** Map of component names to their specific component renderers */
+        byName?:
+          | Record<string, ComponentMessagePartComponent | undefined>
+          | undefined;
+        /** Fallback component for unregistered component names */
+        Fallback?: ComponentMessagePartComponent | undefined;
+      }
+    | {
+        /** Override component that handles all component parts */
+        Override: ComponentMessagePartComponent;
+      };
 
   type BaseComponents = {
     /** Component for rendering empty messages */
@@ -167,14 +176,14 @@ export namespace MessagePrimitiveParts {
     File?: FileMessagePartComponent | undefined;
     /** Component for rendering audio content (experimental) */
     Unstable_Audio?: Unstable_AudioMessagePartComponent | undefined;
-    /** Configuration for data part rendering */
-    data?: DataConfig | undefined;
+    /** Configuration for native component part rendering */
+    Component?: ComponentConfig | undefined;
   };
 
   type ToolsConfig =
     | {
         /** Map of tool names to their specific components */
-        by_name?:
+        byName?:
           | Record<string, ToolCallMessagePartComponent | undefined>
           | undefined;
         /** Fallback component for unregistered tools */
@@ -386,6 +395,7 @@ export const MessagePartComponent: FC<MessagePartComponentProps> = ({
     Source = defaultComponents.Source,
     File = defaultComponents.File,
     Unstable_Audio: Audio = defaultComponents.Unstable_Audio,
+    Component = {},
     tools = {},
     data,
   } = {},
@@ -399,7 +409,7 @@ export const MessagePartComponent: FC<MessagePartComponentProps> = ({
     const resume = aui.part().resumeToolCall;
     if ("Override" in tools)
       return <tools.Override {...part} addResult={addResult} resume={resume} />;
-    const Tool = tools.by_name?.[part.toolName] ?? tools.Fallback;
+    const Tool = tools.byName?.[part.toolName] ?? tools.Fallback;
     return (
       <ToolUIDisplay
         {...part}
@@ -435,6 +445,17 @@ export const MessagePartComponent: FC<MessagePartComponentProps> = ({
     case "data": {
       const Data = data?.by_name?.[part.name] ?? data?.Fallback;
       return <DataUIDisplay {...part} Fallback={Data} />;
+    }
+
+    case "component": {
+      if ("Override" in Component) return <Component.Override {...part} />;
+      const NativeComponent =
+        Component.byName?.[part.name] ?? Component.Fallback;
+      if (!NativeComponent) {
+        warnMissingComponentRenderer(part.name);
+        return null;
+      }
+      return <NativeComponent {...part} />;
     }
 
     default:
@@ -484,6 +505,7 @@ export const MessagePrimitivePartByIndex: FC<MessagePrimitivePartByIndex.Props> 
       prev.components?.Image === next.components?.Image &&
       prev.components?.File === next.components?.File &&
       prev.components?.Unstable_Audio === next.components?.Unstable_Audio &&
+      prev.components?.Component === next.components?.Component &&
       prev.components?.tools === next.components?.tools &&
       prev.components?.data === next.components?.data &&
       prev.components?.ToolGroup === next.components?.ToolGroup &&
@@ -567,7 +589,7 @@ const ConditionalEmpty = memo(
  *     Text: ({ text }) => <p className="message-text">{text}</p>,
  *     Image: ({ image }) => <img src={image} alt="Message image" />,
  *     tools: {
- *       by_name: {
+ *       byName: {
  *         calculator: CalculatorTool,
  *         weather: WeatherTool,
  *       },
