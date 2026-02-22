@@ -14,7 +14,6 @@ export const PATTERNS = [
   { name: "ee44e", id: "photo-1640280882428-547d0afe0c8d" },
   { name: "ee4e4e", id: "photo-1541661538396-53ba2d051eed" },
   { name: "ee4345g44e4e", id: "photo-1517384084767-6bc118943770" },
-  { name: "ee4343544e4e", id: "photo-1683513731191-34f4bd2ce16a" },
 ];
 
 export function PatternPicker({

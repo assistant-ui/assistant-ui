@@ -11,7 +11,7 @@ export function DemoArea({
 }) {
   return (
     <div
-      className="relative overflow-hidden bg-muted p-6 shadow-[inset_0_1px_4px_rgba(0,0,0,0.08)] transition-[background-image] duration-500 dark:shadow-[inset_0_1px_4px_rgba(0,0,0,0.4)]"
+      className="relative overflow-hidden transition-[background-image] duration-500"
       style={{
         backgroundImage: unsplash(pattern),
         backgroundAttachment: "fixed",

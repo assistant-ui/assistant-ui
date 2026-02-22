@@ -40,7 +40,7 @@ export default function TwGlassPage() {
         className="pointer-events-none fixed inset-0 z-0 bg-center bg-cover bg-fixed transition-[background-image] duration-500"
         style={{
           backgroundImage: unsplash(bg),
-          opacity: 0.15,
+          opacity: 0.1,
           maskImage: SINE_VIGNETTE,
           WebkitMaskImage: SINE_VIGNETTE,
         }}
@@ -52,7 +52,7 @@ export default function TwGlassPage() {
 
         {/* Hero */}
         <div className="mx-auto flex w-fit flex-col items-center space-y-6 text-center">
-          <div className="glass-surface glass-strength-50 flex items-center gap-2 rounded-full px-4 py-1.5 text-sm">
+          <div className="glass glass-surface glass-blur-0 glass-brightness-150 flex items-center gap-2 rounded-full px-4 py-1.5 text-sm">
             <Sparkle className="size-4 opacity-50" />
             <span className="text-foreground/60">Tailwind CSS v4 Plugin</span>
           </div>

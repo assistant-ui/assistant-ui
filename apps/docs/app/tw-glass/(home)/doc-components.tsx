@@ -126,9 +126,9 @@ export function BoxTitle({
   description: React.ReactNode;
 }) {
   return (
-    <div className="space-y-2 bg-muted/40 p-6">
+    <div className="space-y-2 bg-background/40 p-6">
       <h3 className="font-mono text-lg">{title}</h3>
-      <p className="max-w-[70ch] text-muted-foreground text-sm">
+      <p className="max-w-[70ch] text-pretty text-muted-foreground text-sm">
         {description}
       </p>
     </div>

@@ -12,40 +12,20 @@
 import { writeFileSync } from "fs";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
+import {
+  buildDisplacementMapSvg,
+  svgToBase64,
+  buildStandardFilter,
+  buildChromaticFilter,
+  toDataUri,
+} from "./filter-builder.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // ─── Displacement Map ──────────────────────────────────────────────
-// 100×100 viewBox, preserveAspectRatio="none" so it stretches to any element.
-// R channel = X offset, G channel = Y offset. #808080 = no displacement.
-// Edge gradients create the lens-like refraction; inner rect punches a
-// neutral center so the middle of the element is undistorted.
 
-const DISPLACEMENT_MAP_SVG = [
-  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="none">',
-  "<defs>",
-  '<linearGradient id="x" x1="5%" y1="0" x2="95%" y2="0">',
-  '<stop offset="0%" stop-color="#F00"/>',
-  '<stop offset="100%" stop-color="#000"/>',
-  "</linearGradient>",
-  '<linearGradient id="y" x1="0" y1="5%" x2="0" y2="95%">',
-  '<stop offset="0%" stop-color="#0F0"/>',
-  '<stop offset="100%" stop-color="#000"/>',
-  "</linearGradient>",
-  '<filter id="ob"><feGaussianBlur stdDeviation="1.5"/></filter>',
-  '<filter id="ib"><feGaussianBlur stdDeviation="4"/></filter>',
-  "</defs>",
-  '<rect width="100" height="100" fill="#808080"/>',
-  '<g filter="url(#ob)">',
-  '<rect width="100" height="100" fill="#000080"/>',
-  '<rect width="100" height="100" fill="url(#y)" style="mix-blend-mode:screen"/>',
-  '<rect width="100" height="100" fill="url(#x)" style="mix-blend-mode:screen"/>',
-  '<rect x="8" y="8" width="84" height="84" rx="4" ry="4" fill="#808080" filter="url(#ib)"/>',
-  "</g>",
-  "</svg>",
-].join("");
-
-const mapBase64 = Buffer.from(DISPLACEMENT_MAP_SVG).toString("base64");
+const DISPLACEMENT_MAP_SVG = buildDisplacementMapSvg();
+const mapBase64 = svgToBase64(DISPLACEMENT_MAP_SVG);
 
 // ─── Strength Levels ───────────────────────────────────────────────
 // Scale is in objectBoundingBox units (fraction of element size).
@@ -63,78 +43,14 @@ const STRENGTHS = [
 const DEFAULT_STRENGTH = "20";
 
 // ─── Filter Builders ───────────────────────────────────────────────
-
-const feImage = [
-  `<feImage href="data:image/svg+xml;base64,${mapBase64}"`,
-  ` x="0" y="0" width="1" height="1" preserveAspectRatio="none" result="map"/>`,
-].join("");
-
-function filterOpen() {
-  return [
-    '<svg xmlns="http://www.w3.org/2000/svg"><defs>',
-    '<filter id="f" filterUnits="objectBoundingBox"',
-    ' primitiveUnits="objectBoundingBox"',
-    ' x="0" y="0" width="1" height="1"',
-    ' color-interpolation-filters="sRGB">',
-  ].join("");
-}
-
-function filterClose() {
-  return "</filter></defs></svg>";
-}
-
-function buildStandardFilter(scale) {
-  return [
-    filterOpen(),
-    feImage,
-    `<feDisplacementMap in="SourceGraphic" in2="map" scale="${scale}"`,
-    ` xChannelSelector="R" yChannelSelector="G"/>`,
-    filterClose(),
-  ].join("");
-}
-
-function buildChromaticFilter(scale) {
-  const r = +(scale * 1.4).toFixed(4);
-  const g = +(scale * 1.2).toFixed(4);
-  const b = +scale.toFixed(4);
-
-  return [
-    filterOpen(),
-    feImage,
-    // Red channel
-    `<feDisplacementMap in="SourceGraphic" in2="map" scale="${r}" xChannelSelector="R" yChannelSelector="G"/>`,
-    '<feColorMatrix type="matrix" values="1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0" result="dR"/>',
-    // Green channel
-    `<feDisplacementMap in="SourceGraphic" in2="map" scale="${g}" xChannelSelector="R" yChannelSelector="G"/>`,
-    '<feColorMatrix type="matrix" values="0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 1 0" result="dG"/>',
-    // Blue channel
-    `<feDisplacementMap in="SourceGraphic" in2="map" scale="${b}" xChannelSelector="R" yChannelSelector="G"/>`,
-    '<feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 1 0" result="dB"/>',
-    // Blend
-    '<feBlend in="dR" in2="dG" mode="screen" result="rg"/>',
-    '<feBlend in="rg" in2="dB" mode="screen"/>',
-    filterClose(),
-  ].join("");
-}
-
-function toDataUri(svg) {
-  // Minimal encoding for SVG in CSS url("..."). Matches the approach
-  // used by mini-svg-data-uri: encode only the characters that are
-  // unsafe in data URIs or CSS strings, leave everything else literal.
-  const encoded = svg
-    .replace(/"/g, "'") // XML attrs: " → ' (avoids closing CSS string)
-    .replace(/%/g, "%25") // must be first (percent-encoding escape)
-    .replace(/#/g, "%23") // URI fragment delimiter
-    .replace(/</g, "%3C") // URI delimiter (RFC 3986)
-    .replace(/>/g, "%3E") // URI delimiter (RFC 3986)
-    .replace(/\s+/g, "%20"); // collapse whitespace
-  return `url("data:image/svg+xml,${encoded}#f")`;
-}
+// (imported from filter-builder.mjs)
 
 // ─── Generate CSS ──────────────────────────────────────────────────
 
 const defaultScale = STRENGTHS.find((s) => s.name === DEFAULT_STRENGTH).scale;
-const defaultFilterUri = toDataUri(buildStandardFilter(defaultScale));
+const defaultFilterUri = toDataUri(
+  buildStandardFilter(mapBase64, defaultScale),
+);
 
 const lines = [];
 const emit = (s = "") => lines.push(s);
@@ -270,7 +186,7 @@ emit();
 emit(`/* ── Displacement Strength ──────────────────────────────────── */`);
 emit();
 for (const { name, scale } of STRENGTHS) {
-  const uri = toDataUri(buildStandardFilter(scale));
+  const uri = toDataUri(buildStandardFilter(mapBase64, scale));
   emit(`@utility glass-strength-${name} {`);
   emit(`  --tw-glass-filter: ${uri};`);
   emit(`}`);
@@ -281,7 +197,7 @@ for (const { name, scale } of STRENGTHS) {
 emit(`/* ── Chromatic Aberration (RGB channel splitting) ──────────── */`);
 emit();
 for (const { name, scale } of STRENGTHS) {
-  const uri = toDataUri(buildChromaticFilter(scale));
+  const uri = toDataUri(buildChromaticFilter(mapBase64, scale));
   emit(`@utility glass-chromatic-${name} {`);
   emit(`  --tw-glass-filter: ${uri};`);
   emit(`}`);
