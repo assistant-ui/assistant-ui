@@ -1,6 +1,6 @@
 import type {
   Attachment,
-  PendingAttachment,
+  CreateAttachment,
   MessageRole,
   RunConfig,
   QuoteInfo,
@@ -65,8 +65,6 @@ type BaseComposerState = {
 
 export type ThreadComposerState = BaseComposerState & {
   readonly type: "thread";
-
-  readonly attachments: readonly PendingAttachment[];
 };
 
 export type EditComposerState = BaseComposerState & {
@@ -131,10 +129,13 @@ export type ComposerRuntime = {
   getState(): ComposerState;
 
   /**
-   * Given a standard js File object, add it to the composer. A composer can have multiple attachments.
-   * @param file The file to add to the composer.
+   * Add an attachment to the composer. Accepts either a standard File object
+   * (processed through the AttachmentAdapter) or a CreateAttachment descriptor
+   * for external-source attachments (URLs, API data, CMS references) that
+   * bypasses the adapter entirely.
+   * @param fileOrAttachment The file or attachment descriptor to add.
    */
-  addAttachment(file: File): Promise<void>;
+  addAttachment(fileOrAttachment: File | CreateAttachment): Promise<void>;
 
   /**
    * Set the text of the composer.
@@ -260,10 +261,10 @@ export abstract class ComposerRuntimeImpl implements ComposerRuntime {
     core.setRunConfig(runConfig);
   }
 
-  public addAttachment(file: File) {
+  public addAttachment(fileOrAttachment: File | CreateAttachment) {
     const core = this._core.getState();
     if (!core) throw new Error("Composer is not available");
-    return core.addAttachment(file);
+    return core.addAttachment(fileOrAttachment);
   }
 
   public reset() {

@@ -43,3 +43,11 @@ export type CompleteAttachment = BaseAttachment & {
 };
 
 export type Attachment = PendingAttachment | CompleteAttachment;
+
+export type CreateAttachment = {
+  id?: string;
+  type?: "image" | "document" | "file" | (string & {});
+  name: string;
+  contentType?: string;
+  content: ThreadUserMessagePart[];
+};

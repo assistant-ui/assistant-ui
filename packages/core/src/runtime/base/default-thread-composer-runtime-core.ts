@@ -1,4 +1,4 @@
-import type { AppendMessage, PendingAttachment } from "../../types";
+import type { AppendMessage } from "../../types";
 import type { AttachmentAdapter } from "../../adapters/attachment";
 import type { DictationAdapter } from "../../adapters/speech";
 import type { ThreadComposerRuntimeCore } from "../interfaces/composer-runtime-core";
@@ -12,10 +12,6 @@ export class DefaultThreadComposerRuntimeCore
   private _canCancel = false;
   public get canCancel() {
     return this._canCancel;
-  }
-
-  public override get attachments(): readonly PendingAttachment[] {
-    return super.attachments as readonly PendingAttachment[];
   }
 
   protected getAttachmentAdapter() {

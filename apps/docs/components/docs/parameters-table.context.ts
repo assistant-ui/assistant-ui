@@ -23,9 +23,10 @@ const BaseComposerState: ParametersTableProps = {
     },
     {
       name: "addAttachment",
-      type: "(attachment: Attachment) => void",
+      type: "(file: File | CreateAttachment) => Promise<void>",
       required: true,
-      description: "A function to add an attachment to the composer.",
+      description:
+        "A function to add an attachment to the composer. Accepts a File (processed through the AttachmentAdapter) or a CreateAttachment descriptor for external-source attachments.",
     },
     {
       name: "removeAttachment",

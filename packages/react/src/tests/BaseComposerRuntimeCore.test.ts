@@ -2,7 +2,11 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { BaseComposerRuntimeCore } from "../legacy-runtime/runtime-cores/composer/BaseComposerRuntimeCore";
 import type { AttachmentAdapter } from "../legacy-runtime/runtime-cores/adapters/attachment";
 import type { DictationAdapter } from "../legacy-runtime/runtime-cores/adapters/speech/SpeechAdapterTypes";
-import type { AppendMessage, PendingAttachment } from "@assistant-ui/core";
+import type {
+  AppendMessage,
+  CreateAttachment,
+  PendingAttachment,
+} from "@assistant-ui/core";
 
 class TestComposerCore extends BaseComposerRuntimeCore {
   private _attachmentAdapter: AttachmentAdapter | undefined;
@@ -314,5 +318,106 @@ describe("BaseComposerRuntimeCore", () => {
 
     composer.setText("change");
     expect(listener).not.toHaveBeenCalled();
+  });
+
+  describe("CreateAttachment (external source)", () => {
+    const makeCreateAttachment = (
+      overrides?: Partial<CreateAttachment>,
+    ): CreateAttachment => ({
+      name: "external-doc.pdf",
+      content: [{ type: "text", text: "extracted content" }],
+      ...overrides,
+    });
+
+    it("addAttachment with CreateAttachment adds without adapter", async () => {
+      // No adapter set — should still work
+      const att = makeCreateAttachment();
+      await composer.addAttachment(att);
+
+      expect(composer.attachments).toHaveLength(1);
+      expect(composer.attachments[0]!.name).toBe("external-doc.pdf");
+      expect(composer.attachments[0]!.status).toEqual({ type: "complete" });
+      expect(composer.attachments[0]!.type).toBe("document");
+    });
+
+    it("addAttachment with CreateAttachment uses provided id and type", async () => {
+      const att = makeCreateAttachment({
+        id: "custom-id",
+        type: "image",
+        contentType: "image/png",
+      });
+      await composer.addAttachment(att);
+
+      expect(composer.attachments[0]!.id).toBe("custom-id");
+      expect(composer.attachments[0]!.type).toBe("image");
+      expect(composer.attachments[0]!.contentType).toBe("image/png");
+    });
+
+    it("addAttachment with CreateAttachment generates id when not provided", async () => {
+      const att = makeCreateAttachment();
+      await composer.addAttachment(att);
+
+      expect(composer.attachments[0]!.id).toBeTruthy();
+      expect(typeof composer.attachments[0]!.id).toBe("string");
+    });
+
+    it("addAttachment with CreateAttachment fires attachmentAdd event", async () => {
+      const callback = vi.fn();
+      composer.unstable_on("attachmentAdd", callback);
+
+      await composer.addAttachment(makeCreateAttachment());
+      expect(callback).toHaveBeenCalledTimes(1);
+    });
+
+    it("removeAttachment on complete attachment does not require adapter", async () => {
+      await composer.addAttachment(makeCreateAttachment({ id: "ext-1" }));
+      expect(composer.attachments).toHaveLength(1);
+
+      // No adapter set — should still remove complete attachments
+      await composer.removeAttachment("ext-1");
+      expect(composer.attachments).toHaveLength(0);
+    });
+
+    it("isEmpty returns false when external attachment present", async () => {
+      expect(composer.isEmpty).toBe(true);
+
+      await composer.addAttachment(makeCreateAttachment());
+      expect(composer.isEmpty).toBe(false);
+    });
+
+    it("send with mixed pending + complete attachments", async () => {
+      const pending = makePendingAttachment("att-pending");
+      const completedFromAdapter = {
+        id: "att-pending",
+        type: "file" as const,
+        name: "file.txt",
+        contentType: "text/plain",
+        content: [{ type: "text" as const, text: "file content" }],
+        status: { type: "complete" as const },
+      };
+      const adapter: AttachmentAdapter = {
+        accept: "*",
+        add: vi.fn().mockResolvedValue(pending),
+        remove: vi.fn(),
+        send: vi.fn().mockResolvedValue(completedFromAdapter),
+      };
+      composer.setAttachmentAdapter(adapter);
+
+      // Add a file-based attachment via adapter
+      await composer.addAttachment(new File(["data"], "file.txt"));
+      // Add an external attachment
+      await composer.addAttachment(makeCreateAttachment({ id: "ext-1" }));
+
+      expect(composer.attachments).toHaveLength(2);
+
+      composer.setText("hello");
+      await composer.send();
+
+      expect(composer.sentMessages).toHaveLength(1);
+      const msg = composer.sentMessages[0]!;
+      expect(msg.attachments).toHaveLength(2);
+      // Pending was sent through adapter
+      expect(adapter.send).toHaveBeenCalledTimes(1);
+    });
   });
 });

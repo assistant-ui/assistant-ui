@@ -191,7 +191,8 @@ api.part().getState();
 aui.composer().send();
 aui.composer().setText(text);
 aui.composer().setRole(role);
-aui.composer().addAttachment(file);
+aui.composer().addAttachment(file); // File object
+aui.composer().addAttachment({ name, content }); // external source
 aui.composer().clearAttachments();
 aui.composer().reset();
 aui.composer().getState();
@@ -449,10 +450,10 @@ const isRunning = useAuiState((s) => s.thread.isRunning);
 
 ### Hooks
 
-| Hook                                | Purpose                    | Returns        |
-| ----------------------------------- | -------------------------- | -------------- |
+| Hook                          | Purpose                    | Returns        |
+| ----------------------------- | -------------------------- | -------------- |
 | `useAuiState(selector)`       | Subscribe to state changes | Selected value |
-| `useAui()`                 | Get API instance           | API object     |
+| `useAui()`                    | Get API instance           | API object     |
 | `useAuiEvent(event, handler)` | Subscribe to events        | void           |
 
 ### Scope States
@@ -469,28 +470,28 @@ const isRunning = useAuiState((s) => s.thread.isRunning);
 
 ### Available Actions by Scope
 
-| Scope          | Actions                                                               | Use Cases                                 |
-| -------------- | --------------------------------------------------------------------- | ----------------------------------------- |
-| ThreadList     | `switchToNewThread()`, `switchToThread(id)`, `getState()`             | Thread navigation and creation            |
-| ThreadListItem | `switchTo()`, `rename(title)`, `archive()`, `unarchive()`, `delete()` | Thread management operations              |
-| Thread         | `append(message)`, `startRun()`, `cancelRun()`, `switchToNewThread()` | Message handling and conversation control |
-| Message        | `reload()`, `speak()`, `stopSpeaking()`, `submitFeedback(feedback)`   | Message interactions and regeneration     |
-| Composer       | `send()`, `setText(text)`, `addAttachment(file)`, `reset()`           | Text input and message composition        |
-| Part           | `addResult(result)`, `getState()`                                     | Tool call result handling                 |
-| Attachment     | `remove()`, `getState()`                                              | File management                           |
+| Scope          | Actions                                                                   | Use Cases                                 |
+| -------------- | ------------------------------------------------------------------------- | ----------------------------------------- |
+| ThreadList     | `switchToNewThread()`, `switchToThread(id)`, `getState()`                 | Thread navigation and creation            |
+| ThreadListItem | `switchTo()`, `rename(title)`, `archive()`, `unarchive()`, `delete()`     | Thread management operations              |
+| Thread         | `append(message)`, `startRun()`, `cancelRun()`, `switchToNewThread()`     | Message handling and conversation control |
+| Message        | `reload()`, `speak()`, `stopSpeaking()`, `submitFeedback(feedback)`       | Message interactions and regeneration     |
+| Composer       | `send()`, `setText(text)`, `addAttachment(file \| attachment)`, `reset()` | Text input and message composition        |
+| Part           | `addResult(result)`, `getState()`                                         | Tool call result handling                 |
+| Attachment     | `remove()`, `getState()`                                                  | File management                           |
 
 ### Common Events
 
-| Event                            | Description                   |
-| -------------------------------- | ----------------------------- |
-| `thread.runStart`                | Assistant starts generating   |
-| `thread.runEnd`                  | Assistant finishes generating |
-| `thread.initialize`              | Thread is initialized         |
-| `thread.modelContextUpdate`      | Model context is updated      |
-| `composer.send`                  | Message is sent               |
-| `composer.attachmentAdd`         | Attachment added to composer  |
-| `threadListItem.switchedTo`      | Switched to a thread          |
-| `threadListItem.switchedAway`    | Switched away from a thread   |
+| Event                         | Description                   |
+| ----------------------------- | ----------------------------- |
+| `thread.runStart`             | Assistant starts generating   |
+| `thread.runEnd`               | Assistant finishes generating |
+| `thread.initialize`           | Thread is initialized         |
+| `thread.modelContextUpdate`   | Model context is updated      |
+| `composer.send`               | Message is sent               |
+| `composer.attachmentAdd`      | Attachment added to composer  |
+| `threadListItem.switchedTo`   | Switched to a thread          |
+| `threadListItem.switchedAway` | Switched away from a thread   |
 
 ## Troubleshooting
 

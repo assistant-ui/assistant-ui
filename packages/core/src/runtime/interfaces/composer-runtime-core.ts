@@ -3,7 +3,7 @@ import type {
   RunConfig,
   QuoteInfo,
   Attachment,
-  PendingAttachment,
+  CreateAttachment,
   Unsubscribe,
 } from "../../types";
 import type { DictationAdapter } from "../../adapters/speech";
@@ -25,7 +25,7 @@ export type ComposerRuntimeCore = Readonly<{
   attachments: readonly Attachment[];
   attachmentAccept: string;
 
-  addAttachment: (file: File) => Promise<void>;
+  addAttachment: (fileOrAttachment: File | CreateAttachment) => Promise<void>;
   removeAttachment: (attachmentId: string) => Promise<void>;
 
   text: string;
@@ -58,7 +58,4 @@ export type ComposerRuntimeCore = Readonly<{
   ) => Unsubscribe;
 }>;
 
-export type ThreadComposerRuntimeCore = ComposerRuntimeCore &
-  Readonly<{
-    attachments: readonly PendingAttachment[];
-  }>;
+export type ThreadComposerRuntimeCore = ComposerRuntimeCore;

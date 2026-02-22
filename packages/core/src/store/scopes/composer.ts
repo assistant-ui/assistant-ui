@@ -1,5 +1,6 @@
 import type {
   Attachment,
+  CreateAttachment,
   MessageRole,
   RunConfig,
   QuoteInfo,
@@ -36,7 +37,7 @@ export type ComposerMethods = {
   setText(text: string): void;
   setRole(role: MessageRole): void;
   setRunConfig(runConfig: RunConfig): void;
-  addAttachment(file: File): Promise<void>;
+  addAttachment(fileOrAttachment: File | CreateAttachment): Promise<void>;
   clearAttachments(): Promise<void>;
   attachment(selector: { index: number } | { id: string }): AttachmentMethods;
   reset(): Promise<void>;

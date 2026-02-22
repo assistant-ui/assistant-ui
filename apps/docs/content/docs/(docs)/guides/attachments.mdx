@@ -479,6 +479,31 @@ class ValidatedImageAdapter implements AttachmentAdapter {
 }
 ```
 
+### External Source Attachments
+
+Add attachments from external sources (URLs, API data, CMS references) without needing a `File` object or an `AttachmentAdapter`:
+
+```tsx
+const aui = useAui();
+
+// Add an attachment from an external source
+await aui.composer().addAttachment({
+  name: "report.pdf",
+  contentType: "application/pdf",
+  content: [{ type: "text", text: "Extracted document content..." }],
+});
+
+// Optionally provide id and type
+await aui.composer().addAttachment({
+  id: "cms-doc-123",
+  type: "document",
+  name: "Product Spec",
+  content: [{ type: "text", text: "Product specification content..." }],
+});
+```
+
+External attachments are added as complete attachments directly — they skip the `AttachmentAdapter` entirely and can be removed without one.
+
 ### Multiple File Selection
 
 Enable multi-file selection with custom limits:

@@ -1,9 +1,4 @@
-import type {
-  Attachment,
-  CompleteAttachment,
-  PendingAttachment,
-  Unsubscribe,
-} from "../../types";
+import type { Attachment, CompleteAttachment, Unsubscribe } from "../../types";
 import type { SubscribableWithState } from "../../subscribable/subscribable";
 
 import type { ComposerRuntimeCoreBinding } from "./bindings";
@@ -13,7 +8,7 @@ type MessageAttachmentState = CompleteAttachment & {
   readonly source: "message";
 };
 
-type ThreadComposerAttachmentState = PendingAttachment & {
+type ThreadComposerAttachmentState = Attachment & {
   readonly source: "thread-composer";
 };
 

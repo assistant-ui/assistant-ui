@@ -32,6 +32,7 @@ export type {
   PendingAttachment,
   CompleteAttachment,
   AttachmentStatus,
+  CreateAttachment,
 } from "./attachment";
 
 export type { Unsubscribe } from "./unsubscribe";
