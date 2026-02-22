@@ -58,6 +58,12 @@ export const NAV_ITEMS: NavItem[] = [
         external: false,
       },
       {
+        label: "Changelog",
+        href: "/changelog",
+        description: "Release notes and version history",
+        external: false,
+      },
+      {
         label: "Careers",
         href: "/careers",
         description: "Join our team",
