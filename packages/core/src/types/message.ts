@@ -51,7 +51,7 @@ export type Unstable_AudioMessagePart = {
 };
 
 export type DataMessagePart<T = any> = {
-  readonly type: "data";
+  readonly type: `data-${string}`;
   readonly name: string;
   readonly data: T;
 };

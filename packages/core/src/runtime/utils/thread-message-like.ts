@@ -80,7 +80,7 @@ const convertDataPrefixedPart = (
   data: unknown,
 ): DataMessagePart | undefined => {
   if (!type.startsWith("data-")) return undefined;
-  return { type: "data", name: type.substring(5), data };
+  return { type, name: type.substring(5), data };
 };
 
 export const fromThreadMessageLike = (

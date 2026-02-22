@@ -142,7 +142,7 @@ function convertParts(
 
       if (part.type.startsWith("data-")) {
         return {
-          type: "data",
+          type: part.type,
           name: part.type.substring(5),
           data: (part as any).data,
         } satisfies DataMessagePart;
