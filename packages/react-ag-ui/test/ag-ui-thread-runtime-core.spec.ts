@@ -487,4 +487,133 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(onError).toHaveBeenCalledWith(expect.any(Error));
     expect(onError.mock.calls[0][0].message).toBe("string error");
   });
+
+  describe("threadId support (#3207)", () => {
+    it("uses explicit threadId when provided", async () => {
+      const runAgent = vi.fn(async (_input, subscriber) => {
+        subscriber.onRunFinalized?.();
+      });
+      const agent = { runAgent } as unknown as HttpAgent;
+
+      const core = new AgUiThreadRuntimeCore({
+        agent,
+        threadId: "custom-thread-123",
+        logger: noopLogger,
+        showThinking: true,
+        notifyUpdate: () => {},
+      });
+
+      await core.append(createAppendMessage());
+
+      expect(runAgent.mock.calls[0][0].threadId).toBe("custom-thread-123");
+    });
+
+    it("falls back to agent.threadId when no explicit threadId", async () => {
+      const runAgent = vi.fn(async (_input, subscriber) => {
+        subscriber.onRunFinalized?.();
+      });
+      const agent = {
+        runAgent,
+        threadId: "agent-thread-456",
+      } as unknown as HttpAgent;
+
+      const core = createCore(agent);
+      await core.append(createAppendMessage());
+
+      expect(runAgent.mock.calls[0][0].threadId).toBe("agent-thread-456");
+    });
+
+    it("falls back to 'main' when no threadId is provided", async () => {
+      const runAgent = vi.fn(async (_input, subscriber) => {
+        subscriber.onRunFinalized?.();
+      });
+      const agent = { runAgent } as unknown as HttpAgent;
+
+      const core = createCore(agent);
+      await core.append(createAppendMessage());
+
+      expect(runAgent.mock.calls[0][0].threadId).toBe("main");
+    });
+
+    it("updates threadId via setThreadId", async () => {
+      const runAgent = vi.fn(async (_input, subscriber) => {
+        subscriber.onRunFinalized?.();
+      });
+      const agent = { runAgent } as unknown as HttpAgent;
+
+      const core = new AgUiThreadRuntimeCore({
+        agent,
+        threadId: "thread-1",
+        logger: noopLogger,
+        showThinking: true,
+        notifyUpdate: () => {},
+      });
+
+      await core.append(createAppendMessage());
+      expect(runAgent.mock.calls[0][0].threadId).toBe("thread-1");
+
+      core.setThreadId("thread-2");
+      await core.append(createAppendMessage());
+      expect(runAgent.mock.calls[1][0].threadId).toBe("thread-2");
+    });
+
+    it("allows multiple cores with different threadIds", async () => {
+      const runAgent1 = vi.fn(async (_input, subscriber) => {
+        subscriber.onRunFinalized?.();
+      });
+      const runAgent2 = vi.fn(async (_input, subscriber) => {
+        subscriber.onRunFinalized?.();
+      });
+
+      const agent1 = { runAgent: runAgent1 } as unknown as HttpAgent;
+      const agent2 = { runAgent: runAgent2 } as unknown as HttpAgent;
+
+      const core1 = new AgUiThreadRuntimeCore({
+        agent: agent1,
+        threadId: "session-abc",
+        logger: noopLogger,
+        showThinking: true,
+        notifyUpdate: () => {},
+      });
+
+      const core2 = new AgUiThreadRuntimeCore({
+        agent: agent2,
+        threadId: "session-xyz",
+        logger: noopLogger,
+        showThinking: true,
+        notifyUpdate: () => {},
+      });
+
+      await core1.append(createAppendMessage());
+      await core2.append(createAppendMessage());
+
+      expect(runAgent1.mock.calls[0][0].threadId).toBe("session-abc");
+      expect(runAgent2.mock.calls[0][0].threadId).toBe("session-xyz");
+    });
+
+    it("updates threadId via updateOptions", async () => {
+      const runAgent = vi.fn(async (_input, subscriber) => {
+        subscriber.onRunFinalized?.();
+      });
+      const agent = { runAgent } as unknown as HttpAgent;
+
+      const core = new AgUiThreadRuntimeCore({
+        agent,
+        threadId: "initial-thread",
+        logger: noopLogger,
+        showThinking: true,
+        notifyUpdate: () => {},
+      });
+
+      core.updateOptions({
+        agent,
+        threadId: "updated-thread",
+        logger: noopLogger,
+        showThinking: true,
+      });
+
+      await core.append(createAppendMessage());
+      expect(runAgent.mock.calls[0][0].threadId).toBe("updated-thread");
+    });
+  });
 });
