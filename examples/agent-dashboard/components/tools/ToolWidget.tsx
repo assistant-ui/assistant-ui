@@ -126,7 +126,7 @@ export function ToolWidget({
         break;
 
       case "Write":
-        if (typedInput["content"]) {
+        if (typeof typedInput["content"] === "string") {
           const path = String(
             typedInput["file_path"] ?? typedInput["path"] ?? "",
           );

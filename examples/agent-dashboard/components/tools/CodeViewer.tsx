@@ -26,37 +26,45 @@ function highlightCode(
   _language?: string,
   showLineNumbers = true,
 ): React.ReactNode[] {
+  const keywords =
+    /\b(const|let|var|function|return|if|else|for|while|import|export|from|class|extends|async|await|try|catch|throw|new|this|typeof|instanceof)\b/g;
+
   const lines = code.split("\n");
 
   return lines.map((line, i) => {
     // Escape HTML entities first to prevent XSS
     let highlighted = escapeHtml(line);
 
-    // Comments
-    highlighted = highlighted.replace(
-      /(\/\/.*$|#.*$)/gm,
-      '<span class="text-zinc-500">$1</span>',
-    );
+    const tokens: Array<[token: string, value: string]> = [];
+    const stashToken = (value: string, className: string) => {
+      const token = `@@HIGHLIGHT_${"x".repeat(tokens.length + 1)}@@`;
+      tokens.push([token, `<span class="${className}">${value}</span>`]);
+      return token;
+    };
 
     // Strings
-    highlighted = highlighted.replace(
-      /(&quot;.*?&quot;|&#x27;.*?&#x27;|`.*?`)/g,
-      '<span class="text-green-400">$1</span>',
+    highlighted = highlighted.replace(/(`[^`]*`|"[^"]*"|'[^']*')/g, (match) =>
+      stashToken(match, "text-green-400"),
+    );
+
+    // Comments
+    highlighted = highlighted.replace(/(\/\/.*$|#.*$)/g, (match) =>
+      stashToken(match, "text-zinc-500"),
     );
 
     // Keywords
-    const keywords =
-      /\b(const|let|var|function|return|if|else|for|while|import|export|from|class|extends|async|await|try|catch|throw|new|this|typeof|instanceof)\b/g;
-    highlighted = highlighted.replace(
-      keywords,
-      '<span class="text-purple-400">$1</span>',
+    highlighted = highlighted.replace(keywords, (match) =>
+      stashToken(match, "text-purple-400"),
     );
 
     // Numbers
-    highlighted = highlighted.replace(
-      /\b(\d+)\b/g,
-      '<span class="text-orange-400">$1</span>',
+    highlighted = highlighted.replace(/\b(\d+)\b/g, (match) =>
+      stashToken(match, "text-orange-400"),
     );
+
+    for (const [token, value] of tokens) {
+      highlighted = highlighted.replaceAll(token, value);
+    }
 
     const lineNumberHtml = showLineNumbers
       ? `<span class="select-none pr-4 text-zinc-600 w-8 text-right shrink-0">${i + 1}</span>`

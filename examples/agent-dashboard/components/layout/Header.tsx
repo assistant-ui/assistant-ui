@@ -1,10 +1,10 @@
 "use client";
 
 import {
+  forwardRef,
   useState,
   useRef,
   useImperativeHandle,
-  type RefObject,
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import { useRouter } from "next/navigation";
@@ -69,14 +69,17 @@ function NewSessionLauncher({ onCancel }: { onCancel: () => void }) {
   );
 }
 
-export const Header = function Header({
-  title = "Sessions",
-  showSearch = true,
-  showNewSession = true,
-  onSearch,
-  searchPlaceholder = "Search sessions... (press /)",
+// biome-ignore lint/suspicious: forwardRef keeps ref support for React 18 consumers
+export const Header = forwardRef<HeaderHandle, HeaderProps>(function Header(
+  {
+    title = "Sessions",
+    showSearch = true,
+    showNewSession = true,
+    onSearch,
+    searchPlaceholder = "Search sessions... (press /)",
+  },
   ref,
-}: HeaderProps & { ref?: RefObject<HeaderHandle | null> }) {
+) {
   const [isNewSessionOpen, setIsNewSessionOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -210,4 +213,4 @@ export const Header = function Header({
       )}
     </header>
   );
-};
+});

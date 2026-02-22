@@ -39,36 +39,34 @@ export function useKeyboardNav<T>({
   }, [items.length, selectedIndex]);
 
   const navigateUp = useCallback(() => {
-    setSelectedIndex((prev) => {
-      let newIndex: number;
-      if (prev <= 0) {
-        newIndex = loop ? items.length - 1 : 0;
-      } else {
-        newIndex = prev - 1;
-      }
-      const item = items[newIndex];
-      if (item !== undefined) {
-        onNavigate?.(item, newIndex);
-      }
-      return newIndex;
-    });
-  }, [items, loop, onNavigate]);
+    if (items.length === 0) {
+      return;
+    }
+    const newIndex =
+      selectedIndex <= 0 ? (loop ? items.length - 1 : 0) : selectedIndex - 1;
+    setSelectedIndex(newIndex);
+    const item = items[newIndex];
+    if (item !== undefined) {
+      onNavigate?.(item, newIndex);
+    }
+  }, [items, loop, onNavigate, selectedIndex]);
 
   const navigateDown = useCallback(() => {
-    setSelectedIndex((prev) => {
-      let newIndex: number;
-      if (prev >= items.length - 1) {
-        newIndex = loop ? 0 : items.length - 1;
-      } else {
-        newIndex = prev + 1;
-      }
-      const item = items[newIndex];
-      if (item !== undefined) {
-        onNavigate?.(item, newIndex);
-      }
-      return newIndex;
-    });
-  }, [items, loop, onNavigate]);
+    if (items.length === 0) {
+      return;
+    }
+    const newIndex =
+      selectedIndex >= items.length - 1
+        ? loop
+          ? 0
+          : items.length - 1
+        : selectedIndex + 1;
+    setSelectedIndex(newIndex);
+    const item = items[newIndex];
+    if (item !== undefined) {
+      onNavigate?.(item, newIndex);
+    }
+  }, [items, loop, onNavigate, selectedIndex]);
 
   const activate = useCallback(() => {
     if (items[selectedIndex]) {
