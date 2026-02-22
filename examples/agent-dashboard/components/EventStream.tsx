@@ -113,10 +113,13 @@ export function EventStream({
   const [expandedEvents, setExpandedEvents] = useState<Set<string>>(new Set());
 
   useEffect(() => {
+    if (!events.length) {
+      return;
+    }
     if (autoScroll && containerRef.current) {
       containerRef.current.scrollTop = containerRef.current.scrollHeight;
     }
-  }, [autoScroll]);
+  }, [events.length, autoScroll]);
 
   const toggleExpand = (eventId: string) => {
     setExpandedEvents((prev) => {
