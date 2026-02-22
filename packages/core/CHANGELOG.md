@@ -1,5 +1,16 @@
 # @assistant-ui/core
 
+## 0.1.1
+
+### Patch Changes
+
+- 28f39fe: Support custom content types via `data-*` prefix in ThreadMessageLike (auto-converted to DataMessagePart), widen `BaseAttachment.type` to accept custom strings, make `contentType` optional
+- 6692226: feat: support external source attachments in composer
+
+  `addAttachment()` now accepts either a `File` or a `CreateAttachment` descriptor, allowing users to add attachments from external sources (URLs, API data, CMS references) without creating dummy `File` objects or requiring an `AttachmentAdapter`.
+
+- fc98475: feat(core): move `@assistant-ui/tap` to peerDependencies to fix npm deduplication
+
 ## 0.1.0
 
 ### Minor Changes

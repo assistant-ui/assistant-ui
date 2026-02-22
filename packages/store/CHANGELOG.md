@@ -1,5 +1,15 @@
 # @assistant-ui/store
 
+## 0.2.1
+
+### Patch Changes
+
+- fc98475: feat(store): move `@assistant-ui/core` and `@assistant-ui/tap` to peerDependencies to fix npm deduplication
+- Updated dependencies [28f39fe]
+- Updated dependencies [6692226]
+- Updated dependencies [fc98475]
+  - @assistant-ui/core@0.1.1
+
 ## 0.2.0
 
 ### Minor Changes

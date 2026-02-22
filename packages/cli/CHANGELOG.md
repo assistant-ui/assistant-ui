@@ -1,5 +1,11 @@
 # assistant-ui
 
+## 0.0.80
+
+### Patch Changes
+
+- 8282dde: feat(cli): add `with-artifacts` and `with-chain-of-thought` to available examples
+
 ## 0.0.79
 
 ### Patch Changes
