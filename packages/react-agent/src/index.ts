@@ -2,8 +2,8 @@
 export * from "./runtime";
 
 // SDK
-export { AnthropicAgentClient, HttpAgentClient } from "./sdk";
-export type { AgentClientInterface } from "./sdk";
+export { HttpAgentClient } from "./sdk/HttpAgentClient";
+export type { AgentClientInterface } from "./sdk/HttpAgentClient";
 
 // Hooks
 export * from "./hooks";

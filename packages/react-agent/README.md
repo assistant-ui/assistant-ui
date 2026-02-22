@@ -57,6 +57,7 @@ export function AgentUI() {
 ## Key Exports
 
 - Runtime: `WorkspaceRuntime`, `TaskRuntime`, `AgentRuntime`, `ApprovalRuntime`, `LocalStoragePermissionStore`
-- SDK: `HttpAgentClient`, `AnthropicAgentClient`
+- SDK (default import path): `HttpAgentClient`
+- SDK (server import path): `AnthropicAgentClient` from `@assistant-ui/react-agent/server`
 - Hooks: `useAgentWorkspace`, `useWorkspaceTasks`, `useTaskState`, `useAgentState`, `useApprovalState`, `usePermissionMode`
 - Primitives: `WorkspacePrimitive`, `TaskPrimitive`, `AgentPrimitive`, `ApprovalPrimitive`, `TaskTreePrimitive`, `TaskLauncherPrimitive`, `ApprovalQueuePrimitive`, `ToolExecutionPrimitive`, `PermissionModePrimitive`

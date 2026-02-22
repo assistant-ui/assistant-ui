@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 export interface UseKeyboardNavOptions<T> {
   items: T[];
@@ -28,6 +28,7 @@ export function useKeyboardNav<T>({
   initialIndex = 0,
 }: UseKeyboardNavOptions<T>): UseKeyboardNavResult {
   const [selectedIndex, setSelectedIndex] = useState(initialIndex);
+  const shouldNotifyNavigateRef = useRef(false);
 
   // Clamp index when items change
   useEffect(() => {
@@ -42,31 +43,32 @@ export function useKeyboardNav<T>({
     if (items.length === 0) {
       return;
     }
-    const newIndex =
-      selectedIndex <= 0 ? (loop ? items.length - 1 : 0) : selectedIndex - 1;
-    setSelectedIndex(newIndex);
-    const item = items[newIndex];
-    if (item !== undefined) {
-      onNavigate?.(item, newIndex);
-    }
-  }, [items, loop, onNavigate, selectedIndex]);
+    shouldNotifyNavigateRef.current = true;
+    setSelectedIndex((prev) =>
+      prev <= 0 ? (loop ? items.length - 1 : 0) : prev - 1,
+    );
+  }, [items.length, loop]);
 
   const navigateDown = useCallback(() => {
     if (items.length === 0) {
       return;
     }
-    const newIndex =
-      selectedIndex >= items.length - 1
-        ? loop
-          ? 0
-          : items.length - 1
-        : selectedIndex + 1;
-    setSelectedIndex(newIndex);
-    const item = items[newIndex];
-    if (item !== undefined) {
-      onNavigate?.(item, newIndex);
+    shouldNotifyNavigateRef.current = true;
+    setSelectedIndex((prev) =>
+      prev >= items.length - 1 ? (loop ? 0 : items.length - 1) : prev + 1,
+    );
+  }, [items.length, loop]);
+
+  useEffect(() => {
+    if (!shouldNotifyNavigateRef.current) {
+      return;
     }
-  }, [items, loop, onNavigate, selectedIndex]);
+    shouldNotifyNavigateRef.current = false;
+    const item = items[selectedIndex];
+    if (item !== undefined) {
+      onNavigate?.(item, selectedIndex);
+    }
+  }, [items, onNavigate, selectedIndex]);
 
   const activate = useCallback(() => {
     if (items[selectedIndex]) {

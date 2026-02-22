@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import * as ReactAgent from "../index";
+import * as ReactAgentServer from "../server";
 
 describe("@assistant-ui/react-agent exports", () => {
   it("exports runtime and SDK entry points", () => {
@@ -8,7 +9,8 @@ describe("@assistant-ui/react-agent exports", () => {
     expect(ReactAgent.AgentRuntime).toBeDefined();
     expect(ReactAgent.ApprovalRuntime).toBeDefined();
     expect(ReactAgent.HttpAgentClient).toBeDefined();
-    expect(ReactAgent.AnthropicAgentClient).toBeDefined();
+    expect("AnthropicAgentClient" in ReactAgent).toBe(false);
+    expect(ReactAgentServer.AnthropicAgentClient).toBeDefined();
   });
 
   it("exports hook and primitive namespaces", () => {

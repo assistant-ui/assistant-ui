@@ -158,9 +158,9 @@ function useCopyInput() {
 }
 
 function useCopyOutput() {
-  const { output } = useToolExecution();
+  const { output, status } = useToolExecution();
 
-  if (output === null || output === undefined) return null;
+  if (status === "pending" || status === "running") return null;
 
   return () => {
     const text = JSON.stringify(output, null, 2);

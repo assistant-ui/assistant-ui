@@ -154,12 +154,9 @@ function ApprovalApproveTimed({
 ApprovalApproveTimed.displayName = "ApprovalPrimitive.ApproveTimed";
 
 export interface ApprovalDenyWithReasonProps
-  extends ComponentPropsWithoutRef<"button"> {
-  reason?: string;
-}
+  extends ComponentPropsWithoutRef<"button"> {}
 
 function ApprovalDenyWithReason({
-  reason,
   children,
   ...props
 }: ApprovalDenyWithReasonProps) {
