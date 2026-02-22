@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react",
-  "version": "0.12.11",
+  "version": "0.12.12",
   "description": "TypeScript/React library for AI Chat",
   "keywords": [
     "radix-ui",
@@ -55,9 +55,9 @@
   },
   "dependencies": {
     "assistant-cloud": "^0.1.18",
-    "@assistant-ui/core": "^0.1.0",
+    "@assistant-ui/core": "^0.1.1",
     "@assistant-ui/tap": "^0.5.0",
-    "@assistant-ui/store": "^0.2.0",
+    "@assistant-ui/store": "^0.2.1",
     "@radix-ui/primitive": "^1.1.3",
     "@radix-ui/react-compose-refs": "^1.1.2",
     "@radix-ui/react-context": "^1.1.3",

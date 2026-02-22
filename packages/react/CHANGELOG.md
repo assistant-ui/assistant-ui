@@ -1,5 +1,22 @@
 # @assistant-ui/react
 
+## 0.12.12
+
+### Patch Changes
+
+- 6692226: feat: support external source attachments in composer
+
+  `addAttachment()` now accepts either a `File` or a `CreateAttachment` descriptor, allowing users to add attachments from external sources (URLs, API data, CMS references) without creating dummy `File` objects or requiring an `AttachmentAdapter`.
+
+- 28f39fe: Handle unknown attachment types with fallback component and unknown message part types with `console.warn` instead of throwing
+- 7c360ce: Update npm README
+- Updated dependencies [28f39fe]
+- Updated dependencies [6692226]
+- Updated dependencies [fc98475]
+- Updated dependencies [fc98475]
+  - @assistant-ui/core@0.1.1
+  - @assistant-ui/store@0.2.1
+
 ## 0.12.11
 
 ### Patch Changes
