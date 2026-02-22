@@ -61,8 +61,7 @@ export default function TwGlassPage() {
             <GlassTextHero bg={bg} />
 
             <p className="text-balance font-light text-lg text-muted-foreground">
-              Realistic glass refraction, with a single class. Pure CSS, no
-              JavaScript.
+              Realistic glass refraction for Tailwind. Pure CSS, no JavaScript.
             </p>
           </div>
         </div>
@@ -176,22 +175,10 @@ export default function TwGlassPage() {
                 />
               </BoxCode>
               <DemoArea pattern={bg}>
-                <div className="grid grid-cols-3 gap-4">
-                  <GlassDemo
-                    className="glass glass-strength-5"
-                    label="5"
-                    compact
-                  />
-                  <GlassDemo
-                    className="glass glass-strength-20"
-                    label="20"
-                    compact
-                  />
-                  <GlassDemo
-                    className="glass glass-strength-50"
-                    label="50"
-                    compact
-                  />
+                <div className="grid grid-cols-3">
+                  <GlassDemo className="glass glass-strength-5" label="5" />
+                  <GlassDemo className="glass glass-strength-20" label="20" />
+                  <GlassDemo className="glass glass-strength-50" label="50" />
                 </div>
               </DemoArea>
             </Box>
@@ -223,22 +210,10 @@ export default function TwGlassPage() {
                 />
               </BoxCode>
               <DemoArea pattern={bg}>
-                <div className="grid grid-cols-3 gap-4">
-                  <GlassDemo
-                    className="glass glass-chromatic-10"
-                    label="10"
-                    compact
-                  />
-                  <GlassDemo
-                    className="glass glass-chromatic-20"
-                    label="20"
-                    compact
-                  />
-                  <GlassDemo
-                    className="glass glass-chromatic-40"
-                    label="40"
-                    compact
-                  />
+                <div className="grid grid-cols-3">
+                  <GlassDemo className="glass glass-chromatic-10" label="10" />
+                  <GlassDemo className="glass glass-chromatic-20" label="20" />
+                  <GlassDemo className="glass glass-chromatic-40" label="40" />
                 </div>
               </DemoArea>
             </Box>
@@ -269,22 +244,10 @@ export default function TwGlassPage() {
                 />
               </BoxCode>
               <DemoArea pattern={bg}>
-                <div className="grid grid-cols-3 gap-4">
-                  <GlassDemo
-                    className="glass glass-blur-0"
-                    label="0px"
-                    compact
-                  />
-                  <GlassDemo
-                    className="glass glass-blur-2"
-                    label="2px"
-                    compact
-                  />
-                  <GlassDemo
-                    className="glass glass-blur-6"
-                    label="6px"
-                    compact
-                  />
+                <div className="grid grid-cols-3">
+                  <GlassDemo className="glass glass-blur-0" label="0px" />
+                  <GlassDemo className="glass glass-blur-2" label="2px" />
+                  <GlassDemo className="glass glass-blur-6" label="6px" />
                 </div>
               </DemoArea>
             </Box>
@@ -303,21 +266,15 @@ export default function TwGlassPage() {
                 />
               </BoxCode>
               <DemoArea pattern={bg}>
-                <div className="grid grid-cols-3 gap-4">
-                  <GlassDemo
-                    className="glass glass-saturation-50"
-                    label="50"
-                    compact
-                  />
+                <div className="grid grid-cols-3">
+                  <GlassDemo className="glass glass-saturation-50" label="50" />
                   <GlassDemo
                     className="glass glass-saturation-120"
                     label="120"
-                    compact
                   />
                   <GlassDemo
                     className="glass glass-saturation-200"
                     label="200"
-                    compact
                   />
                 </div>
               </DemoArea>
@@ -337,21 +294,15 @@ export default function TwGlassPage() {
                 />
               </BoxCode>
               <DemoArea pattern={bg}>
-                <div className="grid grid-cols-3 gap-4">
-                  <GlassDemo
-                    className="glass glass-brightness-80"
-                    label="80"
-                    compact
-                  />
+                <div className="grid grid-cols-3">
+                  <GlassDemo className="glass glass-brightness-80" label="80" />
                   <GlassDemo
                     className="glass glass-brightness-105"
                     label="105"
-                    compact
                   />
                   <GlassDemo
                     className="glass glass-brightness-140"
                     label="140"
-                    compact
                   />
                 </div>
               </DemoArea>

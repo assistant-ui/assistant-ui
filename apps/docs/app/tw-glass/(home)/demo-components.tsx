@@ -27,19 +27,14 @@ export function DemoArea({
 export function GlassDemo({
   className,
   label,
-  compact = false,
 }: {
   className: string;
   label?: string;
-  compact?: boolean;
 }) {
   return (
-    <div
-      className={`rounded-xl ${className} ${compact ? "px-4 py-6" : "p-6"}`}
-      style={{ minHeight: compact ? 80 : 100 }}
-    >
+    <div className={`flex min-h-44 items-center justify-center ${className}`}>
       {label && (
-        <code className="flex items-center justify-center font-mono text-primary leading-8">
+        <code className="flex items-center justify-center font-mono text-primary text-shadow-sm text-xl">
           {label}
         </code>
       )}

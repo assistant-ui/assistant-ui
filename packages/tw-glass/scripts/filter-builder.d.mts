@@ -6,12 +6,15 @@ export function buildDisplacementMapSvg(opts?: {
   shape?: "rect" | "circle";
 }): string;
 
-export function svgToBase64(svg: string): string;
+export function encodeSvgUrl(svg: string): string;
 
-export function buildStandardFilter(mapBase64: string, scale: number): string;
+export function buildStandardFilter(
+  mapUrlEncoded: string,
+  scale: number,
+): string;
 
 export function buildChromaticFilter(
-  mapBase64: string,
+  mapUrlEncoded: string,
   scale: number,
   rRatio?: number,
   gRatio?: number,

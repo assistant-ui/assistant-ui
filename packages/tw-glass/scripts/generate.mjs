@@ -14,7 +14,7 @@ import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 import {
   buildDisplacementMapSvg,
-  svgToBase64,
+  encodeSvgUrl,
   buildStandardFilter,
   buildChromaticFilter,
   toDataUri,
@@ -25,7 +25,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 // ─── Displacement Map ──────────────────────────────────────────────
 
 const DISPLACEMENT_MAP_SVG = buildDisplacementMapSvg();
-const mapBase64 = svgToBase64(DISPLACEMENT_MAP_SVG);
+const mapUrlEncoded = encodeSvgUrl(DISPLACEMENT_MAP_SVG);
 
 // ─── Strength Levels ───────────────────────────────────────────────
 // Scale is in objectBoundingBox units (fraction of element size).
@@ -49,7 +49,7 @@ const DEFAULT_STRENGTH = "20";
 
 const defaultScale = STRENGTHS.find((s) => s.name === DEFAULT_STRENGTH).scale;
 const defaultFilterUri = toDataUri(
-  buildStandardFilter(mapBase64, defaultScale),
+  buildStandardFilter(mapUrlEncoded, defaultScale),
 );
 
 const lines = [];
@@ -186,7 +186,7 @@ emit();
 emit(`/* ── Displacement Strength ──────────────────────────────────── */`);
 emit();
 for (const { name, scale } of STRENGTHS) {
-  const uri = toDataUri(buildStandardFilter(mapBase64, scale));
+  const uri = toDataUri(buildStandardFilter(mapUrlEncoded, scale));
   emit(`@utility glass-strength-${name} {`);
   emit(`  --tw-glass-filter: ${uri};`);
   emit(`}`);
@@ -197,14 +197,14 @@ for (const { name, scale } of STRENGTHS) {
 emit(`/* ── Chromatic Aberration (RGB channel splitting) ──────────── */`);
 emit();
 for (const { name, scale } of STRENGTHS) {
-  const uri = toDataUri(buildChromaticFilter(mapBase64, scale));
+  const uri = toDataUri(buildChromaticFilter(mapUrlEncoded, scale));
   emit(`@utility glass-chromatic-${name} {`);
   emit(`  --tw-glass-filter: ${uri};`);
   emit(`}`);
   emit();
 }
 
-// Continuous modifier utilities
+// ─── Continuous Modifiers ─────────────────────────────────────
 emit(`/* ── Continuous Modifiers ───────────────────────────────────── */`);
 emit();
 emit(`@utility glass-blur-* {`);
@@ -220,7 +220,7 @@ emit(`  --tw-glass-brightness: calc(--value(number) / 100);`);
 emit(`}`);
 emit();
 emit(`@utility glass-bg-* {`);
-emit(`  --glass-bg-opacity: calc(--value(integer) * 0.01);`);
+emit(`  --glass-bg-opacity: calc(--value(number) * 0.01);`);
 emit(`}`);
 emit();
 emit(`/* ── Glass Text Effect ─────────────────────────────────────── */`);

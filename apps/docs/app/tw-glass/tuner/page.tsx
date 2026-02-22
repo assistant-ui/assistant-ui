@@ -3,7 +3,7 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import {
   buildDisplacementMapSvg,
-  svgToBase64,
+  encodeSvgUrl,
   buildStandardFilter,
   buildChromaticFilter,
   toDataUri,
@@ -114,16 +114,16 @@ export default function GlassTunerPage() {
   // Rebuild filter SVG whenever map or filter params change
   const filterUri = useMemo(() => {
     const mapSvg = buildDisplacementMapSvg(map) as string;
-    const base64 = svgToBase64(mapSvg) as string;
+    const urlEncoded = encodeSvgUrl(mapSvg) as string;
     const filterSvg =
       filter.mode === "chromatic"
         ? (buildChromaticFilter(
-            base64,
+            urlEncoded,
             filter.scale,
             filter.rRatio,
             filter.gRatio,
           ) as string)
-        : (buildStandardFilter(base64, filter.scale) as string);
+        : (buildStandardFilter(urlEncoded, filter.scale) as string);
     return toDataUri(filterSvg) as string;
   }, [map, filter]);
 

@@ -55,24 +55,30 @@ export function buildDisplacementMapSvg({
   ].join("");
 }
 
-// ─── Base64 encoding (isomorphic) ──────────────────────────────────
+// ─── Encoding (isomorphic) ─────────────────────────────────────────
 
 /**
- * Base64-encode an SVG string. Works in both Node and browser.
+ * URL-encode an SVG string instead of Base64 encoding. Works in both Node and browser.
+ * This is significantly smaller over the wire when gzip/brotli compressed.
  */
-export function svgToBase64(svg) {
-  if (typeof Buffer !== "undefined") {
-    return Buffer.from(svg).toString("base64");
-  }
-  // Browser
-  return btoa(svg);
+export function encodeSvgUrl(svg) {
+  // Try to minify SVG slightly by removing newlines and extraneous spaces before encoding
+  const minifiedSvg = svg.replace(/\n/g, "").replace(/\s*([<>])\s*/g, "$1");
+  return minifiedSvg
+    .replace(/%/g, "%25")
+    .replace(/"/g, "%22")
+    .replace(/'/g, "%27")
+    .replace(/#/g, "%23")
+    .replace(/</g, "%3C")
+    .replace(/>/g, "%3E")
+    .replace(/\s+/g, "%20");
 }
 
 // ─── Filter Builders ───────────────────────────────────────────────
 
-function feImage(mapBase64) {
+function feImage(mapUrlEncoded) {
   return [
-    `<feImage href="data:image/svg+xml;base64,${mapBase64}"`,
+    `<feImage href="data:image/svg+xml,${mapUrlEncoded}"`,
     ` x="0" y="0" width="1" height="1" preserveAspectRatio="none" result="map"/>`,
   ].join("");
 }
@@ -82,7 +88,6 @@ function filterOpen() {
     '<svg xmlns="http://www.w3.org/2000/svg"><defs>',
     '<filter id="f" filterUnits="objectBoundingBox"',
     ' primitiveUnits="objectBoundingBox"',
-    ' x="0" y="0" width="1" height="1"',
     ' color-interpolation-filters="sRGB">',
   ].join("");
 }
@@ -98,10 +103,10 @@ function filterClose() {
  * @param {number} scale     - Displacement scale (objectBoundingBox fraction)
  * @returns {string} Complete filter SVG
  */
-export function buildStandardFilter(mapBase64, scale) {
+export function buildStandardFilter(mapUrlEncoded, scale) {
   return [
     filterOpen(),
-    feImage(mapBase64),
+    feImage(mapUrlEncoded),
     `<feDisplacementMap in="SourceGraphic" in2="map" scale="${scale}"`,
     ` xChannelSelector="R" yChannelSelector="G"/>`,
     filterClose(),
@@ -111,14 +116,14 @@ export function buildStandardFilter(mapBase64, scale) {
 /**
  * Build a chromatic (3-pass RGB split) displacement filter SVG.
  *
- * @param {string} mapBase64 - Base64-encoded displacement map SVG
+ * @param {string} mapUrlEncoded - URL-encoded displacement map SVG
  * @param {number} scale     - Base displacement scale
  * @param {number} rRatio    - Red channel multiplier (default 1.4)
  * @param {number} gRatio    - Green channel multiplier (default 1.2)
  * @returns {string} Complete filter SVG
  */
 export function buildChromaticFilter(
-  mapBase64,
+  mapUrlEncoded,
   scale,
   rRatio = 1.4,
   gRatio = 1.2,
@@ -129,7 +134,7 @@ export function buildChromaticFilter(
 
   return [
     filterOpen(),
-    feImage(mapBase64),
+    feImage(mapUrlEncoded),
     // Red channel
     `<feDisplacementMap in="SourceGraphic" in2="map" scale="${r}" xChannelSelector="R" yChannelSelector="G"/>`,
     '<feColorMatrix type="matrix" values="1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0" result="dR"/>',
@@ -156,7 +161,9 @@ export function buildChromaticFilter(
  * @returns {string} `url("data:image/svg+xml,...")`
  */
 export function toDataUri(svg) {
-  const encoded = svg
+  // Try to minify SVG slightly by removing newlines and extraneous spaces before encoding
+  const minifiedSvg = svg.replace(/\n/g, "").replace(/\s*([<>])\s*/g, "$1");
+  const encoded = minifiedSvg
     .replace(/"/g, "'")
     .replace(/%/g, "%25")
     .replace(/#/g, "%23")
