@@ -15,7 +15,7 @@ import { getProxiedAssistantState } from "./utils/proxied-assistant-state";
  *   foo: RootScope({ ... }),
  * });
  *
- * const bar = useAuiState((state) => state.foo.bar);
+ * const bar = useAuiState((s) => s.foo.bar);
  * ```
  */
 export const useAuiState = <T>(selector: (state: AssistantState) => T): T => {
