@@ -21,11 +21,6 @@ const SUB_PROJECTS = [
     textValue: "mcp-app-studio",
   },
   {
-    value: "tw-glass",
-    label: "tw-glass",
-    textValue: "tw-glass",
-  },
-  {
     value: "tw-shimmer",
     label: <span className="shimmer">tw-shimmer</span>,
     textValue: "tw-shimmer",
