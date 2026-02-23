@@ -2,7 +2,7 @@
 
 import type { FC, PropsWithChildren } from "react";
 import { useAuiState } from "./useAuiState";
-import type { AssistantState } from "@assistant-ui/core/store";
+import type { AssistantState } from "./types/client";
 
 export namespace AuiIf {
   export type Props = PropsWithChildren<{ condition: AuiIf.Condition }>;

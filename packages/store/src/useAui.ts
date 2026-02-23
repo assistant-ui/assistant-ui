@@ -18,32 +18,32 @@ import type {
   ClientNames,
   ClientElement,
   ClientMeta,
-} from "@assistant-ui/core/store";
-import {
-  Derived,
-  type DerivedElement,
-  type ScopesConfig,
-  normalizeEventSelector,
-  type AssistantEventName,
-  type AssistantEventCallback,
-  type AssistantEventSelector,
-  tapClientResource,
-} from "@assistant-ui/core/store";
-import {
-  NotificationManager,
-  withAssistantTapContextProvider,
-  getClientIndex,
-  PROXIED_ASSISTANT_STATE_SYMBOL,
-  createProxiedAssistantState,
-  type RootClients,
-  type DerivedClients,
-  tapSplitClients,
-} from "@assistant-ui/core/store/internal";
+} from "./types/client";
+import { Derived, DerivedElement } from "./Derived";
 import {
   useAssistantContextValue,
   DefaultAssistantClient,
   createRootAssistantClient,
 } from "./utils/react-assistant-context";
+import {
+  DerivedClients,
+  RootClients,
+  tapSplitClients,
+} from "./utils/splitClients";
+import {
+  normalizeEventSelector,
+  type AssistantEventName,
+  type AssistantEventCallback,
+  type AssistantEventSelector,
+} from "./types/events";
+import { NotificationManager } from "./utils/NotificationManager";
+import { withAssistantTapContextProvider } from "./utils/tap-assistant-context";
+import { tapClientResource } from "./tapClientResource";
+import { getClientIndex } from "./utils/tap-client-stack-context";
+import {
+  PROXIED_ASSISTANT_STATE_SYMBOL,
+  createProxiedAssistantState,
+} from "./utils/proxied-assistant-state";
 
 const tapShallowMemoArray = <T>(array: readonly T[]) => {
   // biome-ignore lint/correctness/useExhaustiveDependencies: shallow memo
@@ -354,7 +354,9 @@ export const AssistantClientResource = resource(
 );
 
 export namespace useAui {
-  export type Props = ScopesConfig;
+  export type Props = {
+    [K in ClientNames]?: ClientElement<K> | DerivedElement<K>;
+  };
 }
 
 export function useAui(): AssistantClient;

@@ -2911,16 +2911,13 @@ importers:
 
   packages/store:
     dependencies:
+      '@assistant-ui/tap':
+        specifier: ^0.4.5
+        version: 0.4.6(@types/react@19.2.14)(react@19.2.4)
       use-effect-event:
         specifier: ^2.0.3
         version: 2.0.3(react@19.2.4)
     devDependencies:
-      '@assistant-ui/core':
-        specifier: workspace:*
-        version: link:../core
-      '@assistant-ui/tap':
-        specifier: workspace:*
-        version: link:../tap
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils
@@ -2928,13 +2925,13 @@ importers:
         specifier: ^16.3.2
         version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@types/react':
-        specifier: ^19.2.14
+        specifier: ^19.2.13
         version: 19.2.14
       '@types/react-dom':
         specifier: ^19.2.3
         version: 19.2.3(@types/react@19.2.14)
       jsdom:
-        specifier: ^28.1.0
+        specifier: ^28.0.0
         version: 28.1.0
       react:
         specifier: ^19.2.4
@@ -3265,6 +3262,17 @@ packages:
 
   '@asamuzakjp/nwsapi@2.3.9':
     resolution: {integrity: sha512-n8GuYSrI9bF7FFZ/SjhwevlHc8xaVlb/7HmHelnc/PZXBD2ZR49NnN9sMMuDdEGPeeRQ5d0hqlSlEpgCX3Wl0Q==}
+
+  '@assistant-ui/tap@0.4.6':
+    resolution: {integrity: sha512-+EtOY78499gLatlQ7l2xOR/VSH93PpoZdNAB3jJhyc7/0i9sB1WeJ2cdwib3PYIwUNEKykgxuXr7AIlGf+7GDw==}
+    peerDependencies:
+      '@types/react': '*'
+      react: ^18 || ^19
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+      react:
+        optional: true
 
   '@aui-x/prism@0.0.3':
     resolution: {integrity: sha512-ZfUtS3jNMVG/NP5lI3tQHtsE8cDPpZv/pCKB2GMqEmoaRy+aTCrFmZyAvQpDYLttwjyMU2P5MDD/xnM6pNZ4CQ==}
@@ -12395,6 +12403,11 @@ snapshots:
       lru-cache: 11.2.6
 
   '@asamuzakjp/nwsapi@2.3.9': {}
+
+  '@assistant-ui/tap@0.4.6(@types/react@19.2.14)(react@19.2.4)':
+    optionalDependencies:
+      '@types/react': 19.2.14
+      react: 19.2.4
 
   '@aui-x/prism@0.0.3(@ai-sdk/provider@3.0.8)(@anthropic-ai/sdk@0.74.0(zod@4.3.6))(ai@6.0.92(zod@4.3.6))(openai@6.22.0(ws@8.19.0)(zod@4.3.6))':
     dependencies:

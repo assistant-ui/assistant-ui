@@ -1,7 +1,7 @@
 import { useSyncExternalStore, useDebugValue } from "react";
-import type { AssistantState } from "@assistant-ui/core/store";
-import { getProxiedAssistantState } from "@assistant-ui/core/store/internal";
+import type { AssistantState } from "./types/client";
 import { useAui } from "./useAui";
+import { getProxiedAssistantState } from "./utils/proxied-assistant-state";
 
 /**
  * Hook to access a slice of the assistant state with automatic subscription
@@ -15,7 +15,7 @@ import { useAui } from "./useAui";
  *   foo: RootScope({ ... }),
  * });
  *
- * const bar = useAuiState((s) => s.foo.bar);
+ * const bar = useAuiState((state) => state.foo.bar);
  * ```
  */
 export const useAuiState = <T>(selector: (state: AssistantState) => T): T => {
