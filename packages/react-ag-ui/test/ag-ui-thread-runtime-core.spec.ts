@@ -165,6 +165,126 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(part.isError).toBe(false);
   });
 
+  it("prefers latest pending message when toolCallId is reused", () => {
+    const agent = {
+      runAgent: vi.fn(async () => {}),
+    } as unknown as HttpAgent;
+
+    const previousAssistant: ThreadAssistantMessage = {
+      id: "assistant-old",
+      role: "assistant",
+      createdAt: new Date(),
+      status: { type: "complete", reason: "unknown" },
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+      content: [
+        {
+          type: "tool-call" as const,
+          toolCallId: "call-1",
+          toolName: "search",
+          args: {},
+          argsText: "{}",
+          result: { ok: "old" },
+        },
+      ],
+    };
+
+    const pendingAssistant: ThreadAssistantMessage = {
+      id: "assistant-new",
+      role: "assistant",
+      createdAt: new Date(),
+      status: { type: "requires-action", reason: "tool-calls" },
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+      content: [
+        {
+          type: "tool-call" as const,
+          toolCallId: "call-1",
+          toolName: "search",
+          args: {},
+          argsText: "{}",
+        },
+      ],
+    };
+
+    const core = createCore(agent);
+    core.applyExternalMessages([
+      previousAssistant as ThreadMessage,
+      pendingAssistant as ThreadMessage,
+    ]);
+
+    const targetMessageId = core.findMessageIdForToolCall("call-1");
+    expect(targetMessageId).toBe("assistant-new");
+
+    core.addToolResult({
+      messageId: targetMessageId!,
+      toolCallId: "call-1",
+      toolName: "search",
+      result: { ok: "new" },
+      isError: false,
+    });
+
+    const [oldMessage, newMessage] =
+      core.getMessages() as ThreadAssistantMessage[];
+    expect((oldMessage.content[0] as any).result).toEqual({ ok: "old" });
+    expect((newMessage.content[0] as any).result).toEqual({ ok: "new" });
+  });
+
+  it("does not auto-resume when addToolResult does not match a tool call", () => {
+    const runAgent = vi.fn(async (_input, subscriber) => {
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+    const core = createCore(agent);
+
+    const assistant: ThreadAssistantMessage = {
+      id: "assistant",
+      role: "assistant",
+      createdAt: new Date(),
+      status: { type: "requires-action", reason: "tool-calls" },
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+      content: [
+        {
+          type: "tool-call" as const,
+          toolCallId: "call-1",
+          toolName: "search",
+          args: {},
+          argsText: "{}",
+          result: { cached: true },
+        },
+      ],
+    };
+    core.applyExternalMessages([assistant as ThreadMessage]);
+
+    core.addToolResult({
+      messageId: "assistant",
+      toolCallId: "call-missing",
+      toolName: "search",
+      result: { ignored: true },
+      isError: false,
+    });
+
+    expect(runAgent).not.toHaveBeenCalled();
+    const updated = core.getMessages()[0] as ThreadAssistantMessage;
+    expect((updated.content[0] as any).result).toEqual({ cached: true });
+  });
+
   it("auto-resumes run after all tool results are added", async () => {
     const runInputs: any[] = [];
     let runCount = 0;

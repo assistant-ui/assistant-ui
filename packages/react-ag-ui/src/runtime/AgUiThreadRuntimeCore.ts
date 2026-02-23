@@ -186,15 +186,20 @@ export class AgUiThreadRuntimeCore {
   }
 
   findMessageIdForToolCall(toolCallId: string): string | undefined {
-    for (const message of this.messages) {
-      if (message.role !== "assistant") continue;
+    let fallbackMessageId: string | undefined;
+    for (let index = this.messages.length - 1; index >= 0; index--) {
+      const message = this.messages[index];
+      if (!message || message.role !== "assistant") continue;
       for (const part of message.content) {
-        if (part.type === "tool-call" && part.toolCallId === toolCallId) {
+        if (part.type !== "tool-call" || part.toolCallId !== toolCallId)
+          continue;
+        if (!("result" in part) || part.result === undefined) {
           return message.id;
         }
+        fallbackMessageId ??= message.id;
       }
     }
-    return undefined;
+    return fallbackMessageId;
   }
 
   addToolResult(options: AddToolResultOptions): void {
@@ -203,11 +208,12 @@ export class AgUiThreadRuntimeCore {
     this.messages = this.messages.map((message) => {
       if (message.id !== options.messageId || message.role !== "assistant")
         return message;
-      updated = true;
       const assistant = message as ThreadAssistantMessage;
+      let matchedToolCall = false;
       const content = assistant.content.map((part) => {
         if (part.type !== "tool-call" || part.toolCallId !== options.toolCallId)
           return part;
+        matchedToolCall = true;
         return {
           ...part,
           result: options.result,
@@ -215,6 +221,8 @@ export class AgUiThreadRuntimeCore {
           isError: options.isError,
         };
       });
+      if (!matchedToolCall) return message;
+      updated = true;
 
       if (
         assistant.status?.type === "requires-action" &&
