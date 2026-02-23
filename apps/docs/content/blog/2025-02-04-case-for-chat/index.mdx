@@ -1,0 +1,128 @@
+---
+title: The Case for Chat
+description: Why the oldest interface is becoming the most important one
+author: Simon Farshid
+date: 2025-02-04T12:00:00
+---
+
+import { ConflationVisual } from "./conflation-visual";
+import { TimelineVisual } from "./timeline-visual";
+import { ScaffoldingVisual } from "./scaffolding-visual";
+
+## The Misunderstanding
+
+There's a take I keep running into—from smart people, in serious conversations—that chat interfaces are a stopgap. A clunky early form we'll outgrow once something "truly AI-native" arrives.
+
+I think they're conflating two different things.
+
+One is a UI pattern: the chat box, the text input, the back-and-forth of typing and waiting. That pattern has failed repeatedly. SHRDLU in 1970 could only manipulate blocks in a tiny world. Clippy made conversation patronizing. Siri promised natural language and delivered a voice-activated command system. The skepticism is earned.
+
+The other is dialogue itself. Turn-based communication between parties for the purpose of producing outcomes. Not a design trend. Just how humans have coordinated action for 200,000 years.
+
+<ConflationVisual />
+
+J.C.R. Licklider saw this in 1960. He wrote that "the basic dissimilarity between human languages and computer languages may be the most serious obstacle to true symbiosis." The problem wasn't that dialogue was the wrong interface. The problem was that computers couldn't actually participate in it.
+
+For sixty-five years, we built around that limitation. GUIs, direct manipulation, point-and-click. Brilliant workarounds—but workarounds nonetheless. We've internalized them so deeply we've forgotten they were ever workarounds at all.
+
+---
+
+## Dialogue, Not Chat
+
+The words matter. "Chat" comes from a 13th-century word meaning to twitter like a bird. Idle chatter. "Dialogue" comes from the Greek *dia* (through) and *logos* (reason). One is birdsong. The other is meaning flowing through.
+
+When researchers study conversation across languages, they find the same timing pattern everywhere. The gap between turns is about 200 milliseconds—too fast to be learned, too consistent across cultures to be cultural. It's hardwired. Stephen Levinson at the Max Planck Institute calls this the "interaction engine," a pre-linguistic foundation that may have enabled language in the first place.
+
+What makes dialogue different is what Herbert Clark calls "grounding"—the continuous process of building shared understanding. When I speak and you respond, we're confirming that information landed. The "uh-huh" and "what do you mean?" are how dialogue self-corrects.
+
+I keep returning to why dialogue produces outcomes in ways other interfaces struggle to. A form requires you to understand its structure before you can use it. A search box fails when your vocabulary doesn't match the system's. Navigation assumes you already know where to look. All of these fail silently.
+
+Dialogue degrades gracefully. If I misunderstand, you can tell me.
+
+---
+
+## The Canvas
+
+Okay but if dialogue is the interface, what happens to dashboards, maps, sliders, forms?
+
+They don't go away. They get orchestrated.
+
+I keep thinking of it like air traffic control. The dialogue layer doesn't fly the planes. It routes them, coordinates them, knows where everything needs to go. The actual flying—comparing options, adjusting parameters, making fine edits—still happens visually.
+
+Starting to think the future is dialogue orchestrating visual interfaces rather than replacing them. Adjusting a slider or comparing options side by side wants something visual, and probably always will.
+
+This is already happening. Claude has artifacts—interactive outputs that appear alongside the conversation. ChatGPT has canvas. MCP recently added "Apps," a standard way for tools to render UI components inside the chat window. The plumbing for dialogue that can summon the right interface at the right moment is being built now.
+
+---
+
+## Dialogue With Superpowers
+
+Dialogue between humans has always been limited by the humans doing the dialoguing. We forget. We get tired. We can only do one thing at a time.
+
+What happens when dialogue gets superpowers?
+
+**Memory.** Human dialogue has memory, but it's leaky. Context windows have grown from thousands of tokens to hundreds of thousands, some systems over a million. That's the difference between a conversation that forgets what you said ten minutes ago and one that can hold your entire project history in mind.
+
+**Capability.** For most of computing history, dialogue with a computer was limited to questions and answers. Tool use changes this. MCP has created something like USB-C for AI—a standard way for any AI to connect with any tool. Dialogue is no longer chat-as-asking. It's chat-as-doing. You say "book me a flight to Portland next Tuesday" and the agent books the flight.
+
+Of course, agents that act can also act wrongly, and the failure mode is different from clicking the wrong button. You can back out of a checkout flow; undoing a booking is harder.
+
+**Proactivity.** Human dialogue is reactive: you speak, I respond. AI dialogue can initiate. Background agents queue up tasks, work through them while you're doing other things, and report back when done. Dialogue that continues even when you're not present.
+
+Put these together and you get something that looks less like a chat interface and more like a relationship.
+
+I wonder what we'll call this when "chatbot" no longer fits.
+
+---
+
+## Why Now
+
+This vision isn't new. Licklider described it in 1960. Apple filmed it in 1987.
+
+The Knowledge Navigator concept video showed a Berkeley professor interacting with an AI butler on a folding tablet. The AI manages his calendar, finds research papers, arranges video calls. Watch it now and it looks eerily familiar. The video was set for September 16, 2011. Siri launched October 14, 2011. One month late.
+
+And yet Siri didn't deliver. The architecture was wrong. Siri and Alexa were built on intent-based frameworks: predefined commands mapped to specific actions. Say something outside the predefined set and you got "I'm sorry, I can't help with that." These weren't AI assistants that understood language. They were voice-activated command systems wearing language costumes.
+
+What changed is the transformer. The 2017 "Attention Is All You Need" paper introduced an architecture that could learn patterns from enormous amounts of text. Siri searches for matching commands. An LLM handles language statistically, including questions it's never seen before.
+
+<TimelineVisual />
+
+The gap between human and computer language—the one Licklider identified as the fundamental obstacle—is closing. Maybe the vision was never wrong. The technology just needed sixty-five years to catch up.
+
+---
+
+## The Forcing Function
+
+Here's what keeps me up at night.
+
+A McKinsey analysis projects that $3-5 trillion in e-commerce will be mediated by AI agents by 2030. Their warning: "Brand storytelling and front-end experience matter less than operational trust. Agents optimize for delivered value."
+
+One data point that stuck with me: a SOCi study found that ChatGPT recommends just 1.2% of brand locations, compared to 35.9% appearing in Google's local search results. AI is roughly 30 times more selective. And unlike Google, there is no second page. If an AI assistant doesn't mention you, you're not in the consideration set at all.
+
+Ben Thompson's Aggregation Theory explains what happens next. The entity that owns the user relationship aggregates demand and commoditizes supply. If your customer talks to an AI first, you've lost direct access to your customer.
+
+I don't know exactly how this plays out. But companies that figure out dialogue-based agents early will have a real edge, and those that don't will find themselves increasingly invisible.
+
+---
+
+## The North Star
+
+I should be honest about something.
+
+All of this—dialogue as interface, orchestrated visuals, background agents—is still mediated. There's something between you and what you're trying to do. You describe, you wait, you see results. That's mediation.
+
+Bret Victor has spent his career arguing against this. His principle is that creators need immediate connection to what they create. Mark Weiser's ideal was calm technology—systems that inform without demanding focus, that extend your unconscious rather than occupying your attention. A chat window is not calm technology. It requires you to type, to read, to respond.
+
+So why am I arguing for dialogue?
+
+Because I think dialogue is scaffolding.
+
+<ScaffoldingVisual />
+
+When you're building something, scaffolding is essential. You can't reach the upper floors without it. But the goal was never the scaffolding. The goal was the building. When the building is done, the scaffolding comes down.
+
+Dialogue is the interface we need now because AI can finally participate in it. But the destination isn't "better conversations with computers." The destination is systems that understand us well enough to serve us without demanding our attention. Systems that anticipate rather than respond. Watch it be that the best dialogue interface is one quietly working toward its own obsolescence—learning enough about you that eventually, it doesn't need to ask.
+
+I keep returning to a specific image. You're at the dinner table with people you love. You're actually present—not half-listening while mentally composing emails, not carrying the cognitive load of unfinished tasks. An agent handled what could be handled. What remains is the hard, meaningful work that only you can do.
+
+And right now, that work is being present.
