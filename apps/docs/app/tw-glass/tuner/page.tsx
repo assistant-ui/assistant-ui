@@ -169,6 +169,17 @@ export default function GlassTunerPage() {
     }
 
     lines.push("}");
+    lines.push("");
+    lines.push("@layer components {");
+    lines.push("  .my-glass {");
+    lines.push(
+      "    -webkit-backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,) var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,) var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,) var(--tw-backdrop-sepia,);",
+    );
+    lines.push(
+      "    backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,) var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,) var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,) var(--tw-backdrop-sepia,);",
+    );
+    lines.push("  }");
+    lines.push("}");
     return lines.join("\n");
   }, [filterUri, appearance]);
 
@@ -515,7 +526,8 @@ function computeBubbles(
     const base = mid + (t - 0.5) * 2 * half;
     const size = Math.round(base * circleScale);
     const xPct = seededRandom(i, 1) * 100;
-    const duration = speedMin + seededRandom(i, 2) * (speedMax - speedMin);
+    const effectiveMax = Math.max(speedMin, speedMax);
+    const duration = speedMin + seededRandom(i, 2) * (effectiveMax - speedMin);
     const delay = -(seededRandom(i, 3) * duration); // stagger start
     return { size, xPct, duration, delay };
   });

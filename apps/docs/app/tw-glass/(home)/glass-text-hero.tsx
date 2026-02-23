@@ -44,12 +44,18 @@ export function GlassTextHero({ bg }: { bg: string }) {
   const sy = useSpring(mouseY, MOUSE_SPRING);
 
   useMotionValueEvent(sx, "change", (v) => {
-    diffPointLightRef.current?.setAttribute("x", String(v));
-    specPointLightRef.current?.setAttribute("x", String(-v));
+    const c = controlsRef.current;
+    const dx = Number(c.diffLightX ?? 0);
+    const sx2 = Number(c.specLightX ?? 0);
+    diffPointLightRef.current?.setAttribute("x", String(v + dx));
+    specPointLightRef.current?.setAttribute("x", String(-v + sx2));
   });
   useMotionValueEvent(sy, "change", (v) => {
-    diffPointLightRef.current?.setAttribute("y", String(v));
-    specPointLightRef.current?.setAttribute("y", String(-v));
+    const c = controlsRef.current;
+    const dy = Number(c.diffLightY ?? 0);
+    const sy2 = Number(c.specLightY ?? 0);
+    diffPointLightRef.current?.setAttribute("y", String(v + dy));
+    specPointLightRef.current?.setAttribute("y", String(-v + sy2));
   });
 
   useEffect(() => {
