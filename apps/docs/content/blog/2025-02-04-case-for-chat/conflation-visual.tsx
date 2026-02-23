@@ -1,142 +1,152 @@
 "use client";
 
-export function ConflationVisual() {
-  const turns = [
-    { label: "initiate", from: "left" },
-    { label: "respond", from: "right" },
-    { label: "ground", from: "left" },
-    { label: "confirm", from: "right" },
-  ];
+// oklch P3 amber palette
+// bright:  oklch(0.80 0.18 55)  — vivid P3 amber, beyond sRGB gamut
+// mid:     oklch(0.55 0.13 55)
+// dim:     oklch(0.35 0.08 55)
+// bg:      oklch(0.10 0.04 75)
 
+export function ConflationVisual() {
   return (
     <figure
-      className="relative my-20 md:my-28"
+      className="my-12"
       role="img"
-      aria-label="Comparison showing what critics see (a chat interface) versus what's actually there (two humans in dialogue with universal turn-taking timing)"
+      aria-label="A time ruler showing 135,000 years of dialogue history, where the entire era of chat interfaces is a barely-visible sliver at the far right edge"
+      style={{ colorScheme: "dark" }}
     >
-      {/* Break out of the article container */}
-      <div className="relative left-1/2 w-screen -translate-x-1/2">
-        <div className="mx-auto max-w-5xl px-6">
-          <div className="grid grid-cols-1 items-center gap-16 md:grid-cols-[1fr,auto,1fr] md:gap-12 lg:gap-20">
-            {/* Left: What they see */}
-            <div className="flex flex-col items-center">
-              <div className="mb-8 font-semibold text-xs text-zinc-400 uppercase tracking-[0.15em] dark:text-zinc-500">
-                What they see
-              </div>
+      {/* SVG filter for phosphor bloom + grain */}
+      <svg width="0" height="0" className="absolute">
+        <defs>
+          <filter id="phosphor-ruler" colorInterpolationFilters="sRGB">
+            {/* Bloom: blur source, brighten, screen-blend back */}
+            <feGaussianBlur
+              in="SourceGraphic"
+              stdDeviation="1.5"
+              result="glow"
+            />
+            <feColorMatrix
+              in="glow"
+              type="matrix"
+              values="1.4 0 0 0 0  0 1.4 0 0 0  0 0 1.4 0 0  0 0 0 0.6 0"
+              result="brightGlow"
+            />
+            <feBlend in="SourceGraphic" in2="brightGlow" mode="screen" />
+          </filter>
+        </defs>
+      </svg>
 
-              {/* Chat mockup - no box, just floating bubbles */}
-              <div className="w-full max-w-[320px] space-y-4">
-                <div className="flex justify-start">
-                  <div className="max-w-[80%] rounded-3xl rounded-bl-lg bg-zinc-200/80 px-5 py-3.5 text-[15px] text-zinc-600 leading-relaxed dark:bg-zinc-800/80 dark:text-zinc-400">
-                    How can I help?
-                  </div>
-                </div>
-                <div className="flex justify-end">
-                  <div className="max-w-[80%] rounded-3xl rounded-br-lg bg-zinc-800 px-5 py-3.5 text-[15px] text-zinc-50 leading-relaxed dark:bg-zinc-200 dark:text-zinc-900">
-                    Book a flight
-                  </div>
-                </div>
-                <div className="flex justify-start">
-                  <div className="max-w-[80%] rounded-3xl rounded-bl-lg bg-zinc-200/80 px-5 py-3.5 text-[15px] text-zinc-600 leading-relaxed dark:bg-zinc-800/80 dark:text-zinc-400">
-                    Where to?
-                  </div>
-                </div>
-                <div className="mt-6 flex items-center gap-3">
-                  <div className="h-px flex-1 bg-zinc-300 dark:bg-zinc-700" />
-                  <span className="text-[13px] text-zinc-400 dark:text-zinc-600">
-                    Message...
-                  </span>
-                  <div className="h-px flex-1 bg-zinc-300 dark:bg-zinc-700" />
-                </div>
-              </div>
+      {/* Break out wider than article text */}
+      <div className="relative left-1/2 w-[calc(100%+4rem)] -translate-x-1/2 md:w-[calc(100%+10rem)]">
+        <div className="relative font-mono">
+          {/* CRT scanlines */}
+          <div className="pointer-events-none absolute inset-0 z-20 bg-[repeating-linear-gradient(0deg,transparent,transparent_1px,rgba(0,0,0,0.12)_1px,rgba(0,0,0,0.12)_2px)] mix-blend-screen dark:mix-blend-soft-light" />
 
-              <div className="mt-10 text-center">
-                <div className="font-medium text-base text-zinc-600 dark:text-zinc-400">
-                  A UI pattern
-                </div>
-                <div className="mt-1 text-sm text-zinc-400 dark:text-zinc-600">
-                  circa 2010
-                </div>
+          <div
+            className="relative z-10 px-6 py-7"
+            style={{ filter: "url(#phosphor-ruler)" }}
+          >
+            {/* Title */}
+            <div
+              className="mb-6 text-center text-xs tracking-[0.1em]"
+              style={{ color: "oklch(0.55 0.13 55)" }}
+            >
+              ~135,000 YEARS OF HUMAN DIALOGUE
+            </div>
+
+            {/* The ruler bar */}
+            <div className="relative px-5">
+              <div
+                className="relative h-6"
+                style={{
+                  background: "oklch(0.55 0.13 55)",
+                  boxShadow: "0 0 12px oklch(0.80 0.20 75 / 0.15)",
+                }}
+              >
+                {/* Chat UI sliver */}
+                <div
+                  className="sliver-pulse absolute top-0 right-0 z-[2] h-full w-[3px]"
+                  style={{
+                    background: "oklch(0.80 0.18 55)",
+                    boxShadow:
+                      "0 0 8px oklch(0.80 0.20 75 / 0.8), 0 0 20px oklch(0.80 0.20 75 / 0.4)",
+                  }}
+                />
               </div>
             </div>
 
-            {/* Divider */}
-            <div className="flex items-center justify-center max-md:py-4">
-              <div className="flex items-center gap-4 md:flex-col">
-                <div className="h-px w-16 bg-gradient-to-r from-transparent via-zinc-300 to-transparent md:h-24 md:w-px md:bg-gradient-to-b dark:via-zinc-700" />
-                <div className="font-semibold text-sm text-zinc-400 dark:text-zinc-600">
-                  vs
-                </div>
-                <div className="h-px w-16 bg-gradient-to-r from-transparent via-zinc-300 to-transparent md:h-24 md:w-px md:bg-gradient-to-b dark:via-zinc-700" />
+            {/* Start / end labels */}
+            <div className="mt-2 flex justify-between px-5">
+              <div
+                className="text-xs tracking-[0.05em]"
+                style={{ color: "oklch(0.55 0.13 55)" }}
+              >
+                ~135K YRS AGO
+              </div>
+              <div
+                className="text-right text-xs tracking-[0.05em]"
+                style={{
+                  color: "oklch(0.80 0.18 55)",
+                  textShadow: "0 0 6px oklch(0.80 0.20 75 / 0.4)",
+                }}
+              >
+                NOW
               </div>
             </div>
 
-            {/* Right: What's actually there - Two humans in dialogue */}
-            <div className="flex flex-col items-center">
-              <div className="mb-8 font-semibold text-xs text-zinc-400 uppercase tracking-[0.15em] dark:text-zinc-500">
-                What's actually there
-              </div>
-
-              {/* Two profile faces with dialogue flowing between */}
-              <div className="flex w-full max-w-[640px] items-center justify-center">
-                {/* Left face - abstract profile facing right */}
-                <div className="relative flex-shrink-0">
-                  {/* Head circle */}
-                  <div className="h-28 w-28 rounded-full bg-zinc-800 md:h-36 md:w-36 dark:bg-zinc-200" />
-                  {/* Nose indicator pointing right */}
-                  <div className="absolute top-1/2 -right-2 h-0 w-0 -translate-y-1/2 border-y-[10px] border-y-transparent border-l-[16px] border-l-zinc-800 md:-right-3 md:border-y-[12px] md:border-l-[20px] dark:border-l-zinc-200" />
+            {/* Bracket annotation pointing at sliver */}
+            <div className="relative mt-5 px-5">
+              <div className="relative h-8">
+                {/* Tick down from sliver */}
+                <div
+                  className="absolute top-0 right-0 h-3 w-0.5"
+                  style={{ background: "oklch(0.80 0.18 55)" }}
+                />
+                {/* Horizontal arm */}
+                <div
+                  className="absolute top-3 right-0 h-0.5 w-20"
+                  style={{ background: "oklch(0.80 0.18 55)" }}
+                />
+                {/* Label */}
+                <div
+                  className="absolute top-1 right-[86px] whitespace-nowrap font-bold text-xs tracking-[0.05em]"
+                  style={{
+                    color: "oklch(0.80 0.18 55)",
+                    textShadow: "0 0 6px oklch(0.80 0.20 75 / 0.5)",
+                  }}
+                >
+                  "CHAT UI"
                 </div>
-
-                {/* Turn labels stacked vertically between faces */}
-                <div className="flex flex-col items-center gap-4 px-10 md:px-14 lg:px-20">
-                  {turns.map((turn) => (
-                    <div key={turn.label} className="flex items-center gap-3">
-                      {turn.from === "left" && (
-                        <div className="h-2 w-2 rounded-full bg-zinc-700 dark:bg-zinc-300" />
-                      )}
-                      <span className="min-w-[72px] text-center font-medium text-[13px] text-zinc-600 uppercase tracking-wide dark:text-zinc-400">
-                        {turn.label}
-                      </span>
-                      {turn.from === "right" && (
-                        <div className="h-2 w-2 rounded-full bg-zinc-400 dark:bg-zinc-600" />
-                      )}
-                    </div>
-                  ))}
-                </div>
-
-                {/* Right face - abstract profile facing left */}
-                <div className="relative flex-shrink-0">
-                  {/* Head circle */}
-                  <div className="h-28 w-28 rounded-full bg-zinc-400 md:h-36 md:w-36 dark:bg-zinc-600" />
-                  {/* Nose indicator pointing left */}
-                  <div className="absolute top-1/2 -left-2 h-0 w-0 -translate-y-1/2 border-y-[10px] border-y-transparent border-r-[16px] border-r-zinc-400 md:-left-3 md:border-y-[12px] md:border-r-[20px] dark:border-r-zinc-600" />
-                </div>
-              </div>
-
-              {/* Stats */}
-              <div className="mt-10 text-center">
-                <div className="font-semibold text-zinc-900 tabular-nums leading-none dark:text-zinc-50">
-                  <span className="text-4xl md:text-5xl">~200</span>
-                  <span className="ml-1 font-normal text-lg text-zinc-500">
-                    ms
-                  </span>
-                </div>
-                <div className="mt-2 text-sm text-zinc-500">
-                  universal turn gap
-                </div>
-                <div className="mt-1 text-sm text-zinc-400 dark:text-zinc-600">
-                  200,000 years old
+                <div
+                  className="absolute top-[18px] right-[86px] whitespace-nowrap text-[10px] tracking-[0.05em]"
+                  style={{ color: "oklch(0.55 0.13 55)" }}
+                >
+                  ~30 YEARS
                 </div>
               </div>
             </div>
           </div>
-
-          {/* Caption */}
-          <figcaption className="mt-16 text-center text-lg text-zinc-500 tracking-tight md:mt-20 md:text-xl">
-            They're conflating a UI pattern with a communication primitive
-          </figcaption>
         </div>
       </div>
+
+      <style>{`
+        .sliver-pulse::after {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: oklch(0.80 0.18 55);
+          animation: sliver-pulse-anim 2s step-end infinite;
+        }
+        @keyframes sliver-pulse-anim {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.3; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .sliver-pulse::after {
+            animation: none !important;
+            opacity: 1;
+          }
+        }
+      `}</style>
     </figure>
   );
 }
