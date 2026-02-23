@@ -7,7 +7,7 @@ const cspHeader = `
     default-src 'self';
     connect-src *;
     frame-src *;
-    script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""};
+    script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'${isDev ? " 'unsafe-eval'" : ""};
     style-src 'self' 'unsafe-inline';
     img-src * blob: data:;
     font-src 'self';
