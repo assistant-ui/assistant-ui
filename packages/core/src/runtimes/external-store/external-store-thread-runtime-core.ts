@@ -30,7 +30,16 @@ import {
   MessageRepository,
 } from "../../runtime/utils/message-repository";
 
-const EMPTY_ARRAY = Object.freeze([]);
+const EMPTY_ARRAY: readonly ThreadSuggestion[] = Object.freeze([]);
+
+const shallowEqual = (a: object, b: object): boolean => {
+  const aKeys = Object.keys(a);
+  if (aKeys.length !== Object.keys(b).length) return false;
+  for (const key of aKeys) {
+    if ((a as any)[key] !== (b as any)[key]) return false;
+  }
+  return true;
+};
 
 export const hasUpcomingMessage = (
   isRunning: boolean,
@@ -110,20 +119,30 @@ export class ExternalStoreThreadRuntimeCore
 
     const oldStore = this._store as ExternalStoreAdapter<any> | undefined;
     this._store = store;
-    this.extras = store.extras;
-    this.suggestions = store.suggestions ?? EMPTY_ARRAY;
-    this._capabilities = {
+    if (this.extras !== store.extras) {
+      this.extras = store.extras;
+    }
+
+    const newSuggestions = store.suggestions ?? EMPTY_ARRAY;
+    if (!shallowEqual(this.suggestions, newSuggestions)) {
+      this.suggestions = newSuggestions;
+    }
+
+    const newCapabilities: RuntimeCapabilities = {
       switchToBranch: this._store.setMessages !== undefined,
-      switchBranchDuringRun: false, // External store never supports branch switching during run
+      switchBranchDuringRun: false,
       edit: this._store.onEdit !== undefined,
       reload: this._store.onReload !== undefined,
       cancel: this._store.onCancel !== undefined,
       speech: this._store.adapters?.speech !== undefined,
       dictation: this._store.adapters?.dictation !== undefined,
-      unstable_copy: this._store.unstable_capabilities?.copy !== false, // default true
+      unstable_copy: this._store.unstable_capabilities?.copy !== false,
       attachments: !!this._store.adapters?.attachments,
       feedback: !!this._store.adapters?.feedback,
     };
+    if (!shallowEqual(this._capabilities, newCapabilities)) {
+      this._capabilities = newCapabilities;
+    }
 
     let messages: readonly ThreadMessage[];
 
