@@ -9,7 +9,7 @@ import type {
 
 import type { ExternalStoreAdapter } from "./external-store-adapter";
 import {
-  getExternalStoreMessage,
+  getExternalStoreMessages,
   symbolInnerMessage,
 } from "../../runtime/utils/external-store-message";
 import { ThreadMessageConverter } from "./thread-message-converter";
@@ -376,9 +376,7 @@ export class ExternalStoreThreadRuntimeCore
   private updateMessages = (messages: readonly ThreadMessage[]) => {
     const hasConverter = this._store.convertMessage !== undefined;
     if (hasConverter) {
-      this._store.setMessages?.(
-        messages.flatMap(getExternalStoreMessage).filter((m) => m != null),
-      );
+      this._store.setMessages?.(messages.flatMap(getExternalStoreMessages));
     } else {
       // TODO mark this as readonly in v0.12.0
       this._store.setMessages?.(messages as ThreadMessage[]);
