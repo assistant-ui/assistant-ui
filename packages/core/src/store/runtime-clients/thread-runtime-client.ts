@@ -13,7 +13,7 @@ import {
   tapAssistantEmit,
   tapClientLookup,
   tapClientResource,
-} from "../";
+} from "@assistant-ui/store";
 import { ComposerClient } from "./composer-runtime-client";
 import { MessageClient } from "./message-runtime-client";
 import { tapSubscribable } from "./tap-subscribable";

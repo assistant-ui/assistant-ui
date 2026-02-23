@@ -25,13 +25,22 @@ export { tapClientList } from "./tapClientList";
 export type {
   ScopeRegistry,
   ClientOutput,
+  ClientMethods,
+  ClientSchema,
+  ClientNames,
+  ClientEvents,
+  ClientMeta,
+  ClientElement,
+  Unsubscribe,
+  AssistantClientAccessor,
   AssistantClient,
   AssistantState,
 } from "./types/client";
-export type {
-  AssistantEventName,
-  AssistantEventCallback,
-  AssistantEventPayload,
-  AssistantEventSelector,
-  AssistantEventScope,
+export {
+  normalizeEventSelector,
+  type AssistantEventName,
+  type AssistantEventCallback,
+  type AssistantEventPayload,
+  type AssistantEventSelector,
+  type AssistantEventScope,
 } from "./types/events";

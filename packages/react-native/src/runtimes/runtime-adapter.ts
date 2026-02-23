@@ -5,9 +5,8 @@ import {
   tapAssistantClientRef,
   Derived,
   attachTransformScopes,
-  ModelContext,
-  Suggestions,
-} from "@assistant-ui/core/store";
+} from "@assistant-ui/store";
+import { ModelContext, Suggestions } from "@assistant-ui/core/store";
 
 export const RuntimeAdapter = resource((runtime: AssistantRuntime) => {
   const clientRef = tapAssistantClientRef();

@@ -1,5 +1,5 @@
 import { resource, tapMemo, tapState } from "@assistant-ui/tap";
-import type { ClientOutput } from "../types/client";
+import type { ClientOutput } from "@assistant-ui/store";
 import { CompositeContextProvider } from "../../utils";
 import type { ModelContextState } from "../scopes";
 

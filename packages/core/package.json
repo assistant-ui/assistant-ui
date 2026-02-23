@@ -57,6 +57,7 @@
     "nanoid": "^5.1.6"
   },
   "peerDependencies": {
+    "@assistant-ui/store": "^0.2.0",
     "@assistant-ui/tap": "^0.5.0",
     "zod": "^4.0.0"
   },
@@ -66,6 +67,7 @@
     }
   },
   "devDependencies": {
+    "@assistant-ui/store": "workspace:*",
     "@assistant-ui/tap": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "vitest": "^4.0.18"

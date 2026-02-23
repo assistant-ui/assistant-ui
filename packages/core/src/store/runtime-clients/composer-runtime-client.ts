@@ -7,7 +7,11 @@ import {
   type tapRef,
   withKey,
 } from "@assistant-ui/tap";
-import { type ClientOutput, tapAssistantEmit, tapClientLookup } from "../";
+import {
+  type ClientOutput,
+  tapAssistantEmit,
+  tapClientLookup,
+} from "@assistant-ui/store";
 import {
   ComposerRuntime,
   EditComposerRuntime,

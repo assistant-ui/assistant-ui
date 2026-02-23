@@ -1,6 +1,6 @@
 import type { Unsubscribe } from "../../types";
 import { resource, tapEffect } from "@assistant-ui/tap";
-import { type ClientOutput, tapAssistantEmit } from "../";
+import { type ClientOutput, tapAssistantEmit } from "@assistant-ui/store";
 import { ThreadListItemEventType, ThreadListItemRuntime } from "../../runtime";
 import { tapSubscribable } from "./tap-subscribable";
 

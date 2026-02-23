@@ -6,7 +6,11 @@ import {
   tapState,
   type tapRef,
 } from "@assistant-ui/tap";
-import { type ClientOutput, tapClientLookup, tapClientResource } from "../";
+import {
+  type ClientOutput,
+  tapClientLookup,
+  tapClientResource,
+} from "@assistant-ui/store";
 import { MessageRuntime } from "../../runtime";
 import { tapSubscribable } from "./tap-subscribable";
 import { ComposerClient } from "./composer-runtime-client";

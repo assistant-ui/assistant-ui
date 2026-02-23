@@ -1,6 +1,6 @@
 import { resource, tapState, withKey } from "@assistant-ui/tap";
-import type { ClientOutput } from "../types/client";
-import { tapClientLookup } from "../utils/tap-client-lookup";
+import type { ClientOutput } from "@assistant-ui/store";
+import { tapClientLookup } from "@assistant-ui/store";
 import type { SuggestionsState, SuggestionState } from "../scopes";
 
 export type SuggestionConfig =

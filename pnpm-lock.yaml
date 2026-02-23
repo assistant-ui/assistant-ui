@@ -2314,6 +2314,9 @@ importers:
         specifier: ^4.0.0
         version: 4.3.6
     devDependencies:
+      '@assistant-ui/store':
+        specifier: workspace:*
+        version: link:../store
       '@assistant-ui/tap':
         specifier: workspace:*
         version: link:../tap
