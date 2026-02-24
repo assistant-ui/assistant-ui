@@ -9,24 +9,23 @@ Primitives are thin wrappers around React Native components (`View`, `TextInput`
 
 ### ThreadRoot
 
-Container `View` that sets up `ThreadProvider` and `ComposerProvider` contexts.
+Container `View` for the thread area.
 
 ```tsx
 import { ThreadRoot } from "@assistant-ui/react-native";
 
-<ThreadRoot runtime={threadRuntime} style={{ flex: 1 }}>
+<ThreadRoot style={{ flex: 1 }}>
   {children}
 </ThreadRoot>
 ```
 
 | Prop | Type | Description |
 |------|------|-------------|
-| `runtime` | `ThreadRuntime` | The thread runtime instance |
 | `...rest` | `ViewProps` | Standard React Native View props |
 
 ### ThreadMessages
 
-`FlatList`-based message list with automatic runtime integration.
+`FlatList`-based message list with automatic runtime integration. Each message is wrapped in a scoped context so that `useAuiState((s) => s.message)` works inside `renderMessage`.
 
 ```tsx
 import { ThreadMessages } from "@assistant-ui/react-native";
@@ -38,7 +37,7 @@ import { ThreadMessages } from "@assistant-ui/react-native";
 
 | Prop | Type | Description |
 |------|------|-------------|
-| `renderMessage` | `(info: { item: ThreadMessage }) => ReactElement` | Message renderer |
+| `renderMessage` | `(info: { message: ThreadMessage; index: number }) => ReactElement` | Message renderer |
 | `...rest` | `FlatListProps` | Standard FlatList props (except `data`, `renderItem`) |
 
 ### ThreadEmpty
@@ -152,19 +151,21 @@ Renders message content parts with customizable renderers.
 import { MessageContent } from "@assistant-ui/react-native";
 
 <MessageContent
-  renderText={({ text }) => <Text>{text}</Text>}
-  renderToolCall={({ toolName, args }) => (
-    <Text>Tool: {toolName}</Text>
-  )}
-  renderImage={({ url }) => <Image source={{ uri: url }} />}
+  renderText={({ part }) => <Text>{part.text}</Text>}
+  renderToolCall={({ part }) => <Text>Tool: {part.toolName}</Text>}
+  renderImage={({ part }) => <Image source={{ uri: part.image }} />}
 />
 ```
 
 | Prop | Type | Description |
 |------|------|-------------|
-| `renderText` | `(props: { text: string }) => ReactElement` | Text part renderer |
-| `renderToolCall` | `(props: { toolName: string; args: any }) => ReactElement` | Tool call renderer |
-| `renderImage` | `(props: { url: string }) => ReactElement` | Image part renderer |
+| `renderText` | `(props: { part; index }) => ReactElement` | Text part renderer |
+| `renderToolCall` | `(props: { part; index }) => ReactElement` | Tool call renderer |
+| `renderImage` | `(props: { part; index }) => ReactElement` | Image part renderer |
+| `renderReasoning` | `(props: { part; index }) => ReactElement` | Reasoning part renderer |
+| `renderSource` | `(props: { part; index }) => ReactElement` | Source part renderer |
+| `renderFile` | `(props: { part; index }) => ReactElement` | File part renderer |
+| `renderData` | `(props: { part; index }) => ReactElement` | Data part renderer |
 
 ### MessageIf
 
@@ -189,6 +190,99 @@ import { MessageIf } from "@assistant-ui/react-native";
 | `running` | `boolean` | Render when message is being generated |
 | `last` | `boolean` | Render for the last message |
 
+## ActionBar
+
+### ActionBarCopy
+
+`Pressable` that copies the message content. Supports function-as-children for copy state feedback.
+
+```tsx
+import { ActionBarCopy } from "@assistant-ui/react-native";
+
+<ActionBarCopy copiedDuration={3000}>
+  {({ isCopied }) => <Text>{isCopied ? "Copied!" : "Copy"}</Text>}
+</ActionBarCopy>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `copiedDuration` | `number` | Duration in ms to show "copied" state (default: 3000) |
+| `copyToClipboard` | `(text: string) => void` | Custom clipboard function |
+
+### ActionBarEdit
+
+`Pressable` that enters edit mode for a message.
+
+```tsx
+import { ActionBarEdit } from "@assistant-ui/react-native";
+
+<ActionBarEdit>
+  <Text>Edit</Text>
+</ActionBarEdit>
+```
+
+### ActionBarReload
+
+`Pressable` that regenerates an assistant message.
+
+```tsx
+import { ActionBarReload } from "@assistant-ui/react-native";
+
+<ActionBarReload>
+  <Text>Retry</Text>
+</ActionBarReload>
+```
+
+### ActionBarFeedbackPositive / ActionBarFeedbackNegative
+
+`Pressable` buttons for submitting message feedback.
+
+```tsx
+import {
+  ActionBarFeedbackPositive,
+  ActionBarFeedbackNegative,
+} from "@assistant-ui/react-native";
+
+<ActionBarFeedbackPositive>
+  {({ isSubmitted }) => <Text>{isSubmitted ? "👍" : "👍🏻"}</Text>}
+</ActionBarFeedbackPositive>
+
+<ActionBarFeedbackNegative>
+  {({ isSubmitted }) => <Text>{isSubmitted ? "👎" : "👎🏻"}</Text>}
+</ActionBarFeedbackNegative>
+```
+
+## BranchPicker
+
+### BranchPickerPrevious / BranchPickerNext
+
+`Pressable` buttons to navigate between message branches.
+
+```tsx
+import {
+  BranchPickerPrevious,
+  BranchPickerNext,
+  BranchPickerNumber,
+  BranchPickerCount,
+} from "@assistant-ui/react-native";
+
+<View style={{ flexDirection: "row", alignItems: "center" }}>
+  <BranchPickerPrevious>
+    <Text>←</Text>
+  </BranchPickerPrevious>
+  <BranchPickerNumber />
+  <Text>/</Text>
+  <BranchPickerCount />
+  <BranchPickerNext>
+    <Text>→</Text>
+  </BranchPickerNext>
+</View>
+```
+
+### BranchPickerNumber / BranchPickerCount
+
+`Text` components displaying the current branch number and total count.
+
 ## ThreadList
 
 ### ThreadListRoot
@@ -211,7 +305,7 @@ import { ThreadListRoot } from "@assistant-ui/react-native";
 import { ThreadListItems } from "@assistant-ui/react-native";
 
 <ThreadListItems
-  renderItem={({ item: threadId }) => (
+  renderItem={({ threadId }) => (
     <ThreadListEntry threadId={threadId} />
   )}
 />
@@ -219,7 +313,7 @@ import { ThreadListItems } from "@assistant-ui/react-native";
 
 | Prop | Type | Description |
 |------|------|-------------|
-| `renderItem` | `(info: { item: string }) => ReactElement` | Thread item renderer |
+| `renderItem` | `(props: { threadId: string; index: number }) => ReactElement` | Thread item renderer |
 | `...rest` | `FlatListProps` | Standard FlatList props (except `data`, `renderItem`) |
 
 ### ThreadListNew

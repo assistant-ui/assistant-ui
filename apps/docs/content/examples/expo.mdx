@@ -62,7 +62,7 @@ export function useAppRuntime() {
 
 ### App Layout
 
-`AssistantProvider` wraps the Expo Router drawer layout. Each screen gets `ThreadProvider` and `ComposerProvider` scoped to the active thread:
+`AssistantProvider` wraps the Expo Router drawer layout. Thread and composer contexts are set up automatically — no extra providers needed:
 
 ```tsx title="app/_layout.tsx"
 import {
@@ -98,24 +98,10 @@ export default function RootLayout() {
 ```
 
 ```tsx title="app/index.tsx"
-import {
-  useAssistantRuntime,
-  useThreadList,
-  ThreadProvider,
-  ComposerProvider,
-} from "@assistant-ui/react-native";
+import { Thread } from "@/components/assistant-ui/thread";
 
 export default function ChatPage() {
-  const runtime = useAssistantRuntime();
-  const mainThreadId = useThreadList((s) => s.mainThreadId);
-
-  return (
-    <ThreadProvider key={mainThreadId} runtime={runtime.thread}>
-      <ComposerProvider runtime={runtime.thread.composer}>
-        <ChatScreen />
-      </ComposerProvider>
-    </ThreadProvider>
-  );
+  return <Thread />;
 }
 ```
 
@@ -124,10 +110,10 @@ export default function ChatPage() {
 | Layer | Purpose |
 |-------|---------|
 | `useLocalRuntime` | Creates an in-memory runtime with the OpenAI adapter |
-| `AssistantProvider` | Provides the runtime to the entire app |
-| `ThreadProvider` | Scopes hooks like `useThread` to the active thread |
-| `ComposerProvider` | Scopes `useComposer` to the thread's composer |
-| `useThread((s) => ...)` | Reactive state access with selector for fine-grained re-renders |
+| `AssistantProvider` | Provides the runtime to the entire app (thread and composer scopes are set up automatically) |
+| `useAuiState((s) => s.thread)` | Reactive thread state access with selector for fine-grained re-renders |
+| `useAuiState((s) => s.composer)` | Reactive composer state access |
+| Primitives | `ThreadMessages`, `ComposerInput`, `MessageContent`, etc. |
 
 ## Source
 

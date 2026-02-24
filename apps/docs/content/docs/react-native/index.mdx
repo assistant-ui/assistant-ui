@@ -10,9 +10,8 @@ description: Build AI chat interfaces for iOS and Android with @assistant-ui/rea
 **Key features:**
 
 - **Primitives** — `Thread`, `Composer`, `Message`, `ThreadList` components that compose with standard React Native props
-- **Reactive hooks** — `useThread`, `useComposer`, `useMessage` with selector support for fine-grained re-renders
+- **Reactive state** — `useAuiState` with selector support for fine-grained re-renders
 - **Local runtime** — `useLocalRuntime` with pluggable `ChatModelAdapter` for any LLM API
-- **Persistence** — Built-in AsyncStorage adapter for thread and message persistence
 - **Thread management** — Multi-thread support with create, switch, rename, delete
 
 <Callout type="info">
@@ -40,12 +39,6 @@ cd my-chat-app
 
 ```sh
 npx expo install @assistant-ui/react-native
-```
-
-Also install peer dependencies if not already present:
-
-```sh
-npx expo install react-native-gesture-handler react-native-reanimated react-native-safe-area-context
 ```
 
   </Step>
@@ -194,20 +187,15 @@ export function useAppRuntime() {
 
 ### Build the UI
 
-Wrap your app with `AssistantProvider`, then use `ThreadProvider` and `ComposerProvider` to scope the thread context:
+Wrap your app with `AssistantProvider` — thread and composer contexts are set up automatically:
 
 ```tsx title="app/index.tsx"
 import {
   AssistantProvider,
-  useAssistantRuntime,
-  useThreadList,
-  ThreadProvider,
-  ComposerProvider,
-  useThread,
-  useComposer,
-  useComposerRuntime,
-  useThreadRuntime,
+  useAuiState,
+  useAui,
 } from "@assistant-ui/react-native";
+import type { ThreadMessage } from "@assistant-ui/react-native";
 import {
   View,
   Text,
@@ -218,7 +206,6 @@ import {
   Platform,
 } from "react-native";
 import { useAppRuntime } from "@/hooks/use-app-runtime";
-import type { ThreadMessage } from "@assistant-ui/react-native";
 
 function MessageBubble({ message }: { message: ThreadMessage }) {
   const isUser = message.role === "user";
@@ -245,10 +232,9 @@ function MessageBubble({ message }: { message: ThreadMessage }) {
 }
 
 function Composer() {
-  const composerRuntime = useComposerRuntime();
-  const threadRuntime = useThreadRuntime();
-  const text = useComposer((s) => s.text);
-  const canSend = useComposer((s) => !s.isEmpty);
+  const aui = useAui();
+  const text = useAuiState((s) => s.composer.text);
+  const isEmpty = useAuiState((s) => s.composer.isEmpty);
 
   return (
     <View
@@ -260,7 +246,7 @@ function Composer() {
     >
       <TextInput
         value={text}
-        onChangeText={(t) => composerRuntime.setText(t)}
+        onChangeText={(t) => aui.composer().setText(t)}
         placeholder="Message..."
         multiline
         style={{
@@ -274,11 +260,11 @@ function Composer() {
         }}
       />
       <Pressable
-        onPress={() => composerRuntime.send()}
-        disabled={!canSend}
+        onPress={() => aui.composer().send()}
+        disabled={isEmpty}
         style={{
           marginLeft: 8,
-          backgroundColor: canSend ? "#007aff" : "#ccc",
+          backgroundColor: !isEmpty ? "#007aff" : "#ccc",
           borderRadius: 20,
           width: 36,
           height: 36,
@@ -293,7 +279,9 @@ function Composer() {
 }
 
 function ChatScreen() {
-  const messages = useThread((s) => s.messages) as ThreadMessage[];
+  const messages = useAuiState(
+    (s) => s.thread.messages,
+  ) as ThreadMessage[];
 
   return (
     <KeyboardAvoidingView
@@ -310,25 +298,12 @@ function ChatScreen() {
   );
 }
 
-function Main() {
-  const runtime = useAssistantRuntime();
-  const mainThreadId = useThreadList((s) => s.mainThreadId);
-
-  return (
-    <ThreadProvider key={mainThreadId} runtime={runtime.thread}>
-      <ComposerProvider runtime={runtime.thread.composer}>
-        <ChatScreen />
-      </ComposerProvider>
-    </ThreadProvider>
-  );
-}
-
 export default function App() {
   const runtime = useAppRuntime();
 
   return (
     <AssistantProvider runtime={runtime}>
-      <Main />
+      <ChatScreen />
     </AssistantProvider>
   );
 }
@@ -342,11 +317,10 @@ export default function App() {
 ```
 useLocalRuntime(chatModel, options?)
   └─ AssistantProvider
-       └─ ThreadProvider + ComposerProvider
-            ├─ useThread()      → thread state (messages, isRunning, …)
-            ├─ useComposer()    → composer state (text, isEmpty, …)
-            ├─ useMessage()     → single message state (inside renderItem)
-            └─ Primitives       → ThreadRoot, ComposerInput, MessageContent, …
+       ├─ useAuiState((s) => s.thread)    → thread state (messages, isRunning, …)
+       ├─ useAuiState((s) => s.composer)   → composer state (text, isEmpty, …)
+       ├─ useAuiState((s) => s.message)    → single message state (inside renderItem)
+       └─ Primitives                       → ThreadRoot, ComposerInput, MessageContent, …
 ```
 
 The runtime core is shared with `@assistant-ui/react` — only the UI primitives are React Native-specific.
