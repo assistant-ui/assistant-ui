@@ -91,7 +91,14 @@ Biome enforces all formatting and linting. Key rules:
 - `useAui`, `useAuiState`, `useAuiEvent` hooks
 
 **`@assistant-ui/core`** - Shared logic used by both React and React Native packages
-- `./react` sub-path: shared React code (model-context hooks, client resources like Tools/DataRenderers, types/scopes, providers, RuntimeAdapter) — consumed by both `@assistant-ui/react` and `@assistant-ui/react-native`
+- `./react` sub-path: shared React code consumed by both `@assistant-ui/react` and `@assistant-ui/react-native`
+  - `model-context/`: Tool/data UI registration hooks (useAssistantTool, makeAssistantToolUI, etc.)
+  - `client/`: Client resources (Tools, DataRenderers)
+  - `types/`: Component types (TextMessagePartComponent, ToolCallMessagePartComponent, etc.) and scope types
+  - `providers/`: Platform-agnostic providers (MessageByIndex, PartByIndex, TextMessagePart, ChainOfThoughtByIndices, ChainOfThoughtPartByIndex, ThreadListItemByIndex, SuggestionByIndex, AttachmentByIndex, ThreadListItemRuntime)
+  - `primitives/`: Shared primitive components — ThreadMessages, MessageParts (with no-op defaults), ComposerAttachments, MessageAttachments, ThreadListItems, ThreadSuggestions, ChainOfThoughtParts, ComposerIf, ThreadListItemTitle
+  - `AssistantProvider.tsx`: AssistantProviderBase (shared provider base; React wraps with DevTools+Viewport, RN uses directly)
+  - `RuntimeAdapter.ts`: Adapts AssistantRuntime to store
 
 **`@assistant-ui/cloud`** - Cloud persistence and thread management
 
@@ -102,6 +109,9 @@ Biome enforces all formatting and linting. Key rules:
 **`@assistant-ui/react-native`** - React Native bindings
 - Mirrors the React package structure (primitives, hooks, context, runtimes)
 - Depends on `@assistant-ui/core` for shared logic
+- Re-exports shared primitives from `@assistant-ui/core/react` (ThreadMessages, MessageParts, ComposerAttachments, MessageAttachments, ThreadListItems, ThreadSuggestions, ChainOfThoughtParts, ComposerIf, ThreadListItemTitle)
+- Platform-specific primitives use `View`/`Pressable`/`Text`/`FlatList` instead of Radix UI
+- Primitives: Thread, Composer, Message, ThreadList, ThreadListItem, ChainOfThought, Suggestion, ActionBar, BranchPicker, Attachment
 
 ### Integration Packages
 

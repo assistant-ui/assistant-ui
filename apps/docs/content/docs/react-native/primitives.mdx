@@ -5,6 +5,8 @@ description: Composable React Native components for building chat UIs.
 
 Primitives are thin wrappers around React Native components (`View`, `TextInput`, `FlatList`, `Pressable`) that integrate with the assistant-ui runtime. They accept all standard React Native props and add runtime-aware behavior.
 
+Many primitives share their core logic with `@assistant-ui/react` via `@assistant-ui/core/react` — only the UI layer (View/Pressable/Text vs DOM elements) differs.
+
 ## Thread
 
 ### ThreadRoot
@@ -412,4 +414,240 @@ import { ThreadListNew } from "@assistant-ui/react-native";
 <ThreadListNew style={styles.newThreadButton}>
   <Text>New Chat</Text>
 </ThreadListNew>
+```
+
+## ThreadListItem
+
+Primitives for rendering individual thread list items. Use inside a `ThreadListItemByIndexProvider` or within `ThreadListPrimitiveItems` components.
+
+### ThreadListItemRoot
+
+Container `View` for a thread list item.
+
+```tsx
+import { ThreadListItemRoot } from "@assistant-ui/react-native";
+
+<ThreadListItemRoot style={styles.threadItem}>
+  {children}
+</ThreadListItemRoot>
+```
+
+### ThreadListItemTitle
+
+Renders the thread title text. Falls back to the provided fallback when title is empty. This component is shared from `@assistant-ui/core/react`.
+
+```tsx
+import { ThreadListItemTitle } from "@assistant-ui/react-native";
+
+<ThreadListItemTitle fallback="New Chat" />
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `fallback` | `ReactNode` | Content to show when title is empty |
+
+### ThreadListItemTrigger
+
+`Pressable` that switches to the thread.
+
+```tsx
+import { ThreadListItemTrigger } from "@assistant-ui/react-native";
+
+<ThreadListItemTrigger>
+  <ThreadListItemTitle fallback="New Chat" />
+</ThreadListItemTrigger>
+```
+
+### ThreadListItemDelete
+
+`Pressable` that deletes the thread.
+
+```tsx
+import { ThreadListItemDelete } from "@assistant-ui/react-native";
+
+<ThreadListItemDelete>
+  <Text>Delete</Text>
+</ThreadListItemDelete>
+```
+
+### ThreadListItemArchive / ThreadListItemUnarchive
+
+`Pressable` buttons that archive or unarchive the thread.
+
+```tsx
+import {
+  ThreadListItemArchive,
+  ThreadListItemUnarchive,
+} from "@assistant-ui/react-native";
+
+<ThreadListItemArchive>
+  <Text>Archive</Text>
+</ThreadListItemArchive>
+
+<ThreadListItemUnarchive>
+  <Text>Unarchive</Text>
+</ThreadListItemUnarchive>
+```
+
+## Suggestion
+
+Primitives for rendering suggestions. Use inside a `SuggestionByIndexProvider` (from `@assistant-ui/core/react`).
+
+### SuggestionTitle
+
+`Text` component displaying the suggestion title.
+
+```tsx
+import { SuggestionTitle } from "@assistant-ui/react-native";
+
+<SuggestionTitle style={styles.suggestionTitle} />
+```
+
+### SuggestionDescription
+
+`Text` component displaying the suggestion description/label.
+
+```tsx
+import { SuggestionDescription } from "@assistant-ui/react-native";
+
+<SuggestionDescription style={styles.suggestionDescription} />
+```
+
+### SuggestionTrigger
+
+`Pressable` that triggers the suggestion action (send or insert into composer).
+
+```tsx
+import { SuggestionTrigger } from "@assistant-ui/react-native";
+
+<SuggestionTrigger send>
+  <SuggestionTitle />
+</SuggestionTrigger>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `send` | `boolean` | When true, sends immediately; when false, inserts into composer |
+| `clearComposer` | `boolean` | Whether to clear/replace composer text (default: true) |
+
+### ThreadSuggestion
+
+Inline `Pressable` that triggers a suggestion with a specified prompt. Use this when you want to hardcode suggestion text.
+
+```tsx
+import { ThreadSuggestion } from "@assistant-ui/react-native";
+
+<ThreadSuggestion prompt="Tell me a joke" send>
+  <Text>Tell me a joke</Text>
+</ThreadSuggestion>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `prompt` | `string` | The suggestion text |
+| `send` | `boolean` | When true, sends immediately |
+| `clearComposer` | `boolean` | Whether to clear/replace composer text (default: true) |
+
+### ThreadPrimitiveSuggestions
+
+Renders all suggestions from the store. Shared from `@assistant-ui/core/react`.
+
+```tsx
+import { ThreadPrimitiveSuggestions } from "@assistant-ui/react-native";
+
+<ThreadPrimitiveSuggestions
+  components={{ Suggestion: MySuggestionComponent }}
+/>
+```
+
+## ChainOfThought
+
+Primitives for rendering chain of thought content (grouped reasoning and tool-call parts).
+
+### ChainOfThoughtRoot
+
+Container `View` for chain of thought content.
+
+```tsx
+import { ChainOfThoughtRoot } from "@assistant-ui/react-native";
+
+<ChainOfThoughtRoot style={styles.chainOfThought}>
+  {children}
+</ChainOfThoughtRoot>
+```
+
+### ChainOfThoughtAccordionTrigger
+
+`Pressable` that toggles the collapsed state of the chain of thought.
+
+```tsx
+import { ChainOfThoughtAccordionTrigger } from "@assistant-ui/react-native";
+
+<ChainOfThoughtAccordionTrigger>
+  <Text>Toggle reasoning</Text>
+</ChainOfThoughtAccordionTrigger>
+```
+
+### ChainOfThoughtPrimitiveParts
+
+Renders the parts within a chain of thought. Shared from `@assistant-ui/core/react`.
+
+```tsx
+import { ChainOfThoughtPrimitiveParts } from "@assistant-ui/react-native";
+
+<ChainOfThoughtPrimitiveParts
+  components={{
+    Reasoning: ({ text }) => <Text>{text}</Text>,
+    tools: { Fallback: MyToolComponent },
+  }}
+/>
+```
+
+## Additional Composer Primitives
+
+### ComposerAddAttachment
+
+`Pressable` for triggering attachment addition. The actual file picker must be implemented by the consumer (e.g. using `expo-document-picker` or `expo-image-picker`).
+
+```tsx
+import { ComposerAddAttachment } from "@assistant-ui/react-native";
+
+<ComposerAddAttachment onPress={handlePickFile}>
+  <Text>📎</Text>
+</ComposerAddAttachment>
+```
+
+### ComposerIf
+
+Conditional rendering based on composer state. Shared from `@assistant-ui/core/react`.
+
+```tsx
+import { ComposerIf } from "@assistant-ui/react-native";
+
+<ComposerIf editing>
+  <Text>Currently editing</Text>
+</ComposerIf>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `editing` | `boolean` | Render when composer is in editing mode |
+| `dictation` | `boolean` | Render when dictation is active |
+
+## Shared Primitives from core/react
+
+The following primitives are shared with `@assistant-ui/react` via `@assistant-ui/core/react` and work identically on both platforms:
+
+- **`ThreadPrimitiveMessages`** / **`ThreadPrimitiveMessageByIndex`** — Component-composition pattern for rendering messages (alternative to the FlatList-based `ThreadMessages`)
+- **`MessagePrimitiveParts`** / **`MessagePrimitivePartByIndex`** — Renders message parts with grouping, ChainOfThought, and Empty support (alternative to the render-props-based `MessageContent`). Uses `<Text>` as default text renderer on RN.
+- **`ThreadPrimitiveSuggestions`** / **`ThreadPrimitiveSuggestionByIndex`** — Renders suggestions from the store
+- **`ThreadListPrimitiveItems`** / **`ThreadListPrimitiveItemByIndex`** — Component-composition pattern for thread list items (alternative to the FlatList-based `ThreadListItems`)
+- **`ChainOfThoughtPrimitiveParts`** — Renders chain of thought parts
+
+```tsx
+import {
+  ThreadPrimitiveMessages,
+  MessagePrimitiveParts,
+  ThreadPrimitiveSuggestions,
+} from "@assistant-ui/react-native";
 ```
