@@ -12,3 +12,4 @@ export {
 } from "./AttachmentByIndexProvider";
 export { TextMessagePartProvider } from "./TextMessagePartProvider";
 export { MessageProvider } from "./MessageProvider";
+export { ChainOfThoughtByIndicesProvider } from "./ChainOfThoughtByIndicesProvider";

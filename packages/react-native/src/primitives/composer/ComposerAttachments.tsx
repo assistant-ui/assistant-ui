@@ -1,7 +1,8 @@
-import type { Attachment } from "@assistant-ui/core";
-import { type ComponentType, type FC, memo, useMemo } from "react";
-import { useAuiState } from "@assistant-ui/store";
-import { ComposerAttachmentByIndexProvider } from "../../context/providers/AttachmentByIndexProvider";
+import type { ComponentType } from "react";
+import {
+  ComposerPrimitiveAttachments,
+  ComposerPrimitiveAttachmentByIndex,
+} from "@assistant-ui/core/react";
 
 export type AttachmentComponents = {
   Image?: ComponentType | undefined;
@@ -19,63 +20,6 @@ export type ComposerAttachmentByIndexProps = {
   components?: AttachmentComponents | undefined;
 };
 
-const getComponent = (
-  components: AttachmentComponents | undefined,
-  attachment: Attachment,
-) => {
-  const type = attachment.type;
-  switch (type) {
-    case "image":
-      return components?.Image ?? components?.Attachment;
-    case "document":
-      return components?.Document ?? components?.Attachment;
-    case "file":
-      return components?.File ?? components?.Attachment;
-    default:
-      return components?.Attachment;
-  }
-};
+export const ComposerAttachmentByIndex = ComposerPrimitiveAttachmentByIndex;
 
-const AttachmentComponent: FC<{
-  components: AttachmentComponents | undefined;
-}> = ({ components }) => {
-  const attachment = useAuiState((s) => s.attachment);
-  if (!attachment) return null;
-
-  const Component = getComponent(components, attachment);
-  if (!Component) return null;
-  return <Component />;
-};
-
-export const ComposerAttachmentByIndex: FC<ComposerAttachmentByIndexProps> =
-  memo(
-    ({ index, components }) => {
-      return (
-        <ComposerAttachmentByIndexProvider index={index}>
-          <AttachmentComponent components={components} />
-        </ComposerAttachmentByIndexProvider>
-      );
-    },
-    (prev, next) =>
-      prev.index === next.index &&
-      prev.components?.Image === next.components?.Image &&
-      prev.components?.Document === next.components?.Document &&
-      prev.components?.File === next.components?.File &&
-      prev.components?.Attachment === next.components?.Attachment,
-  );
-
-export const ComposerAttachments = ({
-  components,
-}: ComposerAttachmentsProps) => {
-  const attachmentsCount = useAuiState((s) => s.composer.attachments.length);
-
-  return useMemo(() => {
-    return Array.from({ length: attachmentsCount }, (_, index) => (
-      <ComposerAttachmentByIndex
-        key={index}
-        index={index}
-        components={components}
-      />
-    ));
-  }, [attachmentsCount, components]);
-};
+export const ComposerAttachments = ComposerPrimitiveAttachments;

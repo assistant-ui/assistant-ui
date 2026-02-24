@@ -1,10 +1,9 @@
 "use client";
 
-import { ComponentType, FC, memo, PropsWithChildren, useEffect } from "react";
-import { useAui, AuiProvider, AssistantClient } from "@assistant-ui/store";
+import { FC, memo, PropsWithChildren, useEffect } from "react";
+import { AssistantClient, useAui } from "@assistant-ui/store";
 import { AssistantRuntime } from "./runtime/AssistantRuntime";
-import { AssistantRuntimeCore } from "./runtime-cores/core/AssistantRuntimeCore";
-import { RuntimeAdapter } from "./RuntimeAdapter";
+import { AssistantProviderBase } from "@assistant-ui/core/react";
 import { ThreadPrimitiveViewportProvider } from "../context/providers/ThreadViewportProvider";
 import { DevToolsProviderApi } from "../devtools";
 
@@ -22,35 +21,28 @@ export namespace AssistantRuntimeProvider {
   }>;
 }
 
-const getRenderComponent = (runtime: AssistantRuntime) => {
-  return (runtime as { _core?: AssistantRuntimeCore })._core?.RenderComponent as
-    | ComponentType
-    | undefined;
-};
-
-export const AssistantRuntimeProviderImpl: FC<
-  AssistantRuntimeProvider.Props
-> = ({ children, aui: parent = null, runtime }) => {
-  const aui = useAui({ threads: RuntimeAdapter(runtime) }, { parent: parent });
-
+const DevToolsRegistration: FC = () => {
+  const aui = useAui();
   useEffect(() => {
     if (typeof process === "undefined" || process.env.NODE_ENV === "production")
       return;
     return DevToolsProviderApi.register(aui);
   }, [aui]);
+  return null;
+};
 
-  const RenderComponent = getRenderComponent(runtime);
-
+export const AssistantRuntimeProviderImpl: FC<
+  AssistantRuntimeProvider.Props
+> = ({ children, aui, runtime }) => {
   return (
-    <AuiProvider value={aui}>
-      {RenderComponent && <RenderComponent />}
-
+    <AssistantProviderBase runtime={runtime} aui={aui ?? null}>
+      <DevToolsRegistration />
       {/* TODO temporarily allow accessing viewport state from outside the viewport */}
       {/* TODO figure out if this behavior should be deprecated, since it is quite hacky */}
       <ThreadPrimitiveViewportProvider>
         {children}
       </ThreadPrimitiveViewportProvider>
-    </AuiProvider>
+    </AssistantProviderBase>
   );
 };
 
