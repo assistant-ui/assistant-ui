@@ -37,3 +37,5 @@ export {
   ThreadListPrimitiveItems,
   ThreadListPrimitiveItemByIndex,
 } from "./primitives/threadList/ThreadListItems";
+export { ChainOfThoughtPrimitiveParts } from "./primitives/chainOfThought/ChainOfThoughtParts";
+export { ThreadListItemPrimitiveTitle } from "./primitives/threadListItem/ThreadListItemTitle";

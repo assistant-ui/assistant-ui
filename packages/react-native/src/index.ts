@@ -129,6 +129,18 @@ export * from "./primitives/threadList";
 export * from "./primitives/actionBar";
 export * from "./primitives/branchPicker";
 export * from "./primitives/attachment";
+export * from "./primitives/threadListItem";
+export * from "./primitives/chainOfThought";
+
+// Re-export shared providers from core/react
+export {
+  ThreadListItemByIndexProvider,
+  ChainOfThoughtByIndicesProvider,
+  MessageByIndexProvider,
+  PartByIndexProvider,
+  TextMessagePartProvider,
+  ChainOfThoughtPartByIndexProvider,
+} from "@assistant-ui/core/react";
 
 // Model context, tools & clients
 export * from "./model-context";
