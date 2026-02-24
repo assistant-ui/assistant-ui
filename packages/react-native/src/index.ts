@@ -56,6 +56,13 @@ export type {
 
 export { mergeModelContexts, tool } from "@assistant-ui/core";
 
+// Attachment adapter implementations
+export {
+  SimpleImageAttachmentAdapter,
+  SimpleTextAttachmentAdapter,
+  CompositeAttachmentAdapter,
+} from "@assistant-ui/core";
+
 // Re-export store scope state types
 export type {
   ThreadState,
@@ -102,6 +109,7 @@ export {
   useActionBarFeedbackNegative,
   useEditComposerSend,
   useEditComposerCancel,
+  useComposerAddAttachment,
 } from "./primitive-hooks";
 
 // Runtime
@@ -125,6 +133,7 @@ export * from "./primitives/message";
 export * from "./primitives/threadList";
 export * from "./primitives/actionBar";
 export * from "./primitives/branchPicker";
+export * from "./primitives/attachment";
 
 // Adapters
 export {

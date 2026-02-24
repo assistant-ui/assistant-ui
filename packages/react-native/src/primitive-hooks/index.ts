@@ -17,3 +17,4 @@ export {
 } from "./useActionBarFeedback";
 export { useEditComposerSend } from "./useEditComposerSend";
 export { useEditComposerCancel } from "./useEditComposerCancel";
+export { useComposerAddAttachment } from "./useComposerAddAttachment";

@@ -234,6 +234,39 @@ import { useComposerCancel } from "@assistant-ui/react-native";
 const { cancel, canCancel } = useComposerCancel();
 ```
 
+### useComposerAddAttachment
+
+Add an attachment to the composer. Returns `{ addAttachment }` — call it with a `File` or `CreateAttachment` object. Pair with your own file picker (e.g. `expo-image-picker`).
+
+```tsx
+import { useComposerAddAttachment } from "@assistant-ui/react-native";
+
+const { addAttachment } = useComposerAddAttachment();
+
+// With expo-image-picker
+const pickImage = async () => {
+  const result = await ImagePicker.launchImageLibraryAsync({
+    base64: true,
+    quality: 0.8,
+  });
+  if (result.canceled) return;
+
+  for (const asset of result.assets) {
+    await addAttachment({
+      name: asset.fileName ?? "image.jpg",
+      type: "image",
+      content: [
+        { type: "image", image: `data:image/jpeg;base64,${asset.base64}` },
+      ],
+    });
+  }
+};
+```
+
+<Callout type="info">
+  You must configure an `AttachmentAdapter` (e.g. `SimpleImageAttachmentAdapter`) in your runtime options for attachments to work.
+</Callout>
+
 ### useMessageReload
 
 ```tsx

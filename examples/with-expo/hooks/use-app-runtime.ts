@@ -3,6 +3,7 @@ import { fetch } from "expo/fetch";
 import {
   useLocalRuntime,
   createSimpleTitleAdapter,
+  SimpleImageAttachmentAdapter,
 } from "@assistant-ui/react-native";
 import { createOpenAIChatModelAdapter } from "@/adapters/openai-chat-adapter";
 
@@ -19,5 +20,10 @@ export function useAppRuntime() {
 
   const titleGenerator = useMemo(() => createSimpleTitleAdapter(), []);
 
-  return useLocalRuntime(chatModel, { titleGenerator });
+  return useLocalRuntime(chatModel, {
+    titleGenerator,
+    adapters: {
+      attachments: new SimpleImageAttachmentAdapter(),
+    },
+  });
 }

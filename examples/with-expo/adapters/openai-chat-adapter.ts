@@ -25,13 +25,40 @@ export function createOpenAIChatModelAdapter(
     async *run({ messages, abortSignal }) {
       const openAIMessages = messages
         .filter((m) => m.role !== "system")
-        .map((m) => ({
-          role: m.role as "user" | "assistant",
-          content: m.content
-            .filter((p) => p.type === "text")
+        .map((m) => {
+          const textParts = m.content.filter((p) => p.type === "text");
+          const text = textParts
             .map((p) => ("text" in p ? p.text : ""))
-            .join("\n"),
-        }));
+            .join("\n");
+
+          // Check for image attachments on user messages
+          const imageAttachments =
+            m.role === "user"
+              ? (m.attachments ?? []).flatMap((a) =>
+                  (a.content ?? []).filter((c: any) => c.type === "image"),
+                )
+              : [];
+
+          // If user message has images, use multi-content format for vision
+          if (imageAttachments.length > 0) {
+            const content: any[] = [];
+            if (text) {
+              content.push({ type: "text", text });
+            }
+            for (const img of imageAttachments) {
+              content.push({
+                type: "image_url",
+                image_url: { url: (img as any).image },
+              });
+            }
+            return { role: "user" as const, content };
+          }
+
+          return {
+            role: m.role as "user" | "assistant",
+            content: text,
+          };
+        });
 
       const response = await customFetch(`${baseURL}/chat/completions`, {
         method: "POST",

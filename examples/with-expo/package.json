@@ -17,6 +17,7 @@
     "expo": "~54.0.33",
     "expo-constants": "~18.0.13",
     "expo-font": "~14.0.11",
+    "expo-image-picker": "~17.0.10",
     "expo-linking": "~8.0.11",
     "expo-router": "~6.0.23",
     "expo-splash-screen": "~31.0.13",
@@ -34,6 +35,8 @@
   },
   "devDependencies": {
     "@types/react": "~19.1.17",
+    "eslint": "^9.39.3",
+    "eslint-config-expo": "~10.0.0",
     "typescript": "~5.9.3"
   },
   "private": true

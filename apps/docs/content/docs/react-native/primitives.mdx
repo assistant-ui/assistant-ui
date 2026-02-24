@@ -129,6 +129,26 @@ import { ComposerCancel } from "@assistant-ui/react-native";
 </ComposerCancel>
 ```
 
+### ComposerAttachments
+
+Renders composer attachments using the provided component configuration.
+
+```tsx
+import { ComposerAttachments } from "@assistant-ui/react-native";
+
+<ComposerAttachments
+  components={{
+    Image: MyImageAttachment,
+    Document: MyDocumentAttachment,
+    Attachment: MyFallbackAttachment, // fallback for all types
+  }}
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `components` | `{ Image?, Document?, File?, Attachment? }` | Component renderers by attachment type |
+
 ## Message
 
 ### MessageRoot
@@ -189,6 +209,73 @@ import { MessageIf } from "@assistant-ui/react-native";
 | `assistant` | `boolean` | Render for assistant messages |
 | `running` | `boolean` | Render when message is being generated |
 | `last` | `boolean` | Render for the last message |
+
+### MessageAttachments
+
+Renders user message attachments using the provided component configuration.
+
+```tsx
+import { MessageAttachments } from "@assistant-ui/react-native";
+
+<MessageAttachments
+  components={{
+    Image: MyImageAttachment,
+    Attachment: MyFallbackAttachment,
+  }}
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `components` | `{ Image?, Document?, File?, Attachment? }` | Component renderers by attachment type |
+
+## Attachment
+
+Primitives for rendering individual attachments (inside `ComposerAttachments` or `MessageAttachments`).
+
+### AttachmentRoot
+
+Container `View` for an attachment.
+
+```tsx
+import { AttachmentRoot } from "@assistant-ui/react-native";
+
+<AttachmentRoot style={styles.attachment}>
+  {children}
+</AttachmentRoot>
+```
+
+### AttachmentName
+
+`Text` component displaying the attachment filename.
+
+```tsx
+import { AttachmentName } from "@assistant-ui/react-native";
+
+<AttachmentName style={styles.filename} />
+```
+
+### AttachmentThumb
+
+`Text` component displaying the file extension (e.g. `.pdf`).
+
+```tsx
+import { AttachmentThumb } from "@assistant-ui/react-native";
+
+<AttachmentThumb style={styles.extension} />
+```
+
+### AttachmentRemove
+
+`Pressable` that removes the attachment from the composer.
+
+```tsx
+import { AttachmentRemove } from "@assistant-ui/react-native";
+
+<AttachmentRemove>
+  <Text>Remove</Text>
+</AttachmentRemove>
+```
 
 ## ActionBar
 
