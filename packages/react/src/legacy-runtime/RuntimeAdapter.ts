@@ -1,3 +1,4 @@
+import { resource, tapResource } from "@assistant-ui/tap";
 import {
   RuntimeAdapterResource,
   baseRuntimeAdapterTransformScopes,
@@ -5,7 +6,10 @@ import {
 import { attachTransformScopes } from "@assistant-ui/store";
 import { Tools } from "../model-context";
 
-export const RuntimeAdapter = RuntimeAdapterResource;
+export const RuntimeAdapter = resource(
+  (...args: Parameters<typeof RuntimeAdapterResource>) =>
+    tapResource(RuntimeAdapterResource(...args)),
+);
 
 attachTransformScopes(RuntimeAdapter, (scopes, parent) => {
   const result = baseRuntimeAdapterTransformScopes(scopes, parent);

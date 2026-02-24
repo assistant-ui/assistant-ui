@@ -66,12 +66,20 @@ export type {
   ThreadListItemState,
 } from "@assistant-ui/core/store";
 
-// Store hooks
+// Store hooks and components
 export {
   useAui,
   useAuiState,
   useAuiEvent,
   AuiProvider,
+  AuiIf,
+  type AssistantClient,
+  type AssistantState,
+  type AssistantEventScope,
+  type AssistantEventSelector,
+  type AssistantEventName,
+  type AssistantEventPayload,
+  type AssistantEventCallback,
 } from "@assistant-ui/store";
 
 // Context providers and hooks
