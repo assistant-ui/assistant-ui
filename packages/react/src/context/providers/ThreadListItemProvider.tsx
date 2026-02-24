@@ -2,8 +2,6 @@
 
 import { type FC, type PropsWithChildren } from "react";
 import { useAui, AuiProvider, Derived } from "@assistant-ui/store";
-import type { ThreadListItemRuntime } from "../../legacy-runtime/runtime/ThreadListItemRuntime";
-import { ThreadListItemClient } from "@assistant-ui/core/store/internal";
 
 export const ThreadListItemByIndexProvider: FC<
   PropsWithChildren<{
@@ -22,14 +20,4 @@ export const ThreadListItemByIndexProvider: FC<
   return <AuiProvider value={aui}>{children}</AuiProvider>;
 };
 
-export const ThreadListItemRuntimeProvider: FC<
-  PropsWithChildren<{
-    runtime: ThreadListItemRuntime;
-  }>
-> = ({ runtime, children }) => {
-  const aui = useAui({
-    threadListItem: ThreadListItemClient({ runtime }),
-  });
-
-  return <AuiProvider value={aui}>{children}</AuiProvider>;
-};
+export { ThreadListItemRuntimeProvider } from "@assistant-ui/core/react";

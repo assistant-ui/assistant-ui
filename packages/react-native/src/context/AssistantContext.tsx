@@ -4,7 +4,7 @@ import type {
   AssistantRuntime,
   AssistantRuntimeCore,
 } from "@assistant-ui/core";
-import { RuntimeAdapter } from "../runtimes/runtime-adapter";
+import { RuntimeAdapter } from "@assistant-ui/core/react";
 
 export const useAssistantRuntime = (): AssistantRuntime => {
   const aui = useAui();

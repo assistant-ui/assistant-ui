@@ -1,5 +1,5 @@
 import type { DataMessagePartComponent } from "../MessagePartComponentTypes";
-import type { Unsubscribe } from "@assistant-ui/core";
+import type { Unsubscribe } from "../../..";
 
 export type DataRenderersState = {
   renderers: Record<string, DataMessagePartComponent[]>;

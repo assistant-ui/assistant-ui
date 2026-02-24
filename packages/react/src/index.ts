@@ -1,5 +1,3 @@
-import "./types/store-augmentation";
-
 // Re-export from @assistant-ui/store
 export {
   useAui,

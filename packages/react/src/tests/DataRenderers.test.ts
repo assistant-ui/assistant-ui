@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
-import type { DataMessagePartComponent } from "../types/MessagePartComponentTypes";
-import type { DataRenderersState } from "../types/scopes/dataRenderers";
+import type { DataMessagePartComponent, DataRenderersState } from "../types";
 
 /**
  * Tests for the DataRenderers state management logic.

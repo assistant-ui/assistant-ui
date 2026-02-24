@@ -28,7 +28,7 @@ export type {
   CreateAttachment,
 } from "@assistant-ui/core";
 
-// React-specific component types (stay in react)
+// React component types (from core/react)
 export type {
   EmptyMessagePartComponent,
   EmptyMessagePartProps,
@@ -50,7 +50,7 @@ export type {
   ToolCallMessagePartProps,
   ReasoningGroupProps,
   ReasoningGroupComponent,
-} from "./MessagePartComponentTypes";
+} from "@assistant-ui/core/react";
 
 // Thread list item types
 export type { ThreadListItemStatus } from "@assistant-ui/core";

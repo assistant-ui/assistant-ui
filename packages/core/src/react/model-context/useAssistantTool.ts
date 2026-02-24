@@ -1,9 +1,7 @@
-"use client";
-
 import { useEffect } from "react";
 import { useAui } from "@assistant-ui/store";
 import type { ToolCallMessagePartComponent } from "../types/MessagePartComponentTypes";
-import type { AssistantToolProps as CoreAssistantToolProps } from "@assistant-ui/core";
+import type { AssistantToolProps as CoreAssistantToolProps } from "../..";
 
 export type AssistantToolProps<
   TArgs extends Record<string, unknown>,

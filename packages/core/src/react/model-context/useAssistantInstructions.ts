@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useAui } from "@assistant-ui/store";
-import type { AssistantInstructionsConfig } from "@assistant-ui/core";
+import type { AssistantInstructionsConfig } from "../..";
 
 export type { AssistantInstructionsConfig };
 

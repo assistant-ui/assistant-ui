@@ -1,4 +1,3 @@
-// React component types (from core/react)
 export type {
   EmptyMessagePartComponent,
   EmptyMessagePartProps,
@@ -6,8 +5,6 @@ export type {
   TextMessagePartProps,
   ReasoningMessagePartComponent,
   ReasoningMessagePartProps,
-  ReasoningGroupProps,
-  ReasoningGroupComponent,
   SourceMessagePartComponent,
   SourceMessagePartProps,
   ImageMessagePartComponent,
@@ -20,4 +17,15 @@ export type {
   DataMessagePartProps,
   ToolCallMessagePartComponent,
   ToolCallMessagePartProps,
-} from "@assistant-ui/core/react";
+  ReasoningGroupProps,
+  ReasoningGroupComponent,
+} from "./MessagePartComponentTypes";
+
+export type {
+  ToolsState,
+  ToolsMethods,
+  ToolsClientSchema,
+  DataRenderersState,
+  DataRenderersMethods,
+  DataRenderersClientSchema,
+} from "./scopes";

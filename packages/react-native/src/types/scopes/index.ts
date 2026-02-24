@@ -48,10 +48,12 @@ export type {
   ChainOfThoughtPart,
 } from "@assistant-ui/core/store";
 
-// Local scope types
-export type { ToolsState, ToolsMethods, ToolsClientSchema } from "./tools";
+// Scope types from core/react
 export type {
+  ToolsState,
+  ToolsMethods,
+  ToolsClientSchema,
   DataRenderersState,
   DataRenderersMethods,
   DataRenderersClientSchema,
-} from "./dataRenderers";
+} from "@assistant-ui/core/react";

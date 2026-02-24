@@ -28,7 +28,7 @@ import type {
   FileMessagePartComponent,
   ReasoningMessagePartComponent,
   ReasoningGroupComponent,
-} from "../../types/MessagePartComponentTypes";
+} from "../../types";
 import { MessagePartPrimitiveInProgress } from "../messagePart/MessagePartInProgress";
 import type { MessagePartStatus } from "@assistant-ui/core";
 import { useShallow } from "zustand/shallow";

@@ -1,5 +1,3 @@
-import "./types/store-augmentation";
-
 // Re-export core types
 export type {
   // Message types

@@ -10,7 +10,7 @@ import { useAui, useAuiState } from "@assistant-ui/store";
 import type {
   ToolCallMessagePartProps,
   DataMessagePartProps,
-} from "../../types/MessagePartComponentTypes";
+} from "../../types";
 
 type MessageContentPart = ThreadUserMessagePart | ThreadAssistantMessagePart;
 

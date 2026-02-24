@@ -9,8 +9,8 @@ import type {
   TextMessagePart,
   ToolCallMessagePart,
   Unstable_AudioMessagePart,
-} from "@assistant-ui/core";
-import type { MessagePartState } from "@assistant-ui/core";
+} from "../..";
+import type { MessagePartState } from "../..";
 import { ToolResponse } from "assistant-stream";
 
 export type EmptyMessagePartProps = {

@@ -21,8 +21,7 @@ import type {
   ThreadMessage,
 } from "@assistant-ui/core";
 import { ModelContext, Suggestions } from "@assistant-ui/core/store";
-import { Tools } from "./Tools";
-import { DataRenderers } from "./DataRenderers";
+import { Tools, DataRenderers } from "@assistant-ui/core/react";
 
 export type ExternalThreadMessage = ThreadMessage & {
   id: string;
