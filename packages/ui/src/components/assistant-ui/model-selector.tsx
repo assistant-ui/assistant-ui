@@ -9,7 +9,7 @@ import {
   type ComponentPropsWithoutRef,
   type ReactNode,
 } from "react";
-import * as SelectPrimitive from "@radix-ui/react-select";
+import { Select as SelectPrimitive } from "radix-ui";
 import { type VariantProps } from "class-variance-authority";
 import { CheckIcon } from "lucide-react";
 import { useAssistantApi } from "@assistant-ui/react";
