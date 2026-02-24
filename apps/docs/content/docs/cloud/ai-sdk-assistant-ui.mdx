@@ -119,6 +119,67 @@ export default function ChatPage() {
 
 </Steps>
 
+## Telemetry
+
+The `useChatRuntime` hook captures full run telemetry including timing data. This integrates with the assistant-ui runtime to provide:
+
+**Automatically captured:**
+- `status` — `"completed"`, `"incomplete"`, or `"error"`
+- `duration_ms` — Total run duration (measured client-side)
+- `step_timestamps` — Per-step timing with `start_ms` and `end_ms`
+- `tool_calls` — Tool invocations with name, arguments, results, and source
+- `total_steps` — Number of reasoning/tool steps
+- `output_text` — Full response text (truncated at 50K characters)
+
+**Requires route configuration:**
+- `model_id` — The model used
+- `input_tokens` / `output_tokens` — Token usage statistics
+
+To capture model and usage data, add the `messageMetadata` callback to your AI SDK route:
+
+```tsx title="app/api/chat/route.ts"
+import { streamText } from "ai";
+
+export async function POST(req: Request) {
+  const result = streamText({
+    model: openai("gpt-4o"),
+    messages,
+  });
+
+  return result.toUIMessageStreamResponse({
+    messageMetadata: ({ part }) => {
+      if (part.type === "finish-step") {
+        return {
+          modelId: part.response.modelId,  // Required for model_id
+          usage: part.usage,                // Required for token counts
+        };
+      }
+      return undefined;
+    },
+  });
+}
+```
+
+Without this configuration, model and token data will be omitted from telemetry reports.
+
+### Customizing Reports
+
+Use the `beforeReport` hook to add custom metadata or filter reports:
+
+```tsx
+const cloud = new AssistantCloud({
+  baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
+  telemetry: {
+    beforeReport: (report) => ({
+      ...report,
+      metadata: { userTier: "pro", region: "us-east" },
+    }),
+  },
+});
+```
+
+Return `null` from `beforeReport` to skip reporting a specific run.
+
 ## Authentication
 
 The example above uses `anonymous: true` which creates a browser session-based user ID. This is suitable for public demos or prototypes.

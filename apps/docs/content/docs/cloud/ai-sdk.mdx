@@ -200,6 +200,67 @@ const { messages, sendMessage } = useCloudChat({ threads: myThreads });
 
 **Returns:** `UseThreadsResult` — same shape as `threads` from `useCloudChat()`.
 
+## Telemetry
+
+The `useCloudChat` hook automatically reports run telemetry to Assistant Cloud after each assistant response. This includes:
+
+**Automatically captured:**
+- `status` — `"completed"` or `"incomplete"` based on response content
+- `tool_calls` — Tool invocations with name, arguments, results, and source (MCP, frontend, or backend)
+- `total_steps` — Number of reasoning/tool steps in the response
+- `output_text` — Full response text (truncated at 50K characters)
+
+**Requires route configuration:**
+- `model_id` — The model used for the response
+- `input_tokens` / `output_tokens` — Token usage statistics
+
+To capture model and usage data, configure the `messageMetadata` callback in your AI SDK route:
+
+```tsx title="app/api/chat/route.ts"
+import { streamText } from "ai";
+
+export async function POST(req: Request) {
+  const result = streamText({
+    model: openai("gpt-4o"),
+    messages,
+  });
+
+  return result.toUIMessageStreamResponse({
+    messageMetadata: ({ part }) => {
+      if (part.type === "finish-step") {
+        return {
+          modelId: part.response.modelId,  // Required for model_id
+          usage: part.usage,                // Required for token counts
+        };
+      }
+      return undefined;
+    },
+  });
+}
+```
+
+<Callout type="warning">
+  **Limitations:** The standalone hook does not capture `duration_ms` or per-step timestamps because it doesn't integrate with the assistant-ui runtime. For full timing telemetry, use the [React AI SDK integration](/docs/cloud/ai-sdk-assistant-ui).
+</Callout>
+
+### Customizing Reports
+
+Use the `beforeReport` hook to enrich or filter telemetry:
+
+```tsx
+const cloud = new AssistantCloud({
+  baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
+  telemetry: {
+    beforeReport: (report) => ({
+      ...report,
+      metadata: { environment: "production", version: "1.0.0" },
+    }),
+  },
+});
+```
+
+Return `null` from `beforeReport` to skip reporting a specific run.
+
 ## Authentication
 
 The example above uses anonymous mode (browser session-based user ID) via the env var. For production apps with user accounts, pass an explicit cloud instance:
