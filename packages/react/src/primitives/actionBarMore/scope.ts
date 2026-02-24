@@ -1,4 +1,4 @@
-import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
+import { DropdownMenu as DropdownMenuPrimitive } from "radix-ui";
 import type { Scope } from "@radix-ui/react-context";
 
 export const useDropdownMenuScope: ReturnType<

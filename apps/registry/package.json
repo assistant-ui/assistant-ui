@@ -7,8 +7,7 @@
     "build": "tsx ./scripts/build-registry.ts"
   },
   "dependencies": {
-    "@radix-ui/react-collapsible": "^1.1.12",
-    "@radix-ui/react-select": "^2.2.6"
+    "radix-ui": "^1.4.3"
   },
   "devDependencies": {
     "@ai-sdk/openai": "^3.0.30",
@@ -18,11 +17,6 @@
     "@assistant-ui/react-markdown": "workspace:*",
     "@assistant-ui/react-syntax-highlighter": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@radix-ui/react-avatar": "^1.1.11",
-    "@radix-ui/react-dialog": "^1.1.15",
-    "@radix-ui/react-separator": "^1.1.8",
-    "@radix-ui/react-slot": "^1.2.4",
-    "@radix-ui/react-tooltip": "^1.2.8",
     "@tailwindcss/postcss": "^4.2.0",
     "@types/node": "^25.3.0",
     "@types/react": "^19.2.14",

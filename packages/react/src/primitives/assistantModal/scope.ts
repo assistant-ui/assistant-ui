@@ -1,4 +1,4 @@
-import * as PopoverPrimitive from "@radix-ui/react-popover";
+import { Popover as PopoverPrimitive } from "radix-ui";
 import type { Scope } from "@radix-ui/react-context";
 
 export const usePopoverScope: ReturnType<

@@ -1,6 +1,6 @@
 "use client";
 
-import * as ScrollAreaPrimitive from "@radix-ui/react-scroll-area";
+import { ScrollArea as ScrollAreaPrimitive } from "radix-ui";
 import { SampleFrame } from "@/components/docs/samples/sample-frame";
 
 const MESSAGE_COUNT = 20;

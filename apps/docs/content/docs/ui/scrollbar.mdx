@@ -7,7 +7,7 @@ import { ScrollbarSample } from "@/components/docs/samples/scrollbar";
 
 <ScrollbarSample />
 
-If you want to show a custom scrollbar UI of the `ThreadPrimitive.Viewport` in place of the system default, you can integrate `@radix-ui/react-scroll-area`.
+If you want to show a custom scrollbar UI of the `ThreadPrimitive.Viewport` in place of the system default, you can integrate `radix-ui`'s Scroll Area.
 An example implementation of this is [shadcn/ui's Scroll Area](https://ui.shadcn.com/docs/components/scroll-area).
 
 <Steps>
@@ -48,7 +48,7 @@ Add the following CSS to your `globals.css`:
 The resulting MyThread component should look like this:
 
 ```tsx {1-2,6,8,12-13,15}
-import * as ScrollAreaPrimitive from "@radix-ui/react-scroll-area";
+import { ScrollArea as ScrollAreaPrimitive } from "radix-ui";
 import { ScrollBar } from "@/components/ui/scroll-area";
 
 const MyThread: FC = () => {

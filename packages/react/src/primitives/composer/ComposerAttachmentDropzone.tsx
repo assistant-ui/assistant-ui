@@ -2,7 +2,7 @@
 
 import { forwardRef, useCallback, useState } from "react";
 
-import { Slot } from "@radix-ui/react-slot";
+import { Slot } from "radix-ui";
 import React from "react";
 import { useAui } from "@assistant-ui/store";
 
@@ -75,7 +75,7 @@ export const ComposerPrimitiveAttachmentDropzone = forwardRef<
     onDropCapture: handleDrop,
   };
 
-  const Comp = asChild ? Slot : "div";
+  const Comp = asChild ? Slot.Root : "div";
 
   return (
     <Comp

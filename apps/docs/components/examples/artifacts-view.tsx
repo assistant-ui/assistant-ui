@@ -2,7 +2,7 @@
 
 import { useAuiState } from "@assistant-ui/react";
 import type { ToolCallMessagePart } from "@assistant-ui/react";
-import * as TabsPrimitive from "@radix-ui/react-tabs";
+import { Tabs as TabsPrimitive } from "radix-ui";
 
 export const ArtifactsView = () => {
   const artifact = useAuiState((s) => {

@@ -194,6 +194,7 @@ export const registry: RegistryItem[] = [
           "../../packages/ui/src/components/assistant-ui/tooltip-icon-button.tsx",
       },
     ],
+    dependencies: ["radix-ui"],
     registryDependencies: ["tooltip", "button"],
   },
   {
@@ -406,7 +407,7 @@ export const registry: RegistryItem[] = [
     ],
     dependencies: [
       "@assistant-ui/react",
-      "@radix-ui/react-select",
+      "radix-ui",
       "lucide-react",
       "class-variance-authority",
     ],
@@ -422,11 +423,7 @@ export const registry: RegistryItem[] = [
         sourcePath: "../../packages/ui/src/components/assistant-ui/select.tsx",
       },
     ],
-    dependencies: [
-      "@radix-ui/react-select",
-      "lucide-react",
-      "class-variance-authority",
-    ],
+    dependencies: ["radix-ui", "lucide-react", "class-variance-authority"],
     registryDependencies: [],
   },
   {
@@ -439,7 +436,7 @@ export const registry: RegistryItem[] = [
         sourcePath: "../../packages/ui/src/components/assistant-ui/badge.tsx",
       },
     ],
-    dependencies: ["@radix-ui/react-slot", "class-variance-authority"],
+    dependencies: ["radix-ui", "class-variance-authority"],
     registryDependencies: [],
   },
   {
@@ -452,11 +449,7 @@ export const registry: RegistryItem[] = [
         sourcePath: "../../packages/ui/src/components/assistant-ui/tabs.tsx",
       },
     ],
-    dependencies: [
-      "@radix-ui/react-tabs",
-      "@radix-ui/react-slot",
-      "class-variance-authority",
-    ],
+    dependencies: ["radix-ui", "class-variance-authority"],
     registryDependencies: [],
   },
   {
@@ -470,11 +463,7 @@ export const registry: RegistryItem[] = [
           "../../packages/ui/src/components/assistant-ui/accordion.tsx",
       },
     ],
-    dependencies: [
-      "@radix-ui/react-accordion",
-      "lucide-react",
-      "class-variance-authority",
-    ],
+    dependencies: ["radix-ui", "lucide-react", "class-variance-authority"],
     registryDependencies: [],
   },
 ];
