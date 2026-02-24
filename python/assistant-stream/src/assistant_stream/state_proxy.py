@@ -29,7 +29,10 @@ class StateProxy:
         self._path = path or []
 
     def __getitem__(self, key: Union[str, int]) -> Union["StateProxy", Any]:
-        """Access nested values with dict-style syntax. Returns primitives directly except strings."""
+        """Access nested values with dict-style syntax.
+
+        Primitives (including strings) are returned directly for compatibility.
+        """
         current_value = self._manager.get_value_at_path(self._path)
 
         # Handle list indexing
@@ -97,8 +100,25 @@ class StateProxy:
             # For dicts and other types, use string representation of key
             str_key = str(key)
 
+        target_path = self._path + [str_key]
+
+        # Optimize string extensions into append-text deltas.
+        try:
+            current_target_value = self._manager.get_value_at_path(target_path)
+            if (
+                isinstance(current_target_value, str)
+                and isinstance(value, str)
+                and value.startswith(current_target_value)
+            ):
+                delta = value[len(current_target_value) :]
+                if delta:
+                    self._manager.append_text(target_path, delta)
+                    return
+        except KeyError:
+            pass
+
         self._manager.add_operations(
-            [{"type": "set", "path": self._path + [str_key], "value": value}]
+            [{"type": "set", "path": target_path, "value": value}]
         )
 
     def __iadd__(self, other: Any) -> "StateProxy":
@@ -112,9 +132,7 @@ class StateProxy:
                     f"Can only concatenate str (not '{type(other).__name__}') to str"
                 )
 
-            self._manager.add_operations(
-                [{"type": "append-text", "path": self._path, "value": other}]
-            )
+            self._manager.append_text(self._path, other)
             return self
 
         # List extension
