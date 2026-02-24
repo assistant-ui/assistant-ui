@@ -39,3 +39,12 @@ export {
 } from "./primitives/threadList/ThreadListItems";
 export { ChainOfThoughtPrimitiveParts } from "./primitives/chainOfThought/ChainOfThoughtParts";
 export { ThreadListItemPrimitiveTitle } from "./primitives/threadListItem/ThreadListItemTitle";
+export {
+  ThreadPrimitiveSuggestions,
+  ThreadPrimitiveSuggestionsImpl,
+  ThreadPrimitiveSuggestionByIndex,
+} from "./primitives/thread/ThreadSuggestions";
+export {
+  ComposerPrimitiveIf,
+  type UseComposerIfProps,
+} from "./primitives/composer/ComposerIf";

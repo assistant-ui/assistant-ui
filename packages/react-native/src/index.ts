@@ -131,6 +131,7 @@ export * from "./primitives/branchPicker";
 export * from "./primitives/attachment";
 export * from "./primitives/threadListItem";
 export * from "./primitives/chainOfThought";
+export * from "./primitives/suggestion";
 
 // Re-export shared providers from core/react
 export {
@@ -140,6 +141,7 @@ export {
   PartByIndexProvider,
   TextMessagePartProvider,
   ChainOfThoughtPartByIndexProvider,
+  SuggestionByIndexProvider,
 } from "@assistant-ui/core/react";
 
 // Model context, tools & clients

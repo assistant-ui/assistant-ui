@@ -9,3 +9,7 @@ export { TextMessagePartProvider } from "./TextMessagePartProvider";
 export { ChainOfThoughtByIndicesProvider } from "./ChainOfThoughtByIndicesProvider";
 export { ThreadListItemByIndexProvider } from "./ThreadListItemByIndexProvider";
 export { ChainOfThoughtPartByIndexProvider } from "./ChainOfThoughtPartByIndexProvider";
+export {
+  SuggestionByIndexProvider,
+  type SuggestionByIndexProviderProps,
+} from "./SuggestionByIndexProvider";
