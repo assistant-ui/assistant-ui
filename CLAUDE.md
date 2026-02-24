@@ -75,7 +75,7 @@ Biome enforces all formatting and linting. Key rules:
     - `local/`: useLocalRuntime - for in-browser chat with a ChatModelAdapter
     - `external-store/`: useExternalStoreRuntime - for custom message stores
     - `remote-thread-list/`: Thread list management with persistence adapters
-- `model-context/`: Tool registration and model context (useAssistantTool, makeAssistantTool)
+- `model-context/`: Tool registration and model context — re-exports from `@assistant-ui/core/react`, plus React-only items (makeAssistantVisible, registry, frame)
 
 **`assistant-stream`** - Streaming protocol and utilities
 - `AssistantStream`: Core streaming class
@@ -91,6 +91,7 @@ Biome enforces all formatting and linting. Key rules:
 - `useAui`, `useAuiState`, `useAuiEvent` hooks
 
 **`@assistant-ui/core`** - Shared logic used by both React and React Native packages
+- `./react` sub-path: shared React code (model-context hooks, client resources like Tools/DataRenderers, types/scopes, providers, RuntimeAdapter) — consumed by both `@assistant-ui/react` and `@assistant-ui/react-native`
 
 **`@assistant-ui/cloud`** - Cloud persistence and thread management
 

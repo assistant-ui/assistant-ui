@@ -1,3 +1,5 @@
+import "@assistant-ui/core/react"; // store-augmentation side-effect (tools, dataRenderers scopes)
+
 // Re-export from @assistant-ui/store
 export {
   useAui,
