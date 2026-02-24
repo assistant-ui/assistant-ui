@@ -17,7 +17,8 @@ export const useInlineRender = <TArgs, TResult>(
 
   return useCallback(
     function ToolUI(args) {
-      return useToolUIStore().toolUI(args);
+      const store = useToolUIStore();
+      return store.toolUI(args);
     },
     [useToolUIStore],
   );

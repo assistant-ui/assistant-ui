@@ -5,7 +5,7 @@ import {
   baseRuntimeAdapterTransformScopes,
 } from "@assistant-ui/core/store/internal";
 import { attachTransformScopes } from "@assistant-ui/store";
-import { Tools } from "../client/Tools";
+import { Tools } from "../model-context";
 
 export const RuntimeAdapter = resource((runtime: AssistantRuntime) =>
   tapResource(RuntimeAdapterResource(runtime)),

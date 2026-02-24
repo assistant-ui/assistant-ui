@@ -77,14 +77,6 @@ const ToolUIDisplay = ({
   );
 
   if (Render) {
-    console.log(
-      "[ToolUIDisplay] part:",
-      JSON.stringify({
-        toolName: part.toolName,
-        result: part.result,
-        status: part.status,
-      }),
-    );
     return (
       <Render
         {...(part as ToolCallMessagePartProps)}
