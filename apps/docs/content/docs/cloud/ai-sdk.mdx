@@ -14,7 +14,7 @@ The `@assistant-ui/cloud-ai-sdk` package provides a single hook that adds full m
 This hook works with any React UI. You keep full control of your components.
 
 <Callout type="tip">
-  Want pre-built UI components? See [AI SDK + assistant-ui](/docs/cloud/ai-sdk-assistant-ui) for the full integration with `<Thread />` and `<ThreadList />`.
+  See [AI SDK + assistant-ui](/docs/cloud/ai-sdk-assistant-ui) for the full integration with assistant-ui's primitives and runtime.
 </Callout>
 
 ## Prerequisites
@@ -221,7 +221,7 @@ import { streamText } from "ai";
 
 export async function POST(req: Request) {
   const result = streamText({
-    model: openai("gpt-4o"),
+    model: openai("gpt-5-mini"),
     messages,
   });
 
@@ -229,8 +229,8 @@ export async function POST(req: Request) {
     messageMetadata: ({ part }) => {
       if (part.type === "finish-step") {
         return {
-          modelId: part.response.modelId,  // Required for model_id
-          usage: part.usage,                // Required for token counts
+          modelId: part.response.modelId,
+          usage: part.usage,
         };
       }
       return undefined;
@@ -239,8 +239,8 @@ export async function POST(req: Request) {
 }
 ```
 
-<Callout type="warning">
-  **Limitations:** The standalone hook does not capture `duration_ms` or per-step timestamps because it doesn't integrate with the assistant-ui runtime. For full timing telemetry, use the [React AI SDK integration](/docs/cloud/ai-sdk-assistant-ui).
+<Callout type="info">
+  The standalone hook does not capture `duration_ms`, per-step breakdowns (`steps`), custom `metadata` pass-through, or `"error"` status. These require the full runtime integration available via [`useChatRuntime`](/docs/cloud/ai-sdk-assistant-ui).
 </Callout>
 
 ### Customizing Reports
@@ -259,7 +259,7 @@ const cloud = new AssistantCloud({
 });
 ```
 
-Return `null` from `beforeReport` to skip reporting a specific run.
+Return `null` from `beforeReport` to skip reporting a specific run. To disable telemetry entirely, pass `telemetry: false`.
 
 ## Authentication
 

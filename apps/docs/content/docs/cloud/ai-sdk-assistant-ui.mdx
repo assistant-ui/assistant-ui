@@ -8,10 +8,6 @@ description: Integrate cloud persistence using assistant-ui runtime and pre-buil
 
 This guide shows how to integrate Assistant Cloud with the [AI SDK](https://sdk.vercel.ai/) using assistant-ui's runtime system and pre-built UI components.
 
-<Callout type="tip">
-  Using the AI SDK with your own UI? See [AI SDK](/docs/cloud/ai-sdk) for a lighter integration with just one hook.
-</Callout>
-
 ## What You Get
 
 This integration provides:
@@ -126,7 +122,7 @@ The `useChatRuntime` hook captures full run telemetry including timing data. Thi
 **Automatically captured:**
 - `status` — `"completed"`, `"incomplete"`, or `"error"`
 - `duration_ms` — Total run duration (measured client-side)
-- `step_timestamps` — Per-step timing with `start_ms` and `end_ms`
+- `steps` — Per-step breakdowns with timing, usage, and tool calls
 - `tool_calls` — Tool invocations with name, arguments, results, and source
 - `total_steps` — Number of reasoning/tool steps
 - `output_text` — Full response text (truncated at 50K characters)
@@ -142,7 +138,7 @@ import { streamText } from "ai";
 
 export async function POST(req: Request) {
   const result = streamText({
-    model: openai("gpt-4o"),
+    model: openai("gpt-5-mini"),
     messages,
   });
 
@@ -150,8 +146,8 @@ export async function POST(req: Request) {
     messageMetadata: ({ part }) => {
       if (part.type === "finish-step") {
         return {
-          modelId: part.response.modelId,  // Required for model_id
-          usage: part.usage,                // Required for token counts
+          modelId: part.response.modelId,
+          usage: part.usage,
         };
       }
       return undefined;
@@ -178,48 +174,31 @@ const cloud = new AssistantCloud({
 });
 ```
 
-Return `null` from `beforeReport` to skip reporting a specific run.
+Return `null` from `beforeReport` to skip reporting a specific run. To disable telemetry entirely, pass `telemetry: false`.
 
 ## Authentication
 
-The example above uses `anonymous: true` which creates a browser session-based user ID. This is suitable for public demos or prototypes.
+The example above uses anonymous mode (browser session-based user ID) via the env var. For production apps with user accounts, pass an explicit cloud instance:
 
-For production apps with user accounts, see the [Cloud Authorization](/docs/cloud/authorization) guide to persist threads per user or workspace.
+```tsx
+import { useAuth } from "@clerk/nextjs";
+import { AssistantCloud } from "assistant-cloud";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 
-## Next Steps
+function Chat() {
+  const { getToken } = useAuth();
 
-<Steps>
-<Step>
+  const cloud = useMemo(() => new AssistantCloud({
+    authToken: async () => getToken({ template: "assistant-ui" }),
+  }), [getToken]);
 
-### Add User Authentication
+  const runtime = useChatRuntime({ cloud });
+  // ...
+}
+```
 
-For multi-user apps, integrate your auth provider (Clerk, Auth0, etc.) to scope threads per user. See the [Authorization guide](/docs/cloud/authorization) for setup details.
+See the [Cloud Authorization](/docs/cloud/authorization) guide for other auth providers.
 
-</Step>
-<Step>
-
-### Customize the UI
-
-The `<Thread />` and `<ThreadList />` components are fully customizable via CSS and composition. See the [UI components docs](/docs/ui/thread) for styling options.
-
-</Step>
-<Step>
-
-### Explore Runtime Features
-
-Learn about [runtime hooks](/docs/api-reference/integrations/vercel-ai-sdk) for advanced use cases like custom message handling or tool streaming.
-
-</Step>
-</Steps>
-
-## When to Use This vs Standalone
-
-| Approach | Best For | Components |
-|----------|----------|------------|
-| **This guide** — `useChatRuntime` + assistant-ui | You want pre-built, polished UI components | `<Thread />`, `<ThreadList />` |
-| [AI SDK standalone](/docs/cloud/ai-sdk) — `useCloudChat` | You have custom UI, want minimal dependencies | Your own components |
-
-Both approaches use the same cloud backend and offer the same persistence features—choose based on your UI needs.
 
 ## Complete Example
 
