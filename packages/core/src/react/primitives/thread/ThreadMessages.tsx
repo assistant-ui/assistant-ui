@@ -112,7 +112,11 @@ const getComponent = (
           (components.Message as ComponentType)
         );
       } else {
-        return components.SystemMessage ?? DEFAULT_SYSTEM_MESSAGE;
+        return (
+          components.SystemMessage ??
+          (components.Message as ComponentType) ??
+          DEFAULT_SYSTEM_MESSAGE
+        );
       }
     default:
       const _exhaustiveCheck: never = role;
