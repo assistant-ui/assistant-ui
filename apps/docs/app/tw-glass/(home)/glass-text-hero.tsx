@@ -10,23 +10,23 @@ const MOUSE_SPRING = { stiffness: 200, damping: 30, mass: 0.3 };
 
 const GLASS_TEXT_DEFAULTS = {
   // Blur (height map)
-  blurStdDev: 1.1,
+  blurStdDev: 1.4,
   // Diffuse lighting
-  diffSurfaceScale: 8,
-  diffConstant: 1.4,
-  diffLightX: 0,
-  diffLightY: -160,
-  diffLightZ: 30,
+  diffSurfaceScale: 6.5,
+  diffConstant: 1,
+  diffLightX: 270,
+  diffLightY: 330,
+  diffLightZ: 40,
   // Specular lighting
   specSurfaceScale: 9,
-  specConstant: 3.2,
+  specConstant: 4.2,
   specExponent: 17,
-  specLightX: 0,
-  specLightY: 160,
-  specLightZ: 50,
+  specLightX: 180,
+  specLightY: -150,
+  specLightZ: 40,
   // Compositing
-  diffOpacity: 0.7,
-  specOpacity: 0.6,
+  diffOpacity: 0.65,
+  specOpacity: 0.5,
   // Background
   showBgImage: true,
   bgOpacity: 1,
