@@ -1,11 +1,11 @@
 import { View, StyleSheet, useColorScheme } from "react-native";
 import { ThemedText } from "@/components/themed-text";
-import { useMessage, MessageContent } from "@assistant-ui/react-native";
+import { useAuiState, MessageContent } from "@assistant-ui/react-native";
 import { MessageActionBar } from "./message-action-bar";
 import { MessageBranchPicker } from "./message-branch-picker";
 
 function TextPart({ part }: { part: { type: "text"; text: string } }) {
-  const role = useMessage((s) => s.role);
+  const role = useAuiState((s) => s.message.role);
   if (role === "user") {
     return <ThemedText style={styles.userText}>{part.text}</ThemedText>;
   }
@@ -23,8 +23,8 @@ function TextPart({ part }: { part: { type: "text"; text: string } }) {
 export function MessageBubble() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
-  const role = useMessage((s) => s.role);
-  const isRunning = useMessage((s) => s.status?.type === "running");
+  const role = useAuiState((s) => s.message.role);
+  const isRunning = useAuiState((s) => s.message.status?.type === "running");
   const isUser = role === "user";
 
   if (isUser) {

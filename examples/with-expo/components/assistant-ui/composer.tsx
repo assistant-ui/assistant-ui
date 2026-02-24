@@ -8,7 +8,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import {
   useAui,
-  useComposer,
+  useAuiState,
   useComposerSend,
   useComposerCancel,
 } from "@assistant-ui/react-native";
@@ -18,7 +18,7 @@ export function Composer() {
   const isDark = colorScheme === "dark";
 
   const aui = useAui();
-  const text = useComposer((s) => s.text);
+  const text = useAuiState((s) => s.composer.text);
   const { send, canSend } = useComposerSend();
   const { cancel, canCancel } = useComposerCancel();
 
