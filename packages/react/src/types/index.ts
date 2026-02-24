@@ -25,6 +25,7 @@ export type {
   ThreadMessage,
   Unsubscribe,
   QuoteInfo,
+  CreateAttachment,
 } from "@assistant-ui/core";
 
 // React-specific component types (stay in react)

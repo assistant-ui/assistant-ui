@@ -38,10 +38,23 @@ export type {
   // Attachment types
   Attachment,
   PendingAttachment,
+  CreateAttachment,
   AttachmentRuntime,
+  // Adapter types
+  AttachmentAdapter,
+  ThreadHistoryAdapter,
+  FeedbackAdapter,
+  SuggestionAdapter,
+  // Model context types
+  ModelContext,
+  ModelContextProvider,
+  LanguageModelConfig,
+  LanguageModelV1CallSettings,
   // Other
   Unsubscribe,
 } from "@assistant-ui/core";
+
+export { mergeModelContexts, tool } from "@assistant-ui/core";
 
 // Re-export store scope state types
 export type {

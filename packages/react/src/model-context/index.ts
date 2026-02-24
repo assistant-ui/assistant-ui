@@ -19,7 +19,14 @@ export {
 } from "./useAssistantDataUI";
 export { useInlineRender } from "./useInlineRender";
 
-export type { ModelContext, ModelContextProvider } from "@assistant-ui/core";
+export type {
+  ModelContext,
+  ModelContextProvider,
+  LanguageModelConfig,
+  LanguageModelV1CallSettings,
+} from "@assistant-ui/core";
+
+export { mergeModelContexts } from "@assistant-ui/core";
 
 export type { Tool } from "assistant-stream";
 

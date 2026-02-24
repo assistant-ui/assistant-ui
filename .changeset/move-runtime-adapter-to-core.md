@@ -4,4 +4,4 @@
 "@assistant-ui/react-native": patch
 ---
 
-refactor: move RuntimeAdapter base logic to @assistant-ui/core
+refactor: move RuntimeAdapter base logic to @assistant-ui/core; re-export missing core APIs from distribution packages
