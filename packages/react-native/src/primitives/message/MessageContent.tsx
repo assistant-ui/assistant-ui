@@ -4,7 +4,7 @@ import type {
   ThreadUserMessagePart,
   ThreadAssistantMessagePart,
 } from "@assistant-ui/core";
-import { useMessage } from "../../hooks/useMessage";
+import { useAuiState } from "@assistant-ui/store";
 
 type MessageContentPart = ThreadUserMessagePart | ThreadAssistantMessagePart;
 
@@ -56,7 +56,7 @@ export const MessageContent = ({
   renderFile,
   renderData,
 }: MessageContentProps) => {
-  const content = useMessage((s) => s.content);
+  const content = useAuiState((s) => s.message.content);
 
   return (
     <>

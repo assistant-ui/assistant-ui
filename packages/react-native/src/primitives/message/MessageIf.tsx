@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { useMessage } from "../../hooks/useMessage";
+import { useAuiState } from "@assistant-ui/store";
 
 export type MessageIfProps = {
   children: ReactNode;
@@ -16,7 +16,7 @@ export const MessageIf = ({
   running,
   last,
 }: MessageIfProps) => {
-  const message = useMessage();
+  const message = useAuiState((s) => s.message);
 
   if (user !== undefined) {
     if (user !== (message.role === "user")) return null;

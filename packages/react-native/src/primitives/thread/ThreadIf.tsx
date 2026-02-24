@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { useThread } from "../../hooks/useThread";
+import { useAuiState } from "@assistant-ui/store";
 
 export type ThreadIfProps = {
   children: ReactNode;
@@ -8,7 +8,7 @@ export type ThreadIfProps = {
 };
 
 export const ThreadIf = ({ children, empty, running }: ThreadIfProps) => {
-  const thread = useThread();
+  const thread = useAuiState((s) => s.thread);
 
   if (empty !== undefined) {
     const isEmpty = thread.messages.length === 0;

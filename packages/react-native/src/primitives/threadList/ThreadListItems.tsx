@@ -1,6 +1,6 @@
 import { type ReactElement, useCallback } from "react";
 import { FlatList, type FlatListProps } from "react-native";
-import { useThreadList } from "../../hooks/useThreadList";
+import { useAuiState } from "@assistant-ui/store";
 
 export type ThreadListItemsProps = Omit<
   FlatListProps<string>,
@@ -13,7 +13,7 @@ export const ThreadListItems = ({
   renderItem,
   ...flatListProps
 }: ThreadListItemsProps) => {
-  const threadIds = useThreadList((s) => s.threadIds);
+  const threadIds = useAuiState((s) => s.threads.threadIds);
 
   const renderFlatListItem = useCallback(
     ({ item, index }: { item: string; index: number }) => {

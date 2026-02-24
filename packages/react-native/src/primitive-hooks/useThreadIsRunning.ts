@@ -1,5 +1,5 @@
-import { useThread } from "../hooks/useThread";
+import { useAuiState } from "@assistant-ui/store";
 
 export const useThreadIsRunning = (): boolean => {
-  return useThread((s) => s.isRunning);
+  return useAuiState((s) => s.thread.isRunning);
 };
