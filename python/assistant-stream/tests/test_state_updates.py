@@ -59,3 +59,45 @@ async def test_streaming_path_emits_append_text_deltas_not_set() -> None:
         {"type": "append-text", "path": ["messages", "0", "text"], "value": "Hel"},
         {"type": "append-text", "path": ["messages", "0", "text"], "value": "lo"},
     ]
+
+
+@pytest.mark.anyio
+async def test_string_assignment_non_extension_emits_set() -> None:
+    ops: list[dict[str, Any]] = []
+    manager = StateManager(
+        lambda chunk: ops.extend(chunk.operations),
+        {"messages": [{"text": "hello"}]},
+    )
+
+    manager.state["messages"][0]["text"] = "goodbye"
+    manager.flush()
+
+    assert ops == [{"type": "set", "path": ["messages", "0", "text"], "value": "goodbye"}]
+
+
+@pytest.mark.anyio
+async def test_string_assignment_non_string_override_emits_set() -> None:
+    ops: list[dict[str, Any]] = []
+    manager = StateManager(
+        lambda chunk: ops.extend(chunk.operations),
+        {"messages": [{"text": "hello"}]},
+    )
+
+    manager.state["messages"][0]["text"] = 42
+    manager.flush()
+
+    assert ops == [{"type": "set", "path": ["messages", "0", "text"], "value": 42}]
+
+
+@pytest.mark.anyio
+async def test_string_assignment_unchanged_value_emits_set() -> None:
+    ops: list[dict[str, Any]] = []
+    manager = StateManager(
+        lambda chunk: ops.extend(chunk.operations),
+        {"messages": [{"text": "hello"}]},
+    )
+
+    manager.state["messages"][0]["text"] = "hello"
+    manager.flush()
+
+    assert ops == [{"type": "set", "path": ["messages", "0", "text"], "value": "hello"}]

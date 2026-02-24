@@ -102,7 +102,7 @@ class StateProxy:
 
         target_path = self._path + [str_key]
 
-        # Optimize string extensions into append-text deltas.
+        # Heuristic: encode any string extension as append-text.
         try:
             current_target_value = self._manager.get_value_at_path(target_path)
             if (
