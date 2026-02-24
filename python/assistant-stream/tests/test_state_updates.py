@@ -37,6 +37,25 @@ async def test_nested_plus_equals_on_string_emits_append_text() -> None:
 
 
 @pytest.mark.anyio
+async def test_nested_plus_equals_multiple_operations_accumulate() -> None:
+    ops: list[dict[str, Any]] = []
+    manager = StateManager(
+        lambda chunk: ops.extend(chunk.operations),
+        {"messages": [{"text": ""}]},
+    )
+
+    manager.state["messages"][0]["text"] += "Hel"
+    manager.state["messages"][0]["text"] += "lo"
+    manager.flush()
+
+    assert ops == [
+        {"type": "append-text", "path": ["messages", "0", "text"], "value": "Hel"},
+        {"type": "append-text", "path": ["messages", "0", "text"], "value": "lo"},
+    ]
+    assert manager.state_data["messages"][0]["text"] == "Hello"
+
+
+@pytest.mark.anyio
 async def test_streaming_path_emits_append_text_deltas_not_set() -> None:
     async def run_callback(controller: RunController):
         controller.append_state_text(["messages", 0, "text"], "Hel")
