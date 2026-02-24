@@ -16,6 +16,7 @@ import {
 } from "@assistant-ui/react-native";
 import { useAppRuntime } from "@/hooks/use-app-runtime";
 import { ThreadListDrawer } from "@/components/thread-list/ThreadListDrawer";
+import { WeatherTool } from "@/components/assistant-ui/tools";
 
 function NewChatButton() {
   const runtime = useAssistantRuntime();
@@ -65,6 +66,7 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <AssistantProvider runtime={runtime}>
+        <WeatherTool />
         <DrawerLayout />
       </AssistantProvider>
     </GestureHandlerRootView>

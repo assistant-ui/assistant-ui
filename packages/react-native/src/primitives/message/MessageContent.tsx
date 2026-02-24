@@ -1,10 +1,16 @@
-import { type ReactElement, Fragment } from "react";
+import { type ReactElement, Fragment, useMemo } from "react";
 import { Text } from "react-native";
 import type {
   ThreadUserMessagePart,
   ThreadAssistantMessagePart,
+  ToolCallMessagePart,
+  DataMessagePart,
 } from "@assistant-ui/core";
-import { useAuiState } from "@assistant-ui/store";
+import { useAui, useAuiState } from "@assistant-ui/store";
+import type {
+  ToolCallMessagePartProps,
+  DataMessagePartProps,
+} from "../../types/MessagePartComponentTypes";
 
 type MessageContentPart = ThreadUserMessagePart | ThreadAssistantMessagePart;
 
@@ -47,6 +53,63 @@ const DefaultTextRenderer = ({
   return <Text>{part.text}</Text>;
 };
 
+const ToolUIDisplay = ({
+  Fallback,
+  part,
+  index,
+}: {
+  Fallback:
+    | ((props: { part: ToolCallMessagePart; index: number }) => ReactElement)
+    | undefined;
+  part: ToolCallMessagePart;
+  index: number;
+}) => {
+  const aui = useAui();
+  const Render = useAuiState((s) => {
+    const renders = s.tools.tools[part.toolName];
+    if (Array.isArray(renders)) return renders[0];
+    return renders;
+  });
+
+  const partMethods = useMemo(
+    () => aui.message().part({ index }),
+    [aui, index],
+  );
+
+  if (Render) {
+    return (
+      <Render
+        {...(part as ToolCallMessagePartProps)}
+        addResult={partMethods.addToolResult}
+        resume={partMethods.resumeToolCall}
+      />
+    );
+  }
+  if (Fallback) return <Fallback part={part} index={index} />;
+  return null;
+};
+
+const DataUIDisplay = ({
+  Fallback,
+  part,
+  index,
+}: {
+  Fallback:
+    | ((props: { part: DataMessagePart; index: number }) => ReactElement)
+    | undefined;
+  part: DataMessagePart;
+  index: number;
+}) => {
+  const Render = useAuiState((s) => {
+    const renders = s.dataRenderers.renderers[part.name];
+    if (Array.isArray(renders)) return renders[0];
+    return renders;
+  });
+  if (Render) return <Render {...(part as DataMessagePartProps)} />;
+  if (Fallback) return <Fallback part={part} index={index} />;
+  return null;
+};
+
 export const MessageContent = ({
   renderText,
   renderToolCall,
@@ -74,9 +137,14 @@ export const MessageContent = ({
               </Fragment>
             );
           case "tool-call":
-            if (!renderToolCall) return null;
             return (
-              <Fragment key={key}>{renderToolCall({ part, index })}</Fragment>
+              <Fragment key={key}>
+                <ToolUIDisplay
+                  Fallback={renderToolCall}
+                  part={part}
+                  index={index}
+                />
+              </Fragment>
             );
           case "image":
             if (!renderImage) return null;
@@ -97,8 +165,15 @@ export const MessageContent = ({
             if (!renderFile) return null;
             return <Fragment key={key}>{renderFile({ part, index })}</Fragment>;
           case "data":
-            if (!renderData) return null;
-            return <Fragment key={key}>{renderData({ part, index })}</Fragment>;
+            return (
+              <Fragment key={key}>
+                <DataUIDisplay
+                  Fallback={renderData}
+                  part={part}
+                  index={index}
+                />
+              </Fragment>
+            );
           default:
             return null;
         }

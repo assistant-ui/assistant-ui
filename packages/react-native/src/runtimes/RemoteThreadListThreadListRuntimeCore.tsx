@@ -24,6 +24,7 @@ import {
 import { create } from "zustand";
 import { AssistantMessageStream } from "assistant-stream";
 import type { ModelContextProvider } from "@assistant-ui/core";
+import { RuntimeAdapterProvider } from "../context/providers/RuntimeAdapterProvider";
 
 export class RemoteThreadListThreadListRuntimeCore
   extends BaseSubscribable
@@ -118,11 +119,14 @@ export class RemoteThreadListThreadListRuntimeCore
     return this._loadThreadsPromise;
   }
 
+  private readonly contextProvider: ModelContextProvider;
+
   constructor(
     options: RemoteThreadListOptions,
-    _contextProvider: ModelContextProvider,
+    contextProvider: ModelContextProvider,
   ) {
     super();
+    this.contextProvider = contextProvider;
 
     this._state.subscribe(() => this._notifySubscribers());
     this._hookManager = new RemoteThreadListHookInstanceManager(
@@ -516,12 +520,18 @@ export class RemoteThreadListThreadListRuntimeCore
     const boundIds = this.useBoundIds();
     const { Provider } = this.useProvider();
 
+    const adapters = {
+      modelContext: this.contextProvider,
+    };
+
     return (
       (boundIds.length === 0 || boundIds[0] === id) && (
         // only render if the component is the first one mounted
-        <this._hookManager.__internal_RenderThreadRuntimes
-          provider={Provider}
-        />
+        <RuntimeAdapterProvider adapters={adapters}>
+          <this._hookManager.__internal_RenderThreadRuntimes
+            provider={Provider}
+          />
+        </RuntimeAdapterProvider>
       )
     );
   };

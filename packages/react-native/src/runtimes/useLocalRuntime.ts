@@ -39,12 +39,12 @@ const useInnerLocalRuntime = (
   >,
 ): AssistantRuntime => {
   const { initialMessages, ...restOptions } = options;
-  const runtimeAdapters = useRuntimeAdapters();
+  const { modelContext, ...threadListAdapters } = useRuntimeAdapters() ?? {};
 
   const opt: LocalRuntimeOptionsBase = {
     ...restOptions,
     adapters: {
-      ...runtimeAdapters,
+      ...threadListAdapters,
       ...restOptions.adapters,
       chatModel,
     },
@@ -71,6 +71,11 @@ const useInnerLocalRuntime = (
     runtime.threads.getMainThreadRuntimeCore().__internal_setOptions(opt);
     runtime.threads.getMainThreadRuntimeCore().__internal_load();
   });
+
+  useEffect(() => {
+    if (!modelContext) return undefined;
+    return runtime.registerModelContextProvider(modelContext);
+  }, [modelContext, runtime]);
 
   return useMemo(() => new AssistantRuntimeImpl(runtime), [runtime]);
 };

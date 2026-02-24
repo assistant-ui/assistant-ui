@@ -2,9 +2,11 @@ import { createContext, FC, ReactNode, useContext } from "react";
 import type {
   ThreadHistoryAdapter,
   AttachmentAdapter,
+  ModelContextProvider,
 } from "@assistant-ui/core";
 
 export type RuntimeAdapters = {
+  modelContext?: ModelContextProvider | undefined;
   history?: ThreadHistoryAdapter | undefined;
   attachments?: AttachmentAdapter | undefined;
 };

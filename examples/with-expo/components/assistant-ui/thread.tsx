@@ -1,6 +1,7 @@
 import {
   View,
   Text,
+  Pressable,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
@@ -9,7 +10,59 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MessageBubble } from "./message";
 import { Composer } from "./composer";
-import { ThreadMessages, useThreadIsEmpty } from "@assistant-ui/react-native";
+import {
+  ThreadMessages,
+  useThreadIsEmpty,
+  useAui,
+} from "@assistant-ui/react-native";
+
+function SuggestionChip({ title, prompt }: { title: string; prompt: string }) {
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+  const aui = useAui();
+
+  return (
+    <Pressable
+      onPress={() => aui.thread().append(prompt)}
+      style={[
+        styles.suggestionChip,
+        {
+          backgroundColor: isDark
+            ? "rgba(44, 44, 46, 0.8)"
+            : "rgba(229, 229, 234, 0.8)",
+        },
+      ]}
+    >
+      <Text
+        style={[
+          styles.suggestionText,
+          { color: isDark ? "#ffffff" : "#000000" },
+        ]}
+      >
+        {title}
+      </Text>
+    </Pressable>
+  );
+}
+
+const defaultSuggestions = [
+  {
+    title: "What's the weather in Tokyo?",
+    prompt: "What's the weather in Tokyo?",
+  },
+  { title: "Tell me a joke", prompt: "Tell me a joke" },
+  { title: "Help me write an email", prompt: "Help me write an email" },
+];
+
+function Suggestions() {
+  return (
+    <View style={styles.suggestionsContainer}>
+      {defaultSuggestions.map((s, i) => (
+        <SuggestionChip key={i} title={s.title} prompt={s.prompt} />
+      ))}
+    </View>
+  );
+}
 
 function EmptyState() {
   const colorScheme = useColorScheme();
@@ -38,6 +91,7 @@ function EmptyState() {
       >
         Send a message to start chatting
       </Text>
+      <Suggestions />
     </View>
   );
 }
@@ -127,6 +181,23 @@ const styles = StyleSheet.create({
   emptySubtitle: {
     fontSize: 15,
     textAlign: "center",
+    letterSpacing: -0.2,
+  },
+  suggestionsContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 8,
+    marginTop: 20,
+    paddingHorizontal: 16,
+  },
+  suggestionChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 18,
+  },
+  suggestionText: {
+    fontSize: 14,
     letterSpacing: -0.2,
   },
 });
