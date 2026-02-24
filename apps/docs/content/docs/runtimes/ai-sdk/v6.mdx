@@ -114,39 +114,31 @@ export default function Home() {
 
 ### useChatRuntime
 
-Creates a runtime integrated with AI SDK's `useChat` hook.
+Creates a runtime integrated with AI SDK's `useChat` hook. By default, it uses `AssistantChatTransport` which sends requests to `/api/chat` and automatically forwards system messages and frontend tools to your backend.
 
 ```tsx
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 
-const runtime = useChatRuntime({
-  api: "/api/chat", // optional, defaults to "/api/chat"
-});
+const runtime = useChatRuntime();
 ```
 
 ### Custom API URL
 
-```tsx
-const runtime = useChatRuntime({
-  api: "/my-custom-api/chat",
-});
-```
-
-### Forwarding System Messages and Frontend Tools
-
-Use `AssistantChatTransport` to automatically forward system messages and frontend tools to your backend:
+To use a different endpoint, pass a custom `AssistantChatTransport`:
 
 ```tsx
-"use client";
-
 import { useChatRuntime, AssistantChatTransport } from "@assistant-ui/react-ai-sdk";
 
 const runtime = useChatRuntime({
   transport: new AssistantChatTransport({
-    api: "/api/chat",
+    api: "/my-custom-api/chat",
   }),
 });
 ```
+
+### System Messages and Frontend Tools
+
+`AssistantChatTransport` (used by default) automatically forwards system messages and frontend tools to your backend. To consume them, update your backend route:
 
 Backend route with system/tools forwarding:
 

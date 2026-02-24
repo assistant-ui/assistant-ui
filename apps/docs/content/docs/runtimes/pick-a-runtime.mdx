@@ -130,9 +130,7 @@ Pre-built integrations can always be replaced with a custom `LocalRuntime` or `E
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 
 export function MyAssistant() {
-  const runtime = useChatRuntime({
-    api: "/api/chat",
-  });
+  const runtime = useChatRuntime();
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>

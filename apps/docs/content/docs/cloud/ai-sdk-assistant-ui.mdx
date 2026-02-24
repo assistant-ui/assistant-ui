@@ -96,7 +96,6 @@ export default function ChatPage() {
   });
 
   const runtime = useChatRuntime({
-    api: "/api/chat", // Your AI SDK endpoint
     cloud,
   });
 
@@ -182,13 +181,14 @@ The example above uses anonymous mode (browser session-based user ID) via the en
 
 ```tsx
 import { useAuth } from "@clerk/nextjs";
-import { AssistantCloud } from "assistant-cloud";
+import { AssistantCloud } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 
 function Chat() {
   const { getToken } = useAuth();
 
   const cloud = useMemo(() => new AssistantCloud({
+    baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
     authToken: async () => getToken({ template: "assistant-ui" }),
   }), [getToken]);
 
