@@ -250,3 +250,82 @@ import { useMessageBranching } from "@assistant-ui/react-native";
 const { branchNumber, branchCount, goToPrev, goToNext } =
   useMessageBranching();
 ```
+
+## Model Context Hooks
+
+### useAssistantTool
+
+Register a tool with an optional UI renderer. The tool definition is forwarded to the model, and when the model calls it, the `execute` function runs and the `render` component displays the result.
+
+```tsx
+import { useAssistantTool } from "@assistant-ui/react-native";
+
+useAssistantTool({
+  toolName: "get_weather",
+  description: "Get the current weather for a city",
+  parameters: {
+    type: "object",
+    properties: {
+      city: { type: "string" },
+    },
+    required: ["city"],
+  },
+  execute: async ({ city }) => {
+    const res = await fetch(`https://api.weather.example/${city}`);
+    return res.json();
+  },
+  render: ({ args, result }) => (
+    <View>
+      <Text>{args.city}: {result?.temperature}°F</Text>
+    </View>
+  ),
+});
+```
+
+### useAssistantToolUI
+
+Register only a UI renderer for a tool (without tool definition or execute function).
+
+```tsx
+import { useAssistantToolUI } from "@assistant-ui/react-native";
+
+useAssistantToolUI({
+  toolName: "get_weather",
+  render: ({ args, result, status }) => (
+    <View>
+      {status?.type === "running"
+        ? <Text>Loading weather for {args.city}...</Text>
+        : <Text>{args.city}: {result?.temperature}°F</Text>}
+    </View>
+  ),
+});
+```
+
+### useAssistantInstructions
+
+Register system instructions in the model context.
+
+```tsx
+import { useAssistantInstructions } from "@assistant-ui/react-native";
+
+useAssistantInstructions("You are a helpful weather assistant.");
+```
+
+### makeAssistantTool
+
+Create a component that registers a tool when mounted. Useful for declarative tool registration.
+
+```tsx
+import { makeAssistantTool } from "@assistant-ui/react-native";
+
+const WeatherTool = makeAssistantTool({
+  toolName: "get_weather",
+  description: "Get weather",
+  parameters: { type: "object", properties: { city: { type: "string" } }, required: ["city"] },
+  execute: async ({ city }) => ({ temperature: 72 }),
+  render: ({ args, result }) => <Text>{args.city}: {result?.temperature}°F</Text>,
+});
+
+// Mount inside AssistantProvider to register
+<WeatherTool />
+```

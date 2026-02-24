@@ -145,14 +145,13 @@ import { MessageRoot } from "@assistant-ui/react-native";
 
 ### MessageContent
 
-Renders message content parts with customizable renderers.
+Renders message content parts. Tool call and data parts automatically render registered tool UIs (via `useAssistantTool` / `useAssistantDataUI`), falling back to render props if provided.
 
 ```tsx
 import { MessageContent } from "@assistant-ui/react-native";
 
 <MessageContent
   renderText={({ part }) => <Text>{part.text}</Text>}
-  renderToolCall={({ part }) => <Text>Tool: {part.toolName}</Text>}
   renderImage={({ part }) => <Image source={{ uri: part.image }} />}
 />
 ```
@@ -160,12 +159,12 @@ import { MessageContent } from "@assistant-ui/react-native";
 | Prop | Type | Description |
 |------|------|-------------|
 | `renderText` | `(props: { part; index }) => ReactElement` | Text part renderer |
-| `renderToolCall` | `(props: { part; index }) => ReactElement` | Tool call renderer |
+| `renderToolCall` | `(props: { part; index }) => ReactElement` | Tool call fallback (used when no tool UI is registered) |
 | `renderImage` | `(props: { part; index }) => ReactElement` | Image part renderer |
 | `renderReasoning` | `(props: { part; index }) => ReactElement` | Reasoning part renderer |
 | `renderSource` | `(props: { part; index }) => ReactElement` | Source part renderer |
 | `renderFile` | `(props: { part; index }) => ReactElement` | File part renderer |
-| `renderData` | `(props: { part; index }) => ReactElement` | Data part renderer |
+| `renderData` | `(props: { part; index }) => ReactElement` | Data part fallback (used when no data UI is registered) |
 
 ### MessageIf
 

@@ -13,6 +13,7 @@ description: Build AI chat interfaces for iOS and Android with @assistant-ui/rea
 - **Reactive state** — `useAuiState` with selector support for fine-grained re-renders
 - **Local runtime** — `useLocalRuntime` with pluggable `ChatModelAdapter` for any LLM API
 - **Thread management** — Multi-thread support with create, switch, rename, delete
+- **Tool system** — `useAssistantTool`, `makeAssistantTool` for registering tools with custom UI renderers
 
 <Callout type="info">
   `@assistant-ui/react-native` shares its runtime core with `@assistant-ui/react` via `@assistant-ui/core`. The type system, state management, and runtime logic are identical — only the UI layer differs.
