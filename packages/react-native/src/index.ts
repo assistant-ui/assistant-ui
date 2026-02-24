@@ -1,3 +1,5 @@
+import "./types/store-augmentation";
+
 // Re-export core types
 export type {
   // Message types
@@ -125,6 +127,11 @@ export * from "./primitives/message";
 export * from "./primitives/threadList";
 export * from "./primitives/actionBar";
 export * from "./primitives/branchPicker";
+
+// Model context & tools
+export * from "./model-context";
+export * from "./client";
+export * from "./types";
 
 // Adapters
 export {
