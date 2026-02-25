@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import {
   BaseAssistantRuntimeCore,
   AssistantRuntimeImpl,
@@ -44,11 +44,27 @@ const useRemoteThreadListRuntimeImpl = (
 export const useRemoteThreadListRuntime = (
   options: RemoteThreadListOptions,
 ): AssistantRuntime => {
+  const runtimeHookRef = useRef(options.runtimeHook);
+  runtimeHookRef.current = options.runtimeHook;
+
+  const stableRuntimeHook = useCallback(() => {
+    return runtimeHookRef.current();
+  }, []);
+
+  const stableOptions = useMemo<RemoteThreadListOptions>(
+    () => ({
+      adapter: options.adapter,
+      allowNesting: options.allowNesting,
+      runtimeHook: stableRuntimeHook,
+    }),
+    [options.adapter, options.allowNesting, stableRuntimeHook],
+  );
+
   const aui = useAui();
   const isNested = aui.threadListItem.source !== null;
 
   if (isNested) {
-    if (!options.allowNesting) {
+    if (!stableOptions.allowNesting) {
       throw new Error(
         "useRemoteThreadListRuntime cannot be nested inside another RemoteThreadListRuntime. " +
           "Set allowNesting: true to allow nesting (the inner runtime will become a no-op).",
@@ -57,8 +73,8 @@ export const useRemoteThreadListRuntime = (
 
     // If allowNesting is true and already inside a thread list context,
     // just call the runtimeHook directly (no-op behavior)
-    return options.runtimeHook();
+    return stableRuntimeHook();
   }
 
-  return useRemoteThreadListRuntimeImpl(options);
+  return useRemoteThreadListRuntimeImpl(stableOptions);
 };
