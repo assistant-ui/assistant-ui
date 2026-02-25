@@ -1,0 +1,4 @@
+interface:
+  display_name: "Changeset"
+  short_description: "Create non-interactive release changesets"
+  default_prompt: "Use $changeset to add a non-interactive changeset for this PR."

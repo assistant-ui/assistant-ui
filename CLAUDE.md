@@ -59,6 +59,9 @@ pnpm changeset
 
 This does NOT apply to private packages like `@assistant-ui/docs`, `@assistant-ui/shadcn-registry`, or `@assistant-ui/x-buildutils`.
 
+For agent workflows, use the `CHANGESET` skill for non-interactive changeset creation:
+- `skills/changeset/SKILL.md`
+
 ## Code Style & Linting
 
 Biome enforces all formatting and linting. Key rules:
