@@ -24,6 +24,7 @@ export type LangGraphCommand = {
 export type LangGraphSendMessageConfig = {
   command?: LangGraphCommand;
   runConfig?: unknown;
+  checkpointId?: string;
 };
 
 export type LangGraphMessagesEvent<TMessage> = {
@@ -93,7 +94,15 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
   const [interrupt, setInterrupt] = useState<
     LangGraphInterruptState | undefined
   >();
-  const [messages, setMessages] = useState<TMessage[]>([]);
+  const [messages, _setMessages] = useState<TMessage[]>([]);
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
+
+  const setMessagesImmediate = useCallback((msgs: TMessage[]) => {
+    messagesRef.current = msgs;
+    _setMessages(msgs);
+  }, []);
+
   const [messageMetadata, setMessageMetadata] = useState<
     Map<string, LangGraphTupleMetadata>
   >(new Map());
@@ -118,10 +127,10 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
       );
 
       const accumulator = new LangGraphMessageAccumulator({
-        initialMessages: messages,
+        initialMessages: messagesRef.current,
         appendMessage,
       });
-      setMessages(accumulator.addMessages(newMessagesWithId));
+      setMessagesImmediate(accumulator.addMessages(newMessagesWithId));
 
       const abortController = new AbortController();
       abortControllerRef.current = abortController;
@@ -137,12 +146,14 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
         switch (chunk.event) {
           case LangGraphKnownEventTypes.MessagesPartial:
           case LangGraphKnownEventTypes.MessagesComplete:
-            setMessages(accumulator.addMessages(chunk.data));
+            setMessagesImmediate(accumulator.addMessages(chunk.data));
             break;
           case LangGraphKnownEventTypes.Updates:
             onUpdates?.(chunk.data);
             if (Array.isArray(chunk.data.messages)) {
-              setMessages(accumulator.replaceMessages(chunk.data.messages));
+              setMessagesImmediate(
+                accumulator.replaceMessages(chunk.data.messages),
+              );
             }
             setInterrupt(chunk.data.__interrupt__?.[0]);
             break;
@@ -176,7 +187,7 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
               : accumulator.addMessages([
                   normalizedChunk as unknown as TMessage,
                 ]);
-            setMessages(updatedMessages);
+            setMessagesImmediate(updatedMessages);
             setMessageMetadata(new Map(accumulator.getMetadataMap()));
             break;
           }
@@ -204,7 +215,7 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
                   error: chunk.data,
                 },
               };
-              setMessages(accumulator.addMessages([errorMessage]));
+              setMessagesImmediate(accumulator.addMessages([errorMessage]));
             }
             break;
           }
@@ -224,7 +235,7 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
     },
     [
       aui,
-      messages,
+      setMessagesImmediate,
       appendMessage,
       stream,
       onMessageChunk,
@@ -250,6 +261,6 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
     sendMessage,
     cancel,
     setInterrupt,
-    setMessages,
+    setMessages: setMessagesImmediate,
   };
 };
