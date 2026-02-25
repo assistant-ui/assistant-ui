@@ -9,11 +9,13 @@ import type { Tool } from "assistant-stream";
 import { type Toolkit } from "../model-context/toolbox";
 import { ToolCallMessagePartComponent } from "../types";
 import { ModelContext } from "../../store";
+import { clearToolActivityState, setToolActivityState } from "./tools-state";
 
 export const Tools = resource(
   ({ toolkit }: { toolkit?: Toolkit }): ClientOutput<"tools"> => {
     const [state, setState] = tapState<ToolsState>(() => ({
       tools: {},
+      toolActivities: {},
     }));
 
     const clientRef = tapAssistantClientRef();
@@ -46,6 +48,17 @@ export const Tools = resource(
       [],
     );
 
+    const setToolActivity = tapCallback(
+      (toolName: string, activity: ToolsState["toolActivities"][string]) => {
+        setState((prev) => setToolActivityState(prev, toolName, activity));
+
+        return () => {
+          setState((prev) => clearToolActivityState(prev, toolName, activity));
+        };
+      },
+      [],
+    );
+
     tapEffect(() => {
       if (!toolkit) return;
       const unsubscribes: (() => void)[] = [];
@@ -55,12 +68,15 @@ export const Tools = resource(
         if (tool.render) {
           unsubscribes.push(setToolUI(toolName, tool.render));
         }
+        if (tool.activity) {
+          unsubscribes.push(setToolActivity(toolName, tool.activity));
+        }
       }
 
       // Register tools with model context (exclude symbols)
       const toolsWithoutRender = Object.entries(toolkit).reduce(
         (acc, [name, tool]) => {
-          const { render, ...rest } = tool;
+          const { render, activity, ...rest } = tool;
           acc[name] = rest;
           return acc;
         },
@@ -80,11 +96,12 @@ export const Tools = resource(
       return () => {
         unsubscribes.forEach((fn) => fn());
       };
-    }, [toolkit, setToolUI, clientRef]);
+    }, [toolkit, setToolUI, setToolActivity, clientRef]);
 
     return {
       getState: () => state,
       setToolUI,
+      setToolActivity,
     };
   },
 );

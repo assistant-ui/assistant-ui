@@ -66,7 +66,7 @@ const ToolUIDisplay = ({
 }) => {
   const aui = useAui();
   const Render = useAuiState((s) => {
-    const renders = s.tools.tools[part.toolName];
+    const renders = "tools" in s ? s.tools.tools[part.toolName] : undefined;
     if (Array.isArray(renders)) return renders[0];
     return renders;
   });
@@ -101,7 +101,8 @@ const DataUIDisplay = ({
   index: number;
 }) => {
   const Render = useAuiState((s) => {
-    const renders = s.dataRenderers.renderers[part.name];
+    const renders =
+      "dataRenderers" in s ? s.dataRenderers.renderers[part.name] : undefined;
     if (Array.isArray(renders)) return renders[0];
     return renders;
   });

@@ -1151,7 +1151,7 @@ export function ChainOfThoughtHeadlineStreamingFullBleedSample() {
                           trace={trace}
                           maxDepth={3}
                           autoScroll={false}
-                          scrollable={false}
+                          constrainHeight={false}
                           allowGroupExpand
                         />
                       </ChainOfThoughtContent>

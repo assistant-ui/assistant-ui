@@ -25,7 +25,9 @@ export namespace ChainOfThoughtPrimitiveParts {
         Fallback?: ToolCallMessagePartComponent | undefined;
       };
       /** Layout component to wrap the rendered parts when expanded */
-      Layout?: ComponentType<PropsWithChildren> | undefined;
+      Layout?:
+        | ComponentType<PropsWithChildren<{ partIndex?: number }>>
+        | undefined;
     };
   };
 }
@@ -57,7 +59,7 @@ export const ChainOfThoughtPrimitiveParts: FC<
     return Array.from({ length: partsLength }, (_, index) => (
       <ChainOfThoughtPartByIndexProvider key={index} index={index}>
         {Layout ? (
-          <Layout>
+          <Layout partIndex={index}>
             <MessagePartComponent components={messageComponents} />
           </Layout>
         ) : (

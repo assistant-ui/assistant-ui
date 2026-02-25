@@ -22,6 +22,8 @@ export type {
 } from "./MessagePartComponentTypes";
 
 export type {
+  ToolActivity,
+  ToolActivityContext,
   ToolsState,
   ToolsMethods,
   ToolsClientSchema,

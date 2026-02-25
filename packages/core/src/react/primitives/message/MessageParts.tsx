@@ -257,7 +257,8 @@ const ToolUIDisplay = ({
   Fallback: ToolCallMessagePartComponent | undefined;
 } & ToolCallMessagePartProps) => {
   const Render = useAuiState((s) => {
-    const Render = s.tools.tools[props.toolName] ?? Fallback;
+    const registeredTools = "tools" in s ? s.tools.tools : undefined;
+    const Render = registeredTools?.[props.toolName] ?? Fallback;
     if (Array.isArray(Render)) return Render[0] ?? Fallback;
     return Render;
   });
@@ -272,7 +273,9 @@ const DataUIDisplay = ({
   Fallback: DataMessagePartComponent | undefined;
 } & DataMessagePartProps) => {
   const Render = useAuiState((s) => {
-    const Render = s.dataRenderers.renderers[props.name] ?? Fallback;
+    const registeredDataRenderers =
+      "dataRenderers" in s ? s.dataRenderers.renderers : undefined;
+    const Render = registeredDataRenderers?.[props.name] ?? Fallback;
     if (Array.isArray(Render)) return Render[0] ?? Fallback;
     return Render;
   });

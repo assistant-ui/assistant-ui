@@ -50,6 +50,8 @@ export type {
 
 // Scope types from core/react
 export type {
+  ToolActivity,
+  ToolActivityContext,
   ToolsState,
   ToolsMethods,
   ToolsClientSchema,

@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useAui } from "@assistant-ui/store";
 import type { ToolCallMessagePartComponent } from "../types/MessagePartComponentTypes";
+import type { ToolActivity } from "../types";
 import type { AssistantToolProps as CoreAssistantToolProps } from "../..";
 
 export type AssistantToolProps<
@@ -8,6 +9,7 @@ export type AssistantToolProps<
   TResult,
 > = CoreAssistantToolProps<TArgs, TResult> & {
   render?: ToolCallMessagePartComponent<TArgs, TResult> | undefined;
+  activity?: ToolActivity | undefined;
 };
 
 export const useAssistantTool = <
@@ -24,7 +26,12 @@ export const useAssistantTool = <
   }, [aui, tool.toolName, tool.render]);
 
   useEffect(() => {
-    const { toolName, render, ...rest } = tool;
+    if (!tool.activity) return undefined;
+    return aui.tools().setToolActivity(tool.toolName, tool.activity);
+  }, [aui, tool.toolName, tool.activity]);
+
+  useEffect(() => {
+    const { toolName, render, activity, ...rest } = tool;
     const context = {
       tools: {
         [toolName]: rest,
