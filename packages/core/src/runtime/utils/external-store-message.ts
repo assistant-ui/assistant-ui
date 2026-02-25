@@ -18,6 +18,21 @@ export const getExternalStoreMessage = <T>(input: ThreadMessage) => {
 
 const EMPTY_ARRAY: never[] = [];
 
+/**
+ * Attach the original external store message(s) to a ThreadMessage or message part.
+ * This is a no-op if the target already has a bound message.
+ * Use `getExternalStoreMessages` to retrieve the bound messages later.
+ *
+ * @deprecated This API is experimental and may change without notice.
+ */
+export const bindExternalStoreMessage = <T>(
+  target: object,
+  message: T | T[],
+): void => {
+  if (symbolInnerMessage in target) return;
+  (target as WithInnerMessages<T>)[symbolInnerMessage] = message;
+};
+
 export const getExternalStoreMessages = <T>(
   input:
     | { messages: readonly ThreadMessage[] }

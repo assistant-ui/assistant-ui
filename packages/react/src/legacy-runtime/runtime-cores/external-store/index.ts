@@ -3,6 +3,7 @@ export type { ThreadMessageLike } from "@assistant-ui/core";
 export {
   getExternalStoreMessage,
   getExternalStoreMessages,
+  bindExternalStoreMessage,
 } from "@assistant-ui/core";
 export type {
   ExternalStoreAdapter,

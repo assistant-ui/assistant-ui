@@ -10,7 +10,7 @@ import type {
 import type { ExternalStoreAdapter } from "./external-store-adapter";
 import {
   getExternalStoreMessages,
-  symbolInnerMessage,
+  bindExternalStoreMessage,
 } from "../../runtime/utils/external-store-message";
 import { ThreadMessageConverter } from "./thread-message-converter";
 import { getAutoStatus, isAutoStatus } from "../../runtime/utils/auto-status";
@@ -208,7 +208,7 @@ export class ExternalStoreThreadRuntimeCore
               idx.toString(),
               autoStatus,
             );
-            (newMessage as any)[symbolInnerMessage] = m;
+            bindExternalStoreMessage(newMessage, m);
             return newMessage;
           });
 

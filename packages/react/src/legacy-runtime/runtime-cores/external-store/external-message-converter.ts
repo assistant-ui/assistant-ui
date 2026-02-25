@@ -5,6 +5,7 @@ import { ThreadMessageConverter } from "./ThreadMessageConverter";
 import {
   getExternalStoreMessages,
   symbolInnerMessage,
+  bindExternalStoreMessage,
 } from "./getExternalStoreMessage";
 import { fromThreadMessageLike, ThreadMessageLike } from "./ThreadMessageLike";
 import { getAutoStatus, isAutoStatus } from "./auto-status";
@@ -276,23 +277,22 @@ const chunkExternalMessages = <T>(
 function createErrorAssistantMessage(
   error: ReadonlyJSONValue,
 ): ThreadAssistantMessage {
-  return Object.assign<ThreadAssistantMessage, { [symbolInnerMessage]: [] }>(
-    {
-      id: generateErrorMessageId(),
-      role: "assistant",
-      content: [],
-      status: { type: "incomplete", reason: "error", error },
-      createdAt: new Date(),
-      metadata: {
-        unstable_state: null,
-        unstable_annotations: [],
-        unstable_data: [],
-        custom: {},
-        steps: [],
-      },
+  const msg: ThreadAssistantMessage = {
+    id: generateErrorMessageId(),
+    role: "assistant",
+    content: [],
+    status: { type: "incomplete", reason: "error", error },
+    createdAt: new Date(),
+    metadata: {
+      unstable_state: null,
+      unstable_annotations: [],
+      unstable_data: [],
+      custom: {},
+      steps: [],
     },
-    { [symbolInnerMessage]: [] },
-  );
+  };
+  bindExternalStoreMessage(msg, []);
+  return msg;
 }
 
 export const convertExternalMessages = <T extends WeakKey>(
@@ -331,7 +331,7 @@ export const convertExternalMessages = <T extends WeakKey>(
       idx.toString(),
       autoStatus,
     );
-    (newMessage as any)[symbolInnerMessage] = message.inputs;
+    bindExternalStoreMessage(newMessage, message.inputs);
     return newMessage;
   });
 
@@ -439,14 +439,12 @@ export const useExternalMessageConverter = <T extends WeakKey>({
           idx.toString(),
           autoStatus,
         );
-        (newMessage as any)[symbolInnerMessage] = message.inputs;
+        bindExternalStoreMessage(newMessage, message.inputs);
         return newMessage;
       },
     );
 
-    (threadMessages as unknown as { [symbolInnerMessage]: T[] })[
-      symbolInnerMessage
-    ] = messages;
+    bindExternalStoreMessage(threadMessages, messages);
 
     if (state.metadata.error) {
       const lastMessage = threadMessages.at(-1);

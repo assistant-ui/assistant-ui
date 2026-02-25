@@ -1157,6 +1157,29 @@ const ToolUI = makeAssistantToolUI({
 });
 ```
 
+### Binding External Messages Manually
+
+Use `bindExternalStoreMessage` to attach your original message to a `ThreadMessage` or message part object. This is useful when you construct `ThreadMessage` objects yourself (outside of the built-in message converter) and want `getExternalStoreMessages` to work with them.
+
+```tsx
+import {
+  bindExternalStoreMessage,
+  getExternalStoreMessages,
+} from "@assistant-ui/react";
+
+// Attach your original message to a ThreadMessage
+bindExternalStoreMessage(threadMessage, originalMessage);
+
+// Later, retrieve it
+const original = getExternalStoreMessages(threadMessage);
+```
+
+<Callout type="warn">
+  This API is experimental and may change without notice.
+</Callout>
+
+`bindExternalStoreMessage` is a no-op if the target already has a bound message. It mutates the target object in place.
+
 ## Debugging
 
 ### Common Debugging Scenarios

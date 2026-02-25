@@ -101,6 +101,7 @@ export type { ThreadMessageLike } from "./utils/thread-message-like";
 export {
   getExternalStoreMessage,
   getExternalStoreMessages,
+  bindExternalStoreMessage,
 } from "./utils/external-store-message";
 
 // ExportedMessageRepository
