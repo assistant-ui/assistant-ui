@@ -1,5 +1,30 @@
 # @assistant-ui/react-langgraph
 
+## 0.13.1
+
+### Patch Changes
+
+- 36ef3a2: chore: update dependencies
+- 02c6f44: feat(react-langgraph): add `onEdit` and `onReload` support via `getCheckpointId` option
+
+  Added `getCheckpointId` callback to `useLangGraphRuntime`. When provided, enables message editing (branching) and regeneration by resolving the appropriate LangGraph checkpoint ID for server-side forking. The checkpoint ID flows through to the `stream` callback via `LangGraphSendMessageConfig.checkpointId`.
+
+  Also fixed a stale closure bug in `useLangGraphMessages` where the message accumulator could initialize with outdated messages when `setMessages` and `sendMessage` were called in the same React frame.
+
+- e1d839e: feat(react-langgraph): support `additional_kwargs.metadata` in LangGraph message converter, mapping it to `ThreadMessage.metadata.custom`
+- Updated dependencies [36ef3a2]
+- Updated dependencies [6692226]
+- Updated dependencies [c31c0fa]
+- Updated dependencies [1672be8]
+- Updated dependencies [28f39fe]
+- Updated dependencies [3a1cb66]
+- Updated dependencies [14769af]
+- Updated dependencies [7c360ce]
+- Updated dependencies [a638f05]
+- Updated dependencies [8a78cd2]
+  - assistant-stream@0.3.4
+  - @assistant-ui/react@0.12.12
+
 ## 0.13.0
 
 ### Minor Changes

@@ -1,5 +1,24 @@
 # @assistant-ui/react-ag-ui
 
+## 0.0.18
+
+### Patch Changes
+
+- 36ef3a2: chore: update dependencies
+- 8c29377: fix(react-ag-ui): route tool results to the latest pending tool call and avoid false auto-resume triggers
+- Updated dependencies [36ef3a2]
+- Updated dependencies [6692226]
+- Updated dependencies [c31c0fa]
+- Updated dependencies [1672be8]
+- Updated dependencies [28f39fe]
+- Updated dependencies [3a1cb66]
+- Updated dependencies [14769af]
+- Updated dependencies [7c360ce]
+- Updated dependencies [a638f05]
+- Updated dependencies [8a78cd2]
+  - assistant-stream@0.3.4
+  - @assistant-ui/react@0.12.12
+
 ## 0.0.17
 
 ### Patch Changes

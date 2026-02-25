@@ -1,5 +1,28 @@
 # @assistant-ui/core
 
+## 0.1.1
+
+### Patch Changes
+
+- a638f05: refactor(core): depend on @assistant-ui/store, register chat scopes via module augmentation
+- 28f39fe: Support custom content types via `data-*` prefix in ThreadMessageLike (auto-converted to DataMessagePart), widen `BaseAttachment.type` to accept custom strings, make `contentType` optional
+- 36ef3a2: chore: update dependencies
+- 6692226: feat: support external source attachments in composer
+
+  `addAttachment()` now accepts either a `File` or a `CreateAttachment` descriptor, allowing users to add attachments from external sources (URLs, API data, CMS references) without creating dummy `File` objects or requiring an `AttachmentAdapter`.
+
+- c31c0fa: Extract shared React code (model-context, client, types, providers, RuntimeAdapter) into `@assistant-ui/core/react` sub-path so both `@assistant-ui/react` and `@assistant-ui/react-native` re-export from one source.
+- fc98475: feat(core): move `@assistant-ui/tap` to peerDependencies to fix npm deduplication
+- 374f83a: fix(core): stabilize object references in ExternalStoreThreadRuntimeCore to prevent infinite re-render loop
+- 1672be8: feat: bindExternalStoreMessage
+- 14769af: refactor: move RuntimeAdapter base logic to @assistant-ui/core; re-export missing core APIs from distribution packages
+- Updated dependencies [36ef3a2]
+- Updated dependencies [fc98475]
+- Updated dependencies [a638f05]
+  - assistant-stream@0.3.4
+  - @assistant-ui/store@0.2.1
+  - @assistant-ui/tap@0.5.1
+
 ## 0.1.0
 
 ### Minor Changes

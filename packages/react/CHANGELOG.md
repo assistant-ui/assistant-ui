@@ -1,5 +1,39 @@
 # @assistant-ui/react
 
+## 0.12.12
+
+### Patch Changes
+
+- 36ef3a2: chore: update dependencies
+- 6692226: feat: support external source attachments in composer
+
+  `addAttachment()` now accepts either a `File` or a `CreateAttachment` descriptor, allowing users to add attachments from external sources (URLs, API data, CMS references) without creating dummy `File` objects or requiring an `AttachmentAdapter`.
+
+- c31c0fa: Extract shared React code (model-context, client, types, providers, RuntimeAdapter) into `@assistant-ui/core/react` sub-path so both `@assistant-ui/react` and `@assistant-ui/react-native` re-export from one source.
+- 1672be8: feat: bindExternalStoreMessage
+- 28f39fe: Handle unknown attachment types with fallback component and unknown message part types with `console.warn` instead of throwing
+- 3a1cb66: feat: assistant transport prepareRequestBody support
+- 14769af: refactor: move RuntimeAdapter base logic to @assistant-ui/core; re-export missing core APIs from distribution packages
+- 7c360ce: Update npm README
+- a638f05: refactor(react): target @assistant-ui/store for ScopeRegistry module augmentation
+- 8a78cd2: fix: stabilize runtimeHook identity in useRemoteThreadListRuntime to avoid unnecessary option updates and thread state churn
+- Updated dependencies [a638f05]
+- Updated dependencies [28f39fe]
+- Updated dependencies [36ef3a2]
+- Updated dependencies [6692226]
+- Updated dependencies [c31c0fa]
+- Updated dependencies [fc98475]
+- Updated dependencies [374f83a]
+- Updated dependencies [fc98475]
+- Updated dependencies [1672be8]
+- Updated dependencies [14769af]
+- Updated dependencies [a638f05]
+  - @assistant-ui/core@0.1.1
+  - assistant-stream@0.3.4
+  - assistant-cloud@0.1.19
+  - @assistant-ui/store@0.2.1
+  - @assistant-ui/tap@0.5.1
+
 ## 0.12.11
 
 ### Patch Changes
