@@ -147,6 +147,8 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     stepTimestamps?: StepTimestamp[],
   ) {
     const mergedSteps = mergeStepTimestamps(data.steps, stepTimestamps);
+    // Keep in sync with assistant-cloud createRunSchema
+    // (apps/aui-cloud-api/src/endpoints/runs/create.ts).
     const initial: Parameters<typeof this.cloudRef.current.runs.report>[0] = {
       thread_id: remoteId,
       status: data.status,
@@ -160,6 +162,12 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
         : undefined),
       ...(data.outputTokens != null
         ? { output_tokens: data.outputTokens }
+        : undefined),
+      ...(data.reasoningTokens != null
+        ? { reasoning_tokens: data.reasoningTokens }
+        : undefined),
+      ...(data.cachedInputTokens != null
+        ? { cached_input_tokens: data.cachedInputTokens }
         : undefined),
       ...(durationMs != null ? { duration_ms: durationMs } : undefined),
       ...(data.outputText != null
@@ -253,6 +261,8 @@ function buildToolCall(
 type TelemetryStepData = {
   input_tokens?: number;
   output_tokens?: number;
+  reasoning_tokens?: number;
+  cached_input_tokens?: number;
   tool_calls?: TelemetryToolCall[];
   start_ms?: number;
   end_ms?: number;
@@ -280,6 +290,8 @@ type TelemetryData = {
   totalSteps?: number;
   inputTokens?: number;
   outputTokens?: number;
+  reasoningTokens?: number;
+  cachedInputTokens?: number;
   outputText?: string;
   metadata?: Record<string, unknown>;
   steps?: TelemetryStepData[];
@@ -332,7 +344,12 @@ function extractAuiV0<T>(content: T): TelemetryData | null {
     metadata?: {
       modelId?: string;
       steps?: readonly {
-        usage?: { inputTokens?: number; outputTokens?: number };
+        usage?: {
+          inputTokens?: number;
+          outputTokens?: number;
+          reasoningTokens?: number;
+          cachedInputTokens?: number;
+        };
       }[];
       custom?: Record<string, unknown> & { modelId?: string };
     };
@@ -355,13 +372,39 @@ function extractAuiV0<T>(content: T): TelemetryData | null {
   const steps = msg.metadata?.steps;
   let inputTokens: number | undefined;
   let outputTokens: number | undefined;
+  let reasoningTokens: number | undefined;
+  let cachedInputTokens: number | undefined;
   if (steps && steps.length > 0) {
-    inputTokens = 0;
-    outputTokens = 0;
+    let totalInput = 0;
+    let totalOutput = 0;
+    let totalReasoning = 0;
+    let totalCachedInput = 0;
+    let hasInput = false;
+    let hasOutput = false;
+    let hasReasoning = false;
+    let hasCachedInput = false;
     for (const step of steps) {
-      inputTokens += step.usage?.inputTokens ?? 0;
-      outputTokens += step.usage?.outputTokens ?? 0;
+      if (step.usage?.inputTokens != null) {
+        totalInput += step.usage.inputTokens;
+        hasInput = true;
+      }
+      if (step.usage?.outputTokens != null) {
+        totalOutput += step.usage.outputTokens;
+        hasOutput = true;
+      }
+      if (step.usage?.reasoningTokens != null) {
+        totalReasoning += step.usage.reasoningTokens;
+        hasReasoning = true;
+      }
+      if (step.usage?.cachedInputTokens != null) {
+        totalCachedInput += step.usage.cachedInputTokens;
+        hasCachedInput = true;
+      }
     }
+    inputTokens = hasInput ? totalInput : undefined;
+    outputTokens = hasOutput ? totalOutput : undefined;
+    reasoningTokens = hasReasoning ? totalReasoning : undefined;
+    cachedInputTokens = hasCachedInput ? totalCachedInput : undefined;
   }
 
   const statusType = msg.status?.type;
@@ -384,6 +427,12 @@ function extractAuiV0<T>(content: T): TelemetryData | null {
           ...(s.usage?.outputTokens != null
             ? { output_tokens: s.usage.outputTokens }
             : undefined),
+          ...(s.usage?.reasoningTokens != null
+            ? { reasoning_tokens: s.usage.reasoningTokens }
+            : undefined),
+          ...(s.usage?.cachedInputTokens != null
+            ? { cached_input_tokens: s.usage.cachedInputTokens }
+            : undefined),
         }))
       : undefined;
 
@@ -393,6 +442,8 @@ function extractAuiV0<T>(content: T): TelemetryData | null {
     ...(steps?.length ? { totalSteps: steps.length } : undefined),
     ...(inputTokens != null ? { inputTokens } : undefined),
     ...(outputTokens != null ? { outputTokens } : undefined),
+    ...(reasoningTokens != null ? { reasoningTokens } : undefined),
+    ...(cachedInputTokens != null ? { cachedInputTokens } : undefined),
     ...(outputText != null ? { outputText } : undefined),
     ...(metadata ? { metadata } : undefined),
     ...(telemetrySteps ? { steps: telemetrySteps } : undefined),
@@ -491,7 +542,12 @@ function buildAiSdkV6Result(
   totalSteps: number,
   metadata?: Record<string, unknown>,
   stepsData?: { tool_calls: TelemetryToolCall[] }[],
-  usage?: { inputTokens?: number; outputTokens?: number },
+  usage?: {
+    inputTokens?: number;
+    outputTokens?: number;
+    reasoningTokens?: number;
+    cachedInputTokens?: number;
+  },
 ): TelemetryData {
   const hasText = textParts.length > 0;
   const outputText = hasText ? truncateStr(textParts.join("")) : undefined;
@@ -516,6 +572,12 @@ function buildAiSdkV6Result(
     ...(usage?.outputTokens != null
       ? { outputTokens: usage.outputTokens }
       : undefined),
+    ...(usage?.reasoningTokens != null
+      ? { reasoningTokens: usage.reasoningTokens }
+      : undefined),
+    ...(usage?.cachedInputTokens != null
+      ? { cachedInputTokens: usage.cachedInputTokens }
+      : undefined),
     ...(outputText != null ? { outputText } : undefined),
     ...(metadata ? { metadata } : undefined),
     ...(steps ? { steps } : undefined),
@@ -528,23 +590,49 @@ type UsageFields = {
   outputTokens?: number;
   promptTokens?: number;
   completionTokens?: number;
+  reasoningTokens?: number;
+  cachedInputTokens?: number;
 };
 
-function normalizeUsage(
-  u: UsageFields,
-): { inputTokens: number; outputTokens: number } | undefined {
+function normalizeUsage(u: UsageFields):
+  | {
+      inputTokens?: number;
+      outputTokens?: number;
+      reasoningTokens?: number;
+      cachedInputTokens?: number;
+    }
+  | undefined {
   const input = u.inputTokens ?? u.promptTokens;
   const output = u.outputTokens ?? u.completionTokens;
-  if (input == null && output == null) return undefined;
+  if (
+    input == null &&
+    output == null &&
+    u.reasoningTokens == null &&
+    u.cachedInputTokens == null
+  ) {
+    return undefined;
+  }
+
   return {
-    inputTokens: input ?? 0,
-    outputTokens: output ?? 0,
+    ...(input != null ? { inputTokens: input } : undefined),
+    ...(output != null ? { outputTokens: output } : undefined),
+    ...(u.reasoningTokens != null
+      ? { reasoningTokens: u.reasoningTokens }
+      : undefined),
+    ...(u.cachedInputTokens != null
+      ? { cachedInputTokens: u.cachedInputTokens }
+      : undefined),
   };
 }
 
-function extractAiSdkV6Usage(
-  metadata?: Record<string, unknown>,
-): { inputTokens?: number; outputTokens?: number } | undefined {
+function extractAiSdkV6Usage(metadata?: Record<string, unknown>):
+  | {
+      inputTokens?: number;
+      outputTokens?: number;
+      reasoningTokens?: number;
+      cachedInputTokens?: number;
+    }
+  | undefined {
   // Try top-level metadata.usage
   const usage = metadata?.usage as UsageFields | undefined;
   if (usage) {
@@ -559,17 +647,44 @@ function extractAiSdkV6Usage(
   if (steps && steps.length > 0) {
     let inputTokens = 0;
     let outputTokens = 0;
+    let reasoningTokens = 0;
+    let cachedInputTokens = 0;
+    let hasInput = false;
+    let hasOutput = false;
+    let hasReasoning = false;
+    let hasCachedInput = false;
     let hasAny = false;
     for (const s of steps) {
       if (!s.usage) continue;
       const n = normalizeUsage(s.usage);
       if (n) {
-        inputTokens += n.inputTokens;
-        outputTokens += n.outputTokens;
+        if (n.inputTokens != null) {
+          inputTokens += n.inputTokens;
+          hasInput = true;
+        }
+        if (n.outputTokens != null) {
+          outputTokens += n.outputTokens;
+          hasOutput = true;
+        }
+        if (n.reasoningTokens != null) {
+          reasoningTokens += n.reasoningTokens;
+          hasReasoning = true;
+        }
+        if (n.cachedInputTokens != null) {
+          cachedInputTokens += n.cachedInputTokens;
+          hasCachedInput = true;
+        }
         hasAny = true;
       }
     }
-    if (hasAny) return { inputTokens, outputTokens };
+    if (hasAny) {
+      return {
+        ...(hasInput ? { inputTokens } : undefined),
+        ...(hasOutput ? { outputTokens } : undefined),
+        ...(hasReasoning ? { reasoningTokens } : undefined),
+        ...(hasCachedInput ? { cachedInputTokens } : undefined),
+      };
+    }
   }
 
   return undefined;
@@ -598,9 +713,14 @@ function extractAiSdkV6Batch<T>(contents: T[]): TelemetryData | null {
   const allStepsData: { tool_calls: TelemetryToolCall[] }[] = [];
   let hasAssistant = false;
   let metadata: Record<string, unknown> | undefined;
-  let aggregatedUsage:
-    | { inputTokens: number; outputTokens: number }
-    | undefined;
+  let inputTokens = 0;
+  let outputTokens = 0;
+  let reasoningTokens = 0;
+  let cachedInputTokens = 0;
+  let hasInput = false;
+  let hasOutput = false;
+  let hasReasoning = false;
+  let hasCachedInput = false;
 
   for (const content of contents) {
     const msg = content as AiSdkV6Message;
@@ -617,10 +737,22 @@ function extractAiSdkV6Batch<T>(contents: T[]): TelemetryData | null {
 
     const usage = extractAiSdkV6Usage(msg.metadata);
     if (usage) {
-      if (!aggregatedUsage)
-        aggregatedUsage = { inputTokens: 0, outputTokens: 0 };
-      aggregatedUsage.inputTokens += usage.inputTokens ?? 0;
-      aggregatedUsage.outputTokens += usage.outputTokens ?? 0;
+      if (usage.inputTokens != null) {
+        inputTokens += usage.inputTokens;
+        hasInput = true;
+      }
+      if (usage.outputTokens != null) {
+        outputTokens += usage.outputTokens;
+        hasOutput = true;
+      }
+      if (usage.reasoningTokens != null) {
+        reasoningTokens += usage.reasoningTokens;
+        hasReasoning = true;
+      }
+      if (usage.cachedInputTokens != null) {
+        cachedInputTokens += usage.cachedInputTokens;
+        hasCachedInput = true;
+      }
     }
   }
 
@@ -631,7 +763,12 @@ function extractAiSdkV6Batch<T>(contents: T[]): TelemetryData | null {
     allStepsData.length,
     metadata,
     allStepsData,
-    aggregatedUsage,
+    {
+      ...(hasInput ? { inputTokens } : undefined),
+      ...(hasOutput ? { outputTokens } : undefined),
+      ...(hasReasoning ? { reasoningTokens } : undefined),
+      ...(hasCachedInput ? { cachedInputTokens } : undefined),
+    },
   );
 }
 

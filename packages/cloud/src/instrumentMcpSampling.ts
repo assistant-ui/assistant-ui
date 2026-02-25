@@ -10,6 +10,8 @@ export type SamplingCallData = {
   model_id?: string;
   input_tokens?: number;
   output_tokens?: number;
+  reasoning_tokens?: number;
+  cached_input_tokens?: number;
   duration_ms?: number;
 };
 
@@ -35,6 +37,8 @@ export type McpSamplingResponse = {
     outputTokens?: number;
     promptTokens?: number;
     completionTokens?: number;
+    reasoningTokens?: number;
+    cachedInputTokens?: number;
   };
   [key: string]: unknown;
 };
@@ -73,11 +77,19 @@ export function wrapSamplingHandler(
       response.usage?.inputTokens ?? response.usage?.promptTokens;
     const outputTokens =
       response.usage?.outputTokens ?? response.usage?.completionTokens;
+    const reasoningTokens = response.usage?.reasoningTokens;
+    const cachedInputTokens = response.usage?.cachedInputTokens;
 
     onSamplingCall({
       ...(modelId ? { model_id: modelId } : undefined),
       ...(inputTokens != null ? { input_tokens: inputTokens } : undefined),
       ...(outputTokens != null ? { output_tokens: outputTokens } : undefined),
+      ...(reasoningTokens != null
+        ? { reasoning_tokens: reasoningTokens }
+        : undefined),
+      ...(cachedInputTokens != null
+        ? { cached_input_tokens: cachedInputTokens }
+        : undefined),
       duration_ms: durationMs,
     });
 

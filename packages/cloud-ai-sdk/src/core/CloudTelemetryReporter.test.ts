@@ -52,7 +52,12 @@ describe("CloudTelemetryReporter", () => {
     await reporter.reportFromMessages("thread-1", [
       assistantMsg("m-1", "hello", {
         modelId: "gpt-4o",
-        usage: { inputTokens: 100, outputTokens: 50 },
+        usage: {
+          promptTokens: 100,
+          completionTokens: 50,
+          reasoningTokens: 20,
+          cachedInputTokens: 10,
+        },
       }),
     ]);
 
@@ -63,6 +68,8 @@ describe("CloudTelemetryReporter", () => {
       model_id: "gpt-4o",
       input_tokens: 100,
       output_tokens: 50,
+      reasoning_tokens: 20,
+      cached_input_tokens: 10,
       output_text: "hello",
     });
   });

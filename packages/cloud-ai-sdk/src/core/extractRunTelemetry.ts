@@ -60,8 +60,51 @@ export type RunTelemetryData = {
   outputText?: string;
   inputTokens?: number;
   outputTokens?: number;
+  reasoningTokens?: number;
+  cachedInputTokens?: number;
   modelId?: string;
 };
+
+type UsageFields = {
+  inputTokens?: number;
+  outputTokens?: number;
+  promptTokens?: number;
+  completionTokens?: number;
+  reasoningTokens?: number;
+  cachedInputTokens?: number;
+};
+
+function normalizeUsage(usage: UsageFields):
+  | {
+      inputTokens?: number;
+      outputTokens?: number;
+      reasoningTokens?: number;
+      cachedInputTokens?: number;
+    }
+  | undefined {
+  const inputTokens = usage.inputTokens ?? usage.promptTokens;
+  const outputTokens = usage.outputTokens ?? usage.completionTokens;
+
+  if (
+    inputTokens == null &&
+    outputTokens == null &&
+    usage.reasoningTokens == null &&
+    usage.cachedInputTokens == null
+  ) {
+    return undefined;
+  }
+
+  return {
+    ...(inputTokens != null ? { inputTokens } : undefined),
+    ...(outputTokens != null ? { outputTokens } : undefined),
+    ...(usage.reasoningTokens != null
+      ? { reasoningTokens: usage.reasoningTokens }
+      : undefined),
+    ...(usage.cachedInputTokens != null
+      ? { cachedInputTokens: usage.cachedInputTokens }
+      : undefined),
+  };
+}
 
 type Part = UIMessage["parts"][number];
 
@@ -145,9 +188,8 @@ export function extractRunTelemetry(
   const metadata = assistant.metadata as Record<string, unknown> | undefined;
   const modelId =
     typeof metadata?.modelId === "string" ? metadata.modelId : undefined;
-  const usage = metadata?.usage as
-    | { inputTokens?: number; outputTokens?: number }
-    | undefined;
+  const usage = metadata?.usage as UsageFields | undefined;
+  const normalizedUsage = usage ? normalizeUsage(usage) : undefined;
 
   return {
     assistantMessageId: assistant.id,
@@ -155,11 +197,17 @@ export function extractRunTelemetry(
     ...(toolCalls.length > 0 ? { toolCalls } : undefined),
     ...(stepCount > 0 ? { totalSteps: stepCount } : undefined),
     ...(outputText != null ? { outputText } : undefined),
-    ...(usage?.inputTokens != null
-      ? { inputTokens: usage.inputTokens }
+    ...(normalizedUsage?.inputTokens != null
+      ? { inputTokens: normalizedUsage.inputTokens }
       : undefined),
-    ...(usage?.outputTokens != null
-      ? { outputTokens: usage.outputTokens }
+    ...(normalizedUsage?.outputTokens != null
+      ? { outputTokens: normalizedUsage.outputTokens }
+      : undefined),
+    ...(normalizedUsage?.reasoningTokens != null
+      ? { reasoningTokens: normalizedUsage.reasoningTokens }
+      : undefined),
+    ...(normalizedUsage?.cachedInputTokens != null
+      ? { cachedInputTokens: normalizedUsage.cachedInputTokens }
       : undefined),
     ...(modelId ? { modelId } : undefined),
   };

@@ -20,6 +20,8 @@ export class CloudTelemetryReporter {
     const dedupeKey = `${threadId}:${extracted.assistantMessageId}`;
     if (this.reported.has(dedupeKey)) return;
 
+    // Keep in sync with assistant-cloud createRunSchema
+    // (apps/aui-cloud-api/src/endpoints/runs/create.ts).
     const initial: AssistantCloudRunReport = {
       thread_id: threadId,
       status: extracted.status,
@@ -34,6 +36,12 @@ export class CloudTelemetryReporter {
         : undefined),
       ...(extracted.outputTokens != null
         ? { output_tokens: extracted.outputTokens }
+        : undefined),
+      ...(extracted.reasoningTokens != null
+        ? { reasoning_tokens: extracted.reasoningTokens }
+        : undefined),
+      ...(extracted.cachedInputTokens != null
+        ? { cached_input_tokens: extracted.cachedInputTokens }
         : undefined),
       ...(extracted.modelId ? { model_id: extracted.modelId } : undefined),
       ...(extracted.outputText != null

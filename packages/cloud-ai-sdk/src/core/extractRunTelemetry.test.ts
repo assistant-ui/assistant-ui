@@ -138,4 +138,33 @@ describe("extractRunTelemetry", () => {
     expect(result.toolCalls![0]!.tool_result).toContain("[image:");
     expect(result.toolCalls![0]!.tool_result).not.toContain(b64);
   });
+
+  it("normalizes prompt/completion token aliases from metadata usage", () => {
+    const result = extractRunTelemetry([
+      assistantMsg("m-1", [{ type: "text", text: "ok" }], {
+        usage: { promptTokens: 12, completionTokens: 7 },
+      }),
+    ])!;
+
+    expect(result.inputTokens).toBe(12);
+    expect(result.outputTokens).toBe(7);
+  });
+
+  it("extracts reasoning and cached input tokens from metadata usage", () => {
+    const result = extractRunTelemetry([
+      assistantMsg("m-1", [{ type: "text", text: "ok" }], {
+        usage: {
+          inputTokens: 12,
+          outputTokens: 7,
+          reasoningTokens: 3,
+          cachedInputTokens: 2,
+        },
+      }),
+    ])!;
+
+    expect(result.inputTokens).toBe(12);
+    expect(result.outputTokens).toBe(7);
+    expect(result.reasoningTokens).toBe(3);
+    expect(result.cachedInputTokens).toBe(2);
+  });
 });
