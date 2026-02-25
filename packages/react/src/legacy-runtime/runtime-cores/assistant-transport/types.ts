@@ -83,6 +83,16 @@ export type HeadersValue = Record<string, string> | Headers;
 
 export type AssistantTransportProtocol = "data-stream" | "assistant-transport";
 
+export type SendCommandsRequestBody = {
+  commands: QueuedCommand[];
+  state: unknown;
+  system: string | undefined;
+  tools: Record<string, unknown> | undefined;
+  threadId: string | null;
+  parentId?: string | null;
+  [key: string]: unknown;
+};
+
 export type AssistantTransportOptions<T> = {
   initialState: T;
   api: string;
@@ -91,6 +101,21 @@ export type AssistantTransportOptions<T> = {
   converter: AssistantTransportStateConverter<T>;
   headers: HeadersValue | (() => Promise<HeadersValue>);
   body?: object | (() => Promise<object | undefined>);
+  /**
+   * Transform the request body before it is sent to the API.
+   * Receives the fully assembled body and returns the (potentially transformed) body.
+   *
+   * @example
+   * ```ts
+   * prepareSendCommandsRequest: (body) => ({
+   *   ...body,
+   *   trackingId: crypto.randomUUID(),
+   * })
+   * ```
+   */
+  prepareSendCommandsRequest?: (
+    body: SendCommandsRequestBody,
+  ) => Record<string, unknown> | Promise<Record<string, unknown>>;
   onResponse?: (response: Response) => void;
   onFinish?: () => void;
   onError?: (

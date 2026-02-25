@@ -336,6 +336,7 @@ The `useAssistantTransportRuntime` hook is used to configure the runtime. It acc
   converter: (state: T, connectionMetadata: ConnectionMetadata) => AssistantTransportState,
   headers?: Record<string, string> | (() => Promise<Record<string, string>>),
   body?: object,
+  prepareSendCommandsRequest?: (body: SendCommandsRequestBody) => Record<string, unknown> | Promise<Record<string, unknown>>,
   capabilities?: { edit?: boolean },
   onResponse?: (response: Response) => void,
   onFinish?: () => void,
@@ -509,6 +510,36 @@ const runtime = useAssistantTransportRuntime({
     customField: "value",
     requestId: crypto.randomUUID(),
     timestamp: Date.now(),
+  }),
+});
+```
+
+### Transforming the Request Body
+
+Use `prepareSendCommandsRequest` to transform the entire request body before it is sent to the backend. This receives the fully assembled body object and returns the (potentially transformed) body.
+
+```typescript
+const runtime = useAssistantTransportRuntime({
+  // ... other options
+  prepareSendCommandsRequest: (body) => ({
+    ...body,
+    trackingId: crypto.randomUUID(),
+  }),
+});
+```
+
+This is useful for adding tracking IDs, transforming commands, or injecting metadata that depends on the assembled request:
+
+```typescript
+const runtime = useAssistantTransportRuntime({
+  // ... other options
+  prepareSendCommandsRequest: (body) => ({
+    ...body,
+    commands: body.commands.map((cmd) =>
+      cmd.type === "add-message"
+        ? { ...cmd, trackingId: crypto.randomUUID() }
+        : cmd,
+    ),
   }),
 });
 ```
