@@ -38,7 +38,7 @@ type MockStreamFrame = {
 };
 
 type ToolActivityMap = NonNullable<
-  ComponentProps<typeof ChainOfThought>["toolActivity"]
+  ComponentProps<typeof ChainOfThought>["toolActivityLabels"]
 >;
 type ToolActivityResolver = NonNullable<ToolActivityMap[string]>;
 type ToolActivityContext = Parameters<ToolActivityResolver>[0];
@@ -47,14 +47,16 @@ type TriggerContentRenderer = NonNullable<
 >;
 type TriggerContentArgs = Parameters<TriggerContentRenderer>[0];
 type WorkbenchChainOfThoughtConfig = {
-  useToolActivity: boolean;
+  useToolActivityLabels: boolean;
   useCustomTriggerContent: boolean;
+  autoCollapseOnComplete: boolean;
 };
 
 const WorkbenchChainOfThoughtConfigContext =
   createContext<WorkbenchChainOfThoughtConfig>({
-    useToolActivity: true,
+    useToolActivityLabels: true,
     useCustomTriggerContent: true,
+    autoCollapseOnComplete: true,
   });
 
 const baseMetadata: ThreadAssistantMessage["metadata"] = {
@@ -1032,37 +1034,46 @@ const WORKBENCH_TOOL_ACTIVITY: ToolActivityMap = {
 };
 
 const renderWorkbenchTriggerContent = ({
-  label,
-  activity,
-  active,
-  open,
+  reasoningLabel,
+  activityLabel,
+  phase,
+  isOpen,
+  elapsedSeconds,
 }: TriggerContentArgs) => {
+  const isActive = phase === "running" || phase === "requires-action";
   return (
     <span className="flex min-w-0 items-center gap-2">
       <span className="truncate font-medium text-foreground">
-        {active ? "Thought Process" : label}
+        {isActive ? "Thought Process" : reasoningLabel}
       </span>
-      {activity ? (
+      {activityLabel ? (
         <span
           className={cn(
             "truncate text-muted-foreground",
-            active && "opacity-90",
+            isActive && "opacity-90",
           )}
         >
-          {activity}
+          {activityLabel}
+        </span>
+      ) : null}
+      {elapsedSeconds !== undefined ? (
+        <span className="shrink-0 text-muted-foreground text-xs">
+          {elapsedSeconds}s
         </span>
       ) : null}
       <span className="shrink-0 text-muted-foreground">
-        {open ? "\u25BE" : "\u25B8"}
+        {isOpen ? "\u25BE" : "\u25B8"}
       </span>
     </span>
   );
 };
 
 const DebugChainOfThought = () => {
-  const { useToolActivity, useCustomTriggerContent } = useContext(
-    WorkbenchChainOfThoughtConfigContext,
-  );
+  const {
+    useToolActivityLabels,
+    useCustomTriggerContent,
+    autoCollapseOnComplete,
+  } = useContext(WorkbenchChainOfThoughtConfigContext);
   const aui = useAui();
   const collapsed = useAuiState((s) => s.chainOfThought.collapsed);
   const status = useAuiState((s) => s.chainOfThought.status.type);
@@ -1105,7 +1116,10 @@ const DebugChainOfThought = () => {
         </Button>
       </div>
       <ChainOfThought
-        {...(useToolActivity ? { toolActivity: WORKBENCH_TOOL_ACTIVITY } : {})}
+        autoCollapseOnComplete={autoCollapseOnComplete}
+        {...(useToolActivityLabels
+          ? { toolActivityLabels: WORKBENCH_TOOL_ACTIVITY }
+          : {})}
         {...(useCustomTriggerContent
           ? { renderTriggerContent: renderWorkbenchTriggerContent }
           : {})}
@@ -1186,8 +1200,9 @@ export function ChainOfThoughtPrimitiveWorkbenchSample() {
   const [streamFrameIndex, setStreamFrameIndex] = useState(0);
   const [streamPlaying, setStreamPlaying] = useState(true);
   const [streamLoop, setStreamLoop] = useState(true);
-  const [useToolActivity, setUseToolActivity] = useState(true);
+  const [useToolActivityLabels, setUseToolActivityLabels] = useState(true);
   const [useCustomTriggerContent, setUseCustomTriggerContent] = useState(true);
+  const [autoCollapseOnComplete, setAutoCollapseOnComplete] = useState(true);
 
   const selectedScenario = useMemo(
     () =>
@@ -1209,10 +1224,11 @@ export function ChainOfThoughtPrimitiveWorkbenchSample() {
       : `${selectedScenario.id}-${sessionKey}`;
   const chainOfThoughtConfig = useMemo(
     () => ({
-      useToolActivity,
+      useToolActivityLabels,
       useCustomTriggerContent,
+      autoCollapseOnComplete,
     }),
-    [useCustomTriggerContent, useToolActivity],
+    [autoCollapseOnComplete, useCustomTriggerContent, useToolActivityLabels],
   );
 
   useEffect(() => {
@@ -1406,10 +1422,12 @@ export function ChainOfThoughtPrimitiveWorkbenchSample() {
               <input
                 type="checkbox"
                 className="size-3.5 rounded border-input"
-                checked={useToolActivity}
-                onChange={(event) => setUseToolActivity(event.target.checked)}
+                checked={useToolActivityLabels}
+                onChange={(event) =>
+                  setUseToolActivityLabels(event.target.checked)
+                }
               />
-              Use `toolActivity` callbacks
+              Use `toolActivityLabels` callbacks
             </label>
             <label className="flex items-center gap-2 text-muted-foreground">
               <input
@@ -1421,6 +1439,17 @@ export function ChainOfThoughtPrimitiveWorkbenchSample() {
                 }
               />
               Use `renderTriggerContent`
+            </label>
+            <label className="flex items-center gap-2 text-muted-foreground">
+              <input
+                type="checkbox"
+                className="size-3.5 rounded border-input"
+                checked={autoCollapseOnComplete}
+                onChange={(event) =>
+                  setAutoCollapseOnComplete(event.target.checked)
+                }
+              />
+              Auto collapse on complete
             </label>
             <p className="text-muted-foreground">
               Toggle these to compare default trigger behavior vs custom trigger

@@ -18,7 +18,7 @@ globalWithAct.IS_REACT_ACT_ENVIRONMENT = true;
 
 const ChainOfThoughtWithSearchWebActivityCallback = () => (
   <ChainOfThought
-    toolActivity={{
+    toolActivityLabels={{
       search_web: ({ statusType }: { statusType?: string }) =>
         statusType === "running" ? "Searching the web" : "Searched the web",
     }}
@@ -27,7 +27,7 @@ const ChainOfThoughtWithSearchWebActivityCallback = () => (
 
 const ChainOfThoughtWithCustomTriggerContentRenderer = () => (
   <ChainOfThought
-    toolActivity={{
+    toolActivityLabels={{
       search_web: ({
         fallbackLabel,
         messageStatusType,
@@ -39,10 +39,18 @@ const ChainOfThoughtWithCustomTriggerContentRenderer = () => (
           ? `Running ${fallbackLabel}`
           : `Used ${fallbackLabel}`,
     }}
-    renderTriggerContent={({ displayLabel, activity, active, open }) => (
+    renderTriggerContent={({
+      displayLabel,
+      activityLabel,
+      phase,
+      isOpen,
+      elapsedSeconds,
+    }) => (
       <span data-slot="custom-trigger-content">
-        {active ? "Live" : "Done"} {open ? "Open" : "Closed"} :: {displayLabel}
-        {activity ? ` :: ${activity}` : ""}
+        {phase === "running" ? "Live" : "Done"} {isOpen ? "Open" : "Closed"} ::{" "}
+        {displayLabel}
+        {activityLabel ? ` :: ${activityLabel}` : ""}
+        {elapsedSeconds !== undefined ? ` :: t=${elapsedSeconds}` : ""}
       </span>
     )}
   />
@@ -54,13 +62,48 @@ const ChainOfThoughtWithFalsyTriggerContentRenderer = () => (
 
 const ChainOfThoughtWithStatusEchoActivity = () => (
   <ChainOfThought
-    toolActivity={{
+    toolActivityLabels={{
       search_web: ({ statusType }: { statusType?: string }) =>
         `status:${statusType ?? "undefined"}`,
     }}
-    renderTriggerContent={({ activity }) => (
-      <span data-slot="status-echo-trigger-content">{activity}</span>
+    renderTriggerContent={({ activityLabel }) => (
+      <span data-slot="status-echo-trigger-content">{activityLabel}</span>
     )}
+  />
+);
+
+const ChainOfThoughtWithNoAutoCollapse = () => (
+  <ChainOfThought autoCollapseOnComplete={false} />
+);
+
+const ChainOfThoughtWithTriggerArgEcho = () => (
+  <ChainOfThought
+    renderTriggerContent={({
+      reasoningLabel,
+      displayLabel,
+      activityLabel,
+      phase,
+      isOpen,
+      elapsedSeconds,
+    }) => (
+      <span data-slot="trigger-arg-echo">
+        reasoning:{reasoningLabel} :: display:{displayLabel} :: activity:
+        {activityLabel ?? "none"} :: phase:{phase} :: open:{String(isOpen)} ::
+        elapsed:{elapsedSeconds ?? "none"}
+      </span>
+    )}
+  />
+);
+
+const ChainOfThoughtWithToolSummaryAndOutlineVariant = () => (
+  <ChainOfThought
+    variant="outline"
+    toolActivityLabels={{
+      search_web: ({ statusType }) =>
+        statusType === "running"
+          ? "Searching with search web"
+          : "Searched with search web",
+    }}
   />
 );
 
@@ -337,6 +380,10 @@ describe("ChainOfThought primitive integration", () => {
     expect(trigger).not.toBeNull();
     expect(trigger?.textContent).toContain("Reasoning");
     expect(trigger?.getAttribute("aria-expanded")).toBe("false");
+    const rootEl = container.querySelector(
+      "[data-slot=chain-of-thought-root]",
+    ) as HTMLElement | null;
+    expect(rootEl?.getAttribute("data-variant")).toBe("ghost");
     expect(container.textContent).toContain("Here is the final answer.");
     const content = container.querySelector(
       "[data-slot=chain-of-thought-content]",
@@ -350,7 +397,7 @@ describe("ChainOfThought primitive integration", () => {
     });
   });
 
-  it("renders a collapsed tool-call activity without tools scope", () => {
+  it("renders activity-first collapsed trigger content with reasoning context", () => {
     const container = document.createElement("div");
     const root = createRoot(container);
 
@@ -376,6 +423,7 @@ describe("ChainOfThought primitive integration", () => {
 
     expect(trigger?.getAttribute("aria-expanded")).toBe("false");
     expect(activity?.textContent).toContain("search web");
+    expect(trigger?.textContent).toContain("Reasoning");
 
     act(() => {
       root.unmount();
@@ -469,6 +517,57 @@ describe("ChainOfThought primitive integration", () => {
       "[data-slot=chain-of-thought-trigger]",
     ) as HTMLButtonElement | null;
     expect(triggerAfterComplete?.getAttribute("aria-expanded")).toBe("false");
+
+    act(() => {
+      root.unmount();
+    });
+  });
+
+  it("keeps the accordion open after streaming completes when autoCollapseOnComplete is false", () => {
+    const container = document.createElement("div");
+    const root = createRoot(container);
+
+    act(() => {
+      root.render(
+        <MessageProvider
+          message={buildPrimitiveCoTRunningToolMessage()}
+          index={0}
+        >
+          <MessagePrimitive.Parts
+            components={{
+              ChainOfThought: ChainOfThoughtWithNoAutoCollapse,
+              Text: ({ text }) => <p>{text}</p>,
+            }}
+          />
+        </MessageProvider>,
+      );
+    });
+
+    const trigger = container.querySelector(
+      "[data-slot=chain-of-thought-trigger]",
+    ) as HTMLButtonElement | null;
+    expect(trigger?.getAttribute("aria-expanded")).toBe("true");
+
+    act(() => {
+      root.render(
+        <MessageProvider
+          message={buildPrimitiveCoTCompletedToolMessage()}
+          index={0}
+        >
+          <MessagePrimitive.Parts
+            components={{
+              ChainOfThought: ChainOfThoughtWithNoAutoCollapse,
+              Text: ({ text }) => <p>{text}</p>,
+            }}
+          />
+        </MessageProvider>,
+      );
+    });
+
+    const triggerAfterComplete = container.querySelector(
+      "[data-slot=chain-of-thought-trigger]",
+    ) as HTMLButtonElement | null;
+    expect(triggerAfterComplete?.getAttribute("aria-expanded")).toBe("true");
 
     act(() => {
       root.unmount();
@@ -579,6 +678,60 @@ describe("ChainOfThought primitive integration", () => {
     });
   });
 
+  it("passes activityLabel, phase, isOpen, and elapsedSeconds to renderTriggerContent", () => {
+    const container = document.createElement("div");
+    const root = createRoot(container);
+
+    act(() => {
+      root.render(
+        <MessageProvider
+          message={buildPrimitiveCoTRunningToolMessage()}
+          index={0}
+        >
+          <MessagePrimitive.Parts
+            components={{
+              ChainOfThought: ChainOfThoughtWithTriggerArgEcho,
+              Text: ({ text }) => <p>{text}</p>,
+            }}
+          />
+        </MessageProvider>,
+      );
+    });
+
+    const runningEcho = container.querySelector("[data-slot=trigger-arg-echo]");
+    expect(runningEcho?.textContent).toContain("reasoning:Reasoning");
+    expect(runningEcho?.textContent).toContain("activity:Running search web");
+    expect(runningEcho?.textContent).toContain("phase:running");
+    expect(runningEcho?.textContent).toContain("open:true");
+    expect(runningEcho?.textContent).toContain("elapsed:");
+
+    act(() => {
+      root.render(
+        <MessageProvider
+          message={buildPrimitiveCoTCompletedToolMessage()}
+          index={0}
+        >
+          <MessagePrimitive.Parts
+            components={{
+              ChainOfThought: ChainOfThoughtWithTriggerArgEcho,
+              Text: ({ text }) => <p>{text}</p>,
+            }}
+          />
+        </MessageProvider>,
+      );
+    });
+
+    const completeEcho = container.querySelector(
+      "[data-slot=trigger-arg-echo]",
+    );
+    expect(completeEcho?.textContent).toContain("phase:complete");
+    expect(completeEcho?.textContent).toContain("open:false");
+
+    act(() => {
+      root.unmount();
+    });
+  });
+
   it("does not relabel completed tool activity as running while final text streams", () => {
     const container = document.createElement("div");
     const root = createRoot(container);
@@ -683,6 +836,140 @@ describe("ChainOfThought primitive integration", () => {
     expect(updatedActivity?.textContent).toContain("search web");
     expect(updatedActivity?.textContent).toContain("fetch docs");
     expect(updatedActivity?.querySelector("[aria-hidden]")).not.toBeNull();
+
+    act(() => {
+      root.unmount();
+    });
+  });
+
+  it("applies trigger shimmer only during active phases", () => {
+    const container = document.createElement("div");
+    const root = createRoot(container);
+
+    act(() => {
+      root.render(
+        <MessageProvider
+          message={buildPrimitiveCoTRunningToolMessage()}
+          index={0}
+        >
+          <MessagePrimitive.Parts
+            components={{
+              ChainOfThought,
+              Text: ({ text }) => <p>{text}</p>,
+            }}
+          />
+        </MessageProvider>,
+      );
+    });
+
+    expect(
+      container.querySelector(
+        "[data-slot=chain-of-thought-trigger-activity-shimmer]",
+      ),
+    ).not.toBeNull();
+
+    act(() => {
+      root.render(
+        <MessageProvider
+          message={buildPrimitiveCoTCompletedToolMessage()}
+          index={0}
+        >
+          <MessagePrimitive.Parts
+            components={{
+              ChainOfThought,
+              Text: ({ text }) => <p>{text}</p>,
+            }}
+          />
+        </MessageProvider>,
+      );
+    });
+
+    expect(
+      container.querySelector(
+        "[data-slot=chain-of-thought-trigger-activity-shimmer]",
+      ),
+    ).toBeNull();
+
+    act(() => {
+      root.unmount();
+    });
+  });
+
+  it("renders expanded tool activity labels together with tool UI", () => {
+    const container = document.createElement("div");
+    const root = createRoot(container);
+
+    act(() => {
+      root.render(
+        <MessageProvider
+          message={buildPrimitiveCoTRunningToolMessage()}
+          index={0}
+        >
+          <MessagePrimitive.Parts
+            components={{
+              ChainOfThought: ChainOfThoughtWithSearchWebActivityCallback,
+              Text: ({ text }) => <p>{text}</p>,
+            }}
+          />
+        </MessageProvider>,
+      );
+    });
+
+    const trigger = container.querySelector(
+      "[data-slot=chain-of-thought-trigger]",
+    ) as HTMLButtonElement | null;
+    expect(trigger?.getAttribute("aria-expanded")).toBe("true");
+
+    const content = container.querySelector(
+      "[data-slot=chain-of-thought-content]",
+    );
+    expect(content?.textContent).toContain("Searching the web");
+    expect(content?.textContent).toContain("assistant-ui chain of thought ui");
+
+    act(() => {
+      root.unmount();
+    });
+  });
+
+  it("uses ghost variant by default and allows explicit variant override", () => {
+    const container = document.createElement("div");
+    const root = createRoot(container);
+
+    act(() => {
+      root.render(
+        <MessageProvider message={buildPrimitiveCoTMessage()} index={0}>
+          <MessagePrimitive.Parts
+            components={{
+              ChainOfThought,
+              Text: ({ text }) => <p>{text}</p>,
+            }}
+          />
+        </MessageProvider>,
+      );
+    });
+
+    const defaultRoot = container.querySelector(
+      "[data-slot=chain-of-thought-root]",
+    ) as HTMLElement | null;
+    expect(defaultRoot?.getAttribute("data-variant")).toBe("ghost");
+
+    act(() => {
+      root.render(
+        <MessageProvider message={buildPrimitiveCoTMessage()} index={0}>
+          <MessagePrimitive.Parts
+            components={{
+              ChainOfThought: ChainOfThoughtWithToolSummaryAndOutlineVariant,
+              Text: ({ text }) => <p>{text}</p>,
+            }}
+          />
+        </MessageProvider>,
+      );
+    });
+
+    const outlinedRoot = container.querySelector(
+      "[data-slot=chain-of-thought-root]",
+    ) as HTMLElement | null;
+    expect(outlinedRoot?.getAttribute("data-variant")).toBe("outline");
 
     act(() => {
       root.unmount();
@@ -995,9 +1282,68 @@ describe("ChainOfThought.TraceDisclosure", () => {
       root.unmount();
     });
   });
+
+  it("supports autoCollapseOnComplete={false}", () => {
+    const container = document.createElement("div");
+    const root = createRoot(container);
+
+    const runningTrace = [
+      {
+        kind: "step" as const,
+        id: "step-1",
+        label: "Step 1",
+        status: "running" as const,
+      },
+    ];
+
+    act(() => {
+      root.render(
+        <ChainOfThought.TraceDisclosure
+          trace={runningTrace}
+          autoCollapseOnComplete={false}
+        />,
+      );
+    });
+
+    const openTrigger = container.querySelector(
+      "[data-slot=chain-of-thought-trigger]",
+    ) as HTMLElement | null;
+    expect(openTrigger?.getAttribute("aria-expanded")).toBe("true");
+
+    const completeTrace = [
+      {
+        kind: "step" as const,
+        id: "step-1",
+        label: "Step 1",
+        status: "complete" as const,
+      },
+    ];
+
+    act(() => {
+      root.render(
+        <ChainOfThought.TraceDisclosure
+          trace={completeTrace}
+          autoCollapseOnComplete={false}
+        />,
+      );
+    });
+
+    const stillOpenTrigger = container.querySelector(
+      "[data-slot=chain-of-thought-trigger]",
+    ) as HTMLElement | null;
+    expect(stillOpenTrigger?.getAttribute("aria-expanded")).toBe("true");
+
+    act(() => {
+      root.unmount();
+    });
+  });
 });
 
 describe("Crossfade", () => {
+  it("is exposed on ChainOfThought as a static component", () => {
+    expect(ChainOfThought.Crossfade).toBe(Crossfade);
+  });
+
   it("renders the current value on mount without transition", () => {
     const container = document.createElement("div");
     const root = createRoot(container);

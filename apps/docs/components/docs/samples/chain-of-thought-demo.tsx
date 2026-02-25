@@ -1141,10 +1141,10 @@ export function ChainOfThoughtHeadlineStreamingFullBleedSample() {
                       className="fade-in mb-0 animate-in border-0 p-0 duration-300"
                     >
                       <ChainOfThoughtTrigger
-                        label={
+                        reasoningLabel={
                           typeof headline === "string" ? headline : "Reasoning"
                         }
-                        active={cotActive}
+                        phase={cotActive ? "running" : "complete"}
                       />
                       <ChainOfThoughtContent aria-busy={phase === "thinking"}>
                         <ChainOfThoughtTrace
@@ -1320,7 +1320,10 @@ function ConcurrentStreamingInstance({
       defaultOpen
       className="mb-0"
     >
-      <ChainOfThoughtTrigger active={isStreaming} label={`Stream ${id}`} />
+      <ChainOfThoughtTrigger
+        phase={isStreaming ? "running" : "complete"}
+        reasoningLabel={`Stream ${id}`}
+      />
       <ChainOfThoughtContent aria-busy={isStreaming}>
         <ChainOfThoughtText>
           {text || (

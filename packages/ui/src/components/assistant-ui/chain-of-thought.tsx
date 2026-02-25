@@ -64,6 +64,13 @@ type ToolActivityContext = {
 
 type ToolActivity = (context: ToolActivityContext) => string | undefined;
 
+export type ChainOfThoughtPhase =
+  | "idle"
+  | "running"
+  | "requires-action"
+  | "complete"
+  | "incomplete";
+
 /**
  * Map of step types to their default icons.
  * Extend this record to add custom step types.
@@ -444,25 +451,25 @@ function Crossfade<T>({
 export type ChainOfThoughtTriggerProps = React.ComponentProps<
   typeof CollapsibleTrigger
 > & {
-  /** Whether the reasoning is actively streaming */
-  active?: boolean;
+  /** Current phase for the chain-of-thought lifecycle. */
+  phase?: ChainOfThoughtPhase;
   /** Whether the disclosure is currently open */
-  open?: boolean;
-  /** Optional collapsed activity summarizing the latest step */
-  activity?: string;
+  isOpen?: boolean;
+  /** Optional collapsed activity summarizing the latest step. */
+  activityLabel?: string;
   /** Optional UI-layer renderer for full trigger content. */
   renderTriggerContent?: (args: {
-    label: string;
+    reasoningLabel: string;
     displayLabel: string;
-    activity: string | undefined;
-    active: boolean;
-    open: boolean;
-    duration: number | undefined;
+    activityLabel: string | undefined;
+    phase: ChainOfThoughtPhase;
+    isOpen: boolean;
+    elapsedSeconds: number | undefined;
   }) => ReactNode;
-  /** Duration in seconds to display in the label */
-  duration?: number;
-  /** Label to display. Defaults to "Reasoning". */
-  label?: string;
+  /** Elapsed time in seconds. */
+  elapsedSeconds?: number | undefined;
+  /** Label to display for the reasoning section. Defaults to "Reasoning". */
+  reasoningLabel?: string;
 };
 
 /**
@@ -470,25 +477,29 @@ export type ChainOfThoughtTriggerProps = React.ComponentProps<
  * Displays a label and chevron indicator.
  */
 function ChainOfThoughtTrigger({
-  active,
-  open,
-  activity,
+  phase = "idle",
+  isOpen,
+  activityLabel,
   renderTriggerContent,
-  duration,
-  label = "Reasoning",
+  elapsedSeconds,
+  reasoningLabel = "Reasoning",
   className,
   ...props
 }: ChainOfThoughtTriggerProps) {
-  const displayLabel = duration ? `${label} (${duration}s)` : label;
+  const isActivePhase = phase === "running" || phase === "requires-action";
+  const displayLabel = elapsedSeconds
+    ? `${reasoningLabel} (${elapsedSeconds}s)`
+    : reasoningLabel;
+  const primaryLabel = activityLabel ?? displayLabel;
   const hasCustomTriggerContent = renderTriggerContent !== undefined;
   const customTriggerContent = hasCustomTriggerContent
     ? renderTriggerContent({
-        label,
+        reasoningLabel,
         displayLabel,
-        activity,
-        active: !!active,
-        open: !!open,
-        duration,
+        activityLabel,
+        phase,
+        isOpen: !!isOpen,
+        elapsedSeconds,
       })
     : undefined;
 
@@ -510,75 +521,70 @@ function ChainOfThoughtTrigger({
         {hasCustomTriggerContent ? (
           customTriggerContent
         ) : (
-          <Crossfade
-            value={displayLabel}
-            exitDuration={200}
-            enterDuration={320}
-            enterDelay={70}
-            className="h-6 items-center"
-          >
-            {(text) => (
-              <span className="relative inline-flex min-w-0 items-center">
-                <span className="truncate">{text}</span>
-                <ChevronDownIcon
-                  data-slot="chain-of-thought-trigger-chevron"
-                  className={cn(
-                    "aui-chain-of-thought-trigger-chevron ml-1.5 inline-block size-4 shrink-0",
-                    "transition-transform duration-(--animation-duration) ease-(--spring-easing)",
-                    "group-data-[state=closed]/trigger:-rotate-90",
-                    "group-data-[state=open]/trigger:rotate-0",
-                  )}
-                />
-                {activity ? (
-                  <span
-                    data-slot="chain-of-thought-trigger-activity"
-                    className={cn(
-                      "aui-chain-of-thought-trigger-activity ml-2 inline-flex min-w-0 max-w-[52ch] items-center",
-                      "group-data-[state=open]/trigger:hidden",
-                    )}
-                  >
-                    <Crossfade
-                      value={activity}
-                      exitDuration={200}
-                      enterDuration={320}
-                      enterDelay={70}
-                      className="h-6 min-w-0 items-center"
-                    >
-                      {(activityText) => (
-                        <span className="relative inline-flex min-w-0 items-center truncate">
-                          {activityText}
-                          {active && (
-                            <span
-                              aria-hidden
-                              data-slot="chain-of-thought-trigger-activity-shimmer"
-                              className={cn(
-                                "aui-chain-of-thought-trigger-activity-shimmer shimmer pointer-events-none absolute inset-0",
-                                "motion-reduce:animate-none",
-                              )}
-                            >
-                              {activityText}
-                            </span>
+          <span className="relative inline-flex w-full min-w-0 items-center gap-1.5">
+            <ChevronDownIcon
+              data-slot="chain-of-thought-trigger-chevron"
+              className={cn(
+                "aui-chain-of-thought-trigger-chevron inline-block size-4 shrink-0",
+                "transition-transform duration-(--animation-duration) ease-(--spring-easing)",
+                "group-data-[state=closed]/trigger:-rotate-90",
+                "group-data-[state=open]/trigger:rotate-0",
+              )}
+            />
+            <span className="flex min-w-0 flex-1 items-center gap-2">
+              <span
+                data-slot="chain-of-thought-trigger-activity"
+                className="aui-chain-of-thought-trigger-activity relative inline-flex min-w-0 max-w-[52ch] items-center font-medium text-foreground"
+              >
+                <Crossfade
+                  value={primaryLabel}
+                  exitDuration={200}
+                  enterDuration={320}
+                  enterDelay={70}
+                  className="h-6 min-w-0 items-center"
+                >
+                  {(nextActivityLabel) => (
+                    <span className="relative inline-flex min-w-0 items-center truncate">
+                      {nextActivityLabel}
+                      {isActivePhase && (
+                        <span
+                          aria-hidden
+                          data-slot="chain-of-thought-trigger-activity-shimmer"
+                          className={cn(
+                            "aui-chain-of-thought-trigger-activity-shimmer shimmer pointer-events-none absolute inset-0",
+                            "motion-reduce:animate-none",
                           )}
+                        >
+                          {nextActivityLabel}
                         </span>
                       )}
-                    </Crossfade>
-                  </span>
-                ) : null}
-                {active && (
-                  <span
-                    aria-hidden
-                    data-slot="chain-of-thought-trigger-shimmer"
-                    className={cn(
-                      "aui-chain-of-thought-trigger-shimmer shimmer pointer-events-none absolute inset-0",
-                      "motion-reduce:animate-none",
-                    )}
-                  >
-                    {text}
-                  </span>
-                )}
+                    </span>
+                  )}
+                </Crossfade>
               </span>
-            )}
-          </Crossfade>
+              {activityLabel ? (
+                <Crossfade
+                  value={displayLabel}
+                  exitDuration={200}
+                  enterDuration={320}
+                  enterDelay={70}
+                  className="h-6 min-w-0 items-center"
+                >
+                  {(nextReasoningLabel) => (
+                    <span
+                      data-slot="chain-of-thought-trigger-reasoning-label"
+                      className={cn(
+                        "aui-chain-of-thought-trigger-reasoning-label inline-flex min-w-0 items-center text-muted-foreground text-xs",
+                        "group-data-[state=open]/trigger:opacity-70",
+                      )}
+                    >
+                      <span className="truncate">{nextReasoningLabel}</span>
+                    </span>
+                  )}
+                </Crossfade>
+              ) : null}
+            </span>
+          </span>
         )}
       </span>
     </CollapsibleTrigger>
@@ -1577,7 +1583,7 @@ type ChainOfThoughtTraceDisclosureSharedProps = {
   /** Completed summary string or formatter */
   summary?: string | TraceSummaryFormatter | undefined;
   /** Auto-collapse after streaming completes */
-  collapseOnComplete?: boolean | undefined;
+  autoCollapseOnComplete?: boolean | undefined;
   /** Prevent nested groups from expanding while streaming */
   disableGroupExpansionWhileStreaming?: boolean | undefined;
   /** Props for the root collapsible container */
@@ -1586,7 +1592,7 @@ type ChainOfThoughtTraceDisclosureSharedProps = {
     | undefined;
   /** Props for the trigger button */
   triggerProps?:
-    | Omit<ChainOfThoughtTriggerProps, "label" | "active">
+    | Omit<ChainOfThoughtTriggerProps, "reasoningLabel" | "phase">
     | undefined;
   /** Props for the collapsible content wrapper */
   contentProps?:
@@ -1877,6 +1883,44 @@ function useTraceDuration(isStreaming: boolean) {
   }, [isStreaming]);
 
   return durationSec;
+}
+
+function useElapsedSeconds(isActive: boolean) {
+  const [elapsedSeconds, setElapsedSeconds] = useState<number | undefined>(
+    undefined,
+  );
+  const startRef = useRef<number | null>(null);
+  const wasActiveRef = useRef(isActive);
+
+  useEffect(() => {
+    if (isActive) {
+      if (!wasActiveRef.current || startRef.current == null) {
+        startRef.current = Date.now();
+      }
+
+      const updateElapsed = () => {
+        if (startRef.current == null) return;
+        const elapsedMs = Date.now() - startRef.current;
+        setElapsedSeconds(Math.max(1, Math.round(elapsedMs / 1000)));
+      };
+
+      updateElapsed();
+      const intervalId = window.setInterval(updateElapsed, 250);
+      wasActiveRef.current = isActive;
+      return () => window.clearInterval(intervalId);
+    }
+
+    if (wasActiveRef.current && startRef.current != null) {
+      const elapsedMs = Date.now() - startRef.current;
+      setElapsedSeconds(Math.max(1, Math.round(elapsedMs / 1000)));
+      startRef.current = null;
+    }
+
+    wasActiveRef.current = isActive;
+    return undefined;
+  }, [isActive]);
+
+  return elapsedSeconds;
 }
 
 const DefaultTraceGroupSummary: ComponentType<
@@ -2200,10 +2244,10 @@ function ChainOfThoughtTraceNodes({
 
 function useTraceDisclosureState({
   isStreaming,
-  collapseOnComplete,
+  autoCollapseOnComplete,
 }: {
   isStreaming: boolean;
-  collapseOnComplete: boolean;
+  autoCollapseOnComplete: boolean;
 }) {
   const [open, setOpen] = useState(isStreaming);
   const wasStreamingRef = useRef(isStreaming);
@@ -2211,12 +2255,12 @@ function useTraceDisclosureState({
   useEffect(() => {
     if (isStreaming) {
       setOpen(true);
-    } else if (wasStreamingRef.current && collapseOnComplete) {
+    } else if (wasStreamingRef.current && autoCollapseOnComplete) {
       setOpen(false);
     }
 
     wasStreamingRef.current = isStreaming;
-  }, [collapseOnComplete, isStreaming]);
+  }, [autoCollapseOnComplete, isStreaming]);
 
   const handleOpenChange = useCallback(
     (nextOpen: boolean) => {
@@ -2238,7 +2282,7 @@ function ChainOfThoughtTraceDisclosureShell({
   stats,
   label = "Working...",
   summary,
-  collapseOnComplete = true,
+  autoCollapseOnComplete = true,
   rootProps,
   triggerProps,
   contentProps,
@@ -2259,10 +2303,12 @@ function ChainOfThoughtTraceDisclosureShell({
     }
     return summarizeTraceStats(stats, durationSec);
   }, [durationSec, stats, summary]);
+  const phase: ChainOfThoughtPhase = isStreaming ? "running" : "complete";
+  const elapsedSeconds = useElapsedSeconds(isStreaming);
 
   const { open, handleOpenChange } = useTraceDisclosureState({
     isStreaming,
-    collapseOnComplete,
+    autoCollapseOnComplete,
   });
 
   return (
@@ -2272,9 +2318,10 @@ function ChainOfThoughtTraceDisclosureShell({
       {...rootProps}
     >
       <ChainOfThoughtTrigger
-        active={isStreaming}
-        open={open}
-        label={isStreaming ? label : summaryLabel}
+        phase={phase}
+        isOpen={open}
+        reasoningLabel={isStreaming ? label : summaryLabel}
+        {...(elapsedSeconds !== undefined ? { elapsedSeconds } : {})}
         {...triggerProps}
       />
       <ChainOfThoughtContent aria-busy={isStreaming} {...contentProps}>
@@ -2289,7 +2336,7 @@ function ChainOfThoughtTraceDisclosureNodes({
   disableGroupExpansionWhileStreaming = true,
   label,
   summary,
-  collapseOnComplete,
+  autoCollapseOnComplete,
   rootProps,
   triggerProps,
   contentProps,
@@ -2305,7 +2352,7 @@ function ChainOfThoughtTraceDisclosureNodes({
       stats={stats}
       label={label}
       summary={summary}
-      collapseOnComplete={collapseOnComplete}
+      autoCollapseOnComplete={autoCollapseOnComplete}
       rootProps={rootProps}
       triggerProps={triggerProps}
       contentProps={contentProps}
@@ -2322,7 +2369,7 @@ function ChainOfThoughtTraceDisclosureNodes({
 function ChainOfThoughtTraceDisclosureParts({
   label,
   summary,
-  collapseOnComplete,
+  autoCollapseOnComplete,
   disableGroupExpansionWhileStreaming = true,
   rootProps,
   triggerProps,
@@ -2354,7 +2401,7 @@ function ChainOfThoughtTraceDisclosureParts({
       stats={stats}
       label={label}
       summary={summary}
-      collapseOnComplete={collapseOnComplete}
+      autoCollapseOnComplete={autoCollapseOnComplete}
       rootProps={rootProps}
       triggerProps={triggerProps}
       contentProps={contentProps}
@@ -2463,15 +2510,15 @@ const humanizeToolName = (toolName: string | undefined) => {
 
 const getToolActivityResolver = (
   toolName: string | undefined,
-  toolActivity: Record<string, ToolActivity> | undefined,
+  toolActivityLabels: Record<string, ToolActivity> | undefined,
 ) => {
-  if (!toolName || !toolActivity) return undefined;
-  return toolActivity[toolName];
+  if (!toolName || !toolActivityLabels) return undefined;
+  return toolActivityLabels[toolName];
 };
 
 const getToolActivityLabel = (
   toolName: string | undefined,
-  _toolActivity: Record<string, ToolActivity> | undefined,
+  _toolActivityLabels: Record<string, ToolActivity> | undefined,
 ) => {
   return humanizeToolName(toolName);
 };
@@ -2514,7 +2561,7 @@ const inferToolActivityStatusType = (
 const getActivityFromPart = (
   part: any,
   statusType: string | undefined,
-  toolActivity: Record<string, ToolActivity> | undefined,
+  toolActivityLabels: Record<string, ToolActivity> | undefined,
   chainStatusType: string | undefined,
   messageStatusType: string | undefined,
 ): string | undefined => {
@@ -2525,8 +2572,8 @@ const getActivityFromPart = (
       messageStatusType,
     );
     const toolName = part.toolName as string | undefined;
-    const tool = getToolActivityLabel(toolName, toolActivity);
-    const resolver = getToolActivityResolver(toolName, toolActivity);
+    const tool = getToolActivityLabel(toolName, toolActivityLabels);
+    const resolver = getToolActivityResolver(toolName, toolActivityLabels);
     const resolved = normalizeActivityText(
       resolver?.({
         toolName: toolName ?? "",
@@ -2592,12 +2639,12 @@ const deriveCollapsedActivity = ({
   parts,
   chainStatusType,
   messageStatusType,
-  toolActivity,
+  toolActivityLabels,
 }: {
   parts: readonly any[];
   chainStatusType: string | undefined;
   messageStatusType: string | undefined;
-  toolActivity: Record<string, ToolActivity> | undefined;
+  toolActivityLabels: Record<string, ToolActivity> | undefined;
 }) => {
   if (parts.length === 0) return undefined;
 
@@ -2610,7 +2657,7 @@ const deriveCollapsedActivity = ({
         chainStatusType,
         messageStatusType,
       ),
-      toolActivity,
+      toolActivityLabels,
       chainStatusType,
       messageStatusType,
     );
@@ -2627,11 +2674,15 @@ const deriveCollapsedActivity = ({
   return getActivityFromPart(
     lastPart,
     statusType,
-    toolActivity,
+    toolActivityLabels,
     chainStatusType,
     messageStatusType,
   );
 };
+
+const ToolActivityLabelsContext = createContext<
+  Record<string, ToolActivity> | undefined
+>(undefined);
 
 const ChainOfThoughtPrimitiveTool: ToolCallMessagePartComponent = ({
   toolName,
@@ -2639,6 +2690,27 @@ const ChainOfThoughtPrimitiveTool: ToolCallMessagePartComponent = ({
   result,
   status,
 }) => {
+  const toolActivityLabels = useContext(ToolActivityLabelsContext);
+  const part = useAuiState((s) => s.part as any);
+  const chainStatusType = useAuiState(
+    (s) => s.chainOfThought.status.type as string | undefined,
+  );
+  const messageStatusType = useAuiState(
+    (s) => s.message.status?.type as string | undefined,
+  );
+  const statusType = partStatusOrFallback(
+    part?.status?.type as string | undefined,
+    chainStatusType,
+    messageStatusType,
+  );
+  const activityLabel = getActivityFromPart(
+    part,
+    statusType,
+    toolActivityLabels,
+    chainStatusType,
+    messageStatusType,
+  );
+
   const badgeStatus: "running" | "complete" | "error" =
     status?.type === "running"
       ? "running"
@@ -2648,6 +2720,14 @@ const ChainOfThoughtPrimitiveTool: ToolCallMessagePartComponent = ({
 
   return (
     <div className="space-y-1.5">
+      {activityLabel ? (
+        <div
+          data-slot="chain-of-thought-tool-activity-label"
+          className="text-muted-foreground/80 text-xs"
+        >
+          {activityLabel}
+        </div>
+      ) : null}
       <ChainOfThoughtToolBadge toolName={toolName} status={badgeStatus} />
       {argsText ? (
         <pre className="whitespace-pre-wrap rounded-md bg-muted/40 px-2 py-1 text-muted-foreground/80 text-xs">
@@ -2715,15 +2795,21 @@ export type ChainOfThoughtProps = {
    * Optional per-tool collapsed activity callbacks.
    * Example: `search_web: ({ statusType, fallbackLabel }) => statusType === "running" ? "Searching the web" : \`Used ${fallbackLabel}\``
    */
-  toolActivity?: Record<string, ToolActivity>;
+  toolActivityLabels?: Record<string, ToolActivity>;
   /** Optional UI-layer renderer for full trigger content. */
   renderTriggerContent?: ChainOfThoughtTriggerProps["renderTriggerContent"];
+  /** Auto-collapse the disclosure after chain-of-thought processing completes. */
+  autoCollapseOnComplete?: boolean;
+  /** Visual variant override for the top-level CoT root. */
+  variant?: ChainOfThoughtRootProps["variant"];
 };
 
 const ChainOfThoughtImpl = ({
   constrainHeight = false,
-  toolActivity,
+  toolActivityLabels,
   renderTriggerContent,
+  autoCollapseOnComplete = true,
+  variant = "ghost",
 }: ChainOfThoughtProps = {}) => {
   const aui = useAui();
   const collapsed = useAuiState((s) => s.chainOfThought.collapsed);
@@ -2737,19 +2823,19 @@ const ChainOfThoughtImpl = ({
         ).toolActivities
       : undefined,
   );
-  const mergedToolActivity = useMemo(() => {
-    if (!registeredToolActivity && !toolActivity) return undefined;
+  const mergedToolActivityLabels = useMemo(() => {
+    if (!registeredToolActivity && !toolActivityLabels) return undefined;
     return {
       ...(registeredToolActivity ?? {}),
-      ...(toolActivity ?? {}),
+      ...(toolActivityLabels ?? {}),
     };
-  }, [registeredToolActivity, toolActivity]);
+  }, [registeredToolActivity, toolActivityLabels]);
   const collapsedActivity = useAuiState((s) =>
     deriveCollapsedActivity({
       parts: s.chainOfThought.parts as any[],
       chainStatusType: s.chainOfThought.status.type as string | undefined,
       messageStatusType: s.message.status?.type as string | undefined,
-      toolActivity: mergedToolActivity,
+      toolActivityLabels: mergedToolActivityLabels,
     }),
   );
   const isChainStreaming = useAuiState((s) => {
@@ -2783,6 +2869,39 @@ const ChainOfThoughtImpl = ({
     );
     return isMessageStatusStreaming(inferredStatusType);
   });
+  const hasRequiresAction = useAuiState((s) => {
+    const chainStatusType = s.chainOfThought.status.type as string | undefined;
+    if (chainStatusType === "requires-action") return true;
+    const messageStatusType = s.message.status?.type as string | undefined;
+    if (messageStatusType === "requires-action") return true;
+    const parts = s.chainOfThought.parts as any[];
+    return parts.some(
+      (part) =>
+        (part?.status?.type as string | undefined) === "requires-action",
+    );
+  });
+  const hasIncomplete = useAuiState((s) => {
+    const chainStatusType = s.chainOfThought.status.type as string | undefined;
+    if (chainStatusType === "incomplete") return true;
+    const messageStatusType = s.message.status?.type as string | undefined;
+    if (messageStatusType === "incomplete") return true;
+    const parts = s.chainOfThought.parts as any[];
+    return parts.some(
+      (part) => (part?.status?.type as string | undefined) === "incomplete",
+    );
+  });
+  const phase: ChainOfThoughtPhase =
+    partsLength === 0
+      ? "idle"
+      : hasRequiresAction
+        ? "requires-action"
+        : isChainStreaming
+          ? "running"
+          : hasIncomplete
+            ? "incomplete"
+            : "complete";
+  const isActivePhase = phase === "running" || phase === "requires-action";
+  const elapsedSeconds = useElapsedSeconds(isActivePhase);
   const [streamingOpenOverride, setStreamingOpenOverride] = useState(false);
   const wasStreamingRef = useRef(isChainStreaming);
 
@@ -2790,11 +2909,15 @@ const ChainOfThoughtImpl = ({
     if (isChainStreaming) {
       setStreamingOpenOverride(true);
     } else if (!isChainStreaming && wasStreamingRef.current) {
+      if (!autoCollapseOnComplete) {
+        wasStreamingRef.current = isChainStreaming;
+        return;
+      }
       setStreamingOpenOverride(false);
     }
 
     wasStreamingRef.current = isChainStreaming;
-  }, [isChainStreaming]);
+  }, [autoCollapseOnComplete, isChainStreaming]);
 
   const open = !collapsed || streamingOpenOverride;
 
@@ -2809,11 +2932,16 @@ const ChainOfThoughtImpl = ({
   );
 
   return (
-    <ChainOfThoughtRoot open={open} onOpenChange={handleOpenChange}>
+    <ChainOfThoughtRoot
+      open={open}
+      onOpenChange={handleOpenChange}
+      {...(variant ? { variant } : {})}
+    >
       <ChainOfThoughtTrigger
-        active={isChainStreaming}
-        open={open}
-        {...(collapsedActivity ? { activity: collapsedActivity } : {})}
+        phase={phase}
+        isOpen={open}
+        {...(collapsedActivity ? { activityLabel: collapsedActivity } : {})}
+        {...(elapsedSeconds !== undefined ? { elapsedSeconds } : {})}
         {...(renderTriggerContent ? { renderTriggerContent } : {})}
       />
       <ChainOfThoughtContent aria-busy={isChainStreaming}>
@@ -2824,13 +2952,17 @@ const ChainOfThoughtImpl = ({
             autoScrollBehavior="smooth"
             constrainHeight={constrainHeight}
           >
-            <ChainOfThoughtPrimitive.Parts
-              components={{
-                Reasoning: MarkdownText,
-                tools: { Fallback: ChainOfThoughtPrimitiveTool },
-                Layout: ChainOfThoughtPrimitivePartLayout,
-              }}
-            />
+            <ToolActivityLabelsContext.Provider
+              value={mergedToolActivityLabels}
+            >
+              <ChainOfThoughtPrimitive.Parts
+                components={{
+                  Reasoning: MarkdownText,
+                  tools: { Fallback: ChainOfThoughtPrimitiveTool },
+                  Layout: ChainOfThoughtPrimitivePartLayout,
+                }}
+              />
+            </ToolActivityLabelsContext.Provider>
           </ChainOfThoughtTimeline>
         ) : (
           <ChainOfThoughtPlaceholder />
@@ -2865,6 +2997,7 @@ const ChainOfThought = memo(
   ToolBadge: typeof ChainOfThoughtToolBadge;
   TraceTool: typeof ChainOfThoughtTraceTool;
   Announcer: typeof ChainOfThoughtAnnouncer;
+  Crossfade: typeof Crossfade;
 };
 
 ChainOfThought.displayName = "ChainOfThought";
@@ -2888,6 +3021,7 @@ ChainOfThought.Badge = ChainOfThoughtBadge;
 ChainOfThought.ToolBadge = ChainOfThoughtToolBadge;
 ChainOfThought.TraceTool = ChainOfThoughtTraceTool;
 ChainOfThought.Announcer = ChainOfThoughtAnnouncer;
+ChainOfThought.Crossfade = Crossfade;
 
 export {
   ChainOfThought,
