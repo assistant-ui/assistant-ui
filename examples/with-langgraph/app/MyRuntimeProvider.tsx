@@ -2,7 +2,12 @@
 
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useLangGraphRuntime } from "@assistant-ui/react-langgraph";
-import { createThread, getThreadState, sendMessage } from "@/lib/chatApi";
+import {
+  createThread,
+  getThreadState,
+  getCheckpointId,
+  sendMessage,
+} from "@/lib/chatApi";
 import { LangChainMessage } from "@assistant-ui/react-langgraph";
 
 export function MyRuntimeProvider({
@@ -11,13 +16,14 @@ export function MyRuntimeProvider({
   children: React.ReactNode;
 }>) {
   const runtime = useLangGraphRuntime({
-    stream: async function* (messages, { initialize }) {
+    stream: async function* (messages, { initialize, ...config }) {
       const { externalId } = await initialize();
       if (!externalId) throw new Error("Thread not found");
 
       const generator = sendMessage({
         threadId: externalId,
         messages,
+        config,
       });
 
       yield* generator;
@@ -34,6 +40,7 @@ export function MyRuntimeProvider({
         interrupts: state.tasks[0]?.interrupts ?? [],
       };
     },
+    getCheckpointId,
     eventHandlers: {
       onMessageChunk: (chunk, metadata) => {
         console.log("[messages-tuple] chunk:", chunk);

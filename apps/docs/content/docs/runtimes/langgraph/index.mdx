@@ -162,15 +162,17 @@ export const sendMessage = async (params: {
   config?: LangGraphSendMessageConfig;
 }) => {
   const client = createClient();
+  const { checkpointId, ...restConfig } = params.config ?? {};
   return client.runs.stream(
     params.threadId,
     process.env["NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID"]!,
     {
-      input: {
-        messages: params.messages,
-      },
+      input: params.messages.length > 0
+        ? { messages: params.messages }
+        : null,
       streamMode: "messages-tuple",
-      ...params.config
+      ...(checkpointId && { checkpoint_id: checkpointId }),
+      ...restConfig,
     },
   );
 };
@@ -382,6 +384,53 @@ const runtime = useLangGraphRuntime({
 ```
 
 See the [Cloud Persistence guide](/docs/cloud/langgraph) for detailed setup instructions.
+
+## Message Editing & Regeneration
+
+LangGraph uses server-side checkpoints for state management. To support message editing (branching) and regeneration, you need to provide a `getCheckpointId` callback that resolves the appropriate checkpoint for server-side forking.
+
+```typescript
+const runtime = useLangGraphRuntime({
+  stream: async (messages, { initialize, config }) => {
+    const { externalId } = await initialize();
+    if (!externalId) throw new Error("Thread not found");
+    return sendMessage({ threadId: externalId, messages, config });
+  },
+  create: async () => {
+    const { thread_id } = await createThread();
+    return { externalId: thread_id };
+  },
+  load: async (externalId) => {
+    const state = await getThreadState(externalId);
+    return {
+      messages: state.values.messages,
+      interrupts: state.tasks[0]?.interrupts,
+    };
+  },
+  getCheckpointId: async (threadId, parentMessages) => {
+    const client = createClient();
+    // Get the thread state history and find the checkpoint
+    // that matches the parent messages
+    const history = client.threads.getHistory(threadId);
+    for await (const state of history) {
+      if (state.values.messages.length === parentMessages.length) {
+        return state.checkpoint_id;
+      }
+    }
+    return null;
+  },
+});
+```
+
+When `getCheckpointId` is provided:
+- **Edit buttons** appear on user messages, allowing users to edit and resend from that point
+- **Regenerate buttons** appear on assistant messages, allowing users to regenerate the response
+
+The resolved `checkpointId` is passed to your `stream` callback via `config.checkpointId`. Your `sendMessage` helper should map it to the LangGraph SDK's `checkpoint_id` parameter (see the helper function in the setup section above).
+
+<Callout type="info">
+  Without `getCheckpointId`, the edit and regenerate buttons will not appear. This is intentional — simply truncating client-side messages without forking from the correct server-side checkpoint would produce incorrect state.
+</Callout>
 
 ## Interrupt Persistence
 

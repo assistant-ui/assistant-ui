@@ -2,6 +2,7 @@ import { ThreadState, Client } from "@langchain/langgraph-sdk";
 import {
   LangChainMessage,
   LangGraphMessagesEvent,
+  LangGraphSendMessageConfig,
 } from "@assistant-ui/react-langgraph";
 
 const createClient = () => {
@@ -30,6 +31,23 @@ export const getThreadState = async (
   return client.threads.getState(threadId);
 };
 
+export const getCheckpointId = async (
+  threadId: string,
+  parentMessages: LangChainMessage[],
+): Promise<string | null> => {
+  const client = createClient();
+  const history = client.threads.getHistory(threadId);
+  for await (const state of history) {
+    if (
+      (state.values as { messages?: LangChainMessage[] }).messages?.length ===
+      parentMessages.length
+    ) {
+      return state.checkpoint_id;
+    }
+  }
+  return null;
+};
+
 export const updateState = async (
   threadId: string,
   fields: {
@@ -47,25 +65,25 @@ export const updateState = async (
 export const sendMessage = (params: {
   threadId: string;
   messages: LangChainMessage[];
+  config?: LangGraphSendMessageConfig;
 }): AsyncGenerator<LangGraphMessagesEvent<LangChainMessage>> => {
   const client = createClient();
 
-  const input: Record<string, unknown> | null = {
-    messages: params.messages,
-  };
-  const config = {
-    configurable: {
-      model_name: "openai",
-    },
-  };
+  const { checkpointId, ...restConfig } = params.config ?? {};
 
   return client.runs.stream(
     params.threadId,
     process.env["NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID"]!,
     {
-      input,
-      config,
+      input: params.messages.length > 0 ? { messages: params.messages } : null,
+      config: {
+        configurable: {
+          model_name: "openai",
+        },
+      },
       streamMode: "messages-tuple",
+      ...(checkpointId && { checkpoint_id: checkpointId }),
+      ...restConfig,
     },
   ) as AsyncGenerator<LangGraphMessagesEvent<LangChainMessage>>;
 };

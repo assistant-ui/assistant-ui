@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
 
 import { useLangGraphMessages } from "./useLangGraphMessages";
@@ -957,6 +957,106 @@ describe("useLangGraphMessages", {}, () => {
 
     await waitFor(() => {
       expect(capturedValues).toEqual(valuesData);
+    });
+  });
+
+  it("passes checkpointId through to stream callback", async () => {
+    const streamSpy = vi
+      .fn()
+      .mockImplementation(mockStreamCallbackFactory([metadataEvent]));
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: streamSpy,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage(
+        [{ type: "human", content: "edited message" }],
+        { checkpointId: "cp-123" },
+      );
+    });
+
+    await waitFor(() => {
+      expect(streamSpy).toHaveBeenCalledTimes(1);
+      const config = streamSpy.mock.calls[0]![1];
+      expect(config.checkpointId).toBe("cp-123");
+    });
+  });
+
+  it("uses fresh messages after setMessages (stale closure fix)", async () => {
+    const streamSpy = vi
+      .fn()
+      .mockImplementation(mockStreamCallbackFactory([metadataEvent]));
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: streamSpy,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    // First: send a message to populate state
+    act(() => {
+      result.current.sendMessage(
+        [{ id: "h1", type: "human", content: "first" }],
+        {},
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.messages).toHaveLength(1);
+      expect(result.current.messages[0]!.id).toBe("h1");
+    });
+
+    // Simulate truncation (like onEdit does) then immediately send
+    act(() => {
+      result.current.setMessages([]);
+      result.current.sendMessage(
+        [{ id: "h2", type: "human", content: "edited" }],
+        {},
+      );
+    });
+
+    await waitFor(() => {
+      // After truncation + send, should only have the new message
+      // NOT the old "h1" message (which would happen with stale closure)
+      expect(result.current.messages).toHaveLength(1);
+      expect(result.current.messages[0]!.id).toBe("h2");
+      expect(result.current.messages[0]!.content).toBe("edited");
+    });
+  });
+
+  it("passes checkpointId alongside other config fields", async () => {
+    const streamSpy = vi
+      .fn()
+      .mockImplementation(mockStreamCallbackFactory([metadataEvent]));
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: streamSpy,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage([{ type: "human", content: "test" }], {
+        checkpointId: "cp-456",
+        command: { resume: "yes" },
+        runConfig: { model: "gpt-4" },
+      });
+    });
+
+    await waitFor(() => {
+      expect(streamSpy).toHaveBeenCalledTimes(1);
+      const config = streamSpy.mock.calls[0]![1];
+      expect(config.checkpointId).toBe("cp-456");
+      expect(config.command).toEqual({ resume: "yes" });
+      expect(config.runConfig).toEqual({ model: "gpt-4" });
+      expect(config.abortSignal).toBeInstanceOf(AbortSignal);
+      expect(typeof config.initialize).toBe("function");
     });
   });
 });
