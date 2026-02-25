@@ -410,10 +410,27 @@ const runtime = useLangGraphRuntime({
   getCheckpointId: async (threadId, parentMessages) => {
     const client = createClient();
     // Get the thread state history and find the checkpoint
-    // that matches the parent messages
+    // that matches the parent messages by exact message ID sequence.
+    // If IDs are missing, return null and skip edit/reload for safety.
     const history = await client.threads.getHistory(threadId);
     for (const state of history) {
-      if (state.values.messages.length === parentMessages.length) {
+      const stateMessages = state.values.messages;
+      if (!stateMessages || stateMessages.length !== parentMessages.length) {
+        continue;
+      }
+
+      const hasStableIds =
+        parentMessages.every((message) => typeof message.id === "string") &&
+        stateMessages.every((message) => typeof message.id === "string");
+      if (!hasStableIds) {
+        continue;
+      }
+
+      const isMatch = parentMessages.every(
+        (message, index) => message.id === stateMessages[index]?.id,
+      );
+
+      if (isMatch) {
         return state.checkpoint.checkpoint_id ?? null;
       }
     }

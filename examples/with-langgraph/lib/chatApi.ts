@@ -31,6 +31,27 @@ export const getThreadState = async (
   return client.threads.getState(threadId);
 };
 
+const matchesParentMessages = (
+  stateMessages: LangChainMessage[] | undefined,
+  parentMessages: LangChainMessage[],
+) => {
+  if (!stateMessages || stateMessages.length !== parentMessages.length) {
+    return false;
+  }
+
+  const hasStableIds =
+    parentMessages.every((message) => typeof message.id === "string") &&
+    stateMessages.every((message) => typeof message.id === "string");
+
+  if (!hasStableIds) {
+    return false;
+  }
+
+  return parentMessages.every(
+    (message, index) => message.id === stateMessages[index]?.id,
+  );
+};
+
 export const getCheckpointId = async (
   threadId: string,
   parentMessages: LangChainMessage[],
@@ -38,10 +59,9 @@ export const getCheckpointId = async (
   const client = createClient();
   const history = await client.threads.getHistory(threadId);
   for (const state of history) {
-    if (
-      (state.values as { messages?: LangChainMessage[] }).messages?.length ===
-      parentMessages.length
-    ) {
+    const stateMessages = (state.values as { messages?: LangChainMessage[] })
+      .messages;
+    if (matchesParentMessages(stateMessages, parentMessages)) {
       return state.checkpoint.checkpoint_id ?? null;
     }
   }
