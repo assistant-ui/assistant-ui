@@ -413,9 +413,9 @@ function Crossfade<T>({
   const isTransitioning = previousValue != null;
 
   return (
-    <span
+    <div
       data-slot="chain-of-thought-crossfade"
-      className={cn("relative inline-flex", className)}
+      className={cn("relative flex min-w-0", className)}
       style={
         isTransitioning
           ? ({
@@ -427,24 +427,28 @@ function Crossfade<T>({
       }
     >
       {isTransitioning && (
-        <span
+        <div
           key={`exit-${generation}`}
           aria-hidden
-          className="fade-out-0 pointer-events-none absolute inset-0 animate-out fill-mode-both duration-[var(--crossfade-exit-duration)]"
+          className={cn(
+            "aui-chain-of-thought-crossfade-exit",
+            "fade-out-0 pointer-events-none absolute inset-0 w-full min-w-0 animate-out fill-mode-both duration-[var(--crossfade-exit-duration)]",
+          )}
         >
           {children(previousValue as T)}
-        </span>
+        </div>
       )}
-      <span
+      <div
         key={`enter-${generation}`}
         className={cn(
+          "aui-chain-of-thought-crossfade-enter w-full min-w-0",
           isTransitioning &&
             "fade-in-0 animate-in fill-mode-both delay-[var(--crossfade-enter-delay)] duration-[var(--crossfade-enter-duration)]",
         )}
       >
         {children(currentValue)}
-      </span>
-    </span>
+      </div>
+    </div>
   );
 }
 
@@ -465,6 +469,16 @@ export type ChainOfThoughtTriggerProps = React.ComponentProps<
     phase: ChainOfThoughtPhase;
     isOpen: boolean;
     elapsedSeconds: number | undefined;
+    /** @deprecated Use `reasoningLabel`. */
+    label: string;
+    /** @deprecated Use `activityLabel`. */
+    activity: string | undefined;
+    /** @deprecated Use `phase` comparisons. */
+    active: boolean;
+    /** @deprecated Use `isOpen`. */
+    open: boolean;
+    /** @deprecated Use `elapsedSeconds`. */
+    duration: number | undefined;
   }) => ReactNode;
   /** Elapsed time in seconds. */
   elapsedSeconds?: number | undefined;
@@ -490,7 +504,9 @@ function ChainOfThoughtTrigger({
   const displayLabel = elapsedSeconds
     ? `${reasoningLabel} (${elapsedSeconds}s)`
     : reasoningLabel;
-  const primaryLabel = activityLabel ?? displayLabel;
+  const fallbackLabel =
+    reasoningLabel !== "Reasoning" ? reasoningLabel : "Thinking...";
+  const primaryLabel = activityLabel ?? fallbackLabel;
   const hasCustomTriggerContent = renderTriggerContent !== undefined;
   const customTriggerContent = hasCustomTriggerContent
     ? renderTriggerContent({
@@ -500,6 +516,11 @@ function ChainOfThoughtTrigger({
         phase,
         isOpen: !!isOpen,
         elapsedSeconds,
+        label: reasoningLabel,
+        activity: activityLabel,
+        active: isActivePhase,
+        open: !!isOpen,
+        duration: elapsedSeconds,
       })
     : undefined;
 
@@ -514,14 +535,14 @@ function ChainOfThoughtTrigger({
       )}
       {...props}
     >
-      <span
+      <div
         data-slot="chain-of-thought-trigger-label"
         className="aui-chain-of-thought-trigger-label-wrapper min-w-0 flex-1 leading-6"
       >
         {hasCustomTriggerContent ? (
           customTriggerContent
         ) : (
-          <span className="relative inline-flex w-full min-w-0 items-center gap-1.5">
+          <div className="relative flex w-full min-w-0 items-center gap-1.5">
             <ChevronDownIcon
               data-slot="chain-of-thought-trigger-chevron"
               className={cn(
@@ -531,62 +552,47 @@ function ChainOfThoughtTrigger({
                 "group-data-[state=open]/trigger:rotate-0",
               )}
             />
-            <span className="flex min-w-0 flex-1 items-center gap-2">
-              <span
+            <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
+              <div
+                data-slot="chain-of-thought-trigger-reasoning-label"
+                className="aui-chain-of-thought-trigger-reasoning-label max-w-[24ch] shrink-0 truncate font-medium text-foreground"
+              >
+                {displayLabel}
+              </div>
+              <div
                 data-slot="chain-of-thought-trigger-activity"
-                className="aui-chain-of-thought-trigger-activity relative inline-flex min-w-0 max-w-[52ch] items-center font-medium text-foreground"
+                className="aui-chain-of-thought-trigger-activity relative flex min-w-[12ch] flex-1 items-center font-medium text-foreground"
               >
                 <Crossfade
                   value={primaryLabel}
                   exitDuration={200}
                   enterDuration={320}
                   enterDelay={70}
-                  className="h-6 min-w-0 items-center"
+                  className="h-6 w-full min-w-0 items-center"
                 >
                   {(nextActivityLabel) => (
-                    <span className="relative inline-flex min-w-0 items-center truncate">
+                    <div className="shimmer-container relative flex w-full min-w-0 items-center truncate">
                       {nextActivityLabel}
                       {isActivePhase && (
                         <span
                           aria-hidden
                           data-slot="chain-of-thought-trigger-activity-shimmer"
                           className={cn(
-                            "aui-chain-of-thought-trigger-activity-shimmer shimmer pointer-events-none absolute inset-0",
+                            "aui-chain-of-thought-trigger-activity-shimmer shimmer pointer-events-none absolute inset-0 text-foreground/40",
                             "motion-reduce:animate-none",
                           )}
                         >
                           {nextActivityLabel}
                         </span>
                       )}
-                    </span>
+                    </div>
                   )}
                 </Crossfade>
-              </span>
-              {activityLabel ? (
-                <Crossfade
-                  value={displayLabel}
-                  exitDuration={200}
-                  enterDuration={320}
-                  enterDelay={70}
-                  className="h-6 min-w-0 items-center"
-                >
-                  {(nextReasoningLabel) => (
-                    <span
-                      data-slot="chain-of-thought-trigger-reasoning-label"
-                      className={cn(
-                        "aui-chain-of-thought-trigger-reasoning-label inline-flex min-w-0 items-center text-muted-foreground text-xs",
-                        "group-data-[state=open]/trigger:opacity-70",
-                      )}
-                    >
-                      <span className="truncate">{nextReasoningLabel}</span>
-                    </span>
-                  )}
-                </Crossfade>
-              ) : null}
-            </span>
-          </span>
+              </div>
+            </div>
+          </div>
         )}
-      </span>
+      </div>
     </CollapsibleTrigger>
   );
 }
@@ -631,8 +637,161 @@ function ChainOfThoughtContent({
   style,
   ...props
 }: React.ComponentProps<typeof CollapsibleContent>) {
+  const [contentEl, setContentEl] = useState<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!contentEl) return;
+    if (typeof ResizeObserver === "undefined") return;
+    if (typeof window === "undefined") return;
+    if (typeof window.matchMedia !== "function") return;
+
+    const reducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    if (reducedMotion) return;
+
+    let rafId: number | null = null;
+    let timeoutId: number | null = null;
+    let isAnimating = false;
+    let pendingHeight: number | null = null;
+    let lastMeasuredHeight: number | null =
+      contentEl.getBoundingClientRect().height;
+
+    const cleanupAnimationResources = () => {
+      if (rafId !== null) {
+        window.cancelAnimationFrame(rafId);
+        rafId = null;
+      }
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+        timeoutId = null;
+      }
+    };
+
+    const completeAnimation = () => {
+      isAnimating = false;
+      cleanupAnimationResources();
+
+      if (contentEl.getAttribute("data-state") === "open") {
+        contentEl.style.height = "auto";
+        lastMeasuredHeight = contentEl.getBoundingClientRect().height;
+      } else {
+        contentEl.style.height = "";
+        lastMeasuredHeight = null;
+      }
+      contentEl.style.transition = "";
+      contentEl.style.willChange = "";
+
+      if (
+        pendingHeight != null &&
+        contentEl.getAttribute("data-state") === "open"
+      ) {
+        const nextPendingHeight = pendingHeight;
+        pendingHeight = null;
+        const fromHeight =
+          lastMeasuredHeight ?? contentEl.getBoundingClientRect().height;
+        lastMeasuredHeight = nextPendingHeight;
+        runHeightAnimation(nextPendingHeight, fromHeight);
+      }
+    };
+
+    const runHeightAnimation = (
+      nextHeight: number,
+      fromHeightOverride?: number,
+    ) => {
+      if (contentEl.getAttribute("data-state") !== "open") return;
+      if (nextHeight <= 0) return;
+
+      if (isAnimating) {
+        pendingHeight = nextHeight;
+        return;
+      }
+
+      const currentHeight =
+        fromHeightOverride ?? contentEl.getBoundingClientRect().height;
+      if (Math.abs(nextHeight - currentHeight) < 1) return;
+
+      isAnimating = true;
+      cleanupAnimationResources();
+
+      contentEl.style.willChange = "height";
+      contentEl.style.transition = `height ${ANIMATION_DURATION}ms ${SPRING_EASING}`;
+      contentEl.style.height = `${currentHeight}px`;
+      void contentEl.offsetHeight;
+
+      rafId = window.requestAnimationFrame(() => {
+        contentEl.style.height = `${nextHeight}px`;
+      });
+
+      const handleTransitionEnd = (event: TransitionEvent) => {
+        if (event.propertyName !== "height") return;
+        contentEl.removeEventListener("transitionend", handleTransitionEnd);
+        completeAnimation();
+      };
+
+      contentEl.addEventListener("transitionend", handleTransitionEnd);
+      timeoutId = window.setTimeout(() => {
+        contentEl.removeEventListener("transitionend", handleTransitionEnd);
+        completeAnimation();
+      }, ANIMATION_DURATION + 100);
+    };
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      if (contentEl.getAttribute("data-state") !== "open") return;
+      const entry = entries[0];
+      const nextMeasuredHeight =
+        entry?.target === contentEl
+          ? Math.max(entry.contentRect.height, contentEl.scrollHeight)
+          : contentEl.scrollHeight;
+
+      if (nextMeasuredHeight <= 0) return;
+
+      if (lastMeasuredHeight == null) {
+        lastMeasuredHeight = nextMeasuredHeight;
+        return;
+      }
+
+      if (Math.abs(nextMeasuredHeight - lastMeasuredHeight) < 1) return;
+      const fromHeight = lastMeasuredHeight;
+      lastMeasuredHeight = nextMeasuredHeight;
+      runHeightAnimation(nextMeasuredHeight, fromHeight);
+    });
+    resizeObserver.observe(contentEl);
+
+    const mutationObserver = new MutationObserver(() => {
+      const state = contentEl.getAttribute("data-state");
+      if (state === "closed") {
+        pendingHeight = null;
+        isAnimating = false;
+        lastMeasuredHeight = null;
+        cleanupAnimationResources();
+        contentEl.style.height = "";
+        contentEl.style.transition = "";
+        contentEl.style.willChange = "";
+      } else if (state === "open") {
+        lastMeasuredHeight = contentEl.getBoundingClientRect().height;
+      }
+    });
+    mutationObserver.observe(contentEl, {
+      attributes: true,
+      attributeFilter: ["data-state"],
+    });
+
+    return () => {
+      resizeObserver.disconnect();
+      mutationObserver.disconnect();
+      cleanupAnimationResources();
+      contentEl.style.height = "";
+      contentEl.style.transition = "";
+      contentEl.style.willChange = "";
+    };
+  }, [contentEl]);
+
   return (
     <CollapsibleContent
+      ref={(el) => {
+        setContentEl((current) => (current === el ? current : el));
+      }}
       data-slot="chain-of-thought-content"
       className={cn(
         "aui-chain-of-thought-content",
@@ -2464,7 +2623,13 @@ const ChainOfThoughtTraceTool = memo(function ChainOfThoughtTraceTool({
         ? "error"
         : "complete";
 
-  return <ChainOfThoughtToolBadge toolName={toolName} status={badgeStatus} />;
+  return (
+    <ChainOfThoughtToolBadge
+      toolName={toolName}
+      status={badgeStatus}
+      showIcon={false}
+    />
+  );
 });
 
 const mapPartStatusToStepStatus = (
@@ -2506,6 +2671,54 @@ const humanizeToolName = (toolName: string | undefined) => {
   const normalized = normalizeActivityText(toolName);
   if (!normalized) return "tool";
   return normalized.replaceAll(/[_-]+/g, " ");
+};
+
+const TOOL_ACTIVITY_VERB_INFLECTIONS: Record<
+  string,
+  { running: string; complete: string }
+> = {
+  search: { running: "Searching", complete: "Searched" },
+  fetch: { running: "Fetching", complete: "Fetched" },
+  analyze: { running: "Analyzing", complete: "Analyzed" },
+  run: { running: "Running", complete: "Ran" },
+  create: { running: "Creating", complete: "Created" },
+  write: { running: "Writing", complete: "Wrote" },
+  query: { running: "Querying", complete: "Queried" },
+  read: { running: "Reading", complete: "Read" },
+  get: { running: "Getting", complete: "Got" },
+};
+
+const normalizeToolActivitySubject = (subject: string) => {
+  if (subject === "web") return "the web";
+  return subject;
+};
+
+const getDefaultToolActivityLabel = (
+  toolLabel: string,
+  statusType: string | undefined,
+) => {
+  const words = normalizeActivityText(toolLabel).toLowerCase().split(" ");
+  const verb = words[0] ?? "";
+  const rawSubject = words.slice(1).join(" ").trim();
+  const subject = normalizeToolActivitySubject(rawSubject);
+  const inflection = TOOL_ACTIVITY_VERB_INFLECTIONS[verb];
+
+  if (statusType === "requires-action") {
+    return `Waiting on ${subject || toolLabel}`;
+  }
+  if (statusType === "incomplete") {
+    return `Error in ${subject || toolLabel}`;
+  }
+  if (inflection) {
+    if (statusType === "running") {
+      return subject ? `${inflection.running} ${subject}` : inflection.running;
+    }
+    return subject ? `${inflection.complete} ${subject}` : inflection.complete;
+  }
+  if (statusType === "running") {
+    return `Using ${toolLabel}`;
+  }
+  return `Used ${toolLabel}`;
 };
 
 const getToolActivityResolver = (
@@ -2586,17 +2799,7 @@ const getActivityFromPart = (
       } satisfies ToolActivityContext),
     );
     if (resolved) return resolved;
-
-    if (effectiveStatusType === "running") {
-      return `Running ${tool}`;
-    }
-    if (effectiveStatusType === "requires-action") {
-      return `Waiting on ${tool}`;
-    }
-    if (effectiveStatusType === "incomplete") {
-      return `Error in ${tool}`;
-    }
-    return `Used ${tool}`;
+    return getDefaultToolActivityLabel(tool, effectiveStatusType);
   }
 
   if (part?.type === "reasoning") {
@@ -2684,6 +2887,39 @@ const ToolActivityLabelsContext = createContext<
   Record<string, ToolActivity> | undefined
 >(undefined);
 
+const extractSearchResults = (
+  toolName: string,
+  result: unknown,
+): { summary?: string; sources: string[] } | null => {
+  if (!toolName.toLowerCase().includes("search")) return null;
+  if (!isRecord(result)) return null;
+
+  const sourcesValue = result.sources;
+  const sources = Array.isArray(sourcesValue)
+    ? sourcesValue.filter(
+        (source): source is string => typeof source === "string",
+      )
+    : [];
+  const summary =
+    typeof result.summary === "string"
+      ? result.summary
+      : typeof result.hits === "number"
+        ? `Found ${result.hits} result${result.hits === 1 ? "" : "s"}.`
+        : undefined;
+
+  if (!summary && sources.length === 0) return null;
+  return summary ? { summary, sources } : { sources };
+};
+
+const formatSearchSourceLabel = (source: string) => {
+  try {
+    const url = new URL(source);
+    return `${url.hostname}${url.pathname}`;
+  } catch {
+    return source;
+  }
+};
+
 const ChainOfThoughtPrimitiveTool: ToolCallMessagePartComponent = ({
   toolName,
   argsText,
@@ -2710,6 +2946,16 @@ const ChainOfThoughtPrimitiveTool: ToolCallMessagePartComponent = ({
     chainStatusType,
     messageStatusType,
   );
+  const effectiveStatusType = inferToolActivityStatusType(
+    part,
+    statusType,
+    messageStatusType,
+  );
+  const isActiveToolLabel =
+    effectiveStatusType === "running" ||
+    effectiveStatusType === "requires-action";
+  const toolResult = result ?? part?.result;
+  const searchResults = extractSearchResults(toolName, toolResult);
 
   const badgeStatus: "running" | "complete" | "error" =
     status?.type === "running"
@@ -2720,25 +2966,57 @@ const ChainOfThoughtPrimitiveTool: ToolCallMessagePartComponent = ({
 
   return (
     <div className="space-y-1.5">
-      {activityLabel ? (
-        <div
-          data-slot="chain-of-thought-tool-activity-label"
-          className="text-muted-foreground/80 text-xs"
-        >
-          {activityLabel}
-        </div>
-      ) : null}
-      <ChainOfThoughtToolBadge toolName={toolName} status={badgeStatus} />
+      <div className="-mt-0.5 flex min-w-0 items-center gap-1.5 text-sm leading-relaxed">
+        {activityLabel ? (
+          <div
+            data-slot="chain-of-thought-tool-activity-label"
+            className={cn(
+              "min-w-0 max-w-[52ch] shrink truncate font-medium text-foreground leading-5",
+              isActiveToolLabel && "shimmer motion-reduce:animate-none",
+            )}
+          >
+            {activityLabel}
+          </div>
+        ) : null}
+        <ChainOfThoughtToolBadge
+          toolName={toolName}
+          status={badgeStatus}
+          showIcon={false}
+          className="shrink-0 text-[13px]"
+        />
+      </div>
       {argsText ? (
         <pre className="whitespace-pre-wrap rounded-md bg-muted/40 px-2 py-1 text-muted-foreground/80 text-xs">
           {argsText}
         </pre>
       ) : null}
-      {result !== undefined ? (
+      {searchResults ? (
+        <div
+          data-slot="chain-of-thought-search-results"
+          className="space-y-2 rounded-md bg-muted/40 px-2 py-2"
+        >
+          {searchResults.summary ? (
+            <p className="text-muted-foreground/90 text-xs">
+              {searchResults.summary}
+            </p>
+          ) : null}
+          {searchResults.sources.length > 0 ? (
+            <ul className="space-y-1 text-xs">
+              {searchResults.sources.map((source) => (
+                <li key={source}>
+                  <span className="text-muted-foreground/80">
+                    {formatSearchSourceLabel(source)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ) : toolResult !== undefined ? (
         <pre className="whitespace-pre-wrap rounded-md bg-muted/40 px-2 py-1 text-muted-foreground/80 text-xs">
-          {typeof result === "string"
-            ? result
-            : JSON.stringify(result, null, 2)}
+          {typeof toolResult === "string"
+            ? toolResult
+            : JSON.stringify(toolResult, null, 2)}
         </pre>
       ) : null}
     </div>
@@ -2766,9 +3044,12 @@ const ChainOfThoughtPrimitivePartLayout: React.FC<
   const toolName = isToolCall
     ? (part.toolName as string | undefined)
     : undefined;
+  const isReasoning = part.type === "reasoning";
   const stepType: StepType = isToolCall
     ? inferStepTypeFromTool(toolName ?? "tool")
-    : "text";
+    : isReasoning
+      ? "default"
+      : "text";
   const isActive =
     statusType === "running" ||
     statusType === "requires-action" ||
@@ -2784,6 +3065,34 @@ const ChainOfThoughtPrimitivePartLayout: React.FC<
     </ChainOfThoughtStep>
   );
 };
+
+function ChainOfThoughtTerminalStep({
+  phase,
+  elapsedSeconds,
+}: {
+  phase: ChainOfThoughtPhase;
+  elapsedSeconds?: number;
+}) {
+  const isIncomplete = phase === "incomplete";
+  const label = isIncomplete
+    ? elapsedSeconds
+      ? `Stopped after ${elapsedSeconds}s`
+      : "Stopped"
+    : elapsedSeconds
+      ? `Done in ${elapsedSeconds}s`
+      : "Done";
+
+  return (
+    <ChainOfThoughtStep
+      status={isIncomplete ? "error" : "complete"}
+      type={isIncomplete ? "error" : "complete"}
+    >
+      <ChainOfThoughtStepHeader data-slot="chain-of-thought-terminal-step-label">
+        {label}
+      </ChainOfThoughtStepHeader>
+    </ChainOfThoughtStep>
+  );
+}
 
 export type ChainOfThoughtProps = {
   /**
@@ -2962,6 +3271,12 @@ const ChainOfThoughtImpl = ({
                   Layout: ChainOfThoughtPrimitivePartLayout,
                 }}
               />
+              {(phase === "complete" || phase === "incomplete") && (
+                <ChainOfThoughtTerminalStep
+                  phase={phase}
+                  {...(elapsedSeconds !== undefined ? { elapsedSeconds } : {})}
+                />
+              )}
             </ToolActivityLabelsContext.Provider>
           </ChainOfThoughtTimeline>
         ) : (

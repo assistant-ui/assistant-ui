@@ -95,6 +95,26 @@ const ChainOfThoughtWithTriggerArgEcho = () => (
   />
 );
 
+const ChainOfThoughtWithLegacyTriggerFieldNames = () => (
+  <ChainOfThought
+    toolActivityLabels={{
+      search_web: ({ statusType }: { statusType?: string }) =>
+        statusType === "running" ? "Searching the web" : "Searched the web",
+    }}
+    renderTriggerContent={(
+      args: {
+        label?: string;
+        activity?: string;
+      } & Record<string, unknown>,
+    ) => (
+      <span data-slot="legacy-trigger-content">
+        <span data-slot="legacy-trigger-title">{args.label}</span>
+        <span data-slot="legacy-trigger-activity">{args.activity}</span>
+      </span>
+    )}
+  />
+);
+
 const ChainOfThoughtWithToolSummaryAndOutlineVariant = () => (
   <ChainOfThought
     variant="outline"
@@ -378,7 +398,9 @@ describe("ChainOfThought primitive integration", () => {
     ) as HTMLButtonElement | null;
 
     expect(trigger).not.toBeNull();
-    expect(trigger?.textContent).toContain("Reasoning");
+    expect(trigger?.textContent).toContain(
+      "Looking through the request and planning the response.",
+    );
     expect(trigger?.getAttribute("aria-expanded")).toBe("false");
     const rootEl = container.querySelector(
       "[data-slot=chain-of-thought-root]",
@@ -397,7 +419,7 @@ describe("ChainOfThought primitive integration", () => {
     });
   });
 
-  it("renders activity-first collapsed trigger content with reasoning context", () => {
+  it("renders collapsed trigger content with reasoning title and activity by default", () => {
     const container = document.createElement("div");
     const root = createRoot(container);
 
@@ -422,8 +444,83 @@ describe("ChainOfThought primitive integration", () => {
     );
 
     expect(trigger?.getAttribute("aria-expanded")).toBe("false");
-    expect(activity?.textContent).toContain("search web");
-    expect(trigger?.textContent).toContain("Reasoning");
+    expect(activity?.textContent).toContain("Searched the web");
+    expect(
+      container.querySelector(
+        "[data-slot=chain-of-thought-trigger-reasoning-label]",
+      )?.textContent,
+    ).toContain("Reasoning");
+
+    act(() => {
+      root.unmount();
+    });
+  });
+
+  it("renders a non-collapsing reasoning title alongside activity in the collapsed trigger", () => {
+    const container = document.createElement("div");
+    const root = createRoot(container);
+
+    act(() => {
+      root.render(
+        <MessageProvider message={buildPrimitiveCoTToolMessage()} index={0}>
+          <MessagePrimitive.Parts
+            components={{
+              ChainOfThought,
+              Text: ({ text }) => <p>{text}</p>,
+            }}
+          />
+        </MessageProvider>,
+      );
+    });
+
+    const title = container.querySelector(
+      "[data-slot=chain-of-thought-trigger-reasoning-label]",
+    ) as HTMLElement | null;
+    const activity = container.querySelector(
+      "[data-slot=chain-of-thought-trigger-activity]",
+    ) as HTMLElement | null;
+
+    expect(title).not.toBeNull();
+    expect(title?.textContent).toContain("Reasoning");
+    expect(title?.className).toContain("shrink-0");
+    expect(activity?.textContent).toContain("Searched the web");
+    expect(activity?.className).toContain("min-w-[12ch]");
+
+    act(() => {
+      root.unmount();
+    });
+  });
+
+  it("uses block wrappers for trigger label layout to avoid inline width collapse", () => {
+    const container = document.createElement("div");
+    const root = createRoot(container);
+
+    act(() => {
+      root.render(
+        <MessageProvider message={buildPrimitiveCoTToolMessage()} index={0}>
+          <MessagePrimitive.Parts
+            components={{
+              ChainOfThought,
+              Text: ({ text }) => <p>{text}</p>,
+            }}
+          />
+        </MessageProvider>,
+      );
+    });
+
+    const labelWrapper = container.querySelector(
+      "[data-slot=chain-of-thought-trigger-label]",
+    ) as HTMLElement | null;
+    const activityWrapper = container.querySelector(
+      "[data-slot=chain-of-thought-trigger-activity]",
+    ) as HTMLElement | null;
+    const crossfadeWrapper = container.querySelector(
+      "[data-slot=chain-of-thought-crossfade]",
+    ) as HTMLElement | null;
+
+    expect(labelWrapper?.tagName).toBe("DIV");
+    expect(activityWrapper?.tagName).toBe("DIV");
+    expect(crossfadeWrapper?.tagName).toBe("DIV");
 
     act(() => {
       root.unmount();
@@ -456,11 +553,11 @@ describe("ChainOfThought primitive integration", () => {
 
     expect(trigger).not.toBeNull();
     expect(trigger?.getAttribute("aria-expanded")).toBe("true");
-    expect(trigger?.textContent).toContain("Reasoning");
+    expect(trigger?.textContent).toContain("Searching the web");
     const activity = container.querySelector(
       "[data-slot=chain-of-thought-trigger-activity]",
     );
-    expect(activity?.textContent).toContain("search web");
+    expect(activity?.textContent).toContain("Searching the web");
     const timeline = container.querySelector(
       '[data-slot=chain-of-thought-timeline]:not([aria-hidden="true"])',
     ) as HTMLElement | null;
@@ -625,6 +722,57 @@ describe("ChainOfThought primitive integration", () => {
     });
   });
 
+  it("uses natural default tool activity phrasing", () => {
+    const container = document.createElement("div");
+    const root = createRoot(container);
+
+    act(() => {
+      root.render(
+        <MessageProvider
+          message={buildPrimitiveCoTRunningToolMessage()}
+          index={0}
+        >
+          <MessagePrimitive.Parts
+            components={{
+              ChainOfThought,
+              Text: ({ text }) => <p>{text}</p>,
+            }}
+          />
+        </MessageProvider>,
+      );
+    });
+
+    const runningActivity = container.querySelector(
+      "[data-slot=chain-of-thought-trigger-activity]",
+    );
+    expect(runningActivity?.textContent).toContain("Searching the web");
+
+    act(() => {
+      root.render(
+        <MessageProvider
+          message={buildPrimitiveCoTCompletedToolMessage()}
+          index={0}
+        >
+          <MessagePrimitive.Parts
+            components={{
+              ChainOfThought,
+              Text: ({ text }) => <p>{text}</p>,
+            }}
+          />
+        </MessageProvider>,
+      );
+    });
+
+    const completedActivity = container.querySelector(
+      "[data-slot=chain-of-thought-trigger-activity]",
+    );
+    expect(completedActivity?.textContent).toContain("Searched the web");
+
+    act(() => {
+      root.unmount();
+    });
+  });
+
   it("supports custom trigger content rendering at the UI layer", () => {
     const container = document.createElement("div");
     const root = createRoot(container);
@@ -700,7 +848,7 @@ describe("ChainOfThought primitive integration", () => {
 
     const runningEcho = container.querySelector("[data-slot=trigger-arg-echo]");
     expect(runningEcho?.textContent).toContain("reasoning:Reasoning");
-    expect(runningEcho?.textContent).toContain("activity:Running search web");
+    expect(runningEcho?.textContent).toContain("activity:Searching the web");
     expect(runningEcho?.textContent).toContain("phase:running");
     expect(runningEcho?.textContent).toContain("open:true");
     expect(runningEcho?.textContent).toContain("elapsed:");
@@ -726,6 +874,41 @@ describe("ChainOfThought primitive integration", () => {
     );
     expect(completeEcho?.textContent).toContain("phase:complete");
     expect(completeEcho?.textContent).toContain("open:false");
+
+    act(() => {
+      root.unmount();
+    });
+  });
+
+  it("supports legacy trigger renderer field names for title and step labels", () => {
+    const container = document.createElement("div");
+    const root = createRoot(container);
+
+    act(() => {
+      root.render(
+        <MessageProvider
+          message={buildPrimitiveCoTRunningToolMessage()}
+          index={0}
+        >
+          <MessagePrimitive.Parts
+            components={{
+              ChainOfThought: ChainOfThoughtWithLegacyTriggerFieldNames,
+              Text: ({ text }) => <p>{text}</p>,
+            }}
+          />
+        </MessageProvider>,
+      );
+    });
+
+    const legacyTitle = container.querySelector(
+      "[data-slot=legacy-trigger-title]",
+    ) as HTMLElement | null;
+    const legacyActivity = container.querySelector(
+      "[data-slot=legacy-trigger-activity]",
+    ) as HTMLElement | null;
+
+    expect(legacyTitle?.textContent).toContain("Reasoning");
+    expect(legacyActivity?.textContent).toContain("Searching the web");
 
     act(() => {
       root.unmount();
@@ -812,7 +995,7 @@ describe("ChainOfThought primitive integration", () => {
     const initialActivity = container.querySelector(
       "[data-slot=chain-of-thought-trigger-activity]",
     );
-    expect(initialActivity?.textContent).toContain("search web");
+    expect(initialActivity?.textContent).toContain("Searched the web");
 
     act(() => {
       root.render(
@@ -833,8 +1016,8 @@ describe("ChainOfThought primitive integration", () => {
     const updatedActivity = container.querySelector(
       "[data-slot=chain-of-thought-trigger-activity]",
     );
-    expect(updatedActivity?.textContent).toContain("search web");
-    expect(updatedActivity?.textContent).toContain("fetch docs");
+    expect(updatedActivity?.textContent).toContain("Searched the web");
+    expect(updatedActivity?.textContent).toContain("Fetched docs");
     expect(updatedActivity?.querySelector("[aria-hidden]")).not.toBeNull();
 
     act(() => {
@@ -867,6 +1050,11 @@ describe("ChainOfThought primitive integration", () => {
         "[data-slot=chain-of-thought-trigger-activity-shimmer]",
       ),
     ).not.toBeNull();
+    expect(
+      container.querySelector(
+        "[data-slot=chain-of-thought-trigger-activity-shimmer]",
+      )?.className,
+    ).toContain("text-foreground/40");
 
     act(() => {
       root.render(
@@ -889,6 +1077,79 @@ describe("ChainOfThought primitive integration", () => {
         "[data-slot=chain-of-thought-trigger-activity-shimmer]",
       ),
     ).toBeNull();
+
+    act(() => {
+      root.unmount();
+    });
+  });
+
+  it("applies shimmer to the running expanded tool activity label", () => {
+    const container = document.createElement("div");
+    const root = createRoot(container);
+
+    act(() => {
+      root.render(
+        <MessageProvider
+          message={buildPrimitiveCoTRunningToolMessage()}
+          index={0}
+        >
+          <MessagePrimitive.Parts
+            components={{
+              ChainOfThought,
+              Text: ({ text }) => <p>{text}</p>,
+            }}
+          />
+        </MessageProvider>,
+      );
+    });
+
+    const runningActivityLabel = container.querySelector(
+      "[data-slot=chain-of-thought-tool-activity-label]",
+    ) as HTMLElement | null;
+    const runningActivityRow = runningActivityLabel?.parentElement;
+    expect(runningActivityLabel?.tagName).toBe("DIV");
+    expect(runningActivityRow?.className).toContain("-mt-0.5");
+    expect(runningActivityLabel?.className).toContain("min-w-0");
+    expect(runningActivityLabel?.className).toContain("max-w-[52ch]");
+    expect(runningActivityLabel?.className).toContain("leading-5");
+    expect(runningActivityLabel?.className).not.toContain("flex-1");
+    expect(runningActivityLabel?.className).not.toContain("w-full");
+    expect(runningActivityLabel?.className).not.toContain("shimmer-container");
+    const runningShimmer = container.querySelector(
+      "[data-slot=chain-of-thought-tool-activity-label-shimmer]",
+    );
+    expect(runningShimmer).toBeNull();
+    expect(runningActivityLabel?.className).toContain("shimmer");
+    expect(runningActivityLabel?.className).toContain(
+      "motion-reduce:animate-none",
+    );
+
+    act(() => {
+      root.render(
+        <MessageProvider
+          message={buildPrimitiveCoTCompletedToolMessage()}
+          index={0}
+        >
+          <MessagePrimitive.Parts
+            components={{
+              ChainOfThought,
+              Text: ({ text }) => <p>{text}</p>,
+            }}
+          />
+        </MessageProvider>,
+      );
+    });
+
+    const completeShimmer = container.querySelector(
+      "[data-slot=chain-of-thought-tool-activity-label-shimmer]",
+    );
+    expect(completeShimmer).toBeNull();
+    const completeActivityLabel = container.querySelector(
+      "[data-slot=chain-of-thought-tool-activity-label]",
+    ) as HTMLElement | null;
+    if (completeActivityLabel) {
+      expect(completeActivityLabel.className).not.toContain("shimmer");
+    }
 
     act(() => {
       root.unmount();
@@ -925,6 +1186,57 @@ describe("ChainOfThought primitive integration", () => {
     );
     expect(content?.textContent).toContain("Searching the web");
     expect(content?.textContent).toContain("assistant-ui chain of thought ui");
+
+    act(() => {
+      root.unmount();
+    });
+  });
+
+  it("renders a terminal done step with elapsed time when processing completes", () => {
+    const container = document.createElement("div");
+    const root = createRoot(container);
+
+    act(() => {
+      root.render(
+        <MessageProvider
+          message={buildPrimitiveCoTRunningToolMessage()}
+          index={0}
+        >
+          <MessagePrimitive.Parts
+            components={{
+              ChainOfThought: ChainOfThoughtWithNoAutoCollapse,
+              Text: ({ text }) => <p>{text}</p>,
+            }}
+          />
+        </MessageProvider>,
+      );
+    });
+
+    act(() => {
+      root.render(
+        <MessageProvider
+          message={buildPrimitiveCoTCompletedToolMessage()}
+          index={0}
+        >
+          <MessagePrimitive.Parts
+            components={{
+              ChainOfThought: ChainOfThoughtWithNoAutoCollapse,
+              Text: ({ text }) => <p>{text}</p>,
+            }}
+          />
+        </MessageProvider>,
+      );
+    });
+
+    const doneStep = container.querySelector(
+      "[data-slot=chain-of-thought-terminal-step-label]",
+    );
+    expect(doneStep?.textContent).toMatch(/Done in \d+s/);
+
+    const doneStepNode = container.querySelector(
+      '[data-slot="chain-of-thought-step"][data-type="complete"][data-status="complete"]',
+    );
+    expect(doneStepNode).not.toBeNull();
 
     act(() => {
       root.unmount();
@@ -1006,6 +1318,38 @@ describe("ChainOfThought primitive integration", () => {
     });
   });
 
+  it("uses the bullet/default icon type for reasoning steps", () => {
+    const container = document.createElement("div");
+    const root = createRoot(container);
+
+    act(() => {
+      root.render(
+        <MessageProvider
+          message={buildPrimitiveCoTRunningToolMessage()}
+          index={0}
+        >
+          <MessagePrimitive.Parts
+            components={{
+              ChainOfThought,
+              Text: ({ text }) => <p>{text}</p>,
+            }}
+          />
+        </MessageProvider>,
+      );
+    });
+
+    const reasoningStep = Array.from(
+      container.querySelectorAll('[data-slot="chain-of-thought-step"]'),
+    ).find((step) => step.textContent?.includes("Gathering external context."));
+
+    expect(reasoningStep).not.toBeUndefined();
+    expect(reasoningStep?.getAttribute("data-type")).toBe("default");
+
+    act(() => {
+      root.unmount();
+    });
+  });
+
   it("renders falsy custom trigger content instead of falling back to defaults", () => {
     const container = document.createElement("div");
     const root = createRoot(container);
@@ -1032,6 +1376,153 @@ describe("ChainOfThought primitive integration", () => {
     act(() => {
       root.unmount();
     });
+  });
+
+  it('uses "Thinking..." when no step activity label is available', () => {
+    const container = document.createElement("div");
+    const root = createRoot(container);
+
+    act(() => {
+      root.render(
+        <ChainOfThought.Root defaultOpen>
+          <ChainOfThought.Trigger phase="running" />
+        </ChainOfThought.Root>,
+      );
+    });
+
+    const trigger = container.querySelector(
+      "[data-slot=chain-of-thought-trigger]",
+    ) as HTMLElement | null;
+    expect(trigger?.textContent).toContain("Thinking...");
+
+    act(() => {
+      root.unmount();
+    });
+  });
+
+  it("animates open content height changes when new content is appended", () => {
+    const originalResizeObserver = globalThis.ResizeObserver;
+    const originalMatchMedia = window.matchMedia;
+    let resizeCallback: ResizeObserverCallback | null = null;
+
+    class ResizeObserverMock {
+      constructor(cb: ResizeObserverCallback) {
+        resizeCallback = cb;
+      }
+      observe() {}
+      disconnect() {}
+      unobserve() {}
+    }
+
+    Object.defineProperty(globalThis, "ResizeObserver", {
+      configurable: true,
+      writable: true,
+      value: ResizeObserverMock,
+    });
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      writable: true,
+      value: () => ({
+        matches: false,
+        media: "",
+        onchange: null,
+        addListener: () => {},
+        removeListener: () => {},
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        dispatchEvent: () => false,
+      }),
+    });
+
+    const container = document.createElement("div");
+    const root = createRoot(container);
+
+    try {
+      act(() => {
+        root.render(
+          <ChainOfThought.Root defaultOpen>
+            <ChainOfThought.Trigger reasoningLabel="Reasoning" />
+            <ChainOfThought.Content>
+              <div>Body</div>
+            </ChainOfThought.Content>
+          </ChainOfThought.Root>,
+        );
+      });
+
+      const content = container.querySelector(
+        "[data-slot=chain-of-thought-content]",
+      ) as HTMLDivElement | null;
+      expect(content).not.toBeNull();
+      if (!content || !resizeCallback) return;
+
+      let layoutHeight = 100;
+      let scrollHeight = 100;
+
+      Object.defineProperty(content, "scrollHeight", {
+        configurable: true,
+        get: () => scrollHeight,
+      });
+      content.getBoundingClientRect = (() =>
+        ({
+          x: 0,
+          y: 0,
+          width: 0,
+          height: layoutHeight,
+          top: 0,
+          right: 0,
+          bottom: layoutHeight,
+          left: 0,
+          toJSON: () => ({}),
+        }) as DOMRect) as typeof content.getBoundingClientRect;
+
+      const makeEntry = (height: number) =>
+        ({
+          target: content,
+          contentRect: {
+            x: 0,
+            y: 0,
+            width: 0,
+            height,
+            top: 0,
+            right: 0,
+            bottom: height,
+            left: 0,
+            toJSON: () => ({}),
+          } as DOMRectReadOnly,
+        }) as ResizeObserverEntry;
+
+      act(() => {
+        resizeCallback?.([makeEntry(100)], {} as ResizeObserver);
+      });
+
+      // Simulate post-layout append: element has already grown before observer callback.
+      layoutHeight = 150;
+      scrollHeight = 150;
+
+      act(() => {
+        resizeCallback?.([makeEntry(150)], {} as ResizeObserver);
+      });
+
+      expect(content.style.transition).toContain("height");
+    } finally {
+      act(() => {
+        root.unmount();
+      });
+      if (originalResizeObserver) {
+        Object.defineProperty(globalThis, "ResizeObserver", {
+          configurable: true,
+          writable: true,
+          value: originalResizeObserver,
+        });
+      } else {
+        delete (globalThis as { ResizeObserver?: unknown }).ResizeObserver;
+      }
+      Object.defineProperty(window, "matchMedia", {
+        configurable: true,
+        writable: true,
+        value: originalMatchMedia,
+      });
+    }
   });
 });
 
@@ -1391,6 +1882,28 @@ describe("Crossfade", () => {
     const exitSpan = container.querySelector("[aria-hidden]");
     expect(exitSpan).not.toBeNull();
     expect(exitSpan?.textContent).toBe("alpha");
+
+    act(() => {
+      root.unmount();
+    });
+  });
+
+  it("uses a block-level flex wrapper", () => {
+    const container = document.createElement("div");
+    const root = createRoot(container);
+
+    act(() => {
+      root.render(
+        <Crossfade value="hello">{(v) => <span>{v}</span>}</Crossfade>,
+      );
+    });
+
+    const wrapper = container.querySelector(
+      "[data-slot=chain-of-thought-crossfade]",
+    ) as HTMLElement | null;
+    expect(wrapper).not.toBeNull();
+    expect(wrapper?.className).toContain("flex");
+    expect(wrapper?.className).not.toContain("inline-flex");
 
     act(() => {
       root.unmount();

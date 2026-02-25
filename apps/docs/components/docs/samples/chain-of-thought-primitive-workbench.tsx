@@ -15,6 +15,7 @@ import {
   useAuiState,
   type ThreadAssistantMessage,
 } from "@assistant-ui/react";
+import { ChevronDownIcon } from "lucide-react";
 import { ChainOfThought } from "@/components/assistant-ui/chain-of-thought";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { Button } from "@/components/ui/button";
@@ -1011,26 +1012,72 @@ const mockStreamFrames: readonly MockStreamFrame[] = [
   },
 ];
 
-const toolActivityWithVerbs = (
-  present: string,
-  past: string,
-): ToolActivityResolver => {
+const toolActivityWithCopy = ({
+  running,
+  complete,
+  requiresAction,
+  incomplete,
+}: {
+  running: string;
+  complete: string;
+  requiresAction: string;
+  incomplete: string;
+}): ToolActivityResolver => {
   return ({ statusType, fallbackLabel }: ToolActivityContext) => {
-    if (statusType === "running") return `${present} ${fallbackLabel}`;
-    if (statusType === "requires-action") return `Waiting on ${fallbackLabel}`;
-    if (statusType === "incomplete") return `Error in ${fallbackLabel}`;
-    return `${past} ${fallbackLabel}`;
+    if (statusType === "running") return running;
+    if (statusType === "requires-action") {
+      return requiresAction || `Waiting on ${fallbackLabel}`;
+    }
+    if (statusType === "incomplete") {
+      return incomplete || `Error in ${fallbackLabel}`;
+    }
+    return complete;
   };
 };
 
 const WORKBENCH_TOOL_ACTIVITY: ToolActivityMap = {
-  search_web: toolActivityWithVerbs("Searching", "Searched"),
-  search_docs: toolActivityWithVerbs("Searching", "Searched"),
-  fetch_docs: toolActivityWithVerbs("Fetching", "Fetched"),
-  analyze_table: toolActivityWithVerbs("Analyzing", "Analyzed"),
-  analyze_dataset: toolActivityWithVerbs("Analyzing", "Analyzed"),
-  run_code: toolActivityWithVerbs("Running", "Ran"),
-  create_ticket: toolActivityWithVerbs("Creating", "Created"),
+  search_web: toolActivityWithCopy({
+    running: "Searching the web",
+    complete: "Searched the web",
+    requiresAction: "Waiting on web search",
+    incomplete: "Web search failed",
+  }),
+  search_docs: toolActivityWithCopy({
+    running: "Searching docs",
+    complete: "Searched docs",
+    requiresAction: "Waiting on docs search",
+    incomplete: "Docs search failed",
+  }),
+  fetch_docs: toolActivityWithCopy({
+    running: "Fetching docs",
+    complete: "Fetched docs",
+    requiresAction: "Waiting on doc fetch",
+    incomplete: "Doc fetch failed",
+  }),
+  analyze_table: toolActivityWithCopy({
+    running: "Analyzing comparison table",
+    complete: "Analyzed comparison table",
+    requiresAction: "Waiting on table analysis",
+    incomplete: "Table analysis failed",
+  }),
+  analyze_dataset: toolActivityWithCopy({
+    running: "Analyzing dataset",
+    complete: "Analyzed dataset",
+    requiresAction: "Waiting on dataset analysis",
+    incomplete: "Dataset analysis failed",
+  }),
+  run_code: toolActivityWithCopy({
+    running: "Running checks",
+    complete: "Ran checks",
+    requiresAction: "Waiting on code checks",
+    incomplete: "Code checks failed",
+  }),
+  create_ticket: toolActivityWithCopy({
+    running: "Creating ticket",
+    complete: "Created ticket",
+    requiresAction: "Waiting on ticket approval",
+    incomplete: "Ticket creation failed",
+  }),
 };
 
 const renderWorkbenchTriggerContent = ({
@@ -1039,32 +1086,51 @@ const renderWorkbenchTriggerContent = ({
   phase,
   isOpen,
   elapsedSeconds,
+  label,
+  activity,
+  active,
+  open,
+  duration,
 }: TriggerContentArgs) => {
-  const isActive = phase === "running" || phase === "requires-action";
+  const resolvedReasoningLabel = reasoningLabel ?? label ?? "Reasoning";
+  const resolvedActivityLabel = activityLabel ?? activity;
+  const resolvedIsOpen = isOpen ?? open ?? false;
+  const resolvedElapsedSeconds = elapsedSeconds ?? duration;
+  const isActive =
+    phase === "running" || phase === "requires-action" || active === true;
+  const currentStepLabel =
+    resolvedActivityLabel ??
+    (isActive ? "Thinking..." : resolvedReasoningLabel);
   return (
-    <span className="flex min-w-0 items-center gap-2">
-      <span className="truncate font-medium text-foreground">
-        {isActive ? "Thought Process" : reasoningLabel}
-      </span>
-      {activityLabel ? (
-        <span
+    <div className="flex w-full min-w-0 items-center gap-2 overflow-hidden">
+      <ChevronDownIcon
+        className={cn(
+          "size-4 shrink-0 text-muted-foreground transition-transform duration-200 ease-out",
+          resolvedIsOpen ? "rotate-0" : "-rotate-90",
+        )}
+      />
+      <div
+        data-slot="chain-of-thought-workbench-trigger-current-step"
+        className={cn(
+          "relative min-w-0 flex-1 overflow-hidden text-muted-foreground",
+          isActive && "opacity-90",
+        )}
+      >
+        <div
           className={cn(
-            "truncate text-muted-foreground",
-            isActive && "opacity-90",
+            "block w-full truncate font-normal",
+            isActive && "shimmer motion-reduce:animate-none",
           )}
         >
-          {activityLabel}
-        </span>
+          {currentStepLabel}
+        </div>
+      </div>
+      {resolvedElapsedSeconds !== undefined ? (
+        <div className="shrink-0 text-muted-foreground text-xs">
+          {resolvedElapsedSeconds}s
+        </div>
       ) : null}
-      {elapsedSeconds !== undefined ? (
-        <span className="shrink-0 text-muted-foreground text-xs">
-          {elapsedSeconds}s
-        </span>
-      ) : null}
-      <span className="shrink-0 text-muted-foreground">
-        {isOpen ? "\u25BE" : "\u25B8"}
-      </span>
-    </span>
+    </div>
   );
 };
 
