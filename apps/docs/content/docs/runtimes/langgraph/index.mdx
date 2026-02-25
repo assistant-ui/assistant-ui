@@ -411,10 +411,10 @@ const runtime = useLangGraphRuntime({
     const client = createClient();
     // Get the thread state history and find the checkpoint
     // that matches the parent messages
-    const history = client.threads.getHistory(threadId);
-    for await (const state of history) {
+    const history = await client.threads.getHistory(threadId);
+    for (const state of history) {
       if (state.values.messages.length === parentMessages.length) {
-        return state.checkpoint_id;
+        return state.checkpoint.checkpoint_id ?? null;
       }
     }
     return null;

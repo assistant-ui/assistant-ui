@@ -36,13 +36,13 @@ export const getCheckpointId = async (
   parentMessages: LangChainMessage[],
 ): Promise<string | null> => {
   const client = createClient();
-  const history = client.threads.getHistory(threadId);
-  for await (const state of history) {
+  const history = await client.threads.getHistory(threadId);
+  for (const state of history) {
     if (
       (state.values as { messages?: LangChainMessage[] }).messages?.length ===
       parentMessages.length
     ) {
-      return state.checkpoint_id;
+      return state.checkpoint.checkpoint_id ?? null;
     }
   }
   return null;
