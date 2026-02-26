@@ -101,6 +101,56 @@ export default function Home() {
   </Step>
 </Steps>
 
+## Tracking Token Usage
+
+assistant-ui exports a `useThreadTokenUsage` hook to access thread-level token usage on the client.
+<Steps>
+  <Step>
+Use `messageMetadata` in your Next.js route to attach `usage` and `modelId` from the `finish-step` event.
+```tsx
+import { streamText, convertToModelMessages } from "ai";
+import { frontendTools } from "@assistant-ui/react-ai-sdk";
+export async function POST(req: Request) {
+  const { messages, tools, modelName } = await req.json();
+  const result = streamText({
+    model: getModel(modelName),
+    messages: await convertToModelMessages(messages),
+    tools: frontendTools(tools),
+  });
+  return result.toUIMessageStreamResponse({
+    messageMetadata: ({ part }) => {
+      if (part.type === "finish-step") {
+        return {
+          modelId: part.response.modelId,
+          usage: part.usage,
+        };
+      }
+      return undefined;
+    },
+  });
+}
+```
+> Note: assistant-ui automatically aggregates token usage from finish-step. Alternatively, you can pass total usage during the finish event via usage: part.totalUsage.
+  </Step>
+  <Step>
+Use `useThreadTokenUsage` to render token usage on the client.
+
+```tsx
+"use client";
+
+import { useThreadTokenUsage } from "@assistant-ui/react-ai-sdk";
+
+export function TokenCounter() {
+  const usage = useThreadTokenUsage();
+
+  if (!usage) return null;
+
+  return <div>{usage.totalTokens} total tokens</div>;
+}
+```
+  </Step>
+</Steps>
+
 ## Key Changes from v5
 
 | Feature | v5 | v6 |

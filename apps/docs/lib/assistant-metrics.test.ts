@@ -1,8 +1,12 @@
 import { expect, it } from "vitest";
-import { getAssistantMessageTokenUsage } from "./assistant-metrics";
+import { getThreadMessageTokenUsage } from "@assistant-ui/react-ai-sdk";
 
-it("getAssistantMessageTokenUsage returns empty for zero-token custom usage", () => {
-  const usage = getAssistantMessageTokenUsage({
+it("getThreadMessageTokenUsage returns zero-token usage for custom usage metadata", () => {
+  const assistantMessage = {
+    id: "m-1",
+    createdAt: new Date(),
+    content: [],
+    status: { type: "complete" },
     role: "assistant",
     metadata: {
       custom: {
@@ -11,13 +15,22 @@ it("getAssistantMessageTokenUsage returns empty for zero-token custom usage", ()
         },
       },
     },
-  });
+  };
+  const usage = getThreadMessageTokenUsage(assistantMessage);
 
-  expect(usage).toEqual({});
+  expect(usage).toEqual({
+    totalTokens: 0,
+    inputTokens: 0,
+    outputTokens: 0,
+  });
 });
 
-it("getAssistantMessageTokenUsage returns totals for positive usage", () => {
-  const usage = getAssistantMessageTokenUsage({
+it("getThreadMessageTokenUsage returns totals for positive usage", () => {
+  const assistantMessage = {
+    id: "m-1",
+    createdAt: new Date(),
+    content: [],
+    status: { type: "complete" },
     role: "assistant",
     metadata: {
       custom: {
@@ -27,7 +40,8 @@ it("getAssistantMessageTokenUsage returns totals for positive usage", () => {
         },
       },
     },
-  });
+  };
+  const usage = getThreadMessageTokenUsage(assistantMessage);
 
   expect(usage).toEqual({
     totalTokens: 10,

@@ -6,7 +6,7 @@ import { useRef, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { analytics } from "@/lib/analytics";
 import { useCurrentPage } from "@/components/docs/contexts/current-page";
-import { getAssistantMessageTokenUsage } from "@/lib/assistant-metrics";
+import { useThreadTokenUsage } from "@assistant-ui/react-ai-sdk";
 import { useSharedDocsModelSelection } from "./composer";
 import { getContextWindow } from "@/constants/model";
 
@@ -24,11 +24,10 @@ export function AssistantFooter(): ReactNode {
   const pathname = currentPage?.pathname;
   const { modelValue } = useSharedDocsModelSelection();
   const contextWindow = getContextWindow(modelValue);
+  const lastUsage = useThreadTokenUsage();
 
   const prevTokensRef = useRef(0);
-  const lastAssistant = messages.findLast((m) => m.role === "assistant");
-  const lastUsage = getAssistantMessageTokenUsage(lastAssistant);
-  const rawTokens = lastUsage.totalTokens ?? 0;
+  const rawTokens = lastUsage?.totalTokens ?? 0;
   if (rawTokens > 0) prevTokensRef.current = rawTokens;
   const contextTokens = prevTokensRef.current;
 
