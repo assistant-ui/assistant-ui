@@ -64,10 +64,10 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
           stepTimestamps?: StepTimestamp[];
         },
       ) {
-        const encodedContents = items.map((item) => formatAdapter.encode(item));
-        adapter._reportBatchTelemetry(
+        const encodedRunMessages = items.map((item) => formatAdapter.encode(item));
+        adapter._reportRunTelemetry(
           formatAdapter.format,
-          encodedContents,
+          encodedRunMessages,
           options,
         );
       },
@@ -109,9 +109,9 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     };
   }
 
-  private _reportBatchTelemetry<T>(
+  private _reportRunTelemetry<T>(
     format: string,
-    contents: T[],
+    runMessages: T[],
     options?: {
       durationMs?: number;
       stepTimestamps?: StepTimestamp[];
@@ -122,7 +122,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     const remoteId = this.aui.threadListItem().getState().remoteId;
     if (!remoteId) return;
 
-    const extracted = extractBatchTelemetry(format, contents);
+    const extracted = extractRunTelemetry(format, runMessages);
     if (!extracted) return;
 
     this._sendReport(
@@ -309,15 +309,15 @@ function extractTelemetry<T>(format: string, content: T): TelemetryData | null {
   }
 }
 
-function extractBatchTelemetry<T>(
+function extractRunTelemetry<T>(
   format: string,
-  contents: T[],
+  runMessages: T[],
 ): TelemetryData | null {
   if (format === "ai-sdk/v6") {
-    return extractAiSdkV6Batch(contents);
+    return aggregateAiSdkV6RunSteps(runMessages);
   }
-  for (let i = contents.length - 1; i >= 0; i--) {
-    const result = extractTelemetry(format, contents[i]!);
+  for (let i = runMessages.length - 1; i >= 0; i--) {
+    const result = extractTelemetry(format, runMessages[i]!);
     if (result) return result;
   }
   return null;
@@ -707,7 +707,7 @@ function extractAiSdkV6<T>(content: T): TelemetryData | null {
   );
 }
 
-function extractAiSdkV6Batch<T>(contents: T[]): TelemetryData | null {
+function aggregateAiSdkV6RunSteps<T>(stepMessages: T[]): TelemetryData | null {
   const allTextParts: string[] = [];
   const allToolCalls: TelemetryToolCall[] = [];
   const allStepsData: { tool_calls: TelemetryToolCall[] }[] = [];
@@ -722,7 +722,7 @@ function extractAiSdkV6Batch<T>(contents: T[]): TelemetryData | null {
   let hasReasoning = false;
   let hasCachedInput = false;
 
-  for (const content of contents) {
+  for (const content of stepMessages) {
     const msg = content as AiSdkV6Message;
     if (msg.role !== "assistant") continue;
     hasAssistant = true;
