@@ -130,7 +130,7 @@ export async function POST(req: Request) {
   });
 }
 ```
-> Note: assistant-ui automatically aggregates token usage from finish-step. Alternatively, you can pass total usage during the finish event via usage: part.totalUsage.
+> Note: assistant-ui automatically aggregates token usage from `finish-step`. Alternatively, you can emit total usage from the `finish` event: `if (part.type === "finish") return { usage: part.totalUsage };`
   </Step>
   <Step>
 Use `useThreadTokenUsage` to render token usage on the client.
