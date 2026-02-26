@@ -1,16 +1,6 @@
 "use client";
 
-import { ChevronDownIcon } from "lucide-react";
-import {
-  createContext,
-  type FC,
-  type PropsWithChildren,
-  memo,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { memo, useContext, useEffect, useState, createContext } from "react";
 import {
   useAuiState,
   type ToolCallMessagePartComponent,
@@ -21,36 +11,24 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
-import {
-  ChainOfThoughtStep,
-  ChainOfThoughtStepBody,
-  ChainOfThoughtStepHeader,
-  ChainOfThoughtToolBadge,
-  Crossfade,
-  renderStepTypeBaseIcon as renderBaseStepTypeIcon,
-  type ChainOfThoughtPhase,
-  type StepType,
-} from "./core";
+import { ChainOfThoughtToolBadge } from "./step";
 import {
   ToolActivityLabelsContext,
   extractSearchResults,
   formatSearchSourceLabel,
   getActivityFromPart,
-  inferStepTypeFromTool,
   inferToolActivityStatusType,
-  isMessageStatusStreaming,
-  mapPartStatusToStepStatus,
   partStatusOrFallback,
 } from "./runtime-activity";
 
-type PrimitiveToolDisclosureContextValue = {
+export type PrimitiveToolDisclosureContextValue = {
   setHasDetails: (hasDetails: boolean) => void;
   open: boolean;
   setOpen: (open: boolean) => void;
   setHovered: (hovered: boolean) => void;
 };
 
-const PrimitiveToolDisclosureContext =
+export const PrimitiveToolDisclosureContext =
   createContext<PrimitiveToolDisclosureContextValue | null>(null);
 
 export const ChainOfThoughtTraceTool = memo(function ChainOfThoughtTraceTool({
@@ -85,34 +63,31 @@ export const ChainOfThoughtPrimitiveTool: ToolCallMessagePartComponent = ({
   status,
 }) => {
   const toolActivityLabels = useContext(ToolActivityLabelsContext);
-  const part = useAuiState((s) => s.part as any);
-  const chainStatusType = useAuiState(
-    (s) => s.chainOfThought.status.type as string | undefined,
-  );
-  const messageStatusType = useAuiState(
-    (s) => s.message.status?.type as string | undefined,
-  );
+  const currentPart = useAuiState((s) => s.part);
+  const toolPart = currentPart.type === "tool-call" ? currentPart : undefined;
+  const chainStatusType = useAuiState((s) => s.chainOfThought.status.type);
+  const messageStatusType = useAuiState((s) => s.message.status?.type);
   const statusType = partStatusOrFallback(
-    part?.status?.type as string | undefined,
+    toolPart?.status?.type,
     chainStatusType,
     messageStatusType,
   );
   const activityLabel = getActivityFromPart(
-    part,
+    toolPart,
     statusType,
     toolActivityLabels,
     chainStatusType,
     messageStatusType,
   );
   const effectiveStatusType = inferToolActivityStatusType(
-    part,
+    toolPart,
     statusType,
     messageStatusType,
   );
   const isActiveToolLabel =
     effectiveStatusType === "running" ||
     effectiveStatusType === "requires-action";
-  const toolResult = result ?? part?.result;
+  const toolResult = result ?? toolPart?.result;
   const searchResults = extractSearchResults(toolName, toolResult);
 
   const badgeStatus: "running" | "complete" | "error" =
@@ -248,148 +223,3 @@ export const ChainOfThoughtPrimitiveTool: ToolCallMessagePartComponent = ({
     </Collapsible>
   );
 };
-
-export const ChainOfThoughtPrimitivePartLayout: FC<
-  PropsWithChildren<{ partIndex?: number }>
-> = ({ children, partIndex }) => {
-  const part = useAuiState((s) => s.part as any);
-  const statusType = part.status?.type as string | undefined;
-  const messageStatusType = useAuiState(
-    (s) => s.message.status?.type as string | undefined,
-  );
-  const isStreamingFromMessage = isMessageStatusStreaming(messageStatusType);
-  const isLastPartInGroup = useAuiState((s) => {
-    const parts = s.chainOfThought.parts as any[];
-    if (partIndex != null) {
-      return partIndex === parts.length - 1;
-    }
-    const lastPart = parts[parts.length - 1];
-    return Object.is(s.part, lastPart);
-  });
-  const isToolCall = part.type === "tool-call";
-  const toolName = isToolCall
-    ? (part.toolName as string | undefined)
-    : undefined;
-  const isReasoning = part.type === "reasoning";
-  const stepType: StepType = isToolCall
-    ? inferStepTypeFromTool(toolName ?? "tool")
-    : isReasoning
-      ? "default"
-      : "text";
-  const isActive =
-    statusType === "running" ||
-    statusType === "requires-action" ||
-    (isStreamingFromMessage && isLastPartInGroup);
-  const mappedStepStatus = mapPartStatusToStepStatus(statusType);
-  const [toolDisclosureHasDetails, setToolDisclosureHasDetails] =
-    useState(false);
-  const [toolDisclosureOpen, setToolDisclosureOpen] = useState(false);
-  const [toolDisclosureHovered, setToolDisclosureHovered] = useState(false);
-
-  useEffect(() => {
-    if (!isToolCall) {
-      setToolDisclosureHasDetails(false);
-      setToolDisclosureOpen(false);
-      setToolDisclosureHovered(false);
-    }
-  }, [isToolCall]);
-
-  useEffect(() => {
-    if (!toolDisclosureHasDetails) {
-      setToolDisclosureOpen(false);
-      setToolDisclosureHovered(false);
-    }
-  }, [toolDisclosureHasDetails]);
-
-  const disclosureContextValue =
-    useMemo<PrimitiveToolDisclosureContextValue | null>(
-      () =>
-        isToolCall
-          ? {
-              setHasDetails: setToolDisclosureHasDetails,
-              open: toolDisclosureOpen,
-              setOpen: setToolDisclosureOpen,
-              setHovered: setToolDisclosureHovered,
-            }
-          : null,
-      [isToolCall, toolDisclosureOpen],
-    );
-
-  const disclosureIcon = useMemo(() => {
-    if (!isToolCall || !toolDisclosureHasDetails) return undefined;
-    const baseIcon = renderBaseStepTypeIcon(stepType);
-    return (
-      <Crossfade
-        value={toolDisclosureOpen || toolDisclosureHovered ? "chevron" : "icon"}
-        exitDuration={120}
-        enterDuration={150}
-        enterDelay={30}
-        className="size-4 items-center justify-center"
-      >
-        {(value) =>
-          value === "chevron" ? (
-            <ChevronDownIcon
-              data-slot="chain-of-thought-step-disclosure-chevron"
-              aria-hidden
-              className={cn(
-                "size-4 text-muted-foreground transition-transform duration-150 ease-out",
-                toolDisclosureOpen ? "rotate-0" : "-rotate-90",
-              )}
-            />
-          ) : (
-            <span data-slot="chain-of-thought-step-disclosure-icon">
-              {baseIcon}
-            </span>
-          )
-        }
-      </Crossfade>
-    );
-  }, [
-    isToolCall,
-    stepType,
-    toolDisclosureHasDetails,
-    toolDisclosureHovered,
-    toolDisclosureOpen,
-  ]);
-
-  return (
-    <PrimitiveToolDisclosureContext.Provider value={disclosureContextValue}>
-      <ChainOfThoughtStep
-        status={mappedStepStatus}
-        active={isActive}
-        type={stepType}
-        {...(disclosureIcon ? { icon: disclosureIcon, iconPulse: false } : {})}
-      >
-        <ChainOfThoughtStepBody>{children}</ChainOfThoughtStepBody>
-      </ChainOfThoughtStep>
-    </PrimitiveToolDisclosureContext.Provider>
-  );
-};
-
-export function ChainOfThoughtTerminalStep({
-  phase,
-  elapsedSeconds,
-}: {
-  phase: ChainOfThoughtPhase;
-  elapsedSeconds?: number;
-}) {
-  const isIncomplete = phase === "incomplete";
-  const label = isIncomplete
-    ? elapsedSeconds
-      ? `Stopped after ${elapsedSeconds}s`
-      : "Stopped"
-    : elapsedSeconds
-      ? `Done in ${elapsedSeconds}s`
-      : "Done";
-
-  return (
-    <ChainOfThoughtStep
-      status={isIncomplete ? "error" : "complete"}
-      type={isIncomplete ? "error" : "complete"}
-    >
-      <ChainOfThoughtStepHeader data-slot="chain-of-thought-terminal-step-label">
-        {label}
-      </ChainOfThoughtStepHeader>
-    </ChainOfThoughtStep>
-  );
-}

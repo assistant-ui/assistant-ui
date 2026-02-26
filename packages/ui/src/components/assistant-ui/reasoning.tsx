@@ -1,23 +1,21 @@
 "use client";
 
-import { memo, useCallback, useRef, useState } from "react";
+import { memo } from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { BrainIcon, ChevronDownIcon } from "lucide-react";
 import {
-  useScrollLock,
   useAuiState,
   type ReasoningMessagePartComponent,
   type ReasoningGroupComponent,
 } from "@assistant-ui/react";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
-
-const ANIMATION_DURATION = 200;
+import {
+  DisclosureContent,
+  DisclosureRoot,
+  type DisclosureRootProps,
+} from "./disclosure";
 
 const reasoningVariants = cva("aui-reasoning-root mb-4 w-full", {
   variants: {
@@ -32,65 +30,27 @@ const reasoningVariants = cva("aui-reasoning-root mb-4 w-full", {
   },
 });
 
-export type ReasoningRootProps = Omit<
-  React.ComponentProps<typeof Collapsible>,
-  "open" | "onOpenChange"
-> &
-  VariantProps<typeof reasoningVariants> & {
-    open?: boolean;
-    onOpenChange?: (open: boolean) => void;
-    defaultOpen?: boolean;
-  };
+export type ReasoningRootProps = DisclosureRootProps &
+  VariantProps<typeof reasoningVariants>;
 
 function ReasoningRoot({
   className,
   variant,
-  open: controlledOpen,
-  onOpenChange: controlledOnOpenChange,
-  defaultOpen = false,
   children,
   ...props
 }: ReasoningRootProps) {
-  const collapsibleRef = useRef<HTMLDivElement>(null);
-  const [uncontrolledOpen, setUncontrolledOpen] = useState(defaultOpen);
-  const lockScroll = useScrollLock(collapsibleRef, ANIMATION_DURATION);
-
-  const isControlled = controlledOpen !== undefined;
-  const isOpen = isControlled ? controlledOpen : uncontrolledOpen;
-
-  const handleOpenChange = useCallback(
-    (open: boolean) => {
-      if (!open) {
-        lockScroll();
-      }
-      if (!isControlled) {
-        setUncontrolledOpen(open);
-      }
-      controlledOnOpenChange?.(open);
-    },
-    [lockScroll, isControlled, controlledOnOpenChange],
-  );
-
   return (
-    <Collapsible
-      ref={collapsibleRef}
+    <DisclosureRoot
       data-slot="reasoning-root"
       data-variant={variant}
-      open={isOpen}
-      onOpenChange={handleOpenChange}
       className={cn(
         "group/reasoning-root",
         reasoningVariants({ variant, className }),
       )}
-      style={
-        {
-          "--animation-duration": `${ANIMATION_DURATION}ms`,
-        } as React.CSSProperties
-      }
       {...props}
     >
       {children}
-    </Collapsible>
+    </DisclosureRoot>
   );
 }
 
@@ -172,26 +132,19 @@ function ReasoningContent({
   className,
   children,
   ...props
-}: React.ComponentProps<typeof CollapsibleContent>) {
+}: React.ComponentProps<typeof DisclosureContent>) {
   return (
-    <CollapsibleContent
+    <DisclosureContent
       data-slot="reasoning-content"
       className={cn(
-        "aui-reasoning-content relative overflow-hidden text-muted-foreground text-sm outline-none",
-        "group/collapsible-content ease-out",
-        "data-[state=closed]:animate-collapsible-up",
-        "data-[state=open]:animate-collapsible-down",
-        "data-[state=closed]:fill-mode-forwards",
-        "data-[state=closed]:pointer-events-none",
-        "data-[state=open]:duration-(--animation-duration)",
-        "data-[state=closed]:duration-(--animation-duration)",
+        "aui-reasoning-content text-muted-foreground text-sm",
         className,
       )}
       {...props}
     >
       {children}
       <ReasoningFade />
-    </CollapsibleContent>
+    </DisclosureContent>
   );
 }
 

@@ -8,12 +8,12 @@ import {
   useMemo,
 } from "react";
 import { MessagePrimitive, useAuiState } from "@assistant-ui/react";
+import { ChainOfThoughtTimeline } from "./layout";
 import {
   ChainOfThoughtStep,
   ChainOfThoughtStepBody,
   ChainOfThoughtStepHeader,
-  ChainOfThoughtTimeline,
-} from "./core";
+} from "./step";
 import {
   defaultInferStep,
   groupMessagePartsByParentId,

@@ -13,12 +13,14 @@ import {
   ChainOfThoughtContent,
   ChainOfThoughtRoot,
   ChainOfThoughtTrigger,
+} from "./disclosure";
+import {
   collectTraceStats,
   summarizeTraceStats,
   traceHasRunning,
   type ChainOfThoughtPhase,
   type TraceSummaryStats,
-} from "./core";
+} from "./model";
 import { ChainOfThoughtTraceNodes } from "./trace-nodes";
 import { ChainOfThoughtTraceParts } from "./trace-parts";
 import {
@@ -63,7 +65,7 @@ function useTraceDisclosureState({
   return { open, handleOpenChange };
 }
 
-function ChainOfThoughtTraceDisclosureShell({
+function ChainOfThoughtTraceDisclosureRoot({
   isStreaming,
   stats,
   label = "Working...",
@@ -133,7 +135,7 @@ function ChainOfThoughtTraceDisclosureNodes({
   const allowGroupExpand = !disableGroupExpansionWhileStreaming || !isStreaming;
 
   return (
-    <ChainOfThoughtTraceDisclosureShell
+    <ChainOfThoughtTraceDisclosureRoot
       isStreaming={isStreaming}
       stats={stats}
       label={label}
@@ -148,7 +150,7 @@ function ChainOfThoughtTraceDisclosureNodes({
         allowGroupExpand={allowGroupExpand}
         {...timelineProps}
       />
-    </ChainOfThoughtTraceDisclosureShell>
+    </ChainOfThoughtTraceDisclosureRoot>
   );
 }
 
@@ -182,7 +184,7 @@ function ChainOfThoughtTraceDisclosureParts({
   }, [groupingFunction, inferStep, messageParts]);
 
   return (
-    <ChainOfThoughtTraceDisclosureShell
+    <ChainOfThoughtTraceDisclosureRoot
       isStreaming={isStreaming}
       stats={stats}
       label={label}
@@ -197,7 +199,7 @@ function ChainOfThoughtTraceDisclosureParts({
         inferStep={inferStep}
         {...timelineProps}
       />
-    </ChainOfThoughtTraceDisclosureShell>
+    </ChainOfThoughtTraceDisclosureRoot>
   );
 }
 

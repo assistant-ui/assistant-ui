@@ -1,16 +1,35 @@
 "use client";
 
 import { createContext } from "react";
-import type { StepStatus, StepType } from "./core";
+import type {
+  MessagePartStatus,
+  MessageStatus,
+  ToolCallMessagePartStatus,
+} from "@assistant-ui/react";
+import type { StepStatus, StepType } from "./model";
+
+type ChainOfThoughtPartStatus = MessagePartStatus | ToolCallMessagePartStatus;
+type ToolActivityStatusType =
+  | ChainOfThoughtPartStatus["type"]
+  | MessageStatus["type"]
+  | undefined;
+export type RuntimeActivityPart = {
+  type?: string;
+  toolName?: string;
+  result?: unknown;
+  interrupt?: unknown;
+  text?: string;
+  status?: ChainOfThoughtPartStatus;
+};
 
 type ToolActivityContext = {
   toolName: string;
-  statusType: string | undefined;
-  partStatusType: string | undefined;
-  chainStatusType: string | undefined;
-  messageStatusType: string | undefined;
+  statusType: ToolActivityStatusType;
+  partStatusType: ToolActivityStatusType;
+  chainStatusType: ToolActivityStatusType;
+  messageStatusType: ToolActivityStatusType;
   fallbackLabel: string;
-  part: unknown;
+  part: RuntimeActivityPart;
 };
 
 export type ToolActivity = (context: ToolActivityContext) => string | undefined;
@@ -19,7 +38,7 @@ export const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
 
 export const mapPartStatusToStepStatus = (
-  statusType: string | undefined,
+  statusType: ToolActivityStatusType,
 ): StepStatus => {
   if (statusType === "running" || statusType === "requires-action") {
     return "active";
@@ -39,7 +58,9 @@ export const inferStepTypeFromTool = (toolName: string): StepType => {
   return "tool";
 };
 
-export const isMessageStatusStreaming = (statusType: string | undefined) => {
+export const isMessageStatusStreaming = (
+  statusType: ToolActivityStatusType,
+) => {
   return statusType === "running" || statusType === "requires-action";
 };
 
@@ -81,7 +102,7 @@ const normalizeToolActivitySubject = (subject: string) => {
 
 const getDefaultToolActivityLabel = (
   toolLabel: string,
-  statusType: string | undefined,
+  statusType: ToolActivityStatusType,
 ) => {
   const words = normalizeActivityText(toolLabel).toLowerCase().split(" ");
   const verb = words[0] ?? "";
@@ -123,9 +144,9 @@ const getToolActivityLabel = (
 };
 
 export const partStatusOrFallback = (
-  partStatusType: string | undefined,
-  chainStatusType: string | undefined,
-  messageStatusType: string | undefined,
+  partStatusType: ToolActivityStatusType,
+  chainStatusType: ToolActivityStatusType,
+  messageStatusType: ToolActivityStatusType,
 ) => {
   if (partStatusType) return partStatusType;
   if (
@@ -139,9 +160,9 @@ export const partStatusOrFallback = (
 };
 
 export const inferToolActivityStatusType = (
-  part: any,
-  statusType: string | undefined,
-  messageStatusType: string | undefined,
+  part: RuntimeActivityPart | undefined,
+  statusType: ToolActivityStatusType,
+  messageStatusType: ToolActivityStatusType,
 ) => {
   if (part?.type !== "tool-call") return statusType;
   if (
@@ -158,11 +179,11 @@ export const inferToolActivityStatusType = (
 };
 
 export const getActivityFromPart = (
-  part: any,
-  statusType: string | undefined,
+  part: RuntimeActivityPart | undefined,
+  statusType: ToolActivityStatusType,
   toolActivityLabels: Record<string, ToolActivity> | undefined,
-  chainStatusType: string | undefined,
-  messageStatusType: string | undefined,
+  chainStatusType: ToolActivityStatusType,
+  messageStatusType: ToolActivityStatusType,
 ): string | undefined => {
   if (part?.type === "tool-call") {
     const effectiveStatusType = inferToolActivityStatusType(
@@ -170,14 +191,14 @@ export const getActivityFromPart = (
       statusType,
       messageStatusType,
     );
-    const toolName = part.toolName as string | undefined;
+    const toolName = part.toolName;
     const tool = getToolActivityLabel(toolName, toolActivityLabels);
     const resolver = getToolActivityResolver(toolName, toolActivityLabels);
     const resolved = normalizeActivityText(
       resolver?.({
         toolName: toolName ?? "",
         statusType: effectiveStatusType,
-        partStatusType: part?.status?.type as string | undefined,
+        partStatusType: part.status?.type,
         chainStatusType,
         messageStatusType,
         fallbackLabel: tool,
@@ -189,7 +210,7 @@ export const getActivityFromPart = (
   }
 
   if (part?.type === "reasoning") {
-    const text = normalizeActivityText(part.text as string | undefined);
+    const text = normalizeActivityText(part.text);
     if (!text) return undefined;
     if (statusType === "running" || statusType === "requires-action") {
       return `Thinking: ${truncateActivity(text)}`;
@@ -200,7 +221,9 @@ export const getActivityFromPart = (
   return undefined;
 };
 
-export const findLastReasoningOrToolPart = (parts: readonly any[]) => {
+export const findLastReasoningOrToolPart = (
+  parts: readonly RuntimeActivityPart[],
+) => {
   for (let i = parts.length - 1; i >= 0; i -= 1) {
     const part = parts[i];
     if (part?.type === "tool-call" || part?.type === "reasoning") {
@@ -210,10 +233,12 @@ export const findLastReasoningOrToolPart = (parts: readonly any[]) => {
   return undefined;
 };
 
-const findActiveReasoningOrToolPart = (parts: readonly any[]) => {
+const findActiveReasoningOrToolPart = (
+  parts: readonly RuntimeActivityPart[],
+) => {
   for (let i = parts.length - 1; i >= 0; i -= 1) {
     const part = parts[i];
-    const statusType = part?.status?.type as string | undefined;
+    const statusType = part?.status?.type;
     if (
       (part?.type === "tool-call" || part?.type === "reasoning") &&
       (statusType === "running" || statusType === "requires-action")
@@ -230,9 +255,9 @@ export const deriveCollapsedActivity = ({
   messageStatusType,
   toolActivityLabels,
 }: {
-  parts: readonly any[];
-  chainStatusType: string | undefined;
-  messageStatusType: string | undefined;
+  parts: readonly RuntimeActivityPart[];
+  chainStatusType: ToolActivityStatusType;
+  messageStatusType: ToolActivityStatusType;
   toolActivityLabels: Record<string, ToolActivity> | undefined;
 }) => {
   if (parts.length === 0) return undefined;
@@ -242,7 +267,7 @@ export const deriveCollapsedActivity = ({
     return getActivityFromPart(
       activePart,
       partStatusOrFallback(
-        activePart.status?.type as string | undefined,
+        activePart.status?.type,
         chainStatusType,
         messageStatusType,
       ),
@@ -256,7 +281,7 @@ export const deriveCollapsedActivity = ({
   if (!lastPart) return undefined;
 
   const statusType = partStatusOrFallback(
-    lastPart.status?.type as string | undefined,
+    lastPart.status?.type,
     chainStatusType,
     messageStatusType,
   );
