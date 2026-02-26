@@ -9,9 +9,9 @@
  * Run: node scripts/generate.mjs
  */
 
-import { writeFileSync } from "fs";
-import { resolve, dirname } from "path";
-import { fileURLToPath } from "url";
+import { writeFileSync } from "node:fs";
+import { resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   buildDisplacementMapSvg,
   encodeSvgUrl,
@@ -245,7 +245,7 @@ emit(`  background-size: cover;`);
 emit(`  background-position: center;`);
 emit(`}`);
 
-const css = lines.join("\n") + "\n";
+const css = `${lines.join("\n")}\n`;
 const outPath = resolve(__dirname, "../src/index.css");
 writeFileSync(outPath, css);
 
