@@ -1,5 +1,11 @@
 # assistant-cloud
 
+## 0.1.20
+
+### Patch Changes
+
+- 17cf9a8: feat(telemetry): add reasoning/cached token usage across cloud reporting paths
+
 ## 0.1.19
 
 ### Patch Changes

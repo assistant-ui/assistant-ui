@@ -1,5 +1,13 @@
 # @assistant-ui/cloud-ai-sdk
 
+## 0.1.3
+
+### Patch Changes
+
+- 17cf9a8: feat(telemetry): add reasoning/cached token usage across cloud reporting paths
+- Updated dependencies [17cf9a8]
+  - assistant-cloud@0.1.20
+
 ## 0.1.2
 
 ### Patch Changes

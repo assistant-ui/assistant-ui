@@ -1,5 +1,15 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.3.10
+
+### Patch Changes
+
+- 51de636: feat(react-ai-sdk): add thread token-usage extraction helpers and hook
+- 7ad20d1: fix(react-ai-sdk): stabilize tool args key order to prevent duplicate toolCallId crash in tapResources
+- Updated dependencies [17cf9a8]
+  - assistant-cloud@0.1.20
+  - @assistant-ui/react@0.12.13
+
 ## 1.3.9
 
 ### Patch Changes

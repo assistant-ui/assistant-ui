@@ -1,5 +1,13 @@
 # @assistant-ui/react-langgraph
 
+## 0.13.2
+
+### Patch Changes
+
+- 3892994: fix(react-langgraph): normalize messages-tuple events for Python LangGraph compatibility
+- Updated dependencies [17cf9a8]
+  - @assistant-ui/react@0.12.13
+
 ## 0.13.1
 
 ### Patch Changes

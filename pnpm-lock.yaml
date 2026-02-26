@@ -2147,7 +2147,7 @@ importers:
         specifier: ^1.1.1
         version: 1.1.1(@types/react@19.2.14)(react@19.2.4)
       assistant-cloud:
-        specifier: ^0.1.19
+        specifier: ^0.1.20
         version: link:../cloud
       assistant-stream:
         specifier: ^0.3.4
