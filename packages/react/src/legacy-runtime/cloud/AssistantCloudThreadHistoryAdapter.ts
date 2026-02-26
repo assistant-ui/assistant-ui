@@ -64,7 +64,9 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
           stepTimestamps?: StepTimestamp[];
         },
       ) {
-        const encodedRunMessages = items.map((item) => formatAdapter.encode(item));
+        const encodedRunMessages = items.map((item) =>
+          formatAdapter.encode(item),
+        );
         adapter._reportRunTelemetry(
           formatAdapter.format,
           encodedRunMessages,
