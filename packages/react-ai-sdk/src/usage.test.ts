@@ -85,4 +85,53 @@ describe("getThreadMessageTokenUsage", () => {
       reasoningTokens: 24,
     });
   });
+
+  it("omits totalTokens if any step lacks a computable total", () => {
+    const usage = getThreadMessageTokenUsage(
+      msg({
+        steps: [
+          { usage: { inputTokens: 5, outputTokens: 5 } }, // total = 10
+          { usage: { reasoningTokens: 10 } }, // total = undefined
+        ],
+      }),
+    );
+
+    // Sums known partials but omits the invalid total
+    expect(usage).toEqual({
+      inputTokens: 5,
+      outputTokens: 5,
+      reasoningTokens: 10,
+    });
+    expect(usage).not.toHaveProperty("totalTokens");
+  });
+
+  it("aggregates totalTokens if all steps have a computable total", () => {
+    const usage = getThreadMessageTokenUsage(
+      msg({
+        steps: [
+          { usage: { inputTokens: 5, outputTokens: 5 } }, // implicit total = 10
+          { usage: { totalTokens: 15 } }, // explicit total = 15
+        ],
+      }),
+    );
+
+    expect(usage).toEqual({
+      totalTokens: 25,
+      inputTokens: 5,
+      outputTokens: 5,
+    });
+  });
+
+  it("omits totalTokens when one step has only total and another has only input", () => {
+    const usage = getThreadMessageTokenUsage(
+      msg({
+        steps: [{ usage: { totalTokens: 10 } }, { usage: { inputTokens: 3 } }],
+      }),
+    );
+
+    expect(usage).toEqual({
+      inputTokens: 3,
+    });
+    expect(usage).not.toHaveProperty("totalTokens");
+  });
 });

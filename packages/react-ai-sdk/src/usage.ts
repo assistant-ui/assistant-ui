@@ -97,12 +97,23 @@ function usageFromSteps(value: unknown): ThreadTokenUsage | undefined {
   let hasOutput = false;
   let hasReasoning = false;
   let hasCachedInput = false;
-  let hasTotalTokens = false;
-  let hasStepUsage = false;
+  let stepsWithUsage = 0;
+  let stepsWithComputableTotal = 0;
   for (const step of steps) {
     const usage = normalizeUsage(asRecord(step)?.usage);
     if (!usage) continue;
-    hasStepUsage = true;
+    stepsWithUsage++;
+    const stepHasBothInputAndOutput =
+      usage.inputTokens !== undefined && usage.outputTokens !== undefined;
+    const stepTotal =
+      usage.totalTokens ??
+      (stepHasBothInputAndOutput
+        ? (usage.inputTokens ?? 0) + (usage.outputTokens ?? 0)
+        : undefined);
+    if (stepTotal !== undefined) {
+      totalTokens += stepTotal;
+      stepsWithComputableTotal++;
+    }
     if (usage.inputTokens !== undefined) {
       inputTokens += usage.inputTokens;
       hasInput = true;
@@ -119,19 +130,26 @@ function usageFromSteps(value: unknown): ThreadTokenUsage | undefined {
       cachedInputTokens += usage.cachedInputTokens;
       hasCachedInput = true;
     }
-    if (usage.totalTokens !== undefined) {
-      totalTokens += usage.totalTokens;
-      hasTotalTokens = true;
-    }
   }
-  if (!hasStepUsage) return undefined;
+  if (stepsWithUsage === 0) return undefined;
   const parsed: ParsedUsage = {};
   if (hasInput) parsed.inputTokens = inputTokens;
   if (hasOutput) parsed.outputTokens = outputTokens;
   if (hasReasoning) parsed.reasoningTokens = reasoningTokens;
   if (hasCachedInput) parsed.cachedInputTokens = cachedInputTokens;
-  if (hasTotalTokens) parsed.totalTokens = totalTokens;
-  return buildUsageResult(parsed);
+  if (stepsWithComputableTotal === stepsWithUsage) {
+    parsed.totalTokens = totalTokens;
+  }
+  const result: ThreadTokenUsage = {};
+  if (parsed.totalTokens !== undefined) result.totalTokens = parsed.totalTokens;
+  if (parsed.inputTokens !== undefined) result.inputTokens = parsed.inputTokens;
+  if (parsed.outputTokens !== undefined)
+    result.outputTokens = parsed.outputTokens;
+  if (parsed.reasoningTokens !== undefined)
+    result.reasoningTokens = parsed.reasoningTokens;
+  if (parsed.cachedInputTokens !== undefined)
+    result.cachedInputTokens = parsed.cachedInputTokens;
+  return result;
 }
 export function getThreadMessageTokenUsage(
   message: TokenUsageExtractableMessage | undefined,
@@ -150,7 +168,8 @@ export function getThreadMessageTokenUsage(
   return usageFromSteps(metadata.steps);
 }
 export function useThreadTokenUsage(): ThreadTokenUsage | undefined {
-  const messages = useAuiState((s) => s.thread.messages);
-  const lastAssistant = messages.findLast((m) => m.role === "assistant");
+  const lastAssistant = useAuiState((s) =>
+    s.thread.messages.findLast((m) => m.role === "assistant"),
+  );
   return getThreadMessageTokenUsage(lastAssistant);
 }
