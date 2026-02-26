@@ -39,6 +39,33 @@ describe("getThreadMessageTokenUsage", () => {
     expect(usage).not.toHaveProperty("outputTokens");
   });
 
+  it("retains partial usage when only inputTokens is present", () => {
+    const usage = getThreadMessageTokenUsage(
+      msg({ usage: { inputTokens: 10 } }),
+    );
+
+    expect(usage).toEqual({ inputTokens: 10 });
+    expect(usage).not.toHaveProperty("totalTokens");
+  });
+
+  it("retains partial usage when only outputTokens is present", () => {
+    const usage = getThreadMessageTokenUsage(
+      msg({ usage: { outputTokens: 4 } }),
+    );
+
+    expect(usage).toEqual({ outputTokens: 4 });
+    expect(usage).not.toHaveProperty("totalTokens");
+  });
+
+  it("retains detail-only usage when only reasoning/cached tokens are present", () => {
+    const usage = getThreadMessageTokenUsage(
+      msg({ usage: { reasoningTokens: 7, cachedInputTokens: 2 } }),
+    );
+
+    expect(usage).toEqual({ reasoningTokens: 7, cachedInputTokens: 2 });
+    expect(usage).not.toHaveProperty("totalTokens");
+  });
+
   it("aggregates multi-step usage without inflating totals", () => {
     const usage = getThreadMessageTokenUsage(
       msg({

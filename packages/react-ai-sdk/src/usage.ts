@@ -1,6 +1,6 @@
 import { useAuiState } from "@assistant-ui/react";
 export type ThreadTokenUsage = {
-  totalTokens: number;
+  totalTokens?: number;
   inputTokens?: number;
   outputTokens?: number;
   reasoningTokens?: number;
@@ -68,18 +68,15 @@ function buildUsageResult(parsed: ParsedUsage): ThreadTokenUsage | undefined {
   ) {
     return undefined;
   }
-  const hasInputOrOutput =
-    parsed.inputTokens !== undefined || parsed.outputTokens !== undefined;
+  const hasBothInputAndOutput =
+    parsed.inputTokens !== undefined && parsed.outputTokens !== undefined;
   const totalTokens =
     parsed.totalTokens ??
-    (hasInputOrOutput
+    (hasBothInputAndOutput
       ? (parsed.inputTokens ?? 0) + (parsed.outputTokens ?? 0)
       : undefined);
-  if (totalTokens === undefined) return undefined;
-
-  const result: ThreadTokenUsage = {
-    totalTokens,
-  };
+  const result: ThreadTokenUsage = {};
+  if (totalTokens !== undefined) result.totalTokens = totalTokens;
   if (parsed.inputTokens !== undefined) result.inputTokens = parsed.inputTokens;
   if (parsed.outputTokens !== undefined)
     result.outputTokens = parsed.outputTokens;
