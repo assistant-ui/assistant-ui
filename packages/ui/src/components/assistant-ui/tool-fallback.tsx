@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useRef, useState } from "react";
+import { memo, useCallback, useRef, useState, type ReactNode } from "react";
 import {
   AlertCircleIcon,
   CheckIcon,
@@ -90,14 +90,27 @@ const statusIconMap: Record<ToolStatus, React.ElementType> = {
   "requires-action": AlertCircleIcon,
 };
 
+export type ToolFallbackTriggerRenderArgs = {
+  label: string;
+  toolName: string;
+  statusType: ToolStatus;
+  isCancelled: boolean;
+  hasDetails: boolean;
+  defaultChevron: ReactNode;
+};
+
 function ToolFallbackTrigger({
   toolName,
   status,
+  hasDetails = false,
+  renderContent,
   className,
   ...props
 }: React.ComponentProps<typeof CollapsibleTrigger> & {
   toolName: string;
   status?: ToolCallMessagePartStatus;
+  hasDetails?: boolean;
+  renderContent?: (args: ToolFallbackTriggerRenderArgs) => ReactNode;
 }) {
   const statusType = status?.type ?? "complete";
   const isRunning = statusType === "running";
@@ -106,53 +119,70 @@ function ToolFallbackTrigger({
 
   const Icon = statusIconMap[statusType];
   const label = isCancelled ? "Cancelled tool" : "Used tool";
+  const defaultChevron = (
+    <ChevronDownIcon
+      data-slot="tool-fallback-trigger-chevron"
+      className={cn(
+        "aui-tool-fallback-trigger-chevron size-4 shrink-0 transition-transform duration-(--animation-duration) ease-out",
+        hasDetails
+          ? "group-data-[state=closed]/trigger:-rotate-90 group-data-[state=open]/trigger:rotate-0"
+          : "opacity-50",
+      )}
+    />
+  );
 
   return (
     <CollapsibleTrigger
       data-slot="tool-fallback-trigger"
+      disabled={!hasDetails}
       className={cn(
         "aui-tool-fallback-trigger group/trigger flex w-full items-center gap-2 px-4 text-sm transition-colors",
         className,
       )}
       {...props}
     >
-      <Icon
-        data-slot="tool-fallback-trigger-icon"
-        className={cn(
-          "aui-tool-fallback-trigger-icon size-4 shrink-0",
-          isCancelled && "text-muted-foreground",
-          isRunning && "animate-spin",
-        )}
-      />
-      <span
-        data-slot="tool-fallback-trigger-label"
-        className={cn(
-          "aui-tool-fallback-trigger-label-wrapper relative inline-block grow text-left leading-none",
-          isCancelled && "text-muted-foreground line-through",
-        )}
-      >
-        <span>
-          {label}: <b>{toolName}</b>
-        </span>
-        {isRunning && (
+      {renderContent ? (
+        renderContent({
+          label,
+          toolName,
+          statusType,
+          isCancelled,
+          hasDetails,
+          defaultChevron,
+        })
+      ) : (
+        <>
+          <Icon
+            data-slot="tool-fallback-trigger-icon"
+            className={cn(
+              "aui-tool-fallback-trigger-icon size-4 shrink-0",
+              isCancelled && "text-muted-foreground",
+              isRunning && "animate-spin",
+            )}
+          />
           <span
-            aria-hidden
-            data-slot="tool-fallback-trigger-shimmer"
-            className="aui-tool-fallback-trigger-shimmer shimmer pointer-events-none absolute inset-0 motion-reduce:animate-none"
+            data-slot="tool-fallback-trigger-label"
+            className={cn(
+              "aui-tool-fallback-trigger-label-wrapper relative inline-block grow text-left leading-none",
+              isCancelled && "text-muted-foreground line-through",
+            )}
           >
-            {label}: <b>{toolName}</b>
+            <span>
+              {label}: <b>{toolName}</b>
+            </span>
+            {isRunning && (
+              <span
+                aria-hidden
+                data-slot="tool-fallback-trigger-shimmer"
+                className="aui-tool-fallback-trigger-shimmer shimmer pointer-events-none absolute inset-0 motion-reduce:animate-none"
+              >
+                {label}: <b>{toolName}</b>
+              </span>
+            )}
           </span>
-        )}
-      </span>
-      <ChevronDownIcon
-        data-slot="tool-fallback-trigger-chevron"
-        className={cn(
-          "aui-tool-fallback-trigger-chevron size-4 shrink-0",
-          "transition-transform duration-(--animation-duration) ease-out",
-          "group-data-[state=closed]/trigger:-rotate-90",
-          "group-data-[state=open]/trigger:rotate-0",
-        )}
-      />
+          {defaultChevron}
+        </>
+      )}
     </CollapsibleTrigger>
   );
 }
@@ -268,20 +298,34 @@ function ToolFallbackError({
   );
 }
 
-const ToolFallbackImpl: ToolCallMessagePartComponent = ({
+type ToolFallbackProps = React.ComponentProps<ToolCallMessagePartComponent> & {
+  renderTriggerContent?: (args: ToolFallbackTriggerRenderArgs) => ReactNode;
+};
+
+const ToolFallbackImpl = ({
   toolName,
   argsText,
   result,
   status,
-}) => {
+  renderTriggerContent,
+}: ToolFallbackProps) => {
   const isCancelled =
     status?.type === "incomplete" && status.reason === "cancelled";
+  const hasDetails =
+    (typeof argsText === "string" && argsText.length > 0) ||
+    result !== undefined ||
+    (status?.type === "incomplete" && status.error != null);
 
   return (
     <ToolFallbackRoot
       className={cn(isCancelled && "border-muted-foreground/30 bg-muted/30")}
     >
-      <ToolFallbackTrigger toolName={toolName} status={status} />
+      <ToolFallbackTrigger
+        toolName={toolName}
+        status={status}
+        hasDetails={hasDetails}
+        renderContent={renderTriggerContent}
+      />
       <ToolFallbackContent>
         <ToolFallbackError status={status} />
         <ToolFallbackArgs
@@ -296,14 +340,15 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
 
 const ToolFallback = memo(
   ToolFallbackImpl,
-) as unknown as ToolCallMessagePartComponent & {
-  Root: typeof ToolFallbackRoot;
-  Trigger: typeof ToolFallbackTrigger;
-  Content: typeof ToolFallbackContent;
-  Args: typeof ToolFallbackArgs;
-  Result: typeof ToolFallbackResult;
-  Error: typeof ToolFallbackError;
-};
+) as unknown as ToolCallMessagePartComponent &
+  React.ComponentType<ToolFallbackProps> & {
+    Root: typeof ToolFallbackRoot;
+    Trigger: typeof ToolFallbackTrigger;
+    Content: typeof ToolFallbackContent;
+    Args: typeof ToolFallbackArgs;
+    Result: typeof ToolFallbackResult;
+    Error: typeof ToolFallbackError;
+  };
 
 ToolFallback.displayName = "ToolFallback";
 ToolFallback.Root = ToolFallbackRoot;
