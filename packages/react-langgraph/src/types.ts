@@ -5,7 +5,8 @@ export type LangChainToolCallChunk = {
   index: number;
   id: string;
   name: string;
-  args: string;
+  args?: string;
+  args_json?: string;
 };
 
 export type LangChainToolCall = {
@@ -147,7 +148,7 @@ export type LangGraphTupleMetadata = Record<string, unknown>;
 
 export type LangChainMessageTupleEvent = {
   event: LangGraphKnownEventTypes.Messages;
-  data: [LangChainMessageChunk, LangGraphTupleMetadata];
+  data: [LangChainMessage | LangChainMessageChunk, LangGraphTupleMetadata];
 };
 
 export type OnMessageChunkCallback = (

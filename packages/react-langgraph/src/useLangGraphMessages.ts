@@ -5,7 +5,6 @@ import {
   EventType,
   LangChainMessageTupleEvent,
   LangGraphKnownEventTypes,
-  LangChainMessageChunk,
   LangGraphTupleMetadata,
   OnMessageChunkCallback,
   OnValuesEventCallback,
@@ -16,6 +15,7 @@ import {
   OnMetadataEventCallback,
 } from "./types";
 import { useAui } from "@assistant-ui/react";
+import { normalizeLangGraphTupleMessage } from "./normalizeLangGraphTupleMessage";
 
 export type LangGraphCommand = {
   resume: string;
@@ -56,23 +56,6 @@ const DEFAULT_APPEND_MESSAGE = <TMessage>(
   _: TMessage | undefined,
   curr: TMessage,
 ) => curr;
-
-const isLangChainMessageChunk = (
-  value: unknown,
-): value is LangChainMessageChunk => {
-  if (!value || typeof value !== "object") return false;
-  const chunk = value as any;
-  const hasValidType = chunk.type === "AIMessageChunk" || chunk.type === "ai";
-  return (
-    hasValidType &&
-    "id" in chunk &&
-    (chunk.content === undefined ||
-      typeof chunk.content === "string" ||
-      Array.isArray(chunk.content)) &&
-    (chunk.tool_call_chunks === undefined ||
-      Array.isArray(chunk.tool_call_chunks))
-  );
-};
 
 export const useLangGraphMessages = <TMessage extends { id?: string }>({
   stream,
@@ -161,32 +144,35 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
             onValues?.(chunk.data);
             break;
           case LangGraphKnownEventTypes.Messages: {
-            const [messageChunk, tupleMetadata] = (
+            const [tupleMessage, tupleMetadata] = (
               chunk as LangChainMessageTupleEvent
             ).data;
-            if (!isLangChainMessageChunk(messageChunk)) {
+            const normalizedTupleMessage =
+              normalizeLangGraphTupleMessage(tupleMessage);
+            if (!normalizedTupleMessage) {
               console.warn(
-                "Received invalid message chunk format:",
-                messageChunk,
+                "Received invalid messages tuple format:",
+                tupleMessage,
               );
               break;
             }
 
-            const normalizedChunk =
-              messageChunk.type !== "AIMessageChunk"
-                ? { ...messageChunk, type: "AIMessageChunk" as const }
-                : messageChunk;
+            if (normalizedTupleMessage.kind === "chunk") {
+              onMessageChunk?.(
+                normalizedTupleMessage.message,
+                tupleMetadata ?? {},
+              );
+            }
 
-            onMessageChunk?.(normalizedChunk, tupleMetadata ?? {});
-
+            const normalizedMessage =
+              normalizedTupleMessage.message as unknown as TMessage;
             const updatedMessages = tupleMetadata
               ? accumulator.addMessageWithMetadata(
-                  normalizedChunk as unknown as TMessage,
+                  normalizedMessage,
                   tupleMetadata,
                 )
-              : accumulator.addMessages([
-                  normalizedChunk as unknown as TMessage,
-                ]);
+              : accumulator.addMessages([normalizedMessage]);
+
             setMessagesImmediate(updatedMessages);
             setMessageMetadata(new Map(accumulator.getMetadataMap()));
             break;

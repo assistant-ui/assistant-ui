@@ -1059,4 +1059,164 @@ describe("useLangGraphMessages", {}, () => {
       expect(typeof config.initialize).toBe("function");
     });
   });
+
+  it("normalizes python tool_call_chunks args_json in messages tuple streams", async () => {
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "messages",
+        data: [
+          {
+            id: "run-1",
+            content: "",
+            type: "AIMessageChunk",
+            tool_call_chunks: [
+              {
+                id: "tool-1",
+                index: 1,
+                name: "fetch_page_content",
+                args_json: "",
+              },
+            ],
+          },
+          { run_attempt: 1 },
+        ],
+      },
+      {
+        event: "messages",
+        data: [
+          {
+            id: "run-1",
+            content: "",
+            type: "AIMessageChunk",
+            tool_call_chunks: [
+              {
+                id: "tool-1",
+                index: 1,
+                name: "fetch_page_content",
+                args_json: '{"url":"https://',
+              },
+            ],
+          },
+          { run_attempt: 1 },
+        ],
+      },
+      {
+        event: "messages",
+        data: [
+          {
+            id: "run-1",
+            content: "",
+            type: "AIMessageChunk",
+            tool_call_chunks: [
+              {
+                id: "tool-1",
+                index: 1,
+                name: "fetch_page_content",
+                args_json: 'example.com"}',
+              },
+            ],
+          },
+          { run_attempt: 1 },
+        ],
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage([{ type: "human", content: "Go" }], {});
+    });
+
+    await waitFor(() => {
+      expect(result.current.messages).toHaveLength(2);
+      const aiMessage = result.current.messages[1]!;
+      expect(aiMessage.type).toBe("ai");
+      if (aiMessage.type !== "ai") {
+        throw new Error("Expected AI message");
+      }
+
+      expect(aiMessage.tool_calls).toHaveLength(1);
+      expect(aiMessage.tool_calls?.[0]?.partial_json).toBe(
+        '{"url":"https://example.com"}',
+      );
+      expect(aiMessage.tool_calls?.[0]?.partial_json).not.toContain(
+        "undefined",
+      );
+      expect(aiMessage.tool_calls?.[0]?.args).toMatchObject({
+        url: "https://example.com",
+      });
+    });
+  });
+
+  it("accepts tool messages from messages tuple streams", async () => {
+    const onMessageChunk = vi.fn();
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "messages",
+        data: [
+          {
+            id: "run-1",
+            content: "Looking that up...",
+            type: "AIMessageChunk",
+            tool_call_chunks: [],
+          },
+          { run_attempt: 1 },
+        ],
+      },
+      {
+        event: "messages",
+        data: [
+          {
+            id: "tool-msg-1",
+            type: "tool",
+            content: '{"success":true}',
+            name: "cached_search_web",
+            tool_call_id: "tool-1",
+            status: "success",
+          },
+          { run_attempt: 1 },
+        ],
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+        eventHandlers: {
+          onMessageChunk,
+        },
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage(
+        [{ type: "human", content: "Search now" }],
+        {},
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.messages).toHaveLength(3);
+      const toolMessage = result.current.messages[2]!;
+      expect(toolMessage.type).toBe("tool");
+      if (toolMessage.type !== "tool") {
+        throw new Error("Expected tool message");
+      }
+
+      expect(toolMessage.id).toBe("tool-msg-1");
+      expect(toolMessage.name).toBe("cached_search_web");
+      expect(toolMessage.tool_call_id).toBe("tool-1");
+      expect(toolMessage.status).toBe("success");
+      expect(toolMessage.content).toBe('{"success":true}');
+      expect(onMessageChunk).toHaveBeenCalledTimes(1);
+    });
+  });
 });

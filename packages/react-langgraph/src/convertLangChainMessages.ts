@@ -119,9 +119,13 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
     case "ai":
       const toolCallParts =
         message.tool_calls?.map((chunk): ToolCallMessagePart => {
+          const matchingToolCallChunk = message.tool_call_chunks?.find(
+            (c) => c.id === chunk.id,
+          );
           const argsText =
             chunk.partial_json ??
-            message.tool_call_chunks?.find((c) => c.id === chunk.id)?.args ??
+            matchingToolCallChunk?.args ??
+            matchingToolCallChunk?.args_json ??
             JSON.stringify(chunk.args);
 
           return {

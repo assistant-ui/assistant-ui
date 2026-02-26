@@ -90,4 +90,41 @@ describe("convertLangChainMessages metadata", () => {
       metadata: { custom: {} },
     });
   });
+
+  it("uses args_json fallback for tool call args text", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-1",
+      content: "",
+      tool_calls: [
+        {
+          id: "tool-1",
+          name: "fetch_page_content",
+          args: {},
+        },
+      ],
+      tool_call_chunks: [
+        {
+          id: "tool-1",
+          index: 1,
+          name: "fetch_page_content",
+          args_json: '{"url":"https://example.com"}',
+        },
+      ],
+    });
+
+    if (!("content" in result)) {
+      throw new Error("Expected assistant message content");
+    }
+    const toolCallPart = result.content.find(
+      (part) => part.type === "tool-call",
+    );
+    expect(toolCallPart).toMatchObject({
+      type: "tool-call",
+      toolCallId: "tool-1",
+      toolName: "fetch_page_content",
+      args: { url: "https://example.com" },
+      argsText: '{"url":"https://example.com"}',
+    });
+  });
 });

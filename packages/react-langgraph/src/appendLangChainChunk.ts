@@ -61,7 +61,8 @@ export const appendLangChainChunk = (
   const newToolCalls = [...(prev.tool_calls ?? [])];
   for (const chunk of curr.tool_call_chunks ?? []) {
     const existing = newToolCalls[chunk.index - 1] ?? { partial_json: "" };
-    const partialJson = existing.partial_json + chunk.args;
+    const partialJson =
+      existing.partial_json + (chunk.args ?? chunk.args_json ?? "");
     newToolCalls[chunk.index - 1] = {
       ...chunk,
       ...existing,
