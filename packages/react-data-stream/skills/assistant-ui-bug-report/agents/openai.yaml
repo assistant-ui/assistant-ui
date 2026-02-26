@@ -1,0 +1,4 @@
+interface:
+  display_name: "Bug Report"
+  short_description: "Draft and file GitHub issues for bugs"
+  default_prompt: "Use $assistant-ui-bug-report to draft and file a bug issue with clear repro steps and context."

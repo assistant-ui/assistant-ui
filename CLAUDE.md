@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Bug Reporting
 
 When reporting bugs, use the `BUG-REPORT` skill at:
-- `skills/bug-report/SKILL.md`
+- `skills/assistant-ui-bug-report/SKILL.md`
 
 For bug reports, always:
 - Open the issue in `https://github.com/assistant-ui/assistant-ui`

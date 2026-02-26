@@ -53,7 +53,7 @@ describe("skills command helpers", () => {
     it("includes cli package skills and installed @assistant-ui package skills", () => {
       const cliPackageRoot = path.join(tempDir, "cli-pkg");
       fs.mkdirSync(path.join(cliPackageRoot, "skills"), { recursive: true });
-      writeSkill(path.join(cliPackageRoot, "skills"), "bug-report");
+      writeSkill(path.join(cliPackageRoot, "skills"), "assistant-ui-bug-report");
 
       const cwd = path.join(tempDir, "project");
       const scopedSkills = path.join(
@@ -91,14 +91,14 @@ describe("skills command helpers", () => {
       fs.mkdirSync(sourceA, { recursive: true });
       fs.mkdirSync(sourceB, { recursive: true });
 
-      writeSkill(sourceA, "bug-report", "# from-a\n");
-      writeSkill(sourceB, "bug-report", "# from-b\n");
+      writeSkill(sourceA, "assistant-ui-bug-report", "# from-a\n");
+      writeSkill(sourceB, "assistant-ui-bug-report", "# from-b\n");
       writeSkill(sourceB, "changeset", "# changeset\n");
 
       const discovered = discoverSkills([sourceA, sourceB]);
       expect(discovered.size).toBe(2);
-      expect(discovered.get("bug-report")).toBe(
-        path.join(sourceA, "bug-report"),
+      expect(discovered.get("assistant-ui-bug-report")).toBe(
+        path.join(sourceA, "assistant-ui-bug-report"),
       );
       expect(discovered.get("changeset")).toBe(path.join(sourceB, "changeset"));
     });
@@ -108,10 +108,10 @@ describe("skills command helpers", () => {
     it("copies skills and supports overwrite=false", () => {
       const sourceRoot = path.join(tempDir, "source");
       fs.mkdirSync(sourceRoot, { recursive: true });
-      writeSkill(sourceRoot, "bug-report", "# v1\n");
+      writeSkill(sourceRoot, "assistant-ui-bug-report", "# v1\n");
 
       const skills = new Map<string, string>([
-        ["bug-report", path.join(sourceRoot, "bug-report")],
+        ["assistant-ui-bug-report", path.join(sourceRoot, "assistant-ui-bug-report")],
       ]);
       const targetRoot = path.join(tempDir, "dest");
 
@@ -122,13 +122,13 @@ describe("skills command helpers", () => {
       expect(first).toEqual({ copied: 1, skipped: 0 });
       expect(
         fs.readFileSync(
-          path.join(targetRoot, "bug-report", "SKILL.md"),
+          path.join(targetRoot, "assistant-ui-bug-report", "SKILL.md"),
           "utf8",
         ),
       ).toContain("v1");
 
       fs.writeFileSync(
-        path.join(sourceRoot, "bug-report", "SKILL.md"),
+        path.join(sourceRoot, "assistant-ui-bug-report", "SKILL.md"),
         "# v2\n",
       );
 
@@ -139,7 +139,7 @@ describe("skills command helpers", () => {
       expect(second).toEqual({ copied: 0, skipped: 1 });
       expect(
         fs.readFileSync(
-          path.join(targetRoot, "bug-report", "SKILL.md"),
+          path.join(targetRoot, "assistant-ui-bug-report", "SKILL.md"),
           "utf8",
         ),
       ).toContain("v1");
