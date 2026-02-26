@@ -112,7 +112,7 @@ const FEATURES = [
   {
     title: "Production Export",
     description:
-      "Export a deployable widget bundle with one command. Use `--inline` for a single-file build.",
+      "Export a bundle instantly in the Workbench, or run the CLI. Use `--inline` for a single-file build.",
     icon: Package,
     iconColor: "text-purple-400",
   },
@@ -151,6 +151,27 @@ const PLATFORM_CAPABILITIES = [
     feature: "Host modal",
     description:
       "Open native modals in ChatGPT when available; falls back to local modals elsewhere.",
+    chatgptExtensions: true,
+    mcpHost: false,
+  },
+  {
+    feature: "File upload/download",
+    description:
+      "Upload files and request host download URLs via ChatGPT extensions.",
+    chatgptExtensions: true,
+    mcpHost: false,
+  },
+  {
+    feature: "Open in app link",
+    description:
+      "Register deep links in ChatGPT with setOpenInAppUrl when available.",
+    chatgptExtensions: true,
+    mcpHost: false,
+  },
+  {
+    feature: "Instant checkout (beta)",
+    description:
+      "Use requestCheckout in ChatGPT and provide a fallback for other hosts.",
     chatgptExtensions: true,
     mcpHost: false,
   },
@@ -410,7 +431,8 @@ export default function McpAppStudioPage() {
             </h2>
             <p className="text-muted-foreground">
               Preview your app in real time, mock tool calls, and export a
-              production-ready bundle — all from your browser.
+              production-ready bundle from the top-right Export popover — all
+              from your browser.
             </p>
           </div>
 
