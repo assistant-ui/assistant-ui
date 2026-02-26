@@ -13,7 +13,8 @@ export interface TokenUsageExtractableMessage {
 // Internal types for parsing
 type UsageRecord = Record<string, unknown>;
 function asRecord(value: unknown): UsageRecord | undefined {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    return undefined;
   return value as UsageRecord;
 }
 function asPositiveTokenCount(value: unknown): number | undefined {
@@ -51,9 +52,10 @@ function normalizeUsage(value: unknown): ParsedUsage | undefined {
   if (inputTokens !== undefined) result.inputTokens = inputTokens;
   if (outputTokens !== undefined) result.outputTokens = outputTokens;
   if (reasoningTokens !== undefined) result.reasoningTokens = reasoningTokens;
-  if (cachedInputTokens !== undefined) result.cachedInputTokens = cachedInputTokens;
+  if (cachedInputTokens !== undefined)
+    result.cachedInputTokens = cachedInputTokens;
   if (totalTokens !== undefined) result.totalTokens = totalTokens;
-  
+
   return result;
 }
 function buildUsageResult(parsed: ParsedUsage): ThreadTokenUsage | undefined {
@@ -68,20 +70,22 @@ function buildUsageResult(parsed: ParsedUsage): ThreadTokenUsage | undefined {
   }
   const inputTokens = parsed.inputTokens ?? 0;
   const outputTokens = parsed.outputTokens ?? 0;
-  
+
   const totalTokens =
     parsed.totalTokens ??
-    (inputTokens +
+    inputTokens +
       outputTokens +
       (parsed.reasoningTokens ?? 0) +
-      (parsed.cachedInputTokens ?? 0));
+      (parsed.cachedInputTokens ?? 0);
   const result: ThreadTokenUsage = {
     totalTokens,
     inputTokens,
     outputTokens,
   };
-  if (parsed.reasoningTokens !== undefined) result.reasoningTokens = parsed.reasoningTokens;
-  if (parsed.cachedInputTokens !== undefined) result.cachedInputTokens = parsed.cachedInputTokens;
+  if (parsed.reasoningTokens !== undefined)
+    result.reasoningTokens = parsed.reasoningTokens;
+  if (parsed.cachedInputTokens !== undefined)
+    result.cachedInputTokens = parsed.cachedInputTokens;
   return result;
 }
 function usageFromSteps(value: unknown): ThreadTokenUsage | undefined {

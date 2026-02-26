@@ -22,10 +22,7 @@ import {
   queueMicrotaskSafe,
   recordRunStartedAt,
 } from "@/lib/assistant-analytics-helpers";
-import {
-  countToolCalls,
-  getTextLength,
-} from "@/lib/assistant-metrics";
+import { countToolCalls, getTextLength } from "@/lib/assistant-metrics";
 
 type ThreadMessagePart = { type: string; text?: string };
 
