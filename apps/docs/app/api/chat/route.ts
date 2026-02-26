@@ -69,6 +69,7 @@ export async function POST(req: Request) {
     });
 
     return result.toUIMessageStreamResponse({
+      // gets usage and modelId for assistant-cloud telemetry reports
       messageMetadata: ({ part }) => {
         if (part.type === "finish-step") {
           return {

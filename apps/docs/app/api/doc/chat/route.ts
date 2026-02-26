@@ -286,6 +286,7 @@ export async function POST(req: Request): Promise<Response> {
 
     return result.toUIMessageStreamResponse({
       originalMessages: messages,
+      // gets usage and modelId for internal telemetry
       messageMetadata: ({ part }) => {
         if (part.type === "finish-step") {
           return { modelId: part.response.modelId };
