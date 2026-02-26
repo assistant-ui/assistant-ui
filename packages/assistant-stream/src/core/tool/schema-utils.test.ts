@@ -141,6 +141,7 @@ describe("toToolsJSONSchema", () => {
           type: "frontend",
           description: "Frontend tool",
           parameters: { type: "object", properties: {} },
+          execute: async () => {},
         },
         backendTool: {
           type: "backend",
@@ -158,6 +159,7 @@ describe("toToolsJSONSchema", () => {
           type: "frontend",
           description: "A frontend tool",
           parameters: { type: "object", properties: { x: { type: "number" } } },
+          execute: async () => {},
         },
       };
 

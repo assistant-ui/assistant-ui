@@ -4,8 +4,9 @@ import type { ThreadAssistantMessage } from "@assistant-ui/core";
 import type { Tool } from "assistant-stream";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type { AssistantTransportState, ToolExecutionStatus } from "./types";
-import { useToolInvocations } from "./useToolInvocations";
+import type { AssistantTransportState } from "./types";
+import { ToolExecutionStatus, useToolInvocations } from "./useToolInvocations";
+import { ReadonlyJSONObject } from "assistant-stream/utils";
 
 const createState = (
   messages: ThreadAssistantMessage[],
@@ -34,7 +35,7 @@ const createAssistantMessage = (
       type: "tool-call",
       toolCallId: "tool-1",
       toolName: "weatherSearch",
-      args,
+      args: args as ReadonlyJSONObject,
       argsText,
     },
   ],
@@ -45,6 +46,7 @@ describe("useToolInvocations", () => {
     const execute = vi.fn(async () => ({ forecast: "ok" }));
     const getTools = () => ({
       weatherSearch: {
+        parameters: { type: "object", properties: {} },
         execute,
       } satisfies Tool,
     });
@@ -137,6 +139,7 @@ describe("useToolInvocations", () => {
     );
     const getTools = () => ({
       weatherSearch: {
+        parameters: { type: "object", properties: {} },
         execute,
       } satisfies Tool,
     });
