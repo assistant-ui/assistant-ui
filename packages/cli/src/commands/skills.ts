@@ -40,7 +40,10 @@ function asNormalizedPath(entryPath: string): string {
   }
 }
 
-function addSkillsDirIfPresent(paths: Set<string>, candidatePath: string): void {
+function addSkillsDirIfPresent(
+  paths: Set<string>,
+  candidatePath: string,
+): void {
   if (!isDirectoryOrSymlink(candidatePath)) return;
   paths.add(asNormalizedPath(candidatePath));
 }
@@ -172,7 +175,11 @@ export const skills = new Command()
   .option("--codex", "install to ~/.codex/skills")
   .option("--claude", "install to ~/.claude/skills")
   .option("--cursor", "install to ~/.cursor/skills")
-  .option("-c, --cwd <cwd>", "working directory used for discovery", process.cwd())
+  .option(
+    "-c, --cwd <cwd>",
+    "working directory used for discovery",
+    process.cwd(),
+  )
   .option("--no-overwrite", "do not replace existing skills in target folders")
   .option("--dry-run", "print what would be installed without writing files")
   .action((opts) => {
@@ -197,7 +204,9 @@ export const skills = new Command()
       dryRun: Boolean(opts.dryRun),
     });
 
-    const mode = opts.dryRun ? "Dry run complete" : "Skill installation complete";
+    const mode = opts.dryRun
+      ? "Dry run complete"
+      : "Skill installation complete";
     logger.success(
       `${mode}: copied ${result.copied}, skipped ${result.skipped}.`,
     );

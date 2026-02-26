@@ -66,12 +66,19 @@ describe("skills command helpers", () => {
       fs.mkdirSync(scopedSkills, { recursive: true });
       writeSkill(scopedSkills, "changeset");
 
-      const ignoredSkills = path.join(cwd, "node_modules", "random-pkg", "skills");
+      const ignoredSkills = path.join(
+        cwd,
+        "node_modules",
+        "random-pkg",
+        "skills",
+      );
       fs.mkdirSync(ignoredSkills, { recursive: true });
       writeSkill(ignoredSkills, "ignored");
 
       const sourceDirs = collectSkillSourceDirs(cwd, cliPackageRoot);
-      expect(sourceDirs).toContain(normalize(path.join(cliPackageRoot, "skills")));
+      expect(sourceDirs).toContain(
+        normalize(path.join(cliPackageRoot, "skills")),
+      );
       expect(sourceDirs).toContain(normalize(scopedSkills));
       expect(sourceDirs).not.toContain(normalize(ignoredSkills));
     });
@@ -90,7 +97,9 @@ describe("skills command helpers", () => {
 
       const discovered = discoverSkills([sourceA, sourceB]);
       expect(discovered.size).toBe(2);
-      expect(discovered.get("bug-report")).toBe(path.join(sourceA, "bug-report"));
+      expect(discovered.get("bug-report")).toBe(
+        path.join(sourceA, "bug-report"),
+      );
       expect(discovered.get("changeset")).toBe(path.join(sourceB, "changeset"));
     });
   });
@@ -112,10 +121,16 @@ describe("skills command helpers", () => {
       });
       expect(first).toEqual({ copied: 1, skipped: 0 });
       expect(
-        fs.readFileSync(path.join(targetRoot, "bug-report", "SKILL.md"), "utf8"),
+        fs.readFileSync(
+          path.join(targetRoot, "bug-report", "SKILL.md"),
+          "utf8",
+        ),
       ).toContain("v1");
 
-      fs.writeFileSync(path.join(sourceRoot, "bug-report", "SKILL.md"), "# v2\n");
+      fs.writeFileSync(
+        path.join(sourceRoot, "bug-report", "SKILL.md"),
+        "# v2\n",
+      );
 
       const second = installSkillsToTargets(skills, [targetRoot], {
         overwrite: false,
@@ -123,7 +138,10 @@ describe("skills command helpers", () => {
       });
       expect(second).toEqual({ copied: 0, skipped: 1 });
       expect(
-        fs.readFileSync(path.join(targetRoot, "bug-report", "SKILL.md"), "utf8"),
+        fs.readFileSync(
+          path.join(targetRoot, "bug-report", "SKILL.md"),
+          "utf8",
+        ),
       ).toContain("v1");
     });
   });
