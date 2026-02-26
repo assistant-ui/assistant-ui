@@ -150,6 +150,28 @@ describe("skills command helpers", () => {
         ),
       ).toContain("v1");
     });
+
+    it("skips when source and destination are the same path", () => {
+      const sourceRoot = path.join(tempDir, "source");
+      fs.mkdirSync(sourceRoot, { recursive: true });
+      writeSkill(sourceRoot, "assistant-ui-bug-report", "# original\n");
+
+      const sourceSkillDir = path.join(sourceRoot, "assistant-ui-bug-report");
+      const skills = new Map<string, string>([
+        ["assistant-ui-bug-report", sourceSkillDir],
+      ]);
+
+      const result = installSkillsToTargets(skills, [sourceRoot], {
+        overwrite: true,
+        dryRun: false,
+      });
+
+      expect(result).toEqual({ copied: 0, skipped: 1 });
+      expect(fs.existsSync(path.join(sourceSkillDir, "SKILL.md"))).toBe(true);
+      expect(fs.readFileSync(path.join(sourceSkillDir, "SKILL.md"), "utf8")).toBe(
+        "# original\n",
+      );
+    });
   });
 
   describe("resolveTargetPaths", () => {

@@ -40,6 +40,10 @@ function asNormalizedPath(entryPath: string): string {
   }
 }
 
+function isSamePath(leftPath: string, rightPath: string): boolean {
+  return asNormalizedPath(leftPath) === asNormalizedPath(rightPath);
+}
+
 function addSkillsDirIfPresent(
   paths: Set<string>,
   candidatePath: string,
@@ -149,6 +153,11 @@ export function installSkillsToTargets(
 
     for (const [skillName, sourceDir] of skills) {
       const destinationDir = path.join(targetPath, skillName);
+      if (isSamePath(sourceDir, destinationDir)) {
+        skipped += 1;
+        continue;
+      }
+
       const exists = fs.existsSync(destinationDir);
       if (exists && !options.overwrite) {
         skipped += 1;

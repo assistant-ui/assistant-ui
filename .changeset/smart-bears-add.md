@@ -27,4 +27,4 @@
 "tw-shimmer": patch
 ---
 
-Ship the `skills/bug-report` skill directory in all published packages and include `skills` in package `files` so agents can consume it from installed npm packages.
+Ship the `skills/assistant-ui-bug-report` skill directory in all published packages and include `skills` in package `files` so agents can consume it from installed npm packages.
