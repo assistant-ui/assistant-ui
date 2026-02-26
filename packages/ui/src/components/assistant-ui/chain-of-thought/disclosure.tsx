@@ -1,21 +1,16 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { useEffect, type ReactNode } from "react";
 import { type VariantProps } from "class-variance-authority";
 import { ChevronDownIcon } from "lucide-react";
-import { useScrollLock } from "@assistant-ui/react";
 import {
-  Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import {
+  DisclosureRoot,
+  type DisclosureRootProps,
+} from "@/components/assistant-ui/disclosure";
 import { cn } from "@/lib/utils";
 import type { ChainOfThoughtPhase } from "./model";
 import {
@@ -27,72 +22,38 @@ import {
 } from "./styles";
 import { Crossfade } from "./crossfade";
 
-export type ChainOfThoughtRootProps = Omit<
-  React.ComponentProps<typeof Collapsible>,
-  "open" | "onOpenChange"
-> &
-  VariantProps<typeof chainOfThoughtVariants> & {
-    open?: boolean;
-    onOpenChange?: (open: boolean) => void;
-    defaultOpen?: boolean;
-  };
+export type ChainOfThoughtRootProps = DisclosureRootProps &
+  VariantProps<typeof chainOfThoughtVariants>;
 
 function ChainOfThoughtRoot({
   className,
   variant,
-  open: controlledOpen,
-  onOpenChange: controlledOnOpenChange,
-  defaultOpen = false,
   children,
+  style,
   ...props
 }: ChainOfThoughtRootProps) {
-  const collapsibleRef = useRef<HTMLDivElement>(null);
-  const [uncontrolledOpen, setUncontrolledOpen] = useState(defaultOpen);
-  const lockScroll = useScrollLock(collapsibleRef, ANIMATION_DURATION);
-
-  const isControlled = controlledOpen !== undefined;
-  const isOpen = isControlled ? controlledOpen : uncontrolledOpen;
-  const previousOpenRef = useRef(isOpen);
-
-  const handleOpenChange = useCallback(
-    (open: boolean) => {
-      if (!open) lockScroll();
-      if (!isControlled) setUncontrolledOpen(open);
-      controlledOnOpenChange?.(open);
-    },
-    [lockScroll, isControlled, controlledOnOpenChange],
-  );
-
-  useLayoutEffect(() => {
-    if (previousOpenRef.current && !isOpen) {
-      lockScroll();
-    }
-    previousOpenRef.current = isOpen;
-  }, [isOpen, lockScroll]);
-
   return (
-    <Collapsible
-      ref={collapsibleRef}
+    <DisclosureRoot
       data-slot="chain-of-thought-root"
       data-variant={variant}
-      open={isOpen}
-      onOpenChange={handleOpenChange}
+      animationDuration={ANIMATION_DURATION}
+      lockOnProgrammaticClose
       className={cn(
         "group/chain-of-thought-root",
         chainOfThoughtVariants({ variant, className }),
       )}
       style={
         {
-          "--animation-duration": `${ANIMATION_DURATION}ms`,
           "--spring-easing": SPRING_EASING,
           "--ease-out-expo": EASE_OUT_EXPO,
           "--step-stagger-delay": `${STEP_STAGGER_DELAY}ms`,
+          ...(style ?? {}),
         } as React.CSSProperties
       }
       {...props}
     >
       {children}
-    </Collapsible>
+    </DisclosureRoot>
   );
 }
 

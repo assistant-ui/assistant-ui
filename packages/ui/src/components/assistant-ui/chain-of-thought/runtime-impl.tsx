@@ -9,14 +9,13 @@ import {
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import {
   ChainOfThoughtContent,
-  ChainOfThoughtPlaceholder,
   ChainOfThoughtRoot,
-  ChainOfThoughtTimeline,
   ChainOfThoughtTrigger,
-  type ChainOfThoughtPhase,
   type ChainOfThoughtRootProps,
   type ChainOfThoughtTriggerProps,
-} from "./core";
+} from "./disclosure";
+import { ChainOfThoughtPlaceholder, ChainOfThoughtTimeline } from "./layout";
+import type { ChainOfThoughtPhase } from "./model";
 import {
   ToolActivityLabelsContext,
   deriveCollapsedActivity,
@@ -28,10 +27,10 @@ import {
 } from "./runtime-activity";
 import {
   ChainOfThoughtPrimitivePartLayout,
-  ChainOfThoughtPrimitiveTool,
   ChainOfThoughtTerminalStep,
-} from "./runtime-parts";
-import { useElapsedSeconds } from "./trace";
+} from "./runtime-steps";
+import { ChainOfThoughtPrimitiveTool } from "./runtime-tool";
+import { useElapsedSeconds } from "./trace-time";
 
 export type ChainOfThoughtProps = {
   constrainHeight?: boolean;
@@ -70,24 +69,20 @@ export const ChainOfThoughtImpl = ({
 
   const collapsedActivity = useAuiState((s) =>
     deriveCollapsedActivity({
-      parts: s.chainOfThought.parts as any[],
-      chainStatusType: s.chainOfThought.status.type as string | undefined,
-      messageStatusType: s.message.status?.type as string | undefined,
+      parts: s.chainOfThought.parts,
+      chainStatusType: s.chainOfThought.status.type,
+      messageStatusType: s.message.status?.type,
       toolActivityLabels: mergedToolActivityLabels,
     }),
   );
 
   const isChainStreaming = useAuiState((s) => {
-    const chainStatusType = s.chainOfThought.status.type as string | undefined;
+    const chainStatusType = s.chainOfThought.status.type;
     if (isMessageStatusStreaming(chainStatusType)) return true;
-    const messageStatusType = s.message.status?.type as string | undefined;
+    const messageStatusType = s.message.status?.type;
 
-    const parts = s.chainOfThought.parts as any[];
-    if (
-      parts.some((part) =>
-        isMessageStatusStreaming(part?.status?.type as string | undefined),
-      )
-    ) {
+    const parts = s.chainOfThought.parts;
+    if (parts.some((part) => isMessageStatusStreaming(part.status?.type))) {
       return true;
     }
     if (!isMessageStatusStreaming(messageStatusType)) return false;
@@ -97,7 +92,7 @@ export const ChainOfThoughtImpl = ({
     if (lastPart.type === "reasoning") return true;
 
     const lastPartStatusType = partStatusOrFallback(
-      lastPart.status?.type as string | undefined,
+      lastPart.status?.type,
       chainStatusType,
       messageStatusType,
     );
@@ -110,26 +105,21 @@ export const ChainOfThoughtImpl = ({
   });
 
   const hasRequiresAction = useAuiState((s) => {
-    const chainStatusType = s.chainOfThought.status.type as string | undefined;
+    const chainStatusType = s.chainOfThought.status.type;
     if (chainStatusType === "requires-action") return true;
-    const messageStatusType = s.message.status?.type as string | undefined;
+    const messageStatusType = s.message.status?.type;
     if (messageStatusType === "requires-action") return true;
-    const parts = s.chainOfThought.parts as any[];
-    return parts.some(
-      (part) =>
-        (part?.status?.type as string | undefined) === "requires-action",
-    );
+    const parts = s.chainOfThought.parts;
+    return parts.some((part) => part.status?.type === "requires-action");
   });
 
   const hasIncomplete = useAuiState((s) => {
-    const chainStatusType = s.chainOfThought.status.type as string | undefined;
+    const chainStatusType = s.chainOfThought.status.type;
     if (chainStatusType === "incomplete") return true;
-    const messageStatusType = s.message.status?.type as string | undefined;
+    const messageStatusType = s.message.status?.type;
     if (messageStatusType === "incomplete") return true;
-    const parts = s.chainOfThought.parts as any[];
-    return parts.some(
-      (part) => (part?.status?.type as string | undefined) === "incomplete",
-    );
+    const parts = s.chainOfThought.parts;
+    return parts.some((part) => part.status?.type === "incomplete");
   });
 
   const phase: ChainOfThoughtPhase =

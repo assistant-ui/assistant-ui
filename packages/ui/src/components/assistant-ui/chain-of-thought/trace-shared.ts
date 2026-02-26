@@ -2,11 +2,19 @@
 
 import type { ComponentProps, ComponentType, ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
-import { MessagePrimitive, type ThreadMessage } from "@assistant-ui/react";
-import { ChainOfThoughtContent, ChainOfThoughtTimeline } from "./core";
+import {
+  MessagePrimitive,
+  type ThreadAssistantMessagePart,
+  type ThreadMessage,
+  type ThreadUserMessagePart,
+} from "@assistant-ui/react";
+import {
+  ChainOfThoughtContent,
+  type ChainOfThoughtRootProps,
+  type ChainOfThoughtTriggerProps,
+} from "./disclosure";
+import { ChainOfThoughtTimeline } from "./layout";
 import type {
-  ChainOfThoughtRootProps,
-  ChainOfThoughtTriggerProps,
   StepStatus,
   StepType,
   TraceGroup,
@@ -14,31 +22,36 @@ import type {
   TraceStatus,
   TraceStep,
   TraceSummaryFormatter,
-} from "./core";
+} from "./model";
 
 export type PartsGroupedGroupingFunction = ComponentProps<
   typeof MessagePrimitive.Unstable_PartsGrouped
 >["groupingFunction"];
 
 type MessagePartGroup = ReturnType<PartsGroupedGroupingFunction>[number];
+type GroupingParts = Parameters<PartsGroupedGroupingFunction>[0];
+type GroupingPart = GroupingParts[number];
+type TraceMessagePart = ThreadAssistantMessagePart | ThreadUserMessagePart;
 
 export const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
 
-const getParentId = (part: unknown): string | undefined => {
+const getParentId = (part: GroupingPart): string | undefined => {
   if (!isRecord(part)) return undefined;
   const parentId = part["parentId"];
   return typeof parentId === "string" ? parentId : undefined;
 };
 
 export const groupMessagePartsByParentId: PartsGroupedGroupingFunction = (
-  parts: readonly any[],
+  parts,
 ) => {
+  const messageParts = parts as readonly TraceMessagePart[];
+
   // Map maintains insertion order, so groups appear in order of first occurrence
   const groupMap = new Map<string, number[]>();
 
-  for (let i = 0; i < parts.length; i++) {
-    const parentId = getParentId(parts[i]);
+  for (let i = 0; i < messageParts.length; i++) {
+    const parentId = getParentId(messageParts[i]);
     const groupId = parentId ?? `__ungrouped_${i}`;
     const indices = groupMap.get(groupId) ?? [];
     indices.push(i);
@@ -152,7 +165,7 @@ export type ChainOfThoughtTracePartsProps = Omit<
   inferStep?: (args: {
     groupKey: string | undefined;
     indices: number[];
-    parts: readonly any[];
+    parts: GroupingParts;
     isActive: boolean;
   }) => ChainOfThoughtTraceStepMeta;
 };
@@ -214,7 +227,7 @@ export type TraceFromMessagePartsOptions = {
 };
 
 export const traceFromMessageParts = (
-  parts: readonly any[],
+  parts: GroupingParts,
   options: TraceFromMessagePartsOptions = {},
 ): TraceNode[] => {
   const groupingFunction =

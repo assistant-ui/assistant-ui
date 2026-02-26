@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useRef, useState, type ReactNode } from "react";
+import { memo, type ReactNode } from "react";
 import {
   AlertCircleIcon,
   CheckIcon,
@@ -9,75 +9,35 @@ import {
   XCircleIcon,
 } from "lucide-react";
 import {
-  useScrollLock,
   type ToolCallMessagePartStatus,
   type ToolCallMessagePartComponent,
 } from "@assistant-ui/react";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
+import {
+  DisclosureContent,
+  DisclosureRoot,
+  type DisclosureRootProps,
+} from "./disclosure";
 
-const ANIMATION_DURATION = 200;
-
-export type ToolFallbackRootProps = Omit<
-  React.ComponentProps<typeof Collapsible>,
-  "open" | "onOpenChange"
-> & {
-  open?: boolean;
-  onOpenChange?: (open: boolean) => void;
-  defaultOpen?: boolean;
-};
+export type ToolFallbackRootProps = DisclosureRootProps;
 
 function ToolFallbackRoot({
   className,
-  open: controlledOpen,
-  onOpenChange: controlledOnOpenChange,
-  defaultOpen = false,
   children,
   ...props
 }: ToolFallbackRootProps) {
-  const collapsibleRef = useRef<HTMLDivElement>(null);
-  const [uncontrolledOpen, setUncontrolledOpen] = useState(defaultOpen);
-  const lockScroll = useScrollLock(collapsibleRef, ANIMATION_DURATION);
-
-  const isControlled = controlledOpen !== undefined;
-  const isOpen = isControlled ? controlledOpen : uncontrolledOpen;
-
-  const handleOpenChange = useCallback(
-    (open: boolean) => {
-      if (!open) {
-        lockScroll();
-      }
-      if (!isControlled) {
-        setUncontrolledOpen(open);
-      }
-      controlledOnOpenChange?.(open);
-    },
-    [lockScroll, isControlled, controlledOnOpenChange],
-  );
-
   return (
-    <Collapsible
-      ref={collapsibleRef}
+    <DisclosureRoot
       data-slot="tool-fallback-root"
-      open={isOpen}
-      onOpenChange={handleOpenChange}
       className={cn(
         "aui-tool-fallback-root group/tool-fallback-root w-full rounded-lg border py-3",
         className,
       )}
-      style={
-        {
-          "--animation-duration": `${ANIMATION_DURATION}ms`,
-        } as React.CSSProperties
-      }
       {...props}
     >
       {children}
-    </Collapsible>
+    </DisclosureRoot>
   );
 }
 
@@ -191,25 +151,15 @@ function ToolFallbackContent({
   className,
   children,
   ...props
-}: React.ComponentProps<typeof CollapsibleContent>) {
+}: React.ComponentProps<typeof DisclosureContent>) {
   return (
-    <CollapsibleContent
+    <DisclosureContent
       data-slot="tool-fallback-content"
-      className={cn(
-        "aui-tool-fallback-content relative overflow-hidden text-sm outline-none",
-        "group/collapsible-content ease-out",
-        "data-[state=closed]:animate-collapsible-up",
-        "data-[state=open]:animate-collapsible-down",
-        "data-[state=closed]:fill-mode-forwards",
-        "data-[state=closed]:pointer-events-none",
-        "data-[state=open]:duration-(--animation-duration)",
-        "data-[state=closed]:duration-(--animation-duration)",
-        className,
-      )}
+      className={cn("aui-tool-fallback-content text-sm", className)}
       {...props}
     >
       <div className="mt-3 flex flex-col gap-2 border-t pt-2">{children}</div>
-    </CollapsibleContent>
+    </DisclosureContent>
   );
 }
 
