@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useContext, useEffect, useState, createContext } from "react";
+import { createContext, memo, useContext, useEffect, useState } from "react";
 import {
   useAuiState,
   type ToolCallMessagePartComponent,
@@ -13,23 +13,13 @@ import {
 import { cn } from "@/lib/utils";
 import { ChainOfThoughtToolBadge } from "./step";
 import {
-  ToolActivityLabelsContext,
   extractSearchResults,
   formatSearchSourceLabel,
   getActivityFromPart,
   inferToolActivityStatusType,
   partStatusOrFallback,
+  type ToolActivity,
 } from "./runtime-activity";
-
-export type PrimitiveToolDisclosureContextValue = {
-  setHasDetails: (hasDetails: boolean) => void;
-  open: boolean;
-  setOpen: (open: boolean) => void;
-  setHovered: (hovered: boolean) => void;
-};
-
-export const PrimitiveToolDisclosureContext =
-  createContext<PrimitiveToolDisclosureContextValue | null>(null);
 
 export const ChainOfThoughtTraceTool = memo(function ChainOfThoughtTraceTool({
   toolName,
@@ -56,17 +46,38 @@ export const ChainOfThoughtTraceTool = memo(function ChainOfThoughtTraceTool({
   );
 });
 
-export const ChainOfThoughtPrimitiveTool: ToolCallMessagePartComponent = ({
+export const ToolActivityLabelsContext = createContext<
+  Record<string, ToolActivity> | undefined
+>(undefined);
+
+export const ChainOfThoughtPrimitiveToolWithLabels: ToolCallMessagePartComponent =
+  (props) => {
+    const toolActivityLabels = useContext(ToolActivityLabelsContext);
+    return (
+      <ChainOfThoughtPrimitiveTool
+        {...props}
+        toolActivityLabels={toolActivityLabels}
+      />
+    );
+  };
+
+export type ChainOfThoughtPrimitiveToolProps =
+  React.ComponentProps<ToolCallMessagePartComponent> & {
+    toolActivityLabels?: Record<string, ToolActivity>;
+  };
+
+export function ChainOfThoughtPrimitiveTool({
   toolName,
   argsText,
   result,
   status,
-}) => {
-  const toolActivityLabels = useContext(ToolActivityLabelsContext);
+  toolActivityLabels,
+}: ChainOfThoughtPrimitiveToolProps) {
   const currentPart = useAuiState((s) => s.part);
   const toolPart = currentPart.type === "tool-call" ? currentPart : undefined;
   const chainStatusType = useAuiState((s) => s.chainOfThought.status.type);
   const messageStatusType = useAuiState((s) => s.message.status?.type);
+
   const statusType = partStatusOrFallback(
     toolPart?.status?.type,
     chainStatusType,
@@ -79,6 +90,7 @@ export const ChainOfThoughtPrimitiveTool: ToolCallMessagePartComponent = ({
     chainStatusType,
     messageStatusType,
   );
+
   const effectiveStatusType = inferToolActivityStatusType(
     toolPart,
     statusType,
@@ -87,6 +99,7 @@ export const ChainOfThoughtPrimitiveTool: ToolCallMessagePartComponent = ({
   const isActiveToolLabel =
     effectiveStatusType === "running" ||
     effectiveStatusType === "requires-action";
+
   const toolResult = result ?? toolPart?.result;
   const searchResults = extractSearchResults(toolName, toolResult);
 
@@ -96,49 +109,30 @@ export const ChainOfThoughtPrimitiveTool: ToolCallMessagePartComponent = ({
       : status?.type === "incomplete"
         ? "error"
         : "complete";
+
   const hasArgs = typeof argsText === "string" && argsText.length > 0;
   const hasSearchResults =
     searchResults != null &&
     (Boolean(searchResults.summary) || searchResults.sources.length > 0);
   const hasDetails = hasArgs || hasSearchResults || toolResult !== undefined;
-  const disclosure = useContext(PrimitiveToolDisclosureContext);
-  const [localOpen, setLocalOpen] = useState(false);
-  const isOpen = disclosure ? disclosure.open : localOpen;
 
+  const [open, setOpen] = useState(false);
   useEffect(() => {
-    if (!disclosure) return;
-    disclosure.setHasDetails(hasDetails);
     if (!hasDetails) {
-      disclosure.setOpen(false);
-      disclosure.setHovered(false);
+      setOpen(false);
     }
-  }, [disclosure, hasDetails]);
-
-  useEffect(() => {
-    if (hasDetails) return;
-    setLocalOpen(false);
   }, [hasDetails]);
 
   return (
     <Collapsible
       data-slot="chain-of-thought-tool-activity"
-      open={isOpen}
-      onOpenChange={(nextOpen: boolean) => {
-        if (disclosure) {
-          disclosure.setOpen(nextOpen);
-          return;
-        }
-        setLocalOpen(nextOpen);
-      }}
+      open={open}
+      onOpenChange={setOpen}
       className="space-y-1.5"
     >
       <CollapsibleTrigger
         data-slot="chain-of-thought-tool-activity-trigger"
         disabled={!hasDetails}
-        onPointerEnter={() => disclosure?.setHovered(true)}
-        onPointerLeave={() => disclosure?.setHovered(false)}
-        onFocus={() => disclosure?.setHovered(true)}
-        onBlur={() => disclosure?.setHovered(false)}
         className={cn(
           "group/tool-activity-trigger -mt-0.5 flex w-full min-w-0 items-center gap-1.5 text-left text-sm leading-relaxed",
           hasDetails
@@ -222,4 +216,4 @@ export const ChainOfThoughtPrimitiveTool: ToolCallMessagePartComponent = ({
       ) : null}
     </Collapsible>
   );
-};
+}

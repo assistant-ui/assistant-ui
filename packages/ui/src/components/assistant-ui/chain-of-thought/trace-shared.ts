@@ -154,14 +154,11 @@ export type ChainOfThoughtTraceNodesProps = Omit<
 };
 
 export type ChainOfThoughtTracePartsProps = Omit<
-  ComponentProps<typeof ChainOfThoughtTimeline>,
-  "children"
+  ChainOfThoughtTraceNodesProps,
+  "trace"
 > & {
   trace?: undefined;
   groupingFunction?: PartsGroupedGroupingFunction;
-  components?: ComponentProps<
-    typeof MessagePrimitive.Unstable_PartsGrouped
-  >["components"];
   inferStep?: (args: {
     groupKey: string | undefined;
     indices: number[];

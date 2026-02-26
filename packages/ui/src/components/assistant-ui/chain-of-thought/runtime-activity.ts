@@ -1,6 +1,5 @@
 "use client";
 
-import { createContext } from "react";
 import type {
   MessagePartStatus,
   MessageStatus,
@@ -293,10 +292,6 @@ export const deriveCollapsedActivity = ({
     messageStatusType,
   );
 };
-
-export const ToolActivityLabelsContext = createContext<
-  Record<string, ToolActivity> | undefined
->(undefined);
 
 export const extractSearchResults = (
   toolName: string,

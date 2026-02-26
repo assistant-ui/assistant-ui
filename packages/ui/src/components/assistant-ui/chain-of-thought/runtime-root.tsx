@@ -17,7 +17,6 @@ import {
 import { ChainOfThoughtPlaceholder, ChainOfThoughtTimeline } from "./layout";
 import type { ChainOfThoughtPhase } from "./model";
 import {
-  ToolActivityLabelsContext,
   deriveCollapsedActivity,
   findLastReasoningOrToolPart,
   inferToolActivityStatusType,
@@ -28,8 +27,11 @@ import {
 import {
   ChainOfThoughtPrimitivePartLayout,
   ChainOfThoughtTerminalStep,
-} from "./runtime-steps";
-import { ChainOfThoughtPrimitiveTool } from "./runtime-tool";
+} from "./runtime-part-layout";
+import {
+  ChainOfThoughtPrimitiveToolWithLabels,
+  ToolActivityLabelsContext,
+} from "./runtime-tool";
 import { useElapsedSeconds } from "./trace-time";
 
 export type ChainOfThoughtProps = {
@@ -190,7 +192,7 @@ export const ChainOfThoughtImpl = ({
               <ChainOfThoughtPrimitive.Parts
                 components={{
                   Reasoning: MarkdownText,
-                  tools: { Fallback: ChainOfThoughtPrimitiveTool },
+                  tools: { Fallback: ChainOfThoughtPrimitiveToolWithLabels },
                   Layout: ChainOfThoughtPrimitivePartLayout,
                 }}
               />
