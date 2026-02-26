@@ -133,13 +133,13 @@ function AssistantAnalyticsTracker() {
         tool_calls_count: toolCallsCount,
         ...(latencyMs === undefined ? {} : { latency_ms: latencyMs }),
         ...(status?.reason ? { status_reason: status.reason } : {}),
-        ...(tokenUsage === undefined
+        ...(tokenUsage?.totalTokens === undefined
           ? {}
           : { response_total_tokens: tokenUsage.totalTokens }),
-        ...(tokenUsage === undefined
+        ...(tokenUsage?.inputTokens === undefined
           ? {}
           : { response_input_tokens: tokenUsage.inputTokens }),
-        ...(tokenUsage === undefined
+        ...(tokenUsage?.outputTokens === undefined
           ? {}
           : { response_output_tokens: tokenUsage.outputTokens }),
         ...(pathnameRef.current ? { pathname: pathnameRef.current } : {}),
