@@ -61,6 +61,11 @@ export type AgUiEvent =
   | { type: "THINKING_TEXT_MESSAGE_CONTENT"; delta: string }
   | { type: "THINKING_TEXT_MESSAGE_END" }
   | { type: "THINKING_END" }
+  | { type: "REASONING_START"; messageId?: string }
+  | { type: "REASONING_MESSAGE_START"; messageId?: string }
+  | { type: "REASONING_MESSAGE_CONTENT"; messageId?: string; delta: string }
+  | { type: "REASONING_MESSAGE_END"; messageId?: string }
+  | { type: "REASONING_END"; messageId?: string }
   | {
       type: "TOOL_CALL_START";
       toolCallId: string;

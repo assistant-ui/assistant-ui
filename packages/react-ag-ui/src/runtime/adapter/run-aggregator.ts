@@ -150,6 +150,29 @@ export class RunAggregator {
         break;
       }
 
+      case "REASONING_START":
+      case "REASONING_MESSAGE_START": {
+        if (!this.showThinking) break;
+        this.reasoningActive = true;
+        if (!this.reasoningBuffer) this.reasoningBuffer = "";
+        this.ensureReasoningPart();
+        this.emit();
+        break;
+      }
+      case "REASONING_MESSAGE_CONTENT": {
+        if (!this.showThinking || !event.delta) break;
+        this.reasoningBuffer += event.delta;
+        this.ensureReasoningPart();
+        this.emit();
+        break;
+      }
+      case "REASONING_MESSAGE_END":
+      case "REASONING_END": {
+        if (!this.showThinking) break;
+        this.emit();
+        break;
+      }
+
       case "TOOL_CALL_START": {
         this.startToolCall(
           event.toolCallId,

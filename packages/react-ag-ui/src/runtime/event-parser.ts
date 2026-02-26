@@ -87,6 +87,33 @@ export const parseAgUiEvent = (event: unknown): AgUiEvent | null => {
       return { type: "THINKING_TEXT_MESSAGE_END" };
     case "THINKING_END":
       return { type: "THINKING_END" };
+    case "REASONING_START":
+      return withOptional(
+        { type: "REASONING_START" as const },
+        { messageId: getString("messageId") },
+      );
+    case "REASONING_MESSAGE_START":
+      return withOptional(
+        { type: "REASONING_MESSAGE_START" as const },
+        { messageId: getString("messageId") },
+      );
+    case "REASONING_MESSAGE_CONTENT": {
+      const delta = getString("delta") ?? "";
+      return withOptional(
+        { type: "REASONING_MESSAGE_CONTENT" as const, delta },
+        { messageId: getString("messageId") },
+      );
+    }
+    case "REASONING_MESSAGE_END":
+      return withOptional(
+        { type: "REASONING_MESSAGE_END" as const },
+        { messageId: getString("messageId") },
+      );
+    case "REASONING_END":
+      return withOptional(
+        { type: "REASONING_END" as const },
+        { messageId: getString("messageId") },
+      );
     case "TOOL_CALL_START": {
       const toolCallId = getString("toolCallId");
       if (!toolCallId) return null;
