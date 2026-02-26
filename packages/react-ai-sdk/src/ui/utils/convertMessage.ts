@@ -12,12 +12,14 @@ import {
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
 
 type MessageMetadata = ThreadMessageLike["metadata"];
+export type AISDKMessageConverterMetadata =
+  useExternalMessageConverter.Metadata & {
+    toolArgsKeyOrderCache?: Map<string, Map<string, string[]>>;
+  };
 
 function stripClosingDelimiters(json: string): string {
   return json.replace(/[}\]"]+$/, "");
 }
-
-const argsKeyOrderCache = new Map<string, Map<string, string[]>>();
 
 const hasOwn = (value: object, key: string) =>
   Object.prototype.hasOwnProperty.call(value, key);
@@ -56,11 +58,12 @@ const stabilizeToolArgsValue = (
 };
 
 function stableStringifyToolArgs(
+  keyOrderCache: Map<string, Map<string, string[]>> | undefined,
   cacheKey: string,
   args: ReadonlyJSONObject,
 ): string {
-  const keyOrderByPath = argsKeyOrderCache.get(cacheKey) ?? new Map();
-  argsKeyOrderCache.set(cacheKey, keyOrderByPath);
+  const keyOrderByPath = keyOrderCache?.get(cacheKey) ?? new Map();
+  keyOrderCache?.set(cacheKey, keyOrderByPath);
 
   const stableArgs = stabilizeToolArgsValue(
     args,
@@ -111,7 +114,7 @@ type MessageContent = Exclude<ThreadMessageLike["content"], string>;
 
 function convertParts(
   message: UIMessage,
-  metadata: useExternalMessageConverter.Metadata,
+  metadata: AISDKMessageConverterMetadata,
 ): MessageContent {
   if (!message.parts || message.parts.length === 0) {
     return [];
@@ -158,12 +161,16 @@ function convertParts(
           };
         }
 
-        let argsText = stableStringifyToolArgs(argsKeyOrderCacheKey, args);
+        let argsText = stableStringifyToolArgs(
+          metadata.toolArgsKeyOrderCache,
+          argsKeyOrderCacheKey,
+          args,
+        );
         if (part.state === "input-streaming") {
           // strip closing delimiters added by the AI SDK's fix-json
           argsText = stripClosingDelimiters(argsText);
         } else {
-          argsKeyOrderCache.delete(argsKeyOrderCacheKey);
+          metadata.toolArgsKeyOrderCache?.delete(argsKeyOrderCacheKey);
         }
 
         const toolStatus = metadata.toolStatuses?.[toolCallId];
@@ -220,7 +227,7 @@ function convertParts(
 }
 
 export const AISDKMessageConverter = unstable_createMessageConverter(
-  (message: UIMessage, metadata: useExternalMessageConverter.Metadata) => {
+  (message: UIMessage, metadata: AISDKMessageConverterMetadata) => {
     const createdAt = new Date();
     const content = convertParts(message, metadata);
 

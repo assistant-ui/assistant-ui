@@ -124,27 +124,35 @@ describe("AISDKMessageConverter", () => {
   });
 
   it("keeps observed key order from streaming snapshots for final tool args", () => {
-    const streaming = AISDKMessageConverter.toThreadMessages([
-      {
-        id: "a1",
-        role: "assistant",
-        parts: [
-          {
-            type: "tool-stocks",
-            toolCallId: "tc-order-1",
-            state: "input-streaming",
-            input: {
-              type: "high_stock_model",
-              limit: 5,
-              filters: {
-                region: "us",
-                sector: "tech",
+    const metadata = {
+      toolArgsKeyOrderCache: new Map<string, Map<string, string[]>>(),
+    };
+
+    const streaming = AISDKMessageConverter.toThreadMessages(
+      [
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            {
+              type: "tool-stocks",
+              toolCallId: "tc-order-1",
+              state: "input-streaming",
+              input: {
+                type: "high_stock_model",
+                limit: 5,
+                filters: {
+                  region: "us",
+                  sector: "tech",
+                },
               },
             },
-          },
-        ],
-      } as any,
-    ]);
+          ],
+        } as any,
+      ],
+      false,
+      metadata,
+    );
 
     const streamingToolCall = streaming[0]?.content.find(
       (part): part is any => part.type === "tool-call",
@@ -153,27 +161,31 @@ describe("AISDKMessageConverter", () => {
       '{"type":"high_stock_model","limit":5,"filters":{"region":"us","sector":"tech',
     );
 
-    const final = AISDKMessageConverter.toThreadMessages([
-      {
-        id: "a1",
-        role: "assistant",
-        parts: [
-          {
-            type: "tool-stocks",
-            toolCallId: "tc-order-1",
-            state: "input-available",
-            input: {
-              filters: {
-                sector: "tech",
-                region: "us",
+    const final = AISDKMessageConverter.toThreadMessages(
+      [
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            {
+              type: "tool-stocks",
+              toolCallId: "tc-order-1",
+              state: "input-available",
+              input: {
+                filters: {
+                  sector: "tech",
+                  region: "us",
+                },
+                limit: 5,
+                type: "high_stock_model",
               },
-              limit: 5,
-              type: "high_stock_model",
             },
-          },
-        ],
-      } as any,
-    ]);
+          ],
+        } as any,
+      ],
+      false,
+      metadata,
+    );
 
     const finalToolCall = final[0]?.content.find(
       (part): part is any => part.type === "tool-call",
