@@ -168,9 +168,9 @@ describe("skills command helpers", () => {
 
       expect(result).toEqual({ copied: 0, skipped: 1 });
       expect(fs.existsSync(path.join(sourceSkillDir, "SKILL.md"))).toBe(true);
-      expect(fs.readFileSync(path.join(sourceSkillDir, "SKILL.md"), "utf8")).toBe(
-        "# original\n",
-      );
+      expect(
+        fs.readFileSync(path.join(sourceSkillDir, "SKILL.md"), "utf8"),
+      ).toBe("# original\n");
     });
   });
 
