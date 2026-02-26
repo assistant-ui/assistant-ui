@@ -31,6 +31,7 @@
     "dist",
     "src",
     "shadow_dom",
+    "skills",
     "README.md"
   ],
   "sideEffects": false,

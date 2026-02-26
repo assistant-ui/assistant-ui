@@ -45,6 +45,7 @@
     "dist",
     "src",
     "internal",
+    "skills",
     "README.md"
   ],
   "sideEffects": false,

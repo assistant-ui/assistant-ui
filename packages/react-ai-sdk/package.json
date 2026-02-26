@@ -27,6 +27,7 @@
   "files": [
     "dist",
     "src",
+    "skills",
     "README.md"
   ],
   "sideEffects": false,
