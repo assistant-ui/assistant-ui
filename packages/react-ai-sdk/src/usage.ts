@@ -31,6 +31,17 @@ type ParsedUsage = {
   cachedInputTokens?: number;
   totalTokens?: number;
 };
+
+function hasAnyUsageField(parsed: ParsedUsage): boolean {
+  return (
+    parsed.inputTokens !== undefined ||
+    parsed.outputTokens !== undefined ||
+    parsed.reasoningTokens !== undefined ||
+    parsed.cachedInputTokens !== undefined ||
+    parsed.totalTokens !== undefined
+  );
+}
+
 function normalizeUsage(value: unknown): ParsedUsage | undefined {
   const usage = asRecord(value);
   if (!usage) return undefined;
@@ -39,15 +50,6 @@ function normalizeUsage(value: unknown): ParsedUsage | undefined {
   const reasoningTokens = asPositiveTokenCount(usage.reasoningTokens);
   const cachedInputTokens = asPositiveTokenCount(usage.cachedInputTokens);
   const totalTokens = asPositiveTokenCount(usage.totalTokens);
-  if (
-    inputTokens === undefined &&
-    outputTokens === undefined &&
-    reasoningTokens === undefined &&
-    cachedInputTokens === undefined &&
-    totalTokens === undefined
-  ) {
-    return undefined;
-  }
   const result: ParsedUsage = {};
   if (inputTokens !== undefined) result.inputTokens = inputTokens;
   if (outputTokens !== undefined) result.outputTokens = outputTokens;
@@ -56,16 +58,14 @@ function normalizeUsage(value: unknown): ParsedUsage | undefined {
     result.cachedInputTokens = cachedInputTokens;
   if (totalTokens !== undefined) result.totalTokens = totalTokens;
 
+  if (!hasAnyUsageField(result)) {
+    return undefined;
+  }
+
   return result;
 }
 function buildUsageResult(parsed: ParsedUsage): ThreadTokenUsage | undefined {
-  if (
-    parsed.inputTokens === undefined &&
-    parsed.outputTokens === undefined &&
-    parsed.reasoningTokens === undefined &&
-    parsed.cachedInputTokens === undefined &&
-    parsed.totalTokens === undefined
-  ) {
+  if (!hasAnyUsageField(parsed)) {
     return undefined;
   }
   const hasBothInputAndOutput =
@@ -103,23 +103,23 @@ function usageFromSteps(value: unknown): ThreadTokenUsage | undefined {
     const usage = normalizeUsage(asRecord(step)?.usage);
     if (!usage) continue;
     hasStepUsage = true;
-    if (usage.inputTokens != null) {
+    if (usage.inputTokens !== undefined) {
       inputTokens += usage.inputTokens;
       hasInput = true;
     }
-    if (usage.outputTokens != null) {
+    if (usage.outputTokens !== undefined) {
       outputTokens += usage.outputTokens;
       hasOutput = true;
     }
-    if (usage.reasoningTokens != null) {
+    if (usage.reasoningTokens !== undefined) {
       reasoningTokens += usage.reasoningTokens;
       hasReasoning = true;
     }
-    if (usage.cachedInputTokens != null) {
+    if (usage.cachedInputTokens !== undefined) {
       cachedInputTokens += usage.cachedInputTokens;
       hasCachedInput = true;
     }
-    if (usage.totalTokens != null) {
+    if (usage.totalTokens !== undefined) {
       totalTokens += usage.totalTokens;
       hasTotalTokens = true;
     }

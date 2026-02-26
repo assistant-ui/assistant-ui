@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { getThreadMessageTokenUsage } from "./usage";
 
-const msg = (metadata: unknown) => ({
-  role: "assistant" as const,
-  metadata,
-});
+function msg(metadata: unknown): { role: "assistant"; metadata: unknown } {
+  return {
+    role: "assistant",
+    metadata,
+  };
+}
 
 describe("getThreadMessageTokenUsage", () => {
   it("does not double-count reasoning/cached in fallback totalTokens", () => {
