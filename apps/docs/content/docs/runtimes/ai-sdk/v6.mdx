@@ -106,7 +106,7 @@ export default function Home() {
 assistant-ui exports a `useThreadTokenUsage` hook to access thread-level token usage on the client.
 <Steps>
   <Step>
-Use `messageMetadata` in your Next.js route to attach `usage` and `modelId` from the `finish-step` event.
+Use `messageMetadata` in your Next.js route to attach `usage` from `finish` and `modelId` from `finish-step`.
 ```tsx
 import { streamText, convertToModelMessages } from "ai";
 import { frontendTools } from "@assistant-ui/react-ai-sdk";
@@ -119,10 +119,14 @@ export async function POST(req: Request) {
   });
   return result.toUIMessageStreamResponse({
     messageMetadata: ({ part }) => {
+      if (part.type === "finish") {
+        return {
+          usage: part.totalUsage,
+        };
+      }
       if (part.type === "finish-step") {
         return {
           modelId: part.response.modelId,
-          usage: part.usage,
         };
       }
       return undefined;
@@ -130,7 +134,6 @@ export async function POST(req: Request) {
   });
 }
 ```
-> Note: assistant-ui automatically aggregates token usage from `finish-step`. Alternatively, you can emit total usage from the `finish` event: `if (part.type === "finish") return { usage: part.totalUsage };`
   </Step>
   <Step>
 Use `useThreadTokenUsage` to render token usage on the client.
