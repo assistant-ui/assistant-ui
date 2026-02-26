@@ -17,6 +17,59 @@ function stripClosingDelimiters(json: string): string {
   return json.replace(/[}\]"]+$/, "");
 }
 
+const argsKeyOrderCache = new Map<string, Map<string, string[]>>();
+
+const hasOwn = (value: object, key: string) =>
+  Object.prototype.hasOwnProperty.call(value, key);
+
+const stabilizeToolArgsValue = (
+  value: unknown,
+  path: string,
+  keyOrderByPath: Map<string, string[]>,
+): unknown => {
+  if (Array.isArray(value)) {
+    return value.map((item, idx) =>
+      stabilizeToolArgsValue(item, `${path}[${idx}]`, keyOrderByPath),
+    );
+  }
+
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    const currentKeys = Object.keys(record);
+    const previousOrder = keyOrderByPath.get(path) ?? [];
+    const previousOrderSet = new Set(previousOrder);
+    const nextOrder = [
+      ...previousOrder.filter((key) => hasOwn(record, key)),
+      ...currentKeys.filter((key) => !previousOrderSet.has(key)),
+    ];
+    keyOrderByPath.set(path, nextOrder);
+
+    return Object.fromEntries(
+      nextOrder.map((key) => [
+        key,
+        stabilizeToolArgsValue(record[key], `${path}.${key}`, keyOrderByPath),
+      ]),
+    );
+  }
+
+  return value;
+};
+
+function stableStringifyToolArgs(
+  cacheKey: string,
+  args: ReadonlyJSONObject,
+): string {
+  const keyOrderByPath = argsKeyOrderCache.get(cacheKey) ?? new Map();
+  argsKeyOrderCache.set(cacheKey, keyOrderByPath);
+
+  const stableArgs = stabilizeToolArgsValue(
+    args,
+    "$",
+    keyOrderByPath,
+  ) as ReadonlyJSONObject;
+  return JSON.stringify(stableArgs);
+}
+
 /**
  * Resolves the interrupt fields for a tool call part.
  *
@@ -84,6 +137,7 @@ function convertParts(
       if (isToolUIPart(part)) {
         const toolName = getToolName(part);
         const toolCallId = part.toolCallId;
+        const argsKeyOrderCacheKey = `${message.id}:${toolCallId}`;
         const args: ReadonlyJSONObject =
           (part.input as ReadonlyJSONObject) || {};
 
@@ -104,10 +158,12 @@ function convertParts(
           };
         }
 
-        let argsText = JSON.stringify(args);
+        let argsText = stableStringifyToolArgs(argsKeyOrderCacheKey, args);
         if (part.state === "input-streaming") {
           // strip closing delimiters added by the AI SDK's fix-json
           argsText = stripClosingDelimiters(argsText);
+        } else {
+          argsKeyOrderCache.delete(argsKeyOrderCacheKey);
         }
 
         const toolStatus = metadata.toolStatuses?.[toolCallId];
