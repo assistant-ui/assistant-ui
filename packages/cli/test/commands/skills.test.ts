@@ -53,7 +53,10 @@ describe("skills command helpers", () => {
     it("includes cli package skills and installed @assistant-ui package skills", () => {
       const cliPackageRoot = path.join(tempDir, "cli-pkg");
       fs.mkdirSync(path.join(cliPackageRoot, "skills"), { recursive: true });
-      writeSkill(path.join(cliPackageRoot, "skills"), "assistant-ui-bug-report");
+      writeSkill(
+        path.join(cliPackageRoot, "skills"),
+        "assistant-ui-bug-report",
+      );
 
       const cwd = path.join(tempDir, "project");
       const scopedSkills = path.join(
@@ -111,7 +114,10 @@ describe("skills command helpers", () => {
       writeSkill(sourceRoot, "assistant-ui-bug-report", "# v1\n");
 
       const skills = new Map<string, string>([
-        ["assistant-ui-bug-report", path.join(sourceRoot, "assistant-ui-bug-report")],
+        [
+          "assistant-ui-bug-report",
+          path.join(sourceRoot, "assistant-ui-bug-report"),
+        ],
       ]);
       const targetRoot = path.join(tempDir, "dest");
 
