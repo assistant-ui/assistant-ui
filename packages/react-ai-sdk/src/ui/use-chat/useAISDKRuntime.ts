@@ -22,10 +22,7 @@ import { sliceMessagesUntil } from "../utils/sliceMessagesUntil";
 import { toCreateMessage } from "../utils/toCreateMessage";
 import { vercelAttachmentAdapter } from "../utils/vercelAttachmentAdapter";
 import { getVercelAIMessages } from "../getVercelAIMessages";
-import {
-  AISDKMessageConverter,
-  type AISDKMessageConverterMetadata,
-} from "../utils/convertMessage";
+import { AISDKMessageConverter } from "../utils/convertMessage";
 import {
   type AISDKStorageFormat,
   aiSDKV6FormatAdapter,
