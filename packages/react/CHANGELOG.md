@@ -1,5 +1,13 @@
 # @assistant-ui/react
 
+## 0.12.14
+
+### Patch Changes
+
+- 03714af: fix: DataRenderers not in scope
+- Updated dependencies [03714af]
+  - @assistant-ui/core@0.1.2
+
 ## 0.12.13
 
 ### Patch Changes

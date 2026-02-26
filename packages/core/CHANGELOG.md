@@ -1,5 +1,11 @@
 # @assistant-ui/core
 
+## 0.1.2
+
+### Patch Changes
+
+- 03714af: fix: DataRenderers not in scope
+
 ## 0.1.1
 
 ### Patch Changes

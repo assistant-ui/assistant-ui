@@ -2120,7 +2120,7 @@ importers:
   packages/react:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.1.1
+        specifier: ^0.1.2
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.2.1
