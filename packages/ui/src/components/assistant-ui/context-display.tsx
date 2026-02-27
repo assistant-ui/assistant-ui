@@ -101,19 +101,28 @@ function ContextDisplayRoot({
   children: ReactNode;
   usage?: ThreadTokenUsage | undefined;
 }) {
-  const usage = usageProp ?? useThreadTokenUsage();
+  const internalUsage = useThreadTokenUsage();
+  const usage = usageProp ?? internalUsage;
   const threadId = useAuiState((s) => s.threadListItem.id);
   const rawTokens = usage?.totalTokens ?? 0;
-  const [totalTokens, setTotalTokens] = useState(0);
+  const [tokenState, setTokenState] = useState({ threadId, totalTokens: 0 });
 
   useEffect(() => {
-    setTotalTokens(0);
-  }, [threadId]);
-
-  useEffect(() => {
-    if (rawTokens > 0) setTotalTokens(rawTokens);
+    setTokenState((prev) => {
+      if (prev.threadId !== threadId) {
+        return {
+          threadId,
+          totalTokens: rawTokens > 0 ? rawTokens : 0,
+        };
+      }
+      if (rawTokens > 0 && rawTokens !== prev.totalTokens) {
+        return { ...prev, totalTokens: rawTokens };
+      }
+      return prev;
+    });
   }, [threadId, rawTokens]);
 
+  const totalTokens = tokenState.totalTokens;
   const percent = getUsagePercent(totalTokens, modelContextWindow);
 
   return (
