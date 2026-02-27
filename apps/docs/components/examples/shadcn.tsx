@@ -287,7 +287,7 @@ const Composer: FC = () => {
 
 const ComposerAction: FC = () => {
   return (
-    <div className="aui-composer-action-wrapper relative mx-2 mb-2 flex items-center justify-between">
+    <div className="aui-composer-action-wrapper relative mx-1 mb-1.75 flex items-center justify-between">
       <ComposerAddAttachment />
       <AuiIf condition={(s) => !s.thread.isRunning}>
         <ComposerPrimitive.Send asChild>
@@ -525,7 +525,7 @@ export const Shadcn: FC = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   return (
-    <div className="flex h-full w-full bg-background [--primary-foreground:0_0%_98%] [--primary:0_0%_9%] dark:[--primary-foreground:0_0%_9%] dark:[--primary:0_0%_98%]">
+    <div className="flex h-full w-full bg-background">
       <div className="hidden md:block">
         <Sidebar collapsed={sidebarCollapsed} />
       </div>
