@@ -568,7 +568,7 @@ function AssistantMessage() {
         }
       </div>
 
-      <div className="mt-1 ml-2 flex">
+      <div className="mt-1 ml-2 flex min-h-6 items-center">
         ${components.branchPicker ? "<BranchPicker />" : ""}
         <AssistantActionBar />
       </div>
@@ -631,8 +631,7 @@ function AssistantActionBar() {
     <ActionBarPrimitive.Root
       hideWhenRunning
       autohide="not-last"
-      autohideFloat="single-branch"
-      className="-ml-1 flex gap-1 text-muted-foreground data-floating:absolute data-floating:rounded-md data-floating:border data-floating:bg-background data-floating:p-1 data-floating:shadow-sm"
+      className="-ml-1 flex gap-1 text-muted-foreground"
     >
       ${
         components.actionBar.copy

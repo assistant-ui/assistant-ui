@@ -685,7 +685,7 @@ const AssistantMessage: FC<AssistantMessageProps> = ({ config }) => {
             </div>
           )}
 
-          <div className="aui-assistant-message-footer flex">
+          <div className="aui-assistant-message-footer flex min-h-6 items-center">
             {components.branchPicker && <BranchPicker />}
             <AssistantActionBar config={config} />
           </div>
@@ -753,8 +753,7 @@ const AssistantActionBar: FC<AssistantActionBarProps> = ({ config }) => {
     <ActionBarPrimitive.Root
       hideWhenRunning
       autohide="not-last"
-      autohideFloat="single-branch"
-      className="aui-assistant-action-bar-root -ml-1 flex gap-1 data-floating:absolute data-floating:rounded-md data-floating:border data-floating:p-1 data-floating:shadow-sm"
+      className="aui-assistant-action-bar-root -ml-1 flex gap-1"
       style={{ color: "var(--aui-muted-foreground)" }}
     >
       {actionBar.copy && (
