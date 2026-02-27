@@ -138,7 +138,7 @@ function ContextDisplayContent({
   side = "top",
   className,
 }: {
-  side?: "top" | "bottom" | "left" | "right";
+  side?: "top" | "bottom" | "left" | "right" | undefined;
   className?: string;
 }) {
   const { usage, totalTokens, percent, modelContextWindow } =
