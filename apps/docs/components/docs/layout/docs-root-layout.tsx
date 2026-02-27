@@ -1,5 +1,5 @@
 import { DocsLayout } from "fumadocs-ui/layouts/docs";
-import type { PageTree } from "fumadocs-core/server";
+import type * as PageTree from "fumadocs-core/page-tree";
 import type { ReactNode } from "react";
 import { sharedDocsOptions } from "@/lib/layout.shared";
 import { SidebarTabs } from "@/components/docs/layout/sidebar-tabs";
