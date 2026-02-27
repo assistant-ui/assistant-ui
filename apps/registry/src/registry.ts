@@ -133,6 +133,20 @@ export const registry: RegistryItem[] = [
     registryDependencies: ["tooltip"],
   },
   {
+    name: "context-display",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/context-display.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/context-display.tsx",
+      },
+    ],
+    dependencies: ["@assistant-ui/react", "@assistant-ui/react-ai-sdk"],
+    registryDependencies: ["tooltip"],
+  },
+  {
     name: "thread-list",
     type: "registry:component",
     files: [
