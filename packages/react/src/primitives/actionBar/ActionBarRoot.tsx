@@ -1,11 +1,19 @@
 "use client";
 
 import { Primitive } from "@radix-ui/react-primitive";
-import { type ComponentRef, forwardRef, ComponentPropsWithoutRef } from "react";
+import {
+  type ComponentRef,
+  forwardRef,
+  ComponentPropsWithoutRef,
+  useCallback,
+  useMemo,
+  useState,
+} from "react";
 import {
   useActionBarFloatStatus,
   HideAndFloatStatus,
 } from "./useActionBarFloatStatus";
+import { ActionBarInteractionContext } from "./ActionBarInteractionContext";
 
 type PrimitiveDivProps = ComponentPropsWithoutRef<typeof Primitive.div>;
 
@@ -60,22 +68,44 @@ export const ActionBarPrimitiveRoot = forwardRef<
   ActionBarPrimitiveRoot.Element,
   ActionBarPrimitiveRoot.Props
 >(({ hideWhenRunning, autohide, autohideFloat, ...rest }, ref) => {
+  const [interactionCount, setInteractionCount] = useState(0);
+
+  const acquireInteractionLock = useCallback(() => {
+    let released = false;
+
+    setInteractionCount((count) => count + 1);
+
+    return () => {
+      if (released) return;
+      released = true;
+      setInteractionCount((count) => Math.max(0, count - 1));
+    };
+  }, []);
+
+  const interactionContext = useMemo(
+    () => ({ acquireInteractionLock }),
+    [acquireInteractionLock],
+  );
+
   const hideAndfloatStatus = useActionBarFloatStatus({
     hideWhenRunning,
     autohide,
     autohideFloat,
+    forceVisible: interactionCount > 0,
   });
 
   if (hideAndfloatStatus === HideAndFloatStatus.Hidden) return null;
 
   return (
-    <Primitive.div
-      {...(hideAndfloatStatus === HideAndFloatStatus.Floating
-        ? { "data-floating": "true" }
-        : null)}
-      {...rest}
-      ref={ref}
-    />
+    <ActionBarInteractionContext.Provider value={interactionContext}>
+      <Primitive.div
+        {...(hideAndfloatStatus === HideAndFloatStatus.Floating
+          ? { "data-floating": "true" }
+          : null)}
+        {...rest}
+        ref={ref}
+      />
+    </ActionBarInteractionContext.Provider>
   );
 });
 
