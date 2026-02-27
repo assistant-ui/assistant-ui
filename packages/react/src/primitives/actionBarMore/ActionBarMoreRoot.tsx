@@ -20,6 +20,7 @@ export const ActionBarMorePrimitiveRoot: FC<
   const scope = useDropdownMenuScope(__scopeActionBarMore);
   const actionBarInteraction = useActionBarInteractionContext();
   const releaseInteractionLockRef = useRef<(() => void) | null>(null);
+  const isControlled = open !== undefined;
 
   const setInteractionOpen = useCallback(
     (nextOpen: boolean) => {
@@ -38,16 +39,18 @@ export const ActionBarMorePrimitiveRoot: FC<
 
   const handleOpenChange = useCallback(
     (nextOpen: boolean) => {
-      setInteractionOpen(nextOpen);
+      if (!isControlled) {
+        setInteractionOpen(nextOpen);
+      }
       onOpenChange?.(nextOpen);
     },
-    [setInteractionOpen, onOpenChange],
+    [isControlled, setInteractionOpen, onOpenChange],
   );
 
   useEffect(() => {
-    if (open === undefined) return;
-    setInteractionOpen(open);
-  }, [open, setInteractionOpen]);
+    if (!isControlled) return;
+    setInteractionOpen(Boolean(open));
+  }, [isControlled, open, setInteractionOpen]);
 
   useEffect(() => {
     return () => {
