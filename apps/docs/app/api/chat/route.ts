@@ -74,7 +74,11 @@ export async function POST(req: Request) {
         if (part.type === "finish-step") {
           return {
             modelId: part.response.modelId,
-            usage: part.usage,
+          };
+        }
+        if (part.type === "finish") {
+          return {
+            usage: part.totalUsage,
           };
         }
         return undefined;
