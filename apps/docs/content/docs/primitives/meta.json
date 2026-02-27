@@ -14,6 +14,8 @@
     "assistant-modal",
     "attachment",
     "suggestion",
-    "selection-toolbar"
+    "selection-toolbar",
+    "error",
+    "chain-of-thought"
   ]
 }

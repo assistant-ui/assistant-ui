@@ -1,0 +1,259 @@
+---
+title: ChainOfThought
+description: Collapsible accordion for grouping reasoning steps and tool calls.
+---
+
+import { ChainOfThoughtPrimitiveSample } from "@/components/docs/samples/chain-of-thought-primitive";
+
+The ChainOfThought primitive groups consecutive reasoning and tool-call parts into a collapsible accordion. Reasoning models emit reasoning tokens and tool calls before producing a final answer. This primitive lets you collapse those intermediate steps behind a "Thinking" toggle.
+
+<Tabs items={["Preview", "Code"]}>
+  <Tab>
+    <ChainOfThoughtPrimitiveSample />
+  </Tab>
+  <Tab>
+```tsx
+import {
+  AuiIf,
+  ChainOfThoughtPrimitive,
+  MessagePrimitive,
+} from "@assistant-ui/react";
+
+function AssistantMessage() {
+  return (
+    <MessagePrimitive.Root>
+      <MessagePrimitive.Parts
+        components={{
+          Text: MyText,
+          ChainOfThought,
+        }}
+      />
+    </MessagePrimitive.Root>
+  );
+}
+
+function ChainOfThought() {
+  return (
+    <ChainOfThoughtPrimitive.Root className="my-2 rounded-lg border">
+      <ChainOfThoughtPrimitive.AccordionTrigger className="flex w-full cursor-pointer items-center gap-2 px-4 py-2.5 font-medium text-sm hover:bg-muted/50">
+        Thinking
+      </ChainOfThoughtPrimitive.AccordionTrigger>
+      <AuiIf condition={(s) => !s.chainOfThought.collapsed}>
+        <ChainOfThoughtPrimitive.Parts
+          components={{
+            Reasoning: ({ text }) => (
+              <p className="whitespace-pre-wrap px-4 py-2 text-muted-foreground text-sm italic">
+                {text}
+              </p>
+            ),
+            tools: {
+              Fallback: ({ toolName, isLoading }) => (
+                <div className="flex items-center gap-2 px-4 py-2 text-sm">
+                  <span className="font-medium">{toolName}</span>
+                  <span className="text-muted-foreground">
+                    {isLoading ? "running..." : "done"}
+                  </span>
+                </div>
+              ),
+            },
+          }}
+        />
+      </AuiIf>
+    </ChainOfThoughtPrimitive.Root>
+  );
+}
+```
+  </Tab>
+</Tabs>
+
+## Quick Start
+
+Pass a `ChainOfThought` component to `MessagePrimitive.Parts`. The runtime automatically groups consecutive reasoning and tool-call parts and renders them through your component:
+
+```tsx
+import {
+  ChainOfThoughtPrimitive,
+  MessagePrimitive,
+} from "@assistant-ui/react";
+
+<MessagePrimitive.Parts
+  components={{
+    Text: MyText,
+    ChainOfThought: MyChainOfThought,
+  }}
+/>
+
+function MyChainOfThought() {
+  return (
+    <ChainOfThoughtPrimitive.Root>
+      <ChainOfThoughtPrimitive.AccordionTrigger>
+        Thinking
+      </ChainOfThoughtPrimitive.AccordionTrigger>
+      <ChainOfThoughtPrimitive.Parts />
+    </ChainOfThoughtPrimitive.Root>
+  );
+}
+```
+
+`Root` renders a `<div>`, `AccordionTrigger` renders a `<button>` that toggles the collapsed state, and `Parts` renders the grouped reasoning and tool-call parts.
+
+<Callout type="info">
+Runtime setup: primitives require runtime context. Wrap your UI in `AssistantRuntimeProvider` with a runtime (for example `useLocalRuntime(...)`). See [Pick a Runtime](/docs/runtimes/pick-a-runtime).
+</Callout>
+
+## Core Concepts
+
+### How Grouping Works
+
+When you pass a `ChainOfThought` component to `MessagePrimitive.Parts`, the runtime groups consecutive reasoning and tool-call parts together. Instead of rendering each part individually, the entire group is passed to your `ChainOfThought` component. Inside it, `ChainOfThoughtPrimitive.Parts` renders the individual parts.
+
+### Collapsed State
+
+The accordion starts collapsed by default. `AccordionTrigger` toggles between collapsed and expanded. Use `AuiIf` to conditionally render parts based on the collapsed state:
+
+```tsx
+import { AuiIf, ChainOfThoughtPrimitive } from "@assistant-ui/react";
+
+<ChainOfThoughtPrimitive.Root>
+  <ChainOfThoughtPrimitive.AccordionTrigger>
+    Thinking
+  </ChainOfThoughtPrimitive.AccordionTrigger>
+  <AuiIf condition={(s) => !s.chainOfThought.collapsed}>
+    <ChainOfThoughtPrimitive.Parts
+      components={{ Reasoning }}
+    />
+  </AuiIf>
+</ChainOfThoughtPrimitive.Root>
+```
+
+### Chevron Indicators
+
+Use `AuiIf` to show directional icons that reflect the current state:
+
+```tsx
+import { AuiIf, ChainOfThoughtPrimitive } from "@assistant-ui/react";
+import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
+
+<ChainOfThoughtPrimitive.AccordionTrigger className="flex w-full cursor-pointer items-center gap-2 px-4 py-2 text-sm">
+  <AuiIf condition={(s) => s.chainOfThought.collapsed}>
+    <ChevronRightIcon className="size-4" />
+  </AuiIf>
+  <AuiIf condition={(s) => !s.chainOfThought.collapsed}>
+    <ChevronDownIcon className="size-4" />
+  </AuiIf>
+  Thinking
+</ChainOfThoughtPrimitive.AccordionTrigger>
+```
+
+### Parts Components
+
+`ChainOfThoughtPrimitive.Parts` accepts a `components` prop to control how each part type renders:
+
+```tsx
+<ChainOfThoughtPrimitive.Parts
+  components={{
+    Reasoning: ({ text }) => (
+      <p className="whitespace-pre-wrap px-4 py-2 text-muted-foreground text-sm italic">
+        {text}
+      </p>
+    ),
+    tools: {
+      Fallback: ({ toolName, isLoading }) => (
+        <div className="px-4 py-2 text-sm">
+          {isLoading ? `Running ${toolName}...` : `${toolName} completed`}
+        </div>
+      ),
+    },
+    Layout: ({ children }) => (
+      <div className="border-t">{children}</div>
+    ),
+  }}
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `components.Reasoning` | `FC<{ text: string }>` | Renders reasoning parts |
+| `components.tools.Fallback` | `ToolCallMessagePartComponent` | Fallback for tool-call parts |
+| `components.Layout` | `ComponentType<PropsWithChildren>` | Wrapper around each rendered part |
+
+## Parts
+
+| Part | Element | Purpose |
+|------|---------|---------|
+| `Root` | `<div>` | Container for the chain of thought group |
+| `AccordionTrigger` | `<button>` | Toggles collapsed/expanded state |
+| `Parts` | — | Renders reasoning and tool-call parts when expanded |
+
+## Patterns
+
+### Minimal Accordion
+
+```tsx
+function ChainOfThought() {
+  return (
+    <ChainOfThoughtPrimitive.Root className="my-2 rounded-lg border">
+      <ChainOfThoughtPrimitive.AccordionTrigger className="flex w-full cursor-pointer items-center gap-2 px-4 py-2 font-medium text-sm hover:bg-muted/50">
+        Thinking
+      </ChainOfThoughtPrimitive.AccordionTrigger>
+      <AuiIf condition={(s) => !s.chainOfThought.collapsed}>
+        <ChainOfThoughtPrimitive.Parts
+          components={{
+            Reasoning: ({ text }) => (
+              <p className="whitespace-pre-wrap px-4 py-2 text-muted-foreground text-sm italic">
+                {text}
+              </p>
+            ),
+          }}
+        />
+      </AuiIf>
+    </ChainOfThoughtPrimitive.Root>
+  );
+}
+```
+
+### With Tool Calls
+
+```tsx
+function ChainOfThought() {
+  return (
+    <ChainOfThoughtPrimitive.Root className="my-2 rounded-lg border">
+      <ChainOfThoughtPrimitive.AccordionTrigger className="flex w-full cursor-pointer items-center gap-2 px-4 py-2 font-medium text-sm hover:bg-muted/50">
+        Thinking
+      </ChainOfThoughtPrimitive.AccordionTrigger>
+      <AuiIf condition={(s) => !s.chainOfThought.collapsed}>
+        <ChainOfThoughtPrimitive.Parts
+          components={{
+            Reasoning: ({ text }) => (
+              <p className="whitespace-pre-wrap px-4 py-2 text-muted-foreground text-sm italic">
+                {text}
+              </p>
+            ),
+            tools: {
+              Fallback: ({ toolName, isLoading }) => (
+                <div className="flex items-center gap-2 px-4 py-2 text-sm">
+                  <span className="font-medium">{toolName}</span>
+                  <span className="text-muted-foreground">
+                    {isLoading ? "running..." : "done"}
+                  </span>
+                </div>
+              ),
+            },
+            Layout: ({ children }) => (
+              <div className="border-t">{children}</div>
+            ),
+          }}
+        />
+      </AuiIf>
+    </ChainOfThoughtPrimitive.Root>
+  );
+}
+```
+
+## Relationship to Components
+
+The [Chain of Thought guide](/docs/guides/chain-of-thought) covers end-to-end setup including backend configuration with reasoning models. See the complete [with-chain-of-thought example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-chain-of-thought) for a full working implementation.
+
+## API Reference
+
+For full prop details on every part, see the [ChainOfThoughtPrimitive source](https://github.com/assistant-ui/assistant-ui/tree/main/packages/react/src/primitives/chainOfThought).

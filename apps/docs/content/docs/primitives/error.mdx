@@ -1,0 +1,125 @@
+---
+title: Error
+description: Accessible error display for messages with automatic error text extraction.
+---
+
+import { ErrorPrimitiveSample } from "@/components/docs/samples/error-primitive";
+
+The Error primitive renders error states on messages — an accessible `role="alert"` container with automatic error text extraction. It only renders when the message has an error, so you can place it unconditionally in your message layout.
+
+<Tabs items={["Preview", "Code"]}>
+  <Tab>
+    <ErrorPrimitiveSample />
+  </Tab>
+  <Tab>
+```tsx
+import { ErrorPrimitive, MessagePrimitive } from "@assistant-ui/react";
+
+function AssistantMessage() {
+  return (
+    <MessagePrimitive.Root>
+      <MessagePrimitive.Parts />
+      <ErrorPrimitive.Root className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+        <ErrorPrimitive.Message />
+      </ErrorPrimitive.Root>
+    </MessagePrimitive.Root>
+  );
+}
+```
+  </Tab>
+</Tabs>
+
+## Quick Start
+
+A minimal error display below a message:
+
+```tsx
+import { ErrorPrimitive, MessagePrimitive } from "@assistant-ui/react";
+
+<MessagePrimitive.Root>
+  <MessagePrimitive.Parts />
+  <ErrorPrimitive.Root>
+    <ErrorPrimitive.Message />
+  </ErrorPrimitive.Root>
+</MessagePrimitive.Root>
+```
+
+`Root` renders a `<div>` with `role="alert"` for screen reader accessibility. `Message` renders a `<span>` that auto-reads the error text from message state. Both only render when the message has an error — no conditional logic needed.
+
+<Callout type="info">
+ErrorPrimitive must be placed inside a `MessagePrimitive.Root` — it reads the error state from the nearest message context.
+</Callout>
+
+<Callout type="info">
+Runtime setup: primitives require runtime context. Wrap your UI in `AssistantRuntimeProvider` with a runtime (for example `useLocalRuntime(...)`). See [Pick a Runtime](/docs/runtimes/pick-a-runtime).
+</Callout>
+
+## Core Concepts
+
+### Auto-Rendering on Error
+
+Both `Root` and `Message` check the message status. They only render when `status.type === "incomplete"` and `status.reason === "error"`. Place them unconditionally in your layout — they handle visibility internally.
+
+### Automatic Error Text
+
+`ErrorPrimitive.Message` reads the error object from message state and converts it to a string. If you pass `children`, they override the automatic text:
+
+```tsx
+// Auto-reads error text from state
+<ErrorPrimitive.Message />
+
+// Custom children override the default
+<ErrorPrimitive.Message>
+  Something went wrong. Please try again.
+</ErrorPrimitive.Message>
+```
+
+### ErrorPrimitive vs MessagePrimitive.Error
+
+`MessagePrimitive.Error` is a simpler alternative. It renders its children when the message has an error but does not provide `role="alert"` or auto-extract the error text. Use `ErrorPrimitive` when you want accessible error rendering with automatic text.
+
+```tsx
+// ErrorPrimitive: accessible, auto-reads error text
+<ErrorPrimitive.Root role="alert">
+  <ErrorPrimitive.Message />
+</ErrorPrimitive.Root>
+
+// MessagePrimitive.Error: simpler, manual text
+<MessagePrimitive.Error>
+  <div>Something went wrong.</div>
+</MessagePrimitive.Error>
+```
+
+## Parts
+
+| Part | Element | Purpose |
+|------|---------|---------|
+| `Root` | `<div>` | Container with `role="alert"`, renders only on error |
+| `Message` | `<span>` | Error text, auto-extracted from message state |
+
+## Patterns
+
+### Styled Error Alert
+
+```tsx
+<ErrorPrimitive.Root className="mt-2 flex items-center gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+  <ErrorPrimitive.Message />
+</ErrorPrimitive.Root>
+```
+
+### Custom Error Content
+
+```tsx
+<ErrorPrimitive.Root className="mt-2 rounded-md border border-destructive/20 bg-destructive/5 p-3">
+  <p className="font-medium text-destructive text-sm">Error</p>
+  <ErrorPrimitive.Message className="text-destructive/80 text-sm" />
+</ErrorPrimitive.Root>
+```
+
+## Relationship to Components
+
+The shadcn [Thread](/docs/ui/thread) component uses `ErrorPrimitive` inside its `AssistantMessage` to display errors below the message content. If you need a pre-built error display, start there.
+
+## API Reference
+
+For full prop details on every part, see the [ErrorPrimitive API Reference](/docs/reference/primitives/error).
