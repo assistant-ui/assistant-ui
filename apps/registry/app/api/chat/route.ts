@@ -1,6 +1,11 @@
 import { openai } from "@ai-sdk/openai";
 import { frontendTools } from "@assistant-ui/react-ai-sdk";
-import { streamText, convertToModelMessages, type UIMessage } from "ai";
+import {
+  streamText,
+  convertToModelMessages,
+  type UIMessage,
+  JSONSchema7,
+} from "ai";
 
 export async function POST(req: Request) {
   const {
@@ -10,7 +15,7 @@ export async function POST(req: Request) {
   }: {
     messages: UIMessage[];
     system?: string;
-    tools?: Record<string, any>;
+    tools?: Record<string, { description?: string; parameters: JSONSchema7 }>;
   } = await req.json();
 
   const result = streamText({
