@@ -2,19 +2,13 @@
 
 import { useAuiState, useAui } from "@assistant-ui/react";
 import { PlusIcon } from "lucide-react";
-import { useRef, type ReactNode } from "react";
-import { cn } from "@/lib/utils";
+import type { ReactNode } from "react";
 import { analytics } from "@/lib/analytics";
 import { useCurrentPage } from "@/components/docs/contexts/current-page";
 import { useThreadTokenUsage } from "@assistant-ui/react-ai-sdk";
+import { ContextDisplay } from "@assistant-ui/ui/components/assistant-ui/context-display";
 import { useSharedDocsModelSelection } from "./composer";
 import { getContextWindow } from "@/constants/model";
-
-function getUsageColorClass(percent: number): string {
-  if (percent < 50) return "bg-emerald-500";
-  if (percent < 80) return "bg-amber-500";
-  return "bg-red-500";
-}
 
 export function AssistantFooter(): ReactNode {
   const aui = useAui();
@@ -25,14 +19,8 @@ export function AssistantFooter(): ReactNode {
   const { modelValue } = useSharedDocsModelSelection();
   const contextWindow = getContextWindow(modelValue);
   const lastUsage = useThreadTokenUsage();
-
-  const prevTokensRef = useRef(0);
-  const rawTokens = lastUsage?.totalTokens ?? 0;
-  if (rawTokens > 0) prevTokensRef.current = rawTokens;
-  const contextTokens = prevTokensRef.current;
-
+  const contextTokens = lastUsage?.totalTokens ?? 0;
   const usagePercent = Math.min((contextTokens / contextWindow) * 100, 100);
-  const usageK = (contextTokens / 1000).toFixed(1);
 
   return (
     <div className="flex items-center justify-between px-3 py-1.5">
@@ -56,20 +44,7 @@ export function AssistantFooter(): ReactNode {
         <span>New thread</span>
       </button>
 
-      <div className="flex items-center gap-2">
-        <div className="h-1.5 w-16 overflow-hidden rounded-full bg-muted">
-          <div
-            className={cn(
-              "h-full rounded-full transition-all duration-300",
-              getUsageColorClass(usagePercent),
-            )}
-            style={{ width: `${usagePercent}%` }}
-          />
-        </div>
-        <span className="text-[10px] text-muted-foreground tabular-nums">
-          {usageK}k ({usagePercent.toFixed(0)}%)
-        </span>
-      </div>
+      <ContextDisplay.Bar modelContextWindow={contextWindow} />
     </div>
   );
 }
