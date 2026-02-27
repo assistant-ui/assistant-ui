@@ -8,6 +8,7 @@ import {
 import { useAssistantPanel } from "@/components/docs/assistant/context";
 import { ModelSelector } from "@/components/assistant-ui/model-selector";
 import { MODELS } from "@/constants/model";
+import { SparklesIcon } from "lucide-react";
 import Image from "next/image";
 import { ComposerPrimitive, useAuiState } from "@assistant-ui/react";
 import {
@@ -130,35 +131,42 @@ export function FloatingComposer(): ReactNode {
                 : "border-border bg-background/80 hover:ring-2 hover:ring-ring/30"
             }`}
           >
-            <ComposerPrimitive.Input
-              asChild
-              unstable_focusOnRunStart={false}
-              unstable_focusOnScrollToBottom={false}
-              unstable_focusOnThreadSwitched={false}
-            >
-              <textarea
-                placeholder="Ask a question..."
-                className={`field-sizing-content w-full resize-none bg-transparent px-3 pt-2.5 text-sm leading-5 transition-[max-height,padding] duration-200 ease-out placeholder:text-muted-foreground focus:outline-none ${
-                  expanded
-                    ? "max-h-32 pb-10"
-                    : "max-h-[38px] overflow-hidden pb-2"
+            <div className="relative">
+              <ComposerPrimitive.Input
+                asChild
+                unstable_focusOnRunStart={false}
+                unstable_focusOnScrollToBottom={false}
+                unstable_focusOnThreadSwitched={false}
+              >
+                <textarea
+                  placeholder="Ask a question..."
+                  className={`w-full resize-none bg-transparent text-sm leading-5 transition-[max-height,padding] duration-200 ease-out placeholder:text-muted-foreground focus:outline-none ${
+                    expanded
+                      ? "field-sizing-content max-h-32 pt-2.5 pr-3 pb-10 pl-3"
+                      : "h-[38px] overflow-hidden pt-3 pb-1.5 pr-3 pl-8"
+                  }`}
+                  rows={1}
+                  onMouseDown={(e) => {
+                    if (!expanded && !threadIsEmpty) {
+                      e.preventDefault();
+                      setOpen(true);
+                    }
+                  }}
+                  onFocus={() => {
+                    if (!expanded && !threadIsEmpty) {
+                      setOpen(true);
+                      return;
+                    }
+                    setExpanded(true);
+                  }}
+                />
+              </ComposerPrimitive.Input>
+              <SparklesIcon
+                className={`pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground transition-opacity duration-200 ${
+                  expanded || !isEmpty ? "opacity-0" : "opacity-100"
                 }`}
-                rows={1}
-                onMouseDown={(e) => {
-                  if (!expanded && !threadIsEmpty) {
-                    e.preventDefault();
-                    setOpen(true);
-                  }
-                }}
-                onFocus={() => {
-                  if (!expanded && !threadIsEmpty) {
-                    setOpen(true);
-                    return;
-                  }
-                  setExpanded(true);
-                }}
               />
-            </ComposerPrimitive.Input>
+            </div>
             <div
               className={`absolute inset-x-0 bottom-0 px-1.5 pb-1.5 transition-[opacity,transform] ease-out ${
                 expanded
