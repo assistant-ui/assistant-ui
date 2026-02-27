@@ -12,7 +12,8 @@ import { cn } from "@/lib/utils";
 import {
   createContext,
   useContext,
-  useRef,
+  useEffect,
+  useState,
   type FC,
   type ReactNode,
 } from "react";
@@ -35,15 +36,25 @@ const getUsagePercent = (
   return Math.min((totalTokens / modelContextWindow) * 100, 100);
 };
 
+type UsageSeverity = "normal" | "warning" | "critical";
+
+const getUsageSeverity = (percent: number): UsageSeverity => {
+  if (percent > 85) return "critical";
+  if (percent >= 65) return "warning";
+  return "normal";
+};
+
 const getStrokeColor = (percent: number): string => {
-  if (percent > 95) return "stroke-destructive";
-  if (percent >= 80) return "stroke-warning";
+  const severity = getUsageSeverity(percent);
+  if (severity === "critical") return "stroke-destructive";
+  if (severity === "warning") return "stroke-amber-500";
   return "stroke-primary";
 };
 
 const getBarColor = (percent: number): string => {
-  if (percent >= 80) return "bg-red-500";
-  if (percent >= 50) return "bg-amber-500";
+  const severity = getUsageSeverity(percent);
+  if (severity === "critical") return "bg-red-500";
+  if (severity === "warning") return "bg-amber-500";
   return "bg-emerald-500";
 };
 
@@ -78,28 +89,30 @@ type PresetProps = {
   modelContextWindow: number;
   className?: string;
   side?: "top" | "bottom" | "left" | "right";
+  usage?: ThreadTokenUsage | undefined;
 };
 
 function ContextDisplayRoot({
   modelContextWindow,
   children,
+  usage: usageProp,
 }: {
   modelContextWindow: number;
   children: ReactNode;
+  usage?: ThreadTokenUsage | undefined;
 }) {
-  const usage = useThreadTokenUsage();
+  const usage = usageProp ?? useThreadTokenUsage();
   const threadId = useAuiState((s) => s.threadListItem.id);
   const rawTokens = usage?.totalTokens ?? 0;
+  const [totalTokens, setTotalTokens] = useState(0);
 
-  const prevTokensRef = useRef(0);
-  const prevThreadIdRef = useRef(threadId);
+  useEffect(() => {
+    setTotalTokens(0);
+  }, [threadId]);
 
-  if (prevThreadIdRef.current !== threadId) {
-    prevThreadIdRef.current = threadId;
-    prevTokensRef.current = 0;
-  }
-  if (rawTokens > 0) prevTokensRef.current = rawTokens;
-  const totalTokens = prevTokensRef.current;
+  useEffect(() => {
+    if (rawTokens > 0) setTotalTokens(rawTokens);
+  }, [threadId, rawTokens]);
 
   const percent = getUsagePercent(totalTokens, modelContextWindow);
 
@@ -139,7 +152,7 @@ function ContextDisplayContent({
   className,
 }: {
   side?: "top" | "bottom" | "left" | "right" | undefined;
-  className?: string;
+  className?: string | undefined;
 }) {
   const { usage, totalTokens, percent, modelContextWindow } =
     useContextDisplay();
@@ -150,7 +163,7 @@ function ContextDisplayContent({
       sideOffset={8}
       data-slot="context-display-popover"
       className={cn(
-        "[&_svg]:!hidden rounded-lg border bg-popover px-3 py-2 text-popover-foreground shadow-md",
+        "[&_svg]:hidden! rounded-lg border bg-popover px-3 py-2 text-popover-foreground shadow-md",
         className,
       )}
     >
@@ -257,8 +270,9 @@ const ContextDisplayRing: FC<PresetProps> = ({
   modelContextWindow,
   className,
   side,
+  usage,
 }) => (
-  <ContextDisplayRoot modelContextWindow={modelContextWindow}>
+  <ContextDisplayRoot modelContextWindow={modelContextWindow} usage={usage}>
     <ContextDisplayTrigger
       className={cn("p-1", className)}
       aria-label="Context usage"
@@ -298,9 +312,13 @@ const ContextDisplayBar: FC<PresetProps> = ({
   modelContextWindow,
   className,
   side,
+  usage,
 }) => (
-  <ContextDisplayRoot modelContextWindow={modelContextWindow}>
-    <ContextDisplayTrigger className={cn("px-2 py-1", className)}>
+  <ContextDisplayRoot modelContextWindow={modelContextWindow} usage={usage}>
+    <ContextDisplayTrigger
+      className={cn("px-2 py-1", className)}
+      aria-label="Context usage"
+    >
       <BarVisual />
     </ContextDisplayTrigger>
     <ContextDisplayContent side={side} />
@@ -325,9 +343,11 @@ const ContextDisplayText: FC<PresetProps> = ({
   modelContextWindow,
   className,
   side,
+  usage,
 }) => (
-  <ContextDisplayRoot modelContextWindow={modelContextWindow}>
+  <ContextDisplayRoot modelContextWindow={modelContextWindow} usage={usage}>
     <ContextDisplayTrigger
+      aria-label="Context usage"
       className={cn(
         "px-2 py-1 font-mono text-muted-foreground text-xs tabular-nums hover:bg-accent hover:text-accent-foreground",
         className,

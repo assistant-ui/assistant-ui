@@ -44,7 +44,10 @@ export function AssistantFooter(): ReactNode {
         <span>New thread</span>
       </button>
 
-      <ContextDisplay.Bar modelContextWindow={contextWindow} />
+      <ContextDisplay.Bar
+        modelContextWindow={contextWindow}
+        {...(lastUsage !== undefined ? { usage: lastUsage } : {})}
+      />
     </div>
   );
 }
