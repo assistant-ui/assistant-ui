@@ -140,10 +140,10 @@ export function FloatingComposer(): ReactNode {
               >
                 <textarea
                   placeholder="Ask a question..."
-                  className={`w-full resize-none bg-transparent text-sm leading-5 transition-[max-height,padding] duration-200 ease-out placeholder:text-muted-foreground focus:outline-none ${
+                  className={`field-sizing-content w-full resize-none bg-transparent text-sm leading-5 transition-[max-height,padding] duration-200 ease-out placeholder:text-muted-foreground focus:outline-none ${
                     expanded
-                      ? "field-sizing-content max-h-32 pt-2.5 pr-3 pb-10 pl-3"
-                      : "h-[38px] overflow-hidden pt-3 pr-3 pb-1.5 pl-8"
+                      ? "max-h-32 pt-2.5 pr-3 pb-10 pl-3"
+                      : "max-h-[38px] overflow-hidden pt-3 pr-3 pb-1.5 pl-8"
                   }`}
                   rows={1}
                   onMouseDown={(e) => {
