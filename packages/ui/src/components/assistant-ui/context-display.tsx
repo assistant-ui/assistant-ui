@@ -18,10 +18,6 @@ import {
   type ReactNode,
 } from "react";
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 const formatTokenCount = (tokens: number): string => {
   if (tokens >= 1_000_000) return `${(tokens / 1_000_000).toFixed(1)}M`;
   if (tokens >= 1_000) return `${(tokens / 1_000).toFixed(1)}k`;
@@ -58,10 +54,6 @@ const getBarColor = (percent: number): string => {
   return "bg-emerald-500";
 };
 
-// ---------------------------------------------------------------------------
-// Context
-// ---------------------------------------------------------------------------
-
 type ContextDisplayContextValue = {
   usage: ThreadTokenUsage | undefined;
   totalTokens: number;
@@ -80,10 +72,6 @@ function useContextDisplay(): ContextDisplayContextValue {
   }
   return ctx;
 }
-
-// ---------------------------------------------------------------------------
-// Primitives
-// ---------------------------------------------------------------------------
 
 type PresetProps = {
   modelContextWindow: number;
@@ -213,7 +201,7 @@ function ContextDisplayContent({
       sideOffset={8}
       data-slot="context-display-popover"
       className={cn(
-        "[&_svg]:hidden! rounded-lg border bg-popover px-3 py-2 text-popover-foreground shadow-md",
+        "[&_span>svg]:hidden! rounded-lg border bg-popover px-3 py-2 text-popover-foreground shadow-md",
         className,
       )}
     >
@@ -268,10 +256,6 @@ function ContextDisplayContent({
     </TooltipContent>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Ring
-// ---------------------------------------------------------------------------
 
 const RING_SIZE = 24;
 const RING_STROKE = 3;
@@ -333,10 +317,6 @@ const ContextDisplayRing: FC<PresetProps> = ({
   </ContextDisplayRoot>
 );
 
-// ---------------------------------------------------------------------------
-// Bar
-// ---------------------------------------------------------------------------
-
 function BarVisual() {
   const { percent, totalTokens } = useContextDisplay();
 
@@ -375,10 +355,6 @@ const ContextDisplayBar: FC<PresetProps> = ({
   </ContextDisplayRoot>
 );
 
-// ---------------------------------------------------------------------------
-// Text
-// ---------------------------------------------------------------------------
-
 function TextVisual() {
   const { totalTokens, modelContextWindow } = useContextDisplay();
 
@@ -408,10 +384,6 @@ const ContextDisplayText: FC<PresetProps> = ({
     <ContextDisplayContent side={side} />
   </ContextDisplayRoot>
 );
-
-// ---------------------------------------------------------------------------
-// Compound export
-// ---------------------------------------------------------------------------
 
 const ContextDisplay = {} as {
   Root: typeof ContextDisplayRoot;
