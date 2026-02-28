@@ -145,8 +145,7 @@ function ContextDisplayRootInternal({
 }
 
 function ContextDisplayRoot(props: ContextDisplayRootProps) {
-  const hasUsageProp = Object.prototype.hasOwnProperty.call(props, "usage");
-  if (hasUsageProp) {
+  if (props.usage !== undefined) {
     return (
       <ContextDisplayRootBase
         modelContextWindow={props.modelContextWindow}
