@@ -158,7 +158,7 @@ function ContextDisplayRootInternal({
 }
 
 function ContextDisplayRoot(props: ContextDisplayRootProps) {
-  if ("usage" in props) {
+  if (props.usage !== undefined) {
     return (
       <ContextDisplayRootBase
         modelContextWindow={props.modelContextWindow}
