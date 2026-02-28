@@ -7,6 +7,10 @@ import { processSDKEvent } from "../sdk/converters";
 import { AgentRuntime } from "./AgentRuntime";
 import { ApprovalRuntime } from "./ApprovalRuntime";
 import type {
+  PermissionMode,
+  PermissionStoreInterface,
+} from "./PermissionStore";
+import type {
   AgentState,
   ApprovalStatus,
   CreateTaskOptions,
@@ -17,7 +21,7 @@ import type {
 export class TaskRuntime {
   private state: TaskState;
   private client: AgentClientInterface;
-  private permissionStore: import("./PermissionStore").PermissionStoreInterface;
+  private permissionStore: PermissionStoreInterface;
   private agents: Map<string, AgentRuntime> = new Map();
   private approvals: Map<string, ApprovalRuntime> = new Map();
   private listeners: Set<() => void> = new Set();
@@ -25,15 +29,13 @@ export class TaskRuntime {
   private serverTaskId: string;
   private streamingPromise: Promise<void> | null = null;
   private streamGeneration = 0;
-  private permissionModeOverride:
-    | import("./PermissionStore").PermissionMode
-    | undefined;
+  private permissionModeOverride: PermissionMode | undefined;
   private requiresApproval: CreateTaskOptions["requiresApproval"];
 
   constructor(
     handle: TaskHandle,
     client: AgentClientInterface,
-    permissionStore: import("./PermissionStore").PermissionStoreInterface,
+    permissionStore: PermissionStoreInterface,
     options?: {
       requiresApproval?: CreateTaskOptions["requiresApproval"];
     },
@@ -73,14 +75,12 @@ export class TaskRuntime {
     return this.approvals.get(approvalId);
   }
 
-  setPermissionMode(
-    mode: import("./PermissionStore").PermissionMode | undefined,
-  ): void {
+  setPermissionMode(mode: PermissionMode | undefined): void {
     this.permissionModeOverride = mode;
     this.notify();
   }
 
-  getPermissionMode(): import("./PermissionStore").PermissionMode | undefined {
+  getPermissionMode(): PermissionMode | undefined {
     return this.permissionModeOverride;
   }
 

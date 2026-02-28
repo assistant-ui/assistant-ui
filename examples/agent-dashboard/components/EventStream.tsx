@@ -244,6 +244,12 @@ export function EventStream({
     }
   };
 
+  const getToolCallName = (event: AgentEvent): string | null => {
+    if (event.type !== "tool_call") return null;
+    const toolName = (event.content as { toolName?: unknown }).toolName;
+    return typeof toolName === "string" ? toolName : null;
+  };
+
   return (
     <div
       ref={containerRef}
@@ -261,6 +267,7 @@ export function EventStream({
           {events.map((event) => {
             const config = eventConfig[event.type] ?? eventConfig["message"]!;
             const { summary, detail } = getEventContent(event);
+            const toolCallName = getToolCallName(event);
             const isExpanded = expandedEvents.has(event.id);
             const hasDetail = detail !== summary;
 
@@ -294,9 +301,9 @@ export function EventStream({
                       >
                         {config.label}
                       </span>
-                      {event.type === "tool_call" && (
+                      {event.type === "tool_call" && toolCallName && (
                         <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">
-                          {(event.content as any).toolName}
+                          {toolCallName}
                         </code>
                       )}
                     </div>

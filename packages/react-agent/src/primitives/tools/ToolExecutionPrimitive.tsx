@@ -151,9 +151,14 @@ ToolExecutionDuration.displayName = "ToolExecutionPrimitive.Duration";
 function useCopyInput() {
   const { input } = useToolExecution();
 
-  return () => {
+  return async () => {
     const text = JSON.stringify(input, null, 2);
-    navigator.clipboard.writeText(text);
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (error) {
+      console.error("Failed to copy tool input to clipboard:", error);
+      throw error;
+    }
   };
 }
 
@@ -162,9 +167,14 @@ function useCopyOutput() {
 
   if (status === "pending" || status === "running") return null;
 
-  return () => {
+  return async () => {
     const text = JSON.stringify(output, null, 2);
-    navigator.clipboard.writeText(text);
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (error) {
+      console.error("Failed to copy tool output to clipboard:", error);
+      throw error;
+    }
   };
 }
 

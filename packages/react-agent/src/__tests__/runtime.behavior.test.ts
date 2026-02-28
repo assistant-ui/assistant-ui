@@ -443,6 +443,71 @@ describe("runtime behavior", () => {
         approvalId: "approval-deny",
         decision: "deny",
       });
+
+      let resolveApproval: (() => void) | undefined;
+      const approveToolUse = vi.fn(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveApproval = resolve;
+          }),
+      );
+      const raceClient: AgentClientInterface = {
+        createTask: (options) => client.createTask(options),
+        streamEvents: (taskId) => client.streamEvents(taskId),
+        cancelTask: (taskId) => client.cancelTask(taskId),
+        approveToolUse,
+      };
+
+      const raceOnResolve = vi.fn();
+      const raceApproval = new ApprovalRuntime(
+        {
+          id: "approval-race",
+          toolName: "Read",
+          toolInput: { filePath: "c.txt" },
+          reason: "Concurrency test",
+          status: "pending",
+          taskId: "task-1",
+          agentId: "agent-1",
+          createdAt: new Date("2026-02-28T00:00:00.000Z"),
+        },
+        raceClient,
+        raceOnResolve,
+        permissionStore,
+      );
+
+      const firstApprove = raceApproval.approve("once");
+      await expect(raceApproval.approve("once")).rejects.toThrow(
+        "Approval is not pending",
+      );
+      expect(approveToolUse).toHaveBeenCalledTimes(1);
+      expect(raceApproval.getState().status).toBe("processing");
+
+      resolveApproval?.();
+      await firstApprove;
+      expect(raceApproval.getState().status).toBe("approved");
+      expect(raceOnResolve).toHaveBeenCalledTimes(1);
+
+      localStorage.setItem(
+        "agent-ui-permissions",
+        JSON.stringify({
+          permissions: [
+            { toolName: "SafeRead", mode: "allow" },
+            { toolName: "Bash", mode: "allow", expiresAt: "bad" },
+            { toolName: 123, mode: "allow" },
+            { toolName: "Write", mode: "invalid" },
+            "not-an-object",
+          ],
+        }),
+      );
+      const validatedStore = new LocalStoragePermissionStore();
+      expect(validatedStore.getPersistedPermissions()).toEqual([
+        { toolName: "SafeRead", mode: "allow" },
+      ]);
+      expect(validatedStore.getToolPermission("SafeRead")).toEqual({
+        toolName: "SafeRead",
+        mode: "allow",
+      });
+      expect(validatedStore.getToolPermission("Bash")).toBeUndefined();
     } finally {
       if (originalWindow === undefined) {
         delete (globalThis as { window?: unknown }).window;

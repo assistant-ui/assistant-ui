@@ -71,7 +71,7 @@ export class LocalStoragePermissionStore implements PermissionStoreInterface {
       if (!stored) return [];
 
       const data = JSON.parse(stored);
-      return data.permissions || [];
+      return this.parsePermissions(data);
     } catch {
       return [];
     }
@@ -137,7 +137,7 @@ export class LocalStoragePermissionStore implements PermissionStoreInterface {
       if (!stored) return;
 
       const data = JSON.parse(stored);
-      const permissions: ToolPermission[] = data.permissions || [];
+      const permissions = this.parsePermissions(data);
 
       for (const permission of permissions) {
         this.sessionPermissions.set(permission.toolName, permission);
@@ -145,5 +145,39 @@ export class LocalStoragePermissionStore implements PermissionStoreInterface {
     } catch {
       // Silently fail on SSR or storage errors
     }
+  }
+
+  private parsePermissions(data: unknown): ToolPermission[] {
+    if (!data || typeof data !== "object") return [];
+    const permissions = (data as { permissions?: unknown }).permissions;
+    if (!Array.isArray(permissions)) return [];
+
+    const parsed: ToolPermission[] = [];
+    for (const item of permissions) {
+      if (!item || typeof item !== "object") continue;
+
+      const toolName = (item as { toolName?: unknown }).toolName;
+      const mode = (item as { mode?: unknown }).mode;
+      const expiresAt = (item as { expiresAt?: unknown }).expiresAt;
+
+      if (
+        typeof toolName !== "string" ||
+        (mode !== "allow" && mode !== "ask" && mode !== "deny")
+      ) {
+        continue;
+      }
+
+      if (expiresAt !== undefined && typeof expiresAt !== "number") {
+        continue;
+      }
+
+      const permission: ToolPermission = { toolName, mode };
+      if (expiresAt !== undefined) {
+        permission.expiresAt = expiresAt;
+      }
+      parsed.push(permission);
+    }
+
+    return parsed;
   }
 }

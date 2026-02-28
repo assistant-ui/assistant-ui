@@ -26,7 +26,7 @@ export type TaskStatus =
   | "discarded";
 
 export type AgentStatus = "running" | "paused" | "completed" | "failed";
-export type ApprovalStatus = "pending" | "approved" | "denied";
+export type ApprovalStatus = "pending" | "processing" | "approved" | "denied";
 
 export interface TaskState {
   id: string;
@@ -163,6 +163,12 @@ export interface SDKEvent {
 }
 
 export interface AgentClientConfig {
+  /**
+   * Client-auth token used by your app backend.
+   *
+   * Do NOT pass a raw Anthropic API key from the browser.
+   * This value is sent to your app's `/api/agent` endpoint.
+   */
   apiKey: string;
   baseUrl?: string | undefined;
   model?: string;

@@ -69,6 +69,7 @@ export interface ApprovalStatusDisplayProps
 
 const statusIcons: Record<ApprovalStatus, string> = {
   pending: "\u23F3",
+  processing: "\u23F3",
   approved: "\u2705",
   denied: "\u274C",
 };
@@ -159,13 +160,19 @@ const ApprovalApproveTimed = forwardRef<
 ApprovalApproveTimed.displayName = "ApprovalPrimitive.ApproveTimed";
 
 export interface ApprovalDenyWithReasonProps
-  extends ComponentPropsWithoutRef<"button"> {}
+  extends ComponentPropsWithoutRef<"button"> {
+  /**
+   * Optional UI-only reason text.
+   * Note: The current SDK deny API does not persist a denial reason.
+   */
+  reason?: string;
+}
 
 // biome-ignore lint/suspicious: this package supports React 18 and React 19
 const ApprovalDenyWithReason = forwardRef<
   HTMLButtonElement,
   ApprovalDenyWithReasonProps
->(({ children, ...props }, ref) => {
+>(({ children, reason: _reason, ...props }, ref) => {
   const approval = useApproval();
   const status = useApprovalState((s) => s.status);
 

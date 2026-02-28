@@ -25,6 +25,9 @@ export interface AgentClientInterface {
 /**
  * HTTP client that communicates with a server-side agent API.
  * Use this when the real Claude Agent SDK cannot run in the browser.
+ *
+ * IMPORTANT: `apiKey` here is sent to your app backend.
+ * Do not pass raw Anthropic API keys from browser code.
  */
 export class HttpAgentClient implements AgentClientInterface {
   private baseUrl: string;

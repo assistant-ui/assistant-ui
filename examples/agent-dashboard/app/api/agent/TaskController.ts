@@ -449,14 +449,18 @@ export class TaskController {
 
         // Wait for user message with a 5-minute timeout
         const userMessagePromise = this.waitForUserMessage();
-        const timeoutPromise = new Promise<null>((resolve) =>
-          setTimeout(() => resolve(null), 5 * 60 * 1000),
-        );
+        let timeoutId: ReturnType<typeof setTimeout> | undefined;
+        const timeoutPromise = new Promise<null>((resolve) => {
+          timeoutId = setTimeout(() => resolve(null), 5 * 60 * 1000);
+        });
 
         const userMessage = await Promise.race([
           userMessagePromise,
           timeoutPromise,
         ]);
+        if (timeoutId !== undefined) {
+          clearTimeout(timeoutId);
+        }
 
         if (!userMessage || this.isCancelled) {
           // Timeout or cancelled - complete the task

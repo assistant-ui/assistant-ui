@@ -200,20 +200,22 @@ export function useExtendedKeyboardNav<T>({
       }
 
       const item = items[nav.selectedIndex];
+      const key = e.key.toLowerCase();
 
-      switch (e.key) {
+      switch (key) {
         case "y":
-        case "A":
-          if (e.shiftKey && onApproveAll) {
-            e.preventDefault();
-            onApproveAll();
-          } else if (item && onApprove) {
+          if (item && onApprove) {
             e.preventDefault();
             onApprove(item, nav.selectedIndex);
           }
           break;
+        case "a":
+          if (e.shiftKey && onApproveAll) {
+            e.preventDefault();
+            onApproveAll();
+          }
+          break;
         case "d":
-        case "D":
           if (e.shiftKey && onDenyAll) {
             e.preventDefault();
             onDenyAll();
@@ -246,7 +248,7 @@ export function useExtendedKeyboardNav<T>({
             onNew();
           }
           break;
-        case "Escape":
+        case "escape":
           if (onEscape) {
             e.preventDefault();
             onEscape();

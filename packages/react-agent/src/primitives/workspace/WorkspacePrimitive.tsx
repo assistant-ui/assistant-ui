@@ -9,7 +9,10 @@ import {
   type ReactNode,
   type ComponentPropsWithoutRef,
 } from "react";
-import { useWorkspaceTasks } from "../../hooks/useAgentWorkspace";
+import {
+  useAgentWorkspace,
+  useWorkspaceTasks,
+} from "../../hooks/useAgentWorkspace";
 import type { TaskRuntime } from "../../runtime/TaskRuntime";
 
 export type ViewMode = "table" | "split" | "detail";
@@ -127,10 +130,11 @@ export interface WorkspaceSelectedTaskProps {
 }
 
 function WorkspaceSelectedTask({ children }: WorkspaceSelectedTaskProps) {
-  const tasks = useWorkspaceTasks();
+  const workspace = useAgentWorkspace();
+  useWorkspaceTasks();
   const { selectedTaskId } = useWorkspaceContext();
   const task = selectedTaskId
-    ? (tasks.find((task) => task.id === selectedTaskId) ?? null)
+    ? (workspace.getTask(selectedTaskId) ?? null)
     : null;
   return <>{children(task)}</>;
 }

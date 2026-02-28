@@ -40,29 +40,43 @@ export class ApprovalRuntime {
       throw new Error("Approval is not pending");
     }
 
-    if (mode === "session") {
-      this.permissionStore.setToolPermission(this.state.toolName, {
-        toolName: this.state.toolName,
-        mode: "allow",
-      });
-    } else if (mode === "always") {
-      this.permissionStore.setToolPermission(this.state.toolName, {
-        toolName: this.state.toolName,
-        mode: "allow",
-      });
-      this.permissionStore.persistPermission(this.state.toolName);
-    } else if (mode === "timed" && duration) {
-      this.permissionStore.setToolPermission(this.state.toolName, {
-        toolName: this.state.toolName,
-        mode: "allow",
-        expiresAt: Date.now() + duration,
-      });
-    }
-
-    await this.client.approveToolUse(this.state.taskId, this.state.id, "allow");
-    this.state = { ...this.state, status: "approved" };
-    this.onResolve("approved");
+    this.state = { ...this.state, status: "processing" };
     this.notify();
+
+    try {
+      await this.client.approveToolUse(
+        this.state.taskId,
+        this.state.id,
+        "allow",
+      );
+
+      if (mode === "session") {
+        this.permissionStore.setToolPermission(this.state.toolName, {
+          toolName: this.state.toolName,
+          mode: "allow",
+        });
+      } else if (mode === "always") {
+        this.permissionStore.setToolPermission(this.state.toolName, {
+          toolName: this.state.toolName,
+          mode: "allow",
+        });
+        this.permissionStore.persistPermission(this.state.toolName);
+      } else if (mode === "timed" && duration) {
+        this.permissionStore.setToolPermission(this.state.toolName, {
+          toolName: this.state.toolName,
+          mode: "allow",
+          expiresAt: Date.now() + duration,
+        });
+      }
+
+      this.state = { ...this.state, status: "approved" };
+      this.onResolve("approved");
+      this.notify();
+    } catch (error) {
+      this.state = { ...this.state, status: "pending" };
+      this.notify();
+      throw error;
+    }
   }
 
   async deny(): Promise<void> {
@@ -70,10 +84,23 @@ export class ApprovalRuntime {
       throw new Error("Approval is not pending");
     }
 
-    await this.client.approveToolUse(this.state.taskId, this.state.id, "deny");
-    this.state = { ...this.state, status: "denied" };
-    this.onResolve("denied");
+    this.state = { ...this.state, status: "processing" };
     this.notify();
+
+    try {
+      await this.client.approveToolUse(
+        this.state.taskId,
+        this.state.id,
+        "deny",
+      );
+      this.state = { ...this.state, status: "denied" };
+      this.onResolve("denied");
+      this.notify();
+    } catch (error) {
+      this.state = { ...this.state, status: "pending" };
+      this.notify();
+      throw error;
+    }
   }
 
   subscribe(callback: () => void): () => void {

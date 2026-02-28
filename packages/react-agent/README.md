@@ -62,6 +62,8 @@ export function AgentUI() {
 }
 ```
 
+`apiKey` is sent from the browser to your app's `baseUrl` endpoint. Use an app/session token, not a raw Anthropic API key.
+
 ## Key Exports
 
 - Runtime: `WorkspaceRuntime`, `TaskRuntime`, `AgentRuntime`, `ApprovalRuntime`, `LocalStoragePermissionStore`
@@ -73,3 +75,5 @@ export function AgentUI() {
 ## Server Entry Point
 
 Use `@assistant-ui/react-agent/server` only in server code. It exports runtime classes/types and `AnthropicAgentClient`, but does not export hooks or UI primitives.
+
+`ApprovalPrimitive.DenyWithReason` accepts an optional `reason` prop for UI compatibility, but current SDK deny APIs do not persist a denial reason.
