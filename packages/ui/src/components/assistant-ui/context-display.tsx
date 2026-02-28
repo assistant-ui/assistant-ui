@@ -97,7 +97,11 @@ function ContextDisplayRootBase({
 }) {
   const threadId = useAuiState((s) => s.threadListItem.id);
   const rawTokens = usage?.totalTokens ?? 0;
-  const [tokenState, setTokenState] = useState({ threadId, totalTokens: 0 });
+  const [tokenState, setTokenState] = useState({
+    threadId,
+    totalTokens: rawTokens > 0 ? rawTokens : 0,
+    usage,
+  });
 
   useEffect(() => {
     setTokenState((prev) => {
@@ -105,21 +109,30 @@ function ContextDisplayRootBase({
         return {
           threadId,
           totalTokens: rawTokens > 0 ? rawTokens : 0,
+          usage,
         };
       }
       if (rawTokens > 0 && rawTokens !== prev.totalTokens) {
-        return { ...prev, totalTokens: rawTokens };
+        return { ...prev, totalTokens: rawTokens, usage };
+      }
+      if (usage !== prev.usage) {
+        return { ...prev, usage };
       }
       return prev;
     });
-  }, [threadId, rawTokens]);
+  }, [threadId, rawTokens, usage]);
 
   const totalTokens = tokenState.totalTokens;
   const percent = getUsagePercent(totalTokens, modelContextWindow);
 
   return (
     <ContextDisplayContext.Provider
-      value={{ usage, totalTokens, percent, modelContextWindow }}
+      value={{
+        usage: tokenState.usage,
+        totalTokens,
+        percent,
+        modelContextWindow,
+      }}
     >
       <Tooltip>{children}</Tooltip>
     </ContextDisplayContext.Provider>
@@ -145,7 +158,7 @@ function ContextDisplayRootInternal({
 }
 
 function ContextDisplayRoot(props: ContextDisplayRootProps) {
-  if (props.usage !== undefined) {
+  if ("usage" in props) {
     return (
       <ContextDisplayRootBase
         modelContextWindow={props.modelContextWindow}

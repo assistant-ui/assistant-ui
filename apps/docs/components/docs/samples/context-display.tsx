@@ -42,10 +42,7 @@ export function ContextDisplaySample() {
         <div className="flex flex-col gap-2">
           {USAGE_LEVELS.map(({ label, percent }) => (
             <div key={label} className="flex items-center gap-2">
-              <button
-                type="button"
-                className="inline-flex items-center rounded-md p-1 transition-colors"
-              >
+              <div className="inline-flex items-center rounded-md p-1 transition-colors">
                 <svg
                   width={RING_SIZE}
                   height={RING_SIZE}
@@ -74,7 +71,7 @@ export function ContextDisplaySample() {
                     className={getStrokeColor(percent)}
                   />
                 </svg>
-              </button>
+              </div>
               <span className="text-muted-foreground text-xs tabular-nums">
                 {label} ({percent}%)
               </span>
@@ -92,9 +89,8 @@ export function ContextDisplaySample() {
               (percent / 100) * MODEL_CONTEXT_WINDOW,
             );
             return (
-              <button
+              <div
                 key={label}
-                type="button"
                 className="inline-flex items-center rounded-md px-2 py-1 transition-colors"
               >
                 <div className="flex items-center gap-2">
@@ -111,7 +107,7 @@ export function ContextDisplaySample() {
                     {formatTokenCount(totalTokens)} ({percent}%)
                   </span>
                 </div>
-              </button>
+              </div>
             );
           })}
         </div>
@@ -126,14 +122,13 @@ export function ContextDisplaySample() {
               (percent / 100) * MODEL_CONTEXT_WINDOW,
             );
             return (
-              <button
+              <div
                 key={label}
-                type="button"
                 className="inline-flex items-center rounded-md px-2 py-1 font-mono text-muted-foreground text-xs tabular-nums transition-colors hover:bg-accent hover:text-accent-foreground"
               >
                 {formatTokenCount(totalTokens)} /{" "}
                 {formatTokenCount(MODEL_CONTEXT_WINDOW)}
-              </button>
+              </div>
             );
           })}
         </div>
