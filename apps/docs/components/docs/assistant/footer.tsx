@@ -46,7 +46,7 @@ export function AssistantFooter(): ReactNode {
 
       <ContextDisplay.Bar
         modelContextWindow={contextWindow}
-        {...(lastUsage !== undefined ? { usage: lastUsage } : {})}
+        usage={lastUsage}
       />
     </div>
   );

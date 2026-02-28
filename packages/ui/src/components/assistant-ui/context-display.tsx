@@ -89,20 +89,24 @@ type PresetProps = {
   modelContextWindow: number;
   className?: string;
   side?: "top" | "bottom" | "left" | "right";
-  usage?: ThreadTokenUsage | undefined;
+  usage?: ThreadTokenUsage;
 };
 
-function ContextDisplayRoot({
+type ContextDisplayRootProps = {
+  modelContextWindow: number;
+  children: ReactNode;
+  usage?: ThreadTokenUsage;
+};
+
+function ContextDisplayRootBase({
   modelContextWindow,
   children,
-  usage: usageProp,
+  usage,
 }: {
   modelContextWindow: number;
   children: ReactNode;
-  usage?: ThreadTokenUsage | undefined;
+  usage: ThreadTokenUsage | undefined;
 }) {
-  const internalUsage = useThreadTokenUsage();
-  const usage = usageProp ?? internalUsage;
   const threadId = useAuiState((s) => s.threadListItem.id);
   const rawTokens = usage?.totalTokens ?? 0;
   const [tokenState, setTokenState] = useState({ threadId, totalTokens: 0 });
@@ -134,6 +138,43 @@ function ContextDisplayRoot({
   );
 }
 
+function ContextDisplayRootInternal({
+  modelContextWindow,
+  children,
+}: {
+  modelContextWindow: number;
+  children: ReactNode;
+}) {
+  const usage = useThreadTokenUsage();
+  return (
+    <ContextDisplayRootBase
+      modelContextWindow={modelContextWindow}
+      usage={usage}
+    >
+      {children}
+    </ContextDisplayRootBase>
+  );
+}
+
+function ContextDisplayRoot(props: ContextDisplayRootProps) {
+  const hasUsageProp = Object.prototype.hasOwnProperty.call(props, "usage");
+  if (hasUsageProp) {
+    return (
+      <ContextDisplayRootBase
+        modelContextWindow={props.modelContextWindow}
+        usage={props.usage}
+      >
+        {props.children}
+      </ContextDisplayRootBase>
+    );
+  }
+  return (
+    <ContextDisplayRootInternal modelContextWindow={props.modelContextWindow}>
+      {props.children}
+    </ContextDisplayRootInternal>
+  );
+}
+
 function ContextDisplayTrigger({
   className,
   children,
@@ -160,8 +201,8 @@ function ContextDisplayContent({
   side = "top",
   className,
 }: {
-  side?: "top" | "bottom" | "left" | "right" | undefined;
-  className?: string | undefined;
+  side?: "top" | "bottom" | "left" | "right";
+  className?: string;
 }) {
   const { usage, totalTokens, percent, modelContextWindow } =
     useContextDisplay();

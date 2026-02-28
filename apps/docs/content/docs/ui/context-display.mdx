@@ -112,7 +112,7 @@ import { ContextDisplay } from "@/components/assistant-ui/context-display";
 
 | Component | Description |
 |-----------|-------------|
-| `Root` | Fetches token usage, provides shared context, wraps children in a tooltip |
+| `Root` | Uses provided `usage` when supplied, otherwise fetches token usage internally; provides shared context and wraps children in a tooltip |
 | `Trigger` | Button that opens the tooltip on hover |
 | `Content` | Tooltip popover with the token breakdown (Usage %, Input, Cached, Output, Reasoning, Total) |
 
@@ -127,18 +127,19 @@ All preset variants (`Ring`, `Bar`, `Text`) share the same props:
 | `modelContextWindow` | `number` | — | Maximum token limit of the current model (required) |
 | `className` | `string` | — | Additional class names on the trigger button |
 | `side` | `"top" \| "bottom" \| "left" \| "right"` | `"top"` | Tooltip placement |
+| `usage` | `ThreadTokenUsage` | — | Optional externally-provided usage data (skips internal usage fetch when provided) |
 
 ### Color Thresholds
 
 **Ring** uses semantic stroke colors:
-- `< 80%`: `stroke-primary`
-- `80% – 95%`: `stroke-warning`
-- `> 95%`: `stroke-destructive`
+- `< 65%`: `stroke-primary`
+- `65% – 85%`: `stroke-amber-500`
+- `> 85%`: `stroke-destructive`
 
 **Bar** uses explicit colors:
-- `< 50%`: `bg-emerald-500`
-- `50% – 80%`: `bg-amber-500`
-- `> 80%`: `bg-red-500`
+- `< 65%`: `bg-emerald-500`
+- `65% – 85%`: `bg-amber-500`
+- `> 85%`: `bg-red-500`
 
 ## Related
 
