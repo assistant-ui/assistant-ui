@@ -77,9 +77,15 @@ export function useApprovalStateById<T>(
     throw new Error(`Approval not found: ${approvalId}`);
   }
 
-  return useSyncExternalStore(
-    (callback) => approval.subscribe(callback),
-    () => selector(approval.getState()),
-    () => selector(approval.getState()),
+  const subscribe = useCallback(
+    (callback: () => void) => approval.subscribe(callback),
+    [approval],
   );
+
+  const getSnapshot = useCallback(
+    () => selector(approval.getState()),
+    [approval, selector],
+  );
+
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }

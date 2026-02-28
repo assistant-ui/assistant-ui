@@ -1,6 +1,10 @@
 "use client";
 
-import type { ComponentPropsWithoutRef, ReactNode } from "react";
+import {
+  forwardRef,
+  type ComponentPropsWithoutRef,
+  type ReactNode,
+} from "react";
 import { ApprovalProvider, useApproval, useApprovalState } from "../hooks";
 import type { ApprovalStatus } from "../runtime";
 import { createActionButton } from "../actions/createActionButton";
@@ -130,11 +134,11 @@ export interface ApprovalApproveTimedProps
   duration?: number;
 }
 
-function ApprovalApproveTimed({
-  duration = 300000,
-  children,
-  ...props
-}: ApprovalApproveTimedProps) {
+// biome-ignore lint/suspicious: this package supports React 18 and React 19
+const ApprovalApproveTimed = forwardRef<
+  HTMLButtonElement,
+  ApprovalApproveTimedProps
+>(({ duration = 300000, children, ...props }, ref) => {
   const approval = useApproval();
   const status = useApprovalState((s) => s.status);
 
@@ -142,6 +146,7 @@ function ApprovalApproveTimed({
 
   return (
     <button
+      ref={ref}
       type="button"
       onClick={() => approval.approve("timed", duration)}
       {...props}
@@ -149,28 +154,29 @@ function ApprovalApproveTimed({
       {children ?? `Allow for ${duration / 60000} min`}
     </button>
   );
-}
+});
 
 ApprovalApproveTimed.displayName = "ApprovalPrimitive.ApproveTimed";
 
 export interface ApprovalDenyWithReasonProps
   extends ComponentPropsWithoutRef<"button"> {}
 
-function ApprovalDenyWithReason({
-  children,
-  ...props
-}: ApprovalDenyWithReasonProps) {
+// biome-ignore lint/suspicious: this package supports React 18 and React 19
+const ApprovalDenyWithReason = forwardRef<
+  HTMLButtonElement,
+  ApprovalDenyWithReasonProps
+>(({ children, ...props }, ref) => {
   const approval = useApproval();
   const status = useApprovalState((s) => s.status);
 
   if (!approval || status !== "pending") return null;
 
   return (
-    <button type="button" onClick={() => approval.deny()} {...props}>
+    <button ref={ref} type="button" onClick={() => approval.deny()} {...props}>
       {children ?? "Deny"}
     </button>
   );
-}
+});
 
 ApprovalDenyWithReason.displayName = "ApprovalPrimitive.DenyWithReason";
 

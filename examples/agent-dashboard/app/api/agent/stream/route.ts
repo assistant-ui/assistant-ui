@@ -12,7 +12,7 @@
  */
 
 import { NextRequest } from "next/server";
-import { taskStore } from "../store";
+import { getTaskController } from "../store";
 import { logger } from "../logger";
 
 export const dynamic = "force-dynamic";
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
 
   logger.info("stream", "New stream connection", { taskId, lastEventId });
 
-  const controller = taskStore.get(taskId);
+  const controller = getTaskController(taskId);
   if (!controller) {
     logger.error("stream", "Task not found", { taskId });
     return new Response("Task not found", { status: 404 });

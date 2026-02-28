@@ -30,6 +30,7 @@ export class HttpAgentClient implements AgentClientInterface {
   private baseUrl: string;
   private apiKey: string;
   private activeStreams: Map<string, AbortController> = new Map();
+  private static readonly RECONNECT_DELAY_MS = 250;
 
   constructor(config: AgentClientConfig) {
     this.baseUrl = config.baseUrl || "/api/agent";
@@ -64,61 +65,140 @@ export class HttpAgentClient implements AgentClientInterface {
   async *streamEvents(taskId: string): AsyncGenerator<SDKEvent> {
     const abortController = new AbortController();
     this.activeStreams.set(taskId, abortController);
+    let lastEventId = "";
 
     try {
-      const response = await fetch(`${this.baseUrl}/stream?taskId=${taskId}`, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${this.apiKey}`,
-        },
-        signal: abortController.signal,
-      });
+      while (!abortController.signal.aborted) {
+        try {
+          const headers: Record<string, string> = {
+            Authorization: `Bearer ${this.apiKey}`,
+          };
+          if (lastEventId) {
+            headers["Last-Event-ID"] = lastEventId;
+          }
 
-      if (!response.ok) {
-        throw new Error(
-          `Failed to connect to event stream: ${response.status}`,
-        );
-      }
+          const response = await fetch(
+            `${this.baseUrl}/stream?taskId=${taskId}`,
+            {
+              method: "GET",
+              headers,
+              signal: abortController.signal,
+            },
+          );
 
-      const reader = response.body?.getReader();
-      if (!reader) {
-        throw new Error("No response body");
-      }
-
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
-
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            const data = line.slice(6);
-            if (data === "[DONE]") {
-              return;
+          if (!response.ok) {
+            // 4xx errors are not recoverable for this stream.
+            if (response.status >= 400 && response.status < 500) {
+              throw new Error(
+                `Failed to connect to event stream: ${response.status}`,
+              );
             }
-            try {
-              const parsed = JSON.parse(data);
-              if (!parsed || typeof parsed !== "object" || !parsed.type) {
-                console.error("Invalid event format:", data);
-                continue;
+            await this.sleep(HttpAgentClient.RECONNECT_DELAY_MS);
+            continue;
+          }
+
+          const reader = response.body?.getReader();
+          if (!reader) {
+            throw new Error("No response body");
+          }
+
+          const decoder = new TextDecoder();
+          let buffer = "";
+
+          while (!abortController.signal.aborted) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const chunks = buffer.split(/\r?\n\r?\n/);
+            buffer = chunks.pop() || "";
+
+            for (const chunk of chunks) {
+              const parsedChunk = this.parseSSEChunk(chunk);
+              if (!parsedChunk) continue;
+
+              if (parsedChunk.id) {
+                lastEventId = parsedChunk.id;
               }
-              parsed.timestamp = new Date(parsed.timestamp);
-              yield parsed as SDKEvent;
-            } catch (e) {
-              console.error("Failed to parse event:", e);
+
+              const data = parsedChunk.data;
+              if (!data) continue;
+
+              if (data === "[DONE]") {
+                return;
+              }
+
+              try {
+                const parsed = JSON.parse(data);
+                if (!parsed || typeof parsed !== "object" || !parsed.type) {
+                  console.error("Invalid event format:", data);
+                  continue;
+                }
+                parsed.timestamp = new Date(parsed.timestamp);
+                yield parsed as SDKEvent;
+              } catch (error) {
+                console.error("Failed to parse event:", error);
+              }
             }
           }
+        } catch (error) {
+          if (abortController.signal.aborted) {
+            return;
+          }
+          console.error(
+            "Event stream connection dropped, reconnecting:",
+            error,
+          );
+          await this.sleep(HttpAgentClient.RECONNECT_DELAY_MS);
         }
       }
     } finally {
       this.activeStreams.delete(taskId);
     }
+  }
+
+  private parseSSEChunk(
+    chunk: string,
+  ): { id?: string; data?: string } | undefined {
+    const lines = chunk.split(/\r?\n/);
+    let id: string | undefined;
+    const dataLines: string[] = [];
+
+    for (const line of lines) {
+      if (!line || line.startsWith(":")) continue;
+
+      const separatorIndex = line.indexOf(":");
+      const field =
+        separatorIndex === -1 ? line : line.slice(0, separatorIndex);
+      const rawValue =
+        separatorIndex === -1 ? "" : line.slice(separatorIndex + 1);
+      const value = rawValue.startsWith(" ") ? rawValue.slice(1) : rawValue;
+
+      if (field === "id") {
+        id = value;
+      } else if (field === "data") {
+        dataLines.push(value);
+      }
+    }
+
+    if (!id && dataLines.length === 0) {
+      return undefined;
+    }
+
+    const parsed: { id?: string; data?: string } = {};
+    if (id !== undefined) {
+      parsed.id = id;
+    }
+    if (dataLines.length > 0) {
+      parsed.data = dataLines.join("\n");
+    }
+    return parsed;
+  }
+
+  private sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => {
+      setTimeout(resolve, ms);
+    });
   }
 
   async approveToolUse(

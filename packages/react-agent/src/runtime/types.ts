@@ -177,10 +177,15 @@ export interface CreateTaskOptions {
   /**
    * Custom function to determine if a tool requires approval.
    *
-   * Only supported with server-side clients (e.g. AnthropicAgentClient).
-   * Ignored by HttpAgentClient since functions cannot be serialized over HTTP.
-   * For client-server architectures, implement approval logic server-side
-   * in your API route instead.
+   * This callback is local-only and never sent over the network.
+   * - With HttpAgentClient, the function is dropped by JSON serialization and the
+   *   server never receives it.
+   * - With AnthropicAgentClient, server-side approval logic is defined by the
+   *   server runtime/hook configuration, not this field.
+   *
+   * In this package, the callback is used by TaskRuntime to locally auto-approve
+   * or surface approval events that arrive from the server stream.
+   * For client-server architectures, enforce approval policy on the server.
    */
   requiresApproval?: (toolName: string, input: unknown) => boolean;
 }

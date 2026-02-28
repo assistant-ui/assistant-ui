@@ -44,6 +44,10 @@ export class TaskController {
     this.runTask();
   }
 
+  isActive(): boolean {
+    return this.isRunning;
+  }
+
   cancel(): void {
     this.isCancelled = true;
     this.isRunning = false;
@@ -54,6 +58,11 @@ export class TaskController {
       pending.resolve("deny");
     }
     this.pendingApprovals.clear();
+
+    // Resolve pending waitForUserMessage listeners to avoid leaks.
+    this.pendingMessages = [];
+    this.messageListeners.forEach((listener) => listener());
+    this.messageListeners.clear();
 
     logger.info("controller", "Task cancelled", { taskId: this.taskId });
     this.pushEvent({
@@ -101,11 +110,20 @@ export class TaskController {
 
   private waitForUserMessage(): Promise<string> {
     return new Promise((resolve) => {
+      if (this.isCancelled) {
+        resolve("");
+        return;
+      }
       if (this.pendingMessages.length > 0) {
         resolve(this.pendingMessages.shift()!);
         return;
       }
       const listener = () => {
+        if (this.isCancelled) {
+          this.messageListeners.delete(listener);
+          resolve("");
+          return;
+        }
         if (this.pendingMessages.length > 0) {
           this.messageListeners.delete(listener);
           resolve(this.pendingMessages.shift()!);

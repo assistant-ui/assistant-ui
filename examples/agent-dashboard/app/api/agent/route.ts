@@ -9,7 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { nanoid } from "nanoid";
 import type { CreateTaskOptions } from "@assistant-ui/react-agent";
 import { TaskController } from "./TaskController";
-import { taskStore } from "./store";
+import { getTaskController, setTaskController } from "./store";
 import { logger } from "./logger";
 
 // ⚠️ SECURITY WARNING ⚠️
@@ -68,7 +68,7 @@ async function handleCreateTask(options: CreateTaskOptions) {
   logger.info("task", "Creating new task", { taskId, prompt: options.prompt });
 
   const controller = new TaskController(taskId, options);
-  taskStore.set(taskId, controller);
+  setTaskController(taskId, controller);
 
   controller.start();
 
@@ -91,7 +91,7 @@ async function handleApproval({
     approvalId,
   });
 
-  const controller = taskStore.get(taskId);
+  const controller = getTaskController(taskId);
   if (!controller) {
     logger.error("approval", "Task not found", { taskId });
     return NextResponse.json({ error: "Task not found" }, { status: 404 });
@@ -127,7 +127,7 @@ async function handleMessage({
     messageLength: message.length,
   });
 
-  const controller = taskStore.get(taskId);
+  const controller = getTaskController(taskId);
   if (!controller) {
     logger.error("task", "Task not found for message", { taskId });
     return NextResponse.json({ error: "Task not found" }, { status: 404 });
@@ -142,7 +142,7 @@ async function handleMessage({
 async function handleCancel({ taskId }: { taskId: string }) {
   logger.info("task", "Cancellation requested", { taskId });
 
-  const controller = taskStore.get(taskId);
+  const controller = getTaskController(taskId);
   if (!controller) {
     logger.error("task", "Task not found for cancellation", { taskId });
     return NextResponse.json({ error: "Task not found" }, { status: 404 });
