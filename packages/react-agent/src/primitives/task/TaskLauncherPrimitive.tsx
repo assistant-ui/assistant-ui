@@ -105,7 +105,9 @@ function TaskLauncherSubmit({
   const isDisabled = disabled || !prompt.trim() || isSubmitting;
 
   const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
-    submit();
+    void submit().catch((error) => {
+      console.error("TaskLauncher submit failed:", error);
+    });
     onClick?.(e);
   };
 

@@ -10,6 +10,7 @@ import { logger } from "./logger";
 
 export class TaskController {
   private static readonly EVENT_HISTORY_LIMIT = 2000;
+  private static readonly PROCESSED_MESSAGE_IDS_LIMIT = 5000;
   private taskId: string;
   private options: CreateTaskOptions;
   private eventHistory: Array<{ id: number; event: SDKEvent }> = [];
@@ -567,7 +568,7 @@ export class TaskController {
           message.id &&
           !this.processedMessageIds.has(message.id)
         ) {
-          this.processedMessageIds.add(message.id);
+          this.trackProcessedMessageId(message.id);
           if (message.usage.total_cost_usd !== undefined) {
             const cost = message.usage.total_cost_usd;
 
@@ -844,5 +845,17 @@ export class TaskController {
     return new Promise((resolve) => {
       this.pendingApprovals.set(approvalId, { resolve });
     });
+  }
+
+  private trackProcessedMessageId(messageId: string): void {
+    this.processedMessageIds.add(messageId);
+    if (
+      this.processedMessageIds.size > TaskController.PROCESSED_MESSAGE_IDS_LIMIT
+    ) {
+      const oldestMessageId = this.processedMessageIds.values().next().value;
+      if (typeof oldestMessageId === "string") {
+        this.processedMessageIds.delete(oldestMessageId);
+      }
+    }
   }
 }
