@@ -22,6 +22,7 @@
   "main": "./src/index.css",
   "files": [
     "src",
+    "skills",
     "README.md"
   ],
   "sideEffects": [

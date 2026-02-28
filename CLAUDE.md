@@ -2,6 +2,20 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Bug Reporting
+
+When reporting bugs, use the `BUG-REPORT` skill at:
+- `skills/assistant-ui-bug-report/SKILL.md`
+
+For bug reports, always:
+- Open the issue in `https://github.com/assistant-ui/assistant-ui`
+- Prefer GitHub CLI (`gh`) directly (`gh issue create --repo assistant-ui/assistant-ui --body-file ...`)
+- Include:
+  - The type of work in progress when the bug occurred
+  - Reproduction steps
+  - Context (environment, package/area, logs, branch/commit)
+- Attempt to create a minimal repro script; if this becomes complex or unreliable, skip it and explicitly note that in the issue
+
 ## Build & Development Commands
 
 ```bash
@@ -44,6 +58,9 @@ pnpm changeset
 ```
 
 This does NOT apply to private packages like `@assistant-ui/docs`, `@assistant-ui/shadcn-registry`, or `@assistant-ui/x-buildutils`.
+
+For agent workflows, use the `CHANGESET` skill for non-interactive changeset creation:
+- `skills/changeset/SKILL.md`
 
 ## Code Style & Linting
 

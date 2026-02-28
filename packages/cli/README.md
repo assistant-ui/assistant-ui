@@ -81,6 +81,18 @@ Use the `update` command to update all assistant-ui packages to their latest ver
 npx assistant-ui@latest update
 ```
 
+## skills
+
+Use the `skills` command to copy shipped assistant-ui skills into agent-visible folders.
+
+```bash
+# install to ./skills and to ~/.codex/skills, ~/.claude/skills, ~/.cursor/skills
+npx assistant-ui@latest skills
+
+# install only to Codex and Claude
+npx assistant-ui@latest skills --codex --claude
+```
+
 ## upgrade
 
 Use the `upgrade` command to automatically migrate your codebase when upgrading to a new major version.

@@ -49,6 +49,7 @@
     "bin",
     "dist",
     "src",
+    "skills",
     "README.md"
   ],
   "sideEffects": false,

@@ -7,6 +7,7 @@ import { codemodCommand, upgradeCommand } from "./commands/upgrade";
 import { init } from "./commands/init";
 import { update } from "./commands/update";
 import { mcp } from "./commands/mcp";
+import { skills } from "./commands/skills";
 
 process.on("SIGINT", () => process.exit(0));
 process.on("SIGTERM", () => process.exit(0));
@@ -20,6 +21,7 @@ function main() {
   program.addCommand(create);
   program.addCommand(init);
   program.addCommand(mcp);
+  program.addCommand(skills);
   program.addCommand(codemodCommand);
   program.addCommand(upgradeCommand);
   program.addCommand(update);

@@ -29,6 +29,7 @@
     "dist",
     "src",
     ".docs",
+    "skills",
     "README.md"
   ],
   "sideEffects": false,
