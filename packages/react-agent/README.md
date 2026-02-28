@@ -16,6 +16,14 @@ npm install @assistant-ui/react-agent
 pnpm add @assistant-ui/react-agent
 ```
 
+For server-side Anthropic SDK usage, also install the optional peer:
+
+```bash
+npm install @anthropic-ai/claude-agent-sdk
+# or
+pnpm add @anthropic-ai/claude-agent-sdk
+```
+
 ## Quick Start
 
 ```tsx
@@ -61,3 +69,7 @@ export function AgentUI() {
 - SDK (server import path): `AnthropicAgentClient` from `@assistant-ui/react-agent/server`
 - Hooks: `useAgentWorkspace`, `useWorkspaceTasks`, `useTaskState`, `useAgentState`, `useApprovalState`, `usePermissionMode`
 - Primitives: `WorkspacePrimitive`, `TaskPrimitive`, `AgentPrimitive`, `ApprovalPrimitive`, `TaskTreePrimitive`, `TaskLauncherPrimitive`, `ApprovalQueuePrimitive`, `ToolExecutionPrimitive`, `PermissionModePrimitive`
+
+## Server Entry Point
+
+Use `@assistant-ui/react-agent/server` only in server code. It exports runtime classes/types and `AnthropicAgentClient`, but does not export hooks or UI primitives.

@@ -13,6 +13,7 @@
     "@assistant-ui/react-agent": "workspace:*",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "diff": "^8.0.3",
     "lucide-react": "^0.562.0",
     "nanoid": "^5.1.6",
     "next": "^16.1.4",

@@ -29,6 +29,21 @@ export function useKeyboardNav<T>({
 }: UseKeyboardNavOptions<T>): UseKeyboardNavResult {
   const [selectedIndex, setSelectedIndex] = useState(initialIndex);
   const shouldNotifyNavigateRef = useRef(false);
+  const itemsRef = useRef(items);
+  const onNavigateRef = useRef(onNavigate);
+  const onActivateRef = useRef(onActivate);
+
+  useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
+
+  useEffect(() => {
+    onNavigateRef.current = onNavigate;
+  }, [onNavigate]);
+
+  useEffect(() => {
+    onActivateRef.current = onActivate;
+  }, [onActivate]);
 
   // Clamp index when items change
   useEffect(() => {
@@ -40,41 +55,44 @@ export function useKeyboardNav<T>({
   }, [items.length, selectedIndex]);
 
   const navigateUp = useCallback(() => {
-    if (items.length === 0) {
+    const itemCount = itemsRef.current.length;
+    if (itemCount === 0) {
       return;
     }
     shouldNotifyNavigateRef.current = true;
     setSelectedIndex((prev) =>
-      prev <= 0 ? (loop ? items.length - 1 : 0) : prev - 1,
+      prev <= 0 ? (loop ? itemCount - 1 : 0) : prev - 1,
     );
-  }, [items.length, loop]);
+  }, [loop]);
 
   const navigateDown = useCallback(() => {
-    if (items.length === 0) {
+    const itemCount = itemsRef.current.length;
+    if (itemCount === 0) {
       return;
     }
     shouldNotifyNavigateRef.current = true;
     setSelectedIndex((prev) =>
-      prev >= items.length - 1 ? (loop ? 0 : items.length - 1) : prev + 1,
+      prev >= itemCount - 1 ? (loop ? 0 : itemCount - 1) : prev + 1,
     );
-  }, [items.length, loop]);
+  }, [loop]);
 
   useEffect(() => {
     if (!shouldNotifyNavigateRef.current) {
       return;
     }
     shouldNotifyNavigateRef.current = false;
-    const item = items[selectedIndex];
+    const item = itemsRef.current[selectedIndex];
     if (item !== undefined) {
-      onNavigate?.(item, selectedIndex);
+      onNavigateRef.current?.(item, selectedIndex);
     }
-  }, [items, onNavigate, selectedIndex]);
+  }, [selectedIndex]);
 
   const activate = useCallback(() => {
-    if (items[selectedIndex]) {
-      onActivate?.(items[selectedIndex], selectedIndex);
+    const item = itemsRef.current[selectedIndex];
+    if (item !== undefined) {
+      onActivateRef.current?.(item, selectedIndex);
     }
-  }, [items, selectedIndex, onActivate]);
+  }, [selectedIndex]);
 
   useEffect(() => {
     if (!enabled) return;

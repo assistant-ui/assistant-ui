@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { diffLines } from "diff";
 import { Edit3, ChevronDown, ChevronRight, Plus, Minus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -18,43 +19,26 @@ interface DiffLine {
 }
 
 function computeDiff(oldContent: string, newContent: string): DiffLine[] {
-  const oldLines = oldContent.split("\n");
-  const newLines = newContent.split("\n");
   const diff: DiffLine[] = [];
-
-  // Simple line-by-line diff (not a real diff algorithm)
-  let oldIndex = 0;
-  let newIndex = 0;
+  const changes = diffLines(oldContent, newContent);
   let lineNumber = 1;
 
-  while (oldIndex < oldLines.length || newIndex < newLines.length) {
-    const oldLine = oldLines[oldIndex];
-    const newLine = newLines[newIndex];
-
-    if (oldLine === newLine) {
-      diff.push({ type: "unchanged", content: oldLine ?? "", lineNumber });
-      oldIndex++;
-      newIndex++;
-    } else if (oldLine !== undefined && !newLines.includes(oldLine)) {
-      diff.push({ type: "removed", content: oldLine, lineNumber });
-      oldIndex++;
-    } else if (newLine !== undefined && !oldLines.includes(newLine)) {
-      diff.push({ type: "added", content: newLine, lineNumber });
-      newIndex++;
-    } else {
-      // Skip for now - real diff would handle this better
-      if (oldIndex < oldLines.length) {
-        const removedLine = oldLines[oldIndex];
-        diff.push({ type: "removed", content: removedLine ?? "", lineNumber });
-        oldIndex++;
-      }
-      if (newIndex < newLines.length) {
-        const addedLine = newLines[newIndex];
-        diff.push({ type: "added", content: addedLine ?? "", lineNumber });
-        newIndex++;
-      }
+  for (const change of changes) {
+    const lines = change.value.split("\n");
+    if (lines[lines.length - 1] === "") {
+      lines.pop();
     }
-    lineNumber++;
+
+    const type: DiffLine["type"] = change.added
+      ? "added"
+      : change.removed
+        ? "removed"
+        : "unchanged";
+
+    for (const line of lines) {
+      diff.push({ type, content: line, lineNumber });
+      lineNumber++;
+    }
   }
 
   return diff;
@@ -69,7 +53,10 @@ export function DiffViewer({
   const [isExpanded, setIsExpanded] = useState(true);
   const [showOnlyChanges, setShowOnlyChanges] = useState(false);
 
-  const diff = computeDiff(oldContent, newContent);
+  const diff = useMemo(
+    () => computeDiff(oldContent, newContent),
+    [oldContent, newContent],
+  );
   const addedCount = diff.filter((l) => l.type === "added").length;
   const removedCount = diff.filter((l) => l.type === "removed").length;
 

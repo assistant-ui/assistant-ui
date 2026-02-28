@@ -11,6 +11,9 @@ describe("@assistant-ui/react-agent exports", () => {
     expect(ReactAgent.HttpAgentClient).toBeDefined();
     expect("AnthropicAgentClient" in ReactAgent).toBe(false);
     expect(ReactAgentServer.AnthropicAgentClient).toBeDefined();
+    expect(ReactAgentServer.WorkspaceRuntime).toBeDefined();
+    expect("TaskPrimitive" in ReactAgentServer).toBe(false);
+    expect("AgentWorkspaceProvider" in ReactAgentServer).toBe(false);
   });
 
   it("exports hook and primitive namespaces", () => {

@@ -41,19 +41,23 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@anthropic-ai/claude-agent-sdk": "^0.2.19",
     "nanoid": "^5.1.6"
   },
   "peerDependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.2.19",
     "@types/react": "*",
     "react": "^18 || ^19"
   },
   "peerDependenciesMeta": {
+    "@anthropic-ai/claude-agent-sdk": {
+      "optional": true
+    },
     "@types/react": {
       "optional": true
     }
   },
   "devDependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.2.19",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/react": "^19.2.9",
     "react": "^19.2.3",

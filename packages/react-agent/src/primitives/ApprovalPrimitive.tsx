@@ -174,6 +174,10 @@ function ApprovalDenyWithReason({
 
 ApprovalDenyWithReason.displayName = "ApprovalPrimitive.DenyWithReason";
 
+// Backward-compatible alias kept for existing consumers of DenyWithReason.
+const ApprovalDenyDetailed = ApprovalDenyWithReason;
+ApprovalDenyDetailed.displayName = "ApprovalPrimitive.DenyDetailed";
+
 export const ApprovalPrimitive = {
   Root: ApprovalRoot,
   ToolName: ApprovalToolName,
@@ -186,5 +190,6 @@ export const ApprovalPrimitive = {
   ApproveAlways: ApprovalApproveAlways,
   ApproveTimed: ApprovalApproveTimed,
   Deny: ApprovalDeny,
+  DenyDetailed: ApprovalDenyDetailed,
   DenyWithReason: ApprovalDenyWithReason,
 };
