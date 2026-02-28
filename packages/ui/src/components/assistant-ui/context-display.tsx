@@ -89,13 +89,13 @@ type PresetProps = {
   modelContextWindow: number;
   className?: string;
   side?: "top" | "bottom" | "left" | "right";
-  usage?: ThreadTokenUsage;
+  usage?: ThreadTokenUsage | undefined;
 };
 
 type ContextDisplayRootProps = {
   modelContextWindow: number;
   children: ReactNode;
-  usage?: ThreadTokenUsage;
+  usage?: ThreadTokenUsage | undefined;
 };
 
 function ContextDisplayRootBase({
@@ -201,7 +201,7 @@ function ContextDisplayContent({
   side = "top",
   className,
 }: {
-  side?: "top" | "bottom" | "left" | "right";
+  side?: "top" | "bottom" | "left" | "right" | undefined;
   className?: string;
 }) {
   const { usage, totalTokens, percent, modelContextWindow } =
