@@ -18,7 +18,7 @@ const USAGE_LEVELS = [
 const getStrokeColor = (percent: number): string => {
   if (percent > 85) return "stroke-red-500";
   if (percent >= 65) return "stroke-amber-500";
-  return "stroke-white";
+  return "stroke-emerald-500";
 };
 
 const getBarColor = (percent: number): string => {

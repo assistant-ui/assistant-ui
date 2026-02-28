@@ -131,15 +131,15 @@ All preset variants (`Ring`, `Bar`, `Text`) share the same props:
 
 ### Color Thresholds
 
-**Ring** uses semantic stroke colors:
-- `< 65%`: `stroke-primary`
-- `65% – 85%`: `stroke-amber-500`
-- `> 85%`: `stroke-destructive`
+Ring and Bar share the same severity colors:
 
-**Bar** uses explicit colors:
-- `< 65%`: `bg-emerald-500`
-- `65% – 85%`: `bg-amber-500`
-- `> 85%`: `bg-red-500`
+| Level | Threshold | Ring | Bar |
+|-------|-----------|------|-----|
+| Low | `< 65%` | `stroke-emerald-500` | `bg-emerald-500` |
+| Warning | `65% – 85%` | `stroke-amber-500` | `bg-amber-500` |
+| Critical | `> 85%` | `stroke-red-500` | `bg-red-500` |
+
+Text displays numeric values only — no severity color.
 
 ## Related
 

@@ -46,9 +46,9 @@ const getUsageSeverity = (percent: number): UsageSeverity => {
 
 const getStrokeColor = (percent: number): string => {
   const severity = getUsageSeverity(percent);
-  if (severity === "critical") return "stroke-destructive";
+  if (severity === "critical") return "stroke-red-500";
   if (severity === "warning") return "stroke-amber-500";
-  return "stroke-primary";
+  return "stroke-emerald-500";
 };
 
 const getBarColor = (percent: number): string => {
