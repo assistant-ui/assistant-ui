@@ -411,7 +411,7 @@ export const registry: RegistryItem[] = [
       "lucide-react",
       "class-variance-authority",
     ],
-    registryDependencies: ["select"],
+    registryDependencies: ["https://r.assistant-ui.com/select.json"],
   },
   {
     name: "select",
