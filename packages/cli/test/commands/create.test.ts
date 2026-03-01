@@ -70,7 +70,7 @@ describe("create command template resolution", () => {
     const args = buildCreateNextAppArgs({
       projectDirectory: "my-app",
       usePnpm: true,
-      templateUrl: "https://github.com/assistant-ui/assistant-cloud-starter",
+      templateUrl: "https://github.com/assistant-ui/assistant-ui-starter-cloud",
     });
 
     expect(args).toEqual([
@@ -78,7 +78,7 @@ describe("create command template resolution", () => {
       "my-app",
       "--use-pnpm",
       "-e",
-      "https://github.com/assistant-ui/assistant-cloud-starter",
+      "https://github.com/assistant-ui/assistant-ui-starter-cloud",
     ]);
   });
 

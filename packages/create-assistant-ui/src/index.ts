@@ -18,7 +18,7 @@ const templates = {
     hint: "Bare-bones starting point",
   },
   cloud: {
-    url: "https://github.com/assistant-ui/assistant-cloud-starter",
+    url: "https://github.com/assistant-ui/assistant-ui-starter-cloud",
     label: "Cloud",
     hint: "Cloud-backed persistence starter",
   },
