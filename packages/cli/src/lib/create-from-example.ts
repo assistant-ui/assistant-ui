@@ -3,6 +3,12 @@ import * as path from "node:path";
 import { spawn } from "node:child_process";
 import { sync as globSync } from "glob";
 import { detect } from "detect-package-manager";
+import {
+  exampleNames,
+  isExampleName,
+  resolveExampleSourceSpecifier,
+  type ExampleName,
+} from "./scaffold-catalog";
 import { logger } from "./utils/logger";
 
 export interface CreateFromExampleOptions {
@@ -13,35 +19,19 @@ export interface CreateFromExampleOptions {
   useBun?: boolean;
 }
 
-const VALID_EXAMPLES = [
-  "with-ag-ui",
-  "with-ai-sdk-v6",
-  "with-artifacts",
-  "with-assistant-transport",
-  "with-chain-of-thought",
-  "with-cloud",
-  "with-custom-thread-list",
-  "with-elevenlabs-scribe",
-  "with-external-store",
-  "with-ffmpeg",
-  "with-langgraph",
-  "with-parent-id-grouping",
-  "with-react-hook-form",
-  "with-react-router",
-  "with-tanstack",
-];
-
 export async function createFromExample(
   projectDir: string,
   exampleName: string,
   opts: CreateFromExampleOptions,
 ): Promise<void> {
   // 1. Validate example name
-  if (!VALID_EXAMPLES.includes(exampleName)) {
+  if (!isExampleName(exampleName)) {
     logger.error(`Unknown example: ${exampleName}`);
-    logger.info(`Available examples: ${VALID_EXAMPLES.join(", ")}`);
+    logger.info(`Available examples: ${exampleNames.join(", ")}`);
     process.exit(1);
   }
+
+  const validExampleName = exampleName;
 
   const absoluteProjectDir = path.resolve(projectDir);
 
@@ -54,12 +44,12 @@ export async function createFromExample(
     }
   }
 
-  logger.info(`Creating project from example: ${exampleName}`);
+  logger.info(`Creating project from example: ${validExampleName}`);
   logger.break();
 
   // 2. Download example using degit
   logger.step("Downloading example...");
-  await downloadExample(exampleName, absoluteProjectDir);
+  await downloadExample(validExampleName, absoluteProjectDir);
 
   // 3. Transform package.json
   logger.step("Transforming package.json...");
@@ -118,10 +108,10 @@ export async function createFromExample(
 }
 
 async function downloadExample(
-  exampleName: string,
+  exampleName: ExampleName,
   destDir: string,
 ): Promise<void> {
-  const degitPath = `assistant-ui/assistant-ui/examples/${exampleName}`;
+  const degitPath = resolveExampleSourceSpecifier(exampleName);
 
   return new Promise((resolve, reject) => {
     const child = spawn("npx", ["degit", degitPath, destDir, "--force"], {

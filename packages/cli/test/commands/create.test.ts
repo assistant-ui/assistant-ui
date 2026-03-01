@@ -5,6 +5,7 @@ import {
   resolveCreateProjectDirectory,
   resolveCreateTemplateName,
 } from "../../src/commands/create";
+import { resolveTemplateSourceUrl } from "../../src/lib/scaffold-catalog";
 
 describe("create command template resolution", () => {
   it("exposes --preset option", () => {
@@ -67,10 +68,12 @@ describe("create command template resolution", () => {
   });
 
   it("builds create-next-app args from parsed create options", () => {
+    const cloudTemplateUrl = resolveTemplateSourceUrl("cloud");
+
     const args = buildCreateNextAppArgs({
       projectDirectory: "my-app",
       usePnpm: true,
-      templateUrl: "https://github.com/assistant-ui/assistant-ui-starter-cloud",
+      templateUrl: cloudTemplateUrl,
     });
 
     expect(args).toEqual([
@@ -78,7 +81,7 @@ describe("create command template resolution", () => {
       "my-app",
       "--use-pnpm",
       "-e",
-      "https://github.com/assistant-ui/assistant-ui-starter-cloud",
+      cloudTemplateUrl,
     ]);
   });
 

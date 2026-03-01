@@ -3,55 +3,16 @@ import chalk from "chalk";
 import { spawn } from "cross-spawn";
 import path from "node:path";
 import * as p from "@clack/prompts";
+import {
+  exampleNames,
+  isTemplateName,
+  resolveTemplateSourceUrl,
+  templateNames,
+  templatePickerOptions,
+  type TemplateName,
+} from "../lib/scaffold-catalog";
 import { logger } from "../lib/utils/logger";
 import { createFromExample } from "../lib/create-from-example";
-
-// Keep in sync with packages/create-assistant-ui/src/index.ts
-const templates = {
-  default: {
-    url: "https://github.com/assistant-ui/assistant-ui-starter",
-    label: "Default",
-    hint: "Default template with Vercel AI SDK",
-  },
-  minimal: {
-    url: "https://github.com/assistant-ui/assistant-ui-starter-minimal",
-    label: "Minimal",
-    hint: "Bare-bones starting point",
-  },
-  cloud: {
-    url: "https://github.com/assistant-ui/assistant-ui-starter-cloud",
-    label: "Cloud",
-    hint: "Cloud-backed persistence starter",
-  },
-  "cloud-clerk": {
-    url: "https://github.com/assistant-ui/assistant-ui-starter-cloud-clerk",
-    label: "Cloud + Clerk",
-    hint: "Cloud-backed starter with Clerk auth",
-  },
-  langgraph: {
-    url: "https://github.com/assistant-ui/assistant-ui-starter-langgraph",
-    label: "LangGraph",
-    hint: "LangGraph starter template",
-  },
-  mcp: {
-    url: "https://github.com/assistant-ui/assistant-ui-starter-mcp",
-    label: "MCP",
-    hint: "MCP starter template",
-  },
-} as const;
-
-type TemplateName = keyof typeof templates;
-const templateNames = Object.keys(templates) as TemplateName[];
-
-const templatePickerOptions: Array<{
-  value: TemplateName;
-  label: string;
-  hint: string;
-}> = templateNames.map((name) => ({
-  value: name,
-  label: templates[name].label,
-  hint: templates[name].hint,
-}));
 
 export async function resolveCreateTemplateName(params: {
   template?: string;
@@ -174,7 +135,7 @@ export const create = new Command()
   )
   .option(
     "-e, --example <example>",
-    "create from an example (e.g., with-langgraph, with-ai-sdk-v6)",
+    `create from an example (${exampleNames.join(", ")})`,
   )
   .option(
     "-p, --preset <url>",
@@ -226,13 +187,13 @@ export const create = new Command()
       process.exit(0);
     }
 
-    const templateUrl = templates[templateName]?.url;
-
-    if (!templateUrl) {
+    if (!isTemplateName(templateName)) {
       logger.error(`Unknown template: ${opts.template}`);
       logger.info(`Available templates: ${templateNames.join(", ")}`);
       process.exit(1);
     }
+
+    const templateUrl = resolveTemplateSourceUrl(templateName);
 
     logger.info(`Creating project with template: ${templateName}`);
     logger.break();
