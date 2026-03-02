@@ -1308,6 +1308,75 @@ describe("useLangGraphMessages", {}, () => {
     });
   });
 
+  it("handles tool_call_chunks with index 0 (tool_use as first content block)", async () => {
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "messages",
+        data: [
+          {
+            id: "run-1",
+            content: "",
+            type: "AIMessageChunk",
+            tool_call_chunks: [
+              {
+                id: "toolu_xxx",
+                index: 0,
+                name: "explore_schema",
+                args: "",
+              },
+            ],
+          },
+          { run_attempt: 1 },
+        ],
+      },
+      {
+        event: "messages",
+        data: [
+          {
+            id: "run-1",
+            content: "",
+            type: "AIMessageChunk",
+            tool_call_chunks: [
+              {
+                id: "toolu_xxx",
+                index: 0,
+                name: "explore_schema",
+                args: '{"q":"hello"}',
+              },
+            ],
+          },
+          { run_attempt: 1 },
+        ],
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage([{ type: "human", content: "Go" }], {});
+    });
+
+    await waitFor(() => {
+      expect(result.current.messages).toHaveLength(2);
+      const aiMessage = result.current.messages[1]!;
+      expect(aiMessage.type).toBe("ai");
+      if (aiMessage.type !== "ai") {
+        throw new Error("Expected AI message");
+      }
+
+      expect(aiMessage.tool_calls).toHaveLength(1);
+      expect(aiMessage.tool_calls?.[0]?.id).toBe("toolu_xxx");
+      expect(aiMessage.tool_calls?.[0]?.name).toBe("explore_schema");
+      expect(aiMessage.tool_calls?.[0]?.args).toMatchObject({ q: "hello" });
+    });
+  });
+
   it("accepts tool messages from messages tuple streams", async () => {
     const onMessageChunk = vi.fn();
     const mockStreamCallback = mockStreamCallbackFactory([
