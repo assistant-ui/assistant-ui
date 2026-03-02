@@ -6,7 +6,6 @@ import * as p from "@clack/prompts";
 import { logger } from "../lib/utils/logger";
 import { createFromExample } from "../lib/create-from-example";
 
-// Keep in sync with packages/create-assistant-ui/src/index.ts
 const templates = {
   default: {
     url: "https://github.com/assistant-ui/assistant-ui-starter",
