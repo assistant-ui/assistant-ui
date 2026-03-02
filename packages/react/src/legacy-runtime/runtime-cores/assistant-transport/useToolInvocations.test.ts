@@ -223,4 +223,71 @@ describe("useToolInvocations", () => {
     });
     expect(Object.keys(statuses)).not.toContain("tool-1:rewrite:0");
   });
+
+  it("does not close args stream early for non-executable tool snapshots", () => {
+    const getTools = () => ({
+      weatherSearch: {
+        parameters: { type: "object", properties: {} },
+      } satisfies Tool,
+    });
+    const onResult = vi.fn();
+    const setToolStatuses = vi.fn();
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    try {
+      const { rerender } = renderHook(
+        ({ state }: { state: AssistantTransportState }) =>
+          useToolInvocations({
+            state,
+            getTools,
+            onResult,
+            setToolStatuses,
+          }),
+        {
+          initialProps: {
+            state: createState([]),
+          },
+        },
+      );
+
+      act(() => {
+        rerender({
+          state: createState([createAssistantMessage("{}", {})]),
+        });
+      });
+
+      act(() => {
+        rerender({
+          state: createState([
+            createAssistantMessage('{"title":"Weekly"', {
+              title: "Weekly",
+            }),
+          ]),
+        });
+      });
+
+      act(() => {
+        rerender({
+          state: createState([
+            createAssistantMessage('{"title":"Weekly","columns":["name"]}', {
+              title: "Weekly",
+              columns: ["name"],
+            }),
+          ]),
+        });
+      });
+
+      expect(warnSpy).not.toHaveBeenCalledWith(
+        "argsText updated after controller was closed:",
+        expect.anything(),
+      );
+      expect(warnSpy).not.toHaveBeenCalledWith(
+        "argsText updated after controller was closed, restarting tool args stream:",
+        expect.anything(),
+      );
+      expect(onResult).not.toHaveBeenCalled();
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
 });
