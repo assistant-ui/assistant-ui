@@ -289,7 +289,11 @@ export function useToolInvocations({
       hasResult: boolean;
     }) => {
       if (hasResult) return true;
-      if (!hasExecutableTool(toolName)) return false;
+      if (!hasExecutableTool(toolName)) {
+        // Non-executable tools can emit parseable snapshots mid-stream.
+        // Wait until the run settles before closing the args stream.
+        return !state.isRunning && isArgsTextComplete(argsText);
+      }
       return isArgsTextComplete(argsText);
     };
 
@@ -360,6 +364,8 @@ export function useToolInvocations({
               }
 
               if (content.argsText !== lastState.argsText) {
+                let shouldWriteArgsText = true;
+
                 if (lastState.argsComplete) {
                   if (
                     isEquivalentCompleteArgsText(
@@ -367,42 +373,50 @@ export function useToolInvocations({
                       content.argsText,
                     )
                   ) {
-                    patchToolState(content.toolCallId, lastState, {
+                    lastState = patchToolState(content.toolCallId, lastState, {
                       argsText: content.argsText,
                     });
-                    return;
+                    shouldWriteArgsText = false;
                   }
 
-                  const canRestartClosedArgsStream =
-                    !lastState.hasResult &&
-                    !startedExecutionToolCallIdsRef.current.has(
-                      lastState.streamToolCallId,
-                    );
+                  if (shouldWriteArgsText) {
+                    const canRestartClosedArgsStream =
+                      !lastState.hasResult &&
+                      !startedExecutionToolCallIdsRef.current.has(
+                        lastState.streamToolCallId,
+                      );
 
-                  if (process.env.NODE_ENV !== "production") {
-                    console.warn(
-                      canRestartClosedArgsStream
-                        ? "argsText updated after controller was closed, restarting tool args stream:"
-                        : "argsText updated after controller was closed:",
-                      {
-                        previous: lastState.argsText,
-                        next: content.argsText,
-                      },
-                    );
+                    if (process.env.NODE_ENV !== "production") {
+                      console.warn(
+                        canRestartClosedArgsStream
+                          ? "argsText updated after controller was closed, restarting tool args stream:"
+                          : "argsText updated after controller was closed:",
+                        {
+                          previous: lastState.argsText,
+                          next: content.argsText,
+                        },
+                      );
+                    }
+
+                    if (!canRestartClosedArgsStream) {
+                      lastState = patchToolState(
+                        content.toolCallId,
+                        lastState,
+                        {
+                          argsText: content.argsText,
+                        },
+                      );
+                      shouldWriteArgsText = false;
+                    }
                   }
 
-                  if (!canRestartClosedArgsStream) {
-                    patchToolState(content.toolCallId, lastState, {
-                      argsText: content.argsText,
+                  if (shouldWriteArgsText) {
+                    lastState = restartToolArgsStream({
+                      toolCallId: content.toolCallId,
+                      toolName: content.toolName,
+                      state: lastState,
                     });
-                    return;
                   }
-
-                  lastState = restartToolArgsStream({
-                    toolCallId: content.toolCallId,
-                    toolName: content.toolName,
-                    state: lastState,
-                  });
                 } else if (!content.argsText.startsWith(lastState.argsText)) {
                   // Check if this is key reordering (both are complete JSON)
                   // This happens when transitioning from streaming to complete state
@@ -423,34 +437,54 @@ export function useToolInvocations({
                     if (shouldClose) {
                       lastState.controller.argsText.close();
                     }
-                    patchToolState(content.toolCallId, lastState, {
+                    lastState = patchToolState(content.toolCallId, lastState, {
                       argsText: content.argsText,
                       argsComplete: shouldClose,
                     });
-                    return; // Continue to next content part
+                    shouldWriteArgsText = false;
                   }
-                  if (process.env.NODE_ENV !== "production") {
-                    console.warn(
-                      "argsText rewrote previous snapshot, restarting tool args stream:",
-                      {
-                        previous: lastState.argsText,
-                        next: content.argsText,
-                        toolCallId: content.toolCallId,
-                      },
-                    );
+                  if (shouldWriteArgsText) {
+                    if (process.env.NODE_ENV !== "production") {
+                      console.warn(
+                        "argsText rewrote previous snapshot, restarting tool args stream:",
+                        {
+                          previous: lastState.argsText,
+                          next: content.argsText,
+                          toolCallId: content.toolCallId,
+                        },
+                      );
+                    }
+                    lastState = restartToolArgsStream({
+                      toolCallId: content.toolCallId,
+                      toolName: content.toolName,
+                      state: lastState,
+                    });
                   }
-                  lastState = restartToolArgsStream({
-                    toolCallId: content.toolCallId,
-                    toolName: content.toolName,
-                    state: lastState,
-                  });
                 }
 
-                const argsTextDelta = content.argsText.slice(
-                  lastState.argsText.length,
-                );
-                lastState.controller.argsText.append(argsTextDelta);
+                if (shouldWriteArgsText) {
+                  const argsTextDelta = content.argsText.slice(
+                    lastState.argsText.length,
+                  );
+                  lastState.controller.argsText.append(argsTextDelta);
 
+                  const shouldClose = shouldCloseArgsStream({
+                    toolName: content.toolName,
+                    argsText: content.argsText,
+                    hasResult: content.result !== undefined,
+                  });
+                  if (shouldClose) {
+                    lastState.controller.argsText.close();
+                  }
+
+                  lastState = patchToolState(content.toolCallId, lastState, {
+                    argsText: content.argsText,
+                    argsComplete: shouldClose,
+                  });
+                }
+              }
+
+              if (!lastState.argsComplete) {
                 const shouldClose = shouldCloseArgsStream({
                   toolName: content.toolName,
                   argsText: content.argsText,
@@ -458,12 +492,11 @@ export function useToolInvocations({
                 });
                 if (shouldClose) {
                   lastState.controller.argsText.close();
+                  lastState = patchToolState(content.toolCallId, lastState, {
+                    argsText: content.argsText,
+                    argsComplete: true,
+                  });
                 }
-
-                patchToolState(content.toolCallId, lastState, {
-                  argsText: content.argsText,
-                  argsComplete: shouldClose,
-                });
               }
 
               if (content.result !== undefined && !lastState.hasResult) {
