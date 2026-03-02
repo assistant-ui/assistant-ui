@@ -4,6 +4,10 @@ import {
   ReadonlyJSONValue,
 } from "assistant-stream/utils";
 
+export function isRecord(value: unknown): value is Record<string, unknown> {
+  return value != null && typeof value === "object" && !Array.isArray(value);
+}
+
 export function isJSONValue(
   value: unknown,
   currentDepth: number = 0,
@@ -30,7 +34,7 @@ export function isJSONValue(
     return value.every((item) => isJSONValue(item, currentDepth + 1));
   }
 
-  if (typeof value === "object") {
+  if (isRecord(value)) {
     return Object.entries(value).every(
       ([key, val]) =>
         typeof key === "string" && isJSONValue(val, currentDepth + 1),
@@ -46,8 +50,7 @@ export function isJSONArray(value: unknown): value is ReadonlyJSONArray {
 
 export function isJSONObject(value: unknown): value is ReadonlyJSONObject {
   return (
-    value != null &&
-    typeof value === "object" &&
+    isRecord(value) &&
     Object.entries(value).every(
       ([key, val]) => typeof key === "string" && isJSONValue(val),
     )

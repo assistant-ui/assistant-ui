@@ -14,6 +14,7 @@ import {
   AssistantMetaTransformStream,
   type ReadonlyJSONValue,
 } from "assistant-stream/utils";
+import { isJSONValueEqual } from "../../../utils/json/is-json-equal";
 
 const isArgsTextComplete = (argsText: string) => {
   try {
@@ -32,34 +33,11 @@ const parseArgsText = (argsText: string) => {
   }
 };
 
-const isRecord = (value: unknown): value is Record<string, unknown> => {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-};
-
-const isJsonValueEqual = (a: unknown, b: unknown): boolean => {
-  if (a === b) return true;
-
-  if (Array.isArray(a)) {
-    if (!Array.isArray(b) || a.length !== b.length) return false;
-    return a.every((item, idx) => isJsonValueEqual(item, b[idx]));
-  }
-
-  if (isRecord(a)) {
-    if (!isRecord(b)) return false;
-    const aKeys = Object.keys(a);
-    const bKeys = Object.keys(b);
-    if (aKeys.length !== bKeys.length) return false;
-    return aKeys.every((key) => key in b && isJsonValueEqual(a[key], b[key]));
-  }
-
-  return false;
-};
-
 const isEquivalentCompleteArgsText = (previous: string, next: string) => {
   const previousValue = parseArgsText(previous);
   const nextValue = parseArgsText(next);
   if (previousValue === undefined || nextValue === undefined) return false;
-  return isJsonValueEqual(previousValue, nextValue);
+  return isJSONValueEqual(previousValue, nextValue);
 };
 
 type UseToolInvocationsParams = {
