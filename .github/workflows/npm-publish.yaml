@@ -3,6 +3,12 @@ name: npm Publish
 on:
   repository_dispatch:
     types: [npm-publish]
+  workflow_dispatch:
+    inputs:
+      releaseSha:
+        description: "Release commit SHA to publish"
+        required: true
+        type: string
 
 permissions:
   id-token: write
@@ -12,22 +18,56 @@ env:
   CI: true
 
 jobs:
+  approve:
+    name: Approve npm publish
+    environment: npm Publish
+    runs-on: ubuntu-24.04
+    concurrency:
+      group: npm-publish-approval
+      cancel-in-progress: true
+    outputs:
+      release_sha: ${{ steps.release-sha.outputs.value }}
+    steps:
+      - name: Resolve release commit SHA
+        id: release-sha
+        env:
+          DISPATCH_RELEASE_SHA: ${{ github.event.client_payload.releaseSha }}
+          MANUAL_RELEASE_SHA: ${{ github.event.inputs.releaseSha }}
+        run: |
+          release_sha="$DISPATCH_RELEASE_SHA"
+          if [ -z "$release_sha" ]; then
+            release_sha="$MANUAL_RELEASE_SHA"
+          fi
+
+          if [ -z "$release_sha" ]; then
+            echo "Missing releaseSha (repository_dispatch payload or workflow_dispatch input)" >&2
+            exit 1
+          fi
+
+          echo "value=$release_sha" >> "$GITHUB_OUTPUT"
+
   publish:
     name: Publish to npm
-    if: github.ref == 'refs/heads/main'
-    environment: npm Publish
-    runs-on: ubuntu-latest
+    needs: approve
+    runs-on: ubuntu-24.04
+    concurrency:
+      group: npm-publish-exec
+      cancel-in-progress: false
+    env:
+      RELEASE_SHA: ${{ needs.approve.outputs.release_sha }}
     steps:
+
       - name: Checkout code repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
-          fetch-depth: 1
+          fetch-depth: 0
+          ref: ${{ env.RELEASE_SHA }}
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4
 
       - name: Setup node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
         with:
           node-version: 24
           # No cache - hardened against cache poisoning for sensitive publish operations
@@ -36,41 +76,42 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Publish to npm
-        run: pnpm ci:publish
+      - name: Validate release commit is on main
+        run: |
+          if [ -z "$RELEASE_SHA" ]; then
+            echo "Missing releaseSha" >&2
+            exit 1
+          fi
+
+          head_sha=$(git rev-parse HEAD)
+          if [ "$head_sha" != "$RELEASE_SHA" ]; then
+            echo "Checked out commit does not match releaseSha payload" >&2
+            echo "HEAD=$head_sha" >&2
+            echo "releaseSha=$RELEASE_SHA" >&2
+            exit 1
+          fi
+
+          git fetch origin main
+          origin_main_sha=$(git rev-parse origin/main)
+          if ! git merge-base --is-ancestor "$RELEASE_SHA" origin/main; then
+            echo "releaseSha is not an ancestor of origin/main; refusing to publish" >&2
+            echo "releaseSha=$RELEASE_SHA" >&2
+            echo "origin/main SHA=$origin_main_sha" >&2
+            exit 1
+          fi
+
+      - name: Publish to npm and create GitHub releases
+        id: changesets-publish
+        uses: changesets/action@6a0a831ff30acef54f2c6aa1cbbc1096b066edaf # v1.7.0
+        with:
+          publish: bash -eo pipefail -c "pnpm ci:publish || (echo 'Publish failed, retrying once in 20 seconds...' >&2; sleep 20; pnpm ci:publish)"
+          createGithubReleases: true
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Create GitHub Releases
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Recovery guidance
+        if: failure()
         run: |
-          git fetch --tags
-
-          for pkg in packages/*/package.json; do
-            name=$(jq -r '.name' "$pkg")
-            version=$(jq -r '.version' "$pkg")
-            private=$(jq -r '.private // false' "$pkg")
-
-            [[ "$private" == "true" ]] && continue
-
-            tag="${name}@${version}"
-
-            git rev-parse "$tag" >/dev/null 2>&1 || continue
-            gh release view "$tag" >/dev/null 2>&1 && continue
-
-            changelog_dir=$(dirname "$pkg")
-            changelog="$changelog_dir/CHANGELOG.md"
-
-            notes=""
-            if [[ -f "$changelog" ]]; then
-              notes=$(awk "/^## ${version//./\\.}\$/,/^## [0-9]/" "$changelog" | head -n -1 | tail -n +2)
-            fi
-            [[ -z "$notes" ]] && notes="Release ${tag}"
-
-            echo "Creating release: $tag"
-            gh release create "$tag" \
-              --title "$tag" \
-              --notes "$notes" \
-              --verify-tag || echo "Warning: Failed to create release for $tag"
-          done
+          echo "::error::Publish failed for release SHA ${RELEASE_SHA}."
+          echo "::error::Rerun this workflow run, or run workflow_dispatch with releaseSha=${RELEASE_SHA}."
