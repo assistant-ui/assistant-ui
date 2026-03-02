@@ -1,1 +1,1 @@
-pnpm --frozen-lockfile exec lint-staged
+CI=true pnpm exec lint-staged
