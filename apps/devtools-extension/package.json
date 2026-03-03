@@ -5,10 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "tsx scripts/build-extension.mts",
-    "dev": "NODE_ENV=development tsx scripts/build-extension.mts --watch",
-    "deps:check": "npx taze major -f",
-    "deps:update": "npx taze major -f -w && pnpm install",
-    "deps:update:no-install": "npx taze major -f -w"
+    "dev": "NODE_ENV=development tsx scripts/build-extension.mts --watch"
   },
   "dependencies": {
     "@assistant-ui/react-devtools": "workspace:*",
@@ -18,7 +15,7 @@
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/chrome": "^0.1.37",
-    "@types/node": "^25.3.0",
+    "@types/node": "^25.3.3",
     "@types/webextension-polyfill": "^0.12.5",
     "esbuild": "^0.27.3",
     "tsx": "^4.21.0",

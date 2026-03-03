@@ -6,10 +6,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
-    "deps:check": "npx taze major -f",
-    "deps:update": "npx taze major -f -w && pnpm install",
-    "deps:update:no-install": "npx taze major -f -w"
+    "start": "next start"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.33",

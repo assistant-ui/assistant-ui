@@ -64,13 +64,10 @@
     "test:coverage": "vitest run --coverage",
     "test:scaffold": "bash scripts/test-scaffold.sh",
     "typecheck": "tsc --noEmit",
-    "prepack": "pnpm run build",
-    "deps:check": "npx taze major -f",
-    "deps:update": "npx taze major -f -w && pnpm install",
-    "deps:update:no-install": "npx taze major -f -w"
+    "prepack": "pnpm run build"
   },
   "dependencies": {
-    "@clack/prompts": "^1.0.1",
+    "@clack/prompts": "^1.1.0",
     "picocolors": "^1.1.1",
     "tar": "^7.5.9"
   },
@@ -87,9 +84,9 @@
     }
   },
   "devDependencies": {
-    "@modelcontextprotocol/ext-apps": "^1.1.1",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^25.3.0",
+    "@modelcontextprotocol/ext-apps": "^1.1.2",
+    "@types/node": "^25.3.3",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@types/tar": "^7.0.87",

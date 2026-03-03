@@ -6,10 +6,7 @@
     "build": "react-router build",
     "dev": "react-router dev",
     "start": "react-router-serve ./build/server/index.js",
-    "typecheck": "react-router typegen && tsc",
-    "deps:check": "npx taze major -f",
-    "deps:update": "npx taze major -f -w && pnpm install",
-    "deps:update:no-install": "npx taze major -f -w"
+    "typecheck": "react-router typegen && tsc"
   },
   "dependencies": {
     "@assistant-ui/react": "workspace:*",
@@ -19,19 +16,19 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "eventsource-parser": "^3.0.6",
-    "lucide-react": "^0.575.0",
+    "isbot": "^5.1.35",
+    "lucide-react": "^0.576.0",
     "openai": "^6.25.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-router": "^7.13.1",
     "remark-gfm": "^4.0.1",
-    "tailwind-merge": "^3.5.0",
-    "isbot": "^5"
+    "tailwind-merge": "^3.5.0"
   },
   "devDependencies": {
     "@react-router/dev": "^7.13.1",
     "@tailwindcss/vite": "^4.2.1",
-    "@types/node": "^25.3.0",
+    "@types/node": "^25.3.3",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "tailwindcss": "^4.2.1",

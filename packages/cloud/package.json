@@ -30,17 +30,14 @@
   "scripts": {
     "build": "aui-build",
     "test": "vitest run",
-    "test:watch": "vitest",
-    "deps:check": "npx taze major -f",
-    "deps:update": "npx taze major -f -w && pnpm install",
-    "deps:update:no-install": "npx taze major -f -w"
+    "test:watch": "vitest"
   },
   "dependencies": {
     "assistant-stream": "^0.3.4"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^25.3.0",
+    "@types/node": "^25.3.3",
     "vitest": "^4.0.18"
   },
   "publishConfig": {

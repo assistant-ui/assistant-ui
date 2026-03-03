@@ -30,10 +30,7 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "aui-build",
-    "deps:check": "npx taze major -f",
-    "deps:update": "npx taze major -f -w && pnpm install",
-    "deps:update:no-install": "npx taze major -f -w"
+    "build": "aui-build"
   },
   "dependencies": {
     "assistant-stream": "^0.3.4",

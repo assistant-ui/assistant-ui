@@ -23,7 +23,7 @@
     "typescript": "^5.9.3"
   },
   "devDependencies": {
-    "@types/node": "^25.3.0"
+    "@types/node": "^25.3.3"
   },
   "homepage": "https://www.assistant-ui.com/",
   "repository": {
@@ -34,9 +34,5 @@
   "bugs": {
     "url": "https://github.com/assistant-ui/assistant-ui/issues"
   },
-  "scripts": {
-    "deps:check": "npx taze major -f",
-    "deps:update": "npx taze major -f -w && pnpm install",
-    "deps:update:no-install": "npx taze major -f -w"
-  }
+  "scripts": {}
 }

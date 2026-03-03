@@ -4,21 +4,21 @@
   "version": "0.0.0",
   "type": "module",
   "dependencies": {
-    "@ai-sdk/openai": "^3.0.33",
-    "@ai-sdk/react": "^3.0.100",
+    "@ai-sdk/openai": "^3.0.39",
+    "@ai-sdk/react": "^3.0.113",
     "@assistant-ui/react": "workspace:^",
     "@assistant-ui/react-ai-sdk": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:^",
     "@assistant-ui/ui": "workspace:*",
     "@elevenlabs/client": "^0.15.0",
     "@tailwindcss/postcss": "^4.2.1",
-    "ai": "^6.0.98",
+    "ai": "^6.0.111",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "lucide-react": "^0.575.0",
-    "motion": "^12.34.3",
+    "lucide-react": "^0.576.0",
+    "motion": "^12.34.5",
     "next": "^16.1.6",
-    "postcss": "^8.5.6",
+    "postcss": "^8.5.8",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "tailwind-merge": "^3.5.0",
@@ -27,7 +27,7 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^25.3.0",
+    "@types/node": "^25.3.3",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "tw-animate-css": "^1.4.0",
@@ -36,9 +36,6 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
-    "deps:check": "npx taze major -f",
-    "deps:update": "npx taze major -f -w && pnpm install",
-    "deps:update:no-install": "npx taze major -f -w"
+    "start": "next start"
   }
 }

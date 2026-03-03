@@ -33,10 +33,7 @@
   "scripts": {
     "build": "aui-build",
     "test": "vitest run",
-    "test:watch": "vitest",
-    "deps:check": "npx taze major -f",
-    "deps:update": "npx taze major -f -w && pnpm install",
-    "deps:update:no-install": "npx taze major -f -w"
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@ai-sdk/react": "^3.0.100",

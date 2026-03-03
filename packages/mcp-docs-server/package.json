@@ -38,10 +38,7 @@
     "dev": "tsx src/stdio.ts",
     "pretest": "pnpm build",
     "test": "vitest run",
-    "test:watch": "vitest",
-    "deps:check": "npx taze major -f",
-    "deps:update": "npx taze major -f -w && pnpm install",
-    "deps:update:no-install": "npx taze major -f -w"
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.27.1",
@@ -50,7 +47,7 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^25.3.0",
+    "@types/node": "^25.3.3",
     "tsx": "^4.21.0",
     "vitest": "^4.0.18"
   },

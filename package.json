@@ -14,10 +14,8 @@
     "lint:fix": "pnpm exec biome check --fix",
     "test": "turbo test",
     "prepare": "husky",
-    "deps:check": "npx taze major --force",
-    "deps:check:repo": "turbo run deps:check",
-    "deps:update": "npx taze major --force --write && pnpm install",
-    "deps:update:repo": "npx taze major --force --write && turbo run deps:update:no-install && pnpm install"
+    "deps:check": "npx taze major -f -r",
+    "deps:update": "npx taze major -f -w -r && pnpm install"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.5",
