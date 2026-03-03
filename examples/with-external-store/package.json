@@ -7,9 +7,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "deps:check": "npx taze major -f -x",
+    "deps:check": "npx taze major -f",
     "deps:update": "npx taze major -f -w && pnpm install",
-    "deps:update:no-install": "npx taze major -f -w -x"
+    "deps:update:no-install": "npx taze major -f -w"
   },
   "dependencies": {
     "@assistant-ui/react": "workspace:*",

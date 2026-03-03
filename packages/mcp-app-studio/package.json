@@ -65,9 +65,9 @@
     "test:scaffold": "bash scripts/test-scaffold.sh",
     "typecheck": "tsc --noEmit",
     "prepack": "pnpm run build",
-    "deps:check": "npx taze major -f -x",
+    "deps:check": "npx taze major -f",
     "deps:update": "npx taze major -f -w && pnpm install",
-    "deps:update:no-install": "npx taze major -f -w -x"
+    "deps:update:no-install": "npx taze major -f -w"
   },
   "dependencies": {
     "@clack/prompts": "^1.0.1",

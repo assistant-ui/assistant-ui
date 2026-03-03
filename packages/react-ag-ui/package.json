@@ -33,9 +33,9 @@
     "build": "aui-build",
     "test": "vitest run",
     "test:watch": "vitest",
-    "deps:check": "npx taze major -f -x",
+    "deps:check": "npx taze major -f",
     "deps:update": "npx taze major -f -w && pnpm install",
-    "deps:update:no-install": "npx taze major -f -w -x"
+    "deps:update:no-install": "npx taze major -f -w"
   },
   "dependencies": {
     "@ag-ui/client": "^0.0.45",
