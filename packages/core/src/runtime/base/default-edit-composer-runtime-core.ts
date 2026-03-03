@@ -73,8 +73,9 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
     );
 
     if (text !== this._previousText || didAttachmentsChange) {
-      // Only re-inject original non-text content parts if the user
-      // did not modify attachments; otherwise respect their changes.
+      // Re-inject original non-text content parts (file parts, image parts,etc.) only when attachments are unchanged. When attachments changed,
+      // we drop _nonTextParts entirely — this assumes all non-text content parts are attachment-derived.
+      // Future non-attachment content types would need separate tracking here.
       const content = didAttachmentsChange
         ? message.content
         : [...message.content, ...this._nonTextParts];
