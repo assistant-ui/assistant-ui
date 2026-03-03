@@ -4,6 +4,7 @@ description: A floating toolbar that appears when text is selected within a mess
 ---
 
 import { SelectionToolbarPrimitiveSample } from "@/components/docs/samples/selection-toolbar-primitive";
+import { SelectionToolbarPrimitive as SelectionToolbarPrimitiveDocs } from "@/generated/primitiveDocs";
 
 The SelectionToolbar primitive is a floating toolbar that appears when the user selects text within a message. It lets users quote selected text into the composer. Styling and action layout are fully customizable.
 
@@ -99,10 +100,7 @@ The SelectionToolbar must be placed inside `ThreadPrimitive.Root` but **outside*
 
 ## Parts
 
-| Part | Element | Purpose |
-|------|---------|---------|
-| `Root` | `<div>` (portal) | Floating container, auto-positioned above selection |
-| `Quote` | `<button>` | Quotes the selected text into the composer |
+<PrimitivePartsTable primitive={SelectionToolbarPrimitiveDocs} />
 
 ## Patterns
 

@@ -8,6 +8,7 @@ type ParameterDef = {
   description: string | ReactNode;
   required?: boolean;
   default?: string;
+  deprecated?: string;
   children?: Array<ParametersTableProps>;
 };
 
@@ -62,6 +63,16 @@ const Parameter: FC<{
             required
           </span>
         )}
+        {parameter.deprecated && (
+          <span className="rounded bg-amber-500/10 px-1.5 py-0.5 font-medium text-amber-600 text-xs dark:text-amber-400">
+            deprecated
+          </span>
+        )}
+        {parameter.name.startsWith("unstable_") && (
+          <span className="rounded bg-purple-500/10 px-1.5 py-0.5 font-medium text-purple-600 text-xs dark:text-purple-400">
+            unstable
+          </span>
+        )}
         {parameter.type && (
           <code className="font-mono text-muted-foreground text-xs">
             {isOptional && "?"}
@@ -80,8 +91,14 @@ const Parameter: FC<{
         {parameter.description}
       </p>
 
-      {parameter.children?.map((child) => (
-        <div key={child.type} className="mt-2">
+      {parameter.deprecated && (
+        <p className="text-amber-600 text-xs dark:text-amber-400">
+          Deprecated: {parameter.deprecated}
+        </p>
+      )}
+
+      {parameter.children?.map((child, i) => (
+        <div key={child.type ?? i} className="mt-2">
           <ParametersBox {...child} isNested />
         </div>
       ))}

@@ -4,6 +4,7 @@ description: Build custom message rendering with content parts, attachments, and
 ---
 
 import { MessagePrimitiveSample } from "@/components/docs/samples/message-primitive";
+import { MessagePrimitive as MessagePrimitiveDocs } from "@/generated/primitiveDocs";
 
 The Message primitive handles individual message rendering — content parts, attachments, hover state, and error display. It's the building block inside each message bubble, resolving text, images, tool calls, and more through a parts pipeline.
 
@@ -198,18 +199,99 @@ function MyText() {
 
 ## Parts
 
-| Part | Element | Purpose |
-|------|---------|---------|
-| `Root` | `<div>` | Container, provides message context, tracks hover state |
-| `Parts` | — | Renders each content part with type-based component resolution |
-| `Content` | — | Legacy alias for `Parts` |
-| `PartByIndex` | — | Renders a single part at a specific index |
-| `Attachments` | — | Renders all user message attachments |
-| `AttachmentByIndex` | — | Renders a single attachment at a specific index |
-| `Error` | — | Renders children only when the message has an error |
-| `Unstable_PartsGrouped` | — | Groups consecutive parts by a custom grouping function *(unstable)* |
-| `Unstable_PartsGroupedByParentId` | — | Groups parts by parent ID *(unstable, deprecated — use `Unstable_PartsGrouped`)* |
-| `If` | — | Conditional rendering *(deprecated — use `AuiIf`)* |
+<PrimitivePartsTable primitive={MessagePrimitiveDocs} />
+
+### Parts
+
+Renders each content part with type-based component resolution.
+
+```tsx
+<MessagePrimitive.Parts
+  components={{
+    Text: MyTextRenderer,
+    Image: MyImageRenderer,
+    tools: {
+      by_name: { search: SearchToolUI },
+      Fallback: GenericToolUI,
+    },
+  }}
+/>
+```
+
+<PrimitivesTypeTable type="MessagePrimitivePartsProps" parameters={MessagePrimitiveDocs.Parts.props} />
+
+### Content
+
+Legacy alias for `Parts`.
+
+### PartByIndex
+
+Renders a single part at a specific index.
+
+### Attachments
+
+Renders all user message attachments.
+
+```tsx
+<MessagePrimitive.Attachments
+  components={{
+    Image: ({ name }) => <img alt={name} className="max-w-xs rounded-lg" />,
+    Document: ({ name }) => <div className="rounded-lg border p-2 text-sm">{name}</div>,
+  }}
+/>
+```
+
+<PrimitivesTypeTable type="MessagePrimitiveAttachmentsProps" parameters={MessagePrimitiveDocs.Attachments.props} />
+
+### AttachmentByIndex
+
+Renders a single attachment at the specified index within the current message.
+
+```tsx
+<MessagePrimitive.AttachmentByIndex
+  index={0}
+  components={{ Attachment: MyAttachment }}
+/>
+```
+
+<PrimitivesTypeTable type="MessagePrimitiveAttachmentByIndexProps" parameters={MessagePrimitiveDocs.AttachmentByIndex.props} />
+
+### Error
+
+Renders children only when the message has an error.
+
+### Unstable_PartsGrouped
+
+Groups consecutive parts by a custom grouping function *(unstable)*.
+
+```tsx
+<MessagePrimitive.Unstable_PartsGrouped
+  groupingFunction={myGroupFn}
+  components={{ Text: MyText, Group: MyGroupWrapper }}
+/>
+```
+
+<PrimitivesTypeTable type="MessagePrimitiveUnstablePartsGroupedProps" parameters={MessagePrimitiveDocs.Unstable_PartsGrouped.props} />
+
+### Unstable_PartsGroupedByParentId
+
+Groups parts by parent ID *(unstable, deprecated -- use `Unstable_PartsGrouped`)*.
+
+### If (deprecated)
+
+<Callout type="warn">
+Deprecated. Use [`AuiIf`](/docs/api-reference/primitives/assistant-if) instead.
+</Callout>
+
+```tsx
+// Before (deprecated)
+<MessagePrimitive.If user>...</MessagePrimitive.If>
+<MessagePrimitive.If assistant>...</MessagePrimitive.If>
+
+// After
+<AuiIf condition={(s) => s.message.role === "user"}>...</AuiIf>
+<AuiIf condition={(s) => s.message.role === "assistant"}>...</AuiIf>
+```
 
 ## Patterns
 
@@ -284,7 +366,6 @@ import { ErrorPrimitive, MessagePrimitive } from "@assistant-ui/react";
 
 ### Legacy and Unstable APIs
 
-- `MessagePrimitive.If` is deprecated. Prefer `AuiIf`.
 - `MessagePrimitive.Unstable_PartsGrouped` and `MessagePrimitive.Unstable_PartsGroupedByParentId` are unstable APIs for custom grouping.
 - `Unstable_PartsGroupedByParentId` is deprecated in favor of `Unstable_PartsGrouped`.
 

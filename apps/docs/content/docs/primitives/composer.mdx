@@ -4,6 +4,7 @@ description: Build custom message input UIs with full control over layout and be
 ---
 
 import { ComposerPrimitiveSample } from "@/components/docs/samples/composer-primitive";
+import { ComposerPrimitive as ComposerPrimitiveDocs } from "@/generated/primitiveDocs";
 
 The Composer primitive is the interface for composing new messages or editing existing ones. It handles submit behavior, keyboard shortcuts, focus management, attachment state, and streaming status. You provide the UI.
 
@@ -103,25 +104,92 @@ The primitive's behavior (keyboard handling, disabled state, form submission) is
 
 ## Parts
 
-The Composer has the following parts you can compose together:
+<PrimitivePartsTable primitive={ComposerPrimitiveDocs} />
 
-| Part | Element | Purpose |
-|------|---------|---------|
-| `Root` | `<form>` | Container, handles form submission |
-| `Input` | `<textarea>` | Text input with keyboard shortcuts |
-| `Send` | `<button>` | Submit button, disabled when empty or running |
-| `Cancel` | `<button>` | Cancel edit or stop current run |
-| `AddAttachment` | `<button>` | Opens file picker for attachments |
-| `Attachments` | — | Renders each attachment via components prop |
-| `Dictate` | `<button>` | Start voice-to-text dictation |
-| `StopDictation` | `<button>` | Stop active dictation |
-| `Quote` | `<div>` | Shows quoted text preview |
-| `QuoteText` | `<span>` | The quoted text content |
-| `QuoteDismiss` | `<button>` | Clears the quote |
-| `AttachmentByIndex` | — | Renders a single attachment at a specific index |
-| `AttachmentDropzone` | `<div>` | Drag-and-drop zone for file attachments (`data-dragging` when active) |
-| `DictationTranscript` | `<span>` | Shows real-time speech-to-text transcript during dictation |
-| `If` | — | Conditional rendering (editing, dictation state) |
+### Input
+
+Text input with keyboard shortcuts. Renders a `<textarea>` element unless `asChild` is set.
+
+```tsx
+<ComposerPrimitive.Input
+  submitMode="ctrlEnter"
+  cancelOnEscape
+  placeholder="Ask anything..."
+/>
+```
+
+<PrimitivesTypeTable type="ComposerPrimitiveInputProps" parameters={ComposerPrimitiveDocs.Input.props.filter(p => p.name !== "asChild")} />
+
+### AddAttachment
+
+Opens file picker for attachments. Renders a `<button>` element unless `asChild` is set.
+
+```tsx
+<ComposerPrimitive.AddAttachment multiple>
+  Attach Files
+</ComposerPrimitive.AddAttachment>
+```
+
+<PrimitivesTypeTable type="ComposerPrimitiveAddAttachmentProps" parameters={ComposerPrimitiveDocs.AddAttachment.props.filter(p => p.name !== "asChild")} />
+
+### Attachments
+
+Renders each attachment via the `components` prop.
+
+```tsx
+<ComposerPrimitive.Attachments
+  components={{
+    Image: ImagePreview,
+    Document: DocumentPreview,
+    Attachment: GenericPreview,
+  }}
+/>
+```
+
+<PrimitivesTypeTable type="ComposerPrimitiveAttachmentsProps" parameters={ComposerPrimitiveDocs.Attachments.props} />
+
+### AttachmentByIndex
+
+Renders a single attachment at a specific index.
+
+```tsx
+<ComposerPrimitive.AttachmentByIndex
+  index={0}
+  components={{ Attachment: MyAttachment }}
+/>
+```
+
+<PrimitivesTypeTable type="ComposerPrimitiveAttachmentByIndexProps" parameters={ComposerPrimitiveDocs.AttachmentByIndex.props} />
+
+### AttachmentDropzone
+
+Drag-and-drop zone for file attachments. Sets `data-dragging` when a file is being dragged over it. Renders a `<div>` element unless `asChild` is set.
+
+```tsx
+<ComposerPrimitive.AttachmentDropzone className="rounded-xl border-2 border-dashed data-[dragging]:border-primary data-[dragging]:bg-primary/5">
+  <ComposerPrimitive.Root>
+    ...
+  </ComposerPrimitive.Root>
+</ComposerPrimitive.AttachmentDropzone>
+```
+
+<PrimitivesTypeTable type="ComposerPrimitiveAttachmentDropzoneProps" parameters={ComposerPrimitiveDocs.AttachmentDropzone.props.filter(p => p.name !== "asChild")} />
+
+### If (deprecated)
+
+<Callout type="warn">
+Deprecated. Use [`AuiIf`](/docs/api-reference/primitives/assistant-if) instead.
+</Callout>
+
+```tsx
+// Before (deprecated)
+<ComposerPrimitive.If editing>...</ComposerPrimitive.If>
+<ComposerPrimitive.If dictation>...</ComposerPrimitive.If>
+
+// After
+<AuiIf condition={(s) => s.composer.isEditing}>...</AuiIf>
+<AuiIf condition={(s) => s.composer.dictation != null}>...</AuiIf>
+```
 
 ## Patterns
 
@@ -168,15 +236,15 @@ The dropzone sets `data-dragging` when a file is being dragged over it, so you c
 ```tsx
 <ComposerPrimitive.Root>
   <ComposerPrimitive.Input placeholder="Ask or speak..." />
-  <ComposerPrimitive.If dictation>
+  <AuiIf condition={(s) => s.composer.dictation != null}>
     <ComposerPrimitive.DictationTranscript className="text-sm text-muted-foreground" />
-  </ComposerPrimitive.If>
-  <ComposerPrimitive.If dictation={false}>
+  </AuiIf>
+  <AuiIf condition={(s) => s.composer.dictation == null}>
     <ComposerPrimitive.Dictate>Mic</ComposerPrimitive.Dictate>
-  </ComposerPrimitive.If>
-  <ComposerPrimitive.If dictation>
+  </AuiIf>
+  <AuiIf condition={(s) => s.composer.dictation != null}>
     <ComposerPrimitive.StopDictation>Stop</ComposerPrimitive.StopDictation>
-  </ComposerPrimitive.If>
+  </AuiIf>
   <ComposerPrimitive.Send>Send</ComposerPrimitive.Send>
 </ComposerPrimitive.Root>
 ```
@@ -214,27 +282,6 @@ Use `onSubmit` on `Root` to intercept submission:
 ```
 
 With `submitMode="ctrlEnter"`, plain Enter inserts a newline and Ctrl/Cmd+Enter submits.
-
-### Input Behavior Props
-
-`ComposerPrimitive.Input` includes two behavior toggles enabled by default:
-
-- **`cancelOnEscape`** *(default: `true`)* — Pressing Escape cancels the current edit and clears the composer.
-- **`addAttachmentOnPaste`** *(default: `true`)* — Files pasted from the clipboard are automatically added as attachments.
-
-Set either to `false` to disable:
-
-```tsx
-<ComposerPrimitive.Input
-  cancelOnEscape={false}
-  addAttachmentOnPaste={false}
-/>
-```
-
-### Legacy and Unstable Input Props
-
-- `submitOnEnter` is deprecated. Prefer `submitMode` (`"enter" | "ctrlEnter" | "none"`).
-- `unstable_focusOnRunStart`, `unstable_focusOnScrollToBottom`, and `unstable_focusOnThreadSwitched` are unstable focus toggles for advanced behavior tuning.
 
 ### Floating Composer
 

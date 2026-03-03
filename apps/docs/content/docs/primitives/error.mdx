@@ -4,6 +4,7 @@ description: Accessible error display for messages with automatic error text ext
 ---
 
 import { ErrorPrimitiveSample } from "@/components/docs/samples/error-primitive";
+import { ErrorPrimitive as ErrorPrimitiveDocs } from "@/generated/primitiveDocs";
 
 The Error primitive renders error states on messages — an accessible `role="alert"` container with automatic error text extraction. It only renders when the message has an error, so you can place it unconditionally in your message layout.
 
@@ -92,10 +93,7 @@ Both `Root` and `Message` check the message status. They only render when `statu
 
 ## Parts
 
-| Part | Element | Purpose |
-|------|---------|---------|
-| `Root` | `<div>` | Container with `role="alert"`, renders only on error |
-| `Message` | `<span>` | Error text, auto-extracted from message state |
+<PrimitivePartsTable primitive={ErrorPrimitiveDocs} />
 
 ## Patterns
 

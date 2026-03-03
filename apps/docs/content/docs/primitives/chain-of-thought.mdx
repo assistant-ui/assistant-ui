@@ -4,6 +4,7 @@ description: Collapsible accordion for grouping reasoning steps and tool calls.
 ---
 
 import { ChainOfThoughtPrimitiveSample } from "@/components/docs/samples/chain-of-thought-primitive";
+import { ChainOfThoughtPrimitive as ChainOfThoughtPrimitiveDocs } from "@/generated/primitiveDocs";
 
 The ChainOfThought primitive groups consecutive reasoning and tool-call parts into a collapsible accordion. Reasoning models emit reasoning tokens and tool calls before producing a final answer. This primitive lets you collapse those intermediate steps behind a "Thinking" toggle.
 
@@ -179,11 +180,32 @@ import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
 
 ## Parts
 
-| Part | Element | Purpose |
-|------|---------|---------|
-| `Root` | `<div>` | Container for the chain of thought group |
-| `AccordionTrigger` | `<button>` | Toggles collapsed/expanded state |
-| `Parts` | — | Renders reasoning and tool-call parts when expanded |
+<PrimitivePartsTable primitive={ChainOfThoughtPrimitiveDocs} />
+
+### Parts
+
+Renders reasoning and tool-call parts when expanded.
+
+```tsx
+<ChainOfThoughtPrimitive.Parts
+  components={{
+    Reasoning: ({ text }) => (
+      <p className="whitespace-pre-wrap px-4 py-2 text-muted-foreground text-sm italic">
+        {text}
+      </p>
+    ),
+    tools: {
+      Fallback: ({ toolName, isLoading }) => (
+        <div className="px-4 py-2 text-sm">
+          {isLoading ? `Running ${toolName}...` : `${toolName} completed`}
+        </div>
+      ),
+    },
+  }}
+/>
+```
+
+<PrimitivesTypeTable type="ChainOfThoughtPrimitivePartsProps" parameters={ChainOfThoughtPrimitiveDocs.Parts.props} />
 
 ## Patterns
 

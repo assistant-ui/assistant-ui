@@ -4,6 +4,7 @@ description: Suggested prompts that users can click to quickly send or populate 
 ---
 
 import { SuggestionPrimitiveSample } from "@/components/docs/samples/suggestion-primitive";
+import { SuggestionPrimitive as SuggestionPrimitiveDocs } from "@/generated/primitiveDocs";
 
 The Suggestion primitive renders suggested prompts as clickable pills that send a message or populate the composer. Use it for welcome screen suggestions, follow-up prompts, or quick actions. You provide the layout and styling.
 
@@ -144,11 +145,19 @@ When `send={false}`, the `clearComposer` prop controls whether the suggestion re
 
 ## Parts
 
-| Part | Element | Purpose |
-|------|---------|---------|
-| `Title` | `<span>` | Primary suggestion text |
-| `Description` | `<span>` | Secondary description text |
-| `Trigger` | `<button>` | Clickable button that sends or populates the suggestion |
+<PrimitivePartsTable primitive={SuggestionPrimitiveDocs} />
+
+### Trigger
+
+Clickable button that sends or populates the suggestion. Renders a `<button>` element unless `asChild` is set.
+
+```tsx
+<SuggestionPrimitive.Trigger send className="rounded-lg border px-3 py-2 hover:bg-muted">
+  <SuggestionPrimitive.Title />
+</SuggestionPrimitive.Trigger>
+```
+
+<PrimitivesTypeTable type="SuggestionPrimitiveTriggerProps" parameters={SuggestionPrimitiveDocs.Trigger.props.filter(p => p.name !== "asChild")} />
 
 ## Patterns
 
@@ -157,7 +166,7 @@ When `send={false}`, the `clearComposer` prop controls whether the suggestion re
 ```tsx
 function WelcomeSuggestions() {
   return (
-    <ThreadPrimitive.Empty>
+    <AuiIf condition={(s) => s.thread.isEmpty}>
       <div className="text-center">
         <h2 className="text-lg font-semibold">How can I help you?</h2>
         <div className="mt-4 grid grid-cols-2 gap-2">
@@ -166,7 +175,7 @@ function WelcomeSuggestions() {
           />
         </div>
       </div>
-    </ThreadPrimitive.Empty>
+    </AuiIf>
   );
 }
 

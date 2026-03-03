@@ -4,6 +4,7 @@ description: File and image attachment rendering for the composer and messages.
 ---
 
 import { AttachmentSample } from "@/components/docs/samples/attachment";
+import { AttachmentPrimitive as AttachmentPrimitiveDocs } from "@/generated/primitiveDocs";
 
 The Attachment primitive renders file and image attachments. It appears in two places: inside the composer for pending uploads (with a remove button), and inside messages for sent attachments (read-only). You provide the layout and styling.
 
@@ -111,12 +112,7 @@ Each component receives its attachment context automatically, with no props to p
 
 ## Parts
 
-| Part | Element | Purpose |
-|------|---------|---------|
-| `Root` | `<div>` | Container for a single attachment |
-| `unstable_Thumb` | `<div>` | Shows file extension as a visual thumbnail |
-| `Name` | text | Renders the attachment filename (no wrapper) |
-| `Remove` | `<button>` | Removes the attachment (composer only) |
+<PrimitivePartsTable primitive={AttachmentPrimitiveDocs} />
 
 ## Patterns
 

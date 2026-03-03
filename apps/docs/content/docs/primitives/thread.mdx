@@ -4,6 +4,7 @@ description: Build custom scrollable message containers with auto-scroll, empty 
 ---
 
 import { ThreadPrimitiveSample } from "@/components/docs/samples/thread-primitive";
+import { ThreadPrimitive as ThreadPrimitiveDocs } from "@/generated/primitiveDocs";
 
 The Thread primitive is the scrollable message container, and the backbone of any chat interface. It handles viewport management, auto-scrolling, empty states, message rendering, and suggestions. You provide the layout and styling.
 
@@ -24,9 +25,9 @@ function MinimalThread() {
   return (
     <ThreadPrimitive.Root className="flex h-full flex-col">
       <ThreadPrimitive.Viewport className="flex flex-1 flex-col gap-3 overflow-y-auto p-3">
-        <ThreadPrimitive.Empty>
+        <AuiIf condition={(s) => s.thread.isEmpty}>
           <p>Welcome! Ask a question to get started.</p>
-        </ThreadPrimitive.Empty>
+        </AuiIf>
 
         <ThreadPrimitive.Messages
           components={{ UserMessage, AssistantMessage }}
@@ -155,15 +156,17 @@ These work alongside `autoScroll`. If `autoScroll` is omitted, it defaults to `t
 
 ### Empty State
 
-`ThreadPrimitive.Empty` renders its children only when there are no messages and the thread isn't loading. Use it for welcome screens:
+<Callout type="warn">
+`ThreadPrimitive.Empty` is deprecated. Use [`AuiIf`](/docs/api-reference/primitives/assistant-if) instead.
+</Callout>
 
 ```tsx
-<ThreadPrimitive.Empty>
+<AuiIf condition={(s) => s.thread.isEmpty}>
   <div className="flex flex-col items-center gap-2 text-center">
     <h2>Welcome!</h2>
     <p>How can I help you today?</p>
   </div>
-</ThreadPrimitive.Empty>
+</AuiIf>
 ```
 
 ### Messages Iterator
@@ -184,28 +187,130 @@ If you provide a single `Message` component, it's used for all roles. If you pro
 
 ## Parts
 
-| Part | Element | Purpose |
-|------|---------|---------|
-| `Root` | `<div>` | Container for the entire thread |
-| `Viewport` | `<div>` | Scrollable area with auto-scroll behavior |
-| `ViewportFooter` | `<div>` | Sticky footer that registers height for scroll calculations |
-| `Messages` | — | Renders a component per message |
-| `MessageByIndex` | — | Renders a single message at a specific index |
-| `Empty` | — | Renders children only when no messages exist |
-| `ScrollToBottom` | `<button>` | Scrolls viewport to bottom, disabled when already there |
-| `Suggestions` | — | Renders suggestion prompts via a component |
-| `SuggestionByIndex` | — | Renders a single suggestion at a specific index |
-| `Suggestion` | `<button>` | Self-contained suggestion button *(legacy — prefer `Suggestions` iterator)* |
-| `ViewportProvider` | — | Provides viewport context without a scrollable element (for custom scroll containers) |
-| `ViewportSlack` | — | Adds min-height for scroll anchoring with `turnAnchor="top"` |
-| `If` | — | Conditional rendering *(deprecated — use `AuiIf`)* |
+<PrimitivePartsTable primitive={ThreadPrimitiveDocs} />
+
+### Viewport
+
+The scrollable area with auto-scroll behavior. Renders a `<div>` element unless `asChild` is set.
+
+```tsx
+<ThreadPrimitive.Viewport
+  turnAnchor="top"
+  autoScroll={false}
+  scrollToBottomOnRunStart={true}
+>
+  <ThreadPrimitive.Messages components={{ UserMessage, AssistantMessage }} />
+</ThreadPrimitive.Viewport>
+```
+
+<PrimitivesTypeTable type="ThreadPrimitiveViewportProps" parameters={ThreadPrimitiveDocs.Viewport.props.filter(p => p.name !== "asChild")} />
+
+### ViewportProvider
+
+Provides viewport context without rendering a scrollable element. Use this when you have a custom scroll container.
+
+### ViewportSlack
+
+Adds min-height for scroll anchoring with `turnAnchor="top"`. Renders a `<div>` element unless `asChild` is set.
+
+### Messages
+
+Renders a component for each message in the thread, resolved by role and edit state.
+
+```tsx
+<ThreadPrimitive.Messages
+  components={{
+    UserMessage: MyUserMessage,
+    AssistantMessage: MyAssistantMessage,
+    EditComposer: MyEditComposer,
+  }}
+/>
+```
+
+<PrimitivesTypeTable type="ThreadPrimitiveMessagesProps" parameters={ThreadPrimitiveDocs.Messages.props} />
+
+### MessageByIndex
+
+Renders a single message at a specific index in the thread.
+
+```tsx
+<ThreadPrimitive.MessageByIndex
+  index={0}
+  components={{ Message: MyMessage }}
+/>
+```
+
+<PrimitivesTypeTable type="ThreadPrimitiveMessageByIndexProps" parameters={ThreadPrimitiveDocs.MessageByIndex.props} />
+
+### ScrollToBottom
+
+Scrolls the viewport to the bottom. Automatically disabled when already at the bottom. Renders a `<button>` element unless `asChild` is set.
+
+```tsx
+<ThreadPrimitive.ScrollToBottom className="rounded-full bg-background p-2 shadow-md">
+  <ArrowDownIcon />
+</ThreadPrimitive.ScrollToBottom>
+```
+
+<PrimitivesTypeTable type="ThreadPrimitiveScrollToBottomProps" parameters={ThreadPrimitiveDocs.ScrollToBottom.props.filter(p => p.name !== "asChild")} />
+
+### Suggestions
+
+Renders suggestion prompts via a component.
+
+```tsx
+<ThreadPrimitive.Suggestions
+  components={{ Suggestion: MySuggestionButton }}
+/>
+```
+
+<PrimitivesTypeTable type="ThreadPrimitiveSuggestionsProps" parameters={ThreadPrimitiveDocs.Suggestions.props} />
+
+### SuggestionByIndex
+
+Renders a single suggestion at a specific index.
+
+```tsx
+<ThreadPrimitive.SuggestionByIndex
+  index={0}
+  components={{ Suggestion: MySuggestion }}
+/>
+```
+
+<PrimitivesTypeTable type="ThreadPrimitiveSuggestionByIndexProps" parameters={ThreadPrimitiveDocs.SuggestionByIndex.props} />
+
+### Suggestion
+
+Self-contained suggestion button. Renders a `<button>` element unless `asChild` is set. *(Legacy -- prefer `Suggestions` iterator.)*
+
+```tsx
+<ThreadPrimitive.Suggestion prompt="Write a blog post" send />
+```
+
+<PrimitivesTypeTable type="ThreadPrimitiveSuggestionProps" parameters={ThreadPrimitiveDocs.Suggestion.props.filter(p => p.name !== "asChild")} />
+
+### If (deprecated)
+
+<Callout type="warn">
+Deprecated. Use [`AuiIf`](/docs/api-reference/primitives/assistant-if) instead.
+</Callout>
+
+```tsx
+// Before (deprecated)
+<ThreadPrimitive.If empty>...</ThreadPrimitive.If>
+<ThreadPrimitive.If running>...</ThreadPrimitive.If>
+
+// After
+<AuiIf condition={(s) => s.thread.isEmpty}>...</AuiIf>
+<AuiIf condition={(s) => s.thread.isRunning}>...</AuiIf>
+```
 
 ## Patterns
 
 ### Welcome Screen with Suggestions
 
 ```tsx
-<ThreadPrimitive.Empty>
+<AuiIf condition={(s) => s.thread.isEmpty}>
   <div className="flex flex-col items-center gap-4 text-center">
     <h2>What can I help with?</h2>
     <div className="grid grid-cols-2 gap-2">
@@ -214,7 +319,7 @@ If you provide a single `Message` component, it's used for all roles. If you pro
       />
     </div>
   </div>
-</ThreadPrimitive.Empty>
+</AuiIf>
 ```
 
 ### Scroll-to-Bottom Button

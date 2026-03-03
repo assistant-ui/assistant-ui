@@ -4,6 +4,7 @@ description: Multi-thread management for listing, creating, switching, archiving
 ---
 
 import { ThreadListPrimitiveSample } from "@/components/docs/samples/thread-list-primitive";
+import { ThreadListPrimitive as ThreadListPrimitiveDocs, ThreadListItemPrimitive as ThreadListItemPrimitiveDocs, ThreadListItemMorePrimitive as ThreadListItemMorePrimitiveDocs } from "@/generated/primitiveDocs";
 
 The ThreadList primitive manages multiple conversations by listing threads, creating new ones, switching between them, and archiving or deleting old ones. It's composed from three primitive namespaces: `ThreadListPrimitive`, `ThreadListItemPrimitive`, and `ThreadListItemMorePrimitive`.
 
@@ -165,33 +166,64 @@ The canonical pattern composes `ThreadListItemPrimitive.Archive asChild` with `T
 
 ### ThreadListPrimitive
 
-| Part | Element | Purpose |
-|------|---------|---------|
-| `Root` | `<div>` | Container for the thread list |
-| `New` | `<button>` | Creates a new thread and switches to it |
-| `Items` | — | Renders a component per thread |
-| `ItemByIndex` | — | Renders a single thread at a specific index |
+<PrimitivePartsTable primitive={ThreadListPrimitiveDocs} />
+
+#### Items
+
+Renders a component per thread.
+
+```tsx
+<ThreadListPrimitive.Items
+  components={{ ThreadListItem: MyThreadItem }}
+/>
+```
+
+<PrimitivesTypeTable type="ThreadListPrimitiveItemsProps" parameters={ThreadListPrimitiveDocs.Items.props} />
+
+#### ItemByIndex
+
+Renders a single thread at a specific index.
+
+```tsx
+<ThreadListPrimitive.ItemByIndex
+  index={0}
+  components={{ ThreadListItem: MyThreadItem }}
+/>
+```
+
+<PrimitivesTypeTable type="ThreadListPrimitiveItemByIndexProps" parameters={ThreadListPrimitiveDocs.ItemByIndex.props} />
 
 ### ThreadListItemPrimitive
 
-| Part | Element | Purpose |
-|------|---------|---------|
-| `Root` | `<div>` | Container for a thread item, provides context |
-| `Trigger` | `<button>` | Switches to this thread on click |
-| `Title` | `<span>` | Displays the thread title with a `fallback` prop |
-| `Archive` | `<button>` | Archives this thread |
-| `Unarchive` | `<button>` | Unarchives this thread |
-| `Delete` | `<button>` | Deletes this thread |
+<PrimitivePartsTable primitive={ThreadListItemPrimitiveDocs} />
+
+#### Title
+
+Displays the thread title with a `fallback` prop. Renders a `<span>` element.
+
+```tsx
+<ThreadListItemPrimitive.Title fallback="New Chat" />
+```
+
+<PrimitivesTypeTable type="ThreadListItemPrimitiveTitleProps" parameters={ThreadListItemPrimitiveDocs.Title.props} />
 
 ### ThreadListItemMorePrimitive
 
-| Part | Element | Purpose |
-|------|---------|---------|
-| `Root` | — | Dropdown menu root (Radix DropdownMenu) |
-| `Trigger` | `<button>` | Opens the dropdown menu |
-| `Content` | `<div>` | The dropdown panel |
-| `Item` | `<div>` | A menu item within the dropdown |
-| `Separator` | `<div>` | Visual separator between menu items |
+<PrimitivePartsTable primitive={ThreadListItemMorePrimitiveDocs} />
+
+#### Content
+
+The dropdown panel. Renders a `<div>` element.
+
+```tsx
+<ThreadListItemMorePrimitive.Content className="rounded-md border bg-popover p-1 shadow-md">
+  <ThreadListItemPrimitive.Archive asChild>
+    <ThreadListItemMorePrimitive.Item>Archive</ThreadListItemMorePrimitive.Item>
+  </ThreadListItemPrimitive.Archive>
+</ThreadListItemMorePrimitive.Content>
+```
+
+<PrimitivesTypeTable type="ThreadListItemMorePrimitiveContentProps" parameters={ThreadListItemMorePrimitiveDocs.Content.props} />
 
 ## Patterns
 

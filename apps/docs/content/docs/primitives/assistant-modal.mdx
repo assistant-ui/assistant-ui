@@ -4,6 +4,7 @@ description: A floating chat popover with a fixed-position trigger button that o
 ---
 
 import { AssistantModalSample } from "@/components/docs/samples/assistant-modal";
+import { AssistantModalPrimitive as AssistantModalPrimitiveDocs } from "@/generated/primitiveDocs";
 
 The AssistantModal primitive is a floating chat popover built on [Radix Popover](https://www.radix-ui.com/primitives/docs/components/popover). A trigger button opens a chat panel, which is a common floating assistant launcher pattern. You control the trigger, content, positioning, and animations.
 
@@ -94,12 +95,34 @@ The `unstable_openOnRunStart` prop (default `true`) automatically opens the moda
 
 ## Parts
 
-| Part | Element | Purpose |
-|------|---------|---------|
-| `Root` | — | Radix Popover provider, manages open/close state |
-| `Trigger` | `<button>` | Toggles the modal open/closed |
-| `Anchor` | `<div>` | Positioning reference for Content |
-| `Content` | `<div>` (portal) | The floating chat panel |
+<PrimitivePartsTable primitive={AssistantModalPrimitiveDocs} />
+
+### Root
+
+Radix Popover provider, manages open/close state. No DOM element rendered.
+
+```tsx
+<AssistantModalPrimitive.Root unstable_openOnRunStart={false}>
+  ...
+</AssistantModalPrimitive.Root>
+```
+
+<PrimitivesTypeTable type="AssistantModalPrimitiveRootProps" parameters={AssistantModalPrimitiveDocs.Root.props} />
+
+### Content
+
+The floating chat panel. Renders a `<div>` element inside a portal.
+
+```tsx
+<AssistantModalPrimitive.Content
+  sideOffset={16}
+  className="h-[600px] w-[400px] rounded-xl border bg-background shadow-lg"
+>
+  <Thread />
+</AssistantModalPrimitive.Content>
+```
+
+<PrimitivesTypeTable type="AssistantModalPrimitiveContentProps" parameters={AssistantModalPrimitiveDocs.Content.props} />
 
 ## Patterns
 
