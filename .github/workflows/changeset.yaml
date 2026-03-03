@@ -49,7 +49,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Detect release packages
-        id: release-plan
+        id: release_plan
         if: steps.changesets.outputs.hasChangesets == 'false'
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         with:
@@ -125,7 +125,7 @@ jobs:
             core.setOutput("hasReleasePackages", hasReleasePackages ? "true" : "false");
 
       - name: Trigger npm publish
-        if: steps.changesets.outputs.hasChangesets == 'false' && steps.release-plan.outputs.hasReleasePackages == 'true'
+        if: steps.changesets.outputs.hasChangesets == 'false' && steps.release_plan.outputs.hasReleasePackages == 'true'
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         with:
           script: |
