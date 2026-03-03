@@ -55,6 +55,9 @@ jobs:
     name: Build Changed Packages
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 10
+    env:
+      TURBO_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      TURBO_TEAM: team_wMOIFNoci5XladVuagdOVUQZ
     steps:
       - name: Checkout code repository
         uses: actions/checkout@v6
@@ -96,6 +99,9 @@ jobs:
     name: Test Changed Packages
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 5
+    env:
+      TURBO_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      TURBO_TEAM: team_wMOIFNoci5XladVuagdOVUQZ
     # Note: No dependency on 'build' job - Turbo handles test->build dependencies internally via dependsOn
     steps:
       - name: Checkout code repository
