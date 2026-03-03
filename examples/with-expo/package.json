@@ -7,7 +7,10 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "deps:check": "npx taze major -f -x",
+    "deps:update": "npx taze major -f -w -x && npx expo install --fix && pnpm install",
+    "deps:update:no-install": "npx taze major -f -w -x && npx expo install --fix"
   },
   "dependencies": {
     "@assistant-ui/react-native": "workspace:*",
