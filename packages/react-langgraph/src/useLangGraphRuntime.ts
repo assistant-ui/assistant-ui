@@ -69,11 +69,12 @@ const getMessageContent = (msg: AppendMessage) => {
       case "file":
         return {
           type: "file" as const,
-          file: {
+          data: part.data,
+          mime_type: part.mimeType,
+          metadata: {
             filename: part.filename ?? "file",
-            file_data: part.data,
-            mime_type: part.mimeType,
           },
+          source_type: "base64" as const,
         };
 
       case "tool-call":

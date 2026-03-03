@@ -149,6 +149,44 @@ const warnForUnknownMessagePartType = (type: string) => {
   console.warn(`Unknown message part type: ${type}`);
 };
 
+type FileContentPart = Extract<
+  Exclude<LangChainMessage["content"], string>[number],
+  { type: "file" }
+>;
+
+const contentFilePartToThreadPart = (
+  part: FileContentPart,
+): Extract<ThreadUserMessage["content"][number], { type: "file" }> | null => {
+  if ("file" in part) {
+    return {
+      type: "file",
+      filename: part.file.filename,
+      data: part.file.file_data,
+      mimeType: part.file.mime_type,
+    };
+  }
+
+  if ("data" in part && typeof part.data === "string") {
+    return {
+      type: "file",
+      filename: part.metadata?.filename ?? "file",
+      data: part.data,
+      mimeType: part.mime_type,
+    };
+  }
+
+  if ("base64" in part && typeof part.base64 === "string") {
+    return {
+      type: "file",
+      filename: part.filename ?? "file",
+      data: part.base64,
+      mimeType: part.mime_type,
+    };
+  }
+
+  return null;
+};
+
 const contentToParts = (
   content: LangChainMessage["content"],
   metadata: LangGraphMessageConverterMetadata,
@@ -179,12 +217,7 @@ const contentToParts = (
               };
             }
           case "file":
-            return {
-              type: "file",
-              filename: part.file.filename,
-              data: part.file.file_data,
-              mimeType: part.file.mime_type,
-            };
+            return contentFilePartToThreadPart(part);
 
           case "thinking":
             return { type: "reasoning", text: part.thinking };

@@ -69,7 +69,7 @@ type CustomEventType = string;
 
 export type EventType = LangGraphKnownEventTypes | CustomEventType;
 
-export type MessageContentFile = {
+export type LegacyMessageContentFile = {
   type: "file";
   file: {
     filename: string;
@@ -77,6 +77,28 @@ export type MessageContentFile = {
     mime_type: string;
   };
 };
+
+export type FlatMessageContentFile = {
+  type: "file";
+  data: string;
+  mime_type: string;
+  source_type?: "base64";
+  metadata?: {
+    filename?: string;
+  };
+};
+
+export type Base64MessageContentFile = {
+  type: "file";
+  base64: string;
+  mime_type: string;
+  filename?: string;
+};
+
+export type MessageContentFile =
+  | LegacyMessageContentFile
+  | FlatMessageContentFile
+  | Base64MessageContentFile;
 
 type UserMessageContentComplex =
   | MessageContentText
