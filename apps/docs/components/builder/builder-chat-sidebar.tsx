@@ -50,10 +50,10 @@ export function BuilderChatSidebar({
         rest as Record<string, unknown>,
         configRef.current,
       );
-      if (customCSS) {
-        merged.customCSS = [configRef.current.customCSS, customCSS]
-          .filter(Boolean)
-          .join("\n");
+      if (customCSS !== undefined) {
+        merged.customCSS = customCSS
+          ? [configRef.current.customCSS, customCSS].filter(Boolean).join("\n")
+          : "";
       }
       setConfig(merged);
     },

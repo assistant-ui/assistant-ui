@@ -294,7 +294,7 @@ export default function PlaygroundPage() {
               )}
 
               {showCode && (
-                <div className="absolute inset-0 z-[5] overflow-hidden bg-card">
+                <div className="absolute inset-0 z-5 overflow-hidden bg-card">
                   <BuilderCodeOutput config={config} />
                 </div>
               )}
