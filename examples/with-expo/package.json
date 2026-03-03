@@ -7,7 +7,6 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "lint": "expo lint",
     "deps:check": "npx taze major -f -x",
     "deps:update": "npx taze major -f -w -x && npx expo install --fix && pnpm install",
     "deps:update:no-install": "npx taze major -f -w -x && npx expo install --fix"
@@ -38,8 +37,6 @@
   },
   "devDependencies": {
     "@types/react": "~19.2.14",
-    "eslint": "^10.0.2",
-    "eslint-config-expo": "~10.0.0",
     "typescript": "~5.9.3"
   },
   "private": true
