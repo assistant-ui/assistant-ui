@@ -1,9 +1,21 @@
-import type { AppendMessage, ThreadMessage } from "../../types";
+import type {
+  AppendMessage,
+  CompleteAttachment,
+  ThreadMessage,
+} from "../../types";
 import { getThreadMessageText } from "../../utils/text";
 import type { AttachmentAdapter } from "../../adapters/attachment";
 import type { DictationAdapter } from "../../adapters/speech";
 import type { ThreadRuntimeCore } from "../interfaces/thread-runtime-core";
 import { BaseComposerRuntimeCore } from "./base-composer-runtime-core";
+
+const attachmentsEqual = (
+  a: readonly CompleteAttachment[],
+  b: readonly CompleteAttachment[],
+): boolean => {
+  if (a.length !== b.length) return false;
+  return a.every((att, i) => att.id === b[i]!.id);
+};
 
 export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
   public get canCancel() {
@@ -20,6 +32,7 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
 
   private _nonTextParts;
   private _previousText;
+  private _previousAttachments;
   private _parentId;
   private _sourceId;
   constructor(
@@ -41,7 +54,8 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
     this.setText(this._previousText);
 
     this.setRole(message.role);
-    this.setAttachments(message.attachments ?? []);
+    this._previousAttachments = message.attachments ?? [];
+    this.setAttachments(this._previousAttachments);
 
     this._nonTextParts = message.content.filter((part) => part.type !== "text");
 
@@ -52,10 +66,22 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
     message: Omit<AppendMessage, "parentId" | "sourceId">,
   ) {
     const text = getThreadMessageText(message as AppendMessage);
-    if (text !== this._previousText) {
+    const currentAttachments = message.attachments ?? [];
+    const didAttachmentsChange = !attachmentsEqual(
+      currentAttachments,
+      this._previousAttachments,
+    );
+
+    if (text !== this._previousText || didAttachmentsChange) {
+      // Only re-inject original non-text content parts if the user
+      // did not modify attachments; otherwise respect their changes.
+      const content = didAttachmentsChange
+        ? message.content
+        : [...message.content, ...this._nonTextParts];
+
       this.runtime.append({
         ...message,
-        content: [...message.content, ...this._nonTextParts] as any,
+        content: content as any,
         parentId: this._parentId,
         sourceId: this._sourceId,
       });
