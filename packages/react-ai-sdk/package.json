@@ -36,8 +36,8 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@ai-sdk/react": "^3.0.100",
-    "ai": "^6.0.98"
+    "@ai-sdk/react": "^3.0.113",
+    "ai": "^6.0.111"
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.12.14",
