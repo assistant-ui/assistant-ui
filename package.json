@@ -15,7 +15,7 @@
     "test": "turbo test",
     "prepare": "husky",
     "deps:check": "npx taze major -f -r",
-    "deps:update": "npx taze major -f -w -r && cd examples/with-expo && npx expo install --fix && cd ../.. && pnpm install"
+    "deps:update": "npx taze major -f -w -r && cd examples/with-expo && npx expo install --fix && cd ../.. && pnpm install && bash scripts/generate-deps-changeset.sh"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.5",
