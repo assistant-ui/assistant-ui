@@ -212,6 +212,7 @@ export function BuilderPreview({ config }: BuilderPreviewProps) {
         className={cn("h-full w-full", isDark ? "dark" : "light")}
         style={cssVars}
       >
+        {config.customCSS && <style>{config.customCSS}</style>}
         <ThreadPrimitive.Root
           className="aui-root aui-thread-root @container flex h-full flex-col"
           style={{

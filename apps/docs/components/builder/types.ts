@@ -78,6 +78,7 @@ export interface StylesConfig {
 export interface BuilderConfig {
   components: ComponentsConfig;
   styles: StylesConfig;
+  customCSS?: string;
 }
 
 export interface Preset {

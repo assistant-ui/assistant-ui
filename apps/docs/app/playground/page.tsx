@@ -9,7 +9,9 @@ import {
   Smartphone,
   Plus,
   SlidersHorizontal,
+  Sparkles,
   SquareTerminal,
+  Loader2,
 } from "lucide-react";
 import { ThreadListPrimitive } from "@assistant-ui/react";
 import { BuilderControls } from "@/components/builder/builder-controls";
@@ -17,6 +19,7 @@ import { BuilderPreview } from "@/components/builder/builder-preview";
 import { BuilderCodeOutput } from "@/components/builder/builder-code-output";
 import { ShareButton } from "@/components/builder/share-button";
 import { CreateDialog } from "@/components/builder/create-dialog";
+import { BuilderChatSidebar } from "@/components/builder/builder-chat-sidebar";
 import {
   Sheet,
   SheetContent,
@@ -49,6 +52,8 @@ export default function PlaygroundPage() {
   } = usePlaygroundState();
 
   const [controlsOpen, setControlsOpen] = useState(false);
+  const [showChat, setShowChat] = useState(false);
+  const [aiRunning, setAiRunning] = useState(false);
   const isResizing = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const previewContainerRef = useRef<HTMLDivElement>(null);
@@ -181,6 +186,45 @@ export default function PlaygroundPage() {
             <ShareButton />
 
             <button
+              onClick={() => setShowChat(!showChat)}
+              className={cn(
+                "hidden items-center gap-1.5 rounded-md px-2.5 py-1 font-medium text-xs transition-colors md:flex",
+                showChat
+                  ? "bg-foreground/10 text-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <Sparkles className="size-3.5" />
+              <span className="hidden sm:inline">AI</span>
+            </button>
+
+            <Sheet>
+              <SheetTrigger asChild>
+                <button
+                  className="flex items-center gap-1.5 rounded-md px-2.5 py-1 font-medium text-muted-foreground text-xs transition-colors hover:text-foreground md:hidden"
+                  aria-label="Open AI chat"
+                >
+                  <Sparkles className="size-3.5" />
+                </button>
+              </SheetTrigger>
+              <SheetContent
+                side="bottom"
+                className="h-[85vh] overflow-hidden rounded-t-2xl p-0"
+              >
+                <SheetHeader className="sr-only">
+                  <SheetTitle>AI Assistant</SheetTitle>
+                </SheetHeader>
+                <BuilderChatSidebar
+                  config={config}
+                  setConfig={setConfig}
+                  onClose={() => {}}
+                  showHeader={false}
+                  onRunningChange={setAiRunning}
+                />
+              </SheetContent>
+            </Sheet>
+
+            <button
               onClick={() => setShowCode(!showCode)}
               className={cn(
                 "flex items-center gap-1.5 rounded-md px-2.5 py-1 font-medium text-xs transition-colors",
@@ -238,6 +282,17 @@ export default function PlaygroundPage() {
             >
               <BuilderPreview config={config} />
 
+              {aiRunning && !showCode && (
+                <div className="absolute inset-0 z-4 flex items-center justify-center bg-background/90 backdrop-blur-[2px]">
+                  <div className="flex items-center gap-2 rounded-lg bg-background px-4 py-2.5 shadow-lg ring-1 ring-border">
+                    <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                    <span className="font-medium text-muted-foreground text-sm">
+                      Applying changes
+                    </span>
+                  </div>
+                </div>
+              )}
+
               {showCode && (
                 <div className="absolute inset-0 z-[5] overflow-hidden bg-card">
                   <BuilderCodeOutput config={config} />
@@ -256,6 +311,17 @@ export default function PlaygroundPage() {
           </div>
         </div>
       </div>
+
+      {showChat && (
+        <div className="hidden md:block">
+          <BuilderChatSidebar
+            config={config}
+            setConfig={setConfig}
+            onClose={() => setShowChat(false)}
+            onRunningChange={setAiRunning}
+          />
+        </div>
+      )}
     </div>
   );
 }
