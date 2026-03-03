@@ -8,8 +8,8 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "deps:check": "npx taze major -f -x",
-    "deps:update": "npx taze major -f -w -x && npx expo install --fix && pnpm install",
-    "deps:update:no-install": "npx taze major -f -w -x && npx expo install --fix"
+    "deps:update": "npx taze major -f -w && npx expo install --fix && pnpm install",
+    "deps:update:no-install": "npx taze major -f -w && npx expo install --fix"
   },
   "dependencies": {
     "@assistant-ui/react-native": "workspace:*",

@@ -20,14 +20,14 @@
     "deps:update:repo": "npx taze major --force --write && turbo run deps:update:no-install && pnpm install"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.4",
-    "@changesets/cli": "^2.29.8",
+    "@biomejs/biome": "^2.4.5",
+    "@changesets/cli": "^2.30.0",
     "husky": "^9.1.7",
-    "lint-staged": "^16.2.7",
-    "turbo": "^2.8.10",
+    "lint-staged": "^16.3.2",
+    "turbo": "^2.8.13",
     "typescript": "^5.9.3"
   },
-  "packageManager": "pnpm@10.30.2",
+  "packageManager": "pnpm@10.30.3",
   "lint-staged": {
     "*": "biome check --fix --no-errors-on-unmatched"
   },
