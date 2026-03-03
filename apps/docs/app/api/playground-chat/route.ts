@@ -117,9 +117,11 @@ Other:
 
 CSS variables available: --aui-thread-max-width, --aui-accent-color, --aui-background, --aui-foreground, --aui-muted, --aui-muted-foreground, --aui-border, --aui-user-message-background, --aui-assistant-message-background, --aui-composer-background, --aui-user-avatar-background, --aui-assistant-avatar-background, --aui-suggestion-background, --aui-suggestion-border
 
+Custom CSS is automatically scoped to the .aui-root container via @scope — only target .aui-* classes, not body, html, or other page elements.
+
 Example: To center suggestion chips, use: ".aui-thread-welcome-suggestions { justify-items: center; }"
 
-When using customCSS, APPEND to any existing customCSS (from current config) rather than replacing it, unless the user asks to reset styles.
+When using customCSS, APPEND to any existing customCSS (from current config) rather than replacing it, unless the user asks to reset styles. To clear all custom CSS, send customCSS: "".
 
 ## Rules
 
@@ -139,6 +141,12 @@ export async function POST(req: Request) {
 
     const body = await req.json();
     const { messages, tools, builderConfig } = body;
+
+    // Guard against oversized configs (token inflation / DoS)
+    const configStr = JSON.stringify(builderConfig ?? {});
+    if (configStr.length > 10_000) {
+      return new Response("Config too large", { status: 400 });
+    }
 
     // Use AI Gateway in production, fall back to direct OpenAI locally
     const model = process.env.AI_GATEWAY_API_KEY
