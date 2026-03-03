@@ -149,6 +149,19 @@ const warnForUnknownMessagePartType = (type: string) => {
   console.warn(`Unknown message part type: ${type}`);
 };
 
+const warnedFilePartShapes = new Set<string>();
+const warnForUnsupportedFilePartShape = (part: FileContentPart) => {
+  if (
+    typeof process === "undefined" ||
+    process?.env?.["NODE_ENV"] !== "development"
+  )
+    return;
+  const shape = Object.keys(part).sort().join(",");
+  if (warnedFilePartShapes.has(shape)) return;
+  warnedFilePartShapes.add(shape);
+  console.warn(`Unsupported file content block shape: ${shape}`);
+};
+
 type FileContentPart = Extract<
   Exclude<LangChainMessage["content"], string>[number],
   { type: "file" }
@@ -184,6 +197,7 @@ const contentFilePartToThreadPart = (
     };
   }
 
+  warnForUnsupportedFilePartShape(part);
   return null;
 };
 
