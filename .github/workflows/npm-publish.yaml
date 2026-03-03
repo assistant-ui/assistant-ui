@@ -222,19 +222,6 @@ jobs:
           fetch-depth: 0
           ref: ${{ env.RELEASE_SHA }}
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4
-
-      - name: Setup node.js
-        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
-        with:
-          node-version: 24
-          # No cache - hardened against cache poisoning for sensitive publish operations
-          registry-url: "https://registry.npmjs.org"
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
       - name: Validate release commit is on default branch
         run: |
           if [ -z "$RELEASE_SHA" ]; then
@@ -264,6 +251,18 @@ jobs:
             exit 1
           fi
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4
+
+      - name: Setup node.js
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
+        with:
+          node-version: 24
+          # No cache - hardened against cache poisoning for sensitive publish operations
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
       - name: Resolve publish targets
         id: targets
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
@@ -272,55 +271,30 @@ jobs:
             const fs = require("node:fs");
             const path = require("node:path");
 
-            const delay = (ms) =>
-              new Promise((resolve) => {
-                setTimeout(resolve, ms);
-              });
-
             const fetchNpmMetadata = async (packageName) => {
               const encodedName = encodeURIComponent(packageName);
               const url = `https://registry.npmjs.org/${encodedName}`;
 
-              for (let attempt = 1; attempt <= 3; attempt += 1) {
-                const controller = new AbortController();
-                const timeout = setTimeout(() => controller.abort(), 15_000);
+              const controller = new AbortController();
+              const timeout = setTimeout(() => controller.abort(), 15_000);
 
-                try {
-                  const response = await fetch(url, {
-                    signal: controller.signal,
-                  });
+              try {
+                const response = await fetch(url, {
+                  signal: controller.signal,
+                });
 
-                  if (response.ok) {
-                    return await response.json();
-                  }
-
-                  if (response.status === 404) {
-                    return null;
-                  }
-
-                  const isRetryable =
-                    response.status === 429 || response.status >= 500;
-                  if (isRetryable && attempt < 3) {
-                    await delay(attempt * 1_000);
-                    continue;
-                  }
-
-                  throw new Error(`HTTP ${response.status}`);
-                } catch (error) {
-                  const isAbortError = error?.name === "AbortError";
-                  const isNetworkError = error instanceof TypeError;
-                  if ((isAbortError || isNetworkError) && attempt < 3) {
-                    await delay(attempt * 1_000);
-                    continue;
-                  }
-
-                  throw error;
-                } finally {
-                  clearTimeout(timeout);
+                if (response.ok) {
+                  return await response.json();
                 }
-              }
 
-              throw new Error("Unexpected npm metadata fetch failure");
+                if (response.status === 404) {
+                  return null;
+                }
+
+                throw new Error(`HTTP ${response.status}`);
+              } finally {
+                clearTimeout(timeout);
+              }
             };
 
             const parseStableSemver = (value) => {
@@ -348,8 +322,7 @@ jobs:
 
             const prereleasePackages = [];
             const downgradePackages = [];
-            const promotionTargets = [];
-            const publishTargets = [];
+            const targets = [];
 
             for (const entry of entries) {
               if (!entry.isDirectory()) continue;
@@ -383,7 +356,6 @@ jobs:
               }
 
               const latestTag = metadata?.["dist-tags"]?.latest ?? null;
-              const hasVersion = Boolean(metadata?.versions?.[pkgVersion]);
 
               if (latestTag !== null) {
                 const comparison = compareStableSemver(pkgVersion, latestTag);
@@ -409,16 +381,13 @@ jobs:
                   latestTag,
                 };
 
-                promotionTargets.push(target);
-                if (!hasVersion) {
-                  publishTargets.push(target);
-                }
+                targets.push(target);
               }
             }
 
             if (prereleasePackages.length > 0) {
               core.setFailed(
-                `Prerelease versions are not allowed on main: ${prereleasePackages.join(", ")}`,
+                `Prerelease versions are not allowed on default-branch releases: ${prereleasePackages.join(", ")}`,
               );
               return;
             }
@@ -430,26 +399,17 @@ jobs:
               return;
             }
 
-            promotionTargets.sort((a, b) => a.name.localeCompare(b.name));
-            publishTargets.sort((a, b) => a.name.localeCompare(b.name));
+            targets.sort((a, b) => a.name.localeCompare(b.name));
 
             core.info(
-              `Promotion targets: ${promotionTargets.length === 0 ? "none" : promotionTargets.map((target) => `${target.name}@${target.version}`).join(", ")}`,
-            );
-            core.info(
-              `Publish targets: ${publishTargets.length === 0 ? "none" : publishTargets.map((target) => `${target.name}@${target.version}`).join(", ")}`,
+              `Targets: ${targets.length === 0 ? "none" : targets.map((target) => `${target.name}@${target.version}`).join(", ")}`,
             );
 
-            core.setOutput("promotionCount", String(promotionTargets.length));
-            core.setOutput("publishCount", String(publishTargets.length));
-            core.setOutput(
-              "promotionTargetsJson",
-              JSON.stringify(promotionTargets),
-            );
-            core.setOutput("publishTargetsJson", JSON.stringify(publishTargets));
+            core.setOutput("targetCount", String(targets.length));
+            core.setOutput("targetsJson", JSON.stringify(targets));
 
       - name: Publish to npm and create GitHub releases
-        if: steps.targets.outputs.publishCount != '0' && success()
+        if: steps.targets.outputs.targetCount != '0' && success()
         id: changesets-publish
         uses: changesets/action@6a0a831ff30acef54f2c6aa1cbbc1096b066edaf # v1.7.0
         with:
@@ -457,132 +417,15 @@ jobs:
           createGithubReleases: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_CONFIG_REGISTRY: https://registry.npmjs.org
           # NODE_AUTH_TOKEN is intentionally unset here.
           # npm trusted publishing uses GitHub OIDC (`id-token: write`).
 
-      - name: Verify promotion targets exist on npm
-        if: steps.targets.outputs.promotionCount != '0' && success()
-        id: verify
+      - name: Promote targets to latest
+        if: steps.targets.outputs.targetCount != '0' && success()
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         env:
-          TARGETS_JSON: ${{ steps.targets.outputs.promotionTargetsJson }}
-        with:
-          script: |
-            const targets = JSON.parse(process.env.TARGETS_JSON || "[]");
-
-            const delay = (ms) =>
-              new Promise((resolve) => {
-                setTimeout(resolve, ms);
-              });
-
-            const verifyDeadlineMs = Date.now() + 180_000;
-            const propagationWaitMs = 10_000;
-
-            const fetchNpmMetadata = async (packageName) => {
-              const encodedName = encodeURIComponent(packageName);
-              const url = `https://registry.npmjs.org/${encodedName}`;
-
-              for (let attempt = 1; attempt <= 3; attempt += 1) {
-                const controller = new AbortController();
-                const timeout = setTimeout(() => controller.abort(), 15_000);
-
-                try {
-                  const response = await fetch(url, {
-                    signal: controller.signal,
-                  });
-
-                  if (response.ok) {
-                    return await response.json();
-                  }
-
-                  if (response.status === 404) {
-                    return null;
-                  }
-
-                  const isRetryable =
-                    response.status === 429 || response.status >= 500;
-                  if (isRetryable && attempt < 3) {
-                    await delay(attempt * 1_000);
-                    continue;
-                  }
-
-                  throw new Error(`HTTP ${response.status}`);
-                } catch (error) {
-                  const isAbortError = error?.name === "AbortError";
-                  const isNetworkError = error instanceof TypeError;
-                  if ((isAbortError || isNetworkError) && attempt < 3) {
-                    await delay(attempt * 1_000);
-                    continue;
-                  }
-
-                  throw error;
-                } finally {
-                  clearTimeout(timeout);
-                }
-              }
-
-              throw new Error("Unexpected npm metadata fetch failure");
-            };
-
-            let remaining = targets.map((target) => ({
-              name: target.name,
-              version: target.version,
-            }));
-
-            while (remaining.length > 0) {
-              const missing = [];
-
-              for (const target of remaining) {
-                let metadata = null;
-                try {
-                  metadata = await fetchNpmMetadata(target.name);
-                } catch (error) {
-                  core.setFailed(
-                    `Failed to verify npm metadata for ${target.name}: ${error.message}`,
-                  );
-                  return;
-                }
-
-                const hasVersion = Boolean(metadata?.versions?.[target.version]);
-                if (!hasVersion) {
-                  missing.push(target);
-                }
-              }
-
-              if (missing.length === 0) {
-                core.info("All promotion targets exist on npm.");
-                return;
-              }
-
-              if (Date.now() >= verifyDeadlineMs) {
-                remaining = missing;
-                break;
-              }
-
-              core.info(
-                `Waiting for npm propagation of ${missing.length} package(s): ${missing.map((target) => `${target.name}@${target.version}`).join(", ")}`,
-              );
-              await delay(propagationWaitMs);
-              remaining = missing;
-            }
-
-            if (remaining.length > 0) {
-              core.setFailed(
-                `Missing published versions on npm after propagation wait: ${remaining.map((target) => `${target.name}@${target.version}`).join(", ")}`,
-              );
-              return;
-            }
-
-      - name: Release metadata reminder
-        if: steps.targets.outputs.publishCount == '0' && steps.targets.outputs.promotionCount != '0' && success()
-        run: |
-          echo "::warning::No package publish was required for this run; if this is a recovery run, verify GitHub Releases exist for promoted versions."
-
-      - name: Promote verified targets to latest
-        if: steps.targets.outputs.promotionCount != '0' && success()
-        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
-        env:
-          TARGETS_JSON: ${{ steps.targets.outputs.promotionTargetsJson }}
+          TARGETS_JSON: ${{ steps.targets.outputs.targetsJson }}
         with:
           script: |
             const { execFileSync } = require("node:child_process");
@@ -596,112 +439,78 @@ jobs:
               return;
             }
 
-            const delay = (ms) =>
-              new Promise((resolve) => {
-                setTimeout(resolve, ms);
-              });
-
-            const fetchWithRetry = async (url, options, contextLabel) => {
-              for (let attempt = 1; attempt <= 3; attempt += 1) {
-                const controller = new AbortController();
-                const timeout = setTimeout(() => controller.abort(), 15_000);
-
-                try {
-                  const response = await fetch(url, {
-                    ...options,
-                    signal: controller.signal,
-                  });
-
-                  if (response.ok || response.status === 404) {
-                    return response;
-                  }
-
-                  const isRetryable =
-                    response.status === 429 || response.status >= 500;
-                  if (isRetryable && attempt < 3) {
-                    await delay(attempt * 1_000);
-                    continue;
-                  }
-
-                  return response;
-                } catch (error) {
-                  const isAbortError = error?.name === "AbortError";
-                  const isNetworkError = error instanceof TypeError;
-                  if ((isAbortError || isNetworkError) && attempt < 3) {
-                    await delay(attempt * 1_000);
-                    continue;
-                  }
-
-                  throw new Error(
-                    `${contextLabel} request failed: ${error.message}`,
-                  );
-                } finally {
-                  clearTimeout(timeout);
-                }
-              }
-
-              throw new Error(`${contextLabel} request failed unexpectedly`);
-            };
-
             const audience = "npm:registry.npmjs.org";
             const oidcUrl = `${oidcRequestUrl}${oidcRequestUrl.includes("?") ? "&" : "?"}audience=${encodeURIComponent(audience)}`;
 
-            let oidcResponse;
-            try {
-              oidcResponse = await fetchWithRetry(
-                oidcUrl,
-                {
-                  headers: {
-                    Authorization: `Bearer ${oidcRequestToken}`,
-                  },
+            const getGithubOidcToken = async () => {
+              const response = await fetch(oidcUrl, {
+                headers: {
+                  Authorization: `Bearer ${oidcRequestToken}`,
                 },
-                "GitHub OIDC token",
-              );
+              });
+
+              if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+              }
+
+              const payload = await response.json();
+              const token = payload?.value;
+              if (!token) {
+                throw new Error("response missing token value");
+              }
+
+              return token;
+            };
+
+            let githubOidcToken;
+            try {
+              githubOidcToken = await getGithubOidcToken();
             } catch (error) {
-              core.setFailed(error.message);
+              core.setFailed(`Failed to fetch GitHub OIDC token: ${error.message}`);
               return;
             }
-
-            if (!oidcResponse.ok) {
-              core.setFailed(
-                `Failed to fetch GitHub OIDC token: HTTP ${oidcResponse.status}`,
-              );
-              return;
-            }
-
-            const oidcPayload = await oidcResponse.json();
-            const githubOidcToken = oidcPayload?.value;
-
-            if (!githubOidcToken) {
-              core.setFailed("GitHub OIDC response is missing token value");
-              return;
-            }
-
-            const preflightReadyTargets = [];
-            const preflightErrors = [];
 
             for (const target of targets) {
               const encodedName = encodeURIComponent(target.name);
               const exchangeUrl =
                 `https://registry.npmjs.org/-/npm/v1/oidc/token/exchange/package/${encodedName}`;
 
+              const exchangeRequest = async (token) =>
+                fetch(exchangeUrl, {
+                  method: "POST",
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                  },
+                });
+
               let exchangeResponse;
               try {
-                exchangeResponse = await fetchWithRetry(
-                  exchangeUrl,
-                  {
-                    method: "POST",
-                    headers: {
-                      Authorization: `Bearer ${githubOidcToken}`,
-                    },
-                  },
-                  `npm OIDC exchange for ${target.name}`,
-                );
+                exchangeResponse = await exchangeRequest(githubOidcToken);
               } catch (error) {
-                preflightErrors.push(
-                  `${target.name}@${target.version}: ${error.message}`,
+                core.setFailed(
+                  `OIDC exchange request failed for ${target.name}: ${error.message}`,
                 );
-                continue;
+                return;
+              }
+
+              if (exchangeResponse.status === 401) {
+                try {
+                  githubOidcToken = await getGithubOidcToken();
+                } catch (error) {
+                  core.setFailed(
+                    `Failed to refresh GitHub OIDC token for ${target.name}: ${error.message}`,
+                  );
+                  return;
+                }
+
+                try {
+                  exchangeResponse = await exchangeRequest(githubOidcToken);
+                } catch (error) {
+                  core.setFailed(
+                    `OIDC exchange retry failed for ${target.name}: ${error.message}`,
+                  );
+                  return;
+                }
               }
 
               if (!exchangeResponse.ok) {
@@ -711,36 +520,22 @@ jobs:
                     : exchangeResponse.status === 401
                       ? " (check GitHub OIDC permissions and npm trusted publisher setup)"
                       : "";
-                preflightErrors.push(
-                  `${target.name}@${target.version}: OIDC exchange failed (HTTP ${exchangeResponse.status})${hint}`,
+                core.setFailed(
+                  `OIDC exchange failed for ${target.name}: HTTP ${exchangeResponse.status}${hint}`,
                 );
-                continue;
+                return;
               }
 
               const exchangePayload = await exchangeResponse.json();
               const npmToken = exchangePayload?.token;
 
               if (!npmToken) {
-                preflightErrors.push(
-                  `${target.name}@${target.version}: OIDC exchange response is missing token`,
+                core.setFailed(
+                  `OIDC exchange response is missing token for ${target.name}`,
                 );
-                continue;
+                return;
               }
 
-              preflightReadyTargets.push({
-                ...target,
-                npmToken,
-              });
-            }
-
-            if (preflightErrors.length > 0) {
-              core.setFailed(
-                `OIDC preflight failed; refusing to promote any package to latest: ${preflightErrors.join(" | ")}`,
-              );
-              return;
-            }
-
-            for (const target of preflightReadyTargets) {
               const spec = `${target.name}@${target.version}`;
               execFileSync(
                 "npm",
@@ -756,15 +551,15 @@ jobs:
                   stdio: "inherit",
                   env: {
                     ...process.env,
-                    NODE_AUTH_TOKEN: target.npmToken,
+                    NODE_AUTH_TOKEN: npmToken,
                   },
                 },
               );
             }
 
-      - name: No promotion targets
-        if: steps.targets.outputs.promotionCount == '0' && success()
-        run: echo "No packages require promotion to latest for this release SHA."
+      - name: No targets
+        if: steps.targets.outputs.targetCount == '0' && success()
+        run: echo "No packages require publish/promotion for this release SHA."
 
       - name: Recovery guidance
         if: failure()
