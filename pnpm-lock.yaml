@@ -931,9 +931,6 @@ importers:
       '@ai-sdk/openai':
         specifier: ^3.0.33
         version: 3.0.33(zod@4.3.6)
-      '@ai-sdk/react':
-        specifier: ^3.0.100
-        version: 3.0.100(react@19.2.4)(zod@4.3.6)
       '@assistant-ui/cloud-ai-sdk':
         specifier: workspace:*
         version: link:../../packages/cloud-ai-sdk
@@ -1235,9 +1232,6 @@ importers:
 
   examples/with-external-store:
     dependencies:
-      '@ai-sdk/openai':
-        specifier: ^3.0.33
-        version: 3.0.33(zod@4.3.6)
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
@@ -1527,9 +1521,6 @@ importers:
       '@assistant-ui/ui':
         specifier: workspace:*
         version: link:../../packages/ui
-      '@hookform/resolvers':
-        specifier: ^5.2.2
-        version: 5.2.2(react-hook-form@7.71.2(react@19.2.4))
       ai:
         specifier: ^6.0.98
         version: 6.0.98(zod@4.3.6)
@@ -1554,15 +1545,9 @@ importers:
       react-hook-form:
         specifier: ^7.71.2
         version: 7.71.2(react@19.2.4)
-      react-resizable-panels:
-        specifier: ^4.6.5
-        version: 4.6.5(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       tailwind-merge:
         specifier: ^3.5.0
         version: 3.5.0
-      zod:
-        specifier: ^4.3.6
-        version: 4.3.6
     devDependencies:
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
@@ -1615,9 +1600,6 @@ importers:
       eventsource-parser:
         specifier: ^3.0.6
         version: 3.0.6
-      isbot:
-        specifier: ^5.1.35
-        version: 5.1.35
       lucide-react:
         specifier: ^0.575.0
         version: 0.575.0(react@19.2.4)
@@ -1639,9 +1621,6 @@ importers:
       tailwind-merge:
         specifier: ^3.5.0
         version: 3.5.0
-      zustand:
-        specifier: ^5.0.11
-        version: 5.0.11(@types/react@19.2.14)(immer@11.1.4)(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4))
     devDependencies:
       '@react-router/dev':
         specifier: ^7.13.1
@@ -2226,9 +2205,6 @@ importers:
       assistant-stream:
         specifier: ^0.3.4
         version: link:../assistant-stream
-      zod:
-        specifier: ^4.3.6
-        version: 4.3.6
     devDependencies:
       '@assistant-ui/react':
         specifier: workspace:*
@@ -2257,9 +2233,6 @@ importers:
       assistant-cloud:
         specifier: '*'
         version: link:../cloud
-      zod:
-        specifier: ^4.3.6
-        version: 4.3.6
     devDependencies:
       '@assistant-ui/react':
         specifier: workspace:*
@@ -2300,9 +2273,6 @@ importers:
       assistant-stream:
         specifier: ^0.3.4
         version: link:../assistant-stream
-      zod:
-        specifier: ^4.3.6
-        version: 4.3.6
     devDependencies:
       '@assistant-ui/react':
         specifier: workspace:*

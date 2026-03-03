@@ -39,8 +39,7 @@
   },
   "dependencies": {
     "@ag-ui/client": "^0.0.45",
-    "assistant-stream": "^0.3.4",
-    "zod": "^4.3.6"
+    "assistant-stream": "^0.3.4"
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.12.14",

@@ -18,7 +18,6 @@
     "@assistant-ui/react-hook-form": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
     "@assistant-ui/ui": "workspace:*",
-    "@hookform/resolvers": "^5.2.2",
     "ai": "^6.0.98",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -27,9 +26,7 @@
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-hook-form": "^7.71.2",
-    "react-resizable-panels": "^4.6.5",
-    "tailwind-merge": "^3.5.0",
-    "zod": "^4.3.6"
+    "tailwind-merge": "^3.5.0"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",

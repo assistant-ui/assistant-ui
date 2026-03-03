@@ -36,8 +36,7 @@
   },
   "dependencies": {
     "@ai-sdk/provider": "^3.0.8",
-    "assistant-stream": "^0.3.4",
-    "zod": "^4.3.6"
+    "assistant-stream": "^0.3.4"
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.12.14",
