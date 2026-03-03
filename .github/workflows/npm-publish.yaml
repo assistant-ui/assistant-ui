@@ -6,13 +6,12 @@ on:
   workflow_dispatch:
     inputs:
       releaseSha:
-        description: "Release commit SHA to publish"
-        required: true
+        description: "Release commit SHA to publish (defaults to latest main)"
+        required: false
         type: string
 
 permissions:
-  id-token: write
-  contents: write
+  contents: read
 
 env:
   CI: true
@@ -30,26 +29,44 @@ jobs:
     steps:
       - name: Resolve release commit SHA
         id: release-sha
-        env:
-          DISPATCH_RELEASE_SHA: ${{ github.event.client_payload.releaseSha }}
-          MANUAL_RELEASE_SHA: ${{ github.event.inputs.releaseSha }}
-        run: |
-          release_sha="$DISPATCH_RELEASE_SHA"
-          if [ -z "$release_sha" ]; then
-            release_sha="$MANUAL_RELEASE_SHA"
-          fi
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        with:
+          script: |
+            const dispatchReleaseSha =
+              context.payload?.client_payload?.releaseSha?.trim() ?? "";
+            const manualReleaseSha = context.payload?.inputs?.releaseSha?.trim() ?? "";
 
-          if [ -z "$release_sha" ]; then
-            echo "Missing releaseSha (repository_dispatch payload or workflow_dispatch input)" >&2
-            exit 1
-          fi
+            let releaseSha = dispatchReleaseSha || manualReleaseSha;
 
-          echo "value=$release_sha" >> "$GITHUB_OUTPUT"
+            if (!releaseSha) {
+              const repo = await github.rest.repos.get(context.repo);
+              const defaultBranch = repo.data.default_branch;
+              const ref = await github.rest.git.getRef({
+                ...context.repo,
+                ref: `heads/${defaultBranch}`,
+              });
+
+              releaseSha = ref.data.object.sha;
+              core.info(
+                `No release SHA provided; using ${defaultBranch} HEAD ${releaseSha}`,
+              );
+            }
+
+            if (!/^[0-9a-f]{40}$/i.test(releaseSha)) {
+              core.setFailed(
+                `releaseSha must be a full 40-character commit SHA: ${releaseSha}`,
+              );
+              return;
+            }
+
+            core.setOutput("value", releaseSha);
 
   publish:
     name: Publish to npm
     needs: approve
     runs-on: ubuntu-24.04
+    permissions:
+      contents: write
     concurrency:
       group: npm-publish-exec
       cancel-in-progress: false
@@ -76,6 +93,17 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Validate npm auth
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "Missing NPM_TOKEN secret" >&2
+            exit 1
+          fi
+
+          npm whoami --registry=https://registry.npmjs.org
+
       - name: Validate release commit is on main
         run: |
           if [ -z "$RELEASE_SHA" ]; then
@@ -100,15 +128,211 @@ jobs:
             exit 1
           fi
 
+      - name: Resolve publish targets
+        id: targets
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        with:
+          script: |
+            const fs = require("node:fs");
+            const path = require("node:path");
+
+            const parseStableSemver = (value) => {
+              if (typeof value !== "string") return null;
+              const match = value.match(/^(\d+)\.(\d+)\.(\d+)$/);
+              if (!match) return null;
+              return match.slice(1).map((part) => Number(part));
+            };
+
+            const compareStableSemver = (a, b) => {
+              const parsedA = parseStableSemver(a);
+              const parsedB = parseStableSemver(b);
+              if (!parsedA || !parsedB) return null;
+
+              for (let index = 0; index < 3; index += 1) {
+                if (parsedA[index] > parsedB[index]) return 1;
+                if (parsedA[index] < parsedB[index]) return -1;
+              }
+
+              return 0;
+            };
+
+            const packagesDir = path.join(process.cwd(), "packages");
+            const entries = fs.readdirSync(packagesDir, { withFileTypes: true });
+
+            const prereleasePackages = [];
+            const downgradePackages = [];
+            const promotionTargets = [];
+            const publishTargets = [];
+
+            for (const entry of entries) {
+              if (!entry.isDirectory()) continue;
+
+              const manifestPath = path.join(packagesDir, entry.name, "package.json");
+              if (!fs.existsSync(manifestPath)) continue;
+
+              const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+              if (manifest.private === true) continue;
+
+              if (typeof manifest.version !== "string" || manifest.version.length === 0) {
+                core.setFailed(`Package ${manifest.name} is missing a version`);
+                return;
+              }
+
+              if (manifest.version.includes("-")) {
+                prereleasePackages.push(`${manifest.name}@${manifest.version}`);
+                continue;
+              }
+
+              const pkgName = manifest.name;
+              const pkgVersion = manifest.version;
+              const encodedName = encodeURIComponent(pkgName);
+              const response = await fetch(`https://registry.npmjs.org/${encodedName}`);
+
+              if (!response.ok && response.status !== 404) {
+                core.setFailed(
+                  `Failed to query npm metadata for ${pkgName}: HTTP ${response.status}`,
+                );
+                return;
+              }
+
+              const metadata = response.status === 404 ? null : await response.json();
+              const latestTag = metadata?.["dist-tags"]?.latest ?? null;
+              const hasVersion = Boolean(metadata?.versions?.[pkgVersion]);
+
+              if (latestTag !== null) {
+                const comparison = compareStableSemver(pkgVersion, latestTag);
+                if (comparison === null) {
+                  core.setFailed(
+                    `Unsupported semver for ${pkgName}: local=${pkgVersion} latest=${latestTag}`,
+                  );
+                  return;
+                }
+
+                if (comparison < 0) {
+                  downgradePackages.push(
+                    `${pkgName} local=${pkgVersion} latest=${latestTag}`,
+                  );
+                  continue;
+                }
+              }
+
+              if (latestTag !== pkgVersion) {
+                const target = {
+                  name: pkgName,
+                  version: pkgVersion,
+                  latestTag,
+                };
+
+                promotionTargets.push(target);
+                if (!hasVersion) {
+                  publishTargets.push(target);
+                }
+              }
+            }
+
+            if (prereleasePackages.length > 0) {
+              core.setFailed(
+                `Prerelease versions are not allowed on main: ${prereleasePackages.join(", ")}`,
+              );
+              return;
+            }
+
+            if (downgradePackages.length > 0) {
+              core.setFailed(
+                `Refusing to retag older versions as latest: ${downgradePackages.join(", ")}`,
+              );
+              return;
+            }
+
+            promotionTargets.sort((a, b) => a.name.localeCompare(b.name));
+            publishTargets.sort((a, b) => a.name.localeCompare(b.name));
+
+            core.info(
+              `Promotion targets: ${promotionTargets.length === 0 ? "none" : promotionTargets.map((target) => `${target.name}@${target.version}`).join(", ")}`,
+            );
+            core.info(
+              `Publish targets: ${publishTargets.length === 0 ? "none" : publishTargets.map((target) => `${target.name}@${target.version}`).join(", ")}`,
+            );
+
+            core.setOutput("promotionCount", String(promotionTargets.length));
+            core.setOutput("publishCount", String(publishTargets.length));
+            core.setOutput(
+              "promotionTargetsJson",
+              JSON.stringify(promotionTargets),
+            );
+            core.setOutput("publishTargetsJson", JSON.stringify(publishTargets));
+
       - name: Publish to npm and create GitHub releases
+        if: steps.targets.outputs.publishCount != '0' && success()
         id: changesets-publish
         uses: changesets/action@6a0a831ff30acef54f2c6aa1cbbc1096b066edaf # v1.7.0
         with:
-          publish: bash -eo pipefail -c "pnpm ci:publish || (echo 'Publish failed, retrying once in 20 seconds...' >&2; sleep 20; pnpm ci:publish)"
+          publish: bash -eo pipefail -c "pnpm turbo build --filter='./packages/*' && changeset publish --tag next || (echo 'Publish failed; retrying once in 20 seconds (rebuild included for safety)...' >&2; sleep 20; pnpm turbo build --filter='./packages/*' && changeset publish --tag next)"
           createGithubReleases: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Verify publish targets exist on npm
+        if: steps.targets.outputs.promotionCount != '0' && success()
+        id: verify
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        env:
+          TARGETS_JSON: ${{ steps.targets.outputs.promotionTargetsJson }}
+        with:
+          script: |
+            const targets = JSON.parse(process.env.TARGETS_JSON || "[]");
+            const missing = [];
+
+            for (const target of targets) {
+              const encodedName = encodeURIComponent(target.name);
+              const response = await fetch(`https://registry.npmjs.org/${encodedName}`);
+
+              if (!response.ok && response.status !== 404) {
+                core.setFailed(
+                  `Failed to verify npm metadata for ${target.name}: HTTP ${response.status}`,
+                );
+                return;
+              }
+
+              const metadata = response.status === 404 ? null : await response.json();
+              const hasVersion = Boolean(metadata?.versions?.[target.version]);
+
+              if (!hasVersion) {
+                missing.push(`${target.name}@${target.version}`);
+              }
+            }
+
+            if (missing.length > 0) {
+              core.setFailed(
+                `Missing published versions on npm after publish attempts: ${missing.join(", ")}`,
+              );
+              return;
+            }
+
+            core.info("All publish targets exist on npm.");
+
+      - name: Promote verified targets to latest
+        if: steps.targets.outputs.promotionCount != '0' && success()
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          TARGETS_JSON: ${{ steps.targets.outputs.promotionTargetsJson }}
+        run: |
+          node -e 'const { spawnSync } = require("node:child_process");
+          const targets = JSON.parse(process.env.TARGETS_JSON || "[]");
+          for (const target of targets) {
+            const spec = `${target.name}@${target.version}`;
+            const result = spawnSync("npm", ["dist-tag", "add", spec, "latest"], {
+              stdio: "inherit",
+            });
+            if (result.status !== 0) {
+              process.exit(result.status ?? 1);
+            }
+          }'
+
+      - name: No publish targets
+        if: steps.targets.outputs.promotionCount == '0'
+        run: echo "No packages require publishing for this release SHA."
 
       - name: Recovery guidance
         if: failure()
