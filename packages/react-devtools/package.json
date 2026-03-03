@@ -28,7 +28,10 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "aui-build"
+    "build": "aui-build",
+    "deps:check": "npx taze major -f -x",
+    "deps:update": "npx taze major -f -w -x && pnpm install",
+    "deps:update:no-install": "npx taze major -f -w -x"
   },
   "dependencies": {
     "zod": "^4.3.6"

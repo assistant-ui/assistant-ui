@@ -5,7 +5,10 @@
   "type": "module",
   "scripts": {
     "build": "tsx scripts/build-extension.mts",
-    "dev": "NODE_ENV=development tsx scripts/build-extension.mts --watch"
+    "dev": "NODE_ENV=development tsx scripts/build-extension.mts --watch",
+    "deps:check": "npx taze major -f -x",
+    "deps:update": "npx taze major -f -w -x && pnpm install",
+    "deps:update:no-install": "npx taze major -f -w -x"
   },
   "dependencies": {
     "@assistant-ui/react-devtools": "workspace:*",

@@ -4,7 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsx ./scripts/build-registry.ts"
+    "build": "tsx ./scripts/build-registry.ts",
+    "deps:check": "npx taze major -f -x",
+    "deps:update": "npx taze major -f -w -x && pnpm install",
+    "deps:update:no-install": "npx taze major -f -w -x"
   },
   "dependencies": {
     "radix-ui": "^1.4.3"

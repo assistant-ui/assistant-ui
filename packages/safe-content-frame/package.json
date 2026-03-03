@@ -36,7 +36,10 @@
   "sideEffects": false,
   "scripts": {
     "build": "aui-build",
-    "dev": "vite demo"
+    "dev": "vite demo",
+    "deps:check": "npx taze major -f -x",
+    "deps:update": "npx taze major -f -w -x && pnpm install",
+    "deps:update:no-install": "npx taze major -f -w -x"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",

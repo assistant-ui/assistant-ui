@@ -48,5 +48,10 @@
   "peerDependencies": {
     "react": "^18 || ^19",
     "react-dom": "^18 || ^19"
+  },
+  "scripts": {
+    "deps:check": "npx taze major -f -x",
+    "deps:update": "npx taze major -f -w -x && pnpm install",
+    "deps:update:no-install": "npx taze major -f -w -x"
   }
 }

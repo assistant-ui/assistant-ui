@@ -43,5 +43,10 @@
   },
   "bugs": {
     "url": "https://github.com/assistant-ui/assistant-ui/issues"
+  },
+  "scripts": {
+    "deps:check": "npx taze major -f -x",
+    "deps:update": "npx taze major -f -w -x && pnpm install",
+    "deps:update:no-install": "npx taze major -f -w -x"
   }
 }

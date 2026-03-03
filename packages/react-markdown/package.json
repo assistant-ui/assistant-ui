@@ -36,7 +36,10 @@
   "scripts": {
     "build": "aui-build",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "deps:check": "npx taze major -f -x",
+    "deps:update": "npx taze major -f -w -x && pnpm install",
+    "deps:update:no-install": "npx taze major -f -w -x"
   },
   "dependencies": {
     "@radix-ui/react-primitive": "^2.1.4",
