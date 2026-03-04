@@ -1,5 +1,4 @@
-// scope registration (module augmentation side effect)
-import "./scope-registration";
+/// <reference path="./scope-registration.ts" />
 
 // scopes
 export * from "./scopes";

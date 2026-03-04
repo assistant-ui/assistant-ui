@@ -1,4 +1,4 @@
-import "./types/store-augmentation";
+/// <reference path="./types/store-augmentation.ts" />
 
 export * from "./model-context";
 export * from "./client";

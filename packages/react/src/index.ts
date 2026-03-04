@@ -1,4 +1,4 @@
-import "@assistant-ui/core/react"; // store-augmentation side-effect (tools, dataRenderers scopes)
+/// <reference types="@assistant-ui/core/react" />
 
 // Re-export from @assistant-ui/store
 export {
