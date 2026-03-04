@@ -2,11 +2,13 @@ packages:
   - packages/*
   - examples/*
   - apps/*
+  - templates/*
 
 ignoredBuiltDependencies:
   - '@modelcontextprotocol/ext-apps'
 
 onlyBuiltDependencies:
+  - '@clerk/shared'
   - '@tailwindcss/oxide@4.1.17'
   - core-js
   - esbuild
