@@ -1,5 +1,19 @@
 # @assistant-ui/react-ag-ui
 
+## 0.0.19
+
+### Patch Changes
+
+- a845911: chore: update dependencies
+- a8983ae: fix(react-ag-ui): add REASONING\_\* event support to match @ag-ui/client v0.0.45
+- c482ca2: fix(react-ag-ui): correctly import `MESSAGES_SNAPSHOT` events that include `role: "tool"` messages by normalizing them into assistant tool-call results before core conversion.
+- Updated dependencies [07dcce0]
+- Updated dependencies [a845911]
+- Updated dependencies [bc40eaf]
+- Updated dependencies [be23d74]
+- Updated dependencies [1eb059c]
+  - @assistant-ui/react@0.12.15
+
 ## 0.0.18
 
 ### Patch Changes

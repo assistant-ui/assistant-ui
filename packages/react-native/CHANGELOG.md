@@ -1,5 +1,14 @@
 # @assistant-ui/react-native
 
+## 0.1.2
+
+### Patch Changes
+
+- a845911: chore: update dependencies
+- Updated dependencies [a845911]
+  - @assistant-ui/store@0.2.2
+  - @assistant-ui/tap@0.5.2
+
 ## 0.1.1
 
 ### Patch Changes

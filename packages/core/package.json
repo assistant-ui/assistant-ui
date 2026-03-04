@@ -62,8 +62,8 @@
     "nanoid": "^5.1.6"
   },
   "peerDependencies": {
-    "@assistant-ui/store": "^0.2.1",
-    "@assistant-ui/tap": "^0.5.1",
+    "@assistant-ui/store": "^0.2.2",
+    "@assistant-ui/tap": "^0.5.2",
     "@types/react": "*",
     "react": "^18 || ^19",
     "zod": "^4.0.0",

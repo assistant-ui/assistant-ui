@@ -1,5 +1,19 @@
 # @assistant-ui/react
 
+## 0.12.15
+
+### Patch Changes
+
+- 07dcce0: fix(react): duplicate `toolCallId` parts when joining consecutive assistant snapshots in the external message converter.
+- a845911: chore: update dependencies
+- bc40eaf: fix(react): `ActionBarMorePrimitive` disappearing when `ActionBarPrimitive.Root` uses `autohide="not-last"` on non-last messages.
+- be23d74: fix(react): make `useToolInvocations` args stream rewrites recover safely and avoid premature closure for non-executable client tools.
+- 1eb059c: fix(react): avoid crashing when external message conversion receives orphaned tool results without a matching tool call.
+- Updated dependencies [a845911]
+  - assistant-cloud@0.1.21
+  - @assistant-ui/store@0.2.2
+  - @assistant-ui/tap@0.5.2
+
 ## 0.12.14
 
 ### Patch Changes

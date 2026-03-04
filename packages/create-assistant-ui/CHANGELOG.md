@@ -1,5 +1,16 @@
 # create-assistant-ui
 
+## 0.0.44
+
+### Patch Changes
+
+- de45e19: fix(create): point the `cloud` template to the valid
+  `assistant-ui-starter-cloud` repository in both CLIs and aligned tests.
+- a3be526: refactor(create-assistant-ui): delegate directly to the installed `assistant-ui create` binary instead of re-implementing template selection and scaffolding logic.
+- Updated dependencies [a845911]
+- Updated dependencies [de45e19]
+  - assistant-ui@0.0.81
+
 ## 0.0.43
 
 ### Patch Changes

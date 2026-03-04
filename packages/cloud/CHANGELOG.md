@@ -1,5 +1,11 @@
 # assistant-cloud
 
+## 0.1.21
+
+### Patch Changes
+
+- a845911: chore: update dependencies
+
 ## 0.1.20
 
 ### Patch Changes

@@ -1,5 +1,18 @@
 # @assistant-ui/react-devtools
 
+## 1.0.2
+
+### Patch Changes
+
+- a845911: chore: update dependencies
+- Updated dependencies [07dcce0]
+- Updated dependencies [a845911]
+- Updated dependencies [bc40eaf]
+- Updated dependencies [be23d74]
+- Updated dependencies [1eb059c]
+  - @assistant-ui/react@0.12.15
+  - @assistant-ui/tap@0.5.2
+
 ## 1.0.1
 
 ### Patch Changes
