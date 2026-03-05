@@ -1,17 +1,17 @@
 export const MODELS = [
   {
+    name: "GPT-5.4",
+    value: "openai/gpt-5.4",
+    icon: "/icons/openai.svg",
+    disabled: false,
+    contextWindow: 1_000_000,
+  },
+  {
     name: "GPT-5 Nano",
     value: "openai/gpt-5-nano",
     icon: "/icons/openai.svg",
     disabled: false,
     contextWindow: 400_000,
-  },
-  {
-    name: "GPT-OSS 120b",
-    value: "openai/gpt-oss-120b",
-    icon: "/icons/openai.svg",
-    disabled: false,
-    contextWindow: 131_000,
   },
   {
     name: "Gemini 3.0 Flash",
@@ -28,15 +28,8 @@ export const MODELS = [
     contextWindow: 256_000,
   },
   {
-    name: "GLM 5",
-    value: "zai/glm-5",
-    icon: "/icons/zai.svg",
-    disabled: false,
-    contextWindow: 202_752,
-  },
-  {
-    name: "Deepseek V3.1",
-    value: "deepseek/deepseek-v3.1",
+    name: "Deepseek V3.2",
+    value: "deepseek/deepseek-v3.2",
     icon: "/icons/deepseek.svg",
     disabled: false,
     contextWindow: 164_000,
@@ -53,7 +46,7 @@ export const MODELS = [
 export type Model = (typeof MODELS)[number];
 export type KnownModelId = Model["value"];
 
-const DEFAULT_MODEL = MODELS[2];
+const DEFAULT_MODEL = MODELS[0];
 export const DEFAULT_MODEL_ID: KnownModelId = DEFAULT_MODEL.value;
 export const DEFAULT_CONTEXT_WINDOW = DEFAULT_MODEL.contextWindow;
 
