@@ -1,5 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { downloadTemplate } from "giget";
 import { spawn } from "cross-spawn";
 import { sync as globSync } from "glob";
 import { detect } from "detect-package-manager";
@@ -26,48 +27,43 @@ export async function resolveLatestReleaseRef(): Promise<string | undefined> {
   }
 }
 
+const DOWNLOAD_TIMEOUT_MS = 30_000;
+
 export async function downloadProject(
   repoPath: string,
   destDir: string,
   ref?: string,
 ): Promise<void> {
-  const degitRef = ref
-    ? `assistant-ui/assistant-ui/${repoPath}#${ref}`
-    : `assistant-ui/assistant-ui/${repoPath}`;
+  const source = ref
+    ? `gh:assistant-ui/assistant-ui/${repoPath}#${ref}`
+    : `gh:assistant-ui/assistant-ui/${repoPath}`;
 
-  return new Promise((resolve, reject) => {
-    const child = spawn(
-      "npx",
-      ["--yes", "degit", degitRef, destDir, "--force"],
-      {
-        stdio: ["inherit", "ignore", "pipe"],
-      },
-    );
-
-    let stderr = "";
-    child.stderr?.on("data", (chunk: Buffer) => {
-      stderr += chunk.toString();
+  // Suppress giget's console.debug output
+  const origDebug = console.debug;
+  console.debug = () => {};
+  try {
+    const downloadPromise = downloadTemplate(source, {
+      dir: destDir,
+      force: true,
+      silent: true,
     });
 
-    child.on("error", (error) => {
-      reject(new Error(`Failed to download project: ${error.message}`));
-    });
-
-    child.on("close", (code) => {
-      if (code !== 0) {
-        const msg = stderr.trim();
-        reject(
-          new Error(
-            msg
-              ? `degit failed: ${msg}`
-              : `degit exited with code ${code}`,
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(
+        () =>
+          reject(
+            new Error(
+              "Download timed out. This may be due to GitHub rate limiting or a network issue. Try again in a few minutes.",
+            ),
           ),
-        );
-      } else {
-        resolve();
-      }
+        DOWNLOAD_TIMEOUT_MS,
+      );
     });
-  });
+
+    await Promise.race([downloadPromise, timeoutPromise]);
+  } finally {
+    console.debug = origDebug;
+  }
 }
 
 export async function resolvePackageManagerName(

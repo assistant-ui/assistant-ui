@@ -486,11 +486,17 @@ export const create = new Command()
       if (opts.preset) {
         logger.info("Applying preset configuration...");
         logger.break();
-        await runSpawn(
-          "npx",
-          ["--yes", "shadcn@latest", "add", "--yes", opts.preset],
-          absoluteProjectDir,
-        );
+        try {
+          await runSpawn(
+            "npx",
+            ["--yes", "shadcn@latest", "add", "--yes", opts.preset],
+            absoluteProjectDir,
+          );
+        } catch {
+          logger.warn(
+            `Preset application failed. You can retry manually with:\n  npx shadcn@latest add "${opts.preset}"`,
+          );
+        }
       }
 
       logger.break();

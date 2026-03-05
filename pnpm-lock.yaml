@@ -1875,6 +1875,9 @@ importers:
       detect-package-manager:
         specifier: ^3.0.2
         version: 3.0.2
+      giget:
+        specifier: ^3.1.2
+        version: 3.1.2
       glob:
         specifier: ^13.0.6
         version: 13.0.6
@@ -9106,6 +9109,10 @@ packages:
   getenv@2.0.0:
     resolution: {integrity: sha512-VilgtJj/ALgGY77fiLam5iD336eSWi96Q15JSAG1zi8NRBysm3LXKdGnHb4m5cuyxvOLQQKWpBZAT6ni4FI2iQ==}
     engines: {node: '>=6'}
+
+  giget@3.1.2:
+    resolution: {integrity: sha512-T2qUpKBHeUTwHcIhydgnJzhL0Hj785ms+JkxaaWQH9SDM/llXeewnOkfJcFShAHjWI+26hOChwUfCoupaXLm8g==}
+    hasBin: true
 
   github-slugger@2.0.0:
     resolution: {integrity: sha512-IaOQ9puYtjrkq7Y0Ygl9KDZnrf/aiUJYUpVf89y8kyaxbRG7Y1SrX/jaumrv81vc61+kiMempujsM3Yw7w5qcw==}
@@ -19208,6 +19215,8 @@ snapshots:
   get-value@2.0.6: {}
 
   getenv@2.0.0: {}
+
+  giget@3.1.2: {}
 
   github-slugger@2.0.0: {}
 

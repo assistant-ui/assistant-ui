@@ -28,13 +28,19 @@ vi.mock("cross-spawn", () => ({
   }),
 }));
 
+// Mock giget so no real downloads happen
+vi.mock("giget", () => ({
+  downloadTemplate: vi.fn().mockResolvedValue({}),
+}));
+
 // Also mock detect-package-manager to avoid filesystem probing
 vi.mock("detect-package-manager", () => ({
   detect: vi.fn().mockResolvedValue("npm"),
 }));
 
-// Import the mock after vi.mock so we can inspect calls
+// Import the mocks after vi.mock so we can inspect calls
 import { spawn } from "cross-spawn";
+import { downloadTemplate } from "giget";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -83,9 +89,7 @@ describe("resolveLatestReleaseRef", () => {
         json: async () => ({ tag_name: "@assistant-ui/react@0.12.15" }),
       }),
     );
-    expect(await resolveLatestReleaseRef()).toBe(
-      "@assistant-ui/react@0.12.15",
-    );
+    expect(await resolveLatestReleaseRef()).toBe("@assistant-ui/react@0.12.15");
   });
 
   it("returns undefined when fetch fails", async () => {
@@ -101,35 +105,21 @@ describe("resolveLatestReleaseRef", () => {
 // downloadProject
 // ---------------------------------------------------------------------------
 describe("downloadProject", () => {
-  it("passes ref in degit ref when provided", async () => {
+  it("passes ref in giget source when provided", async () => {
     await downloadProject("templates/default", "/tmp/dest", "v1.0.0");
 
-    expect(spawn).toHaveBeenCalledWith(
-      "npx",
-      [
-        "--yes",
-        "degit",
-        "assistant-ui/assistant-ui/templates/default#v1.0.0",
-        "/tmp/dest",
-        "--force",
-      ],
-      expect.objectContaining({ stdio: ["inherit", "ignore", "pipe"] }),
+    expect(downloadTemplate).toHaveBeenCalledWith(
+      "gh:assistant-ui/assistant-ui/templates/default#v1.0.0",
+      expect.objectContaining({ dir: "/tmp/dest", force: true, silent: true }),
     );
   });
 
-  it("omits ref from degit when not provided", async () => {
+  it("omits ref from giget source when not provided", async () => {
     await downloadProject("examples/with-tanstack", "/tmp/dest");
 
-    expect(spawn).toHaveBeenCalledWith(
-      "npx",
-      [
-        "--yes",
-        "degit",
-        "assistant-ui/assistant-ui/examples/with-tanstack",
-        "/tmp/dest",
-        "--force",
-      ],
-      expect.objectContaining({ stdio: ["inherit", "ignore", "pipe"] }),
+    expect(downloadTemplate).toHaveBeenCalledWith(
+      "gh:assistant-ui/assistant-ui/examples/with-tanstack",
+      expect.objectContaining({ dir: "/tmp/dest", force: true, silent: true }),
     );
   });
 });
