@@ -1,5 +1,13 @@
 # create-assistant-ui
 
+## 0.0.45
+
+### Patch Changes
+
+- Updated dependencies [5034b1e]
+- Updated dependencies [fb84e6c]
+  - assistant-ui@0.0.82
+
 ## 0.0.44
 
 ### Patch Changes

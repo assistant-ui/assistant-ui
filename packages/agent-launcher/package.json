@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/agent-launcher",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Launch Claude Code with bundled plugins and skills",
   "keywords": [
     "claude",
