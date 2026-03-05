@@ -117,6 +117,7 @@ export function generateRegistryJson(config: BuilderConfig) {
     dependencies: [
       "@assistant-ui/react",
       "@assistant-ui/react-ui",
+      "lucide-react",
       ...(config.components.markdown ? ["@assistant-ui/react-markdown"] : []),
     ],
     registryDependencies,
