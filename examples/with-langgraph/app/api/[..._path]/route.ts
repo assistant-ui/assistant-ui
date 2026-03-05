@@ -27,10 +27,15 @@ async function handleRequest(req: NextRequest, method: string) {
       options,
     );
 
+    const headers = new Headers(res.headers);
+    headers.delete("content-encoding");
+    headers.delete("content-length");
+    headers.delete("transfer-encoding");
+
     return new NextResponse(res.body, {
       status: res.status,
       statusText: res.statusText,
-      headers: res.headers,
+      headers,
     });
   } catch (e: unknown) {
     if (e instanceof Error) {

@@ -29,10 +29,15 @@ async function handleRequest(req: NextRequest, method: string) {
       options,
     );
 
+    const headers = new Headers(res.headers);
+    headers.delete("content-encoding");
+    headers.delete("content-length");
+    headers.delete("transfer-encoding");
+
     return new NextResponse(res.body, {
       status: res.status,
       statusText: res.statusText,
-      headers: res.headers,
+      headers,
     });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (e: any) {
