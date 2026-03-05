@@ -1,5 +1,11 @@
 # @assistant-ui/cloud-ai-sdk
 
+## 0.1.5
+
+### Patch Changes
+
+- 57e26d2: chore: update dependencies
+
 ## 0.1.4
 
 ### Patch Changes

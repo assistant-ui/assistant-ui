@@ -1,5 +1,11 @@
 # mcp-app-studio
 
+## 0.7.4
+
+### Patch Changes
+
+- 57e26d2: chore: update dependencies
+
 ## 0.7.3
 
 ### Patch Changes

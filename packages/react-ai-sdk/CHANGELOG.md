@@ -1,5 +1,11 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.3.12
+
+### Patch Changes
+
+- 57e26d2: chore: update dependencies
+
 ## 1.3.11
 
 ### Patch Changes
