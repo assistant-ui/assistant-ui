@@ -221,8 +221,7 @@ describe("resolveCreateProjectDirectory", () => {
 
 describe("resolvePresetUrl", () => {
   it("passes through full https URLs unchanged", () => {
-    const url =
-      "https://www.assistant-ui.com/playground/init?preset=chatgpt";
+    const url = "https://www.assistant-ui.com/playground/init?preset=chatgpt";
     expect(resolvePresetUrl(url)).toBe(url);
   });
 

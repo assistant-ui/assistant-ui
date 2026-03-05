@@ -210,8 +210,8 @@ describe("transformProject — hasLocalComponents: false", () => {
 
       const tsconfig = readJSON("tsconfig.json");
       expect(tsconfig.extends).toBeUndefined();
-      expect(tsconfig.compilerOptions.target).toBe("ES2017");
-      expect(tsconfig.compilerOptions.jsx).toBe("preserve");
+      expect(tsconfig.compilerOptions.target).toBe("ESNext");
+      expect(tsconfig.compilerOptions.jsx).toBe("react-jsx");
       expect(tsconfig.compilerOptions.plugins).toEqual([{ name: "next" }]);
       // User's baseUrl should be preserved
       expect(tsconfig.compilerOptions.baseUrl).toBe(".");

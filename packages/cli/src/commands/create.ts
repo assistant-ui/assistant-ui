@@ -434,7 +434,10 @@ export const create = new Command()
         );
         process.exit(1);
       } else {
-        throw err;
+        logger.error(
+          `Cannot access ${resolvedProjectDirectory}: ${err.message}`,
+        );
+        process.exit(1);
       }
     }
 
@@ -455,6 +458,12 @@ export const create = new Command()
       absoluteProjectDir,
       resolvePackageManager(opts),
     );
+
+    // Clean up partial project directory on unexpected exit (e.g. Ctrl+C)
+    const cleanupOnExit = () => {
+      fs.rmSync(absoluteProjectDir, { recursive: true, force: true });
+    };
+    process.once("exit", cleanupOnExit);
 
     try {
       // 3. Resolve latest release ref (started before prompts)
@@ -514,10 +523,12 @@ export const create = new Command()
           );
         } catch {
           logger.warn(
-            `Preset application failed. You can retry manually with:\n  npx shadcn@latest add "${presetUrl}"`,
+            `Preset application failed. You can retry manually with:\n  ${dlxCmd} ${[...dlxArgs, "shadcn@latest", "add", presetUrl].join(" ")}`,
           );
         }
       }
+
+      process.removeListener("exit", cleanupOnExit);
 
       logger.break();
       logger.success("Project created successfully!");

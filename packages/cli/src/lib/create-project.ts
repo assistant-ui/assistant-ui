@@ -8,9 +8,7 @@ import { logger } from "./utils/logger";
 
 export type PackageManagerName = "npm" | "pnpm" | "yarn" | "bun";
 
-export function dlxCommand(
-  pm: PackageManagerName,
-): [string, string[]] {
+export function dlxCommand(pm: PackageManagerName): [string, string[]] {
   switch (pm) {
     case "pnpm":
       return ["pnpm", ["dlx"]];
@@ -19,7 +17,6 @@ export function dlxCommand(
     case "bun":
       return ["bunx", []];
     case "npm":
-    default:
       return ["npx", ["--yes"]];
   }
 }
@@ -126,7 +123,8 @@ export async function transformProject(
   }
 
   // 6. Install dependencies
-  const pm = await resolvePackageManagerName(projectDir, opts.packageManager);
+  const pm =
+    opts.packageManager ?? (await resolvePackageManagerName(projectDir));
   if (!opts.skipInstall) {
     logger.step("Installing dependencies...");
     await installDependencies(projectDir, pm);
@@ -212,19 +210,18 @@ async function transformTsConfig(projectDir: string): Promise<void> {
     delete tsconfig.extends;
 
     const inlinedCompilerOptions = {
-      target: isNext ? "ES2017" : "ESNext",
-      lib: ["dom", "dom.iterable", "esnext"],
-      allowJs: true,
+      target: "ESNext",
+      lib: ["dom", "dom.iterable", "ES2023"],
       skipLibCheck: true,
       strict: true,
       noEmit: true,
       esModuleInterop: true,
-      module: "esnext",
+      module: "ESNext",
       moduleResolution: "bundler",
       resolveJsonModule: true,
       isolatedModules: true,
-      jsx: isNext ? "preserve" : "react-jsx",
-      ...(isNext ? { incremental: true, plugins: [{ name: "next" }] } : {}),
+      jsx: "react-jsx",
+      ...(isNext ? { plugins: [{ name: "next" }] } : {}),
     };
 
     tsconfig.compilerOptions = {
@@ -341,7 +338,7 @@ async function installShadcnRegistry(
   projectDir: string,
   components: string[],
   label: string,
-  pm: PackageManagerName = "npm",
+  pm: PackageManagerName,
 ): Promise<void> {
   const [cmd, dlxArgs] = dlxCommand(pm);
   return new Promise((resolve, reject) => {
@@ -361,7 +358,7 @@ async function installShadcnRegistry(
     child.on("close", (code) => {
       if (code !== 0) {
         logger.warn(
-          `shadcn exited with code ${code}. Run the following to retry:\n  npx shadcn@latest add ${components.join(" ")}`,
+          `shadcn exited with code ${code}. Run the following to retry:\n  ${cmd} ${[...dlxArgs, "shadcn@latest", "add", ...components].join(" ")}`,
         );
       }
       resolve();
