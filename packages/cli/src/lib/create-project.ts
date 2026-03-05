@@ -5,22 +5,22 @@ import { sync as globSync } from "glob";
 import { detect } from "detect-package-manager";
 import { logger } from "./utils/logger";
 
+export type PackageManagerName = "npm" | "pnpm" | "yarn" | "bun";
+
 export interface TransformOptions {
   hasLocalComponents: boolean;
   skipInstall?: boolean;
-  packageManager?: "npm" | "pnpm" | "yarn" | "bun" | undefined;
+  packageManager?: PackageManagerName;
 }
 
-export async function resolveLatestReleaseSha(): Promise<string | undefined> {
+export async function resolveLatestReleaseRef(): Promise<string | undefined> {
   try {
     const res = await fetch(
-      "https://api.github.com/repos/assistant-ui/assistant-ui/tags?per_page=1",
+      "https://api.github.com/repos/assistant-ui/assistant-ui/releases/latest",
     );
     if (!res.ok) return undefined;
-    const tags = (await res.json()) as Array<{
-      commit: { sha: string };
-    }>;
-    return tags[0]?.commit.sha;
+    const release = (await res.json()) as { tag_name: string };
+    return release.tag_name || undefined;
   } catch {
     return undefined;
   }
@@ -29,10 +29,10 @@ export async function resolveLatestReleaseSha(): Promise<string | undefined> {
 export async function downloadProject(
   repoPath: string,
   destDir: string,
-  sha?: string,
+  ref?: string,
 ): Promise<void> {
-  const degitRef = sha
-    ? `assistant-ui/assistant-ui/${repoPath}#${sha}`
+  const degitRef = ref
+    ? `assistant-ui/assistant-ui/${repoPath}#${ref}`
     : `assistant-ui/assistant-ui/${repoPath}`;
 
   return new Promise((resolve, reject) => {
@@ -40,10 +40,14 @@ export async function downloadProject(
       "npx",
       ["--yes", "degit", degitRef, destDir, "--force"],
       {
-        stdio: "inherit",
-        shell: true,
+        stdio: ["inherit", "ignore", "pipe"],
       },
     );
+
+    let stderr = "";
+    child.stderr?.on("data", (chunk: Buffer) => {
+      stderr += chunk.toString();
+    });
 
     child.on("error", (error) => {
       reject(new Error(`Failed to download project: ${error.message}`));
@@ -51,12 +55,31 @@ export async function downloadProject(
 
     child.on("close", (code) => {
       if (code !== 0) {
-        reject(new Error(`degit exited with code ${code}`));
+        const msg = stderr.trim();
+        reject(
+          new Error(
+            msg
+              ? `degit failed: ${msg}`
+              : `degit exited with code ${code}`,
+          ),
+        );
       } else {
         resolve();
       }
     });
   });
+}
+
+export async function resolvePackageManagerName(
+  projectDir: string,
+  packageManager?: PackageManagerName,
+): Promise<PackageManagerName> {
+  if (packageManager) return packageManager;
+  try {
+    return await detect({ cwd: path.dirname(projectDir) });
+  } catch {
+    return "npm";
+  }
 }
 
 export async function transformProject(
@@ -71,23 +94,18 @@ export async function transformProject(
   let shadcnUI: string[] | undefined;
 
   if (!opts.hasLocalComponents) {
-    // 2. Transform tsconfig.json
-    logger.step("Transforming tsconfig.json...");
-    await transformTsConfig(projectDir);
+    logger.step("Transforming project files...");
 
-    // 3. Transform CSS files
-    logger.step("Transforming CSS files...");
-    await transformCssFiles(projectDir);
-
-    // 4. Scan for required components
-    logger.step("Scanning for required components...");
-    const components = await scanRequiredComponents(projectDir);
+    // 2–5. Transform tsconfig, CSS, scan components, and remove workspace
+    // components — all independent, run in parallel
+    const [, , components] = await Promise.all([
+      transformTsConfig(projectDir),
+      transformCssFiles(projectDir),
+      scanRequiredComponents(projectDir),
+      removeWorkspaceComponents(projectDir),
+    ]);
     assistantUI = components.assistantUI;
     shadcnUI = components.shadcnUI;
-
-    // 5. Remove workspace components directory
-    logger.step("Cleaning up workspace components...");
-    await removeWorkspaceComponents(projectDir);
   }
 
   // 6. Install dependencies
@@ -98,18 +116,19 @@ export async function transformProject(
 
   if (!opts.hasLocalComponents && shadcnUI && assistantUI) {
     // 7. Install shadcn UI components
-    if (!shadcnUI.includes("utils")) {
-      shadcnUI.push("utils");
-    }
-    logger.step(`Installing shadcn UI components: ${shadcnUI.join(", ")}...`);
-    await installShadcnComponents(projectDir, shadcnUI);
+    const allShadcn = shadcnUI.includes("utils")
+      ? shadcnUI
+      : [...shadcnUI, "utils"];
+    logger.step(`Installing shadcn UI components: ${allShadcn.join(", ")}...`);
+    await installShadcnRegistry(projectDir, allShadcn, "shadcn components");
 
     // 8. Install assistant-ui components
     if (assistantUI.length > 0) {
+      const auiComponents = assistantUI.map((c) => `@assistant-ui/${c}`);
       logger.step(
         `Installing assistant-ui components: ${assistantUI.join(", ")}...`,
       );
-      await installAssistantUIComponents(projectDir, assistantUI);
+      await installShadcnRegistry(projectDir, auiComponents, "components");
     }
   }
 }
@@ -163,29 +182,35 @@ async function transformTsConfig(projectDir: string): Promise<void> {
     delete tsconfig.compilerOptions.paths["@/components/ui/*"];
     delete tsconfig.compilerOptions.paths["@/lib/utils"];
     delete tsconfig.compilerOptions.paths["@assistant-ui/ui/*"];
+
+    if (Object.keys(tsconfig.compilerOptions.paths).length === 0) {
+      delete tsconfig.compilerOptions.paths;
+    }
   }
 
   // If extends uses @assistant-ui/x-buildutils, replace with inline config
   if (tsconfig.extends?.includes("@assistant-ui/x-buildutils")) {
+    const isNext = tsconfig.extends.includes("ts/next");
     delete tsconfig.extends;
 
+    const inlinedCompilerOptions = {
+      target: isNext ? "ES2017" : "ESNext",
+      lib: ["dom", "dom.iterable", "esnext"],
+      allowJs: true,
+      skipLibCheck: true,
+      strict: true,
+      noEmit: true,
+      esModuleInterop: true,
+      module: "esnext",
+      moduleResolution: "bundler",
+      resolveJsonModule: true,
+      isolatedModules: true,
+      jsx: isNext ? "preserve" : "react-jsx",
+      ...(isNext ? { incremental: true, plugins: [{ name: "next" }] } : {}),
+    };
+
     tsconfig.compilerOptions = {
-      ...{
-        target: "ES2017",
-        lib: ["dom", "dom.iterable", "esnext"],
-        allowJs: true,
-        skipLibCheck: true,
-        strict: true,
-        noEmit: true,
-        esModuleInterop: true,
-        module: "esnext",
-        moduleResolution: "bundler",
-        resolveJsonModule: true,
-        isolatedModules: true,
-        jsx: "preserve",
-        incremental: true,
-        plugins: [{ name: "next" }],
-      },
+      ...inlinedCompilerOptions,
       ...tsconfig.compilerOptions,
       paths: {
         "@/*": ["./*"],
@@ -265,35 +290,20 @@ async function scanRequiredComponents(
 
 async function removeWorkspaceComponents(projectDir: string): Promise<void> {
   const componentsDir = path.join(projectDir, "components", "assistant-ui");
-
-  if (fs.existsSync(componentsDir)) {
-    fs.rmSync(componentsDir, { recursive: true });
-  }
+  fs.rmSync(componentsDir, { recursive: true, force: true });
 }
 
 async function installDependencies(
   projectDir: string,
-  packageManager?: string,
+  packageManager?: PackageManagerName,
 ): Promise<void> {
-  let pm: string;
-
-  if (packageManager) {
-    pm = packageManager;
-  } else {
-    try {
-      pm = await detect({ cwd: path.dirname(projectDir) });
-    } catch {
-      pm = "npm";
-    }
-  }
-
+  const pm = await resolvePackageManagerName(projectDir, packageManager);
   const args = pm === "yarn" ? [] : ["install"];
 
   return new Promise((resolve, reject) => {
     const child = spawn(pm, args, {
       cwd: projectDir,
       stdio: "inherit",
-      shell: true,
     });
 
     child.on("error", (error) => {
@@ -310,9 +320,10 @@ async function installDependencies(
   });
 }
 
-async function installShadcnComponents(
+async function installShadcnRegistry(
   projectDir: string,
   components: string[],
+  label: string,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     const child = spawn(
@@ -321,52 +332,17 @@ async function installShadcnComponents(
       {
         cwd: projectDir,
         stdio: "inherit",
-        shell: true,
       },
     );
 
     child.on("error", (error) => {
-      reject(
-        new Error(`Failed to install shadcn components: ${error.message}`),
-      );
+      reject(new Error(`Failed to install ${label}: ${error.message}`));
     });
 
     child.on("close", (code) => {
       if (code !== 0) {
         logger.warn(
-          `shadcn exited with code ${code}, components may need manual installation`,
-        );
-      }
-      resolve();
-    });
-  });
-}
-
-async function installAssistantUIComponents(
-  projectDir: string,
-  components: string[],
-): Promise<void> {
-  const componentArgs = components.map((c) => `@assistant-ui/${c}`);
-
-  return new Promise((resolve, reject) => {
-    const child = spawn(
-      "npx",
-      ["--yes", "shadcn@latest", "add", ...componentArgs, "--yes"],
-      {
-        cwd: projectDir,
-        stdio: "inherit",
-        shell: true,
-      },
-    );
-
-    child.on("error", (error) => {
-      reject(new Error(`Failed to install components: ${error.message}`));
-    });
-
-    child.on("close", (code) => {
-      if (code !== 0) {
-        logger.warn(
-          `shadcn exited with code ${code}, components may need manual installation`,
+          `shadcn exited with code ${code}. Run the following to retry:\n  npx shadcn@latest add ${components.join(" ")}`,
         );
       }
       resolve();

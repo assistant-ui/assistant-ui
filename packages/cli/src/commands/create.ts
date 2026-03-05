@@ -7,8 +7,10 @@ import * as p from "@clack/prompts";
 import { logger } from "../lib/utils/logger";
 import {
   downloadProject,
-  resolveLatestReleaseSha,
+  resolveLatestReleaseRef,
+  resolvePackageManagerName,
   transformProject,
+  type PackageManagerName,
 } from "../lib/create-project";
 
 export interface ProjectMetadata {
@@ -247,12 +249,21 @@ export async function resolveProject(params: {
   const selected = await select({
     message: "Select a project to scaffold:",
     options: [
+      {
+        value: "_separator",
+        label: "────── Starter Templates ──────",
+        disabled: true,
+      },
       ...PROJECT_METADATA.filter((m) => m.category === "template").map((m) => ({
         value: m.name,
         label: m.label,
         ...(m.description ? { hint: m.description } : {}),
       })),
-      { value: "_separator", label: "─── Examples ───" },
+      {
+        value: "_separator",
+        label: "────── Feature Examples ──────",
+        disabled: true,
+      },
       ...PROJECT_METADATA.filter((m) => m.category === "example").map((m) => ({
         value: m.name,
         label: m.label,
@@ -320,7 +331,7 @@ function resolvePackageManager(opts: {
   usePnpm?: boolean;
   useYarn?: boolean;
   useBun?: boolean;
-}): "npm" | "pnpm" | "yarn" | "bun" | undefined {
+}): PackageManagerName | undefined {
   if (opts.useNpm) return "npm";
   if (opts.usePnpm) return "pnpm";
   if (opts.useYarn) return "yarn";
@@ -361,6 +372,9 @@ export const create = new Command()
       process.exit(1);
     }
 
+    // Start release ref resolution early (runs during user prompts)
+    const refPromise = resolveLatestReleaseRef();
+
     // 1. Resolve project directory
     let resolvedProjectDirectory = resolveCreateProjectDirectory({
       projectDirectory,
@@ -371,6 +385,15 @@ export const create = new Command()
         message: "Project name:",
         placeholder: "my-aui-app",
         defaultValue: "my-aui-app",
+        validate: (value?: string) => {
+          const name = (value ?? "").trim();
+          if (!name) return "Project name cannot be empty";
+          if (name === "." || name === "..")
+            return "Project name cannot be . or ..";
+          if (name.includes("/") || name.includes("\\"))
+            return "Project name cannot contain path separators";
+          return undefined;
+        },
       });
 
       if (p.isCancel(result)) {
@@ -381,20 +404,26 @@ export const create = new Command()
       resolvedProjectDirectory = result;
     }
 
-    if (opts.preset && !resolvedProjectDirectory) {
-      logger.error("Project directory is required when using --preset.");
-      process.exit(1);
-    }
-
     // Check directory
     const absoluteProjectDir = path.resolve(resolvedProjectDirectory);
-    if (fs.existsSync(absoluteProjectDir)) {
+    try {
       const files = fs.readdirSync(absoluteProjectDir);
       if (files.length > 0) {
         logger.error(
           `Directory ${resolvedProjectDirectory} already exists and is not empty`,
         );
         process.exit(1);
+      }
+    } catch (err: any) {
+      if (err.code === "ENOENT") {
+        // Directory doesn't exist — good, proceed
+      } else if (err.code === "ENOTDIR") {
+        logger.error(
+          `${resolvedProjectDirectory} already exists and is not a directory`,
+        );
+        process.exit(1);
+      } else {
+        throw err;
       }
     }
 
@@ -411,21 +440,47 @@ export const create = new Command()
     logger.info(`Creating project from ${project.category}: ${project.label}`);
     logger.break();
 
+    const pm = await resolvePackageManagerName(
+      absoluteProjectDir,
+      resolvePackageManager(opts),
+    );
+
     try {
-      // 3. Resolve latest release SHA
+      // 3. Resolve latest release ref (started before prompts)
       logger.step("Resolving latest release...");
-      const sha = await resolveLatestReleaseSha();
+      const ref = await refPromise;
+      if (!ref) {
+        logger.warn("Could not resolve latest release, downloading from HEAD");
+      }
 
-      // 4. Download via degit
+      // 4. Download project
       logger.step("Downloading project...");
-      await downloadProject(project.path, absoluteProjectDir, sha);
+      try {
+        await downloadProject(project.path, absoluteProjectDir, ref);
 
-      // 5. Run transform pipeline
-      await transformProject(absoluteProjectDir, {
-        hasLocalComponents: project.hasLocalComponents,
-        skipInstall: opts.skipInstall,
-        packageManager: resolvePackageManager(opts),
-      });
+        // If the template didn't exist at the release tag, retry from HEAD
+        if (
+          ref &&
+          !fs.existsSync(path.join(absoluteProjectDir, "package.json"))
+        ) {
+          fs.rmSync(absoluteProjectDir, { recursive: true, force: true });
+          logger.warn(
+            "Template not found at release tag, downloading from HEAD",
+          );
+          await downloadProject(project.path, absoluteProjectDir);
+        }
+
+        // 5. Run transform pipeline
+        await transformProject(absoluteProjectDir, {
+          hasLocalComponents: project.hasLocalComponents,
+          skipInstall: opts.skipInstall,
+          packageManager: pm,
+        });
+      } catch (err) {
+        // Clean up partially created project directory
+        fs.rmSync(absoluteProjectDir, { recursive: true, force: true });
+        throw err;
+      }
 
       // 6. Apply preset if provided
       if (opts.preset) {
@@ -441,13 +496,14 @@ export const create = new Command()
       logger.break();
       logger.success("Project created successfully!");
       logger.break();
+      const runCmd = pm === "npm" ? "npm run" : pm;
       logger.info("Next steps:");
       logger.info(`  cd ${resolvedProjectDirectory}`);
       if (opts.skipInstall) {
-        logger.info("  npm install");
+        logger.info(`  ${pm} install`);
       }
       logger.info("  # Set up your environment variables in .env.local");
-      logger.info("  npm run dev");
+      logger.info(`  ${runCmd} dev`);
     } catch (error) {
       if (error instanceof SpawnExitError) {
         logger.error(`Project creation failed with code ${error.code}`);
