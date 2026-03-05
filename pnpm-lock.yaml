@@ -1830,6 +1830,22 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
+  packages/agent-launcher:
+    dependencies:
+      cross-spawn:
+        specifier: ^7.0.6
+        version: 7.0.6
+    devDependencies:
+      '@assistant-ui/x-buildutils':
+        specifier: workspace:*
+        version: link:../x-buildutils
+      '@types/cross-spawn':
+        specifier: ^6.0.6
+        version: 6.0.6
+      '@types/node':
+        specifier: ^25.3.3
+        version: 25.3.3
+
   packages/assistant-stream:
     dependencies:
       '@standard-schema/spec':
@@ -1854,6 +1870,9 @@ importers:
 
   packages/cli:
     dependencies:
+      '@assistant-ui/agent-launcher':
+        specifier: workspace:*
+        version: link:../agent-launcher
       '@clack/prompts':
         specifier: ^1.1.0
         version: 1.1.0

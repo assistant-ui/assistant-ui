@@ -19,6 +19,7 @@
   },
   "files": [
     "dist",
+    "plugin",
     "src",
     "README.md"
   ],
@@ -30,6 +31,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@assistant-ui/agent-launcher": "workspace:*",
     "@clack/prompts": "^1.1.0",
     "chalk": "^5.6.2",
     "cli-progress": "^3.12.0",
