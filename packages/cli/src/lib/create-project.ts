@@ -8,6 +8,22 @@ import { logger } from "./utils/logger";
 
 export type PackageManagerName = "npm" | "pnpm" | "yarn" | "bun";
 
+export function dlxCommand(
+  pm: PackageManagerName,
+): [string, string[]] {
+  switch (pm) {
+    case "pnpm":
+      return ["pnpm", ["dlx"]];
+    case "yarn":
+      return ["yarn", ["dlx"]];
+    case "bun":
+      return ["bunx", []];
+    case "npm":
+    default:
+      return ["npx", ["--yes"]];
+  }
+}
+
 export interface TransformOptions {
   hasLocalComponents: boolean;
   skipInstall?: boolean;
@@ -48,8 +64,9 @@ export async function downloadProject(
       silent: true,
     });
 
+    let timer: ReturnType<typeof setTimeout>;
     const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(
+      timer = setTimeout(
         () =>
           reject(
             new Error(
@@ -60,7 +77,11 @@ export async function downloadProject(
       );
     });
 
-    await Promise.race([downloadPromise, timeoutPromise]);
+    try {
+      await Promise.race([downloadPromise, timeoutPromise]);
+    } finally {
+      clearTimeout(timer!);
+    }
   } finally {
     console.debug = origDebug;
   }
@@ -105,9 +126,10 @@ export async function transformProject(
   }
 
   // 6. Install dependencies
+  const pm = await resolvePackageManagerName(projectDir, opts.packageManager);
   if (!opts.skipInstall) {
     logger.step("Installing dependencies...");
-    await installDependencies(projectDir, opts.packageManager);
+    await installDependencies(projectDir, pm);
   }
 
   if (!opts.hasLocalComponents && shadcnUI && assistantUI) {
@@ -116,7 +138,7 @@ export async function transformProject(
       ? shadcnUI
       : [...shadcnUI, "utils"];
     logger.step(`Installing shadcn UI components: ${allShadcn.join(", ")}...`);
-    await installShadcnRegistry(projectDir, allShadcn, "shadcn components");
+    await installShadcnRegistry(projectDir, allShadcn, "shadcn components", pm);
 
     // 8. Install assistant-ui components
     if (assistantUI.length > 0) {
@@ -124,7 +146,7 @@ export async function transformProject(
       logger.step(
         `Installing assistant-ui components: ${assistantUI.join(", ")}...`,
       );
-      await installShadcnRegistry(projectDir, auiComponents, "components");
+      await installShadcnRegistry(projectDir, auiComponents, "components", pm);
     }
   }
 }
@@ -291,9 +313,8 @@ async function removeWorkspaceComponents(projectDir: string): Promise<void> {
 
 async function installDependencies(
   projectDir: string,
-  packageManager?: PackageManagerName,
+  pm: PackageManagerName,
 ): Promise<void> {
-  const pm = await resolvePackageManagerName(projectDir, packageManager);
   const args = pm === "yarn" ? [] : ["install"];
 
   return new Promise((resolve, reject) => {
@@ -320,11 +341,13 @@ async function installShadcnRegistry(
   projectDir: string,
   components: string[],
   label: string,
+  pm: PackageManagerName = "npm",
 ): Promise<void> {
+  const [cmd, dlxArgs] = dlxCommand(pm);
   return new Promise((resolve, reject) => {
     const child = spawn(
-      "npx",
-      ["--yes", "shadcn@latest", "add", ...components, "--yes"],
+      cmd,
+      [...dlxArgs, "shadcn@latest", "add", ...components, "--yes"],
       {
         cwd: projectDir,
         stdio: "inherit",

@@ -6,6 +6,7 @@ import path from "node:path";
 import * as p from "@clack/prompts";
 import { logger } from "../lib/utils/logger";
 import {
+  dlxCommand,
   downloadProject,
   resolveLatestReleaseRef,
   resolvePackageManagerName,
@@ -339,6 +340,16 @@ function resolvePackageManager(opts: {
   return undefined;
 }
 
+const PLAYGROUND_PRESET_BASE_URL =
+  "https://www.assistant-ui.com/playground/init";
+
+export function resolvePresetUrl(preset: string): string {
+  if (preset.startsWith("http://") || preset.startsWith("https://")) {
+    return preset;
+  }
+  return `${PLAYGROUND_PRESET_BASE_URL}?preset=${encodeURIComponent(preset)}`;
+}
+
 export const create = new Command()
   .name("create")
   .description("create a new project")
@@ -353,8 +364,8 @@ export const create = new Command()
     `create from an example (${exampleNames.join(", ")})`,
   )
   .option(
-    "-p, --preset <url>",
-    "preset URL from playground (e.g., https://www.assistant-ui.com/playground/init?preset=chatgpt)",
+    "-p, --preset <name-or-url>",
+    "preset name or URL (e.g., chatgpt or https://www.assistant-ui.com/playground/init?preset=chatgpt)",
   )
   .option("--use-npm", "explicitly use npm")
   .option("--use-pnpm", "explicitly use pnpm")
@@ -484,17 +495,26 @@ export const create = new Command()
 
       // 6. Apply preset if provided
       if (opts.preset) {
+        const presetUrl = resolvePresetUrl(opts.preset);
         logger.info("Applying preset configuration...");
         logger.break();
+        const [dlxCmd, dlxArgs] = dlxCommand(pm);
         try {
           await runSpawn(
-            "npx",
-            ["--yes", "shadcn@latest", "add", "--yes", opts.preset],
+            dlxCmd,
+            [
+              ...dlxArgs,
+              "shadcn@latest",
+              "add",
+              "--yes",
+              "--overwrite",
+              presetUrl,
+            ],
             absoluteProjectDir,
           );
         } catch {
           logger.warn(
-            `Preset application failed. You can retry manually with:\n  npx shadcn@latest add "${opts.preset}"`,
+            `Preset application failed. You can retry manually with:\n  npx shadcn@latest add "${presetUrl}"`,
           );
         }
       }

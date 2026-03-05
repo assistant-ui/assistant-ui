@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import {
   create,
   resolveCreateProjectDirectory,
+  resolvePresetUrl,
   resolveProject,
   PROJECT_METADATA,
 } from "../../src/commands/create";
@@ -215,5 +216,30 @@ describe("resolveCreateProjectDirectory", () => {
         stdinIsTTY: false,
       }),
     ).toBe("custom-app");
+  });
+});
+
+describe("resolvePresetUrl", () => {
+  it("passes through full https URLs unchanged", () => {
+    const url =
+      "https://www.assistant-ui.com/playground/init?preset=chatgpt";
+    expect(resolvePresetUrl(url)).toBe(url);
+  });
+
+  it("passes through http URLs unchanged", () => {
+    const url = "http://localhost:3000/preset";
+    expect(resolvePresetUrl(url)).toBe(url);
+  });
+
+  it("expands a bare preset name to the playground URL", () => {
+    expect(resolvePresetUrl("chatgpt")).toBe(
+      "https://www.assistant-ui.com/playground/init?preset=chatgpt",
+    );
+  });
+
+  it("encodes special characters in preset names", () => {
+    expect(resolvePresetUrl("my preset")).toBe(
+      "https://www.assistant-ui.com/playground/init?preset=my%20preset",
+    );
   });
 });

@@ -89,8 +89,8 @@ export const init = new Command()
   )
   .addOption(
     new Option(
-      "-p, --preset <url>",
-      "preset URL from playground (forwarded to 'assistant-ui create')",
+      "-p, --preset <name-or-url>",
+      "preset name or URL (forwarded to 'assistant-ui create')",
     ).hideHelp(),
   )
   .option("--use-npm", "explicitly use npm")
