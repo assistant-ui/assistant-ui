@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import {
   create,
   resolveCreateProjectDirectory,
@@ -110,6 +110,44 @@ describe("resolveProject", () => {
       isCancel,
     });
     expect(result).toBeNull();
+  });
+});
+
+describe("resolveProject error handling", () => {
+  let exitSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    exitSpy = vi.spyOn(process, "exit").mockImplementation(() => {
+      throw new Error("process.exit");
+    });
+  });
+
+  afterEach(() => {
+    exitSpy.mockRestore();
+  });
+
+  it("--template rejects an example name", async () => {
+    await expect(
+      resolveProject({ template: "with-langgraph", stdinIsTTY: true }),
+    ).rejects.toThrow("process.exit");
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+
+  it("--example rejects a template name", async () => {
+    await expect(
+      resolveProject({ example: "cloud", stdinIsTTY: true }),
+    ).rejects.toThrow("process.exit");
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+
+  it("exits when picker returns separator value", async () => {
+    const select = vi.fn().mockResolvedValue("_separator");
+    const isCancel = vi.fn().mockReturnValue(false);
+
+    await expect(
+      resolveProject({ stdinIsTTY: true, select, isCancel }),
+    ).rejects.toThrow("process.exit");
+    expect(exitSpy).toHaveBeenCalledWith(1);
   });
 });
 
