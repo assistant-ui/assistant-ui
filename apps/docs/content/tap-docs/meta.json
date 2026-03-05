@@ -17,6 +17,9 @@
     "---Store---",
     "store/why-store",
     "store/quickstart",
-    "store/scopes"
+    "store/scopes",
+    "store/methods",
+    "store/state",
+    "store/events"
   ]
 }
