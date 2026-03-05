@@ -5,3 +5,4 @@ export * from "./model-context";
 export * from "./adapters";
 export * from "./runtime";
 export * from "./runtimes";
+export * from "./errors";

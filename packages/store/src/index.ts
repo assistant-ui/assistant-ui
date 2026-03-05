@@ -2,6 +2,7 @@
 export { useAui } from "./useAui";
 export { useAuiState } from "./useAuiState";
 export { useAuiEvent } from "./useAuiEvent";
+export { useShallow } from "./useShallow";
 
 // components
 export { AuiIf } from "./AuiIf";
