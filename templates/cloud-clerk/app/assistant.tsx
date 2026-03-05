@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@clerk/nextjs";
-import { SignedIn, UserButton, useUser } from "@clerk/nextjs";
+import { UserButton, useUser } from "@clerk/nextjs";
 
 export const Assistant = () => {
   const { getToken } = useAuth();
@@ -84,14 +84,12 @@ export const Assistant = () => {
               </Breadcrumb>
 
               <div className="ml-auto">
-                <SignedIn>
-                  <div className="flex items-center gap-3">
-                    <span className="text-muted-foreground text-sm">
-                      {`Welcome${user?.firstName ? `, ${user.firstName}` : ""}`}
-                    </span>
-                    <UserButton />
-                  </div>
-                </SignedIn>
+                <div className="flex items-center gap-3">
+                  <span className="text-muted-foreground text-sm">
+                    {`Welcome${user?.firstName ? `, ${user.firstName}` : ""}`}
+                  </span>
+                  <UserButton />
+                </div>
               </div>
             </header>
             <div className="flex-1 overflow-hidden">

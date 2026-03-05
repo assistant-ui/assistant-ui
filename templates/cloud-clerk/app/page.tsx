@@ -1,17 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import {
-  SignedIn,
-  SignedOut,
-  SignInButton,
-  SignUpButton,
-  UserButton,
-} from "@clerk/nextjs";
+import { SignInButton, SignUpButton, UserButton, useAuth } from "@clerk/nextjs";
 import { MessagesSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function Home() {
+  const { isSignedIn } = useAuth();
+
   return (
     <main className="flex min-h-dvh flex-col">
       <header className="flex items-center justify-between border-b px-4 py-3">
@@ -23,22 +19,22 @@ export default function Home() {
         </div>
 
         <div className="flex items-center gap-2">
-          <SignedOut>
-            <SignInButton>
-              <Button variant="ghost" size="sm" aria-label="Sign in">
-                Sign in
-              </Button>
-            </SignInButton>
-            <SignUpButton>
-              <Button variant="outline" size="sm" aria-label="Sign up">
-                Sign up
-              </Button>
-            </SignUpButton>
-          </SignedOut>
-
-          <SignedIn>
+          {isSignedIn ? (
             <UserButton />
-          </SignedIn>
+          ) : (
+            <>
+              <SignInButton>
+                <Button variant="ghost" size="sm" aria-label="Sign in">
+                  Sign in
+                </Button>
+              </SignInButton>
+              <SignUpButton>
+                <Button variant="outline" size="sm" aria-label="Sign up">
+                  Sign up
+                </Button>
+              </SignUpButton>
+            </>
+          )}
         </div>
       </header>
 
