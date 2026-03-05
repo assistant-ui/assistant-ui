@@ -53,6 +53,7 @@ export function ThreadListSidebar({
               <Link
                 href="https://github.com/assistant-ui/assistant-ui"
                 target="_blank"
+                rel="noopener noreferrer"
               >
                 <div className="aui-sidebar-footer-icon-wrapper flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
                   <Github className="aui-sidebar-footer-icon size-4" />

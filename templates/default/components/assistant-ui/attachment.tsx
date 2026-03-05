@@ -126,7 +126,7 @@ const AttachmentThumb: FC = () => {
 
 const AttachmentUI: FC = () => {
   const aui = useAui();
-  const isComposer = aui.attachment.source === "composer";
+  const isComposer = aui.attachment.source !== "message";
 
   const isImage = useAuiState((s) => s.attachment.type === "image");
   const typeLabel = useAuiState((s) => {
@@ -149,7 +149,7 @@ const AttachmentUI: FC = () => {
         className={cn(
           "aui-attachment-root relative",
           isImage &&
-            "aui-attachment-root-composer only:[&>#attachment-tile]:size-24",
+            "aui-attachment-root-composer only:[&>.aui-attachment-tile]:size-24",
         )}
       >
         <AttachmentPreviewDialog>
@@ -161,7 +161,6 @@ const AttachmentUI: FC = () => {
                   "aui-attachment-tile-composer border-foreground/20",
               )}
               role="button"
-              id="attachment-tile"
               aria-label={`${typeLabel} attachment`}
             >
               <AttachmentThumb />
