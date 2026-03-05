@@ -1,0 +1,377 @@
+---
+title: API Reference
+description: All exports from @assistant-ui/store.
+---
+
+## Hooks
+
+### useAui()
+
+```ts
+function useAui(): AssistantClient;
+```
+
+Returns the store from the nearest `AuiProvider`. Does not re-render when scopes change — returns a stable reference.
+
+### useAui(scopes)
+
+```ts
+function useAui(scopes: useAui.Props): AssistantClient;
+```
+
+Takes the store from the nearest `AuiProvider` and extends it by filling the provided scopes. Returns a new `AssistantClient` that includes both the parent's scopes and the newly provided ones.
+
+```ts
+type useAui.Props = {
+  [K in ClientNames]?: ClientElement<K> | DerivedElement<K>;
+};
+```
+
+### useAuiState
+
+```ts
+function useAuiState<T>(selector: (state: AssistantState) => T): T;
+```
+
+Subscribes to a slice of state. Re-renders only when the selected value changes (compared by `Object.is`). The selector must return a specific value — not the entire state object.
+
+### useAuiEvent
+
+```ts
+function useAuiEvent<TEvent extends AssistantEventName>(
+  selector: AssistantEventSelector<TEvent>,
+  callback: AssistantEventCallback<TEvent>,
+): void;
+```
+
+Subscribes to events. The selector can be a string (`"scope.event"`) or an object (`{ scope, event }`). Unsubscribes on unmount.
+
+---
+
+## Components
+
+### AuiProvider
+
+```tsx
+<AuiProvider value={aui}>{children}</AuiProvider>
+```
+
+Provides an `AssistantClient` to the React tree. Child components can access it via `useAui()`.
+
+### AuiIf
+
+```tsx
+<AuiIf condition={(s) => s.counter.count > 0}>
+  <ResetButton />
+</AuiIf>
+```
+
+Renders children only when the condition returns `true`. Uses `useAuiState` internally.
+
+---
+
+## Resource utilities
+
+### Derived
+
+```ts
+function Derived<K extends ClientNames>(config: Derived.Props<K>): DerivedElement<K>;
+```
+
+Creates a derived scope that points to data in a parent scope.
+
+```ts
+// static meta
+Derived({
+  source: "thread",
+  query: { index: 0 },
+  get: (aui) => aui.thread().message({ index: 0 }),
+});
+
+// dynamic meta
+Derived({
+  getMeta: (aui) => ({ source: "thread", query: { index } }),
+  get: (aui) => aui.thread().message({ index }),
+});
+```
+
+The `get` function receives the current `AssistantClient` and must return the result of calling a parent scope method. It uses `tapEffectEvent` internally — always calls the latest closure.
+
+### attachTransformScopes
+
+```ts
+function attachTransformScopes<T extends (...args: any[]) => ResourceElement<any>>(
+  resource: T,
+  transform: (scopes: ScopesConfig, parent: AssistantClient) => ScopesConfig,
+): void;
+```
+
+Attaches a transform function to a resource. When the resource is mounted via `useAui`, the transform runs and can add or modify sibling scopes. Transforms are applied iteratively — new root scopes trigger their own transforms.
+
+One transform per resource. Throws on duplicate.
+
+---
+
+## Tap utilities
+
+These are used inside Tap resources to integrate with Store.
+
+### tapClientResource
+
+```ts
+function tapClientResource<TMethods extends ClientMethods>(
+  element: ResourceElement<TMethods>,
+): {
+  state: InferClientState<TMethods>;
+  methods: TMethods;
+  key: string | number | undefined;
+};
+```
+
+Wraps a single resource element into a client. Adds the client to the internal client stack for event scoping.
+
+`state` is inferred from the element's `getState()` return type. If `getState` is not defined, `state` is `undefined`.
+
+### tapClientLookup
+
+```ts
+function tapClientLookup<TMethods extends ClientMethods>(
+  getElements: () => readonly ResourceElement<TMethods>[],
+  getElementsDeps: readonly unknown[],
+): {
+  state: InferClientState<TMethods>[];
+  get: (lookup: { index: number } | { key: string }) => TMethods;
+};
+```
+
+Wraps a list of resource elements into clients. Each element must have a key (via `withKey`). Uses `tapClientResource` internally for each element.
+
+`get` resolves a client by index or key. Throws if the lookup doesn't match.
+
+### tapClientList
+
+```ts
+function tapClientList<TData, TMethods extends ClientMethods>(
+  props: tapClientList.Props<TData, TMethods>,
+): {
+  state: InferClientState<TMethods>[];
+  get: (lookup: { index: number } | { key: string }) => TMethods;
+  add: (data: TData) => void;
+};
+```
+
+Manages a dynamic list of clients with add/remove. Built on `tapClientLookup`.
+
+```ts
+type tapClientList.Props<TData, TMethods> = {
+  initialValues: TData[];
+  getKey: (data: TData) => string;
+  resource: ContravariantResource<TMethods, tapClientList.ResourceProps<TData>>;
+};
+
+type tapClientList.ResourceProps<TData> = {
+  key: string;
+  getInitialData: () => TData;
+  remove: () => void;
+};
+```
+
+`getInitialData()` is called once on mount. `remove()` removes the item from the list. Throws on duplicate key.
+
+### tapAssistantClientRef
+
+```ts
+function tapAssistantClientRef(): {
+  parent: AssistantClient;
+  current: AssistantClient | null;
+};
+```
+
+Returns a ref to the store being built. `current` is `null` during resource creation and populated after all sibling scopes are mounted. Use in `tapEffect` to access sibling scopes at runtime.
+
+### tapAssistantEmit
+
+```ts
+function tapAssistantEmit(): <TEvent extends Exclude<AssistantEventName, "*">>(
+  event: TEvent,
+  payload: AssistantEventPayload[TEvent],
+) => void;
+```
+
+Returns a stable emit function. Events are delivered via microtask — listeners fire after the current state update settles.
+
+---
+
+## Types
+
+### ScopeRegistry
+
+```ts
+interface ScopeRegistry {}
+```
+
+Module augmentation point. Augment this interface to register scopes:
+
+```ts
+declare module "@assistant-ui/store" {
+  interface ScopeRegistry {
+    counter: {
+      methods: {
+        getState: () => { count: number };
+        increment: () => void;
+      };
+      meta?: { source: ClientNames; query: Record<string, unknown> };
+      events?: { "counter.incremented": { newCount: number } };
+    };
+  }
+}
+```
+
+`methods` is required. `meta` and `events` are optional.
+
+### ClientOutput
+
+```ts
+type ClientOutput<K extends ClientNames> = ClientSchemas[K]["methods"];
+```
+
+The return type for a resource implementing scope `K`. Use as the return type annotation on your resource function.
+
+### ClientNames
+
+```ts
+type ClientNames = keyof ClientSchemas;
+```
+
+Union of all registered scope names.
+
+### AssistantClient
+
+```ts
+type AssistantClient = {
+  [K in ClientNames]: AssistantClientAccessor<K>;
+} & {
+  subscribe(listener: () => void): Unsubscribe;
+  on<TEvent extends AssistantEventName>(
+    selector: AssistantEventSelector<TEvent>,
+    callback: AssistantEventCallback<TEvent>,
+  ): Unsubscribe;
+};
+```
+
+The store object returned by `useAui()`. Each scope is an accessor. `subscribe` fires on any state change. `on` subscribes to typed events.
+
+### AssistantClientAccessor
+
+```ts
+type AssistantClientAccessor<K extends ClientNames> =
+  (() => ClientSchemas[K]["methods"]) &
+  (
+    | ClientMeta<K>
+    | { source: "root"; query: Record<string, never> }
+    | { source: null; query: null }
+  ) &
+  { name: K };
+```
+
+A scope accessor. Call it (`aui.counter()`) to resolve the scope's methods. Read `.source`, `.query`, and `.name` for metadata.
+
+### AssistantState
+
+```ts
+type AssistantState = {
+  [K in ClientNames]: ClientSchemas[K]["methods"] extends {
+    getState: () => infer S;
+  }
+    ? S
+    : never;
+};
+```
+
+The state object passed to `useAuiState` selectors. Each key is the return type of that scope's `getState()`.
+
+### ClientMeta
+
+```ts
+type ClientMeta<K extends ClientNames> =
+  "meta" extends keyof ClientSchemas[K]
+    ? Pick<ClientSchemas[K]["meta"], "source" | "query">
+    : never;
+```
+
+The `source` and `query` shape for scope `K`, if `meta` is declared in `ScopeRegistry`.
+
+### ClientElement
+
+```ts
+type ClientElement<K extends ClientNames> = ResourceElement<ClientOutput<K>>;
+```
+
+A resource element that implements scope `K`.
+
+### Unsubscribe
+
+```ts
+type Unsubscribe = () => void;
+```
+
+---
+
+## Event types
+
+### AssistantEventName
+
+```ts
+type AssistantEventName = keyof AssistantEventPayload;
+```
+
+Union of all registered event names, plus `"*"`.
+
+### AssistantEventPayload
+
+```ts
+type AssistantEventPayload = ClientEventMap & {
+  "*": { [K in keyof ClientEventMap]: { event: K; payload: ClientEventMap[K] } }[keyof ClientEventMap];
+};
+```
+
+Maps event names to their payload types. The `"*"` key receives a wrapped `{ event, payload }` object.
+
+### AssistantEventSelector
+
+```ts
+type AssistantEventSelector<TEvent extends AssistantEventName> =
+  | TEvent
+  | { scope: AssistantEventScope<TEvent>; event: TEvent };
+```
+
+A string (`"scope.event"`) or object (`{ scope, event }`). Strings default to `scope` matching the event's source.
+
+### AssistantEventScope
+
+```ts
+type AssistantEventScope<TEvent extends AssistantEventName> =
+  | "*"
+  | EventSource<TEvent>
+  | AncestorsOf<EventSource<TEvent>>;
+```
+
+Valid scopes to listen at: the event's source scope, any ancestor of that scope, or `"*"` for all.
+
+### AssistantEventCallback
+
+```ts
+type AssistantEventCallback<TEvent extends AssistantEventName> = (
+  payload: AssistantEventPayload[TEvent],
+) => void;
+```
+
+### normalizeEventSelector
+
+```ts
+function normalizeEventSelector<TEvent extends AssistantEventName>(
+  selector: AssistantEventSelector<TEvent>,
+): { scope: AssistantEventScope<TEvent>; event: TEvent };
+```
+
+Converts a string selector to `{ scope, event }` form. Strings like `"counter.incremented"` become `{ scope: "counter", event: "counter.incremented" }`.

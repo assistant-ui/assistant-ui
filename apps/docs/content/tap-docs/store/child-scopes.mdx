@@ -1,0 +1,237 @@
+---
+title: Child Scopes
+description: Derive scopes from parent data with Derived, tapClientResource, and tapClientLookup.
+---
+
+So far, every scope has been an independent unit of state — you create it, provide it, and consume it. But what happens when you have a list of items that each need their own scope?
+
+A chat app doesn't have one message — it has dozens. A todo app doesn't have one todo — it has a dynamic list. You can't register a separate scope for each item in `ScopeRegistry`. Instead, a **parent scope** manages the collection, and **child scopes** point to individual items within it.
+
+## The pattern
+
+A parent scope exposes a list of items. A child scope points to one item from that list. The wiring looks like this:
+
+1. The parent resource uses `tapClientLookup` to manage a collection of child clients
+2. The parent returns a method to access a child by index or key
+3. A `Derived` scope calls that method to resolve a specific child
+
+```
+todoList scope (parent)
+  └ manages a list of todo clients
+  └ exposes: todo({ index }) → methods
+
+todo scope (child, via Derived)
+  └ points to one specific todo from the parent
+```
+
+## Step by step
+
+### 1. Register both scopes
+
+```ts title="lib/store/todo-scope.ts"
+import "@assistant-ui/store";
+
+declare module "@assistant-ui/store" {
+  interface ScopeRegistry {
+    todoList: {
+      methods: {
+        getState: () => { todos: { id: string; text: string; done: boolean }[] };
+        todo: (lookup: { index: number }) => ClientOutput<"todo">;
+        add: (text: string) => void;
+      };
+    };
+    todo: {
+      methods: {
+        getState: () => { id: string; text: string; done: boolean };
+        toggle: () => void;
+        remove: () => void;
+      };
+      meta: { source: "todoList"; query: { index: number } };
+    };
+  }
+}
+```
+
+The `todo` scope declares `meta: { source: "todoList"; query: { index: number } }` — this tells TypeScript that `todo` is derived from `todoList` and is looked up by index.
+
+### 2. Build the parent resource with tapClientLookup
+
+`tapClientLookup` wraps a list of resource elements into clients that can be accessed by index or key:
+
+```ts title="lib/store/todo-list-resource.ts"
+import { resource, tapState, tapMemo, withKey } from "@assistant-ui/tap";
+import { tapClientLookup } from "@assistant-ui/store";
+import type { ClientOutput } from "@assistant-ui/store";
+
+const TodoResource = resource(
+  ({ id, text, done }: { id: string; text: string; done: boolean }): ClientOutput<"todo"> => {
+    const [state, setState] = tapState({ id, text, done });
+
+    return {
+      getState: () => state,
+      toggle: () => setState((s) => ({ ...s, done: !s.done })),
+      remove: () => {}, // filled in by parent
+    };
+  },
+);
+
+const TodoListResource = resource((): ClientOutput<"todoList"> => {
+  const [items, setItems] = tapState([
+    { id: "1", text: "Learn Store", done: false },
+  ]);
+
+  const todos = tapClientLookup(
+    () => items.map((item) => withKey(item.id, TodoResource(item))),
+    [items],
+  );
+
+  const state = tapMemo(
+    () => ({ todos: todos.state }),
+    [todos.state],
+  );
+
+  return {
+    getState: () => state,
+    todo: (lookup) => todos.get(lookup),
+    add: (text) =>
+      setItems((prev) => [
+        ...prev,
+        { id: crypto.randomUUID(), text, done: false },
+      ]),
+  };
+});
+```
+
+`tapClientLookup` returns `{ state, get }`:
+- `state` — an array of each child's `getState()` result
+- `get({ index })` or `get({ key })` — resolves a specific child's methods
+
+Each element must have a key via `withKey`. Keys let Store track identity across re-renders.
+
+### 3. Use Derived to create the child scope
+
+`Derived` creates a scope that points to one item from the parent:
+
+```tsx title="app/TodoApp.tsx"
+import { useAui, AuiProvider, useAuiState, Derived } from "@assistant-ui/store";
+
+const TodoApp = () => {
+  const aui = useAui({ todoList: TodoListResource() });
+  return (
+    <AuiProvider value={aui}>
+      <TodoList />
+    </AuiProvider>
+  );
+};
+
+const TodoList = () => {
+  const todos = useAuiState((s) => s.todoList.todos);
+  return (
+    <div>
+      {todos.map((_, index) => (
+        <TodoItem key={index} index={index} />
+      ))}
+    </div>
+  );
+};
+
+const TodoItem = ({ index }: { index: number }) => {
+  const aui = useAui({
+    todo: Derived({
+      source: "todoList",
+      query: { index },
+      get: (aui) => aui.todoList().todo({ index }),
+    }),
+  });
+
+  return (
+    <AuiProvider value={aui}>
+      <TodoDisplay />
+    </AuiProvider>
+  );
+};
+```
+
+`Derived` takes three fields:
+- `source` — the parent scope name
+- `query` — the lookup parameters (passed to meta, used for debugging and event scoping)
+- `get` — a function that resolves the child's methods from the parent. It receives the current `aui` store and must return the result of calling a parent method
+
+### 4. Consume the child scope
+
+Components inside the `AuiProvider` can now use the `todo` scope like any other:
+
+```tsx title="app/TodoDisplay.tsx"
+const TodoDisplay = () => {
+  const { text, done } = useAuiState((s) => s.todo);
+  const aui = useAui();
+
+  return (
+    <label>
+      <input
+        type="checkbox"
+        checked={done}
+        onChange={() => aui.todo().toggle()}
+      />
+      {text}
+    </label>
+  );
+};
+```
+
+`TodoDisplay` doesn't know or care that `todo` is derived — it uses `useAuiState` and `useAui` the same way it would for any scope.
+
+## tapClientResource
+
+If your parent only needs to expose a single child (not a list), use `tapClientResource` directly:
+
+```ts
+import { tapClientResource } from "@assistant-ui/store";
+
+const ThreadResource = resource((): ClientOutput<"thread"> => {
+  const composer = tapClientResource(ComposerResource());
+
+  return {
+    getState: () => ({ ... }),
+    composer: () => composer.methods,
+  };
+});
+```
+
+`tapClientResource` wraps a single resource element and returns `{ state, methods, key }`. It's what `tapClientLookup` uses internally for each element.
+
+## tapClientList
+
+For dynamic lists where users can add and remove items, use `tapClientList`:
+
+```ts
+import { tapClientList } from "@assistant-ui/store";
+
+const TodoListResource = resource((): ClientOutput<"todoList"> => {
+  const todos = tapClientList({
+    initialValues: [{ id: "1", text: "Learn Store", done: false }],
+    getKey: (item) => item.id,
+    resource: resource(({ getInitialData, remove }): ClientOutput<"todo"> => {
+      const [state, setState] = tapState(getInitialData());
+
+      return {
+        getState: () => state,
+        toggle: () => setState((s) => ({ ...s, done: !s.done })),
+        remove,
+      };
+    }),
+  });
+
+  return {
+    getState: () => ({ todos: todos.state }),
+    todo: (lookup) => todos.get(lookup),
+    add: (text) => todos.add({ id: crypto.randomUUID(), text, done: false }),
+  };
+});
+```
+
+`tapClientList` extends `tapClientLookup` with mutation:
+- `add(data)` — adds a new item to the list
+- Each child resource receives `{ key, getInitialData, remove }` as props
+- `getInitialData()` returns the item data (called once on mount)
+- `remove()` removes the item from the list

@@ -20,6 +20,10 @@
     "store/scopes",
     "store/methods",
     "store/state",
-    "store/events"
+    "store/events",
+    "store/meta",
+    "store/child-scopes",
+    "store/sibling-scopes",
+    "store/api-reference"
   ]
 }
