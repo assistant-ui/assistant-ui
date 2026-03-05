@@ -20,7 +20,7 @@ Passing `--preset` to `init` also forwards to `create` for compatibility.
 
 Use the `create` command to scaffold a new Next.js project with assistant-ui.
 
-The `create` command uses `create-next-app` with assistant-ui starter templates.
+The `create` command scaffolds a project from assistant-ui starter templates or examples.
 
 ```bash
 npx assistant-ui@latest create my-app
