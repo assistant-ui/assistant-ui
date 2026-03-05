@@ -6,6 +6,7 @@ export {
   AuiProvider,
   useAuiState,
   useAuiEvent,
+  useShallow,
   AuiIf,
   type AssistantClient,
   type AssistantState,
@@ -15,6 +16,12 @@ export {
   type AssistantEventPayload,
   type AssistantEventCallback,
 } from "@assistant-ui/store";
+
+export {
+  AssistantError,
+  type AssistantErrorInfo,
+  type AssistantErrorId,
+} from "@assistant-ui/core";
 
 export * from "./legacy-runtime/runtime";
 export * from "./legacy-runtime/cloud";
