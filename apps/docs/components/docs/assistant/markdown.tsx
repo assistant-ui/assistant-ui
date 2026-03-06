@@ -37,14 +37,15 @@ const useCopyToClipboard = ({
   const [isCopied, setIsCopied] = useState<boolean>(false);
 
   const copyToClipboard = (value: string) => {
-    if (!value || !navigator.clipboard) return;
+    if (!value || typeof navigator === "undefined" || !navigator.clipboard)
+      return;
     navigator.clipboard.writeText(value).then(
       () => {
         setIsCopied(true);
         setTimeout(() => setIsCopied(false), copiedDuration);
       },
       () => {
-        // clipboard write failed (e.g. non-HTTPS context)
+        // clipboard write failed (e.g. permission denied)
       },
     );
   };
