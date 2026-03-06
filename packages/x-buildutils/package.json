@@ -10,8 +10,12 @@
   ],
   "author": "AgentbaseAI Inc.",
   "license": "MIT",
-  "private": true,
   "type": "module",
+  "files": [
+    "bin",
+    "src",
+    "ts"
+  ],
   "bin": {
     "aui-build": "./bin/aui-build.js"
   },
