@@ -51,12 +51,17 @@ const useActionBarPrimitiveCopy = ({
   const callback = useCallback(() => {
     const valueToCopy = isEditing ? composerValue : aui.message().getCopyText();
 
-    if (!valueToCopy) return;
+    if (!valueToCopy || !navigator.clipboard) return;
 
-    navigator.clipboard.writeText(valueToCopy).then(() => {
-      aui.message().setIsCopied(true);
-      setTimeout(() => aui.message().setIsCopied(false), copiedDuration);
-    });
+    navigator.clipboard.writeText(valueToCopy).then(
+      () => {
+        aui.message().setIsCopied(true);
+        setTimeout(() => aui.message().setIsCopied(false), copiedDuration);
+      },
+      () => {
+        // clipboard write failed (e.g. non-HTTPS context)
+      },
+    );
   }, [aui, isEditing, composerValue, copiedDuration]);
 
   if (!hasCopyableContent) return null;
