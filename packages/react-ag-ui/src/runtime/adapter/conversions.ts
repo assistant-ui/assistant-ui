@@ -41,6 +41,7 @@ type ToolCallPart = {
   args?: Record<string, unknown>;
   result?: unknown;
   isError?: boolean;
+  _toolMessageId?: string;
 };
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
@@ -265,10 +266,14 @@ export function fromAgUiMessages(
           if (!isObject(part) || part["type"] !== "tool-call") continue;
           if (getString(part, "toolCallId") !== toolCallId) continue;
 
+          const originalToolMessageId = getString(rawMessage, "id");
           const updatedPart: ToolCallPart = {
             ...(part as ToolCallPart),
             result,
             ...(isError !== undefined ? { isError } : {}),
+            ...(originalToolMessageId !== undefined
+              ? { _toolMessageId: originalToolMessageId }
+              : {}),
           };
           const updatedContent = message.content.map((contentPart, index) =>
             index === partIndex ? updatedPart : contentPart,
@@ -300,6 +305,9 @@ export function fromAgUiMessages(
             argsText: "{}",
             result,
             ...(isError !== undefined ? { isError } : {}),
+            ...(getString(rawMessage, "id") !== undefined
+              ? { _toolMessageId: id }
+              : {}),
           },
         ],
       });
@@ -357,7 +365,7 @@ function convertAssistantMessage(
         : JSON.stringify(part.result);
 
     const toolMessage: AgUiMessage = {
-      id: `${toolCallId}:tool`,
+      id: part._toolMessageId ?? `${toolCallId}:tool`,
       role: "tool",
       content: resultContent,
       toolCallId,

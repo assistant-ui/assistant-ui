@@ -209,6 +209,44 @@ describe("adapter conversions", () => {
     ]);
   });
 
+  it("preserves tool message ID through round-trip conversion", () => {
+    const agUiMessages = [
+      {
+        id: "msg-1",
+        role: "user",
+        content: "What's the weather?",
+      },
+      {
+        id: "msg-2",
+        role: "assistant",
+        content: "",
+        tool_calls: [
+          {
+            id: "call-1",
+            type: "function",
+            function: {
+              name: "get_weather",
+              arguments: '{"city":"Paris"}',
+            },
+          },
+        ],
+      },
+      {
+        id: "tool-msg-original-id",
+        role: "tool",
+        tool_call_id: "call-1",
+        content: '{"temperature":"22C"}',
+      },
+    ] as any;
+
+    const threadMessages = fromAgUiMessages(agUiMessages);
+    const roundTripped = toAgUiMessages(threadMessages);
+
+    const toolMessage = roundTripped.find((m) => m.role === "tool");
+    expect(toolMessage).toBeDefined();
+    expect(toolMessage!.id).toBe("tool-msg-original-id");
+  });
+
   it("converts Zod schemas to JSON Schema format", () => {
     const zodSchema = z.object({
       message: z.string().describe("Text to log to the console."),
