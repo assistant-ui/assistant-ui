@@ -1,6 +1,7 @@
 {
   "name": "@assistant-ui/x-buildutils",
-  "version": "0.0.1",
+  "private": false,
+  "version": "0.0.2",
   "description": "Internal build utilities for assistant-ui packages",
   "keywords": [
     "build",
@@ -38,5 +39,9 @@
   "bugs": {
     "url": "https://github.com/assistant-ui/assistant-ui/issues"
   },
-  "scripts": {}
+  "scripts": {},
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
 }
