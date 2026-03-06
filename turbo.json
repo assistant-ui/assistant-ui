@@ -4,7 +4,16 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "inputs": ["**/*.*", "!.next", "!.turbo"],
+      "inputs": [
+        "**/*.*",
+        "!.next",
+        "!.turbo",
+        "!dist",
+        "!build",
+        "!generated",
+        "!.output",
+        "!.source"
+      ],
       "outputs": [
         "dist",
         ".next/**",
