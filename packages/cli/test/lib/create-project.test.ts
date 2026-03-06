@@ -35,12 +35,24 @@ vi.mock("giget", () => ({
 
 // Also mock detect-package-manager to avoid filesystem probing
 vi.mock("detect-package-manager", () => ({
-  detect: vi.fn().mockResolvedValue("npm"),
+  detect: vi.fn().mockResolvedValue("pnpm"),
 }));
 
 // Import the mocks after vi.mock so we can inspect calls
 import { spawn } from "cross-spawn";
 import { downloadTemplate } from "giget";
+import {
+  dlxCommand,
+  type PackageManagerName,
+} from "../../src/lib/create-project";
+
+const TEST_PM: PackageManagerName = "pnpm";
+const [TEST_DLX_CMD] = dlxCommand(TEST_PM);
+
+const defaultOpts = {
+  packageManager: TEST_PM,
+  skipInstall: true,
+} as const;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -143,8 +155,8 @@ describe("transformProject — hasLocalComponents: true", () => {
     });
 
     await transformProject(testDir, {
+      ...defaultOpts,
       hasLocalComponents: true,
-      skipInstall: true,
     });
 
     const pkg = readJSON("package.json");
@@ -167,8 +179,8 @@ describe("transformProject — hasLocalComponents: false", () => {
 
   async function run() {
     return transformProject(testDir, {
+      ...defaultOpts,
       hasLocalComponents: false,
-      skipInstall: true,
     });
   }
 
@@ -305,7 +317,7 @@ describe("transformProject — hasLocalComponents: false", () => {
       // assistant-ui components installed via shadcn registry
       const auiCall = findSpawnCall(
         (cmd, args) =>
-          cmd === "npx" &&
+          cmd === TEST_DLX_CMD &&
           args.includes("shadcn@latest") &&
           args.some((a) => a.includes("@assistant-ui/")),
       );
@@ -315,7 +327,7 @@ describe("transformProject — hasLocalComponents: false", () => {
       // shadcn UI components installed separately
       const shadcnCall = findSpawnCall(
         (cmd, args) =>
-          cmd === "npx" &&
+          cmd === TEST_DLX_CMD &&
           args.includes("shadcn@latest") &&
           args.includes("button"),
       );
@@ -348,13 +360,13 @@ describe("transformProject — install behavior", () => {
     writeJSON("package.json", { name: "test", dependencies: {} });
 
     await transformProject(testDir, {
+      ...defaultOpts,
       hasLocalComponents: true,
       skipInstall: false,
-      packageManager: "npm",
     });
 
     expect(spawn).toHaveBeenCalledWith(
-      "npm",
+      TEST_PM,
       ["install"],
       expect.objectContaining({ cwd: testDir }),
     );
@@ -381,8 +393,8 @@ describe("installShadcnRegistry behavior", () => {
 
     // Should NOT throw — warn-and-continue behavior
     await transformProject(testDir, {
+      ...defaultOpts,
       hasLocalComponents: false,
-      skipInstall: true,
     });
   });
 });

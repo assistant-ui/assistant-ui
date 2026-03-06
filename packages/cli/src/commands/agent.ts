@@ -16,7 +16,9 @@ function getPluginPath(): string {
   for (const candidate of candidates) {
     if (existsSync(candidate)) return candidate;
   }
-  return candidates[0]!;
+  throw new Error(
+    `Could not locate the assistant-ui plugin directory. Checked:\n${candidates.map((c) => `  ${c}`).join("\n")}`,
+  );
 }
 
 export const agent = new Command()

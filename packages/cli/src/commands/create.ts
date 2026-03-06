@@ -460,18 +460,19 @@ export const create = new Command()
         );
         process.exit(1);
       }
-    } catch (err: any) {
-      if (err.code === "ENOENT") {
+    } catch (err: unknown) {
+      const code =
+        err instanceof Error ? (err as NodeJS.ErrnoException).code : undefined;
+      if (code === "ENOENT") {
         // Directory doesn't exist — good, proceed
-      } else if (err.code === "ENOTDIR") {
+      } else if (code === "ENOTDIR") {
         logger.error(
           `${resolvedProjectDirectory} already exists and is not a directory`,
         );
         process.exit(1);
       } else {
-        logger.error(
-          `Cannot access ${resolvedProjectDirectory}: ${err.message}`,
-        );
+        const message = err instanceof Error ? err.message : String(err);
+        logger.error(`Cannot access ${resolvedProjectDirectory}: ${message}`);
         process.exit(1);
       }
     }
