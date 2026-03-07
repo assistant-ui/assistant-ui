@@ -37,13 +37,33 @@ pnpm cleanup
 
 ## Changesets
 
-Every PR that changes published packages must include a changeset:
+Every PR that changes published packages must include a changeset. This does NOT apply to private packages like `@assistant-ui/docs`, `@assistant-ui/shadcn-registry`, or `@assistant-ui/x-buildutils`.
 
-```bash
-pnpm changeset
+### Changeset type rules
+
+Most packages are at `0.x` versions. For `0.x`, a minor bump breaks the `^` caret range (e.g. `^0.12.15` does NOT include `0.13.0`), which cascades patch bumps to all dependent packages.
+
+- **patch**: Use for all changes — bug fixes, new features, refactors, new exports
+- **minor**: Only when maintainer explicitly requests it (causes cascading bumps across dependents)
+- **major**: Only for planned stable releases (1.0, 2.0) — never without maintainer approval
+
+### Creating a changeset file
+
+Interactive: `pnpm changeset`
+
+Or create a file directly at `.changeset/<descriptive-name>.md`:
+
+```md
+---
+"@assistant-ui/react": patch
+---
+
+fix: description of the change
 ```
 
-This does NOT apply to private packages like `@assistant-ui/docs`, `@assistant-ui/shadcn-registry`, or `@assistant-ui/x-buildutils`.
+- File name: any kebab-case `.md` name (e.g. `fix-thread-scroll.md`)
+- Frontmatter: YAML mapping of package name to bump type
+- Body: description of the change (appears in changelog)
 
 ## Code Style & Linting
 
