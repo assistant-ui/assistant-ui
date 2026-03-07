@@ -68,7 +68,7 @@ This means a **minor bump on a `0.x` package breaks every dependent's caret rang
 **The rules:**
 
 - **patch**: Use for all changes — bug fixes, new features, refactors, new exports
-- **minor**: Only when a maintainer explicitly requests it (intentional breaking change to a `0.x` package)
+- **minor**: Only when a maintainer explicitly requests it (causes cascading patch bumps across all dependent packages)
 - **major**: Only for planned stable releases (`1.0`, `2.0`) — never without maintainer approval
 
 If you forget to add a changeset before merging, create a new PR and run `pnpm changeset` locally to create a changeset. You'll be prompted to manually select the packages that were changed, set update type, and add description. Commit the changeset file, push the changes, and merge the PR.
