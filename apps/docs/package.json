@@ -92,6 +92,7 @@
     "@types/react-dom": "^19.2.3",
     "@types/react-syntax-highlighter": "^15.5.13",
     "postcss": "^8.5.8",
+    "react-grab": "^0.1.26",
     "tailwindcss": "^4.2.1",
     "ts-morph": "^27.0.2",
     "tsx": "^4.21.0",

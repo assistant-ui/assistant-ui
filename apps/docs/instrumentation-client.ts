@@ -1,3 +1,7 @@
+if (process.env.NODE_ENV === "development") {
+  import("react-grab");
+}
+
 import posthog from "posthog-js";
 
 const apiKey = process.env["NEXT_PUBLIC_POSTHOG_API_KEY"];
