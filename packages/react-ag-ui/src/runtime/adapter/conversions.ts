@@ -41,7 +41,7 @@ type ToolCallPart = {
   args?: Record<string, unknown>;
   result?: unknown;
   isError?: boolean;
-  _toolMessageId?: string;
+  unstable_toolMessageId?: string;
 };
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
@@ -54,6 +54,9 @@ const getString = (record: Record<string, unknown>, key: string) => {
 
 const getToolCallId = (record: Record<string, unknown>) =>
   getString(record, "toolCallId") ?? getString(record, "tool_call_id");
+
+const getMessageId = (record: Record<string, unknown>) =>
+  getString(record, "id");
 
 function parseJSONText(value: string): unknown {
   if (!value) return value;
@@ -228,6 +231,7 @@ export function fromAgUiMessages(
 
     if (role === "tool") {
       const toolCallId = getToolCallId(rawMessage) ?? `tool-${generateId()}`;
+      const toolMessageId = getMessageId(rawMessage);
       const result =
         rawMessage["result"] !== undefined
           ? rawMessage["result"]
@@ -266,13 +270,12 @@ export function fromAgUiMessages(
           if (!isObject(part) || part["type"] !== "tool-call") continue;
           if (getString(part, "toolCallId") !== toolCallId) continue;
 
-          const originalToolMessageId = getString(rawMessage, "id");
           const updatedPart: ToolCallPart = {
             ...(part as ToolCallPart),
             result,
             ...(isError !== undefined ? { isError } : {}),
-            ...(originalToolMessageId !== undefined
-              ? { _toolMessageId: originalToolMessageId }
+            ...(toolMessageId !== undefined
+              ? { unstable_toolMessageId: toolMessageId }
               : {}),
           };
           const updatedContent = message.content.map((contentPart, index) =>
@@ -288,7 +291,7 @@ export function fromAgUiMessages(
         continue;
       }
 
-      const id = getString(rawMessage, "id") ?? toolCallId;
+      const id = toolMessageId ?? toolCallId;
       const toolName =
         getString(rawMessage, "name") ??
         getString(rawMessage, "toolName") ??
@@ -305,8 +308,8 @@ export function fromAgUiMessages(
             argsText: "{}",
             result,
             ...(isError !== undefined ? { isError } : {}),
-            ...(getString(rawMessage, "id") !== undefined
-              ? { _toolMessageId: id }
+            ...(toolMessageId !== undefined
+              ? { unstable_toolMessageId: toolMessageId }
               : {}),
           },
         ],
@@ -365,7 +368,7 @@ function convertAssistantMessage(
         : JSON.stringify(part.result);
 
     const toolMessage: AgUiMessage = {
-      id: part._toolMessageId ?? `${toolCallId}:tool`,
+      id: part.unstable_toolMessageId ?? `${toolCallId}:tool`,
       role: "tool",
       content: resultContent,
       toolCallId,

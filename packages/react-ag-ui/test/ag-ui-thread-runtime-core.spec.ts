@@ -135,6 +135,69 @@ describe("AGUIThreadRuntimeCore", () => {
     });
   });
 
+  it("preserves tool message IDs when rerunning imported snapshots", async () => {
+    const runAgent = vi.fn(async (_input, subscriber) => {
+      if (runAgent.mock.calls.length === 1) {
+        subscriber.onMessagesSnapshotEvent?.({
+          event: {
+            type: "MESSAGES_SNAPSHOT",
+            messages: [
+              {
+                id: "msg-1",
+                role: "user",
+                content: "What's the weather?",
+              },
+              {
+                id: "msg-2",
+                role: "assistant",
+                content: "",
+                toolCalls: [
+                  {
+                    id: "call-1",
+                    type: "function",
+                    function: {
+                      name: "get_weather",
+                      arguments: '{"city":"Paris"}',
+                    },
+                  },
+                ],
+              },
+              {
+                id: "tool-msg-original-id",
+                role: "tool",
+                toolCallId: "call-1",
+                content: '{"temperature":"22C"}',
+              },
+            ],
+          },
+        });
+      }
+
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    await core.resume({
+      parentId: "msg-2",
+      sourceId: null,
+      runConfig: {} as TestRunConfig,
+    });
+
+    const secondInput = runAgent.mock.calls[1]?.[0];
+    expect(secondInput).toBeTruthy();
+    expect(secondInput.messages).toContainEqual(
+      expect.objectContaining({
+        id: "tool-msg-original-id",
+        role: "tool",
+        toolCallId: "call-1",
+        content: '{"temperature":"22C"}',
+      }),
+    );
+  });
+
   it("marks runs as cancelled when aborting", async () => {
     const agent = {
       runAgent: vi.fn((_input, _subscriber, { signal }) => {

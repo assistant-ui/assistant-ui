@@ -2,4 +2,4 @@
 "@assistant-ui/react-ag-ui": patch
 ---
 
-fix: preserve tool message id through AgUiMessage conversion round-trip
+fix(react-ag-ui): preserve tool message id through AgUiMessage conversion round-trip
