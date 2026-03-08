@@ -23,9 +23,6 @@ importers:
       turbo:
         specifier: ^2.8.13
         version: 2.8.13
-      turbo-ignore:
-        specifier: ^2.8.13
-        version: 2.8.14
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -12221,10 +12218,6 @@ packages:
     cpu: [arm64]
     os: [darwin]
 
-  turbo-ignore@2.8.14:
-    resolution: {integrity: sha512-N0GJBmEbsVlCzSp28+3dops2VFHBYfwxhKyME8K/9mVkiIuuJEHgoLt2AfejEjO2099Upc8k7c+pXWsvMkW7BA==}
-    hasBin: true
-
   turbo-linux-64@2.8.13:
     resolution: {integrity: sha512-j29KnQhHyzdzgCykBFeBqUPS4Wj7lWMnZ8CHqytlYDap4Jy70l4RNG46pOL9+lGu6DepK2s1rE86zQfo0IOdPw==}
     cpu: [x64]
@@ -23496,10 +23489,6 @@ snapshots:
 
   turbo-darwin-arm64@2.8.13:
     optional: true
-
-  turbo-ignore@2.8.14:
-    dependencies:
-      json5: 2.2.3
 
   turbo-linux-64@2.8.13:
     optional: true

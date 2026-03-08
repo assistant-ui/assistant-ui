@@ -23,7 +23,6 @@
     "husky": "^9.1.7",
     "lint-staged": "^16.3.2",
     "turbo": "^2.8.13",
-    "turbo-ignore": "^2.8.13",
     "typescript": "^5.9.3"
   },
   "packageManager": "pnpm@10.30.3",
