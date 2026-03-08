@@ -58,7 +58,7 @@ Or create a file directly at `.changeset/<descriptive-name>.md`:
 "@assistant-ui/react": patch
 ---
 
-fix: description of the change
+description of the change
 ```
 
 - File name: any kebab-case `.md` name (e.g. `fix-thread-scroll.md`)
