@@ -139,6 +139,14 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
     hasLocalComponents: false,
   },
   {
+    name: "with-expo",
+    label: "Expo",
+    description: "Expo / React Native",
+    category: "example",
+    path: "examples/with-expo",
+    hasLocalComponents: true,
+  },
+  {
     name: "with-external-store",
     label: "External Store",
     description: "Custom message store",
@@ -193,14 +201,6 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
     category: "example",
     path: "examples/with-tanstack",
     hasLocalComponents: false,
-  },
-  {
-    name: "with-expo",
-    label: "Expo",
-    description: "Expo / React Native",
-    category: "example",
-    path: "examples/with-expo",
-    hasLocalComponents: true,
   },
 ];
 
