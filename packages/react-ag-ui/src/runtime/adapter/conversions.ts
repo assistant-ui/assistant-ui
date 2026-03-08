@@ -55,9 +55,6 @@ const getString = (record: Record<string, unknown>, key: string) => {
 const getToolCallId = (record: Record<string, unknown>) =>
   getString(record, "toolCallId") ?? getString(record, "tool_call_id");
 
-const getMessageId = (record: Record<string, unknown>) =>
-  getString(record, "id");
-
 function parseJSONText(value: string): unknown {
   if (!value) return value;
   try {
@@ -231,7 +228,7 @@ export function fromAgUiMessages(
 
     if (role === "tool") {
       const toolCallId = getToolCallId(rawMessage) ?? `tool-${generateId()}`;
-      const toolMessageId = getMessageId(rawMessage);
+      const toolMessageId = getString(rawMessage, "id");
       const result =
         rawMessage["result"] !== undefined
           ? rawMessage["result"]
