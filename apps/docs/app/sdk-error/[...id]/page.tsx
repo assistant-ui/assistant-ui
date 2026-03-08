@@ -28,7 +28,13 @@ export default async function SdkErrorPage(props: Props) {
     }
   }
 
-  return <SdkErrorContent errorId={errorId} doc={errorDoc} info={errorInfo} />;
+  return (
+    <SdkErrorContent
+      errorId={errorId}
+      doc={errorDoc}
+      {...(errorInfo != null ? { info: errorInfo } : {})}
+    />
+  );
 }
 
 export async function generateMetadata(props: Props): Promise<Metadata> {
