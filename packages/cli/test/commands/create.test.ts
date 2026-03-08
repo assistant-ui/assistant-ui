@@ -175,11 +175,11 @@ describe("PROJECT_METADATA", () => {
     }
   });
 
-  it("all examples have hasLocalComponents: false", () => {
+  it("examples have correct hasLocalComponents values", () => {
     const examples = PROJECT_METADATA.filter((m) => m.category === "example");
-    for (const e of examples) {
-      expect(e.hasLocalComponents).toBe(false);
-    }
+    const withLocalComponents = examples.filter((e) => e.hasLocalComponents);
+    // with-expo is a React Native example that ships its own components
+    expect(withLocalComponents.map((e) => e.name)).toEqual(["with-expo"]);
   });
 
   it("every entry has a path", () => {
