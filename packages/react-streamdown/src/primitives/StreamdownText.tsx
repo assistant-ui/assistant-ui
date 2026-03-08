@@ -1,6 +1,6 @@
 "use client";
 
-import { INTERNAL, useMessagePartText } from "@assistant-ui/react";
+import { useMessagePartText } from "@assistant-ui/react";
 import { harden } from "rehype-harden";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize from "rehype-sanitize";
@@ -9,8 +9,6 @@ import { type ComponentRef, forwardRef, useMemo } from "react";
 import { useAdaptedComponents } from "../adapters/components-adapter";
 import { DEFAULT_SHIKI_THEME, mergePlugins } from "../defaults";
 import type { SecurityConfig, StreamdownTextPrimitiveProps } from "../types";
-
-const { useSmoothStatus } = INTERNAL;
 
 type StreamdownTextPrimitiveElement = ComponentRef<"div">;
 
@@ -115,8 +113,7 @@ export const StreamdownTextPrimitive = forwardRef<
     },
     ref,
   ) => {
-    const { text } = useMessagePartText();
-    const status = useSmoothStatus();
+    const { text, status } = useMessagePartText();
 
     const processedText = useMemo(
       () => (preprocess ? preprocess(text) : text),
