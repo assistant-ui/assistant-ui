@@ -22,7 +22,6 @@ The `WebSpeechDictationAdapter` is supported in Chrome, Edge, and Safari. Check 
 import { WebSpeechDictationAdapter } from "@assistant-ui/react";
 
 const runtime = useChatRuntime({
-  api: "/api/chat",
   adapters: {
     dictation: new WebSpeechDictationAdapter({
       // Optional configuration
@@ -345,7 +344,6 @@ export class ElevenLabsScribeAdapter implements DictationAdapter {
 
 ```tsx
 const runtime = useChatRuntime({
-  api: "/api/chat",
   adapters: {
     dictation: new ElevenLabsScribeAdapter({
       tokenEndpoint: "/api/scribe-token",

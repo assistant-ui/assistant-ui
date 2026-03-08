@@ -1,5 +1,23 @@
 # safe-content-frame
 
+## 0.0.10
+
+### Patch Changes
+
+- 36ef3a2: chore: update dependencies
+
+## 0.0.9
+
+### Patch Changes
+
+- a088518: chore: update dependencies
+
+## 0.0.8
+
+### Patch Changes
+
+- d45b893: chore: update dependencies
+
 ## 0.0.7
 
 ### Patch Changes

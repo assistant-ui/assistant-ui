@@ -6,7 +6,7 @@ describe("toJSONSchema", () => {
   it("converts StandardSchemaV1 with ~standard.toJSONSchema", () => {
     const mockStandardSchema = {
       "~standard": {
-        version: 1,
+        version: 1 as const,
         vendor: "test",
         validate: () => ({ value: {} }),
         toJSONSchema: () => ({
@@ -69,7 +69,7 @@ describe("toJSONSchema", () => {
   it("prioritizes StandardSchema over toJSONSchema method", () => {
     const mixedSchema = {
       "~standard": {
-        version: 1,
+        version: 1 as const,
         vendor: "test",
         validate: () => ({ value: {} }),
         toJSONSchema: () => ({ type: "string", description: "from standard" }),
@@ -141,6 +141,7 @@ describe("toToolsJSONSchema", () => {
           type: "frontend",
           description: "Frontend tool",
           parameters: { type: "object", properties: {} },
+          execute: async () => {},
         },
         backendTool: {
           type: "backend",
@@ -158,6 +159,7 @@ describe("toToolsJSONSchema", () => {
           type: "frontend",
           description: "A frontend tool",
           parameters: { type: "object", properties: { x: { type: "number" } } },
+          execute: async () => {},
         },
       };
 
@@ -291,7 +293,7 @@ describe("toToolsJSONSchema", () => {
     it("converts parameters via toJSONSchema", () => {
       const mockStandardSchema = {
         "~standard": {
-          version: 1,
+          version: 1 as const,
           vendor: "test",
           validate: () => ({ value: {} }),
           toJSONSchema: () => ({

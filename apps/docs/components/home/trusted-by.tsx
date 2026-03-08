@@ -7,25 +7,25 @@ import Link from "next/link";
 
 const LOGOS = [
   {
-    src: "/logos/cust/langchain.svg",
+    src: "/icons/cust/langchain.svg",
     alt: "Langchain",
     height: "h-7",
     href: "https://langchain.com?ref=assistant-ui",
   },
   {
-    src: "/logos/cust/athenaintel.png",
+    src: "/icons/cust/athenaintel.png",
     alt: "Athena Intelligence",
     height: "h-11",
     href: "https://athenaintelligence.ai?ref=assistant-ui",
   },
   {
-    src: "/logos/cust/browseruse.svg",
+    src: "/icons/cust/browseruse.svg",
     alt: "Browseruse",
     height: "h-6",
     href: "https://browser-use.com/?ref=assistant-ui",
   },
   {
-    src: "/logos/cust/stack.svg",
+    src: "/icons/cust/stack.svg",
     alt: "Stack",
     height: "h-5",
     href: "https://stack-ai.com?ref=assistant-ui",

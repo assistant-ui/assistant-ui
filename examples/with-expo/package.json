@@ -1,0 +1,40 @@
+{
+  "name": "with-expo",
+  "main": "expo-router/entry",
+  "version": "0.0.0",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "web": "expo start --web"
+  },
+  "dependencies": {
+    "@assistant-ui/react-native": "workspace:*",
+    "@expo/vector-icons": "^15.1.1",
+    "@react-navigation/drawer": "^7.7.2",
+    "@react-navigation/native": "^7.1.28",
+    "expo": "~55.0.4",
+    "expo-constants": "~55.0.7",
+    "expo-font": "~55.0.4",
+    "expo-image-picker": "~55.0.10",
+    "expo-linking": "~55.0.7",
+    "expo-router": "~55.0.3",
+    "expo-splash-screen": "~55.0.10",
+    "expo-status-bar": "~55.0.4",
+    "expo-system-ui": "~55.0.9",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "react-native": "0.83.2",
+    "react-native-gesture-handler": "~2.30.0",
+    "react-native-reanimated": "~4.2.2",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-screens": "~4.24.0",
+    "react-native-web": "~0.21.2",
+    "react-native-worklets": "0.7.2"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.14",
+    "typescript": "~5.9.3"
+  },
+  "private": true
+}

@@ -9,7 +9,7 @@ import type {
  * Base type for methods that can be called on a client.
  */
 export interface ClientMethods {
-  [key: string | symbol]: ((...args: any[]) => any) | ClientMethods;
+  [key: string | symbol]: (...args: any[]) => any;
 }
 
 type ClientMetaType = { source: ClientNames; query: Record<string, unknown> };
@@ -23,12 +23,10 @@ type ClientMetaType = { source: ClientNames; query: Record<string, unknown> };
  * @internal
  */
 export type ClientSchema<
-  TState = unknown,
   TMethods extends ClientMethods = ClientMethods,
   TMeta extends ClientMetaType = never,
   TEvents extends Record<string, unknown> = never,
 > = {
-  state: TState;
   methods: TMethods;
   meta?: TMeta;
   events?: TEvents;
@@ -40,16 +38,20 @@ export type ClientSchema<
  * @example
  * ```typescript
  * declare module "@assistant-ui/store" {
- *   interface ClientRegistry {
+ *   interface ScopeRegistry {
  *     // Simple client (meta and events are optional)
  *     foo: {
- *       state: { bar: string };
- *       methods: { updateBar: (bar: string) => void };
+ *       methods: {
+ *         getState: () => { bar: string };
+ *         updateBar: (bar: string) => void;
+ *       };
  *     };
  *     // Full client with meta and events
  *     bar: {
- *       state: { id: string };
- *       methods: { update: () => void };
+ *       methods: {
+ *         getState: () => { id: string };
+ *         update: () => void;
+ *       };
  *       meta: { source: "fooList"; query: { index: number } };
  *       events: {
  *         "bar.updated": { id: string };
@@ -59,7 +61,7 @@ export type ClientSchema<
  * }
  * ```
  */
-export interface ClientRegistry {}
+export interface ScopeRegistry {}
 
 type ClientEventsType<K extends ClientNames> = Record<
   `${K}.${string}`,
@@ -67,63 +69,51 @@ type ClientEventsType<K extends ClientNames> = Record<
 >;
 
 type ClientError<E extends string> = {
-  state: E;
   methods: Record<E, () => E>;
   meta: { source: ClientNames; query: Record<E, E> };
   events: Record<`${E}.`, E>;
 };
 
-type ValidateClient<K extends keyof ClientRegistry> =
-  ClientRegistry[K] extends { methods: ClientMethods }
-    ? "meta" extends keyof ClientRegistry[K]
-      ? ClientRegistry[K]["meta"] extends ClientMetaType
-        ? "events" extends keyof ClientRegistry[K]
-          ? ClientRegistry[K]["events"] extends ClientEventsType<K>
-            ? ClientRegistry[K]
-            : ClientError<`ERROR: ${K & string} has invalid events type`>
-          : ClientRegistry[K]
-        : ClientError<`ERROR: ${K & string} has invalid meta type`>
-      : "events" extends keyof ClientRegistry[K]
-        ? ClientRegistry[K]["events"] extends ClientEventsType<K>
-          ? ClientRegistry[K]
+type ValidateClient<K extends keyof ScopeRegistry> = ScopeRegistry[K] extends {
+  methods: ClientMethods;
+}
+  ? "meta" extends keyof ScopeRegistry[K]
+    ? ScopeRegistry[K]["meta"] extends ClientMetaType
+      ? "events" extends keyof ScopeRegistry[K]
+        ? ScopeRegistry[K]["events"] extends ClientEventsType<K>
+          ? ScopeRegistry[K]
           : ClientError<`ERROR: ${K & string} has invalid events type`>
-        : ClientRegistry[K]
-    : ClientError<`ERROR: ${K & string} has invalid methods type`>;
+        : ScopeRegistry[K]
+      : ClientError<`ERROR: ${K & string} has invalid meta type`>
+    : "events" extends keyof ScopeRegistry[K]
+      ? ScopeRegistry[K]["events"] extends ClientEventsType<K>
+        ? ScopeRegistry[K]
+        : ClientError<`ERROR: ${K & string} has invalid events type`>
+      : ScopeRegistry[K]
+  : ClientError<`ERROR: ${K & string} has invalid methods type`>;
 
-type ClientSchemas = keyof ClientRegistry extends never
+type ClientSchemas = keyof ScopeRegistry extends never
   ? {
       "ERROR: No clients were defined": ClientError<"ERROR: No clients were defined">;
     }
-  : { [K in keyof ClientRegistry]: ValidateClient<K> };
+  : { [K in keyof ScopeRegistry]: ValidateClient<K> };
 
 /**
- * Output type that client resources return with state and methods.
+ * Output type that client resources return (just methods).
  *
  * @example
  * ```typescript
  * const FooResource = resource((): ClientResourceOutput<"foo"> => {
  *   const [state, setState] = tapState({ bar: "hello" });
  *   return {
- *     state,
- *     methods: {
- *       updateBar: (b) => setState({ bar: b })
- *     }
+ *     getState: () => state,
+ *     updateBar: (b) => setState({ bar: b }),
  *   };
  * });
  * ```
  */
-export type ClientOutput<K extends ClientNames> = ClientOutputOf<
-  ClientSchemas[K]["state"],
-  ClientSchemas[K]["methods"] & ClientMethods
->;
-
-/**
- * Generic version of ClientResourceOutput for library code.
- */
-export type ClientOutputOf<TState, TMethods extends ClientMethods> = {
-  state: TState;
-  methods: TMethods;
-};
+export type ClientOutput<K extends ClientNames> = ClientSchemas[K]["methods"] &
+  ClientMethods;
 
 export type ClientNames = keyof ClientSchemas extends infer U ? U : never;
 
@@ -154,10 +144,14 @@ export type ClientElement<K extends ClientNames> = ResourceElement<
 export type Unsubscribe = () => void;
 
 /**
- * State type extracted from all clients.
+ * State type extracted from all clients via their getState() methods.
  */
 export type AssistantState = {
-  [K in ClientNames]: ClientSchemas[K]["state"];
+  [K in ClientNames]: ClientSchemas[K]["methods"] extends {
+    getState: () => infer S;
+  }
+    ? S
+    : never;
 };
 
 /**

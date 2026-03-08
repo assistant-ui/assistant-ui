@@ -1,0 +1,118 @@
+---
+title: AI SDK v5 (Legacy)
+description: Integrate Vercel AI SDK v5 with useChatRuntime for streaming chat.
+---
+
+<Callout type="error">
+  AI SDK v5 is no longer supported. The `@assistant-ui/react-ai-sdk` package now requires AI SDK v6+.
+  Please upgrade to [AI SDK v6](/docs/runtimes/ai-sdk/v6).
+</Callout>
+
+## Overview
+
+This documentation is preserved for reference. For new projects, use [AI SDK v6](/docs/runtimes/ai-sdk/v6).
+
+## Getting Started
+
+<Steps>
+  <Step>
+  ### Create a Next.js project
+
+```sh
+npx create-next-app@latest my-app
+cd my-app
+```
+
+  </Step>
+  <Step>
+
+### Install AI SDK v5 and `@assistant-ui/react`
+
+```sh
+npm install @assistant-ui/react @assistant-ui/react-ai-sdk@0.x ai@^5 @ai-sdk/openai@^1 zod
+```
+
+  </Step>
+  <Step>
+
+### Setup a backend route under `/api/chat`
+
+`@/app/api/chat/route.ts`
+
+```tsx
+import { openai } from "@ai-sdk/openai";
+import { streamText, tool } from "ai";
+import type { Message } from "ai";
+import { z } from "zod";
+
+export const maxDuration = 30;
+
+export async function POST(req: Request) {
+  const { messages }: { messages: Message[] } = await req.json();
+
+  const result = streamText({
+    model: openai("gpt-4o"),
+    messages,
+    tools: {
+      get_current_weather: tool({
+        description: "Get the current weather",
+        parameters: z.object({
+          city: z.string(),
+        }),
+        execute: async ({ city }) => {
+          return `The weather in ${city} is sunny`;
+        },
+      }),
+    },
+  });
+
+  return result.toDataStreamResponse();
+}
+```
+
+  </Step>
+  <Step>
+
+### Setup the frontend
+
+`@/app/page.tsx`
+
+```tsx
+"use client";
+
+import { Thread } from "@/components/assistant-ui/thread";
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+
+export default function Home() {
+  const runtime = useChatRuntime({
+    api: "/api/chat",
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <div className="h-full">
+        <Thread />
+      </div>
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+  </Step>
+</Steps>
+
+## Key Differences from v6
+
+| Feature | v5 | v6 |
+|---------|----|----|
+| **ai package** | `ai@^5` | `ai@^6` |
+| **@ai-sdk/openai** | `@ai-sdk/openai@^1` | `@ai-sdk/openai@^3` |
+| **Message type** | `Message` | `UIMessage` |
+| **convertToModelMessages** | Sync | Async (`await`) |
+| **Tool schema** | `parameters: z.object({...})` | `inputSchema: zodSchema(z.object({...}))` |
+| **Response** | `toDataStreamResponse()` | `toUIMessageStreamResponse()` |
+
+## Migration to v6
+
+See the [AI SDK v6 documentation](/docs/runtimes/ai-sdk/v6) for the latest integration guide.

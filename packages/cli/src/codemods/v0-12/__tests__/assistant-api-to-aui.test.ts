@@ -49,7 +49,7 @@ function MyComponent() {
 import { useAssistantState } from "@assistant-ui/react";
 
 function MyComponent() {
-  const isRunning = useAssistantState(({ thread }) => thread.isRunning);
+  const isRunning = useAssistantState((s) => s.thread.isRunning);
   return <div />;
 }
 `;
@@ -58,7 +58,7 @@ function MyComponent() {
 import { useAuiState } from "@assistant-ui/react";
 
 function MyComponent() {
-  const isRunning = useAuiState(({ thread }) => thread.isRunning);
+  const isRunning = useAuiState((s) => s.thread.isRunning);
   return <div />;
 }
 `;
@@ -129,7 +129,7 @@ import { useAssistantApi, useAssistantState } from "@assistant-ui/react";
 
 function MyComponent() {
   const api = useAssistantApi();
-  const isRunning = useAssistantState(({ thread }) => thread.isRunning);
+  const isRunning = useAssistantState((s) => s.thread.isRunning);
 
   const handleClick = () => {
     if (!isRunning) {
@@ -146,7 +146,7 @@ import { useAui, useAuiState } from "@assistant-ui/react";
 
 function MyComponent() {
   const aui = useAui();
-  const isRunning = useAuiState(({ thread }) => thread.isRunning);
+  const isRunning = useAuiState((s) => s.thread.isRunning);
 
   const handleClick = () => {
     if (!isRunning) {
@@ -482,7 +482,7 @@ import { AssistantIf } from "@assistant-ui/react";
 
 function MyComponent() {
   return (
-    <AssistantIf condition={(state) => state.thread.isRunning}>
+    <AssistantIf condition={(s) => s.thread.isRunning}>
       <div>Running...</div>
     </AssistantIf>
   );
@@ -494,7 +494,7 @@ import { AuiIf } from "@assistant-ui/react";
 
 function MyComponent() {
   return (
-    <AuiIf condition={(state) => state.thread.isRunning}>
+    <AuiIf condition={(s) => s.thread.isRunning}>
       <div>Running...</div>
     </AuiIf>
   );
@@ -543,7 +543,7 @@ function MyComponent() {
 
   return (
     <AssistantProvider>
-      <AssistantIf condition={(state) => state.thread.isRunning}>
+      <AssistantIf condition={(s) => s.thread.isRunning}>
         <button onClick={() => api.composer().send()}>Send</button>
       </AssistantIf>
     </AssistantProvider>
@@ -559,7 +559,7 @@ function MyComponent() {
 
   return (
     <AuiProvider>
-      <AuiIf condition={(state) => state.thread.isRunning}>
+      <AuiIf condition={(s) => s.thread.isRunning}>
         <button onClick={() => aui.composer().send()}>Send</button>
       </AuiIf>
     </AuiProvider>
@@ -576,7 +576,7 @@ function MyComponent() {
 import { AssistantIf } from "@assistant-ui/react";
 
 function MyComponent() {
-  return <AssistantIf condition={(state) => state.thread.isRunning} />;
+  return <AssistantIf condition={(s) => s.thread.isRunning} />;
 }
 `;
 
@@ -584,7 +584,7 @@ function MyComponent() {
 import { AuiIf } from "@assistant-ui/react";
 
 function MyComponent() {
-  return <AuiIf condition={(state) => state.thread.isRunning} />;
+  return <AuiIf condition={(s) => s.thread.isRunning} />;
 }
 `;
 

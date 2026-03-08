@@ -3,8 +3,6 @@ title: ExternalStoreRuntime
 description: Bring your own Redux, Zustand, or state manager.
 ---
 
-import { ParametersTable } from "@/components/docs/tables/ParametersTable";
-import { InstallCommand } from "@/components/docs/fumadocs/install/install-command";
 
 ## Overview
 
@@ -154,7 +152,7 @@ graph TD
     <InstallCommand npm={["@assistant-ui/react"]} />
 
   </Step>
-  
+
   <Step>
     ### Create Runtime Provider
 
@@ -168,45 +166,45 @@ graph TD
       useExternalStoreRuntime,
     } from "@assistant-ui/react";
     import { useState } from "react";
-    
+
     const convertMessage = (message: ThreadMessageLike) => {
       return message;
     };
-    
+
     export function MyRuntimeProvider({
       children,
     }: Readonly<{
       children: React.ReactNode;
     }>) {
       const [messages, setMessages] = useState<readonly ThreadMessageLike[]>([]);
-    
+
       const onNew = async (message: AppendMessage) => {
         if (message.content.length !== 1 || message.content[0]?.type !== "text")
           throw new Error("Only text content is supported");
-    
+
         const userMessage: ThreadMessageLike = {
           role: "user",
           content: [{ type: "text", text: message.content[0].text }],
         };
         setMessages((currentMessages) => [...currentMessages, userMessage]);
-    
+
         // normally you would perform an API call here to get the assistant response
         await new Promise((resolve) => setTimeout(resolve, 1000));
-    
+
         const assistantMessage: ThreadMessageLike = {
           role: "assistant",
           content: [{ type: "text", text: "Hello, world!" }],
         };
         setMessages((currentMessages) => [...currentMessages, assistantMessage]);
       };
-    
+
       const runtime = useExternalStoreRuntime<ThreadMessageLike>({
         messages,
         setMessages,
         onNew,
         convertMessage,
       });
-    
+
       return (
         <AssistantRuntimeProvider runtime={runtime}>
           {children}
@@ -1159,6 +1157,29 @@ const ToolUI = makeAssistantToolUI({
 });
 ```
 
+### Binding External Messages Manually
+
+Use `bindExternalStoreMessage` to attach your original message to a `ThreadMessage` or message part object. This is useful when you construct `ThreadMessage` objects yourself (outside of the built-in message converter) and want `getExternalStoreMessages` to work with them.
+
+```tsx
+import {
+  bindExternalStoreMessage,
+  getExternalStoreMessages,
+} from "@assistant-ui/react";
+
+// Attach your original message to a ThreadMessage
+bindExternalStoreMessage(threadMessage, originalMessage);
+
+// Later, retrieve it
+const original = getExternalStoreMessages(threadMessage);
+```
+
+<Callout type="warn">
+  This API is experimental and may change without notice.
+</Callout>
+
+`bindExternalStoreMessage` is a no-op if the target already has a bound message. It mutates the target object in place.
+
 ## Debugging
 
 ### Common Debugging Scenarios
@@ -1505,7 +1526,7 @@ A flexible message format that can be converted to assistant-ui's internal forma
     {
       name: "content",
       type: "string | readonly MessagePart[]",
-      description: "Message content as string or structured message parts",
+      description: "Message content as string or structured message parts. Supports `data-*` prefixed types (e.g. `{ type: \"data-workflow\", data: {...} }`) which are automatically converted to DataMessagePart.",
       required: true,
     },
     {
@@ -1527,7 +1548,7 @@ A flexible message format that can be converted to assistant-ui's internal forma
     {
       name: "attachments",
       type: "readonly CompleteAttachment[]",
-      description: "File attachments (user messages only)",
+      description: "File attachments (user messages only). Attachment `type` accepts custom strings beyond \"image\" | \"document\" | \"file\", and `contentType` is optional.",
     },
     {
       name: "metadata",

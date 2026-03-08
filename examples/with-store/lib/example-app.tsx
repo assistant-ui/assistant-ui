@@ -14,8 +14,8 @@ import { FooList, FooListResource } from "./store/foo-store";
  */
 const Foo = () => {
   const aui = useAui();
-  const fooId = useAuiState(({ foo }) => foo.id);
-  const fooBar = useAuiState(({ foo }) => foo.bar);
+  const fooId = useAuiState((s) => s.foo.id);
+  const fooBar = useAuiState((s) => s.foo.bar);
 
   // Each foo logs its own events - only receives events from THIS foo instance
   useAuiEvent("foo.updated", (payload) => {
@@ -63,7 +63,7 @@ const Foo = () => {
 };
 
 const FooListLength = () => {
-  const fooListLength = useAuiState(({ fooList }) => fooList.foos.length);
+  const fooListLength = useAuiState((s) => s.fooList.foos.length);
   return (
     <span className="text-gray-500 dark:text-gray-400">
       ({fooListLength} items)

@@ -33,7 +33,7 @@ export const vercelAttachmentAdapter: AttachmentAdapter = {
       content: [
         {
           type: "file",
-          mimeType: attachment.contentType,
+          mimeType: attachment.contentType ?? "",
           filename: attachment.name,
           data: await getFileDataURL(attachment.file),
         },

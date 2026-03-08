@@ -1,6 +1,6 @@
 "use client";
 
-import { Slot } from "@radix-ui/react-slot";
+import { Slot } from "radix-ui";
 import {
   createContext,
   type FC,
@@ -59,11 +59,11 @@ export const ThreadPrimitiveViewportSlack: FC<ThreadViewportSlackProps> = ({
 }) => {
   const shouldApplySlack = useAuiState(
     // only add slack to the last assistant message following a user message (valid turn)
-    ({ thread, message }) =>
-      message.isLast &&
-      message.role === "assistant" &&
-      message.index >= 1 &&
-      thread.messages.at(message.index - 1)?.role === "user",
+    (s) =>
+      s.message.isLast &&
+      s.message.role === "assistant" &&
+      s.message.index >= 1 &&
+      s.thread.messages.at(s.message.index - 1)?.role === "user",
   );
   const threadViewportStore = useThreadViewportStore({ optional: true });
   const isNested = useContext(SlackNestingContext);
@@ -108,7 +108,7 @@ export const ThreadPrimitiveViewportSlack: FC<ThreadViewportSlackProps> = ({
 
   return (
     <SlackNestingContext.Provider value={true}>
-      <Slot ref={ref}>{children}</Slot>
+      <Slot.Root ref={ref}>{children}</Slot.Root>
     </SlackNestingContext.Provider>
   );
 };

@@ -21,7 +21,7 @@ export const SuggestionPrimitiveDescription = forwardRef<
   SuggestionPrimitiveDescription.Element,
   SuggestionPrimitiveDescription.Props
 >((props, ref) => {
-  const label = useAuiState(({ suggestion }) => suggestion.label);
+  const label = useAuiState((s) => s.suggestion.label);
 
   return (
     <Primitive.span {...props} ref={ref}>

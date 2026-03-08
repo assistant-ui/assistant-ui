@@ -11,14 +11,14 @@ Built on `@assistant-ui/tap`. Client-based state containers with type-safe defin
 ```
 src/
 ├── index.ts                         # Public exports
-├── types/client.ts                  # ClientRegistry, ClientOutput, AssistantClient
+├── types/client.ts                  # ScopeRegistry, ClientOutput, AssistantClient
 ├── types/events.ts                  # Event types
 ├── useAui.tsx                       # Main hook
 ├── useAuiState.tsx                  # State subscription
 ├── useAuiEvent.ts                   # Event subscription
 ├── AuiIf.tsx                        # Conditional render
 ├── Derived.ts                       # Derived client marker
-├── attachDefaultPeers.ts            # Default peer attachment
+├── attachTransformScopes.ts          # Scope transforms (attachTransformScopes)
 ├── tapClientResource.ts             # Client proxy wrapper for event scoping
 ├── tapClientLookup.ts               # Index/key lookup: {state[], get()}
 ├── tapClientList.ts                 # Dynamic lists: {state[], get(), add()}
@@ -39,7 +39,7 @@ Above plus:
 tapAssistantClientRef()      tapAssistantEmit()
 tapClientResource(element)   tapClientLookup(getElements, deps)
 tapClientList({ initialValues, getKey, resource })
-attachDefaultPeers()         ClientOutput<K>  ClientRegistry
+attachTransformScopes()  ClientOutput<K>  ScopeRegistry
 ```
 
 ## Patterns
@@ -47,8 +47,8 @@ attachDefaultPeers()         ClientOutput<K>  ClientRegistry
 ### Client Definition
 ```typescript
 declare module "@assistant-ui/store" {
-  interface ClientRegistry {
-    foo: { state: { bar: string }; methods: { update: (b: string) => void } };
+  interface ScopeRegistry {
+    foo: { methods: { getState: () => { bar: string }; update: (b: string) => void } };
   }
 }
 ```
@@ -57,7 +57,7 @@ declare module "@assistant-ui/store" {
 ```typescript
 const FooClient = resource((): ClientOutput<"foo"> => {
   const [state, setState] = tapState({ bar: "" });
-  return { state, methods: { update: (b) => setState({ bar: b }) } };
+  return { getState: () => state, update: (b) => setState({ bar: b }) };
 });
 ```
 
@@ -67,7 +67,7 @@ const FooClient = resource((): ClientOutput<"foo"> => {
 const ItemClient = resource((props: tapClientList.ResourceProps<Data>): ClientOutput<"item"> => {
   const data = props.getInitialData();
   const [state, setState] = tapState({ id: props.key, value: data.value });
-  return { state, methods: { update, remove: props.remove } };
+  return { getState: () => state, update, remove: props.remove };
 });
 
 // List using tapClientList
@@ -81,16 +81,16 @@ const list = tapClientList({
 
 ### useAui Flow
 ```
-splitClients → gather default peers → mount root clients → create derived accessors → merge
+splitClients → apply transformScopes → mount root clients → create derived accessors → merge
 ```
 
 ## Invariants
 
-1. Resources return `{ state, methods }` as `ClientOutput<K>`
+1. Resources return methods (including `getState()`) as `ClientOutput<K>`
 2. `useAuiState` requires selector (throws if returning whole state)
 3. Event names: `"clientName.eventName"`
 4. Derived needs `source`, `query`, `get` (or `getMeta`)
-5. Default peers: first definition wins
+5. Single transformScopes per resource; transform receives `(scopes, parent)` to inspect parent context
 
 ## Design
 

@@ -11,7 +11,22 @@ npx assistant-ui@latest create my-app --example with-ag-ui
 cd my-app
 ```
 
-### Environment Variables
+### 1. Start the Backend Agent
+
+```bash
+# Install Python dependencies
+pip install -r server/requirements.txt
+
+# Run the agent (echo mode by default)
+python server/agent.py
+
+# Or with OpenAI integration
+OPENAI_API_KEY=sk-xxx python server/agent.py
+```
+
+The agent will start at `http://localhost:8000/agent`.
+
+### 2. Configure Environment
 
 Create `.env.local`:
 
@@ -19,18 +34,31 @@ Create `.env.local`:
 NEXT_PUBLIC_AGUI_AGENT_URL=http://localhost:8000/agent
 ```
 
-### Run
+### 3. Run the Frontend
 
 ```bash
-npm run dev
+pnpm dev
 ```
 
 ## Features
 
 - AG-UI protocol integration via `@assistant-ui/react-ag-ui`
+- Multi-thread support with "New Thread" button
 - Custom browser alert tool demonstration
 - Client-side tool execution
 - Tool result rendering
+
+## Backend Agent
+
+The included `server/agent.py` provides:
+
+- **Echo mode** (default): Echoes back user messages for testing
+- **OpenAI mode**: Uses GPT-4o-mini when `OPENAI_API_KEY` is set
+
+### Endpoints
+
+- `POST /agent` - AG-UI agent endpoint (SSE streaming)
+- `GET /health` - Health check
 
 ## Related Documentation
 

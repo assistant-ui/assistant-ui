@@ -1,29 +1,45 @@
-export { makeAssistantTool, type AssistantTool } from "./makeAssistantTool";
+"use client";
+
+// Re-export shared from core/react
 export {
-  type AssistantToolUI,
+  makeAssistantTool,
+  type AssistantTool,
   makeAssistantToolUI,
-} from "./makeAssistantToolUI";
-export { useAssistantInstructions } from "./useAssistantInstructions";
-export { useAssistantTool, type AssistantToolProps } from "./useAssistantTool";
-export {
+  type AssistantToolUI,
+  makeAssistantDataUI,
+  type AssistantDataUI,
+  useAssistantTool,
+  type AssistantToolProps,
   useAssistantToolUI,
   type AssistantToolUIProps,
-} from "./useAssistantToolUI";
-export { useInlineRender } from "./useInlineRender";
+  useAssistantDataUI,
+  type AssistantDataUIProps,
+  useAssistantInstructions,
+  useInlineRender,
+  type Toolkit,
+  type ToolDefinition,
+  Tools,
+  DataRenderers,
+} from "@assistant-ui/core/react";
 
-export type { ModelContext, ModelContextProvider } from "./ModelContextTypes";
+// Core pass-through (unchanged)
+export type {
+  ModelContext,
+  ModelContextProvider,
+  LanguageModelConfig,
+  LanguageModelV1CallSettings,
+} from "@assistant-ui/core";
+
+export { mergeModelContexts } from "@assistant-ui/core";
 
 export type { Tool } from "assistant-stream";
 
-export { tool } from "./tool";
+export { tool } from "@assistant-ui/core";
 
+export { Suggestions, type SuggestionConfig } from "@assistant-ui/core/store";
+
+// React-only (stays)
 export { makeAssistantVisible } from "./makeAssistantVisible";
-
-export type { Toolkit, ToolDefinition } from "./toolbox";
-
-export { Tools } from "../client/Tools";
-
-export { Suggestions, type SuggestionConfig } from "../client/Suggestions";
 
 export * from "./registry";
 export * from "./frame";

@@ -1,4 +1,4 @@
-import "./types/store-augmentation";
+/// <reference types="@assistant-ui/core/react" />
 
 // Re-export from @assistant-ui/store
 export {
@@ -25,6 +25,7 @@ export * from "./model-context";
 export * from "./primitives";
 export * from "./types";
 export * from "./devtools";
+export * from "./client";
 
 export * as INTERNAL from "./internal";
 export type { ToolExecutionStatus } from "./internal";

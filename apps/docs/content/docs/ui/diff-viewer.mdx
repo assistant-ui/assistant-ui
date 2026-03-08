@@ -1,0 +1,279 @@
+---
+title: "Diff Viewer"
+description: Render code diffs with syntax highlighting for additions and deletions.
+links:
+  - label: parse-diff
+    url: https://github.com/sergeyt/parse-diff
+  - label: diff
+    url: https://github.com/kpdecker/jsdiff
+---
+
+import { PreviewCode } from "@/components/docs/preview-code.server";
+import {
+  DiffViewerSample,
+  DiffViewerSplitSample,
+  DiffViewerViewModesSample,
+  DiffViewerVariantsSample,
+  DiffViewerSizesSample,
+} from "@/components/docs/samples/diff-viewer";
+
+<Callout>
+  This is a **standalone component** that does not depend on the assistant-ui runtime.
+</Callout>
+
+<DiffViewerViewModesSample />
+
+## Installation
+
+<InstallCommand shadcn={["diff-viewer"]} />
+
+## Usage
+
+```tsx
+import { DiffViewer } from "@/components/assistant-ui/diff-viewer";
+
+// With a unified diff patch
+<DiffViewer patch={diffString} />
+
+// With file comparison
+<DiffViewer
+  oldFile={{ content: "old content", name: "file.txt" }}
+  newFile={{ content: "new content", name: "file.txt" }}
+/>
+```
+
+### As Markdown Language Override
+
+Integrate with `MarkdownTextPrimitive` to render diff code blocks:
+
+```tsx title="/components/assistant-ui/markdown-text.tsx"
+import { DiffViewer } from "@/components/assistant-ui/diff-viewer"; // [!code ++]
+
+const MarkdownTextImpl = () => {
+  return (
+    <MarkdownTextPrimitive
+      remarkPlugins={[remarkGfm]}
+      className="aui-md"
+      components={defaultComponents}
+      componentsByLanguage={{                                       // [!code ++]
+        diff: {                                                     // [!code ++]
+          SyntaxHighlighter: ({ code }) => <DiffViewer patch={code} /> // [!code ++]
+        },                                                          // [!code ++]
+      }}                                                            // [!code ++]
+    />
+  );
+};
+
+export const MarkdownText = memo(MarkdownTextImpl);
+```
+
+## Examples
+
+### Unified View
+
+Shows all changes in a single column with `+`/`-` indicators. This is the default mode.
+
+<DiffViewerSample />
+
+```tsx
+<DiffViewer patch={diffString} viewMode="unified" />
+```
+
+### Split View
+
+Shows old content on the left, new content on the right side-by-side.
+
+<DiffViewerSplitSample />
+
+```tsx
+<DiffViewer patch={diffString} viewMode="split" />
+```
+
+### Interactive Mode Toggle
+
+<PreviewCode file="components/docs/samples/diff-viewer" name="DiffViewerViewModesSample">
+  <DiffViewerViewModesSample />
+</PreviewCode>
+
+### Variants
+
+<DiffViewerVariantsSample />
+
+### Sizes
+
+<DiffViewerSizesSample />
+
+### Theming
+
+DiffViewer uses CSS variables for colors. Override them in your CSS:
+
+```css
+[data-slot="diff-viewer"] {
+  --diff-add-bg: rgba(46, 160, 67, 0.15);
+  --diff-add-text: #1a7f37;
+  --diff-add-text-dark: #3fb950;
+  --diff-del-bg: rgba(248, 81, 73, 0.15);
+  --diff-del-text: #cf222e;
+  --diff-del-text-dark: #f85149;
+}
+```
+
+| Variable | Description |
+|----------|-------------|
+| `--diff-add-bg` | Background for added lines |
+| `--diff-add-text` | Text color for added lines (light mode) |
+| `--diff-add-text-dark` | Text color for added lines (dark mode) |
+| `--diff-del-bg` | Background for deleted lines |
+| `--diff-del-text` | Text color for deleted lines (light mode) |
+| `--diff-del-text-dark` | Text color for deleted lines (dark mode) |
+
+## API Reference
+
+### DiffViewer
+
+The main component for rendering diffs.
+
+<ParametersTable
+  type="DiffViewerProps"
+  parameters={[
+    {
+      name: "patch",
+      type: "string",
+      description: "Unified diff string (e.g., output from git diff).",
+    },
+    {
+      name: "code",
+      type: "string",
+      description: "Alias for patch (for markdown integration).",
+    },
+    {
+      name: "oldFile",
+      type: "{ content: string; name?: string }",
+      description: "Old file for direct comparison.",
+    },
+    {
+      name: "newFile",
+      type: "{ content: string; name?: string }",
+      description: "New file for direct comparison.",
+    },
+    {
+      name: "viewMode",
+      type: '"unified" | "split"',
+      default: '"unified"',
+      description: "Display mode for the diff.",
+    },
+    {
+      name: "variant",
+      type: '"default" | "ghost" | "muted"',
+      default: '"default"',
+      description: "Visual style variant.",
+    },
+    {
+      name: "size",
+      type: '"sm" | "default" | "lg"',
+      default: '"default"',
+      description: "Font size.",
+    },
+    {
+      name: "showLineNumbers",
+      type: "boolean",
+      default: "true",
+      description: "Show line numbers.",
+    },
+    {
+      name: "showIcon",
+      type: "boolean",
+      default: "true",
+      description: "Show file extension badge in header.",
+    },
+    {
+      name: "showStats",
+      type: "boolean",
+      default: "true",
+      description: "Show addition/deletion counts in header.",
+    },
+    {
+      name: "className",
+      type: "string",
+      description: "Additional CSS classes.",
+    },
+  ]}
+/>
+
+### Composable API
+
+| Component | Description |
+|-----------|-------------|
+| `DiffViewer` | Main component that renders the diff. |
+| `DiffViewerFile` | Wrapper for each file in multi-file diffs. |
+| `DiffViewerHeader` | File name header with icon and stats. |
+| `DiffViewerContent` | Scrollable content area. |
+| `DiffViewerLine` | Individual line in unified mode. |
+| `DiffViewerSplitLine` | Side-by-side line pair in split mode. |
+| `DiffViewerFileBadge` | File extension badge (e.g., "TS"). |
+| `DiffViewerStats` | Addition/deletion count display. |
+
+### Style Variants (CVA)
+
+| Export | Description |
+|--------|-------------|
+| `diffViewerVariants` | Styles for the root container. |
+| `diffLineVariants` | Background styles for diff lines. |
+| `diffLineTextVariants` | Text color styles for diff lines. |
+
+```tsx
+import {
+  diffViewerVariants,
+  diffLineVariants,
+  diffLineTextVariants,
+} from "@/components/assistant-ui/diff-viewer";
+
+// Use variants directly
+<div className={diffViewerVariants({ variant: "ghost", size: "sm" })}>
+  Custom diff container
+</div>
+```
+
+### Utilities
+
+| Export | Description |
+|--------|-------------|
+| `parsePatch(patch)` | Parse unified diff string into structured data. |
+| `computeDiff(old, new)` | Compute diff between two strings. |
+| `ParsedLine` | Type for a single diff line. |
+| `ParsedFile` | Type for a parsed file with lines and stats. |
+| `SplitLinePair` | Type for a side-by-side line pair. |
+
+## Styling
+
+### Data Attributes
+
+Use data attributes for custom styling:
+
+| Attribute | Values | Description |
+|-----------|--------|-------------|
+| `data-slot` | `"diff-viewer"`, `"diff-viewer-header"`, `"diff-viewer-line"`, etc. | Component identification |
+| `data-type` | `"add"`, `"del"`, `"normal"`, `"empty"` | Line type |
+| `data-view-mode` | `"unified"`, `"split"` | Current view mode |
+| `data-variant` | `"default"`, `"ghost"`, `"muted"` | Current variant |
+
+### Custom CSS Example
+
+```css
+[data-slot="diff-viewer"][data-view-mode="split"] {
+  /* Custom split view styles */
+}
+
+[data-slot="diff-viewer-line"][data-type="add"] {
+  /* Custom addition styles */
+}
+
+[data-slot="diff-viewer-line"][data-type="del"] {
+  /* Custom deletion styles */
+}
+```
+
+## Related Components
+
+- [Markdown](/docs/ui/markdown) - Rich text rendering where diff viewer can be integrated
+- [Syntax Highlighting](/docs/ui/syntax-highlighting) - Code highlighting for other languages

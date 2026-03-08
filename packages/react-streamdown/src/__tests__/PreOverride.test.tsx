@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { render, renderHook, screen, cleanup } from "@testing-library/react";
 import type { ReactNode } from "react";
+import type { Element } from "hast";
 import {
   PreContext,
   PreOverride,
@@ -58,10 +59,15 @@ describe("useStreamdownPreProps", () => {
   });
 
   it("includes node when provided", () => {
-    const mockNode = {
-      type: "element" as const,
+    const mockNode: Element = {
+      type: "element",
       tagName: "pre",
-      position: { start: { line: 1 }, end: { line: 5 } },
+      properties: {},
+      children: [],
+      position: {
+        start: { line: 1, column: 1 },
+        end: { line: 5, column: 1 },
+      },
     };
     const preProps = { node: mockNode, className: "test" };
     const wrapper = ({ children }: { children: ReactNode }) => (

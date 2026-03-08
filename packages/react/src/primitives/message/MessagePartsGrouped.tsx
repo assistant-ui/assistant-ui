@@ -16,6 +16,8 @@ import { MessagePartPrimitiveText } from "../messagePart/MessagePartText";
 import { MessagePartPrimitiveImage } from "../messagePart/MessagePartImage";
 import type {
   Unstable_AudioMessagePartComponent,
+  DataMessagePartComponent,
+  DataMessagePartProps,
   EmptyMessagePartComponent,
   TextMessagePartComponent,
   ImageMessagePartComponent,
@@ -24,9 +26,9 @@ import type {
   ToolCallMessagePartProps,
   FileMessagePartComponent,
   ReasoningMessagePartComponent,
-} from "../../types/MessagePartComponentTypes";
+} from "../../types";
 import { MessagePartPrimitiveInProgress } from "../messagePart/MessagePartInProgress";
-import { MessagePartStatus } from "../../types/AssistantTypes";
+import type { MessagePartStatus } from "@assistant-ui/core";
 
 type MessagePartGroup = {
   groupKey: string | undefined;
@@ -74,7 +76,7 @@ const groupMessagePartsByParentId: GroupingFunction = (
 const useMessagePartsGrouped = (
   groupingFunction: GroupingFunction,
 ): MessagePartGroup[] => {
-  const parts = useAuiState(({ message }) => message.parts);
+  const parts = useAuiState((s) => s.message.parts);
 
   return useMemo(() => {
     if (parts.length === 0) {
@@ -153,6 +155,17 @@ export namespace MessagePrimitiveUnstable_PartsGrouped {
           File?: FileMessagePartComponent | undefined;
           /** Component for rendering audio content (experimental) */
           Unstable_Audio?: Unstable_AudioMessagePartComponent | undefined;
+          /** Configuration for data part rendering */
+          data?:
+            | {
+                /** Map data event names to specific components */
+                by_name?:
+                  | Record<string, DataMessagePartComponent | undefined>
+                  | undefined;
+                /** Fallback component for unmatched data events */
+                Fallback?: DataMessagePartComponent | undefined;
+              }
+            | undefined;
           /** Configuration for tool call rendering */
           tools?:
             | {
@@ -219,8 +232,23 @@ const ToolUIDisplay = ({
 }: {
   Fallback: ToolCallMessagePartComponent | undefined;
 } & ToolCallMessagePartProps) => {
-  const Render = useAuiState(({ tools }) => {
-    const Render = tools.tools[props.toolName] ?? Fallback;
+  const Render = useAuiState((s) => {
+    const Render = s.tools.tools[props.toolName] ?? Fallback;
+    if (Array.isArray(Render)) return Render[0] ?? Fallback;
+    return Render;
+  });
+  if (!Render) return null;
+  return <Render {...props} />;
+};
+
+const DataUIDisplay = ({
+  Fallback,
+  ...props
+}: {
+  Fallback: DataMessagePartComponent | undefined;
+} & DataMessagePartProps) => {
+  const Render = useAuiState((s) => {
+    const Render = s.dataRenderers.renderers[props.name] ?? Fallback;
     if (Array.isArray(Render)) return Render[0] ?? Fallback;
     return Render;
   });
@@ -258,14 +286,15 @@ const MessagePartComponent: FC<MessagePartComponentProps> = ({
     File = defaultComponents.File,
     Unstable_Audio: Audio = defaultComponents.Unstable_Audio,
     tools = {},
+    data,
   } = {},
 }) => {
   const aui = useAui();
-  const part = useAuiState(({ part }) => part);
+  const part = useAuiState((s) => s.part);
 
   const type = part.type;
   if (type === "tool-call") {
-    const addResult = (result: any) => aui.part().addToolResult(result);
+    const addResult = aui.part().addToolResult;
     const resume = aui.part().resumeToolCall;
     if ("Override" in tools)
       return <tools.Override {...part} addResult={addResult} resume={resume} />;
@@ -302,12 +331,14 @@ const MessagePartComponent: FC<MessagePartComponentProps> = ({
     case "audio":
       return <Audio {...part} />;
 
-    case "data":
-      return null;
+    case "data": {
+      const Data = data?.by_name?.[part.name] ?? data?.Fallback;
+      return <DataUIDisplay {...part} Fallback={Data} />;
+    }
 
     default:
-      const unhandledType: never = type;
-      throw new Error(`Unknown message part type: ${unhandledType}`);
+      console.warn(`Unknown message part type: ${type}`);
+      return null;
   }
 };
 
@@ -335,6 +366,7 @@ const MessagePart = memo(
     prev.components?.File === next.components?.File &&
     prev.components?.Unstable_Audio === next.components?.Unstable_Audio &&
     prev.components?.tools === next.components?.tools &&
+    prev.components?.data === next.components?.data &&
     prev.components?.Group === next.components?.Group,
 );
 
@@ -426,7 +458,7 @@ const EmptyParts = memo(
 export const MessagePrimitiveUnstable_PartsGrouped: FC<
   MessagePrimitiveUnstable_PartsGrouped.Props
 > = ({ groupingFunction, components }) => {
-  const contentLength = useAuiState(({ message }) => message.parts.length);
+  const contentLength = useAuiState((s) => s.message.parts.length);
   const messageGroups = useMessagePartsGrouped(groupingFunction);
 
   const partsElements = useMemo(() => {

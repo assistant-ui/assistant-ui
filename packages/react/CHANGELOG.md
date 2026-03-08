@@ -1,5 +1,240 @@
 # @assistant-ui/react
 
+## 0.12.15
+
+### Patch Changes
+
+- 07dcce0: fix(react): duplicate `toolCallId` parts when joining consecutive assistant snapshots in the external message converter.
+- a845911: chore: update dependencies
+- bc40eaf: fix(react): `ActionBarMorePrimitive` disappearing when `ActionBarPrimitive.Root` uses `autohide="not-last"` on non-last messages.
+- be23d74: fix(react): make `useToolInvocations` args stream rewrites recover safely and avoid premature closure for non-executable client tools.
+- 1eb059c: fix(react): avoid crashing when external message conversion receives orphaned tool results without a matching tool call.
+- Updated dependencies [a845911]
+  - assistant-cloud@0.1.21
+  - @assistant-ui/store@0.2.2
+  - @assistant-ui/tap@0.5.2
+
+## 0.12.14
+
+### Patch Changes
+
+- 03714af: fix: DataRenderers not in scope
+- Updated dependencies [03714af]
+  - @assistant-ui/core@0.1.2
+
+## 0.12.13
+
+### Patch Changes
+
+- 17cf9a8: feat(telemetry): add reasoning/cached token usage across cloud reporting paths
+- Updated dependencies [17cf9a8]
+  - assistant-cloud@0.1.20
+
+## 0.12.12
+
+### Patch Changes
+
+- 36ef3a2: chore: update dependencies
+- 6692226: feat: support external source attachments in composer
+
+  `addAttachment()` now accepts either a `File` or a `CreateAttachment` descriptor, allowing users to add attachments from external sources (URLs, API data, CMS references) without creating dummy `File` objects or requiring an `AttachmentAdapter`.
+
+- c31c0fa: Extract shared React code (model-context, client, types, providers, RuntimeAdapter) into `@assistant-ui/core/react` sub-path so both `@assistant-ui/react` and `@assistant-ui/react-native` re-export from one source.
+- 1672be8: feat: bindExternalStoreMessage
+- 28f39fe: Handle unknown attachment types with fallback component and unknown message part types with `console.warn` instead of throwing
+- 3a1cb66: feat: assistant transport prepareRequestBody support
+- 14769af: refactor: move RuntimeAdapter base logic to @assistant-ui/core; re-export missing core APIs from distribution packages
+- 7c360ce: Update npm README
+- a638f05: refactor(react): target @assistant-ui/store for ScopeRegistry module augmentation
+- 8a78cd2: fix: stabilize runtimeHook identity in useRemoteThreadListRuntime to avoid unnecessary option updates and thread state churn
+- Updated dependencies [a638f05]
+- Updated dependencies [28f39fe]
+- Updated dependencies [36ef3a2]
+- Updated dependencies [6692226]
+- Updated dependencies [c31c0fa]
+- Updated dependencies [fc98475]
+- Updated dependencies [374f83a]
+- Updated dependencies [fc98475]
+- Updated dependencies [1672be8]
+- Updated dependencies [14769af]
+- Updated dependencies [a638f05]
+  - @assistant-ui/core@0.1.1
+  - assistant-stream@0.3.4
+  - assistant-cloud@0.1.19
+  - @assistant-ui/store@0.2.1
+  - @assistant-ui/tap@0.5.1
+
+## 0.12.11
+
+### Patch Changes
+
+- 5bbe8a9: Fix rewritten streaming tool arguments in assistant transport by safely restarting tool-call arg streams without crashing, preserving logical tool call IDs, and preventing stale status cleanup after reset.
+- 5e304ea: feat: client-side run telemetry reporting with `beforeReport` hook
+- 546c053: feat(core): extract subscribable, utils, and model-context; add public/internal API split
+- a7039e3: feat(core): extract remote-thread-list and assistant-transport utilities to @assistant-ui/core
+- 16c10fd: feat(core): extract runtime and adapters to @assistant-ui/core
+- 98c3d54: feat(react): support custom components for "data" message parts
+- b181803: feat(core): introduce @assistant-ui/core package
+
+  Extract framework-agnostic core from @assistant-ui/react. Replace React ComponentType references with framework-agnostic types and decouple AssistantToolProps/AssistantInstructionsConfig from React hook files.
+
+- 7836760: fix(assistant-cloud): expand joined messages for AI SDK v6 history export and telemetry reporting
+- 9276547: fix: thread deletion crash "Entry not available in the store"
+- b65428e: refactor: thread().composer() now needs to be invoked
+- af5b085: feat(assistant-cloud): support MCP tool observability
+- 61b54e9: Add message timing metadata: `AssistantMessageTiming` type, automatic timing tracking in `AssistantMessageAccumulator`, `MessageTiming` type, `useMessageTiming()` hook, and client-side streaming timing for AI SDK runtime.
+- a094c45: fix: add DataMessagePart to ThreadUserMessagePart for parity with ThreadAssistantMessagePart
+- 4d7f712: feat(core): move runtime-to-client bridge to core/store for framework reuse
+- ecc29ec: feat(core): move scope types and client implementations to @assistant-ui/core/store
+- 6e97999: feat(core): move store tap infrastructure to @assistant-ui/core/store
+- a247fc9: feat(assistant-cloud): allow save complete multi-step message
+- f414af9: fix: avoid stale thread metadata overwrite while streaming generated titles
+- b48912c: fix(react): smooth streaming behaviour to include first chunk
+- 93910bd: Rename .tsx files to .ts where no JSX syntax is used
+- 58a8472: feat: Add standalone AI SDK hooks for cloud persistence without assistant-ui
+
+  New `@assistant-ui/cloud-ai-sdk` package with `useCloudChat` and `useThreads` hooks. Wraps AI SDK's `useChat` with automatic message persistence, thread management, and auto-title generation.
+
+- Updated dependencies [b65428e]
+- Updated dependencies [d08a488]
+- Updated dependencies [b65428e]
+- Updated dependencies [5e304ea]
+- Updated dependencies [546c053]
+- Updated dependencies [a7039e3]
+- Updated dependencies [16c10fd]
+- Updated dependencies [40a67b6]
+- Updated dependencies [b65428e]
+- Updated dependencies [b181803]
+- Updated dependencies [b65428e]
+- Updated dependencies [6bd6419]
+- Updated dependencies [b65428e]
+- Updated dependencies [b65428e]
+- Updated dependencies [af5b085]
+- Updated dependencies [61b54e9]
+- Updated dependencies [4d7f712]
+- Updated dependencies [ecc29ec]
+- Updated dependencies [6e97999]
+- Updated dependencies [a247fc9]
+- Updated dependencies [b65428e]
+- Updated dependencies [93910bd]
+- Updated dependencies [60bbe53]
+- Updated dependencies [58a8472]
+- Updated dependencies [b65428e]
+- Updated dependencies [b65428e]
+  - @assistant-ui/tap@0.5.0
+  - assistant-cloud@0.1.18
+  - @assistant-ui/store@0.2.0
+  - @assistant-ui/core@0.1.0
+  - assistant-stream@0.3.3
+
+## 0.12.10
+
+### Patch Changes
+
+- afaaf3b: fix: use bracket notation for process.env
+- afaaf3b: fix: duplicate key toolCallId error in HITL tools (#3197)
+- afaaf3b: fix(react): runConfig not applied when clicking Suggestion with send=true
+- afaaf3b: feat(react): Quote Selected Text primitives
+
+  Added new primitives and hooks for quoting selected text from messages:
+  - `SelectionToolbarPrimitive.Root` - Floating toolbar that appears on text selection within a message
+  - `SelectionToolbarPrimitive.Quote` - Button inside the floating toolbar to capture the selection as a quote
+  - `ComposerPrimitive.Quote` - Container for quote preview (renders only when quote is set)
+  - `ComposerPrimitive.QuoteText` - Displays the quoted text
+  - `ComposerPrimitive.QuoteDismiss` - Button to clear the quote
+  - `useMessageQuote()` - Hook to read quote info from message metadata
+  - `QuoteInfo` type - `{ text: string; messageId: string }`
+  - `ComposerRuntime.setQuote()` - Programmatic API to set/clear quotes
+  - `MessagePrimitive.Root` now renders `data-message-id` attribute
+
+- 51d24be: feat(react): add submitMode prop
+
+  Add submitMode prop to ComposerInput with three options: "enter" (default), "ctrlEnter", and "none". This controls keyboard submission behavior - "ctrlEnter" mode allows plain Enter to insert newlines for easier multi-line message composition, "none" disables keyboard submission entirely.
+
+  The existing submitOnEnter prop is now deprecated but still supported for backward compatibility.
+
+- afaaf3b: feat(assistant-transport): support editing messages
+- Updated dependencies [afaaf3b]
+  - @assistant-ui/tap@0.4.6
+
+## 0.12.9
+
+### Patch Changes
+
+- a088518: chore: update dependencies
+- d8122cc: feat: ChainOfThought Layout API
+- Updated dependencies [a088518]
+  - assistant-stream@0.3.2
+  - assistant-cloud@0.1.17
+  - @assistant-ui/store@0.1.6
+  - @assistant-ui/tap@0.4.5
+
+## 0.12.8
+
+### Patch Changes
+
+- 38f4a32: feat: ChainOfThoughtPrimitive
+
+## 0.12.7
+
+### Patch Changes
+
+- 77af8c3: fix: runtime not responsive if loaded under React StrictMode (critial bug)
+- 9ef966a: fix(store): memoize the aui client instance
+- Updated dependencies [77af8c3]
+- Updated dependencies [9ef966a]
+  - @assistant-ui/tap@0.4.4
+  - @assistant-ui/store@0.1.5
+
+## 0.12.6
+
+### Patch Changes
+
+- 39fefec: feat: importExternalState API
+
+## 0.12.5
+
+### Patch Changes
+
+- d45b893: chore: update dependencies
+- fe71bfc: feat: use enhanced tapSubscribableResource hook
+- Updated dependencies [d45b893]
+- Updated dependencies [fe71bfc]
+- Updated dependencies [fe71bfc]
+  - assistant-stream@0.3.1
+  - assistant-cloud@0.1.16
+  - @assistant-ui/store@0.1.4
+  - @assistant-ui/tap@0.4.3
+
+## 0.12.4
+
+### Patch Changes
+
+- 86baaee: fix(react): devtools not register
+- 3bbe318: fix: allow destructuring proxy methods (e.g. `addToolResult`, `resumeToolCall`)
+- Updated dependencies [3bbe318]
+  - @assistant-ui/store@0.1.3
+
+## 0.12.3
+
+### Patch Changes
+
+- 07d1c65: fix: nesting assistant providers
+- b591d72: feat: new tools API
+- 59a338a: feat: åshowEmptyOnNonTextEnd
+- acbaf07: feat: add framework-agnostic `toToolsJSONSchema` and `toGenericMessages` utilities to `assistant-stream`
+- c665612: fix: do not capture handleSendMessage errors
+- 0371d72: feat: AssistantRuntimeProvider aui prop
+- e8b3f34: feat: Suggestions API and Primitives
+- Updated dependencies [07d1c65]
+- Updated dependencies [acbaf07]
+- Updated dependencies [5ab3690]
+- Updated dependencies [0371d72]
+  - @assistant-ui/store@0.1.2
+  - assistant-stream@0.3.0
+  - @assistant-ui/tap@0.4.2
+  - assistant-cloud@0.1.15
+
 ## 0.12.2
 
 ### Patch Changes

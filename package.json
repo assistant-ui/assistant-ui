@@ -5,6 +5,7 @@
     "node": ">=24"
   },
   "scripts": {
+    "cleanup": "bash scripts/cleanup-monorepo.sh",
     "docs:dev": "pnpm --filter=@assistant-ui/docs dev",
     "ci:version": "changeset version && pnpm install --no-frozen-lockfile",
     "ci:publish": "turbo build --filter=\"./packages/*\" && changeset publish",
@@ -12,17 +13,19 @@
     "lint": "pnpm exec biome check",
     "lint:fix": "pnpm exec biome check --fix",
     "test": "turbo test",
-    "prepare": "husky"
+    "prepare": "husky",
+    "deps:check": "npx taze major -f -r",
+    "deps:update": "npx taze major -f -w -r && cd examples/with-expo && npx expo install --fix && cd ../.. && pnpm install && bash scripts/generate-deps-changeset.sh"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.3.13",
-    "@changesets/cli": "^2.29.8",
+    "@biomejs/biome": "^2.4.5",
+    "@changesets/cli": "^2.30.0",
     "husky": "^9.1.7",
-    "lint-staged": "^16.2.7",
-    "turbo": "^2.7.6",
+    "lint-staged": "^16.3.2",
+    "turbo": "^2.8.13",
     "typescript": "^5.9.3"
   },
-  "packageManager": "pnpm@10.28.2",
+  "packageManager": "pnpm@10.30.3",
   "lint-staged": {
     "*": "biome check --fix --no-errors-on-unmatched"
   },

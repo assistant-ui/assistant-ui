@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { createOgMetadata } from "@/lib/og";
 import { Check, Github } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { PricingPlanCard } from "./pricing-plan-card";
 
 const title = "Pricing";
 const description = "Fully managed backend for AI chat applications";
@@ -83,56 +82,7 @@ export default function PricingPage() {
 
         <div className="grid gap-6 md:grid-cols-3">
           {plans.map((plan) => (
-            <div
-              key={plan.name}
-              className={cn(
-                "relative flex flex-col rounded-lg border p-6",
-                plan.highlighted
-                  ? "border-foreground/20 bg-muted/30"
-                  : "border-border",
-              )}
-            >
-              <div className="mb-6">
-                <h3 className="font-medium text-sm">{plan.name}</h3>
-                <div className="mt-2 flex items-baseline gap-1">
-                  <span className="font-medium text-2xl tracking-tight">
-                    {plan.price}
-                  </span>
-                  {plan.period && (
-                    <span className="text-muted-foreground text-sm">
-                      {plan.period}
-                    </span>
-                  )}
-                </div>
-                <p className="mt-1 text-muted-foreground text-sm">
-                  {plan.description}
-                </p>
-              </div>
-
-              <ul className="mb-6 flex-1 space-y-2.5">
-                {plan.features.map((feature) => (
-                  <li
-                    key={feature}
-                    className="flex items-start gap-2 text-muted-foreground text-sm"
-                  >
-                    <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-foreground/60" />
-                    <span>{feature}</span>
-                  </li>
-                ))}
-              </ul>
-
-              <Link
-                href={plan.href}
-                className={cn(
-                  "block rounded-md py-2 text-center font-medium text-sm transition-colors",
-                  plan.highlighted
-                    ? "bg-foreground text-background hover:bg-foreground/90"
-                    : "border border-border hover:bg-muted",
-                )}
-              >
-                {plan.cta}
-              </Link>
-            </div>
+            <PricingPlanCard key={plan.name} plan={plan} />
           ))}
         </div>
 

@@ -36,7 +36,7 @@ export class UpdateScheduler {
 const scheduleFlush = () => {
   if (flushState.isScheduled) return;
   flushState.isScheduled = true;
-  queueMicrotask(flushScheduled);
+  scheduleMacrotask();
 };
 
 const flushScheduled = () => {
@@ -79,6 +79,18 @@ const flushScheduled = () => {
     flushState.isScheduled = false;
   }
 };
+
+// Use MessageChannel to schedule flushes as macrotasks (like React's scheduler).
+// This allows more state updates to batch into a single re-render.
+const scheduleMacrotask = (() => {
+  if (typeof MessageChannel !== "undefined") {
+    const channel = new MessageChannel();
+    channel.port1.onmessage = flushScheduled;
+    return () => channel.port2.postMessage(null);
+  }
+  // Fallback for environments without MessageChannel
+  return () => setTimeout(flushScheduled, 0);
+})();
 
 export const flushResourcesSync = <T>(callback: () => T): T => {
   const prev = flushState;

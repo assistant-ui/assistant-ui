@@ -3,8 +3,6 @@ title: Thread
 description: The main chat container with messages, composer, and auto-scroll.
 ---
 
-import { ParametersTable } from "@/components/docs/tables/ParametersTable";
-import { InstallCommand } from "@/components/docs/fumadocs/install/install-command";
 import { ThreadSample } from "@/components/docs/samples/thread";
 
 A complete chat interface that combines message rendering, auto-scrolling, composer input,
@@ -15,14 +13,14 @@ attachments, and conditional UI states. Fully customizable and composable.
 
 ## Anatomy
 
-The Thread component is built with the following primitives:
+The `Thread` component is built with the following primitives:
 
 ```tsx
-import { ThreadPrimitive, AuiIf } from "@assistant-ui/react";
+import { ThreadPrimitive, SelectionToolbarPrimitive, AuiIf } from "@assistant-ui/react";
 
 <ThreadPrimitive.Root>
   <ThreadPrimitive.Viewport>
-    <ThreadPrimitive.Empty />
+    <AuiIf condition={(s) => s.thread.isEmpty} />
     <ThreadPrimitive.Messages
       components={{
         EditComposer,
@@ -34,6 +32,11 @@ import { ThreadPrimitive, AuiIf } from "@assistant-ui/react";
   </ThreadPrimitive.Viewport>
   <ThreadPrimitive.Suggestions />
   <AuiIf condition={...} />
+
+  {/* Floating toolbar — appears when text is selected in a message */}
+  <SelectionToolbarPrimitive.Root>
+    <SelectionToolbarPrimitive.Quote>Quote</SelectionToolbarPrimitive.Quote>
+  </SelectionToolbarPrimitive.Root>
 </ThreadPrimitive.Root>
 ```
 
@@ -73,7 +76,7 @@ export default function Chat() {
 ### Welcome Screen
 
 ```tsx
-<AuiIf condition={({ thread }) => thread.isEmpty}>
+<AuiIf condition={(s) => s.thread.isEmpty}>
   <ThreadWelcome />
 </AuiIf>
 ```
@@ -81,7 +84,7 @@ export default function Chat() {
 ### Viewport Spacer
 
 ```tsx
-<AuiIf condition={({ thread }) => !thread.isEmpty}>
+<AuiIf condition={(s) => !s.thread.isEmpty}>
   <div className="min-h-8 grow" />
 </AuiIf>
 ```
@@ -89,13 +92,13 @@ export default function Chat() {
 ### Conditional Send/Cancel Button
 
 ```tsx
-<AuiIf condition={({ thread }) => !thread.isRunning}>
+<AuiIf condition={(s) => !s.thread.isRunning}>
   <ComposerPrimitive.Send>
     Send
   </ComposerPrimitive.Send>
 </AuiIf>
 
-<AuiIf condition={({ thread }) => thread.isRunning}>
+<AuiIf condition={(s) => s.thread.isRunning}>
   <ComposerPrimitive.Cancel>
     Cancel
   </ComposerPrimitive.Cancel>
@@ -351,15 +354,15 @@ Conditionally renders children based on assistant state. This is a generic compo
 ```tsx
 import { AuiIf } from "@assistant-ui/react";
 
-<AuiIf condition={({ thread }) => thread.isEmpty}>
+<AuiIf condition={(s) => s.thread.isEmpty}>
   <WelcomeScreen />
 </AuiIf>
 
-<AuiIf condition={({ thread }) => thread.isRunning}>
+<AuiIf condition={(s) => s.thread.isRunning}>
   <LoadingIndicator />
 </AuiIf>
 
-<AuiIf condition={({ message }) => message.role === "assistant"}>
+<AuiIf condition={(s) => s.message.role === "assistant"}>
   <AssistantAvatar />
 </AuiIf>
 ```
@@ -384,3 +387,5 @@ The condition function receives an `AssistantState` object with access to `threa
 ## Related Components
 
 - [ThreadList](/docs/ui/thread-list) - List of threads, with or without sidebar
+- [Quoting guide](/docs/guides/quoting) - Quote selected text from messages
+- [SelectionToolbarPrimitive](/docs/reference/primitives/selection-toolbar) - Floating toolbar API reference

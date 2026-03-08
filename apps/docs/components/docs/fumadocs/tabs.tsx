@@ -167,10 +167,8 @@ export function Tab({
   ...props
 }: TabProps): React.ReactElement {
   const { items, value: activeValue } = useTabContext();
-  const resolved =
-    value ??
-    // eslint-disable-next-line react-hooks/rules-of-hooks -- `value` is not supposed to change
-    items?.at(useCollectionIndex());
+  const collectionIndex = useCollectionIndex();
+  const resolved = value ?? items?.at(collectionIndex);
 
   if (!resolved) {
     throw new Error(

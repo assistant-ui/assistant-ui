@@ -1,0 +1,140 @@
+.hero-showcase-section {
+  padding: 2rem 0;
+  perspective: 1200px;
+}
+
+.hero-showcase-container {
+  margin: 0 auto;
+  width: 100%;
+}
+
+.hero-showcase-glow {
+  position: absolute;
+  inset: 0;
+  margin: 0 auto;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 60% 40% at 50% 30%,
+    rgba(139, 92, 246, 0.08) 0%,
+    transparent 70%
+  );
+}
+
+.hero-showcase-frame {
+  width: 100%;
+  position: relative;
+  transform: rotateX(2deg);
+  transform-style: preserve-3d;
+  transition: transform 0.4s ease;
+}
+
+.hero-showcase-frame:hover {
+  transform: rotateX(0deg);
+}
+
+.hero-showcase-border {
+  position: absolute;
+  inset: -1px;
+  border-radius: 0.875rem;
+  padding: 1px;
+  background: linear-gradient(
+    135deg,
+    rgba(139, 92, 246, 0.4) 0%,
+    rgba(59, 130, 246, 0.3) 25%,
+    rgba(16, 185, 129, 0.3) 50%,
+    rgba(59, 130, 246, 0.3) 75%,
+    rgba(139, 92, 246, 0.4) 100%
+  );
+  background-size: 300% 300%;
+  animation: gradient-shift 8s ease infinite;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  opacity: 0.6;
+  transition: opacity 0.3s ease;
+}
+
+.hero-showcase-frame:hover .hero-showcase-border {
+  opacity: 1;
+}
+
+@keyframes gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.hero-showcase-grid {
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(
+      rgba(255, 255, 255, 0.02) 1px,
+      transparent 1px
+    ),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 40px 40px;
+  mask-image: radial-gradient(ellipse at center, black 30%, transparent 70%);
+  -webkit-mask-image: radial-gradient(
+    ellipse at center,
+    black 30%,
+    transparent 70%
+  );
+}
+
+.hero-play-ring {
+  position: absolute;
+  inset: -4px;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  animation: pulse-ring 2s ease-out infinite;
+}
+
+@keyframes pulse-ring {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
+.hero-showcase-content::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse 50% 80% at 50% 100%,
+    rgba(139, 92, 246, 0.05) 0%,
+    transparent 60%
+  );
+  pointer-events: none;
+}
+
+.hero-showcase-placeholder {
+  position: relative;
+  z-index: 10;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-showcase-border {
+    animation: none;
+  }
+  .hero-play-ring {
+    animation: none;
+  }
+  .hero-showcase-frame {
+    transform: none;
+  }
+  .hero-showcase-frame:hover {
+    transform: none;
+  }
+}

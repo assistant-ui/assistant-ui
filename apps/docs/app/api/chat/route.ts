@@ -1,7 +1,10 @@
 import { getDistinctId, posthogServer } from "@/lib/posthog-server";
+import { createPrismTracer } from "@/lib/prism-server";
+import { injectQuoteContext } from "@/lib/quote";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { openai } from "@ai-sdk/openai";
+import { getModel } from "@/lib/ai/provider";
 import { frontendTools } from "@assistant-ui/react-ai-sdk";
+import { prismAISDK } from "@aui-x/prism";
 import { withTracing } from "@posthog/ai";
 import {
   convertToModelMessages,
@@ -13,37 +16,76 @@ import {
 export const maxDuration = 30;
 
 export async function POST(req: Request) {
-  const rateLimitResponse = await checkRateLimit(req);
-  if (rateLimitResponse) return rateLimitResponse;
+  try {
+    const rateLimitResponse = await checkRateLimit(req);
+    if (rateLimitResponse) return rateLimitResponse;
 
-  const { messages, tools } = await req.json();
+    const body = await req.json();
+    const { messages, tools, config } = body;
 
-  const baseModel = openai("gpt-5-nano");
+    const baseModel = getModel(config?.modelName);
+    const distinctId = getDistinctId(req);
+    const prismTracer = createPrismTracer();
 
-  const tracedModel = posthogServer
-    ? withTracing(baseModel, posthogServer, {
-        posthogDistinctId: getDistinctId(req),
-        posthogPrivacyMode: false,
-        posthogProperties: {
-          $ai_span_name: "general_chat",
-          source: "general_chat",
-        },
-      })
-    : baseModel;
+    const posthogModel = posthogServer
+      ? withTracing(baseModel, posthogServer, {
+          posthogDistinctId: distinctId,
+          posthogPrivacyMode: false,
+          posthogProperties: {
+            $ai_span_name: "general_chat",
+            source: "general_chat",
+          },
+        })
+      : baseModel;
 
-  const prunedMessages = pruneMessages({
-    messages: await convertToModelMessages(messages),
-    reasoning: "none",
-  });
+    const prism = prismTracer
+      ? prismAISDK(prismTracer, posthogModel, {
+          name: "general_chat",
+          endUserId: distinctId,
+        })
+      : null;
 
-  const result = streamText({
-    model: tracedModel,
-    messages: prunedMessages,
-    maxOutputTokens: 15000,
-    stopWhen: stepCountIs(10),
-    tools: frontendTools(tools),
-    onError: console.error,
-  });
+    const prunedMessages = pruneMessages({
+      messages: await convertToModelMessages(injectQuoteContext(messages)),
+      reasoning: "none",
+    });
 
-  return result.toUIMessageStreamResponse();
+    const result = streamText({
+      model: prism?.model ?? posthogModel,
+      messages: prunedMessages,
+      maxOutputTokens: 15000,
+      stopWhen: stepCountIs(10),
+      tools: frontendTools(tools),
+      onFinish: async () => {
+        await prism?.end();
+      },
+      onError: async ({ error }) => {
+        console.error(error);
+        await prism?.end({ status: "error" });
+      },
+      onAbort: async () => {
+        await prism?.end();
+      },
+    });
+
+    return result.toUIMessageStreamResponse({
+      // gets usage and modelId for assistant-cloud telemetry reports
+      messageMetadata: ({ part }) => {
+        if (part.type === "finish-step") {
+          return {
+            modelId: part.response.modelId,
+          };
+        }
+        if (part.type === "finish") {
+          return {
+            usage: part.totalUsage,
+          };
+        }
+        return undefined;
+      },
+    });
+  } catch (e) {
+    console.error("[api/chat]", e);
+    return new Response("Request failed", { status: 500 });
+  }
 }

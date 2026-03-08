@@ -1,0 +1,23 @@
+// React component types (from core/react)
+export type {
+  EmptyMessagePartComponent,
+  EmptyMessagePartProps,
+  TextMessagePartComponent,
+  TextMessagePartProps,
+  ReasoningMessagePartComponent,
+  ReasoningMessagePartProps,
+  ReasoningGroupProps,
+  ReasoningGroupComponent,
+  SourceMessagePartComponent,
+  SourceMessagePartProps,
+  ImageMessagePartComponent,
+  ImageMessagePartProps,
+  FileMessagePartComponent,
+  FileMessagePartProps,
+  Unstable_AudioMessagePartComponent,
+  Unstable_AudioMessagePartProps,
+  DataMessagePartComponent,
+  DataMessagePartProps,
+  ToolCallMessagePartComponent,
+  ToolCallMessagePartProps,
+} from "@assistant-ui/core/react";

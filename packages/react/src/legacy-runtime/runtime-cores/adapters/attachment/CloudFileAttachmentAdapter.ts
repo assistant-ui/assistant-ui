@@ -1,11 +1,11 @@
 import type { AssistantCloud } from "assistant-cloud";
-import {
+import type {
   Attachment,
   PendingAttachment,
   CompleteAttachment,
-} from "../../../../types/AttachmentTypes";
-import { ThreadUserMessagePart } from "../../../../types/MessagePartTypes";
-import { AttachmentAdapter } from "./AttachmentAdapter";
+  ThreadUserMessagePart,
+  AttachmentAdapter,
+} from "@assistant-ui/core";
 
 const guessAttachmentType = (
   contentType: string,
@@ -86,7 +86,7 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
         {
           type: "file",
           data: url,
-          mimeType: attachment.contentType,
+          mimeType: attachment.contentType ?? "",
           filename: attachment.name,
         },
       ];

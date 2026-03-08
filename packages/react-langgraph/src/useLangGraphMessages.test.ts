@@ -1,9 +1,14 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
 
 import { useLangGraphMessages } from "./useLangGraphMessages";
 import { appendLangChainChunk } from "./appendLangChainChunk";
-import { MessageContentImageUrl, MessageContentText } from "./types";
+import {
+  LangChainMessageChunk,
+  LangGraphTupleMetadata,
+  MessageContentImageUrl,
+  MessageContentText,
+} from "./types";
 import { mockStreamCallbackFactory } from "./testUtils";
 
 const metadataEvent = {
@@ -60,9 +65,9 @@ describe("useLangGraphMessages", {}, () => {
 
     await waitFor(() => {
       expect(result.current.messages.length).toEqual(2);
-      expect(result.current.messages[0].type).toEqual("human");
-      expect(result.current.messages[1].type).toEqual("ai");
-      expect(result.current.messages[1].content).toEqual("");
+      expect(result.current.messages[0]!.type).toEqual("human");
+      expect(result.current.messages[1]!.type).toEqual("ai");
+      expect(result.current.messages[1]!.content).toEqual("");
     });
   });
 
@@ -149,13 +154,13 @@ describe("useLangGraphMessages", {}, () => {
 
     await waitFor(() => {
       expect(result.current.messages.length).toEqual(2);
-      expect(result.current.messages[0].type).toEqual("human");
-      expect(result.current.messages[1].type).toEqual("ai");
+      expect(result.current.messages[0]!.type).toEqual("human");
+      expect(result.current.messages[1]!.type).toEqual("ai");
       expect(
-        (result.current.messages[1].content[0] as MessageContentText).type,
+        (result.current.messages[1]!.content[0] as MessageContentText).type,
       ).toEqual("text");
       expect(
-        (result.current.messages[1].content[0] as MessageContentText).text,
+        (result.current.messages[1]!.content[0] as MessageContentText).text,
       ).toEqual("Hello! How may I assist you today?");
     });
   });
@@ -243,16 +248,16 @@ describe("useLangGraphMessages", {}, () => {
 
     await waitFor(() => {
       expect(result.current.messages.length).toEqual(3);
-      expect(result.current.messages[0].type).toEqual("human");
-      expect(result.current.messages[1].type).toEqual("ai");
-      expect(result.current.messages[2].type).toEqual("ai");
+      expect(result.current.messages[0]!.type).toEqual("human");
+      expect(result.current.messages[1]!.type).toEqual("ai");
+      expect(result.current.messages[2]!.type).toEqual("ai");
       expect(
-        (result.current.messages[1].content[0] as MessageContentText).type,
+        (result.current.messages[1]!.content[0] as MessageContentText).type,
       ).toEqual("text");
       expect(
-        (result.current.messages[1].content[0] as MessageContentText).text,
+        (result.current.messages[1]!.content[0] as MessageContentText).text,
       ).toEqual("Hello!");
-      expect(result.current.messages[2].content as string).toEqual(
+      expect(result.current.messages[2]!.content as string).toEqual(
         " How may I assist you today?",
       );
     });
@@ -363,23 +368,23 @@ describe("useLangGraphMessages", {}, () => {
 
     await waitFor(() => {
       expect(result.current.messages.length).toEqual(2);
-      expect(result.current.messages[0].type).toEqual("human");
-      expect(result.current.messages[1].type).toEqual("ai");
+      expect(result.current.messages[0]!.type).toEqual("human");
+      expect(result.current.messages[1]!.type).toEqual("ai");
       expect(
-        (result.current.messages[1].content[0] as MessageContentText).type,
+        (result.current.messages[1]!.content[0] as MessageContentText).type,
       ).toEqual("text");
       expect(
-        (result.current.messages[1].content[0] as MessageContentText).text,
+        (result.current.messages[1]!.content[0] as MessageContentText).text,
       ).toEqual("Hello! How may I assist you today?");
       expect(
-        (result.current.messages[1].content[1] as MessageContentImageUrl).type,
+        (result.current.messages[1]!.content[1] as MessageContentImageUrl).type,
       ).toEqual("image_url");
-      const imageChunkContent = result.current.messages[1]
+      const imageChunkContent = result.current.messages[1]!
         .content[1] as MessageContentImageUrl;
       expect(typeof imageChunkContent.image_url).toEqual("object");
       expect(
         (
-          (result.current.messages[1].content[1] as MessageContentImageUrl)
+          (result.current.messages[1]!.content[1] as MessageContentImageUrl)
             .image_url as { url: string }
         ).url,
       ).toEqual("https://example.com/image.png");
@@ -491,25 +496,25 @@ describe("useLangGraphMessages", {}, () => {
 
     await waitFor(() => {
       expect(result.current.messages.length).toEqual(2);
-      expect(result.current.messages[0].type).toEqual("human");
-      expect(result.current.messages[1].type).toEqual("ai");
+      expect(result.current.messages[0]!.type).toEqual("human");
+      expect(result.current.messages[1]!.type).toEqual("ai");
       expect(
-        (result.current.messages[1].content[0] as MessageContentImageUrl).type,
+        (result.current.messages[1]!.content[0] as MessageContentImageUrl).type,
       ).toEqual("image_url");
-      const imageChunkContent = result.current.messages[1]
+      const imageChunkContent = result.current.messages[1]!
         .content[0] as MessageContentImageUrl;
       expect(typeof imageChunkContent.image_url).toEqual("object");
       expect(
         (
-          (result.current.messages[1].content[0] as MessageContentImageUrl)
+          (result.current.messages[1]!.content[0] as MessageContentImageUrl)
             .image_url as { url: string }
         ).url,
       ).toEqual("https://example.com/image.png");
       expect(
-        (result.current.messages[1].content[1] as MessageContentText).type,
+        (result.current.messages[1]!.content[1] as MessageContentText).type,
       ).toEqual("text");
       expect(
-        (result.current.messages[1].content[1] as MessageContentText).text,
+        (result.current.messages[1]!.content[1] as MessageContentText).text,
       ).toEqual("Hello! How may I assist you today?");
     });
   });
@@ -594,17 +599,17 @@ describe("useLangGraphMessages", {}, () => {
 
     await waitFor(() => {
       expect(result.current.messages.length).toEqual(3);
-      expect(result.current.messages[0].type).toEqual("human");
-      expect(result.current.messages[1].type).toEqual("ai");
-      expect(result.current.messages[2].type).toEqual("ai");
+      expect(result.current.messages[0]!.type).toEqual("human");
+      expect(result.current.messages[1]!.type).toEqual("ai");
+      expect(result.current.messages[2]!.type).toEqual("ai");
       expect(
-        (result.current.messages[1].content[0] as MessageContentText).type,
+        (result.current.messages[1]!.content[0] as MessageContentText).type,
       ).toEqual("text");
       expect(
-        (result.current.messages[1].content[0] as MessageContentText).text,
+        (result.current.messages[1]!.content[0] as MessageContentText).text,
       ).toEqual("Hello!");
       expect(
-        (result.current.messages[2].content[0] as MessageContentText).text,
+        (result.current.messages[2]!.content[0] as MessageContentText).text,
       ).toEqual("How may I assist you today?");
     });
   });
@@ -653,14 +658,15 @@ describe("useLangGraphMessages", {}, () => {
     await waitFor(() => {
       expect(result.current.messages).toHaveLength(2);
 
-      const [humanMessage, aiMessage] = result.current.messages;
+      const humanMessage = result.current.messages[0]!;
+      const aiMessage = result.current.messages[1]!;
 
       expect(humanMessage.type).toBe("human");
 
       if (aiMessage.type === "ai") {
         expect(aiMessage.id).toBe("ai-msg-1");
 
-        expect(aiMessage.status).toEqual({
+        expect((aiMessage as Record<string, unknown>).status).toEqual({
           type: "incomplete",
           reason: "error",
           error: errorData,
@@ -699,7 +705,7 @@ describe("useLangGraphMessages", {}, () => {
 
     await waitFor(() => {
       expect(result.current.messages).toHaveLength(1);
-      const message = result.current.messages[0];
+      const message = result.current.messages[0]!;
       expect(message.id).toBeDefined();
       expect(message.id).toMatch(
         /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
@@ -759,15 +765,681 @@ describe("useLangGraphMessages", {}, () => {
 
     await waitFor(() => {
       expect(result.current.messages).toHaveLength(3);
-      expect(result.current.messages[0].id).toEqual("user-1");
-      expect(result.current.messages[1].id).toEqual("ai-1");
-      expect(result.current.messages[1].content).toEqual(
+      expect(result.current.messages[0]!.id).toEqual("user-1");
+      expect(result.current.messages[1]!.id).toEqual("ai-1");
+      expect(result.current.messages[1]!.content).toEqual(
         "This is a manually added message from an Updates event",
       );
-      expect(result.current.messages[2].id).toEqual("ai-2");
-      expect(result.current.messages[2].content).toEqual(
+      expect(result.current.messages[2]!.id).toEqual("ai-2");
+      expect(result.current.messages[2]!.content).toEqual(
         "This is a streamed AI response",
       );
+    });
+  });
+
+  it("does not replace tuple-accumulated messages with updates snapshots", async () => {
+    const initialHumanMessage = {
+      id: "user-1",
+      type: "human" as const,
+      content: "Search now",
+    };
+
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "messages",
+        data: [
+          {
+            id: "run-1",
+            content: "Looking that up...",
+            type: "AIMessageChunk",
+            tool_call_chunks: [],
+          },
+          { run_attempt: 1 },
+        ],
+      },
+      {
+        event: "messages",
+        data: [
+          {
+            id: "tool-msg-1",
+            type: "tool",
+            content: '{"success":true}',
+            name: "cached_search_web",
+            tool_call_id: "tool-1",
+            status: "success",
+          },
+          { run_attempt: 1 },
+        ],
+      },
+      {
+        event: "updates",
+        data: {
+          messages: [
+            initialHumanMessage,
+            {
+              id: "run-1",
+              type: "ai" as const,
+              content: "Looking that up...",
+            },
+          ],
+        },
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage([initialHumanMessage], {});
+    });
+
+    await waitFor(() => {
+      expect(result.current.messages).toHaveLength(3);
+      const toolMessage = result.current.messages[2]!;
+      expect(toolMessage.type).toBe("tool");
+      if (toolMessage.type !== "tool") {
+        throw new Error("Expected tool message");
+      }
+
+      expect(toolMessage.id).toBe("tool-msg-1");
+      expect(toolMessage.tool_call_id).toBe("tool-1");
+      expect(toolMessage.content).toBe('{"success":true}');
+    });
+  });
+
+  it("fires onMessageChunk callback with chunk and metadata", async () => {
+    const chunksCaptured: Array<{
+      chunk: LangChainMessageChunk;
+      metadata: LangGraphTupleMetadata;
+    }> = [];
+
+    const tupleMetadata = {
+      langgraph_step: 1,
+      langgraph_node: "agent",
+      ls_model_name: "claude-3-7-sonnet-latest",
+    };
+
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "messages",
+        data: [
+          {
+            id: "run-1",
+            content: "Hello!",
+            type: "AIMessageChunk",
+            tool_call_chunks: [],
+          },
+          tupleMetadata,
+        ],
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+        eventHandlers: {
+          onMessageChunk: (chunk, metadata) => {
+            chunksCaptured.push({ chunk, metadata });
+          },
+        },
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage([{ type: "human", content: "Hi" }], {});
+    });
+
+    await waitFor(() => {
+      expect(chunksCaptured).toHaveLength(1);
+      expect(chunksCaptured[0]!.chunk.type).toBe("AIMessageChunk");
+      expect(chunksCaptured[0]!.chunk.content).toBe("Hello!");
+      expect(chunksCaptured[0]!.metadata).toEqual(tupleMetadata);
+    });
+  });
+
+  it("accumulates metadata per message ID across chunks", async () => {
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "messages",
+        data: [
+          {
+            id: "run-1",
+            content: "Hello",
+            type: "AIMessageChunk",
+            tool_call_chunks: [],
+          },
+          {
+            langgraph_step: 1,
+            langgraph_node: "agent",
+          },
+        ],
+      },
+      {
+        event: "messages",
+        data: [
+          {
+            id: "run-1",
+            content: " world!",
+            type: "AIMessageChunk",
+            tool_call_chunks: [],
+          },
+          {
+            langgraph_step: 1,
+            ls_model_name: "claude-3-7-sonnet-latest",
+          },
+        ],
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage([{ type: "human", content: "Hi" }], {});
+    });
+
+    await waitFor(() => {
+      expect(result.current.messages).toHaveLength(2);
+      const metadata = result.current.messageMetadata.get("run-1");
+      expect(metadata).toBeDefined();
+      expect(metadata!.langgraph_step).toBe(1);
+      expect(metadata!.langgraph_node).toBe("agent");
+      expect(metadata!.ls_model_name).toBe("claude-3-7-sonnet-latest");
+    });
+  });
+
+  it("fires onUpdates callback", async () => {
+    let capturedUpdates: unknown;
+
+    const updatesData = {
+      messages: [
+        { id: "user-1", type: "human" as const, content: "hi" },
+        { id: "ai-1", type: "ai" as const, content: "hello" },
+      ],
+    };
+
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "updates",
+        data: updatesData,
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+        eventHandlers: {
+          onUpdates: (data) => {
+            capturedUpdates = data;
+          },
+        },
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage([{ type: "human", content: "hi" }], {});
+    });
+
+    await waitFor(() => {
+      expect(capturedUpdates).toEqual(updatesData);
+    });
+  });
+
+  it("fires onValues callback", async () => {
+    let capturedValues: unknown;
+
+    const valuesData = {
+      messages: [{ id: "ai-1", type: "ai", content: "result" }],
+    };
+
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "values",
+        data: valuesData,
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+        eventHandlers: {
+          onValues: (data) => {
+            capturedValues = data;
+          },
+        },
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage([{ type: "human", content: "hi" }], {});
+    });
+
+    await waitFor(() => {
+      expect(capturedValues).toEqual(valuesData);
+    });
+  });
+
+  it("passes checkpointId through to stream callback", async () => {
+    const streamSpy = vi
+      .fn()
+      .mockImplementation(mockStreamCallbackFactory([metadataEvent]));
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: streamSpy,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage(
+        [{ type: "human", content: "edited message" }],
+        { checkpointId: "cp-123" },
+      );
+    });
+
+    await waitFor(() => {
+      expect(streamSpy).toHaveBeenCalledTimes(1);
+      const config = streamSpy.mock.calls[0]![1];
+      expect(config.checkpointId).toBe("cp-123");
+    });
+  });
+
+  it("uses fresh messages after setMessages (stale closure fix)", async () => {
+    const streamSpy = vi
+      .fn()
+      .mockImplementation(mockStreamCallbackFactory([metadataEvent]));
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: streamSpy,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    // First: send a message to populate state
+    act(() => {
+      result.current.sendMessage(
+        [{ id: "h1", type: "human", content: "first" }],
+        {},
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.messages).toHaveLength(1);
+      expect(result.current.messages[0]!.id).toBe("h1");
+    });
+
+    // Simulate truncation (like onEdit does) then immediately send
+    act(() => {
+      result.current.setMessages([]);
+      result.current.sendMessage(
+        [{ id: "h2", type: "human", content: "edited" }],
+        {},
+      );
+    });
+
+    await waitFor(() => {
+      // After truncation + send, should only have the new message
+      // NOT the old "h1" message (which would happen with stale closure)
+      expect(result.current.messages).toHaveLength(1);
+      expect(result.current.messages[0]!.id).toBe("h2");
+      expect(result.current.messages[0]!.content).toBe("edited");
+    });
+  });
+
+  it("passes checkpointId alongside other config fields", async () => {
+    const streamSpy = vi
+      .fn()
+      .mockImplementation(mockStreamCallbackFactory([metadataEvent]));
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: streamSpy,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage([{ type: "human", content: "test" }], {
+        checkpointId: "cp-456",
+        command: { resume: "yes" },
+        runConfig: { model: "gpt-4" },
+      });
+    });
+
+    await waitFor(() => {
+      expect(streamSpy).toHaveBeenCalledTimes(1);
+      const config = streamSpy.mock.calls[0]![1];
+      expect(config.checkpointId).toBe("cp-456");
+      expect(config.command).toEqual({ resume: "yes" });
+      expect(config.runConfig).toEqual({ model: "gpt-4" });
+      expect(config.abortSignal).toBeInstanceOf(AbortSignal);
+      expect(typeof config.initialize).toBe("function");
+    });
+  });
+
+  it("swallows AbortError when stream is cancelled", async () => {
+    const streamSpy = vi.fn().mockImplementation(async (_messages, config) => {
+      async function* streamResponse() {
+        await new Promise<void>((_resolve, reject) => {
+          const onAbort = () => {
+            const abortError = new Error("The operation was aborted.");
+            abortError.name = "AbortError";
+            reject(abortError);
+          };
+
+          if (config.abortSignal.aborted) {
+            onAbort();
+            return;
+          }
+
+          config.abortSignal.addEventListener("abort", onAbort, {
+            once: true,
+          });
+        });
+      }
+
+      return streamResponse();
+    });
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: streamSpy,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    let sendMessagePromise!: Promise<void>;
+    act(() => {
+      sendMessagePromise = result.current.sendMessage(
+        [{ type: "human", content: "cancel me" }],
+        {},
+      );
+    });
+
+    await waitFor(() => {
+      expect(streamSpy).toHaveBeenCalledTimes(1);
+    });
+
+    act(() => {
+      result.current.cancel();
+    });
+
+    await expect(sendMessagePromise).resolves.toBeUndefined();
+  });
+
+  it("rethrows non-AbortError stream failures", async () => {
+    const streamError = new Error("stream failed");
+    const streamSpy = vi.fn().mockImplementation(async () => {
+      async function* streamResponse() {
+        yield metadataEvent;
+        throw streamError;
+      }
+
+      return streamResponse();
+    });
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: streamSpy,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    let sendMessagePromise!: Promise<void>;
+    act(() => {
+      sendMessagePromise = result.current.sendMessage(
+        [{ type: "human", content: "trigger error" }],
+        {},
+      );
+    });
+
+    await expect(sendMessagePromise).rejects.toBe(streamError);
+  });
+
+  it("normalizes python tool_call_chunks args_json in messages tuple streams", async () => {
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "messages",
+        data: [
+          {
+            id: "run-1",
+            content: "",
+            type: "AIMessageChunk",
+            tool_call_chunks: [
+              {
+                id: "tool-1",
+                index: 1,
+                name: "fetch_page_content",
+                args_json: "",
+              },
+            ],
+          },
+          { run_attempt: 1 },
+        ],
+      },
+      {
+        event: "messages",
+        data: [
+          {
+            id: "run-1",
+            content: "",
+            type: "AIMessageChunk",
+            tool_call_chunks: [
+              {
+                id: "tool-1",
+                index: 1,
+                name: "fetch_page_content",
+                args_json: '{"url":"https://',
+              },
+            ],
+          },
+          { run_attempt: 1 },
+        ],
+      },
+      {
+        event: "messages",
+        data: [
+          {
+            id: "run-1",
+            content: "",
+            type: "AIMessageChunk",
+            tool_call_chunks: [
+              {
+                id: "tool-1",
+                index: 1,
+                name: "fetch_page_content",
+                args_json: 'example.com"}',
+              },
+            ],
+          },
+          { run_attempt: 1 },
+        ],
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage([{ type: "human", content: "Go" }], {});
+    });
+
+    await waitFor(() => {
+      expect(result.current.messages).toHaveLength(2);
+      const aiMessage = result.current.messages[1]!;
+      expect(aiMessage.type).toBe("ai");
+      if (aiMessage.type !== "ai") {
+        throw new Error("Expected AI message");
+      }
+
+      expect(aiMessage.tool_calls).toHaveLength(1);
+      expect(aiMessage.tool_calls?.[0]?.partial_json).toBe(
+        '{"url":"https://example.com"}',
+      );
+      expect(aiMessage.tool_calls?.[0]?.partial_json).not.toContain(
+        "undefined",
+      );
+      expect(aiMessage.tool_calls?.[0]?.args).toMatchObject({
+        url: "https://example.com",
+      });
+    });
+  });
+
+  it("handles tool_call_chunks with index 0 (tool_use as first content block)", async () => {
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "messages",
+        data: [
+          {
+            id: "run-1",
+            content: "",
+            type: "AIMessageChunk",
+            tool_call_chunks: [
+              {
+                id: "toolu_xxx",
+                index: 0,
+                name: "explore_schema",
+                args: "",
+              },
+            ],
+          },
+          { run_attempt: 1 },
+        ],
+      },
+      {
+        event: "messages",
+        data: [
+          {
+            id: "run-1",
+            content: "",
+            type: "AIMessageChunk",
+            tool_call_chunks: [
+              {
+                id: "toolu_xxx",
+                index: 0,
+                name: "explore_schema",
+                args: '{"q":"hello"}',
+              },
+            ],
+          },
+          { run_attempt: 1 },
+        ],
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage([{ type: "human", content: "Go" }], {});
+    });
+
+    await waitFor(() => {
+      expect(result.current.messages).toHaveLength(2);
+      const aiMessage = result.current.messages[1]!;
+      expect(aiMessage.type).toBe("ai");
+      if (aiMessage.type !== "ai") {
+        throw new Error("Expected AI message");
+      }
+
+      expect(aiMessage.tool_calls).toHaveLength(1);
+      expect(aiMessage.tool_calls?.[0]?.id).toBe("toolu_xxx");
+      expect(aiMessage.tool_calls?.[0]?.name).toBe("explore_schema");
+      expect(aiMessage.tool_calls?.[0]?.args).toMatchObject({ q: "hello" });
+    });
+  });
+
+  it("accepts tool messages from messages tuple streams", async () => {
+    const onMessageChunk = vi.fn();
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "messages",
+        data: [
+          {
+            id: "run-1",
+            content: "Looking that up...",
+            type: "AIMessageChunk",
+            tool_call_chunks: [],
+          },
+          { run_attempt: 1 },
+        ],
+      },
+      {
+        event: "messages",
+        data: [
+          {
+            id: "tool-msg-1",
+            type: "tool",
+            content: '{"success":true}',
+            name: "cached_search_web",
+            tool_call_id: "tool-1",
+            status: "success",
+          },
+          { run_attempt: 1 },
+        ],
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+        eventHandlers: {
+          onMessageChunk,
+        },
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage(
+        [{ type: "human", content: "Search now" }],
+        {},
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.messages).toHaveLength(3);
+      const toolMessage = result.current.messages[2]!;
+      expect(toolMessage.type).toBe("tool");
+      if (toolMessage.type !== "tool") {
+        throw new Error("Expected tool message");
+      }
+
+      expect(toolMessage.id).toBe("tool-msg-1");
+      expect(toolMessage.name).toBe("cached_search_web");
+      expect(toolMessage.tool_call_id).toBe("tool-1");
+      expect(toolMessage.status).toBe("success");
+      expect(toolMessage.content).toBe('{"success":true}');
+      expect(onMessageChunk).toHaveBeenCalledTimes(1);
     });
   });
 });

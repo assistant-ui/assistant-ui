@@ -6,9 +6,6 @@ description: Primitives for the text input, send button, and attachments.
 The user interface to add new messages or edit existing ones.
 
 
-import { ParametersTable } from "@/components/docs/tables/ParametersTable";
-import { KeyboardTable } from "@/components/docs/tables/KeyboardTable";
-import { Code } from "@radix-ui/themes";
 
 <Callout>
   **Dual Use!** A Composer placed directly inside a `Thread` will compose new
@@ -23,6 +20,10 @@ import { ComposerPrimitive } from "@assistant-ui/react";
 // creating a new message
 const Composer = () => (
   <ComposerPrimitive.Root>
+    <ComposerPrimitive.Quote>
+      <ComposerPrimitive.QuoteText />
+      <ComposerPrimitive.QuoteDismiss />
+    </ComposerPrimitive.Quote>
     <ComposerPrimitive.Attachments />
     <ComposerPrimitive.AddAttachment />
     <ComposerPrimitive.Input />
@@ -83,23 +84,33 @@ This primitive renders a `<textarea>` element unless `asChild` is set.
     {
       name: "asChild",
     },
+    {
+      name: "submitMode",
+      type: '"enter" | "ctrlEnter" | "none"',
+      default: '"enter"',
+      description:
+        'Controls how the Enter key submits messages. "enter": plain Enter submits (Shift+Enter for newline). "ctrlEnter": Ctrl/Cmd+Enter submits (plain Enter for newline). "none": keyboard submission disabled.',
+    },
   ]}
 />
 
 #### Keyboard Shortcuts
 
-<KeyboardTable
-  data={[
-    {
-      keys: ["Enter"],
-      description: "Sends the message.",
-    },
-    {
-      keys: ["Escape"],
-      description: "Sends a cancel action.",
-    },
-  ]}
-/>
+Default (`submitMode="enter"`):
+
+| Key | Description |
+| --- | --- |
+| <Kbd>Enter</Kbd> | Sends the message. |
+| <Kbd>Shift + Enter</Kbd> | Inserts a newline. |
+| <Kbd>Escape</Kbd> | Sends a cancel action. |
+
+With `submitMode="ctrlEnter"`:
+
+| Key | Description |
+| --- | --- |
+| <Kbd>Ctrl/Cmd + Enter</Kbd> | Sends the message. |
+| <Kbd>Enter</Kbd> | Inserts a newline. |
+| <Kbd>Escape</Kbd> | Sends a cancel action. |
 
 ### Send
 
@@ -126,7 +137,7 @@ This primitive renders a `<button>` element unless `asChild` is set.
 
 Sends a cancel action.
 
-In edit composers, this action exits the edit mode.  
+In edit composers, this action exits the edit mode.
 In thread composers, this action stops the current run.
 
 This primitive renders a `<button>` element unless `asChild` is set.
@@ -284,6 +295,44 @@ This primitive renders a `<span>` element.
   </div>
 </ComposerPrimitive.If>
 ```
+
+### Quote
+
+A container for displaying a quote preview in the composer. Only renders when a quote is set via `composer.setQuote()`.
+
+This primitive renders a `<div>` element.
+
+```tsx
+<ComposerPrimitive.Quote className="flex items-start gap-2 bg-muted/60 px-3 py-2">
+  <ComposerPrimitive.QuoteText className="line-clamp-2 flex-1 text-sm" />
+  <ComposerPrimitive.QuoteDismiss>×</ComposerPrimitive.QuoteDismiss>
+</ComposerPrimitive.Quote>
+```
+
+### QuoteText
+
+Renders the quoted text content. Only renders when a quote is set.
+
+This primitive renders a `<span>` element.
+
+### QuoteDismiss
+
+A button that clears the current quote from the composer by calling `setQuote(undefined)`.
+
+This primitive renders a `<button>` element unless `asChild` is set.
+
+<ParametersTable
+  type="ComposerPrimitiveQuoteDismissProps"
+  parameters={[
+    {
+      name: "asChild",
+    },
+  ]}
+/>
+
+<Callout type="info">
+See the [Quoting guide](/docs/guides/quoting) for a complete walkthrough including the floating selection toolbar and backend handling.
+</Callout>
 
 ### If
 

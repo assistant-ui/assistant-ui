@@ -29,7 +29,7 @@ All assistant-ui components use the context API under the hood. This API is avai
 
 \*There is the exception of the context-provider primitives (like ThreadPrimitive.Messages), which currently is not exposed but soon will be.
 
-The context API is scoped to the current location where a component calling it is located. For example, inside a message, useAuiState(({ message }) => message.role) will return the role (assistant or user) of the current message. The "current" message is set by the < ThreadPrimitive.Messages > component which renders all messages inside a thread.
+The context API is scoped to the current location where a component calling it is located. For example, inside a message, useAuiState((s) => s.message.role) will return the role (assistant or user) of the current message. The "current" message is set by the < ThreadPrimitive.Messages > component which renders all messages inside a thread.
 
 This allows us to make "smart" components that are aware of where they are and they render the appropriate content and have the appropriate behavior, thanks to the scoping feature of the context API.
 
@@ -121,7 +121,7 @@ This subscribes to the state and binds the component to receive the current valu
 The convention is to call it and deconstruct the scope you need in an inline arrow fn:
 
 ```
-const role = useAuiState(({ message }) => message.role)
+const role = useAuiState((s) => s.message.role)
 ```
 
 Warning: do not create new objects inside the selector. the return value from the selector MUST be a stable value, otherwise you see infinite rerender errors
@@ -131,7 +131,7 @@ Accessing a scope that does not exist will cause errors here as well.
 You can access multiple scopes and do calculations inside the selector to minimal rerenders
 
 ```
-const canSendMessage = useAuiState(({ thread, composer }) => !thread.isRunning && composer.text.length > 0)
+const canSendMessage = useAuiState((s) => !s.thread.isRunning && s.composer.text.length > 0)
 ```
 
 ## useAuiEvent

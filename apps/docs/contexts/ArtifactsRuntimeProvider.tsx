@@ -12,7 +12,7 @@ import {
 } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import { DevToolsModal } from "@assistant-ui/react-devtools";
-import { ModelContext } from "@assistant-ui/react/client/ModelContextClient";
+import { ModelContextClient as ModelContext } from "@assistant-ui/react";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { TerminalIcon } from "lucide-react";
 import { z } from "zod";

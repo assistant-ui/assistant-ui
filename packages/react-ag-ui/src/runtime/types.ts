@@ -4,9 +4,27 @@ import type {
   FeedbackAdapter,
   SpeechSynthesisAdapter,
   ThreadHistoryAdapter,
+  ThreadMessage,
 } from "@assistant-ui/react";
 import type { HttpAgent } from "@ag-ui/client";
 import type { Logger } from "./logger";
+import type { ReadonlyJSONValue } from "assistant-stream/utils";
+
+/**
+ * @experimental This API is still under active development and might change without notice.
+ */
+export type UseAgUiThreadListAdapter = {
+  threadId?: string | undefined;
+  onSwitchToNewThread?: (() => Promise<void> | void) | undefined;
+  onSwitchToThread?:
+    | ((threadId: string) =>
+        | Promise<{
+            messages: readonly ThreadMessage[];
+            state?: ReadonlyJSONValue;
+          }>
+        | { messages: readonly ThreadMessage[]; state?: ReadonlyJSONValue })
+    | undefined;
+};
 
 export type UseAgUiRuntimeAdapters = {
   attachments?: AttachmentAdapter;
@@ -14,6 +32,10 @@ export type UseAgUiRuntimeAdapters = {
   dictation?: DictationAdapter;
   feedback?: FeedbackAdapter;
   history?: ThreadHistoryAdapter;
+  /**
+   * @experimental This API is still under active development and might change without notice.
+   */
+  threadList?: UseAgUiThreadListAdapter;
 };
 
 export type UseAgUiRuntimeOptions = {
@@ -39,6 +61,11 @@ export type AgUiEvent =
   | { type: "THINKING_TEXT_MESSAGE_CONTENT"; delta: string }
   | { type: "THINKING_TEXT_MESSAGE_END" }
   | { type: "THINKING_END" }
+  | { type: "REASONING_START"; messageId?: string }
+  | { type: "REASONING_MESSAGE_START"; messageId?: string }
+  | { type: "REASONING_MESSAGE_CONTENT"; messageId?: string; delta: string }
+  | { type: "REASONING_MESSAGE_END"; messageId?: string }
+  | { type: "REASONING_END"; messageId?: string }
   | {
       type: "TOOL_CALL_START";
       toolCallId: string;

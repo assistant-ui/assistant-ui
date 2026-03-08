@@ -1,5 +1,63 @@
 # @assistant-ui/tap
 
+## 0.5.2
+
+### Patch Changes
+
+- a845911: chore: update dependencies
+
+## 0.5.1
+
+### Patch Changes
+
+- 36ef3a2: chore: update dependencies
+
+## 0.5.0
+
+### Minor Changes
+
+- b65428e: feat: tap scheduler now uses macro tasks
+- b65428e: feat: createResourceRoot and tapResourceRoot APIs
+
+### Patch Changes
+
+- b65428e: feat: tapReducer API
+- 6bd6419: fix(tap): prevent rollback crash when tapResourceRoot version falls below committedVersion
+- b65428e: feat: Offscreen API support
+- b65428e: feat: tapReducerWithDerivedState API
+- b65428e: feat: tapMemo concurrent safe mode
+
+## 0.4.6
+
+### Patch Changes
+
+- afaaf3b: fix: use bracket notation for process.env
+
+## 0.4.5
+
+### Patch Changes
+
+- a088518: chore: update dependencies
+
+## 0.4.4
+
+### Patch Changes
+
+- 77af8c3: fix: runtime not responsive if loaded under React StrictMode (critial bug)
+
+## 0.4.3
+
+### Patch Changes
+
+- d45b893: chore: update dependencies
+- fe71bfc: feat: tapSubscribableResource hook
+
+## 0.4.2
+
+### Patch Changes
+
+- 5ab3690: fix: allow optional props in resources
+
 ## 0.4.1
 
 ### Patch Changes

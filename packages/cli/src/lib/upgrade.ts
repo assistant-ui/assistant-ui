@@ -13,6 +13,7 @@ const bundle = [
   "v0-11/content-part-to-message-part",
   "v0-12/assistant-api-to-aui",
   "v0-12/event-names-to-camelcase",
+  "v0-12/primitive-if-to-aui-if",
 ];
 
 const log = debug("codemod:upgrade");

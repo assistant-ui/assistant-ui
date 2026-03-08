@@ -7,6 +7,10 @@ import { Sparkles, PanelsTopLeft, Database, Terminal, Bot } from "lucide-react";
 
 assistant-ui helps you create beautiful, enterprise-grade AI chat interfaces in minutes. Whether you're building a ChatGPT clone, a customer support chatbot, an AI assistant, or a complex multi-agent application, assistant-ui provides the frontend primitive components and state management layers to focus on what makes your application unique.
 
+<Callout type="tip">
+  Already using the AI SDK with your own UI? Add [cloud persistence with just one hook](/docs/cloud/ai-sdk), no UI library required.
+</Callout>
+
 ## Key Features
 
 <Cards>
@@ -38,13 +42,19 @@ npx assistant-ui@latest create
 This creates a new project with everything configured. Or choose a template:
 
 ```sh
+# Minimal starter
+npx assistant-ui@latest create -t minimal
+
 # Assistant Cloud - with persistence and thread management
 npx assistant-ui@latest create -t cloud
 
-# LangGraph
+# Assistant Cloud + Clerk authentication
+npx assistant-ui@latest create -t cloud-clerk
+
+# LangGraph starter template
 npx assistant-ui@latest create -t langgraph
 
-# MCP support
+# MCP starter template
 npx assistant-ui@latest create -t mcp
 ```
 
@@ -57,7 +67,7 @@ npx assistant-ui@latest create -t mcp
     href="/docs/installation"
   />
   <Card
-    title="AI-Assisted Development"
+    title="Agent Skills"
     description="Use AI tools to build with assistant-ui faster"
     href="/docs/llm"
   />

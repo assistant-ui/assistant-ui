@@ -10,15 +10,15 @@ import { useAui, useAuiState, AuiProvider, type ClientOutput } from "@assistant-
 
 // 1. Define client type
 declare module "@assistant-ui/store" {
-  interface ClientRegistry {
-    counter: { state: { count: number }; methods: { increment: () => void } };
+  interface ScopeRegistry {
+    counter: { methods: { getState: () => { count: number }; increment: () => void } };
   }
 }
 
 // 2. Create resource
 const CounterClient = resource((): ClientOutput<"counter"> => {
   const [state, setState] = tapState({ count: 0 });
-  return { state, methods: { increment: () => setState({ count: state.count + 1 }) } };
+  return { getState: () => state, increment: () => setState({ count: state.count + 1 }) };
 });
 
 // 3. Use in React
@@ -28,7 +28,7 @@ function App() {
 }
 
 function Counter() {
-  const count = useAuiState(({ counter }) => counter.count);
+  const count = useAuiState((s) => s.counter.count);
   const aui = useAui();
   return <button onClick={() => aui.counter().increment()}>{count}</button>;
 }
@@ -39,10 +39,9 @@ function Counter() {
 **Clients**: Named state containers registered via module augmentation.
 ```typescript
 declare module "@assistant-ui/store" {
-  interface ClientRegistry {
+  interface ScopeRegistry {
     myClient: {
-      state: MyState;
-      methods: MyMethods;
+      methods: MyMethods; // must include getState(): MyState
       meta?: { source: "parent"; query: { id: string } };
       events?: { "myClient.updated": { id: string } };
     };
@@ -83,10 +82,10 @@ useAuiEvent("myClient.updated", (p) => console.log(p.id));
 | `tapClientResource(element)` | Wrap resource for event scoping (1:1 mappings) |
 | `tapClientLookup(map, fn, deps)` | Lookup by `{index}` or `{key}` |
 | `tapClientList(config)` | Dynamic list with add/remove |
-| `attachDefaultPeers(resource, peers)` | Attach default peers |
+| `attachTransformScopes(resource, fn)` | Attach scope transform |
 
 | Type | Description |
 |------|-------------|
-| `ClientOutput<K>` | Resource return type: `{ state, methods }` |
-| `ClientRegistry` | Module augmentation interface |
+| `ClientOutput<K>` | Resource return type (methods object) |
+| `ScopeRegistry` | Module augmentation interface |
 | `AssistantClient` | Full client type |

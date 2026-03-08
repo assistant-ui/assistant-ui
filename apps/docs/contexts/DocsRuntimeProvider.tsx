@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import {
   AssistantRuntimeProvider,
   WebSpeechSynthesisAdapter,
@@ -8,28 +9,47 @@ import {
   useAui,
   Tools,
   Suggestions,
+  type FeedbackAdapter,
 } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import { DevToolsModal } from "@assistant-ui/react-devtools";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { docsToolkit } from "@/lib/docs-toolkit";
 
+// Stateless adapter - safe to share across instances
+const feedbackAdapter: FeedbackAdapter = {
+  submit: () => {
+    // Feedback is tracked via analytics in AssistantActionBar
+    // The runtime automatically updates message.metadata.submittedFeedback
+  },
+};
 export function DocsRuntimeProvider({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const assistantCloud = new AssistantCloud({
-    baseUrl: process.env["NEXT_PUBLIC_ASSISTANT_BASE_URL"]!,
-    anonymous: true,
-  });
+  const assistantCloud = useMemo(
+    () =>
+      new AssistantCloud({
+        baseUrl: process.env["NEXT_PUBLIC_ASSISTANT_BASE_URL"]!,
+        anonymous: true,
+      }),
+    [],
+  );
+
+  // Speech/dictation adapters keep internal state; create per component instance.
+  const adapters = useMemo(
+    () => ({
+      speech: new WebSpeechSynthesisAdapter(),
+      dictation: new WebSpeechDictationAdapter(),
+      feedback: feedbackAdapter,
+    }),
+    [],
+  );
 
   const runtime = useChatRuntime({
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
-    adapters: {
-      speech: new WebSpeechSynthesisAdapter(),
-      dictation: new WebSpeechDictationAdapter(),
-    },
+    adapters,
     cloud: assistantCloud,
   });
 

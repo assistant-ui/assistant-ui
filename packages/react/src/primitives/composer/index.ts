@@ -10,3 +10,6 @@ export { ComposerPrimitiveDictate as Dictate } from "./ComposerDictate";
 export { ComposerPrimitiveStopDictation as StopDictation } from "./ComposerStopDictation";
 export { ComposerPrimitiveDictationTranscript as DictationTranscript } from "./ComposerDictationTranscript";
 export { ComposerPrimitiveIf as If } from "./ComposerIf";
+export { ComposerPrimitiveQuote as Quote } from "./ComposerQuote";
+export { ComposerPrimitiveQuoteText as QuoteText } from "./ComposerQuote";
+export { ComposerPrimitiveQuoteDismiss as QuoteDismiss } from "./ComposerQuote";

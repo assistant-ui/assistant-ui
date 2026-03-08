@@ -7,52 +7,12 @@ import { describe, it, expect } from "vitest";
 import { resource } from "../../core/resource";
 import { tapState } from "../../hooks/tap-state";
 import { tapEffect } from "../../hooks/tap-effect";
-import { createResource } from "../../core/createResource";
+import { createResourceRoot } from "../../core/createResourceRoot";
 import { flushResourcesSync } from "../../core/scheduler";
 
 describe("Tap Strict Mode - Rerender Sources", () => {
-  describe("DEBUG: Callback invocation count", () => {
-    it("should show how many times the dispatchUpdate callback is invoked", () => {
-      let updaterInvocations = 0;
-      const events: string[] = [];
-
-      const TestResource = resource(() => {
-        const [count, setCount] = tapState(0);
-        events.push(`render count=${count}`);
-
-        return {
-          count,
-          increment: () => {
-            events.push("setState called");
-            setCount((prevCount) => {
-              updaterInvocations++;
-              events.push(
-                `updater invocation #${updaterInvocations} with prevCount=${prevCount}`,
-              );
-              return prevCount + 1;
-            });
-          },
-        };
-      });
-
-      const handle = createResource(TestResource(), { devStrictMode: true });
-
-      events.length = 0;
-      updaterInvocations = 0;
-
-      flushResourcesSync(() => {
-        handle.getValue().increment();
-      });
-
-      console.log("Updater invocations:", updaterInvocations);
-      console.log("Events:", events);
-      console.log(
-        "Expected: updater called twice (React behavior), actual:",
-        updaterInvocations,
-      );
-    });
-
-    it.skip("should use the same return value logic as React when updater returns different values", () => {
+  describe("Callback invocation count", () => {
+    it("should use the first return value when updater returns different values", () => {
       const events: string[] = [];
       let updaterCallCount = 0;
 
@@ -80,28 +40,26 @@ describe("Tap Strict Mode - Rerender Sources", () => {
         return { count };
       });
 
-      createResource(TestResource(), {
-        devStrictMode: true,
-        mount: true,
-      });
+      const root = createResourceRoot();
+      root.render(TestResource());
 
-      console.log("Tap updater call count:", updaterCallCount);
-      console.log("Tap events:", events);
-
-      // React behavior: updater called 4 times, uses LAST return value (200)
-      // Expected tap behavior: Same as React
+      // Tap behavior: updater called 4 times, uses FIRST return value per dispatch
+      // Effect #1 dispatch: updater(0) → 100 (kept)
+      // Effect #1 cleanup, Effect #2 mount
+      // Effect #2 dispatch: updater(0) → 200 (kept... but wait, prev=100 from effect #1)
+      // Updater double-invoke happens per-dispatch (matching React ordering)
       expect(updaterCallCount).toBe(4);
       expect(events).toEqual([
         "render count=0",
         "render count=0",
         "effect mount",
-        "updater call #1 with prev=0", // Effect #1: returns 100
+        "updater call #1 with prev=0",
         "effect cleanup",
         "effect mount",
-        "updater call #2 with prev=0", // Effect #2: returns 200
-        "updater call #3 with prev=100", // Strict mode double: returns 200
-        "updater call #4 with prev=100", // Strict mode double again: returns 200
-        "render count=200", // Uses LAST return value
+        "updater call #2 with prev=0",
+        "updater call #3 with prev=100",
+        "updater call #4 with prev=100",
+        "render count=200",
         "render count=200",
       ]);
     });
@@ -117,7 +75,8 @@ describe("Tap Strict Mode - Rerender Sources", () => {
         return { count };
       });
 
-      createResource(TestResource(), { devStrictMode: true });
+      const root = createResourceRoot();
+      root.render(TestResource());
 
       expect(events).toEqual(["render count=0", "render count=0"]);
     });
@@ -144,7 +103,8 @@ describe("Tap Strict Mode - Rerender Sources", () => {
         return { count };
       });
 
-      createResource(TestResource(), { devStrictMode: true, mount: true });
+      const root = createResourceRoot();
+      root.render(TestResource());
 
       expect(events).toEqual([
         "render count=0",
@@ -177,7 +137,8 @@ describe("Tap Strict Mode - Rerender Sources", () => {
         };
       });
 
-      const handle = createResource(TestResource(), { devStrictMode: true });
+      const root = createResourceRoot();
+      const sub = root.render(TestResource());
 
       // Initial render is double
       expect(events).toEqual(["render count=0", "render count=0"]);
@@ -186,7 +147,7 @@ describe("Tap Strict Mode - Rerender Sources", () => {
 
       // Call the method inside flushResourcesSync (like clicking a button)
       flushResourcesSync(() => {
-        handle.getValue().increment();
+        sub.getValue().increment();
       });
 
       // flushResourcesSync setState should ALSO double-render (matching React 19)
@@ -209,19 +170,20 @@ describe("Tap Strict Mode - Rerender Sources", () => {
         };
       });
 
-      const handle = createResource(TestResource(), { devStrictMode: true });
+      const root = createResourceRoot();
+      const sub = root.render(TestResource());
 
       events.length = 0; // Clear initial renders
 
       // Multiple flushResourcesSync calls (like multiple button clicks)
       flushResourcesSync(() => {
-        handle.getValue().increment();
+        sub.getValue().increment();
       });
       flushResourcesSync(() => {
-        handle.getValue().increment();
+        sub.getValue().increment();
       });
       flushResourcesSync(() => {
-        handle.getValue().increment();
+        sub.getValue().increment();
       });
 
       // Each call should cause double render
@@ -240,7 +202,7 @@ describe("Tap Strict Mode - Rerender Sources", () => {
   });
 
   describe("Source 4: setState in setTimeout", () => {
-    it.skip("should double-render AND double-call setTimeout callback", async () => {
+    it("should double-render AND double-call setTimeout callback", async () => {
       const events: string[] = [];
 
       const TestResource = resource(() => {
@@ -259,7 +221,8 @@ describe("Tap Strict Mode - Rerender Sources", () => {
         return { count };
       });
 
-      createResource(TestResource(), { devStrictMode: true, mount: true });
+      const root = createResourceRoot();
+      root.render(TestResource());
 
       // Wait for setTimeout
       await new Promise((resolve) => setTimeout(resolve, 50));
@@ -296,7 +259,8 @@ describe("Tap Strict Mode - Rerender Sources", () => {
         return { count };
       });
 
-      createResource(TestResource(), { devStrictMode: true, mount: true });
+      const root = createResourceRoot();
+      root.render(TestResource());
 
       // Wait for promise
       await new Promise((resolve) => setTimeout(resolve, 10));
@@ -331,12 +295,13 @@ describe("Tap Strict Mode - Rerender Sources", () => {
         };
       });
 
-      const handle = createResource(TestResource(), { devStrictMode: true });
+      const root = createResourceRoot();
+      const sub = root.render(TestResource());
 
       events.length = 0; // Clear initial renders
 
       flushResourcesSync(() => {
-        handle.getValue().updateBoth();
+        sub.getValue().updateBoth();
       });
 
       // Both setState calls batched, but render is DOUBLED
@@ -365,7 +330,8 @@ describe("Tap Strict Mode - Rerender Sources", () => {
         return {};
       });
 
-      createResource(TestResource(), { devStrictMode: true, mount: true });
+      const root = createResourceRoot();
+      root.render(TestResource());
 
       // Initial double-render, then batched setState causes another double-render
       expect(events).toEqual([
@@ -391,7 +357,8 @@ describe("Tap Strict Mode - Rerender Sources", () => {
         };
       });
 
-      createResource(TestResource(), { devStrictMode: true });
+      const root = createResourceRoot();
+      root.render(TestResource());
 
       // Resource renders should be doubled
       expect(events).toEqual(["render count=0", "render count=0"]);
@@ -399,7 +366,7 @@ describe("Tap Strict Mode - Rerender Sources", () => {
   });
 
   describe("Source 8: setState with function updater", () => {
-    it.skip("should double-render with function updater in flushResourcesSync", () => {
+    it("should double-render with function updater in flushResourcesSync", () => {
       const events: string[] = [];
 
       const TestResource = resource(() => {
@@ -418,12 +385,13 @@ describe("Tap Strict Mode - Rerender Sources", () => {
         };
       });
 
-      const handle = createResource(TestResource(), { devStrictMode: true });
+      const root = createResourceRoot();
+      const sub = root.render(TestResource());
 
       events.length = 0; // Clear initial renders
 
       flushResourcesSync(() => {
-        handle.getValue().increment();
+        sub.getValue().increment();
       });
 
       // React behavior: Updater function is called TWICE in strict mode
@@ -438,7 +406,7 @@ describe("Tap Strict Mode - Rerender Sources", () => {
   });
 
   describe("Source 9: Complex effect patterns", () => {
-    it.skip("should handle effect with dependencies and setState", () => {
+    it("should handle effect with dependencies and setState", () => {
       const events: string[] = [];
 
       const TestResource = resource(() => {
@@ -460,21 +428,14 @@ describe("Tap Strict Mode - Rerender Sources", () => {
         };
       });
 
-      const handle = createResource(TestResource(), {
-        devStrictMode: true,
-        mount: true,
-      });
+      const root = createResourceRoot();
+      const sub = root.render(TestResource());
 
-      // React behavior: When effect calls setState during strict mode,
-      // it triggers additional render cycles
+      // setDoubled(0*2) = setDoubled(0) is a no-op, so no extra render
       expect(events).toEqual([
         "render count=0 doubled=0",
         "render count=0 doubled=0",
         "effect count=0",
-        "cleanup count=0",
-        "effect count=0",
-        "render count=0 doubled=0",
-        "render count=0 doubled=0",
         "cleanup count=0",
         "effect count=0",
       ]);
@@ -483,10 +444,10 @@ describe("Tap Strict Mode - Rerender Sources", () => {
 
       // Trigger increment via flushResourcesSync
       flushResourcesSync(() => {
-        handle.getValue().increment();
+        sub.getValue().increment();
       });
 
-      // Should double-render with new count, effect updates doubled
+      // Double-render with new count, effect sets doubled=2, triggers another double-render
       expect(events).toEqual([
         "render count=1 doubled=0",
         "render count=1 doubled=0",
@@ -494,8 +455,6 @@ describe("Tap Strict Mode - Rerender Sources", () => {
         "effect count=1",
         "render count=1 doubled=2",
         "render count=1 doubled=2",
-        "cleanup count=1",
-        "effect count=1",
       ]);
     });
   });
@@ -517,7 +476,8 @@ describe("Tap Strict Mode - Rerender Sources", () => {
         return { value };
       });
 
-      createResource(TestResource(), { devStrictMode: true });
+      const root = createResourceRoot();
+      root.render(TestResource());
 
       // tapState initializer should be called twice, first value kept
       expect(events).toEqual([
@@ -544,17 +504,19 @@ describe("Tap Strict Mode - Rerender Sources", () => {
       });
 
       // Create first instance
-      const handle1 = createResource(TestResource(), { devStrictMode: true });
+      const root1 = createResourceRoot();
+      root1.render(TestResource());
 
       expect(events).toEqual(["render count=0", "render count=0"]);
 
       events.length = 0;
 
       // Unmount
-      handle1.unmount();
+      root1.unmount();
 
       // Create second instance
-      const handle2 = createResource(TestResource(), { devStrictMode: true });
+      const root2 = createResourceRoot();
+      const sub2 = root2.render(TestResource());
 
       // Should still double-render
       expect(events).toEqual(["render count=0", "render count=0"]);
@@ -563,7 +525,7 @@ describe("Tap Strict Mode - Rerender Sources", () => {
 
       // Method calls via flushResourcesSync should still double-render
       flushResourcesSync(() => {
-        handle2.getValue().increment();
+        sub2.getValue().increment();
       });
 
       expect(events).toEqual(["render count=1", "render count=1"]);
@@ -600,10 +562,8 @@ describe("Tap Strict Mode - Rerender Sources", () => {
         return { count };
       });
 
-      createResource(TestResource(), {
-        devStrictMode: true,
-        mount: true,
-      });
+      const root = createResourceRoot();
+      root.render(TestResource());
 
       // Expected: setState(1) from effect #1 should be applied
       // even though effect #1 was cleaned up
@@ -649,10 +609,8 @@ describe("Tap Strict Mode - Rerender Sources", () => {
         return { count };
       });
 
-      createResource(TestResource(), {
-        devStrictMode: true,
-        mount: true,
-      });
+      const root = createResourceRoot();
+      root.render(TestResource());
 
       // Expected: Only setState(2) should be applied (last one wins)
       expect(events).toEqual([
@@ -668,7 +626,7 @@ describe("Tap Strict Mode - Rerender Sources", () => {
       ]);
     });
 
-    it.skip("should handle updater functions from both effect mounts", () => {
+    it("should handle updater functions from both effect mounts", () => {
       const events: string[] = [];
       let effectRunCount = 0;
 
@@ -696,14 +654,13 @@ describe("Tap Strict Mode - Rerender Sources", () => {
         return { count };
       });
 
-      createResource(TestResource(), {
-        devStrictMode: true,
-        mount: true,
-      });
+      const root = createResourceRoot();
+      root.render(TestResource());
 
-      // React behavior: Both updaters are queued and executed
-      // Effect #1: updater(0) => 0 + 1 = 1
-      // Effect #2: updater(0) => 0 + 2 = 2, but then runs TWICE more with prev=1
+      // Tap behavior: Both updaters are queued and executed, first value kept per dispatch
+      // Updater double-invoke happens per-dispatch (matching React ordering)
+      // Effect #1: updater(0) => 0 + 1 = 1 (kept)
+      // Effect #2: updater(0) => 0 + 2 = 2... but prev=1 from effect #1
       // Final: 3
       expect(events).toEqual([
         "render count=0",

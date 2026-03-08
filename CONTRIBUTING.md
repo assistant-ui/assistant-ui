@@ -50,7 +50,26 @@ Create a changeset by running:
 pnpm changeset
 ```
 
-This will detect which packages changed and prompt you to select type (major, minor, patch) and a description of your changes. For now, most changes in assistant-ui should be classified as a patch.
+This will detect which packages changed and prompt you to select type (major, minor, patch) and a description of your changes.
+
+#### Which type to pick
+
+**Almost always `patch`** — even for new features and new exports. Here's why:
+
+Most assistant-ui packages are at `0.x` versions (e.g. `0.12.15`). In semver, the caret range `^` behaves differently for `0.x` than for `1.x+`:
+
+| Range | Allows | Example |
+|-------|--------|---------|
+| `^1.3.12` | any minor or patch (`>=1.3.12 <2.0.0`) | `1.4.0` is fine |
+| `^0.12.15` | only patches (`>=0.12.15 <0.13.0`) | `0.13.0` is **out of range** |
+
+This means a **minor bump on a `0.x` package breaks every dependent's caret range**, causing changesets to cascade patch bumps across the entire dependency graph. That creates version churn and noisy changelogs for no real benefit.
+
+**The rules:**
+
+- **patch**: Use for all changes — bug fixes, new features, refactors, new exports
+- **minor**: Only when a maintainer explicitly requests it (causes cascading patch bumps across all dependent packages)
+- **major**: Only for planned stable releases (`1.0`, `2.0`) — never without maintainer approval
 
 If you forget to add a changeset before merging, create a new PR and run `pnpm changeset` locally to create a changeset. You'll be prompted to manually select the packages that were changed, set update type, and add description. Commit the changeset file, push the changes, and merge the PR.
 

@@ -76,7 +76,13 @@ export class RunAggregator {
         break;
       }
       case "RUN_FINISHED": {
-        this.status = { type: "complete", reason: "unknown" };
+        const hasUnresolvedToolCalls = Array.from(this.toolCalls.values()).some(
+          (tc) => tc.result === undefined,
+        );
+
+        this.status = hasUnresolvedToolCalls
+          ? { type: "requires-action", reason: "tool-calls" }
+          : { type: "complete", reason: "unknown" };
         this.emit();
         break;
       }
@@ -122,27 +128,21 @@ export class RunAggregator {
       }
 
       case "THINKING_START":
-      case "THINKING_TEXT_MESSAGE_START": {
-        if (!this.showThinking) break;
-        this.reasoningActive = true;
-        if (!this.reasoningBuffer) this.reasoningBuffer = "";
-        this.ensureReasoningPart();
-        this.emit();
+      case "THINKING_TEXT_MESSAGE_START":
+      case "REASONING_START":
+      case "REASONING_MESSAGE_START":
+        this.handleReasoningStart();
         break;
-      }
-      case "THINKING_TEXT_MESSAGE_CONTENT": {
-        if (!this.showThinking || !event.delta) break;
-        this.reasoningBuffer += event.delta;
-        this.ensureReasoningPart();
-        this.emit();
+      case "THINKING_TEXT_MESSAGE_CONTENT":
+      case "REASONING_MESSAGE_CONTENT":
+        this.handleReasoningContent(event.delta);
         break;
-      }
       case "THINKING_TEXT_MESSAGE_END":
-      case "THINKING_END": {
-        if (!this.showThinking) break;
-        this.emit();
+      case "THINKING_END":
+      case "REASONING_MESSAGE_END":
+      case "REASONING_END":
+        this.handleReasoningEnd();
         break;
-      }
 
       case "TOOL_CALL_START": {
         this.startToolCall(
@@ -360,6 +360,25 @@ export class RunAggregator {
       ...(this.status ? { status: this.status } : undefined),
     };
     this.emitUpdate(result);
+  }
+
+  private handleReasoningStart(): void {
+    if (!this.showThinking) return;
+    this.reasoningActive = true;
+    this.ensureReasoningPart();
+    this.emit();
+  }
+
+  private handleReasoningContent(delta: string): void {
+    if (!this.showThinking || !delta) return;
+    this.reasoningBuffer += delta;
+    this.ensureReasoningPart();
+    this.emit();
+  }
+
+  private handleReasoningEnd(): void {
+    if (!this.showThinking) return;
+    this.emit();
   }
 
   private ensureReasoningPart(): void {

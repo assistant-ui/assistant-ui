@@ -8,6 +8,7 @@ import {
   MessagePrimitive,
   ThreadPrimitive,
   useAuiState,
+  useMessageTiming,
 } from "@assistant-ui/react";
 import {
   ArrowUpIcon,
@@ -33,12 +34,12 @@ import { GrokIcon } from "@/components/icons/grok";
 export const Grok: FC = () => {
   return (
     <ThreadPrimitive.Root className="flex h-full flex-col items-stretch bg-[#fdfdfd] px-4 dark:bg-[#141414]">
-      <ThreadPrimitive.Empty>
+      <AuiIf condition={(s) => s.thread.isEmpty}>
         <div className="flex h-full flex-col items-center justify-center">
           <GrokIcon className="mb-6 h-10 text-[#0d0d0d] dark:text-white" />
           <Composer />
         </div>
-      </ThreadPrimitive.Empty>
+      </AuiIf>
 
       <AuiIf condition={(s) => s.thread.isEmpty === false}>
         <ThreadPrimitive.Viewport className="flex grow flex-col overflow-y-scroll pt-16">
@@ -163,6 +164,7 @@ const ChatMessage: FC = () => {
               <ActionBarPrimitive.FeedbackNegative className="flex h-8 w-8 items-center justify-center rounded-full text-[#6b6b6b] transition-colors hover:bg-[#e5e5e5] hover:text-[#0d0d0d] dark:text-[#9a9a9a] dark:hover:bg-[#2a2a2a] dark:hover:text-white">
                 <ThumbsDown width={16} height={16} />
               </ActionBarPrimitive.FeedbackNegative>
+              <MessageTimingDisplay />
             </ActionBarPrimitive.Root>
           </div>
         </div>
@@ -171,12 +173,79 @@ const ChatMessage: FC = () => {
   );
 };
 
+const formatTime = (ms: number | undefined) => {
+  if (ms === undefined) return null;
+  if (ms < 1000) return `${Math.round(ms)}ms`;
+  return `${(ms / 1000).toFixed(1)}s`;
+};
+
+const formatMs = (ms: number | undefined) => {
+  if (ms === undefined) return "\u2014";
+  if (ms < 1000) return `${Math.round(ms)}ms`;
+  return `${(ms / 1000).toFixed(2)}s`;
+};
+
+const MessageTimingDisplay: FC = () => {
+  const timing = useMessageTiming();
+  if (!timing?.totalStreamTime) return null;
+
+  const totalTimeText = formatTime(timing.totalStreamTime);
+  if (!totalTimeText) return null;
+
+  return (
+    <div className="group/timing relative">
+      <button
+        type="button"
+        className="ml-1 flex h-auto items-center justify-center rounded-md px-1.5 py-0.5 font-mono text-[#6b6b6b] text-xs tabular-nums transition-colors hover:bg-[#e5e5e5] hover:text-[#0d0d0d] dark:text-[#9a9a9a] dark:hover:bg-[#2a2a2a] dark:hover:text-white"
+      >
+        {totalTimeText}
+      </button>
+      <div className="pointer-events-none absolute top-1/2 left-full z-10 ml-2 -translate-y-1/2 scale-95 rounded-lg border border-[#e5e5e5] bg-white px-3 py-2 opacity-0 shadow-lg transition-all before:absolute before:top-0 before:-left-2 before:h-full before:w-2 before:content-[''] group-hover/timing:pointer-events-auto group-hover/timing:scale-100 group-hover/timing:opacity-100 dark:border-[#2a2a2a] dark:bg-[#1a1a1a]">
+        <div className="grid min-w-[140px] gap-1.5 text-xs">
+          {timing.firstTokenTime !== undefined && (
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-[#6b6b6b] dark:text-[#9a9a9a]">
+                First token
+              </span>
+              <span className="font-mono text-[#0d0d0d] tabular-nums dark:text-white">
+                {formatMs(timing.firstTokenTime)}
+              </span>
+            </div>
+          )}
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-[#6b6b6b] dark:text-[#9a9a9a]">Total</span>
+            <span className="font-mono text-[#0d0d0d] tabular-nums dark:text-white">
+              {formatMs(timing.totalStreamTime)}
+            </span>
+          </div>
+          {timing.tokensPerSecond !== undefined && (
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-[#6b6b6b] dark:text-[#9a9a9a]">Speed</span>
+              <span className="font-mono text-[#0d0d0d] tabular-nums dark:text-white">
+                {timing.tokensPerSecond.toFixed(1)} tok/s
+              </span>
+            </div>
+          )}
+          {timing.totalChunks > 0 && (
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-[#6b6b6b] dark:text-[#9a9a9a]">Chunks</span>
+              <span className="font-mono text-[#0d0d0d] tabular-nums dark:text-white">
+                {timing.totalChunks}
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const useAttachmentSrc = () => {
   const { file, src } = useAuiState(
-    useShallow(({ attachment }): { file?: File; src?: string } => {
-      if (attachment.type !== "image") return {};
-      if (attachment.file) return { file: attachment.file };
-      const src = attachment.content?.filter((c) => c.type === "image")[0]
+    useShallow((s): { file?: File; src?: string } => {
+      if (s.attachment.type !== "image") return {};
+      if (s.attachment.file) return { file: s.attachment.file };
+      const src = s.attachment.content?.filter((c) => c.type === "image")[0]
         ?.image;
       if (!src) return {};
       return { src };
@@ -204,7 +273,7 @@ const GrokAttachment: FC = () => {
   return (
     <AttachmentPrimitive.Root className="group/attachment relative">
       <div className="flex h-12 items-center gap-2 overflow-hidden rounded-xl border border-[#e5e5e5] bg-[#f0f0f0] p-0.5 transition-colors hover:border-[#d0d0d0] dark:border-[#2a2a2a] dark:bg-[#252525] dark:hover:border-[#3a3a3a]">
-        <AuiIf condition={({ attachment }) => attachment.type === "image"}>
+        <AuiIf condition={(s) => s.attachment.type === "image"}>
           {src ? (
             <img
               className="h-full w-12 rounded-[9px] object-cover"
@@ -217,7 +286,7 @@ const GrokAttachment: FC = () => {
             </div>
           )}
         </AuiIf>
-        <AuiIf condition={({ attachment }) => attachment.type !== "image"}>
+        <AuiIf condition={(s) => s.attachment.type !== "image"}>
           <div className="flex h-full w-12 items-center justify-center rounded-[9px] bg-[#e5e5e5] text-[#6b6b6b] dark:bg-[#3a3a3a] dark:text-[#9a9a9a]">
             <AttachmentPrimitive.unstable_Thumb className="text-xs" />
           </div>

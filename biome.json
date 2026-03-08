@@ -42,7 +42,8 @@
         },
         "noDoubleEquals": "off",
         "noPrototypeBuiltins": "off",
-        "noDocumentCookie": "off"
+        "noDocumentCookie": "off",
+        "noReactForwardRef": "off"
       },
       "style": {
         "noNamespace": "off",
@@ -172,7 +173,22 @@
   },
   "overrides": [
     {
-      "includes": ["packages/ui/src/components/ui/**"],
+      "includes": [
+        "apps/docs/components/tool-ui/weather-widget/generated/weather-runtime-core.generated.ts"
+      ],
+      "formatter": {
+        "enabled": false
+      },
+      "linter": {
+        "enabled": false
+      }
+    },
+    {
+      "includes": [
+        "packages/ui/src/components/ui/**",
+        "templates/*/components/ui/**",
+        "templates/*/components/assistant-ui/**"
+      ],
       "linter": {
         "rules": {
           "correctness": {
@@ -200,7 +216,7 @@
       "!**/.tanstack",
       "!**/.output",
       "!**/routeTree.gen.ts",
-      "!**/packages/chatgpt-app-studio/templates"
+      "!**/packages/mcp-app-studio/templates"
     ]
   }
 }

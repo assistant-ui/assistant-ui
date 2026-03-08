@@ -4,9 +4,8 @@ import {
   tapRef,
   type ResourceElement,
   tapResource,
-  tapInlineResource,
 } from "@assistant-ui/tap";
-import type { ClientMethods, ClientOutputOf } from "./types/client";
+import type { ClientMethods } from "./types/client";
 import {
   tapClientStack,
   tapWithClientStack,
@@ -25,7 +24,7 @@ import { wrapperResource } from "./wrapperResource";
 const SYMBOL_GET_OUTPUT = Symbol("assistant-ui.store.getValue");
 
 type ClientInternal = {
-  [SYMBOL_GET_OUTPUT]: ClientOutputOf<unknown, ClientMethods>;
+  [SYMBOL_GET_OUTPUT]: ClientMethods;
 };
 
 export const getClientState = (client: ClientMethods) => {
@@ -36,25 +35,35 @@ export const getClientState = (client: ClientMethods) => {
         "Ensure your Derived get() returns a client created with tapClientResource(), not a plain resource.",
     );
   }
-  return output.state;
+  return (output as any).getState?.();
 };
 
 // Global cache for function templates by field name
 const fieldAccessFns = new Map<
   string | symbol,
-  (this: ClientInternal, ...args: unknown[]) => unknown
+  (this: unknown, ...args: unknown[]) => unknown
 >();
 
 function getOrCreateProxyFn(prop: string | symbol) {
   let template = fieldAccessFns.get(prop);
   if (!template) {
-    template = function (this: ClientInternal | undefined, ...args: unknown[]) {
-      if (!this)
+    template = function (this: unknown, ...args: unknown[]) {
+      if (!this || typeof this !== "object") {
         throw new Error(
-          `Destructuring the client method "${String(prop)}" is not supported.`,
+          `Method "${String(prop)}" called without proper context. ` +
+            `This may indicate the function was called incorrectly.`,
         );
+      }
 
-      const method = this[SYMBOL_GET_OUTPUT].methods[prop];
+      const output = (this as ClientInternal)[SYMBOL_GET_OUTPUT];
+      if (!output) {
+        throw new Error(
+          `Method "${String(prop)}" called on invalid client proxy. ` +
+            `Ensure you are calling this method on a valid client instance.`,
+        );
+      }
+
+      const method = output[prop];
       if (!method)
         throw new Error(`Method "${String(prop)}" is not implemented.`);
       if (typeof method !== "function")
@@ -70,63 +79,68 @@ class ClientProxyHandler
   extends BaseProxyHandler
   implements ProxyHandler<object>
 {
+  private boundFns: Map<string | symbol, Function> | undefined;
+  private cachedReceiver: unknown;
+
   constructor(
     private readonly outputRef: {
-      current: ClientOutputOf<unknown, ClientMethods>;
+      current: ClientMethods;
     },
     private readonly index: number,
   ) {
     super();
   }
 
-  get(_: unknown, prop: string | symbol) {
+  get(_: unknown, prop: string | symbol, receiver: unknown) {
     if (prop === SYMBOL_GET_OUTPUT) return this.outputRef.current;
     if (prop === SYMBOL_CLIENT_INDEX) return this.index;
     const introspection = handleIntrospectionProp(prop, "ClientProxy");
     if (introspection !== false) return introspection;
-    const value = this.outputRef.current.methods[prop];
-    if (typeof value === "function") return getOrCreateProxyFn(prop);
+    const value = this.outputRef.current[prop];
+    if (typeof value === "function") {
+      if (this.cachedReceiver !== receiver) {
+        this.boundFns = new Map();
+        this.cachedReceiver = receiver;
+      }
+      let bound = this.boundFns!.get(prop);
+      if (!bound) {
+        bound = getOrCreateProxyFn(prop).bind(receiver);
+        this.boundFns!.set(prop, bound);
+      }
+      return bound;
+    }
     return value;
   }
 
   ownKeys(): ArrayLike<string | symbol> {
-    return Object.keys(this.outputRef.current.methods);
+    return Object.keys(this.outputRef.current);
   }
 
   has(_: unknown, prop: string | symbol) {
     if (prop === SYMBOL_GET_OUTPUT) return true;
     if (prop === SYMBOL_CLIENT_INDEX) return true;
-    return prop in this.outputRef.current.methods;
+    return prop in this.outputRef.current;
   }
 }
 
 /**
  * Resource that wraps a plain resource element to create a stable client proxy.
  *
- * Takes a ResourceElement that returns { state, methods } and
+ * Takes a ResourceElement that returns methods (with optional getState()) and
  * wraps it to produce a stable client proxy. This adds the client to the
  * client stack, enabling event scoping.
  *
- * Use this for 1:1 client mappings where you want event scoping to work correctly.
- *
- * @example
- * ```typescript
- * const MessageResource = resource(({ messageId }: { messageId: string }) => {
- *   return tapInlineResource(
- *     tapClientResource(InnerMessageResource({ messageId }))
- *   );
- * });
- * ```
+ * @internal
  */
 export const ClientResource = wrapperResource(
-  <TState, TMethods extends ClientMethods>(
-    element: ResourceElement<ClientOutputOf<TState, TMethods>>,
-  ): ClientOutputOf<TState, TMethods> & {
+  <TMethods extends ClientMethods>(
+    element: ResourceElement<TMethods>,
+  ): {
+    methods: TMethods;
+    state: unknown;
     key: string | number | undefined;
   } => {
-    const valueRef = tapRef(
-      null as unknown as ClientOutputOf<TState, TMethods>,
-    );
+    const valueRef = tapRef(null as unknown as TMethods);
 
     const index = tapClientStack().length;
     const methods = tapMemo(
@@ -147,12 +161,27 @@ export const ClientResource = wrapperResource(
       valueRef.current = value;
     });
 
-    return { methods, state: value.state, key: element.key };
+    const state = (value as any).getState?.();
+    return { methods, state, key: element.key };
   },
 );
 
-export const tapClientResource = <TState, TMethods extends ClientMethods>(
-  element: ResourceElement<ClientOutputOf<TState, TMethods>>,
-) => {
-  return tapInlineResource(ClientResource(element));
+type InferClientState<TMethods> = TMethods extends {
+  getState: () => infer S;
+}
+  ? S
+  : undefined;
+
+export const tapClientResource = <TMethods extends ClientMethods>(
+  element: ResourceElement<TMethods>,
+): {
+  state: InferClientState<TMethods>;
+  methods: TMethods;
+  key: string | number | undefined;
+} => {
+  return tapResource(ClientResource(element)) as {
+    state: InferClientState<TMethods>;
+    methods: TMethods;
+    key: string | number | undefined;
+  };
 };

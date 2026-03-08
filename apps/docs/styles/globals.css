@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 @import "tw-animate-css";
+@import "tw-glass";
 @import "tw-shimmer";
 @import "fumadocs-ui/css/shadcn.css";
 @import "fumadocs-ui/css/preset.css";
@@ -140,6 +141,7 @@
   }
   html {
     @apply overscroll-none scroll-smooth;
+    scroll-padding-top: calc(var(--docs-header-height, 48px) + 2rem);
   }
   body {
     @apply bg-background text-foreground;

@@ -62,6 +62,6 @@ const useThreadListRuntime = (opt: {
 }): ThreadListRuntime | null => useAssistantRuntime(opt)?.threads ?? null;
 
 /**
- * @deprecated Use `useAuiState(({ threads }) => threads)` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
+ * @deprecated Use `useAuiState((s) => s.threads)` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
  */
 export const useThreadList = createStateHookForRuntime(useThreadListRuntime);

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { CheckIcon, CopyIcon } from "lucide-react";
-import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { Dialog as DialogPrimitive } from "radix-ui";
 import { XIcon } from "lucide-react";
 
 import type { BuilderConfig } from "./types";
@@ -57,7 +57,7 @@ export function CreateDialog({
               {...(commands.primary.command && {
                 command: commands.primary.command,
               })}
-              commandType="init"
+              commandType="create"
             />
 
             <CommandBlock
@@ -126,7 +126,7 @@ function CommandBlock({
   label: string;
   description?: string;
   command?: string;
-  commandType?: "init" | "shadcn" | "manual_init" | "manual_add";
+  commandType?: "create" | "shadcn" | "manual_init" | "manual_add";
 }) {
   const [copied, setCopied] = useState(false);
 
@@ -241,7 +241,7 @@ function generateCliCommands(config: BuilderConfig): CliCommands {
     primary: {
       label: "One-command setup",
       description: "Install with your current configuration",
-      command: `npx assistant-ui@latest init --preset "${presetUrl}"`,
+      command: `npx assistant-ui@latest create my-app --preset "${presetUrl}"`,
     },
     alternative: {
       label: "Using shadcn",

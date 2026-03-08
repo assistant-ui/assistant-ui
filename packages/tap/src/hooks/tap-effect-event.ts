@@ -1,8 +1,8 @@
 import { tapRef } from "./tap-ref";
 import { tapEffect } from "./tap-effect";
-import { isDevelopment } from "../core/env";
+import { isDevelopment } from "../core/helpers/env";
 import { tapCallback } from "./tap-callback";
-import { getCurrentResourceFiber } from "../core/execution-context";
+import { getCurrentResourceFiber } from "../core/helpers/execution-context";
 
 /**
  * Creates a stable function reference that always calls the most recent version of the callback.
@@ -24,6 +24,7 @@ export function tapEffectEvent<T extends (...args: any[]) => any>(
 ): T {
   const callbackRef = tapRef(callback);
 
+  // TODO this effect needs to run before all userland effects
   tapEffect(() => {
     callbackRef.current = callback;
   });

@@ -1,3 +1,4 @@
+import { createResourceFiberRoot } from "../core/helpers/root";
 import { resource } from "../core/resource";
 import {
   createResourceFiber,
@@ -30,7 +31,10 @@ export function createTestResource<R, P>(fn: (props: P) => R) {
     }
   };
 
-  const fiber = createResourceFiber(resource(fn), rerenderCallback);
+  const fiber = createResourceFiber(
+    resource(fn),
+    createResourceFiberRoot(rerenderCallback),
+  );
   return fiber;
 }
 

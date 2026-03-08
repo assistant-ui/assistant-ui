@@ -1,0 +1,77 @@
+---
+title: Meta
+description: Track scope origin with source and query.
+---
+
+Every scope accessor has two metadata properties: `source` and `query`. They describe where a scope comes from.
+
+```tsx
+aui.thread.source; // "root" | "parentScope" | null
+aui.thread.query; // {} | { index: 0 } | null
+```
+
+## Root scopes
+
+When you fill a scope directly via `useAui({ ... })`, it gets `source: "root"` and an empty `query`:
+
+```tsx
+const aui = useAui({ thread: ThreadResource() });
+
+aui.thread.source; // "root"
+aui.thread.query; // {}
+```
+
+This is the default — the scope was provided directly, not derived from another scope.
+
+## Derived scopes
+
+When a scope is created via `Derived`, its `source` points to the parent scope it was derived from, and `query` carries the lookup parameters:
+
+```tsx
+const aui = useAui({
+  message: Derived({
+    source: "thread",
+    query: { index: 0 },
+    get: (aui) => aui.thread().message({ index: 0 }),
+  }),
+});
+
+aui.message.source; // "thread"
+aui.message.query; // { index: 0 }
+```
+
+You can declare the expected meta shape in `ScopeRegistry`:
+
+```ts
+declare module "@assistant-ui/store" {
+  interface ScopeRegistry {
+    message: {
+      methods: {
+        getState: () => { role: string; content: string };
+      };
+      meta: { source: "thread"; query: { index: number } };
+    };
+  }
+}
+```
+
+This makes the `source` and `query` types precise — TypeScript will enforce that any `Derived` providing the `message` scope uses the correct source and query shape.
+
+## Unavailable scopes
+
+When a scope hasn't been provided by any `AuiProvider` above the current component, its accessor has `source: null` and `query: null`:
+
+```tsx
+aui.message.source; // null — no message scope in context
+aui.message.query; // null
+```
+
+This is how you check whether a scope is available.
+
+## Summary
+
+| `source` | Meaning |
+| --- | --- |
+| `"root"` | Scope was filled directly via `useAui({ ... })` |
+| `"parentScope"` | Scope was derived from another scope via `Derived` |
+| `null` | Scope is not available in the current context |

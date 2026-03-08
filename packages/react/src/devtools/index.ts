@@ -1,1 +1,1 @@
-export { DevToolsHooks } from "./DevToolsHooks";
+export { DevToolsHooks, DevToolsProviderApi } from "./DevToolsHooks";

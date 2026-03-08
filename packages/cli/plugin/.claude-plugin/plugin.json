@@ -1,0 +1,8 @@
+{
+  "name": "assistant-ui",
+  "description": "Build AI chat interfaces using assistant-ui components",
+  "version": "0.1.0",
+  "author": {
+    "name": "assistant-ui"
+  }
+}

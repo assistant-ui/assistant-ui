@@ -10,7 +10,7 @@ import { useAuiState, useAui } from "@assistant-ui/store";
 
 const useActionBarStopSpeaking = () => {
   const aui = useAui();
-  const isSpeaking = useAuiState(({ message }) => message.speech != null);
+  const isSpeaking = useAuiState((s) => s.message.speech != null);
 
   const callback = useCallback(() => {
     aui.message().stopSpeaking();

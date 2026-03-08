@@ -225,13 +225,13 @@ export function BuilderPreview({ config }: BuilderPreviewProps) {
             className="aui-thread-viewport relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll scroll-smooth px-4 pt-4"
           >
             {components.threadWelcome && (
-              <AuiIf condition={({ thread }) => thread.isEmpty}>
+              <AuiIf condition={(s) => s.thread.isEmpty}>
                 <ThreadWelcome config={config} />
               </AuiIf>
             )}
 
             {!components.threadWelcome && (
-              <AuiIf condition={({ thread }) => thread.isEmpty}>
+              <AuiIf condition={(s) => s.thread.isEmpty}>
                 <div className="grow" />
               </AuiIf>
             )}
@@ -414,7 +414,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ config }) => {
         <div />
       )}
 
-      <AuiIf condition={({ thread }) => !thread.isRunning}>
+      <AuiIf condition={(s) => !s.thread.isRunning}>
         <ComposerPrimitive.Send asChild>
           <TooltipIconButton
             tooltip="Send message"
@@ -434,7 +434,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ config }) => {
         </ComposerPrimitive.Send>
       </AuiIf>
 
-      <AuiIf condition={({ thread }) => thread.isRunning}>
+      <AuiIf condition={(s) => s.thread.isRunning}>
         <ComposerPrimitive.Cancel asChild>
           <Button
             type="button"
@@ -685,13 +685,13 @@ const AssistantMessage: FC<AssistantMessageProps> = ({ config }) => {
             </div>
           )}
 
-          <div className="aui-assistant-message-footer flex">
+          <div className="aui-assistant-message-footer flex min-h-6 items-center">
             {components.branchPicker && <BranchPicker />}
             <AssistantActionBar config={config} />
           </div>
 
           {components.followUpSuggestions && (
-            <AuiIf condition={({ thread }) => !thread.isRunning}>
+            <AuiIf condition={(s) => !s.thread.isRunning}>
               <FollowUpSuggestions />
             </AuiIf>
           )}
@@ -753,17 +753,16 @@ const AssistantActionBar: FC<AssistantActionBarProps> = ({ config }) => {
     <ActionBarPrimitive.Root
       hideWhenRunning
       autohide="not-last"
-      autohideFloat="single-branch"
-      className="aui-assistant-action-bar-root -ml-1 flex gap-1 data-floating:absolute data-floating:rounded-md data-floating:border data-floating:p-1 data-floating:shadow-sm"
+      className="aui-assistant-action-bar-root -ml-1 flex gap-1"
       style={{ color: "var(--aui-muted-foreground)" }}
     >
       {actionBar.copy && (
         <ActionBarPrimitive.Copy asChild>
           <TooltipIconButton tooltip="Copy">
-            <AuiIf condition={({ message }) => message.isCopied}>
+            <AuiIf condition={(s) => s.message.isCopied}>
               <CheckIcon />
             </AuiIf>
-            <AuiIf condition={({ message }) => !message.isCopied}>
+            <AuiIf condition={(s) => !s.message.isCopied}>
               <CopyIcon />
             </AuiIf>
           </TooltipIconButton>

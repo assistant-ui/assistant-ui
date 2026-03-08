@@ -18,7 +18,7 @@ import {
   ThreadRuntimeCore,
   ThreadRuntimeImpl,
 } from "../../../internal";
-import { BaseSubscribable } from "./BaseSubscribable";
+import { BaseSubscribable } from "@assistant-ui/core/internal";
 import { AssistantRuntime } from "../../runtime";
 import { ThreadListRuntimeImpl } from "../../runtime/ThreadListRuntime";
 

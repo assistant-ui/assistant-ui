@@ -2,15 +2,55 @@
 
 import {
   AssistantRuntimeProvider,
+  type FeedbackAdapter,
   useAssistantInstructions,
+  useAui,
+  useAuiEvent,
 } from "@assistant-ui/react";
 import {
   useChatRuntime,
   AssistantChatTransport,
+  getThreadMessageTokenUsage,
 } from "@assistant-ui/react-ai-sdk";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { useCurrentPage } from "@/components/docs/contexts/current-page";
+import { analytics } from "@/lib/analytics";
+import {
+  consumeRunStartedAt,
+  pruneStaleRunStarts,
+  queueMicrotaskSafe,
+  recordRunStartedAt,
+} from "@/lib/assistant-analytics-helpers";
+import { countToolCalls, getTextLength } from "@/lib/assistant-metrics";
+
+type ThreadMessagePart = { type: string; text?: string };
+
+const RUN_STARTED_AT_STALE_THRESHOLD_MS = 30 * 60_000;
+const RUN_STARTED_AT_CLEANUP_INTERVAL_MS = 60_000;
+
+function getLastAssistantMessage(
+  messages: readonly {
+    role?: string;
+    content?: readonly ThreadMessagePart[];
+    status?: { type: string; reason?: string };
+    metadata?: unknown;
+  }[],
+) {
+  for (let idx = messages.length - 1; idx >= 0; idx -= 1) {
+    const message = messages[idx];
+    if (message?.role === "assistant") return message;
+  }
+  return undefined;
+}
+
+// Stateless adapter - safe to share across instances
+const feedbackAdapter: FeedbackAdapter = {
+  submit: () => {
+    // Feedback is tracked via analytics in AssistantActionBar
+    // The runtime automatically updates message.metadata.submittedFeedback
+  },
+};
 
 function AssistantPageContext() {
   const currentPage = useCurrentPage();
@@ -26,6 +66,98 @@ function AssistantPageContext() {
   return null;
 }
 
+function AssistantAnalyticsTracker() {
+  const aui = useAui();
+  const currentPage = useCurrentPage();
+  const pathname = currentPage?.pathname;
+
+  const pathnameRef = useRef<string | undefined>(pathname);
+
+  useEffect(() => {
+    pathnameRef.current = pathname;
+  }, [pathname]);
+
+  const runStartedAtRef = useRef(new Map<string, number[]>());
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      pruneStaleRunStarts(
+        runStartedAtRef.current,
+        Date.now(),
+        RUN_STARTED_AT_STALE_THRESHOLD_MS,
+      );
+    }, RUN_STARTED_AT_CLEANUP_INTERVAL_MS);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  useAuiEvent("thread.runStart", (event) => {
+    recordRunStartedAt(runStartedAtRef.current, event.threadId, Date.now());
+  });
+
+  useAuiEvent("thread.runEnd", (event) => {
+    const startedAt = consumeRunStartedAt(
+      runStartedAtRef.current,
+      event.threadId,
+    );
+    const latencyMs =
+      startedAt === undefined ? undefined : Date.now() - startedAt;
+
+    queueMicrotaskSafe(() => {
+      const messages = (() => {
+        try {
+          return aui.thread().getState().messages;
+        } catch {
+          return [];
+        }
+      })();
+
+      const lastAssistant = getLastAssistantMessage(messages);
+      const responseLength = getTextLength(lastAssistant?.content ?? []);
+      const toolCallsCount = countToolCalls(lastAssistant?.content ?? []);
+      const status = lastAssistant?.status;
+      const tokenUsage = getThreadMessageTokenUsage(lastAssistant);
+
+      let modelName: string | undefined;
+      try {
+        modelName = aui.thread().getModelContext()?.config?.modelName;
+      } catch {
+        // ignore
+      }
+
+      const payload: Parameters<
+        typeof analytics.assistant.responseCompleted
+      >[0] = {
+        threadId: event.threadId,
+        response_length: responseLength,
+        tool_calls_count: toolCallsCount,
+        ...(latencyMs === undefined ? {} : { latency_ms: latencyMs }),
+        ...(status?.reason ? { status_reason: status.reason } : {}),
+        ...(tokenUsage?.totalTokens === undefined
+          ? {}
+          : { response_total_tokens: tokenUsage.totalTokens }),
+        ...(tokenUsage?.inputTokens === undefined
+          ? {}
+          : { response_input_tokens: tokenUsage.inputTokens }),
+        ...(tokenUsage?.outputTokens === undefined
+          ? {}
+          : { response_output_tokens: tokenUsage.outputTokens }),
+        ...(pathnameRef.current ? { pathname: pathnameRef.current } : {}),
+        ...(modelName ? { model_name: modelName } : {}),
+      };
+
+      if (status?.type === "incomplete") {
+        analytics.assistant.responseFailed(payload);
+        return;
+      }
+
+      analytics.assistant.responseCompleted(payload);
+    });
+  });
+
+  return null;
+}
+
 export function DocsAssistantRuntimeProvider({
   children,
 }: {
@@ -36,10 +168,14 @@ export function DocsAssistantRuntimeProvider({
       api: "/api/doc/chat",
     }),
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
+    adapters: {
+      feedback: feedbackAdapter,
+    },
   });
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
+      <AssistantAnalyticsTracker />
       <AssistantPageContext />
       {children}
     </AssistantRuntimeProvider>

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { convertExternalMessages } from "../legacy-runtime/runtime-cores/external-store/external-message-converter";
 import type { useExternalMessageConverter } from "../legacy-runtime/runtime-cores/external-store/external-message-converter";
-import { isErrorMessageId } from "../utils/idUtils";
+import { isErrorMessageId } from "@assistant-ui/core/internal";
 
 describe("convertExternalMessages", () => {
   describe("reasoning part merging", () => {
@@ -157,6 +157,86 @@ describe("convertExternalMessages", () => {
       );
       expect(toolCallParts).toHaveLength(1);
       expect((toolCallParts[0] as any).result).toEqual({ data: "result" });
+    });
+
+    it("should merge duplicate tool calls by toolCallId across assistant messages", () => {
+      const messages = [
+        {
+          id: "msg1",
+          role: "assistant" as const,
+          content: [
+            {
+              type: "tool-call" as const,
+              toolCallId: "tc1",
+              toolName: "search",
+              args: { query: "old" },
+              argsText: '{"query":"old"',
+            },
+          ],
+        },
+        {
+          id: "msg2",
+          role: "assistant" as const,
+          content: [
+            {
+              type: "tool-call" as const,
+              toolCallId: "tc1",
+              toolName: "search",
+              args: { query: "new" },
+              argsText: '{"query":"new"}',
+            },
+          ],
+        },
+      ];
+
+      const callback: useExternalMessageConverter.Callback<
+        (typeof messages)[number]
+      > = (msg) => msg;
+
+      const result = convertExternalMessages(messages, callback, false, {});
+
+      expect(result).toHaveLength(1);
+      expect(result[0]!.role).toBe("assistant");
+      const toolCallParts = result[0]!.content.filter(
+        (p) => p.type === "tool-call",
+      );
+      expect(toolCallParts).toHaveLength(1);
+      expect((toolCallParts[0] as any).args).toEqual({ query: "new" });
+      expect((toolCallParts[0] as any).argsText).toBe('{"query":"new"}');
+    });
+
+    it("should ignore orphaned tool results without throwing", () => {
+      const messages = [
+        {
+          id: "msg1",
+          role: "assistant" as const,
+          content: "First response",
+        },
+        {
+          role: "tool" as const,
+          toolCallId: "missing-tool-call",
+          toolName: "search",
+          result: { data: "orphan result" },
+        },
+        {
+          id: "msg2",
+          role: "assistant" as const,
+          content: "Second response",
+        },
+      ];
+
+      const callback: useExternalMessageConverter.Callback<
+        (typeof messages)[number]
+      > = (msg) => msg;
+
+      const result = convertExternalMessages(messages, callback, false, {});
+      expect(result).toHaveLength(1);
+      expect(result[0]!.role).toBe("assistant");
+
+      const textParts = result[0]!.content.filter((p) => p.type === "text");
+      expect(textParts).toHaveLength(2);
+      expect((textParts[0] as any).text).toBe("First response");
+      expect((textParts[1] as any).text).toBe("Second response");
     });
   });
 

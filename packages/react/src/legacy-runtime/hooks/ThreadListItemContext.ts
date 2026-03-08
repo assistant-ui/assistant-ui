@@ -29,7 +29,7 @@ export function useThreadListItemRuntime(options?: {
 }
 
 /**
- * @deprecated Use `useAuiState(({ threadListItem }) => threadListItem)` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
+ * @deprecated Use `useAuiState((s) => s.threadListItem)` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
  */
 export const useThreadListItem = createStateHookForRuntime(
   useThreadListItemRuntime,

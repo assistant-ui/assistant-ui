@@ -1,0 +1,18 @@
+import type { AssistantToolProps, AssistantInstructionsConfig } from "./types";
+
+export interface ModelContextRegistryToolHandle<
+  TArgs extends Record<string, unknown> = any,
+  TResult = any,
+> {
+  update(tool: AssistantToolProps<TArgs, TResult>): void;
+  remove(): void;
+}
+
+export interface ModelContextRegistryInstructionHandle {
+  update(config: string | AssistantInstructionsConfig): void;
+  remove(): void;
+}
+
+export interface ModelContextRegistryProviderHandle {
+  remove(): void;
+}

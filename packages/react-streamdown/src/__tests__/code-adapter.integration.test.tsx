@@ -55,7 +55,7 @@ describe("createCodeAdapter integration", () => {
         "javascript: const x = 1",
       );
       expect(MockSyntax).toHaveBeenCalled();
-      const callArgs = MockSyntax.mock.calls[0][0];
+      const callArgs = MockSyntax.mock.calls[0]![0];
       expect(callArgs.language).toBe("javascript");
       expect(callArgs.code).toBe("const x = 1");
     });

@@ -3,9 +3,9 @@
 import { type FC, type PropsWithChildren } from "react";
 import { useAui, AuiProvider } from "@assistant-ui/store";
 import {
-  ThreadMessageClientProps,
+  type ThreadMessageClientProps,
   ThreadMessageClient,
-} from "../../client/ThreadMessageClient";
+} from "@assistant-ui/core/store";
 
 export const MessageProvider: FC<
   PropsWithChildren<ThreadMessageClientProps>

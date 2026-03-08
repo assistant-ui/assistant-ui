@@ -51,7 +51,7 @@ Resources are self-contained units of reactive state and logic. They follow the 
 ### Creating Resources
 
 ```typescript
-import { createResource, tapState, tapEffect } from "@assistant-ui/tap";
+import { createResourceRoot, tapState, tapEffect } from "@assistant-ui/tap";
 
 // Define a resource using familiar hook patterns
 const Counter = resource(({ incrementBy = 1 }: { incrementBy?: number }) => {
@@ -69,15 +69,16 @@ const Counter = resource(({ incrementBy = 1 }: { incrementBy?: number }) => {
 });
 
 // Create an instance
-const counter = createResource(new Counter({ incrementBy: 2 }));
+const root = createResourceRoot();
+const counter = root.render(Counter({ incrementBy: 2 }));
 
 // Subscribe to changes
 const unsubscribe = counter.subscribe(() => {
-  console.log("Counter value:", counter.getState().count);
+  console.log("Counter value:", counter.getValue().count);
 });
 
 // Use the resource
-counter.getState().increment();
+counter.getValue().increment();
 ```
 
 ## `resource`
@@ -90,11 +91,12 @@ const Counter = resource(({ incrementBy = 1 }: { incrementBy?: number }) => {
 });
 
 // create a Counter element
-const counterEl = new Counter({ incrementBy: 2 });
+const counterEl = Counter({ incrementBy: 2 });
 
 // create a Counter instance
-const counter = createResource(counterEl);
-counter.dispose();
+const root = createResourceRoot();
+root.render(counterEl);
+root.unmount();
 ```
 
 ## Hook APIs
@@ -245,28 +247,29 @@ const value = tap(MyContext);
 
 ## Resource Management
 
-### `createResource`
+### `createResourceRoot`
 
-Create an instance of a resource. This renders the resource and mounts the tapEffect hooks.
+Create an instance of a resource. Call `render()` with a resource element to render it and mount effects. Returns a `SubscribableResource` with `getValue()` and `subscribe()`.
 
 ```typescript
-import { createResource } from "@assistant-ui/tap";
+import { createResourceRoot } from "@assistant-ui/tap";
 
-const handle = createResource(new Counter({ incrementBy: 1 }));
+const root = createResourceRoot();
+const counter = root.render(Counter({ incrementBy: 1 }));
 
 // Access current value
-console.log(handle.getState().count);
+console.log(counter.getValue().count);
 
 // Subscribe to changes
-const unsubscribe = handle.subscribe(() => {
-  console.log("Counter updated:", handle.getState());
+const unsubscribe = counter.subscribe(() => {
+  console.log("Counter updated:", counter.getValue());
 });
 
-// Update props to the resource
-handle.updateInput({ incrementBy: 2 });
+// Update props by calling render again
+root.render(Counter({ incrementBy: 2 }));
 
 // Cleanup
-handle.dispose();
+root.unmount();
 unsubscribe();
 ```
 

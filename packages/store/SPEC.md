@@ -4,13 +4,12 @@ React integration for tap. Type-safe client-based state via module augmentation.
 
 ## Types
 
-### ClientRegistry
+### ScopeRegistry
 ```typescript
 declare module "@assistant-ui/store" {
-  interface ClientRegistry {
+  interface ScopeRegistry {
     name: {
-      state: StateType;
-      methods: MethodsType;
+      methods: MethodsType; // must include getState(): StateType
       meta?: { source: ClientNames; query: QueryType };
       events?: { "name.event": PayloadType };
     };
@@ -20,12 +19,11 @@ declare module "@assistant-ui/store" {
 
 ### Core Types
 ```typescript
-type ClientOutput<K> = { state: ClientSchemas[K]["state"]; methods: ClientSchemas[K]["methods"] };
-type ClientOutputOf<TState, TMethods> = { state: TState; methods: TMethods };
+type ClientOutput<K> = ClientSchemas[K]["methods"] & ClientMethods;
 type ClientMethods = { [key: string]: (...args: any[]) => any };
 type AssistantClientAccessor<K> = (() => Methods<K>) & ({ source; query } | { source: "root"; query: {} } | { source: null; query: null });
 type AssistantClient = { [K]: AssistantClientAccessor<K>; subscribe(cb): Unsubscribe; on(selector, cb): Unsubscribe };
-type AssistantState = { [K]: ClientSchemas[K]["state"] };
+type AssistantState = { [K]: ReturnType<ClientSchemas[K]["methods"]["getState"]> };
 ```
 
 ## API
@@ -35,7 +33,7 @@ type AssistantState = { [K]: ClientSchemas[K]["state"] };
 useAui(): AssistantClient;
 useAui(clients: { [K]?: ClientElement<K> | DerivedElement<K> }): AssistantClient;
 ```
-Flow: splitClients → gather default peers → mount root clients → create derived accessors → merge with parent.
+Flow: splitClients → apply transformScopes → mount root clients → create derived accessors → merge with parent.
 
 ### useAuiState
 ```typescript
@@ -52,7 +50,7 @@ Selectors: `"client.event"` | `{ scope: "parent", event }` | `{ scope: "*", even
 ### AuiProvider / AuiIf
 ```typescript
 <AuiProvider value={aui}>{children}</AuiProvider>
-<AuiIf condition={(state) => boolean}>{children}</AuiIf>
+<AuiIf condition={(s) => boolean}>{children}</AuiIf>
 ```
 
 ### Derived
@@ -62,13 +60,11 @@ Derived<K>({ getMeta: (client) => { source, query }, get });
 ```
 Returns marker element. `get` uses `tapEffectEvent` - always calls latest closure.
 
-### attachDefaultPeers
+### attachTransformScopes
 ```typescript
-attachDefaultPeers(resource, { [K]: ClientElement<K> | DerivedElement<K> }): void;
+attachTransformScopes(resource, (scopes, parent) => newScopes): void;
 ```
-Applied if scope not in parent, user input, or previous peers. First wins; throws on duplicate attach.
-
-**Peer Flattening**: Nested default peers are automatically flattened. If a peer has its own default peers, they are recursively gathered and added at the same level. This prevents nesting issues while maintaining the "first wins" rule.
+Attaches a function that receives the current scopes config and the parent `AssistantClient`, and returns a new scopes config. The transform can inspect `parent[key].source` to check whether a scope exists in parent context (`null` = not provided). Transforms are collected from root elements and run iteratively (new root elements added by transforms are also processed). Single transform per resource; throws on duplicate attach.
 
 ### tapAssistantClientRef / tapAssistantEmit
 ```typescript
@@ -78,27 +74,26 @@ tapAssistantEmit(): <E>(event: E, payload) => void;  // Stable via tapEffectEven
 
 ### tapClientResource
 ```typescript
-tapClientResource(element: ResourceElement<ClientOutputOf<TState, TMethods>>): ClientOutputOf<TState, TMethods>;
+tapClientResource(element: ResourceElement<TMethods>): { state: InferClientState<TMethods>; methods: TMethods; key: string | number | undefined };
 ```
-Wraps resource element to create stable client proxy. Adds client to stack for event scoping. Use for 1:1 client mappings.
+Wraps resource element to create stable client proxy. Adds client to stack for event scoping. Use for 1:1 client mappings. State is inferred from the `getState()` method if present.
 
 ### tapClientLookup
 ```typescript
-tapClientLookup<TState, TMethods, M extends Record<string|number|symbol, any>>(
-  map: M,
-  getElement: (t: M[keyof M], key: keyof M) => ResourceElement<ClientOutputOf<TState, TMethods>>,
-  getElementDeps: any[]
-): { state: TState[]; get: (lookup: { index: number } | { key: keyof M }) => TMethods };
+tapClientLookup<TMethods extends ClientMethods>(
+  getElements: () => readonly ResourceElement<TMethods>[],
+  getElementsDeps: readonly unknown[]
+): { state: InferClientState<TMethods>[]; get: (lookup: { index: number } | { key: string }) => TMethods };
 ```
 Wraps each element with `tapClientResource`. Throws on lookup miss.
 
 ### tapClientList
 ```typescript
-tapClientList<TData, TState, TMethods extends ClientMethods>({
+tapClientList<TData, TMethods extends ClientMethods>({
   initialValues: TData[];
   getKey: (data: TData) => string;
-  resource: ContravariantResource<ClientOutputOf<TState, TMethods>, ResourceProps<TData>>;
-}): { state: TState[]; get: (lookup: { index: number } | { key: string }) => TMethods; add: (data: TData) => void };
+  resource: ContravariantResource<TMethods, ResourceProps<TData>>;
+}): { state: InferClientState<TMethods>[]; get: (lookup: { index: number } | { key: string }) => TMethods; add: (data: TData) => void };
 
 type ResourceProps<TData> = { key: string; getInitialData: () => TData; remove: () => void };
 ```
@@ -121,23 +116,23 @@ Flow: `tapAssistantEmit` captures client stack → `emit` queues via microtask �
 | **ProxiedState** | Proxy intercepts `state.foo` → `aui.foo()` → `SYMBOL_GET_OUTPUT` |
 | **Client Stack** | Context stack per level. Emit captures stack. Listeners filter by matching stack |
 | **NotificationManager** | Handles events (`on`/`emit`) and state subscriptions (`subscribe`/`notifySubscribers`) |
-| **splitClients** | Separate root/derived → recursively gather and flatten `getDefaultPeers` → filter by existence (first wins) |
+| **splitClients** | Separate root/derived → collect and run `transformScopes` iteratively → filter parent-provided scopes |
 
 ## Design
 
 | Audience | API Surface |
 |----------|-------------|
 | Users | `useAui`, `useAuiState`, `useAuiEvent`, `AuiProvider`, `AuiIf`, `Derived` |
-| Authors | Above + `tap*`, `attachDefaultPeers`, `ClientOutput`, `ClientRegistry` |
+| Authors | Above + `tap*`, `attachTransformScopes`, `ClientOutput`, `ScopeRegistry` |
 | Internal | `utils/*` |
 
 **Terminology**: Client (React Query pattern), methods (not actions), meta (optional source/query), events (optional).
 
 ## Invariants
 
-1. `ClientRegistry` must have ≥1 client (compile error otherwise)
-2. Resources return `{ state, methods }` matching `ClientOutput<K>`
+1. `ScopeRegistry` must have ≥1 client (compile error otherwise)
+2. Resources return methods object matching `ClientOutput<K>` (with `getState()` for state access)
 3. Events: `"clientName.eventName"` format
 4. `meta.source` must be valid `ClientNames`
 5. `useAuiState` selector cannot return whole state
-6. Default peers: first definition wins, no override
+6. Single transformScopes per resource; transform receives `(scopes, parent)` to inspect parent context

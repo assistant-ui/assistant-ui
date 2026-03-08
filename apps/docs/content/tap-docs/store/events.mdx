@@ -1,0 +1,163 @@
+---
+title: Events
+description: Emit and subscribe to typed events.
+---
+
+State tells you what things look like right now. Events tell you what just happened. Use events for side effects that respond to discrete actions — showing a toast, scrolling to a new message, firing analytics.
+
+## Declaring events
+
+Add an `events` field to your scope in `ScopeRegistry`. Event names follow the format `"scopeName.eventName"`:
+
+```ts title="lib/store/counter-scope.ts"
+import "@assistant-ui/store";
+
+declare module "@assistant-ui/store" {
+  interface ScopeRegistry {
+    counter: {
+      methods: {
+        getState: () => { count: number };
+        increment: () => void;
+      };
+      events: {
+        "counter.incremented": { newCount: number };
+        "counter.reset": undefined;
+      };
+    };
+  }
+}
+```
+
+Each event has a typed payload. Use `undefined` for events that carry no data.
+
+## Emitting events
+
+Call `tapAssistantEmit()` inside a resource to get an emit function:
+
+```ts title="lib/store/counter-resource.ts"
+import { resource, tapState, tapMemo } from "@assistant-ui/tap";
+import { tapAssistantEmit } from "@assistant-ui/store";
+import type { ClientOutput } from "@assistant-ui/store";
+
+const CounterResource = resource((): ClientOutput<"counter"> => {
+  const [count, setCount] = tapState(0);
+  const emit = tapAssistantEmit();
+
+  const state = tapMemo(() => ({ count }), [count]);
+
+  return {
+    getState: () => state,
+    increment: () => {
+      const newCount = count + 1;
+      setCount(newCount);
+      emit("counter.incremented", { newCount });
+    },
+  };
+});
+```
+
+Events are delivered via microtask — they fire after the current state update settles, not mid-update. This means listeners always see consistent state.
+
+## Subscribing to events
+
+Use `useAuiEvent` in any component inside an `AuiProvider`:
+
+```tsx
+import { useAuiEvent } from "@assistant-ui/store";
+
+const CounterToast = () => {
+  useAuiEvent("counter.incremented", ({ newCount }) => {
+    toast(`Count is now ${newCount}`);
+  });
+
+  return null;
+};
+```
+
+The callback receives the typed payload. It's stable internally (via `useEffectEvent`), so you don't need to memoize it.
+
+## Event scoping
+
+When you pass a string like `"counter.incremented"` to `useAuiEvent`, it listens for events from the `counter` scope **in your current context**. This is scope filtering — the listener only fires when the event comes from the specific scope instance you're inside.
+
+This matters when there are multiple instances of the same scope. Consider a list of counters, each with its own `counter` scope:
+
+```
+App
+  └ CounterItem (counter scope, id: "a")
+  └ CounterItem (counter scope, id: "b")
+  └ CounterItem (counter scope, id: "c")
+```
+
+A `useAuiEvent("counter.incremented", ...)` inside `CounterItem "a"` only fires for that counter — not for "b" or "c". Each listener is scoped to its own instance.
+
+### Listening to child events
+
+If you try to listen to an event from a scope that isn't available in your component's context, Store throws an error. For example, if your component sits above the `counter` scope, `useAuiEvent("counter.incremented", ...)` will throw because there is no `counter` scope to filter against.
+
+To listen to events from child scopes, set `scope` to your own scope (the parent):
+
+```tsx
+// inside a component that has counterList but not counter
+useAuiEvent(
+  { scope: "counterList", event: "counter.incremented" },
+  ({ newCount }) => {
+    console.log("some counter changed:", newCount);
+  },
+);
+```
+
+This fires for `counter.incremented` events from any counter instance below the `counterList` scope. The `scope` field tells Store which level to filter at — any event emitted by a descendant of that scope instance will match.
+
+### Listening to sibling events
+
+There's no direct way to listen to events from a sibling scope. Instead, listen at a mutual parent (or `"*"`) and filter by metadata in the event payload:
+
+```tsx
+// inside counter "a", listening for increments from any sibling
+useAuiEvent(
+  { scope: "counterList", event: "counter.incremented" },
+  ({ counterId, newCount }) => {
+    if (counterId === "b") {
+      console.log("counter b incremented:", newCount);
+    }
+  },
+);
+```
+
+Include whatever metadata you need for filtering in the event payload — Store doesn't provide sibling identity automatically.
+
+### Wildcard scope
+
+Use `"*"` as the scope to listen to an event from any instance, regardless of your position in the tree:
+
+```tsx
+useAuiEvent(
+  { scope: "*", event: "counter.incremented" },
+  ({ newCount }) => {
+    console.log("any counter incremented:", newCount);
+  },
+);
+```
+
+### Wildcard event
+
+Use `"*"` as the event to listen to every event. The payload is wrapped with the event name:
+
+```tsx
+useAuiEvent("*", ({ event, payload }) => {
+  console.log(event, payload);
+});
+```
+
+This is useful for debugging and logging.
+
+## Choosing a scoping pattern
+
+| You want to... | Selector |
+| --- | --- |
+| Listen to events from your own scope | `"scope.event"` |
+| Listen to events from any child below you | `{ scope: "yourScope", event: "child.event" }` |
+| Listen to events from a sibling | `{ scope: "mutualParent", event: "sibling.event" }` + filter by payload |
+| Listen to events from anywhere | `{ scope: "*", event: "scope.event" }` |
+| Listen to all events (debugging) | `"*"` |

@@ -1,15 +1,19 @@
+// Re-export from @assistant-ui/core
+export type { ThreadMessageLike } from "@assistant-ui/core";
+export {
+  getExternalStoreMessage,
+  getExternalStoreMessages,
+  bindExternalStoreMessage,
+} from "@assistant-ui/core";
 export type {
   ExternalStoreAdapter,
   ExternalStoreMessageConverter,
   ExternalStoreThreadListAdapter,
   ExternalStoreThreadData,
-} from "./ExternalStoreAdapter";
-export type { ThreadMessageLike } from "./ThreadMessageLike";
+} from "@assistant-ui/core";
+
+// React-specific (stay in react)
 export { useExternalStoreRuntime } from "./useExternalStoreRuntime";
-export {
-  getExternalStoreMessage,
-  getExternalStoreMessages,
-} from "./getExternalStoreMessage";
 export {
   useExternalMessageConverter,
   convertExternalMessages as unstable_convertExternalMessages,

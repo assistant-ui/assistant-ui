@@ -3,75 +3,51 @@
 import { useAuiState, useAui } from "@assistant-ui/react";
 import { PlusIcon } from "lucide-react";
 import type { ReactNode } from "react";
-import { cn } from "@/lib/utils";
-
-const CONTEXT_WINDOW = 400_000;
-
-function getUsageColorClass(percent: number): string {
-  if (percent < 50) return "bg-emerald-500";
-  if (percent < 80) return "bg-amber-500";
-  return "bg-red-500";
-}
+import { analytics } from "@/lib/analytics";
+import { useCurrentPage } from "@/components/docs/contexts/current-page";
+import { useThreadTokenUsage } from "@assistant-ui/react-ai-sdk";
+import { ContextDisplay } from "@assistant-ui/ui/components/assistant-ui/context-display";
+import { useSharedDocsModelSelection } from "./composer";
+import { getContextWindow } from "@/constants/model";
 
 export function AssistantFooter(): ReactNode {
   const aui = useAui();
-  const messages = useAuiState(({ thread }) => thread.messages);
-
-  const totalTokens = messages.reduce((acc, message) => {
-    if (message.role !== "assistant") return acc;
-
-    const metadata = message.metadata as Record<string, unknown>;
-    const custom = metadata["custom"] as Record<string, unknown> | undefined;
-    if (!custom) return acc;
-    const usage = custom["usage"] as Record<string, number> | undefined;
-    if (usage) {
-      const total =
-        usage["totalTokens"] ??
-        (usage["inputTokens"] ?? 0) + (usage["outputTokens"] ?? 0);
-      if (total > 0) return acc + total;
-    }
-
-    const steps = (metadata["steps"] ?? []) as Array<{
-      usage?: { promptTokens: number; completionTokens: number };
-    }>;
-    return (
-      acc +
-      steps.reduce((stepAcc, step) => {
-        const stepUsage = step.usage;
-        if (!stepUsage) return stepAcc;
-        return stepAcc + stepUsage.promptTokens + stepUsage.completionTokens;
-      }, 0)
-    );
-  }, 0);
-
-  const usagePercent = Math.min((totalTokens / CONTEXT_WINDOW) * 100, 100);
-  const usageK = (totalTokens / 1000).toFixed(1);
+  const threadId = useAuiState((s) => s.threadListItem.id);
+  const messages = useAuiState((s) => s.thread.messages);
+  const currentPage = useCurrentPage();
+  const pathname = currentPage?.pathname;
+  const { modelValue } = useSharedDocsModelSelection();
+  const contextWindow = getContextWindow(modelValue);
+  const lastUsage = useThreadTokenUsage();
+  const contextTokens = lastUsage?.totalTokens ?? 0;
+  const usagePercent = Math.min((contextTokens / contextWindow) * 100, 100);
 
   return (
     <div className="flex items-center justify-between px-3 py-1.5">
       <button
         type="button"
-        onClick={() => aui.threads().switchToNewThread()}
+        onClick={() => {
+          const modelName = aui.thread().getModelContext()?.config?.modelName;
+          analytics.assistant.newThreadClicked({
+            threadId,
+            previous_message_count: messages.length,
+            context_total_tokens: contextTokens,
+            context_usage_percent: usagePercent,
+            ...(pathname ? { pathname } : {}),
+            ...(modelName ? { model_name: modelName } : {}),
+          });
+          aui.threads().switchToNewThread();
+        }}
         className="flex items-center gap-1.5 rounded-md px-2 py-1 text-muted-foreground text-xs transition-colors hover:bg-muted hover:text-foreground"
       >
         <PlusIcon className="size-3.5" />
         <span>New thread</span>
       </button>
 
-      <div className="flex items-center gap-2">
-        <div className="h-1.5 w-16 overflow-hidden rounded-full bg-muted">
-          <div
-            className={cn(
-              "h-full rounded-full transition-all duration-300",
-              getUsageColorClass(usagePercent),
-            )}
-            style={{ width: `${usagePercent}%` }}
-          />
-        </div>
-        <span className="text-[10px] text-muted-foreground tabular-nums">
-          {usageK}k ({usagePercent.toFixed(0)}%)
-        </span>
-      </div>
+      <ContextDisplay.Bar
+        modelContextWindow={contextWindow}
+        usage={lastUsage}
+      />
     </div>
   );
 }

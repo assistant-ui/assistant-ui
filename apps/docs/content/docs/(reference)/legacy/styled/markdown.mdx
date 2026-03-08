@@ -5,7 +5,6 @@ description: Enable rich text formatting for assistant messages using markdown.
 
 Allow the assistant to display rich text using markdown.
 
-import { InstallCommand } from "@/components/docs/fumadocs/install/install-command";
 
 ## Enabling markdown support
 
@@ -21,7 +20,7 @@ import { InstallCommand } from "@/components/docs/fumadocs/install/install-comma
 
 ### Setup styles
 
-<Tabs items={["Tailwind", "Tailwind + shadcn-ui", "Not using Tailwind"]}>
+<Tabs items={["Tailwind", "Tailwind + shadcn-ui"]}>
 
 ```ts {3} title="/tailwind.config.ts" tab="Tailwind"
 {
@@ -39,11 +38,6 @@ import { InstallCommand } from "@/components/docs/fumadocs/install/install-comma
     require("@assistant-ui/react-ui/tailwindcss")({ shadcn: true })
   ],
 }
-```
-
-```ts title="/app/layout.tsx" tab="Not using Tailwind"
-import "@assistant-ui/react-ui/styles/index.css";
-import "@assistant-ui/react-ui/styles/markdown.css";
 ```
 
 </Tabs>

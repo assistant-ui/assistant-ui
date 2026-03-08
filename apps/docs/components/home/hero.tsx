@@ -42,7 +42,7 @@ export function Hero() {
         <span className="inline-flex w-full items-center gap-1.5 sm:w-auto">
           Backed by
           <Image
-            src="/logos/yc_logo.png"
+            src="/icons/yc_logo.png"
             alt="Y Combinator"
             height={18}
             width={18}

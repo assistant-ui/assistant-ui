@@ -13,10 +13,10 @@ export const ErrorPrimitiveMessage = forwardRef<
   ErrorPrimitiveMessage.Element,
   ErrorPrimitiveMessage.Props
 >(({ children, ...props }, forwardRef) => {
-  const error = useAuiState(({ message }) => {
-    return message.status?.type === "incomplete" &&
-      message.status.reason === "error"
-      ? message.status.error
+  const error = useAuiState((s) => {
+    return s.message.status?.type === "incomplete" &&
+      s.message.status.reason === "error"
+      ? s.message.status.error
       : undefined;
   });
 

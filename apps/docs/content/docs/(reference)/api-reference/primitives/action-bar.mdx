@@ -5,9 +5,6 @@ description: Buttons for message actions like copy, edit, reload, speak, and fee
 
 Buttons to interact with the message.
 
-import { ParametersTable } from "@/components/docs/tables/ParametersTable";
-import { DataAttributesTable } from "@/components/docs/tables/DataAttributesTable";
-import { Code } from "@radix-ui/themes";
 
 ## Anatomy
 
@@ -93,14 +90,9 @@ This primitive renders a `<div>` element unless `asChild` is set.
   ]}
 />
 
-<DataAttributesTable
-  data={[
-    {
-      attribute: "[data-floating]",
-      values: "Present when floating",
-    },
-  ]}
-/>
+| Data attribute | Values |
+| --- | --- |
+| `[data-floating]` | Present when floating |
 
 ### Edit
 
@@ -154,14 +146,9 @@ This primitive renders a `<button>` element unless `asChild` is set.
   ]}
 />
 
-<DataAttributesTable
-  data={[
-    {
-      attribute: "[data-copied]",
-      values: "Present when the message was recently copied.",
-    },
-  ]}
-/>
+| Data attribute | Values |
+| --- | --- |
+| `[data-copied]` | Present when the message was recently copied. |
 
 #### Copied state
 
@@ -169,10 +156,10 @@ Show a different icon for a few seconds after the message is copied.
 
 ```tsx
 <ActionBarPrimitive.Copy>
-  <AuiIf condition={({ message }) => !message.isCopied}>
+  <AuiIf condition={(s) => !s.message.isCopied}>
     <CopyIcon />
   </AuiIf>
-  <AuiIf condition={({ message }) => message.isCopied}>
+  <AuiIf condition={(s) => s.message.isCopied}>
     <CopySuccessIcon />
   </AuiIf>
 </ActionBarPrimitive.Copy>
@@ -232,14 +219,9 @@ This primitive renders a `<button>` element unless `asChild` is set.
   ]}
 />
 
-<DataAttributesTable
-  data={[
-    {
-      attribute: "[data-submitted]",
-      values: "Present when positive feedback was submitted.",
-    },
-  ]}
-/>
+| Data attribute | Values |
+| --- | --- |
+| `[data-submitted]` | Present when positive feedback was submitted. |
 
 ### Feedback Negative
 
@@ -256,14 +238,9 @@ This primitive renders a `<button>` element unless `asChild` is set.
   ]}
 />
 
-<DataAttributesTable
-  data={[
-    {
-      attribute: "[data-submitted]",
-      values: "Present when negative feedback was submitted.",
-    },
-  ]}
-/>
+| Data attribute | Values |
+| --- | --- |
+| `[data-submitted]` | Present when negative feedback was submitted. |
 
 ### ExportMarkdown
 

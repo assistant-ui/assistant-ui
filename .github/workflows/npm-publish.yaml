@@ -3,74 +3,530 @@ name: npm Publish
 on:
   repository_dispatch:
     types: [npm-publish]
+  workflow_dispatch:
+    inputs:
+      releaseSha:
+        description: "Release commit SHA to publish (defaults to latest default-branch commit)"
+        required: false
+        type: string
 
 permissions:
-  id-token: write
-  contents: write
+  contents: read
 
 env:
   CI: true
 
 jobs:
+  approve:
+    name: Prepare npm publish
+    runs-on: ubuntu-24.04
+    concurrency:
+      group: npm-publish-approval
+      cancel-in-progress: true
+    outputs:
+      release_sha: ${{ steps.release-sha.outputs.value }}
+      default_branch: ${{ steps.release-sha.outputs.default_branch }}
+    steps:
+      - name: Resolve release commit SHA
+        id: release-sha
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        with:
+          script: |
+            const dispatchReleaseShaRaw = context.payload?.client_payload?.releaseSha;
+            const manualReleaseShaRaw = context.payload?.inputs?.releaseSha;
+            const payloadDefaultBranchRaw =
+              context.payload?.repository?.default_branch;
+            const dispatchReleaseSha =
+              typeof dispatchReleaseShaRaw === "string"
+                ? dispatchReleaseShaRaw.trim()
+                : "";
+            const manualReleaseSha =
+              typeof manualReleaseShaRaw === "string"
+                ? manualReleaseShaRaw.trim()
+                : "";
+            const payloadDefaultBranch =
+              typeof payloadDefaultBranchRaw === "string"
+                ? payloadDefaultBranchRaw.trim()
+                : "";
+
+            let releaseSha = dispatchReleaseSha || manualReleaseSha;
+            let defaultBranch = payloadDefaultBranch;
+
+            if (!defaultBranch) {
+              const repoInfo = await github.rest.repos.get(context.repo);
+              defaultBranch = repoInfo.data.default_branch;
+            }
+
+            if (!defaultBranch) {
+              core.setFailed("Unable to determine repository default branch");
+              return;
+            }
+
+            if (!releaseSha) {
+              if (context.eventName === "repository_dispatch") {
+                core.setFailed("repository_dispatch payload is missing releaseSha");
+                return;
+              }
+
+              const ref = await github.rest.git.getRef({
+                ...context.repo,
+                ref: `heads/${defaultBranch}`,
+              });
+
+              releaseSha = ref.data.object.sha;
+              core.info(
+                `No release SHA provided; using ${defaultBranch} HEAD ${releaseSha}`,
+              );
+            }
+
+            if (!/^[0-9a-f]{40}$/i.test(releaseSha)) {
+              core.setFailed(
+                `releaseSha must be a full 40-character commit SHA: ${releaseSha}`,
+              );
+              return;
+            }
+
+            core.setOutput("value", releaseSha);
+            core.setOutput("default_branch", defaultBranch);
+
+  cancel_pending:
+    name: Cancel stale pending publishes
+    needs: approve
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: write
+      contents: read
+    env:
+      DEFAULT_BRANCH: ${{ needs.approve.outputs.default_branch }}
+    steps:
+      - name: Cancel older queued/waiting runs
+        continue-on-error: true
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const currentRunId = context.runId;
+            const currentRunNumber = context.runNumber;
+            const defaultBranch = (process.env.DEFAULT_BRANCH || "").trim();
+            const workflowRef = process.env.GITHUB_WORKFLOW_REF || "";
+
+            const workflowPathMatch = workflowRef.match(
+              /^[^/]+\/[^/]+\/(.+)@/,
+            );
+            const workflowPath = workflowPathMatch?.[1] ?? "";
+            const workflowId = workflowPath.split("/").pop() || "";
+
+            let runs = [];
+
+            if (workflowId) {
+              runs = await github.paginate(github.rest.actions.listWorkflowRuns, {
+                owner,
+                repo,
+                workflow_id: workflowId,
+                per_page: 100,
+              });
+            } else {
+              core.warning(
+                "Unable to resolve workflow filename; using repository-wide workflow run list",
+              );
+              runs = await github.paginate(
+                github.rest.actions.listWorkflowRunsForRepo,
+                {
+                  owner,
+                  repo,
+                  per_page: 100,
+                },
+              );
+            }
+
+            const candidates = runs.filter((run) => {
+              if (run.id === currentRunId) return false;
+              if (run.run_number >= currentRunNumber) return false;
+              if (run.status === "completed") return false;
+              if (workflowPath && run.path !== workflowPath) return false;
+              if (defaultBranch && run.head_branch && run.head_branch !== defaultBranch) {
+                return false;
+              }
+              if (
+                run.event !== "repository_dispatch" &&
+                run.event !== "workflow_dispatch"
+              ) {
+                return false;
+              }
+
+              return true;
+            });
+
+            let canceledCount = 0;
+
+            for (const run of candidates) {
+              const jobs = await github.paginate(
+                github.rest.actions.listJobsForWorkflowRun,
+                {
+                  owner,
+                  repo,
+                  run_id: run.id,
+                  per_page: 100,
+                },
+              );
+
+              const publishJob = jobs.find((job) => job.name === "Publish to npm");
+
+              if (publishJob?.status === "in_progress") {
+                core.info(
+                  `Keeping run ${run.id} because Publish to npm is in progress`,
+                );
+                continue;
+              }
+
+              try {
+                await github.rest.actions.cancelWorkflowRun({
+                  owner,
+                  repo,
+                  run_id: run.id,
+                });
+                canceledCount += 1;
+                core.info(`Canceled stale pending run ${run.id}`);
+              } catch (error) {
+                core.warning(
+                  `Unable to cancel run ${run.id}: ${error.message}`,
+                );
+              }
+            }
+
+            core.info(`Canceled ${canceledCount} stale pending run(s)`);
+
   publish:
     name: Publish to npm
-    if: github.ref == 'refs/heads/main'
+    needs:
+      - approve
+      - cancel_pending
     environment: npm Publish
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      # Required for npm trusted publishing (OIDC).
+      id-token: write
+    concurrency:
+      group: npm-publish-exec
+      cancel-in-progress: false
+    env:
+      RELEASE_SHA: ${{ needs.approve.outputs.release_sha }}
+      DEFAULT_BRANCH: ${{ needs.approve.outputs.default_branch }}
     steps:
+
       - name: Checkout code repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
-          fetch-depth: 1
+          fetch-depth: 0
+          ref: ${{ env.RELEASE_SHA }}
+
+      - name: Validate release commit is on default branch
+        run: |
+          if [ -z "$RELEASE_SHA" ]; then
+            echo "Missing releaseSha" >&2
+            exit 1
+          fi
+
+          if [ -z "$DEFAULT_BRANCH" ]; then
+            echo "Missing default branch" >&2
+            exit 1
+          fi
+
+          head_sha=$(git rev-parse HEAD)
+          if [ "$head_sha" != "$RELEASE_SHA" ]; then
+            echo "Checked out commit does not match releaseSha payload" >&2
+            echo "HEAD=$head_sha" >&2
+            echo "releaseSha=$RELEASE_SHA" >&2
+            exit 1
+          fi
+
+          git fetch origin "$DEFAULT_BRANCH"
+          origin_default_sha=$(git rev-parse "origin/$DEFAULT_BRANCH")
+          if ! git merge-base --is-ancestor "$RELEASE_SHA" "origin/$DEFAULT_BRANCH"; then
+            echo "releaseSha is not an ancestor of origin/$DEFAULT_BRANCH; refusing to publish" >&2
+            echo "releaseSha=$RELEASE_SHA" >&2
+            echo "origin/$DEFAULT_BRANCH SHA=$origin_default_sha" >&2
+            exit 1
+          fi
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4
 
       - name: Setup node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
         with:
           node-version: 24
           # No cache - hardened against cache poisoning for sensitive publish operations
-          registry-url: "https://registry.npmjs.org"
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Publish to npm
-        run: pnpm ci:publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Resolve publish targets
+        id: targets
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        with:
+          script: |
+            const fs = require("node:fs");
+            const path = require("node:path");
 
-      - name: Create GitHub Releases
+            const fetchNpmMetadata = async (packageName) => {
+              const encodedName = encodeURIComponent(packageName);
+              const url = `https://registry.npmjs.org/${encodedName}`;
+
+              const controller = new AbortController();
+              const timeout = setTimeout(() => controller.abort(), 15_000);
+
+              try {
+                const response = await fetch(url, {
+                  signal: controller.signal,
+                });
+
+                if (response.ok) {
+                  return await response.json();
+                }
+
+                if (response.status === 404) {
+                  return null;
+                }
+
+                throw new Error(`HTTP ${response.status}`);
+              } finally {
+                clearTimeout(timeout);
+              }
+            };
+
+            const parseStableSemver = (value) => {
+              if (typeof value !== "string") return null;
+              const match = value.match(/^(\d+)\.(\d+)\.(\d+)$/);
+              if (!match) return null;
+              return match.slice(1).map((part) => Number(part));
+            };
+
+            const compareStableSemver = (a, b) => {
+              const parsedA = parseStableSemver(a);
+              const parsedB = parseStableSemver(b);
+              if (!parsedA || !parsedB) return null;
+
+              for (let index = 0; index < 3; index += 1) {
+                if (parsedA[index] > parsedB[index]) return 1;
+                if (parsedA[index] < parsedB[index]) return -1;
+              }
+
+              return 0;
+            };
+
+            const packagesDir = path.join(process.cwd(), "packages");
+            const entries = fs.readdirSync(packagesDir, { withFileTypes: true });
+
+            const prereleasePackages = [];
+            const downgradePackages = [];
+            const targets = [];
+
+            for (const entry of entries) {
+              if (!entry.isDirectory()) continue;
+
+              const manifestPath = path.join(packagesDir, entry.name, "package.json");
+              if (!fs.existsSync(manifestPath)) continue;
+
+              const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+              if (manifest.private === true) continue;
+
+              if (typeof manifest.version !== "string" || manifest.version.length === 0) {
+                core.setFailed(`Package ${manifest.name} is missing a version`);
+                return;
+              }
+
+              if (manifest.version.includes("-")) {
+                prereleasePackages.push(`${manifest.name}@${manifest.version}`);
+                continue;
+              }
+
+              const pkgName = manifest.name;
+              const pkgVersion = manifest.version;
+              let metadata = null;
+              try {
+                metadata = await fetchNpmMetadata(pkgName);
+              } catch (error) {
+                core.setFailed(
+                  `Failed to query npm metadata for ${pkgName}: ${error.message}`,
+                );
+                return;
+              }
+
+              const latestTag = metadata?.["dist-tags"]?.latest ?? null;
+              const hasVersion = Boolean(metadata?.versions?.[pkgVersion]);
+
+              if (latestTag !== null) {
+                const comparison = compareStableSemver(pkgVersion, latestTag);
+                if (comparison === null) {
+                  core.setFailed(
+                    `Unsupported semver for ${pkgName}: local=${pkgVersion} latest=${latestTag}`,
+                  );
+                  return;
+                }
+
+                if (comparison < 0) {
+                  downgradePackages.push(
+                    `${pkgName} local=${pkgVersion} latest=${latestTag}`,
+                  );
+                  continue;
+                }
+              }
+
+              if (hasVersion) {
+                if (latestTag !== pkgVersion) {
+                  core.warning(
+                    `${pkgName}@${pkgVersion} is on npm but latest is ${latestTag ?? "unset"}; run: npm dist-tag add ${pkgName}@${pkgVersion} latest --registry https://registry.npmjs.org`,
+                  );
+                }
+              } else {
+                targets.push({
+                  name: pkgName,
+                  version: pkgVersion,
+                });
+              }
+            }
+
+            if (prereleasePackages.length > 0) {
+              core.setFailed(
+                `Prerelease versions are not allowed on default-branch releases: ${prereleasePackages.join(", ")}`,
+              );
+              return;
+            }
+
+            if (downgradePackages.length > 0) {
+              core.setFailed(
+                `Refusing to retag older versions as latest: ${downgradePackages.join(", ")}`,
+              );
+              return;
+            }
+
+            targets.sort((a, b) => a.name.localeCompare(b.name));
+
+            core.info(
+              `Targets: ${targets.length === 0 ? "none" : targets.map((target) => `${target.name}@${target.version}`).join(", ")}`,
+            );
+
+            core.setOutput("targetCount", String(targets.length));
+            core.setOutput("targetsJson", JSON.stringify(targets));
+
+      - name: Verify npm trusted publishing
+        if: steps.targets.outputs.targetCount != '0' && success()
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TARGETS_JSON: ${{ steps.targets.outputs.targetsJson }}
+        with:
+          script: |
+            const targets = JSON.parse(process.env.TARGETS_JSON || "[]");
+            const oidcRequestUrl = process.env.ACTIONS_ID_TOKEN_REQUEST_URL;
+            const oidcRequestToken = process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN;
+
+            if (!oidcRequestUrl || !oidcRequestToken) {
+              core.setFailed("OIDC token request context is unavailable");
+              return;
+            }
+
+            const audience = "npm:registry.npmjs.org";
+            const oidcUrl = `${oidcRequestUrl}${oidcRequestUrl.includes("?") ? "&" : "?"}audience=${encodeURIComponent(audience)}`;
+
+            const fetchOidcToken = async () => {
+              const controller = new AbortController();
+              const timeout = setTimeout(() => controller.abort(), 15_000);
+              try {
+                const response = await fetch(oidcUrl, {
+                  headers: { Authorization: `Bearer ${oidcRequestToken}` },
+                  signal: controller.signal,
+                });
+                if (!response.ok) {
+                  throw new Error(`HTTP ${response.status}`);
+                }
+                const payload = await response.json();
+                if (!payload?.value) {
+                  throw new Error("OIDC response is missing token value");
+                }
+                return payload.value;
+              } finally {
+                clearTimeout(timeout);
+              }
+            };
+
+            const failures = [];
+
+            for (const target of targets) {
+              let githubOidcToken;
+              try {
+                githubOidcToken = await fetchOidcToken();
+              } catch (error) {
+                core.setFailed(
+                  `Failed to fetch GitHub OIDC token: ${error.message}`,
+                );
+                return;
+              }
+
+              const encodedName = encodeURIComponent(target.name);
+              const exchangeUrl =
+                `https://registry.npmjs.org/-/npm/v1/oidc/token/exchange/package/${encodedName}`;
+
+              const controller = new AbortController();
+              const timeout = setTimeout(() => controller.abort(), 15_000);
+              let response;
+              try {
+                response = await fetch(exchangeUrl, {
+                  method: "POST",
+                  headers: { Authorization: `Bearer ${githubOidcToken}` },
+                  signal: controller.signal,
+                });
+              } catch (error) {
+                failures.push(`${target.name}: network error (${error.message})`);
+                continue;
+              } finally {
+                clearTimeout(timeout);
+              }
+
+              if (!response.ok) {
+                const hint =
+                  response.status === 404
+                    ? "not configured for npm trusted publishing"
+                    : `HTTP ${response.status}`;
+                failures.push(`${target.name}: ${hint}`);
+              }
+            }
+
+            if (failures.length > 0) {
+              core.setFailed(
+                [
+                  `Pre-flight OIDC verification failed for ${failures.length} package(s):`,
+                  ...failures.map((f) => `  - ${f}`),
+                  "",
+                  "Configure trusted publishing for each failed package at:",
+                  "  https://docs.npmjs.com/trusted-publishers",
+                ].join("\n"),
+              );
+              return;
+            }
+
+            core.info(
+              `All ${targets.length} package(s) verified for npm trusted publishing.`,
+            );
+
+      - name: Publish to npm and create GitHub releases
+        if: steps.targets.outputs.targetCount != '0' && success()
+        id: changesets-publish
+        uses: changesets/action@6a0a831ff30acef54f2c6aa1cbbc1096b066edaf # v1.7.0
+        with:
+          publish: pnpm ci:publish
+          createGithubReleases: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: No targets
+        if: steps.targets.outputs.targetCount == '0' && success()
+        run: echo "No packages require publishing for this release SHA."
+
+      - name: Recovery guidance
+        if: failure()
         run: |
-          git fetch --tags
-
-          for pkg in packages/*/package.json; do
-            name=$(jq -r '.name' "$pkg")
-            version=$(jq -r '.version' "$pkg")
-            private=$(jq -r '.private // false' "$pkg")
-
-            [[ "$private" == "true" ]] && continue
-
-            tag="${name}@${version}"
-
-            git rev-parse "$tag" >/dev/null 2>&1 || continue
-            gh release view "$tag" >/dev/null 2>&1 && continue
-
-            changelog_dir=$(dirname "$pkg")
-            changelog="$changelog_dir/CHANGELOG.md"
-
-            notes=""
-            if [[ -f "$changelog" ]]; then
-              notes=$(awk "/^## ${version//./\\.}\$/,/^## [0-9]/" "$changelog" | head -n -1 | tail -n +2)
-            fi
-            [[ -z "$notes" ]] && notes="Release ${tag}"
-
-            echo "Creating release: $tag"
-            gh release create "$tag" \
-              --title "$tag" \
-              --notes "$notes" \
-              --verify-tag || echo "Warning: Failed to create release for $tag"
-          done
+          echo "::error::Publish failed for release SHA ${RELEASE_SHA}."
+          echo "::error::Rerun this workflow run, or run workflow_dispatch with releaseSha=${RELEASE_SHA}."

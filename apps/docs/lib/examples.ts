@@ -86,7 +86,17 @@ const INTERNAL_EXAMPLES: ExampleItem[] = [
     description:
       "Open Source Claude Artifacts. You can ask the bot to generate websites.",
     link: "/examples/artifacts",
-    githubLink: "https://github.com/Yonom/assistant-ui-artifacts",
+    githubLink:
+      "https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-artifacts",
+  },
+  {
+    title: "Expo (React Native)",
+    image: "/screenshot/examples/expo.png",
+    description:
+      "Native iOS & Android chat app with drawer navigation and thread management.",
+    link: "/examples/expo",
+    githubLink:
+      "https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-expo",
   },
 ];
 

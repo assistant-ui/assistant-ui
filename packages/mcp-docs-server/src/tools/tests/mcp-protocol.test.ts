@@ -17,9 +17,7 @@ describe("MCP Protocol Integration", () => {
       method: "initialize",
       params: {
         protocolVersion: "2024-11-05",
-        capabilities: {
-          tools: {},
-        },
+        capabilities: {},
         clientInfo: {
           name: "test-client",
           version: "1.0.0",

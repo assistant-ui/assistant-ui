@@ -76,7 +76,7 @@ export function useMessageRuntime(options?: {
 }
 
 /**
- * @deprecated Use `useAuiState(({ message }) => message)` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
+ * @deprecated Use `useAuiState((s) => s.message)` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
  *
  * Hook to access the current message state.
  *
@@ -102,9 +102,9 @@ export function useMessageRuntime(options?: {
  *
  * // After:
  * function MessageContent() {
- *   const role = useAuiState(({ message }) => message.role);
- *   const content = useAuiState(({ message }) => message.content);
- *   const isLoading = useAuiState(({ message }) => message.status.type === "running");
+ *   const role = useAuiState((s) => s.message.role);
+ *   const content = useAuiState((s) => s.message.content);
+ *   const isLoading = useAuiState((s) => s.message.status.type === "running");
  *   return (
  *     <div className={`message-${role}`}>
  *       {isLoading ? "Loading..." : content.map(part => part.text).join("")}
@@ -120,7 +120,7 @@ const useEditComposerRuntime = (opt: {
 }): EditComposerRuntime | null => useMessageRuntime(opt)?.composer ?? null;
 
 /**
- * @deprecated Use `useAuiState(({ message }) => message.composer)` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
+ * @deprecated Use `useAuiState((s) => s.message.composer)` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
  */
 export const useEditComposer = createStateHookForRuntime(
   useEditComposerRuntime,

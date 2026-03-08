@@ -21,7 +21,9 @@
         "NEXT_PUBLIC_*",
         "KV_*",
         "SENTRY_*",
-        "REDIS_*"
+        "REDIS_*",
+        "AI_GATEWAY_*",
+        "AUIX_*"
       ]
     },
     "lint": {},

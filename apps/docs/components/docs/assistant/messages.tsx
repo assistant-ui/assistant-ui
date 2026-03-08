@@ -1,5 +1,6 @@
 "use client";
 
+import { AssistantActionBar } from "./assistant-action-bar";
 import { MarkdownText } from "./markdown";
 import {
   ErrorPrimitive,
@@ -45,6 +46,7 @@ export function AssistantMessage(): ReactNode {
         />
         <MessageError />
       </div>
+      <AssistantActionBar />
     </MessagePrimitive.Root>
   );
 }

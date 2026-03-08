@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { mergePlugins, DEFAULT_SHIKI_THEME } from "../defaults";
 import type { PluginConfig, ResolvedPluginConfig } from "../types";
+import type { CodeHighlighterPlugin, MathPlugin, CjkPlugin } from "streamdown";
 
 describe("DEFAULT_SHIKI_THEME", () => {
   it("has light and dark theme", () => {
@@ -9,9 +10,11 @@ describe("DEFAULT_SHIKI_THEME", () => {
 });
 
 describe("mergePlugins", () => {
-  const mockCodePlugin = { type: "code" };
-  const mockMathPlugin = { type: "math" };
-  const mockCjkPlugin = { type: "cjk" };
+  const mockCodePlugin = {
+    type: "code",
+  } as unknown as CodeHighlighterPlugin;
+  const mockMathPlugin = { type: "math" } as unknown as MathPlugin;
+  const mockCjkPlugin = { type: "cjk" } as unknown as CjkPlugin;
   const mockMermaidPlugin = { type: "mermaid" };
 
   it("returns empty object when no plugins provided or detected", () => {
