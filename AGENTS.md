@@ -44,7 +44,7 @@ Every PR that changes published packages must include a changeset. This does NOT
 Most packages are at `0.x` versions. For `0.x`, a minor bump breaks the `^` caret range (e.g. `^0.12.15` does NOT include `0.13.0`), which cascades patch bumps to all dependent packages.
 
 - **patch**: Use for all changes — bug fixes, new features, refactors, new exports
-- **minor**: Only when a maintainer explicitly requests it (causes cascading bumps across dependents)
+- **minor**: Only when a maintainer explicitly requests it (causes cascading patch bumps across all dependent packages)
 - **major**: Only for planned stable releases (1.0, 2.0) — never without maintainer approval
 
 ### Creating a changeset file
