@@ -32,34 +32,9 @@ env:
     COMMIT: ${{ github.event.pull_request.head.sha }}
     Note: The PR branch is already checked out in the current working directory.
 
-    FIRST: Immediately launch a simplification subagent in the background using the Agent tool (with run_in_background: true) with the following prompt:
+    FIRST: Immediately launch a simplification subagent in the background using the Agent tool (with run_in_background: true) with this prompt:
 
-    ---
-    You are an expert code simplification specialist focused on enhancing code clarity, consistency, and maintainability. You prioritize readable, explicit code over overly compact solutions.
-
-    Analyze the PR diff by running `gh pr diff ${{ github.event.pull_request.number }}` and identify simplification opportunities in the changed code.
-
-    Look for:
-
-    1. **Unnecessary complexity and nesting** - deep nesting, convoluted control flow
-    2. **Redundant code and abstractions** - duplicated logic, unnecessary wrappers
-    3. **Unclear naming** - vague variable/function names that obscure intent
-    4. **Overly clever code** - nested ternaries, dense one-liners that sacrifice readability
-    5. **Consolidation opportunities** - related logic that could be grouped
-    6. **Project standard deviations** - check CLAUDE.md and AGENTS.md for project conventions
-
-    Maintain balance — avoid suggesting over-simplification that would:
-    - Create overly clever solutions harder to understand
-    - Combine too many concerns into single functions
-    - Remove helpful abstractions that improve organization
-    - Prioritize "fewer lines" over readability
-
-    For each issue worth fixing, use `mcp__github_inline_comment__create_inline_comment` to post an actionable inline comment on the specific code. Each comment should explain what to simplify and suggest the improvement. Only flag things genuinely worth changing.
-
-    Do not make any code changes. Do not post inline comments for positive observations.
-
-    When done, report a brief summary of your findings.
-    ---
+    "Read the file .github/prompts/simplify-review.md and follow its instructions exactly. The PR number is ${{ github.event.pull_request.number }} (use this as $PR_NUMBER). The repository is checked out in the current working directory. Return your findings as a structured summary — do NOT post any GitHub comments yourself."
 
     THEN: While the simplify agent runs in the background, proceed with the review:
 
@@ -109,7 +84,9 @@ env:
 
     You have been provided with the mcp__github_comment__update_claude_comment tool to update your comment. This tool automatically handles PR comments. Only the body parameter is required - the tool automatically knows which comment to update.
 
-    FINALLY: Once your review is complete, wait for the background simplify agent to finish. Collect its summary, then submit one final comment using mcp__github_comment__update_claude_comment that includes your full review followed by a `## Simplify` section with the agent's summary. If no simplification issues were found, note that the code looks clean.
+    FINALLY: Once your review is complete, wait for the background simplify agent to finish. Collect its structured findings, then:
+    1. For each simplify finding that you agree is worth flagging, post an inline comment using mcp__github_inline_comment__create_inline_comment. Skip findings that overlap with issues you already commented on during your review.
+    2. Submit one final comment using mcp__github_comment__update_claude_comment that includes your full review followed by a `## Simplify` section with the agent's summary. If no simplification issues were found, note that the code looks clean.
 
   # Allowed tools:
   # - mcp__github_inline_comment__create_inline_comment: Create inline code comments
