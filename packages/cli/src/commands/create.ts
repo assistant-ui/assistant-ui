@@ -534,15 +534,24 @@ export const create = new Command()
       logger.success("Project created successfully!");
       logger.break();
       const runCmd = pm === "npm" ? "npm run" : pm;
-      const scaffoldedPkg = JSON.parse(
-        fs.readFileSync(path.join(absoluteProjectDir, "package.json"), "utf-8"),
-      );
-      const devScript = scaffoldedPkg.scripts?.dev
-        ? "dev"
-        : scaffoldedPkg.scripts?.start
-          ? "start"
-          : "dev";
-      const envFile = scaffoldedPkg.dependencies?.next ? ".env.local" : ".env";
+      let devScript = "dev";
+      let envFile = ".env.local";
+      try {
+        const scaffoldedPkg = JSON.parse(
+          fs.readFileSync(
+            path.join(absoluteProjectDir, "package.json"),
+            "utf-8",
+          ),
+        );
+        devScript = scaffoldedPkg.scripts?.dev
+          ? "dev"
+          : scaffoldedPkg.scripts?.start
+            ? "start"
+            : "dev";
+        envFile = scaffoldedPkg.dependencies?.next ? ".env.local" : ".env";
+      } catch {
+        // Fall back to defaults if package.json cannot be read
+      }
 
       logger.info("Next steps:");
       logger.info(`  cd ${resolvedProjectDirectory}`);
