@@ -15,9 +15,10 @@
   "license": "MIT",
   "type": "module",
   "bin": {
-    "assistant-ui": "./dist/index.js"
+    "assistant-ui": "./bin/assistant-ui.js"
   },
   "files": [
+    "bin",
     "dist",
     "plugin",
     "src",
