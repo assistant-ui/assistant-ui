@@ -34,7 +34,7 @@ env:
 
     FIRST: Immediately launch a simplification subagent in the background using the Agent tool (with run_in_background: true) with this prompt:
 
-    "Read the file .github/prompts/simplify-review.md and follow its instructions exactly. The PR number is ${{ github.event.pull_request.number }} (use this as $PR_NUMBER). The repository is checked out in the current working directory. Return your findings as a structured summary — do NOT post any GitHub comments yourself."
+    "Read the file .github/prompts/simplify-review.md for guidance on what to look for. The PR number is ${{ github.event.pull_request.number }}. Wherever the file says <PR_NUMBER>, use ${{ github.event.pull_request.number }}. The repository is checked out in the current working directory. Return your findings as a structured summary — do NOT post any GitHub comments yourself."
 
     THEN: While the simplify agent runs in the background, proceed with the review:
 
