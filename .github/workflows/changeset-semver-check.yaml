@@ -12,7 +12,7 @@ permissions:
 jobs:
   analyze:
     name: Analyze Changeset Bump Types
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 2
     outputs:
       has_violations: ${{ steps.check.outputs.has_violations }}
@@ -67,8 +67,9 @@ jobs:
                 newVersion: bumpVersion(v.version, v.bumpType),
               }));
 
-              while (queue.length > 0) {
-                const { pkg, newVersion } = queue.shift();
+              let qi = 0;
+              while (qi < queue.length) {
+                const { pkg, newVersion } = queue[qi++];
                 const dependents = revDeps.get(pkg) || [];
                 for (const dep of dependents) {
                   if (visited.has(dep.name)) continue;
@@ -137,8 +138,12 @@ jobs:
             const packagesDir = "packages";
             for (const dir of fs.readdirSync(packagesDir)) {
               const pkgJsonPath = path.join(packagesDir, dir, "package.json");
-              if (!fs.existsSync(pkgJsonPath)) continue;
-              const pkgJson = JSON.parse(fs.readFileSync(pkgJsonPath, "utf8"));
+              let pkgJson;
+              try {
+                pkgJson = JSON.parse(fs.readFileSync(pkgJsonPath, "utf8"));
+              } catch {
+                continue;
+              }
               if (pkgJson.private) continue;
               const major = parseInt(pkgJson.version.split(".")[0], 10);
               pkgMap.set(pkgJson.name, { major, version: pkgJson.version });
@@ -150,6 +155,7 @@ jobs:
               };
               for (const [depName, range] of Object.entries(allDeps)) {
                 if (typeof range !== "string" || !range.startsWith("^")) continue;
+                if (!pkgMap.has(depName)) continue;
                 if (!revDeps.has(depName)) revDeps.set(depName, []);
                 revDeps.get(depName).push({
                   name: pkgJson.name,
@@ -296,7 +302,7 @@ jobs:
     name: Confirm Semver-Breaking Bump
     needs: analyze
     if: needs.analyze.outputs.has_violations == 'true'
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 5
     environment: confirm-semver-bump
     steps:
@@ -307,7 +313,7 @@ jobs:
     name: Semver Check
     if: always()
     needs: [analyze, confirm]
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 1
     steps:
       - name: Check result
