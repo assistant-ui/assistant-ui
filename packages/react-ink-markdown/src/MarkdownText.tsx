@@ -52,7 +52,9 @@ export type MarkdownTextProps = {
 export const MarkdownText = ({ text, ...options }: MarkdownTextProps) => {
   const rendered = render(
     text,
-    Object.keys(options).length ? (options as RenderOptions) : undefined,
+    Object.values(options).some((v) => v !== undefined)
+      ? (options as RenderOptions)
+      : undefined,
   );
   return <Text>{rendered}</Text>;
 };
