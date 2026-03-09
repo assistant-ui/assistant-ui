@@ -25,7 +25,7 @@ export const AssistantRuntimeProvider = memo(
     children: ReactNode;
   }) => {
     return (
-      <AssistantProviderBase runtime={runtime} aui={aui}>
+      <AssistantProviderBase runtime={runtime} aui={aui ?? null}>
         {children}
       </AssistantProviderBase>
     );

@@ -14,9 +14,12 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import {
   AssistantRuntimeProvider,
   useAssistantRuntime,
+  useAui,
+  Tools,
 } from "@assistant-ui/react-native";
 import { useAppRuntime } from "@/hooks/use-app-runtime";
 import { ThreadListDrawer } from "@/components/thread-list/ThreadListDrawer";
+import { expoToolkit } from "@/components/assistant-ui/tools";
 
 function NewChatButton() {
   const runtime = useAssistantRuntime();
@@ -63,12 +66,15 @@ function DrawerLayout() {
 export default function RootLayout() {
   const [fontsLoaded] = useFonts(Ionicons.font);
   const runtime = useAppRuntime();
+  const aui = useAui({
+    tools: Tools({ toolkit: expoToolkit }),
+  });
 
   if (!fontsLoaded) return null;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <AssistantRuntimeProvider runtime={runtime}>
+      <AssistantRuntimeProvider runtime={runtime} aui={aui}>
         <DrawerLayout />
       </AssistantRuntimeProvider>
     </GestureHandlerRootView>
