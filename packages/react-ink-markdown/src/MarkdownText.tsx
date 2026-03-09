@@ -50,6 +50,36 @@ export type MarkdownTextProps = {
   listIndent?: number;
 };
 
+const RENDER_OPTION_KEYS: (keyof RenderOptions)[] = [
+  "highlighter",
+  "theme",
+  "width",
+  "wrap",
+  "codeBox",
+  "codeGutter",
+  "codeWrap",
+  "hyperlinks",
+  "tableBorder",
+  "tablePadding",
+  "tableDense",
+  "quotePrefix",
+  "listIndent",
+];
+
+function pickRenderOptions(
+  props: MarkdownTextProps,
+): RenderOptions | undefined {
+  let opts: RenderOptions | undefined;
+  for (const key of RENDER_OPTION_KEYS) {
+    const value = props[key as keyof MarkdownTextProps];
+    if (value !== undefined) {
+      if (!opts) opts = {};
+      (opts as any)[key] = value;
+    }
+  }
+  return opts;
+}
+
 /**
  * Renders markdown text as formatted ANSI terminal output using markdansi.
  *
@@ -57,55 +87,16 @@ export type MarkdownTextProps = {
  * This is fast enough for typical LLM output sizes (microseconds) and avoids
  * the complexity of incremental streaming state in React's rendering model.
  */
-export const MarkdownText = ({
-  text,
-  status: _status,
-  highlighter,
-  theme,
-  width,
-  wrap,
-  codeBox,
-  codeGutter,
-  codeWrap,
-  hyperlinks,
-  tableBorder,
-  tablePadding,
-  tableDense,
-  quotePrefix,
-  listIndent,
-}: MarkdownTextProps) => {
-  const rendered = useMemo(() => {
-    const opts: RenderOptions = {};
-    if (highlighter !== undefined) opts.highlighter = highlighter;
-    if (theme !== undefined) opts.theme = theme;
-    if (width !== undefined) opts.width = width;
-    if (wrap !== undefined) opts.wrap = wrap;
-    if (codeBox !== undefined) opts.codeBox = codeBox;
-    if (codeGutter !== undefined) opts.codeGutter = codeGutter;
-    if (codeWrap !== undefined) opts.codeWrap = codeWrap;
-    if (hyperlinks !== undefined) opts.hyperlinks = hyperlinks;
-    if (tableBorder !== undefined) opts.tableBorder = tableBorder;
-    if (tablePadding !== undefined) opts.tablePadding = tablePadding;
-    if (tableDense !== undefined) opts.tableDense = tableDense;
-    if (quotePrefix !== undefined) opts.quotePrefix = quotePrefix;
-    if (listIndent !== undefined) opts.listIndent = listIndent;
-    return render(text, opts);
-  }, [
-    text,
-    highlighter,
-    theme,
-    width,
-    wrap,
-    codeBox,
-    codeGutter,
-    codeWrap,
-    hyperlinks,
-    tableBorder,
-    tablePadding,
-    tableDense,
-    quotePrefix,
-    listIndent,
-  ]);
+export const MarkdownText = (props: MarkdownTextProps) => {
+  const { text } = props;
+  const options = pickRenderOptions(props);
+  // options is undefined when no render options are set, avoiding
+  // unnecessary object allocation on each render
+  // biome-ignore lint/correctness/useExhaustiveDependencies: JSON.stringify(options) stabilizes the new-object-per-render from pickRenderOptions
+  const rendered = useMemo(
+    () => render(text, options),
+    [text, JSON.stringify(options)],
+  );
 
   return <Text>{rendered}</Text>;
 };
