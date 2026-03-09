@@ -33,7 +33,7 @@ import { MarkdownText } from "@assistant-ui/react-ink-markdown";
 ```tsx
 import { MarkdownText, useShikiHighlighter } from "@assistant-ui/react-ink-markdown";
 
-const App = () => {
+const App = ({ text }: { text: string }) => {
   const highlighter = useShikiHighlighter({ theme: "github-dark" });
   return <MarkdownText text={text} highlighter={highlighter} />;
 };
