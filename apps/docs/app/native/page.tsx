@@ -18,8 +18,7 @@ import "./phone-mockup.css";
 
 const ANALYTICS_PAGE = "native" as const;
 
-const INSTALL_COMMAND =
-  "npx assistant-ui@latest create --example with-expo my-app";
+const INSTALL_COMMAND = "npx assistant-ui@latest create --native my-app";
 
 const FEATURES = [
   {
