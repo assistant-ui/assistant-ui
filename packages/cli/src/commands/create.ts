@@ -388,8 +388,13 @@ export const create = new Command()
   .option("--use-pnpm", "explicitly use pnpm")
   .option("--use-yarn", "explicitly use yarn")
   .option("--use-bun", "explicitly use bun")
+  .option("--native", "create an Expo / React Native project")
   .option("--skip-install", "skip installing packages")
   .action(async (projectDirectory, opts) => {
+    if (opts.native) {
+      opts.example = "with-expo";
+    }
+
     if (opts.example && opts.preset) {
       logger.error("Cannot use --preset with --example.");
       process.exit(1);
