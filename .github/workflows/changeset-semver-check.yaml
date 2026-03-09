@@ -131,6 +131,7 @@ jobs:
               return;
             }
 
+            const allBumps = [];
             const violations = [];
 
             for (const file of files) {
@@ -155,6 +156,9 @@ jobs:
                 const [, pkg, bumpType] = bumpMatch;
                 const pkgInfo = pkgMap.get(pkg);
                 const major = pkgInfo?.major ?? 0;
+                const version = pkgInfo?.version ?? "unknown";
+
+                allBumps.push({ file, pkg, bumpType, version });
 
                 // Rules:
                 //   0.x  → only patch is safe (minor breaks ^, major breaks ^)
@@ -168,65 +172,90 @@ jobs:
                     major === 0
                       ? `0.x package — ${bumpType} bump breaks \`^\` caret range`
                       : `major bump breaks \`^\` caret range`;
-                  violations.push({
-                    file,
-                    pkg,
-                    bumpType,
-                    version: pkgInfo?.version ?? "unknown",
-                    reason,
-                  });
+                  violations.push({ file, pkg, bumpType, version, reason });
                 }
               }
             }
 
-            if (violations.length === 0) {
-              core.info("All changeset bump types are safe for current package versions. ✓");
+            if (allBumps.length === 0) {
+              core.info("No package bumps found in changesets.");
               core.setOutput("has_violations", "false");
               return;
             }
 
-            // --- Compute cascade impact ---
+            // --- Compute cascade impact for ALL bumps ---
 
-            const cascade = computeCascade(violations, pkgMap, revDeps);
+            const cascade = computeCascade(allBumps, pkgMap, revDeps);
 
-            // --- Build summary ---
+            // --- Build cascade table (shared between both summary paths) ---
 
-            let summary = "## ⚠️ Semver-Breaking Changeset Detected\n\n";
-            summary += "| File | Package | Version | Bump | Why |\n";
-            summary += "| --- | --- | --- | --- | --- |\n";
-            for (const v of violations) {
-              summary += `| \`${v.file}\` | \`${v.pkg}\` | ${v.version} | **${v.bumpType}** | ${v.reason} |\n`;
-            }
-            summary += "\n";
-
-            if (cascade.length > 0) {
+            function renderCascadeSection(cascade) {
+              if (cascade.length === 0) return "";
               const breaking = cascade.filter((c) => c.isBreaking);
-              summary += `### Cascade Impact (${cascade.length} packages)\n\n`;
-              summary += "| Package | Version | Cascade Bump | Breaking |\n";
-              summary += "| --- | --- | --- | --- |\n";
+              let section = `### Cascade Impact (${cascade.length} packages)\n\n`;
+              section += "| Package | Version | Cascade Bump | Breaking |\n";
+              section += "| --- | --- | --- | --- |\n";
               for (const c of cascade) {
                 const indicator = c.isBreaking
                   ? `⛔ YES — \`^${c.version}\` breaks`
                   : "✅ no";
-                summary += `| \`${c.name}\` | ${c.version} → ${c.newVersion} | patch | ${indicator} |\n`;
+                section += `| \`${c.name}\` | ${c.version} → ${c.newVersion} | patch | ${indicator} |\n`;
               }
-              summary += "\n";
+              section += "\n";
               if (breaking.length > 0) {
-                summary += `> **${breaking.length} downstream package(s)** will also break their consumers' \`^\` ranges.\n\n`;
+                section += `> **${breaking.length} downstream package(s)** will also break their consumers' \`^\` ranges.\n\n`;
               }
+              return section;
             }
 
-            summary += "### What this means\n\n";
-            summary += "- **0.x packages**: `^0.12.15` only matches `>=0.12.15 <0.13.0` — ";
-            summary += "a minor bump is effectively a breaking change for all consumers.\n";
-            summary += "- **1.x+ packages**: `^1.3.12` matches `>=1.3.12 <2.0.0` — ";
-            summary += "minor/patch are safe, but a major bump breaks all consumers.\n\n";
-            summary += "If this is intentional, approve the **confirm-semver-bump** deployment review below.\n";
+            // --- Build summary ---
 
-            await core.summary.addRaw(summary).write();
+            let summary;
 
-            core.setOutput("has_violations", "true");
-            core.warning(`Semver-breaking bumps need confirmation: ${violations.map((v) => `${v.pkg}@${v.bumpType}`).join(", ")}`);
+            if (violations.length === 0) {
+              // Informational summary for safe PRs
+              summary = "## Changeset Impact Summary\n\n";
+              summary += "| File | Package | Version | Bump |\n";
+              summary += "| --- | --- | --- | --- |\n";
+              for (const b of allBumps) {
+                summary += `| \`${b.file}\` | \`${b.pkg}\` | ${b.version} | ${b.bumpType} |\n`;
+              }
+              summary += "\n";
+              summary += renderCascadeSection(cascade);
+
+              await core.summary.addRaw(summary).write();
+              core.info("All changeset bump types are safe for current package versions. ✓");
+              core.setOutput("has_violations", "false");
+            } else {
+              // Violation summary
+              summary = "## ⚠️ Semver-Breaking Changeset Detected\n\n";
+              summary += "| File | Package | Version | Bump | Why |\n";
+              summary += "| --- | --- | --- | --- | --- |\n";
+              for (const v of violations) {
+                summary += `| \`${v.file}\` | \`${v.pkg}\` | ${v.version} | **${v.bumpType}** | ${v.reason} |\n`;
+              }
+              summary += "\n";
+              summary += renderCascadeSection(cascade);
+              summary += "### What this means\n\n";
+              summary += "- **0.x packages**: `^0.12.15` only matches `>=0.12.15 <0.13.0` — ";
+              summary += "a minor bump is effectively a breaking change for all consumers.\n";
+              summary += "- **1.x+ packages**: `^1.3.12` matches `>=1.3.12 <2.0.0` — ";
+              summary += "minor/patch are safe, but a major bump breaks all consumers.\n\n";
+              summary += "If this is intentional, approve the **confirm-semver-bump** deployment review below.\n";
+
+              await core.summary.addRaw(summary).write();
+
+              // Emit warnings for breaking cascade entries (visible in PR checks tab)
+              const breakingCascade = cascade.filter((c) => c.isBreaking);
+              for (const c of breakingCascade) {
+                core.warning(
+                  `Cascade breaks ${c.name} (${c.version} → ${c.newVersion}, ^${c.version} consumers affected)`,
+                );
+              }
+
+              core.setOutput("has_violations", "true");
+              core.warning(`Semver-breaking bumps need confirmation: ${violations.map((v) => `${v.pkg}@${v.bumpType}`).join(", ")}`);
+            }
 
   confirm:
     name: Confirm Semver-Breaking Bump
