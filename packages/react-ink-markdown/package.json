@@ -29,6 +29,9 @@
     "src",
     "README.md"
   ],
+  "engines": {
+    "node": ">=22"
+  },
   "sideEffects": false,
   "scripts": {
     "build": "aui-build",
@@ -48,6 +51,9 @@
     "shiki": ">=4"
   },
   "peerDependenciesMeta": {
+    "@assistant-ui/react-ink": {
+      "optional": true
+    },
     "@types/react": {
       "optional": true
     },
