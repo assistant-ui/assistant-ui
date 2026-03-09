@@ -1,5 +1,5 @@
 import { type ReactNode, memo } from "react";
-import { useAui } from "@assistant-ui/store";
+import { useAui, type AssistantClient } from "@assistant-ui/store";
 import type { AssistantRuntime } from "@assistant-ui/core";
 import { AssistantProviderBase } from "@assistant-ui/core/react";
 
@@ -17,13 +17,15 @@ export const useAssistantRuntime = (): AssistantRuntime => {
 export const AssistantRuntimeProvider = memo(
   ({
     runtime,
+    aui,
     children,
   }: {
     runtime: AssistantRuntime;
+    aui?: AssistantClient | null;
     children: ReactNode;
   }) => {
     return (
-      <AssistantProviderBase runtime={runtime}>
+      <AssistantProviderBase runtime={runtime} aui={aui}>
         {children}
       </AssistantProviderBase>
     );
