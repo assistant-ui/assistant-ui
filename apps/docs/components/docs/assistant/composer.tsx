@@ -157,7 +157,7 @@ export function AssistantComposerAction(): ReactNode {
     <>
       <AuiIf condition={(s) => !s.thread.isRunning}>
         <ComposerPrimitive.Send asChild>
-          <Button type="submit" size="icon" className="size-7 rounded-lg">
+          <Button size="icon" className="size-7 rounded-lg">
             <ArrowUpIcon className="size-4" />
           </Button>
         </ComposerPrimitive.Send>

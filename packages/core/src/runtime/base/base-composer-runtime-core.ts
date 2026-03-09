@@ -151,6 +151,8 @@ export abstract class BaseComposerRuntimeCore
   }
 
   public async send() {
+    if (!this.text && this.attachments.length === 0) return;
+
     if (this._dictationSession) {
       this._dictationSession.cancel();
       this._cleanupDictation();
