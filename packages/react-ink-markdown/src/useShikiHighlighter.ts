@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-type UseShikiHighlighterOptions = {
+export type UseShikiHighlighterOptions = {
   /** Shiki theme name (default: "github-dark"). */
   theme?: string;
   /** Languages to preload (default: common web/systems languages). */
@@ -51,6 +51,9 @@ export function useShikiHighlighter(
   const theme = options?.theme ?? "github-dark";
   const langs = options?.langs ?? DEFAULT_LANGS;
 
+  const langsRef = useRef(langs);
+  langsRef.current = langs;
+
   const [highlighter, setHighlighter] = useState<
     ((code: string, lang?: string) => string) | undefined
   >(undefined);
@@ -64,7 +67,7 @@ export function useShikiHighlighter(
       .then(({ createHighlighter }) =>
         createHighlighter({
           themes: [theme as any],
-          langs: langs as any[],
+          langs: langsRef.current as any[],
         }),
       )
       .then((shiki) => {
@@ -112,7 +115,7 @@ export function useShikiHighlighter(
       shikiRef.current?.dispose();
       shikiRef.current = null;
     };
-  }, [theme, langs]);
+  }, [theme]);
 
   return highlighter;
 }
