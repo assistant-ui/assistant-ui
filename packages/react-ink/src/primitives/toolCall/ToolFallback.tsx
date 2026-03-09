@@ -10,7 +10,7 @@ export type ToolCallStatus =
   | "error"
   | "requires-action";
 
-type ToolFallbackRuntimeProps = Omit<
+type ToolFallbackBaseProps = Omit<
   ToolCallMessagePartProps,
   "addResult" | "resume"
 > &
@@ -57,7 +57,7 @@ const truncate = (text: string, maxLines: number): string => {
   );
 };
 
-export type ToolFallbackProps = ToolFallbackRuntimeProps & {
+export type ToolFallbackProps = ToolFallbackBaseProps & {
   /** Force expanded or collapsed. When unset, auto-expands while running, awaiting action, or errored. */
   expanded?: boolean;
   /** Maximum lines to show for args when expanded. Defaults to 20. */
@@ -69,25 +69,20 @@ export type ToolFallbackProps = ToolFallbackRuntimeProps & {
   /** Custom header renderer */
   renderHeader?: (props: {
     toolName: string;
-    status: ToolCallMessagePartStatus | undefined;
-    displayStatus: ToolCallStatus;
+    status: ToolCallStatus;
     expanded: boolean;
   }) => ReactNode;
   /** Custom args renderer */
   renderArgs?: (props: { args: unknown; argsText: string }) => ReactNode;
   /** Custom result renderer */
-  renderResult?: (props: {
-    result: unknown;
-    isError: boolean;
-    status: ToolCallMessagePartStatus | undefined;
-  }) => ReactNode;
+  renderResult?: (props: { result: unknown; isError: boolean }) => ReactNode;
 };
 
 const resolveStatus = (
   part: {
-    interrupt: ToolFallbackProps["interrupt"] | undefined;
-    isError: ToolFallbackProps["isError"] | undefined;
-    result: ToolFallbackProps["result"] | undefined;
+    interrupt: unknown;
+    isError: boolean | undefined;
+    result: unknown;
   },
   status?: ToolCallMessagePartStatus,
 ): ToolCallStatus => {
@@ -101,10 +96,10 @@ const resolveStatus = (
 };
 
 const getDisplayResult = (
-  part: { result: ToolFallbackProps["result"] | undefined },
+  result: unknown,
   status?: ToolCallMessagePartStatus,
 ) => {
-  if (part.result !== undefined) return part.result;
+  if (result !== undefined) return result;
   if (status?.type === "incomplete") return status.error;
   return undefined;
 };
@@ -157,7 +152,7 @@ export const ToolFallback = ({
       displayStatus === "requires-action" ||
       displayStatus === "error");
 
-  const result = getDisplayResult({ result: partResult }, status);
+  const result = getDisplayResult(partResult, status);
   const resultStr =
     result !== undefined || displayStatus === "error"
       ? formatResult(result)
@@ -170,8 +165,7 @@ export const ToolFallback = ({
         {renderHeader ? (
           renderHeader({
             toolName,
-            status,
-            displayStatus,
+            status: displayStatus,
             expanded,
           })
         ) : (
@@ -207,7 +201,6 @@ export const ToolFallback = ({
                 renderResult({
                   result,
                   isError: displayStatus === "error",
-                  status,
                 })
               ) : displayStatus === "error" ? (
                 <Text color="red">
