@@ -1,29 +1,19 @@
 import { useMemo } from "react";
 import { fetch } from "expo/fetch";
-import {
-  useLocalRuntime,
-  createSimpleTitleAdapter,
-  SimpleImageAttachmentAdapter,
-} from "@assistant-ui/react-native";
-import { createOpenAIChatModelAdapter } from "@/adapters/openai-chat-adapter";
+import { useLocalRuntime } from "@assistant-ui/react-native";
+import { createChatEndpointAdapter } from "@/adapters/chat-endpoint-adapter";
+
+const CHAT_ENDPOINT = process.env.EXPO_PUBLIC_CHAT_ENDPOINT_URL ?? "/api/chat";
 
 export function useAppRuntime() {
   const chatModel = useMemo(
     () =>
-      createOpenAIChatModelAdapter({
-        apiKey: process.env.EXPO_PUBLIC_OPENAI_API_KEY ?? "",
-        model: "gpt-4o-mini",
+      createChatEndpointAdapter({
+        endpoint: CHAT_ENDPOINT,
         fetch,
       }),
     [],
   );
 
-  const titleGenerator = useMemo(() => createSimpleTitleAdapter(), []);
-
-  return useLocalRuntime(chatModel, {
-    titleGenerator,
-    adapters: {
-      attachments: new SimpleImageAttachmentAdapter(),
-    },
-  });
+  return useLocalRuntime(chatModel);
 }
