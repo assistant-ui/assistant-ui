@@ -187,6 +187,14 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
     hasLocalComponents: false,
   },
   {
+    name: "with-react-ink",
+    label: "React Ink",
+    description: "Terminal UI chat",
+    category: "example",
+    path: "examples/with-react-ink",
+    hasLocalComponents: true,
+  },
+  {
     name: "with-react-router",
     label: "React Router",
     description: "React Router v7 + Vite",
