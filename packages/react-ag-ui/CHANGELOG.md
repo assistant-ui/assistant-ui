@@ -1,5 +1,14 @@
 # @assistant-ui/react-ag-ui
 
+## 0.0.20
+
+### Patch Changes
+
+- 164ff4e: fix(react-ag-ui): preserve tool message id through AgUiMessage conversion round-trip
+- Updated dependencies [5ae74fe]
+- Updated dependencies [8ed9d6f]
+  - @assistant-ui/react@0.12.16
+
 ## 0.0.19
 
 ### Patch Changes

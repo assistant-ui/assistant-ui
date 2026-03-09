@@ -1,5 +1,16 @@
 # @assistant-ui/react
 
+## 0.12.16
+
+### Patch Changes
+
+- 5ae74fe: fix: prevent double-submit when ComposerPrimitive.Send child has type="submit"
+- 8ed9d6f: Refactor React Native component API: move shared runtime logic (remote thread list, external store, cloud adapters, message converter, tool invocations) into @assistant-ui/core for reuse across React and React Native
+- Updated dependencies [5ae74fe]
+- Updated dependencies [8ed9d6f]
+- Updated dependencies [01bee2b]
+  - @assistant-ui/core@0.1.3
+
 ## 0.12.15
 
 ### Patch Changes

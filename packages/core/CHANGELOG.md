@@ -1,5 +1,13 @@
 # @assistant-ui/core
 
+## 0.1.3
+
+### Patch Changes
+
+- 5ae74fe: fix: prevent double-submit when ComposerPrimitive.Send child has type="submit"
+- 8ed9d6f: Refactor React Native component API: move shared runtime logic (remote thread list, external store, cloud adapters, message converter, tool invocations) into @assistant-ui/core for reuse across React and React Native
+- 01bee2b: Remove zod dependency by using assistant-stream's toJSONSchema utility for schema serialization in AssistantFrameProvider
+
 ## 0.1.2
 
 ### Patch Changes

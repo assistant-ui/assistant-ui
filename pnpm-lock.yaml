@@ -2174,7 +2174,7 @@ importers:
   packages/react:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.1.2
+        specifier: ^0.1.3
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.2.2
@@ -2433,7 +2433,7 @@ importers:
   packages/react-ink:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.1.2
+        specifier: ^0.1.3
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.2.2
@@ -2544,7 +2544,7 @@ importers:
   packages/react-native:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.1.2
+        specifier: ^0.1.3
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.2.2

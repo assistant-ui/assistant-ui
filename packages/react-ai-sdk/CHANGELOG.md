@@ -1,5 +1,15 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.3.13
+
+### Patch Changes
+
+- 8ed9d6f: Refactor React Native component API: move shared runtime logic (remote thread list, external store, cloud adapters, message converter, tool invocations) into @assistant-ui/core for reuse across React and React Native
+- Updated dependencies [5ae74fe]
+- Updated dependencies [8ed9d6f]
+- Updated dependencies [01bee2b]
+  - @assistant-ui/core@0.1.3
+
 ## 1.3.12
 
 ### Patch Changes

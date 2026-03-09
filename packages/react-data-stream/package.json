@@ -36,7 +36,7 @@
     "assistant-stream": "^0.3.4"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.12.15",
+    "@assistant-ui/react": "^0.12.16",
     "@types/react": "*",
     "react": "^18 || ^19"
   },

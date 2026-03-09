@@ -1,5 +1,14 @@
 # assistant-ui
 
+## 0.0.83
+
+### Patch Changes
+
+- 6cdc259: feat(cli): add with-expo example to create command
+- 6ef092a: feat(cli): add with-react-ink example to project scaffolding
+- 848b42c: use checked-in bin wrapper to avoid pnpm install warnings in monorepos
+- 1b06c09: fix(cli): detect dev script and env file from scaffolded project
+
 ## 0.0.82
 
 ### Patch Changes
