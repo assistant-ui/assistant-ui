@@ -1,12 +1,5 @@
 export const MODELS = [
   {
-    name: "GPT-5.4",
-    value: "openai/gpt-5.4",
-    icon: "/icons/openai.svg",
-    disabled: false,
-    contextWindow: 1_000_000,
-  },
-  {
     name: "GPT-5 Nano",
     value: "openai/gpt-5-nano",
     icon: "/icons/openai.svg",

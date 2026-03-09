@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { SampleFrame } from "@/components/docs/samples/sample-frame";
 import { DiffViewer } from "@/components/assistant-ui/diff-viewer";
+import { cn } from "@/lib/utils";
 
 const SAMPLE_PATCH = `--- a/example.ts
 +++ b/example.ts
@@ -49,21 +50,19 @@ export function DiffViewerViewModesSample() {
         <div className="flex gap-2">
           <button
             onClick={() => setViewMode("unified")}
-            className={`rounded-md px-3 py-1.5 text-sm transition-colors ${
-              viewMode === "unified"
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted hover:bg-muted/80"
-            }`}
+            className={cn("rounded-md px-3 py-1.5 text-sm transition-colors", {
+              "bg-primary text-primary-foreground": viewMode === "unified",
+              "bg-muted hover:bg-muted/80": viewMode !== "unified",
+            })}
           >
             Unified
           </button>
           <button
             onClick={() => setViewMode("split")}
-            className={`rounded-md px-3 py-1.5 text-sm transition-colors ${
-              viewMode === "split"
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted hover:bg-muted/80"
-            }`}
+            className={cn("rounded-md px-3 py-1.5 text-sm transition-colors", {
+              "bg-primary text-primary-foreground": viewMode === "split",
+              "bg-muted hover:bg-muted/80": viewMode !== "split",
+            })}
           >
             Split
           </button>
