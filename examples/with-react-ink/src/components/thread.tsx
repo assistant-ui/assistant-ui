@@ -7,6 +7,7 @@ import {
   useThreadIsRunning,
 } from "@assistant-ui/react-ink";
 import type { ThreadMessage } from "@assistant-ui/react-ink";
+import { MarkdownText } from "@assistant-ui/react-ink-markdown";
 
 const Message = ({ message }: { message: ThreadMessage; index: number }) => {
   const isUser = message.role === "user";
@@ -15,12 +16,23 @@ const Message = ({ message }: { message: ThreadMessage; index: number }) => {
     .map((p) => ("text" in p ? p.text : ""))
     .join("");
 
+  if (isUser) {
+    return (
+      <Box marginBottom={1}>
+        <Text bold color="green">
+          You:{" "}
+        </Text>
+        <Text wrap="wrap">{text}</Text>
+      </Box>
+    );
+  }
+
   return (
-    <Box marginBottom={1}>
-      <Text bold color={isUser ? "green" : "blue"}>
-        {isUser ? "You" : "AI"}:{" "}
+    <Box flexDirection="column" marginBottom={1}>
+      <Text bold color="blue">
+        AI:
       </Text>
-      <Text wrap="wrap">{text}</Text>
+      <MarkdownText text={text} />
     </Box>
   );
 };

@@ -17,8 +17,36 @@ const createDemoAdapter = (): ChatModelAdapter => ({
         .map((p) => ("text" in p ? p.text : ""))
         .join("") ?? "";
 
-    // Simulate streaming by yielding word by word
-    const response = `You said: "${userText}". This is a demo response from the terminal chat powered by assistant-ui and React Ink!`;
+    // Simulate streaming with a markdown-rich response
+    const response = `## Response to your question
+
+You asked: **"${userText}"**
+
+Here's a quick example in JavaScript:
+
+\`\`\`js
+const promise = new Promise((resolve, reject) => {
+  setTimeout(() => resolve("done!"), 1000);
+});
+
+promise.then(result => console.log(result));
+\`\`\`
+
+### Key points
+
+- A \`Promise\` represents an **async operation**
+- It can be *pending*, *fulfilled*, or *rejected*
+- Use \`.then()\` and \`.catch()\` to handle results
+
+> Promises are the foundation of modern async JavaScript.
+
+| Method | Purpose |
+|--------|---------|
+| \`.then()\` | Handle success |
+| \`.catch()\` | Handle errors |
+| \`.finally()\` | Run cleanup |
+
+Learn more at [MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise).`;
     const words = response.split(" ");
 
     let accumulated = "";

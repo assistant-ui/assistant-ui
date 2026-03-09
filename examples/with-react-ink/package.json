@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@assistant-ui/react-ink": "workspace:*",
+    "@assistant-ui/react-ink-markdown": "workspace:*",
     "ink": "^5.2.0",
     "react": "18.3.1"
   },

@@ -1,0 +1,83 @@
+{
+  "name": "@assistant-ui/react-ink-markdown",
+  "version": "0.0.1",
+  "description": "Terminal markdown rendering for @assistant-ui/react-ink",
+  "keywords": [
+    "markdown",
+    "terminal",
+    "ink",
+    "assistant-ui",
+    "react",
+    "ai",
+    "chat",
+    "cli"
+  ],
+  "author": "AgentbaseAI Inc.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "aui-source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "aui-build",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@assistant-ui/core": "^0.1.2",
+    "@assistant-ui/store": "^0.2.2",
+    "markdansi": "^0.2.1"
+  },
+  "peerDependencies": {
+    "@assistant-ui/react-ink": "^0.0.1",
+    "@types/react": "*",
+    "ink": ">=4",
+    "react": "^18 || ^19",
+    "shiki": ">=4"
+  },
+  "peerDependenciesMeta": {
+    "@types/react": {
+      "optional": true
+    },
+    "shiki": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@assistant-ui/core": "workspace:*",
+    "@assistant-ui/react-ink": "workspace:*",
+    "@assistant-ui/store": "workspace:*",
+    "@assistant-ui/x-buildutils": "workspace:*",
+    "@types/react": "^19.2.14",
+    "ink": "^5.2.0",
+    "ink-testing-library": "^4.0.0",
+    "react": "18.3.1",
+    "shiki": "^4.0.1",
+    "vitest": "^4.0.18"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "homepage": "https://www.assistant-ui.com/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/assistant-ui/assistant-ui.git",
+    "directory": "packages/react-ink-markdown"
+  },
+  "bugs": {
+    "url": "https://github.com/assistant-ui/assistant-ui/issues"
+  }
+}
