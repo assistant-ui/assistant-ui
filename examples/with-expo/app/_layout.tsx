@@ -12,7 +12,7 @@ import { useFonts } from "expo-font";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import {
-  AssistantProvider,
+  AssistantRuntimeProvider,
   useAssistantRuntime,
 } from "@assistant-ui/react-native";
 import { useAppRuntime } from "@/hooks/use-app-runtime";
@@ -68,9 +68,9 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <AssistantProvider runtime={runtime}>
+      <AssistantRuntimeProvider runtime={runtime}>
         <DrawerLayout />
-      </AssistantProvider>
+      </AssistantRuntimeProvider>
     </GestureHandlerRootView>
   );
 }
