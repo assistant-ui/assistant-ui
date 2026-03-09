@@ -87,4 +87,28 @@ describe("MarkdownText", () => {
     expect(highlighter).toHaveBeenCalled();
     expect(lastFrame()).toContain("HIGHLIGHTED:");
   });
+
+  it("re-renders when highlighter changes without text changes", () => {
+    const firstHighlighter = vi.fn((code: string) => `FIRST:${code}`);
+    const secondHighlighter = vi.fn((code: string) => `SECOND:${code}`);
+
+    const { lastFrame, rerender } = render(
+      <MarkdownText
+        text={"```js\nconst x = 1;\n```"}
+        highlighter={firstHighlighter}
+      />,
+    );
+
+    expect(lastFrame()).toContain("FIRST:");
+
+    rerender(
+      <MarkdownText
+        text={"```js\nconst x = 1;\n```"}
+        highlighter={secondHighlighter}
+      />,
+    );
+
+    expect(lastFrame()).toContain("SECOND:");
+    expect(lastFrame()).not.toContain("FIRST:");
+  });
 });

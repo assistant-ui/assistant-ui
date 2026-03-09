@@ -5,8 +5,7 @@ export type UseShikiHighlighterOptions = {
   theme?: string;
   /**
    * Languages to preload (default: common web/systems languages).
-   * Pass a stable reference (e.g. a constant or useMemo) to avoid
-   * re-initializing Shiki on every render.
+   * Compared by value — safe to pass inline arrays.
    */
   langs?: string[];
 };
@@ -54,6 +53,7 @@ export function useShikiHighlighter(
 ): ((code: string, lang?: string) => string) | undefined {
   const theme = options?.theme ?? "github-dark";
   const langs = options?.langs ?? DEFAULT_LANGS;
+  const langsKey = JSON.stringify(langs);
 
   const [highlighter, setHighlighter] = useState<
     ((code: string, lang?: string) => string) | undefined
@@ -61,6 +61,7 @@ export function useShikiHighlighter(
 
   const shikiRef = useRef<{ dispose: () => void } | null>(null);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: langsKey stabilizes langs array by value
   useEffect(() => {
     let cancelled = false;
     setHighlighter(undefined);
@@ -78,8 +79,6 @@ export function useShikiHighlighter(
           return;
         }
 
-        // Dispose previous highlighter if theme/langs changed
-        shikiRef.current?.dispose();
         shikiRef.current = shiki;
 
         const fn = (code: string, lang?: string): string => {
@@ -117,7 +116,7 @@ export function useShikiHighlighter(
       shikiRef.current?.dispose();
       shikiRef.current = null;
     };
-  }, [theme, langs]);
+  }, [theme, langsKey]);
 
   return highlighter;
 }

@@ -4,10 +4,14 @@ import type {
   TextMessagePart,
   ReasoningMessagePart,
 } from "@assistant-ui/core";
+import { useMemo } from "react";
 import { useAuiState } from "@assistant-ui/store";
 import { MarkdownText, type MarkdownTextProps } from "./MarkdownText";
 
-type MarkdownTextPrimitiveProps = Omit<MarkdownTextProps, "text">;
+type MarkdownTextPrimitiveProps = Omit<MarkdownTextProps, "text"> & {
+  /** Transform the text before rendering. */
+  preprocess?: ((text: string) => string) | undefined;
+};
 
 /**
  * Auto-wired markdown text primitive that reads text and status from the
@@ -25,7 +29,10 @@ type MarkdownTextPrimitiveProps = Omit<MarkdownTextProps, "text">;
  * have a part scope), use `MarkdownText` directly and pass `text`/`status`
  * as props.
  */
-const MarkdownTextPrimitive = (props: MarkdownTextPrimitiveProps) => {
+const MarkdownTextPrimitive = ({
+  preprocess,
+  ...props
+}: MarkdownTextPrimitiveProps) => {
   const part = useAuiState((s) => {
     if (s.part.type !== "text" && s.part.type !== "reasoning")
       throw new Error(
@@ -36,7 +43,12 @@ const MarkdownTextPrimitive = (props: MarkdownTextPrimitiveProps) => {
       (TextMessagePart | ReasoningMessagePart);
   });
 
-  return <MarkdownText text={part.text} {...props} />;
+  const text = useMemo(
+    () => (preprocess ? preprocess(part.text) : part.text),
+    [part.text, preprocess],
+  );
+
+  return <MarkdownText text={text} {...props} />;
 };
 
 MarkdownTextPrimitive.displayName = "MarkdownTextPrimitive";
