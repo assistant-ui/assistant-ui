@@ -111,9 +111,11 @@ export default function NativePage() {
           <div className="phone-mockup-border" />
           <div className="phone-mockup-notch" />
           <div className="phone-mockup-screen">
-            <div className="flex size-full items-center justify-center p-6 text-center text-zinc-500">
-              Demo will appear here
-            </div>
+            <iframe
+              src="https://assistant-ui-expo.vercel.app/"
+              className="size-full"
+              title="assistant-ui React Native demo"
+            />
           </div>
         </div>
       </div>
