@@ -283,7 +283,7 @@ jobs:
               summary += "a minor bump is effectively a breaking change for all consumers.\n";
               summary += "- **1.x+ packages**: `^1.3.12` matches `>=1.3.12 <2.0.0` — ";
               summary += "minor/patch are safe, but a major bump breaks all consumers.\n\n";
-              summary += "If this is intentional, approve the **confirm-semver-bump** deployment review below.\n";
+              summary += "If this is intentional, approve the **Confirm Semver Bump** deployment review below.\n";
 
               await core.summary.addRaw(summary).write();
 
@@ -304,7 +304,7 @@ jobs:
     if: needs.analyze.outputs.has_violations == 'true'
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 5
-    environment: confirm-semver-bump
+    environment: Confirm Semver Bump
     steps:
       - name: Confirmed
         run: echo "Semver-breaking bump confirmed by maintainer."
