@@ -1,1 +1,5 @@
-export { ToolCallDisplay, type ToolCallDisplayProps } from "./ToolCallDisplay";
+export {
+  ToolCallDisplay,
+  type ToolCallDisplayProps,
+  type ToolCallStatus,
+} from "./ToolCallDisplay";

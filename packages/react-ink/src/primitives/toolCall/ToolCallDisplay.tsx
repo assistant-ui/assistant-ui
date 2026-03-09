@@ -3,9 +3,14 @@ import { Box, Text } from "ink";
 import Spinner from "ink-spinner";
 import type { ToolCallMessagePart } from "@assistant-ui/core";
 
-type ToolCallStatus = "running" | "complete" | "error" | "requires-action";
+export type ToolCallStatus =
+  | "running"
+  | "complete"
+  | "error"
+  | "requires-action";
 
-const STATUS_ICONS: Record<Exclude<ToolCallStatus, "running">, string> = {
+const STATUS_ICONS: Record<ToolCallStatus, string> = {
+  running: "-",
   complete: "+",
   error: "x",
   "requires-action": "?",
@@ -18,12 +23,12 @@ const STATUS_COLORS: Record<ToolCallStatus, string> = {
   "requires-action": "cyan",
 };
 
-const formatArgs = (args: unknown): string => {
-  if (args === undefined || args === null) return "";
+const prettyPrintArgs = (argsText: string): string => {
+  if (!argsText) return "";
   try {
-    return JSON.stringify(args, null, 2);
+    return JSON.stringify(JSON.parse(argsText), null, 2);
   } catch {
-    return String(args);
+    return argsText;
   }
 };
 
@@ -52,6 +57,8 @@ export type ToolCallDisplayProps = {
   expanded?: boolean;
   /** Maximum lines to show for args when expanded. Defaults to 20. */
   maxArgLines?: number;
+  /** Maximum lines to show for result when expanded. Defaults to 20. */
+  maxResultLines?: number;
   /** Maximum lines to show for result preview when collapsed. Defaults to 1. */
   maxResultPreviewLines?: number;
   /** Custom header renderer */
@@ -88,6 +95,7 @@ export const ToolCallDisplay = ({
   part,
   expanded: expandedProp,
   maxArgLines = 20,
+  maxResultLines = 20,
   maxResultPreviewLines = 1,
   renderHeader,
   renderArgs,
@@ -95,10 +103,15 @@ export const ToolCallDisplay = ({
 }: ToolCallDisplayProps) => {
   const status = resolveStatus(part);
   const expanded =
-    expandedProp ?? (status === "running" || status === "requires-action");
+    expandedProp ??
+    (status === "running" ||
+      status === "requires-action" ||
+      status === "error");
 
-  const argsStr = formatArgs(part.args);
-  const resultStr = formatResult(part.result);
+  const resultStr =
+    part.result !== undefined || status === "error"
+      ? formatResult(part.result)
+      : "";
 
   return (
     <Box flexDirection="column">
@@ -122,29 +135,31 @@ export const ToolCallDisplay = ({
 
       {expanded && (
         <Box flexDirection="column" marginLeft={2}>
-          {argsStr ? (
+          {part.argsText ? (
             <Box flexDirection="column">
               <Text dimColor>Args:</Text>
               {renderArgs ? (
                 renderArgs({ args: part.args, argsText: part.argsText })
               ) : (
-                <Text>{truncate(argsStr, maxArgLines)}</Text>
+                <Text>
+                  {truncate(prettyPrintArgs(part.argsText), maxArgLines)}
+                </Text>
               )}
             </Box>
           ) : null}
 
-          {part.result !== undefined ? (
+          {part.result !== undefined || status === "error" ? (
             <Box flexDirection="column">
-              <Text dimColor>{part.isError ? "Error:" : "Result:"}</Text>
+              <Text dimColor>{status === "error" ? "Error:" : "Result:"}</Text>
               {renderResult ? (
                 renderResult({
                   result: part.result,
-                  isError: !!part.isError,
+                  isError: status === "error",
                 })
-              ) : part.isError ? (
-                <Text color="red">{resultStr}</Text>
+              ) : status === "error" ? (
+                <Text color="red">{resultStr || "Tool call failed"}</Text>
               ) : (
-                <Text>{resultStr}</Text>
+                <Text>{truncate(resultStr, maxResultLines)}</Text>
               )}
             </Box>
           ) : null}
