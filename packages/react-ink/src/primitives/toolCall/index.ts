@@ -1,5 +1,5 @@
 export {
-  ToolCallDisplay,
-  type ToolCallDisplayProps,
+  ToolFallback,
+  type ToolFallbackProps,
   type ToolCallStatus,
-} from "./ToolCallDisplay";
+} from "./ToolFallback";

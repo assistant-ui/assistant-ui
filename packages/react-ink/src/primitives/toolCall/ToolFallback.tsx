@@ -1,7 +1,8 @@
-import type { ReactNode } from "react";
+import { type ReactNode, useMemo } from "react";
 import { Box, Text } from "ink";
 import Spinner from "ink-spinner";
-import type { ToolCallMessagePart } from "@assistant-ui/core";
+import type { ToolCallMessagePartStatus } from "@assistant-ui/core";
+import type { ToolCallMessagePartProps } from "../../types";
 
 export type ToolCallStatus =
   | "running"
@@ -9,8 +10,13 @@ export type ToolCallStatus =
   | "error"
   | "requires-action";
 
-const STATUS_ICONS: Record<ToolCallStatus, string> = {
-  running: "-",
+type ToolFallbackRuntimeProps = Omit<
+  ToolCallMessagePartProps,
+  "addResult" | "resume"
+> &
+  Partial<Pick<ToolCallMessagePartProps, "addResult" | "resume">>;
+
+const STATUS_ICONS: Record<Exclude<ToolCallStatus, "running">, string> = {
   complete: "+",
   error: "x",
   "requires-action": "?",
@@ -51,9 +57,8 @@ const truncate = (text: string, maxLines: number): string => {
   );
 };
 
-export type ToolCallDisplayProps = {
-  part: ToolCallMessagePart;
-  /** Force expanded or collapsed. When unset, auto-expands while running and collapses when complete. */
+export type ToolFallbackProps = ToolFallbackRuntimeProps & {
+  /** Force expanded or collapsed. When unset, auto-expands while running, awaiting action, or errored. */
   expanded?: boolean;
   /** Maximum lines to show for args when expanded. Defaults to 20. */
   maxArgLines?: number;
@@ -64,20 +69,51 @@ export type ToolCallDisplayProps = {
   /** Custom header renderer */
   renderHeader?: (props: {
     toolName: string;
-    status: ToolCallStatus;
+    status: ToolCallMessagePartStatus | undefined;
+    displayStatus: ToolCallStatus;
     expanded: boolean;
   }) => ReactNode;
   /** Custom args renderer */
   renderArgs?: (props: { args: unknown; argsText: string }) => ReactNode;
   /** Custom result renderer */
-  renderResult?: (props: { result: unknown; isError: boolean }) => ReactNode;
+  renderResult?: (props: {
+    result: unknown;
+    isError: boolean;
+    status: ToolCallMessagePartStatus | undefined;
+  }) => ReactNode;
 };
 
-const resolveStatus = (part: ToolCallMessagePart): ToolCallStatus => {
+const resolveStatus = (
+  part: {
+    interrupt: ToolFallbackProps["interrupt"] | undefined;
+    isError: ToolFallbackProps["isError"] | undefined;
+    result: ToolFallbackProps["result"] | undefined;
+  },
+  status?: ToolCallMessagePartStatus,
+): ToolCallStatus => {
+  if (status?.type === "requires-action") return "requires-action";
+  if (status?.type === "incomplete") return "error";
+  if (status?.type === "complete") return "complete";
   if (part.isError) return "error";
   if (part.result !== undefined) return "complete";
   if (part.interrupt) return "requires-action";
   return "running";
+};
+
+const getDisplayResult = (
+  part: { result: ToolFallbackProps["result"] | undefined },
+  status?: ToolCallMessagePartStatus,
+) => {
+  if (part.result !== undefined) return part.result;
+  if (status?.type === "incomplete") return status.error;
+  return undefined;
+};
+
+const getFallbackErrorText = (status?: ToolCallMessagePartStatus) => {
+  if (status?.type === "incomplete" && status.reason === "cancelled") {
+    return "Tool call cancelled";
+  }
+  return "Tool call failed";
 };
 
 const StatusIcon = ({ status }: { status: ToolCallStatus }) => {
@@ -91,8 +127,14 @@ const StatusIcon = ({ status }: { status: ToolCallStatus }) => {
   return <Text color={STATUS_COLORS[status]}>{STATUS_ICONS[status]}</Text>;
 };
 
-export const ToolCallDisplay = ({
-  part,
+export const ToolFallback = ({
+  toolName,
+  args,
+  argsText,
+  result: partResult,
+  isError,
+  interrupt,
+  status,
   expanded: expandedProp,
   maxArgLines = 20,
   maxResultLines = 20,
@@ -100,32 +142,42 @@ export const ToolCallDisplay = ({
   renderHeader,
   renderArgs,
   renderResult,
-}: ToolCallDisplayProps) => {
-  const status = resolveStatus(part);
+}: ToolFallbackProps) => {
+  const displayStatus = resolveStatus(
+    {
+      interrupt,
+      isError,
+      result: partResult,
+    },
+    status,
+  );
   const expanded =
     expandedProp ??
-    (status === "running" ||
-      status === "requires-action" ||
-      status === "error");
+    (displayStatus === "running" ||
+      displayStatus === "requires-action" ||
+      displayStatus === "error");
 
+  const result = getDisplayResult({ result: partResult }, status);
   const resultStr =
-    part.result !== undefined || status === "error"
-      ? formatResult(part.result)
+    result !== undefined || displayStatus === "error"
+      ? formatResult(result)
       : "";
+  const argsDisplay = useMemo(() => prettyPrintArgs(argsText), [argsText]);
 
   return (
     <Box flexDirection="column">
       <Box gap={1}>
         {renderHeader ? (
           renderHeader({
-            toolName: part.toolName,
+            toolName,
             status,
+            displayStatus,
             expanded,
           })
         ) : (
           <>
-            <StatusIcon status={status} />
-            <Text bold>{part.toolName}</Text>
+            <StatusIcon status={displayStatus} />
+            <Text bold>{toolName}</Text>
             {!expanded && resultStr ? (
               <Text dimColor>{truncate(resultStr, maxResultPreviewLines)}</Text>
             ) : null}
@@ -135,38 +187,44 @@ export const ToolCallDisplay = ({
 
       {expanded && (
         <Box flexDirection="column" marginLeft={2}>
-          {part.argsText ? (
+          {argsText ? (
             <Box flexDirection="column">
               <Text dimColor>Args:</Text>
               {renderArgs ? (
-                renderArgs({ args: part.args, argsText: part.argsText })
+                renderArgs({ args, argsText })
               ) : (
-                <Text>
-                  {truncate(prettyPrintArgs(part.argsText), maxArgLines)}
-                </Text>
+                <Text>{truncate(argsDisplay, maxArgLines)}</Text>
               )}
             </Box>
           ) : null}
 
-          {part.result !== undefined || status === "error" ? (
+          {partResult !== undefined || displayStatus === "error" ? (
             <Box flexDirection="column">
-              <Text dimColor>{status === "error" ? "Error:" : "Result:"}</Text>
+              <Text dimColor>
+                {displayStatus === "error" ? "Error:" : "Result:"}
+              </Text>
               {renderResult ? (
                 renderResult({
-                  result: part.result,
-                  isError: status === "error",
+                  result,
+                  isError: displayStatus === "error",
+                  status,
                 })
-              ) : status === "error" ? (
-                <Text color="red">{resultStr || "Tool call failed"}</Text>
+              ) : displayStatus === "error" ? (
+                <Text color="red">
+                  {truncate(
+                    resultStr || getFallbackErrorText(status),
+                    maxResultLines,
+                  )}
+                </Text>
               ) : (
                 <Text>{truncate(resultStr, maxResultLines)}</Text>
               )}
             </Box>
           ) : null}
 
-          {status === "running" && <Text dimColor>Running...</Text>}
+          {displayStatus === "running" && <Text dimColor>Running...</Text>}
 
-          {status === "requires-action" && (
+          {displayStatus === "requires-action" && (
             <Text color="cyan">Waiting for approval...</Text>
           )}
         </Box>
