@@ -10,10 +10,13 @@
     "export:web": "expo export --platform web && node scripts/flatten-assets.mjs"
   },
   "dependencies": {
+    "@ai-sdk/react": "^3.0.118",
+    "@assistant-ui/react-ai-sdk": "workspace:*",
     "@assistant-ui/react-native": "workspace:*",
     "@expo/vector-icons": "^15.1.1",
     "@react-navigation/drawer": "^7.7.2",
     "@react-navigation/native": "^7.1.28",
+    "ai": "^6.0.116",
     "expo": "~55.0.4",
     "expo-constants": "~55.0.7",
     "expo-font": "~55.0.4",

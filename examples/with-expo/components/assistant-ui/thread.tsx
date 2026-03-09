@@ -96,7 +96,7 @@ function EmptyState() {
   );
 }
 
-const renderMessage = () => <MessageBubble />;
+const messageComponents = { Message: MessageBubble };
 
 function ChatMessages() {
   const isEmpty = useThreadIsEmpty();
@@ -107,7 +107,7 @@ function ChatMessages() {
 
   return (
     <ThreadPrimitive.Messages
-      renderMessage={renderMessage}
+      components={messageComponents}
       contentContainerStyle={styles.messageList}
       showsVerticalScrollIndicator={false}
     />

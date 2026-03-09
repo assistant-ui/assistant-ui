@@ -1,19 +1,15 @@
 import { useMemo } from "react";
-import { fetch } from "expo/fetch";
-import { useLocalRuntime } from "@assistant-ui/react-native";
-import { createChatEndpointAdapter } from "@/adapters/chat-endpoint-adapter";
+import {
+  useChatRuntime,
+  AssistantChatTransport,
+} from "@assistant-ui/react-ai-sdk";
 
-const CHAT_ENDPOINT = process.env.EXPO_PUBLIC_CHAT_ENDPOINT_URL ?? "/api/chat";
+const CHAT_API = process.env.EXPO_PUBLIC_CHAT_ENDPOINT_URL ?? "/api/chat";
 
 export function useAppRuntime() {
-  const chatModel = useMemo(
-    () =>
-      createChatEndpointAdapter({
-        endpoint: CHAT_ENDPOINT,
-        fetch,
-      }),
+  const transport = useMemo(
+    () => new AssistantChatTransport({ api: CHAT_API }),
     [],
   );
-
-  return useLocalRuntime(chatModel);
+  return useChatRuntime({ transport });
 }
