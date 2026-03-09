@@ -1,5 +1,4 @@
 import { Text } from "ink";
-import { useMemo } from "react";
 import {
   render,
   type RenderOptions,
@@ -88,16 +87,7 @@ function pickRenderOptions(
  * the complexity of incremental streaming state in React's rendering model.
  */
 export const MarkdownText = (props: MarkdownTextProps) => {
-  const { text } = props;
-  const options = pickRenderOptions(props);
-  // options is undefined when no render options are set, avoiding
-  // unnecessary object allocation on each render
-  // biome-ignore lint/correctness/useExhaustiveDependencies: JSON.stringify(options) stabilizes the new-object-per-render from pickRenderOptions
-  const rendered = useMemo(
-    () => render(text, options),
-    [text, JSON.stringify(options)],
-  );
-
+  const rendered = render(props.text, pickRenderOptions(props));
   return <Text>{rendered}</Text>;
 };
 

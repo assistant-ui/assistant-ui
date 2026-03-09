@@ -3,10 +3,7 @@ import { useEffect, useRef, useState } from "react";
 type UseShikiHighlighterOptions = {
   /** Shiki theme name (default: "github-dark"). */
   theme?: string;
-  /**
-   * Languages to preload (default: common web/systems languages).
-   * Compared by value — safe to pass inline arrays.
-   */
+  /** Languages to preload (default: common web/systems languages). */
   langs?: string[];
 };
 
@@ -54,18 +51,12 @@ export function useShikiHighlighter(
   const theme = options?.theme ?? "github-dark";
   const langs = options?.langs ?? DEFAULT_LANGS;
 
-  // Stabilize langs by value so inline arrays don't cause re-initialization
-  const langsKey = JSON.stringify(langs);
-  const langsRef = useRef(langs);
-  langsRef.current = langs;
-
   const [highlighter, setHighlighter] = useState<
     ((code: string, lang?: string) => string) | undefined
   >(undefined);
 
   const shikiRef = useRef<{ dispose: () => void } | null>(null);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: langsKey stabilizes langs array by value
   useEffect(() => {
     let cancelled = false;
 
@@ -73,7 +64,7 @@ export function useShikiHighlighter(
       .then(({ createHighlighter }) =>
         createHighlighter({
           themes: [theme as any],
-          langs: langsRef.current as any[],
+          langs: langs as any[],
         }),
       )
       .then((shiki) => {
@@ -121,7 +112,7 @@ export function useShikiHighlighter(
       shikiRef.current?.dispose();
       shikiRef.current = null;
     };
-  }, [theme, langsKey]);
+  }, [theme, langs]);
 
   return highlighter;
 }
