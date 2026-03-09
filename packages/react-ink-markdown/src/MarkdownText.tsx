@@ -11,13 +11,6 @@ export type MarkdownTextProps = {
   text: string;
 
   /**
-   * Message status. Currently unused — both "running" and "complete" use
-   * markdansi's one-shot `render()`. Accepting it allows MarkdownTextPrimitive
-   * to forward runtime status without filtering.
-   */
-  status?: "running" | "complete";
-
-  /**
    * Syntax highlighting hook. Receives raw code and optional language,
    * must return ANSI-colored text. Must not add or remove newlines.
    */
@@ -49,36 +42,6 @@ export type MarkdownTextProps = {
   listIndent?: number;
 };
 
-const RENDER_OPTION_KEYS: (keyof RenderOptions)[] = [
-  "highlighter",
-  "theme",
-  "width",
-  "wrap",
-  "codeBox",
-  "codeGutter",
-  "codeWrap",
-  "hyperlinks",
-  "tableBorder",
-  "tablePadding",
-  "tableDense",
-  "quotePrefix",
-  "listIndent",
-];
-
-function pickRenderOptions(
-  props: MarkdownTextProps,
-): RenderOptions | undefined {
-  let opts: RenderOptions | undefined;
-  for (const key of RENDER_OPTION_KEYS) {
-    const value = props[key as keyof MarkdownTextProps];
-    if (value !== undefined) {
-      if (!opts) opts = {};
-      (opts as any)[key] = value;
-    }
-  }
-  return opts;
-}
-
 /**
  * Renders markdown text as formatted ANSI terminal output using markdansi.
  *
@@ -86,8 +49,11 @@ function pickRenderOptions(
  * This is fast enough for typical LLM output sizes (microseconds) and avoids
  * the complexity of incremental streaming state in React's rendering model.
  */
-export const MarkdownText = (props: MarkdownTextProps) => {
-  const rendered = render(props.text, pickRenderOptions(props));
+export const MarkdownText = ({ text, ...options }: MarkdownTextProps) => {
+  const rendered = render(
+    text,
+    Object.keys(options).length ? (options as RenderOptions) : undefined,
+  );
   return <Text>{rendered}</Text>;
 };
 

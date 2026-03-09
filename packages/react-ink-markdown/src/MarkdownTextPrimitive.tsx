@@ -7,7 +7,7 @@ import type {
 import { useAuiState } from "@assistant-ui/store";
 import { MarkdownText, type MarkdownTextProps } from "./MarkdownText";
 
-type MarkdownTextPrimitiveProps = Omit<MarkdownTextProps, "text" | "status">;
+type MarkdownTextPrimitiveProps = Omit<MarkdownTextProps, "text">;
 
 /**
  * Auto-wired markdown text primitive that reads text and status from the
@@ -36,13 +36,7 @@ const MarkdownTextPrimitive = (props: MarkdownTextPrimitiveProps) => {
       (TextMessagePart | ReasoningMessagePart);
   });
 
-  return (
-    <MarkdownText
-      text={part.text}
-      status={part.status.type === "running" ? "running" : "complete"}
-      {...props}
-    />
-  );
+  return <MarkdownText text={part.text} {...props} />;
 };
 
 MarkdownTextPrimitive.displayName = "MarkdownTextPrimitive";
