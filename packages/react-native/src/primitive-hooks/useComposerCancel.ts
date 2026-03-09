@@ -6,7 +6,7 @@ export const useComposerCancel = () => {
   const canCancel = useAuiState((s) => s.thread.isRunning);
 
   const cancel = useCallback(() => {
-    aui.threads().thread("main").cancelRun();
+    aui.composer().cancel();
   }, [aui]);
 
   return { cancel, canCancel };

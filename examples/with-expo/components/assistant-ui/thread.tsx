@@ -11,7 +11,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MessageBubble } from "./message";
 import { Composer } from "./composer";
 import {
-  ThreadMessages,
+  ThreadPrimitive,
   useThreadIsEmpty,
   useAui,
 } from "@assistant-ui/react-native";
@@ -106,7 +106,7 @@ function ChatMessages() {
   }
 
   return (
-    <ThreadMessages
+    <ThreadPrimitive.Messages
       renderMessage={renderMessage}
       contentContainerStyle={styles.messageList}
       showsVerticalScrollIndicator={false}

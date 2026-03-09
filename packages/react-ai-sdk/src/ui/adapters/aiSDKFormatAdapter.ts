@@ -1,9 +1,9 @@
 import type { UIMessage } from "ai";
-import {
+import type {
   MessageFormatAdapter,
   MessageFormatItem,
   MessageStorageEntry,
-} from "@assistant-ui/react";
+} from "@assistant-ui/core";
 
 // Storage format for AI SDK messages - just the UIMessage
 export type AISDKStorageFormat = Omit<UIMessage, "id">;

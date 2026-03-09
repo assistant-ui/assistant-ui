@@ -14,7 +14,7 @@ export const useAssistantRuntime = (): AssistantRuntime => {
   return runtime;
 };
 
-export const AssistantProvider = memo(
+export const AssistantRuntimeProvider = memo(
   ({
     runtime,
     children,

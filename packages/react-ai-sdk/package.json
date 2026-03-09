@@ -40,7 +40,8 @@
     "ai": "^6.0.116"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.12.15",
+    "@assistant-ui/core": "^0.1.2",
+    "@assistant-ui/store": "^0.2.2",
     "@types/react": "*",
     "assistant-cloud": "*",
     "react": "^18 || ^19"
@@ -54,7 +55,8 @@
     }
   },
   "devDependencies": {
-    "@assistant-ui/react": "workspace:*",
+    "@assistant-ui/core": "workspace:*",
+    "@assistant-ui/store": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@testing-library/react": "^16.3.2",
     "@types/json-schema": "^7.0.15",

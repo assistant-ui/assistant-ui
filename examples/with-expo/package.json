@@ -6,7 +6,8 @@
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "export:web": "expo export --platform web && node scripts/flatten-assets.mjs"
   },
   "dependencies": {
     "@assistant-ui/react-native": "workspace:*",

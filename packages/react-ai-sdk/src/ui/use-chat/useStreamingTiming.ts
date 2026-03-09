@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { UIMessage } from "@ai-sdk/react";
 import { isToolUIPart } from "ai";
-import type { MessageTiming } from "@assistant-ui/react";
+import type { MessageTiming } from "@assistant-ui/core";
 
 type TrackingState = {
   messageId: string;

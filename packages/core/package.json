@@ -66,11 +66,15 @@
     "@assistant-ui/tap": "^0.5.2",
     "@types/react": "*",
     "react": "^18 || ^19",
+    "assistant-cloud": "^0.1.21",
     "zod": "^4.0.0",
     "zustand": "^5.0.11"
   },
   "peerDependenciesMeta": {
     "@types/react": {
+      "optional": true
+    },
+    "assistant-cloud": {
       "optional": true
     },
     "react": {
@@ -84,6 +88,7 @@
     }
   },
   "devDependencies": {
+    "assistant-cloud": "workspace:*",
     "@assistant-ui/store": "workspace:*",
     "@assistant-ui/tap": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",

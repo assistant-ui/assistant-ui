@@ -1,11 +1,20 @@
-export { ActionBarCopy, type ActionBarCopyProps } from "./ActionBarCopy";
-export { ActionBarEdit, type ActionBarEditProps } from "./ActionBarEdit";
-export { ActionBarReload, type ActionBarReloadProps } from "./ActionBarReload";
 export {
-  ActionBarFeedbackPositive,
-  type ActionBarFeedbackPositiveProps,
+  ActionBarCopy as Copy,
+  type ActionBarCopyProps as CopyProps,
+} from "./ActionBarCopy";
+export {
+  ActionBarEdit as Edit,
+  type ActionBarEditProps as EditProps,
+} from "./ActionBarEdit";
+export {
+  ActionBarReload as Reload,
+  type ActionBarReloadProps as ReloadProps,
+} from "./ActionBarReload";
+export {
+  ActionBarFeedbackPositive as FeedbackPositive,
+  type ActionBarFeedbackPositiveProps as FeedbackPositiveProps,
 } from "./ActionBarFeedbackPositive";
 export {
-  ActionBarFeedbackNegative,
-  type ActionBarFeedbackNegativeProps,
+  ActionBarFeedbackNegative as FeedbackNegative,
+  type ActionBarFeedbackNegativeProps as FeedbackNegativeProps,
 } from "./ActionBarFeedbackNegative";

@@ -2059,6 +2059,9 @@ importers:
       '@types/react':
         specifier: ^19.2.14
         version: 19.2.14
+      assistant-cloud:
+        specifier: workspace:*
+        version: link:../cloud
       react:
         specifier: ^19.2.4
         version: 19.2.4
@@ -2306,9 +2309,12 @@ importers:
         specifier: '*'
         version: link:../cloud
     devDependencies:
-      '@assistant-ui/react':
+      '@assistant-ui/core':
         specifier: workspace:*
-        version: link:../react
+        version: link:../core
+      '@assistant-ui/store':
+        specifier: workspace:*
+        version: link:../store
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils

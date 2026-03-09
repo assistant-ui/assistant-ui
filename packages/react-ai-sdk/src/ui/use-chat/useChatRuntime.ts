@@ -2,12 +2,12 @@
 
 import { useChat, type UIMessage } from "@ai-sdk/react";
 import type { AssistantCloud } from "assistant-cloud";
+import type { AssistantRuntime } from "@assistant-ui/core";
 import {
-  AssistantRuntime,
-  unstable_useCloudThreadListAdapter,
-  unstable_useRemoteThreadListRuntime,
-  useAuiState,
-} from "@assistant-ui/react";
+  useCloudThreadListAdapter as unstable_useCloudThreadListAdapter,
+  useRemoteThreadListRuntime as unstable_useRemoteThreadListRuntime,
+} from "@assistant-ui/core/react";
+import { useAuiState } from "@assistant-ui/store";
 import {
   useAISDKRuntime,
   type AISDKRuntimeAdapter,

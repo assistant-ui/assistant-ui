@@ -5,6 +5,7 @@ export * from "./client";
 export * from "./types";
 export * from "./providers";
 export { RuntimeAdapter } from "./RuntimeAdapter";
+export * from "./runtimes";
 
 // AssistantProvider base
 export {
