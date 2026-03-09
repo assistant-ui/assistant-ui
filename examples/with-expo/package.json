@@ -10,6 +10,7 @@
     "export:web": "expo export --platform web && node scripts/flatten-assets.mjs"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^3.0.41",
     "@ai-sdk/react": "^3.0.118",
     "@assistant-ui/react-ai-sdk": "workspace:*",
     "@assistant-ui/react-native": "workspace:*",
@@ -23,6 +24,7 @@
     "expo-image-picker": "~55.0.11",
     "expo-linking": "~55.0.7",
     "expo-router": "~55.0.4",
+    "expo-server": "~55.0.6",
     "expo-splash-screen": "~55.0.10",
     "expo-status-bar": "~55.0.4",
     "expo-system-ui": "~55.0.9",

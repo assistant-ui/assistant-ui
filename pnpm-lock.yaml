@@ -1175,6 +1175,9 @@ importers:
 
   examples/with-expo:
     dependencies:
+      '@ai-sdk/openai':
+        specifier: ^3.0.41
+        version: 3.0.41(zod@4.3.6)
       '@ai-sdk/react':
         specifier: ^3.0.118
         version: 3.0.118(react@19.2.0)(zod@4.3.6)
@@ -1214,6 +1217,9 @@ importers:
       expo-router:
         specifier: ~55.0.4
         version: 55.0.4(82e6a86fa72f9f16a5ac780452943e12)
+      expo-server:
+        specifier: ~55.0.6
+        version: 55.0.6
       expo-splash-screen:
         specifier: ~55.0.10
         version: 55.0.10(expo@55.0.5)(typescript@5.9.3)
