@@ -92,7 +92,7 @@ export {
 } from "@assistant-ui/store";
 
 // Context providers and hooks
-export { AssistantProvider, useAssistantRuntime } from "./context";
+export { AssistantRuntimeProvider, useAssistantRuntime } from "./context";
 
 // Primitive hooks
 export {
@@ -109,8 +109,6 @@ export {
   useActionBarReload,
   useActionBarFeedbackPositive,
   useActionBarFeedbackNegative,
-  useEditComposerSend,
-  useEditComposerCancel,
   useComposerAddAttachment,
 } from "./primitive-hooks";
 
@@ -148,10 +146,3 @@ export {
 export * from "./model-context";
 export * from "./client";
 export * from "./types";
-
-// Adapters
-export {
-  type TitleGenerationAdapter,
-  createSimpleTitleAdapter,
-  createLocalStorageAdapter,
-} from "./adapters";
