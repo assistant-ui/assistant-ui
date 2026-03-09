@@ -37,8 +37,8 @@ walk(NODE_MODULES_DIR);
 const replacements = new Map();
 for (const file of assetFiles) {
   const filename = path.basename(file);
-  const relOld = "/assets/" + path.relative(ASSETS_DIR, file);
-  const relNew = "/assets/" + filename;
+  const relOld = `/assets/${path.relative(ASSETS_DIR, file)}`;
+  const relNew = `/assets/${filename}`;
   const dest = path.join(ASSETS_DIR, filename);
 
   if (!fs.existsSync(dest)) {

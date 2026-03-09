@@ -1,6 +1,6 @@
 const BLUE = "#0a84ff";
 const GRAY_BUBBLE = "rgba(44, 44, 46, 0.9)";
-const GRAY_TEXT = "#8e8e93";
+const _GRAY_TEXT = "#8e8e93";
 const ORANGE = "#ff6b2b";
 const BORDER = "#3a3a3c";
 
