@@ -2059,7 +2059,7 @@ importers:
   packages/core:
     dependencies:
       assistant-stream:
-        specifier: ^0.3.4
+        specifier: ^0.3.5
         version: link:../assistant-stream
       nanoid:
         specifier: ^5.1.6
@@ -2442,7 +2442,7 @@ importers:
   packages/react-ink:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.1.3
+        specifier: ^0.1.4
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.2.2
@@ -2451,7 +2451,7 @@ importers:
         specifier: ^0.5.2
         version: link:../tap
       assistant-stream:
-        specifier: ^0.3.4
+        specifier: ^0.3.5
         version: link:../assistant-stream
       ink-spinner:
         specifier: ^5.0.0
@@ -2482,7 +2482,7 @@ importers:
   packages/react-ink-markdown:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.1.2
+        specifier: ^0.1.4
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.2.2

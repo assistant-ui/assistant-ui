@@ -1,5 +1,15 @@
 # @assistant-ui/react-ink
 
+## 0.0.3
+
+### Patch Changes
+
+- 6d78873: feat: add ToolFallback component with collapsible tool call visualization
+- Updated dependencies [f032ea5]
+- Updated dependencies [2828b67]
+  - @assistant-ui/core@0.1.4
+  - assistant-stream@0.3.5
+
 ## 0.0.2
 
 ### Patch Changes

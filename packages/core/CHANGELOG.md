@@ -1,5 +1,13 @@
 # @assistant-ui/core
 
+## 0.1.4
+
+### Patch Changes
+
+- f032ea5: fix: restore `typeof process` runtime guard in useCloudThreadListAdapter
+- Updated dependencies [2828b67]
+  - assistant-stream@0.3.5
+
 ## 0.1.3
 
 ### Patch Changes
