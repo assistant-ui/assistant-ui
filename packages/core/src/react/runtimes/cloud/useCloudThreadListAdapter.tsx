@@ -26,19 +26,12 @@ type CloudThreadListAdapterOptions = {
   delete?: ((threadId: string) => Promise<void>) | undefined;
 };
 
-let _autoCloud: AssistantCloud | undefined | null;
-function getAutoCloud(): AssistantCloud | undefined {
-  if (_autoCloud === undefined) {
-    const baseUrl =
-      typeof process !== "undefined"
-        ? process.env?.["NEXT_PUBLIC_ASSISTANT_BASE_URL"]
-        : undefined;
-    _autoCloud = baseUrl
-      ? new AssistantCloud({ baseUrl, anonymous: true })
-      : null;
-  }
-  return _autoCloud ?? undefined;
-}
+const baseUrl =
+  typeof process !== "undefined" &&
+  process?.env?.["NEXT_PUBLIC_ASSISTANT_BASE_URL"];
+const autoCloud = baseUrl
+  ? new AssistantCloud({ baseUrl, anonymous: true })
+  : undefined;
 
 export const useCloudThreadListAdapter = (
   adapter: CloudThreadListAdapterOptions,
@@ -50,13 +43,12 @@ export const useCloudThreadListAdapter = (
 
   const unstable_Provider = useCallback<FC<PropsWithChildren>>(
     function Provider({ children }) {
-      const autoCloud = getAutoCloud()!;
       const history = useAssistantCloudThreadHistoryAdapter({
         get current() {
-          return adapterRef.current.cloud ?? autoCloud;
+          return adapterRef.current.cloud ?? autoCloud!;
         },
       });
-      const cloudInstance = adapterRef.current.cloud ?? autoCloud;
+      const cloudInstance = adapterRef.current.cloud ?? autoCloud!;
       const attachments = useMemo(
         () => new CloudFileAttachmentAdapter(cloudInstance),
         [cloudInstance],
@@ -79,7 +71,7 @@ export const useCloudThreadListAdapter = (
     [],
   );
 
-  const cloud = adapter.cloud ?? getAutoCloud();
+  const cloud = adapter.cloud ?? autoCloud;
   if (!cloud) {
     const ref = adapterRef;
     const inMemory = new InMemoryThreadListAdapter();
