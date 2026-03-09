@@ -19,7 +19,7 @@ function getAutoCloud(): AssistantCloud | undefined {
   if (_autoCloud === undefined) {
     const baseUrl =
       typeof process !== "undefined"
-        ? process.env["NEXT_PUBLIC_ASSISTANT_BASE_URL"]
+        ? process.env?.["NEXT_PUBLIC_ASSISTANT_BASE_URL"]
         : undefined;
     _autoCloud = baseUrl
       ? new AssistantCloud({ baseUrl, anonymous: true })

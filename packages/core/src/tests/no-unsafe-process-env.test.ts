@@ -29,8 +29,8 @@ describe("no unsafe process.env access", () => {
       const content = readFileSync(file, "utf-8");
 
       // Check if file has process.env access beyond NODE_ENV
-      const hasNonNodeEnvProcessAccess = /process\.env(?!\.NODE_ENV\b)/.test(
-        content.replace(/process\.env\.NODE_ENV/g, ""),
+      const hasNonNodeEnvProcessAccess = /process\.env\??(?!\.NODE_ENV\b)/.test(
+        content.replace(/process\.env\??\.NODE_ENV/g, ""),
       );
 
       if (!hasNonNodeEnvProcessAccess) continue;

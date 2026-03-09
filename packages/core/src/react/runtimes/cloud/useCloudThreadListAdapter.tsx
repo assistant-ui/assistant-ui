@@ -50,12 +50,13 @@ export const useCloudThreadListAdapter = (
 
   const unstable_Provider = useCallback<FC<PropsWithChildren>>(
     function Provider({ children }) {
+      const autoCloud = getAutoCloud()!;
       const history = useAssistantCloudThreadHistoryAdapter({
         get current() {
-          return adapterRef.current.cloud ?? getAutoCloud()!;
+          return adapterRef.current.cloud ?? autoCloud;
         },
       });
-      const cloudInstance = adapterRef.current.cloud ?? getAutoCloud()!;
+      const cloudInstance = adapterRef.current.cloud ?? autoCloud;
       const attachments = useMemo(
         () => new CloudFileAttachmentAdapter(cloudInstance),
         [cloudInstance],
