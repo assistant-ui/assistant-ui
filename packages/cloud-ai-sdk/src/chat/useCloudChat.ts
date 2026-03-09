@@ -14,13 +14,19 @@ import { useCloudChatCore } from "./useCloudChatCore";
 import type { ChatRegistry } from "./ChatRegistry";
 import type { CloudChatCore } from "../core/CloudChatCore";
 
-const autoCloudBaseUrl =
-  typeof process !== "undefined"
-    ? process.env["NEXT_PUBLIC_ASSISTANT_BASE_URL"]
-    : undefined;
-const autoCloud = autoCloudBaseUrl
-  ? new AssistantCloud({ baseUrl: autoCloudBaseUrl, anonymous: true })
-  : undefined;
+let _autoCloud: AssistantCloud | undefined | null;
+function getAutoCloud(): AssistantCloud | undefined {
+  if (_autoCloud === undefined) {
+    const baseUrl =
+      typeof process !== "undefined"
+        ? process.env["NEXT_PUBLIC_ASSISTANT_BASE_URL"]
+        : undefined;
+    _autoCloud = baseUrl
+      ? new AssistantCloud({ baseUrl, anonymous: true })
+      : null;
+  }
+  return _autoCloud ?? undefined;
+}
 
 export function useCloudChat(
   options: UseCloudChatOptions = {},
@@ -64,7 +70,8 @@ function useResolvedCloud(
   return useMemo(() => {
     if (externalThreads) return externalThreads.cloud;
     if (explicitCloud) return explicitCloud;
-    if (!autoCloud) {
+    const resolved = getAutoCloud();
+    if (!resolved) {
       throw new Error(
         "useCloudChat: No cloud configured. Either:\n" +
           "1. Set NEXT_PUBLIC_ASSISTANT_BASE_URL environment variable, or\n" +
@@ -72,7 +79,7 @@ function useResolvedCloud(
           "3. Pass threads from useThreads: useCloudChat({ threads })",
       );
     }
-    return autoCloud;
+    return resolved;
   }, [externalThreads, explicitCloud]);
 }
 
