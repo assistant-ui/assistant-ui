@@ -1,5 +1,9 @@
 import "@assistant-ui/core/store"; // scope-registration side-effect (part scope)
-import type { TextMessagePart, ReasoningMessagePart } from "@assistant-ui/core";
+import type {
+  MessagePartState,
+  TextMessagePart,
+  ReasoningMessagePart,
+} from "@assistant-ui/core";
 import { useAuiState } from "@assistant-ui/store";
 import { MarkdownText, type MarkdownTextProps } from "./MarkdownText";
 
@@ -28,10 +32,8 @@ const MarkdownTextPrimitive = (props: MarkdownTextPrimitiveProps) => {
         "MarkdownTextPrimitive can only be used inside text or reasoning message parts.",
       );
 
-    return s.part as { status: { type: string } } & (
-      | TextMessagePart
-      | ReasoningMessagePart
-    );
+    return s.part as MessagePartState &
+      (TextMessagePart | ReasoningMessagePart);
   });
 
   return (
