@@ -419,7 +419,6 @@ const ComposerAction: FC<ComposerActionProps> = ({ config }) => {
           <TooltipIconButton
             tooltip="Send message"
             side="bottom"
-            type="submit"
             variant="default"
             size="icon"
             className={cn(

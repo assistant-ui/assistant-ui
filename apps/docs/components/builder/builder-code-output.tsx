@@ -234,7 +234,6 @@ function ComposerAction() {
           <TooltipIconButton
             tooltip="Send message"
             side="bottom"
-            type="submit"
             variant="default"
             size="icon"
             className="size-8 rounded-full"

@@ -178,8 +178,11 @@ describe("PROJECT_METADATA", () => {
   it("examples have correct hasLocalComponents values", () => {
     const examples = PROJECT_METADATA.filter((m) => m.category === "example");
     const withLocalComponents = examples.filter((e) => e.hasLocalComponents);
-    // with-expo is a React Native example that ships its own components
-    expect(withLocalComponents.map((e) => e.name)).toEqual(["with-expo"]);
+    // with-expo and with-react-ink ship their own components (no shadcn)
+    expect(withLocalComponents.map((e) => e.name)).toEqual([
+      "with-expo",
+      "with-react-ink",
+    ]);
   });
 
   it("every entry has a path", () => {

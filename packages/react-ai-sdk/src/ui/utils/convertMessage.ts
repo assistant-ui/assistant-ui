@@ -1,14 +1,16 @@
 import { isToolUIPart, getToolName, type UIMessage } from "ai";
 import {
-  unstable_createMessageConverter,
-  type ReasoningMessagePart,
-  type ToolCallMessagePart,
-  type TextMessagePart,
-  type DataMessagePart,
-  type SourceMessagePart,
+  createMessageConverter as unstable_createMessageConverter,
   type useExternalMessageConverter,
-  type ThreadMessageLike,
-} from "@assistant-ui/react";
+} from "@assistant-ui/core/react";
+import type {
+  ReasoningMessagePart,
+  ToolCallMessagePart,
+  TextMessagePart,
+  DataMessagePart,
+  SourceMessagePart,
+  ThreadMessageLike,
+} from "@assistant-ui/core";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
 
 type MessageMetadata = ThreadMessageLike["metadata"];

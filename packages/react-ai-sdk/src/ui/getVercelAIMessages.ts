@@ -1,7 +1,7 @@
 import {
   getExternalStoreMessages,
   type ThreadMessage,
-} from "@assistant-ui/react";
+} from "@assistant-ui/core";
 import type { UIMessage } from "ai";
 
 export const getVercelAIMessages = <UI_MESSAGE extends UIMessage = UIMessage>(

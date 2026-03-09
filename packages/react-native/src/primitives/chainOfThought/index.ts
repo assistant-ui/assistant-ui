@@ -1,9 +1,9 @@
 export {
-  ChainOfThoughtRoot,
-  type ChainOfThoughtRootProps,
+  ChainOfThoughtRoot as Root,
+  type ChainOfThoughtRootProps as RootProps,
 } from "./ChainOfThoughtRoot";
 export {
-  ChainOfThoughtAccordionTrigger,
-  type ChainOfThoughtAccordionTriggerProps,
+  ChainOfThoughtAccordionTrigger as AccordionTrigger,
+  type ChainOfThoughtAccordionTriggerProps as AccordionTriggerProps,
 } from "./ChainOfThoughtAccordionTrigger";
-export { ChainOfThoughtPrimitiveParts } from "@assistant-ui/core/react";
+export { ChainOfThoughtPrimitiveParts as Parts } from "@assistant-ui/core/react";

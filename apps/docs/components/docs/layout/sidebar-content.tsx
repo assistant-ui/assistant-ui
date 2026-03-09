@@ -178,24 +178,6 @@ function PageTreeItem({
   );
 }
 
-/**
- * When section tabs are shown (banner is present), find the active section
- * folder and return only its children — avoids duplicating section-level
- * items that the tabs already display.
- */
-function getActiveSectionChildren(
-  tree: PageTree.Root,
-  pathname: string,
-): PageTree.Node[] {
-  for (const item of tree.children) {
-    if (item.type === "folder" && containsPath(item, pathname)) {
-      return item.children;
-    }
-  }
-  // Fallback: return all children (shouldn't normally happen)
-  return tree.children;
-}
-
 export function SidebarContent({ tree, banner }: SidebarContentProps) {
   const { setOpen } = useDocsSidebar();
   const pathname = usePathname();
@@ -204,7 +186,12 @@ export function SidebarContent({ tree, banner }: SidebarContentProps) {
   // section — the tabs already handle section-level navigation.
   const treeItems = useMemo(() => {
     if (!tree?.children) return null;
-    if (banner) return getActiveSectionChildren(tree, pathname);
+    if (!banner) return tree.children;
+    for (const item of tree.children) {
+      if (item.type === "folder" && containsPath(item, pathname)) {
+        return item.children;
+      }
+    }
     return tree.children;
   }, [tree, banner, pathname]);
 

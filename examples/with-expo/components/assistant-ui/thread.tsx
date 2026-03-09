@@ -11,7 +11,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MessageBubble } from "./message";
 import { Composer } from "./composer";
 import {
-  ThreadMessages,
+  ThreadPrimitive,
   useThreadIsEmpty,
   useAui,
 } from "@assistant-ui/react-native";
@@ -96,7 +96,7 @@ function EmptyState() {
   );
 }
 
-const renderMessage = () => <MessageBubble />;
+const messageComponents = { Message: MessageBubble };
 
 function ChatMessages() {
   const isEmpty = useThreadIsEmpty();
@@ -106,8 +106,8 @@ function ChatMessages() {
   }
 
   return (
-    <ThreadMessages
-      renderMessage={renderMessage}
+    <ThreadPrimitive.Messages
+      components={messageComponents}
       contentContainerStyle={styles.messageList}
       showsVerticalScrollIndicator={false}
     />

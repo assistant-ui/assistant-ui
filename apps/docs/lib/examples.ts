@@ -102,6 +102,14 @@ const INTERNAL_EXAMPLES: ExampleItem[] = [
 
 const COMMUNITY_EXAMPLES: ExampleItem[] = [
   {
+    title: "Mastra UI Dojo",
+    image: "/screenshot/examples/mastra-ui-dojo.png",
+    description:
+      "Mastra integrated with AI SDK, Assistant UI, and CopilotKit — compare side-by-side.",
+    link: "https://github.com/mastra-ai/ui-dojo",
+    external: true,
+  },
+  {
     title: "Open Canvas",
     image: "/screenshot/open-canvas.png",
     description: "OSS implementation of ChatGPT's Canvas.",

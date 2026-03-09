@@ -1,22 +1,20 @@
 import {
   View,
-  TextInput,
   Pressable,
   Image,
+  Platform,
   StyleSheet,
   useColorScheme,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import {
-  useAui,
   useAuiState,
   useComposerSend,
   useComposerCancel,
   useComposerAddAttachment,
-  ComposerAttachments,
-  AttachmentRoot,
-  AttachmentRemove,
+  ComposerPrimitive,
+  AttachmentPrimitive,
 } from "@assistant-ui/react-native";
 
 function AttachmentPreview() {
@@ -28,12 +26,12 @@ function AttachmentPreview() {
   const uri = (imageContent as any)?.image;
 
   return (
-    <AttachmentRoot style={styles.attachmentItem}>
+    <AttachmentPrimitive.Root style={styles.attachmentItem}>
       {uri ? <Image source={{ uri }} style={styles.attachmentImage} /> : null}
-      <AttachmentRemove style={styles.attachmentRemoveButton}>
+      <AttachmentPrimitive.Remove style={styles.attachmentRemoveButton}>
         <Ionicons name="close-circle" size={20} color="#ff453a" />
-      </AttachmentRemove>
-    </AttachmentRoot>
+      </AttachmentPrimitive.Remove>
+    </AttachmentPrimitive.Root>
   );
 }
 
@@ -43,8 +41,6 @@ export function Composer() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
 
-  const aui = useAui();
-  const text = useAuiState((s) => s.composer.text);
   const attachmentsCount = useAuiState((s) => s.composer.attachments.length);
   const { send, canSend } = useComposerSend();
   const { cancel, canCancel } = useComposerCancel();
@@ -86,7 +82,7 @@ export function Composer() {
     >
       {attachmentsCount > 0 && (
         <View style={styles.attachmentsList}>
-          <ComposerAttachments components={attachmentComponents} />
+          <ComposerPrimitive.Attachments components={attachmentComponents} />
         </View>
       )}
       <View
@@ -109,12 +105,10 @@ export function Composer() {
             color={isDark ? "#8e8e93" : "#6e6e73"}
           />
         </Pressable>
-        <TextInput
+        <ComposerPrimitive.Input
           style={[styles.input, { color: isDark ? "#ffffff" : "#000000" }]}
           placeholder="Message..."
           placeholderTextColor="#8e8e93"
-          value={text}
-          onChangeText={(newText) => aui.composer().setText(newText)}
           multiline
           maxLength={4000}
           editable={!canCancel}
@@ -159,8 +153,7 @@ export function Composer() {
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 8,
+    paddingVertical: 8,
   },
   attachmentsList: {
     flexDirection: "row",
@@ -184,36 +177,35 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: "row",
     alignItems: "flex-end",
-    borderRadius: 24,
+    borderRadius: 20,
     borderWidth: 1,
-    paddingLeft: 6,
-    paddingRight: 6,
-    paddingVertical: 6,
-    minHeight: 48,
+    padding: 6,
   },
   attachButton: {
-    width: 34,
-    height: 34,
+    width: 30,
+    height: 30,
     justifyContent: "center",
     alignItems: "center",
   },
   input: {
     flex: 1,
     fontSize: 16,
-    lineHeight: 22,
     maxHeight: 120,
-    paddingVertical: 6,
-    letterSpacing: -0.2,
+    alignSelf: "center",
+    paddingVertical: 0,
+    ...Platform.select({
+      web: { paddingHorizontal: 4, outlineStyle: "none" },
+      default: {},
+    }),
   },
   button: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     justifyContent: "center",
     alignItems: "center",
-    marginLeft: 8,
+    marginLeft: 6,
   },
-  sendButton: {},
   stopButton: {
     backgroundColor: "#ff453a",
   },

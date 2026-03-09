@@ -151,6 +151,8 @@ export abstract class BaseComposerRuntimeCore
   }
 
   public async send() {
+    if (this.isEmpty) return;
+
     if (this._dictationSession) {
       this._dictationSession.cancel();
       this._cleanupDictation();

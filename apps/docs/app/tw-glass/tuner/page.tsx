@@ -9,6 +9,7 @@ import {
   toDataUri,
 } from "../../../../../packages/tw-glass/scripts/filter-builder.mjs";
 import { PATTERNS, unsplash, PatternPicker } from "../(home)/pattern-picker";
+import { cn } from "@/lib/utils";
 
 // ─── Types ─────────────────────────────────────────────────────────
 
@@ -635,7 +636,10 @@ function SpringChain({
       {bubbles.map((b, i) => (
         <div
           key={i}
-          className={`glass ${surfaceCls} pointer-events-none absolute rounded-full`}
+          className={cn(
+            "glass pointer-events-none absolute rounded-full",
+            surfaceCls,
+          )}
           style={{
             ...previewStyle,
             isolation: "isolate",
@@ -744,11 +748,10 @@ function ModeButton({
     <button
       type="button"
       onClick={onClick}
-      className={`flex-1 rounded-lg px-3 py-1.5 text-sm transition-colors ${
-        active
-          ? "bg-foreground text-background"
-          : "bg-muted text-muted-foreground hover:text-foreground"
-      }`}
+      className={cn("flex-1 rounded-lg px-3 py-1.5 text-sm transition-colors", {
+        "bg-foreground text-background": active,
+        "bg-muted text-muted-foreground hover:text-foreground": !active,
+      })}
     >
       {label}
     </button>
@@ -782,11 +785,11 @@ function BlendSelect({
             key={mode}
             type="button"
             onClick={() => onChange(mode)}
-            className={`rounded-md px-2 py-1 text-xs transition-colors ${
-              mode === value
-                ? "bg-foreground text-background"
-                : "bg-muted text-muted-foreground hover:text-foreground"
-            }`}
+            className={cn("rounded-md px-2 py-1 text-xs transition-colors", {
+              "bg-foreground text-background": mode === value,
+              "bg-muted text-muted-foreground hover:text-foreground":
+                mode !== value,
+            })}
           >
             {mode}
           </button>

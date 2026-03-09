@@ -15,6 +15,25 @@ import {
 
 export const maxDuration = 30;
 
+const ALLOWED_ORIGINS = [
+  "https://assistant-ui-expo.vercel.app",
+  "http://localhost:8081",
+];
+
+function corsHeaders(req: Request) {
+  const origin = req.headers.get("origin") ?? "";
+  if (!ALLOWED_ORIGINS.includes(origin)) return {};
+  return {
+    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+  };
+}
+
+export async function OPTIONS(req: Request) {
+  return new Response(null, { status: 204, headers: corsHeaders(req) });
+}
+
 export async function POST(req: Request) {
   try {
     const rateLimitResponse = await checkRateLimit(req);
@@ -68,7 +87,8 @@ export async function POST(req: Request) {
       },
     });
 
-    return result.toUIMessageStreamResponse({
+    const cors = corsHeaders(req);
+    const response = result.toUIMessageStreamResponse({
       // gets usage and modelId for assistant-cloud telemetry reports
       messageMetadata: ({ part }) => {
         if (part.type === "finish-step") {
@@ -84,6 +104,13 @@ export async function POST(req: Request) {
         return undefined;
       },
     });
+
+    // Append CORS headers
+    for (const [key, value] of Object.entries(cors)) {
+      response.headers.set(key, value);
+    }
+
+    return response;
   } catch (e) {
     console.error("[api/chat]", e);
     return new Response("Request failed", { status: 500 });

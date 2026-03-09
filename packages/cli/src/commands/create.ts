@@ -187,6 +187,14 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
     hasLocalComponents: false,
   },
   {
+    name: "with-react-ink",
+    label: "React Ink",
+    description: "Terminal UI chat",
+    category: "example",
+    path: "examples/with-react-ink",
+    hasLocalComponents: true,
+  },
+  {
     name: "with-react-router",
     label: "React Router",
     description: "React Router v7 + Vite",
@@ -388,8 +396,13 @@ export const create = new Command()
   .option("--use-pnpm", "explicitly use pnpm")
   .option("--use-yarn", "explicitly use yarn")
   .option("--use-bun", "explicitly use bun")
+  .option("--native", "create an Expo / React Native project")
   .option("--skip-install", "skip installing packages")
   .action(async (projectDirectory, opts) => {
+    if (opts.native) {
+      opts.example = "with-expo";
+    }
+
     if (opts.example && opts.preset) {
       logger.error("Cannot use --preset with --example.");
       process.exit(1);

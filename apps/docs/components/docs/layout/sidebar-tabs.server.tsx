@@ -1,5 +1,6 @@
 import type * as PageTree from "fumadocs-core/page-tree";
 import type { ReactNode } from "react";
+import { Atom } from "lucide-react";
 
 export interface SidebarTab {
   url: string;
@@ -7,6 +8,7 @@ export interface SidebarTab {
   description?: string | undefined;
   icon?: ReactNode;
   urls?: Set<string>;
+  children?: SidebarTab[];
 }
 
 function getFolderUrls(
@@ -23,8 +25,11 @@ function getFolderUrls(
   return output;
 }
 
+/** Tabs that should be grouped as children of "Docs" */
+const DOCS_CHILDREN = new Set(["React Native", "Cloud"]);
+
 export function getSidebarTabs(tree: PageTree.Root): SidebarTab[] {
-  const results: SidebarTab[] = [];
+  const raw: SidebarTab[] = [];
 
   function scanOptions(node: PageTree.Root | PageTree.Folder) {
     if ("root" in node && node.root) {
@@ -40,7 +45,7 @@ export function getSidebarTabs(tree: PageTree.Root): SidebarTab[] {
           urls,
         };
 
-        results.push(option);
+        raw.push(option);
       }
     }
 
@@ -51,6 +56,40 @@ export function getSidebarTabs(tree: PageTree.Root): SidebarTab[] {
 
   scanOptions(tree);
   if (tree.fallback) scanOptions(tree.fallback);
+
+  // Group Cloud and React Native as children of Docs
+  const results: SidebarTab[] = [];
+  const childTabs: SidebarTab[] = [];
+
+  for (const tab of raw) {
+    if (DOCS_CHILDREN.has(tab.title)) {
+      childTabs.push(tab);
+    } else {
+      results.push(tab);
+    }
+  }
+
+  if (childTabs.length > 0) {
+    const docsTab = results.find((t) => t.title === "Docs");
+    if (docsTab) {
+      // "React" sub-item keeps the original Docs URLs
+      const reactTab: SidebarTab = {
+        url: docsTab.url,
+        title: "React",
+        icon: <Atom />,
+        urls: new Set(docsTab.urls),
+      };
+      // Merge child URLs into the parent so it stays active for all children
+      const mergedUrls = new Set(docsTab.urls);
+      for (const child of childTabs) {
+        if (child.urls) {
+          for (const u of child.urls) mergedUrls.add(u);
+        }
+      }
+      docsTab.urls = mergedUrls;
+      docsTab.children = [reactTab, ...childTabs];
+    }
+  }
 
   return results;
 }

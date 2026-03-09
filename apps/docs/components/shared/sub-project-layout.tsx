@@ -26,6 +26,11 @@ const SUB_PROJECTS = [
     textValue: "tw-shimmer",
   },
   {
+    value: "native",
+    label: "React Native",
+    textValue: "native",
+  },
+  {
     value: "safe-content-frame",
     label: "Safe Content Frame",
     textValue: "safe-content-frame",

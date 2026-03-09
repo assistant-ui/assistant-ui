@@ -92,7 +92,7 @@ export {
 } from "@assistant-ui/store";
 
 // Context providers and hooks
-export { AssistantProvider, useAssistantRuntime } from "./context";
+export { AssistantRuntimeProvider, useAssistantRuntime } from "./context";
 
 // Primitive hooks
 export {
@@ -109,8 +109,6 @@ export {
   useActionBarReload,
   useActionBarFeedbackPositive,
   useActionBarFeedbackNegative,
-  useEditComposerSend,
-  useEditComposerCancel,
   useComposerAddAttachment,
 } from "./primitive-hooks";
 
@@ -122,16 +120,16 @@ export {
 } from "./runtimes";
 
 // Primitives
-export * from "./primitives/thread";
-export * from "./primitives/composer";
-export * from "./primitives/message";
-export * from "./primitives/threadList";
-export * from "./primitives/actionBar";
-export * from "./primitives/branchPicker";
-export * from "./primitives/attachment";
-export * from "./primitives/threadListItem";
-export * from "./primitives/chainOfThought";
-export * from "./primitives/suggestion";
+export * as ThreadPrimitive from "./primitives/thread";
+export * as ComposerPrimitive from "./primitives/composer";
+export * as MessagePrimitive from "./primitives/message";
+export * as ThreadListPrimitive from "./primitives/threadList";
+export * as ActionBarPrimitive from "./primitives/actionBar";
+export * as BranchPickerPrimitive from "./primitives/branchPicker";
+export * as AttachmentPrimitive from "./primitives/attachment";
+export * as ThreadListItemPrimitive from "./primitives/threadListItem";
+export * as ChainOfThoughtPrimitive from "./primitives/chainOfThought";
+export * as SuggestionPrimitive from "./primitives/suggestion";
 
 // Re-export shared providers from core/react
 export {
@@ -148,10 +146,3 @@ export {
 export * from "./model-context";
 export * from "./client";
 export * from "./types";
-
-// Adapters
-export {
-  type TitleGenerationAdapter,
-  createSimpleTitleAdapter,
-  createLocalStorageAdapter,
-} from "./adapters";

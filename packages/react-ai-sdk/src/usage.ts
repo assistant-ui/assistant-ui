@@ -1,4 +1,5 @@
-import { useAuiState } from "@assistant-ui/react";
+/// <reference types="@assistant-ui/core/react" />
+import { useAuiState } from "@assistant-ui/store";
 
 export type ThreadTokenUsage = {
   totalTokens?: number;

@@ -1,5 +1,7 @@
 "use client";
 
+import { cn } from "@/lib/utils";
+
 export const unsplash = (id: string) =>
   `url(https://images.unsplash.com/${id}?auto=format&fit=crop&w=1920&q=90)`;
 
@@ -32,11 +34,12 @@ export function PatternPicker({
             onClick={() => onChange(i)}
             aria-label={p.name}
             title={p.name}
-            className={`size-11 cursor-pointer overflow-hidden rounded-xl bg-muted transition-all ${
+            className={cn(
+              "size-11 cursor-pointer overflow-hidden rounded-xl bg-muted transition-all",
               active === i
                 ? "ring-2 ring-foreground/40 ring-offset-2 ring-offset-background"
-                : "opacity-70 hover:opacity-100"
-            }`}
+                : "opacity-70 hover:opacity-100",
+            )}
             style={{
               backgroundImage: unsplashThumb(p.id),
               backgroundSize: "cover",

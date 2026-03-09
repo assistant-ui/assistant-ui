@@ -132,6 +132,7 @@ export * from "./primitives/attachment";
 export * from "./primitives/threadListItem";
 export * from "./primitives/chainOfThought";
 export * from "./primitives/suggestion";
+export * from "./primitives/toolCall";
 
 // Re-export shared providers from core/react
 export {
