@@ -67,7 +67,6 @@
     "@types/react": "*",
     "react": "^18 || ^19",
     "assistant-cloud": "^0.1.21",
-    "zod": "^4.0.0",
     "zustand": "^5.0.11"
   },
   "peerDependenciesMeta": {
@@ -78,9 +77,6 @@
       "optional": true
     },
     "react": {
-      "optional": true
-    },
-    "zod": {
       "optional": true
     },
     "zustand": {

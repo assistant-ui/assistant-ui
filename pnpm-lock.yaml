@@ -2052,9 +2052,6 @@ importers:
       nanoid:
         specifier: ^5.1.6
         version: 5.1.6
-      zod:
-        specifier: ^4.0.0
-        version: 4.3.6
     devDependencies:
       '@assistant-ui/store':
         specifier: workspace:*
