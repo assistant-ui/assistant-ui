@@ -1,12 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type UseShikiHighlighterOptions = {
   /** Shiki theme name (default: "github-dark"). */
   theme?: string;
   /**
    * Languages to preload (default: common web/systems languages).
-   * Pass a stable array reference to avoid re-initializing the highlighter
-   * on every render — e.g. define it outside the component or use useMemo.
+   * Compared by value — safe to pass inline arrays.
    */
   langs?: string[];
 };
@@ -23,6 +22,18 @@ const DEFAULT_LANGS = [
   "go",
   "java",
 ];
+
+function tokenColorToAnsi(color: string | undefined): string | undefined {
+  if (!color || !color.startsWith("#")) return undefined;
+  // Handle #RGB, #RRGGBB, #RRGGBBAA — extract only the first 6 hex chars
+  const hex = color.length >= 7 ? color.slice(1, 7) : undefined;
+  if (!hex) return undefined;
+  const r = parseInt(hex.slice(0, 2), 16);
+  const g = parseInt(hex.slice(2, 4), 16);
+  const b = parseInt(hex.slice(4, 6), 16);
+  if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return undefined;
+  return `\x1b[38;2;${r};${g};${b}m`;
+}
 
 /**
  * Hook that asynchronously initializes a Shiki highlighter and returns a
@@ -43,10 +54,18 @@ export function useShikiHighlighter(
   const theme = options?.theme ?? "github-dark";
   const langs = options?.langs ?? DEFAULT_LANGS;
 
+  // Stabilize langs by value so inline arrays don't cause re-initialization
+  const langsKey = JSON.stringify(langs);
+  const langsRef = useRef(langs);
+  langsRef.current = langs;
+
   const [highlighter, setHighlighter] = useState<
     ((code: string, lang?: string) => string) | undefined
   >(undefined);
 
+  const shikiRef = useRef<{ dispose: () => void } | null>(null);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: langsKey stabilizes langs array by value
   useEffect(() => {
     let cancelled = false;
 
@@ -54,11 +73,18 @@ export function useShikiHighlighter(
       .then(({ createHighlighter }) =>
         createHighlighter({
           themes: [theme as any],
-          langs: langs as any[],
+          langs: langsRef.current as any[],
         }),
       )
       .then((shiki) => {
-        if (cancelled) return;
+        if (cancelled) {
+          shiki.dispose();
+          return;
+        }
+
+        // Dispose previous highlighter if theme/langs changed
+        shikiRef.current?.dispose();
+        shikiRef.current = shiki;
 
         const fn = (code: string, lang?: string): string => {
           if (!lang) return code;
@@ -71,12 +97,9 @@ export function useShikiHighlighter(
               .map((line) =>
                 line
                   .map((token) => {
-                    const color = token.color;
-                    if (!color) return token.content;
-                    const r = parseInt(color.slice(1, 3), 16);
-                    const g = parseInt(color.slice(3, 5), 16);
-                    const b = parseInt(color.slice(5, 7), 16);
-                    return `\x1b[38;2;${r};${g};${b}m${token.content}\x1b[39m`;
+                    const ansi = tokenColorToAnsi(token.color);
+                    if (!ansi) return token.content;
+                    return `${ansi}${token.content}\x1b[39m`;
                   })
                   .join(""),
               )
@@ -95,8 +118,10 @@ export function useShikiHighlighter(
 
     return () => {
       cancelled = true;
+      shikiRef.current?.dispose();
+      shikiRef.current = null;
     };
-  }, [theme, langs]);
+  }, [theme, langsKey]);
 
   return highlighter;
 }
