@@ -17,6 +17,7 @@ permissions:
 env:
   VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
   VERCEL_PROJECT_ID: ${{ secrets.VERCEL_EXPO_PROJECT_ID }}
+  EXPO_PUBLIC_CHAT_ENDPOINT_URL: https://www.assistant-ui.com/api/chat
 
 jobs:
   deploy-production:
