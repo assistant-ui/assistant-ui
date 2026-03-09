@@ -2444,6 +2444,9 @@ importers:
       assistant-stream:
         specifier: ^0.3.4
         version: link:../assistant-stream
+      ink-spinner:
+        specifier: ^5.0.0
+        version: 5.0.0(ink@5.2.1(@types/react@19.2.14)(react@18.3.1))(react@18.3.1)
       zustand:
         specifier: ^5.0.11
         version: 5.0.11(@types/react@19.2.14)(immer@11.1.4)(react@18.3.1)(use-sync-external-store@1.6.0(react@18.3.1))
@@ -9658,6 +9661,13 @@ packages:
 
   inherits@2.0.4:
     resolution: {integrity: sha512-k/vGaX4/Yla3WzyMCvTQOXYeIHvqOKtnqBduzTHpzpQZzAskKMhZ2K+EnBiSM9zGSoIFeMpXKxa4dYeZIQqewQ==}
+
+  ink-spinner@5.0.0:
+    resolution: {integrity: sha512-EYEasbEjkqLGyPOUc8hBJZNuC5GvXGMLu0w5gdTNskPc7Izc5vO3tdQEYnzvshucyGCBXc86ig0ujXPMWaQCdA==}
+    engines: {node: '>=14.16'}
+    peerDependencies:
+      ink: '>=4.0.0'
+      react: '>=18.0.0'
 
   ink@5.2.1:
     resolution: {integrity: sha512-BqcUyWrG9zq5HIwW6JcfFHsIYebJkWWb4fczNah1goUO0vv5vneIlfwuS85twyJ5hYR/y18FlAYUxrO9ChIWVg==}
@@ -20153,6 +20163,12 @@ snapshots:
       wrappy: 1.0.2
 
   inherits@2.0.4: {}
+
+  ink-spinner@5.0.0(ink@5.2.1(@types/react@19.2.14)(react@18.3.1))(react@18.3.1):
+    dependencies:
+      cli-spinners: 2.9.2
+      ink: 5.2.1(@types/react@19.2.14)(react@18.3.1)
+      react: 18.3.1
 
   ink@5.2.1(@types/react@19.2.14)(react@18.3.1):
     dependencies:

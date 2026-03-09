@@ -11,6 +11,7 @@ import type {
   ToolCallMessagePartProps,
   DataMessagePartProps,
 } from "../../types";
+import { ToolCallDisplay } from "../toolCall/ToolCallDisplay";
 
 type MessageContentPart = ThreadUserMessagePart | ThreadAssistantMessagePart;
 
@@ -86,7 +87,7 @@ const ToolUIDisplay = ({
     );
   }
   if (Fallback) return <Fallback part={part} index={index} />;
-  return null;
+  return <ToolCallDisplay part={part} />;
 };
 
 const DataUIDisplay = ({
