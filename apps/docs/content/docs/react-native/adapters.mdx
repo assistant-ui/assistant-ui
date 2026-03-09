@@ -7,14 +7,10 @@ Adapters customize how the local runtime persists threads and generates titles. 
 
 ```tsx
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import {
-  useLocalRuntime,
-  createSimpleTitleAdapter,
-} from "@assistant-ui/react-native";
+import { useLocalRuntime } from "@assistant-ui/react-native";
 
 const runtime = useLocalRuntime(chatModel, {
   storage: AsyncStorage,
-  titleGenerator: createSimpleTitleAdapter(),
 });
 ```
 
@@ -60,44 +56,14 @@ When `storage` is omitted, threads live in memory only — lost on app restart.
 const runtime = useLocalRuntime(chatModel);
 ```
 
-### Advanced: createLocalStorageAdapter
-
-For more control, use `createLocalStorageAdapter` directly to create a `RemoteThreadListAdapter`:
-
-```tsx
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import {
-  createLocalStorageAdapter,
-  createSimpleTitleAdapter,
-} from "@assistant-ui/react-native";
-
-const adapter = createLocalStorageAdapter({
-  storage: AsyncStorage,
-  prefix: "chat:",
-  titleGenerator: createSimpleTitleAdapter(),
-});
-```
-
 ## TitleGenerationAdapter
 
-Generates a title for a thread based on its messages.
+Generates a title for a thread based on its messages. Pass via the `titleGenerator` option on `useLocalRuntime`.
 
 ```tsx
 interface TitleGenerationAdapter {
   generateTitle(messages: ThreadMessage[]): Promise<string>;
 }
-```
-
-### Built-in implementations
-
-#### Simple title adapter
-
-Returns the first 50 characters of the first user message.
-
-```tsx
-import { createSimpleTitleAdapter } from "@assistant-ui/react-native";
-
-const titleGenerator = createSimpleTitleAdapter();
 ```
 
 ### Custom implementation
@@ -115,4 +81,19 @@ const aiTitleGenerator: TitleGenerationAdapter = {
     return title;
   },
 };
+
+const runtime = useLocalRuntime(chatModel, {
+  storage: AsyncStorage,
+  titleGenerator: aiTitleGenerator,
+});
 ```
+
+## Which option to choose?
+
+| | ChatModelAdapter + `useLocalRuntime` | RemoteThreadListAdapter + `useRemoteThreadListRuntime` |
+|---|---|---|
+| **Thread storage** | On-device (AsyncStorage) | Your backend |
+| **Message storage** | On-device (AsyncStorage) | On-device (can add history adapter for server-side) |
+| **Cross-device sync** | No | Yes |
+| **Setup complexity** | Minimal | Moderate |
+| **Best for** | Single-device apps, prototypes | Production apps with user accounts |

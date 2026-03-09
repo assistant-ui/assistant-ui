@@ -20,12 +20,12 @@ cd my-chat-app
   </Step>
   <Step>
 
-### Add API key
+### Configure API endpoint
 
-Create a `.env` file with your API key:
+Create a `.env` file pointing to your chat API:
 
 ```
-EXPO_PUBLIC_OPENAI_API_KEY="sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+EXPO_PUBLIC_CHAT_ENDPOINT_URL="http://localhost:3000/api/chat"
 ```
 
   </Step>
@@ -50,7 +50,7 @@ If you prefer to add assistant-ui to an existing Expo project, follow these step
 ### Install dependencies
 
 ```sh
-npx expo install @assistant-ui/react-native @assistant-ui/react-ai-sdk @assistant-ui/react
+npx expo install @assistant-ui/react-native @assistant-ui/react-ai-sdk
 ```
 
   </Step>
@@ -140,11 +140,11 @@ export function useAppRuntime() {
 
 ### Use it in your app
 
-Wrap your app with `AssistantProvider` and build your chat UI:
+Wrap your app with `AssistantRuntimeProvider` and build your chat UI:
 
 ```tsx title="app/index.tsx"
 import {
-  AssistantProvider,
+  AssistantRuntimeProvider,
   useAuiState,
   useAui,
 } from "@assistant-ui/react-native";
@@ -255,9 +255,9 @@ export default function App() {
   const runtime = useAppRuntime();
 
   return (
-    <AssistantProvider runtime={runtime}>
+    <AssistantRuntimeProvider runtime={runtime}>
       <ChatScreen />
-    </AssistantProvider>
+    </AssistantRuntimeProvider>
   );
 }
 ```

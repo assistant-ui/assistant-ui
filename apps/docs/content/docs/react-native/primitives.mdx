@@ -5,34 +5,36 @@ description: Composable React Native components for building chat UIs.
 
 Primitives are thin wrappers around React Native components (`View`, `TextInput`, `FlatList`, `Pressable`) that integrate with the assistant-ui runtime. They accept all standard React Native props and add runtime-aware behavior.
 
+Primitives are accessed via namespace imports (e.g. `ThreadPrimitive.Root`, `ComposerPrimitive.Input`), matching the pattern used in `@assistant-ui/react`.
+
 Many primitives share their core logic with `@assistant-ui/react` via `@assistant-ui/core/react` — only the UI layer (View/Pressable/Text vs DOM elements) differs.
 
 ## Thread
 
-### ThreadRoot
+```tsx
+import { ThreadPrimitive } from "@assistant-ui/react-native";
+```
+
+### ThreadPrimitive.Root
 
 Container `View` for the thread area.
 
 ```tsx
-import { ThreadRoot } from "@assistant-ui/react-native";
-
-<ThreadRoot style={{ flex: 1 }}>
+<ThreadPrimitive.Root style={{ flex: 1 }}>
   {children}
-</ThreadRoot>
+</ThreadPrimitive.Root>
 ```
 
 | Prop | Type | Description |
 |------|------|-------------|
 | `...rest` | `ViewProps` | Standard React Native View props |
 
-### ThreadMessages
+### ThreadPrimitive.Messages
 
 `FlatList`-based message list with automatic runtime integration. Each message is wrapped in a scoped context so that `useAuiState((s) => s.message)` works inside `renderMessage`.
 
 ```tsx
-import { ThreadMessages } from "@assistant-ui/react-native";
-
-<ThreadMessages
+<ThreadPrimitive.Messages
   renderMessage={({ message }) => <MessageBubble message={message} />}
 />
 ```
@@ -42,32 +44,28 @@ import { ThreadMessages } from "@assistant-ui/react-native";
 | `renderMessage` | `(info: { message: ThreadMessage; index: number }) => ReactElement` | Message renderer |
 | `...rest` | `FlatListProps` | Standard FlatList props (except `data`, `renderItem`) |
 
-### ThreadEmpty
+### ThreadPrimitive.Empty
 
 Renders children only when the thread has no messages.
 
 ```tsx
-import { ThreadEmpty } from "@assistant-ui/react-native";
-
-<ThreadEmpty>
+<ThreadPrimitive.Empty>
   <Text>Send a message to get started</Text>
-</ThreadEmpty>
+</ThreadPrimitive.Empty>
 ```
 
-### ThreadIf
+### ThreadPrimitive.If
 
 Conditional rendering based on thread state.
 
 ```tsx
-import { ThreadIf } from "@assistant-ui/react-native";
-
-<ThreadIf empty>
+<ThreadPrimitive.If empty>
   <Text>No messages yet</Text>
-</ThreadIf>
+</ThreadPrimitive.If>
 
-<ThreadIf running>
+<ThreadPrimitive.If running>
   <ActivityIndicator />
-</ThreadIf>
+</ThreadPrimitive.If>
 ```
 
 | Prop | Type | Description |
@@ -77,26 +75,26 @@ import { ThreadIf } from "@assistant-ui/react-native";
 
 ## Composer
 
-### ComposerRoot
+```tsx
+import { ComposerPrimitive } from "@assistant-ui/react-native";
+```
+
+### ComposerPrimitive.Root
 
 Container `View` for the composer area.
 
 ```tsx
-import { ComposerRoot } from "@assistant-ui/react-native";
-
-<ComposerRoot style={styles.composerContainer}>
+<ComposerPrimitive.Root style={styles.composerContainer}>
   {children}
-</ComposerRoot>
+</ComposerPrimitive.Root>
 ```
 
-### ComposerInput
+### ComposerPrimitive.Input
 
 `TextInput` wired to the composer runtime. Value and `onChangeText` are managed automatically.
 
 ```tsx
-import { ComposerInput } from "@assistant-ui/react-native";
-
-<ComposerInput
+<ComposerPrimitive.Input
   placeholder="Message..."
   multiline
   style={styles.input}
@@ -105,40 +103,35 @@ import { ComposerInput } from "@assistant-ui/react-native";
 
 | Prop | Type | Description |
 |------|------|-------------|
+| `submitMode` | `"enter" \| "none"` | Whether Enter sends the message on web (default: `"enter"`) |
 | `...rest` | `TextInputProps` | Standard TextInput props (except `value`, `onChangeText`) |
 
-### ComposerSend
+### ComposerPrimitive.Send
 
 `Pressable` that sends the current message. Automatically disabled when the composer is empty.
 
 ```tsx
-import { ComposerSend } from "@assistant-ui/react-native";
-
-<ComposerSend style={styles.sendButton}>
+<ComposerPrimitive.Send style={styles.sendButton}>
   <Text>Send</Text>
-</ComposerSend>
+</ComposerPrimitive.Send>
 ```
 
-### ComposerCancel
+### ComposerPrimitive.Cancel
 
 `Pressable` that cancels the current run. Automatically disabled when no run is active.
 
 ```tsx
-import { ComposerCancel } from "@assistant-ui/react-native";
-
-<ComposerCancel style={styles.cancelButton}>
+<ComposerPrimitive.Cancel style={styles.cancelButton}>
   <Text>Stop</Text>
-</ComposerCancel>
+</ComposerPrimitive.Cancel>
 ```
 
-### ComposerAttachments
+### ComposerPrimitive.Attachments
 
 Renders composer attachments using the provided component configuration.
 
 ```tsx
-import { ComposerAttachments } from "@assistant-ui/react-native";
-
-<ComposerAttachments
+<ComposerPrimitive.Attachments
   components={{
     Image: MyImageAttachment,
     Document: MyDocumentAttachment,
@@ -151,28 +144,53 @@ import { ComposerAttachments } from "@assistant-ui/react-native";
 |------|------|-------------|
 | `components` | `{ Image?, Document?, File?, Attachment? }` | Component renderers by attachment type |
 
+### ComposerPrimitive.AddAttachment
+
+`Pressable` for triggering attachment addition. The actual file picker must be implemented by the consumer (e.g. using `expo-document-picker` or `expo-image-picker`).
+
+```tsx
+<ComposerPrimitive.AddAttachment onPress={handlePickFile}>
+  <Text>Attach</Text>
+</ComposerPrimitive.AddAttachment>
+```
+
+### ComposerPrimitive.If
+
+Conditional rendering based on composer state. Shared from `@assistant-ui/core/react`.
+
+```tsx
+<ComposerPrimitive.If editing>
+  <Text>Currently editing</Text>
+</ComposerPrimitive.If>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `editing` | `boolean` | Render when composer is in editing mode |
+| `dictation` | `boolean` | Render when dictation is active |
+
 ## Message
 
-### MessageRoot
+```tsx
+import { MessagePrimitive } from "@assistant-ui/react-native";
+```
+
+### MessagePrimitive.Root
 
 Container `View` for a single message.
 
 ```tsx
-import { MessageRoot } from "@assistant-ui/react-native";
-
-<MessageRoot style={styles.messageBubble}>
+<MessagePrimitive.Root style={styles.messageBubble}>
   {children}
-</MessageRoot>
+</MessagePrimitive.Root>
 ```
 
-### MessageContent
+### MessagePrimitive.Content
 
 Renders message content parts. Tool call and data parts automatically render registered tool UIs (via `useAssistantTool` / `useAssistantDataUI`), falling back to render props if provided.
 
 ```tsx
-import { MessageContent } from "@assistant-ui/react-native";
-
-<MessageContent
+<MessagePrimitive.Content
   renderText={({ part }) => <Text>{part.text}</Text>}
   renderImage={({ part }) => <Image source={{ uri: part.image }} />}
 />
@@ -188,20 +206,18 @@ import { MessageContent } from "@assistant-ui/react-native";
 | `renderFile` | `(props: { part; index }) => ReactElement` | File part renderer |
 | `renderData` | `(props: { part; index }) => ReactElement` | Data part fallback (used when no data UI is registered) |
 
-### MessageIf
+### MessagePrimitive.If
 
 Conditional rendering based on message properties.
 
 ```tsx
-import { MessageIf } from "@assistant-ui/react-native";
-
-<MessageIf user>
+<MessagePrimitive.If user>
   <Text>You said:</Text>
-</MessageIf>
+</MessagePrimitive.If>
 
-<MessageIf assistant last>
+<MessagePrimitive.If assistant last>
   <ActivityIndicator />
-</MessageIf>
+</MessagePrimitive.If>
 ```
 
 | Prop | Type | Description |
@@ -211,14 +227,12 @@ import { MessageIf } from "@assistant-ui/react-native";
 | `running` | `boolean` | Render when message is being generated |
 | `last` | `boolean` | Render for the last message |
 
-### MessageAttachments
+### MessagePrimitive.Attachments
 
 Renders user message attachments using the provided component configuration.
 
 ```tsx
-import { MessageAttachments } from "@assistant-ui/react-native";
-
-<MessageAttachments
+<MessagePrimitive.Attachments
   components={{
     Image: MyImageAttachment,
     Attachment: MyFallbackAttachment,
@@ -232,64 +246,62 @@ import { MessageAttachments } from "@assistant-ui/react-native";
 
 ## Attachment
 
-Primitives for rendering individual attachments (inside `ComposerAttachments` or `MessageAttachments`).
+```tsx
+import { AttachmentPrimitive } from "@assistant-ui/react-native";
+```
 
-### AttachmentRoot
+Primitives for rendering individual attachments (inside `ComposerPrimitive.Attachments` or `MessagePrimitive.Attachments`).
+
+### AttachmentPrimitive.Root
 
 Container `View` for an attachment.
 
 ```tsx
-import { AttachmentRoot } from "@assistant-ui/react-native";
-
-<AttachmentRoot style={styles.attachment}>
+<AttachmentPrimitive.Root style={styles.attachment}>
   {children}
-</AttachmentRoot>
+</AttachmentPrimitive.Root>
 ```
 
-### AttachmentName
+### AttachmentPrimitive.Name
 
 `Text` component displaying the attachment filename.
 
 ```tsx
-import { AttachmentName } from "@assistant-ui/react-native";
-
-<AttachmentName style={styles.filename} />
+<AttachmentPrimitive.Name style={styles.filename} />
 ```
 
-### AttachmentThumb
+### AttachmentPrimitive.Thumb
 
 `Text` component displaying the file extension (e.g. `.pdf`).
 
 ```tsx
-import { AttachmentThumb } from "@assistant-ui/react-native";
-
-<AttachmentThumb style={styles.extension} />
+<AttachmentPrimitive.Thumb style={styles.extension} />
 ```
 
-### AttachmentRemove
+### AttachmentPrimitive.Remove
 
 `Pressable` that removes the attachment from the composer.
 
 ```tsx
-import { AttachmentRemove } from "@assistant-ui/react-native";
-
-<AttachmentRemove>
+<AttachmentPrimitive.Remove>
   <Text>Remove</Text>
-</AttachmentRemove>
+</AttachmentPrimitive.Remove>
 ```
 
 ## ActionBar
 
-### ActionBarCopy
+```tsx
+import { ActionBarPrimitive } from "@assistant-ui/react-native";
+```
+
+### ActionBarPrimitive.Copy
 
 `Pressable` that copies the message content. Supports function-as-children for copy state feedback.
 
 ```tsx
-import { ActionBarCopy } from "@assistant-ui/react-native";
-
-<ActionBarCopy copiedDuration={3000}>
+<ActionBarPrimitive.Copy copiedDuration={3000}>
   {({ isCopied }) => <Text>{isCopied ? "Copied!" : "Copy"}</Text>}
-</ActionBarCopy>
+</ActionBarPrimitive.Copy>
 ```
 
 | Prop | Type | Description |
@@ -297,102 +309,90 @@ import { ActionBarCopy } from "@assistant-ui/react-native";
 | `copiedDuration` | `number` | Duration in ms to show "copied" state (default: 3000) |
 | `copyToClipboard` | `(text: string) => void` | Custom clipboard function |
 
-### ActionBarEdit
+### ActionBarPrimitive.Edit
 
 `Pressable` that enters edit mode for a message.
 
 ```tsx
-import { ActionBarEdit } from "@assistant-ui/react-native";
-
-<ActionBarEdit>
+<ActionBarPrimitive.Edit>
   <Text>Edit</Text>
-</ActionBarEdit>
+</ActionBarPrimitive.Edit>
 ```
 
-### ActionBarReload
+### ActionBarPrimitive.Reload
 
 `Pressable` that regenerates an assistant message.
 
 ```tsx
-import { ActionBarReload } from "@assistant-ui/react-native";
-
-<ActionBarReload>
+<ActionBarPrimitive.Reload>
   <Text>Retry</Text>
-</ActionBarReload>
+</ActionBarPrimitive.Reload>
 ```
 
-### ActionBarFeedbackPositive / ActionBarFeedbackNegative
+### ActionBarPrimitive.FeedbackPositive / ActionBarPrimitive.FeedbackNegative
 
 `Pressable` buttons for submitting message feedback.
 
 ```tsx
-import {
-  ActionBarFeedbackPositive,
-  ActionBarFeedbackNegative,
-} from "@assistant-ui/react-native";
+<ActionBarPrimitive.FeedbackPositive>
+  {({ isSubmitted }) => <Text>{isSubmitted ? "Liked" : "Like"}</Text>}
+</ActionBarPrimitive.FeedbackPositive>
 
-<ActionBarFeedbackPositive>
-  {({ isSubmitted }) => <Text>{isSubmitted ? "👍" : "👍🏻"}</Text>}
-</ActionBarFeedbackPositive>
-
-<ActionBarFeedbackNegative>
-  {({ isSubmitted }) => <Text>{isSubmitted ? "👎" : "👎🏻"}</Text>}
-</ActionBarFeedbackNegative>
+<ActionBarPrimitive.FeedbackNegative>
+  {({ isSubmitted }) => <Text>{isSubmitted ? "Disliked" : "Dislike"}</Text>}
+</ActionBarPrimitive.FeedbackNegative>
 ```
 
 ## BranchPicker
 
-### BranchPickerPrevious / BranchPickerNext
+```tsx
+import { BranchPickerPrimitive } from "@assistant-ui/react-native";
+```
+
+### BranchPickerPrimitive.Previous / BranchPickerPrimitive.Next
 
 `Pressable` buttons to navigate between message branches.
 
 ```tsx
-import {
-  BranchPickerPrevious,
-  BranchPickerNext,
-  BranchPickerNumber,
-  BranchPickerCount,
-} from "@assistant-ui/react-native";
-
 <View style={{ flexDirection: "row", alignItems: "center" }}>
-  <BranchPickerPrevious>
-    <Text>←</Text>
-  </BranchPickerPrevious>
-  <BranchPickerNumber />
+  <BranchPickerPrimitive.Previous>
+    <Text>-</Text>
+  </BranchPickerPrimitive.Previous>
+  <BranchPickerPrimitive.Number />
   <Text>/</Text>
-  <BranchPickerCount />
-  <BranchPickerNext>
-    <Text>→</Text>
-  </BranchPickerNext>
+  <BranchPickerPrimitive.Count />
+  <BranchPickerPrimitive.Next>
+    <Text>+</Text>
+  </BranchPickerPrimitive.Next>
 </View>
 ```
 
-### BranchPickerNumber / BranchPickerCount
+### BranchPickerPrimitive.Number / BranchPickerPrimitive.Count
 
 `Text` components displaying the current branch number and total count.
 
 ## ThreadList
 
-### ThreadListRoot
+```tsx
+import { ThreadListPrimitive } from "@assistant-ui/react-native";
+```
+
+### ThreadListPrimitive.Root
 
 Container `View` for the thread list.
 
 ```tsx
-import { ThreadListRoot } from "@assistant-ui/react-native";
-
-<ThreadListRoot style={styles.threadList}>
+<ThreadListPrimitive.Root style={styles.threadList}>
   {children}
-</ThreadListRoot>
+</ThreadListPrimitive.Root>
 ```
 
-### ThreadListItems
+### ThreadListPrimitive.Items
 
 `FlatList` of thread IDs with runtime integration.
 
 ```tsx
-import { ThreadListItems } from "@assistant-ui/react-native";
-
-<ThreadListItems
+<ThreadListPrimitive.Items
   renderItem={({ threadId }) => (
     <ThreadListEntry threadId={threadId} />
   )}
@@ -404,125 +404,112 @@ import { ThreadListItems } from "@assistant-ui/react-native";
 | `renderItem` | `(props: { threadId: string; index: number }) => ReactElement` | Thread item renderer |
 | `...rest` | `FlatListProps` | Standard FlatList props (except `data`, `renderItem`) |
 
-### ThreadListNew
+### ThreadListPrimitive.New
 
 `Pressable` that creates a new thread.
 
 ```tsx
-import { ThreadListNew } from "@assistant-ui/react-native";
-
-<ThreadListNew style={styles.newThreadButton}>
+<ThreadListPrimitive.New style={styles.newThreadButton}>
   <Text>New Chat</Text>
-</ThreadListNew>
+</ThreadListPrimitive.New>
 ```
 
 ## ThreadListItem
 
-Primitives for rendering individual thread list items. Use inside a `ThreadListItemByIndexProvider` or within `ThreadListPrimitiveItems` components.
+```tsx
+import { ThreadListItemPrimitive } from "@assistant-ui/react-native";
+```
 
-### ThreadListItemRoot
+Primitives for rendering individual thread list items.
+
+### ThreadListItemPrimitive.Root
 
 Container `View` for a thread list item.
 
 ```tsx
-import { ThreadListItemRoot } from "@assistant-ui/react-native";
-
-<ThreadListItemRoot style={styles.threadItem}>
+<ThreadListItemPrimitive.Root style={styles.threadItem}>
   {children}
-</ThreadListItemRoot>
+</ThreadListItemPrimitive.Root>
 ```
 
-### ThreadListItemTitle
+### ThreadListItemPrimitive.Title
 
 Renders the thread title text. Falls back to the provided fallback when title is empty. This component is shared from `@assistant-ui/core/react`.
 
 ```tsx
-import { ThreadListItemTitle } from "@assistant-ui/react-native";
-
-<ThreadListItemTitle fallback="New Chat" />
+<ThreadListItemPrimitive.Title fallback="New Chat" />
 ```
 
 | Prop | Type | Description |
 |------|------|-------------|
 | `fallback` | `ReactNode` | Content to show when title is empty |
 
-### ThreadListItemTrigger
+### ThreadListItemPrimitive.Trigger
 
 `Pressable` that switches to the thread.
 
 ```tsx
-import { ThreadListItemTrigger } from "@assistant-ui/react-native";
-
-<ThreadListItemTrigger>
-  <ThreadListItemTitle fallback="New Chat" />
-</ThreadListItemTrigger>
+<ThreadListItemPrimitive.Trigger>
+  <ThreadListItemPrimitive.Title fallback="New Chat" />
+</ThreadListItemPrimitive.Trigger>
 ```
 
-### ThreadListItemDelete
+### ThreadListItemPrimitive.Delete
 
 `Pressable` that deletes the thread.
 
 ```tsx
-import { ThreadListItemDelete } from "@assistant-ui/react-native";
-
-<ThreadListItemDelete>
+<ThreadListItemPrimitive.Delete>
   <Text>Delete</Text>
-</ThreadListItemDelete>
+</ThreadListItemPrimitive.Delete>
 ```
 
-### ThreadListItemArchive / ThreadListItemUnarchive
+### ThreadListItemPrimitive.Archive / ThreadListItemPrimitive.Unarchive
 
 `Pressable` buttons that archive or unarchive the thread.
 
 ```tsx
-import {
-  ThreadListItemArchive,
-  ThreadListItemUnarchive,
-} from "@assistant-ui/react-native";
-
-<ThreadListItemArchive>
+<ThreadListItemPrimitive.Archive>
   <Text>Archive</Text>
-</ThreadListItemArchive>
+</ThreadListItemPrimitive.Archive>
 
-<ThreadListItemUnarchive>
+<ThreadListItemPrimitive.Unarchive>
   <Text>Unarchive</Text>
-</ThreadListItemUnarchive>
+</ThreadListItemPrimitive.Unarchive>
 ```
 
 ## Suggestion
 
+```tsx
+import { SuggestionPrimitive } from "@assistant-ui/react-native";
+```
+
 Primitives for rendering suggestions. Use inside a `SuggestionByIndexProvider` (from `@assistant-ui/core/react`).
 
-### SuggestionTitle
+### SuggestionPrimitive.Title
 
 `Text` component displaying the suggestion title.
 
 ```tsx
-import { SuggestionTitle } from "@assistant-ui/react-native";
-
-<SuggestionTitle style={styles.suggestionTitle} />
+<SuggestionPrimitive.Title style={styles.suggestionTitle} />
 ```
 
-### SuggestionDescription
+### SuggestionPrimitive.Description
 
 `Text` component displaying the suggestion description/label.
 
 ```tsx
-import { SuggestionDescription } from "@assistant-ui/react-native";
-
-<SuggestionDescription style={styles.suggestionDescription} />
+<SuggestionPrimitive.Description style={styles.suggestionDescription} />
 ```
 
-### SuggestionTrigger
+### SuggestionPrimitive.Trigger
 
 `Pressable` that triggers the suggestion action (send or insert into composer).
 
 ```tsx
-import { SuggestionTrigger } from "@assistant-ui/react-native";
-
-<SuggestionTrigger send>
-  <SuggestionTitle />
-</SuggestionTrigger>
+<SuggestionPrimitive.Trigger send>
+  <SuggestionPrimitive.Title />
+</SuggestionPrimitive.Trigger>
 ```
 
 | Prop | Type | Description |
@@ -530,124 +517,43 @@ import { SuggestionTrigger } from "@assistant-ui/react-native";
 | `send` | `boolean` | When true, sends immediately; when false, inserts into composer |
 | `clearComposer` | `boolean` | Whether to clear/replace composer text (default: true) |
 
-### ThreadSuggestion
-
-Inline `Pressable` that triggers a suggestion with a specified prompt. Use this when you want to hardcode suggestion text.
-
-```tsx
-import { ThreadSuggestion } from "@assistant-ui/react-native";
-
-<ThreadSuggestion prompt="Tell me a joke" send>
-  <Text>Tell me a joke</Text>
-</ThreadSuggestion>
-```
-
-| Prop | Type | Description |
-|------|------|-------------|
-| `prompt` | `string` | The suggestion text |
-| `send` | `boolean` | When true, sends immediately |
-| `clearComposer` | `boolean` | Whether to clear/replace composer text (default: true) |
-
-### ThreadPrimitiveSuggestions
-
-Renders all suggestions from the store. Shared from `@assistant-ui/core/react`.
-
-```tsx
-import { ThreadPrimitiveSuggestions } from "@assistant-ui/react-native";
-
-<ThreadPrimitiveSuggestions
-  components={{ Suggestion: MySuggestionComponent }}
-/>
-```
-
 ## ChainOfThought
+
+```tsx
+import { ChainOfThoughtPrimitive } from "@assistant-ui/react-native";
+```
 
 Primitives for rendering chain of thought content (grouped reasoning and tool-call parts).
 
-### ChainOfThoughtRoot
+### ChainOfThoughtPrimitive.Root
 
 Container `View` for chain of thought content.
 
 ```tsx
-import { ChainOfThoughtRoot } from "@assistant-ui/react-native";
-
-<ChainOfThoughtRoot style={styles.chainOfThought}>
+<ChainOfThoughtPrimitive.Root style={styles.chainOfThought}>
   {children}
-</ChainOfThoughtRoot>
+</ChainOfThoughtPrimitive.Root>
 ```
 
-### ChainOfThoughtAccordionTrigger
+### ChainOfThoughtPrimitive.AccordionTrigger
 
 `Pressable` that toggles the collapsed state of the chain of thought.
 
 ```tsx
-import { ChainOfThoughtAccordionTrigger } from "@assistant-ui/react-native";
-
-<ChainOfThoughtAccordionTrigger>
+<ChainOfThoughtPrimitive.AccordionTrigger>
   <Text>Toggle reasoning</Text>
-</ChainOfThoughtAccordionTrigger>
+</ChainOfThoughtPrimitive.AccordionTrigger>
 ```
 
-### ChainOfThoughtPrimitiveParts
+### ChainOfThoughtPrimitive.Parts
 
 Renders the parts within a chain of thought. Shared from `@assistant-ui/core/react`.
 
 ```tsx
-import { ChainOfThoughtPrimitiveParts } from "@assistant-ui/react-native";
-
-<ChainOfThoughtPrimitiveParts
+<ChainOfThoughtPrimitive.Parts
   components={{
     Reasoning: ({ text }) => <Text>{text}</Text>,
     tools: { Fallback: MyToolComponent },
   }}
 />
-```
-
-## Additional Composer Primitives
-
-### ComposerAddAttachment
-
-`Pressable` for triggering attachment addition. The actual file picker must be implemented by the consumer (e.g. using `expo-document-picker` or `expo-image-picker`).
-
-```tsx
-import { ComposerAddAttachment } from "@assistant-ui/react-native";
-
-<ComposerAddAttachment onPress={handlePickFile}>
-  <Text>📎</Text>
-</ComposerAddAttachment>
-```
-
-### ComposerIf
-
-Conditional rendering based on composer state. Shared from `@assistant-ui/core/react`.
-
-```tsx
-import { ComposerIf } from "@assistant-ui/react-native";
-
-<ComposerIf editing>
-  <Text>Currently editing</Text>
-</ComposerIf>
-```
-
-| Prop | Type | Description |
-|------|------|-------------|
-| `editing` | `boolean` | Render when composer is in editing mode |
-| `dictation` | `boolean` | Render when dictation is active |
-
-## Shared Primitives from core/react
-
-The following primitives are shared with `@assistant-ui/react` via `@assistant-ui/core/react` and work identically on both platforms:
-
-- **`ThreadPrimitiveMessages`** / **`ThreadPrimitiveMessageByIndex`** — Component-composition pattern for rendering messages (alternative to the FlatList-based `ThreadMessages`)
-- **`MessagePrimitiveParts`** / **`MessagePrimitivePartByIndex`** — Renders message parts with grouping, ChainOfThought, and Empty support (alternative to the render-props-based `MessageContent`). Uses `<Text>` as default text renderer on RN.
-- **`ThreadPrimitiveSuggestions`** / **`ThreadPrimitiveSuggestionByIndex`** — Renders suggestions from the store
-- **`ThreadListPrimitiveItems`** / **`ThreadListPrimitiveItemByIndex`** — Component-composition pattern for thread list items (alternative to the FlatList-based `ThreadListItems`)
-- **`ChainOfThoughtPrimitiveParts`** — Renders chain of thought parts
-
-```tsx
-import {
-  ThreadPrimitiveMessages,
-  MessagePrimitiveParts,
-  ThreadPrimitiveSuggestions,
-} from "@assistant-ui/react-native";
 ```

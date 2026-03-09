@@ -17,7 +17,7 @@ If you already have an assistant-ui web app, most of your code transfers directl
 
 | Web (`@assistant-ui/react`) | React Native (`@assistant-ui/react-native`) |
 |---|---|
-| `AssistantRuntimeProvider` | `AssistantProvider` |
+| `AssistantRuntimeProvider` | `AssistantRuntimeProvider` (same name) |
 | DOM primitives (`div`, `button`, `input`) | Native primitives (`View`, `Pressable`, `TextInput`) |
 | CSS / Tailwind styling | React Native `StyleSheet` or inline styles |
 | `@assistant-ui/ui` (shadcn components) | Build your own native UI with primitives |
@@ -66,15 +66,15 @@ export function useAppRuntime() {
 // Before (web)
 // import { AssistantRuntimeProvider } from "@assistant-ui/react";
 
-// After (React Native)
-import { AssistantProvider } from "@assistant-ui/react-native";
+// After (React Native) — same component name, different package
+import { AssistantRuntimeProvider } from "@assistant-ui/react-native";
 
 export default function App() {
   const runtime = useAppRuntime();
   return (
-    <AssistantProvider runtime={runtime}>
+    <AssistantRuntimeProvider runtime={runtime}>
       {/* your native UI */}
-    </AssistantProvider>
+    </AssistantRuntimeProvider>
   );
 }
 ```
@@ -92,29 +92,26 @@ This is the main migration effort. Web components (`Thread`, `ThreadList` from `
 
 // React Native — use primitives or build custom
 import {
-  ThreadRoot,
-  ThreadMessages,
-  ComposerRoot,
-  ComposerInput,
-  ComposerSend,
+  ThreadPrimitive,
+  ComposerPrimitive,
 } from "@assistant-ui/react-native";
 import { View, Text } from "react-native";
 
 function ChatScreen() {
   return (
-    <ThreadRoot style={{ flex: 1 }}>
-      <ThreadMessages
+    <ThreadPrimitive.Root style={{ flex: 1 }}>
+      <ThreadPrimitive.Messages
         renderMessage={({ message }) => (
           <View style={{ padding: 12 }}>
             <Text>{message.content.filter((p) => p.type === "text").map((p) => p.text).join("\n")}</Text>
           </View>
         )}
       />
-      <ComposerRoot>
-        <ComposerInput placeholder="Message..." />
-        <ComposerSend />
-      </ComposerRoot>
-    </ThreadRoot>
+      <ComposerPrimitive.Root>
+        <ComposerPrimitive.Input placeholder="Message..." />
+        <ComposerPrimitive.Send />
+      </ComposerPrimitive.Root>
+    </ThreadPrimitive.Root>
   );
 }
 ```

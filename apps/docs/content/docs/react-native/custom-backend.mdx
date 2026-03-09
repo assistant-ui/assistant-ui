@@ -170,15 +170,15 @@ export function useAppRuntime() {
 ### Use in your app
 
 ```tsx title="app/index.tsx"
-import { AssistantProvider } from "@assistant-ui/react-native";
+import { AssistantRuntimeProvider } from "@assistant-ui/react-native";
 import { useAppRuntime } from "@/hooks/use-app-runtime";
 
 export default function App() {
   const runtime = useAppRuntime();
   return (
-    <AssistantProvider runtime={runtime}>
+    <AssistantRuntimeProvider runtime={runtime}>
       {/* your chat UI */}
-    </AssistantProvider>
+    </AssistantRuntimeProvider>
   );
 }
 ```
