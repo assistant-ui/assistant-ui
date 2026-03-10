@@ -21,8 +21,9 @@ import type {
   FileMessagePartComponent,
   ReasoningMessagePartComponent,
   ReasoningGroupComponent,
+  QuoteMessagePartComponent,
 } from "../../types";
-import type { MessagePartStatus } from "../../../types";
+import type { MessagePartStatus, QuoteInfo } from "../../../types";
 import { useShallow } from "zustand/shallow";
 
 type MessagePartRange =
@@ -161,6 +162,8 @@ export namespace MessagePrimitiveParts {
     Unstable_Audio?: Unstable_AudioMessagePartComponent | undefined;
     /** Configuration for data part rendering */
     data?: DataConfig | undefined;
+    /** Component for rendering a quoted message reference (from metadata, not parts) */
+    Quote?: QuoteMessagePartComponent | undefined;
   };
 
   type ToolsConfig =
@@ -460,6 +463,20 @@ const ConditionalEmpty = memo(
     prev.components?.Text === next.components?.Text,
 );
 
+const QuoteRendererImpl: FC<{ Quote: QuoteMessagePartComponent }> = ({
+  Quote,
+}) => {
+  const quoteInfo = useAuiState(
+    (s) =>
+      (s.message.metadata?.custom as Record<string, unknown> | undefined)
+        ?.quote as QuoteInfo | undefined,
+  );
+  if (!quoteInfo) return null;
+  return <Quote text={quoteInfo.text} messageId={quoteInfo.messageId} />;
+};
+
+const QuoteRenderer = memo(QuoteRendererImpl);
+
 /**
  * Renders the parts of a message with support for multiple content types.
  *
@@ -549,6 +566,7 @@ export const MessagePrimitiveParts: FC<MessagePrimitiveParts.Props> = ({
 
   return (
     <>
+      {components?.Quote && <QuoteRenderer Quote={components.Quote} />}
       {partsElements}
       <ConditionalEmpty
         components={components}

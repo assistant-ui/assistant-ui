@@ -50,6 +50,8 @@ export type {
   ToolCallMessagePartProps,
   ReasoningGroupProps,
   ReasoningGroupComponent,
+  QuoteMessagePartComponent,
+  QuoteMessagePartProps,
 } from "@assistant-ui/core/react";
 
 // Thread list item types

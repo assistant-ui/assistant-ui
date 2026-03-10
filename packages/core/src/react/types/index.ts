@@ -19,6 +19,8 @@ export type {
   ToolCallMessagePartProps,
   ReasoningGroupProps,
   ReasoningGroupComponent,
+  QuoteMessagePartComponent,
+  QuoteMessagePartProps,
 } from "./MessagePartComponentTypes";
 
 export type {
