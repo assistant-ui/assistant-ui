@@ -19,6 +19,7 @@
         "dist",
         ".next/**",
         "!.next/cache/**",
+        "!.next/dev/**",
         "generated/**",
         ".output/**",
         "build/**"
