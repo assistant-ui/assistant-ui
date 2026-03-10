@@ -68,7 +68,8 @@ const getComponent = (
           components.SystemEditComposer ??
           components.EditComposer ??
           components.SystemMessage ??
-          (components.Message as ComponentType)
+          (components.Message as ComponentType) ??
+          DEFAULT_SYSTEM_MESSAGE
         );
       } else {
         return (
@@ -94,6 +95,19 @@ const ThreadMessageComponent: FC<{ components: MessageComponents }> = ({
   return <Component />;
 };
 
+const isComponentsSame = (prev: MessageComponents, next: MessageComponents) => {
+  return (
+    prev.Message === next.Message &&
+    prev.EditComposer === next.EditComposer &&
+    prev.UserEditComposer === next.UserEditComposer &&
+    prev.AssistantEditComposer === next.AssistantEditComposer &&
+    prev.SystemEditComposer === next.SystemEditComposer &&
+    prev.UserMessage === next.UserMessage &&
+    prev.AssistantMessage === next.AssistantMessage &&
+    prev.SystemMessage === next.SystemMessage
+  );
+};
+
 const ThreadMessageByIndex = memo(
   ({ index, components }: { index: number; components: MessageComponents }) => {
     return (
@@ -103,17 +117,18 @@ const ThreadMessageByIndex = memo(
     );
   },
   (prev, next) =>
-    prev.index === next.index && prev.components === next.components,
+    prev.index === next.index &&
+    isComponentsSame(prev.components, next.components),
 );
 
 export const ThreadMessages = ({ components }: ThreadMessagesProps) => {
-  const messages = useAuiState((s) => s.thread.messages);
+  const messagesLength = useAuiState((s) => s.thread.messages.length);
 
   return (
     <Box flexDirection="column">
-      {(messages as unknown as ThreadMessage[]).map((message, index) => (
+      {Array.from({ length: messagesLength }, (_, index) => (
         <ThreadMessageByIndex
-          key={message.id}
+          key={index}
           index={index}
           components={components}
         />

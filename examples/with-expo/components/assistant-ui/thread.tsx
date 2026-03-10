@@ -10,11 +10,8 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MessageBubble } from "./message";
 import { Composer } from "./composer";
-import {
-  ThreadPrimitive,
-  useThreadIsEmpty,
-  useAui,
-} from "@assistant-ui/react-native";
+import { ThreadPrimitive, useAui } from "@assistant-ui/react-native";
+import { useThreadIsEmpty } from "@assistant-ui/core/react";
 
 function SuggestionChip({ title, prompt }: { title: string; prompt: string }) {
   const colorScheme = useColorScheme();

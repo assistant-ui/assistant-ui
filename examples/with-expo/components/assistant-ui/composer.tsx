@@ -10,12 +10,14 @@ import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import {
   useAuiState,
-  useComposerSend,
-  useComposerCancel,
-  useComposerAddAttachment,
   ComposerPrimitive,
   AttachmentPrimitive,
 } from "@assistant-ui/react-native";
+import {
+  useComposerSend,
+  useComposerCancel,
+  useComposerAddAttachment,
+} from "@assistant-ui/core/react";
 
 function AttachmentPreview() {
   const attachment = useAuiState((s) => s.attachment);
@@ -42,8 +44,10 @@ export function Composer() {
   const isDark = colorScheme === "dark";
 
   const attachmentsCount = useAuiState((s) => s.composer.attachments.length);
-  const { send, canSend } = useComposerSend();
-  const { cancel, canCancel } = useComposerCancel();
+  const { send, disabled: sendDisabled } = useComposerSend();
+  const canSend = !sendDisabled;
+  const { cancel, disabled: cancelDisabled } = useComposerCancel();
+  const canCancel = !cancelDisabled;
   const { addAttachment } = useComposerAddAttachment();
 
   const pickImage = async () => {

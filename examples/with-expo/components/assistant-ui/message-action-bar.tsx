@@ -1,9 +1,6 @@
 import { Pressable, View, StyleSheet, useColorScheme } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import {
-  useActionBarCopy,
-  useActionBarReload,
-} from "@assistant-ui/react-native";
+import { useActionBarCopy, useActionBarReload } from "@assistant-ui/core/react";
 
 export function MessageActionBar() {
   const colorScheme = useColorScheme();
