@@ -45,7 +45,10 @@ export function injectQuoteContext(messages: UIMessage[]): UIMessage[] {
 
     return {
       ...msg,
-      parts: [{ type: "text" as const, text: `> ${text}\n\n` }, ...msg.parts],
+      parts: [
+        { type: "text" as const, text: `> ${text}\n\n` },
+        ...(msg.parts ?? []),
+      ],
     };
   });
 }

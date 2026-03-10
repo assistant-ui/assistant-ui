@@ -475,7 +475,10 @@ const QuoteRendererImpl: FC<{ Quote: QuoteMessagePartComponent }> = ({
   return <Quote text={quoteInfo.text} messageId={quoteInfo.messageId} />;
 };
 
-const QuoteRenderer = memo(QuoteRendererImpl);
+const QuoteRenderer = memo(
+  QuoteRendererImpl,
+  (prev, next) => prev.Quote === next.Quote,
+);
 
 /**
  * Renders the parts of a message with support for multiple content types.
