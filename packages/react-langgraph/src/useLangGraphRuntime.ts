@@ -83,8 +83,12 @@ const getMessageContent = (msg: AppendMessage) => {
       default:
         if (type.startsWith("data-"))
           throw new Error(`Unsupported append message part type: ${type}`);
-        const _exhaustiveCheck: "reasoning" | "source" | "audio" | "data" | `data-${string}` =
-          type;
+        const _exhaustiveCheck:
+          | "reasoning"
+          | "source"
+          | "audio"
+          | "data"
+          | `data-${string}` = type;
         throw new Error(
           `Unsupported append message part type: ${_exhaustiveCheck}`,
         );
