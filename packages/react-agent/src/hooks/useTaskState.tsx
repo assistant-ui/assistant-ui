@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import type { TaskRuntime, TaskState } from "../runtime";
-import { useAgentWorkspace, useWorkspaceTasks } from "./useAgentWorkspace";
+import { useWorkspaceTasks } from "./useAgentWorkspace";
 
 const TaskContext = createContext<string | null>(null);
 
@@ -59,8 +59,8 @@ export function useTaskStateById<T>(
   taskId: string,
   selector: (state: TaskState) => T,
 ): T {
-  const workspace = useAgentWorkspace();
-  const task = workspace.getTask(taskId);
+  const tasks = useWorkspaceTasks();
+  const task = tasks.find((task) => task.id === taskId);
   if (!task) {
     throw new Error(`Task not found: ${taskId}`);
   }

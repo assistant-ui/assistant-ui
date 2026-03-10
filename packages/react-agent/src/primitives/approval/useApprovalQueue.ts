@@ -14,6 +14,10 @@ export interface ApprovalFilterOptions {
 
 export function useApprovalQueue(filter?: ApprovalFilterOptions) {
   const tasks = useWorkspaceTasks();
+  const status = filter?.status;
+  const toolName = filter?.toolName;
+  const taskId = filter?.taskId;
+  const agentId = filter?.agentId;
 
   return useMemo(() => {
     const allApprovals = tasks.flatMap((task) => {
@@ -25,27 +29,23 @@ export function useApprovalQueue(filter?: ApprovalFilterOptions) {
     });
 
     return allApprovals.filter((approval) => {
-      if (
-        filter?.status &&
-        filter.status !== "all" &&
-        approval.status !== filter.status
-      ) {
+      if (status && status !== "all" && approval.status !== status) {
         return false;
       }
 
-      if (filter?.toolName && !approval.toolName.includes(filter.toolName)) {
+      if (toolName && !approval.toolName.includes(toolName)) {
         return false;
       }
 
-      if (filter?.taskId && approval.taskId !== filter.taskId) {
+      if (taskId && approval.taskId !== taskId) {
         return false;
       }
 
-      if (filter?.agentId && approval.agentId !== filter.agentId) {
+      if (agentId && approval.agentId !== agentId) {
         return false;
       }
 
       return true;
     });
-  }, [tasks, filter]);
+  }, [tasks, status, toolName, taskId, agentId]);
 }

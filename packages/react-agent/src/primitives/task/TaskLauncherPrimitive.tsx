@@ -33,10 +33,15 @@ export function useTaskLauncher() {
 
 export interface TaskLauncherRootProps {
   onSubmit?: (taskId: string) => void;
+  onError?: (error: unknown) => void;
   children: ReactNode;
 }
 
-function TaskLauncherRoot({ onSubmit, children }: TaskLauncherRootProps) {
+function TaskLauncherRoot({
+  onSubmit,
+  onError,
+  children,
+}: TaskLauncherRootProps) {
   const workspace = useAgentWorkspace();
   const [prompt, setPrompt] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -54,12 +59,18 @@ function TaskLauncherRoot({ onSubmit, children }: TaskLauncherRootProps) {
           const task = await workspace.createTask(prompt);
           setPrompt("");
           onSubmit?.(task.id);
+        } catch (error) {
+          onError?.(error);
+          if (!onError) {
+            console.error("TaskLauncher submit failed:", error);
+          }
+          throw error;
         } finally {
           setIsSubmitting(false);
         }
       },
     }),
-    [prompt, isSubmitting, workspace, onSubmit],
+    [prompt, isSubmitting, workspace, onSubmit, onError],
   );
 
   return (
@@ -105,9 +116,7 @@ function TaskLauncherSubmit({
   const isDisabled = disabled || !prompt.trim() || isSubmitting;
 
   const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
-    void submit().catch((error) => {
-      console.error("TaskLauncher submit failed:", error);
-    });
+    void submit().catch(() => {});
     onClick?.(e);
   };
 

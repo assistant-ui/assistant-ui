@@ -64,6 +64,8 @@ export function AgentUI() {
 
 `apiKey` is sent from the browser to your app's `baseUrl` endpoint. Use an app/session token, not a raw Anthropic API key.
 
+`TaskLauncherPrimitive.Root` accepts an optional `onError` callback if task creation fails and your UI needs to surface that state.
+
 ## Key Exports
 
 - Runtime: `WorkspaceRuntime`, `TaskRuntime`, `AgentRuntime`, `ApprovalRuntime`, `LocalStoragePermissionStore`

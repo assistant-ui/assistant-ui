@@ -17,7 +17,6 @@ import type { ApprovalState } from "../../runtime/types";
 
 interface ApprovalQueueContextValue {
   approvals: ApprovalState[];
-  filter: ApprovalFilterOptions | undefined;
 }
 
 const ApprovalQueueContext = createContext<ApprovalQueueContextValue | null>(
@@ -45,9 +44,8 @@ function ApprovalQueueRoot({ filter, children }: ApprovalQueueRootProps) {
   const value = useMemo(
     () => ({
       approvals,
-      filter,
     }),
-    [approvals, filter],
+    [approvals],
   );
 
   return (

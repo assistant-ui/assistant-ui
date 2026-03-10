@@ -70,22 +70,22 @@ export function useApprovalState<T>(
 export function useApprovalStateById<T>(
   approvalId: string,
   selector: (state: ApprovalState) => T,
-): T {
+): T | null {
   const task = useTask();
   const approval = task.getApproval(approvalId);
-  if (!approval) {
-    throw new Error(`Approval not found: ${approvalId}`);
-  }
 
   const subscribe = useCallback(
-    (callback: () => void) => approval.subscribe(callback),
+    (callback: () => void) => {
+      if (!approval) return EMPTY_SUBSCRIBE(callback);
+      return approval.subscribe(callback);
+    },
     [approval],
   );
 
-  const getSnapshot = useCallback(
-    () => selector(approval.getState()),
-    [approval, selector],
-  );
+  const getSnapshot = useCallback(() => {
+    if (!approval) return null;
+    return selector(approval.getState());
+  }, [approval, selector]);
 
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }

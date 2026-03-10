@@ -153,12 +153,7 @@ function useCopyInput() {
 
   return async () => {
     const text = JSON.stringify(input, null, 2);
-    try {
-      await navigator.clipboard.writeText(text);
-    } catch (error) {
-      console.error("Failed to copy tool input to clipboard:", error);
-      throw error;
-    }
+    await navigator.clipboard.writeText(text);
   };
 }
 
@@ -169,12 +164,7 @@ function useCopyOutput() {
 
   return async () => {
     const text = JSON.stringify(output, null, 2);
-    try {
-      await navigator.clipboard.writeText(text);
-    } catch (error) {
-      console.error("Failed to copy tool output to clipboard:", error);
-      throw error;
-    }
+    await navigator.clipboard.writeText(text);
   };
 }
 
