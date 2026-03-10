@@ -8,13 +8,21 @@ export const TestimonialContainer: FC<{
   className?: string;
 }> = ({ testimonials, className }) => {
   return (
-    <div className="relative mx-auto max-h-[500px] w-full max-w-7xl overflow-hidden">
-      <div className={cn("columns-1 gap-4", className)}>
+    <div
+      className="mx-auto w-full max-w-7xl overflow-hidden"
+      style={{
+        maskImage: "linear-gradient(to bottom, black 65%, transparent 95%)",
+        maxHeight: 400,
+      }}
+    >
+      <div
+        className={cn("h-[440px] columns-1 gap-4", className)}
+        style={{ columnFill: "auto" }}
+      >
         {testimonials.map((testimonial, idx) => (
           <TestimonialCard key={idx} {...testimonial} />
         ))}
       </div>
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-linear-to-t from-background" />
     </div>
   );
 };
