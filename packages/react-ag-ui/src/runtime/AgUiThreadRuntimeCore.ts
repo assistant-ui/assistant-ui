@@ -272,7 +272,26 @@ export class AgUiThreadRuntimeCore {
 
   applyExternalMessages(messages: readonly ThreadMessage[]): void {
     this.assistantHistoryParents.clear();
-    this.messages = [...messages];
+    // If the run is no longer active, sanitize any "running" assistant messages
+    // that may have been captured in an external snapshot before cancel/finish.
+    // This prevents a race where cancelRun()'s setTimeout restores a stale
+    // snapshot with status "running", leaving the UI stuck in a loading state.
+    if (!this.isRunningFlag) {
+      this.messages = messages.map((msg) => {
+        if (
+          msg.role === "assistant" &&
+          (msg as ThreadAssistantMessage).status?.type === "running"
+        ) {
+          return {
+            ...(msg as ThreadAssistantMessage),
+            status: { type: "incomplete" as const, reason: "cancelled" as const },
+          } as ThreadAssistantMessage;
+        }
+        return msg;
+      });
+    } else {
+      this.messages = [...messages];
+    }
     this.recordedHistoryIds.clear();
     for (const message of this.messages) {
       this.recordedHistoryIds.add(message.id);
