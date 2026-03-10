@@ -3,5 +3,6 @@
 
 export * from "./ui";
 export { frontendTools } from "./frontendTools";
+export { injectQuoteContext } from "./injectQuoteContext";
 export type { ThreadTokenUsage, TokenUsageExtractableMessage } from "./usage";
 export { getThreadMessageTokenUsage, useThreadTokenUsage } from "./usage";
