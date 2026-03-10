@@ -4,6 +4,7 @@ import type { AttachmentAdapter } from "../legacy-runtime/runtime-cores/adapters
 import type { DictationAdapter } from "../legacy-runtime/runtime-cores/adapters/speech/SpeechAdapterTypes";
 import type {
   AppendMessage,
+  CompleteAttachment,
   CreateAttachment,
   PendingAttachment,
 } from "@assistant-ui/core";
@@ -188,7 +189,7 @@ describe("BaseComposerRuntimeCore", () => {
     expect(composer.sentMessages[0]!.content).toEqual([]);
   });
 
-  it("send with empty text and attachment injects placeholder text content", async () => {
+  it("send with empty text and attachment keeps empty content", async () => {
     const pending = makePendingAttachment("att-1", "doc.pdf");
     const completedFromAdapter = {
       id: "att-1",
@@ -218,12 +219,61 @@ describe("BaseComposerRuntimeCore", () => {
     await composer.send();
 
     expect(composer.sentMessages).toHaveLength(1);
-    expect(composer.sentMessages[0]!.content).toEqual([
-      { type: "text", text: " " },
-    ]);
+    expect(composer.sentMessages[0]!.content).toEqual([]);
     expect(composer.sentMessages[0]!.attachments).toEqual([
       completedFromAdapter,
     ]);
+  });
+
+  it("send snapshots role and runConfig before awaiting attachment upload", async () => {
+    const pending = makePendingAttachment("att-1", "doc.pdf");
+
+    let resolveSend: ((value: CompleteAttachment) => void) | undefined;
+    const sendPromise = new Promise<CompleteAttachment>((resolve) => {
+      resolveSend = resolve;
+    });
+
+    const adapter: AttachmentAdapter = {
+      accept: "*",
+      add: vi.fn().mockResolvedValue(pending),
+      remove: vi.fn(),
+      send: vi.fn().mockReturnValue(sendPromise),
+    };
+    composer.setAttachmentAdapter(adapter);
+
+    await composer.addAttachment(new File(["data"], "doc.pdf"));
+    composer.setRole("assistant");
+    const originalRunConfig = { custom: { model: "model-a" } };
+    composer.setRunConfig(originalRunConfig);
+
+    const sending = composer.send();
+
+    composer.setRole("user");
+    const changedRunConfig = { custom: { model: "model-b" } };
+    composer.setRunConfig(changedRunConfig);
+
+    resolveSend?.({
+      id: "att-1",
+      type: "document",
+      name: "doc.pdf",
+      contentType: "application/pdf",
+      content: [
+        {
+          type: "file",
+          filename: "doc.pdf",
+          data: "ZmFrZS1iYXNlNjQ=",
+          mimeType: "application/pdf",
+        },
+      ],
+      status: { type: "complete" },
+    });
+
+    await sending;
+
+    expect(composer.sentMessages).toHaveLength(1);
+    expect(composer.sentMessages[0]!.role).toBe("assistant");
+    expect(composer.sentMessages[0]!.runConfig).toBe(originalRunConfig);
+    expect(composer.sentMessages[0]!.runConfig).not.toBe(changedRunConfig);
   });
 
   it("addAttachment throws when no adapter", async () => {
