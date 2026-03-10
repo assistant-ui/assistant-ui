@@ -5,22 +5,12 @@ import {
   ActionButtonProps,
   createActionButton,
 } from "../../utils/createActionButton";
-import { useCallback } from "react";
-import { useAuiState, useAui } from "@assistant-ui/store";
+import { useComposerSend as useComposerSendBehavior } from "@assistant-ui/core/react";
 
 export const useComposerSend = () => {
-  const aui = useAui();
-
-  const disabled = useAuiState(
-    (s) => s.thread.isRunning || !s.composer.isEditing || s.composer.isEmpty,
-  );
-
-  const callback = useCallback(() => {
-    aui.composer().send();
-  }, [aui]);
-
+  const { disabled, send } = useComposerSendBehavior();
   if (disabled) return null;
-  return callback;
+  return send;
 };
 
 export namespace ComposerPrimitiveSend {

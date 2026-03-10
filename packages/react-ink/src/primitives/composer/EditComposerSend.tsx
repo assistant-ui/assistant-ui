@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { useEditComposerSend } from "../../primitive-hooks/useEditComposerSend";
+import { useEditComposerSend } from "@assistant-ui/core/react";
 import { Pressable, type PressableProps } from "../internal/Pressable";
 
 export type EditComposerSendProps = Omit<PressableProps, "onPress"> & {

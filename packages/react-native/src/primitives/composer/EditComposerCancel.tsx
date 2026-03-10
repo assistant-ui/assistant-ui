@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Pressable, type PressableProps } from "react-native";
-import { useEditComposerCancel } from "../../primitive-hooks/useEditComposerCancel";
+import { useEditComposerCancel } from "@assistant-ui/core/react";
 
 export type EditComposerCancelProps = Omit<PressableProps, "onPress"> & {
   children: ReactNode;

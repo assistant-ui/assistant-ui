@@ -1,1 +1,4 @@
-export { AssistantProvider, useAssistantRuntime } from "./AssistantContext";
+export {
+  AssistantRuntimeProvider,
+  useAssistantRuntime,
+} from "./AssistantContext";

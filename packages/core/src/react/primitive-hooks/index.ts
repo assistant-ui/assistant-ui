@@ -16,3 +16,5 @@ export {
   useActionBarFeedbackNegative,
 } from "./useActionBarFeedback";
 export { useComposerAddAttachment } from "./useComposerAddAttachment";
+export { useEditComposerCancel } from "./useEditComposerCancel";
+export { useEditComposerSend } from "./useEditComposerSend";

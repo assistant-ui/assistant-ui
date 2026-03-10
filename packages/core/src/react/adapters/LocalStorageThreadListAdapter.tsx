@@ -8,15 +8,15 @@ import type {
   RemoteThreadMetadata,
   ThreadHistoryAdapter,
   ThreadMessage,
-} from "@assistant-ui/core";
+} from "../../index";
 import type {
   ExportedMessageRepository,
   ExportedMessageRepositoryItem,
-} from "@assistant-ui/core/internal";
-import { RuntimeAdapterProvider } from "../context/providers/RuntimeAdapterProvider";
+} from "../../internal";
+import { RuntimeAdapterProvider } from "../runtimes/RuntimeAdapterProvider";
 import type { TitleGenerationAdapter } from "./TitleGenerationAdapter";
 
-type AsyncStorageLike = {
+export type AsyncStorageLike = {
   getItem(key: string): Promise<string | null>;
   setItem(key: string, value: string): Promise<void>;
   removeItem(key: string): Promise<void>;

@@ -28,3 +28,9 @@ export {
   useAssistantCloudThreadHistoryAdapter,
   CloudFileAttachmentAdapter,
 } from "./cloud";
+
+export {
+  useLocalRuntime,
+  splitLocalRuntimeOptions,
+  type LocalRuntimeOptions,
+} from "./useLocalRuntime";

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Pressable, type PressableProps } from "react-native";
-import { useActionBarFeedbackPositive } from "../../primitive-hooks/useActionBarFeedback";
+import { useActionBarFeedbackPositive } from "@assistant-ui/core/react";
 
 export type ActionBarFeedbackPositiveProps = Omit<
   PressableProps,

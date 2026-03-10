@@ -1,16 +1,16 @@
 export {
-  BranchPickerPrevious,
-  type BranchPickerPreviousProps,
+  BranchPickerPrevious as Previous,
+  type BranchPickerPreviousProps as PreviousProps,
 } from "./BranchPickerPrevious";
 export {
-  BranchPickerNext,
-  type BranchPickerNextProps,
+  BranchPickerNext as Next,
+  type BranchPickerNextProps as NextProps,
 } from "./BranchPickerNext";
 export {
-  BranchPickerNumber,
-  type BranchPickerNumberProps,
+  BranchPickerNumber as Number,
+  type BranchPickerNumberProps as NumberProps,
 } from "./BranchPickerNumber";
 export {
-  BranchPickerCount,
-  type BranchPickerCountProps,
+  BranchPickerCount as Count,
+  type BranchPickerCountProps as CountProps,
 } from "./BranchPickerCount";
