@@ -17,6 +17,7 @@ import type {
   CompleteAttachment,
   FileMessagePart,
   DataMessagePart,
+  DataUIPart,
   Unstable_AudioMessagePart,
 } from "../../types";
 import { ReadonlyJSONObject, ReadonlyJSONValue } from "assistant-stream/utils";
@@ -37,6 +38,7 @@ export type ThreadMessageLike = {
         | ImageMessagePart
         | FileMessagePart
         | DataMessagePart
+        | DataUIPart
         | Unstable_AudioMessagePart
         | DataPrefixedPart
         | {
