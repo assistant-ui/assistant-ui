@@ -21,7 +21,7 @@
     "@assistant-ui/react-streamdown": "workspace:*",
     "@assistant-ui/react-syntax-highlighter": "workspace:*",
     "@assistant-ui/ui": "workspace:*",
-    "@aui-x/prism": "^0.0.4",
+    "@aui-x/prism": "^0.0.5",
     "@hookform/resolvers": "^5.2.2",
     "@langchain/langgraph-sdk": "^1.6.5",
     "@posthog/ai": "^7.9.5",
