@@ -3,6 +3,8 @@ import { Box, Text } from "ink";
 import Spinner from "ink-spinner";
 import type { ToolCallMessagePartStatus } from "@assistant-ui/core";
 import type { ToolCallMessagePartProps } from "../../types";
+import { ToolApproval, type ToolApprovalProps } from "../../ui/ToolApproval";
+import { prettyPrintArgs } from "../../utils/prettyPrintArgs";
 
 export type ToolCallStatus =
   | "running"
@@ -27,15 +29,6 @@ const STATUS_COLORS: Record<ToolCallStatus, string> = {
   complete: "green",
   error: "red",
   "requires-action": "cyan",
-};
-
-const prettyPrintArgs = (argsText: string): string => {
-  if (!argsText) return "";
-  try {
-    return JSON.stringify(JSON.parse(argsText), null, 2);
-  } catch {
-    return argsText;
-  }
 };
 
 const formatResult = (result: unknown): string => {
@@ -76,6 +69,17 @@ export type ToolFallbackProps = ToolFallbackBaseProps & {
   renderArgs?: (props: { args: unknown; argsText: string }) => ReactNode;
   /** Custom result renderer */
   renderResult?: (props: { result: unknown; isError: boolean }) => ReactNode;
+  /** Props forwarded to ToolApproval when status is requires-action */
+  approvalProps?: Partial<
+    Pick<
+      ToolApprovalProps,
+      | "onTrustChange"
+      | "autoRejectTimeout"
+      | "allowEdit"
+      | "showTrustOptions"
+      | "labels"
+    >
+  >;
 };
 
 const resolveStatus = (
@@ -130,6 +134,8 @@ export const ToolFallback = ({
   isError,
   interrupt,
   status,
+  addResult,
+  resume,
   expanded: expandedProp,
   maxArgLines = 20,
   maxResultLines = 20,
@@ -137,6 +143,7 @@ export const ToolFallback = ({
   renderHeader,
   renderArgs,
   renderResult,
+  approvalProps,
 }: ToolFallbackProps) => {
   const displayStatus = resolveStatus(
     {
@@ -217,9 +224,21 @@ export const ToolFallback = ({
 
           {displayStatus === "running" && <Text dimColor>Running...</Text>}
 
-          {displayStatus === "requires-action" && (
-            <Text color="cyan">Waiting for approval...</Text>
-          )}
+          {displayStatus === "requires-action" &&
+            (addResult && resume ? (
+              <ToolApproval
+                toolName={toolName}
+                argsText={argsText}
+                addResult={addResult}
+                resume={resume}
+                interrupt={
+                  interrupt as { type: "human"; payload: unknown } | undefined
+                }
+                {...approvalProps}
+              />
+            ) : (
+              <Text color="cyan">Waiting for approval...</Text>
+            ))}
         </Box>
       )}
     </Box>
