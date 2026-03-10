@@ -11,7 +11,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MessageBubble } from "./message";
 import { Composer } from "./composer";
 import { ThreadPrimitive, useAui } from "@assistant-ui/react-native";
-import { useThreadIsEmpty } from "@assistant-ui/core/react";
 
 function SuggestionChip({ title, prompt }: { title: string; prompt: string }) {
   const colorScheme = useColorScheme();
@@ -96,18 +95,19 @@ function EmptyState() {
 const messageComponents = { Message: MessageBubble };
 
 function ChatMessages() {
-  const isEmpty = useThreadIsEmpty();
-
-  if (isEmpty) {
-    return <EmptyState />;
-  }
-
   return (
-    <ThreadPrimitive.Messages
-      components={messageComponents}
-      contentContainerStyle={styles.messageList}
-      showsVerticalScrollIndicator={false}
-    />
+    <>
+      <ThreadPrimitive.Empty>
+        <EmptyState />
+      </ThreadPrimitive.Empty>
+      <ThreadPrimitive.If empty={false}>
+        <ThreadPrimitive.Messages
+          components={messageComponents}
+          contentContainerStyle={styles.messageList}
+          showsVerticalScrollIndicator={false}
+        />
+      </ThreadPrimitive.If>
+    </>
   );
 }
 
