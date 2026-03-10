@@ -188,6 +188,44 @@ describe("BaseComposerRuntimeCore", () => {
     expect(composer.sentMessages[0]!.content).toEqual([]);
   });
 
+  it("send with empty text and attachment injects placeholder text content", async () => {
+    const pending = makePendingAttachment("att-1", "doc.pdf");
+    const completedFromAdapter = {
+      id: "att-1",
+      type: "document" as const,
+      name: "doc.pdf",
+      contentType: "application/pdf",
+      content: [
+        {
+          type: "file" as const,
+          filename: "doc.pdf",
+          data: "ZmFrZS1iYXNlNjQ=",
+          mimeType: "application/pdf",
+        },
+      ],
+      status: { type: "complete" as const },
+    };
+
+    const adapter: AttachmentAdapter = {
+      accept: "*",
+      add: vi.fn().mockResolvedValue(pending),
+      remove: vi.fn(),
+      send: vi.fn().mockResolvedValue(completedFromAdapter),
+    };
+    composer.setAttachmentAdapter(adapter);
+
+    await composer.addAttachment(new File(["data"], "doc.pdf"));
+    await composer.send();
+
+    expect(composer.sentMessages).toHaveLength(1);
+    expect(composer.sentMessages[0]!.content).toEqual([
+      { type: "text", text: " " },
+    ]);
+    expect(composer.sentMessages[0]!.attachments).toEqual([
+      completedFromAdapter,
+    ]);
+  });
+
   it("addAttachment throws when no adapter", async () => {
     const file = new File(["data"], "test.txt");
     await expect(composer.addAttachment(file)).rejects.toThrow(

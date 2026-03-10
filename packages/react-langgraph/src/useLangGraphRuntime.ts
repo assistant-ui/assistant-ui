@@ -59,7 +59,14 @@ const getMessageContent = (msg: AppendMessage) => {
     ...msg.content,
     ...(msg.attachments?.flatMap((a) => a.content) ?? []),
   ];
-  const content = allContent.map((part) => {
+  const hasFile = allContent.some((part) => part.type === "file");
+  const hasText = allContent.some((part) => part.type === "text");
+  const normalizedContent =
+    hasFile && !hasText
+      ? ([{ type: "text", text: " " }, ...allContent] as const)
+      : allContent;
+
+  const content = normalizedContent.map((part) => {
     const type = part.type;
     switch (type) {
       case "text":
