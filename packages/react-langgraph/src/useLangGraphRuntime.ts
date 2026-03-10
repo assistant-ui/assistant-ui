@@ -266,6 +266,7 @@ const useLangGraphRuntimeImpl = ({
   });
 
   const [isRunning, setIsRunning] = useState(false);
+  const [isLoadingThread, setIsLoadingThread] = useState(false);
   const [toolStatuses, setToolStatuses] = useState<
     Record<string, ToolExecutionStatus>
   >({});
@@ -341,6 +342,7 @@ const useLangGraphRuntimeImpl = ({
 
   const runtime = useExternalStoreRuntime({
     isRunning: effectiveIsRunning,
+    isLoading: isLoadingThread,
     messages: threadMessages,
     adapters: {
       attachments,
@@ -466,12 +468,28 @@ const useLangGraphRuntimeImpl = ({
       if (!load) return;
 
       const externalId = aui.threadListItem().getState().externalId;
-      if (externalId == null) return;
+      if (externalId == null) {
+        setIsLoadingThread(false);
+        return;
+      }
 
-      load(externalId).then(({ messages, interrupts }) => {
-        setMessages(messages);
-        setInterrupt(interrupts?.[0]);
-      });
+      let cancelled = false;
+      setIsLoadingThread(true);
+      load(externalId)
+        .then(({ messages, interrupts }) => {
+          if (cancelled) return;
+          setMessages(messages);
+          setInterrupt(interrupts?.[0]);
+        })
+        .finally(() => {
+          if (cancelled) return;
+          setIsLoadingThread(false);
+        });
+
+      return () => {
+        cancelled = true;
+        setIsLoadingThread(false);
+      };
     }, [aui, setMessages, setInterrupt]);
   }
 
