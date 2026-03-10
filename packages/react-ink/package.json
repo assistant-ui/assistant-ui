@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-ink",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "React Ink (terminal UI) bindings for assistant-ui",
   "keywords": [
     "assistant",
@@ -39,7 +39,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.1.4",
+    "@assistant-ui/core": "^0.1.5",
     "@assistant-ui/store": "^0.2.2",
     "@assistant-ui/tap": "^0.5.2",
     "assistant-stream": "^0.3.5",

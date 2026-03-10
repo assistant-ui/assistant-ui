@@ -1,5 +1,11 @@
 # @assistant-ui/core
 
+## 0.1.5
+
+### Patch Changes
+
+- 990e41d: refactor: code sharing between the multiple platforms
+
 ## 0.1.4
 
 ### Patch Changes

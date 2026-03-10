@@ -1,5 +1,13 @@
 # @assistant-ui/react
 
+## 0.12.17
+
+### Patch Changes
+
+- 990e41d: refactor: code sharing between the multiple platforms
+- Updated dependencies [990e41d]
+  - @assistant-ui/core@0.1.5
+
 ## 0.12.16
 
 ### Patch Changes
