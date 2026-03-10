@@ -5,7 +5,8 @@ import {
   ActionButtonProps,
   createActionButton,
 } from "../../utils/createActionButton";
-import { useActionBarEdit as useActionBarEditBehavior } from "@assistant-ui/core/react";
+import { useCallback } from "react";
+import { useAuiState, useAui } from "@assistant-ui/store";
 
 /**
  * Hook that provides edit functionality for action bar buttons.
@@ -29,9 +30,15 @@ import { useActionBarEdit as useActionBarEditBehavior } from "@assistant-ui/core
  * ```
  */
 const useActionBarEdit = () => {
-  const { disabled, edit } = useActionBarEditBehavior();
+  const aui = useAui();
+  const disabled = useAuiState((s) => s.composer.isEditing);
+
+  const callback = useCallback(() => {
+    aui.composer().beginEdit();
+  }, [aui]);
+
   if (disabled) return null;
-  return edit;
+  return callback;
 };
 
 export namespace ActionBarPrimitiveEdit {

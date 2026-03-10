@@ -49,18 +49,3 @@ export {
   ComposerPrimitiveIf,
   type UseComposerIfProps,
 } from "./primitives/composer/ComposerIf";
-
-// Primitive hooks (shared behavior logic)
-export * from "./primitive-hooks";
-
-// Shared AssistantRuntimeProvider
-export {
-  AssistantRuntimeProvider,
-  useAssistantRuntime,
-} from "./AssistantRuntimeProvider";
-
-// Shared runtimes
-export {
-  useLocalRuntime,
-  type LocalRuntimeOptions,
-} from "./runtimes/useLocalRuntime";

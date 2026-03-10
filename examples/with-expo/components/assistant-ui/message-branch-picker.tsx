@@ -1,7 +1,7 @@
 import { Pressable, View, StyleSheet, useColorScheme } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { ThemedText } from "@/components/themed-text";
-import { useMessageBranching } from "@assistant-ui/core/react";
+import { useMessageBranching } from "@assistant-ui/react-native";
 
 export function MessageBranchPicker() {
   const { branchNumber, branchCount, goToPrev, goToNext } =

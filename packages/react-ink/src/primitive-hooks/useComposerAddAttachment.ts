@@ -1,10 +1,9 @@
 import { useCallback } from "react";
-import { useAui, useAuiState } from "@assistant-ui/store";
-import type { CreateAttachment } from "../../types/attachment";
+import { useAui } from "@assistant-ui/store";
+import type { CreateAttachment } from "@assistant-ui/core";
 
 export const useComposerAddAttachment = () => {
   const aui = useAui();
-  const disabled = useAuiState((s) => !s.composer.isEditing);
 
   const addAttachment = useCallback(
     (file: File | CreateAttachment) => {
@@ -13,5 +12,5 @@ export const useComposerAddAttachment = () => {
     [aui],
   );
 
-  return { addAttachment, disabled };
+  return { addAttachment };
 };

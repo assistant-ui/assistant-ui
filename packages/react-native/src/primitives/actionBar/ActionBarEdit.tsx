@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Pressable, type PressableProps } from "react-native";
-import { useActionBarEdit } from "@assistant-ui/core/react";
+import { useActionBarEdit } from "../../primitive-hooks/useActionBarEdit";
 
 export type ActionBarEditProps = Omit<PressableProps, "onPress"> & {
   children: ReactNode;

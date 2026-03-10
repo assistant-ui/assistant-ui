@@ -6,8 +6,7 @@ import {
   createActionButton,
 } from "../../utils/createActionButton";
 import { useCallback } from "react";
-import { useAui } from "@assistant-ui/store";
-import { useComposerAddAttachment as useComposerAddAttachmentBehavior } from "@assistant-ui/core/react";
+import { useAuiState, useAui } from "@assistant-ui/store";
 
 const useComposerAddAttachment = ({
   multiple = true,
@@ -15,7 +14,7 @@ const useComposerAddAttachment = ({
   /** allow selecting multiple files */
   multiple?: boolean | undefined;
 } = {}) => {
-  const { disabled, addAttachment } = useComposerAddAttachmentBehavior();
+  const disabled = useAuiState((s) => !s.composer.isEditing);
   const aui = useAui();
 
   const callback = useCallback(() => {
@@ -35,7 +34,7 @@ const useComposerAddAttachment = ({
       const fileList = (e.target as HTMLInputElement).files;
       if (!fileList) return;
       for (const file of fileList) {
-        addAttachment(file);
+        aui.composer().addAttachment(file);
       }
 
       document.body.removeChild(input);
@@ -48,7 +47,7 @@ const useComposerAddAttachment = ({
     };
 
     input.click();
-  }, [aui, multiple, addAttachment]);
+  }, [aui, multiple]);
 
   if (disabled) return null;
   return callback;

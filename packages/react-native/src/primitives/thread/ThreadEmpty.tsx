@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { useThreadIsEmpty } from "@assistant-ui/core/react";
+import { useThreadIsEmpty } from "../../primitive-hooks/useThreadIsEmpty";
 
 export type ThreadEmptyProps = {
   children: ReactNode;

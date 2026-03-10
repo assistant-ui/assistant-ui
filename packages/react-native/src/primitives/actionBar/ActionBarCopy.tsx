@@ -3,7 +3,7 @@ import { Pressable, type PressableProps } from "react-native";
 import {
   useActionBarCopy,
   type UseActionBarCopyOptions,
-} from "@assistant-ui/core/react";
+} from "../../primitive-hooks/useActionBarCopy";
 
 export type ActionBarCopyProps = Omit<PressableProps, "onPress" | "children"> &
   UseActionBarCopyOptions & {

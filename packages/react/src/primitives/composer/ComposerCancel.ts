@@ -5,12 +5,19 @@ import {
   ActionButtonProps,
   createActionButton,
 } from "../../utils/createActionButton";
-import { useComposerCancel as useComposerCancelBehavior } from "@assistant-ui/core/react";
+import { useCallback } from "react";
+import { useAuiState, useAui } from "@assistant-ui/store";
 
 const useComposerCancel = () => {
-  const { disabled, cancel } = useComposerCancelBehavior();
+  const aui = useAui();
+  const disabled = useAuiState((s) => !s.composer.canCancel);
+
+  const callback = useCallback(() => {
+    aui.composer().cancel();
+  }, [aui]);
+
   if (disabled) return null;
-  return cancel;
+  return callback;
 };
 
 export namespace ComposerPrimitiveCancel {

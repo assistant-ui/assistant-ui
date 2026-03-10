@@ -1,5 +1,5 @@
 export {
-  ToolFallback as Fallback,
-  type ToolFallbackProps as FallbackProps,
+  ToolFallback,
+  type ToolFallbackProps,
   type ToolCallStatus,
 } from "./ToolFallback";

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { useComposerSend } from "@assistant-ui/core/react";
+import { useComposerSend } from "../../primitive-hooks/useComposerSend";
 import { Pressable, type PressableProps } from "../internal/Pressable";
 
 export type ComposerSendProps = Omit<PressableProps, "onPress"> & {
@@ -11,12 +11,12 @@ export const ComposerSend = ({
   disabled,
   ...pressableProps
 }: ComposerSendProps) => {
-  const { send, disabled: hookDisabled } = useComposerSend();
+  const { send, canSend } = useComposerSend();
 
   return (
     <Pressable
       onPress={send}
-      disabled={disabled ?? hookDisabled}
+      disabled={disabled ?? !canSend}
       {...pressableProps}
     >
       {children}

@@ -1,12 +1,3 @@
-export {
-  ThreadListRoot as Root,
-  type ThreadListRootProps as RootProps,
-} from "./ThreadListRoot";
-export {
-  ThreadListItems as Items,
-  type ThreadListItemsProps as ItemsProps,
-} from "./ThreadListItems";
-export {
-  ThreadListNew as New,
-  type ThreadListNewProps as NewProps,
-} from "./ThreadListNew";
+export { ThreadListRoot, type ThreadListRootProps } from "./ThreadListRoot";
+export { ThreadListItems, type ThreadListItemsProps } from "./ThreadListItems";
+export { ThreadListNew, type ThreadListNewProps } from "./ThreadListNew";

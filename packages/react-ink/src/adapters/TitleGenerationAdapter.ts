@@ -1,4 +1,4 @@
-import type { ThreadMessage } from "../../types/message";
+import type { ThreadMessage } from "@assistant-ui/core";
 
 export type TitleGenerationAdapter = {
   generateTitle(messages: readonly ThreadMessage[]): Promise<string>;

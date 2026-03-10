@@ -1,12 +1,12 @@
 export {
-  SuggestionTitle as Title,
-  type SuggestionTitleProps as TitleProps,
+  SuggestionTitle,
+  type SuggestionTitleProps,
 } from "./SuggestionTitle";
 export {
-  SuggestionDescription as Description,
-  type SuggestionDescriptionProps as DescriptionProps,
+  SuggestionDescription,
+  type SuggestionDescriptionProps,
 } from "./SuggestionDescription";
 export {
-  SuggestionTrigger as Trigger,
-  type SuggestionTriggerProps as TriggerProps,
+  SuggestionTrigger,
+  type SuggestionTriggerProps,
 } from "./SuggestionTrigger";

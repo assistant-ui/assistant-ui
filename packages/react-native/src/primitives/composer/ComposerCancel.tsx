@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Pressable, type PressableProps } from "react-native";
-import { useComposerCancel } from "@assistant-ui/core/react";
+import { useComposerCancel } from "../../primitive-hooks/useComposerCancel";
 
 export type ComposerCancelProps = Omit<PressableProps, "onPress"> & {
   children: ReactNode;
@@ -11,12 +11,12 @@ export const ComposerCancel = ({
   disabled,
   ...pressableProps
 }: ComposerCancelProps) => {
-  const { cancel, disabled: hookDisabled } = useComposerCancel();
+  const { cancel, canCancel } = useComposerCancel();
 
   return (
     <Pressable
       onPress={cancel}
-      disabled={disabled ?? hookDisabled}
+      disabled={disabled ?? !canCancel}
       {...pressableProps}
     >
       {children}

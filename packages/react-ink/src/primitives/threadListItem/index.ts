@@ -1,21 +1,21 @@
 export {
-  ThreadListItemRoot as Root,
-  type ThreadListItemRootProps as RootProps,
+  ThreadListItemRoot,
+  type ThreadListItemRootProps,
 } from "./ThreadListItemRoot";
-export { ThreadListItemPrimitiveTitle as Title } from "@assistant-ui/core/react";
+export { ThreadListItemPrimitiveTitle as ThreadListItemTitle } from "@assistant-ui/core/react";
 export {
-  ThreadListItemTrigger as Trigger,
-  type ThreadListItemTriggerProps as TriggerProps,
+  ThreadListItemTrigger,
+  type ThreadListItemTriggerProps,
 } from "./ThreadListItemTrigger";
 export {
-  ThreadListItemDelete as Delete,
-  type ThreadListItemDeleteProps as DeleteProps,
+  ThreadListItemDelete,
+  type ThreadListItemDeleteProps,
 } from "./ThreadListItemDelete";
 export {
-  ThreadListItemArchive as Archive,
-  type ThreadListItemArchiveProps as ArchiveProps,
+  ThreadListItemArchive,
+  type ThreadListItemArchiveProps,
 } from "./ThreadListItemArchive";
 export {
-  ThreadListItemUnarchive as Unarchive,
-  type ThreadListItemUnarchiveProps as UnarchiveProps,
+  ThreadListItemUnarchive,
+  type ThreadListItemUnarchiveProps,
 } from "./ThreadListItemUnarchive";

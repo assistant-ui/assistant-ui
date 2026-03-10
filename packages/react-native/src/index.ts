@@ -94,6 +94,24 @@ export {
 // Context providers and hooks
 export { AssistantRuntimeProvider, useAssistantRuntime } from "./context";
 
+// Primitive hooks
+export {
+  useThreadMessages,
+  useThreadIsRunning,
+  useThreadIsEmpty,
+  useComposerSend,
+  useComposerCancel,
+  useMessageReload,
+  useMessageBranching,
+  useActionBarCopy,
+  type UseActionBarCopyOptions,
+  useActionBarEdit,
+  useActionBarReload,
+  useActionBarFeedbackPositive,
+  useActionBarFeedbackNegative,
+  useComposerAddAttachment,
+} from "./primitive-hooks";
+
 // Runtime
 export {
   useLocalRuntime,

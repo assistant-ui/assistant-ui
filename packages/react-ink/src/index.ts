@@ -92,7 +92,27 @@ export {
 } from "@assistant-ui/store";
 
 // Context providers and hooks
-export { AssistantRuntimeProvider, useAssistantRuntime } from "./context";
+export { AssistantProvider, useAssistantRuntime } from "./context";
+
+// Primitive hooks
+export {
+  useThreadMessages,
+  useThreadIsRunning,
+  useThreadIsEmpty,
+  useComposerSend,
+  useComposerCancel,
+  useMessageReload,
+  useMessageBranching,
+  useActionBarCopy,
+  type UseActionBarCopyOptions,
+  useActionBarEdit,
+  useActionBarReload,
+  useActionBarFeedbackPositive,
+  useActionBarFeedbackNegative,
+  useEditComposerSend,
+  useEditComposerCancel,
+  useComposerAddAttachment,
+} from "./primitive-hooks";
 
 // Runtime
 export {
@@ -102,17 +122,17 @@ export {
 } from "./runtimes";
 
 // Primitives
-export * as ThreadPrimitive from "./primitives/thread";
-export * as ComposerPrimitive from "./primitives/composer";
-export * as MessagePrimitive from "./primitives/message";
-export * as ThreadListPrimitive from "./primitives/threadList";
-export * as ActionBarPrimitive from "./primitives/actionBar";
-export * as BranchPickerPrimitive from "./primitives/branchPicker";
-export * as AttachmentPrimitive from "./primitives/attachment";
-export * as ThreadListItemPrimitive from "./primitives/threadListItem";
-export * as ChainOfThoughtPrimitive from "./primitives/chainOfThought";
-export * as SuggestionPrimitive from "./primitives/suggestion";
-export * as ToolCallPrimitive from "./primitives/toolCall";
+export * from "./primitives/thread";
+export * from "./primitives/composer";
+export * from "./primitives/message";
+export * from "./primitives/threadList";
+export * from "./primitives/actionBar";
+export * from "./primitives/branchPicker";
+export * from "./primitives/attachment";
+export * from "./primitives/threadListItem";
+export * from "./primitives/chainOfThought";
+export * from "./primitives/suggestion";
+export * from "./primitives/toolCall";
 
 // Re-export shared providers from core/react
 export {
@@ -129,3 +149,10 @@ export {
 export * from "./model-context";
 export * from "./client";
 export * from "./types";
+
+// Adapters
+export {
+  type TitleGenerationAdapter,
+  createSimpleTitleAdapter,
+  createLocalStorageAdapter,
+} from "./adapters";

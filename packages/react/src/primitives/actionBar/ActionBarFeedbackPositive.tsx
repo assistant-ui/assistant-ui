@@ -1,15 +1,19 @@
 "use client";
 
-import { forwardRef } from "react";
+import { forwardRef, useCallback } from "react";
 import { ActionButtonProps } from "../../utils/createActionButton";
 import { composeEventHandlers } from "@radix-ui/primitive";
-import { useAuiState } from "@assistant-ui/store";
+import { useAuiState, useAui } from "@assistant-ui/store";
 import { Primitive } from "@radix-ui/react-primitive";
-import { useActionBarFeedbackPositive as useActionBarFeedbackPositiveBehavior } from "@assistant-ui/core/react";
 
 const useActionBarFeedbackPositive = () => {
-  const { submit } = useActionBarFeedbackPositiveBehavior();
-  return submit;
+  const aui = useAui();
+
+  const callback = useCallback(() => {
+    aui.message().submitFeedback({ type: "positive" });
+  }, [aui]);
+
+  return callback;
 };
 
 export namespace ActionBarPrimitiveFeedbackPositive {

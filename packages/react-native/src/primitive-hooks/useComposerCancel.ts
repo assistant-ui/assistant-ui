@@ -3,11 +3,11 @@ import { useAui, useAuiState } from "@assistant-ui/store";
 
 export const useComposerCancel = () => {
   const aui = useAui();
-  const disabled = useAuiState((s) => !s.composer.canCancel);
+  const canCancel = useAuiState((s) => s.thread.isRunning);
 
   const cancel = useCallback(() => {
     aui.composer().cancel();
   }, [aui]);
 
-  return { cancel, disabled };
+  return { cancel, canCancel };
 };

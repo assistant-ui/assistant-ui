@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { useActionBarEdit } from "@assistant-ui/core/react";
+import { useActionBarEdit } from "../../primitive-hooks/useActionBarEdit";
 import { Pressable, type PressableProps } from "../internal/Pressable";
 
 export type ActionBarEditProps = Omit<PressableProps, "onPress"> & {
