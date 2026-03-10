@@ -3,19 +3,33 @@ title: Quote Selected Text
 description: Let users select and quote text from messages. Full guide including backend handling and programmatic API.
 ---
 
-<Callout type="info">
-  The [`Quote`](/docs/ui/quote) registry component provides ready-made UI — selection toolbar, composer preview, and inline quote block. This guide covers backend handling, the programmatic API, and design decisions.
-</Callout>
+import { QuoteComposerSample } from "@/components/docs/samples/quote-composer";
+
+<QuoteComposerSample />
+
+## Get Started
+
+The **[Quote](/docs/ui/quote)** registry component gives you everything you need out of the box, including a floating selection toolbar, composer quote preview, and inline quote display.
+
+<InstallCommand shadcn={["quote"]} />
+
+It ships three composable pieces:
+
+- **QuoteBlock** renders quoted text inline in user messages
+- **SelectionToolbar** is a floating toolbar that appears on text selection
+- **ComposerQuotePreview** shows the pending quote inside the composer
+
+See the [Quote component page](/docs/ui/quote) for full setup steps and API reference.
+
+---
 
 ## How It Works
 
-1. User selects text in an assistant message
-2. A floating toolbar appears with a **Quote** button
-3. Clicking stores the selection in the composer as a quote
-4. The sent message carries the quote in `metadata.custom.quote`
-5. The quoted text renders above the user's reply
+When a user selects text in an assistant message, a floating toolbar appears with a Quote button. Clicking it it calls `composer.setQuote()` to store the selection on the composer. The [Quote component](/docs/ui/quote) does this out of the box.
 
-Quote data lives in message metadata — **not** in message content. Your backend decides how to present the quoted context to the LLM.
+When the message is sent, the composer runtime automatically writes the quote to `message.metadata.custom.quote` and clears it from the composer.
+
+On the backend, the route handler extracts the quote from metadata and surfaces it to the LLM. We export a helper called `injectQuoteContext` that handles this automatically for AI-SDK. Without this step, the quote appears in the UI but is not sent to the model as context. See [Backend Handling](#backend-handling) for more info and alternatives.
 
 ### Data Shape
 
@@ -30,11 +44,11 @@ type QuoteInfo = {
 
 ## Backend Handling
 
-The default approach uses `injectQuoteContext`, which prepends the quoted text as a markdown `> blockquote` to the message parts. See the [Quote component page](/docs/ui/quote#forward-quote-context-to-the-llm) for the basic route handler setup.
+Quote data travels in message metadata, not content, so the LLM will not see it unless your backend extracts and surfaces it. The simplest path is [`injectQuoteContext`](/docs/ui/quote#forward-quote-context-to-the-llm), which prepends quoted text as a markdown blockquote before the message parts.
 
-For more control, handle quotes directly in your route handler.
+For provider-specific handling, work with the quote metadata directly.
 
-### Claude-Style Citations
+### Claude SDK Citations
 
 Pass the quoted text as a citation source so Claude produces citations that reference it:
 
@@ -70,7 +84,7 @@ export async function POST(req: Request) {
   });
 
   const response = await client.messages.create({
-    model: "claude-sonnet-4-5-20250929",
+    model: "claude-sonnet-4-6",
     max_tokens: 1024,
     messages: claudeMessages,
   });
@@ -79,7 +93,7 @@ export async function POST(req: Request) {
 }
 ```
 
-### OpenAI-Style Context
+### OpenAI Message Context
 
 Inject the quote as additional context in the user message:
 
@@ -148,15 +162,15 @@ function MyComponent() {
 
 ## Design Notes
 
-- **Single quote** — `setQuote` replaces, not appends. Only one quote at a time.
-- **Snapshot text** — The selected text is captured at quote time, not linked to the source message.
-- **Cross-message selection** — The toolbar only appears when the selection is within a single message.
-- **Streaming messages** — The toolbar works during streaming since it reads from the captured selection, not message status.
-- **`isEmpty` unchanged** — A quote alone doesn't make the composer non-empty. The user must type a reply.
-- **Scroll hides toolbar** — The toolbar hides on scroll since its position would become stale.
+- **Single quote:** `setQuote` replaces the current quote instead of appending. Only one quote can be active at a time.
+- **Snapshot text:** The selected text is captured when the quote is created and is not linked to the source message afterward.
+- **Cross-message selection:** The toolbar only appears when the selection stays within a single message.
+- **Streaming messages:** The toolbar still works while a message is streaming because it relies on the captured selection rather than message status.
+- **`isEmpty` unchanged:** A quote by itself does not make the composer non-empty. The user still needs to type a reply.
+- **Scroll hides toolbar:** The toolbar hides on scroll because its position would otherwise become stale.
 
 ## Related
 
-- [Quote component](/docs/ui/quote) — Installation, component setup, and API reference
-- [Message Editing](/docs/guides/editing) — Edit user messages
-- [Thread](/docs/ui/thread) — Main chat container
+- [Quote component](/docs/ui/quote): Installation, component setup, and API reference
+- [Message Editing](/docs/guides/editing): Edit user messages
+- [Thread](/docs/ui/thread): Main chat container
