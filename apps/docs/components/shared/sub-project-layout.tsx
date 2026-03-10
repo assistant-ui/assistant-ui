@@ -35,6 +35,11 @@ const SUB_PROJECTS = [
     label: "Safe Content Frame",
     textValue: "safe-content-frame",
   },
+  {
+    value: "ink",
+    label: "Ink",
+    textValue: "ink",
+  },
 ] as const;
 
 interface BreadcrumbItem {

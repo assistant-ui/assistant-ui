@@ -1,0 +1,86 @@
+.terminal-mockup-section {
+  padding: 2rem 0;
+  perspective: 1200px;
+}
+
+.terminal-mockup-glow {
+  position: absolute;
+  inset: 0;
+  margin: 0 auto;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 50% 50% at 50% 40%,
+    rgba(16, 185, 129, 0.08) 0%,
+    transparent 70%
+  );
+}
+
+.terminal-mockup-frame {
+  position: relative;
+  width: 640px;
+  max-width: 100%;
+  margin: 0 auto;
+  border-radius: 0.75rem;
+  background: #1a1a1a;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.1),
+    0 25px 50px -12px rgba(0, 0, 0, 0.5),
+    0 0 80px rgba(16, 185, 129, 0.08);
+  transition: transform 0.4s ease;
+  overflow: hidden;
+}
+
+.terminal-mockup-frame:hover {
+  transform: translateY(-4px);
+}
+
+.terminal-mockup-border {
+  position: absolute;
+  inset: -2px;
+  border-radius: 0.875rem;
+  padding: 2px;
+  background: linear-gradient(
+    135deg,
+    rgba(16, 185, 129, 0.4) 0%,
+    rgba(59, 130, 246, 0.3) 25%,
+    rgba(139, 92, 246, 0.3) 50%,
+    rgba(59, 130, 246, 0.3) 75%,
+    rgba(16, 185, 129, 0.4) 100%
+  );
+  background-size: 300% 300%;
+  animation: terminal-gradient-shift 8s ease infinite;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  opacity: 0.5;
+  transition: opacity 0.3s ease;
+}
+
+.terminal-mockup-frame:hover .terminal-mockup-border {
+  opacity: 1;
+}
+
+@keyframes terminal-gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .terminal-mockup-border {
+    animation: none;
+  }
+  .terminal-mockup-frame {
+    transition: none;
+  }
+  .terminal-mockup-frame:hover {
+    transform: none;
+  }
+}

@@ -397,10 +397,15 @@ export const create = new Command()
   .option("--use-yarn", "explicitly use yarn")
   .option("--use-bun", "explicitly use bun")
   .option("--native", "create an Expo / React Native project")
+  .option("--ink", "create a React Ink terminal project")
   .option("--skip-install", "skip installing packages")
   .action(async (projectDirectory, opts) => {
     if (opts.native) {
       opts.example = "with-expo";
+    }
+
+    if (opts.ink) {
+      opts.example = "with-react-ink";
     }
 
     if (opts.example && opts.preset) {

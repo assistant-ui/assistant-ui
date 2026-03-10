@@ -45,6 +45,18 @@ export const NAV_ITEMS: NavItem[] = [
         description: "Build apps for AI assistants",
         external: false,
       },
+      {
+        label: "React Native",
+        href: "/native",
+        description: "Build mobile apps with React Native",
+        external: false,
+      },
+      {
+        label: "Ink",
+        href: "/ink",
+        description: "Build interactive experiences with Ink",
+        external: false,
+      },
     ],
   },
   {

@@ -22,6 +22,8 @@ const FOOTER_LINKS: Record<string, FooterLinkItem[]> = {
     { label: "Tool UI", href: "https://tool-ui.com/", external: true },
     { label: "tw-shimmer", href: "/tw-shimmer" },
     { label: "Safe Content Frame", href: "/safe-content-frame" },
+    { label: "React Native", href: "/native" },
+    { label: "Ink", href: "/ink" },
     { label: "MCP App Studio", href: "/mcp-app-studio" },
   ],
   Resources: [
