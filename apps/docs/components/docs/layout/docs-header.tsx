@@ -123,7 +123,10 @@ export function DocsHeader({ section, sectionHref }: DocsHeaderProps) {
     (item) => !CONDENSED_HIDDEN.has(item.label),
   );
   const moreItems = filteredItems.filter(
-    (item) => item.type === "link" && CONDENSED_HIDDEN.has(item.label),
+  const moreItems = filteredItems.filter(
+    (item): item is Extract<NavItem, { type: "link" }> =>
+      item.type === "link" && CONDENSED_HIDDEN.has(item.label),
+  );
   );
 
   const handleNavMenuToggle = () => {
