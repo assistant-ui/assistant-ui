@@ -154,6 +154,11 @@ const SelectionToolbar = memo(
   displayName: string;
   Root: typeof SelectionToolbarRoot;
   Quote: typeof SelectionToolbarQuote;
+const SelectionToolbar = memo(
+  SelectionToolbarImpl,
+) as unknown as typeof SelectionToolbarImpl & {
+  Root: typeof SelectionToolbarRoot;
+  Quote: typeof SelectionToolbarQuote;
 };
 
 SelectionToolbar.displayName = "SelectionToolbar";
