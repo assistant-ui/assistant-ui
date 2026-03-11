@@ -137,20 +137,27 @@ function SelectionToolbarQuote({
  * </ThreadPrimitive.Root>
  * ```
  */
-const SelectionToolbar = Object.assign(
-  memo(
-    ({ className, ...props }: ComponentProps<typeof SelectionToolbarRoot>) => (
-      <SelectionToolbarRoot className={className} {...props}>
-        <SelectionToolbarQuote />
-      </SelectionToolbarRoot>
-    ),
-  ),
-  {
-    displayName: "SelectionToolbar" as const,
-    Root: SelectionToolbarRoot,
-    Quote: SelectionToolbarQuote,
-  },
-);
+const SelectionToolbarImpl = ({
+  className,
+  ...props
+}: ComponentProps<typeof SelectionToolbarRoot>) => {
+  return (
+    <SelectionToolbarRoot className={className} {...props}>
+      <SelectionToolbarQuote />
+    </SelectionToolbarRoot>
+  );
+};
+
+const SelectionToolbar = memo(
+  SelectionToolbarImpl,
+) as unknown as typeof SelectionToolbarImpl & {
+  Root: typeof SelectionToolbarRoot;
+  Quote: typeof SelectionToolbarQuote;
+};
+
+SelectionToolbar.displayName = "SelectionToolbar";
+SelectionToolbar.Root = SelectionToolbarRoot;
+SelectionToolbar.Quote = SelectionToolbarQuote;
 
 function ComposerQuotePreviewRoot({
   className,
@@ -205,18 +212,22 @@ function ComposerQuotePreviewDismiss({
   children,
   ...props
 }: ComponentProps<typeof ComposerPrimitive.QuoteDismiss>) {
+  const defaultClassName =
+    "shrink-0 rounded-sm p-0.5 text-muted-foreground/70 transition-colors hover:bg-accent hover:text-foreground";
+
   return (
     <ComposerPrimitive.QuoteDismiss
       data-slot="composer-quote-dismiss"
       asChild
-      className={cn(
-        "shrink-0 rounded-sm p-0.5 text-muted-foreground/70 transition-colors hover:bg-accent hover:text-foreground",
-        className,
-      )}
+      className={children ? className : undefined}
       {...props}
     >
       {children ?? (
-        <button type="button" aria-label="Dismiss quote">
+        <button
+          type="button"
+          aria-label="Dismiss quote"
+          className={cn(defaultClassName, className)}
+        >
           <XIcon className="size-3.5" />
         </button>
       )}
@@ -238,27 +249,33 @@ function ComposerQuotePreviewDismiss({
  * </ComposerPrimitive.Root>
  * ```
  */
-const ComposerQuotePreview = Object.assign(
-  memo(
-    ({
-      className,
-      ...props
-    }: ComponentProps<typeof ComposerQuotePreviewRoot>) => (
-      <ComposerQuotePreviewRoot className={className} {...props}>
-        <ComposerQuotePreviewIcon />
-        <ComposerQuotePreviewText />
-        <ComposerQuotePreviewDismiss />
-      </ComposerQuotePreviewRoot>
-    ),
-  ),
-  {
-    displayName: "ComposerQuotePreview" as const,
-    Root: ComposerQuotePreviewRoot,
-    Icon: ComposerQuotePreviewIcon,
-    Text: ComposerQuotePreviewText,
-    Dismiss: ComposerQuotePreviewDismiss,
-  },
-);
+const ComposerQuotePreviewImpl = ({
+  className,
+  ...props
+}: ComponentProps<typeof ComposerQuotePreviewRoot>) => {
+  return (
+    <ComposerQuotePreviewRoot className={className} {...props}>
+      <ComposerQuotePreviewIcon />
+      <ComposerQuotePreviewText />
+      <ComposerQuotePreviewDismiss />
+    </ComposerQuotePreviewRoot>
+  );
+};
+
+const ComposerQuotePreview = memo(
+  ComposerQuotePreviewImpl,
+) as unknown as typeof ComposerQuotePreviewImpl & {
+  Root: typeof ComposerQuotePreviewRoot;
+  Icon: typeof ComposerQuotePreviewIcon;
+  Text: typeof ComposerQuotePreviewText;
+  Dismiss: typeof ComposerQuotePreviewDismiss;
+};
+
+ComposerQuotePreview.displayName = "ComposerQuotePreview";
+ComposerQuotePreview.Root = ComposerQuotePreviewRoot;
+ComposerQuotePreview.Icon = ComposerQuotePreviewIcon;
+ComposerQuotePreview.Text = ComposerQuotePreviewText;
+ComposerQuotePreview.Dismiss = ComposerQuotePreviewDismiss;
 
 export {
   QuoteBlock,
