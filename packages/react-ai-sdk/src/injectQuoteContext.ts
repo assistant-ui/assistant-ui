@@ -1,5 +1,18 @@
 import type { UIMessage } from "ai";
 
+const getQuoteText = (metadata: unknown): string | undefined => {
+  if (!metadata || typeof metadata !== "object") return undefined;
+
+  const custom = (metadata as Record<string, unknown>).custom;
+  if (!custom || typeof custom !== "object") return undefined;
+
+  const quote = (custom as Record<string, unknown>).quote;
+  if (!quote || typeof quote !== "object") return undefined;
+
+  const text = (quote as Record<string, unknown>).text;
+  return typeof text === "string" ? text : undefined;
+};
+
 /**
  * Injects quote context into messages as markdown blockquotes.
  *
@@ -25,30 +38,18 @@ export function injectQuoteContext(messages: UIMessage[]): UIMessage[] {
   return messages.map((msg) => {
     if (msg.role !== "user") return msg;
 
-    const custom = (msg.metadata as Record<string, unknown> | undefined)
-      ?.custom;
-    if (
-      !custom ||
-      typeof custom !== "object" ||
-      !("quote" in (custom as Record<string, unknown>))
-    )
-      return msg;
-
-    const quote = (custom as Record<string, unknown>).quote;
-    if (
-      !quote ||
-      typeof quote !== "object" ||
-      !("text" in (quote as Record<string, unknown>))
-    )
-      return msg;
-
-    const text = (quote as { text: unknown }).text;
-    if (typeof text !== "string") return msg;
+    const text = getQuoteText(msg.metadata);
+    if (!text) return msg;
 
     const blockquote = text
       .split(/\r?\n/)
       .map((line) => `> ${line}`)
       .join("\n");
+
+    const alreadyInjected =
+      msg.parts[0]?.type === "text" &&
+      msg.parts[0].text === `${blockquote}\n\n`;
+    if (alreadyInjected) return msg;
 
     return {
       ...msg,
