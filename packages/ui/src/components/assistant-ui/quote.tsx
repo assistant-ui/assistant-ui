@@ -151,12 +151,6 @@ const SelectionToolbarImpl = ({
 const SelectionToolbar = memo(
   SelectionToolbarImpl,
 ) as unknown as typeof SelectionToolbarImpl & {
-  displayName: string;
-  Root: typeof SelectionToolbarRoot;
-  Quote: typeof SelectionToolbarQuote;
-const SelectionToolbar = memo(
-  SelectionToolbarImpl,
-) as unknown as typeof SelectionToolbarImpl & {
   Root: typeof SelectionToolbarRoot;
   Quote: typeof SelectionToolbarQuote;
 };
@@ -271,7 +265,6 @@ const ComposerQuotePreviewImpl = ({
 const ComposerQuotePreview = memo(
   ComposerQuotePreviewImpl,
 ) as unknown as typeof ComposerQuotePreviewImpl & {
-  displayName: string;
   Root: typeof ComposerQuotePreviewRoot;
   Icon: typeof ComposerQuotePreviewIcon;
   Text: typeof ComposerQuotePreviewText;
