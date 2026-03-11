@@ -33,7 +33,7 @@
         "KV_*",
         "SENTRY_*",
         "REDIS_*",
-        "AI_GATEWAY_*",
+        "ASSISTANT_*",
         "AUIX_*"
       ]
     },
