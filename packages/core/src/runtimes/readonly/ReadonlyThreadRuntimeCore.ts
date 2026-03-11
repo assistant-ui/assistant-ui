@@ -192,7 +192,7 @@ export class ReadonlyThreadRuntimeCore
     feedback: false,
   } as const;
 
-  isDisabled = true;
+  isDisabled = false;
   isLoading = false;
 
   state = null;
