@@ -40,6 +40,7 @@ const FOOTER_LINKS: Record<string, FooterLinkItem[]> = {
       external: true,
     },
     { label: "Pricing", href: "/pricing" },
+    { label: "Brand", href: "/brand" },
   ],
   Legal: [
     {
