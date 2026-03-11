@@ -1,27 +1,25 @@
 import type { Unsubscribe, ThreadMessage } from "../../types";
 import type { ThreadRuntimeCore } from "../../runtime/interfaces/thread-runtime-core";
+import { BaseSubscribable } from "../../subscribable/subscribable";
 
 const READONLY_THREAD_ERROR = new Error(
   "This is a readonly thread. You cannot perform mutations on readonly threads.",
 );
 
-export class ReadonlyThreadRuntimeCore implements ThreadRuntimeCore {
+export class ReadonlyThreadRuntimeCore
+  extends BaseSubscribable
+  implements ThreadRuntimeCore
+{
   private _messages: readonly ThreadMessage[] = [];
-  private _subscribers = new Set<() => void>();
 
   get messages() {
     return this._messages;
   }
 
   setMessages(messages: readonly ThreadMessage[]) {
+    if (this._messages === messages) return;
     this._messages = messages;
     this._notifySubscribers();
-  }
-
-  private _notifySubscribers() {
-    for (const callback of this._subscribers) {
-      callback();
-    }
   }
 
   getMessageById(messageId: string) {
@@ -201,19 +199,17 @@ export class ReadonlyThreadRuntimeCore implements ThreadRuntimeCore {
   suggestions = [] as never[];
   extras = undefined;
 
-  subscribe(callback: () => void): Unsubscribe {
-    this._subscribers.add(callback);
-    return () => {
-      this._subscribers.delete(callback);
-    };
-  }
-
   import(): void {
     throw READONLY_THREAD_ERROR;
   }
 
   export() {
-    return { messages: [] };
+    return {
+      messages: this._messages.map((message, idx) => ({
+        message,
+        parentId: this._messages[idx - 1]?.id ?? null,
+      })),
+    };
   }
 
   reset(): void {

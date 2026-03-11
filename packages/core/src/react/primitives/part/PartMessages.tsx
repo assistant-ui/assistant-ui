@@ -1,6 +1,6 @@
 import { type FC, memo } from "react";
 import { useAuiState } from "@assistant-ui/store";
-import type { ThreadMessage, ToolCallMessagePart } from "../../../types";
+import type { ThreadMessage } from "../../../types";
 import { ReadonlyThreadProvider } from "../../providers/ReadonlyThreadProvider";
 import {
   ThreadPrimitiveMessages,
@@ -15,8 +15,11 @@ export namespace PartPrimitiveMessages {
 
 const usePartMessages = (): readonly ThreadMessage[] | undefined => {
   return useAuiState((s) => {
-    if (s.part.type !== "tool-call") return undefined;
-    return (s.part as ToolCallMessagePart).messages;
+    const part = s.part;
+    if (part.type !== "tool-call") return undefined;
+    return "messages" in part
+      ? (part.messages as readonly ThreadMessage[] | undefined)
+      : undefined;
   });
 };
 

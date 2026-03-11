@@ -144,8 +144,11 @@ const OuterAgentToolUI = makeAssistantToolUI({
 For advanced use cases where you have a `ThreadMessage[]` array and want to render it as a thread outside of a tool call context, use `ReadonlyThreadProvider` directly:
 
 ```tsx
-import { ReadonlyThreadProvider } from "@assistant-ui/core/react";
-import { ThreadPrimitive } from "@assistant-ui/react";
+import {
+  ReadonlyThreadProvider,
+  ThreadPrimitive,
+  type ThreadMessage,
+} from "@assistant-ui/react";
 
 function SubConversation({
   messages,

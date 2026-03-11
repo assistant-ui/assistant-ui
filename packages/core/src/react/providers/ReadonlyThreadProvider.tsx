@@ -47,11 +47,15 @@ export const ReadonlyThreadProvider: FC<ReadonlyThreadProvider.Props> = ({
   messages,
   children,
 }) => {
-  const [core] = useState(() => new ReadonlyThreadRuntimeCore());
+  const [core] = useState(() => {
+    const c = new ReadonlyThreadRuntimeCore();
+    c.setMessages(messages);
+    return c;
+  });
 
   useEffect(() => {
     core.setMessages(messages);
-  });
+  }, [core, messages]);
 
   const threadRuntime = useMemo(() => {
     const threadBinding: ThreadRuntimeCoreBinding = {

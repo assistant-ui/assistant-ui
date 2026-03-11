@@ -13,3 +13,4 @@ export {
 export { TextMessagePartProvider } from "./TextMessagePartProvider";
 export { MessageProvider } from "./MessageProvider";
 export { ChainOfThoughtByIndicesProvider } from "./ChainOfThoughtByIndicesProvider";
+export { ReadonlyThreadProvider } from "@assistant-ui/core/react";
