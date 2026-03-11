@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowUpRight, LayoutGrid, Menu, Search, X } from "lucide-react";
 import { useSearchContext } from "fumadocs-ui/contexts/search";
-import { NAV_ITEMS } from "@/lib/constants";
+import { NAV_ITEMS, type NavItem } from "@/lib/constants";
 import { MoreDropdown } from "@/components/shared/more-dropdown";
 import { NavItems } from "@/components/shared/nav-items";
 import { useDocsSidebar } from "@/components/docs/contexts/sidebar";
@@ -63,10 +63,8 @@ export function DocsHeader({ section, sectionHref }: DocsHeaderProps) {
     (item) => !CONDENSED_HIDDEN.has(item.label),
   );
   const moreItems = filteredItems.filter(
-  const moreItems = filteredItems.filter(
     (item): item is Extract<NavItem, { type: "link" }> =>
       item.type === "link" && CONDENSED_HIDDEN.has(item.label),
-  );
   );
 
   const handleNavMenuToggle = () => {
