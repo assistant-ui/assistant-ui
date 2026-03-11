@@ -43,10 +43,15 @@ export function injectQuoteContext(messages: UIMessage[]): UIMessage[] {
     const text = (quote as { text: unknown }).text;
     if (typeof text !== "string") return msg;
 
+    const blockquote = text
+      .split(/\r?\n/)
+      .map((line) => `> ${line}`)
+      .join("\n");
+
     return {
       ...msg,
       parts: [
-        { type: "text" as const, text: `> ${text}\n\n` },
+        { type: "text" as const, text: `${blockquote}\n\n` },
         ...(msg.parts ?? []),
       ],
     };
