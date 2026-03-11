@@ -64,6 +64,56 @@ npx assistant-ui@latest create --ink my-chat-app
 
 ---
 
+## Day 3 — Assistant Cloud Redesign
+
+**A new dashboard for managing your AI assistants at scale.**
+
+We've completely redesigned [Assistant Cloud](https://cloud.assistant-ui.com) — the hosted backend for assistant-ui. Thread persistence, analytics, user management, and more — all in one place.
+
+### What is Assistant Cloud?
+
+Assistant Cloud gives your assistant-ui app a production-ready backend. Drop in a few lines of config and get:
+
+- **Thread persistence.** Conversations survive page refreshes. Users can pick up where they left off.
+- **Thread list.** A ChatGPT-style sidebar, powered by your data — no extra backend work.
+- **Auto-generated titles.** Every thread gets a title, automatically.
+- **User authorization.** Works with Clerk, Auth0, Supabase, Firebase, or anonymous mode for demos.
+
+### What's new in the redesign
+
+The new dashboard at `cloud.assistant-ui.com` is a full control center for your AI deployments:
+
+- **Analytics dashboard.** Total cost, token usage, run count, average duration — with model distribution charts and usage trends over time.
+- **Thread browser.** Search and inspect every conversation. View full message history, metadata, and timestamps.
+- **User analytics.** Per-user metrics: runs, threads created, tokens consumed, costs incurred.
+- **Run tracking.** Every LLM invocation logged with model, provider, cost, input/output tokens, cached tokens, reasoning tokens, and duration.
+- **Assistant configuration.** Create multiple assistants with different models, system prompts, temperature, and top-p settings.
+- **LLM provider management.** Configure OpenAI, Anthropic, Google, and other providers — with encrypted credential storage.
+- **API key management.** Generate, track, and revoke project API keys.
+- **Auth rules.** Configure JWT validation with JWKS URL, audience, and issuer settings.
+
+### Getting started
+
+Add thread persistence to your existing assistant-ui app:
+
+```sh
+npx assistant-ui@latest cloud
+```
+
+Or integrate directly with the AI SDK using `useCloudChat`:
+
+```sh
+npm install assistant-cloud @assistant-ui/cloud-ai-sdk
+```
+
+Works with any assistant-ui runtime — AI SDK, LangGraph, or custom backends. No migration required.
+
+[Read the docs →](/docs/cloud) 
+
+[Sign up here →](https://cloud.assistant-ui.com)
+
+---
+
 ## One runtime, every platform
 
 The big picture: assistant-ui is now a **universal AI chat framework**. Web, mobile, terminal — one codebase for your backend, one set of adapters, one way to register tools. The only thing that changes is the UI layer.
