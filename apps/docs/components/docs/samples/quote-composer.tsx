@@ -10,7 +10,7 @@ export function QuoteComposerSample() {
         {/* Quote preview — matches ComposerQuotePreview styling */}
         <div className="mx-3 mt-3 flex items-start gap-2 rounded-lg bg-muted/60 px-3 py-2">
           <QuoteIcon className="mt-0.5 size-3.5 shrink-0 text-muted-foreground/70" />
-          <span className="line-clamp-2 min-w-0 flex-1 text-sm text-muted-foreground">
+          <span className="line-clamp-2 min-w-0 flex-1 text-muted-foreground text-sm">
             The runtime system follows a layered architecture with
             framework-agnostic core, public API adapters, and React context
             hooks
@@ -25,7 +25,7 @@ export function QuoteComposerSample() {
 
         {/* Input row */}
         <div className="flex items-end gap-2 px-4 py-3">
-          <span className="flex-1 text-sm leading-relaxed text-foreground">
+          <span className="flex-1 text-foreground text-sm leading-relaxed">
             Can you explain how the layers connect?
           </span>
           <button
