@@ -8,6 +8,7 @@ import {
 import { useAuiState, useAui } from "@assistant-ui/store";
 import { PartByIndexProvider, TextMessagePartProvider } from "../../providers";
 import { ChainOfThoughtByIndicesProvider } from "../../providers/ChainOfThoughtByIndicesProvider";
+import { getMessageQuote } from "../../utils/getMessageQuote";
 import type {
   Unstable_AudioMessagePartComponent,
   DataMessagePartComponent,
@@ -23,7 +24,7 @@ import type {
   ReasoningGroupComponent,
   QuoteMessagePartComponent,
 } from "../../types";
-import type { MessagePartStatus, QuoteInfo } from "../../../types";
+import type { MessagePartStatus } from "../../../types";
 import { useShallow } from "zustand/shallow";
 
 type MessagePartRange =
@@ -466,11 +467,7 @@ const ConditionalEmpty = memo(
 const QuoteRendererImpl: FC<{ Quote: QuoteMessagePartComponent }> = ({
   Quote,
 }) => {
-  const quoteInfo = useAuiState(
-    (s) =>
-      (s.message.metadata?.custom as Record<string, unknown> | undefined)
-        ?.quote as QuoteInfo | undefined,
-  );
+  const quoteInfo = useAuiState(getMessageQuote);
   if (!quoteInfo) return null;
   return <Quote text={quoteInfo.text} messageId={quoteInfo.messageId} />;
 };

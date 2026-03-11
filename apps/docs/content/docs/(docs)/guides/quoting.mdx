@@ -25,7 +25,7 @@ See the [Quote component page](/docs/ui/quote) for full setup steps and API refe
 
 ## How It Works
 
-When a user selects text in an assistant message, a floating toolbar appears with a Quote button. Clicking it it calls `composer.setQuote()` to store the selection on the composer. The [Quote component](/docs/ui/quote) does this out of the box.
+When a user selects text in an assistant message, a floating toolbar appears with a Quote button. Clicking it calls `composer.setQuote()` to store the selection on the composer. The [Quote component](/docs/ui/quote) does this out of the box.
 
 When the message is sent, the composer runtime automatically writes the quote to `message.metadata.custom.quote` and clears it from the composer.
 

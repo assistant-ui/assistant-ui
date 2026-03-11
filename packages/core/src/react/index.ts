@@ -49,6 +49,7 @@ export {
   ComposerPrimitiveIf,
   type UseComposerIfProps,
 } from "./primitives/composer/ComposerIf";
+export { getMessageQuote } from "./utils/getMessageQuote";
 
 // Primitive hooks (shared behavior logic)
 export * from "./primitive-hooks";

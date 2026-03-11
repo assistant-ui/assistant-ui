@@ -23,6 +23,8 @@ import type { UIMessage } from "ai";
  */
 export function injectQuoteContext(messages: UIMessage[]): UIMessage[] {
   return messages.map((msg) => {
+    if (msg.role !== "user") return msg;
+
     const custom = (msg.metadata as Record<string, unknown> | undefined)
       ?.custom;
     if (

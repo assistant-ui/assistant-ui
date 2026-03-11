@@ -209,16 +209,14 @@ function ComposerQuotePreviewDismiss({
     <ComposerPrimitive.QuoteDismiss
       data-slot="composer-quote-dismiss"
       asChild
+      className={cn(
+        "shrink-0 rounded-sm p-0.5 text-muted-foreground/70 transition-colors hover:bg-accent hover:text-foreground",
+        className,
+      )}
       {...props}
     >
       {children ?? (
-        <button
-          type="button"
-          className={cn(
-            "shrink-0 rounded-sm p-0.5 text-muted-foreground/70 transition-colors hover:bg-accent hover:text-foreground",
-            className,
-          )}
-        >
+        <button type="button" aria-label="Dismiss quote">
           <XIcon className="size-3.5" />
         </button>
       )}
