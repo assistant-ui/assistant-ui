@@ -5,13 +5,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowUpRight, LayoutGrid, Menu, Search, X } from "lucide-react";
 import { useSearchContext } from "fumadocs-ui/contexts/search";
-import {
-  HoverCard,
-  HoverCardContent,
-  HoverCardTrigger,
-} from "@/components/ui/hover-card";
 import { NAV_ITEMS } from "@/lib/constants";
 import { MoreDropdown } from "@/components/shared/more-dropdown";
+import { NavItems } from "@/components/shared/nav-items";
 import { useDocsSidebar } from "@/components/docs/contexts/sidebar";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { analytics } from "@/lib/analytics";
@@ -50,62 +46,6 @@ function HeaderSearch() {
 }
 
 const CONDENSED_HIDDEN = new Set(["Showcase", "Playground", "Pricing"]);
-
-function NavItems({ items }: { items: typeof NAV_ITEMS }) {
-  return items.map((item) =>
-    item.type === "link" ? (
-      <Link
-        key={item.href}
-        href={item.href}
-        className="px-3 py-1.5 text-muted-foreground text-sm transition-colors hover:text-foreground"
-      >
-        {item.label}
-      </Link>
-    ) : (
-      <HoverCard key={item.label} openDelay={100} closeDelay={100}>
-        <HoverCardTrigger asChild>
-          <button className="px-3 py-1.5 text-muted-foreground text-sm transition-colors hover:text-foreground">
-            {item.label}
-          </button>
-        </HoverCardTrigger>
-        <HoverCardContent className="w-56 rounded-xl p-2 shadow-xs">
-          <div className="flex flex-col">
-            {item.items.map((link) =>
-              link.external ? (
-                <a
-                  key={link.href}
-                  href={link.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex flex-col rounded-md px-2 py-1.5 transition-colors hover:bg-muted"
-                >
-                  <span className="flex items-center gap-1.5 text-sm">
-                    {link.label}
-                    <ArrowUpRight className="size-3 opacity-40" />
-                  </span>
-                  <span className="text-muted-foreground text-xs">
-                    {link.description}
-                  </span>
-                </a>
-              ) : (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className="flex flex-col rounded-md px-2 py-1.5 transition-colors hover:bg-muted"
-                >
-                  <span className="text-sm">{link.label}</span>
-                  <span className="text-muted-foreground text-xs">
-                    {link.description}
-                  </span>
-                </Link>
-              ),
-            )}
-          </div>
-        </HoverCardContent>
-      </HoverCard>
-    ),
-  );
-}
 
 export function DocsHeader({ section, sectionHref }: DocsHeaderProps) {
   const { setOpenSearch } = useSearchContext();
