@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, type ComponentProps } from "react";
+import { memo, type ComponentProps, type FC } from "react";
 import type { QuoteMessagePartComponent } from "@assistant-ui/react";
 import {
   ComposerPrimitive,
@@ -137,10 +137,10 @@ function SelectionToolbarQuote({
  * </ThreadPrimitive.Root>
  * ```
  */
-const SelectionToolbarImpl = ({
+const SelectionToolbarImpl: FC<ComponentProps<typeof SelectionToolbarRoot>> = ({
   className,
   ...props
-}: ComponentProps<typeof SelectionToolbarRoot>) => {
+}) => {
   return (
     <SelectionToolbarRoot className={className} {...props}>
       <SelectionToolbarQuote />
@@ -249,10 +249,9 @@ function ComposerQuotePreviewDismiss({
  * </ComposerPrimitive.Root>
  * ```
  */
-const ComposerQuotePreviewImpl = ({
-  className,
-  ...props
-}: ComponentProps<typeof ComposerQuotePreviewRoot>) => {
+const ComposerQuotePreviewImpl: FC<
+  ComponentProps<typeof ComposerQuotePreviewRoot>
+> = ({ className, ...props }) => {
   return (
     <ComposerQuotePreviewRoot className={className} {...props}>
       <ComposerQuotePreviewIcon />
