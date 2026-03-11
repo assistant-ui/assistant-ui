@@ -1,8 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowUpRight, Menu, Search, X } from "lucide-react";
+import { ArrowUpRight, LayoutGrid, Menu, Search, X } from "lucide-react";
 import { useSearchContext } from "fumadocs-ui/contexts/search";
 import {
   HoverCard,
@@ -14,6 +15,7 @@ import { MoreDropdown } from "@/components/shared/more-dropdown";
 import { useDocsSidebar } from "@/components/docs/contexts/sidebar";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { analytics } from "@/lib/analytics";
+import { cn } from "@/lib/utils";
 
 interface DocsHeaderProps {
   section: string;
@@ -44,34 +46,6 @@ function HeaderSearch() {
         ))}
       </div>
     </button>
-  );
-}
-
-function MobileControls() {
-  const { setOpenSearch } = useSearchContext();
-  const { open, toggle } = useDocsSidebar();
-
-  return (
-    <div className="ml-auto flex items-center gap-1 md:hidden">
-      <button
-        onClick={() => {
-          analytics.search.opened("header");
-          setOpenSearch(true);
-        }}
-        className="flex size-8 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
-        aria-label="Search"
-      >
-        <Search className="size-4" />
-      </button>
-      <ThemeToggle />
-      <button
-        onClick={toggle}
-        className="flex size-8 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
-        aria-label="Toggle menu"
-      >
-        {open ? <X className="size-5" /> : <Menu className="size-5" />}
-      </button>
-    </div>
   );
 }
 
@@ -135,6 +109,13 @@ function NavItems({ items }: { items: typeof NAV_ITEMS }) {
 
 export function DocsHeader({ section, sectionHref }: DocsHeaderProps) {
   const { setOpenSearch } = useSearchContext();
+  const {
+    open: sidebarOpen,
+    setOpen: setSidebarOpen,
+    toggle: toggleSidebar,
+  } = useDocsSidebar();
+  const [navMenuOpen, setNavMenuOpen] = useState(false);
+
   const sectionFilter = (item: (typeof NAV_ITEMS)[number]) =>
     item.type !== "link" || item.href !== sectionHref;
   const filteredItems = NAV_ITEMS.filter(sectionFilter);
@@ -144,6 +125,16 @@ export function DocsHeader({ section, sectionHref }: DocsHeaderProps) {
   const moreItems = filteredItems.filter(
     (item) => item.type === "link" && CONDENSED_HIDDEN.has(item.label),
   );
+
+  const handleNavMenuToggle = () => {
+    if (!navMenuOpen) setSidebarOpen(false);
+    setNavMenuOpen((prev) => !prev);
+  };
+
+  const handleSidebarToggle = () => {
+    if (!sidebarOpen) setNavMenuOpen(false);
+    toggleSidebar();
+  };
 
   return (
     <header className="sticky top-0 z-50 w-full">
@@ -171,7 +162,42 @@ export function DocsHeader({ section, sectionHref }: DocsHeaderProps) {
           </Link>
         </div>
 
-        <MobileControls />
+        {/* Mobile controls */}
+        <div className="ml-auto flex items-center gap-1 md:hidden">
+          <button
+            onClick={() => {
+              analytics.search.opened("header");
+              setOpenSearch(true);
+            }}
+            className="flex size-8 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+            aria-label="Search"
+          >
+            <Search className="size-4" />
+          </button>
+          <ThemeToggle />
+          <button
+            onClick={handleNavMenuToggle}
+            className="flex size-8 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+            aria-label="Site navigation"
+          >
+            {navMenuOpen ? (
+              <X className="size-5" />
+            ) : (
+              <LayoutGrid className="size-4.5" />
+            )}
+          </button>
+          <button
+            onClick={handleSidebarToggle}
+            className="flex size-8 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+            aria-label="Toggle sidebar"
+          >
+            {sidebarOpen ? (
+              <X className="size-5" />
+            ) : (
+              <Menu className="size-5" />
+            )}
+          </button>
+        </div>
 
         {/* Condensed nav: md to lg */}
         <div className="ml-auto hidden items-center gap-2 md:flex lg:hidden">
@@ -200,6 +226,72 @@ export function DocsHeader({ section, sectionHref }: DocsHeaderProps) {
           </nav>
           <ThemeToggle />
         </div>
+      </div>
+
+      {/* Mobile nav menu */}
+      <div
+        className={cn(
+          "fixed inset-x-0 top-12 bottom-0 z-40 bg-background transition-opacity duration-200 md:hidden",
+          navMenuOpen ? "opacity-100" : "pointer-events-none opacity-0",
+        )}
+      >
+        <nav className="flex h-full flex-col gap-1 overflow-y-auto px-4 pt-4">
+          {filteredItems.map((item) =>
+            item.type === "link" ? (
+              item.href.startsWith("http") ? (
+                <a
+                  key={item.href}
+                  href={item.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setNavMenuOpen(false)}
+                  className="py-3 text-foreground text-lg transition-colors"
+                >
+                  {item.label}
+                </a>
+              ) : (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setNavMenuOpen(false)}
+                  className="py-3 text-foreground text-lg transition-colors"
+                >
+                  {item.label}
+                </Link>
+              )
+            ) : (
+              <div key={item.label} className="flex flex-col">
+                <span className="py-3 text-muted-foreground text-sm">
+                  {item.label}
+                </span>
+                {item.items.map((link) =>
+                  link.external ? (
+                    <a
+                      key={link.href}
+                      href={link.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setNavMenuOpen(false)}
+                      className="flex items-center gap-1.5 py-2 pl-4 text-foreground text-lg transition-colors"
+                    >
+                      {link.label}
+                      <ArrowUpRight className="size-3.5 opacity-40" />
+                    </a>
+                  ) : (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      onClick={() => setNavMenuOpen(false)}
+                      className="py-2 pl-4 text-foreground text-lg transition-colors"
+                    >
+                      {link.label}
+                    </Link>
+                  ),
+                )}
+              </div>
+            ),
+          )}
+        </nav>
       </div>
     </header>
   );
