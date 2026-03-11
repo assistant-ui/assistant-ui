@@ -76,6 +76,9 @@ class ToolCallStreamControllerImpl implements ToolCallStreamController {
         : {}),
       result: response.result,
       isError: response.isError ?? false,
+      ...(response.messages !== undefined
+        ? { messages: response.messages }
+        : {}),
     });
   }
 

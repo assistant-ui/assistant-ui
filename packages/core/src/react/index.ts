@@ -39,6 +39,10 @@ export {
   ThreadListPrimitiveItemByIndex,
 } from "./primitives/threadList/ThreadListItems";
 export { ChainOfThoughtPrimitiveParts } from "./primitives/chainOfThought/ChainOfThoughtParts";
+export {
+  PartPrimitiveMessages,
+  PartPrimitiveMessagesImpl,
+} from "./primitives/part/PartMessages";
 export { ThreadListItemPrimitiveTitle } from "./primitives/threadListItem/ThreadListItemTitle";
 export {
   ThreadPrimitiveSuggestions,

@@ -13,3 +13,4 @@ export {
   SuggestionByIndexProvider,
   type SuggestionByIndexProviderProps,
 } from "./SuggestionByIndexProvider";
+export { ReadonlyThreadProvider } from "./ReadonlyThreadProvider";
