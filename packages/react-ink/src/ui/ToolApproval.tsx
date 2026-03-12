@@ -179,7 +179,8 @@ export const ToolApproval = ({
       const lower = input.toLowerCase();
       if (lower === "y") doApprove("once");
       else if (lower === "n" || key.escape) doReject();
-      else if (lower === "e" && allowEdit && argsText) setState("editing");
+      else if (lower === "e" && allowEdit && argsText && !!interrupt)
+        setState("editing");
       else if (lower === "a" && showTrustOptions) doApprove("tool");
       else if (lower === "s" && showTrustOptions) doApprove("session");
     },
@@ -212,7 +213,7 @@ export const ToolApproval = ({
           [N]
         </Text>
         <Text>{labels.reject}</Text>
-        {allowEdit && argsText ? (
+        {allowEdit && argsText && !!interrupt ? (
           <>
             <Text color="yellow" bold>
               [E]

@@ -561,3 +561,83 @@ A built-in component for rendering tool calls with expandable/collapsible output
   renderToolCall={({ part }) => <ToolFallback part={part} />}
 />
 ```
+
+## ToolApproval
+
+```tsx
+import { ToolApproval } from "@assistant-ui/react-ink";
+```
+
+A keyboard-driven approval UI for tool calls that require user authorization. Supports two runtime flows: interrupt-based (`context.human()`) and human-tool-names (`unstable_humanToolNames`). Renders inline keybindings for approve, reject, edit args, and trust escalation.
+
+ToolApproval is automatically rendered inside `ToolFallback` when a tool call has `requires-action` status and both `addResult` and `resume` are available. You can also use it standalone.
+
+### Keyboard shortcuts
+
+| Key | Action |
+|-----|--------|
+| `Y` | Approve (once) |
+| `N` / `Esc` | Reject |
+| `E` | Edit args (only with interrupt flow) |
+| `A` | Always allow this tool |
+| `S` | Allow all tools this session |
+
+### With ToolFallback (recommended)
+
+Pass approval configuration via `approvalProps`:
+
+```tsx
+<MessageContent
+  renderToolCall={({ part, ...rest }) => (
+    <ToolFallback
+      {...part}
+      {...rest}
+      approvalProps={{
+        onTrustChange: (toolName, level) => {
+          console.log(`Trust ${toolName}: ${level}`);
+        },
+        autoRejectTimeout: 30,
+      }}
+    />
+  )}
+/>
+```
+
+### Standalone
+
+```tsx
+<ToolApproval
+  toolName="read_file"
+  argsText='{"path": "/src/index.ts"}'
+  addResult={addResult}
+  resume={resume}
+  interrupt={interrupt}
+  onTrustChange={(toolName, level) => {
+    // persist trust decision
+  }}
+  autoRejectTimeout={30}
+/>
+```
+
+### Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `toolName` | `string` | — | Name of the tool being approved |
+| `argsText` | `string` | — | Raw JSON string of tool arguments |
+| `addResult` | `(result: unknown) => void` | — | Runtime callback to submit a tool result |
+| `resume` | `(payload: unknown) => void` | — | Runtime callback to resume an interrupted tool call |
+| `interrupt` | `{ type: "human"; payload: unknown }` | `undefined` | Interrupt payload from the runtime |
+| `onTrustChange` | `(toolName: string, level: TrustLevel) => void` | `undefined` | Called when user sets a trust level |
+| `autoRejectTimeout` | `number` | `0` | Auto-deny countdown in seconds. `0` disables |
+| `allowEdit` | `boolean` | `!!interrupt` | Show the args editor. Defaults to `true` when interrupt is present |
+| `showTrustOptions` | `boolean` | `true` | Show trust level options (`[A]`, `[S]`) |
+| `labels` | `object` | — | Custom labels for approve, reject, edit, trustTool, trustSession |
+
+### TrustLevel
+
+```tsx
+type TrustLevel = "once" | "tool" | "session";
+```
+
+The `onTrustChange` callback receives the trust level the user selected. Your app is responsible for persisting trust decisions and auto-approving future tool calls accordingly.
