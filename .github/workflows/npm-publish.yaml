@@ -432,6 +432,25 @@ jobs:
               }
             };
 
+            function classifyVersionBump(previousVersion, newVersion) {
+              const [pMajor, pMinor, pPatch] = previousVersion.split(".").map(Number);
+              const [nMajor, nMinor, nPatch] = newVersion.split(".").map(Number);
+              if (nMajor !== pMajor) return "major";
+              if (nMinor !== pMinor) return "minor";
+              if (nPatch !== pPatch) return "patch";
+              return "none";
+            }
+
+            function isOutsideCaretRange(rangeVersion, newVersion) {
+              const [rMajor, rMinor, rPatch] = rangeVersion.split(".").map(Number);
+              const [nMajor, nMinor, nPatch] = newVersion.split(".").map(Number);
+              if (rMajor === 0 && rMinor === 0) {
+                return nMajor !== 0 || nMinor !== 0 || nPatch !== rPatch;
+              }
+              if (rMajor === 0) return nMajor !== 0 || nMinor !== rMinor;
+              return nMajor !== rMajor;
+            }
+
             // --- 1. Version changes table ---
 
             let summary = "## Release Summary\n\n";
@@ -443,6 +462,29 @@ jobs:
             for (const t of targets) {
               const prev = t.latestVersion ?? "_new_";
               summary += `| \`${t.name}\` | ${prev} | **${t.version}** |\n`;
+            }
+            summary += "\n";
+
+            const breakingTargets = targets
+              .filter((target) => target.latestVersion)
+              .map((target) => ({
+                ...target,
+                previousVersion: target.latestVersion,
+                bumpType: classifyVersionBump(target.latestVersion, target.version),
+              }))
+              .filter((target) => isOutsideCaretRange(target.previousVersion, target.version))
+              .sort((a, b) => a.name.localeCompare(b.name));
+
+            summary += "### Breaking Version Changes\n\n";
+            if (breakingTargets.length > 0) {
+              summary += "These published versions move outside the previous `^` range and would be breaking for caret consumers if this release is published:\n\n";
+              summary += "| Package | Previous | New | Bump |\n";
+              summary += "| --- | --- | --- | --- |\n";
+              for (const target of breakingTargets) {
+                summary += `| \`${target.name}\` | ${target.previousVersion} | **${target.version}** | ${target.bumpType} |\n`;
+              }
+            } else {
+              summary += "No published package versions move outside their previous `^` range.\n";
             }
             summary += "\n";
 
@@ -480,16 +522,6 @@ jobs:
                 dir,
                 ...previousPkgJson,
               });
-            }
-
-            function isOutsideCaretRange(rangeVersion, newVersion) {
-              const [rMajor, rMinor, rPatch] = rangeVersion.split(".").map(Number);
-              const [nMajor, nMinor, nPatch] = newVersion.split(".").map(Number);
-              if (rMajor === 0 && rMinor === 0) {
-                return nMajor !== 0 || nMinor !== 0 || nPatch !== rPatch;
-              }
-              if (rMajor === 0) return nMajor !== 0 || nMinor !== rMinor;
-              return nMajor !== rMajor;
             }
 
             const targetVersions = new Map(
@@ -593,7 +625,7 @@ jobs:
             // --- 4. Commit history ---
 
             const prevVersionCommit = runGit([
-              "log", "--format=%H", "--grep=chore: update versions",
+              "log", "--format=%H", "--fixed-strings", "--grep=chore: update versions",
               `${releaseSha}^`, "--max-count=1",
             ]);
 
