@@ -10,10 +10,12 @@ import { FeatureHighlights } from "@/components/home/feature-highlights";
 import { TrustedBy } from "@/components/home/trusted-by";
 import { Hero } from "@/components/home/hero";
 import { ExampleShowcase } from "@/components/home/example-showcase";
+import { WarpBackground } from "@/components/home/warp-background";
 
 export default function HomePage() {
   return (
     <main className="relative z-2 mx-auto w-full max-w-7xl flex-col space-y-10 px-4 pt-14 pb-8 md:space-y-20">
+      <WarpBackground />
       <Hero />
 
       <ExampleShowcase />

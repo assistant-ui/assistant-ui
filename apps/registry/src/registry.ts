@@ -363,6 +363,19 @@ export const registry: RegistryItem[] = [
     ],
   },
   {
+    name: "quote",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/quote.tsx",
+        sourcePath: "../../packages/ui/src/components/assistant-ui/quote.tsx",
+      },
+    ],
+    dependencies: ["@assistant-ui/react", "lucide-react"],
+    registryDependencies: [],
+  },
+  {
     name: "sources",
     type: "registry:component",
     files: [

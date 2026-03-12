@@ -1,5 +1,14 @@
 # @assistant-ui/react-ink
 
+## 0.0.4
+
+### Patch Changes
+
+- f38a59b: Launch React Ink: add documentation, landing page, CLI --ink flag, and README
+- 990e41d: refactor: code sharing between the multiple platforms
+- Updated dependencies [990e41d]
+  - @assistant-ui/core@0.1.5
+
 ## 0.0.3
 
 ### Patch Changes

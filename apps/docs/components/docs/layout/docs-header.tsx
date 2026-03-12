@@ -1,18 +1,17 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowUpRight, Menu, Search, X } from "lucide-react";
+import { ArrowUpRight, LayoutGrid, Menu, Search, X } from "lucide-react";
 import { useSearchContext } from "fumadocs-ui/contexts/search";
-import {
-  HoverCard,
-  HoverCardContent,
-  HoverCardTrigger,
-} from "@/components/ui/hover-card";
-import { NAV_ITEMS } from "@/lib/constants";
+import { NAV_ITEMS, type NavItem } from "@/lib/constants";
+import { MoreDropdown } from "@/components/shared/more-dropdown";
+import { NavItems } from "@/components/shared/nav-items";
 import { useDocsSidebar } from "@/components/docs/contexts/sidebar";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { analytics } from "@/lib/analytics";
+import { cn } from "@/lib/utils";
 
 interface DocsHeaderProps {
   section: string;
@@ -46,35 +45,38 @@ function HeaderSearch() {
   );
 }
 
-function MobileControls() {
-  const { setOpenSearch } = useSearchContext();
-  const { open, toggle } = useDocsSidebar();
-
-  return (
-    <div className="ml-auto flex items-center gap-1 md:hidden">
-      <button
-        onClick={() => {
-          analytics.search.opened("header");
-          setOpenSearch(true);
-        }}
-        className="flex size-8 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
-        aria-label="Search"
-      >
-        <Search className="size-4" />
-      </button>
-      <ThemeToggle />
-      <button
-        onClick={toggle}
-        className="flex size-8 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
-        aria-label="Toggle menu"
-      >
-        {open ? <X className="size-5" /> : <Menu className="size-5" />}
-      </button>
-    </div>
-  );
-}
+const CONDENSED_HIDDEN = new Set(["Showcase", "Playground", "Pricing"]);
 
 export function DocsHeader({ section, sectionHref }: DocsHeaderProps) {
+  const { setOpenSearch } = useSearchContext();
+  const {
+    open: sidebarOpen,
+    setOpen: setSidebarOpen,
+    toggle: toggleSidebar,
+  } = useDocsSidebar();
+  const [navMenuOpen, setNavMenuOpen] = useState(false);
+
+  const sectionFilter = (item: (typeof NAV_ITEMS)[number]) =>
+    item.type !== "link" || item.href !== sectionHref;
+  const filteredItems = NAV_ITEMS.filter(sectionFilter);
+  const condensedItems = filteredItems.filter(
+    (item) => !CONDENSED_HIDDEN.has(item.label),
+  );
+  const moreItems = filteredItems.filter(
+    (item): item is Extract<NavItem, { type: "link" }> =>
+      item.type === "link" && CONDENSED_HIDDEN.has(item.label),
+  );
+
+  const handleNavMenuToggle = () => {
+    if (!navMenuOpen) setSidebarOpen(false);
+    setNavMenuOpen((prev) => !prev);
+  };
+
+  const handleSidebarToggle = () => {
+    if (!sidebarOpen) setNavMenuOpen(false);
+    toggleSidebar();
+  };
+
   return (
     <header className="sticky top-0 z-50 w-full">
       <div className="mask-[linear-gradient(to_bottom,black_50%,transparent)] dark:mask-[linear-gradient(to_bottom,black_40%,transparent)] pointer-events-none absolute inset-x-0 top-0 h-16 bg-linear-to-b from-background via-60% via-background/80 to-transparent backdrop-blur-xl md:h-24 dark:via-50%" />
@@ -101,69 +103,136 @@ export function DocsHeader({ section, sectionHref }: DocsHeaderProps) {
           </Link>
         </div>
 
-        <MobileControls />
-
-        <div className="ml-auto hidden items-center gap-2 md:flex">
-          <HeaderSearch />
-          <nav className="flex shrink-0 items-center">
-            {NAV_ITEMS.filter(
-              (item) => item.type !== "link" || item.href !== sectionHref,
-            ).map((item) =>
-              item.type === "link" ? (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="px-3 py-1.5 text-muted-foreground text-sm transition-colors hover:text-foreground"
-                >
-                  {item.label}
-                </Link>
-              ) : (
-                <HoverCard key={item.label} openDelay={100} closeDelay={100}>
-                  <HoverCardTrigger asChild>
-                    <button className="px-3 py-1.5 text-muted-foreground text-sm transition-colors hover:text-foreground">
-                      {item.label}
-                    </button>
-                  </HoverCardTrigger>
-                  <HoverCardContent className="w-56 rounded-xl p-2 shadow-xs">
-                    <div className="flex flex-col">
-                      {item.items.map((link) =>
-                        link.external ? (
-                          <a
-                            key={link.href}
-                            href={link.href}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex flex-col rounded-md px-2 py-1.5 transition-colors hover:bg-muted"
-                          >
-                            <span className="flex items-center gap-1.5 text-sm">
-                              {link.label}
-                              <ArrowUpRight className="size-3 opacity-40" />
-                            </span>
-                            <span className="text-muted-foreground text-xs">
-                              {link.description}
-                            </span>
-                          </a>
-                        ) : (
-                          <Link
-                            key={link.href}
-                            href={link.href}
-                            className="flex flex-col rounded-md px-2 py-1.5 transition-colors hover:bg-muted"
-                          >
-                            <span className="text-sm">{link.label}</span>
-                            <span className="text-muted-foreground text-xs">
-                              {link.description}
-                            </span>
-                          </Link>
-                        ),
-                      )}
-                    </div>
-                  </HoverCardContent>
-                </HoverCard>
-              ),
+        {/* Mobile controls */}
+        <div className="ml-auto flex items-center gap-1 md:hidden">
+          <button
+            onClick={() => {
+              analytics.search.opened("header");
+              setOpenSearch(true);
+            }}
+            className="flex size-8 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+            aria-label="Search"
+          >
+            <Search className="size-4" />
+          </button>
+          <ThemeToggle />
+          <button
+            onClick={handleNavMenuToggle}
+            className="flex size-8 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+            aria-label="Site navigation"
+          >
+            {navMenuOpen ? (
+              <X className="size-5" />
+            ) : (
+              <LayoutGrid className="size-4.5" />
             )}
+          </button>
+          <button
+            onClick={handleSidebarToggle}
+            className="flex size-8 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+            aria-label="Toggle sidebar"
+          >
+            {sidebarOpen ? (
+              <X className="size-5" />
+            ) : (
+              <Menu className="size-5" />
+            )}
+          </button>
+        </div>
+
+        {/* Condensed nav: md to lg */}
+        <div className="ml-auto hidden items-center gap-2 md:flex lg:hidden">
+          <button
+            onClick={() => {
+              analytics.search.opened("header");
+              setOpenSearch(true);
+            }}
+            className="flex size-8 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+            aria-label="Search"
+          >
+            <Search className="size-4" />
+          </button>
+          <nav className="flex shrink-0 items-center">
+            <NavItems items={condensedItems} />
+            {moreItems.length > 0 && <MoreDropdown items={moreItems} />}
           </nav>
           <ThemeToggle />
         </div>
+
+        {/* Full nav: lg+ */}
+        <div className="ml-auto hidden items-center gap-2 lg:flex">
+          <HeaderSearch />
+          <nav className="flex shrink-0 items-center">
+            <NavItems items={filteredItems} />
+          </nav>
+          <ThemeToggle />
+        </div>
+      </div>
+
+      {/* Mobile nav menu */}
+      <div
+        className={cn(
+          "fixed inset-x-0 top-12 bottom-0 z-40 bg-background transition-opacity duration-200 md:hidden",
+          navMenuOpen ? "opacity-100" : "pointer-events-none opacity-0",
+        )}
+      >
+        <nav className="flex h-full flex-col gap-1 overflow-y-auto px-4 pt-4">
+          {filteredItems.map((item) =>
+            item.type === "link" ? (
+              item.href.startsWith("http") ? (
+                <a
+                  key={item.href}
+                  href={item.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setNavMenuOpen(false)}
+                  className="py-3 text-foreground text-lg transition-colors"
+                >
+                  {item.label}
+                </a>
+              ) : (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setNavMenuOpen(false)}
+                  className="py-3 text-foreground text-lg transition-colors"
+                >
+                  {item.label}
+                </Link>
+              )
+            ) : (
+              <div key={item.label} className="flex flex-col">
+                <span className="py-3 text-muted-foreground text-sm">
+                  {item.label}
+                </span>
+                {item.items.map((link) =>
+                  link.external ? (
+                    <a
+                      key={link.href}
+                      href={link.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setNavMenuOpen(false)}
+                      className="flex items-center gap-1.5 py-2 pl-4 text-foreground text-lg transition-colors"
+                    >
+                      {link.label}
+                      <ArrowUpRight className="size-3.5 opacity-40" />
+                    </a>
+                  ) : (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      onClick={() => setNavMenuOpen(false)}
+                      className="py-2 pl-4 text-foreground text-lg transition-colors"
+                    >
+                      {link.label}
+                    </Link>
+                  ),
+                )}
+              </div>
+            ),
+          )}
+        </nav>
       </div>
     </header>
   );

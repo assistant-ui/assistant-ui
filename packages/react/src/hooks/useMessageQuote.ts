@@ -1,7 +1,8 @@
 "use client";
 
-import { useAuiState } from "@assistant-ui/store";
 import type { QuoteInfo } from "@assistant-ui/core";
+import { getMessageQuote } from "@assistant-ui/core/react";
+import { useAuiState } from "@assistant-ui/store";
 
 /**
  * Hook that returns the quote info for the current message, if any.
@@ -18,10 +19,5 @@ import type { QuoteInfo } from "@assistant-ui/core";
  * ```
  */
 export const useMessageQuote = (): QuoteInfo | undefined => {
-  return useAuiState(
-    (s) =>
-      (s.message.metadata?.custom as Record<string, unknown>)?.quote as
-        | QuoteInfo
-        | undefined,
-  );
+  return useAuiState(getMessageQuote);
 };

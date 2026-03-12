@@ -39,6 +39,10 @@ export {
   ThreadListPrimitiveItemByIndex,
 } from "./primitives/threadList/ThreadListItems";
 export { ChainOfThoughtPrimitiveParts } from "./primitives/chainOfThought/ChainOfThoughtParts";
+export {
+  PartPrimitiveMessages,
+  PartPrimitiveMessagesImpl,
+} from "./primitives/part/PartMessages";
 export { ThreadListItemPrimitiveTitle } from "./primitives/threadListItem/ThreadListItemTitle";
 export {
   ThreadPrimitiveSuggestions,
@@ -49,3 +53,19 @@ export {
   ComposerPrimitiveIf,
   type UseComposerIfProps,
 } from "./primitives/composer/ComposerIf";
+export { getMessageQuote } from "./utils/getMessageQuote";
+
+// Primitive hooks (shared behavior logic)
+export * from "./primitive-hooks";
+
+// Shared AssistantRuntimeProvider
+export {
+  AssistantRuntimeProvider,
+  useAssistantRuntime,
+} from "./AssistantRuntimeProvider";
+
+// Shared runtimes
+export {
+  useLocalRuntime,
+  type LocalRuntimeOptions,
+} from "./runtimes/useLocalRuntime";

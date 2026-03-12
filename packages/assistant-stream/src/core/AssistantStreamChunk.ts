@@ -89,6 +89,7 @@ export type AssistantStreamChunk = { readonly path: readonly number[] } & (
       readonly artifact?: ReadonlyJSONValue;
       readonly result: ReadonlyJSONValue;
       readonly isError: boolean;
+      readonly messages?: ReadonlyJSONValue;
     }
   | {
       readonly type: "error";

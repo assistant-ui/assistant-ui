@@ -40,6 +40,7 @@ export type UIMessageStreamChunk =
       toolCallId: string;
       result: ReadonlyJSONValue;
       isError?: boolean;
+      messages?: ReadonlyJSONValue;
     }
   | { type: "start-step"; messageId?: string }
   | {

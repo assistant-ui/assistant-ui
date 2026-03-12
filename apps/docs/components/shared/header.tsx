@@ -11,12 +11,9 @@ import { SearchDialog } from "./search-dialog";
 import { ThemeToggle } from "./theme-toggle";
 import { GitHubIcon } from "@/components/icons/github";
 import { DiscordIcon } from "@/components/icons/discord";
-import {
-  HoverCard,
-  HoverCardContent,
-  HoverCardTrigger,
-} from "@/components/ui/hover-card";
 import { NAV_ITEMS } from "@/lib/constants";
+import { MoreDropdown } from "@/components/shared/more-dropdown";
+import { NavItems } from "@/components/shared/nav-items";
 
 function SearchButton({ onToggle }: { onToggle: () => void }) {
   useEffect(() => {
@@ -98,72 +95,31 @@ export function Header() {
           <span className="font-medium tracking-tight">assistant-ui</span>
         </Link>
 
-        <nav className="hidden items-center md:flex">
-          {NAV_ITEMS.map((item) =>
-            item.type === "link" ? (
-              item.href.startsWith("http") ? (
-                <a
-                  key={item.href}
-                  href={item.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-3 py-1.5 text-muted-foreground text-sm transition-colors hover:text-foreground"
-                >
-                  {item.label}
-                </a>
-              ) : (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="px-3 py-1.5 text-muted-foreground text-sm transition-colors hover:text-foreground"
-                >
-                  {item.label}
-                </Link>
-              )
-            ) : (
-              <HoverCard key={item.label} openDelay={100} closeDelay={100}>
-                <HoverCardTrigger asChild>
-                  <button className="px-3 py-1.5 text-muted-foreground text-sm transition-colors hover:text-foreground">
-                    {item.label}
-                  </button>
-                </HoverCardTrigger>
-                <HoverCardContent className="w-56 rounded-xl p-2 shadow-xs">
-                  <div className="flex flex-col">
-                    {item.items.map((link) =>
-                      link.external ? (
-                        <a
-                          key={link.href}
-                          href={link.href}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex flex-col rounded-md px-2 py-1.5 transition-colors hover:bg-muted"
-                        >
-                          <span className="flex items-center gap-1.5 text-sm">
-                            {link.label}
-                            <ArrowUpRight className="size-3 opacity-40" />
-                          </span>
-                          <span className="text-muted-foreground text-xs">
-                            {link.description}
-                          </span>
-                        </a>
-                      ) : (
-                        <Link
-                          key={link.href}
-                          href={link.href}
-                          className="flex flex-col rounded-md px-2 py-1.5 transition-colors hover:bg-muted"
-                        >
-                          <span className="text-sm">{link.label}</span>
-                          <span className="text-muted-foreground text-xs">
-                            {link.description}
-                          </span>
-                        </Link>
-                      ),
-                    )}
-                  </div>
-                </HoverCardContent>
-              </HoverCard>
-            ),
-          )}
+        {/* Condensed nav: md to lg */}
+        <nav className="hidden items-center md:flex lg:hidden">
+          <NavItems
+            items={NAV_ITEMS.filter(
+              (item) =>
+                !(
+                  "label" in item &&
+                  (item.label === "Showcase" ||
+                    item.label === "Playground" ||
+                    item.label === "Pricing")
+                ),
+            )}
+          />
+          <MoreDropdown
+            items={[
+              { label: "Showcase", href: "/showcase" },
+              { label: "Playground", href: "/playground" },
+              { label: "Pricing", href: "/pricing" },
+            ]}
+          />
+        </nav>
+
+        {/* Full nav: lg+ */}
+        <nav className="hidden items-center lg:flex">
+          <NavItems items={NAV_ITEMS} />
         </nav>
 
         <div className="flex items-center gap-1">

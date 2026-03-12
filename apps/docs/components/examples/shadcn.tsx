@@ -14,6 +14,11 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import icon from "@/public/favicon/icon.svg";
 import {
+  ComposerQuotePreview,
+  QuoteBlock,
+  SelectionToolbar,
+} from "@/components/assistant-ui/quote";
+import {
   ActionBarMorePrimitive,
   ActionBarPrimitive,
   AuiIf,
@@ -21,10 +26,8 @@ import {
   ComposerPrimitive,
   ErrorPrimitive,
   MessagePrimitive,
-  SelectionToolbarPrimitive,
   SuggestionPrimitive,
   ThreadPrimitive,
-  useMessageQuote,
 } from "@assistant-ui/react";
 import {
   ArrowDownIcon,
@@ -38,11 +41,9 @@ import {
   MoreHorizontalIcon,
   PanelLeftIcon,
   PencilIcon,
-  QuoteIcon,
   RefreshCwIcon,
   ShareIcon,
   SquareIcon,
-  XIcon,
 } from "lucide-react";
 import Image from "next/image";
 import { useState, type FC } from "react";
@@ -180,7 +181,7 @@ const Thread: FC = () => {
         </ThreadPrimitive.ViewportFooter>
       </ThreadPrimitive.Viewport>
 
-      <FloatingSelectionToolbar />
+      <SelectionToolbar />
     </ThreadPrimitive.Root>
   );
 };
@@ -246,23 +247,6 @@ const ThreadSuggestionItem: FC = () => {
         </Button>
       </SuggestionPrimitive.Trigger>
     </div>
-  );
-};
-
-const ComposerQuotePreview: FC = () => {
-  return (
-    <ComposerPrimitive.Quote className="aui-composer-quote mx-3 mt-2 flex items-start gap-2 rounded-lg bg-muted/60 px-3 py-2">
-      <QuoteIcon className="aui-composer-quote-icon mt-0.5 size-3.5 shrink-0 text-muted-foreground/70" />
-      <ComposerPrimitive.QuoteText className="aui-composer-quote-text line-clamp-2 min-w-0 flex-1 text-muted-foreground text-sm" />
-      <ComposerPrimitive.QuoteDismiss asChild>
-        <button
-          type="button"
-          className="aui-composer-quote-dismiss shrink-0 rounded-sm p-0.5 text-muted-foreground/70 transition-colors hover:bg-accent hover:text-foreground"
-        >
-          <XIcon className="size-3.5" />
-        </button>
-      </ComposerPrimitive.QuoteDismiss>
-    </ComposerPrimitive.Quote>
   );
 };
 
@@ -354,17 +338,6 @@ const AssistantMessage: FC = () => {
   );
 };
 
-const FloatingSelectionToolbar: FC = () => {
-  return (
-    <SelectionToolbarPrimitive.Root className="aui-selection-toolbar-root flex items-center gap-1 rounded-lg border bg-popover px-1 py-1 shadow-md">
-      <SelectionToolbarPrimitive.Quote className="aui-selection-toolbar-quote flex items-center gap-1.5 rounded-md px-2.5 py-1 text-popover-foreground text-sm transition-colors hover:bg-accent">
-        <QuoteIcon className="size-3.5" />
-        Quote
-      </SelectionToolbarPrimitive.Quote>
-    </SelectionToolbarPrimitive.Root>
-  );
-};
-
 const AssistantActionBar: FC = () => {
   return (
     <ActionBarPrimitive.Root
@@ -414,20 +387,6 @@ const AssistantActionBar: FC = () => {
   );
 };
 
-const MessageQuoteBlock: FC = () => {
-  const quote = useMessageQuote();
-  if (!quote) return null;
-
-  return (
-    <div className="aui-message-quote mb-2 flex items-start gap-1.5">
-      <QuoteIcon className="aui-message-quote-icon mt-0.5 size-3 shrink-0 text-muted-foreground/60" />
-      <p className="aui-message-quote-text line-clamp-2 min-w-0 text-muted-foreground/80 text-sm italic">
-        {quote.text}
-      </p>
-    </div>
-  );
-};
-
 const UserMessage: FC = () => {
   return (
     <MessagePrimitive.Root
@@ -438,8 +397,7 @@ const UserMessage: FC = () => {
 
       <div className="aui-user-message-content-wrapper relative col-start-2 min-w-0">
         <div className="aui-user-message-content wrap-break-word rounded-2xl bg-muted px-4 py-2.5 text-foreground">
-          <MessageQuoteBlock />
-          <MessagePrimitive.Parts />
+          <MessagePrimitive.Parts components={{ Quote: QuoteBlock }} />
         </div>
         <div className="aui-user-action-bar-wrapper absolute top-1/2 left-0 -translate-x-full -translate-y-1/2 pr-2">
           <UserActionBar />

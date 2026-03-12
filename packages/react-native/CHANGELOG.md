@@ -1,5 +1,13 @@
 # @assistant-ui/react-native
 
+## 0.1.4
+
+### Patch Changes
+
+- 990e41d: refactor: code sharing between the multiple platforms
+- Updated dependencies [990e41d]
+  - @assistant-ui/core@0.1.5
+
 ## 0.1.3
 
 ### Patch Changes

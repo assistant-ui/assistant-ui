@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Pressable, type PressableProps } from "react-native";
-import { useEditComposerSend } from "../../primitive-hooks/useEditComposerSend";
+import { useEditComposerSend } from "@assistant-ui/core/react";
 
 export type EditComposerSendProps = Omit<PressableProps, "onPress"> & {
   children: ReactNode;

@@ -1,4 +1,4 @@
-import "@assistant-ui/core/react"; // store-augmentation side-effect (tools, dataRenderers scopes)
+/// <reference types="@assistant-ui/core/react" />
 
 // Re-export core types
 export type {
@@ -93,24 +93,6 @@ export {
 
 // Context providers and hooks
 export { AssistantRuntimeProvider, useAssistantRuntime } from "./context";
-
-// Primitive hooks
-export {
-  useThreadMessages,
-  useThreadIsRunning,
-  useThreadIsEmpty,
-  useComposerSend,
-  useComposerCancel,
-  useMessageReload,
-  useMessageBranching,
-  useActionBarCopy,
-  type UseActionBarCopyOptions,
-  useActionBarEdit,
-  useActionBarReload,
-  useActionBarFeedbackPositive,
-  useActionBarFeedbackNegative,
-  useComposerAddAttachment,
-} from "./primitive-hooks";
 
 // Runtime
 export {

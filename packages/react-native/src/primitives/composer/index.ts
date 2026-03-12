@@ -23,3 +23,15 @@ export {
   type ComposerAddAttachmentProps as AddAttachmentProps,
 } from "./ComposerAddAttachment";
 export { ComposerIf as If } from "./ComposerIf";
+export {
+  EditComposerInput as EditInput,
+  type EditComposerInputProps as EditInputProps,
+} from "./EditComposerInput";
+export {
+  EditComposerSend as EditSend,
+  type EditComposerSendProps as EditSendProps,
+} from "./EditComposerSend";
+export {
+  EditComposerCancel as EditCancel,
+  type EditComposerCancelProps as EditCancelProps,
+} from "./EditComposerCancel";

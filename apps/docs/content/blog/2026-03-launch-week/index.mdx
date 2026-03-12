@@ -1,0 +1,127 @@
+---
+title: "Launch Week: assistant-ui goes multi-platform"
+description: "React Native, terminal UIs, and more — assistant-ui is no longer just for the web."
+author: Simon Farshid
+date: 2026-03-09T12:00:00
+---
+
+This week, we're shipping one major feature every day. The theme: **assistant-ui everywhere**.
+
+For two years, assistant-ui has been the go-to library for building AI chat on the web. Starting this week, that changes. Same runtime, same adapters, same developer experience — now on every platform your users are.
+
+---
+
+## Day 1 — React Native
+
+**Build AI chat for iOS and Android.**
+
+We're launching `@assistant-ui/react-native` — native React Native bindings that bring the full assistant-ui experience to mobile.
+
+Everything you know from the web version carries over:
+
+- **Same runtime, same adapters.** Your `ChatModelAdapter`, AI SDK integration, or LangGraph setup works out of the box. No rewrites.
+- **Native primitives.** `View`, `Pressable`, `Text`, `FlatList` — not web views, not wrappers. Real native components.
+- **Full feature set.** Streaming, tool calls, message branching, thread management, attachments — all there.
+
+Get started in one command:
+
+```sh
+npx assistant-ui@latest create --example with-expo my-chat-app
+```
+
+Or add it to an existing Expo project:
+
+```sh
+npx expo install @assistant-ui/react-native @assistant-ui/react-ai-sdk
+```
+
+The API mirrors the web version closely. If you've built with `@assistant-ui/react`, you already know how to use it.
+
+[Read the docs →](/docs/react-native)
+
+---
+
+## Day 2 — React Ink (Terminal UI)
+
+**Build AI chat for the terminal.**
+
+We're launching `@assistant-ui/react-ink` — terminal UI bindings powered by [Ink](https://github.com/vadimdemedes/ink), the React renderer for CLIs.
+
+Build rich, interactive AI chat interfaces that run in any terminal:
+
+- **Composable primitives.** `ThreadRoot`, `ComposerInput`, `MessageContent` — the same component model, adapted for the terminal.
+- **Markdown rendering.** Ship with `@assistant-ui/react-ink-markdown` for formatted headings, code blocks with syntax highlighting, tables, and lists — all in your terminal.
+- **Tool calls with live feedback.** Built-in `ToolFallback` component shows spinners and formatted JSON output while tools execute.
+- **Shared backend.** Same adapters, same runtime core. Switch platforms without touching your backend code.
+
+Get started:
+
+```sh
+npx assistant-ui@latest create --ink my-chat-app
+```
+
+[Read the docs →](/docs/ink)
+
+---
+
+## Day 3 — Assistant Cloud Redesign
+
+**A new dashboard for managing your AI assistants at scale.**
+
+We've completely redesigned [Assistant Cloud](https://cloud.assistant-ui.com) — the hosted backend for assistant-ui. Thread persistence, analytics, user management, and more — all in one place.
+
+### What is Assistant Cloud?
+
+Assistant Cloud gives your assistant-ui app a production-ready backend. Drop in a few lines of config and get:
+
+- **Thread persistence.** Conversations survive page refreshes. Users can pick up where they left off.
+- **Thread list.** A ChatGPT-style sidebar, powered by your data — no extra backend work.
+- **Auto-generated titles.** Every thread gets a title, automatically.
+- **User authorization.** Works with Clerk, Auth0, Supabase, Firebase, or anonymous mode for demos.
+
+### What's new in the redesign
+
+The new dashboard at `cloud.assistant-ui.com` is a full control center for your AI deployments:
+
+- **Analytics dashboard.** Total cost, token usage, run count, average duration — with model distribution charts and usage trends over time.
+- **Thread browser.** Search and inspect every conversation. View full message history, metadata, and timestamps.
+- **User analytics.** Per-user metrics: runs, threads created, tokens consumed, costs incurred.
+- **Run tracking.** Every LLM invocation logged with model, provider, cost, input/output tokens, cached tokens, reasoning tokens, and duration.
+- **Assistant configuration.** Create multiple assistants with different models, system prompts, temperature, and top-p settings.
+- **LLM provider management.** Configure OpenAI, Anthropic, Google, and other providers — with encrypted credential storage.
+- **API key management.** Generate, track, and revoke project API keys.
+- **Auth rules.** Configure JWT validation with JWKS URL, audience, and issuer settings.
+
+### Getting started
+
+Add thread persistence to your existing assistant-ui app:
+
+```sh
+npx assistant-ui@latest cloud
+```
+
+Or integrate directly with the AI SDK using `useCloudChat`:
+
+```sh
+npm install assistant-cloud @assistant-ui/cloud-ai-sdk
+```
+
+Works with any assistant-ui runtime — AI SDK, LangGraph, or custom backends. No migration required.
+
+[Read the docs →](/docs/cloud) 
+
+[Sign up here →](https://cloud.assistant-ui.com)
+
+---
+
+## One runtime, every platform
+
+The big picture: assistant-ui is now a **universal AI chat framework**. Web, mobile, terminal — one codebase for your backend, one set of adapters, one way to register tools. The only thing that changes is the UI layer.
+
+```
+@assistant-ui/react          → Web (React + Radix UI)
+@assistant-ui/react-native   → Mobile (React Native)
+@assistant-ui/react-ink      → Terminal (Ink)
+```
+
+We'll be updating this post throughout the week as we ship new announcements. Follow [@assistant-ui](https://x.com/assistantui) for daily updates or join our [Discord](https://discord.gg/S9dwgCNEFs) for early access.

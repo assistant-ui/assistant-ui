@@ -1,0 +1,261 @@
+---
+title: Hooks
+description: Reactive hooks for accessing runtime state in React Ink.
+---
+
+## State Hooks
+
+### useAuiState
+
+The primary hook for accessing reactive state. It accepts a selector function for fine-grained re-renders — the component only re-renders when the selected value changes (shallow equality).
+
+```tsx
+import { useAuiState } from "@assistant-ui/react-ink";
+
+// Thread state
+const messages = useAuiState((s) => s.thread.messages);
+const isRunning = useAuiState((s) => s.thread.isRunning);
+const isEmpty = useAuiState((s) => s.thread.isEmpty);
+
+// Composer state
+const text = useAuiState((s) => s.composer.text);
+const composerIsEmpty = useAuiState((s) => s.composer.isEmpty);
+const attachments = useAuiState((s) => s.composer.attachments);
+
+// Message state (inside a message context)
+const role = useAuiState((s) => s.message.role);
+const isLast = useAuiState((s) => s.message.isLast);
+
+// Thread list item state
+const threadId = useAuiState((s) => s.threadListItem.id);
+const title = useAuiState((s) => s.threadListItem.title);
+```
+
+### useAui
+
+Access the store methods for imperative actions.
+
+```tsx
+import { useAui } from "@assistant-ui/react-ink";
+
+const aui = useAui();
+
+// Composer actions
+aui.composer().setText("Hello");
+aui.composer().send();
+
+// Thread actions
+aui.thread().cancelRun();
+```
+
+### useAuiEvent
+
+Subscribe to events without causing re-renders.
+
+```tsx
+import { useAuiEvent } from "@assistant-ui/react-ink";
+
+useAuiEvent("thread.message.created", (payload) => {
+  console.log("New message:", payload);
+});
+```
+
+## Runtime Hooks
+
+### useAssistantRuntime
+
+Get the `AssistantRuntime` from context. This is the top-level runtime with access to thread management.
+
+```tsx
+import { useAssistantRuntime } from "@assistant-ui/react-ink";
+
+const runtime = useAssistantRuntime();
+
+// Switch threads
+runtime.threads.switchToThread(threadId);
+runtime.threads.switchToNewThread();
+
+// Thread management
+runtime.threads.rename(threadId, "New Title");
+runtime.threads.delete(threadId);
+
+// Access the current thread runtime
+runtime.thread; // ThreadRuntime
+```
+
+### useLocalRuntime
+
+Create an `AssistantRuntime` with a `ChatModelAdapter`.
+
+```tsx
+import { useLocalRuntime } from "@assistant-ui/react-ink";
+
+const runtime = useLocalRuntime(chatModel, {
+  initialMessages: [],
+});
+```
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `initialMessages` | `ThreadMessageLike[]` | Messages to pre-populate |
+
+## Primitive Hooks
+
+Low-level hooks for building custom components.
+
+### useThreadMessages
+
+```tsx
+import { useThreadMessages } from "@assistant-ui/react-ink";
+
+const messages = useThreadMessages(); // ThreadMessage[]
+```
+
+### useThreadIsRunning
+
+```tsx
+import { useThreadIsRunning } from "@assistant-ui/react-ink";
+
+const isRunning = useThreadIsRunning(); // boolean
+```
+
+### useThreadIsEmpty
+
+```tsx
+import { useThreadIsEmpty } from "@assistant-ui/react-ink";
+
+const isEmpty = useThreadIsEmpty(); // boolean
+```
+
+### useComposerSend
+
+```tsx
+import { useComposerSend } from "@assistant-ui/react-ink";
+
+const { send, canSend } = useComposerSend();
+```
+
+### useComposerCancel
+
+```tsx
+import { useComposerCancel } from "@assistant-ui/react-ink";
+
+const { cancel, canCancel } = useComposerCancel();
+```
+
+### useComposerAddAttachment
+
+Add an attachment to the composer. Returns `{ addAttachment }` — call it with a `CreateAttachment` object.
+
+```tsx
+import { useComposerAddAttachment } from "@assistant-ui/react-ink";
+import { readFile } from "fs/promises";
+
+const { addAttachment } = useComposerAddAttachment();
+
+const attachFile = async (path: string) => {
+  const content = await readFile(path, "utf-8");
+  await addAttachment({
+    name: path.split("/").pop() ?? "file.txt",
+    type: "document",
+    content: [{ type: "text", text: content }],
+  });
+};
+```
+
+### useMessageReload
+
+```tsx
+import { useMessageReload } from "@assistant-ui/react-ink";
+
+const { reload, canReload } = useMessageReload();
+```
+
+### useMessageBranching
+
+```tsx
+import { useMessageBranching } from "@assistant-ui/react-ink";
+
+const { branchNumber, branchCount, goToPrev, goToNext } =
+  useMessageBranching();
+```
+
+## Model Context Hooks
+
+### useAssistantTool
+
+Register a tool with an optional UI renderer. The tool definition is forwarded to the model, and when the model calls it, the `execute` function runs and the `render` component displays the result.
+
+```tsx
+import { useAssistantTool } from "@assistant-ui/react-ink";
+import { Text } from "ink";
+
+useAssistantTool({
+  toolName: "get_weather",
+  description: "Get the current weather for a city",
+  parameters: {
+    type: "object",
+    properties: {
+      city: { type: "string" },
+    },
+    required: ["city"],
+  },
+  execute: async ({ city }) => {
+    const res = await fetch(`https://api.weather.example/${city}`);
+    return res.json();
+  },
+  render: ({ args, result }) => (
+    <Text>{args.city}: {result?.temperature}°F</Text>
+  ),
+});
+```
+
+### useAssistantToolUI
+
+Register only a UI renderer for a tool (without tool definition or execute function).
+
+```tsx
+import { useAssistantToolUI } from "@assistant-ui/react-ink";
+import { Text } from "ink";
+
+useAssistantToolUI({
+  toolName: "get_weather",
+  render: ({ args, result, status }) => (
+    <Text>
+      {status?.type === "running"
+        ? `Loading weather for ${args.city}...`
+        : `${args.city}: ${result?.temperature}°F`}
+    </Text>
+  ),
+});
+```
+
+### useAssistantInstructions
+
+Register system instructions in the model context.
+
+```tsx
+import { useAssistantInstructions } from "@assistant-ui/react-ink";
+
+useAssistantInstructions("You are a helpful terminal assistant.");
+```
+
+### makeAssistantTool
+
+Create a component that registers a tool when mounted.
+
+```tsx
+import { makeAssistantTool } from "@assistant-ui/react-ink";
+import { Text } from "ink";
+
+const WeatherTool = makeAssistantTool({
+  toolName: "get_weather",
+  description: "Get weather",
+  parameters: { type: "object", properties: { city: { type: "string" } }, required: ["city"] },
+  execute: async ({ city }) => ({ temperature: 72 }),
+  render: ({ args, result }) => <Text>{args.city}: {result?.temperature}°F</Text>,
+});
+
+// Mount inside AssistantProvider to register
+<WeatherTool />
+```

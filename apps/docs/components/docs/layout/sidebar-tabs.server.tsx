@@ -26,7 +26,7 @@ function getFolderUrls(
 }
 
 /** Tabs that should be grouped as children of "Docs" */
-const DOCS_CHILDREN = new Set(["React Native", "Cloud"]);
+const DOCS_CHILDREN = new Set(["React Native", "React Ink", "Cloud"]);
 
 export function getSidebarTabs(tree: PageTree.Root): SidebarTab[] {
   const raw: SidebarTab[] = [];

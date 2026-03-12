@@ -1,113 +1,35 @@
 ---
 title: Quote Selected Text
-description: Let users select and quote text from messages, similar to Claude's quoting experience.
+description: Let users select and quote text from messages. Full guide including backend handling and programmatic API.
 ---
 
-Allow users to select text in assistant messages and reply with a quote reference — just like Claude, ChatGPT, and other modern AI interfaces.
+import { QuoteComposerSample } from "@/components/docs/samples/quote-composer";
+
+<QuoteComposerSample />
+
+## Get Started
+
+The **[Quote](/docs/ui/quote)** registry component gives you everything you need out of the box, including a floating selection toolbar, composer quote preview, and inline quote display.
+
+<InstallCommand shadcn={["quote"]} />
+
+It ships three composable pieces:
+
+- **QuoteBlock** renders quoted text inline in user messages
+- **SelectionToolbar** is a floating toolbar that appears on text selection
+- **ComposerQuotePreview** shows the pending quote inside the composer
+
+See the [Quote component page](/docs/ui/quote) for full setup steps and API reference.
+
+---
 
 ## How It Works
 
-1. User selects text in a message
-2. A floating toolbar appears near the selection with a **Quote** button
-3. User clicks it — a quote preview appears in the composer
-4. User types their reply and sends
-5. The sent message displays the quoted text above the user's reply
+When a user selects text in an assistant message, a floating toolbar appears with a Quote button. Clicking it calls `composer.setQuote()` to store the selection on the composer. The [Quote component](/docs/ui/quote) does this out of the box.
 
-Quote data is stored in `metadata.custom.quote` and is **not** injected into message content. Your backend decides how to present the quoted context to the LLM.
+When the message is sent, the composer runtime automatically writes the quote to `message.metadata.custom.quote` and clears it from the composer.
 
-## Quick Start
-
-### 1. Add the Floating Selection Toolbar
-
-Place `SelectionToolbarPrimitive` inside your `ThreadPrimitive.Root`. It renders a floating toolbar near the user's text selection — only when text is selected within a message.
-
-```tsx {1,13-20}
-import { SelectionToolbarPrimitive, ThreadPrimitive } from "@assistant-ui/react";
-import { QuoteIcon } from "lucide-react";
-
-const Thread = () => {
-  return (
-    <ThreadPrimitive.Root>
-      <ThreadPrimitive.Viewport>
-        <ThreadPrimitive.Messages components={{ ... }} />
-        ...
-      </ThreadPrimitive.Viewport>
-
-      {/* Floating toolbar — appears on text selection */}
-      <SelectionToolbarPrimitive.Root className="flex items-center gap-1 rounded-lg border bg-popover px-1 py-1 shadow-md">
-        <SelectionToolbarPrimitive.Quote className="flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sm hover:bg-accent">
-          <QuoteIcon className="size-3.5" />
-          Quote
-        </SelectionToolbarPrimitive.Quote>
-      </SelectionToolbarPrimitive.Root>
-    </ThreadPrimitive.Root>
-  );
-};
-```
-
-The `Root` component:
-- Listens for `mouseup` and `keyup` events to detect text selections
-- Validates the selection is within a single message (cross-message selections are ignored)
-- Renders a portal positioned above the selection
-- Prevents `mousedown` from clearing the selection when clicking the toolbar
-- Hides automatically on scroll or when the selection is cleared
-
-### 2. Show Quote Preview in Composer
-
-Add `ComposerPrimitive.Quote` inside the composer to show what's being quoted:
-
-```tsx {1,8-13}
-import { ComposerPrimitive } from "@assistant-ui/react";
-
-const Composer = () => {
-  return (
-    <ComposerPrimitive.Root>
-      {/* Quote preview — only renders when a quote is set */}
-      <ComposerPrimitive.Quote className="flex items-start gap-2 border-l-4 border-primary/40 bg-muted/50 px-3 py-2 text-sm">
-        <ComposerPrimitive.QuoteText className="line-clamp-2 flex-1 italic text-muted-foreground" />
-        <ComposerPrimitive.QuoteDismiss>
-          ×
-        </ComposerPrimitive.QuoteDismiss>
-      </ComposerPrimitive.Quote>
-
-      <ComposerPrimitive.Input placeholder="Send a message..." />
-      <ComposerPrimitive.Send />
-    </ComposerPrimitive.Root>
-  );
-};
-```
-
-### 3. Display Quotes in Sent Messages
-
-Use `useMessageQuote()` to render quoted text in user messages:
-
-```tsx {1,4-5,11}
-import { MessagePrimitive, useMessageQuote } from "@assistant-ui/react";
-
-const QuoteBlock = () => {
-  const quote = useMessageQuote();
-  if (!quote) return null;
-
-  return (
-    <div className="mb-1 border-l-4 border-primary/40 pl-3 text-xs italic text-muted-foreground">
-      {quote.text}
-    </div>
-  );
-};
-
-const UserMessage = () => {
-  return (
-    <MessagePrimitive.Root>
-      <QuoteBlock />
-      <MessagePrimitive.Parts />
-    </MessagePrimitive.Root>
-  );
-};
-```
-
-## Backend Handling
-
-The quote is stored in message metadata — **not** in message content. This gives your backend full control over how to present quoted context to the LLM.
+On the backend, the route handler extracts the quote from metadata and surfaces it to the LLM. We export a helper called `injectQuoteContext` that handles this automatically for AI-SDK. Without this step, the quote appears in the UI but is not sent to the model as context. See [Backend Handling](#backend-handling) for more info and alternatives.
 
 ### Data Shape
 
@@ -120,57 +42,15 @@ type QuoteInfo = {
 // Stored at: message.metadata.custom.quote
 ```
 
-### Example: Prepend as Markdown Blockquote
+## Backend Handling
 
-A simple approach is to prepend the quoted text as a `>` blockquote before converting to model messages:
+Quote data travels in message metadata, not content, so the LLM will not see it unless your backend extracts and surfaces it. The simplest path is [`injectQuoteContext`](/docs/ui/quote#forward-quote-context-to-the-llm), which prepends quoted text as a markdown blockquote before the message parts.
 
-```typescript title="app/api/chat/route.ts" {1,9}
-import { convertToModelMessages, streamText } from "ai";
-import type { UIMessage } from "ai";
+For provider-specific handling, work with the quote metadata directly.
 
-export async function POST(req: Request) {
-  const { messages } = await req.json();
+### Claude SDK Citations
 
-  const result = streamText({
-    model: myModel,
-    messages: await convertToModelMessages(injectQuoteContext(messages)),
-  });
-
-  return result.toUIMessageStreamResponse();
-}
-
-function injectQuoteContext(messages: UIMessage[]): UIMessage[] {
-  return messages.map((msg) => {
-    const quote = (msg.metadata as Record<string, unknown>)?.custom;
-    if (
-      !quote ||
-      typeof quote !== "object" ||
-      !("quote" in (quote as Record<string, unknown>))
-    )
-      return msg;
-
-    const q = (quote as Record<string, unknown>).quote;
-    if (
-      !q ||
-      typeof q !== "object" ||
-      !("text" in (q as Record<string, unknown>))
-    )
-      return msg;
-
-    const text = (q as { text: unknown }).text;
-    if (typeof text !== "string") return msg;
-
-    return {
-      ...msg,
-      parts: [{ type: "text" as const, text: `> ${text}\n\n` }, ...msg.parts],
-    };
-  });
-}
-```
-
-### Example: Claude-Style Citation Source
-
-For Claude's API, you can pass the quoted text as a citation source. This enables Claude to produce citations that reference the quoted text:
+Pass the quoted text as a citation source so Claude produces citations that reference it:
 
 ```typescript title="app/api/chat/route.ts"
 import Anthropic from "@anthropic-ai/sdk";
@@ -180,7 +60,6 @@ const client = new Anthropic();
 export async function POST(req: Request) {
   const { messages } = await req.json();
 
-  // Transform messages: extract quotes into Claude source blocks
   const claudeMessages = messages.map((msg) => {
     const quote = msg.metadata?.custom?.quote;
     if (!quote?.text) {
@@ -205,7 +84,7 @@ export async function POST(req: Request) {
   });
 
   const response = await client.messages.create({
-    model: "claude-sonnet-4-5-20250929",
+    model: "claude-sonnet-4-6",
     max_tokens: 1024,
     messages: claudeMessages,
   });
@@ -214,9 +93,9 @@ export async function POST(req: Request) {
 }
 ```
 
-### Example: OpenAI-Style System Context
+### OpenAI Message Context
 
-For OpenAI's API, inject the quote as additional context in the user message:
+Inject the quote as additional context in the user message:
 
 ```typescript title="app/api/chat/route.ts"
 function injectQuoteForOpenAI(messages) {
@@ -232,9 +111,28 @@ function injectQuoteForOpenAI(messages) {
 }
 ```
 
+## Reading Quote Data
+
+Use `useMessageQuote` to access quote data in custom components:
+
+```tsx
+import { useMessageQuote } from "@assistant-ui/react";
+
+function CustomQuoteDisplay() {
+  const quote = useMessageQuote();
+  if (!quote) return null;
+
+  return (
+    <blockquote className="border-l-2 pl-3 text-sm text-muted-foreground">
+      {quote.text}
+    </blockquote>
+  );
+}
+```
+
 ## Programmatic API
 
-You can set or clear quotes programmatically via the composer runtime:
+Set or clear quotes via the composer runtime:
 
 ```tsx
 import { useAui } from "@assistant-ui/react";
@@ -262,66 +160,17 @@ function MyComponent() {
 }
 ```
 
-## API Reference
-
-### SelectionToolbarPrimitive.Root
-
-A floating container that appears when text is selected within a message. Renders as a portal positioned above the selection.
-
-- Listens for `mouseup` / `keyup` to detect selection
-- Validates selection is within a single message
-- Hides on scroll or when selection is cleared
-- Prevents `mousedown` from clearing the selection
-- Provides selection context to child components
-
-### SelectionToolbarPrimitive.Quote
-
-A button inside the floating toolbar that captures the selection as a quote.
-
-- Reads selection info from the toolbar context (not `window.getSelection()`)
-- Stores `{ text, messageId }` in the thread composer
-- Clears the text selection after quoting
-
-### ComposerPrimitive.Quote
-
-A container that only renders when a quote is set.
-
-### ComposerPrimitive.QuoteText
-
-Renders the quoted text. Defaults to `<span>`.
-
-### ComposerPrimitive.QuoteDismiss
-
-A button that clears the quote by calling `setQuote(undefined)`. Supports `asChild`.
-
-### useMessageQuote()
-
-```tsx
-const quote: QuoteInfo | undefined = useMessageQuote();
-```
-
-Returns the quote attached to the current message, or `undefined`.
-
-### ComposerRuntime.setQuote()
-
-```tsx
-setQuote(quote: QuoteInfo | undefined): void
-```
-
-Set or clear the quote on the composer. The quote is automatically cleared when the message is sent.
-
 ## Design Notes
 
-- **Single quote** — `setQuote` replaces, not appends. Only one quote at a time.
-- **Snapshot text** — The selected text is captured at quote time, not linked to the source message.
-- **Cross-message selection** — Rejected. The toolbar only appears when the selection is within a single message.
-- **Streaming messages** — The floating toolbar works during streaming since it reads from the captured selection, not message status.
-- **`isEmpty` unchanged** — A quote alone doesn't make the composer non-empty. The user must type a reply.
-- **Scroll hides toolbar** — The floating toolbar hides when any scroll event occurs, since the position would become stale.
+- **Single quote:** `setQuote` replaces the current quote instead of appending. Only one quote can be active at a time.
+- **Snapshot text:** The selected text is captured when the quote is created and is not linked to the source message afterward.
+- **Cross-message selection:** The toolbar only appears when the selection stays within a single message.
+- **Streaming messages:** The toolbar still works while a message is streaming because it relies on the captured selection rather than message status.
+- **`isEmpty` unchanged:** A quote by itself does not make the composer non-empty. The user still needs to type a reply.
+- **Scroll hides toolbar:** The toolbar hides on scroll because its position would otherwise become stale.
 
 ## Related
 
-- [Message Editing](/docs/guides/editing) — Edit user messages
-- [Thread Component](/docs/ui/thread) — Main chat container
-- [ComposerPrimitive](/docs/reference/primitives/Composer) — Composer primitive reference
-- [ActionBarPrimitive](/docs/reference/primitives/ActionBar) — Action bar primitive reference
+- [Quote component](/docs/ui/quote): Installation, component setup, and API reference
+- [Message Editing](/docs/guides/editing): Edit user messages
+- [Thread](/docs/ui/thread): Main chat container

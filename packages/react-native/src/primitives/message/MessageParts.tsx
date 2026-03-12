@@ -46,6 +46,7 @@ export const MessagePrimitiveParts: FC<MessagePrimitiveParts.Props> = ({
                 messagePartsDefaultComponents.ReasoningGroup,
             }),
         Empty: components.Empty,
+        Quote: components.Quote,
       }
     : rnDefaultComponents;
 

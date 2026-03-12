@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Pressable, type PressableProps } from "react-native";
-import { useActionBarReload } from "../../primitive-hooks/useActionBarReload";
+import { useActionBarReload } from "@assistant-ui/core/react";
 
 export type ActionBarReloadProps = Omit<PressableProps, "onPress"> & {
   children: ReactNode;

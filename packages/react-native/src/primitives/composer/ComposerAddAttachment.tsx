@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import { Pressable, type PressableProps } from "react-native";
-import { useComposerAddAttachment } from "../../primitive-hooks/useComposerAddAttachment";
-import { useAuiState } from "@assistant-ui/store";
+import { useComposerAddAttachment } from "@assistant-ui/core/react";
 
 export type ComposerAddAttachmentProps = Omit<PressableProps, "onPress"> & {
   children: ReactNode;
@@ -11,7 +10,7 @@ export type ComposerAddAttachmentProps = Omit<PressableProps, "onPress"> & {
  * A button that triggers the attachment adding flow.
  *
  * Note: The actual file picker implementation is platform-specific.
- * This component calls `useComposerAddAttachment()` from your primitive-hooks.
+ * This component calls `useComposerAddAttachment()` from `@assistant-ui/core/react`.
  * You must handle the file selection in your own component using the returned `addAttachment` callback.
  */
 export const ComposerAddAttachment = ({
@@ -19,11 +18,10 @@ export const ComposerAddAttachment = ({
   disabled: disabledProp,
   ...pressableProps
 }: ComposerAddAttachmentProps) => {
-  const isDisabled = useAuiState((s) => !s.composer.isEditing);
-  const { addAttachment: _addAttachment } = useComposerAddAttachment();
+  const { disabled } = useComposerAddAttachment();
 
   return (
-    <Pressable disabled={disabledProp ?? isDisabled} {...pressableProps}>
+    <Pressable disabled={disabledProp ?? disabled} {...pressableProps}>
       {children}
     </Pressable>
   );

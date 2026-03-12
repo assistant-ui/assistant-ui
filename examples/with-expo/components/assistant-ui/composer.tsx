@@ -9,10 +9,8 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import {
+  useAui,
   useAuiState,
-  useComposerSend,
-  useComposerCancel,
-  useComposerAddAttachment,
   ComposerPrimitive,
   AttachmentPrimitive,
 } from "@assistant-ui/react-native";
@@ -41,10 +39,12 @@ export function Composer() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
 
+  const aui = useAui();
   const attachmentsCount = useAuiState((s) => s.composer.attachments.length);
-  const { send, canSend } = useComposerSend();
-  const { cancel, canCancel } = useComposerCancel();
-  const { addAttachment } = useComposerAddAttachment();
+  const canCancel = useAuiState((s) => s.composer.canCancel);
+  const canSend = useAuiState(
+    (s) => !s.thread.isRunning && s.composer.isEditing && !s.composer.isEmpty,
+  );
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -60,7 +60,7 @@ export function Composer() {
       // Force JPEG mime type — iOS may report HEIC which OpenAI doesn't support
       const dataUrl = `data:image/jpeg;base64,${asset.base64}`;
 
-      await addAttachment({
+      await aui.composer().addAttachment({
         name: asset.fileName ?? "image.jpg",
         contentType: "image/jpeg",
         type: "image",
@@ -114,14 +114,11 @@ export function Composer() {
           editable={!canCancel}
         />
         {canCancel ? (
-          <Pressable
-            style={[styles.button, styles.stopButton]}
-            onPress={cancel}
-          >
+          <ComposerPrimitive.Cancel style={[styles.button, styles.stopButton]}>
             <View style={styles.stopIcon} />
-          </Pressable>
+          </ComposerPrimitive.Cancel>
         ) : (
-          <Pressable
+          <ComposerPrimitive.Send
             style={[
               styles.button,
               styles.sendButton,
@@ -135,15 +132,13 @@ export function Composer() {
                     : "#e5e5ea",
               },
             ]}
-            onPress={send}
-            disabled={!canSend}
           >
             <Ionicons
               name="arrow-up"
               size={20}
               color={canSend ? "#ffffff" : "#8e8e93"}
             />
-          </Pressable>
+          </ComposerPrimitive.Send>
         )}
       </View>
     </View>

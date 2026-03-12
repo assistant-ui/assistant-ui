@@ -12,7 +12,7 @@ description: Quickest path to a working chat. Handles state while you handle the
 
 - **Built-in state management** for messages, threads, and conversation history
 - **Automatic features** like message editing, reloading, and branch switching
-- **Multi-thread support** through [Assistant Cloud](/docs/cloud/overview) or your own database using `useRemoteThreadListRuntime`
+- **Multi-thread support** through [Assistant Cloud](/docs/cloud) or your own database using `useRemoteThreadListRuntime`
 - **Simple adapter pattern** to connect any backend API
 
 While LocalRuntime manages state in-memory by default, it offers multiple persistence options through adapters - use the history adapter for single-thread persistence, Assistant Cloud for managed multi-thread support, or implement your own storage with `useRemoteThreadListRuntime`.

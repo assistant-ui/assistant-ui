@@ -1,0 +1,563 @@
+---
+title: Primitives
+description: Composable terminal components for building chat UIs with Ink.
+---
+
+Primitives are thin wrappers around Ink components (`Box`, `Text`, `TextInput`) that integrate with the assistant-ui runtime. They accept all standard Ink props and add runtime-aware behavior.
+
+Primitives are exported directly from `@assistant-ui/react-ink` (e.g. `ThreadRoot`, `ComposerInput`), unlike the web package which uses namespace imports.
+
+Many primitives share their core logic with `@assistant-ui/react` via `@assistant-ui/core/react` — only the UI layer (Ink vs DOM) differs.
+
+## Thread
+
+```tsx
+import {
+  ThreadRoot,
+  ThreadMessages,
+  ThreadEmpty,
+  ThreadIf,
+} from "@assistant-ui/react-ink";
+```
+
+### ThreadRoot
+
+Container `Box` for the thread area.
+
+```tsx
+<ThreadRoot>
+  {children}
+</ThreadRoot>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `...rest` | `BoxProps` | Standard Ink Box props |
+
+### ThreadMessages
+
+Renders the message list with automatic runtime integration. Each message is wrapped in a scoped context so that `useAuiState((s) => s.message)` works inside `renderMessage`.
+
+```tsx
+<ThreadMessages
+  renderMessage={({ message, index }) => <MessageBubble message={message} />}
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `renderMessage` | `(info: { message: ThreadMessage; index: number }) => ReactElement` | Message renderer |
+
+### ThreadEmpty
+
+Renders children only when the thread has no messages.
+
+```tsx
+<ThreadEmpty>
+  <Text dimColor>Send a message to get started</Text>
+</ThreadEmpty>
+```
+
+### ThreadIf
+
+Conditional rendering based on thread state.
+
+```tsx
+<ThreadIf empty>
+  <Text>No messages yet</Text>
+</ThreadIf>
+
+<ThreadIf running>
+  <Text color="yellow">Generating...</Text>
+</ThreadIf>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `empty` | `boolean` | Render when thread is empty |
+| `running` | `boolean` | Render when thread is running |
+
+### ThreadSuggestion
+
+Renders a suggestion button. Uses Ink `Box` + `Text`.
+
+```tsx
+<ThreadSuggestion
+  prompt="What is the weather?"
+  method="replace"
+  autoSend
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `prompt` | `string` | The suggestion text |
+| `method` | `"replace" \| "append"` | How to insert the suggestion |
+| `autoSend` | `boolean` | Automatically send after inserting |
+
+## Composer
+
+```tsx
+import {
+  ComposerRoot,
+  ComposerInput,
+  ComposerSend,
+  ComposerCancel,
+  ComposerAddAttachment,
+  ComposerAttachments,
+  ComposerIf,
+} from "@assistant-ui/react-ink";
+```
+
+### ComposerRoot
+
+Container `Box` for the composer area.
+
+```tsx
+<ComposerRoot>
+  {children}
+</ComposerRoot>
+```
+
+### ComposerInput
+
+Ink `TextInput` wired to the composer runtime. Value is managed automatically.
+
+```tsx
+<ComposerInput
+  submitOnEnter
+  placeholder="Type a message..."
+  autoFocus
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `submitOnEnter` | `boolean` | Whether Enter sends the message (default: `true`) |
+| `placeholder` | `string` | Placeholder text when empty |
+| `autoFocus` | `boolean` | Auto-focus on mount |
+
+### ComposerSend
+
+`Box` that triggers sending the current message. Typically used with a button-like UI.
+
+```tsx
+<ComposerSend>
+  <Text color="green">[Send]</Text>
+</ComposerSend>
+```
+
+### ComposerCancel
+
+`Box` that cancels the current run.
+
+```tsx
+<ComposerCancel>
+  <Text color="red">[Stop]</Text>
+</ComposerCancel>
+```
+
+### ComposerAttachments
+
+Renders composer attachments using the provided component configuration.
+
+```tsx
+<ComposerAttachments
+  components={{
+    Attachment: MyAttachment,
+  }}
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `components` | `{ Image?, Document?, File?, Attachment? }` | Component renderers by attachment type |
+
+### ComposerAddAttachment
+
+Triggers attachment addition.
+
+```tsx
+<ComposerAddAttachment>
+  <Text>[Attach]</Text>
+</ComposerAddAttachment>
+```
+
+### ComposerIf
+
+Conditional rendering based on composer state. Shared from `@assistant-ui/core/react`.
+
+```tsx
+<ComposerIf editing>
+  <Text>Currently editing</Text>
+</ComposerIf>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `editing` | `boolean` | Render when composer is in editing mode |
+
+## Message
+
+```tsx
+import {
+  MessageRoot,
+  MessageContent,
+  MessageIf,
+  MessageParts,
+  MessageAttachments,
+} from "@assistant-ui/react-ink";
+```
+
+### MessageRoot
+
+Container `Box` for a single message.
+
+```tsx
+<MessageRoot>
+  {children}
+</MessageRoot>
+```
+
+### MessageContent
+
+Renders message content parts. Tool call and data parts automatically render registered tool UIs (via `useAssistantTool` / `useAssistantDataUI`), falling back to render props if provided.
+
+```tsx
+<MessageContent
+  renderText={({ part }) => <Text>{part.text}</Text>}
+  renderToolCall={({ part }) => <Text dimColor>[Tool: {part.toolName}]</Text>}
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `renderText` | `(props: { part; index }) => ReactElement` | Text part renderer |
+| `renderToolCall` | `(props: { part; index }) => ReactElement` | Tool call fallback |
+| `renderImage` | `(props: { part; index }) => ReactElement` | Image part renderer |
+| `renderReasoning` | `(props: { part; index }) => ReactElement` | Reasoning part renderer |
+| `renderSource` | `(props: { part; index }) => ReactElement` | Source part renderer |
+| `renderFile` | `(props: { part; index }) => ReactElement` | File part renderer |
+| `renderData` | `(props: { part; index }) => ReactElement` | Data part fallback |
+
+### MessageIf
+
+Conditional rendering based on message properties.
+
+```tsx
+<MessageIf user>
+  <Text bold color="green">You:</Text>
+</MessageIf>
+
+<MessageIf assistant last>
+  <Text color="yellow">Thinking...</Text>
+</MessageIf>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `user` | `boolean` | Render for user messages |
+| `assistant` | `boolean` | Render for assistant messages |
+| `running` | `boolean` | Render when message is being generated |
+| `last` | `boolean` | Render for the last message |
+
+### MessageAttachments
+
+Renders user message attachments using the provided component configuration.
+
+```tsx
+<MessageAttachments
+  components={{
+    Attachment: ({ attachment }) => <Text>[{attachment.name}]</Text>,
+  }}
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `components` | `{ Image?, Document?, File?, Attachment? }` | Component renderers by attachment type |
+
+## Attachment
+
+```tsx
+import {
+  AttachmentRoot,
+  AttachmentName,
+  AttachmentThumb,
+  AttachmentRemove,
+} from "@assistant-ui/react-ink";
+```
+
+Primitives for rendering individual attachments.
+
+### AttachmentRoot
+
+Container `Box` for an attachment.
+
+### AttachmentName
+
+`Text` component displaying the attachment filename.
+
+### AttachmentThumb
+
+`Text` component displaying the file extension.
+
+### AttachmentRemove
+
+Pressable that removes the attachment from the composer.
+
+```tsx
+<AttachmentRoot>
+  <AttachmentThumb />
+  <AttachmentName />
+  <AttachmentRemove>
+    <Text color="red">[x]</Text>
+  </AttachmentRemove>
+</AttachmentRoot>
+```
+
+## ActionBar
+
+```tsx
+import {
+  ActionBarCopy,
+  ActionBarEdit,
+  ActionBarReload,
+  ActionBarFeedbackPositive,
+  ActionBarFeedbackNegative,
+} from "@assistant-ui/react-ink";
+```
+
+### ActionBarCopy
+
+Pressable that copies the message content. Supports function-as-children for copy state feedback.
+
+```tsx
+<ActionBarCopy copiedDuration={3000}>
+  {({ isCopied }) => <Text>{isCopied ? "[Copied!]" : "[Copy]"}</Text>}
+</ActionBarCopy>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `copiedDuration` | `number` | Duration in ms to show "copied" state (default: 3000) |
+| `copyToClipboard` | `(text: string) => void` | Custom clipboard function |
+
+### ActionBarEdit
+
+Pressable that enters edit mode for a message.
+
+```tsx
+<ActionBarEdit>
+  <Text>[Edit]</Text>
+</ActionBarEdit>
+```
+
+### ActionBarReload
+
+Pressable that regenerates an assistant message.
+
+```tsx
+<ActionBarReload>
+  <Text>[Retry]</Text>
+</ActionBarReload>
+```
+
+### ActionBarFeedbackPositive / ActionBarFeedbackNegative
+
+Pressable buttons for submitting message feedback.
+
+```tsx
+<ActionBarFeedbackPositive>
+  {({ isSubmitted }) => <Text>{isSubmitted ? "[Liked]" : "[Like]"}</Text>}
+</ActionBarFeedbackPositive>
+
+<ActionBarFeedbackNegative>
+  {({ isSubmitted }) => <Text>{isSubmitted ? "[Disliked]" : "[Dislike]"}</Text>}
+</ActionBarFeedbackNegative>
+```
+
+## BranchPicker
+
+```tsx
+import {
+  BranchPickerPrevious,
+  BranchPickerNext,
+  BranchPickerNumber,
+  BranchPickerCount,
+} from "@assistant-ui/react-ink";
+```
+
+### BranchPickerPrevious / BranchPickerNext
+
+Pressable buttons to navigate between message branches.
+
+```tsx
+<Box>
+  <BranchPickerPrevious>
+    <Text>{"<"}</Text>
+  </BranchPickerPrevious>
+  <BranchPickerNumber />
+  <Text>/</Text>
+  <BranchPickerCount />
+  <BranchPickerNext>
+    <Text>{">"}</Text>
+  </BranchPickerNext>
+</Box>
+```
+
+### BranchPickerNumber / BranchPickerCount
+
+`Text` components displaying the current branch number and total count.
+
+## ThreadList
+
+```tsx
+import {
+  ThreadListRoot,
+  ThreadListItems,
+  ThreadListNew,
+} from "@assistant-ui/react-ink";
+```
+
+### ThreadListRoot
+
+Container `Box` for the thread list.
+
+### ThreadListItems
+
+Renders thread list items with runtime integration.
+
+```tsx
+<ThreadListItems
+  renderItem={({ threadId }) => (
+    <ThreadEntry threadId={threadId} />
+  )}
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `renderItem` | `(props: { threadId: string; index: number }) => ReactElement` | Thread item renderer |
+
+### ThreadListNew
+
+Pressable that creates a new thread.
+
+```tsx
+<ThreadListNew>
+  <Text color="green">[New Chat]</Text>
+</ThreadListNew>
+```
+
+## ThreadListItem
+
+```tsx
+import {
+  ThreadListItemRoot,
+  ThreadListItemTrigger,
+  ThreadListItemDelete,
+  ThreadListItemArchive,
+  ThreadListItemUnarchive,
+} from "@assistant-ui/react-ink";
+```
+
+### ThreadListItemRoot
+
+Container `Box` for a thread list item.
+
+### ThreadListItemTrigger
+
+Pressable that switches to the thread.
+
+### ThreadListItemDelete
+
+Pressable that deletes the thread.
+
+### ThreadListItemArchive / ThreadListItemUnarchive
+
+Pressable buttons that archive or unarchive the thread.
+
+```tsx
+<ThreadListItemRoot>
+  <ThreadListItemTrigger>
+    <Text>Chat #1</Text>
+  </ThreadListItemTrigger>
+  <ThreadListItemDelete>
+    <Text color="red">[x]</Text>
+  </ThreadListItemDelete>
+</ThreadListItemRoot>
+```
+
+## Suggestion
+
+```tsx
+import {
+  SuggestionTitle,
+  SuggestionDescription,
+  SuggestionTrigger,
+} from "@assistant-ui/react-ink";
+```
+
+### SuggestionTitle
+
+`Text` component displaying the suggestion title.
+
+### SuggestionDescription
+
+`Text` component displaying the suggestion description.
+
+### SuggestionTrigger
+
+Pressable that triggers the suggestion action.
+
+```tsx
+<SuggestionTrigger send>
+  <SuggestionTitle />
+</SuggestionTrigger>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `send` | `boolean` | When true, sends immediately; when false, inserts into composer |
+| `clearComposer` | `boolean` | Whether to clear/replace composer text (default: true) |
+
+## ChainOfThought
+
+```tsx
+import {
+  ChainOfThoughtRoot,
+  ChainOfThoughtAccordionTrigger,
+} from "@assistant-ui/react-ink";
+```
+
+### ChainOfThoughtRoot
+
+Container `Box` for chain of thought content.
+
+### ChainOfThoughtAccordionTrigger
+
+Pressable that toggles the collapsed state of the chain of thought.
+
+```tsx
+<ChainOfThoughtRoot>
+  <ChainOfThoughtAccordionTrigger>
+    <Text dimColor>[Toggle reasoning]</Text>
+  </ChainOfThoughtAccordionTrigger>
+  {/* reasoning content */}
+</ChainOfThoughtRoot>
+```
+
+## ToolFallback
+
+```tsx
+import { ToolFallback } from "@assistant-ui/react-ink";
+```
+
+A built-in component for rendering tool calls with expandable/collapsible output. Includes spinner for running tools and formatted JSON output.
+
+```tsx
+<MessageContent
+  renderToolCall={({ part }) => <ToolFallback part={part} />}
+/>
+```

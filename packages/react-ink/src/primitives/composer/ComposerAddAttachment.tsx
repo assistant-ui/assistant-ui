@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
-import { useAuiState } from "@assistant-ui/store";
-import { useComposerAddAttachment } from "../../primitive-hooks/useComposerAddAttachment";
+import { useComposerAddAttachment } from "@assistant-ui/core/react";
 import { Pressable, type PressableProps } from "../internal/Pressable";
 
 export type ComposerAddAttachmentProps = Omit<PressableProps, "onPress"> & {
@@ -12,11 +11,10 @@ export const ComposerAddAttachment = ({
   disabled: disabledProp,
   ...pressableProps
 }: ComposerAddAttachmentProps) => {
-  const isDisabled = useAuiState((s) => !s.composer.isEditing);
-  const { addAttachment: _addAttachment } = useComposerAddAttachment();
+  const { disabled } = useComposerAddAttachment();
 
   return (
-    <Pressable disabled={disabledProp ?? isDisabled} {...pressableProps}>
+    <Pressable disabled={disabledProp ?? disabled} {...pressableProps}>
       {children}
     </Pressable>
   );

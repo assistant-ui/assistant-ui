@@ -1,6 +1,6 @@
 import { getDistinctId, posthogServer } from "@/lib/posthog-server";
 import { createPrismTracer } from "@/lib/prism-server";
-import { injectQuoteContext } from "@/lib/quote";
+import { injectQuoteContext } from "@assistant-ui/react-ai-sdk";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getModel } from "@/lib/ai/provider";
 import { frontendTools } from "@assistant-ui/react-ai-sdk";
