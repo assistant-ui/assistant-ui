@@ -6,6 +6,7 @@
     "react-native",
     "ink",
     "cloud",
+    "utilities",
     "(reference)"
   ]
 }
