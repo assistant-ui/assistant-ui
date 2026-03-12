@@ -201,7 +201,6 @@ jobs:
     name: Release summary
     needs:
       - approve
-      - cancel_pending
     runs-on: ubuntu-24.04
     outputs:
       target_count: ${{ steps.targets.outputs.targetCount }}

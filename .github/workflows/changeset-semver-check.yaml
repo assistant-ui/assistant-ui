@@ -132,6 +132,7 @@ jobs:
 
             const pkgMap = new Map();
             const revDeps = new Map();
+            const packageManifests = [];
             const packagesDir = "packages";
             for (const dir of fs.readdirSync(packagesDir)) {
               const pkgJsonPath = path.join(packagesDir, dir, "package.json");
@@ -142,10 +143,12 @@ jobs:
                 continue;
               }
               if (pkgJson.private) continue;
+              packageManifests.push(pkgJson);
               const major = parseInt(pkgJson.version.split(".")[0], 10);
               pkgMap.set(pkgJson.name, { major, version: pkgJson.version });
+            }
 
-              // Index caret dependencies into reverse map
+            for (const pkgJson of packageManifests) {
               const allDeps = {
                 ...pkgJson.dependencies,
                 ...pkgJson.peerDependencies,
