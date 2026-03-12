@@ -62,27 +62,6 @@ useAuiEvent("thread.message.created", (payload) => {
 
 ## Runtime Hooks
 
-### useAssistantRuntime
-
-Get the `AssistantRuntime` from context. This is the top-level runtime with access to thread management.
-
-```tsx
-import { useAssistantRuntime } from "@assistant-ui/react-ink";
-
-const runtime = useAssistantRuntime();
-
-// Switch threads
-runtime.threads.switchToThread(threadId);
-runtime.threads.switchToNewThread();
-
-// Thread management
-runtime.threads.rename(threadId, "New Title");
-runtime.threads.delete(threadId);
-
-// Access the current thread runtime
-runtime.thread; // ThreadRuntime
-```
-
 ### useLocalRuntime
 
 Create an `AssistantRuntime` with a `ChatModelAdapter`.

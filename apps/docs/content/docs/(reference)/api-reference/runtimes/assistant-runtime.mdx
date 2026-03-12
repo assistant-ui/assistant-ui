@@ -7,12 +7,22 @@ import { AssistantRuntime, AssistantToolUIsState } from "@/generated/typeDocs";
 
 The `AssistantRuntime` is the root runtime of the application.
 
-### `useAssistantRuntime`
+### `useAui`
+
+Access the assistant runtime via `useAui`:
 
 ```tsx
-import { useAssistantRuntime } from "@assistant-ui/react";
+import { useAui } from "@assistant-ui/react";
 
-const runtime = useAssistantRuntime();
+const aui = useAui();
+
+// Thread management
+aui.threads().switchToNewThread();
+aui.threads().switchToThread(threadId);
+
+// Thread actions
+aui.thread().cancelRun();
+aui.thread().append(message);
 ```
 
 <ParametersTable {...AssistantRuntime} />

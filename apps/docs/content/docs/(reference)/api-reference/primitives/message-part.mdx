@@ -234,22 +234,25 @@ import { TextMessagePartProvider } from "@assistant-ui/react";
 
 ## Runtime API
 
-### `useMessagePartRuntime`
+### `useAui` (Message Part Actions)
 
 ```tsx
-import { useMessagePartRuntime } from "@assistant-ui/react";
+import { useAui } from "@assistant-ui/react";
 
-const MessagePartRuntime = useMessagePartRuntime();
+const aui = useAui();
+aui.part().addResult(result);
+const partState = aui.part().getState();
 ```
 
 <ParametersTable {...MessagePartRuntime} />
 
-### `useMessagePart`
+### `useAuiState` (Message Part State)
 
 ```tsx
-import { useMessagePart } from "@assistant-ui/react";
+import { useAuiState } from "@assistant-ui/react";
 
-const MessagePart = useMessagePart();
+const type = useAuiState((s) => s.part.type);
+const status = useAuiState((s) => s.part.status);
 ```
 
 <ParametersTable {...TextMessagePartState} />

@@ -44,34 +44,25 @@ Container `View` for the thread area.
 | `renderMessage` | `(info: { message: ThreadMessage; index: number }) => ReactElement` | Message renderer |
 | `...rest` | `FlatListProps` | Standard FlatList props (except `data`, `renderItem`) |
 
-### ThreadPrimitive.Empty
+### AuiIf
 
-Renders children only when the thread has no messages.
+Conditional rendering based on assistant state. Replaces the deprecated `ThreadPrimitive.Empty`, `ThreadPrimitive.If`, `MessagePrimitive.If`, and `ComposerPrimitive.If`.
 
 ```tsx
-<ThreadPrimitive.Empty>
+import { AuiIf } from "@assistant-ui/react-native";
+
+<AuiIf condition={(s) => s.thread.isEmpty}>
   <Text>Send a message to get started</Text>
-</ThreadPrimitive.Empty>
-```
+</AuiIf>
 
-### ThreadPrimitive.If
-
-Conditional rendering based on thread state.
-
-```tsx
-<ThreadPrimitive.If empty>
-  <Text>No messages yet</Text>
-</ThreadPrimitive.If>
-
-<ThreadPrimitive.If running>
+<AuiIf condition={(s) => s.thread.isRunning}>
   <ActivityIndicator />
-</ThreadPrimitive.If>
+</AuiIf>
 ```
 
 | Prop | Type | Description |
 |------|------|-------------|
-| `empty` | `boolean` | Render when thread is empty |
-| `running` | `boolean` | Render when thread is running |
+| `condition` | `(state) => boolean` | Selector that determines whether children are rendered |
 
 ## Composer
 
@@ -154,20 +145,19 @@ Renders composer attachments using the provided component configuration.
 </ComposerPrimitive.AddAttachment>
 ```
 
-### ComposerPrimitive.If
+### Conditional Rendering (Composer)
 
-Conditional rendering based on composer state. Shared from `@assistant-ui/core/react`.
+Use `AuiIf` for conditional rendering based on composer state:
 
 ```tsx
-<ComposerPrimitive.If editing>
+<AuiIf condition={(s) => s.composer.isEditing}>
   <Text>Currently editing</Text>
-</ComposerPrimitive.If>
-```
+</AuiIf>
 
-| Prop | Type | Description |
-|------|------|-------------|
-| `editing` | `boolean` | Render when composer is in editing mode |
-| `dictation` | `boolean` | Render when dictation is active |
+<AuiIf condition={(s) => s.composer.dictation != null}>
+  <Text>Dictation active</Text>
+</AuiIf>
+```
 
 ## Message
 
@@ -185,12 +175,12 @@ Container `View` for a single message.
 </MessagePrimitive.Root>
 ```
 
-### MessagePrimitive.Content
+### MessagePrimitive.Parts
 
 Renders message content parts. Tool call and data parts automatically render registered tool UIs (via `useAssistantTool` / `useAssistantDataUI`), falling back to render props if provided.
 
 ```tsx
-<MessagePrimitive.Content
+<MessagePrimitive.Parts
   renderText={({ part }) => <Text>{part.text}</Text>}
   renderImage={({ part }) => <Image source={{ uri: part.image }} />}
 />
@@ -206,26 +196,19 @@ Renders message content parts. Tool call and data parts automatically render reg
 | `renderFile` | `(props: { part; index }) => ReactElement` | File part renderer |
 | `renderData` | `(props: { part; index }) => ReactElement` | Data part fallback (used when no data UI is registered) |
 
-### MessagePrimitive.If
+### Conditional Rendering (Message)
 
-Conditional rendering based on message properties.
+Use `AuiIf` for conditional rendering based on message properties:
 
 ```tsx
-<MessagePrimitive.If user>
+<AuiIf condition={(s) => s.message.role === "user"}>
   <Text>You said:</Text>
-</MessagePrimitive.If>
+</AuiIf>
 
-<MessagePrimitive.If assistant last>
+<AuiIf condition={(s) => s.message.role === "assistant" && s.message.isLast}>
   <ActivityIndicator />
-</MessagePrimitive.If>
+</AuiIf>
 ```
-
-| Prop | Type | Description |
-|------|------|-------------|
-| `user` | `boolean` | Render for user messages |
-| `assistant` | `boolean` | Render for assistant messages |
-| `running` | `boolean` | Render when message is being generated |
-| `last` | `boolean` | Render for the last message |
 
 ### MessagePrimitive.Attachments
 

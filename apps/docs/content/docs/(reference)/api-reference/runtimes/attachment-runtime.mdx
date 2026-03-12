@@ -8,39 +8,31 @@ import {
   MessageAttachmentState,
 } from "@/components/docs/parameters-table.context";
 
-### `useAttachment`
+### `useAuiState` (Attachment State)
 
-Access the current attachment state:
-
-```tsx
-import { useAttachment } from "@assistant-ui/react";
-
-const { attachment } = useAttachment();
-const att = useAttachment((m) => m.attachment);
-```
-
-### `useComposerAttachment` (Composer)
-
-When working with a composer’s attachment:
+Access the current attachment state reactively:
 
 ```tsx
-import { useComposerAttachment } from "@assistant-ui/react";
+import { useAuiState } from "@assistant-ui/react";
 
-const { attachment } = useComposerAttachment();
-const composerAttachment = useComposerAttachment((m) => m.attachment);
+const name = useAuiState((s) => s.attachment.name);
+const type = useAuiState((s) => s.attachment.type);
 ```
+
+For imperative access and actions, use `useAui`:
+
+```tsx
+import { useAui } from "@assistant-ui/react";
+
+const aui = useAui();
+aui.attachment().remove();
+const state = aui.attachment().getState();
+```
+
+### Composer Attachments
 
 <ParametersTable {...ComposerAttachmentState} />
 
-### `useMessageAttachment` (Message)
-
-For managing a message’s attachment:
-
-```tsx
-import { useMessageAttachment } from "@assistant-ui/react";
-
-const { attachment } = useMessageAttachment();
-const messageAttachment = useMessageAttachment((m) => m.attachment);
-```
+### Message Attachments
 
 <ParametersTable {...MessageAttachmentState} />

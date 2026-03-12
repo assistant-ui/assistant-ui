@@ -803,10 +803,9 @@ const runtime = useLocalRuntime(MyModelAdapter, {
 Resume a conversation with a custom stream:
 
 ```tsx
-import { useThreadRuntime, type ChatModelRunResult } from "@assistant-ui/react";
+import { useAui, type ChatModelRunResult } from "@assistant-ui/react";
 
-// Get the thread runtime
-const thread = useThreadRuntime();
+const aui = useAui();
 
 // Create a custom stream
 async function* createCustomStream(): AsyncGenerator<ChatModelRunResult> {
@@ -825,7 +824,7 @@ async function* createCustomStream(): AsyncGenerator<ChatModelRunResult> {
 }
 
 // Resume a run with the custom stream
-thread.unstable_resumeRun({
+aui.thread().unstable_resumeRun({
   parentId: "message-id", // ID of the message to respond to
   stream: createCustomStream(), // The stream to use for resuming
 });
@@ -833,27 +832,27 @@ thread.unstable_resumeRun({
 
 ### Custom Thread Management
 
-Access thread runtime for advanced control with `useThreadRuntime`:
+Access thread actions for advanced control with `useAui`:
 
 ```tsx
-import { useThreadRuntime } from "@assistant-ui/react";
+import { useAui } from "@assistant-ui/react";
 
 function MyComponent() {
-  const thread = useThreadRuntime();
+  const aui = useAui();
 
   // Cancel current generation
   const handleCancel = () => {
-    thread.cancelRun();
+    aui.thread().cancelRun();
   };
 
   // Switch to a different branch
   const handleSwitchBranch = (messageId: string, branchIndex: number) => {
-    thread.switchToBranch(messageId, branchIndex);
+    aui.thread().switchToBranch(messageId, branchIndex);
   };
 
   // Reload a message
   const handleReload = (messageId: string) => {
-    thread.reload(messageId);
+    aui.thread().reload(messageId);
   };
 
   return (

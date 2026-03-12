@@ -9,41 +9,42 @@ import {
   EditComposerState,
 } from "@/components/docs/parameters-table.context";
 
-### `useMessage`
+### `useAuiState` (Message State)
 
-Retrieve the message object:
+Access message state reactively:
 
 ```tsx
-import { useMessage } from "@assistant-ui/react";
+import { useAuiState } from "@assistant-ui/react";
 
-const { message } = useMessage();
-const msg = useMessage((m) => m.message);
+const role = useAuiState((s) => s.message.role);
+const content = useAuiState((s) => s.message.content);
+const isLast = useAuiState((s) => s.message.isLast);
 ```
 
 <ParametersTable {...MessageState} />
 
-### `useMessageUtils`
+### `useAuiState` (Message Utilities)
 
-Provides utility functions for a message (e.g., copy status):
+Access message utility state (e.g., copy status, hover state):
 
 ```tsx
-import { useMessageUtils } from "@assistant-ui/react";
+import { useAuiState } from "@assistant-ui/react";
 
-const messageUtils = useMessageUtils();
-const isCopied = useMessageUtils((m) => m.isCopied);
+const isCopied = useAuiState((s) => s.message.isCopied);
+const isHovering = useAuiState((s) => s.message.isHovering);
 ```
 
 <ParametersTable {...MessageUtilsState} />
 
-### `useEditComposer`
+### `useAuiState` (Edit Composer)
 
 Access the edit composer state (used when editing a message):
 
 ```tsx
-import { useEditComposer } from "@assistant-ui/react";
+import { useAuiState } from "@assistant-ui/react";
 
-const editComposer = useEditComposer();
-const text = useEditComposer((m) => m.text);
+const editText = useAuiState((s) => s.message.composer.text);
+const isEditing = useAuiState((s) => s.message.composer.isEditing);
 ```
 
 <ParametersTable {...EditComposerState} />

@@ -1129,7 +1129,7 @@ Use `getExternalStoreMessages` to access your original messages:
 import { getExternalStoreMessages } from "@assistant-ui/react";
 
 const MyComponent = () => {
-  const originalMessages = useMessage((m) => getExternalStoreMessages(m));
+  const originalMessages = useAuiState((s) => getExternalStoreMessages(s.message));
   // originalMessages is MyMessage[] (your original type)
 };
 ```
@@ -1151,7 +1151,7 @@ const MyComponent = () => {
 ```tsx
 const ToolUI = makeAssistantToolUI({
   render: () => {
-    const originalMessages = useMessagePart((p) => getExternalStoreMessages(p));
+    const originalMessages = useAuiState((s) => getExternalStoreMessages(s.part));
     // Access original message data for this message part
   },
 });

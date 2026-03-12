@@ -8,25 +8,32 @@ import {
   ThreadListItemState,
 } from "@/generated/typeDocs";
 
-### `useThreadListItemRuntime`
+### `useAui` (Thread List Item Actions)
+
+Access thread list item actions via `useAui`:
 
 ```tsx
-import { useThreadListItemRuntime } from "@assistant-ui/react";
+import { useAui } from "@assistant-ui/react";
 
-const threadListItemRuntime = useThreadListItemRuntime();
+const aui = useAui();
+aui.threadListItem().switchTo();
+aui.threadListItem().rename("New Title");
+aui.threadListItem().archive();
+aui.threadListItem().delete();
 ```
 
 <ParametersTable {...ThreadListItemRuntime} />
 
-### `useThreadListItem`
+### `useAuiState` (Thread List Item State)
 
 Access the state for a specific thread list item:
 
 ```tsx
-import { useThreadListItem } from "@assistant-ui/react";
+import { useAuiState } from "@assistant-ui/react";
 
-const threadListItem = useThreadListItem();
-const title = useThreadListItem((m) => m.title);
+const title = useAuiState((s) => s.threadListItem.title);
+const status = useAuiState((s) => s.threadListItem.status);
+const id = useAuiState((s) => s.threadListItem.id);
 ```
 
 <ParametersTable {...ThreadListItemState} />

@@ -47,7 +47,7 @@ This primitive renders a `<div>` element unless `asChild` is set.
 
 ### Parts
 
-The content of the message. This renders a separate component for each content part of the message.
+The content of the message. This renders a separate component for each message part of the message.
 
 <ParametersTable
   type="MessagePrimitiveContentProps"
@@ -55,61 +55,61 @@ The content of the message. This renders a separate component for each content p
     {
       name: "components",
       required: false,
-      type: "ContentPartComponents",
-      description: "The components to render for each content part.",
+      type: "MessagePartComponents",
+      description: "The components to render for each message part.",
       children: [
         {
-          type: "ContentPartComponents",
+          type: "MessagePartComponents",
           parameters: [
             {
               name: "Text",
-              type: "TextContentPartComponent",
+              type: "TextMessagePartComponent",
               description:
-                "The component to render for each text content part.",
+                "The component to render for each text message part.",
             },
             {
               name: "Image",
-              type: "ImageContentPartComponent",
+              type: "ImageMessagePartComponent",
               description:
-                "The component to render for each image content part.",
+                "The component to render for each image message part.",
             },
             {
               name: "Source",
-              type: "SourceContentPartComponent",
+              type: "SourceMessagePartComponent",
               description:
-                "The component to render for each source content part.",
+                "The component to render for each source message part.",
             },
             {
               name: "File",
-              type: "FileContentPartComponent",
+              type: "FileMessagePartComponent",
               description:
-                "The component to render for each file content part.",
+                "The component to render for each file message part.",
             },
             {
               name: "Unstable_Audio",
-              type: "Unstable_AudioContentPartComponent",
+              type: "Unstable_AudioMessagePartComponent",
               description:
-                "The component to render for each audio content part.",
+                "The component to render for each audio message part.",
             },
             {
               name: "tools",
               type: "object",
               description:
-                "The component to render for each tool call content part.",
+                "The component to render for each tool call message part.",
               children: [
                 {
                   parameters: [
                     {
                       name: "by_name",
-                      type: "Record<string, ToolCallContentPartComponent>",
+                      type: "Record<string, ToolCallMessagePartComponent>",
                       description:
-                        "The components to render for each tool call content part.",
+                        "The components to render for each tool call message part.",
                     },
                     {
                       name: "Fallback",
-                      type: "ToolCallContentPartComponent",
+                      type: "ToolCallMessagePartComponent",
                       description:
-                        "The fallback component to render for tool call content parts.",
+                        "The fallback component to render for tool call message parts.",
                     },
                   ],
                 },
@@ -119,7 +119,7 @@ The content of the message. This renders a separate component for each content p
               name: "ToolGroup",
               type: "ComponentType<PropsWithChildren<{ startIndex: number; endIndex: number }>>",
               description:
-                "Component for rendering grouped consecutive tool calls. When provided, consecutive tool-call content parts will be automatically grouped and wrapped with this component.",
+                "Component for rendering grouped consecutive tool calls. When provided, consecutive tool-call message parts will be automatically grouped and wrapped with this component.",
               children: [
                 {
                   type: "ToolGroupProps",
@@ -180,7 +180,7 @@ Renders a single message part at the specified index.
     {
       name: "components",
       required: false,
-      type: "ContentPartComponents",
+      type: "MessagePartComponents",
       description: "The components to render for the message part.",
     },
   ]}

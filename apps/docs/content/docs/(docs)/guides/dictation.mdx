@@ -38,7 +38,7 @@ const runtime = useChatRuntime({
 The dictation feature uses `ComposerPrimitive.Dictate` and `ComposerPrimitive.StopDictation` components.
 
 ```tsx
-import { ComposerPrimitive } from "@assistant-ui/react";
+import { AuiIf, ComposerPrimitive } from "@assistant-ui/react";
 import { MicIcon, SquareIcon } from "lucide-react";
 
 const ComposerWithDictation = () => (
@@ -46,18 +46,18 @@ const ComposerWithDictation = () => (
     <ComposerPrimitive.Input />
 
     {/* Show Dictate button when not dictating */}
-    <ComposerPrimitive.If dictation={false}>
+    <AuiIf condition={(s) => s.composer.dictation == null}>
       <ComposerPrimitive.Dictate>
         <MicIcon />
       </ComposerPrimitive.Dictate>
-    </ComposerPrimitive.If>
+    </AuiIf>
 
     {/* Show Stop button when dictating */}
-    <ComposerPrimitive.If dictation>
+    <AuiIf condition={(s) => s.composer.dictation != null}>
       <ComposerPrimitive.StopDictation>
         <SquareIcon className="animate-pulse" />
       </ComposerPrimitive.StopDictation>
-    </ComposerPrimitive.If>
+    </AuiIf>
 
     <ComposerPrimitive.Send />
   </ComposerPrimitive.Root>

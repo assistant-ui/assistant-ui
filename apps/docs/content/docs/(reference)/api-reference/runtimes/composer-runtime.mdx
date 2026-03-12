@@ -7,24 +7,24 @@ The composer runtime allows you to view or edit anything related to how new info
 
 import { ComposerRuntime, ThreadComposerRuntime, ThreadComposerState, EditComposerState } from "@/generated/typeDocs";
 
-### `useComposerRuntime`
+### `useAui` (Composer Actions)
 
-Grabs the nearest composer (whether it’s the edit composer or the thread’s composer):
+Grabs the nearest composer (whether it’s the edit composer or the thread’s composer) via `useAui`:
 
 ```tsx
 // Example
-import { useComposerRuntime } from "@assistant-ui/react";
+import { useAui } from "@assistant-ui/react";
 
-const composerRuntime = useComposerRuntime();
+const aui = useAui();
 
 // set the text
-composerRuntime.setText("Hello from the composer runtime");
+aui.composer().setText("Hello from the composer");
 
 // send whatever is in the composer
-composerRuntime.send();
+aui.composer().send();
 
 // get the current text in the composer state
-const composerState = composerRuntime.getState();
+const composerState = aui.composer().getState();
 const currentText = composerState.text;
 
 ```
@@ -32,24 +32,24 @@ const currentText = composerState.text;
 <ParametersTable {...ComposerRuntime} />
 
 
-### `useThreadComposer`
+### `useAuiState` (Thread Composer State)
 
 Access the thread’s new message composer state:
 
 ```tsx
-import { useThreadComposer } from "@assistant-ui/react";
+import { useAuiState, useAui } from "@assistant-ui/react";
 
-const threadComposerRuntime = useThreadComposer();
+const text = useAuiState((s) => s.composer.text);
+const isEmpty = useAuiState((s) => s.composer.isEmpty);
+
+// For actions, use useAui
+const aui = useAui();
 
 // set the text
-threadComposerRuntime.setText("Hello from the thread composer runtime");
+aui.composer().setText("Hello from the thread composer");
 
 // send whatever is in the thread composer
-threadComposerRuntime.send();
-
-// get the current text in the composer state
-const threadComposerState = threadComposerRuntime.getState();
-const currentText = threadComposerRuntime.text;
+aui.composer().send();
 
 ```
 

@@ -684,12 +684,12 @@ If you're using `createMessageConverter`, you can access the original message fo
 
 ```typescript
 import { unstable_createMessageConverter as createMessageConverter } from "@assistant-ui/react";
-import { useMessage } from "@assistant-ui/react";
+import { useAuiState } from "@assistant-ui/react";
 
 const messageConverter = createMessageConverter(yourMessageConverter);
 
 function MyMessageComponent() {
-  const message = useMessage();
+  const message = useAuiState((s) => s.message);
 
   // Get the original message(s) from the converted ThreadMessage
   const originalMessage = messageConverter.toOriginalMessage(message);

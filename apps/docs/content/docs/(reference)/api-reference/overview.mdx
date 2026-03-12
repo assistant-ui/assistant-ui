@@ -126,9 +126,7 @@ The context available to components inside `<AssistantRuntimeProvider />`. You u
 
 ### AssistantRuntime
 
-Programmatically access the assistant's state and actions.
-
-- [`useAssistantRuntime`](#use-assistant-runtime)
+Programmatically access the assistant's state and actions via `useAui()`.
 
 ### Instructions
 
@@ -145,10 +143,7 @@ Register tool UIs
 - [`useAssistantTool`](#use-assistant-tool)
 - [`useAssistantToolUI`](#use-assistant-tool-ui)
 
-Programmatically access the list of registered tool UIs (Experimental)
-
-- [`useToolUIs`](#use-tool-uis)
-- [`useToolUIsStore`](#use-tool-uis-store)
+Programmatically access the list of registered tool UIs via `useAuiState((s) => s.tools)` and `useAui().tools()`.
 
 ### ThreadListPrimitive
 
@@ -191,13 +186,13 @@ The context for a single thread. Currently always corresponds to the runtime's m
 
 Programmatically access the thread's state and actions.
 
-- [`useThread`](#use-thread)
-- [`useThreadComposer`](#use-thread-composer)
-- [`useThreadRuntime`](#use-thread-runtime)
+- State: `useAuiState((s) => s.thread)`
+- Actions: `useAui().thread()`
+- Composer: `useAuiState((s) => s.composer)`
 
 ### ModelContext
 
-- [`useThreadModelContext`](#use-thread-model-context)
+- `useAuiState((s) => s.thread.modelContext)`
 
 ### ThreadViewportStore
 
@@ -238,11 +233,6 @@ A conversation thread.
       name="ThreadPrimitive.ScrollToBottom"
       docsLink="#thread-primitive-scroll-to-bottom"
       tooltip="Scrolls to the bottom of the thread"
-    />
-    <Component
-      name="ThreadPrimitive.Empty"
-      docsLink="#thread-primitive-empty"
-      tooltip="Displayed when the thread is empty"
     />
     <Component
       name="AuiIf"
@@ -294,8 +284,8 @@ Manages the state and actions for the message composer
 
 ### ComposerRuntime
 
-- [`useComposer`](#use-composer)
-- [`useComposerRuntime`](#use-composer-runtime)
+- State: `useAuiState((s) => s.composer)`
+- Actions: `useAui().composer()`
 
 ### ComposerPrimitive
 
@@ -348,14 +338,10 @@ Manages the state and actions for individual messages
 
 ### MessageRuntime
 
-- [`useMessage`](#use-message)
-- [`useEditComposer`](#use-edit-composer)
-- [`useMessageRuntime`](#use-message-runtime)
-
-### MessageUtilsStore
-
-- [`useMessageUtils`](#use-message-utils)
-- [`useMessageUtilsStore`](#use-message-utils-store)
+- State: `useAuiState((s) => s.message)`
+- Edit Composer: `useAuiState((s) => s.message.composer)`
+- Actions: `useAui().message()`
+- Utilities: `useAuiState((s) => s.message.isCopied)` / `useAuiState((s) => s.message.isHovering)`
 
 ### MessagePrimitive
 
@@ -473,10 +459,8 @@ Manages the state and actions for message parts within messages
 
 ### MessagePartRuntime
 
-- [`useMessagePart`](#use-content-part)
-- [`useMessagePartText`](#use-content-part-text)
-- [`useMessagePartReasoning`](#use-content-part-reasoning)
-- [`useMessagePartRuntime`](#use-content-part-runtime)
+- State: `useAuiState((s) => s.part)`
+- Actions: `useAui().part()`
 
 ### MessagePartPrimitive
 
@@ -504,8 +488,8 @@ Manages the state and actions for attachments in messages and composer
 
 ### AttachmentRuntime
 
-- [`useAttachment`](#use-attachment)
-- [`useAttachmentRuntime`](#use-attachment-runtime)
+- State: `useAuiState((s) => s.attachment)`
+- Actions: `useAui().attachment()`
 
 ### AttachmentPrimitive
 
@@ -541,8 +525,8 @@ Manages the state and actions for individual thread list items
 
 ### ThreadListItemRuntime
 
-- [`useThreadListItem`](#use-thread-list-item)
-- [`useThreadListItemRuntime`](#use-thread-list-item-runtime)
+- State: `useAuiState((s) => s.threadListItem)`
+- Actions: `useAui().threadListItem()`
 
 ### ThreadListItem
 

@@ -113,7 +113,7 @@ const models = [
 
 The default `ModelSelector` export automatically registers the selected model with assistant-ui's `ModelContext` system. When a user selects a model:
 
-1. The component calls `api.modelContext().register()` with `config.modelName`
+1. The component calls `aui.modelContext().register()` with `config.modelName`
 2. The `AssistantChatTransport` includes `config` in the request body
 3. Your API route reads `config.modelName` to determine which model to use
 

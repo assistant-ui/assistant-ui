@@ -44,12 +44,12 @@ const EditComposer = () => (
 const ComposerWithDictation = () => (
   <ComposerPrimitive.Root>
     <ComposerPrimitive.Input />
-    <ComposerPrimitive.If dictation={false}>
+    <AuiIf condition={(s) => s.composer.dictation == null}>
       <ComposerPrimitive.Dictate />
-    </ComposerPrimitive.If>
-    <ComposerPrimitive.If dictation>
+    </AuiIf>
+    <AuiIf condition={(s) => s.composer.dictation != null}>
       <ComposerPrimitive.StopDictation />
-    </ComposerPrimitive.If>
+    </AuiIf>
     <ComposerPrimitive.Send />
   </ComposerPrimitive.Root>
 );
@@ -289,11 +289,11 @@ This primitive renders a `<span>` element.
 
 ```tsx
 {/* Optional: Display interim transcript separately with custom styling */}
-<ComposerPrimitive.If dictation>
+<AuiIf condition={(s) => s.composer.dictation != null}>
   <div className="dictation-preview">
     <ComposerPrimitive.DictationTranscript className="italic text-muted" />
   </div>
-</ComposerPrimitive.If>
+</AuiIf>
 ```
 
 ### Quote

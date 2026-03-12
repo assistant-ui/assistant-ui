@@ -25,7 +25,7 @@ This example demonstrates integrating assistant-ui with the Vercel AI SDK for bu
 ## Quick Start
 
 ```bash
-npm install @assistant-ui/react @assistant-ui/react-ai-sdk ai @ai-sdk/openai
+npm install @assistant-ui/react @assistant-ui/react-ai-sdk ai@^6 @ai-sdk/react@^3 @ai-sdk/openai
 ```
 
 ## Code
@@ -35,16 +35,11 @@ npm install @assistant-ui/react @assistant-ui/react-ai-sdk ai @ai-sdk/openai
 ```tsx
 "use client";
 
-import { useChat } from "@ai-sdk/react";
-import { useVercelAIRuntime } from "@assistant-ui/react-ai-sdk";
 import { AssistantRuntimeProvider, Thread } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 
 export default function Chat() {
-  const chat = useChat({
-    api: "/api/chat",
-  });
-
-  const runtime = useVercelAIRuntime(chat);
+  const runtime = useChatRuntime();
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
@@ -64,19 +59,20 @@ export default function Chat() {
 ```ts
 // app/api/chat/route.ts
 import { openai } from "@ai-sdk/openai";
-import { streamText } from "ai";
+import { streamText, convertToModelMessages } from "ai";
+import type { UIMessage } from "ai";
 
 export async function POST(req: Request) {
-  const { messages } = await req.json();
+  const { messages }: { messages: UIMessage[] } = await req.json();
 
   const result = streamText({
     model: openai("gpt-4o"),
-    messages,
+    messages: await convertToModelMessages(messages),
     // Optional: Add system prompt
     system: "You are a helpful assistant.",
   });
 
-  return result.toDataStreamResponse();
+  return result.toUIMessageStreamResponse();
 }
 ```
 
@@ -84,10 +80,9 @@ export async function POST(req: Request) {
 
 | Hook/Function | Purpose |
 |---------------|---------|
-| `useChat` | AI SDK hook for chat state management |
-| `useVercelAIRuntime` | Adapter connecting AI SDK to assistant-ui |
+| `useChatRuntime` | Connects AI SDK to assistant-ui |
 | `streamText` | Server-side streaming response generation |
-| `toDataStreamResponse` | Converts stream to Response object |
+| `toUIMessageStreamResponse` | Converts stream to Response object |
 
 ### Adding Persistence
 

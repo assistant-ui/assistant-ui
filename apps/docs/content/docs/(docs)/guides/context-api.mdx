@@ -184,8 +184,8 @@ aui.message().part(indexOrToolCallId);
 aui.message().composer;
 
 // Part actions
-api.part().addResult(result);
-api.part().getState();
+aui.part().addResult(result);
+aui.part().getState();
 
 // Composer actions
 aui.composer().send();
@@ -301,7 +301,7 @@ Before accessing a scope, check if it's available:
 const aui = useAui();
 
 // Check if message scope exists
-if (api.message.source) {
+if (aui.message.source) {
   // Safe to use message scope
   const { role } = aui.message().getState();
 }
@@ -400,7 +400,7 @@ function MessageCounter() {
 
 ### Resolution Dynamics
 
-When you call `api.scope()`, the API resolves the current scope at that moment. This resolution happens each time you call the function, which matters when dealing with changing contexts:
+When you call `aui.scope()`, the API resolves the current scope at that moment. This resolution happens each time you call the function, which matters when dealing with changing contexts:
 
 ```tsx
 const aui = useAui();
@@ -508,7 +508,7 @@ function SafeMessageButton() {
   const aui = useAui();
 
   const role = useAuiState((s) =>
-    api.message.source !== undefined ? s.message.role : "none",
+    aui.message.source !== undefined ? s.message.role : "none",
   );
 
   return <div>Role: {role}</div>;
@@ -558,18 +558,18 @@ const value = useAuiState((s) => s.scope.property);
 
 // Perform action
 const aui = useAui();
-api.scope().action();
+aui.scope().action();
 
 // Listen to events
 useAuiEvent("source.event", (e) => {});
 
 // Check scope availability
-if (api.scope.source) {
+if (aui.scope.source) {
   /* scope exists */
 }
 
 // Get state imperatively
-const state = api.scope().getState();
+const state = aui.scope().getState();
 
 // Navigate scopes
 aui.thread().message({ id: "..." }).getState();
