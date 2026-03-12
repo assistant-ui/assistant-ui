@@ -419,6 +419,20 @@ jobs:
               }
             };
 
+            const readJsonFromGit = (gitRef, filePath) => {
+              try {
+                return JSON.parse(
+                  execFileSync(
+                    "git",
+                    ["show", `${gitRef}:${filePath}`],
+                    { encoding: "utf8" },
+                  ),
+                );
+              } catch {
+                return null;
+              }
+            };
+
             // --- 1. Version changes table ---
 
             let summary = "## Release Summary\n\n";
@@ -436,7 +450,8 @@ jobs:
             // --- 2. Cascade impact ---
 
             const packagesDir = path.join(process.cwd(), "packages");
-            const revDeps = new Map();
+            const currentPackages = new Map();
+            const previousPackages = new Map();
 
             for (const dir of fs.readdirSync(packagesDir)) {
               const pkgJsonPath = path.join(packagesDir, dir, "package.json");
@@ -448,19 +463,22 @@ jobs:
               }
               if (pkgJson.private) continue;
 
-              const allDeps = {
-                ...pkgJson.dependencies,
-                ...pkgJson.peerDependencies,
-              };
-              for (const [depName, range] of Object.entries(allDeps)) {
-                if (typeof range !== "string" || !range.startsWith("^")) continue;
-                if (!revDeps.has(depName)) revDeps.set(depName, []);
-                revDeps.get(depName).push({
-                  name: pkgJson.name,
-                  version: pkgJson.version,
-                  range,
-                });
-              }
+              currentPackages.set(pkgJson.name, {
+                dir,
+                ...pkgJson,
+              });
+
+              const previousPkgJson = readJsonFromGit(
+                `${releaseSha}^`,
+                path.join("packages", dir, "package.json"),
+              );
+
+              if (!previousPkgJson || previousPkgJson.private) continue;
+
+              previousPackages.set(previousPkgJson.name, {
+                dir,
+                ...previousPkgJson,
+              });
             }
 
             function isOutsideCaretRange(rangeVersion, newVersion) {
@@ -474,33 +492,68 @@ jobs:
               return nMajor !== rMajor;
             }
 
-            const cascadeEntries = [];
-            const visited = new Set(targets.map((t) => t.name));
+            const targetVersions = new Map(
+              targets.map((target) => [target.name, target.version]),
+            );
+            const cascadeByConsumer = new Map();
 
-            for (const t of targets) {
-              if (!t.latestVersion) continue;
-              const dependents = revDeps.get(t.name) || [];
-              for (const dep of dependents) {
-                if (visited.has(dep.name)) continue;
-                const rangeVersion = dep.range.replace(/^\^/, "");
-                if (!isOutsideCaretRange(rangeVersion, t.version)) continue;
-                visited.add(dep.name);
-                cascadeEntries.push({
-                  name: dep.name,
-                  range: dep.range,
-                  trigger: t.name,
-                  triggerVersion: t.version,
+            for (const previousPkg of previousPackages.values()) {
+              const allDeps = {
+                ...previousPkg.dependencies,
+                ...previousPkg.peerDependencies,
+              };
+
+              for (const [depName, range] of Object.entries(allDeps)) {
+                if (typeof range !== "string" || !range.startsWith("^")) continue;
+
+                const targetVersion = targetVersions.get(depName);
+                if (!targetVersion) continue;
+
+                const rangeVersion = range.replace(/^\^/, "");
+                if (!isOutsideCaretRange(rangeVersion, targetVersion)) continue;
+
+                const currentPkg = currentPackages.get(previousPkg.name);
+
+                const existing = cascadeByConsumer.get(previousPkg.name);
+
+                if (existing) {
+                  existing.triggers.push({
+                    name: depName,
+                    range,
+                    version: targetVersion,
+                  });
+                  continue;
+                }
+
+                cascadeByConsumer.set(previousPkg.name, {
+                  name: previousPkg.name,
+                  previousVersion: previousPkg.version,
+                  newVersion: currentPkg?.version ?? previousPkg.version,
+                  triggers: [
+                    {
+                      name: depName,
+                      range,
+                      version: targetVersion,
+                    },
+                  ],
                 });
               }
             }
 
+            const cascadeEntries = Array.from(cascadeByConsumer.values()).sort(
+              (a, b) => a.name.localeCompare(b.name),
+            );
+
             if (cascadeEntries.length > 0) {
               summary += "### Downstream Impact\n\n";
               summary += `${cascadeEntries.length} internal consumer(s) have \`^\` ranges that will be broken by these version changes:\n\n`;
-              summary += "| Consumer | Depends On | Range | Broken By |\n";
-              summary += "| --- | --- | --- | --- |\n";
+              summary += "| Consumer | Version | Broken Dependencies |\n";
+              summary += "| --- | --- | --- |\n";
               for (const c of cascadeEntries) {
-                summary += `| \`${c.name}\` | \`${c.trigger}\` | \`${c.range}\` | ${c.triggerVersion} |\n`;
+                const brokenDeps = c.triggers
+                  .map((trigger) => `\`${trigger.name}\` (${trigger.range} -> ${trigger.version})`)
+                  .join(", ");
+                summary += `| \`${c.name}\` | ${c.previousVersion} -> ${c.newVersion} | ${brokenDeps} |\n`;
               }
               summary += "\n";
             }
