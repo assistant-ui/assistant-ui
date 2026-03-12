@@ -1,6 +1,5 @@
 ---
-"@assistant-ui/react": patch
 "@assistant-ui/ui": patch
 ---
 
-fix: attachment source check, duplicate id, clipboard rejection handler
+fix attachment source detection and duplicate attachment tile id
