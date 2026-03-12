@@ -452,7 +452,9 @@ jobs:
             const currentPackages = new Map();
             const previousPackages = new Map();
 
-            for (const dir of fs.readdirSync(packagesDir)) {
+            for (const entry of fs.readdirSync(packagesDir, { withFileTypes: true })) {
+              if (!entry.isDirectory()) continue;
+              const dir = entry.name;
               const pkgJsonPath = path.join(packagesDir, dir, "package.json");
               let pkgJson;
               try {
@@ -569,7 +571,8 @@ jobs:
                 const headingRe = new RegExp("^## " + versionEscaped + "\\b", "m");
                 const headingMatch = content.match(headingRe);
                 if (headingMatch) {
-                  const afterHeading = content.indexOf("\n", headingMatch.index) + 1;
+                  const headingEnd = content.indexOf("\n", headingMatch.index);
+                  const afterHeading = headingEnd === -1 ? content.length : headingEnd + 1;
                   const rest = content.slice(afterHeading);
                   const nextIdx = rest.search(/^## /m);
                   changelogEntry = (nextIdx === -1 ? rest : rest.slice(0, nextIdx)).trim();
@@ -617,6 +620,7 @@ jobs:
     name: Publish to npm
     needs:
       - approve
+      - cancel_pending
       - summary
     if: needs.summary.outputs.target_count != '0'
     environment: npm Publish
