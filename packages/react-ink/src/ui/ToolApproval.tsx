@@ -28,7 +28,12 @@ export type ToolApprovalProps = {
   /** Auto-deny timeout in seconds. 0 = no timeout. Default: 0 */
   autoRejectTimeout?: number | undefined;
 
-  /** Whether to show the args editor. Default: true */
+  /**
+   * Whether to show the args editor. Defaults to `true` when `interrupt` is
+   * present. Edit submission only takes effect in the interrupt flow — without
+   * an `interrupt`, edited arguments cannot be returned to the runtime, so the
+   * `[E]` affordance is hidden even when this prop is `true`.
+   */
   allowEdit?: boolean | undefined;
 
   /** Whether to show trust level options. Default: true */
@@ -73,12 +78,10 @@ export const ToolApproval = ({
   const { isFocused } = useFocus({ id: focusId, isActive });
   const { focus, focusNext } = useFocusManager();
 
-  // Steal focus from ComposerInput when this component mounts
   useEffect(() => {
     focus(focusId);
   }, [focus, focusId]);
 
-  // Return focus to the next focusable component (ComposerInput) on resolve
   useEffect(() => {
     if (state === "resolved") {
       focusNext();
@@ -89,26 +92,24 @@ export const ToolApproval = ({
   const [editError, setEditError] = useState("");
   const [countdown, setCountdown] = useState(autoRejectTimeout);
 
+  const editEnabled = allowEdit && !!argsText && !!interrupt;
+
   const doApprove = useCallback(
     (trustLevel?: TrustLevel) => {
-      if (state === "resolved") return;
       setState("resolved");
       if (trustLevel && trustLevel !== "once") {
         onTrustChange?.(toolName, trustLevel);
       }
       if (interrupt) {
-        // Interrupt-based flow (context.human()): resume the promise
         resume({ approved: true });
       } else {
-        // Human-tool-names flow: provide a result so shouldContinue() proceeds
         addResult("Approved by user");
       }
     },
-    [state, onTrustChange, toolName, interrupt, resume, addResult],
+    [onTrustChange, toolName, interrupt, resume, addResult],
   );
 
   const doReject = useCallback(() => {
-    if (state === "resolved") return;
     setState("resolved");
     if (interrupt) {
       resume({ approved: false });
@@ -120,24 +121,18 @@ export const ToolApproval = ({
         }),
       );
     }
-  }, [state, interrupt, resume, addResult]);
+  }, [interrupt, resume, addResult]);
 
   const doEditSubmit = useCallback(() => {
-    if (state !== "editing") return;
     try {
       const edited = JSON.parse(editText);
       setState("resolved");
-      if (interrupt) {
-        resume({ approved: true, args: edited });
-      } else {
-        addResult("Approved by user");
-      }
+      resume({ approved: true, args: edited });
     } catch {
       setEditError("Invalid JSON — fix and retry, or Esc to cancel");
     }
-  }, [state, editText, interrupt, resume, addResult]);
+  }, [editText, resume]);
 
-  // Auto-deny countdown — pure decrement, no side effects in updater
   useEffect(() => {
     if (autoRejectTimeout <= 0 || state !== "idle") return;
     const interval = setInterval(() => {
@@ -146,7 +141,6 @@ export const ToolApproval = ({
     return () => clearInterval(interval);
   }, [autoRejectTimeout, state]);
 
-  // Trigger rejection when countdown hits zero
   useEffect(() => {
     if (countdown === 0 && autoRejectTimeout > 0 && state === "idle") {
       doReject();
@@ -175,11 +169,10 @@ export const ToolApproval = ({
         return;
       }
 
-      // idle state
       const lower = input.toLowerCase();
       if (lower === "y") doApprove("once");
       else if (lower === "n" || key.escape) doReject();
-      else if (lower === "e" && allowEdit && argsText) setState("editing");
+      else if (lower === "e" && editEnabled) setState("editing");
       else if (lower === "a" && showTrustOptions) doApprove("tool");
       else if (lower === "s" && showTrustOptions) doApprove("session");
     },
@@ -212,7 +205,7 @@ export const ToolApproval = ({
           [N]
         </Text>
         <Text>{labels.reject}</Text>
-        {allowEdit && argsText ? (
+        {editEnabled ? (
           <>
             <Text color="yellow" bold>
               [E]

@@ -1080,3 +1080,96 @@ For custom layouts, use the primitives directly:
   </Box>
 </DiffPrimitive.Root>
 ```
+
+## ToolApproval
+
+```tsx
+import { ToolApproval } from "@assistant-ui/react-ink";
+```
+
+A keyboard-driven approval UI for tool calls that require user authorization. Supports two runtime flows: interrupt-based (`context.human()`) and human-tool-names (`unstable_humanToolNames`). Renders inline keybindings for approve, reject, edit args, and trust escalation.
+
+`ToolCallPrimitive.Fallback` (the default tool-call renderer) embeds `ToolApproval` automatically when a tool call has `requires-action` status and the runtime supplies `addResult` and `resume`. To customize the approval UI for a specific tool, register a tool renderer with `makeAssistantToolUI` and forward `approvalProps`. For tool calls handled by the unstyled fallback path (`renderToolCall` on `MessagePrimitive.Content`), use `ToolApproval` directly inside your fallback.
+
+### Keyboard shortcuts
+
+| Key | Action |
+|-----|--------|
+| `Y` | Approve (once) |
+| `N` / `Esc` | Reject |
+| `E` | Edit args (only with interrupt flow) |
+| `A` | Always allow this tool |
+| `S` | Allow all tools this session |
+
+The inline editor opened by `E` supports character append and `Backspace` only — there is no cursor movement, selection, or arrow-key navigation. `Enter` submits the edited JSON; `Esc` cancels without resolving.
+
+### Per-tool customization via `makeAssistantToolUI`
+
+Register a renderer for a specific tool. The renderer receives the full `ToolCallMessagePartProps`, including `addResult` and `resume`, so it can forward them to `ToolCallPrimitive.Fallback`:
+
+```tsx
+import {
+  ToolCallPrimitive,
+  makeAssistantToolUI,
+} from "@assistant-ui/react-ink";
+
+const ReadFileToolUI = makeAssistantToolUI<{ path: string }, string>({
+  toolName: "read_file",
+  render: (props) => (
+    <ToolCallPrimitive.Fallback
+      {...props}
+      approvalProps={{
+        autoRejectTimeout: 30,
+        onTrustChange: (toolName, level) => {
+          console.log(`Trust ${toolName}: ${level}`);
+        },
+      }}
+    />
+  ),
+});
+
+// Render <ReadFileToolUI /> once inside your <Thread> tree to register it.
+```
+
+The default `ToolCallPrimitive.Fallback` (used when no tool UI is registered) already renders `ToolApproval` for any tool that interrupts — no extra wiring needed for the common case.
+
+### Standalone
+
+`ToolApproval` can be embedded in any custom tool-call renderer. The renderer must receive `addResult` and `resume` from the runtime, which is the case for components registered via `makeAssistantToolUI` (or for the default fallback). It is not the case inside `MessagePrimitive.Content`'s `renderToolCall` callback, which only receives `{ part, index }`.
+
+```tsx
+<ToolApproval
+  toolName="read_file"
+  argsText='{"path": "/src/index.ts"}'
+  addResult={addResult}
+  resume={resume}
+  interrupt={interrupt}
+  onTrustChange={(toolName, level) => {
+    // persist trust decision
+  }}
+  autoRejectTimeout={30}
+/>
+```
+
+### Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `toolName` | `string` | — | Name of the tool being approved |
+| `argsText` | `string` | — | Raw JSON string of tool arguments |
+| `addResult` | `(result: unknown) => void` | — | Runtime callback to submit a tool result |
+| `resume` | `(payload: unknown) => void` | — | Runtime callback to resume an interrupted tool call |
+| `interrupt` | `{ type: "human"; payload: unknown }` | `undefined` | Interrupt payload from the runtime |
+| `onTrustChange` | `(toolName: string, level: TrustLevel) => void` | `undefined` | Called when user sets a trust level |
+| `autoRejectTimeout` | `number` | `0` | Auto-deny countdown in seconds. `0` disables |
+| `allowEdit` | `boolean` | `!!interrupt` | Show the args editor. Edits only resolve in the interrupt flow |
+| `showTrustOptions` | `boolean` | `true` | Show trust level options (`[A]`, `[S]`) |
+| `labels` | `object` | — | Custom labels for approve, reject, edit, trustTool, trustSession |
+
+### TrustLevel
+
+```tsx
+type TrustLevel = "once" | "tool" | "session";
+```
+
+The `onTrustChange` callback receives the trust level the user selected. Your app is responsible for persisting trust decisions and auto-approving future tool calls accordingly.

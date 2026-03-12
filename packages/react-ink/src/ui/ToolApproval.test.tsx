@@ -123,6 +123,64 @@ describe("ToolApproval", () => {
     expect(frame).toContain("Esc to cancel");
   });
 
+  it("edit-submit happy path resumes with edited args", async () => {
+    const inst = await renderFrame(
+      <ToolApproval
+        {...defaultProps}
+        argsText="1"
+        interrupt={{ type: "human", payload: {} }}
+      />,
+    );
+    inst.stdin.write("e");
+    await tick();
+    inst.stdin.write("0"); // editText: "1" -> "10"
+    await tick();
+    inst.stdin.write("\r");
+    await tick();
+
+    expect(defaultProps.resume).toHaveBeenCalledTimes(1);
+    expect(defaultProps.resume).toHaveBeenCalledWith({
+      approved: true,
+      args: 10,
+    });
+    expect(defaultProps.addResult).not.toHaveBeenCalled();
+  });
+
+  it("edit-submit shows error on invalid JSON without resolving", async () => {
+    const inst = await renderFrame(
+      <ToolApproval
+        {...defaultProps}
+        argsText="1"
+        interrupt={{ type: "human", payload: {} }}
+      />,
+    );
+    inst.stdin.write("e");
+    await tick();
+    inst.stdin.write("{"); // editText: "1" -> "1{", invalid JSON
+    await tick();
+    inst.stdin.write("\r");
+    await tick();
+
+    const frame = inst.lastFrame() ?? "";
+    expect(frame).toContain("Invalid JSON");
+    expect(defaultProps.resume).not.toHaveBeenCalled();
+    expect(defaultProps.addResult).not.toHaveBeenCalled();
+  });
+
+  it("n key calls resume({approved:false}) when interrupt is present", async () => {
+    const inst = await renderFrame(
+      <ToolApproval
+        {...defaultProps}
+        interrupt={{ type: "human", payload: {} }}
+      />,
+    );
+    inst.stdin.write("n");
+    await tick();
+
+    expect(defaultProps.resume).toHaveBeenCalledWith({ approved: false });
+    expect(defaultProps.addResult).not.toHaveBeenCalled();
+  });
+
   it("hides edit option when allowEdit=false", async () => {
     const inst = await renderFrame(
       <ToolApproval {...defaultProps} allowEdit={false} />,
