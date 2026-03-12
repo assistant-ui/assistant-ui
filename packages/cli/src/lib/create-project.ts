@@ -158,7 +158,7 @@ async function transformPackageJson(projectDir: string): Promise<void> {
   const pkgPath = path.join(projectDir, "package.json");
   const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
 
-  // Remove @assistant-ui/ui (workspace-only package)
+  // Remove @assistant-ui/react-ui (workspace-only package)
   if (pkg.dependencies?.["@assistant-ui/ui"]) {
     delete pkg.dependencies["@assistant-ui/ui"];
   }

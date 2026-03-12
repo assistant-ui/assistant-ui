@@ -17,7 +17,7 @@ If you already have an assistant-ui web app, most of your code transfers directl
 
 | Web (`@assistant-ui/react`) | Terminal (`@assistant-ui/react-ink`) |
 |---|---|
-| `AssistantRuntimeProvider` | `AssistantProvider` (same purpose) |
+| `AssistantRuntimeProvider` | `AssistantRuntimeProvider` (same name, from `@assistant-ui/react-ink`) |
 | DOM primitives (`div`, `button`, `input`) | Ink primitives (`Box`, `Text`, `TextInput`) |
 | CSS / Tailwind styling | Ink's flexbox + ANSI colors |
 | `@assistant-ui/ui` (shadcn components) | Build your own terminal UI with primitives |
@@ -63,15 +63,15 @@ export function useAppRuntime(adapter: ChatModelAdapter) {
 // Before (web)
 // import { AssistantRuntimeProvider } from "@assistant-ui/react";
 
-// After (Terminal) — same concept, different package
-import { AssistantProvider } from "@assistant-ui/react-ink";
+// After (Terminal) — same name, different package
+import { AssistantRuntimeProvider } from "@assistant-ui/react-ink";
 
 export function App() {
   const runtime = useAppRuntime(adapter);
   return (
-    <AssistantProvider runtime={runtime}>
+    <AssistantRuntimeProvider runtime={runtime}>
       {/* your terminal UI */}
-    </AssistantProvider>
+    </AssistantRuntimeProvider>
   );
 }
 ```
@@ -89,16 +89,15 @@ This is the main migration effort. Web components don't render in the terminal. 
 
 // Terminal — use Ink primitives
 import {
-  ThreadRoot,
-  ThreadMessages,
-  ComposerInput,
+  ThreadPrimitive,
+  ComposerPrimitive,
 } from "@assistant-ui/react-ink";
 import { Box, Text } from "ink";
 
 function ChatScreen() {
   return (
-    <ThreadRoot>
-      <ThreadMessages
+    <ThreadPrimitive.Root>
+      <ThreadPrimitive.Messages
         renderMessage={({ message }) => (
           <Box marginBottom={1}>
             <Text>
@@ -108,9 +107,9 @@ function ChatScreen() {
         )}
       />
       <Box borderStyle="round" borderColor="gray" paddingX={1}>
-        <ComposerInput submitOnEnter placeholder="Message..." autoFocus />
+        <ComposerPrimitive.Input submitOnEnter placeholder="Message..." autoFocus />
       </Box>
-    </ThreadRoot>
+    </ThreadPrimitive.Root>
   );
 }
 ```

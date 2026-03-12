@@ -116,12 +116,12 @@ When the hook mounts it calls `list()` on your adapter, hydrates existing thread
           title: thread.title,
         };
       },
-      async generateTitle(remoteId, messages) {
+      async generateTitle(remoteId, unstable_messages) {
         return createAssistantStream(async (controller) => {
           const response = await fetch(`/api/threads/${remoteId}/title`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ messages }),
+            body: JSON.stringify({ messages: unstable_messages }),
           });
           const { title } = await response.json();
           controller.appendText(title);

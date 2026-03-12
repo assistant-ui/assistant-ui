@@ -192,7 +192,7 @@ Programmatically access the thread's state and actions.
 
 ### ModelContext
 
-- `useAuiState((s) => s.thread.modelContext)`
+- `useAui().thread().getModelContext()`
 
 ### ThreadViewportStore
 
@@ -509,7 +509,7 @@ Manages the state and actions for attachments in messages and composer
     tooltip="Removes the attachment"
   />
   <Component
-    name="AttachmentPrimitive.Thumb"
+    name="AttachmentPrimitive.unstable_Thumb"
     docsLink="#attachment-primitive-thumb"
     tooltip="Displays a thumbnail of the attachment"
   />
@@ -541,9 +541,9 @@ Manages the state and actions for individual thread list items
     tooltip="Trigger for thread list item actions"
   >
     <Component
-      name="ThreadListItemPrimitive.Name"
-      docsLink="#thread-list-item-primitive-name"
-      tooltip="Displays the name of the thread"
+      name="ThreadListItemPrimitive.Title"
+      docsLink="#thread-list-item-primitive-title"
+      tooltip="Displays the title of the thread"
     />
   </Component>
   <Component
@@ -560,11 +560,6 @@ Manages the state and actions for individual thread list items
     name="ThreadListItemPrimitive.Delete"
     docsLink="#thread-list-item-primitive-delete"
     tooltip="Deletes the thread"
-  />
-  <Component
-    name="ThreadListItemPrimitive.Rename"
-    docsLink="#thread-list-item-primitive-rename"
-    tooltip="Renames the thread"
   />
 </Component>
 

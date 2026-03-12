@@ -55,8 +55,8 @@ Subscribe to events without causing re-renders.
 ```tsx
 import { useAuiEvent } from "@assistant-ui/react-ink";
 
-useAuiEvent("thread.message.created", (payload) => {
-  console.log("New message:", payload);
+useAuiEvent("thread.runStart", (payload) => {
+  console.log("Run started:", payload);
 });
 ```
 
@@ -77,87 +77,6 @@ const runtime = useLocalRuntime(chatModel, {
 | Option | Type | Description |
 |--------|------|-------------|
 | `initialMessages` | `ThreadMessageLike[]` | Messages to pre-populate |
-
-## Primitive Hooks
-
-Low-level hooks for building custom components.
-
-### useThreadMessages
-
-```tsx
-import { useThreadMessages } from "@assistant-ui/react-ink";
-
-const messages = useThreadMessages(); // ThreadMessage[]
-```
-
-### useThreadIsRunning
-
-```tsx
-import { useThreadIsRunning } from "@assistant-ui/react-ink";
-
-const isRunning = useThreadIsRunning(); // boolean
-```
-
-### useThreadIsEmpty
-
-```tsx
-import { useThreadIsEmpty } from "@assistant-ui/react-ink";
-
-const isEmpty = useThreadIsEmpty(); // boolean
-```
-
-### useComposerSend
-
-```tsx
-import { useComposerSend } from "@assistant-ui/react-ink";
-
-const { send, canSend } = useComposerSend();
-```
-
-### useComposerCancel
-
-```tsx
-import { useComposerCancel } from "@assistant-ui/react-ink";
-
-const { cancel, canCancel } = useComposerCancel();
-```
-
-### useComposerAddAttachment
-
-Add an attachment to the composer. Returns `{ addAttachment }` — call it with a `CreateAttachment` object.
-
-```tsx
-import { useComposerAddAttachment } from "@assistant-ui/react-ink";
-import { readFile } from "fs/promises";
-
-const { addAttachment } = useComposerAddAttachment();
-
-const attachFile = async (path: string) => {
-  const content = await readFile(path, "utf-8");
-  await addAttachment({
-    name: path.split("/").pop() ?? "file.txt",
-    type: "document",
-    content: [{ type: "text", text: content }],
-  });
-};
-```
-
-### useMessageReload
-
-```tsx
-import { useMessageReload } from "@assistant-ui/react-ink";
-
-const { reload, canReload } = useMessageReload();
-```
-
-### useMessageBranching
-
-```tsx
-import { useMessageBranching } from "@assistant-ui/react-ink";
-
-const { branchNumber, branchCount, goToPrev, goToNext } =
-  useMessageBranching();
-```
 
 ## Model Context Hooks
 
@@ -235,6 +154,6 @@ const WeatherTool = makeAssistantTool({
   render: ({ args, result }) => <Text>{args.city}: {result?.temperature}°F</Text>,
 });
 
-// Mount inside AssistantProvider to register
+// Mount inside AssistantRuntimeProvider to register
 <WeatherTool />
 ```

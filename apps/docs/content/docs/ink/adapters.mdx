@@ -3,45 +3,31 @@ title: Adapters
 description: Title generation adapters for React Ink.
 ---
 
-Adapters customize how the local runtime generates titles. Pass them to `useLocalRuntime` via options.
+Adapters customize runtime behavior. They can be passed as options to `useLocalRuntime` or `useRemoteThreadListRuntime`.
+
+## RemoteThreadListAdapter
+
+Title generation is configured via the `generateTitle` method on `RemoteThreadListAdapter`. See the [Custom Backend](/docs/ink/custom-backend) page for a full example.
 
 ```tsx
-import { useLocalRuntime, createSimpleTitleAdapter } from "@assistant-ui/react-ink";
+import type { RemoteThreadListAdapter } from "@assistant-ui/react-ink";
+import { createAssistantStream } from "assistant-stream";
 
-const runtime = useLocalRuntime(chatModel, {
-  titleGenerator: createSimpleTitleAdapter(),
-});
-```
+const myAdapter: RemoteThreadListAdapter = {
+  // ... other methods ...
 
-## TitleGenerationAdapter
-
-Generates a title for a thread based on its messages. Pass via the `titleGenerator` option on `useLocalRuntime`.
-
-```tsx
-interface TitleGenerationAdapter {
-  generateTitle(messages: ThreadMessage[]): Promise<string>;
-}
-```
-
-### Custom implementation
-
-```tsx
-import type { TitleGenerationAdapter } from "@assistant-ui/react-ink";
-
-const aiTitleGenerator: TitleGenerationAdapter = {
-  async generateTitle(messages) {
-    const response = await fetch("http://localhost:3000/api/generate-title", {
-      method: "POST",
-      body: JSON.stringify({ messages }),
+  async generateTitle(remoteId, unstable_messages) {
+    return createAssistantStream(async (controller) => {
+      const res = await fetch(`/api/threads/${remoteId}/title`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: unstable_messages }),
+      });
+      const { title } = await res.json();
+      controller.appendText(title);
     });
-    const { title } = await response.json();
-    return title;
   },
 };
-
-const runtime = useLocalRuntime(chatModel, {
-  titleGenerator: aiTitleGenerator,
-});
 ```
 
 ## Which option to choose?

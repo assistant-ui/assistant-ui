@@ -35,7 +35,8 @@ npm install @assistant-ui/react @assistant-ui/react-ai-sdk ai@^6 @ai-sdk/react@^
 ```tsx
 "use client";
 
-import { AssistantRuntimeProvider, Thread } from "@assistant-ui/react";
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { Thread } from "@/components/assistant-ui/thread";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 
 export default function Chat() {

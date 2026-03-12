@@ -5,41 +5,36 @@ description: Composable terminal components for building chat UIs with Ink.
 
 Primitives are thin wrappers around Ink components (`Box`, `Text`, `TextInput`) that integrate with the assistant-ui runtime. They accept all standard Ink props and add runtime-aware behavior.
 
-Primitives are exported directly from `@assistant-ui/react-ink` (e.g. `ThreadRoot`, `ComposerInput`), unlike the web package which uses namespace imports.
+Primitives use namespace imports, the same pattern as the web package (e.g. `ThreadPrimitive.Root`, `ComposerPrimitive.Input`).
 
 Many primitives share their core logic with `@assistant-ui/react` via `@assistant-ui/core/react` — only the UI layer (Ink vs DOM) differs.
 
 ## Thread
 
 ```tsx
-import {
-  ThreadRoot,
-  ThreadMessages,
-  ThreadEmpty,
-  ThreadIf,
-} from "@assistant-ui/react-ink";
+import { ThreadPrimitive } from "@assistant-ui/react-ink";
 ```
 
-### ThreadRoot
+### Root
 
 Container `Box` for the thread area.
 
 ```tsx
-<ThreadRoot>
+<ThreadPrimitive.Root>
   {children}
-</ThreadRoot>
+</ThreadPrimitive.Root>
 ```
 
 | Prop | Type | Description |
 |------|------|-------------|
 | `...rest` | `BoxProps` | Standard Ink Box props |
 
-### ThreadMessages
+### Messages
 
 Renders the message list with automatic runtime integration. Each message is wrapped in a scoped context so that `useAuiState((s) => s.message)` works inside `renderMessage`.
 
 ```tsx
-<ThreadMessages
+<ThreadPrimitive.Messages
   renderMessage={({ message, index }) => <MessageBubble message={message} />}
 />
 ```
@@ -48,28 +43,28 @@ Renders the message list with automatic runtime integration. Each message is wra
 |------|------|-------------|
 | `renderMessage` | `(info: { message: ThreadMessage; index: number }) => ReactElement` | Message renderer |
 
-### ThreadEmpty
+### Empty
 
 Renders children only when the thread has no messages.
 
 ```tsx
-<ThreadEmpty>
+<ThreadPrimitive.Empty>
   <Text dimColor>Send a message to get started</Text>
-</ThreadEmpty>
+</ThreadPrimitive.Empty>
 ```
 
-### ThreadIf
+### If
 
 Conditional rendering based on thread state.
 
 ```tsx
-<ThreadIf empty>
+<ThreadPrimitive.If empty>
   <Text>No messages yet</Text>
-</ThreadIf>
+</ThreadPrimitive.If>
 
-<ThreadIf running>
+<ThreadPrimitive.If running>
   <Text color="yellow">Generating...</Text>
-</ThreadIf>
+</ThreadPrimitive.If>
 ```
 
 | Prop | Type | Description |
@@ -77,12 +72,12 @@ Conditional rendering based on thread state.
 | `empty` | `boolean` | Render when thread is empty |
 | `running` | `boolean` | Render when thread is running |
 
-### ThreadSuggestion
+### Suggestion
 
 Renders a suggestion button. Uses Ink `Box` + `Text`.
 
 ```tsx
-<ThreadSuggestion
+<ThreadPrimitive.Suggestion
   prompt="What is the weather?"
   send
 />
@@ -97,33 +92,25 @@ Renders a suggestion button. Uses Ink `Box` + `Text`.
 ## Composer
 
 ```tsx
-import {
-  ComposerRoot,
-  ComposerInput,
-  ComposerSend,
-  ComposerCancel,
-  ComposerAddAttachment,
-  ComposerAttachments,
-  ComposerIf,
-} from "@assistant-ui/react-ink";
+import { ComposerPrimitive } from "@assistant-ui/react-ink";
 ```
 
-### ComposerRoot
+### Root
 
 Container `Box` for the composer area.
 
 ```tsx
-<ComposerRoot>
+<ComposerPrimitive.Root>
   {children}
-</ComposerRoot>
+</ComposerPrimitive.Root>
 ```
 
-### ComposerInput
+### Input
 
 Ink `TextInput` wired to the composer runtime. Value is managed automatically.
 
 ```tsx
-<ComposerInput
+<ComposerPrimitive.Input
   submitOnEnter
   placeholder="Type a message..."
   autoFocus
@@ -136,32 +123,32 @@ Ink `TextInput` wired to the composer runtime. Value is managed automatically.
 | `placeholder` | `string` | Placeholder text when empty |
 | `autoFocus` | `boolean` | Auto-focus on mount |
 
-### ComposerSend
+### Send
 
 `Box` that triggers sending the current message. Typically used with a button-like UI.
 
 ```tsx
-<ComposerSend>
+<ComposerPrimitive.Send>
   <Text color="green">[Send]</Text>
-</ComposerSend>
+</ComposerPrimitive.Send>
 ```
 
-### ComposerCancel
+### Cancel
 
 `Box` that cancels the current run.
 
 ```tsx
-<ComposerCancel>
+<ComposerPrimitive.Cancel>
   <Text color="red">[Stop]</Text>
-</ComposerCancel>
+</ComposerPrimitive.Cancel>
 ```
 
-### ComposerAttachments
+### Attachments
 
 Renders composer attachments using the provided component configuration.
 
 ```tsx
-<ComposerAttachments
+<ComposerPrimitive.Attachments
   components={{
     Attachment: MyAttachment,
   }}
@@ -172,24 +159,24 @@ Renders composer attachments using the provided component configuration.
 |------|------|-------------|
 | `components` | `{ Image?, Document?, File?, Attachment? }` | Component renderers by attachment type |
 
-### ComposerAddAttachment
+### AddAttachment
 
 Triggers attachment addition.
 
 ```tsx
-<ComposerAddAttachment>
+<ComposerPrimitive.AddAttachment>
   <Text>[Attach]</Text>
-</ComposerAddAttachment>
+</ComposerPrimitive.AddAttachment>
 ```
 
-### ComposerIf
+### If
 
 Conditional rendering based on composer state. Shared from `@assistant-ui/core/react`.
 
 ```tsx
-<ComposerIf editing>
+<ComposerPrimitive.If editing>
   <Text>Currently editing</Text>
-</ComposerIf>
+</ComposerPrimitive.If>
 ```
 
 | Prop | Type | Description |
@@ -199,31 +186,25 @@ Conditional rendering based on composer state. Shared from `@assistant-ui/core/r
 ## Message
 
 ```tsx
-import {
-  MessageRoot,
-  MessageContent,
-  MessageIf,
-  MessageParts,
-  MessageAttachments,
-} from "@assistant-ui/react-ink";
+import { MessagePrimitive } from "@assistant-ui/react-ink";
 ```
 
-### MessageRoot
+### Root
 
 Container `Box` for a single message.
 
 ```tsx
-<MessageRoot>
+<MessagePrimitive.Root>
   {children}
-</MessageRoot>
+</MessagePrimitive.Root>
 ```
 
-### MessageContent
+### Content
 
 Renders message content parts. Tool call and data parts automatically render registered tool UIs (via `useAssistantTool` / `useAssistantDataUI`), falling back to render props if provided.
 
 ```tsx
-<MessageContent
+<MessagePrimitive.Content
   renderText={({ part }) => <Text>{part.text}</Text>}
   renderToolCall={({ part }) => <Text dimColor>[Tool: {part.toolName}]</Text>}
 />
@@ -239,18 +220,18 @@ Renders message content parts. Tool call and data parts automatically render reg
 | `renderFile` | `(props: { part; index }) => ReactElement` | File part renderer |
 | `renderData` | `(props: { part; index }) => ReactElement` | Data part fallback |
 
-### MessageIf
+### If
 
 Conditional rendering based on message properties.
 
 ```tsx
-<MessageIf user>
+<MessagePrimitive.If user>
   <Text bold color="green">You:</Text>
-</MessageIf>
+</MessagePrimitive.If>
 
-<MessageIf assistant last>
+<MessagePrimitive.If assistant last>
   <Text color="yellow">Thinking...</Text>
-</MessageIf>
+</MessagePrimitive.If>
 ```
 
 | Prop | Type | Description |
@@ -260,12 +241,12 @@ Conditional rendering based on message properties.
 | `running` | `boolean` | Render when message is being generated |
 | `last` | `boolean` | Render for the last message |
 
-### MessageAttachments
+### Attachments
 
 Renders user message attachments using the provided component configuration.
 
 ```tsx
-<MessageAttachments
+<MessagePrimitive.Attachments
   components={{
     Attachment: ({ attachment }) => <Text>[{attachment.name}]</Text>,
   }}
@@ -279,62 +260,51 @@ Renders user message attachments using the provided component configuration.
 ## Attachment
 
 ```tsx
-import {
-  AttachmentRoot,
-  AttachmentName,
-  AttachmentThumb,
-  AttachmentRemove,
-} from "@assistant-ui/react-ink";
+import { AttachmentPrimitive } from "@assistant-ui/react-ink";
 ```
 
 Primitives for rendering individual attachments.
 
-### AttachmentRoot
+### Root
 
 Container `Box` for an attachment.
 
-### AttachmentName
+### Name
 
 `Text` component displaying the attachment filename.
 
-### AttachmentThumb
+### unstable_Thumb
 
 `Text` component displaying the file extension.
 
-### AttachmentRemove
+### Remove
 
 Pressable that removes the attachment from the composer.
 
 ```tsx
-<AttachmentRoot>
-  <AttachmentThumb />
-  <AttachmentName />
-  <AttachmentRemove>
+<AttachmentPrimitive.Root>
+  <AttachmentPrimitive.unstable_Thumb />
+  <AttachmentPrimitive.Name />
+  <AttachmentPrimitive.Remove>
     <Text color="red">[x]</Text>
-  </AttachmentRemove>
-</AttachmentRoot>
+  </AttachmentPrimitive.Remove>
+</AttachmentPrimitive.Root>
 ```
 
 ## ActionBar
 
 ```tsx
-import {
-  ActionBarCopy,
-  ActionBarEdit,
-  ActionBarReload,
-  ActionBarFeedbackPositive,
-  ActionBarFeedbackNegative,
-} from "@assistant-ui/react-ink";
+import { ActionBarPrimitive } from "@assistant-ui/react-ink";
 ```
 
-### ActionBarCopy
+### Copy
 
 Pressable that copies the message content. Supports function-as-children for copy state feedback.
 
 ```tsx
-<ActionBarCopy copiedDuration={3000}>
+<ActionBarPrimitive.Copy copiedDuration={3000}>
   {({ isCopied }) => <Text>{isCopied ? "[Copied!]" : "[Copy]"}</Text>}
-</ActionBarCopy>
+</ActionBarPrimitive.Copy>
 ```
 
 | Prop | Type | Description |
@@ -342,93 +312,84 @@ Pressable that copies the message content. Supports function-as-children for cop
 | `copiedDuration` | `number` | Duration in ms to show "copied" state (default: 3000) |
 | `copyToClipboard` | `(text: string) => void` | Custom clipboard function |
 
-### ActionBarEdit
+### Edit
 
 Pressable that enters edit mode for a message.
 
 ```tsx
-<ActionBarEdit>
+<ActionBarPrimitive.Edit>
   <Text>[Edit]</Text>
-</ActionBarEdit>
+</ActionBarPrimitive.Edit>
 ```
 
-### ActionBarReload
+### Reload
 
 Pressable that regenerates an assistant message.
 
 ```tsx
-<ActionBarReload>
+<ActionBarPrimitive.Reload>
   <Text>[Retry]</Text>
-</ActionBarReload>
+</ActionBarPrimitive.Reload>
 ```
 
-### ActionBarFeedbackPositive / ActionBarFeedbackNegative
+### FeedbackPositive / FeedbackNegative
 
 Pressable buttons for submitting message feedback.
 
 ```tsx
-<ActionBarFeedbackPositive>
+<ActionBarPrimitive.FeedbackPositive>
   {({ isSubmitted }) => <Text>{isSubmitted ? "[Liked]" : "[Like]"}</Text>}
-</ActionBarFeedbackPositive>
+</ActionBarPrimitive.FeedbackPositive>
 
-<ActionBarFeedbackNegative>
+<ActionBarPrimitive.FeedbackNegative>
   {({ isSubmitted }) => <Text>{isSubmitted ? "[Disliked]" : "[Dislike]"}</Text>}
-</ActionBarFeedbackNegative>
+</ActionBarPrimitive.FeedbackNegative>
 ```
 
 ## BranchPicker
 
 ```tsx
-import {
-  BranchPickerPrevious,
-  BranchPickerNext,
-  BranchPickerNumber,
-  BranchPickerCount,
-} from "@assistant-ui/react-ink";
+import { BranchPickerPrimitive } from "@assistant-ui/react-ink";
 ```
 
-### BranchPickerPrevious / BranchPickerNext
+### Previous / Next
 
 Pressable buttons to navigate between message branches.
 
 ```tsx
 <Box>
-  <BranchPickerPrevious>
+  <BranchPickerPrimitive.Previous>
     <Text>{"<"}</Text>
-  </BranchPickerPrevious>
-  <BranchPickerNumber />
+  </BranchPickerPrimitive.Previous>
+  <BranchPickerPrimitive.Number />
   <Text>/</Text>
-  <BranchPickerCount />
-  <BranchPickerNext>
+  <BranchPickerPrimitive.Count />
+  <BranchPickerPrimitive.Next>
     <Text>{">"}</Text>
-  </BranchPickerNext>
+  </BranchPickerPrimitive.Next>
 </Box>
 ```
 
-### BranchPickerNumber / BranchPickerCount
+### Number / Count
 
 `Text` components displaying the current branch number and total count.
 
 ## ThreadList
 
 ```tsx
-import {
-  ThreadListRoot,
-  ThreadListItems,
-  ThreadListNew,
-} from "@assistant-ui/react-ink";
+import { ThreadListPrimitive } from "@assistant-ui/react-ink";
 ```
 
-### ThreadListRoot
+### Root
 
 Container `Box` for the thread list.
 
-### ThreadListItems
+### Items
 
 Renders thread list items with runtime integration.
 
 ```tsx
-<ThreadListItems
+<ThreadListPrimitive.Items
   renderItem={({ threadId }) => (
     <ThreadEntry threadId={threadId} />
   )}
@@ -439,81 +400,71 @@ Renders thread list items with runtime integration.
 |------|------|-------------|
 | `renderItem` | `(props: { threadId: string; index: number }) => ReactElement` | Thread item renderer |
 
-### ThreadListNew
+### New
 
 Pressable that creates a new thread.
 
 ```tsx
-<ThreadListNew>
+<ThreadListPrimitive.New>
   <Text color="green">[New Chat]</Text>
-</ThreadListNew>
+</ThreadListPrimitive.New>
 ```
 
 ## ThreadListItem
 
 ```tsx
-import {
-  ThreadListItemRoot,
-  ThreadListItemTrigger,
-  ThreadListItemDelete,
-  ThreadListItemArchive,
-  ThreadListItemUnarchive,
-} from "@assistant-ui/react-ink";
+import { ThreadListItemPrimitive } from "@assistant-ui/react-ink";
 ```
 
-### ThreadListItemRoot
+### Root
 
 Container `Box` for a thread list item.
 
-### ThreadListItemTrigger
+### Trigger
 
 Pressable that switches to the thread.
 
-### ThreadListItemDelete
+### Delete
 
 Pressable that deletes the thread.
 
-### ThreadListItemArchive / ThreadListItemUnarchive
+### Archive / Unarchive
 
 Pressable buttons that archive or unarchive the thread.
 
 ```tsx
-<ThreadListItemRoot>
-  <ThreadListItemTrigger>
+<ThreadListItemPrimitive.Root>
+  <ThreadListItemPrimitive.Trigger>
     <Text>Chat #1</Text>
-  </ThreadListItemTrigger>
-  <ThreadListItemDelete>
+  </ThreadListItemPrimitive.Trigger>
+  <ThreadListItemPrimitive.Delete>
     <Text color="red">[x]</Text>
-  </ThreadListItemDelete>
-</ThreadListItemRoot>
+  </ThreadListItemPrimitive.Delete>
+</ThreadListItemPrimitive.Root>
 ```
 
 ## Suggestion
 
 ```tsx
-import {
-  SuggestionTitle,
-  SuggestionDescription,
-  SuggestionTrigger,
-} from "@assistant-ui/react-ink";
+import { SuggestionPrimitive } from "@assistant-ui/react-ink";
 ```
 
-### SuggestionTitle
+### Title
 
 `Text` component displaying the suggestion title.
 
-### SuggestionDescription
+### Description
 
 `Text` component displaying the suggestion description.
 
-### SuggestionTrigger
+### Trigger
 
 Pressable that triggers the suggestion action.
 
 ```tsx
-<SuggestionTrigger send>
-  <SuggestionTitle />
-</SuggestionTrigger>
+<SuggestionPrimitive.Trigger send>
+  <SuggestionPrimitive.Title />
+</SuggestionPrimitive.Trigger>
 ```
 
 | Prop | Type | Description |
@@ -524,39 +475,38 @@ Pressable that triggers the suggestion action.
 ## ChainOfThought
 
 ```tsx
-import {
-  ChainOfThoughtRoot,
-  ChainOfThoughtAccordionTrigger,
-} from "@assistant-ui/react-ink";
+import { ChainOfThoughtPrimitive } from "@assistant-ui/react-ink";
 ```
 
-### ChainOfThoughtRoot
+### Root
 
 Container `Box` for chain of thought content.
 
-### ChainOfThoughtAccordionTrigger
+### AccordionTrigger
 
 Pressable that toggles the collapsed state of the chain of thought.
 
 ```tsx
-<ChainOfThoughtRoot>
-  <ChainOfThoughtAccordionTrigger>
+<ChainOfThoughtPrimitive.Root>
+  <ChainOfThoughtPrimitive.AccordionTrigger>
     <Text dimColor>[Toggle reasoning]</Text>
-  </ChainOfThoughtAccordionTrigger>
+  </ChainOfThoughtPrimitive.AccordionTrigger>
   {/* reasoning content */}
-</ChainOfThoughtRoot>
+</ChainOfThoughtPrimitive.Root>
 ```
 
-## ToolFallback
+## ToolCall
 
 ```tsx
-import { ToolFallback } from "@assistant-ui/react-ink";
+import { ToolCallPrimitive } from "@assistant-ui/react-ink";
 ```
+
+### Fallback
 
 A built-in component for rendering tool calls with expandable/collapsible output. Includes spinner for running tools and formatted JSON output.
 
 ```tsx
-<MessageContent
-  renderToolCall={({ part }) => <ToolFallback part={part} />}
+<MessagePrimitive.Content
+  renderToolCall={({ part }) => <ToolCallPrimitive.Fallback part={part} />}
 />
 ```

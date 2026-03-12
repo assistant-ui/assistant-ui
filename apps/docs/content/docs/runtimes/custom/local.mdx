@@ -465,9 +465,9 @@ const myDatabaseAdapter: RemoteThreadListAdapter = {
     await db.threads.delete(remoteId);
   },
 
-  async generateTitle(remoteId, messages) {
+  async generateTitle(remoteId, unstable_messages) {
     // Generate title from messages using your AI
-    const newTitle = await generateTitle(messages);
+    const newTitle = await generateTitle(unstable_messages);
 
     // Persist the title in your DB
     await db.threads.update(remoteId, { title: newTitle });
@@ -1320,7 +1320,7 @@ Interface for implementing custom thread list storage.
     },
     {
       name: "generateTitle",
-      type: "(remoteId: string, messages: readonly ThreadMessage[]) => Promise<AssistantStream>",
+      type: "(remoteId: string, unstable_messages: readonly ThreadMessage[]) => Promise<AssistantStream>",
       description: "Generates a title for the thread based on the conversation",
       required: true,
     },
@@ -1334,7 +1334,6 @@ Interface for implementing custom thread list storage.
 
 ## Related Resources
 
-- [Runtime Layer Concepts](/docs/concepts/runtime-layer)
 - [Pick a Runtime Guide](/docs/runtimes/pick-a-runtime)
 - [`ExternalStoreRuntime`](/docs/runtimes/custom/external-store)
 - [Examples Repository](https://github.com/assistant-ui/assistant-ui/tree/main/examples)

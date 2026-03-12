@@ -58,7 +58,8 @@ Uses `@assistant-ui/react-langgraph` for LangGraph integration:
 
 ```tsx
 import { useLangGraphRuntime } from "@assistant-ui/react-langgraph";
-import { AssistantRuntimeProvider, Thread } from "@assistant-ui/react";
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { Thread } from "@/components/assistant-ui/thread";
 import { Client } from "@langchain/langgraph-sdk";
 
 const langGraphClient = new Client({

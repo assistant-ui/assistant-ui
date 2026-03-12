@@ -142,7 +142,7 @@ export const OPTIONS = () =>
 // @filename: /lib/chatApi.ts
 
 // ---cut---
-import { Client } from "@langchain/langgraph-sdk";
+import { Client, type ThreadState } from "@langchain/langgraph-sdk";
 import { LangChainMessage, LangGraphSendMessageConfig } from "@assistant-ui/react-langgraph";
 
 const createClient = () => {

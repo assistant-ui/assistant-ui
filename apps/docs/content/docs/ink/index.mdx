@@ -100,7 +100,7 @@ export const myChatAdapter: ChatModelAdapter = {
 ```tsx title="app.tsx"
 import { Box, Text } from "ink";
 import {
-  AssistantProvider,
+  AssistantRuntimeProvider,
   useLocalRuntime,
 } from "@assistant-ui/react-ink";
 import { myChatAdapter } from "./adapters/my-chat-adapter.js";
@@ -109,12 +109,12 @@ export function App() {
   const runtime = useLocalRuntime(myChatAdapter);
 
   return (
-    <AssistantProvider runtime={runtime}>
+    <AssistantRuntimeProvider runtime={runtime}>
       <Box flexDirection="column" padding={1}>
         <Text bold color="cyan">My Terminal Chat</Text>
         {/* your chat UI */}
       </Box>
-    </AssistantProvider>
+    </AssistantRuntimeProvider>
   );
 }
 ```
@@ -129,11 +129,9 @@ Use primitives to compose your terminal chat interface:
 ```tsx title="components/thread.tsx"
 import { Box, Text } from "ink";
 import {
-  ThreadRoot,
-  ThreadMessages,
-  ThreadEmpty,
-  ComposerInput,
-  useThreadIsRunning,
+  ThreadPrimitive,
+  ComposerPrimitive,
+  useAuiState,
 } from "@assistant-ui/react-ink";
 import type { ThreadMessage } from "@assistant-ui/react-ink";
 import { MarkdownText } from "@assistant-ui/react-ink-markdown";
@@ -163,7 +161,7 @@ const Message = ({ message }: { message: ThreadMessage }) => {
 };
 
 const StatusIndicator = () => {
-  const isRunning = useThreadIsRunning();
+  const isRunning = useAuiState((s) => s.thread.isRunning);
   if (!isRunning) return null;
   return (
     <Box marginBottom={1}>
@@ -174,26 +172,26 @@ const StatusIndicator = () => {
 
 export const Thread = () => {
   return (
-    <ThreadRoot>
-      <ThreadEmpty>
+    <ThreadPrimitive.Root>
+      <ThreadPrimitive.Empty>
         <Box marginBottom={1}>
           <Text dimColor>No messages yet. Start typing below!</Text>
         </Box>
-      </ThreadEmpty>
+      </ThreadPrimitive.Empty>
 
-      <ThreadMessages renderMessage={(props) => <Message {...props} />} />
+      <ThreadPrimitive.Messages renderMessage={(props) => <Message {...props} />} />
 
       <StatusIndicator />
 
       <Box borderStyle="round" borderColor="gray" paddingX={1}>
         <Text color="gray">{"> "}</Text>
-        <ComposerInput
+        <ComposerPrimitive.Input
           submitOnEnter
           placeholder="Type a message..."
           autoFocus
         />
       </Box>
-    </ThreadRoot>
+    </ThreadPrimitive.Root>
   );
 };
 ```

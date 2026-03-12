@@ -1,21 +1,21 @@
 ---
 title: "@assistant-ui/react-ai-sdk"
-description: Vercel AI SDK v5 integration with chat runtime hooks and transport utilities.
+description: Vercel AI SDK integration with chat runtime hooks and transport utilities.
 ---
 
 Vercel AI SDK integration for assistant-ui.
 
 
 <Callout type="info">
-  This package provides integration with AI SDK v5. For AI SDK v4, see the [AI
-  SDK v4 (Legacy)](/docs/runtimes/ai-sdk/v4-legacy) documentation.
+  This package provides integration with AI SDK v6. For older versions, see the [AI
+  SDK v5 (Legacy)](/docs/runtimes/ai-sdk/v5-legacy) or [AI SDK v4 (Legacy)](/docs/runtimes/ai-sdk/v4-legacy) documentation.
 </Callout>
 
 ## API Reference
 
 ### `useChatRuntime`
 
-Creates a runtime directly with AI SDK v5's `useChat` hook integration. This is the recommended approach for most use cases.
+Creates a runtime with AI SDK's `useChat` hook integration. This is the recommended approach for most use cases.
 
 ```tsx
 import { useChatRuntime, AssistantChatTransport } from "@assistant-ui/react-ai-sdk";

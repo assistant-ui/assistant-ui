@@ -129,12 +129,12 @@ export const myThreadListAdapter: RemoteThreadListAdapter = {
     };
   },
 
-  async generateTitle(remoteId, messages) {
+  async generateTitle(remoteId, unstable_messages) {
     return createAssistantStream(async (controller) => {
       const res = await fetch(`${API_BASE}/threads/${remoteId}/title`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages }),
+        body: JSON.stringify({ messages: unstable_messages }),
       });
       const { title } = await res.json();
       controller.appendText(title);
@@ -197,7 +197,7 @@ export default function App() {
 | `unarchive(remoteId)` | Restore archived thread |
 | `delete(remoteId)` | Permanently remove thread |
 | `fetch(remoteId)` | Fetch single thread metadata |
-| `generateTitle(remoteId, messages)` | Return an `AssistantStream` with the generated title |
+| `generateTitle(remoteId, unstable_messages)` | Return an `AssistantStream` with the generated title |
 
 ## Which option to choose?
 

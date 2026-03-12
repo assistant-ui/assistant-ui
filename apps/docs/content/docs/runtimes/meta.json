@@ -11,7 +11,7 @@
     "langgraph",
     "langserve",
     "external-store",
-    "custom-rest",
+
     "helicone",
     "..."
   ]

@@ -40,15 +40,15 @@ export const myChatAdapter: ChatModelAdapter = {
 ```
 
 ```tsx title="app.tsx"
-import { useLocalRuntime, AssistantProvider } from "@assistant-ui/react-ink";
+import { useLocalRuntime, AssistantRuntimeProvider } from "@assistant-ui/react-ink";
 import { myChatAdapter } from "./adapters/my-chat-adapter.js";
 
 export function App() {
   const runtime = useLocalRuntime(myChatAdapter);
   return (
-    <AssistantProvider runtime={runtime}>
+    <AssistantRuntimeProvider runtime={runtime}>
       {/* your chat UI */}
-    </AssistantProvider>
+    </AssistantRuntimeProvider>
   );
 }
 ```
@@ -131,12 +131,12 @@ export const myThreadListAdapter: RemoteThreadListAdapter = {
     };
   },
 
-  async generateTitle(remoteId, messages) {
+  async generateTitle(remoteId, unstable_messages) {
     return createAssistantStream(async (controller) => {
       const res = await fetch(`${API_BASE}/threads/${remoteId}/title`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages }),
+        body: JSON.stringify({ messages: unstable_messages }),
       });
       const { title } = await res.json();
       controller.appendText(title);
@@ -154,7 +154,7 @@ export const myThreadListAdapter: RemoteThreadListAdapter = {
 import {
   useLocalRuntime,
   useRemoteThreadListRuntime,
-  AssistantProvider,
+  AssistantRuntimeProvider,
 } from "@assistant-ui/react-ink";
 import { myChatAdapter } from "./adapters/my-chat-adapter.js";
 import { myThreadListAdapter } from "./adapters/my-thread-list-adapter.js";
@@ -169,9 +169,9 @@ function useAppRuntime() {
 export function App() {
   const runtime = useAppRuntime();
   return (
-    <AssistantProvider runtime={runtime}>
+    <AssistantRuntimeProvider runtime={runtime}>
       {/* your chat UI */}
-    </AssistantProvider>
+    </AssistantRuntimeProvider>
   );
 }
 ```
@@ -190,7 +190,7 @@ export function App() {
 | `unarchive(remoteId)` | Restore archived thread |
 | `delete(remoteId)` | Permanently remove thread |
 | `fetch(remoteId)` | Fetch single thread metadata |
-| `generateTitle(remoteId, messages)` | Return an `AssistantStream` with the generated title |
+| `generateTitle(remoteId, unstable_messages)` | Return an `AssistantStream` with the generated title |
 
 ## Which option to choose?
 

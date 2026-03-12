@@ -55,8 +55,8 @@ Subscribe to events without causing re-renders.
 ```tsx
 import { useAuiEvent } from "@assistant-ui/react-native";
 
-useAuiEvent("thread.message.created", (payload) => {
-  console.log("New message:", payload);
+useAuiEvent("thread.runStart", (payload) => {
+  console.log("Run started:", payload);
 });
 ```
 
@@ -64,117 +64,21 @@ useAuiEvent("thread.message.created", (payload) => {
 
 ### useLocalRuntime
 
-Create an `AssistantRuntime` with a `ChatModelAdapter`. Optionally pass `storage` for persistence.
+Create an `AssistantRuntime` with a `ChatModelAdapter`.
 
 ```tsx
 import { useLocalRuntime } from "@assistant-ui/react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const runtime = useLocalRuntime(chatModel, {
-  storage: AsyncStorage,
+  initialMessages: [],
 });
 ```
 
 | Option | Type | Description |
 |--------|------|-------------|
 | `initialMessages` | `ThreadMessageLike[]` | Messages to pre-populate |
-| `storage` | `AsyncStorageLike` | Thread and message persistence |
-| `storagePrefix` | `string` | Key prefix for storage (default `"@assistant-ui:"`) |
-| `titleGenerator` | `TitleGenerationAdapter` | Auto-generate thread titles |
-
-## Primitive Hooks
-
-Low-level hooks for building custom components.
-
-### useThreadMessages
-
-```tsx
-import { useThreadMessages } from "@assistant-ui/react-native";
-
-const messages = useThreadMessages(); // ThreadMessage[]
-```
-
-### useThreadIsRunning
-
-```tsx
-import { useThreadIsRunning } from "@assistant-ui/react-native";
-
-const isRunning = useThreadIsRunning(); // boolean
-```
-
-### useThreadIsEmpty
-
-```tsx
-import { useThreadIsEmpty } from "@assistant-ui/react-native";
-
-const isEmpty = useThreadIsEmpty(); // boolean
-```
-
-### useComposerSend
-
-```tsx
-import { useComposerSend } from "@assistant-ui/react-native";
-
-const { send, canSend } = useComposerSend();
-```
-
-### useComposerCancel
-
-```tsx
-import { useComposerCancel } from "@assistant-ui/react-native";
-
-const { cancel, canCancel } = useComposerCancel();
-```
-
-### useComposerAddAttachment
-
-Add an attachment to the composer. Returns `{ addAttachment }` — call it with a `File` or `CreateAttachment` object. Pair with your own file picker (e.g. `expo-image-picker`).
-
-```tsx
-import { useComposerAddAttachment } from "@assistant-ui/react-native";
-
-const { addAttachment } = useComposerAddAttachment();
-
-// With expo-image-picker
-const pickImage = async () => {
-  const result = await ImagePicker.launchImageLibraryAsync({
-    base64: true,
-    quality: 0.8,
-  });
-  if (result.canceled) return;
-
-  for (const asset of result.assets) {
-    await addAttachment({
-      name: asset.fileName ?? "image.jpg",
-      type: "image",
-      content: [
-        { type: "image", image: `data:image/jpeg;base64,${asset.base64}` },
-      ],
-    });
-  }
-};
-```
-
-<Callout type="info">
-  You must configure an `AttachmentAdapter` (e.g. `SimpleImageAttachmentAdapter`) in your runtime options for attachments to work.
-</Callout>
-
-### useMessageReload
-
-```tsx
-import { useMessageReload } from "@assistant-ui/react-native";
-
-const { reload, canReload } = useMessageReload();
-```
-
-### useMessageBranching
-
-```tsx
-import { useMessageBranching } from "@assistant-ui/react-native";
-
-const { branchNumber, branchCount, goToPrev, goToNext } =
-  useMessageBranching();
-```
+| `maxSteps` | `number` | Maximum tool call steps per run |
+| `cloud` | `AssistantCloud` | Optional cloud instance for persistence |
 
 ## Model Context Hooks
 

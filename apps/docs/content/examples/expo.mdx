@@ -62,11 +62,11 @@ export function useAppRuntime() {
 
 ### App Layout
 
-`AssistantProvider` wraps the Expo Router drawer layout. Thread and composer contexts are set up automatically — no extra providers needed:
+`AssistantRuntimeProvider` wraps the Expo Router drawer layout. Thread and composer contexts are set up automatically — no extra providers needed:
 
 ```tsx title="app/_layout.tsx"
 import {
-  AssistantProvider,
+  AssistantRuntimeProvider,
 } from "@assistant-ui/react-native";
 import { Drawer } from "expo-router/drawer";
 import { useAppRuntime } from "@/hooks/use-app-runtime";
@@ -89,9 +89,9 @@ function DrawerLayout() {
 export default function RootLayout() {
   const runtime = useAppRuntime();
   return (
-    <AssistantProvider runtime={runtime}>
+    <AssistantRuntimeProvider runtime={runtime}>
       <DrawerLayout />
-    </AssistantProvider>
+    </AssistantRuntimeProvider>
   );
 }
 ```
@@ -109,7 +109,7 @@ export default function ChatPage() {
 | Layer | Purpose |
 |-------|---------|
 | `useLocalRuntime` | Creates an in-memory runtime with the OpenAI adapter |
-| `AssistantProvider` | Provides the runtime to the entire app (thread and composer scopes are set up automatically) |
+| `AssistantRuntimeProvider` | Provides the runtime to the entire app (thread and composer scopes are set up automatically) |
 | `useAuiState((s) => s.thread)` | Reactive thread state access with selector for fine-grained re-renders |
 | `useAuiState((s) => s.composer)` | Reactive composer state access |
 | Primitives | `ThreadMessages`, `ComposerInput`, `MessageContent`, etc. |

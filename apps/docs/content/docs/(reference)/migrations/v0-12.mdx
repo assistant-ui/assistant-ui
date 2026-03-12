@@ -65,8 +65,8 @@ function MyComponent() {
   const aui = useAui();
   const isRunning = useAuiState((s) => s.thread.isRunning);
 
-  useAuiEvent("thread.started", () => {
-    console.log("Thread started");
+  useAuiEvent("thread.runStart", () => {
+    console.log("Run started");
   });
 
   const handleSend = () => {
@@ -137,7 +137,7 @@ The following hooks have been removed:
 - `useMessagePartRuntime` → Use `useAui()` with `aui.part()`
 - `useAttachment` → Use `useAuiState((s) => s.attachment)`
 - `useAttachmentRuntime` → Use `useAui()` with `aui.attachment()`
-- `useThreadModelContext` / `useThreadModelConfig` → Use `useAuiState((s) => s.thread.modelContext)`
+- `useThreadModelContext` / `useThreadModelConfig` → Use `useAui().thread().getModelContext()`
 - `useThreadComposer` → Use `useAuiState((s) => s.thread.composer)`
 - `useThreadList` → Use `useAuiState((s) => s.threads)`
 

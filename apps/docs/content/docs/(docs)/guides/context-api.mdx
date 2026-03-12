@@ -169,8 +169,9 @@ aui.thread().startRun(config);
 aui.thread().resumeRun(config);
 aui.thread().cancelRun();
 aui.thread().getState();
-aui.thread().message(idOrIndex);
-aui.thread().composer;
+aui.thread().getMessageByIndex(idx);
+aui.thread().getMessageById(messageId);
+aui.thread().composer();
 
 // Message actions
 aui.message().reload();
@@ -179,11 +180,12 @@ aui.message().stopSpeaking();
 aui.message().submitFeedback({ type: "positive" | "negative" });
 aui.message().switchToBranch({ position, branchId });
 aui.message().getState();
-aui.message().part(indexOrToolCallId);
-aui.message().composer;
+aui.message().getMessagePartByIndex(idx);
+aui.message().getMessagePartByToolCallId(toolCallId);
+aui.message().composer();
 
 // Part actions
-aui.part().addResult(result);
+aui.part().addToolResult(result);
 aui.part().getState();
 
 // Composer actions
@@ -211,7 +213,7 @@ aui.threadListItem().rename(title);
 aui.threadListItem().archive();
 aui.threadListItem().unarchive();
 aui.threadListItem().delete();
-aui.threads().getState();
+aui.threadListItem().getState();
 
 // Tools actions
 aui.tools().setToolUI(toolName, render);
@@ -227,26 +229,29 @@ import { useAuiEvent } from "@assistant-ui/react";
 
 // Listen to current scope events (most common)
 useAuiEvent("composer.send", (event) => {
-  console.log("Current composer sent message:", event.message);
+  console.log("Composer sent message in thread:", event.threadId);
+});
+
+// Listen to thread events
+useAuiEvent("thread.runStart", (event) => {
+  console.log("Run started in thread:", event.threadId);
 });
 
 // Listen to all events of a type across all scopes
 useAuiEvent({ event: "composer.send", scope: "*" }, (event) => {
-  console.log("Any composer sent a message:", event);
+  console.log("Any composer sent a message:", event.threadId);
 });
 
 // Listen to ALL events (useful for debugging or analytics)
 useAuiEvent("*", (event) => {
-  console.log("Event occurred:", event.type, "from:", event.source);
-  // Send to analytics, logging, etc.
+  console.log("Event occurred:", event.event, event.payload);
 });
 
 // Practical example: Track user interactions
 function AnalyticsTracker() {
   useAuiEvent("composer.send", (event) => {
     analytics.track("message_sent", {
-      messageLength: event.message.content.length,
-      hasAttachments: event.message.attachments.length > 0,
+      threadId: event.threadId,
     });
   });
 
@@ -314,19 +319,19 @@ Navigate through the scope hierarchy programmatically:
 const aui = useAui();
 
 // Access specific message by ID or index
-const messageById = aui.thread().message({ id: "msg_123" });
-const messageByIndex = aui.thread().message({ index: 0 });
+const messageById = aui.thread().getMessageById("msg_123");
+const messageByIndex = aui.thread().getMessageByIndex(0);
 
 // Access part by index or tool call ID
-const partByIndex = aui.message().part({ index: 0 });
-const partByToolCall = aui.message().part({ toolCallId: "call_123" });
+const partByIndex = aui.message().getMessagePartByIndex(0);
+const partByToolCall = aui.message().getMessagePartByToolCallId("call_123");
 
 // Access attachment by index
-const attachment = aui.composer().attachment({ index: 0 }).getState();
+const attachment = aui.composer().getAttachmentByIndex(0).getState();
 
-// Access thread from thread list
-const thread = aui.threads().thread("main");
-const threadItem = aui.threads().item({ id: "thread_123" });
+// Access thread list item by ID or index
+const threadItem = aui.threads().getItemById("thread_123");
+const threadByIndex = aui.threads().getItemByIndex(0);
 ```
 
 ## Common Patterns
@@ -349,7 +354,7 @@ function CopyButton() {
   const aui = useAui();
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(aui.message().getCopyText());
+    navigator.clipboard.writeText(aui.message().unstable_getCopyText());
   };
 
   return <button onClick={handleCopy}>Copy</button>;
@@ -464,8 +469,8 @@ const isRunning = useAuiState((s) => s.thread.isRunning);
 | Thread         | `isRunning`, `isLoading`, `isDisabled`, `messages`, `capabilities`, `suggestions` | Active conversation state and message history    |
 | Message        | `role`, `content`, `status`, `attachments`, `parentId`, `branchNumber`, `isLast`  | Individual message content and metadata          |
 | Composer       | `text`, `role`, `attachments`, `isEmpty`, `canCancel`, `type`, `isEditing`        | Text input state for new/edited messages         |
-| Part           | `type`, `content`, `status`, `text`, `toolCallId`, `toolName`                     | Content parts within messages (text, tool calls) |
-| Attachment     | `id`, `type`, `name`, `url`, `size`, `mimeType`                                   | File attachments metadata and content            |
+| Part           | `type`, `status`, `text`, `toolCallId`, `toolName`                                | Content parts within messages (text, tool calls) |
+| Attachment     | `id`, `type`, `name`, `contentType`, `status`                                     | File attachments metadata and content            |
 
 ### Available Actions by Scope
 
@@ -476,7 +481,7 @@ const isRunning = useAuiState((s) => s.thread.isRunning);
 | Thread         | `append(message)`, `startRun()`, `resumeRun()`, `cancelRun()`             | Message handling and conversation control |
 | Message        | `reload()`, `speak()`, `stopSpeaking()`, `submitFeedback(feedback)`       | Message interactions and regeneration     |
 | Composer       | `send()`, `setText(text)`, `addAttachment(file \| attachment)`, `reset()` | Text input and message composition        |
-| Part           | `addResult(result)`, `getState()`                                         | Tool call result handling                 |
+| Part           | `addToolResult(result)`, `getState()`                                     | Tool call result handling                 |
 | Attachment     | `remove()`, `getState()`                                                  | File management                           |
 
 ### Common Events

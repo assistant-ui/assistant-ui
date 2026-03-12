@@ -510,8 +510,8 @@ import { useToolArgsFieldStatus } from "@assistant-ui/react";
 const FormToolUI = makeAssistantToolUI({
   toolName: "submitForm",
   render: ({ args }) => {
-    const emailStatus = useToolArgsFieldStatus("email");
-    const phoneStatus = useToolArgsFieldStatus("phone");
+    const emailStatus = useToolArgsFieldStatus(["email"]);
+    const phoneStatus = useToolArgsFieldStatus(["phone"]);
 
     return (
       <form className="space-y-4">
@@ -671,7 +671,7 @@ const ConfirmationToolUI = makeAssistantToolUI<
 });
 ```
 
-Learn more about tool human input in the [Tools Guide](/docs/guides/tools#tool-human-input).
+Learn more about tool human input in the [Tools Guide](/docs/guides/tools#human-in-the-loop).
 
 ## Best Practices
 

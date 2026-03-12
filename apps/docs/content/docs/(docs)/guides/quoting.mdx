@@ -141,14 +141,14 @@ function MyComponent() {
   const aui = useAui();
 
   const quoteText = () => {
-    aui.thread().composer.setQuote({
+    aui.thread().composer().setQuote({
       text: "The text to quote",
       messageId: "msg-123",
     });
   };
 
   const clearQuote = () => {
-    aui.thread().composer.setQuote(undefined);
+    aui.thread().composer().setQuote(undefined);
   };
 
   return (

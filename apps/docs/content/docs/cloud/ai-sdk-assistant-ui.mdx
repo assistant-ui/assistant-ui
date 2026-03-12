@@ -134,8 +134,11 @@ To capture model and usage data, add the `messageMetadata` callback to your AI S
 
 ```tsx title="app/api/chat/route.ts"
 import { streamText } from "ai";
+import { openai } from "@ai-sdk/openai";
 
 export async function POST(req: Request) {
+  const { messages } = await req.json();
+
   const result = streamText({
     model: openai("gpt-5-mini"),
     messages,
@@ -184,6 +187,7 @@ Return `null` from `beforeReport` to skip reporting a specific run. To disable t
 The example above uses anonymous mode (browser session-based user ID) via the env var. For production apps with user accounts, pass an explicit cloud instance:
 
 ```tsx
+import { useMemo } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { AssistantCloud } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
