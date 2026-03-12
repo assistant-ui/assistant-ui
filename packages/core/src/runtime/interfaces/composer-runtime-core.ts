@@ -8,7 +8,10 @@ import type {
 } from "../../types";
 import type { DictationAdapter } from "../../adapters/speech";
 
-export type ComposerRuntimeEventType = "send" | "attachmentAdd";
+export type ComposerRuntimeEventType =
+  | "send"
+  | "attachmentAdd"
+  | "attachmentAddError";
 
 export type DictationState = {
   readonly status: DictationAdapter.Status;

@@ -234,16 +234,35 @@ export abstract class BaseComposerRuntimeCore
       this._notifySubscribers();
     };
 
-    const promiseOrGenerator = adapter.add({ file: fileOrAttachment });
-    if (Symbol.asyncIterator in promiseOrGenerator) {
-      for await (const r of promiseOrGenerator) {
-        upsertAttachment(r);
+    let lastAttachment: PendingAttachment | undefined;
+    try {
+      const promiseOrGenerator = adapter.add({ file: fileOrAttachment });
+      if (Symbol.asyncIterator in promiseOrGenerator) {
+        for await (const r of promiseOrGenerator) {
+          lastAttachment = r;
+          upsertAttachment(r);
+        }
+      } else {
+        lastAttachment = await promiseOrGenerator;
+        upsertAttachment(lastAttachment);
       }
-    } else {
-      upsertAttachment(await promiseOrGenerator);
+    } catch (e) {
+      if (lastAttachment) {
+        upsertAttachment({
+          ...lastAttachment,
+          status: { type: "incomplete", reason: "error" },
+        });
+      }
+      this._notifyEventSubscribers("attachmentAddError");
+      throw e;
     }
 
-    this._notifyEventSubscribers("attachmentAdd");
+    const hasError =
+      lastAttachment?.status.type === "incomplete" &&
+      lastAttachment.status.reason === "error";
+    this._notifyEventSubscribers(
+      hasError ? "attachmentAddError" : "attachmentAdd",
+    );
     this._notifySubscribers();
   }
 
