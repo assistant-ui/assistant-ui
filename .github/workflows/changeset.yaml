@@ -8,7 +8,6 @@ on:
 permissions:
   contents: write
   pull-requests: write
-  checks: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -48,36 +47,6 @@ jobs:
           version: pnpm ci:version
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # hasChangesets == 'true' means the action created/updated the version PR.
-      # ('false' means changesets were already consumed — the version PR was merged.)
-      # GITHUB_TOKEN force-pushes don't trigger pull_request_target workflows,
-      # so the "Semver Check" required status never runs on the version PR.
-      # Post a synthetic pass — the version PR only consumes changesets, never adds them.
-      - name: Mark semver check on version PR
-        if: steps.changesets.outputs.hasChangesets == 'true'
-        continue-on-error: true
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        with:
-          script: |
-            const { owner, repo } = context.repo;
-            const prs = await github.rest.pulls.list({
-              owner, repo,
-              head: `${owner}:changeset-release/main`,
-              state: "open",
-            });
-            if (prs.data.length === 0) return;
-            await github.rest.checks.create({
-              owner, repo,
-              name: "Semver Check",
-              head_sha: prs.data[0].head.sha,
-              status: "completed",
-              conclusion: "success",
-              output: {
-                title: "Skipped — version PR",
-                summary: "Version PR only consumes changesets; no semver check needed.",
-              },
-            });
 
       - name: Detect release packages
         id: release_plan
