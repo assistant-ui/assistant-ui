@@ -1,3 +1,97 @@
+// app/page.tsx or src/App.tsx (Next.js / React)
+// Requires: `npm install assistant-ui`
+
+"use client";
+
+import React from "react";
+import {
+  AssistantUIProvider,
+  ChatWindow,
+  useAssistantUI,
+} from "assistant-ui";
+
+function OnyxHeader() {
+  return (
+    <header className="flex items-center justify-between px-4 py-3 border-b border-neutral-800 bg-black/70">
+      <a
+        href="https://onyx.ai.cloud.app"
+        target="_blank"
+        rel="noreferrer"
+        className="flex items-center gap-2"
+      >
+        <img
+          src="/path/to/onyx-logo.svg"
+          alt="Onyx"
+          className="h-7 w-7"
+        />
+        <span className="text-lg font-semibold text-white tracking-wide">
+          Onyx Zeus Assistant
+        </span>
+      </a>
+      <span className="text-xs text-neutral-400">
+        Powered by your Onyx cloud node
+      </span>
+    </header>
+  );
+}
+
+// Backend call helper – adjust to your Onyx proxy route
+async function callOnyx(messages: { role: string; content: string }[]) {
+  const res = await fetch("/api/onyx-chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ messages }),
+  });
+
+  if (!res.ok) {
+    throw new Error(`Onyx backend error: ${res.status}`);
+  }
+
+  // Your /api/onyx-chat should normalize Onyx’s response to:
+  // { role: "assistant", content: "..." }
+  return res.json();
+}
+
+function OnyxChat() {
+  const ui = useAssistantUI();
+
+  return (
+    <div className="flex flex-col h-screen bg-neutral-950 text-neutral-50">
+      <OnyxHeader />
+      <main className="flex-1">
+        <ChatWindow
+          className="h-full"
+          onSend={async (inputText) => {
+            const history = ui.getMessages();
+            const messages = [
+              ...history.map((m) => ({
+                role: m.role,
+                content: m.content,
+              })),
+              { role: "user", content: inputText },
+            ];
+
+            const reply = await callOnyx(messages);
+            ui.addMessage({
+              role: "assistant",
+              content: reply.content,
+            });
+          }}
+        />
+      </main>
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AssistantUIProvider>
+      <OnyxChat />
+    </AssistantUIProvider>
+  );
+}
+
+
 <a href="https://www.assistant-ui.com">
   <img src="https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/.github/assets/header.svg" alt="assistant-ui Header" width="100%" />
 </a>
@@ -114,3 +208,38 @@ Hundreds of companies and projects use assistant-ui to build in-app AI assistant
 ---
 
 Backed by Y Combinator. Building something with assistant-ui? We’d love to hear from you.
+
+// app/api/onyx-chat/route.ts (Next.js 13+)
+// Adjust URL + headers to your Onyx cloud instance
+
+import { NextResponse } from "next/server";
+
+export async function POST(req: Request) {
+  const body = await req.json();
+
+  const onyxRes = await fetch("https://onyx.ai.cloud.app/api/chat", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      // e.g. auth header for your Onyx cloud, if needed
+      // "Authorization": `Bearer ${process.env.ONYX_API_KEY}`,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!onyxRes.ok) {
+    return NextResponse.json(
+      { error: "Onyx upstream error" },
+      { status: onyxRes.status }
+    );
+  }
+
+  const data = await onyxRes.json();
+
+  // Normalize to { content: "..." } for the UI
+  return NextResponse.json({
+    role: "assistant",
+    content: data.content ?? data.answer ?? "",
+  });
+}
+
