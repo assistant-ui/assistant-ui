@@ -114,6 +114,13 @@ export * as ChainOfThoughtPrimitive from "./primitives/chainOfThought";
 export * as SuggestionPrimitive from "./primitives/suggestion";
 export * as ToolCallPrimitive from "./primitives/toolCall";
 
+// UI components
+export {
+  ToolApproval,
+  type ToolApprovalProps,
+  type TrustLevel,
+} from "./ui/ToolApproval";
+
 // Re-export shared providers from core/react
 export {
   ThreadListItemByIndexProvider,
