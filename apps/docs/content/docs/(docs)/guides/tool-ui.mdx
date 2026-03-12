@@ -275,7 +275,7 @@ export const WebSearchToolUI = makeAssistantToolUI<
 Use hooks for dynamic tool UI registration:
 
 <Callout type="tip">
-When you assign your `makeAssistantToolUI({...})` call to a constant starting with `use…`, you can call it directly as a hook inside your component. This pattern lets you access local props or state when rendering the tool UI.
+Use the `useAssistantToolUI` hook directly in your component for dynamic tool UI registration. This allows access to local component state and props when rendering the tool UI.
 </Callout>
 
 ```tsx

@@ -26,7 +26,7 @@ const Thread = () => (
 
 ### Root
 
-Containts all parts of the thread.
+Contains all parts of the thread.
 
 This primitive renders a `<div>` element unless `asChild` is set.
 
@@ -56,7 +56,7 @@ This primitive renders a `<div>` element unless `asChild` is set.
       type: "boolean",
       default: "true",
       description:
-        "Whether to automatically scroll to the bottom of the viewport when new messages are added while the viewport is was previously scrolled to the bottom.",
+        "Whether to automatically scroll to the bottom of the viewport when new messages are added while the viewport was previously scrolled to the bottom.",
     },
   ]}
 />
@@ -164,6 +164,10 @@ Renders a single message at the specified index in the current thread.
 />
 
 ### Empty
+
+<Callout type="warn">
+**Deprecated.** Use `<AuiIf condition={(s) => s.thread.isEmpty}>` instead.
+</Callout>
 
 Renders children only when there are no messages.
 

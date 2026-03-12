@@ -95,7 +95,7 @@ Use this context to personalize your responses.`;
   // Store new memories after response
   await storeMemory(userId, messages);
 
-  return result.toDataStreamResponse();
+  return result.toUIMessageStreamResponse();
 }
 ```
 

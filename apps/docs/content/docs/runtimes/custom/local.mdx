@@ -845,15 +845,12 @@ function MyComponent() {
     aui.thread().cancelRun();
   };
 
-  // Switch to a different branch
-  const handleSwitchBranch = (messageId: string, branchIndex: number) => {
-    aui.thread().switchToBranch(messageId, branchIndex);
-  };
+  // Switch to a different branch (message scope)
+  // aui.message().switchToBranch({ position: "next" });
+  // aui.message().switchToBranch({ position: "previous" });
 
-  // Reload a message
-  const handleReload = (messageId: string) => {
-    aui.thread().reload(messageId);
-  };
+  // Reload a message (message scope)
+  // aui.message().reload();
 
   return (
     // Your UI

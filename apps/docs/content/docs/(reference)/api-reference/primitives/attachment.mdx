@@ -17,14 +17,14 @@ import { AttachmentPrimitive } from "@assistant-ui/react";
 
 const MyMessageAttachment = () => (
   <AttachmentPrimitive.Root>
-    <AttachmentPrimitive.Thumbnail />
+    <AttachmentPrimitive.unstable_Thumb />
     <AttachmentPrimitive.Name />
   </AttachmentPrimitive.Root>
 );
 
 const MyComposerAttachment = () => (
   <AttachmentPrimitive.Root>
-    <AttachmentPrimitive.Thumbnail />
+    <AttachmentPrimitive.unstable_Thumb />
     <AttachmentPrimitive.Name />
     <AttachmentPrimitive.Remove />
   </AttachmentPrimitive.Root>
@@ -33,9 +33,9 @@ const MyComposerAttachment = () => (
 
 ## API Reference
 
-### Container
+### Root
 
-Containts all parts of the attachment.
+Contains all parts of the attachment.
 
 This primitive renders a `<div>` element unless `asChild` is set.
 
@@ -48,14 +48,14 @@ This primitive renders a `<div>` element unless `asChild` is set.
   ]}
 />
 
-### Thumbnail
+### unstable_Thumb
 
 The thumbnail of the attachment.
 
 This primitive renders a `<div>` element unless `asChild` is set.
 
 <ParametersTable
-  type="AttachmentPrimitiveThumbnailProps"
+  type="AttachmentPrimitiveThumbProps"
   parameters={[
     {
       name: "asChild",

@@ -84,16 +84,15 @@ Renders a suggestion button. Uses Ink `Box` + `Text`.
 ```tsx
 <ThreadSuggestion
   prompt="What is the weather?"
-  method="replace"
-  autoSend
+  send
 />
 ```
 
 | Prop | Type | Description |
 |------|------|-------------|
 | `prompt` | `string` | The suggestion text |
-| `method` | `"replace" \| "append"` | How to insert the suggestion |
-| `autoSend` | `boolean` | Automatically send after inserting |
+| `send` | `boolean` | When true, automatically sends the message |
+| `clearComposer` | `boolean` | When true (default), replaces composer text; when false, appends |
 
 ## Composer
 

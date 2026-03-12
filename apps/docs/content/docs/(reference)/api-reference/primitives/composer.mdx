@@ -59,7 +59,7 @@ const ComposerWithDictation = () => (
 
 ### Root
 
-Containts all parts of the composer.
+Contains all parts of the composer.
 
 This primitive renders a `<form>` element unless `asChild` is set.
 
@@ -123,12 +123,6 @@ This primitive renders a `<button>` element unless `asChild` is set.
   parameters={[
     {
       name: "asChild",
-    },
-    {
-      name: "multiple",
-      type: "boolean | undefined",
-      description: "Allow selecting multiple attachments at the same time.",
-      default: "true",
     },
   ]}
 />
@@ -237,6 +231,12 @@ This primitive renders a `<button>` element unless `asChild` is set.
     {
       name: "asChild",
     },
+    {
+      name: "multiple",
+      type: "boolean | undefined",
+      description: "Allow selecting multiple attachments at the same time.",
+      default: "true",
+    },
   ]}
 />
 
@@ -334,30 +334,18 @@ This primitive renders a `<button>` element unless `asChild` is set.
 See the [Quoting guide](/docs/guides/quoting) for a complete walkthrough including the floating selection toolbar and backend handling.
 </Callout>
 
-### If
+### Conditional Rendering
 
-Renders children if a condition is met.
-
-<ParametersTable
-  type="UseComposerIfProps"
-  parameters={[
-    {
-      name: "editing",
-      required: false,
-      type: "boolean | undefined",
-      description: "Render children if the message is being edited.",
-    },
-    {
-      name: "dictation",
-      required: false,
-      type: "boolean | undefined",
-      description: "Render children if dictation is active.",
-    },
-  ]}
-/>
+Use `AuiIf` for conditional rendering based on composer state:
 
 ```tsx
-<Composer.If editing>{/* rendered if message is being edited */}</Composer.If>
+import { AuiIf } from "@assistant-ui/react";
 
-<Composer.If dictation>{/* rendered if dictation is active */}</Composer.If>
+<AuiIf condition={(s) => s.composer.isEditing}>
+  {/* rendered if message is being edited */}
+</AuiIf>
+
+<AuiIf condition={(s) => s.composer.dictation != null}>
+  {/* rendered if dictation is active */}
+</AuiIf>
 ```
