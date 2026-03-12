@@ -483,10 +483,9 @@ jobs:
             }
 
             function isOutsideCaretRange(rangeVersion, newVersion) {
-              const [rMajor, rMinor] = rangeVersion.split(".").map(Number);
+              const [rMajor, rMinor, rPatch] = rangeVersion.split(".").map(Number);
               const [nMajor, nMinor, nPatch] = newVersion.split(".").map(Number);
               if (rMajor === 0 && rMinor === 0) {
-                const rPatch = parseInt(rangeVersion.split(".")[2], 10);
                 return nMajor !== 0 || nMinor !== 0 || nPatch !== rPatch;
               }
               if (rMajor === 0) return nMajor !== 0 || nMinor !== rMinor;

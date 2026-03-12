@@ -134,7 +134,9 @@ jobs:
             const revDeps = new Map();
             const packageManifests = [];
             const packagesDir = "packages";
-            for (const dir of fs.readdirSync(packagesDir)) {
+            for (const entry of fs.readdirSync(packagesDir, { withFileTypes: true })) {
+              if (!entry.isDirectory()) continue;
+              const dir = entry.name;
               const pkgJsonPath = path.join(packagesDir, dir, "package.json");
               let pkgJson;
               try {
