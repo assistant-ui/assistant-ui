@@ -148,7 +148,7 @@ const AttachmentUI: FC = () => {
       <AttachmentPrimitive.Root
         className={cn(
           "aui-attachment-root relative",
-          isImage && "aui-attachment-root-composer only:first:size-24",
+          isImage && "aui-attachment-root-composer only:*:first:size-24",
         )}
       >
         <AttachmentPreviewDialog>
