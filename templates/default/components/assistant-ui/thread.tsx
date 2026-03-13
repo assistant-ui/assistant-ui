@@ -162,7 +162,7 @@ const ComposerAction: FC = () => {
           <TooltipIconButton
             tooltip="Send message"
             side="bottom"
-            type="submit"
+            type="button"
             variant="default"
             size="icon"
             className="aui-composer-send size-8 rounded-full"
