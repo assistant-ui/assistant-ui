@@ -18,3 +18,4 @@ export {
   MessageAttachments as Attachments,
   MessageAttachmentByIndex as AttachmentByIndex,
 } from "./message/MessageAttachments";
+export { MessageError as Error } from "./message/MessageError";
