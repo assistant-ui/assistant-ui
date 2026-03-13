@@ -224,18 +224,19 @@ describe("Tap Strict Mode - Rerender Sources", () => {
       const root = createResourceRoot();
       root.render(TestResource());
 
-      // Wait for setTimeout
+      // Wait for setTimeout and re-render
       await new Promise((resolve) => setTimeout(resolve, 50));
 
-      // React behavior: setTimeout callbacks run TWICE, then renders double
-      expect(events).toEqual([
-        "render count=0",
-        "render count=0",
-        "setTimeout",
-        "setTimeout",
-        "render count=1",
-        "render count=1",
-      ]);
+      // Strict mode: initial render is doubled, setTimeout callback fires
+      // twice (once per effect mount), and re-render is doubled.
+      // The two setTimeout callbacks are separate macrotasks; the re-render
+      // is also a macrotask (MessageChannel). Their relative ordering is
+      // non-deterministic, so we only assert counts and that the initial
+      // double-render comes first.
+      expect(events.slice(0, 2)).toEqual(["render count=0", "render count=0"]);
+      expect(events.filter((e) => e === "setTimeout")).toHaveLength(2);
+      expect(events.filter((e) => e === "render count=1")).toHaveLength(2);
+      expect(events).toHaveLength(6);
     });
   });
 
