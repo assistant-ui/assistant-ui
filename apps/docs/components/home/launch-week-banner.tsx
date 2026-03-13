@@ -1,6 +1,11 @@
 "use client";
 
-import { CloudIcon, SmartphoneIcon, TerminalIcon } from "lucide-react";
+import {
+  CloudIcon,
+  DatabaseIcon,
+  SmartphoneIcon,
+  TerminalIcon,
+} from "lucide-react";
 import Link from "next/link";
 
 const DAYS = [
@@ -11,6 +16,12 @@ const DAYS = [
     title: "Cloud Redesign",
     href: "/blog/2026-03-launch-week#day-3--assistant-cloud-redesign",
     icon: CloudIcon,
+  },
+  {
+    day: 4,
+    title: "useCloudChat",
+    href: "/cloud-ai-sdk",
+    icon: DatabaseIcon,
   },
 ] as const;
 
