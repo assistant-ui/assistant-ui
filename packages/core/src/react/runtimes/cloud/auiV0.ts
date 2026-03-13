@@ -127,7 +127,7 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
           };
 
         default: {
-          const unhandledType: "audio" | "data" = type;
+          const unhandledType: "audio" | "data" | `data-${string}` = type;
           throw new Error(
             `Message part type not supported by aui/v0: ${unhandledType}`,
           );
