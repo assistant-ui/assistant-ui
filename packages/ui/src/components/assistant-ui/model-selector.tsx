@@ -122,13 +122,15 @@ function ModelSelectorValue() {
   }
 
   return (
-    <span className="flex items-center gap-2">
-      {selectedModel.icon && (
-        <span className="flex size-4 shrink-0 items-center justify-center [&_svg]:size-4">
-          {selectedModel.icon}
-        </span>
-      )}
-      <span className="truncate font-medium">{selectedModel.name}</span>
+    <span>
+      <span className="flex items-center gap-2">
+        {selectedModel.icon && (
+          <span className="flex size-4 shrink-0 items-center justify-center [&_svg]:size-4">
+            {selectedModel.icon}
+          </span>
+        )}
+        <span className="truncate font-medium">{selectedModel.name}</span>
+      </span>
     </span>
   );
 }
