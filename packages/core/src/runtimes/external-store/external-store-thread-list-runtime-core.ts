@@ -35,6 +35,10 @@ export class ExternalStoreThreadListRuntimeCore
     return this.adapter.isLoading ?? false;
   }
 
+  public get canLoadMore() {
+    return false;
+  }
+
   public get newThreadId() {
     return undefined;
   }
@@ -52,6 +56,10 @@ export class ExternalStoreThreadListRuntimeCore
   }
 
   public getLoadThreadsPromise() {
+    return RESOLVED_PROMISE;
+  }
+
+  public loadMore(): Promise<void> {
     return RESOLVED_PROMISE;
   }
 

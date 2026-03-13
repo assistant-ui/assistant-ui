@@ -30,6 +30,10 @@ export class LocalThreadListRuntimeCore
     return false;
   }
 
+  public get canLoadMore() {
+    return false;
+  }
+
   public getMainThreadRuntimeCore() {
     return this._mainThread;
   }
@@ -59,6 +63,10 @@ export class LocalThreadListRuntimeCore
   }
 
   public getLoadThreadsPromise(): Promise<void> {
+    return Promise.resolve();
+  }
+
+  public loadMore(): Promise<void> {
     return Promise.resolve();
   }
 

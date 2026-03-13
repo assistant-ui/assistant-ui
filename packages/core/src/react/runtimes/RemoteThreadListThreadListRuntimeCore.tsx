@@ -13,7 +13,10 @@ import {
   getThreadData,
   updateStatusReducer,
 } from "../../runtimes/remote-thread-list/remote-thread-state";
-import type { RemoteThreadListOptions } from "../../runtimes/remote-thread-list/types";
+import type {
+  RemoteThreadListOptions,
+  RemoteThreadListResponse,
+} from "../../runtimes/remote-thread-list/types";
 import { RemoteThreadListHookInstanceManager } from "./RemoteThreadListHookInstanceManager";
 import {
   ComponentType,
@@ -36,6 +39,8 @@ export class RemoteThreadListThreadListRuntimeCore
   private readonly _hookManager: RemoteThreadListHookInstanceManager;
 
   private _loadThreadsPromise: Promise<void> | undefined;
+  private _loadMorePromise: Promise<void> | undefined;
+  private _cursor: string | undefined;
 
   private _mainThreadId!: string;
   private readonly _state = new OptimisticState<RemoteThreadState>({
@@ -51,75 +56,118 @@ export class RemoteThreadListThreadListRuntimeCore
     return this._state.value.threadData;
   }
 
+  public get canLoadMore() {
+    return this._cursor !== undefined;
+  }
+
+  private _applyListResponse(
+    state: RemoteThreadState,
+    response: RemoteThreadListResponse,
+    append: boolean,
+  ): RemoteThreadState {
+    const existingIds = append
+      ? new Set([...state.threadIds, ...state.archivedThreadIds])
+      : new Set<string>();
+    const newThreadIds: string[] = append ? [...state.threadIds] : [];
+    const newArchivedThreadIds: string[] = append
+      ? [...state.archivedThreadIds]
+      : [];
+    const newThreadIdMap = {} as Record<string, THREAD_MAPPING_ID>;
+    const newThreadData = {} as Record<THREAD_MAPPING_ID, RemoteThreadData>;
+
+    for (const thread of response.threads) {
+      if (existingIds.has(thread.remoteId)) continue;
+
+      switch (thread.status) {
+        case "regular":
+          newThreadIds.push(thread.remoteId);
+          break;
+        case "archived":
+          newArchivedThreadIds.push(thread.remoteId);
+          break;
+        default: {
+          const _exhaustiveCheck: never = thread.status;
+          throw new Error(`Unsupported state: ${_exhaustiveCheck}`);
+        }
+      }
+
+      const mappingId = createThreadMappingId(thread.remoteId);
+      newThreadIdMap[thread.remoteId] = mappingId;
+      newThreadData[mappingId] = {
+        id: thread.remoteId,
+        remoteId: thread.remoteId,
+        externalId: thread.externalId,
+        status: thread.status,
+        title: thread.title,
+        initializeTask: Promise.resolve({
+          remoteId: thread.remoteId,
+          externalId: thread.externalId,
+        }),
+      };
+    }
+
+    return {
+      ...state,
+      threadIds: newThreadIds,
+      archivedThreadIds: newArchivedThreadIds,
+      threadIdMap: {
+        ...state.threadIdMap,
+        ...newThreadIdMap,
+      },
+      threadData: {
+        ...state.threadData,
+        ...newThreadData,
+      },
+    };
+  }
+
   public getLoadThreadsPromise() {
-    // TODO this needs to be cached in case this promise is loaded during suspense
     if (!this._loadThreadsPromise) {
       this._loadThreadsPromise = this._state
         .optimisticUpdate({
           execute: () => this._options.adapter.list(),
-          loading: (state) => {
-            return {
-              ...state,
-              isLoading: true,
-            };
-          },
-          then: (state, l) => {
-            const newThreadIds = [];
-            const newArchivedThreadIds = [];
-            const newThreadIdMap = {} as Record<string, THREAD_MAPPING_ID>;
-            const newThreadData = {} as Record<
-              THREAD_MAPPING_ID,
-              RemoteThreadData
-            >;
-
-            for (const thread of l.threads) {
-              switch (thread.status) {
-                case "regular":
-                  newThreadIds.push(thread.remoteId);
-                  break;
-                case "archived":
-                  newArchivedThreadIds.push(thread.remoteId);
-                  break;
-                default: {
-                  const _exhaustiveCheck: never = thread.status;
-                  throw new Error(`Unsupported state: ${_exhaustiveCheck}`);
-                }
-              }
-
-              const mappingId = createThreadMappingId(thread.remoteId);
-              newThreadIdMap[thread.remoteId] = mappingId;
-              newThreadData[mappingId] = {
-                id: thread.remoteId,
-                remoteId: thread.remoteId,
-                externalId: thread.externalId,
-                status: thread.status,
-                title: thread.title,
-                initializeTask: Promise.resolve({
-                  remoteId: thread.remoteId,
-                  externalId: thread.externalId,
-                }),
-              };
-            }
-
-            return {
-              ...state,
-              threadIds: newThreadIds,
-              archivedThreadIds: newArchivedThreadIds,
-              threadIdMap: {
-                ...state.threadIdMap,
-                ...newThreadIdMap,
-              },
-              threadData: {
-                ...state.threadData,
-                ...newThreadData,
-              },
-            };
+          loading: (state) => ({
+            ...state,
+            isLoading: true,
+          }),
+          then: (state, response) => {
+            this._cursor = response.cursor;
+            return this._applyListResponse(state, response, false);
           },
         })
-        .then(() => {});
+        .then(() => {})
+        .catch(() => {
+          this._loadThreadsPromise = undefined;
+        });
     }
 
     return this._loadThreadsPromise;
+  }
+
+  public loadMore(): Promise<void> {
+    if (!this._cursor) return Promise.resolve();
+
+    if (!this._loadMorePromise) {
+      const cursor = this._cursor;
+      this._loadMorePromise = this._state
+        .optimisticUpdate({
+          execute: () => this._options.adapter.list({ cursor }),
+          loading: (state) => ({
+            ...state,
+            isLoading: true,
+          }),
+          then: (state, response) => {
+            this._cursor = response.cursor;
+            return this._applyListResponse(state, response, true);
+          },
+        })
+        .then(() => {})
+        .finally(() => {
+          this._loadMorePromise = undefined;
+        });
+    }
+
+    return this._loadMorePromise;
   }
 
   private readonly contextProvider: ModelContextProvider;
