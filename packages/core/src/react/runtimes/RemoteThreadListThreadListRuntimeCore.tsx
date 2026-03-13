@@ -162,7 +162,12 @@ export class RemoteThreadListThreadListRuntimeCore
             return this._applyListResponse(state, response, true);
           },
         })
-        .then(() => {})
+        .then(
+          () => {},
+          (e) => {
+            throw e;
+          },
+        )
         .finally(() => {
           this._loadMorePromise = undefined;
         });
