@@ -15,26 +15,26 @@ cd my-app
 
 Create `.env.local`:
 
-```
-ANTHROPIC_API_KEY=your-api-key-here
+```sh
+OPENAI_API_KEY=your-api-key-here
 ```
 
 ### Run
 
 ```bash
-npm install
-npm run dev
+pnpm install
+pnpm dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) to see the result.
 
 ## Key Features
 
-- Uses the new AI SDK v6 with `@ai-sdk/react` and `@ai-sdk/anthropic`
+- Uses the new AI SDK v6 with `@ai-sdk/openai`
 - Integrates with `@assistant-ui/react` using the new `useChatRuntime` hook
 - No RSC support (client-side only)
 - Simplified integration with the `useChatRuntime` hook that wraps AI SDK v6's `useChat`
-- Automatically uses `AssistantChatTransport` to pass system messages and frontend tools to the backend
+- Uses `AssistantChatTransport` to pass system messages and frontend tools to the backend
 
 ## Custom Transport Configuration
 
@@ -68,7 +68,7 @@ const runtime = useChatRuntime({
 
 ## API Route
 
-The API route at `/api/chat` uses the new `streamText` function from AI SDK v6 to handle chat completions.
+The API route at `/api/chat` uses AI SDK v6 `streamText`, forwards `system` and frontend `tools`, and merges them with a server-defined weather tool.
 
 ## Related Documentation
 
