@@ -49,6 +49,8 @@
   ],
   "sideEffects": false,
   "scripts": {
+    "prepack": "rm -f ./README.md && cp ../../README.md ./README.md",
+    "postpack": "rm -f ./README.md && ln -s ../../README.md ./README.md",
     "build": "aui-build",
     "test": "vitest run",
     "test:watch": "vitest"
