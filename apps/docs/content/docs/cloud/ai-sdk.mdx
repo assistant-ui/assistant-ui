@@ -209,7 +209,7 @@ The `useCloudChat` hook automatically reports run telemetry to Assistant Cloud a
 
 **Automatically captured:**
 - `status` — `"completed"` or `"incomplete"` based on response content
-- `tool_calls` — Tool invocations with name, arguments, results, and source (MCP, frontend, or backend)
+- `tool_calls` — Tool invocations with name, arguments, and results. MCP tool calls are explicitly tagged with `tool_source: "mcp"`
 - `total_steps` — Number of reasoning/tool steps in the response
 - `output_text` — Full response text (truncated at 50K characters)
 

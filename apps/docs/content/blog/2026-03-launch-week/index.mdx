@@ -124,6 +124,51 @@ Works with any assistant-ui runtime — AI SDK, LangGraph, or custom backends. N
 
 ---
 
+## Day 4 — Cloud AI SDK
+
+**Add cloud persistence to any AI SDK app. Just change your import.**
+
+We're launching `@assistant-ui/cloud-ai-sdk` — a standalone package that adds full thread persistence and management to any Vercel AI SDK application with a single hook change. No providers, no context, no runtime objects.
+
+### Before
+
+```tsx
+import { useChat } from "@ai-sdk/react";
+
+const { messages, sendMessage } = useChat();
+```
+
+### After
+
+```tsx
+import { useCloudChat } from "@assistant-ui/cloud-ai-sdk";
+
+const { messages, sendMessage, threads } = useCloudChat();
+```
+
+That's it. One import change gives you:
+
+- **Automatic thread creation.** Threads are created on the first message — no manual setup.
+- **Full message persistence.** Conversations survive page refreshes. Users pick up where they left off.
+- **Built-in thread list.** `threads.threads` gives you a ChatGPT-style thread sidebar, sorted by recency.
+- **Auto-generated titles.** Every thread gets an AI-generated title after the first response.
+- **Zero config.** Set one env var (`NEXT_PUBLIC_ASSISTANT_BASE_URL`) and you're done.
+- **Works with any UI.** Keep your existing components — `useCloudChat` returns the same interface as `useChat`.
+
+The package exports just two hooks (`useCloudChat` and `useThreads`) and four types. It works independently of assistant-ui's runtime and primitives — any React UI works.
+
+Get started:
+
+```sh
+npm install @assistant-ui/cloud-ai-sdk assistant-cloud @ai-sdk/react ai
+```
+
+[Read the docs →](/docs/cloud/ai-sdk)
+
+[See the launch page →](/cloud-ai-sdk)
+
+---
+
 ## One runtime, every platform
 
 The big picture: assistant-ui is now a **universal AI chat framework**. Web, mobile, terminal — one codebase for your backend, one set of adapters, one way to register tools. The only thing that changes is the UI layer.

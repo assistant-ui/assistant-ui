@@ -57,6 +57,12 @@ export const NAV_ITEMS: NavItem[] = [
         description: "Build interactive experiences with Ink",
         external: false,
       },
+      {
+        label: "Cloud AI SDK",
+        href: "/cloud-ai-sdk",
+        description: "Cloud persistence for AI SDK apps",
+        external: false,
+      },
     ],
   },
   {
