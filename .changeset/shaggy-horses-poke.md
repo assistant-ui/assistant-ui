@@ -2,4 +2,4 @@
 "@assistant-ui/react-ink": patch
 ---
 
-feat(react-ink): add ErrorPrimitive (Root, Message, If)
+feat(react-ink): add ErrorPrimitive (Root, Message)

@@ -4,7 +4,7 @@ export const useMessageError = () => {
   return useAuiState((s) =>
     s.message.status?.type === "incomplete" &&
     s.message.status.reason === "error"
-      ? s.message.status.error
+      ? (s.message.status.error ?? "An error occurred")
       : undefined,
   );
 };

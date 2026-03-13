@@ -1,5 +1,6 @@
 import type { ComponentProps, ReactNode } from "react";
 import { Box, Text } from "ink";
+import { useMessageError } from "./useMessageError";
 
 export type ErrorRootProps = ComponentProps<typeof Box> & {
   children: ReactNode;
@@ -14,6 +15,9 @@ export const ErrorRoot = ({
   gap = 1,
   ...props
 }: ErrorRootProps) => {
+  const error = useMessageError();
+  if (error === undefined) return null;
+
   return (
     <Box gap={gap} {...props}>
       {icon ?? <DefaultIcon />}
