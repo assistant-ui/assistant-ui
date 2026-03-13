@@ -178,7 +178,7 @@ export default function CloudAiSdkLaunch() {
             marginTop: "8px",
           }}
         >
-          {">"} npm i @assistant-ui/cloud-ai-sdk
+          {">"} npm i @assistant-ui/cloud-ai-sdk @ai-sdk/react ai
         </div>
       </div>
 

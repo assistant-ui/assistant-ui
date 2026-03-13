@@ -1,5 +1,3 @@
-"use client";
-
 import {
   ArrowRight,
   Cloud,
@@ -18,7 +16,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 const ANALYTICS_PAGE = "cloud-ai-sdk" as const;
 
 const INSTALL_COMMAND =
-  "npm install @assistant-ui/cloud-ai-sdk assistant-cloud";
+  "npm install @assistant-ui/cloud-ai-sdk @ai-sdk/react ai";
 
 const FEATURES = [
   {
@@ -94,7 +92,7 @@ function CodeBlock({
       </span>
       <pre className="overflow-x-auto font-mono text-sm leading-relaxed">
         {lines.map((line, i) => (
-          <div key={i}>
+          <span className="block" key={i}>
             {line.keyword && (
               <span className="text-purple-400">{line.keyword} </span>
             )}
@@ -102,7 +100,7 @@ function CodeBlock({
             {line.highlight && (
               <span className="text-emerald-400">{line.highlight}</span>
             )}
-          </div>
+          </span>
         ))}
       </pre>
     </div>
