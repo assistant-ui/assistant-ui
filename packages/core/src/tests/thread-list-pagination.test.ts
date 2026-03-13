@@ -234,7 +234,9 @@ describe("ThreadList pagination", () => {
 
       const core = createCore(createMockAdapter(listFn));
 
-      await core.getLoadThreadsPromise();
+      await expect(core.getLoadThreadsPromise()).rejects.toThrow(
+        "network error",
+      );
 
       await core.getLoadThreadsPromise();
 

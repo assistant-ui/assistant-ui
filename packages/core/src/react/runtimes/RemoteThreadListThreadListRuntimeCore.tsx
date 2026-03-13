@@ -136,8 +136,9 @@ export class RemoteThreadListThreadListRuntimeCore
           },
         })
         .then(() => {})
-        .catch(() => {
+        .catch((e) => {
           this._loadThreadsPromise = undefined;
+          throw e;
         });
     }
 
@@ -145,7 +146,7 @@ export class RemoteThreadListThreadListRuntimeCore
   }
 
   public loadMore(): Promise<void> {
-    if (!this._cursor) return Promise.resolve();
+    if (this._cursor === undefined) return Promise.resolve();
 
     if (!this._loadMorePromise) {
       const cursor = this._cursor;
