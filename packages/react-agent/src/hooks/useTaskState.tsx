@@ -45,6 +45,12 @@ export function useTaskState<T>(selector: (state: TaskState) => T): T {
   const lastStateRef = useRef<TaskState | null>(null);
   const lastSelectionRef = useRef<T | null>(null);
   const hasSelectionRef = useRef(false);
+  const selectorRef = useRef(selector);
+
+  if (selectorRef.current !== selector) {
+    selectorRef.current = selector;
+    hasSelectionRef.current = false;
+  }
 
   const subscribe = useCallback(
     (callback: () => void) => task.subscribe(callback),
@@ -57,7 +63,7 @@ export function useTaskState<T>(selector: (state: TaskState) => T): T {
       return lastSelectionRef.current as T;
     }
 
-    const selection = selector(state);
+    const selection = selectorRef.current(state);
     if (
       hasSelectionRef.current &&
       Object.is(lastSelectionRef.current, selection)
@@ -70,7 +76,7 @@ export function useTaskState<T>(selector: (state: TaskState) => T): T {
     lastSelectionRef.current = selection;
     hasSelectionRef.current = true;
     return selection;
-  }, [task, selector]);
+  }, [task]);
 
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }
@@ -84,6 +90,12 @@ export function useTaskStateById<T>(
   const lastStateRef = useRef<TaskState | null>(null);
   const lastSelectionRef = useRef<T | null>(null);
   const hasSelectionRef = useRef(false);
+  const selectorRef = useRef(selector);
+
+  if (selectorRef.current !== selector) {
+    selectorRef.current = selector;
+    hasSelectionRef.current = false;
+  }
   if (!task) {
     throw new Error(`Task not found: ${taskId}`);
   }
@@ -99,7 +111,7 @@ export function useTaskStateById<T>(
       return lastSelectionRef.current as T;
     }
 
-    const selection = selector(state);
+    const selection = selectorRef.current(state);
     if (
       hasSelectionRef.current &&
       Object.is(lastSelectionRef.current, selection)
@@ -112,7 +124,7 @@ export function useTaskStateById<T>(
     lastSelectionRef.current = selection;
     hasSelectionRef.current = true;
     return selection;
-  }, [task, selector]);
+  }, [task]);
 
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }

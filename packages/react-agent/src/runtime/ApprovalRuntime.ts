@@ -40,8 +40,11 @@ export class ApprovalRuntime {
       throw new Error("Approval is not pending");
     }
 
-    if (mode === "timed" && (duration == null || !Number.isFinite(duration))) {
-      throw new Error("Timed approval requires a finite duration");
+    if (
+      mode === "timed" &&
+      (duration == null || !Number.isFinite(duration) || duration <= 0)
+    ) {
+      throw new Error("Timed approval requires a finite positive duration");
     }
 
     this.state = { ...this.state, status: "processing" };
