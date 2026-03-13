@@ -4,11 +4,11 @@
  */
 
 interface InputLimits {
-  /** Maximum number of messages allowed */
+  /** Maximum number of messages allowed (0 = unlimited) */
   maxMessages: number;
   /** Maximum total character count of the serialized messages array */
   maxTotalChars: number;
-  /** Maximum character count for a single message's text content */
+  /** Maximum serialized (JSON.stringify) character count for a single message */
   maxSingleMessageChars: number;
 }
 
@@ -19,8 +19,8 @@ const GENERAL_CHAT_LIMITS: InputLimits = {
 };
 
 const DOC_CHAT_LIMITS: InputLimits = {
-  maxMessages: 40,
-  maxTotalChars: 60_000, // ~15k tokens
+  maxMessages: 0, // no message count limit; pruneMessages handles windowing
+  maxTotalChars: 120_000, // ~30k tokens — allows longer threads before pruning
   maxSingleMessageChars: 8_000,
 };
 
@@ -52,7 +52,7 @@ function validateWithLimits(
     return "No messages provided";
   }
 
-  if (messages.length > limits.maxMessages) {
+  if (limits.maxMessages > 0 && messages.length > limits.maxMessages) {
     return `Too many messages (max ${limits.maxMessages})`;
   }
 

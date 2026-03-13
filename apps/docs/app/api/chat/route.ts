@@ -44,7 +44,13 @@ export async function POST(req: Request) {
     const { messages, tools, config } = body;
 
     const inputError = validateGeneralChatInput(messages);
-    if (inputError) return inputError;
+    if (inputError) {
+      const cors = corsHeaders(req);
+      for (const [key, value] of Object.entries(cors)) {
+        inputError.headers.set(key, value);
+      }
+      return inputError;
+    }
 
     const baseModel = getModel(config?.modelName);
     const distinctId = getDistinctId(req);
