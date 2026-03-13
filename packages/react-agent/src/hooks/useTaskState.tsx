@@ -4,6 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useRef,
   useSyncExternalStore,
   type ReactNode,
 } from "react";
@@ -41,16 +42,37 @@ export function useTask(): TaskRuntime {
 
 export function useTaskState<T>(selector: (state: TaskState) => T): T {
   const task = useTask();
+  const lastStateRef = useRef<TaskState | null>(null);
+  const lastSelectionRef = useRef<T | null>(null);
+  const hasSelectionRef = useRef(false);
 
   const subscribe = useCallback(
     (callback: () => void) => task.subscribe(callback),
     [task],
   );
 
-  const getSnapshot = useCallback(() => task.getState(), [task]);
+  const getSnapshot = useCallback(() => {
+    const state = task.getState();
+    if (lastStateRef.current === state && hasSelectionRef.current) {
+      return lastSelectionRef.current as T;
+    }
 
-  const state = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
-  return selector(state);
+    const selection = selector(state);
+    if (
+      hasSelectionRef.current &&
+      Object.is(lastSelectionRef.current, selection)
+    ) {
+      lastStateRef.current = state;
+      return lastSelectionRef.current as T;
+    }
+
+    lastStateRef.current = state;
+    lastSelectionRef.current = selection;
+    hasSelectionRef.current = true;
+    return selection;
+  }, [task, selector]);
+
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }
 
 export function useTaskStateById<T>(
@@ -59,6 +81,9 @@ export function useTaskStateById<T>(
 ): T {
   const workspace = useAgentWorkspace();
   const task = workspace.getTask(taskId);
+  const lastStateRef = useRef<TaskState | null>(null);
+  const lastSelectionRef = useRef<T | null>(null);
+  const hasSelectionRef = useRef(false);
   if (!task) {
     throw new Error(`Task not found: ${taskId}`);
   }
@@ -68,8 +93,26 @@ export function useTaskStateById<T>(
     [task],
   );
 
-  const getSnapshot = useCallback(() => task.getState(), [task]);
+  const getSnapshot = useCallback(() => {
+    const state = task.getState();
+    if (lastStateRef.current === state && hasSelectionRef.current) {
+      return lastSelectionRef.current as T;
+    }
 
-  const state = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
-  return selector(state);
+    const selection = selector(state);
+    if (
+      hasSelectionRef.current &&
+      Object.is(lastSelectionRef.current, selection)
+    ) {
+      lastStateRef.current = state;
+      return lastSelectionRef.current as T;
+    }
+
+    lastStateRef.current = state;
+    lastSelectionRef.current = selection;
+    hasSelectionRef.current = true;
+    return selection;
+  }, [task, selector]);
+
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }

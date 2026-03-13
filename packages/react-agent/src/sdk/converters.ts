@@ -27,9 +27,7 @@ export function processSDKEvent(
   const result: ProcessEventResult = {};
   const hasOtherPendingApproval = (approvalId: string) =>
     currentState.pendingApprovals.some(
-      (approval) =>
-        approval.id !== approvalId &&
-        (approval.status === "pending" || approval.status === "processing"),
+      (approval) => approval.id !== approvalId && approval.status === "pending",
     );
 
   switch (event.type) {

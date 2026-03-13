@@ -154,23 +154,23 @@ export function ConversationStream({
       }
     | { type: "single"; event: AgentEvent };
 
-  const groupedEvents: GroupedEvent[] = [];
-  for (let index = 0; index < events.length; index++) {
-    const event = events[index]!;
+  const resultByToolCallId = new Map<string, AgentEvent>();
+  for (const event of events) {
+    if (event.type !== "tool_result") continue;
+    const content = event.content as { toolCallId?: string };
+    if (!content.toolCallId) continue;
+    resultByToolCallId.set(content.toolCallId, event);
+  }
 
+  const groupedEvents: GroupedEvent[] = [];
+  for (const event of events) {
     if (event.type === "tool_call") {
       const content = event.content as {
         toolCallId: string;
         toolName: string;
         toolInput: unknown;
       };
-      const nextEvent = events[index + 1];
-      const resultEvent =
-        nextEvent?.type === "tool_result" &&
-        (nextEvent.content as { toolCallId: string }).toolCallId ===
-          content.toolCallId
-          ? nextEvent
-          : undefined;
+      const resultEvent = resultByToolCallId.get(content.toolCallId);
 
       groupedEvents.push({
         type: "tool_execution",
@@ -179,10 +179,10 @@ export function ConversationStream({
         toolName: content.toolName,
         toolInput: content.toolInput,
       });
+      continue;
+    }
 
-      if (resultEvent) {
-        index++;
-      }
+    if (event.type === "tool_result") {
       continue;
     }
 

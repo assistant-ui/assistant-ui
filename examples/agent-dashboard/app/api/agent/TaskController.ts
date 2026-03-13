@@ -257,9 +257,6 @@ export class TaskController {
               ...(this.abortController
                 ? { abortController: this.abortController }
                 : {}),
-              ...(this.options.maxTokens !== undefined
-                ? { maxThinkingTokens: this.options.maxTokens }
-                : {}),
               // 'tools' specifies available tools
               tools: this.options.allowedTools || [
                 "Read",

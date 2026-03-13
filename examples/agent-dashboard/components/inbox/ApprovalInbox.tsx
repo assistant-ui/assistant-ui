@@ -118,12 +118,13 @@ function ApprovalInboxContent() {
 
   // Scroll selected item into view
   useEffect(() => {
+    if (selectedIndex < 0) return;
     if (!selectedApprovalId) return;
     const card = cardRefs.current.get(selectedApprovalId);
     if (card) {
       card.scrollIntoView({ block: "center", behavior: "smooth" });
     }
-  }, [selectedApprovalId]);
+  }, [selectedApprovalId, selectedIndex]);
 
   // Clamp index when approvals change
   useEffect(() => {

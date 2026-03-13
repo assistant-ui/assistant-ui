@@ -148,8 +148,6 @@ export function updateSessionFromEvents(
       if (data.isUserMessage) {
         isWaitingForInput = false;
       }
-    } else if (eventType === "error") {
-      status = "failed";
     }
   }
 

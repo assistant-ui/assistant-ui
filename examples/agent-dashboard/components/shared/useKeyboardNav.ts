@@ -50,10 +50,10 @@ export function useKeyboardNav<T>({
 
   useEffect(() => {
     if (!getItemKey) return;
-    const currentItem = items[selectedIndex];
+    const currentItem = itemsRef.current[selectedIndex];
     selectedKeyRef.current =
       currentItem !== undefined ? getItemKey(currentItem) : undefined;
-  }, [getItemKey, items, selectedIndex]);
+  }, [getItemKey, selectedIndex]);
 
   // Clamp index when items change
   useEffect(() => {

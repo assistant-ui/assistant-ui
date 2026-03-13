@@ -38,6 +38,8 @@ export async function GET(request: NextRequest) {
     return new Response("Task not found", { status: 404 });
   }
 
+  let cancelStream: (() => void) | undefined;
+
   // Create a ReadableStream for SSE
   const stream = new ReadableStream({
     async start(streamController) {
@@ -45,6 +47,13 @@ export async function GET(request: NextRequest) {
       let streamClosed = false;
       let requestAborted = request.signal.aborted;
       const iterator = controller.events(lastEventId)[Symbol.asyncIterator]();
+      let resolveAbort: (() => void) | undefined;
+      const abortPromise = new Promise<void>((resolve) => {
+        resolveAbort = resolve;
+        if (requestAborted) {
+          resolve();
+        }
+      });
       const closeStream = () => {
         if (streamClosed) return;
         streamClosed = true;
@@ -55,8 +64,11 @@ export async function GET(request: NextRequest) {
         }
       };
       const handleAbort = () => {
+        if (requestAborted) return;
         requestAborted = true;
+        resolveAbort?.();
       };
+      cancelStream = handleAbort;
       request.signal.addEventListener("abort", handleAbort);
 
       // Heartbeat to keep connection alive through proxies/load balancers
@@ -72,11 +84,17 @@ export async function GET(request: NextRequest) {
       try {
         let eventsSent = 0;
         while (!requestAborted) {
-          const next = await iterator.next();
-          if (next.done) {
+          const nextOrAbort = await Promise.race([
+            iterator.next().then((next) => ({ type: "next" as const, next })),
+            abortPromise.then(() => ({ type: "abort" as const })),
+          ]);
+          if (nextOrAbort.type === "abort") {
             break;
           }
-          const { id, event } = next.value;
+          if (nextOrAbort.next.done) {
+            break;
+          }
+          const { id, event } = nextOrAbort.next.value;
           const data = `id: ${id}\ndata: ${JSON.stringify(event)}\n\n`;
           streamController.enqueue(encoder.encode(data));
           eventsSent++;
@@ -105,6 +123,7 @@ export async function GET(request: NextRequest) {
       } finally {
         clearInterval(heartbeat);
         request.signal.removeEventListener("abort", handleAbort);
+        resolveAbort?.();
         await iterator.return?.(undefined);
         logger.debug("stream", "Stream closed", { taskId });
         closeStream();
@@ -112,6 +131,7 @@ export async function GET(request: NextRequest) {
     },
     cancel() {
       // `request.signal` is not guaranteed to fire before stream cancellation.
+      cancelStream?.();
     },
   });
 

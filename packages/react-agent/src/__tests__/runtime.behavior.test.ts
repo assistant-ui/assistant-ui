@@ -411,7 +411,8 @@ describe("runtime behavior", () => {
       client.approvalCalls.some(
         (call) =>
           call.taskId === "task-permissions" &&
-          call.approvalId === "approval-write",
+          call.approvalId === "approval-write" &&
+          call.decision === "allow",
       ),
     );
     expect(task.getApproval("approval-write")).toBeUndefined();
@@ -436,7 +437,8 @@ describe("runtime behavior", () => {
       client.approvalCalls.some(
         (call) =>
           call.taskId === "task-permissions" &&
-          call.approvalId === "approval-read",
+          call.approvalId === "approval-read" &&
+          call.decision === "allow",
       ),
     );
     expect(task.getApproval("approval-read")).toBeUndefined();
