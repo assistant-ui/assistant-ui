@@ -58,7 +58,7 @@ export async function POST(req: Request) {
 
   const result = streamText({
     model: openai(config?.modelName ?? "gpt-4o"),
-    messages: convertToModelMessages(messages),
+    messages: await convertToModelMessages(messages),
   });
 
   return result.toUIMessageStreamResponse();

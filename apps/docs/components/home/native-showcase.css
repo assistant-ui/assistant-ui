@@ -1,0 +1,91 @@
+.phone-home-section {
+  perspective: 1200px;
+}
+
+.phone-home-glow {
+  position: absolute;
+  inset: -40px;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 60% 60% at 50% 50%,
+    rgba(139, 92, 246, 0.1) 0%,
+    transparent 70%
+  );
+}
+
+.phone-home-frame {
+  position: relative;
+  width: 220px;
+  margin: 0 auto;
+  border-radius: 2.5rem;
+  background: #111;
+  padding: 10px;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 25px 60px -12px rgba(0, 0, 0, 0.6),
+    0 0 60px rgba(139, 92, 246, 0.07);
+  transition: transform 0.5s ease;
+}
+
+.phone-home-frame:hover {
+  transform: translateY(-6px) rotate3d(0, 1, 0, 4deg);
+}
+
+.phone-home-notch {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 90px;
+  height: 24px;
+  background: #111;
+  border-radius: 0 0 1rem 1rem;
+  z-index: 10;
+}
+
+.phone-home-screen {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 9 / 19.5;
+  border-radius: 2rem;
+  overflow: hidden;
+  background: hsl(var(--background));
+}
+
+.phone-home-border {
+  position: absolute;
+  inset: -2px;
+  border-radius: 2.75rem;
+  padding: 2px;
+  background: linear-gradient(
+    135deg,
+    rgba(139, 92, 246, 0.5) 0%,
+    rgba(59, 130, 246, 0.4) 30%,
+    rgba(16, 185, 129, 0.35) 60%,
+    rgba(139, 92, 246, 0.5) 100%
+  );
+  background-size: 300% 300%;
+  animation: phone-home-gradient 8s ease infinite;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  opacity: 0.55;
+  transition: opacity 0.3s ease;
+}
+
+.phone-home-frame:hover .phone-home-border {
+  opacity: 1;
+}
+
+@keyframes phone-home-gradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .phone-home-border { animation: none; }
+  .phone-home-frame { transition: none; }
+  .phone-home-frame:hover { transform: none; }
+}

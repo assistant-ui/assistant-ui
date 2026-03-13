@@ -136,7 +136,7 @@ export async function POST(req: Request) {
   const { messages } = await req.json();
   const result = streamText({
     model: openai("gpt-4o-mini"),
-    messages: convertToModelMessages(messages),
+    messages: await convertToModelMessages(messages),
   });
   return result.toUIMessageStreamResponse();
 }
@@ -151,8 +151,8 @@ export const maxDuration = 30;
 export async function POST(req: Request) {
   const { messages } = await req.json();
   const result = streamText({
-    model: anthropic("claude-3-5-sonnet-20240620"),
-    messages: convertToModelMessages(messages),
+    model: anthropic("claude-sonnet-4-6"),
+    messages: await convertToModelMessages(messages),
   });
   return result.toUIMessageStreamResponse();
 }
@@ -168,7 +168,7 @@ export async function POST(req: Request) {
   const { messages } = await req.json();
   const result = streamText({
     model: azure("your-deployment-name"),
-    messages: convertToModelMessages(messages),
+    messages: await convertToModelMessages(messages),
   });
   return result.toUIMessageStreamResponse();
 }
@@ -183,8 +183,8 @@ export const maxDuration = 30;
 export async function POST(req: Request) {
   const { messages } = await req.json();
   const result = streamText({
-    model: bedrock("anthropic.claude-3-5-sonnet-20240620-v1:0"),
-    messages: convertToModelMessages(messages),
+    model: bedrock("anthropic.claude-sonnet-4-6-20260312-v1:0"),
+    messages: await convertToModelMessages(messages),
   });
   return result.toUIMessageStreamResponse();
 }
@@ -200,7 +200,7 @@ export async function POST(req: Request) {
   const { messages } = await req.json();
   const result = streamText({
     model: google("gemini-2.0-flash"),
-    messages: convertToModelMessages(messages),
+    messages: await convertToModelMessages(messages),
   });
   return result.toUIMessageStreamResponse();
 }
@@ -216,7 +216,7 @@ export async function POST(req: Request) {
   const { messages } = await req.json();
   const result = streamText({
     model: vertex("gemini-1.5-pro"),
-    messages: convertToModelMessages(messages),
+    messages: await convertToModelMessages(messages),
   });
   return result.toUIMessageStreamResponse();
 }
@@ -237,7 +237,7 @@ export async function POST(req: Request) {
   const { messages } = await req.json();
   const result = streamText({
     model: groq("llama3-70b-8192"),
-    messages: convertToModelMessages(messages),
+    messages: await convertToModelMessages(messages),
   });
   return result.toUIMessageStreamResponse();
 }
@@ -258,7 +258,7 @@ export async function POST(req: Request) {
   const { messages } = await req.json();
   const result = streamText({
     model: fireworks("accounts/fireworks/models/firefunction-v2"),
-    messages: convertToModelMessages(messages),
+    messages: await convertToModelMessages(messages),
   });
   return result.toUIMessageStreamResponse();
 }
@@ -274,7 +274,7 @@ export async function POST(req: Request) {
   const { messages } = await req.json();
   const result = streamText({
     model: cohere("command-r-plus"),
-    messages: convertToModelMessages(messages),
+    messages: await convertToModelMessages(messages),
   });
   return result.toUIMessageStreamResponse();
 }
@@ -290,7 +290,7 @@ export async function POST(req: Request) {
   const { messages } = await req.json();
   const result = streamText({
     model: ollama("llama3"),
-    messages: convertToModelMessages(messages),
+    messages: await convertToModelMessages(messages),
   });
   return result.toUIMessageStreamResponse();
 }
@@ -306,7 +306,7 @@ export async function POST(req: Request) {
   const { messages } = await req.json();
   const result = streamText({
     model: chromeai(),
-    messages: convertToModelMessages(messages),
+    messages: await convertToModelMessages(messages),
   });
   return result.toUIMessageStreamResponse();
 }
@@ -447,6 +447,16 @@ const MyApp = () => {
     title="Add Persistence"
     description="Save and restore chat conversations"
     href="/docs/cloud"
+  />
+  <Card
+    title="Embed in an Existing App"
+    description="Add a floating chat or sidebar to your current React project"
+    href="/docs/guides/embedding"
+  />
+  <Card
+    title="Production Patterns"
+    description="Battle-tested patterns from open-source projects"
+    href="/docs/guides/patterns"
   />
   <Card
     title="Examples"

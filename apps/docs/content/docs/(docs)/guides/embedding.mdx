@@ -1,0 +1,241 @@
+---
+title: Embedding in Existing Apps
+description: Add an AI assistant to an existing React app without restructuring your codebase.
+---
+
+Most tutorials show building a chat app from scratch. This guide covers the opposite: adding an AI assistant to an **existing** application — without a full rebuild.
+
+## The Two Modes
+
+### Mode 1: Floating Modal (AssistantModal)
+
+The fastest integration. Add a floating chat button that opens a modal anywhere in your app:
+
+```tsx title="app/layout.tsx"
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { AssistantModal } from "@/components/assistant-ui/assistant-modal";
+
+// Wrap your existing layout
+export default function Layout({ children }: { children: React.ReactNode }) {
+  const runtime = useChatRuntime({ api: "/api/chat" });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}           {/* your existing app untouched */}
+      <AssistantModal />   {/* floating chat button, bottom-right corner */}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+### Mode 2: Panel or Sidebar
+
+Embed the chat in a designated area of your layout (right panel, drawer, etc.):
+
+```tsx title="app/dashboard/layout.tsx"
+import { Thread } from "@/components/assistant-ui/thread";
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const runtime = useChatRuntime({ api: "/api/chat" });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <div className="flex h-screen">
+        {/* existing content */}
+        <main className="flex-1 overflow-auto">{children}</main>
+
+        {/* new AI panel */}
+        <aside className="w-80 border-l bg-background">
+          <Thread />
+        </aside>
+      </div>
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+## Making the Assistant Page-Aware
+
+The assistant doesn't know what page the user is viewing. Use `useAssistantInstructions` to inject page-specific context at the component level — no changes to the runtime setup needed:
+
+```tsx title="app/dashboard/portfolio/page.tsx"
+import { useAssistantInstructions } from "@assistant-ui/react";
+
+export default function PortfolioPage({ portfolio }) {
+  // This instruction is active only when this page is rendered
+  useAssistantInstructions(
+    `The user is viewing their investment portfolio. ` +
+    `Total value: $${portfolio.totalValue.toLocaleString()}. ` +
+    `Top holding: ${portfolio.topHolding.name} (${portfolio.topHolding.weight}%). ` +
+    `Help them understand performance and allocation.`
+  );
+
+  return <PortfolioView portfolio={portfolio} />;
+}
+```
+
+Instructions from multiple components are **concatenated** — so the layout-level instructions combine with page-level ones automatically.
+
+## Making Page Content Readable
+
+Use `makeAssistantVisible` to let the assistant "see" specific UI elements, such as a data table or chart:
+
+```tsx
+import { makeAssistantVisible } from "@assistant-ui/react";
+
+const DataTable = ({ rows }) => (
+  <table>
+    <thead>...</thead>
+    <tbody>
+      {rows.map((row) => <tr key={row.id}><td>{row.name}</td><td>{row.value}</td></tr>)}
+    </tbody>
+  </table>
+);
+
+// Wrap existing component — zero changes to DataTable itself
+const ReadableDataTable = makeAssistantVisible(DataTable);
+
+// Use everywhere DataTable was used
+export function Dashboard() {
+  return (
+    <>
+      <ReadableDataTable rows={data} />
+      {/* the assistant can now answer questions about the table content */}
+    </>
+  );
+}
+```
+
+## Triggering the Assistant Programmatically
+
+Open the assistant or send a pre-filled message from anywhere in your app — Redux thunks, event handlers, or existing UI buttons:
+
+```tsx
+// bridge.ts — create a global singleton
+import type { AssistantRuntime } from "@assistant-ui/react";
+
+let _runtime: AssistantRuntime | null = null;
+
+export function setAssistantRuntime(r: AssistantRuntime) { _runtime = r; }
+export function getAssistantRuntime() { return _runtime; }
+
+// usage anywhere:
+export function askAssistant(prompt: string) {
+  _runtime?.thread.append({
+    role: "user",
+    content: [{ type: "text", text: prompt }],
+  });
+}
+```
+
+```tsx
+// Register the runtime once on mount
+import { useAssistantRuntime } from "@assistant-ui/react";
+import { setAssistantRuntime } from "@/lib/bridge";
+import { useEffect } from "react";
+
+function RuntimeRegistrar() {
+  const runtime = useAssistantRuntime();
+  useEffect(() => { setAssistantRuntime(runtime); }, [runtime]);
+  return null;
+}
+```
+
+```tsx
+// Then trigger from any button, Redux action, or handler
+import { askAssistant } from "@/lib/bridge";
+
+<button onClick={() => askAssistant("Explain this chart")}>
+  Ask AI
+</button>
+```
+
+## Adding Per-Page Tools
+
+Register tools that only apply to specific pages using the component-level tool APIs:
+
+```tsx
+import { useAssistantTool } from "@assistant-ui/react";
+import { z } from "zod";
+
+// This hook registers a tool only while this component is mounted
+function PortfolioTools({ onNavigate }) {
+  useAssistantTool({
+    toolName: "viewHolding",
+    description: "Navigate to a specific holding's detail page",
+    parameters: z.object({ symbol: z.string() }),
+    execute: async ({ symbol }) => {
+      onNavigate(`/holdings/${symbol}`);
+      return { navigated: true };
+    },
+  });
+
+  return null;
+}
+
+// Place inside the page component
+export default function PortfolioPage() {
+  return (
+    <>
+      <PortfolioTools onNavigate={router.push} />
+      <PortfolioView />
+    </>
+  );
+}
+```
+
+When the user navigates away, the tool is automatically unregistered.
+
+## Sharing State with the Assistant
+
+For read-only scenarios, store shared state in React context that both your app and the assistant can access:
+
+```tsx
+// AssistantContext.tsx
+const AppContext = createContext<{ user: User; currentPage: string } | null>(null);
+
+// Use in assistant-facing components
+function useAppContextForAssistant() {
+  const ctx = useContext(AppContext);
+  useAssistantInstructions(
+    ctx ? `Current user: ${ctx.user.name}. Viewing: ${ctx.currentPage}` : ""
+  );
+}
+```
+
+## Keep the Runtime Stable
+
+Place `AssistantRuntimeProvider` at the **highest stable point** in your component tree — ideally the root layout. This ensures the thread history survives page navigations:
+
+```tsx
+// ✅ Good — runtime persists across route changes
+export default function RootLayout({ children }) {
+  const runtime = useChatRuntime({ api: "/api/chat" });
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+
+// ❌ Avoid — runtime is destroyed and recreated on every page navigation
+export default function Page() {
+  const runtime = useChatRuntime({ api: "/api/chat" });
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <PageContent />
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+## Related
+
+- [AssistantModal](/docs/ui/assistant-modal) — Floating chat button component
+- [AssistantSidebar](/docs/ui/assistant-sidebar) — Fixed side panel component
+- [Copilots: Make Assistant Visible](/docs/copilots/make-assistant-readable) — Give the assistant visibility into UI components
+- [useAssistantInstructions](/docs/copilots/use-assistant-instructions) — Inject page-specific context
+- [Context API](/docs/guides/context-api) — Programmatic control over assistant state

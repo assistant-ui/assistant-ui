@@ -19,6 +19,10 @@ description: Bring your own Redux, Zustand, or state manager.
   share), but you must wire up every callback.
 </Callout>
 
+<Callout type="tip">
+  **Real-world reference:** [Wealthfolio](https://github.com/afadil/wealthfolio) is an open-source investment portfolio desktop app (7k+ stars) that uses `ExternalStoreRuntime` with database-backed thread persistence, streaming state updates, CSV file attachments, and 11 custom tool UIs — an excellent reference for production-grade implementations.
+</Callout>
+
 ## Example Implementation
 
 ```tsx twoslash title="app/MyRuntimeProvider.tsx"
@@ -759,6 +763,191 @@ useEffect(() => {
   return () => debounced.cancel();
 }, [currentThreadId, threads]);
 ```
+
+## Common Patterns
+
+### Read-Only Conversation Viewer
+
+Display existing conversation history without allowing new messages — useful for public sharing, observability dashboards, and session replay:
+
+```tsx
+import { useExternalStoreRuntime, AssistantRuntimeProvider } from "@assistant-ui/react";
+import { ThreadPrimitive } from "@assistant-ui/react";
+
+function ReadOnlyConversation({ messages }: { messages: MyMessage[] }) {
+  const runtime = useExternalStoreRuntime({
+    isRunning: false,                           // Never show a loading spinner
+    messages,
+    convertMessage,
+    onNew: async () => {},                      // No-op: ignore any new message attempts
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {/* Render messages only — no Composer */}
+      <ThreadPrimitive.Root>
+        <ThreadPrimitive.Messages
+          components={{
+            UserMessage: MyUserMessage,
+            AssistantMessage: MyAssistantMessage,
+          }}
+        />
+      </ThreadPrimitive.Root>
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+The key is **omitting `ComposerPrimitive`** from your thread component tree. The chat input simply won't exist. Even if `onNew` is called somehow, the no-op handler ensures nothing happens.
+
+<Callout type="tip">
+  **Seen in production:** [SurfSense](https://github.com/MODSetter/SurfSense) (13k stars) uses this exact pattern to render publicly-shared conversation links — the full chat history is displayed beautifully using assistant-ui components, but visitors can't send new messages.
+</Callout>
+
+If you need full read-only rendering with the `Thread` component, use `ReadonlyThreadProvider` from `@assistant-ui/react`:
+
+```tsx
+import { ReadonlyThreadProvider, ThreadPrimitive, type ThreadMessage } from "@assistant-ui/react";
+
+function ConversationReplay({ messages }: { messages: readonly ThreadMessage[] }) {
+  return (
+    <ReadonlyThreadProvider messages={messages}>
+      <ThreadPrimitive.Messages
+        components={{
+          UserMessage: MyUserMessage,
+          AssistantMessage: MyAssistantMessage,
+        }}
+      />
+    </ReadonlyThreadProvider>
+  );
+}
+```
+
+### Streaming with RAF Throttling
+
+When streaming tokens from your backend, each delta triggers a state update. At high token rates this can cause hundreds of re-renders per second. Use `requestAnimationFrame` to batch updates to ~60fps:
+
+```tsx
+const handleNew = useCallback(async (message: AppendMessage) => {
+  const assistantId = generateId();
+  setMessages((prev) => [
+    ...prev,
+    { id: assistantId, role: "assistant", content: "" },
+  ]);
+  setIsRunning(true);
+
+  // Mutable buffer — only flushed to React state on animation frames
+  let buffer = "";
+  let rafId: number | null = null;
+  let pending = false;
+
+  const flush = () => {
+    rafId = null;
+    pending = false;
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === assistantId ? { ...m, content: buffer } : m,
+      ),
+    );
+  };
+
+  const scheduleFlush = () => {
+    pending = true;
+    if (rafId === null) {
+      rafId = requestAnimationFrame(flush);
+    }
+  };
+
+  try {
+    for await (const token of streamFromBackend(message)) {
+      buffer += token;
+      scheduleFlush();
+    }
+  } finally {
+    if (rafId !== null) cancelAnimationFrame(rafId);
+    if (pending) flush(); // Final flush
+    setIsRunning(false);
+  }
+}, []);
+```
+
+This pattern prevents React from re-rendering on every single token while still keeping the UI responsive.
+
+<Callout type="tip">
+  **Seen in production:** [Wealthfolio](https://github.com/afadil/wealthfolio) (7k+ stars) uses this exact RAF throttling approach for streaming text, reasoning, and tool call deltas simultaneously — keeping their desktop app smooth even during long-running financial analysis responses.
+</Callout>
+
+### Tool UI Registry Pattern
+
+When you have many tool UIs (5+), organize them with a registry map instead of registering each one individually:
+
+```tsx title="tool-uis/index.ts"
+import { AccountsToolUI } from "./accounts-tool-ui";
+import { HoldingsToolUI } from "./holdings-tool-ui";
+import { PerformanceToolUI } from "./performance-tool-ui";
+
+// Map tool names to their UI components
+export const toolUIs = {
+  get_accounts: AccountsToolUI,
+  get_holdings: HoldingsToolUI,
+  get_performance: PerformanceToolUI,
+  // ... add more as needed
+} as const;
+```
+
+```tsx title="thread.tsx"
+import { makeAssistantToolUI } from "@assistant-ui/react";
+import { toolUIs } from "./tool-uis";
+
+// Register all tool UIs from the registry
+const ToolUIComponents = Object.entries(toolUIs).map(
+  ([toolName, Component]) => {
+    const ToolUI = makeAssistantToolUI({
+      toolName,
+      render: (props) => <Component {...props} />,
+    });
+    return <ToolUI key={toolName} />;
+  },
+);
+```
+
+This keeps tool UI registration centralized and makes it easy to add new tools without modifying the thread component.
+
+### Optimistic Thread Creation
+
+When the user sends their first message in a new thread, add the thread to the sidebar immediately rather than waiting for the server response:
+
+```tsx
+const handleNew = useCallback(async (message: AppendMessage) => {
+  // ... send message to backend
+
+  // When backend returns the new thread ID:
+  const newThreadId = response.threadId;
+
+  // Optimistically add to thread list cache immediately
+  queryClient.setQueryData(["threads"], (old) => {
+    if (!old) return old;
+    const exists = old.some((t) => t.id === newThreadId);
+    if (exists) return old;
+
+    return [
+      {
+        id: newThreadId,
+        title: deriveTitle(message),
+        createdAt: new Date().toISOString(),
+      },
+      ...old,
+    ];
+  });
+
+  // Invalidate later to sync with server
+  setTimeout(() => {
+    queryClient.invalidateQueries({ queryKey: ["threads"] });
+  }, 1000);
+}, [queryClient]);
+```
+
+This eliminates the flash where the sidebar is empty before the server confirms the thread was created.
 
 ## Integration Examples
 
@@ -1646,3 +1835,4 @@ Enable multi-thread support with custom thread management.
 - [Pick a Runtime Guide](/docs/runtimes/pick-a-runtime)
 - [`LocalRuntime` Documentation](/docs/runtimes/custom/local)
 - [Examples Repository](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-external-store)
+- [Wealthfolio — Production ExternalStoreRuntime Reference](https://github.com/afadil/wealthfolio) — open-source desktop investment tracker with streaming, thread persistence, 11 tool UIs, and CSV attachments

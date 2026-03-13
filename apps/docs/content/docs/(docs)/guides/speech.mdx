@@ -9,26 +9,9 @@ assistant-ui supports text-to-speech via the `SpeechSynthesisAdapter` interface.
 
 <SpeechSample />
 
-## SpeechSynthesisAdapter
+## Quick Start
 
-Currently, the following speech synthesis adapters are supported:
-
-- `WebSpeechSynthesisAdapter`: Uses the browser's `Web Speech API`
-
-Support for other speech synthesis adapters is planned for the future.
-
-Passing a `SpeechSynthesisAdapter` to the runtime will enable text-to-speech support.
-
-## UI
-
-By default, a `Read aloud` button will be shown in the assistant message action bar.
-
-This is implemented using `AssistantActionBar.SpeechControl` which is a wrapper around `AssistantActionBar.Speak` and `AssistantActionBar.StopSpeaking`.
-The underlying primitives are `ActionBarPrimitive.Speak` and `ActionBarPrimitive.StopSpeaking`.
-
-## Example
-
-The following example uses the `WebSpeechSynthesisAdapter`.
+Pass a `SpeechSynthesisAdapter` to your runtime to enable read-aloud support:
 
 ```tsx
 import { WebSpeechSynthesisAdapter } from "@assistant-ui/react";
@@ -39,3 +22,168 @@ const runtime = useChatRuntime({
   },
 });
 ```
+
+The default Thread component automatically shows a "Read aloud" button in the assistant action bar.
+
+## UI Components
+
+The speak/stop controls are driven by `ActionBarPrimitive.Speak` and `ActionBarPrimitive.StopSpeaking`:
+
+```tsx
+import { ActionBarPrimitive, AuiIf } from "@assistant-ui/react";
+import { VolumeIcon, SquareIcon } from "lucide-react";
+
+const AssistantActionBar = () => (
+  <ActionBarPrimitive.Root>
+    {/* Show Speak when not speaking */}
+    <AuiIf condition={(s) => s.message.speech == null}>
+      <ActionBarPrimitive.Speak>
+        <VolumeIcon />
+      </ActionBarPrimitive.Speak>
+    </AuiIf>
+
+    {/* Show Stop when speaking */}
+    <AuiIf condition={(s) => s.message.speech != null}>
+      <ActionBarPrimitive.StopSpeaking>
+        <SquareIcon className="animate-pulse" />
+      </ActionBarPrimitive.StopSpeaking>
+    </AuiIf>
+
+    <ActionBarPrimitive.Copy />
+    <ActionBarPrimitive.Reload />
+  </ActionBarPrimitive.Root>
+);
+```
+
+Or use the pre-built `AssistantActionBar.SpeechControl` component from the shadcn registry, which handles both states automatically.
+
+## Custom TTS Adapters
+
+Implement `SpeechSynthesisAdapter` to connect any TTS provider:
+
+### Adapter Interface
+
+```tsx
+import type { SpeechSynthesisAdapter } from "@assistant-ui/react";
+
+class MyTTSAdapter implements SpeechSynthesisAdapter {
+  speak(text: string): SpeechSynthesisAdapter.Utterance {
+    // Start speaking and return an utterance controller
+    const utterance = new SpeechSynthesisUtterance(text);
+    window.speechSynthesis.speak(utterance);
+
+    return {
+      status: { type: "running" },
+
+      pause: () => window.speechSynthesis.pause(),
+      resume: () => window.speechSynthesis.resume(),
+      cancel: () => window.speechSynthesis.cancel(),
+
+      onEnd: (callback) => {
+        utterance.onend = () => callback({ type: "finished" });
+        return () => { utterance.onend = null; };
+      },
+    };
+  }
+}
+```
+
+### Example: ElevenLabs TTS
+
+```tsx title="lib/elevenlabs-tts-adapter.ts"
+import type { SpeechSynthesisAdapter } from "@assistant-ui/react";
+
+export class ElevenLabsTTSAdapter implements SpeechSynthesisAdapter {
+  private voiceId: string;
+  private modelId: string;
+
+  constructor(options: { voiceId: string; modelId?: string }) {
+    this.voiceId = options.voiceId;
+    this.modelId = options.modelId ?? "eleven_flash_v2_5";
+  }
+
+  speak(text: string): SpeechSynthesisAdapter.Utterance {
+    const audio = new Audio();
+    let endCallbacks = new Set<(reason: { type: string }) => void>();
+
+    // Fetch TTS audio from ElevenLabs
+    const fetchAndPlay = async () => {
+      const response = await fetch(
+        `https://api.elevenlabs.io/v1/text-to-speech/${this.voiceId}/stream`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            // In production, proxy through your backend to hide the API key
+            "xi-api-key": process.env.NEXT_PUBLIC_ELEVENLABS_API_KEY!,
+          },
+          body: JSON.stringify({
+            text,
+            model_id: this.modelId,
+            output_format: "mp3_44100_128",
+          }),
+        }
+      );
+
+      const blob = await response.blob();
+      audio.src = URL.createObjectURL(blob);
+      audio.play();
+    };
+
+    audio.onended = () => {
+      for (const cb of endCallbacks) cb({ type: "finished" });
+    };
+
+    fetchAndPlay().catch(console.error);
+
+    return {
+      status: { type: "running" },
+      cancel: () => { audio.pause(); audio.src = ""; },
+      pause: () => audio.pause(),
+      resume: () => audio.play(),
+      onEnd: (callback) => {
+        endCallbacks.add(callback);
+        return () => endCallbacks.delete(callback);
+      },
+    };
+  }
+}
+```
+
+Usage:
+
+```tsx
+import { ElevenLabsTTSAdapter } from "@/lib/elevenlabs-tts-adapter";
+
+const runtime = useChatRuntime({
+  adapters: {
+    speech: new ElevenLabsTTSAdapter({
+      voiceId: "21m00Tcm4TlvDq8ikWAM", // Rachel
+    }),
+  },
+});
+```
+
+## Reading Speaking State
+
+Use `useAuiState` to access the current speech status in custom components:
+
+```tsx
+import { useAuiState } from "@assistant-ui/react";
+
+function SpeakingIndicator() {
+  const isSpeaking = useAuiState((s) => s.message.speech != null);
+
+  if (!isSpeaking) return null;
+  return <div className="flex items-center gap-1">🔊 Speaking...</div>;
+}
+```
+
+## Browser Compatibility
+
+`WebSpeechSynthesisAdapter` uses the [Web Speech API](https://developer.mozilla.org/en-US/docs/Web/API/SpeechSynthesis), which is supported in Chrome, Edge, Safari, and most modern browsers.
+
+## Related
+
+- [Speech-to-Text (Dictation)](/docs/guides/dictation) — Voice input for the composer
+- [Action Bar Primitives](/docs/api-reference/primitives/action-bar) — Custom action bar components

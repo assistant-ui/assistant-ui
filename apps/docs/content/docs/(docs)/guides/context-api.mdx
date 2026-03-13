@@ -400,6 +400,129 @@ function MessageCounter() {
 }
 ```
 
+### Suggestion Buttons (append vs. setText)
+
+`aui.thread().append()` sends immediately. `aui.composer().setText()` only stages text without sending. When the thread is already running, appending would queue a second run — instead, stage the text so the user can send it after the current run completes.
+
+```tsx
+function SuggestionButton({ prompt }: { prompt: string }) {
+  const aui = useAui();
+  const isRunning = useAuiState((s) => s.thread.isRunning);
+
+  const handleClick = () => {
+    if (!isRunning) {
+      // Thread is idle — send immediately
+      aui.thread().append({ role: "user", content: [{ type: "text", text: prompt }] });
+      aui.composer().setText("");
+    } else {
+      // Thread is running — stage the text for after the run
+      aui.composer().setText(prompt);
+    }
+  };
+
+  return <button onClick={handleClick}>{prompt}</button>;
+}
+```
+
+<Callout type="tip">
+  This pattern is used in production by [Unsloth](https://github.com/unslothai/unsloth) (53k stars) for their AI Studio suggestion chips.
+</Callout>
+
+### Edit While Running (Cancel + Resend)
+
+When a user edits a message while the assistant is running, you typically want to cancel the current run and automatically resend after cancellation completes. Use `useAuiEvent("thread.runEnd")` with a ref flag:
+
+```tsx
+function EditableMessage() {
+  const aui = useAui();
+  const resendAfterCancelRef = useRef(false);
+
+  // After a cancel triggered by edit, auto-resend
+  useAuiEvent("thread.runEnd", () => {
+    if (!resendAfterCancelRef.current) return;
+    resendAfterCancelRef.current = false;
+    aui.composer().send();
+  });
+
+  const handleEdit = (newText: string) => {
+    const isRunning = aui.thread().getState().isRunning;
+    aui.composer().setText(newText);
+
+    if (isRunning) {
+      // Cancel the current run; runEnd handler will resend
+      resendAfterCancelRef.current = true;
+      aui.composer().cancel();
+    }
+  };
+
+  return (
+    <textarea onChange={(e) => handleEdit(e.target.value)} />
+  );
+}
+```
+
+### Inline Thread Rename
+
+Use `aui.threadListItem().rename()` to programmatically rename the current thread — useful for auto-naming threads based on the first message:
+
+```tsx
+function AutoRenameOnFirstMessage() {
+  const aui = useAui();
+
+  useAuiEvent("composer.send", () => {
+    const { messages } = aui.thread().getState();
+    if (messages.length > 0) return; // Only rename on first message
+
+    const text = aui.composer().getState().text;
+    const title = text.slice(0, 40) + (text.length > 40 ? "…" : "");
+    aui.threadListItem().rename(title);
+  });
+
+  return null;
+}
+```
+
+### Auto-Generate Thread Title After Run
+
+An alternative approach: generate the title from the first AI response rather than the user's question. Use `useThreadRuntime` to subscribe to the `runEnd` event and derive the title from message content:
+
+```tsx
+import { useThreadRuntime } from "@assistant-ui/react";
+import { useEffect } from "react";
+
+function AutoTitleGenerator() {
+  const threadRuntime = useThreadRuntime();
+
+  useEffect(() => {
+    return threadRuntime.unstable_on("runEnd", () => {
+      const { messages, metadata } = threadRuntime.getState();
+
+      // Only auto-title once (on first run completion)
+      if (metadata?.custom?.titled) return;
+      if (messages.length < 2) return;
+
+      // Use the first user message as the title
+      const firstUserMessage = messages.find((m) => m.role === "user");
+      if (!firstUserMessage) return;
+
+      const text = firstUserMessage.content
+        .filter((p) => p.type === "text")
+        .map((p) => ("text" in p ? p.text : ""))
+        .join("");
+
+      const title = text.slice(0, 50) + (text.length > 50 ? "…" : "");
+      threadRuntime.rename(title);
+    });
+  }, [threadRuntime]);
+
+  return null;
+}
+```
+
+<Callout type="tip">
+  This pattern is used in production by [Exograph](https://github.com/exograph/exograph) (344 stars), which auto-generates thread titles from the first user message using the runtime event system.
+</Callout>
+
 ## Advanced Topics
 
 ### Resolution Dynamics
@@ -421,6 +544,54 @@ thread2.cancelRun(); // Cancels the current thread's run, not necessarily thread
 ```
 
 For most use cases, this behavior is intuitive. In advanced scenarios where you need to track specific instances, store the resolved reference.
+
+### Triggering Messages from External Systems
+
+To send messages to the assistant from outside the React tree (Redux actions, global event bus, etc.), expose the runtime via a ref stored outside React:
+
+```tsx
+import { useAssistantRuntime } from "@assistant-ui/react";
+import { useEffect, useRef } from "react";
+
+// Global ref — accessible from anywhere
+let globalRuntime: ReturnType<typeof useAssistantRuntime> | null = null;
+
+// Bridge component — render once inside AssistantRuntimeProvider
+function RuntimeBridge() {
+  const runtime = useAssistantRuntime();
+
+  useEffect(() => {
+    globalRuntime = runtime;
+    return () => { globalRuntime = null; };
+  }, [runtime]);
+
+  return null;
+}
+
+// Call from Redux middleware, event handlers, or anywhere else
+export function askAssistant(prompt: string) {
+  globalRuntime?.thread.append({
+    role: "user",
+    content: [{ type: "text", text: prompt }],
+  });
+}
+```
+
+Then in a Redux thunk or saga:
+
+```ts
+import { askAssistant } from "@/lib/assistant-bridge";
+
+// Redux action
+export const analyzeScenario = (scenarioId: string) => async (dispatch) => {
+  dispatch(openAssistantPanel());
+  askAssistant(`Analyze scenario ${scenarioId} and suggest optimizations`);
+};
+```
+
+<Callout type="tip">
+  This pattern is used in production by [Nussknacker](https://github.com/TouK/nussknacker) (713 stars), a stream processing platform. They dispatch a Redux action that calls `runtime.thread.append()`, so any part of the app can trigger the AI assistant without knowing about assistant-ui internals.
+</Callout>
 
 ### Performance Optimization
 

@@ -37,6 +37,7 @@ export function CopyCommandButton({
   return (
     <button
       onClick={copyToClipboard}
+      aria-label={copied ? "Copied!" : `Copy command: ${command}`}
       className="group inline-flex w-fit items-center gap-1.5 rounded-md border border-border/60 bg-muted/30 px-3 py-1.5 font-mono text-sm transition-all hover:border-border hover:bg-muted/50"
     >
       <span className="text-muted-foreground/70">$</span>

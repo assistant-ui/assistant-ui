@@ -1,0 +1,211 @@
+---
+title: A2A Protocol
+description: Connect to Google's Agent-to-Agent protocol for task-based agent interactions.
+---
+
+## Overview
+
+[A2A](https://google.github.io/A2A/) (Agent-to-Agent) is Google's open protocol for agent interoperability. `@assistant-ui/react-a2a` provides a runtime that connects any A2A-compatible agent to assistant-ui, with support for tasks, artifacts, tool calls, and streaming.
+
+**Key features:**
+
+- **Task-based** — Agents perform tasks with state tracking (pending → working → completed/failed)
+- **Artifacts** — Agents can produce structured outputs (files, data, text) alongside messages
+- **Tool calling** — Client-side tool execution with automatic pending tool cancellation
+- **Streaming** — SSE-based streaming with event handlers for task updates, artifacts, and errors
+- **Thread management** — Multi-thread support via context IDs
+
+## Installation
+
+<InstallCommand npm={["@assistant-ui/react-a2a"]} />
+
+## Quick Start
+
+<Steps>
+  <Step>
+
+### Create a runtime provider
+
+```tsx title="app/MyRuntimeProvider.tsx"
+"use client";
+
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useA2ARuntime, type A2AMessage, type A2AEvent } from "@assistant-ui/react-a2a";
+import type { ReactNode } from "react";
+
+export function MyRuntimeProvider({ children }: { children: ReactNode }) {
+  const runtime = useA2ARuntime({
+    stream: async function* (messages, { abortSignal }) {
+      const response = await fetch("/api/a2a", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages }),
+        signal: abortSignal,
+      });
+
+      const reader = response.body!.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const data = JSON.parse(line.slice(6));
+          yield data as A2AEvent;
+        }
+      }
+    },
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Use in your app
+
+```tsx title="app/page.tsx"
+import { Thread } from "@/components/assistant-ui/thread";
+import { MyRuntimeProvider } from "./MyRuntimeProvider";
+
+export default function Page() {
+  return (
+    <MyRuntimeProvider>
+      <Thread />
+    </MyRuntimeProvider>
+  );
+}
+```
+
+  </Step>
+</Steps>
+
+## Configuration
+
+### `useA2ARuntime` Options
+
+```tsx
+const runtime = useA2ARuntime({
+  // Required: streaming callback
+  stream: async function* (messages, config) { /* yield A2AEvent */ },
+
+  // Auto-cancel pending tool calls when user sends a new message (default: true)
+  autoCancelPendingToolCalls: true,
+
+  // Enable cancel button during generation
+  unstable_allowCancellation: true,
+
+  // Context ID for thread management
+  contextId: "thread-123",
+
+  // Thread switching callbacks
+  onSwitchToNewThread: async () => { /* reset state */ },
+  onSwitchToThread: async (contextId) => {
+    return { messages: [...], artifacts: [...] };
+  },
+
+  // Adapters
+  adapters: {
+    attachments: myAttachmentAdapter,
+    speech: mySpeechAdapter,
+    feedback: myFeedbackAdapter,
+  },
+
+  // Event handlers
+  eventHandlers: {
+    onTaskUpdate: (taskState) => console.log("Task:", taskState.state),
+    onArtifacts: (artifacts) => console.log("Artifacts:", artifacts),
+    onError: (error) => console.error("Error:", error),
+    onStateUpdate: (state) => console.log("State:", state),
+    onCustomEvent: (type, data) => console.log("Custom:", type, data),
+  },
+});
+```
+
+## Reading Task State and Artifacts
+
+Use the built-in hooks to access A2A-specific state from any component inside the runtime provider:
+
+```tsx
+import { useA2ATaskState, useA2AArtifacts } from "@assistant-ui/react-a2a";
+
+function TaskStatus() {
+  const taskState = useA2ATaskState();
+
+  if (!taskState) return null;
+
+  return (
+    <div className="flex items-center gap-2">
+      <span>{taskState.state === "working" ? "⏳" : "✅"}</span>
+      <span>{taskState.message ?? taskState.state}</span>
+      {taskState.progress != null && (
+        <progress value={taskState.progress} max={100} />
+      )}
+    </div>
+  );
+}
+
+function ArtifactList() {
+  const artifacts = useA2AArtifacts();
+
+  return (
+    <ul>
+      {artifacts.map((artifact, i) => (
+        <li key={i}>
+          <strong>{artifact.name}</strong>
+          {artifact.parts.map((part, j) => (
+            <pre key={j}>{part.text ?? JSON.stringify(part.data)}</pre>
+          ))}
+        </li>
+      ))}
+    </ul>
+  );
+}
+```
+
+## Supported Events
+
+The A2A runtime processes these SSE event types:
+
+| Event | Description |
+|-------|-------------|
+| `task-update` | Task state change (pending/working/completed/failed) |
+| `task-complete` | Task finished successfully |
+| `task-failed` | Task encountered an error |
+| `artifacts` | Agent produced artifacts (files, data, text) |
+| `state-update` | Agent state synchronization |
+| `error` | Stream error |
+
+## Message Types
+
+The A2A protocol uses a message format similar to OpenAI's:
+
+```tsx
+type A2AMessage = {
+  role: "user" | "assistant" | "system" | "tool";
+  content: string | A2AMessageContent[];
+  tool_calls?: A2AToolCall[];    // Assistant tool invocations
+  tool_call_id?: string;          // Tool result reference
+  artifacts?: A2AArtifact[];      // Produced artifacts
+};
+```
+
+## Related
+
+- [Pick a Runtime](/docs/runtimes/pick-a-runtime) — Compare all available runtimes
+- [AG-UI Protocol](/docs/runtimes/ag-ui) — Alternative agent protocol integration
+- [ExternalStoreRuntime](/docs/runtimes/custom/external-store) — Lower-level runtime A2A builds on
+- [Tools](/docs/guides/tools) — Define and use client-side tools

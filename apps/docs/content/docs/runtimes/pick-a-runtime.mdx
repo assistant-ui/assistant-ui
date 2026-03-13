@@ -14,6 +14,8 @@ graph TD
     B -->|LangGraph| D[Use LangGraph Runtime]
     B -->|LangServe| E[Use LangServe Runtime]
     B -->|Mastra| F[Use Mastra Runtime]
+    B -->|AG-UI Agent| J[Use AG-UI Runtime]
+    B -->|A2A Agent| K[Use A2A Runtime]
     B -->|Custom Backend| G{State Management?}
     G -->|Let assistant-ui handle it| H[Use LocalRuntime]
     G -->|I'll manage it myself| I[Use ExternalStoreRuntime]
@@ -62,6 +64,16 @@ For popular frameworks, we provide ready-to-use integrations built on top of our
     href="/docs/runtimes/langserve"
   />
   <Card
+    title="AG-UI Protocol"
+    description="For AG-UI compatible agents with streaming, tools, and reasoning"
+    href="/docs/runtimes/ag-ui"
+  />
+  <Card
+    title="A2A Protocol"
+    description="For Google's Agent-to-Agent protocol with tasks and artifacts"
+    href="/docs/runtimes/a2a"
+  />
+  <Card
     title="Mastra"
     description="For workflow orchestration with Mastra's ecosystem"
     href="/docs/runtimes/mastra/overview"
@@ -78,6 +90,8 @@ The pre-built integrations (AI SDK, LangGraph, etc.) are **not separate runtime 
 - **LangGraph Runtime** → Built on `LocalRuntime` with graph execution adapter
 - **LangServe Runtime** → Built on `LocalRuntime` with LangServe client adapter
 - **Mastra Runtime** → Built on `LocalRuntime` with workflow adapter
+- **AG-UI Runtime** → Built on `ExternalStoreRuntime` with AG-UI protocol adapter
+- **A2A Runtime** → Built on `ExternalStoreRuntime` with Google's A2A protocol adapter
 
 This means you get all the benefits of `LocalRuntime` (automatic state management, built-in features) with zero configuration for your specific framework.
 
@@ -187,6 +201,7 @@ Explore our implementation examples:
 - **[External Store Example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-external-store)** - `ExternalStoreRuntime` with custom state
 - **[Assistant Cloud Example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-cloud)** - Multi-thread with cloud persistence
 - **[LangGraph Example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-langgraph)** - Agent workflows
+- **[AG-UI Example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-ag-ui)** - AG-UI protocol integration
 
 ## Common Pitfalls to Avoid
 

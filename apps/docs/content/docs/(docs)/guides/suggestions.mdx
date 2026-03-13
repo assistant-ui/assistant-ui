@@ -219,27 +219,42 @@ function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
 
 ## Context-Aware Suggestions
 
-Suggestions can be tailored to different contexts or user intents:
+Suggestions can change based on which page the user is viewing. Combine `Suggestions` with route-based logic to show relevant options:
 
 ```tsx
-const suggestions = [
-  {
-    title: "Code Review",
-    label: "Get feedback on your code",
-    prompt: "Can you review this code for me?",
-  },
-  {
-    title: "Debug Help",
-    label: "Find and fix issues",
-    prompt: "Help me debug this error",
-  },
-  {
-    title: "Best Practices",
-    label: "Learn recommended patterns",
-    prompt: "What are the best practices for this?",
-  },
-];
+function DashboardProvider({ children, page }: { children: ReactNode; page: string }) {
+  const runtime = useChatRuntime({ api: "/api/chat" });
+
+  const suggestions = useMemo(() => {
+    switch (page) {
+      case "compliance":
+        return [
+          { title: "Risk Assessment", label: "for EU AI Act", prompt: "Run a risk assessment for the current project" },
+          { title: "Generate Report", label: "compliance summary", prompt: "Generate a compliance summary report" },
+        ];
+      case "analytics":
+        return [
+          { title: "Explain Trend", label: "last 30 days", prompt: "What explains the trend in the last 30 days?" },
+          { title: "Compare Periods", label: "month over month", prompt: "Compare this month to last month" },
+        ];
+      default:
+        return ["What can you help me with?", "Show me recent activity"];
+    }
+  }, [page]);
+
+  const aui = useAui({ suggestions: Suggestions(suggestions) });
+
+  return (
+    <AssistantRuntimeProvider aui={aui} runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
 ```
+
+<Callout type="tip">
+  **Seen in production:** [VerifyWise](https://github.com/verifywise-ai/verifywise) (237 stars) uses page-aware suggestions to show different prompts on compliance, risk, and dashboard pages — each tailored to the data the user is currently viewing.
+</Callout>
 
 ## Best Practices
 

@@ -200,7 +200,7 @@ export async function POST(req: Request) {
 
   const result = streamText({
     model: openai("gpt-4o"),
-    messages: convertToModelMessages(messages),
+    messages: await convertToModelMessages(messages),
     tools: {
       getWeather: tool({
         description: "Get current weather for a location",
@@ -225,6 +225,7 @@ export async function POST(req: Request) {
 
   return result.toUIMessageStreamResponse();
 }
+
 ```
 
   </Step>
@@ -269,6 +270,55 @@ export const WebSearchToolUI = makeAssistantToolUI<
   },
 });
 ```
+
+### Stateful View Modes
+
+Tool UIs are React components — you can use `useState` for local UI state like toggling between chart and table views:
+
+```tsx
+const HoldingsToolUI = makeAssistantToolUI<
+  { portfolioId: string },
+  { holdings: Holding[] }
+>({
+  toolName: "getHoldings",
+  render: ({ args, result, status }) => {
+    const [view, setView] = useState<"chart" | "table">("chart");
+
+    if (status.type === "running") return <Skeleton className="h-48 w-full" />;
+    if (status.type === "incomplete") return <ErrorState />;
+    if (!result) return null;
+
+    return (
+      <div>
+        <div className="mb-2 flex gap-2">
+          <button
+            onClick={() => setView("chart")}
+            className={view === "chart" ? "font-bold" : ""}
+          >
+            Chart
+          </button>
+          <button
+            onClick={() => setView("table")}
+            className={view === "table" ? "font-bold" : ""}
+          >
+            Table
+          </button>
+        </div>
+
+        {view === "chart" ? (
+          <HoldingsPieChart holdings={result.holdings} />
+        ) : (
+          <HoldingsTable holdings={result.holdings} />
+        )}
+      </div>
+    );
+  },
+});
+```
+
+<Callout type="info">
+  Local `useState` resets when the component unmounts. If you need the view preference to survive re-renders or page refreshes, persist it to `localStorage` yourself.
+</Callout>
 
 ### Hook Pattern
 
@@ -376,6 +426,197 @@ const DatePickerToolUI = makeAssistantToolUI<
   },
 });
 ```
+
+### Form Submission with Confirmed State
+
+A common pattern for action-oriented tool UIs: show a form initially, then transition to a read-only "receipt" view after the user confirms. This uses `addResult` to write back into the thread so re-renders always show the post-confirmation state.
+
+<Callout type="tip">
+  **Why `addResult` for forms?** The tool result is stored in the thread — calling `addResult` lets your UI persist the `submitted: true` flag so that after the assistant continues or the user re-opens the conversation, the tool UI correctly shows the confirmed state rather than re-displaying the form.
+</Callout>
+
+```tsx
+type CreateActivityArgs = {
+  name: string;
+  amount: number;
+  date: string;
+};
+
+type CreateActivityResult = {
+  submitted?: boolean;
+  activityId?: string;
+};
+
+const CreateActivityToolUI = makeAssistantToolUI<
+  CreateActivityArgs,
+  CreateActivityResult
+>({
+  toolName: "createActivity",
+  render: ({ args, result, addResult, status }) => {
+    // Loading skeleton while tool arguments stream in
+    if (status.type === "running") {
+      return <Skeleton className="h-32 w-full" />;
+    }
+
+    // Error state
+    if (status.type === "incomplete") {
+      return <div className="text-red-500">Failed to load activity form</div>;
+    }
+
+    // After user confirmed — show receipt view
+    if (result?.submitted) {
+      return (
+        <div className="rounded-lg border border-green-200 bg-green-50 p-4">
+          <p className="font-medium text-green-800">✅ Activity created</p>
+          <p className="text-sm text-green-700">
+            {args.name} · {args.amount}
+          </p>
+        </div>
+      );
+    }
+
+    // Interactive form — before submission
+    return (
+      <ActivityForm
+        defaultValues={args}
+        onSubmit={async (formData) => {
+          const activity = await createActivity(formData);
+          // Persist confirmed state back into thread
+          addResult({ submitted: true, activityId: activity.id });
+        }}
+      />
+    );
+  },
+});
+```
+
+This pattern is used in production by **[Wealthfolio](https://github.com/afadil/wealthfolio)** (7k stars) across 11 financial tool UIs — every form-based tool uses `addResult` to lock in the confirmed state so users never accidentally re-submit.
+
+### Multi-Step Wizard UI
+
+For multi-page workflows (e.g., CSV import, configuration wizards), use `useState` to track the current step. Call `addResult` only at the final confirmation step to lock in the completed state:
+
+```tsx
+type WizardStep = "upload" | "preview" | "mapping" | "confirm";
+
+const ImportCsvToolUI = makeAssistantToolUI<
+  { importType: string },
+  { imported: number; success: boolean }
+>({
+  toolName: "importCsv",
+  render: ({ args, result, addResult }) => {
+    const [step, setStep] = useState<WizardStep>("upload");
+    const [file, setFile] = useState<File | null>(null);
+    const [rows, setRows] = useState<string[][]>([]);
+    const [mapping, setMapping] = useState<Record<string, string>>({});
+
+    // Once result is saved, show receipt
+    if (result) {
+      return (
+        <div className="rounded-lg border p-4 text-green-700">
+          ✅ Imported {result.imported} records successfully
+        </div>
+      );
+    }
+
+    if (step === "upload") {
+      return (
+        <div className="flex flex-col gap-3 rounded-lg border p-4">
+          <h3 className="font-medium">Step 1: Upload CSV</h3>
+          <input
+            type="file"
+            accept=".csv"
+            onChange={async (e) => {
+              const f = e.target.files?.[0];
+              if (!f) return;
+              setFile(f);
+              const text = await f.text();
+              setRows(text.split("\n").map((r) => r.split(",")));
+              setStep("preview");
+            }}
+          />
+        </div>
+      );
+    }
+
+    if (step === "preview") {
+      return (
+        <div className="flex flex-col gap-3 rounded-lg border p-4">
+          <h3 className="font-medium">Step 2: Preview ({rows.length} rows)</h3>
+          <table className="text-sm">
+            <tbody>
+              {rows.slice(0, 3).map((row, i) => (
+                <tr key={i}>
+                  {row.map((cell, j) => <td key={j} className="px-2">{cell}</td>)}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="flex gap-2">
+            <button onClick={() => setStep("upload")} className="text-sm underline">Back</button>
+            <button onClick={() => setStep("mapping")} className="rounded bg-blue-500 px-3 py-1 text-sm text-white">
+              Next: Map Columns
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    if (step === "mapping") {
+      const headers = rows[0] ?? [];
+      return (
+        <div className="flex flex-col gap-3 rounded-lg border p-4">
+          <h3 className="font-medium">Step 3: Map Columns</h3>
+          {headers.map((header) => (
+            <div key={header} className="flex items-center gap-2">
+              <span className="w-24 text-sm">{header}</span>
+              <select
+                value={mapping[header] ?? ""}
+                onChange={(e) => setMapping({ ...mapping, [header]: e.target.value })}
+                className="rounded border px-2 py-1 text-sm"
+              >
+                <option value="">Skip</option>
+                <option value="name">Name</option>
+                <option value="amount">Amount</option>
+                <option value="date">Date</option>
+              </select>
+            </div>
+          ))}
+          <div className="flex gap-2">
+            <button onClick={() => setStep("preview")} className="text-sm underline">Back</button>
+            <button onClick={() => setStep("confirm")} className="rounded bg-blue-500 px-3 py-1 text-sm text-white">
+              Review & Import
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // confirm step — calling addResult locks in the completed state
+    return (
+      <div className="flex flex-col gap-3 rounded-lg border p-4">
+        <h3 className="font-medium">Step 4: Confirm Import</h3>
+        <p className="text-sm text-muted-foreground">
+          {rows.length - 1} rows from {file?.name} with {Object.values(mapping).filter(Boolean).length} mapped columns
+        </p>
+        <div className="flex gap-2">
+          <button onClick={() => setStep("mapping")} className="text-sm underline">Back</button>
+          <button
+            onClick={() => addResult({ imported: rows.length - 1, success: true })}
+            className="rounded bg-green-600 px-3 py-1 text-sm text-white"
+          >
+            Import
+          </button>
+        </div>
+      </div>
+    );
+  },
+});
+```
+
+<Callout type="tip">
+  This pattern is inspired by **[Wealthfolio](https://github.com/afadil/wealthfolio/blob/main/apps/frontend/src/features/ai-assistant/import-csv-tool-ui.tsx)** (7k stars), which implements a multi-step CSV import wizard inside a tool call UI — upload, preview, column mapping, and confirmation — all within a single `makeAssistantToolUI` component.
+</Callout>
 
 ### Multi-Step Interactions
 
@@ -673,6 +914,63 @@ const ConfirmationToolUI = makeAssistantToolUI<
 
 Learn more about tool human input in the [Tools Guide](/docs/guides/tools#human-in-the-loop).
 
+### Reusable Tool Wrapper
+
+When building multiple tool UIs, extract a shared wrapper component that handles status icons and collapsible behavior consistently across all tools:
+
+```tsx
+import { CheckIcon, XIcon, Loader2Icon, ChevronDownIcon } from "lucide-react";
+import type { ToolCallMessagePartStatus } from "@assistant-ui/react";
+
+type BaseToolWrapperProps = {
+  title: string;
+  status: ToolCallMessagePartStatus;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+};
+
+function BaseToolWrapper({ title, status, children, defaultOpen = false }: BaseToolWrapperProps) {
+  const [open, setOpen] = useState(defaultOpen || status.type === "running");
+
+  const StatusIcon = () => {
+    if (status.type === "running") return <Loader2Icon className="size-4 animate-spin text-blue-500" />;
+    if (status.type === "incomplete") return <XIcon className="size-4 text-red-500" />;
+    return <CheckIcon className="size-4 text-green-500" />;
+  };
+
+  return (
+    <div className="my-2 rounded-lg border bg-muted/30">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center gap-2 px-3 py-2 text-sm font-medium"
+      >
+        <StatusIcon />
+        <span className="flex-1 text-left">{title}</span>
+        <ChevronDownIcon
+          className={cn("size-4 transition-transform", open && "rotate-180")}
+        />
+      </button>
+      {open && <div className="border-t px-3 py-2">{children}</div>}
+    </div>
+  );
+}
+
+// Use in every tool UI
+const GenerateCodeToolUI = makeAssistantToolUI({
+  toolName: "generate_code",
+  render: ({ args, result, status }) => (
+    <BaseToolWrapper title={`Generate ${args.language} code`} status={status}>
+      {status.type === "running" && <Skeleton className="h-20" />}
+      {result && <CodeEditor value={result.code} language={args.language} />}
+    </BaseToolWrapper>
+  ),
+});
+```
+
+<Callout type="tip">
+  This pattern is used in production by **[OpenOps](https://github.com/openops-cloud/openops)** (1k stars) — all tool UIs share a single `BaseToolWrapper` that handles the check/X/spinner status icon and expand/collapse behavior.
+</Callout>
+
 ## Best Practices
 
 ### 1. Handle All Status States
@@ -738,6 +1036,14 @@ useAssistantToolUI({
   rich, interactive experiences while keeping sensitive logic secure on the
   server.
 </Callout>
+
+## Real-World Examples
+
+These open-source projects show Generative UI at production scale:
+
+- **[Wealthfolio](https://github.com/afadil/wealthfolio/tree/main/apps/frontend/src/features/ai-assistant)** (7k stars) — 11 purpose-built tool UIs including `HoldingsToolUI`, `PerformanceToolUI`, `AllocationToolUI`, and `ImportCsvToolUI`. Each shows how to display complex financial data inline in chat.
+- **[AgentOps Dashboard](https://github.com/AgentOps-AI/agentops)** (5.4k stars) — Tool UIs used to replay recorded LLM agent sessions, demonstrating a read-only, history-replay pattern.
+- **[LangGraph Stockbroker](https://github.com/assistant-ui/assistant-ui-stockbroker)** — Human-in-the-loop stockbroker with approval tool UIs, built with LangGraph.
 
 ## Related Guides
 

@@ -226,6 +226,131 @@ export async function POST(req: Request) {
 }
 ```
 
+### Agentic Loops with `sendAutomaticallyWhen`
+
+For agentic workflows where the assistant should automatically continue after completing tool calls (client-side loop), use `sendAutomaticallyWhen`:
+
+```tsx
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
+
+const runtime = useChatRuntime({
+  sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
+});
+```
+
+When the last assistant message finishes streaming and contains unresolved tool calls, the runtime automatically sends a follow-up request — creating a self-sustaining agent loop without requiring a backend orchestrator.
+
+<Callout type="info">
+  `lastAssistantMessageIsCompleteWithToolCalls` is exported from the `ai` package (Vercel AI SDK). Make sure you have `ai@^6` installed. Alternatively, pass your own predicate: `sendAutomaticallyWhen: (messages) => /* custom condition */`.
+</Callout>
+
+<Callout type="tip">
+  **When to use this vs. server-side orchestration:** Use `sendAutomaticallyWhen` when tool execution happens on the client (browser) and you want the model to observe tool results and continue. For server-side tools that run in one shot, this is not needed — your backend handles the loop internally.
+</Callout>
+
+### Custom Headers for Dynamic Model Routing
+
+Pass custom headers to `AssistantChatTransport` for multi-model or multi-provider setups where the backend routes dynamically based on request headers:
+
+```tsx
+import { useChatRuntime, AssistantChatTransport } from "@assistant-ui/react-ai-sdk";
+
+const runtime = useChatRuntime({
+  transport: new AssistantChatTransport({
+    api: "/api/chat",
+    headers: {
+      "x-model-provider": modelConfig.provider, // e.g. "openai" | "anthropic"
+      "x-model-name": modelConfig.name,          // e.g. "gpt-4o" | "claude-3-5-sonnet"
+      "x-api-key": userApiKey,                   // per-user API key
+    },
+  }),
+});
+```
+
+Backend route reads these headers to route to the right provider:
+
+```tsx title="app/api/chat/route.ts"
+export async function POST(req: Request) {
+  const provider = req.headers.get("x-model-provider");
+  const modelName = req.headers.get("x-model-name");
+  const apiKey = req.headers.get("x-api-key");
+
+  const model =
+    provider === "anthropic"
+      ? anthropic(modelName!, { apiKey })
+      : openai(modelName!, { apiKey });
+
+  const { messages } = await req.json();
+  const result = streamText({
+    model,
+    messages: await convertToModelMessages(messages),
+  });
+  return result.toUIMessageStreamResponse();
+}
+```
+
+### Forwarding Registered Tools to a Custom Backend
+
+When you register tools client-side with `makeAssistantTool` or the `Tools()` API, the tool schemas need to reach your backend so the LLM can see them. Use a `runtimeRef` to read the current tool context and include it in the request body:
+
+```tsx
+import { useRef } from "react";
+import { useAISDKRuntime, AssistantChatTransport } from "@assistant-ui/react-ai-sdk";
+import { useAssistantRuntime } from "@assistant-ui/react";
+import { useChat } from "@ai-sdk/react";
+
+function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
+  const runtimeRef = useRef<ReturnType<typeof useAssistantRuntime> | null>(null);
+
+  const chat = useChat({
+    api: "/api/chat",
+    // Inject registered tools into the outgoing request body
+    body: () => {
+      const tools = runtimeRef.current?.thread?.getModelContext()?.tools;
+      return tools ? { tools } : {};
+    },
+  });
+
+  const runtime = useAISDKRuntime(chat);
+
+  // Store reference for access in the body() callback
+  useEffect(() => {
+    runtimeRef.current = runtime;
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+Backend receives the tool schemas and passes them to the LLM:
+
+```ts title="app/api/chat/route.ts"
+import { frontendTools } from "@assistant-ui/react-ai-sdk";
+
+export async function POST(req: Request) {
+  const { messages, tools } = await req.json();
+
+  const result = streamText({
+    model: openai("gpt-4o"),
+    messages: await convertToModelMessages(messages),
+    tools: {
+      ...frontendTools(tools), // Client-registered tools with execute stubs
+      // your backend-only tools...
+    },
+  });
+  return result.toUIMessageStreamResponse();
+}
+```
+
+<Callout type="tip">
+  This is an advanced pattern — for most use cases, `frontendTools` with the standard `tools` field in the request body is sufficient. Use this when you need fine-grained control over which tools are sent on each request.
+</Callout>
+
 ### useAISDKRuntime (Advanced)
 
 For advanced use cases where you need direct access to the `useChat` hook:
@@ -238,6 +363,14 @@ const chat = useChat();
 const runtime = useAISDKRuntime(chat);
 ```
 
-## Example
+## Real-World Examples
 
-For a complete example, check out the [AI SDK v6 example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-ai-sdk-v6) in our repository.
+Projects using `useChatRuntime` and the AI SDK integration in production:
+
+- **[Readest](https://github.com/readest/readest)** (18k stars) — Cross-platform ebook reader (iOS/Android/macOS/Windows via Tauri) with an AI assistant using `@assistant-ui/react-ai-sdk` and `@assistant-ui/react-markdown`.
+- **[VoltAgent](https://github.com/VoltAgent/voltagent)** (6.7k stars) — TypeScript AI agent framework with an [official assistant-ui starter template](https://github.com/VoltAgent/voltagent/tree/main/examples/with-assistant-ui). Uses `useChatRuntime` with server-side tool orchestration and memory adapters — the agent loop runs fully on the backend.
+- **[VerifyWise](https://github.com/verifywise-ai/verifywise)** (237 stars) — AI governance platform for EU AI Act/NIST. Uses `useChatRuntime` with auth headers injected from Redux store at request time, and context-aware suggestion chips per page domain.
+- **[OpenOps](https://github.com/openops-cloud/openops)** (1k stars) — No-code FinOps automation. Uses `useAISDKRuntime` with `sendAutomaticallyWhen` and forwards registered tool schemas to the backend via `runtimeRef.current?.thread?.getModelContext()?.tools`.
+- **[Microsoft Copilot Studio Samples](https://github.com/microsoft/CopilotStudioSamples)** (700+ stars) — Official Microsoft sample bridging `@assistant-ui/react-ai-sdk` to a Microsoft Copilot Studio backend with Azure AD (MSAL) authentication.
+
+For a minimal complete example, check out the [AI SDK v6 example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-ai-sdk-v6) in our repository.

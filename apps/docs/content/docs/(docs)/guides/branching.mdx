@@ -48,7 +48,7 @@ const BranchPicker = () => {
 
 ## API
 
-You can access the current branch state or navigate via the API as well.  
+You can access the current branch state or navigate via the API as well.
 These APIs rely on the message state and may only be called inside a message component.
 
 ```tsx
@@ -58,3 +58,80 @@ const hasBranches = useMessageIf({ hasBranches: true }); // whether branchCount 
 const goToNextBranch = useGoToNextBranch(); // null if there is no next branch
 const goToPreviousBranch = useGoToPreviousBranch(); // null if there is no previous branch
 ```
+
+## Programmatic Navigation
+
+Use `aui.message().switchToBranch()` to navigate branches imperatively:
+
+```tsx
+import { useAui } from "@assistant-ui/react";
+
+function BranchButtons() {
+  const aui = useAui();
+
+  const goNext = () => {
+    const { branchId, branchIds } = aui.message().getState();
+    const currentIdx = branchIds.indexOf(branchId);
+    if (currentIdx < branchIds.length - 1) {
+      aui.message().switchToBranch({ position: "next" });
+    }
+  };
+
+  return <button onClick={goNext}>Next version</button>;
+}
+```
+
+## Conditional Rendering by Branch
+
+Show different UI depending on whether the message has multiple branches:
+
+```tsx
+import { MessagePrimitive } from "@assistant-ui/react";
+
+const AssistantMessage = () => (
+  <MessagePrimitive.Root>
+    <MessagePrimitive.Parts />
+
+    {/* Only show branch picker when there are alternatives */}
+    <MessagePrimitive.If hasBranches>
+      <BranchPicker />
+    </MessagePrimitive.If>
+
+    {/* Always show actions, but edit only on user messages */}
+    <ActionBarPrimitive.Root>
+      <ActionBarPrimitive.Reload />
+      <ActionBarPrimitive.Copy />
+    </ActionBarPrimitive.Root>
+  </MessagePrimitive.Root>
+);
+```
+
+## Branching with ExternalStoreRuntime
+
+With `ExternalStoreRuntime`, you manage branches yourself. Provide `setMessages` to enable branching — the runtime calls it when the user switches branches:
+
+```tsx
+const runtime = useExternalStoreRuntime({
+  messages,
+  setMessages, // required for branching support
+  onNew,
+  onReload: async (parentId) => {
+    // Truncate messages after parentId and request a new completion
+    const parentIdx = messages.findIndex((m) => m.id === parentId);
+    const truncated = messages.slice(0, parentIdx + 1);
+    setMessages(truncated);
+    const response = await callBackend(truncated);
+    setMessages([...truncated, response]);
+  },
+});
+```
+
+<Callout type="warn">
+  **Loading branched conversations from a backend:** `ThreadMessageLike` does not include a `parentId` field, so there is currently no way to reconstruct a branched message tree when loading conversation history from an external store. Branches created during an active session work as expected, but persisting and restoring them requires storing the full branch state yourself and calling `setMessages` with the appropriate branch on load.
+</Callout>
+
+## Related
+
+- [Message Editing](/docs/guides/editing) — How editing creates new branches
+- [ExternalStoreRuntime](/docs/runtimes/custom/external-store) — Full adapter configuration
+- [Context API](/docs/guides/context-api) — Programmatic control over message state

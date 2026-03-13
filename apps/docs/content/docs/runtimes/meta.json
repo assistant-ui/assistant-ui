@@ -10,6 +10,8 @@
     "mastra",
     "langgraph",
     "langserve",
+    "ag-ui",
+    "a2a",
     "external-store",
 
     "helicone",

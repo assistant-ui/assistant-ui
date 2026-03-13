@@ -155,6 +155,125 @@ An optional anchor element to position the modal relative to.
   ]}
 />
 
+## Patterns
+
+### Framer Motion Animations
+
+Replace the default Radix content with a framer-motion animated version for smooth open/close transitions. Use controlled state so `AnimatePresence` can track the open/close transition:
+
+```tsx title="/components/assistant-ui/assistant-modal.tsx"
+"use client";
+
+import { useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { AssistantModalPrimitive } from "@assistant-ui/react";
+import { Thread } from "@/components/assistant-ui/thread";
+
+export const AssistantModal = () => {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <AssistantModalPrimitive.Root open={open} onOpenChange={setOpen}>
+      <AssistantModalPrimitive.Anchor className="fixed bottom-4 right-4">
+        <AssistantModalPrimitive.Trigger />
+      </AssistantModalPrimitive.Anchor>
+      <AnimatePresence>
+        {open && (
+          <AssistantModalPrimitive.Content asChild forceMount>
+            <motion.div
+              key="modal"
+              initial={{ opacity: 0, scale: 0.95, y: 8 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 8 }}
+              transition={{ duration: 0.15, ease: "easeOut" }}
+              className="z-50 h-[500px] w-[400px] overflow-hidden rounded-xl border bg-background shadow-lg"
+            >
+              <Thread />
+            </motion.div>
+          </AssistantModalPrimitive.Content>
+        )}
+      </AnimatePresence>
+    </AssistantModalPrimitive.Root>
+  );
+};
+```
+
+Install framer-motion: `npm install framer-motion`
+
+The key detail: use controlled `open` state so `AnimatePresence` can detect when the modal closes and play the exit animation before unmounting.
+
+<Callout type="tip">
+  **Seen in production:** [Gram](https://github.com/speakeasy-api/gram) (AI code review by Speakeasy) uses this pattern for a polished expand/collapse animation on their assistant modal.
+</Callout>
+
+### CSS Animations (No Library Required)
+
+Use Radix UI's `data-state` attributes with Tailwind CSS animations — no animation library needed. The Content element receives `data-state="open"` and `data-state="closed"` automatically:
+
+```tsx title="/components/assistant-ui/assistant-modal.tsx"
+export const AssistantModal = () => (
+  <AssistantModalPrimitive.Root>
+    <AssistantModalPrimitive.Anchor className="fixed bottom-4 right-4">
+      <AssistantModalPrimitive.Trigger />
+    </AssistantModalPrimitive.Anchor>
+    <AssistantModalPrimitive.Content className="z-50 h-[500px] w-[400px] overflow-hidden rounded-xl border bg-background shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95 data-[state=open]:slide-in-from-bottom-2 data-[state=closed]:slide-out-to-bottom-2">
+      <Thread />
+    </AssistantModalPrimitive.Content>
+  </AssistantModalPrimitive.Root>
+);
+```
+
+For the trigger button icon, use `data-state` to rotate a chevron or swap icons:
+
+```tsx
+// Rotate icon based on modal state
+<AssistantModalPrimitive.Trigger className="group">
+  <BotIcon className="transition-transform group-data-[state=open]:rotate-90" />
+</AssistantModalPrimitive.Trigger>
+```
+
+This requires `tailwindcss-animate` (included by default with shadcn/ui). For Tailwind v4, the animations are built in.
+
+### Controlled Open State
+
+Use `open` and `onOpenChange` to control the modal programmatically — for example, opening it from a keyboard shortcut:
+
+```tsx title="/app/layout.tsx"
+"use client";
+
+import { useState, useEffect } from "react";
+import { AssistantModal } from "@/components/assistant-ui/assistant-modal";
+
+export default function Layout({ children }: { children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        setOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  return (
+    <>
+      {children}
+      <AssistantModalPrimitive.Root open={open} onOpenChange={setOpen}>
+        <AssistantModalPrimitive.Anchor className="fixed bottom-4 right-4">
+          <AssistantModalPrimitive.Trigger />
+        </AssistantModalPrimitive.Anchor>
+        <AssistantModalPrimitive.Content>
+          <Thread />
+        </AssistantModalPrimitive.Content>
+      </AssistantModalPrimitive.Root>
+    </>
+  );
+}
+```
+
 ## Related Components
 
 - [Thread](/docs/ui/thread) - The main chat interface used inside the modal

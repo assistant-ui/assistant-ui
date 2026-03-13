@@ -13,11 +13,13 @@ export function Hero() {
       <div className="flex flex-col gap-6">
         <StarPill />
 
-        <div className="flex flex-col gap-1">
-          <h1 className="font-medium text-2xl">
-            The UX of ChatGPT in your own app
+        <div className="flex flex-col gap-2">
+          <h1 className="font-semibold text-3xl tracking-tight md:text-5xl">
+            The UX of ChatGPT
+            <br />
+            in your own app
           </h1>
-          <p className="text-lg text-muted-foreground">
+          <p className="max-w-lg text-lg text-muted-foreground md:text-xl">
             Open-source React toolkit for production AI chat experiences.
           </p>
         </div>
@@ -48,8 +50,9 @@ export function Hero() {
               alt="Y Combinator"
               height={18}
               width={18}
+              className="inline"
             />
-            Combinator
+            <span className="font-medium">Y Combinator</span>
           </span>
         </div>
       </div>

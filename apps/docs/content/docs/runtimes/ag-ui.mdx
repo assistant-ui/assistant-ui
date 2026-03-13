@@ -1,0 +1,217 @@
+---
+title: AG-UI Protocol
+description: Connect to any AG-UI compatible agent with streaming, tools, and reasoning.
+---
+
+## Overview
+
+[AG-UI](https://docs.ag-ui.com/) (Agent-User Interaction Protocol) is an open protocol for connecting AI agents to frontend applications. `@assistant-ui/react-ag-ui` provides a runtime that connects any AG-UI compatible agent to assistant-ui.
+
+**Key features:**
+
+- **Protocol-first** — Works with any AG-UI agent (Python, TypeScript, or any language)
+- **Streaming** — Text, tool calls, and reasoning stream incrementally
+- **Thinking/Reasoning** — Built-in support for chain-of-thought display
+- **Tool execution** — Client-side tool execution with result forwarding
+- **Thread management** — Multi-thread support via thread list adapter
+
+## Installation
+
+<InstallCommand npm={["@assistant-ui/react-ag-ui", "@ag-ui/client"]} />
+
+## Quick Start
+
+<Steps>
+  <Step>
+
+### Create a runtime provider
+
+```tsx title="app/MyRuntimeProvider.tsx"
+"use client";
+
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { HttpAgent } from "@ag-ui/client";
+import { useAgUiRuntime } from "@assistant-ui/react-ag-ui";
+import { useMemo, type ReactNode } from "react";
+
+export function MyRuntimeProvider({ children }: { children: ReactNode }) {
+  const agent = useMemo(
+    () =>
+      new HttpAgent({
+        url: process.env.NEXT_PUBLIC_AGUI_AGENT_URL ?? "http://localhost:8000/agent",
+      }),
+    [],
+  );
+
+  const runtime = useAgUiRuntime({ agent });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Set up your AG-UI agent
+
+Any AG-UI compatible backend works. Here's a minimal Python example using `ag-ui-sdk`:
+
+```python title="server.py"
+from ag_ui.core import Agent, RunInput, EventStream
+from ag_ui.core.events import TextMessageStart, TextMessageContent, TextMessageEnd, RunStarted, RunFinished
+
+class MyAgent(Agent):
+    async def run(self, input: RunInput) -> EventStream:
+        yield RunStarted(run_id=input.run_id)
+        yield TextMessageStart(message_id="msg-1")
+        yield TextMessageContent(message_id="msg-1", delta="Hello from AG-UI!")
+        yield TextMessageEnd(message_id="msg-1")
+        yield RunFinished(run_id=input.run_id)
+```
+
+  </Step>
+  <Step>
+
+### Use in your app
+
+```tsx title="app/page.tsx"
+import { Thread } from "@/components/assistant-ui/thread";
+import { MyRuntimeProvider } from "./MyRuntimeProvider";
+
+export default function Page() {
+  return (
+    <MyRuntimeProvider>
+      <Thread />
+    </MyRuntimeProvider>
+  );
+}
+```
+
+  </Step>
+</Steps>
+
+## Configuration
+
+### `useAgUiRuntime` Options
+
+```tsx
+const runtime = useAgUiRuntime({
+  // Required: AG-UI HttpAgent instance
+  agent: new HttpAgent({ url: "/agent" }),
+
+  // Show thinking/reasoning tokens (default: true)
+  showThinking: true,
+
+  // Custom logger for debugging
+  logger: {
+    debug: (...args) => console.debug("[agui]", ...args),
+    error: (...args) => console.error("[agui]", ...args),
+  },
+
+  // Error handler
+  onError: (error) => console.error("Agent error:", error),
+
+  // Cancel handler
+  onCancel: () => console.log("Run cancelled"),
+
+  // Adapters for additional features
+  adapters: {
+    attachments: myAttachmentAdapter,
+    speech: mySpeechAdapter,
+    history: myHistoryAdapter,
+    threadList: myThreadListAdapter,
+  },
+});
+```
+
+## Multi-Thread Support
+
+Add thread list management with the `threadList` adapter:
+
+```tsx
+import { useState, useMemo, useRef, useEffect } from "react";
+import { type ThreadMessage } from "@assistant-ui/react";
+
+export function MyRuntimeProvider({ children }) {
+  const threadsRef = useRef(new Map());
+  const [currentThreadId, setCurrentThreadId] = useState(() => {
+    const id = crypto.randomUUID();
+    threadsRef.current.set(id, { id, messages: [] });
+    return id;
+  });
+
+  const agent = useMemo(
+    () => new HttpAgent({ url: "/agent", threadId: currentThreadId }),
+    [currentThreadId],
+  );
+
+  const runtime = useAgUiRuntime({
+    agent,
+    adapters: {
+      threadList: {
+        threadId: currentThreadId,
+        onSwitchToNewThread: async () => {
+          const newId = crypto.randomUUID();
+          threadsRef.current.set(newId, { id: newId, messages: [] });
+          setCurrentThreadId(newId);
+        },
+        onSwitchToThread: async (threadId) => {
+          const thread = threadsRef.current.get(threadId);
+          if (!thread) throw new Error(`Thread ${threadId} not found`);
+          setCurrentThreadId(threadId);
+          return { messages: thread.messages };
+        },
+      },
+    },
+  });
+
+  // Persist messages when they change
+  useEffect(() => {
+    return runtime.thread.subscribe(() => {
+      threadsRef.current.set(currentThreadId, {
+        id: currentThreadId,
+        messages: runtime.thread.getState().messages,
+      });
+    });
+  }, [runtime, currentThreadId]);
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+## Supported Events
+
+The AG-UI runtime handles these event types from the agent:
+
+| Event | Description |
+|-------|-------------|
+| `TEXT_MESSAGE_START/CONTENT/END` | Streaming text messages |
+| `THINKING_START/END` | Reasoning/thinking blocks |
+| `TOOL_CALL_START/ARGS/END` | Tool call invocations with streaming arguments |
+| `TOOL_CALL_RESULT` | Tool execution results |
+| `STATE_SNAPSHOT/STATE_DELTA` | Agent state synchronization |
+| `MESSAGES_SNAPSHOT` | Bulk message restore |
+| `RUN_STARTED/FINISHED/ERROR` | Run lifecycle events |
+
+## Example
+
+See the complete [with-ag-ui example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-ag-ui) for a working implementation with multi-thread support.
+
+<Callout type="tip">
+  **Seen in production:** [ByteChef](https://github.com/bytechefhq/bytechef) (700+ stars) uses the AG-UI protocol with assistant-ui to build an AI-native workflow automation platform with a published frontend SDK.
+</Callout>
+
+## Related
+
+- [Pick a Runtime](/docs/runtimes/pick-a-runtime) — Compare all available runtimes
+- [ExternalStoreRuntime](/docs/runtimes/custom/external-store) — Lower-level runtime AG-UI builds on
+- [Chain of Thought](/docs/guides/chain-of-thought) — Display thinking/reasoning tokens
+- [Tools](/docs/guides/tools) — Define and use tools

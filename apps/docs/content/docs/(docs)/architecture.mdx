@@ -80,14 +80,64 @@ graph TD
     E --> C
     C --> D[External Providers or LLM APIs]
     B --> E[Your API Backend]
-    
+
     classDef default color:#f8fafc,text-align:center
-    
+
     style A fill:#e879f9,stroke:#2e1065,stroke-width:2px,color:#2e1065,font-weight:bold
     style B fill:#93c5fd,stroke:#1e3a8a,stroke-width:2px,color:#1e3a8a,font-weight:bold
     style C fill:#86efac,stroke:#064e3b,stroke-width:2px,color:#064e3b,font-weight:bold
     style D fill:#fca5a5,stroke:#7f1d1d,stroke-width:2px,color:#7f1d1d,font-weight:bold
     style E fill:#fca5a5,stroke:#7f1d1d,stroke-width:2px,color:#7f1d1d,font-weight:bold
-    
+
     class A,B,C,D,E default
 ```
+
+## Design System Integration
+
+assistant-ui primitives are **headless** — they provide behavior and state but no visual styling. The pre-built Thread component uses Tailwind + shadcn/ui, but you can build on top of any design system.
+
+### With MUI, Ant Design, or Other UI Libraries
+
+Use the `asChild` prop on any primitive to merge its behavior into your own components. This lets the primitive's click handler, ARIA attributes, and state management work through your design system's components without any wrapper divs.
+
+```tsx
+import { SuggestionPrimitive, ThreadPrimitive } from "@assistant-ui/react";
+import { Chip } from "@mui/material";
+
+// assistant-ui suggestion trigger + MUI Chip = zero wrapper overhead
+const MuiSuggestionItem = () => (
+  <SuggestionPrimitive.Trigger send asChild>
+    <Chip
+      label={<SuggestionPrimitive.Title />}
+      variant="outlined"
+      clickable
+    />
+  </SuggestionPrimitive.Trigger>
+);
+
+// Context-aware suggestions per page
+const SUGGESTIONS_BY_ROUTE: Record<string, string[]> = {
+  "/compliance":  ["Check EU AI Act compliance", "Review NIST controls"],
+  "/dashboard":   ["Summarize this month", "Find cost anomalies"],
+};
+
+const SuggestionList = ({ route }: { route: string }) => (
+  <ThreadPrimitive.Suggestions
+    components={{ Suggestion: MuiSuggestionItem }}
+  />
+);
+```
+
+<Callout type="tip">
+  **Seen in production:** [VerifyWise](https://github.com/verifywise-ai/verifywise) (237 stars), an AI governance platform for EU AI Act compliance, builds their entire chat UI with MUI components via `asChild` — demonstrating that assistant-ui integrates cleanly into existing enterprise design systems.
+</Callout>
+
+### Primitive Layer vs. Pre-Built Components
+
+| Layer | Package | Use when |
+|-------|---------|----------|
+| Pre-built Thread | `@assistant-ui/ui` shadcn registry | Starting a new project with Tailwind |
+| Primitives with `asChild` | `@assistant-ui/react` | You already have a design system |
+| Context API (`useAui`) | `@assistant-ui/react` | Custom components needing full state access |
+
+All three layers use the same runtime and work together — you can mix pre-built and custom components in the same app.

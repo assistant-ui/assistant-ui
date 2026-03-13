@@ -198,6 +198,92 @@ class VisionImageAdapter implements AttachmentAdapter {
 }
 ```
 
+### CSV / Spreadsheet Adapter
+
+Parse CSV files and inject their content as structured text so the LLM can reason about the data:
+
+```tsx
+import {
+  AttachmentAdapter,
+  PendingAttachment,
+  CompleteAttachment,
+} from "@assistant-ui/react";
+
+class CSVAttachmentAdapter implements AttachmentAdapter {
+  accept = "text/csv,.csv,application/vnd.ms-excel";
+
+  async add({ file }: { file: File }): Promise<PendingAttachment> {
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      throw new Error("CSV file size exceeds 5MB limit");
+    }
+
+    return {
+      id: crypto.randomUUID(),
+      type: "document",
+      name: file.name,
+      file,
+      status: { type: "running" },
+    };
+  }
+
+  async send(attachment: PendingAttachment): Promise<CompleteAttachment> {
+    const text = await attachment.file.text();
+    const lines = text.trim().split("\n");
+    const rowCount = lines.length - 1; // excluding header
+    const preview = lines.slice(0, 6).join("\n"); // header + 5 rows
+
+    return {
+      id: attachment.id,
+      type: "document",
+      name: attachment.name,
+      content: [
+        {
+          type: "text",
+          text: [
+            `[CSV File: ${attachment.name}]`,
+            `Rows: ${rowCount}`,
+            ``,
+            `Preview (first 5 rows):`,
+            "```csv",
+            preview,
+            "```",
+            rowCount > 5 ? `... and ${rowCount - 5} more rows` : "",
+          ]
+            .filter(Boolean)
+            .join("\n"),
+        },
+      ],
+      status: { type: "complete" },
+    };
+  }
+
+  async remove(): Promise<void> {}
+}
+```
+
+Use it with `CompositeAttachmentAdapter` to support CSV alongside other file types:
+
+```tsx
+import {
+  SimpleImageAttachmentAdapter,
+  CompositeAttachmentAdapter,
+} from "@assistant-ui/react";
+
+const runtime = useChatRuntime({
+  adapters: {
+    attachments: new CompositeAttachmentAdapter([
+      new SimpleImageAttachmentAdapter(),
+      new CSVAttachmentAdapter(),
+    ]),
+  },
+});
+```
+
+<Callout type="tip">
+  **Seen in production:** [Wealthfolio](https://github.com/afadil/wealthfolio) (7k stars) uses a CSV attachment adapter to let users upload brokerage export files directly into the AI assistant chat, which then parses and imports the transactions.
+</Callout>
+
 ### PDF Document Adapter
 
 Handle PDF files by extracting text or converting to base64 for processing:
@@ -539,6 +625,33 @@ Attachments work with all assistant-ui runtimes:
   for any file type, integrate with cloud storage services, or implement custom
   processing logic to fit your specific needs.
 </Callout>
+
+## Attachment Sources
+
+Attachment components render in three contexts, identified by the `source` property on `AttachmentRuntime`:
+
+| Source | Where it renders | Component |
+|--------|-----------------|-----------|
+| `"thread-composer"` | The main message input | `ComposerPrimitive.Attachments` |
+| `"edit-composer"` | Editing an existing message | `ComposerPrimitive.Attachments` (inside edit mode) |
+| `"message"` | A sent message's attachments | `MessagePrimitive.Attachments` |
+
+When building custom attachment UIs, check the source to render appropriate controls:
+
+```tsx
+import { useAttachmentRuntime } from "@assistant-ui/react";
+
+function MyAttachment() {
+  const attachmentRuntime = useAttachmentRuntime();
+  const source = attachmentRuntime.source;
+
+  // Composer attachments can be removed; message attachments cannot
+  if (source === "thread-composer" || source === "edit-composer") {
+    return <EditableAttachment onRemove={() => attachmentRuntime.remove()} />;
+  }
+  return <ReadOnlyAttachment />;
+}
+```
 
 ## Best Practices
 

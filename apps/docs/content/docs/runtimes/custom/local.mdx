@@ -720,6 +720,72 @@ const runtime = useLocalRuntime(MyModelAdapter, {
   with a thread list adapter.
 </Callout>
 
+#### Reusable AssistantChat Component Pattern
+
+A common pattern is to wrap `useLocalRuntime` + `ThreadHistoryAdapter` into a reusable component that accepts the model adapter, history adapter, and tool UIs as props — making the chat interface portable across pages:
+
+```tsx title="/components/AssistantChat.tsx"
+"use client";
+
+import {
+  useLocalRuntime,
+  AssistantRuntimeProvider,
+  ChatModelAdapter,
+  ThreadHistoryAdapter,
+} from "@assistant-ui/react";
+import { Thread } from "@/components/assistant-ui/thread";
+import { useMemo } from "react";
+
+type AssistantChatProps = {
+  modelAdapter: ChatModelAdapter;
+  historyAdapter?: ThreadHistoryAdapter;
+  /** Mount tool UI components as children */
+  toolComponents?: React.ReactNode;
+};
+
+export function AssistantChat({
+  modelAdapter,
+  historyAdapter,
+  toolComponents,
+}: AssistantChatProps) {
+  const adapters = useMemo(
+    () => (historyAdapter ? { history: historyAdapter } : undefined),
+    [historyAdapter],
+  );
+
+  const runtime = useLocalRuntime(modelAdapter, { adapters });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Thread />
+      {toolComponents}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+Usage across different pages with different backends and tool sets:
+
+```tsx
+// Dashboard page — uses GPT-4o with dashboard-specific tools
+<AssistantChat
+  modelAdapter={gpt4oAdapter}
+  historyAdapter={dashboardHistoryAdapter}
+  toolComponents={<DashboardToolUI />}
+/>
+
+// Settings page — uses Claude with settings-specific tools
+<AssistantChat
+  modelAdapter={claudeAdapter}
+  historyAdapter={settingsHistoryAdapter}
+  toolComponents={<SettingsToolUI />}
+/>
+```
+
+<Callout type="tip">
+  **Seen in production:** [Stack Auth](https://github.com/stack-auth/stack) (6.7k stars, YC S24) uses this exact pattern — their `AssistantChat` component accepts `ChatModelAdapter`, `ThreadHistoryAdapter`, and `toolComponents` as props, making it reusable across their entire auth dashboard.
+</Callout>
+
 ### Speech Synthesis Adapter
 
 Add text-to-speech capabilities:
@@ -1331,6 +1397,84 @@ Interface for implementing custom thread list storage.
 
 - [AssistantRuntime API](/docs/api-reference/runtimes/assistant-runtime) - Core runtime interface and methods
 - [ThreadRuntime API](/docs/api-reference/runtimes/thread-runtime) - Thread-specific operations and state management
+
+## Custom SSE ChatModelAdapter
+
+For backends using a custom Server-Sent Events (SSE) streaming protocol (not the AI SDK format), implement `ChatModelAdapter` directly with your own SSE parser:
+
+```ts title="lib/my-sse-adapter.ts"
+import type { ChatModelAdapter } from "@assistant-ui/react";
+
+type SSEEvent =
+  | { type: "start" }
+  | { type: "delta"; text: string }
+  | { type: "tool"; toolCallId: string; toolName: string; args: string }
+  | { type: "stop" }
+  | { type: "error"; message: string }
+  | { type: "aborted" };
+
+export const mySSEAdapter: ChatModelAdapter = {
+  async *run({ messages, abortSignal }) {
+    const response = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages }),
+      signal: abortSignal,
+    });
+
+    const reader = response.body!.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let fullText = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        const event: SSEEvent = JSON.parse(line.slice(6));
+
+        if (event.type === "delta") {
+          fullText += event.text;
+          yield { content: [{ type: "text", text: fullText }] };
+        } else if (event.type === "tool") {
+          yield {
+            content: [
+              { type: "text", text: fullText },
+              {
+                type: "tool-call",
+                toolCallId: event.toolCallId,
+                toolName: event.toolName,
+                argsText: event.args,
+                args: JSON.parse(event.args),
+              },
+            ],
+          };
+        } else if (event.type === "error") {
+          throw new Error(event.message);
+        } else if (event.type === "aborted") {
+          return;
+        }
+      }
+    }
+  },
+};
+```
+
+Use it with `useLocalRuntime`:
+
+```tsx
+const runtime = useLocalRuntime(mySSEAdapter);
+```
+
+<Callout type="tip">
+  This pattern is used in production by [Nussknacker](https://github.com/TouK/nussknacker) (713 stars), a low-code stream processing platform. They built a custom `ChatModelAdapter` that processes their own SSE event protocol and uses `unstable_runPendingTools` for human-in-the-loop tool resolution.
+</Callout>
 
 ## Related Resources
 

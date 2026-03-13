@@ -102,6 +102,46 @@ const INTERNAL_EXAMPLES: ExampleItem[] = [
 
 const COMMUNITY_EXAMPLES: ExampleItem[] = [
   {
+    title: "Potpie — AI Code Development",
+    image: "/screenshot/examples/potpie.png",
+    description:
+      "Spec-driven development for large codebases (5.2k stars). Knowledge graph-based codebase understanding with useChatRuntime.",
+    link: "https://github.com/potpie-ai/potpie",
+    external: true,
+  },
+  {
+    title: "Hapi — Remote AI Coding",
+    image: "/screenshot/examples/hapi.png",
+    description:
+      "Desktop/mobile app for Claude Code, Codex, Gemini, and OpenCode (2.6k stars). Uses useExternalStoreRuntime to bridge remote coding agent sessions.",
+    link: "https://github.com/tiann/hapi",
+    external: true,
+  },
+  {
+    title: "Unsloth Studio — LLM Fine-Tuning",
+    image: "/screenshot/examples/unsloth.png",
+    description:
+      "AI-powered fine-tuning platform for LLMs (53k stars). Uses useAui, AuiIf, useAuiEvent, and useAuiState throughout a fully custom Thread component.",
+    link: "https://github.com/unslothai/unsloth",
+    external: true,
+  },
+  {
+    title: "Readest — Ebook Reader",
+    image: "/screenshot/examples/readest.png",
+    description:
+      "Cross-platform ebook reader (Tauri + Next.js, iOS/Android/macOS/Windows) with a deeply integrated AI reading assistant.",
+    link: "https://github.com/readest/readest",
+    external: true,
+  },
+  {
+    title: "SurfSense — NotebookLM Alternative",
+    image: "/screenshot/examples/surfsense.png",
+    description:
+      "Open-source NotebookLM alternative built on LangChain + FastAPI. Uses ExternalStoreRuntime for a public chat sharing viewer.",
+    link: "https://github.com/MODSetter/SurfSense",
+    external: true,
+  },
+  {
     title: "Mastra UI Dojo",
     image: "/screenshot/examples/mastra-ui-dojo.png",
     description:
@@ -117,11 +157,115 @@ const COMMUNITY_EXAMPLES: ExampleItem[] = [
     external: true,
   },
   {
+    title: "VoltAgent",
+    image: "/screenshot/examples/voltagent.png",
+    description:
+      "TypeScript AI agent framework with an official assistant-ui integration template. Uses useChatRuntime with tool streaming and memory adapters.",
+    link: "https://github.com/VoltAgent/voltagent",
+    external: true,
+  },
+  {
+    title: "AgentOps — Agent Observability Dashboard",
+    image: "/screenshot/examples/agentops.png",
+    description:
+      "Python SDK for AI agent monitoring. Uses ExternalStoreRuntime to replay and visualize recorded LLM completions.",
+    link: "https://github.com/AgentOps-AI/agentops",
+    external: true,
+  },
+  {
     title: "FastAPI + LangGraph",
     image: "/screenshot/examples/fastapi-langgraph.png",
     description:
       "Integration of a FastAPI + LangGraph server with assistant-ui.",
     link: "https://github.com/Yonom/assistant-ui-langgraph-fastapi",
+    external: true,
+  },
+  {
+    title: "Wealthfolio — AI Investment Assistant",
+    image: "/screenshot/examples/wealthfolio.png",
+    description:
+      "Desktop portfolio tracker with 11 custom tool UIs, ExternalStoreRuntime, CSV attachments, and thread persistence.",
+    link: "https://github.com/afadil/wealthfolio",
+    external: true,
+  },
+  {
+    title: "Microsoft Copilot Studio",
+    image: "/screenshot/examples/copilot-studio.png",
+    description:
+      "Official Microsoft sample integrating assistant-ui with Microsoft Copilot Studio via Azure AD authentication.",
+    link: "https://github.com/microsoft/CopilotStudioSamples",
+    external: true,
+  },
+  {
+    title: "Gram — AI Code Review",
+    image: "/screenshot/examples/gram.png",
+    description:
+      "AI-powered code review tool by Speakeasy. Config-driven AssistantModal with framer-motion animations and thread history.",
+    link: "https://github.com/speakeasy-api/gram",
+    external: true,
+  },
+  {
+    title: "Stack Auth — Open-Source Auth Platform",
+    image: "/screenshot/examples/stack-auth.png",
+    description:
+      "YC S24 open-source Auth0/Clerk alternative (6.7k stars). Uses useLocalRuntime with ThreadHistoryAdapter for a Vibe Coding assistant inside the auth dashboard.",
+    link: "https://github.com/stack-auth/stack",
+    external: true,
+  },
+  {
+    title: "ByteChef — AI Workflow Automation",
+    image: "/screenshot/examples/bytechef.png",
+    description:
+      "Open-source AI-native low-code platform. Uses useExternalStoreRuntime with AG-UI protocol, multiple runtime providers, and a published npm SDK.",
+    link: "https://github.com/bytechefhq/bytechef",
+    external: true,
+  },
+  {
+    title: "OpenOps — FinOps Automation",
+    image: "/screenshot/examples/openops.png",
+    description:
+      "No-code FinOps automation platform (1k stars). Uses useAISDKRuntime with sendAutomaticallyWhen, a BaseToolWrapper collapsible card for all tool UIs, and chain-of-thought Reasoning rendering.",
+    link: "https://github.com/openops-cloud/openops",
+    external: true,
+  },
+  {
+    title: "Nussknacker — Stream Processing AI",
+    image: "/screenshot/examples/nussknacker.png",
+    description:
+      "Low-code real-time stream processing platform (713 stars). Custom SSE ChatModelAdapter, permission-checked tools via useFrontendAiTool, Redux-driven thread.append(), and tools-as-React-components pattern.",
+    link: "https://github.com/TouK/nussknacker",
+    external: true,
+  },
+  {
+    title: "Exograph — GraphQL Backend",
+    image: "/screenshot/examples/exograph.png",
+    description:
+      "Rust-based GraphQL/Postgres backend (344 stars). Monaco Editor tool UI for inline query editing, auto-generating thread titles via threadRuntime event system, and MCP client integration.",
+    link: "https://github.com/exograph/exograph",
+    external: true,
+  },
+  {
+    title: "VerifyWise — AI Governance",
+    image: "/screenshot/examples/verifywise.png",
+    description:
+      "AI compliance platform for EU AI Act/NIST frameworks (237 stars). Full chat UI with MUI components via asChild, context-aware suggestions by page domain, and dynamic chart tool UIs.",
+    link: "https://github.com/verifywise-ai/verifywise",
+    external: true,
+  },
+  {
+    title: "Adorable — Open Source Lovable",
+    image: "/screenshot/examples/adorable.png",
+    description:
+      "Open-source Lovable clone (682 stars). 13 per-tool card UIs, tool call grouping with PartsGrouped, reasoning support, and lazy repo creation in transport.",
+    link: "https://github.com/freestyle-sh/Adorable",
+    external: true,
+  },
+  {
+    title: "Cyberdesk — Virtual Desktops for AI",
+    image: "/screenshot/examples/cyberdesk.png",
+    description:
+      "Open-source virtual desktops for AI agents (308 stars). Side-by-side chat + desktop with useChatRuntime and dynamic headers.",
+    link: "https://github.com/cyberdesk-hq/cyberdesk",
     external: true,
   },
 ];

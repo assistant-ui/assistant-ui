@@ -71,8 +71,10 @@ export default function NativePage() {
       {/* Hero */}
       <div className="flex flex-col items-center gap-6 text-center">
         <div className="flex flex-col gap-3">
-          <h1 className="mx-auto max-w-2xl font-medium text-3xl tracking-tight md:text-5xl">
-            Get the UX of ChatGPT in your own mobile app
+          <h1 className="mx-auto max-w-2xl font-semibold text-3xl tracking-tight md:text-5xl">
+            Get the UX of ChatGPT
+            <br />
+            in your own mobile app
           </h1>
           <p className="mx-auto max-w-xl text-lg text-muted-foreground">
             Beautiful, production-ready AI chat for React Native. Powered by the
@@ -122,6 +124,9 @@ export default function NativePage() {
       {/* Features */}
       <div className="flex flex-col gap-8">
         <div className="flex flex-col items-center gap-2 text-center">
+          <p className="font-semibold text-muted-foreground text-xs uppercase tracking-widest">
+            Features
+          </p>
           <h2 className="font-medium text-3xl tracking-tight">
             Why assistant-ui for React Native?
           </h2>
@@ -137,7 +142,7 @@ export default function NativePage() {
             return (
               <div
                 key={feature.title}
-                className="flex flex-col gap-2 rounded-xl border border-border/50 bg-muted/30 p-4 transition-colors hover:border-border/80"
+                className="flex flex-col gap-2 rounded-xl border border-border/50 bg-muted/30 p-4 transition-colors hover:border-border/80 hover:bg-muted/50"
               >
                 <span className="flex items-center gap-2 font-medium">
                   <Icon className={cn("size-4", feature.iconColor)} />
@@ -153,7 +158,7 @@ export default function NativePage() {
       </div>
 
       {/* Code sharing callout */}
-      <div className="mx-auto flex max-w-3xl flex-col items-center gap-4 rounded-xl border border-border/50 bg-muted/30 p-8 text-center">
+      <div className="mx-auto flex max-w-3xl flex-col items-center gap-4 rounded-xl border border-primary/20 bg-primary/5 p-8 text-center">
         <Code2 className="size-8 text-violet-400" />
         <h3 className="font-medium text-xl tracking-tight">
           Already using assistant-ui?
@@ -172,9 +177,18 @@ export default function NativePage() {
 
       {/* CTA */}
       <div className="flex flex-col items-center gap-6 py-16 text-center">
-        <p className="font-medium text-2xl tracking-tight">
-          Start building today
-        </p>
+        <div className="flex flex-col gap-2">
+          <p className="font-semibold text-2xl tracking-tight">
+            Ready to build?
+          </p>
+          <p className="text-muted-foreground">
+            Ship a native AI chat experience in under a minute.
+          </p>
+        </div>
+        <CopyCommandButton
+          command={INSTALL_COMMAND}
+          analyticsContext={{ page: ANALYTICS_PAGE, section: "footer-cta" }}
+        />
         <div className="flex flex-wrap items-center justify-center gap-3">
           <Button asChild>
             <Link href="/docs/react-native">

@@ -59,6 +59,9 @@ export function WarpBackground() {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
 
+    // Skip animation for users who prefer reduced motion
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
     resize();
     starsRef.current = [];
 
@@ -140,7 +143,10 @@ export function WarpBackground() {
   }, [spawnStar]);
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 top-0 h-[500px] overflow-hidden">
+    <div
+      className="pointer-events-none absolute inset-x-0 top-0 h-[500px] overflow-hidden"
+      aria-hidden="true"
+    >
       <canvas ref={canvasRef} className="absolute inset-0 size-full" />
       <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-background to-transparent" />
     </div>
