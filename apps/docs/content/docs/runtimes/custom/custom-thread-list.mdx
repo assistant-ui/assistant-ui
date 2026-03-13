@@ -226,9 +226,9 @@ If your thread list can grow large, implement cursor-based pagination in your `l
 ```tsx
 const threadListAdapter: RemoteThreadListAdapter = {
   async list(params) {
-    const response = await fetch(
-      `/api/threads?cursor=${params?.cursor ?? ""}`,
-    );
+    const url = new URL("/api/threads", window.location.origin);
+    if (params?.cursor) url.searchParams.set("cursor", params.cursor);
+    const response = await fetch(url);
     const { threads, nextCursor } = await response.json();
     return {
       threads: threads.map((t: any) => ({
@@ -236,7 +236,7 @@ const threadListAdapter: RemoteThreadListAdapter = {
         status: t.is_archived ? "archived" : "regular",
         title: t.title,
       })),
-      cursor: nextCursor, // undefined when no more pages
+      cursor: nextCursor,
     };
   },
   // ...other methods
