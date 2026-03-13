@@ -72,7 +72,7 @@ function ModelSelectorRoot({
     <ModelSelectorContext.Provider value={{ models, value }}>
       <SelectRoot
         {...(defaultValue !== undefined ? { defaultValue } : undefined)}
-        value={value}
+        {...(value !== undefined ? { value } : undefined)}
         {...selectProps}
       >
         {children}
