@@ -263,6 +263,11 @@ export type ThreadRuntime = {
    * Resume a run with the given configuration.
    * @param config The configuration for resuming the run
    **/
+  resumeRun(config: CreateResumeRunConfig): void;
+
+  /**
+   * @deprecated Use `resumeRun` instead.
+   */
   unstable_resumeRun(config: CreateResumeRunConfig): void;
 
   /**
@@ -377,6 +382,7 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
 
   protected __internal_bindMethods() {
     this.append = this.append.bind(this);
+    this.resumeRun = this.resumeRun.bind(this);
     this.unstable_resumeRun = this.unstable_resumeRun.bind(this);
     this.unstable_loadExternalState =
       this.unstable_loadExternalState.bind(this);
@@ -431,8 +437,13 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
     return this._threadBinding.getState().startRun(toStartRunConfig(config));
   }
 
-  public unstable_resumeRun(config: CreateResumeRunConfig) {
+  public resumeRun(config: CreateResumeRunConfig) {
     return this._threadBinding.getState().resumeRun(toResumeRunConfig(config));
+  }
+
+  /** @deprecated Use `resumeRun` instead. */
+  public unstable_resumeRun(config: CreateResumeRunConfig) {
+    return this.resumeRun(config);
   }
 
   public exportExternalState() {

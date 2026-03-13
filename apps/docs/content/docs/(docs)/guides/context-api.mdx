@@ -166,6 +166,7 @@ The API object is stable and doesn't cause re-renders. Use it for:
 // Thread actions
 aui.thread().append(message);
 aui.thread().startRun(config);
+aui.thread().resumeRun(config);
 aui.thread().cancelRun();
 aui.thread().getState();
 aui.thread().message(idOrIndex);
@@ -472,7 +473,7 @@ const isRunning = useAuiState((s) => s.thread.isRunning);
 | -------------- | ------------------------------------------------------------------------- | ----------------------------------------- |
 | ThreadList     | `switchToNewThread()`, `switchToThread(id)`, `getState()`                 | Thread navigation and creation            |
 | ThreadListItem | `switchTo()`, `rename(title)`, `archive()`, `unarchive()`, `delete()`     | Thread management operations              |
-| Thread         | `append(message)`, `startRun()`, `cancelRun()`                            | Message handling and conversation control |
+| Thread         | `append(message)`, `startRun()`, `resumeRun()`, `cancelRun()`             | Message handling and conversation control |
 | Message        | `reload()`, `speak()`, `stopSpeaking()`, `submitFeedback(feedback)`       | Message interactions and regeneration     |
 | Composer       | `send()`, `setText(text)`, `addAttachment(file \| attachment)`, `reset()` | Text input and message composition        |
 | Part           | `addResult(result)`, `getState()`                                         | Tool call result handling                 |

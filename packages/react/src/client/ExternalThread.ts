@@ -468,6 +468,7 @@ export const ExternalThread = resource(
       startRun: () => {
         onStartRun?.();
       },
+      resumeRun: () => {},
       unstable_resumeRun: () => {},
       cancelRun: handleCancelRun,
       getModelContext: () => ({ tools: {}, config: {} }),

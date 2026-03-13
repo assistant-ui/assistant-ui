@@ -600,27 +600,54 @@ for command in request.commands:
   contact us for more information.
 </Callout>
 
-To enable resumability, you need to:
+When a user refreshes the page, switches tabs, or reconnects after a network interruption, the backend may still be generating a response. `resumeRun` allows the frontend to reconnect to the active backend stream.
 
-1. Pass a `resumeApi` URL to `useAssistantTransportRuntime` that points to your sync server
-2. Use the `unstable_resumeRun` API to resume a conversation
+### Setup
+
+Pass a `resumeApi` URL to `useAssistantTransportRuntime` that points to your sync server:
 
 ```typescript
-import { useAui } from "@assistant-ui/react";
-
 const runtime = useAssistantTransportRuntime({
   // ... other options
   api: "http://localhost:8010/assistant",
   resumeApi: "http://localhost:8010/resume", // Sync server endpoint
-  // ... other options
-});
-
-// Typically called on thread switch or mount to check if sync server has anything to resume
-const aui = useAui();
-aui.thread().unstable_resumeRun({
-  parentId: null, // Ignored (will be removed in a future version)
 });
 ```
+
+### Resuming on thread switch or page load
+
+When switching to a thread or mounting a component, check if the backend is still running and call `resumeRun`:
+
+```typescript
+import { useAui } from "@assistant-ui/react";
+import { useEffect, useRef } from "react";
+
+function useResumeOnMount(threadId: string) {
+  const aui = useAui();
+  const hasCheckedRef = useRef(false);
+
+  useEffect(() => {
+    if (hasCheckedRef.current) return;
+    hasCheckedRef.current = true;
+
+    const checkAndResume = async () => {
+      const status = await fetch(
+        `/api/sync-server/status/${threadId}`,
+      ).then((r) => r.json());
+
+      if (status.isRunning) {
+        const parentId =
+          aui.thread().getState().messages.at(-1)?.id ?? null;
+        aui.thread().resumeRun({ parentId });
+      }
+    };
+
+    checkAndResume();
+  }, [aui, threadId]);
+}
+```
+
+For the AssistantTransport runtime, you do not need to pass a `stream` parameter — the runtime uses the configured `resumeApi` endpoint to reconnect.
 
 ## Accessing Runtime State
 

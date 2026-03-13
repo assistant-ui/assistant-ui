@@ -795,15 +795,29 @@ const runtime = useLocalRuntime(MyModelAdapter, {
 
 ### Resuming a Run
 
-<Callout type="warning">
-  The `unstable_resumeRun` method is experimental and may change in future
-  releases.
-</Callout>
+`resumeRun` reconnects to an in-progress or interrupted assistant run. This is essential for scenarios like:
 
-Resume a conversation with a custom stream:
+- **Page refresh** while the backend is still generating a response
+- **Network reconnection** after a temporary disconnect
+- **Tab backgrounding** where the browser suspended the WebSocket connection
+- **Thread switching** to a conversation that has an active backend stream
+
+#### How it works
+
+When you call `resumeRun`, the local runtime:
+
+1. Creates a new assistant message in the thread (or continues the existing one)
+2. Calls your provided `stream` function with `ChatModelRunOptions` (messages, abort signal, model context, etc.)
+3. Iterates over each `ChatModelRunResult` yielded by the stream, updating the assistant message with new content, status, and metadata
+4. Completes when the stream finishes or is cancelled
+
+Unlike `startRun` (which uses the ChatModelAdapter), `resumeRun` **requires** a `stream` parameter — you provide the async generator that produces the response.
+
+#### Basic example
 
 ```tsx
-import { useAui, type ChatModelRunResult } from "@assistant-ui/react";
+import { useAui } from "@assistant-ui/react";
+import type { ChatModelRunResult } from "@assistant-ui/core";
 
 const aui = useAui();
 
@@ -824,11 +838,66 @@ async function* createCustomStream(): AsyncGenerator<ChatModelRunResult> {
 }
 
 // Resume a run with the custom stream
-aui.thread().unstable_resumeRun({
+aui.thread().resumeRun({
   parentId: "message-id", // ID of the message to respond to
-  stream: createCustomStream(), // The stream to use for resuming
+  stream: createCustomStream,
 });
 ```
+
+#### Reconnecting to a backend stream
+
+A common pattern is checking whether the backend is still running, then reconnecting:
+
+```tsx
+import { useAui } from "@assistant-ui/react";
+import { useEffect, useRef } from "react";
+
+function useStreamReconnect(threadId: string) {
+  const aui = useAui();
+  const hasCheckedRef = useRef(false);
+
+  useEffect(() => {
+    if (hasCheckedRef.current) return;
+    hasCheckedRef.current = true;
+
+    const checkAndResume = async () => {
+      // Check if the backend still has an active stream
+      const status = await fetch(`/api/status/${threadId}`).then((r) =>
+        r.json(),
+      );
+
+      if (status.isRunning) {
+        const parentId =
+          aui.thread().getState().messages.at(-1)?.id ?? null;
+        aui.thread().resumeRun({ parentId });
+      }
+    };
+
+    checkAndResume();
+  }, [aui, threadId]);
+}
+```
+
+#### ChatModelRunResult
+
+Each value yielded by the stream is a `ChatModelRunResult`:
+
+```tsx
+type ChatModelRunResult = {
+  /** The message content parts (text, tool calls, etc.) */
+  content: ThreadAssistantContentPart[];
+  /** Optional status override */
+  status?: MessageStatus;
+  /** Optional metadata (state, annotations, custom fields) */
+  metadata?: {
+    custom?: Record<string, unknown>;
+    steps?: unknown[];
+    // ...
+  };
+};
+```
+
+The stream should yield the **full cumulative content** on each iteration (not deltas). Each yield replaces the previous content of the assistant message.
 
 ### Custom Thread Management
 
