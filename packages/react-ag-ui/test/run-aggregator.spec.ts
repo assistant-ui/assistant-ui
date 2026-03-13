@@ -1,7 +1,7 @@
 "use client";
 
 import { describe, it, expect, beforeEach } from "vitest";
-import type { ChatModelRunResult } from "@assistant-ui/react";
+import type { ChatModelRunResult } from "@assistant-ui/core";
 import { RunAggregator } from "../src/runtime/adapter/run-aggregator";
 import type { AgUiEvent } from "../src/runtime/types";
 

@@ -1,3 +1,4 @@
+/// <reference types="@assistant-ui/core/store" />
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   LangChainMessage,
@@ -12,18 +13,23 @@ import {
   OnMetadataEventCallback,
 } from "./types";
 import {
-  AssistantCloud,
   getExternalStoreMessages,
-  INTERNAL,
   type ThreadMessage,
+  type AttachmentAdapter,
+  type AppendMessage,
+  type FeedbackAdapter,
+  type SpeechSynthesisAdapter,
+} from "@assistant-ui/core";
+import {
   type ToolExecutionStatus,
-  unstable_useCloudThreadListAdapter,
-  unstable_useRemoteThreadListRuntime,
-  useAui,
-  useAuiState,
+  useCloudThreadListAdapter as unstable_useCloudThreadListAdapter,
+  useRemoteThreadListRuntime as unstable_useRemoteThreadListRuntime,
   useExternalMessageConverter,
   useExternalStoreRuntime,
-} from "@assistant-ui/react";
+  useToolInvocations,
+} from "@assistant-ui/core/react";
+import { useAui, useAuiState } from "@assistant-ui/store";
+import { AssistantCloud } from "assistant-cloud";
 import { convertLangChainMessages } from "./convertLangChainMessages";
 import {
   LangGraphCommand,
@@ -32,10 +38,6 @@ import {
   LangGraphStreamCallback,
   useLangGraphMessages,
 } from "./useLangGraphMessages";
-import { AttachmentAdapter } from "@assistant-ui/react";
-import { AppendMessage } from "@assistant-ui/react";
-import { FeedbackAdapter } from "@assistant-ui/react";
-import { SpeechSynthesisAdapter } from "@assistant-ui/react";
 import { appendLangChainChunk } from "./appendLangChainChunk";
 
 const getPendingToolCalls = (messages: LangChainMessage[]) => {
@@ -313,7 +315,7 @@ const useLangGraphRuntimeImpl = ({
     },
   }));
 
-  const toolInvocations = INTERNAL.useToolInvocations({
+  const toolInvocations = useToolInvocations({
     state: {
       messages: threadMessages,
       isRunning: effectiveIsRunning,

@@ -37,26 +37,21 @@
   },
   "dependencies": {
     "@ai-sdk/react": "^3.0.118",
-    "ai": "^6.0.116"
-  },
-  "peerDependencies": {
     "@assistant-ui/core": "^0.1.5",
     "@assistant-ui/store": "^0.2.2",
+    "ai": "^6.0.116",
+    "assistant-cloud": "*"
+  },
+  "peerDependencies": {
     "@types/react": "*",
-    "assistant-cloud": "*",
     "react": "^18 || ^19"
   },
   "peerDependenciesMeta": {
     "@types/react": {
       "optional": true
-    },
-    "assistant-cloud": {
-      "optional": true
     }
   },
   "devDependencies": {
-    "@assistant-ui/core": "workspace:*",
-    "@assistant-ui/store": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@testing-library/react": "^16.3.2",
     "@types/json-schema": "^7.0.15",

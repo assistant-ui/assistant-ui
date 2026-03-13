@@ -33,10 +33,11 @@
   },
   "dependencies": {
     "@ai-sdk/provider": "^3.0.8",
+    "@assistant-ui/core": "^0.1.5",
+    "assistant-cloud": "*",
     "assistant-stream": "^0.3.4"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.12.17",
     "@types/react": "*",
     "react": "^18 || ^19"
   },
@@ -46,7 +47,6 @@
     }
   },
   "devDependencies": {
-    "@assistant-ui/react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/json-schema": "^7.0.15",
     "@types/react": "^19.2.14",

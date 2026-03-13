@@ -1,15 +1,17 @@
 "use client";
 
 import { toLanguageModelMessages } from "./converters";
+import type {
+  AssistantRuntime,
+  ChatModelAdapter,
+  ChatModelRunOptions,
+  ThreadMessage,
+} from "@assistant-ui/core";
 import {
-  type AssistantRuntime,
-  type ChatModelAdapter,
-  type ChatModelRunOptions,
-  INTERNAL,
-  type LocalRuntimeOptions,
-  type ThreadMessage,
   useLocalRuntime,
-} from "@assistant-ui/react";
+  splitLocalRuntimeOptions,
+  type LocalRuntimeOptions,
+} from "@assistant-ui/core/react";
 import {
   AssistantMessageAccumulator,
   DataStreamDecoder,
@@ -18,8 +20,6 @@ import {
   unstable_toolResultStream,
 } from "assistant-stream";
 import { asAsyncIterableStream } from "assistant-stream/utils";
-
-const { splitLocalRuntimeOptions } = INTERNAL;
 
 type HeadersValue = Record<string, string> | Headers;
 

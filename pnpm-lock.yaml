@@ -112,9 +112,6 @@ importers:
       '@ai-sdk/react':
         specifier: ^3.0.118
         version: 3.0.118(react@19.2.4)(zod@4.3.6)
-      'heat-graph':
-        specifier: workspace:*
-        version: link:../../packages/heat-graph
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
@@ -217,6 +214,9 @@ importers:
       geist:
         specifier: ^1.7.0
         version: 1.7.0(next@16.1.6(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))
+      heat-graph:
+        specifier: workspace:*
+        version: link:../../packages/heat-graph
       input-otp:
         specifier: ^1.4.2
         version: 1.4.2(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -1415,7 +1415,7 @@ importers:
 
   examples/with-heat-graph:
     dependencies:
-      'heat-graph':
+      heat-graph:
         specifier: workspace:*
         version: link:../../packages/heat-graph
       next:
@@ -2341,6 +2341,12 @@ importers:
 
   packages/react-a2a:
     dependencies:
+      '@assistant-ui/core':
+        specifier: ^0.1.5
+        version: link:../core
+      '@assistant-ui/store':
+        specifier: ^0.2.2
+        version: link:../store
       assistant-stream:
         specifier: ^0.3.4
         version: link:../assistant-stream
@@ -2348,9 +2354,6 @@ importers:
         specifier: ^13.0.0
         version: 13.0.0
     devDependencies:
-      '@assistant-ui/react':
-        specifier: workspace:*
-        version: link:../react
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils
@@ -2369,13 +2372,13 @@ importers:
       '@ag-ui/client':
         specifier: ^0.0.47
         version: 0.0.47
+      '@assistant-ui/core':
+        specifier: ^0.1.5
+        version: link:../core
       assistant-stream:
         specifier: ^0.3.4
         version: link:../assistant-stream
     devDependencies:
-      '@assistant-ui/react':
-        specifier: workspace:*
-        version: link:../react
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils
@@ -2397,6 +2400,12 @@ importers:
       '@ai-sdk/react':
         specifier: ^3.0.118
         version: 3.0.118(react@19.2.4)(zod@4.3.6)
+      '@assistant-ui/core':
+        specifier: ^0.1.5
+        version: link:../core
+      '@assistant-ui/store':
+        specifier: ^0.2.2
+        version: link:../store
       ai:
         specifier: ^6.0.116
         version: 6.0.116(zod@4.3.6)
@@ -2404,12 +2413,6 @@ importers:
         specifier: '*'
         version: link:../cloud
     devDependencies:
-      '@assistant-ui/core':
-        specifier: workspace:*
-        version: link:../core
-      '@assistant-ui/store':
-        specifier: workspace:*
-        version: link:../store
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils
@@ -2443,13 +2446,16 @@ importers:
       '@ai-sdk/provider':
         specifier: ^3.0.8
         version: 3.0.8
+      '@assistant-ui/core':
+        specifier: ^0.1.5
+        version: link:../core
+      assistant-cloud:
+        specifier: '*'
+        version: link:../cloud
       assistant-stream:
         specifier: ^0.3.4
         version: link:../assistant-stream
     devDependencies:
-      '@assistant-ui/react':
-        specifier: workspace:*
-        version: link:../react
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils
@@ -2496,13 +2502,16 @@ importers:
 
   packages/react-hook-form:
     dependencies:
+      '@assistant-ui/core':
+        specifier: ^0.1.5
+        version: link:../core
+      '@assistant-ui/store':
+        specifier: ^0.2.2
+        version: link:../store
       zod:
         specifier: ^4.3.6
         version: 4.3.6
     devDependencies:
-      '@assistant-ui/react':
-        specifier: workspace:*
-        version: link:../react
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils
@@ -2595,6 +2604,15 @@ importers:
 
   packages/react-langgraph:
     dependencies:
+      '@assistant-ui/core':
+        specifier: ^0.1.5
+        version: link:../core
+      '@assistant-ui/store':
+        specifier: ^0.2.2
+        version: link:../store
+      assistant-cloud:
+        specifier: '*'
+        version: link:../cloud
       assistant-stream:
         specifier: ^0.3.4
         version: link:../assistant-stream
@@ -2602,9 +2620,6 @@ importers:
         specifier: ^13.0.0
         version: 13.0.0
     devDependencies:
-      '@assistant-ui/react':
-        specifier: workspace:*
-        version: link:../react
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils

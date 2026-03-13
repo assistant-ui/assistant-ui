@@ -1,9 +1,11 @@
 "use client";
 
-import { useExternalMessageConverter } from "@assistant-ui/react";
+import { useExternalMessageConverter } from "@assistant-ui/core/react";
 import { A2AMessage } from "./types";
-import { ToolCallMessagePart } from "@assistant-ui/react";
-import { ThreadUserMessage } from "@assistant-ui/react";
+import type {
+  ToolCallMessagePart,
+  ThreadUserMessage,
+} from "@assistant-ui/core";
 
 const contentToParts = (content: A2AMessage["content"]) => {
   if (typeof content === "string")

@@ -4,7 +4,7 @@ import type {
   ChatModelRunResult,
   ThreadAssistantMessagePart,
   ToolCallMessagePart,
-} from "@assistant-ui/react";
+} from "@assistant-ui/core";
 import type { AgUiEvent } from "../types";
 import type { Logger } from "../logger";
 

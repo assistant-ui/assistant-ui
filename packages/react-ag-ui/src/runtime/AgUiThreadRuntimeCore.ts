@@ -1,6 +1,6 @@
 "use client";
 
-import { INTERNAL } from "@assistant-ui/react";
+import { generateId, fromThreadMessageLike } from "@assistant-ui/core/internal";
 import type {
   AddToolResultOptions,
   AppendMessage,
@@ -10,7 +10,7 @@ import type {
   ThreadAssistantMessage,
   ThreadHistoryAdapter,
   ThreadMessage,
-} from "@assistant-ui/react";
+} from "@assistant-ui/core";
 import type { HttpAgent } from "@ag-ui/client";
 import type { Logger } from "./logger";
 import type { AgUiEvent } from "./types";
@@ -294,7 +294,7 @@ export class AgUiThreadRuntimeCore {
     this.resetHead(parentId);
     const historicalMessages = [...this.messages];
 
-    const runId = INTERNAL.generateId();
+    const runId = generateId();
     this.pendingError = null;
     const input = this.buildRunInput(
       runId,
@@ -410,7 +410,7 @@ export class AgUiThreadRuntimeCore {
   }
 
   private insertAssistantPlaceholder(): string {
-    const id = INTERNAL.generateId();
+    const id = generateId();
     const assistant: ThreadAssistantMessage = {
       id,
       role: "assistant",
@@ -515,9 +515,9 @@ export class AgUiThreadRuntimeCore {
       for (const message of normalized) {
         try {
           converted.push(
-            INTERNAL.fromThreadMessageLike(
+            fromThreadMessageLike(
               message as any,
-              INTERNAL.generateId(),
+              generateId(),
               FALLBACK_USER_STATUS,
             ),
           );
@@ -535,9 +535,9 @@ export class AgUiThreadRuntimeCore {
   }
 
   private toThreadMessage(message: AppendMessage): ThreadMessage {
-    return INTERNAL.fromThreadMessageLike(
+    return fromThreadMessageLike(
       message as any,
-      INTERNAL.generateId(),
+      generateId(),
       FALLBACK_USER_STATUS,
     );
   }

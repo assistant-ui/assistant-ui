@@ -1,4 +1,4 @@
-import { MessageStatus } from "@assistant-ui/react";
+import { MessageStatus } from "@assistant-ui/core";
 import { ReadonlyJSONObject } from "assistant-stream/utils";
 
 export type LangChainToolCallChunk = {

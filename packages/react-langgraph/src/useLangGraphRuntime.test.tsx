@@ -1,11 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
-import {
-  AssistantRuntime,
-  AssistantRuntimeProvider,
-  AttachmentAdapter,
-  useAui,
-} from "@assistant-ui/react";
+import type { AssistantRuntime, AttachmentAdapter } from "@assistant-ui/core";
+import { AssistantRuntimeProvider } from "@assistant-ui/core/react";
+import { useAui } from "@assistant-ui/store";
 import { useLangGraphRuntime, useLangGraphSend } from "./useLangGraphRuntime";
 import { mockStreamCallbackFactory } from "./testUtils";
 import { ReactNode } from "react";

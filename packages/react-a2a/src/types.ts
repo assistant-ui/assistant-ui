@@ -1,4 +1,4 @@
-import { MessageStatus } from "@assistant-ui/react";
+import type { MessageStatus } from "@assistant-ui/core";
 import { ReadonlyJSONObject } from "assistant-stream/utils";
 
 // A2A Message Types

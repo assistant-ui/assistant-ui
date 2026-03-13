@@ -1,3 +1,4 @@
+/// <reference types="@assistant-ui/core/store" />
 import { useEffect, useRef, useState } from "react";
 import {
   A2AMessage,
@@ -15,16 +16,15 @@ import {
 import {
   useExternalMessageConverter,
   useExternalStoreRuntime,
-  useThread,
-  useThreadListItemRuntime,
-} from "@assistant-ui/react";
+} from "@assistant-ui/core/react";
+import { useAui, useAuiState } from "@assistant-ui/store";
 import { convertA2AMessage } from "./convertA2AMessages";
 import { useA2AMessages } from "./useA2AMessages";
-import { AttachmentAdapter } from "@assistant-ui/react";
-import { AppendMessage } from "@assistant-ui/react";
-import { ExternalStoreAdapter } from "@assistant-ui/react";
-import { FeedbackAdapter } from "@assistant-ui/react";
-import { SpeechSynthesisAdapter } from "@assistant-ui/react";
+import type { AttachmentAdapter } from "@assistant-ui/core";
+import type { AppendMessage } from "@assistant-ui/core";
+import type { ExternalStoreAdapter } from "@assistant-ui/core";
+import type { FeedbackAdapter } from "@assistant-ui/core";
+import type { SpeechSynthesisAdapter } from "@assistant-ui/core";
 import { appendA2AChunk } from "./appendA2AChunk";
 
 const getPendingToolCalls = (messages: A2AMessage[]) => {
@@ -101,17 +101,17 @@ const asA2ARuntimeExtras = (extras: unknown): A2ARuntimeExtras => {
 };
 
 export const useA2ATaskState = () => {
-  const { taskState } = useThread((t) => asA2ARuntimeExtras(t.extras));
+  const { taskState } = useAuiState((s) => asA2ARuntimeExtras(s.thread.extras));
   return taskState;
 };
 
 export const useA2AArtifacts = () => {
-  const { artifacts } = useThread((t) => asA2ARuntimeExtras(t.extras));
+  const { artifacts } = useAuiState((s) => asA2ARuntimeExtras(s.thread.extras));
   return artifacts;
 };
 
 export const useA2ASend = () => {
-  const { send } = useThread((t) => asA2ARuntimeExtras(t.extras));
+  const { send } = useAuiState((s) => asA2ARuntimeExtras(s.thread.extras));
   return send;
 };
 
@@ -235,18 +235,20 @@ export const useA2ARuntime = ({
   };
 
   const loadingRef = useRef(false);
-  const threadListItemRuntime = useThreadListItemRuntime({ optional: true });
+  const aui = useAui();
+  const externalId = useAuiState(() =>
+    aui.threadListItem.source
+      ? aui.threadListItem().getState().externalId
+      : undefined,
+  );
   useEffect(() => {
-    if (!threadListItemRuntime || !switchToThread || loadingRef.current) return;
+    if (!externalId || !switchToThread || loadingRef.current) return;
 
-    const externalId = threadListItemRuntime.getState().externalId;
-    if (externalId) {
-      loadingRef.current = true;
-      switchToThread(externalId).finally(() => {
-        loadingRef.current = false;
-      });
-    }
-  }, [switchToThread, threadListItemRuntime]);
+    loadingRef.current = true;
+    switchToThread(externalId).finally(() => {
+      loadingRef.current = false;
+    });
+  }, [switchToThread, externalId]);
 
   return useExternalStoreRuntime({
     isRunning,

@@ -1,3 +1,4 @@
+/// <reference types="@assistant-ui/core/store" />
 import { useState, useCallback, useRef, useMemo } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { LangGraphMessageAccumulator } from "./LangGraphMessageAccumulator";
@@ -14,7 +15,7 @@ import {
   OnInfoEventCallback,
   OnMetadataEventCallback,
 } from "./types";
-import { useAui } from "@assistant-ui/react";
+import { useAui } from "@assistant-ui/store";
 import { normalizeLangGraphTupleMessage } from "./normalizeLangGraphTupleMessage";
 
 export type LangGraphCommand = {
