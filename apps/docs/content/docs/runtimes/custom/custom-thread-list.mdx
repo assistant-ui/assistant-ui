@@ -70,9 +70,11 @@ When the hook mounts it calls `list()` on your adapter, hydrates existing thread
     import { myModelAdapter } from "./model-adapter"; // your chat model adapter
 
     const threadListAdapter: RemoteThreadListAdapter = {
-      async list() {
-        const response = await fetch("/api/threads");
-        const threads = await response.json();
+      async list(params) {
+        const url = new URL("/api/threads", window.location.origin);
+        if (params?.cursor) url.searchParams.set("cursor", params.cursor);
+        const response = await fetch(url);
+        const { threads, cursor } = await response.json();
         return {
           threads: threads.map((thread: any) => ({
             remoteId: thread.id,
@@ -80,6 +82,7 @@ When the hook mounts it calls `list()` on your adapter, hydrates existing thread
             status: thread.is_archived ? "archived" : "regular",
             title: thread.title ?? undefined,
           })),
+          cursor,
         };
       },
       async initialize(localId) {
@@ -155,9 +158,9 @@ When the hook mounts it calls `list()` on your adapter, hydrates existing thread
   parameters={[
     {
       name: "list",
-      type: "() => Promise<{ threads: RemoteThreadMetadata[] }>",
+      type: "(params?: { cursor?: string }) => Promise<{ threads: RemoteThreadMetadata[]; cursor?: string }>",
       description:
-        "Return the current threads. Each thread must include status, remoteId, and any metadata you want to show immediately.",
+        "Return threads for the current page. If your backend supports pagination, pass the cursor from the previous response. Return a cursor to indicate more pages are available.",
       required: true,
     },
     {
@@ -209,11 +212,53 @@ When the hook mounts it calls `list()` on your adapter, hydrates existing thread
 
 ## Thread Lifecycle Cheatsheet
 
-- `list()` hydrates threads on mount and during refreshes.
+- `list()` hydrates threads on mount and during refreshes. If it returns a `cursor`, the runtime enables pagination.
+- `loadMore()` fetches the next page by calling `list({ cursor })` and appending the results. Duplicate threads are automatically skipped.
 - Creating a new conversation calls `initialize()` once the user sends the first message.
 - `archive`, `unarchive`, and `delete` are called optimistically; throw to revert the UI.
 - `generateTitle()` powers the automatic title button and expects an `AssistantStream`.
 - Provide a `runtimeHook` that always returns a fresh runtime instance per active thread.
+
+## Pagination
+
+If your thread list can grow large, implement cursor-based pagination in your `list()` method. Return a `cursor` string alongside threads to indicate more pages are available.
+
+```tsx
+const threadListAdapter: RemoteThreadListAdapter = {
+  async list(params) {
+    const response = await fetch(
+      `/api/threads?cursor=${params?.cursor ?? ""}`,
+    );
+    const { threads, nextCursor } = await response.json();
+    return {
+      threads: threads.map((t: any) => ({
+        remoteId: t.id,
+        status: t.is_archived ? "archived" : "regular",
+        title: t.title,
+      })),
+      cursor: nextCursor, // undefined when no more pages
+    };
+  },
+  // ...other methods
+};
+```
+
+On the UI side, use `canLoadMore` and `loadMore()` to build infinite scroll or a "load more" button:
+
+```tsx
+import { useAui, useAuiState } from "@assistant-ui/react";
+
+function LoadMoreButton() {
+  const aui = useAui();
+  const canLoadMore = useAuiState((s) => s.threads.canLoadMore);
+
+  if (!canLoadMore) return null;
+
+  return (
+    <button onClick={() => aui.threads().loadMore()}>Load more</button>
+  );
+}
+```
 
 ## Avoiding Race Conditions in History Adapters
 
