@@ -20,12 +20,13 @@ function ApprovalInboxContent() {
   const workspace = useAgentWorkspace();
   const approvals = useApprovalQueue({ status: "pending" });
   const pendingApprovals = approvals.filter((a) => a.status === "pending");
-  const cardRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const [resolving, setResolving] = useState<Set<string>>(new Set());
 
   // Keyboard navigation with approval actions
   const { selectedIndex, setSelectedIndex } = useExtendedKeyboardNav({
     items: pendingApprovals,
+    getItemKey: (approval) => approval.id,
     enabled: true,
     loop: true,
     onApprove: async (item) => {
@@ -113,13 +114,16 @@ function ApprovalInboxContent() {
     },
   });
 
+  const selectedApprovalId = pendingApprovals[selectedIndex]?.id;
+
   // Scroll selected item into view
   useEffect(() => {
-    const card = cardRefs.current.get(selectedIndex);
+    if (!selectedApprovalId) return;
+    const card = cardRefs.current.get(selectedApprovalId);
     if (card) {
       card.scrollIntoView({ block: "center", behavior: "smooth" });
     }
-  }, [selectedIndex]);
+  }, [selectedApprovalId]);
 
   // Clamp index when approvals change
   useEffect(() => {
@@ -189,8 +193,8 @@ function ApprovalInboxContent() {
               <TaskPrimitive.Root key={approval.id} taskId={approval.taskId}>
                 <ApprovalCard
                   cardRef={(el) => {
-                    if (el) cardRefs.current.set(index, el);
-                    else cardRefs.current.delete(index);
+                    if (el) cardRefs.current.set(approval.id, el);
+                    else cardRefs.current.delete(approval.id);
                   }}
                   approvalId={approval.id}
                   isFocused={index === selectedIndex}

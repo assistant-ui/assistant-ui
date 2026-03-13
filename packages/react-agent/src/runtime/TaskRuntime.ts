@@ -19,6 +19,7 @@ import type {
 } from "./types";
 
 export class TaskRuntime {
+  private static readonly READ_ONLY_TOOLS = new Set(["Read", "Glob", "Grep"]);
   private state: TaskState;
   private client: AgentClientInterface;
   private permissionStore: PermissionStoreInterface;
@@ -77,11 +78,14 @@ export class TaskRuntime {
 
   setPermissionMode(mode: PermissionMode | undefined): void {
     this.permissionModeOverride = mode;
+    if (mode !== undefined) {
+      this.permissionStore.setMode(mode);
+    }
     this.notify();
   }
 
   getPermissionMode(): PermissionMode | undefined {
-    return this.permissionModeOverride;
+    return this.permissionModeOverride ?? this.permissionStore.getMode();
   }
 
   async cancel(): Promise<void> {
@@ -294,6 +298,23 @@ export class TaskRuntime {
   }
 
   private shouldRequireApproval(toolName: string, toolInput: unknown): boolean {
+    const storedPermission = this.permissionStore.getToolPermission(toolName);
+    if (storedPermission) {
+      return storedPermission.mode !== "allow";
+    }
+
+    const permissionMode = this.getPermissionMode();
+    if (permissionMode === "auto-all") {
+      return false;
+    }
+
+    if (
+      permissionMode === "auto-reads" &&
+      TaskRuntime.READ_ONLY_TOOLS.has(toolName)
+    ) {
+      return false;
+    }
+
     if (!this.requiresApproval) return true;
 
     try {

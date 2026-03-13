@@ -42,6 +42,22 @@ export async function GET(request: NextRequest) {
   const stream = new ReadableStream({
     async start(streamController) {
       const encoder = new TextEncoder();
+      let streamClosed = false;
+      let requestAborted = request.signal.aborted;
+      const iterator = controller.events(lastEventId)[Symbol.asyncIterator]();
+      const closeStream = () => {
+        if (streamClosed) return;
+        streamClosed = true;
+        try {
+          streamController.close();
+        } catch {
+          // Stream was already cancelled by the client.
+        }
+      };
+      const handleAbort = () => {
+        requestAborted = true;
+      };
+      request.signal.addEventListener("abort", handleAbort);
 
       // Heartbeat to keep connection alive through proxies/load balancers
       const heartbeat = setInterval(() => {
@@ -55,33 +71,47 @@ export async function GET(request: NextRequest) {
 
       try {
         let eventsSent = 0;
-        for await (const { id, event } of controller.events(lastEventId)) {
+        while (!requestAborted) {
+          const next = await iterator.next();
+          if (next.done) {
+            break;
+          }
+          const { id, event } = next.value;
           const data = `id: ${id}\ndata: ${JSON.stringify(event)}\n\n`;
           streamController.enqueue(encoder.encode(data));
           eventsSent++;
         }
 
-        logger.info("stream", "Stream completed", { taskId, eventsSent });
-        streamController.enqueue(encoder.encode("data: [DONE]\n\n"));
+        if (!requestAborted) {
+          logger.info("stream", "Stream completed", { taskId, eventsSent });
+          streamController.enqueue(encoder.encode("data: [DONE]\n\n"));
+        }
       } catch (error) {
-        logger.error("stream", "Stream error", {
-          taskId,
-          error: error instanceof Error ? error.message : "Unknown error",
-        });
-        const errorData = `data: ${JSON.stringify({
-          type: "task_failed",
-          taskId,
-          data: {
-            reason: error instanceof Error ? error.message : "Stream error",
-          },
-          timestamp: new Date(),
-        })}\n\n`;
-        streamController.enqueue(encoder.encode(errorData));
+        if (!requestAborted) {
+          logger.error("stream", "Stream error", {
+            taskId,
+            error: error instanceof Error ? error.message : "Unknown error",
+          });
+          const errorData = `data: ${JSON.stringify({
+            type: "task_failed",
+            taskId,
+            data: {
+              reason: error instanceof Error ? error.message : "Stream error",
+            },
+            timestamp: new Date(),
+          })}\n\n`;
+          streamController.enqueue(encoder.encode(errorData));
+        }
       } finally {
         clearInterval(heartbeat);
+        request.signal.removeEventListener("abort", handleAbort);
+        await iterator.return?.(undefined);
         logger.debug("stream", "Stream closed", { taskId });
-        streamController.close();
+        closeStream();
       }
+    },
+    cancel() {
+      // `request.signal` is not guaranteed to fire before stream cancellation.
     },
   });
 

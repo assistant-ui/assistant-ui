@@ -40,6 +40,10 @@ export class ApprovalRuntime {
       throw new Error("Approval is not pending");
     }
 
+    if (mode === "timed" && duration == null) {
+      throw new Error("Timed approval requires a duration");
+    }
+
     this.state = { ...this.state, status: "processing" };
     this.notify();
 
@@ -61,7 +65,7 @@ export class ApprovalRuntime {
           mode: "allow",
         });
         this.permissionStore.persistPermission(this.state.toolName);
-      } else if (mode === "timed" && duration) {
+      } else if (mode === "timed" && duration != null) {
         this.permissionStore.setToolPermission(this.state.toolName, {
           toolName: this.state.toolName,
           mode: "allow",

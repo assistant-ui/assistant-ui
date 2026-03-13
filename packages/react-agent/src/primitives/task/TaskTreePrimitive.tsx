@@ -6,6 +6,7 @@ import {
   useEffect,
   useState,
   useMemo,
+  type MouseEvent,
   type ReactNode,
   type ComponentPropsWithoutRef,
 } from "react";
@@ -181,6 +182,34 @@ const CollapseAll = createActionButton(
   useCollapseAll,
 );
 
+function TaskTreeSelectAgent({
+  agentId,
+  children,
+  onClick,
+  ...props
+}: ComponentPropsWithoutRef<"button"> & { agentId: string | null }) {
+  const { selectAgent, selectedAgentId } = useTaskTreeContext();
+
+  const handleClick = (e: MouseEvent<HTMLButtonElement>) => {
+    onClick?.(e);
+    if (e.defaultPrevented) return;
+    selectAgent(agentId);
+  };
+
+  return (
+    <button
+      type="button"
+      aria-pressed={selectedAgentId === agentId}
+      onClick={handleClick}
+      {...props}
+    >
+      {children}
+    </button>
+  );
+}
+
+TaskTreeSelectAgent.displayName = "TaskTreePrimitive.SelectAgent";
+
 export const TaskTreePrimitive = {
   Root: TaskTreeRoot,
   Tree: TaskTreeTree,
@@ -188,4 +217,5 @@ export const TaskTreePrimitive = {
   IsExpanded: TaskTreeIsExpanded,
   ExpandAll,
   CollapseAll,
+  SelectAgent: TaskTreeSelectAgent,
 };

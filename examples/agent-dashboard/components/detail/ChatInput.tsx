@@ -20,11 +20,13 @@ export function ChatInput({
   const [message, setMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const sendLockRef = useRef(false);
 
   const handleSubmit = useCallback(async () => {
     const trimmed = message.trim();
-    if (!trimmed || isSending || disabled) return;
+    if (!trimmed || sendLockRef.current || disabled) return;
 
+    sendLockRef.current = true;
     setIsSending(true);
     try {
       await onSend(trimmed);
@@ -36,9 +38,10 @@ export function ChatInput({
     } catch (error) {
       console.error("Failed to send message:", error);
     } finally {
+      sendLockRef.current = false;
       setIsSending(false);
     }
-  }, [message, isSending, disabled, onSend]);
+  }, [message, disabled, onSend]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {

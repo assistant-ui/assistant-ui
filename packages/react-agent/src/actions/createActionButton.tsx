@@ -20,6 +20,7 @@ export function createActionButton(displayName: string, useAction: ActionHook) {
     const handleClick: ComponentPropsWithoutRef<"button">["onClick"] = (e) => {
       if (isPending) return;
       onClick?.(e);
+      if (e.defaultPrevented) return;
 
       try {
         const result = action();

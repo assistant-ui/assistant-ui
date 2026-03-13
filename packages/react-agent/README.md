@@ -36,7 +36,10 @@ import {
 
 export function AgentUI() {
   return (
-    <AgentWorkspaceProvider apiKey="YOUR_API_KEY" baseUrl="/api/agent">
+    <AgentWorkspaceProvider
+      apiKey="YOUR_APP_SESSION_TOKEN"
+      baseUrl="/api/agent"
+    >
       <TaskLauncherPrimitive.Root>
         <TaskLauncherPrimitive.Input />
         <TaskLauncherPrimitive.Submit />

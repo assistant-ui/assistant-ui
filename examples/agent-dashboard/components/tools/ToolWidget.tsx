@@ -65,8 +65,15 @@ export function ToolWidget({
   className,
 }: ToolWidgetProps) {
   const [isExpanded, setIsExpanded] = useState(true);
-  const typedInput = input as Record<string, unknown>;
+  const typedInput =
+    input && typeof input === "object"
+      ? (input as Record<string, unknown>)
+      : {};
   const icon = toolIcons[toolName] || <Terminal className="h-4 w-4" />;
+  const inputPreview =
+    typeof input === "string"
+      ? input
+      : (JSON.stringify(input, null, 2) ?? String(input));
 
   const formatTime = (date: Date) => {
     return new Date(date).toLocaleTimeString("en-US", {
@@ -84,14 +91,14 @@ export function ToolWidget({
         return (
           <BashTerminal
             command={String(typedInput["command"] ?? "")}
-            output={output ? String(output) : ""}
+            output={output !== undefined ? String(output) : ""}
             isError={isError ?? false}
             isRunning={isRunning ?? false}
           />
         );
 
       case "Read":
-        if (output && !isError) {
+        if (output !== undefined && !isError) {
           const content =
             typeof output === "string"
               ? output
@@ -208,7 +215,7 @@ export function ToolWidget({
             )}
           </div>
           <p className="mt-0.5 truncate font-mono text-muted-foreground text-xs">
-            {JSON.stringify(input).slice(0, 60)}
+            {inputPreview.slice(0, 60)}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">

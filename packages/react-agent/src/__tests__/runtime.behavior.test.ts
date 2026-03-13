@@ -369,6 +369,98 @@ describe("runtime behavior", () => {
     expect(client.createTaskCalls[0]?.prompt).toBe("Retry me");
   });
 
+  it("auto-approves based on stored permissions and permission mode", async () => {
+    const client = new TestClient([]);
+    const permissionStore = new MemoryPermissionStore();
+    const task = new TaskRuntime(
+      { id: "task-permissions", prompt: "Check permissions" },
+      client,
+      permissionStore,
+    );
+
+    client.emit(
+      sdkEvent(
+        "agent_spawned",
+        "task-permissions",
+        { name: "Claude", parentAgentId: null },
+        "agent-1",
+      ),
+    );
+
+    permissionStore.setToolPermission("Write", {
+      toolName: "Write",
+      mode: "allow",
+    });
+
+    client.emit(
+      sdkEvent(
+        "tool_use_requested",
+        "task-permissions",
+        {
+          approvalId: "approval-write",
+          toolCallId: "tool-write",
+          toolName: "Write",
+          toolInput: { filePath: "README.md" },
+          reason: "Need to update docs",
+        },
+        "agent-1",
+      ),
+    );
+
+    await waitForCondition(() =>
+      client.approvalCalls.some(
+        (call) =>
+          call.taskId === "task-permissions" &&
+          call.approvalId === "approval-write",
+      ),
+    );
+    expect(task.getApproval("approval-write")).toBeUndefined();
+
+    task.setPermissionMode("auto-reads");
+    client.emit(
+      sdkEvent(
+        "tool_use_requested",
+        "task-permissions",
+        {
+          approvalId: "approval-read",
+          toolCallId: "tool-read",
+          toolName: "Read",
+          toolInput: { filePath: "README.md" },
+          reason: "Read docs",
+        },
+        "agent-1",
+      ),
+    );
+
+    await waitForCondition(() =>
+      client.approvalCalls.some(
+        (call) =>
+          call.taskId === "task-permissions" &&
+          call.approvalId === "approval-read",
+      ),
+    );
+    expect(task.getApproval("approval-read")).toBeUndefined();
+
+    client.emit(
+      sdkEvent(
+        "tool_use_requested",
+        "task-permissions",
+        {
+          approvalId: "approval-bash",
+          toolCallId: "tool-bash",
+          toolName: "Bash",
+          toolInput: { command: "pwd" },
+          reason: "Run bash",
+        },
+        "agent-1",
+      ),
+    );
+
+    await waitForCondition(
+      () => task.getApproval("approval-bash") !== undefined,
+    );
+  });
+
   it("approval runtime persists always-allow permissions and supports deny flow", async () => {
     const originalWindow = (globalThis as { window?: unknown }).window;
     const originalLocalStorage = (globalThis as { localStorage?: unknown })
@@ -560,5 +652,20 @@ describe("runtime behavior", () => {
 
     client.close(task.id);
     unsubscribe();
+  });
+
+  it("workspace createTask preserves the explicit prompt argument", async () => {
+    const client = new TestClient(["task-prompt"]);
+    const workspace = new WorkspaceRuntime({
+      apiKey: "test-key",
+      client,
+      permissionStore: new MemoryPermissionStore(),
+    });
+
+    await workspace.createTask("explicit prompt", {
+      prompt: "stale override",
+    });
+
+    expect(client.createTaskCalls[0]?.prompt).toBe("explicit prompt");
   });
 });

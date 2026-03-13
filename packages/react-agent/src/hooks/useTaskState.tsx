@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import type { TaskRuntime, TaskState } from "../runtime";
-import { useWorkspaceTasks } from "./useAgentWorkspace";
+import { useAgentWorkspace } from "./useAgentWorkspace";
 
 const TaskContext = createContext<string | null>(null);
 
@@ -30,9 +30,9 @@ export function useTaskId(): string {
 }
 
 export function useTask(): TaskRuntime {
-  const tasks = useWorkspaceTasks();
+  const workspace = useAgentWorkspace();
   const taskId = useTaskId();
-  const task = tasks.find((task) => task.id === taskId);
+  const task = workspace.getTask(taskId);
   if (!task) {
     throw new Error(`Task not found: ${taskId}`);
   }
@@ -47,20 +47,18 @@ export function useTaskState<T>(selector: (state: TaskState) => T): T {
     [task],
   );
 
-  const getSnapshot = useCallback(
-    () => selector(task.getState()),
-    [task, selector],
-  );
+  const getSnapshot = useCallback(() => task.getState(), [task]);
 
-  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  const state = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  return selector(state);
 }
 
 export function useTaskStateById<T>(
   taskId: string,
   selector: (state: TaskState) => T,
 ): T {
-  const tasks = useWorkspaceTasks();
-  const task = tasks.find((task) => task.id === taskId);
+  const workspace = useAgentWorkspace();
+  const task = workspace.getTask(taskId);
   if (!task) {
     throw new Error(`Task not found: ${taskId}`);
   }
@@ -70,10 +68,8 @@ export function useTaskStateById<T>(
     [task],
   );
 
-  const getSnapshot = useCallback(
-    () => selector(task.getState()),
-    [task, selector],
-  );
+  const getSnapshot = useCallback(() => task.getState(), [task]);
 
-  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  const state = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  return selector(state);
 }

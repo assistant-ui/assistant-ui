@@ -13,6 +13,7 @@ export function CostDashboard({ className }: CostDashboardProps) {
   const totalCost = useTaskState((s) => s.cost);
   const agents = useTaskState((s) => s.agents);
   const createdAt = useTaskState((s) => s.createdAt);
+  const completedAt = useTaskState((s) => s.completedAt);
   const [now, setNow] = useState<number | null>(null);
 
   useEffect(() => {
@@ -31,9 +32,14 @@ export function CostDashboard({ className }: CostDashboardProps) {
   }));
 
   const startTime = createdAt ? new Date(createdAt).getTime() : NaN;
+  const endTime = completedAt
+    ? new Date(completedAt).getTime()
+    : now !== null
+      ? now
+      : NaN;
   const elapsed =
-    now !== null && Number.isFinite(startTime)
-      ? Math.max((now - startTime) / 1000 / 60, 0)
+    Number.isFinite(startTime) && Number.isFinite(endTime)
+      ? Math.max((endTime - startTime) / 1000 / 60, 0)
       : 0; // minutes
   const safeTotalCost = totalCost ?? 0;
   const costPerMinute = elapsed > 0 ? safeTotalCost / elapsed : 0;

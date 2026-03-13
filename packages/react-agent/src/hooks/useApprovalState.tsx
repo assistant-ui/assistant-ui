@@ -49,22 +49,36 @@ const EMPTY_SUBSCRIBE = (_cb: () => void) => () => {};
 export function useApprovalState<T>(
   selector: (state: ApprovalState) => T,
 ): T | null {
-  const approval = useApproval();
+  const task = useTask();
+  const approvalId = useApprovalId();
 
   const subscribe = useCallback(
     (callback: () => void) => {
-      if (!approval) return EMPTY_SUBSCRIBE(callback);
-      return approval.subscribe(callback);
+      let approvalUnsubscribe =
+        task.getApproval(approvalId)?.subscribe(callback) ??
+        EMPTY_SUBSCRIBE(callback);
+      const taskUnsubscribe = task.subscribe(() => {
+        approvalUnsubscribe();
+        approvalUnsubscribe =
+          task.getApproval(approvalId)?.subscribe(callback) ??
+          EMPTY_SUBSCRIBE(callback);
+        callback();
+      });
+
+      return () => {
+        approvalUnsubscribe();
+        taskUnsubscribe();
+      };
     },
-    [approval],
+    [task, approvalId],
   );
 
   const getSnapshot = useCallback(() => {
-    if (!approval) return null;
-    return selector(approval.getState());
-  }, [approval, selector]);
+    return task.getApproval(approvalId)?.getState() ?? null;
+  }, [task, approvalId]);
 
-  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  const state = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  return state ? selector(state) : null;
 }
 
 export function useApprovalStateById<T>(
@@ -72,20 +86,32 @@ export function useApprovalStateById<T>(
   selector: (state: ApprovalState) => T,
 ): T | null {
   const task = useTask();
-  const approval = task.getApproval(approvalId);
 
   const subscribe = useCallback(
     (callback: () => void) => {
-      if (!approval) return EMPTY_SUBSCRIBE(callback);
-      return approval.subscribe(callback);
+      let approvalUnsubscribe =
+        task.getApproval(approvalId)?.subscribe(callback) ??
+        EMPTY_SUBSCRIBE(callback);
+      const taskUnsubscribe = task.subscribe(() => {
+        approvalUnsubscribe();
+        approvalUnsubscribe =
+          task.getApproval(approvalId)?.subscribe(callback) ??
+          EMPTY_SUBSCRIBE(callback);
+        callback();
+      });
+
+      return () => {
+        approvalUnsubscribe();
+        taskUnsubscribe();
+      };
     },
-    [approval],
+    [task, approvalId],
   );
 
   const getSnapshot = useCallback(() => {
-    if (!approval) return null;
-    return selector(approval.getState());
-  }, [approval, selector]);
+    return task.getApproval(approvalId)?.getState() ?? null;
+  }, [task, approvalId]);
 
-  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  const state = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  return state ? selector(state) : null;
 }

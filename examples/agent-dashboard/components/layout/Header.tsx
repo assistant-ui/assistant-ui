@@ -35,7 +35,9 @@ function NewSessionLauncher({ onCancel }: { onCancel: () => void }) {
   const handleInputKeyDown = (e: ReactKeyboardEvent<HTMLTextAreaElement>) => {
     if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
       e.preventDefault();
-      void submit();
+      void submit().catch((error) => {
+        console.error("TaskLauncher submit failed:", error);
+      });
     }
   };
 

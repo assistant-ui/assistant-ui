@@ -41,6 +41,16 @@ export interface StoredSession {
   agentCount: number;
 }
 
+export interface SessionSnapshot {
+  title?: string;
+  status?: SessionStatus;
+  createdAt?: Date | string;
+  completedAt?: Date | string | undefined;
+  cost?: number;
+  agentCount?: number;
+  pendingApprovalIds?: string[];
+}
+
 const STORAGE_KEY = "agent-dashboard-sessions";
 const MAX_SESSIONS = 50; // Limit stored sessions to prevent localStorage overflow
 
@@ -84,55 +94,74 @@ export function saveSession(session: StoredSession): void {
 export function updateSessionFromEvents(
   sessionId: string,
   events: SDKEvent[],
-  title?: string,
+  snapshot?: SessionSnapshot,
 ): void {
   if (typeof window === "undefined") return;
 
   const existing = getStoredSession(sessionId);
 
-  // Determine status from events
-  let status: SessionStatus = "running";
-  let completedAt: string | undefined;
-  let cost = 0;
+  let status: SessionStatus = snapshot?.status ?? "running";
+  let completedAt =
+    snapshot?.completedAt !== undefined
+      ? new Date(snapshot.completedAt).toISOString()
+      : undefined;
+  let cost = snapshot?.cost ?? 0;
   const agentIds = new Set<string>();
-  let hasPendingApproval = false;
+  const pendingApprovalIds = new Set(snapshot?.pendingApprovalIds ?? []);
   let isWaitingForInput = false;
 
   for (const event of events) {
-    if (event.type === "task_completed") {
+    const eventType = (event as { type: string }).type;
+
+    if (eventType === "task_completed") {
       status = "completed";
       completedAt = new Date(event.timestamp).toISOString();
-    } else if (event.type === "task_failed") {
+    } else if (eventType === "task_failed") {
       status = "failed";
       completedAt = new Date(event.timestamp).toISOString();
-    } else if (event.type === "cost_update" && event.data) {
+    } else if (eventType === "cost_update" && event.data) {
       const data = event.data as { totalCost?: number };
       if (data.totalCost !== undefined) {
         cost = data.totalCost;
       }
-    } else if (event.type === "agent_spawned" && event.agentId) {
+    } else if (eventType === "agent_spawned" && event.agentId) {
       agentIds.add(event.agentId);
-    } else if (event.type === "tool_use_requested") {
-      hasPendingApproval = true;
+    } else if (eventType === "tool_use_requested") {
+      const data = event.data as { approvalId?: string };
+      if (data.approvalId) {
+        pendingApprovalIds.add(data.approvalId);
+      }
     } else if (
-      event.type === "tool_use_approved" ||
-      event.type === "tool_use_denied"
+      eventType === "tool_use_approved" ||
+      eventType === "tool_use_denied"
     ) {
-      hasPendingApproval = false;
-    } else if (event.type === "message" && event.data) {
-      const data = event.data as { isWaitingForInput?: boolean };
+      const data = event.data as { approvalId?: string };
+      if (data.approvalId) {
+        pendingApprovalIds.delete(data.approvalId);
+      }
+    } else if (eventType === "message" && event.data) {
+      const data = event.data as {
+        isWaitingForInput?: boolean;
+        isUserMessage?: boolean;
+      };
       isWaitingForInput = !!data.isWaitingForInput;
+      if (data.isUserMessage) {
+        isWaitingForInput = false;
+      }
+    } else if (eventType === "error") {
+      status = "failed";
     }
   }
 
-  // Determine final status
-  if (status === "running" && (hasPendingApproval || isWaitingForInput)) {
+  if (
+    status === "running" &&
+    (pendingApprovalIds.size > 0 || isWaitingForInput)
+  ) {
     status = "waiting_input";
   }
 
-  // Extract title from first message or task_started event
-  let sessionTitle = title || existing?.title || "Untitled Session";
-  if (!title) {
+  let sessionTitle = snapshot?.title || existing?.title || "Untitled Session";
+  if (!snapshot?.title) {
     const taskStarted = events.find((e) => e.type === "task_started");
     if (taskStarted?.data) {
       const data = taskStarted.data as { prompt?: string };
@@ -146,11 +175,14 @@ export function updateSessionFromEvents(
     id: sessionId,
     title: sessionTitle,
     status,
-    createdAt: existing?.createdAt || new Date().toISOString(),
+    createdAt:
+      snapshot?.createdAt !== undefined
+        ? new Date(snapshot.createdAt).toISOString()
+        : existing?.createdAt || new Date().toISOString(),
     completedAt,
     cost,
     events,
-    agentCount: agentIds.size || 1,
+    agentCount: (snapshot?.agentCount ?? agentIds.size) || 1,
   };
 
   saveSession(session);

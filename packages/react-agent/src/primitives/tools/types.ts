@@ -63,6 +63,40 @@ export function eventsToToolExecutions(events: AgentEvent[]): ToolExecution[] {
           duration,
         });
       }
+    } else if (event.type === "tool_approved") {
+      const toolCallId = (event.content as { toolCallId?: string }).toolCallId;
+      if (!toolCallId) return;
+      const execution = executions.get(toolCallId);
+      if (execution) {
+        executions.set(toolCallId, {
+          ...execution,
+          status: "running",
+        });
+      }
+    } else if (event.type === "tool_progress") {
+      const toolCallId = (event.content as { toolUseId?: string }).toolUseId;
+      if (!toolCallId) return;
+      const execution = executions.get(toolCallId);
+      if (execution) {
+        executions.set(toolCallId, {
+          ...execution,
+          status: "running",
+        });
+      }
+    } else if (event.type === "tool_denied") {
+      const toolCallId = (event.content as { toolCallId?: string }).toolCallId;
+      if (!toolCallId) return;
+      const execution = executions.get(toolCallId);
+      if (execution) {
+        const endTime = event.timestamp;
+        executions.set(toolCallId, {
+          ...execution,
+          status: "failed",
+          error: "Tool execution denied",
+          endTime,
+          duration: endTime.getTime() - execution.startTime.getTime(),
+        });
+      }
     }
   });
 

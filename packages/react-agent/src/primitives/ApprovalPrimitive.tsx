@@ -139,19 +139,22 @@ export interface ApprovalApproveTimedProps
 const ApprovalApproveTimed = forwardRef<
   HTMLButtonElement,
   ApprovalApproveTimedProps
->(({ duration = 300000, children, ...props }, ref) => {
+>(({ duration = 300000, children, onClick, ...props }, ref) => {
   const approval = useApproval();
   const status = useApprovalState((s) => s.status);
 
   if (!approval || status !== "pending") return null;
 
+  const handleClick: ComponentPropsWithoutRef<"button">["onClick"] = (e) => {
+    onClick?.(e);
+    if (e.defaultPrevented) return;
+    void approval.approve("timed", duration).catch((error) => {
+      console.error("ApprovalPrimitive.ApproveTimed action failed:", error);
+    });
+  };
+
   return (
-    <button
-      ref={ref}
-      type="button"
-      onClick={() => approval.approve("timed", duration)}
-      {...props}
-    >
+    <button ref={ref} type="button" onClick={handleClick} {...props}>
       {children ?? `Allow for ${duration / 60000} min`}
     </button>
   );
@@ -172,14 +175,22 @@ export interface ApprovalDenyWithReasonProps
 const ApprovalDenyWithReason = forwardRef<
   HTMLButtonElement,
   ApprovalDenyWithReasonProps
->(({ children, reason: _reason, ...props }, ref) => {
+>(({ children, onClick, reason: _reason, ...props }, ref) => {
   const approval = useApproval();
   const status = useApprovalState((s) => s.status);
 
   if (!approval || status !== "pending") return null;
 
+  const handleClick: ComponentPropsWithoutRef<"button">["onClick"] = (e) => {
+    onClick?.(e);
+    if (e.defaultPrevented) return;
+    void approval.deny().catch((error) => {
+      console.error("ApprovalPrimitive.DenyWithReason action failed:", error);
+    });
+  };
+
   return (
-    <button ref={ref} type="button" onClick={() => approval.deny()} {...props}>
+    <button ref={ref} type="button" onClick={handleClick} {...props}>
       {children ?? "Deny"}
     </button>
   );

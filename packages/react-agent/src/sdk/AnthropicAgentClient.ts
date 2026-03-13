@@ -177,7 +177,7 @@ class TaskController {
       for await (const message of query({
         prompt: this.options.prompt,
         options: {
-          model: this.config.model || "sonnet",
+          model: this.options.model ?? this.config.model ?? "sonnet",
           allowedTools: this.options.allowedTools || [
             "Read",
             "Write",
@@ -186,6 +186,12 @@ class TaskController {
             "Glob",
             "Grep",
           ],
+          ...(this.abortController
+            ? { abortController: this.abortController }
+            : {}),
+          ...(this.options.maxTokens !== undefined
+            ? { maxThinkingTokens: this.options.maxTokens }
+            : {}),
           maxTurns: this.options.maxTurns || 250,
           // Custom permission handler for approval flow
           canUseTool: async (toolName, input) => {

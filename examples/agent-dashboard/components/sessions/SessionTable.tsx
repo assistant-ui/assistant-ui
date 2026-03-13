@@ -60,6 +60,7 @@ interface DisplaySession {
 
 // Convert stored session to display format
 function storedToDisplay(stored: StoredSession): DisplaySession {
+  const agentCount = Math.max(stored.agentCount, 1);
   const state: DisplaySessionState = {
     id: stored.id,
     title: stored.title,
@@ -67,9 +68,9 @@ function storedToDisplay(stored: StoredSession): DisplaySession {
     createdAt: new Date(stored.createdAt),
     completedAt: stored.completedAt ? new Date(stored.completedAt) : undefined,
     cost: stored.cost,
-    agents: Array.from({ length: stored.agentCount }, (_, i) => ({
+    agents: Array.from({ length: agentCount }, (_, i) => ({
       id: `agent_${i}`,
-      events: [],
+      events: i === 0 ? stored.events : [],
     })),
     pendingApprovals: [], // No pending approvals for stored sessions
   };
@@ -172,6 +173,7 @@ export function SessionTable() {
   // Keyboard navigation
   const { selectedIndex, setSelectedIndex } = useKeyboardNav({
     items: sortedSessions,
+    getItemKey: (session) => session.id,
     onActivate: (session) => {
       router.push(`/sessions/${session.id}`);
     },

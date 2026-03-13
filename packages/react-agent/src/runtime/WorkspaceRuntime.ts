@@ -47,8 +47,8 @@ export class WorkspaceRuntime {
     options?: Partial<CreateTaskOptions>,
   ): Promise<TaskRuntime> {
     const taskOptions: CreateTaskOptions = {
-      prompt,
       ...options,
+      prompt,
     };
 
     const handle = await this.client.createTask(taskOptions);

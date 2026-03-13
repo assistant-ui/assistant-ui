@@ -3,7 +3,7 @@
 import {
   createContext,
   useContext,
-  useMemo,
+  useRef,
   useSyncExternalStore,
   type ReactNode,
 } from "react";
@@ -26,9 +26,16 @@ export function AgentWorkspaceProvider({
   permissionStore,
   children,
 }: AgentWorkspaceProviderProps) {
-  const runtime = useMemo(() => {
-    return new WorkspaceRuntime({ apiKey, baseUrl, client, permissionStore });
-  }, [apiKey, baseUrl, client, permissionStore]);
+  const runtimeRef = useRef<WorkspaceRuntime | null>(null);
+  if (!runtimeRef.current) {
+    runtimeRef.current = new WorkspaceRuntime({
+      apiKey,
+      baseUrl,
+      client,
+      permissionStore,
+    });
+  }
+  const runtime = runtimeRef.current;
 
   return (
     <WorkspaceContext.Provider value={runtime}>

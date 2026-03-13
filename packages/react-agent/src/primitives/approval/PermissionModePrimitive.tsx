@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import type { MouseEvent, ReactNode } from "react";
 import {
   usePermissionMode,
   useSetPermissionMode,
@@ -35,17 +35,26 @@ function PermissionModeCurrent({
   const mode = usePermissionMode();
   return (
     <span {...props}>
-      {typeof children === "function" ? children(mode) : mode}
+      {typeof children === "function"
+        ? children(mode)
+        : children !== undefined
+          ? children
+          : mode}
     </span>
   );
 }
 
 PermissionModeCurrent.displayName = "PermissionModePrimitive.CurrentMode";
 
-function SetAskAll({ children, ...props }: any) {
+function SetAskAll({ children, onClick, ...props }: any) {
   const setMode = useSetPermissionMode();
+  const handleClick = (e: MouseEvent<HTMLButtonElement>) => {
+    onClick?.(e);
+    if (e.defaultPrevented) return;
+    setMode("ask-all");
+  };
   return (
-    <button type="button" onClick={() => setMode("ask-all")} {...props}>
+    <button type="button" onClick={handleClick} {...props}>
       {children || "Ask All"}
     </button>
   );
@@ -53,10 +62,15 @@ function SetAskAll({ children, ...props }: any) {
 
 SetAskAll.displayName = "PermissionModePrimitive.SetAskAll";
 
-function SetAutoReads({ children, ...props }: any) {
+function SetAutoReads({ children, onClick, ...props }: any) {
   const setMode = useSetPermissionMode();
+  const handleClick = (e: MouseEvent<HTMLButtonElement>) => {
+    onClick?.(e);
+    if (e.defaultPrevented) return;
+    setMode("auto-reads");
+  };
   return (
-    <button type="button" onClick={() => setMode("auto-reads")} {...props}>
+    <button type="button" onClick={handleClick} {...props}>
       {children || "Auto Reads"}
     </button>
   );
@@ -64,10 +78,15 @@ function SetAutoReads({ children, ...props }: any) {
 
 SetAutoReads.displayName = "PermissionModePrimitive.SetAutoReads";
 
-function SetAutoAll({ children, ...props }: any) {
+function SetAutoAll({ children, onClick, ...props }: any) {
   const setMode = useSetPermissionMode();
+  const handleClick = (e: MouseEvent<HTMLButtonElement>) => {
+    onClick?.(e);
+    if (e.defaultPrevented) return;
+    setMode("auto-all");
+  };
   return (
-    <button type="button" onClick={() => setMode("auto-all")} {...props}>
+    <button type="button" onClick={handleClick} {...props}>
       {children || "Auto All"}
     </button>
   );

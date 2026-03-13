@@ -1,6 +1,6 @@
 "use client";
 
-import React, { type Ref } from "react";
+import React, { type Ref, useEffect, useState } from "react";
 import type { TaskState } from "@assistant-ui/react-agent";
 import {
   Loader2,
@@ -114,12 +114,21 @@ export const SessionRow = ({
   const pendingCount = task.pendingApprovals.filter(
     (a) => a.status === "pending",
   ).length;
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (task.completedAt) {
+      return;
+    }
+    const intervalId = window.setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
+    return () => window.clearInterval(intervalId);
+  }, [task.completedAt]);
 
   const formatDuration = () => {
     const start = new Date(task.createdAt).getTime();
-    const end = task.completedAt
-      ? new Date(task.completedAt).getTime()
-      : Date.now();
+    const end = task.completedAt ? new Date(task.completedAt).getTime() : now;
     const seconds = Math.floor((end - start) / 1000);
     if (seconds < 60) return `${seconds}s`;
     const mins = Math.floor(seconds / 60);

@@ -61,6 +61,12 @@ export function ToolExecutionCard({
   }[execution.status];
 
   const formatInput = () => {
+    if (execution.toolInput == null) {
+      return String(execution.toolInput);
+    }
+    if (typeof execution.toolInput !== "object") {
+      return String(execution.toolInput);
+    }
     const input = execution.toolInput as Record<string, unknown>;
     if (execution.toolName === "Bash" && input["command"]) {
       return String(input["command"]);
@@ -184,6 +190,16 @@ export function eventsToToolExecutions(events: AgentEvent[]): ToolExecution[] {
       if (execution) {
         execution.status = content.isError ? "error" : "success";
         execution.result = content.result;
+        execution.endTime = new Date(event.timestamp);
+        execution.duration =
+          execution.endTime.getTime() - execution.startTime.getTime();
+      }
+    } else if (event.type === "tool_denied") {
+      const content = event.content as any;
+      const execution = executions.get(content.toolCallId);
+      if (execution) {
+        execution.status = "error";
+        execution.result = "Tool execution denied";
         execution.endTime = new Date(event.timestamp);
         execution.duration =
           execution.endTime.getTime() - execution.startTime.getTime();

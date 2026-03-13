@@ -15,13 +15,15 @@ export interface DiffViewerProps {
 interface DiffLine {
   type: "unchanged" | "added" | "removed";
   content: string;
-  lineNumber: number;
+  oldLineNumber: number | null;
+  newLineNumber: number | null;
 }
 
 function computeDiff(oldContent: string, newContent: string): DiffLine[] {
   const diff: DiffLine[] = [];
   const changes = diffLines(oldContent, newContent);
-  let lineNumber = 1;
+  let oldLineNumber = 1;
+  let newLineNumber = 1;
 
   for (const change of changes) {
     const lines = change.value.split("\n");
@@ -36,8 +38,12 @@ function computeDiff(oldContent: string, newContent: string): DiffLine[] {
         : "unchanged";
 
     for (const line of lines) {
-      diff.push({ type, content: line, lineNumber });
-      lineNumber++;
+      diff.push({
+        type,
+        content: line,
+        oldLineNumber: type === "added" ? null : oldLineNumber++,
+        newLineNumber: type === "removed" ? null : newLineNumber++,
+      });
     }
   }
 
@@ -124,8 +130,11 @@ export function DiffViewer({
                 line.type === "removed" && "bg-red-500/10",
               )}
             >
-              <span className="w-8 shrink-0 select-none px-2 text-right text-zinc-600">
-                {line.lineNumber}
+              <span className="w-8 shrink-0 select-none px-1 text-right text-zinc-600">
+                {line.oldLineNumber ?? ""}
+              </span>
+              <span className="w-8 shrink-0 select-none px-1 text-right text-zinc-600">
+                {line.newLineNumber ?? ""}
               </span>
               <span
                 className={cn(

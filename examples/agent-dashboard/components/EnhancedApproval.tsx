@@ -121,6 +121,16 @@ function ApprovalContent({ className }: { className?: string }) {
   );
 
   useEffect(() => {
+    if (
+      state?.status === "pending" &&
+      document.activeElement === document.body &&
+      containerRef.current
+    ) {
+      containerRef.current.focus();
+    }
+  }, [state?.status]);
+
+  useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       // Only handle if this component's container is focused
       if (!containerRef.current?.contains(document.activeElement)) {

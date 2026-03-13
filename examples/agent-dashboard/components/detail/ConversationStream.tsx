@@ -154,11 +154,9 @@ export function ConversationStream({
       }
     | { type: "single"; event: AgentEvent };
 
-  const groupedEvents = events.reduce<GroupedEvent[]>((groups, event) => {
-    // Skip tool_result events - they'll be included with their tool_call
-    if (event.type === "tool_result") {
-      return groups;
-    }
+  const groupedEvents: GroupedEvent[] = [];
+  for (let index = 0; index < events.length; index++) {
+    const event = events[index]!;
 
     if (event.type === "tool_call") {
       const content = event.content as {
@@ -166,26 +164,30 @@ export function ConversationStream({
         toolName: string;
         toolInput: unknown;
       };
-      // Find matching result
-      const resultEvent = events.find(
-        (e) =>
-          e.type === "tool_result" &&
-          (e.content as { toolCallId: string }).toolCallId ===
-            content.toolCallId,
-      );
-      groups.push({
+      const nextEvent = events[index + 1];
+      const resultEvent =
+        nextEvent?.type === "tool_result" &&
+        (nextEvent.content as { toolCallId: string }).toolCallId ===
+          content.toolCallId
+          ? nextEvent
+          : undefined;
+
+      groupedEvents.push({
         type: "tool_execution",
         callEvent: event,
         resultEvent,
         toolName: content.toolName,
         toolInput: content.toolInput,
       });
-    } else {
-      groups.push({ type: "single", event });
+
+      if (resultEvent) {
+        index++;
+      }
+      continue;
     }
 
-    return groups;
-  }, []);
+    groupedEvents.push({ type: "single", event });
+  }
 
   return (
     <div

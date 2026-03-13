@@ -6,6 +6,7 @@ export interface UseKeyboardNavOptions<T> {
   items: T[];
   onActivate?: (item: T, index: number) => void;
   onNavigate?: (item: T, index: number) => void;
+  getItemKey?: (item: T) => string | number;
   enabled?: boolean;
   loop?: boolean;
   initialIndex?: number;
@@ -23,12 +24,14 @@ export function useKeyboardNav<T>({
   items,
   onActivate,
   onNavigate,
+  getItemKey,
   enabled = true,
   loop = false,
   initialIndex = 0,
 }: UseKeyboardNavOptions<T>): UseKeyboardNavResult {
   const [selectedIndex, setSelectedIndex] = useState(initialIndex);
   const shouldNotifyNavigateRef = useRef(false);
+  const selectedKeyRef = useRef<string | number | undefined>(undefined);
   const itemsRef = useRef(items);
   const onNavigateRef = useRef(onNavigate);
   const onActivateRef = useRef(onActivate);
@@ -45,24 +48,39 @@ export function useKeyboardNav<T>({
     onActivateRef.current = onActivate;
   }, [onActivate]);
 
+  useEffect(() => {
+    if (!getItemKey) return;
+    const currentItem = items[selectedIndex];
+    selectedKeyRef.current =
+      currentItem !== undefined ? getItemKey(currentItem) : undefined;
+  }, [getItemKey, items, selectedIndex]);
+
   // Clamp index when items change
   useEffect(() => {
     if (items.length === 0) {
       setSelectedIndex(0);
+    } else if (getItemKey && selectedKeyRef.current !== undefined) {
+      const nextIndex = items.findIndex(
+        (item) => getItemKey(item) === selectedKeyRef.current,
+      );
+      if (nextIndex >= 0 && nextIndex !== selectedIndex) {
+        setSelectedIndex(nextIndex);
+      }
     } else if (selectedIndex >= items.length) {
       setSelectedIndex(items.length - 1);
     }
-  }, [items.length, selectedIndex]);
+  }, [getItemKey, items, selectedIndex]);
 
   const navigateUp = useCallback(() => {
     const itemCount = itemsRef.current.length;
     if (itemCount === 0) {
       return;
     }
-    shouldNotifyNavigateRef.current = true;
-    setSelectedIndex((prev) =>
-      prev <= 0 ? (loop ? itemCount - 1 : 0) : prev - 1,
-    );
+    setSelectedIndex((prev) => {
+      const nextIndex = prev <= 0 ? (loop ? itemCount - 1 : 0) : prev - 1;
+      shouldNotifyNavigateRef.current = nextIndex !== prev;
+      return nextIndex;
+    });
   }, [loop]);
 
   const navigateDown = useCallback(() => {
@@ -70,10 +88,12 @@ export function useKeyboardNav<T>({
     if (itemCount === 0) {
       return;
     }
-    shouldNotifyNavigateRef.current = true;
-    setSelectedIndex((prev) =>
-      prev >= itemCount - 1 ? (loop ? 0 : itemCount - 1) : prev + 1,
-    );
+    setSelectedIndex((prev) => {
+      const nextIndex =
+        prev >= itemCount - 1 ? (loop ? 0 : itemCount - 1) : prev + 1;
+      shouldNotifyNavigateRef.current = nextIndex !== prev;
+      return nextIndex;
+    });
   }, [loop]);
 
   useEffect(() => {
@@ -157,6 +177,7 @@ export function useExtendedKeyboardNav<T>({
   items,
   onActivate,
   onNavigate,
+  getItemKey,
   enabled = true,
   loop = false,
   initialIndex = 0,
@@ -176,6 +197,7 @@ export function useExtendedKeyboardNav<T>({
     loop,
     initialIndex,
   };
+  if (getItemKey) baseOptions.getItemKey = getItemKey;
   if (onActivate) baseOptions.onActivate = onActivate;
   if (onNavigate) baseOptions.onNavigate = onNavigate;
   const nav = useKeyboardNav(baseOptions);

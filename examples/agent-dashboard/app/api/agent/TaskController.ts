@@ -24,7 +24,7 @@ export class TaskController {
   private isRunning = false;
   private isCancelled = false;
   private eventListeners: Set<() => void> = new Set();
-  private abortController: AbortController | null = null;
+  private abortController: AbortController | undefined;
   private currentCost = 0;
   private toolUseToAgent: Map<string, string> = new Map();
   private mainAgentId = "";
@@ -252,8 +252,14 @@ export class TaskController {
           for await (const message of query({
             prompt: fullPrompt,
             options: {
-              model: "sonnet",
+              model: this.options.model || "sonnet",
               permissionMode: "dontAsk", // Don't use built-in prompts; route through our hook
+              ...(this.abortController
+                ? { abortController: this.abortController }
+                : {}),
+              ...(this.options.maxTokens !== undefined
+                ? { maxThinkingTokens: this.options.maxTokens }
+                : {}),
               // 'tools' specifies available tools
               tools: this.options.allowedTools || [
                 "Read",
@@ -815,8 +821,8 @@ export class TaskController {
       case "result":
         // Track the current cost
         const totalCost =
-          message.total_cost_usd ||
-          message.usage?.total_cost_usd ||
+          message.total_cost_usd ??
+          message.usage?.total_cost_usd ??
           this.currentCost;
         this.currentCost = totalCost;
 

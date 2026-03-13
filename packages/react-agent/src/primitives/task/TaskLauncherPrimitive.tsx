@@ -3,6 +3,8 @@
 import React, {
   createContext,
   useContext,
+  useCallback,
+  useRef,
   useState,
   useMemo,
   type ReactNode,
@@ -45,32 +47,38 @@ function TaskLauncherRoot({
   const workspace = useAgentWorkspace();
   const [prompt, setPrompt] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const submitLockRef = useRef(false);
+
+  const submit = useCallback(async () => {
+    const trimmedPrompt = prompt.trim();
+    if (!trimmedPrompt || submitLockRef.current) return;
+
+    submitLockRef.current = true;
+    setIsSubmitting(true);
+    try {
+      const task = await workspace.createTask(trimmedPrompt);
+      setPrompt("");
+      onSubmit?.(task.id);
+    } catch (error) {
+      onError?.(error);
+      if (!onError) {
+        console.error("TaskLauncher submit failed:", error);
+      }
+      throw error;
+    } finally {
+      submitLockRef.current = false;
+      setIsSubmitting(false);
+    }
+  }, [prompt, workspace, onSubmit, onError]);
 
   const value = useMemo(
     () => ({
       prompt,
       setPrompt,
       isSubmitting,
-      submit: async () => {
-        if (!prompt.trim() || isSubmitting) return;
-
-        setIsSubmitting(true);
-        try {
-          const task = await workspace.createTask(prompt);
-          setPrompt("");
-          onSubmit?.(task.id);
-        } catch (error) {
-          onError?.(error);
-          if (!onError) {
-            console.error("TaskLauncher submit failed:", error);
-          }
-          throw error;
-        } finally {
-          setIsSubmitting(false);
-        }
-      },
+      submit,
     }),
-    [prompt, isSubmitting, workspace, onSubmit, onError],
+    [prompt, isSubmitting, submit],
   );
 
   return (
@@ -116,8 +124,9 @@ function TaskLauncherSubmit({
   const isDisabled = disabled || !prompt.trim() || isSubmitting;
 
   const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
-    void submit().catch(() => {});
     onClick?.(e);
+    if (e.defaultPrevented) return;
+    void submit().catch(() => {});
   };
 
   return (

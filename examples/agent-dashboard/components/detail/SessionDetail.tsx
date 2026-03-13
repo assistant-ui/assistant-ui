@@ -52,19 +52,24 @@ function SessionDetailContent() {
   );
   const [isWaitingForInput, setIsWaitingForInput] = useState(false);
 
+  const fullEvents: AgentEvent[] = useMemo(
+    () =>
+      agents
+        .flatMap((agent) => agent.events)
+        .sort(
+          (a, b) =>
+            new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+        ),
+    [agents],
+  );
+
   // Filter events by selected agent or show all
   const allEvents: AgentEvent[] = useMemo(
     () =>
       selectedAgentId
         ? agents.find((a) => a.id === selectedAgentId)?.events || []
-        : agents
-            .flatMap((agent) => agent.events)
-            .sort(
-              (a, b) =>
-                new Date(a.timestamp).getTime() -
-                new Date(b.timestamp).getTime(),
-            ),
-    [agents, selectedAgentId],
+        : fullEvents,
+    [agents, fullEvents, selectedAgentId],
   );
 
   const pendingApprovals = pendingApprovalsRaw.filter(
@@ -73,19 +78,28 @@ function SessionDetailContent() {
 
   // Persist session to localStorage whenever events change
   useEffect(() => {
-    if (task && allEvents.length > 0) {
+    if (task && fullEvents.length > 0) {
       const taskState = task.getState();
-      // Convert AgentEvent[] to SDKEvent[] format for storage
-      const sdkEvents = allEvents.map((e) => ({
+      const sdkEvents = fullEvents.map((e) => ({
         type: e.type,
         taskId: taskState.id,
         agentId: e.agentId,
         data: e.content,
         timestamp: e.timestamp,
       }));
-      updateSessionFromEvents(taskState.id, sdkEvents as any, title);
+      updateSessionFromEvents(taskState.id, sdkEvents as any, {
+        title,
+        status: taskState.status,
+        createdAt: taskState.createdAt,
+        completedAt: taskState.completedAt,
+        cost: taskState.cost,
+        agentCount: taskState.agents.length,
+        pendingApprovalIds: taskState.pendingApprovals
+          .filter((approval) => approval.status === "pending")
+          .map((approval) => approval.id),
+      });
     }
-  }, [task, allEvents, title]);
+  }, [task, fullEvents, title]);
 
   // Detect waiting for input state
   useEffect(() => {

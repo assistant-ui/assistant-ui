@@ -25,6 +25,12 @@ export function processSDKEvent(
   currentState: TaskState,
 ): ProcessEventResult {
   const result: ProcessEventResult = {};
+  const hasOtherPendingApproval = (approvalId: string) =>
+    currentState.pendingApprovals.some(
+      (approval) =>
+        approval.id !== approvalId &&
+        (approval.status === "pending" || approval.status === "processing"),
+    );
 
   switch (event.type) {
     case "task_started": {
@@ -198,9 +204,10 @@ export function processSDKEvent(
     case "tool_use_approved": {
       const data = event.data as { approvalId: string; toolCallId?: string };
       result.resolvedApprovalId = data.approvalId;
-      // Change task status back to running when approval is resolved
       result.taskUpdate = {
-        status: "running",
+        status: hasOtherPendingApproval(data.approvalId)
+          ? "waiting_input"
+          : "running",
       };
       if (event.agentId) {
         result.newEvent = {
@@ -217,9 +224,10 @@ export function processSDKEvent(
     case "tool_use_denied": {
       const data = event.data as { approvalId: string; toolCallId?: string };
       result.resolvedApprovalId = data.approvalId;
-      // Change task status back to running when approval is resolved
       result.taskUpdate = {
-        status: "running",
+        status: hasOtherPendingApproval(data.approvalId)
+          ? "waiting_input"
+          : "running",
       };
       if (event.agentId) {
         result.newEvent = {
