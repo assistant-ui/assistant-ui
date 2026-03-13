@@ -1,0 +1,352 @@
+---
+title: AG-UI Runtime
+description: Integrate AG-UI (Agent UI) protocol with assistant-ui.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+## Overview
+
+The `react-ag-ui` package provides a runtime adaptation for the AG-UI protocol, allowing you to connect `assistant-ui` to agents built with AG-UI.
+
+## Getting Started
+
+import { Steps, Step } from "fumadocs-ui/components/steps";
+import { InstallCommand } from "@/components/docs/install-command";
+
+<Steps>
+  <Step>
+  ### Install the packages
+
+  <InstallCommand npm={["@assistant-ui/react", "@assistant-ui/react-ag-ui", "@ag-ui/client"]} />
+
+  </Step>
+  <Step>
+
+  ### Set up the Runtime
+
+  Create a `runtime` using `useAgUiRuntime` and wrap your app with `AssistantRuntimeProvider`.
+
+  You will need an `HttpAgent` instance pointing to your AG-UI compatible backend.
+
+  ```tsx title="app/MyRuntimeProvider.tsx"
+  "use client";
+
+  import { useMemo } from "react";
+  import { HttpAgent } from "@ag-ui/client";
+  import { useAgUiRuntime } from "@assistant-ui/react-ag-ui";
+  import { AssistantRuntimeProvider } from "@assistant-ui/react";
+
+  export function MyRuntimeProvider({
+    children,
+  }: Readonly<{ children: React.ReactNode }>) {
+    const agentUrl =
+      process.env.NEXT_PUBLIC_AGUI_AGENT_URL ?? "http://localhost:8000/agent";
+
+    const agent = useMemo(() => {
+      return new HttpAgent({
+        url: agentUrl,
+        headers: {
+          Accept: "text/event-stream",
+        },
+      });
+    }, [agentUrl]);
+
+    const runtime = useAgUiRuntime({
+      agent,
+      logger: {
+        debug: (...args) => console.debug("[agui]", ...args),
+        error: (...args) => console.error("[agui]", ...args),
+      },
+    });
+
+    return (
+      <AssistantRuntimeProvider runtime={runtime}>
+        {children}
+      </AssistantRuntimeProvider>
+    );
+  }
+  ```
+
+  ```tsx title="app/layout.tsx"
+  import { MyRuntimeProvider } from "@/app/MyRuntimeProvider";
+
+  export default function RootLayout({
+    children,
+  }: Readonly<{ children: React.ReactNode }>) {
+    return (
+      <html lang="en">
+        <body>
+          <MyRuntimeProvider>{children}</MyRuntimeProvider>
+        </body>
+      </html>
+    );
+  }
+  ```
+
+  </Step>
+</Steps>
+
+## API Reference
+
+### useAgUiRuntime
+
+The `useAgUiRuntime` hook creates an `AssistantRuntime` instance that communicates with an AG-UI agent.
+
+```tsx
+const runtime = useAgUiRuntime(options);
+```
+
+#### Options
+
+| Option | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `agent` | `HttpAgent` | **Required** | The AG-UI client agent instance used to communicate with your backend. |
+| `showThinking` | `boolean` | `true` | Whether to display "thinking" steps from the agent in the UI. |
+| `logger` | `Partial<Logger>` | `undefined` | Custom logger for debugging runtime events. See [Logging](#logging) below. |
+| `onError` | `(error: Error) => void` | `undefined` | Callback function triggered when a runtime error occurs. |
+| `onCancel` | `() => void` | `undefined` | Callback function triggered when a run is cancelled. |
+| `adapters` | `UseAgUiRuntimeAdapters` | `undefined` | Optional adapters for extending functionality (see [Adapters](#adapters) below). |
+
+### HttpAgent Configuration
+
+The `HttpAgent` from `@ag-ui/client` can be configured with various options:
+
+```tsx
+import { HttpAgent } from "@ag-ui/client";
+
+const agent = new HttpAgent({
+  url: "http://localhost:8000/agent",
+  headers: {
+    Accept: "text/event-stream",
+    Authorization: "Bearer your-token", // Optional: Add authentication
+  },
+  // Additional HttpAgent options can be passed here
+});
+```
+
+### Adapters
+
+You can pass custom adapters to `useAgUiRuntime` to handle specific capabilities like attachments, speech synthesis, feedback, or thread history.
+
+```tsx
+const runtime = useAgUiRuntime({
+  agent,
+  adapters: {
+    // Handle file attachments
+    attachments: myAttachmentAdapter,
+    // Handle text-to-speech and speech-to-text
+    speech: mySpeechAdapter,
+    // Handle user feedback (thumbs up/down)
+    feedback: myFeedbackAdapter,
+    // Handle thread history persistence
+    history: myHistoryAdapter,
+  },
+});
+```
+
+#### Attachment Adapter
+
+Enable file and image uploads with an `AttachmentAdapter`:
+
+```tsx
+import type { AttachmentAdapter } from "@assistant-ui/react";
+
+const attachmentAdapter: AttachmentAdapter = {
+  accept: "image/*,application/pdf",
+  async add({ file }) {
+    return {
+      id: crypto.randomUUID(),
+      type: file.type.startsWith("image/") ? "image" : "document",
+      name: file.name,
+      file,
+      status: { type: "running" },
+    };
+  },
+  async send(attachment) {
+    // Upload file to your server
+    const formData = new FormData();
+    formData.append("file", attachment.file);
+    const response = await fetch("/api/upload", {
+      method: "POST",
+      body: formData,
+    });
+    const { url } = await response.json();
+
+    return {
+      ...attachment,
+      url,
+      status: { type: "complete" },
+    };
+  },
+  async remove(attachment) {
+    // Clean up uploaded file if needed
+    await fetch(`/api/upload/${attachment.id}`, {
+      method: "DELETE",
+    });
+  },
+};
+
+const runtime = useAgUiRuntime({
+  agent,
+  adapters: {
+    attachments: attachmentAdapter,
+  },
+});
+```
+
+For more details on attachment adapters, see the [Attachments guide](/docs/guides/Attachments).
+
+#### Speech Synthesis Adapter
+
+Enable text-to-speech functionality with a `SpeechSynthesisAdapter`:
+
+```tsx
+import type { SpeechSynthesisAdapter } from "@assistant-ui/react";
+import { WebSpeechSynthesisAdapter } from "@assistant-ui/react";
+
+// Use the built-in Web Speech API adapter
+const runtime = useAgUiRuntime({
+  agent,
+  adapters: {
+    speech: new WebSpeechSynthesisAdapter(),
+  },
+});
+
+// Or create a custom adapter
+const customSpeechAdapter: SpeechSynthesisAdapter = {
+  speak: (text) => {
+    const utterance = new SpeechSynthesisUtterance(text);
+    speechSynthesis.speak(utterance);
+
+    return {
+      status: { type: "starting" },
+      cancel: () => speechSynthesis.cancel(),
+      subscribe: (callback) => {
+        utterance.addEventListener("end", callback);
+        return () => utterance.removeEventListener("end", callback);
+      },
+    };
+  },
+};
+```
+
+For more details on speech adapters, see the [Speech guide](/docs/guides/Speech).
+
+#### Feedback Adapter
+
+Handle user feedback (thumbs up/down) with a `FeedbackAdapter`:
+
+```tsx
+import type { FeedbackAdapter } from "@assistant-ui/react";
+
+const feedbackAdapter: FeedbackAdapter = {
+  submit: (feedback) => {
+    // Send feedback to your analytics service
+    analytics.track("message_feedback", {
+      messageId: feedback.message.id,
+      feedbackType: feedback.type, // "positive" | "negative"
+      messageContent: feedback.message.content,
+    });
+  },
+};
+
+const runtime = useAgUiRuntime({
+  agent,
+  adapters: {
+    feedback: feedbackAdapter,
+  },
+});
+```
+
+#### Thread History
+
+To persist chat history, provide a `ThreadHistoryAdapter`. The runtime will automatically record message history to this adapter.
+
+```tsx
+import type { ThreadHistoryAdapter, ExportedMessageRepository } from "@assistant-ui/react";
+
+const historyAdapter: ThreadHistoryAdapter = {
+  async load(): Promise<ExportedMessageRepository> {
+    // Load messages from your database
+    const response = await fetch("/api/messages");
+    const data = await response.json();
+    return {
+      headId: data.headId,
+      messages: data.messages,
+    };
+  },
+  async append(entry) {
+    // Save message entry to your database
+    await fetch("/api/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(entry),
+    });
+  },
+  // Optional: Resume a conversation from a specific point
+  async *resume(options) {
+    // Implement resume logic if needed
+    // This allows continuing a conversation from a saved state
+  },
+};
+
+const runtime = useAgUiRuntime({
+  agent,
+  adapters: {
+    history: historyAdapter,
+  },
+});
+```
+
+The `ThreadHistoryAdapter` requires:
+- `load()`: Loads the message repository from storage
+- `append(item)`: Saves a new message entry to storage
+- `resume(options)` (optional): Resumes a conversation from a saved state
+
+### Troubleshooting
+
+#### Logging
+
+You can enable debug logging to inspect internal events and state changes:
+
+```tsx
+const runtime = useAgUiRuntime({
+  agent,
+  logger: {
+    debug: (...args) => console.log("[AG-UI]", ...args),
+    error: (...args) => console.error("[AG-UI]", ...args),
+  },
+});
+```
+
+The logger accepts a `Partial<Logger>`, so you can provide only the methods you need.
+
+#### Error Handling
+
+Use the `onError` callback to handle runtime errors gracefully, such as displaying a toast notification:
+
+```tsx
+const runtime = useAgUiRuntime({
+  agent,
+  onError: (error) => {
+    toast.error(`Agent Error: ${error.message}`);
+    // Optionally log to error tracking service
+    errorTracking.captureException(error);
+  },
+});
+```
+
+#### Cancellation
+
+Handle cancellation events with the `onCancel` callback:
+
+```tsx
+const runtime = useAgUiRuntime({
+  agent,
+  onCancel: () => {
+    console.log("Agent run was cancelled");
+    // Perform cleanup if needed
+  },
+});
+```
