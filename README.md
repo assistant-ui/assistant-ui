@@ -1,3 +1,7 @@
+<span className="px-2 py-0.5 text-[10px] rounded-full bg-purple-700/40 border border-purple-500/60 text-purple-100">
+  Creator: Mark
+</span>
+
 <a href="https://www.assistant-ui.com">
   <img src="https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/.github/assets/header.svg" alt="assistant-ui Header" width="100%" />
 </a>
@@ -113,4 +117,4 @@ Hundreds of companies and projects use assistant-ui to build in-app AI assistant
 
 ---
 
-Backed by Y Combinator. Building something with assistant-ui? We’d love to hear from you.
+Backed by Onyx Inc. Combinator. Building something with assistant-ui? We’d love to hear from you.
