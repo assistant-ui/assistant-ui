@@ -131,6 +131,7 @@ export function createExtensionTransformer(
     ): ts.Statement[] | null => {
       if (
         !rewriteNamespaceExports ||
+        node.isTypeOnly ||
         !node.moduleSpecifier ||
         !ts.isStringLiteral(node.moduleSpecifier) ||
         !node.exportClause ||

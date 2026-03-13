@@ -278,6 +278,17 @@ describe("createExtensionTransformer", () => {
       expect(output).not.toContain("import * as MessagePrimitive");
     });
 
+    it("does not split type-only namespace re-exports", async () => {
+      const output = await emitFixture({
+        entry:
+          'export type * as MessagePrimitive from "./primitives/message";\n',
+        files: nsFiles,
+        rewriteNamespaceExports: true,
+      });
+      // Type-only export should not become a runtime import + export
+      expect(output).not.toContain("import * as MessagePrimitive");
+    });
+
     it("defaults to disabled when option is omitted", async () => {
       const output = await emitFixture({
         entry: 'export * as MessagePrimitive from "./primitives/message";\n',
