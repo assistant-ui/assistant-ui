@@ -30,7 +30,7 @@ export async function POST(req: Request) {
   return streamText({
     model: openai("gpt-4o"),
     prompt,
-  });
+  }).toUIMessageStreamResponse();
 }
 ```
 
@@ -44,15 +44,15 @@ export async function POST(req: Request) {
 2. **Configure ChatOpenAI:**
 
 ```python
-from langchain.chat_models import ChatOpenAI
+from langchain_openai import ChatOpenAI
 import os
 
 llm = ChatOpenAI(
-    model_name="gpt-3.5-turbo",
+    model_name="gpt-4o",
     temperature=0,
-    openai_api_base="https://oai.helicone.ai/v1",
-    openai_api_key=os.environ["OPENAI_API_KEY"],
-    openai_api_headers={"Helicone-Auth": f"Bearer {os.environ['HELICONE_API_KEY']}"}
+    base_url="https://oai.helicone.ai/v1",
+    api_key=os.environ["OPENAI_API_KEY"],
+    default_headers={"Helicone-Auth": f"Bearer {os.environ['HELICONE_API_KEY']}"}
 )
 ```
 

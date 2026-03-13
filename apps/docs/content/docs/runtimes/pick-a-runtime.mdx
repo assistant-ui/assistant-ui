@@ -14,6 +14,8 @@ graph TD
     B -->|LangGraph| D[Use LangGraph Runtime]
     B -->|LangServe| E[Use LangServe Runtime]
     B -->|Mastra| F[Use Mastra Runtime]
+    B -->|AG-UI Protocol| J[Use AG-UI Runtime]
+    B -->|A2A Protocol| K[Use A2A Runtime]
     B -->|Custom Backend| G{State Management?}
     G -->|Let assistant-ui handle it| H[Use LocalRuntime]
     G -->|I'll manage it myself| I[Use ExternalStoreRuntime]
@@ -43,7 +45,7 @@ For popular frameworks, we provide ready-to-use integrations built on top of our
 <Cards>
   <Card
     title="Vercel AI SDK"
-    description="For useChat and useAssistant hooks - streaming with all major providers"
+    description="For useChat hook - streaming with all major providers"
     href="/docs/runtimes/ai-sdk/v6"
   />
   <Card
@@ -66,6 +68,16 @@ For popular frameworks, we provide ready-to-use integrations built on top of our
     description="For workflow orchestration with Mastra's ecosystem"
     href="/docs/runtimes/mastra/overview"
   />
+  <Card
+    title="AG-UI Protocol"
+    description="For backends implementing the AG-UI (Agent-User Interaction) protocol"
+    href="https://www.npmjs.com/package/@assistant-ui/react-ag-ui"
+  />
+  <Card
+    title="A2A Protocol"
+    description="For Agent-to-Agent protocol communication between AI agents"
+    href="https://www.npmjs.com/package/@assistant-ui/react-a2a"
+  />
 </Cards>
 
 ## Understanding Runtime Architecture
@@ -78,6 +90,8 @@ The pre-built integrations (AI SDK, LangGraph, etc.) are **not separate runtime 
 - **LangGraph Runtime** → Built on `LocalRuntime` with graph execution adapter
 - **LangServe Runtime** → Built on `LocalRuntime` with LangServe client adapter
 - **Mastra Runtime** → Built on `LocalRuntime` with workflow adapter
+- **AG-UI Runtime** → Built on `LocalRuntime` with AG-UI protocol adapter
+- **A2A Runtime** → Built on `LocalRuntime` with Agent-to-Agent protocol adapter
 
 This means you get all the benefits of `LocalRuntime` (automatic state management, built-in features) with zero configuration for your specific framework.
 
@@ -127,6 +141,7 @@ Pre-built integrations can always be replaced with a custom `LocalRuntime` or `E
 ### Vercel AI SDK with Streaming
 
 ```tsx
+import { AssistantRuntimeProvider, Thread } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 
 export function MyAssistant() {

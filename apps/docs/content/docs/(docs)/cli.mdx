@@ -77,6 +77,8 @@ Use `--example` to create a project from one of the monorepo examples with full 
 | `with-ffmpeg` | FFmpeg video processing tool | `npx assistant-ui create my-app -e with-ffmpeg` |
 | `with-elevenlabs-scribe` | ElevenLabs voice transcription | `npx assistant-ui create my-app -e with-elevenlabs-scribe` |
 | `with-parent-id-grouping` | Message part grouping | `npx assistant-ui create my-app -e with-parent-id-grouping` |
+| `with-expo` | Expo / React Native | `npx assistant-ui create my-app -e with-expo` |
+| `with-react-ink` | Terminal UI chat | `npx assistant-ui create my-app -e with-react-ink` |
 | `with-react-router` | React Router v7 integration | `npx assistant-ui create my-app -e with-react-router` |
 | `with-tanstack` | TanStack Start integration | `npx assistant-ui create my-app -e with-tanstack` |
 
@@ -113,14 +115,17 @@ Arguments:
   project-directory         name of the project directory
 
 Options:
-  -t, --template <template>  template to use (default, minimal, cloud, cloud-clerk, langgraph, mcp)
-  -e, --example <example>    create from an example (e.g., with-langgraph)
-  --use-npm                  explicitly use npm
-  --use-pnpm                 explicitly use pnpm
-  --use-yarn                 explicitly use yarn
-  --use-bun                  explicitly use bun
-  --skip-install             skip installing packages
-  -h, --help                 display help for command
+  -t, --template <template>      template to use (default, minimal, cloud, cloud-clerk, langgraph, mcp)
+  -e, --example <example>        create from an example (e.g., with-langgraph)
+  -p, --preset <name-or-url>     preset name or URL (e.g., chatgpt)
+  --native                       create an Expo / React Native project
+  --ink                          create a React Ink terminal project
+  --use-npm                      explicitly use npm
+  --use-pnpm                     explicitly use pnpm
+  --use-yarn                     explicitly use yarn
+  --use-bun                      explicitly use bun
+  --skip-install                 skip installing packages
+  -h, --help                     display help for command
 ```
 
 ## add

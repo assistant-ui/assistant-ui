@@ -3,6 +3,10 @@ title: makeAssistantTool
 description: Create React components that provide reusable tools to the assistant.
 ---
 
+<Callout type="warn">
+  `makeAssistantTool` is deprecated. Use the `Tools()` API instead. See the
+  [Tools guide](/docs/guides/tools) for the recommended approach.
+</Callout>
 
 `makeAssistantTool` creates a React component that provides a tool to the assistant. This is useful for defining reusable tools that can be composed into your application.
 
@@ -121,7 +125,7 @@ function Form() {
               name: "status",
               type: "ToolCallMessagePartStatus",
               description:
-                'The execution status object with a type property: "running", "complete", "incomplete", or "requires_action"',
+                'The execution status object with a type property: "running", "complete", "incomplete", or "requires-action"',
             },
             {
               name: "addResult",

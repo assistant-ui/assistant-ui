@@ -91,8 +91,8 @@ export {
   type AssistantEventCallback,
 } from "@assistant-ui/store";
 
-// Context providers and hooks
-export { AssistantRuntimeProvider, useAssistantRuntime } from "./context";
+// Context providers
+export { AssistantRuntimeProvider } from "./context";
 
 // Runtime
 export {

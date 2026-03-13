@@ -232,7 +232,7 @@ declare module "@assistant-ui/store" {
 ### ClientOutput
 
 ```ts
-type ClientOutput<K extends ClientNames> = ClientSchemas[K]["methods"];
+type ClientOutput<K extends ClientNames> = ClientSchemas[K]["methods"] & ClientMethods;
 ```
 
 The return type for a resource implementing scope `K`. Use as the return type annotation on your resource function.

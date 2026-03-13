@@ -91,15 +91,48 @@ export const ThreadViewportState: ParametersTableProps = {
     },
     {
       name: "scrollToBottom",
-      type: "() => void",
+      type: "(config?: { behavior?: ScrollBehavior }) => void",
       required: true,
       description: "A function to scroll to the bottom.",
     },
     {
       name: "onScrollToBottom",
-      type: "(callback: () => void) => Unsubscribe",
+      type: "(callback: ({ behavior }: { behavior: ScrollBehavior }) => void) => Unsubscribe",
       required: true,
       description: "A function to subscribe to scroll to bottom events.",
+    },
+    {
+      name: "turnAnchor",
+      type: '"top" | "bottom"',
+      required: true,
+      description:
+        'Controls scroll anchoring: "top" anchors user messages at top, "bottom" is classic behavior.',
+    },
+    {
+      name: "height",
+      type: "{ viewport: number; inset: number; userMessage: number }",
+      required: true,
+      description:
+        "Raw height values from registered elements: total viewport height, total content inset height (footer, anchor message, etc.), and height of the anchor user message.",
+    },
+    {
+      name: "registerViewport",
+      type: "() => SizeHandle",
+      required: true,
+      description: "Register a viewport and get a handle to update its height.",
+    },
+    {
+      name: "registerContentInset",
+      type: "() => SizeHandle",
+      required: true,
+      description:
+        "Register a content inset (footer, anchor message, etc.) and get a handle to update its height.",
+    },
+    {
+      name: "registerUserMessageHeight",
+      type: "() => SizeHandle",
+      required: true,
+      description: "Register the anchor user message height.",
     },
   ],
 };

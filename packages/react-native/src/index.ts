@@ -92,7 +92,7 @@ export {
 } from "@assistant-ui/store";
 
 // Context providers and hooks
-export { AssistantRuntimeProvider, useAssistantRuntime } from "./context";
+export { AssistantRuntimeProvider } from "./context";
 
 // Runtime
 export {

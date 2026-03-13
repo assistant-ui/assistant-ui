@@ -133,10 +133,10 @@ import {
   ComposerPrimitive,
   useAuiState,
 } from "@assistant-ui/react-ink";
-import type { ThreadMessage } from "@assistant-ui/react-ink";
 import { MarkdownText } from "@assistant-ui/react-ink-markdown";
 
-const Message = ({ message }: { message: ThreadMessage }) => {
+const Message = () => {
+  const message = useAuiState((s) => s.message);
   const isUser = message.role === "user";
   const text = message.content
     .filter((p) => p.type === "text")
@@ -179,7 +179,7 @@ export const Thread = () => {
         </Box>
       </ThreadPrimitive.Empty>
 
-      <ThreadPrimitive.Messages renderMessage={(props) => <Message {...props} />} />
+      <ThreadPrimitive.Messages components={{ Message }} />
 
       <StatusIndicator />
 

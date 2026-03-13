@@ -59,10 +59,7 @@ export { getMessageQuote } from "./utils/getMessageQuote";
 export * from "./primitive-hooks";
 
 // Shared AssistantRuntimeProvider
-export {
-  AssistantRuntimeProvider,
-  useAssistantRuntime,
-} from "./AssistantRuntimeProvider";
+export { AssistantRuntimeProvider } from "./AssistantRuntimeProvider";
 
 // Shared runtimes
 export {

@@ -13,8 +13,27 @@ Access thread list actions via `useAui`:
 import { useAui } from "@assistant-ui/react";
 
 const aui = useAui();
-aui.threads().switchToNewThread();
-aui.threads().switchToThread(threadId);
+
+// Switch threads
+await aui.threads().switchToNewThread();
+await aui.threads().switchToThread(threadId);
+
+// Access the main thread runtime
+const mainThread = aui.threads().main;
+
+// Access a thread by ID
+const thread = aui.threads().getById(threadId);
+
+// Access thread list items
+const mainItem = aui.threads().mainItem;
+const itemByIndex = aui.threads().getItemByIndex(0);
+const itemById = aui.threads().getItemById(threadId);
+const archivedItem = aui.threads().getArchivedItemByIndex(0);
+
+// Get current state
+const state = aui.threads().getState();
+const threadIds = state.threadIds;
+const archivedThreadIds = state.archivedThreadIds;
 ```
 
 <ParametersTable {...ThreadListRuntime} />

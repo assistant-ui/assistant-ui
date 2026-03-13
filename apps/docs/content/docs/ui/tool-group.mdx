@@ -60,8 +60,8 @@ Use the `variant` prop on `ToolGroup.Root` to change the visual style:
 
 | Variant   | Description                        |
 | --------- | ---------------------------------- |
-| `default` | No additional styling              |
-| `outline` | Rounded border                     |
+| `outline` | Rounded border (default)           |
+| `ghost`   | No additional styling              |
 | `muted`   | Muted background with border       |
 
 ## Examples
@@ -137,8 +137,8 @@ import {
   parameters={[
     {
       name: "variant",
-      type: '"default" | "outline" | "muted"',
-      default: '"default"',
+      type: '"outline" | "ghost" | "muted"',
+      default: '"outline"',
       description: "Visual variant of the tool group container.",
     },
     {

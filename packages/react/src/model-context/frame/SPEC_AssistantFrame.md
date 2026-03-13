@@ -45,8 +45,8 @@ registry.addTool({
 const frameHost = new AssistantFrameHost(iframeWindow);
 
 // Register with assistant runtime
-const runtime = useAssistantRuntime();
-runtime.registerModelContextProvider(frameHost);
+const aui = useAui();
+aui.modelContext().register(frameHost);
 
 // The assistant now has access to tools from the iframe
 ```

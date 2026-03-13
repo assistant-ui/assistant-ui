@@ -79,19 +79,19 @@ import { useAui, tool } from "@assistant-ui/react";
 import { useEffect } from "react";
 import { z } from "zod";
 
+// Define tool outside the component (no runtime dependencies)
+const myTool = tool({
+  parameters: z.object({
+    query: z.string(),
+  }),
+  execute: async ({ query }) => {
+    const result = await searchDatabase(query);
+    return { result };
+  },
+});
+
 function MyComponent() {
   const aui = useAui();
-
-  // Define tool using the tool() helper
-  const myTool = tool({
-    parameters: z.object({
-      query: z.string(),
-    }),
-    execute: async ({ query }) => {
-      const result = await searchDatabase(query);
-      return { result };
-    },
-  });
 
   useEffect(() => {
     // Register context provider

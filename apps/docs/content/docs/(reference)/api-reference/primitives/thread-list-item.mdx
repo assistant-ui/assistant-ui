@@ -59,13 +59,15 @@ This primitive renders a `<button>` element unless `asChild` is set.
 
 Displays the title of the thread.
 
-This primitive renders a `<span>` element unless `asChild` is set. The title is automatically derived from the first user message in the thread.
+This primitive renders as a React Fragment with no wrapper DOM element. It outputs the thread's title text directly, or the `fallback` content if no title is available.
 
 <ParametersTable
   type="ThreadListItemPrimitiveTitleProps"
   parameters={[
     {
-      name: "asChild",
+      name: "fallback",
+      type: "ReactNode",
+      description: "Content to display when the thread has no title.",
     },
   ]}
 />

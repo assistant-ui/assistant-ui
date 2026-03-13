@@ -10,7 +10,6 @@ export type AssistantRuntimeProvider = ComponentPropsWithRef<
 
 export type {
   AssistantRuntime,
-  EditComposerState,
   ThreadListRuntime,
   ThreadListState,
   ThreadListItemRuntime,
@@ -22,6 +21,7 @@ export type {
   MessagePartRuntime,
   ComposerRuntime,
   ThreadComposerRuntime,
+  EditComposerRuntime,
   ComposerState,
   AttachmentRuntime,
   AttachmentState,

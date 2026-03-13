@@ -89,18 +89,17 @@ Then we use `makeAssistantToolUI` to define the tool UI:
 import { TransactionConfirmationPending } from "./transaction-confirmation-pending";
 import { TransactionConfirmationFinal } from "./transaction-confirmation-final";
 import { makeAssistantToolUI } from "@assistant-ui/react";
-import { updateState } from "@/lib/chatApi";
 
 export const PurchaseStockTool = makeAssistantToolUI<PurchaseStockArgs, string>(
   {
     toolName: "purchase_stock",
     render: function PurchaseStockUI({ args, result, status, addResult }) {
       const handleReject = async () => {
-        addResult({ approve: false });
+        addResult(JSON.stringify({ approve: false }));
       };
 
       const handleConfirm = async () => {
-        addResult({ approve: true });
+        addResult(JSON.stringify({ approve: true }));
       };
 
       return (
@@ -215,10 +214,9 @@ import { PurchaseStockTool } from "@/components/tools/purchase-stock/PurchaseSto
 export default function Home() {
   return (
     <div className="flex h-full flex-col">
-      <Thread
-        ...
-        tools={[PriceSnapshotTool, PurchaseStockTool]}
-      />
+      <PriceSnapshotTool />
+      <PurchaseStockTool />
+      <Thread />
     </div>
   );
 }
@@ -308,7 +306,6 @@ We will import the new `<TransactionConfirmationFinal />` component and use it i
 import { TransactionConfirmationPending } from "./transaction-confirmation-pending";
 import { TransactionConfirmationFinal } from "./transaction-confirmation-final";
 import { makeAssistantToolUI } from "@assistant-ui/react";
-import { updateState } from "@/lib/chatApi";
 
 type PurchaseStockArgs = {
   ticker: string;
@@ -335,11 +332,11 @@ export const PurchaseStockTool = makeAssistantToolUI<PurchaseStockArgs, string>(
       }
 
       const handleReject = () => {
-        addResult({ cancelled: true });
+        addResult(JSON.stringify({ approve: false }));
       };
 
       const handleConfirm = async () => {
-        addResult({ approve: true });
+        addResult(JSON.stringify({ approve: true }));
       };
 
       return (
@@ -372,7 +369,7 @@ export const PurchaseStockTool = makeAssistantToolUI<PurchaseStockArgs, string>(
 
 ### Try it out!
 
-Confirm the purchase of shares. You should see the approval confimration UI appear.
+Confirm the purchase of shares. You should see the approval confirmation UI appear.
 
 import purchase2 from "./images/acme-confirmed.png";
 

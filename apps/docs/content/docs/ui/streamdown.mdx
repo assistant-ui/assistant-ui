@@ -190,12 +190,17 @@ Configure how incomplete markdown syntax is handled during streaming:
 ```tsx
 <StreamdownTextPrimitive
   remend={{
-    links: true,      // Complete incomplete links
-    images: true,     // Handle incomplete images
-    bold: true,       // Complete **text → **text**
-    italic: true,     // Complete *text → *text*
-    inlineCode: true, // Complete `code → `code`
-    katex: true,      // Complete $$equation → $$equation$$
+    links: true,           // Complete incomplete links
+    images: true,          // Handle incomplete images
+    linkMode: "protocol",  // How to handle incomplete links: 'protocol' or 'text-only'
+    bold: true,            // Complete **text → **text**
+    italic: true,          // Complete *text → *text*
+    boldItalic: true,      // Complete ***text → ***text***
+    inlineCode: true,      // Complete `code → `code`
+    strikethrough: true,   // Complete ~~text → ~~text~~
+    katex: true,           // Complete $$equation → $$equation$$
+    setextHeadings: true,  // Handle incomplete setext headings
+    handlers: [],          // Custom handlers for incomplete markdown completion
   }}
 />
 ```
@@ -229,6 +234,8 @@ Restrict allowed URLs for links and images. This overrides streamdown's default 
     allowedProtocols: ["https", "mailto"],
     // Disable base64 data images
     allowDataImages: false,
+    // Default origin for relative URLs
+    defaultOrigin: "https://example.com",
     // CSS class for blocked elements
     blockedLinkClass: "blocked-link",
     blockedImageClass: "blocked-image",

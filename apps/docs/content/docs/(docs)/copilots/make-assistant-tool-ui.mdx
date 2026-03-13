@@ -3,6 +3,10 @@ title: makeAssistantToolUI
 description: Register custom UI components to render tool executions and their status.
 ---
 
+<Callout type="warn">
+  `makeAssistantToolUI` is deprecated. Use the `Tools()` API instead. See the
+  [Tools guide](/docs/guides/tools) for the recommended approach.
+</Callout>
 
 The `makeAssistantToolUI` utility is used to register a tool UI component with the Assistant.
 
@@ -81,7 +85,7 @@ const MyToolUI = makeAssistantToolUI({
               name: "status",
               type: "ToolCallMessagePartStatus",
               description:
-                'The execution status object with a type property: "running", "complete", "incomplete", or "requires_action"',
+                'The execution status object with a type property: "running", "complete", "incomplete", or "requires-action"',
             },
             {
               name: "addResult",
@@ -115,7 +119,7 @@ import { AssistantRuntimeProvider } from "@assistant-ui/react";
 const GetWeatherUI = makeAssistantToolUI({
   toolName: "get_weather",
   render: ({ args, result, status }) => {
-    if (status.type === "requires_action")
+    if (status.type === "requires-action")
       return <p>Getting weather for {args.location}...</p>;
     if (status.type === "running") return <p>Loading...</p>;
     if (status.type === "incomplete" && status.reason === "error")
@@ -127,8 +131,9 @@ const GetWeatherUI = makeAssistantToolUI({
 });
 
 function App() {
+  const runtime = /* your runtime setup */;
   return (
-    <AssistantRuntimeProvider>
+    <AssistantRuntimeProvider runtime={runtime}>
       {/* ...your other components */}
       <GetWeatherUI />
     </AssistantRuntimeProvider>

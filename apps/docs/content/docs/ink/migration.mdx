@@ -91,21 +91,22 @@ This is the main migration effort. Web components don't render in the terminal. 
 import {
   ThreadPrimitive,
   ComposerPrimitive,
+  MessagePrimitive,
 } from "@assistant-ui/react-ink";
-import { Box, Text } from "ink";
+import { Box } from "ink";
+
+function MyMessage() {
+  return (
+    <Box marginBottom={1}>
+      <MessagePrimitive.Parts />
+    </Box>
+  );
+}
 
 function ChatScreen() {
   return (
     <ThreadPrimitive.Root>
-      <ThreadPrimitive.Messages
-        renderMessage={({ message }) => (
-          <Box marginBottom={1}>
-            <Text>
-              {message.content.filter((p) => p.type === "text").map((p) => p.text).join("\n")}
-            </Text>
-          </Box>
-        )}
-      />
+      <ThreadPrimitive.Messages components={{ Message: MyMessage }} />
       <Box borderStyle="round" borderColor="gray" paddingX={1}>
         <ComposerPrimitive.Input submitOnEnter placeholder="Message..." autoFocus />
       </Box>

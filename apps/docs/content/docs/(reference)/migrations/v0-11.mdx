@@ -42,7 +42,7 @@ The following types and components have been renamed:
 - `useContentPartSource` → `useMessagePartSource`
 - `useContentPartFile` → `useMessagePartFile`
 - `useContentPartImage` → `useMessagePartImage`
-- `useTextContentPart` → `useTextMessagePart`
+- `useTextContentPart` → `useMessagePartText`
 
 #### Component Types
 
@@ -167,4 +167,4 @@ If you prefer to migrate manually, here are some examples:
 
 The ContentPart naming was inconsistent with the rest of the codebase, where "message parts" are used throughout. This change improves semantic clarity and makes the API more intuitive by aligning terminology across the entire library.
 
-The old ContentPart APIs continue to work but are now deprecated and will be removed in a future major version.
+The old ContentPart APIs have been completely removed. You must update all references to use the new MessagePart names.

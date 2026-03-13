@@ -31,18 +31,125 @@ Container `View` for the thread area.
 
 ### ThreadPrimitive.Messages
 
-`FlatList`-based message list with automatic runtime integration. Each message is wrapped in a scoped context so that `useAuiState((s) => s.message)` works inside `renderMessage`.
+`FlatList`-based message list with automatic runtime integration. Each message is wrapped in a scoped context so that `useAuiState((s) => s.message)` works inside the rendered component.
 
 ```tsx
 <ThreadPrimitive.Messages
-  renderMessage={({ message }) => <MessageBubble message={message} />}
+  components={{ Message: MyMessage }}
+/>
+```
+
+You can also provide role-specific components and edit composers:
+
+```tsx
+<ThreadPrimitive.Messages
+  components={{
+    UserMessage: MyUserMessage,
+    AssistantMessage: MyAssistantMessage,
+    EditComposer: MyEditComposer,
+  }}
 />
 ```
 
 | Prop | Type | Description |
 |------|------|-------------|
-| `renderMessage` | `(info: { message: ThreadMessage; index: number }) => ReactElement` | Message renderer |
+| `components` | `MessageComponents` | Component map — provide either a `Message` component (used for all roles) or role-specific `UserMessage`, `AssistantMessage`, and optionally `SystemMessage`. Edit composers can be set via `EditComposer` or role-specific variants (`UserEditComposer`, `AssistantEditComposer`, `SystemEditComposer`). |
 | `...rest` | `FlatListProps` | Standard FlatList props (except `data`, `renderItem`) |
+
+### ThreadPrimitive.MessageByIndex
+
+Renders a single message at a specific index in the thread. Provides message context so that `useAuiState((s) => s.message)` works inside the rendered component. This component is shared from `@assistant-ui/core/react`.
+
+```tsx
+<ThreadPrimitive.MessageByIndex
+  index={0}
+  components={{
+    UserMessage: MyUserMessage,
+    AssistantMessage: MyAssistantMessage,
+  }}
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `index` | `number` | Zero-based index of the message to render |
+| `components` | `MessageComponents` | Same component map as `ThreadPrimitive.Messages` |
+
+### ThreadPrimitive.Empty
+
+Renders its children only when the thread has no messages. Deprecated in favor of `AuiIf`.
+
+```tsx
+<ThreadPrimitive.Empty>
+  <Text>Send a message to get started</Text>
+</ThreadPrimitive.Empty>
+```
+
+### ThreadPrimitive.If
+
+Conditional rendering based on thread state. Deprecated in favor of `AuiIf`.
+
+```tsx
+<ThreadPrimitive.If empty>
+  <Text>No messages yet</Text>
+</ThreadPrimitive.If>
+
+<ThreadPrimitive.If running>
+  <ActivityIndicator />
+</ThreadPrimitive.If>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `empty` | `boolean` | Renders children when thread emptiness matches this value |
+| `running` | `boolean` | Renders children when thread running state matches this value |
+
+### ThreadPrimitive.Suggestion
+
+`Pressable` that inserts or sends a hard-coded suggestion prompt. Unlike `SuggestionPrimitive.Trigger`, this component does not require a suggestion context — the prompt is passed directly as a prop.
+
+```tsx
+<ThreadPrimitive.Suggestion prompt="What can you help me with?" send>
+  <Text>What can you help me with?</Text>
+</ThreadPrimitive.Suggestion>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `prompt` | `string` | The text to send or insert into the composer |
+| `send` | `boolean` | When true, sends the prompt immediately; when false, inserts into composer (default: false) |
+| `clearComposer` | `boolean` | Whether to replace composer text (default: true) |
+| `...rest` | `PressableProps` | Standard Pressable props (except `onPress`) |
+
+### ThreadPrimitive.Suggestions
+
+Renders all suggestions using the provided component configuration. This component is shared from `@assistant-ui/core/react`.
+
+```tsx
+<ThreadPrimitive.Suggestions
+  components={{ Suggestion: MySuggestion }}
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `components` | `{ Suggestion: ComponentType }` | Component to render for each suggestion |
+
+### ThreadPrimitive.SuggestionByIndex
+
+Renders a single suggestion at the specified index, providing suggestion context. This component is shared from `@assistant-ui/core/react`.
+
+```tsx
+<ThreadPrimitive.SuggestionByIndex
+  index={0}
+  components={{ Suggestion: MySuggestion }}
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `index` | `number` | Zero-based index of the suggestion to render |
+| `components` | `{ Suggestion: ComponentType }` | Component to render for the suggestion |
 
 ### AuiIf
 
@@ -140,9 +247,64 @@ Renders composer attachments using the provided component configuration.
 `Pressable` for triggering attachment addition. The actual file picker must be implemented by the consumer (e.g. using `expo-document-picker` or `expo-image-picker`).
 
 ```tsx
-<ComposerPrimitive.AddAttachment onPress={handlePickFile}>
+<ComposerPrimitive.AddAttachment>
   <Text>Attach</Text>
 </ComposerPrimitive.AddAttachment>
+```
+
+### ComposerPrimitive.AttachmentByIndex
+
+Renders a single composer attachment at the specified index. Useful for building custom attachment layouts.
+
+```tsx
+<ComposerPrimitive.AttachmentByIndex
+  index={0}
+  components={{
+    Image: MyImageAttachment,
+    Attachment: MyFallbackAttachment,
+  }}
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `index` | `number` | Zero-based index of the attachment to render |
+| `components` | `{ Image?, Document?, File?, Attachment? }` | Component renderers by attachment type |
+
+### ComposerPrimitive.EditInput
+
+`TextInput` wired to the edit composer runtime. Used inside an edit composer to allow editing an existing message. Value and `onChangeText` are managed automatically.
+
+```tsx
+<ComposerPrimitive.EditInput
+  placeholder="Edit message..."
+  multiline
+  style={styles.input}
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `...rest` | `TextInputProps` | Standard TextInput props (except `value`, `onChangeText`) |
+
+### ComposerPrimitive.EditSend
+
+`Pressable` that confirms and submits a message edit. Automatically disabled when the composer is empty.
+
+```tsx
+<ComposerPrimitive.EditSend style={styles.sendButton}>
+  <Text>Save</Text>
+</ComposerPrimitive.EditSend>
+```
+
+### ComposerPrimitive.EditCancel
+
+`Pressable` that cancels an in-progress message edit and returns to the original message.
+
+```tsx
+<ComposerPrimitive.EditCancel style={styles.cancelButton}>
+  <Text>Cancel</Text>
+</ComposerPrimitive.EditCancel>
 ```
 
 ### Conditional Rendering (Composer)
@@ -175,26 +337,86 @@ Container `View` for a single message.
 </MessagePrimitive.Root>
 ```
 
-### MessagePrimitive.Parts
+### MessagePrimitive.Content
 
-Renders message content parts. Tool call and data parts automatically render registered tool UIs (via `useAssistantTool` / `useAssistantDataUI`), falling back to render props if provided.
+Renders message content parts using render-prop functions instead of the component-map approach used by `MessagePrimitive.Parts`. Each part type receives a `part` object and its `index`. Registered tool UIs (via `useAssistantTool`) are automatically dispatched and take priority over `renderToolCall`.
 
 ```tsx
-<MessagePrimitive.Parts
+<MessagePrimitive.Content
   renderText={({ part }) => <Text>{part.text}</Text>}
-  renderImage={({ part }) => <Image source={{ uri: part.image }} />}
+  renderToolCall={({ part, index }) => (
+    <Text>Tool: {part.toolName}</Text>
+  )}
+  renderImage={({ part }) => (
+    <Image source={{ uri: part.image }} />
+  )}
 />
 ```
 
 | Prop | Type | Description |
 |------|------|-------------|
-| `renderText` | `(props: { part; index }) => ReactElement` | Text part renderer |
-| `renderToolCall` | `(props: { part; index }) => ReactElement` | Tool call fallback (used when no tool UI is registered) |
-| `renderImage` | `(props: { part; index }) => ReactElement` | Image part renderer |
-| `renderReasoning` | `(props: { part; index }) => ReactElement` | Reasoning part renderer |
-| `renderSource` | `(props: { part; index }) => ReactElement` | Source part renderer |
-| `renderFile` | `(props: { part; index }) => ReactElement` | File part renderer |
-| `renderData` | `(props: { part; index }) => ReactElement` | Data part fallback (used when no data UI is registered) |
+| `renderText` | `(props: { part, index }) => ReactElement` | Renderer for text parts (default: React Native `<Text>`) |
+| `renderToolCall` | `(props: { part, index }) => ReactElement` | Fallback renderer for tool-call parts not handled by registered tool UIs |
+| `renderImage` | `(props: { part, index }) => ReactElement` | Renderer for image parts |
+| `renderReasoning` | `(props: { part, index }) => ReactElement` | Renderer for reasoning parts |
+| `renderSource` | `(props: { part, index }) => ReactElement` | Renderer for source parts |
+| `renderFile` | `(props: { part, index }) => ReactElement` | Renderer for file parts |
+| `renderData` | `(props: { part, index }) => ReactElement` | Fallback renderer for data parts not handled by registered data UIs |
+
+### MessagePrimitive.Parts
+
+Renders message content parts via a `components` prop. Tool call and data parts automatically render registered tool UIs (via `useAssistantTool` / `useAssistantDataUI`), falling back to components provided here. A default `Text` component using React Native's `<Text>` is provided out of the box.
+
+```tsx
+<MessagePrimitive.Parts
+  components={{
+    Text: ({ text }) => <Text>{text}</Text>,
+    Image: ({ image }) => <Image source={{ uri: image }} />,
+    tools: {
+      Fallback: MyToolCallComponent,
+    },
+  }}
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `components` | `object` | Component map for rendering each part type. See below. |
+
+**`components` fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Text` | `TextMessagePartComponent` | Text part renderer (default: React Native `<Text>`) |
+| `Image` | `ImageMessagePartComponent` | Image part renderer |
+| `Reasoning` | `ReasoningMessagePartComponent` | Reasoning part renderer |
+| `Source` | `SourceMessagePartComponent` | Source part renderer |
+| `File` | `FileMessagePartComponent` | File part renderer |
+| `Unstable_Audio` | `AudioMessagePartComponent` | Audio part renderer (experimental) |
+| `tools` | `{ by_name?, Fallback? }` or `{ Override }` | Tool call rendering config — use `by_name` to map tool names to components, `Fallback` for unregistered tools, or `Override` to handle all tool calls |
+| `data` | `{ by_name?, Fallback? }` | Data part rendering config — use `by_name` to map data event names, `Fallback` for unmatched events |
+| `Empty` | `EmptyMessagePartComponent` | Component shown for empty messages |
+| `Quote` | `QuoteMessagePartComponent` | Component for rendering quoted message references |
+| `ChainOfThought` | `ComponentType` | Groups all reasoning and tool-call parts into a single component (mutually exclusive with `Reasoning`/`tools`/`ToolGroup`/`ReasoningGroup`) |
+
+### MessagePrimitive.PartByIndex
+
+Renders a single message part at the specified index, providing part context. Useful for building custom part layouts outside of `MessagePrimitive.Parts`. This component is shared from `@assistant-ui/core/react`.
+
+```tsx
+<MessagePrimitive.PartByIndex
+  index={0}
+  components={{
+    Text: ({ text }) => <Text>{text}</Text>,
+    tools: { Fallback: MyToolComponent },
+  }}
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `index` | `number` | Zero-based index of the message part to render |
+| `components` | `object` | Same component map as `MessagePrimitive.Parts` |
 
 ### Conditional Rendering (Message)
 
@@ -225,6 +447,25 @@ Renders user message attachments using the provided component configuration.
 
 | Prop | Type | Description |
 |------|------|-------------|
+| `components` | `{ Image?, Document?, File?, Attachment? }` | Component renderers by attachment type |
+
+### MessagePrimitive.AttachmentByIndex
+
+Renders a single message attachment at the specified index. Useful for building custom attachment layouts outside of `MessagePrimitive.Attachments`.
+
+```tsx
+<MessagePrimitive.AttachmentByIndex
+  index={0}
+  components={{
+    Image: MyImageAttachment,
+    Attachment: MyFallbackAttachment,
+  }}
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `index` | `number` | Zero-based index of the attachment to render |
 | `components` | `{ Image?, Document?, File?, Attachment? }` | Component renderers by attachment type |
 
 ## Attachment

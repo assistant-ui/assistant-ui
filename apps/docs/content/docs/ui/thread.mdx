@@ -16,11 +16,15 @@ attachments, and conditional UI states. Fully customizable and composable.
 The `Thread` component is built with the following primitives:
 
 ```tsx
-import { ThreadPrimitive, SelectionToolbarPrimitive, AuiIf } from "@assistant-ui/react";
+import { ThreadPrimitive, AuiIf } from "@assistant-ui/react";
 
 <ThreadPrimitive.Root>
   <ThreadPrimitive.Viewport>
-    <AuiIf condition={(s) => s.thread.isEmpty} />
+    <AuiIf condition={(s) => s.thread.isEmpty}>
+      <ThreadWelcome />
+      {/* ThreadWelcome includes ThreadPrimitive.Suggestions */}
+    </AuiIf>
+
     <ThreadPrimitive.Messages
       components={{
         EditComposer,
@@ -28,15 +32,12 @@ import { ThreadPrimitive, SelectionToolbarPrimitive, AuiIf } from "@assistant-ui
         AssistantMessage,
       }}
     />
-    <ThreadPrimitive.ScrollToBottom />
-  </ThreadPrimitive.Viewport>
-  <ThreadPrimitive.Suggestions />
-  <AuiIf condition={...} />
 
-  {/* Floating toolbar — appears when text is selected in a message */}
-  <SelectionToolbarPrimitive.Root>
-    <SelectionToolbarPrimitive.Quote>Quote</SelectionToolbarPrimitive.Quote>
-  </SelectionToolbarPrimitive.Root>
+    <ThreadPrimitive.ViewportFooter>
+      <ThreadPrimitive.ScrollToBottom />
+      <Composer />
+    </ThreadPrimitive.ViewportFooter>
+  </ThreadPrimitive.Viewport>
 </ThreadPrimitive.Root>
 ```
 

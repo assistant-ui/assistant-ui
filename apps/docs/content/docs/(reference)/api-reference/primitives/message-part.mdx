@@ -96,9 +96,9 @@ const MyWeatherToolUI = makeAssistantToolUI({
         <pre className="whitespace-pre-wrap break-all text-center">
           get_weather({JSON.stringify(args)})
         </pre>
-        {"result" in result && (
+        {result !== undefined && (
           <pre className="whitespace-pre-wrap break-all text-center">
-            {JSON.stringify(result.result)}
+            {JSON.stringify(result)}
           </pre>
         )}
       </div>
@@ -228,7 +228,7 @@ This is a helper context provider to allow you to reuse the message part compone
 import { TextMessagePartProvider } from "@assistant-ui/react";
 
 <TextMessagePartProvider text="Hello world" isRunning={false}>
-  <MessagePart.Text />
+  <MessagePartPrimitive.Text />
 </TextMessagePartProvider>;
 ```
 
@@ -264,7 +264,7 @@ const status = useAuiState((s) => s.part.status);
 ```tsx
 import { useMessagePartText } from "@assistant-ui/react";
 
-const MessagePartText = useMessagePartText();
+const { text, status } = useMessagePartText();
 ```
 
 <ParametersTable {...TextMessagePartState} />

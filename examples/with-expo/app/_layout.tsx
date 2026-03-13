@@ -13,7 +13,6 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import {
   AssistantRuntimeProvider,
-  useAssistantRuntime,
   useAui,
   Tools,
 } from "@assistant-ui/react-native";
@@ -22,14 +21,14 @@ import { ThreadListDrawer } from "@/components/thread-list/ThreadListDrawer";
 import { expoToolkit } from "@/components/assistant-ui/tools";
 
 function NewChatButton() {
-  const runtime = useAssistantRuntime();
+  const aui = useAui();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
 
   return (
     <Pressable
       onPress={() => {
-        runtime.threads.switchToNewThread();
+        aui.threads().switchToNewThread();
       }}
       style={{ marginRight: 16 }}
     >

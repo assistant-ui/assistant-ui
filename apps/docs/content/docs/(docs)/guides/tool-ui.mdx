@@ -200,7 +200,7 @@ export async function POST(req: Request) {
 
   const result = streamText({
     model: openai("gpt-4o"),
-    messages: convertToModelMessages(messages),
+    messages: await convertToModelMessages(messages),
     tools: {
       getWeather: tool({
         description: "Get current weather for a location",
@@ -384,6 +384,9 @@ Build complex workflows with human-in-the-loop patterns for multi-step user inte
 ```tsx
 const DeleteProjectTool = makeAssistantTool({
   toolName: "deleteProject",
+  parameters: z.object({
+    projectId: z.string(),
+  }),
   execute: async ({ projectId }, { human }) => {
     const response = await human({ action, details });
     if (!response.approved) throw new Error("Project deletion cancelled");
@@ -502,6 +505,12 @@ render: ({ status, args }) => {
 
 ### Field-Level Validation
 
+<Callout type="warn">
+  `useToolArgsFieldStatus` is not currently exported from `@assistant-ui/react`.
+  The hook exists internally but is not part of the public API. This section is
+  included for reference and may become available in a future release.
+</Callout>
+
 Use `useToolArgsFieldStatus` to show validation states:
 
 ```tsx
@@ -611,7 +620,7 @@ Provide a custom UI for tools without specific UIs:
 Generative UI components have access to execution context through props:
 
 ```tsx
-type ToolUIRenderProps<TArgs, TResult> = {
+type ToolCallMessagePartProps<TArgs, TResult> = {
   // Tool arguments
   args: TArgs;
   argsText: string; // JSON stringified args
@@ -628,7 +637,7 @@ type ToolUIRenderProps<TArgs, TResult> = {
   toolCallId: string;
 
   // Interactive callbacks
-  addResult: (result: TResult) => void;
+  addResult: (result: TResult | ToolResponse<TResult>) => void;
   resume: (payload: unknown) => void;
 
   // Interrupt state

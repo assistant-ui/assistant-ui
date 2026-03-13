@@ -21,6 +21,11 @@ const ReadableButton = makeAssistantVisible(Button);
 const ClickableButton = makeAssistantVisible(Button, {
   clickable: true, // Enables the click tool
 });
+
+// With editable configuration
+const EditableInput = makeAssistantVisible(Input, {
+  editable: true, // Enables the edit tool
+});
 ```
 
 ## API Reference
@@ -30,6 +35,7 @@ const ClickableButton = makeAssistantVisible(Button, {
 - `Component`: The base React component to enhance
 - `config`: Optional configuration object
   - `clickable`: When true, enables the assistant to programmatically click the component
+  - `editable`: When true, enables the assistant to programmatically set the value of an input or textarea within the component
 
 ### Behavior
 
@@ -37,13 +43,14 @@ The HOC will:
 
 1. Make the component's HTML structure available to the assistant via the system context
 2. Optionally provide a `click` tool if `clickable` is true
-3. Handle nested readable components (only the outermost component's HTML is provided)
-4. Forward refs and maintain component props
+3. Optionally provide an `edit` tool if `editable` is true, which sets the value of an `<input>` or `<textarea>` inside the component
+4. Handle nested readable components (only the outermost component's HTML is provided)
+5. Forward refs and maintain component props
 
 ## Example
 
 ```tsx
-// Create a readable form input
+// Create a readable form input that the assistant can also edit
 const Input = ({ label, ...props }) => (
   <div>
     <label>{label}</label>
@@ -51,12 +58,12 @@ const Input = ({ label, ...props }) => (
   </div>
 );
 
-const ReadableInput = makeAssistantVisible(Input);
+const EditableInput = makeAssistantVisible(Input, { editable: true });
 
 // Use in your component
 function Form() {
   return (
-    <ReadableInput label="Email" type="email" placeholder="Enter your email" />
+    <EditableInput label="Email" type="email" placeholder="Enter your email" />
   );
 }
 ```
@@ -69,4 +76,6 @@ When a component is made readable:
 - The component's `outerHTML` is provided as system context
 - If `clickable` is true, a unique `data-click-id` is added and a `click` tool is provided
 - The click tool uses `querySelector` and simulates a click event
+- If `editable` is true, a unique `data-edit-id` is added and an `edit` tool is provided
+- The edit tool uses `querySelector` to find an `<input>` or `<textarea>` and sets its value, dispatching `input` and `change` events
 - All props and refs are properly forwarded to maintain component functionality

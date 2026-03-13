@@ -94,19 +94,22 @@ This is the main migration effort. Web components (`Thread`, `ThreadList` from `
 import {
   ThreadPrimitive,
   ComposerPrimitive,
+  MessagePrimitive,
 } from "@assistant-ui/react-native";
-import { View, Text } from "react-native";
+import { View } from "react-native";
+
+function MyMessage() {
+  return (
+    <View style={{ padding: 12 }}>
+      <MessagePrimitive.Content />
+    </View>
+  );
+}
 
 function ChatScreen() {
   return (
     <ThreadPrimitive.Root style={{ flex: 1 }}>
-      <ThreadPrimitive.Messages
-        renderMessage={({ message }) => (
-          <View style={{ padding: 12 }}>
-            <Text>{message.content.filter((p) => p.type === "text").map((p) => p.text).join("\n")}</Text>
-          </View>
-        )}
-      />
+      <ThreadPrimitive.Messages components={{ Message: MyMessage }} />
       <ComposerPrimitive.Root>
         <ComposerPrimitive.Input placeholder="Message..." />
         <ComposerPrimitive.Send />

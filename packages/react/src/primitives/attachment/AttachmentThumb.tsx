@@ -26,4 +26,4 @@ export const AttachmentPrimitiveThumb = forwardRef<
   );
 });
 
-AttachmentPrimitiveThumb.displayName = "AttachmentPrimitive.Thumb";
+AttachmentPrimitiveThumb.displayName = "AttachmentPrimitive.unstable_Thumb";

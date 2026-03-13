@@ -199,6 +199,13 @@ When the hook mounts it calls `list()` on your adapter, hydrates existing thread
       required: true,
     },
     {
+      name: "fetch",
+      type: "(threadId: string) => Promise<RemoteThreadMetadata>",
+      description:
+        "Fetch metadata for a specific thread. Used when switching to a thread not in the initial list.",
+      required: true,
+    },
+    {
       name: "unstable_Provider",
       type: "ComponentType<PropsWithChildren>",
       description:
@@ -224,7 +231,7 @@ When implementing a custom history adapter, you must await thread initialization
 If you're building a history adapter that persists messages to your own database, use `aui.threadListItem().initialize()` to ensure the thread is fully initialized before saving:
 
 ```tsx
-import { useAui } from "@assistant-ui/react";
+import { useAui } from "@assistant-ui/store";
 
 // Inside your unstable_Provider component
 const aui = useAui();

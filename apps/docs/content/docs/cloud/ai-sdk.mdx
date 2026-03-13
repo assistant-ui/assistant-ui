@@ -151,7 +151,7 @@ const chat = useCloudChat({ threads: myThreads });
 | `options.threads` | `UseThreadsResult` | External thread management from `useThreads()`. Use when you need thread operations in a separate component or custom thread options like `includeArchived` |
 | `options.onSyncError` | `(error: Error) => void` | Callback invoked when a sync error occurs |
 
-All other [AI SDK `useChat` options](https://sdk.vercel.ai/docs/reference/ai-sdk-ui/use-chat) are also accepted.
+A subset of [AI SDK `useChat` options](https://sdk.vercel.ai/docs/reference/ai-sdk-ui/use-chat) are also accepted (those defined on `ChatInit`). Some options available on `useChat` such as `experimental_throttle` and `resume` are not supported.
 
 **Returns:** `UseCloudChatResult`
 
@@ -169,12 +169,15 @@ Plus all other properties from AI SDK's [`UseChatHelpers`](https://sdk.vercel.ai
 
 | Value | Type | Description |
 |-------|------|-------------|
+| `threads.cloud` | `AssistantCloud` | The cloud instance used for thread operations |
 | `threads.threads` | `CloudThread[]` | Active threads sorted by recency |
 | `threads.threadId` | `string \| null` | Current thread ID (`null` for a new unsaved chat) |
 | `threads.selectThread` | `(id: string \| null) => void` | Switch threads or pass `null` for a new chat |
 | `threads.isLoading` | `boolean` | `true` during initial load or refresh |
 | `threads.error` | `Error \| null` | Last error, if any |
 | `threads.refresh` | `() => Promise<boolean>` | Re-fetch the thread list |
+| `threads.get` | `(id: string) => Promise<CloudThread \| null>` | Fetch a single thread by ID |
+| `threads.create` | `(options?: \{ externalId?: string \}) => Promise<CloudThread \| null>` | Create a new thread |
 | `threads.delete` | `(id: string) => Promise<boolean>` | Delete a thread |
 | `threads.rename` | `(id: string, title: string) => Promise<boolean>` | Rename a thread |
 | `threads.archive` | `(id: string) => Promise<boolean>` | Archive a thread |
@@ -213,6 +216,8 @@ The `useCloudChat` hook automatically reports run telemetry to Assistant Cloud a
 **Requires route configuration:**
 - `model_id` — The model used for the response
 - `input_tokens` / `output_tokens` — Token usage statistics
+- `reasoning_tokens` — Tokens used for chain-of-thought reasoning (e.g. o1/o3 models)
+- `cached_input_tokens` — Input tokens served from the provider's prompt cache
 
 To capture model and usage data, configure the `messageMetadata` callback in your AI SDK route:
 
@@ -224,7 +229,7 @@ export async function POST(req: Request) {
   const { messages } = await req.json();
 
   const result = streamText({
-    model: openai("gpt-5-mini"),
+    model: openai("gpt-4o-mini"),
     messages,
   });
 
@@ -257,6 +262,7 @@ Use the `beforeReport` hook to enrich or filter telemetry:
 ```tsx
 const cloud = new AssistantCloud({
   baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
+  anonymous: true,
   telemetry: {
     beforeReport: (report) => ({
       ...report,

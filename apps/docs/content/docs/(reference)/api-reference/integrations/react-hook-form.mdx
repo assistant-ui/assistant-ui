@@ -89,7 +89,7 @@ Drop-in replacement hook for `useForm` that adds support for `@assistant-ui/reac
 
 ### `formTools`
 
-The set of tools to use with `useAssistantForm`, useful for runtimes that do not support client-side tool definitions (i.e. Vercel AI SDK).
+The set of tools to use with `useAssistantForm` on the server side. While the AI SDK now supports forwarding frontend tools via `frontendTools()`, using `formTools` directly on the server gives you more control over tool execution.
 
 ```tsx {1, 5-7}
 import { formTools } from "@assistant-ui/react-hook-form";

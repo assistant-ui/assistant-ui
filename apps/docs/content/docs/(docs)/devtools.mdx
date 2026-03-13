@@ -4,7 +4,7 @@ description: Inspect runtime state, context, and events in the browser.
 ---
 
 
-Hey, the assistant-ui DevTools allows you to debug the assistant-ui state and context, and events without resorting to `console.log`. It's an easy way to see how data flows to the assistant-ui's runtime layer.
+The assistant-ui DevTools allows you to debug the assistant-ui state and context, and events without resorting to `console.log`. It's an easy way to see how data flows to the assistant-ui's runtime layer.
 
 ![Screenshot of the DevTools UI showing logs and state panels](../../../../../.github/assets/devtoolsui.png)
 
@@ -27,8 +27,9 @@ import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { DevToolsModal } from "@assistant-ui/react-devtools";
 
 export function AssistantApp() {
+  const runtime = /* your runtime setup */;
   return (
-    <AssistantRuntimeProvider>
+    <AssistantRuntimeProvider runtime={runtime}>
       <DevToolsModal />
       {/* ...your assistant-ui... */}
     </AssistantRuntimeProvider>
