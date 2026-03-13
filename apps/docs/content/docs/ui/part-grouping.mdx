@@ -469,6 +469,14 @@ The `Group` component receives:
 - `indices`: Array of indices for the parts in this group
 - `children`: The rendered message part components
 
+## Real-World Examples
+
+<Callout type="tip">
+  **Seen in production:** [Adorable](https://github.com/freestyle-sh/Adorable) (682 stars) uses `Unstable_PartsGrouped` to group consecutive file operations (reads, writes, edits) into collapsible summaries like "Updated 3 files, read 2 files, ran 1 command" — creating a clean Cursor/Lovable-style tool execution UI.
+</Callout>
+
+See the [Production Patterns](/docs/guides/patterns#tool-call-grouping) guide for a full tool call grouping implementation.
+
 ## Best Practices
 
 1. **Keep grouping logic simple**: Complex grouping functions can impact performance

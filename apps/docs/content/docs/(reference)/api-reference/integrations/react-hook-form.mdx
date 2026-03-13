@@ -3,101 +3,205 @@ title: "@assistant-ui/react-hook-form"
 description: React Hook Form integration for AI-assisted form filling.
 ---
 
-A React Hook Form integration for @assistant-ui.
+`@assistant-ui/react-hook-form` lets an AI assistant fill out React Hook Form forms on behalf of the user. It works by registering `set_form_field` and `submit_form` tools that the assistant can call, while the `Form` component provides the visual connection between the chat and the form.
 
+## Installation
+
+<InstallCommand npm={["@assistant-ui/react-hook-form", "react-hook-form"]} />
+
+## Quick Start
+
+<Steps>
+  <Step>
+
+### Set up your backend to include form tools
+
+Add the form tools to your backend route:
+
+```ts title="app/api/chat/route.ts"
+import { openai } from "@ai-sdk/openai";
+import { streamText, convertToModelMessages } from "ai";
+import { formTools } from "@assistant-ui/react-hook-form";
+
+export async function POST(req: Request) {
+  const { messages, system, tools } = await req.json();
+  const result = streamText({
+    model: openai("gpt-4o"),
+    system,
+    messages: await convertToModelMessages(messages),
+    tools: {
+      ...formTools,
+      ...frontendTools(tools),
+    },
+  });
+  return result.toUIMessageStreamResponse();
+}
+```
+
+  </Step>
+  <Step>
+
+### Replace `useForm` with `useAssistantForm`
+
+```tsx title="app/page.tsx"
+"use client";
+
+import { useAssistantForm } from "@assistant-ui/react-hook-form";
+import { useAssistantInstructions } from "@assistant-ui/react";
+import { Form } from "@/components/ui/form";
+import { AssistantSidebar } from "@/components/assistant-ui/assistant-sidebar";
+import { SignupForm } from "@/components/SignupForm";
+
+export default function Page() {
+  // Tell the assistant what the form is for
+  useAssistantInstructions("Help users sign up for the hackathon.");
+
+  // Drop-in replacement for useForm
+  const form = useAssistantForm({
+    defaultValues: {
+      firstName: "",
+      lastName: "",
+      email: "",
+      projectIdea: "",
+    },
+    assistant: {
+      tools: {
+        // Optional: custom UI for when the assistant sets a field
+        set_form_field: {
+          render: ({ args }) => (
+            <p className="font-mono text-sm text-blue-500">
+              Setting {args.name} → {args.value}
+            </p>
+          ),
+        },
+      },
+    },
+  });
+
+  return (
+    <AssistantSidebar>
+      <main className="p-8">
+        <h1>Sign Up</h1>
+        {/* Form provider wraps your form — same as react-hook-form */}
+        <Form {...form}>
+          <SignupForm />
+        </Form>
+      </main>
+    </AssistantSidebar>
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Build your form component normally
+
+The form component uses `useFormContext()` from react-hook-form — no changes needed:
+
+```tsx title="components/SignupForm.tsx"
+"use client";
+
+import { useFormContext } from "react-hook-form";
+import { FormField, FormItem, FormLabel, FormControl } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+
+export const SignupForm = () => {
+  const form = useFormContext();
+
+  return (
+    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <FormField
+        control={form.control}
+        name="firstName"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>First Name</FormLabel>
+            <FormControl>
+              <Input placeholder="First Name" {...field} />
+            </FormControl>
+          </FormItem>
+        )}
+      />
+      <FormField
+        control={form.control}
+        name="email"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Email</FormLabel>
+            <FormControl>
+              <Input placeholder="you@example.com" {...field} />
+            </FormControl>
+          </FormItem>
+        )}
+      />
+      <Button type="submit">Submit</Button>
+    </form>
+  );
+};
+```
+
+  </Step>
+</Steps>
+
+Now the AI assistant can say things like *"I'll fill out your form"* and automatically populate the fields using `set_form_field` tool calls, then submit with `submit_form`.
+
+## How It Works
+
+`useAssistantForm` registers two tools in the model context:
+
+| Tool | What it does |
+|------|-------------|
+| `set_form_field` | Sets a form field by name and value via `form.setValue(name, value)` |
+| `submit_form` | Submits the form by calling `form.handleSubmit()` |
+
+These tools are forwarded to the backend automatically via `AssistantChatTransport`. Your backend needs to include `formTools` (from `@assistant-ui/react-hook-form`) to expose them to the model.
 
 ## API Reference
 
 ### `useAssistantForm`
 
-Drop-in replacement hook for `useForm` that adds support for `@assistant-ui/react`.
+Drop-in replacement for `useForm` from react-hook-form.
 
-```diff
-- import { useForm } from "react-hook-form";
-+ import { useAssistantForm } from "@assistant-ui/react-hook-form";
+```tsx
+import { useAssistantForm } from "@assistant-ui/react-hook-form";
 
-- useForm({
-+ useAssistantForm({
-    ...
-  });
+const form = useAssistantForm({
+  // All react-hook-form useForm options are supported
+  defaultValues: { name: "", email: "" },
+
+  // Additional assistant configuration
+  assistant: {
+    tools: {
+      set_form_field: {
+        render: SetFormFieldUI, // Optional: custom UI for field-setting tool calls
+      },
+      submit_form: {
+        render: SubmitFormUI, // Optional: custom UI for submit tool calls
+      },
+    },
+  },
+});
 ```
 
-#### Properties
-
-<ParametersTable
-  type="UseAssistantFormProps"
-  parameters={[
-    {
-      name: "assistant",
-      type: "object",
-      optional: true,
-      description: "Configuration for useAssistantForm",
-      children: [
-        {
-          parameters: [
-            {
-              name: "tools",
-              type: "object",
-              description: "Tools configuration for useAssistantForm",
-              children: [
-                {
-                  parameters: [
-                    {
-                      name: "set_form_field",
-                      type: "object",
-                      description: "Configuration for the set_form_field tool",
-                      children: [
-                        {
-                          parameters: [
-                            {
-                              name: "render",
-                              type: "ToolCallMessagePartComponent<{ name: string; value: string; }, {}>",
-                              description:
-                                "The component to render when set_form_field is called.",
-                            },
-                          ],
-                        },
-                      ],
-                    },
-                    {
-                      name: "submit_form",
-                      type: "object",
-                      description: "Configuration for the submit_form tool",
-                      children: [
-                        {
-                          parameters: [
-                            {
-                              name: "render",
-                              type: "ToolCallMessagePartComponent<{}, {}>",
-                              description:
-                                "The component to render when submit_form is called.",
-                            },
-                          ],
-                        },
-                      ],
-                    },
-                  ],
-                },
-              ],
-            },
-          ],
-        },
-      ],
-    },
-  ]}
-/>
+The returned `form` object is identical to react-hook-form's `UseFormReturn` — pass it to `<Form {...form}>` as normal.
 
 ### `formTools`
 
-The set of tools to use with `useAssistantForm`, useful for runtimes that do not support client-side tool definitions (i.e. Vercel AI SDK).
+The set of backend tool definitions to add to `streamText`. Required on the backend to allow the model to call the form tools.
 
-```tsx {1, 5-7}
+```ts
 import { formTools } from "@assistant-ui/react-hook-form";
 
-const result = streamText({
-  ...
+streamText({
   tools: {
     ...formTools,
-  }
+    // your other tools...
+  },
 });
 ```
+
+## Live Example
+
+The [Form Filling Co-Pilot](/examples/form-demo) demo shows this integration in action. Source code: [`examples/with-react-hook-form`](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-react-hook-form).

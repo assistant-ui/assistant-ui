@@ -11,12 +11,12 @@ export const TestimonialContainer: FC<{
     <div
       className="mx-auto w-full max-w-7xl overflow-hidden"
       style={{
-        maskImage: "linear-gradient(to bottom, black 65%, transparent 95%)",
-        maxHeight: 400,
+        maskImage: "linear-gradient(to bottom, black 75%, transparent 97%)",
+        maxHeight: 480,
       }}
     >
       <div
-        className={cn("h-[440px] columns-1 gap-4", className)}
+        className={cn("h-[520px] columns-1 gap-4", className)}
         style={{ columnFill: "auto" }}
       >
         {testimonials.map((testimonial, idx) => (

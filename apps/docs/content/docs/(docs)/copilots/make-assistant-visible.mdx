@@ -61,6 +61,99 @@ function Form() {
 }
 ```
 
+## Patterns
+
+### Reading a Data Table
+
+Wrap your table in `makeAssistantVisible` so the assistant can see and reason about its content:
+
+```tsx
+import { makeAssistantVisible } from "@assistant-ui/react";
+
+const DataTable = ({ rows }: { rows: Row[] }) => (
+  <table>
+    <thead>
+      <tr><th>Name</th><th>Value</th><th>Status</th></tr>
+    </thead>
+    <tbody>
+      {rows.map((row) => (
+        <tr key={row.id}>
+          <td>{row.name}</td>
+          <td>{row.value}</td>
+          <td>{row.status}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+);
+
+// The assistant can now "see" the table and answer questions about it
+const ReadableDataTable = makeAssistantVisible(DataTable);
+
+function Dashboard() {
+  return (
+    <>
+      <ReadableDataTable rows={portfolioData} />
+      <AssistantModal />
+    </>
+  );
+}
+```
+
+### Clickable Action Buttons
+
+Enable the assistant to click buttons on behalf of the user:
+
+```tsx
+const ActionButton = ({ onClick, label }: { onClick: () => void; label: string }) => (
+  <button onClick={onClick} className="btn">
+    {label}
+  </button>
+);
+
+const ClickableActionButton = makeAssistantVisible(ActionButton, {
+  clickable: true,
+});
+
+function Toolbar() {
+  return (
+    <div>
+      <ClickableActionButton onClick={handleSave} label="Save" />
+      <ClickableActionButton onClick={handleExport} label="Export" />
+    </div>
+  );
+}
+```
+
+Now the assistant can say *"I'll save your work"* and call the click tool to trigger the Save button.
+
+### Combining with useAssistantInstructions
+
+For best results, combine `makeAssistantVisible` with `useAssistantInstructions` so the assistant knows what it's looking at:
+
+```tsx
+import { makeAssistantVisible, useAssistantInstructions } from "@assistant-ui/react";
+
+const MetricsPanel = ({ metrics }: { metrics: Metric[] }) => {
+  // Tell the assistant what this component represents
+  useAssistantInstructions(
+    "The user is viewing a metrics dashboard with the following data visible. Help them understand the trends and anomalies."
+  );
+
+  return (
+    <div>
+      {metrics.map((m) => (
+        <div key={m.id}>
+          <span>{m.label}</span>: <strong>{m.value}</strong>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const ReadableMetricsPanel = makeAssistantVisible(MetricsPanel);
+```
+
 ## Technical Details
 
 When a component is made readable:
@@ -70,3 +163,8 @@ When a component is made readable:
 - If `clickable` is true, a unique `data-click-id` is added and a `click` tool is provided
 - The click tool uses `querySelector` and simulates a click event
 - All props and refs are properly forwarded to maintain component functionality
+
+## Related
+
+- [useAssistantInstructions](/docs/copilots/use-assistant-instructions) — Inject system instructions alongside readable context
+- [AssistantSidebar](/docs/ui/assistant-sidebar) — Side panel layout that works alongside your readable content

@@ -82,7 +82,97 @@ Since this component is copied to your project at `/components/assistant-ui/assi
 </ResizablePanelGroup>
 ```
 
+## Patterns
+
+### Page-Aware Co-Pilot
+
+The sidebar shines when you combine it with `useAssistantInstructions` — the assistant automatically receives context about what the user is currently viewing:
+
+```tsx title="app/dashboard/page.tsx"
+"use client";
+
+import { AssistantSidebar } from "@/components/assistant-ui/assistant-sidebar";
+import { useAssistantInstructions } from "@assistant-ui/react";
+
+export default function DashboardPage() {
+  // Tell the assistant about the current page context
+  useAssistantInstructions(
+    "The user is on the dashboard. Help them analyze their data and navigate the app.",
+  );
+
+  return (
+    <AssistantSidebar>
+      <Dashboard />
+    </AssistantSidebar>
+  );
+}
+```
+
+Different pages can provide different instructions — the assistant's context updates as users navigate:
+
+```tsx title="app/settings/page.tsx"
+export default function SettingsPage() {
+  useAssistantInstructions(
+    "The user is on the settings page. Help them configure their account and preferences.",
+  );
+
+  return (
+    <AssistantSidebar>
+      <Settings />
+    </AssistantSidebar>
+  );
+}
+```
+
+### Form-Filling Co-Pilot
+
+Combine `AssistantSidebar` with `useAssistantForm` to let the assistant fill out forms:
+
+```tsx title="app/onboarding/page.tsx"
+"use client";
+
+import { AssistantSidebar } from "@/components/assistant-ui/assistant-sidebar";
+import { useAssistantInstructions, useAui, AuiProvider, Suggestions } from "@assistant-ui/react";
+import { useAssistantForm } from "@assistant-ui/react-hook-form";
+import { Form } from "@/components/ui/form";
+
+export default function OnboardingPage() {
+  useAssistantInstructions("Help new users complete their onboarding form.");
+
+  const form = useAssistantForm({
+    defaultValues: { name: "", company: "", role: "" },
+  });
+
+  const aui = useAui({
+    suggestions: Suggestions([
+      { title: "Fill my info", prompt: "Please help me fill out the onboarding form." },
+    ]),
+  });
+
+  return (
+    <AuiProvider value={aui}>
+      <AssistantSidebar>
+        <Form {...form}>
+          <OnboardingForm />
+        </Form>
+      </AssistantSidebar>
+    </AuiProvider>
+  );
+}
+```
+
+### When to Use AssistantSidebar vs AssistantModal
+
+| | `AssistantSidebar` | `AssistantModal` |
+|---|---|---|
+| **Layout** | Persistent side panel, side-by-side with content | Floating modal button |
+| **Use case** | Co-pilot that assists with what's on screen | Embedded chat accessible anywhere |
+| **Context awareness** | Strong — user sees both content and chat | Works but content is hidden while chatting |
+| **Screen space** | Requires wider screens | Works on any screen size |
+
 ## Related Components
 
 - [Thread](/docs/ui/thread) - The chat interface displayed in the sidebar
 - [AssistantModal](/docs/ui/assistant-modal) - Alternative floating modal layout
+- [useAssistantInstructions](/docs/copilots/use-assistant-instructions) - Give the assistant page context
+- [react-hook-form integration](/docs/api-reference/integrations/react-hook-form) - Let the assistant fill forms

@@ -385,7 +385,7 @@ export async function POST(req: Request) {
 
   const result = streamText({
     model: openai("gpt-4o"),
-    messages: convertToModelMessages(messages),
+    messages: await convertToModelMessages(messages),
     tools: {
       queryDatabase: {
         description: "Query the application database",
@@ -447,7 +447,7 @@ export async function POST(req: Request) {
 
   const result = streamText({
     model: openai("gpt-4o"),
-    messages: convertToModelMessages(messages),
+    messages: await convertToModelMessages(messages),
     tools: {
       ...frontendTools(tools), // Client-defined tools
       // Additional server-side tools
@@ -487,7 +487,7 @@ export async function POST(req: Request) {
     const result = streamText({
       model: openai("gpt-4o"),
       tools,
-      messages: convertToModelMessages(messages),
+      messages: await convertToModelMessages(messages),
     });
 
     return result.toUIMessageStreamResponse();
@@ -496,6 +496,99 @@ export async function POST(req: Request) {
   }
 }
 ```
+
+## Patterns
+
+### Permission-Checked Tools
+
+For enterprise apps where tool access depends on user roles or permissions, wrap `useAssistantTool` with a permission check. Return a rejected payload when the user lacks access instead of throwing:
+
+```tsx
+import { useAssistantTool } from "@assistant-ui/react";
+
+type PermissionResult<T> =
+  | { status: "success"; data: T }
+  | { status: "rejected"; reason: string };
+
+function usePermissionCheckedTool<TArgs, TResult>(options: {
+  toolName: string;
+  description: string;
+  parameters: z.ZodType<TArgs>;
+  hasPermission: () => boolean;
+  execute: (args: TArgs) => Promise<TResult>;
+}) {
+  useAssistantTool({
+    toolName: options.toolName,
+    description: options.description,
+    parameters: options.parameters,
+    execute: async (args): Promise<PermissionResult<TResult>> => {
+      if (!options.hasPermission()) {
+        return { status: "rejected", reason: "Insufficient permissions" };
+      }
+      const data = await options.execute(args);
+      return { status: "success", data };
+    },
+  });
+}
+
+// Usage
+function AdminTools() {
+  const { user } = useAuth();
+
+  usePermissionCheckedTool({
+    toolName: "deleteRecord",
+    description: "Delete a record from the database",
+    parameters: z.object({ id: z.string() }),
+    hasPermission: () => user.role === "admin",
+    execute: async ({ id }) => deleteRecord(id),
+  });
+
+  return null;
+}
+```
+
+<Callout type="tip">
+  This pattern is used in production by [Nussknacker](https://github.com/TouK/nussknacker) (713 stars), a low-code stream processing platform. All frontend tools go through a `useFrontendAiTool` wrapper that enforces permission checking before execution.
+</Callout>
+
+### Registration-via-Render Pattern
+
+Another way to organize tools is as null-rendering React components. Each tool is a self-contained component placed inside the runtime provider — no `useAssistantTool` calls needed at the provider level:
+
+```tsx
+function ListScenariosAiTool() {
+  useAssistantTool({
+    toolName: "listScenarios",
+    description: "List all available scenarios",
+    parameters: z.object({ filter: z.string().optional() }),
+    execute: async ({ filter }) => fetchScenarios(filter),
+  });
+  return null; // This component exists only for side-effects
+}
+
+function OpenScenarioAiTool() {
+  useAssistantTool({
+    toolName: "openScenario",
+    description: "Open a specific scenario by name",
+    parameters: z.object({ name: z.string() }),
+    execute: async ({ name }) => openScenario(name),
+  });
+  return null;
+}
+
+// Register all tools by rendering the components
+function App() {
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <ListScenariosAiTool />
+      <OpenScenarioAiTool />
+      <Thread />
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+This pattern scales well when tools have React context dependencies (auth, router, etc.) that need to be available during execution.
 
 ## Best Practices
 

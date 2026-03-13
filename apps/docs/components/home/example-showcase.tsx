@@ -74,7 +74,15 @@ const EXAMPLE_TABS = [
 
 export function ExampleShowcase() {
   return (
-    <section>
+    <section className="flex flex-col gap-4">
+      <div className="flex flex-col gap-1">
+        <h2 className="font-medium text-3xl tracking-tight">
+          Clone any chat UI
+        </h2>
+        <p className="text-muted-foreground">
+          Fully customizable — match the look and feel of any product.
+        </p>
+      </div>
       <Tab
         tabs={EXAMPLE_TABS}
         className="h-160"

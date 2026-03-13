@@ -115,6 +115,50 @@ Multiple providers can be registered, and their contexts will be composed:
 - Tool sets are merged
 - Nested readable components only contribute their context at the outermost level
 
+## Dynamic Tool Registration
+
+For tools that are discovered at runtime (e.g., from an MCP server or user-configured sources), use `runtime.registerModelContextProvider` to dynamically inject them:
+
+```tsx
+import { useAssistantRuntime } from "@assistant-ui/react";
+import { useEffect, useState } from "react";
+
+function MCPToolBridge() {
+  const runtime = useAssistantRuntime();
+  const [tools, setTools] = useState<Record<string, any>>({});
+
+  // Fetch tools from MCP server or other dynamic source
+  useEffect(() => {
+    async function loadTools() {
+      const mcpTools = await fetchToolsFromMCPServer();
+      setTools(mcpTools);
+    }
+    loadTools();
+  }, []);
+
+  // Register them into model context whenever tools change
+  useEffect(() => {
+    if (Object.keys(tools).length === 0) return;
+
+    const unregister = runtime.registerModelContextProvider({
+      getModelContext: () => ({
+        tools,
+      }),
+    });
+
+    return unregister; // Clean up when tools change or component unmounts
+  }, [runtime, tools]);
+
+  return null; // This component only manages registration
+}
+```
+
+Place `<MCPToolBridge />` anywhere inside your `AssistantRuntimeProvider`. As tools are loaded or updated, they're automatically merged into the model context.
+
+<Callout type="tip">
+  **Seen in production:** [WebMCP](https://github.com/MiguelsPizza/WebMCP) (1k stars) uses this pattern to bridge MCP tools into a browser extension AI sidepanel — tools fetched via a Chrome extension port are injected into the assistant context using `runtime.registerModelContextProvider`.
+</Callout>
+
 ## Best Practices
 
 1. **System Instructions**

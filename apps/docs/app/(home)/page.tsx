@@ -11,6 +11,10 @@ import { TrustedBy } from "@/components/home/trusted-by";
 import { Hero } from "@/components/home/hero";
 import { ExampleShowcase } from "@/components/home/example-showcase";
 import { WarpBackground } from "@/components/home/warp-background";
+import { ToolUIShowcase } from "@/components/home/tool-ui-showcase";
+import { NativeShowcase } from "@/components/home/native-showcase";
+import { InkShowcase } from "@/components/home/ink-showcase";
+import { CopyCommandButton } from "@/components/home/copy-command-button";
 
 export default function HomePage() {
   return (
@@ -24,33 +28,55 @@ export default function HomePage() {
 
       <TrustedBy />
 
-      <TestimonialContainer
-        testimonials={TESTIMONIALS}
-        className="sm:columns-2 lg:columns-3 xl:columns-4"
-      />
+      <ToolUIShowcase />
 
-      <section className="flex flex-col items-center gap-6 py-16 text-center">
-        <p className="font-medium text-2xl tracking-tight">
-          Build once. Ready for production.
+      <NativeShowcase />
+
+      <InkShowcase />
+
+      <section className="flex flex-col gap-8">
+        <div className="flex flex-col items-center gap-2 text-center">
+          <h2 className="font-medium text-3xl tracking-tight">
+            Loved by developers
+          </h2>
+          <p className="text-muted-foreground">
+            See what the community is saying.
+          </p>
+        </div>
+        <TestimonialContainer
+          testimonials={TESTIMONIALS}
+          className="sm:columns-2 lg:columns-3 xl:columns-4"
+        />
+      </section>
+
+      <section className="flex flex-col items-center gap-4 py-16 text-center">
+        <h2 className="font-semibold text-3xl tracking-tight md:text-4xl">
+          Ready to ship?
+        </h2>
+        <p className="max-w-md text-muted-foreground">
+          Get a production-grade AI chat UI in minutes — not weeks.
         </p>
-        <div className="flex items-center gap-6">
-          <Button asChild>
+        <div className="mt-2 flex flex-col items-center gap-4">
+          <div className="flex items-center gap-6">
+            <Button asChild>
+              <Link
+                href="/docs"
+                onClick={() => analytics.cta.clicked("get_started", "footer")}
+              >
+                Get Started <ArrowRight />
+              </Link>
+            </Button>
             <Link
-              href="/docs"
-              onClick={() => analytics.cta.clicked("get_started", "footer")}
+              href="https://cal.com/simon-farshid/assistant-ui"
+              onClick={() => analytics.cta.clicked("contact_sales", "footer")}
+              className={buttonVariants({
+                variant: "outline",
+              })}
             >
-              Get Started <ArrowRight />
+              Contact Sales
             </Link>
-          </Button>
-          <Link
-            href="https://cal.com/simon-farshid/assistant-ui"
-            onClick={() => analytics.cta.clicked("contact_sales", "footer")}
-            className={buttonVariants({
-              variant: "outline",
-            })}
-          >
-            Contact Sales
-          </Link>
+          </div>
+          <CopyCommandButton analyticsContext={{ section: "footer" }} />
         </div>
       </section>
     </main>

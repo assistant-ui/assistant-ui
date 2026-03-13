@@ -1,8 +1,10 @@
 {
   "title": "Guides",
   "pages": [
+    "patterns",
     "attachments",
     "branching",
+    "embedding",
     "chain-of-thought",
     "context-api",
     "dictation",

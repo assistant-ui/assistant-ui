@@ -3,24 +3,26 @@ import { Cpu, PanelsTopLeft, Terminal, Zap } from "lucide-react";
 const FEATURES = [
   {
     title: "Instant Chat UI",
-    description: "Drop in ChatGPT-style UX with theming and sensible defaults.",
+    description:
+      "Drop-in ChatGPT-style UX with theming, markdown, code highlighting, and sensible defaults.",
     icon: PanelsTopLeft,
   },
   {
     title: "State Management",
     description:
-      "Streaming, interruptions, retries, and multi-turn conversations.",
+      "Streaming, interruptions, branching, editing, retries, and multi-turn conversations — handled for you.",
     icon: Cpu,
   },
   {
     title: "High Performance",
     description:
-      "Optimized rendering and minimal bundle size for responsive streaming.",
+      "Virtualized rendering and minimal bundle size for responsive streaming at any message count.",
     icon: Zap,
   },
   {
     title: "Works Everywhere",
-    description: "Vercel AI SDK, LangChain, or any LLM provider. React-based.",
+    description:
+      "Vercel AI SDK, LangChain, AG-UI, or any LLM provider. React, React Native, and Ink.",
     icon: Terminal,
   },
 ] as const;
@@ -41,7 +43,10 @@ export function FeatureHighlights() {
         {FEATURES.map((feature) => {
           const Icon = feature.icon;
           return (
-            <div key={feature.title} className="flex flex-col gap-3">
+            <div
+              key={feature.title}
+              className="-m-4 flex flex-col gap-3 rounded-lg p-4 transition-colors hover:bg-muted/50"
+            >
               <Icon className="size-5 text-muted-foreground" />
               <div className="flex flex-col gap-1">
                 <h3 className="font-medium">{feature.title}</h3>

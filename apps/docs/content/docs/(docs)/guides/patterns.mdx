@@ -1,0 +1,867 @@
+---
+title: Production Patterns
+description: Battle-tested patterns from open-source projects using assistant-ui in production.
+---
+
+Real-world patterns extracted from open-source projects using assistant-ui at scale. Each pattern includes the technique, code example, and a link to the production implementation.
+
+## Streaming & Performance
+
+### RAF-Based Streaming Throttle
+
+When streaming messages arrive at high frequency (100+ updates/second), naively updating state on every chunk causes excessive re-renders. Batch updates with `requestAnimationFrame` for smooth ~60fps rendering.
+
+```tsx
+import { useExternalStoreRuntime } from "@assistant-ui/react";
+
+function useThrottledMessages(rawMessages: Message[]) {
+  const [displayMessages, setDisplayMessages] = useState<Message[]>([]);
+  const pendingRef = useRef<Message[] | null>(null);
+
+  useEffect(() => {
+    pendingRef.current = rawMessages;
+
+    requestAnimationFrame(() => {
+      if (pendingRef.current) {
+        setDisplayMessages(pendingRef.current);
+        pendingRef.current = null;
+      }
+    });
+  }, [rawMessages]);
+
+  return displayMessages;
+}
+
+// Use throttled messages with ExternalStoreRuntime
+const messages = useThrottledMessages(rawStreamingMessages);
+const runtime = useExternalStoreRuntime({
+  messages,
+  onNew: handleNewMessage,
+});
+```
+
+<Callout type="tip">
+  **Seen in production:** [Wealthfolio](https://github.com/afadil/wealthfolio) (7k stars) uses this pattern to prevent 100s of re-renders during high-frequency financial data streaming.
+</Callout>
+
+### Optimistic Thread Creation
+
+Add threads to the sidebar immediately when the user sends their first message, then sync with the server in the background. This eliminates the perceived delay of waiting for a server round-trip.
+
+```tsx
+import { useQueryClient } from "@tanstack/react-query";
+
+function useOptimisticThread() {
+  const queryClient = useQueryClient();
+
+  const createThread = async (firstMessage: string) => {
+    const optimisticId = crypto.randomUUID();
+
+    // Immediately add to cache
+    queryClient.setQueryData(["threads"], (old: Thread[]) => [
+      { id: optimisticId, title: firstMessage.slice(0, 50), createdAt: new Date() },
+      ...(old ?? []),
+    ]);
+
+    // Create on server in background
+    const serverThread = await api.createThread(firstMessage);
+
+    // Replace optimistic entry with real data
+    queryClient.invalidateQueries({ queryKey: ["threads"] });
+
+    return serverThread;
+  };
+
+  return { createThread };
+}
+```
+
+<Callout type="tip">
+  **Seen in production:** [Wealthfolio](https://github.com/afadil/wealthfolio) (7k stars) adds threads to TanStack Query cache before the server confirms, using delayed invalidation for sync.
+</Callout>
+
+## Tool UIs at Scale
+
+### Tool UI Registry Pattern
+
+When your app has many tool UIs (5+), organize them in a centralized registry instead of scattering `makeAssistantToolUI` calls across files.
+
+```tsx
+import { makeAssistantToolUI } from "@assistant-ui/react";
+
+// tools/registry.ts — single source of truth
+const toolUIs = {
+  getWeather: makeAssistantToolUI({ toolName: "getWeather", render: WeatherUI }),
+  getHoldings: makeAssistantToolUI({ toolName: "getHoldings", render: HoldingsUI }),
+  getPerformance: makeAssistantToolUI({ toolName: "getPerformance", render: PerformanceUI }),
+  importCsv: makeAssistantToolUI({ toolName: "importCsv", render: ImportCsvUI }),
+  createActivity: makeAssistantToolUI({ toolName: "createActivity", render: ActivityUI }),
+};
+
+// Register all tool UIs in one place
+export function ToolUIRegistry() {
+  return (
+    <>
+      {Object.values(toolUIs).map((ToolUI, i) => (
+        <ToolUI key={i} />
+      ))}
+    </>
+  );
+}
+
+// Usage
+function App() {
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Thread />
+      <ToolUIRegistry />
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+<Callout type="tip">
+  **Seen in production:** [Wealthfolio](https://github.com/afadil/wealthfolio) (7k stars) manages 11 financial tool UIs through a centralized registry.
+</Callout>
+
+### Tool Call Grouping
+
+When the assistant makes many tool calls in sequence (e.g., reading, writing, and searching files), group them into a collapsible summary instead of showing each one individually.
+
+```tsx
+import { MessagePrimitive } from "@assistant-ui/react";
+
+// Define which tools to group and how to summarize them
+function groupConsecutiveToolCalls(parts) {
+  const groups = [];
+  let currentGroup = null;
+
+  for (const part of parts) {
+    if (part.type === "tool-call" && shouldGroup(part.toolName)) {
+      if (!currentGroup) {
+        currentGroup = { type: "group", parts: [], key: "" };
+      }
+      currentGroup.parts.push(part);
+    } else {
+      if (currentGroup) {
+        currentGroup.key = summarizeGroup(currentGroup.parts);
+        groups.push(currentGroup);
+        currentGroup = null;
+      }
+      groups.push(part);
+    }
+  }
+  if (currentGroup) {
+    currentGroup.key = summarizeGroup(currentGroup.parts);
+    groups.push(currentGroup);
+  }
+  return groups;
+}
+
+function ToolCallGroup({ group }) {
+  const [open, setOpen] = useState(false);
+  const summary = summarizeGroup(group.parts);
+  // e.g. "Updated 3 files, read 2 files, ran 1 command"
+
+  return (
+    <div className="my-2 rounded-lg border">
+      <button onClick={() => setOpen((o) => !o)} className="flex w-full items-center gap-2 px-3 py-2 text-sm">
+        <span>{summary}</span>
+      </button>
+      {open && group.parts.map((part, i) => <ToolCard key={i} part={part} />)}
+    </div>
+  );
+}
+
+// Use in your Thread component
+<MessagePrimitive.Unstable_PartsGrouped
+  groupingFunction={groupConsecutiveToolCalls}
+  components={{
+    Text: MarkdownText,
+    Group: ToolCallGroup,
+    tools: { by_name: toolCardsByName, Fallback: ToolFallback },
+  }}
+/>
+```
+
+<Callout type="tip">
+  **Seen in production:** [Adorable](https://github.com/freestyle-sh/Adorable) (682 stars) groups file operations into summaries like "Updated 3 files, read 2 files" with collapsible details, creating a clean Cursor/Lovable-style tool execution UI.
+</Callout>
+
+### Reusable Tool Wrapper
+
+When building multiple tool UIs, extract a shared wrapper that handles status icons and collapsible behavior consistently.
+
+```tsx
+import { useState } from "react";
+import { CheckIcon, XIcon, Loader2Icon, ChevronDownIcon } from "lucide-react";
+import type { ToolCallMessagePartStatus } from "@assistant-ui/react";
+import { cn } from "@/lib/utils";
+
+function BaseToolWrapper({
+  title,
+  status,
+  children,
+  defaultOpen = false,
+}: {
+  title: string;
+  status: ToolCallMessagePartStatus;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen || status.type === "running");
+
+  const icon =
+    status.type === "running" ? <Loader2Icon className="size-4 animate-spin text-blue-500" /> :
+    status.type === "incomplete" ? <XIcon className="size-4 text-red-500" /> :
+    <CheckIcon className="size-4 text-green-500" />;
+
+  return (
+    <div className="my-2 rounded-lg border bg-muted/30">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center gap-2 px-3 py-2 text-sm font-medium"
+      >
+        {icon}
+        <span className="flex-1 text-left">{title}</span>
+        <ChevronDownIcon className={cn("size-4 transition-transform", open && "rotate-180")} />
+      </button>
+      {open && <div className="border-t px-3 py-2">{children}</div>}
+    </div>
+  );
+}
+
+// Use in every tool UI
+const GenerateCodeToolUI = makeAssistantToolUI({
+  toolName: "generate_code",
+  render: ({ args, result, status }) => (
+    <BaseToolWrapper title={`Generate ${args.language} code`} status={status}>
+      {status.type === "running" && <Skeleton className="h-20" />}
+      {result && <CodeEditor value={result.code} language={args.language} />}
+    </BaseToolWrapper>
+  ),
+});
+```
+
+<Callout type="tip">
+  **Seen in production:** [OpenOps](https://github.com/openops-cloud/openops) (1k stars) — all tool UIs share a single `BaseToolWrapper` for consistent expand/collapse and status indicators.
+</Callout>
+
+### Multi-Provider Tool Name Registration
+
+When the same tool has different names across providers (e.g., OpenAI's `web_search_preview` vs Google's `google_search`), share a single renderer and register it under multiple tool names:
+
+```tsx
+import { makeAssistantToolUI } from "@assistant-ui/react";
+
+function WebSearchRenderer({ args, argsText }: { args: any; argsText: string }) {
+  // Use argsText as fallback during streaming (before args are fully parsed)
+  const query = args?.query ?? argsText;
+  return (
+    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+      <SearchIcon className="size-4" />
+      <span>Searching: {query}</span>
+    </div>
+  );
+}
+
+// Register the same UI under multiple provider-specific tool names
+const OpenAISearchToolUI = makeAssistantToolUI({
+  toolName: "web_search_preview",
+  render: WebSearchRenderer,
+});
+
+const GoogleSearchToolUI = makeAssistantToolUI({
+  toolName: "google_search",
+  render: WebSearchRenderer,
+});
+```
+
+<Callout type="tip">
+  This pattern is especially useful when your app supports multiple LLM providers. Users get a consistent tool UI regardless of which provider is active. The `argsText` fallback handles the partial-args problem during streaming.
+</Callout>
+
+### Form Submission with Confirmed State
+
+For action-oriented tool UIs, show a form initially, then transition to a read-only "receipt" view after the user confirms. Use `addResult` to persist the confirmed state in the thread.
+
+```tsx
+const CreateActivityToolUI = makeAssistantToolUI<
+  { name: string; amount: number },
+  { submitted?: boolean; activityId?: string }
+>({
+  toolName: "createActivity",
+  render: ({ args, result, addResult, status }) => {
+    if (status.type === "running") return <Skeleton className="h-32 w-full" />;
+
+    // After user confirmed — show receipt
+    if (result?.submitted) {
+      return (
+        <div className="rounded-lg border border-green-200 bg-green-50 p-4">
+          <p className="font-medium text-green-800">Activity created</p>
+          <p className="text-sm text-green-700">{args.name} - {args.amount}</p>
+        </div>
+      );
+    }
+
+    // Interactive form — before submission
+    return (
+      <ActivityForm
+        defaultValues={args}
+        onSubmit={async (data) => {
+          const activity = await createActivity(data);
+          addResult({ submitted: true, activityId: activity.id });
+        }}
+      />
+    );
+  },
+});
+```
+
+<Callout type="tip">
+  **Seen in production:** [Wealthfolio](https://github.com/afadil/wealthfolio) (7k stars) uses `addResult` across 11 financial tool UIs so users never accidentally re-submit.
+</Callout>
+
+## Co-Pilot Patterns
+
+### Page-Aware Context Injection
+
+Use `useAssistantInstructions` to give the assistant different context based on which page the user is viewing. The instructions automatically update as users navigate.
+
+```tsx
+"use client";
+
+import { useAssistantInstructions } from "@assistant-ui/react";
+
+export default function DashboardPage() {
+  useAssistantInstructions(
+    "The user is on the analytics dashboard. Help them interpret metrics, " +
+    "create custom reports, and set up alerts. Available data: revenue, " +
+    "user growth, churn rate, and feature adoption.",
+  );
+
+  return <AssistantSidebar><Dashboard /></AssistantSidebar>;
+}
+
+export default function SettingsPage() {
+  useAssistantInstructions(
+    "The user is on settings. Help them configure integrations, " +
+    "manage team members, and adjust notification preferences.",
+  );
+
+  return <AssistantSidebar><Settings /></AssistantSidebar>;
+}
+```
+
+<Callout type="tip">
+  **Seen in production:** [VerifyWise](https://github.com/verifywise-ai/verifywise) (237 stars) uses page-specific instructions for EU AI Act compliance workflows, and [Nussknacker](https://github.com/TouK/nussknacker) (713 stars) injects the current workflow state as context.
+</Callout>
+
+### System Capability Description
+
+Go beyond simple persona instructions — use `useAssistantInstructions` to describe the system topology and available tools so the model can plan multi-step workflows autonomously.
+
+```tsx
+"use client";
+
+import { useAssistantInstructions } from "@assistant-ui/react";
+
+export default function CodeRunnerPage() {
+  useAssistantInstructions(`
+    You are a code execution assistant. You have access to:
+
+    **Tools:**
+    - execute_python_code: Runs Python in a sandboxed container
+    - browse_web: Opens URLs in a headless browser
+
+    **File System:**
+    - Host directory /workspace is mounted at /home/user in the container
+    - Files created in the container persist across tool calls
+
+    **Workflow Example:**
+    1. User asks "extract audio from video.mp4"
+    2. Call execute_python_code with ffmpeg command
+    3. Output file appears at /home/user/audio.mp3
+    4. User can access it at /workspace/audio.mp3
+
+    Always execute tools without asking for confirmation.
+    Chain multiple tool calls to complete complex tasks.
+  `);
+
+  return <Thread />;
+}
+```
+
+<Callout type="tip">
+  **Seen in production:** [Coderunner UI](https://github.com/instavm/coderunner-ui) (199 stars) uses this pattern to describe container-based code execution, file system mappings, and multi-step workflows so the model can autonomously plan complex tasks like video processing with ffmpeg.
+</Callout>
+
+### Permission-Checked Tool Wrapper
+
+Wrap tool UIs with permission checks to control which users can execute specific tools.
+
+```tsx
+import { makeAssistantToolUI } from "@assistant-ui/react";
+
+function withPermissionCheck<TArgs, TResult>(
+  toolUI: { toolName: string; render: (props: any) => JSX.Element },
+  requiredPermission: string,
+) {
+  return makeAssistantToolUI<TArgs, TResult>({
+    toolName: toolUI.toolName,
+    render: (props) => {
+      const { hasPermission } = usePermissions();
+
+      if (!hasPermission(requiredPermission)) {
+        return (
+          <div className="rounded border border-yellow-200 bg-yellow-50 p-3 text-sm">
+            You don't have permission to execute this action.
+          </div>
+        );
+      }
+
+      return toolUI.render(props);
+    },
+  });
+}
+
+// Usage
+const DeployToolUI = withPermissionCheck(
+  { toolName: "deploy", render: DeployUI },
+  "deployments.write",
+);
+```
+
+<Callout type="tip">
+  **Seen in production:** [Nussknacker](https://github.com/TouK/nussknacker) (713 stars) checks user permissions before allowing scenario deployment via tool UIs.
+</Callout>
+
+### Context-Aware Suggestions
+
+Provide different starter suggestions based on the user's current page or application state.
+
+```tsx
+import { useAui, AuiProvider, Suggestions } from "@assistant-ui/react";
+
+function CompliancePage({ framework }: { framework: "eu-ai-act" | "nist" }) {
+  const suggestions = framework === "eu-ai-act"
+    ? Suggestions([
+        { title: "Risk assessment", prompt: "Help me complete the risk assessment for this AI system" },
+        { title: "Documentation", prompt: "What documentation is required under Article 11?" },
+      ])
+    : Suggestions([
+        { title: "Controls mapping", prompt: "Map our controls to NIST AI RMF categories" },
+        { title: "Gap analysis", prompt: "Identify gaps in our current AI governance" },
+      ]);
+
+  const aui = useAui({ suggestions });
+
+  return (
+    <AuiProvider value={aui}>
+      <AssistantSidebar>
+        <ComplianceDashboard framework={framework} />
+      </AssistantSidebar>
+    </AuiProvider>
+  );
+}
+```
+
+<Callout type="tip">
+  **Seen in production:** [VerifyWise](https://github.com/verifywise-ai/verifywise) (237 stars) dynamically changes suggestions based on the active compliance framework.
+</Callout>
+
+## Runtime Patterns
+
+### Custom SSE ChatModelAdapter
+
+Connect to any backend that speaks SSE (Server-Sent Events) using a custom `ChatModelAdapter`.
+
+```tsx
+import { useLocalRuntime, type ChatModelAdapter } from "@assistant-ui/react";
+
+const sseAdapter: ChatModelAdapter = {
+  async *run({ messages, abortSignal }) {
+    const response = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages }),
+      signal: abortSignal,
+    });
+
+    const reader = response.body!.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+
+      for (const line of lines) {
+        if (line.startsWith("data: ")) {
+          const data = JSON.parse(line.slice(6));
+          yield { content: [{ type: "text" as const, text: data.text }] };
+        }
+      }
+    }
+  },
+};
+
+const runtime = useLocalRuntime(sseAdapter);
+```
+
+<Callout type="tip">
+  **Seen in production:** [Nussknacker](https://github.com/TouK/nussknacker) (713 stars) uses a custom SSE `ChatModelAdapter` to connect to their Scala/Akka backend.
+</Callout>
+
+### Dynamic Headers with useChatRuntime
+
+Pass dynamic context (like session IDs, selected items, or auth tokens) to your backend via custom headers.
+
+```tsx
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+
+function useDesktopChat(desktopId: string | null) {
+  return useChatRuntime({
+    api: "/api/chat",
+    headers: () =>
+      Promise.resolve({
+        "Content-Type": "application/json",
+        "X-Desktop-Id": desktopId ?? "",
+      }),
+  });
+}
+```
+
+<Callout type="tip">
+  **Seen in production:** [Cyberdesk](https://github.com/cyberdesk-hq/cyberdesk) (308 stars) passes virtual desktop IDs via headers so the AI agent can interact with the correct desktop session.
+</Callout>
+
+### Custom Transport Fetch Interceptor
+
+Intercept the transport's fetch to read response headers, handle errors, or inject dynamic request bodies.
+
+```tsx
+import { AssistantChatTransport } from "@assistant-ui/react-ai-sdk";
+
+const transport = new AssistantChatTransport({
+  api: "/api/chat",
+  // Wrap fetch to intercept responses
+  fetch: async (url, init) => {
+    const response = await fetch(url, init);
+
+    // Read metadata from response headers
+    const conversationId = response.headers.get("X-Conversation-Id");
+    if (conversationId) {
+      router.replace(`/chat/${conversationId}`, { scroll: false });
+    }
+
+    // Handle content safety / error responses
+    if (response.status === 400) {
+      const { error } = await response.clone().json();
+      toast.error(error.message);
+    }
+
+    return response;
+  },
+  // Dynamic body builder — inject runtime state per request
+  body: () => ({
+    model: selectedModel,
+    enabledTools: activeToolIds,
+  }),
+});
+```
+
+### Externally Triggered Messages
+
+Send messages programmatically from outside the chat UI — useful for "Ask AI about this" buttons, contextual help, or form-filling triggers.
+
+```tsx
+import { useAui } from "@assistant-ui/react";
+
+function AskAIButton({ context }: { context: string }) {
+  const aui = useAui();
+
+  const handleClick = () => {
+    aui.composer().setText(`Explain this: ${context}`);
+    aui.composer().send();
+  };
+
+  return <button onClick={handleClick}>Ask AI</button>;
+}
+```
+
+For triggering during an active run (e.g., to interrupt and redirect):
+
+```tsx
+import { useAui, useAuiEvent } from "@assistant-ui/react";
+
+function RedirectButton({ newPrompt }: { newPrompt: string }) {
+  const aui = useAui();
+  const resendRef = useRef(false);
+
+  useAuiEvent("thread.runEnd", () => {
+    if (!resendRef.current) return;
+    resendRef.current = false;
+    aui.composer().send();
+  });
+
+  const handleClick = () => {
+    aui.composer().setText(newPrompt);
+    if (aui.thread().getState().isRunning) {
+      resendRef.current = true;
+      aui.composer().cancel();
+    } else {
+      aui.composer().send();
+    }
+  };
+
+  return <button onClick={handleClick}>Use This Instead</button>;
+}
+```
+
+### Agentic Loops with Frontend Tools
+
+Let the model drive a tool-calling loop on the client side, automatically sending follow-up requests when tool calls complete.
+
+```tsx
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
+
+const runtime = useChatRuntime({
+  sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
+});
+```
+
+<Callout type="tip">
+  **Seen in production:** [OpenOps](https://github.com/openops-cloud/openops) (1k stars) uses `sendAutomaticallyWhen` to execute UI-prefixed frontend tools automatically, creating an agentic loop where the model can call multiple tools in sequence.
+</Callout>
+
+## Layout Patterns
+
+### Side-by-Side Chat + Content
+
+Place the chat alongside your main content for co-pilot experiences. The chat and content share the same runtime context.
+
+```tsx
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+
+function CoPilotLayout() {
+  const runtime = useChatRuntime({ api: "/api/chat" });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <div className="flex h-screen">
+        {/* Main content — 3/4 width */}
+        <div className="flex-1">
+          <YourApp />
+        </div>
+
+        {/* Chat panel — 1/4 width */}
+        <div className="w-80 border-l">
+          <Thread />
+        </div>
+      </div>
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+Or use the pre-built `AssistantSidebar` component with resizable panels:
+
+```tsx
+import { AssistantSidebar } from "@/components/assistant-ui/assistant-sidebar";
+
+function App() {
+  return (
+    <AssistantSidebar>
+      <YourApp />
+    </AssistantSidebar>
+  );
+}
+```
+
+<Callout type="tip">
+  **Seen in production:** [Cyberdesk](https://github.com/cyberdesk-hq/cyberdesk) (308 stars) shows a chat panel alongside a virtual desktop, and [Nussknacker](https://github.com/TouK/nussknacker) (713 stars) uses a sidebar chat next to their workflow editor.
+</Callout>
+
+### MUI / Non-Tailwind Integration
+
+Use assistant-ui primitives with any component library via the `asChild` prop pattern. Primitives render no DOM by default when `asChild` is used, delegating to your components.
+
+```tsx
+import { ComposerPrimitive, ThreadPrimitive } from "@assistant-ui/react";
+import { TextField, Button, Box } from "@mui/material";
+
+const MuiComposer = () => (
+  <ComposerPrimitive.Root>
+    <Box sx={{ display: "flex", gap: 1 }}>
+      <ComposerPrimitive.Input asChild>
+        <TextField fullWidth variant="outlined" placeholder="Ask a question..." />
+      </ComposerPrimitive.Input>
+      <ComposerPrimitive.Send asChild>
+        <Button variant="contained">Send</Button>
+      </ComposerPrimitive.Send>
+    </Box>
+  </ComposerPrimitive.Root>
+);
+```
+
+<Callout type="tip">
+  **Seen in production:** [VerifyWise](https://github.com/verifywise-ai/verifywise) (237 stars) uses MUI components throughout their assistant-ui integration via the `asChild` pattern.
+</Callout>
+
+## Data & Visualization
+
+### Chart/Table Toggle in Tool UI
+
+Let users switch between chart and table views within a single tool UI using local `useState`.
+
+```tsx
+import { useState } from "react";
+import { cn } from "@/lib/utils";
+import { makeAssistantToolUI } from "@assistant-ui/react";
+
+const AnalyticsToolUI = makeAssistantToolUI<
+  { metric: string },
+  { data: DataPoint[] }
+>({
+  toolName: "getAnalytics",
+  render: ({ args, result, status }) => {
+    const [view, setView] = useState<"chart" | "table">("chart");
+
+    if (status.type === "running") return <Skeleton className="h-48 w-full" />;
+    if (!result) return null;
+
+    return (
+      <div className="rounded-lg border p-4">
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="font-medium">{args.metric}</h3>
+          <div className="flex gap-1">
+            <button
+              onClick={() => setView("chart")}
+              className={cn("rounded px-2 py-1 text-xs", view === "chart" && "bg-primary text-white")}
+            >
+              Chart
+            </button>
+            <button
+              onClick={() => setView("table")}
+              className={cn("rounded px-2 py-1 text-xs", view === "table" && "bg-primary text-white")}
+            >
+              Table
+            </button>
+          </div>
+        </div>
+        {view === "chart" ? (
+          <LineChart data={result.data} />
+        ) : (
+          <DataTable data={result.data} />
+        )}
+      </div>
+    );
+  },
+});
+```
+
+<Callout type="tip">
+  **Seen in production:** [Wealthfolio](https://github.com/afadil/wealthfolio) (7k stars) uses this pattern in their `HoldingsToolUI` and `PerformanceToolUI` to let users toggle between pie charts and data tables.
+</Callout>
+
+### CSV Attachment Adapter
+
+Parse CSV files and inject their content as structured text for the LLM to reason about.
+
+```tsx
+import { AttachmentAdapter, PendingAttachment, CompleteAttachment } from "@assistant-ui/react";
+
+class CSVAttachmentAdapter implements AttachmentAdapter {
+  accept = "text/csv,.csv";
+
+  async add({ file }: { file: File }): Promise<PendingAttachment> {
+    if (file.size > 5 * 1024 * 1024) throw new Error("CSV exceeds 5MB limit");
+    return { id: crypto.randomUUID(), type: "document", name: file.name, file, status: { type: "running" } };
+  }
+
+  async send(attachment: PendingAttachment): Promise<CompleteAttachment> {
+    const text = await attachment.file.text();
+    const lines = text.trim().split("\n");
+    const preview = lines.slice(0, 6).join("\n");
+
+    return {
+      ...attachment,
+      content: [{
+        type: "text",
+        text: `[CSV: ${attachment.name}] ${lines.length - 1} rows\n\`\`\`csv\n${preview}\n\`\`\``,
+      }],
+      status: { type: "complete" },
+    };
+  }
+
+  async remove() {}
+}
+```
+
+<Callout type="tip">
+  **Seen in production:** [Wealthfolio](https://github.com/afadil/wealthfolio) (7k stars) lets users upload brokerage export CSVs directly into the chat for AI-assisted transaction import.
+</Callout>
+
+## Persistence
+
+### Message Persistence with onFinish
+
+Persist messages to your own backend or local storage using `useChatRuntime`'s `onFinish` callback. Track already-persisted message IDs to avoid duplicates when the callback fires with the full message history:
+
+```tsx
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { useCallback, useRef } from "react";
+
+function usePersistedRuntime(conversationId: string) {
+  const persistedIdsRef = useRef<Set<string>>(new Set());
+
+  const onFinish = useCallback(
+    ({ messages }: { messages: UIMessage[] }) => {
+      for (const msg of messages) {
+        if (persistedIdsRef.current.has(msg.id)) continue;
+
+        // Extract text content from message parts
+        const text = msg.parts
+          .filter((p): p is { type: "text"; text: string } => p.type === "text")
+          .map((p) => p.text)
+          .join("\n");
+
+        saveMessage(conversationId, {
+          id: msg.id,
+          role: msg.role,
+          content: text,
+          createdAt: new Date().toISOString(),
+        });
+
+        persistedIdsRef.current.add(msg.id);
+      }
+    },
+    [conversationId],
+  );
+
+  return useChatRuntime({
+    api: "/api/chat",
+    onFinish,
+  });
+}
+```
+
+<Callout type="tip">
+  **Seen in production:** [VerifyWise](https://github.com/verifywise-ai/verifywise) (237 stars) uses this pattern to persist per-domain advisor conversations, with separate message histories for compliance, risk, and dashboard pages.
+</Callout>
+
+## Related
+
+- [Generative UI](/docs/guides/tool-ui) — Full guide to building tool call UIs
+- [Context API](/docs/guides/context-api) — Programmatic state access and actions
+- [Multi-Agent](/docs/guides/multi-agent) — Sub-agent conversation rendering
+- [Attachments](/docs/guides/attachments) — File upload and processing
+- [ExternalStoreRuntime](/docs/runtimes/custom/external-store) — Custom state management
+- [AssistantSidebar](/docs/ui/assistant-sidebar) — Resizable co-pilot layout

@@ -350,9 +350,27 @@ function MyComponent() {
 
 ## Thread Management
 
+### Lifecycle Overview
+
+The `useLangGraphRuntime` hook manages threads through three callbacks — `create`, `load`, and `stream` — that are called at specific points in the thread lifecycle:
+
+1. **`create`** — Called when a new thread is needed (user clicks "New Thread" or sends the first message). Returns an `{ externalId }` that maps to your LangGraph thread ID.
+2. **`load`** — Called when the user switches to an existing thread (via the thread list or `switchToThread()`). Receives the `externalId` and must return the thread's `messages` (and optionally `interrupts`). This is how conversation history is restored.
+3. **`stream`** — Called when the user sends a message. The `initialize()` helper inside `stream` calls either `create` (for new threads) or uses the existing thread's IDs. Returns a streaming response.
+
+```
+User sends first message → create() → stream(messages, { initialize })
+User switches thread     → load(externalId) → messages displayed
+User sends message        → stream(messages, { initialize })
+```
+
+<Callout type="info">
+  `load` is triggered automatically when a thread with a non-null `externalId` becomes active. If you're seeing threads not load, check that `create` returns `{ externalId }` correctly — without it, `load` is never called for that thread.
+</Callout>
+
 ### Basic Thread Support
 
-The `useLangGraphRuntime` hook now includes built-in thread management capabilities:
+The `useLangGraphRuntime` hook includes built-in thread management capabilities:
 
 ```typescript
 const runtime = useLangGraphRuntime({
@@ -368,7 +386,7 @@ const runtime = useLangGraphRuntime({
     return { externalId: thread_id };
   },
   load: async (externalId) => {
-    // Called when loading an existing thread
+    // Called when switching to an existing thread
     const state = await getThreadState(externalId);
     return {
       messages: state.values.messages,
@@ -466,3 +484,12 @@ LangGraph supports interrupting the execution flow to request user input or hand
 3. The runtime will automatically restore the interrupt state when switching threads
 
 This feature is particularly useful for applications that require user approval flows, multi-step forms, or any other interactive elements that might span multiple thread switches.
+
+## Real-World Examples
+
+Open-source projects using the LangGraph + assistant-ui integration:
+
+- **[SurfSense](https://github.com/MODSetter/SurfSense)** (13k stars) — Open-source NotebookLM alternative built on LangChain + FastAPI. Shows how to use `ExternalStoreRuntime` for displaying LangGraph conversation results.
+- **[Open Canvas](https://github.com/langchain-ai/open-canvas)** (3.5k stars) — LangChain's open-source implementation of ChatGPT Canvas. Shows complex multi-agent tool UIs with LangGraph.
+- **[LangGraph Stockbroker](https://github.com/assistant-ui/assistant-ui-stockbroker)** — Reference implementation showing human-in-the-loop interrupts with LangGraph approval flows.
+- **[FastAPI + LangGraph](https://github.com/Yonom/assistant-ui-langgraph-fastapi)** (186 stars) — By the assistant-ui author. Shows how to connect a Python FastAPI + LangGraph backend to assistant-ui.

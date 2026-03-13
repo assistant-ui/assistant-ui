@@ -154,6 +154,21 @@ The content of the message. This renders a separate component for each message p
   ]}
 />
 
+<Callout type="warn">
+  The `components` prop must be a **stable reference**. Passing an inline object (e.g., `components={{ Text: MyText }}`) creates a new object on every render, which can cause message parts to unmount and remount during streaming. Define your components object outside the render function or wrap it in `useMemo`.
+</Callout>
+
+```tsx
+// ✅ Correct — stable reference
+const components = { Text: MyText, tools: { Fallback: ToolFallback } };
+const AssistantMessage = () => <MessagePrimitive.Parts components={components} />;
+
+// ❌ Avoid — creates new object on every render
+const AssistantMessage = () => (
+  <MessagePrimitive.Parts components={{ Text: MyText }} /> // unstable!
+);
+```
+
 ### PartByIndex
 
 Renders a single message part at the specified index.

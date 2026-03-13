@@ -3,7 +3,7 @@ title: useAssistantInstructions
 description: React hook for setting system instructions to guide assistant behavior.
 ---
 
-`useAssistantInstructions` is a React hook that allows you to set system instructions for your assistant-ui components.
+`useAssistantInstructions` is a React hook that injects system-level instructions into the model context. Multiple components can call it simultaneously — instructions are concatenated into the final system prompt.
 
 ## Usage
 
@@ -11,16 +11,16 @@ description: React hook for setting system instructions to guide assistant behav
 import { useAssistantInstructions } from "@assistant-ui/react";
 
 function MyComponent() {
-  // Simple string usage
-  useAssistantInstructions("You are a helpful form assistant...");
+  // Simple string
+  useAssistantInstructions("You are a helpful portfolio assistant.");
 
-  // With configuration object
+  // Config object with optional disabled flag
   useAssistantInstructions({
-    instruction: "You are a helpful form assistant...",
-    disabled: false, // Optional: disable the instructions
+    instruction: "You are a helpful portfolio assistant.",
+    disabled: false,
   });
 
-  return <div>My Component</div>;
+  return <div>{/* ... */}</div>;
 }
 ```
 
@@ -28,36 +28,144 @@ function MyComponent() {
 
 ### Parameters
 
-The hook accepts either:
+Accepts either:
 
-- A string containing the system instructions
-- A configuration object with:
-  - `instruction`: The system instructions
-  - `disabled`: Optional boolean to disable the instructions
+- A `string` containing the system instructions
+- A config object:
+  - `instruction: string` — the system instructions
+  - `disabled?: boolean` — set to `true` to skip these instructions (hook stays registered but contributes nothing)
 
 ### Behavior
 
-The hook will:
+- Registers instructions in the model context on mount, removes them on unmount
+- Re-registers whenever `instruction` or `disabled` changes
+- Multiple calls (from multiple components) are **concatenated** into one system prompt
 
-1. Register the provided instructions as system instructions in the model context
-2. Automatically clean up when the component unmounts
-3. Update when the instructions change
-4. Do nothing if disabled is set to true
+## Patterns
 
-## Example
+### Context-Aware Instructions
+
+Pass dynamic instructions based on component props or state — the hook re-registers automatically when the string changes:
 
 ```tsx
-function SmartForm() {
-  useAssistantInstructions({
-    instruction: `
-      You are a form assistant that:
-      - Validates user input
-      - Provides helpful suggestions
-      - Explains any errors
-      - Guides users through complex fields
-    `,
-  });
+function DataTable({ tableName, schema }: { tableName: string; schema: string }) {
+  useAssistantInstructions(
+    `The user is viewing the "${tableName}" table. Schema: ${schema}`,
+  );
 
-  return <form>{/* Your form fields here */}</form>;
+  return <table>{/* ... */}</table>;
 }
 ```
+
+### Conditional Instructions
+
+Use the `disabled` flag to conditionally enable instructions:
+
+```tsx
+function AdminPanel({ isAdmin }: { isAdmin: boolean }) {
+  useAssistantInstructions({
+    instruction: "The user has admin access. You may discuss internal dashboards and settings.",
+    disabled: !isAdmin,
+  });
+
+  return <div>{/* ... */}</div>;
+}
+```
+
+### Page-Level Capability Descriptions
+
+Describe what tools and capabilities the assistant has access to on this page. This helps the model decide when and how to use them:
+
+```tsx
+function CodeEditorPage() {
+  useAssistantInstructions(`
+    You are a coding assistant with the following capabilities:
+    - run_code: Execute code in a sandboxed environment and return output
+    - read_file: Read files from the project directory
+    - write_file: Write or update files in the project directory
+    - install_package: Install npm packages
+
+    Always show code before running it. Prefer small, incremental changes.
+    If code fails, analyze the error and suggest a fix.
+  `);
+
+  return <CodeEditor />;
+}
+```
+
+### Composing Instructions from Multiple Components
+
+Different components can each contribute their own slice of context — they are merged automatically:
+
+```tsx
+// Thread-level base instructions
+function ChatPage() {
+  useAssistantInstructions("You are a financial assistant for Wealthfolio.");
+  return (
+    <div>
+      <PortfolioView />
+      <Thread />
+    </div>
+  );
+}
+
+// Component adds its own context when rendered
+function PortfolioView() {
+  const { totalValue, holdings } = usePortfolio();
+
+  useAssistantInstructions(
+    `Current portfolio: $${totalValue.toLocaleString()} across ${holdings.length} holdings.`,
+  );
+
+  return <HoldingsChart holdings={holdings} />;
+}
+
+// The final system prompt = base instructions + portfolio context, concatenated
+```
+
+### Feature Flag Gating
+
+Only provide instructions when a feature is enabled:
+
+```tsx
+function FeatureGatedAssistant({ flags }: { flags: FeatureFlags }) {
+  useAssistantInstructions({
+    instruction: "You can schedule meetings using the schedule_meeting tool.",
+    disabled: !flags.calendarIntegration,
+  });
+
+  useAssistantInstructions({
+    instruction: "You have access to the user's email via read_email and send_email tools.",
+    disabled: !flags.emailIntegration,
+  });
+
+  return null;
+}
+```
+
+## Placement
+
+`useAssistantInstructions` must be called inside a component that is rendered within an `AssistantRuntimeProvider`. Place it in the component where the relevant context lives:
+
+```tsx
+// ✅ Inside the provider, close to the context that the instruction describes
+function App() {
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <PageInstructions />  {/* instructions for this page */}
+      <Thread />
+    </AssistantRuntimeProvider>
+  );
+}
+
+// ❌ Outside the provider — will throw
+function App() {
+  useAssistantInstructions("...");  // Error: no runtime context
+  return <AssistantRuntimeProvider runtime={runtime}>...</AssistantRuntimeProvider>;
+}
+```
+
+## Related
+
+- [Model Context](/docs/copilots/model-context) — Full model context guide including tools and context providers
+- [makeAssistantVisible](/docs/copilots/make-assistant-visible) — Auto-generate context from rendered HTML

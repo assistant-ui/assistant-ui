@@ -68,7 +68,10 @@ export function TrustedBy() {
   const isMobile = useMediaQuery("(max-width: 1080px)");
 
   return (
-    <section className="flex flex-col items-center gap-4">
+    <section className="flex flex-col items-center gap-6">
+      <p className="font-semibold text-muted-foreground text-xs uppercase tracking-widest">
+        Trusted by
+      </p>
       {isMobile ? (
         <div className="flex w-full gap-(--gap) overflow-hidden [--duration:20s] [--gap:3rem]">
           {Array.from({ length: 4 }).map((_, i) => (
@@ -85,7 +88,9 @@ export function TrustedBy() {
           <LogoList />
         </div>
       )}
-      <p className="text-muted-foreground text-sm">and teams everywhere</p>
+      <p className="text-muted-foreground text-sm">
+        and thousands of developers worldwide
+      </p>
     </section>
   );
 }

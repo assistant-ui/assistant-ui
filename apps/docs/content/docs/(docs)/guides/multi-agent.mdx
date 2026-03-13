@@ -170,7 +170,28 @@ function SubConversation({
 
 `ReadonlyThreadProvider` inherits the parent's tool UI registrations and model context through scope inheritance.
 
+## Client-Side Agentic Loops
+
+For a different multi-agent pattern where the model drives the loop on the **client side** (each tool call triggers a follow-up request), use `sendAutomaticallyWhen` with `useChatRuntime`:
+
+```tsx
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
+
+const runtime = useChatRuntime({
+  sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
+});
+```
+
+This is complementary to `MessagePartPrimitive.Messages`:
+
+| Pattern | Use when |
+|---------|----------|
+| `MessagePartPrimitive.Messages` | Sub-agent runs server-side, returns its full conversation history as a tool result |
+| `sendAutomaticallyWhen` | Tools run client-side, model needs to see results and decide next steps |
+
 ## Related
 
 - [Generative UI](/docs/guides/tool-ui) — Creating tool call UIs
+- [AI SDK v6 — Agentic Loops](/docs/runtimes/ai-sdk/v6#agentic-loops-with-sendautomaticallywhen) — `sendAutomaticallyWhen` reference
 - [MessagePartPrimitive](/docs/api-reference/primitives/message-part) — API reference for message part primitives
