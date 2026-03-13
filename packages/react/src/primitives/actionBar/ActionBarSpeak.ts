@@ -1,29 +1,16 @@
 "use client";
 
-import { useCallback } from "react";
-import { useAuiState, useAui } from "@assistant-ui/store";
 import {
   ActionButtonElement,
   ActionButtonProps,
   createActionButton,
 } from "../../utils/createActionButton";
+import { useActionBarSpeak as useActionBarSpeakBehavior } from "@assistant-ui/core/react";
 
 const useActionBarSpeak = () => {
-  const aui = useAui();
-  const callback = useCallback(async () => {
-    aui.message().speak();
-  }, [aui]);
-
-  const hasSpeakableContent = useAuiState((s) => {
-    return (
-      (s.message.role !== "assistant" ||
-        s.message.status?.type !== "running") &&
-      s.message.parts.some((c) => c.type === "text" && c.text.length > 0)
-    );
-  });
-
-  if (!hasSpeakableContent) return null;
-  return callback;
+  const { disabled, speak } = useActionBarSpeakBehavior();
+  if (disabled) return null;
+  return speak;
 };
 
 export namespace ActionBarPrimitiveSpeak {

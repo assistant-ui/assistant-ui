@@ -1,6 +1,7 @@
-import { useCallback, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { Pressable, type PressableProps } from "react-native";
-import { useAuiState, useAui } from "@assistant-ui/store";
+import { useAuiState } from "@assistant-ui/store";
+import { useSuggestionTrigger } from "@assistant-ui/core/react";
 
 export type SuggestionTriggerProps = Omit<PressableProps, "onPress"> & {
   children: ReactNode;
@@ -24,38 +25,17 @@ export const SuggestionTrigger = ({
   disabled: disabledProp,
   ...pressableProps
 }: SuggestionTriggerProps) => {
-  const aui = useAui();
-  const isDisabled = useAuiState((s) => s.thread.isDisabled);
   const prompt = useAuiState((s) => s.suggestion.prompt);
-  const resolvedSend = send ?? false;
-
-  const onPress = useCallback(() => {
-    const isRunning = aui.thread().getState().isRunning;
-
-    if (resolvedSend && !isRunning) {
-      aui.thread().append({
-        content: [{ type: "text", text: prompt }],
-        runConfig: aui.composer().getState().runConfig,
-      });
-      if (clearComposer) {
-        aui.composer().setText("");
-      }
-    } else {
-      if (clearComposer) {
-        aui.composer().setText(prompt);
-      } else {
-        const currentText = aui.composer().getState().text;
-        aui
-          .composer()
-          .setText(currentText.trim() ? `${currentText} ${prompt}` : prompt);
-      }
-    }
-  }, [aui, resolvedSend, clearComposer, prompt]);
+  const { trigger, disabled } = useSuggestionTrigger({
+    prompt,
+    send,
+    clearComposer,
+  });
 
   return (
     <Pressable
-      onPress={onPress}
-      disabled={disabledProp ?? isDisabled}
+      onPress={trigger}
+      disabled={disabledProp ?? disabled}
       {...pressableProps}
     >
       {children}

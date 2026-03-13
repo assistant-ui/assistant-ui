@@ -1,5 +1,5 @@
-import { useCallback, type ReactNode } from "react";
-import { useAui } from "@assistant-ui/store";
+import type { ReactNode } from "react";
+import { useThreadListItemTrigger } from "@assistant-ui/core/react";
 import { Pressable, type PressableProps } from "../internal/Pressable";
 
 export type ThreadListItemTriggerProps = Omit<PressableProps, "onPress"> & {
@@ -10,14 +10,10 @@ export const ThreadListItemTrigger = ({
   children,
   ...pressableProps
 }: ThreadListItemTriggerProps) => {
-  const aui = useAui();
-
-  const onPress = useCallback(() => {
-    aui.threadListItem().switchTo();
-  }, [aui]);
+  const { switchTo } = useThreadListItemTrigger();
 
   return (
-    <Pressable onPress={onPress} {...pressableProps}>
+    <Pressable onPress={switchTo} {...pressableProps}>
       {children}
     </Pressable>
   );

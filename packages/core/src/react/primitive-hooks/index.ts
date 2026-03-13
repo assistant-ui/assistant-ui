@@ -3,6 +3,8 @@ export { useThreadIsRunning } from "./useThreadIsRunning";
 export { useThreadIsEmpty } from "./useThreadIsEmpty";
 export { useComposerSend } from "./useComposerSend";
 export { useComposerCancel } from "./useComposerCancel";
+export { useComposerDictate } from "./useComposerDictate";
+export { useComposerAddAttachment } from "./useComposerAddAttachment";
 export { useMessageReload } from "./useMessageReload";
 export { useMessageBranching } from "./useMessageBranching";
 export {
@@ -15,6 +17,18 @@ export {
   useActionBarFeedbackPositive,
   useActionBarFeedbackNegative,
 } from "./useActionBarFeedback";
-export { useComposerAddAttachment } from "./useComposerAddAttachment";
+export { useActionBarSpeak } from "./useActionBarSpeak";
+export { useActionBarStopSpeaking } from "./useActionBarStopSpeaking";
+export { useBranchPickerNext } from "./useBranchPickerNext";
+export { useBranchPickerPrevious } from "./useBranchPickerPrevious";
+export {
+  useSuggestionTrigger,
+  type UseSuggestionTriggerOptions,
+} from "./useSuggestionTrigger";
+export { useThreadListItemArchive } from "./useThreadListItemArchive";
+export { useThreadListItemDelete } from "./useThreadListItemDelete";
+export { useThreadListItemUnarchive } from "./useThreadListItemUnarchive";
+export { useThreadListItemTrigger } from "./useThreadListItemTrigger";
+export { useThreadListNew } from "./useThreadListNew";
 export { useEditComposerCancel } from "./useEditComposerCancel";
 export { useEditComposerSend } from "./useEditComposerSend";

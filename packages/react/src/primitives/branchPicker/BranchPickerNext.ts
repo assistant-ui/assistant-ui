@@ -5,29 +5,12 @@ import {
   ActionButtonProps,
   createActionButton,
 } from "../../utils/createActionButton";
-import { useCallback } from "react";
-import { useAuiState, useAui } from "@assistant-ui/store";
+import { useBranchPickerNext as useBranchPickerNextBehavior } from "@assistant-ui/core/react";
 
 const useBranchPickerNext = () => {
-  const aui = useAui();
-  const disabled = useAuiState((s) => {
-    // Disabled if no next branch
-    if (s.message.branchNumber >= s.message.branchCount) return true;
-
-    // Disabled if running and capability not supported
-    if (s.thread.isRunning && !s.thread.capabilities.switchBranchDuringRun) {
-      return true;
-    }
-
-    return false;
-  });
-
-  const callback = useCallback(() => {
-    aui.message().switchToBranch({ position: "next" });
-  }, [aui]);
-
+  const { disabled, next } = useBranchPickerNextBehavior();
   if (disabled) return null;
-  return callback;
+  return next;
 };
 
 export namespace BranchPickerPrimitiveNext {

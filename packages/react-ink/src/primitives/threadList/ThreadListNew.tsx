@@ -1,5 +1,5 @@
-import { useCallback, type ReactNode } from "react";
-import { useAui } from "@assistant-ui/store";
+import type { ReactNode } from "react";
+import { useThreadListNew } from "@assistant-ui/core/react";
 import { Pressable, type PressableProps } from "../internal/Pressable";
 
 export type ThreadListNewProps = Omit<PressableProps, "onPress"> & {
@@ -10,14 +10,10 @@ export const ThreadListNew = ({
   children,
   ...pressableProps
 }: ThreadListNewProps) => {
-  const aui = useAui();
-
-  const onPress = useCallback(() => {
-    aui.threads().switchToNewThread();
-  }, [aui]);
+  const { switchToNewThread } = useThreadListNew();
 
   return (
-    <Pressable onPress={onPress} {...pressableProps}>
+    <Pressable onPress={switchToNewThread} {...pressableProps}>
       {children}
     </Pressable>
   );
