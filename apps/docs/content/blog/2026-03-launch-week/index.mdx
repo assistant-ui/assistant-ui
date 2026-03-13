@@ -5,6 +5,8 @@ author: Simon Farshid
 date: 2026-03-09T12:00:00
 ---
 
+import Image from "next/image";
+
 This week, we're shipping one major feature every day. The theme: **assistant-ui everywhere**.
 
 For two years, assistant-ui has been the go-to library for building AI chat on the web. Starting this week, that changes. Same runtime, same adapters, same developer experience — now on every platform your users are.
@@ -68,7 +70,15 @@ npx assistant-ui@latest create --ink my-chat-app
 
 **A new dashboard for managing your AI assistants at scale.**
 
-We've completely redesigned [Assistant Cloud](https://cloud.assistant-ui.com) — the hosted backend for assistant-ui. Thread persistence, analytics, user management, and more — all in one place.
+We've completely redesigned [Assistant Cloud](https://cloud.assistant-ui.com), the hosted backend for assistant-ui. Thread persistence, analytics, user management, and more, all in one place.
+
+<Image
+  src="/images/cloud-dashboard.png"
+  alt="Assistant Cloud dashboard showing analytics, threads, and run tracking"
+  width={1200}
+  height={675}
+  className="mx-auto rounded-xl border drop-shadow"
+/>
 
 ### What is Assistant Cloud?
 

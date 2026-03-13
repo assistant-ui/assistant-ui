@@ -9,7 +9,7 @@ const DAYS = [
   {
     day: 3,
     title: "Cloud Redesign",
-    href: "/blog/2026-03-launch-week",
+    href: "/blog/2026-03-launch-week#day-3--assistant-cloud-redesign",
     icon: CloudIcon,
   },
 ] as const;
