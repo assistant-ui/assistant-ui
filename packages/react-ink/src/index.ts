@@ -101,7 +101,7 @@ export {
   useRemoteThreadListRuntime,
 } from "./runtimes";
 
-// Primitives
+// Primitives — namespace exports (existing API)
 export * as ThreadPrimitive from "./primitives/thread";
 export * as ComposerPrimitive from "./primitives/composer";
 export * as MessagePrimitive from "./primitives/message";
@@ -113,6 +113,133 @@ export * as ThreadListItemPrimitive from "./primitives/threadListItem";
 export * as ChainOfThoughtPrimitive from "./primitives/chainOfThought";
 export * as SuggestionPrimitive from "./primitives/suggestion";
 export * as ToolCallPrimitive from "./primitives/toolCall";
+
+// Primitives — direct named exports (bundler-safe for Bun compile / tree-shaking)
+export {
+  Root as ThreadRoot,
+  type RootProps as ThreadRootProps,
+  Messages as ThreadMessages,
+  type MessagesProps as ThreadMessagesProps,
+  MessageByIndex as ThreadMessageByIndex,
+  Empty as ThreadEmpty,
+  type EmptyProps as ThreadEmptyProps,
+  If as ThreadIf,
+  type IfProps as ThreadIfProps,
+  Suggestion as ThreadSuggestion,
+  type SuggestionProps as ThreadSuggestionProps,
+  Suggestions as ThreadSuggestions,
+  SuggestionByIndex as ThreadSuggestionByIndex,
+} from "./primitives/thread";
+
+export {
+  Root as MessageRoot,
+  type RootProps as MessageRootProps,
+  Content as MessageContent,
+  type ContentProps as MessageContentProps,
+  Parts as MessageParts,
+  PartByIndex as MessagePartByIndex,
+  If as MessageIf,
+  type IfProps as MessageIfProps,
+  Attachments as MessageAttachments,
+  AttachmentByIndex as MessageAttachmentByIndex,
+} from "./primitives/message";
+
+export {
+  Root as ComposerRoot,
+  type RootProps as ComposerRootProps,
+  Attachments as ComposerAttachments,
+  AttachmentByIndex as ComposerAttachmentByIndex,
+  Input as ComposerInput,
+  type InputProps as ComposerInputProps,
+  Send as ComposerSend,
+  type SendProps as ComposerSendProps,
+  Cancel as ComposerCancel,
+  type CancelProps as ComposerCancelProps,
+  AddAttachment as ComposerAddAttachment,
+  type AddAttachmentProps as ComposerAddAttachmentProps,
+  If as ComposerIf,
+} from "./primitives/composer";
+
+export {
+  Root as ThreadListRoot,
+  type RootProps as ThreadListRootProps,
+  Items as ThreadListItems,
+  type ItemsProps as ThreadListItemsProps,
+  New as ThreadListNew,
+  type NewProps as ThreadListNewProps,
+} from "./primitives/threadList";
+
+export {
+  Copy as ActionBarCopy,
+  type CopyProps as ActionBarCopyProps,
+  Edit as ActionBarEdit,
+  type EditProps as ActionBarEditProps,
+  Reload as ActionBarReload,
+  type ReloadProps as ActionBarReloadProps,
+  FeedbackPositive as ActionBarFeedbackPositive,
+  type FeedbackPositiveProps as ActionBarFeedbackPositiveProps,
+  FeedbackNegative as ActionBarFeedbackNegative,
+  type FeedbackNegativeProps as ActionBarFeedbackNegativeProps,
+} from "./primitives/actionBar";
+
+export {
+  Previous as BranchPickerPrevious,
+  type PreviousProps as BranchPickerPreviousProps,
+  Next as BranchPickerNext,
+  type NextProps as BranchPickerNextProps,
+  Number as BranchPickerNumber,
+  type NumberProps as BranchPickerNumberProps,
+  Count as BranchPickerCount,
+  type CountProps as BranchPickerCountProps,
+} from "./primitives/branchPicker";
+
+export {
+  Root as AttachmentRoot,
+  type RootProps as AttachmentRootProps,
+  Name as AttachmentName,
+  type NameProps as AttachmentNameProps,
+  Thumb as AttachmentThumb,
+  type ThumbProps as AttachmentThumbProps,
+  Remove as AttachmentRemove,
+  type RemoveProps as AttachmentRemoveProps,
+} from "./primitives/attachment";
+
+export {
+  Root as ThreadListItemRoot,
+  type RootProps as ThreadListItemRootProps,
+  Title as ThreadListItemTitle,
+  Trigger as ThreadListItemTrigger,
+  type TriggerProps as ThreadListItemTriggerProps,
+  Delete as ThreadListItemDelete,
+  type DeleteProps as ThreadListItemDeleteProps,
+  Archive as ThreadListItemArchive,
+  type ArchiveProps as ThreadListItemArchiveProps,
+  Unarchive as ThreadListItemUnarchive,
+  type UnarchiveProps as ThreadListItemUnarchiveProps,
+} from "./primitives/threadListItem";
+
+export {
+  Root as ChainOfThoughtRoot,
+  type RootProps as ChainOfThoughtRootProps,
+  AccordionTrigger as ChainOfThoughtAccordionTrigger,
+  type AccordionTriggerProps as ChainOfThoughtAccordionTriggerProps,
+  Parts as ChainOfThoughtParts,
+} from "./primitives/chainOfThought";
+
+export {
+  Title as SuggestionTitle,
+  type TitleProps as SuggestionTitleProps,
+  Description as SuggestionDescription,
+  type DescriptionProps as SuggestionDescriptionProps,
+  Trigger as SuggestionTrigger,
+  type TriggerProps as SuggestionTriggerProps,
+} from "./primitives/suggestion";
+
+export {
+  Fallback as ToolCallFallback,
+  type FallbackProps as ToolCallFallbackProps,
+  type ToolCallStatus,
+} from "./primitives/toolCall";
 
 // Re-export shared providers from core/react
 export {
