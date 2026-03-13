@@ -148,11 +148,12 @@ async function build() {
 
   // JS: extension rewriting only
   // .d.ts: extension rewriting + package sub-path rewriting
-  const extensionTransformer = createExtensionTransformer(program);
-  const declarationTransformer = createExtensionTransformer(
-    program,
+  const extensionTransformer = createExtensionTransformer(program, {
+    rewriteNamespaceExports: true,
+  });
+  const declarationTransformer = createExtensionTransformer(program, {
     validExportsMap,
-  );
+  });
   const emitResult = program.emit(undefined, undefined, undefined, false, {
     before: [extensionTransformer],
     afterDeclarations: [

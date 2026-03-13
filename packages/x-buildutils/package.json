@@ -21,15 +21,6 @@
     "aui-build": "./bin/aui-build.js"
   },
   "sideEffects": false,
-  "dependencies": {
-    "@tsconfig/strictest": "^2.0.8",
-    "jiti": "^2.6.1",
-    "tinyglobby": "^0.2.15",
-    "typescript": "^5.9.3"
-  },
-  "devDependencies": {
-    "@types/node": "^25.3.3"
-  },
   "homepage": "https://www.assistant-ui.com/",
   "repository": {
     "type": "git",
@@ -39,9 +30,22 @@
   "bugs": {
     "url": "https://github.com/assistant-ui/assistant-ui/issues"
   },
-  "scripts": {},
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
   "publishConfig": {
     "access": "public",
     "provenance": true
+  },
+  "dependencies": {
+    "@tsconfig/strictest": "^2.0.8",
+    "jiti": "^2.6.1",
+    "tinyglobby": "^0.2.15",
+    "typescript": "^5.9.3"
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.3",
+    "vitest": "^4.0.18"
   }
 }

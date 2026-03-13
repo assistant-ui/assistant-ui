@@ -60,13 +60,22 @@ function rewritePackageSubpath(
  */
 export function createExtensionTransformer(
   program: ts.Program,
-  validExportsMap?: Map<string, Set<string>>,
+  transformerOptions?: {
+    validExportsMap?: Map<string, Set<string>>;
+    rewriteNamespaceExports?: boolean;
+  },
 ): ts.TransformerFactory<ts.SourceFile> {
   return (context) => {
     const { factory } = context;
-    const options = program.getCompilerOptions();
+    const compilerOptions = program.getCompilerOptions();
+    const validExportsMap = transformerOptions?.validExportsMap;
+    const rewriteNamespaceExports =
+      transformerOptions?.rewriteNamespaceExports ?? false;
 
-    const rewrite = (sourceFileName: string, specifier: string): string => {
+    const rewriteRelativeSpecifier = (
+      sourceFileName: string,
+      specifier: string,
+    ): string => {
       if (!specifier.startsWith("./") && !specifier.startsWith("../")) {
         return specifier;
       }
@@ -77,7 +86,7 @@ export function createExtensionTransformer(
       const resolved = ts.resolveModuleName(
         specifier,
         sourceFileName,
-        options,
+        compilerOptions,
         ts.sys,
       );
       if (resolved.resolvedModule) {
@@ -93,6 +102,74 @@ export function createExtensionTransformer(
       return `${specifier}.js`;
     };
 
+    const rewriteSpecifier = (
+      sourceFileName: string,
+      specifier: string,
+    ): string => {
+      const rewrittenRelative = rewriteRelativeSpecifier(
+        sourceFileName,
+        specifier,
+      );
+      if (rewrittenRelative !== specifier) {
+        return rewrittenRelative;
+      }
+
+      if (validExportsMap) {
+        const rewrittenPackage = rewritePackageSubpath(
+          specifier,
+          validExportsMap,
+        );
+        if (rewrittenPackage) return rewrittenPackage;
+      }
+
+      return specifier;
+    };
+
+    const rewriteNamespaceExportDeclaration = (
+      sourceFileName: string,
+      node: ts.ExportDeclaration,
+    ): ts.Statement[] | null => {
+      if (
+        !rewriteNamespaceExports ||
+        !node.moduleSpecifier ||
+        !ts.isStringLiteral(node.moduleSpecifier) ||
+        !node.exportClause ||
+        !ts.isNamespaceExport(node.exportClause)
+      ) {
+        return null;
+      }
+
+      const exportedName = node.exportClause.name.text;
+      const rewrittenSpecifier = rewriteSpecifier(
+        sourceFileName,
+        node.moduleSpecifier.text,
+      );
+
+      const importDeclaration = factory.createImportDeclaration(
+        undefined,
+        factory.createImportClause(
+          undefined,
+          undefined,
+          factory.createNamespaceImport(factory.createIdentifier(exportedName)),
+        ),
+        factory.createStringLiteral(rewrittenSpecifier),
+        node.attributes,
+      );
+
+      const exportDeclaration = factory.createExportDeclaration(
+        undefined,
+        false,
+        factory.createNamedExports([
+          factory.createExportSpecifier(false, undefined, exportedName),
+        ]),
+      );
+
+      ts.setOriginalNode(importDeclaration, node);
+      ts.setOriginalNode(exportDeclaration, node);
+
+      return [importDeclaration, exportDeclaration];
+    };
+
     const visit = (sourceFileName: string): ts.Visitor => {
       const visitor: ts.Visitor = (node) => {
         if (
@@ -101,7 +178,7 @@ export function createExtensionTransformer(
           ts.isStringLiteral(node.moduleSpecifier)
         ) {
           const spec = node.moduleSpecifier.text;
-          const newSpec = rewrite(sourceFileName, spec);
+          const newSpec = rewriteSpecifier(sourceFileName, spec);
           if (newSpec !== spec) {
             return factory.updateImportDeclaration(
               node,
@@ -111,18 +188,6 @@ export function createExtensionTransformer(
               node.attributes,
             );
           }
-          if (validExportsMap) {
-            const rewritten = rewritePackageSubpath(spec, validExportsMap);
-            if (rewritten) {
-              return factory.updateImportDeclaration(
-                node,
-                node.modifiers,
-                node.importClause,
-                factory.createStringLiteral(rewritten),
-                node.attributes,
-              );
-            }
-          }
         }
 
         if (
@@ -131,7 +196,7 @@ export function createExtensionTransformer(
           ts.isStringLiteral(node.moduleSpecifier)
         ) {
           const spec = node.moduleSpecifier.text;
-          const newSpec = rewrite(sourceFileName, spec);
+          const newSpec = rewriteSpecifier(sourceFileName, spec);
           if (newSpec !== spec) {
             return factory.updateExportDeclaration(
               node,
@@ -142,19 +207,6 @@ export function createExtensionTransformer(
               node.attributes,
             );
           }
-          if (validExportsMap) {
-            const rewritten = rewritePackageSubpath(spec, validExportsMap);
-            if (rewritten) {
-              return factory.updateExportDeclaration(
-                node,
-                node.modifiers,
-                node.isTypeOnly,
-                node.exportClause,
-                factory.createStringLiteral(rewritten),
-                node.attributes,
-              );
-            }
-          }
         }
 
         if (
@@ -164,7 +216,7 @@ export function createExtensionTransformer(
           ts.isStringLiteral(node.arguments[0]!)
         ) {
           const arg = node.arguments[0] as ts.StringLiteral;
-          const newSpec = rewrite(sourceFileName, arg.text);
+          const newSpec = rewriteSpecifier(sourceFileName, arg.text);
           if (newSpec !== arg.text) {
             return factory.updateCallExpression(
               node,
@@ -206,10 +258,37 @@ export function createExtensionTransformer(
     };
 
     return (sourceFile) => {
-      return ts.visitNode(
+      const visitor = visit(sourceFile.fileName);
+      let changed = false;
+
+      const statements = sourceFile.statements.flatMap((statement) => {
+        if (ts.isExportDeclaration(statement)) {
+          const rewritten = rewriteNamespaceExportDeclaration(
+            sourceFile.fileName,
+            statement,
+          );
+          if (rewritten) {
+            changed = true;
+            return rewritten;
+          }
+        }
+
+        const next = ts.visitNode(statement, visitor) as ts.Statement;
+        if (next !== statement) changed = true;
+        return [next];
+      });
+
+      if (!changed) return sourceFile;
+
+      return factory.updateSourceFile(
         sourceFile,
-        visit(sourceFile.fileName),
-      ) as ts.SourceFile;
+        statements,
+        sourceFile.isDeclarationFile,
+        sourceFile.referencedFiles,
+        sourceFile.typeReferenceDirectives,
+        sourceFile.hasNoDefaultLib,
+        sourceFile.libReferenceDirectives,
+      );
     };
   };
 }
