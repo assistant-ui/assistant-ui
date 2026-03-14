@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import {
   $getSelection,
+  $isElementNode,
+  $isNodeSelection,
   $isRangeSelection,
   $isTextNode,
   COMMAND_PRIORITY_LOW,
@@ -151,22 +153,49 @@ export function MentionPlugin({
         });
       }),
 
-      // Delete the entire MentionNode on backspace when it is selected
+      // Delete the entire MentionNode on backspace
       editor.registerCommand(
         KEY_BACKSPACE_COMMAND,
         () => {
           const selection = $getSelection();
+
+          // Case 1: MentionNode is directly selected (NodeSelection)
+          if ($isNodeSelection(selection)) {
+            const nodes = selection.getNodes();
+            let handled = false;
+            for (const node of nodes) {
+              if ($isMentionNode(node)) {
+                node.remove();
+                handled = true;
+              }
+            }
+            return handled;
+          }
+
           if (!$isRangeSelection(selection) || !selection.isCollapsed()) {
             return false;
           }
+
           const anchor = selection.anchor;
           const node = anchor.getNode();
 
-          // If caret is right after a MentionNode, select and remove it
+          // Case 2: cursor at offset 0 of a TextNode, previous sibling is MentionNode
           if ($isTextNode(node) && anchor.offset === 0) {
             const prev = node.getPreviousSibling();
             if ($isMentionNode(prev)) {
               prev.remove();
+              return true;
+            }
+          }
+
+          // Case 3: cursor at element level (e.g., paragraph), child before cursor is MentionNode
+          if ($isElementNode(node)) {
+            const childBefore =
+              anchor.offset > 0
+                ? node.getChildAtIndex(anchor.offset - 1)
+                : null;
+            if ($isMentionNode(childBefore)) {
+              childBefore.remove();
               return true;
             }
           }

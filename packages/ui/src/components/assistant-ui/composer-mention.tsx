@@ -12,11 +12,17 @@ import { cn } from "@/lib/utils";
 // Root — wraps Composer with mention context
 // =============================================================================
 
+const defaultFormatLabel = (name: string) =>
+  name.replaceAll("_", " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
 function ComposerMentionRoot({
   children,
+  formatLabel = defaultFormatLabel,
   ...props
-}: ComposerPrimitive.Unstable_MentionRoot.Props) {
-  const adapter = unstable_useToolMentionAdapter();
+}: ComposerPrimitive.Unstable_MentionRoot.Props & {
+  formatLabel?: (toolName: string) => string;
+}) {
+  const adapter = unstable_useToolMentionAdapter({ formatLabel });
   return (
     <ComposerPrimitive.Unstable_MentionRoot adapter={adapter} {...props}>
       {children}

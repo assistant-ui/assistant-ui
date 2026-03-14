@@ -21,6 +21,18 @@ export type Unstable_ToolMentionAdapterOptions = {
    * Defaults to true when `tools` is not provided, false otherwise.
    */
   includeModelContextTools?: boolean;
+
+  /**
+   * Custom function to format the display label for a tool.
+   * Receives the tool name (id) and returns the display label.
+   *
+   * @example
+   * ```ts
+   * formatLabel: (name) => name.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())
+   * // "get_current_weather" → "Get Current Weather"
+   * ```
+   */
+  formatLabel?: (toolName: string) => string;
 };
 
 /**
@@ -29,19 +41,10 @@ export type Unstable_ToolMentionAdapterOptions = {
  * Creates a MentionAdapter for tools. When a user types `@`, they see
  * available tools and can mention them to hint the LLM to use a specific tool.
  *
- * By default, reads from registered tools in the model context.
- * You can also pass an explicit list of tools.
- *
  * @example
  * ```tsx
- * // Auto-detect from model context
- * const mentionAdapter = unstable_useToolMentionAdapter();
- *
- * // Explicit tools
  * const mentionAdapter = unstable_useToolMentionAdapter({
- *   tools: [
- *     { id: "get_weather", type: "tool", label: "get_weather", description: "Get the current weather" },
- *   ],
+ *   formatLabel: (name) => name.replaceAll("_", " "),
  * });
  * ```
  */
@@ -52,6 +55,7 @@ export function unstable_useToolMentionAdapter(
   const explicitTools = options?.tools;
   const includeModelContext =
     options?.includeModelContextTools ?? !explicitTools;
+  const formatLabel = options?.formatLabel;
 
   return useMemo<Unstable_MentionAdapter>(() => {
     const getTools = (): Unstable_MentionItem[] => {
@@ -70,7 +74,7 @@ export function unstable_useToolMentionAdapter(
               items.push({
                 id: name,
                 type: "tool",
-                label: name,
+                label: formatLabel ? formatLabel(name) : name,
                 description: tool.description ?? undefined,
               });
             }
@@ -83,13 +87,7 @@ export function unstable_useToolMentionAdapter(
 
     return {
       categories(): Unstable_MentionCategory[] {
-        return [
-          {
-            id: "tools",
-            label: "Tools",
-            icon: undefined,
-          },
-        ];
+        return [{ id: "tools", label: "Tools", icon: undefined }];
       },
 
       categoryItems(_categoryId: string): Unstable_MentionItem[] {
@@ -100,10 +98,11 @@ export function unstable_useToolMentionAdapter(
         const lower = query.toLowerCase();
         return getTools().filter(
           (item) =>
+            item.id.toLowerCase().includes(lower) ||
             item.label.toLowerCase().includes(lower) ||
             item.description?.toLowerCase().includes(lower),
         );
       },
     };
-  }, [aui, explicitTools, includeModelContext]);
+  }, [aui, explicitTools, includeModelContext, formatLabel]);
 }

@@ -5,7 +5,6 @@ import {
   useContext,
   useState,
   useCallback,
-  useEffect,
   useMemo,
   type ReactNode,
   type FC,
@@ -27,7 +26,6 @@ type MentionPopoverState = {
   readonly activeCategoryId: string | null;
   readonly categories: readonly Unstable_MentionCategory[];
   readonly items: readonly Unstable_MentionItem[];
-  readonly isLoading: boolean;
 };
 
 type MentionPopoverActions = {
@@ -54,25 +52,17 @@ export const useMentionContext = () => {
 // Mention trigger detection
 // =============================================================================
 
-/**
- * Detects `@query` pattern at the end of text (or before cursor).
- * Returns the query string after `@`, or null if no active trigger.
- */
 function detectMentionTrigger(text: string): {
   query: string;
   offset: number;
 } | null {
-  // Find the last `@` that starts a mention
   const lastAtIndex = text.lastIndexOf("@");
   if (lastAtIndex === -1) return null;
 
-  // The `@` must be at start or preceded by whitespace
   if (lastAtIndex > 0 && !/\s/.test(text[lastAtIndex - 1]!)) return null;
 
   const query = text.slice(lastAtIndex + 1);
 
-  // If query contains whitespace followed by more text, it's not a mention trigger
-  // Allow spaces in query for multi-word searches, but not newlines
   if (query.includes("\n")) return null;
 
   return { query, offset: lastAtIndex };
@@ -95,7 +85,6 @@ export const ComposerPrimitiveMentionRoot: FC<
   const aui = useAui();
   const text = useAuiState((s) => s.composer.text);
 
-  // Adapter can be passed as prop or retrieved from runtime
   const runtimeAdapter = useMemo(() => {
     try {
       const runtime = aui.composer().__internal_getRuntime?.();
@@ -106,84 +95,48 @@ export const ComposerPrimitiveMentionRoot: FC<
   }, [aui]);
   const adapter = adapterProp ?? runtimeAdapter;
 
-  const [categories, setCategories] = useState<
-    readonly Unstable_MentionCategory[]
-  >([]);
-  const [items, setItems] = useState<readonly Unstable_MentionItem[]>([]);
-  const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-
   // Detect trigger
   const trigger = useMemo(() => detectMentionTrigger(text), [text]);
   const open = trigger !== null && adapter !== undefined;
+  const query = trigger?.query ?? "";
 
-  // Load categories when popover opens
-  useEffect(() => {
-    if (!open || !adapter) {
-      setCategories([]);
-      setItems([]);
-      setActiveCategoryId(null);
-      return;
-    }
+  // Category navigation — reset when popover closes
+  const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
+  const effectiveActiveCategoryId = open ? activeCategoryId : null;
 
-    let cancelled = false;
-    const loadCategories = async () => {
-      setIsLoading(true);
-      try {
-        const result = await adapter.categories();
-        if (!cancelled) setCategories(result);
-      } finally {
-        if (!cancelled) setIsLoading(false);
-      }
-    };
-    loadCategories();
-
-    return () => {
-      cancelled = true;
-    };
+  // Derive categories and items synchronously from adapter
+  const categories = useMemo<readonly Unstable_MentionCategory[]>(() => {
+    if (!open || !adapter) return [];
+    const result = adapter.categories();
+    // Handle both sync and Promise return
+    if (result instanceof Promise) return [];
+    return result;
   }, [open, adapter]);
 
-  // Load items when category is selected
-  useEffect(() => {
-    if (!activeCategoryId || !adapter) {
-      setItems([]);
-      return;
-    }
+  const allItems = useMemo<readonly Unstable_MentionItem[]>(() => {
+    if (!effectiveActiveCategoryId || !adapter) return [];
+    const result = adapter.categoryItems(effectiveActiveCategoryId);
+    if (result instanceof Promise) return [];
+    return result;
+  }, [effectiveActiveCategoryId, adapter]);
 
-    let cancelled = false;
-    const loadItems = async () => {
-      setIsLoading(true);
-      try {
-        const result = await adapter.categoryItems(activeCategoryId);
-        if (!cancelled) setItems(result);
-      } finally {
-        if (!cancelled) setIsLoading(false);
-      }
-    };
-    loadItems();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [activeCategoryId, adapter]);
-
-  // Search filtering
-  const query = trigger?.query ?? "";
-  const filteredItems = useMemo(() => {
-    if (!query) return items;
-    const lower = query.toLowerCase();
-    return items.filter(
-      (item) =>
-        item.label.toLowerCase().includes(lower) ||
-        item.description?.toLowerCase().includes(lower),
-    );
-  }, [items, query]);
-
+  // Filter by query
   const filteredCategories = useMemo(() => {
     if (!query) return categories;
     const lower = query.toLowerCase();
     return categories.filter((cat) => cat.label.toLowerCase().includes(lower));
   }, [categories, query]);
+
+  const filteredItems = useMemo(() => {
+    if (!query) return allItems;
+    const lower = query.toLowerCase();
+    return allItems.filter(
+      (item) =>
+        item.id.toLowerCase().includes(lower) ||
+        item.label.toLowerCase().includes(lower) ||
+        item.description?.toLowerCase().includes(lower),
+    );
+  }, [allItems, query]);
 
   const selectCategory = useCallback((categoryId: string) => {
     setActiveCategoryId(categoryId);
@@ -191,7 +144,6 @@ export const ComposerPrimitiveMentionRoot: FC<
 
   const goBack = useCallback(() => {
     setActiveCategoryId(null);
-    setItems([]);
   }, []);
 
   const selectItem = useCallback(
@@ -199,37 +151,37 @@ export const ComposerPrimitiveMentionRoot: FC<
       if (!trigger) return;
 
       const currentText = aui.composer().getState().text;
-      // Replace `@query` with a directive `:type[label]`
       const before = currentText.slice(0, trigger.offset);
       const after = currentText.slice(
         trigger.offset + 1 + trigger.query.length,
       );
-      const directive = `:${item.type}[${item.label}]`;
+      const attrs = item.id !== item.label ? `{name=${item.id}}` : "";
+      const directive = `:${item.type}[${item.label}]${attrs}`;
       const newText =
         before + directive + (after.startsWith(" ") ? after : ` ${after}`);
 
       aui.composer().setText(newText);
+      setActiveCategoryId(null);
     },
     [aui, trigger],
   );
 
   const close = useCallback(() => {
-    // Remove the `@query` from text to dismiss
     if (!trigger) return;
     const currentText = aui.composer().getState().text;
     const before = currentText.slice(0, trigger.offset);
     const after = currentText.slice(trigger.offset + 1 + trigger.query.length);
     aui.composer().setText(before + after);
+    setActiveCategoryId(null);
   }, [aui, trigger]);
 
   const value = useMemo<MentionContextValue>(
     () => ({
       open,
       query,
-      activeCategoryId,
-      categories: activeCategoryId ? filteredCategories : filteredCategories,
+      activeCategoryId: effectiveActiveCategoryId,
+      categories: filteredCategories,
       items: filteredItems,
-      isLoading,
       selectCategory,
       goBack,
       selectItem,
@@ -238,10 +190,9 @@ export const ComposerPrimitiveMentionRoot: FC<
     [
       open,
       query,
-      activeCategoryId,
+      effectiveActiveCategoryId,
       filteredCategories,
       filteredItems,
-      isLoading,
       selectCategory,
       goBack,
       selectItem,

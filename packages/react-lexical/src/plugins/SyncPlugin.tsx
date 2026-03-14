@@ -15,14 +15,14 @@ import { useAui } from "@assistant-ui/store";
 import { $createMentionNode } from "../nodes/MentionNode";
 
 // ---------------------------------------------------------------------------
-// Directive pattern: `:type[label]`
+// Directive pattern: `:type[label]` or `:type[label]{name=id}`
 // ---------------------------------------------------------------------------
 
-const DIRECTIVE_RE = /:(\w+)\[([^\]]+)\]/g;
+const DIRECTIVE_RE = /:(\w+)\[([^\]]+)\](?:\{name=([^}]+)\})?/g;
 
 type Segment =
   | { kind: "text"; text: string }
-  | { kind: "mention"; type: string; label: string };
+  | { kind: "mention"; type: string; label: string; id: string };
 
 function parseDirectives(text: string): Segment[] {
   const segments: Segment[] = [];
@@ -34,10 +34,12 @@ function parseDirectives(text: string): Segment[] {
     if (match.index > lastIndex) {
       segments.push({ kind: "text", text: text.slice(lastIndex, match.index) });
     }
+    const label = match[2]!;
     segments.push({
       kind: "mention",
       type: match[1]!,
-      label: match[2]!,
+      label,
+      id: match[3] ?? label,
     });
     lastIndex = DIRECTIVE_RE.lastIndex;
   }
@@ -125,6 +127,7 @@ export function SyncPlugin() {
 
           if (runtimeText.length === 0) {
             root.append($createParagraphNode());
+            root.selectEnd();
             return;
           }
 
@@ -141,7 +144,7 @@ export function SyncPlugin() {
               } else {
                 paragraph.append(
                   $createMentionNode({
-                    id: seg.label,
+                    id: seg.id,
                     type: seg.type,
                     label: seg.label,
                   }),
@@ -149,12 +152,11 @@ export function SyncPlugin() {
               }
             }
 
-            if (segments.length === 0) {
-              // Empty line — keep the paragraph
-            }
-
             root.append(paragraph);
           }
+
+          // Restore cursor at end after rebuild
+          root.selectEnd();
         },
         {
           onUpdate: () => {

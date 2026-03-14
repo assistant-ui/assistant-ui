@@ -5,6 +5,7 @@ import "@assistant-ui/core/store";
 
 import {
   type ComponentPropsWithoutRef,
+  type FC,
   forwardRef,
   useEffect,
   useMemo,
@@ -22,7 +23,11 @@ import {
 } from "lexical";
 import { mergeRegister } from "@lexical/utils";
 import { useAui, useAuiState } from "@assistant-ui/store";
-import { MentionNode } from "./nodes/MentionNode";
+import {
+  MentionNode,
+  MentionChipProvider,
+  type MentionChipProps,
+} from "./nodes/MentionNode";
 import { SyncPlugin } from "./plugins/SyncPlugin";
 import {
   MentionPlugin,
@@ -42,6 +47,8 @@ export type LexicalComposerInputProps = ComponentPropsWithoutRef<"div"> & {
   placeholder?: string;
   /** Props forwarded to the MentionPlugin. */
   mentionPluginProps?: MentionPluginProps;
+  /** Custom component for rendering mention chips inline. */
+  mentionChip?: FC<MentionChipProps>;
 };
 
 // ---------------------------------------------------------------------------
@@ -153,6 +160,7 @@ export const LexicalComposerInput = forwardRef<
       cancelOnEscape = true,
       placeholder,
       mentionPluginProps,
+      mentionChip,
       className,
       ...rest
     },
@@ -175,32 +183,38 @@ export const LexicalComposerInput = forwardRef<
 
     return (
       <LexicalComposer initialConfig={initialConfig}>
-        <div
-          ref={ref}
-          className={
-            className ? `aui-lexical-editor ${className}` : "aui-lexical-editor"
-          }
-          {...rest}
-        >
-          <PlainTextPlugin
-            contentEditable={<ContentEditable className="aui-lexical-input" />}
-            placeholder={
-              placeholder ? (
-                <div className="aui-lexical-placeholder">{placeholder}</div>
-              ) : null
+        <MentionChipProvider value={mentionChip ?? null}>
+          <div
+            ref={ref}
+            className={
+              className
+                ? `aui-lexical-editor ${className}`
+                : "aui-lexical-editor"
             }
-            ErrorBoundary={LexicalErrorBoundary}
-          />
-          <HistoryPlugin />
-          <SyncPlugin />
-          <MentionPlugin {...mentionPluginProps} />
-          <KeyboardPlugin
-            submitMode={submitMode}
-            cancelOnEscape={cancelOnEscape}
-          />
-          <FocusPlugin />
-          <EditablePlugin isDisabled={!!isDisabled} />
-        </div>
+            {...rest}
+          >
+            <PlainTextPlugin
+              contentEditable={
+                <ContentEditable className="aui-lexical-input" />
+              }
+              placeholder={
+                placeholder ? (
+                  <div className="aui-lexical-placeholder">{placeholder}</div>
+                ) : null
+              }
+              ErrorBoundary={LexicalErrorBoundary}
+            />
+            <HistoryPlugin />
+            <SyncPlugin />
+            <MentionPlugin {...mentionPluginProps} />
+            <KeyboardPlugin
+              submitMode={submitMode}
+              cancelOnEscape={cancelOnEscape}
+            />
+            <FocusPlugin />
+            <EditablePlugin isDisabled={!!isDisabled} />
+          </div>
+        </MentionChipProvider>
       </LexicalComposer>
     );
   },

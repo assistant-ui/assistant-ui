@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { createContext, useContext, type FC, type ReactNode } from "react";
 import type {
   DOMConversionMap,
   DOMExportOutput,
@@ -13,6 +13,21 @@ import type {
 } from "lexical";
 import { $applyNodeReplacement, DecoratorNode } from "lexical";
 import type { Unstable_MentionItem } from "@assistant-ui/core";
+
+// ---------------------------------------------------------------------------
+// Chip customization context
+// ---------------------------------------------------------------------------
+
+export type MentionChipProps = {
+  mentionId: string;
+  mentionType: string;
+  label: string;
+  icon?: string | undefined;
+};
+
+const MentionChipContext = createContext<FC<MentionChipProps> | null>(null);
+
+export const MentionChipProvider = MentionChipContext.Provider;
 
 // ---------------------------------------------------------------------------
 // Serialized format
@@ -33,17 +48,12 @@ export type SerializedMentionNode = Spread<
 // Decorator component rendered inside the editor
 // ---------------------------------------------------------------------------
 
-function MentionChip({
+function DefaultMentionChip({
   mentionId,
   mentionType,
   label,
   icon,
-}: {
-  mentionId: string;
-  mentionType: string;
-  label: string;
-  icon?: string | undefined;
-}) {
+}: MentionChipProps) {
   return (
     <span
       className="aui-mention-chip"
@@ -54,6 +64,12 @@ function MentionChip({
       <span className="aui-mention-chip-label">{label}</span>
     </span>
   );
+}
+
+function MentionChipRenderer(props: MentionChipProps) {
+  const Custom = useContext(MentionChipContext);
+  const Chip = Custom ?? DefaultMentionChip;
+  return <Chip {...props} />;
 }
 
 // ---------------------------------------------------------------------------
@@ -146,7 +162,9 @@ export class MentionNode extends DecoratorNode<ReactNode> {
   // --- Text content --------------------------------------------------------
 
   override getTextContent(): string {
-    return `:${this.__mentionType}[${this.__label}]`;
+    const attrs =
+      this.__mentionId !== this.__label ? `{name=${this.__mentionId}}` : "";
+    return `:${this.__mentionType}[${this.__label}]${attrs}`;
   }
 
   // --- Atomic behavior -----------------------------------------------------
@@ -167,7 +185,7 @@ export class MentionNode extends DecoratorNode<ReactNode> {
 
   override decorate(_editor: LexicalEditor, _config: EditorConfig): ReactNode {
     return (
-      <MentionChip
+      <MentionChipRenderer
         mentionId={this.__mentionId}
         mentionType={this.__mentionType}
         label={this.__label}

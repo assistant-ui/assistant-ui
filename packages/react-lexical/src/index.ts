@@ -4,6 +4,8 @@ export {
   MentionNode,
   $createMentionNode,
   $isMentionNode,
+  MentionChipProvider,
 } from "./nodes/MentionNode";
+export type { MentionChipProps } from "./nodes/MentionNode";
 export { MentionPlugin } from "./plugins/MentionPlugin";
 export type { MentionPluginProps } from "./plugins/MentionPlugin";
