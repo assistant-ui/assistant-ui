@@ -198,6 +198,7 @@ export { useThreadListItemTrigger } from "./primitive-hooks/useThreadListItemTri
 export { useThreadListNew } from "./primitive-hooks/useThreadListNew";
 export { useEditComposerCancel } from "./primitive-hooks/useEditComposerCancel";
 export { useEditComposerSend } from "./primitive-hooks/useEditComposerSend";
+export { useMessageError } from "./primitive-hooks/useMessageError";
 
 // Shared AssistantRuntimeProvider
 export { AssistantRuntimeProvider } from "./AssistantRuntimeProvider";

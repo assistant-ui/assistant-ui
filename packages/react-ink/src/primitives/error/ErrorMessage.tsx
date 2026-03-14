@@ -1,17 +1,17 @@
-import type { ReactNode } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import { Text } from "ink";
-import { useMessageError } from "./useMessageError";
+import { useMessageError } from "@assistant-ui/core/react";
 
-export type ErrorMessageProps = {
+export type ErrorMessageProps = ComponentProps<typeof Text> & {
   children?: ReactNode;
 };
 
-export const ErrorMessage = ({ children }: ErrorMessageProps) => {
+export const ErrorMessage = ({ children, ...props }: ErrorMessageProps) => {
   const error = useMessageError();
 
   if (error === undefined) return null;
 
-  return <Text color="red">{children ?? String(error)}</Text>;
+  return <Text {...props}>{children ?? String(error)}</Text>;
 };
 
 ErrorMessage.displayName = "ErrorPrimitive.Message";

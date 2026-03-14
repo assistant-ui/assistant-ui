@@ -1,29 +1,16 @@
 import type { ComponentProps, ReactNode } from "react";
-import { Box, Text } from "ink";
-import { useMessageError } from "./useMessageError";
+import { Box } from "ink";
+import { useMessageError } from "@assistant-ui/core/react";
 
 export type ErrorRootProps = ComponentProps<typeof Box> & {
   children: ReactNode;
-  icon?: ReactNode;
 };
 
-const DefaultIcon = () => <Text color="red">x</Text>;
-
-export const ErrorRoot = ({
-  children,
-  icon,
-  gap = 1,
-  ...props
-}: ErrorRootProps) => {
+export const ErrorRoot = ({ children, ...props }: ErrorRootProps) => {
   const error = useMessageError();
   if (error === undefined) return null;
 
-  return (
-    <Box gap={gap} {...props}>
-      {icon ?? <DefaultIcon />}
-      {children}
-    </Box>
-  );
+  return <Box {...props}>{children}</Box>;
 };
 
 ErrorRoot.displayName = "ErrorPrimitive.Root";

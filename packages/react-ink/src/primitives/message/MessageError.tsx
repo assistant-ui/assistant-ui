@@ -1,5 +1,5 @@
 import type { FC, PropsWithChildren } from "react";
-import { useMessageError } from "../error/useMessageError";
+import { useMessageError } from "@assistant-ui/core/react";
 
 export const MessageError: FC<PropsWithChildren> = ({ children }) => {
   const error = useMessageError();

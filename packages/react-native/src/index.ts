@@ -112,6 +112,7 @@ export * as AttachmentPrimitive from "./primitives/attachment";
 export * as ThreadListItemPrimitive from "./primitives/threadListItem";
 export * as ChainOfThoughtPrimitive from "./primitives/chainOfThought";
 export * as SuggestionPrimitive from "./primitives/suggestion";
+export * as ErrorPrimitive from "./primitives/error";
 
 // Re-export shared providers from core/react
 export {
