@@ -1,5 +1,29 @@
 # @assistant-ui/react
 
+## 0.12.18
+
+### Patch Changes
+
+- 1ed9867: feat: move resumeRun to stable
+- 427ffaa: refactor: useRemoteThreadListRuntime no longer marked unstable
+- 349f3c7: chore: update deps
+- 02614aa: feat: add multi-agent support
+  - `ReadonlyThreadProvider` and `MessagePartPrimitive.Messages` for rendering sub-agent messages
+  - `assistant-stream`: add `messages` field to `tool-result` chunks, `ToolResponseLike`, and `ToolCallPart` types, enabling sub-agent messages to flow through the streaming protocol
+
+- 642bcda: Add `quote.tsx` registry components and `injectQuoteContext` helper
+- Updated dependencies [1ed9867]
+- Updated dependencies [427ffaa]
+- Updated dependencies [349f3c7]
+- Updated dependencies [02614aa]
+- Updated dependencies [6cc4122]
+- Updated dependencies [642bcda]
+  - @assistant-ui/core@0.1.6
+  - assistant-stream@0.3.6
+  - assistant-cloud@0.1.22
+  - @assistant-ui/store@0.2.3
+  - @assistant-ui/tap@0.5.3
+
 ## 0.12.17
 
 ### Patch Changes

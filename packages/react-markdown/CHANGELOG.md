@@ -1,5 +1,17 @@
 # @assistant-ui/react-markdown
 
+## 0.12.6
+
+### Patch Changes
+
+- 349f3c7: chore: update deps
+- Updated dependencies [1ed9867]
+- Updated dependencies [427ffaa]
+- Updated dependencies [349f3c7]
+- Updated dependencies [02614aa]
+- Updated dependencies [642bcda]
+  - @assistant-ui/react@0.12.18
+
 ## 0.12.5
 
 ### Patch Changes

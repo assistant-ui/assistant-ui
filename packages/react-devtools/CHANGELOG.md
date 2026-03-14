@@ -1,5 +1,18 @@
 # @assistant-ui/react-devtools
 
+## 1.0.3
+
+### Patch Changes
+
+- 349f3c7: chore: update deps
+- Updated dependencies [1ed9867]
+- Updated dependencies [427ffaa]
+- Updated dependencies [349f3c7]
+- Updated dependencies [02614aa]
+- Updated dependencies [642bcda]
+  - @assistant-ui/react@0.12.18
+  - @assistant-ui/tap@0.5.3
+
 ## 1.0.2
 
 ### Patch Changes

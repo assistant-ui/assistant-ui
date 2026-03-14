@@ -1,5 +1,11 @@
 # mcp-app-studio
 
+## 0.7.5
+
+### Patch Changes
+
+- 349f3c7: chore: update deps
+
 ## 0.7.4
 
 ### Patch Changes

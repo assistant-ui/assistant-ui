@@ -1,5 +1,11 @@
 # @assistant-ui/agent-launcher
 
+## 0.1.1
+
+### Patch Changes
+
+- 349f3c7: chore: update deps
+
 ## 0.1.0
 
 ### Minor Changes

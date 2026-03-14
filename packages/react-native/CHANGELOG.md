@@ -1,5 +1,24 @@
 # @assistant-ui/react-native
 
+## 0.1.5
+
+### Patch Changes
+
+- 4a904de: refactor: remove useAssistantRuntime hook
+- 349f3c7: chore: update deps
+- 6cc4122: refactor: use primitive hooks
+- 642bcda: Add `quote.tsx` registry components and `injectQuoteContext` helper
+- Updated dependencies [1ed9867]
+- Updated dependencies [427ffaa]
+- Updated dependencies [349f3c7]
+- Updated dependencies [02614aa]
+- Updated dependencies [6cc4122]
+- Updated dependencies [642bcda]
+  - @assistant-ui/core@0.1.6
+  - assistant-stream@0.3.6
+  - @assistant-ui/store@0.2.3
+  - @assistant-ui/tap@0.5.3
+
 ## 0.1.4
 
 ### Patch Changes
