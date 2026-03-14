@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import Any, AsyncGenerator, Callable, Coroutine, List, Optional
+from typing import Any, AsyncGenerator, Callable, Coroutine, List, Optional, Sequence, Union
 from assistant_stream.assistant_stream_chunk import (
     AssistantStreamChunk,
     TextDeltaChunk,
@@ -65,6 +65,12 @@ class RunController:
         """Append a reasoning delta to the stream."""
         chunk = ReasoningDeltaChunk(reasoning_delta=reasoning_delta, parent_id=self._parent_id)
         self._flush_and_put_chunk(chunk)
+
+    def append_state_text(
+        self, path: Sequence[Union[str, int]], text_delta: str
+    ) -> None:
+        """Append a text delta at a state path using an append-text operation."""
+        self._state_manager.append_text(path, text_delta)
 
     async def add_tool_call(
         self, tool_name: str, tool_call_id: str = None
@@ -146,10 +152,19 @@ class RunController:
         You can set the root state directly by assigning to this property.
 
         Example:
-            controller.state = {"user": {"name": "John"},"messages": "Hello"}  # Sets the entire state
+            controller.state = {
+                "user": {"name": "John"},
+                "summary": "Hello",
+                "messages": [{"text": "Hi"}],
+            }  # Sets the entire state
             controller.state["user"]["name"] = "Bob"  # Sets the value at path ["user", "name"]
             name = controller.state["user"]["name"]  # Gets the value at path ["user", "name"]
-            controller.state["messages"] += " world"  # Appends text at path ["messages"]
+            controller.state["summary"] += " world"  # Appends text at path ["summary"]
+            prev = controller.state["messages"][0]["text"]
+            controller.state["messages"][0]["text"] = prev + " chunk"  # Extending a non-empty string emits append-text
+
+            # For explicit control, append_state_text() is also available:
+            controller.append_state_text(["messages", 0, "text"], " chunk")
         """
         return self._state_manager.state
 

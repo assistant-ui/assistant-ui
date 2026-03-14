@@ -29,7 +29,10 @@ class StateProxy:
         self._path = path or []
 
     def __getitem__(self, key: Union[str, int]) -> Union["StateProxy", Any]:
-        """Access nested values with dict-style syntax. Returns primitives directly except strings."""
+        """Access nested values with dict-style syntax.
+
+        Primitives (including strings) are returned directly for compatibility.
+        """
         current_value = self._manager.get_value_at_path(self._path)
 
         # Handle list indexing
@@ -97,12 +100,41 @@ class StateProxy:
             # For dicts and other types, use string representation of key
             str_key = str(key)
 
+        target_path = self._path + [str_key]
+
+        # Heuristic: encode any string extension as append-text.
+        # Require a non-empty current value so that the first write to a
+        # field initialized to "" emits a "set" rather than "append-text".
+        try:
+            current_target_value = self._manager.get_value_at_path(target_path)
+            if (
+                isinstance(current_target_value, str)
+                and isinstance(value, str)
+                and current_target_value
+                and value.startswith(current_target_value)
+            ):
+                delta = value[len(current_target_value) :]
+                if delta:
+                    self._manager.append_text(target_path, delta)
+                    return
+        except KeyError:
+            pass
+
         self._manager.add_operations(
-            [{"type": "set", "path": self._path + [str_key], "value": value}]
+            [{"type": "set", "path": target_path, "value": value}]
         )
 
     def __iadd__(self, other: Any) -> "StateProxy":
-        """Support += for strings and lists."""
+        """Support += for strings and lists at the current proxy level.
+
+        Note: This is only invoked when += is used directly on a StateProxy
+        (e.g. state["messages"] += "Hello"). For nested string access like
+        state["a"]["b"]["text"] += "chunk", __getitem__ returns a raw str,
+        so Python performs normal str concatenation and then calls __setitem__,
+        which detects the extension via a startswith heuristic. If the nested
+        value starts as "", that first write emits "set"; later extensions emit
+        "append-text".
+        """
         current_value = self._manager.get_value_at_path(self._path)
 
         # String concatenation
@@ -112,9 +144,7 @@ class StateProxy:
                     f"Can only concatenate str (not '{type(other).__name__}') to str"
                 )
 
-            self._manager.add_operations(
-                [{"type": "append-text", "path": self._path, "value": other}]
-            )
+            self._manager.append_text(self._path, other)
             return self
 
         # List extension
