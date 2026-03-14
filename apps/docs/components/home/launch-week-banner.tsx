@@ -2,7 +2,7 @@
 
 import {
   CloudIcon,
-  DatabaseIcon,
+  ZapIcon,
   SmartphoneIcon,
   TerminalIcon,
 } from "lucide-react";
@@ -21,7 +21,7 @@ const DAYS = [
     day: 4,
     title: "useCloudChat",
     href: "/cloud-ai-sdk",
-    icon: DatabaseIcon,
+    icon: ZapIcon,
   },
 ] as const;
 
