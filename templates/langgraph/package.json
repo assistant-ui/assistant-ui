@@ -15,7 +15,7 @@
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-langgraph": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
-    "@langchain/langgraph-sdk": "^1.6.5",
+    "@langchain/langgraph-sdk": "^1.7.2",
     "@radix-ui/react-avatar": "^1.1.11",
     "@radix-ui/react-collapsible": "^1.1.12",
     "@radix-ui/react-dialog": "^1.1.15",
@@ -36,9 +36,9 @@
     "zustand": "^5.0.11"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.5",
+    "@biomejs/biome": "^2.4.7",
     "@tailwindcss/postcss": "^4.2.1",
-    "@types/node": "^25.3.3",
+    "@types/node": "^25.5.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "tailwindcss": "^4.2.1",

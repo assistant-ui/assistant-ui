@@ -64,7 +64,7 @@
     "@radix-ui/react-use-callback-ref": "^1.1.1",
     "@radix-ui/react-use-escape-keydown": "^1.1.1",
     "assistant-cloud": "^0.1.21",
-    "assistant-stream": "^0.3.4",
+    "assistant-stream": "^0.3.5",
     "nanoid": "^5.1.6",
     "radix-ui": "^1.4.3",
     "react-textarea-autosize": "^8.5.9",
@@ -89,13 +89,13 @@
     "@assistant-ui/x-buildutils": "workspace:*",
     "@testing-library/react": "^16.3.2",
     "@types/json-schema": "^7.0.15",
-    "@types/node": "^25.3.3",
+    "@types/node": "^25.5.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "jsdom": "^28.1.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
-    "vitest": "^4.0.18"
+    "vitest": "^4.1.0"
   },
   "publishConfig": {
     "access": "public",

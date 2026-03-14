@@ -69,7 +69,7 @@
   "dependencies": {
     "@clack/prompts": "^1.1.0",
     "picocolors": "^1.1.1",
-    "tar": "^7.5.10"
+    "tar": "^7.5.11"
   },
   "peerDependencies": {
     "@modelcontextprotocol/ext-apps": ">=0.4.0",
@@ -85,17 +85,17 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@modelcontextprotocol/ext-apps": "^1.1.2",
-    "@types/node": "^25.3.3",
+    "@modelcontextprotocol/ext-apps": "^1.2.2",
+    "@types/node": "^25.5.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@types/tar": "^7.0.87",
-    "@vitest/coverage-v8": "^4.0.18",
+    "@vitest/coverage-v8": "^4.1.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.18"
+    "vitest": "^4.1.0"
   },
   "publishConfig": {
     "access": "public"

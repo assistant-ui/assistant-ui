@@ -15,17 +15,17 @@
     "test": "turbo test",
     "prepare": "husky",
     "deps:check": "npx taze major -f -r",
-    "deps:update": "npx taze major -f -w -r && cd examples/with-expo && npx expo install --fix && cd ../.. && rm -f pnpm-lock.yaml && pnpm install && bash scripts/generate-deps-changeset.sh"
+    "deps:update": "npx taze major -f -w -r && cd examples/with-expo && npx expo install --fix && cd ../.. && rm -rf node_modules && rm -f pnpm-lock.yaml && pnpm install && pnpm dedupe && bash scripts/generate-deps-changeset.sh"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.5",
+    "@biomejs/biome": "^2.4.7",
     "@changesets/cli": "^2.30.0",
     "husky": "^9.1.7",
-    "lint-staged": "^16.3.2",
-    "turbo": "^2.8.13",
+    "lint-staged": "^16.3.3",
+    "turbo": "^2.8.17",
     "typescript": "^5.9.3"
   },
-  "packageManager": "pnpm@10.30.3",
+  "packageManager": "pnpm@10.32.1",
   "lint-staged": {
     "*": "biome check --fix --no-errors-on-unmatched"
   },

@@ -46,8 +46,8 @@
   "peerDependencies": {
     "@assistant-ui/react-ink": "^0.0.4",
     "@types/react": "*",
-    "ink": ">=4",
-    "react": "^18 || ^19",
+    "ink": ">=6",
+    "react": "^19",
     "shiki": ">=4"
   },
   "peerDependenciesMeta": {
@@ -67,11 +67,11 @@
     "@assistant-ui/store": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/react": "^19.2.14",
-    "ink": "^5.2.0",
+    "ink": "^6.8.0",
     "ink-testing-library": "^4.0.0",
-    "react": "18.3.1",
-    "shiki": "^4.0.1",
-    "vitest": "^4.0.18"
+    "react": "^19.1.0",
+    "shiki": "^4.0.2",
+    "vitest": "^4.1.0"
   },
   "publishConfig": {
     "access": "public",
