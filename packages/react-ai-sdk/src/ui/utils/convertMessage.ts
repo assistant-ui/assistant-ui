@@ -199,10 +199,14 @@ function convertParts(
       }
 
       if (part.type === "source-document") {
-        console.warn(
-          "Source document parts are not yet supported in conversion",
-        );
-        return null;
+        return {
+          type: "source",
+          sourceType: "document",
+          id: part.sourceId,
+          title: part.title,
+          mediaType: part.mediaType,
+          ...(part.filename ? { filename: part.filename } : undefined),
+        } satisfies SourceMessagePart;
       }
 
       if (part.type.startsWith("data-")) {

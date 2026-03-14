@@ -37,6 +37,40 @@ describe("AISDKMessageConverter", () => {
     expect(converted[0]?.attachments?.[1]?.type).toBe("file");
   });
 
+  it("converts source-document parts into document sources", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "source-document",
+            sourceId: "doc_123",
+            title: "proposal.pdf",
+            mediaType: "application/pdf",
+            filename: "proposal.pdf",
+          },
+        ],
+      } as any,
+    ]);
+
+    expect(converted).toHaveLength(1);
+    expect(converted[0]?.role).toBe("assistant");
+
+    const sourcePart = converted[0]?.content.find(
+      (part): part is any => part.type === "source",
+    );
+
+    expect(sourcePart).toMatchObject({
+      type: "source",
+      sourceType: "document",
+      id: "doc_123",
+      title: "proposal.pdf",
+      mediaType: "application/pdf",
+      filename: "proposal.pdf",
+    });
+  });
+
   it("deduplicates tool calls by toolCallId and maps interrupt states", () => {
     const converted = AISDKMessageConverter.toThreadMessages(
       [
