@@ -5,6 +5,8 @@ import {
   ComposerPrimitive,
   unstable_useToolMentionAdapter,
 } from "@assistant-ui/react";
+import type { TextMessagePartComponent } from "@assistant-ui/react";
+import { unstable_defaultDirectiveFormatter } from "@assistant-ui/core";
 import { ChevronLeftIcon, ChevronRightIcon, WrenchIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -206,10 +208,60 @@ ComposerMentionPopover.Popover = ComposerMentionPopoverRoot;
 ComposerMentionPopover.Categories = ComposerMentionCategoriesContent;
 ComposerMentionPopover.Items = ComposerMentionItemsContent;
 
+// =============================================================================
+// DirectiveText — renders directive syntax as inline chips in messages
+// =============================================================================
+
+/**
+ * A `Text` message part component that parses `:type[label]{name=id}` directives
+ * and renders them as inline chips. Use as the `Text` component in
+ * `MessagePrimitive.Parts`.
+ *
+ * @example
+ * ```tsx
+ * <MessagePrimitive.Parts components={{ Text: DirectiveText, Quote: QuoteBlock }} />
+ * ```
+ */
+const DirectiveTextImpl: TextMessagePartComponent = ({ text }) => {
+  const segments = unstable_defaultDirectiveFormatter.parse(text);
+
+  if (segments.length === 1 && segments[0]!.kind === "text") {
+    return <>{text}</>;
+  }
+
+  return (
+    <>
+      {segments.map((seg, i) =>
+        seg.kind === "text" ? (
+          <span key={i}>{seg.text}</span>
+        ) : (
+          <span
+            key={i}
+            className="aui-mention-chip mx-0.5 inline-flex translate-y-[-1px] items-center gap-1 rounded-full border border-primary/20 bg-primary/5 px-2 py-0.5 font-medium text-[13px] text-primary leading-none"
+            data-mention-type={seg.type}
+            data-mention-id={seg.id}
+          >
+            {/* Customize icon per type in your own copy (shadcn pattern) */}
+            <WrenchIcon className="size-3 shrink-0" />
+            {seg.label}
+          </span>
+        ),
+      )}
+    </>
+  );
+};
+
+const DirectiveText = memo(
+  DirectiveTextImpl,
+) as unknown as TextMessagePartComponent;
+
+DirectiveText.displayName = "DirectiveText";
+
 export {
   ComposerMentionPopover,
   ComposerMentionRoot,
   ComposerMentionPopoverRoot,
   ComposerMentionCategoriesContent,
   ComposerMentionItemsContent,
+  DirectiveText,
 };

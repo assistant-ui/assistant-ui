@@ -41,7 +41,7 @@
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.12.17",
-    "@assistant-ui/core": "^0.12.17",
+    "@assistant-ui/core": "^0.1.5",
     "@assistant-ui/store": "*",
     "@types/react": "*",
     "react": "^18 || ^19",
