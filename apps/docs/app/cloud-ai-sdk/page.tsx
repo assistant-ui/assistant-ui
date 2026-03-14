@@ -12,6 +12,7 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { CopyCommandButton } from "@/components/home/copy-command-button";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { DynamicCodeBlock } from "fumadocs-ui/components/dynamic-codeblock";
 
 const ANALYTICS_PAGE = "cloud-ai-sdk" as const;
 
@@ -63,50 +64,6 @@ const FEATURES = [
   },
 ] as const;
 
-function CodeBlock({
-  label,
-  labelColor,
-  borderColor,
-  lines,
-}: {
-  label: string;
-  labelColor: string;
-  borderColor: string;
-  lines: { keyword?: string; text: string; highlight?: string }[];
-}) {
-  return (
-    <div
-      className={cn(
-        "flex flex-col gap-3 rounded-xl border p-5",
-        borderColor,
-        "bg-muted/30",
-      )}
-    >
-      <span
-        className={cn(
-          "font-medium text-xs uppercase tracking-wider",
-          labelColor,
-        )}
-      >
-        {label}
-      </span>
-      <pre className="overflow-x-auto font-mono text-sm leading-relaxed">
-        {lines.map((line, i) => (
-          <span className="block" key={i}>
-            {line.keyword && (
-              <span className="text-purple-400">{line.keyword} </span>
-            )}
-            <span className="text-foreground/80">{line.text}</span>
-            {line.highlight && (
-              <span className="text-emerald-400">{line.highlight}</span>
-            )}
-          </span>
-        ))}
-      </pre>
-    </div>
-  );
-}
-
 export default function CloudAiSdkPage() {
   return (
     <div className="mx-auto w-full max-w-7xl space-y-10 px-4 pt-14 pb-8 md:space-y-20">
@@ -147,42 +104,22 @@ export default function CloudAiSdkPage() {
       </div>
 
       {/* Code comparison */}
-      <div className="mx-auto grid max-w-3xl gap-4 md:grid-cols-2">
-        <CodeBlock
-          label="Before"
-          labelColor="text-muted-foreground"
-          borderColor="border-border/50"
-          lines={[
-            {
-              keyword: "import",
-              text: "{ useChat } from ",
-              highlight: '"@ai-sdk/react"',
-            },
-            { text: "" },
-            {
-              keyword: "const",
-              text: "{ messages, sendMessage }",
-            },
-            { text: "  = useChat()" },
-          ]}
+      <div className="mx-auto grid max-w-5xl gap-4 md:grid-cols-2">
+        <DynamicCodeBlock
+          lang="tsx"
+          code={`import { useChat } from "@ai-sdk/react"
+
+const { messages, sendMessage } = useChat()`}
+          options={{ themes: { light: "catppuccin-latte", dark: "catppuccin-mocha" } }}
+          codeblock={{ title: "Before", keepBackground: true, className: "my-0 bg-neutral-900!" }}
         />
-        <CodeBlock
-          label="After"
-          labelColor="text-blue-400"
-          borderColor="border-blue-500/30"
-          lines={[
-            {
-              keyword: "import",
-              text: "{ useCloudChat } from ",
-              highlight: '"@assistant-ui/cloud-ai-sdk"',
-            },
-            { text: "" },
-            {
-              keyword: "const",
-              text: "{ messages, sendMessage, threads }",
-            },
-            { text: "  = useCloudChat()" },
-          ]}
+        <DynamicCodeBlock
+          lang="tsx"
+          code={`import { useCloudChat } from "@assistant-ui/cloud-ai-sdk"
+
+const { messages, sendMessage, threads } = useCloudChat()`}
+          options={{ themes: { light: "catppuccin-latte", dark: "catppuccin-mocha" } }}
+          codeblock={{ title: "After", keepBackground: true, className: "border! my-0 border-blue-600! bg-neutral-900!" }}
         />
       </div>
 
