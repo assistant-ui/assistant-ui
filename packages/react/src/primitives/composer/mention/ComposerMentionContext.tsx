@@ -11,10 +11,10 @@ import {
 } from "react";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import type {
+  Unstable_MentionAdapter,
   Unstable_MentionCategory,
   Unstable_MentionItem,
 } from "@assistant-ui/core";
-import type { Unstable_MentionAdapter } from "@assistant-ui/core";
 
 // =============================================================================
 // Context Types
@@ -107,17 +107,12 @@ export const ComposerPrimitiveMentionRoot: FC<
   // Derive categories and items synchronously from adapter
   const categories = useMemo<readonly Unstable_MentionCategory[]>(() => {
     if (!open || !adapter) return [];
-    const result = adapter.categories();
-    // Handle both sync and Promise return
-    if (result instanceof Promise) return [];
-    return result;
+    return adapter.categories();
   }, [open, adapter]);
 
   const allItems = useMemo<readonly Unstable_MentionItem[]>(() => {
     if (!effectiveActiveCategoryId || !adapter) return [];
-    const result = adapter.categoryItems(effectiveActiveCategoryId);
-    if (result instanceof Promise) return [];
-    return result;
+    return adapter.categoryItems(effectiveActiveCategoryId);
   }, [effectiveActiveCategoryId, adapter]);
 
   // Filter by query

@@ -7,24 +7,21 @@ import type {
 // Mention Adapter
 // =============================================================================
 
+/**
+ * Adapter for providing mention categories and items to the mention picker.
+ *
+ * All methods are synchronous by design — the adapter drives UI display and
+ * must return data immediately. Use external state management (e.g. React
+ * Query, SWR, or local state) to handle async data fetching, then expose
+ * the loaded results synchronously through this adapter.
+ */
 export type Unstable_MentionAdapter = {
   /** Return the top-level categories for the mention picker. */
-  categories():
-    | Promise<readonly Unstable_MentionCategory[]>
-    | readonly Unstable_MentionCategory[];
+  categories(): readonly Unstable_MentionCategory[];
 
-  /** Return items within a category (supports async loading). */
-  categoryItems(
-    categoryId: string,
-  ): Promise<readonly Unstable_MentionItem[]> | readonly Unstable_MentionItem[];
+  /** Return items within a category. */
+  categoryItems(categoryId: string): readonly Unstable_MentionItem[];
 
   /** Global search across all categories (optional). */
-  search?(
-    query: string,
-  ): Promise<readonly Unstable_MentionItem[]> | readonly Unstable_MentionItem[];
-
-  /** Post-selection resolve/validate (optional, like AttachmentAdapter.send). */
-  resolve?(
-    item: Unstable_MentionItem,
-  ): Promise<Unstable_MentionItem> | Unstable_MentionItem;
+  search?(query: string): readonly Unstable_MentionItem[];
 };

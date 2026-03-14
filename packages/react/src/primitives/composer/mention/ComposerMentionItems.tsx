@@ -19,6 +19,12 @@ import type { Unstable_MentionItem } from "@assistant-ui/core";
 export namespace ComposerPrimitiveMentionItems {
   export type Element = ComponentRef<typeof Primitive.div>;
   export type Props = ComponentPropsWithoutRef<typeof Primitive.div> & {
+    /**
+     * Render function that receives the filtered items and returns
+     * the UI. A render-function pattern is used here (instead of a
+     * `components` prop) to give consumers full control over list layout,
+     * ordering, grouping, and empty states.
+     */
     children: (items: readonly Unstable_MentionItem[]) => ReactNode;
   };
 }

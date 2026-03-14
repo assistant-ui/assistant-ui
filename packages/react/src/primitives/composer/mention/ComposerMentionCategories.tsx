@@ -19,6 +19,12 @@ import type { Unstable_MentionCategory } from "@assistant-ui/core";
 export namespace ComposerPrimitiveMentionCategories {
   export type Element = ComponentRef<typeof Primitive.div>;
   export type Props = ComponentPropsWithoutRef<typeof Primitive.div> & {
+    /**
+     * Render function that receives the filtered categories and returns
+     * the UI. A render-function pattern is used here (instead of a
+     * `components` prop) to give consumers full control over list layout,
+     * ordering, grouping, and empty states.
+     */
     children: (categories: readonly Unstable_MentionCategory[]) => ReactNode;
   };
 }

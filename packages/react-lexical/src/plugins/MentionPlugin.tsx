@@ -11,10 +11,20 @@ import {
   COMMAND_PRIORITY_LOW,
   KEY_BACKSPACE_COMMAND,
   TextNode,
+  type LexicalEditor,
 } from "lexical";
 import { mergeRegister } from "@lexical/utils";
 import { $createMentionNode, $isMentionNode } from "../nodes/MentionNode";
 import type { Unstable_MentionItem } from "@assistant-ui/core";
+
+// ---------------------------------------------------------------------------
+// WeakMap to associate insertMention functions with editor instances
+// ---------------------------------------------------------------------------
+
+const mentionInsertMap = new WeakMap<
+  LexicalEditor,
+  (item: Unstable_MentionItem) => void
+>();
 
 // ---------------------------------------------------------------------------
 // Types
@@ -258,12 +268,12 @@ export function MentionPlugin({
     [editor, onMentionSelect],
   );
 
-  // Expose insertMention on the editor instance so consumers can call it
+  // Expose insertMention via WeakMap so consumers can call it
   // from outside (e.g., from a popover selection handler).
   useEffect(() => {
-    (editor as any).__insertMention = insertMention;
+    mentionInsertMap.set(editor, insertMention);
     return () => {
-      delete (editor as any).__insertMention;
+      mentionInsertMap.delete(editor);
     };
   }, [editor, insertMention]);
 
@@ -275,11 +285,11 @@ export function MentionPlugin({
 // ---------------------------------------------------------------------------
 
 /**
- * Retrieve the `insertMention` function that the `MentionPlugin` attaches to
- * the Lexical editor. Returns `undefined` if the plugin is not mounted.
+ * Retrieve the `insertMention` function that the `MentionPlugin` associates
+ * with the Lexical editor. Returns `undefined` if the plugin is not mounted.
  */
 export function getInsertMention(
-  editor: unknown,
+  editor: LexicalEditor,
 ): ((item: Unstable_MentionItem) => void) | undefined {
-  return (editor as any)?.__insertMention;
+  return mentionInsertMap.get(editor);
 }

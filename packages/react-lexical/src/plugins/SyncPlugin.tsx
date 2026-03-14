@@ -1,8 +1,5 @@
 "use client";
 
-// Side-effect import: registers scope types (composer, thread, etc.) on ScopeRegistry
-import "@assistant-ui/core/store";
-
 import { useEffect, useRef } from "react";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import {
@@ -110,10 +107,15 @@ export function SyncPlugin() {
   // -----------------------------------------------------------------------
 
   useEffect(() => {
-    return aui.subscribe(() => {
+    // Subscribe via ComposerRuntime so we only react to composer state
+    // changes (e.g. text updates), not all AUI state changes.
+    const composerRuntime = aui.composer().__internal_getRuntime?.();
+    if (!composerRuntime) return;
+
+    return composerRuntime.subscribe(() => {
       if (isSyncingFromLexicalRef.current) return;
 
-      const runtimeText = aui.composer().getState().text;
+      const runtimeText = composerRuntime.getState().text;
 
       if (runtimeText === lastSyncedTextRef.current) return;
 
