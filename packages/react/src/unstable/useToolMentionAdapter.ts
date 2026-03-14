@@ -33,6 +33,9 @@ export type Unstable_ToolMentionAdapterOptions = {
    * ```
    */
   formatLabel?: (toolName: string) => string;
+
+  /** Custom label for the tools category. @default "Tools" */
+  categoryLabel?: string;
 };
 
 /**
@@ -56,6 +59,7 @@ export function unstable_useToolMentionAdapter(
   const includeModelContext =
     options?.includeModelContextTools ?? !explicitTools;
   const formatLabel = options?.formatLabel;
+  const categoryLabel = options?.categoryLabel;
 
   return useMemo<Unstable_MentionAdapter>(() => {
     const getTools = (): Unstable_MentionItem[] => {
@@ -87,7 +91,9 @@ export function unstable_useToolMentionAdapter(
 
     return {
       categories(): Unstable_MentionCategory[] {
-        return [{ id: "tools", label: "Tools", icon: undefined }];
+        return [
+          { id: "tools", label: categoryLabel ?? "Tools", icon: undefined },
+        ];
       },
 
       categoryItems(_categoryId: string): Unstable_MentionItem[] {
@@ -104,5 +110,5 @@ export function unstable_useToolMentionAdapter(
         );
       },
     };
-  }, [aui, explicitTools, includeModelContext, formatLabel]);
+  }, [aui, explicitTools, includeModelContext, formatLabel, categoryLabel]);
 }

@@ -14,7 +14,9 @@ import type {
   Unstable_MentionAdapter,
   Unstable_MentionCategory,
   Unstable_MentionItem,
+  Unstable_DirectiveFormatter,
 } from "@assistant-ui/core";
+import { unstable_defaultDirectiveFormatter } from "@assistant-ui/core";
 
 // =============================================================================
 // Context Types
@@ -35,7 +37,10 @@ type MentionPopoverActions = {
   close(): void;
 };
 
-type MentionContextValue = MentionPopoverState & MentionPopoverActions;
+type MentionContextValue = MentionPopoverState &
+  MentionPopoverActions & {
+    readonly formatter: Unstable_DirectiveFormatter;
+  };
 
 const MentionContext = createContext<MentionContextValue | null>(null);
 
@@ -52,20 +57,24 @@ export const useMentionContext = () => {
 // Mention trigger detection
 // =============================================================================
 
-function detectMentionTrigger(text: string): {
+function detectMentionTrigger(
+  text: string,
+  triggerChar: string,
+): {
   query: string;
   offset: number;
 } | null {
-  const lastAtIndex = text.lastIndexOf("@");
-  if (lastAtIndex === -1) return null;
+  const lastTriggerIndex = text.lastIndexOf(triggerChar);
+  if (lastTriggerIndex === -1) return null;
 
-  if (lastAtIndex > 0 && !/\s/.test(text[lastAtIndex - 1]!)) return null;
+  if (lastTriggerIndex > 0 && !/\s/.test(text[lastTriggerIndex - 1]!))
+    return null;
 
-  const query = text.slice(lastAtIndex + 1);
+  const query = text.slice(lastTriggerIndex + triggerChar.length);
 
   if (query.includes("\n")) return null;
 
-  return { query, offset: lastAtIndex };
+  return { query, offset: lastTriggerIndex };
 }
 
 // =============================================================================
@@ -76,14 +85,24 @@ export namespace ComposerPrimitiveMentionRoot {
   export type Props = {
     children: ReactNode;
     adapter?: Unstable_MentionAdapter | undefined;
+    /** Character(s) that trigger the mention popover. @default "@" */
+    trigger?: string | undefined;
+    /** Custom formatter for serializing/parsing mention directives. */
+    formatter?: Unstable_DirectiveFormatter | undefined;
   };
 }
 
 export const ComposerPrimitiveMentionRoot: FC<
   ComposerPrimitiveMentionRoot.Props
-> = ({ children, adapter: adapterProp }) => {
+> = ({
+  children,
+  adapter: adapterProp,
+  trigger: triggerChar = "@",
+  formatter: formatterProp,
+}) => {
   const aui = useAui();
   const text = useAuiState((s) => s.composer.text);
+  const formatter = formatterProp ?? unstable_defaultDirectiveFormatter;
 
   const runtimeAdapter = useMemo(() => {
     try {
@@ -96,7 +115,10 @@ export const ComposerPrimitiveMentionRoot: FC<
   const adapter = adapterProp ?? runtimeAdapter;
 
   // Detect trigger
-  const trigger = useMemo(() => detectMentionTrigger(text), [text]);
+  const trigger = useMemo(
+    () => detectMentionTrigger(text, triggerChar),
+    [text, triggerChar],
+  );
   const open = trigger !== null && adapter !== undefined;
   const query = trigger?.query ?? "";
 
@@ -148,27 +170,28 @@ export const ComposerPrimitiveMentionRoot: FC<
       const currentText = aui.composer().getState().text;
       const before = currentText.slice(0, trigger.offset);
       const after = currentText.slice(
-        trigger.offset + 1 + trigger.query.length,
+        trigger.offset + triggerChar.length + trigger.query.length,
       );
-      const attrs = item.id !== item.label ? `{name=${item.id}}` : "";
-      const directive = `:${item.type}[${item.label}]${attrs}`;
+      const directive = formatter.serialize(item);
       const newText =
         before + directive + (after.startsWith(" ") ? after : ` ${after}`);
 
       aui.composer().setText(newText);
       setActiveCategoryId(null);
     },
-    [aui, trigger],
+    [aui, trigger, triggerChar, formatter],
   );
 
   const close = useCallback(() => {
     if (!trigger) return;
     const currentText = aui.composer().getState().text;
     const before = currentText.slice(0, trigger.offset);
-    const after = currentText.slice(trigger.offset + 1 + trigger.query.length);
+    const after = currentText.slice(
+      trigger.offset + triggerChar.length + trigger.query.length,
+    );
     aui.composer().setText(before + after);
     setActiveCategoryId(null);
-  }, [aui, trigger]);
+  }, [aui, trigger, triggerChar]);
 
   const value = useMemo<MentionContextValue>(
     () => ({
@@ -181,6 +204,7 @@ export const ComposerPrimitiveMentionRoot: FC<
       goBack,
       selectItem,
       close,
+      formatter,
     }),
     [
       open,
@@ -192,6 +216,7 @@ export const ComposerPrimitiveMentionRoot: FC<
       goBack,
       selectItem,
       close,
+      formatter,
     ],
   );
 

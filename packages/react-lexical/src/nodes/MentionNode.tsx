@@ -12,7 +12,24 @@ import type {
   Spread,
 } from "lexical";
 import { $applyNodeReplacement, DecoratorNode } from "lexical";
-import type { Unstable_MentionItem } from "@assistant-ui/core";
+import type {
+  Unstable_MentionItem,
+  Unstable_DirectiveFormatter,
+} from "@assistant-ui/core";
+import { unstable_defaultDirectiveFormatter } from "@assistant-ui/core";
+
+// ---------------------------------------------------------------------------
+// Module-level directive formatter (configurable from LexicalComposerInput)
+// ---------------------------------------------------------------------------
+
+let _directiveFormatter: Unstable_DirectiveFormatter =
+  unstable_defaultDirectiveFormatter;
+
+export function setDirectiveFormatter(
+  formatter: Unstable_DirectiveFormatter,
+): void {
+  _directiveFormatter = formatter;
+}
 
 // ---------------------------------------------------------------------------
 // Chip customization context
@@ -162,9 +179,7 @@ export class MentionNode extends DecoratorNode<ReactNode> {
   // --- Text content --------------------------------------------------------
 
   override getTextContent(): string {
-    const attrs =
-      this.__mentionId !== this.__label ? `{name=${this.__mentionId}}` : "";
-    return `:${this.__mentionType}[${this.__label}]${attrs}`;
+    return _directiveFormatter.serialize(this.getMentionItem());
   }
 
   // --- Atomic behavior -----------------------------------------------------

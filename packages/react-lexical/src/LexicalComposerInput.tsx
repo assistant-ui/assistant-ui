@@ -9,6 +9,7 @@ import {
   forwardRef,
   useEffect,
   useMemo,
+  useRef,
 } from "react";
 import { LexicalComposer } from "@lexical/react/LexicalComposer";
 import { ContentEditable } from "@lexical/react/LexicalContentEditable";
@@ -23,9 +24,12 @@ import {
 } from "lexical";
 import { mergeRegister } from "@lexical/utils";
 import { useAui, useAuiState } from "@assistant-ui/store";
+import type { Unstable_DirectiveFormatter } from "@assistant-ui/core";
+import { unstable_defaultDirectiveFormatter } from "@assistant-ui/core";
 import {
   MentionNode,
   MentionChipProvider,
+  setDirectiveFormatter,
   type MentionChipProps,
 } from "./nodes/MentionNode";
 import { SyncPlugin } from "./plugins/SyncPlugin";
@@ -49,6 +53,8 @@ export type LexicalComposerInputProps = ComponentPropsWithoutRef<"div"> & {
   mentionPluginProps?: MentionPluginProps;
   /** Custom component for rendering mention chips inline. */
   mentionChip?: FC<MentionChipProps>;
+  /** Custom formatter for serializing/parsing mention directives. */
+  formatter?: Unstable_DirectiveFormatter;
 };
 
 // ---------------------------------------------------------------------------
@@ -161,6 +167,7 @@ export const LexicalComposerInput = forwardRef<
       placeholder,
       mentionPluginProps,
       mentionChip,
+      formatter: formatterProp,
       className,
       ...rest
     },
@@ -169,6 +176,15 @@ export const LexicalComposerInput = forwardRef<
     const isDisabled = useAuiState(
       (s) => s.thread.isDisabled || s.composer.dictation?.inputDisabled,
     );
+    const resolvedFormatter =
+      formatterProp ?? unstable_defaultDirectiveFormatter;
+
+    // Keep the module-level formatter in sync for MentionNode.getTextContent()
+    const formatterRef = useRef(resolvedFormatter);
+    formatterRef.current = resolvedFormatter;
+    useEffect(() => {
+      setDirectiveFormatter(resolvedFormatter);
+    }, [resolvedFormatter]);
 
     const initialConfig = useMemo(
       () => ({
@@ -205,7 +221,7 @@ export const LexicalComposerInput = forwardRef<
               ErrorBoundary={LexicalErrorBoundary}
             />
             <HistoryPlugin />
-            <SyncPlugin />
+            <SyncPlugin formatter={resolvedFormatter} />
             <MentionPlugin {...mentionPluginProps} />
             <KeyboardPlugin
               submitMode={submitMode}

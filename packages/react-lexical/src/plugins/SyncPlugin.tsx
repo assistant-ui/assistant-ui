@@ -9,50 +9,20 @@ import {
   $isElementNode,
 } from "lexical";
 import { useAui } from "@assistant-ui/store";
+import type { Unstable_DirectiveFormatter } from "@assistant-ui/core";
+import { unstable_defaultDirectiveFormatter } from "@assistant-ui/core";
 import { $createMentionNode } from "../nodes/MentionNode";
-
-// ---------------------------------------------------------------------------
-// Directive pattern: `:type[label]` or `:type[label]{name=id}`
-// ---------------------------------------------------------------------------
-
-const DIRECTIVE_RE = /:(\w+)\[([^\]]+)\](?:\{name=([^}]+)\})?/g;
-
-type Segment =
-  | { kind: "text"; text: string }
-  | { kind: "mention"; type: string; label: string; id: string };
-
-function parseDirectives(text: string): Segment[] {
-  const segments: Segment[] = [];
-  let lastIndex = 0;
-
-  DIRECTIVE_RE.lastIndex = 0;
-  let match: RegExpExecArray | null;
-  while ((match = DIRECTIVE_RE.exec(text)) !== null) {
-    if (match.index > lastIndex) {
-      segments.push({ kind: "text", text: text.slice(lastIndex, match.index) });
-    }
-    const label = match[2]!;
-    segments.push({
-      kind: "mention",
-      type: match[1]!,
-      label,
-      id: match[3] ?? label,
-    });
-    lastIndex = DIRECTIVE_RE.lastIndex;
-  }
-
-  if (lastIndex < text.length) {
-    segments.push({ kind: "text", text: text.slice(lastIndex) });
-  }
-
-  return segments;
-}
 
 // ---------------------------------------------------------------------------
 // SyncPlugin — bidirectional sync between Lexical and ComposerRuntime
 // ---------------------------------------------------------------------------
 
-export function SyncPlugin() {
+export function SyncPlugin({
+  formatter,
+}: {
+  formatter?: Unstable_DirectiveFormatter;
+}) {
+  const resolvedFormatter = formatter ?? unstable_defaultDirectiveFormatter;
   const [editor] = useLexicalComposerContext();
   const aui = useAui();
 
@@ -136,7 +106,7 @@ export function SyncPlugin() {
           const lines = runtimeText.split("\n");
           for (const line of lines) {
             const paragraph = $createParagraphNode();
-            const segments = parseDirectives(line);
+            const segments = resolvedFormatter.parse(line);
 
             for (const seg of segments) {
               if (seg.kind === "text") {
@@ -167,7 +137,7 @@ export function SyncPlugin() {
         },
       );
     });
-  }, [editor, aui]);
+  }, [editor, aui, resolvedFormatter]);
 
   return null;
 }

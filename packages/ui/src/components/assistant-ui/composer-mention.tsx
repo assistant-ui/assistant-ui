@@ -18,11 +18,17 @@ const defaultFormatLabel = (name: string) =>
 function ComposerMentionRoot({
   children,
   formatLabel = defaultFormatLabel,
+  categoryLabel,
   ...props
 }: ComposerPrimitive.Unstable_MentionRoot.Props & {
   formatLabel?: (toolName: string) => string;
+  /** Custom label for the tools category. @default "Tools" */
+  categoryLabel?: string;
 }) {
-  const adapter = unstable_useToolMentionAdapter({ formatLabel });
+  const adapter = unstable_useToolMentionAdapter({
+    formatLabel,
+    categoryLabel,
+  });
   return (
     <ComposerPrimitive.Unstable_MentionRoot adapter={adapter} {...props}>
       {children}
@@ -56,8 +62,12 @@ function ComposerMentionPopoverRoot({
 
 function ComposerMentionCategoriesContent({
   className,
+  emptyLabel = "No items available",
   ...props
-}: Omit<ComponentProps<"div">, "children">) {
+}: Omit<ComponentProps<"div">, "children"> & {
+  /** Label shown when no categories are available. @default "No items available" */
+  emptyLabel?: string;
+}) {
   return (
     <ComposerPrimitive.Unstable_MentionCategories>
       {(categories) => (
@@ -73,6 +83,7 @@ function ComposerMentionCategoriesContent({
               className="flex cursor-pointer items-center justify-between gap-2 px-3 py-2 text-sm outline-none transition-colors hover:bg-accent focus:bg-accent"
             >
               <span className="flex items-center gap-2">
+                {/* Default icon — customize by copying this component (shadcn pattern) */}
                 <WrenchIcon className="size-4 text-muted-foreground" />
                 {cat.label}
               </span>
@@ -81,7 +92,7 @@ function ComposerMentionCategoriesContent({
           ))}
           {categories.length === 0 && (
             <div className="px-3 py-2 text-muted-foreground text-sm">
-              No tools available
+              {emptyLabel}
             </div>
           )}
         </div>
@@ -96,8 +107,15 @@ function ComposerMentionCategoriesContent({
 
 function ComposerMentionItemsContent({
   className,
+  backLabel = "Back",
+  emptyLabel = "No matching items",
   ...props
-}: Omit<ComponentProps<"div">, "children">) {
+}: Omit<ComponentProps<"div">, "children"> & {
+  /** Label shown on the back button. @default "Back" */
+  backLabel?: string;
+  /** Label shown when no items match. @default "No matching items" */
+  emptyLabel?: string;
+}) {
   return (
     <ComposerPrimitive.Unstable_MentionItems>
       {(items) => (
@@ -108,7 +126,7 @@ function ComposerMentionItemsContent({
         >
           <ComposerPrimitive.Unstable_MentionBack className="flex cursor-pointer items-center gap-1.5 border-b px-3 py-2 text-muted-foreground text-xs uppercase tracking-wide transition-colors hover:bg-accent">
             <ChevronLeftIcon className="size-3.5" />
-            Tools
+            {backLabel}
           </ComposerPrimitive.Unstable_MentionBack>
 
           <div className="py-1">
@@ -119,6 +137,7 @@ function ComposerMentionItemsContent({
                 className="flex w-full cursor-pointer flex-col items-start gap-0.5 px-3 py-2 text-left outline-none transition-colors hover:bg-accent focus:bg-accent"
               >
                 <span className="flex items-center gap-2 font-medium text-sm">
+                  {/* Default icon — customize by copying this component (shadcn pattern) */}
                   <WrenchIcon className="size-3.5 text-primary" />
                   {item.label}
                 </span>
@@ -131,7 +150,7 @@ function ComposerMentionItemsContent({
             ))}
             {items.length === 0 && (
               <div className="px-3 py-2 text-muted-foreground text-sm">
-                No matching tools
+                {emptyLabel}
               </div>
             )}
           </div>

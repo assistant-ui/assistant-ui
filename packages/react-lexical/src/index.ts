@@ -5,6 +5,7 @@ export {
   $createMentionNode,
   $isMentionNode,
   MentionChipProvider,
+  setDirectiveFormatter,
 } from "./nodes/MentionNode";
 export type { MentionChipProps } from "./nodes/MentionNode";
 export { MentionPlugin } from "./plugins/MentionPlugin";
