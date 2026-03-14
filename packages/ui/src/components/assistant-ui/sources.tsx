@@ -1,6 +1,7 @@
 "use client";
 
 import { memo, useState, type ComponentProps } from "react";
+import { FileTextIcon } from "lucide-react";
 import type { SourceMessagePartComponent } from "@assistant-ui/react";
 import { cn } from "@/lib/utils";
 import { Badge, badgeVariants, type BadgeProps } from "./badge";
@@ -63,6 +64,21 @@ function SourceTitle({ className, ...props }: ComponentProps<"span">) {
   );
 }
 
+function DocumentSourceIcon({ className, ...props }: ComponentProps<"span">) {
+  return (
+    <span
+      data-slot="source-document-icon"
+      className={cn(
+        "flex size-3 shrink-0 items-center justify-center text-muted-foreground",
+        className,
+      )}
+      {...props}
+    >
+      <FileTextIcon className="size-3" />
+    </span>
+  );
+}
+
 export type SourceProps = Omit<BadgeProps, "asChild"> &
   ComponentProps<"a"> & {
     asChild?: boolean;
@@ -98,17 +114,33 @@ function Source({
 }
 
 const SourcesImpl: SourceMessagePartComponent = (part) => {
-  if (part.sourceType !== "url" || !part.url) return null;
+  if (part.sourceType === "url" && part.url) {
+    const domain = extractDomain(part.url);
+    const displayTitle = part.title || domain;
 
-  const domain = extractDomain(part.url);
-  const displayTitle = part.title || domain;
+    return (
+      <Source href={part.url}>
+        <SourceIcon url={part.url} />
+        <SourceTitle>{displayTitle}</SourceTitle>
+      </Source>
+    );
+  }
 
-  return (
-    <Source href={part.url}>
-      <SourceIcon url={part.url} />
-      <SourceTitle>{displayTitle}</SourceTitle>
-    </Source>
-  );
+  if (part.sourceType === "document") {
+    return (
+      <Badge
+        variant="secondary"
+        className="outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+      >
+        <span data-slot="source" className="inline-flex items-center gap-1.5">
+          <DocumentSourceIcon />
+          <SourceTitle>{part.title}</SourceTitle>
+        </span>
+      </Badge>
+    );
+  }
+
+  return null;
 };
 
 const Sources = memo(SourcesImpl) as unknown as SourceMessagePartComponent & {
