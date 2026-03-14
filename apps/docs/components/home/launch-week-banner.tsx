@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  CloudIcon,
-  ZapIcon,
-  SmartphoneIcon,
-  TerminalIcon,
-} from "lucide-react";
+import { CloudIcon, ZapIcon, SmartphoneIcon, TerminalIcon } from "lucide-react";
 import Link from "next/link";
 
 const DAYS = [

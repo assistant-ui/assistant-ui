@@ -110,16 +110,28 @@ export default function CloudAiSdkPage() {
           code={`import { useChat } from "@ai-sdk/react"
 
 const { messages, sendMessage } = useChat()`}
-          options={{ themes: { light: "catppuccin-latte", dark: "catppuccin-mocha" } }}
-          codeblock={{ title: "Before", keepBackground: true, className: "my-0 bg-neutral-900!" }}
+          options={{
+            themes: { light: "catppuccin-latte", dark: "catppuccin-mocha" },
+          }}
+          codeblock={{
+            title: "Before",
+            keepBackground: true,
+            className: "my-0 bg-neutral-900!",
+          }}
         />
         <DynamicCodeBlock
           lang="tsx"
           code={`import { useCloudChat } from "@assistant-ui/cloud-ai-sdk"
 
 const { messages, sendMessage, threads } = useCloudChat()`}
-          options={{ themes: { light: "catppuccin-latte", dark: "catppuccin-mocha" } }}
-          codeblock={{ title: "After", keepBackground: true, className: "border! my-0 border-blue-600! bg-neutral-900!" }}
+          options={{
+            themes: { light: "catppuccin-latte", dark: "catppuccin-mocha" },
+          }}
+          codeblock={{
+            title: "After",
+            keepBackground: true,
+            className: "border! my-0 border-blue-600! bg-neutral-900!",
+          }}
         />
       </div>
 
