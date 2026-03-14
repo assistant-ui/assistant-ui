@@ -38,3 +38,5 @@ export type {
 export type { Unsubscribe } from "./unsubscribe";
 
 export type { QuoteInfo } from "./quote";
+
+export type { Unstable_MentionItem, Unstable_MentionCategory } from "./mention";

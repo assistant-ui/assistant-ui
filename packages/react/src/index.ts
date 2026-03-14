@@ -28,6 +28,12 @@ export * from "./devtools";
 export * from "./client";
 
 export * as INTERNAL from "./internal";
+
+// Unstable - mention
+export {
+  unstable_useToolMentionAdapter,
+  type Unstable_ToolMentionAdapterOptions,
+} from "./unstable/useToolMentionAdapter";
 export type { ToolExecutionStatus } from "./internal";
 
 export type { Assistant } from "./augmentations";
