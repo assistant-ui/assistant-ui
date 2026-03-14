@@ -10,8 +10,8 @@ import {
 } from "./tool-types";
 import { DeepPartial, TypeAtPath, TypePath } from "./type-path-utils";
 import { ToolResponse } from "./ToolResponse";
+import { asAsyncIterableStream } from "../../utils/AsyncIterableStream";
 import {
-  asAsyncIterableStream,
   AsyncIterableStream,
   ReadonlyJSONObject,
   ReadonlyJSONValue,

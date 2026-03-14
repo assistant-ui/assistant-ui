@@ -1,11 +1,9 @@
-import type {
-  Attachment,
-  CreateAttachment,
-  MessageRole,
-  RunConfig,
-  QuoteInfo,
-} from "../../types";
-import type { ComposerRuntime, DictationState } from "../../runtime";
+import type { Attachment, CreateAttachment } from "../../types/attachment";
+import type { MessageRole } from "../../types/message";
+import type { QuoteInfo } from "../../types/quote";
+import type { RunConfig } from "../../types/message";
+import type { ComposerRuntime } from "../../runtime/api/composer-runtime";
+import type { DictationState } from "../../runtime/interfaces/composer-runtime-core";
 import type { AttachmentMethods } from "./attachment";
 
 export type ComposerState = {

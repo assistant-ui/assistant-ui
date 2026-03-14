@@ -1,6 +1,6 @@
 import { type FC, memo } from "react";
 import { useAuiState } from "@assistant-ui/store";
-import type { ThreadMessage } from "../../../types";
+import type { ThreadMessage } from "../../../types/message";
 import { ReadonlyThreadProvider } from "../../providers/ReadonlyThreadProvider";
 import {
   ThreadPrimitiveMessages,

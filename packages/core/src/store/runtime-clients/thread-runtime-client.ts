@@ -1,5 +1,6 @@
-import type { Unsubscribe } from "../../types";
-import { ThreadRuntimeEventType, ThreadRuntime } from "../../runtime";
+import type { Unsubscribe } from "../../types/unsubscribe";
+import { ThreadRuntimeEventType } from "../../runtime/interfaces/thread-runtime-core";
+import { ThreadRuntime } from "../../runtime/api/thread-runtime";
 import {
   resource,
   tapResource,
@@ -17,7 +18,7 @@ import {
 import { ComposerClient } from "./composer-runtime-client";
 import { MessageClient } from "./message-runtime-client";
 import { tapSubscribable } from "./tap-subscribable";
-import { ThreadState } from "../scopes";
+import { ThreadState } from "../scopes/thread";
 
 const MessageClientById = resource(
   ({

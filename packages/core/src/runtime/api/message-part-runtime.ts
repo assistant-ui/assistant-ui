@@ -1,10 +1,10 @@
 import type {
   ThreadAssistantMessagePart,
   ThreadUserMessagePart,
-  MessagePartStatus,
   ToolCallMessagePartStatus,
-  Unsubscribe,
-} from "../../types";
+} from "../../types/message";
+import type { Unsubscribe } from "../../types/unsubscribe";
+import type { MessagePartStatus } from "../../types/message";
 import type { SubscribableWithState } from "../../subscribable/subscribable";
 import type { ThreadRuntimeCoreBinding } from "./thread-runtime";
 import type { MessageStateBinding } from "./bindings";

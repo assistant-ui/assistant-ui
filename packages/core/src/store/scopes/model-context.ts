@@ -1,5 +1,5 @@
-import type { Unsubscribe } from "../../types";
-import type { ModelContextProvider } from "../../model-context";
+import type { Unsubscribe } from "../../types/unsubscribe";
+import type { ModelContextProvider } from "../../model-context/types";
 
 export type ModelContextState = Record<string, never>;
 

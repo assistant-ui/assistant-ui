@@ -419,11 +419,11 @@ For custom thread storage, use `useRemoteThreadListRuntime` with your own adapte
 
 ```tsx
 import {
-  unstable_useRemoteThreadListRuntime as useRemoteThreadListRuntime,
+  useRemoteThreadListRuntime,
   useAui,
   RuntimeAdapterProvider,
   AssistantRuntimeProvider,
-  type unstable_RemoteThreadListAdapter as RemoteThreadListAdapter,
+  type RemoteThreadListAdapter,
   type ThreadHistoryAdapter,
 } from "@assistant-ui/react";
 import { createAssistantStream } from "assistant-stream";

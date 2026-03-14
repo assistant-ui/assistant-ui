@@ -8,7 +8,7 @@ import type { LocalRuntimeOptionsBase } from "../../runtimes/local/local-runtime
 import { AssistantRuntimeImpl, LocalRuntimeCore } from "../../internal";
 import { useAuiState } from "@assistant-ui/store";
 import { useRemoteThreadListRuntime } from "./useRemoteThreadListRuntime";
-import { useCloudThreadListAdapter } from "./cloud";
+import { useCloudThreadListAdapter } from "./cloud/useCloudThreadListAdapter";
 import { useRuntimeAdapters } from "./RuntimeAdapterProvider";
 import type { AssistantCloud } from "assistant-cloud";
 

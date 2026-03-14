@@ -6,14 +6,14 @@ import {
   useState,
 } from "react";
 import { useAui, AuiProvider, Derived } from "@assistant-ui/store";
-import type { ThreadMessage } from "../../types";
+import type { ThreadMessage } from "../../types/message";
 import { ReadonlyThreadRuntimeCore } from "../../runtimes/readonly/ReadonlyThreadRuntimeCore";
 import {
   ThreadRuntimeImpl,
   type ThreadRuntimeCoreBinding,
   type ThreadListItemRuntimeBinding,
 } from "../../runtime/internal";
-import { ThreadClient } from "../../store/runtime-clients";
+import { ThreadClient } from "../../store/runtime-clients/thread-runtime-client";
 import type { ThreadListItemState } from "../../runtime/api/bindings";
 
 const READONLY_THREAD_PATH = Object.freeze({

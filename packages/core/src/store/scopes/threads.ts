@@ -1,4 +1,4 @@
-import type { AssistantRuntime } from "../../runtime";
+import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
 import type {
   ThreadListItemMethods,
   ThreadListItemState,

@@ -1,7 +1,7 @@
-import type { CompleteAttachment } from "../../../types";
+import type { CompleteAttachment } from "../../../types/attachment";
 import { ComponentType, type FC, memo, useMemo } from "react";
 import { useAuiState } from "@assistant-ui/store";
-import { MessageAttachmentByIndexProvider } from "../../providers";
+import { MessageAttachmentByIndexProvider } from "../../providers/AttachmentByIndexProvider";
 
 export namespace MessagePrimitiveAttachments {
   export type Props = {

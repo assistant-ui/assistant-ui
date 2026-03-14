@@ -1,11 +1,119 @@
 /// <reference path="./types/store-augmentation.ts" />
 
-export * from "./model-context";
-export * from "./client";
-export * from "./types";
-export * from "./providers";
+// model-context
+export {
+  makeAssistantTool,
+  type AssistantTool,
+} from "./model-context/makeAssistantTool";
+export {
+  type AssistantToolUI,
+  makeAssistantToolUI,
+} from "./model-context/makeAssistantToolUI";
+export {
+  type AssistantDataUI,
+  makeAssistantDataUI,
+} from "./model-context/makeAssistantDataUI";
+export { useAssistantInstructions } from "./model-context/useAssistantInstructions";
+export {
+  useAssistantTool,
+  type AssistantToolProps,
+} from "./model-context/useAssistantTool";
+export {
+  useAssistantToolUI,
+  type AssistantToolUIProps,
+} from "./model-context/useAssistantToolUI";
+export {
+  useAssistantDataUI,
+  type AssistantDataUIProps,
+} from "./model-context/useAssistantDataUI";
+export { useInlineRender } from "./model-context/useInlineRender";
+export type { Toolkit, ToolDefinition } from "./model-context/toolbox";
+
+// client
+export { Tools } from "./client/Tools";
+export { DataRenderers } from "./client/DataRenderers";
+
+// types
+export type {
+  EmptyMessagePartComponent,
+  EmptyMessagePartProps,
+  TextMessagePartComponent,
+  TextMessagePartProps,
+  ReasoningMessagePartComponent,
+  ReasoningMessagePartProps,
+  SourceMessagePartComponent,
+  SourceMessagePartProps,
+  ImageMessagePartComponent,
+  ImageMessagePartProps,
+  FileMessagePartComponent,
+  FileMessagePartProps,
+  Unstable_AudioMessagePartComponent,
+  Unstable_AudioMessagePartProps,
+  DataMessagePartComponent,
+  DataMessagePartProps,
+  ToolCallMessagePartComponent,
+  ToolCallMessagePartProps,
+  ReasoningGroupProps,
+  ReasoningGroupComponent,
+  QuoteMessagePartComponent,
+  QuoteMessagePartProps,
+} from "./types/MessagePartComponentTypes";
+export type {
+  ToolsState,
+  ToolsMethods,
+  ToolsClientSchema,
+} from "./types/scopes/tools";
+export type {
+  DataRenderersState,
+  DataRenderersMethods,
+  DataRenderersClientSchema,
+} from "./types/scopes/dataRenderers";
+
+// providers
+export {
+  MessageAttachmentByIndexProvider,
+  ComposerAttachmentByIndexProvider,
+} from "./providers/AttachmentByIndexProvider";
+export { ThreadListItemRuntimeProvider } from "./providers/ThreadListItemRuntimeProvider";
+export { MessageByIndexProvider } from "./providers/MessageByIndexProvider";
+export { PartByIndexProvider } from "./providers/PartByIndexProvider";
+export { TextMessagePartProvider } from "./providers/TextMessagePartProvider";
+export { ChainOfThoughtByIndicesProvider } from "./providers/ChainOfThoughtByIndicesProvider";
+export { ThreadListItemByIndexProvider } from "./providers/ThreadListItemByIndexProvider";
+export { ChainOfThoughtPartByIndexProvider } from "./providers/ChainOfThoughtPartByIndexProvider";
+export {
+  SuggestionByIndexProvider,
+  type SuggestionByIndexProviderProps,
+} from "./providers/SuggestionByIndexProvider";
+export { ReadonlyThreadProvider } from "./providers/ReadonlyThreadProvider";
+
+// RuntimeAdapter
 export { RuntimeAdapter } from "./RuntimeAdapter";
-export * from "./runtimes";
+
+// runtimes
+export {
+  RuntimeAdapterProvider,
+  useRuntimeAdapters,
+  type RuntimeAdapters,
+} from "./runtimes/RuntimeAdapterProvider";
+export {
+  useToolInvocations,
+  type ToolExecutionStatus,
+  type AssistantTransportState,
+  type AddToolResultCommand,
+} from "./runtimes/useToolInvocations";
+export { useExternalStoreRuntime } from "./runtimes/useExternalStoreRuntime";
+export {
+  useExternalMessageConverter,
+  convertExternalMessages,
+} from "./runtimes/external-message-converter";
+export { createMessageConverter } from "./runtimes/createMessageConverter";
+export { RemoteThreadListHookInstanceManager } from "./runtimes/RemoteThreadListHookInstanceManager";
+export { RemoteThreadListThreadListRuntimeCore } from "./runtimes/RemoteThreadListThreadListRuntimeCore";
+export { useRemoteThreadListRuntime } from "./runtimes/useRemoteThreadListRuntime";
+export { useCloudThreadListAdapter } from "./runtimes/cloud/useCloudThreadListAdapter";
+export { useAssistantCloudThreadHistoryAdapter } from "./runtimes/cloud/AssistantCloudThreadHistoryAdapter";
+export { CloudFileAttachmentAdapter } from "./runtimes/cloud/CloudFileAttachmentAdapter";
 
 // AssistantProvider base
 export {
@@ -56,7 +164,40 @@ export {
 export { getMessageQuote } from "./utils/getMessageQuote";
 
 // Primitive hooks (shared behavior logic)
-export * from "./primitive-hooks";
+export { useThreadMessages } from "./primitive-hooks/useThreadMessages";
+export { useThreadIsRunning } from "./primitive-hooks/useThreadIsRunning";
+export { useThreadIsEmpty } from "./primitive-hooks/useThreadIsEmpty";
+export { useComposerSend } from "./primitive-hooks/useComposerSend";
+export { useComposerCancel } from "./primitive-hooks/useComposerCancel";
+export { useComposerDictate } from "./primitive-hooks/useComposerDictate";
+export { useComposerAddAttachment } from "./primitive-hooks/useComposerAddAttachment";
+export { useMessageReload } from "./primitive-hooks/useMessageReload";
+export { useMessageBranching } from "./primitive-hooks/useMessageBranching";
+export {
+  useActionBarCopy,
+  type UseActionBarCopyOptions,
+} from "./primitive-hooks/useActionBarCopy";
+export { useActionBarEdit } from "./primitive-hooks/useActionBarEdit";
+export { useActionBarReload } from "./primitive-hooks/useActionBarReload";
+export {
+  useActionBarFeedbackPositive,
+  useActionBarFeedbackNegative,
+} from "./primitive-hooks/useActionBarFeedback";
+export { useActionBarSpeak } from "./primitive-hooks/useActionBarSpeak";
+export { useActionBarStopSpeaking } from "./primitive-hooks/useActionBarStopSpeaking";
+export { useBranchPickerNext } from "./primitive-hooks/useBranchPickerNext";
+export { useBranchPickerPrevious } from "./primitive-hooks/useBranchPickerPrevious";
+export {
+  useSuggestionTrigger,
+  type UseSuggestionTriggerOptions,
+} from "./primitive-hooks/useSuggestionTrigger";
+export { useThreadListItemArchive } from "./primitive-hooks/useThreadListItemArchive";
+export { useThreadListItemDelete } from "./primitive-hooks/useThreadListItemDelete";
+export { useThreadListItemUnarchive } from "./primitive-hooks/useThreadListItemUnarchive";
+export { useThreadListItemTrigger } from "./primitive-hooks/useThreadListItemTrigger";
+export { useThreadListNew } from "./primitive-hooks/useThreadListNew";
+export { useEditComposerCancel } from "./primitive-hooks/useEditComposerCancel";
+export { useEditComposerSend } from "./primitive-hooks/useEditComposerSend";
 
 // Shared AssistantRuntimeProvider
 export { AssistantRuntimeProvider } from "./AssistantRuntimeProvider";
@@ -64,5 +205,6 @@ export { AssistantRuntimeProvider } from "./AssistantRuntimeProvider";
 // Shared runtimes
 export {
   useLocalRuntime,
+  splitLocalRuntimeOptions,
   type LocalRuntimeOptions,
 } from "./runtimes/useLocalRuntime";

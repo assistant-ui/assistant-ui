@@ -1,4 +1,5 @@
-import type { Unsubscribe, ThreadMessage } from "../../types";
+import type { Unsubscribe } from "../../types/unsubscribe";
+import type { ThreadMessage } from "../../types/message";
 import type { ThreadRuntimeCore } from "../../runtime/interfaces/thread-runtime-core";
 import { BaseSubscribable } from "../../subscribable/subscribable";
 

@@ -22,8 +22,8 @@ import {
 } from "@assistant-ui/core";
 import {
   type ToolExecutionStatus,
-  useCloudThreadListAdapter as unstable_useCloudThreadListAdapter,
-  useRemoteThreadListRuntime as unstable_useRemoteThreadListRuntime,
+  useCloudThreadListAdapter,
+  useRemoteThreadListRuntime,
   useExternalMessageConverter,
   useExternalStoreRuntime,
   useToolInvocations,
@@ -487,7 +487,7 @@ export const useLangGraphRuntime = ({
   ...options
 }: UseLangGraphRuntimeOptions) => {
   const aui = useAui();
-  const cloudAdapter = unstable_useCloudThreadListAdapter({
+  const cloudAdapter = useCloudThreadListAdapter({
     cloud,
     create: async () => {
       if (create) {
@@ -502,7 +502,7 @@ export const useLangGraphRuntime = ({
     },
     delete: deleteFn,
   });
-  return unstable_useRemoteThreadListRuntime({
+  return useRemoteThreadListRuntime({
     runtimeHook: function RuntimeHook() {
       return useLangGraphRuntimeImpl(options);
     },

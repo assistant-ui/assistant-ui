@@ -3,13 +3,12 @@ import type {
   CompleteAttachment,
   CreateAttachment,
   PendingAttachment,
-  MessageRole,
-  RunConfig,
-  QuoteInfo,
-  AppendMessage,
-  Unsubscribe,
-} from "../../types";
-import { BaseSubscribable } from "../../subscribable";
+} from "../../types/attachment";
+import type { MessageRole, AppendMessage } from "../../types/message";
+import type { QuoteInfo } from "../../types/quote";
+import type { Unsubscribe } from "../../types/unsubscribe";
+import type { RunConfig } from "../../types/message";
+import { BaseSubscribable } from "../../subscribable/subscribable";
 import type { AttachmentAdapter } from "../../adapters/attachment";
 import type {
   ComposerRuntimeCore,

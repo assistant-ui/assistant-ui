@@ -1,9 +1,10 @@
-import type { ThreadMessage, RunConfig } from "../../types";
+import type { ThreadMessage } from "../../types/message";
+import type { RunConfig } from "../../types/message";
 import type {
   SpeechState,
   SubmittedFeedback,
-  MessageRuntime,
-} from "../../runtime";
+} from "../../runtime/interfaces/thread-runtime-core";
+import type { MessageRuntime } from "../../runtime/api/message-runtime";
 import type { ComposerMethods, ComposerState } from "./composer";
 import type { PartMethods, PartState } from "./part";
 import type { AttachmentMethods } from "./attachment";

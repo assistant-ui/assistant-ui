@@ -1,6 +1,6 @@
 import { ComponentType, FC, memo, useMemo } from "react";
 import { useAuiState } from "@assistant-ui/store";
-import { ThreadListItemByIndexProvider } from "../../providers";
+import { ThreadListItemByIndexProvider } from "../../providers/ThreadListItemByIndexProvider";
 
 export namespace ThreadListPrimitiveItems {
   export type Props = {

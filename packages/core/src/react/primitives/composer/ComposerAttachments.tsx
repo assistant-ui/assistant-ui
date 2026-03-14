@@ -1,7 +1,7 @@
-import type { Attachment } from "../../../types";
+import type { Attachment } from "../../../types/attachment";
 import { ComponentType, type FC, memo, useMemo } from "react";
 import { useAuiState } from "@assistant-ui/store";
-import { ComposerAttachmentByIndexProvider } from "../../providers";
+import { ComposerAttachmentByIndexProvider } from "../../providers/AttachmentByIndexProvider";
 
 export namespace ComposerPrimitiveAttachments {
   export type Props = {

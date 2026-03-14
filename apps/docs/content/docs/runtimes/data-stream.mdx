@@ -165,10 +165,9 @@ const runtime = useDataStreamRuntime({
 
 ### Frontend Tools
 
-Use the `frontendTools` helper to serialize client-side tools:
+Use `toToolsJSONSchema` to serialize client-side tools:
 
 ```tsx
-import { frontendTools } from "@assistant-ui/react-ai-sdk";
 import { tool } from "@assistant-ui/react";
 import { toToolsJSONSchema } from "assistant-stream";
 
@@ -188,7 +187,7 @@ const myTools = {
 const runtime = useDataStreamRuntime({
   api: "/api/chat",
   body: {
-    tools: frontendTools(toToolsJSONSchema(myTools)),
+    tools: toToolsJSONSchema(myTools),
   },
 });
 ```

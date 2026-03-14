@@ -1,4 +1,4 @@
-import type { ThreadMessage } from "../types";
+import type { ThreadMessage } from "../types/message";
 import type { ThreadSuggestion } from "../runtime/interfaces/thread-runtime-core";
 
 type SuggestionAdapterGenerateOptions = {

@@ -5,7 +5,7 @@ import type {
   MessageFormatAdapter,
   MessageFormatItem,
   MessageFormatRepository,
-} from "../../../adapters";
+} from "../../../adapters/thread-history";
 import type { ExportedMessageRepositoryItem } from "../../../runtime/utils/message-repository";
 import {
   AssistantCloud,

@@ -1,7 +1,7 @@
-import type { ThreadMessage as ThreadMessageType } from "../../../types";
+import type { ThreadMessage as ThreadMessageType } from "../../../types/message";
 import { type ComponentType, type FC, memo, useMemo } from "react";
 import { useAuiState } from "@assistant-ui/store";
-import { MessageByIndexProvider } from "../../providers";
+import { MessageByIndexProvider } from "../../providers/MessageByIndexProvider";
 
 export namespace ThreadPrimitiveMessages {
   export type Props = {

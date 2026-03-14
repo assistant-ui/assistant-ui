@@ -176,12 +176,11 @@ import { Text } from "ink";
 
 useAssistantDataUI({
   name: "weather_card",
-  render: ({ part }) => (
-    <Text>{part.value.city}: {part.value.temperature}°F</Text>
+  render: ({ data }) => (
+    <Text>{data.city}: {data.temperature}°F</Text>
   ),
 });
 ```
-
 ### makeAssistantTool
 
 Create a component that registers a tool when mounted.
@@ -235,8 +234,8 @@ import { Text } from "ink";
 
 const WeatherCardUI = makeAssistantDataUI({
   name: "weather_card",
-  render: ({ part }) => (
-    <Text>{part.value.city}: {part.value.temperature}°F</Text>
+  render: ({ data }) => (
+    <Text>{data.city}: {data.temperature}°F</Text>
   ),
 });
 

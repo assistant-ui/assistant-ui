@@ -1,17 +1,19 @@
 import type {
   FileMessagePart,
   MessageStatus,
-  MessageTiming,
   ReasoningMessagePart,
-  RunConfig,
   SourceMessagePart,
-  TextMessagePart,
   ThreadAssistantMessagePart,
   ThreadMessage,
   ThreadStep,
   ToolCallMessagePart,
-} from "../../types";
-import type { ModelContext } from "../../model-context";
+} from "../../types/message";
+import type {
+  MessageTiming,
+  RunConfig,
+  TextMessagePart,
+} from "../../types/message";
+import type { ModelContext } from "../../model-context/types";
 import { ReadonlyJSONValue } from "assistant-stream/utils";
 
 export type ChatModelRunUpdate = {

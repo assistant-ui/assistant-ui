@@ -1,4 +1,4 @@
-import type { AppendMessage, ThreadMessage } from "../../types";
+import type { AppendMessage, ThreadMessage } from "../../types/message";
 import type { ThreadMessageLike } from "../../runtime/utils/thread-message-like";
 import type { AttachmentAdapter } from "../../adapters/attachment";
 import type {

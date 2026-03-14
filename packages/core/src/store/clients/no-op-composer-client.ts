@@ -1,6 +1,6 @@
 import { resource, tapMemo } from "@assistant-ui/tap";
 import type { ClientOutput } from "@assistant-ui/store";
-import type { ComposerState } from "../scopes";
+import type { ComposerState } from "../scopes/composer";
 
 export const NoOpComposerClient = resource(
   ({ type }: { type: "edit" | "thread" }): ClientOutput<"composer"> => {

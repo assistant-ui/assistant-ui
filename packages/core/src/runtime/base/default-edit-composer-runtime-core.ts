@@ -1,4 +1,4 @@
-import type { AppendMessage, ThreadMessage } from "../../types";
+import type { AppendMessage, ThreadMessage } from "../../types/message";
 import { getThreadMessageText } from "../../utils/text";
 import type { AttachmentAdapter } from "../../adapters/attachment";
 import type { DictationAdapter } from "../../adapters/speech";

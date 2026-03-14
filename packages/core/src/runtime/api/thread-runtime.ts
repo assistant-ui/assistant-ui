@@ -14,11 +14,11 @@ import {
   MessageRuntimeImpl,
   MessageState,
 } from "./message-runtime";
+import { NestedSubscriptionSubject } from "../../subscribable/subscribable";
 import {
-  NestedSubscriptionSubject,
   ShallowMemoizeSubject,
   SKIP_UPDATE,
-} from "../../subscribable";
+} from "../../subscribable/subscribable";
 import type { SubscribableWithState } from "../../subscribable/subscribable";
 import {
   ThreadComposerRuntime,
@@ -30,15 +30,12 @@ import {
   ThreadRuntimePath,
 } from "./paths";
 import type { ThreadListItemState } from "./bindings";
-import type {
-  RunConfig,
-  AppendMessage,
-  ThreadMessage,
-  Unsubscribe,
-} from "../../types";
-import { EventSubscriptionSubject } from "../../subscribable";
+import type { AppendMessage, ThreadMessage } from "../../types/message";
+import type { Unsubscribe } from "../../types/unsubscribe";
+import type { RunConfig } from "../../types/message";
+import { EventSubscriptionSubject } from "../../subscribable/subscribable";
 import { symbolInnerMessage } from "../utils/external-store-message";
-import { ModelContext } from "../../model-context";
+import { ModelContext } from "../../model-context/types";
 import {
   ChatModelRunOptions,
   ChatModelRunResult,

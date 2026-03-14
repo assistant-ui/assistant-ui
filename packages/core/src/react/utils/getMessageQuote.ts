@@ -1,4 +1,4 @@
-import type { QuoteInfo } from "../../types";
+import type { QuoteInfo } from "../../types/quote";
 
 type MessageQuoteState = {
   message: {

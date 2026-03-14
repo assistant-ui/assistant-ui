@@ -1,4 +1,4 @@
-import type { Unsubscribe } from "../types";
+import type { Unsubscribe } from "../types/unsubscribe";
 
 // =============================================================================
 // Speech Synthesis Adapter

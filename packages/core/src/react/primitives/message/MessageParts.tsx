@@ -6,7 +6,8 @@ import {
   useMemo,
 } from "react";
 import { useAuiState, useAui } from "@assistant-ui/store";
-import { PartByIndexProvider, TextMessagePartProvider } from "../../providers";
+import { PartByIndexProvider } from "../../providers/PartByIndexProvider";
+import { TextMessagePartProvider } from "../../providers/TextMessagePartProvider";
 import { ChainOfThoughtByIndicesProvider } from "../../providers/ChainOfThoughtByIndicesProvider";
 import { getMessageQuote } from "../../utils/getMessageQuote";
 import type {
@@ -23,8 +24,8 @@ import type {
   ReasoningMessagePartComponent,
   ReasoningGroupComponent,
   QuoteMessagePartComponent,
-} from "../../types";
-import type { MessagePartStatus } from "../../../types";
+} from "../../types/MessagePartComponentTypes";
+import type { MessagePartStatus } from "../../../types/message";
 import { useShallow } from "zustand/shallow";
 
 type MessagePartRange =

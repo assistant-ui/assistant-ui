@@ -1,7 +1,7 @@
 import {
   type ModelContextProvider,
   mergeModelContexts,
-} from "../model-context";
+} from "../model-context/types";
 
 export class CompositeContextProvider implements ModelContextProvider {
   private _providers = new Set<ModelContextProvider>();

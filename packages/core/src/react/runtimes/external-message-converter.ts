@@ -16,11 +16,11 @@ import type { ToolExecutionStatus } from "./useToolInvocations";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import { generateErrorMessageId } from "../../utils/id";
 import type {
-  MessageTiming,
   ThreadAssistantMessage,
   ThreadMessage,
   ToolCallMessagePart,
-} from "../../types";
+} from "../../types/message";
+import type { MessageTiming } from "../../types/message";
 
 export namespace useExternalMessageConverter {
   export type Message =

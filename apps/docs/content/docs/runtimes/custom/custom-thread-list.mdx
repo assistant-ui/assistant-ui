@@ -6,7 +6,7 @@ description: Plug a custom thread database for multi-thread persistence.
 
 ## Overview
 
-`useRemoteThreadListRuntime` lets you plug a custom thread database into assistant-ui. It keeps the UI and local runtime logic in sync while you provide persistence, archiving, and metadata for every conversation. The hook is exported as `unstable_useRemoteThreadListRuntime`; we refer to it here as **Custom Thread List**.
+`useRemoteThreadListRuntime` lets you plug a custom thread database into assistant-ui. It keeps the UI and local runtime logic in sync while you provide persistence, archiving, and metadata for every conversation.
 
 ## When to Use
 
@@ -63,8 +63,8 @@ When the hook mounts it calls `list()` on your adapter, hydrates existing thread
     import {
       AssistantRuntimeProvider,
       useLocalRuntime,
-      unstable_useRemoteThreadListRuntime as useRemoteThreadListRuntime,
-      type unstable_RemoteThreadListAdapter as RemoteThreadListAdapter,
+      useRemoteThreadListRuntime,
+      type RemoteThreadListAdapter,
     } from "@assistant-ui/react";
     import { createAssistantStream } from "assistant-stream";
     import { myModelAdapter } from "./model-adapter"; // your chat model adapter

@@ -10,7 +10,7 @@ import { MessagePartComponent } from "../message/MessageParts";
 import type {
   ReasoningMessagePartComponent,
   ToolCallMessagePartComponent,
-} from "../../types";
+} from "../../types/MessagePartComponentTypes";
 
 export namespace ChainOfThoughtPrimitiveParts {
   export type Props = {

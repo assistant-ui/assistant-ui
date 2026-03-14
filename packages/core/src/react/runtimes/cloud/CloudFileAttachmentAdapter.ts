@@ -3,8 +3,8 @@ import type {
   Attachment,
   PendingAttachment,
   CompleteAttachment,
-  ThreadUserMessagePart,
-} from "../../../types";
+} from "../../../types/attachment";
+import type { ThreadUserMessagePart } from "../../../types/message";
 import type { AttachmentAdapter } from "../../../adapters/attachment";
 
 const guessAttachmentType = (
