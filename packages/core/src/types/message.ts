@@ -33,6 +33,7 @@ export type SourceMessagePart =
       readonly type: "source";
       readonly sourceType: "document";
       readonly id: string;
+      readonly url?: undefined;
       readonly title: string;
       readonly mediaType: string;
       readonly filename?: string;

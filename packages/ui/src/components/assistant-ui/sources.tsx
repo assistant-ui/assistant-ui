@@ -97,19 +97,15 @@ function Source({
   );
 }
 
-const SourcesImpl: SourceMessagePartComponent = ({
-  url,
-  title,
-  sourceType,
-}) => {
-  if (sourceType !== "url" || !url) return null;
+const SourcesImpl: SourceMessagePartComponent = (part) => {
+  if (part.sourceType !== "url" || !part.url) return null;
 
-  const domain = extractDomain(url);
-  const displayTitle = title || domain;
+  const domain = extractDomain(part.url);
+  const displayTitle = part.title || domain;
 
   return (
-    <Source href={url}>
-      <SourceIcon url={url} />
+    <Source href={part.url}>
+      <SourceIcon url={part.url} />
       <SourceTitle>{displayTitle}</SourceTitle>
     </Source>
   );
