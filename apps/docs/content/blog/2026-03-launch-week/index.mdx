@@ -124,6 +124,51 @@ Works with any assistant-ui runtime — AI SDK, LangGraph, or custom backends. N
 
 ---
 
+## Day 4 — <span className="shimmer">tw-shimmer</span>
+
+**Beautiful shimmer effects for Tailwind CSS v4. Zero dependencies, pure CSS.**
+
+We're launching [`tw-shimmer`](https://www.npmjs.com/package/tw-shimmer) — a Tailwind CSS v4 plugin that adds polished shimmer animations for both text and skeleton loaders. No JavaScript runtime, no dependencies — just add a class and go.
+
+- **Sine-eased gradients.** 17 carefully calculated gradient stops following a sine ease-in-out curve. No banding, no harsh edges — just smooth, organic highlights.
+- **OKLCH color mixing.** Perceptually uniform color transitions that look great in any color scheme.
+- **Text + Background.** Shimmer text labels or skeleton placeholders with the same API.
+- **Auto-sizing.** CSS container queries automatically derive speed and spread from container width — no JavaScript measurement needed.
+- **Fully customizable.** Speed, spread, angle, color, duration, and repeat delay — all controllable via Tailwind utilities or CSS variables.
+
+Install and add to your CSS:
+
+```sh
+npm install tw-shimmer
+```
+
+```css title="app/globals.css"
+@import "tailwindcss";
+@import "tw-shimmer";
+```
+
+Then use it:
+
+```html
+<!-- Text shimmer -->
+<span class="shimmer text-foreground/60">Loading...</span>
+
+<!-- Skeleton loader -->
+<div class="shimmer-container flex gap-3">
+  <div class="shimmer-bg bg-muted size-12 rounded-full" />
+  <div class="flex-1 space-y-2">
+    <div class="shimmer-bg bg-muted h-4 w-1/4 rounded" />
+    <div class="shimmer-bg bg-muted h-4 w-full rounded" />
+  </div>
+</div>
+```
+
+[See the interactive demo →](/tw-shimmer)
+
+[Read the docs →](/docs/utilities/tw-shimmer)
+
+---
+
 ## Day 5 — Cloud AI SDK
 
 **Add cloud persistence to any AI SDK app. Just change your import.**

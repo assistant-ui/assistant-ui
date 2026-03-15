@@ -121,9 +121,15 @@ export function Footer(): React.ReactElement {
             </a>
           </div>
 
-          <p className="mt-auto text-muted-foreground text-sm">
-            &copy; {new Date().getFullYear()} AgentbaseAI Inc.
-          </p>
+          <Link
+            href="https://agentbase.dev"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <p className="mt-auto text-muted-foreground text-sm">
+              &copy; {new Date().getFullYear()} AgentbaseAI Inc.
+            </p>
+          </Link>
         </div>
       </div>
     </footer>

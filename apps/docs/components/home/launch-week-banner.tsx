@@ -1,6 +1,12 @@
 "use client";
 
-import { CloudIcon, ZapIcon, SmartphoneIcon, TerminalIcon } from "lucide-react";
+import {
+  CloudIcon,
+  SparklesIcon,
+  ZapIcon,
+  SmartphoneIcon,
+  TerminalIcon,
+} from "lucide-react";
 import Link from "next/link";
 
 const DAYS = [
@@ -12,8 +18,9 @@ const DAYS = [
     href: "/blog/2026-03-launch-week#day-3--assistant-cloud-redesign",
     icon: CloudIcon,
   },
+  { day: 4, title: "tw-shimmer", href: "/tw-shimmer", icon: SparklesIcon },
   {
-    day: 4,
+    day: 5,
     title: "useCloudChat",
     href: "/cloud-ai-sdk",
     icon: ZapIcon,
@@ -27,7 +34,7 @@ export function LaunchWeekBanner() {
         Launch Week
       </p>
 
-      <div className="flex flex-col gap-1.5">
+      <div className="flex max-w-[340px] flex-wrap justify-end gap-1.5">
         {DAYS.map((day) => (
           <Link
             key={day.day}

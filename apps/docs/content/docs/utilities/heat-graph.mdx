@@ -3,8 +3,6 @@ title: heat-graph
 description: Headless, composable activity heatmap components for React.
 ---
 
-import { Callout } from "fumadocs-ui/components/callout";
-import { Tab, Tabs } from "fumadocs-ui/components/tabs";
 import { HeatGraphDemo } from "@/app/heat-graph/heat-graph-demo";
 
 `heat-graph` provides headless, Radix-style primitives for building GitHub-style activity heatmap graphs.
@@ -131,14 +129,14 @@ import * as HeatGraph from "heat-graph";
 
 The top-level provider. Renders a `<div>` that computes the grid layout and provides state to all children. Accepts all standard div props.
 
-| Prop | Type | Default | Description |
-|---|---|---|---|
-| `data` | `DataPoint[]` | required | Array of `{ date: string \| Date, count: number }` |
-| `start` | `string \| Date` | 1 year before `end` | Start of the date range |
-| `end` | `string \| Date` | today | End of the date range |
-| `weekStart` | `"sunday" \| "monday"` | `"sunday"` | First day of the week |
-| `classify` | `ClassifyFn` | `autoLevels(5)` | Bucketing function mapping counts to levels |
-| `colorScale` | `string[]` | — | Array of colors, one per level (index 0 = lowest) |
+| Prop         | Type                   | Default             | Description                                        |
+| ------------ | ---------------------- | ------------------- | -------------------------------------------------- |
+| `data`       | `DataPoint[]`          | required            | Array of `{ date: string \| Date, count: number }` |
+| `start`      | `string \| Date`       | 1 year before `end` | Start of the date range                            |
+| `end`        | `string \| Date`       | today               | End of the date range                              |
+| `weekStart`  | `"sunday" \| "monday"` | `"sunday"`          | First day of the week                              |
+| `classify`   | `ClassifyFn`           | `autoLevels(5)`     | Bucketing function mapping counts to levels        |
+| `colorScale` | `string[]`             | —                   | Array of colors, one per level (index 0 = lowest)  |
 
 ### Grid
 
