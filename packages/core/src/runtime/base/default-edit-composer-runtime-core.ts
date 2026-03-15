@@ -51,15 +51,12 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
   public async handleSend(
     message: Omit<AppendMessage, "parentId" | "sourceId">,
   ) {
-    const text = getThreadMessageText(message as AppendMessage);
-    if (text !== this._previousText) {
-      this.runtime.append({
-        ...message,
-        content: [...message.content, ...this._nonTextParts] as any,
-        parentId: this._parentId,
-        sourceId: this._sourceId,
-      });
-    }
+    this.runtime.append({
+      ...message,
+      content: [...message.content, ...this._nonTextParts] as any,
+      parentId: this._parentId,
+      sourceId: this._sourceId,
+    });
 
     this.handleCancel();
   }
