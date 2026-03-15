@@ -8,6 +8,7 @@ import type {
   ToolCallMessagePart,
   TextMessagePart,
   DataMessagePart,
+  FileMessagePart,
   SourceMessagePart,
   ThreadMessageLike,
 } from "@assistant-ui/core";
@@ -123,7 +124,11 @@ function convertParts(
   }
 
   const converted = message.parts
-    .filter((p) => p.type !== "step-start" && p.type !== "file")
+    .filter(
+      (p) =>
+        p.type !== "step-start" &&
+        !(p.type === "file" && message.role === "user"),
+    )
     .map((part) => {
       if (part.type === "text") {
         return {
@@ -186,6 +191,15 @@ function convertParts(
           isError,
           ...getToolInterrupt(part, toolStatus),
         } satisfies ToolCallMessagePart;
+      }
+
+      if (part.type === "file") {
+        return {
+          type: "file",
+          data: part.url,
+          mimeType: part.mediaType ?? "application/octet-stream",
+          ...(part.filename != null && { filename: part.filename }),
+        } satisfies FileMessagePart;
       }
 
       if (part.type === "source-url") {
