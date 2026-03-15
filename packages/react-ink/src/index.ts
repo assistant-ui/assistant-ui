@@ -114,6 +114,7 @@ export * as ChainOfThoughtPrimitive from "./primitives/chainOfThought";
 export * as SuggestionPrimitive from "./primitives/suggestion";
 export * as ToolCallPrimitive from "./primitives/toolCall";
 export * as ErrorPrimitive from "./primitives/error";
+export * as StatusBarPrimitive from "./primitives/statusBar";
 
 // Re-export shared providers from core/react
 export {
