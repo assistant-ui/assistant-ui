@@ -26,6 +26,7 @@ type Subscriber = {
   onToolCallEndEvent?: (payload: { event: unknown }) => void;
   onToolCallChunkEvent?: (payload: { event: unknown }) => void;
   onToolCallResultEvent?: (payload: { event: unknown }) => void;
+  onRunErrorEvent?: (payload: { event: unknown }) => void;
   onStateSnapshotEvent?: (payload: { event: unknown }) => void;
   onStateDeltaEvent?: (payload: { event: unknown }) => void;
   onMessagesSnapshotEvent?: (payload: { event: unknown }) => void;
@@ -120,6 +121,8 @@ export const createAgUiSubscriber = (
       dispatchIfValid(dispatch, event, "TOOL_CALL_CHUNK"),
     onToolCallResultEvent: ({ event }) =>
       dispatchIfValid(dispatch, event, "TOOL_CALL_RESULT"),
+    onRunErrorEvent: ({ event }) =>
+      dispatchIfValid(dispatch, event, "RUN_ERROR"),
     onStateSnapshotEvent: ({ event }) =>
       dispatchIfValid(dispatch, event, "STATE_SNAPSHOT"),
     onStateDeltaEvent: ({ event }) =>

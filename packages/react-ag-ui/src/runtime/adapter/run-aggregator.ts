@@ -87,6 +87,12 @@ export class RunAggregator {
         break;
       }
       case "RUN_ERROR": {
+        // Inject the error message as visible text content so the user can see
+        // it directly in the AI reply bubble.
+        if (event.message) {
+          const errorTextKey = this.resolveTextMessageId(undefined);
+          this.appendText(errorTextKey, event.message);
+        }
         this.status = {
           type: "incomplete",
           reason: "error",
