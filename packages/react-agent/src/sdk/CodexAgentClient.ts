@@ -610,12 +610,17 @@ class CodexTaskController {
             ? (rawCmd as string[]).slice(-1)[0]
             : (rawCmd as string | undefined)) ??
           "command";
+        // Use the event's own ID so exec_command_end can match it
+        const toolId =
+          (msg["call_id"] as string | undefined) ??
+          (p["id"] as string | undefined) ??
+          `tool_${nanoid()}`;
         return [
           {
             type: "tool_use",
             taskId: this.taskId,
             data: {
-              toolCallId: `tool_${nanoid()}`,
+              toolCallId: toolId,
               toolName: "command",
               toolInput: { command: cmd },
             },
@@ -623,23 +628,26 @@ class CodexTaskController {
         ];
       }
 
-      case "codex/event/exec_command_end":
+      case "codex/event/exec_command_end": {
+        const endMsg = (p["msg"] as Record<string, unknown> | undefined) ?? p;
+        const endToolId =
+          (endMsg["call_id"] as string | undefined) ??
+          (p["id"] as string | undefined) ??
+          "";
         return [
           {
             type: "tool_result",
             taskId: this.taskId,
             data: {
-              toolCallId: (p["id"] as string | undefined) ?? "",
-              result:
-                (p["output"] as string | undefined) ??
-                (p["exit_code"] as unknown) ??
-                "done",
+              toolCallId: endToolId,
+              result: "done",
               isError:
-                (p["exit_code"] as number | undefined) !== 0 &&
-                p["exit_code"] !== undefined,
+                (endMsg["exit_code"] as number | undefined) !== 0 &&
+                endMsg["exit_code"] !== undefined,
             },
           },
         ];
+      }
 
       case "codex/event/item_started": {
         const itemType = (p["type"] as string | undefined) ?? "";
