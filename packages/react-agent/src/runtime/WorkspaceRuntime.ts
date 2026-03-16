@@ -93,9 +93,16 @@ export class WorkspaceRuntime {
     return () => this.listeners.delete(callback);
   }
 
+  private notifyScheduled = false;
+
   private notify(): void {
-    // Update the cached array before notifying listeners
-    this.cachedTasksArray = Array.from(this.tasks.values());
-    this.listeners.forEach((cb) => cb());
+    if (this.notifyScheduled) return;
+    this.notifyScheduled = true;
+    queueMicrotask(() => {
+      this.notifyScheduled = false;
+      // Update the cached array before notifying listeners
+      this.cachedTasksArray = Array.from(this.tasks.values());
+      this.listeners.forEach((cb) => cb());
+    });
   }
 }
