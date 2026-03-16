@@ -6,13 +6,9 @@ import { adkEventStream, type AdkEventStreamOptions } from "./adkEventStream";
  * Avoids requiring `@google/adk` as a dependency.
  */
 type AdkRunner = {
-  runAsync(options: {
-    userId: string;
-    sessionId: string;
-    newMessage: { role: string; parts: Array<Record<string, unknown>> };
-    stateDelta?: Record<string, unknown>;
-    runConfig?: unknown;
-  }): AsyncGenerator<any, void, undefined>;
+  runAsync(
+    options: Record<string, unknown>,
+  ): AsyncGenerator<any, void, undefined>;
 };
 
 export type CreateAdkApiRouteOptions = {
