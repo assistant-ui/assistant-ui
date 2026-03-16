@@ -52,6 +52,12 @@ export const useAdkMessages = ({
   const lastTransferToAgentRef = useRef<string | undefined>(undefined);
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
+  const stateDeltaRef = useRef(stateDelta);
+  stateDeltaRef.current = stateDelta;
+  const artifactDeltaRef = useRef(artifactDelta);
+  artifactDeltaRef.current = artifactDelta;
+  const messageMetadataRef = useRef(messageMetadata);
+  messageMetadataRef.current = messageMetadata;
 
   const setMessagesImmediate = useCallback((msgs: AdkMessage[]) => {
     messagesRef.current = msgs;
@@ -93,14 +99,27 @@ export const useAdkMessages = ({
         for await (const event of response) {
           const updatedMessages = accumulator.processEvent(event);
           setMessagesImmediate(updatedMessages);
-          setStateDelta(accumulator.getStateDelta());
+          setStateDelta({
+            ...stateDeltaRef.current,
+            ...accumulator.getStateDelta(),
+          });
           setAgentInfo(accumulator.getAgentInfo());
           setLongRunningToolIds(accumulator.getLongRunningToolIds());
-          setArtifactDelta(accumulator.getArtifactDelta());
+          setArtifactDelta({
+            ...artifactDeltaRef.current,
+            ...accumulator.getArtifactDelta(),
+          });
           setToolConfirmations(accumulator.getToolConfirmations());
           setAuthRequests(accumulator.getAuthRequests());
           setEscalated(accumulator.isEscalated());
-          setMessageMetadata(accumulator.getMessageMetadata());
+          {
+            const newMeta = accumulator.getMessageMetadata();
+            if (newMeta.size > 0) {
+              setMessageMetadata(
+                new Map([...messageMetadataRef.current, ...newMeta]),
+              );
+            }
+          }
 
           const transfer = accumulator.getLastTransferToAgent();
           if (transfer && transfer !== lastTransferToAgentRef.current) {

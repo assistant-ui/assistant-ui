@@ -17,8 +17,11 @@ type InProgressMessage = AdkMessage & { type: "ai" };
 const ADK_REQUEST_CONFIRMATION = "adk_request_confirmation";
 const ADK_REQUEST_CREDENTIAL = "adk_request_credential";
 
-const isFinalResponse = (event: AdkEvent): boolean => {
-  // ADK checks skipSummarization and longRunningToolIds BEFORE partial
+/**
+ * Checks if an event is a final response using the same logic as ADK's
+ * `isFinalResponse()`.
+ */
+export const isFinalResponse = (event: AdkEvent): boolean => {
   if (
     event.actions?.skipSummarization ||
     (event.longRunningToolIds && event.longRunningToolIds.length > 0)

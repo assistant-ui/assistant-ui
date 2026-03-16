@@ -13,10 +13,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <MyRuntimeProvider>
-      <html lang="en">
-        <body className="h-dvh">{children}</body>
-      </html>
-    </MyRuntimeProvider>
+    <html lang="en">
+      <body className="h-dvh">
+        <MyRuntimeProvider>{children}</MyRuntimeProvider>
+      </body>
+    </html>
   );
 }

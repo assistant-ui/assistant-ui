@@ -354,9 +354,14 @@ const useAdkRuntimeImpl = ({
       const externalId = aui.threadListItem().getState().externalId;
       if (externalId == null) return;
 
-      loadFn(externalId).then(({ messages: msgs }) => {
-        setMessages(msgs);
-      });
+      loadFn(externalId).then(
+        ({ messages: msgs }) => {
+          setMessages(msgs);
+        },
+        () => {
+          // Silently ignore load failures (e.g. session not found)
+        },
+      );
     }, [aui, setMessages]);
   }
 

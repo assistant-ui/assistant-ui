@@ -116,30 +116,39 @@ export const adkEventStream = (
   options?: AdkEventStreamOptions,
 ): Response => {
   const encoder = new TextEncoder();
+  let cancelled = false;
   const stream = new ReadableStream({
     async start(controller) {
       // Initial SSE comment to keep connection alive through proxies
       controller.enqueue(encoder.encode(":ok\n\n"));
       try {
         for await (const event of events) {
+          if (cancelled) break;
           const wireEvent = convertSdkEvent(event);
           controller.enqueue(
             encoder.encode(`data: ${JSON.stringify(wireEvent)}\n\n`),
           );
         }
       } catch (e) {
-        options?.onError?.(e);
-        const errorEvent: AdkEvent = {
-          id: "",
-          errorCode: "STREAM_ERROR",
-          errorMessage: e instanceof Error ? e.message : "Unknown stream error",
-        };
-        controller.enqueue(
-          encoder.encode(`data: ${JSON.stringify(errorEvent)}\n\n`),
-        );
+        if (!cancelled) {
+          options?.onError?.(e);
+          const errorEvent: AdkEvent = {
+            id: "",
+            errorCode: "STREAM_ERROR",
+            errorMessage:
+              e instanceof Error ? e.message : "Unknown stream error",
+          };
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify(errorEvent)}\n\n`),
+          );
+        }
       } finally {
         controller.close();
       }
+    },
+    cancel() {
+      cancelled = true;
+      events.return?.(undefined as any);
     },
   });
 

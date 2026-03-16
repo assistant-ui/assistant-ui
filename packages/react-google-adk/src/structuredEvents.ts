@@ -1,30 +1,5 @@
 import type { AdkEvent, AdkStructuredEvent } from "./types";
-
-/**
- * Checks if an event is a final response using the same logic as ADK's
- * `isFinalResponse()`. Returns true when:
- * - `skipSummarization` is set, OR
- * - `longRunningToolIds` is non-empty, OR
- * - Event is non-partial, has content parts, no function calls/responses,
- *   and no trailing code execution result.
- */
-function isFinalResponse(event: AdkEvent): boolean {
-  if (
-    event.actions?.skipSummarization ||
-    (event.longRunningToolIds && event.longRunningToolIds.length > 0)
-  ) {
-    return true;
-  }
-
-  const parts = event.content?.parts;
-  return (
-    !event.partial &&
-    (parts?.length ?? 0) > 0 &&
-    !parts!.some((p) => p.functionCall) &&
-    !parts!.some((p) => p.functionResponse) &&
-    !parts![parts!.length - 1]?.codeExecutionResult
-  );
-}
+import { isFinalResponse } from "./AdkEventAccumulator";
 
 /**
  * Converts a raw `AdkEvent` into an array of structured, typed events.
