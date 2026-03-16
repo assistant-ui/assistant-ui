@@ -143,6 +143,10 @@ export { useRemoteThreadListRuntime } from "./runtimes/useRemoteThreadListRuntim
 export { useCloudThreadListAdapter } from "./runtimes/cloud/useCloudThreadListAdapter";
 export { useAssistantCloudThreadHistoryAdapter } from "./runtimes/cloud/AssistantCloudThreadHistoryAdapter";
 export { CloudFileAttachmentAdapter } from "./runtimes/cloud/CloudFileAttachmentAdapter";
+export {
+  createLocalStorageAdapter,
+  type AsyncStorageLike,
+} from "./adapters/LocalStorageThreadListAdapter";
 
 // AssistantProvider base
 export {

@@ -112,6 +112,13 @@ export {
   type LocalRuntimeOptions,
 } from "./runtimes/useLocalRuntime";
 export { useRemoteThreadListRuntime } from "./runtimes/useRemoteThreadListRuntime";
+export {
+  createFileStorageAdapter,
+  FileStorage,
+  type AsyncStorageLike,
+  type CreateFileStorageAdapterOptions,
+  type FileStorageOptions,
+} from "./adapters";
 
 // Primitives
 export * as ThreadPrimitive from "./primitives/thread";
