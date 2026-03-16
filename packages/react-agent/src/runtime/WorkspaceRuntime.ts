@@ -96,12 +96,12 @@ export class WorkspaceRuntime {
   private notifyScheduled = false;
 
   private notify(): void {
+    // Update the cached array synchronously so getTasks() is never stale
+    this.cachedTasksArray = Array.from(this.tasks.values());
     if (this.notifyScheduled) return;
     this.notifyScheduled = true;
     queueMicrotask(() => {
       this.notifyScheduled = false;
-      // Update the cached array before notifying listeners
-      this.cachedTasksArray = Array.from(this.tasks.values());
       this.listeners.forEach((cb) => cb());
     });
   }

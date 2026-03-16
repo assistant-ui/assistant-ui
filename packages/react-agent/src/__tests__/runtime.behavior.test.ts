@@ -645,6 +645,8 @@ describe("runtime behavior", () => {
     expect(workspace.getTask(task.id)).toBeUndefined();
     expect(workspace.getTasks()).toHaveLength(0);
 
+    // Flush the batched notification microtask from removeTask
+    await Promise.resolve();
     const notifyAfterRemove = onWorkspaceUpdate.mock.calls.length;
 
     // Task can still receive stream events, but workspace should no longer notify.
