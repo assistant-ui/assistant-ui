@@ -2,9 +2,10 @@ import {
   type ComponentType,
   type FC,
   type PropsWithChildren,
-  useMemo,
+  type ReactNode,
 } from "react";
-import { useAuiState } from "@assistant-ui/store";
+import { AuiForEach, RenderChildrenWithAccessor } from "@assistant-ui/store";
+import type { PartState } from "../../../store/scopes/part";
 import { ChainOfThoughtPartByIndexProvider } from "../../providers/ChainOfThoughtPartByIndexProvider";
 import { MessagePartComponent } from "../message/MessageParts";
 import type {
@@ -12,23 +13,56 @@ import type {
   ToolCallMessagePartComponent,
 } from "../../types/MessagePartComponentTypes";
 
-export namespace ChainOfThoughtPrimitiveParts {
-  export type Props = {
-    /**
-     * Component configuration for rendering chain of thought parts.
-     */
-    components?: {
-      /** Component for rendering reasoning parts */
-      Reasoning?: ReasoningMessagePartComponent | undefined;
-      /** Fallback component for tool-call parts */
-      tools?: {
-        Fallback?: ToolCallMessagePartComponent | undefined;
-      };
-      /** Layout component to wrap the rendered parts when expanded */
-      Layout?: ComponentType<PropsWithChildren> | undefined;
-    };
+type ChainOfThoughtPartsComponentConfig = {
+  /** Component for rendering reasoning parts */
+  Reasoning?: ReasoningMessagePartComponent | undefined;
+  /** Fallback component for tool-call parts */
+  tools?: {
+    Fallback?: ToolCallMessagePartComponent | undefined;
   };
+  /** Layout component to wrap the rendered parts when expanded */
+  Layout?: ComponentType<PropsWithChildren> | undefined;
+};
+
+export namespace ChainOfThoughtPrimitiveParts {
+  export type Props =
+    | {
+        /**
+         * Component configuration for rendering chain of thought parts.
+         */
+        components?: ChainOfThoughtPartsComponentConfig;
+        children?: never;
+      }
+    | {
+        /** Render function called for each part. Receives the part. */
+        children: (value: { part: PartState }) => ReactNode;
+        components?: never;
+      };
 }
+
+const ChainOfThoughtPrimitivePartsInner: FC<{
+  children: (value: { part: PartState }) => ReactNode;
+}> = ({ children }) => (
+  <AuiForEach keys={(s) => s.chainOfThought.parts.map((_, index) => index)}>
+    {(index) => (
+      <ChainOfThoughtPartByIndexProvider index={index}>
+        <RenderChildrenWithAccessor
+          getItemState={(aui) =>
+            aui.chainOfThought().part({ index }).getState()
+          }
+        >
+          {(getItem) =>
+            children({
+              get part() {
+                return getItem();
+              },
+            })
+          }
+        </RenderChildrenWithAccessor>
+      </ChainOfThoughtPartByIndexProvider>
+    )}
+  </AuiForEach>
+);
 
 /**
  * Renders the parts within a chain of thought, with support for collapsed/expanded states.
@@ -38,36 +72,37 @@ export namespace ChainOfThoughtPrimitiveParts {
  */
 export const ChainOfThoughtPrimitiveParts: FC<
   ChainOfThoughtPrimitiveParts.Props
-> = ({ components }) => {
-  const partsLength = useAuiState((s) => s.chainOfThought.parts.length);
+> = ({ components, children }) => {
+  if (children) {
+    return (
+      <ChainOfThoughtPrimitivePartsInner>
+        {children}
+      </ChainOfThoughtPrimitivePartsInner>
+    );
+  }
 
-  const messageComponents = useMemo(
-    () => ({
-      Reasoning: components?.Reasoning,
-      tools: {
-        Fallback: components?.tools?.Fallback,
-      },
-    }),
-    [components?.Reasoning, components?.tools?.Fallback],
-  );
+  const messageComponents = {
+    Reasoning: components?.Reasoning,
+    tools: {
+      Fallback: components?.tools?.Fallback,
+    },
+  };
 
   const Layout = components?.Layout;
 
-  const elements = useMemo(() => {
-    return Array.from({ length: partsLength }, (_, index) => (
-      <ChainOfThoughtPartByIndexProvider key={index} index={index}>
-        {Layout ? (
+  return (
+    <ChainOfThoughtPrimitivePartsInner>
+      {() =>
+        Layout ? (
           <Layout>
             <MessagePartComponent components={messageComponents} />
           </Layout>
         ) : (
           <MessagePartComponent components={messageComponents} />
-        )}
-      </ChainOfThoughtPartByIndexProvider>
-    ));
-  }, [partsLength, messageComponents, Layout]);
-
-  return <>{elements}</>;
+        )
+      }
+    </ChainOfThoughtPrimitivePartsInner>
+  );
 };
 
 ChainOfThoughtPrimitiveParts.displayName = "ChainOfThoughtPrimitive.Parts";

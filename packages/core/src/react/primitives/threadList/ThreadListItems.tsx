@@ -1,21 +1,33 @@
-import { ComponentType, FC, memo, useMemo } from "react";
-import { useAuiState } from "@assistant-ui/store";
+import { ComponentType, FC, ReactNode, memo } from "react";
+import { AuiForEach, RenderChildrenWithAccessor } from "@assistant-ui/store";
+import type { ThreadListItemState } from "../../../store/scopes/thread-list-item";
 import { ThreadListItemByIndexProvider } from "../../providers/ThreadListItemByIndexProvider";
+
+type ThreadListItemsComponentConfig = {
+  ThreadListItem: ComponentType;
+};
 
 export namespace ThreadListPrimitiveItems {
   export type Props = {
     archived?: boolean | undefined;
-    components: {
-      ThreadListItem: ComponentType;
-    };
-  };
+  } & (
+    | {
+        components: ThreadListItemsComponentConfig;
+        children?: never;
+      }
+    | {
+        /** Render function called for each thread list item. Receives the item. */
+        children: (value: { threadListItem: ThreadListItemState }) => ReactNode;
+        components?: never;
+      }
+  );
 }
 
 export namespace ThreadListPrimitiveItemByIndex {
   export type Props = {
     index: number;
     archived?: boolean | undefined;
-    components: ThreadListPrimitiveItems.Props["components"];
+    components: ThreadListItemsComponentConfig;
   };
 }
 
@@ -41,26 +53,54 @@ export const ThreadListPrimitiveItemByIndex: FC<ThreadListPrimitiveItemByIndex.P
 
 ThreadListPrimitiveItemByIndex.displayName = "ThreadListPrimitive.ItemByIndex";
 
+const ThreadListPrimitiveItemsInner: FC<{
+  archived: boolean;
+  children: (value: { threadListItem: ThreadListItemState }) => ReactNode;
+}> = ({ archived, children }) => (
+  <AuiForEach
+    keys={(s) => {
+      const ids = archived ? s.threads.archivedThreadIds : s.threads.threadIds;
+      return ids.map((_, index) => index);
+    }}
+  >
+    {(index) => (
+      <ThreadListItemByIndexProvider index={index} archived={archived}>
+        <RenderChildrenWithAccessor
+          getItemState={(aui) =>
+            aui.threads().item({ index, archived }).getState()
+          }
+        >
+          {(getItem) =>
+            children({
+              get threadListItem() {
+                return getItem();
+              },
+            })
+          }
+        </RenderChildrenWithAccessor>
+      </ThreadListItemByIndexProvider>
+    )}
+  </AuiForEach>
+);
+
 export const ThreadListPrimitiveItems: FC<ThreadListPrimitiveItems.Props> = ({
   archived = false,
   components,
+  children,
 }) => {
-  const contentLength = useAuiState((s) =>
-    archived ? s.threads.archivedThreadIds.length : s.threads.threadIds.length,
+  if (components) {
+    const ThreadListItemComponent = components.ThreadListItem;
+    return (
+      <ThreadListPrimitiveItemsInner archived={archived}>
+        {() => <ThreadListItemComponent />}
+      </ThreadListPrimitiveItemsInner>
+    );
+  }
+  return (
+    <ThreadListPrimitiveItemsInner archived={archived}>
+      {children!}
+    </ThreadListPrimitiveItemsInner>
   );
-
-  const listElements = useMemo(() => {
-    return Array.from({ length: contentLength }, (_, index) => (
-      <ThreadListPrimitiveItemByIndex
-        key={index}
-        index={index}
-        archived={archived}
-        components={components}
-      />
-    ));
-  }, [contentLength, archived, components]);
-
-  return listElements;
 };
 
 ThreadListPrimitiveItems.displayName = "ThreadListPrimitive.Items";

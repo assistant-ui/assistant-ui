@@ -36,26 +36,12 @@ export function AuiForEach<TKey extends string | number>({
   return useMemo(
     () =>
       arr.map((key, index) => (
-        <AuiForEachElement key={key} index={index} itemKey={key}>
-          {children}
-        </AuiForEachElement>
+        <Fragment key={key}>{children(key, index)}</Fragment>
       )),
     // biome-ignore lint/correctness/useExhaustiveDependencies: shallow memo
     arr,
   );
 }
-
-const AuiForEachElement = <TKey extends string | number>({
-  itemKey,
-  index,
-  children,
-}: {
-  itemKey: TKey;
-  index: number;
-  children: (itemKey: TKey, index: number) => ReactNode;
-}) => {
-  return <Fragment>{children(itemKey, index)}</Fragment>;
-};
 
 export const useGetItemAccessor = <T,>(
   getItemState: (aui: AssistantClient) => T,

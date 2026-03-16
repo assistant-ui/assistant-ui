@@ -1,23 +1,34 @@
 import type { CompleteAttachment } from "../../../types/attachment";
-import { ComponentType, type FC, memo, useMemo } from "react";
-import { useAuiState } from "@assistant-ui/store";
+import { ComponentType, type FC, type ReactNode, memo } from "react";
+import {
+  AuiForEach,
+  RenderChildrenWithAccessor,
+  useAuiState,
+} from "@assistant-ui/store";
 import { MessageAttachmentByIndexProvider } from "../../providers/AttachmentByIndexProvider";
 
+type MessageAttachmentsComponentConfig = {
+  Image?: ComponentType | undefined;
+  Document?: ComponentType | undefined;
+  File?: ComponentType | undefined;
+  Attachment?: ComponentType | undefined;
+};
+
 export namespace MessagePrimitiveAttachments {
-  export type Props = {
-    components:
-      | {
-          Image?: ComponentType | undefined;
-          Document?: ComponentType | undefined;
-          File?: ComponentType | undefined;
-          Attachment?: ComponentType | undefined;
-        }
-      | undefined;
-  };
+  export type Props =
+    | {
+        components?: MessageAttachmentsComponentConfig | undefined;
+        children?: never;
+      }
+    | {
+        /** Render function called for each attachment. Receives the attachment. */
+        children: (value: { attachment: CompleteAttachment }) => ReactNode;
+        components?: never;
+      };
 }
 
 const getComponent = (
-  components: MessagePrimitiveAttachments.Props["components"],
+  components: MessageAttachmentsComponentConfig | undefined,
   attachment: CompleteAttachment,
 ) => {
   const type = attachment.type;
@@ -34,7 +45,7 @@ const getComponent = (
 };
 
 const AttachmentComponent: FC<{
-  components: MessagePrimitiveAttachments.Props["components"];
+  components: MessageAttachmentsComponentConfig | undefined;
 }> = ({ components }) => {
   const attachment = useAuiState((s) => s.attachment);
   if (!attachment) return null;
@@ -47,7 +58,7 @@ const AttachmentComponent: FC<{
 export namespace MessagePrimitiveAttachmentByIndex {
   export type Props = {
     index: number;
-    components?: MessagePrimitiveAttachments.Props["components"];
+    components?: MessageAttachmentsComponentConfig;
   };
 }
 
@@ -74,25 +85,52 @@ export const MessagePrimitiveAttachmentByIndex: FC<MessagePrimitiveAttachmentByI
 MessagePrimitiveAttachmentByIndex.displayName =
   "MessagePrimitive.AttachmentByIndex";
 
+const MessagePrimitiveAttachmentsInner: FC<{
+  children: (value: { attachment: CompleteAttachment }) => ReactNode;
+}> = ({ children }) => (
+  <AuiForEach
+    keys={(s) => {
+      if (s.message.role !== "user") return [];
+      return s.message.attachments.map((_, index) => index);
+    }}
+  >
+    {(index) => (
+      <MessageAttachmentByIndexProvider index={index}>
+        <RenderChildrenWithAccessor
+          getItemState={(aui) => aui.message().attachment({ index }).getState()}
+        >
+          {(getItem) =>
+            children({
+              get attachment() {
+                return getItem() as CompleteAttachment;
+              },
+            })
+          }
+        </RenderChildrenWithAccessor>
+      </MessageAttachmentByIndexProvider>
+    )}
+  </AuiForEach>
+);
+
 export const MessagePrimitiveAttachments: FC<
   MessagePrimitiveAttachments.Props
-> = ({ components }) => {
-  const attachmentsCount = useAuiState((s) => {
-    if (s.message.role !== "user") return 0;
-    return s.message.attachments.length;
-  });
-
-  const attachmentElements = useMemo(() => {
-    return Array.from({ length: attachmentsCount }, (_, index) => (
-      <MessagePrimitiveAttachmentByIndex
-        key={index}
-        index={index}
-        components={components}
-      />
-    ));
-  }, [attachmentsCount, components]);
-
-  return attachmentElements;
+> = ({ components, children }) => {
+  if (components) {
+    return (
+      <MessagePrimitiveAttachmentsInner>
+        {({ attachment }) => {
+          const Component = getComponent(components, attachment);
+          if (!Component) return null;
+          return <Component />;
+        }}
+      </MessagePrimitiveAttachmentsInner>
+    );
+  }
+  return (
+    <MessagePrimitiveAttachmentsInner>
+      {children!}
+    </MessagePrimitiveAttachmentsInner>
+  );
 };
 
 MessagePrimitiveAttachments.displayName = "MessagePrimitive.Attachments";

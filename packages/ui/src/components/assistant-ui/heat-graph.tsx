@@ -25,56 +25,43 @@ export function HeatGraph({ data }: { data: HeatGraphPrimitive.DataPoint[] }) {
 
 function MonthLabels() {
   return (
-    <HeatGraphPrimitive.MonthLabels>
-      {({ labels, totalWeeks }) => (
-        <div className="relative ml-10 h-5">
-          {labels.map((label) => (
-            <span
-              key={`${label.month}-${label.column}`}
-              className="absolute text-gray-500 text-xs"
-              style={{ left: `${(label.column / totalWeeks) * 100}%` }}
-            >
-              {HeatGraphPrimitive.MONTH_SHORT[label.month]}
-            </span>
-          ))}
-        </div>
-      )}
-    </HeatGraphPrimitive.MonthLabels>
+    <div className="relative ml-10 h-5">
+      <HeatGraphPrimitive.MonthLabels>
+        {({ label, totalWeeks }) => (
+          <span
+            className="absolute text-gray-500 text-xs"
+            style={{ left: `${(label.column / totalWeeks) * 100}%` }}
+          >
+            {HeatGraphPrimitive.MONTH_SHORT[label.month]}
+          </span>
+        )}
+      </HeatGraphPrimitive.MonthLabels>
+    </div>
   );
 }
 
 function DayLabels() {
   return (
-    <HeatGraphPrimitive.DayLabels>
-      {({ labels }) => (
-        <div className="flex w-8 shrink-0 flex-col justify-between py-[2px]">
-          {labels.map((label) => (
-            <span
-              key={label.row}
-              className="flex h-[13px] items-center text-gray-500 text-xs"
-            >
-              {label.row % 2 === 0
-                ? HeatGraphPrimitive.DAY_SHORT[label.dayOfWeek]
-                : ""}
-            </span>
-          ))}
-        </div>
-      )}
-    </HeatGraphPrimitive.DayLabels>
+    <div className="flex w-8 shrink-0 flex-col justify-between py-[2px]">
+      <HeatGraphPrimitive.DayLabels>
+        {({ label }) => (
+          <span className="flex h-[13px] items-center text-gray-500 text-xs">
+            {label.row % 2 === 0
+              ? HeatGraphPrimitive.DAY_SHORT[label.dayOfWeek]
+              : ""}
+          </span>
+        )}
+      </HeatGraphPrimitive.DayLabels>
+    </div>
   );
 }
 
 function CellGrid() {
   return (
     <HeatGraphPrimitive.Grid className="flex-1 gap-[3px]">
-      {({ cells }) =>
-        cells.map((cell) => (
-          <HeatGraphPrimitive.Cell
-            key={`${cell.column}-${cell.row}`}
-            className="aspect-square w-full rounded-sm"
-          />
-        ))
-      }
+      {() => (
+        <HeatGraphPrimitive.Cell className="aspect-square w-full rounded-sm" />
+      )}
     </HeatGraphPrimitive.Grid>
   );
 }
@@ -98,19 +85,14 @@ function CellTooltip() {
 
 function GraphLegend() {
   return (
-    <HeatGraphPrimitive.Legend>
-      {({ items }) => (
-        <div className="ml-auto flex items-center gap-1 text-gray-500 text-xs">
-          <span>Less</span>
-          {items.map((item) => (
-            <HeatGraphPrimitive.LegendLevel
-              key={item.level}
-              className="h-[13px] w-[13px] rounded-sm"
-            />
-          ))}
-          <span>More</span>
-        </div>
-      )}
-    </HeatGraphPrimitive.Legend>
+    <div className="ml-auto flex items-center gap-1 text-gray-500 text-xs">
+      <span>Less</span>
+      <HeatGraphPrimitive.Legend>
+        {() => (
+          <HeatGraphPrimitive.LegendLevel className="h-[13px] w-[13px] rounded-sm" />
+        )}
+      </HeatGraphPrimitive.Legend>
+      <span>More</span>
+    </div>
   );
 }

@@ -1,19 +1,29 @@
-import { type ComponentType, type FC, memo, useMemo } from "react";
-import { useAuiState } from "@assistant-ui/store";
+import { type ComponentType, type FC, type ReactNode, memo } from "react";
+import { AuiForEach, RenderChildrenWithAccessor } from "@assistant-ui/store";
+import type { SpanState } from "../../o11y-scope";
 import { SpanByIndexProvider } from "../../context/SpanByIndexProvider";
 
+type SpanChildrenComponentConfig = {
+  Span: ComponentType;
+};
+
 export namespace SpanPrimitiveChildren {
-  export type Props = {
-    components: {
-      Span: ComponentType;
-    };
-  };
+  export type Props =
+    | {
+        components: SpanChildrenComponentConfig;
+        children?: never;
+      }
+    | {
+        /** Render function called for each child span. Receives the span. */
+        children: (value: { span: SpanState }) => ReactNode;
+        components?: never;
+      };
 }
 
 export namespace SpanPrimitiveChildByIndex {
   export type Props = {
     index: number;
-    components: SpanPrimitiveChildren.Props["components"];
+    components: SpanChildrenComponentConfig;
   };
 }
 
@@ -33,28 +43,50 @@ export const SpanPrimitiveChildByIndex: FC<SpanPrimitiveChildByIndex.Props> =
 
 SpanPrimitiveChildByIndex.displayName = "SpanPrimitive.ChildByIndex";
 
+const SpanPrimitiveChildrenInner: FC<{
+  children: (value: { span: SpanState }) => ReactNode;
+}> = ({ children }) => (
+  <AuiForEach keys={(s) => s.span.children.map((_, index) => index)}>
+    {(index) => (
+      <SpanByIndexProvider index={index}>
+        <RenderChildrenWithAccessor
+          getItemState={(aui) => aui.span().getState()}
+        >
+          {(getItem) =>
+            children({
+              get span() {
+                return getItem();
+              },
+            })
+          }
+        </RenderChildrenWithAccessor>
+      </SpanByIndexProvider>
+    )}
+  </AuiForEach>
+);
+
 const SpanPrimitiveChildrenImpl: FC<SpanPrimitiveChildren.Props> = ({
   components,
+  children,
 }) => {
-  const childrenLength = useAuiState((s) => s.span.children.length);
-
-  const childElements = useMemo(() => {
-    if (childrenLength === 0) return null;
-    return Array.from({ length: childrenLength }, (_, index) => (
-      <SpanPrimitiveChildByIndex
-        key={index}
-        index={index}
-        components={components}
-      />
-    ));
-  }, [childrenLength, components]);
-
-  return childElements;
+  if (components) {
+    return (
+      <SpanPrimitiveChildrenInner>
+        {() => <components.Span />}
+      </SpanPrimitiveChildrenInner>
+    );
+  }
+  return <SpanPrimitiveChildrenInner>{children!}</SpanPrimitiveChildrenInner>;
 };
 
 export const SpanPrimitiveChildren: FC<SpanPrimitiveChildren.Props> = memo(
   SpanPrimitiveChildrenImpl,
-  (prev, next) => prev.components.Span === next.components.Span,
+  (prev, next) => {
+    if (prev.children || next.children) {
+      return prev.children === next.children;
+    }
+    return prev.components!.Span === next.components!.Span;
+  },
 );
 
 SpanPrimitiveChildren.displayName = "SpanPrimitive.Children";

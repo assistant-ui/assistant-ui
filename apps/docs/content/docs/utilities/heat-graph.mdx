@@ -53,14 +53,9 @@ export function ActivityGraph({ data }: { data: HeatGraph.DataPoint[] }) {
   return (
     <HeatGraph.Root data={data} weekStart="monday" colorScale={COLORS}>
       <HeatGraph.Grid className="gap-[3px]">
-        {({ cells }) =>
-          cells.map((cell) => (
-            <HeatGraph.Cell
-              key={`${cell.column}-${cell.row}`}
-              className="aspect-square rounded-sm"
-            />
-          ))
-        }
+        {() => (
+          <HeatGraph.Cell className="aspect-square rounded-sm" />
+        )}
       </HeatGraph.Grid>
       <HeatGraph.Tooltip>
         {({ cell }) => (
@@ -85,34 +80,30 @@ import * as HeatGraph from "heat-graph";
 
 <HeatGraph.Root data={data} colorScale={colors}>
 
-  {/* Month labels */}
+  {/* Month labels — iterates internally, renders each label */}
   <HeatGraph.MonthLabels>
-    {({ labels, totalWeeks }) => labels.map((l) => (
-      <span key={l.column} style={{ left: `${(l.column / totalWeeks) * 100}%` }}>
-        {HeatGraph.MONTH_SHORT[l.month]}
+    {({ label, totalWeeks }) => (
+      <span style={{ left: `${(label.column / totalWeeks) * 100}%` }}>
+        {HeatGraph.MONTH_SHORT[label.month]}
       </span>
-    ))}
+    )}
   </HeatGraph.MonthLabels>
 
-  {/* Day-of-week labels */}
+  {/* Day-of-week labels — iterates internally, renders each label */}
   <HeatGraph.DayLabels>
-    {({ labels }) => labels.map((l) => (
-      <span key={l.row}>{HeatGraph.DAY_SHORT[l.dayOfWeek]}</span>
-    ))}
+    {({ label }) => (
+      <span>{HeatGraph.DAY_SHORT[label.dayOfWeek]}</span>
+    )}
   </HeatGraph.DayLabels>
 
-  {/* Grid + Cells */}
+  {/* Grid + Cells — iterates internally, renders each cell */}
   <HeatGraph.Grid>
-    {({ cells }) => cells.map((cell) => (
-      <HeatGraph.Cell key={`${cell.column}-${cell.row}`} />
-    ))}
+    {() => <HeatGraph.Cell />}
   </HeatGraph.Grid>
 
-  {/* Legend */}
+  {/* Legend — iterates internally, renders each level */}
   <HeatGraph.Legend>
-    {({ items }) => items.map((item) => (
-      <HeatGraph.LegendLevel key={item.level} />
-    ))}
+    {() => <HeatGraph.LegendLevel />}
   </HeatGraph.Legend>
 
   {/* Tooltip */}
@@ -142,7 +133,7 @@ The top-level provider. Renders a `<div>` that computes the grid layout and prov
 
 A `<div>` with CSS Grid layout. Renders `gridTemplateColumns` and `gridTemplateRows` based on the computed data. Accepts all standard div props.
 
-Provides a `CellCollection` via render prop. The `.map()` callback receives a `CellData` object and automatically wraps each element in the context needed by `Cell`.
+Iterates over cells internally, calling the children render function for each cell. Each cell is wrapped in a context that `Cell` reads from.
 
 ```ts
 type CellData = {
@@ -165,36 +156,29 @@ Accepts all standard div props. Pass `colorScale` to override the Root-level col
 
 ### MonthLabels
 
-Render prop component providing month label data.
+Iterates over month labels, calling the children render function for each label.
 
 ```tsx
 <HeatGraph.MonthLabels>
-  {({ labels, totalWeeks }) =>
-    labels.map((label) => (
-      <span
-        key={label.column}
-        style={{ left: `${(label.column / totalWeeks) * 100}%` }}
-      >
-        {HeatGraph.MONTH_SHORT[label.month]}
-      </span>
-    ))
-  }
+  {({ label, totalWeeks }) => (
+    <span style={{ left: `${(label.column / totalWeeks) * 100}%` }}>
+      {HeatGraph.MONTH_SHORT[label.month]}
+    </span>
+  )}
 </HeatGraph.MonthLabels>
 ```
 
-Provides `{ labels, totalWeeks }`. Each label has `{ month: number, column: number }`. Use `totalWeeks` to compute label positions. Use `MONTH_SHORT[label.month]` for English labels, or format with `Intl.DateTimeFormat` for localization.
+Each label has `{ month: number, column: number }`. Use `totalWeeks` to compute label positions. Use `MONTH_SHORT[label.month]` for English labels, or format with `Intl.DateTimeFormat` for localization.
 
 ### DayLabels
 
-Render prop component providing day-of-week label data.
+Iterates over day-of-week labels, calling the children render function for each label.
 
 ```tsx
 <HeatGraph.DayLabels>
-  {({ labels }) =>
-    labels.map((label) => (
-      <span key={label.row}>{HeatGraph.DAY_SHORT[label.dayOfWeek]}</span>
-    ))
-  }
+  {({ label }) => (
+    <span>{HeatGraph.DAY_SHORT[label.dayOfWeek]}</span>
+  )}
 </HeatGraph.DayLabels>
 ```
 
@@ -202,11 +186,11 @@ Each label has `{ dayOfWeek: number, row: number }` where `dayOfWeek` is 0=Sun..
 
 ### Legend
 
-Render prop component providing legend items. Each item has `{ level: number, color: string | undefined }`.
+Iterates over legend levels, calling the children render function for each item. Each item has `{ level: number, color: string | undefined }`.
 
 ### LegendLevel
 
-A `<div>` that reads from legend item context. Automatically applies `backgroundColor` from the color scale. Use inside `Legend`'s `.map()`.
+A `<div>` that reads from legend item context. Automatically applies `backgroundColor` from the color scale. Use inside `Legend`.
 
 ### Tooltip
 

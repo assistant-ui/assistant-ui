@@ -1,11 +1,18 @@
 import {
   type ComponentType,
   type FC,
+  type ReactNode,
   memo,
   PropsWithChildren,
   useMemo,
 } from "react";
-import { useAuiState, useAui } from "@assistant-ui/store";
+import {
+  AuiForEach,
+  RenderChildrenWithAccessor,
+  useAuiState,
+  useAui,
+} from "@assistant-ui/store";
+import type { PartState } from "../../../store/scopes/part";
 import { PartByIndexProvider } from "../../providers/PartByIndexProvider";
 import { TextMessagePartProvider } from "../../providers/TextMessagePartProvider";
 import { ChainOfThoughtByIndicesProvider } from "../../providers/ChainOfThoughtByIndicesProvider";
@@ -235,24 +242,32 @@ export namespace MessagePrimitiveParts {
     ReasoningGroup?: never;
   };
 
-  export type Props = {
-    /**
-     * Component configuration for rendering different types of message content.
-     *
-     * Use either `Reasoning`/`tools`/`ToolGroup`/`ReasoningGroup` for standard rendering,
-     * or `ChainOfThought` to group all reasoning and tool-call parts into a single
-     * collapsible component. These two modes are mutually exclusive.
-     */
-    components?: StandardComponents | ChainOfThoughtComponents | undefined;
-    /**
-     * When enabled, shows the Empty component if the last part in the message
-     * is anything other than Text or Reasoning.
-     *
-     * @experimental This API is experimental and may change in future versions.
-     * @default true
-     */
-    unstable_showEmptyOnNonTextEnd?: boolean | undefined;
-  };
+  export type Props =
+    | {
+        /**
+         * Component configuration for rendering different types of message content.
+         *
+         * Use either `Reasoning`/`tools`/`ToolGroup`/`ReasoningGroup` for standard rendering,
+         * or `ChainOfThought` to group all reasoning and tool-call parts into a single
+         * collapsible component. These two modes are mutually exclusive.
+         */
+        components?: StandardComponents | ChainOfThoughtComponents | undefined;
+        /**
+         * When enabled, shows the Empty component if the last part in the message
+         * is anything other than Text or Reasoning.
+         *
+         * @experimental This API is experimental and may change in future versions.
+         * @default true
+         */
+        unstable_showEmptyOnNonTextEnd?: boolean | undefined;
+        children?: never;
+      }
+    | {
+        /** Render function called for each part. Receives the part. */
+        children: (value: { part: PartState }) => ReactNode;
+        components?: never;
+        unstable_showEmptyOnNonTextEnd?: never;
+      };
 }
 
 const ToolUIDisplay = ({
@@ -475,6 +490,28 @@ const QuoteRendererImpl: FC<{ Quote: QuoteMessagePartComponent }> = ({
 
 const QuoteRenderer = memo(QuoteRendererImpl);
 
+const MessagePrimitivePartsInner: FC<{
+  children: (value: { part: PartState }) => ReactNode;
+}> = ({ children }) => (
+  <AuiForEach keys={(s) => s.message.parts.map((_, index) => index)}>
+    {(index) => (
+      <PartByIndexProvider index={index}>
+        <RenderChildrenWithAccessor
+          getItemState={(aui) => aui.message().part({ index }).getState()}
+        >
+          {(getItem) =>
+            children({
+              get part() {
+                return getItem();
+              },
+            })
+          }
+        </RenderChildrenWithAccessor>
+      </PartByIndexProvider>
+    )}
+  </AuiForEach>
+);
+
 /**
  * Renders the parts of a message with support for multiple content types.
  *
@@ -484,7 +521,25 @@ const QuoteRenderer = memo(QuoteRendererImpl);
 export const MessagePrimitiveParts: FC<MessagePrimitiveParts.Props> = ({
   components,
   unstable_showEmptyOnNonTextEnd = true,
+  children,
 }) => {
+  if (children) {
+    return <MessagePrimitivePartsInner>{children}</MessagePrimitivePartsInner>;
+  }
+  return (
+    <MessagePrimitivePartsCompat
+      components={components}
+      unstable_showEmptyOnNonTextEnd={unstable_showEmptyOnNonTextEnd}
+    />
+  );
+};
+
+MessagePrimitiveParts.displayName = "MessagePrimitive.Parts";
+
+const MessagePrimitivePartsCompat: FC<{
+  components: MessagePrimitiveParts.Props["components"];
+  unstable_showEmptyOnNonTextEnd: boolean;
+}> = ({ components, unstable_showEmptyOnNonTextEnd }) => {
   const contentLength = useAuiState((s) => s.message.parts.length);
   const useChainOfThought = !!components?.ChainOfThought;
   const messageRanges = useMessagePartsGroups(useChainOfThought);
@@ -573,5 +628,3 @@ export const MessagePrimitiveParts: FC<MessagePrimitiveParts.Props> = ({
     </>
   );
 };
-
-MessagePrimitiveParts.displayName = "MessagePrimitive.Parts";
