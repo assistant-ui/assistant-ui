@@ -68,6 +68,46 @@ Provides an `AssistantClient` to the React tree. Child components can access it 
 
 Renders children only when the condition returns `true`. Uses `useAuiState` internally.
 
+### AuiForEach
+
+```tsx
+<AuiForEach
+  keys={(s) => s.todoList.todos.map((t) => t.id)}
+>
+  {(itemKey, index) => (
+    <TodoProvider index={index}>
+      <TodoDisplay />
+    </TodoProvider>
+  )}
+</AuiForEach>
+```
+
+Iterates over a list of keys with key-stable rendering. Only re-renders when the key list changes (items added/removed/reordered), not when individual item data changes.
+
+| Prop | Type |
+|------|------|
+| `keys` | `(state: AssistantState) => readonly TKey[]` |
+| `children` | `(itemKey: TKey, index: number) => ReactNode` |
+
+`TKey` extends `string | number`. See [Rendering Lists](/tap-docs/store/rendering-lists) for details.
+
+### RenderChildrenWithAccessor
+
+```tsx
+<RenderChildrenWithAccessor
+  getItemState={(aui) => aui.todoList().todo({ index }).getState()}
+>
+  {() => <TodoDisplay />}
+</RenderChildrenWithAccessor>
+```
+
+Sets up a lazy item accessor and memoizes the children output. Optimized for the common pattern where children returns a propless component.
+
+| Prop | Type |
+|------|------|
+| `getItemState` | `(aui: AssistantClient) => T` |
+| `children` | `(getItem: () => T) => ReactNode` |
+
 ---
 
 ## Resource utilities

@@ -2,6 +2,7 @@
 export { useAui } from "./useAui";
 export { useAuiState } from "./useAuiState";
 export { useAuiEvent } from "./useAuiEvent";
+export { AuiForEach, RenderChildrenWithAccessor } from "./AuiForEach";
 
 // components
 export { AuiIf } from "./AuiIf";
