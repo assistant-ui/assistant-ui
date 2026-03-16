@@ -74,6 +74,19 @@ const extractMessagesFromUpdates = <TMessage>(
   return messages;
 };
 
+const extractNewMessagesFromValues = <TMessage extends { id?: string }>(
+  valuesMessages: TMessage[],
+  accumulator: LangGraphMessageAccumulator<TMessage>,
+): TMessage[] => {
+  const existing = new Set(
+    accumulator
+      .getMessages()
+      .map((m) => m.id)
+      .filter(Boolean),
+  );
+  return valuesMessages.filter((m) => m.id && !existing.has(m.id));
+};
+
 const DEFAULT_APPEND_MESSAGE = <TMessage>(
   _: TMessage | undefined,
   curr: TMessage,
@@ -157,24 +170,31 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
               break;
             case LangGraphKnownEventTypes.Updates: {
               onUpdates?.(chunk.data);
-              if (!hasTupleMessageEvents) {
-                const extracted = extractMessagesFromUpdates(chunk.data);
-                if (extracted.length > 0) {
-                  setMessagesImmediate(accumulator.addMessages(extracted));
-                }
+              const extracted = extractMessagesFromUpdates<TMessage>(
+                chunk.data,
+              );
+              if (extracted.length > 0) {
+                setMessagesImmediate(accumulator.addMessages(extracted));
               }
               setInterrupt(chunk.data.__interrupt__?.[0]);
               break;
             }
             case LangGraphKnownEventTypes.Values:
               onValues?.(chunk.data);
-              if (
-                Array.isArray(chunk.data?.messages) &&
-                !hasTupleMessageEvents
-              ) {
-                setMessagesImmediate(
-                  accumulator.replaceMessages(chunk.data.messages),
-                );
+              if (Array.isArray(chunk.data?.messages)) {
+                if (hasTupleMessageEvents) {
+                  const newMessages = extractNewMessagesFromValues(
+                    chunk.data.messages,
+                    accumulator,
+                  );
+                  if (newMessages.length > 0) {
+                    setMessagesImmediate(accumulator.addMessages(newMessages));
+                  }
+                } else {
+                  setMessagesImmediate(
+                    accumulator.replaceMessages(chunk.data.messages),
+                  );
+                }
               }
               break;
             case LangGraphKnownEventTypes.Messages: {
