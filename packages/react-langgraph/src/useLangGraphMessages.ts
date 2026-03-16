@@ -53,12 +53,30 @@ export type LangGraphInterruptState = {
   ns?: string[];
 };
 
+const ROLE_TO_TYPE: Record<string, string> = {
+  user: "human",
+  assistant: "ai",
+  system: "system",
+  tool: "tool",
+};
+
+const normalizeMessageType = <TMessage>(message: TMessage): TMessage => {
+  const msg = message as Record<string, unknown>;
+  if (msg.type) return message;
+  const role = msg.role as string | undefined;
+  if (role && role in ROLE_TO_TYPE) {
+    const { role: _, ...rest } = msg;
+    return { ...rest, type: ROLE_TO_TYPE[role] } as TMessage;
+  }
+  return message;
+};
+
 const extractMessagesFromUpdates = <TMessage>(
   data: Record<string, unknown>,
 ): TMessage[] => {
   // { messages: [...] } shape
   if (Array.isArray(data.messages)) {
-    return data.messages as TMessage[];
+    return (data.messages as TMessage[]).map(normalizeMessageType);
   }
 
   // { nodeName: { messages: [...] } } shape
@@ -67,7 +85,9 @@ const extractMessagesFromUpdates = <TMessage>(
     if (value && typeof value === "object" && "messages" in value) {
       const nodeMessages = (value as Record<string, unknown>).messages;
       if (Array.isArray(nodeMessages)) {
-        messages.push(...(nodeMessages as TMessage[]));
+        messages.push(
+          ...(nodeMessages as TMessage[]).map(normalizeMessageType),
+        );
       }
     }
   }

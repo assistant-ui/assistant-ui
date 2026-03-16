@@ -1496,6 +1496,49 @@ describe("useLangGraphMessages", {}, () => {
     });
   });
 
+  it("normalizes role-based dict messages from updates to type-based", async () => {
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "updates",
+        data: {
+          generate_plan: {
+            messages: [
+              {
+                id: "ai-1",
+                role: "assistant",
+                content: "Here is your plan",
+              },
+            ],
+          },
+        },
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage(
+        [{ id: "user-1", type: "human", content: "Plan a trip" }],
+        {},
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.messages).toHaveLength(2);
+      const aiMessage = result.current.messages[1]!;
+      expect(aiMessage.id).toEqual("ai-1");
+      // role: "assistant" should be normalized to type: "ai"
+      expect(aiMessage.type).toEqual("ai");
+      expect(aiMessage.content).toEqual("Here is your plan");
+    });
+  });
+
   it("syncs messages from values event when no tuple events", async () => {
     const mockStreamCallback = mockStreamCallbackFactory([
       metadataEvent,
