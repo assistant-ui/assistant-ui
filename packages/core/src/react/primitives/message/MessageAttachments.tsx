@@ -92,10 +92,10 @@ const MessagePrimitiveAttachmentsInner: FC<{
   <AuiForEach
     keys={(s) => {
       if (s.message.role !== "user") return [];
-      return s.message.attachments.map((_, index) => index);
+      return s.message.attachments.map((a) => a.id);
     }}
   >
-    {(index) => (
+    {(_attachmentId, index) => (
       <MessageAttachmentByIndexProvider index={index}>
         <RenderChildrenWithAccessor
           getItemState={(aui) => aui.message().attachment({ index }).getState()}

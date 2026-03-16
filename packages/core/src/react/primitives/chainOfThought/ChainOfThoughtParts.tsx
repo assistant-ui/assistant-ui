@@ -45,7 +45,7 @@ const ChainOfThoughtPrimitivePartsInner: FC<{
   children: (value: { part: PartState }) => ReactNode;
 }> = ({ children }) => (
   <AuiForEach keys={(s) => s.chainOfThought.parts.map((_, index) => index)}>
-    {(index) => (
+    {(_idx, index) => (
       <ChainOfThoughtPartByIndexProvider index={index}>
         <RenderChildrenWithAccessor
           getItemState={(aui) =>

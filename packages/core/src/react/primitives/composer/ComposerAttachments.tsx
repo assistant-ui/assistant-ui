@@ -89,8 +89,8 @@ ComposerPrimitiveAttachmentByIndex.displayName =
 const ComposerPrimitiveAttachmentsInner: FC<{
   children: (value: { attachment: Attachment }) => ReactNode;
 }> = ({ children }) => (
-  <AuiForEach keys={(s) => s.composer.attachments.map((_, index) => index)}>
-    {(index) => (
+  <AuiForEach keys={(s) => s.composer.attachments.map((a) => a.id)}>
+    {(_attachmentId, index) => (
       <ComposerAttachmentByIndexProvider index={index}>
         <RenderChildrenWithAccessor
           getItemState={(aui) =>

@@ -59,12 +59,9 @@ const ThreadListPrimitiveItemsInner: FC<{
   children: (value: { threadListItem: ThreadListItemState }) => ReactNode;
 }> = ({ archived, children }) => (
   <AuiForEach
-    keys={(s) => {
-      const ids = archived ? s.threads.archivedThreadIds : s.threads.threadIds;
-      return ids.map((_, index) => index);
-    }}
+    keys={(s) => (archived ? s.threads.archivedThreadIds : s.threads.threadIds)}
   >
-    {(index) => (
+    {(_threadId, index) => (
       <ThreadListItemByIndexProvider index={index} archived={archived}>
         <RenderChildrenWithAccessor
           getItemState={(aui) =>

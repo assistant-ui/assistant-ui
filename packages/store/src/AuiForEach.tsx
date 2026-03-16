@@ -6,6 +6,24 @@ import { useAuiState } from "./useAuiState";
 import { useAui } from "./useAui";
 
 /**
+ * Stabilizes an array reference so that a new array with identical elements
+ * (by strict equality) keeps the previous reference. This prevents
+ * useSyncExternalStore infinite-loop re-renders when selectors derive new
+ * arrays whose contents haven't actually changed.
+ */
+function useShallowArray<T>(arr: readonly T[]): readonly T[] {
+  const ref = useRef(arr);
+  if (
+    arr !== ref.current &&
+    (arr.length !== ref.current.length ||
+      arr.some((v, i) => v !== ref.current[i]))
+  ) {
+    ref.current = arr;
+  }
+  return ref.current;
+}
+
+/**
  * Component that iterates over a list of items with key-stable rendering.
  *
  * Only re-renders when the key list changes (items added/removed/reordered),
@@ -31,7 +49,8 @@ export function AuiForEach<TKey extends string | number>({
   keys: (state: AssistantState) => readonly TKey[];
   children: (itemKey: TKey, index: number) => ReactNode;
 }): ReactNode {
-  const arr = useAuiState(keysSelector);
+  const rawArr = useAuiState(keysSelector);
+  const arr = useShallowArray(rawArr);
 
   return useMemo(
     () =>
