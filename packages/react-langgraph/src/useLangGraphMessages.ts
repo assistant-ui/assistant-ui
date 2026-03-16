@@ -53,6 +53,27 @@ export type LangGraphInterruptState = {
   ns?: string[];
 };
 
+const extractMessagesFromUpdates = <TMessage>(
+  data: Record<string, unknown>,
+): TMessage[] => {
+  // { messages: [...] } shape
+  if (Array.isArray(data.messages)) {
+    return data.messages as TMessage[];
+  }
+
+  // { nodeName: { messages: [...] } } shape
+  const messages: TMessage[] = [];
+  for (const value of Object.values(data)) {
+    if (value && typeof value === "object" && "messages" in value) {
+      const nodeMessages = (value as Record<string, unknown>).messages;
+      if (Array.isArray(nodeMessages)) {
+        messages.push(...(nodeMessages as TMessage[]));
+      }
+    }
+  }
+  return messages;
+};
+
 const DEFAULT_APPEND_MESSAGE = <TMessage>(
   _: TMessage | undefined,
   curr: TMessage,
@@ -134,20 +155,27 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
             case LangGraphKnownEventTypes.MessagesComplete:
               setMessagesImmediate(accumulator.addMessages(chunk.data));
               break;
-            case LangGraphKnownEventTypes.Updates:
+            case LangGraphKnownEventTypes.Updates: {
               onUpdates?.(chunk.data);
+              if (!hasTupleMessageEvents) {
+                const extracted = extractMessagesFromUpdates(chunk.data);
+                if (extracted.length > 0) {
+                  setMessagesImmediate(accumulator.addMessages(extracted));
+                }
+              }
+              setInterrupt(chunk.data.__interrupt__?.[0]);
+              break;
+            }
+            case LangGraphKnownEventTypes.Values:
+              onValues?.(chunk.data);
               if (
-                Array.isArray(chunk.data.messages) &&
+                Array.isArray(chunk.data?.messages) &&
                 !hasTupleMessageEvents
               ) {
                 setMessagesImmediate(
                   accumulator.replaceMessages(chunk.data.messages),
                 );
               }
-              setInterrupt(chunk.data.__interrupt__?.[0]);
-              break;
-            case LangGraphKnownEventTypes.Values:
-              onValues?.(chunk.data);
               break;
             case LangGraphKnownEventTypes.Messages: {
               hasTupleMessageEvents = true;

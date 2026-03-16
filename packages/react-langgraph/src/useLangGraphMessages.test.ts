@@ -1442,4 +1442,142 @@ describe("useLangGraphMessages", {}, () => {
       expect(onMessageChunk).toHaveBeenCalledTimes(1);
     });
   });
+
+  it("extracts messages from node-keyed updates shape", async () => {
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "updates",
+        data: {
+          validate_input: {
+            messages: [
+              { id: "ai-1", type: "ai" as const, content: "Validated input" },
+            ],
+          },
+        },
+      },
+      {
+        event: "updates",
+        data: {
+          generate_plan: {
+            messages: [
+              {
+                id: "ai-2",
+                type: "ai" as const,
+                content: "Here is your plan",
+              },
+            ],
+          },
+        },
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage(
+        [{ id: "user-1", type: "human", content: "Plan a trip" }],
+        {},
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.messages).toHaveLength(3);
+      expect(result.current.messages[0]!.id).toEqual("user-1");
+      expect(result.current.messages[1]!.id).toEqual("ai-1");
+      expect(result.current.messages[1]!.content).toEqual("Validated input");
+      expect(result.current.messages[2]!.id).toEqual("ai-2");
+      expect(result.current.messages[2]!.content).toEqual("Here is your plan");
+    });
+  });
+
+  it("syncs messages from values event when no tuple events", async () => {
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "values",
+        data: {
+          messages: [
+            { id: "user-1", type: "human" as const, content: "hi" },
+            { id: "ai-1", type: "ai" as const, content: "hello" },
+          ],
+        },
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage(
+        [{ id: "user-1", type: "human", content: "hi" }],
+        {},
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.messages).toHaveLength(2);
+      expect(result.current.messages[0]!.id).toEqual("user-1");
+      expect(result.current.messages[1]!.id).toEqual("ai-1");
+      expect(result.current.messages[1]!.content).toEqual("hello");
+    });
+  });
+
+  it("does not replace tuple-accumulated messages with values snapshots", async () => {
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "messages",
+        data: [
+          {
+            id: "run-1",
+            content: "Streaming response",
+            type: "AIMessageChunk",
+            tool_call_chunks: [],
+          },
+          { run_attempt: 1 },
+        ],
+      },
+      {
+        event: "values",
+        data: {
+          messages: [
+            { id: "user-1", type: "human" as const, content: "hi" },
+            { id: "run-1", type: "ai" as const, content: "Final value" },
+          ],
+        },
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage(
+        [{ id: "user-1", type: "human", content: "hi" }],
+        {},
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.messages).toHaveLength(2);
+      // The tuple-accumulated content should NOT be replaced by values
+      const aiMessage = result.current.messages[1]!;
+      expect(aiMessage.id).toBe("run-1");
+      expect(aiMessage.content).not.toEqual("Final value");
+    });
+  });
 });
