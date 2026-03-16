@@ -17,6 +17,14 @@ function formatDate(date: string): string {
   });
 }
 
+function extractChangeType(
+  markdown: string,
+): "major" | "minor" | "patch" | null {
+  const match = markdown.match(/^#{1,6}\s+(Major|Minor|Patch)\s+Changes/im);
+  if (!match) return null;
+  return match[1]!.toLowerCase() as "major" | "minor" | "patch";
+}
+
 function cleanBody(markdown: string): string {
   return (
     markdown
@@ -29,6 +37,12 @@ function cleanBody(markdown: string): string {
       .trim()
   );
 }
+
+const changeTypeBadge = {
+  major: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+  minor: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+  patch: "bg-muted text-muted-foreground",
+} as const;
 
 const Heading = ({ children }: { children?: React.ReactNode }) => (
   <p className="font-medium text-foreground/80">{children}</p>
@@ -44,6 +58,8 @@ const markdownComponents = {
 };
 
 function ReleaseEntry({ release }: { release: PackageRelease }) {
+  const changeType = extractChangeType(release.body);
+
   return (
     <details className="group/release">
       <summary className="flex cursor-pointer list-none items-center gap-2 py-1 [&::-webkit-details-marker]:hidden">
@@ -51,6 +67,13 @@ function ReleaseEntry({ release }: { release: PackageRelease }) {
         <span className="font-medium font-mono text-foreground/80 text-sm transition-colors group-hover/release:text-foreground">
           {release.pkg}@{release.version}
         </span>
+        {changeType && (
+          <span
+            className={`shrink-0 rounded-full px-1.5 py-0.5 font-medium text-[10px] leading-none ${changeTypeBadge[changeType]}`}
+          >
+            {changeType}
+          </span>
+        )}
         <Link
           href={release.url}
           target="_blank"

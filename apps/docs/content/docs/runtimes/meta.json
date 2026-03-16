@@ -10,6 +10,7 @@
     "mastra",
     "langgraph",
     "google-adk",
+    "a2a",
     "langserve",
     "external-store",
 
