@@ -110,6 +110,7 @@ async function completeHandshake(): Promise<void> {
 }
 
 /** Collect N events from the streamEvents generator. */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function collectEvents(
   gen: AsyncGenerator<import("../runtime/types").SDKEvent>,
   n: number,

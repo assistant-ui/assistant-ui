@@ -19,17 +19,21 @@ type BridgeRunOptions = {
 /**
  * Minimal ChatModelRunResult shape matching @assistant-ui/core.
  */
+type BridgeContentPart =
+  | { readonly type: "text"; readonly text: string }
+  | { readonly type: "reasoning"; readonly text: string }
+  | {
+      readonly type: "tool-call";
+      readonly toolCallId: string;
+      readonly toolName: string;
+      readonly args: Record<string, unknown>;
+      readonly argsText: string;
+      readonly result?: unknown;
+      readonly isError?: boolean;
+    };
+
 type BridgeRunResult = {
-  readonly content?: ReadonlyArray<{
-    type: string;
-    text?: string;
-    toolCallId?: string;
-    toolName?: string;
-    args?: Record<string, unknown>;
-    argsText?: string;
-    result?: unknown;
-    isError?: boolean;
-  }>;
+  readonly content?: ReadonlyArray<BridgeContentPart>;
   readonly status?: {
     type: "complete" | "incomplete" | "requires-action" | "running";
     reason?: string;
@@ -133,27 +137,17 @@ export function useAgentChatRuntime(
                 result: unknown;
                 isError?: boolean;
               };
-              const toolResultPart: Record<string, unknown> = {
-                type: "tool-call",
+              const toolResultPart: BridgeContentPart = {
+                type: "tool-call" as const,
                 toolCallId: c.toolCallId,
                 toolName: "",
                 args: {},
                 argsText: "",
-                result: c.result,
+                ...(c.result !== undefined ? { result: c.result } : {}),
+                ...(c.isError !== undefined ? { isError: c.isError } : {}),
               };
-              if (c.isError !== undefined) toolResultPart.isError = c.isError;
               yield {
-                content: [
-                  toolResultPart as {
-                    type: "tool-call";
-                    toolCallId: string;
-                    toolName: string;
-                    args: Record<string, unknown>;
-                    argsText: string;
-                    result?: unknown;
-                    isError?: boolean;
-                  },
-                ],
+                content: [toolResultPart],
               };
               break;
             }
