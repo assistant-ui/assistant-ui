@@ -117,7 +117,7 @@ const ChainOfThought: FC = () => {
                   <Reasoning {...part} />
                 </PartLayout>
               );
-            return <PartLayout>{null}</PartLayout>;
+            return null;
           }}
         </ChainOfThoughtPrimitive.Parts>
       </AuiIf>

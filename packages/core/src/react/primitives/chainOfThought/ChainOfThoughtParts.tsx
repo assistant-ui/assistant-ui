@@ -3,6 +3,7 @@ import {
   type FC,
   type PropsWithChildren,
   type ReactNode,
+  useMemo,
 } from "react";
 import { AuiForEach, RenderChildrenWithAccessor } from "@assistant-ui/store";
 import type { PartState } from "../../../store/scopes/part";
@@ -81,12 +82,16 @@ export const ChainOfThoughtPrimitiveParts: FC<
     );
   }
 
-  const messageComponents = {
-    Reasoning: components?.Reasoning,
-    tools: {
-      Fallback: components?.tools?.Fallback,
-    },
-  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const messageComponents = useMemo(
+    () => ({
+      Reasoning: components?.Reasoning,
+      tools: {
+        Fallback: components?.tools?.Fallback,
+      },
+    }),
+    [components?.Reasoning, components?.tools?.Fallback],
+  );
 
   const Layout = components?.Layout;
 
