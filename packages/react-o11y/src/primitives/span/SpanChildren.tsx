@@ -1,5 +1,11 @@
-import { type ComponentType, type FC, type ReactNode, memo } from "react";
-import { AuiForEach, RenderChildrenWithAccessor } from "@assistant-ui/store";
+import {
+  type ComponentType,
+  type FC,
+  type ReactNode,
+  memo,
+  useMemo,
+} from "react";
+import { RenderChildrenWithAccessor, useAuiState } from "@assistant-ui/store";
 import type { SpanState } from "../../o11y-scope";
 import { SpanByIndexProvider } from "../../context/SpanByIndexProvider";
 
@@ -45,10 +51,13 @@ SpanPrimitiveChildByIndex.displayName = "SpanPrimitive.ChildByIndex";
 
 const SpanPrimitiveChildrenInner: FC<{
   children: (value: { span: SpanState }) => ReactNode;
-}> = ({ children }) => (
-  <AuiForEach keys={(s) => s.span.children.map((_, index) => index)}>
-    {(index) => (
-      <SpanByIndexProvider index={index}>
+}> = ({ children }) => {
+  const childrenLength = useAuiState((s) => s.span.children.length);
+
+  return useMemo(() => {
+    if (childrenLength === 0) return null;
+    return Array.from({ length: childrenLength }, (_, index) => (
+      <SpanByIndexProvider key={index} index={index}>
         <RenderChildrenWithAccessor
           getItemState={(aui) => aui.span().getState()}
         >
@@ -61,9 +70,9 @@ const SpanPrimitiveChildrenInner: FC<{
           }
         </RenderChildrenWithAccessor>
       </SpanByIndexProvider>
-    )}
-  </AuiForEach>
-);
+    ));
+  }, [childrenLength, children]);
+};
 
 const SpanPrimitiveChildrenImpl: FC<SpanPrimitiveChildren.Props> = ({
   components,

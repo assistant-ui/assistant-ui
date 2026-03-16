@@ -2,15 +2,15 @@
 
 import "./foo-scope";
 
-import type { ReactNode } from "react";
+import { type ReactNode, useMemo } from "react";
 import { resource, tapMemo, tapState } from "@assistant-ui/tap";
 import {
   useAui,
+  useAuiState,
   AuiProvider,
   tapClientList,
   Derived,
   tapAssistantEmit,
-  AuiForEach,
   RenderChildrenWithAccessor,
   type ClientOutput,
 } from "@assistant-ui/store";
@@ -99,22 +99,26 @@ export const FooList = ({
   children,
 }: {
   children: (item: { foo: FooData }) => ReactNode;
-}) => (
-  <AuiForEach keys={(s) => s.fooList.foos.map((_, index) => index)}>
-    {(index) => (
-      <FooProvider index={index}>
-        <RenderChildrenWithAccessor
-          getItemState={(aui) => aui.fooList().foo({ index }).getState()}
-        >
-          {(getItem) =>
-            children({
-              get foo() {
-                return getItem();
-              },
-            })
-          }
-        </RenderChildrenWithAccessor>
-      </FooProvider>
-    )}
-  </AuiForEach>
-);
+}) => {
+  const length = useAuiState((s) => s.fooList.foos.length);
+
+  return useMemo(
+    () =>
+      Array.from({ length }, (_, index) => (
+        <FooProvider key={index} index={index}>
+          <RenderChildrenWithAccessor
+            getItemState={(aui) => aui.fooList().foo({ index }).getState()}
+          >
+            {(getItem) =>
+              children({
+                get foo() {
+                  return getItem();
+                },
+              })
+            }
+          </RenderChildrenWithAccessor>
+        </FooProvider>
+      )),
+    [length, children],
+  );
+};
