@@ -1835,15 +1835,20 @@ describe("useLangGraphMessages", {}, () => {
         };
         // Block until abort, then throw AbortError like the real SDK
         await new Promise<void>((_resolve, reject) => {
-          config.abortSignal.addEventListener(
-            "abort",
-            () => {
-              const err = new Error("The operation was aborted.");
-              err.name = "AbortError";
-              reject(err);
-            },
-            { once: true },
-          );
+          const onAbort = () => {
+            const err = new Error("The operation was aborted.");
+            err.name = "AbortError";
+            reject(err);
+          };
+
+          if (config.abortSignal.aborted) {
+            onAbort();
+            return;
+          }
+
+          config.abortSignal.addEventListener("abort", onAbort, {
+            once: true,
+          });
         });
       }
       return gen();
@@ -1864,7 +1869,8 @@ describe("useLangGraphMessages", {}, () => {
     });
 
     await waitFor(() => {
-      expect(streamSpy).toHaveBeenCalledTimes(1);
+      expect(result.current.messages).toHaveLength(2);
+      expect(result.current.messages[1]!.content).toEqual("Streaming...");
     });
 
     act(() => {
