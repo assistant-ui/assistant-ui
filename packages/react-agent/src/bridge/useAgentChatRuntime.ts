@@ -100,18 +100,51 @@ export function useAgentChatRuntime(
 
       try {
         // 6. Iterate events and yield BridgeRunResult
+        // IMPORTANT: Each yield REPLACES the previous content (not appends).
+        // We must accumulate all content parts ourselves and yield the
+        // full array each time. See assistant-ui's OpenAI adapter example.
+        const parts: BridgeContentPart[] = [];
+        let textPartIndex = -1; // index of the current text part being streamed
+        let reasoningPartIndex = -1; // index of the current reasoning part
+
         for await (const event of queue) {
           switch (event.type) {
             case "message": {
               const c = event.content as { text: string };
-              yield { content: [{ type: "text" as const, text: c.text }] };
+              if (textPartIndex >= 0) {
+                // Append to existing text part
+                const existing = parts[textPartIndex] as {
+                  type: "text";
+                  text: string;
+                };
+                parts[textPartIndex] = {
+                  type: "text" as const,
+                  text: existing.text + c.text,
+                };
+              } else {
+                // Create new text part
+                textPartIndex = parts.length;
+                parts.push({ type: "text" as const, text: c.text });
+              }
+              yield { content: [...parts] };
               break;
             }
             case "reasoning": {
               const c = event.content as { text: string };
-              yield {
-                content: [{ type: "reasoning" as const, text: c.text }],
-              };
+              if (reasoningPartIndex >= 0) {
+                const existing = parts[reasoningPartIndex] as {
+                  type: "reasoning";
+                  text: string;
+                };
+                parts[reasoningPartIndex] = {
+                  type: "reasoning" as const,
+                  text: existing.text + c.text,
+                };
+              } else {
+                reasoningPartIndex = parts.length;
+                parts.push({ type: "reasoning" as const, text: c.text });
+              }
+              yield { content: [...parts] };
               break;
             }
             case "tool_call": {
@@ -120,17 +153,16 @@ export function useAgentChatRuntime(
                 toolName: string;
                 toolInput: unknown;
               };
-              yield {
-                content: [
-                  {
-                    type: "tool-call" as const,
-                    toolCallId: c.toolCallId,
-                    toolName: c.toolName,
-                    args: c.toolInput as Record<string, unknown>,
-                    argsText: JSON.stringify(c.toolInput),
-                  },
-                ],
-              };
+              // Reset text part index — new text after tool call is a new part
+              textPartIndex = -1;
+              parts.push({
+                type: "tool-call" as const,
+                toolCallId: c.toolCallId,
+                toolName: c.toolName,
+                args: c.toolInput as Record<string, unknown>,
+                argsText: JSON.stringify(c.toolInput),
+              });
+              yield { content: [...parts] };
               break;
             }
             case "tool_result": {
@@ -139,18 +171,19 @@ export function useAgentChatRuntime(
                 result: unknown;
                 isError?: boolean;
               };
-              const toolResultPart: BridgeContentPart = {
-                type: "tool-call" as const,
-                toolCallId: c.toolCallId,
-                toolName: "",
-                args: {},
-                argsText: "",
-                ...(c.result !== undefined ? { result: c.result } : {}),
-                ...(c.isError !== undefined ? { isError: c.isError } : {}),
-              };
-              yield {
-                content: [toolResultPart],
-              };
+              // Update the matching tool-call part with its result
+              for (let i = parts.length - 1; i >= 0; i--) {
+                const p = parts[i]!;
+                if (p.type === "tool-call" && p.toolCallId === c.toolCallId) {
+                  parts[i] = {
+                    ...p,
+                    ...(c.result !== undefined ? { result: c.result } : {}),
+                    ...(c.isError !== undefined ? { isError: c.isError } : {}),
+                  };
+                  break;
+                }
+              }
+              yield { content: [...parts] };
               break;
             }
             case "error": {
