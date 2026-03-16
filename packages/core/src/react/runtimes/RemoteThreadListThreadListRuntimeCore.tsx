@@ -36,6 +36,7 @@ export class RemoteThreadListThreadListRuntimeCore
   private readonly _hookManager: RemoteThreadListHookInstanceManager;
 
   private _loadThreadsPromise: Promise<void> | undefined;
+  private _loadGeneration = 0;
 
   private _mainThreadId!: string;
   private readonly _state = new OptimisticState<RemoteThreadState>({
@@ -54,6 +55,7 @@ export class RemoteThreadListThreadListRuntimeCore
   public getLoadThreadsPromise() {
     // TODO this needs to be cached in case this promise is loaded during suspense
     if (!this._loadThreadsPromise) {
+      const generation = this._loadGeneration;
       this._loadThreadsPromise = this._state
         .optimisticUpdate({
           execute: () => this._options.adapter.list(),
@@ -64,6 +66,9 @@ export class RemoteThreadListThreadListRuntimeCore
             };
           },
           then: (state, l) => {
+            // Guard against stale responses from a superseded reload
+            if (generation !== this._loadGeneration) return state;
+
             const newThreadIds = [];
             const newArchivedThreadIds = [];
             const newThreadIdMap = {} as Record<string, THREAD_MAPPING_ID>;
@@ -102,18 +107,22 @@ export class RemoteThreadListThreadListRuntimeCore
               };
             }
 
+            // Preserve the new (unsaved) thread if one exists
+            const newThreadId = state.newThreadId;
+            if (newThreadId) {
+              const newMappingId = state.threadIdMap[newThreadId];
+              if (newMappingId && state.threadData[newMappingId]) {
+                newThreadIdMap[newThreadId] = newMappingId;
+                newThreadData[newMappingId] = state.threadData[newMappingId]!;
+              }
+            }
+
             return {
               ...state,
               threadIds: newThreadIds,
               archivedThreadIds: newArchivedThreadIds,
-              threadIdMap: {
-                ...state.threadIdMap,
-                ...newThreadIdMap,
-              },
-              threadData: {
-                ...state.threadData,
-                ...newThreadData,
-              },
+              threadIdMap: newThreadIdMap,
+              threadData: newThreadData,
             };
           },
         })
@@ -166,6 +175,7 @@ export class RemoteThreadListThreadListRuntimeCore
   }
 
   public reload() {
+    this._loadGeneration++;
     this._loadThreadsPromise = undefined;
     return this.getLoadThreadsPromise();
   }

@@ -110,6 +110,12 @@ export const useLocalRuntime = (
     ...options
   }: LocalRuntimeOptions = {},
 ): AssistantRuntime => {
+  if (storage && cloud) {
+    throw new Error(
+      "useLocalRuntime: `storage` and `cloud` options are mutually exclusive. Provide only one.",
+    );
+  }
+
   const cloudAdapter = useCloudThreadListAdapter({ cloud });
   const localStorageAdapter = useMemo(() => {
     if (!storage) return undefined;

@@ -17,9 +17,9 @@ import { RuntimeAdapterProvider } from "../runtimes/RuntimeAdapterProvider";
 import type { TitleGenerationAdapter } from "./TitleGenerationAdapter";
 
 export type AsyncStorageLike = {
-  getItem(key: string): Promise<string | null>;
-  setItem(key: string, value: string): Promise<void>;
-  removeItem(key: string): Promise<void>;
+  getItem(key: string): string | null | Promise<string | null>;
+  setItem(key: string, value: string): void | Promise<void>;
+  removeItem(key: string): void | Promise<void>;
 };
 
 type LocalStorageAdapterOptions = {
