@@ -55,6 +55,8 @@ export const parseAdkRequest = async (
 
   const config: AdkSendMessageConfig = {};
   if (body.runConfig !== undefined) config.runConfig = body.runConfig;
+  if (body.checkpointId !== undefined)
+    config.checkpointId = body.checkpointId as string;
 
   const stateDelta = body.stateDelta as Record<string, unknown> | undefined;
 

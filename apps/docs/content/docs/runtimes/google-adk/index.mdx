@@ -1,0 +1,325 @@
+---
+title: Google ADK
+description: Connect to Google ADK (Agent Development Kit) agents with streaming, tool calls, and multi-agent support.
+---
+
+The `@assistant-ui/react-google-adk` package provides integration with [Google ADK JS](https://github.com/google/adk-js), Google's official agent framework for TypeScript. It supports streaming text, tool calls, multi-agent orchestration, code execution, and session state management.
+
+## Requirements
+
+You need a Google ADK agent running on a server. ADK supports `LlmAgent` with Gemini models, tool use, multi-agent orchestration (sequential, parallel, loop agents), and session management.
+
+## Installation
+
+<InstallCommand npm={["@assistant-ui/react", "@assistant-ui/react-google-adk", "@google/adk"]} />
+
+<Callout type="info">
+  `@google/adk` is only needed on the server side. The client-side runtime has no dependency on it.
+</Callout>
+
+## Getting Started
+
+<Steps>
+<Step>
+
+### Create a backend API endpoint
+
+Use the server helpers to pipe ADK events into an SSE response:
+
+```typescript title="app/api/chat/route.ts"
+import {
+  adkEventStream,
+  parseAdkRequest,
+  toAdkContent,
+} from "@assistant-ui/react-google-adk/server";
+import {
+  Runner,
+  LlmAgent,
+  InMemorySessionService,
+  InMemoryRunner,
+} from "@google/adk";
+
+const agent = new LlmAgent({
+  name: "my_agent",
+  model: "gemini-2.5-flash",
+  instruction: "You are a helpful assistant.",
+});
+
+const runner = new InMemoryRunner({ agent, appName: "my-app" });
+const sessions = new Map<string, string>();
+
+export async function POST(req: Request) {
+  const parsed = await parseAdkRequest(req);
+  const newMessage = toAdkContent(parsed);
+
+  // Get or create session
+  const userId = "user_1";
+  let sessionId = sessions.get(userId);
+  if (!sessionId) {
+    const session = await runner.sessionService.createSession({
+      appName: "my-app",
+      userId,
+    });
+    sessionId = session.id;
+    sessions.set(userId, sessionId);
+  }
+
+  const events = runner.runAsync({
+    userId,
+    sessionId,
+    newMessage,
+    runConfig: { streamingMode: 1 }, // SSE streaming
+  });
+
+  return adkEventStream(events);
+}
+```
+
+</Step>
+<Step>
+
+### Set up the client runtime
+
+```tsx title="components/MyAssistant.tsx"
+"use client";
+
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useAdkRuntime } from "@assistant-ui/react-google-adk";
+import { Thread } from "@/components/assistant-ui/thread";
+
+export function MyAssistant() {
+  const runtime = useAdkRuntime({
+    stream: async function* (messages, { abortSignal }) {
+      const lastMessage = messages[messages.length - 1];
+      const text =
+        lastMessage?.type === "human"
+          ? typeof lastMessage.content === "string"
+            ? lastMessage.content
+            : ""
+          : "";
+
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text }),
+        signal: abortSignal,
+      });
+
+      const reader = response.body!.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            const data = line.slice(6).trim();
+            if (data) {
+              yield JSON.parse(data);
+            }
+          }
+        }
+      }
+    },
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Thread />
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+</Step>
+<Step>
+
+### Use the component
+
+```tsx title="app/page.tsx"
+import { MyAssistant } from "@/components/MyAssistant";
+
+export default function Home() {
+  return (
+    <main className="h-dvh">
+      <MyAssistant />
+    </main>
+  );
+}
+```
+
+</Step>
+<Step>
+
+### Setup UI components
+
+Follow the [UI Components](/docs/ui/thread) guide to setup the Thread and other UI components.
+
+</Step>
+</Steps>
+
+## Server Helpers
+
+### `adkEventStream`
+
+Converts an `AsyncGenerator<Event>` from ADK's `Runner.runAsync()` into an SSE `Response`.
+
+```typescript
+import { adkEventStream } from "@assistant-ui/react-google-adk/server";
+
+const events = runner.runAsync({ userId, sessionId, newMessage });
+return adkEventStream(events);
+```
+
+### `parseAdkRequest` / `toAdkContent`
+
+Parse incoming requests and convert to ADK's `Content` format:
+
+```typescript
+import { parseAdkRequest, toAdkContent } from "@assistant-ui/react-google-adk/server";
+
+const parsed = await parseAdkRequest(req);
+// parsed.type is "message" or "tool-result"
+// parsed.config contains runConfig, checkpointId
+// parsed.stateDelta contains session state changes
+
+const newMessage = toAdkContent(parsed);
+// { role: "user", parts: [{ text: "..." }] }
+```
+
+## Advanced APIs
+
+### ADK-Specific Hooks
+
+Access ADK-specific state from within the runtime context:
+
+```typescript
+import {
+  useAdkAgentInfo,
+  useAdkSessionState,
+  useAdkSend,
+  useAdkLongRunningToolIds,
+} from "@assistant-ui/react-google-adk";
+
+function MyComponent() {
+  // Current active agent name and branch path
+  const agentInfo = useAdkAgentInfo();
+  // agentInfo?.name = "search_agent"
+  // agentInfo?.branch = "root.search_agent"
+
+  // Accumulated session state delta
+  const state = useAdkSessionState();
+
+  // IDs of tools awaiting external input
+  const pendingTools = useAdkLongRunningToolIds();
+
+  // Send raw ADK messages
+  const send = useAdkSend();
+}
+```
+
+### Event Handlers
+
+Listen to streaming events:
+
+```typescript
+const runtime = useAdkRuntime({
+  stream: async function* (messages, config) { /* ... */ },
+  eventHandlers: {
+    onError: (error) => {
+      console.error("Stream error:", error);
+    },
+    onAgentTransfer: (toAgent) => {
+      console.log("Agent transferred to:", toAgent);
+    },
+    onCustomEvent: (key, value) => {
+      console.log("Custom metadata:", key, value);
+    },
+  },
+});
+```
+
+### Message Editing & Regeneration
+
+Provide a `getCheckpointId` callback to enable edit and regenerate buttons:
+
+```typescript
+const runtime = useAdkRuntime({
+  stream: async function* (messages, { initialize, ...config }) { /* ... */ },
+  getCheckpointId: async (threadId, parentMessages) => {
+    // Resolve checkpoint ID for server-side forking
+    return checkpointId;
+  },
+});
+```
+
+### Thread Management
+
+Built-in thread list support with `create`, `load`, and `delete`:
+
+```typescript
+const runtime = useAdkRuntime({
+  stream: async function* (messages, { initialize }) {
+    const { externalId } = await initialize();
+    // Use externalId for your backend session
+  },
+  create: async () => {
+    const sessionId = await createSession();
+    return { externalId: sessionId };
+  },
+  load: async (externalId) => {
+    const history = await loadSession(externalId);
+    return { messages: history };
+  },
+  delete: async (externalId) => {
+    await deleteSession(externalId);
+  },
+});
+```
+
+### Cloud Persistence
+
+For persistent thread history, integrate with assistant-cloud:
+
+```typescript
+import { AssistantCloud } from "assistant-cloud";
+
+const runtime = useAdkRuntime({
+  cloud: new AssistantCloud({
+    baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL,
+    anonymous: true,
+  }),
+  stream: async function* (messages, config) { /* ... */ },
+});
+```
+
+## Features
+
+### Supported ADK Features
+
+| Feature | Status |
+|---|---|
+| Streaming text (SSE) | Supported |
+| Tool calls & results | Supported |
+| Multi-agent (author tracking) | Supported |
+| Chain-of-thought / reasoning | Supported |
+| Code execution | Supported |
+| Inline images & files | Supported |
+| Session state delta | Supported |
+| Long-running tools | Supported |
+| Agent transfer events | Supported |
+| `finishReason` mapping | Supported |
+| Snake\_case events (Python ADK) | Supported |
+| Cloud thread persistence | Supported |
+| Message editing & regeneration | Supported |
+| Automatic tool invocations | Supported |
+
+### ADK Python Backend
+
+The package automatically normalizes snake\_case event fields from ADK Python backends to camelCase. No configuration needed — connect to either ADK JS or ADK Python servers.

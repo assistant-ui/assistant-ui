@@ -9,6 +9,7 @@
     "data-stream",
     "mastra",
     "langgraph",
+    "google-adk",
     "langserve",
     "external-store",
 

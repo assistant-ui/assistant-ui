@@ -8,8 +8,11 @@ import type {
   AdkEventPart,
   AdkMessage,
   AdkMessageContentPart,
+  AdkMessageMetadata,
   AdkSendMessageConfig,
   AdkStreamCallback,
+  AdkToolConfirmation,
+  AdkAuthRequest,
   OnAdkErrorCallback,
   OnAdkCustomEventCallback,
   OnAdkAgentTransferCallback,
@@ -35,6 +38,17 @@ export const useAdkMessages = ({
     branch?: string | undefined;
   }>({});
   const [longRunningToolIds, setLongRunningToolIds] = useState<string[]>([]);
+  const [artifactDelta, setArtifactDelta] = useState<Record<string, number>>(
+    {},
+  );
+  const [toolConfirmations, setToolConfirmations] = useState<
+    AdkToolConfirmation[]
+  >([]);
+  const [authRequests, setAuthRequests] = useState<AdkAuthRequest[]>([]);
+  const [escalated, setEscalated] = useState(false);
+  const [messageMetadata, setMessageMetadata] = useState<
+    Map<string, AdkMessageMetadata>
+  >(new Map());
   const lastTransferToAgentRef = useRef<string | undefined>(undefined);
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
@@ -46,7 +60,7 @@ export const useAdkMessages = ({
 
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  const { onError, onAgentTransfer } = useMemo(
+  const { onError, onCustomEvent, onAgentTransfer } = useMemo(
     () => eventHandlers ?? {},
     [eventHandlers],
   );
@@ -82,11 +96,23 @@ export const useAdkMessages = ({
           setStateDelta(accumulator.getStateDelta());
           setAgentInfo(accumulator.getAgentInfo());
           setLongRunningToolIds(accumulator.getLongRunningToolIds());
+          setArtifactDelta(accumulator.getArtifactDelta());
+          setToolConfirmations(accumulator.getToolConfirmations());
+          setAuthRequests(accumulator.getAuthRequests());
+          setEscalated(accumulator.isEscalated());
+          setMessageMetadata(accumulator.getMessageMetadata());
 
           const transfer = accumulator.getLastTransferToAgent();
           if (transfer && transfer !== lastTransferToAgentRef.current) {
             lastTransferToAgentRef.current = transfer;
             onAgentTransfer?.(transfer);
+          }
+
+          // Fire custom event callback for events with customMetadata
+          if (event.customMetadata && onCustomEvent) {
+            for (const [key, value] of Object.entries(event.customMetadata)) {
+              onCustomEvent(key, value);
+            }
           }
 
           if (event.errorCode || event.errorMessage) {
@@ -106,7 +132,14 @@ export const useAdkMessages = ({
         }
       }
     },
-    [aui, setMessagesImmediate, stream, onError, onAgentTransfer],
+    [
+      aui,
+      setMessagesImmediate,
+      stream,
+      onError,
+      onCustomEvent,
+      onAgentTransfer,
+    ],
   );
 
   const cancel = useCallback(() => {
@@ -120,6 +153,11 @@ export const useAdkMessages = ({
     stateDelta,
     agentInfo,
     longRunningToolIds,
+    artifactDelta,
+    toolConfirmations,
+    authRequests,
+    escalated,
+    messageMetadata,
     sendMessage,
     cancel,
     setMessages: setMessagesImmediate,

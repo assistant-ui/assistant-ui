@@ -1,48 +1,148 @@
 import { v4 as uuidv4 } from "uuid";
+import type { MessageStatus } from "@assistant-ui/core";
 import type {
   AdkEvent,
   AdkEventPart,
   AdkMessage,
   AdkMessageContentPart,
   AdkToolCall,
+  AdkToolConfirmation,
+  AdkAuthRequest,
+  AdkMessageMetadata,
 } from "./types";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
 
 type InProgressMessage = AdkMessage & { type: "ai" };
 
-/**
- * Port of ADK's isFinalResponse logic. A non-partial event is "final" if:
- * - It has no function calls
- * - It has no trailing code execution result
- * - It is not partial
- */
+const ADK_REQUEST_CONFIRMATION = "adk_request_confirmation";
+const ADK_REQUEST_CREDENTIAL = "adk_request_credential";
+
 const isFinalResponse = (event: AdkEvent): boolean => {
   if (event.partial) return false;
+  if (event.actions?.skipSummarization) return true;
+  if (event.longRunningToolIds?.length) return true;
+
   const parts = event.content?.parts;
   if (!parts?.length) return false;
-
-  const hasFunctionCalls = parts.some((p) => p.functionCall);
-  if (hasFunctionCalls) return false;
+  if (parts.some((p) => p.functionCall)) return false;
+  if (parts.some((p) => p.functionResponse)) return false;
 
   const lastPart = parts[parts.length - 1];
   if (lastPart?.codeExecutionResult) return false;
 
-  // Has actual text or data content
-  return parts.some((p) => p.text != null || p.inlineData || p.fileData);
+  return true;
 };
+
+const finishReasonToStatus = (
+  finishReason: string | undefined,
+): MessageStatus => {
+  switch (finishReason) {
+    case "MAX_TOKENS":
+      return { type: "incomplete", reason: "length" };
+    case "SAFETY":
+    case "RECITATION":
+    case "BLOCKLIST":
+      return {
+        type: "incomplete",
+        reason: "content-filter",
+        error: `Content filtered: ${finishReason}`,
+      };
+    default:
+      return { type: "complete", reason: "stop" };
+  }
+};
+
+// ── Snake_case normalization ──
+
+const normalizeEventPart = (part: AdkEventPart): AdkEventPart => {
+  const p = part as Record<string, unknown>;
+  const result: Record<string, unknown> = { ...p };
+  if ("function_call" in p && !("functionCall" in p))
+    result.functionCall = p.function_call;
+  if ("function_response" in p && !("functionResponse" in p))
+    result.functionResponse = p.function_response;
+  if ("inline_data" in p && !("inlineData" in p))
+    result.inlineData = p.inline_data;
+  if ("file_data" in p && !("fileData" in p)) result.fileData = p.file_data;
+  if ("executable_code" in p && !("executableCode" in p))
+    result.executableCode = p.executable_code;
+  if ("code_execution_result" in p && !("codeExecutionResult" in p))
+    result.codeExecutionResult = p.code_execution_result;
+  return result as AdkEventPart;
+};
+
+const normalizeEvent = (event: AdkEvent): AdkEvent => {
+  const e = event as Record<string, unknown>;
+  const result: Record<string, unknown> = { ...e };
+  if ("error_code" in e && !("errorCode" in e)) result.errorCode = e.error_code;
+  if ("error_message" in e && !("errorMessage" in e))
+    result.errorMessage = e.error_message;
+  if ("long_running_tool_ids" in e && !("longRunningToolIds" in e))
+    result.longRunningToolIds = e.long_running_tool_ids;
+  if ("turn_complete" in e && !("turnComplete" in e))
+    result.turnComplete = e.turn_complete;
+  if ("finish_reason" in e && !("finishReason" in e))
+    result.finishReason = e.finish_reason;
+  if ("invocation_id" in e && !("invocationId" in e))
+    result.invocationId = e.invocation_id;
+  if ("custom_metadata" in e && !("customMetadata" in e))
+    result.customMetadata = e.custom_metadata;
+  if ("grounding_metadata" in e && !("groundingMetadata" in e))
+    result.groundingMetadata = e.grounding_metadata;
+  if ("citation_metadata" in e && !("citationMetadata" in e))
+    result.citationMetadata = e.citation_metadata;
+  if ("usage_metadata" in e && !("usageMetadata" in e))
+    result.usageMetadata = e.usage_metadata;
+
+  if (result.actions) {
+    const a = result.actions as Record<string, unknown>;
+    const na: Record<string, unknown> = { ...a };
+    if ("state_delta" in a && !("stateDelta" in a))
+      na.stateDelta = a.state_delta;
+    if ("artifact_delta" in a && !("artifactDelta" in a))
+      na.artifactDelta = a.artifact_delta;
+    if ("transfer_to_agent" in a && !("transferToAgent" in a))
+      na.transferToAgent = a.transfer_to_agent;
+    if ("skip_summarization" in a && !("skipSummarization" in a))
+      na.skipSummarization = a.skip_summarization;
+    if ("requested_auth_configs" in a && !("requestedAuthConfigs" in a))
+      na.requestedAuthConfigs = a.requested_auth_configs;
+    if (
+      "requested_tool_confirmations" in a &&
+      !("requestedToolConfirmations" in a)
+    )
+      na.requestedToolConfirmations = a.requested_tool_confirmations;
+    result.actions = na;
+  }
+
+  if (result.content && (result.content as Record<string, unknown>).parts) {
+    const content = result.content as Record<string, unknown>;
+    const parts = content.parts as AdkEventPart[];
+    result.content = { ...content, parts: parts.map(normalizeEventPart) };
+  }
+
+  return result as AdkEvent;
+};
+
+// ── Accumulator ──
 
 export class AdkEventAccumulator {
   private messagesMap = new Map<string, AdkMessage>();
   private currentMessageId: string | null = null;
   private partialTextBuffer = "";
+  private partialReasoningBuffer = "";
   private accumulatedStateDelta: Record<string, unknown> = {};
+  private accumulatedArtifactDelta: Record<string, number> = {};
   private lastAgentInfo: {
     name?: string | undefined;
     branch?: string | undefined;
   } = {};
   private lastTransferToAgent: string | undefined;
   private pendingLongRunningToolIds: string[] = [];
-
+  private toolConfirmations: AdkToolConfirmation[] = [];
+  private authRequests: AdkAuthRequest[] = [];
+  private escalated = false;
+  private messageMetadataMap = new Map<string, AdkMessageMetadata>();
   constructor(initialMessages?: AdkMessage[]) {
     if (initialMessages) {
       for (const msg of initialMessages) {
@@ -51,10 +151,22 @@ export class AdkEventAccumulator {
     }
   }
 
-  processEvent(event: AdkEvent): AdkMessage[] {
+  processEvent(rawEvent: AdkEvent): AdkMessage[] {
+    const event = normalizeEvent(rawEvent);
+
     // Accumulate state delta
     if (event.actions?.stateDelta) {
       Object.assign(this.accumulatedStateDelta, event.actions.stateDelta);
+    }
+
+    // Accumulate artifact delta
+    if (event.actions?.artifactDelta) {
+      Object.assign(this.accumulatedArtifactDelta, event.actions.artifactDelta);
+    }
+
+    // Track escalation
+    if (event.actions?.escalate) {
+      this.escalated = true;
     }
 
     // Track agent transfer
@@ -67,12 +179,54 @@ export class AdkEventAccumulator {
       this.pendingLongRunningToolIds = event.longRunningToolIds;
     }
 
+    // Track tool confirmations from actions
+    if (event.actions?.requestedToolConfirmations) {
+      for (const [tcId, conf] of Object.entries(
+        event.actions.requestedToolConfirmations,
+      )) {
+        const c = conf as Record<string, unknown>;
+        this.toolConfirmations.push({
+          toolCallId: tcId,
+          toolName: "",
+          args: {},
+          hint: (c.hint as string) ?? "",
+          payload: c.payload,
+        });
+      }
+    }
+
+    // Track auth requests from actions
+    if (event.actions?.requestedAuthConfigs) {
+      for (const [tcId, authConf] of Object.entries(
+        event.actions.requestedAuthConfigs,
+      )) {
+        this.authRequests.push({ toolCallId: tcId, authConfig: authConf });
+      }
+    }
+
     // Track agent info
     if (event.author && event.author !== "user") {
       this.lastAgentInfo = {
         name: event.author ?? undefined,
         branch: event.branch ?? undefined,
       };
+    }
+
+    // Handle interrupted events
+    if (event.interrupted) {
+      if (this.currentMessageId) {
+        const msg = this.messagesMap.get(this.currentMessageId);
+        if (msg && msg.type === "ai" && !msg.status) {
+          const updated: InProgressMessage = {
+            ...msg,
+            content: [...this.getContentArray(msg)],
+            status: { type: "incomplete", reason: "cancelled" },
+          };
+          this.messagesMap.set(updated.id, updated);
+        }
+      }
+      this.finalizeCurrentMessage();
+      return this.getMessages();
     }
 
     // Handle error events
@@ -83,7 +237,10 @@ export class AdkEventAccumulator {
         event.errorMessage ?? event.errorCode ?? "Unknown error";
       const updated: InProgressMessage = {
         ...errorMsg,
-        content: [...this.getContentArray(errorMsg)],
+        content: [
+          ...this.getContentArray(errorMsg),
+          { type: "text", text: errorText },
+        ],
         status: { type: "incomplete", reason: "error", error: errorText },
       };
       this.messagesMap.set(updated.id, updated);
@@ -92,7 +249,11 @@ export class AdkEventAccumulator {
     }
 
     const parts = event.content?.parts;
-    if (!parts?.length) return this.getMessages();
+    if (!parts?.length) {
+      // Track metadata even for content-less events (e.g. turnComplete)
+      this.trackMessageMetadata(event);
+      return this.getMessages();
+    }
 
     // If author changed, finalize previous message
     if (this.currentMessageId && event.author && event.author !== "user") {
@@ -106,18 +267,23 @@ export class AdkEventAccumulator {
       this.processPart(part, event);
     }
 
+    // Track per-message metadata (grounding, citation, usage)
+    this.trackMessageMetadata(event);
+
     // Non-partial event finalizes the current message
     if (!event.partial) {
-      // Set complete status on final responses
-      if (isFinalResponse(event) && this.currentMessageId) {
+      if (this.currentMessageId) {
         const msg = this.messagesMap.get(this.currentMessageId);
         if (msg && msg.type === "ai" && !msg.status) {
-          const updated: InProgressMessage = {
-            ...msg,
-            content: [...this.getContentArray(msg)],
-            status: { type: "complete", reason: "stop" },
-          };
-          this.messagesMap.set(updated.id, updated);
+          if (isFinalResponse(event)) {
+            const status = finishReasonToStatus(event.finishReason);
+            const updated: InProgressMessage = {
+              ...msg,
+              content: [...this.getContentArray(msg)],
+              status,
+            };
+            this.messagesMap.set(updated.id, updated);
+          }
         }
       }
       this.finalizeCurrentMessage();
@@ -127,10 +293,44 @@ export class AdkEventAccumulator {
   }
 
   private processPart(part: AdkEventPart, event: AdkEvent): void {
-    // Text with thought=true → reasoning
+    // Detect special ADK function calls
+    if (part.functionCall) {
+      const name = part.functionCall.name;
+
+      // Tool confirmation request
+      if (name === ADK_REQUEST_CONFIRMATION) {
+        const args = part.functionCall.args;
+        const original = args.function_call_event as Record<string, unknown>;
+        const conf = args.tool_confirmation as Record<string, unknown>;
+        this.toolConfirmations.push({
+          toolCallId: part.functionCall.id ?? "",
+          toolName: (original?.name as string) ?? "",
+          args: (original?.args as Record<string, unknown>) ?? {},
+          hint: (conf?.hint as string) ?? "",
+          payload: conf?.payload,
+        });
+        // Still create the tool call so UI can show it
+      }
+
+      // Auth credential request
+      if (name === ADK_REQUEST_CREDENTIAL) {
+        this.authRequests.push({
+          toolCallId: part.functionCall.id ?? "",
+          authConfig: part.functionCall.args,
+        });
+      }
+    }
+
+    // Text with thought=true → reasoning (accumulated)
     if (part.text != null && part.thought) {
       const msg = this.getOrCreateAiMessage(event);
-      this.appendContent(msg, { type: "reasoning", text: part.text });
+      if (event.partial) {
+        this.partialReasoningBuffer += part.text;
+        this.replaceLastReasoningContent(msg, this.partialReasoningBuffer);
+      } else {
+        this.partialReasoningBuffer = "";
+        this.replaceLastReasoningContent(msg, part.text);
+      }
       return;
     }
 
@@ -147,7 +347,7 @@ export class AdkEventAccumulator {
       return;
     }
 
-    // Function call
+    // Function call (including special ones above — still create tool-call parts)
     if (part.functionCall) {
       const msg = this.getOrCreateAiMessage(event);
       const toolCall: AdkToolCall = {
@@ -230,6 +430,25 @@ export class AdkEventAccumulator {
     }
   }
 
+  private trackMessageMetadata(event: AdkEvent): void {
+    if (
+      !this.currentMessageId ||
+      (!event.groundingMetadata &&
+        !event.citationMetadata &&
+        !event.usageMetadata)
+    )
+      return;
+
+    const existing = this.messageMetadataMap.get(this.currentMessageId) ?? {};
+    const updated: AdkMessageMetadata = { ...existing };
+    if (event.groundingMetadata)
+      updated.groundingMetadata = event.groundingMetadata;
+    if (event.citationMetadata)
+      updated.citationMetadata = event.citationMetadata;
+    if (event.usageMetadata) updated.usageMetadata = event.usageMetadata;
+    this.messageMetadataMap.set(this.currentMessageId, updated);
+  }
+
   private getContentArray(msg: AdkMessage): AdkMessageContentPart[] {
     return Array.isArray(msg.content)
       ? (msg.content as AdkMessageContentPart[])
@@ -255,6 +474,7 @@ export class AdkEventAccumulator {
     this.messagesMap.set(id, msg);
     this.currentMessageId = id;
     this.partialTextBuffer = "";
+    this.partialReasoningBuffer = "";
     return msg;
   }
 
@@ -262,7 +482,6 @@ export class AdkEventAccumulator {
     msg: InProgressMessage,
     part: AdkMessageContentPart,
   ): void {
-    // Always create new array to avoid stale React state
     const content = [...this.getContentArray(msg), part];
     const updated: InProgressMessage = { ...msg, content };
     this.messagesMap.set(updated.id, updated);
@@ -280,8 +499,24 @@ export class AdkEventAccumulator {
     this.messagesMap.set(updated.id, updated);
   }
 
+  private replaceLastReasoningContent(
+    msg: InProgressMessage,
+    text: string,
+  ): void {
+    const content = [...this.getContentArray(msg)];
+    const lastIdx = content.findLastIndex((p) => p.type === "reasoning");
+    if (lastIdx >= 0) {
+      content[lastIdx] = { type: "reasoning", text };
+    } else {
+      content.push({ type: "reasoning", text });
+    }
+    const updated: InProgressMessage = { ...msg, content };
+    this.messagesMap.set(updated.id, updated);
+  }
+
   private finalizeCurrentMessage(): void {
     this.partialTextBuffer = "";
+    this.partialReasoningBuffer = "";
     this.currentMessageId = null;
   }
 
@@ -291,6 +526,10 @@ export class AdkEventAccumulator {
 
   getStateDelta(): Record<string, unknown> {
     return { ...this.accumulatedStateDelta };
+  }
+
+  getArtifactDelta(): Record<string, number> {
+    return { ...this.accumulatedArtifactDelta };
   }
 
   getAgentInfo(): { name?: string | undefined; branch?: string | undefined } {
@@ -303,5 +542,21 @@ export class AdkEventAccumulator {
 
   getLongRunningToolIds(): string[] {
     return [...this.pendingLongRunningToolIds];
+  }
+
+  getToolConfirmations(): AdkToolConfirmation[] {
+    return [...this.toolConfirmations];
+  }
+
+  getAuthRequests(): AdkAuthRequest[] {
+    return [...this.authRequests];
+  }
+
+  isEscalated(): boolean {
+    return this.escalated;
+  }
+
+  getMessageMetadata(): Map<string, AdkMessageMetadata> {
+    return new Map(this.messageMetadataMap);
   }
 }

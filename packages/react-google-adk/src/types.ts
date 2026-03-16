@@ -109,7 +109,29 @@ export type AdkMessageContentPart =
   | { type: "image"; mimeType: string; data: string }
   | { type: "image_url"; url: string }
   | { type: "code"; code: string; language: string }
-  | { type: "code_result"; output: string; outcome: string };
+  | { type: "code_result"; output: string; outcome: string }
+  | { type: "activity"; message: string };
+
+// ── ADK-specific state types ──
+
+export type AdkToolConfirmation = {
+  toolCallId: string;
+  toolName: string;
+  args: Record<string, unknown>;
+  hint: string;
+  payload?: unknown;
+};
+
+export type AdkAuthRequest = {
+  toolCallId: string;
+  authConfig: unknown;
+};
+
+export type AdkMessageMetadata = {
+  groundingMetadata?: unknown;
+  citationMetadata?: unknown;
+  usageMetadata?: unknown;
+};
 
 // ── Stream callback types ──
 
