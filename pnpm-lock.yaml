@@ -1410,6 +1410,73 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
+  examples/with-google-adk:
+    dependencies:
+      '@assistant-ui/react':
+        specifier: workspace:*
+        version: link:../../packages/react
+      '@assistant-ui/react-google-adk':
+        specifier: workspace:*
+        version: link:../../packages/react-google-adk
+      '@assistant-ui/react-markdown':
+        specifier: workspace:*
+        version: link:../../packages/react-markdown
+      '@assistant-ui/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+      '@google/adk':
+        specifier: ^0.5.0
+        version: 0.5.0(a169dea60ad8a5e2ff11f76348658585)
+      class-variance-authority:
+        specifier: ^0.7.1
+        version: 0.7.1
+      clsx:
+        specifier: ^2.1.1
+        version: 2.1.1
+      lucide-react:
+        specifier: ^0.577.0
+        version: 0.577.0(react@19.2.4)
+      next:
+        specifier: ^16.1.6
+        version: 16.1.6(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      react:
+        specifier: ^19.2.4
+        version: 19.2.4
+      react-dom:
+        specifier: ^19.2.4
+        version: 19.2.4(react@19.2.4)
+      tailwind-merge:
+        specifier: ^3.5.0
+        version: 3.5.0
+    devDependencies:
+      '@assistant-ui/x-buildutils':
+        specifier: workspace:*
+        version: link:../../packages/x-buildutils
+      '@tailwindcss/postcss':
+        specifier: ^4.2.1
+        version: 4.2.1
+      '@types/node':
+        specifier: ^25.5.0
+        version: 25.5.0
+      '@types/react':
+        specifier: ^19.2.14
+        version: 19.2.14
+      '@types/react-dom':
+        specifier: ^19.2.3
+        version: 19.2.3(@types/react@19.2.14)
+      postcss:
+        specifier: ^8.5.8
+        version: 8.5.8
+      tailwindcss:
+        specifier: ^4.2.1
+        version: 4.2.1
+      tw-animate-css:
+        specifier: ^1.4.0
+        version: 1.4.0
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
   examples/with-heat-graph:
     dependencies:
       heat-graph:
@@ -2507,7 +2574,7 @@ importers:
         version: link:../store
       '@google/adk':
         specifier: '>=0.5.0'
-        version: 0.5.0(5da73465b8fcd51598991eeac6ee62a7)
+        version: 0.5.0(a169dea60ad8a5e2ff11f76348658585)
       assistant-cloud:
         specifier: '*'
         version: link:../cloud
@@ -16464,7 +16531,7 @@ snapshots:
       - encoding
       - supports-color
 
-  '@google/adk@0.5.0(5da73465b8fcd51598991eeac6ee62a7)':
+  '@google/adk@0.5.0(a169dea60ad8a5e2ff11f76348658585)':
     dependencies:
       '@a2a-js/sdk': 0.3.12(@bufbuild/protobuf@2.11.0)(@grpc/grpc-js@1.14.3)(express@5.2.1)
       '@google-cloud/opentelemetry-cloud-monitoring-exporter': 0.21.0(@opentelemetry/api@1.9.0)(@opentelemetry/core@2.6.0(@opentelemetry/api@1.9.0))(@opentelemetry/resources@2.6.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-metrics@2.2.0(@opentelemetry/api@1.9.0))(encoding@0.1.13)
@@ -16894,23 +16961,6 @@ snapshots:
       - supports-color
       - tedious
 
-  '@mikro-orm/knex@6.6.9(@mikro-orm/core@6.6.9)(mariadb@3.4.5)(pg@8.19.0)':
-    dependencies:
-      '@mikro-orm/core': 6.6.9
-      fs-extra: 11.3.3
-      knex: 3.1.0(pg@8.19.0)
-      sqlstring: 2.3.3
-    optionalDependencies:
-      mariadb: 3.4.5
-    transitivePeerDependencies:
-      - mysql
-      - mysql2
-      - pg
-      - pg-native
-      - sqlite3
-      - supports-color
-      - tedious
-
   '@mikro-orm/knex@6.6.9(@mikro-orm/core@6.6.9)(mariadb@3.4.5)(pg@8.19.0)(sqlite3@5.1.7)':
     dependencies:
       '@mikro-orm/core': 6.6.9
@@ -16948,7 +16998,7 @@ snapshots:
   '@mikro-orm/mariadb@6.6.9(@mikro-orm/core@6.6.9)(pg@8.19.0)':
     dependencies:
       '@mikro-orm/core': 6.6.9
-      '@mikro-orm/knex': 6.6.9(@mikro-orm/core@6.6.9)(mariadb@3.4.5)(pg@8.19.0)
+      '@mikro-orm/knex': 6.6.9(@mikro-orm/core@6.6.9)(mariadb@3.4.5)(pg@8.19.0)(tedious@19.2.1(@azure/core-client@1.10.1))
       mariadb: 3.4.5
     transitivePeerDependencies:
       - better-sqlite3
@@ -16999,7 +17049,7 @@ snapshots:
   '@mikro-orm/postgresql@6.6.9(@mikro-orm/core@6.6.9)(mariadb@3.4.5)':
     dependencies:
       '@mikro-orm/core': 6.6.9
-      '@mikro-orm/knex': 6.6.9(@mikro-orm/core@6.6.9)(mariadb@3.4.5)(pg@8.19.0)
+      '@mikro-orm/knex': 6.6.9(@mikro-orm/core@6.6.9)(mariadb@3.4.5)(pg@8.19.0)(tedious@19.2.1(@azure/core-client@1.10.1))
       pg: 8.19.0
       postgres-array: 3.0.4
       postgres-date: 2.1.0
@@ -23094,27 +23144,6 @@ snapshots:
       tildify: 2.0.0
     optionalDependencies:
       mysql2: 3.19.0(@types/node@25.5.0)
-      pg: 8.19.0
-    transitivePeerDependencies:
-      - supports-color
-
-  knex@3.1.0(pg@8.19.0):
-    dependencies:
-      colorette: 2.0.19
-      commander: 10.0.1
-      debug: 4.3.4
-      escalade: 3.2.0
-      esm: 3.2.25
-      get-package-type: 0.1.0
-      getopts: 2.3.0
-      interpret: 2.2.0
-      lodash: 4.17.23
-      pg-connection-string: 2.6.2
-      rechoir: 0.8.0
-      resolve-from: 5.0.0
-      tarn: 3.0.2
-      tildify: 2.0.0
-    optionalDependencies:
       pg: 8.19.0
     transitivePeerDependencies:
       - supports-color
