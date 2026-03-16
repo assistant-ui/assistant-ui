@@ -598,9 +598,17 @@ class CodexTaskController {
 
       // Codex-prefixed tool execution events
       case "codex/event/exec_command_begin": {
+        // Data may be at top level or nested inside p["msg"]
+        const msg = (p["msg"] as Record<string, unknown> | undefined) ?? p;
+        const rawCmd = msg["command"];
+        const parsedCmd = msg["parsed_cmd"] as
+          | Array<{ cmd?: string }>
+          | undefined;
         const cmd =
-          (p["command"] as string | undefined) ??
-          (p["call"] as string | undefined) ??
+          parsedCmd?.[0]?.cmd ??
+          (Array.isArray(rawCmd)
+            ? (rawCmd as string[]).slice(-1)[0]
+            : (rawCmd as string | undefined)) ??
           "command";
         return [
           {
