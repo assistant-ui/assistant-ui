@@ -1,26 +1,57 @@
 "use client";
 
-import { Fragment, type ReactNode, useMemo, useRef } from "react";
+import {
+  Fragment,
+  type ReactNode,
+  useMemo,
+  useRef,
+  useSyncExternalStore,
+} from "react";
 import type { AssistantClient, AssistantState } from "./types/client";
 import { useAuiState } from "./useAuiState";
 import { useAui } from "./useAui";
+import { getProxiedAssistantState } from "./utils/proxied-assistant-state";
 
 /**
- * Stabilizes an array reference so that a new array with identical elements
- * (by strict equality) keeps the previous reference. This prevents
- * useSyncExternalStore infinite-loop re-renders when selectors derive new
- * arrays whose contents haven't actually changed.
+ * Hook that selects an array from assistant state via useSyncExternalStore,
+ * with shallow-equality caching **inside** getSnapshot so the returned
+ * reference is stable when the array contents haven't changed.
+ *
+ * This is critical because useSyncExternalStore requires getSnapshot to return
+ * the same value (by reference) when the store hasn't changed. Selectors that
+ * derive arrays via .map() violate this contract, causing infinite re-render
+ * loops ("Maximum update depth exceeded").
  */
-function useShallowArray<T>(arr: readonly T[]): readonly T[] {
-  const ref = useRef(arr);
-  if (
-    arr !== ref.current &&
-    (arr.length !== ref.current.length ||
-      arr.some((v, i) => v !== ref.current[i]))
-  ) {
-    ref.current = arr;
-  }
-  return ref.current;
+function useStableArraySelector<TKey extends string | number>(
+  selector: (state: AssistantState) => readonly TKey[],
+): readonly TKey[] {
+  const aui = useAui();
+  const proxiedState = getProxiedAssistantState(aui);
+
+  // Cache lives outside the getSnapshot closure so it persists across calls.
+  // useRef is safe here — getSnapshot reads the ref but never calls setState.
+  const cacheRef = useRef<readonly TKey[]>(undefined!);
+
+  const arr = useSyncExternalStore(aui.subscribe, () => {
+    const next = selector(proxiedState);
+
+    // Fast path: same reference (selector already returns stable array)
+    if (next === cacheRef.current) return cacheRef.current;
+
+    // Shallow comparison: reuse previous reference if contents are identical
+    if (
+      cacheRef.current !== undefined &&
+      next.length === cacheRef.current.length &&
+      next.every((v, i) => v === cacheRef.current[i])
+    ) {
+      return cacheRef.current;
+    }
+
+    cacheRef.current = next;
+    return next;
+  });
+
+  return arr;
 }
 
 /**
@@ -49,8 +80,7 @@ export function AuiForEach<TKey extends string | number>({
   keys: (state: AssistantState) => readonly TKey[];
   children: (itemKey: TKey, index: number) => ReactNode;
 }): ReactNode {
-  const rawArr = useAuiState(keysSelector);
-  const arr = useShallowArray(rawArr);
+  const arr = useStableArraySelector(keysSelector);
 
   return useMemo(
     () =>
