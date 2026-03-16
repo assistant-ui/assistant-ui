@@ -1,5 +1,13 @@
 # @assistant-ui/react-a2a
 
+## 0.2.7
+
+### Patch Changes
+
+- a1b68b1: rewrite to align with A2A v1.0 protocol specification
+- Updated dependencies [7ecc497]
+  - @assistant-ui/core@0.1.7
+
 ## 0.2.6
 
 ### Patch Changes

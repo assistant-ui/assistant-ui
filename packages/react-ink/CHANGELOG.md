@@ -1,5 +1,14 @@
 # @assistant-ui/react-ink
 
+## 0.0.6
+
+### Patch Changes
+
+- 7ecc497: feat: children API for primitives with part.toolUI, part.dataRendererUI, and MessagePrimitive.Quote
+- 639792c: feat(react-ink): add ErrorPrimitive (Root, Message)
+- Updated dependencies [7ecc497]
+  - @assistant-ui/core@0.1.7
+
 ## 0.0.5
 
 ### Patch Changes
