@@ -585,7 +585,7 @@ const MessagePrimitivePartsInner: FC<{
 
   return (
     <AuiForEach keys={(s) => s.message.parts.map((_, index) => index)}>
-      {(index) => (
+      {(_idx, index) => (
         <PartByIndexProvider index={index}>
           <RenderChildrenWithAccessor
             getItemState={(aui) => aui.message().part({ index }).getState()}

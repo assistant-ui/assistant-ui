@@ -62,7 +62,7 @@ const ThreadPrimitiveSuggestionsInner: FC<{
   children: (value: { suggestion: SuggestionState }) => ReactNode;
 }> = ({ children }) => (
   <AuiForEach keys={(s) => s.suggestions.suggestions.map((_, index) => index)}>
-    {(index) => (
+    {(_idx, index) => (
       <SuggestionByIndexProvider index={index}>
         <RenderChildrenWithAccessor
           getItemState={(aui) =>

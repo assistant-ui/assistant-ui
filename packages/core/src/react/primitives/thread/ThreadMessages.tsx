@@ -170,8 +170,8 @@ ThreadPrimitiveMessageByIndex.displayName = "ThreadPrimitive.MessageByIndex";
 const ThreadPrimitiveMessagesInner: FC<{
   children: (value: { message: MessageState }) => ReactNode;
 }> = ({ children }) => (
-  <AuiForEach keys={(s) => s.thread.messages.map((_, index) => index)}>
-    {(index) => (
+  <AuiForEach keys={(s) => s.thread.messages.map((m) => m.id)}>
+    {(_msgId, index) => (
       <MessageByIndexProvider index={index}>
         <RenderChildrenWithAccessor
           getItemState={(aui) => aui.thread().message({ index }).getState()}
