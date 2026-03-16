@@ -3,11 +3,14 @@
  */
 
 import type {
+  ActiveItem,
   AgentEvent,
   AgentState,
   ApprovalState,
+  PlanState,
   SDKEvent,
   TaskState,
+  UserInputState,
 } from "../runtime/types";
 import { nanoid } from "nanoid";
 
@@ -18,6 +21,12 @@ export interface ProcessEventResult {
   newApproval?: ApprovalState;
   resolvedApprovalId?: string;
   newEvent?: AgentEvent;
+  newUserInput?: UserInputState;
+  resolvedUserInputId?: string;
+  planUpdate?: { plan: Partial<PlanState>; isNew: boolean };
+  newActiveItem?: ActiveItem;
+  updatedActiveItem?: { id: string; update: Partial<ActiveItem> };
+  completedActiveItemId?: string;
 }
 
 export function processSDKEvent(
@@ -94,6 +103,7 @@ export function processSDKEvent(
           status: "running",
           cost: 0,
           events: [],
+          activeItems: [],
           parentAgentId: data.parentAgentId,
           childAgentIds: [],
           taskId: event.taskId,
@@ -404,6 +414,190 @@ export function processSDKEvent(
           type: "system_init",
           timestamp: event.timestamp,
           content: { sessionId: data.sessionId, tools: data.tools },
+          agentId: event.agentId,
+        };
+      }
+      break;
+    }
+
+    case "user_input_requested": {
+      const data = event.data as {
+        requestId: string;
+        questions: UserInputState["questions"];
+      };
+      result.taskUpdate = { status: "waiting_input" };
+      if (event.agentId) {
+        result.newUserInput = {
+          id: data.requestId,
+          questions: data.questions,
+          status: "pending",
+          agentId: event.agentId,
+          taskId: event.taskId,
+          createdAt: event.timestamp,
+        };
+        result.newEvent = {
+          id: `evt_${nanoid()}`,
+          type: "user_input_requested",
+          timestamp: event.timestamp,
+          content: { requestId: data.requestId, questions: data.questions },
+          agentId: event.agentId,
+        };
+      }
+      break;
+    }
+
+    case "user_input_resolved": {
+      const data = event.data as {
+        requestId: string;
+        answers: Record<string, string>;
+      };
+      result.resolvedUserInputId = data.requestId;
+      const hasOtherPendingInput = currentState.pendingUserInputs.some(
+        (input) => input.id !== data.requestId && input.status === "pending",
+      );
+      result.taskUpdate = {
+        status: hasOtherPendingInput ? "waiting_input" : "running",
+      };
+      if (event.agentId) {
+        result.newEvent = {
+          id: `evt_${nanoid()}`,
+          type: "user_input_resolved",
+          timestamp: event.timestamp,
+          content: { requestId: data.requestId, answers: data.answers },
+          agentId: event.agentId,
+        };
+      }
+      break;
+    }
+
+    case "plan_delta": {
+      const data = event.data as { planId: string; text: string };
+      result.planUpdate = {
+        plan: {
+          id: data.planId,
+          text: (currentState.proposedPlan?.text ?? "") + data.text,
+          status: "streaming" as const,
+          agentId: event.agentId ?? "",
+          taskId: event.taskId,
+        },
+        isNew:
+          !currentState.proposedPlan ||
+          currentState.proposedPlan.status !== "streaming",
+      };
+      break;
+    }
+
+    case "plan_completed": {
+      result.planUpdate = {
+        plan: { status: "proposed" },
+        isNew: false,
+      };
+      result.taskUpdate = { status: "waiting_input" };
+      if (event.agentId) {
+        result.newEvent = {
+          id: `evt_${nanoid()}`,
+          type: "plan_proposed",
+          timestamp: event.timestamp,
+          content: {
+            planId: currentState.proposedPlan?.id ?? "",
+            text: currentState.proposedPlan?.text ?? "",
+          },
+          agentId: event.agentId,
+        };
+      }
+      break;
+    }
+
+    case "plan_approved": {
+      result.planUpdate = {
+        plan: { status: "approved" },
+        isNew: false,
+      };
+      result.taskUpdate = { status: "running" };
+      break;
+    }
+
+    case "plan_rejected": {
+      result.planUpdate = {
+        plan: { status: "rejected" },
+        isNew: false,
+      };
+      result.taskUpdate = { status: "running" };
+      break;
+    }
+
+    case "item_started": {
+      const data = event.data as {
+        itemId: string;
+        itemType: string;
+        title?: string;
+      };
+      if (event.agentId) {
+        const activeItem: ActiveItem = {
+          id: data.itemId,
+          itemType: data.itemType,
+          status: "running",
+          startedAt: event.timestamp,
+          agentId: event.agentId,
+        };
+        if (data.title !== undefined) activeItem.title = data.title;
+        result.newActiveItem = activeItem;
+        result.newEvent = {
+          id: `evt_${nanoid()}`,
+          type: "item_started",
+          timestamp: event.timestamp,
+          content: {
+            itemId: data.itemId,
+            itemType: data.itemType,
+            title: data.title,
+          },
+          agentId: event.agentId,
+        };
+      }
+      break;
+    }
+
+    case "item_updated": {
+      const data = event.data as {
+        itemId: string;
+        detail?: string;
+        title?: string;
+      };
+      if (event.agentId) {
+        const itemUpdate: Partial<ActiveItem> = {};
+        if (data.detail !== undefined) itemUpdate.detail = data.detail;
+        if (data.title !== undefined) itemUpdate.title = data.title;
+        result.updatedActiveItem = {
+          id: data.itemId,
+          update: itemUpdate,
+        };
+        result.newEvent = {
+          id: `evt_${nanoid()}`,
+          type: "item_updated",
+          timestamp: event.timestamp,
+          content: {
+            itemId: data.itemId,
+            detail: data.detail,
+            title: data.title,
+          },
+          agentId: event.agentId,
+        };
+      }
+      break;
+    }
+
+    case "item_completed": {
+      const data = event.data as {
+        itemId: string;
+        status: "completed" | "failed";
+      };
+      if (event.agentId) {
+        result.completedActiveItemId = data.itemId;
+        result.newEvent = {
+          id: `evt_${nanoid()}`,
+          type: "item_completed",
+          timestamp: event.timestamp,
+          content: { itemId: data.itemId, status: data.status },
           agentId: event.agentId,
         };
       }

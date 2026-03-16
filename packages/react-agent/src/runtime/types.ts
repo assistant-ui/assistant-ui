@@ -35,6 +35,8 @@ export interface TaskState {
   cost: number;
   agents: AgentState[];
   pendingApprovals: ApprovalState[];
+  pendingUserInputs: UserInputState[];
+  proposedPlan: PlanState | undefined;
   createdAt: Date;
   completedAt: Date | undefined;
 }
@@ -45,6 +47,7 @@ export interface AgentState {
   status: AgentStatus;
   cost: number;
   events: AgentEvent[];
+  activeItems: ActiveItem[];
   parentAgentId: string | null;
   childAgentIds: string[];
   taskId: string;
@@ -61,6 +64,51 @@ export interface ApprovalState {
   createdAt: Date;
 }
 
+// User Input types
+
+export type UserInputQuestion = {
+  id: string;
+  prompt: string;
+  type: "text" | "select" | "confirm";
+  options?: string[];
+};
+
+export type UserInputStatus = "pending" | "processing" | "resolved";
+
+export interface UserInputState {
+  id: string;
+  questions: UserInputQuestion[];
+  status: UserInputStatus;
+  agentId: string;
+  taskId: string;
+  createdAt: Date;
+}
+
+// Plan types
+
+export type PlanStatus = "streaming" | "proposed" | "approved" | "rejected";
+
+export interface PlanState {
+  id: string;
+  text: string;
+  status: PlanStatus;
+  agentId: string;
+  taskId: string;
+}
+
+// Activity/Item types
+
+export interface ActiveItem {
+  id: string;
+  itemType: string;
+  title?: string;
+  detail?: string;
+  status: "running" | "completed" | "failed";
+  startedAt: Date;
+  completedAt?: Date;
+  agentId: string;
+}
+
 export type AgentEventType =
   | "tool_call"
   | "tool_result"
@@ -75,7 +123,13 @@ export type AgentEventType =
   | "tool_denied"
   | "tool_progress"
   | "cost_update"
-  | "system_init";
+  | "system_init"
+  | "user_input_requested"
+  | "user_input_resolved"
+  | "plan_proposed"
+  | "item_started"
+  | "item_updated"
+  | "item_completed";
 
 export interface AgentEvent {
   id: string;
@@ -125,6 +179,56 @@ export interface ErrorEvent extends AgentEvent {
   };
 }
 
+export interface UserInputRequestedEvent extends AgentEvent {
+  type: "user_input_requested";
+  content: {
+    requestId: string;
+    questions: UserInputQuestion[];
+  };
+}
+
+export interface UserInputResolvedEvent extends AgentEvent {
+  type: "user_input_resolved";
+  content: {
+    requestId: string;
+    answers: Record<string, string>;
+  };
+}
+
+export interface PlanProposedEvent extends AgentEvent {
+  type: "plan_proposed";
+  content: {
+    planId: string;
+    text: string;
+  };
+}
+
+export interface ItemStartedEvent extends AgentEvent {
+  type: "item_started";
+  content: {
+    itemId: string;
+    itemType: string;
+    title?: string;
+  };
+}
+
+export interface ItemUpdatedEvent extends AgentEvent {
+  type: "item_updated";
+  content: {
+    itemId: string;
+    detail?: string;
+    title?: string;
+  };
+}
+
+export interface ItemCompletedEvent extends AgentEvent {
+  type: "item_completed";
+  content: {
+    itemId: string;
+    status: "completed" | "failed";
+  };
+}
+
 /**
  * SDK types - these represent the interface we expect from the Anthropic Agents SDK.
  * When the actual SDK is available, these can be replaced with imports from the SDK.
@@ -152,7 +256,16 @@ export type SDKEventType =
   | "message"
   | "message_delta"
   | "cost_update"
-  | "system_init";
+  | "system_init"
+  | "user_input_requested"
+  | "user_input_resolved"
+  | "plan_delta"
+  | "plan_completed"
+  | "plan_approved"
+  | "plan_rejected"
+  | "item_started"
+  | "item_updated"
+  | "item_completed";
 
 export interface SDKEvent {
   type: SDKEventType;

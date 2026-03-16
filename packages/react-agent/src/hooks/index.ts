@@ -42,3 +42,15 @@ export type {
 } from "../primitives/task/useTaskTree";
 
 export { useApprovalQueue } from "../primitives/approval/useApprovalQueue";
+
+export {
+  UserInputProvider,
+  useUserInputId,
+  useUserInput,
+  useUserInputState,
+} from "./useUserInputState";
+export type { UserInputProviderProps } from "./useUserInputState";
+
+export { usePlan, usePlanState } from "./usePlanState";
+
+export { useActiveItems } from "./useActiveItems";

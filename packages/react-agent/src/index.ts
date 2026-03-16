@@ -10,3 +10,6 @@ export * from "./hooks";
 
 // Primitives
 export * from "./primitives";
+
+// Bridge
+export { useAgentChatRuntime, AsyncEventQueue } from "./bridge";

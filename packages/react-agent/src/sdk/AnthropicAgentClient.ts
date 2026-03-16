@@ -62,6 +62,22 @@ export class AnthropicAgentClient implements AgentClientInterface {
     controller.resolveApproval(approvalId, decision);
   }
 
+  async respondToUserInput(): Promise<void> {
+    throw new Error(
+      "respondToUserInput is not supported by AnthropicAgentClient. " +
+        "The Anthropic Agent SDK does not currently support user input requests. " +
+        "Use HttpAgentClient with a server that supports this feature.",
+    );
+  }
+
+  async respondToPlan(): Promise<void> {
+    throw new Error(
+      "respondToPlan is not supported by AnthropicAgentClient. " +
+        "The Anthropic Agent SDK does not currently support plan proposals. " +
+        "Use HttpAgentClient with a server that supports this feature.",
+    );
+  }
+
   async cancelTask(taskId: string): Promise<void> {
     const controller = this.activeTasks.get(taskId);
     if (controller) {

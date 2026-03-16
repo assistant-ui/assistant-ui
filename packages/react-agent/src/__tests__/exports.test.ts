@@ -8,10 +8,15 @@ describe("@assistant-ui/react-agent exports", () => {
     expect(ReactAgent.TaskRuntime).toBeDefined();
     expect(ReactAgent.AgentRuntime).toBeDefined();
     expect(ReactAgent.ApprovalRuntime).toBeDefined();
+    expect(ReactAgent.UserInputRuntime).toBeDefined();
+    expect(ReactAgent.PlanRuntime).toBeDefined();
     expect(ReactAgent.HttpAgentClient).toBeDefined();
     expect("AnthropicAgentClient" in ReactAgent).toBe(false);
     expect(ReactAgentServer.AnthropicAgentClient).toBeDefined();
     expect(ReactAgentServer.WorkspaceRuntime).toBeDefined();
+    expect(ReactAgentServer.UserInputRuntime).toBeDefined();
+    expect(ReactAgentServer.PlanRuntime).toBeDefined();
+    expect(ReactAgentServer.AsyncEventQueue).toBeDefined();
     expect("TaskPrimitive" in ReactAgentServer).toBe(false);
     expect("AgentWorkspaceProvider" in ReactAgentServer).toBe(false);
   });
@@ -27,5 +32,10 @@ describe("@assistant-ui/react-agent exports", () => {
     expect(ReactAgent.ApprovalPrimitive).toBeDefined();
     expect(ReactAgent.WorkspacePrimitive).toBeDefined();
     expect(ReactAgent.ToolExecutionPrimitive).toBeDefined();
+    expect(ReactAgent.UserInputPrimitive).toBeDefined();
+    expect(ReactAgent.PlanPrimitive).toBeDefined();
+    expect(ReactAgent.ActivityPrimitive).toBeDefined();
+    expect(ReactAgent.useAgentChatRuntime).toBeDefined();
+    expect(ReactAgent.AsyncEventQueue).toBeDefined();
   });
 });

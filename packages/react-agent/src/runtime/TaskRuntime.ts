@@ -6,16 +6,22 @@ import type { AgentClientInterface } from "../sdk/HttpAgentClient";
 import { processSDKEvent } from "../sdk/converters";
 import { AgentRuntime } from "./AgentRuntime";
 import { ApprovalRuntime } from "./ApprovalRuntime";
+import { UserInputRuntime } from "./UserInputRuntime";
+import { PlanRuntime } from "./PlanRuntime";
 import type {
   PermissionMode,
   PermissionStoreInterface,
 } from "./PermissionStore";
 import type {
+  AgentEvent,
   AgentState,
   ApprovalStatus,
   CreateTaskOptions,
+  PlanState,
+  PlanStatus,
   TaskHandle,
   TaskState,
+  UserInputStatus,
 } from "./types";
 
 export class TaskRuntime {
@@ -25,6 +31,9 @@ export class TaskRuntime {
   private permissionStore: PermissionStoreInterface;
   private agents: Map<string, AgentRuntime> = new Map();
   private approvals: Map<string, ApprovalRuntime> = new Map();
+  private userInputs: Map<string, UserInputRuntime> = new Map();
+  private plan: PlanRuntime | null = null;
+  private eventSubscribers: Set<(event: AgentEvent) => void> = new Set();
   private listeners: Set<() => void> = new Set();
   private originalPrompt: string;
   private serverTaskId: string;
@@ -53,6 +62,8 @@ export class TaskRuntime {
       cost: 0,
       agents: [],
       pendingApprovals: [],
+      pendingUserInputs: [],
+      proposedPlan: undefined,
       createdAt: new Date(),
       completedAt: undefined,
     };
@@ -76,6 +87,19 @@ export class TaskRuntime {
     return this.approvals.get(approvalId);
   }
 
+  getUserInput(requestId: string): UserInputRuntime | undefined {
+    return this.userInputs.get(requestId);
+  }
+
+  getPlan(): PlanRuntime | null {
+    return this.plan;
+  }
+
+  subscribeToEvents(callback: (event: AgentEvent) => void): () => void {
+    this.eventSubscribers.add(callback);
+    return () => this.eventSubscribers.delete(callback);
+  }
+
   setPermissionMode(mode: PermissionMode | undefined): void {
     this.permissionModeOverride = mode;
     if (mode !== undefined) {
@@ -92,6 +116,9 @@ export class TaskRuntime {
     if (!["starting", "running", "waiting_input"].includes(this.state.status)) {
       return;
     }
+
+    this.userInputs.clear();
+    this.plan = null;
 
     await this.client.cancelTask(this.serverTaskId);
   }
@@ -116,12 +143,16 @@ export class TaskRuntime {
     this.serverTaskId = handle.id;
     this.agents.clear();
     this.approvals.clear();
+    this.userInputs.clear();
+    this.plan = null;
     this.state = {
       ...this.state,
       status: "starting",
       cost: 0,
       agents: [],
       pendingApprovals: [],
+      pendingUserInputs: [],
+      proposedPlan: undefined,
       createdAt: new Date(),
       completedAt: undefined,
     };
@@ -211,6 +242,8 @@ export class TaskRuntime {
       if (agent) {
         agent.addEvent(result.newEvent);
       }
+      // Fire per-event subscribers (for bridge adapter)
+      for (const sub of this.eventSubscribers) sub(result.newEvent);
     }
 
     // Handle new approval
@@ -259,7 +292,116 @@ export class TaskRuntime {
       shouldNotify = true;
     }
 
+    // Handle new user input
+    if (result.newUserInput) {
+      const userInputRuntime = new UserInputRuntime(
+        result.newUserInput,
+        this.client,
+        (status: UserInputStatus) =>
+          this.onUserInputResolved(result.newUserInput!.id, status),
+      );
+      this.userInputs.set(result.newUserInput.id, userInputRuntime);
+      shouldNotify = true;
+    }
+
+    // Handle resolved user input
+    if (result.resolvedUserInputId) {
+      this.userInputs.delete(result.resolvedUserInputId);
+      shouldNotify = true;
+    }
+
+    // Handle plan updates
+    if (result.planUpdate) {
+      if (result.planUpdate.isNew) {
+        this.plan = new PlanRuntime(
+          result.planUpdate.plan as PlanState,
+          this.client,
+          (status: PlanStatus) => this.onPlanResolved(status),
+        );
+        shouldNotify = true;
+      } else if (this.plan) {
+        if (result.planUpdate.plan.text !== undefined) {
+          // Calculate delta by subtracting current plan text from the new accumulated text
+          const currentText = this.plan.getState().text;
+          const newText = result.planUpdate.plan.text;
+          const delta = newText.startsWith(currentText)
+            ? newText.slice(currentText.length)
+            : newText;
+          this.plan.appendText(delta);
+        }
+        if (result.planUpdate.plan.status !== undefined) {
+          // Status updates come from server events (plan_approved, plan_rejected, plan_completed)
+          // Update plan internal state by recreating with new status
+          const currentPlanState = this.plan.getState();
+          const updatedState: PlanState = {
+            ...currentPlanState,
+            status: result.planUpdate.plan.status,
+          };
+          this.plan = new PlanRuntime(
+            updatedState,
+            this.client,
+            (status: PlanStatus) => this.onPlanResolved(status),
+          );
+          shouldNotify = true;
+        }
+      }
+    }
+
+    // Handle active item lifecycle (mutations on AgentRuntime)
+    if (result.newActiveItem) {
+      const agent = this.agents.get(result.newActiveItem.agentId);
+      if (agent) {
+        agent.addActiveItem(result.newActiveItem);
+      }
+    }
+    if (result.updatedActiveItem) {
+      const agentId = (event as { agentId?: string }).agentId;
+      if (agentId) {
+        const agent = this.agents.get(agentId);
+        if (agent) {
+          agent.updateActiveItem(
+            result.updatedActiveItem.id,
+            result.updatedActiveItem.update,
+          );
+        }
+      }
+    }
+    if (result.completedActiveItemId) {
+      const agentId = (event as { agentId?: string }).agentId;
+      if (agentId) {
+        const agent = this.agents.get(agentId);
+        if (agent) {
+          agent.removeActiveItem(result.completedActiveItemId);
+        }
+      }
+    }
+
     if (shouldNotify) {
+      this.notify();
+    }
+  }
+
+  private onUserInputResolved(
+    requestId: string,
+    _status: UserInputStatus,
+  ): void {
+    this.userInputs.delete(requestId);
+    this.state = {
+      ...this.state,
+      pendingUserInputs: this.state.pendingUserInputs.filter(
+        (u) => u.id !== requestId,
+      ),
+    };
+    this.notify();
+  }
+
+  private onPlanResolved(status: PlanStatus): void {
+    if (this.plan) {
+      const currentState = this.plan.getState();
+      this.state = {
+        ...this.state,
+        proposedPlan: { ...currentState, status },
+      };
       this.notify();
     }
   }

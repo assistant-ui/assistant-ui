@@ -74,3 +74,14 @@ export type {
   WorkspaceTotalCostProps,
   ViewMode,
 } from "./workspace/WorkspacePrimitive";
+
+export { UserInputPrimitive } from "./UserInputPrimitive";
+export type {
+  UserInputRootProps,
+  UserInputIfProps,
+} from "./UserInputPrimitive";
+
+export { PlanPrimitive } from "./PlanPrimitive";
+export type { PlanIfProps } from "./PlanPrimitive";
+
+export { ActivityPrimitive } from "./ActivityPrimitive";

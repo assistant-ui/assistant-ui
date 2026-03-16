@@ -20,6 +20,17 @@ export interface AgentClientInterface {
     decision: "allow" | "deny",
   ): Promise<void>;
   cancelTask(taskId: string): Promise<void>;
+  respondToUserInput?(
+    taskId: string,
+    requestId: string,
+    answers: Record<string, string>,
+  ): Promise<void>;
+  respondToPlan?(
+    taskId: string,
+    planId: string,
+    decision: "approve" | "reject",
+    feedback?: string,
+  ): Promise<void>;
 }
 
 /**
@@ -227,6 +238,42 @@ export class HttpAgentClient implements AgentClientInterface {
       const error = await response.text();
       throw new Error(`Failed to submit approval: ${error}`);
     }
+  }
+
+  async respondToUserInput(
+    taskId: string,
+    requestId: string,
+    answers: Record<string, string>,
+  ): Promise<void> {
+    const res = await fetch(
+      `${this.baseUrl}/tasks/${taskId}/user-input/${requestId}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({ answers }),
+      },
+    );
+    if (!res.ok) throw new Error(`respondToUserInput failed: ${res.status}`);
+  }
+
+  async respondToPlan(
+    taskId: string,
+    planId: string,
+    decision: "approve" | "reject",
+    feedback?: string,
+  ): Promise<void> {
+    const res = await fetch(`${this.baseUrl}/tasks/${taskId}/plan/${planId}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${this.apiKey}`,
+      },
+      body: JSON.stringify({ decision, feedback }),
+    });
+    if (!res.ok) throw new Error(`respondToPlan failed: ${res.status}`);
   }
 
   async cancelTask(taskId: string): Promise<void> {
