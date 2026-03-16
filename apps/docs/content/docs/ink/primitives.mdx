@@ -157,6 +157,69 @@ Renders a suggestion button. Uses Ink `Box` + `Text`.
 | `send` | `boolean` | When true, automatically sends the message |
 | `clearComposer` | `boolean` | When true (default), replaces composer text; when false, appends |
 
+## Loading
+
+```tsx
+import { LoadingPrimitive } from "@assistant-ui/react-ink";
+```
+
+Composable loading UI for active runs. `LoadingPrimitive.Root` only renders
+while the current thread is running, so it pairs naturally with status rows in
+terminal chat layouts.
+
+```tsx
+<LoadingPrimitive.Root>
+  <LoadingPrimitive.Spinner variant="bar" />
+  <LoadingPrimitive.Text>Analyzing codebase...</LoadingPrimitive.Text>
+  <LoadingPrimitive.ElapsedTime />
+</LoadingPrimitive.Root>
+```
+
+This renders a compact status line such as `[=== ] Analyzing codebase... (3s)`
+while the assistant is streaming.
+
+### Root
+
+Runtime-aware `Box` container that renders children only while
+`s.thread.isRunning` is true.
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `gap` | `number` | Space between children (default: `1`) |
+| `...rest` | `BoxProps` | Standard Ink Box props |
+
+### Spinner
+
+Animated loader indicator. Supports the existing `ink-spinner` path plus a few
+built-in text-based variants for more terminal-native styles.
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `variant` | `"spinner" \| "dots" \| "pulse" \| "bar" \| "bounce"` | Loader style (default: `"spinner"`) |
+| `type` | `ink-spinner` type | Spinner preset used when `variant="spinner"` |
+| `color` | `TextProps["color"]` | Ink text color (default: `"yellow"`) |
+| `intervalMs` | `number` | Animation speed for non-spinner variants (default: `120`) |
+
+### Text
+
+Status label rendered as Ink `Text`.
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `children` | `ReactNode` | Message text (default: `"Thinking..."`) |
+| `color` | `TextProps["color"]` | Ink text color (default: `"yellow"`) |
+
+### ElapsedTime
+
+Elapsed time indicator for the current run. Uses message timing metadata when
+available and falls back to a local timer so it still works during manual
+testing.
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `color` | `TextProps["color"]` | Ink text color (default: `"gray"`) |
+| `format` | `(seconds: number) => string` | Custom formatter for the elapsed time label |
+
 ## Composer
 
 ```tsx
