@@ -40,6 +40,7 @@ export type UseAgUiRuntimeAdapters = {
 
 export type UseAgUiRuntimeOptions = {
   agent: HttpAgent;
+  threadId?: string;
   logger?: Partial<Logger>;
   showThinking?: boolean;
   onError?: (e: Error) => void;

@@ -33,6 +33,7 @@ export function useAgUiRuntime(
   if (!coreRef.current) {
     coreRef.current = new AgUiThreadRuntimeCore({
       agent: options.agent,
+      ...(options.threadId !== undefined && { threadId: options.threadId }),
       logger,
       showThinking: options.showThinking ?? true,
       ...(options.onError && { onError: options.onError }),
@@ -45,6 +46,7 @@ export function useAgUiRuntime(
   const core = coreRef.current;
   core.updateOptions({
     agent: options.agent,
+    ...(options.threadId !== undefined && { threadId: options.threadId }),
     logger,
     showThinking: options.showThinking ?? true,
     ...(options.onError && { onError: options.onError }),
@@ -89,6 +91,7 @@ export function useAgUiRuntime(
       onSwitchToThread: onSwitchToThread
         ? async (threadId: string) => {
             toolInvocationsRef.current.reset();
+            core.setThreadId(threadId);
             const result = await onSwitchToThread(threadId);
             core.applyExternalMessages(result.messages);
             if (result.state) {
