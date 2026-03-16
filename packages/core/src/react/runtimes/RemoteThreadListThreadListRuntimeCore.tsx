@@ -117,6 +117,17 @@ export class RemoteThreadListThreadListRuntimeCore
               }
             }
 
+            // Preserve the main thread's local ID alias so it stays resolvable.
+            // Only add the alias — never copy stale data; the fresh load is authoritative.
+            const mainMappingId = state.threadIdMap[this._mainThreadId];
+            if (
+              mainMappingId &&
+              newThreadData[mainMappingId] &&
+              !newThreadIdMap[this._mainThreadId]
+            ) {
+              newThreadIdMap[this._mainThreadId] = mainMappingId;
+            }
+
             return {
               ...state,
               threadIds: newThreadIds,
