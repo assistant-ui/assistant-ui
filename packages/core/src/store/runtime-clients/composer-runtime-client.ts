@@ -57,6 +57,7 @@ export const ComposerClient = resource(
       const composerEvents: ComposerRuntimeEventType[] = [
         "send",
         "attachmentAdd",
+        "attachmentAddError",
       ];
 
       for (const event of composerEvents) {

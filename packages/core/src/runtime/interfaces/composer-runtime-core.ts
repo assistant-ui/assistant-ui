@@ -5,7 +5,10 @@ import type { Unsubscribe } from "../../types/unsubscribe";
 import type { RunConfig } from "../../types/message";
 import type { DictationAdapter } from "../../adapters/speech";
 
-export type ComposerRuntimeEventType = "send" | "attachmentAdd";
+export type ComposerRuntimeEventType =
+  | "send"
+  | "attachmentAdd"
+  | "attachmentAddError";
 
 export type DictationState = {
   readonly status: DictationAdapter.Status;
