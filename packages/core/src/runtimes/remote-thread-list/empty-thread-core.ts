@@ -72,7 +72,7 @@ export const EMPTY_THREAD_CORE: ThreadRuntimeCore = {
     attachments: [],
     attachmentAccept: "*",
 
-    async addAttachment() {
+    async addAttachment(_fileOrAttachment) {
       throw EMPTY_THREAD_ERROR;
     },
 

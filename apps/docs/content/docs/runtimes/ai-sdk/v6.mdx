@@ -101,6 +101,59 @@ export default function Home() {
   </Step>
 </Steps>
 
+## Tracking Token Usage
+
+assistant-ui exports a `useThreadTokenUsage` hook to access thread-level token usage on the client.
+<Steps>
+  <Step>
+Use `messageMetadata` in your Next.js route to attach `usage` from `finish` and `modelId` from `finish-step`.
+```tsx
+import { streamText, convertToModelMessages } from "ai";
+import { frontendTools } from "@assistant-ui/react-ai-sdk";
+export async function POST(req: Request) {
+  const { messages, tools, modelName } = await req.json();
+  const result = streamText({
+    model: getModel(modelName),
+    messages: await convertToModelMessages(messages),
+    tools: frontendTools(tools),
+  });
+  return result.toUIMessageStreamResponse({
+    messageMetadata: ({ part }) => {
+      if (part.type === "finish") {
+        return {
+          usage: part.totalUsage,
+        };
+      }
+      if (part.type === "finish-step") {
+        return {
+          modelId: part.response.modelId,
+        };
+      }
+      return undefined;
+    },
+  });
+}
+```
+  </Step>
+  <Step>
+Use `useThreadTokenUsage` to render token usage on the client.
+
+```tsx
+"use client";
+
+import { useThreadTokenUsage } from "@assistant-ui/react-ai-sdk";
+
+export function TokenCounter() {
+  const usage = useThreadTokenUsage();
+
+  if (!usage) return null;
+
+  return <div>{usage.totalTokens} total tokens</div>;
+}
+```
+  </Step>
+</Steps>
+
 ## Key Changes from v5
 
 | Feature | v5 | v6 |
@@ -119,34 +172,26 @@ Creates a runtime integrated with AI SDK's `useChat` hook.
 ```tsx
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 
-const runtime = useChatRuntime({
-  api: "/api/chat", // optional, defaults to "/api/chat"
-});
+const runtime = useChatRuntime();
 ```
 
 ### Custom API URL
 
-```tsx
-const runtime = useChatRuntime({
-  api: "/my-custom-api/chat",
-});
-```
-
-### Forwarding System Messages and Frontend Tools
-
-Use `AssistantChatTransport` to automatically forward system messages and frontend tools to your backend:
+To use a different endpoint, pass a custom `AssistantChatTransport`:
 
 ```tsx
-"use client";
-
 import { useChatRuntime, AssistantChatTransport } from "@assistant-ui/react-ai-sdk";
 
 const runtime = useChatRuntime({
   transport: new AssistantChatTransport({
-    api: "/api/chat",
+    api: "/my-custom-api/chat",
   }),
 });
 ```
+
+### System Messages and Frontend Tools
+
+`AssistantChatTransport` (used by default) automatically forwards system messages and frontend tools to your backend. To consume them, update your backend route:
 
 Backend route with system/tools forwarding:
 

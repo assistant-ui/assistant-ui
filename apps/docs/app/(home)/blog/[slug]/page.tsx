@@ -8,6 +8,7 @@ import Image from "next/image";
 import profilePic from "@/components/home/testimonials/profiles/Mc0m3zkD_400x400.jpg";
 import { getMDXComponents } from "@/mdx-components";
 import { ArrowLeft } from "lucide-react";
+import { BlogTOC } from "@/components/blog/blog-toc";
 
 interface Param {
   slug: string;
@@ -31,45 +32,49 @@ export default function Page(props: {
   if (!page) notFound();
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 py-16 md:py-24">
-      <Link
-        href="/blog"
-        className="inline-flex items-center gap-1.5 text-muted-foreground text-sm transition-colors hover:text-foreground"
-      >
-        <ArrowLeft className="h-3.5 w-3.5" />
-        Blog
-      </Link>
+    <>
+      <main className="mx-auto w-full max-w-3xl px-4 py-16 md:py-24">
+        <Link
+          href="/blog"
+          className="inline-flex items-center gap-1.5 text-muted-foreground text-sm transition-colors hover:text-foreground"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Blog
+        </Link>
 
-      <header className="mt-8">
-        {page.data.date && (
-          <time className="text-muted-foreground text-sm">
-            {formatDate(page.data.date)}
-          </time>
-        )}
-        <h1 className="mt-2 font-medium text-3xl tracking-tight">
-          {page.data.title}
-        </h1>
-        {page.data.description && (
-          <p className="mt-3 text-lg text-muted-foreground">
-            {page.data.description}
-          </p>
-        )}
-        <div className="mt-6 flex items-center gap-2.5">
-          <Image
-            src={profilePic}
-            alt="Simon Farshid"
-            width={28}
-            height={28}
-            className="rounded-full"
-          />
-          <span className="text-muted-foreground text-sm">Simon Farshid</span>
-        </div>
-      </header>
+        <header className="mt-8">
+          {page.data.date && (
+            <time className="text-muted-foreground text-sm">
+              {formatDate(page.data.date)}
+            </time>
+          )}
+          <h1 className="mt-2 font-medium text-3xl tracking-tight">
+            {page.data.title}
+          </h1>
+          {page.data.description && (
+            <p className="mt-3 text-lg text-muted-foreground">
+              {page.data.description}
+            </p>
+          )}
+          <div className="mt-6 flex items-center gap-2.5">
+            <Image
+              src={profilePic}
+              alt="Simon Farshid"
+              width={28}
+              height={28}
+              className="rounded-full"
+            />
+            <span className="text-muted-foreground text-sm">Simon Farshid</span>
+          </div>
+        </header>
 
-      <article className="prose mt-12 max-w-none">
-        <page.data.body components={mdxComponents} />
-      </article>
-    </main>
+        <article className="prose mt-12 max-w-none">
+          <page.data.body components={mdxComponents} />
+        </article>
+      </main>
+
+      <BlogTOC items={page.data.toc} />
+    </>
   );
 }
 

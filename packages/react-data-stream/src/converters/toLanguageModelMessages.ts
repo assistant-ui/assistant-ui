@@ -6,7 +6,7 @@ import type {
   LanguageModelV2ToolCallPart,
   LanguageModelV2ToolResultPart,
 } from "@ai-sdk/provider";
-import type { ThreadMessage } from "@assistant-ui/react";
+import type { ThreadMessage } from "@assistant-ui/core";
 import {
   toGenericMessages,
   type GenericMessage,

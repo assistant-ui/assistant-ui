@@ -1,0 +1,19 @@
+{
+  "name": "@assistant-ui/social-media",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsx src/build.tsx",
+    "dev": "tsx src/watch.tsx"
+  },
+  "dependencies": {
+    "@resvg/resvg-js": "^2.6.2",
+    "satori": "^0.25.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "react": "^19.2.4",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}

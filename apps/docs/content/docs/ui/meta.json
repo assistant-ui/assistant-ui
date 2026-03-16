@@ -5,18 +5,20 @@
   "root": true,
   "pages": [
     "---Functional---",
-    "assistant-modal",
     "thread",
-    "---Add-ons---",
+    "assistant-modal",
     "assistant-sidebar",
+    "---Add-ons---",
     "attachment",
+    "context-display",
+    "scrollbar",
     "file",
     "image",
     "markdown",
     "mermaid",
     "model-selector",
+    "quote",
     "reasoning",
-    "scrollbar",
     "sources",
     "streamdown",
     "syntax-highlighting",
@@ -30,6 +32,7 @@
     "select",
     "tabs",
     "---Experimental---",
+    "message-timing",
     "part-grouping"
   ]
 }

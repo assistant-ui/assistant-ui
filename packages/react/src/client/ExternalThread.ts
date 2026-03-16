@@ -15,13 +15,13 @@ import {
 import { withKey } from "@assistant-ui/tap";
 import type {
   Attachment,
+  CreateAttachment,
   ThreadAssistantMessagePart,
   ThreadUserMessagePart,
   ThreadMessage,
 } from "@assistant-ui/core";
 import { ModelContext, Suggestions } from "@assistant-ui/core/store";
-import { Tools } from "./Tools";
-import { DataRenderers } from "./DataRenderers";
+import { Tools, DataRenderers } from "@assistant-ui/core/react";
 
 export type ExternalThreadMessage = ThreadMessage & {
   id: string;
@@ -308,17 +308,29 @@ const ComposerClientResource = resource(
       setText,
       setRole,
       setRunConfig,
-      addAttachment: async (file: File) => {
-        const newAttachment: Attachment = {
-          id: Math.random().toString(36).substring(7),
-          type: "file",
-          name: file.name,
-          contentType: file.type,
-          file,
-          status: { type: "complete" },
-          content: [],
-        };
-        setAttachments([...attachments, newAttachment]);
+      addAttachment: async (fileOrAttachment: File | CreateAttachment) => {
+        if (fileOrAttachment instanceof File) {
+          const newAttachment: Attachment = {
+            id: Math.random().toString(36).substring(7),
+            type: "file",
+            name: fileOrAttachment.name,
+            contentType: fileOrAttachment.type,
+            file: fileOrAttachment,
+            status: { type: "complete" },
+            content: [],
+          };
+          setAttachments([...attachments, newAttachment]);
+        } else {
+          const newAttachment: Attachment = {
+            id: fileOrAttachment.id ?? Math.random().toString(36).substring(7),
+            type: fileOrAttachment.type ?? "document",
+            name: fileOrAttachment.name,
+            contentType: fileOrAttachment.contentType,
+            content: fileOrAttachment.content,
+            status: { type: "complete" },
+          };
+          setAttachments([...attachments, newAttachment]);
+        }
       },
       clearAttachments: async () => {
         setAttachments([]);
@@ -456,6 +468,7 @@ export const ExternalThread = resource(
       startRun: () => {
         onStartRun?.();
       },
+      resumeRun: () => {},
       unstable_resumeRun: () => {},
       cancelRun: handleCancelRun,
       getModelContext: () => ({ tools: {}, config: {} }),

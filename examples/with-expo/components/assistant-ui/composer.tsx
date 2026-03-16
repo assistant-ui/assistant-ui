@@ -1,26 +1,71 @@
 import {
   View,
-  TextInput,
   Pressable,
+  Image,
+  Platform,
   StyleSheet,
   useColorScheme,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
 import {
   useAui,
-  useComposer,
-  useComposerSend,
-  useComposerCancel,
+  useAuiState,
+  ComposerPrimitive,
+  AttachmentPrimitive,
 } from "@assistant-ui/react-native";
+
+function AttachmentPreview() {
+  const attachment = useAuiState((s) => s.attachment);
+  if (!attachment) return null;
+
+  // Find image content for preview URI
+  const imageContent = attachment.content?.find((c: any) => c.type === "image");
+  const uri = (imageContent as any)?.image;
+
+  return (
+    <AttachmentPrimitive.Root style={styles.attachmentItem}>
+      {uri ? <Image source={{ uri }} style={styles.attachmentImage} /> : null}
+      <AttachmentPrimitive.Remove style={styles.attachmentRemoveButton}>
+        <Ionicons name="close-circle" size={20} color="#ff453a" />
+      </AttachmentPrimitive.Remove>
+    </AttachmentPrimitive.Root>
+  );
+}
 
 export function Composer() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
 
   const aui = useAui();
-  const text = useComposer((s) => s.text);
-  const { send, canSend } = useComposerSend();
-  const { cancel, canCancel } = useComposerCancel();
+  const attachmentsCount = useAuiState((s) => s.composer.attachments.length);
+  const canCancel = useAuiState((s) => s.composer.canCancel);
+  const canSend = useAuiState(
+    (s) => !s.thread.isRunning && s.composer.isEditing && !s.composer.isEmpty,
+  );
+
+  const pickImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsMultipleSelection: true,
+      quality: 0.8,
+      base64: true,
+    });
+
+    if (result.canceled) return;
+
+    for (const asset of result.assets) {
+      // Force JPEG mime type — iOS may report HEIC which OpenAI doesn't support
+      const dataUrl = `data:image/jpeg;base64,${asset.base64}`;
+
+      await aui.composer().addAttachment({
+        name: asset.fileName ?? "image.jpg",
+        contentType: "image/jpeg",
+        type: "image",
+        content: [{ type: "image", image: dataUrl }],
+      });
+    }
+  };
 
   return (
     <View
@@ -33,6 +78,13 @@ export function Composer() {
         },
       ]}
     >
+      {attachmentsCount > 0 && (
+        <View style={styles.attachmentsList}>
+          <ComposerPrimitive.Attachments>
+            {() => <AttachmentPreview />}
+          </ComposerPrimitive.Attachments>
+        </View>
+      )}
       <View
         style={[
           styles.inputWrapper,
@@ -42,25 +94,31 @@ export function Composer() {
           },
         ]}
       >
-        <TextInput
+        <Pressable
+          style={styles.attachButton}
+          onPress={pickImage}
+          disabled={canCancel}
+        >
+          <Ionicons
+            name="add-circle-outline"
+            size={24}
+            color={isDark ? "#8e8e93" : "#6e6e73"}
+          />
+        </Pressable>
+        <ComposerPrimitive.Input
           style={[styles.input, { color: isDark ? "#ffffff" : "#000000" }]}
           placeholder="Message..."
           placeholderTextColor="#8e8e93"
-          value={text}
-          onChangeText={(newText) => aui.composer().setText(newText)}
           multiline
           maxLength={4000}
           editable={!canCancel}
         />
         {canCancel ? (
-          <Pressable
-            style={[styles.button, styles.stopButton]}
-            onPress={cancel}
-          >
+          <ComposerPrimitive.Cancel style={[styles.button, styles.stopButton]}>
             <View style={styles.stopIcon} />
-          </Pressable>
+          </ComposerPrimitive.Cancel>
         ) : (
-          <Pressable
+          <ComposerPrimitive.Send
             style={[
               styles.button,
               styles.sendButton,
@@ -74,15 +132,13 @@ export function Composer() {
                     : "#e5e5ea",
               },
             ]}
-            onPress={send}
-            disabled={!canSend}
           >
             <Ionicons
               name="arrow-up"
               size={20}
               color={canSend ? "#ffffff" : "#8e8e93"}
             />
-          </Pressable>
+          </ComposerPrimitive.Send>
         )}
       </View>
     </View>
@@ -92,36 +148,59 @@ export function Composer() {
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 16,
-    paddingTop: 12,
+    paddingVertical: 8,
+  },
+  attachmentsList: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
     paddingBottom: 8,
+  },
+  attachmentItem: {
+    position: "relative",
+  },
+  attachmentImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+  },
+  attachmentRemoveButton: {
+    position: "absolute",
+    top: -6,
+    right: -6,
   },
   inputWrapper: {
     flexDirection: "row",
     alignItems: "flex-end",
-    borderRadius: 24,
+    borderRadius: 20,
     borderWidth: 1,
-    paddingLeft: 16,
-    paddingRight: 6,
-    paddingVertical: 6,
-    minHeight: 48,
+    padding: 6,
+  },
+  attachButton: {
+    width: 30,
+    height: 30,
+    justifyContent: "center",
+    alignItems: "center",
   },
   input: {
     flex: 1,
     fontSize: 16,
-    lineHeight: 22,
     maxHeight: 120,
-    paddingVertical: 6,
-    letterSpacing: -0.2,
+    alignSelf: "center",
+    paddingVertical: 0,
+    ...Platform.select({
+      web: { paddingHorizontal: 4, outlineStyle: "none" },
+      default: {},
+    }),
   },
   button: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     justifyContent: "center",
     alignItems: "center",
-    marginLeft: 8,
+    marginLeft: 6,
   },
-  sendButton: {},
   stopButton: {
     backgroundColor: "#ff453a",
   },

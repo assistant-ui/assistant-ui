@@ -107,10 +107,10 @@ Install provider SDK:
     <InstallCommand npm={["ai", "@assistant-ui/react-ai-sdk", "@ai-sdk/google-vertex"]} />
   </Tab>
   <Tab>
-    <InstallCommand npm={["ai", "@assistant-ui/react-ai-sdk", "@ai-sdk/openai"]} />
+    <InstallCommand npm={["ai", "@assistant-ui/react-ai-sdk", "@ai-sdk/groq"]} />
   </Tab>
   <Tab>
-    <InstallCommand npm={["ai", "@assistant-ui/react-ai-sdk", "@ai-sdk/openai"]} />
+    <InstallCommand npm={["ai", "@assistant-ui/react-ai-sdk", "@ai-sdk/fireworks"]} />
   </Tab>
   <Tab>
     <InstallCommand npm={["ai", "@assistant-ui/react-ai-sdk", "@ai-sdk/cohere"]} />
@@ -128,15 +128,18 @@ Add an API endpoint:
 <Tabs groupId="provider" items={["OpenAI", "Anthropic", "Azure", "AWS", "Gemini", "GCP", "Groq", "Fireworks", "Cohere", "Ollama", "Chrome AI"]}>
 ```ts title="/app/api/chat/route.ts" tab="OpenAI"
 import { openai } from "@ai-sdk/openai";
+import { frontendTools } from "@assistant-ui/react-ai-sdk";
 import { convertToModelMessages, streamText } from "ai";
 
 export const maxDuration = 30;
 
 export async function POST(req: Request) {
-  const { messages } = await req.json();
+  const { messages, system, tools } = await req.json();
   const result = streamText({
     model: openai("gpt-4o-mini"),
-    messages: convertToModelMessages(messages),
+    system,
+    messages: await convertToModelMessages(messages),
+    tools: frontendTools(tools),
   });
   return result.toUIMessageStreamResponse();
 }
@@ -144,15 +147,18 @@ export async function POST(req: Request) {
 
 ```ts title="/app/api/chat/route.ts" tab="Anthropic"
 import { anthropic } from "@ai-sdk/anthropic";
+import { frontendTools } from "@assistant-ui/react-ai-sdk";
 import { convertToModelMessages, streamText } from "ai";
 
 export const maxDuration = 30;
 
 export async function POST(req: Request) {
-  const { messages } = await req.json();
+  const { messages, system, tools } = await req.json();
   const result = streamText({
-    model: anthropic("claude-3-5-sonnet-20240620"),
-    messages: convertToModelMessages(messages),
+    model: anthropic("claude-sonnet-4-6"),
+    system,
+    messages: await convertToModelMessages(messages),
+    tools: frontendTools(tools),
   });
   return result.toUIMessageStreamResponse();
 }
@@ -160,15 +166,18 @@ export async function POST(req: Request) {
 
 ```ts title="/app/api/chat/route.ts" tab="Azure"
 import { azure } from "@ai-sdk/azure";
+import { frontendTools } from "@assistant-ui/react-ai-sdk";
 import { convertToModelMessages, streamText } from "ai";
 
 export const maxDuration = 30;
 
 export async function POST(req: Request) {
-  const { messages } = await req.json();
+  const { messages, system, tools } = await req.json();
   const result = streamText({
     model: azure("your-deployment-name"),
-    messages: convertToModelMessages(messages),
+    system,
+    messages: await convertToModelMessages(messages),
+    tools: frontendTools(tools),
   });
   return result.toUIMessageStreamResponse();
 }
@@ -176,15 +185,18 @@ export async function POST(req: Request) {
 
 ```ts title="/app/api/chat/route.ts" tab="AWS"
 import { bedrock } from "@ai-sdk/amazon-bedrock";
+import { frontendTools } from "@assistant-ui/react-ai-sdk";
 import { convertToModelMessages, streamText } from "ai";
 
 export const maxDuration = 30;
 
 export async function POST(req: Request) {
-  const { messages } = await req.json();
+  const { messages, system, tools } = await req.json();
   const result = streamText({
-    model: bedrock("anthropic.claude-3-5-sonnet-20240620-v1:0"),
-    messages: convertToModelMessages(messages),
+    model: bedrock("anthropic.claude-sonnet-4-6-v1:0"),
+    system,
+    messages: await convertToModelMessages(messages),
+    tools: frontendTools(tools),
   });
   return result.toUIMessageStreamResponse();
 }
@@ -192,15 +204,18 @@ export async function POST(req: Request) {
 
 ```ts title="/app/api/chat/route.ts" tab="Gemini"
 import { google } from "@ai-sdk/google";
+import { frontendTools } from "@assistant-ui/react-ai-sdk";
 import { convertToModelMessages, streamText } from "ai";
 
 export const maxDuration = 30;
 
 export async function POST(req: Request) {
-  const { messages } = await req.json();
+  const { messages, system, tools } = await req.json();
   const result = streamText({
     model: google("gemini-2.0-flash"),
-    messages: convertToModelMessages(messages),
+    system,
+    messages: await convertToModelMessages(messages),
+    tools: frontendTools(tools),
   });
   return result.toUIMessageStreamResponse();
 }
@@ -208,57 +223,56 @@ export async function POST(req: Request) {
 
 ```ts title="/app/api/chat/route.ts" tab="GCP"
 import { vertex } from "@ai-sdk/google-vertex";
+import { frontendTools } from "@assistant-ui/react-ai-sdk";
 import { convertToModelMessages, streamText } from "ai";
 
 export const maxDuration = 30;
 
 export async function POST(req: Request) {
-  const { messages } = await req.json();
+  const { messages, system, tools } = await req.json();
   const result = streamText({
-    model: vertex("gemini-1.5-pro"),
-    messages: convertToModelMessages(messages),
+    model: vertex("gemini-2.0-flash"),
+    system,
+    messages: await convertToModelMessages(messages),
+    tools: frontendTools(tools),
   });
   return result.toUIMessageStreamResponse();
 }
 ```
 
 ```ts title="/app/api/chat/route.ts" tab="Groq"
-import { createOpenAI } from "@ai-sdk/openai";
+import { groq } from "@ai-sdk/groq";
+import { frontendTools } from "@assistant-ui/react-ai-sdk";
 import { convertToModelMessages, streamText } from "ai";
 
 export const maxDuration = 30;
 
-const groq = createOpenAI({
-  apiKey: process.env.GROQ_API_KEY ?? "",
-  baseURL: "https://api.groq.com/openai/v1",
-});
-
 export async function POST(req: Request) {
-  const { messages } = await req.json();
+  const { messages, system, tools } = await req.json();
   const result = streamText({
-    model: groq("llama3-70b-8192"),
-    messages: convertToModelMessages(messages),
+    model: groq("llama-3.3-70b-versatile"),
+    system,
+    messages: await convertToModelMessages(messages),
+    tools: frontendTools(tools),
   });
   return result.toUIMessageStreamResponse();
 }
 ```
 
 ```ts title="/app/api/chat/route.ts" tab="Fireworks"
-import { createOpenAI } from "@ai-sdk/openai";
+import { fireworks } from "@ai-sdk/fireworks";
+import { frontendTools } from "@assistant-ui/react-ai-sdk";
 import { convertToModelMessages, streamText } from "ai";
 
 export const maxDuration = 30;
 
-const fireworks = createOpenAI({
-  apiKey: process.env.FIREWORKS_API_KEY ?? "",
-  baseURL: "https://api.fireworks.ai/inference/v1",
-});
-
 export async function POST(req: Request) {
-  const { messages } = await req.json();
+  const { messages, system, tools } = await req.json();
   const result = streamText({
-    model: fireworks("accounts/fireworks/models/firefunction-v2"),
-    messages: convertToModelMessages(messages),
+    model: fireworks("accounts/fireworks/models/llama-v3p3-70b-instruct"),
+    system,
+    messages: await convertToModelMessages(messages),
+    tools: frontendTools(tools),
   });
   return result.toUIMessageStreamResponse();
 }
@@ -266,15 +280,18 @@ export async function POST(req: Request) {
 
 ```ts title="/app/api/chat/route.ts" tab="Cohere"
 import { cohere } from "@ai-sdk/cohere";
+import { frontendTools } from "@assistant-ui/react-ai-sdk";
 import { convertToModelMessages, streamText } from "ai";
 
 export const maxDuration = 30;
 
 export async function POST(req: Request) {
-  const { messages } = await req.json();
+  const { messages, system, tools } = await req.json();
   const result = streamText({
     model: cohere("command-r-plus"),
-    messages: convertToModelMessages(messages),
+    system,
+    messages: await convertToModelMessages(messages),
+    tools: frontendTools(tools),
   });
   return result.toUIMessageStreamResponse();
 }
@@ -282,15 +299,18 @@ export async function POST(req: Request) {
 
 ```ts title="/app/api/chat/route.ts" tab="Ollama"
 import { ollama } from "ollama-ai-provider-v2";
+import { frontendTools } from "@assistant-ui/react-ai-sdk";
 import { convertToModelMessages, streamText } from "ai";
 
 export const maxDuration = 30;
 
 export async function POST(req: Request) {
-  const { messages } = await req.json();
+  const { messages, system, tools } = await req.json();
   const result = streamText({
     model: ollama("llama3"),
-    messages: convertToModelMessages(messages),
+    system,
+    messages: await convertToModelMessages(messages),
+    tools: frontendTools(tools),
   });
   return result.toUIMessageStreamResponse();
 }
@@ -298,15 +318,18 @@ export async function POST(req: Request) {
 
 ```ts title="/app/api/chat/route.ts" tab="Chrome AI"
 import { chromeai } from "chrome-ai";
+import { frontendTools } from "@assistant-ui/react-ai-sdk";
 import { convertToModelMessages, streamText } from "ai";
 
 export const maxDuration = 30;
 
 export async function POST(req: Request) {
-  const { messages } = await req.json();
+  const { messages, system, tools } = await req.json();
   const result = streamText({
     model: chromeai(),
-    messages: convertToModelMessages(messages),
+    system,
+    messages: await convertToModelMessages(messages),
+    tools: frontendTools(tools),
   });
   return result.toUIMessageStreamResponse();
 }
@@ -385,7 +408,7 @@ import { useChatRuntime, AssistantChatTransport } from "@assistant-ui/react-ai-s
 import { ThreadList } from "@/components/assistant-ui/thread-list";
 import { Thread } from "@/components/assistant-ui/thread";
 
-const MyApp = () => {
+export default function MyApp() {
   const runtime = useChatRuntime({
     transport: new AssistantChatTransport({
       api: "/api/chat",
@@ -400,7 +423,7 @@ const MyApp = () => {
       </div>
     </AssistantRuntimeProvider>
   );
-};
+}
 ```
 
 ```tsx title="/app/page.tsx" tab="AssistantModal"
@@ -410,7 +433,7 @@ import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useChatRuntime, AssistantChatTransport } from "@assistant-ui/react-ai-sdk";
 import { AssistantModal } from "@/components/assistant-ui/assistant-modal";
 
-const MyApp = () => {
+export default function MyApp() {
   const runtime = useChatRuntime({
     transport: new AssistantChatTransport({
       api: "/api/chat",
@@ -422,7 +445,7 @@ const MyApp = () => {
       <AssistantModal />
     </AssistantRuntimeProvider>
   );
-};
+}
 ```
 
 </Tabs>
@@ -446,7 +469,7 @@ const MyApp = () => {
   <Card
     title="Add Persistence"
     description="Save and restore chat conversations"
-    href="/docs/cloud/overview"
+    href="/docs/cloud"
   />
   <Card
     title="Examples"

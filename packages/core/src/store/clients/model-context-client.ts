@@ -1,7 +1,7 @@
 import { resource, tapMemo, tapState } from "@assistant-ui/tap";
-import type { ClientOutput } from "../types/client";
-import { CompositeContextProvider } from "../../utils";
-import type { ModelContextState } from "../scopes";
+import type { ClientOutput } from "@assistant-ui/store";
+import { CompositeContextProvider } from "../../utils/composite-context-provider";
+import type { ModelContextState } from "../scopes/model-context";
 
 const version = 1;
 

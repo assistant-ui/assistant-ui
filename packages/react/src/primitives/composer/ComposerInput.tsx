@@ -2,7 +2,7 @@
 
 import { composeEventHandlers } from "@radix-ui/primitive";
 import { useComposedRefs } from "@radix-ui/react-compose-refs";
-import { Slot } from "@radix-ui/react-slot";
+import { Slot } from "radix-ui";
 import {
   ClipboardEvent,
   type KeyboardEvent,
@@ -139,7 +139,7 @@ export const ComposerPrimitiveInput = forwardRef<
       return s.composer.text;
     });
 
-    const Component = asChild ? Slot : TextareaAutosize;
+    const Component = asChild ? Slot.Root : TextareaAutosize;
 
     const isDisabled =
       useAuiState(

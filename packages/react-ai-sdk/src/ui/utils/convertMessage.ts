@@ -1,20 +1,78 @@
 import { isToolUIPart, getToolName, type UIMessage } from "ai";
 import {
-  unstable_createMessageConverter,
-  type ReasoningMessagePart,
-  type ToolCallMessagePart,
-  type TextMessagePart,
-  type DataMessagePart,
-  type SourceMessagePart,
+  createMessageConverter as unstable_createMessageConverter,
   type useExternalMessageConverter,
-  type ThreadMessageLike,
-} from "@assistant-ui/react";
+} from "@assistant-ui/core/react";
+import type {
+  ReasoningMessagePart,
+  ToolCallMessagePart,
+  TextMessagePart,
+  DataMessagePart,
+  SourceMessagePart,
+  ThreadMessageLike,
+} from "@assistant-ui/core";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
 
 type MessageMetadata = ThreadMessageLike["metadata"];
+export type AISDKMessageConverterMetadata =
+  useExternalMessageConverter.Metadata & {
+    toolArgsKeyOrderCache?: Map<string, Map<string, string[]>>;
+  };
 
 function stripClosingDelimiters(json: string): string {
   return json.replace(/[}\]"]+$/, "");
+}
+
+const hasOwn = (value: object, key: string) =>
+  Object.prototype.hasOwnProperty.call(value, key);
+
+const stabilizeToolArgsValue = (
+  value: unknown,
+  path: string,
+  keyOrderByPath: Map<string, string[]>,
+): unknown => {
+  if (Array.isArray(value)) {
+    return value.map((item, idx) =>
+      stabilizeToolArgsValue(item, `${path}[${idx}]`, keyOrderByPath),
+    );
+  }
+
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    const currentKeys = Object.keys(record);
+    const previousOrder = keyOrderByPath.get(path) ?? [];
+    const previousOrderSet = new Set(previousOrder);
+    const nextOrder = [
+      ...previousOrder.filter((key) => hasOwn(record, key)),
+      ...currentKeys.filter((key) => !previousOrderSet.has(key)),
+    ];
+    keyOrderByPath.set(path, nextOrder);
+
+    return Object.fromEntries(
+      nextOrder.map((key) => [
+        key,
+        stabilizeToolArgsValue(record[key], `${path}.${key}`, keyOrderByPath),
+      ]),
+    );
+  }
+
+  return value;
+};
+
+function stableStringifyToolArgs(
+  keyOrderCache: Map<string, Map<string, string[]>> | undefined,
+  cacheKey: string,
+  args: ReadonlyJSONObject,
+): string {
+  const keyOrderByPath = keyOrderCache?.get(cacheKey) ?? new Map();
+  keyOrderCache?.set(cacheKey, keyOrderByPath);
+
+  const stableArgs = stabilizeToolArgsValue(
+    args,
+    "$",
+    keyOrderByPath,
+  ) as ReadonlyJSONObject;
+  return JSON.stringify(stableArgs);
 }
 
 /**
@@ -58,7 +116,7 @@ type MessageContent = Exclude<ThreadMessageLike["content"], string>;
 
 function convertParts(
   message: UIMessage,
-  metadata: useExternalMessageConverter.Metadata,
+  metadata: AISDKMessageConverterMetadata,
 ): MessageContent {
   if (!message.parts || message.parts.length === 0) {
     return [];
@@ -84,6 +142,7 @@ function convertParts(
       if (isToolUIPart(part)) {
         const toolName = getToolName(part);
         const toolCallId = part.toolCallId;
+        const argsKeyOrderCacheKey = `${message.id}:${toolCallId}`;
         const args: ReadonlyJSONObject =
           (part.input as ReadonlyJSONObject) || {};
 
@@ -104,10 +163,16 @@ function convertParts(
           };
         }
 
-        let argsText = JSON.stringify(args);
+        let argsText = stableStringifyToolArgs(
+          metadata.toolArgsKeyOrderCache,
+          argsKeyOrderCacheKey,
+          args,
+        );
         if (part.state === "input-streaming") {
           // strip closing delimiters added by the AI SDK's fix-json
           argsText = stripClosingDelimiters(argsText);
+        } else {
+          metadata.toolArgsKeyOrderCache?.delete(argsKeyOrderCacheKey);
         }
 
         const toolStatus = metadata.toolStatuses?.[toolCallId];
@@ -164,7 +229,7 @@ function convertParts(
 }
 
 export const AISDKMessageConverter = unstable_createMessageConverter(
-  (message: UIMessage, metadata: useExternalMessageConverter.Metadata) => {
+  (message: UIMessage, metadata: AISDKMessageConverterMetadata) => {
     const createdAt = new Date();
     const content = convertParts(message, metadata);
 

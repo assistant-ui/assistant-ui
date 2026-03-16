@@ -26,9 +26,24 @@ const SUB_PROJECTS = [
     textValue: "tw-shimmer",
   },
   {
+    value: "native",
+    label: "React Native",
+    textValue: "native",
+  },
+  {
     value: "safe-content-frame",
     label: "Safe Content Frame",
     textValue: "safe-content-frame",
+  },
+  {
+    value: "cloud-ai-sdk",
+    label: "Cloud AI SDK",
+    textValue: "cloud-ai-sdk",
+  },
+  {
+    value: "ink",
+    label: "Ink",
+    textValue: "ink",
   },
 ] as const;
 

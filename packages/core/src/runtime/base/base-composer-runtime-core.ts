@@ -1,14 +1,14 @@
 import type {
   Attachment,
   CompleteAttachment,
+  CreateAttachment,
   PendingAttachment,
-  MessageRole,
-  RunConfig,
-  QuoteInfo,
-  AppendMessage,
-  Unsubscribe,
-} from "../../types";
-import { BaseSubscribable } from "../../subscribable";
+} from "../../types/attachment";
+import type { MessageRole, AppendMessage } from "../../types/message";
+import type { QuoteInfo } from "../../types/quote";
+import type { Unsubscribe } from "../../types/unsubscribe";
+import type { RunConfig } from "../../types/message";
+import { BaseSubscribable } from "../../subscribable/subscribable";
 import type { AttachmentAdapter } from "../../adapters/attachment";
 import type {
   ComposerRuntimeCore,
@@ -16,6 +16,7 @@ import type {
   DictationState,
 } from "../interfaces/composer-runtime-core";
 import type { DictationAdapter } from "../../adapters/speech";
+import { generateId } from "../../utils/id";
 
 const isAttachmentComplete = (a: Attachment): a is CompleteAttachment =>
   a.status.type === "complete";
@@ -116,7 +117,8 @@ export abstract class BaseComposerRuntimeCore
   private async _onClearAttachments() {
     const adapter = this.getAttachmentAdapter();
     if (adapter) {
-      await Promise.all(this._attachments.map((a) => adapter.remove(a)));
+      const pending = this._attachments.filter((a) => !isAttachmentComplete(a));
+      await Promise.all(pending.map((a) => adapter.remove(a)));
     }
   }
 
@@ -148,6 +150,8 @@ export abstract class BaseComposerRuntimeCore
   }
 
   public async send() {
+    if (this.isEmpty) return;
+
     if (this._dictationSession) {
       this._dictationSession.cancel();
       this._cleanupDictation();
@@ -155,10 +159,11 @@ export abstract class BaseComposerRuntimeCore
 
     const adapter = this.getAttachmentAdapter();
     const attachments =
-      adapter && this.attachments.length > 0
+      this.attachments.length > 0
         ? Promise.all(
             this.attachments.map(async (a) => {
               if (isAttachmentComplete(a)) return a;
+              if (!adapter) throw new Error("Attachments are not supported");
               const result = await adapter.send(a);
               return result as CompleteAttachment;
             }),
@@ -192,7 +197,22 @@ export abstract class BaseComposerRuntimeCore
   ): void;
   protected abstract handleCancel(): void;
 
-  async addAttachment(file: File) {
+  async addAttachment(fileOrAttachment: File | CreateAttachment) {
+    if (!(fileOrAttachment instanceof File)) {
+      const a: CompleteAttachment = {
+        id: fileOrAttachment.id ?? generateId(),
+        type: fileOrAttachment.type ?? "document",
+        name: fileOrAttachment.name,
+        contentType: fileOrAttachment.contentType,
+        content: fileOrAttachment.content,
+        status: { type: "complete" },
+      };
+      this._attachments = [...this._attachments, a];
+      this._notifyEventSubscribers("attachmentAdd");
+      this._notifySubscribers();
+      return;
+    }
+
     const adapter = this.getAttachmentAdapter();
     if (!adapter) throw new Error("Attachments are not supported");
 
@@ -213,7 +233,7 @@ export abstract class BaseComposerRuntimeCore
       this._notifySubscribers();
     };
 
-    const promiseOrGenerator = adapter.add({ file });
+    const promiseOrGenerator = adapter.add({ file: fileOrAttachment });
     if (Symbol.asyncIterator in promiseOrGenerator) {
       for await (const r of promiseOrGenerator) {
         upsertAttachment(r);
@@ -227,14 +247,15 @@ export abstract class BaseComposerRuntimeCore
   }
 
   async removeAttachment(attachmentId: string) {
-    const adapter = this.getAttachmentAdapter();
-    if (!adapter) throw new Error("Attachments are not supported");
-
     const index = this._attachments.findIndex((a) => a.id === attachmentId);
     if (index === -1) throw new Error("Attachment not found");
     const attachment = this._attachments[index]!;
 
-    await adapter.remove(attachment);
+    if (!isAttachmentComplete(attachment)) {
+      const adapter = this.getAttachmentAdapter();
+      if (!adapter) throw new Error("Attachments are not supported");
+      await adapter.remove(attachment);
+    }
 
     this._attachments = this._attachments.filter((a) => a.id !== attachmentId);
     this._notifySubscribers();

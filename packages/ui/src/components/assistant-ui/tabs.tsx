@@ -10,8 +10,7 @@ import {
   useState,
   type ComponentProps,
 } from "react";
-import * as TabsPrimitive from "@radix-ui/react-tabs";
-import { Slot } from "@radix-ui/react-slot";
+import { Tabs as TabsPrimitive, Slot as SlotPrimitive } from "radix-ui";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
@@ -222,7 +221,7 @@ function TabsTrigger({
     context?.setHoveredValue(null);
   }, [context]);
 
-  const Comp = asChild ? Slot : TabsPrimitive.Trigger;
+  const Comp = asChild ? SlotPrimitive.Root : TabsPrimitive.Trigger;
 
   return (
     <Comp

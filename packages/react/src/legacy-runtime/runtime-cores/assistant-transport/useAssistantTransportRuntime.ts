@@ -8,7 +8,7 @@ import {
 } from "assistant-stream/utils";
 import { useExternalStoreRuntime } from "../external-store/useExternalStoreRuntime";
 import { AssistantRuntime } from "../../runtime/AssistantRuntime";
-import { AddToolResultOptions } from "../core";
+import type { AddToolResultOptions } from "@assistant-ui/core";
 import { useState, useRef, useMemo } from "react";
 import {
   AssistantMessageAccumulator,
@@ -24,6 +24,7 @@ import {
   UserMessagePart,
   QueuedCommand,
   AssistantTransportCommand,
+  SendCommandsRequestBody,
 } from "./types";
 import { useCommandQueue } from "./commandQueue";
 import { useRunManager } from "./runManager";
@@ -137,24 +138,32 @@ const useAssistantTransportThreadRuntime = <T>(
           : options.body;
       const context = runtime.thread.getModelContext();
 
+      let requestBody: Record<string, unknown> = {
+        commands,
+        state: agentStateRef.current,
+        system: context.system,
+        tools: context.tools ? toToolsJSONSchema(context.tools) : undefined,
+        threadId,
+        ...(parentIdRef.current !== undefined && {
+          parentId: parentIdRef.current,
+        }),
+        ...context.callSettings,
+        ...context.config,
+        ...(bodyValue ?? {}),
+      };
+
+      if (options.prepareSendCommandsRequest) {
+        requestBody = await options.prepareSendCommandsRequest(
+          requestBody as SendCommandsRequestBody,
+        );
+      }
+
       const response = await fetch(
         isResume ? options.resumeApi! : options.api,
         {
           method: "POST",
           headers,
-          body: JSON.stringify({
-            commands,
-            state: agentStateRef.current,
-            system: context.system,
-            tools: context.tools ? toToolsJSONSchema(context.tools) : undefined,
-            threadId,
-            ...(parentIdRef.current !== undefined && {
-              parentId: parentIdRef.current,
-            }),
-            ...context.callSettings,
-            ...context.config,
-            ...(bodyValue ?? {}),
-          }),
+          body: JSON.stringify(requestBody),
           signal,
         },
       );

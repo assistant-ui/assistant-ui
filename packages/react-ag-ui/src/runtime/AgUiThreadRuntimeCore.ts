@@ -1,6 +1,6 @@
 "use client";
 
-import { INTERNAL } from "@assistant-ui/react";
+import { generateId, fromThreadMessageLike } from "@assistant-ui/core/internal";
 import type {
   AddToolResultOptions,
   AppendMessage,
@@ -10,13 +10,17 @@ import type {
   ThreadAssistantMessage,
   ThreadHistoryAdapter,
   ThreadMessage,
-} from "@assistant-ui/react";
+} from "@assistant-ui/core";
 import type { HttpAgent } from "@ag-ui/client";
 import type { Logger } from "./logger";
 import type { AgUiEvent } from "./types";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import { RunAggregator } from "./adapter/run-aggregator";
-import { toAgUiMessages, toAgUiTools } from "./adapter/conversions";
+import {
+  fromAgUiMessages,
+  toAgUiMessages,
+  toAgUiTools,
+} from "./adapter/conversions";
 import { createAgUiSubscriber } from "./adapter/subscriber";
 
 type RunConfig = NonNullable<AppendMessage["runConfig"]>;
@@ -186,27 +190,34 @@ export class AgUiThreadRuntimeCore {
   }
 
   findMessageIdForToolCall(toolCallId: string): string | undefined {
-    for (const message of this.messages) {
-      if (message.role !== "assistant") continue;
+    let fallbackMessageId: string | undefined;
+    for (let index = this.messages.length - 1; index >= 0; index--) {
+      const message = this.messages[index];
+      if (!message || message.role !== "assistant") continue;
       for (const part of message.content) {
-        if (part.type === "tool-call" && part.toolCallId === toolCallId) {
+        if (part.type !== "tool-call" || part.toolCallId !== toolCallId)
+          continue;
+        if (!("result" in part) || part.result === undefined) {
           return message.id;
         }
+        fallbackMessageId ??= message.id;
       }
     }
-    return undefined;
+    return fallbackMessageId;
   }
 
   addToolResult(options: AddToolResultOptions): void {
     let updated = false;
+    let shouldResume = false;
     this.messages = this.messages.map((message) => {
       if (message.id !== options.messageId || message.role !== "assistant")
         return message;
-      updated = true;
       const assistant = message as ThreadAssistantMessage;
+      let matchedToolCall = false;
       const content = assistant.content.map((part) => {
         if (part.type !== "tool-call" || part.toolCallId !== options.toolCallId)
           return part;
+        matchedToolCall = true;
         return {
           ...part,
           result: options.result,
@@ -214,6 +225,26 @@ export class AgUiThreadRuntimeCore {
           isError: options.isError,
         };
       });
+      if (!matchedToolCall) return message;
+      updated = true;
+
+      if (
+        assistant.status?.type === "requires-action" &&
+        assistant.status.reason === "tool-calls" &&
+        content.every(
+          (part) =>
+            part.type !== "tool-call" ||
+            ("result" in part && part.result !== undefined),
+        )
+      ) {
+        shouldResume = true;
+        return {
+          ...assistant,
+          content,
+          status: { type: "complete" as const, reason: "unknown" as const },
+        };
+      }
+
       return {
         ...assistant,
         content,
@@ -222,6 +253,20 @@ export class AgUiThreadRuntimeCore {
 
     if (updated) {
       this.notifyUpdate();
+
+      if (shouldResume) {
+        this.persistAssistantHistory(options.messageId);
+
+        if (!this.isRunningFlag) {
+          void this.startRun(options.messageId, this.lastRunConfig).catch(
+            (error) => {
+              this.onError?.(
+                error instanceof Error ? error : new Error(String(error)),
+              );
+            },
+          );
+        }
+      }
     }
   }
 
@@ -249,7 +294,7 @@ export class AgUiThreadRuntimeCore {
     this.resetHead(parentId);
     const historicalMessages = [...this.messages];
 
-    const runId = INTERNAL.generateId();
+    const runId = generateId();
     this.pendingError = null;
     const input = this.buildRunInput(
       runId,
@@ -365,7 +410,7 @@ export class AgUiThreadRuntimeCore {
   }
 
   private insertAssistantPlaceholder(): string {
-    const id = INTERNAL.generateId();
+    const id = generateId();
     const assistant: ThreadAssistantMessage = {
       id,
       role: "assistant",
@@ -465,13 +510,24 @@ export class AgUiThreadRuntimeCore {
 
   private importMessagesSnapshot(rawMessages: readonly unknown[]) {
     try {
-      const converted = rawMessages.map((message) =>
-        INTERNAL.fromThreadMessageLike(
-          message as any,
-          INTERNAL.generateId(),
-          FALLBACK_USER_STATUS,
-        ),
-      );
+      const normalized = fromAgUiMessages(rawMessages);
+      const converted: ThreadMessage[] = [];
+      for (const message of normalized) {
+        try {
+          converted.push(
+            fromThreadMessageLike(
+              message as any,
+              generateId(),
+              FALLBACK_USER_STATUS,
+            ),
+          );
+        } catch (error) {
+          this.logger.error?.(
+            "[agui] failed to import message from snapshot",
+            error,
+          );
+        }
+      }
       this.applyExternalMessages(converted);
     } catch (error) {
       this.logger.error?.("[agui] failed to import messages snapshot", error);
@@ -479,9 +535,9 @@ export class AgUiThreadRuntimeCore {
   }
 
   private toThreadMessage(message: AppendMessage): ThreadMessage {
-    return INTERNAL.fromThreadMessageLike(
+    return fromThreadMessageLike(
       message as any,
-      INTERNAL.generateId(),
+      generateId(),
       FALLBACK_USER_STATUS,
     );
   }

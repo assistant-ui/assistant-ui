@@ -1,5 +1,112 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.3.14
+
+### Patch Changes
+
+- 349f3c7: chore: update deps
+- 642bcda: Add `quote.tsx` registry components and `injectQuoteContext` helper
+- Updated dependencies [1ed9867]
+- Updated dependencies [427ffaa]
+- Updated dependencies [349f3c7]
+- Updated dependencies [02614aa]
+- Updated dependencies [6cc4122]
+- Updated dependencies [642bcda]
+  - @assistant-ui/core@0.1.6
+  - assistant-cloud@0.1.22
+  - @assistant-ui/store@0.2.3
+
+## 1.3.13
+
+### Patch Changes
+
+- 8ed9d6f: Refactor React Native component API: move shared runtime logic (remote thread list, external store, cloud adapters, message converter, tool invocations) into @assistant-ui/core for reuse across React and React Native
+- Updated dependencies [5ae74fe]
+- Updated dependencies [8ed9d6f]
+- Updated dependencies [01bee2b]
+  - @assistant-ui/core@0.1.3
+
+## 1.3.12
+
+### Patch Changes
+
+- 57e26d2: chore: update dependencies
+
+## 1.3.11
+
+### Patch Changes
+
+- a845911: chore: update dependencies
+- Updated dependencies [07dcce0]
+- Updated dependencies [a845911]
+- Updated dependencies [bc40eaf]
+- Updated dependencies [be23d74]
+- Updated dependencies [1eb059c]
+  - @assistant-ui/react@0.12.15
+  - assistant-cloud@0.1.21
+
+## 1.3.10
+
+### Patch Changes
+
+- 51de636: feat(react-ai-sdk): add thread token-usage extraction helpers and hook
+- 7ad20d1: fix(react-ai-sdk): stabilize tool args key order to prevent duplicate toolCallId crash in tapResources
+- Updated dependencies [17cf9a8]
+  - assistant-cloud@0.1.20
+  - @assistant-ui/react@0.12.13
+
+## 1.3.9
+
+### Patch Changes
+
+- 36ef3a2: chore: update dependencies
+- Updated dependencies [36ef3a2]
+- Updated dependencies [6692226]
+- Updated dependencies [c31c0fa]
+- Updated dependencies [1672be8]
+- Updated dependencies [28f39fe]
+- Updated dependencies [3a1cb66]
+- Updated dependencies [14769af]
+- Updated dependencies [7c360ce]
+- Updated dependencies [a638f05]
+- Updated dependencies [8a78cd2]
+  - assistant-cloud@0.1.19
+  - @assistant-ui/react@0.12.12
+
+## 1.3.8
+
+### Patch Changes
+
+- aeec3b9: fix: handle AI SDK v6 approval tool states (approval-requested, approval-responded, output-denied)
+- 7836760: fix(assistant-cloud): expand joined messages for AI SDK v6 history export and telemetry reporting
+- 61b54e9: Add message timing metadata: `AssistantMessageTiming` type, automatic timing tracking in `AssistantMessageAccumulator`, `MessageTiming` type, `useMessageTiming()` hook, and client-side streaming timing for AI SDK runtime.
+- a247fc9: feat(assistant-cloud): allow save complete multi-step message
+- 93910bd: Rename .tsx files to .ts where no JSX syntax is used
+- Updated dependencies [d08a488]
+- Updated dependencies [5bbe8a9]
+- Updated dependencies [5e304ea]
+- Updated dependencies [546c053]
+- Updated dependencies [a7039e3]
+- Updated dependencies [16c10fd]
+- Updated dependencies [98c3d54]
+- Updated dependencies [b181803]
+- Updated dependencies [7836760]
+- Updated dependencies [9276547]
+- Updated dependencies [b65428e]
+- Updated dependencies [af5b085]
+- Updated dependencies [61b54e9]
+- Updated dependencies [a094c45]
+- Updated dependencies [4d7f712]
+- Updated dependencies [ecc29ec]
+- Updated dependencies [6e97999]
+- Updated dependencies [a247fc9]
+- Updated dependencies [f414af9]
+- Updated dependencies [b48912c]
+- Updated dependencies [93910bd]
+- Updated dependencies [58a8472]
+  - assistant-cloud@0.1.18
+  - @assistant-ui/react@0.12.11
+
 ## 1.3.7
 
 ### Patch Changes

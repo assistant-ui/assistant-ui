@@ -1,10 +1,10 @@
 import { resource, tapMemo, tapState } from "@assistant-ui/tap";
-import type { ClientOutput } from "../types/client";
+import type { ClientOutput } from "@assistant-ui/store";
 import type {
   ChainOfThoughtState,
   ChainOfThoughtPart,
 } from "../scopes/chain-of-thought";
-import type { MessagePartStatus } from "../../types";
+import type { MessagePartStatus } from "../../types/message";
 import type { PartMethods } from "../scopes/part";
 
 const COMPLETE_STATUS: MessagePartStatus = Object.freeze({

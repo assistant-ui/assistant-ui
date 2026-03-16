@@ -1,4 +1,4 @@
-import type { ThreadMessage } from "../../types";
+import type { ThreadMessage } from "../../types/message";
 
 export const symbolInnerMessage = Symbol("innerMessage");
 const symbolInnerMessages = Symbol("innerMessages");
@@ -17,6 +17,21 @@ export const getExternalStoreMessage = <T>(input: ThreadMessage) => {
 };
 
 const EMPTY_ARRAY: never[] = [];
+
+/**
+ * Attach the original external store message(s) to a ThreadMessage or message part.
+ * This is a no-op if the target already has a bound message.
+ * Use `getExternalStoreMessages` to retrieve the bound messages later.
+ *
+ * @deprecated This API is experimental and may change without notice.
+ */
+export const bindExternalStoreMessage = <T>(
+  target: object,
+  message: T | T[],
+): void => {
+  if (symbolInnerMessage in target) return;
+  (target as WithInnerMessages<T>)[symbolInnerMessage] = message;
+};
 
 export const getExternalStoreMessages = <T>(
   input:

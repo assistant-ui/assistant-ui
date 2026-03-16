@@ -1,10 +1,9 @@
-import type {
-  Attachment,
-  MessageRole,
-  RunConfig,
-  QuoteInfo,
-} from "../../types";
-import type { ComposerRuntime, DictationState } from "../../runtime";
+import type { Attachment, CreateAttachment } from "../../types/attachment";
+import type { MessageRole } from "../../types/message";
+import type { QuoteInfo } from "../../types/quote";
+import type { RunConfig } from "../../types/message";
+import type { ComposerRuntime } from "../../runtime/api/composer-runtime";
+import type { DictationState } from "../../runtime/interfaces/composer-runtime-core";
 import type { AttachmentMethods } from "./attachment";
 
 export type ComposerState = {
@@ -36,7 +35,7 @@ export type ComposerMethods = {
   setText(text: string): void;
   setRole(role: MessageRole): void;
   setRunConfig(runConfig: RunConfig): void;
-  addAttachment(file: File): Promise<void>;
+  addAttachment(fileOrAttachment: File | CreateAttachment): Promise<void>;
   clearAttachments(): Promise<void>;
   attachment(selector: { index: number } | { id: string }): AttachmentMethods;
   reset(): Promise<void>;

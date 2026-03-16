@@ -1,11 +1,35 @@
-import { View, StyleSheet, useColorScheme } from "react-native";
+import { View, Image, StyleSheet, useColorScheme } from "react-native";
 import { ThemedText } from "@/components/themed-text";
-import { useMessage, MessageContent } from "@assistant-ui/react-native";
+import { useAuiState, MessagePrimitive } from "@assistant-ui/react-native";
 import { MessageActionBar } from "./message-action-bar";
 import { MessageBranchPicker } from "./message-branch-picker";
 
+function MessageError() {
+  const error = useAuiState((s) => {
+    const status = s.message.status;
+    if (status?.type === "incomplete" && status.reason === "error") {
+      return status.error ?? "An error occurred";
+    }
+    return null;
+  });
+
+  if (!error) return null;
+
+  return (
+    <View style={styles.errorContainer}>
+      <ThemedText
+        style={styles.errorText}
+        lightColor="#ff453a"
+        darkColor="#ff6961"
+      >
+        {typeof error === "string" ? error : "An error occurred"}
+      </ThemedText>
+    </View>
+  );
+}
+
 function TextPart({ part }: { part: { type: "text"; text: string } }) {
-  const role = useMessage((s) => s.role);
+  const role = useAuiState((s) => s.message.role);
   if (role === "user") {
     return <ThemedText style={styles.userText}>{part.text}</ThemedText>;
   }
@@ -20,16 +44,30 @@ function TextPart({ part }: { part: { type: "text"; text: string } }) {
   );
 }
 
+function MessageImageAttachment() {
+  const attachment = useAuiState((s) => s.attachment);
+  if (!attachment) return null;
+
+  const imageContent = attachment.content?.find((c: any) => c.type === "image");
+  const uri = (imageContent as any)?.image;
+  if (!uri) return null;
+
+  return <Image source={{ uri }} style={styles.messageImage} />;
+}
+
 export function MessageBubble() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
-  const role = useMessage((s) => s.role);
-  const isRunning = useMessage((s) => s.status?.type === "running");
+  const role = useAuiState((s) => s.message.role);
+  const isRunning = useAuiState((s) => s.message.status?.type === "running");
   const isUser = role === "user";
 
   if (isUser) {
     return (
       <View style={[styles.container, styles.userContainer]}>
+        <MessagePrimitive.Attachments>
+          {() => <MessageImageAttachment />}
+        </MessagePrimitive.Attachments>
         <View
           style={[
             styles.bubble,
@@ -37,7 +75,9 @@ export function MessageBubble() {
             { backgroundColor: isDark ? "#0a84ff" : "#007aff" },
           ]}
         >
-          <MessageContent renderText={({ part }) => <TextPart part={part} />} />
+          <MessagePrimitive.Content
+            renderText={({ part }) => <TextPart part={part} />}
+          />
         </View>
         <MessageBranchPicker />
       </View>
@@ -57,7 +97,10 @@ export function MessageBubble() {
           },
         ]}
       >
-        <MessageContent renderText={({ part }) => <TextPart part={part} />} />
+        <MessagePrimitive.Content
+          renderText={({ part }) => <TextPart part={part} />}
+        />
+        <MessageError />
       </View>
       {!isRunning && (
         <View style={styles.actionsRow}>
@@ -97,6 +140,19 @@ const styles = StyleSheet.create({
   },
   assistantBubble: {
     borderBottomLeftRadius: 6,
+  },
+  errorContainer: {
+    paddingTop: 4,
+  },
+  errorText: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  messageImage: {
+    width: 200,
+    height: 200,
+    borderRadius: 12,
+    marginBottom: 4,
   },
   userText: {
     fontSize: 16,

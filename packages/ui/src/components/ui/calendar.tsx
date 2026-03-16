@@ -13,7 +13,7 @@ import {
 } from "react-day-picker";
 
 import { cn } from "@/lib/utils";
-import { Button, buttonVariants } from "@assistant-ui/ui/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 
 function Calendar({
   className,

@@ -46,10 +46,14 @@ const ChainOfThought: FC = () => {
       <ChainOfThoughtPrimitive.AccordionTrigger className="flex w-full cursor-pointer items-center gap-2 px-4 py-2 font-medium text-sm hover:bg-muted/50">
         Thinking
       </ChainOfThoughtPrimitive.AccordionTrigger>
-      <AuiIf condition={({ chainOfThought }) => !chainOfThought.collapsed}>
-        <ChainOfThoughtPrimitive.Parts
-          components={{ Reasoning, tools: { Fallback: ToolFallback } }}
-        />
+      <AuiIf condition={(s) => !s.chainOfThought.collapsed}>
+        <ChainOfThoughtPrimitive.Parts>
+          {({ part }) => {
+            if (part.type === "reasoning") return <Reasoning {...part} />;
+            if (part.type === "tool-call") return <ToolFallback {...part} />;
+            return null;
+          }}
+        </ChainOfThoughtPrimitive.Parts>
       </AuiIf>
     </ChainOfThoughtPrimitive.Root>
   );
@@ -58,12 +62,12 @@ const ChainOfThought: FC = () => {
 const AssistantMessage: FC = () => {
   return (
     <MessagePrimitive.Root>
-      <MessagePrimitive.Parts
-        components={{
-          Text: MarkdownText,
-          ChainOfThought, // groups reasoning + tool parts
+      <MessagePrimitive.Parts>
+        {({ part }) => {
+          if (part.type === "text") return <MarkdownText />;
+          return null;
         }}
-      />
+      </MessagePrimitive.Parts>
     </MessagePrimitive.Root>
   );
 };
@@ -110,16 +114,14 @@ A button that toggles the collapsed/expanded state. Collapsed by default.
 Renders the grouped parts when expanded (nothing when collapsed).
 
 ```tsx
-<AuiIf condition={({ chainOfThought }) => !chainOfThought.collapsed}>
-  <ChainOfThoughtPrimitive.Parts
-    components={{
-      Reasoning,
-      tools: { Fallback: ToolFallback },
-      Layout: ({ children }) => (
-        <div className="border-l-2 border-muted pl-4">{children}</div>
-      ),
+<AuiIf condition={(s) => !s.chainOfThought.collapsed}>
+  <ChainOfThoughtPrimitive.Parts>
+    {({ part }) => {
+      if (part.type === "reasoning") return <Reasoning {...part} />;
+      if (part.type === "tool-call") return <ToolFallback {...part} />;
+      return null;
     }}
-  />
+  </ChainOfThoughtPrimitive.Parts>
 </AuiIf>
 ```
 
@@ -140,10 +142,10 @@ import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
 const ChainOfThoughtAccordionTrigger = () => {
   return (
     <ChainOfThoughtPrimitive.AccordionTrigger className="flex w-full cursor-pointer items-center gap-2 px-4 py-2 text-sm">
-      <AuiIf condition={({ chainOfThought }) => chainOfThought.collapsed}>
+      <AuiIf condition={(s) => s.chainOfThought.collapsed}>
         <ChevronRightIcon className="size-4" />
       </AuiIf>
-      <AuiIf condition={({ chainOfThought }) => !chainOfThought.collapsed}>
+      <AuiIf condition={(s) => !s.chainOfThought.collapsed}>
         <ChevronDownIcon className="size-4" />
       </AuiIf>
       Thinking
@@ -154,7 +156,7 @@ const ChainOfThoughtAccordionTrigger = () => {
 
 ## Full Example
 
-See the complete [with-chain-of-thought example](https://github.com/Yonom/assistant-ui/tree/main/examples/with-chain-of-thought) for a working implementation with tool calls and reasoning.
+See the complete [with-chain-of-thought example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-chain-of-thought) for a working implementation with tool calls and reasoning.
 
 ## Related Guides
 

@@ -17,6 +17,14 @@
     "---Store---",
     "store/why-store",
     "store/quickstart",
-    "store/scopes"
+    "store/scopes",
+    "store/methods",
+    "store/state",
+    "store/events",
+    "store/meta",
+    "store/child-scopes",
+    "store/rendering-lists",
+    "store/sibling-scopes",
+    "store/api-reference"
   ]
 }

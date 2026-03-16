@@ -119,6 +119,34 @@ export const registry: RegistryItem[] = [
     },
   },
   {
+    name: "message-timing",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/message-timing.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/message-timing.tsx",
+      },
+    ],
+    dependencies: ["@assistant-ui/react"],
+    registryDependencies: ["tooltip"],
+  },
+  {
+    name: "context-display",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/context-display.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/context-display.tsx",
+      },
+    ],
+    dependencies: ["@assistant-ui/react", "@assistant-ui/react-ai-sdk"],
+    registryDependencies: ["tooltip"],
+  },
+  {
     name: "thread-list",
     type: "registry:component",
     files: [
@@ -180,6 +208,7 @@ export const registry: RegistryItem[] = [
           "../../packages/ui/src/components/assistant-ui/tooltip-icon-button.tsx",
       },
     ],
+    dependencies: ["radix-ui"],
     registryDependencies: ["tooltip", "button"],
   },
   {
@@ -334,6 +363,19 @@ export const registry: RegistryItem[] = [
     ],
   },
   {
+    name: "quote",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/quote.tsx",
+        sourcePath: "../../packages/ui/src/components/assistant-ui/quote.tsx",
+      },
+    ],
+    dependencies: ["@assistant-ui/react", "lucide-react"],
+    registryDependencies: [],
+  },
+  {
     name: "sources",
     type: "registry:component",
     files: [
@@ -392,11 +434,11 @@ export const registry: RegistryItem[] = [
     ],
     dependencies: [
       "@assistant-ui/react",
-      "@radix-ui/react-select",
+      "radix-ui",
       "lucide-react",
       "class-variance-authority",
     ],
-    registryDependencies: ["select"],
+    registryDependencies: ["https://r.assistant-ui.com/select.json"],
   },
   {
     name: "select",
@@ -408,11 +450,7 @@ export const registry: RegistryItem[] = [
         sourcePath: "../../packages/ui/src/components/assistant-ui/select.tsx",
       },
     ],
-    dependencies: [
-      "@radix-ui/react-select",
-      "lucide-react",
-      "class-variance-authority",
-    ],
+    dependencies: ["radix-ui", "lucide-react", "class-variance-authority"],
     registryDependencies: [],
   },
   {
@@ -425,7 +463,7 @@ export const registry: RegistryItem[] = [
         sourcePath: "../../packages/ui/src/components/assistant-ui/badge.tsx",
       },
     ],
-    dependencies: ["@radix-ui/react-slot", "class-variance-authority"],
+    dependencies: ["radix-ui", "class-variance-authority"],
     registryDependencies: [],
   },
   {
@@ -438,11 +476,7 @@ export const registry: RegistryItem[] = [
         sourcePath: "../../packages/ui/src/components/assistant-ui/tabs.tsx",
       },
     ],
-    dependencies: [
-      "@radix-ui/react-tabs",
-      "@radix-ui/react-slot",
-      "class-variance-authority",
-    ],
+    dependencies: ["radix-ui", "class-variance-authority"],
     registryDependencies: [],
   },
   {
@@ -456,11 +490,21 @@ export const registry: RegistryItem[] = [
           "../../packages/ui/src/components/assistant-ui/accordion.tsx",
       },
     ],
-    dependencies: [
-      "@radix-ui/react-accordion",
-      "lucide-react",
-      "class-variance-authority",
+    dependencies: ["radix-ui", "lucide-react", "class-variance-authority"],
+    registryDependencies: [],
+  },
+  {
+    name: "heat-graph",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/heat-graph.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/heat-graph.tsx",
+      },
     ],
+    dependencies: ["heat-graph"],
     registryDependencies: [],
   },
 ];

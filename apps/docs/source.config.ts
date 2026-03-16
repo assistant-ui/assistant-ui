@@ -74,6 +74,9 @@ export const blog = defineCollections({
     author: z.string(),
     date: z.date().optional(),
   }),
+  postprocess: {
+    includeProcessedMarkdown: true,
+  },
 });
 
 export const careers = defineCollections({

@@ -9,7 +9,7 @@ import {
   ThreadPrimitive,
   useAuiState,
 } from "@assistant-ui/react";
-import * as Avatar from "@radix-ui/react-avatar";
+import { Avatar } from "radix-ui";
 import {
   ArrowUpIcon,
   ChevronDownIcon,
@@ -29,7 +29,9 @@ export const Claude: FC = () => {
   return (
     <ThreadPrimitive.Root className="flex h-full flex-col items-stretch bg-[#F5F5F0] p-4 pt-16 font-serif dark:bg-[#2b2a27]">
       <ThreadPrimitive.Viewport className="flex grow flex-col overflow-y-scroll">
-        <ThreadPrimitive.Messages components={{ Message: ChatMessage }} />
+        <ThreadPrimitive.Messages>
+          {() => <ChatMessage />}
+        </ThreadPrimitive.Messages>
         <div aria-hidden="true" className="h-4" />
       </ThreadPrimitive.Viewport>
 
@@ -79,9 +81,9 @@ export const Claude: FC = () => {
           <div className="overflow-hidden rounded-b-2xl">
             <div className="overflow-x-auto rounded-b-2xl border-[#00000015] border-t bg-[#f5f5f0] p-3.5 dark:border-[#6c6a6040] dark:bg-[#393937]">
               <div className="flex flex-row gap-3">
-                <ComposerPrimitive.Attachments
-                  components={{ Attachment: ClaudeAttachment }}
-                />
+                <ComposerPrimitive.Attachments>
+                  {() => <ClaudeAttachment />}
+                </ComposerPrimitive.Attachments>
               </div>
             </div>
           </div>
@@ -94,7 +96,7 @@ export const Claude: FC = () => {
 const ChatMessage: FC = () => {
   return (
     <MessagePrimitive.Root className="group relative mx-auto mt-1 mb-1 block w-full max-w-3xl">
-      <AuiIf condition={({ message }) => message.role === "user"}>
+      <AuiIf condition={(s) => s.message.role === "user"}>
         <div className="group/user wrap-break-word relative inline-flex max-w-[75ch] flex-col gap-2 rounded-xl bg-[#DDD9CE] py-2.5 pr-6 pl-2.5 text-[#1a1a18] transition-all dark:bg-[#393937] dark:text-[#eee]">
           <div className="relative flex flex-row gap-2">
             <div className="shrink-0 self-start transition-all duration-300">
@@ -105,7 +107,12 @@ const ChatMessage: FC = () => {
             <div className="flex-1">
               <div className="relative grid grid-cols-1 gap-2 py-0.5">
                 <div className="wrap-break-word whitespace-pre-wrap">
-                  <MessagePrimitive.Parts components={{ Text: MarkdownText }} />
+                  <MessagePrimitive.Parts>
+                    {({ part }) => {
+                      if (part.type === "text") return <MarkdownText />;
+                      return null;
+                    }}
+                  </MessagePrimitive.Parts>
                 </div>
               </div>
             </div>
@@ -128,12 +135,17 @@ const ChatMessage: FC = () => {
         </div>
       </AuiIf>
 
-      <AuiIf condition={({ message }) => message.role === "assistant"}>
+      <AuiIf condition={(s) => s.message.role === "assistant"}>
         <div className="relative mb-12 font-serif">
           <div className="relative leading-[1.65rem]">
             <div className="grid grid-cols-1 gap-2.5">
               <div className="wrap-break-word whitespace-normal pr-8 pl-2 font-serif text-[#1a1a18] dark:text-[#eee]">
-                <MessagePrimitive.Parts components={{ Text: MarkdownText }} />
+                <MessagePrimitive.Parts>
+                  {({ part }) => {
+                    if (part.type === "text") return <MarkdownText />;
+                    return null;
+                  }}
+                </MessagePrimitive.Parts>
               </div>
             </div>
           </div>
@@ -157,7 +169,7 @@ const ChatMessage: FC = () => {
                   <ReloadIcon width={20} height={20} />
                 </ActionBarPrimitive.Reload>
               </div>
-              <AuiIf condition={({ message }) => message.isLast}>
+              <AuiIf condition={(s) => s.message.isLast}>
                 <p className="mt-2 w-full text-right text-[#8a8985] text-[0.65rem] leading-[0.85rem] opacity-90 sm:text-[0.75rem] dark:text-[#b8b5a9]">
                   Claude can make mistakes. Please double-check responses.
                 </p>

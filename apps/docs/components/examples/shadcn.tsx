@@ -6,12 +6,18 @@ import {
   UserMessageAttachments,
 } from "@/components/assistant-ui/attachment";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
+import { MessageTiming } from "@/components/assistant-ui/message-timing";
 import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { ThreadList } from "@/components/assistant-ui/thread-list";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import icon from "@/public/favicon/icon.svg";
+import {
+  ComposerQuotePreview,
+  QuoteBlock,
+  SelectionToolbar,
+} from "@/components/assistant-ui/quote";
 import {
   ActionBarMorePrimitive,
   ActionBarPrimitive,
@@ -20,11 +26,8 @@ import {
   ComposerPrimitive,
   ErrorPrimitive,
   MessagePrimitive,
-  SelectionToolbarPrimitive,
   SuggestionPrimitive,
   ThreadPrimitive,
-  useMessageQuote,
-  useMessageTiming,
 } from "@assistant-ui/react";
 import {
   ArrowDownIcon,
@@ -38,17 +41,16 @@ import {
   MoreHorizontalIcon,
   PanelLeftIcon,
   PencilIcon,
-  QuoteIcon,
   RefreshCwIcon,
   ShareIcon,
   SquareIcon,
-  XIcon,
 } from "lucide-react";
 import Image from "next/image";
 import { useState, type FC } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ModelSelector } from "@/components/assistant-ui/model-selector";
-import { MODELS } from "@/constants/model";
+import { docsModelOptions } from "@/components/docs/assistant/docs-model-options";
+import { DEFAULT_MODEL_ID } from "@/constants/model";
 
 const Logo: FC = () => {
   return (
@@ -106,26 +108,13 @@ const MobileSidebar: FC = () => {
   );
 };
 
-const models = MODELS.map((m) => ({
-  id: m.value,
-  name: m.name,
-  icon: (
-    <Image
-      src={m.icon}
-      alt={m.name}
-      width={16}
-      height={16}
-      className="size-4"
-    />
-  ),
-  ...(m.disabled ? { disabled: true as const } : undefined),
-}));
+const models = docsModelOptions();
 
 const ModelPicker: FC = () => {
   return (
     <ModelSelector
       models={models}
-      defaultValue={MODELS[0].value}
+      defaultValue={DEFAULT_MODEL_ID}
       variant="outline"
     />
   );
@@ -168,6 +157,8 @@ const Thread: FC = () => {
       className="aui-root aui-thread-root @container flex h-full flex-col bg-background"
       style={{
         ["--thread-max-width" as string]: "44rem",
+        ["--composer-radius" as string]: "24px",
+        ["--composer-padding" as string]: "10px",
       }}
     >
       <ThreadPrimitive.Viewport
@@ -178,21 +169,21 @@ const Thread: FC = () => {
           <ThreadWelcome />
         </AuiIf>
 
-        <ThreadPrimitive.Messages
-          components={{
-            UserMessage,
-            EditComposer,
-            AssistantMessage,
+        <ThreadPrimitive.Messages>
+          {({ message }) => {
+            if (message.composer.isEditing) return <EditComposer />;
+            if (message.role === "user") return <UserMessage />;
+            return <AssistantMessage />;
           }}
-        />
+        </ThreadPrimitive.Messages>
 
-        <ThreadPrimitive.ViewportFooter className="aui-thread-viewport-footer sticky bottom-0 mx-auto mt-auto flex w-full max-w-(--thread-max-width) flex-col gap-4 overflow-visible rounded-t-3xl pb-4 md:pb-6">
+        <ThreadPrimitive.ViewportFooter className="aui-thread-viewport-footer sticky bottom-0 mx-auto mt-auto flex w-full max-w-(--thread-max-width) flex-col gap-4 overflow-visible rounded-t-(--composer-radius) bg-background pb-4 md:pb-6">
           <ThreadScrollToBottom />
           <Composer />
         </ThreadPrimitive.ViewportFooter>
       </ThreadPrimitive.Viewport>
 
-      <FloatingSelectionToolbar />
+      <SelectionToolbar />
     </ThreadPrimitive.Root>
   );
 };
@@ -203,7 +194,7 @@ const ThreadScrollToBottom: FC = () => {
       <TooltipIconButton
         tooltip="Scroll to bottom"
         variant="outline"
-        className="aui-thread-scroll-to-bottom absolute -top-12 z-10 self-center rounded-full p-4 disabled:invisible dark:bg-background dark:hover:bg-accent"
+        className="aui-thread-scroll-to-bottom absolute -top-12 z-10 self-center rounded-full p-4 disabled:invisible dark:border-border dark:bg-background dark:hover:bg-accent"
       >
         <ArrowDownIcon />
       </TooltipIconButton>
@@ -232,11 +223,9 @@ const ThreadWelcome: FC = () => {
 const ThreadSuggestions: FC = () => {
   return (
     <div className="aui-thread-welcome-suggestions grid w-full @md:grid-cols-2 gap-2 pb-4">
-      <ThreadPrimitive.Suggestions
-        components={{
-          Suggestion: ThreadSuggestionItem,
-        }}
-      />
+      <ThreadPrimitive.Suggestions>
+        {() => <ThreadSuggestionItem />}
+      </ThreadPrimitive.Suggestions>
     </div>
   );
 };
@@ -247,51 +236,35 @@ const ThreadSuggestionItem: FC = () => {
       <SuggestionPrimitive.Trigger send asChild>
         <Button
           variant="ghost"
-          className="aui-thread-welcome-suggestion h-auto w-full @md:flex-col flex-wrap items-start justify-start gap-1 rounded-2xl border px-4 py-3 text-left text-sm transition-colors hover:bg-muted"
+          className="aui-thread-welcome-suggestion h-auto w-full @md:flex-col flex-wrap items-start justify-start gap-1 rounded-3xl border bg-background px-4 py-3 text-left text-sm transition-colors hover:bg-muted"
         >
-          <span className="aui-thread-welcome-suggestion-text-1 font-medium">
-            <SuggestionPrimitive.Title />
-          </span>
-          <span className="aui-thread-welcome-suggestion-text-2 text-muted-foreground">
-            <SuggestionPrimitive.Description />
-          </span>
+          <SuggestionPrimitive.Title className="aui-thread-welcome-suggestion-text-1 font-medium" />
+          <SuggestionPrimitive.Description className="aui-thread-welcome-suggestion-text-2 text-muted-foreground empty:hidden" />
         </Button>
       </SuggestionPrimitive.Trigger>
     </div>
   );
 };
 
-const ComposerQuotePreview: FC = () => {
-  return (
-    <ComposerPrimitive.Quote className="aui-composer-quote mx-3 mt-2 flex items-start gap-2 rounded-lg bg-muted/60 px-3 py-2">
-      <QuoteIcon className="aui-composer-quote-icon mt-0.5 size-3.5 shrink-0 text-muted-foreground/70" />
-      <ComposerPrimitive.QuoteText className="aui-composer-quote-text line-clamp-2 min-w-0 flex-1 text-muted-foreground text-sm" />
-      <ComposerPrimitive.QuoteDismiss asChild>
-        <button
-          type="button"
-          className="aui-composer-quote-dismiss shrink-0 rounded-sm p-0.5 text-muted-foreground/70 transition-colors hover:bg-accent hover:text-foreground"
-        >
-          <XIcon className="size-3.5" />
-        </button>
-      </ComposerPrimitive.QuoteDismiss>
-    </ComposerPrimitive.Quote>
-  );
-};
-
 const Composer: FC = () => {
   return (
     <ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col">
-      <ComposerPrimitive.AttachmentDropzone className="aui-composer-attachment-dropzone flex w-full flex-col rounded-2xl border border-input bg-background px-1 pt-2 outline-none transition-shadow has-[textarea:focus-visible]:border-ring has-[textarea:focus-visible]:ring-2 has-[textarea:focus-visible]:ring-ring/20 data-[dragging=true]:border-ring data-[dragging=true]:border-dashed data-[dragging=true]:bg-accent/50">
-        <ComposerQuotePreview />
-        <ComposerAttachments />
-        <ComposerPrimitive.Input
-          placeholder="Send a message..."
-          className="aui-composer-input mb-1 max-h-32 min-h-14 w-full resize-none bg-transparent px-4 pt-2 pb-3 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-0"
-          rows={1}
-          autoFocus
-          aria-label="Message input"
-        />
-        <ComposerAction />
+      <ComposerPrimitive.AttachmentDropzone asChild>
+        <div
+          data-slot="composer-shell"
+          className="flex w-full flex-col gap-2 rounded-(--composer-radius) border bg-background p-(--composer-padding) transition-shadow focus-within:border-ring/75 focus-within:ring-2 focus-within:ring-ring/20 data-[dragging=true]:border-ring data-[dragging=true]:border-dashed data-[dragging=true]:bg-accent/50"
+        >
+          <ComposerQuotePreview />
+          <ComposerAttachments />
+          <ComposerPrimitive.Input
+            placeholder="Send a message..."
+            className="aui-composer-input max-h-32 min-h-10 w-full resize-none bg-transparent px-1.75 py-1 text-sm outline-none placeholder:text-muted-foreground/80"
+            rows={1}
+            autoFocus
+            aria-label="Message input"
+          />
+          <ComposerAction />
+        </div>
       </ComposerPrimitive.AttachmentDropzone>
     </ComposerPrimitive.Root>
   );
@@ -299,14 +272,13 @@ const Composer: FC = () => {
 
 const ComposerAction: FC = () => {
   return (
-    <div className="aui-composer-action-wrapper relative mx-2 mb-2 flex items-center justify-between">
+    <div className="aui-composer-action-wrapper relative flex items-center justify-between">
       <ComposerAddAttachment />
       <AuiIf condition={(s) => !s.thread.isRunning}>
         <ComposerPrimitive.Send asChild>
           <TooltipIconButton
             tooltip="Send message"
             side="bottom"
-            type="submit"
             variant="default"
             size="icon"
             className="aui-composer-send size-8 rounded-full"
@@ -350,31 +322,22 @@ const AssistantMessage: FC = () => {
       data-role="assistant"
     >
       <div className="aui-assistant-message-content wrap-break-word px-2 text-foreground leading-relaxed">
-        <MessagePrimitive.Parts
-          components={{
-            Text: MarkdownText,
-            tools: { Fallback: ToolFallback },
+        <MessagePrimitive.Parts>
+          {({ part }) => {
+            if (part.type === "text") return <MarkdownText />;
+            if (part.type === "tool-call")
+              return part.toolUI ?? <ToolFallback {...part} />;
+            return null;
           }}
-        />
+        </MessagePrimitive.Parts>
         <MessageError />
       </div>
 
-      <div className="aui-assistant-message-footer mt-1 ml-2 flex">
+      <div className="aui-assistant-message-footer mt-1 ml-2 flex min-h-6 items-center">
         <BranchPicker />
         <AssistantActionBar />
       </div>
     </MessagePrimitive.Root>
-  );
-};
-
-const FloatingSelectionToolbar: FC = () => {
-  return (
-    <SelectionToolbarPrimitive.Root className="aui-selection-toolbar-root flex items-center gap-1 rounded-lg border bg-popover px-1 py-1 shadow-md">
-      <SelectionToolbarPrimitive.Quote className="aui-selection-toolbar-quote flex items-center gap-1.5 rounded-md px-2.5 py-1 text-popover-foreground text-sm transition-colors hover:bg-accent">
-        <QuoteIcon className="size-3.5" />
-        Quote
-      </SelectionToolbarPrimitive.Quote>
-    </SelectionToolbarPrimitive.Root>
   );
 };
 
@@ -383,8 +346,7 @@ const AssistantActionBar: FC = () => {
     <ActionBarPrimitive.Root
       hideWhenRunning
       autohide="not-last"
-      autohideFloat="single-branch"
-      className="aui-assistant-action-bar-root col-start-3 row-start-2 -ml-1 flex gap-1 text-muted-foreground data-floating:absolute data-floating:rounded-md data-floating:border data-floating:bg-background data-floating:p-1 data-floating:shadow-sm"
+      className="aui-assistant-action-bar-root col-start-3 row-start-2 -ml-1 flex gap-1 text-muted-foreground"
     >
       <ActionBarPrimitive.Copy asChild>
         <TooltipIconButton tooltip="Copy">
@@ -401,7 +363,6 @@ const AssistantActionBar: FC = () => {
           <RefreshCwIcon />
         </TooltipIconButton>
       </ActionBarPrimitive.Reload>
-      <MessageTimingDisplay />
       <ActionBarMorePrimitive.Root>
         <ActionBarMorePrimitive.Trigger asChild>
           <TooltipIconButton
@@ -424,82 +385,8 @@ const AssistantActionBar: FC = () => {
           </ActionBarPrimitive.ExportMarkdown>
         </ActionBarMorePrimitive.Content>
       </ActionBarMorePrimitive.Root>
+      <MessageTiming />
     </ActionBarPrimitive.Root>
-  );
-};
-
-const formatTimingMs = (ms: number | undefined) => {
-  if (ms === undefined) return "\u2014";
-  if (ms < 1000) return `${Math.round(ms)}ms`;
-  return `${(ms / 1000).toFixed(2)}s`;
-};
-
-const MessageTimingDisplay: FC = () => {
-  const timing = useMessageTiming();
-  if (!timing?.totalStreamTime) return null;
-
-  const totalText =
-    timing.totalStreamTime < 1000
-      ? `${Math.round(timing.totalStreamTime)}ms`
-      : `${(timing.totalStreamTime / 1000).toFixed(1)}s`;
-
-  return (
-    <div className="group/timing relative">
-      <button
-        type="button"
-        className="flex items-center rounded-md p-1 font-mono text-muted-foreground text-xs tabular-nums transition-colors hover:bg-accent hover:text-accent-foreground"
-      >
-        {totalText}
-      </button>
-      <div className="pointer-events-none absolute top-1/2 left-full z-10 ml-2 -translate-y-1/2 scale-95 rounded-lg border bg-popover px-3 py-2 text-popover-foreground opacity-0 shadow-md transition-all before:absolute before:top-0 before:-left-2 before:h-full before:w-2 before:content-[''] group-hover/timing:pointer-events-auto group-hover/timing:scale-100 group-hover/timing:opacity-100">
-        <div className="grid min-w-35 gap-1.5 text-xs">
-          {timing.firstTokenTime !== undefined && (
-            <div className="flex items-center justify-between gap-4">
-              <span className="text-muted-foreground">First token</span>
-              <span className="font-mono tabular-nums">
-                {formatTimingMs(timing.firstTokenTime)}
-              </span>
-            </div>
-          )}
-          <div className="flex items-center justify-between gap-4">
-            <span className="text-muted-foreground">Total</span>
-            <span className="font-mono tabular-nums">
-              {formatTimingMs(timing.totalStreamTime)}
-            </span>
-          </div>
-          {timing.tokensPerSecond !== undefined && (
-            <div className="flex items-center justify-between gap-4">
-              <span className="text-muted-foreground">Speed</span>
-              <span className="font-mono tabular-nums">
-                {timing.tokensPerSecond.toFixed(1)} tok/s
-              </span>
-            </div>
-          )}
-          {timing.totalChunks > 0 && (
-            <div className="flex items-center justify-between gap-4">
-              <span className="text-muted-foreground">Chunks</span>
-              <span className="font-mono tabular-nums">
-                {timing.totalChunks}
-              </span>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const MessageQuoteBlock: FC = () => {
-  const quote = useMessageQuote();
-  if (!quote) return null;
-
-  return (
-    <div className="aui-message-quote mb-2 flex items-start gap-1.5">
-      <QuoteIcon className="aui-message-quote-icon mt-0.5 size-3 shrink-0 text-muted-foreground/60" />
-      <p className="aui-message-quote-text line-clamp-2 min-w-0 text-muted-foreground/80 text-sm italic">
-        {quote.text}
-      </p>
-    </div>
   );
 };
 
@@ -513,7 +400,9 @@ const UserMessage: FC = () => {
 
       <div className="aui-user-message-content-wrapper relative col-start-2 min-w-0">
         <div className="aui-user-message-content wrap-break-word rounded-2xl bg-muted px-4 py-2.5 text-foreground">
-          <MessageQuoteBlock />
+          <MessagePrimitive.Quote>
+            {(quote) => <QuoteBlock {...quote} />}
+          </MessagePrimitive.Quote>
           <MessagePrimitive.Parts />
         </div>
         <div className="aui-user-action-bar-wrapper absolute top-1/2 left-0 -translate-x-full -translate-y-1/2 pr-2">
@@ -599,7 +488,7 @@ export const Shadcn: FC = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   return (
-    <div className="flex h-full w-full bg-background [--primary-foreground:0_0%_98%] [--primary:0_0%_9%] dark:[--primary-foreground:0_0%_9%] dark:[--primary:0_0%_98%]">
+    <div className="flex h-full w-full bg-background">
       <div className="hidden md:block">
         <Sidebar collapsed={sidebarCollapsed} />
       </div>

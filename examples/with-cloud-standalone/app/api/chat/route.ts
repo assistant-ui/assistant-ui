@@ -12,5 +12,19 @@ export async function POST(req: Request) {
     messages: await convertToModelMessages(messages),
   });
 
-  return result.toUIMessageStreamResponse();
+  return result.toUIMessageStreamResponse({
+    messageMetadata: ({ part }) => {
+      if (part.type === "finish") {
+        return {
+          usage: part.totalUsage,
+        };
+      }
+      if (part.type === "finish-step") {
+        return {
+          modelId: part.response.modelId,
+        };
+      }
+      return undefined;
+    },
+  });
 }

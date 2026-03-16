@@ -1,3 +1,7 @@
+if (process.env.NODE_ENV === "development") {
+  import("react-grab");
+}
+
 import posthog from "posthog-js";
 
 const apiKey = process.env["NEXT_PUBLIC_POSTHOG_API_KEY"];
@@ -7,6 +11,7 @@ if (apiKey) {
     api_host: "/ph",
     ui_host: "https://us.posthog.com",
     defaults: "2025-11-30",
+    autocapture: false,
     capture_exceptions: true,
   });
 

@@ -1,14 +1,10 @@
 import React, { createContext, useContext } from "react";
-import type {
-  AssistantClient,
-  AssistantClientAccessor,
-} from "@assistant-ui/core/store";
+import type { AssistantClient, AssistantClientAccessor } from "../types/client";
 import {
   createProxiedAssistantState,
   PROXIED_ASSISTANT_STATE_SYMBOL,
-  BaseProxyHandler,
-  handleIntrospectionProp,
-} from "@assistant-ui/core/store/internal";
+} from "./proxied-assistant-state";
+import { BaseProxyHandler, handleIntrospectionProp } from "./BaseProxyHandler";
 
 const NO_OP_SUBSCRIBE = () => () => {};
 

@@ -45,9 +45,7 @@ For `useChatRuntime`, attachments work automatically without additional configur
 ```tsx title="/app/MyRuntimeProvider.tsx"
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 
-const runtime = useChatRuntime({
-  api: "/api/chat",
-});
+const runtime = useChatRuntime();
 ```
 
 <Callout type="info">
@@ -159,7 +157,7 @@ class VisionImageAdapter implements AttachmentAdapter {
       type: "image",
       name: file.name,
       file,
-      status: { type: "running" },
+      status: { type: "requires-action", reason: "composer-send" },
     };
   }
 
@@ -226,7 +224,7 @@ class PDFAttachmentAdapter implements AttachmentAdapter {
       type: "document",
       name: file.name,
       file,
-      status: { type: "running" },
+      status: { type: "requires-action", reason: "composer-send" },
     };
   }
 
@@ -362,7 +360,7 @@ class UploadAttachmentAdapter implements AttachmentAdapter {
       type: "file",
       name: file.name,
       file,
-      status: { type: "running", progress: 0 },
+      status: { type: "running", reason: "uploading", progress: 0 },
     } as PendingAttachment;
 
     // Simulate upload progress
@@ -374,7 +372,7 @@ class UploadAttachmentAdapter implements AttachmentAdapter {
         type: "file",
         name: file.name,
         file,
-        status: { type: "running", progress },
+        status: { type: "running", reason: "uploading", progress },
       } as PendingAttachment;
     }
 
@@ -384,7 +382,7 @@ class UploadAttachmentAdapter implements AttachmentAdapter {
       type: "file",
       name: file.name,
       file,
-      status: { type: "running", progress: 100 },
+      status: { type: "running", reason: "uploading", progress: 100 },
     } as PendingAttachment;
   }
 
@@ -438,7 +436,6 @@ class ValidatedImageAdapter implements AttachmentAdapter {
         status: {
           type: "incomplete",
           reason: "error",
-          error: new Error("File size exceeds 5MB limit"),
         },
       };
     }
@@ -458,7 +455,6 @@ class ValidatedImageAdapter implements AttachmentAdapter {
         status: {
           type: "incomplete",
           reason: "error",
-          error,
         },
       };
     }
@@ -469,7 +465,7 @@ class ValidatedImageAdapter implements AttachmentAdapter {
       type: "image",
       name: file.name,
       file,
-      status: { type: "running" },
+      status: { type: "requires-action", reason: "composer-send" },
     };
   }
 
@@ -478,6 +474,31 @@ class ValidatedImageAdapter implements AttachmentAdapter {
   }
 }
 ```
+
+### External Source Attachments
+
+Add attachments from external sources (URLs, API data, CMS references) without needing a `File` object or an `AttachmentAdapter`:
+
+```tsx
+const aui = useAui();
+
+// Add an attachment from an external source
+await aui.composer().addAttachment({
+  name: "report.pdf",
+  contentType: "application/pdf",
+  content: [{ type: "text", text: "Extracted document content..." }],
+});
+
+// Optionally provide id and type
+await aui.composer().addAttachment({
+  id: "cms-doc-123",
+  type: "document",
+  name: "Product Spec",
+  content: [{ type: "text", text: "Product specification content..." }],
+});
+```
+
+External attachments are added as complete attachments directly — they skip the `AttachmentAdapter` entirely and can be removed without one.
 
 ### Multiple File Selection
 
@@ -491,7 +512,7 @@ const handleMultipleFiles = async (files: FileList) => {
   const filesToAdd = Array.from(files).slice(0, maxFiles);
 
   for (const file of filesToAdd) {
-    await aui.composer().addAttachment({ file });
+    await aui.composer().addAttachment(file);
   }
 };
 ```
@@ -506,7 +527,7 @@ Attachments are sent to the backend as file content parts.
 
 Attachments work with all assistant-ui runtimes:
 
-- **AI SDK Runtime**: `useChatRuntime`, `useAssistantRuntime`
+- **AI SDK Runtime**: `useChatRuntime`
 - **External Store**: `useExternalStoreRuntime`
 - **LangGraph**: `useLangGraphRuntime`
 - **Custom Runtimes**: Any runtime implementing the attachment interface
@@ -529,4 +550,4 @@ Attachments work with all assistant-ui runtimes:
 ## Resources
 
 - [Attachment UI Components](/docs/ui/attachment) - UI implementation details
-- [API Reference](/docs/api-reference) - Detailed type definitions
+- [API Reference](/docs/api-reference/overview) - Detailed type definitions

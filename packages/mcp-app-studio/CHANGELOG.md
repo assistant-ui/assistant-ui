@@ -1,5 +1,35 @@
 # mcp-app-studio
 
+## 0.7.5
+
+### Patch Changes
+
+- 349f3c7: chore: update deps
+
+## 0.7.4
+
+### Patch Changes
+
+- 57e26d2: chore: update dependencies
+
+## 0.7.3
+
+### Patch Changes
+
+- a845911: chore: update dependencies
+
+## 0.7.2
+
+### Patch Changes
+
+- 36ef3a2: chore: update dependencies
+
+## 0.7.1
+
+### Patch Changes
+
+- 93910bd: Rename .tsx files to .ts where no JSX syntax is used
+
 ## 0.7.0
 
 ### Minor Changes

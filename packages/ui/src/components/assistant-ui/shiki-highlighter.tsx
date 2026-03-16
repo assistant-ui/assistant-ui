@@ -13,7 +13,8 @@ export type HighlighterProps = Omit<
   "children" | "theme"
 > & {
   theme?: ShikiHighlighterProps["theme"];
-} & Pick<AUIProps, "node" | "components" | "language" | "code">;
+} & Pick<AUIProps, "language" | "code"> &
+  Partial<Pick<AUIProps, "node" | "components">>;
 
 /**
  * SyntaxHighlighter component, using react-shiki

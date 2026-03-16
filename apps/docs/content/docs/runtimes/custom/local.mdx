@@ -12,7 +12,7 @@ description: Quickest path to a working chat. Handles state while you handle the
 
 - **Built-in state management** for messages, threads, and conversation history
 - **Automatic features** like message editing, reloading, and branch switching
-- **Multi-thread support** through [Assistant Cloud](/docs/cloud/overview) or your own database using `useRemoteThreadListRuntime`
+- **Multi-thread support** through [Assistant Cloud](/docs/cloud) or your own database using `useRemoteThreadListRuntime`
 - **Simple adapter pattern** to connect any backend API
 
 While LocalRuntime manages state in-memory by default, it offers multiple persistence options through adapters - use the history adapter for single-thread persistence, Assistant Cloud for managed multi-thread support, or implement your own storage with `useRemoteThreadListRuntime`.
@@ -419,11 +419,11 @@ For custom thread storage, use `useRemoteThreadListRuntime` with your own adapte
 
 ```tsx
 import {
-  unstable_useRemoteThreadListRuntime as useRemoteThreadListRuntime,
+  useRemoteThreadListRuntime,
   useAui,
   RuntimeAdapterProvider,
   AssistantRuntimeProvider,
-  type unstable_RemoteThreadListAdapter as RemoteThreadListAdapter,
+  type RemoteThreadListAdapter,
   type ThreadHistoryAdapter,
 } from "@assistant-ui/react";
 import { createAssistantStream } from "assistant-stream";
@@ -465,9 +465,9 @@ const myDatabaseAdapter: RemoteThreadListAdapter = {
     await db.threads.delete(remoteId);
   },
 
-  async generateTitle(remoteId, messages) {
+  async generateTitle(remoteId, unstable_messages) {
     // Generate title from messages using your AI
-    const newTitle = await generateTitle(messages);
+    const newTitle = await generateTitle(unstable_messages);
 
     // Persist the title in your DB
     await db.threads.update(remoteId, { title: newTitle });
@@ -632,7 +632,7 @@ Enable file and image uploads:
 ```tsx
 const attachmentAdapter: AttachmentAdapter = {
   accept: "image/*,application/pdf",
-  async add(file) {
+  async add({ file }) {
     const formData = new FormData();
     formData.append("file", file);
 
@@ -646,7 +646,21 @@ const attachmentAdapter: AttachmentAdapter = {
       id,
       type: file.type.startsWith("image/") ? "image" : "document",
       name: file.name,
+      contentType: file.type,
+      file,
       url,
+      status: { type: "requires-action", reason: "composer-send" },
+    };
+  },
+  async send(attachment) {
+    return {
+      ...attachment,
+      status: { type: "complete" },
+      content: [
+        attachment.type === "image"
+          ? { type: "image", image: attachment.url }
+          : { type: "text", text: `[${attachment.name}](${attachment.url})` },
+      ],
     };
   },
   async remove(attachment) {
@@ -730,11 +744,32 @@ const speechAdapter: SpeechSynthesisAdapter = {
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.rate = 1.0;
     utterance.pitch = 1.0;
-    speechSynthesis.speak(utterance);
-  },
 
-  stop() {
-    speechSynthesis.cancel();
+    const subscribers = new Set<() => void>();
+    const result: SpeechSynthesisAdapter.Utterance = {
+      status: { type: "running" },
+      cancel: () => {
+        speechSynthesis.cancel();
+        result.status = { type: "ended", reason: "cancelled" };
+        subscribers.forEach((cb) => cb());
+      },
+      subscribe: (callback) => {
+        subscribers.add(callback);
+        return () => subscribers.delete(callback);
+      },
+    };
+
+    utterance.addEventListener("end", () => {
+      result.status = { type: "ended", reason: "finished" };
+      subscribers.forEach((cb) => cb());
+    });
+    utterance.addEventListener("error", (e) => {
+      result.status = { type: "ended", reason: "error", error: e.error };
+      subscribers.forEach((cb) => cb());
+    });
+
+    speechSynthesis.speak(utterance);
+    return result;
   },
 };
 
@@ -754,7 +789,7 @@ const feedbackAdapter: FeedbackAdapter = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        messageId: feedback.messageId,
+        messageId: feedback.message.id,
         rating: feedback.type, // "positive" or "negative"
       }),
     });
@@ -779,9 +814,8 @@ const suggestionAdapter: SuggestionAdapter = {
     // Generate suggestions
     const suggestions = await generateSuggestions(lastMessage);
 
-    yield suggestions.map((text) => ({
-      id: crypto.randomUUID(),
-      text,
+    yield suggestions.map((prompt) => ({
+      prompt,
     }));
   },
 };
@@ -795,18 +829,31 @@ const runtime = useLocalRuntime(MyModelAdapter, {
 
 ### Resuming a Run
 
-<Callout type="warning">
-  The `unstable_resumeRun` method is experimental and may change in future
-  releases.
-</Callout>
+`resumeRun` reconnects to an in-progress or interrupted assistant run. This is essential for scenarios like:
 
-Resume a conversation with a custom stream:
+- **Page refresh** while the backend is still generating a response
+- **Network reconnection** after a temporary disconnect
+- **Tab backgrounding** where the browser suspended the WebSocket connection
+- **Thread switching** to a conversation that has an active backend stream
+
+#### How it works
+
+When you call `resumeRun`, the local runtime:
+
+1. Creates a new assistant message in the thread (or continues the existing one)
+2. Calls your provided `stream` function with `ChatModelRunOptions` (messages, abort signal, model context, etc.)
+3. Iterates over each `ChatModelRunResult` yielded by the stream, updating the assistant message with new content, status, and metadata
+4. Completes when the stream finishes or is cancelled
+
+Unlike `startRun` (which uses the ChatModelAdapter), `resumeRun` **requires** a `stream` parameter — you provide the async generator that produces the response.
+
+#### Basic example
 
 ```tsx
-import { useThreadRuntime, type ChatModelRunResult } from "@assistant-ui/react";
+import { useAui } from "@assistant-ui/react";
+import type { ChatModelRunResult } from "@assistant-ui/core";
 
-// Get the thread runtime
-const thread = useThreadRuntime();
+const aui = useAui();
 
 // Create a custom stream
 async function* createCustomStream(): AsyncGenerator<ChatModelRunResult> {
@@ -825,36 +872,88 @@ async function* createCustomStream(): AsyncGenerator<ChatModelRunResult> {
 }
 
 // Resume a run with the custom stream
-thread.unstable_resumeRun({
+aui.thread().resumeRun({
   parentId: "message-id", // ID of the message to respond to
-  stream: createCustomStream(), // The stream to use for resuming
+  stream: createCustomStream,
 });
 ```
 
-### Custom Thread Management
+#### Reconnecting to a backend stream
 
-Access thread runtime for advanced control with `useThreadRuntime`:
+A common pattern is checking whether the backend is still running, then reconnecting:
 
 ```tsx
-import { useThreadRuntime } from "@assistant-ui/react";
+import { useAui } from "@assistant-ui/react";
+import { useEffect, useRef } from "react";
+
+function useStreamReconnect(threadId: string) {
+  const aui = useAui();
+  const hasCheckedRef = useRef(false);
+
+  useEffect(() => {
+    if (hasCheckedRef.current) return;
+    hasCheckedRef.current = true;
+
+    const checkAndResume = async () => {
+      // Check if the backend still has an active stream
+      const status = await fetch(`/api/status/${threadId}`).then((r) =>
+        r.json(),
+      );
+
+      if (status.isRunning) {
+        const parentId =
+          aui.thread().getState().messages.at(-1)?.id ?? null;
+        aui.thread().resumeRun({ parentId });
+      }
+    };
+
+    checkAndResume();
+  }, [aui, threadId]);
+}
+```
+
+#### ChatModelRunResult
+
+Each value yielded by the stream is a `ChatModelRunResult`:
+
+```tsx
+type ChatModelRunResult = {
+  /** The message content parts (text, tool calls, etc.) */
+  content: ThreadAssistantContentPart[];
+  /** Optional status override */
+  status?: MessageStatus;
+  /** Optional metadata (state, annotations, custom fields) */
+  metadata?: {
+    custom?: Record<string, unknown>;
+    steps?: unknown[];
+    // ...
+  };
+};
+```
+
+The stream should yield the **full cumulative content** on each iteration (not deltas). Each yield replaces the previous content of the assistant message.
+
+### Custom Thread Management
+
+Access thread actions for advanced control with `useAui`:
+
+```tsx
+import { useAui } from "@assistant-ui/react";
 
 function MyComponent() {
-  const thread = useThreadRuntime();
+  const aui = useAui();
 
   // Cancel current generation
   const handleCancel = () => {
-    thread.cancelRun();
+    aui.thread().cancelRun();
   };
 
-  // Switch to a different branch
-  const handleSwitchBranch = (messageId: string, branchIndex: number) => {
-    thread.switchToBranch(messageId, branchIndex);
-  };
+  // Switch to a different branch (message scope)
+  // aui.message().switchToBranch({ position: "next" });
+  // aui.message().switchToBranch({ position: "previous" });
 
-  // Reload a message
-  const handleReload = (messageId: string) => {
-    thread.reload(messageId);
-  };
+  // Reload a message (message scope)
+  // aui.message().reload();
 
   return (
     // Your UI
@@ -889,11 +988,13 @@ const OpenAIAdapter: ChatModelAdapter = {
       signal: abortSignal,
     });
 
+    let fullText = "";
     for await (const chunk of stream) {
       const content = chunk.choices[0]?.delta?.content;
       if (content) {
+        fullText += content;
         yield {
-          content: [{ type: "text", text: content }],
+          content: [{ type: "text", text: fullText }],
         };
       }
     }
@@ -1119,6 +1220,12 @@ Parameters passed to the `run` function.
       required: true,
     },
     {
+      name: "runConfig",
+      type: "RunConfig",
+      description: "Run configuration with optional custom metadata. `RunConfig` is `{ readonly custom?: Record<string, unknown> }`.",
+      required: true,
+    },
+    {
       name: "abortSignal",
       type: "AbortSignal",
       description: "Signal to cancel the request if user interrupts",
@@ -1131,9 +1238,29 @@ Parameters passed to the `run` function.
       required: true,
     },
     {
+      name: "unstable_assistantMessageId",
+      type: "string | undefined",
+      description: "The ID of the assistant message being generated. Useful for tracking or updating specific messages.",
+    },
+    {
       name: "unstable_threadId",
       type: "string | undefined",
       description: "The current thread/conversation identifier. Useful for passing to your backend API.",
+    },
+    {
+      name: "unstable_parentId",
+      type: "string | null | undefined",
+      description: "The ID of the parent message this response is replying to. `null` if this is the first message in the thread.",
+    },
+    {
+      name: "unstable_getMessage",
+      type: "() => ThreadMessage",
+      description: "Returns the current assistant message being generated. Useful for accessing message state during streaming.",
+    },
+    {
+      name: "config",
+      type: "ModelContext",
+      description: "Deprecated. Renamed to `context`. Additional context including configuration and tools.",
     },
   ]}
 />
@@ -1147,7 +1274,7 @@ Configuration options for the `LocalRuntime`.
   parameters={[
     {
       name: "initialMessages",
-      type: "readonly ThreadMessage[]",
+      type: "readonly ThreadMessageLike[]",
       description: "Pre-populate the thread with messages",
     },
     {
@@ -1155,7 +1282,7 @@ Configuration options for the `LocalRuntime`.
       type: "number",
       description:
         "Maximum number of sequential tool calls before requiring user input",
-      default: "5",
+      default: "2",
     },
     {
       name: "cloud",
@@ -1183,6 +1310,11 @@ Configuration options for the `LocalRuntime`.
               description: "Enable text-to-speech for messages",
             },
             {
+              name: "dictation",
+              type: "DictationAdapter",
+              description: "Enable speech-to-text dictation",
+            },
+            {
               name: "feedback",
               type: "FeedbackAdapter",
               description: "Enable message feedback (thumbs up/down)",
@@ -1193,7 +1325,7 @@ Configuration options for the `LocalRuntime`.
               description: "Enable thread persistence and resumption",
             },
             {
-              name: "suggestions",
+              name: "suggestion",
               type: "SuggestionAdapter",
               description: "Enable follow-up suggestions",
             },
@@ -1255,9 +1387,20 @@ Interface for implementing custom thread list storage.
     },
     {
       name: "generateTitle",
-      type: "(remoteId: string, messages: readonly ThreadMessage[]) => Promise<AssistantStream>",
+      type: "(remoteId: string, unstable_messages: readonly ThreadMessage[]) => Promise<AssistantStream>",
       description: "Generates a title for the thread based on the conversation",
       required: true,
+    },
+    {
+      name: "fetch",
+      type: "(threadId: string) => Promise<RemoteThreadMetadata>",
+      description: "Fetches metadata for a specific thread",
+      required: true,
+    },
+    {
+      name: "unstable_Provider",
+      type: "(...args: any[]) => unknown",
+      description: "Optional React provider component to wrap the runtime context",
     },
   ]}
 />
@@ -1269,7 +1412,6 @@ Interface for implementing custom thread list storage.
 
 ## Related Resources
 
-- [Runtime Layer Concepts](/docs/concepts/runtime-layer)
 - [Pick a Runtime Guide](/docs/runtimes/pick-a-runtime)
 - [`ExternalStoreRuntime`](/docs/runtimes/custom/external-store)
 - [Examples Repository](https://github.com/assistant-ui/assistant-ui/tree/main/examples)

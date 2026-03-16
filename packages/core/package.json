@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/core",
-  "version": "0.0.1",
+  "version": "0.1.6",
   "description": "Framework-agnostic core runtime for assistant-ui",
   "keywords": [
     "assistant",
@@ -33,6 +33,11 @@
       "types": "./dist/store/internal.d.ts",
       "default": "./dist/store/internal.js"
     },
+    "./react": {
+      "aui-source": "./src/react/index.ts",
+      "types": "./dist/react/index.d.ts",
+      "default": "./dist/react/index.js"
+    },
     "./*": {
       "aui-source": "./src/*.ts",
       "types": "./dist/*.d.ts",
@@ -53,21 +58,40 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/tap": "^0.4.6",
-    "assistant-stream": "^0.3.2",
-    "nanoid": "^5.1.5"
+    "assistant-stream": "^0.3.6",
+    "nanoid": "^5.1.6"
   },
   "peerDependencies": {
-    "zod": "^4.0.0"
+    "@assistant-ui/store": "^0.2.3",
+    "@assistant-ui/tap": "^0.5.3",
+    "@types/react": "*",
+    "react": "^18 || ^19",
+    "assistant-cloud": "^0.1.22",
+    "zustand": "^5.0.11"
   },
   "peerDependenciesMeta": {
-    "zod": {
+    "@types/react": {
+      "optional": true
+    },
+    "assistant-cloud": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    },
+    "zustand": {
       "optional": true
     }
   },
   "devDependencies": {
+    "@assistant-ui/store": "workspace:*",
+    "@assistant-ui/tap": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "vitest": "^4.0.18"
+    "@types/react": "^19.2.14",
+    "assistant-cloud": "workspace:*",
+    "react": "^19.2.4",
+    "vitest": "^4.1.0",
+    "zustand": "^5.0.11"
   },
   "publishConfig": {
     "access": "public",

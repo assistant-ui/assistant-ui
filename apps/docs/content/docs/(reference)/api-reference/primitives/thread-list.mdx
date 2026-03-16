@@ -14,11 +14,9 @@ import { ThreadListPrimitive } from "@assistant-ui/react";
 const ThreadList = () => (
   <ThreadListPrimitive.Root>
     <ThreadListPrimitive.New />
-    <ThreadListPrimitive.Items
-      components={{
-        ThreadListItem: MyThreadListItem
-      }}
-    />
+    <ThreadListPrimitive.Items>
+      {() => <MyThreadListItem />}
+    </ThreadListPrimitive.Items>
   </ThreadListPrimitive.Root>
 );
 ```

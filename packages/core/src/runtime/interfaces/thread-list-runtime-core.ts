@@ -1,4 +1,4 @@
-import type { Unsubscribe } from "../../types";
+import type { Unsubscribe } from "../../types/unsubscribe";
 import type { ThreadRuntimeCore } from "./thread-runtime-core";
 
 export type ThreadListItemStatus = "archived" | "regular" | "new" | "deleted";

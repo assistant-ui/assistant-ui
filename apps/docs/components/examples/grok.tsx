@@ -34,16 +34,18 @@ import { GrokIcon } from "@/components/icons/grok";
 export const Grok: FC = () => {
   return (
     <ThreadPrimitive.Root className="flex h-full flex-col items-stretch bg-[#fdfdfd] px-4 dark:bg-[#141414]">
-      <ThreadPrimitive.Empty>
+      <AuiIf condition={(s) => s.thread.isEmpty}>
         <div className="flex h-full flex-col items-center justify-center">
           <GrokIcon className="mb-6 h-10 text-[#0d0d0d] dark:text-white" />
           <Composer />
         </div>
-      </ThreadPrimitive.Empty>
+      </AuiIf>
 
       <AuiIf condition={(s) => s.thread.isEmpty === false}>
         <ThreadPrimitive.Viewport className="flex grow flex-col overflow-y-scroll pt-16">
-          <ThreadPrimitive.Messages components={{ Message: ChatMessage }} />
+          <ThreadPrimitive.Messages>
+            {() => <ChatMessage />}
+          </ThreadPrimitive.Messages>
         </ThreadPrimitive.Viewport>
         <Composer />
         <p className="mx-auto w-full max-w-3xl pb-2 text-center text-[#9a9a9a] text-xs">
@@ -67,9 +69,9 @@ const Composer: FC = () => {
       <div className="overflow-hidden rounded-4xl bg-[#f8f8f8] shadow-xs ring-1 ring-[#e5e5e5] ring-inset transition-shadow focus-within:ring-[#d0d0d0] dark:bg-[#212121] dark:ring-[#2a2a2a] dark:focus-within:ring-[#3a3a3a]">
         <AuiIf condition={(s) => s.composer.attachments.length > 0}>
           <div className="flex flex-row flex-wrap gap-2 px-4 pt-3">
-            <ComposerPrimitive.Attachments
-              components={{ Attachment: GrokAttachment }}
-            />
+            <ComposerPrimitive.Attachments>
+              {() => <GrokAttachment />}
+            </ComposerPrimitive.Attachments>
           </div>
         </AuiIf>
 
@@ -127,7 +129,12 @@ const ChatMessage: FC = () => {
         <div className="flex flex-col items-end">
           <div className="relative max-w-[90%] rounded-3xl rounded-br-lg border border-[#e5e5e5] bg-[#f0f0f0] px-4 py-3 text-[#0d0d0d] dark:border-[#2a2a2a] dark:bg-[#1a1a1a] dark:text-white">
             <div className="prose prose-sm dark:prose-invert wrap-break-word prose-p:my-0">
-              <MessagePrimitive.Parts components={{ Text: MarkdownText }} />
+              <MessagePrimitive.Parts>
+                {({ part }) => {
+                  if (part.type === "text") return <MarkdownText />;
+                  return null;
+                }}
+              </MessagePrimitive.Parts>
             </div>
           </div>
           <div className="mt-1 flex h-8 items-center justify-end gap-0.5 opacity-0 transition-opacity group-focus-within/message:opacity-100 group-hover/message:opacity-100">
@@ -147,7 +154,12 @@ const ChatMessage: FC = () => {
         <div className="flex flex-col items-start">
           <div className="w-full max-w-none">
             <div className="prose prose-sm wrap-break-word dark:prose-invert prose-li:my-1 prose-ol:my-1 prose-p:my-2 prose-ul:my-1 text-[#0d0d0d] dark:text-[#e5e5e5]">
-              <MessagePrimitive.Parts components={{ Text: MarkdownText }} />
+              <MessagePrimitive.Parts>
+                {({ part }) => {
+                  if (part.type === "text") return <MarkdownText />;
+                  return null;
+                }}
+              </MessagePrimitive.Parts>
             </div>
           </div>
           <div className="mt-1 flex h-8 w-full items-center justify-start gap-0.5 opacity-0 transition-opacity group-focus-within/message:opacity-100 group-hover/message:opacity-100">
@@ -242,10 +254,10 @@ const MessageTimingDisplay: FC = () => {
 
 const useAttachmentSrc = () => {
   const { file, src } = useAuiState(
-    useShallow(({ attachment }): { file?: File; src?: string } => {
-      if (attachment.type !== "image") return {};
-      if (attachment.file) return { file: attachment.file };
-      const src = attachment.content?.filter((c) => c.type === "image")[0]
+    useShallow((s): { file?: File; src?: string } => {
+      if (s.attachment.type !== "image") return {};
+      if (s.attachment.file) return { file: s.attachment.file };
+      const src = s.attachment.content?.filter((c) => c.type === "image")[0]
         ?.image;
       if (!src) return {};
       return { src };
@@ -273,7 +285,7 @@ const GrokAttachment: FC = () => {
   return (
     <AttachmentPrimitive.Root className="group/attachment relative">
       <div className="flex h-12 items-center gap-2 overflow-hidden rounded-xl border border-[#e5e5e5] bg-[#f0f0f0] p-0.5 transition-colors hover:border-[#d0d0d0] dark:border-[#2a2a2a] dark:bg-[#252525] dark:hover:border-[#3a3a3a]">
-        <AuiIf condition={({ attachment }) => attachment.type === "image"}>
+        <AuiIf condition={(s) => s.attachment.type === "image"}>
           {src ? (
             <img
               className="h-full w-12 rounded-[9px] object-cover"
@@ -286,7 +298,7 @@ const GrokAttachment: FC = () => {
             </div>
           )}
         </AuiIf>
-        <AuiIf condition={({ attachment }) => attachment.type !== "image"}>
+        <AuiIf condition={(s) => s.attachment.type !== "image"}>
           <div className="flex h-full w-12 items-center justify-center rounded-[9px] bg-[#e5e5e5] text-[#6b6b6b] dark:bg-[#3a3a3a] dark:text-[#9a9a9a]">
             <AttachmentPrimitive.unstable_Thumb className="text-xs" />
           </div>

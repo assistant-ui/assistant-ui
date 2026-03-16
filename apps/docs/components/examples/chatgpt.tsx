@@ -9,7 +9,7 @@ import {
   MessagePrimitive,
   ThreadPrimitive,
 } from "@assistant-ui/react";
-import * as Avatar from "@radix-ui/react-avatar";
+import { Avatar } from "radix-ui";
 import {
   ArrowUpIcon,
   CheckIcon,
@@ -26,22 +26,22 @@ export const ChatGPT: FC = () => {
   return (
     <ThreadPrimitive.Root className="dark flex h-full flex-col items-stretch bg-[#212121] px-4 text-foreground">
       <ThreadPrimitive.Viewport className="flex grow flex-col gap-8 overflow-y-scroll pt-16">
-        <ThreadPrimitive.Empty>
+        <AuiIf condition={(s) => s.thread.isEmpty}>
           <div className="flex grow flex-col items-center justify-center">
             <Avatar.Root className="flex h-12 w-12 items-center justify-center rounded-3xl border border-white/15 shadow">
               <Avatar.AvatarFallback>C</Avatar.AvatarFallback>
             </Avatar.Root>
             <p className="mt-4 text-white text-xl">How can I help you today?</p>
           </div>
-        </ThreadPrimitive.Empty>
+        </AuiIf>
 
-        <ThreadPrimitive.Messages
-          components={{
-            UserMessage,
-            EditComposer,
-            AssistantMessage,
+        <ThreadPrimitive.Messages>
+          {({ message }) => {
+            if (message.composer.isEditing) return <EditComposer />;
+            if (message.role === "user") return <UserMessage />;
+            return <AssistantMessage />;
           }}
-        />
+        </ThreadPrimitive.Messages>
       </ThreadPrimitive.Viewport>
 
       <ComposerPrimitive.Root className="mx-auto flex w-full max-w-3xl items-end rounded-3xl bg-white/5 pl-2">
@@ -49,12 +49,12 @@ export const ChatGPT: FC = () => {
           placeholder="Message ChatGPT"
           className="h-12 max-h-40 grow resize-none bg-transparent p-3.5 text-sm text-white outline-none placeholder:text-white/50"
         />
-        <AuiIf condition={({ thread }) => !thread.isRunning}>
+        <AuiIf condition={(s) => !s.thread.isRunning}>
           <ComposerPrimitive.Send className="m-2 flex size-8 items-center justify-center rounded-full bg-white transition-opacity disabled:opacity-10">
             <ArrowUpIcon className="size-5 text-black [&_path]:stroke-1 [&_path]:stroke-black" />
           </ComposerPrimitive.Send>
         </AuiIf>
-        <AuiIf condition={({ thread }) => thread.isRunning}>
+        <AuiIf condition={(s) => s.thread.isRunning}>
           <ComposerPrimitive.Cancel className="m-2 flex size-8 items-center justify-center rounded-full bg-white">
             <div className="size-2.5 bg-black" />
           </ComposerPrimitive.Cancel>
@@ -141,10 +141,10 @@ const AssistantMessage: FC = () => {
             </ActionBarPrimitive.Reload>
             <ActionBarPrimitive.Copy asChild>
               <TooltipIconButton tooltip="Copy" className="text-[#b4b4b4]">
-                <AuiIf condition={({ message }) => message.isCopied}>
+                <AuiIf condition={(s) => s.message.isCopied}>
                   <CheckIcon />
                 </AuiIf>
-                <AuiIf condition={({ message }) => !message.isCopied}>
+                <AuiIf condition={(s) => !s.message.isCopied}>
                   <CopyIcon />
                 </AuiIf>
               </TooltipIconButton>

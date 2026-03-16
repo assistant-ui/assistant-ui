@@ -1,30 +1,47 @@
-// Backwards-compatible ScopeRegistry augmentation target + forwarding to core
-export type { ScopeRegistry } from "./scope-registry";
-import "./scope-registry-forward";
+// hooks
+export { useAui } from "./useAui";
+export { useAuiState } from "./useAuiState";
+export { useAuiEvent } from "./useAuiEvent";
+export { AuiForEach, RenderChildrenWithAccessor } from "./AuiForEach";
 
-// Re-export framework-agnostic infrastructure from core
+// components
+export { AuiIf } from "./AuiIf";
+export { AuiProvider } from "./utils/react-assistant-context";
+
+// resources
+export { Derived } from "./Derived";
+export { attachTransformScopes } from "./attachTransformScopes";
+export type { ScopesConfig } from "./attachTransformScopes";
+
+// tap hooks
 export {
-  Derived,
-  attachTransformScopes,
-  type ScopesConfig,
   tapAssistantClientRef,
   tapAssistantEmit,
-  tapClientResource,
-  tapClientLookup,
-  tapClientList,
-  type ClientOutput,
-  type AssistantClient,
-  type AssistantState,
+} from "./utils/tap-assistant-context";
+export { tapClientResource } from "./tapClientResource";
+export { tapClientLookup } from "./tapClientLookup";
+export { tapClientList } from "./tapClientList";
+
+// types
+export type {
+  ScopeRegistry,
+  ClientOutput,
+  ClientMethods,
+  ClientSchema,
+  ClientNames,
+  ClientEvents,
+  ClientMeta,
+  ClientElement,
+  Unsubscribe,
+  AssistantClientAccessor,
+  AssistantClient,
+  AssistantState,
+} from "./types/client";
+export {
+  normalizeEventSelector,
   type AssistantEventName,
   type AssistantEventCallback,
   type AssistantEventPayload,
   type AssistantEventSelector,
   type AssistantEventScope,
-} from "@assistant-ui/core/store";
-
-// React-specific (stay in store)
-export { useAui } from "./useAui";
-export { useAuiState } from "./useAuiState";
-export { useAuiEvent } from "./useAuiEvent";
-export { AuiIf } from "./AuiIf";
-export { AuiProvider } from "./utils/react-assistant-context";
+} from "./types/events";

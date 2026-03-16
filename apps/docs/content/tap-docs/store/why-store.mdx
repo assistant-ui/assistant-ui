@@ -44,8 +44,8 @@ const App = () => {
 
 // Anywhere below — consume
 const Message = () => {
-  const status = useAuiState((s) => s.thread.status);
-  return <p>{status}</p>;
+  const isRunning = useAuiState((s) => s.thread.isRunning);
+  return <p>{isRunning ? "Running" : "Idle"}</p>;
 };
 ```
 

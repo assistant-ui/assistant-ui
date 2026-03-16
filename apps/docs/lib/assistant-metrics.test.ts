@@ -1,30 +1,12 @@
 import { expect, it } from "vitest";
-import { getAssistantMessageTokenUsage } from "./assistant-metrics";
+import { getThreadMessageTokenUsage } from "@assistant-ui/react-ai-sdk";
 
-it("getAssistantMessageTokenUsage returns empty for zero-token custom usage", () => {
-  const usage = getAssistantMessageTokenUsage({
+it("reads usage from legacy custom.usage metadata path", () => {
+  const usage = getThreadMessageTokenUsage({
     role: "assistant",
     metadata: {
       custom: {
-        usage: {
-          inputTokens: 0,
-        },
-      },
-    },
-  });
-
-  expect(usage).toEqual({});
-});
-
-it("getAssistantMessageTokenUsage returns totals for positive usage", () => {
-  const usage = getAssistantMessageTokenUsage({
-    role: "assistant",
-    metadata: {
-      custom: {
-        usage: {
-          inputTokens: 4,
-          outputTokens: 6,
-        },
+        usage: { inputTokens: 4, outputTokens: 6 },
       },
     },
   });

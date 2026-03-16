@@ -1,11 +1,8 @@
-import type {
-  MessageRole,
-  RunConfig,
-  QuoteInfo,
-  Attachment,
-  PendingAttachment,
-  Unsubscribe,
-} from "../../types";
+import type { MessageRole } from "../../types/message";
+import type { QuoteInfo } from "../../types/quote";
+import type { Attachment, CreateAttachment } from "../../types/attachment";
+import type { Unsubscribe } from "../../types/unsubscribe";
+import type { RunConfig } from "../../types/message";
 import type { DictationAdapter } from "../../adapters/speech";
 
 export type ComposerRuntimeEventType = "send" | "attachmentAdd";
@@ -25,7 +22,7 @@ export type ComposerRuntimeCore = Readonly<{
   attachments: readonly Attachment[];
   attachmentAccept: string;
 
-  addAttachment: (file: File) => Promise<void>;
+  addAttachment: (fileOrAttachment: File | CreateAttachment) => Promise<void>;
   removeAttachment: (attachmentId: string) => Promise<void>;
 
   text: string;
@@ -58,7 +55,4 @@ export type ComposerRuntimeCore = Readonly<{
   ) => Unsubscribe;
 }>;
 
-export type ThreadComposerRuntimeCore = ComposerRuntimeCore &
-  Readonly<{
-    attachments: readonly PendingAttachment[];
-  }>;
+export type ThreadComposerRuntimeCore = ComposerRuntimeCore;

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { CheckIcon, CopyIcon } from "lucide-react";
-import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { Dialog as DialogPrimitive } from "radix-ui";
 import { XIcon } from "lucide-react";
 
 import type { BuilderConfig } from "./types";

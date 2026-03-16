@@ -5,6 +5,7 @@
   "root": true,
   "pages": [
     "index",
+    "migration",
     "custom-backend",
     "---API Reference---",
     "primitives",

@@ -30,6 +30,12 @@ const LOGOS = [
     height: "h-5",
     href: "https://stack-ai.com?ref=assistant-ui",
   },
+  {
+    src: "/icons/cust/mastra.svg",
+    alt: "Mastra",
+    height: "h-7",
+    href: "https://mastra.ai?ref=assistant-ui",
+  },
 ] as const;
 
 function LogoList() {

@@ -10,6 +10,7 @@ import {
 import {
   useChatRuntime,
   AssistantChatTransport,
+  getThreadMessageTokenUsage,
 } from "@assistant-ui/react-ai-sdk";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { useEffect, useRef, type ReactNode } from "react";
@@ -21,11 +22,7 @@ import {
   queueMicrotaskSafe,
   recordRunStartedAt,
 } from "@/lib/assistant-analytics-helpers";
-import {
-  countToolCalls,
-  getAssistantMessageTokenUsage,
-  getTextLength,
-} from "@/lib/assistant-metrics";
+import { countToolCalls, getTextLength } from "@/lib/assistant-metrics";
 
 type ThreadMessagePart = { type: string; text?: string };
 
@@ -119,7 +116,7 @@ function AssistantAnalyticsTracker() {
       const responseLength = getTextLength(lastAssistant?.content ?? []);
       const toolCallsCount = countToolCalls(lastAssistant?.content ?? []);
       const status = lastAssistant?.status;
-      const tokenUsage = getAssistantMessageTokenUsage(lastAssistant);
+      const tokenUsage = getThreadMessageTokenUsage(lastAssistant);
 
       let modelName: string | undefined;
       try {
@@ -136,13 +133,13 @@ function AssistantAnalyticsTracker() {
         tool_calls_count: toolCallsCount,
         ...(latencyMs === undefined ? {} : { latency_ms: latencyMs }),
         ...(status?.reason ? { status_reason: status.reason } : {}),
-        ...(tokenUsage.totalTokens === undefined
+        ...(tokenUsage?.totalTokens === undefined
           ? {}
           : { response_total_tokens: tokenUsage.totalTokens }),
-        ...(tokenUsage.inputTokens === undefined
+        ...(tokenUsage?.inputTokens === undefined
           ? {}
           : { response_input_tokens: tokenUsage.inputTokens }),
-        ...(tokenUsage.outputTokens === undefined
+        ...(tokenUsage?.outputTokens === undefined
           ? {}
           : { response_output_tokens: tokenUsage.outputTokens }),
         ...(pathnameRef.current ? { pathname: pathnameRef.current } : {}),

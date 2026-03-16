@@ -7,6 +7,7 @@ import type { ChatRegistry } from "../chat/ChatRegistry";
 import { MessagePersistence } from "../chat/MessagePersistence";
 import { ThreadSessionManager } from "./ThreadSessionManager";
 import { TitlePolicy } from "./TitlePolicy";
+import { CloudTelemetryReporter } from "./CloudTelemetryReporter";
 
 export type CloudChatConfig = Omit<
   UseCloudChatOptions,
@@ -24,6 +25,7 @@ export class CloudChatCore {
   readonly persistence: MessagePersistence;
   readonly sessionManager: ThreadSessionManager;
   readonly titlePolicy: TitlePolicy;
+  readonly telemetryReporter: CloudTelemetryReporter;
 
   /** Updated by the React wrapper each render. */
   options: CloudChatCoreOptions;
@@ -41,6 +43,7 @@ export class CloudChatCore {
     );
     this.sessionManager = new ThreadSessionManager();
     this.titlePolicy = new TitlePolicy();
+    this.telemetryReporter = new CloudTelemetryReporter(cloud);
   }
 
   async ensureThreadId(
@@ -94,6 +97,10 @@ export class CloudChatCore {
 
     const messages = chatInstance.messages;
     await this.persist(threadId, messages);
+
+    this.telemetryReporter
+      .reportFromMessages(threadId, messages)
+      .catch(() => {});
 
     if (this.titlePolicy.shouldGenerateTitle(threadId, messages)) {
       this.titlePolicy.markTitleGenerated(threadId);

@@ -2,7 +2,7 @@ import type {
   Attachment,
   PendingAttachment,
   CompleteAttachment,
-} from "../types";
+} from "../types/attachment";
 
 // =============================================================================
 // Adapter Type
@@ -196,7 +196,7 @@ export class CompositeAttachmentAdapter implements AttachmentAdapter {
         fileMatchesAccept(
           {
             name: attachment.name,
-            type: attachment.contentType,
+            type: attachment.contentType ?? "",
           },
           adapter.accept,
         )

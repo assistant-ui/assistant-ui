@@ -4,6 +4,7 @@
 
 #nd-docs-layout {
   --fd-banner-height: var(--docs-header-height);
+  --fd-layout-width: 9999px;
 }
 
 html:has(#nd-docs-layout) {
@@ -40,6 +41,13 @@ html:has(#nd-docs-layout) {
   padding-inline: 1rem !important;
   padding-top: 1.5rem !important;
   padding-bottom: 1.5rem !important;
+}
+
+/* When container is narrow, let content fill the column instead of capping at 900px */
+@container (max-width: 1500px) {
+  #nd-page {
+    max-width: 100% !important;
+  }
 }
 
 @media (min-width: 768px) {

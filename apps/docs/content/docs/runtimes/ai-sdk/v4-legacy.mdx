@@ -10,7 +10,7 @@ If you're using AI SDK v4 (legacy), you can integrate with assistant-ui using th
 
 <Callout type="warning">
   AI SDK v4 is now considered legacy. We recommend upgrading to [AI SDK
-  v5](/docs/runtimes/ai-sdk/use-chat) for improved features and better
+  v6](/docs/runtimes/ai-sdk/v6) for improved features and better
   TypeScript support. This documentation is provided for projects that haven't
   migrated yet.
 </Callout>
@@ -63,9 +63,9 @@ export async function POST(req: Request) {
 ```tsx
 "use client";
 
-import { Thread } from "@assistant-ui/react";
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useDataStreamRuntime } from "@assistant-ui/react-data-stream";
+import { Thread } from "@/components/assistant-ui/thread";
 
 export default function Home() {
   const runtime = useDataStreamRuntime({
@@ -94,7 +94,7 @@ Alternatively, you can use the older version of the AI SDK integration package, 
 <Callout type="warning">
   Version 0.1.10 of `@assistant-ui/react-ai-sdk` is no longer actively
   maintained. We recommend using the `@assistant-ui/react-data-stream` approach
-  or upgrading to AI SDK v5 for continued support.
+  or upgrading to AI SDK v6 for continued support.
 </Callout>
 
 With this legacy version, you would use the `useVercelUseChatRuntime` hook:
@@ -103,9 +103,9 @@ With this legacy version, you would use the `useVercelUseChatRuntime` hook:
 "use client";
 
 import { useChat } from "ai/react";
-import { Thread } from "@assistant-ui/react";
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useVercelUseChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { Thread } from "@/components/assistant-ui/thread";
 
 export default function Home() {
   const chat = useChat({
@@ -161,17 +161,17 @@ The `useDataStreamRuntime` hook accepts options similar to AI SDK v4's `useChat`
   already using AI SDK v4's `useChat` hook, making migration straightforward.
 </Callout>
 
-## Migration to AI SDK v5
+## Migration to AI SDK v6
 
-When you're ready to upgrade to AI SDK v5:
+When you're ready to upgrade to AI SDK v6:
 
 1. Replace `@assistant-ui/react-data-stream` with `@assistant-ui/react-ai-sdk`
-2. Update your backend to use AI SDK v5's `streamText` API
+2. Update your backend to use AI SDK v6's `streamText` API
 3. Switch from `useDataStreamRuntime` to `useChatRuntime`
 4. Take advantage of improved TypeScript support and automatic system/tool forwarding
 
-See our [AI SDK v5 documentation](/docs/runtimes/ai-sdk/use-chat) for the complete migration guide.
+See our [AI SDK v6 documentation](/docs/runtimes/ai-sdk/v6) for the complete migration guide.
 
 ## Example
 
-For a working example with AI SDK v4, you can adapt the patterns from our [AI SDK examples](https://github.com/assistant-ui/assistant-ui/tree/main/examples) using the `@assistant-ui/react-data-stream` package instead of the v5 integration.
+For a working example with AI SDK v4, you can adapt the patterns from our [AI SDK examples](https://github.com/assistant-ui/assistant-ui/tree/main/examples) using the `@assistant-ui/react-data-stream` package instead of the v6 integration.

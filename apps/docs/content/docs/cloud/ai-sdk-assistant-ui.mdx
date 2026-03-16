@@ -8,10 +8,6 @@ description: Integrate cloud persistence using assistant-ui runtime and pre-buil
 
 This guide shows how to integrate Assistant Cloud with the [AI SDK](https://sdk.vercel.ai/) using assistant-ui's runtime system and pre-built UI components.
 
-<Callout type="tip">
-  Using the AI SDK with your own UI? See [AI SDK](/docs/cloud/ai-sdk) for a lighter integration with just one hook.
-</Callout>
-
 ## What You Get
 
 This integration provides:
@@ -30,7 +26,7 @@ The `useChatRuntime` hook from `@assistant-ui/react-ai-sdk` wraps AI SDK's `useC
 3. Generates a conversation title after the assistant's first response
 4. Loads historical messages when switching threads via `<ThreadList />`
 
-You provide the AI SDK endpoint (`api: "/api/chat"`) and the cloud configuration—everything else is handled.
+You provide the cloud configuration—everything else is handled. The default `AssistantChatTransport` automatically sends requests to `/api/chat`.
 
 ## Prerequisites
 
@@ -88,19 +84,23 @@ Create a client-side AssistantCloud instance and integrate it with your AI SDK r
 ```tsx title="app/chat/page.tsx"
 "use client";
 
+import { useMemo } from "react";
 import { AssistantCloud, AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import { ThreadList } from "@/components/assistant-ui/thread-list";
 import { Thread } from "@/components/assistant-ui/thread";
 
 export default function ChatPage() {
-  const cloud = new AssistantCloud({
-    baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
-    anonymous: true, // Creates browser-session based user ID
-  });
+  const cloud = useMemo(
+    () =>
+      new AssistantCloud({
+        baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
+        anonymous: true, // Creates browser-session based user ID
+      }),
+    [],
+  );
 
   const runtime = useChatRuntime({
-    api: "/api/chat", // Your AI SDK endpoint
     cloud,
   });
 
@@ -119,46 +119,168 @@ export default function ChatPage() {
 
 </Steps>
 
+## `useChatRuntime` Options
+
+<ParametersTable
+  parameters={[
+    {
+      name: "cloud",
+      type: "AssistantCloud",
+      description:
+        "Optional AssistantCloud instance for chat persistence and thread management.",
+    },
+    {
+      name: "adapters",
+      type: "RuntimeAdapters",
+      description:
+        "Optional runtime adapters to extend or override built-in functionality.",
+      children: [
+        {
+          type: "RuntimeAdapters",
+          parameters: [
+            {
+              name: "attachments",
+              type: "AttachmentAdapter",
+              description:
+                "Custom attachment adapter for file uploads. Defaults to the Vercel AI SDK attachment adapter.",
+            },
+            {
+              name: "speech",
+              type: "SpeechSynthesisAdapter",
+              description:
+                "Adapter for text-to-speech functionality.",
+            },
+            {
+              name: "dictation",
+              type: "DictationAdapter",
+              description:
+                "Adapter for speech-to-text dictation input.",
+            },
+            {
+              name: "feedback",
+              type: "FeedbackAdapter",
+              description:
+                "Adapter for collecting user feedback on messages.",
+            },
+            {
+              name: "history",
+              type: "ThreadHistoryAdapter",
+              description:
+                "Adapter for loading and saving thread history. Used to restore previous messages when switching threads.",
+            },
+          ],
+        },
+      ],
+    },
+    {
+      name: "toCreateMessage",
+      type: "(message: AppendMessage) => CreateUIMessage",
+      description:
+        "Optional custom function to convert an assistant-ui AppendMessage into an AI SDK CreateUIMessage before sending. Use this to customize how outgoing messages are formatted, for example to add custom metadata or transform content parts.",
+    },
+    {
+      name: "transport",
+      type: "ChatTransport",
+      description:
+        "Custom transport implementation. Defaults to AssistantChatTransport which sends requests to '/api/chat'.",
+    },
+  ]}
+/>
+
+## Telemetry
+
+The `useChatRuntime` hook captures full run telemetry including timing data. This integrates with the assistant-ui runtime to provide:
+
+**Automatically captured:**
+- `status` — `"completed"`, `"incomplete"`, or `"error"`
+- `duration_ms` — Total run duration (measured client-side)
+- `steps` — Per-step breakdowns with timing, usage, and tool calls
+- `tool_calls` — Tool invocations with name, arguments, results, and source
+- `total_steps` — Number of reasoning/tool steps
+- `output_text` — Full response text (truncated at 50K characters)
+
+**Requires route configuration:**
+- `model_id` — The model used
+- `input_tokens` / `output_tokens` — Token usage statistics
+
+To capture model and usage data, add the `messageMetadata` callback to your AI SDK route:
+
+```tsx title="app/api/chat/route.ts"
+import { streamText } from "ai";
+import { openai } from "@ai-sdk/openai";
+
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+
+  const result = streamText({
+    model: openai("gpt-4o-mini"),
+    messages,
+  });
+
+  return result.toUIMessageStreamResponse({
+    messageMetadata: ({ part }) => {
+      if (part.type === "finish") {
+        return {
+          usage: part.totalUsage,
+        };
+      }
+      if (part.type === "finish-step") {
+        return {
+          modelId: part.response.modelId,
+        };
+      }
+      return undefined;
+    },
+  });
+}
+```
+
+Without this configuration, model and token data will be omitted from telemetry reports.
+
+### Customizing Reports
+
+Use the `beforeReport` hook to add custom metadata or filter reports:
+
+```tsx
+const cloud = new AssistantCloud({
+  baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
+  anonymous: true,
+  telemetry: {
+    beforeReport: (report) => ({
+      ...report,
+      metadata: { userTier: "pro", region: "us-east" },
+    }),
+  },
+});
+```
+
+Return `null` from `beforeReport` to skip reporting a specific run. To disable telemetry entirely, pass `telemetry: false`.
+
 ## Authentication
 
-The example above uses `anonymous: true` which creates a browser session-based user ID. This is suitable for public demos or prototypes.
+The example above uses anonymous mode (browser session-based user ID) via the env var. For production apps with user accounts, pass an explicit cloud instance:
 
-For production apps with user accounts, see the [Cloud Authorization](/docs/cloud/authorization) guide to persist threads per user or workspace.
+```tsx
+import { useMemo } from "react";
+import { useAuth } from "@clerk/nextjs";
+import { AssistantCloud } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 
-## Next Steps
+function Chat() {
+  const { getToken } = useAuth();
 
-<Steps>
-<Step>
+  const cloud = useMemo(() => new AssistantCloud({
+    baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
+    authToken: async () => getToken({ template: "assistant-ui" }),
+  }), [getToken]);
 
-### Add User Authentication
+  const runtime = useChatRuntime({ cloud });
+  // ...
+}
+```
 
-For multi-user apps, integrate your auth provider (Clerk, Auth0, etc.) to scope threads per user. See the [Authorization guide](/docs/cloud/authorization) for setup details.
+See the [Cloud Authorization](/docs/cloud/authorization) guide for other auth providers.
 
-</Step>
-<Step>
-
-### Customize the UI
-
-The `<Thread />` and `<ThreadList />` components are fully customizable via CSS and composition. See the [UI components docs](/docs/ui/thread) for styling options.
-
-</Step>
-<Step>
-
-### Explore Runtime Features
-
-Learn about [runtime hooks](/docs/api-reference/integrations/vercel-ai-sdk) for advanced use cases like custom message handling or tool streaming.
-
-</Step>
-</Steps>
-
-## When to Use This vs Standalone
-
-| Approach | Best For | Components |
-|----------|----------|------------|
-| **This guide** — `useChatRuntime` + assistant-ui | You want pre-built, polished UI components | `<Thread />`, `<ThreadList />` |
-| [AI SDK standalone](/docs/cloud/ai-sdk) — `useCloudChat` | You have custom UI, want minimal dependencies | Your own components |
-
-Both approaches use the same cloud backend and offer the same persistence features—choose based on your UI needs.
 
 ## Complete Example
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { FC, useEffect, useState } from "react";
-import * as PopoverPrimitive from "@radix-ui/react-popover";
+import { Popover as PopoverPrimitive } from "radix-ui";
 import { ScopedProps, usePopoverScope } from "./scope";
 import { useAui } from "@assistant-ui/store";
 

@@ -1,4 +1,4 @@
-import type { Unsubscribe } from "../../types";
+import type { Unsubscribe } from "../../types/unsubscribe";
 import type { SubscribableWithState } from "../../subscribable/subscribable";
 import type { ThreadListItemRuntimePath } from "./paths";
 import type { ThreadListRuntimeCoreBinding } from "./thread-list-runtime";

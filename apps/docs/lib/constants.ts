@@ -45,6 +45,24 @@ export const NAV_ITEMS: NavItem[] = [
         description: "Build apps for AI assistants",
         external: false,
       },
+      {
+        label: "React Native",
+        href: "/native",
+        description: "Build mobile apps with React Native",
+        external: false,
+      },
+      {
+        label: "Ink",
+        href: "/ink",
+        description: "Build interactive experiences with Ink",
+        external: false,
+      },
+      {
+        label: "Cloud AI SDK",
+        href: "/cloud-ai-sdk",
+        description: "Cloud persistence for AI SDK apps",
+        external: false,
+      },
     ],
   },
   {
@@ -55,6 +73,12 @@ export const NAV_ITEMS: NavItem[] = [
         label: "Blog",
         href: "/blog",
         description: "Latest news and updates",
+        external: false,
+      },
+      {
+        label: "Changelog",
+        href: "/changelog",
+        description: "Release notes and version history",
         external: false,
       },
       {

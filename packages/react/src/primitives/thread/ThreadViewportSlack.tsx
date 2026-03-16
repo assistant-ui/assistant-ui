@@ -1,6 +1,6 @@
 "use client";
 
-import { Slot } from "@radix-ui/react-slot";
+import { Slot } from "radix-ui";
 import {
   createContext,
   type FC,
@@ -108,7 +108,7 @@ export const ThreadPrimitiveViewportSlack: FC<ThreadViewportSlackProps> = ({
 
   return (
     <SlackNestingContext.Provider value={true}>
-      <Slot ref={ref}>{children}</Slot>
+      <Slot.Root ref={ref}>{children}</Slot.Root>
     </SlackNestingContext.Provider>
   );
 };

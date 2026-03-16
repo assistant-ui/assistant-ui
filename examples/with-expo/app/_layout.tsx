@@ -8,24 +8,27 @@ import { StatusBar } from "expo-status-bar";
 import "react-native-reanimated";
 import { Pressable, useColorScheme } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useFonts } from "expo-font";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import {
-  AssistantProvider,
-  useAssistantRuntime,
+  AssistantRuntimeProvider,
+  useAui,
+  Tools,
 } from "@assistant-ui/react-native";
 import { useAppRuntime } from "@/hooks/use-app-runtime";
 import { ThreadListDrawer } from "@/components/thread-list/ThreadListDrawer";
+import { expoToolkit } from "@/components/assistant-ui/tools";
 
 function NewChatButton() {
-  const runtime = useAssistantRuntime();
+  const aui = useAui();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
 
   return (
     <Pressable
       onPress={() => {
-        runtime.threads.switchToNewThread();
+        aui.threads().switchToNewThread();
       }}
       style={{ marginRight: 16 }}
     >
@@ -60,13 +63,19 @@ function DrawerLayout() {
 }
 
 export default function RootLayout() {
+  const [fontsLoaded] = useFonts(Ionicons.font);
   const runtime = useAppRuntime();
+  const aui = useAui({
+    tools: Tools({ toolkit: expoToolkit }),
+  });
+
+  if (!fontsLoaded) return null;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <AssistantProvider runtime={runtime}>
+      <AssistantRuntimeProvider runtime={runtime} aui={aui}>
         <DrawerLayout />
-      </AssistantProvider>
+      </AssistantRuntimeProvider>
     </GestureHandlerRootView>
   );
 }

@@ -1,23 +1,25 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import type { UIMessage, useChat, CreateUIMessage } from "@ai-sdk/react";
 import { isToolUIPart } from "ai";
 import {
   useExternalStoreRuntime,
-  type ExternalStoreAdapter,
-  type ThreadHistoryAdapter,
-  type AssistantRuntime,
-  type ThreadMessage,
-  type MessageFormatAdapter,
-  type MessageFormatItem,
-  type MessageFormatRepository,
   useRuntimeAdapters,
-  INTERNAL,
+  useToolInvocations,
   type ToolExecutionStatus,
-  type AppendMessage,
-  getExternalStoreMessages,
-} from "@assistant-ui/react";
+} from "@assistant-ui/core/react";
+import type {
+  ExternalStoreAdapter,
+  ThreadHistoryAdapter,
+  AssistantRuntime,
+  ThreadMessage,
+  MessageFormatAdapter,
+  MessageFormatItem,
+  MessageFormatRepository,
+  AppendMessage,
+} from "@assistant-ui/core";
+import { getExternalStoreMessages } from "@assistant-ui/core";
 import { sliceMessagesUntil } from "../utils/sliceMessagesUntil";
 import { toCreateMessage } from "../utils/toCreateMessage";
 import { vercelAttachmentAdapter } from "../utils/vercelAttachmentAdapter";
@@ -69,6 +71,9 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   const [toolStatuses, setToolStatuses] = useState<
     Record<string, ToolExecutionStatus>
   >({});
+  const toolArgsKeyOrderCacheRef = useRef<Map<string, Map<string, string[]>>>(
+    new Map(),
+  );
 
   const hasExecutingTools = Object.values(toolStatuses).some(
     (s) => s?.type === "executing",
@@ -87,6 +92,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       () => ({
         toolStatuses,
         messageTiming,
+        toolArgsKeyOrderCache: toolArgsKeyOrderCacheRef.current,
         ...(chatHelpers.error && { error: chatHelpers.error.message }),
       }),
       [toolStatuses, messageTiming, chatHelpers.error],
@@ -99,7 +105,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     },
   }));
 
-  const toolInvocations = INTERNAL.useToolInvocations({
+  const toolInvocations = useToolInvocations({
     state: {
       messages,
       isRunning,

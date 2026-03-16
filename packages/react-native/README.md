@@ -11,18 +11,14 @@ React Native bindings for assistant-ui.
 ## Usage
 
 ```typescript
-import { useLocalRuntime, AssistantProvider, ThreadProvider, ComposerProvider } from '@assistant-ui/react-native';
+import { useLocalRuntime, AssistantProvider } from '@assistant-ui/react-native';
 
 function App() {
   const runtime = useLocalRuntime(chatModelAdapter);
 
   return (
     <AssistantProvider runtime={runtime}>
-      <ThreadProvider runtime={runtime.thread}>
-        <ComposerProvider runtime={runtime.thread.composer}>
-          {/* Your chat UI */}
-        </ComposerProvider>
-      </ThreadProvider>
+      {/* Your chat UI */}
     </AssistantProvider>
   );
 }

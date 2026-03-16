@@ -2,12 +2,12 @@
 
 import { useChat, type UIMessage } from "@ai-sdk/react";
 import type { AssistantCloud } from "assistant-cloud";
+import type { AssistantRuntime } from "@assistant-ui/core";
 import {
-  AssistantRuntime,
-  unstable_useCloudThreadListAdapter,
-  unstable_useRemoteThreadListRuntime,
-  useAuiState,
-} from "@assistant-ui/react";
+  useCloudThreadListAdapter,
+  useRemoteThreadListRuntime,
+} from "@assistant-ui/core/react";
+import { useAuiState } from "@assistant-ui/store";
 import {
   useAISDKRuntime,
   type AISDKRuntimeAdapter,
@@ -84,8 +84,8 @@ export const useChatRuntime = <UI_MESSAGE extends UIMessage = UIMessage>({
   cloud,
   ...options
 }: UseChatRuntimeOptions<UI_MESSAGE> = {}): AssistantRuntime => {
-  const cloudAdapter = unstable_useCloudThreadListAdapter({ cloud });
-  return unstable_useRemoteThreadListRuntime({
+  const cloudAdapter = useCloudThreadListAdapter({ cloud });
+  return useRemoteThreadListRuntime({
     runtimeHook: function RuntimeHook() {
       return useChatThreadRuntime(options);
     },

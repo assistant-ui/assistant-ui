@@ -5,8 +5,8 @@ import type {
   AssistantEventName,
   AssistantEventCallback,
   AssistantEventSelector,
-} from "@assistant-ui/core/store";
-import { normalizeEventSelector } from "@assistant-ui/core/store";
+} from "./types/events";
+import { normalizeEventSelector } from "./types/events";
 
 export const useAuiEvent = <TEvent extends AssistantEventName>(
   selector: AssistantEventSelector<TEvent>,

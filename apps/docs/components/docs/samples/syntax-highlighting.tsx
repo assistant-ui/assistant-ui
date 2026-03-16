@@ -1,12 +1,8 @@
 "use client";
 
-import { PrismAsyncLight } from "react-syntax-highlighter";
-import tsx from "react-syntax-highlighter/dist/esm/languages/prism/tsx";
-import { coldarkDark } from "react-syntax-highlighter/dist/cjs/styles/prism";
 import { CopyIcon } from "lucide-react";
+import { SyntaxHighlighter } from "@/components/assistant-ui/shiki-highlighter";
 import { SampleFrame } from "@/components/docs/samples/sample-frame";
-
-PrismAsyncLight.registerLanguage("typescript", tsx);
 
 const sampleCode = `function greet(name: string) {
   return \`Hello, \${name}!\`;
@@ -25,22 +21,11 @@ export const SyntaxHighlightingSample = () => {
             <CopyIcon className="size-4" />
           </button>
         </div>
-        <PrismAsyncLight
+        <SyntaxHighlighter
           language="typescript"
-          style={coldarkDark}
-          customStyle={{
-            margin: 0,
-            width: "100%",
-            background: "black",
-            padding: "1rem",
-            borderTopLeftRadius: 0,
-            borderTopRightRadius: 0,
-            borderBottomLeftRadius: "0.5rem",
-            borderBottomRightRadius: "0.5rem",
-          }}
-        >
-          {sampleCode}
-        </PrismAsyncLight>
+          code={sampleCode}
+          addDefaultStyles={false}
+        />
       </div>
     </SampleFrame>
   );

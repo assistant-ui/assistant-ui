@@ -14,7 +14,7 @@ const INTERNAL_EXAMPLES: ExampleItem[] = [
     description: "Floating button that opens an AI assistant chat box.",
     link: "/examples/modal",
     githubLink:
-      "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/assistant-ui/assistant-modal.tsx",
+      "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/docs/samples/assistant-modal.tsx",
   },
   {
     title: "Form Filling Co-Pilot",
@@ -86,7 +86,8 @@ const INTERNAL_EXAMPLES: ExampleItem[] = [
     description:
       "Open Source Claude Artifacts. You can ask the bot to generate websites.",
     link: "/examples/artifacts",
-    githubLink: "https://github.com/Yonom/assistant-ui-artifacts",
+    githubLink:
+      "https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-artifacts",
   },
   {
     title: "Expo (React Native)",
@@ -100,6 +101,14 @@ const INTERNAL_EXAMPLES: ExampleItem[] = [
 ];
 
 const COMMUNITY_EXAMPLES: ExampleItem[] = [
+  {
+    title: "Mastra UI Dojo",
+    image: "/screenshot/examples/mastra-ui-dojo.png",
+    description:
+      "Mastra integrated with AI SDK, Assistant UI, and CopilotKit — compare side-by-side.",
+    link: "https://github.com/mastra-ai/ui-dojo",
+    external: true,
+  },
   {
     title: "Open Canvas",
     image: "/screenshot/open-canvas.png",

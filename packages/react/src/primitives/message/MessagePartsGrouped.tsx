@@ -8,10 +8,8 @@ import {
   useMemo,
 } from "react";
 import { useAuiState, useAui } from "@assistant-ui/store";
-import {
-  PartByIndexProvider,
-  TextMessagePartProvider,
-} from "../../context/providers";
+import { PartByIndexProvider } from "../../context/providers/PartByIndexProvider";
+import { TextMessagePartProvider } from "../../context/providers/TextMessagePartProvider";
 import { MessagePartPrimitiveText } from "../messagePart/MessagePartText";
 import { MessagePartPrimitiveImage } from "../messagePart/MessagePartImage";
 import type {
@@ -26,7 +24,7 @@ import type {
   ToolCallMessagePartProps,
   FileMessagePartComponent,
   ReasoningMessagePartComponent,
-} from "../../types/MessagePartComponentTypes";
+} from "@assistant-ui/core/react";
 import { MessagePartPrimitiveInProgress } from "../messagePart/MessagePartInProgress";
 import type { MessagePartStatus } from "@assistant-ui/core";
 
@@ -337,8 +335,8 @@ const MessagePartComponent: FC<MessagePartComponentProps> = ({
     }
 
     default:
-      const unhandledType: never = type;
-      throw new Error(`Unknown message part type: ${unhandledType}`);
+      console.warn(`Unknown message part type: ${type}`);
+      return null;
   }
 };
 

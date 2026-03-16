@@ -5,8 +5,7 @@ import {
   ActionButtonProps,
   createActionButton,
 } from "../../utils/createActionButton";
-import { useCallback } from "react";
-import { useAuiState, useAui } from "@assistant-ui/store";
+import { useActionBarReload as useActionBarReloadBehavior } from "@assistant-ui/core/react";
 
 /**
  * Hook that provides reload functionality for action bar buttons.
@@ -30,21 +29,9 @@ import { useAuiState, useAui } from "@assistant-ui/store";
  * ```
  */
 const useActionBarReload = () => {
-  const aui = useAui();
-
-  const disabled = useAuiState(
-    (s) =>
-      s.thread.isRunning ||
-      s.thread.isDisabled ||
-      s.message.role !== "assistant",
-  );
-
-  const callback = useCallback(() => {
-    aui.message().reload();
-  }, [aui]);
-
+  const { disabled, reload } = useActionBarReloadBehavior();
   if (disabled) return null;
-  return callback;
+  return reload;
 };
 
 export namespace ActionBarPrimitiveReload {

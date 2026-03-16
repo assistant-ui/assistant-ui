@@ -92,12 +92,27 @@ function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
 Each tool in the toolkit is a `ToolDefinition` object with these properties:
 
 ```tsx
-type ToolDefinition = {
-  description: string;
-  parameters: z.ZodType; // Zod schema for parameters
-  execute: (args, context) => Promise<any>;
-  render?: (props) => React.ReactNode; // Optional UI component
-};
+type ToolDefinition =
+  | {
+      // Frontend tool: executes in the browser
+      type?: "frontend";
+      description?: string;
+      parameters: StandardSchemaV1 | JSONSchema7; // e.g. a Zod schema
+      execute: (args, context) => Promise<any>;
+      render?: (props) => React.ReactNode;
+    }
+  | {
+      // Human tool: pauses for user input (render is required)
+      type: "human";
+      description?: string;
+      parameters: StandardSchemaV1 | JSONSchema7;
+      render: (props) => React.ReactNode;
+    }
+  | {
+      // Backend tool: execution happens server-side (no execute/parameters needed)
+      type: "backend";
+      render?: (props) => React.ReactNode;
+    };
 ```
 
 ### Organizing Large Toolkits
@@ -385,7 +400,7 @@ export async function POST(req: Request) {
 
   const result = streamText({
     model: openai("gpt-4o"),
-    messages: convertToModelMessages(messages),
+    messages: await convertToModelMessages(messages),
     tools: {
       queryDatabase: {
         description: "Query the application database",
@@ -447,7 +462,7 @@ export async function POST(req: Request) {
 
   const result = streamText({
     model: openai("gpt-4o"),
-    messages: convertToModelMessages(messages),
+    messages: await convertToModelMessages(messages),
     tools: {
       ...frontendTools(tools), // Client-defined tools
       // Additional server-side tools
@@ -487,7 +502,7 @@ export async function POST(req: Request) {
     const result = streamText({
       model: openai("gpt-4o"),
       tools,
-      messages: convertToModelMessages(messages),
+      messages: await convertToModelMessages(messages),
     });
 
     return result.toUIMessageStreamResponse();

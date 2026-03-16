@@ -6,12 +6,16 @@ import {
   tapState,
   type tapRef,
 } from "@assistant-ui/tap";
-import { type ClientOutput, tapClientLookup, tapClientResource } from "../";
-import { MessageRuntime } from "../../runtime";
+import {
+  type ClientOutput,
+  tapClientLookup,
+  tapClientResource,
+} from "@assistant-ui/store";
+import { MessageRuntime } from "../../runtime/api/message-runtime";
 import { tapSubscribable } from "./tap-subscribable";
 import { ComposerClient } from "./composer-runtime-client";
 import { MessagePartClient } from "./message-part-runtime-client";
-import { MessageState } from "../scopes";
+import { MessageState } from "../scopes/message";
 import { AttachmentRuntimeClient } from "./attachment-runtime-client";
 
 const MessageAttachmentClientByIndex = resource(

@@ -1,0 +1,298 @@
+name: Changeset Semver Check
+
+on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, synchronize, reopened, labeled]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  analyze:
+    name: Semver Check
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 2
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Check changeset bump types against package versions
+        id: check
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        with:
+          script: |
+            const fs = require("fs");
+            const path = require("path");
+            const { execFileSync } = require("child_process");
+
+            // --- Helpers ---
+
+            function bumpVersion(version, bumpType) {
+              const [major, minor, patch] = version.split(".").map(Number);
+              if (bumpType === "major") return `${major + 1}.0.0`;
+              if (bumpType === "minor") return `${major}.${minor + 1}.0`;
+              return `${major}.${minor}.${patch + 1}`;
+            }
+
+            function isOutsideCaretRange(rangeVersion, newVersion) {
+              const [rMajor, rMinor, rPatch] = rangeVersion.split(".").map(Number);
+              const [nMajor, nMinor, nPatch] = newVersion.split(".").map(Number);
+              // ^0.0.Z — exact match only
+              if (rMajor === 0 && rMinor === 0) {
+                return nMajor !== 0 || nMinor !== 0 || nPatch !== rPatch;
+              }
+              // ^0.X.Z (X > 0) — same major and minor
+              if (rMajor === 0) {
+                return nMajor !== 0 || nMinor !== rMinor;
+              }
+              // ^X.Y.Z (X > 0) — same major
+              return nMajor !== rMajor;
+            }
+
+            function computeCascade(bumps, pkgMap, revDeps) {
+              const cascade = [];
+              const visited = new Set(bumps.map((v) => v.pkg));
+              const queue = bumps.map((v) => ({
+                pkg: v.pkg,
+                newVersion: bumpVersion(v.version, v.bumpType),
+              }));
+
+              let qi = 0;
+              while (qi < queue.length) {
+                const { pkg, newVersion } = queue[qi++];
+                const dependents = revDeps.get(pkg) || [];
+                for (const dep of dependents) {
+                  if (visited.has(dep.name)) continue;
+                  // Extract version from the ^ range (e.g., "^0.12.15" → "0.12.15")
+                  const rangeVersion = dep.range.replace(/^\^/, "");
+                  if (!isOutsideCaretRange(rangeVersion, newVersion)) continue;
+                  visited.add(dep.name);
+                  // This dependent gets a cascade patch
+                  const depInfo = pkgMap.get(dep.name);
+                  const depVersion = depInfo?.version ?? dep.version;
+                  const cascadeNewVersion = bumpVersion(depVersion, "patch");
+                  const isBreaking = isOutsideCaretRange(depVersion, cascadeNewVersion);
+                  cascade.push({
+                    name: dep.name,
+                    version: depVersion,
+                    newVersion: cascadeNewVersion,
+                    isBreaking,
+                  });
+                  // If the cascade patch is itself range-breaking (0.0.x),
+                  // recurse to check further downstream
+                  if (isBreaking) {
+                    queue.push({ pkg: dep.name, newVersion: cascadeNewVersion });
+                  }
+                }
+              }
+              return cascade;
+            }
+
+            // --- Scope to PR-changed changeset files ---
+
+            const { BASE_SHA, HEAD_SHA } = process.env;
+            let prChangedFiles;
+            try {
+              const diff = execFileSync(
+                "git",
+                ["diff", "--name-only", "--diff-filter=ACM", BASE_SHA, HEAD_SHA, "--", ".changeset/*.md"],
+                { encoding: "utf8" },
+              ).trim();
+              prChangedFiles = new Set(
+                diff ? diff.split("\n").map((f) => path.basename(f)) : [],
+              );
+            } catch {
+              // If git diff fails (e.g., shallow clone), fall back to all files
+              core.warning("Could not diff against base — checking all changeset files");
+              prChangedFiles = null;
+            }
+
+            const changesetDir = ".changeset";
+            const allFiles = fs.readdirSync(changesetDir).filter(
+              (f) => f.endsWith(".md") && f !== "README.md",
+            );
+            const files = prChangedFiles
+              ? allFiles.filter((f) => prChangedFiles.has(f))
+              : allFiles;
+
+            if (files.length === 0) {
+              core.info("No changeset files changed in this PR.");
+              return;
+            }
+
+            // --- Build package map and reverse dependency graph ---
+
+            const pkgMap = new Map();
+            const revDeps = new Map();
+            const packageManifests = [];
+            const packagesDir = "packages";
+            for (const entry of fs.readdirSync(packagesDir, { withFileTypes: true })) {
+              if (!entry.isDirectory()) continue;
+              const dir = entry.name;
+              const pkgJsonPath = path.join(packagesDir, dir, "package.json");
+              let pkgJson;
+              try {
+                pkgJson = JSON.parse(fs.readFileSync(pkgJsonPath, "utf8"));
+              } catch {
+                continue;
+              }
+              if (pkgJson.private) continue;
+              packageManifests.push(pkgJson);
+              const major = parseInt(pkgJson.version.split(".")[0], 10);
+              pkgMap.set(pkgJson.name, { major, version: pkgJson.version });
+            }
+
+            for (const pkgJson of packageManifests) {
+              const allDeps = {
+                ...pkgJson.dependencies,
+                ...pkgJson.peerDependencies,
+              };
+              for (const [depName, range] of Object.entries(allDeps)) {
+                if (typeof range !== "string" || !range.startsWith("^")) continue;
+                if (!pkgMap.has(depName)) continue;
+                if (!revDeps.has(depName)) revDeps.set(depName, []);
+                revDeps.get(depName).push({
+                  name: pkgJson.name,
+                  version: pkgJson.version,
+                  range,
+                });
+              }
+            }
+
+            // --- Parse changeset files ---
+
+            const allBumps = [];
+            const violations = [];
+
+            for (const file of files) {
+              const content = fs.readFileSync(
+                path.join(changesetDir, file),
+                "utf8",
+              );
+
+              const match = content.match(/^---\n([\s\S]*?)\n---/);
+              if (!match) continue;
+
+              const frontmatter = match[1];
+              for (const line of frontmatter.split("\n")) {
+                const trimmed = line.trim();
+                if (!trimmed) continue;
+
+                const bumpMatch = trimmed.match(
+                  /^"([^"]+)":\s*(patch|minor|major)$/,
+                );
+                if (!bumpMatch) continue;
+
+                const [, pkg, bumpType] = bumpMatch;
+                const pkgInfo = pkgMap.get(pkg);
+
+                // Skip unknown or private packages (not in pkgMap)
+                if (!pkgInfo) continue;
+
+                const { major, version } = pkgInfo;
+
+                allBumps.push({ file, pkg, bumpType, version });
+
+                // Rules:
+                //   0.0.x → patch technically breaks ^0.0.x (exact match), but not
+                //           flagged because these packages are pre-stable with no
+                //           internal dependents. Only minor/major are flagged.
+                //   0.x   → only patch is safe (minor/major break ^)
+                //   1.x+  → patch and minor are safe (only major breaks ^)
+                const needsConfirmation =
+                  (major === 0 && bumpType !== "patch") ||
+                  (major >= 1 && bumpType === "major");
+
+                if (needsConfirmation) {
+                  const reason =
+                    major === 0
+                      ? `0.x package — ${bumpType} bump breaks \`^\` caret range`
+                      : `major bump breaks \`^\` caret range`;
+                  violations.push({ file, pkg, bumpType, version, reason });
+                }
+              }
+            }
+
+            if (allBumps.length === 0) {
+              core.info("No package bumps found in changesets.");
+              return;
+            }
+
+            // --- Compute cascade impact for ALL bumps ---
+
+            const cascade = computeCascade(allBumps, pkgMap, revDeps);
+            const breakingCascade = cascade.filter((c) => c.isBreaking);
+
+            // --- Build cascade table (shared between both summary paths) ---
+
+            function renderCascadeSection() {
+              if (cascade.length === 0) return "";
+              let section = `### Cascade Impact (${cascade.length} packages)\n\n`;
+              section += "| Package | Version | Cascade Bump | Breaking |\n";
+              section += "| --- | --- | --- | --- |\n";
+              for (const c of cascade) {
+                const indicator = c.isBreaking
+                  ? `⛔ YES — \`^${c.version}\` breaks`
+                  : "✅ no";
+                section += `| \`${c.name}\` | ${c.version} → ${c.newVersion} | patch | ${indicator} |\n`;
+              }
+              section += "\n";
+              if (breakingCascade.length > 0) {
+                section += `> **${breakingCascade.length} downstream package(s)** will also break their consumers' \`^\` ranges.\n\n`;
+              }
+              return section;
+            }
+
+            // --- Build summary ---
+
+            let summary;
+
+            if (violations.length === 0) {
+              // Informational summary for safe PRs
+              summary = "## Changeset Impact Summary\n\n";
+              summary += "| File | Package | Version | Bump |\n";
+              summary += "| --- | --- | --- | --- |\n";
+              for (const b of allBumps) {
+                summary += `| \`${b.file}\` | \`${b.pkg}\` | ${b.version} | ${b.bumpType} |\n`;
+              }
+              summary += "\n";
+              summary += renderCascadeSection();
+
+              await core.summary.addRaw(summary).write();
+              core.info("All changeset bump types are safe for current package versions. ✓");
+            } else {
+              // Violation summary
+              summary = "## ⚠️ Semver-Breaking Changeset Detected\n\n";
+              summary += "| File | Package | Version | Bump | Why |\n";
+              summary += "| --- | --- | --- | --- | --- |\n";
+              for (const v of violations) {
+                summary += `| \`${v.file}\` | \`${v.pkg}\` | ${v.version} | **${v.bumpType}** | ${v.reason} |\n`;
+              }
+              summary += "\n";
+              summary += renderCascadeSection();
+              summary += "### What this means\n\n";
+              summary += "- **0.x packages**: `^0.12.15` only matches `>=0.12.15 <0.13.0` — ";
+              summary += "a minor bump is effectively a breaking change for all consumers.\n";
+              summary += "- **1.x+ packages**: `^1.3.12` matches `>=1.3.12 <2.0.0` — ";
+              summary += "minor/patch are safe, but a major bump breaks all consumers.\n\n";
+              summary += "This check is informational — the PR can still be merged if this is intentional.\n";
+
+              await core.summary.addRaw(summary).write();
+
+              // Emit warnings for breaking cascade entries (visible in PR checks tab)
+              for (const c of breakingCascade) {
+                core.warning(
+                  `Cascade breaks ${c.name} (${c.version} → ${c.newVersion}, ^${c.version} consumers affected)`,
+                );
+              }
+
+              core.setFailed(`Semver-breaking bumps detected: ${violations.map((v) => `${v.pkg}@${v.bumpType}`).join(", ")}`);
+            }

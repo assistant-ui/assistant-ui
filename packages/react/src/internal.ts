@@ -26,6 +26,10 @@ export { splitLocalRuntimeOptions } from "./legacy-runtime/runtime-cores/local/L
 export {
   useToolInvocations,
   type ToolExecutionStatus,
-} from "./legacy-runtime/runtime-cores/assistant-transport/useToolInvocations";
+} from "@assistant-ui/core/react";
 
-export * from "./utils/smooth";
+export { useSmooth } from "./utils/smooth/useSmooth";
+export {
+  useSmoothStatus,
+  withSmoothContextProvider,
+} from "./utils/smooth/SmoothContext";

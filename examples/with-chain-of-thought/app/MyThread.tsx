@@ -2,7 +2,6 @@
 
 import { type FC, type PropsWithChildren, useState } from "react";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
-import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,9 +27,12 @@ export const MyThread: FC = () => {
       style={{ ["--thread-max-width" as string]: "44rem" }}
     >
       <ThreadPrimitive.Viewport className="flex flex-1 flex-col overflow-y-scroll scroll-smooth px-4 pt-8">
-        <ThreadPrimitive.Messages
-          components={{ UserMessage, AssistantMessage }}
-        />
+        <ThreadPrimitive.Messages>
+          {({ message }) => {
+            if (message.role === "user") return <UserMessage />;
+            return <AssistantMessage />;
+          }}
+        </ThreadPrimitive.Messages>
 
         <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mx-auto mt-auto flex w-full max-w-(--thread-max-width) flex-col gap-4 pb-4">
           <ThreadPrimitive.ScrollToBottom asChild>
@@ -58,7 +60,12 @@ const UserMessage: FC = () => {
     <MessagePrimitive.Root className="mx-auto w-full max-w-(--thread-max-width) py-3">
       <div className="flex justify-end">
         <div className="max-w-[80%] rounded-2xl bg-primary px-4 py-2 text-primary-foreground">
-          <MessagePrimitive.Parts components={{ Text }} />
+          <MessagePrimitive.Parts>
+            {({ part }) => {
+              if (part.type === "text") return <Text {...part} />;
+              return null;
+            }}
+          </MessagePrimitive.Parts>
         </div>
       </div>
     </MessagePrimitive.Root>
@@ -69,17 +76,14 @@ const AssistantMessage: FC = () => {
   return (
     <MessagePrimitive.Root className="mx-auto w-full max-w-(--thread-max-width) py-3">
       <div className="flex flex-col gap-2 px-2 leading-relaxed">
-        {/*
-          The ChainOfThought component is passed to MessagePrimitive.Parts.
-          When set, consecutive reasoning + tool-call parts are grouped together
-          and rendered through this component instead of individually.
-        */}
-        <MessagePrimitive.Parts
-          components={{
-            Text: MarkdownText,
-            ChainOfThought,
+        {/* Text parts are rendered inline; ChainOfThought is rendered separately below. */}
+        <MessagePrimitive.Parts>
+          {({ part }) => {
+            if (part.type === "text") return <MarkdownText />;
+            return null;
           }}
-        />
+        </MessagePrimitive.Parts>
+        <ChainOfThought />
       </div>
     </MessagePrimitive.Root>
   );
@@ -105,13 +109,17 @@ const ChainOfThought: FC = () => {
         Thinking
       </ChainOfThoughtPrimitive.AccordionTrigger>
       <AuiIf condition={(s) => !s.chainOfThought.collapsed}>
-        <ChainOfThoughtPrimitive.Parts
-          components={{
-            Reasoning,
-            tools: { Fallback: ToolFallback },
-            Layout: PartLayout,
+        <ChainOfThoughtPrimitive.Parts>
+          {({ part }) => {
+            if (part.type === "reasoning")
+              return (
+                <PartLayout>
+                  <Reasoning {...part} />
+                </PartLayout>
+              );
+            return null;
           }}
-        />
+        </ChainOfThoughtPrimitive.Parts>
       </AuiIf>
     </ChainOfThoughtPrimitive.Root>
   );

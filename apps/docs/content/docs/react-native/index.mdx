@@ -3,164 +3,117 @@ title: Getting Started
 description: Build AI chat interfaces for iOS and Android with @assistant-ui/react-native.
 ---
 
-## Overview
+## Quick Start
 
-`@assistant-ui/react-native` brings assistant-ui to React Native. It provides composable primitives, reactive hooks, and a local runtime — the same layered architecture as the web package, built on native components (`View`, `TextInput`, `FlatList`, `Pressable`).
-
-**Key features:**
-
-- **Primitives** — `Thread`, `Composer`, `Message`, `ThreadList` components that compose with standard React Native props
-- **Reactive hooks** — `useThread`, `useComposer`, `useMessage` with selector support for fine-grained re-renders
-- **Local runtime** — `useLocalRuntime` with pluggable `ChatModelAdapter` for any LLM API
-- **Persistence** — Built-in AsyncStorage adapter for thread and message persistence
-- **Thread management** — Multi-thread support with create, switch, rename, delete
-
-<Callout type="info">
-  `@assistant-ui/react-native` shares its runtime core with `@assistant-ui/react` via `@assistant-ui/core`. The type system, state management, and runtime logic are identical — only the UI layer differs.
-</Callout>
-
-## Getting Started
-
-This guide uses [Expo](https://expo.dev) with the OpenAI API. You can substitute any LLM provider.
+The fastest way to get started with assistant-ui for React Native.
 
 <Steps>
   <Step>
 
-### Create an Expo project
+### Create a new project
 
 ```sh
-npx create-expo-app@latest my-chat-app
+npx assistant-ui@latest create --example with-expo my-chat-app
 cd my-chat-app
 ```
 
   </Step>
   <Step>
 
-### Install dependencies
+### Configure API endpoint
 
-```sh
-npx expo install @assistant-ui/react-native
+Create a `.env` file pointing to your chat API:
+
 ```
-
-Also install peer dependencies if not already present:
-
-```sh
-npx expo install react-native-gesture-handler react-native-reanimated react-native-safe-area-context
+EXPO_PUBLIC_CHAT_ENDPOINT_URL="http://localhost:3000/api/chat"
 ```
 
   </Step>
   <Step>
 
-### Create a ChatModelAdapter
+### Start the app
 
-The adapter connects your LLM API to the runtime. Here's an example for the OpenAI chat completions API with streaming:
+```sh
+npx expo start
+```
 
-```tsx title="adapters/openai-chat-adapter.ts"
-import type {
-  ChatModelAdapter,
-  ChatModelRunResult,
-} from "@assistant-ui/react-native";
+  </Step>
+</Steps>
 
-type OpenAIModelConfig = {
-  apiKey: string;
-  model?: string;
-  baseURL?: string;
-  fetch?: typeof globalThis.fetch;
-};
+## Manual Setup
 
-export function createOpenAIChatModelAdapter(
-  config: OpenAIModelConfig,
-): ChatModelAdapter {
-  const {
-    apiKey,
-    model = "gpt-4o-mini",
-    baseURL = "https://api.openai.com/v1",
-    fetch: customFetch = globalThis.fetch,
-  } = config;
+If you prefer to add assistant-ui to an existing Expo project, follow these steps.
 
-  return {
-    async *run({ messages, abortSignal }) {
-      const openAIMessages = messages
-        .filter((m) => m.role !== "system")
-        .map((m) => ({
-          role: m.role as "user" | "assistant",
-          content: m.content
-            .filter((p) => p.type === "text")
-            .map((p) => ("text" in p ? p.text : ""))
-            .join("\n"),
-        }));
+<Steps>
+  <Step>
 
-      const response = await customFetch(
-        `${baseURL}/chat/completions`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${apiKey}`,
-          },
-          body: JSON.stringify({
-            model,
-            messages: openAIMessages,
-            stream: true,
-          }),
-          signal: abortSignal,
-        },
-      );
+### Install dependencies
 
-      if (!response.ok) {
-        const body = await response.text().catch(() => "");
-        throw new Error(
-          `OpenAI API error: ${response.status} ${body}`,
-        );
-      }
+```sh
+npx expo install @assistant-ui/react-native @assistant-ui/react-ai-sdk
+```
 
-      const reader = response.body?.getReader();
-      if (!reader) {
-        const json = await response.json();
-        const text = json.choices?.[0]?.message?.content ?? "";
-        yield {
-          content: [{ type: "text" as const, text }],
-        } satisfies ChatModelRunResult;
-        return;
-      }
+  </Step>
+  <Step>
 
-      const decoder = new TextDecoder();
-      let fullText = "";
+### Setup Backend Endpoint
 
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          const chunk = decoder.decode(value, { stream: true });
-          for (const line of chunk.split("\n")) {
-            if (!line.startsWith("data: ")) continue;
-            const data = line.slice(6);
-            if (data === "[DONE]") continue;
-            try {
-              const parsed = JSON.parse(data);
-              const content =
-                parsed.choices?.[0]?.delta?.content ?? "";
-              fullText += content;
-              yield {
-                content: [
-                  { type: "text" as const, text: fullText },
-                ],
-              } satisfies ChatModelRunResult;
-            } catch {
-              // skip invalid JSON
-            }
-          }
-        }
-      } finally {
-        reader.releaseLock();
-      }
-    },
-  };
+Create a backend API route using the Vercel AI SDK. This is the same endpoint you'd use with `@assistant-ui/react` on the web:
+
+<Tabs groupId="provider" items={["OpenAI", "Anthropic", "Google"]}>
+
+```ts title="app/api/chat/route.ts" tab="OpenAI"
+import { openai } from "@ai-sdk/openai";
+import { convertToModelMessages, streamText } from "ai";
+
+export const maxDuration = 30;
+
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+  const result = streamText({
+    model: openai("gpt-4o-mini"),
+    messages: await convertToModelMessages(messages),
+  });
+  return result.toUIMessageStreamResponse();
 }
 ```
 
-<Callout type="tip">
-  On Expo, import `fetch` from `expo/fetch` for streaming support and pass it as the `fetch` option.
+```ts title="app/api/chat/route.ts" tab="Anthropic"
+import { anthropic } from "@ai-sdk/anthropic";
+import { convertToModelMessages, streamText } from "ai";
+
+export const maxDuration = 30;
+
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+  const result = streamText({
+    model: anthropic("claude-sonnet-4-20250514"),
+    messages: await convertToModelMessages(messages),
+  });
+  return result.toUIMessageStreamResponse();
+}
+```
+
+```ts title="app/api/chat/route.ts" tab="Google"
+import { google } from "@ai-sdk/google";
+import { convertToModelMessages, streamText } from "ai";
+
+export const maxDuration = 30;
+
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+  const result = streamText({
+    model: google("gemini-2.0-flash"),
+    messages: await convertToModelMessages(messages),
+  });
+  return result.toUIMessageStreamResponse();
+}
+```
+
+</Tabs>
+
+<Callout type="info">
+  This is the same backend you'd use with `@assistant-ui/react` on the web. If you already have an API route, you can reuse it as-is.
 </Callout>
 
   </Step>
@@ -169,45 +122,33 @@ export function createOpenAIChatModelAdapter(
 ### Set up the runtime
 
 ```tsx title="hooks/use-app-runtime.ts"
-import { useMemo } from "react";
-import { fetch } from "expo/fetch";
-import { useLocalRuntime } from "@assistant-ui/react-native";
-import { createOpenAIChatModelAdapter } from "@/adapters/openai-chat-adapter";
+import { useChatRuntime, AssistantChatTransport } from "@assistant-ui/react-ai-sdk";
+
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000";
 
 export function useAppRuntime() {
-  const chatModel = useMemo(
-    () =>
-      createOpenAIChatModelAdapter({
-        apiKey: process.env.EXPO_PUBLIC_OPENAI_API_KEY ?? "",
-        model: "gpt-4o-mini",
-        fetch,
-      }),
-    [],
-  );
-
-  return useLocalRuntime(chatModel);
+  return useChatRuntime({
+    transport: new AssistantChatTransport({
+      api: `${API_URL}/api/chat`,
+    }),
+  });
 }
 ```
 
   </Step>
   <Step>
 
-### Build the UI
+### Use it in your app
 
-Wrap your app with `AssistantProvider`, then use `ThreadProvider` and `ComposerProvider` to scope the thread context:
+Wrap your app with `AssistantRuntimeProvider` and build your chat UI:
 
 ```tsx title="app/index.tsx"
 import {
-  AssistantProvider,
-  useAssistantRuntime,
-  useThreadList,
-  ThreadProvider,
-  ComposerProvider,
-  useThread,
-  useComposer,
-  useComposerRuntime,
-  useThreadRuntime,
+  AssistantRuntimeProvider,
+  useAuiState,
+  useAui,
 } from "@assistant-ui/react-native";
+import type { ThreadMessage } from "@assistant-ui/react-native";
 import {
   View,
   Text,
@@ -218,7 +159,6 @@ import {
   Platform,
 } from "react-native";
 import { useAppRuntime } from "@/hooks/use-app-runtime";
-import type { ThreadMessage } from "@assistant-ui/react-native";
 
 function MessageBubble({ message }: { message: ThreadMessage }) {
   const isUser = message.role === "user";
@@ -245,10 +185,9 @@ function MessageBubble({ message }: { message: ThreadMessage }) {
 }
 
 function Composer() {
-  const composerRuntime = useComposerRuntime();
-  const threadRuntime = useThreadRuntime();
-  const text = useComposer((s) => s.text);
-  const canSend = useComposer((s) => !s.isEmpty);
+  const aui = useAui();
+  const text = useAuiState((s) => s.composer.text);
+  const isEmpty = useAuiState((s) => s.composer.isEmpty);
 
   return (
     <View
@@ -260,7 +199,7 @@ function Composer() {
     >
       <TextInput
         value={text}
-        onChangeText={(t) => composerRuntime.setText(t)}
+        onChangeText={(t) => aui.composer().setText(t)}
         placeholder="Message..."
         multiline
         style={{
@@ -274,11 +213,11 @@ function Composer() {
         }}
       />
       <Pressable
-        onPress={() => composerRuntime.send()}
-        disabled={!canSend}
+        onPress={() => aui.composer().send()}
+        disabled={isEmpty}
         style={{
           marginLeft: 8,
-          backgroundColor: canSend ? "#007aff" : "#ccc",
+          backgroundColor: !isEmpty ? "#007aff" : "#ccc",
           borderRadius: 20,
           width: 36,
           height: 36,
@@ -293,7 +232,9 @@ function Composer() {
 }
 
 function ChatScreen() {
-  const messages = useThread((s) => s.messages) as ThreadMessage[];
+  const messages = useAuiState(
+    (s) => s.thread.messages,
+  ) as ThreadMessage[];
 
   return (
     <KeyboardAvoidingView
@@ -310,26 +251,13 @@ function ChatScreen() {
   );
 }
 
-function Main() {
-  const runtime = useAssistantRuntime();
-  const mainThreadId = useThreadList((s) => s.mainThreadId);
-
-  return (
-    <ThreadProvider key={mainThreadId} runtime={runtime.thread}>
-      <ComposerProvider runtime={runtime.thread.composer}>
-        <ChatScreen />
-      </ComposerProvider>
-    </ThreadProvider>
-  );
-}
-
 export default function App() {
   const runtime = useAppRuntime();
 
   return (
-    <AssistantProvider runtime={runtime}>
-      <Main />
-    </AssistantProvider>
+    <AssistantRuntimeProvider runtime={runtime}>
+      <ChatScreen />
+    </AssistantRuntimeProvider>
   );
 }
 ```
@@ -337,20 +265,27 @@ export default function App() {
   </Step>
 </Steps>
 
-## Architecture
+## What's Next?
 
-```
-useLocalRuntime(chatModel, options?)
-  └─ AssistantProvider
-       └─ ThreadProvider + ComposerProvider
-            ├─ useThread()      → thread state (messages, isRunning, …)
-            ├─ useComposer()    → composer state (text, isEmpty, …)
-            ├─ useMessage()     → single message state (inside renderItem)
-            └─ Primitives       → ThreadRoot, ComposerInput, MessageContent, …
-```
-
-The runtime core is shared with `@assistant-ui/react` — only the UI primitives are React Native-specific.
-
-## Example
-
-For a complete Expo example with drawer navigation, thread list, and styled chat UI, see the [`with-expo` example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-expo).
+<Cards>
+  <Card
+    title="Migration from Web"
+    description="Already using assistant-ui? Migrate your web app to React Native."
+    href="/docs/react-native/migration"
+  />
+  <Card
+    title="Custom Backend"
+    description="Connect to your own backend API or manage threads server-side."
+    href="/docs/react-native/custom-backend"
+  />
+  <Card
+    title="Primitives"
+    description="Composable native UI components for building chat interfaces."
+    href="/docs/react-native/primitives"
+  />
+  <Card
+    title="Example App"
+    description="Full Expo example with drawer navigation, thread list, and styled UI."
+    href="https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-expo"
+  />
+</Cards>

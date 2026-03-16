@@ -3,6 +3,9 @@
 import {
   AssistantRuntimeProvider,
   makeAssistantTool,
+  useAui,
+  AuiProvider,
+  Suggestions,
 } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import { z } from "zod";
@@ -44,6 +47,28 @@ const ExecuteJsTool = makeAssistantTool({
   ),
 });
 
+function MyThreadWithSuggestions() {
+  const aui = useAui({
+    suggestions: Suggestions([
+      {
+        title: "Calculate Fibonacci(20)",
+        label: "step by step with code",
+        prompt: "Calculate the 20th Fibonacci number using JavaScript.",
+      },
+      {
+        title: "What is 2^16?",
+        label: "show your reasoning",
+        prompt: "What is 2 to the power of 16? Show your work step by step.",
+      },
+    ]),
+  });
+  return (
+    <AuiProvider value={aui}>
+      <MyThread />
+    </AuiProvider>
+  );
+}
+
 export default function Home() {
   const runtime = useChatRuntime({
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
@@ -53,7 +78,7 @@ export default function Home() {
     <AssistantRuntimeProvider runtime={runtime}>
       <ExecuteJsTool />
       <div className="h-full">
-        <MyThread />
+        <MyThreadWithSuggestions />
       </div>
     </AssistantRuntimeProvider>
   );

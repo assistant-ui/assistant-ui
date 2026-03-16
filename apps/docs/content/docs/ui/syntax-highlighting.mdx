@@ -5,9 +5,9 @@ description: Code block syntax highlighting with react-shiki or react-syntax-hig
 
 import { SyntaxHighlightingSample } from "@/components/docs/samples/syntax-highlighting";
 
-<SyntaxHighlightingSample />
-
 <Callout type="warn">Syntax highlighting is not enabled in markdown by default.</Callout>
+
+<SyntaxHighlightingSample />
 
 <Callout type="info">
   `assistant-ui` provides two options for syntax highlighting: 
@@ -53,11 +53,61 @@ export const defaultComponents = memoizeMarkdownComponents({
 See [react-shiki documentation](https://github.com/AVGVSTVS96/react-shiki#props) for all available options.
 
 Key options:
-- `theme` - Shiki theme (default: `"github-dark"`)
+- `theme` - Shiki theme or multi-theme object (`{ light, dark, ... }`)
 - `language` - Language for highlighting (default: `"text"`)
+- `defaultColor` - Default color mode (`string | false`, e.g. `light-dark()`)
 - `delay` - Delay between highlights, useful for streaming (default: `0`)
-- `customLanguages` - Custom languages to preload
-- `codeToHastOptions` - Options passed to Shiki's `codeToHast`
+- `customLanguages` - Custom languages to preload for dynamic support
+- `codeToHastOptions` - All other options accepted by Shiki's [`codeToHast`](https://github.com/shikijs/shiki/blob/main/packages/types/src/options.ts#L121)
+
+### Dual/multi theme support
+
+To use multiple themes, pass a theme object:
+
+```tsx title="/components/assistant-ui/shiki-highlighter.tsx"
+<ShikiHighlighter
+  /* ... */
+  theme={{
+    light: "github-light",
+    dark: "github-dark",
+  }}
+  defaultColor="light-dark()"
+  /* ... */
+>
+```
+
+> **Note:** The `shiki-highlighter` component sets `defaultColor="light-dark()"` automatically.
+> Only set this manually if using `ShikiHighlighter` directly.
+
+With `defaultColor="light-dark()"`, theme switching is automatic based on your site's `color-scheme`.
+No custom Shiki CSS overrides are required.
+
+Set `color-scheme` on your app root:
+
+System-based (follows OS/browser preference):
+
+```css title="globals.css"
+:root {
+  color-scheme: light dark;
+}
+```
+
+Class-based theme switching:
+
+```css title="globals.css"
+:root {
+  color-scheme: light;
+}
+:root.dark {
+  color-scheme: dark;
+}
+```
+
+If you need broader support for older browsers, you can still use the manual CSS-variable switching approach from the Shiki dual-theme docs.
+
+For more information:
+- [react-shiki multi-theme/reactive themes](https://github.com/AVGVSTVS96/react-shiki)
+- [Shiki dual themes + `light-dark()`](https://shiki.style/guide/dual-themes)
 
 ### Bundle Optimization
 
@@ -99,51 +149,6 @@ const customHighlighter = await createHighlighterCore({
 <Callout type="info">
   For more information, see [react-shiki - bundle options](https://github.com/avgvstvs96/react-shiki#bundle-options).
 </Callout>
-
-### Dual/multi theme support
-
-To use multiple theme modes, pass an object with your multi-theme configuration to the `theme` prop in the `ShikiHighlighter` component:
-
-```tsx title="/components/assistant-ui/shiki-highlighter.tsx"
-<ShikiHighlighter
-  /* ... */
-  theme={{
-    light: "github-light",
-    dark: "github-dark",
-  }}
-  /* ... */
->
-```
-
-To make themes responsive to your site's theme mode, add one of the following CSS snippets to your project:
-
-```css title="shiki.css"
-/* for class based dark mode */
-html.dark .shiki,
-html.dark .shiki span {
-  color: var(--shiki-dark) !important;
-  background-color: var(--shiki-dark-bg) !important;
-  /* Optional, if you also want font styles */
-  font-style: var(--shiki-dark-font-style) !important;
-  font-weight: var(--shiki-dark-font-weight) !important;
-  text-decoration: var(--shiki-dark-text-decoration) !important;
-}
-
-/* for query based dark mode */
-@media (prefers-color-scheme: dark) {
-  .shiki,
-  .shiki span {
-    color: var(--shiki-dark) !important;
-    background-color: var(--shiki-dark-bg) !important;
-    /* Optional, if you also want font styles */
-    font-style: var(--shiki-dark-font-style) !important;
-    font-weight: var(--shiki-dark-font-weight) !important;
-    text-decoration: var(--shiki-dark-text-decoration) !important;
-  }
-}
-```
-
-For more information, see [Shiki's documentation on dual and multi themes](https://shiki.style/guide/dual-themes).
 
 ---
 

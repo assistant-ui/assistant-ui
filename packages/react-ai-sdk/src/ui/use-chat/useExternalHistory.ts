@@ -1,19 +1,17 @@
 "use client";
 
-import {
+import type {
   AssistantRuntime,
   ThreadHistoryAdapter,
   ThreadMessage,
   MessageFormatAdapter,
-  getExternalStoreMessages,
   MessageFormatRepository,
   ExportedMessageRepository,
-  INTERNAL,
-  useAui,
-} from "@assistant-ui/react";
+} from "@assistant-ui/core";
+import { getExternalStoreMessages } from "@assistant-ui/core";
+import { MessageRepository } from "@assistant-ui/core/internal";
+import { useAui } from "@assistant-ui/store";
 import { useRef, useEffect, useState, RefObject, useCallback } from "react";
-
-const { MessageRepository } = INTERNAL;
 
 export const toExportedMessageRepository = <TMessage>(
   toThreadMessages: (messages: TMessage[]) => ThreadMessage[],

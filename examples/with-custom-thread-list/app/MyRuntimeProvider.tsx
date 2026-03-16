@@ -3,8 +3,8 @@
 import type { ReactNode } from "react";
 import {
   AssistantRuntimeProvider,
-  unstable_useRemoteThreadListRuntime as useRemoteThreadListRuntime,
-  type unstable_RemoteThreadListAdapter as RemoteThreadListAdapter,
+  useRemoteThreadListRuntime,
+  type RemoteThreadListAdapter,
 } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import { createAssistantStream } from "assistant-stream";

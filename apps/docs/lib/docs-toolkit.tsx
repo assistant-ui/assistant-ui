@@ -1,6 +1,11 @@
 "use client";
 import type { Toolkit } from "@assistant-ui/react";
 import { cn } from "@/lib/utils";
+import { WeatherWidget } from "@/components/tool-ui/weather-widget/runtime";
+import {
+  fetchWeatherWidgetFromOpenMeteo,
+  geocodeLocationWithOpenMeteo,
+} from "@/lib/open-meteo-weather-adapter";
 import { MapPin, CloudSun, AlertCircle } from "lucide-react";
 import { z } from "zod";
 
@@ -10,30 +15,8 @@ const geocodeLocationTool = {
   parameters: z.object({
     query: z.string(),
   }),
-  execute: async (args: { query: string }) => {
-    try {
-      const response = await fetch(
-        `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(args.query)}`,
-      );
-      const data = await response.json();
-
-      if (!data.results || data.results.length === 0) {
-        throw new Error("No results found");
-      }
-
-      // Return the first result
-      return {
-        success: true,
-        result: data?.results?.[0],
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error:
-          error instanceof Error ? error.message : "Failed to geocode location",
-      };
-    }
-  },
+  execute: async (args: { query: string }) =>
+    geocodeLocationWithOpenMeteo(args.query),
   render: ({ result }: any) => {
     if (result?.error) {
       return (
@@ -92,55 +75,10 @@ const weatherSearchTool = {
     query: string;
     longitude: number;
     latitude: number;
-  }) => {
-    try {
-      const response = await fetch(
-        `https://api.open-meteo.com/v1/forecast?latitude=${args.latitude}&longitude=${args.longitude}&hourly=temperature_2m&models=jma_seamless`,
-      );
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-
-      if (data.hourly?.time && data.hourly.temperature_2m) {
-        const now = new Date();
-        const nowUtcString = `${now.toISOString().substring(0, 14)}00`;
-
-        let currentHourIndex = data.hourly.time.findIndex(
-          (t: string) => t >= nowUtcString,
-        );
-
-        currentHourIndex =
-          currentHourIndex > 0
-            ? currentHourIndex - 1
-            : currentHourIndex === -1
-              ? data.hourly.time.length - 1
-              : 0;
-
-        const currentTemp = data.hourly.temperature_2m[currentHourIndex];
-
-        return {
-          success: true,
-          temperature: currentTemp,
-          timestamp: data.hourly.time[currentHourIndex],
-        };
-      } else {
-        throw new Error("Invalid API response format");
-      }
-    } catch (error) {
-      return {
-        success: false,
-        error:
-          error instanceof Error ? error.message : "Failed to fetch weather",
-      };
-    }
-  },
+  }) => fetchWeatherWidgetFromOpenMeteo(args),
   render: ({ args, result }: any) => {
     const isLoading = !result;
     const error = result?.success === false ? result.error : null;
-    const temp = result?.success ? result.temperature : null;
 
     if (error) {
       return (
@@ -169,19 +107,23 @@ const weatherSearchTool = {
       );
     }
 
-    return (
-      <ToolCard>
-        <ToolCardIcon>
-          <CloudSun className="size-4" />
-        </ToolCardIcon>
-        <ToolCardContent>
-          <ToolCardTitle>{args?.query}</ToolCardTitle>
-          <ToolCardDescription>
-            {temp !== null ? `${temp}°C` : "N/A"}
-          </ToolCardDescription>
-        </ToolCardContent>
-      </ToolCard>
-    );
+    if (!result?.widget) {
+      return (
+        <ToolCard variant="error">
+          <ToolCardIcon>
+            <AlertCircle className="size-4" />
+          </ToolCardIcon>
+          <ToolCardContent>
+            <ToolCardTitle>Weather unavailable</ToolCardTitle>
+            <ToolCardDescription>
+              Missing weather widget payload for {args?.query}
+            </ToolCardDescription>
+          </ToolCardContent>
+        </ToolCard>
+      );
+    }
+
+    return <WeatherWidget {...result.widget} className="my-2" />;
   },
 };
 

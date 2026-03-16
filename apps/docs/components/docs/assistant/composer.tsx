@@ -3,8 +3,12 @@
 import { Button } from "@/components/ui/button";
 import { useCurrentPage } from "@/components/docs/contexts/current-page";
 import { ModelSelector } from "@/components/assistant-ui/model-selector";
-import { DEFAULT_DOCS_MODEL, MODELS } from "@/constants/model";
-import Image from "next/image";
+import { docsModelOptions } from "@/components/docs/assistant/docs-model-options";
+import {
+  DEFAULT_MODEL_ID,
+  resolveModelId,
+  type KnownModelId,
+} from "@/constants/model";
 import { analytics } from "@/lib/analytics";
 import { getComposerMessageMetrics } from "@/lib/assistant-analytics-helpers";
 import {
@@ -24,7 +28,10 @@ import {
 
 type ModelStoreListener = () => void;
 
-let sharedDocsModelName: string | undefined;
+// Shared docs assistant model selection is intentionally global for current docs behavior,
+// where a single model picker state should stay in sync across composer surfaces.
+// If independent composer instances are introduced later, move this to a scoped React store.
+let sharedDocsModelName: KnownModelId | undefined;
 const modelStoreListeners = new Set<ModelStoreListener>();
 
 const subscribeModelStore = (listener: ModelStoreListener) => {
@@ -34,26 +41,13 @@ const subscribeModelStore = (listener: ModelStoreListener) => {
   };
 };
 
-const setSharedDocsModelName = (modelName: string) => {
+const setSharedDocsModelName = (modelName: KnownModelId) => {
   if (sharedDocsModelName === modelName) return;
   sharedDocsModelName = modelName;
   modelStoreListeners.forEach((listener) => listener());
 };
 
-const models = MODELS.map((m) => ({
-  id: m.value,
-  name: m.name,
-  icon: (
-    <Image
-      src={m.icon}
-      alt={m.name}
-      width={14}
-      height={14}
-      className="size-3.5"
-    />
-  ),
-  ...(m.disabled ? { disabled: true as const } : undefined),
-}));
+const models = docsModelOptions();
 
 export function useComposerSubmitHandler(onSubmitProp?: () => void) {
   const aui = useAui();
@@ -95,12 +89,11 @@ export function useSharedDocsModelSelection(): {
   useEffect(() => {
     if (!threadId) return;
 
-    let nextModelName = DEFAULT_DOCS_MODEL;
+    let nextModelName = DEFAULT_MODEL_ID;
     try {
-      const modelName = aui.thread().getModelContext()?.config?.modelName;
-      if (typeof modelName === "string" && modelName.trim().length > 0) {
-        nextModelName = modelName.trim();
-      }
+      nextModelName = resolveModelId(
+        aui.thread().getModelContext()?.config?.modelName,
+      );
     } catch {
       // ignore
     }
@@ -110,12 +103,12 @@ export function useSharedDocsModelSelection(): {
 
   const modelValue = useSyncExternalStore(
     subscribeModelStore,
-    () => sharedDocsModelName ?? DEFAULT_DOCS_MODEL,
-    () => DEFAULT_DOCS_MODEL,
+    () => sharedDocsModelName ?? DEFAULT_MODEL_ID,
+    () => DEFAULT_MODEL_ID,
   );
 
   const onModelChange = useCallback((value: string) => {
-    setSharedDocsModelName(value);
+    setSharedDocsModelName(resolveModelId(value));
   }, []);
 
   return { modelValue, onModelChange };
@@ -162,15 +155,15 @@ export function AssistantComposer({
 export function AssistantComposerAction(): ReactNode {
   return (
     <>
-      <AuiIf condition={({ thread }) => !thread.isRunning}>
+      <AuiIf condition={(s) => !s.thread.isRunning}>
         <ComposerPrimitive.Send asChild>
-          <Button type="submit" size="icon" className="size-7 rounded-lg">
+          <Button size="icon" className="size-7 rounded-lg">
             <ArrowUpIcon className="size-4" />
           </Button>
         </ComposerPrimitive.Send>
       </AuiIf>
 
-      <AuiIf condition={({ thread }) => thread.isRunning}>
+      <AuiIf condition={(s) => s.thread.isRunning}>
         <ComposerPrimitive.Cancel asChild>
           <Button
             type="button"

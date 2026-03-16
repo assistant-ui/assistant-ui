@@ -33,7 +33,7 @@ function Kbd({ children, ...props }: ComponentProps<"kbd">) {
 
 export function getMDXComponents(components: MDXComponents): MDXComponents {
   return {
-    ...defaultComponents,
+    ...(defaultComponents as MDXComponents),
     ...Twoslash,
     pre: (props: CodeBlockProps) => (
       <CodeBlock {...props}>
