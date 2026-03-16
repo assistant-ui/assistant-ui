@@ -109,7 +109,9 @@ export function useAgentChatRuntime(
             }
             case "reasoning": {
               const c = event.content as { text: string };
-              yield { content: [{ type: "reasoning" as const, text: c.text }] };
+              yield {
+                content: [{ type: "reasoning" as const, text: c.text }],
+              };
               break;
             }
             case "tool_call": {
