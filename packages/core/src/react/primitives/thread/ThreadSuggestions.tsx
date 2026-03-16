@@ -11,6 +11,7 @@ type SuggestionsComponentConfig = {
 export namespace ThreadPrimitiveSuggestions {
   export type Props =
     | {
+        /** @deprecated Use the children render function instead. */
         components: SuggestionsComponentConfig;
         children?: never;
       }

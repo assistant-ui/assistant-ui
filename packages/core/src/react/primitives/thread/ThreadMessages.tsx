@@ -48,6 +48,7 @@ type MessagesComponentConfig =
 export namespace ThreadPrimitiveMessages {
   export type Props =
     | {
+        /** @deprecated Use the children render function instead. */
         components: MessagesComponentConfig;
         children?: never;
       }

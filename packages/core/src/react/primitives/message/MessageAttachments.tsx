@@ -17,6 +17,7 @@ type MessageAttachmentsComponentConfig = {
 export namespace MessagePrimitiveAttachments {
   export type Props =
     | {
+        /** @deprecated Use the children render function instead. */
         components: MessageAttachmentsComponentConfig;
         children?: never;
       }

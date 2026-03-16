@@ -12,6 +12,7 @@ export namespace ThreadListPrimitiveItems {
     archived?: boolean | undefined;
   } & (
     | {
+        /** @deprecated Use the children render function instead. */
         components: ThreadListItemsComponentConfig;
         children?: never;
       }

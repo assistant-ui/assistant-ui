@@ -29,7 +29,7 @@ export namespace ChainOfThoughtPrimitiveParts {
   export type Props =
     | {
         /**
-         * Component configuration for rendering chain of thought parts.
+         * @deprecated Use the children render function instead.
          */
         components?: ChainOfThoughtPartsComponentConfig;
         children?: never;

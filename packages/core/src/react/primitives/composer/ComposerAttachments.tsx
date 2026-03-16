@@ -17,6 +17,7 @@ type ComposerAttachmentsComponentConfig = {
 export namespace ComposerPrimitiveAttachments {
   export type Props =
     | {
+        /** @deprecated Use the children render function instead. */
         components: ComposerAttachmentsComponentConfig;
         children?: never;
       }
