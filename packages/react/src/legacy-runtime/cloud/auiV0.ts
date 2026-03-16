@@ -22,6 +22,14 @@ type AuiV0MessagePart =
       readonly title?: string;
     }
   | {
+      readonly type: "source";
+      readonly sourceType: "document";
+      readonly id: string;
+      readonly title: string;
+      readonly mediaType: string;
+      readonly filename?: string;
+    }
+  | {
       readonly type: "tool-call";
       readonly toolCallId: string;
       readonly toolName: string;
@@ -87,12 +95,23 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
           return { type: "reasoning", text: part.text };
 
         case "source":
+          if (part.sourceType === "url") {
+            return {
+              type: "source",
+              sourceType: "url",
+              id: part.id,
+              url: part.url,
+              ...(part.title ? { title: part.title } : undefined),
+            };
+          }
+
           return {
             type: "source",
-            sourceType: part.sourceType,
+            sourceType: "document",
             id: part.id,
-            url: part.url,
-            ...(part.title ? { title: part.title } : undefined),
+            title: part.title,
+            mediaType: part.mediaType,
+            ...(part.filename ? { filename: part.filename } : undefined),
           };
 
         case "tool-call": {
