@@ -556,21 +556,34 @@ class CodexTaskController {
         ];
 
       case "item/agentMessage/delta":
+      case "codex/event/agent_message_content_delta":
         return [
           {
             type: "message_delta",
             taskId: this.taskId,
-            data: { text: (p["delta"] as string | undefined) ?? "" },
+            data: {
+              text:
+                (p["delta"] as string | undefined) ??
+                (p["content"] as string | undefined) ??
+                "",
+            },
           },
         ];
 
       case "item/reasoning/textDelta":
       case "item/reasoning/summaryTextDelta":
+      case "codex/event/reasoning_content_delta":
+      case "codex/event/agent_reasoning_delta":
         return [
           {
             type: "reasoning",
             taskId: this.taskId,
-            data: { text: (p["delta"] as string | undefined) ?? "" },
+            data: {
+              text:
+                (p["delta"] as string | undefined) ??
+                (p["content"] as string | undefined) ??
+                "",
+            },
           },
         ];
 
@@ -582,6 +595,102 @@ class CodexTaskController {
             data: { text: (p["delta"] as string | undefined) ?? "" },
           },
         ];
+
+      // Codex-prefixed tool execution events
+      case "codex/event/exec_command_begin": {
+        const cmd =
+          (p["command"] as string | undefined) ??
+          (p["call"] as string | undefined) ??
+          "command";
+        return [
+          {
+            type: "tool_use",
+            taskId: this.taskId,
+            data: {
+              toolCallId: `tool_${nanoid()}`,
+              toolName: "command",
+              toolInput: { command: cmd },
+            },
+          },
+        ];
+      }
+
+      case "codex/event/exec_command_end":
+        return [
+          {
+            type: "tool_result",
+            taskId: this.taskId,
+            data: {
+              toolCallId: (p["id"] as string | undefined) ?? "",
+              result:
+                (p["output"] as string | undefined) ??
+                (p["exit_code"] as unknown) ??
+                "done",
+              isError:
+                (p["exit_code"] as number | undefined) !== 0 &&
+                p["exit_code"] !== undefined,
+            },
+          },
+        ];
+
+      case "codex/event/item_started": {
+        const itemType = (p["type"] as string | undefined) ?? "";
+        const itemId = (p["id"] as string | undefined) ?? `item_${nanoid()}`;
+        if (this.isToolItemType(itemType)) {
+          return [
+            {
+              type: "tool_use",
+              taskId: this.taskId,
+              data: {
+                toolCallId: itemId,
+                toolName: itemType,
+                toolInput: (p["data"] as unknown) ?? {},
+              },
+            },
+          ];
+        }
+        return [
+          {
+            type: "item_started",
+            taskId: this.taskId,
+            data: { itemId, itemType, title: p["title"] },
+          },
+        ];
+      }
+
+      case "codex/event/item_completed": {
+        const itemType = (p["type"] as string | undefined) ?? "";
+        const itemId = (p["id"] as string | undefined) ?? "";
+        if (this.isToolItemType(itemType)) {
+          return [
+            {
+              type: "tool_result",
+              taskId: this.taskId,
+              data: {
+                toolCallId: itemId,
+                result: p["output"],
+                isError: p["status"] === "failed",
+              },
+            },
+          ];
+        }
+        return [
+          {
+            type: "item_completed",
+            taskId: this.taskId,
+            data: {
+              itemId,
+              status: (p["status"] as string | undefined) ?? "completed",
+            },
+          },
+        ];
+      }
+
+      case "codex/event/task_started":
+        return []; // Already handled by turn/started
+
+      case "codex/event/task_complete":
+        return []; // Already handled by turn/completed
 
       case "item/started": {
         const item = (p["item"] ?? {}) as Record<string, unknown>;
