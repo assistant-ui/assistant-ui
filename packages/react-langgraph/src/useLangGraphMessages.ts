@@ -162,6 +162,7 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
         });
 
         let hasTupleMessageEvents = false;
+        let lastValuesMessages: TMessage[] | null = null;
         for await (const chunk of response) {
           switch (chunk.event) {
             case LangGraphKnownEventTypes.MessagesPartial:
@@ -182,6 +183,7 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
             case LangGraphKnownEventTypes.Values:
               onValues?.(chunk.data);
               if (Array.isArray(chunk.data?.messages)) {
+                lastValuesMessages = chunk.data.messages;
                 if (hasTupleMessageEvents) {
                   const newMessages = extractNewMessagesFromValues(
                     chunk.data.messages,
@@ -272,6 +274,11 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
               }
               break;
           }
+        }
+
+        // Final reconcile: use the last values snapshot as authoritative state
+        if (lastValuesMessages) {
+          setMessagesImmediate(accumulator.replaceMessages(lastValuesMessages));
         }
       } catch (error) {
         if (

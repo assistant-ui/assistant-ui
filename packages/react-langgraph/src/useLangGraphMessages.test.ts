@@ -1532,7 +1532,7 @@ describe("useLangGraphMessages", {}, () => {
     });
   });
 
-  it("does not replace tuple-accumulated messages with values snapshots", async () => {
+  it("reconciles tuple-accumulated messages with final values snapshot", async () => {
     const mockStreamCallback = mockStreamCallbackFactory([
       metadataEvent,
       {
@@ -1574,10 +1574,10 @@ describe("useLangGraphMessages", {}, () => {
 
     await waitFor(() => {
       expect(result.current.messages).toHaveLength(2);
-      // The tuple-accumulated content should NOT be replaced by values
+      // After stream ends, final values snapshot becomes authoritative
       const aiMessage = result.current.messages[1]!;
       expect(aiMessage.id).toBe("run-1");
-      expect(aiMessage.content).not.toEqual("Final value");
+      expect(aiMessage.content).toEqual("Final value");
     });
   });
 
@@ -1691,6 +1691,149 @@ describe("useLangGraphMessages", {}, () => {
       expect(result.current.messages).toHaveLength(3);
       expect(result.current.messages[2]!.id).toEqual("ai-2");
       expect(result.current.messages[2]!.content).toEqual("Here is the plan");
+    });
+  });
+
+  it("reconciles with final values snapshot after stream ends", async () => {
+    // During streaming, tuple accumulates partial content for ai-1.
+    // The final values snapshot has the complete ai-1 content.
+    // After the stream ends, the final values should become authoritative.
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "messages",
+        data: [
+          {
+            id: "ai-1",
+            content: "Partial strea",
+            type: "AIMessageChunk",
+            tool_call_chunks: [],
+          },
+          { run_attempt: 1 },
+        ],
+      },
+      {
+        event: "messages",
+        data: [
+          {
+            id: "ai-1",
+            content: "ming content",
+            type: "AIMessageChunk",
+            tool_call_chunks: [],
+          },
+          { run_attempt: 1 },
+        ],
+      },
+      // Final values snapshot: complete state from server
+      {
+        event: "values",
+        data: {
+          messages: [
+            { id: "user-1", type: "human" as const, content: "hi" },
+            {
+              id: "ai-1",
+              type: "ai" as const,
+              content: "Partial streaming content — complete version",
+            },
+          ],
+        },
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage(
+        [{ id: "user-1", type: "human", content: "hi" }],
+        {},
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.messages).toHaveLength(2);
+      const aiMessage = result.current.messages[1]!;
+      expect(aiMessage.id).toBe("ai-1");
+      // After stream ends, should reconcile to the final values content
+      expect(aiMessage.content).toEqual(
+        "Partial streaming content — complete version",
+      );
+    });
+  });
+
+  it("does not reconcile if stream is aborted", async () => {
+    let abortSignal: AbortSignal;
+    const mockStream = async (
+      _messages: any[],
+      config: { abortSignal: AbortSignal; initialize: () => Promise<any> },
+    ) => {
+      abortSignal = config.abortSignal;
+      async function* gen() {
+        yield metadataEvent;
+        yield {
+          event: "messages" as const,
+          data: [
+            {
+              id: "ai-1",
+              content: "Streaming...",
+              type: "AIMessageChunk",
+              tool_call_chunks: [],
+            },
+            { run_attempt: 1 },
+          ],
+        };
+        yield {
+          event: "values" as const,
+          data: {
+            messages: [
+              { id: "user-1", type: "human", content: "hi" },
+              { id: "ai-1", type: "ai", content: "Should NOT appear" },
+            ],
+          },
+        };
+        // Simulate abort before stream finishes
+        abortSignal.dispatchEvent(new Event("abort"));
+        yield {
+          event: "values" as const,
+          data: {
+            messages: [
+              { id: "user-1", type: "human", content: "hi" },
+              { id: "ai-1", type: "ai", content: "Aborted final" },
+            ],
+          },
+        };
+      }
+      return gen();
+    };
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStream as any,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage(
+        [{ id: "user-1", type: "human", content: "hi" }],
+        {},
+      );
+    });
+
+    // Cancel immediately
+    act(() => {
+      result.current.cancel();
+    });
+
+    await waitFor(() => {
+      expect(result.current.messages).toHaveLength(2);
+      const aiMessage = result.current.messages[1]!;
+      // Should keep tuple-accumulated content, NOT the values snapshot
+      expect(aiMessage.content).not.toEqual("Aborted final");
     });
   });
 });
