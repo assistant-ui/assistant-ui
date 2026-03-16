@@ -1809,12 +1809,7 @@ describe("useLangGraphMessages", {}, () => {
   });
 
   it("does not reconcile if stream is aborted", async () => {
-    let abortSignal: AbortSignal;
-    const mockStream = async (
-      _messages: any[],
-      config: { abortSignal: AbortSignal; initialize: () => Promise<any> },
-    ) => {
-      abortSignal = config.abortSignal;
+    const streamSpy = vi.fn().mockImplementation(async (_messages, config) => {
       async function* gen() {
         yield metadataEvent;
         yield {
@@ -1834,28 +1829,29 @@ describe("useLangGraphMessages", {}, () => {
           data: {
             messages: [
               { id: "user-1", type: "human", content: "hi" },
-              { id: "ai-1", type: "ai", content: "Should NOT appear" },
+              { id: "ai-1", type: "ai", content: "Values snapshot" },
             ],
           },
         };
-        // Simulate abort before stream finishes
-        abortSignal.dispatchEvent(new Event("abort"));
-        yield {
-          event: "values" as const,
-          data: {
-            messages: [
-              { id: "user-1", type: "human", content: "hi" },
-              { id: "ai-1", type: "ai", content: "Aborted final" },
-            ],
-          },
-        };
+        // Block until abort, then throw AbortError like the real SDK
+        await new Promise<void>((_resolve, reject) => {
+          config.abortSignal.addEventListener(
+            "abort",
+            () => {
+              const err = new Error("The operation was aborted.");
+              err.name = "AbortError";
+              reject(err);
+            },
+            { once: true },
+          );
+        });
       }
       return gen();
-    };
+    });
 
     const { result } = renderHook(() =>
       useLangGraphMessages({
-        stream: mockStream as any,
+        stream: streamSpy as any,
         appendMessage: appendLangChainChunk,
       }),
     );
@@ -1867,16 +1863,18 @@ describe("useLangGraphMessages", {}, () => {
       );
     });
 
-    // Cancel immediately
+    await waitFor(() => {
+      expect(streamSpy).toHaveBeenCalledTimes(1);
+    });
+
     act(() => {
       result.current.cancel();
     });
 
     await waitFor(() => {
-      expect(result.current.messages).toHaveLength(2);
       const aiMessage = result.current.messages[1]!;
       // Should keep tuple-accumulated content, NOT the values snapshot
-      expect(aiMessage.content).not.toEqual("Aborted final");
+      expect(aiMessage.content).not.toEqual("Values snapshot");
     });
   });
 });

@@ -297,8 +297,9 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
         }
 
         // Final reconcile: use the last values snapshot as authoritative state
-        if (lastValuesMessages) {
+        if (lastValuesMessages && !abortController.signal.aborted) {
           setMessagesImmediate(accumulator.replaceMessages(lastValuesMessages));
+          setMessageMetadata(new Map(accumulator.getMetadataMap()));
         }
       } catch (error) {
         if (
