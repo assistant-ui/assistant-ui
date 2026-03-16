@@ -194,7 +194,12 @@ export type AdkRunConfig = {
 // ── Stream callback types ──
 
 export type AdkSendMessageConfig = {
-  runConfig?: AdkRunConfig | undefined;
+  /**
+   * ADK RunConfig. Typed as `unknown` for compatibility with
+   * assistant-ui core's RunConfig type. Use `AdkRunConfig` when
+   * constructing configs manually for type safety.
+   */
+  runConfig?: unknown;
   checkpointId?: string | undefined;
   stateDelta?: Record<string, unknown> | undefined;
 };

@@ -318,9 +318,10 @@ describe("createAdkApiRoute - onError", () => {
 
     await handler(makeRequest());
 
-    expect(mockAdkEventStream).toHaveBeenCalledWith(expect.anything(), {
-      onError: undefined,
-    });
+    expect(mockAdkEventStream).toHaveBeenCalledWith(
+      expect.anything(),
+      undefined,
+    );
   });
 });
 

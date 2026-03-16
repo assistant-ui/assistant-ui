@@ -34,11 +34,10 @@ export function toAdkStructuredEvents(event: AdkEvent): AdkStructuredEvent[] {
   const result: AdkStructuredEvent[] = [];
 
   if (event.errorCode || event.errorMessage) {
-    result.push({
-      type: "error",
-      errorCode: event.errorCode,
-      errorMessage: event.errorMessage,
-    });
+    const err: AdkStructuredEvent & { type: "error" } = { type: "error" };
+    if (event.errorCode != null) err.errorCode = event.errorCode;
+    if (event.errorMessage != null) err.errorMessage = event.errorMessage;
+    result.push(err);
   }
 
   const parts = event.content?.parts;
@@ -52,42 +51,42 @@ export function toAdkStructuredEvents(event: AdkEvent): AdkStructuredEvent[] {
         }
       }
       if (part.functionCall) {
-        result.push({
+        const call: AdkStructuredEvent & { type: "tool_call" } = {
           type: "tool_call",
-          call: {
-            name: part.functionCall.name,
-            id: part.functionCall.id,
-            args: part.functionCall.args,
-          },
-        });
+          call: { name: part.functionCall.name, args: part.functionCall.args },
+        };
+        if (part.functionCall.id != null) call.call.id = part.functionCall.id;
+        result.push(call);
       }
       if (part.functionResponse) {
-        result.push({
+        const tr: AdkStructuredEvent & { type: "tool_result" } = {
           type: "tool_result",
           result: {
             name: part.functionResponse.name,
-            id: part.functionResponse.id,
             response: part.functionResponse.response,
           },
-        });
+        };
+        if (part.functionResponse.id != null)
+          tr.result.id = part.functionResponse.id;
+        result.push(tr);
       }
       if (part.executableCode) {
-        result.push({
+        const ce: AdkStructuredEvent & { type: "call_code" } = {
           type: "call_code",
-          code: {
-            code: part.executableCode.code,
-            language: part.executableCode.language,
-          },
-        });
+          code: { code: part.executableCode.code },
+        };
+        if (part.executableCode.language != null)
+          ce.code.language = part.executableCode.language;
+        result.push(ce);
       }
       if (part.codeExecutionResult) {
-        result.push({
+        const cr: AdkStructuredEvent & { type: "code_result" } = {
           type: "code_result",
-          result: {
-            output: part.codeExecutionResult.output,
-            outcome: part.codeExecutionResult.outcome,
-          },
-        });
+          result: { output: part.codeExecutionResult.output },
+        };
+        if (part.codeExecutionResult.outcome != null)
+          cr.result.outcome = part.codeExecutionResult.outcome;
+        result.push(cr);
       }
     }
   }

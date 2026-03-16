@@ -82,6 +82,9 @@ export function createAdkApiRoute(
       }),
     });
 
-    return adkEventStream(events, { onError: options.onError });
+    return adkEventStream(
+      events,
+      options.onError ? { onError: options.onError } : undefined,
+    );
   };
 }

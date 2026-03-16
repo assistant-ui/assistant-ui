@@ -158,7 +158,11 @@ function messagesToContent(messages: AdkMessage[]): {
  */
 function messagesToProxyBody(
   messages: AdkMessage[],
-  config: { runConfig?: unknown; checkpointId?: string },
+  config: {
+    runConfig?: unknown;
+    checkpointId?: string | undefined;
+    stateDelta?: Record<string, unknown> | undefined;
+  },
 ): Record<string, unknown> {
   const body: Record<string, unknown> = {};
 
