@@ -11,9 +11,17 @@ import { useRemoteThreadListRuntime } from "./useRemoteThreadListRuntime";
 import { useCloudThreadListAdapter } from "./cloud/useCloudThreadListAdapter";
 import { useRuntimeAdapters } from "./RuntimeAdapterProvider";
 import type { AssistantCloud } from "assistant-cloud";
+import {
+  createLocalStorageAdapter,
+  type AsyncStorageLike,
+} from "../adapters/LocalStorageThreadListAdapter";
+import type { TitleGenerationAdapter } from "../adapters/TitleGenerationAdapter";
 
 export type LocalRuntimeOptions = Omit<LocalRuntimeOptionsBase, "adapters"> & {
   cloud?: AssistantCloud | undefined;
+  storage?: AsyncStorageLike | undefined;
+  storagePrefix?: string | undefined;
+  titleGenerator?: TitleGenerationAdapter | undefined;
   initialMessages?: readonly ThreadMessageLike[] | undefined;
   adapters?: Omit<LocalRuntimeOptionsBase["adapters"], "chatModel"> | undefined;
 };
@@ -67,6 +75,9 @@ export const splitLocalRuntimeOptions = <T extends LocalRuntimeOptions>(
 ) => {
   const {
     cloud,
+    storage,
+    storagePrefix,
+    titleGenerator,
     initialMessages,
     maxSteps,
     adapters,
@@ -77,6 +88,9 @@ export const splitLocalRuntimeOptions = <T extends LocalRuntimeOptions>(
   return {
     localRuntimeOptions: {
       cloud,
+      storage,
+      storagePrefix,
+      titleGenerator,
       initialMessages,
       maxSteps,
       adapters,
@@ -88,14 +102,29 @@ export const splitLocalRuntimeOptions = <T extends LocalRuntimeOptions>(
 
 export const useLocalRuntime = (
   chatModel: ChatModelAdapter,
-  { cloud, ...options }: LocalRuntimeOptions = {},
+  {
+    cloud,
+    storage,
+    storagePrefix,
+    titleGenerator,
+    ...options
+  }: LocalRuntimeOptions = {},
 ): AssistantRuntime => {
   const cloudAdapter = useCloudThreadListAdapter({ cloud });
+  const localStorageAdapter = useMemo(() => {
+    if (!storage) return undefined;
+    return createLocalStorageAdapter({
+      storage,
+      prefix: storagePrefix,
+      titleGenerator,
+    });
+  }, [storage, storagePrefix, titleGenerator]);
+
   return useRemoteThreadListRuntime({
     runtimeHook: function RuntimeHook() {
       return useLocalThreadRuntime(chatModel, options);
     },
-    adapter: cloudAdapter,
+    adapter: localStorageAdapter ?? cloudAdapter,
     allowNesting: true,
   });
 };

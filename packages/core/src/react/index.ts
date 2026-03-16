@@ -211,3 +211,13 @@ export {
   splitLocalRuntimeOptions,
   type LocalRuntimeOptions,
 } from "./runtimes/useLocalRuntime";
+
+// Adapters
+export {
+  createLocalStorageAdapter,
+  type AsyncStorageLike,
+} from "./adapters/LocalStorageThreadListAdapter";
+export {
+  type TitleGenerationAdapter,
+  createSimpleTitleAdapter,
+} from "./adapters/TitleGenerationAdapter";

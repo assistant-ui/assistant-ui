@@ -12,6 +12,7 @@ export type RemoteThreadMetadata = {
   readonly remoteId: string;
   readonly externalId?: string | undefined;
   readonly title?: string | undefined;
+  readonly metadata?: Readonly<Record<string, unknown>> | undefined;
 };
 
 export type RemoteThreadListResponse = {

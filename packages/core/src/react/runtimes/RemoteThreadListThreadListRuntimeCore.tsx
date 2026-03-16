@@ -94,6 +94,7 @@ export class RemoteThreadListThreadListRuntimeCore
                 externalId: thread.externalId,
                 status: thread.status,
                 title: thread.title,
+                metadata: thread.metadata,
                 initializeTask: Promise.resolve({
                   remoteId: thread.remoteId,
                   externalId: thread.externalId,
@@ -164,6 +165,11 @@ export class RemoteThreadListThreadListRuntimeCore
     this.getLoadThreadsPromise(); // begin loading on initial bind
   }
 
+  public reload() {
+    this._loadThreadsPromise = undefined;
+    return this.getLoadThreadsPromise();
+  }
+
   public get isLoading() {
     return this._state.value.isLoading;
   }
@@ -224,6 +230,7 @@ export class RemoteThreadListThreadListRuntimeCore
           externalId: remoteMetadata.externalId,
           status: remoteMetadata.status,
           title: remoteMetadata.title,
+          metadata: remoteMetadata.metadata,
         } as RemoteThreadData,
       };
 

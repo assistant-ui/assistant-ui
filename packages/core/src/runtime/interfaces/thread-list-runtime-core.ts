@@ -10,6 +10,7 @@ export type ThreadListItemCoreState = {
 
   readonly status: ThreadListItemStatus;
   readonly title?: string | undefined;
+  readonly metadata?: Readonly<Record<string, unknown>> | undefined;
 
   readonly runtime?: ThreadRuntimeCore | undefined;
 };
@@ -33,6 +34,7 @@ export type ThreadListRuntimeCore = {
   switchToNewThread(): Promise<void>;
 
   getLoadThreadsPromise(): Promise<void>;
+  reload?(): Promise<void>;
 
   detach(threadId: string): Promise<void>;
   rename(threadId: string, newTitle: string): Promise<void>;

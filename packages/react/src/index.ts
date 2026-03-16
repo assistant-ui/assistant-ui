@@ -153,6 +153,16 @@ export { useLocalRuntime } from "./legacy-runtime/runtime-cores/local/useLocalRu
 export { useLocalRuntime as useLocalThreadRuntime } from "./legacy-runtime/runtime-cores/local/useLocalRuntime";
 export type { LocalRuntimeOptions } from "./legacy-runtime/runtime-cores/local/LocalRuntimeOptions";
 
+// --- localStorage adapter ---
+export {
+  createLocalStorageAdapter,
+  type AsyncStorageLike,
+} from "@assistant-ui/core/react";
+export {
+  type TitleGenerationAdapter,
+  createSimpleTitleAdapter,
+} from "@assistant-ui/core/react";
+
 // --- remote-thread-list ---
 export { useRemoteThreadListRuntime } from "./legacy-runtime/runtime-cores/remote-thread-list/useRemoteThreadListRuntime";
 /** @deprecated Use `useRemoteThreadListRuntime` instead. */
