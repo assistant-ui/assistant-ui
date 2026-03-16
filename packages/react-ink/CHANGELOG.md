@@ -1,5 +1,11 @@
 # @assistant-ui/react-ink
 
+## 0.0.6
+
+### Patch Changes
+
+- 639792c: feat(react-ink): add ErrorPrimitive (Root, Message)
+
 ## 0.0.5
 
 ### Patch Changes
