@@ -101,6 +101,7 @@ export type AdkMessage =
       tool_call_id: string;
       name: string;
       status?: "success" | "error" | undefined;
+      artifact?: unknown;
     };
 
 export type AdkMessageContentPart =
@@ -119,6 +120,7 @@ export type AdkToolConfirmation = {
   toolName: string;
   args: Record<string, unknown>;
   hint: string;
+  confirmed: boolean;
   payload?: unknown;
 };
 

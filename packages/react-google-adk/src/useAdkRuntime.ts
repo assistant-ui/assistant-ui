@@ -320,7 +320,7 @@ const useAdkRuntimeImpl = ({
             content: JSON.stringify(result),
             artifact,
             status: isError ? "error" : "success",
-          } as AdkMessage & { type: "tool" },
+          },
         ],
         {},
       );

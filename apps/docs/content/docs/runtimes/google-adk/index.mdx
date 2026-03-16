@@ -3,7 +3,7 @@ title: Google ADK
 description: Connect to Google ADK (Agent Development Kit) agents with streaming, tool calls, and multi-agent support.
 ---
 
-The `@assistant-ui/react-google-adk` package provides integration with [Google ADK JS](https://github.com/google/adk-js), Google's official agent framework for TypeScript. It supports streaming text, tool calls, multi-agent orchestration, code execution, and session state management.
+The `@assistant-ui/react-google-adk` package provides integration with [Google ADK JS](https://github.com/google/adk-js), Google's official agent framework for TypeScript. It supports streaming text, tool calls, multi-agent orchestration, code execution, session state, tool confirmations, auth flows, and more.
 
 ## Requirements
 
@@ -32,12 +32,7 @@ import {
   parseAdkRequest,
   toAdkContent,
 } from "@assistant-ui/react-google-adk/server";
-import {
-  Runner,
-  LlmAgent,
-  InMemorySessionService,
-  InMemoryRunner,
-} from "@google/adk";
+import { InMemoryRunner, LlmAgent } from "@google/adk";
 
 const agent = new LlmAgent({
   name: "my_agent",
@@ -52,7 +47,6 @@ export async function POST(req: Request) {
   const parsed = await parseAdkRequest(req);
   const newMessage = toAdkContent(parsed);
 
-  // Get or create session
   const userId = "user_1";
   let sessionId = sessions.get(userId);
   if (!sessionId) {
@@ -68,7 +62,8 @@ export async function POST(req: Request) {
     userId,
     sessionId,
     newMessage,
-    runConfig: { streamingMode: 1 }, // SSE streaming
+    stateDelta: parsed.stateDelta,
+    runConfig: { streamingMode: 1 },
   });
 
   return adkEventStream(events);
@@ -168,7 +163,7 @@ Follow the [UI Components](/docs/ui/thread) guide to setup the Thread and other 
 
 ### `adkEventStream`
 
-Converts an `AsyncGenerator<Event>` from ADK's `Runner.runAsync()` into an SSE `Response`.
+Converts an `AsyncGenerator<Event>` from ADK's `Runner.runAsync()` into an SSE `Response`. Sends an initial `:ok` comment to keep connections alive through proxies.
 
 ```typescript
 import { adkEventStream } from "@assistant-ui/react-google-adk/server";
@@ -179,7 +174,7 @@ return adkEventStream(events);
 
 ### `parseAdkRequest` / `toAdkContent`
 
-Parse incoming requests and convert to ADK's `Content` format:
+Parse incoming requests and convert to ADK's `Content` format. Supports user messages, tool results, `stateDelta`, `checkpointId`, and multimodal content:
 
 ```typescript
 import { parseAdkRequest, toAdkContent } from "@assistant-ui/react-google-adk/server";
@@ -190,25 +185,28 @@ const parsed = await parseAdkRequest(req);
 // parsed.stateDelta contains session state changes
 
 const newMessage = toAdkContent(parsed);
-// { role: "user", parts: [{ text: "..." }] }
+const events = runner.runAsync({
+  userId,
+  sessionId,
+  newMessage,
+  stateDelta: parsed.stateDelta,
+});
+return adkEventStream(events);
 ```
 
-## Advanced APIs
+## Hooks
 
-### ADK-Specific Hooks
-
-Access ADK-specific state from within the runtime context:
+### Agent & Session State
 
 ```typescript
 import {
   useAdkAgentInfo,
   useAdkSessionState,
   useAdkSend,
-  useAdkLongRunningToolIds,
 } from "@assistant-ui/react-google-adk";
 
 function MyComponent() {
-  // Current active agent name and branch path
+  // Current active agent name and branch path (multi-agent)
   const agentInfo = useAdkAgentInfo();
   // agentInfo?.name = "search_agent"
   // agentInfo?.branch = "root.search_agent"
@@ -216,15 +214,115 @@ function MyComponent() {
   // Accumulated session state delta
   const state = useAdkSessionState();
 
-  // IDs of tools awaiting external input
-  const pendingTools = useAdkLongRunningToolIds();
-
-  // Send raw ADK messages
+  // Send raw ADK messages programmatically
   const send = useAdkSend();
 }
 ```
 
-### Event Handlers
+### Tool Confirmations
+
+When ADK's `SecurityPlugin` or tool callbacks request user confirmation before executing a tool, these are surfaced via `useAdkToolConfirmations`:
+
+```typescript
+import { useAdkToolConfirmations, useAdkSend } from "@assistant-ui/react-google-adk";
+
+function ToolConfirmationUI() {
+  const confirmations = useAdkToolConfirmations();
+  const send = useAdkSend();
+
+  if (confirmations.length === 0) return null;
+
+  return confirmations.map((conf) => (
+    <div key={conf.toolCallId}>
+      <p>Tool "{conf.toolName}" wants to run. {conf.hint}</p>
+      <button onClick={() => {
+        // Send confirmation response back to ADK
+        send([{
+          id: "",
+          type: "tool",
+          tool_call_id: conf.toolCallId,
+          name: "adk_request_confirmation",
+          content: JSON.stringify({ confirmed: true, payload: conf.payload }),
+        }], {});
+      }}>
+        Approve
+      </button>
+    </div>
+  ));
+}
+```
+
+### Auth Requests
+
+When a tool requires OAuth or other authentication, ADK sends `adk_request_credential` events:
+
+```typescript
+import { useAdkAuthRequests } from "@assistant-ui/react-google-adk";
+
+function AuthUI() {
+  const authRequests = useAdkAuthRequests();
+  // Each request has: toolCallId, authConfig (OAuth config etc)
+}
+```
+
+### Artifacts
+
+Track file artifacts created or modified by the agent:
+
+```typescript
+import { useAdkArtifacts } from "@assistant-ui/react-google-adk";
+
+function ArtifactList() {
+  const artifacts = useAdkArtifacts();
+  // Record<string, number> — filename to version number
+}
+```
+
+### Escalation
+
+Detect when an agent requests escalation to a human operator:
+
+```typescript
+import { useAdkEscalation } from "@assistant-ui/react-google-adk";
+
+function EscalationBanner() {
+  const escalated = useAdkEscalation();
+  if (!escalated) return null;
+  return <div>Agent has requested human assistance.</div>;
+}
+```
+
+### Long-Running Tools
+
+Track tools that are executing asynchronously and awaiting external input:
+
+```typescript
+import { useAdkLongRunningToolIds } from "@assistant-ui/react-google-adk";
+
+function PendingToolsIndicator() {
+  const pendingToolIds = useAdkLongRunningToolIds();
+  if (pendingToolIds.length === 0) return null;
+  return <div>{pendingToolIds.length} tool(s) awaiting input</div>;
+}
+```
+
+### Per-Message Metadata
+
+Access grounding, citation, and token usage metadata per message:
+
+```typescript
+import { useAdkMessageMetadata } from "@assistant-ui/react-google-adk";
+
+function MessageMetadata({ messageId }: { messageId: string }) {
+  const metadataMap = useAdkMessageMetadata();
+  const meta = metadataMap.get(messageId);
+  // meta?.groundingMetadata — Google Search grounding sources
+  // meta?.citationMetadata — citation references
+  // meta?.usageMetadata — token counts
+}
+```
+
+## Event Handlers
 
 Listen to streaming events:
 
@@ -239,29 +337,16 @@ const runtime = useAdkRuntime({
       console.log("Agent transferred to:", toAgent);
     },
     onCustomEvent: (key, value) => {
+      // Fired for each entry in event.customMetadata
       console.log("Custom metadata:", key, value);
     },
   },
 });
 ```
 
-### Message Editing & Regeneration
+## Thread Management
 
-Provide a `getCheckpointId` callback to enable edit and regenerate buttons:
-
-```typescript
-const runtime = useAdkRuntime({
-  stream: async function* (messages, { initialize, ...config }) { /* ... */ },
-  getCheckpointId: async (threadId, parentMessages) => {
-    // Resolve checkpoint ID for server-side forking
-    return checkpointId;
-  },
-});
-```
-
-### Thread Management
-
-Built-in thread list support with `create`, `load`, and `delete`:
+### Basic Thread Support
 
 ```typescript
 const runtime = useAdkRuntime({
@@ -285,7 +370,7 @@ const runtime = useAdkRuntime({
 
 ### Cloud Persistence
 
-For persistent thread history, integrate with assistant-cloud:
+For persistent thread history across sessions, integrate with assistant-cloud:
 
 ```typescript
 import { AssistantCloud } from "assistant-cloud";
@@ -299,22 +384,50 @@ const runtime = useAdkRuntime({
 });
 ```
 
-## Features
+## Message Editing & Regeneration
 
-### Supported ADK Features
+Provide a `getCheckpointId` callback to enable edit and regenerate buttons:
+
+```typescript
+const runtime = useAdkRuntime({
+  stream: async function* (messages, { initialize, ...config }) { /* ... */ },
+  getCheckpointId: async (threadId, parentMessages) => {
+    // Resolve checkpoint ID for server-side forking
+    return checkpointId;
+  },
+});
+```
+
+When `getCheckpointId` is provided:
+- **Edit buttons** appear on user messages
+- **Regenerate buttons** appear on assistant messages
+
+The resolved `checkpointId` is passed to your `stream` callback via `config.checkpointId`.
+
+<Callout type="info">
+  Without `getCheckpointId`, edit and regenerate buttons will not appear.
+</Callout>
+
+## Features
 
 | Feature | Status |
 |---|---|
 | Streaming text (SSE) | Supported |
 | Tool calls & results | Supported |
-| Multi-agent (author tracking) | Supported |
-| Chain-of-thought / reasoning | Supported |
-| Code execution | Supported |
-| Inline images & files | Supported |
-| Session state delta | Supported |
-| Long-running tools | Supported |
+| Tool confirmations (SecurityPlugin) | Supported |
+| Auth credential requests | Supported |
+| Multi-agent (author/branch tracking) | Supported |
 | Agent transfer events | Supported |
-| `finishReason` mapping | Supported |
+| Escalation detection | Supported |
+| Chain-of-thought / reasoning | Supported |
+| Code execution (executableCode + result) | Supported |
+| Inline images & file data | Supported |
+| Session state delta | Supported |
+| Artifact delta tracking | Supported |
+| Long-running tools (HITL) | Supported |
+| Grounding / citation / usage metadata | Supported |
+| `finishReason` mapping (17 values) | Supported |
+| `interrupted` event handling | Supported |
 | Snake\_case events (Python ADK) | Supported |
 | Cloud thread persistence | Supported |
 | Message editing & regeneration | Supported |
@@ -322,4 +435,4 @@ const runtime = useAdkRuntime({
 
 ### ADK Python Backend
 
-The package automatically normalizes snake\_case event fields from ADK Python backends to camelCase. No configuration needed — connect to either ADK JS or ADK Python servers.
+The package automatically normalizes snake\_case event fields from ADK Python backends to camelCase. No configuration needed — connect to either ADK JS or ADK Python servers. This includes all nested fields: `function_call` → `functionCall`, `requested_tool_confirmations` → `requestedToolConfirmations`, etc.

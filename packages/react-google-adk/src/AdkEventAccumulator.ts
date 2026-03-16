@@ -18,38 +18,63 @@ const ADK_REQUEST_CONFIRMATION = "adk_request_confirmation";
 const ADK_REQUEST_CREDENTIAL = "adk_request_credential";
 
 const isFinalResponse = (event: AdkEvent): boolean => {
-  if (event.partial) return false;
-  if (event.actions?.skipSummarization) return true;
-  if (event.longRunningToolIds?.length) return true;
+  // ADK checks skipSummarization and longRunningToolIds BEFORE partial
+  if (
+    event.actions?.skipSummarization ||
+    (event.longRunningToolIds && event.longRunningToolIds.length > 0)
+  ) {
+    return true;
+  }
 
   const parts = event.content?.parts;
-  if (!parts?.length) return false;
-  if (parts.some((p) => p.functionCall)) return false;
-  if (parts.some((p) => p.functionResponse)) return false;
-
-  const lastPart = parts[parts.length - 1];
-  if (lastPart?.codeExecutionResult) return false;
-
-  return true;
+  return (
+    !event.partial &&
+    (parts?.length ?? 0) > 0 &&
+    !parts!.some((p) => p.functionCall) &&
+    !parts!.some((p) => p.functionResponse) &&
+    !parts![parts!.length - 1]?.codeExecutionResult
+  );
 };
+
+const CONTENT_FILTER_REASONS = new Set([
+  "SAFETY",
+  "RECITATION",
+  "BLOCKLIST",
+  "PROHIBITED_CONTENT",
+  "SPII",
+  "LANGUAGE",
+  "IMAGE_SAFETY",
+  "IMAGE_RECITATION",
+  "IMAGE_OTHER",
+  "IMAGE_PROHIBITED_CONTENT",
+]);
+
+const ERROR_REASONS = new Set([
+  "MALFORMED_FUNCTION_CALL",
+  "UNEXPECTED_TOOL_CALL",
+]);
 
 const finishReasonToStatus = (
   finishReason: string | undefined,
 ): MessageStatus => {
-  switch (finishReason) {
-    case "MAX_TOKENS":
-      return { type: "incomplete", reason: "length" };
-    case "SAFETY":
-    case "RECITATION":
-    case "BLOCKLIST":
-      return {
-        type: "incomplete",
-        reason: "content-filter",
-        error: `Content filtered: ${finishReason}`,
-      };
-    default:
-      return { type: "complete", reason: "stop" };
+  if (finishReason === "MAX_TOKENS") {
+    return { type: "incomplete", reason: "length" };
   }
+  if (finishReason && CONTENT_FILTER_REASONS.has(finishReason)) {
+    return {
+      type: "incomplete",
+      reason: "content-filter",
+      error: `Content filtered: ${finishReason}`,
+    };
+  }
+  if (finishReason && ERROR_REASONS.has(finishReason)) {
+    return {
+      type: "incomplete",
+      reason: "error",
+      error: `LLM error: ${finishReason}`,
+    };
+  }
+  return { type: "complete", reason: "stop" };
 };
 
 // ── Snake_case normalization ──
@@ -190,6 +215,7 @@ export class AdkEventAccumulator {
           toolName: "",
           args: {},
           hint: (c.hint as string) ?? "",
+          confirmed: false,
           payload: c.payload,
         });
       }
@@ -299,24 +325,35 @@ export class AdkEventAccumulator {
 
       // Tool confirmation request
       if (name === ADK_REQUEST_CONFIRMATION) {
-        const args = part.functionCall.args;
-        const original = args.function_call_event as Record<string, unknown>;
-        const conf = args.tool_confirmation as Record<string, unknown>;
+        const callArgs = part.functionCall.args;
+        // ADK JS: args keys are "originalFunctionCall" and "toolConfirmation"
+        // ADK Python: args keys are "original_function_call" and "tool_confirmation"
+        const original =
+          (callArgs.originalFunctionCall as Record<string, unknown>) ??
+          (callArgs.original_function_call as Record<string, unknown>);
+        const conf =
+          (callArgs.toolConfirmation as Record<string, unknown>) ??
+          (callArgs.tool_confirmation as Record<string, unknown>);
         this.toolConfirmations.push({
           toolCallId: part.functionCall.id ?? "",
           toolName: (original?.name as string) ?? "",
           args: (original?.args as Record<string, unknown>) ?? {},
           hint: (conf?.hint as string) ?? "",
+          confirmed: false,
           payload: conf?.payload,
         });
-        // Still create the tool call so UI can show it
       }
 
       // Auth credential request
       if (name === ADK_REQUEST_CREDENTIAL) {
+        const credArgs = part.functionCall.args;
+        // ADK JS: args keys are "function_call_id" and "auth_config"
+        const originalToolCallId =
+          (credArgs.function_call_id as string) ?? part.functionCall.id ?? "";
+        const authConfig = credArgs.auth_config ?? credArgs;
         this.authRequests.push({
-          toolCallId: part.functionCall.id ?? "",
-          authConfig: part.functionCall.args,
+          toolCallId: originalToolCallId,
+          authConfig,
         });
       }
     }
