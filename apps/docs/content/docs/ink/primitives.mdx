@@ -34,7 +34,9 @@ Container `Box` for the thread area.
 Renders the message list with automatic runtime integration. Each message is wrapped in a scoped context so that `useAuiState((s) => s.message)` works inside the message component.
 
 ```tsx
-<ThreadPrimitive.Messages components={{ Message: MyMessage }} />
+<ThreadPrimitive.Messages>
+  {() => <MyMessage />}
+</ThreadPrimitive.Messages>
 ```
 
 | Prop | Type | Description |
@@ -117,14 +119,14 @@ Low-level provider that sets up the message context for a specific message by in
 Renders all thread suggestions using a provided component. Each suggestion is wrapped in a `SuggestionByIndexProvider` context.
 
 ```tsx
-<ThreadPrimitive.Suggestions
-  components={{ Suggestion: MySuggestion }}
-/>
+<ThreadPrimitive.Suggestions>
+  {() => <MySuggestion />}
+</ThreadPrimitive.Suggestions>
 ```
 
 | Prop | Type | Description |
 |------|------|-------------|
-| `components` | `{ Suggestion: FC }` | Component used to render each suggestion |
+| `children` | `() => ReactElement` | Render function for each suggestion |
 
 ### SuggestionByIndex
 
@@ -216,11 +218,9 @@ Ink `TextInput` wired to the composer runtime. Value is managed automatically.
 Renders composer attachments using the provided component configuration.
 
 ```tsx
-<ComposerPrimitive.Attachments
-  components={{
-    Attachment: MyAttachment,
-  }}
-/>
+<ComposerPrimitive.Attachments>
+  {() => <MyAttachment />}
+</ComposerPrimitive.Attachments>
 ```
 
 | Prop | Type | Description |
@@ -305,14 +305,13 @@ Container `Box` for a single message.
 Renders message content parts via a `components` prop. Tool call and data parts automatically render registered tool UIs (via `useAssistantTool` / `useAssistantDataUI`), falling back to components provided here. A default `Text` component using Ink's `<Text>` is provided out of the box.
 
 ```tsx
-<MessagePrimitive.Parts
-  components={{
-    Text: ({ text }) => <Text>{text}</Text>,
-    tools: {
-      Fallback: ({ part }) => <Text dimColor>[Tool: {part.toolName}]</Text>,
-    },
+<MessagePrimitive.Parts>
+  {({ part }) => {
+    if (part.type === "text") return <Text>{part.text}</Text>;
+    if (part.type === "tool-call") return <Text dimColor>[Tool: {part.toolName}]</Text>;
+    return null;
   }}
-/>
+</MessagePrimitive.Parts>
 ```
 
 ### Content (deprecated)
@@ -412,11 +411,9 @@ Conditional rendering based on message properties.
 Renders user message attachments using the provided component configuration.
 
 ```tsx
-<MessagePrimitive.Attachments
-  components={{
-    Attachment: ({ attachment }) => <Text>[{attachment.name}]</Text>,
-  }}
-/>
+<MessagePrimitive.Attachments>
+  {() => <Text>[attachment]</Text>}
+</MessagePrimitive.Attachments>
 ```
 
 | Prop | Type | Description |
@@ -665,11 +662,9 @@ Renders the individual parts of a chain of thought using a provided components m
   <ChainOfThoughtPrimitive.AccordionTrigger>
     <Text dimColor>[Toggle reasoning]</Text>
   </ChainOfThoughtPrimitive.AccordionTrigger>
-  <ChainOfThoughtPrimitive.Parts
-    components={{
-      Text: ({ text }) => <Text dimColor>{text}</Text>,
-    }}
-  />
+  <ChainOfThoughtPrimitive.Parts>
+    {({ part }) => part.type === "text" ? <Text dimColor>{part.text}</Text> : null}
+  </ChainOfThoughtPrimitive.Parts>
 </ChainOfThoughtPrimitive.Root>
 ```
 
@@ -684,13 +679,12 @@ import { ToolCallPrimitive } from "@assistant-ui/react-ink";
 A built-in component for rendering tool calls with expandable/collapsible output. Includes a spinner for running tools, formatted JSON args and result output, and status icons for completed, errored, or interrupted calls.
 
 ```tsx
-<MessagePrimitive.Parts
-  components={{
-    tools: {
-      Fallback: ({ part }) => <ToolCallPrimitive.Fallback part={part} />,
-    },
+<MessagePrimitive.Parts>
+  {({ part }) => {
+    if (part.type === "tool-call") return <ToolCallPrimitive.Fallback part={part} />;
+    return null;
   }}
-/>
+</MessagePrimitive.Parts>
 ```
 
 | Prop | Type | Description |

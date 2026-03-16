@@ -106,7 +106,9 @@ function MyMessage() {
 function ChatScreen() {
   return (
     <ThreadPrimitive.Root>
-      <ThreadPrimitive.Messages components={{ Message: MyMessage }} />
+      <ThreadPrimitive.Messages>
+        {() => <MyMessage />}
+      </ThreadPrimitive.Messages>
       <Box borderStyle="round" borderColor="gray" paddingX={1}>
         <ComposerPrimitive.Input submitOnEnter placeholder="Message..." autoFocus />
       </Box>

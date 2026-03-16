@@ -28,6 +28,7 @@ import {
   ComposerPrimitive,
   MessagePrimitive,
   ThreadPrimitive,
+  useMessagePartText,
 } from "@assistant-ui/react";
 
 import {
@@ -107,15 +108,8 @@ const AssistantMessageWrapper: FC = () => {
   return <AssistantMessage config={config} />;
 };
 
-const EditComposerWrapper: FC = () => <EditComposer />;
-
-const messageComponents = {
-  UserMessage: UserMessageWrapper,
-  AssistantMessage: AssistantMessageWrapper,
-  EditComposer: EditComposerWrapper,
-};
-
-const PlainText: FC<{ text: string }> = ({ text }) => {
+const PlainText: FC = () => {
+  const { text } = useMessagePartText();
   return <p className="whitespace-pre-wrap">{text}</p>;
 };
 
@@ -236,7 +230,13 @@ export function BuilderPreview({ config }: BuilderPreviewProps) {
               </AuiIf>
             )}
 
-            <ThreadPrimitive.Messages components={messageComponents} />
+            <ThreadPrimitive.Messages>
+              {({ message }) => {
+                if (message.composer.isEditing) return <EditComposer />;
+                if (message.role === "user") return <UserMessageWrapper />;
+                return <AssistantMessageWrapper />;
+              }}
+            </ThreadPrimitive.Messages>
 
             <ThreadPrimitive.ViewportFooter
               className="aui-thread-viewport-footer sticky bottom-0 mx-auto mt-auto flex w-full max-w-(--aui-thread-max-width) flex-col gap-4 overflow-visible rounded-t-3xl pb-4 md:pb-6"
@@ -379,7 +379,7 @@ const Composer: FC<ComposerProps> = ({ config }) => {
       >
         <ComposerPrimitive.Input
           placeholder="Send a message..."
-          className="aui-composer-input mb-1 max-h-32 min-h-14 w-full resize-none bg-transparent px-4 pt-2 pb-3 text-sm outline-none placeholder:text-[var(--aui-muted-foreground)] focus-visible:ring-0"
+          className="aui-composer-input mb-1 max-h-32 min-h-14 w-full resize-none bg-transparent px-4 pt-2 pb-3 text-sm outline-none placeholder:text-(--aui-muted-foreground) focus-visible:ring-0"
           rows={1}
           autoFocus
           aria-label="Message input"
@@ -650,7 +650,12 @@ const AssistantMessage: FC<AssistantMessageProps> = ({ config }) => {
                 : undefined
             }
           >
-            <MessagePrimitive.Parts components={{ Text: TextComponent }} />
+            <MessagePrimitive.Parts>
+              {({ part }) => {
+                if (part.type === "text") return <TextComponent />;
+                return null;
+              }}
+            </MessagePrimitive.Parts>
 
             {components.loadingIndicator !== "none" && (
               <AuiIf

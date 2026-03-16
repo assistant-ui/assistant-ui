@@ -1,4 +1,3 @@
-import type { ThreadMessage as ThreadMessageType } from "../../../types/message";
 import { type ComponentType, type FC, type ReactNode, memo } from "react";
 import {
   AuiForEach,
@@ -6,6 +5,7 @@ import {
   useAuiState,
 } from "@assistant-ui/store";
 import { MessageByIndexProvider } from "../../providers/MessageByIndexProvider";
+import { MessageState } from "../../../store";
 
 type MessagesComponentConfig =
   | {
@@ -53,7 +53,7 @@ export namespace ThreadPrimitiveMessages {
       }
     | {
         /** Render function called for each message. Receives the message. */
-        children: (value: { message: ThreadMessageType }) => ReactNode;
+        children: (value: { message: MessageState }) => ReactNode;
         components?: never;
       };
 }
@@ -78,7 +78,7 @@ const DEFAULT_SYSTEM_MESSAGE = () => null;
 
 const getComponent = (
   components: MessagesComponentConfig,
-  role: ThreadMessageType["role"],
+  role: MessageState["role"],
   isEditing: boolean,
 ) => {
   switch (role) {
@@ -167,7 +167,7 @@ export const ThreadPrimitiveMessageByIndex: FC<ThreadPrimitiveMessageByIndex.Pro
 ThreadPrimitiveMessageByIndex.displayName = "ThreadPrimitive.MessageByIndex";
 
 const ThreadPrimitiveMessagesInner: FC<{
-  children: (value: { message: ThreadMessageType }) => ReactNode;
+  children: (value: { message: MessageState }) => ReactNode;
 }> = ({ children }) => (
   <AuiForEach keys={(s) => s.thread.messages.map((_, index) => index)}>
     {(index) => (
@@ -193,17 +193,11 @@ const ThreadPrimitiveMessagesInner: FC<{
  *
  * @example
  * ```tsx
- * // With components:
- * <ThreadPrimitive.Messages
- *   components={{
- *     UserMessage: MyUserMessage,
- *     AssistantMessage: MyAssistantMessage,
- *   }}
- * />
- *
- * // With children:
  * <ThreadPrimitive.Messages>
- *   {({ message }) => <MyMessage />}
+ *   {({ message }) => {
+ *     if (message.role === "user") return <MyUserMessage />;
+ *     return <MyAssistantMessage />;
+ *   }}
  * </ThreadPrimitive.Messages>
  * ```
  */
@@ -219,7 +213,7 @@ export const ThreadPrimitiveMessagesImpl: FC<ThreadPrimitiveMessages.Props> = ({
     );
   }
   return (
-    <ThreadPrimitiveMessagesInner>{children!}</ThreadPrimitiveMessagesInner>
+    <ThreadPrimitiveMessagesInner>{children}</ThreadPrimitiveMessagesInner>
   );
 };
 

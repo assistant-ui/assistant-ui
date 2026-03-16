@@ -109,7 +109,9 @@ function MyMessage() {
 function ChatScreen() {
   return (
     <ThreadPrimitive.Root style={{ flex: 1 }}>
-      <ThreadPrimitive.Messages components={{ Message: MyMessage }} />
+      <ThreadPrimitive.Messages>
+        {() => <MyMessage />}
+      </ThreadPrimitive.Messages>
       <ComposerPrimitive.Root>
         <ComposerPrimitive.Input placeholder="Message..." />
         <ComposerPrimitive.Send />

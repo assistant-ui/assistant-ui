@@ -76,7 +76,7 @@ const SpanPrimitiveChildrenImpl: FC<SpanPrimitiveChildren.Props> = ({
       </SpanPrimitiveChildrenInner>
     );
   }
-  return <SpanPrimitiveChildrenInner>{children!}</SpanPrimitiveChildrenInner>;
+  return <SpanPrimitiveChildrenInner>{children}</SpanPrimitiveChildrenInner>;
 };
 
 export const SpanPrimitiveChildren: FC<SpanPrimitiveChildren.Props> = memo(

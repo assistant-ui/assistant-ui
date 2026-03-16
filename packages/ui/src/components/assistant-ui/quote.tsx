@@ -55,11 +55,9 @@ function QuoteBlockText({ className, ...props }: ComponentProps<"p">) {
  *
  * @example
  * ```tsx
- * <MessagePrimitive.Parts
- *   components={{
- *     Quote: QuoteBlock,
- *   }}
- * />
+ * <MessagePrimitive.Quote>
+ *   {(quote) => <QuoteBlock {...quote} />}
+ * </MessagePrimitive.Quote>
  * ```
  */
 const QuoteBlockImpl: QuoteMessagePartComponent = ({ text }) => {

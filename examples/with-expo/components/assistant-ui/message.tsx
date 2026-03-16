@@ -55,8 +55,6 @@ function MessageImageAttachment() {
   return <Image source={{ uri }} style={styles.messageImage} />;
 }
 
-const messageAttachmentComponents = { Attachment: MessageImageAttachment };
-
 export function MessageBubble() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
@@ -67,9 +65,9 @@ export function MessageBubble() {
   if (isUser) {
     return (
       <View style={[styles.container, styles.userContainer]}>
-        <MessagePrimitive.Attachments
-          components={messageAttachmentComponents}
-        />
+        <MessagePrimitive.Attachments>
+          {() => <MessageImageAttachment />}
+        </MessagePrimitive.Attachments>
         <View
           style={[
             styles.bubble,

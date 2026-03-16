@@ -235,7 +235,9 @@ export function WaterfallTimeline() {
               }
             }}
           >
-            <SpanPrimitive.Children components={{ Span: WaterfallRow }} />
+            <SpanPrimitive.Children>
+              {() => <WaterfallRow />}
+            </SpanPrimitive.Children>
           </div>
         </WaterfallLayoutContext.Provider>
       </div>

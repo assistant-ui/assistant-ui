@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { type ReactNode, useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
-import { Reasoning, ReasoningGroup } from "@/components/assistant-ui/reasoning";
+import { Reasoning } from "@/components/assistant-ui/reasoning";
 
 export function UserMessage(): ReactNode {
   return (
@@ -33,32 +33,18 @@ export function AssistantMessage(): ReactNode {
   return (
     <MessagePrimitive.Root className="py-2" data-role="assistant">
       <div className="text-sm">
-        <MessagePrimitive.Parts
-          components={{
-            Empty: Thinking,
-            Text: MarkdownText,
-            Reasoning,
-            ReasoningGroup,
-            tools: {
-              Fallback: ToolCall,
-            },
+        <MessagePrimitive.Parts>
+          {({ part }) => {
+            if (part.type === "text") return <MarkdownText />;
+            if (part.type === "reasoning") return <Reasoning {...part} />;
+            if (part.type === "tool-call") return <ToolCall {...part} />;
+            return null;
           }}
-        />
+        </MessagePrimitive.Parts>
         <MessageError />
       </div>
       <AssistantActionBar />
     </MessagePrimitive.Root>
-  );
-}
-
-function Thinking({ status }: { status: { type: string } }): ReactNode {
-  if (status.type !== "running") return null;
-
-  return (
-    <div className="flex items-center gap-2 py-1 text-muted-foreground">
-      <LoaderIcon className="size-3 animate-spin" />
-      <span className="text-sm">Thinking...</span>
-    </div>
   );
 }
 

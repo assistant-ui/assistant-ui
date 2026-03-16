@@ -37,12 +37,12 @@ const usePartMessages = (): readonly ThreadMessage[] | undefined => {
  * const SubAgentToolUI = makeAssistantToolUI({
  *   toolName: "invoke_sub_agent",
  *   render: () => (
- *     <PartPrimitive.Messages
- *       components={{
- *         UserMessage: MyUserMessage,
- *         AssistantMessage: MyAssistantMessage,
+ *     <PartPrimitive.Messages>
+ *       {({ message }) => {
+ *         if (message.role === "user") return <MyUserMessage />;
+ *         return <MyAssistantMessage />;
  *       }}
- *     />
+ *     </PartPrimitive.Messages>
  *   ),
  * });
  * ```

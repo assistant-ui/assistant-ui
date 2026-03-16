@@ -133,7 +133,9 @@ export {
   MessagePartComponent,
   MessagePrimitivePartByIndex,
   defaultComponents as messagePartsDefaultComponents,
+  type EnrichedPartState,
 } from "./primitives/message/MessageParts";
+export { MessagePrimitiveQuote } from "./primitives/message/MessageQuote";
 export {
   MessagePrimitiveAttachments,
   MessagePrimitiveAttachmentByIndex,

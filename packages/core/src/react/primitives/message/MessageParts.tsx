@@ -263,8 +263,8 @@ export namespace MessagePrimitiveParts {
         children?: never;
       }
     | {
-        /** Render function called for each part. Receives the part. */
-        children: (value: { part: PartState }) => ReactNode;
+        /** Render function called for each part. Receives the enriched part state. */
+        children: (value: { part: EnrichedPartState }) => ReactNode;
         components?: never;
         unstable_showEmptyOnNonTextEnd?: never;
       };
@@ -490,27 +490,145 @@ const QuoteRendererImpl: FC<{ Quote: QuoteMessagePartComponent }> = ({
 
 const QuoteRenderer = memo(QuoteRendererImpl);
 
+/**
+ * Stable propless component that renders the registered tool UI for the
+ * current part context. Reads tool registry and part state from context.
+ */
+const RegisteredToolUI: FC = () => {
+  const aui = useAui();
+  const part = useAuiState((s) => s.part);
+  const Render = useAuiState((s) => {
+    if (s.part.type !== "tool-call") return null;
+    const entry = s.tools.tools[s.part.toolName];
+    if (Array.isArray(entry)) return entry[0] ?? null;
+    return entry ?? null;
+  });
+
+  if (!Render || part.type !== "tool-call") return null;
+
+  return (
+    <Render
+      {...part}
+      addResult={aui.part().addToolResult}
+      resume={aui.part().resumeToolCall}
+    />
+  );
+};
+
+/**
+ * Stable propless component that renders the registered data renderer UI
+ * for the current part context.
+ */
+const RegisteredDataRendererUI: FC = () => {
+  const part = useAuiState((s) => s.part);
+  const Render = useAuiState((s) => {
+    if (s.part.type !== "data") return null;
+    const entry = s.dataRenderers.renderers[s.part.name];
+    if (Array.isArray(entry)) return entry[0] ?? null;
+    return entry ?? null;
+  });
+
+  if (!Render || part.type !== "data") return null;
+
+  return <Render {...(part as DataMessagePartProps)} />;
+};
+
+/**
+ * Fallback component rendered when the children render function returns null.
+ * Renders registered tool/data UIs via context.
+ * For all other part types, renders nothing.
+ *
+ * This allows users to write:
+ *   {({ part }) => {
+ *     if (part.type === "text") return <MyText />;
+ *     return null; // tool UIs and data UIs still render via registry
+ *   }}
+ *
+ * To explicitly render nothing (suppressing registered UIs), return <></>.
+ */
+const DefaultPartFallback: FC = () => {
+  const partType = useAuiState((s) => s.part.type);
+
+  if (partType === "tool-call") return <RegisteredToolUI />;
+  if (partType === "data") return <RegisteredDataRendererUI />;
+
+  return null;
+};
+
+export type { PartState };
+
+/**
+ * Enriched part state passed to children render functions.
+ *
+ * For tool-call parts, adds `toolUI`, `addResult`, and `resume`.
+ * For data parts, adds `dataRendererUI`.
+ */
+export type EnrichedPartState =
+  | (Extract<PartState, { type: "tool-call" }> & {
+      /** The registered tool UI element, or null if none registered. */
+      readonly toolUI: ReactNode;
+      /** Add a tool result to this tool call. */
+      addResult: ToolCallMessagePartProps["addResult"];
+      /** Resume a tool call waiting for human input. */
+      resume: ToolCallMessagePartProps["resume"];
+    })
+  | (Extract<PartState, { type: "data" }> & {
+      /** The registered data renderer UI element, or null if none registered. */
+      readonly dataRendererUI: ReactNode;
+    })
+  | Exclude<PartState, { type: "tool-call" } | { type: "data" }>;
+
 const MessagePrimitivePartsInner: FC<{
-  children: (value: { part: PartState }) => ReactNode;
-}> = ({ children }) => (
-  <AuiForEach keys={(s) => s.message.parts.map((_, index) => index)}>
-    {(index) => (
-      <PartByIndexProvider index={index}>
-        <RenderChildrenWithAccessor
-          getItemState={(aui) => aui.message().part({ index }).getState()}
-        >
-          {(getItem) =>
-            children({
-              get part() {
-                return getItem();
-              },
-            })
-          }
-        </RenderChildrenWithAccessor>
-      </PartByIndexProvider>
-    )}
-  </AuiForEach>
-);
+  children: (value: { part: EnrichedPartState }) => ReactNode;
+}> = ({ children }) => {
+  const aui = useAui();
+
+  return (
+    <AuiForEach keys={(s) => s.message.parts.map((_, index) => index)}>
+      {(index) => (
+        <PartByIndexProvider index={index}>
+          <RenderChildrenWithAccessor
+            getItemState={(aui) => aui.message().part({ index }).getState()}
+          >
+            {(getItem) => {
+              const result = children({
+                get part() {
+                  const state = getItem();
+                  if (state.type === "tool-call") {
+                    const entry = aui.tools().getState().tools[state.toolName];
+                    const hasUI = Array.isArray(entry) ? !!entry[0] : !!entry;
+                    const partMethods = aui.message().part({ index });
+                    return {
+                      ...state,
+                      toolUI: hasUI ? <RegisteredToolUI /> : null,
+                      addResult: partMethods.addToolResult,
+                      resume: partMethods.resumeToolCall,
+                    };
+                  }
+                  if (state.type === "data") {
+                    const entry = aui.dataRenderers().getState().renderers[
+                      state.name
+                    ];
+                    const hasUI = Array.isArray(entry) ? !!entry[0] : !!entry;
+                    return {
+                      ...state,
+                      dataRendererUI: hasUI ? (
+                        <RegisteredDataRendererUI />
+                      ) : null,
+                    };
+                  }
+                  return state;
+                },
+              });
+              if (result !== null) return result;
+              return <DefaultPartFallback />;
+            }}
+          </RenderChildrenWithAccessor>
+        </PartByIndexProvider>
+      )}
+    </AuiForEach>
+  );
+};
 
 /**
  * Renders the parts of a message with support for multiple content types.

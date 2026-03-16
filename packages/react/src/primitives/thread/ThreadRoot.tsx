@@ -22,7 +22,9 @@ export namespace ThreadPrimitiveRoot {
  * ```tsx
  * <ThreadPrimitive.Root>
  *   <ThreadPrimitive.Viewport>
- *     <ThreadPrimitive.Messages components={{ Message: MyMessage }} />
+ *     <ThreadPrimitive.Messages>
+ *       {() => <MyMessage />}
+ *     </ThreadPrimitive.Messages>
  *   </ThreadPrimitive.Viewport>
  * </ThreadPrimitive.Root>
  * ```

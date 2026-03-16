@@ -179,7 +179,9 @@ export const Thread = () => {
         </Box>
       </ThreadPrimitive.Empty>
 
-      <ThreadPrimitive.Messages components={{ Message }} />
+      <ThreadPrimitive.Messages>
+        {() => <Message />}
+      </ThreadPrimitive.Messages>
 
       <StatusIndicator />
 

@@ -51,7 +51,9 @@ export const Grok = () => {
       </AuiIf>
 
       <ThreadPrimitive.Viewport className="flex grow flex-col overflow-y-scroll pt-16">
-        <ThreadPrimitive.Messages components={{ Message: ChatMessage }} />
+        <ThreadPrimitive.Messages>
+          {() => <ChatMessage />}
+        </ThreadPrimitive.Messages>
       </ThreadPrimitive.Viewport>
       <Composer />
     </ThreadPrimitive.Root>

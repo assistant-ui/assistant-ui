@@ -87,7 +87,9 @@ The `MessagePrimitive.Content` component has been renamed to `MessagePrimitive.P
 
 ```diff
 -<MessagePrimitive.Content components={{ Text: MyText }} />
-+<MessagePrimitive.Parts components={{ Text: MyText }} />
++<MessagePrimitive.Parts>
++  {({ part }) => part.type === "text" ? <MyText {...part} /> : null}
++</MessagePrimitive.Parts>
 ```
 
 ### Migration

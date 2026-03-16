@@ -17,7 +17,7 @@ type MessageAttachmentsComponentConfig = {
 export namespace MessagePrimitiveAttachments {
   export type Props =
     | {
-        components?: MessageAttachmentsComponentConfig | undefined;
+        components: MessageAttachmentsComponentConfig;
         children?: never;
       }
     | {
@@ -128,7 +128,7 @@ export const MessagePrimitiveAttachments: FC<
   }
   return (
     <MessagePrimitiveAttachmentsInner>
-      {children!}
+      {children}
     </MessagePrimitiveAttachmentsInner>
   );
 };

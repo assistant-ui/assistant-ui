@@ -54,9 +54,12 @@ export const ChatGPT = () => {
           </div>
         </AuiIf>
 
-        <ThreadPrimitive.Messages
-          components={{ UserMessage, EditComposer, AssistantMessage }}
-        />
+        <ThreadPrimitive.Messages>
+          {({ message }) => {
+            if (message.role === "user") return <UserMessage />;
+            return <AssistantMessage />;
+          }}
+        </ThreadPrimitive.Messages>
       </ThreadPrimitive.Viewport>
 
       <ComposerPrimitive.Root className="mx-auto flex w-full max-w-3xl items-end rounded-3xl bg-white/5 pl-2">

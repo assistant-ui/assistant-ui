@@ -227,12 +227,6 @@ The content of the message. This renders a separate component for each message p
               description:
                 "Component to render when the message has no parts, or when unstable_showEmptyOnNonTextEnd is enabled and the last part is not text or reasoning.",
             },
-            {
-              name: "Quote",
-              type: "QuoteMessagePartComponent",
-              description:
-                "Component for rendering a quoted message reference from message metadata (message.metadata.custom.quote). Rendered before the message parts.",
-            },
           ],
         },
       ],
@@ -243,6 +237,28 @@ The content of the message. This renders a separate component for each message p
       type: "boolean",
       description:
         "When enabled, shows the Empty component if the last part in the message is anything other than Text or Reasoning. Defaults to true.",
+    },
+  ]}
+/>
+
+### Quote
+
+Renders a quote block if the message has quote metadata (`message.metadata.custom.quote`). Place this above `MessagePrimitive.Parts`.
+
+```tsx
+<MessagePrimitive.Quote>
+  {({ text, messageId }) => <QuoteBlock text={text} messageId={messageId} />}
+</MessagePrimitive.Quote>
+```
+
+<ParametersTable
+  type="MessagePrimitiveQuoteProps"
+  parameters={[
+    {
+      name: "children",
+      required: true,
+      type: "(quote: QuoteInfo) => ReactNode",
+      description: "Render function called when a quote is present. Receives { text, messageId }.",
     },
   ]}
 />

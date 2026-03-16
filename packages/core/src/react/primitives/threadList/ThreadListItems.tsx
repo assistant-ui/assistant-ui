@@ -98,7 +98,7 @@ export const ThreadListPrimitiveItems: FC<ThreadListPrimitiveItems.Props> = ({
   }
   return (
     <ThreadListPrimitiveItemsInner archived={archived}>
-      {children!}
+      {children}
     </ThreadListPrimitiveItemsInner>
   );
 };

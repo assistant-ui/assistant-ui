@@ -116,18 +116,13 @@ You can map data events to UI components, similar to tool UIs. There are two app
 Pass a `data` config to `MessagePrimitive.Parts`:
 
 ```tsx
-<MessagePrimitive.Parts
-  components={{
-    data: {
-      by_name: {
-        my_chart: ({ name, data }) => <ChartComponent data={data} />,
-      },
-      Fallback: ({ name, data }) => (
-        <pre>{JSON.stringify(data, null, 2)}</pre>
-      ),
-    },
+<MessagePrimitive.Parts>
+  {({ part }) => {
+    if (part.type === "data" && part.name === "my_chart") return <ChartComponent data={part.data} />;
+    if (part.type === "data") return <pre>{JSON.stringify(part.data, null, 2)}</pre>;
+    return null;
   }}
-/>
+</MessagePrimitive.Parts>
 ```
 
 #### Global registration
@@ -176,12 +171,12 @@ Renders nested messages from a tool call part's `messages` field. This is used i
 ```tsx
 import { MessagePartPrimitive } from "@assistant-ui/react";
 
-<MessagePartPrimitive.Messages
-  components={{
-    UserMessage: MyUserMessage,
-    AssistantMessage: MyAssistantMessage,
+<MessagePartPrimitive.Messages>
+  {({ message }) => {
+    if (message.role === "user") return <MyUserMessage />;
+    return <MyAssistantMessage />;
   }}
-/>;
+</MessagePartPrimitive.Messages>;
 ```
 
 This primitive must be used inside a tool call part context (e.g. inside a `makeAssistantToolUI` render function). It reads the `messages` field from the current `ToolCallMessagePart` and renders them in a readonly thread context.
@@ -199,25 +194,18 @@ Message part context is provided by `MessagePrimitive.Parts` or `TextMessagePart
 ```tsx
 import { MessagePrimitive } from "@assistant-ui/react";
 
-<MessagePrimitive.Parts
-  components={{
-    Text: MyText,
-    Reasoning: MyReasoning,
-    Audio: MyAudio,
-    tools: {
-      by_name: {
-        get_weather: MyWeatherToolUI,
-      },
-      Fallback: MyFallbackToolUI,
-    },
-    data: {
-      by_name: {
-        my_chart: MyChartComponent,
-      },
-      Fallback: GenericDataComponent,
-    },
+<MessagePrimitive.Parts>
+  {({ part }) => {
+    if (part.type === "text") return <MyText />;
+    if (part.type === "reasoning") return <MyReasoning {...part} />;
+    if (part.type === "audio") return <MyAudio {...part} />;
+    if (part.type === "tool-call" && part.toolName === "get_weather") return <MyWeatherToolUI {...part} />;
+    if (part.type === "tool-call") return <MyFallbackToolUI {...part} />;
+    if (part.type === "data" && part.name === "my_chart") return <MyChartComponent {...part} />;
+    if (part.type === "data") return <GenericDataComponent {...part} />;
+    return null;
   }}
-/>;
+</MessagePrimitive.Parts>;
 ```
 
 ### TextMessagePartProvider

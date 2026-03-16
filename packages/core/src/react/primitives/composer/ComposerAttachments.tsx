@@ -17,7 +17,7 @@ type ComposerAttachmentsComponentConfig = {
 export namespace ComposerPrimitiveAttachments {
   export type Props =
     | {
-        components?: ComposerAttachmentsComponentConfig | undefined;
+        components: ComposerAttachmentsComponentConfig;
         children?: never;
       }
     | {
@@ -125,7 +125,7 @@ export const ComposerPrimitiveAttachments: FC<
   }
   return (
     <ComposerPrimitiveAttachmentsInner>
-      {children!}
+      {children}
     </ComposerPrimitiveAttachmentsInner>
   );
 };

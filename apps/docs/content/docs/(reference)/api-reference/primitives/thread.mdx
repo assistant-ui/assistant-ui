@@ -15,7 +15,7 @@ const Thread = () => (
   <ThreadPrimitive.Root>
     <ThreadPrimitive.Viewport>
       <AuiIf condition={(s) => s.thread.isEmpty}>...</AuiIf>
-      <ThreadPrimitive.Messages components={...} />
+      <ThreadPrimitive.Messages>{...}</ThreadPrimitive.Messages>
       <ThreadPrimitive.ViewportFooter className="sticky bottom-0">
         <Composer />
       </ThreadPrimitive.ViewportFooter>
@@ -100,7 +100,7 @@ This primitive renders a `<div>` element unless `asChild` is set.
 
 ```tsx
 <ThreadPrimitive.Viewport>
-  <ThreadPrimitive.Messages components={{ ... }} />
+  <ThreadPrimitive.Messages>{...}</ThreadPrimitive.Messages>
   <ThreadPrimitive.ViewportFooter className="sticky bottom-0">
     <Composer />
   </ThreadPrimitive.ViewportFooter>
@@ -187,13 +187,9 @@ Renders all messages. This primitive renders a separate component for each messa
 Renders a single message at the specified index in the current thread.
 
 ```tsx
-<ThreadPrimitive.MessageByIndex
-  index={0}
-  components={{
-    UserMessage: MyUserMessage,
-    AssistantMessage: MyAssistantMessage
-  }}
-/>
+<ThreadPrimitive.MessageByIndex index={0}>
+  {({ message }) => message.role === "user" ? <MyUserMessage /> : <MyAssistantMessage />}
+</ThreadPrimitive.MessageByIndex>
 ```
 
 <ParametersTable
@@ -345,11 +341,9 @@ import { ThreadPrimitive, SuggestionPrimitive } from "@assistant-ui/react";
 const SuggestionsList = () => {
   return (
     <div className="grid grid-cols-2 gap-2">
-      <ThreadPrimitive.Suggestions
-        components={{
-          Suggestion: SuggestionItem,
-        }}
-      />
+      <ThreadPrimitive.Suggestions>
+        {() => <SuggestionItem />}
+      </ThreadPrimitive.Suggestions>
     </div>
   );
 };

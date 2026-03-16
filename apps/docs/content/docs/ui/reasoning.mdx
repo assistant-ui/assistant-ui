@@ -27,18 +27,18 @@ Pass the `Reasoning` and `ReasoningGroup` components to the `MessagePrimitive.Pa
 
 ```tsx title="/app/components/assistant-ui/thread.tsx" {2,10-11}
 import { MessagePrimitive } from "@assistant-ui/react";
-import { Reasoning, ReasoningGroup } from "@/components/assistant-ui/reasoning";
+import { Reasoning } from "@/components/assistant-ui/reasoning";
 
 const AssistantMessage: FC = () => {
   return (
     <MessagePrimitive.Root className="...">
       <div className="...">
-        <MessagePrimitive.Parts
-          components={{
-            Reasoning: Reasoning,
-            ReasoningGroup: ReasoningGroup
+        <MessagePrimitive.Parts>
+          {({ part }) => {
+            if (part.type === "reasoning") return <Reasoning {...part} />;
+            return null;
           }}
-        />
+        </MessagePrimitive.Parts>
       </div>
       <AssistantActionBar />
       <BranchPicker className="..." />

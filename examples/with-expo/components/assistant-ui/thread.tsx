@@ -92,8 +92,6 @@ function EmptyState() {
   );
 }
 
-const messageComponents = { Message: MessageBubble };
-
 function ChatMessages() {
   return (
     <>
@@ -102,10 +100,11 @@ function ChatMessages() {
       </ThreadPrimitive.Empty>
       <ThreadPrimitive.If empty={false}>
         <ThreadPrimitive.Messages
-          components={messageComponents}
           contentContainerStyle={styles.messageList}
           showsVerticalScrollIndicator={false}
-        />
+        >
+          {() => <MessageBubble />}
+        </ThreadPrimitive.Messages>
       </ThreadPrimitive.If>
     </>
   );

@@ -96,7 +96,7 @@ export const ThreadPrimitiveSuggestionsImpl: FC<
   }
   return (
     <ThreadPrimitiveSuggestionsInner>
-      {children!}
+      {children}
     </ThreadPrimitiveSuggestionsInner>
   );
 };

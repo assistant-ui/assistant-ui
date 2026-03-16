@@ -31,7 +31,9 @@ For additional features, install the optional plugins:
 import { StreamdownTextPrimitive } from "@assistant-ui/react-streamdown";
 
 // Inside a MessagePrimitive.Parts component
-<MessagePrimitive.Parts components={{ Text: StreamdownText }} />
+<MessagePrimitive.Parts>
+  {({ part }) => part.type === "text" ? <StreamdownText {...part} /> : null}
+</MessagePrimitive.Parts>
 
 // Where StreamdownText is:
 const StreamdownText = () => <StreamdownTextPrimitive />;

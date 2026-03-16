@@ -25,13 +25,12 @@ import { ThreadPrimitive, AuiIf } from "@assistant-ui/react";
       {/* ThreadWelcome includes ThreadPrimitive.Suggestions */}
     </AuiIf>
 
-    <ThreadPrimitive.Messages
-      components={{
-        EditComposer,
-        UserMessage,
-        AssistantMessage,
+    <ThreadPrimitive.Messages>
+      {({ message }) => {
+        if (message.role === "user") return <UserMessage />;
+        return <AssistantMessage />;
       }}
-    />
+    </ThreadPrimitive.Messages>
 
     <ThreadPrimitive.ViewportFooter>
       <ThreadPrimitive.ScrollToBottom />
@@ -119,11 +118,9 @@ const aui = useAui({
 });
 
 // Display suggestions in your thread component
-<ThreadPrimitive.Suggestions
-  components={{
-    Suggestion: SuggestionItem,
-  }}
-/>
+<ThreadPrimitive.Suggestions>
+  {() => <SuggestionItem />}
+</ThreadPrimitive.Suggestions>
 
 // Custom suggestion item
 const SuggestionItem = () => (
@@ -197,13 +194,12 @@ This primitive renders a `<div>` element unless `asChild` is set.
 Renders all messages in the thread. This primitive renders a separate component for each message.
 
 ```tsx
-<ThreadPrimitive.Messages
-  components={{
-    UserMessage: UserMessage,
-    EditComposer: EditComposer,
-    AssistantMessage: AssistantMessage,
+<ThreadPrimitive.Messages>
+  {({ message }) => {
+    if (message.role === "user") return <UserMessage />;
+    return <AssistantMessage />;
   }}
-/>
+</ThreadPrimitive.Messages>
 ```
 
 <ParametersTable
@@ -326,11 +322,9 @@ This primitive renders a `<button>` element unless `asChild` is set.
 Renders all configured suggestions. Configure suggestions using the `Suggestions()` API in your runtime provider.
 
 ```tsx
-<ThreadPrimitive.Suggestions
-  components={{
-    Suggestion: CustomSuggestionComponent,
-  }}
-/>
+<ThreadPrimitive.Suggestions>
+  {() => <CustomSuggestionComponent />}
+</ThreadPrimitive.Suggestions>
 ```
 
 <ParametersTable
