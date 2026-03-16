@@ -46,4 +46,5 @@ export type {
   ItemStartedEvent,
   ItemUpdatedEvent,
   ItemCompletedEvent,
+  CodexClientConfig,
 } from "./types";

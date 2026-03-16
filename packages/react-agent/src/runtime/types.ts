@@ -287,6 +287,17 @@ export interface AgentClientConfig {
   model?: string;
 }
 
+export interface CodexClientConfig {
+  /** Working directory for the Codex session */
+  cwd: string;
+  /** Path to the codex binary (default: "codex") */
+  codexPath?: string;
+  /** AI model to use */
+  model?: string;
+  /** OpenAI API key — passed to subprocess via OPENAI_API_KEY env var */
+  apiKey?: string;
+}
+
 export interface CreateTaskOptions {
   prompt: string;
   model?: string;
