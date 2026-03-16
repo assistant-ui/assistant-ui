@@ -358,8 +358,8 @@ const useAdkRuntimeImpl = ({
         ({ messages: msgs }) => {
           setMessages(msgs);
         },
-        () => {
-          // Silently ignore load failures (e.g. session not found)
+        (e) => {
+          console.warn("Failed to load ADK session:", e);
         },
       );
     }, [aui, setMessages]);

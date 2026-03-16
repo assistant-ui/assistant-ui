@@ -146,9 +146,9 @@ export const adkEventStream = (
         controller.close();
       }
     },
-    cancel() {
+    async cancel() {
       cancelled = true;
-      events.return?.(undefined as any);
+      await events.return?.(undefined as any);
     },
   });
 

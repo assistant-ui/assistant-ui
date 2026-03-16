@@ -83,6 +83,14 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
     hasLocalComponents: false,
   },
   {
+    name: "with-google-adk",
+    label: "Google ADK",
+    description: "Google ADK agent integration",
+    category: "example",
+    path: "examples/with-google-adk",
+    hasLocalComponents: false,
+  },
+  {
     name: "with-ai-sdk-v6",
     label: "AI SDK v6",
     description: "Vercel AI SDK v6",
