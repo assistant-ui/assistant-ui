@@ -46,18 +46,18 @@ describe("AuiForEach infinite loop prevention", () => {
       items: [{ id: "a" }, { id: "b" }, { id: "c" }],
     });
 
-    let renderCount = 0;
+    let childRenderCount = 0;
 
-    const TestComponent = () => {
-      renderCount++;
-      return (
-        <AuiForEach
-          keys={((s: any) => s.items.map((_: unknown, i: number) => i)) as any}
-        >
-          {(key: number) => <div key={key}>Item {key}</div>}
-        </AuiForEach>
-      );
-    };
+    const TestComponent = () => (
+      <AuiForEach
+        keys={((s: any) => s.items.map((_: unknown, i: number) => i)) as any}
+      >
+        {(key: number) => {
+          childRenderCount++;
+          return <div>Item {key}</div>;
+        }}
+      </AuiForEach>
+    );
 
     render(
       <AuiProvider value={testClient.client as never}>
@@ -65,14 +65,18 @@ describe("AuiForEach infinite loop prevention", () => {
       </AuiProvider>,
     );
 
-    const initialRenderCount = renderCount;
+    // 3 items rendered initially
+    expect(childRenderCount).toBe(3);
+    childRenderCount = 0;
 
-    // Notify without changing data — must not infinite-loop
+    // Notify without changing data — must not infinite-loop.
+    // Before the fix, this throws "Maximum update depth exceeded".
     act(() => {
       testClient.notify();
     });
 
-    expect(renderCount - initialRenderCount).toBeLessThan(10);
+    // Should not have re-rendered children (data unchanged)
+    expect(childRenderCount).toBeLessThan(10);
   });
 
   it("does not infinite-loop with unstable id-based keys selector", () => {
@@ -80,20 +84,20 @@ describe("AuiForEach infinite loop prevention", () => {
       items: [{ id: "a" }, { id: "b" }, { id: "c" }],
     });
 
-    let renderCount = 0;
+    let childRenderCount = 0;
 
-    const TestComponent = () => {
-      renderCount++;
-      return (
-        <AuiForEach
-          keys={
-            ((s: any) => s.items.map((item: { id: string }) => item.id)) as any
-          }
-        >
-          {(key: string) => <div key={key}>Item {key}</div>}
-        </AuiForEach>
-      );
-    };
+    const TestComponent = () => (
+      <AuiForEach
+        keys={
+          ((s: any) => s.items.map((item: { id: string }) => item.id)) as any
+        }
+      >
+        {(key: string) => {
+          childRenderCount++;
+          return <div>Item {key}</div>;
+        }}
+      </AuiForEach>
+    );
 
     render(
       <AuiProvider value={testClient.client as never}>
@@ -101,13 +105,14 @@ describe("AuiForEach infinite loop prevention", () => {
       </AuiProvider>,
     );
 
-    const initialRenderCount = renderCount;
+    expect(childRenderCount).toBe(3);
+    childRenderCount = 0;
 
     act(() => {
       testClient.notify();
     });
 
-    expect(renderCount - initialRenderCount).toBeLessThan(10);
+    expect(childRenderCount).toBeLessThan(10);
   });
 
   it("re-renders correctly when item IDs change (same length)", () => {
@@ -153,16 +158,16 @@ describe("AuiForEach infinite loop prevention", () => {
       threadIds: ["t1", "t2", "t3"],
     });
 
-    let renderCount = 0;
+    let childRenderCount = 0;
 
-    const TestComponent = () => {
-      renderCount++;
-      return (
-        <AuiForEach keys={((s: any) => s.threadIds) as any}>
-          {(key: string) => <div key={key}>Thread {key}</div>}
-        </AuiForEach>
-      );
-    };
+    const TestComponent = () => (
+      <AuiForEach keys={((s: any) => s.threadIds) as any}>
+        {(key: string) => {
+          childRenderCount++;
+          return <div>Thread {key}</div>;
+        }}
+      </AuiForEach>
+    );
 
     render(
       <AuiProvider value={testClient.client as never}>
@@ -170,12 +175,13 @@ describe("AuiForEach infinite loop prevention", () => {
       </AuiProvider>,
     );
 
-    const initialRenderCount = renderCount;
+    expect(childRenderCount).toBe(3);
+    childRenderCount = 0;
 
     act(() => {
       testClient.notify();
     });
 
-    expect(renderCount - initialRenderCount).toBeLessThan(10);
+    expect(childRenderCount).toBeLessThan(10);
   });
 });

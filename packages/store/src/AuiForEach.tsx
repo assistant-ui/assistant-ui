@@ -32,7 +32,7 @@ function useStableArraySelector<TKey extends string | number>(
   // useRef is safe here — getSnapshot reads the ref but never calls setState.
   const cacheRef = useRef<readonly TKey[]>(undefined!);
 
-  const arr = useSyncExternalStore(aui.subscribe, () => {
+  const getSnapshot = () => {
     const next = selector(proxiedState);
 
     // Fast path: same reference (selector already returns stable array)
@@ -49,7 +49,9 @@ function useStableArraySelector<TKey extends string | number>(
 
     cacheRef.current = next;
     return next;
-  });
+  };
+
+  const arr = useSyncExternalStore(aui.subscribe, getSnapshot, getSnapshot);
 
   return arr;
 }
