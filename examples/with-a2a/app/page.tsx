@@ -166,8 +166,13 @@ function ArtifactPartView({ part }: { part: A2APart }) {
         />
       );
     }
+    const dataUri = `data:${part.mediaType ?? "application/octet-stream"};base64,${part.raw}`;
     return (
-      <div className="inline-flex items-center gap-2 rounded border bg-background p-2 text-sm">
+      <a
+        href={dataUri}
+        download={part.filename ?? "download"}
+        className="inline-flex items-center gap-2 rounded border bg-background p-2 text-sm hover:bg-muted"
+      >
         <span>📎</span>
         <span>{part.filename ?? "File"}</span>
         {part.mediaType && (
@@ -175,7 +180,7 @@ function ArtifactPartView({ part }: { part: A2APart }) {
             {part.mediaType}
           </span>
         )}
-      </div>
+      </a>
     );
   }
   return null;

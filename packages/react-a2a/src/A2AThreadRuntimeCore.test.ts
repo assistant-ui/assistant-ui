@@ -222,17 +222,18 @@ describe("A2AThreadRuntimeCore", () => {
     });
 
     it("is running during stream and not after", async () => {
+      let wasRunningDuringStream = false;
       const core = createCore({
         streamMessage: vi.fn().mockImplementation(async function* () {
-          yield statusUpdateEvent("working", "...");
-          // Don't end yet - we check isRunning during stream
+          // Capture isRunning state mid-stream
+          wasRunningDuringStream = core.isRunning();
+          yield statusUpdateEvent("completed", "Done");
         }),
       });
 
-      const appendPromise = core.append(createUserAppendMessage("Go"));
-      // After append resolves the stream is done
-      await appendPromise;
+      await core.append(createUserAppendMessage("Go"));
 
+      expect(wasRunningDuringStream).toBe(true);
       expect(core.isRunning()).toBe(false);
     });
   });

@@ -93,6 +93,8 @@ export type UseA2ARuntimeOptions = {
   onError?: (error: Error) => void;
   /** Called when a run is cancelled. */
   onCancel?: () => void;
+  /** Called when an artifact is fully received (lastChunk). */
+  onArtifactComplete?: (artifact: import("./types").A2AArtifact) => void;
 
   adapters?: {
     attachments?: AttachmentAdapter;
@@ -137,6 +139,9 @@ export function useA2ARuntime(options: UseA2ARuntimeOptions): AssistantRuntime {
       configuration: options.configuration,
       ...(options.onError && { onError: options.onError }),
       ...(options.onCancel && { onCancel: options.onCancel }),
+      ...(options.onArtifactComplete && {
+        onArtifactComplete: options.onArtifactComplete,
+      }),
       ...(historyAdapter && { history: historyAdapter }),
       notifyUpdate,
     });
@@ -149,6 +154,9 @@ export function useA2ARuntime(options: UseA2ARuntimeOptions): AssistantRuntime {
     configuration: options.configuration,
     ...(options.onError && { onError: options.onError }),
     ...(options.onCancel && { onCancel: options.onCancel }),
+    ...(options.onArtifactComplete && {
+      onArtifactComplete: options.onArtifactComplete,
+    }),
     ...(historyAdapter && { history: historyAdapter }),
   });
 

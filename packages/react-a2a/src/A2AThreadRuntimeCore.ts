@@ -97,6 +97,11 @@ export class A2AThreadRuntimeCore {
 
   detachRuntime() {
     this.runtime = undefined;
+    // Abort in-flight requests on unmount
+    if (this.abortController) {
+      this.abortController.abort();
+      this.abortController = null;
+    }
   }
 
   getRuntime(): AssistantRuntime | undefined {
@@ -192,27 +197,30 @@ export class A2AThreadRuntimeCore {
     this.resetHead(parentId);
     this.notifyUpdate();
 
-    // Create a synthetic user message to re-trigger the last turn
-    const lastMessage = this.messages.at(-1);
-    if (lastMessage) {
-      await this.startRun(lastMessage);
+    // Find the last user message to re-run
+    for (let i = this.messages.length - 1; i >= 0; i--) {
+      if (this.messages[i]!.role === "user") {
+        await this.startRun(this.messages[i]!);
+        return;
+      }
     }
   }
 
   async cancel(): Promise<void> {
     if (!this.abortController) return;
 
-    // Try to cancel the task on the server and update state from response
+    // Abort locally first so the stream stops immediately
+    this.abortController.abort();
+
+    // Then try to cancel the task on the server
     if (this.currentTask?.id) {
       try {
         const updated = await this.client.cancelTask(this.currentTask.id);
         this.currentTask = updated;
       } catch {
-        // Server cancel failed, still abort locally
+        // Server cancel failed; local abort already handled
       }
     }
-
-    this.abortController.abort();
   }
 
   applyExternalMessages(messages: readonly ThreadMessage[]): void {
@@ -222,6 +230,9 @@ export class A2AThreadRuntimeCore {
     for (const message of this.messages) {
       this.recordedHistoryIds.add(message.id);
     }
+    // Reset task-specific state to prevent leaking into new thread
+    this.currentTask = undefined;
+    this.currentArtifacts = [];
     this.notifyUpdate();
   }
 

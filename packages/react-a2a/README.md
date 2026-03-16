@@ -5,15 +5,14 @@
 ## Installation
 
 ```sh
-npm install @assistant-ui/react-a2a
+npm install @assistant-ui/react @assistant-ui/react-a2a
 ```
 
 ## Quick Start
 
 ```tsx
-import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { AssistantRuntimeProvider, Thread } from "@assistant-ui/react";
 import { useA2ARuntime } from "@assistant-ui/react-a2a";
-import { Thread } from "@assistant-ui/react";
 
 function App() {
   const runtime = useA2ARuntime({

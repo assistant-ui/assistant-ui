@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { A2AClient, A2AError } from "./A2AClient";
 import type { A2AMessage, A2AStreamEvent } from "./types";
 
@@ -56,6 +56,10 @@ describe("A2AClient", () => {
     fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
     client = new A2AClient({ baseUrl: "https://agent.test" });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   // --- Headers ---

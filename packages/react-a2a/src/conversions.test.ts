@@ -234,6 +234,8 @@ describe("isInterruptedTaskState", () => {
     "completed",
     "failed",
     "canceled",
+    "rejected",
+    "unspecified",
   ] as A2ATaskState[])("returns false for %s", (state) => {
     expect(isInterruptedTaskState(state)).toBe(false);
   });
