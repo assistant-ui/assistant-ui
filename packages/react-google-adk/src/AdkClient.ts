@@ -75,6 +75,7 @@ export function createAdkStream(
         sessionId: externalId,
         newMessage: messagesToContent(messages),
         streaming: true,
+        ...(config.stateDelta != null && { stateDelta: config.stateDelta }),
       };
     } else {
       // Proxy mode: POST in parseAdkRequest-compatible format
@@ -163,6 +164,7 @@ function messagesToProxyBody(
 
   if (config.runConfig != null) body.runConfig = config.runConfig;
   if (config.checkpointId != null) body.checkpointId = config.checkpointId;
+  if (config.stateDelta != null) body.stateDelta = config.stateDelta;
 
   // Check if there's a tool result
   const toolMsg = messages.find((m) => m.type === "tool");

@@ -145,7 +145,7 @@ import {
 
 const ADK_URL = "http://localhost:8000";
 
-const { adapter, load } = createAdkSessionAdapter({
+const { adapter, load, artifacts } = createAdkSessionAdapter({
   apiUrl: ADK_URL,
   appName: "my-app",
   userId: "user-1",
@@ -166,6 +166,7 @@ The session adapter maps ADK sessions to assistant-ui threads:
 
 - **`adapter`** — a `RemoteThreadListAdapter` that uses ADK's session REST API for thread CRUD
 - **`load`** — reconstructs messages from session events via `AdkEventAccumulator`
+- **`artifacts`** — functions to fetch, list, and delete session artifacts (see [Artifact Fetching](#artifact-fetching))
 
 | Option | Type | Description |
 |--------|------|-------------|
@@ -253,31 +254,28 @@ function MyComponent() {
 
 ### Tool Confirmations
 
-When ADK's `SecurityPlugin` or tool callbacks request user confirmation before executing a tool, these are surfaced via `useAdkToolConfirmations`:
+When ADK's `SecurityPlugin` or tool callbacks request user confirmation before executing a tool, use `useAdkToolConfirmations` to read pending requests and `useAdkConfirmTool` to respond:
 
 ```typescript
-import { useAdkToolConfirmations, useAdkSend } from "@assistant-ui/react-google-adk";
+import {
+  useAdkToolConfirmations,
+  useAdkConfirmTool,
+} from "@assistant-ui/react-google-adk";
 
 function ToolConfirmationUI() {
   const confirmations = useAdkToolConfirmations();
-  const send = useAdkSend();
+  const confirmTool = useAdkConfirmTool();
 
   if (confirmations.length === 0) return null;
 
   return confirmations.map((conf) => (
     <div key={conf.toolCallId}>
       <p>Tool "{conf.toolName}" wants to run. {conf.hint}</p>
-      <button onClick={() => {
-        // Send confirmation response back to ADK
-        send([{
-          id: "",
-          type: "tool",
-          tool_call_id: conf.toolCallId,
-          name: "adk_request_confirmation",
-          content: JSON.stringify({ confirmed: true, payload: conf.payload }),
-        }], {});
-      }}>
+      <button onClick={() => confirmTool(conf.toolCallId, true)}>
         Approve
+      </button>
+      <button onClick={() => confirmTool(conf.toolCallId, false)}>
+        Deny
       </button>
     </div>
   ));
@@ -286,16 +284,38 @@ function ToolConfirmationUI() {
 
 ### Auth Requests
 
-When a tool requires OAuth or other authentication, ADK sends `adk_request_credential` events:
+When a tool requires OAuth or other authentication, use `useAdkAuthRequests` to read pending requests and `useAdkSubmitAuth` to submit credentials:
 
 ```typescript
-import { useAdkAuthRequests } from "@assistant-ui/react-google-adk";
+import {
+  useAdkAuthRequests,
+  useAdkSubmitAuth,
+  type AdkAuthCredential,
+} from "@assistant-ui/react-google-adk";
 
 function AuthUI() {
   const authRequests = useAdkAuthRequests();
-  // Each request has: toolCallId, authConfig (OAuth config etc)
+  const submitAuth = useAdkSubmitAuth();
+
+  if (authRequests.length === 0) return null;
+
+  return authRequests.map((req) => (
+    <div key={req.toolCallId}>
+      <button onClick={() => {
+        const credential: AdkAuthCredential = {
+          authType: "oauth2",
+          oauth2: { accessToken: "..." },
+        };
+        submitAuth(req.toolCallId, credential);
+      }}>
+        Authenticate
+      </button>
+    </div>
+  ));
 }
 ```
+
+`AdkAuthCredential` supports all ADK auth types: `apiKey`, `http`, `oauth2`, `openIdConnect`, `serviceAccount`.
 
 ### Artifacts
 
@@ -308,6 +328,32 @@ function ArtifactList() {
   const artifacts = useAdkArtifacts();
   // Record<string, number> — filename to version number
 }
+```
+
+#### Artifact Fetching
+
+When using `createAdkSessionAdapter`, the returned `artifacts` object provides functions to fetch artifact content from the ADK server:
+
+```typescript
+const { artifacts } = createAdkSessionAdapter({ apiUrl, appName, userId });
+
+// List all artifact filenames in a session
+const filenames = await artifacts.list(sessionId);
+
+// Load artifact content (latest version)
+const data = await artifacts.load(sessionId, "document.pdf");
+// data.inlineData?.data — base64 content
+// data.inlineData?.mimeType — MIME type
+// data.text — text content (if text artifact)
+
+// Load a specific version
+const v1 = await artifacts.load(sessionId, "document.pdf", 1);
+
+// List all versions
+const versions = await artifacts.listVersions(sessionId, "document.pdf");
+
+// Delete an artifact
+await artifacts.delete(sessionId, "document.pdf");
 ```
 
 ### Escalation
@@ -352,6 +398,88 @@ function MessageMetadata({ messageId }: { messageId: string }) {
   // meta?.citationMetadata — citation references
   // meta?.usageMetadata — token counts
 }
+```
+
+### Session State by Scope
+
+ADK uses key prefixes to scope state. These helpers filter and strip the prefix:
+
+```typescript
+import {
+  useAdkAppState,
+  useAdkUserState,
+  useAdkTempState,
+} from "@assistant-ui/react-google-adk";
+
+function StateDebug() {
+  const appState = useAdkAppState();   // app:* keys (app-level, shared)
+  const userState = useAdkUserState(); // user:* keys (user-level)
+  const tempState = useAdkTempState(); // temp:* keys (not persisted)
+}
+```
+
+Use `useAdkSessionState()` for the full unfiltered state delta.
+
+## Structured Events
+
+Convert raw ADK events into typed, structured events for custom renderers:
+
+```typescript
+import {
+  toAdkStructuredEvents,
+  AdkEventType,
+  type AdkStructuredEvent,
+} from "@assistant-ui/react-google-adk";
+
+const structured = toAdkStructuredEvents(event);
+for (const e of structured) {
+  switch (e.type) {
+    case AdkEventType.CONTENT:
+      console.log("Text:", e.content);
+      break;
+    case AdkEventType.THOUGHT:
+      console.log("Reasoning:", e.content);
+      break;
+    case AdkEventType.TOOL_CALL:
+      console.log("Tool:", e.call.name, e.call.args);
+      break;
+    case AdkEventType.ERROR:
+      console.error(e.errorMessage);
+      break;
+  }
+}
+```
+
+## State Delta
+
+Send session state mutations along with messages using `stateDelta`:
+
+```typescript
+const send = useAdkSend();
+
+// Pre-populate session state before the agent runs
+send(
+  [{ id: "1", type: "human", content: "Start task" }],
+  { stateDelta: { taskId: "abc", mode: "verbose" } },
+);
+```
+
+This maps to ADK's `stateDelta` parameter on `/run_sse`.
+
+## RunConfig
+
+Pass `AdkRunConfig` to control agent behavior:
+
+```typescript
+const send = useAdkSend();
+
+send(messages, {
+  runConfig: {
+    streamingMode: "sse",
+    maxLlmCalls: 10,
+    pauseOnToolCalls: true, // pause for client-side tool execution
+  },
+});
 ```
 
 ## Event Handlers
@@ -441,24 +569,46 @@ The resolved `checkpointId` is passed to your `stream` callback via `config.chec
   Without `getCheckpointId`, edit and regenerate buttons will not appear.
 </Callout>
 
+## Hooks Reference
+
+| Hook | Description |
+|------|-------------|
+| `useAdkAgentInfo()` | Current agent name and branch path |
+| `useAdkSessionState()` | Full accumulated session state delta |
+| `useAdkAppState()` | App-level state (`app:*` prefix, stripped) |
+| `useAdkUserState()` | User-level state (`user:*` prefix, stripped) |
+| `useAdkTempState()` | Temp state (`temp:*` prefix, stripped, not persisted) |
+| `useAdkSend()` | Send raw ADK messages |
+| `useAdkConfirmTool()` | Confirm or deny a pending tool confirmation |
+| `useAdkSubmitAuth()` | Submit auth credentials for a pending auth request |
+| `useAdkToolConfirmations()` | Pending tool confirmation requests |
+| `useAdkAuthRequests()` | Pending auth credential requests |
+| `useAdkLongRunningToolIds()` | IDs of long-running tools awaiting input |
+| `useAdkArtifacts()` | Artifact delta (filename → version) |
+| `useAdkEscalation()` | Whether escalation was requested |
+| `useAdkMessageMetadata()` | Per-message grounding/citation/usage metadata |
+
 ## Features
 
 | Feature | Status |
 |---|---|
 | Streaming text (SSE) | Supported |
 | Tool calls & results | Supported |
-| Tool confirmations (SecurityPlugin) | Supported |
-| Auth credential requests | Supported |
+| Tool confirmations (`useAdkConfirmTool`) | Supported |
+| Auth credential flow (`useAdkSubmitAuth`) | Supported |
 | Multi-agent (author/branch tracking) | Supported |
 | Agent transfer events | Supported |
 | Escalation detection | Supported |
 | Chain-of-thought / reasoning | Supported |
 | Code execution (executableCode + result) | Supported |
 | Inline images & file data | Supported |
-| Session state delta | Supported |
-| Artifact delta tracking | Supported |
+| Session state delta + scoped state | Supported |
+| Artifact delta tracking + fetching | Supported |
 | Long-running tools (HITL) | Supported |
 | Grounding / citation / usage metadata | Supported |
+| Structured events (`toAdkStructuredEvents`) | Supported |
+| Typed `AdkRunConfig` | Supported |
+| Client → server `stateDelta` | Supported |
 | `finishReason` mapping (17 values) | Supported |
 | `interrupted` event handling | Supported |
 | Snake\_case events (Python ADK) | Supported |

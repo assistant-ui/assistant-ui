@@ -18,14 +18,22 @@ export type {
   AdkMessageContentPart,
   AdkToolCall,
   AdkToolConfirmation,
+  AdkAuthCredential,
+  AdkAuthCredentialType,
   AdkAuthRequest,
   AdkMessageMetadata,
+  AdkRunConfig,
   AdkSendMessageConfig,
   AdkStreamCallback,
+  AdkStructuredEvent,
   OnAdkErrorCallback,
   OnAdkCustomEventCallback,
   OnAdkAgentTransferCallback,
 } from "./types";
+
+export { AdkEventType } from "./types";
+
+export { toAdkStructuredEvents } from "./structuredEvents";
 
 export { AdkEventAccumulator } from "./AdkEventAccumulator";
 
@@ -37,6 +45,7 @@ export {
 export {
   createAdkSessionAdapter,
   type AdkSessionAdapterOptions,
+  type AdkArtifactData,
 } from "./AdkSessionAdapter";
 
 export {
@@ -49,4 +58,9 @@ export {
   useAdkArtifacts,
   useAdkEscalation,
   useAdkMessageMetadata,
+  useAdkConfirmTool,
+  useAdkSubmitAuth,
+  useAdkAppState,
+  useAdkUserState,
+  useAdkTempState,
 } from "./hooks";

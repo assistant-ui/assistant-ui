@@ -33,9 +33,27 @@ export type AdkSessionAdapterOptions = {
     | undefined;
 };
 
+export type AdkArtifactData = {
+  inlineData?: { mimeType: string; data: string } | undefined;
+  text?: string | undefined;
+};
+
 type AdkSessionAdapterResult = {
   adapter: RemoteThreadListAdapter;
   load: (sessionId: string) => Promise<{ messages: AdkMessage[] }>;
+  artifacts: {
+    list: (sessionId: string) => Promise<string[]>;
+    load: (
+      sessionId: string,
+      artifactName: string,
+      version?: number,
+    ) => Promise<AdkArtifactData>;
+    listVersions: (
+      sessionId: string,
+      artifactName: string,
+    ) => Promise<number[]>;
+    delete: (sessionId: string, artifactName: string) => Promise<void>;
+  };
 };
 
 /**
@@ -182,5 +200,46 @@ export function createAdkSessionAdapter(
     return { messages };
   };
 
-  return { adapter, load };
+  const artifactBaseUrl = (sessionId: string) =>
+    `${baseUrl}/${encodeURIComponent(sessionId)}/artifacts`;
+
+  const artifacts: AdkSessionAdapterResult["artifacts"] = {
+    async list(sessionId) {
+      const headers = await getHeaders();
+      const res = await fetch(artifactBaseUrl(sessionId), { headers });
+      if (!res.ok) throw new Error(`Failed to list artifacts: ${res.status}`);
+      const data = (await res.json()) as Array<{ filename: string }>;
+      return data.map((a) => a.filename);
+    },
+
+    async load(sessionId, artifactName, version?) {
+      const headers = await getHeaders();
+      let url = `${artifactBaseUrl(sessionId)}/${encodeURIComponent(artifactName)}`;
+      if (version != null) url += `/versions/${version}`;
+      const res = await fetch(url, { headers });
+      if (!res.ok) throw new Error(`Failed to load artifact: ${res.status}`);
+      return (await res.json()) as AdkArtifactData;
+    },
+
+    async listVersions(sessionId, artifactName) {
+      const headers = await getHeaders();
+      const url = `${artifactBaseUrl(sessionId)}/${encodeURIComponent(artifactName)}/versions`;
+      const res = await fetch(url, { headers });
+      if (!res.ok) {
+        throw new Error(`Failed to list artifact versions: ${res.status}`);
+      }
+      return (await res.json()) as number[];
+    },
+
+    async delete(sessionId, artifactName) {
+      const headers = await getHeaders();
+      const url = `${artifactBaseUrl(sessionId)}/${encodeURIComponent(artifactName)}`;
+      const res = await fetch(url, { method: "DELETE", headers });
+      if (!res.ok && res.status !== 404) {
+        throw new Error(`Failed to delete artifact: ${res.status}`);
+      }
+    },
+  };
+
+  return { adapter, load, artifacts };
 }

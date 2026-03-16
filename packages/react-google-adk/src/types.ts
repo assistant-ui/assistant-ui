@@ -124,6 +124,45 @@ export type AdkToolConfirmation = {
   payload?: unknown;
 };
 
+export type AdkAuthCredentialType =
+  | "apiKey"
+  | "http"
+  | "oauth2"
+  | "openIdConnect"
+  | "serviceAccount";
+
+export type AdkAuthCredential = {
+  authType: AdkAuthCredentialType;
+  resourceRef?: string | undefined;
+  apiKey?: string | undefined;
+  http?:
+    | {
+        scheme: string;
+        credentials: {
+          username?: string;
+          password?: string;
+          token?: string;
+        };
+      }
+    | undefined;
+  oauth2?:
+    | {
+        clientId?: string;
+        clientSecret?: string;
+        authUri?: string;
+        state?: string;
+        redirectUri?: string;
+        authResponseUri?: string;
+        authCode?: string;
+        accessToken?: string;
+        refreshToken?: string;
+        expiresAt?: number;
+        expiresIn?: number;
+      }
+    | undefined;
+  serviceAccount?: unknown;
+};
+
 export type AdkAuthRequest = {
   toolCallId: string;
   authConfig: unknown;
@@ -135,12 +174,66 @@ export type AdkMessageMetadata = {
   usageMetadata?: unknown;
 };
 
+// ── RunConfig ──
+
+export type AdkRunConfig = {
+  streamingMode?: "none" | "sse" | "bidi" | undefined;
+  pauseOnToolCalls?: boolean | undefined;
+  maxLlmCalls?: number | undefined;
+  saveInputBlobsAsArtifacts?: boolean | undefined;
+  supportCfc?: boolean | undefined;
+  speechConfig?: unknown;
+  responseModalities?: string[] | undefined;
+  outputAudioTranscription?: unknown;
+  inputAudioTranscription?: unknown;
+  enableAffectiveDialog?: boolean | undefined;
+  proactivity?: unknown;
+  realtimeInputConfig?: unknown;
+};
+
 // ── Stream callback types ──
 
 export type AdkSendMessageConfig = {
-  runConfig?: unknown;
+  runConfig?: AdkRunConfig | undefined;
   checkpointId?: string | undefined;
+  stateDelta?: Record<string, unknown> | undefined;
 };
+
+// ── Structured events ──
+
+export const AdkEventType = {
+  THOUGHT: "thought",
+  CONTENT: "content",
+  TOOL_CALL: "tool_call",
+  TOOL_RESULT: "tool_result",
+  CALL_CODE: "call_code",
+  CODE_RESULT: "code_result",
+  ERROR: "error",
+  ACTIVITY: "activity",
+  TOOL_CONFIRMATION: "tool_confirmation",
+  FINISHED: "finished",
+} as const;
+
+export type AdkStructuredEvent =
+  | { type: "thought"; content: string }
+  | { type: "content"; content: string }
+  | {
+      type: "tool_call";
+      call: { name: string; id?: string; args: Record<string, unknown> };
+    }
+  | {
+      type: "tool_result";
+      result: { name: string; id?: string; response: unknown };
+    }
+  | { type: "call_code"; code: { code: string; language?: string } }
+  | { type: "code_result"; result: { output: string; outcome?: string } }
+  | { type: "error"; errorCode?: string; errorMessage?: string }
+  | { type: "activity"; message: string }
+  | {
+      type: "tool_confirmation";
+      confirmations: Record<string, unknown>;
+    }
+  | { type: "finished" };
 
 export type AdkStreamCallback = (
   messages: AdkMessage[],
