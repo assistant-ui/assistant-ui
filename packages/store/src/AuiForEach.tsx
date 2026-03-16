@@ -5,6 +5,14 @@ import type { AssistantClient, AssistantState } from "./types/client";
 import { useAuiState } from "./useAuiState";
 import { useAui } from "./useAui";
 
+const shallowArrayEqual = <T,>(a: readonly T[], b: readonly T[]): boolean => {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (!Object.is(a[i], b[i])) return false;
+  }
+  return true;
+};
+
 /**
  * Component that iterates over a list of items with key-stable rendering.
  *
@@ -31,7 +39,15 @@ export function AuiForEach<TKey extends string | number>({
   keys: (state: AssistantState) => readonly TKey[];
   children: (itemKey: TKey, index: number) => ReactNode;
 }): ReactNode {
-  const arr = useAuiState(keysSelector);
+  const prevRef = useRef<readonly TKey[] | undefined>(undefined);
+  const arr = useAuiState((state) => {
+    const next = keysSelector(state);
+    if (prevRef.current && shallowArrayEqual(prevRef.current, next)) {
+      return prevRef.current;
+    }
+    prevRef.current = next;
+    return next;
+  });
 
   return useMemo(
     () =>
