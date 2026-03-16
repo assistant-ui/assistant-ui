@@ -18,6 +18,7 @@ import {
 } from "@assistant-ui/core/react";
 import { useAui } from "@assistant-ui/store";
 import type { AssistantCloud } from "assistant-cloud";
+import type { RemoteThreadListAdapter } from "@assistant-ui/core";
 import type {
   AdkMessage,
   AdkSendMessageConfig,
@@ -123,6 +124,11 @@ export type UseAdkRuntimeOptions = {
       }
     | undefined;
   cloud?: AssistantCloud | undefined;
+  /**
+   * A `RemoteThreadListAdapter` to use instead of the cloud adapter.
+   * Use with `createAdkSessionAdapter` for ADK session-backed persistence.
+   */
+  sessionAdapter?: RemoteThreadListAdapter | undefined;
 };
 
 const useAdkRuntimeImpl = ({
@@ -359,6 +365,7 @@ const useAdkRuntimeImpl = ({
 
 export const useAdkRuntime = ({
   cloud,
+  sessionAdapter,
   create,
   delete: deleteFn,
   ...options
@@ -373,11 +380,14 @@ export const useAdkRuntime = ({
     },
     delete: deleteFn,
   });
+
+  const adapter = sessionAdapter ?? cloudAdapter;
+
   return useRemoteThreadListRuntime({
     runtimeHook: function RuntimeHook() {
       return useAdkRuntimeImpl(options);
     },
-    adapter: cloudAdapter,
+    adapter,
     allowNesting: true,
   });
 };

@@ -36,7 +36,9 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "aui-build"
+    "build": "aui-build",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@assistant-ui/core": "^0.1.6",
@@ -62,7 +64,8 @@
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/react": "^19.2.14",
     "@types/uuid": "^11.0.0",
-    "react": "^19.2.4"
+    "react": "^19.2.4",
+    "vitest": "^4.1.0"
   },
   "publishConfig": {
     "access": "public",

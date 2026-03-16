@@ -30,6 +30,16 @@ export type {
 export { AdkEventAccumulator } from "./AdkEventAccumulator";
 
 export {
+  createAdkStream,
+  type CreateAdkStreamOptions,
+} from "./AdkClient";
+
+export {
+  createAdkSessionAdapter,
+  type AdkSessionAdapterOptions,
+} from "./AdkSessionAdapter";
+
+export {
   useAdkAgentInfo,
   useAdkSessionState,
   useAdkSend,

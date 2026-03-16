@@ -296,22 +296,22 @@ export class AdkEventAccumulator {
     // Track per-message metadata (grounding, citation, usage)
     this.trackMessageMetadata(event);
 
-    // Non-partial event finalizes the current message
-    if (!event.partial) {
-      if (this.currentMessageId) {
-        const msg = this.messagesMap.get(this.currentMessageId);
-        if (msg && msg.type === "ai" && !msg.status) {
-          if (isFinalResponse(event)) {
-            const status = finishReasonToStatus(event.finishReason);
-            const updated: InProgressMessage = {
-              ...msg,
-              content: [...this.getContentArray(msg)],
-              status,
-            };
-            this.messagesMap.set(updated.id, updated);
-          }
-        }
+    // Check isFinalResponse (can be true even for partial events via skipSummarization/longRunningToolIds)
+    if (isFinalResponse(event) && this.currentMessageId) {
+      const msg = this.messagesMap.get(this.currentMessageId);
+      if (msg && msg.type === "ai" && !msg.status) {
+        const status = finishReasonToStatus(event.finishReason);
+        const updated: InProgressMessage = {
+          ...msg,
+          content: [...this.getContentArray(msg)],
+          status,
+        };
+        this.messagesMap.set(updated.id, updated);
       }
+    }
+
+    // Non-partial event finalizes the current message
+    if (!event.partial || isFinalResponse(event)) {
       this.finalizeCurrentMessage();
     }
 
