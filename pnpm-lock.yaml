@@ -144,7 +144,7 @@ importers:
         version: link:../../packages/ui
       '@aui-x/prism':
         specifier: ^0.0.5
-        version: 0.0.5(@ai-sdk/provider@3.0.8)(@anthropic-ai/sdk@0.78.0(zod@4.3.6))(ai@6.0.116(zod@4.3.6))(openai@6.29.0(ws@8.19.0)(zod@4.3.6))
+        version: 0.0.5(@ai-sdk/provider@3.0.8)(@anthropic-ai/sdk@0.78.0(zod@4.3.6))(ai@6.0.129(zod@4.3.6))(openai@6.29.0(ws@8.19.0)(zod@4.3.6))
       '@hookform/resolvers':
         specifier: ^5.2.2
         version: 5.2.2(react-hook-form@7.71.2(react@19.2.4))
@@ -176,8 +176,8 @@ importers:
         specifier: ^3.0.0
         version: 3.0.0
       ai:
-        specifier: ^6.0.116
-        version: 6.0.116(zod@4.3.6)
+        specifier: ^6.0.117
+        version: 6.0.129(zod@4.3.6)
       assistant-stream:
         specifier: workspace:*
         version: link:../../packages/assistant-stream
@@ -415,8 +415,8 @@ importers:
         specifier: ^15.5.13
         version: 15.5.13
       ai:
-        specifier: ^6.0.116
-        version: 6.0.116(zod@4.3.6)
+        specifier: ^6.0.117
+        version: 6.0.129(zod@4.3.6)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -686,8 +686,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       ai:
-        specifier: ^6.0.116
-        version: 6.0.116(zod@4.3.6)
+        specifier: ^6.0.117
+        version: 6.0.129(zod@4.3.6)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -759,8 +759,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       ai:
-        specifier: ^6.0.116
-        version: 6.0.116(zod@4.3.6)
+        specifier: ^6.0.117
+        version: 6.0.129(zod@4.3.6)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -899,8 +899,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       ai:
-        specifier: ^6.0.116
-        version: 6.0.116(zod@4.3.6)
+        specifier: ^6.0.117
+        version: 6.0.129(zod@4.3.6)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -972,8 +972,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       ai:
-        specifier: ^6.0.116
-        version: 6.0.116(zod@4.3.6)
+        specifier: ^6.0.117
+        version: 6.0.129(zod@4.3.6)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -1033,8 +1033,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/cloud-ai-sdk
       ai:
-        specifier: ^6.0.116
-        version: 6.0.116(zod@4.3.6)
+        specifier: ^6.0.117
+        version: 6.0.129(zod@4.3.6)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -1103,8 +1103,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       ai:
-        specifier: ^6.0.116
-        version: 6.0.116(zod@4.3.6)
+        specifier: ^6.0.117
+        version: 6.0.129(zod@4.3.6)
       assistant-stream:
         specifier: workspace:*
         version: link:../../packages/assistant-stream
@@ -1188,8 +1188,8 @@ importers:
         specifier: ^4.2.1
         version: 4.2.1
       ai:
-        specifier: ^6.0.116
-        version: 6.0.116(zod@4.3.6)
+        specifier: ^6.0.117
+        version: 6.0.129(zod@4.3.6)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -1267,8 +1267,8 @@ importers:
         specifier: ^7.1.28
         version: 7.1.33(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))(react@19.2.0)
       ai:
-        specifier: ^6.0.116
-        version: 6.0.116(zod@4.3.6)
+        specifier: ^6.0.117
+        version: 6.0.129(zod@4.3.6)
       expo:
         specifier: ~55.0.6
         version: 55.0.6(@babel/core@7.29.0)(@expo/dom-webview@55.0.3)(@expo/metro-runtime@55.0.6)(expo-router@55.0.5)(react-dom@19.2.0(react@19.2.0))(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))(react@19.2.0)(typescript@5.9.3)
@@ -1422,8 +1422,8 @@ importers:
         specifier: ^0.12.2
         version: 0.12.2
       ai:
-        specifier: ^6.0.116
-        version: 6.0.116(zod@4.3.6)
+        specifier: ^6.0.117
+        version: 6.0.129(zod@4.3.6)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -1739,8 +1739,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       ai:
-        specifier: ^6.0.116
-        version: 6.0.116(zod@4.3.6)
+        specifier: ^6.0.117
+        version: 6.0.129(zod@4.3.6)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -2221,8 +2221,8 @@ importers:
         specifier: ^19.2.14
         version: 19.2.14
       ai:
-        specifier: ^6.0.116
-        version: 6.0.116(zod@4.3.6)
+        specifier: ^6.0.117
+        version: 6.0.129(zod@4.3.6)
       assistant-stream:
         specifier: ^0.3.6
         version: link:../assistant-stream
@@ -3271,8 +3271,8 @@ importers:
         specifier: ^1.2.8
         version: 1.2.8(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       ai:
-        specifier: ^6.0.116
-        version: 6.0.116(zod@4.3.6)
+        specifier: ^6.0.117
+        version: 6.0.129(zod@4.3.6)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -3371,8 +3371,8 @@ importers:
         specifier: ^1.2.8
         version: 1.2.8(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       ai:
-        specifier: ^6.0.116
-        version: 6.0.116(zod@4.3.6)
+        specifier: ^6.0.117
+        version: 6.0.129(zod@4.3.6)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -3465,8 +3465,8 @@ importers:
         specifier: ^1.2.8
         version: 1.2.8(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       ai:
-        specifier: ^6.0.116
-        version: 6.0.116(zod@4.3.6)
+        specifier: ^6.0.117
+        version: 6.0.129(zod@4.3.6)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -3653,8 +3653,8 @@ importers:
         specifier: ^1.2.8
         version: 1.2.8(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       ai:
-        specifier: ^6.0.116
-        version: 6.0.116(zod@4.3.6)
+        specifier: ^6.0.117
+        version: 6.0.129(zod@4.3.6)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -3744,8 +3744,8 @@ importers:
         specifier: ^1.2.8
         version: 1.2.8(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       ai:
-        specifier: ^6.0.116
-        version: 6.0.116(zod@4.3.6)
+        specifier: ^6.0.117
+        version: 6.0.129(zod@4.3.6)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -15056,9 +15056,9 @@ snapshots:
 
   '@asamuzakjp/nwsapi@2.3.9': {}
 
-  '@aui-x/prism@0.0.5(@ai-sdk/provider@3.0.8)(@anthropic-ai/sdk@0.78.0(zod@4.3.6))(ai@6.0.116(zod@4.3.6))(openai@6.29.0(ws@8.19.0)(zod@4.3.6))':
+  '@aui-x/prism@0.0.5(@ai-sdk/provider@3.0.8)(@anthropic-ai/sdk@0.78.0(zod@4.3.6))(ai@6.0.129(zod@4.3.6))(openai@6.29.0(ws@8.19.0)(zod@4.3.6))':
     dependencies:
-      ai: 6.0.116(zod@4.3.6)
+      ai: 6.0.129(zod@4.3.6)
     optionalDependencies:
       '@ai-sdk/provider': 3.0.8
       '@anthropic-ai/sdk': 0.78.0(zod@4.3.6)

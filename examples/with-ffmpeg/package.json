@@ -16,7 +16,7 @@
     "@assistant-ui/ui": "workspace:*",
     "@ffmpeg/ffmpeg": "^0.12.15",
     "@ffmpeg/util": "^0.12.2",
-    "ai": "^6.0.116",
+    "ai": "^6.0.117",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.577.0",
