@@ -9,12 +9,14 @@ import {
   ComposerPrimitive,
   MessagePrimitive,
   ThreadPrimitive,
-  useAssistantState,
+  useAui,
+  useAuiState,
 } from "@assistant-ui/react";
 import { Avatar } from "radix-ui";
 import {
   ArrowUpIcon,
   CheckIcon,
+  ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   CopyIcon,
@@ -49,47 +51,69 @@ export const ChatGPT: FC = () => {
             return <AssistantMessage />;
           }}
         </ThreadPrimitive.Messages>
+
+        <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mx-auto mt-auto flex w-full max-w-3xl flex-col gap-4 overflow-visible rounded-t-3xl bg-background pb-2 dark:bg-[#212121]">
+          <ThreadScrollToBottom />
+          <ComposerPrimitive.Root className="w-full rounded-3xl border pl-2 dark:border-none dark:bg-white/5">
+            <AuiIf condition={(s) => s.composer.attachments.length > 0}>
+              <div className="flex flex-row flex-wrap gap-2 px-1 py-3">
+                <ComposerPrimitive.Attachments
+                  components={{ Attachment: ChatGPTAttachmentUI }}
+                />
+              </div>
+            </AuiIf>
+            <div className="flex items-center justify-center">
+              <ComposerPrimitive.AddAttachment className="flex size-8 items-center justify-center overflow-hidden rounded-full hover:bg-foreground/5 dark:hover:bg-foreground/15">
+                <PlusIcon size={18} />
+              </ComposerPrimitive.AddAttachment>
+              <ComposerPrimitive.Input
+                placeholder="Ask anything"
+                className="h-12 max-h-40 grow resize-none bg-transparent p-3.5 text-foreground text-sm outline-none placeholder:text-muted-foreground dark:text-white dark:placeholder:text-white/50"
+              />
+              <AuiIf condition={(s) => !s.thread.isRunning}>
+                <ComposerPrimitive.Send className="m-2 flex size-8 items-center justify-center rounded-full bg-primary text-primary-foreground transition-opacity disabled:opacity-10 dark:bg-white dark:text-black">
+                  <ArrowUpIcon className="size-5 dark:[&_path]:stroke-1 dark:[&_path]:stroke-black" />
+                </ComposerPrimitive.Send>
+              </AuiIf>
+              <AuiIf condition={(s) => s.thread.isRunning}>
+                <ComposerPrimitive.Cancel className="m-2 flex size-8 items-center justify-center rounded-full bg-primary text-primary-foreground dark:bg-white">
+                  <div className="size-2.5 bg-background dark:bg-black" />
+                </ComposerPrimitive.Cancel>
+              </AuiIf>
+            </div>
+          </ComposerPrimitive.Root>
+
+          <p className="text-center text-muted-foreground text-xs dark:text-[#cdcdcd]">
+            ChatGPT can make mistakes. Check important info.
+          </p>
+        </ThreadPrimitive.ViewportFooter>
       </ThreadPrimitive.Viewport>
-
-      <ComposerPrimitive.Root className="mx-auto w-full max-w-3xl rounded-3xl border pl-2 dark:border-none dark:bg-white/5">
-        <AuiIf condition={(s) => s.composer.attachments.length > 0}>
-          <div className="flex flex-row flex-wrap gap-2 px-1 py-3">
-            <ComposerPrimitive.Attachments
-              components={{ Attachment: ChatGPTAttachment }}
-            />
-          </div>
-        </AuiIf>
-        <div className="flex items-center justify-center">
-          <ComposerPrimitive.AddAttachment className="flex size-8 items-center justify-center overflow-hidden rounded-full hover:bg-foreground/5 dark:hover:bg-foreground/15">
-            <PlusIcon size={18} />
-          </ComposerPrimitive.AddAttachment>
-          <ComposerPrimitive.Input
-            placeholder="Ask anything"
-            className="h-12 max-h-40 grow resize-none bg-transparent p-3.5 text-foreground text-sm outline-none placeholder:text-muted-foreground dark:text-white dark:placeholder:text-white/50"
-          />
-          <AuiIf condition={(s) => !s.thread.isRunning}>
-            <ComposerPrimitive.Send className="m-2 flex size-8 items-center justify-center rounded-full bg-primary text-primary-foreground transition-opacity disabled:opacity-10 dark:bg-white dark:text-black">
-              <ArrowUpIcon className="size-5 dark:[&_path]:stroke-[1] dark:[&_path]:stroke-black" />
-            </ComposerPrimitive.Send>
-          </AuiIf>
-          <AuiIf condition={(s) => s.thread.isRunning}>
-            <ComposerPrimitive.Cancel className="m-2 flex size-8 items-center justify-center rounded-full bg-primary text-primary-foreground dark:bg-white">
-              <div className="size-2.5 bg-background dark:bg-black" />
-            </ComposerPrimitive.Cancel>
-          </AuiIf>
-        </div>
-      </ComposerPrimitive.Root>
-
-      <p className="p-2 text-center text-muted-foreground text-xs dark:text-[#cdcdcd]">
-        ChatGPT can make mistakes. Check important info.
-      </p>
     </ThreadPrimitive.Root>
+  );
+};
+
+const ThreadScrollToBottom: FC = () => {
+  return (
+    <ThreadPrimitive.ScrollToBottom asChild>
+      <TooltipIconButton
+        tooltip="Scroll to bottom"
+        className="absolute -top-10 z-10 self-center rounded-full border bg-background p-2 shadow-sm disabled:invisible dark:border-white/15 dark:bg-[#2a2a2a]"
+      >
+        <ChevronDownIcon />
+      </TooltipIconButton>
+    </ThreadPrimitive.ScrollToBottom>
   );
 };
 
 const UserMessage: FC = () => {
   return (
     <MessagePrimitive.Root className="relative mx-auto flex w-full max-w-3xl flex-col items-end gap-1">
+      <div className="flex flex-row flex-wrap justify-end gap-2">
+        <MessagePrimitive.Attachments
+          components={{ Attachment: ChatGPTAttachmentUI }}
+        />
+      </div>
+
       <div className="flex items-start gap-4">
         <ActionBarPrimitive.Root
           hideWhenRunning
@@ -221,11 +245,11 @@ const useFileSrc = (file: File | undefined) => {
 };
 
 const useAttachmentSrc = () => {
-  const { file, src } = useAssistantState(
-    useShallow(({ attachment }): { file?: File; src?: string } => {
-      if (attachment.type !== "image") return {};
-      if (attachment.file) return { file: attachment.file };
-      const src = attachment.content?.filter((c) => c.type === "image")[0]
+  const { file, src } = useAuiState(
+    useShallow((s): { file?: File; src?: string } => {
+      if (s.attachment.type !== "image") return {};
+      if (s.attachment.file) return { file: s.attachment.file };
+      const src = s.attachment.content?.filter((c) => c.type === "image")[0]
         ?.image;
       if (!src) return {};
       return { src };
@@ -235,7 +259,9 @@ const useAttachmentSrc = () => {
   return useFileSrc(file) ?? src;
 };
 
-const ChatGPTAttachment: FC = () => {
+const ChatGPTAttachmentUI: FC = () => {
+  const aui = useAui();
+  const isComposer = aui.attachment.source !== "message";
   const src = useAttachmentSrc();
 
   return (
@@ -260,9 +286,11 @@ const ChatGPTAttachment: FC = () => {
           </div>
         </AuiIf>
       </div>
-      <AttachmentPrimitive.Remove className="absolute -top-1.5 -right-1.5 flex size-7 items-center justify-center rounded-full border border-[#e5e5e5] bg-white text-[#6b6b6b] transition-all hover:bg-[#f5f5f5] hover:text-[#0d0d0d] dark:border-[#3a3a3a] dark:bg-[#1a1a1a] dark:text-[#9a9a9a] dark:hover:bg-[#252525] dark:hover:text-white">
-        <Cross2Icon fontSize={8} />
-      </AttachmentPrimitive.Remove>
+      {isComposer && (
+        <AttachmentPrimitive.Remove className="absolute -top-1.5 -right-1.5 flex size-7 items-center justify-center rounded-full border border-[#e5e5e5] bg-white text-[#6b6b6b] transition-all hover:bg-[#f5f5f5] hover:text-[#0d0d0d] dark:border-[#3a3a3a] dark:bg-[#1a1a1a] dark:text-[#9a9a9a] dark:hover:bg-[#252525] dark:hover:text-white">
+          <Cross2Icon fontSize={8} />
+        </AttachmentPrimitive.Remove>
+      )}
     </AttachmentPrimitive.Root>
   );
 };

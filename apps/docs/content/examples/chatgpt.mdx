@@ -22,6 +22,7 @@ The ChatGPT Clone demonstrates how to customize assistant-ui to match OpenAI's C
 - **Message Layout**: User messages right-aligned, assistant messages with avatar
 - **Action Bar**: Edit, copy, and regenerate buttons on hover
 - **Branch Picker**: Navigate between message variations
+- **Scroll to Bottom**: Auto-hiding button when scrolled up
 
 ## Quick Start
 
@@ -62,21 +63,25 @@ export const ChatGPT = () => {
             return <AssistantMessage />;
           }}
         </ThreadPrimitive.Messages>
+
+        <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mt-auto flex flex-col gap-4 bg-[#212121] pb-2">
+          <ThreadPrimitive.ScrollToBottom className="..." />
+
+          <ComposerPrimitive.Root className="mx-auto flex w-full max-w-3xl items-end rounded-3xl bg-white/5 pl-2">
+            <ComposerPrimitive.Input
+              placeholder="Message ChatGPT"
+              className="h-12 max-h-40 grow resize-none bg-transparent p-3.5 text-sm text-white outline-none placeholder:text-white/50"
+            />
+            <ComposerPrimitive.Send className="m-2 flex size-8 items-center justify-center rounded-full bg-white transition-opacity disabled:opacity-10">
+              <ArrowUpIcon className="size-5 text-black [&_path]:stroke-1 [&_path]:stroke-black" />
+            </ComposerPrimitive.Send>
+          </ComposerPrimitive.Root>
+
+          <p className="text-center text-[#cdcdcd] text-xs">
+            ChatGPT can make mistakes. Check important info.
+          </p>
+        </ThreadPrimitive.ViewportFooter>
       </ThreadPrimitive.Viewport>
-
-      <ComposerPrimitive.Root className="mx-auto flex w-full max-w-3xl items-end rounded-3xl bg-white/5 pl-2">
-        <ComposerPrimitive.Input
-          placeholder="Message ChatGPT"
-          className="h-12 max-h-40 grow resize-none bg-transparent p-3.5 text-sm text-white outline-none placeholder:text-white/50"
-        />
-        <ComposerPrimitive.Send className="m-2 flex size-8 items-center justify-center rounded-full bg-white transition-opacity disabled:opacity-10">
-          <ArrowUpIcon className="size-5 text-black [&_path]:stroke-1 [&_path]:stroke-black" />
-        </ComposerPrimitive.Send>
-      </ComposerPrimitive.Root>
-
-      <p className="p-2 text-center text-[#cdcdcd] text-xs">
-        ChatGPT can make mistakes. Check important info.
-      </p>
     </ThreadPrimitive.Root>
   );
 };
