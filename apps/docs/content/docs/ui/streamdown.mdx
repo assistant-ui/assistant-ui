@@ -1,0 +1,357 @@
+---
+title: Streamdown
+description: Alternative markdown renderer with built-in syntax highlighting, math, and diagram support.
+links:
+  - label: Streamdown
+    url: https://github.com/vercel/streamdown
+---
+
+import { PackageManagerTabs } from "@/components/docs/fumadocs/install/package-manager-tabs";
+import { StreamdownSample } from "@/components/docs/samples/streamdown";
+
+<StreamdownSample />
+
+<Callout type="info">
+  `@assistant-ui/react-streamdown` is an **alternative** to `@assistant-ui/react-markdown`. Choose based on your needs:
+  - **react-markdown**: Lightweight, bring-your-own syntax highlighter
+  - **react-streamdown**: Feature-rich with built-in Shiki, KaTeX, Mermaid support
+</Callout>
+
+## Installation
+
+<PackageManagerTabs packages={["@assistant-ui/react-streamdown", "streamdown"]} />
+
+For additional features, install the optional plugins:
+
+<PackageManagerTabs packages={["@streamdown/code", "@streamdown/math", "@streamdown/mermaid", "@streamdown/cjk"]} />
+
+## Basic Usage
+
+```tsx
+import { StreamdownTextPrimitive } from "@assistant-ui/react-streamdown";
+
+// Inside a MessagePrimitive.Parts component
+<MessagePrimitive.Parts>
+  {({ part }) => part.type === "text" ? <StreamdownText {...part} /> : null}
+</MessagePrimitive.Parts>
+
+// Where StreamdownText is:
+const StreamdownText = () => <StreamdownTextPrimitive />;
+```
+
+## With Plugins (Recommended)
+
+```tsx
+import { StreamdownTextPrimitive } from "@assistant-ui/react-streamdown";
+import { code } from "@streamdown/code";
+import { math } from "@streamdown/math";
+import { mermaid } from "@streamdown/mermaid";
+import "katex/dist/katex.min.css";
+
+const StreamdownText = () => (
+  <StreamdownTextPrimitive
+    plugins={{ code, math, mermaid }}
+    shikiTheme={["github-light", "github-dark"]}
+  />
+);
+```
+
+When `@streamdown/code` is provided, the default theme is `["github-light", "github-dark"]` for light/dark mode support.
+
+## Migration from react-markdown
+
+If you're migrating from `@assistant-ui/react-markdown`, your existing `SyntaxHighlighter` and `CodeHeader` components still work:
+
+```tsx
+import { StreamdownTextPrimitive } from "@assistant-ui/react-streamdown";
+
+const StreamdownText = () => (
+  <StreamdownTextPrimitive
+    components={{
+      SyntaxHighlighter: MySyntaxHighlighter,
+      CodeHeader: MyCodeHeader,
+    }}
+    componentsByLanguage={{
+      mermaid: { SyntaxHighlighter: MermaidRenderer }
+    }}
+  />
+);
+```
+
+## Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `mode` | `"streaming" \| "static"` | `"streaming"` | Rendering mode |
+| `plugins` | `PluginConfig` | - | Streamdown plugins (code, math, mermaid, cjk) |
+| `shikiTheme` | `[string, string]` | `["github-light", "github-dark"]` | Light and dark theme for Shiki |
+| `components` | `object` | - | Custom components including `SyntaxHighlighter` and `CodeHeader` |
+| `componentsByLanguage` | `object` | - | Language-specific component overrides |
+| `preprocess` | `(text: string) => string` | - | Text preprocessing function |
+| `controls` | `boolean \| object` | `true` | Enable/disable UI controls for code blocks and tables |
+| `caret` | `"block" \| "circle"` | - | Streaming caret style |
+| `mermaid` | `MermaidOptions` | - | Mermaid diagram configuration |
+| `linkSafety` | `LinkSafetyConfig` | - | Link safety confirmation dialog |
+| `remend` | `RemendConfig` | - | Incomplete markdown auto-completion |
+| `allowedTags` | `Record<string, string[]>` | - | HTML tags whitelist |
+| `containerProps` | `object` | - | Props for the container div |
+| `containerClassName` | `string` | - | Class name for the container |
+| `remarkRehypeOptions` | `object` | - | Options passed to remark-rehype |
+| `BlockComponent` | `ComponentType` | - | Custom component for rendering blocks |
+| `parseMarkdownIntoBlocksFn` | `(md: string) => string[]` | - | Custom block parsing function |
+| `parseIncompleteMarkdown` | `boolean` | `false` | Parse incomplete markdown as-is (skip remend) |
+| `security` | `SecurityConfig` | - | URL/image security restrictions |
+
+## Plugin Configuration
+
+### Code Highlighting
+
+```tsx
+import { code } from "@streamdown/code";
+
+<StreamdownTextPrimitive
+  plugins={{ code }}
+  shikiTheme={["github-light", "github-dark"]}
+/>
+```
+
+### Math (LaTeX)
+
+```tsx
+import { math } from "@streamdown/math";
+import "katex/dist/katex.min.css";
+
+<StreamdownTextPrimitive plugins={{ math }} />
+```
+
+### Mermaid Diagrams
+
+```tsx
+import { mermaid } from "@streamdown/mermaid";
+
+<StreamdownTextPrimitive plugins={{ mermaid }} />
+```
+
+### CJK Text Optimization
+
+```tsx
+import { cjk } from "@streamdown/cjk";
+
+<StreamdownTextPrimitive plugins={{ cjk }} />
+```
+
+## Advanced Configuration
+
+### Mermaid Options
+
+Customize Mermaid diagram rendering with configuration and error handling:
+
+```tsx
+import { mermaid } from "@streamdown/mermaid";
+
+<StreamdownTextPrimitive
+  plugins={{ mermaid }}
+  mermaid={{
+    config: { theme: "dark" },
+    errorComponent: ({ error, chart, retry }) => (
+      <div>
+        <p>Failed to render diagram: {error}</p>
+        <button onClick={retry}>Retry</button>
+      </div>
+    ),
+  }}
+/>
+```
+
+### Streaming Caret
+
+Display a caret indicator during streaming:
+
+```tsx
+<StreamdownTextPrimitive caret="block" />  // ▋
+<StreamdownTextPrimitive caret="circle" /> // ●
+```
+
+### Link Safety
+
+Show confirmation before opening external links:
+
+```tsx
+<StreamdownTextPrimitive
+  linkSafety={{
+    enabled: true,
+    onLinkCheck: (url) => url.startsWith("https://trusted.com"),
+  }}
+/>
+```
+
+### Incomplete Markdown Handling (Remend)
+
+Configure how incomplete markdown syntax is handled during streaming:
+
+```tsx
+<StreamdownTextPrimitive
+  remend={{
+    links: true,           // Complete incomplete links
+    images: true,          // Handle incomplete images
+    linkMode: "protocol",  // How to handle incomplete links: 'protocol' or 'text-only'
+    bold: true,            // Complete **text → **text**
+    italic: true,          // Complete *text → *text*
+    boldItalic: true,      // Complete ***text → ***text***
+    inlineCode: true,      // Complete `code → `code`
+    strikethrough: true,   // Complete ~~text → ~~text~~
+    katex: true,           // Complete $$equation → $$equation$$
+    setextHeadings: true,  // Handle incomplete setext headings
+    handlers: [],          // Custom handlers for incomplete markdown completion
+  }}
+/>
+```
+
+### Allowed HTML Tags
+
+Allow specific HTML tags in markdown content:
+
+```tsx
+<StreamdownTextPrimitive
+  allowedTags={{
+    div: ["class", "id"],
+    span: ["class", "style"],
+    iframe: ["src", "width", "height"],
+  }}
+/>
+```
+
+### Security Configuration
+
+Restrict allowed URLs for links and images. This overrides streamdown's default allow-all policy:
+
+```tsx
+<StreamdownTextPrimitive
+  security={{
+    // Only allow links to trusted domains
+    allowedLinkPrefixes: ["https://example.com", "https://docs.example.com"],
+    // Only allow images from your CDN
+    allowedImagePrefixes: ["https://cdn.example.com"],
+    // Restrict protocols
+    allowedProtocols: ["https", "mailto"],
+    // Disable base64 data images
+    allowDataImages: false,
+    // Default origin for relative URLs
+    defaultOrigin: "https://example.com",
+    // CSS class for blocked elements
+    blockedLinkClass: "blocked-link",
+    blockedImageClass: "blocked-image",
+  }}
+/>
+```
+
+## Detecting Inline vs Block Code
+
+When building custom code components, you can use `useIsStreamdownCodeBlock` to detect whether you're inside a code block or inline code:
+
+```tsx
+import { useIsStreamdownCodeBlock } from "@assistant-ui/react-streamdown";
+
+function MyCodeComponent({ children, ...props }) {
+  const isCodeBlock = useIsStreamdownCodeBlock();
+
+  if (!isCodeBlock) {
+    return <code className="inline-code" {...props}>{children}</code>;
+  }
+
+  return <pre><code {...props}>{children}</code></pre>;
+}
+```
+
+You can also use `useStreamdownPreProps` to access the props passed to the parent `<pre>` element:
+
+```tsx
+import { useStreamdownPreProps } from "@assistant-ui/react-streamdown";
+
+function MyCodeComponent({ children }) {
+  const preProps = useStreamdownPreProps();
+
+  if (!preProps) {
+    // Inline code
+    return <code>{children}</code>;
+  }
+
+  // Block code - preProps contains className, node, etc.
+  return <code className={preProps.className}>{children}</code>;
+}
+```
+
+## Comparison with react-markdown
+
+| Feature | react-markdown | react-streamdown |
+|---------|---------------|------------------|
+| Bundle size | Smaller | Larger (with plugins) |
+| Syntax highlighting | Bring your own | Built-in Shiki |
+| Math rendering | Manual setup | Built-in KaTeX |
+| Mermaid diagrams | Manual setup | Built-in support |
+| CJK optimization | None | Built-in |
+| Streaming | `smooth` prop | `mode` + block-based |
+
+## Re-exported Utilities
+
+The package re-exports useful utilities:
+
+```tsx
+import {
+  // Context for accessing streamdown state
+  StreamdownContext,
+  // Parse markdown into blocks (for custom implementations)
+  parseMarkdownIntoBlocks,
+  // Hooks for custom code components
+  useIsStreamdownCodeBlock,
+  useStreamdownPreProps,
+  // Memo comparison utility for custom components
+  memoCompareNodes,
+  // Default Shiki theme: ["github-light", "github-dark"]
+  DEFAULT_SHIKI_THEME,
+} from "@assistant-ui/react-streamdown";
+```
+
+### Available Types
+
+```tsx
+import type {
+  // Component props
+  StreamdownTextPrimitiveProps,
+  SyntaxHighlighterProps,
+  CodeHeaderProps,
+  ComponentsByLanguage,
+  StreamdownTextComponents,
+  StreamdownProps,
+  // Plugin types
+  PluginConfig,
+  ResolvedPluginConfig,
+  CodeHighlighterPlugin,
+  DiagramPlugin,
+  MathPlugin,
+  CjkPlugin,
+  HighlightOptions,
+  // Shiki types
+  BundledTheme,
+  BundledLanguage,
+  // Configuration types
+  CaretStyle,
+  ControlsConfig,
+  MermaidOptions,
+  MermaidErrorComponentProps,
+  LinkSafetyConfig,
+  LinkSafetyModalProps,
+  RemendConfig,
+  RemendHandler,
+  AllowedTags,
+  RemarkRehypeOptions,
+  BlockProps,
+  SecurityConfig,
+} from "@assistant-ui/react-streamdown";
+```
+
+## Related Components
+
+- [Markdown](/docs/ui/markdown) - Lightweight markdown with react-markdown
+- [Syntax Highlighting](/docs/ui/syntax-highlighting) - Add code highlighting to react-markdown
+- [Mermaid](/docs/ui/mermaid) - Render diagrams in react-markdown

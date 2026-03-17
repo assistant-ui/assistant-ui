@@ -1,0 +1,176 @@
+---
+title: Quote Selected Text
+description: Let users select and quote text from messages. Full guide including backend handling and programmatic API.
+---
+
+import { QuoteComposerSample } from "@/components/docs/samples/quote-composer";
+
+<QuoteComposerSample />
+
+## Get Started
+
+The **[Quote](/docs/ui/quote)** registry component gives you everything you need out of the box, including a floating selection toolbar, composer quote preview, and inline quote display.
+
+<InstallCommand shadcn={["quote"]} />
+
+It ships three composable pieces:
+
+- **QuoteBlock** renders quoted text inline in user messages
+- **SelectionToolbar** is a floating toolbar that appears on text selection
+- **ComposerQuotePreview** shows the pending quote inside the composer
+
+See the [Quote component page](/docs/ui/quote) for full setup steps and API reference.
+
+---
+
+## How It Works
+
+When a user selects text in an assistant message, a floating toolbar appears with a Quote button. Clicking it calls `composer.setQuote()` to store the selection on the composer. The [Quote component](/docs/ui/quote) does this out of the box.
+
+When the message is sent, the composer runtime automatically writes the quote to `message.metadata.custom.quote` and clears it from the composer.
+
+On the backend, the route handler extracts the quote from metadata and surfaces it to the LLM. We export a helper called `injectQuoteContext` that handles this automatically for AI-SDK. Without this step, the quote appears in the UI but is not sent to the model as context. See [Backend Handling](#backend-handling) for more info and alternatives.
+
+### Data Shape
+
+```typescript
+type QuoteInfo = {
+  readonly text: string;       // selected plain text
+  readonly messageId: string;  // source message ID
+};
+
+// Stored at: message.metadata.custom.quote
+```
+
+## Backend Handling
+
+Quote data travels in message metadata, not content, so the LLM will not see it unless your backend extracts and surfaces it. The simplest path is [`injectQuoteContext`](/docs/ui/quote#forward-quote-context-to-the-llm), which prepends quoted text as a markdown blockquote before the message parts.
+
+For provider-specific handling, work with the quote metadata directly.
+
+### Claude SDK Citations
+
+Pass the quoted text as a citation source so Claude produces citations that reference it:
+
+```typescript title="app/api/chat/route.ts"
+import Anthropic from "@anthropic-ai/sdk";
+
+const client = new Anthropic();
+
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+
+  const claudeMessages = messages.map((msg) => {
+    const quote = msg.metadata?.custom?.quote;
+    if (!quote?.text) {
+      return { role: msg.role, content: extractText(msg) };
+    }
+
+    return {
+      role: "user",
+      content: [
+        {
+          type: "text",
+          text: quote.text,
+          cache_control: { type: "ephemeral" },
+          citations: { enabled: true },
+        },
+        {
+          type: "text",
+          text: extractText(msg),
+        },
+      ],
+    };
+  });
+
+  const response = await client.messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 1024,
+    messages: claudeMessages,
+  });
+
+  // ... stream response back
+}
+```
+
+### OpenAI Message Context
+
+Inject the quote as additional context in the user message:
+
+```typescript title="app/api/chat/route.ts"
+function injectQuoteForOpenAI(messages) {
+  return messages.map((msg) => {
+    const quote = msg.metadata?.custom?.quote;
+    if (!quote?.text || msg.role !== "user") return msg;
+
+    return {
+      ...msg,
+      content: `[Referring to: "${quote.text}"]\n\n${msg.content}`,
+    };
+  });
+}
+```
+
+## Reading Quote Data
+
+Use `useMessageQuote` to access quote data in custom components:
+
+```tsx
+import { useMessageQuote } from "@assistant-ui/react";
+
+function CustomQuoteDisplay() {
+  const quote = useMessageQuote();
+  if (!quote) return null;
+
+  return (
+    <blockquote className="border-l-2 pl-3 text-sm text-muted-foreground">
+      {quote.text}
+    </blockquote>
+  );
+}
+```
+
+## Programmatic API
+
+Set or clear quotes via the composer runtime:
+
+```tsx
+import { useAui } from "@assistant-ui/react";
+
+function MyComponent() {
+  const aui = useAui();
+
+  const quoteText = () => {
+    aui.thread().composer().setQuote({
+      text: "The text to quote",
+      messageId: "msg-123",
+    });
+  };
+
+  const clearQuote = () => {
+    aui.thread().composer().setQuote(undefined);
+  };
+
+  return (
+    <>
+      <button onClick={quoteText}>Set Quote</button>
+      <button onClick={clearQuote}>Clear Quote</button>
+    </>
+  );
+}
+```
+
+## Design Notes
+
+- **Single quote:** `setQuote` replaces the current quote instead of appending. Only one quote can be active at a time.
+- **Snapshot text:** The selected text is captured when the quote is created and is not linked to the source message afterward.
+- **Cross-message selection:** The toolbar only appears when the selection stays within a single message.
+- **Streaming messages:** The toolbar still works while a message is streaming because it relies on the captured selection rather than message status.
+- **`isEmpty` unchanged:** A quote by itself does not make the composer non-empty. The user still needs to type a reply.
+- **Scroll hides toolbar:** The toolbar hides on scroll because its position would otherwise become stale.
+
+## Related
+
+- [Quote component](/docs/ui/quote): Installation, component setup, and API reference
+- [Message Editing](/docs/guides/editing): Edit user messages
+- [Thread](/docs/ui/thread): Main chat container

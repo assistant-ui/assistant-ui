@@ -1,20 +1,16 @@
-import { beforeAll, afterAll } from "vitest";
+import { beforeAll } from "vitest";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { PACKAGE_DIR } from "../../constants.js";
 import { docsTools } from "../docs.js";
 import { examplesTools } from "../examples.js";
 
-export interface TestContext {
-  callTool: (name: string, args: any) => Promise<any>;
-}
-
 const tools = {
   assistantUIDocs: docsTools,
   assistantUIExamples: examplesTools,
 };
 
-export const testContext: TestContext = {
+export const testContext = {
   callTool: async (name: string, args: any) => {
     const tool = tools[name as keyof typeof tools];
     if (!tool) {
@@ -22,11 +18,15 @@ export const testContext: TestContext = {
     }
     const result = await tool.execute(args);
 
+    const text = result.content?.[0]?.text;
+    if (text === undefined) {
+      throw new Error(`Tool ${name} returned no content`);
+    }
     try {
-      return JSON.parse(result.content[0].text);
+      return JSON.parse(text);
     } catch (error) {
       throw new Error(
-        `Tool ${name} returned invalid JSON. Output: ${result.content[0].text}\nParse error: ${error instanceof Error ? error.message : String(error)}`,
+        `Tool ${name} returned invalid JSON. Output: ${text}\nParse error: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   },
@@ -37,8 +37,4 @@ beforeAll(() => {
   if (!existsSync(docsPath)) {
     throw new Error("Documentation not prepared. Run: pnpm build");
   }
-});
-
-afterAll(() => {
-  // Cleanup if needed
 });

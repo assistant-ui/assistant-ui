@@ -1,0 +1,260 @@
+---
+title: "@assistant-ui/react-data-stream"
+description: Hooks for connecting to data stream protocol endpoints and Assistant Cloud.
+---
+
+Data Stream protocol integration for assistant-ui.
+
+
+## API Reference
+
+### `useDataStreamRuntime`
+
+Create a runtime that connects to a data stream protocol endpoint.
+
+```tsx
+import { useDataStreamRuntime } from "@assistant-ui/react-data-stream";
+
+const MyRuntimeProvider = ({ children }: { children: React.ReactNode }) => {
+  const runtime = useDataStreamRuntime({
+    api: "/api/chat",
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+};
+```
+
+<ParametersTable
+  parameters={[
+    {
+      name: "api",
+      type: "string",
+      description: "The API endpoint URL for the data stream protocol.",
+    },
+    {
+      name: "protocol",
+      type: '"ui-message-stream" | "data-stream"',
+      description: 'The streaming protocol to use. Defaults to "ui-message-stream". Use "data-stream" for legacy AI SDK compatibility.',
+    },
+    {
+      name: "onData",
+      type: "(data: { type: string; name: string; data: unknown; transient?: boolean }) => void",
+      description: "Optional callback for data-* parts. Only applies when using the ui-message-stream protocol.",
+    },
+    {
+      name: "onResponse",
+      type: "(response: Response) => void | Promise<void>",
+      description: "Optional callback called when a response is received.",
+    },
+    {
+      name: "onFinish",
+      type: "(message: ThreadMessage) => void",
+      description: "Optional callback called when a message is finished.",
+    },
+    {
+      name: "onError",
+      type: "(error: Error) => void",
+      description: "Optional callback called when an error occurs.",
+    },
+    {
+      name: "onCancel",
+      type: "() => void",
+      description: "Optional callback called when a request is cancelled.",
+    },
+    {
+      name: "credentials",
+      type: "RequestCredentials",
+      description: "Optional credentials mode for the fetch request.",
+    },
+    {
+      name: "headers",
+      type: "Record<string, string> | Headers | (() => Promise<Record<string, string> | Headers>)",
+      description: "Optional headers to include in the request.",
+    },
+    {
+      name: "body",
+      type: "object | (() => Promise<object | undefined>)",
+      description: "Optional additional body parameters to include in the request. Can be an object or an async function that returns one.",
+    },
+    {
+      name: "sendExtraMessageFields",
+      type: "boolean",
+      description: "Whether to include extra message fields like IDs in the request.",
+    },
+  ]}
+/>
+
+### `useCloudRuntime`
+
+Create a runtime that connects to Assistant Cloud using the data stream protocol.
+
+```tsx
+import { useCloudRuntime } from "@assistant-ui/react-data-stream";
+
+const MyRuntimeProvider = ({ children }: { children: React.ReactNode }) => {
+  const runtime = useCloudRuntime({
+    cloud: assistantCloud,
+    assistantId: "my-assistant-id",
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+};
+```
+
+<ParametersTable
+  parameters={[
+    {
+      name: "cloud",
+      type: "AssistantCloud",
+      description: "The Assistant Cloud instance.",
+    },
+    {
+      name: "assistantId",
+      type: "string",
+      description: "The ID of the assistant to connect to.",
+    },
+    {
+      name: "protocol",
+      type: '"ui-message-stream" | "data-stream"',
+      description: 'The streaming protocol to use. Defaults to "ui-message-stream". Use "data-stream" for legacy AI SDK compatibility.',
+    },
+    {
+      name: "onData",
+      type: "(data: { type: string; name: string; data: unknown; transient?: boolean }) => void",
+      description: "Optional callback for data-* parts. Only applies when using the ui-message-stream protocol.",
+    },
+    {
+      name: "onResponse",
+      type: "(response: Response) => void | Promise<void>",
+      description: "Optional callback called when a response is received.",
+    },
+    {
+      name: "onFinish",
+      type: "(message: ThreadMessage) => void",
+      description: "Optional callback called when a message is finished.",
+    },
+    {
+      name: "onError",
+      type: "(error: Error) => void",
+      description: "Optional callback called when an error occurs.",
+    },
+    {
+      name: "onCancel",
+      type: "() => void",
+      description: "Optional callback called when a request is cancelled.",
+    },
+    {
+      name: "credentials",
+      type: "RequestCredentials",
+      description: "Optional credentials mode for the fetch request.",
+    },
+    {
+      name: "headers",
+      type: "Record<string, string> | Headers | (() => Promise<Record<string, string> | Headers>)",
+      description: "Optional headers to include in the request.",
+    },
+    {
+      name: "body",
+      type: "object | (() => Promise<object | undefined>)",
+      description: "Optional additional body parameters to include in the request. Can be an object or an async function that returns one.",
+    },
+    {
+      name: "sendExtraMessageFields",
+      type: "boolean",
+      description: "Whether to include extra message fields like IDs in the request.",
+    },
+  ]}
+/>
+
+### `toLanguageModelMessages`
+
+Convert assistant-ui messages to AI SDK's `LanguageModelV2Message` format.
+
+<Callout type="info">
+For custom integrations, consider using `toGenericMessages` from `assistant-stream` instead.
+This function is specific to the AI SDK format.
+</Callout>
+
+```tsx
+import { toLanguageModelMessages } from "@assistant-ui/react-data-stream";
+
+const languageModelMessages = toLanguageModelMessages(messages, {
+  unstable_includeId: true,
+});
+```
+
+<ParametersTable
+  parameters={[
+    {
+      name: "messages",
+      type: "readonly ThreadMessage[]",
+      description: "The messages to convert.",
+    },
+    {
+      name: "options",
+      type: "{ unstable_includeId?: boolean }",
+      description: "Optional conversion options.",
+      children: [
+        {
+          type: "{ unstable_includeId?: boolean }",
+          parameters: [
+            {
+              name: "unstable_includeId",
+              type: "boolean",
+              description: "Whether to include message IDs in the converted messages.",
+            },
+          ],
+        },
+      ],
+    },
+  ]}
+/>
+
+---
+
+## Framework-Agnostic Utilities
+
+For custom integrations that don't use the AI SDK, use these utilities from `assistant-stream`:
+
+### `toGenericMessages`
+
+Convert thread messages to a framework-agnostic format.
+
+```tsx
+import { toGenericMessages } from "assistant-stream";
+
+const genericMessages = toGenericMessages(messages);
+```
+
+Returns an array of `GenericMessage` which can be one of:
+- `{ role: "system"; content: string }`
+- `{ role: "user"; content: (GenericTextPart | GenericFilePart)[] }`
+- `{ role: "assistant"; content: (GenericTextPart | GenericToolCallPart)[] }`
+- `{ role: "tool"; content: GenericToolResultPart[] }`
+
+### `toToolsJSONSchema`
+
+Convert tool definitions to JSON Schema format.
+
+```tsx
+import { toToolsJSONSchema } from "assistant-stream";
+
+const toolSchemas = toToolsJSONSchema(tools);
+// Returns: Record<string, { description?: string; parameters: JSONSchema7 }>
+```
+
+By default, filters out disabled tools and backend-only tools. Use the `filter` option to customize:
+
+```tsx
+const allTools = toToolsJSONSchema(tools, {
+  filter: () => true, // Include all tools
+});
+```

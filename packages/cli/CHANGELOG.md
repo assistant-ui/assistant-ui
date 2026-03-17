@@ -1,5 +1,137 @@
 # assistant-ui
 
+## 0.0.84
+
+### Patch Changes
+
+- 349f3c7: chore: update deps
+- dbb2929: Improve CLI project creation error handling and transform sequencing in
+  `assistant-ui`.
+- Updated dependencies [349f3c7]
+  - @assistant-ui/agent-launcher@0.1.1
+
+## 0.0.83
+
+### Patch Changes
+
+- 6cdc259: feat(cli): add with-expo example to create command
+- 6ef092a: feat(cli): add with-react-ink example to project scaffolding
+- 848b42c: use checked-in bin wrapper to avoid pnpm install warnings in monorepos
+- 1b06c09: fix(cli): detect dev script and env file from scaffolded project
+
+## 0.0.82
+
+### Patch Changes
+
+- 5034b1e: Add `@assistant-ui/agent-launcher` package and `assistant-ui agent` CLI command to launch Claude Code with assistant-ui skills
+- fb84e6c: Unified scaffold pipeline: both templates and examples now download from the monorepo via giget at the latest release tag. Replaced create-next-app with @clack/prompts for interactive project creation. Added grouped project picker showing templates and examples. Added --preset support with short names (e.g. --preset chatgpt). Uses the detected package manager's dlx command instead of npx for faster execution.
+- Updated dependencies [5034b1e]
+  - @assistant-ui/agent-launcher@0.1.0
+
+## 0.0.81
+
+### Patch Changes
+
+- a845911: chore: update dependencies
+- de45e19: fix(create): point the `cloud` template to the valid
+  `assistant-ui-starter-cloud` repository in both CLIs and aligned tests.
+
+## 0.0.80
+
+### Patch Changes
+
+- 8282dde: feat(cli): add `with-artifacts` and `with-chain-of-thought` to available examples
+- 36ef3a2: chore: update dependencies
+
+## 0.0.79
+
+### Patch Changes
+
+- 91df50d: feat(cli): add template picker, preset support, and new templates
+- afaaf3b: fix(cli): make `init` command work in non-interactive environments
+- 4068df9: Strip `@/lib/utils.ts` workspace alias during example scaffolding
+
+## 0.0.78
+
+### Patch Changes
+
+- a088518: chore: update dependencies
+
+## 0.0.77
+
+### Patch Changes
+
+- d45b893: chore: update dependencies
+
+## 0.0.76
+
+### Patch Changes
+
+- 96cb0fe: feat: use minimal template for init command
+
+## 0.0.75
+
+### Patch Changes
+
+- 605d825: chore: update dependencies
+
+## 0.0.74
+
+### Patch Changes
+
+- ab66134: feat(assistant-ui): allow create new project from examples
+
+## 0.0.73
+
+### Minor Changes
+
+- cfefbf0: feat(cli): add `mcp` command for installing MCP docs server
+
+  New CLI command to easily install the assistant-ui MCP docs server for various IDEs:
+
+  ```bash
+  npx assistant-ui mcp              # Interactive prompt
+  npx assistant-ui mcp --cursor     # Install for Cursor
+  npx assistant-ui mcp --windsurf   # Install for Windsurf
+  npx assistant-ui mcp --vscode     # Install for VSCode
+  npx assistant-ui mcp --zed        # Install for Zed
+  npx assistant-ui mcp --claude-code     # Install for Claude Code
+  npx assistant-ui mcp --claude-desktop  # Install for Claude Desktop
+  ```
+
+  The command automatically creates or merges the appropriate MCP configuration file for each IDE.
+
+## 0.0.72
+
+### Patch Changes
+
+- 3719567: chore: update deps
+
+## 0.0.71
+
+### Patch Changes
+
+- 501f8c6: feat(playground): build own chat interface
+
+## 0.0.70
+
+### Patch Changes
+
+- 57bd207: chore: update dependencies
+- cce009d: chore: use tsc for building packages
+
+## 0.0.69
+
+### Patch Changes
+
+- e8ea57b: chore: update deps
+
+## 0.0.68
+
+### Patch Changes
+
+- 01c31fe: chore: update dependencies
+
 ## 0.0.67
 
 ### Patch Changes

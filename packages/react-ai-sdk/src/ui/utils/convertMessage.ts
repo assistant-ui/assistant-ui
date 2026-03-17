@@ -1,76 +1,178 @@
-import { isToolUIPart, type UIMessage } from "ai";
+import { isToolUIPart, getToolName, type UIMessage } from "ai";
 import {
-  unstable_createMessageConverter,
-  type ReasoningMessagePart,
-  type ToolCallMessagePart,
-  type TextMessagePart,
-  type DataMessagePart,
-  type SourceMessagePart,
+  createMessageConverter as unstable_createMessageConverter,
   type useExternalMessageConverter,
-} from "@assistant-ui/react";
+} from "@assistant-ui/core/react";
+import type {
+  ReasoningMessagePart,
+  ToolCallMessagePart,
+  TextMessagePart,
+  DataMessagePart,
+  SourceMessagePart,
+  ThreadMessageLike,
+} from "@assistant-ui/core";
+import type { ReadonlyJSONObject } from "assistant-stream/utils";
 
-function stripClosingDelimiters(json: string) {
+type MessageMetadata = ThreadMessageLike["metadata"];
+export type AISDKMessageConverterMetadata =
+  useExternalMessageConverter.Metadata & {
+    toolArgsKeyOrderCache?: Map<string, Map<string, string[]>>;
+  };
+
+function stripClosingDelimiters(json: string): string {
   return json.replace(/[}\]"]+$/, "");
 }
 
-const convertParts = (
+const hasOwn = (value: object, key: string) =>
+  Object.prototype.hasOwnProperty.call(value, key);
+
+const stabilizeToolArgsValue = (
+  value: unknown,
+  path: string,
+  keyOrderByPath: Map<string, string[]>,
+): unknown => {
+  if (Array.isArray(value)) {
+    return value.map((item, idx) =>
+      stabilizeToolArgsValue(item, `${path}[${idx}]`, keyOrderByPath),
+    );
+  }
+
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    const currentKeys = Object.keys(record);
+    const previousOrder = keyOrderByPath.get(path) ?? [];
+    const previousOrderSet = new Set(previousOrder);
+    const nextOrder = [
+      ...previousOrder.filter((key) => hasOwn(record, key)),
+      ...currentKeys.filter((key) => !previousOrderSet.has(key)),
+    ];
+    keyOrderByPath.set(path, nextOrder);
+
+    return Object.fromEntries(
+      nextOrder.map((key) => [
+        key,
+        stabilizeToolArgsValue(record[key], `${path}.${key}`, keyOrderByPath),
+      ]),
+    );
+  }
+
+  return value;
+};
+
+function stableStringifyToolArgs(
+  keyOrderCache: Map<string, Map<string, string[]>> | undefined,
+  cacheKey: string,
+  args: ReadonlyJSONObject,
+): string {
+  const keyOrderByPath = keyOrderCache?.get(cacheKey) ?? new Map();
+  keyOrderCache?.set(cacheKey, keyOrderByPath);
+
+  const stableArgs = stabilizeToolArgsValue(
+    args,
+    "$",
+    keyOrderByPath,
+  ) as ReadonlyJSONObject;
+  return JSON.stringify(stableArgs);
+}
+
+/**
+ * Resolves the interrupt fields for a tool call part.
+ *
+ * Two interrupt paths for tool approvals:
+ * 1. AI SDK server-side approval: approval-requested state with part.approval payload
+ * 2. Frontend tools: toolStatuses interrupt from context.human()
+ */
+function getToolInterrupt(
+  part: { state: string; approval?: unknown },
+  toolStatus: { type: string; payload?: unknown } | undefined,
+): Record<string, unknown> {
+  if (part.state === "approval-requested" && "approval" in part) {
+    return {
+      interrupt: {
+        type: "human" as const,
+        payload: (part as { approval: unknown }).approval,
+      },
+      status: {
+        type: "requires-action" as const,
+        reason: "interrupt" as const,
+      },
+    };
+  }
+
+  if (toolStatus?.type === "interrupt") {
+    return {
+      interrupt: toolStatus.payload,
+      status: {
+        type: "requires-action" as const,
+        reason: "interrupt" as const,
+      },
+    };
+  }
+
+  return {};
+}
+
+type MessageContent = Exclude<ThreadMessageLike["content"], string>;
+
+function convertParts(
   message: UIMessage,
-  metadata: useExternalMessageConverter.Metadata,
-) => {
+  metadata: AISDKMessageConverterMetadata,
+): MessageContent {
   if (!message.parts || message.parts.length === 0) {
     return [];
   }
 
-  return message.parts
+  const converted = message.parts
     .filter((p) => p.type !== "step-start" && p.type !== "file")
     .map((part) => {
-      const type = part.type;
-
-      // Handle text parts
-      if (type === "text") {
+      if (part.type === "text") {
         return {
           type: "text",
           text: part.text,
         } satisfies TextMessagePart;
       }
 
-      // Handle reasoning parts
-      if (type === "reasoning") {
+      if (part.type === "reasoning") {
         return {
           type: "reasoning",
           text: part.text,
         } satisfies ReasoningMessagePart;
       }
 
-      // Handle tool-* parts (AI SDK v5 tool calls)
       if (isToolUIPart(part)) {
-        const toolName = type.replace("tool-", "");
+        const toolName = getToolName(part);
         const toolCallId = part.toolCallId;
+        const argsKeyOrderCacheKey = `${message.id}:${toolCallId}`;
+        const args: ReadonlyJSONObject =
+          (part.input as ReadonlyJSONObject) || {};
 
-        // Extract args and result based on state
-        let args: any = {};
-        let result: any;
+        let result: unknown;
         let isError = false;
 
-        if (
-          part.state === "input-streaming" ||
-          part.state === "input-available"
-        ) {
-          args = part.input || {};
-        } else if (part.state === "output-available") {
-          args = part.input || {};
+        if (part.state === "output-available") {
           result = part.output;
         } else if (part.state === "output-error") {
-          args = part.input || {};
           isError = true;
           result = { error: part.errorText };
+        } else if (part.state === "output-denied") {
+          isError = true;
+          result = {
+            error:
+              (part as { approval: { reason?: string } }).approval.reason ||
+              "Tool approval denied",
+          };
         }
 
-        let argsText = JSON.stringify(args);
+        let argsText = stableStringifyToolArgs(
+          metadata.toolArgsKeyOrderCache,
+          argsKeyOrderCacheKey,
+          args,
+        );
         if (part.state === "input-streaming") {
-          // the argsText is not complete, so we need to strip the closing delimiters
-          // these are added by the AI SDK in fix-json
+          // strip closing delimiters added by the AI SDK's fix-json
           argsText = stripClosingDelimiters(argsText);
+        } else {
+          metadata.toolArgsKeyOrderCache?.delete(argsKeyOrderCacheKey);
         }
 
         const toolStatus = metadata.toolStatuses?.[toolCallId];
@@ -82,75 +184,11 @@ const convertParts = (
           args,
           result,
           isError,
-          ...(toolStatus?.type === "interrupt" && {
-            interrupt: toolStatus.payload,
-            status: {
-              type: "requires-action" as const,
-              reason: "interrupt",
-            },
-          }),
-          ...(toolStatus?.type === "cancelled" && {
-            status: {
-              type: "incomplete" as const,
-              reason: "cancelled",
-              error: toolStatus.reason,
-            },
-          }),
+          ...getToolInterrupt(part, toolStatus),
         } satisfies ToolCallMessagePart;
       }
 
-      // Handle dynamic-tool parts
-      if (type === "dynamic-tool") {
-        const toolName = part.toolName;
-        const toolCallId = part.toolCallId;
-
-        // Extract args and result based on state
-        let args: any = {};
-        let result: any;
-        let isError = false;
-
-        if (
-          part.state === "input-streaming" ||
-          part.state === "input-available"
-        ) {
-          args = part.input || {};
-        } else if (part.state === "output-available") {
-          args = part.input || {};
-          result = part.output;
-        } else if (part.state === "output-error") {
-          args = part.input || {};
-          isError = true;
-          result = { error: part.errorText };
-        }
-
-        const toolStatus = metadata.toolStatuses?.[toolCallId];
-        return {
-          type: "tool-call",
-          toolName,
-          toolCallId,
-          argsText: JSON.stringify(args),
-          args,
-          result,
-          isError,
-          ...(toolStatus?.type === "interrupt" && {
-            interrupt: toolStatus.payload,
-            status: {
-              type: "requires-action" as const,
-              reason: "interrupt",
-            },
-          }),
-          ...(toolStatus?.type === "cancelled" && {
-            status: {
-              type: "incomplete" as const,
-              reason: "cancelled",
-              error: toolStatus.reason,
-            },
-          }),
-        } satisfies ToolCallMessagePart;
-      }
-
-      // Handle source-url parts
-      if (type === "source-url") {
+      if (part.type === "source-url") {
         return {
           type: "source",
           sourceType: "url",
@@ -160,93 +198,88 @@ const convertParts = (
         } satisfies SourceMessagePart;
       }
 
-      // Handle source-document parts
-      if (type === "source-document") {
+      if (part.type === "source-document") {
         console.warn(
-          `Source document part type ${type} is not yet supported in conversion`,
+          "Source document parts are not yet supported in conversion",
         );
         return null;
       }
 
-      // Handle data-* parts (AI SDK v5 data parts)
-      if (type.startsWith("data-")) {
-        const name = type.substring(5);
+      if (part.type.startsWith("data-")) {
         return {
           type: "data",
-          name,
+          name: part.type.substring(5),
           data: (part as any).data,
         } satisfies DataMessagePart;
       }
 
-      // For unsupported types, we'll skip them instead of throwing
-      console.warn(`Unsupported message part type: ${type}`);
+      console.warn(`Unsupported message part type: ${part.type}`);
       return null;
     })
-    .filter(Boolean) as any[];
-};
+    .filter(Boolean) as MessageContent[number][];
+
+  const seenToolCallIds = new Set<string>();
+  return converted.filter((part) => {
+    if (part.type === "tool-call" && part.toolCallId != null) {
+      if (seenToolCallIds.has(part.toolCallId)) return false;
+      seenToolCallIds.add(part.toolCallId);
+    }
+    return true;
+  });
+}
 
 export const AISDKMessageConverter = unstable_createMessageConverter(
-  (message: UIMessage, metadata: useExternalMessageConverter.Metadata) => {
-    // UIMessage doesn't have createdAt, so we'll use current date or undefined
+  (message: UIMessage, metadata: AISDKMessageConverterMetadata) => {
     const createdAt = new Date();
+    const content = convertParts(message, metadata);
+
     switch (message.role) {
       case "user":
         return {
           role: "user",
           id: message.id,
           createdAt,
-          content: convertParts(message, metadata),
+          content,
           attachments: message.parts
             ?.filter((p) => p.type === "file")
-            .map((part, idx) => {
-              return {
-                id: idx.toString(),
-                type: part.mediaType.startsWith("image/") ? "image" : "file",
-                name: part.filename ?? "file",
-                content: [
-                  part.mediaType.startsWith("image/")
-                    ? {
-                        type: "image",
-                        image: part.url,
-                        filename: part.filename!,
-                      }
-                    : {
-                        type: "file",
-                        filename: part.filename!,
-                        data: part.url,
-                        mimeType: part.mediaType,
-                      },
-                ],
-                contentType: part.mediaType ?? "unknown/unknown",
-                status: { type: "complete" as const },
-              };
-            }),
+            .map((part, idx) => ({
+              id: idx.toString(),
+              type: part.mediaType.startsWith("image/") ? "image" : "file",
+              name: part.filename ?? "file",
+              content: [
+                part.mediaType.startsWith("image/")
+                  ? {
+                      type: "image",
+                      image: part.url,
+                      filename: part.filename!,
+                    }
+                  : {
+                      type: "file",
+                      filename: part.filename!,
+                      data: part.url,
+                      mimeType: part.mediaType,
+                    },
+              ],
+              contentType: part.mediaType ?? "unknown/unknown",
+              status: { type: "complete" as const },
+            })),
+          metadata: message.metadata as MessageMetadata,
         };
 
       case "system":
+      case "assistant": {
+        const timing = metadata.messageTiming?.[message.id];
         return {
-          role: "system",
+          role: message.role,
           id: message.id,
           createdAt,
-          content: convertParts(message, metadata),
-        };
-
-      case "assistant":
-        return {
-          role: "assistant",
-          id: message.id,
-          createdAt,
-          content: convertParts(message, metadata),
+          content,
           metadata: {
-            unstable_annotations: (message as any).annotations,
-            unstable_data: Array.isArray((message as any).data)
-              ? (message as any).data
-              : (message as any).data
-                ? [(message as any).data]
-                : undefined,
-            custom: {},
+            ...(message.metadata as MessageMetadata),
+            ...(timing && { timing }),
           },
         };
+      }
 
       default:
         console.warn(`Unsupported message role: ${message.role}`);

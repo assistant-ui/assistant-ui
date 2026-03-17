@@ -1,0 +1,74 @@
+---
+title: Using old React versions
+description: Compatibility notes for React 18 and 19.
+---
+
+
+<Callout type="warning" title="React 18 Required">
+  assistant-ui requires React 18 or React 19. React 17 and React 16 are not
+  supported. If you need help with an upgrade, join our
+  [Discord](https://discord.gg/S9dwgCNEFs).
+</Callout>
+
+This guide provides instructions for configuring assistant-ui to work with React 18.
+
+## React 18
+
+If you're using React 18, you need to update the shadcn/ui components to work with `forwardRef`. Specifically, you need to modify the Button component.
+
+### Updating the Button Component
+
+Navigate to your button component file (typically `/components/ui/button.tsx`) and wrap the Button component with `forwardRef`:
+
+```tsx
+// Before
+function Button({
+  className,
+  variant,
+  size,
+  asChild = false,
+  ...props
+}: React.ComponentProps<"button"> &
+  VariantProps<typeof buttonVariants> & {
+    asChild?: boolean;
+  }) {
+  const Comp = asChild ? Slot : "button";
+
+  return (
+    <Comp
+      data-slot="button"
+      className={cn(buttonVariants({ variant, size, className }))}
+      {...props}
+    />
+  );
+}
+
+// After
+const Button = React.forwardRef<
+  HTMLButtonElement,
+  React.ComponentProps<"button"> &
+    VariantProps<typeof buttonVariants> & {
+      asChild?: boolean;
+    }
+>(({ className, variant, size, asChild = false, ...props }, ref) => {
+  const Comp = asChild ? Slot : "button";
+
+  return (
+    <Comp
+      data-slot="button"
+      className={cn(buttonVariants({ variant, size, className }))}
+      ref={ref}
+      {...props}
+    />
+  );
+});
+Button.displayName = "Button";
+```
+
+## Additional Resources
+
+If you encounter any issues with React compatibility, please:
+
+1. Check that all required dependencies are installed
+2. Ensure your component modifications are correctly implemented
+3. Join our [Discord](https://discord.gg/S9dwgCNEFs) community for direct support

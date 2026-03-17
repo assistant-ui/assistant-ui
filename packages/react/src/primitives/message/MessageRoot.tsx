@@ -7,7 +7,7 @@ import {
   ComponentPropsWithoutRef,
   useCallback,
 } from "react";
-import { useAssistantApi, useAssistantState } from "../../context";
+import { useAui, useAuiState } from "@assistant-ui/store";
 import { useManagedRef } from "../../utils/hooks/useManagedRef";
 import { useSizeHandle } from "../../utils/hooks/useSizeHandle";
 import { useComposedRefs } from "@radix-ui/react-compose-refs";
@@ -15,8 +15,8 @@ import { useThreadViewport } from "../../context/react/ThreadViewportContext";
 import { ThreadPrimitiveViewportSlack } from "../thread/ThreadViewportSlack";
 
 const useIsHoveringRef = () => {
-  const api = useAssistantApi();
-  const message = useAssistantState(() => api.message());
+  const aui = useAui();
+  const message = useAuiState(() => aui.message());
 
   const callbackRef = useCallback(
     (el: HTMLElement) => {
@@ -30,7 +30,10 @@ const useIsHoveringRef = () => {
       el.addEventListener("mouseenter", handleMouseEnter);
       el.addEventListener("mouseleave", handleMouseLeave);
 
-      if (el.matches(":hover")) message.setIsHovering(true);
+      if (el.matches(":hover")) {
+        // TODO this is needed for SSR to work, figure out why
+        queueMicrotask(() => message.setIsHovering(true));
+      }
 
       return () => {
         el.removeEventListener("mouseenter", handleMouseEnter);
@@ -56,12 +59,12 @@ const useMessageViewportRef = () => {
 
   // inset rules:
   // - the previous user message before the last assistant message registers its full height
-  const shouldRegisterAsInset = useAssistantState(
-    ({ thread, message }) =>
+  const shouldRegisterAsInset = useAuiState(
+    (s) =>
       turnAnchor === "top" &&
-      message.role === "user" &&
-      message.index === thread.messages.length - 2 &&
-      thread.messages.at(-1)?.role === "assistant",
+      s.message.role === "user" &&
+      s.message.index === s.thread.messages.length - 2 &&
+      s.thread.messages.at(-1)?.role === "assistant",
   );
 
   const getHeight = useCallback((el: HTMLElement) => el.offsetHeight, []);
@@ -113,10 +116,11 @@ export const MessagePrimitiveRoot = forwardRef<
     isHoveringRef,
     anchorUserMessageRef,
   );
+  const messageId = useAuiState((s) => s.message.id);
 
   return (
     <ThreadPrimitiveViewportSlack>
-      <Primitive.div {...props} ref={ref} />
+      <Primitive.div {...props} ref={ref} data-message-id={messageId} />
     </ThreadPrimitiveViewportSlack>
   );
 });

@@ -10,6 +10,10 @@ import profileVirat from "./profiles/virat_400x400.jpg";
 import profileDaniel from "./profiles/daniel_400x400.jpg";
 import profileAlex from "./profiles/alex_400x400.jpg";
 import profileKeithSchacht from "./profiles/keith_schacht_400x400.jpg";
+import profileNeon from "./profiles/neon_400x400.jpg";
+import profileVoltagent from "./profiles/voltagent_400x400.jpg";
+import profileYagudaev from "./profiles/yagudaev_400x400.jpg";
+import profileYC from "./profiles/ycombinator_400x400.png";
 import { StaticImageData } from "next/image";
 
 export type Testimonial = {
@@ -31,14 +35,6 @@ export const TESTIMONIALS: Testimonial[] = [
   },
   {
     platform: "X",
-    avatar: profileHarrisonChase,
-    username: "@hwchase17",
-    message:
-      "Pleasure to work with Simon… bring streaming, gen UI, and human-in-the-loop with LangGraph Cloud + assistant-ui.",
-    url: "https://x.com/hwchase17/status/1833897209747964191",
-  },
-  {
-    platform: "X",
     avatar: profileDaniel,
     username: "@js_craft_hq",
     message:
@@ -51,6 +47,38 @@ export const TESTIMONIALS: Testimonial[] = [
     username: "@adamsilverman",
     message: "assistant-ui powered by LangGraph! It is awesome.",
     url: "https://x.com/adamsilverman/status/1834671925076914687",
+  },
+  {
+    platform: "X",
+    avatar: profileHarrisonChase,
+    username: "@hwchase17",
+    message:
+      "Pleasure to work with Simon… bring streaming, gen UI, and human-in-the-loop with LangGraph Cloud + assistant-ui.",
+    url: "https://x.com/hwchase17/status/1833897209747964191",
+  },
+  {
+    platform: "X",
+    avatar: profileNeon,
+    username: "@neondatabase",
+    message:
+      "Conversations and streaming AI output are powered by @assistantui. It renders the chat interface and stores threads in Assistant UI Cloud so sessions persist across refreshes and context builds over time.",
+    url: "https://x.com/neondatabase/status/1983609810798178829",
+  },
+  {
+    platform: "X",
+    avatar: profileYC,
+    username: "@ycombinator",
+    message:
+      "@assistantui is an open-source TypeScript/React library for AI chat. It brings a ChatGPT-like UI directly into your app.",
+    url: "https://x.com/ycombinator/status/1891502867971801368",
+  },
+  {
+    platform: "X",
+    avatar: profileVirat,
+    username: "@virattt",
+    message:
+      "My favorite financial assistant is assistant-ui… fully open source… powerful starter tools… integrates with LangSmith and LangGraph.",
+    url: "https://x.com/virattt/status/1841957600201736586",
   },
   {
     platform: "X",
@@ -69,14 +97,6 @@ export const TESTIMONIALS: Testimonial[] = [
   },
   {
     platform: "X",
-    avatar: profileVirat,
-    username: "@virattt",
-    message:
-      "My favorite financial assistant is assistant-ui… fully open source… powerful starter tools… integrates with LangSmith and LangGraph.",
-    url: "https://x.com/virattt/status/1841957600201736586",
-  },
-  {
-    platform: "X",
     avatar: profileHowardGil,
     username: "@HowardBGil",
     message:
@@ -89,6 +109,22 @@ export const TESTIMONIALS: Testimonial[] = [
     username: "@replyingaleks",
     message: "assistant-ui goated 🐐🐐",
     url: "https://x.com/replyingaleks/status/1833938146586939645",
+  },
+  {
+    platform: "X",
+    avatar: profileYagudaev,
+    username: "@yagudaev",
+    message:
+      "React chat ui so you can focus on your agent logic. Can't wait to try it.",
+    url: "https://x.com/yagudaev/status/2009121137536405924",
+  },
+  {
+    platform: "X",
+    avatar: profileVoltagent,
+    username: "@voltagent_dev",
+    message:
+      "We just added Assistant UI support to VoltAgent. Streaming, tools, memory all work out of the box.",
+    url: "https://x.com/voltagent_dev/status/2000718877508940013",
   },
 ];
 

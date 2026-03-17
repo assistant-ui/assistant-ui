@@ -1,0 +1,302 @@
+---
+title: Migration to v0.12
+description: Unified state API replaces individual context hooks.
+---
+
+## Major Architecture Change: Unified State API
+
+Version 0.12 introduces a complete rewrite of the state management system with a more consistent API.
+
+## Automatic Migration
+
+We provide a codemod to automatically migrate your code:
+
+```bash
+npx assistant-ui@latest upgrade
+```
+
+This will automatically handle the hook renames and update your imports.
+
+## Breaking Changes
+
+### 1. Assistant API Hooks Renamed
+
+The core hooks have been renamed for consistency and clarity:
+
+- `useAssistantApi` → `useAui`
+- `useAssistantState` → `useAuiState`
+- `useAssistantEvent` → `useAuiEvent`
+- `AssistantIf` → `AuiIf`
+
+The variable naming convention has also changed from `api` to `aui`.
+
+#### Migration
+
+**Before:**
+
+```tsx
+import {
+  useAssistantApi,
+  useAssistantState,
+  useAssistantEvent,
+} from "@assistant-ui/react";
+
+function MyComponent() {
+  const api = useAssistantApi();
+  const isRunning = useAssistantState(({ thread }) => thread.isRunning);
+
+  useAssistantEvent("thread.run-start", () => {
+    console.log("Thread started running");
+  });
+
+  const handleSend = () => {
+    api.composer().send();
+  };
+
+  return <button onClick={handleSend}>Send</button>;
+}
+```
+
+**After:**
+
+```tsx
+import { useAui, useAuiState, useAuiEvent } from "@assistant-ui/react";
+
+function MyComponent() {
+  const aui = useAui();
+  const isRunning = useAuiState((s) => s.thread.isRunning);
+
+  useAuiEvent("thread.runStart", () => {
+    console.log("Run started");
+  });
+
+  const handleSend = () => {
+    aui.composer().send();
+  };
+
+  return <button onClick={handleSend}>Send</button>;
+}
+```
+
+**Automatic Migration:**
+
+Run the codemod to automatically update your code:
+
+```bash
+npx assistant-ui@latest upgrade
+```
+
+The codemod will:
+- Rename all hook imports (`useAssistantApi` → `useAui`, etc.)
+- Rename `const api = useAui()` declarations to `const aui = useAui()`
+- Update all references to the `api` variable throughout your codebase
+- Correctly handle scoping (won't rename `api` variables from other sources)
+
+**Backwards Compatibility:**
+
+The old names are still available as deprecated exports until v0.13:
+
+```tsx
+// Still works, but deprecated
+import {
+  useAssistantApi,
+  useAssistantState,
+  useAssistantEvent,
+} from "@assistant-ui/react";
+
+const api = useAssistantApi(); // deprecated but functional
+```
+
+### 2. Context Hooks Replaced with Unified State API
+
+All individual context hooks have been replaced with a single `useAuiState` hook and `useAui` for actions.
+
+#### What changed
+
+The following hooks have been removed:
+
+**Removed Hooks:**
+
+- `useMessageUtils` → Use `useAuiState((s) => s.message.isHovering)` / `useAuiState((s) => s.message.isCopied)`
+- `useMessageUtilsStore` → Use `useAui()` with `aui.message().setIsHovering()` / `aui.message().setIsCopied()`
+- `useToolUIs` → Removed with no direct equivalent. Use `useAssistantTool` / `makeAssistantToolUI` to register tool UIs instead.
+- `useToolUIsStore` → Removed with no direct equivalent.
+
+**Deprecated Hooks:**
+
+- `useAssistantRuntime` → Use `useAui()`
+- `useThread` → Use `useAuiState((s) => s.thread)`
+- `useThreadRuntime` → Use `useAui()` with `aui.thread()`
+- `useMessage` → Use `useAuiState((s) => s.message)`
+- `useMessageRuntime` → Use `useAui()` with `aui.message()`
+- `useComposer` → Use `useAuiState((s) => s.composer)`
+- `useComposerRuntime` → Use `useAui()` with `aui.composer()`
+- `useEditComposer` → Use `useAuiState((s) => s.message.composer)`
+- `useThreadListItem` → Use `useAuiState((s) => s.threadListItem)`
+- `useThreadListItemRuntime` → Use `useAui()` with `aui.threadListItem()`
+- `useMessagePart` → Use `useAuiState((s) => s.part)`
+- `useMessagePartRuntime` → Use `useAui()` with `aui.part()`
+- `useAttachment` → Use `useAuiState((s) => s.attachment)`
+- `useAttachmentRuntime` → Use `useAui()` with `aui.attachment()`
+- `useThreadModelContext` → Use `useAuiState((s) => s.thread.modelContext)`
+- `useThreadModelConfig` → Removed. Use `useAui().thread().getModelContext()` instead.
+- `useThreadComposer` → Use `useAuiState((s) => s.thread.composer)`
+- `useThreadList` → Use `useAuiState((s) => s.threads)`
+
+#### Migration Examples
+
+**Before:**
+
+```tsx
+import {
+  useThread,
+  useThreadRuntime,
+  useComposer,
+  useComposerRuntime,
+  useMessage,
+  useMessageRuntime,
+} from "@assistant-ui/react";
+
+function MyComponent() {
+  // Reading state
+  const messages = useThread((t) => t.messages);
+  const isRunning = useThread((t) => t.isRunning);
+  const composerText = useComposer((c) => c.text);
+  const messageRole = useMessage((m) => m.role);
+
+  // Using runtime for actions
+  const threadRuntime = useThreadRuntime();
+  const composerRuntime = useComposerRuntime();
+  const messageRuntime = useMessageRuntime();
+
+  const handleSend = () => {
+    composerRuntime.send();
+  };
+
+  const handleReload = () => {
+    messageRuntime.reload();
+  };
+
+  const handleCancel = () => {
+    threadRuntime.cancelRun();
+  };
+
+  return null;
+}
+```
+
+**After:**
+
+```tsx
+import { useAuiState, useAui } from "@assistant-ui/react";
+
+function MyComponent() {
+  // Reading state - all through single hook
+  const messages = useAuiState((s) => s.thread.messages);
+  const isRunning = useAuiState((s) => s.thread.isRunning);
+  const composerText = useAuiState((s) => s.composer.text);
+  const messageRole = useAuiState((s) => s.message.role);
+
+  // Using client for actions
+  const aui = useAui();
+
+  const handleSend = () => {
+    aui.composer().send();
+  };
+
+  const handleReload = () => {
+    aui.message().reload();
+  };
+
+  const handleCancel = () => {
+    aui.thread().cancelRun();
+  };
+
+  return null;
+}
+```
+
+### 3. Event Names Changed to camelCase
+
+Event names used with `useAuiEvent` have been standardized to use camelCase instead of kebab-case.
+
+#### What changed
+
+The following event names have been updated:
+
+| Old Name (kebab-case)               | New Name (camelCase)               |
+| ----------------------------------- | ---------------------------------- |
+| `thread.run-start`                  | `thread.runStart`                  |
+| `thread.run-end`                    | `thread.runEnd`                    |
+| `thread.model-context-update`       | `thread.modelContextUpdate`        |
+| `composer.attachment-add`           | `composer.attachmentAdd`           |
+| `thread-list-item.switched-to`      | `threadListItem.switchedTo`        |
+| `thread-list-item.switched-away`    | `threadListItem.switchedAway`      |
+
+Events that remain unchanged:
+- `thread.initialize`
+- `composer.send`
+
+#### Migration
+
+**Before:**
+
+```tsx
+import { useAuiEvent } from "@assistant-ui/react";
+
+function MyComponent() {
+  useAuiEvent("thread.run-start", () => {
+    console.log("Thread started running");
+  });
+
+  useAuiEvent("thread.run-end", () => {
+    console.log("Thread finished running");
+  });
+
+  useAuiEvent("composer.attachment-add", () => {
+    console.log("Attachment added");
+  });
+
+  return null;
+}
+```
+
+**After:**
+
+```tsx
+import { useAuiEvent } from "@assistant-ui/react";
+
+function MyComponent() {
+  useAuiEvent("thread.runStart", () => {
+    console.log("Thread started running");
+  });
+
+  useAuiEvent("thread.runEnd", () => {
+    console.log("Thread finished running");
+  });
+
+  useAuiEvent("composer.attachmentAdd", () => {
+    console.log("Attachment added");
+  });
+
+  return null;
+}
+```
+
+**Automatic Migration:**
+
+Run the codemod to automatically update event names:
+
+```bash
+npx assistant-ui@latest upgrade
+```
+
+The codemod will automatically replace all occurrences of the old kebab-case event names with their new camelCase equivalents.
+
+## Getting Help
+
+If you encounter issues during migration:
+
+1. Check the updated API documentation for detailed examples
+2. Review the example applications in the repository
+3. Report issues at https://github.com/assistant-ui/assistant-ui/issues

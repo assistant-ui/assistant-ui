@@ -1,16 +1,30 @@
-import { tapRef } from "./tap-ref";
-import { depsShallowEqual } from "./depsShallowEqual";
+import { isDevelopment } from "../core/helpers/env";
+import { getCurrentResourceFiber } from "../core/helpers/execution-context";
+import { tapReducerWithDerivedState } from "./tap-reducer";
+import { depsShallowEqual } from "./utils/depsShallowEqual";
 
-export const tapMemo = <T>(fn: () => T, deps: readonly unknown[]) => {
-  const dataRef = tapRef<{ value: T; deps: readonly unknown[] }>();
-  if (!dataRef.current) {
-    dataRef.current = { value: fn(), deps };
-  }
+const memoReducer = () => {
+  throw new Error("Memo reducer should not be called");
+};
 
-  if (!depsShallowEqual(dataRef.current.deps, deps)) {
-    dataRef.current.value = fn();
-    dataRef.current.deps = deps;
-  }
+type MemoState<T> = { value: T; deps: readonly unknown[] };
 
-  return dataRef.current.value;
+export const tapMemo = <T>(fn: () => T, deps: readonly unknown[]): T => {
+  const fiber = getCurrentResourceFiber();
+  const [state] = tapReducerWithDerivedState(
+    memoReducer,
+    (state: MemoState<T> | null): MemoState<T> => {
+      if (state && depsShallowEqual(state.deps, deps)) return state;
+
+      const value = fn();
+
+      if (isDevelopment && fiber.devStrictMode) {
+        void fn();
+      }
+
+      return { value, deps };
+    },
+    null,
+  );
+  return state.value;
 };

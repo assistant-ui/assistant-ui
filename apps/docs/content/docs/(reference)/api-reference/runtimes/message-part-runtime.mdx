@@ -1,0 +1,46 @@
+---
+title: MessagePartRuntime
+description: Hook for accessing message part state within parts.
+---
+
+import { MessagePartRuntime, TextMessagePartState } from "@/generated/typeDocs";
+
+### `useAui` (Message Part Actions)
+
+Access message part actions via `useAui`:
+
+```tsx
+import { useAui } from "@assistant-ui/react";
+
+const aui = useAui();
+
+// Add a tool result to a tool-call message part
+aui.part().addToolResult({ result: "Tool output" });
+
+// Resume an interrupted tool call
+aui.part().resumeToolCall({ approved: true });
+```
+
+<ParametersTable {...MessagePartRuntime} />
+
+### `useAuiState` (Message Part State)
+
+Access the message part state reactively:
+
+```tsx
+import { useAuiState } from "@assistant-ui/react";
+
+const status = useAuiState((s) => s.part.status);
+const type = useAuiState((s) => s.part.type);
+```
+
+For imperative access, use `useAui`:
+
+```tsx
+import { useAui } from "@assistant-ui/react";
+
+const aui = useAui();
+const partState = aui.part().getState();
+```
+
+<ParametersTable {...TextMessagePartState} />

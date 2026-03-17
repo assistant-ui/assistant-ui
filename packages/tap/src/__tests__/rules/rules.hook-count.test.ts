@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { tapEffect } from "../../hooks/tap-effect";
 import { tapState } from "../../hooks/tap-state";
 import { createTestResource, renderTest } from "../test-utils";
-import { renderResource } from "../../core/ResourceFiber";
+import { renderResourceFiber } from "../../core/ResourceFiber";
 
 describe("Rules of Hooks - Hook Count", () => {
   it("should establish hook count on first render", () => {
@@ -40,12 +40,12 @@ describe("Rules of Hooks - Hook Count", () => {
     });
 
     // First render with 2 hooks
-    renderResource(resource, undefined);
+    renderResourceFiber(resource, undefined);
 
     // Try to render with 3 hooks
     addExtraHook = true;
 
-    expect(() => renderResource(resource, undefined)).toThrow(
+    expect(() => renderResourceFiber(resource, undefined)).toThrow(
       "Rendered more hooks than during the previous render",
     );
   });
@@ -65,12 +65,12 @@ describe("Rules of Hooks - Hook Count", () => {
     });
 
     // First render with 3 hooks
-    renderResource(resource, undefined);
+    renderResourceFiber(resource, undefined);
 
     // Try to render with 2 hooks
     skipHook = true;
 
-    expect(() => renderResource(resource, undefined)).toThrow(
+    expect(() => renderResourceFiber(resource, undefined)).toThrow(
       "Rendered 2 hooks but expected 3",
     );
   });
@@ -88,11 +88,11 @@ describe("Rules of Hooks - Hook Count", () => {
       return null;
     });
 
-    renderResource(resource, undefined);
+    renderResourceFiber(resource, undefined);
 
     includeEffect = false;
 
-    expect(() => renderResource(resource, undefined)).toThrow(
+    expect(() => renderResourceFiber(resource, undefined)).toThrow(
       "Rendered 2 hooks but expected 3",
     );
   });
@@ -119,12 +119,12 @@ describe("Rules of Hooks - Hook Count", () => {
       return null;
     });
 
-    renderResource(resource, undefined);
+    renderResourceFiber(resource, undefined);
 
     // Change hook count
     hookCount = 3;
 
-    expect(() => renderResource(resource, undefined)).toThrow(
+    expect(() => renderResourceFiber(resource, undefined)).toThrow(
       "Rendered more hooks than during the previous render",
     );
   });
@@ -189,11 +189,11 @@ describe("Rules of Hooks - Hook Count", () => {
       return null;
     });
 
-    renderResource(resource, undefined);
+    renderResourceFiber(resource, undefined);
 
     useExtraHooks = true;
 
-    expect(() => renderResource(resource, undefined)).toThrow(
+    expect(() => renderResourceFiber(resource, undefined)).toThrow(
       "Rendered more hooks than during the previous render",
     );
   });

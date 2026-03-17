@@ -3,7 +3,10 @@
 import {
   useAssistantInstructions,
   useAssistantTool,
-  useAssistantState,
+  useAui,
+  useAuiState,
+  AuiProvider,
+  Suggestions,
 } from "@assistant-ui/react";
 import { z } from "zod";
 import { FFmpeg } from "@ffmpeg/ffmpeg";
@@ -152,14 +155,27 @@ const FfmpegTool: FC<{ file: File }> = ({ file }) => {
 
 export default function Home() {
   const [lastFile, setLastFile] = useState<File | null>(null);
-  const attachments = useAssistantState(
-    ({ thread }) => thread.composer.attachments,
-  );
+  const attachments = useAuiState((s) => s.thread.composer.attachments);
   useEffect(() => {
     const lastAttachment = attachments[attachments.length - 1];
     if (!lastAttachment) return;
     setLastFile(lastAttachment.file!);
   }, [attachments]);
+
+  const aui = useAui({
+    suggestions: Suggestions([
+      {
+        title: "Convert video to GIF",
+        label: "attach a video file first",
+        prompt: "Convert my video to an animated GIF.",
+      },
+      {
+        title: "Compress an MP4",
+        label: "to reduce file size",
+        prompt: "Compress my video file to reduce its size.",
+      },
+    ]),
+  });
 
   return (
     <div className="flex h-full flex-col">
@@ -175,7 +191,9 @@ export default function Home() {
           )
         </p>
       </div>
-      <Thread />
+      <AuiProvider value={aui}>
+        <Thread />
+      </AuiProvider>
       {lastFile && <FfmpegTool file={lastFile} />}
     </div>
   );

@@ -1,0 +1,61 @@
+---
+title: ThreadListItemRuntime
+description: Runtime for managing individual thread list items.
+---
+
+import {
+  ThreadListItemRuntime,
+  ThreadListItemState,
+} from "@/generated/typeDocs";
+
+### `useAui` (Thread List Item Actions)
+
+Access thread list item actions via `useAui`:
+
+```tsx
+import { useAui } from "@assistant-ui/react";
+
+const aui = useAui();
+
+// Navigation
+await aui.threadListItem().switchTo();
+
+// Rename
+await aui.threadListItem().rename("New Title");
+
+// Archive / unarchive
+await aui.threadListItem().archive();
+await aui.threadListItem().unarchive();
+
+// Delete
+await aui.threadListItem().delete();
+
+// Initialize a new thread (returns remoteId and externalId)
+const { remoteId, externalId } = await aui.threadListItem().initialize();
+
+// Auto-generate a title from thread content
+await aui.threadListItem().generateTitle();
+
+// Detach the thread list item from its thread
+aui.threadListItem().detach();
+
+// Get current state
+const state = aui.threadListItem().getState();
+const { id, title, status } = state;
+```
+
+<ParametersTable {...ThreadListItemRuntime} />
+
+### `useAuiState` (Thread List Item State)
+
+Access the state for a specific thread list item:
+
+```tsx
+import { useAuiState } from "@assistant-ui/react";
+
+const title = useAuiState((s) => s.threadListItem.title);
+const status = useAuiState((s) => s.threadListItem.status);
+const id = useAuiState((s) => s.threadListItem.id);
+```
+
+<ParametersTable {...ThreadListItemState} />

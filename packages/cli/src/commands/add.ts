@@ -30,7 +30,7 @@ export const add = new Command()
       if (!/^[a-zA-Z0-9-/]+$/.test(c)) {
         throw new Error(`Invalid component name: ${c}`);
       }
-      return `${REGISTRY_BASE_URL}/${encodeURIComponent(c)}`;
+      return `${REGISTRY_BASE_URL}/${encodeURIComponent(c)}.json`;
     });
 
     logger.step(`Adding ${components.length} component(s)...`);

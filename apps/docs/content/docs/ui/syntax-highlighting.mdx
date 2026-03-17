@@ -1,0 +1,204 @@
+---
+title: Syntax Highlighting
+description: Code block syntax highlighting with react-shiki or react-syntax-highlighter.
+---
+
+import { SyntaxHighlightingSample } from "@/components/docs/samples/syntax-highlighting";
+
+<Callout type="warn">Syntax highlighting is not enabled in markdown by default.</Callout>
+
+<SyntaxHighlightingSample />
+
+<Callout type="info">
+  `assistant-ui` provides two options for syntax highlighting: 
+  - **react-shiki** (recommended for performance & dynamic language support)
+  - **react-syntax-highlighter** (legacy - Prism or Highlight.js based)
+</Callout>
+
+---
+
+## react-shiki
+
+<Steps>
+  <Step>
+
+#### Add `shiki-highlighter`
+
+<InstallCommand shadcn={["shiki-highlighter"]} />
+
+This adds a `/components/assistant-ui/shiki-highlighter.tsx` file to your project and
+installs the `react-shiki` dependency. The highlighter can be customized by editing
+the config in the `shiki-highlighter.tsx` file.
+
+  </Step>
+  <Step>
+
+#### Add it to `defaultComponents` in `markdown-text.tsx`
+
+```tsx title="/components/assistant-ui/markdown-text.tsx"
+import { SyntaxHighlighter } from "./shiki-highlighter";
+
+export const defaultComponents = memoizeMarkdownComponents({
+  SyntaxHighlighter: SyntaxHighlighter, // [!code ++]
+  h1: /* ... */,
+  // ...other elements...
+});
+```
+
+  </Step>
+</Steps>
+
+### Options
+
+See [react-shiki documentation](https://github.com/AVGVSTVS96/react-shiki#props) for all available options.
+
+Key options:
+- `theme` - Shiki theme or multi-theme object (`{ light, dark, ... }`)
+- `language` - Language for highlighting (default: `"text"`)
+- `defaultColor` - Default color mode (`string | false`, e.g. `light-dark()`)
+- `delay` - Delay between highlights, useful for streaming (default: `0`)
+- `customLanguages` - Custom languages to preload for dynamic support
+- `codeToHastOptions` - All other options accepted by Shiki's [`codeToHast`](https://github.com/shikijs/shiki/blob/main/packages/types/src/options.ts#L121)
+
+### Dual/multi theme support
+
+To use multiple themes, pass a theme object:
+
+```tsx title="/components/assistant-ui/shiki-highlighter.tsx"
+<ShikiHighlighter
+  /* ... */
+  theme={{
+    light: "github-light",
+    dark: "github-dark",
+  }}
+  defaultColor="light-dark()"
+  /* ... */
+>
+```
+
+> **Note:** The `shiki-highlighter` component sets `defaultColor="light-dark()"` automatically.
+> Only set this manually if using `ShikiHighlighter` directly.
+
+With `defaultColor="light-dark()"`, theme switching is automatic based on your site's `color-scheme`.
+No custom Shiki CSS overrides are required.
+
+Set `color-scheme` on your app root:
+
+System-based (follows OS/browser preference):
+
+```css title="globals.css"
+:root {
+  color-scheme: light dark;
+}
+```
+
+Class-based theme switching:
+
+```css title="globals.css"
+:root {
+  color-scheme: light;
+}
+:root.dark {
+  color-scheme: dark;
+}
+```
+
+If you need broader support for older browsers, you can still use the manual CSS-variable switching approach from the Shiki dual-theme docs.
+
+For more information:
+- [react-shiki multi-theme/reactive themes](https://github.com/AVGVSTVS96/react-shiki)
+- [Shiki dual themes + `light-dark()`](https://shiki.style/guide/dual-themes)
+
+### Bundle Optimization
+
+By default, `react-shiki` includes the full Shiki bundle, which contains all supported languages and themes.
+
+To reduce bundle size, you can use the web bundle by changing the import to `react-shiki/web`, to include a smaller bundle of web related languages:
+
+```tsx title="/components/assistant-ui/shiki-highlighter.tsx"
+import ShikiHighlighter, { type ShikiHighlighterProps } from "react-shiki/web";
+```
+
+#### Custom Bundles
+
+For strict bundle size control, `react-shiki` also supports custom bundles created using `createHighlighterCore` from `react-shiki/core` (re-exported from Shiki):
+
+```tsx title="/components/assistant-ui/shiki-highlighter.tsx" {3-9}
+import { createHighlighterCore, createOnigurumaEngine } from "react-shiki/core"; // [!code ++]
+
+// Create the highlighter
+// Use dynamic imports to load languages and themes on client on demand
+const customHighlighter = await createHighlighterCore({
+  themes: [import("@shikijs/themes/nord")],
+  langs: [
+    import("@shikijs/langs/javascript"),
+    import("@shikijs/langs/typescript"),
+  ],
+  engine: createOnigurumaEngine(import("shiki/wasm")), 
+});
+
+// Then pass it to the highlighter prop
+<SyntaxHighlighter
+  {...props}
+  language={language}
+  theme={theme}
+  highlighter={customHighlighter} // [!code ++]
+/>;
+```
+
+<Callout type="info">
+  For more information, see [react-shiki - bundle options](https://github.com/avgvstvs96/react-shiki#bundle-options).
+</Callout>
+
+---
+
+## react-syntax-highlighter
+
+<Callout type="warn">
+  This option may be removed in a future release. Consider using
+  [react-shiki](#react-shiki) instead.
+</Callout>
+
+<Steps>
+  <Step>
+
+#### Add `syntax-highlighter`
+
+<InstallCommand shadcn={["syntax-highlighter"]} />
+
+    Adds a `/components/assistant-ui/syntax-highlighter.tsx` file to your project and installs the `react-syntax-highlighter` dependency.
+
+  </Step>
+  <Step>
+
+#### Add it to `defaultComponents` in `markdown-text.tsx`
+
+```tsx title="/components/assistant-ui/markdown-text.tsx"
+import { SyntaxHighlighter } from "./syntax-highlighter";
+
+export const defaultComponents = memoizeMarkdownComponents({
+  SyntaxHighlighter: SyntaxHighlighter, // [!code ++]
+  h1: /* ... */,
+  // ...other elements...
+});
+```
+
+  </Step>
+</Steps>
+
+### Options
+
+Supports all options from [`react-syntax-highlighter`](https://github.com/react-syntax-highlighter/react-syntax-highlighter#props).
+
+### Bundle Optimization
+
+By default, the syntax highlighter uses a light build that only includes languages you register. To include all languages:
+
+```tsx title="/components/assistant-ui/syntax-highlighter.tsx"
+import { makePrismAsyncSyntaxHighlighter } from "@assistant-ui/react-syntax-highlighter/full";
+```
+
+## Related Components
+
+- [Markdown](/docs/ui/markdown) - Rich text rendering that uses syntax highlighting
+- [Mermaid](/docs/ui/mermaid) - Render diagrams instead of code blocks

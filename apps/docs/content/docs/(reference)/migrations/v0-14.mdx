@@ -1,0 +1,159 @@
+---
+title: Migration to v0.14
+description: Primitives migrate from components prop to children render functions.
+---
+
+## Children API for Primitives
+
+Version 0.14 replaces the `components` prop on primitives with a children render function pattern. This gives you full control over rendering with simple inline logic.
+
+### ThreadPrimitive.Messages
+
+**Before:**
+
+```tsx
+<ThreadPrimitive.Messages
+  components={{
+    UserMessage,
+    EditComposer,
+    AssistantMessage,
+  }}
+/>
+```
+
+**After:**
+
+```tsx
+<ThreadPrimitive.Messages>
+  {({ message }) => {
+    if (message.composer.isEditing) return <EditComposer />;
+    if (message.role === "user") return <UserMessage />;
+    return <AssistantMessage />;
+  }}
+</ThreadPrimitive.Messages>
+```
+
+### MessagePrimitive.Parts
+
+**Before:**
+
+```tsx
+<MessagePrimitive.Parts
+  components={{
+    Text: MarkdownText,
+    Reasoning,
+    tools: { Fallback: ToolFallback },
+  }}
+/>
+```
+
+**After:**
+
+```tsx
+<MessagePrimitive.Parts>
+  {({ part }) => {
+    if (part.type === "text") return <MarkdownText />;
+    if (part.type === "reasoning") return <Reasoning {...part} />;
+    if (part.type === "tool-call")
+      return part.toolUI ?? <ToolFallback {...part} />;
+    return null;
+  }}
+</MessagePrimitive.Parts>
+```
+
+### `part.toolUI` and `part.dataRendererUI`
+
+Tool-call parts now expose a `toolUI` property that resolves to the registered tool UI (via `useAssistantToolUI` / `makeAssistantToolUI`) or `null` if none is registered. Data parts similarly expose `dataRendererUI`.
+
+```tsx
+// Renders the registered tool UI if available, otherwise ToolFallback
+if (part.type === "tool-call")
+  return part.toolUI ?? <ToolFallback {...part} />;
+
+// Renders the registered data renderer if available
+if (part.type === "data")
+  return part.dataRendererUI ?? null;
+```
+
+### Returning `null`
+
+Returning `null` from the children function renders registered tool UIs and data renderer UIs automatically via the registry. To explicitly render nothing (suppressing registered UIs), return `<></>`.
+
+```tsx
+<MessagePrimitive.Parts>
+  {({ part }) => {
+    if (part.type === "text") return <MarkdownText />;
+    return null; // registered tool/data UIs still render
+  }}
+</MessagePrimitive.Parts>
+```
+
+### ThreadPrimitive.Suggestions
+
+**Before:**
+
+```tsx
+<ThreadPrimitive.Suggestions
+  components={{ Suggestion: SuggestionItem }}
+/>
+```
+
+**After:**
+
+```tsx
+<ThreadPrimitive.Suggestions>
+  {() => <SuggestionItem />}
+</ThreadPrimitive.Suggestions>
+```
+
+### ThreadListPrimitive.Items
+
+**Before:**
+
+```tsx
+<ThreadListPrimitive.Items
+  components={{ ThreadListItem: MyThreadListItem }}
+/>
+```
+
+**After:**
+
+```tsx
+<ThreadListPrimitive.Items>
+  {() => <MyThreadListItem />}
+</ThreadListPrimitive.Items>
+```
+
+### Attachments
+
+**Before:**
+
+```tsx
+<ComposerPrimitive.Attachments
+  components={{ Attachment: MyAttachment }}
+/>
+```
+
+**After:**
+
+```tsx
+<ComposerPrimitive.Attachments>
+  {() => <MyAttachment />}
+</ComposerPrimitive.Attachments>
+```
+
+### `addResult` / `resume` on enriched part state
+
+When using the children API, tool-call parts include `addResult` and `resume` methods directly on the part object. This means `<ToolFallback {...part} />` works without needing a wrapper component to provide these methods.
+
+### Backwards Compatibility
+
+The `components` prop is still supported on all primitives but is deprecated and will be removed in a future version.
+
+## Getting Help
+
+If you encounter issues during migration:
+
+1. Check the updated API documentation for detailed examples
+2. Review the example applications in the repository
+3. Report issues at https://github.com/assistant-ui/assistant-ui/issues

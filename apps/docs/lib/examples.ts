@@ -14,7 +14,7 @@ const INTERNAL_EXAMPLES: ExampleItem[] = [
     description: "Floating button that opens an AI assistant chat box.",
     link: "/examples/modal",
     githubLink:
-      "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/assistant-ui/assistant-modal.tsx",
+      "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/docs/samples/assistant-modal.tsx",
   },
   {
     title: "Form Filling Co-Pilot",
@@ -30,7 +30,7 @@ const INTERNAL_EXAMPLES: ExampleItem[] = [
     description: "Customized colors and styles for a ChatGPT look and feel.",
     link: "/examples/chatgpt",
     githubLink:
-      "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/chatgpt/ChatGPT.tsx",
+      "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/examples/chatgpt.tsx",
   },
   {
     title: "Claude Clone",
@@ -38,7 +38,7 @@ const INTERNAL_EXAMPLES: ExampleItem[] = [
     description: "Customized colors and styles for a Claude look and feel.",
     link: "/examples/claude",
     githubLink:
-      "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/claude/Claude.tsx",
+      "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/examples/claude.tsx",
   },
   {
     title: "Google Gemini Clone",
@@ -55,7 +55,7 @@ const INTERNAL_EXAMPLES: ExampleItem[] = [
     description: "Customized colors and styles for a Grok look and feel.",
     link: "/examples/grok",
     githubLink:
-      "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/grok/Grok.tsx",
+      "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/examples/grok.tsx",
   },
   {
     title: "Perplexity Clone",
@@ -63,7 +63,7 @@ const INTERNAL_EXAMPLES: ExampleItem[] = [
     description: "Customized colors and styles for a Perplexity look and feel.",
     link: "/examples/perplexity",
     githubLink:
-      "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/perplexity/thread.tsx",
+      "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/examples/perplexity.tsx",
   },
   {
     title: "AI SDK",
@@ -71,7 +71,7 @@ const INTERNAL_EXAMPLES: ExampleItem[] = [
     description: "Chat persistence with AI SDK.",
     link: "/examples/ai-sdk",
     githubLink:
-      "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/shadcn/Shadcn.tsx",
+      "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/examples/shadcn.tsx",
   },
   {
     title: "Mem0 - ChatGPT with memory",
@@ -80,15 +80,14 @@ const INTERNAL_EXAMPLES: ExampleItem[] = [
       "A personalized AI chat app powered by Mem0 that remembers your preferences, facts, and memories.",
     link: "/examples/mem0",
     githubLink:
-      "https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-ai-sdk-v5",
+      "https://github.com/mem0ai/mem0/blob/main/examples/mem0-demo/components/assistant-ui/thread.tsx",
   },
   {
     title: "LangGraph Stockbroker",
     image: "/screenshot/stockbroker.png",
     description: "A stockbroker showing human in the loop with LangGraph",
     link: "/examples/stockbroker",
-    githubLink:
-      "https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-langgraph",
+    githubLink: "https://github.com/assistant-ui/assistant-ui-stockbroker",
   },
   {
     title: "Artifacts",
@@ -96,11 +95,29 @@ const INTERNAL_EXAMPLES: ExampleItem[] = [
     description:
       "Open Source Claude Artifacts. You can ask the bot to generate websites.",
     link: "/examples/artifacts",
-    githubLink: "https://github.com/Yonom/assistant-ui-artifacts",
+    githubLink:
+      "https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-artifacts",
+  },
+  {
+    title: "Expo (React Native)",
+    image: "/screenshot/examples/expo.png",
+    description:
+      "Native iOS & Android chat app with drawer navigation and thread management.",
+    link: "/examples/expo",
+    githubLink:
+      "https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-expo",
   },
 ];
 
 const COMMUNITY_EXAMPLES: ExampleItem[] = [
+  {
+    title: "Mastra UI Dojo",
+    image: "/screenshot/examples/mastra-ui-dojo.png",
+    description:
+      "Mastra integrated with AI SDK, Assistant UI, and CopilotKit — compare side-by-side.",
+    link: "https://github.com/mastra-ai/ui-dojo",
+    external: true,
+  },
   {
     title: "Open Canvas",
     image: "/screenshot/open-canvas.png",

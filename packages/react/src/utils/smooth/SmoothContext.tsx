@@ -11,11 +11,11 @@ import {
 } from "react";
 import { ReadonlyStore } from "../../context/ReadonlyStore";
 import { create, UseBoundStore } from "zustand";
-import {
+import type {
   MessagePartStatus,
   ToolCallMessagePartStatus,
-} from "../../types/AssistantTypes";
-import { useAssistantApi } from "../../context";
+} from "@assistant-ui/core";
+import { useAui } from "@assistant-ui/store";
 import { createContextStoreHook } from "../../context/react/utils/createContextStoreHook";
 
 type SmoothContextValue = {
@@ -35,10 +35,10 @@ const makeSmoothContext = (
 
 export const SmoothContextProvider: FC<PropsWithChildren> = ({ children }) => {
   const outer = useSmoothContext({ optional: true });
-  const api = useAssistantApi();
+  const aui = useAui();
 
   const [context] = useState(() =>
-    makeSmoothContext(api.part().getState().status),
+    makeSmoothContext(aui.part().getState().status),
   );
 
   // do not wrap if there is an outer SmoothContextProvider

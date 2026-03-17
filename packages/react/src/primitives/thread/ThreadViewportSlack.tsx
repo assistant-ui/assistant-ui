@@ -1,6 +1,6 @@
 "use client";
 
-import { Slot } from "@radix-ui/react-slot";
+import { Slot } from "radix-ui";
 import {
   createContext,
   type FC,
@@ -9,7 +9,7 @@ import {
   useContext,
 } from "react";
 import { useThreadViewportStore } from "../../context/react/ThreadViewportContext";
-import { useAssistantState } from "../../context";
+import { useAuiState } from "@assistant-ui/store";
 import { useManagedRef } from "../../utils/hooks/useManagedRef";
 
 const SlackNestingContext = createContext(false);
@@ -57,7 +57,14 @@ export const ThreadPrimitiveViewportSlack: FC<ThreadViewportSlackProps> = ({
   fillClampThreshold = "10em",
   fillClampOffset = "6em",
 }) => {
-  const isLast = useAssistantState(({ message }) => message.isLast);
+  const shouldApplySlack = useAuiState(
+    // only add slack to the last assistant message following a user message (valid turn)
+    (s) =>
+      s.message.isLast &&
+      s.message.role === "assistant" &&
+      s.message.index >= 1 &&
+      s.thread.messages.at(s.message.index - 1)?.role === "user",
+  );
   const threadViewportStore = useThreadViewportStore({ optional: true });
   const isNested = useContext(SlackNestingContext);
 
@@ -67,7 +74,7 @@ export const ThreadPrimitiveViewportSlack: FC<ThreadViewportSlackProps> = ({
 
       const updateMinHeight = () => {
         const state = threadViewportStore.getState();
-        if (state.turnAnchor === "top" && isLast) {
+        if (state.turnAnchor === "top" && shouldApplySlack) {
           const { viewport, inset, userMessage } = state.height;
           const threshold = parseCssLength(fillClampThreshold, el);
           const offset = parseCssLength(fillClampOffset, el);
@@ -90,7 +97,7 @@ export const ThreadPrimitiveViewportSlack: FC<ThreadViewportSlackProps> = ({
     },
     [
       threadViewportStore,
-      isLast,
+      shouldApplySlack,
       isNested,
       fillClampThreshold,
       fillClampOffset,
@@ -101,7 +108,7 @@ export const ThreadPrimitiveViewportSlack: FC<ThreadViewportSlackProps> = ({
 
   return (
     <SlackNestingContext.Provider value={true}>
-      <Slot ref={ref}>{children}</Slot>
+      <Slot.Root ref={ref}>{children}</Slot.Root>
     </SlackNestingContext.Provider>
   );
 };

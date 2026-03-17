@@ -1,11 +1,12 @@
+/** biome-ignore-all lint/correctness/useExhaustiveDependencies: tests */
 import { describe, it, expect, vi } from "vitest";
 import { tapEffect } from "../../hooks/tap-effect";
 import { tapState } from "../../hooks/tap-state";
 import { createTestResource, renderTest, waitForNextTick } from "../test-utils";
 import {
-  renderResource as renderResourceFiber,
-  commitResource,
-  unmountResource,
+  renderResourceFiber,
+  commitResourceFiber,
+  unmountResourceFiber,
 } from "../../core/ResourceFiber";
 
 describe("Lifecycle - Dependencies", () => {
@@ -78,7 +79,7 @@ describe("Lifecycle - Dependencies", () => {
     // Change dep
     setDep(2);
     const ctx = renderResourceFiber(resource, undefined);
-    commitResource(resource, ctx);
+    commitResourceFiber(resource, ctx);
 
     expect(log).toEqual(["effect-1", "cleanup-1", "effect-2"]);
   });
@@ -124,7 +125,7 @@ describe("Lifecycle - Dependencies", () => {
     // Re-render
     triggerRerender(1);
     const ctx = renderResourceFiber(resource, undefined);
-    commitResource(resource, ctx);
+    commitResourceFiber(resource, ctx);
 
     expect(effect).toHaveBeenCalledTimes(1); // Should not re-run
   });
@@ -145,29 +146,29 @@ describe("Lifecycle - Dependencies", () => {
 
     // Initial render
     let ctx = renderResourceFiber(resource, undefined);
-    commitResource(resource, ctx);
+    commitResourceFiber(resource, ctx);
     expect(effect).toHaveBeenCalledTimes(1);
 
     // Change first dep
     setDep1("b");
     ctx = renderResourceFiber(resource, undefined);
-    commitResource(resource, ctx);
+    commitResourceFiber(resource, ctx);
     expect(effect).toHaveBeenCalledTimes(2);
 
     // Change second dep
     setDep2(2);
     ctx = renderResourceFiber(resource, undefined);
-    commitResource(resource, ctx);
+    commitResourceFiber(resource, ctx);
     expect(effect).toHaveBeenCalledTimes(3);
 
     // Change both deps
     setDep1("c");
     setDep2(3);
     ctx = renderResourceFiber(resource, undefined);
-    commitResource(resource, ctx);
+    commitResourceFiber(resource, ctx);
     expect(effect).toHaveBeenCalledTimes(4);
 
-    unmountResource(resource);
+    unmountResourceFiber(resource);
   });
 
   it("should use Object.is for dependency comparison", () => {
@@ -188,7 +189,7 @@ describe("Lifecycle - Dependencies", () => {
     // Set to new object with same shape
     setObj({ value: 1 });
     const ctx = renderResourceFiber(resource, undefined);
-    commitResource(resource, ctx);
+    commitResourceFiber(resource, ctx);
 
     expect(effect).toHaveBeenCalledTimes(2); // Should re-run (different object)
   });
@@ -211,7 +212,7 @@ describe("Lifecycle - Dependencies", () => {
     // Set to NaN again
     const ctx = renderResourceFiber(resource, undefined);
     setValue(NaN);
-    commitResource(resource, ctx);
+    commitResourceFiber(resource, ctx);
 
     expect(effect).toHaveBeenCalledTimes(1); // Should not re-run (NaN === NaN in Object.is)
   });
@@ -232,9 +233,9 @@ describe("Lifecycle - Dependencies", () => {
 
     // Change to no deps
     useDeps = false;
-    const ctx = renderResourceFiber(resource, undefined);
 
-    expect(() => commitResource(resource, ctx)).toThrow(
+    // Error now throws during render (fail-fast validation)
+    expect(() => renderResourceFiber(resource, undefined)).toThrow(
       "tapEffect called with and without dependencies across re-renders",
     );
   });

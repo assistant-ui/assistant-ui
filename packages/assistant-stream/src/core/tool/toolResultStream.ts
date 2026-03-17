@@ -32,6 +32,14 @@ function getToolResponse(
   const getResult = async (
     toolExecute: ToolExecuteFunction<ReadonlyJSONObject, unknown>,
   ): Promise<ToolResponse<ReadonlyJSONValue>> => {
+    // Check if already aborted before starting
+    if (abortSignal.aborted) {
+      return new ToolResponse({
+        result: "Tool execution was cancelled.",
+        isError: true,
+      });
+    }
+
     let executeFn = toolExecute;
 
     if (isStandardSchemaV1(tool.parameters)) {
@@ -49,12 +57,40 @@ function getToolResponse(
       }
     }
 
-    const result = (await executeFn(toolCall.args, {
-      toolCallId: toolCall.toolCallId,
-      abortSignal,
-      human: (payload: unknown) => human(toolCall.toolCallId, payload),
-    })) as unknown as ReadonlyJSONValue;
-    return ToolResponse.toResponse(result);
+    // Create abort promise that resolves after 2 microtasks
+    // This gives tools that handle abort a chance to win the race
+    const abortPromise = new Promise<ToolResponse<ReadonlyJSONValue>>(
+      (resolve) => {
+        const onAbort = () => {
+          queueMicrotask(() => {
+            queueMicrotask(() => {
+              resolve(
+                new ToolResponse({
+                  result: "Tool execution was cancelled.",
+                  isError: true,
+                }),
+              );
+            });
+          });
+        };
+        if (abortSignal.aborted) {
+          onAbort();
+        } else {
+          abortSignal.addEventListener("abort", onAbort, { once: true });
+        }
+      },
+    );
+
+    const executePromise = (async () => {
+      const result = (await executeFn(toolCall.args, {
+        toolCallId: toolCall.toolCallId,
+        abortSignal,
+        human: (payload: unknown) => human(toolCall.toolCallId, payload),
+      })) as unknown as ReadonlyJSONValue;
+      return ToolResponse.toResponse(result);
+    })();
+
+    return Promise.race([executePromise, abortPromise]);
   };
 
   return getResult(tool.execute);
@@ -148,6 +184,11 @@ export async function unstable_runPendingTools(
   };
 }
 
+export type ToolResultStreamOptions = {
+  onExecutionStart?: (toolCallId: string, toolName: string) => void;
+  onExecutionEnd?: (toolCallId: string, toolName: string) => void;
+};
+
 export function toolResultStream(
   tools:
     | Record<string, Tool>
@@ -155,6 +196,7 @@ export function toolResultStream(
     | undefined,
   abortSignal: AbortSignal | (() => AbortSignal),
   human: (toolCallId: string, payload: unknown) => Promise<unknown>,
+  options?: ToolResultStreamOptions,
 ) {
   const toolsFn = typeof tools === "function" ? tools : () => tools;
   const abortSignalFn =
@@ -164,5 +206,7 @@ export function toolResultStream(
       getToolResponse(toolsFn(), abortSignalFn(), toolCall, human),
     streamCall: ({ reader, ...context }) =>
       getToolStreamResponse(toolsFn(), abortSignalFn(), reader, context, human),
+    onExecutionStart: options?.onExecutionStart,
+    onExecutionEnd: options?.onExecutionEnd,
   });
 }

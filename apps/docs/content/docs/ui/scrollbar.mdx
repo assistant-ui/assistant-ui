@@ -1,0 +1,76 @@
+---
+title: Custom Scrollbar
+description: Replace the default scrollbar with a custom Radix UI scroll area.
+---
+
+import { ScrollbarSample } from "@/components/docs/samples/scrollbar";
+
+<ScrollbarSample />
+
+If you want to show a custom scrollbar UI of the `ThreadPrimitive.Viewport` in place of the system default, you can integrate `radix-ui`'s Scroll Area.
+An example implementation of this is [shadcn/ui's Scroll Area](https://ui.shadcn.com/docs/components/scroll-area).
+
+<Steps>
+
+<Step>
+
+### Add shadcn Scroll Area
+
+```bash
+npx shadcn@latest add scroll-area
+```
+
+</Step>
+
+<Step>
+
+### Add Additional Styles
+
+The Radix UI Viewport component adds an intermediate `<div data-radix-scroll-area-content>` element.
+Add the following CSS to your `globals.css`:
+
+```css title="@/app/globals.css"
+.thread-viewport > [data-radix-scroll-area-content] {
+  @apply flex flex-col items-center self-stretch bg-inherit;
+}
+```
+
+</Step>
+
+<Step>
+
+### Integrate with Thread
+
+- Wrap `ThreadPrimitive.Root` with `<ScrollAreaPrimitive.Root asChild>`
+- Wrap `ThreadPrimitive.Viewport` with `<ScrollAreaPrimitive.Viewport className="thread-viewport" asChild>`
+- Add shadcn's `<ScrollBar />` to `ThreadPrimitive.Root`
+
+The resulting MyThread component should look like this:
+
+```tsx {1-2,6,8,12-13,15}
+import { ScrollArea as ScrollAreaPrimitive } from "radix-ui";
+import { ScrollBar } from "@/components/ui/scroll-area";
+
+const MyThread: FC = () => {
+  return (
+    <ScrollAreaPrimitive.Root asChild>
+      <ThreadPrimitive.Root className="...">
+        <ScrollAreaPrimitive.Viewport className="thread-viewport" asChild>
+          <ThreadPrimitive.Viewport className="...">
+            ...
+          </ThreadPrimitive.Viewport>
+        </ScrollAreaPrimitive.Viewport>
+        <ScrollBar />
+      </ThreadPrimitive.Root>
+    </ScrollAreaPrimitive.Root>
+  );
+};
+```
+
+</Step>
+
+</Steps>
+
+## Related Components
+
+- [Thread](/docs/ui/thread) - The main chat interface where the scrollbar is used

@@ -1,0 +1,72 @@
+---
+title: ErrorPrimitive
+description: Components for displaying error messages in the chat interface.
+---
+
+A component for displaying error messages in the UI.
+
+
+## Anatomy
+
+```tsx
+import { ErrorPrimitive } from "@assistant-ui/react";
+
+const ErrorDisplay = () => (
+  <ErrorPrimitive.Root>
+    <ErrorPrimitive.Message />
+  </ErrorPrimitive.Root>
+);
+```
+
+## API Reference
+
+### Root
+
+Contains all parts of the error display. Renders a `<div>` element with `role="alert"`.
+
+<ParametersTable
+  type="ErrorPrimitiveRootProps"
+  parameters={[
+    {
+      name: "asChild",
+      type: "boolean",
+      description:
+        "Change the component to the HTML tag or custom component of the only child.",
+    },
+  ]}
+/>
+
+### Message
+
+Displays the error message. By default, it shows the error from the message context if available, or you can provide custom content.
+
+<ParametersTable
+  type="ErrorPrimitiveMessageProps"
+  parameters={[
+    {
+      name: "children",
+      type: "ReactNode",
+      description:
+        "Optional custom content to display instead of the default error message.",
+    },
+  ]}
+/>
+
+## Usage
+
+The ErrorPrimitive is typically used within a MessagePrimitive.Error component to display error states in messages:
+
+```tsx
+import { MessagePrimitive, ErrorPrimitive } from "@assistant-ui/react";
+
+const MessageWithError = () => (
+  <MessagePrimitive.Root>
+    <MessagePrimitive.Parts />
+    <MessagePrimitive.Error>
+      <ErrorPrimitive.Root>
+        <ErrorPrimitive.Message />
+      </ErrorPrimitive.Root>
+    </MessagePrimitive.Error>
+  </MessagePrimitive.Root>
+);
+```

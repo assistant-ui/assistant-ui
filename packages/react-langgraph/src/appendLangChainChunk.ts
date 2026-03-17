@@ -5,6 +5,11 @@ import {
 } from "./types";
 import { parsePartialJsonObject } from "assistant-stream/utils";
 
+/**
+ * Merges an AIMessageChunk into a previous message. Chunks must have
+ * `type: "AIMessageChunk"` — JS LangGraph servers send `type: "ai"`,
+ * so callers should normalize the type before passing chunks here.
+ */
 export const appendLangChainChunk = (
   prev: LangChainMessage | undefined,
   curr: LangChainMessage | LangChainMessageChunk,
@@ -55,16 +60,29 @@ export const appendLangChainChunk = (
 
   const newToolCalls = [...(prev.tool_calls ?? [])];
   for (const chunk of curr.tool_call_chunks ?? []) {
-    const existing = newToolCalls[chunk.index - 1] ?? { partial_json: "" };
-    const partialJson = existing.partial_json + chunk.args;
-    newToolCalls[chunk.index - 1] = {
-      ...chunk,
-      ...existing,
-      partial_json: partialJson,
-      args:
-        parsePartialJsonObject(partialJson) ??
-        ("args" in existing ? existing.args : {}),
-    };
+    const idx = newToolCalls.findIndex(
+      (tc) => tc.id != null && tc.id === chunk.id,
+    );
+    if (idx === -1) {
+      const partialJson = chunk.args ?? chunk.args_json ?? "";
+      newToolCalls.push({
+        ...chunk,
+        partial_json: partialJson,
+        args: parsePartialJsonObject(partialJson) ?? {},
+      });
+    } else {
+      const existing = newToolCalls[idx]!;
+      const partialJson =
+        existing.partial_json + (chunk.args ?? chunk.args_json ?? "");
+      newToolCalls[idx] = {
+        ...chunk,
+        ...existing,
+        partial_json: partialJson,
+        args:
+          parsePartialJsonObject(partialJson) ??
+          ("args" in existing ? existing.args : {}),
+      };
+    }
   }
 
   return {

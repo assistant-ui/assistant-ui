@@ -1,5 +1,117 @@
 # assistant-cloud
 
+## 0.1.22
+
+### Patch Changes
+
+- 349f3c7: chore: update deps
+- Updated dependencies [427ffaa]
+- Updated dependencies [349f3c7]
+- Updated dependencies [02614aa]
+  - assistant-stream@0.3.6
+
+## 0.1.21
+
+### Patch Changes
+
+- a845911: chore: update dependencies
+
+## 0.1.20
+
+### Patch Changes
+
+- 17cf9a8: feat(telemetry): add reasoning/cached token usage across cloud reporting paths
+
+## 0.1.19
+
+### Patch Changes
+
+- 36ef3a2: chore: update dependencies
+- Updated dependencies [36ef3a2]
+  - assistant-stream@0.3.4
+
+## 0.1.18
+
+### Patch Changes
+
+- d08a488: Preserve CloudAPIError instances from AssistantCloudAPI error responses.
+- 5e304ea: feat: client-side run telemetry reporting with `beforeReport` hook
+- af5b085: feat(assistant-cloud): support MCP tool observability
+- a247fc9: feat(assistant-cloud): allow save complete multi-step message
+- 93910bd: Rename .tsx files to .ts where no JSX syntax is used
+- 58a8472: feat: Add standalone AI SDK hooks for cloud persistence without assistant-ui
+
+  New `@assistant-ui/cloud-ai-sdk` package with `useCloudChat` and `useThreads` hooks. Wraps AI SDK's `useChat` with automatic message persistence, thread management, and auto-title generation.
+
+- Updated dependencies [61b54e9]
+- Updated dependencies [93910bd]
+  - assistant-stream@0.3.3
+
+## 0.1.17
+
+### Patch Changes
+
+- a088518: chore: update dependencies
+- Updated dependencies [a088518]
+  - assistant-stream@0.3.2
+
+## 0.1.16
+
+### Patch Changes
+
+- d45b893: chore: update dependencies
+- Updated dependencies [d45b893]
+  - assistant-stream@0.3.1
+
+## 0.1.15
+
+### Patch Changes
+
+- Updated dependencies [acbaf07]
+  - assistant-stream@0.3.0
+
+## 0.1.14
+
+### Patch Changes
+
+- 605d825: chore: update dependencies
+- Updated dependencies [605d825]
+  - assistant-stream@0.2.48
+
+## 0.1.13
+
+### Patch Changes
+
+- 3719567: chore: update deps
+- Updated dependencies [3719567]
+  - assistant-stream@0.2.47
+
+## 0.1.12
+
+### Patch Changes
+
+- 57bd207: chore: update dependencies
+- cce009d: chore: use tsc for building packages
+- Updated dependencies [57bd207]
+- Updated dependencies [cce009d]
+  - assistant-stream@0.2.46
+
+## 0.1.11
+
+### Patch Changes
+
+- e8ea57b: chore: update deps
+- Updated dependencies [e8ea57b]
+  - assistant-stream@0.2.45
+
+## 0.1.10
+
+### Patch Changes
+
+- 01c31fe: chore: update dependencies
+- Updated dependencies [01c31fe]
+  - assistant-stream@0.2.43
+
 ## 0.1.9
 
 ### Patch Changes

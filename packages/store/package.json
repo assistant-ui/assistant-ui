@@ -1,16 +1,24 @@
 {
   "name": "@assistant-ui/store",
+  "version": "0.2.3",
   "description": "Tap-based state management for @assistant-ui",
-  "version": "0.0.1",
+  "keywords": [
+    "state-management",
+    "store",
+    "tap",
+    "assistant-ui",
+    "react"
+  ],
+  "author": "AgentbaseAI Inc.",
   "license": "MIT",
   "type": "module",
   "exports": {
     ".": {
+      "aui-source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     }
   },
-  "source": "./src/index.ts",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "files": [
@@ -20,19 +28,32 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "tsx scripts/build.mts"
+    "build": "aui-build",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/tap": "workspace:*"
+    "use-effect-event": "^2.0.3"
   },
   "peerDependencies": {
-    "react": "^18.0.0 || ^19.0.0"
+    "@assistant-ui/tap": "^0.5.3",
+    "@types/react": "*",
+    "react": "^18 || ^19"
+  },
+  "peerDependenciesMeta": {
+    "@types/react": {
+      "optional": true
+    }
   },
   "devDependencies": {
+    "@assistant-ui/tap": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^24.10.1",
-    "@types/react": "19.2.7",
-    "tsx": "^4.20.6"
+    "@testing-library/react": "^16.3.2",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "jsdom": "^28.1.0",
+    "react": "^19.2.4",
+    "vitest": "^4.1.0"
   },
   "publishConfig": {
     "access": "public",
@@ -41,7 +62,8 @@
   "homepage": "https://www.assistant-ui.com/",
   "repository": {
     "type": "git",
-    "url": "https://github.com/assistant-ui/assistant-ui/tree/main/packages/store"
+    "url": "git+https://github.com/assistant-ui/assistant-ui.git",
+    "directory": "packages/store"
   },
   "bugs": {
     "url": "https://github.com/assistant-ui/assistant-ui/issues"

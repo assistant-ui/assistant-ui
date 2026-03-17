@@ -1,0 +1,13 @@
+{
+  "title": "Runtime Hooks",
+  "pages": [
+    "assistant-runtime",
+    "attachment-runtime",
+    "composer-runtime",
+    "message-part-runtime",
+    "message-runtime",
+    "thread-list-item-runtime",
+    "thread-list-runtime",
+    "thread-runtime"
+  ]
+}

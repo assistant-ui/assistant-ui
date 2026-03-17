@@ -1,0 +1,161 @@
+---
+title: AssistantModal
+description: Floating chat bubble for support widgets and help desks.
+---
+
+import { AssistantModalSample } from "@/components/docs/samples/assistant-modal";
+
+A floating chat modal built on Radix UI Popover. Ideal for support widgets, help desks, and embedded assistants.
+
+<AssistantModalSample />
+
+## Getting Started
+
+<Steps>
+  <Step>
+
+### Add `assistant-modal`
+
+<InstallCommand shadcn={["assistant-modal"]} />
+
+This adds `/components/assistant-ui/assistant-modal.tsx` to your project, which you can adjust as needed.
+
+  </Step>
+  <Step>
+
+### Use in your application
+
+```tsx title="/app/page.tsx" {1,6}
+import { AssistantModal } from "@/components/assistant-ui/assistant-modal";
+
+export default function Home() {
+  return (
+    <div className="h-full">
+      <AssistantModal />
+    </div>
+  );
+}
+```
+
+  </Step>
+</Steps>
+
+## Anatomy
+
+The `AssistantModal` component is built with the following primitives:
+
+```tsx
+import { AssistantModalPrimitive } from "@assistant-ui/react";
+
+<AssistantModalPrimitive.Root>
+  <AssistantModalPrimitive.Anchor />
+  <AssistantModalPrimitive.Trigger />
+  <AssistantModalPrimitive.Content>
+    {/* Thread component goes here */}
+  </AssistantModalPrimitive.Content>
+</AssistantModalPrimitive.Root>
+```
+
+## API Reference
+
+### Root
+
+Contains all parts of the modal. Based on Radix UI Popover.
+
+<ParametersTable
+  type="AssistantModalPrimitiveRootProps"
+  parameters={[
+    {
+      name: "defaultOpen",
+      type: "boolean",
+      description: "The initial open state when uncontrolled.",
+    },
+    {
+      name: "open",
+      type: "boolean",
+      description: "The controlled open state.",
+    },
+    {
+      name: "onOpenChange",
+      type: "(open: boolean) => void",
+      description: "Callback when the open state changes.",
+    },
+    {
+      name: "unstable_openOnRunStart",
+      type: "boolean",
+      description: "Automatically open the modal when the assistant starts running.",
+    },
+  ]}
+/>
+
+### Trigger
+
+A button that toggles the modal open/closed state.
+
+<ParametersTable
+  type="AssistantModalPrimitiveTriggerProps"
+  parameters={[
+    {
+      name: "asChild",
+      type: "boolean",
+      default: "false",
+      description: "Merge props with child element instead of rendering a wrapper button.",
+    },
+  ]}
+/>
+
+This primitive renders a `<button>` element unless `asChild` is set.
+
+### Content
+
+The popover content container that holds the chat interface.
+
+<ParametersTable
+  type="AssistantModalPrimitiveContentProps"
+  parameters={[
+    {
+      name: "side",
+      type: "'top' | 'right' | 'bottom' | 'left'",
+      default: "'top'",
+      description: "The preferred side of the anchor to render against.",
+    },
+    {
+      name: "align",
+      type: "'start' | 'center' | 'end'",
+      default: "'end'",
+      description: "The preferred alignment against the anchor.",
+    },
+    {
+      name: "dissmissOnInteractOutside",
+      type: "boolean",
+      description: "Whether to close the modal when clicking outside.",
+    },
+    {
+      name: "asChild",
+      type: "boolean",
+      default: "false",
+      description: "Merge props with child element instead of rendering a wrapper div.",
+    },
+  ]}
+/>
+
+### Anchor
+
+An optional anchor element to position the modal relative to.
+
+<ParametersTable
+  type="AssistantModalPrimitiveAnchorProps"
+  parameters={[
+    {
+      name: "asChild",
+      type: "boolean",
+      default: "false",
+      description: "Merge props with child element instead of rendering a wrapper div.",
+    },
+  ]}
+/>
+
+## Related Components
+
+- [Thread](/docs/ui/thread) - The main chat interface used inside the modal
+- [AssistantSidebar](/docs/ui/assistant-sidebar) - Alternative layout for side panel chat

@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from typing import Any, AsyncGenerator, Callable, Coroutine, List, Optional
 from assistant_stream.assistant_stream_chunk import (
     AssistantStreamChunk,
@@ -17,6 +18,21 @@ from assistant_stream.modules.tool_call import (
 )
 from assistant_stream.state_manager import StateManager
 
+logger = logging.getLogger(__name__)
+
+
+class ReadOnlyCancellationSignal:
+    """Read-only view over an asyncio.Event used for cancellation."""
+
+    def __init__(self, event: asyncio.Event):
+        self._event = event
+
+    def is_set(self) -> bool:
+        return self._event.is_set()
+
+    async def wait(self) -> bool:
+        return await self._event.wait()
+
 
 class RunController:
     def __init__(self, queue, state_data, parent_id: Optional[str] = None):
@@ -26,6 +42,8 @@ class RunController:
         self._stream_tasks = []
         self._state_manager = StateManager(self._put_chunk_nowait, state_data)
         self._parent_id = parent_id
+        self._cancelled_event = asyncio.Event()
+        self._cancelled_signal = ReadOnlyCancellationSignal(self._cancelled_event)
 
     def with_parent_id(self, parent_id: str) -> 'RunController':
         """Create a new RunController instance with the specified parent_id."""
@@ -34,6 +52,8 @@ class RunController:
         controller._dispose_callbacks = self._dispose_callbacks
         controller._stream_tasks = self._stream_tasks
         controller._state_manager = self._state_manager
+        controller._cancelled_event = self._cancelled_event
+        controller._cancelled_signal = self._cancelled_signal
         return controller
 
     def append_text(self, text_delta: str) -> None:
@@ -144,6 +164,21 @@ class RunController:
             [{"type": "set", "path": [], "value": value}]
         )
 
+    @property
+    def cancelled_event(self) -> ReadOnlyCancellationSignal:
+        """Expose cancellation signal for cooperative cancellation."""
+        return self._cancelled_signal
+
+    @property
+    def is_cancelled(self) -> bool:
+        """Return whether this run has been cancelled."""
+        return self._cancelled_event.is_set()
+
+    def _mark_cancelled(self) -> None:
+        """Set cancellation signal once."""
+        if not self._cancelled_event.is_set():
+            self._cancelled_event.set()
+
 
 async def create_run(
     callback: Callable[[RunController], Coroutine[Any, Any, None]],
@@ -172,12 +207,60 @@ async def create_run(
                 asyncio.get_running_loop().call_soon_threadsafe(queue.put_nowait, None)
 
     task = asyncio.create_task(background_task())
+    ended_normally = False
 
-    while True:
-        chunk = await controller._queue.get()
-        if chunk is None:
-            break
-        yield chunk
-        controller._queue.task_done()
-
-    await task
+    try:
+        while True:
+            chunk = await controller._queue.get()
+            if chunk is None:
+                ended_normally = True
+                break
+            yield chunk
+            controller._queue.task_done()
+    finally:
+        if ended_normally:
+            # The `None` sentinel is queued at the end of `background_task`, so
+            # normal stream completion implies `task` is already done here.
+            # `result()` preserves normal-path error propagation.
+            task.result()
+        else:
+            controller._mark_cancelled()
+            # Yield to the event loop to allow the cancel signal to propagate.
+            await asyncio.sleep(0)
+            if not task.done():
+                # Give callbacks a brief chance to observe `is_cancelled`
+                # and exit cooperatively before forcing cancellation.
+                # 50ms keeps disconnect cleanup responsive without immediately
+                # interrupting callbacks that can stop themselves quickly.
+                try:
+                    await asyncio.wait_for(asyncio.shield(task), timeout=0.05)
+                except asyncio.TimeoutError:
+                    # Timeout means cooperative shutdown did not finish in time.
+                    pass
+                except Exception:
+                    # The stream consumer already disconnected, so suppress callback errors
+                    # but keep a log signal for postmortem debugging.
+                    logger.warning(
+                        "Suppressed callback exception during early-close grace period",
+                        exc_info=True,
+                    )
+            if not task.done():
+                task.cancel()
+            try:
+                # `shield()` lets caller-initiated cancellation interrupt `aclose()`
+                # without conflating it with our own forced `task.cancel()`.
+                await asyncio.shield(task)
+            except asyncio.CancelledError:
+                if task.cancelled():
+                    # Expected forced cancellation for early-close cleanup.
+                    pass
+                else:
+                    # Preserve caller-initiated cancellation (e.g. wait_for timeout).
+                    raise
+            except Exception:
+                # The stream consumer already disconnected, so suppress callback errors
+                # but keep a log signal for postmortem debugging.
+                logger.warning(
+                    "Suppressed callback exception after forced early-close cancellation",
+                    exc_info=True,
+                )

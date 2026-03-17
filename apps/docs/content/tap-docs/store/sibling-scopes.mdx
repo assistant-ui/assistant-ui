@@ -1,0 +1,132 @@
+---
+title: Sibling Scopes
+description: Scopes that reference each other at the same level.
+---
+
+Child scopes point down — from parent to child. But sometimes scopes at the same level need to interact. A `tools` scope might need to register definitions into a `modelContext` scope. A `composer` scope might need to read from a `thread` scope.
+
+These are **sibling scopes** — scopes that sit at the same level in the provider tree and reference each other.
+
+## The problem
+
+When you pass multiple scopes to `useAui`, they're all created as siblings:
+
+```tsx
+const aui = useAui({
+  thread: ThreadResource(),
+  tools: ToolsResource(),
+  modelContext: ModelContextResource(),
+});
+```
+
+But what if `ToolsResource` needs to call methods on the `modelContext` scope? At definition time, the `tools` resource doesn't have access to its siblings.
+
+## tapAssistantClientRef
+
+`tapAssistantClientRef()` gives a resource access to the store being built. It returns a ref whose `.current` property points to the `AssistantClient` once all scopes are mounted:
+
+```ts
+import { resource, tapEffect } from "@assistant-ui/tap";
+import { tapAssistantClientRef } from "@assistant-ui/store";
+import type { ClientOutput } from "@assistant-ui/store";
+
+const ToolsResource = resource((): ClientOutput<"tools"> => {
+  const clientRef = tapAssistantClientRef();
+
+  tapEffect(() => {
+    // access a sibling scope
+    const unsub = clientRef.current!.modelContext().register({
+      getModelContext: () => ({ tools: myTools }),
+    });
+    return () => unsub();
+  }, [clientRef]);
+
+  return {
+    getState: () => ({ ... }),
+  };
+});
+```
+
+Use `tapAssistantClientRef` in effects, not during the resource body. The ref is populated after all sibling scopes are mounted, so it's only safe to access in `tapEffect` or in methods called later.
+
+## attachTransformScopes
+
+`tapAssistantClientRef` lets a scope talk to siblings at runtime. But what if the sibling scope doesn't exist yet? If a user only provides `thread: ThreadResource()`, there's no `modelContext` to talk to.
+
+`attachTransformScopes` solves this by letting a resource declare: "when I'm mounted, make sure these sibling scopes also exist."
+
+```ts
+import { attachTransformScopes } from "@assistant-ui/store";
+
+attachTransformScopes(ToolsResource, (scopes, parent) => {
+  // ensure modelContext exists as a sibling
+  if (!scopes.modelContext && parent.modelContext.source === null) {
+    return { ...scopes, modelContext: ModelContextResource() };
+  }
+  return scopes;
+});
+```
+
+The transform function receives:
+- `scopes` — the current scopes config being built
+- `parent` — the parent `AssistantClient` (from the `AuiProvider` above)
+
+It returns a new scopes config, optionally adding scopes that should be created alongside.
+
+### Checking parent.source
+
+Before adding a scope, check `parent.scopeName.source`:
+- `null` — the scope isn't provided by any ancestor. Safe to add it here.
+- `"root"` or a scope name — an ancestor already provides this scope. Don't duplicate it.
+
+```ts
+attachTransformScopes(MyResource, (scopes, parent) => {
+  // only add if not already in scopes AND not provided by a parent
+  if (!scopes.tools && parent.tools.source === null) {
+    return { ...scopes, tools: ToolsResource() };
+  }
+  return scopes;
+});
+```
+
+### Adding derived scopes
+
+Transforms can also add `Derived` scopes:
+
+```ts
+attachTransformScopes(ThreadResource, (scopes) => ({
+  ...scopes,
+  composer:
+    scopes.composer ??
+    Derived({
+      source: "thread",
+      query: {},
+      get: (aui) => aui.thread().composer(),
+    }),
+}));
+```
+
+This ensures that when a user provides a `thread` scope, the `composer` scope is automatically wired up as a child of that thread — without the user having to declare it.
+
+### Iterative application
+
+Transforms are applied iteratively. When a transform adds a new root scope, Store checks if that new scope also has a transform attached — and runs it too. This continues until no new scopes are added.
+
+For example:
+1. User provides `thread: ThreadResource()`
+2. `ThreadResource`'s transform adds `tools: ToolsResource()` and `modelContext: ModelContextResource()`
+3. `ToolsResource`'s transform runs — sees `modelContext` already exists, does nothing
+4. No more new scopes → done
+
+<Callout type="warn">
+Each resource can only have one transform attached. Calling `attachTransformScopes` twice on the same resource throws an error.
+</Callout>
+
+## When to use which
+
+| Pattern | Use when |
+| --- | --- |
+| `tapAssistantClientRef` | A scope needs to call methods on a sibling at runtime (effects, event handlers) |
+| `attachTransformScopes` | A scope needs to guarantee a sibling exists before mounting |
+
+In practice, they're often used together: `attachTransformScopes` ensures the sibling scope is created, then `tapAssistantClientRef` accesses it at runtime.

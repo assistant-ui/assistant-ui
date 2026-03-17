@@ -1,26 +1,33 @@
 import { source } from "@/lib/source";
+import { BASE_URL } from "@/lib/constants";
 
 export const revalidate = false;
 
 export async function GET() {
-  const scanned: string[] = [];
-  scanned.push("# Docs");
+  const lines: string[] = [];
+  lines.push("# assistant-ui");
+  lines.push("");
+  lines.push("> React components for AI chat interfaces");
+  lines.push("");
+  lines.push("## Table of Contents");
+
   const map = new Map<string, string[]>();
-  const baseUrl = "https://assistant-ui.com";
 
   for (const page of source.getPages()) {
     const dir = page.slugs[0] || "root";
     const list = map.get(dir) ?? [];
     list.push(
-      `- [${page.data.title}](${baseUrl}${page.url}): ${page.data.description || ""}`,
+      `- [${page.data.title}](${BASE_URL}${page.url}): ${page.data.description || ""}`,
     );
     map.set(dir, list);
   }
 
   for (const [key, value] of map) {
-    scanned.push(`## ${key}`);
-    scanned.push(value.join("\n"));
+    lines.push("");
+    lines.push(`### ${key}`);
+    lines.push("");
+    lines.push(value.join("\n"));
   }
 
-  return new Response(scanned.join("\n\n"));
+  return new Response(lines.join("\n"));
 }

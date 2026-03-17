@@ -1,10 +1,8 @@
 ---
 title: Data Stream Protocol
+description: Integration with data stream protocol endpoints for streaming AI responses.
 ---
 
-import { Step, Steps } from "fumadocs-ui/components/steps";
-import { Callout } from "fumadocs-ui/components/callout";
-import { InstallCommand } from "@/components/docs/install-command";
 
 The `@assistant-ui/react-data-stream` package provides integration with data stream protocol endpoints, enabling streaming AI responses with tool support and state management.
 
@@ -20,7 +18,7 @@ The data stream protocol is a standardized format for streaming AI responses tha
 
 ## Installation
 
-<InstallCommand npm={["@assistant-ui/react-data-stream"]} />
+<InstallCommand npm={["@assistant-ui/react", "@assistant-ui/react-data-stream"]} />
 
 ## Basic Usage
 
@@ -63,7 +61,7 @@ Your backend endpoint should accept POST requests and return data stream respons
 import { createAssistantStreamResponse } from "assistant-stream";
 
 export async function POST(request: Request) {
-  const { messages, tools, system } = await request.json();
+  const { messages, tools, system, threadId } = await request.json();
 
   return createAssistantStreamResponse(async (controller) => {
     // Process the request with your AI provider
@@ -80,6 +78,12 @@ export async function POST(request: Request) {
   });
 }
 ```
+
+The request body includes:
+- `messages` - The conversation history
+- `tools` - Available tool definitions
+- `system` - System prompt (if configured)
+- `threadId` - The current thread/conversation identifier
 
 </Step>
 
@@ -114,6 +118,22 @@ const runtime = useDataStreamRuntime({
 });
 ```
 
+### Dynamic Body
+
+```tsx
+const runtime = useDataStreamRuntime({
+  api: "/api/chat",
+  headers: async () => ({
+    "Authorization": `Bearer ${await getAuthToken()}`,
+  }),
+  body: async () => ({
+    requestId: crypto.randomUUID(),
+    timestamp: Date.now(),
+    signature: await computeSignature(),
+  }),
+});
+```
+
 ### Event Callbacks
 
 ```tsx
@@ -136,32 +156,38 @@ const runtime = useDataStreamRuntime({
 
 ## Tool Integration
 
+<Callout type="warn">
+  Human-in-the-loop tools (using `human()` for tool interrupts) are not supported
+  in the data stream runtime. If you need human approval workflows or interactive
+  tool UIs, consider using [LocalRuntime](/docs/runtimes/custom/local) or
+  [Assistant Cloud](/docs/cloud) instead.
+</Callout>
+
 ### Frontend Tools
 
-Use the `frontendTools` helper to serialize client-side tools:
+Use `toToolsJSONSchema` to serialize client-side tools:
 
 ```tsx
-import { frontendTools } from "@assistant-ui/react-data-stream";
-import { makeAssistantTool } from "@assistant-ui/react";
+import { tool } from "@assistant-ui/react";
+import { toToolsJSONSchema } from "assistant-stream";
 
-const weatherTool = makeAssistantTool({
-  toolName: "get_weather",
-  description: "Get current weather",
-  parameters: z.object({
-    location: z.string(),
+const myTools = {
+  get_weather: tool({
+    description: "Get current weather",
+    parameters: z.object({
+      location: z.string(),
+    }),
+    execute: async ({ location }) => {
+      const weather = await fetchWeather(location);
+      return `Weather in ${location}: ${weather}`;
+    },
   }),
-  execute: async ({ location }) => {
-    const weather = await fetchWeather(location);
-    return `Weather in ${location}: ${weather}`;
-  },
-});
+};
 
 const runtime = useDataStreamRuntime({
   api: "/api/chat",
   body: {
-    tools: frontendTools({
-      get_weather: weatherTool,
-    }),
+    tools: toToolsJSONSchema(myTools),
   },
 });
 ```
@@ -201,16 +227,49 @@ The `useCloudRuntime` hook is currently under active development and not yet rea
 
 ## Message Conversion
 
-The package includes utilities for converting between message formats:
+### Framework-Agnostic Conversion (Recommended)
+
+For custom integrations, use the framework-agnostic utilities from `assistant-stream`:
+
+```tsx
+import { toGenericMessages, toToolsJSONSchema } from "assistant-stream";
+
+// Convert messages to a generic format
+const genericMessages = toGenericMessages(messages);
+
+// Convert tools to JSON Schema format
+const toolSchemas = toToolsJSONSchema(tools);
+```
+
+The `GenericMessage` format can be easily converted to any LLM provider format:
+
+```tsx
+import type { GenericMessage } from "assistant-stream";
+
+// GenericMessage is a union of:
+// - { role: "system"; content: string }
+// - { role: "user"; content: (GenericTextPart | GenericFilePart)[] }
+// - { role: "assistant"; content: (GenericTextPart | GenericToolCallPart)[] }
+// - { role: "tool"; content: GenericToolResultPart[] }
+```
+
+### AI SDK Specific Conversion
+
+For AI SDK integration, use `toLanguageModelMessages`:
 
 ```tsx
 import { toLanguageModelMessages } from "@assistant-ui/react-data-stream";
 
-// Convert assistant-ui messages to language model format
+// Convert to AI SDK LanguageModelV2Message format
 const languageModelMessages = toLanguageModelMessages(messages, {
   unstable_includeId: true, // Include message IDs
 });
 ```
+
+<Callout type="info">
+`toLanguageModelMessages` internally uses `toGenericMessages` and adds AI SDK-specific transformations.
+For new custom integrations, prefer using `toGenericMessages` directly.
+</Callout>
 
 ## Error Handling
 
@@ -282,9 +341,81 @@ const runtime = useDataStreamRuntime({
 
 ## Examples
 
-- **[Basic Data Stream Example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-data-stream)** - Simple streaming chat
-- **[Tool Integration Example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-data-stream-tools)** - Frontend and backend tools
-- **[Authentication Example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-data-stream-auth)** - Secure endpoints
+Explore our [examples repository](https://github.com/assistant-ui/assistant-ui/tree/main/examples) for implementation references.
+
+## LocalRuntimeOptions
+
+`useDataStreamRuntime` accepts all options from `LocalRuntimeOptions` in addition to its own options. These control the underlying local runtime behavior.
+
+### `maxSteps`
+
+The maximum number of agentic steps (tool call rounds) allowed per run. Defaults to unlimited.
+
+```tsx
+const runtime = useDataStreamRuntime({
+  api: "/api/chat",
+  maxSteps: 5,
+});
+```
+
+### `initialMessages`
+
+Pre-populate the thread with messages on first render. Useful for continuing an existing conversation.
+
+```tsx
+const runtime = useDataStreamRuntime({
+  api: "/api/chat",
+  initialMessages: [
+    { role: "user", content: [{ type: "text", text: "Hello" }] },
+    { role: "assistant", content: [{ type: "text", text: "Hi! How can I help?" }] },
+  ],
+});
+```
+
+### `adapters`
+
+Extend the runtime with optional capability adapters. The `chatModel` adapter is handled internally by `useDataStreamRuntime` and cannot be overridden here.
+
+```tsx
+const runtime = useDataStreamRuntime({
+  api: "/api/chat",
+  adapters: {
+    attachments: myAttachmentAdapter,
+    history: myHistoryAdapter,
+    speech: mySpeechAdapter,
+    dictation: myDictationAdapter,
+    feedback: myFeedbackAdapter,
+    suggestion: mySuggestionAdapter,
+  },
+});
+```
+
+See the [LocalRuntime adapters documentation](/docs/runtimes/custom/local#adapters) for details on implementing each adapter.
+
+### `cloud`
+
+Connect to [Assistant Cloud](/docs/cloud) for managed multi-thread support, persistence, and thread management.
+
+```tsx
+import { AssistantCloud } from "assistant-cloud";
+
+const cloud = new AssistantCloud({ /* ... */ });
+
+const runtime = useDataStreamRuntime({
+  api: "/api/chat",
+  cloud,
+});
+```
+
+### `unstable_humanToolNames`
+
+Names of tools that should pause execution and wait for human or external approval before proceeding.
+
+<Callout type="warn">
+  Human-in-the-loop tool interrupts (`unstable_humanToolNames`) are not supported
+  in the data stream runtime. Use [LocalRuntime](/docs/runtimes/custom/local) if
+  you need this feature.
+</Callout>
 
 ## API Reference
 

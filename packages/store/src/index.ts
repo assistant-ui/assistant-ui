@@ -1,40 +1,47 @@
 // hooks
-export { useAssistantClient } from "./useAssistantClient";
-export { useAssistantState } from "./useAssistantState";
-export { useAssistantEvent } from "./useAssistantEvent";
+export { useAui } from "./useAui";
+export { useAuiState } from "./useAuiState";
+export { useAuiEvent } from "./useAuiEvent";
+export { RenderChildrenWithAccessor } from "./RenderChildrenWithAccessor";
 
 // components
-export { AssistantIf } from "./AssistantIf";
-export { AssistantProvider } from "./AssistantContext";
+export { AuiIf } from "./AuiIf";
+export { AuiProvider } from "./utils/react-assistant-context";
 
 // resources
-export { DerivedScope } from "./DerivedScope";
+export { Derived } from "./Derived";
+export { attachTransformScopes } from "./attachTransformScopes";
+export type { ScopesConfig } from "./attachTransformScopes";
 
 // tap hooks
-export { tapApi, type ApiObject } from "./tapApi";
-export { tapStoreContext, type StoreContextValue } from "./StoreContext";
-export { tapLookupResources } from "./tapLookupResources";
-export { tapStoreList, type TapStoreListConfig } from "./tapStoreList";
-
-// registration
-export { registerAssistantScope } from "./ScopeRegistry";
+export {
+  tapAssistantClientRef,
+  tapAssistantEmit,
+} from "./utils/tap-assistant-context";
+export { tapClientResource } from "./tapClientResource";
+export { tapClientLookup } from "./tapClientLookup";
+export { tapClientList } from "./tapClientList";
 
 // types
 export type {
-  AssistantScopes,
-  AssistantScopeRegistry,
+  ScopeRegistry,
+  ClientOutput,
+  ClientMethods,
+  ClientSchema,
+  ClientNames,
+  ClientEvents,
+  ClientMeta,
+  ClientElement,
+  Unsubscribe,
+  AssistantClientAccessor,
   AssistantClient,
   AssistantState,
-} from "./types";
-
-export type {
-  AssistantEvent,
-  AssistantEventScopeConfig,
-  AssistantEventMap,
-  AssistantEventScope,
-  AssistantEventSelector,
-  AssistantEventCallback,
-  EventSource,
-  SourceByScope,
-  EventManager,
-} from "./EventContext";
+} from "./types/client";
+export {
+  normalizeEventSelector,
+  type AssistantEventName,
+  type AssistantEventCallback,
+  type AssistantEventPayload,
+  type AssistantEventSelector,
+  type AssistantEventScope,
+} from "./types/events";

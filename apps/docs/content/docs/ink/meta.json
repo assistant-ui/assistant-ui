@@ -1,0 +1,15 @@
+{
+  "title": "React Ink",
+  "description": "Build AI chat UIs for the terminal",
+  "icon": "Terminal",
+  "root": true,
+  "pages": [
+    "index",
+    "migration",
+    "custom-backend",
+    "---API Reference---",
+    "primitives",
+    "hooks",
+    "adapters"
+  ]
+}

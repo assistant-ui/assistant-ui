@@ -2,6 +2,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import { tapResources } from "../../hooks/tap-resources";
 import { tapState } from "../../hooks/tap-state";
 import { resource } from "../../core/resource";
+import { withKey } from "../../core/withKey";
 import {
   createTestResource,
   renderTest,
@@ -55,47 +56,17 @@ describe("tapResources - Basic Functionality", () => {
     cleanupAllResources();
   });
 
-  describe("Key Validation", () => {
-    it("should require all elements to have keys", () => {
-      const testFiber = createTestResource(() => {
-        expect(() => {
-          tapResources([
-            { type: SimpleCounter, props: { value: 1 } },
-            { type: SimpleCounter, props: { value: 2 } },
-          ]);
-        }).toThrowError("All resource elements must have a key");
-
-        return null;
-      });
-
-      renderTest(testFiber, undefined);
-    });
-
-    it("should require all keys to be unique", () => {
-      const testFiber = createTestResource(() => {
-        expect(() => {
-          tapResources([
-            { type: SimpleCounter, props: { value: 1 }, key: "a" },
-            { type: SimpleCounter, props: { value: 2 }, key: "b" },
-            { type: SimpleCounter, props: { value: 3 }, key: "a" }, // Duplicate!
-          ]);
-        }).toThrowError('Duplicate key "a" found');
-
-        return null;
-      });
-
-      renderTest(testFiber, undefined);
-    });
-  });
-
   describe("Basic Rendering", () => {
     it("should render multiple resources with keys", () => {
       const testFiber = createTestResource(() => {
-        const results = tapResources([
-          { type: SimpleCounter, props: { value: 10 }, key: "a" },
-          { type: SimpleCounter, props: { value: 20 }, key: "b" },
-          { type: SimpleCounter, props: { value: 30 }, key: "c" },
-        ]);
+        const results = tapResources(
+          () => [
+            withKey("a", SimpleCounter({ value: 10 })),
+            withKey("b", SimpleCounter({ value: 20 })),
+            withKey("c", SimpleCounter({ value: 30 })),
+          ],
+          [],
+        );
 
         return results;
       });
@@ -110,15 +81,19 @@ describe("tapResources - Basic Functionality", () => {
         return { count, double: count * 2 };
       });
 
-      const testFiber = createTestResource(() => {
-        const items = [
-          { value: 5, id: "first" },
-          { value: 10, id: "second" },
-          { value: 15, id: "third" },
-        ];
+      const items = [
+        { key: "first", value: 5 },
+        { key: "second", value: 10 },
+        { key: "third", value: 15 },
+      ];
 
+      const testFiber = createTestResource(() => {
         const results = tapResources(
-          items.map((item) => Counter({ value: item.value }, { key: item.id })),
+          () =>
+            items.map((item) =>
+              withKey(item.key, Counter({ value: item.value })),
+            ),
+          [],
         );
 
         return results;
@@ -136,23 +111,25 @@ describe("tapResources - Basic Functionality", () => {
   describe("Instance Preservation", () => {
     it("should maintain resource instances when keys remain the same", () => {
       const testFiber = createTestResource(
-        (props: { items: Array<{ key: string; value: number }> }) => {
-          return tapResources(
-            props.items.map((item) =>
-              TrackingCounter(
-                { value: item.value, id: item.key },
-                { key: item.key },
+        (props: {
+          items: Array<{ key: string; value: number; id: string }>;
+        }) => {
+          return tapResources(() => {
+            return props.items.map((item) =>
+              withKey(
+                item.key,
+                TrackingCounter({ value: item.value, id: item.id }),
               ),
-            ),
-          );
+            );
+          }, [props.items]);
         },
       );
 
       // Initial render
       const result1 = renderTest(testFiber, {
         items: [
-          { key: "a", value: 1 },
-          { key: "b", value: 2 },
+          { key: "a", value: 1, id: "a" },
+          { key: "b", value: 2, id: "b" },
         ],
       });
 
@@ -171,12 +148,12 @@ describe("tapResources - Basic Functionality", () => {
       // Re-render with same keys but different order and values
       const result2 = renderTest(testFiber, {
         items: [
-          { key: "b", value: 20 },
-          { key: "a", value: 10 },
+          { key: "b", value: 20, id: "b" },
+          { key: "a", value: 10, id: "a" },
         ],
       });
 
-      // Verify instances are preserved despite reordering
+      // Verify instances are preserved (renderCount should be 2)
       expect(result2[0]).toMatchObject({
         id: "b",
         value: 20,
@@ -192,40 +169,60 @@ describe("tapResources - Basic Functionality", () => {
 
   describe("Dynamic List Management", () => {
     it("should handle adding and removing resources", () => {
-      const testFiber = createTestResource((props: { keys: string[] }) => {
-        const results = tapResources(
-          props.keys.map((key, index) => ({
-            type: SimpleCounter,
-            props: { value: index * 10 },
-            key,
-          })),
-        );
-        return results;
-      });
+      const testFiber = createTestResource(
+        (props: { items: Array<{ key: string; value: number }> }) => {
+          const results = tapResources(() => {
+            return props.items.map((item) =>
+              withKey(item.key, SimpleCounter({ value: item.value })),
+            );
+          }, [props.items]);
+          return results;
+        },
+      );
 
       // Initial render with 3 items
-      const result1 = renderTest(testFiber, { keys: ["a", "b", "c"] });
+      const result1 = renderTest(testFiber, {
+        items: [
+          { key: "a", value: 0 },
+          { key: "b", value: 10 },
+          { key: "c", value: 20 },
+        ],
+      });
       expect(result1).toEqual([{ count: 0 }, { count: 10 }, { count: 20 }]);
 
       // Remove middle item
-      const result2 = renderTest(testFiber, { keys: ["a", "c"] });
-      expect(result2).toEqual([
-        { count: 0 },
-        { count: 10 }, // Index changed but we're using index for value
-      ]);
+      const result2 = renderTest(testFiber, {
+        items: [
+          { key: "a", value: 0 },
+          { key: "c", value: 10 },
+        ],
+      });
+      expect(result2).toEqual([{ count: 0 }, { count: 10 }]);
 
       // Add new item
-      const result3 = renderTest(testFiber, { keys: ["a", "c", "d"] });
+      const result3 = renderTest(testFiber, {
+        items: [
+          { key: "a", value: 0 },
+          { key: "c", value: 10 },
+          { key: "d", value: 20 },
+        ],
+      });
       expect(result3).toEqual([{ count: 0 }, { count: 10 }, { count: 20 }]);
     });
 
     it("should handle changing resource types for the same key", () => {
       const testFiber = createTestResource((props: { useCounter: boolean }) => {
-        const results = tapResources([
-          props.useCounter
-            ? { type: StatefulCounter, props: { initial: 42 }, key: "item" }
-            : { type: Display, props: { text: "Hello" }, key: "item" },
-        ]);
+        const results = tapResources(
+          () => [
+            withKey(
+              "item",
+              props.useCounter
+                ? StatefulCounter({ initial: 42 })
+                : Display({ text: "Hello" }),
+            ),
+          ],
+          [props.useCounter],
+        );
         return results;
       });
 

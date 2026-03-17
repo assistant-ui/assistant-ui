@@ -1,10 +1,29 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "ui": "tui",
+  "globalPassThroughEnv": ["ENABLE_EXPERIMENTAL_COREPACK"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "inputs": ["**/*.*", "!.next", "!.turbo"],
-      "outputs": ["dist", ".next/**", "!.next/cache/**", "generated/**"],
+      "inputs": [
+        "**/*.*",
+        "!.next",
+        "!.turbo",
+        "!dist",
+        "!build",
+        "!generated",
+        "!.output",
+        "!.source"
+      ],
+      "outputs": [
+        "dist",
+        ".next/**",
+        "!.next/cache/**",
+        "!.next/dev/**",
+        "generated/**",
+        ".output/**",
+        "build/**"
+      ],
       "env": [
         "OPENAI_*",
         "ASSISTANT_*",
@@ -13,7 +32,9 @@
         "NEXT_PUBLIC_*",
         "KV_*",
         "SENTRY_*",
-        "REDIS_*"
+        "REDIS_*",
+        "ASSISTANT_*",
+        "AUIX_*"
       ]
     },
     "lint": {},

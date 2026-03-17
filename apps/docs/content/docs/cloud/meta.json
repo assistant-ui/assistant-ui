@@ -1,3 +1,13 @@
 {
-  "pages": ["overview", "authorization", "persistence"]
+  "title": "Cloud",
+  "description": "AssistantCloud services",
+  "icon": "Cloud",
+  "root": true,
+  "pages": [
+    "index",
+    "ai-sdk",
+    "ai-sdk-assistant-ui",
+    "langgraph",
+    "authorization"
+  ]
 }

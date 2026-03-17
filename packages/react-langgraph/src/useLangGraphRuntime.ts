@@ -1,21 +1,35 @@
+/// <reference types="@assistant-ui/core/store" />
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   LangChainMessage,
   LangChainToolCall,
+  LangGraphTupleMetadata,
+  OnMessageChunkCallback,
+  OnValuesEventCallback,
+  OnUpdatesEventCallback,
   OnCustomEventCallback,
   OnErrorEventCallback,
   OnInfoEventCallback,
   OnMetadataEventCallback,
 } from "./types";
 import {
-  AssistantCloud,
-  unstable_useCloudThreadListAdapter,
-  unstable_useRemoteThreadListRuntime,
-  useAssistantApi,
-  useAssistantState,
+  getExternalStoreMessages,
+  type ThreadMessage,
+  type AttachmentAdapter,
+  type AppendMessage,
+  type FeedbackAdapter,
+  type SpeechSynthesisAdapter,
+} from "@assistant-ui/core";
+import {
+  type ToolExecutionStatus,
+  useCloudThreadListAdapter,
+  useRemoteThreadListRuntime,
   useExternalMessageConverter,
   useExternalStoreRuntime,
-} from "@assistant-ui/react";
+  useToolInvocations,
+} from "@assistant-ui/core/react";
+import { useAui, useAuiState } from "@assistant-ui/store";
+import { AssistantCloud } from "assistant-cloud";
 import { convertLangChainMessages } from "./convertLangChainMessages";
 import {
   LangGraphCommand,
@@ -24,10 +38,6 @@ import {
   LangGraphStreamCallback,
   useLangGraphMessages,
 } from "./useLangGraphMessages";
-import { AttachmentAdapter } from "@assistant-ui/react";
-import { AppendMessage } from "@assistant-ui/react";
-import { FeedbackAdapter } from "@assistant-ui/react";
-import { SpeechSynthesisAdapter } from "@assistant-ui/react";
 import { appendLangChainChunk } from "./appendLangChainChunk";
 
 const getPendingToolCalls = (messages: LangChainMessage[]) => {
@@ -61,23 +71,20 @@ const getMessageContent = (msg: AppendMessage) => {
       case "file":
         return {
           type: "file" as const,
-          file: {
+          data: part.data,
+          mime_type: part.mimeType,
+          metadata: {
             filename: part.filename ?? "file",
-            file_data: part.data,
-            mime_type: part.mimeType,
           },
+          source_type: "base64" as const,
         };
 
       case "tool-call":
         throw new Error("Tool call appends are not supported.");
 
       default:
-        const _exhaustiveCheck:
-          | "reasoning"
-          | "source"
-          | "file"
-          | "audio"
-          | "data" = type;
+        const _exhaustiveCheck: "reasoning" | "source" | "audio" | "data" =
+          type;
         throw new Error(
           `Unsupported append message part type: ${_exhaustiveCheck}`,
         );
@@ -99,6 +106,7 @@ type LangGraphRuntimeExtras = {
     config: LangGraphSendMessageConfig,
   ) => Promise<void>;
   interrupt: LangGraphInterruptState | undefined;
+  messageMetadata: Map<string, LangGraphTupleMetadata>;
 };
 
 const asLangGraphRuntimeExtras = (extras: unknown): LangGraphRuntimeExtras => {
@@ -115,8 +123,8 @@ const asLangGraphRuntimeExtras = (extras: unknown): LangGraphRuntimeExtras => {
 };
 
 export const useLangGraphInterruptState = () => {
-  const interrupt = useAssistantState(({ thread }) => {
-    const extras = thread.extras;
+  const interrupt = useAuiState((s) => {
+    const extras = s.thread.extras;
     if (!extras) return undefined;
     return asLangGraphRuntimeExtras(extras).interrupt;
   });
@@ -124,10 +132,10 @@ export const useLangGraphInterruptState = () => {
 };
 
 export const useLangGraphSend = () => {
-  const api = useAssistantApi();
+  const aui = useAui();
 
   return (messages: LangChainMessage[], config: LangGraphSendMessageConfig) => {
-    const extras = api.thread().getState().extras;
+    const extras = aui.thread().getState().extras;
     const { send } = asLangGraphRuntimeExtras(extras);
     return send(messages, config);
   };
@@ -138,10 +146,28 @@ export const useLangGraphSendCommand = () => {
   return (command: LangGraphCommand) => send([], { command });
 };
 
+export const useLangGraphMessageMetadata = () => {
+  const messageMetadata = useAuiState((s) => {
+    const extras = s.thread.extras;
+    if (!extras) return new Map<string, LangGraphTupleMetadata>();
+    return asLangGraphRuntimeExtras(extras).messageMetadata;
+  });
+  return messageMetadata;
+};
+
 type UseLangGraphRuntimeOptions = {
   autoCancelPendingToolCalls?: boolean | undefined;
   unstable_allowCancellation?: boolean | undefined;
   stream: LangGraphStreamCallback<LangChainMessage>;
+  /**
+   * Resolves a checkpoint ID for a given thread and message history.
+   * When provided, enables message editing (onEdit) and regeneration (onReload).
+   * The checkpoint ID is passed to the stream callback for server-side forking.
+   */
+  getCheckpointId?: (
+    threadId: string,
+    parentMessages: LangChainMessage[],
+  ) => Promise<string | null>;
   /**
    * @deprecated This method has been renamed to `load`. Use `load` instead.
    */
@@ -167,6 +193,19 @@ type UseLangGraphRuntimeOptions = {
   eventHandlers?:
     | {
         /**
+         * Called for each message chunk received from messages-tuple streaming,
+         * with the chunk and its associated metadata
+         */
+        onMessageChunk?: OnMessageChunkCallback;
+        /**
+         * Called when values events are received from the LangGraph stream
+         */
+        onValues?: OnValuesEventCallback;
+        /**
+         * Called when updates events are received from the LangGraph stream
+         */
+        onUpdates?: OnUpdatesEventCallback;
+        /**
          * Called when metadata is received from the LangGraph stream
          */
         onMetadata?: OnMetadataEventCallback;
@@ -187,6 +226,22 @@ type UseLangGraphRuntimeOptions = {
   cloud?: AssistantCloud | undefined;
 };
 
+const truncateLangChainMessages = (
+  threadMessages: readonly ThreadMessage[],
+  parentId: string | null,
+): LangChainMessage[] => {
+  if (parentId === null) return [];
+  const parentIndex = threadMessages.findIndex((m) => m.id === parentId);
+  if (parentIndex === -1) return [];
+  const truncated: LangChainMessage[] = [];
+  for (let i = 0; i <= parentIndex && i < threadMessages.length; i++) {
+    truncated.push(
+      ...getExternalStoreMessages<LangChainMessage>(threadMessages[i]!),
+    );
+  }
+  return truncated;
+};
+
 const useLangGraphRuntimeImpl = ({
   autoCancelPendingToolCalls,
   adapters: { attachments, feedback, speech } = {},
@@ -194,12 +249,15 @@ const useLangGraphRuntimeImpl = ({
   stream,
   onSwitchToThread: _onSwitchToThread,
   load = _onSwitchToThread,
+  getCheckpointId,
   eventHandlers,
 }: UseLangGraphRuntimeOptions) => {
+  const aui = useAui();
   const {
     interrupt,
     setInterrupt,
     messages,
+    messageMetadata,
     sendMessage,
     cancel,
     setMessages,
@@ -210,6 +268,25 @@ const useLangGraphRuntimeImpl = ({
   });
 
   const [isRunning, setIsRunning] = useState(false);
+  const [toolStatuses, setToolStatuses] = useState<
+    Record<string, ToolExecutionStatus>
+  >({});
+  const toolArgsKeyOrderCacheRef = useRef<Map<string, Map<string, string[]>>>(
+    new Map(),
+  );
+  const hasExecutingTools = Object.values(toolStatuses).some(
+    (s) => s?.type === "executing",
+  );
+  const effectiveIsRunning = isRunning || hasExecutingTools;
+
+  const converterMetadata = useMemo(
+    () =>
+      ({
+        toolArgsKeyOrderCache: toolArgsKeyOrderCacheRef.current,
+      }) as unknown as useExternalMessageConverter.Metadata,
+    [],
+  );
+
   const handleSendMessage = async (
     messages: LangChainMessage[],
     config: LangGraphSendMessageConfig,
@@ -217,8 +294,6 @@ const useLangGraphRuntimeImpl = ({
     try {
       setIsRunning(true);
       await sendMessage(messages, config);
-    } catch (error) {
-      console.error("Error streaming messages:", error);
     } finally {
       setIsRunning(false);
     }
@@ -227,23 +302,47 @@ const useLangGraphRuntimeImpl = ({
   const threadMessages = useExternalMessageConverter({
     callback: convertLangChainMessages,
     messages,
-    isRunning,
+    isRunning: effectiveIsRunning,
+    metadata: converterMetadata,
   });
 
-  const loadThread = useMemo(
-    () =>
-      !load
-        ? undefined
-        : async (externalId: string) => {
-            const { messages, interrupts } = await load(externalId);
-            setMessages(messages);
-            setInterrupt(interrupts?.[0]);
-          },
-    [load, setMessages, setInterrupt],
-  );
+  const threadMessagesRef = useRef(threadMessages);
+  threadMessagesRef.current = threadMessages;
+
+  const [runtimeRef] = useState(() => ({
+    get current() {
+      return runtime;
+    },
+  }));
+
+  const toolInvocations = useToolInvocations({
+    state: {
+      messages: threadMessages,
+      isRunning: effectiveIsRunning,
+    },
+    getTools: () => runtimeRef.current.thread.getModelContext().tools,
+    onResult: (command) => {
+      if (command.type === "add-tool-result") {
+        void handleSendMessage(
+          [
+            {
+              type: "tool",
+              name: command.toolName,
+              tool_call_id: command.toolCallId,
+              content: JSON.stringify(command.result),
+              artifact: command.artifact,
+              status: command.isError ? "error" : "success",
+            },
+          ],
+          {},
+        );
+      }
+    },
+    setToolStatuses,
+  });
 
   const runtime = useExternalStoreRuntime({
-    isRunning,
+    isRunning: effectiveIsRunning,
     messages: threadMessages,
     adapters: {
       attachments,
@@ -253,9 +352,12 @@ const useLangGraphRuntimeImpl = ({
     extras: {
       [symbolLangGraphRuntimeExtras]: true,
       interrupt,
+      messageMetadata,
       send: handleSendMessage,
     } satisfies LangGraphRuntimeExtras,
-    onNew: (msg) => {
+    onNew: async (msg) => {
+      await toolInvocations.abort();
+
       const cancellations =
         autoCancelPendingToolCalls !== false
           ? getPendingToolCalls(messages).map(
@@ -306,26 +408,73 @@ const useLangGraphRuntimeImpl = ({
         {},
       );
     },
+    onEdit: getCheckpointId
+      ? async (msg) => {
+          await toolInvocations.abort();
+          const truncated = truncateLangChainMessages(
+            threadMessagesRef.current,
+            msg.parentId,
+          );
+          setMessages(truncated);
+          setInterrupt(undefined);
+          const externalId = aui.threadListItem().getState().externalId;
+          const checkpointId = externalId
+            ? await getCheckpointId(externalId, truncated)
+            : null;
+          return handleSendMessage(
+            [{ type: "human", content: getMessageContent(msg) }],
+            {
+              runConfig: msg.runConfig,
+              ...(checkpointId && { checkpointId }),
+            },
+          );
+        }
+      : undefined,
+    onReload: getCheckpointId
+      ? async (parentId, config) => {
+          await toolInvocations.abort();
+          const truncated = truncateLangChainMessages(
+            threadMessagesRef.current,
+            parentId,
+          );
+          setMessages(truncated);
+          setInterrupt(undefined);
+          const externalId = aui.threadListItem().getState().externalId;
+          const checkpointId = externalId
+            ? await getCheckpointId(externalId, truncated)
+            : null;
+          return handleSendMessage([], {
+            runConfig: config.runConfig,
+            ...(checkpointId && { checkpointId }),
+          });
+        }
+      : undefined,
     onCancel: unstable_allowCancellation
       ? async () => {
           cancel();
+          await toolInvocations.abort();
         }
       : undefined,
   });
 
   {
-    const loadingRef = useRef(false);
+    const loadRef = useRef(load);
     useEffect(() => {
-      if (!loadThread || loadingRef.current) return;
+      loadRef.current = load;
+    });
 
-      const externalId = runtime.threads.mainItem.getState().externalId;
-      if (externalId) {
-        loadingRef.current = true;
-        loadThread(externalId).finally(() => {
-          loadingRef.current = false;
-        });
-      }
-    }, [loadThread, runtime]);
+    useEffect(() => {
+      const load = loadRef.current;
+      if (!load) return;
+
+      const externalId = aui.threadListItem().getState().externalId;
+      if (externalId == null) return;
+
+      load(externalId).then(({ messages, interrupts }) => {
+        setMessages(messages);
+        setInterrupt(interrupts?.[0]);
+      });
+    }, [aui, setMessages, setInterrupt]);
   }
 
   return runtime;
@@ -337,25 +486,23 @@ export const useLangGraphRuntime = ({
   delete: deleteFn,
   ...options
 }: UseLangGraphRuntimeOptions) => {
-  const api = useAssistantApi();
-  const cloudAdapter = unstable_useCloudThreadListAdapter({
+  const aui = useAui();
+  const cloudAdapter = useCloudThreadListAdapter({
     cloud,
     create: async () => {
       if (create) {
         return create();
       }
 
-      if (api.threadListItem.source) {
-        return api.threadListItem().initialize();
+      if (aui.threadListItem.source) {
+        return aui.threadListItem().initialize();
       }
 
-      throw new Error(
-        "initialize function requires you to pass a create function to the useLangGraphRuntime hook",
-      );
+      return { externalId: undefined };
     },
     delete: deleteFn,
   });
-  return unstable_useRemoteThreadListRuntime({
+  return useRemoteThreadListRuntime({
     runtimeHook: function RuntimeHook() {
       return useLangGraphRuntimeImpl(options);
     },

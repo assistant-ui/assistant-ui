@@ -3,8 +3,8 @@ import { tapEffect } from "../../hooks/tap-effect";
 import { tapState } from "../../hooks/tap-state";
 import { createTestResource, renderTest } from "../test-utils";
 import {
-  renderResource as renderResourceFiber,
-  commitResource,
+  renderResourceFiber,
+  commitResourceFiber,
 } from "../../core/ResourceFiber";
 
 describe("Rules of Hooks - Hook Order", () => {
@@ -136,7 +136,7 @@ describe("Rules of Hooks - Hook Order", () => {
 
     // Re-render should maintain same order
     const ctx = renderResourceFiber(resource, undefined);
-    expect(() => commitResource(resource, ctx)).not.toThrow();
+    expect(() => commitResourceFiber(resource, ctx)).not.toThrow();
   });
 
   it("should detect early return causing different hook counts", () => {

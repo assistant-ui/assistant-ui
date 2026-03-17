@@ -1,43 +1,74 @@
-import "./globals.css";
+import "@/styles/globals.css";
 import type { ReactNode } from "react";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import Script from "next/script";
+import { Analytics } from "@vercel/analytics/next";
 import { Provider } from "./provider";
 import { cn } from "@/lib/utils";
+import { BASE_URL } from "@/lib/constants";
+
+const getMetadataBase = () => {
+  const appUrl = process.env["NEXT_PUBLIC_APP_URL"];
+  if (appUrl) {
+    return new URL(appUrl);
+  }
+
+  if (process.env.NODE_ENV === "production") {
+    return new URL(BASE_URL);
+  }
+  return new URL("http://localhost:3000");
+};
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+};
 
 export const metadata = {
+  metadataBase: getMetadataBase(),
   title: {
     template: "%s | assistant-ui",
     default: "assistant-ui",
   },
   description: "The TypeScript/React library for AI Chat",
+  openGraph: {
+    title: "assistant-ui",
+    description: "The TypeScript/React library for AI Chat",
+    siteName: "assistant-ui",
+    type: "website",
+    images: [
+      {
+        url: "/api/og?variant=home",
+        width: 1200,
+        height: 630,
+        alt: "assistant-ui",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "assistant-ui",
+    description: "The TypeScript/React library for AI Chat",
+    images: ["/api/og?variant=home"],
+  },
 };
 
 export default function Layout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      {/* <head>
-        <script
+      <head>
+        {/*<script
           crossOrigin="anonymous"
           src="//unpkg.com/react-scan/dist/auto.global.js"
-        />
-      </head> */}
-      <body
-        className={cn(
-          "flex min-h-screen flex-col overscroll-none antialiased",
-          GeistSans.className,
-          GeistMono.variable,
-        )}
-      >
-        <Provider>{children}</Provider>
+        />*/}
         <script
           defer
           src="/umami/script.js"
           data-website-id="6f07c001-46a2-411f-9241-4f7f5afb60ee"
           data-domains="www.assistant-ui.com"
         ></script>
-
         <Script
           id="vector-script"
           dangerouslySetInnerHTML={{
@@ -47,6 +78,16 @@ export default function Layout({ children }: { children: ReactNode }) {
     `,
           }}
         />
+      </head>
+      <body
+        className={cn(
+          "flex min-h-screen flex-col antialiased",
+          GeistSans.className,
+          GeistMono.variable,
+        )}
+      >
+        <Provider>{children}</Provider>
+        <Analytics />
       </body>
     </html>
   );

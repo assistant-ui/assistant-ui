@@ -1,0 +1,258 @@
+---
+title: MessagePartPrimitive
+description: Primitives for text, images, tool calls, and other message content.
+---
+
+import {
+  MessagePartRuntime,
+  TextMessagePartState,
+  AudioMessagePartState,
+  ToolCallMessagePartState,
+} from "@/generated/typeDocs";
+
+Each message can have any number of message parts.
+Message parts are usually one of text, reasoning, audio, tool-call, or data.
+
+## Message part Types
+
+### Text
+
+Standard text content, used for both user and assistant messages.
+
+### Reasoning
+
+Exposes the assistant's reasoning process, showing how it arrived at its responses. This is typically used only in assistant messages.
+
+### Audio
+
+Audio content that can be played back.
+
+### Tool Call
+
+Interactive elements that represent tool operations.
+
+### Data
+
+Custom data events that can be rendered as UI at their position in the message stream. Each data part has a `name` and a `data` payload.
+
+You can use either the explicit format `{ type: "data", name: "workflow", data: {...} }` or the shorthand `data-*` prefixed format `{ type: "data-workflow", data: {...} }`. The prefixed format is automatically converted to a `DataMessagePart` (stripping the `data-` prefix as the `name`). Unknown message part types that don't match any built-in type are silently skipped with a console warning.
+
+## Anatomy
+
+```tsx
+import { MessagePartPrimitive } from "@assistant-ui/react";
+
+const TextMessagePart = () => {
+  return <MessagePartPrimitive.Text />;
+};
+```
+
+## Primitives
+
+### Plain Text
+
+```tsx
+import { MessagePartPrimitive } from "@assistant-ui/react";
+
+<MessagePartPrimitive.Text />;
+```
+
+### Markdown Text
+
+Renders the message's text as Markdown.
+
+```tsx
+import { MarkdownTextPrimitive } from "@assistant-ui/react-markdown";
+
+<MarkdownTextPrimitive />;
+```
+
+### Audio
+
+Coming soon.
+
+### InProgress
+
+Renders children only if the message part is in progress.
+
+```tsx
+import { MessagePartPrimitive } from "@assistant-ui/react";
+
+<MessagePartPrimitive.InProgress>
+  <LoadingIndicator />
+</MessagePartPrimitive.InProgress>;
+```
+
+### Tool UI
+
+You can map tool calls to UI components. We provide a few utility functions to make this easier, such as `makeAssistantToolUI`.
+
+```tsx
+const MyWeatherToolUI = makeAssistantToolUI({
+  toolName: "get_weather",
+  render: function MyWeatherToolUI({ args, result }) {
+    return (
+      <div className="mb-4 flex flex-col items-center">
+        <pre className="whitespace-pre-wrap break-all text-center">
+          get_weather({JSON.stringify(args)})
+        </pre>
+        {result !== undefined && (
+          <pre className="whitespace-pre-wrap break-all text-center">
+            {JSON.stringify(result)}
+          </pre>
+        )}
+      </div>
+    );
+  },
+});
+```
+
+### Data UI
+
+You can map data events to UI components, similar to tool UIs. There are two approaches:
+
+#### Inline configuration
+
+Pass a `data` config to `MessagePrimitive.Parts`:
+
+```tsx
+<MessagePrimitive.Parts>
+  {({ part }) => {
+    if (part.type === "data" && part.name === "my_chart") return <ChartComponent data={part.data} />;
+    if (part.type === "data") return <pre>{JSON.stringify(part.data, null, 2)}</pre>;
+    return null;
+  }}
+</MessagePrimitive.Parts>
+```
+
+#### Global registration
+
+Use `makeAssistantDataUI` or `useAssistantDataUI` to register data UIs globally. Global registrations take priority over inline configuration.
+
+```tsx
+import { makeAssistantDataUI } from "@assistant-ui/react";
+
+const MyChartUI = makeAssistantDataUI({
+  name: "my_chart",
+  render: ({ name, data }) => <ChartComponent data={data} />,
+});
+
+// Place inside AssistantRuntimeProvider
+function App() {
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Thread />
+      <MyChartUI />
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+The hook variant allows access to component state:
+
+```tsx
+import { useAssistantDataUI } from "@assistant-ui/react";
+
+function MyComponent() {
+  useAssistantDataUI({
+    name: "my_chart",
+    render: ({ name, data }) => <ChartComponent data={data} />,
+  });
+  return null;
+}
+```
+
+Each data component receives the full data part as props: `{ type: "data", name: string, data: T, status: MessagePartStatus }`.
+
+### Messages (Sub-Agent)
+
+Renders nested messages from a tool call part's `messages` field. This is used in multi-agent setups where a sub-agent's conversation is embedded inside a tool call.
+
+```tsx
+import { MessagePartPrimitive } from "@assistant-ui/react";
+
+<MessagePartPrimitive.Messages>
+  {({ message }) => {
+    if (message.role === "user") return <MyUserMessage />;
+    return <MyAssistantMessage />;
+  }}
+</MessagePartPrimitive.Messages>;
+```
+
+This primitive must be used inside a tool call part context (e.g. inside a `makeAssistantToolUI` render function). It reads the `messages` field from the current `ToolCallMessagePart` and renders them in a readonly thread context.
+
+Parent tool UI registrations are inherited — tools registered via `makeAssistantToolUI` at the parent level are available inside sub-agent messages.
+
+See the [Multi-Agent Guide](/docs/guides/multi-agent) for detailed usage.
+
+## Context Provider
+
+Message part context is provided by `MessagePrimitive.Parts` or `TextMessagePartProvider`
+
+### MessagePrimitive.Parts
+
+```tsx
+import { MessagePrimitive } from "@assistant-ui/react";
+
+<MessagePrimitive.Parts>
+  {({ part }) => {
+    if (part.type === "text") return <MyText />;
+    if (part.type === "reasoning") return <MyReasoning {...part} />;
+    if (part.type === "audio") return <MyAudio {...part} />;
+    if (part.type === "tool-call" && part.toolName === "get_weather") return <MyWeatherToolUI {...part} />;
+    if (part.type === "tool-call") return <MyFallbackToolUI {...part} />;
+    if (part.type === "data" && part.name === "my_chart") return <MyChartComponent {...part} />;
+    if (part.type === "data") return <GenericDataComponent {...part} />;
+    return null;
+  }}
+</MessagePrimitive.Parts>;
+```
+
+### TextMessagePartProvider
+
+This is a helper context provider to allow you to reuse the message part components outside a message part.
+
+```tsx
+import { TextMessagePartProvider } from "@assistant-ui/react";
+
+<TextMessagePartProvider text="Hello world" isRunning={false}>
+  <MessagePartPrimitive.Text />
+</TextMessagePartProvider>;
+```
+
+## Runtime API
+
+### `useAui` (Message Part Actions)
+
+```tsx
+import { useAui } from "@assistant-ui/react";
+
+const aui = useAui();
+aui.part().addToolResult(result);
+const partState = aui.part().getState();
+```
+
+<ParametersTable {...MessagePartRuntime} />
+
+### `useAuiState` (Message Part State)
+
+```tsx
+import { useAuiState } from "@assistant-ui/react";
+
+const type = useAuiState((s) => s.part.type);
+const status = useAuiState((s) => s.part.status);
+```
+
+<ParametersTable {...TextMessagePartState} />
+<ParametersTable {...AudioMessagePartState} />
+<ParametersTable {...ToolCallMessagePartState} />
+
+### `useMessagePartText`
+
+```tsx
+import { useMessagePartText } from "@assistant-ui/react";
+
+const { text, status } = useMessagePartText();
+```
+
+<ParametersTable {...TextMessagePartState} />

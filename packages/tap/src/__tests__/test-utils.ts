@@ -1,9 +1,10 @@
+import { createResourceFiberRoot } from "../core/helpers/root";
 import { resource } from "../core/resource";
 import {
   createResourceFiber,
-  unmountResource as unmountResourceFiber,
-  renderResource as renderResourceFiber,
-  commitResource,
+  unmountResourceFiber,
+  renderResourceFiber,
+  commitResourceFiber,
 } from "../core/ResourceFiber";
 import { ResourceFiber } from "../core/types";
 import { tapState } from "../hooks/tap-state";
@@ -18,17 +19,22 @@ import { tapState } from "../hooks/tap-state";
  * Sets up a rerender callback that automatically re-renders when state changes.
  */
 export function createTestResource<R, P>(fn: (props: P) => R) {
-  const rerenderCallback = () => {
+  const rerenderCallback = (callback: () => boolean) => {
+    if (!callback()) return;
+
     // Re-render when state changes
     if (activeResources.has(fiber)) {
       const lastProps = propsMap.get(fiber);
       const result = renderResourceFiber(fiber, lastProps);
-      commitResource(fiber, result);
+      commitResourceFiber(fiber, result);
       lastRenderResultMap.set(fiber, result);
     }
   };
 
-  const fiber = createResourceFiber(resource(fn), rerenderCallback);
+  const fiber = createResourceFiber(
+    resource(fn),
+    createResourceFiberRoot(rerenderCallback),
+  );
   return fiber;
 }
 
@@ -54,12 +60,12 @@ export function renderTest<R, P>(fiber: ResourceFiber<R, P>, props: P): R {
 
   // Render with new props
   const result = renderResourceFiber(fiber, props);
-  commitResource(fiber, result);
+  commitResourceFiber(fiber, result);
   lastRenderResultMap.set(fiber, result);
 
   // Return the committed state from the result
   // This accounts for any re-renders that happened during commit
-  return result.state;
+  return result.output;
 }
 
 /**
@@ -84,14 +90,14 @@ export function cleanupAllResources() {
  * Gets the current committed state of a resource fiber.
  * Returns the state from the last render/commit cycle.
  */
-export function getCommittedState<R, P>(fiber: ResourceFiber<R, P>): R {
+export function getCommittedOutput<R, P>(fiber: ResourceFiber<R, P>): R {
   const lastResult = lastRenderResultMap.get(fiber);
   if (!lastResult) {
     throw new Error(
       "No render result found for fiber. Make sure to call renderResource first.",
     );
   }
-  return lastResult.state;
+  return lastResult.output;
 }
 
 // ============================================================================
@@ -112,8 +118,8 @@ export class TestSubscriber<T> {
     // Need to render once to get initial state
     const lastProps = propsMap.get(fiber) ?? undefined;
     const initialResult = renderResourceFiber(fiber, lastProps as any);
-    commitResource(fiber, initialResult);
-    this.lastState = initialResult.state;
+    commitResourceFiber(fiber, initialResult);
+    this.lastState = initialResult.output;
     lastRenderResultMap.set(fiber, initialResult);
     activeResources.add(fiber);
   }
@@ -144,9 +150,9 @@ export class TestResourceManager<R, P> {
     activeResources.add(this.fiber);
     propsMap.set(this.fiber, props);
     const result = renderResourceFiber(this.fiber, props);
-    commitResource(this.fiber, result);
+    commitResourceFiber(this.fiber, result);
     lastRenderResultMap.set(this.fiber, result);
-    return result.state;
+    return result.output;
   }
 
   cleanup() {

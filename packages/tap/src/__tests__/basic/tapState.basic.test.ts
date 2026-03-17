@@ -6,7 +6,7 @@ import {
   renderTest,
   cleanupAllResources,
   waitForNextTick,
-  getCommittedState,
+  getCommittedOutput,
 } from "../test-utils";
 
 describe("tapState - Basic Functionality", () => {
@@ -85,7 +85,7 @@ describe("tapState - Basic Functionality", () => {
       await waitForNextTick();
 
       // Check that state was updated
-      expect(getCommittedState(testFiber)).toEqual({
+      expect(getCommittedOutput(testFiber)).toEqual({
         count: 10,
         renderCount: 2,
       });
@@ -136,19 +136,19 @@ describe("tapState - Basic Functionality", () => {
 
       // Initial render
       renderTest(testFiber, undefined);
-      expect(getCommittedState(testFiber)).toBe(10);
+      expect(getCommittedOutput(testFiber)).toBe(10);
 
       // Functional update
       setCountFn!((prev) => prev * 2);
 
       await waitForNextTick();
-      expect(getCommittedState(testFiber)).toBe(20);
+      expect(getCommittedOutput(testFiber)).toBe(20);
 
       // Another functional update
       setCountFn!((prev) => prev + 5);
 
       await waitForNextTick();
-      expect(getCommittedState(testFiber)).toBe(25);
+      expect(getCommittedOutput(testFiber)).toBe(25);
     });
   });
 
@@ -192,18 +192,18 @@ describe("tapState - Basic Functionality", () => {
 
       // Initial render
       renderTest(testFiber, undefined);
-      expect(getCommittedState(testFiber)).toEqual({ a: "a", b: "b", c: "c" });
+      expect(getCommittedOutput(testFiber)).toEqual({ a: "a", b: "b", c: "c" });
 
       // Update only B
       setters.setB("B");
       await waitForNextTick();
-      expect(getCommittedState(testFiber)).toEqual({ a: "a", b: "B", c: "c" });
+      expect(getCommittedOutput(testFiber)).toEqual({ a: "a", b: "B", c: "c" });
 
       // Update A and C
       setters.setA("A");
       setters.setC("C");
       await waitForNextTick();
-      expect(getCommittedState(testFiber)).toEqual({ a: "A", b: "B", c: "C" });
+      expect(getCommittedOutput(testFiber)).toEqual({ a: "A", b: "B", c: "C" });
     });
   });
 

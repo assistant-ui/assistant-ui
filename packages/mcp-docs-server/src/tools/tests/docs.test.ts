@@ -28,21 +28,21 @@ describe("assistantUIDocs", () => {
     expect(result.path).toBe("/");
     expect(result.found).toBe(true);
     expect(result.type).toBe("directory");
-    expect(result.directories).toContain("api-reference");
-    expect(result.directories).toContain("guides");
-    expect(result.files).toContain("getting-started");
+    expect(result.directories).toContain("(docs)");
+    expect(result.directories).toContain("(reference)");
+    expect(result.directories).toContain("ui");
   });
 
   it("should retrieve specific documentation file", async () => {
     const result = await testContext.callTool("assistantUIDocs", {
-      paths: ["getting-started"],
+      paths: ["(docs)/index"],
     });
 
-    expect(result.path).toBe("getting-started");
+    expect(result.path).toBe("(docs)/index");
     expect(result.found).toBe(true);
     expect(result.type).toBe("file");
     expect(result.content).toBeDefined();
-    expect(result.content).toContain("Getting Started");
+    expect(result.content).toContain("assistant-ui");
   });
 
   it("should handle non-existent paths", async () => {
@@ -57,36 +57,38 @@ describe("assistantUIDocs", () => {
 
   it("should support multiple path requests", async () => {
     const result = await testContext.callTool("assistantUIDocs", {
-      paths: ["getting-started", "api-reference/primitives/Thread"],
+      paths: ["(docs)/index", "(reference)/api-reference/primitives/thread"],
     });
 
     expect(result.results).toBeDefined();
     expect(result.results).toHaveLength(2);
-    expect(result.results[0].path).toBe("getting-started");
-    expect(result.results[1].path).toBe("api-reference/primitives/Thread");
+    expect(result.results[0].path).toBe("(docs)/index");
+    expect(result.results[1].path).toBe(
+      "(reference)/api-reference/primitives/thread",
+    );
   });
 
   it("should list directory contents with files", async () => {
     const result = await testContext.callTool("assistantUIDocs", {
-      paths: ["api-reference/primitives"],
+      paths: ["(reference)/api-reference/primitives"],
     });
 
-    expect(result.path).toBe("api-reference/primitives");
+    expect(result.path).toBe("(reference)/api-reference/primitives");
     expect(result.found).toBe(true);
     expect(result.type).toBe("directory");
-    expect(result.files).toContain("Thread");
-    expect(result.files).toContain("Message");
-    expect(result.files).toContain("Composer");
+    expect(result.files).toContain("thread");
+    expect(result.files).toContain("message");
+    expect(result.files).toContain("composer");
   });
 
   it("should parse MDX files with frontmatter", async () => {
     const result = await testContext.callTool("assistantUIDocs", {
-      paths: ["getting-started"],
+      paths: ["(docs)/index"],
     });
 
     expect(result.content).toBeDefined();
     expect(result.content).toContain("title:");
-    expect(result.content).toContain("Getting Started");
+    expect(result.content).toContain("assistant-ui");
   });
 
   it("should skip symlinks and large files", async () => {
