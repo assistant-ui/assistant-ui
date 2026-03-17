@@ -5,7 +5,7 @@ import {
   type ReactNode,
   useMemo,
 } from "react";
-import { AuiForEach, RenderChildrenWithAccessor } from "@assistant-ui/store";
+import { RenderChildrenWithAccessor, useAuiState } from "@assistant-ui/store";
 import type { PartState } from "../../../store/scopes/part";
 import { ChainOfThoughtPartByIndexProvider } from "../../providers/ChainOfThoughtPartByIndexProvider";
 import { MessagePartComponent } from "../message/MessageParts";
@@ -43,27 +43,31 @@ export namespace ChainOfThoughtPrimitiveParts {
 
 const ChainOfThoughtPrimitivePartsInner: FC<{
   children: (value: { part: PartState }) => ReactNode;
-}> = ({ children }) => (
-  <AuiForEach keys={(s) => s.chainOfThought.parts.map((_, index) => index)}>
-    {(index) => (
-      <ChainOfThoughtPartByIndexProvider index={index}>
-        <RenderChildrenWithAccessor
-          getItemState={(aui) =>
-            aui.chainOfThought().part({ index }).getState()
-          }
-        >
-          {(getItem) =>
-            children({
-              get part() {
-                return getItem();
-              },
-            })
-          }
-        </RenderChildrenWithAccessor>
-      </ChainOfThoughtPartByIndexProvider>
-    )}
-  </AuiForEach>
-);
+}> = ({ children }) => {
+  const partsLength = useAuiState((s) => s.chainOfThought.parts.length);
+
+  return useMemo(
+    () =>
+      Array.from({ length: partsLength }, (_, index) => (
+        <ChainOfThoughtPartByIndexProvider key={index} index={index}>
+          <RenderChildrenWithAccessor
+            getItemState={(aui) =>
+              aui.chainOfThought().part({ index }).getState()
+            }
+          >
+            {(getItem) =>
+              children({
+                get part() {
+                  return getItem();
+                },
+              })
+            }
+          </RenderChildrenWithAccessor>
+        </ChainOfThoughtPartByIndexProvider>
+      )),
+    [partsLength, children],
+  );
+};
 
 /**
  * Renders the parts within a chain of thought, with support for collapsed/expanded states.

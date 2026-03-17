@@ -68,45 +68,30 @@ Provides an `AssistantClient` to the React tree. Child components can access it 
 
 Renders children only when the condition returns `true`. Uses `useAuiState` internally.
 
-### AuiForEach
-
-```tsx
-<AuiForEach
-  keys={(s) => s.todoList.todos.map((t) => t.id)}
->
-  {(itemKey, index) => (
-    <TodoProvider index={index}>
-      <TodoDisplay />
-    </TodoProvider>
-  )}
-</AuiForEach>
-```
-
-Iterates over a list of keys with key-stable rendering. Only re-renders when the key list changes (items added/removed/reordered), not when individual item data changes.
-
-| Prop | Type |
-|------|------|
-| `keys` | `(state: AssistantState) => readonly TKey[]` |
-| `children` | `(itemKey: TKey, index: number) => ReactNode` |
-
-`TKey` extends `string | number`. See [Rendering Lists](/tap-docs/store/rendering-lists) for details.
-
 ### RenderChildrenWithAccessor
 
 ```tsx
 <RenderChildrenWithAccessor
   getItemState={(aui) => aui.todoList().todo({ index }).getState()}
 >
-  {() => <TodoDisplay />}
+  {(getItem) =>
+    children({
+      get todo() {
+        return getItem();
+      },
+    })
+  }
 </RenderChildrenWithAccessor>
 ```
 
-Sets up a lazy item accessor and memoizes the children output. Optimized for the common pattern where children returns a propless component.
+Sets up a lazy item accessor for list rendering. The `getItem` function defers reading state until the consumer accesses it — if the children render function never reads the item, no subscription is created. When children returns a propless component (e.g. `{() => <Todo />}`), the output is automatically memoized.
 
 | Prop | Type |
 |------|------|
 | `getItemState` | `(aui: AssistantClient) => T` |
 | `children` | `(getItem: () => T) => ReactNode` |
+
+See [Rendering Lists](/tap-docs/store/rendering-lists) for the full pattern.
 
 ---
 

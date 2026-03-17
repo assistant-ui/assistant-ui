@@ -1,5 +1,13 @@
 # @assistant-ui/react-langgraph
 
+## 0.13.5
+
+### Patch Changes
+
+- e4bc32e: fix(react-langgraph): support messages from non-LLM LangGraph nodes via `updates` and `values` events
+- Updated dependencies [7ecc497]
+  - @assistant-ui/core@0.1.7
+
 ## 0.13.4
 
 ### Patch Changes

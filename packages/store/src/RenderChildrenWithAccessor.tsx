@@ -1,47 +1,9 @@
 "use client";
 
-import { Fragment, type ReactNode, useMemo, useRef } from "react";
-import type { AssistantClient, AssistantState } from "./types/client";
+import { type ReactNode, useMemo, useRef } from "react";
+import type { AssistantClient } from "./types/client";
 import { useAuiState } from "./useAuiState";
 import { useAui } from "./useAui";
-
-/**
- * Component that iterates over a list of items with key-stable rendering.
- *
- * Only re-renders when the key list changes (items added/removed/reordered),
- * NOT when individual item data changes.
- *
- * @example
- * ```tsx
- * <AuiForEach
- *   keys={(s) => s.fooList.foos.map(f => f.id)}
- * >
- *   {(itemKey, index) => (
- *     <FooProvider index={index}>
- *       <Foo />
- *     </FooProvider>
- *   )}
- * </AuiForEach>
- * ```
- */
-export function AuiForEach<TKey extends string | number>({
-  keys: keysSelector,
-  children,
-}: {
-  keys: (state: AssistantState) => readonly TKey[];
-  children: (itemKey: TKey, index: number) => ReactNode;
-}): ReactNode {
-  const arr = useAuiState(keysSelector);
-
-  return useMemo(
-    () =>
-      arr.map((key, index) => (
-        <Fragment key={key}>{children(key, index)}</Fragment>
-      )),
-    // biome-ignore lint/correctness/useExhaustiveDependencies: shallow memo
-    arr,
-  );
-}
 
 export const useGetItemAccessor = <T,>(
   getItemState: (aui: AssistantClient) => T,
