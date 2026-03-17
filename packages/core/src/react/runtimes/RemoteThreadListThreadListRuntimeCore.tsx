@@ -480,6 +480,7 @@ export class RemoteThreadListThreadListRuntimeCore
       throw new Error("Thread is not yet initialized");
 
     await this._ensureThreadIsNotMain(data.id);
+    this._hookManager.stopThreadRuntime(data.id);
 
     return this._state.optimisticUpdate({
       execute: async () => {
