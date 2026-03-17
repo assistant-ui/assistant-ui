@@ -1,5 +1,11 @@
 # @assistant-ui/react-o11y
 
+## 0.0.5
+
+### Patch Changes
+
+- 7ecc497: feat: children API for primitives with part.toolUI, part.dataRendererUI, and MessagePrimitive.Quote
+
 ## 0.0.4
 
 ### Patch Changes

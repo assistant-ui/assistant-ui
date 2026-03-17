@@ -43,6 +43,13 @@ export type { Unsubscribe } from "./types/unsubscribe";
 
 export type { QuoteInfo } from "./types/quote";
 
+export type {
+  Unstable_MentionItem,
+  Unstable_MentionCategory,
+  Unstable_DirectiveSegment,
+  Unstable_DirectiveFormatter,
+} from "./types/mention";
+
 // === model-context ===
 
 export type {
@@ -102,6 +109,10 @@ export type { FeedbackAdapter } from "./adapters/feedback";
 
 // Suggestion adapter
 export type { SuggestionAdapter } from "./adapters/suggestion";
+
+// Mention adapter
+export type { Unstable_MentionAdapter } from "./adapters/mention";
+export { unstable_defaultDirectiveFormatter } from "./adapters/mention";
 
 // Thread history adapters
 export type {

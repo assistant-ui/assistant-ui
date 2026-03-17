@@ -175,10 +175,12 @@ export abstract class BaseComposerRuntimeCore
     this._quote = undefined;
     this._emptyTextAndAttachments();
 
+    const content = text ? [{ type: "text" as const, text }] : [];
+
     const message: Omit<AppendMessage, "parentId" | "sourceId"> = {
       createdAt: new Date(),
       role: this.role,
-      content: text ? [{ type: "text", text }] : [],
+      content,
       attachments: await attachments,
       runConfig: this.runConfig,
       metadata: { custom: { ...(quote ? { quote } : {}) } },

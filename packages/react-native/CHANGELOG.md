@@ -1,5 +1,13 @@
 # @assistant-ui/react-native
 
+## 0.1.6
+
+### Patch Changes
+
+- 7ecc497: feat: children API for primitives with part.toolUI, part.dataRendererUI, and MessagePrimitive.Quote
+- Updated dependencies [7ecc497]
+  - @assistant-ui/core@0.1.7
+
 ## 0.1.5
 
 ### Patch Changes

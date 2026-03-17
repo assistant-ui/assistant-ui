@@ -1,5 +1,11 @@
 # @assistant-ui/core
 
+## 0.1.7
+
+### Patch Changes
+
+- 7ecc497: feat: children API for primitives with part.toolUI, part.dataRendererUI, and MessagePrimitive.Quote
+
 ## 0.1.6
 
 ### Patch Changes

@@ -415,3 +415,131 @@ import { AuiIf } from "@assistant-ui/react";
   {/* rendered if dictation is active */}
 </AuiIf>
 ```
+
+## Mention Primitives (Unstable)
+
+<Callout type="warn">
+  These primitives are under the `Unstable_` prefix and may change without notice.
+</Callout>
+
+Primitives for an @-mention picker in the composer. See the [Mention component guide](/docs/ui/mention) for a pre-built implementation.
+
+### Anatomy
+
+```tsx
+import { ComposerPrimitive } from "@assistant-ui/react";
+
+const Composer = () => (
+  <ComposerPrimitive.Unstable_MentionRoot adapter={mentionAdapter}>
+    <ComposerPrimitive.Root>
+      <ComposerPrimitive.Input />
+      <ComposerPrimitive.Unstable_MentionPopover>
+        <ComposerPrimitive.Unstable_MentionCategories>
+          {(categories) =>
+            categories.map((cat) => (
+              <ComposerPrimitive.Unstable_MentionCategoryItem
+                key={cat.id}
+                categoryId={cat.id}
+              >
+                {cat.label}
+              </ComposerPrimitive.Unstable_MentionCategoryItem>
+            ))
+          }
+        </ComposerPrimitive.Unstable_MentionCategories>
+        <ComposerPrimitive.Unstable_MentionItems>
+          {(items) =>
+            items.map((item) => (
+              <ComposerPrimitive.Unstable_MentionItem
+                key={item.id}
+                item={item}
+              >
+                {item.label}
+              </ComposerPrimitive.Unstable_MentionItem>
+            ))
+          }
+        </ComposerPrimitive.Unstable_MentionItems>
+        <ComposerPrimitive.Unstable_MentionBack>
+          Back
+        </ComposerPrimitive.Unstable_MentionBack>
+      </ComposerPrimitive.Unstable_MentionPopover>
+    </ComposerPrimitive.Root>
+  </ComposerPrimitive.Unstable_MentionRoot>
+);
+```
+
+### Unstable_MentionRoot
+
+Provider that wraps the composer with mention trigger detection, keyboard navigation, and popover state.
+
+| Prop | Type | Default | Description |
+| --- | --- | --- | --- |
+| `adapter` | `Unstable_MentionAdapter` | — | Provides categories, items, and search |
+| `trigger` | `string` | `"@"` | Character(s) that activate the popover |
+| `formatter` | `Unstable_DirectiveFormatter` | Default | Serializer/parser for mention directives |
+
+### Unstable_MentionPopover
+
+Container that only renders when a mention trigger is active. Renders a `<div>` with `role="listbox"`.
+
+### Unstable_MentionCategories
+
+Renders the top-level category list. Accepts a render function `(categories) => ReactNode`. Hidden when a category is selected or when in search mode.
+
+### Unstable_MentionCategoryItem
+
+A button that drills into a category. Renders `role="option"` with automatic `data-highlighted` and `aria-selected` when keyboard-navigated.
+
+| Prop | Type | Description |
+| --- | --- | --- |
+| `categoryId` | `string` | The category to select on click |
+
+### Unstable_MentionItems
+
+Renders the item list for the active category or search results. Accepts a render function `(items) => ReactNode`. Hidden when no category is selected and not in search mode.
+
+### Unstable_MentionItem
+
+A button that inserts a mention into the composer. Renders `role="option"` with automatic `data-highlighted` and `aria-selected` when keyboard-navigated.
+
+| Prop | Type | Description |
+| --- | --- | --- |
+| `item` | `Unstable_MentionItem` | The item to insert on click |
+
+### Unstable_MentionBack
+
+A button that navigates back from items to the category list. Only renders when a category is active.
+
+### unstable_useMentionContext
+
+Hook to access the mention popover state and actions from within `Unstable_MentionRoot`.
+
+```tsx
+const {
+  open,           // boolean — whether popover is visible
+  query,          // string — text after the trigger character
+  isSearchMode,   // boolean — whether showing search results
+  highlightedIndex,
+  categories,
+  items,
+  activeCategoryId,
+  selectCategory,
+  selectItem,
+  goBack,
+  close,
+  handleKeyDown,
+  formatter,
+} = unstable_useMentionContext();
+```
+
+### unstable_useToolMentionAdapter
+
+Hook that creates a `Unstable_MentionAdapter` from registered tools (via `useAssistantTool`).
+
+```tsx
+import { unstable_useToolMentionAdapter } from "@assistant-ui/react";
+
+const adapter = unstable_useToolMentionAdapter({
+  formatLabel: (name) => name.replaceAll("_", " "),
+  categoryLabel: "Tools",
+});
+```

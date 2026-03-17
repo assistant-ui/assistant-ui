@@ -1,5 +1,13 @@
 # @assistant-ui/react
 
+## 0.12.19
+
+### Patch Changes
+
+- 7ecc497: feat: children API for primitives with part.toolUI, part.dataRendererUI, and MessagePrimitive.Quote
+- Updated dependencies [7ecc497]
+  - @assistant-ui/core@0.1.7
+
 ## 0.12.18
 
 ### Patch Changes

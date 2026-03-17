@@ -1,5 +1,11 @@
-import { type ComponentType, type FC, type ReactNode, memo } from "react";
-import { AuiForEach, RenderChildrenWithAccessor } from "@assistant-ui/store";
+import {
+  type ComponentType,
+  type FC,
+  type ReactNode,
+  memo,
+  useMemo,
+} from "react";
+import { RenderChildrenWithAccessor, useAuiState } from "@assistant-ui/store";
 import type { SuggestionState } from "../../../store/scopes/suggestion";
 import { SuggestionByIndexProvider } from "../../providers/SuggestionByIndexProvider";
 
@@ -60,10 +66,15 @@ ThreadPrimitiveSuggestionByIndex.displayName =
 
 const ThreadPrimitiveSuggestionsInner: FC<{
   children: (value: { suggestion: SuggestionState }) => ReactNode;
-}> = ({ children }) => (
-  <AuiForEach keys={(s) => s.suggestions.suggestions.map((_, index) => index)}>
-    {(index) => (
-      <SuggestionByIndexProvider index={index}>
+}> = ({ children }) => {
+  const suggestionsLength = useAuiState(
+    (s) => s.suggestions.suggestions.length,
+  );
+
+  return useMemo(() => {
+    if (suggestionsLength === 0) return null;
+    return Array.from({ length: suggestionsLength }, (_, index) => (
+      <SuggestionByIndexProvider key={index} index={index}>
         <RenderChildrenWithAccessor
           getItemState={(aui) =>
             aui.suggestions().suggestion({ index }).getState()
@@ -78,9 +89,9 @@ const ThreadPrimitiveSuggestionsInner: FC<{
           }
         </RenderChildrenWithAccessor>
       </SuggestionByIndexProvider>
-    )}
-  </AuiForEach>
-);
+    ));
+  }, [suggestionsLength, children]);
+};
 
 /**
  * Renders all suggestions.

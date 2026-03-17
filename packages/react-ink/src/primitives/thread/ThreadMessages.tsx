@@ -1,11 +1,7 @@
-import { type ComponentType, type FC, type ReactNode } from "react";
+import { type ComponentType, type FC, type ReactNode, useMemo } from "react";
 import { Box } from "ink";
 import type { ThreadMessage } from "@assistant-ui/core";
-import {
-  AuiForEach,
-  RenderChildrenWithAccessor,
-  useAuiState,
-} from "@assistant-ui/store";
+import { RenderChildrenWithAccessor, useAuiState } from "@assistant-ui/store";
 import { MessageByIndexProvider } from "@assistant-ui/core/react";
 
 type MessageComponents =
@@ -107,10 +103,13 @@ const ThreadMessageComponent: FC<{ components: MessageComponents }> = ({
 
 const ThreadMessagesInner: FC<{
   children: (value: { message: ThreadMessage }) => ReactNode;
-}> = ({ children }) => (
-  <AuiForEach keys={(s) => s.thread.messages.map((_, index) => index)}>
-    {(index) => (
-      <MessageByIndexProvider index={index}>
+}> = ({ children }) => {
+  const messagesLength = useAuiState((s) => s.thread.messages.length);
+
+  return useMemo(() => {
+    if (messagesLength === 0) return null;
+    return Array.from({ length: messagesLength }, (_, index) => (
+      <MessageByIndexProvider key={index} index={index}>
         <RenderChildrenWithAccessor
           getItemState={(aui) => aui.thread().message({ index }).getState()}
         >
@@ -123,9 +122,9 @@ const ThreadMessagesInner: FC<{
           }
         </RenderChildrenWithAccessor>
       </MessageByIndexProvider>
-    )}
-  </AuiForEach>
-);
+    ));
+  }, [messagesLength, children]);
+};
 
 export const ThreadMessages: FC<ThreadMessagesProps> = ({
   components,

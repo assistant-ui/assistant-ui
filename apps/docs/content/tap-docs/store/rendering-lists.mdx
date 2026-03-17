@@ -1,183 +1,82 @@
 ---
 title: Rendering Lists
-description: Efficiently render lists of scoped items with AuiForEach and RenderChildrenWithAccessor.
+description: How to efficiently render lists of items from store state.
 ---
 
-The [child scopes](/tap-docs/store/child-scopes) page showed how to wire up parent-child scope relationships. This page covers the rendering side — how to iterate over a list of child scopes efficiently without re-rendering every item when the list changes.
+## The pattern
 
-## The problem
+Rendering a list of items from store state follows a three-step pattern:
 
-A naive approach re-renders the entire list whenever any item's state changes:
-
-```tsx
-const TodoList = () => {
-  const todos = useAuiState((s) => s.todoList.todos);
-  return todos.map((_, index) => (
-    <TodoItem key={index} index={index} />
-  ));
-};
-```
-
-Every state change in any todo causes `todos` to be a new array, which re-renders `TodoList` and recreates all `TodoItem` elements.
-
-## AuiForEach
-
-`AuiForEach` solves this by subscribing to just the **keys** of the list. It only re-renders when items are added, removed, or reordered — not when individual item data changes.
+1. **Subscribe to the list length** with `useAuiState` — re-renders only when items are added or removed
+2. **Memoize the element array** with `useMemo` — avoids recreating elements on unrelated re-renders
+3. **Use `RenderChildrenWithAccessor`** inside each item — defers reading item state until the child actually needs it
 
 ```tsx
-import { AuiForEach } from "@assistant-ui/store";
+import { useMemo } from "react";
+import { useAuiState, RenderChildrenWithAccessor } from "@assistant-ui/store";
 
-<AuiForEach
-  keys={(s) => s.todoList.todos.map((t) => t.id)}
->
-  {(itemId, index) => (
-    <TodoProvider index={index}>
-      <TodoDisplay />
-    </TodoProvider>
-  )}
-</AuiForEach>
-```
-
-### Props
-
-| Prop | Type | Description |
-|------|------|-------------|
-| `keys` | `(state: AssistantState) => readonly TKey[]` | Selector that returns the list of keys. Uses `useAuiState` internally — re-renders only when keys change. |
-| `children` | `(itemKey: TKey, index: number) => ReactNode` | Render function called for each item. Receives the key and index. |
-
-`TKey` extends `string | number`. The key values are used as React keys for reconciliation.
-
-### Key strategies
-
-You can choose between item IDs or indices as keys:
-
-```tsx
-// By ID — items keep identity across reorders
-keys={(s) => s.todoList.todos.map((t) => t.id)}
-
-// By index — simpler, but items lose identity on reorder
-keys={(s) => s.todoList.todos.map((_, i) => i)}
-```
-
-### How it avoids re-renders
-
-`AuiForEach` memoizes the rendered output using the key array as dependencies. When state changes but the key list stays the same, the memoized output is returned and no children are re-created.
-
-## RenderChildrenWithAccessor
-
-For the common pattern where a child component has no props (like `<Foo />`), `RenderChildrenWithAccessor` memoizes the render output so it's only created once per item:
-
-```tsx
-import { RenderChildrenWithAccessor } from "@assistant-ui/store";
-
-<RenderChildrenWithAccessor
-  getItemState={(aui) => aui.todoList().todo({ index }).getState()}
->
-  {() => <TodoDisplay />}
-</RenderChildrenWithAccessor>
-```
-
-### Props
-
-| Prop | Type | Description |
-|------|------|-------------|
-| `getItemState` | `(aui: AssistantClient) => T` | Function to access the item's state from the store. |
-| `children` | `(getItem: () => T) => ReactNode` | Render function. Receives a `getItem` accessor that returns the item's current state when called. |
-
-The `children` output is memoized — calling `getItem()` inside a getter defers the state read until the consumer actually accesses it.
-
-## Full example
-
-Putting it together — a `FooList` component that renders a list of `Foo` items:
-
-### Scope registration
-
-```ts title="lib/store/foo-scope.ts"
-declare module "@assistant-ui/store" {
-  interface ScopeRegistry {
-    fooList: {
-      methods: {
-        getState: () => { foos: { id: string; bar: string }[] };
-        foo: (lookup: { index: number } | { key: string }) => FooMethods;
-        addFoo: () => void;
-      };
-      events: { "fooList.added": { id: string } };
-    };
-    foo: {
-      methods: {
-        getState: () => { id: string; bar: string };
-        updateBar: (newBar: string) => void;
-        remove: () => void;
-      };
-      meta: {
-        source: "fooList";
-        query: { index: number } | { key: string };
-      };
-      events: {
-        "foo.updated": { id: string; newValue: string };
-        "foo.removed": { id: string };
-      };
-    };
-  }
-}
-```
-
-### List component
-
-```tsx title="lib/store/foo-store.tsx"
-import {
-  useAui, AuiProvider, Derived,
-  AuiForEach, RenderChildrenWithAccessor,
-} from "@assistant-ui/store";
-
-const FooProvider = ({
-  index, children,
-}: {
-  index: number;
-  children: ReactNode;
-}) => {
-  const aui = useAui({
-    foo: Derived({
-      source: "fooList",
-      query: { index },
-      get: (aui) => aui.fooList().foo({ index }),
-    }),
-  });
-  return <AuiProvider value={aui}>{children}</AuiProvider>;
-};
-
-export const FooList = ({
+const TodoList = ({
   children,
 }: {
-  children: (item: { foo: FooData }) => ReactNode;
-}) => (
-  <AuiForEach keys={(s) => s.fooList.foos.map((_, index) => index)}>
-    {(index) => (
-      <FooProvider index={index}>
-        <RenderChildrenWithAccessor
-          getItemState={(aui) => aui.fooList().foo({ index }).getState()}
-        >
-          {(getItem) =>
-            children({
-              get foo() {
-                return getItem();
-              },
-            })
-          }
-        </RenderChildrenWithAccessor>
-      </FooProvider>
-    )}
-  </AuiForEach>
-);
+  children: (value: { todo: TodoState }) => ReactNode;
+}) => {
+  const length = useAuiState((s) => s.todoList.todos.length);
+
+  return useMemo(
+    () =>
+      Array.from({ length }, (_, index) => (
+        <TodoProvider key={index} index={index}>
+          <RenderChildrenWithAccessor
+            getItemState={(aui) => aui.todoList().todo({ index }).getState()}
+          >
+            {(getItem) =>
+              children({
+                get todo() {
+                  return getItem();
+                },
+              })
+            }
+          </RenderChildrenWithAccessor>
+        </TodoProvider>
+      )),
+    [length, children],
+  );
+};
 ```
 
-### Usage
+Usage:
 
-```tsx title="app/App.tsx"
-<FooList>
-  {() => <Foo />}
-</FooList>
+```tsx
+<TodoList>
+  {({ todo }) => <TodoCard title={todo.title} />}
+</TodoList>
 ```
 
-The `Foo` component reads its own state via `useAuiState((s) => s.foo)` inside the scoped provider. It re-renders independently when its state changes, without affecting sibling items or the list container.
+## Why this pattern?
 
+### Length-based subscription
+
+Subscribing to `.length` instead of the full array means the list component only re-renders when items are added or removed — not when an individual item's data changes. This is significantly cheaper than subscribing to keys or the full array.
+
+### RenderChildrenWithAccessor
+
+`RenderChildrenWithAccessor` provides a lazy accessor (`getItem`) instead of reading item state eagerly. This means:
+
+- **Deferred reads**: If the children render function never accesses the item, no subscription is created
+- **Propless memoization**: When children returns a propless component (e.g. `{() => <Todo />}`), the output is automatically memoized — it won't re-render on parent updates
+
+The `getItem` function is a getter that reads the latest state on demand. Wrap it in a lazy property (`get todo() { return getItem(); }`) so the state is only read when the consumer accesses it.
+
+## Built-in primitives
+
+All assistant-ui list primitives (Messages, Parts, Attachments, Suggestions, ThreadListItems, etc.) use this pattern internally. When using the children render function API, you get the lazy accessor behavior automatically:
+
+```tsx
+<ThreadPrimitive.Messages>
+  {({ message }) => {
+    // `message` is a lazy getter — state is read here, not above
+    if (message.role === "user") return <MyUserMessage />;
+    return <MyAssistantMessage />;
+  }}
+</ThreadPrimitive.Messages>
+```

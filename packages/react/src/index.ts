@@ -358,6 +358,17 @@ export {
 // internal & augmentations
 // ============================================================================
 export * as INTERNAL from "./internal";
+
+// Unstable - mention
+export {
+  unstable_useToolMentionAdapter,
+  type Unstable_ToolMentionAdapterOptions,
+} from "./unstable/useToolMentionAdapter";
+export {
+  useMentionContext as unstable_useMentionContext,
+  useMentionContextOptional as unstable_useMentionContextOptional,
+  useMentionInternalContext as unstable_useMentionInternalContext,
+} from "./primitives/composer/mention";
 export type { ToolExecutionStatus } from "./internal";
 
 export type { Assistant } from "./augmentations";

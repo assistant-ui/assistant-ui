@@ -32,6 +32,7 @@
     "select",
     "tabs",
     "---Experimental---",
+    "mention",
     "message-timing",
     "part-grouping"
   ]

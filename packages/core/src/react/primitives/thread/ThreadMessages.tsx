@@ -1,9 +1,11 @@
-import { type ComponentType, type FC, type ReactNode, memo } from "react";
 import {
-  AuiForEach,
-  RenderChildrenWithAccessor,
-  useAuiState,
-} from "@assistant-ui/store";
+  type ComponentType,
+  type FC,
+  type ReactNode,
+  memo,
+  useMemo,
+} from "react";
+import { RenderChildrenWithAccessor, useAuiState } from "@assistant-ui/store";
 import { MessageByIndexProvider } from "../../providers/MessageByIndexProvider";
 import { MessageState } from "../../../store";
 
@@ -169,10 +171,13 @@ ThreadPrimitiveMessageByIndex.displayName = "ThreadPrimitive.MessageByIndex";
 
 const ThreadPrimitiveMessagesInner: FC<{
   children: (value: { message: MessageState }) => ReactNode;
-}> = ({ children }) => (
-  <AuiForEach keys={(s) => s.thread.messages.map((_, index) => index)}>
-    {(index) => (
-      <MessageByIndexProvider index={index}>
+}> = ({ children }) => {
+  const messagesLength = useAuiState((s) => s.thread.messages.length);
+
+  return useMemo(() => {
+    if (messagesLength === 0) return null;
+    return Array.from({ length: messagesLength }, (_, index) => (
+      <MessageByIndexProvider key={index} index={index}>
         <RenderChildrenWithAccessor
           getItemState={(aui) => aui.thread().message({ index }).getState()}
         >
@@ -185,9 +190,9 @@ const ThreadPrimitiveMessagesInner: FC<{
           }
         </RenderChildrenWithAccessor>
       </MessageByIndexProvider>
-    )}
-  </AuiForEach>
-);
+    ));
+  }, [messagesLength, children]);
+};
 
 /**
  * Renders all messages in the current thread.

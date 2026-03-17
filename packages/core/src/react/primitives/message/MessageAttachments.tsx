@@ -1,10 +1,6 @@
 import type { CompleteAttachment } from "../../../types/attachment";
-import { ComponentType, type FC, type ReactNode, memo } from "react";
-import {
-  AuiForEach,
-  RenderChildrenWithAccessor,
-  useAuiState,
-} from "@assistant-ui/store";
+import { ComponentType, type FC, type ReactNode, memo, useMemo } from "react";
+import { RenderChildrenWithAccessor, useAuiState } from "@assistant-ui/store";
 import { MessageAttachmentByIndexProvider } from "../../providers/AttachmentByIndexProvider";
 
 type MessageAttachmentsComponentConfig = {
@@ -88,30 +84,34 @@ MessagePrimitiveAttachmentByIndex.displayName =
 
 const MessagePrimitiveAttachmentsInner: FC<{
   children: (value: { attachment: CompleteAttachment }) => ReactNode;
-}> = ({ children }) => (
-  <AuiForEach
-    keys={(s) => {
-      if (s.message.role !== "user") return [];
-      return s.message.attachments.map((_, index) => index);
-    }}
-  >
-    {(index) => (
-      <MessageAttachmentByIndexProvider index={index}>
-        <RenderChildrenWithAccessor
-          getItemState={(aui) => aui.message().attachment({ index }).getState()}
-        >
-          {(getItem) =>
-            children({
-              get attachment() {
-                return getItem() as CompleteAttachment;
-              },
-            })
-          }
-        </RenderChildrenWithAccessor>
-      </MessageAttachmentByIndexProvider>
-    )}
-  </AuiForEach>
-);
+}> = ({ children }) => {
+  const attachmentsCount = useAuiState((s) => {
+    if (s.message.role !== "user") return 0;
+    return s.message.attachments.length;
+  });
+
+  return useMemo(
+    () =>
+      Array.from({ length: attachmentsCount }, (_, index) => (
+        <MessageAttachmentByIndexProvider key={index} index={index}>
+          <RenderChildrenWithAccessor
+            getItemState={(aui) =>
+              aui.message().attachment({ index }).getState()
+            }
+          >
+            {(getItem) =>
+              children({
+                get attachment() {
+                  return getItem() as CompleteAttachment;
+                },
+              })
+            }
+          </RenderChildrenWithAccessor>
+        </MessageAttachmentByIndexProvider>
+      )),
+    [attachmentsCount, children],
+  );
+};
 
 export const MessagePrimitiveAttachments: FC<
   MessagePrimitiveAttachments.Props

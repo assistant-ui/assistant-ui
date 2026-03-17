@@ -7,7 +7,6 @@ import {
   useMemo,
 } from "react";
 import {
-  AuiForEach,
   RenderChildrenWithAccessor,
   useAuiState,
   useAui,
@@ -582,11 +581,13 @@ const MessagePrimitivePartsInner: FC<{
   children: (value: { part: EnrichedPartState }) => ReactNode;
 }> = ({ children }) => {
   const aui = useAui();
+  const contentLength = useAuiState((s) => s.message.parts.length);
 
-  return (
-    <AuiForEach keys={(s) => s.message.parts.map((_, index) => index)}>
-      {(index) => (
-        <PartByIndexProvider index={index}>
+  // biome-ignore lint/correctness/useExhaustiveDependencies: aui accessors are stable refs
+  return useMemo(
+    () =>
+      Array.from({ length: contentLength }, (_, index) => (
+        <PartByIndexProvider key={index} index={index}>
           <RenderChildrenWithAccessor
             getItemState={(aui) => aui.message().part({ index }).getState()}
           >
@@ -625,8 +626,8 @@ const MessagePrimitivePartsInner: FC<{
             }}
           </RenderChildrenWithAccessor>
         </PartByIndexProvider>
-      )}
-    </AuiForEach>
+      )),
+    [contentLength, children],
   );
 };
 
