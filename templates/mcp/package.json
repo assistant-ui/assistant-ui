@@ -12,8 +12,8 @@
     "lint:fix": "biome check --write ."
   },
   "dependencies": {
-    "@ai-sdk/mcp": "^1.0.25",
-    "@ai-sdk/openai": "^3.0.41",
+    "@ai-sdk/mcp": "^1.0.26",
+    "@ai-sdk/openai": "^3.0.46",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-ai-sdk": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
