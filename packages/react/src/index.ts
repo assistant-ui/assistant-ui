@@ -365,10 +365,10 @@ export {
   type Unstable_ToolMentionAdapterOptions,
 } from "./unstable/useToolMentionAdapter";
 export {
-  unstable_useMentionContext,
-  unstable_useMentionContextOptional,
-  unstable_useMentionInternalContext,
-} from "./primitives/composer";
+  useMentionContext as unstable_useMentionContext,
+  useMentionContextOptional as unstable_useMentionContextOptional,
+  useMentionInternalContext as unstable_useMentionInternalContext,
+} from "./primitives/composer/mention";
 export type { ToolExecutionStatus } from "./internal";
 
 export type { Assistant } from "./augmentations";
