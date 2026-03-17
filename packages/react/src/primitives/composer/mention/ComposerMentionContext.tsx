@@ -259,9 +259,14 @@ export const ComposerPrimitiveMentionRoot: FC<
     return adapter.categories();
   }, [open, adapter]);
 
-  // Auto-drill into single category (avoids extra click for common case)
+  // Auto-drill into single category on open (avoids extra click for common case).
+  // Only applies when query is empty — once the user types, search mode takes over.
+  const autoDrilledCategoryId =
+    !activeCategoryId && !query && categories.length === 1
+      ? categories[0]!.id
+      : null;
   const effectiveActiveCategoryId = open
-    ? (activeCategoryId ?? (categories.length === 1 ? categories[0]!.id : null))
+    ? (activeCategoryId ?? autoDrilledCategoryId)
     : null;
 
   const allItems = useMemo<readonly Unstable_MentionItem[]>(() => {
