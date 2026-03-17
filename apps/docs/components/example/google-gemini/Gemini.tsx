@@ -255,7 +255,7 @@ const GeminiAttachment: FC = () => {
         </button>
       </div>
       <AttachmentPrimitive.Remove
-        className="-right-2 -top-2 absolute flex size-10 items-center justify-center rounded-full border border-[#00000020] bg-white text-[#6b6a68] opacity-0 backdrop-blur-sm transition-all hover:bg-white hover:text-[#1a1a18] group-focus-within/thumbnail:opacity-100 group-hover/thumbnail:opacity-100 dark:border-[#6c6a6040] dark:bg-black dark:text-[#9a9893] dark:hover:bg-[#1f1e1b] dark:hover:text-[#eee]"
+        className="absolute -top-2 -right-2 flex size-10 items-center justify-center rounded-full border border-[#00000020] bg-white text-[#6b6a68] opacity-0 backdrop-blur-sm transition-all hover:bg-white hover:text-[#1a1a18] group-focus-within/thumbnail:opacity-100 group-hover/thumbnail:opacity-100 dark:border-[#6c6a6040] dark:bg-black dark:text-[#9a9893] dark:hover:bg-[#1f1e1b] dark:hover:text-[#eee]"
         aria-label="Remove attachment"
       >
         <Cross2Icon width={24} height={24} />
